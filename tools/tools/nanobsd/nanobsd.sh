@@ -404,7 +404,7 @@ newfs_part ( ) (
 	lbl=$3
 	echo newfs ${NANO_NEWFS} ${NANO_LABEL:+-L${NANO_LABEL}${lbl}} ${dev}
 	newfs ${NANO_NEWFS} ${NANO_LABEL:+-L${NANO_LABEL}${lbl}} ${dev}
-	mount ${dev} ${mnt}
+	mount -o async ${dev} ${mnt}
 )
 
 populate_slice ( ) (
@@ -513,8 +513,8 @@ create_i386_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	else
 		echo "Creating md backing file..."
-		dd if=/dev/zero of=${IMG} bs=${NANO_SECTS}b \
-			count=`expr ${NANO_MEDIASIZE} / ${NANO_SECTS}`
+		rm -f ${IMG}
+		dd if=/dev/zero of=${IMG} seek=${NANO_MEDIASIZE} count=0
 		MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} \
 			-y ${NANO_HEADS}`
 	fi
