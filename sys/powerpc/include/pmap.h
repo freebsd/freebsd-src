@@ -121,6 +121,25 @@ struct pvo_entry {
 };
 LIST_HEAD(pvo_head, pvo_entry);
 
+#define	PVO_PTEGIDX_MASK	0x007UL		/* which PTEG slot */
+#define	PVO_PTEGIDX_VALID	0x008UL		/* slot is valid */
+#define	PVO_WIRED		0x010UL		/* PVO entry is wired */
+#define	PVO_MANAGED		0x020UL		/* PVO entry is managed */
+#define	PVO_EXECUTABLE		0x040UL		/* PVO entry is executable */
+#define	PVO_BOOTSTRAP		0x080UL		/* PVO entry allocated during
+						   bootstrap */
+#define PVO_FAKE		0x100UL		/* fictitious phys page */
+#define PVO_LARGE		0x200UL		/* large page */
+#define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
+#define PVO_ISFAKE(pvo)		((pvo)->pvo_vaddr & PVO_FAKE)
+#define	PVO_PTEGIDX_GET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_MASK)
+#define	PVO_PTEGIDX_ISSET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_VALID)
+#define	PVO_PTEGIDX_CLR(pvo)	\
+	((void)((pvo)->pvo_vaddr &= ~(PVO_PTEGIDX_VALID|PVO_PTEGIDX_MASK)))
+#define	PVO_PTEGIDX_SET(pvo, i)	\
+	((void)((pvo)->pvo_vaddr |= (i)|PVO_PTEGIDX_VALID))
+#define	PVO_VSID(pvo)		((pvo)->pvo_vpn >> 16)
+
 struct	md_page {
 	u_int64_t	 mdpg_attrs;
 	vm_memattr_t	 mdpg_cache_attrs;
