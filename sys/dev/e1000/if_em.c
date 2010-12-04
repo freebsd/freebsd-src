@@ -4303,7 +4303,6 @@ next_desc:
 static __inline void
 em_rx_discard(struct rx_ring *rxr, int i)
 {
-	struct adapter		*adapter = rxr->adapter;
 	struct em_buffer	*rbuf;
 
 	rbuf = &rxr->rx_buffers[i];
