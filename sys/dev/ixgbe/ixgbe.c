@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.3.6";
+char ixgbe_driver_version[] = "2.3.7";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -3023,16 +3023,12 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 		case ETHERTYPE_IP:
 			ip = (struct ip *)(mp->m_data + ehdrlen);
 			ip_hlen = ip->ip_hl << 2;
-			if (mp->m_len < ehdrlen + ip_hlen)
-				return (FALSE);
 			ipproto = ip->ip_p;
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
 			break;
 		case ETHERTYPE_IPV6:
 			ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
 			ip_hlen = sizeof(struct ip6_hdr);
-			if (mp->m_len < ehdrlen + ip_hlen)
-				return (FALSE);
 			ipproto = ip6->ip6_nxt;
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV6;
 			break;
