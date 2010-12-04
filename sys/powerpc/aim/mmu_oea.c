@@ -161,24 +161,6 @@ __FBSDID("$FreeBSD$");
 #define	VSID_TO_SR(vsid)	((vsid) & 0xf)
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
 
-#define	PVO_PTEGIDX_MASK	0x007		/* which PTEG slot */
-#define	PVO_PTEGIDX_VALID	0x008		/* slot is valid */
-#define	PVO_WIRED		0x010		/* PVO entry is wired */
-#define	PVO_MANAGED		0x020		/* PVO entry is managed */
-#define	PVO_EXECUTABLE		0x040		/* PVO entry is executable */
-#define	PVO_BOOTSTRAP		0x080		/* PVO entry allocated during
-						   bootstrap */
-#define PVO_FAKE		0x100		/* fictitious phys page */
-#define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
-#define	PVO_ISEXECUTABLE(pvo)	((pvo)->pvo_vaddr & PVO_EXECUTABLE)
-#define PVO_ISFAKE(pvo)		((pvo)->pvo_vaddr & PVO_FAKE)
-#define	PVO_PTEGIDX_GET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_MASK)
-#define	PVO_PTEGIDX_ISSET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_VALID)
-#define	PVO_PTEGIDX_CLR(pvo)	\
-	((void)((pvo)->pvo_vaddr &= ~(PVO_PTEGIDX_VALID|PVO_PTEGIDX_MASK)))
-#define	PVO_PTEGIDX_SET(pvo, i)	\
-	((void)((pvo)->pvo_vaddr |= (i)|PVO_PTEGIDX_VALID))
-
 #define	MOEA_PVO_CHECK(pvo)
 
 struct ofw_map {
