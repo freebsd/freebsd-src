@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.313.20.16.10.2 2010/06/26 23:46:14 tbox Exp $ */
+/* $Id: query.c,v 1.313.20.16.10.3 2010/09/29 00:03:32 marka Exp $ */
 
 /*! \file */
 
@@ -820,17 +820,15 @@ query_getcachedb(ns_client_t *client, dns_name_t *name, dns_rdatatype_t qtype,
 		return (DNS_R_REFUSED);
 	dns_db_attach(client->view->cachedb, &db);
 
-	if ((client->query.attributes &
-	     NS_QUERYATTR_QUERYOKVALID) != 0) {
+	if ((client->query.attributes & NS_QUERYATTR_CACHEACLOKVALID) != 0) {
 		/*
-		 * We've evaluated the view's queryacl already.  If
-		 * NS_QUERYATTR_QUERYOK is set, then the client is
+		 * We've evaluated the view's cacheacl already.  If
+		 * NS_QUERYATTR_CACHEACLOK is set, then the client is
 		 * allowed to make queries, otherwise the query should
 		 * be refused.
 		 */
 		check_acl = ISC_FALSE;
-		if ((client->query.attributes &
-		     NS_QUERYATTR_QUERYOK) == 0)
+		if ((client->query.attributes & NS_QUERYATTR_CACHEACLOK) == 0)
 			goto refuse;
 	} else {
 		/*
@@ -844,16 +842,15 @@ query_getcachedb(ns_client_t *client, dns_name_t *name, dns_rdatatype_t qtype,
 		char msg[NS_CLIENT_ACLMSGSIZE("query (cache)")];
 
 		result = ns_client_checkaclsilent(client, NULL,
-						  client->view->queryacl,
+						  client->view->cacheacl,
 						  ISC_TRUE);
 		if (result == ISC_R_SUCCESS) {
 			/*
-			 * We were allowed by the default
-			 * "allow-query" ACL.  Remember this so we
-			 * don't have to check again.
+			 * We were allowed by the "allow-query-cache" ACL.
+			 * Remember this so we don't have to check again.
 			 */
 			client->query.attributes |=
-				NS_QUERYATTR_QUERYOK;
+				NS_QUERYATTR_CACHEACLOK;
 			if (log && isc_log_wouldlog(ns_g_lctx,
 						     ISC_LOG_DEBUG(3)))
 			{
@@ -876,9 +873,9 @@ query_getcachedb(ns_client_t *client, dns_name_t *name, dns_rdatatype_t qtype,
 		}
 		/*
 		 * We've now evaluated the view's query ACL, and
-		 * the NS_QUERYATTR_QUERYOK attribute is now valid.
+		 * the NS_QUERYATTR_CACHEACLOKVALID attribute is now valid.
 		 */
-		client->query.attributes |= NS_QUERYATTR_QUERYOKVALID;
+		client->query.attributes |= NS_QUERYATTR_CACHEACLOKVALID;
 
 		if (result != ISC_R_SUCCESS)
 			goto refuse;
