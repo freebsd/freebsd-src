@@ -83,6 +83,8 @@ powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/machdep.c		optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
 powerpc/aim/mmu_oea64.c		optional	aim
+powerpc/aim/moea64_if.m		optional	aim
+powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/nexus.c		optional	aim
 powerpc/aim/ofwmagic.S		optional	aim
