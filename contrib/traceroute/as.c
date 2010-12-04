@@ -56,13 +56,14 @@ struct aslookup {
 };
 
 void *
-as_setup(char *server)
+as_setup(const char *server)
 {
 	struct aslookup *asn;
 	struct addrinfo hints, *res0, *res;
 	FILE *f;
 	int s, error;
 
+	s = -1;
 	if (server == NULL)
 		server = getenv("RA_SERVER");
 	if (server == NULL)
