@@ -30,6 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-void *as_setup(char *);
+void *as_setup(const char *);
 unsigned int as_lookup(void *, char *, sa_family_t);
 void as_shutdown(void *);
