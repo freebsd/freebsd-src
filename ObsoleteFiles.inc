@@ -22,16 +22,31 @@
 # grep '+=' /usr/src/tools/build/mk/OptionalObsoleteFiles.inc | sort -u) | \
 # sort | uniq -d
 #
+# To find regular duplicates not dependant on optional components, you can
+# also use something that will not give you false positives, e.g.:
+# for t in `make -V TARGETS universe`; do
+#   __MAKE_CONF=/dev/null make -f Makefile.inc1 TARGET=$t \
+#   -V OLD_FILES -V OLD_LIBS -V OLD_DIRS check-old | \
+#   xargs -n1 | sort | uniq -d;
+# done
+#
+# For optional components, you can use the following to see if some entries
+# in OptionalObsoleteFiles.inc have been obsoleted by ObsoleteFiles.inc
+# for o in tools/build/options/WITH*; do
+#   __MAKE_CONF=/dev/null make -f Makefile.inc1 -D${o##*/} \
+#   -V OLD_FILES -V OLD_LIBS -V OLD_DIRS check-old | \
+#   xargs -n1 | sort | uniq -d;
+# done
 
 # 20101112: vgonel(9) has gone to private API a while ago
 OLD_FILES+=usr/share/man/man9/vgonel.9.gz
 # 20101112: removed gasp.info
 OLD_FILES+=usr/share/info/gasp.info.gz
-# 20101109: headers moved to machine/ to x86/
+# 20101109: headers moved from machine/ to x86/
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/mptable.h
 .endif
-# 20101101: headers moved to machine/ to x86/
+# 20101101: headers moved from machine/ to x86/
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/apicreg.h
 OLD_FILES+=usr/include/machine/mca.h

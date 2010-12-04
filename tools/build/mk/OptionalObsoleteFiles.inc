@@ -1869,7 +1869,6 @@ OLD_FILES+=usr/lib/libfl_p.a
 OLD_FILES+=usr/lib/libform_p.a
 OLD_FILES+=usr/lib/libformw_p.a
 OLD_FILES+=usr/lib/libftpio_p.a
-OLD_FILES+=usr/lib/libg2c_p.a
 OLD_FILES+=usr/lib/libgcc_p.a
 OLD_FILES+=usr/lib/libgeom_p.a
 OLD_FILES+=usr/lib/libgnuregex_p.a
