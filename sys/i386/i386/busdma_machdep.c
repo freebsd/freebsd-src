@@ -28,9 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kdb.h>
-#include <ddb/ddb.h>
-#include <ddb/db_output.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
