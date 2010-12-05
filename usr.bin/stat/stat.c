@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 #if 0
 #ifndef lint
-__RCSID("$NetBSD: stat.c,v 1.18 2004/05/28 04:48:31 atatat Exp $");
+__RCSID("$NetBSD: stat.c,v 1.22 2005/04/22 03:36:48 atatat Exp $");
 #endif
 #endif
 
@@ -381,7 +381,7 @@ output(const struct stat *st, const char *file,
     const char *statfmt, int fn, int nonl, int quiet)
 {
 	int flags, size, prec, ofmt, hilo, what;
-	char buf[PATH_MAX];
+	char buf[PATH_MAX + 4 + 1];
 	const char *subfmt;
 	int nl, t, i;
 
@@ -550,7 +550,7 @@ output(const struct stat *st, const char *file,
 		     buf, sizeof(buf),
 		     flags, size, prec, ofmt, hilo, what);
 
-		for (i = 0; i < t && i < sizeof(buf); i++)
+		for (i = 0; i < t && i < sizeof(buf) - 1; i++)
 			addchar(stdout, buf[i], &nl);
 
 		continue;
