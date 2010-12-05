@@ -264,6 +264,7 @@ struct iwn_softc {
 	int			calib_cnt;
 	struct iwn_calib_state	calib;
 	u_int			calib_init;
+	u_int			calib_runtime;
 #define	IWN_CALIB_XTAL			(1 << IWN_CALIB_IDX_XTAL)
 #define	IWN_CALIB_DC			(1 << IWN_CALIB_IDX_DC)
 #define	IWN_CALIB_LO			(1 << IWN_CALIB_IDX_LO)
