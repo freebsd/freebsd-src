@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 #if 0
 #ifndef lint
-__RCSID("$NetBSD: stat.c,v 1.27 2008/05/16 17:58:33 atatat Exp $");
+__RCSID("$NetBSD: stat.c,v 1.28 2009/04/13 23:02:36 lukem Exp $");
 #endif
 #endif
 
@@ -188,7 +188,7 @@ int	format1(const struct stat *,	/* stat info */
 char   *xfflagstostr(unsigned long);
 #endif
 
-char *timefmt;
+const char *timefmt;
 int linkfail;
 
 #define addchar(s, c, nl) \
@@ -203,7 +203,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	int ch, rc, errs, am_readlink;
 	int lsF, fmtchar, usestat, fn, nonl, quiet;
-	char *statfmt, *options, *synopsis;
+	const char *statfmt, *options, *synopsis;
 	char dname[sizeof _PATH_DEV + SPECNAMELEN] = _PATH_DEV;
 	const char *file;
 
@@ -556,7 +556,7 @@ output(const struct stat *st, const char *file,
 		     buf, sizeof(buf),
 		     flags, size, prec, ofmt, hilo, what);
 
-		for (i = 0; i < t && i < sizeof(buf) - 1; i++)
+		for (i = 0; i < t && i < (int)(sizeof(buf) - 1); i++)
 			addchar(stdout, buf[i], &nl);
 
 		continue;
@@ -583,7 +583,8 @@ format1(const struct stat *st,
     int hilo, int what)
 {
 	u_int64_t data;
-	char *sdata, lfmt[24], tmp[20];
+	char *stmp, lfmt[24], tmp[20];
+	const char *sdata;
 	char smode[12], sid[12], path[PATH_MAX + 4];
 	struct passwd *pw;
 	struct group *gr;
@@ -644,28 +645,29 @@ format1(const struct stat *st,
 		small = (sizeof(st->st_mode) == 4);
 		data = st->st_mode;
 		strmode(st->st_mode, smode);
-		sdata = smode;
-		l = strlen(sdata);
-		if (sdata[l - 1] == ' ')
-			sdata[--l] = '\0';
+		stmp = smode;
+		l = strlen(stmp);
+		if (stmp[l - 1] == ' ')
+			stmp[--l] = '\0';
 		if (hilo == HIGH_PIECE) {
 			data >>= 12;
-			sdata += 1;
-			sdata[3] = '\0';
+			stmp += 1;
+			stmp[3] = '\0';
 			hilo = 0;
 		}
 		else if (hilo == MIDDLE_PIECE) {
 			data = (data >> 9) & 07;
-			sdata += 4;
-			sdata[3] = '\0';
+			stmp += 4;
+			stmp[3] = '\0';
 			hilo = 0;
 		}
 		else if (hilo == LOW_PIECE) {
 			data &= 0777;
-			sdata += 7;
-			sdata[3] = '\0';
+			stmp += 7;
+			stmp[3] = '\0';
 			hilo = 0;
 		}
+		sdata = stmp;
 		formats = FMTF_DECIMAL | FMTF_OCTAL | FMTF_UNSIGNED | FMTF_HEX |
 		    FMTF_STRING;
 		if (ofmt == 0)
@@ -827,24 +829,23 @@ format1(const struct stat *st,
 	case SHOW_filetype:
 		small = 0;
 		data = 0;
-		sdata = smode;
-		sdata[0] = '\0';
+		sdata = "";
 		if (hilo == 0 || hilo == LOW_PIECE) {
 			switch (st->st_mode & S_IFMT) {
-			case S_IFIFO:	(void)strcat(sdata, "|");	break;
-			case S_IFDIR:	(void)strcat(sdata, "/");	break;
+			case S_IFIFO:	sdata = "|";	break;
+			case S_IFDIR:	sdata = "/";	break;
 			case S_IFREG:
 				if (st->st_mode &
 				    (S_IXUSR | S_IXGRP | S_IXOTH))
-					(void)strcat(sdata, "*");
+					sdata = "*";
 				break;
-			case S_IFLNK:	(void)strcat(sdata, "@");	break;
-			case S_IFSOCK:	(void)strcat(sdata, "=");	break;
+			case S_IFLNK:	sdata = "@";	break;
+			case S_IFSOCK:	sdata = "=";	break;
 #ifdef S_IFWHT
-			case S_IFWHT:	(void)strcat(sdata, "%");	break;
+			case S_IFWHT:	sdata = "%";	break;
 #endif /* S_IFWHT */
 #ifdef S_IFDOOR
-			case S_IFDOOR:	(void)strcat(sdata, ">");	break;
+			case S_IFDOOR:	sdata = ">";	break;
 #endif /* S_IFDOOR */
 			}
 			hilo = 0;
@@ -1001,7 +1002,7 @@ format1(const struct stat *st,
 		 * might be required to make up the requested precision.
 		 */
 		l = snprintf(buf, blen, lfmt, ts.tv_sec, ts.tv_nsec);
-		for (; prec > 9 && l < blen; prec--, l++)
+		for (; prec > 9 && l < (int)blen; prec--, l++)
 			(void)strcat(buf, "0");
 		return (l);
 	}
