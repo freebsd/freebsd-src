@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 #if 0
 #ifndef lint
-__RCSID("$NetBSD: stat.c,v 1.13 2003/07/25 03:21:17 atatat Exp $");
+__RCSID("$NetBSD: stat.c,v 1.18 2004/05/28 04:48:31 atatat Exp $");
 #endif
 #endif
 
@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <grp.h>
 #include <limits.h>
 #include <paths.h>
@@ -313,8 +314,17 @@ main(int argc, char *argv[])
 			rc = fstat(STDIN_FILENO, &st);
 		} else {
 			file = argv[0];
-			if (usestat)
-				rc = stat(file, &st);
+			if (usestat) {
+				/*
+				 * Try stat() and if it fails, fall back to
+				 * lstat() just in case we're examining a
+				 * broken symlink.
+				 */
+				if ((rc = stat(file, &st)) == -1 &&
+				    errno == ENOENT &&
+				    (rc = lstat(file, &st)) == -1)
+					errno = ENOENT;
+			}
 			else
 				rc = lstat(file, &st);
 		}
