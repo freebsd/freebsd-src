@@ -1,4 +1,4 @@
-.\"	$NetBSD: stat.1,v 1.19 2006/10/07 10:41:50 elad Exp $
+.\"	$NetBSD: stat.1,v 1.27 2010/03/11 21:37:01 enami Exp $
 .\"
 .\" Copyright (c) 2002 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -68,7 +68,7 @@ will print nothing and exit with an error.
 If the
 .Fl f
 option is specified, the output is canonicalized by following every symlink
-in every component of the given path recursively. 
+in every component of the given path recursively.
 .Nm readlink
 will resolve both absolute and relative paths, and return the absolute pathname
 corresponding to
@@ -78,6 +78,24 @@ In this case, the argument does not need to be a symbolic link.
 The information displayed is obtained by calling
 .Xr lstat 2
 with the given argument and evaluating the returned structure.
+The default format displays the
+.Fa st_dev ,
+.Fa st_ino ,
+.Fa st_mode ,
+.Fa st_nlink ,
+.Fa st_uid ,
+.Fa st_gid ,
+.Fa st_rdev ,
+.Fa st_size ,
+.Fa st_atime ,
+.Fa st_mtime ,
+.Fa st_ctime ,
+.Fa st_birthtime ,
+.Fa st_blksize ,
+.Fa st_blocks ,
+and
+.Fa st_flags
+fields, in that order.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -354,40 +372,51 @@ A required field specifier, being one of the following:
 .It Cm d
 Device upon which
 .Ar file
-resides.
+resides
+.Pq Fa st_dev .
 .It Cm i
 .Ar file Ns 's
-inode number.
+inode number
+.Pq Fa st_ino .
 .It Cm p
-File type and permissions.
+File type and permissions
+.Pq Fa st_mode .
 .It Cm l
 Number of hard links to
-.Ar file .
+.Ar file
+.Pq Fa st_nlink .
 .It Cm u , g
 User ID and group ID of
 .Ar file Ns 's
-owner.
+owner
+.Pq Fa st_uid , st_gid .
 .It Cm r
-Device number for character and block device special files.
+Device number for character and block device special files
+.Pq Fa st_rdev .
 .It Cm a , m , c , B
 The time
 .Ar file
 was last accessed or modified, or when the inode was last changed, or
-the birth time of the inode.
+the birth time of the inode
+.Pq Fa st_atime , st_mtime , st_ctime , st_birthtime .
 .It Cm z
 The size of
 .Ar file
-in bytes.
+in bytes
+.Pq Fa st_size .
 .It Cm b
 Number of blocks allocated for
-.Ar file .
+.Ar file
+.Pq Fa st_blocks .
 .It Cm k
-Optimal file system I/O operation block size.
+Optimal file system I/O operation block size
+.Pq Fa st_blksize .
 .It Cm f
 User defined flags for
 .Ar file .
 .It Cm v
-Inode generation number.
+Inode generation number
+.Pq Fa st_gen .
 .El
 .Pp
 The following five field specifiers are not drawn directly from the
