@@ -354,7 +354,7 @@ showjob(struct job *jp, int mode)
 		if (WEXITSTATUS(ps->status) == 0)
 			strcpy(statestr, "Done");
 		else
-			fmtstr(statestr, 64, "Done (%d)",
+			fmtstr(statestr, 64, "Done(%d)",
 			    WEXITSTATUS(ps->status));
 	} else {
 		i = WTERMSIG(ps->status);
