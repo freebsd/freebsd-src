@@ -766,7 +766,7 @@ forkshell(struct job *jp, union node *n, int mode)
 	TRACE(("forkshell(%%%td, %p, %d) called\n", jp - jobtab, (void *)n,
 	    mode));
 	INTOFF;
-	if (mode == FORK_BG)
+	if (mode == FORK_BG && (jp == NULL || jp->nprocs == 0))
 		checkzombies();
 	flushall();
 	pid = fork();
@@ -980,7 +980,7 @@ dowait(int block, struct job *job)
 	INTOFF;
 	thisjob = NULL;
 	for (jp = jobtab ; jp < jobtab + njobs ; jp++) {
-		if (jp->used) {
+		if (jp->used && jp->nprocs > 0) {
 			done = 1;
 			stopped = 1;
 			for (sp = jp->ps ; sp < jp->ps + jp->nprocs ; sp++) {
