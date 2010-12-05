@@ -308,7 +308,6 @@ showjob(struct job *jp, pid_t pid, int mode)
 	struct procstat *ps;
 	struct job *j;
 	int col, curr, i, jobno, prev, procno;
-	pid_t ppid;
 	char c;
 
 	procno = (mode == SHOWJOBS_PGIDS) ? 1 : jp->nprocs;
@@ -323,9 +322,7 @@ showjob(struct job *jp, pid_t pid, int mode)
 #endif
 	for (ps = jp->ps ; ; ps++) {	/* for each process */
 		if (mode == SHOWJOBS_PIDS || mode == SHOWJOBS_PGIDS) {
-			ppid = (mode == SHOWJOBS_PIDS) ? ps->pid :
-			    getpgid(ps->pid);
-			out1fmt("%d\n", (int)ppid);
+			out1fmt("%d\n", (int)ps->pid);
 			goto skip;
 		}
 		if (mode != SHOWJOBS_VERBOSE && ps != jp->ps && pid == 0)
