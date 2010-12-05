@@ -1,4 +1,4 @@
-.\"	$NetBSD: stat.1,v 1.27 2010/03/11 21:37:01 enami Exp $
+.\"	$NetBSD: stat.1,v 1.28 2010/04/05 21:25:01 joerg Exp $
 .\"
 .\" Copyright (c) 2002 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2010
+.Dd December 5, 2010
 .Dt STAT 1
 .Os
 .Sh NAME
@@ -473,7 +473,7 @@ which default to
 .Ex -std stat readlink
 .Sh EXAMPLES
 If no options are specified, the default format is
-"%d %i %Sp %l %Su %Sg %r %z \\"%Sa\\" \\"%Sm\\" \\"%Sc\\" \\"%SB\\" %k %b %#Xf %N".
+"%d %i %Sp %l %Su %Sg %r %z \e"%Sa\e" \e"%Sm\e" \e"%Sc\e" \e"%SB\e" %k %b %#Xf %N".
 .Bd -literal -offset indent
 \*[Gt] stat /tmp/bar
 0 78852 -rw-r--r-- 1 root wheel 0 0 "Jul  8 10:26:03 2004" "Jul  8 10:26:03 2004" "Jul  8 10:28:13 2004" "Jan  1 09:00:00 1970" 16384 0 0 /tmp/bar
