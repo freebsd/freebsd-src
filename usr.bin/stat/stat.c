@@ -177,7 +177,7 @@ __FBSDID("$FreeBSD$");
 
 void	usage(const char *);
 void	output(const struct stat *, const char *,
-	    const char *, int, int, int);
+	    const char *, int, int);
 int	format1(const struct stat *,	/* stat info */
 	    const char *,		/* the file name */
 	    const char *, int,		/* the format string itself */
@@ -341,7 +341,7 @@ main(int argc, char *argv[])
 				warn("%s: stat", file);
 		}
 		else
-			output(&st, file, statfmt, fn, nonl, quiet);
+			output(&st, file, statfmt, fn, nonl);
 
 		argv++;
 		argc--;
@@ -383,7 +383,7 @@ usage(const char *synopsis)
  */
 void
 output(const struct stat *st, const char *file,
-    const char *statfmt, int fn, int nonl, int quiet)
+    const char *statfmt, int fn, int nonl)
 {
 	int flags, size, prec, ofmt, hilo, what;
 	char buf[PATH_MAX + 4 + 1];
