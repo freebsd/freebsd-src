@@ -1,4 +1,4 @@
-.\"	$NetBSD: stat.1,v 1.11 2003/05/08 13:07:10 wiz Exp $
+.\"	$NetBSD: stat.1,v 1.19 2006/10/07 10:41:50 elad Exp $
 .\"
 .\" Copyright (c) 2002 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -43,7 +43,7 @@
 .Op Fl t Ar timefmt
 .Op Ar
 .Nm readlink
-.Op Fl n
+.Op Fl fn
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -60,9 +60,20 @@ displays information about the file descriptor for standard input.
 When invoked as
 .Nm readlink ,
 only the target of the symbolic link is printed.
-If the given argument is not a symbolic link,
+If the given argument is not a symbolic link and the
+.Fl f
+option is not specified,
 .Nm readlink
 will print nothing and exit with an error.
+If the
+.Fl f
+option is specified, the output is canonicalized by following every symlink
+in every component of the given path recursively. 
+.Nm readlink
+will resolve both absolute and relative paths, and return the absolute pathname
+corresponding to
+.Ar file .
+In this case, the argument does not need to be a symbolic link.
 .Pp
 The information displayed is obtained by calling
 .Xr lstat 2
@@ -374,13 +385,15 @@ User defined flags for
 Inode generation number.
 .El
 .Pp
-The following four field specifiers are not drawn directly from the
+The following five field specifiers are not drawn directly from the
 data in
 .Vt "struct stat" ,
 but are:
 .Bl -tag -width indent
 .It Cm N
 The name of the file.
+.It Cm R
+The absolute pathname corresponding to the file.
 .It Cm T
 The file type, either as in
 .Nm ls Fl F
