@@ -4,3 +4,4 @@ unset DATA_ADDR
 unset SMALL_DATA_CTOR
 unset SMALL_DATA_DTOR
 . ${srcdir}/emulparams/elf_fbsd.sh
+OUTPUT_FORMAT="elf64-ia64-freebsd"
