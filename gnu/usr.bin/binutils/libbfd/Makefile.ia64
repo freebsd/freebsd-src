@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-DEFAULT_VECTOR=	bfd_elf64_ia64_little_vec
+DEFAULT_VECTOR=	bfd_elf64_ia64_freebsd_vec
 
 SRCS+=	cofflink.c \
 	cpu-ia64.c \
@@ -18,13 +18,14 @@ SRCS+=	cofflink.c \
 
 VECS+=	${DEFAULT_VECTOR} \
 	bfd_efi_app_ia64_vec \
+	bfd_elf64_ia64_little_vec \
 	bfd_elf64_ia64_big_vec \
 	bfd_elf64_little_generic_vec bfd_elf64_big_generic_vec \
 	bfd_elf32_little_generic_vec bfd_elf32_big_generic_vec
 
 CLEANFILES+=	elf64-ia64.c pepigen.c pex64igen.c
 
-elf64-ia64.c: elf-fbsd-brand.c elfxx-ia64.c
+elf64-ia64.c: elfxx-ia64.c
 	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
 
 pepigen.c: peXXigen.c

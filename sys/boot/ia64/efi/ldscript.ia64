@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-OUTPUT_FORMAT("elf64-ia64-little", "elf64-ia64-little", "elf64-ia64-little")
+OUTPUT_FORMAT("elf64-ia64-freebsd", "elf64-ia64-freebsd", "elf64-ia64-freebsd")
 OUTPUT_ARCH(ia64)
 ENTRY(_start_plabel)
 SECTIONS

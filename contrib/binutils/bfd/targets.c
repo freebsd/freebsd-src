@@ -594,6 +594,7 @@ extern const bfd_target bfd_elf32_i860_little_vec;
 extern const bfd_target bfd_elf32_i860_vec;
 extern const bfd_target bfd_elf32_i960_vec;
 extern const bfd_target bfd_elf32_ia64_big_vec;
+extern const bfd_target bfd_elf64_ia64_freebsd_vec;
 extern const bfd_target bfd_elf32_ia64_hpux_big_vec;
 extern const bfd_target bfd_elf32_ip2k_vec;
 extern const bfd_target bfd_elf32_iq2000_vec;
