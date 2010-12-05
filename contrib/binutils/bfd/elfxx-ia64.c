@@ -5909,6 +5909,26 @@ elfNN_hpux_backend_symbol_processing (bfd *abfd ATTRIBUTE_UNUSED,
 
 #include "elfNN-target.h"
 
+/* FreeBSD support.  */
+
+#undef  TARGET_LITTLE_SYM
+#define TARGET_LITTLE_SYM		bfd_elfNN_ia64_freebsd_vec
+#undef  TARGET_LITTLE_NAME
+#define TARGET_LITTLE_NAME		"elfNN-ia64-freebsd"
+#undef  TARGET_BIG_SYM
+#undef  TARGET_BIG_NAME
+
+#undef  ELF_OSABI
+#define ELF_OSABI			ELFOSABI_FREEBSD
+
+#undef  elf_backend_post_process_headers
+#define elf_backend_post_process_headers _bfd_elf_set_osabi
+
+#undef  elfNN_bed
+#define elfNN_bed elfNN_ia64_fbsd_bed
+
+#include "elfNN-target.h"
+
 /* HPUX-specific vectors.  */
 
 #undef  TARGET_LITTLE_SYM

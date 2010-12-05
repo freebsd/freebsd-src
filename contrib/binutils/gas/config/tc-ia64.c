@@ -7704,8 +7704,10 @@ ia64_target_format ()
       else
 	{
 	  if (md.flags & EF_IA_64_ABI64)
-#ifdef TE_AIX50
+#if defined(TE_AIX50)
 	    return "elf64-ia64-aix-little";
+#elif defined(TE_FreeBSD)
+	    return "elf64-ia64-freebsd";
 #else
 	    return "elf64-ia64-little";
 #endif
