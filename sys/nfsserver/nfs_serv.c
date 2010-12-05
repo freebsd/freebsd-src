@@ -3252,7 +3252,7 @@ again:
 			nfhp->fh_fsid = nvp->v_mount->mnt_stat.f_fsid;
 			if ((error1 = VOP_VPTOFH(nvp, &nfhp->fh_fid)) == 0)
 				error1 = VOP_GETATTR(nvp, vap, cred);
-			if (vp == nvp)
+			if (!usevget && vp == nvp)
 				vunref(nvp);
 			else
 				vput(nvp);

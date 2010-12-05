@@ -323,6 +323,8 @@
 #define	GPIO_TYPE(b,v)		((v) << (((b) & 0x7) * 3))
 #define	GPIO_TYPE_REG(b)	(((b)&8)?IXP425_GPIO_GPIT2R:IXP425_GPIO_GPIT1R)
 
+#define	IXP4XX_GPIO_PINS	16
+
 /*
  * Expansion Bus Configuration Space.
  */

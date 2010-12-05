@@ -162,6 +162,16 @@ typedef struct mdl mdl, ndis_buffer;
 #define	WDM_MINOR_WINXP		0x20
 #define	WDM_MINOR_WIN2003	0x30
 
+enum nt_caching_type {
+	MmNonCached			= 0,
+	MmCached			= 1,
+	MmWriteCombined			= 2,
+	MmHardwareCoherentCached	= 3,
+	MmNonCachedUnordered		= 4,
+	MmUSWCCached			= 5,
+	MmMaximumCacheType		= 6
+};
+
 /*-
  * The ndis_kspin_lock type is called KSPIN_LOCK in MS-Windows.
  * According to the Windows DDK header files, KSPIN_LOCK is defined like this:
@@ -594,6 +604,65 @@ struct kinterrupt {
 };
 
 typedef struct kinterrupt kinterrupt;
+
+struct ksystem_time {
+	uint32_t	low_part;
+	int32_t		high1_time;
+	int32_t		high2_time;
+};
+
+enum nt_product_type {
+	NT_PRODUCT_WIN_NT = 1,
+	NT_PRODUCT_LAN_MAN_NT,
+	NT_PRODUCT_SERVER
+};
+
+enum alt_arch_type {
+	STANDARD_DESIGN,
+	NEC98x86,
+	END_ALTERNATIVES
+};
+
+struct kuser_shared_data {
+	uint32_t		tick_count;
+	uint32_t		tick_count_multiplier;
+	volatile struct		ksystem_time interrupt_time;
+	volatile struct		ksystem_time system_time;
+	volatile struct		ksystem_time time_zone_bias;
+	uint16_t		image_number_low;
+	uint16_t		image_number_high;
+	int16_t			nt_system_root[260];
+	uint32_t		max_stack_trace_depth;
+	uint32_t		crypto_exponent;
+	uint32_t		time_zone_id;
+	uint32_t		large_page_min;
+	uint32_t		reserved2[7];
+	enum nt_product_type	nt_product_type;
+	uint8_t			product_type_is_valid;
+	uint32_t		nt_major_version;
+	uint32_t		nt_minor_version;
+	uint8_t			processor_features[64];
+	uint32_t		reserved1;
+	uint32_t		reserved3;
+	volatile uint32_t	time_slip;
+	enum alt_arch_type	alt_arch_type;
+	int64_t			system_expiration_date;
+	uint32_t		suite_mask;
+	uint8_t			kdbg_enabled;
+	volatile uint32_t	active_console;
+	volatile uint32_t	dismount_count;
+	uint32_t		com_plus_package;
+	uint32_t		last_system_rit_event_tick_count;
+	uint32_t		num_phys_pages;
+	uint8_t			safe_boot_mode;
+	uint32_t		trace_log;
+	uint64_t		fill0;
+	uint64_t		sys_call[4];
+	union {
+		volatile struct	ksystem_time	tick_count;
+		volatile uint64_t		tick_count_quad;
+	} tick;
+};
 
 /*
  * In Windows, there are Physical Device Objects (PDOs) and
@@ -1213,6 +1282,7 @@ typedef struct driver_object driver_object;
 #define	STATUS_PENDING			0x00000103
 #define	STATUS_FAILURE			0xC0000001
 #define	STATUS_NOT_IMPLEMENTED		0xC0000002
+#define	STATUS_ACCESS_VIOLATION		0xC0000005
 #define	STATUS_INVALID_PARAMETER	0xC000000D
 #define	STATUS_INVALID_DEVICE_REQUEST	0xC0000010
 #define	STATUS_MORE_PROCESSING_REQUIRED	0xC0000016
@@ -1314,6 +1384,9 @@ struct drvdb_ent {
 };
 
 extern image_patch_table ntoskrnl_functbl[];
+#ifdef __amd64__
+extern struct kuser_shared_data kuser_shared_data;
+#endif
 typedef void (*funcptr)(void);
 typedef int (*matchfuncptr)(interface_type, void *, void *);
 
@@ -1428,6 +1501,7 @@ extern void IoQueueWorkItem(io_workitem *, io_workitem_func,
  * routines live in the HAL. We try to imitate this behavior.
  */
 #ifdef __i386__
+#define	KI_USER_SHARED_DATA 0xffdf0000
 #define	KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
 #define	KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
 #define	KeRaiseIrql(a, b)	*(b) = KfRaiseIrql(a)
@@ -1437,6 +1511,7 @@ extern void IoQueueWorkItem(io_workitem *, io_workitem_func,
 #endif /* __i386__ */
 
 #ifdef __amd64__
+#define	KI_USER_SHARED_DATA 0xfffff78000000000UL
 #define	KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
 #define	KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
 

@@ -1070,7 +1070,6 @@ bwn_attach_post(struct bwn_softc *sc)
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
 		| IEEE80211_C_TXPMGT		/* capable of txpow mgt */
-		| IEEE80211_C_RATECTL		/* use ratectl */
 		;
 
 	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;	/* s/w bmiss */

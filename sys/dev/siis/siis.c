@@ -527,6 +527,7 @@ err1:
 err0:
 	bus_release_resource(dev, SYS_RES_MEMORY, ch->unit, ch->r_mem);
 	mtx_unlock(&ch->mtx);
+	mtx_destroy(&ch->mtx);
 	return (error);
 }
 
@@ -1207,6 +1208,17 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 			res->sector_count_exp = ATA_INB(ch->r_mem, offs + 13);
 		} else
 			bzero(res, sizeof(*res));
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
+		    ch->numrslots == 1) {
+			ccb->ataio.resid = ccb->ataio.dxfer_len -
+			    ATA_INL(ch->r_mem, SIIS_P_LRAM_SLOT(slot->slot) + 4);
+		}
+	} else {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
+		    ch->numrslots == 1) {
+			ccb->csio.resid = ccb->csio.dxfer_len -
+			    ATA_INL(ch->r_mem, SIIS_P_LRAM_SLOT(slot->slot) + 4);
+		}
 	}
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		bus_dmamap_sync(ch->dma.data_tag, slot->dma.data_map,

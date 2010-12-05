@@ -107,11 +107,11 @@ static int tx_threshold = 64;
 /*
  * The configuration byte map has several undefined fields which
  * must be one or must be zero.  Set up a template for these bits.
- * The actual configuration is performed in fxp_init.
+ * The actual configuration is performed in fxp_init_body.
  *
  * See struct fxp_cb_config for the bit definitions.
  */
-static u_char fxp_cb_config_template[] = {
+static const u_char const fxp_cb_config_template[] = {
 	0x0, 0x0,		/* cb_status */
 	0x0, 0x0,		/* cb_command */
 	0x0, 0x0, 0x0, 0x0,	/* link_addr */
@@ -155,7 +155,7 @@ static u_char fxp_cb_config_template[] = {
  * particular variants, but we don't currently differentiate between
  * them.
  */
-static struct fxp_ident fxp_ident_table[] = {
+static const struct fxp_ident const fxp_ident_table[] = {
     { 0x1029,	-1,	0, "Intel 82559 PCI/CardBus Pro/100" },
     { 0x1030,	-1,	0, "Intel 82559 Pro/100 Ethernet" },
     { 0x1031,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
@@ -217,14 +217,14 @@ static int		fxp_shutdown(device_t dev);
 static int		fxp_suspend(device_t dev);
 static int		fxp_resume(device_t dev);
 
-static struct fxp_ident	*fxp_find_ident(device_t dev);
+static const struct fxp_ident *fxp_find_ident(device_t dev);
 static void		fxp_intr(void *xsc);
 static void		fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp,
 			    struct mbuf *m, uint16_t status, int pos);
 static int		fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp,
 			    uint8_t statack, int count);
 static void 		fxp_init(void *xsc);
-static void 		fxp_init_body(struct fxp_softc *sc);
+static void 		fxp_init_body(struct fxp_softc *sc, int);
 static void 		fxp_tick(void *xsc);
 static void 		fxp_start(struct ifnet *ifp);
 static void 		fxp_start_body(struct ifnet *ifp);
@@ -261,6 +261,7 @@ static void		fxp_serial_ifmedia_sts(struct ifnet *ifp,
 static int		fxp_miibus_readreg(device_t dev, int phy, int reg);
 static int		fxp_miibus_writereg(device_t dev, int phy, int reg,
 			    int value);
+static void		fxp_miibus_statchg(device_t dev);
 static void		fxp_load_ucode(struct fxp_softc *sc);
 static void		fxp_update_stats(struct fxp_softc *sc);
 static void		fxp_sysctl_node(struct fxp_softc *sc);
@@ -286,6 +287,7 @@ static device_method_t fxp_methods[] = {
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	fxp_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	fxp_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	fxp_miibus_statchg),
 
 	{ 0, 0 }
 };
@@ -329,8 +331,8 @@ fxp_scb_wait(struct fxp_softc *sc)
 	while (CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) && --i)
 		DELAY(2);
 	if (i == 0) {
-		flowctl.b[0] = CSR_READ_1(sc, FXP_CSR_FLOWCONTROL);
-		flowctl.b[1] = CSR_READ_1(sc, FXP_CSR_FLOWCONTROL + 1);
+		flowctl.b[0] = CSR_READ_1(sc, FXP_CSR_FC_THRESH);
+		flowctl.b[1] = CSR_READ_1(sc, FXP_CSR_FC_STATUS);
 		device_printf(sc->dev, "SCB timeout: 0x%x 0x%x 0x%x 0x%x\n",
 		    CSR_READ_1(sc, FXP_CSR_SCB_COMMAND),
 		    CSR_READ_1(sc, FXP_CSR_SCB_STATACK),
@@ -366,12 +368,12 @@ fxp_dma_wait(struct fxp_softc *sc, volatile uint16_t *status,
 		device_printf(sc->dev, "DMA timeout\n");
 }
 
-static struct fxp_ident *
+static const struct fxp_ident *
 fxp_find_ident(device_t dev)
 {
 	uint16_t devid;
 	uint8_t revid;
-	struct fxp_ident *ident;
+	const struct fxp_ident *ident;
 
 	if (pci_get_vendor(dev) == FXP_VENDORID_INTEL) {
 		devid = pci_get_device(dev);
@@ -392,7 +394,7 @@ fxp_find_ident(device_t dev)
 static int
 fxp_probe(device_t dev)
 {
-	struct fxp_ident *ident;
+	const struct fxp_ident *ident;
 
 	ident = fxp_find_ident(dev);
 	if (ident != NULL) {
@@ -426,8 +428,7 @@ fxp_attach(device_t dev)
 	uint32_t val;
 	uint16_t data, myea[ETHER_ADDR_LEN / 2];
 	u_char eaddr[ETHER_ADDR_LEN];
-	int i, pmc, prefer_iomap;
-	int error;
+	int error, flags, i, pmc, prefer_iomap;
 
 	error = 0;
 	sc = device_get_softc(dev);
@@ -525,10 +526,12 @@ fxp_attach(device_t dev)
 	}
 
 	/* Receiver lock-up workaround detection. */
-	fxp_read_eeprom(sc, &data, 3, 1);
-	if ((data & 0x03) != 0x03) {
-		sc->flags |= FXP_FLAG_RXBUG;
-		device_printf(dev, "Enabling Rx lock-up workaround\n");
+	if (sc->revision < FXP_REV_82558_A4) {
+		fxp_read_eeprom(sc, &data, 3, 1);
+		if ((data & 0x03) != 0x03) {
+			sc->flags |= FXP_FLAG_RXBUG;
+			device_printf(dev, "Enabling Rx lock-up workaround\n");
+		}
 	}
 
 	/*
@@ -807,11 +810,14 @@ fxp_attach(device_t dev)
 		/*
 		 * i82557 wedge when isolating all of their PHYs.
 		 */
+		flags = MIIF_NOISOLATE;
+		if (sc->revision >= FXP_REV_82558_A4)
+			flags |= MIIF_DOPAUSE;
 		error = mii_attach(dev, &sc->miibus, ifp, fxp_ifmedia_upd,
 		    fxp_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
-		    MII_OFFSET_ANY, MIIF_NOISOLATE);
+		    MII_OFFSET_ANY, flags);
 		if (error != 0) {
-	                device_printf(dev, "attaching PHYs failed\n");
+			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 	}
@@ -894,7 +900,7 @@ fxp_attach(device_t dev)
 		FXP_LOCK(sc);
 		/* Clear wakeup events. */
 		CSR_WRITE_1(sc, FXP_CSR_PMDR, CSR_READ_1(sc, FXP_CSR_PMDR));
-		fxp_init_body(sc);
+		fxp_init_body(sc, 1);
 		fxp_stop(sc);
 		FXP_UNLOCK(sc);
 	}
@@ -1056,7 +1062,7 @@ fxp_suspend(device_t dev)
 			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 			sc->flags |= FXP_FLAG_WOL;
 			/* Reconfigure hardware to accept magic frames. */
-			fxp_init_body(sc);
+			fxp_init_body(sc, 1);
 		}
 		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
 	}
@@ -1098,7 +1104,7 @@ fxp_resume(device_t dev)
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
-		fxp_init_body(sc);
+		fxp_init_body(sc, 1);
 
 	sc->suspended = 0;
 
@@ -1614,21 +1620,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	/*
 	 * Advance the end of list forward.
 	 */
-
-#ifdef __alpha__
-	/*
-	 * On platforms which can't access memory in 16-bit
-	 * granularities, we must prevent the card from DMA'ing
-	 * up the status while we update the command field.
-	 * This could cause us to overwrite the completion status.
-	 * XXX This is probably bogus and we're _not_ looking
-	 * for atomicity here.
-	 */
-	atomic_clear_16(&sc->fxp_desc.tx_last->tx_cb->cb_command,
-	    htole16(FXP_CB_COMMAND_S));
-#else
 	sc->fxp_desc.tx_last->tx_cb->cb_command &= htole16(~FXP_CB_COMMAND_S);
-#endif /*__alpha__*/
 	sc->fxp_desc.tx_last = txp;
 
 	/*
@@ -2120,7 +2112,7 @@ fxp_tick(void *xsc)
 	if (sc->rx_idle_secs > FXP_MAX_RX_IDLE) {
 		sc->rx_idle_secs = 0;
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-			fxp_init_body(sc);
+			fxp_init_body(sc, 1);
 		return;
 	}
 	/*
@@ -2218,7 +2210,7 @@ fxp_watchdog(struct fxp_softc *sc)
 	device_printf(sc->dev, "device timeout\n");
 	sc->ifp->if_oerrors++;
 
-	fxp_init_body(sc);
+	fxp_init_body(sc, 1);
 }
 
 /*
@@ -2232,7 +2224,7 @@ fxp_init(void *xsc)
 	struct fxp_softc *sc = xsc;
 
 	FXP_LOCK(sc);
-	fxp_init_body(sc);
+	fxp_init_body(sc, 1);
 	FXP_UNLOCK(sc);
 }
 
@@ -2241,9 +2233,10 @@ fxp_init(void *xsc)
  * softc lock held.
  */
 static void
-fxp_init_body(struct fxp_softc *sc)
+fxp_init_body(struct fxp_softc *sc, int setmedia)
 {
 	struct ifnet *ifp = sc->ifp;
+	struct mii_data *mii;
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *tcbp;
@@ -2378,7 +2371,7 @@ fxp_init_body(struct fxp_softc *sc)
 	cbp->vlan_strip_en =	((sc->flags & FXP_FLAG_EXT_RFA) != 0 &&
 	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) ? 1 : 0;
 
-	if (sc->tunable_noflow || sc->revision == FXP_REV_82557) {
+	if (sc->revision == FXP_REV_82557) {
 		/*
 		 * The 82557 has no hardware flow control, the values
 		 * below are the defaults for the chip.
@@ -2392,12 +2385,30 @@ fxp_init_body(struct fxp_softc *sc)
 		cbp->fc_filter =	0;
 		cbp->pri_fc_loc =	1;
 	} else {
-		cbp->fc_delay_lsb =	0x1f;
-		cbp->fc_delay_msb =	0x01;
+		/* Set pause RX FIFO threshold to 1KB. */
+		CSR_WRITE_1(sc, FXP_CSR_FC_THRESH, 1);
+		/* Set pause time. */
+		cbp->fc_delay_lsb =	0xff;
+		cbp->fc_delay_msb =	0xff;
 		cbp->pri_fc_thresh =	3;
-		cbp->tx_fc_dis =	0;	/* enable transmit FC */
-		cbp->rx_fc_restop =	1;	/* enable FC restop frames */
-		cbp->rx_fc_restart =	1;	/* enable FC restart frames */
+		mii = device_get_softc(sc->miibus);
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		    IFM_ETH_TXPAUSE) != 0)
+			/* enable transmit FC */
+			cbp->tx_fc_dis = 0;
+		else
+			/* disable transmit FC */
+			cbp->tx_fc_dis = 1;
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		    IFM_ETH_RXPAUSE) != 0) {
+			/* enable FC restart/restop frames */
+			cbp->rx_fc_restart = 1;
+			cbp->rx_fc_restop = 1;
+		} else {
+			/* disable FC restart/restop frames */
+			cbp->rx_fc_restart = 0;
+			cbp->rx_fc_restop = 0;
+		}
 		cbp->fc_filter =	!prm;	/* drop FC frames to host */
 		cbp->pri_fc_loc =	1;	/* FC pri location (byte31) */
 	}
@@ -2496,10 +2507,7 @@ fxp_init_body(struct fxp_softc *sc)
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->fxp_desc.rx_head->rx_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_START);
 
-	/*
-	 * Set current media.
-	 */
-	if (sc->miibus != NULL)
+	if (sc->miibus != NULL && setmedia != 0)
 		mii_mediachg(device_get_softc(sc->miibus));
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -2756,6 +2764,31 @@ fxp_miibus_writereg(device_t dev, int phy, int reg, int value)
 	return (0);
 }
 
+static void
+fxp_miibus_statchg(device_t dev)
+{
+	struct fxp_softc *sc;
+	struct mii_data *mii;
+	struct ifnet *ifp;
+
+	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->miibus);
+	ifp = sc->ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    (mii->mii_media_status & (IFM_AVALID | IFM_ACTIVE)) !=
+	    (IFM_AVALID | IFM_ACTIVE))
+		return;
+
+	/*
+	 * Call fxp_init_body in order to adjust the flow control settings.
+	 * Note that the 82557 doesn't support hardware flow control.
+	 */
+	if (sc->revision == FXP_REV_82557)
+		return;
+	fxp_init_body(sc, 0);
+}
+
 static int
 fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
@@ -2777,9 +2810,9 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) &&
 			    ((ifp->if_flags ^ sc->if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI | IFF_LINK0)) != 0)
-				fxp_init_body(sc);
+				fxp_init_body(sc, 1);
 			else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-				fxp_init_body(sc);
+				fxp_init_body(sc, 1);
 		} else {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 				fxp_stop(sc);
@@ -2881,7 +2914,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			reinit++;
 		}
 		if (reinit > 0 && ifp->if_flags & IFF_UP)
-			fxp_init_body(sc);
+			fxp_init_body(sc, 1);
 		FXP_UNLOCK(sc);
 		VLAN_CAPABILITIES(ifp);
 		break;
@@ -2985,13 +3018,13 @@ static uint32_t fxp_ucode_d102e[] = D102_E_RCVBUNDLE_UCODE;
 
 #define UCODE(x)	x, sizeof(x)/sizeof(uint32_t)
 
-struct ucode {
+static const struct ucode {
 	uint32_t	revision;
 	uint32_t	*ucode;
 	int		length;
 	u_short		int_delay_offset;
 	u_short		bundle_max_offset;
-} ucode_table[] = {
+} const ucode_table[] = {
 	{ FXP_REV_82558_A4, UCODE(fxp_ucode_d101a), D101_CPUSAVER_DWORD, 0 },
 	{ FXP_REV_82558_B0, UCODE(fxp_ucode_d101b0), D101_CPUSAVER_DWORD, 0 },
 	{ FXP_REV_82559_A0, UCODE(fxp_ucode_d101ma),
@@ -3010,7 +3043,7 @@ struct ucode {
 static void
 fxp_load_ucode(struct fxp_softc *sc)
 {
-	struct ucode *uc;
+	const struct ucode *uc;
 	struct fxp_cb_ucode *cbp;
 	int i;
 
@@ -3072,22 +3105,16 @@ fxp_sysctl_node(struct fxp_softc *sc)
 	    "FXP driver receive interrupt microcode bundle size limit");
 	SYSCTL_ADD_INT(ctx, child,OID_AUTO, "rnr", CTLFLAG_RD, &sc->rnr, 0,
 	    "FXP RNR events");
-	SYSCTL_ADD_INT(ctx, child,
-	    OID_AUTO, "noflow", CTLFLAG_RW, &sc->tunable_noflow, 0,
-	    "FXP flow control disabled");
 
 	/*
 	 * Pull in device tunables.
 	 */
 	sc->tunable_int_delay = TUNABLE_INT_DELAY;
 	sc->tunable_bundle_max = TUNABLE_BUNDLE_MAX;
-	sc->tunable_noflow = 1;
 	(void) resource_int_value(device_get_name(sc->dev),
 	    device_get_unit(sc->dev), "int_delay", &sc->tunable_int_delay);
 	(void) resource_int_value(device_get_name(sc->dev),
 	    device_get_unit(sc->dev), "bundle_max", &sc->tunable_bundle_max);
-	(void) resource_int_value(device_get_name(sc->dev),
-	    device_get_unit(sc->dev), "noflow", &sc->tunable_noflow);
 	sc->rnr = 0;
 
 	hsp = &sc->fxp_hwstats;
@@ -3177,11 +3204,13 @@ sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high)
 static int
 sysctl_hw_fxp_int_delay(SYSCTL_HANDLER_ARGS)
 {
+
 	return (sysctl_int_range(oidp, arg1, arg2, req, 300, 3000));
 }
 
 static int
 sysctl_hw_fxp_bundle_max(SYSCTL_HANDLER_ARGS)
 {
+
 	return (sysctl_int_range(oidp, arg1, arg2, req, 1, 0xffff));
 }

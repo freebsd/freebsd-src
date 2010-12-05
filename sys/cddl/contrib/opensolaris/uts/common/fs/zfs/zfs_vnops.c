@@ -67,6 +67,7 @@
 #include <sys/sf_buf.h>
 #include <sys/sched.h>
 #include <sys/acl.h>
+#include <vm/vm_pageout.h>
 
 /*
  * Programming rules.
@@ -481,7 +482,7 @@ again:
 				uiomove_fromphys(&m, off, bytes, uio);
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
-		} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+		} else if (uio->uio_segflg == UIO_NOCOPY) {
 			/*
 			 * The code below is here to make sendfile(2) work
 			 * correctly with ZFS. As pointed out by ups@
@@ -491,7 +492,7 @@ again:
 			 */
 			KASSERT(off == 0,
 			    ("unexpected offset in mappedread for sendfile"));
-			if ((m->oflags & VPO_BUSY) != 0) {
+			if (m != NULL && (m->oflags & VPO_BUSY) != 0) {
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
@@ -501,8 +502,17 @@ again:
 				vm_page_flag_set(m, PG_REFERENCED);
 				vm_page_sleep(m, "zfsmrb");
 				goto again;
+			} else if (m == NULL) {
+				m = vm_page_alloc(obj, OFF_TO_IDX(start),
+				    VM_ALLOC_NOBUSY | VM_ALLOC_NORMAL);
+				if (m == NULL) {
+					VM_OBJECT_UNLOCK(obj);
+					VM_WAIT;
+					VM_OBJECT_LOCK(obj);
+					goto again;
+				}
 			}
-			vm_page_busy(m);
+			vm_page_io_start(m);
 			VM_OBJECT_UNLOCK(obj);
 			if (dirbytes > 0) {
 				error = dmu_read_uio(os, zp->z_id, uio,
@@ -520,7 +530,7 @@ again:
 			VM_OBJECT_LOCK(obj);
 			if (error == 0)
 				m->valid = VM_PAGE_BITS_ALL;
-			vm_page_wakeup(m);
+			vm_page_io_finish(m);
 			if (error == 0) {
 				uio->uio_resid -= bytes;
 				uio->uio_offset += bytes;
@@ -1031,6 +1041,10 @@ zfs_get_done(dmu_buf_t *db, void *vzgd)
 	VFS_UNLOCK_GIANT(vfslocked);
 }
 
+#ifdef DEBUG
+static int zil_fault_io = 0;
+#endif
+
 /*
  * Get data to generate a TX_WRITE intent log record.
  */
@@ -1112,7 +1126,21 @@ zfs_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 		zgd->zgd_rl = rl;
 		zgd->zgd_zilog = zfsvfs->z_log;
 		zgd->zgd_bp = &lr->lr_blkptr;
-		VERIFY(0 == dmu_buf_hold(os, lr->lr_foid, boff, zgd, &db));
+#ifdef DEBUG
+		if (zil_fault_io) {
+			error = EIO;
+			zil_fault_io = 0;
+		} else {
+			error = dmu_buf_hold(os, lr->lr_foid, boff, zgd, &db);
+		}
+#else
+		error = dmu_buf_hold(os, lr->lr_foid, boff, zgd, &db);
+#endif
+		if (error != 0) {
+			kmem_free(zgd, sizeof (zgd_t));
+			goto out;
+		}
+
 		ASSERT(boff == db->db_offset);
 		lr->lr_blkoff = off - boff;
 		error = dmu_sync(zio, db, &lr->lr_blkptr,

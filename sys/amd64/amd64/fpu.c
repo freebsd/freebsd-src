@@ -113,14 +113,14 @@ static	struct savefpu		fpu_initialstate;
 void
 fpuinit(void)
 {
-	register_t savecrit;
+	register_t saveintr;
 	u_int mxcsr;
 	u_short control;
 
 	/*
 	 * It is too early for critical_enter() to work on AP.
 	 */
-	savecrit = intr_disable();
+	saveintr = intr_disable();
 	stop_emulating();
 	fninit();
 	control = __INITIAL_FPUCW__;
@@ -137,7 +137,7 @@ fpuinit(void)
 		bzero(fpu_initialstate.sv_xmm, sizeof(fpu_initialstate.sv_xmm));
 	}
 	start_emulating();
-	intr_restore(savecrit);
+	intr_restore(saveintr);
 }
 
 /*
@@ -426,9 +426,7 @@ fpudna(void)
 		fxrstor(&fpu_initialstate);
 		if (pcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
 			fldcw(pcb->pcb_initial_fpucw);
-		pcb->pcb_flags |= PCB_FPUINITDONE;
-		if (PCB_USER_FPU(pcb))
-			pcb->pcb_flags |= PCB_USERFPUINITDONE;
+		fpuuserinited(curthread);
 	} else
 		fxrstor(pcb->pcb_save);
 	critical_exit();
@@ -448,60 +446,50 @@ fpudrop()
 }
 
 /*
- * Get the state of the FPU without dropping ownership (if possible).
- * It returns the FPU ownership status.
+ * Get the user state of the FPU into pcb->pcb_user_save without
+ * dropping ownership (if possible).  It returns the FPU ownership
+ * status.
  */
 int
-fpugetuserregs(struct thread *td, struct savefpu *addr)
+fpugetregs(struct thread *td)
 {
 	struct pcb *pcb;
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_USERFPUINITDONE) == 0) {
-		bcopy(&fpu_initialstate, addr, sizeof(fpu_initialstate));
-		addr->sv_env.en_cw = pcb->pcb_initial_fpucw;
-		return (_MC_FPOWNED_NONE);
+		bcopy(&fpu_initialstate, &pcb->pcb_user_save,
+		    sizeof(fpu_initialstate));
+		pcb->pcb_user_save.sv_env.en_cw = pcb->pcb_initial_fpucw;
+		fpuuserinited(td);
+		return (_MC_FPOWNED_PCB);
 	}
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
-		fxsave(addr);
+		fxsave(&pcb->pcb_user_save);
 		critical_exit();
 		return (_MC_FPOWNED_FPU);
 	} else {
 		critical_exit();
-		bcopy(&pcb->pcb_user_save, addr, sizeof(*addr));
 		return (_MC_FPOWNED_PCB);
 	}
 }
 
-int
-fpugetregs(struct thread *td, struct savefpu *addr)
+void
+fpuuserinited(struct thread *td)
 {
 	struct pcb *pcb;
 
 	pcb = td->td_pcb;
-	if ((pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
-		bcopy(&fpu_initialstate, addr, sizeof(fpu_initialstate));
-		addr->sv_env.en_cw = pcb->pcb_initial_fpucw;
-		return (_MC_FPOWNED_NONE);
-	}
-	critical_enter();
-	if (td == PCPU_GET(fpcurthread)) {
-		fxsave(addr);
-		critical_exit();
-		return (_MC_FPOWNED_FPU);
-	} else {
-		critical_exit();
-		bcopy(pcb->pcb_save, addr, sizeof(*addr));
-		return (_MC_FPOWNED_PCB);
-	}
+	if (PCB_USER_FPU(pcb))
+		pcb->pcb_flags |= PCB_FPUINITDONE;
+	pcb->pcb_flags |= PCB_USERFPUINITDONE;
 }
 
 /*
  * Set the state of the FPU.
  */
 void
-fpusetuserregs(struct thread *td, struct savefpu *addr)
+fpusetregs(struct thread *td, struct savefpu *addr)
 {
 	struct pcb *pcb;
 
@@ -514,29 +502,8 @@ fpusetuserregs(struct thread *td, struct savefpu *addr)
 	} else {
 		critical_exit();
 		bcopy(addr, &td->td_pcb->pcb_user_save, sizeof(*addr));
-		if (PCB_USER_FPU(pcb))
-			pcb->pcb_flags |= PCB_FPUINITDONE;
-		pcb->pcb_flags |= PCB_USERFPUINITDONE;
+		fpuuserinited(td);
 	}
-}
-
-void
-fpusetregs(struct thread *td, struct savefpu *addr)
-{
-	struct pcb *pcb;
-
-	pcb = td->td_pcb;
-	critical_enter();
-	if (td == PCPU_GET(fpcurthread)) {
-		fxrstor(addr);
-		critical_exit();
-	} else {
-		critical_exit();
-		bcopy(addr, td->td_pcb->pcb_save, sizeof(*addr));
-	}
-	if (PCB_USER_FPU(pcb))
-		pcb->pcb_flags |= PCB_USERFPUINITDONE;
-	pcb->pcb_flags |= PCB_FPUINITDONE;
 }
 
 /*
@@ -567,7 +534,7 @@ fpu_clean_state(void)
 	 * the x87 stack, but we don't care since we're about to call
 	 * fxrstor() anyway.
 	 */
-	__asm __volatile("ffree %%st(7); fld %0" : : "m" (dummy_variable));
+	__asm __volatile("ffree %%st(7); flds %0" : : "m" (dummy_variable));
 }
 
 /*

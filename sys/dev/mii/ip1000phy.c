@@ -84,7 +84,7 @@ DRIVER_MODULE(ip1000phy, miibus, ip1000phy_driver, ip1000phy_devclass, 0, 0);
 static int	ip1000phy_service(struct mii_softc *, struct mii_data *, int);
 static void	ip1000phy_status(struct mii_softc *);
 static void	ip1000phy_reset(struct mii_softc *);
-static int	ip1000phy_mii_phy_auto(struct mii_softc *);
+static int	ip1000phy_mii_phy_auto(struct mii_softc *, int);
 
 static const struct mii_phydesc ip1000phys[] = {
 	MII_PHY_DESC(ICPLUS, IP1000A),
@@ -120,7 +120,7 @@ ip1000phy_attach(device_t dev)
 	sc->mii_service = ip1000phy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOMANPAUSE;
 
 	isc->model = MII_MODEL(ma->mii_id2);
 	isc->revision = MII_REV(ma->mii_id2);
@@ -163,9 +163,8 @@ ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		ip1000phy_reset(sc);
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
-			(void)ip1000phy_mii_phy_auto(sc);
+			(void)ip1000phy_mii_phy_auto(sc, ife->ifm_media);
 			goto done;
-			break;
 
 		case IFM_1000_T:
 			/*
@@ -199,26 +198,10 @@ ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T)
 			break;
 
+		gig |= IP1000PHY_1000CR_MASTER | IP1000PHY_1000CR_MANUAL;
+		if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+			gig |= IP1000PHY_1000CR_MMASTER;
 		PHY_WRITE(sc, IP1000PHY_MII_1000CR, gig);
-		PHY_WRITE(sc, IP1000PHY_MII_BMCR, speed);
-
-		/*
-		 * When setting the link manually, one side must
-		 * be the master and the other the slave. However
-		 * ifmedia doesn't give us a good way to specify
-		 * this, so we fake it by using one of the LINK
-		 * flags. If LINK0 is set, we program the PHY to
-		 * be a master, otherwise it's a slave.
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_LINK0))
-			PHY_WRITE(sc, IP1000PHY_MII_1000CR, gig |
-			    IP1000PHY_1000CR_MASTER |
-			    IP1000PHY_1000CR_MMASTER |
-			    IP1000PHY_1000CR_MANUAL);
-		else
-			PHY_WRITE(sc, IP1000PHY_MII_1000CR, gig |
-			    IP1000PHY_1000CR_MASTER |
-			    IP1000PHY_1000CR_MANUAL);
 
 done:
 		break;
@@ -258,7 +241,7 @@ done:
 			break;
 
 		sc->mii_ticks = 0;
-		ip1000phy_mii_phy_auto(sc);
+		ip1000phy_mii_phy_auto(sc, ife->ifm_media);
 		break;
 	}
 
@@ -276,7 +259,6 @@ ip1000phy_status(struct mii_softc *sc)
 	struct ip1000phy_softc *isc;
 	struct mii_data *mii = sc->mii_pdata;
 	uint32_t bmsr, bmcr, stat;
-	uint32_t ar, lpar;
 
 	isc = (struct ip1000phy_softc *)sc;
 
@@ -345,36 +327,18 @@ ip1000phy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_HDX;
 	}
 
-	ar = PHY_READ(sc, IP1000PHY_MII_ANAR);
-	lpar = PHY_READ(sc, IP1000PHY_MII_ANLPAR);
+	if ((mii->mii_media_active & IFM_FDX) != 0)
+		mii->mii_media_active |= mii_phy_flowstatus(sc);
 
-	/*
-	 * FLAG0 : Rx flow-control
-	 * FLAG1 : Tx flow-control
-	 */
-	if ((ar & IP1000PHY_ANAR_PAUSE) && (lpar & IP1000PHY_ANLPAR_PAUSE))
-		mii->mii_media_active |= IFM_FLAG0 | IFM_FLAG1;
-	else if (!(ar & IP1000PHY_ANAR_PAUSE) && (ar & IP1000PHY_ANAR_APAUSE) &&
-	    (lpar & IP1000PHY_ANLPAR_PAUSE) && (lpar & IP1000PHY_ANLPAR_APAUSE))
-		mii->mii_media_active |= IFM_FLAG1;
-	else if ((ar & IP1000PHY_ANAR_PAUSE) && (ar & IP1000PHY_ANAR_APAUSE) &&
-	    !(lpar & IP1000PHY_ANLPAR_PAUSE) &&
-	    (lpar & IP1000PHY_ANLPAR_APAUSE)) {
-		mii->mii_media_active |= IFM_FLAG0;
-	}
-
-	/*
-	 * FLAG2 : local PHY resolved to MASTER
-	 */
 	if ((mii->mii_media_active & IFM_1000_T) != 0) {
 		stat = PHY_READ(sc, IP1000PHY_MII_1000SR);
 		if ((stat & IP1000PHY_1000SR_MASTER) != 0)
-			mii->mii_media_active |= IFM_FLAG2;
+			mii->mii_media_active |= IFM_ETH_MASTER;
 	}
 }
 
 static int
-ip1000phy_mii_phy_auto(struct mii_softc *sc)
+ip1000phy_mii_phy_auto(struct mii_softc *sc, int media)
 {
 	struct ip1000phy_softc *isc;
 	uint32_t reg;
@@ -383,11 +347,13 @@ ip1000phy_mii_phy_auto(struct mii_softc *sc)
 	reg = 0;
 	if (isc->model == MII_MODEL_ICPLUS_IP1001) {
 		reg = PHY_READ(sc, IP1000PHY_MII_ANAR);
+		reg &= ~(IP1000PHY_ANAR_PAUSE | IP1000PHY_ANAR_APAUSE);
 		reg |= IP1000PHY_ANAR_NP;
 	}
 	reg |= IP1000PHY_ANAR_10T | IP1000PHY_ANAR_10T_FDX |
-	    IP1000PHY_ANAR_100TX | IP1000PHY_ANAR_100TX_FDX |
-	    IP1000PHY_ANAR_PAUSE | IP1000PHY_ANAR_APAUSE;
+	    IP1000PHY_ANAR_100TX | IP1000PHY_ANAR_100TX_FDX;
+	if ((media & IFM_FLOW) != 0 || (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
+		reg |= IP1000PHY_ANAR_PAUSE | IP1000PHY_ANAR_APAUSE;
 	PHY_WRITE(sc, IP1000PHY_MII_ANAR, reg | IP1000PHY_ANAR_CSMA);
 
 	reg = IP1000PHY_1000CR_1000T | IP1000PHY_1000CR_1000T_FDX;

@@ -125,6 +125,7 @@ typedef struct mii_softc mii_softc_t;
 #define	MIIF_INITDONE	0x00000001	/* has been initialized (mii_data) */
 #define	MIIF_NOISOLATE	0x00000002	/* do not isolate the PHY */
 #define	MIIF_NOLOOP	0x00000004	/* no loopback capability */
+#define	MIIF_DOINGAUTO	0x00000008	/* doing autonegotiation (mii_softc) */
 #define	MIIF_AUTOTSLEEP	0x00000010	/* use tsleep(), not callout() */
 #define	MIIF_HAVEFIBER	0x00000020	/* from parent: has fiber interface */
 #define	MIIF_HAVE_GTCR	0x00000040	/* has 100base-T2/1000base-T CR */
@@ -132,6 +133,8 @@ typedef struct mii_softc mii_softc_t;
 #define	MIIF_DOPAUSE	0x00000100	/* advertise PAUSE capability */
 #define	MIIF_IS_HPNA	0x00000200	/* is a HomePNA device */
 #define	MIIF_FORCEANEG	0x00000400	/* force auto-negotiation */
+#define	MIIF_NOMANPAUSE	0x00100000	/* no manual PAUSE selection */
+#define	MIIF_FORCEPAUSE	0x00200000	/* force PAUSE advertisment */
 #define	MIIF_MACPRIV0	0x01000000	/* private to the MAC driver */
 #define	MIIF_MACPRIV1	0x02000000	/* private to the MAC driver */
 #define	MIIF_MACPRIV2	0x04000000	/* private to the MAC driver */
@@ -148,7 +151,7 @@ typedef struct mii_softc mii_softc_t;
 /*
  * Special `locators' passed to mii_attach().  If one of these is not
  * an `any' value, we look for *that* PHY and configure it.  If both
- * are not `any', that is an error, and mii_attach() will panic.
+ * are not `any', that is an error, and mii_attach() will fail.
  */
 #define	MII_OFFSET_ANY		-1
 #define	MII_PHY_ANY		-1
@@ -236,6 +239,7 @@ void	mii_phy_add_media(struct mii_softc *);
 int	mii_phy_auto(struct mii_softc *);
 int	mii_phy_detach(device_t dev);
 void	mii_phy_down(struct mii_softc *);
+u_int	mii_phy_flowstatus(struct mii_softc *);
 void	mii_phy_reset(struct mii_softc *);
 void	mii_phy_setmedia(struct mii_softc *sc);
 void	mii_phy_update(struct mii_softc *, int);

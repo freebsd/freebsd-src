@@ -144,7 +144,8 @@ struct mtx ppeers_lock;
 uma_zone_t proc_zone;
 
 int kstack_pages = KSTACK_PAGES;
-SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0,
+    "Kernel stack size in pages");
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 #ifdef COMPAT_FREEBSD32
@@ -778,18 +779,16 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	rufetch(p, &kp->ki_rusage);
 	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
 	PROC_SUNLOCK(p);
-	if ((p->p_flag & P_INMEM) && p->p_stats != NULL) {
-		kp->ki_start = p->p_stats->p_start;
-		timevaladd(&kp->ki_start, &boottime);
-		PROC_SLOCK(p);
-		calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
-		PROC_SUNLOCK(p);
-		calccru(p, &kp->ki_childutime, &kp->ki_childstime);
+	kp->ki_start = p->p_stats->p_start;
+	timevaladd(&kp->ki_start, &boottime);
+	PROC_SLOCK(p);
+	calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
+	PROC_SUNLOCK(p);
+	calccru(p, &kp->ki_childutime, &kp->ki_childstime);
+	/* Some callers want child times in a single value. */
+	kp->ki_childtime = kp->ki_childstime;
+	timevaladd(&kp->ki_childtime, &kp->ki_childutime);
 
-		/* Some callers want child-times in a single value */
-		kp->ki_childtime = kp->ki_childstime;
-		timevaladd(&kp->ki_childtime, &kp->ki_childutime);
-	}
 	tp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;

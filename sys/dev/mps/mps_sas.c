@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
+#include <sys/sglist.h>
+#include <sys/endian.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -55,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
+#if __FreeBSD_version >= 900026
+#include <cam/scsi/smp_all.h>
+#endif
 
 #include <dev/mps/mpi/mpi2_type.h>
 #include <dev/mps/mpi/mpi2.h>
@@ -69,9 +74,11 @@ struct mpssas_target {
 	uint16_t	handle;
 	uint8_t		linkrate;
 	uint64_t	devname;
+	uint64_t	sasaddr;
 	uint32_t	devinfo;
 	uint16_t	encl_handle;
 	uint16_t	encl_slot;
+	uint16_t	parent_handle;
 	int		flags;
 #define MPSSAS_TARGET_INABORT	(1 << 0)
 #define MPSSAS_TARGET_INRESET	(1 << 1)
@@ -144,6 +151,12 @@ static int mpssas_complete_tm_request(struct mps_softc *sc,
 				      struct mps_command *cm, int free_cm);
 static void mpssas_action_scsiio(struct mpssas_softc *, union ccb *);
 static void mpssas_scsiio_complete(struct mps_softc *, struct mps_command *);
+#if __FreeBSD_version >= 900026
+static void mpssas_smpio_complete(struct mps_softc *sc, struct mps_command *cm);
+static void mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb,
+			       uint64_t sasaddr);
+static void mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb);
+#endif /* __FreeBSD_version >= 900026 */
 static void mpssas_resetdev(struct mpssas_softc *, struct mps_command *);
 static void mpssas_action_resetdev(struct mpssas_softc *, union ccb *);
 static void mpssas_resetdev_complete(struct mps_softc *, struct mps_command *);
@@ -312,6 +325,8 @@ mpssas_probe_device_complete(struct mps_softc *sc,
 		probe->target.devinfo = buf->DeviceInfo;
 		probe->target.encl_handle = buf->EnclosureHandle;
 		probe->target.encl_slot = buf->Slot;
+		probe->target.sasaddr = mps_to_u64(&buf->SASAddress);
+		probe->target.parent_handle = buf->ParentDevHandle;
 
 		if (buf->DeviceInfo & MPI2_SAS_DEVICE_INFO_DIRECT_ATTACH) {
 			params->page_address =
@@ -916,6 +931,11 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SCSI_IO:
 		mpssas_action_scsiio(sassc, ccb);
 		return;
+#if __FreeBSD_version >= 900026
+	case XPT_SMP_IO:
+		mpssas_action_smpio(sassc, ccb);
+		return;
+#endif /* __FreeBSD_version >= 900026 */
 	default:
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 		break;
@@ -1361,6 +1381,9 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		bcopy(csio->cdb_io.cdb_bytes, &req->CDB.CDB32[0],csio->cdb_len);
 	req->IoFlags = csio->cdb_len;
 
+	/*
+	 * XXX need to handle S/G lists and physical addresses here.
+	 */
 	cm->cm_data = csio->data_ptr;
 	cm->cm_length = csio->dxfer_len;
 	cm->cm_sge = &req->SGL;
@@ -1524,6 +1547,329 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	mps_free_command(sc, cm);
 	xpt_done(ccb);
 }
+
+#if __FreeBSD_version >= 900026
+static void
+mpssas_smpio_complete(struct mps_softc *sc, struct mps_command *cm)
+{
+	MPI2_SMP_PASSTHROUGH_REPLY *rpl;
+	MPI2_SMP_PASSTHROUGH_REQUEST *req;
+	uint64_t sasaddr;
+	union ccb *ccb;
+
+	ccb = cm->cm_complete_data;
+	rpl = (MPI2_SMP_PASSTHROUGH_REPLY *)cm->cm_reply;
+	if (rpl == NULL) {
+		mps_dprint(sc, MPS_INFO, "%s: NULL cm_reply!\n", __func__);
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		goto bailout;
+	}
+
+	req = (MPI2_SMP_PASSTHROUGH_REQUEST *)cm->cm_req;
+	sasaddr = le32toh(req->SASAddress.Low);
+	sasaddr |= ((uint64_t)(le32toh(req->SASAddress.High))) << 32;
+
+	if ((rpl->IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS ||
+	    rpl->SASStatus != MPI2_SASSTATUS_SUCCESS) {
+		mps_dprint(sc, MPS_INFO, "%s: IOCStatus %04x SASStatus %02x\n",
+		    __func__, rpl->IOCStatus, rpl->SASStatus);
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		goto bailout;
+	}
+
+	mps_dprint(sc, MPS_INFO, "%s: SMP request to SAS address "
+		   "%#jx completed successfully\n", __func__,
+		   (uintmax_t)sasaddr);
+
+	if (ccb->smpio.smp_response[2] == SMP_FR_ACCEPTED)
+		ccb->ccb_h.status = CAM_REQ_CMP;
+	else
+		ccb->ccb_h.status = CAM_SMP_STATUS_ERROR;
+
+bailout:
+	/*
+	 * We sync in both directions because we had DMAs in the S/G list
+	 * in both directions.
+	 */
+	bus_dmamap_sync(sc->buffer_dmat, cm->cm_dmamap,
+			BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_unload(sc->buffer_dmat, cm->cm_dmamap);
+	mps_free_command(sc, cm);
+	xpt_done(ccb);
+}
+
+static void
+mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
+{
+	struct mps_command *cm;
+	uint8_t *request, *response;
+	MPI2_SMP_PASSTHROUGH_REQUEST *req;
+	struct mps_softc *sc;
+	struct sglist *sg;
+	int error;
+
+	sc = sassc->sc;
+	sg = NULL;
+	error = 0;
+
+	/*
+	 * XXX We don't yet support physical addresses here.
+	 */
+	if (ccb->ccb_h.flags & (CAM_DATA_PHYS|CAM_SG_LIST_PHYS)) {
+		mps_printf(sc, "%s: physical addresses not supported\n",
+			   __func__);
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+
+	/*
+	 * If the user wants to send an S/G list, check to make sure they
+	 * have single buffers.
+	 */
+	if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
+		/*
+		 * The chip does not support more than one buffer for the
+		 * request or response.
+		 */
+	 	if ((ccb->smpio.smp_request_sglist_cnt > 1)
+		  || (ccb->smpio.smp_response_sglist_cnt > 1)) {
+			mps_printf(sc, "%s: multiple request or response "
+				   "buffer segments not supported for SMP\n",
+				   __func__);
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			return;
+		}
+
+		/*
+		 * The CAM_SCATTER_VALID flag was originally implemented
+		 * for the XPT_SCSI_IO CCB, which only has one data pointer.
+		 * We have two.  So, just take that flag to mean that we
+		 * might have S/G lists, and look at the S/G segment count
+		 * to figure out whether that is the case for each individual
+		 * buffer.
+		 */
+		if (ccb->smpio.smp_request_sglist_cnt != 0) {
+			bus_dma_segment_t *req_sg;
+
+			req_sg = (bus_dma_segment_t *)ccb->smpio.smp_request;
+			request = (uint8_t *)req_sg[0].ds_addr;
+		} else
+			request = ccb->smpio.smp_request;
+
+		if (ccb->smpio.smp_response_sglist_cnt != 0) {
+			bus_dma_segment_t *rsp_sg;
+
+			rsp_sg = (bus_dma_segment_t *)ccb->smpio.smp_response;
+			response = (uint8_t *)rsp_sg[0].ds_addr;
+		} else
+			response = ccb->smpio.smp_response;
+	} else {
+		request = ccb->smpio.smp_request;
+		response = ccb->smpio.smp_response;
+	}
+
+	cm = mps_alloc_command(sc);
+	if (cm == NULL) {
+		mps_printf(sc, "%s: cannot allocate command\n", __func__);
+		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		xpt_done(ccb);
+		return;
+	}
+
+	req = (MPI2_SMP_PASSTHROUGH_REQUEST *)cm->cm_req;
+	bzero(req, sizeof(*req));
+	req->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
+
+	/* Allow the chip to use any route to this SAS address. */
+	req->PhysicalPort = 0xff;
+
+	req->RequestDataLength = ccb->smpio.smp_request_len;
+	req->SGLFlags = 
+	    MPI2_SGLFLAGS_SYSTEM_ADDRESS_SPACE | MPI2_SGLFLAGS_SGL_TYPE_MPI;
+
+	mps_dprint(sc, MPS_INFO, "%s: sending SMP request to SAS "
+		   "address %#jx\n", __func__, (uintmax_t)sasaddr);
+
+	mpi_init_sge(cm, req, &req->SGL);
+
+	/*
+	 * Set up a uio to pass into mps_map_command().  This allows us to
+	 * do one map command, and one busdma call in there.
+	 */
+	cm->cm_uio.uio_iov = cm->cm_iovec;
+	cm->cm_uio.uio_iovcnt = 2;
+	cm->cm_uio.uio_segflg = UIO_SYSSPACE;
+
+	/*
+	 * The read/write flag isn't used by busdma, but set it just in
+	 * case.  This isn't exactly accurate, either, since we're going in
+	 * both directions.
+	 */
+	cm->cm_uio.uio_rw = UIO_WRITE;
+
+	cm->cm_iovec[0].iov_base = request;
+	cm->cm_iovec[0].iov_len = req->RequestDataLength;
+	cm->cm_iovec[1].iov_base = response;
+	cm->cm_iovec[1].iov_len = ccb->smpio.smp_response_len;
+
+	cm->cm_uio.uio_resid = cm->cm_iovec[0].iov_len +
+			       cm->cm_iovec[1].iov_len;
+
+	/*
+	 * Trigger a warning message in mps_data_cb() for the user if we
+	 * wind up exceeding two S/G segments.  The chip expects one
+	 * segment for the request and another for the response.
+	 */
+	cm->cm_max_segs = 2;
+
+	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
+	cm->cm_complete = mpssas_smpio_complete;
+	cm->cm_complete_data = ccb;
+
+	/*
+	 * Tell the mapping code that we're using a uio, and that this is
+	 * an SMP passthrough request.  There is a little special-case
+	 * logic there (in mps_data_cb()) to handle the bidirectional
+	 * transfer.  
+	 */
+	cm->cm_flags |= MPS_CM_FLAGS_USE_UIO | MPS_CM_FLAGS_SMP_PASS |
+			MPS_CM_FLAGS_DATAIN | MPS_CM_FLAGS_DATAOUT;
+
+	/* The chip data format is little endian. */
+	req->SASAddress.High = htole32(sasaddr >> 32);
+	req->SASAddress.Low = htole32(sasaddr);
+
+	/*
+	 * XXX Note that we don't have a timeout/abort mechanism here.
+	 * From the manual, it looks like task management requests only
+	 * work for SCSI IO and SATA passthrough requests.  We may need to
+	 * have a mechanism to retry requests in the event of a chip reset
+	 * at least.  Hopefully the chip will insure that any errors short
+	 * of that are relayed back to the driver.
+	 */
+	error = mps_map_command(sc, cm);
+	if ((error != 0) && (error != EINPROGRESS)) {
+		mps_printf(sc, "%s: error %d returned from mps_map_command()\n",
+			   __func__, error);
+		goto bailout_error;
+	}
+
+	return;
+
+bailout_error:
+	mps_free_command(sc, cm);
+	ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+	xpt_done(ccb);
+	return;
+
+}
+
+static void
+mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
+{
+	struct mps_softc *sc;
+	struct mpssas_target *targ;
+	uint64_t sasaddr = 0;
+
+	sc = sassc->sc;
+
+	/*
+	 * Make sure the target exists.
+	 */
+	targ = &sassc->targets[ccb->ccb_h.target_id];
+	if (targ->handle == 0x0) {
+		mps_printf(sc, "%s: target %d does not exist!\n", __func__,
+			   ccb->ccb_h.target_id);
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+		xpt_done(ccb);
+		return;
+	}
+
+	/*
+	 * If this device has an embedded SMP target, we'll talk to it
+	 * directly.
+	 * figure out what the expander's address is.
+	 */
+	if ((targ->devinfo & MPI2_SAS_DEVICE_INFO_SMP_TARGET) != 0)
+		sasaddr = targ->sasaddr;
+
+	/*
+	 * If we don't have a SAS address for the expander yet, try
+	 * grabbing it from the page 0x83 information cached in the
+	 * transport layer for this target.  LSI expanders report the
+	 * expander SAS address as the port-associated SAS address in
+	 * Inquiry VPD page 0x83.  Maxim expanders don't report it in page
+	 * 0x83.
+	 *
+	 * XXX KDM disable this for now, but leave it commented out so that
+	 * it is obvious that this is another possible way to get the SAS
+	 * address.
+	 *
+	 * The parent handle method below is a little more reliable, and
+	 * the other benefit is that it works for devices other than SES
+	 * devices.  So you can send a SMP request to a da(4) device and it
+	 * will get routed to the expander that device is attached to.
+	 * (Assuming the da(4) device doesn't contain an SMP target...)
+	 */
+#if 0
+	if (sasaddr == 0)
+		sasaddr = xpt_path_sas_addr(ccb->ccb_h.path);
+#endif
+
+	/*
+	 * If we still don't have a SAS address for the expander, look for
+	 * the parent device of this device, which is probably the expander.
+	 */
+	if (sasaddr == 0) {
+		struct mpssas_target *parent_target;
+
+		if (targ->parent_handle == 0x0) {
+			mps_printf(sc, "%s: handle %d does not have a valid "
+				   "parent handle!\n", __func__, targ->handle);
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			goto bailout;
+		}
+		parent_target = mpssas_find_target(sassc, 0,
+						   targ->parent_handle);
+
+		if (parent_target == NULL) {
+			mps_printf(sc, "%s: handle %d does not have a valid "
+				   "parent target!\n", __func__, targ->handle);
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			goto bailout;
+		}
+
+		if ((parent_target->devinfo &
+		     MPI2_SAS_DEVICE_INFO_SMP_TARGET) == 0) {
+			mps_printf(sc, "%s: handle %d parent %d does not "
+				   "have an SMP target!\n", __func__,
+				   targ->handle, parent_target->handle);
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			goto bailout;
+
+		}
+
+		sasaddr = parent_target->sasaddr;
+	}
+
+	if (sasaddr == 0) {
+		mps_printf(sc, "%s: unable to find SAS address for handle %d\n",
+			   __func__, targ->handle);
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		goto bailout;
+	}
+	mpssas_send_smpcmd(sassc, ccb, sasaddr);
+
+	return;
+
+bailout:
+	xpt_done(ccb);
+
+}
+
+#endif /* __FreeBSD_version >= 900026 */
 
 static void
 mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)

@@ -2386,6 +2386,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 	struct	linger l;
 	struct	timeval tv;
 	u_long  val;
+	uint32_t val32;
 #ifdef MAC
 	struct mac extmac;
 #endif
@@ -2461,6 +2462,15 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				so->so_fibnum = 0;
 			}
 			break;
+
+		case SO_USER_COOKIE:
+			error = sooptcopyin(sopt, &val32, sizeof val32,
+					    sizeof val32);
+			if (error)
+				goto bad;
+			so->so_user_cookie = val32;
+			break;
+
 		case SO_SNDBUF:
 		case SO_RCVBUF:
 		case SO_SNDLOWAT:

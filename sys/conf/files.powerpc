@@ -22,6 +22,7 @@ dev/adb/adb_kbd.c		optional	adb
 dev/adb/adb_mouse.c		optional	adb
 dev/adb/adb_hb_if.m		optional	adb
 dev/adb/adb_if.m		optional	adb
+dev/agp/agp_apple.c		optional	agp powermac
 dev/cfi/cfi_bus_fdt.c		optional	cfi fdt
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
@@ -82,9 +83,10 @@ powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/machdep.c		optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
 powerpc/aim/mmu_oea64.c		optional	aim
+powerpc/aim/moea64_if.m		optional	aim
+powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/nexus.c		optional	aim
-powerpc/aim/ofw_machdep.c	optional	aim
 powerpc/aim/ofwmagic.S		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/aim/swtch32.S		optional	aim powerpc
@@ -130,6 +132,7 @@ powerpc/mpc85xx/nexus.c		optional	mpc85xx
 powerpc/mpc85xx/openpic_fdt.c	optional	fdt
 powerpc/mpc85xx/pci_fdt.c	optional	pci mpc85xx
 powerpc/ofw/ofw_cpu.c		optional	aim
+powerpc/ofw/ofw_machdep.c	optional	aim
 powerpc/ofw/ofw_pcibus.c	optional	pci aim
 powerpc/ofw/ofw_pcib_pci.c	optional	pci aim
 powerpc/ofw/ofw_real.c		optional	aim
@@ -176,6 +179,7 @@ powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/gdb_machdep.c	optional	gdb
 powerpc/powerpc/in_cksum.c	optional	inet
 powerpc/powerpc/intr_machdep.c	standard
+powerpc/powerpc/iommu_if.m	standard
 powerpc/powerpc/mem.c		optional	mem
 powerpc/powerpc/mmu_if.m	standard
 powerpc/powerpc/mp_machdep.c	optional	smp

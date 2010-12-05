@@ -249,8 +249,16 @@ trap(struct trapframe *frame)
  				return;
 			break;
 #ifdef __powerpc64__
-		case EXC_ISE:
 		case EXC_DSE:
+			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {
+				__asm __volatile ("slbmte %0, %1" ::
+				     "r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
+				     "r"(USER_SLB_SLBE));
+				return;
+			}
+
+			/* FALLTHROUGH */
+		case EXC_ISE:
 			if (handle_slb_spill(kernel_pmap,
 			    (type == EXC_ISE) ? frame->srr0 :
 			    frame->cpu.aim.dar) != 0)
@@ -447,6 +455,15 @@ syscall(struct trapframe *frame)
 	td = PCPU_GET(curthread);
 	td->td_frame = frame;
 
+#ifdef __powerpc64__
+	/*
+	 * Speculatively restore last user SLB segment, which we know is
+	 * invalid already, since we are likely to do copyin()/copyout().
+	 */
+	__asm __volatile ("slbmte %0, %1; isync" ::
+            "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
+#endif
+
 	error = syscallenter(td, &sa);
 	syscallret(td, error, &sa);
 }
@@ -524,13 +541,7 @@ trap_pfault(struct trapframe *frame, int user)
 
 			map = &p->p_vmspace->vm_map;
 
-			#ifdef __powerpc64__
 			user_sr = td->td_pcb->pcb_cpu.aim.usr_segm;
-			#else
-			__asm ("mfsr %0, %1"
-			    : "=r"(user_sr)
-			    : "K"(USER_SR));
-			#endif
 			eva &= ADDR_PIDX | ADDR_POFF;
 			eva |= user_sr << ADDR_SR_SHFT;
 		} else {

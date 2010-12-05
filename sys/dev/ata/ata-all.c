@@ -171,7 +171,12 @@ ata_attach(device_t dev)
 			ch->user[i].bytecount = 8192;
 		else
 			ch->user[i].bytecount = MAXPHYS;
+		ch->user[i].caps = 0;
 		ch->curr[i] = ch->user[i];
+		if (ch->pm_level > 0)
+			ch->user[i].caps |= CTS_SATA_CAPS_H_PMREQ;
+		if (ch->pm_level > 1)
+			ch->user[i].caps |= CTS_SATA_CAPS_D_PMREQ;
 	}
 #endif
 	callout_init(&ch->poll_callout, 1);
@@ -1517,6 +1522,15 @@ ata_cam_end_transaction(device_t dev, struct ata_request *request)
 		res->sector_count = request->u.ata.count;
 		res->sector_count_exp = request->u.ata.count >> 8;
 	}
+	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+		if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+			ccb->ataio.resid =
+			    ccb->ataio.dxfer_len - request->donecount;
+		} else {
+			ccb->csio.resid =
+			    ccb->csio.dxfer_len - request->donecount;
+		}
+	}
 	ata_free_request(request);
 	xpt_done(ccb);
 	/* Do error recovery if needed. */
@@ -1618,6 +1632,8 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 				d->bytecount = min(8192, cts->xport_specific.sata.bytecount);
 			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_ATAPI)
 				d->atapi = cts->xport_specific.sata.atapi;
+			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+				d->caps = cts->xport_specific.sata.caps;
 		} else {
 			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_MODE) {
 				if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
@@ -1663,9 +1679,21 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 					cts->xport_specific.sata.valid |=
 					    CTS_SATA_VALID_REVISION;
 				}
+				cts->xport_specific.sata.caps =
+				    d->caps & CTS_SATA_CAPS_D;
+				if (ch->pm_level) {
+					cts->xport_specific.sata.caps |=
+					    CTS_SATA_CAPS_H_PMREQ;
+				}
+				cts->xport_specific.sata.caps &=
+				    ch->user[ccb->ccb_h.target_id].caps;
+				cts->xport_specific.sata.valid |=
+				    CTS_SATA_VALID_CAPS;
 			} else {
 				cts->xport_specific.sata.revision = d->revision;
 				cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+				cts->xport_specific.sata.caps = d->caps;
+				cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 			}
 			cts->xport_specific.sata.atapi = d->atapi;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;

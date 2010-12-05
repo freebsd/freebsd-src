@@ -129,6 +129,8 @@
 #define TID_MAX		255
 #define TID_NONE	-1
 
+#define TLB_UNLOCKED	0
+
 #if !defined(LOCORE)
 typedef struct tlb_entry {
 	uint32_t mas1;
@@ -145,6 +147,9 @@ void tlb1_inval_entry(unsigned int);
 void tlb1_init(vm_offset_t);
 void tlb1_print_entries(void);
 void tlb1_print_tlbentries(void);
+
+void tlb_lock(uint32_t *);
+void tlb_unlock(uint32_t *);
 
 #endif /* !LOCORE */
 

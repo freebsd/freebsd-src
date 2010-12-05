@@ -110,15 +110,6 @@ ENTRY(cpu_switch)
 	std	%r1,PCB_SP(%r6)		/* Save the stack pointer */
 	std	%r2,PCB_TOC(%r6)	/* Save the TOC pointer */
 	
-	li	%r14,0			/* Save USER_SR for copyin/out */
-	li	%r15,0
-	li	%r16,USER_SR
-	slbmfee %r14, %r16
-	slbmfev %r15, %r16
-	isync
-	std	%r14,PCB_AIM_USR_ESID(%r6)
-	std	%r15,PCB_AIM_USR_VSID(%r6)
-
 	mr	%r14,%r3		/* Copy the old thread ptr... */
 	mr	%r15,%r4		/* and the new thread ptr in scratch */
 	mr	%r16,%r5		/* and the new lock */
@@ -221,17 +212,21 @@ blocked_loop:
 	ld	%r1,PCB_SP(%r3)		/* Load the stack pointer */
 	ld	%r2,PCB_TOC(%r3)	/* Load the TOC pointer */
 
-	lis	%r5,USER_ADDR@highesta	/* Load the USER_SR segment reg */
+	lis	%r5,USER_ADDR@highesta	/* Load the copyin/out segment reg */
 	ori	%r5,%r5,USER_ADDR@highera
 	sldi	%r5,%r5,32
 	oris	%r5,%r5,USER_ADDR@ha
-	slbie	%r5
-	ld	%r5,PCB_AIM_USR_VSID(%r3)
-	ld	%r6,PCB_AIM_USR_ESID(%r3)
-	ori	%r6,%r6,USER_SR
-	slbmte	%r5,%r6
-
 	isync
+	slbie	%r5
+	lis	%r6,USER_SLB_SLBE@highesta
+	ori	%r6,%r6,USER_SLB_SLBE@highera
+	sldi	%r6,%r6,32
+	oris	%r6,%r6,USER_SLB_SLBE@ha
+	ori	%r6,%r6,USER_SLB_SLBE@l
+	ld	%r5,PCB_AIM_USR_VSID(%r3)
+	slbmte	%r5,%r6
+	isync
+
 	/*
 	 * Perform a dummy stdcx. to clear any reservations we may have
 	 * inherited from the previous thread. It doesn't matter if the

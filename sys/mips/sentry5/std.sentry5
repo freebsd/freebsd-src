@@ -1,0 +1,11 @@
+# $FreeBSD$
+#
+
+machine		mips mipsel
+
+cpu		CPU_MIPS4KC
+options 	ISA_MIPS32
+options		CPU_SENTRY5			# XXX should this be a
+						# sub-cpu option?
+files		"../sentry5/files.sentry5"
+

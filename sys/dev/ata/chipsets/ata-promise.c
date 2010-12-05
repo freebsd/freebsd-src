@@ -979,12 +979,11 @@ ata_promise_mio_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    ata_dmainit(dev);
     /* note start and stop are not used here */
     ch->dma.setprd = ata_promise_mio_setprd;
     ch->dma.max_iosize = 65536;
+    ata_dmainit(dev);
 }
-
 
 #define MAXLASTSGSIZE (32 * sizeof(u_int32_t))
 static void 

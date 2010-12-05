@@ -91,7 +91,7 @@ DRIVER_MODULE(e1000phy, miibus, e1000phy_driver, e1000phy_devclass, 0, 0);
 static int	e1000phy_service(struct mii_softc *, struct mii_data *, int);
 static void	e1000phy_status(struct mii_softc *);
 static void	e1000phy_reset(struct mii_softc *);
-static int	e1000phy_mii_phy_auto(struct e1000phy_softc *);
+static int	e1000phy_mii_phy_auto(struct e1000phy_softc *, int);
 
 static const struct mii_phydesc e1000phys[] = {
 	MII_PHY_DESC(MARVELL, E1000),
@@ -145,6 +145,8 @@ e1000phy_attach(device_t dev)
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = e1000phy_service;
 	sc->mii_pdata = mii;
+
+	sc->mii_flags |= MIIF_NOMANPAUSE;
 
 	esc->mii_model = MII_MODEL(ma->mii_id2);
 	ifp = sc->mii_pdata->mii_ifp;
@@ -206,7 +208,7 @@ e1000phy_reset(struct mii_softc *sc)
 			reg &= ~E1000_SCR_MODE_MASK;
 			reg |= E1000_SCR_MODE_1000BX;
 			PHY_WRITE(sc, E1000_SCR, reg);
-			if ((sc->mii_flags & MIIF_MACPRIV0) != 0) {
+			if ((sc->mii_flags & MIIF_PHYPRIV0) != 0) {
 				/* Set SIGDET polarity low for SFP module. */
 				PHY_WRITE(sc, E1000_EADR, 1);
 				reg = PHY_READ(sc, E1000_SCR);
@@ -323,7 +325,7 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			break;
 
 		if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO) {
-			e1000phy_mii_phy_auto(esc);
+			e1000phy_mii_phy_auto(esc, ife->ifm_media);
 			break;
 		}
 
@@ -366,27 +368,14 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		reg &= ~E1000_CR_AUTO_NEG_ENABLE;
 		PHY_WRITE(sc, E1000_CR, reg | E1000_CR_RESET);
 
-		/*
-		 * When setting the link manually, one side must
-		 * be the master and the other the slave. However
-		 * ifmedia doesn't give us a good way to specify
-		 * this, so we fake it by using one of the LINK
-		 * flags. If LINK0 is set, we program the PHY to
-		 * be a master, otherwise it's a slave.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T ||
-		    (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_SX)) {
-			if ((mii->mii_ifp->if_flags & IFF_LINK0))
-				PHY_WRITE(sc, E1000_1GCR, gig |
-				    E1000_1GCR_MS_ENABLE | E1000_1GCR_MS_VALUE);
-			else
-				PHY_WRITE(sc, E1000_1GCR, gig |
-				    E1000_1GCR_MS_ENABLE);
-		} else {
-			if ((sc->mii_extcapabilities &
-			    (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
-				PHY_WRITE(sc, E1000_1GCR, 0);
-		}
+		if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+			gig |= E1000_1GCR_MS_ENABLE;
+			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)	
+				gig |= E1000_1GCR_MS_VALUE;
+			PHY_WRITE(sc, E1000_1GCR, gig);
+		} else if ((sc->mii_extcapabilities &
+		    (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
+			PHY_WRITE(sc, E1000_1GCR, 0);
 		PHY_WRITE(sc, E1000_AR, E1000_AR_SELECTOR_FIELD);
 		PHY_WRITE(sc, E1000_CR, speed | E1000_CR_RESET);
 done:
@@ -424,7 +413,7 @@ done:
 
 		sc->mii_ticks = 0;
 		e1000phy_reset(sc);
-		e1000phy_mii_phy_auto(esc);
+		e1000phy_mii_phy_auto(esc, ife->ifm_media);
 		break;
 	}
 
@@ -440,7 +429,7 @@ static void
 e1000phy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	int bmcr, bmsr, gsr, ssr, ar, lpar;
+	int bmcr, bmsr, ssr;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
@@ -485,38 +474,22 @@ e1000phy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_1000_SX;
 	}
 
-	if (ssr & E1000_SSR_DUPLEX)
+	if (ssr & E1000_SSR_DUPLEX) {
 		mii->mii_media_active |= IFM_FDX;
-	else
+		if ((sc->mii_flags & MIIF_HAVEFIBER) == 0)
+			mii->mii_media_active |= mii_phy_flowstatus(sc);
+	} else
 		mii->mii_media_active |= IFM_HDX;
 
-	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
-		ar = PHY_READ(sc, E1000_AR);
-		lpar = PHY_READ(sc, E1000_LPAR);
-		/* FLAG0==rx-flow-control FLAG1==tx-flow-control */
-		if ((ar & E1000_AR_PAUSE) && (lpar & E1000_LPAR_PAUSE)) {
-			mii->mii_media_active |= IFM_FLAG0 | IFM_FLAG1;
-		} else if (!(ar & E1000_AR_PAUSE) && (ar & E1000_AR_ASM_DIR) &&
-		    (lpar & E1000_LPAR_PAUSE) && (lpar & E1000_LPAR_ASM_DIR)) {
-			mii->mii_media_active |= IFM_FLAG1;
-		} else if ((ar & E1000_AR_PAUSE) && (ar & E1000_AR_ASM_DIR) &&
-		    !(lpar & E1000_LPAR_PAUSE) && (lpar & E1000_LPAR_ASM_DIR)) {
-			mii->mii_media_active |= IFM_FLAG0;
-		}
-	}
-
-	/* FLAG2 : local PHY resolved to MASTER */
-	if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) ||
-	    (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)) {
-		PHY_READ(sc, E1000_1GSR);
-		gsr = PHY_READ(sc, E1000_1GSR);
-		if ((gsr & E1000_1GSR_MS_CONFIG_RES) != 0)
-			mii->mii_media_active |= IFM_FLAG2;
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) {
+		if (((PHY_READ(sc, E1000_1GSR) | PHY_READ(sc, E1000_1GSR)) &
+		    E1000_1GSR_MS_CONFIG_RES) != 0)
+			mii->mii_media_active |= IFM_ETH_MASTER;
 	}
 }
 
 static int
-e1000phy_mii_phy_auto(struct e1000phy_softc *esc)
+e1000phy_mii_phy_auto(struct e1000phy_softc *esc, int media)
 {
 	struct mii_softc *sc;
 	uint16_t reg;
@@ -524,13 +497,15 @@ e1000phy_mii_phy_auto(struct e1000phy_softc *esc)
 	sc = &esc->mii_sc;
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
 		reg = PHY_READ(sc, E1000_AR);
+		reg &= ~(E1000_AR_PAUSE | E1000_AR_ASM_DIR);
 		reg |= E1000_AR_10T | E1000_AR_10T_FD |
-		    E1000_AR_100TX | E1000_AR_100TX_FD |
-		    E1000_AR_PAUSE | E1000_AR_ASM_DIR;
+		    E1000_AR_100TX | E1000_AR_100TX_FD;
+		if ((media & IFM_FLOW) != 0 ||
+		    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
+			reg |= E1000_AR_PAUSE | E1000_AR_ASM_DIR;
 		PHY_WRITE(sc, E1000_AR, reg | E1000_AR_SELECTOR_FIELD);
 	} else
-		PHY_WRITE(sc, E1000_AR, E1000_FA_1000X_FD | E1000_FA_1000X |
-		    E1000_FA_SYM_PAUSE | E1000_FA_ASYM_PAUSE);
+		PHY_WRITE(sc, E1000_AR, E1000_FA_1000X_FD | E1000_FA_1000X);
 	if ((sc->mii_extcapabilities & (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
 		PHY_WRITE(sc, E1000_1GCR,
 		    E1000_1GCR_1000T_FD | E1000_1GCR_1000T);

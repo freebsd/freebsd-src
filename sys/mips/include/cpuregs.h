@@ -181,6 +181,9 @@
 #define	MIPS_XUSEG_END			0x0000010000000000
 #define	MIPS_XKSEG_START		0xc000000000000000
 #define	MIPS_XKSEG_END			0xc00000ff80000000
+#define	MIPS_XKSEG_COMPAT32_START	0xffffffff80000000
+#define	MIPS_XKSEG_COMPAT32_END		0xffffffffffffffff
+#define	MIPS_XKSEG_TO_COMPAT32(va)	((va) & 0xffffffff)
 
 #ifdef __mips_n64
 #define	MIPS_DIRECT_MAPPABLE(pa)	1

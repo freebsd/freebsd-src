@@ -65,6 +65,12 @@ CODE {
 	{
 		return (ENOSYS);
 	}
+
+	static int
+	default_recover(struct g_part_table *t __unused)
+	{
+		return (ENOSYS);
+	}
 };
 
 # add() - scheme specific processing for the add verb.
@@ -162,6 +168,11 @@ METHOD int read {
 	struct g_part_table *table;
 	struct g_consumer *cp;
 };
+
+# recover() - scheme specific processing for the recover verb.
+METHOD int recover {
+	struct g_part_table *table;
+} DEFAULT default_recover;
 
 # setunset() - set or unset partition entry attributes.
 METHOD int setunset {

@@ -708,25 +708,7 @@ bad:
 static void
 devadded(device_t dev)
 {
-	char *pnp = NULL;
-	char *tmp = NULL;
-
-	pnp = malloc(1024, M_BUS, M_NOWAIT);
-	if (pnp == NULL)
-		goto fail;
-	tmp = malloc(1024, M_BUS, M_NOWAIT);
-	if (tmp == NULL)
-		goto fail;
-	*pnp = '\0';
-	bus_child_pnpinfo_str(dev, pnp, 1024);
-	snprintf(tmp, 1024, "%s %s", device_get_nameunit(dev), pnp);
-	devaddq("+", tmp, dev);
-fail:
-	if (pnp != NULL)
-		free(pnp, M_BUS);
-	if (tmp != NULL)
-		free(tmp, M_BUS);
-	return;
+	devaddq("+", device_get_nameunit(dev), dev);
 }
 
 /*
@@ -736,25 +718,7 @@ fail:
 static void
 devremoved(device_t dev)
 {
-	char *pnp = NULL;
-	char *tmp = NULL;
-
-	pnp = malloc(1024, M_BUS, M_NOWAIT);
-	if (pnp == NULL)
-		goto fail;
-	tmp = malloc(1024, M_BUS, M_NOWAIT);
-	if (tmp == NULL)
-		goto fail;
-	*pnp = '\0';
-	bus_child_pnpinfo_str(dev, pnp, 1024);
-	snprintf(tmp, 1024, "%s %s", device_get_nameunit(dev), pnp);
-	devaddq("-", tmp, dev);
-fail:
-	if (pnp != NULL)
-		free(pnp, M_BUS);
-	if (tmp != NULL)
-		free(tmp, M_BUS);
-	return;
+	devaddq("-", device_get_nameunit(dev), dev);
 }
 
 /*
@@ -2931,6 +2895,30 @@ resource_list_busy(struct resource_list *rl, int type, int rid)
 		return (0);
 	}
 	return (1);
+}
+
+/**
+ * @brief Determine if a resource entry is reserved.
+ *
+ * Returns true if a resource entry is reserved meaning that it has an
+ * associated "reserved" resource.  The resource can either be
+ * allocated or unallocated.
+ *
+ * @param rl		the resource list to search
+ * @param type		the resource entry type (e.g. SYS_RES_MEMORY)
+ * @param rid		the resource identifier
+ *
+ * @returns Non-zero if the entry is reserved, zero otherwise.
+ */
+int
+resource_list_reserved(struct resource_list *rl, int type, int rid)
+{
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(rl, type, rid);
+	if (rle != NULL && rle->flags & RLE_RESERVED)
+		return (1);
+	return (0);
 }
 
 /**

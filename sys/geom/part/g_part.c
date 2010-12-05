@@ -296,6 +296,17 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	g_error_provider(entry->gpe_pp, 0);
 }
 
+static struct g_geom*
+g_part_find_geom(const char *name)
+{
+	struct g_geom *gp;
+	LIST_FOREACH(gp, &g_part_class.geom, geom) {
+		if (!strcmp(name, gp->name))
+			break;
+	}
+	return (gp);
+}
+
 static int
 g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 {
@@ -307,10 +318,7 @@ g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 		return (ENOATTR);
 	if (strncmp(gname, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 		gname += sizeof(_PATH_DEV) - 1;
-	LIST_FOREACH(gp, &g_part_class.geom, geom) {
-		if (!strcmp(gname, gp->name))
-			break;
-	}
+	gp = g_part_find_geom(gname);
 	if (gp == NULL) {
 		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
@@ -748,8 +756,8 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	g_topology_assert();
 
 	/* Check that there isn't already a g_part geom on the provider. */
-	error = g_part_parm_geom(req, "provider", &gp);
-	if (!error) {
+	gp = g_part_find_geom(pp->name);
+	if (gp != NULL) {
 		null = gp->softc;
 		if (null->gpt_scheme != &g_part_null_scheme) {
 			gctl_error(req, "%d geom '%s'", EEXIST, pp->name);
@@ -924,7 +932,7 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct g_provider *pp;
-	struct g_part_entry *entry;
+	struct g_part_entry *entry, *tmp;
 	struct g_part_table *null, *table;
 	struct sbuf *sb;
 	int error;
@@ -934,11 +942,32 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 	g_topology_assert();
 
 	table = gp->softc;
+	/* Check for busy providers. */
 	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
 		if (entry->gpe_deleted || entry->gpe_internal)
 			continue;
+		if (gpp->gpp_force) {
+			pp = entry->gpe_pp;
+			if (pp == NULL)
+				continue;
+			if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0)
+				continue;
+		}
 		gctl_error(req, "%d", EBUSY);
 		return (EBUSY);
+	}
+
+	if (gpp->gpp_force) {
+		/* Destroy all providers. */
+		LIST_FOREACH_SAFE(entry, &table->gpt_entry, gpe_entry, tmp) {
+			pp = entry->gpe_pp;
+			if (pp != NULL) {
+				pp->private = NULL;
+				g_wither_provider(pp, ENXIO);
+			}
+			LIST_REMOVE(entry, gpe_entry);
+			g_free(entry);
+		}
 	}
 
 	error = G_PART_DESTROY(table, gpp);
@@ -1037,8 +1066,39 @@ g_part_ctl_move(struct gctl_req *req, struct g_part_parms *gpp)
 static int
 g_part_ctl_recover(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	gctl_error(req, "%d verb 'recover'", ENOSYS);
-	return (ENOSYS);
+	struct g_part_table *table;
+	struct g_geom *gp;
+	struct sbuf *sb;
+	int error, recovered;
+
+	gp = gpp->gpp_geom;
+	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
+	g_topology_assert();
+	table = gp->softc;
+	error = recovered = 0;
+
+	if (table->gpt_corrupt) {
+		error = G_PART_RECOVER(table);
+		if (error) {
+			gctl_error(req, "%d recovering '%s' failed",
+			    error, gp->name);
+			return (error);
+		}
+		recovered = 1;
+	}
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new_auto();
+		if (recovered)
+			sbuf_printf(sb, "%s recovered\n", gp->name);
+		else
+			sbuf_printf(sb, "%s recovering is not needed\n",
+			    gp->name);
+		sbuf_finish(sb);
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
+	return (0);
 }
 
 static int
@@ -1341,6 +1401,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		} else if (!strcmp(verb, "destroy")) {
 			ctlreq = G_PART_CTL_DESTROY;
 			mparms |= G_PART_PARM_GEOM;
+			oparms |= G_PART_PARM_FORCE;
 		}
 		break;
 	case 'm':
@@ -1415,6 +1476,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		case 'f':
 			if (!strcmp(ap->name, "flags"))
 				parm = G_PART_PARM_FLAGS;
+			else if (!strcmp(ap->name, "force"))
+				parm = G_PART_PARM_FORCE;
 			break;
 		case 'i':
 			if (!strcmp(ap->name, "index"))
@@ -1453,7 +1516,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		}
 		switch (parm) {
 		case G_PART_PARM_ATTRIB:
-			error = g_part_parm_str(req, ap->name, &gpp.gpp_attrib);
+			error = g_part_parm_str(req, ap->name,
+			    &gpp.gpp_attrib);
 			break;
 		case G_PART_PARM_BOOTCODE:
 			error = g_part_parm_bootcode(req, ap->name,
@@ -1466,11 +1530,16 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		case G_PART_PARM_FLAGS:
 			error = g_part_parm_str(req, ap->name, &gpp.gpp_flags);
 			break;
+		case G_PART_PARM_FORCE:
+			error = g_part_parm_uint32(req, ap->name,
+			    &gpp.gpp_force);
+			break;
 		case G_PART_PARM_GEOM:
 			error = g_part_parm_geom(req, ap->name, &gpp.gpp_geom);
 			break;
 		case G_PART_PARM_INDEX:
-			error = g_part_parm_intmax(req, ap->name, &gpp.gpp_index);
+			error = g_part_parm_intmax(req, ap->name,
+			    &gpp.gpp_index);
 			break;
 		case G_PART_PARM_LABEL:
 			error = g_part_parm_str(req, ap->name, &gpp.gpp_label);
@@ -1490,7 +1559,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			error = g_part_parm_quad(req, ap->name, &gpp.gpp_size);
 			break;
 		case G_PART_PARM_START:
-			error = g_part_parm_quad(req, ap->name, &gpp.gpp_start);
+			error = g_part_parm_quad(req, ap->name,
+			    &gpp.gpp_start);
 			break;
 		case G_PART_PARM_TYPE:
 			error = g_part_parm_str(req, ap->name, &gpp.gpp_type);
@@ -1524,6 +1594,13 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	table = NULL;
 	if (modifies && (gpp.gpp_parms & G_PART_PARM_GEOM)) {
 		table = gpp.gpp_geom->softc;
+		if (table != NULL && table->gpt_corrupt &&
+		    ctlreq != G_PART_CTL_DESTROY &&
+		    ctlreq != G_PART_CTL_RECOVER) {
+			gctl_error(req, "%d table '%s' is corrupt",
+			    EPERM, gpp.gpp_geom->name);
+			return;
+		}
 		if (table != NULL && !table->gpt_opened) {
 			error = g_access(LIST_FIRST(&gpp.gpp_geom->consumer),
 			    1, 1, 1);
@@ -1789,6 +1866,8 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    table->gpt_sectors);
 		sbuf_printf(sb, "%s<fwheads>%u</fwheads>\n", indent,
 		    table->gpt_heads);
+		sbuf_printf(sb, "%s<state>%s</state>\n", indent,
+		    table->gpt_corrupt ? "CORRUPT": "OK");
 		G_PART_DUMPCONF(table, NULL, sb, indent);
 	}
 }

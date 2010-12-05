@@ -632,8 +632,7 @@ run_attach(device_t self)
 	    IEEE80211_C_SHPREAMBLE |	/* short preamble supported */
 	    IEEE80211_C_SHSLOT |	/* short slot time supported */
 	    IEEE80211_C_WME |		/* WME */
-	    IEEE80211_C_WPA |		/* WPA1|WPA2(RSN) */
-	    IEEE80211_C_RATECTL;	/* use ratectl */
+	    IEEE80211_C_WPA;		/* WPA1|WPA2(RSN) */
 
 	ic->ic_cryptocaps =
 	    IEEE80211_CRYPTO_WEP |

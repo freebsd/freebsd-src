@@ -287,15 +287,6 @@ ndis_create_sysctls(arg)
 
 	TAILQ_INIT(&sc->ndis_cfglist_head);
 
-#if __FreeBSD_version < 502113
-	/* Create the sysctl tree. */
-
-	sc->ndis_tree = SYSCTL_ADD_NODE(&sc->ndis_ctx,
-	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
-	    device_get_nameunit(sc->ndis_dev), CTLFLAG_RD, 0,
-	    device_get_desc(sc->ndis_dev));
-
-#endif
 	/* Add the driver-specific registry keys. */
 
 	while(1) {
@@ -310,11 +301,7 @@ ndis_create_sysctls(arg)
 		/* See if we already have a sysctl with this name */
 
 		oidp = NULL;
-#if __FreeBSD_version < 502113
-		TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
-#else
 		TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
-#endif
 			oidp = e->entry;
 			if (strcasecmp(oidp->oid_name, vals->nc_cfgkey) == 0)
 				break;
@@ -343,6 +330,16 @@ ndis_create_sysctls(arg)
 	/* NDIS version should be 5.1. */
 	ndis_add_sysctl(sc, "NdisVersion",
 	    "NDIS API Version", "0x00050001", CTLFLAG_RD);
+
+	/*
+	 * Some miniport drivers rely on the existence of the SlotNumber,
+	 * NetCfgInstanceId and DriverDesc keys.
+	 */
+	ndis_add_sysctl(sc, "SlotNumber", "Slot Numer", "01", CTLFLAG_RD);
+	ndis_add_sysctl(sc, "NetCfgInstanceId", "NetCfgInstanceId",
+	    "{12345678-1234-5678-CAFE0-123456789ABC}", CTLFLAG_RD);
+	ndis_add_sysctl(sc, "DriverDesc", "Driver Description",
+	    "NDIS Network Adapter", CTLFLAG_RD);
 
 	/* Bus type (PCI, PCMCIA, etc...) */
 	sprintf(buf, "%d", (int)sc->ndis_iftype);
@@ -395,18 +392,11 @@ ndis_add_sysctl(arg, key, desc, val, flag)
 	TAILQ_INSERT_TAIL(&sc->ndis_cfglist_head, cfg, link);
 
 	cfg->ndis_oid =
-#if __FreeBSD_version < 502113
-	SYSCTL_ADD_STRING(&sc->ndis_ctx, SYSCTL_CHILDREN(sc->ndis_tree),
-	    OID_AUTO, cfg->ndis_cfg.nc_cfgkey, flag,
-	    cfg->ndis_cfg.nc_val, sizeof(cfg->ndis_cfg.nc_val),
-	    cfg->ndis_cfg.nc_cfgdesc);
-#else
 	SYSCTL_ADD_STRING(device_get_sysctl_ctx(sc->ndis_dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ndis_dev)),
 	    OID_AUTO, cfg->ndis_cfg.nc_cfgkey, flag,
 	    cfg->ndis_cfg.nc_val, sizeof(cfg->ndis_cfg.nc_val),
 	    cfg->ndis_cfg.nc_cfgdesc);
-#endif
 
 	return (0);
 }
@@ -428,11 +418,7 @@ ndis_flush_sysctls(arg)
 
 	sc = arg;
 
-#if __FreeBSD_version < 502113
-	clist = &sc->ndis_ctx;
-#else
 	clist = device_get_sysctl_ctx(sc->ndis_dev);
-#endif
 
 	while (!TAILQ_EMPTY(&sc->ndis_cfglist_head)) {
 		cfg = TAILQ_FIRST(&sc->ndis_cfglist_head);

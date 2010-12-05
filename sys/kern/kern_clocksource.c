@@ -208,12 +208,13 @@ handleevents(struct bintime *now, int fake)
 		bintime_add(&state->nexthard, &hardperiod);
 		runs++;
 	}
-	if (runs) {
+	if (runs && fake < 2) {
 		hardclock_anycpu(runs, usermode);
 		done = 1;
 	}
 	while (bintime_cmp(now, &state->nextstat, >=)) {
-		statclock(usermode);
+		if (fake < 2)
+			statclock(usermode);
 		bintime_add(&state->nextstat, &statperiod);
 		done = 1;
 	}
@@ -227,6 +228,10 @@ handleevents(struct bintime *now, int fake)
 	} else
 		state->nextprof = state->nextstat;
 	getnextcpuevent(&t, 0);
+	if (fake == 2) {
+		state->nextevent = t;
+		return (done);
+	}
 	ET_HW_LOCK(state);
 	if (!busy) {
 		state->idle = 0;
@@ -383,6 +388,11 @@ loadtimer(struct bintime *now, int start)
 	uint64_t tmp;
 	int eq;
 
+	if (timer->et_flags & ET_FLAGS_PERCPU) {
+		state = DPCPU_PTR(timerstate);
+		next = &state->nexttick;
+	} else
+		next = &nexttick;
 	if (periodic) {
 		if (start) {
 			/*
@@ -391,20 +401,18 @@ loadtimer(struct bintime *now, int start)
 			 */
 			tmp = ((uint64_t)now->sec << 36) + (now->frac >> 28);
 			tmp = (tmp % (timerperiod.frac >> 28)) << 28;
-			tmp = timerperiod.frac - tmp;
-			new = timerperiod;
-			bintime_addx(&new, tmp);
+			new.sec = 0;
+			new.frac = timerperiod.frac - tmp;
+			if (new.frac < tmp)	/* Left less then passed. */
+				bintime_add(&new, &timerperiod);
 			CTR5(KTR_SPARE2, "load p at %d:   now %d.%08x first in %d.%08x",
 			    curcpu, now->sec, (unsigned int)(now->frac >> 32),
 			    new.sec, (unsigned int)(new.frac >> 32));
+			*next = new;
+			bintime_add(next, now);
 			et_start(timer, &new, &timerperiod);
 		}
 	} else {
-		if (timer->et_flags & ET_FLAGS_PERCPU) {
-			state = DPCPU_PTR(timerstate);
-			next = &state->nexttick;
-		} else
-			next = &nexttick;
 		getnextevent(&new);
 		eq = bintime_cmp(&new, next, ==);
 		CTR5(KTR_SPARE2, "load at %d:    next %d.%08x%08x eq %d",
@@ -669,13 +677,19 @@ cpu_initclocks_ap(void)
 	struct bintime now;
 	struct pcpu_state *state;
 
-	if (timer->et_flags & ET_FLAGS_PERCPU) {
-		state = DPCPU_PTR(timerstate);
-		binuptime(&now);
-		ET_HW_LOCK(state);
+	state = DPCPU_PTR(timerstate);
+	binuptime(&now);
+	ET_HW_LOCK(state);
+	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 && periodic) {
+		state->now = nexttick;
+		bintime_sub(&state->now, &timerperiod);
+	} else
+		state->now = now;
+	hardclock_sync(curcpu);
+	handleevents(&state->now, 2);
+	if (timer->et_flags & ET_FLAGS_PERCPU)
 		loadtimer(&now, 1);
-		ET_HW_UNLOCK(state);
-	}
+	ET_HW_UNLOCK(state);
 }
 
 /*

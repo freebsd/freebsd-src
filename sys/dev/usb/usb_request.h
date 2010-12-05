@@ -65,6 +65,8 @@ usb_error_t usbd_req_get_port_status(struct usb_device *udev, struct mtx *mtx,
 		    struct usb_port_status *ps, uint8_t port);
 usb_error_t usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx,
 		    uint8_t port);
+usb_error_t usbd_req_warm_reset_port(struct usb_device *udev,
+		    struct mtx *mtx, uint8_t port);
 usb_error_t usbd_req_set_address(struct usb_device *udev, struct mtx *mtx,
 		    uint16_t addr);
 usb_error_t usbd_req_set_hub_feature(struct usb_device *udev, struct mtx *mtx,

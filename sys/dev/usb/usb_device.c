@@ -88,7 +88,7 @@ static void	usb_init_endpoint(struct usb_device *, uint8_t,
 		    struct usb_endpoint *);
 static void	usb_unconfigure(struct usb_device *, uint8_t);
 static void	usb_detach_device_sub(struct usb_device *, device_t *,
-		    uint8_t);
+		    char **, uint8_t);
 static uint8_t	usb_probe_and_attach_sub(struct usb_device *,
 		    struct usb_attach_arg *);
 static void	usb_init_attach_arg(struct usb_device *,
@@ -1035,9 +1035,10 @@ usb_reset_iface_endpoints(struct usb_device *udev, uint8_t iface_index)
  *------------------------------------------------------------------------*/
 static void
 usb_detach_device_sub(struct usb_device *udev, device_t *ppdev,
-    uint8_t flag)
+    char **ppnpinfo, uint8_t flag)
 {
 	device_t dev;
+	char *pnpinfo;
 	int err;
 
 	dev = *ppdev;
@@ -1069,11 +1070,17 @@ usb_detach_device_sub(struct usb_device *udev, device_t *ppdev,
 			goto error;
 		}
 	}
+
+	pnpinfo = *ppnpinfo;
+	if (pnpinfo != NULL) {
+		*ppnpinfo = NULL;
+		free(pnpinfo, M_USBDEV);
+	}
 	return;
 
 error:
 	/* Detach is not allowed to fail in the USB world */
-	panic("A USB driver would not detach\n");
+	panic("usb_detach_device_sub: A USB driver would not detach\n");
 }
 
 /*------------------------------------------------------------------------*
@@ -1122,7 +1129,8 @@ usb_detach_device(struct usb_device *udev, uint8_t iface_index,
 			/* looks like the end of the USB interfaces */
 			break;
 		}
-		usb_detach_device_sub(udev, &iface->subdev, flag);
+		usb_detach_device_sub(udev, &iface->subdev,
+		    &iface->pnpinfo, flag);
 	}
 }
 
@@ -2418,14 +2426,13 @@ usb_notify_addq_compat(const char *type, struct usb_device *udev)
 #if USB_HAVE_UGEN
 	    "%s "
 #endif
+	    "at port=%u "
 	    "vendor=0x%04x "
 	    "product=0x%04x "
 	    "devclass=0x%02x "
 	    "devsubclass=0x%02x "
 	    "sernum=\"%s\" "
 	    "release=0x%04x "
-	    "at "
-	    "port=%u "
 #if USB_HAVE_UGEN
 	    "on %s\n"
 #endif
@@ -2434,13 +2441,13 @@ usb_notify_addq_compat(const char *type, struct usb_device *udev)
 #if USB_HAVE_UGEN
 	    udev->ugen_name,
 #endif
+	    udev->port_no,
 	    UGETW(udev->ddesc.idVendor),
 	    UGETW(udev->ddesc.idProduct),
 	    udev->ddesc.bDeviceClass,
 	    udev->ddesc.bDeviceSubClass,
 	    usb_get_serial(udev),
-	    UGETW(udev->ddesc.bcdDevice),
-	    udev->port_no
+	    UGETW(udev->ddesc.bcdDevice)
 #if USB_HAVE_UGEN
 	    , udev->parent_hub != NULL ?
 		udev->parent_hub->ugen_name :
@@ -2468,6 +2475,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	sbuf_printf(sb,
 #if USB_HAVE_UGEN
 	    "ugen=%s "
+	    "cdev=%s "
 #endif
 	    "vendor=0x%04x "
 	    "product=0x%04x "
@@ -2478,10 +2486,11 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    "mode=%s "
 	    "port=%u "
 #if USB_HAVE_UGEN
-	    "parent=%s\n"
+	    "parent=%s"
 #endif
 	    "",
 #if USB_HAVE_UGEN
+	    udev->ugen_name,
 	    udev->ugen_name,
 #endif
 	    UGETW(udev->ddesc.idVendor),
@@ -2514,6 +2523,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		sbuf_printf(sb,
 #if USB_HAVE_UGEN
 		    "ugen=%s "
+		    "cdev=%s "
 #endif
 		    "vendor=0x%04x "
 		    "product=0x%04x "
@@ -2526,8 +2536,9 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		    "endpoints=%d "
 		    "intclass=0x%02x "
 		    "intsubclass=0x%02x "
-		    "intprotocol=0x%02x\n",
+		    "intprotocol=0x%02x",
 #if USB_HAVE_UGEN
+		    udev->ugen_name,
 		    udev->ugen_name,
 #endif
 		    UGETW(udev->ddesc.idVendor),
@@ -2714,3 +2725,37 @@ usbd_enum_is_locked(struct usb_device *udev)
 {
 	return (sx_xlocked(&udev->enum_sx));
 }
+
+/*
+ * The following function is used to set the per-interface specific
+ * plug and play information. The string referred to by the pnpinfo
+ * argument can safely be freed after calling this function. The
+ * pnpinfo of an interface will be reset at device detach or when
+ * passing a NULL argument to this function. This function
+ * returns zero on success, else a USB_ERR_XXX failure code.
+ */
+
+usb_error_t 
+usbd_set_pnpinfo(struct usb_device *udev, uint8_t iface_index, const char *pnpinfo)
+{
+	struct usb_interface *iface;
+
+	iface = usbd_get_iface(udev, iface_index);
+	if (iface == NULL)
+		return (USB_ERR_INVAL);
+
+	if (iface->pnpinfo != NULL) {
+		free(iface->pnpinfo, M_USBDEV);
+		iface->pnpinfo = NULL;
+	}
+
+	if (pnpinfo == NULL || pnpinfo[0] == 0)
+		return (0);		/* success */
+
+	iface->pnpinfo = strdup(pnpinfo, M_USBDEV);
+	if (iface->pnpinfo == NULL)
+		return (USB_ERR_NOMEM);
+
+	return (0);			/* success */
+}
+

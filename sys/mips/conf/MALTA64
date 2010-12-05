@@ -19,8 +19,9 @@
 
 ident		MALTA
 
+machine		mips mips64el	# Malta supports both, so it isn't in std.malta
+
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
-makeoptions	MIPS_LITTLE_ENDIAN=defined
 makeoptions	LDSCRIPT_NAME=	ldscript.mips.mips64
 
 options 	YAMON

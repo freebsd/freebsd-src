@@ -196,14 +196,15 @@ static void pmap_update_page_action(void *arg);
 
 #ifndef __mips_n64
 /*
- * This structure is for high memory (memory above 512Meg in 32 bit)
- * This memory area does not have direct mapping, so we a mechanism to do
- * temporary per-CPU mapping to access these addresses.
+ * This structure is for high memory (memory above 512Meg in 32 bit) support.
+ * The highmem area does not have a KSEG0 mapping, and we need a mechanism to
+ * do temporary per-CPU mappings for pmap_zero_page, pmap_copy_page etc.
  *
- * At bootup we reserve 2 virtual pages per CPU for mapping highmem pages, to 
- * access a highmem physical address on a CPU, we will disable interrupts and
- * add the mapping from the reserved virtual address for the CPU to the physical
- * address in the kernel pagetable.
+ * At bootup, we reserve 2 virtual pages per CPU for mapping highmem pages. To 
+ * access a highmem physical address on a CPU, we map the physical address to
+ * the reserved virtual address for the CPU in the kernel pagetable.  This is 
+ * done with interrupts disabled(although a spinlock and sched_pin would be 
+ * sufficient).
  */
 struct local_sysmaps {
 	vm_offset_t	base;
@@ -520,11 +521,11 @@ again:
 	}
 
        	/*
-	 * In 32 bit, we may have memory which cannot be mapped directly
-	 * this memory will need temporary mapping before it can be
+	 * In 32 bit, we may have memory which cannot be mapped directly.
+	 * This memory will need temporary mapping before it can be
 	 * accessed.
 	 */
-	if (!MIPS_DIRECT_MAPPABLE(phys_avail[i - 1]))
+	if (!MIPS_DIRECT_MAPPABLE(phys_avail[i - 1] - 1))
 		need_local_mappings = 1;
 
 	/*
@@ -893,7 +894,7 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
 	vm_offset_t va, sva;
 
-	if (MIPS_DIRECT_MAPPABLE(end))
+	if (MIPS_DIRECT_MAPPABLE(end - 1))
 		return (MIPS_PHYS_TO_DIRECT(start));
 
 	va = sva = *virt;
@@ -1077,7 +1078,7 @@ pmap_alloc_pte_page(unsigned int index, int req)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, 0, req);
+	m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, req);
 	if (m == NULL)
 		return (NULL);
 

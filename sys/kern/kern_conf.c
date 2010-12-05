@@ -752,7 +752,7 @@ make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
 		return (res);
 	}
 	dev = newdev(devsw, unit, dev_new);
-	if ((dev->si_flags & SI_NAMED) == 0)
+	if ((dev->si_flags & SI_NAMED) == 0) {
 		res = prep_devname(dev, fmt, ap);
 		if (res != 0) {
 			if ((flags & MAKEDEV_CHECKNAME) == 0) {
@@ -766,6 +766,7 @@ make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
 				devfs_free(dev);
 			}
 			return (res);
+		}
 	}
 	if (flags & MAKEDEV_REF)
 		dev_refl(dev);

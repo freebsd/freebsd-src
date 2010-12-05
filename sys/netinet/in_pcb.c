@@ -874,10 +874,6 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		}
 	}
 	if (laddr.s_addr == INADDR_ANY) {
-		error = in_pcbladdr(inp, &faddr, &laddr, cred);
-		if (error)
-			return (error);
-
 		/*
 		 * If the destination address is multicast and an outgoing
 		 * interface has been set as a multicast option, use the
@@ -902,9 +898,12 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 				laddr = ia->ia_addr.sin_addr;
 				IN_IFADDR_RUNLOCK();
 			}
+		} else {
+			error = in_pcbladdr(inp, &faddr, &laddr, cred);
+			if (error) 
+				return (error);
 		}
 	}
-
 	oinp = in_pcblookup_hash(inp->inp_pcbinfo, faddr, fport, laddr, lport,
 	    0, NULL);
 	if (oinp != NULL) {

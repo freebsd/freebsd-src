@@ -37,33 +37,12 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_AESNI);
 
-#ifdef DEBUG
-static void
-ps_len(const char *string, const uint8_t *data, int length)
-{
-	int i;
-
-	printf("%-12s[0x", string);
-	for(i = 0; i < length; i++) {
-		if (i % AES_BLOCK_LEN == 0 && i > 0)
-			printf("+");
-		printf("%02x", data[i]);
-	}
-	printf("]\n");
-}
-#endif
-
 void
 aesni_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
     const uint8_t *from, uint8_t *to, const uint8_t iv[AES_BLOCK_LEN])
 {
 	const uint8_t *ivp;
 	size_t i;
-
-#ifdef DEBUG
-	ps_len("AES CBC encrypt iv:", iv, AES_BLOCK_LEN);
-	ps_len("from:", from, len);
-#endif
 
 	len /= AES_BLOCK_LEN;
 	ivp = iv;
@@ -73,9 +52,6 @@ aesni_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
 		from += AES_BLOCK_LEN;
 		to += AES_BLOCK_LEN;
 	}
-#ifdef DEBUG
-	ps_len("to:", to - len * AES_BLOCK_LEN, len * AES_BLOCK_LEN);
-#endif
 }
 
 void
@@ -246,14 +222,21 @@ int
 aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
 {
 	struct thread *td;
-	int error;
+	int error, saved_ctx;
 
 	td = curthread;
-	error = fpu_kern_enter(td, &ses->fpu_ctx, FPU_KERN_NORMAL);
+	if (!is_fpu_kern_thread(0)) {
+		error = fpu_kern_enter(td, &ses->fpu_ctx, FPU_KERN_NORMAL);
+		saved_ctx = 1;
+	} else {
+		error = 0;
+		saved_ctx = 0;
+	}
 	if (error == 0) {
 		error = aesni_cipher_setup_common(ses, encini->cri_key,
 		    encini->cri_klen);
-		fpu_kern_leave(td, &ses->fpu_ctx);
+		if (saved_ctx)
+			fpu_kern_leave(td, &ses->fpu_ctx);
 	}
 	return (error);
 }
@@ -264,16 +247,22 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 {
 	struct thread *td;
 	uint8_t *buf;
-	int error, allocated;
+	int error, allocated, saved_ctx;
 
 	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
 	if (buf == NULL)
 		return (ENOMEM);
 
 	td = curthread;
-	error = fpu_kern_enter(td, &ses->fpu_ctx, FPU_KERN_NORMAL);
-	if (error != 0)
-		goto out;
+	if (!is_fpu_kern_thread(0)) {
+		error = fpu_kern_enter(td, &ses->fpu_ctx, FPU_KERN_NORMAL);
+		if (error != 0)
+			goto out;
+		saved_ctx = 1;
+	} else {
+		saved_ctx = 0;
+		error = 0;
+	}
 
 	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
 		error = aesni_cipher_setup_common(ses, enccrd->crd_key,
@@ -311,7 +300,8 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 			    ses->iv);
 		}
 	}
-	fpu_kern_leave(td, &ses->fpu_ctx);
+	if (saved_ctx)
+		fpu_kern_leave(td, &ses->fpu_ctx);
 	if (allocated)
 		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
 		    enccrd->crd_len, buf);

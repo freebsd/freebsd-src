@@ -25,14 +25,9 @@
 #
 
 ident		SENTRY5
-cpu		CPU_MIPS4KC
-options 	ISA_MIPS32
-options		CPU_SENTRY5			# XXX should this be a
-						# sub-cpu option?
 
 # XXX only siba should be hardwired for now; we will use
 # bus enumeration there
-files		"../sentry5/files.sentry5"
 hints		"SENTRY5.hints"
 
 # sentry5 normally ships with cfe firmware; use the console for now
@@ -40,8 +35,6 @@ options		CFE
 options		CFE_CONSOLE
 options		ALT_BREAK_TO_DEBUGGER
 
-#makeoptions	ARCH_FLAGS=-march=mips32
-makeoptions	MIPS_LITTLE_ENDIAN=defined
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	MODULES_OVERRIDE=""
 
@@ -56,18 +49,18 @@ options		PSEUDOFS		#Pseudo-filesystem framework
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 # Debugging for use in -current
-#options		DEADLKRES
+#options 	DEADLKRES
 options		INVARIANTS
 options		INVARIANT_SUPPORT
 
-#options		BUS_DEBUG
+#options 	BUS_DEBUG
 #makeoptions	BUS_DEBUG
 
 device		siba			# Sonics SiliconBackplane
 device		pci			# siba_pcib
 
-# device		bfe			# XXX will build both pci and siba
-# device		miibus			# attachments
+# device 	bfe			# XXX will build both pci and siba
+# device 	miibus			# attachments
 
 # pci devices
 # notyet:

@@ -933,6 +933,10 @@ zil_lwb_commit(zilog_t *zilog, itx_t *itx, lwb_t *lwb)
 			}
 			error = zilog->zl_get_data(
 			    itx->itx_private, lr, dbuf, lwb->lwb_zio);
+			if (error == EIO) {
+				txg_wait_synced(zilog->zl_dmu_pool, txg);
+				return (lwb);
+			}
 			if (error) {
 				ASSERT(error == ENOENT || error == EEXIST ||
 				    error == EALREADY);

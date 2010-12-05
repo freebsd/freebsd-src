@@ -36,9 +36,14 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/uma.h>
+#include <vm/vm.h>
 #include <vm/vm_map.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_phys.h>
 
 #include <machine/md_var.h>
+#include <machine/platform.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
 
@@ -200,7 +205,7 @@ kernel_va_to_slbv(vm_offset_t va)
 	esid = (uintptr_t)va >> ADDR_SR_SHFT;
 
 	/* Set kernel VSID to deterministic value */
-	slbv = va_to_vsid(kernel_pmap, va) << SLBV_VSID_SHIFT;
+	slbv = (KERNEL_VSID((uintptr_t)va >> ADDR_SR_SHFT)) << SLBV_VSID_SHIFT;
 
 	/* Figure out if this is a large-page mapping */
 	if (hw_direct_map && va < VM_MIN_KERNEL_ADDRESS) {
@@ -421,19 +426,19 @@ slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 
 	slbcache = PCPU_GET(slb);
 
-	/* Check for an unused slot, abusing the USER_SR slot as a full flag */
-	if (slbcache[USER_SR].slbe == 0) {
-		for (i = 0; i < USER_SR; i++) {
+	/* Check for an unused slot, abusing the user slot as a full flag */
+	if (slbcache[USER_SLB_SLOT].slbe == 0) {
+		for (i = 0; i < USER_SLB_SLOT; i++) {
 			if (!(slbcache[i].slbe & SLBE_VALID)) 
 				goto fillkernslb;
 		}
 
-		if (i == USER_SR)
-			slbcache[USER_SR].slbe = 1;
+		if (i == USER_SLB_SLOT)
+			slbcache[USER_SLB_SLOT].slbe = 1;
 	}
 
 	for (i = mftb() % 64, j = 0; j < 64; j++, i = (i+1) % 64) {
-		if (i == USER_SR)
+		if (i == USER_SLB_SLOT)
 			continue;
 
 		if (SLB_SPILLABLE(slbcache[i].slbe))
@@ -474,6 +479,51 @@ slb_insert_user(pmap_t pm, struct slb *slb)
 	pm->pm_slb[i] = slb;
 }
 
+static void *
+slb_uma_real_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+	static vm_offset_t realmax = 0;
+	void *va;
+	vm_page_t m;
+	int pflags;
+
+	if (realmax == 0)
+		realmax = platform_real_maxaddr();
+
+	*flags = UMA_SLAB_PRIV;
+	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
+		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
+	else    
+		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
+	if (wait & M_ZERO)
+		pflags |= VM_ALLOC_ZERO;
+
+	for (;;) {
+		m = vm_phys_alloc_contig(1, 0, realmax, PAGE_SIZE,
+			    PAGE_SIZE);
+		if (m == NULL) {
+			if (wait & M_NOWAIT)
+				return (NULL);
+			VM_WAIT;
+		} else
+                        break;
+        }
+
+	va = (void *) VM_PAGE_TO_PHYS(m);
+
+	if (!hw_direct_map)
+		pmap_kenter((vm_offset_t)va, VM_PAGE_TO_PHYS(m));
+
+	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
+		bzero(va, PAGE_SIZE);
+
+	/* vm_phys_alloc_contig does not track wiring */
+	atomic_add_int(&cnt.v_wire_count, 1);
+	m->wire_count = 1;
+
+	return (va);
+}
+
 static void
 slb_zone_init(void *dummy)
 {
@@ -482,6 +532,11 @@ slb_zone_init(void *dummy)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 	slb_cache_zone = uma_zcreate("SLB cache", 64*sizeof(struct slb *),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+
+	if (platform_real_maxaddr() != VM_MAX_ADDRESS) {
+		uma_zone_set_allocf(slb_cache_zone, slb_uma_real_alloc);
+		uma_zone_set_allocf(slbt_zone, slb_uma_real_alloc);
+	}
 }
 
 struct slb **

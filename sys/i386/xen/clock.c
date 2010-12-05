@@ -829,7 +829,7 @@ xen_get_timecount(struct timecounter *tc)
 	
         clk = shadow->system_timestamp + get_nsec_offset(shadow);
 
-	return (uint32_t)((clk / NS_PER_TICK) * NS_PER_TICK);
+	return (uint32_t)(clk);
 
 }
 

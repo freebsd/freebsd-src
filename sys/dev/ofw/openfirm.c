@@ -76,7 +76,7 @@ MALLOC_DEFINE(M_OFWPROP, "openfirm", "Open Firmware properties");
 
 static ihandle_t stdout;
 
-static ofw_def_t	*ofw_def_impl;
+static ofw_def_t	*ofw_def_impl = NULL;
 static ofw_t		ofw_obj;
 static struct ofw_kobj	ofw_kernel_obj;
 static struct kobj_ops	ofw_kernel_kops;
@@ -118,6 +118,9 @@ OF_init(void *cookie)
 	phandle_t chosen;
 	int rv;
 
+	if (ofw_def_impl == NULL)
+		return (-1);
+
 	ofw_obj = &ofw_kernel_obj;
 	/*
 	 * Take care of compiling the selected class, and
@@ -135,7 +138,6 @@ OF_init(void *cookie)
 	return (rv);
 }
 
-#ifndef FDT
 void
 OF_printf(const char *fmt, ...)
 {
@@ -157,9 +159,11 @@ int
 OF_test(const char *name)
 {
 
+	if (ofw_def_impl == NULL)
+		return (-1);
+
 	return (OFW_TEST(ofw_obj, name));
 }
-#endif
 
 int
 OF_interpret(const char *cmd, int nreturns, ...)
@@ -168,6 +172,9 @@ OF_interpret(const char *cmd, int nreturns, ...)
 	cell_t slots[16];
 	int i = 0;
 	int status;
+
+	if (ofw_def_impl == NULL)
+		return (-1);
 
 	status = OFW_INTERPRET(ofw_obj, cmd, nreturns, slots);
 	if (status == -1)
@@ -190,6 +197,9 @@ phandle_t
 OF_peer(phandle_t node)
 {
 
+	if (ofw_def_impl == NULL)
+		return (0);
+
 	return (OFW_PEER(ofw_obj, node));
 }
 
@@ -197,6 +207,9 @@ OF_peer(phandle_t node)
 phandle_t
 OF_child(phandle_t node)
 {
+
+	if (ofw_def_impl == NULL)
+		return (0);
 
 	return (OFW_CHILD(ofw_obj, node));
 }
@@ -206,6 +219,9 @@ phandle_t
 OF_parent(phandle_t node)
 {
 
+	if (ofw_def_impl == NULL)
+		return (0);
+
 	return (OFW_PARENT(ofw_obj, node));
 }
 
@@ -213,6 +229,9 @@ OF_parent(phandle_t node)
 phandle_t
 OF_instance_to_package(ihandle_t instance)
 {
+
+	if (ofw_def_impl == NULL)
+		return (-1);
 
 	return (OFW_INSTANCE_TO_PACKAGE(ofw_obj, instance));
 }
@@ -222,6 +241,9 @@ ssize_t
 OF_getproplen(phandle_t package, const char *propname)
 {
 
+	if (ofw_def_impl == NULL)
+		return (-1);
+
 	return (OFW_GETPROPLEN(ofw_obj, package, propname));
 }
 
@@ -229,6 +251,9 @@ OF_getproplen(phandle_t package, const char *propname)
 ssize_t
 OF_getprop(phandle_t package, const char *propname, void *buf, size_t buflen)
 {
+
+	if (ofw_def_impl == NULL)
+		return (-1);
 
 	return (OFW_GETPROP(ofw_obj, package, propname, buf, buflen));
 }
@@ -278,6 +303,9 @@ int
 OF_nextprop(phandle_t package, const char *previous, char *buf, size_t size)
 {
 
+	if (ofw_def_impl == NULL)
+		return (-1);
+
 	return (OFW_NEXTPROP(ofw_obj, package, previous, buf, size));
 }
 
@@ -285,6 +313,9 @@ OF_nextprop(phandle_t package, const char *previous, char *buf, size_t size)
 int
 OF_setprop(phandle_t package, const char *propname, const void *buf, size_t len)
 {
+
+	if (ofw_def_impl == NULL)
+		return (-1);
 
 	return (OFW_SETPROP(ofw_obj, package, propname, buf,len));
 }
@@ -294,6 +325,9 @@ ssize_t
 OF_canon(const char *device, char *buf, size_t len)
 {
 
+	if (ofw_def_impl == NULL)
+		return (-1);
+
 	return (OFW_CANON(ofw_obj, device, buf, len));
 }
 
@@ -301,6 +335,9 @@ OF_canon(const char *device, char *buf, size_t len)
 phandle_t
 OF_finddevice(const char *device)
 {
+
+	if (ofw_def_impl == NULL)
+		return (-1);
 
 	return (OFW_FINDDEVICE(ofw_obj, device));
 }
@@ -310,6 +347,9 @@ ssize_t
 OF_instance_to_path(ihandle_t instance, char *buf, size_t len)
 {
 
+	if (ofw_def_impl == NULL)
+		return (-1);
+
 	return (OFW_INSTANCE_TO_PATH(ofw_obj, instance, buf, len));
 }
 
@@ -318,10 +358,12 @@ ssize_t
 OF_package_to_path(phandle_t package, char *buf, size_t len)
 {
 
+	if (ofw_def_impl == NULL)
+		return (-1);
+
 	return (OFW_PACKAGE_TO_PATH(ofw_obj, package, buf, len));
 }
 
-#ifndef FDT
 /*  Call the method in the scope of a given instance. */
 int
 OF_call_method(const char *method, ihandle_t instance, int nargs, int nreturns,
@@ -331,7 +373,7 @@ OF_call_method(const char *method, ihandle_t instance, int nargs, int nreturns,
 	cell_t args_n_results[12];
 	int n, status;
 
-	if (nargs > 6)
+	if (nargs > 6 || ofw_def_impl == NULL)
 		return (-1);
 	va_start(ap, nreturns);
 	for (n = 0; n < nargs; n++)
@@ -357,6 +399,9 @@ ihandle_t
 OF_open(const char *device)
 {
 
+	if (ofw_def_impl == NULL)
+		return (0);
+
 	return (OFW_OPEN(ofw_obj, device));
 }
 
@@ -364,6 +409,9 @@ OF_open(const char *device)
 void
 OF_close(ihandle_t instance)
 {
+
+	if (ofw_def_impl == NULL)
+		return;
 
 	OFW_CLOSE(ofw_obj, instance);
 }
@@ -373,6 +421,9 @@ ssize_t
 OF_read(ihandle_t instance, void *addr, size_t len)
 {
 
+	if (ofw_def_impl == NULL)
+		return (-1);
+
 	return (OFW_READ(ofw_obj, instance, addr, len));
 }
 
@@ -381,6 +432,9 @@ ssize_t
 OF_write(ihandle_t instance, const void *addr, size_t len)
 {
 
+	if (ofw_def_impl == NULL)
+		return (-1);
+
 	return (OFW_WRITE(ofw_obj, instance, addr, len));
 }
 
@@ -388,6 +442,9 @@ OF_write(ihandle_t instance, const void *addr, size_t len)
 int
 OF_seek(ihandle_t instance, uint64_t pos)
 {
+
+	if (ofw_def_impl == NULL)
+		return (-1);
 
 	return (OFW_SEEK(ofw_obj, instance, pos));
 }
@@ -401,6 +458,9 @@ void *
 OF_claim(void *virt, size_t size, u_int align)
 {
 
+	if (ofw_def_impl == NULL)
+		return ((void *)-1);
+
 	return (OFW_CLAIM(ofw_obj, virt, size, align));
 }
 
@@ -408,6 +468,9 @@ OF_claim(void *virt, size_t size, u_int align)
 void
 OF_release(void *virt, size_t size)
 {
+
+	if (ofw_def_impl == NULL)
+		return;
 
 	OFW_RELEASE(ofw_obj, virt, size);
 }
@@ -421,6 +484,9 @@ void
 OF_enter()
 {
 
+	if (ofw_def_impl == NULL)
+		return;
+
 	OFW_ENTER(ofw_obj);
 }
 
@@ -429,10 +495,12 @@ void
 OF_exit()
 {
 
+	if (ofw_def_impl == NULL)
+		panic("OF_exit: Open Firmware not available");
+
 	/* Should not return */
 	OFW_EXIT(ofw_obj);
 
 	for (;;)			/* just in case */
 		;
 }
-#endif

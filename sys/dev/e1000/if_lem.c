@@ -51,9 +51,7 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#if __FreeBSD_version >= 700029
 #include <sys/eventhandler.h>
-#endif
 #include <machine/bus.h>
 #include <machine/resource.h>
 
@@ -86,8 +84,7 @@
 /*********************************************************************
  *  Legacy Em Driver version:
  *********************************************************************/
-char lem_driver_version[] = "1.0.2";
-
+char lem_driver_version[] = "1.0.3";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -209,11 +206,9 @@ static void	lem_disable_promisc(struct adapter *);
 static void	lem_set_multi(struct adapter *);
 static void	lem_update_link_status(struct adapter *);
 static int	lem_get_buf(struct adapter *, int);
-#if __FreeBSD_version >= 700029
 static void	lem_register_vlan(void *, struct ifnet *, u16);
 static void	lem_unregister_vlan(void *, struct ifnet *, u16);
 static void	lem_setup_vlan_hw_support(struct adapter *);
-#endif
 static int	lem_xmit(struct adapter *, struct mbuf **);
 static void	lem_smartspeed(struct adapter *);
 static int	lem_82547_fifo_workaround(struct adapter *, int);
@@ -231,6 +226,8 @@ static u32	lem_fill_descriptors (bus_addr_t address, u32 length,
 static int	lem_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
 static void	lem_add_int_delay_sysctl(struct adapter *, const char *,
 		    const char *, struct em_int_delay_info *, int, int);
+static void	lem_set_flow_cntrl(struct adapter *, const char *,
+		    const char *, int *, int);
 /* Management and WOL Support */
 static void	lem_init_manageability(struct adapter *);
 static void	lem_release_manageability(struct adapter *);
@@ -244,11 +241,7 @@ static void	lem_led_func(void *, int);
 #ifdef EM_LEGACY_IRQ
 static void	lem_intr(void *);
 #else /* FAST IRQ */
-#if __FreeBSD_version < 700000
-static void	lem_irq_fast(void *);
-#else
 static int	lem_irq_fast(void *);
-#endif
 static void	lem_handle_rxtx(void *context, int pending);
 static void	lem_handle_link(void *context, int pending);
 static void	lem_add_rx_process_limit(struct adapter *, const char *,
@@ -319,14 +312,6 @@ TUNABLE_INT("hw.em.rx_process_limit", &lem_rx_process_limit);
 /* Flow control setting - default to FULL */
 static int lem_fc_setting = e1000_fc_full;
 TUNABLE_INT("hw.em.fc_setting", &lem_fc_setting);
-
-/*
-** Shadow VFTA table, this is needed because
-** the real vlan filter table gets cleared during
-** a soft reset and the driver needs to be able
-** to repopulate it.
-*/
-static u32 lem_shadow_vfta[EM_VFTA_SIZE];
 
 /* Global used in WOL setup with multiport cards */
 static int global_quad_port_a = 0;
@@ -461,6 +446,11 @@ lem_attach(device_t dev)
 	    "max number of rx packets to process", &adapter->rx_process_limit,
 	    lem_rx_process_limit);
 #endif
+
+        /* Sysctl for setting the interface flow control */
+	lem_set_flow_cntrl(adapter, "flow_control",
+	    "max number of rx packets to process",
+	    &adapter->fc_setting, lem_fc_setting);
 
 	/*
 	 * Validate number of transmit and receive descriptors. It
@@ -638,13 +628,11 @@ lem_attach(device_t dev)
 	else
 		adapter->pcix_82544 = FALSE;
 
-#if __FreeBSD_version >= 700029
 	/* Register for VLAN events */
 	adapter->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 	    lem_register_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	    lem_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST); 
-#endif
 
 	lem_add_hw_stats(adapter);
 
@@ -702,11 +690,7 @@ lem_detach(device_t dev)
 	INIT_DEBUGOUT("em_detach: begin");
 
 	/* Make sure VLANS are not using driver */
-#if __FreeBSD_version >= 700000
 	if (adapter->ifp->if_vlantrunk != NULL) {
-#else
-	if (adapter->ifp->if_nvlans != 0) {
-#endif   
 		device_printf(dev,"Vlan in use, detach first\n");
 		return (EBUSY);
 	}
@@ -730,13 +714,11 @@ lem_detach(device_t dev)
 	EM_TX_UNLOCK(adapter);
 	EM_CORE_UNLOCK(adapter);
 
-#if __FreeBSD_version >= 700029
 	/* Unregister VLAN events */
 	if (adapter->vlan_attach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_config, adapter->vlan_attach);
 	if (adapter->vlan_detach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, adapter->vlan_detach); 
-#endif
 
 	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
@@ -830,6 +812,19 @@ lem_start_locked(struct ifnet *ifp)
 		return;
 	if (!adapter->link_active)
 		return;
+
+        /*
+         * Force a cleanup if number of TX descriptors
+         * available hits the threshold
+         */
+	if (adapter->num_tx_desc_avail <= EM_TX_CLEANUP_THRESHOLD) {
+		lem_txeof(adapter);
+		/* Now do we at least have a minimal? */
+		if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD) {
+			adapter->no_tx_desc_avail1++;
+			return;
+		}
+	}
 
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 
@@ -1043,9 +1038,7 @@ lem_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING))
 			lem_init(adapter);
-#if __FreeBSD_version >= 700000
 		VLAN_CAPABILITIES(ifp);
-#endif
 		break;
 	    }
 
@@ -1135,18 +1128,6 @@ lem_init_locked(struct adapter *adapter)
 	/* Setup VLAN support, basic and offload if available */
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 
-#if __FreeBSD_version < 700029
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
-		u32 ctrl;
-		ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
-		ctrl |= E1000_CTRL_VME;
-		E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
-	}
-#else
-	/* Use real VLAN Filter support */
-	lem_setup_vlan_hw_support(adapter);
-#endif
-
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
 	if (adapter->hw.mac.type >= e1000_82543) {
@@ -1173,6 +1154,19 @@ lem_init_locked(struct adapter *adapter)
 		return;
 	}
 	lem_initialize_receive_unit(adapter);
+
+	/* Use real VLAN Filter support? */
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+		if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+			/* Use real VLAN Filter support */
+			lem_setup_vlan_hw_support(adapter);
+		else {
+			u32 ctrl;
+			ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+			ctrl |= E1000_CTRL_VME;
+			E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+                }
+	}
 
 	/* Don't lose promiscuous settings */
 	lem_set_promisc(adapter);
@@ -1276,7 +1270,6 @@ lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
  *  Legacy Interrupt Service routine  
  *
  *********************************************************************/
-
 static void
 lem_intr(void *arg)
 {
@@ -1311,7 +1304,6 @@ lem_intr(void *arg)
 	}
 
 	EM_TX_LOCK(adapter);
-	lem_txeof(adapter);
 	lem_rxeof(adapter, -1, NULL);
 	lem_txeof(adapter);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
@@ -1354,8 +1346,7 @@ lem_handle_rxtx(void *context, int pending)
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		if (lem_rxeof(adapter, adapter->rx_process_limit, NULL) != 0)
-			taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
+		lem_rxeof(adapter, adapter->rx_process_limit, NULL);
 		EM_TX_LOCK(adapter);
 		lem_txeof(adapter);
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1363,7 +1354,8 @@ lem_handle_rxtx(void *context, int pending)
 		EM_TX_UNLOCK(adapter);
 	}
 
-	lem_enable_intr(adapter);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		lem_enable_intr(adapter);
 }
 
 /*********************************************************************
@@ -1371,13 +1363,7 @@ lem_handle_rxtx(void *context, int pending)
  *  Fast Legacy/MSI Combined Interrupt Service routine  
  *
  *********************************************************************/
-#if __FreeBSD_version < 700000
-#define FILTER_STRAY
-#define FILTER_HANDLED
-static void
-#else
 static int
-#endif
 lem_irq_fast(void *arg)
 {
 	struct adapter	*adapter = arg;
@@ -1550,24 +1536,9 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	struct mbuf		*m_head;
 	u32			txd_upper, txd_lower, txd_used, txd_saved;
 	int			error, nsegs, i, j, first, last = 0;
-#if __FreeBSD_version < 700000
-	struct m_tag		*mtag;
-#endif
+
 	m_head = *m_headp;
 	txd_upper = txd_lower = txd_used = txd_saved = 0;
-
-        /*
-         * Force a cleanup if number of TX descriptors
-         * available hits the threshold
-         */
-	if (adapter->num_tx_desc_avail <= EM_TX_CLEANUP_THRESHOLD) {
-		lem_txeof(adapter);
-		/* Now do we at least have a minimal? */
-		if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD) {
-			adapter->no_tx_desc_avail1++;
-			return (ENOBUFS);
-		}
-	}
 
 	/*
 	** When doing checksum offload, it is critical to
@@ -1712,20 +1683,6 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	else
 		adapter->num_tx_desc_avail -= nsegs;
 
-        /*
-	** Handle VLAN tag, this is the
-	** biggest difference between 
-	** 6.x and 7
-	*/
-#if __FreeBSD_version < 700000
-        /* Find out if we are in vlan mode. */
-        mtag = VLAN_OUTPUT_TAG(ifp, m_head);
-        if (mtag != NULL) {
-                ctxd->upper.fields.special =
-                    htole16(VLAN_TAG_VALUE(mtag));
-                ctxd->lower.data |= htole32(E1000_TXD_CMD_VLE);
-	}
-#else /* FreeBSD 7 */
 	if (m_head->m_flags & M_VLANTAG) {
 		/* Set the vlan id. */
 		ctxd->upper.fields.special =
@@ -1733,7 +1690,6 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
                 /* Tell hardware to add tag */
                 ctxd->lower.data |= htole32(E1000_TXD_CMD_VLE);
         }
-#endif
 
         tx_buffer->m_head = m_head;
 	tx_buffer_mapped->map = tx_buffer->map;
@@ -2249,11 +2205,7 @@ lem_allocate_irq(struct adapter *adapter)
 #ifdef EM_LEGACY_IRQ
 	/* We do Legacy setup */
 	if ((error = bus_setup_intr(dev, adapter->res[0],
-#if __FreeBSD_version > 700000
 	    INTR_TYPE_NET | INTR_MPSAFE, NULL, lem_intr, adapter,
-#else /* 6.X */
-	    INTR_TYPE_NET | INTR_MPSAFE, lem_intr, adapter,
-#endif
 	    &adapter->tag[0])) != 0) {
 		device_printf(dev, "Failed to register interrupt handler");
 		return (error);
@@ -2270,13 +2222,8 @@ lem_allocate_irq(struct adapter *adapter)
 	    taskqueue_thread_enqueue, &adapter->tq);
 	taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(adapter->dev));
-#if __FreeBSD_version < 700000
-	if ((error = bus_setup_intr(dev, adapter->res[0],
-	    INTR_TYPE_NET | INTR_FAST, lem_irq_fast, adapter,
-#else
 	if ((error = bus_setup_intr(dev, adapter->res[0],
 	    INTR_TYPE_NET, lem_irq_fast, NULL, adapter,
-#endif
 	    &adapter->tag[0])) != 0) {
 		device_printf(dev, "Failed to register fast interrupt "
 			    "handler: %d\n", error);
@@ -2362,7 +2309,7 @@ lem_hardware_init(struct adapter *adapter)
 	adapter->hw.fc.send_xon = TRUE;
 
         /* Set Flow control, use the tunable location if sane */
-        if ((lem_fc_setting >= 0) || (lem_fc_setting < 4))
+        if ((lem_fc_setting >= 0) && (lem_fc_setting < 4))
                 adapter->hw.fc.requested_mode = lem_fc_setting;
         else
                 adapter->hw.fc.requested_mode = e1000_fc_none;
@@ -2410,14 +2357,8 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
 	if (adapter->hw.mac.type >= e1000_82543) {
-		int version_cap;
-#if __FreeBSD_version < 700000
-		version_cap = IFCAP_HWCSUM;
-#else
-		version_cap = IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
-#endif
-		ifp->if_capabilities |= version_cap;
-		ifp->if_capenable |= version_cap;
+		ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
+		ifp->if_capenable |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	}
 
 	/*
@@ -2426,6 +2367,16 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+
+	/*
+	** Dont turn this on by default, if vlans are
+	** created on another pseudo device (eg. lagg)
+	** then vlan events are not passed thru, breaking
+	** operation, but with HW FILTER off it works. If
+	** using vlans directly on the em driver you can
+	** enable this and get full hardware tag filtering.
+	*/
+	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -2551,11 +2502,7 @@ lem_dma_malloc(struct adapter *adapter, bus_size_t size,
 {
 	int error;
 
-#if __FreeBSD_version >= 700000
 	error = bus_dma_tag_create(bus_get_dma_tag(adapter->dev), /* parent */
-#else
-	error = bus_dma_tag_create(NULL,		 /* parent */
-#endif
 				EM_DBA_ALIGN, 0,	/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
@@ -2640,21 +2587,17 @@ lem_allocate_transmit_structures(struct adapter *adapter)
 	/*
 	 * Create DMA tags for tx descriptors
 	 */
-#if __FreeBSD_version >= 700000
 	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
-#else
-	if ((error = bus_dma_tag_create(NULL,		 /* parent */
-#endif
 				1, 0,			/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
-				EM_TSO_SIZE,		/* maxsize */
+				MCLBYTES * EM_MAX_SCATTER,	/* maxsize */
 				EM_MAX_SCATTER,		/* nsegments */
-				EM_TSO_SEG_SIZE,	/* maxsegsize */
+				MCLBYTES,		/* maxsegsize */
 				0,			/* flags */
-				NULL,		/* lockfunc */
-				NULL,		/* lockarg */
+				NULL,			/* lockfunc */
+				NULL,			/* lockarg */
 				&adapter->txtag)) != 0) {
 		device_printf(dev, "Unable to allocate TX DMA tag\n");
 		goto fail;
@@ -3072,23 +3015,20 @@ lem_txeof(struct adapter *adapter)
             BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
         adapter->next_tx_to_clean = first;
+        adapter->num_tx_desc_avail = num_avail;
 
         /*
          * If we have enough room, clear IFF_DRV_OACTIVE to
          * tell the stack that it is OK to send packets.
          * If there are no pending descriptors, clear the watchdog.
          */
-        if (num_avail > EM_TX_CLEANUP_THRESHOLD) {                
+        if (adapter->num_tx_desc_avail > EM_TX_CLEANUP_THRESHOLD) {                
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-                if (num_avail == adapter->num_tx_desc) {
+                if (adapter->num_tx_desc_avail == adapter->num_tx_desc) {
 			adapter->watchdog_check = FALSE;
-        		adapter->num_tx_desc_avail = num_avail;
 			return;
 		} 
         }
-
-        adapter->num_tx_desc_avail = num_avail;
-	return;
 }
 
 /*********************************************************************
@@ -3185,11 +3125,7 @@ lem_allocate_receive_structures(struct adapter *adapter)
 		return (ENOMEM);
 	}
 
-#if __FreeBSD_version >= 700000
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
-#else
-	error = bus_dma_tag_create(NULL,		 /* parent */
-#endif
 				1, 0,			/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
@@ -3459,7 +3395,7 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 {
 	struct ifnet	*ifp = adapter->ifp;;
 	struct mbuf	*mp;
-	u8		status, accept_frame = 0, eop = 0;
+	u8		status = 0, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;
 	int		i, rx_sent = 0;
 	struct e1000_rx_desc   *current_desc;
@@ -3477,10 +3413,12 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 		return (FALSE);
 	}
 
-	while ((current_desc->status & E1000_RXD_STAT_DD) &&
-	    (count != 0) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	while (count != 0 && ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		struct mbuf *m = NULL;
+
+		status = current_desc->status;
+		if ((status & E1000_RXD_STAT_DD) == 0)
+			break;
 
 		mp = adapter->rx_buffer_area[i].m_head;
 		/*
@@ -3493,7 +3431,6 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 		accept_frame = 1;
 		prev_len_adj = 0;
 		desc_len = le16toh(current_desc->length);
-		status = current_desc->status;
 		if (status & E1000_RXD_STAT_EOP) {
 			count--;
 			eop = 1;
@@ -3571,16 +3508,10 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 					goto skip;
 #endif
 				if (status & E1000_RXD_STAT_VP) {
-#if __FreeBSD_version < 700000
-					VLAN_INPUT_TAG_NEW(ifp, adapter->fmp,
-					    (le16toh(current_desc->special) &
-					    E1000_RXD_SPC_VLAN_MASK));
-#else
 					adapter->fmp->m_pkthdr.ether_vtag =
 					    (le16toh(current_desc->special) &
 					    E1000_RXD_SPC_VLAN_MASK);
 					adapter->fmp->m_flags |= M_VLANTAG;
-#endif
 				}
 #ifndef __NO_STRICT_ALIGNMENT
 skip:
@@ -3636,7 +3567,7 @@ discard:
 	if (done != NULL)
 		*done = rx_sent;
 	EM_RX_UNLOCK(adapter);
-	return (current_desc->status & E1000_RXD_STAT_DD);
+	return ((status & E1000_RXD_STAT_DD) ? TRUE : FALSE);
 }
 
 #ifndef __NO_STRICT_ALIGNMENT
@@ -3728,7 +3659,6 @@ lem_receive_checksum(struct adapter *adapter,
 	}
 }
 
-#if __FreeBSD_version >= 700029
 /*
  * This routine is run via an vlan
  * config EVENT
@@ -3745,12 +3675,15 @@ lem_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 	if ((vtag == 0) || (vtag > 4095))       /* Invalid ID */
                 return;
 
+	EM_CORE_LOCK(adapter);
 	index = (vtag >> 5) & 0x7F;
 	bit = vtag & 0x1F;
-	lem_shadow_vfta[index] |= (1 << bit);
+	adapter->shadow_vfta[index] |= (1 << bit);
 	++adapter->num_vlans;
 	/* Re-init to load the changes */
-	lem_init(adapter);
+	if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+		lem_init_locked(adapter);
+	EM_CORE_UNLOCK(adapter);
 }
 
 /*
@@ -3769,12 +3702,15 @@ lem_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
                 return;
 
+	EM_CORE_LOCK(adapter);
 	index = (vtag >> 5) & 0x7F;
 	bit = vtag & 0x1F;
-	lem_shadow_vfta[index] &= ~(1 << bit);
+	adapter->shadow_vfta[index] &= ~(1 << bit);
 	--adapter->num_vlans;
 	/* Re-init to load the changes */
-	lem_init(adapter);
+	if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+		lem_init_locked(adapter);
+	EM_CORE_UNLOCK(adapter);
 }
 
 static void
@@ -3797,9 +3733,9 @@ lem_setup_vlan_hw_support(struct adapter *adapter)
 	** we need to repopulate it now.
 	*/
 	for (int i = 0; i < EM_VFTA_SIZE; i++)
-                if (lem_shadow_vfta[i] != 0)
+                if (adapter->shadow_vfta[i] != 0)
 			E1000_WRITE_REG_ARRAY(hw, E1000_VFTA,
-                            i, lem_shadow_vfta[i]);
+                            i, adapter->shadow_vfta[i]);
 
 	reg = E1000_READ_REG(hw, E1000_CTRL);
 	reg |= E1000_CTRL_VME;
@@ -3815,7 +3751,6 @@ lem_setup_vlan_hw_support(struct adapter *adapter)
 	E1000_WRITE_REG(&adapter->hw, E1000_RLPML,
 	    adapter->max_frame_size + VLAN_TAG_SIZE);
 }
-#endif
 
 static void
 lem_enable_intr(struct adapter *adapter)
@@ -4661,6 +4596,16 @@ lem_add_int_delay_sysctl(struct adapter *adapter, const char *name,
 	    info, 0, lem_sysctl_int_delay, "I", description);
 }
 
+static void
+lem_set_flow_cntrl(struct adapter *adapter, const char *name,
+        const char *description, int *limit, int value)
+{
+	*limit = value;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
+	    OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW, limit, value, description);
+}
+
 #ifndef EM_LEGACY_IRQ
 static void
 lem_add_rx_process_limit(struct adapter *adapter, const char *name,
@@ -4672,5 +4617,3 @@ lem_add_rx_process_limit(struct adapter *adapter, const char *name,
 	    OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW, limit, value, description);
 }
 #endif
-
-

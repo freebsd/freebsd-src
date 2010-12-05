@@ -42,6 +42,8 @@
 extern	long	Maxmem;
 extern	char	sigcode[];
 extern	int	szsigcode, szosigcode;
+extern	uint32_t *vm_page_dump;
+extern	int vm_page_dump_size;
 
 extern vm_offset_t kstack0;
 extern vm_offset_t kernel_kseg0_end;
@@ -74,4 +76,9 @@ void	platform_identify(void);
 
 extern int busdma_swi_pending;
 void	busdma_swi(void);
+
+struct	dumperinfo;
+void	dump_add_page(vm_paddr_t);
+void	dump_drop_page(vm_paddr_t);
+void	minidumpsys(struct dumperinfo *);
 #endif /* !_MACHINE_MD_VAR_H_ */
