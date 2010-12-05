@@ -50,7 +50,7 @@ The
 .Nm
 utility displays information about the file pointed to by
 .Ar file .
-Read, write or execute permissions of the named file are not required, but
+Read, write, or execute permissions of the named file are not required, but
 all directories listed in the path name leading to the file must be
 searchable.
 If no argument is given,
@@ -122,6 +122,10 @@ If the link is broken or the target does not exist,
 fall back on
 .Xr lstat 2
 and report information about the link.
+.It Fl l
+Display output in
+.Ic ls Fl lT
+format.
 .It Fl n
 Do not force a newline to appear at the end of each piece of output.
 .It Fl q
@@ -151,7 +155,8 @@ display the raw, numerical value (for example, times in seconds since the
 epoch, etc.).
 .It Fl s
 Display information in
-.Dq "shell output" ,
+.Dq shell output
+format,
 suitable for initializing variables.
 .It Fl x
 Display information in a more verbose way as known from some
@@ -438,7 +443,7 @@ which default to
 .Sh EXIT STATUS
 .Ex -std stat readlink
 .Sh EXAMPLES
-If no options are specified, default format is
+If no options are specified, the default format is
 "%d %i %Sp %l %Su %Sg %r %z \\"%Sa\\" \\"%Sm\\" \\"%Sc\\" \\"%SB\\" %k %b %#Xf %N".
 .Bd -literal -offset indent
 \*[Gt] stat /tmp/bar
@@ -446,7 +451,7 @@ If no options are specified, default format is
 .Ed
 .Pp
 Given a symbolic link
-.Pa foo
+.Dq foo
 that points from
 .Pa /tmp/foo
 to
