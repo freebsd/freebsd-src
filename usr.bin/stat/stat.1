@@ -107,6 +107,10 @@ will refer to the target of
 if file is a symbolic link, and not to
 .Ar file
 itself.
+If the link is broken or the target does not exist,
+fall back on
+.Xr lstat 2
+and report information about the link.
 .It Fl n
 Do not force a newline to appear at the end of each piece of output.
 .It Fl q
