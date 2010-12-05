@@ -58,7 +58,12 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 900023	/* Master, propagated to newvers */
+#define __FreeBSD_version 900026	/* Master, propagated to newvers */
+
+#ifdef _KERNEL
+#define	P_OSREL_SIGSEGV		700004
+#define	P_OSREL_MAP_ANON	800104
+#endif
 
 #ifndef LOCORE
 #include <sys/types.h>

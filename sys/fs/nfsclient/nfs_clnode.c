@@ -190,8 +190,6 @@ ncl_inactive(struct vop_inactive_args *ap)
 	struct vnode *vp = ap->a_vp;
 
 	np = VTONFS(vp);
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("ncl_inactive: pushing active", vp);
 
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
 		/*
@@ -233,8 +231,14 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsdmap *dp, *dp2;
 
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("ncl_reclaim: pushing active", vp);
+	if (NFS_ISV4(vp) && vp->v_type == VREG)
+		/*
+		 * Since mmap()'d files do I/O after VOP_CLOSE(), the NFSv4
+		 * Close operations are delayed until ncl_inactive().
+		 * However, since VOP_INACTIVE() is not guaranteed to be
+		 * called, we need to do it again here.
+		 */
+		(void) nfsrpc_close(vp, 1, ap->a_td);
 
 	/*
 	 * If the NLM is running, give it a chance to abort pending

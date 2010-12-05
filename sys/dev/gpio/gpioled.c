@@ -103,6 +103,9 @@ gpioled_attach(device_t dev)
 	    device_get_unit(dev), "name", &name))
 		name = NULL;
 
+	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+	    GPIO_PIN_OUTPUT);
+
 	sc->sc_leddev = led_create(gpioled_control, sc, name ? name :
 	    device_get_nameunit(dev));
 

@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,15 +49,30 @@
  * Helper functions to abstract board specific data about
  * network ports from the rest of the cvmx-helper files.
  *
- * <hr>$Revision: 41946 $<hr>
+ * <hr>$Revision: 49627 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <linux/module.h>
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-bootinfo.h>
+#include <asm/octeon/cvmx-smix-defs.h>
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-asxx-defs.h>
+#include <asm/octeon/cvmx-mdio.h>
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-util.h>
+#include <asm/octeon/cvmx-helper-board.h>
+#include <asm/octeon/cvmx-twsi.h>
+#else
 #include "cvmx.h"
 #include "cvmx-app-init.h"
-#include "cvmx-mdio.h"
 #include "cvmx-sysinfo.h"
+#include "cvmx-twsi.h"
+#include "cvmx-mdio.h"
 #include "cvmx-helper.h"
 #include "cvmx-helper-util.h"
 #include "cvmx-helper-board.h"
+#endif
 
 /**
  * cvmx_override_board_link_get(int ipd_port) is a function
@@ -114,12 +131,20 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
         case CVMX_BOARD_TYPE_EBT5800:
         case CVMX_BOARD_TYPE_THUNDER:
         case CVMX_BOARD_TYPE_NICPRO2:
-#if defined(OCTEON_VENDOR_LANNER)
-	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
-#endif
             /* Interface 0 is SPI4, interface 1 is RGMII */
             if ((ipd_port >= 16) && (ipd_port < 20))
                 return ipd_port - 16;
+            else
+                return -1;
+        case CVMX_BOARD_TYPE_LANAI2_A:
+            if (ipd_port == 0)
+                return 0;
+            else
+                return -1;
+        case CVMX_BOARD_TYPE_LANAI2_U:
+        case CVMX_BOARD_TYPE_LANAI2_G:
+            if (ipd_port == 0)
+                return 0x1c;
             else
                 return -1;
         case CVMX_BOARD_TYPE_KODAMA:
@@ -147,9 +172,17 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
         case CVMX_BOARD_TYPE_EBH3000:
             /* Board has dual SPI4 and no PHYs */
             return -1;
+        case CVMX_BOARD_TYPE_EBT5810:
+            /* Board has 10g PHYs hooked up to the MII controller on the
+            ** IXF18201 MAC.  The 10G PHYS use clause 45 MDIO which the CN58XX
+            ** does not support. All MII accesses go through the IXF part. */
+            return -1;
         case CVMX_BOARD_TYPE_EBH5200:
         case CVMX_BOARD_TYPE_EBH5201:
         case CVMX_BOARD_TYPE_EBT5200:
+            /* Board has 2 management ports */
+            if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) && (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2)))
+                return ipd_port - CVMX_HELPER_BOARD_MGMT_IPD_PORT;
             /* Board has 4 SGMII ports. The PHYs start right after the MII
                 ports MII0 = 0, MII1 = 1, SGMII = 2-5 */
             if ((ipd_port >= 0) && (ipd_port < 4))
@@ -158,10 +191,54 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
                 return -1;
         case CVMX_BOARD_TYPE_EBH5600:
         case CVMX_BOARD_TYPE_EBH5601:
+        case CVMX_BOARD_TYPE_EBH5610:
+            /* Board has 1 management port */
+            if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+                return 0;
             /* Board has 8 SGMII ports. 4 connect out, two connect to a switch,
                 and 2 loop to each other */
             if ((ipd_port >= 0) && (ipd_port < 4))
                 return ipd_port+1;
+            else
+                return -1;
+        case CVMX_BOARD_TYPE_EBB5600:
+            {
+                static unsigned char qlm_switch_addr = 0;
+
+                /* Board has 1 management port */
+                if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+                    return 0;
+
+                /* Board has 8 SGMII ports. 4 connected QLM1, 4 connected QLM3 */
+                if ((ipd_port >= 0) && (ipd_port < 4))
+                {
+                    if (qlm_switch_addr != 0x3)
+                    {
+                        qlm_switch_addr = 0x3;  /* QLM1 */
+                        cvmx_twsix_write_ia(0, 0x71, 0, 1, 1, qlm_switch_addr);
+                        cvmx_wait_usec(11000); /* Let the write complete */
+                    }
+                    return ipd_port+1 + (1<<8);
+                }
+                else if ((ipd_port >= 16) && (ipd_port < 20))
+                {
+                    if (qlm_switch_addr != 0xC)
+                    {
+                        qlm_switch_addr = 0xC;  /* QLM3 */
+                        cvmx_twsix_write_ia(0, 0x71, 0, 1, 1, qlm_switch_addr);
+                        cvmx_wait_usec(11000); /* Let the write complete */
+                    }
+                    return ipd_port-16+1 + (1<<8);
+                }
+                else
+                    return -1;
+            }
+        case CVMX_BOARD_TYPE_EBB6300:
+            /* Board has 2 management ports */
+            if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) && (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2)))
+                return ipd_port - CVMX_HELPER_BOARD_MGMT_IPD_PORT + 4;
+            if ((ipd_port >= 0) && (ipd_port < 4))
+                return ipd_port + 1 + (1<<8);
             else
                 return -1;
         case CVMX_BOARD_TYPE_CUST_NB5:
@@ -175,11 +252,29 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
                 return ipd_port - 16 + 1;
             else
                 return -1;
+        case CVMX_BOARD_TYPE_NIC_XLE_10G:
+            return -1;  /* We don't use clause 45 MDIO for anything */
         case CVMX_BOARD_TYPE_BBGW_REF:
             return -1;  /* No PHYs are connected to Octeon, everything is through switch */
+	case CVMX_BOARD_TYPE_CUST_WSX16:
+		if (ipd_port >= 0 && ipd_port <= 3)
+			return ipd_port;
+		else if (ipd_port >= 16 && ipd_port <= 19)
+			return ipd_port - 16 + 4;
+		else
+			return -1;
 
 	/* Private vendor-defined boards.  */
 #if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
+	    /* Interface 1 is 12 BCM5482S PHYs.  */
+            if ((ipd_port >= 16) && (ipd_port < 28))
+                return ipd_port - 16;
+	    return -1;
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
+            if ((ipd_port >= 0) && (ipd_port < 4))
+                return ipd_port;
+	    return -1;
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
 	    /* Port 0 is a Marvell 88E6161 switch, ports 1 and 2 are Marvell
 	       88E1111 interfaces.  */
@@ -197,10 +292,13 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
     }
 
     /* Some unknown board. Somebody forgot to update this function... */
-    cvmx_dprintf("cvmx_helper_board_get_mii_address: Unknown board type %d\n",
-                 cvmx_sysinfo_get()->board_type);
+    cvmx_dprintf("%s: Unknown board type %d\n",
+                 __FUNCTION__, cvmx_sysinfo_get()->board_type);
     return -1;
 }
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_helper_board_get_mii_address);
+#endif
 
 
 /**
@@ -246,6 +344,10 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
             result.s.full_duplex = 1;
             result.s.speed = 1000;
             return result;
+        case CVMX_BOARD_TYPE_LANAI2_A:
+        case CVMX_BOARD_TYPE_LANAI2_U:
+        case CVMX_BOARD_TYPE_LANAI2_G:
+            break;
         case CVMX_BOARD_TYPE_EBH3100:
         case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
         case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
@@ -259,6 +361,25 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
                 return result;
             }
             /* Fall through to the generic code below */
+            break;
+        case CVMX_BOARD_TYPE_EBH5600:
+        case CVMX_BOARD_TYPE_EBH5601:
+        case CVMX_BOARD_TYPE_EBH5610:
+            /* Board has 1 management ports */
+            if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+                is_broadcom_phy = 1;
+            break;
+        case CVMX_BOARD_TYPE_EBH5200:
+        case CVMX_BOARD_TYPE_EBH5201:
+        case CVMX_BOARD_TYPE_EBT5200:
+            /* Board has 2 management ports */
+            if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) && (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2)))
+                is_broadcom_phy = 1;
+            break;
+        case CVMX_BOARD_TYPE_EBB6300:   /* Only for MII mode, with PHY addresses 0/1. Default is RGMII*/
+            if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) && (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2))
+                && cvmx_helper_board_get_mii_address(ipd_port) >= 0 && cvmx_helper_board_get_mii_address(ipd_port) <= 1)
+                is_broadcom_phy = 1;
             break;
         case CVMX_BOARD_TYPE_CUST_NB5:
             /* Port 1 on these boards is always Gigabit */
@@ -275,7 +396,7 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
         case CVMX_BOARD_TYPE_BBGW_REF:
             /* Port 1 on these boards is always Gigabit */
             if (ipd_port == 2)
-            {   
+            {
                 /* Port 2 is not hooked up */
                 result.u64 = 0;
                 return result;
@@ -291,6 +412,10 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
             break;
 	/* Private vendor-defined boards.  */
 #if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
+	    /* Ports are BCM5482S */
+	    is_broadcom_phy = 1;
+	    break;
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
 	    /* Port 0 connects to the switch */
 	    if (ipd_port == 0)
@@ -447,14 +572,15 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
 
 /**
  * This function as a board specific method of changing the PHY
- * speed, duplex, and auto-negotiation. This programs the PHY and
+ * speed, duplex, and autonegotiation. This programs the PHY and
  * not Octeon. This can be used to force Octeon's links to
  * specific settings.
  *
  * @param phy_addr  The address of the PHY to program
- * @param enable_autoneg
- *                  Non zero if you want to enable auto-negotiation.
- * @param link_info Link speed to program. If the speed is zero and auto-negotiation
+ * @param link_flags
+ *                  Flags to control autonegotiation.  Bit 0 is autonegotiation
+ *                  enable/disable to maintain backward compatibility.
+ * @param link_info Link speed to program. If the speed is zero and autonegotiation
  *                  is enabled, all possible negotiation speeds are advertised.
  *
  * @return Zero on success, negative on failure
@@ -585,9 +711,9 @@ int cvmx_helper_board_link_set_phy(int phy_addr, cvmx_helper_board_set_phy_link_
  * support and should return the number of actual ports on the
  * board.
  *
- * This function must be modifed for every new Octeon board.
+ * This function must be modified for every new Octeon board.
  * Internally it uses switch statements based on the cvmx_sysinfo
- * data to determine board types and revisions. It relys on the
+ * data to determine board types and revisions. It relies on the
  * fact that every Octeon board receives a unique board type
  * enumeration from the bootloader.
  *
@@ -603,6 +729,9 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
     switch (cvmx_sysinfo_get()->board_type)
     {
         case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
+        case CVMX_BOARD_TYPE_LANAI2_A:
+        case CVMX_BOARD_TYPE_LANAI2_U:
+        case CVMX_BOARD_TYPE_LANAI2_G:
             if (interface == 0)
                 return 2;
 	    break;
@@ -620,6 +749,15 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
             if (interface == 1)
                 return 0;
 	    break;
+        case CVMX_BOARD_TYPE_EBB5600:
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+            if (cvmx_helper_interface_get_mode(interface) == CVMX_HELPER_INTERFACE_MODE_PICMG)
+                return 0;
+#endif
+	    break;
+        case CVMX_BOARD_TYPE_EBT5810:
+            return 1;  /* Two ports on each SPI: 1 hooked to MAC, 1 loopback
+                       ** Loopback disabled by default. */
 #if defined(OCTEON_VENDOR_LANNER)
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
 	    if (interface == 1)
@@ -661,9 +799,17 @@ int __cvmx_helper_board_hardware_enable(int interface)
             cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(0, interface), 0xc);
         }
     }
+    else if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_LANAI2_U)
+    {
+        if (interface == 0)
+        {
+            cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(0, interface), 16);
+            cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(0, interface), 16);
+        }
+    }
     else if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CN3010_EVB_HS5)
     {
-        /* Broadcom PHYs require differnet ASX clocks. Unfortunately
+        /* Broadcom PHYs require different ASX clocks. Unfortunately
             many customer don't define a new board Id and simply
             mangle the CN3010_EVB_HS5 */
         if (interface == 0)
@@ -696,10 +842,22 @@ int __cvmx_helper_board_hardware_enable(int interface)
     return 0;
 }
 
+
+/**
+ * @INTERNAL
+ * Gets the clock type used for the USB block based on board type.
+ * Used by the USB code for auto configuration of clock type.
+ *
+ * @return USB clock type enumeration
+ */
 cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
 {
-    switch (cvmx_sysinfo_get()->board_type) {
-    case CVMX_BOARD_TYPE_BBGW_REF:
+    switch (cvmx_sysinfo_get()->board_type)
+    {
+        case CVMX_BOARD_TYPE_BBGW_REF:
+        case CVMX_BOARD_TYPE_LANAI2_A:
+        case CVMX_BOARD_TYPE_LANAI2_U:
+        case CVMX_BOARD_TYPE_LANAI2_G:
 #if defined(OCTEON_VENDOR_LANNER)
     case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
 #endif
@@ -708,9 +866,23 @@ cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
     return USB_CLOCK_TYPE_REF_48;
 }
 
+
+/**
+ * @INTERNAL
+ * Adjusts the number of available USB ports on Octeon based on board
+ * specifics.
+ *
+ * @param supported_ports expected number of ports based on chip type;
+ *
+ *
+ * @return number of available usb ports, based on board specifics.
+ *         Return value is supported_ports if function does not
+ *         override.
+ */
 int __cvmx_helper_board_usb_get_num_ports(int supported_ports)
 {
-    switch (cvmx_sysinfo_get()->board_type) {
+    switch (cvmx_sysinfo_get()->board_type)
+    {
         case CVMX_BOARD_TYPE_NIC_XLE_4G:
             return 0;
     }

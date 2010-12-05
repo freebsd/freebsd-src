@@ -108,7 +108,7 @@ static struct timecounter	decr_timecounter = {
 };
 
 /*
- * Decrementor interrupt handler.
+ * Decrementer interrupt handler.
  */
 void
 decr_intr(struct trapframe *frame)

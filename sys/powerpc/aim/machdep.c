@@ -159,8 +159,6 @@ int             setfault(faultbuf);             /* defined in locore.S */
 long		Maxmem = 0;
 long		realmem = 0;
 
-struct pmap	ofw_pmap;
-
 #ifndef __powerpc64__
 struct bat	battable[16];
 #endif
@@ -245,6 +243,9 @@ extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
 extern void     *extint, *extsize;
 extern void	*dblow, *dbsize;
+extern void	*imisstrap, *imisssize;
+extern void	*dlmisstrap, *dlmisssize;
+extern void	*dsmisstrap, *dsmisssize;
 
 uintptr_t
 powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
@@ -491,6 +492,12 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	bcopy(generictrap, (void *)EXC_VEC,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VECAST_G4, (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VECAST_G5, (size_t)&trapsize);
+	#ifndef __powerpc64__
+	/* G2-specific TLB miss helper handlers */
+	bcopy(&imisstrap, (void *)EXC_IMISS,  (size_t)&imisssize);
+	bcopy(&dlmisstrap, (void *)EXC_DLMISS,  (size_t)&dlmisssize);
+	bcopy(&dsmisstrap, (void *)EXC_DSMISS,  (size_t)&dsmisssize);
+	#endif
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*
@@ -630,64 +637,6 @@ cpu_halt(void)
 	OF_exit();
 }
 
-void
-cpu_idle(int busy)
-{
-	register_t msr;
-	uint16_t vers;
-
-	msr = mfmsr();
-	vers = mfpvr() >> 16;
-
-#ifdef INVARIANTS
-	if ((msr & PSL_EE) != PSL_EE) {
-		struct thread *td = curthread;
-		printf("td msr %#lx\n", (u_long)td->td_md.md_saved_msr);
-		panic("ints disabled in idleproc!");
-	}
-#endif
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
-	    busy, curcpu);
-	if (powerpc_pow_enabled) {
-		if (!busy) {
-			critical_enter();
-			cpu_idleclock();
-		}
-		switch (vers) {
-		case IBM970:
-		case IBM970FX:
-		case IBM970MP:
-		case MPC7447A:
-		case MPC7448:
-		case MPC7450:
-		case MPC7455:
-		case MPC7457:
-			__asm __volatile("\
-			    dssall; sync; mtmsr %0; isync"
-			    :: "r"(msr | PSL_POW));
-			break;
-		default:
-			powerpc_sync();
-			mtmsr(msr | PSL_POW);
-			isync();
-			break;
-		}
-		if (!busy) {
-			cpu_activeclock();
-			critical_exit();
-		}
-	}
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
-	    busy, curcpu);
-}
-
-int
-cpu_idle_wakeup(int cpu)
-{
-
-	return (0);
-}
-
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
 {
@@ -751,11 +700,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t msr;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_msr = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		msr = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_msr = msr;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -763,12 +716,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t msr;
 
 	td = curthread;
 	critical_exit();
+	msr = td->td_md.md_saved_msr;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_msr);
+		intr_restore(msr);
 }
 
 /*

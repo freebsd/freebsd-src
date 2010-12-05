@@ -67,7 +67,6 @@ struct pcb {
 	union {
 		struct {
 			vm_offset_t	usr_segm;	/* Base address */
-			register_t	usr_esid;	/* USER_SR segment */
 			register_t	usr_vsid;	/* USER_SR segment */
 		} aim;
 		struct {

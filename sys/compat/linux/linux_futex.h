@@ -39,17 +39,20 @@
 extern LIST_HEAD(futex_list, futex) futex_list;
 extern struct mtx futex_mtx;
 
-#define LINUX_FUTEX_WAIT	0
-#define LINUX_FUTEX_WAKE	1
-#define LINUX_FUTEX_FD		2	/* unused */
-#define LINUX_FUTEX_REQUEUE	3
-#define LINUX_FUTEX_CMP_REQUEUE	4
-#define LINUX_FUTEX_WAKE_OP	5
-#define LINUX_FUTEX_LOCK_PI	6
-#define LINUX_FUTEX_UNLOCK_PI	7
-#define LINUX_FUTEX_TRYLOCK_PI	8
+#define LINUX_FUTEX_WAIT		 0
+#define LINUX_FUTEX_WAKE		 1
+#define LINUX_FUTEX_FD			 2	/* unused */
+#define LINUX_FUTEX_REQUEUE		 3
+#define LINUX_FUTEX_CMP_REQUEUE		 4
+#define LINUX_FUTEX_WAKE_OP		 5
+#define LINUX_FUTEX_LOCK_PI		 6
+#define LINUX_FUTEX_UNLOCK_PI		 7
+#define LINUX_FUTEX_TRYLOCK_PI		 8
+#define LINUX_FUTEX_WAIT_BITSET		 9
+#define LINUX_FUTEX_WAIT_REQUEUE_PI	11
 
 #define LINUX_FUTEX_PRIVATE_FLAG	128
+#define LINUX_FUTEX_CLOCK_REALTIME	256
 
 #define FUTEX_OP_SET            0	/* *(int *)UADDR2 = OPARG; */
 #define FUTEX_OP_ADD            1	/* *(int *)UADDR2 += OPARG; */

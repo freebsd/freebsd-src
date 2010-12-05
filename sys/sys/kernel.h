@@ -64,8 +64,6 @@ extern int stathz;			/* statistics clock's frequency */
 extern int profhz;			/* profiling clock's frequency */
 extern int profprocs;			/* number of process's profiling */
 extern int ticks;
-extern int timer1hz;			/* timer 1 frequency */
-extern int timer2hz;			/* timer 2 frequency */
 
 #endif /* _KERNEL */
 

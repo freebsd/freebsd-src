@@ -67,12 +67,12 @@ fdt_static_dtb.h		optional fdt fdt_dtb_static \
 	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ." \
 	no-obj no-implicit-rule before-depend \
 	clean		"fdt_static_dtb.h"
-p16v-alsa%diked.h		optional snd_emu10kx pci			   \
+p16v-alsa%diked.h		optional snd_emu10kx pci		   \
 	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h" \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h p16v-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"p16v-alsa%diked.h"
-p17v-alsa%diked.h		optional snd_emu10kx pci			   \
+p17v-alsa%diked.h		optional snd_emu10kx pci		   \
 	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h" \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h p17v-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
@@ -83,12 +83,12 @@ feeder_eq_gen.h			optional sound				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"feeder_eq_gen.h"
 feeder_rate_gen.h		optional sound				   \
-	dependency	"$S/tools/sound/feeder_rate_mkfilter.awk"		   \
+	dependency	"$S/tools/sound/feeder_rate_mkfilter.awk"	   \
 	compile-with	"${AWK} -f $S/tools/sound/feeder_rate_mkfilter.awk -- ${FEEDER_RATE_PRESETS} > feeder_rate_gen.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"feeder_rate_gen.h"
 snd_fxdiv_gen.h			optional sound				   \
-	dependency	"$S/tools/sound/snd_fxdiv_gen.awk"			   \
+	dependency	"$S/tools/sound/snd_fxdiv_gen.awk"		   \
 	compile-with	"${AWK} -f $S/tools/sound/snd_fxdiv_gen.awk -- > snd_fxdiv_gen.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"snd_fxdiv_gen.h"
@@ -140,6 +140,7 @@ cam/scsi/scsi_ses.c		optional ses
 cam/scsi/scsi_sg.c		optional sg
 cam/scsi/scsi_targ_bh.c		optional targbh
 cam/scsi/scsi_target.c		optional targ
+cam/scsi/smp_all.c		optional scbus
 contrib/altq/altq/altq_cbq.c	optional altq \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/altq/altq/altq_cdnr.c	optional altq
@@ -1252,11 +1253,17 @@ dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
 dev/ixgbe/ixgbe.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixv.c			optional ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_phy.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_api.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_common.c	optional ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_mbx.c		optional ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_vf.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_82598.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
@@ -1779,6 +1786,7 @@ dev/usb/usb_lookup.c		optional usb
 dev/usb/usb_mbuf.c		optional usb
 dev/usb/usb_msctest.c		optional usb
 dev/usb/usb_parse.c		optional usb
+dev/usb/usb_pf.c		optional usb
 dev/usb/usb_process.c		optional usb
 dev/usb/usb_request.c		optional usb
 dev/usb/usb_transfer.c		optional usb
@@ -2385,6 +2393,7 @@ net/if_atmsubr.c		optional atm
 net/if_bridge.c			optional bridge inet | if_bridge inet
 net/if_clone.c			standard
 net/if_dead.c			standard
+net/if_debug.c			optional ddb
 net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
 net/if_ef.c			optional ef
@@ -2598,6 +2607,8 @@ netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
 netinet/raw_ip.c		optional inet
+netinet/cc/cc.c			optional inet
+netinet/cc/cc_newreno.c		optional inet
 netinet/sctp_asconf.c		optional inet sctp
 netinet/sctp_auth.c		optional inet sctp
 netinet/sctp_bsd_addr.c		optional inet sctp

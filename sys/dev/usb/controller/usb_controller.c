@@ -61,6 +61,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_pf.h>
 
 /* function prototypes  */
 
@@ -205,6 +206,8 @@ usb_detach(device_t dev)
 	/* Get rid of control transfer process */
 
 	usb_proc_free(&bus->control_xfer_proc);
+
+	usbpf_detach(bus);
 
 	return (0);
 }
@@ -434,6 +437,8 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 		usb_devclass_ptr = devclass_find("usbus");
 	mtx_unlock(&Giant);
 
+	usbpf_attach(bus);
+
 	/* Initialise USB process messages */
 	bus->explore_msg[0].hdr.pm_callback = &usb_bus_explore;
 	bus->explore_msg[0].bus = bus;
@@ -596,3 +601,4 @@ usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 
 	mtx_destroy(&bus->bus_mtx);
 }
+

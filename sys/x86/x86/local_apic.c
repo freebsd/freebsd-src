@@ -54,13 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
@@ -251,7 +251,7 @@ lapic_init(vm_paddr_t addr)
 		/* Intel CPUID 0x06 EAX[2] set if APIC timer runs in C3. */
 		if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_high >= 6) {
 			do_cpuid(0x06, regs);
-			if (regs[0] & 0x4)
+			if ((regs[0] & CPUTPM1_ARAT) != 0)
 				arat = 1;
 		}
 		bzero(&lapic_et, sizeof(lapic_et));
@@ -324,16 +324,21 @@ lapic_create(u_int apic_id, int boot_cpu)
 void
 lapic_dump(const char* str)
 {
+	uint32_t maxlvt;
 
+	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
 	printf("cpu%d %s:\n", PCPU_GET(cpuid), str);
 	printf("     ID: 0x%08x   VER: 0x%08x LDR: 0x%08x DFR: 0x%08x\n",
 	    lapic->id, lapic->version, lapic->ldr, lapic->dfr);
 	printf("  lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
 	    lapic->lvt_lint0, lapic->lvt_lint1, lapic->tpr, lapic->svr);
-	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pmc: 0x%08x\n",
-	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
-	    lapic->lvt_pcint);
-	printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
+	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x",
+	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error);
+	if (maxlvt >= LVT_PMC)
+		printf(" pmc: 0x%08x", lapic->lvt_pcint);
+	printf("\n");
+	if (maxlvt >= LVT_CMCI)
+		printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
 }
 
 void
@@ -341,12 +346,12 @@ lapic_setup(int boot)
 {
 	struct lapic *la;
 	u_int32_t maxlvt;
-	register_t eflags;
+	register_t saveintr;
 	char buf[MAXCOMLEN + 1];
 
 	la = &lapics[lapic_id()];
 	KASSERT(la->la_present, ("missing APIC structure"));
-	eflags = intr_disable();
+	saveintr = intr_disable();
 	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
 
 	/* Initialize the TPR to allow all interrupts. */
@@ -393,7 +398,7 @@ lapic_setup(int boot)
 	if (maxlvt >= LVT_CMCI)
 		lapic->lvt_cmci = lvt_mode(la, LVT_CMCI, lapic->lvt_cmci);
 	    
-	intr_restore(eflags);
+	intr_restore(saveintr);
 }
 
 void
@@ -1280,7 +1285,7 @@ apic_init(void *dummy __unused)
 	if (resource_disabled("apic", 0))
 		return;
 
-	/* First, probe all the enumerators to find the best match. */
+	/* Probe all the enumerators to find the best match. */
 	best_enum = NULL;
 	best = 0;
 	SLIST_FOREACH(enumerator, &enumerators, apic_next) {
@@ -1316,13 +1321,12 @@ apic_init(void *dummy __unused)
 	}
 #endif
 
-	/* Second, probe the CPU's in the system. */
+	/* Probe the CPU's in the system. */
 	retval = best_enum->apic_probe_cpus();
 	if (retval != 0)
 		printf("%s: Failed to probe CPUs: returned %d\n",
 		    best_enum->apic_name, retval);
 
-#ifdef __amd64__
 }
 SYSINIT(apic_init, SI_SUB_TUNABLES - 1, SI_ORDER_SECOND, apic_init, NULL);
 
@@ -1337,19 +1341,14 @@ apic_setup_local(void *dummy __unused)
  
 	if (best_enum == NULL)
 		return;
-#endif
-	/* Third, initialize the local APIC. */
+
+	/* Initialize the local APIC. */
 	retval = best_enum->apic_setup_local();
 	if (retval != 0)
 		printf("%s: Failed to setup the local APIC: returned %d\n",
 		    best_enum->apic_name, retval);
 }
-#ifdef __amd64__
-SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local,
-    NULL);
-#else
-SYSINIT(apic_init, SI_SUB_CPU, SI_ORDER_SECOND, apic_init, NULL);
-#endif
+SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local, NULL);
 
 /*
  * Setup the I/O APICs.
@@ -1415,7 +1414,7 @@ lapic_ipi_wait(int delay)
 void
 lapic_ipi_raw(register_t icrlo, u_int dest)
 {
-	register_t value, eflags;
+	register_t value, saveintr;
 
 	/* XXX: Need more sanity checking of icrlo? */
 	KASSERT(lapic != NULL, ("%s called too early", __func__));
@@ -1425,7 +1424,7 @@ lapic_ipi_raw(register_t icrlo, u_int dest)
 	    ("%s: reserved bits set in ICR LO register", __func__));
 
 	/* Set destination in ICR HI register if it is being used. */
-	eflags = intr_disable();
+	saveintr = intr_disable();
 	if ((icrlo & APIC_DEST_MASK) == APIC_DEST_DESTFLD) {
 		value = lapic->icr_hi;
 		value &= ~APIC_ID_MASK;
@@ -1438,7 +1437,7 @@ lapic_ipi_raw(register_t icrlo, u_int dest)
 	value &= APIC_ICRLO_RESV_MASK;
 	value |= icrlo;
 	lapic->icr_lo = value;
-	intr_restore(eflags);
+	intr_restore(saveintr);
 }
 
 #define	BEFORE_SPIN	1000000

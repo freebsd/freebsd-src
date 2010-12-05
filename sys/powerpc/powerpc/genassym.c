@@ -103,13 +103,15 @@ ASSYM(TLBSAVE_BOOKE_R31, TLBSAVE_BOOKE_R31*sizeof(register_t));
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 
 #if defined(AIM)
-ASSYM(USER_SR, USER_SR);
 ASSYM(USER_ADDR, USER_ADDR);
 #ifdef __powerpc64__
 ASSYM(PC_KERNSLB, offsetof(struct pcpu, pc_slb));
 ASSYM(PC_USERSLB, offsetof(struct pcpu, pc_userslb));
+ASSYM(USER_SLB_SLOT, USER_SLB_SLOT);
+ASSYM(USER_SLB_SLBE, USER_SLB_SLBE);
 #else
 ASSYM(PM_SR, offsetof(struct pmap, pm_sr));
+ASSYM(USER_SR, USER_SR);
 #endif
 #elif defined(E500)
 ASSYM(PM_PDIR, offsetof(struct pmap, pm_pdir));
@@ -187,7 +189,6 @@ ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_FPU, PCB_FPU);
 ASSYM(PCB_VEC, PCB_VEC);
 
-ASSYM(PCB_AIM_USR_ESID, offsetof(struct pcb, pcb_cpu.aim.usr_esid));
 ASSYM(PCB_AIM_USR_VSID, offsetof(struct pcb, pcb_cpu.aim.usr_vsid));
 ASSYM(PCB_BOOKE_CTR, offsetof(struct pcb, pcb_cpu.booke.ctr));
 ASSYM(PCB_BOOKE_XER, offsetof(struct pcb, pcb_cpu.booke.xer));

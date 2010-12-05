@@ -2270,7 +2270,6 @@ journal_mount(mp, fs, cred)
 	int error;
 	int i;
 
-	mp->mnt_kern_flag |= MNTK_SUJ;
 	error = softdep_journal_lookup(mp, &vp);
 	if (error != 0) {
 		printf("Failed to find journal.  Use tunefs to create one\n");
@@ -2295,20 +2294,26 @@ journal_mount(mp, fs, cred)
 	}
 	jblocks->jb_low = jblocks->jb_free / 3;	/* Reserve 33%. */
 	jblocks->jb_min = jblocks->jb_free / 10; /* Suspend at 10%. */
-	/*
-	 * Only validate the journal contents if the filesystem is clean,
-	 * otherwise we write the logs but they'll never be used.  If the
-	 * filesystem was still dirty when we mounted it the journal is
-	 * invalid and a new journal can only be valid if it starts from a
-	 * clean mount.
-	 */
-	if (fs->fs_clean) {
-		DIP_SET(ip, i_modrev, fs->fs_mtime);
-		ip->i_flags |= IN_MODIFIED;
-		ffs_update(vp, 1);
-	}
 	VFSTOUFS(mp)->softdep_jblocks = jblocks;
 out:
+	if (error == 0) {
+		MNT_ILOCK(mp);
+		mp->mnt_kern_flag |= MNTK_SUJ;
+		MNT_IUNLOCK(mp);
+		/*
+		 * Only validate the journal contents if the
+		 * filesystem is clean, otherwise we write the logs
+		 * but they'll never be used.  If the filesystem was
+		 * still dirty when we mounted it the journal is
+		 * invalid and a new journal can only be valid if it
+		 * starts from a clean mount.
+		 */
+		if (fs->fs_clean) {
+			DIP_SET(ip, i_modrev, fs->fs_mtime);
+			ip->i_flags |= IN_MODIFIED;
+			ffs_update(vp, 1);
+		}
+	}
 	vput(vp);
 	return (error);
 }
@@ -5265,7 +5270,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	if (delay)
 		WORKLIST_INSERT(&bp->b_dep, &freeblks->fb_list);
 	else if (needj)
-		freeblks->fb_state |= DEPCOMPLETE | COMPLETE;
+		freeblks->fb_state |= COMPLETE;
 	/*
 	 * Because the file length has been truncated to zero, any
 	 * pending block allocation dependency structures associated
@@ -5327,8 +5332,9 @@ restart:
 	if (inodedep_lookup(mp, ip->i_number, 0, &inodedep) != 0)
 		(void) free_inodedep(inodedep);
 
-	if (delay) {
+	if (delay || needj)
 		freeblks->fb_state |= DEPCOMPLETE;
+	if (delay) {
 		/*
 		 * If the inode with zeroed block pointers is now on disk
 		 * we can start freeing blocks. Add freeblks to the worklist
@@ -5339,6 +5345,8 @@ restart:
 		if ((freeblks->fb_state & ALLCOMPLETE) == ALLCOMPLETE)
 			add_to_worklist(&freeblks->fb_list, 1);
 	}
+	if (needj && LIST_EMPTY(&freeblks->fb_jfreeblkhd))
+		needj = 0;
 
 	FREE_LOCK(&lk);
 	/*
@@ -5488,7 +5496,7 @@ cancel_allocdirect(adphead, adp, freeblks, delay)
 	newblk = (struct newblk *)adp;
 	/*
 	 * If the journal hasn't been written the jnewblk must be passed
-	 * to the call to ffs_freeblk that reclaims the space.  We accomplish
+	 * to the call to ffs_blkfree that reclaims the space.  We accomplish
 	 * this by linking the journal dependency into the freework to be
 	 * freed when freework_freeblock() is called.  If the journal has
 	 * been written we can simply reclaim the journal space when the
@@ -6016,11 +6024,12 @@ handle_complete_freeblocks(freeblks)
 		vput(vp);
 	}
 
-#ifdef INVARIANTS
-	if (freeblks->fb_chkcnt != 0 && 
-	    ((fs->fs_flags & FS_UNCLEAN) == 0 || (flags & LK_NOWAIT) != 0))
-		printf("handle_workitem_freeblocks: block count\n");
-#endif /* INVARIANTS */
+	if (!(freeblks->fb_chkcnt == 0 ||
+	    ((fs->fs_flags & FS_UNCLEAN) != 0 && (flags & LK_NOWAIT) == 0)))
+	        printf(
+	"handle_workitem_freeblocks: inode %ju block count %jd\n",
+		   (uintmax_t)freeblks->fb_previousinum,
+		   (intmax_t)freeblks->fb_chkcnt);
 
 	ACQUIRE_LOCK(&lk);
 	/*
@@ -6075,9 +6084,7 @@ indir_trunc(freework, dbn, lbn)
 	fs_pendingblocks = 0;
 	freedeps = 0;
 	needj = UFSTOVFS(ump)->mnt_kern_flag & MNTK_SUJ;
-	lbnadd = 1;
-	for (i = level; i > 0; i--)
-		lbnadd *= NINDIR(fs);
+	lbnadd = lbn_offset(fs, level);
 	/*
 	 * Get buffer of block pointers to be freed. This routine is not
 	 * called until the zero'ed inode has been written, so it is safe
@@ -6273,7 +6280,7 @@ cancel_allocindir(aip, inodedep, freeblks)
 
 	/*
 	 * If the journal hasn't been written the jnewblk must be passed
-	 * to the call to ffs_freeblk that reclaims the space.  We accomplish
+	 * to the call to ffs_blkfree that reclaims the space.  We accomplish
 	 * this by linking the journal dependency into the indirdep to be
 	 * freed when indir_trunc() is called.  If the journal has already
 	 * been written we can simply reclaim the journal space when the

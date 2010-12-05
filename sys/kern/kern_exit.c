@@ -200,6 +200,7 @@ exit1(struct thread *td, int rv)
 	while (p->p_lock > 0)
 		msleep(&p->p_lock, &p->p_mtx, PWAIT, "exithold", 0);
 
+	p->p_xstat = rv;	/* Let event handler change exit status */
 	PROC_UNLOCK(p);
 	/* Drain the limit callout while we don't have the proc locked */
 	callout_drain(&p->p_limco);
@@ -242,6 +243,7 @@ exit1(struct thread *td, int rv)
 	 * P_PPWAIT is set; we will wakeup the parent below.
 	 */
 	PROC_LOCK(p);
+	rv = p->p_xstat;	/* Event handler could change exit status */
 	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 
@@ -424,7 +426,6 @@ exit1(struct thread *td, int rv)
 
 	/* Save exit status. */
 	PROC_LOCK(p);
-	p->p_xstat = rv;
 	p->p_xthread = td;
 
 	/* Tell the prison that we are gone. */

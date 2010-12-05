@@ -57,11 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/cpufunc.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
@@ -239,6 +239,9 @@ topo_probe_0x4(void)
 			cpu_logical++;
 	}
 
+	KASSERT(cpu_cores >= 1 && cpu_logical >= 1,
+	    ("topo_probe_0x4 couldn't find BSP"));
+
 	cpu_cores /= cpu_logical;
 	hyperthreading_cpus = cpu_logical;
 }
@@ -310,7 +313,9 @@ topo_probe(void)
 		return;
 
 	logical_cpus_mask = 0;
-	if (cpu_vendor_id == CPU_VENDOR_AMD)
+	if (mp_ncpus <= 1)
+		cpu_cores = cpu_logical = 1;
+	else if (cpu_vendor_id == CPU_VENDOR_AMD)
 		topo_probe_amd();
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL) {
 		/*
@@ -332,10 +337,8 @@ topo_probe(void)
 	 * Fallback: assume each logical CPU is in separate
 	 * physical package.  That is, no multi-core, no SMT.
 	 */
-	if (cpu_cores == 0)
-		cpu_cores = 1;
-	if (cpu_logical == 0)
-		cpu_logical = 1;
+	if (cpu_cores == 0 || cpu_logical == 0)
+		cpu_cores = cpu_logical = 1;
 	cpu_topo_probed = 1;
 }
 
@@ -419,7 +422,7 @@ cpu_add(u_int apic_id, char boot_cpu)
 	}
 	if (mp_ncpus < MAXCPU) {
 		mp_ncpus++;
-		mp_maxid = mp_ncpus -1;
+		mp_maxid = mp_ncpus - 1;
 	}
 	if (bootverbose)
 		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
@@ -442,7 +445,7 @@ cpu_mp_setmaxid(void)
 	else
 		KASSERT(mp_maxid >= mp_ncpus - 1,
 		    ("%s: counters out of sync: max %d, count %d", __func__,
-			mp_maxid, mp_ncpus));		
+			mp_maxid, mp_ncpus));
 }
 
 int
@@ -1407,6 +1410,7 @@ cpususpend_handler(void)
 		wbinvd();
 		atomic_set_int(&stopped_cpus, cpumask);
 	} else {
+		pmap_init_pat();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 	}

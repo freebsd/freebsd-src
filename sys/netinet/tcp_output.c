@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
+#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -64,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
-#include <netinet/tcp.h>
 #define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -102,11 +102,6 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize,
 	CTLFLAG_RW, &VNET_NAME(ss_fltsz_local), 1,
 	"Slow start flight size for local networks");
 
-VNET_DEFINE(int, tcp_do_newreno) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW,
-	&VNET_NAME(tcp_do_newreno), 0,
-	"Enable NewReno Algorithms");
-
 VNET_DEFINE(int, tcp_do_tso) = 1;
 #define	V_tcp_do_tso		VNET(tcp_do_tso)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
@@ -131,6 +126,19 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_max), 0,
 	"Max size of automatic send buffer");
 
+static void inline	cc_after_idle(struct tcpcb *tp);
+
+/*
+ * CC wrapper hook functions
+ */
+static void inline
+cc_after_idle(struct tcpcb *tp)
+{
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	if (CC_ALGO(tp)->after_idle != NULL)
+		CC_ALGO(tp)->after_idle(tp->ccv);
+}
 
 /*
  * Tcp output routine: figure out what should be sent and send it.
@@ -140,7 +148,7 @@ tcp_output(struct tcpcb *tp)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 	long len, recwin, sendwin;
-	int off, flags, error, rw;
+	int off, flags, error;
 	struct mbuf *m;
 	struct ip *ip = NULL;
 	struct ipovly *ipov = NULL;
@@ -174,37 +182,8 @@ tcp_output(struct tcpcb *tp)
 	 * to send, then transmit; otherwise, investigate further.
 	 */
 	idle = (tp->t_flags & TF_LASTIDLE) || (tp->snd_max == tp->snd_una);
-	if (idle && ticks - tp->t_rcvtime >= tp->t_rxtcur) {
-		/*
-		 * If we've been idle for more than one retransmit
-		 * timeout the old congestion window is no longer
-		 * current and we have to reduce it to the restart
-		 * window before we can transmit again.
-		 *
-		 * The restart window is the initial window or the last
-		 * CWND, whichever is smaller.
-		 * 
-		 * This is done to prevent us from flooding the path with
-		 * a full CWND at wirespeed, overloading router and switch
-		 * buffers along the way.
-		 *
-		 * See RFC5681 Section 4.1. "Restarting Idle Connections".
-		 */
-		if (V_tcp_do_rfc3390)
-			rw = min(4 * tp->t_maxseg,
-				 max(2 * tp->t_maxseg, 4380));
-#ifdef INET6
-		else if ((isipv6 ? in6_localaddr(&tp->t_inpcb->in6p_faddr) :
-			  in_localaddr(tp->t_inpcb->inp_faddr)))
-#else
-		else if (in_localaddr(tp->t_inpcb->inp_faddr))
-#endif
-			rw = V_ss_fltsz_local * tp->t_maxseg;
-		else
-			rw = V_ss_fltsz * tp->t_maxseg;
-
-		tp->snd_cwnd = min(rw, tp->snd_cwnd);
-	}
+	if (idle && ticks - tp->t_rcvtime >= tp->t_rxtcur)
+		cc_after_idle(tp);
 	tp->t_flags &= ~TF_LASTIDLE;
 	if (idle) {
 		if (tp->t_flags & TF_MORETOCOME) {
@@ -241,7 +220,7 @@ again:
 	sack_bytes_rxmt = 0;
 	len = 0;
 	p = NULL;
-	if ((tp->t_flags & TF_SACK_PERMIT) && IN_FASTRECOVERY(tp) &&
+	if ((tp->t_flags & TF_SACK_PERMIT) && IN_FASTRECOVERY(tp->t_flags) &&
 	    (p = tcp_sack_output(tp, &sack_bytes_rxmt))) {
 		long cwin;
 		
@@ -795,6 +774,7 @@ send:
 		if ((tp->t_flags & TF_FORCEDATA) && len == 1)
 			TCPSTAT_INC(tcps_sndprobe);
 		else if (SEQ_LT(tp->snd_nxt, tp->snd_max) || sack_rxmit) {
+			tp->t_sndrexmitpack++;
 			TCPSTAT_INC(tcps_sndrexmitpack);
 			TCPSTAT_ADD(tcps_sndrexmitbyte, len);
 		} else {
@@ -1019,9 +999,10 @@ send:
 	 * to read more data than can be buffered prior to transmitting on
 	 * the connection.
 	 */
-	if (th->th_win == 0)
+	if (th->th_win == 0) {
+		tp->t_sndzerowin++;
 		tp->t_flags |= TF_RXWIN0SENT;
-	else
+	} else
 		tp->t_flags &= ~TF_RXWIN0SENT;
 	if (SEQ_GT(tp->snd_up, tp->snd_nxt)) {
 		th->th_urp = htons((u_short)(tp->snd_up - tp->snd_nxt));
@@ -1315,7 +1296,7 @@ out:
 	 * on the transmitter effectively destroys the TCP window, forcing
 	 * it to four packets (1.5Kx4 = 6K window).
 	 */
-	if (sendalot && (!V_tcp_do_newreno || --maxburst))
+	if (sendalot && --maxburst)
 		goto again;
 #endif
 	if (sendalot)

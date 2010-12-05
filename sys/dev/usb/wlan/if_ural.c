@@ -486,7 +486,6 @@ ural_attach(device_t self)
 	    | IEEE80211_C_SHSLOT	/* short slot time supported */
 	    | IEEE80211_C_BGSCAN	/* bg scanning supported */
 	    | IEEE80211_C_WPA		/* 802.11i */
-	    | IEEE80211_C_RATECTL	/* use ratectl */
 	    ;
 
 	bands = 0;

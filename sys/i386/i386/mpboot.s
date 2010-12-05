@@ -32,7 +32,7 @@
 #include "opt_pmap.h"
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/specialreg.h>
 
 #include "assym.s"

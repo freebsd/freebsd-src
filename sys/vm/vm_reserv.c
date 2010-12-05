@@ -193,8 +193,8 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 			unused_pages += VM_LEVEL_0_NPAGES - rv->popcnt;
 		}
 		mtx_unlock(&vm_page_queue_free_mtx);
-		sbuf_printf(&sbuf, "%5.5d: %6.6dK, %6.6d\n", level,
-		    unused_pages * (PAGE_SIZE / 1024), counter);
+		sbuf_printf(&sbuf, "%5d: %6dK, %6d\n", level,
+		    unused_pages * ((int)PAGE_SIZE / 1024), counter);
 	}
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
@@ -654,7 +654,8 @@ vm_reserv_reclaim_contig(vm_paddr_t size, vm_paddr_t low, vm_paddr_t high,
 					    ((pa ^ (pa + size - 1)) &
 					    ~(boundary - 1)) != 0)
 						pa_length = 0;
-				} else if (pa_length >= size) {
+				}
+				if (pa_length >= size) {
 					vm_reserv_reclaim(rv);
 					return (TRUE);
 				}

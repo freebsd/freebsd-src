@@ -55,6 +55,7 @@ mips/mips/db_trace.c		optional	ddb
 mips/mips/dump_machdep.c	standard
 mips/mips/in_cksum.c		optional	inet
 mips/mips/locore.S		standard	no-obj
+mips/mips/minidump_machdep.c	standard
 mips/mips/mem.c			optional	mem
 mips/mips/nexus.c		standard
 mips/mips/stack_machdep.c	optional	ddb | stack

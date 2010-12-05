@@ -2803,7 +2803,7 @@ ehci_early_takeover(device_t self)
 				    "SMM does not respond\n");
 		}
 		/* Disable interrupts */
-		offs = bus_read_1(res, EHCI_CAPLENGTH);
+		offs = EHCI_CAPLENGTH(bus_read_4(res, EHCI_CAPLEN_HCIVERSION));
 		bus_write_4(res, offs + EHCI_USBINTR, 0);
 	}
 	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
@@ -3022,8 +3022,35 @@ pci_resume(device_t dev)
 		if (!device_is_attached(child))
 			pci_cfg_save(child, dinfo, 1);
 	}
+
+	/*
+	 * Resume critical devices first, then everything else later.
+	 */
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		switch (pci_get_class(child)) {
+		case PCIC_DISPLAY:
+		case PCIC_MEMORY:
+		case PCIC_BRIDGE:
+		case PCIC_BASEPERIPH:
+			DEVICE_RESUME(child);
+			break;
+		}
+	}
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		switch (pci_get_class(child)) {
+		case PCIC_DISPLAY:
+		case PCIC_MEMORY:
+		case PCIC_BRIDGE:
+		case PCIC_BASEPERIPH:
+			break;
+		default:
+			DEVICE_RESUME(child);
+		}
+	}
 	free(devlist, M_TEMP);
-	return (bus_generic_resume(dev));
+	return (0);
 }
 
 static void

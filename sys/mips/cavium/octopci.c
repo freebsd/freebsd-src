@@ -108,6 +108,8 @@ octopci_probe(device_t dev)
 {
 	if (device_get_unit(dev) != 0)
 		return (ENXIO);
+	if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+		return (ENXIO);
 	/* XXX Check sysinfo flag.  */
 	device_set_desc(dev, "Cavium Octeon PCI bridge");
 	return (0);

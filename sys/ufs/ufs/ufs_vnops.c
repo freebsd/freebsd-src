@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/acl.h>
 
-#include <machine/mutex.h>
-
 #include <security/mac/mac_framework.h>
 
 #include <sys/file.h>		/* XXX */

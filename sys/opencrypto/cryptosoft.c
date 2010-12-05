@@ -1060,7 +1060,7 @@ swcr_identify(driver_t *drv, device_t parent)
 {
 	/* NB: order 10 is so we get attached after h/w devices */
 	if (device_find_child(parent, "cryptosoft", -1) == NULL &&
-	    BUS_ADD_CHILD(parent, 10, "cryptosoft", -1) == 0)
+	    BUS_ADD_CHILD(parent, 10, "cryptosoft", 0) == 0)
 		panic("cryptosoft: could not attach");
 }
 
@@ -1068,7 +1068,7 @@ static int
 swcr_probe(device_t dev)
 {
 	device_set_desc(dev, "software crypto");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

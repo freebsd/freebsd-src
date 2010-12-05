@@ -291,6 +291,10 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	return (0);
 }
 
+/*
+ * sctp_find_alternate_net() returns a non-NULL pointer as long
+ * the argument net is non-NULL.
+ */
 struct sctp_nets *
 sctp_find_alternate_net(struct sctp_tcb *stcb,
     struct sctp_nets *net,
@@ -440,8 +444,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 	else if (mode == 1) {
 		TAILQ_FOREACH(mnet, &stcb->asoc.nets, sctp_next) {
 			if (((mnet->dest_state & SCTP_ADDR_REACHABLE) != SCTP_ADDR_REACHABLE) ||
-			    (mnet->dest_state & SCTP_ADDR_UNCONFIRMED)
-			    ) {
+			    (mnet->dest_state & SCTP_ADDR_UNCONFIRMED)) {
 				/*
 				 * will skip ones that are not-reachable or
 				 * unconfirmed
@@ -505,12 +508,10 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			}
 			alt->src_addr_selected = 0;
 		}
-		if (
-		    ((alt->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE) &&
-		    (alt->ro.ro_rt != NULL) &&
 		/* sa_ignore NO_NULL_CHK */
-		    (!(alt->dest_state & SCTP_ADDR_UNCONFIRMED))
-		    ) {
+		if (((alt->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE) &&
+		    (alt->ro.ro_rt != NULL) &&
+		    (!(alt->dest_state & SCTP_ADDR_UNCONFIRMED))) {
 			/* Found a reachable address */
 			break;
 		}
@@ -548,8 +549,6 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 	}
 	return (alt);
 }
-
-
 
 static void
 sctp_backoff_on_timeout(struct sctp_tcb *stcb,
@@ -1021,8 +1020,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		 * used, then pick dest with largest ssthresh for any
 		 * retransmission.
 		 */
-		alt = net;
-		alt = sctp_find_alternate_net(stcb, alt, 1);
+		alt = sctp_find_alternate_net(stcb, net, 1);
 		/*
 		 * CUCv2: If a different dest is picked for the
 		 * retransmission, then new (rtx-)pseudo_cumack needs to be
@@ -1213,7 +1211,7 @@ sctp_t1init_timer(struct sctp_inpcb *inp,
 		struct sctp_nets *alt;
 
 		alt = sctp_find_alternate_net(stcb, stcb->asoc.primary_destination, 0);
-		if ((alt != NULL) && (alt != stcb->asoc.primary_destination)) {
+		if (alt != stcb->asoc.primary_destination) {
 			sctp_move_chunks_from_net(stcb, stcb->asoc.primary_destination);
 			stcb->asoc.primary_destination = alt;
 		}
@@ -1480,6 +1478,7 @@ sctp_delete_prim_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
  * For the shutdown and shutdown-ack, we do not keep one around on the
  * control queue. This means we must generate a new one and call the general
  * chunk output routine, AFTER having done threshold management.
+ * It is assumed that net is non-NULL.
  */
 int
 sctp_shutdown_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
@@ -1492,18 +1491,13 @@ sctp_shutdown_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		/* Assoc is over */
 		return (1);
 	}
+	sctp_backoff_on_timeout(stcb, net, 1, 0, 0);
 	/* second select an alternative */
 	alt = sctp_find_alternate_net(stcb, net, 0);
 
 	/* third generate a shutdown into the queue for out net */
-	if (alt) {
-		sctp_send_shutdown(stcb, alt);
-	} else {
-		/*
-		 * if alt is NULL, there is no dest to send to??
-		 */
-		return (0);
-	}
+	sctp_send_shutdown(stcb, alt);
+
 	/* fourth restart timer */
 	sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN, inp, stcb, alt);
 	return (0);
@@ -1520,6 +1514,7 @@ sctp_shutdownack_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		/* Assoc is over */
 		return (1);
 	}
+	sctp_backoff_on_timeout(stcb, net, 1, 0, 0);
 	/* second select an alternative */
 	alt = sctp_find_alternate_net(stcb, net, 0);
 
@@ -1675,70 +1670,6 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	return (0);
 }
 
-int
-sctp_is_hb_timer_running(struct sctp_tcb *stcb)
-{
-	if (SCTP_OS_TIMER_PENDING(&stcb->asoc.hb_timer.timer)) {
-		/* its running */
-		return (1);
-	} else {
-		/* nope */
-		return (0);
-	}
-}
-
-int
-sctp_is_sack_timer_running(struct sctp_tcb *stcb)
-{
-	if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-		/* its running */
-		return (1);
-	} else {
-		/* nope */
-		return (0);
-	}
-}
-
-#define SCTP_NUMBER_OF_MTU_SIZES 18
-static uint32_t mtu_sizes[] = {
-	68,
-	296,
-	508,
-	512,
-	544,
-	576,
-	1006,
-	1492,
-	1500,
-	1536,
-	2002,
-	2048,
-	4352,
-	4464,
-	8166,
-	17914,
-	32000,
-	65535
-};
-
-
-static uint32_t
-sctp_getnext_mtu(struct sctp_inpcb *inp, uint32_t cur_mtu)
-{
-	/* select another MTU that is just bigger than this one */
-	int i;
-
-	for (i = 0; i < SCTP_NUMBER_OF_MTU_SIZES; i++) {
-		if (cur_mtu < mtu_sizes[i]) {
-			/* no max_mtu is bigger than this one */
-			return (mtu_sizes[i]);
-		}
-	}
-	/* here return the highest allowable */
-	return (cur_mtu);
-}
-
-
 void
 sctp_pathmtu_timer(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
@@ -1746,7 +1677,7 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 {
 	uint32_t next_mtu, mtu;
 
-	next_mtu = sctp_getnext_mtu(inp, net->mtu);
+	next_mtu = sctp_get_next_mtu(inp, net->mtu);
 
 	if ((next_mtu > net->mtu) && (net->port == 0)) {
 		if ((net->src_addr_selected == 0) ||

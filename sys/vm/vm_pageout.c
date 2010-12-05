@@ -438,7 +438,7 @@ more:
 	/*
 	 * we allow reads during pageouts...
 	 */
-	return (vm_pageout_flush(&mc[page_base], pageout_count, 0));
+	return (vm_pageout_flush(&mc[page_base], pageout_count, 0, 0, NULL));
 }
 
 /*
@@ -449,14 +449,17 @@ more:
  *	reference count all in here rather then in the parent.  If we want
  *	the parent to do more sophisticated things we may have to change
  *	the ordering.
+ *
+ *	Returned runlen is the count of pages between mreq and first
+ *	page after mreq with status VM_PAGER_AGAIN.
  */
 int
-vm_pageout_flush(vm_page_t *mc, int count, int flags)
+vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen)
 {
 	vm_object_t object = mc[0]->object;
 	int pageout_status[count];
 	int numpagedout = 0;
-	int i;
+	int i, runlen;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
@@ -482,6 +485,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 
 	vm_pager_put_pages(object, mc, count, flags, pageout_status);
 
+	runlen = count - mreq;
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
 
@@ -513,6 +517,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 			vm_page_unlock(mt);
 			break;
 		case VM_PAGER_AGAIN:
+			if (i >= mreq && i - mreq < runlen)
+				runlen = i - mreq;
 			break;
 		}
 
@@ -532,6 +538,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 			}
 		}
 	}
+	if (prunlen != NULL)
+		*prunlen = runlen;
 	return (numpagedout);
 }
 

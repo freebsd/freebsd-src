@@ -99,7 +99,7 @@ instkernslb:
 
 	addi	%r28, %r28, 16;		/* Advance pointer */
 	addi	%r29, %r29, 1;
-	cmpli	0, %r29, USER_SR;	/* Repeat if we are not at the end */
+	cmpli	0, %r29, USER_SLB_SLOT;	/* Repeat if we are not at the end */
 	blt instkernslb;
 	blr;
 

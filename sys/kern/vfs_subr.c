@@ -121,7 +121,8 @@ static void	destroy_vpollinfo(struct vpollinfo *vi);
  */
 static unsigned long	numvnodes;
 
-SYSCTL_LONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
+SYSCTL_LONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0,
+    "Number of vnodes in existence");
 
 /*
  * Conversion tables for conversion from vnode types to inode formats
@@ -150,7 +151,8 @@ static u_long wantfreevnodes;
 SYSCTL_LONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 /* Number of vnodes in the free list. */
 static u_long freevnodes;
-SYSCTL_LONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
+SYSCTL_LONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0,
+    "Number of vnodes in the free list");
 
 static int vlru_allow_cache_src;
 SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
@@ -162,7 +164,8 @@ SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
  * XXX these are probably of (very) limited utility now.
  */
 static int reassignbufcalls;
-SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0,
+    "Number of calls to reassignbuf");
 
 /*
  * Cache for the mount type id assigned to NFS.  This is used for
@@ -187,9 +190,6 @@ struct nfs_public nfs_pub;
 /* Zone for allocation of new vnodes - used exclusively by getnewvnode() */
 static uma_zone_t vnode_zone;
 static uma_zone_t vnodepoll_zone;
-
-/* Set to 1 to print out reclaim of active vnodes */
-int	prtactive;
 
 /*
  * The workitem queue.
@@ -237,14 +237,18 @@ static struct cv sync_wakeup;
 static int syncer_maxdelay = SYNCER_MAXDELAY;	/* maximum delay time */
 static int syncdelay = 30;		/* max time to delay syncing data */
 static int filedelay = 30;		/* time to delay syncing files */
-SYSCTL_INT(_kern, OID_AUTO, filedelay, CTLFLAG_RW, &filedelay, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, filedelay, CTLFLAG_RW, &filedelay, 0,
+    "Time to delay syncing files (in seconds)");
 static int dirdelay = 29;		/* time to delay syncing directories */
-SYSCTL_INT(_kern, OID_AUTO, dirdelay, CTLFLAG_RW, &dirdelay, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, dirdelay, CTLFLAG_RW, &dirdelay, 0,
+    "Time to delay syncing directories (in seconds)");
 static int metadelay = 28;		/* time to delay syncing metadata */
-SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0,
+    "Time to delay syncing metadata (in seconds)");
 static int rushjob;		/* number of slots to run ASAP */
 static int stat_rush_requests;	/* number of times I/O speeded up */
-SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0,
+    "Number of times I/O speeded up (rush requests)");
 
 /*
  * When shutting down the syncer, run it at four times normal speed.
@@ -544,7 +548,9 @@ enum { TSP_SEC, TSP_HZ, TSP_USEC, TSP_NSEC };
 
 static int timestamp_precision = TSP_SEC;
 SYSCTL_INT(_vfs, OID_AUTO, timestamp_precision, CTLFLAG_RW,
-    &timestamp_precision, 0, "");
+    &timestamp_precision, 0, "File timestamp precision (0: seconds, "
+    "1: sec + ns accurate to 1/HZ, 2: sec + ns truncated to ms, "
+    "3+: sec + ns (max. precision))");
 
 /*
  * Get a current timestamp.
@@ -2180,7 +2186,7 @@ vputx(struct vnode *vp, int func)
 
 	KASSERT(vp != NULL, ("vputx: null vp"));
 	if (func == VPUTX_VUNREF)
-		ASSERT_VOP_ELOCKED(vp, "vunref");
+		ASSERT_VOP_LOCKED(vp, "vunref");
 	else if (func == VPUTX_VPUT)
 		ASSERT_VOP_LOCKED(vp, "vput");
 	else
@@ -2218,12 +2224,22 @@ vputx(struct vnode *vp, int func)
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
 	vp->v_iflag |= VI_OWEINACT;
-	if (func == VPUTX_VRELE) {
+	switch (func) {
+	case VPUTX_VRELE:
 		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
 		VI_LOCK(vp);
-	} else if (func == VPUTX_VPUT && VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
-		error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK | LK_NOWAIT);
-		VI_LOCK(vp);
+		break;
+	case VPUTX_VPUT:
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+			error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK |
+			    LK_NOWAIT);
+			VI_LOCK(vp);
+		}
+		break;
+	case VPUTX_VUNREF:
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
+			error = EBUSY;
+		break;
 	}
 	if (vp->v_usecount > 0)
 		vp->v_iflag &= ~VI_OWEINACT;
@@ -2376,7 +2392,7 @@ vinactive(struct vnode *vp, struct thread *td)
  */
 #ifdef DIAGNOSTIC
 static int busyprt = 0;		/* print out busy vnodes */
-SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "Print out busy vnodes");
 #endif
 
 int
@@ -3018,7 +3034,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD | CTLFLAG_SKIP,
-	vfs_sysctl, "Generic filesystem");
+    vfs_sysctl, "Generic filesystem");
 
 #if 1 || defined(COMPAT_PRELITE2)
 
@@ -3139,7 +3155,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_vnode, "S,xvnode", "");
+    0, 0, sysctl_vnode, "S,xvnode", "");
 #endif
 
 /*
@@ -3712,17 +3728,21 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 	(vp)->v_type == VCHR ||	(vp)->v_type == VBAD)
 
 int vfs_badlock_ddb = 1;	/* Drop into debugger on violation. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0,
+    "Drop into debugger on lock violation");
 
 int vfs_badlock_mutex = 1;	/* Check for interlock across VOPs. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_mutex, CTLFLAG_RW, &vfs_badlock_mutex, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_mutex, CTLFLAG_RW, &vfs_badlock_mutex,
+    0, "Check for interlock across VOPs");
 
 int vfs_badlock_print = 1;	/* Print lock violations. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_print, CTLFLAG_RW, &vfs_badlock_print, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_print, CTLFLAG_RW, &vfs_badlock_print,
+    0, "Print lock violations");
 
 #ifdef KDB
 int vfs_badlock_backtrace = 1;	/* Print backtrace at lock violations. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_backtrace, CTLFLAG_RW, &vfs_badlock_backtrace, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_backtrace, CTLFLAG_RW,
+    &vfs_badlock_backtrace, 0, "Print backtrace at lock violations");
 #endif
 
 static void

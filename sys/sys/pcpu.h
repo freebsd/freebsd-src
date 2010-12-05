@@ -42,11 +42,18 @@
 #include <sys/resource.h>
 #include <machine/pcpu.h>
 
+#define	DPCPU_SETNAME		"set_pcpu"
+#define	DPCPU_SYMPREFIX		"pcpu_entry_"
+
+#ifdef _KERNEL
+
 /*
  * Define a set for pcpu data.
  */
 extern uintptr_t *__start_set_pcpu;
+__GLOBL(__start_set_pcpu);
 extern uintptr_t *__stop_set_pcpu;
+__GLOBL(__stop_set_pcpu);
 
 /*
  * Array of dynamic pcpu base offsets.  Indexed by id.
@@ -68,7 +75,7 @@ extern uintptr_t dpcpu_off[];
  */
 #define	DPCPU_NAME(n)		pcpu_entry_##n
 #define	DPCPU_DECLARE(t, n)	extern t DPCPU_NAME(n)
-#define	DPCPU_DEFINE(t, n)	t DPCPU_NAME(n) __section("set_pcpu") __used
+#define	DPCPU_DEFINE(t, n)	t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
 
 /*
  * Accessors with a given base.
@@ -126,6 +133,8 @@ extern uintptr_t dpcpu_off[];
 		bzero(DPCPU_ID_PTR(_i, n), sizeof(*DPCPU_PTR(n)));	\
 	}								\
 } while(0)
+
+#endif /* _KERNEL */
 
 /* 
  * XXXUPS remove as soon as we have per cpu variable

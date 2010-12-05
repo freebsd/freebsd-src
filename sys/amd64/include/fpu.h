@@ -112,12 +112,11 @@ void	fpudna(void);
 void	fpudrop(void);
 void	fpuexit(struct thread *td);
 int	fpuformat(void);
-int	fpugetregs(struct thread *td, struct savefpu *addr);
-int	fpugetuserregs(struct thread *td, struct savefpu *addr);
+int	fpugetregs(struct thread *td);
 void	fpuinit(void);
 void	fpusetregs(struct thread *td, struct savefpu *addr);
-void	fpusetuserregs(struct thread *td, struct savefpu *addr);
 int	fputrap(void);
+void	fpuuserinited(struct thread *td);
 int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
 	    u_int flags);
 int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);

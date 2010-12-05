@@ -930,15 +930,32 @@ startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 {
 	uma_keg_t keg;
 	uma_slab_t tmps;
+	int pages, check_pages;
 
 	keg = zone_first_keg(zone);
+	pages = howmany(bytes, PAGE_SIZE);
+	check_pages = pages - 1;
+	KASSERT(pages > 0, ("startup_alloc can't reserve 0 pages\n"));
 
 	/*
 	 * Check our small startup cache to see if it has pages remaining.
 	 */
 	mtx_lock(&uma_boot_pages_mtx);
-	if ((tmps = LIST_FIRST(&uma_boot_pages)) != NULL) {
-		LIST_REMOVE(tmps, us_link);
+
+	/* First check if we have enough room. */
+	tmps = LIST_FIRST(&uma_boot_pages);
+	while (tmps != NULL && check_pages-- > 0)
+		tmps = LIST_NEXT(tmps, us_link);
+	if (tmps != NULL) {
+		/*
+		 * It's ok to lose tmps references.  The last one will
+		 * have tmps->us_data pointing to the start address of
+		 * "pages" contiguous pages of memory.
+		 */
+		while (pages-- > 0) {
+			tmps = LIST_FIRST(&uma_boot_pages);
+			LIST_REMOVE(tmps, us_link);
+		}
 		mtx_unlock(&uma_boot_pages_mtx);
 		*pflag = tmps->us_flags;
 		return (tmps->us_data);
@@ -950,7 +967,7 @@ startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 	 * Now that we've booted reset these users to their real allocator.
 	 */
 #ifdef UMA_MD_SMALL_ALLOC
-	keg->uk_allocf = uma_small_alloc;
+	keg->uk_allocf = (keg->uk_ppera > 1) ? page_alloc : uma_small_alloc;
 #else
 	keg->uk_allocf = page_alloc;
 #endif
@@ -1177,12 +1194,15 @@ keg_large_init(uma_keg_t keg)
 
 	keg->uk_ppera = pages;
 	keg->uk_ipers = 1;
+	keg->uk_rsize = keg->uk_size;
+
+	/* We can't do OFFPAGE if we're internal, bail out here. */
+	if (keg->uk_flags & UMA_ZFLAG_INTERNAL)
+		return;
 
 	keg->uk_flags |= UMA_ZONE_OFFPAGE;
 	if ((keg->uk_flags & UMA_ZONE_VTOSLAB) == 0)
 		keg->uk_flags |= UMA_ZONE_HASH;
-
-	keg->uk_rsize = keg->uk_size;
 }
 
 static void
@@ -1301,7 +1321,8 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 #endif
 		if (booted == 0)
 			keg->uk_allocf = startup_alloc;
-	}
+	} else if (booted == 0 && (keg->uk_flags & UMA_ZFLAG_INTERNAL))
+		keg->uk_allocf = startup_alloc;
 
 	/*
 	 * Initialize keg's lock (shared among zones).
@@ -1330,7 +1351,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		if (totsize & UMA_ALIGN_PTR)
 			totsize = (totsize & ~UMA_ALIGN_PTR) +
 			    (UMA_ALIGN_PTR + 1);
-		keg->uk_pgoff = UMA_SLAB_SIZE - totsize;
+		keg->uk_pgoff = (UMA_SLAB_SIZE * keg->uk_ppera) - totsize;
 
 		if (keg->uk_flags & UMA_ZONE_REFCNT)
 			totsize = keg->uk_pgoff + sizeof(struct uma_slab_refcnt)
@@ -1346,7 +1367,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		 * mathematically possible for all cases, so we make
 		 * sure here anyway.
 		 */
-		if (totsize > UMA_SLAB_SIZE) {
+		if (totsize > UMA_SLAB_SIZE * keg->uk_ppera) {
 			printf("zone %s ipers %d rsize %d size %d\n",
 			    zone->uz_name, keg->uk_ipers, keg->uk_rsize,
 			    keg->uk_size);

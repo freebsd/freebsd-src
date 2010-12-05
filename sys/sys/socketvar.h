@@ -117,7 +117,14 @@ struct socket {
 		void	*so_accept_filter_arg;	/* saved filter args */
 		char	*so_accept_filter_str;	/* saved user args */
 	} *so_accf;
+	/*
+	 * so_fibnum, so_user_cookie and friends can be used to attach
+	 * some user-specified metadata to a socket, which then can be
+	 * used by the kernel for various actions.
+	 * so_user_cookie is used by ipfw/dummynet.
+	 */
 	int so_fibnum;		/* routing domain for this socket */
+	uint32_t so_user_cookie;
 };
 
 /*

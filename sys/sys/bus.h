@@ -256,6 +256,7 @@ int	resource_list_add_next(struct resource_list *rl,
 			  u_long start, u_long end, u_long count);
 int	resource_list_busy(struct resource_list *rl,
 			   int type, int rid);
+int	resource_list_reserved(struct resource_list *rl, int type, int rid);
 struct resource_list_entry*
 	resource_list_find(struct resource_list *rl,
 			   int type, int rid);

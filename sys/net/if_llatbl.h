@@ -58,6 +58,7 @@ struct llentry {
 	struct lltable		 *lle_tbl;
 	struct llentries	 *lle_head;
 	struct mbuf		 *la_hold;
+	int     		 la_numheld;  /* # of packets currently held */
 	time_t			 la_expire;
 	uint16_t		 la_flags;    
 	uint16_t		 la_asked;
@@ -191,7 +192,7 @@ void		lltable_drain(int);
 #endif
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
-void		llentry_free(struct llentry *);
+size_t		llentry_free(struct llentry *);
 int		llentry_update(struct llentry **, struct lltable *,
                        struct sockaddr_storage *, struct ifnet *);
 

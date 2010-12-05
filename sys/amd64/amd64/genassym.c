@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/sigframe.h>

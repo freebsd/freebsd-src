@@ -2386,6 +2386,7 @@ xpt_action_default(union ccb *start_ccb)
 		/* FALLTHROUGH */
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
+	case XPT_SMP_IO:
 	{
 		struct cam_path *path = start_ccb->ccb_h.path;
 		int frozen;

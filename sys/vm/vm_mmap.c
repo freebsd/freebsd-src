@@ -232,7 +232,7 @@ mmap(td, uap)
 
 	/* Make sure mapping fits into numeric range, etc. */
 	if ((uap->len == 0 && !SV_CURPROC_FLAG(SV_AOUT) &&
-	     curproc->p_osrel >= 800104) ||
+	     curproc->p_osrel >= P_OSREL_MAP_ANON) ||
 	    ((flags & MAP_ANON) && (uap->fd != -1 || pos != 0)))
 		return (EINVAL);
 
@@ -276,14 +276,14 @@ mmap(td, uap)
 		if (addr + size < addr)
 			return (EINVAL);
 	} else {
-	/*
-	 * XXX for non-fixed mappings where no hint is provided or
-	 * the hint would fall in the potential heap space,
-	 * place it after the end of the largest possible heap.
-	 *
-	 * There should really be a pmap call to determine a reasonable
-	 * location.
-	 */
+		/*
+		 * XXX for non-fixed mappings where no hint is provided or
+		 * the hint would fall in the potential heap space,
+		 * place it after the end of the largest possible heap.
+		 *
+		 * There should really be a pmap call to determine a reasonable
+		 * location.
+		 */
 		PROC_LOCK(td->td_proc);
 		if (addr == 0 ||
 		    (addr >= round_page((vm_offset_t)vms->vm_taddr) &&

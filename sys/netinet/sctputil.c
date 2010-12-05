@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_cc_functions.h>
 #include <netinet/sctp_bsd_addr.h>
 
-#define NUMBER_OF_MTU_SIZES 18
-
 
 #ifndef KTR_SCTP
 #define KTR_SCTP KTR_SUBSYS
@@ -725,30 +723,10 @@ sctp_audit_log(uint8_t ev, uint8_t fd)
 #endif
 
 /*
- * a list of sizes based on typical mtu's, used only if next hop size not
- * returned.
+ * sctp_stop_timers_for_shutdown() should be called
+ * when entering the SHUTDOWN_SENT or SHUTDOWN_ACK_SENT
+ * state to make sure that all timers are stopped.
  */
-static int sctp_mtu_sizes[] = {
-	68,
-	296,
-	508,
-	512,
-	544,
-	576,
-	1006,
-	1492,
-	1500,
-	1536,
-	2002,
-	2048,
-	4352,
-	4464,
-	8166,
-	17914,
-	32000,
-	65535
-};
-
 void
 sctp_stop_timers_for_shutdown(struct sctp_tcb *stcb)
 {
@@ -769,25 +747,67 @@ sctp_stop_timers_for_shutdown(struct sctp_tcb *stcb)
 	}
 }
 
-int
-find_next_best_mtu(int totsz)
-{
-	int i, perfer;
+/*
+ * a list of sizes based on typical mtu's, used only if next hop size not
+ * returned.
+ */
+static uint32_t sctp_mtu_sizes[] = {
+	68,
+	296,
+	508,
+	512,
+	544,
+	576,
+	1006,
+	1492,
+	1500,
+	1536,
+	2002,
+	2048,
+	4352,
+	4464,
+	8166,
+	17914,
+	32000,
+	65535
+};
 
-	/*
-	 * if we are in here we must find the next best fit based on the
-	 * size of the dg that failed to be sent.
-	 */
-	perfer = 0;
-	for (i = 0; i < NUMBER_OF_MTU_SIZES; i++) {
-		if (totsz < sctp_mtu_sizes[i]) {
-			perfer = i - 1;
-			if (perfer < 0)
-				perfer = 0;
+/*
+ * Return the largest MTU smaller than val. If there is no
+ * entry, just return val.
+ */
+uint32_t
+sctp_get_prev_mtu(uint32_t val)
+{
+	uint32_t i;
+
+	if (val <= sctp_mtu_sizes[0]) {
+		return (val);
+	}
+	for (i = 1; i < (sizeof(sctp_mtu_sizes) / sizeof(uint32_t)); i++) {
+		if (val <= sctp_mtu_sizes[i]) {
 			break;
 		}
 	}
-	return (sctp_mtu_sizes[perfer]);
+	return (sctp_mtu_sizes[i - 1]);
+}
+
+/*
+ * Return the smallest MTU larger than val. If there is no
+ * entry, just return val.
+ */
+uint32_t
+sctp_get_next_mtu(struct sctp_inpcb *inp, uint32_t val)
+{
+	/* select another MTU that is just bigger than this one */
+	uint32_t i;
+
+	for (i = 0; i < (sizeof(sctp_mtu_sizes) / sizeof(uint32_t)); i++) {
+		if (val < sctp_mtu_sizes[i]) {
+			return (sctp_mtu_sizes[i]);
+		}
+	}
+	return (val);
 }
 
 void
@@ -1192,8 +1212,6 @@ sctp_print_mapping_array(struct sctp_association *asoc)
 	printf("Renegable mapping array (last %d entries are zero):\n", asoc->mapping_array_size - limit);
 	for (i = 0; i < limit; i++) {
 		printf("%2.2x%c", asoc->mapping_array[i], ((i + 1) % 16) ? ' ' : '\n');
-		if (((i + 1) % 16) == 0)
-			printf("\n");
 	}
 	if (limit % 16)
 		printf("\n");
@@ -2806,6 +2824,7 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 			}
 		}
 #endif
+		socantrcvmore(stcb->sctp_socket);
 		sorwakeup(stcb->sctp_socket);
 		sowwakeup(stcb->sctp_socket);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)

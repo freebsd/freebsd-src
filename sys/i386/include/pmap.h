@@ -221,6 +221,8 @@ extern pt_entry_t pg_nx;
 #define MACH_TO_VM_PAGE(ma) PHYS_TO_VM_PAGE(xpmap_mtop((ma)))
 #define VM_PAGE_TO_MACH(m) xpmap_ptom(VM_PAGE_TO_PHYS((m)))
 
+#define VTOM(va) xpmap_ptom(VTOP(va))
+
 static __inline vm_paddr_t
 pmap_kextract_ma(vm_offset_t va)
 {

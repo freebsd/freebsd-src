@@ -108,7 +108,7 @@ static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
 
 /*
  * ipsec_common_input gets called when an IPsec-protected packet
- * is received by IPv4 or IPv6.  It's job is to find the right SA
+ * is received by IPv4 or IPv6.  Its job is to find the right SA
  * and call the appropriate transform.  The transform callback
  * takes care of further processing (like ingress filtering).
  */

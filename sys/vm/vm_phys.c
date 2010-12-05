@@ -137,11 +137,11 @@ sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS)
 			sbuf_printf(&sbuf, "-- --      ");
 		sbuf_printf(&sbuf, "--\n");
 		for (oind = VM_NFREEORDER - 1; oind >= 0; oind--) {
-			sbuf_printf(&sbuf, "  %2.2d (%6.6dK)", oind,
+			sbuf_printf(&sbuf, "  %2d (%6dK)", oind,
 			    1 << (PAGE_SHIFT - 10 + oind));
 			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
 				fl = vm_phys_free_queues[flind][pind];
-				sbuf_printf(&sbuf, "  |  %6.6d", fl[oind].lcnt);
+				sbuf_printf(&sbuf, "  |  %6d", fl[oind].lcnt);
 			}
 			sbuf_printf(&sbuf, "\n");
 		}

@@ -30,6 +30,7 @@ device		cpufreq
 
 # Standard busses
 device		pci
+device		agp
 
 device		bm		# Apple BMAC (Big Mac Ethernet)
 device		kiic		# Apple Keywest I2C Controller

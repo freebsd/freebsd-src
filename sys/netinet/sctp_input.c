@@ -908,9 +908,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		}
 		SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 		SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, net,
-		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_7);
-		/* start SHUTDOWN timer */
+		sctp_stop_timers_for_shutdown(stcb);
 		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK, stcb->sctp_ep,
 		    stcb, net);
 	}
@@ -3115,6 +3113,10 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 			if ((tp1) && (tp1->sent < SCTP_DATAGRAM_ACKED)) {
 				uint8_t *ddp;
 
+				if (((flg & SCTP_BADCRC) == 0) &&
+				    ((flg & SCTP_FROM_MIDDLE_BOX) == 0)) {
+					return (0);
+				}
 				if ((stcb->asoc.peers_rwnd == 0) &&
 				    ((flg & SCTP_FROM_MIDDLE_BOX) == 0)) {
 					SCTP_STAT_INCR(sctps_pdrpdiwnp);
@@ -4642,6 +4644,7 @@ process_control_chunks:
 				    ((compare_with_wrap(cum_ack, stcb->asoc.last_acked_seq, MAX_TSN)) ||
 				    (cum_ack == stcb->asoc.last_acked_seq)) &&
 				    (stcb->asoc.saw_sack_with_frags == 0) &&
+				    (stcb->asoc.saw_sack_with_nr_frags == 0) &&
 				    (!TAILQ_EMPTY(&stcb->asoc.sent_queue))
 				    ) {
 					/*
@@ -4735,6 +4738,7 @@ process_control_chunks:
 				    ((compare_with_wrap(cum_ack, stcb->asoc.last_acked_seq, MAX_TSN)) ||
 				    (cum_ack == stcb->asoc.last_acked_seq)) &&
 				    (stcb->asoc.saw_sack_with_frags == 0) &&
+				    (stcb->asoc.saw_sack_with_nr_frags == 0) &&
 				    (!TAILQ_EMPTY(&stcb->asoc.sent_queue))) {
 					/*
 					 * We have a SIMPLE sack having no

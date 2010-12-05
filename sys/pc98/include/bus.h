@@ -158,8 +158,8 @@ struct bus_space_access_methods {
  * Access methods for bus resources and address space.
  */
 struct bus_space_tag {
-#define	BUS_SPACE_IO	0
-#define	BUS_SPACE_MEM	1
+#define	BUS_SPACE_TAG_IO	0
+#define	BUS_SPACE_TAG_MEM	1
 	u_int	bs_tag;			/* bus space flags */
 
 	struct bus_space_access_methods bs_da;	/* direct access */
