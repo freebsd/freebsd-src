@@ -876,6 +876,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
+	td->td_retval[1] = 0;
 
 	/*
 	 * Reset the hardware debug registers if they were in use.
