@@ -199,7 +199,10 @@ fork_norfproc(struct thread *td, int flags, struct proc **procp)
 	int error;
 	struct proc *p1;
 
+	KASSERT((flags & RFPROC) == 0,
+	    ("fork_norfproc called with RFPROC set"));
 	p1 = td->td_proc;
+	*procp = NULL;
 
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 	    (flags & (RFCFDG | RFFDG))) {
@@ -238,7 +241,6 @@ fail:
 		thread_single_end();
 		PROC_UNLOCK(p1);
 	}
-	*procp = NULL;
 	return (error);
 }
 
