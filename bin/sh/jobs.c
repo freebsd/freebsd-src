@@ -1314,13 +1314,46 @@ cmdputs(const char *s)
 			if (--cmdnleft > 0)
 				*q++ = '{';
 			subtype = *p++;
+			if ((subtype & VSTYPE) == VSLENGTH && --cmdnleft > 0)
+				*q++ = '#';
 		} else if (c == '=' && subtype != 0) {
-			*q++ = "}-+?="[(subtype & VSTYPE) - VSNORMAL];
+			*q = "}-+?=##%%\0X"[(subtype & VSTYPE) - VSNORMAL];
+			if (*q)
+				q++;
+			else
+				cmdnleft++;
+			if (((subtype & VSTYPE) == VSTRIMLEFTMAX ||
+			    (subtype & VSTYPE) == VSTRIMRIGHTMAX) &&
+			    --cmdnleft > 0)
+				*q = q[-1], q++;
 			subtype = 0;
 		} else if (c == CTLENDVAR) {
 			*q++ = '}';
-		} else if (c == CTLBACKQ || c == CTLBACKQ+CTLQUOTE)
-			cmdnleft++;		/* ignore it */
+		} else if (c == CTLBACKQ || c == CTLBACKQ+CTLQUOTE) {
+			cmdnleft -= 5;
+			if (cmdnleft > 0) {
+				*q++ = '$';
+				*q++ = '(';
+				*q++ = '.';
+				*q++ = '.';
+				*q++ = '.';
+				*q++ = ')';
+			}
+		} else if (c == CTLARI) {
+			cmdnleft -= 2;
+			if (cmdnleft > 0) {
+				*q++ = '$';
+				*q++ = '(';
+				*q++ = '(';
+			}
+			p++;
+		} else if (c == CTLENDARI) {
+			if (--cmdnleft > 0) {
+				*q++ = ')';
+				*q++ = ')';
+			}
+		} else if (c == CTLQUOTEMARK || c == CTLQUOTEEND)
+			cmdnleft++; /* ignore */
 		else
 			*q++ = c;
 		if (--cmdnleft <= 0) {
