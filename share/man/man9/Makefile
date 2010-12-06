@@ -244,6 +244,7 @@ MAN=	accept_filter.9 \
 	sysctl.9 \
 	sysctl_add_oid.9 \
 	sysctl_ctx_init.9 \
+	SYSINIT.9 \
 	taskqueue.9 \
 	thread_exit.9 \
 	time.9 \
@@ -1211,6 +1212,7 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_del.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_find.9 \
 	sysctl_ctx_init.9 sysctl_ctx_free.9
+MLINKS+=SYSINIT.9 SYSUNINIT.9
 MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 taskqueue_cancel.9 \
 	taskqueue.9 taskqueue_create.9 \
