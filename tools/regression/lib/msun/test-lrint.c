@@ -41,9 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <ieeefp.h>
 #endif
 
+/*
+ * XXX The volatile here is to avoid gcc's bogus constant folding and work
+ *     around the lack of support for the FENV_ACCESS pragma.
+ */
 #define	test(func, x, result, excepts)	do {				\
+	volatile double _d = x;						\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert((func)(x) == (result) || fetestexcept(FE_INVALID));	\
+	assert((func)(_d) == (result) || fetestexcept(FE_INVALID));	\
 	assert(fetestexcept(FE_ALL_EXCEPT) == (excepts));		\
 } while (0)
 
