@@ -233,7 +233,7 @@ fork_norfproc(struct thread *td, int flags, struct proc **procp)
 
 fail:
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
-			(flags & (RFCFDG | RFFDG))) {
+	    (flags & (RFCFDG | RFFDG))) {
 		PROC_LOCK(p1);
 		thread_single_end();
 		PROC_UNLOCK(p1);
