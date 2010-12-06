@@ -1282,7 +1282,7 @@ mps_dispatch_event(struct mps_softc *sc, uintptr_t data,
     MPI2_EVENT_NOTIFICATION_REPLY *reply)
 {
 	struct mps_event_handle *eh;
-	int event, handled = 0;;
+	int event, handled = 0;
 
 	event = reply->Event;
 	TAILQ_FOREACH(eh, &sc->event_list, eh_list) {
