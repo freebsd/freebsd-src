@@ -197,6 +197,7 @@ static ndis_status NdisMMapIoSpace(void **, ndis_handle,
 	ndis_physaddr, uint32_t);
 static void NdisMUnmapIoSpace(ndis_handle, void *, uint32_t);
 static uint32_t NdisGetCacheFillSize(void);
+static void *NdisGetRoutineAddress(unicode_string *);
 static uint32_t NdisMGetDmaAlignment(ndis_handle);
 static ndis_status NdisMInitializeScatterGatherDma(ndis_handle,
 	uint8_t, uint32_t);
@@ -1640,6 +1641,17 @@ static uint32_t
 NdisGetCacheFillSize(void)
 {
 	return (128);
+}
+
+static void *
+NdisGetRoutineAddress(ustr)
+	unicode_string		*ustr;
+{
+	ansi_string		astr;
+
+	if (RtlUnicodeStringToAnsiString(&astr, ustr, TRUE))
+		return (NULL);
+	return (ndis_get_routine_address(ndis_functbl, astr.as_buf));
 }
 
 static uint32_t
@@ -3246,6 +3258,7 @@ image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisInitializeString, 2),
 	IMPORT_SFUNC(NdisFreeString, 1),
 	IMPORT_SFUNC(NdisGetCurrentSystemTime, 1),
+	IMPORT_SFUNC(NdisGetRoutineAddress, 1),
 	IMPORT_SFUNC(NdisGetSystemUpTime, 1),
 	IMPORT_SFUNC(NdisGetVersion, 0),
 	IMPORT_SFUNC(NdisMSynchronizeWithInterrupt, 3),
