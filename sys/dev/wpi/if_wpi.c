@@ -1248,8 +1248,25 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	IEEE80211_UNLOCK(ic);
 	WPI_LOCK(sc);
-	if (nstate == IEEE80211_S_AUTH) {
-		/* The node must be registered in the firmware before auth */
+	if (nstate == IEEE80211_S_SCAN && vap->iv_state != IEEE80211_S_INIT) {
+		/*
+		 * On !INIT -> SCAN transitions, we need to clear any possible
+		 * knowledge about associations.
+		 */
+		error = wpi_config(sc);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: device config failed, error %d\n",
+			    __func__, error);
+		}
+	}
+	if (nstate == IEEE80211_S_AUTH ||
+	    (nstate == IEEE80211_S_ASSOC && vap->iv_state == IEEE80211_S_RUN)) {
+		/*
+		 * The node must be registered in the firmware before auth.
+		 * Also the associd must be cleared on RUN -> ASSOC
+		 * transitions.
+		 */
 		error = wpi_auth(sc, vap);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
