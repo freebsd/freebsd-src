@@ -12,14 +12,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/*
+ * Return the base 2 logarithm of x. See k_log.c for details on the algorithm.
+ */
+
 #include "math.h"
 #include "math_private.h"
 #include "k_logf.h"
 
 static const float
 two25      =  3.3554432000e+07, /* 0x4c000000 */
-ivln2hi    =  0x1.716p+0f,
-ivln2lo    = -0x1.7135a8fa03d11p-13;
+ivln2hi    =  1.4428710938e+00, /* 0x3fb8b000 */
+ivln2lo    = -1.7605285393e-04; /* 0xb9389ad4 */
 
 static const float zero   =  0.0;
 
