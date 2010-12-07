@@ -109,6 +109,8 @@ static int hw_clockrate;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
     &hw_clockrate, 0, "CPU instruction clock rate");
 
+static eventhandler_tag tsc_post_tag;
+
 static char cpu_brand[48];
 
 static struct {
@@ -433,21 +435,31 @@ panicifcpuunsupported(void)
 
 /* Update TSC freq with the value indicated by the caller. */
 static void
-tsc_freq_changed(void *arg, const struct cf_level *level, int status)
+tsc_freq_changed(void *arg __unused, const struct cf_level *level, int status)
 {
 	/*
 	 * If there was an error during the transition or
 	 * TSC is P-state invariant, don't do anything.
 	 */
-	if (status != 0 || tsc_is_invariant)
+	if (status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
 	hw_clockrate = level->total_set.freq;
 }
 
-EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
-    EVENTHANDLER_PRI_ANY);
+static void
+hook_tsc_freq(void *arg __unused)
+{
+
+	if (tsc_is_invariant)
+		return;
+
+	tsc_post_tag = EVENTHANDLER_REGISTER(cpufreq_post_change,
+	    tsc_freq_changed, NULL, EVENTHANDLER_PRI_ANY);
+}
+
+SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 
 /*
  * Final stage of CPU identification.
