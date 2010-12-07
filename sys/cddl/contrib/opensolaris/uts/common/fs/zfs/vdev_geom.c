@@ -496,10 +496,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	/*
 	 * Determine the device's minimum transfer size.
 	 */
-	if (pp->stripesize > pp->sectorsize)
-		*ashift = highbit(MIN(pp->stripesize, SPA_MAXBLOCKSIZE)) - 1;
-	else
-		*ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
+	*ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
 
 	/*
 	 * Clear the nowritecache bit, so that on a vdev_reopen() we will
