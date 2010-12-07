@@ -347,7 +347,6 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		 */
 		td->td_frame->tf_rip -= td->td_frame->tf_err;
 		td->td_frame->tf_r10 = td->td_frame->tf_rcx;
-		td->td_pcb->pcb_flags |= PCB_FULLCTX;
 		break;
 
 	case EJUSTRETURN:

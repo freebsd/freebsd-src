@@ -870,7 +870,7 @@ exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */
-	pcb->pcb_flags |= PCB_FULLCTX | PCB_32BIT;
+	pcb->pcb_flags |= PCB_32BIT;
 	pcb->pcb_flags &= ~PCB_GS32BIT;
 	td->td_retval[1] = 0;
 }
