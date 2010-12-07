@@ -118,12 +118,14 @@ init_TSC(void)
 	}
 
 	/*
-	 * Inform CPU accounting about our boot-time clock rate.  Once the
-	 * system is finished booting, we will get the real max clock rate
-	 * via tsc_freq_max().  This also will be updated if someone loads
-	 * a cpufreq driver after boot that discovers a new max frequency.
+	 * Inform CPU accounting about our boot-time clock rate.  This will
+	 * be updated if someone loads a cpufreq driver after boot that
+	 * discovers a new max frequency.
 	 */
 	set_cputicker(rdtsc, tsc_freq, 1);
+
+	if (tsc_is_invariant)
+		return;
 
 	/* Register to find out about changes in CPU frequency. */
 	tsc_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
@@ -169,9 +171,6 @@ tsc_levels_changed(void *arg, int unit)
 	int count, error;
 	uint64_t max_freq;
 
-	if (tsc_is_invariant)
-		return;
-
 	/* Only use values from the first CPU, assuming all are equal. */
 	if (unit != 0)
 		return;
@@ -205,8 +204,7 @@ static void
 tsc_freq_changing(void *arg, const struct cf_level *level, int *status)
 {
 
-	if (*status != 0 || timecounter != &tsc_timecounter ||
-	    tsc_is_invariant)
+	if (*status != 0 || timecounter != &tsc_timecounter)
 		return;
 
 	printf("timecounter TSC must not be in use when "
@@ -222,7 +220,7 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 	 * If there was an error during the transition or
 	 * TSC is P-state invariant, don't do anything.
 	 */
-	if (status != 0 || tsc_is_invariant)
+	if (status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
