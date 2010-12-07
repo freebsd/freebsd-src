@@ -380,7 +380,6 @@ IDTVEC(fast_syscall)
 	movq	%rsp,%rdi
 	call	syscall
 	movq	PCPU(CURPCB),%rax
-	andq	$~PCB_FULLCTX,PCB_FLAGS(%rax)
 	MEXITCOUNT
 	jmp	doreti
 
