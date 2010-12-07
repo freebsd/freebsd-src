@@ -68,3 +68,6 @@ KDTRACE_FRAME		opt_kdtrace.h
 
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h
+
+# Xen DomU HVM Support
+XENHVM			opt_global.h

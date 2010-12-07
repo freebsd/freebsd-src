@@ -4,86 +4,86 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
-acpi_quirks.h			optional acpi				   \
+acpi_quirks.h			optional acpi				\
 	dependency	"$S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"acpi_quirks.h"
-aicasm				optional ahc | ahd			   \
-	dependency	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
+aicasm				optional ahc | ahd			\
+	dependency	"$S/dev/aic7xxx/aicasm/*.[chyl]"		\
 	compile-with	"CC='${CC}' ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
-	no-obj no-implicit-rule						   \
+	no-obj no-implicit-rule						\
 	clean		"aicasm* y.tab.h"
-aic7xxx_seq.h			optional ahc				   \
-	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"   \
-	no-obj no-implicit-rule before-depend local			   \
-	clean		"aic7xxx_seq.h"					   \
+aic7xxx_seq.h			optional ahc				\
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"\
+	no-obj no-implicit-rule before-depend local			\
+	clean		"aic7xxx_seq.h"					\
 	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
-aic7xxx_reg.h			optional ahc				   \
-	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"   \
-	no-obj no-implicit-rule before-depend local			   \
-	clean		"aic7xxx_reg.h"					   \
+aic7xxx_reg.h			optional ahc				\
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"\
+	no-obj no-implicit-rule before-depend local			\
+	clean		"aic7xxx_reg.h"					\
 	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
-aic7xxx_reg_print.c		optional ahc				   \
-	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"   \
-	no-obj no-implicit-rule local					   \
-	clean		"aic7xxx_reg_print.c"				   \
+aic7xxx_reg_print.c		optional ahc				\
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"\
+	no-obj no-implicit-rule local					\
+	clean		"aic7xxx_reg_print.c"				\
 	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
-aic7xxx_reg_print.o		optional ahc ahc_reg_pretty_print	   \
-	compile-with	"${NORMAL_C}"					   \
+aic7xxx_reg_print.o		optional ahc ahc_reg_pretty_print	\
+	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
-aic79xx_seq.h		optional ahd pci				   \
-	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"   \
-	no-obj no-implicit-rule before-depend local			   \
-	clean		"aic79xx_seq.h"					   \
+aic79xx_seq.h		optional ahd pci				\
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"\
+	no-obj no-implicit-rule before-depend local			\
+	clean		"aic79xx_seq.h"					\
 	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
-aic79xx_reg.h		optional ahd pci				   \
-	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"   \
-	no-obj no-implicit-rule before-depend local			   \
-	clean		"aic79xx_reg.h"					   \
+aic79xx_reg.h		optional ahd pci				\
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"\
+	no-obj no-implicit-rule before-depend local			\
+	clean		"aic79xx_reg.h"					\
 	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
-aic79xx_reg_print.c	optional ahd pci				   \
-	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"   \
-	no-obj no-implicit-rule local					   \
-	clean		"aic79xx_reg_print.c"				   \
+aic79xx_reg_print.c	optional ahd pci				\
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"\
+	no-obj no-implicit-rule local					\
+	clean		"aic79xx_reg_print.c"				\
 	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
-aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
-	compile-with	"${NORMAL_C}"					   \
+aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	\
+	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
-emu10k1-alsa%diked.h		optional snd_emu10k1 | snd_emu10kx	   \
+emu10k1-alsa%diked.h		optional snd_emu10k1 | snd_emu10kx	\
 	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"emu10k1-alsa%diked.h"
-p16v-alsa%diked.h		optional snd_emu10kx pci			   \
+p16v-alsa%diked.h		optional snd_emu10kx pci			\
 	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h" \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h p16v-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"p16v-alsa%diked.h"
-p17v-alsa%diked.h		optional snd_emu10kx pci			   \
+p17v-alsa%diked.h		optional snd_emu10kx pci			\
 	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h" \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h p17v-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"p17v-alsa%diked.h"
-miidevs.h			optional miibus | mii			   \
-	dependency	"$S/tools/miidevs2h.awk $S/dev/mii/miidevs"	   \
+miidevs.h			optional miibus | mii			\
+	dependency	"$S/tools/miidevs2h.awk $S/dev/mii/miidevs"	\
 	compile-with	"${AWK} -f $S/tools/miidevs2h.awk $S/dev/mii/miidevs" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"miidevs.h"
-pccarddevs.h			standard				   \
+pccarddevs.h			standard				\
 	dependency	"$S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"pccarddevs.h"
-usbdevs.h			optional usb				   \
+usbdevs.h			optional usb				\
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -h" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"usbdevs.h"
-usbdevs_data.h			optional usb				   \
+usbdevs_data.h			optional usb				\
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"usbdevs_data.h"
 cam/cam.c			optional scbus
 cam/cam_periph.c		optional scbus
@@ -2388,3 +2388,25 @@ gnu/fs/xfs/xfs_iomap.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_behavior.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+xen/gnttab.c			optional xen | xenhvm
+xen/features.c			optional xen | xenhvm
+xen/evtchn/evtchn.c		optional xen
+xen/evtchn/evtchn_dev.c		optional xen | xenhvm
+xen/xenbus/xenbus_if.m		optional xen | xenhvm
+xen/xenbus/xenbus.c		optional xen | xenhvm
+xen/xenbus/xenbusb_if.m		optional xen | xenhvm
+xen/xenbus/xenbusb.c		optional xen | xenhvm
+xen/xenbus/xenbusb_front.c	optional xen | xenhvm
+xen/xenbus/xenbusb_back.c	optional xen | xenhvm
+xen/xenstore/xenstore.c		optional xen | xenhvm
+xen/xenstore/xenstore_dev.c	optional xen | xenhvm
+dev/xen/balloon/balloon.c	optional xen | xenhvm
+dev/xen/blkfront/blkfront.c	optional xen | xenhvm
+dev/xen/blkback/blkback.c	optional xen | xenhvm
+dev/xen/console/console.c	optional xencons
+dev/xen/console/xencons_ring.c	optional xencons
+dev/xen/control/control.c	optional xen | xenhvm
+dev/xen/netfront/netfront.c	optional xen | xenhvm
+dev/xen/xenpci/xenpci.c		optional xenpci
+dev/xen/xenpci/evtchn.c		optional xenpci
+

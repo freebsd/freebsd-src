@@ -55,11 +55,12 @@ __FBSDID("$FreeBSD$");
  */
 static TAILQ_HEAD(, intr_config_hook) intr_config_hook_list =
 	TAILQ_HEAD_INITIALIZER(intr_config_hook_list);
+static struct intr_config_hook *next_to_notify;
 static struct mtx intr_config_hook_lock;
 MTX_SYSINIT(intr_config_hook, &intr_config_hook_lock, "intr config", MTX_DEF);
 
 /* ARGSUSED */
-static void run_interrupt_driven_config_hooks(void *dummy);
+static void run_interrupt_driven_config_hooks(void);
 
 /*
  * If we wait too long for an interrupt-driven config hook to return, print
@@ -91,20 +92,46 @@ run_interrupt_driven_config_hooks_warning(int warned)
 }
 
 static void
-run_interrupt_driven_config_hooks(dummy)
-	void *dummy;
+run_interrupt_driven_config_hooks()
 {
-	struct intr_config_hook *hook_entry, *next_entry;
-	int warned;
+	static int running;
+	struct intr_config_hook *hook_entry;
 
 	mtx_lock(&intr_config_hook_lock);
-	TAILQ_FOREACH_SAFE(hook_entry, &intr_config_hook_list, ich_links,
-	    next_entry) {
+
+	/*
+	 * If hook processing is already active, any newly
+	 * registered hooks will eventually be notified.
+	 * Let the currently running session issue these
+	 * notifications.
+	 */
+	if (running != 0) {
+		mtx_unlock(&intr_config_hook_lock);
+		return;
+	}
+	running = 1;
+
+	while (next_to_notify != NULL) {
+		hook_entry = next_to_notify;
+		next_to_notify = TAILQ_NEXT(hook_entry, ich_links);
 		mtx_unlock(&intr_config_hook_lock);
 		(*hook_entry->ich_func)(hook_entry->ich_arg);
 		mtx_lock(&intr_config_hook_lock);
 	}
 
+	running = 0;
+	mtx_unlock(&intr_config_hook_lock);
+}
+
+static void
+boot_run_interrupt_driven_config_hooks(void *dummy)
+{
+	int warned;
+
+	run_interrupt_driven_config_hooks();
+
+	/* Block boot processing until all hooks are disestablished. */
+	mtx_lock(&intr_config_hook_lock);
 	warned = 0;
 	while (!TAILQ_EMPTY(&intr_config_hook_list)) {
 		if (msleep(&intr_config_hook_list, &intr_config_hook_lock,
@@ -118,8 +145,9 @@ run_interrupt_driven_config_hooks(dummy)
 	}
 	mtx_unlock(&intr_config_hook_lock);
 }
+
 SYSINIT(intr_config_hooks, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
-	run_interrupt_driven_config_hooks, NULL);
+	boot_run_interrupt_driven_config_hooks, NULL);
 
 /*
  * Register a hook that will be called after "cold"
@@ -127,8 +155,7 @@ SYSINIT(intr_config_hooks, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
  * be used to complete initialization.
  */
 int
-config_intrhook_establish(hook)
-	struct intr_config_hook *hook;
+config_intrhook_establish(struct intr_config_hook *hook)
 {
 	struct intr_config_hook *hook_entry;
 
@@ -143,16 +170,21 @@ config_intrhook_establish(hook)
 		return (1);
 	}
 	TAILQ_INSERT_TAIL(&intr_config_hook_list, hook, ich_links);
+	if (next_to_notify == NULL)
+		next_to_notify = hook;
 	mtx_unlock(&intr_config_hook_lock);
 	if (cold == 0)
+		/*
+		 * XXX Call from a task since not all drivers expect
+		 *     to be re-entered at the time a hook is established.
+		 */
 		/* XXX Sufficient for modules loaded after initial config??? */
-		run_interrupt_driven_config_hooks(NULL);	
+		run_interrupt_driven_config_hooks();	
 	return (0);
 }
 
 void
-config_intrhook_disestablish(hook)
-	struct intr_config_hook *hook;
+config_intrhook_disestablish(struct intr_config_hook *hook)
 {
 	struct intr_config_hook *hook_entry;
 
@@ -164,6 +196,8 @@ config_intrhook_disestablish(hook)
 		panic("config_intrhook_disestablish: disestablishing an "
 		      "unestablished hook");
 
+	if (next_to_notify == hook)
+		next_to_notify = TAILQ_NEXT(hook, ich_links);
 	TAILQ_REMOVE(&intr_config_hook_list, hook, ich_links);
 
 	/* Wakeup anyone watching the list */

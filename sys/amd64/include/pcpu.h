@@ -33,6 +33,24 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
+#if defined(XEN) || defined(XENHVM)
+#ifndef NR_VIRQS
+#define NR_VIRQS	24
+#endif
+#ifndef NR_IPIS
+#define NR_IPIS		2
+#endif
+#endif
+
+#ifdef XENHVM
+#define PCPU_XEN_FIELDS							\
+	;								\
+	unsigned int pc_last_processed_l1i;				\
+	unsigned int pc_last_processed_l2i
+#else
+#define PCPU_XEN_FIELDS
+#endif
+
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -49,7 +67,8 @@
 	u_int	pc_apic_id;						\
 	u_int   pc_acpi_id;		/* ACPI CPU id */		\
 	struct user_segment_descriptor	*pc_gs32p;			\
-	u_int	pc_cmci_mask		/* MCx banks for CMCI */
+	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
+	PCPU_XEN_FIELDS
 
 #ifdef _KERNEL
 
