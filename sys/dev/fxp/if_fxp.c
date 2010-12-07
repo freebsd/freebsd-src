@@ -527,10 +527,12 @@ fxp_attach(device_t dev)
 	}
 
 	/* Receiver lock-up workaround detection. */
-	fxp_read_eeprom(sc, &data, 3, 1);
-	if ((data & 0x03) != 0x03) {
-		sc->flags |= FXP_FLAG_RXBUG;
-		device_printf(dev, "Enabling Rx lock-up workaround\n");
+	if (sc->revision < FXP_REV_82558_A4) {
+		fxp_read_eeprom(sc, &data, 3, 1);
+		if ((data & 0x03) != 0x03) {
+			sc->flags |= FXP_FLAG_RXBUG;
+			device_printf(dev, "Enabling Rx lock-up workaround\n");
+		}
 	}
 
 	/*
