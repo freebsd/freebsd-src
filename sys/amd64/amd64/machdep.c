@@ -1906,6 +1906,7 @@ set_regs(struct thread *td, struct reg *regs)
 		tp->tf_fs = regs->r_fs;
 		tp->tf_gs = regs->r_gs;
 		tp->tf_flags = TF_HASSEGS;
+		td->td_pcb->pcb_full_iret = 1;
 	}
 	return (0);
 }
