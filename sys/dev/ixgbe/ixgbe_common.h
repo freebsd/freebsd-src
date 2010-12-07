@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -47,8 +47,12 @@ u32 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw);
+s32 ixgbe_start_hw_gen2(struct ixgbe_hw *hw);
 s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw);
 s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num);
+s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
+                                  u32 pba_num_size);
+s32 ixgbe_read_pba_length_generic(struct ixgbe_hw *hw, u32 *pba_num_size);
 s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr);
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw);
 void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw);
@@ -60,6 +64,7 @@ s32 ixgbe_led_off_generic(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw);
 s32 ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
 s32 ixgbe_read_eerd_generic(struct ixgbe_hw *hw, u16 offset, u16 *data);
+s32 ixgbe_write_eewr_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
 s32 ixgbe_read_eeprom_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
                                        u16 *data);
 u16 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw);
@@ -111,4 +116,7 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw,
 s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
                                  u16 *wwpn_prefix);
 
+s32 ixgbe_get_fcoe_boot_status_generic(struct ixgbe_hw *hw, u16 *bs);
+void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int pf);
+void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf);
 #endif /* IXGBE_COMMON */

@@ -50,8 +50,6 @@ __RCSID("$FreeBSD$");
 static void	dump_config(CONFIG_PAGE_RAID_VOL_0 *vol);
 #endif
 
-#define powerof2(x)    ((((x)-1)&(x))==0)
-
 static long
 dehumanize(const char *value)
 {

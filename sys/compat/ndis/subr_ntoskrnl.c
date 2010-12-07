@@ -121,12 +121,14 @@ typedef struct callout_entry callout_entry;
 
 static struct list_entry ntoskrnl_calllist;
 static struct mtx ntoskrnl_calllock;
+struct kuser_shared_data kuser_shared_data;
 
 static struct list_entry ntoskrnl_intlist;
 static kspin_lock ntoskrnl_intlock;
 
 static uint8_t RtlEqualUnicodeString(unicode_string *,
 	unicode_string *, uint8_t);
+static void RtlCopyString(ansi_string *, const ansi_string *);
 static void RtlCopyUnicodeString(unicode_string *,
 	unicode_string *);
 static irp *IoBuildSynchronousFsdRequest(uint32_t, device_object *,
@@ -179,7 +181,9 @@ static uint64_t _aullrem(uint64_t, uint64_t);
 static uint64_t _aullshr(uint64_t, uint8_t);
 static uint64_t _aullshl(uint64_t, uint8_t);
 static slist_entry *ntoskrnl_pushsl(slist_header *, slist_entry *);
+static void InitializeSListHead(slist_header *);
 static slist_entry *ntoskrnl_popsl(slist_header *);
+static void ExFreePoolWithTag(void *, uint32_t);
 static void ExInitializePagedLookasideList(paged_lookaside_list *,
 	lookaside_alloc_func *, lookaside_free_func *,
 	uint32_t, size_t, uint32_t, uint16_t);
@@ -209,6 +213,10 @@ static void *MmMapLockedPagesSpecifyCache(mdl *,
 static void MmUnmapLockedPages(void *, mdl *);
 static device_t ntoskrnl_finddev(device_t, uint64_t, struct resource **);
 static void RtlZeroMemory(void *, size_t);
+static void RtlSecureZeroMemory(void *, size_t);
+static void RtlFillMemory(void *, size_t, uint8_t);
+static void RtlMoveMemory(void *, const void *, size_t);
+static ndis_status RtlCharToInteger(const char *, uint32_t, uint32_t *);
 static void RtlCopyMemory(void *, const void *, size_t);
 static size_t RtlCompareMemory(const void *, const void *, size_t);
 static ndis_status RtlUnicodeStringToInteger(unicode_string *,
@@ -220,6 +228,8 @@ static void srand(unsigned int);
 static void KeQuerySystemTime(uint64_t *);
 static uint32_t KeTickCount(void);
 static uint8_t IoIsWdmVersionAvailable(uint8_t, uint8_t);
+static int32_t IoOpenDeviceRegistryKey(struct device_object *, uint32_t,
+    uint32_t, void **);
 static void ntoskrnl_thrfunc(void *);
 static ndis_status PsCreateSystemThread(ndis_handle *,
 	uint32_t, void *, ndis_handle, void *, void *, void *);
@@ -537,6 +547,20 @@ RtlEqualUnicodeString(unicode_string *str1, unicode_string *str2,
 }
 
 static void
+RtlCopyString(dst, src)
+	ansi_string		*dst;
+	const ansi_string	*src;
+{
+	if (src != NULL && src->as_buf != NULL && dst->as_buf != NULL) {
+		dst->as_len = min(src->as_len, dst->as_maxlen);
+		memcpy(dst->as_buf, src->as_buf, dst->as_len);
+		if (dst->as_len < dst->as_maxlen)
+			dst->as_buf[dst->as_len] = 0;
+	} else
+		dst->as_len = 0;
+}
+
+static void
 RtlCopyUnicodeString(dest, src)
 	unicode_string		*dest;
 	unicode_string		*src;
@@ -647,6 +671,14 @@ ExAllocatePoolWithTag(pooltype, len, tag)
 		return (NULL);
 
 	return (buf);
+}
+
+static void
+ExFreePoolWithTag(buf, tag)
+	void		*buf;
+	uint32_t	tag;
+{
+	ExFreePool(buf);
 }
 
 void
@@ -2055,6 +2087,13 @@ ntoskrnl_pushsl(head, entry)
 	return (oldhead);
 }
 
+static void
+InitializeSListHead(head)
+	slist_header		*head;
+{
+	memset(head, 0, sizeof(*head));
+}
+
 static slist_entry *
 ntoskrnl_popsl(head)
 	slist_header		*head;
@@ -2544,6 +2583,23 @@ MmUnmapLockedPages(vaddr, buf)
  * here, but it doesn't.
  */
 
+static uint64_t
+MmGetPhysicalAddress(void *base)
+{
+	return (pmap_extract(kernel_map->pmap, (vm_offset_t)base));
+}
+
+void *
+MmGetSystemRoutineAddress(ustr)
+	unicode_string		*ustr;
+{
+	ansi_string		astr;
+
+	if (RtlUnicodeStringToAnsiString(&astr, ustr, TRUE))
+		return (NULL);
+	return (ndis_get_routine_address(ntoskrnl_functbl, astr.as_buf));
+}
+
 uint8_t
 MmIsAddressValid(vaddr)
 	void			*vaddr;
@@ -2716,6 +2772,59 @@ ntoskrnl_workitem_thread(arg)
 
 	kproc_exit(0);
 	return; /* notreached */
+}
+
+static ndis_status
+RtlCharToInteger(src, base, val)
+	const char		*src;
+	uint32_t		base;
+	uint32_t		*val;
+{
+	int negative = 0;
+	uint32_t res;
+
+	if (!src || !val)
+		return (STATUS_ACCESS_VIOLATION);
+	while (*src != '\0' && *src <= ' ')
+		src++;
+	if (*src == '+')
+		src++;
+	else if (*src == '-') {
+		src++;
+		negative = 1;
+	}
+	if (base == 0) {
+		base = 10;
+		if (*src == '0') {
+			src++;
+			if (*src == 'b') {
+				base = 2;
+				src++;
+			} else if (*src == 'o') {
+				base = 8;
+				src++;
+			} else if (*src == 'x') {
+				base = 16;
+				src++;
+			}
+		}
+	} else if (!(base == 2 || base == 8 || base == 10 || base == 16))
+		return (STATUS_INVALID_PARAMETER);
+
+	for (res = 0; *src; src++) {
+		int v;
+		if (isdigit(*src))
+			v = *src - '0';
+		else if (isxdigit(*src))
+			v = tolower(*src) - 'a' + 10;
+		else
+			v = base;
+		if (v >= base)
+			return (STATUS_INVALID_PARAMETER);
+		res = res * base + v;
+	}
+	*val = negative ? -res : res;
+	return (STATUS_SUCCESS);
 }
 
 static void
@@ -2898,6 +3007,32 @@ RtlZeroMemory(dst, len)
 }
 
 static void
+RtlSecureZeroMemory(dst, len)
+	void			*dst;
+	size_t			len;
+{
+	memset(dst, 0, len);
+}
+
+static void
+RtlFillMemory(dst, len, c)
+	void			*dst;
+	size_t			len;
+	uint8_t			c;
+{
+	memset(dst, c, len);
+}
+
+static void
+RtlMoveMemory(dst, src, len)
+	void			*dst;
+	const void		*src;
+	size_t			len;
+{
+	memmove(dst, src, len);
+}
+
+static void
 RtlCopyMemory(dst, src, len)
 	void			*dst;
 	const void		*src;
@@ -2912,17 +3047,14 @@ RtlCompareMemory(s1, s2, len)
 	const void		*s2;
 	size_t			len;
 {
-	size_t			i, total = 0;
+	size_t			i;
 	uint8_t			*m1, *m2;
 
 	m1 = __DECONST(char *, s1);
 	m2 = __DECONST(char *, s2);
 
-	for (i = 0; i < len; i++) {
-		if (m1[i] == m2[i])
-			total++;
-	}
-	return (total);
+	for (i = 0; i < len && m1[i] == m2[i]; i++);
+	return (i);
 }
 
 void
@@ -3078,6 +3210,13 @@ IoIsWdmVersionAvailable(uint8_t major, uint8_t minor)
 	if (major == WDM_MAJOR && minor == WDM_MINOR_WINXP)
 		return (TRUE);
 	return (FALSE);
+}
+
+static int32_t
+IoOpenDeviceRegistryKey(struct device_object *devobj, uint32_t type,
+    uint32_t mask, void **key)
+{
+	return (NDIS_STATUS_INVALID_DEVICE_REQUEST);
 }
 
 static ndis_status
@@ -4117,7 +4256,12 @@ dummy()
 
 image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(RtlZeroMemory, 2),
+	IMPORT_SFUNC(RtlSecureZeroMemory, 2),
+	IMPORT_SFUNC(RtlFillMemory, 3),
+	IMPORT_SFUNC(RtlMoveMemory, 3),
+	IMPORT_SFUNC(RtlCharToInteger, 3),
 	IMPORT_SFUNC(RtlCopyMemory, 3),
+	IMPORT_SFUNC(RtlCopyString, 2),
 	IMPORT_SFUNC(RtlCompareMemory, 3),
 	IMPORT_SFUNC(RtlEqualUnicodeString, 3),
 	IMPORT_SFUNC(RtlCopyUnicodeString, 2),
@@ -4204,6 +4348,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(ExInitializeNPagedLookasideList, 7),
 	IMPORT_SFUNC(ExDeleteNPagedLookasideList, 1),
 	IMPORT_FFUNC(InterlockedPopEntrySList, 1),
+	IMPORT_FFUNC(InitializeSListHead, 1),
 	IMPORT_FFUNC(InterlockedPushEntrySList, 2),
 	IMPORT_SFUNC(ExQueryDepthSList, 1),
 	IMPORT_FFUNC_MAP(ExpInterlockedPopEntrySList,
@@ -4213,6 +4358,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FFUNC(ExInterlockedPopEntrySList, 2),
 	IMPORT_FFUNC(ExInterlockedPushEntrySList, 3),
 	IMPORT_SFUNC(ExAllocatePoolWithTag, 3),
+	IMPORT_SFUNC(ExFreePoolWithTag, 2),
 	IMPORT_SFUNC(ExFreePool, 1),
 #ifdef __i386__
 	IMPORT_FFUNC(KefAcquireSpinLockAtDpcLevel, 1),
@@ -4241,17 +4387,19 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(MmAllocateContiguousMemorySpecifyCache, 5 + 3),
 	IMPORT_SFUNC(MmFreeContiguousMemory, 1),
 	IMPORT_SFUNC(MmFreeContiguousMemorySpecifyCache, 3),
-	IMPORT_SFUNC_MAP(MmGetPhysicalAddress, pmap_kextract, 1),
 	IMPORT_SFUNC(MmSizeOfMdl, 1),
 	IMPORT_SFUNC(MmMapLockedPages, 2),
 	IMPORT_SFUNC(MmMapLockedPagesSpecifyCache, 6),
 	IMPORT_SFUNC(MmUnmapLockedPages, 2),
 	IMPORT_SFUNC(MmBuildMdlForNonPagedPool, 1),
+	IMPORT_SFUNC(MmGetPhysicalAddress, 1),
+	IMPORT_SFUNC(MmGetSystemRoutineAddress, 1),
 	IMPORT_SFUNC(MmIsAddressValid, 1),
 	IMPORT_SFUNC(MmMapIoSpace, 3 + 1),
 	IMPORT_SFUNC(MmUnmapIoSpace, 2),
 	IMPORT_SFUNC(KeInitializeSpinLock, 1),
 	IMPORT_SFUNC(IoIsWdmVersionAvailable, 2),
+	IMPORT_SFUNC(IoOpenDeviceRegistryKey, 4),
 	IMPORT_SFUNC(IoGetDeviceObjectPointer, 4),
 	IMPORT_SFUNC(IoGetDeviceProperty, 5),
 	IMPORT_SFUNC(IoAllocateWorkItem, 1),

@@ -99,8 +99,9 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp)
 	 * 64bit instruction and data pointers. Ignore the difference
 	 * for now, it should be irrelevant for most applications.
 	 */
-	mcp->mc_ownedfp = fpugetuserregs(td,
-	    (struct savefpu *)&mcp->mc_fpstate);
+	mcp->mc_ownedfp = fpugetregs(td);
+	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
 }
 
@@ -117,7 +118,7 @@ ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		fpusetuserregs(td, (struct savefpu *)&mcp->mc_fpstate);
+		fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate);
 	} else
 		return (EINVAL);
 	return (0);
@@ -206,7 +207,6 @@ ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
 	tp->tf_rflags = rflags;
 	tp->tf_rsp = mcp->mc_esp;
 	tp->tf_ss = mcp->mc_ss;
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }
@@ -742,7 +742,7 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */
-	pcb->pcb_flags |= PCB_FULLCTX | PCB_32BIT;
+	pcb->pcb_flags |= PCB_32BIT;
 	pcb->pcb_flags &= ~PCB_GS32BIT;
 	td->td_pcb->pcb_full_iret = 1;
 	td->td_retval[1] = 0;

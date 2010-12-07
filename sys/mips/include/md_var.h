@@ -77,6 +77,8 @@ void	platform_identify(void);
 extern int busdma_swi_pending;
 void	busdma_swi(void);
 
-struct dumperinfo;
-void minidumpsys(struct dumperinfo *);
+struct	dumperinfo;
+void	dump_add_page(vm_paddr_t);
+void	dump_drop_page(vm_paddr_t);
+void	minidumpsys(struct dumperinfo *);
 #endif /* !_MACHINE_MD_VAR_H_ */

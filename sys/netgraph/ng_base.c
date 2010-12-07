@@ -171,7 +171,7 @@ static struct mtx	ng_typelist_mtx;
 
 /* Hash related definitions */
 /* XXX Don't need to initialise them because it's a LIST */
-STATIC_VNET_DEFINE(LIST_HEAD(, ng_node), ng_ID_hash[NG_ID_HASH_SIZE]);
+static VNET_DEFINE(LIST_HEAD(, ng_node), ng_ID_hash[NG_ID_HASH_SIZE]);
 #define	V_ng_ID_hash			VNET(ng_ID_hash)
 
 static struct mtx	ng_idhash_mtx;
@@ -189,7 +189,7 @@ static struct mtx	ng_idhash_mtx;
 		}							\
 	} while (0)
 
-STATIC_VNET_DEFINE(LIST_HEAD(, ng_node), ng_name_hash[NG_NAME_HASH_SIZE]);
+static VNET_DEFINE(LIST_HEAD(, ng_node), ng_name_hash[NG_NAME_HASH_SIZE]);
 #define	V_ng_name_hash			VNET(ng_name_hash)
 
 static struct mtx	ng_namehash_mtx;
@@ -359,7 +359,7 @@ ng_alloc_node(void)
 #define TRAP_ERROR()
 #endif
 
-STATIC_VNET_DEFINE(ng_ID_t, nextID) = 1;
+static VNET_DEFINE(ng_ID_t, nextID) = 1;
 #define	V_nextID			VNET(nextID)
 
 #ifdef INVARIANTS

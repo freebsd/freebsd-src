@@ -89,7 +89,7 @@ static int rt6_deleteroute(struct radix_node *, void *);
 VNET_DECLARE(int, nd6_recalc_reachtm_interval);
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
 
-STATIC_VNET_DEFINE(struct ifnet *, nd6_defifp);
+static VNET_DEFINE(struct ifnet *, nd6_defifp);
 VNET_DEFINE(int, nd6_defifindex);
 #define	V_nd6_defifp			VNET(nd6_defifp)
 

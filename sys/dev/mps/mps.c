@@ -1282,7 +1282,7 @@ mps_dispatch_event(struct mps_softc *sc, uintptr_t data,
     MPI2_EVENT_NOTIFICATION_REPLY *reply)
 {
 	struct mps_event_handle *eh;
-	int event, handled = 0;;
+	int event, handled = 0;
 
 	event = reply->Event;
 	TAILQ_FOREACH(eh, &sc->event_list, eh_list) {
@@ -1569,17 +1569,53 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	sc = cm->cm_sc;
 
 	/*
-	 * Set up DMA direction flags.  Note no support for
-	 * bi-directional transactions.
+	 * In this case, just print out a warning and let the chip tell the
+	 * user they did the wrong thing.
+	 */
+	if ((cm->cm_max_segs != 0) && (nsegs > cm->cm_max_segs)) {
+		mps_printf(sc, "%s: warning: busdma returned %d segments, "
+			   "more than the %d allowed\n", __func__, nsegs,
+			   cm->cm_max_segs);
+	}
+
+	/*
+	 * Set up DMA direction flags.  Note that we don't support
+	 * bi-directional transfers, with the exception of SMP passthrough.
 	 */
 	sflags = 0;
-	if (cm->cm_flags & MPS_CM_FLAGS_DATAOUT) {
+	if (cm->cm_flags & MPS_CM_FLAGS_SMP_PASS) {
+		/*
+		 * We have to add a special case for SMP passthrough, there
+		 * is no easy way to generically handle it.  The first
+		 * S/G element is used for the command (therefore the
+		 * direction bit needs to be set).  The second one is used
+		 * for the reply.  We'll leave it to the caller to make
+		 * sure we only have two buffers.
+		 */
+		/*
+		 * Even though the busdma man page says it doesn't make
+		 * sense to have both direction flags, it does in this case.
+		 * We have one s/g element being accessed in each direction.
+		 */
+		dir = BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD;
+
+		/*
+		 * Set the direction flag on the first buffer in the SMP
+		 * passthrough request.  We'll clear it for the second one.
+		 */
+		sflags |= MPI2_SGE_FLAGS_DIRECTION |
+			  MPI2_SGE_FLAGS_END_OF_BUFFER;
+	} else if (cm->cm_flags & MPS_CM_FLAGS_DATAOUT) {
 		sflags |= MPI2_SGE_FLAGS_DIRECTION;
 		dir = BUS_DMASYNC_PREWRITE;
 	} else
 		dir = BUS_DMASYNC_PREREAD;
 
 	for (i = 0; i < nsegs; i++) {
+		if ((cm->cm_flags & MPS_CM_FLAGS_SMP_PASS)
+		 && (i != 0)) {
+			sflags &= ~MPI2_SGE_FLAGS_DIRECTION;
+		}
 		error = mps_add_dmaseg(cm, segs[i].ds_addr, segs[i].ds_len,
 		    sflags, nsegs - i);
 		if (error != 0) {
@@ -1595,6 +1631,13 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	return;
 }
 
+static void
+mps_data_cb2(void *arg, bus_dma_segment_t *segs, int nsegs, bus_size_t mapsize,
+	     int error)
+{
+	mps_data_cb(arg, segs, nsegs, error);
+}
+
 /*
  * Note that the only error path here is from bus_dmamap_load(), which can
  * return EINPROGRESS if it is waiting for resources.
@@ -1605,7 +1648,10 @@ mps_map_command(struct mps_softc *sc, struct mps_command *cm)
 	MPI2_SGE_SIMPLE32 *sge;
 	int error = 0;
 
-	if ((cm->cm_data != NULL) && (cm->cm_length != 0)) {
+	if (cm->cm_flags & MPS_CM_FLAGS_USE_UIO) {
+		error = bus_dmamap_load_uio(sc->buffer_dmat, cm->cm_dmamap,
+		    &cm->cm_uio, mps_data_cb2, cm, 0);
+	} else if ((cm->cm_data != NULL) && (cm->cm_length != 0)) {
 		error = bus_dmamap_load(sc->buffer_dmat, cm->cm_dmamap,
 		    cm->cm_data, cm->cm_length, mps_data_cb, cm, 0);
 	} else {
@@ -1619,7 +1665,7 @@ mps_map_command(struct mps_softc *sc, struct mps_command *cm)
 			    MPI2_SGE_FLAGS_SHIFT;
 			sge->Address = 0;
 		}
-		mps_enqueue_request(sc, cm);	
+		mps_enqueue_request(sc, cm);
 	}
 
 	return (error);

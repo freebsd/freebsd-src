@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2009 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 /**
  * @file
@@ -81,9 +83,24 @@ static inline uint64_t cvmx_ptr_to_phys(void *ptr)
         cvmx_warn_if(ptr==NULL, "cvmx_ptr_to_phys() passed a NULL pointer\n");
 
 #ifdef CVMX_BUILD_FOR_UBOOT
-    /* U-boot is a special case, as it is running in error level, which disables the TLB completely.
-    ** U-boot may use kseg0 addresses, or may directly use physical addresses already */
-    return(CAST64(ptr) & 0x7FFFFFFF);
+    uint64_t uboot_tlb_ptr_to_phys(void *ptr);
+
+    if (((uint32_t)ptr) < 0x80000000)
+    {
+        /* Handle useg (unmapped due to ERL) here*/
+        return(CAST64(ptr) & 0x7FFFFFFF);
+    }
+    else if (((uint32_t)ptr) < 0xC0000000)
+    {
+        /* Here we handle KSEG0/KSEG1 _pointers_.  We know we are dealing
+        ** with 32 bit only values, so we treat them that way.  Note that
+        ** a cvmx_phys_to_ptr(cvmx_ptr_to_phys(X)) will not return X in this case,
+        ** but the physical address of the KSEG0/KSEG1 address. */
+        return(CAST64(ptr) & 0x1FFFFFFF);
+    }
+    else
+        return(uboot_tlb_ptr_to_phys(ptr));   /* Should not get get here in !TLB case */
+
 #endif
 
 #ifdef __linux__
@@ -166,12 +183,47 @@ static inline void *cvmx_phys_to_ptr(uint64_t physical_address)
         cvmx_warn_if(physical_address==0, "cvmx_phys_to_ptr() passed a zero address\n");
 
 #ifdef CVMX_BUILD_FOR_UBOOT
-    /* U-boot is a special case, as it is running in error level, which disables the TLB completely.
-    ** U-boot may use kseg0 addresses, or may directly use physical addresses already */
+#if !CONFIG_OCTEON_UBOOT_TLB
     if (physical_address >= 0x80000000)
         return NULL;
     else
         return CASTPTR(void, (physical_address & 0x7FFFFFFF));
+#endif
+
+    /* U-boot is a special case, as it is running in 32 bit mode, using the TLB to map code/data
+    ** which can have a physical address above the 32 bit address space.  1-1 mappings are used
+    ** to allow the low 2 GBytes to be accessed as in error level.
+    **
+    ** NOTE:  This conversion can cause problems in u-boot, as users may want to enter addresses
+    ** like 0xBFC00000 (kseg1 boot bus address), which is a valid 64 bit physical address,
+    ** but is likely intended to be a boot bus address. */
+
+    if (physical_address < 0x80000000)
+    {
+        /* Handle useg here.  ERL is set, so useg is unmapped.  This is the only physical
+        ** address range that is directly addressable by u-boot. */
+        return CASTPTR(void, physical_address);
+    }
+    else
+    {
+	DECLARE_GLOBAL_DATA_PTR;
+        extern char uboot_start;
+        /* Above 0x80000000 we can only support one case - a physical address
+        ** that is mapped for u-boot code/data.  We check against the u-boot mem range,
+        ** and return NULL if it is out of this range.
+        */
+        if (physical_address >= gd->bd->bi_uboot_ram_addr
+            && physical_address < gd->bd->bi_uboot_ram_addr + gd->bd->bi_uboot_ram_used_size)
+        {
+            return ((char *)&uboot_start + (physical_address - gd->bd->bi_uboot_ram_addr));
+        }
+        else
+            return(NULL);
+    }
+
+    if (physical_address >= 0x80000000)
+        return NULL;
+    else
 #endif
 
 #ifdef __linux__
@@ -199,7 +251,8 @@ static inline void *cvmx_phys_to_ptr(uint64_t physical_address)
         2nd 256MB is mapped at 0x10000000 and the rest of memory is 1:1 */
     if ((physical_address >= 0x10000000) && (physical_address < 0x20000000))
         return CASTPTR(void, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, physical_address));
-    else if ((physical_address >= 0x410000000ull) && (physical_address < 0x420000000ull))
+    else if (!OCTEON_IS_MODEL(OCTEON_CN6XXX) && (physical_address >= 0x410000000ull) &&
+                                                       (physical_address < 0x420000000ull))
         return CASTPTR(void, physical_address - 0x400000000ull);
     else
         return CASTPTR(void, physical_address);
@@ -464,7 +517,7 @@ static inline void cvmx_write_csr(uint64_t csr_addr, uint64_t val)
     /* Perform an immediate read after every write to an RSL register to force
         the write to complete. It doesn't matter what RSL read we do, so we
         choose CVMX_MIO_BOOT_BIST_STAT because it is fast and harmless */
-    if ((csr_addr >> 40) == (0x800118))
+    if (((csr_addr >> 40) & 0x7ffff) == (0x118))
         cvmx_read64_uint64(CVMX_MIO_BOOT_BIST_STAT);
 }
 
@@ -503,7 +556,7 @@ static inline void cvmx_read_csr_async(uint64_t scraddr, uint64_t csr_addr)
 
 
 /**
- * Number of the Core on which the program is currently running. 
+ * Number of the Core on which the program is currently running.
  *
  * @return Number of cores
  */
@@ -548,53 +601,36 @@ static inline int cvmx_dpop(uint64_t val)
 
 
 /**
- * Provide current cycle counter as a return value
+ * @deprecated
+ * Provide current cycle counter as a return value. Deprecated, use
+ * cvmx_clock_get_count(CVMX_CLOCK_CORE) to get cycle counter.
  *
  * @return current cycle counter
  */
 static inline uint64_t cvmx_get_cycle(void)
 {
-#if defined(CVMX_ABI_O32)
-    uint32_t tmp_low, tmp_hi;
-
-    asm volatile (
-               "   .set push                    \n"
-               "   .set mips64r2                \n"
-               "   .set noreorder               \n"
-               "   rdhwr %[tmpl], $31           \n"
-               "   dsrl  %[tmph], %[tmpl], 32   \n"
-               "   sll   %[tmpl], 0             \n"
-               "   sll   %[tmph], 0             \n"
-               "   .set pop                 \n"
-                  : [tmpl] "=&r" (tmp_low), [tmph] "=&r" (tmp_hi) : );
-
-    return(((uint64_t)tmp_hi << 32) + tmp_low);
-#else
-    uint64_t cycle;
-    CVMX_RDHWR(cycle, 31);
-    return(cycle);
-#endif
+    return cvmx_clock_get_count(CVMX_CLOCK_CORE);
 }
 
 
 /**
- * Reads a chip global cycle counter.  This counts CPU cycles since
- * chip reset.  The counter is 64 bit.
- * This register does not exist on CN38XX pass 1 silicion
+ * @deprecated
+ * Reads a chip global cycle counter.  This counts SCLK cycles since
+ * chip reset.  The counter is 64 bit. This function is deprecated as the rate
+ * of the global cycle counter is different between Octeon+ and Octeon2, use
+ * cvmx_clock_get_count(CVMX_CLOCK_SCLK) instead. For Octeon2, the clock rate
+ * of SCLK may be differnet than the core clock.
  *
  * @return Global chip cycle count since chip reset.
  */
 static inline uint64_t cvmx_get_cycle_global(void)
 {
-    if (OCTEON_IS_MODEL(OCTEON_CN38XX_PASS1))
-        return 0;
-    else
-        return cvmx_read64_uint64(CVMX_IPD_CLK_COUNT);
+    return cvmx_clock_get_count(CVMX_CLOCK_IPD);
 }
 
 
 /**
- * Wait for the specified number of cycle
+ * Wait for the specified number of core clock cycles
  *
  * @param cycles
  */
@@ -616,8 +652,24 @@ static inline void cvmx_wait(uint64_t cycles)
  */
 static inline void cvmx_wait_usec(uint64_t usec)
 {
-    uint64_t done = cvmx_get_cycle() + usec * cvmx_sysinfo_get()->cpu_clock_hz / 1000000;
+    uint64_t done = cvmx_get_cycle() + usec * cvmx_clock_get_rate(CVMX_CLOCK_CORE) / 1000000;
     while (cvmx_get_cycle() < done)
+    {
+        /* Spin */
+    }
+}
+
+
+/**
+ * Wait for the specified number of io clock cycles
+ *
+ * @param cycles
+ */
+static inline void cvmx_wait_io(uint64_t cycles)
+{
+    uint64_t done = cvmx_clock_get_count(CVMX_CLOCK_SCLK) + cycles;
+
+    while (cvmx_clock_get_count(CVMX_CLOCK_SCLK) < done)
     {
         /* Spin */
     }

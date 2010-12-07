@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2010
+.Dd November 24, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1575,6 +1575,17 @@ If set to
 .Pa /etc/rc.d/zfs
 will attempt to automatically mount ZFS file systems and initialize ZFS volumes
 (ZVOLs).
+.It Va gptboot_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+.Pa /etc/rc.d/gptboot
+will log if the system successfully (or not) booted from a GPT partition,
+which had the
+.Ar bootonce
+attribute set using
+.Xr gpart 8
+utility.
 .It Va gbde_autoattach_all
 .Pq Vt bool
 If set to

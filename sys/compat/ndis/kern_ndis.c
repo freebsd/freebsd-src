@@ -331,6 +331,16 @@ ndis_create_sysctls(arg)
 	ndis_add_sysctl(sc, "NdisVersion",
 	    "NDIS API Version", "0x00050001", CTLFLAG_RD);
 
+	/*
+	 * Some miniport drivers rely on the existence of the SlotNumber,
+	 * NetCfgInstanceId and DriverDesc keys.
+	 */
+	ndis_add_sysctl(sc, "SlotNumber", "Slot Numer", "01", CTLFLAG_RD);
+	ndis_add_sysctl(sc, "NetCfgInstanceId", "NetCfgInstanceId",
+	    "{12345678-1234-5678-CAFE0-123456789ABC}", CTLFLAG_RD);
+	ndis_add_sysctl(sc, "DriverDesc", "Driver Description",
+	    "NDIS Network Adapter", CTLFLAG_RD);
+
 	/* Bus type (PCI, PCMCIA, etc...) */
 	sprintf(buf, "%d", (int)sc->ndis_iftype);
 	ndis_add_sysctl(sc, "BusType", "Bus Type", buf, CTLFLAG_RD);
@@ -421,6 +431,19 @@ ndis_flush_sysctls(arg)
 	}
 
 	return (0);
+}
+
+void *
+ndis_get_routine_address(functbl, name)
+	struct image_patch_table *functbl;
+	char			*name;
+{
+	int			i;
+
+	for (i = 0; functbl[i].ipt_name != NULL; i++)
+		if (strcmp(name, functbl[i].ipt_name) == 0)
+			return (functbl[i].ipt_wrap);
+	return (NULL);
 }
 
 static void

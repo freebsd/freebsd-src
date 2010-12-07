@@ -210,7 +210,7 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(iface, &typestruct);
 
-STATIC_VNET_DEFINE(struct unrhdr *, ng_iface_unit);
+static VNET_DEFINE(struct unrhdr *, ng_iface_unit);
 #define	V_ng_iface_unit			VNET(ng_iface_unit)
 
 /************************************************************************

@@ -442,6 +442,16 @@ tc_windup(void)
 		ncount = 0;
 	th->th_offset_count += delta;
 	th->th_offset_count &= th->th_counter->tc_counter_mask;
+	while (delta > th->th_counter->tc_frequency) {
+		/* Eat complete unadjusted seconds. */
+		delta -= th->th_counter->tc_frequency;
+		th->th_offset.sec++;
+	}
+	if ((delta > th->th_counter->tc_frequency / 2) &&
+	    (th->th_scale * delta < ((uint64_t)1 << 63))) {
+		/* The product th_scale * delta just barely overflows. */
+		th->th_offset.sec++;
+	}
 	bintime_addx(&th->th_offset, th->th_scale * delta);
 
 	/*

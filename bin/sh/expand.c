@@ -225,6 +225,7 @@ argstr(char *p, int flag)
 	if (*p == '~' && (flag & (EXP_TILDE | EXP_VARTILDE)))
 		p = exptilde(p, flag);
 	for (;;) {
+		CHECKSTRSPACE(2, expdest);
 		switch (c = *p++) {
 		case '\0':
 		case CTLENDVAR:
@@ -235,16 +236,16 @@ argstr(char *p, int flag)
 			if (p[0] == CTLVAR && p[2] == '@' && p[3] == '=')
 				break;
 			if ((flag & EXP_FULL) != 0)
-				STPUTC(c, expdest);
+				USTPUTC(c, expdest);
 			break;
 		case CTLQUOTEEND:
 			lit_quoted = 0;
 			break;
 		case CTLESC:
 			if (quotes)
-				STPUTC(c, expdest);
+				USTPUTC(c, expdest);
 			c = *p++;
-			STPUTC(c, expdest);
+			USTPUTC(c, expdest);
 			if (split_lit && !lit_quoted)
 				recordregion(expdest - stackblock() -
 				    (quotes ? 2 : 1),
@@ -267,7 +268,7 @@ argstr(char *p, int flag)
 			 * sort of a hack - expand tildes in variable
 			 * assignments (after the first '=' and after ':'s).
 			 */
-			STPUTC(c, expdest);
+			USTPUTC(c, expdest);
 			if (split_lit && !lit_quoted)
 				recordregion(expdest - stackblock() - 1,
 				    expdest - stackblock(), 0);
@@ -279,7 +280,7 @@ argstr(char *p, int flag)
 			}
 			break;
 		default:
-			STPUTC(c, expdest);
+			USTPUTC(c, expdest);
 			if (split_lit && !lit_quoted)
 				recordregion(expdest - stackblock() - 1,
 				    expdest - stackblock(), 0);
@@ -902,8 +903,7 @@ varvalue(char *name, int quoted, int subtype, int flag)
 			STPUTC(*p++, expdest); \
 		} \
 	} else \
-		while (*p) \
-			STPUTC(*p++, expdest); \
+		STPUTS(p, expdest); \
 	} while (0)
 
 
@@ -1573,8 +1573,7 @@ cvtnum(int num, char *buf)
 	if (neg)
 		*--p = '-';
 
-	while (*p)
-		STPUTC(*p++, buf);
+	STPUTS(p, buf);
 	return buf;
 }
 
@@ -1592,9 +1591,7 @@ wordexpcmd(int argc, char **argv)
 	for (i = 1, len = 0; i < argc; i++)
 		len += strlen(argv[i]);
 	out1fmt("%08x", (int)len);
-	for (i = 1; i < argc; i++) {
-		out1str(argv[i]);
-		out1c('\0');
-	}
+	for (i = 1; i < argc; i++)
+		outbin(argv[i], strlen(argv[i]) + 1, out1);
         return (0);
 }

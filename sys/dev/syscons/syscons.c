@@ -348,7 +348,9 @@ static void
 sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 {
 	video_info_t info;
+	u_char *font;
 	int depth;
+	int fontsize;
 	int i;
 	int vmode;
 
@@ -377,9 +379,37 @@ sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 		vidd_get_info(sc->adp, vmode, &info);
 	}
 
+#if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
+	fontsize = info.vi_cheight;
+#else
+	fontsize = scp->font_size;
+#endif
+	if (fontsize < 14)
+		fontsize = 8;
+	else if (fontsize >= 16)
+		fontsize = 16;
+	else
+		fontsize = 14;
 #ifndef SC_NO_FONT_LOADING
-	if ((sc->fonts_loaded & FONT_16) == 0)
-		return;
+	switch (fontsize) {
+	case 8:
+		if ((sc->fonts_loaded & FONT_8) == 0)
+			return;
+		font = sc->font_8;
+		break;
+	case 14:
+		if ((sc->fonts_loaded & FONT_14) == 0)
+			return;
+		font = sc->font_14;
+		break;
+	case 16:
+		if ((sc->fonts_loaded & FONT_16) == 0)
+			return;
+		font = sc->font_16;
+		break;
+	}
+#else
+	font = NULL;
 #endif
 #ifdef DEV_SPLASH
 	if ((sc->flags & SC_SPLASH_SCRN) != 0)
@@ -398,16 +428,12 @@ sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 	scp->xpixel = info.vi_width;
 	scp->ypixel = info.vi_height;
 	scp->xsize = scp->xpixel / 8;
-	scp->ysize = scp->ypixel / 16;
+	scp->ysize = scp->ypixel / fontsize;
 	scp->xpos = 0;
 	scp->ypos = scp->ysize - 1;
 	scp->xoff = scp->yoff = 0;
-#ifndef SC_NO_FONT_LOADING
-	scp->font = sc->font_16;
-#else
-	scp->font = NULL;
-#endif
-	scp->font_size = 16;
+	scp->font = font;
+	scp->font_size = fontsize;
 	scp->font_width = 8;
 	scp->start = scp->xsize * scp->ysize - 1;
 	scp->end = 0;
@@ -3093,27 +3119,18 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->ypixel = scp->ysize*info.vi_cheight;
     }
 
-	scp->font_size = info.vi_cheight;
-	scp->font_width = info.vi_cwidth;
-	if (info.vi_cheight < 14) {
+    scp->font_size = info.vi_cheight;
+    scp->font_width = info.vi_cwidth;
 #ifndef SC_NO_FONT_LOADING
-	    scp->font = sc->font_8;
+    if (info.vi_cheight < 14)
+	scp->font = sc->font_8;
+    else if (info.vi_cheight >= 16)
+	scp->font = sc->font_16;
+    else
+	scp->font = sc->font_14;
 #else
-	    scp->font = NULL;
+    scp->font = NULL;
 #endif
-	} else if (info.vi_cheight >= 16) {
-#ifndef SC_NO_FONT_LOADING
-	    scp->font = sc->font_16;
-#else
-	    scp->font = NULL;
-#endif
-	} else {
-#ifndef SC_NO_FONT_LOADING
-	    scp->font = sc->font_14;
-#else
-	    scp->font = NULL;
-#endif
-	}
 
     sc_vtb_init(&scp->vtb, VTB_MEMORY, 0, 0, NULL, FALSE);
 #ifndef __sparc64__

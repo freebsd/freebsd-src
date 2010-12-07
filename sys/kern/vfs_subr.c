@@ -191,9 +191,6 @@ struct nfs_public nfs_pub;
 static uma_zone_t vnode_zone;
 static uma_zone_t vnodepoll_zone;
 
-/* Set to 1 to print out reclaim of active vnodes */
-int	prtactive;
-
 /*
  * The workitem queue.
  *
@@ -2189,7 +2186,7 @@ vputx(struct vnode *vp, int func)
 
 	KASSERT(vp != NULL, ("vputx: null vp"));
 	if (func == VPUTX_VUNREF)
-		ASSERT_VOP_ELOCKED(vp, "vunref");
+		ASSERT_VOP_LOCKED(vp, "vunref");
 	else if (func == VPUTX_VPUT)
 		ASSERT_VOP_LOCKED(vp, "vput");
 	else
@@ -2227,12 +2224,22 @@ vputx(struct vnode *vp, int func)
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
 	vp->v_iflag |= VI_OWEINACT;
-	if (func == VPUTX_VRELE) {
+	switch (func) {
+	case VPUTX_VRELE:
 		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
 		VI_LOCK(vp);
-	} else if (func == VPUTX_VPUT && VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
-		error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK | LK_NOWAIT);
-		VI_LOCK(vp);
+		break;
+	case VPUTX_VPUT:
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+			error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK |
+			    LK_NOWAIT);
+			VI_LOCK(vp);
+		}
+		break;
+	case VPUTX_VUNREF:
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
+			error = EBUSY;
+		break;
 	}
 	if (vp->v_usecount > 0)
 		vp->v_iflag &= ~VI_OWEINACT;

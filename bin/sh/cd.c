@@ -192,8 +192,7 @@ cdlogical(char *dest)
 			STPUTC('/', p);
 		first = 0;
 		component = q;
-		while (*q)
-			STPUTC(*q++, p);
+		STPUTS(q, p);
 		if (equal(component, ".."))
 			continue;
 		STACKSTRNUL(p);
@@ -219,10 +218,13 @@ cdphysical(char *dest)
 	char *p;
 
 	INTOFF;
-	if (chdir(dest) < 0 || (p = findcwd(NULL)) == NULL) {
+	if (chdir(dest) < 0) {
 		INTON;
 		return (-1);
 	}
+	p = findcwd(NULL);
+	if (p == NULL)
+		out2fmt_flush("cd: warning: failed to get name of current directory\n");
 	updatepwd(p);
 	INTON;
 	return (0);
@@ -270,10 +272,8 @@ findcwd(char *dir)
 	scopy(dir, cdcomppath);
 	STARTSTACKSTR(new);
 	if (*dir != '/') {
-		p = curdir;
-		while (*p)
-			STPUTC(*p++, new);
-		if (p[-1] == '/')
+		STPUTS(curdir, new);
+		if (STTOPC(new) == '/')
 			STUNPUTC(new);
 	}
 	while ((p = getcomponent()) != NULL) {
@@ -281,8 +281,7 @@ findcwd(char *dir)
 			while (new > stackblock() && (STUNPUTC(new), *new) != '/');
 		} else if (*p != '\0' && ! equal(p, ".")) {
 			STPUTC('/', new);
-			while (*p)
-				STPUTC(*p++, new);
+			STPUTS(p, new);
 		}
 	}
 	if (new == stackblock())
@@ -304,7 +303,7 @@ updatepwd(char *dir)
 	if (prevdir)
 		ckfree(prevdir);
 	prevdir = curdir;
-	curdir = savestr(dir);
+	curdir = dir ? savestr(dir) : NULL;
 	setvar("PWD", curdir, VEXPORT);
 	setvar("OLDPWD", prevdir, VEXPORT);
 }

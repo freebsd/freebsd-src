@@ -180,13 +180,18 @@ static vm_paddr_t dmaplimit;
 vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx;
 
-static int pat_works = 0;		/* Is page attribute table sane? */
-
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+
+static int pat_works = 1;
+SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
+    "Is page attribute table fully functional?");
 
 static int pg_ps_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
+
+#define	PAT_INDEX_SIZE	8
+static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
 static u_int64_t	KPDphys;	/* phys addr of kernel level 2 */
@@ -447,6 +452,8 @@ allocpages(vm_paddr_t *firstaddr, int n)
 	return (ret);
 }
 
+CTASSERT(powerof2(NDMPML4E));
+
 static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
@@ -527,9 +534,12 @@ create_pagetables(vm_paddr_t *firstaddr)
 	((pdp_entry_t *)KPML4phys)[PML4PML4I] = KPML4phys;
 	((pdp_entry_t *)KPML4phys)[PML4PML4I] |= PG_RW | PG_V | PG_U;
 
-	/* Connect the Direct Map slot up to the PML4 */
-	((pdp_entry_t *)KPML4phys)[DMPML4I] = DMPDPphys;
-	((pdp_entry_t *)KPML4phys)[DMPML4I] |= PG_RW | PG_V | PG_U;
+	/* Connect the Direct Map slot(s) up to the PML4. */
+	for (i = 0; i < NDMPML4E; i++) {
+		((pdp_entry_t *)KPML4phys)[DMPML4I + i] = DMPDPphys +
+		    (i << PAGE_SHIFT);
+		((pdp_entry_t *)KPML4phys)[DMPML4I + i] |= PG_RW | PG_V | PG_U;
+	}
 
 	/* Connect the KVA slot up to the PML4 */
 	((pdp_entry_t *)KPML4phys)[KPML4I] = KPDPphys;
@@ -608,31 +618,24 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 void
 pmap_init_pat(void)
 {
+	int pat_table[PAT_INDEX_SIZE];
 	uint64_t pat_msr;
-	char *sysenv;
-	static int pat_tested = 0;
+	u_long cr0, cr4;
+	int i;
 
 	/* Bail if this CPU doesn't implement PAT. */
-	if (!(cpu_feature & CPUID_PAT))
+	if ((cpu_feature & CPUID_PAT) == 0)
 		panic("no PAT??");
 
-	/*
-	 * Some Apple Macs based on nVidia chipsets cannot enter ACPI mode
-	 * via SMI# when we use upper 4 PAT entries for unknown reason.
-	 */
-	if (!pat_tested) {
-		pat_works = 1;
-		sysenv = getenv("smbios.system.product");
-		if (sysenv != NULL) {
-			if (strncmp(sysenv, "MacBook5,1", 10) == 0 ||
-			    strncmp(sysenv, "MacBookPro5,5", 13) == 0 ||
-			    strncmp(sysenv, "Macmini3,1", 10) == 0 ||
-			    strncmp(sysenv, "iMac9,1", 7) == 0)
-				pat_works = 0;
-			freeenv(sysenv);
-		}
-		pat_tested = 1;
-	}
+	/* Set default PAT index table. */
+	for (i = 0; i < PAT_INDEX_SIZE; i++)
+		pat_table[i] = -1;
+	pat_table[PAT_WRITE_BACK] = 0;
+	pat_table[PAT_WRITE_THROUGH] = 1;
+	pat_table[PAT_UNCACHEABLE] = 3;
+	pat_table[PAT_WRITE_COMBINING] = 3;
+	pat_table[PAT_WRITE_PROTECTED] = 3;
+	pat_table[PAT_UNCACHED] = 3;
 
 	/* Initialize default PAT entries. */
 	pat_msr = PAT_VALUE(0, PAT_WRITE_BACK) |
@@ -647,20 +650,48 @@ pmap_init_pat(void)
 	if (pat_works) {
 		/*
 		 * Leave the indices 0-3 at the default of WB, WT, UC-, and UC.
-		 * Program 4 and 5 as WP and WC.
-		 * Leave 6 and 7 as UC- and UC.
+		 * Program 5 and 6 as WP and WC.
+		 * Leave 4 and 7 as WB and UC.
 		 */
-		pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
-		pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
-		    PAT_VALUE(5, PAT_WRITE_COMBINING);
+		pat_msr &= ~(PAT_MASK(5) | PAT_MASK(6));
+		pat_msr |= PAT_VALUE(5, PAT_WRITE_PROTECTED) |
+		    PAT_VALUE(6, PAT_WRITE_COMBINING);
+		pat_table[PAT_UNCACHED] = 2;
+		pat_table[PAT_WRITE_PROTECTED] = 5;
+		pat_table[PAT_WRITE_COMBINING] = 6;
 	} else {
 		/*
 		 * Just replace PAT Index 2 with WC instead of UC-.
 		 */
 		pat_msr &= ~PAT_MASK(2);
 		pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
+		pat_table[PAT_WRITE_COMBINING] = 2;
 	}
+
+	/* Disable PGE. */
+	cr4 = rcr4();
+	load_cr4(cr4 & ~CR4_PGE);
+
+	/* Disable caches (CD = 1, NW = 0). */
+	cr0 = rcr0();
+	load_cr0((cr0 & ~CR0_NW) | CR0_CD);
+
+	/* Flushes caches and TLBs. */
+	wbinvd();
+	invltlb();
+
+	/* Update PAT and index table. */
 	wrmsr(MSR_PAT, pat_msr);
+	for (i = 0; i < PAT_INDEX_SIZE; i++)
+		pat_index[i] = pat_table[i];
+
+	/* Flush caches and TLBs again. */
+	wbinvd();
+	invltlb();
+
+	/* Restore caches and PGE. */
+	load_cr0(cr0);
+	load_cr4(cr4);
 }
 
 /*
@@ -811,63 +842,24 @@ SYSCTL_ULONG(_vm_pmap_pdpe, OID_AUTO, demotions, CTLFLAG_RD,
 static int
 pmap_cache_bits(int mode, boolean_t is_pde)
 {
-	int pat_flag, pat_index, cache_bits;
+	int cache_bits, pat_flag, pat_idx;
+
+	if (mode < 0 || mode >= PAT_INDEX_SIZE || pat_index[mode] < 0)
+		panic("Unknown caching mode %d\n", mode);
 
 	/* The PAT bit is different for PTE's and PDE's. */
 	pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
 
 	/* Map the caching mode to a PAT index. */
-	if (pat_works) {
-		switch (mode) {
-		case PAT_UNCACHEABLE:
-			pat_index = 3;
-			break;
-		case PAT_WRITE_THROUGH:
-			pat_index = 1;
-			break;
-		case PAT_WRITE_BACK:
-			pat_index = 0;
-			break;
-		case PAT_UNCACHED:
-			pat_index = 2;
-			break;
-		case PAT_WRITE_COMBINING:
-			pat_index = 5;
-			break;
-		case PAT_WRITE_PROTECTED:
-			pat_index = 4;
-			break;
-		default:
-			panic("Unknown caching mode %d\n", mode);
-		}
-	} else {
-		switch (mode) {
-		case PAT_UNCACHED:
-		case PAT_UNCACHEABLE:
-		case PAT_WRITE_PROTECTED:
-			pat_index = 3;
-			break;
-		case PAT_WRITE_THROUGH:
-			pat_index = 1;
-			break;
-		case PAT_WRITE_BACK:
-			pat_index = 0;
-			break;
-		case PAT_WRITE_COMBINING:
-			pat_index = 2;
-			break;
-		default:
-			panic("Unknown caching mode %d\n", mode);
-		}
-	}
+	pat_idx = pat_index[mode];
 
 	/* Map the 3-bit index value into the PAT, PCD, and PWT bits. */
 	cache_bits = 0;
-	if (pat_index & 0x4)
+	if (pat_idx & 0x4)
 		cache_bits |= pat_flag;
-	if (pat_index & 0x2)
+	if (pat_idx & 0x2)
 		cache_bits |= PG_NC_PCD;
-	if (pat_index & 0x1)
+	if (pat_idx & 0x1)
 		cache_bits |= PG_NC_PWT;
 	return (cache_bits);
 }
@@ -1602,6 +1594,7 @@ pmap_pinit(pmap_t pmap)
 {
 	vm_page_t pml4pg;
 	static vm_pindex_t color;
+	int i;
 
 	PMAP_LOCK_INIT(pmap);
 
@@ -1619,7 +1612,10 @@ pmap_pinit(pmap_t pmap)
 
 	/* Wire in kernel global address entries. */
 	pmap->pm_pml4[KPML4I] = KPDPphys | PG_RW | PG_V | PG_U;
-	pmap->pm_pml4[DMPML4I] = DMPDPphys | PG_RW | PG_V | PG_U;
+	for (i = 0; i < NDMPML4E; i++) {
+		pmap->pm_pml4[DMPML4I + i] = (DMPDPphys + (i << PAGE_SHIFT)) |
+		    PG_RW | PG_V | PG_U;
+	}
 
 	/* install self-referential address mapping entry(s) */
 	pmap->pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) | PG_V | PG_RW | PG_A | PG_M;
@@ -1868,6 +1864,7 @@ void
 pmap_release(pmap_t pmap)
 {
 	vm_page_t m;
+	int i;
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
@@ -1878,7 +1875,8 @@ pmap_release(pmap_t pmap)
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
 
 	pmap->pm_pml4[KPML4I] = 0;	/* KVA */
-	pmap->pm_pml4[DMPML4I] = 0;	/* Direct Map */
+	for (i = 0; i < NDMPML4E; i++)	/* Direct Map */
+		pmap->pm_pml4[DMPML4I + i] = 0;
 	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
 
 	m->wire_count--;

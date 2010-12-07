@@ -97,9 +97,7 @@ struct fork_args {
 
 /* ARGSUSED */
 int
-fork(td, uap)
-	struct thread *td;
-	struct fork_args *uap;
+fork(struct thread *td, struct fork_args *uap)
 {
 	int error;
 	struct proc *p2;
@@ -135,9 +133,7 @@ vfork(td, uap)
 }
 
 int
-rfork(td, uap)
-	struct thread *td;
-	struct rfork_args *uap;
+rfork(struct thread *td, struct rfork_args *uap)
 {
 	struct proc *p2;
 	int error;
@@ -197,12 +193,59 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, sysctl_kern_randompid, "I", "Random PID modulus");
 
+static int
+fork_norfproc(struct thread *td, int flags, struct proc **procp)
+{
+	int error;
+	struct proc *p1;
+
+	KASSERT((flags & RFPROC) == 0,
+	    ("fork_norfproc called with RFPROC set"));
+	p1 = td->td_proc;
+	*procp = NULL;
+
+	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
+	    (flags & (RFCFDG | RFFDG))) {
+		PROC_LOCK(p1);
+		if (thread_single(SINGLE_BOUNDARY)) {
+			PROC_UNLOCK(p1);
+			return (ERESTART);
+		}
+		PROC_UNLOCK(p1);
+	}
+
+	error = vm_forkproc(td, NULL, NULL, NULL, flags);
+	if (error)
+		goto fail;
+
+	/*
+	 * Close all file descriptors.
+	 */
+	if (flags & RFCFDG) {
+		struct filedesc *fdtmp;
+		fdtmp = fdinit(td->td_proc->p_fd);
+		fdfree(td);
+		p1->p_fd = fdtmp;
+	}
+
+	/*
+	 * Unshare file descriptors (from parent).
+	 */
+	if (flags & RFFDG) 
+		fdunshare(p1, td);
+
+fail:
+	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
+	    (flags & (RFCFDG | RFFDG))) {
+		PROC_LOCK(p1);
+		thread_single_end();
+		PROC_UNLOCK(p1);
+	}
+	return (error);
+}
+
 int
-fork1(td, flags, pages, procp)
-	struct thread *td;
-	int flags;
-	int pages;
-	struct proc **procp;
+fork1(struct thread *td, int flags, int pages, struct proc **procp)
 {
 	struct proc *p1, *p2, *pptr;
 	struct proc *newproc;
@@ -227,47 +270,8 @@ fork1(td, flags, pages, procp)
 	 * Here we don't create a new process, but we divorce
 	 * certain parts of a process from itself.
 	 */
-	if ((flags & RFPROC) == 0) {
-		if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
-		    (flags & (RFCFDG | RFFDG))) {
-			PROC_LOCK(p1);
-			if (thread_single(SINGLE_BOUNDARY)) {
-				PROC_UNLOCK(p1);
-				return (ERESTART);
-			}
-			PROC_UNLOCK(p1);
-		}
-
-		error = vm_forkproc(td, NULL, NULL, NULL, flags);
-		if (error)
-			goto norfproc_fail;
-
-		/*
-		 * Close all file descriptors.
-		 */
-		if (flags & RFCFDG) {
-			struct filedesc *fdtmp;
-			fdtmp = fdinit(td->td_proc->p_fd);
-			fdfree(td);
-			p1->p_fd = fdtmp;
-		}
-
-		/*
-		 * Unshare file descriptors (from parent).
-		 */
-		if (flags & RFFDG) 
-			fdunshare(p1, td);
-
-norfproc_fail:
-		if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
-		    (flags & (RFCFDG | RFFDG))) {
-			PROC_LOCK(p1);
-			thread_single_end();
-			PROC_UNLOCK(p1);
-		}
-		*procp = NULL;
-		return (error);
-	}
+	if ((flags & RFPROC) == 0)
+		return (fork_norfproc(td, flags, procp));
 
 	/*
 	 * XXX
@@ -798,10 +802,8 @@ fail1:
  * is called from the MD fork_trampoline() entry point.
  */
 void
-fork_exit(callout, arg, frame)
-	void (*callout)(void *, struct trapframe *);
-	void *arg;
-	struct trapframe *frame;
+fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
+    struct trapframe *frame)
 {
 	struct proc *p;
 	struct thread *td;
@@ -855,9 +857,7 @@ fork_exit(callout, arg, frame)
  * first parameter and is called when returning to a new userland process.
  */
 void
-fork_return(td, frame)
-	struct thread *td;
-	struct trapframe *frame;
+fork_return(struct thread *td, struct trapframe *frame)
 {
 
 	userret(td, frame);

@@ -2475,6 +2475,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	sbuf_printf(sb,
 #if USB_HAVE_UGEN
 	    "ugen=%s "
+	    "cdev=%s "
 #endif
 	    "vendor=0x%04x "
 	    "product=0x%04x "
@@ -2489,6 +2490,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 #endif
 	    "",
 #if USB_HAVE_UGEN
+	    udev->ugen_name,
 	    udev->ugen_name,
 #endif
 	    UGETW(udev->ddesc.idVendor),
@@ -2521,6 +2523,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		sbuf_printf(sb,
 #if USB_HAVE_UGEN
 		    "ugen=%s "
+		    "cdev=%s "
 #endif
 		    "vendor=0x%04x "
 		    "product=0x%04x "
@@ -2535,6 +2538,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		    "intsubclass=0x%02x "
 		    "intprotocol=0x%02x",
 #if USB_HAVE_UGEN
+		    udev->ugen_name,
 		    udev->ugen_name,
 #endif
 		    UGETW(udev->ddesc.idVendor),

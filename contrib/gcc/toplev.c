@@ -1080,9 +1080,7 @@ compile_file (void)
 
   dw2_output_indirect_constants ();
 
-  /* Flush any pending external directives.  cgraph did this for
-     assemble_external calls from the front end, but the RTL
-     expander can also generate them.  */
+  /* Flush any pending external directives.  */
   process_pending_assemble_externals ();
 
   /* Attach a special .ident directive to the end of the file to identify

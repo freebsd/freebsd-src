@@ -1554,6 +1554,9 @@ product ETEK 1COM		0x8007	Serial
 /* Extended Systems products */
 product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 
+/* Falcom products */
+product FALCOM TWIST		0x0001	USB GSM/GPRS Modem
+
 /* FEIYA products */
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
 
@@ -1789,8 +1792,8 @@ product HTC LEGENDINTERNET	0x0ffe	HTC Legend Internet Sharing
 
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
-product HUAWEI E220		0x1003	Huawei HSDPA modem
-product HUAWEI E220BIS		0x1004	Huawei HSDPA modem
+product HUAWEI E220		0x1003	HSDPA modem
+product HUAWEI E220BIS		0x1004	HSDPA modem
 product HUAWEI E1401		0x1401	3G modem
 product HUAWEI E1402		0x1402	3G modem
 product HUAWEI E1403		0x1403	3G modem
@@ -1802,7 +1805,7 @@ product HUAWEI E1408		0x1408	3G modem
 product HUAWEI E1409		0x1409	3G modem
 product HUAWEI E140A		0x140a	3G modem
 product HUAWEI E140B		0x140b	3G modem
-product HUAWEI E180V		0x140c	Huawei Mobile E180V
+product HUAWEI E180V		0x140c	E180V
 product HUAWEI E140D		0x140d	3G modem
 product HUAWEI E140E		0x140e	3G modem
 product HUAWEI E140F		0x140f	3G modem
@@ -1856,8 +1859,8 @@ product HUAWEI E143E		0x143e	3G modem
 product HUAWEI E143F		0x143f	3G modem
 product HUAWEI E1752		0x1446	3G modem
 product HUAWEI K3765		0x1465	3G modem
-product HUAWEI E14AC		0x14ac	3G modem
-product HUAWEI K3765_INIT	0x1520	HUAWEI Mobile K3765 Initial
+product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
+product HUAWEI K3765_INIT	0x1520	K3765 Initial
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -2137,6 +2140,7 @@ product MELCO SG54HG		0x00f4	WLI-U2-SG54HG
 product MELCO WLRUCG		0x0116	WLR-UC-G
 product MELCO WLRUCGAOSS	0x0119	WLR-UC-G-AOSS
 product MELCO WLIUCAG300N	0x012e	WLI-UC-AG300N
+product MELCO WLIUCG		0x0137	WLI-UC-G
 product MELCO RT2870_1		0x0148	RT2870
 product MELCO RT2870_2		0x0150	RT2870
 product MELCO WLIUCGN		0x015d	WLI-UC-GN

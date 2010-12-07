@@ -45,7 +45,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	e_expf.c e_fmod.c e_fmodf.c e_gamma.c e_gamma_r.c e_gammaf.c \
 	e_gammaf_r.c e_hypot.c e_hypotf.c e_j0.c e_j0f.c e_j1.c e_j1f.c \
 	e_jn.c e_jnf.c e_lgamma.c e_lgamma_r.c e_lgammaf.c e_lgammaf_r.c \
-	e_log.c e_log10.c e_log10f.c e_logf.c e_pow.c e_powf.c e_rem_pio2.c \
+	e_log.c e_log10.c e_log10f.c e_log2.c e_log2f.c e_logf.c \
+	e_pow.c e_powf.c e_rem_pio2.c \
 	e_rem_pio2f.c e_remainder.c e_remainderf.c e_scalb.c e_scalbf.c \
 	e_sinh.c e_sinhf.c e_sqrt.c e_sqrtf.c fenv.c \
 	k_cos.c k_cosf.c k_rem_pio2.c k_sin.c k_sinf.c \
@@ -113,6 +114,12 @@ COMMON_SRCS:=  ${COMMON_SRCS:N${i:R}.c}
 .endfor
 .endif
 
+# Some files need certain gcc built-in functions to be disabled, since gcc's
+# model of the functions bogusly assumes -fno-trapping-math.
+XRINT_CFLAGS=	-fno-builtin-rint -fno-builtin-rintf -fno-builtin-rintl
+CFLAGS+=	${XRINT_CFLAGS}
+XRINT_CFLAGS:=	${.IMPSRC:M*/s_nearbyint.c:C/^.+$/${XRINT_CFLAGS}/:C/^$//}
+
 SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 
 INCS=	fenv.h math.h
@@ -169,7 +176,7 @@ MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
 MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 \
 	lgamma.3 tgamma.3 lgamma.3 tgammaf.3
-MLINKS+=log.3 log10.3 log.3 log10f.3 log.3 log1p.3 log.3 log1pf.3 log.3 logf.3
+MLINKS+=log.3 log10.3 log.3 log10f.3 log.3 log1p.3 log.3 log1pf.3 log.3 logf.3 log.3 log2.3 log.3 log2f.3
 MLINKS+=lrint.3 llrint.3 lrint.3 llrintf.3 lrint.3 llrintl.3 \
 	lrint.3 lrintf.3 lrint.3 lrintl.3
 MLINKS+=lround.3 llround.3 lround.3 llroundf.3 lround.3 llroundl.3 \

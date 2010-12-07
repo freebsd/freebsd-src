@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2010
+.Dd December 3, 2010
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1593,12 +1593,7 @@ To include a
 .Ql - ,
 make it the first or last character listed.
 .Ss Built-in Commands
-This section lists the commands which
-are built-in because they need to perform some operation
-that cannot be performed by a separate process.
-In addition to
-these, built-in versions of essential utilities
-are provided for efficiency.
+This section lists the built-in commands.
 .Bl -tag -width indent
 .It Ic \&:
 A null command that returns a 0 (true) exit value.
@@ -1649,15 +1644,19 @@ subsection.
 Continue the specified jobs
 (or the current job if no jobs are given)
 in the background.
+.It Ic bind Oo Fl aeklrsv Oc Oo Ar key Oo Ar command Oc Oc
+List or alter key bindings for the line editor.
+This command is documented in
+.Xr editrc 5 .
+.It Ic break Op Ar num
+See the
+.Sx Flow-Control Constructs
+subsection.
 .It Ic builtin Ar cmd Op Ar arg ...
 Execute the specified built-in command,
 .Ar cmd .
 This is useful when the user wishes to override a shell function
 with the same name as a built-in command.
-.It Ic bind Oo Fl aeklrsv Oc Oo Ar key Oo Ar command Oc Oc
-List or alter key bindings for the line editor.
-This command is documented in
-.Xr editrc 5 .
 .It Ic cd Oo Fl L | P Oc Op Ar directory
 Switch to the specified
 .Ar directory ,
@@ -1712,7 +1711,8 @@ A synonym for the
 .Ic cd
 built-in command.
 .It Ic command Oo Fl p Oc Op Ar utility Op Ar argument ...
-.It Ic command Oo Fl v | V Oc Op Ar utility
+.It Ic command Oo Fl p Oc Fl v Ar utility
+.It Ic command Oo Fl p Oc Fl V Ar utility
 The first form of invocation executes the specified
 .Ar utility ,
 ignoring shell functions in the search.
@@ -1758,6 +1758,10 @@ a shell keyword
 or
 an alias for
 .Ar value .
+.It Ic continue Op Ar num
+See the
+.Sx Flow-Control Constructs
+subsection.
 .It Ic echo Oo Fl e | n Oc Op Ar string ...
 Print a space-separated list of the arguments to the standard output
 and append a newline character.

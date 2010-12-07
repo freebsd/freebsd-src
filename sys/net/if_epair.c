@@ -78,7 +78,7 @@ SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW, 0, "epair sysctl");
 
 #ifdef EPAIR_DEBUG
 static int epair_debug = 0;
-SYSCTL_XINT(_net_link_epair, OID_AUTO, epair_debug, CTLFLAG_RW,
+SYSCTL_INT(_net_link_epair, OID_AUTO, epair_debug, CTLFLAG_RW,
     &epair_debug, 0, "if_epair(4) debugging.");
 #define	DPRINTF(fmt, arg...)						\
 	if (epair_debug)						\
@@ -305,7 +305,7 @@ epair_nh_drainedcpu(u_int cpuid)
 
 		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
 			/* Our "hw"q overflew again. */
-			epair_dpcpu->epair_drv_flags |= IFF_DRV_OACTIVE
+			epair_dpcpu->epair_drv_flags |= IFF_DRV_OACTIVE;
 			DPRINTF("hw queue length overflow at %u\n",
 			    epair_nh.nh_qlimit);
 			break;

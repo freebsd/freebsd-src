@@ -113,20 +113,20 @@
  */
 
 VNET_DEFINE(u_int32_t, key_debug_level) = 0;
-STATIC_VNET_DEFINE(u_int, key_spi_trycnt) = 1000;
-STATIC_VNET_DEFINE(u_int32_t, key_spi_minval) = 0x100;
-STATIC_VNET_DEFINE(u_int32_t, key_spi_maxval) = 0x0fffffff;	/* XXX */
-STATIC_VNET_DEFINE(u_int32_t, policy_id) = 0;
+static VNET_DEFINE(u_int, key_spi_trycnt) = 1000;
+static VNET_DEFINE(u_int32_t, key_spi_minval) = 0x100;
+static VNET_DEFINE(u_int32_t, key_spi_maxval) = 0x0fffffff;	/* XXX */
+static VNET_DEFINE(u_int32_t, policy_id) = 0;
 /*interval to initialize randseed,1(m)*/
-STATIC_VNET_DEFINE(u_int, key_int_random) = 60;
+static VNET_DEFINE(u_int, key_int_random) = 60;
 /* interval to expire acquiring, 30(s)*/
-STATIC_VNET_DEFINE(u_int, key_larval_lifetime) = 30;
+static VNET_DEFINE(u_int, key_larval_lifetime) = 30;
 /* counter for blocking SADB_ACQUIRE.*/
-STATIC_VNET_DEFINE(int, key_blockacq_count) = 10;
+static VNET_DEFINE(int, key_blockacq_count) = 10;
 /* lifetime for blocking SADB_ACQUIRE.*/
-STATIC_VNET_DEFINE(int, key_blockacq_lifetime) = 20;
+static VNET_DEFINE(int, key_blockacq_lifetime) = 20;
 /* preferred old sa rather than new sa.*/
-STATIC_VNET_DEFINE(int, key_preferred_oldsa) = 1;
+static VNET_DEFINE(int, key_preferred_oldsa) = 1;
 #define	V_key_spi_trycnt	VNET(key_spi_trycnt)
 #define	V_key_spi_minval	VNET(key_spi_minval)
 #define	V_key_spi_maxval	VNET(key_spi_maxval)
@@ -137,11 +137,11 @@ STATIC_VNET_DEFINE(int, key_preferred_oldsa) = 1;
 #define	V_key_blockacq_lifetime	VNET(key_blockacq_lifetime)
 #define	V_key_preferred_oldsa	VNET(key_preferred_oldsa)
 
-STATIC_VNET_DEFINE(u_int32_t, acq_seq) = 0;
+static VNET_DEFINE(u_int32_t, acq_seq) = 0;
 #define	V_acq_seq		VNET(acq_seq)
 
 								/* SPD */
-STATIC_VNET_DEFINE(LIST_HEAD(_sptree, secpolicy), sptree[IPSEC_DIR_MAX]);
+static VNET_DEFINE(LIST_HEAD(_sptree, secpolicy), sptree[IPSEC_DIR_MAX]);
 #define	V_sptree		VNET(sptree)
 static struct mtx sptree_lock;
 #define	SPTREE_LOCK_INIT() \
@@ -152,7 +152,7 @@ static struct mtx sptree_lock;
 #define	SPTREE_UNLOCK()	mtx_unlock(&sptree_lock)
 #define	SPTREE_LOCK_ASSERT()	mtx_assert(&sptree_lock, MA_OWNED)
 
-STATIC_VNET_DEFINE(LIST_HEAD(_sahtree, secashead), sahtree);	/* SAD */
+static VNET_DEFINE(LIST_HEAD(_sahtree, secashead), sahtree);	/* SAD */
 #define	V_sahtree		VNET(sahtree)
 static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK_INIT() \
@@ -164,7 +164,7 @@ static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK_ASSERT()	mtx_assert(&sahtree_lock, MA_OWNED)
 
 							/* registed list */
-STATIC_VNET_DEFINE(LIST_HEAD(_regtree, secreg), regtree[SADB_SATYPE_MAX + 1]);
+static VNET_DEFINE(LIST_HEAD(_regtree, secreg), regtree[SADB_SATYPE_MAX + 1]);
 #define	V_regtree		VNET(regtree)
 static struct mtx regtree_lock;
 #define	REGTREE_LOCK_INIT() \
@@ -174,7 +174,7 @@ static struct mtx regtree_lock;
 #define	REGTREE_UNLOCK()	mtx_unlock(&regtree_lock)
 #define	REGTREE_LOCK_ASSERT()	mtx_assert(&regtree_lock, MA_OWNED)
 
-STATIC_VNET_DEFINE(LIST_HEAD(_acqtree, secacq), acqtree); /* acquiring list */
+static VNET_DEFINE(LIST_HEAD(_acqtree, secacq), acqtree); /* acquiring list */
 #define	V_acqtree		VNET(acqtree)
 static struct mtx acq_lock;
 #define	ACQ_LOCK_INIT() \
@@ -185,7 +185,7 @@ static struct mtx acq_lock;
 #define	ACQ_LOCK_ASSERT()	mtx_assert(&acq_lock, MA_OWNED)
 
 							/* SP acquiring list */
-STATIC_VNET_DEFINE(LIST_HEAD(_spacqtree, secspacq), spacqtree);
+static VNET_DEFINE(LIST_HEAD(_spacqtree, secspacq), spacqtree);
 #define	V_spacqtree		VNET(spacqtree)
 static struct mtx spacq_lock;
 #define	SPACQ_LOCK_INIT() \
@@ -269,9 +269,9 @@ static const int maxsize[] = {
 	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
 };
 
-STATIC_VNET_DEFINE(int, ipsec_esp_keymin) = 256;
-STATIC_VNET_DEFINE(int, ipsec_esp_auth) = 0;
-STATIC_VNET_DEFINE(int, ipsec_ah_keymin) = 128;
+static VNET_DEFINE(int, ipsec_esp_keymin) = 256;
+static VNET_DEFINE(int, ipsec_esp_auth) = 0;
+static VNET_DEFINE(int, ipsec_ah_keymin) = 128;
 
 #define	V_ipsec_esp_keymin	VNET(ipsec_esp_keymin)
 #define	V_ipsec_esp_auth	VNET(ipsec_esp_auth)

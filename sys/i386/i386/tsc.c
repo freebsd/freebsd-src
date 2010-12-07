@@ -174,6 +174,9 @@ tsc_levels_changed(void *arg, int unit)
 	int count, error;
 	uint64_t max_freq;
 
+	if (tsc_is_invariant)
+		return;
+
 	/* Only use values from the first CPU, assuming all are equal. */
 	if (unit != 0)
 		return;

@@ -322,7 +322,7 @@ mps_user_write_cfg_page(struct mps_softc *sc,
 	return (0);
 }
 
-static void
+void
 mpi_init_sge(struct mps_command *cm, void *req, void *sge)
 {
 	int off, space;

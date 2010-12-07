@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.259.12.3 2009/01/29 22:40:33 jinmei Exp $ */
+/* $Id: client.c,v 1.259.12.3.24.2 2010/09/29 23:46:31 tbox Exp $ */
 
 #include <config.h>
 
@@ -1859,13 +1859,13 @@ client_request(isc_task_t *task, isc_event_t *event) {
 				     client->view->recursionacl,
 				     ISC_TRUE) == ISC_R_SUCCESS &&
 	    ns_client_checkaclsilent(client, NULL,
-				     client->view->queryacl,
+				     client->view->cacheacl,
 				     ISC_TRUE) == ISC_R_SUCCESS &&
 	    ns_client_checkaclsilent(client, &client->interface->addr,
 				     client->view->recursiononacl,
 				     ISC_TRUE) == ISC_R_SUCCESS &&
 	    ns_client_checkaclsilent(client, &client->interface->addr,
-				     client->view->queryonacl,
+				     client->view->cacheonacl,
 				     ISC_TRUE) == ISC_R_SUCCESS)
 		ra = ISC_TRUE;
 

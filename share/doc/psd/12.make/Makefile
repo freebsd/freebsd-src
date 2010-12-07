@@ -4,6 +4,5 @@
 VOLUME=	psd/12.make
 SRCS=	stubs tutorial.ms
 MACROS=	-ms
-SRCDIR=	${.CURDIR}/../../../../usr.bin/make/PSD.doc
 
 .include <bsd.doc.mk>

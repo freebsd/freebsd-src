@@ -492,7 +492,6 @@ sigreturn(td, uap)
 #endif
 
 	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);
 }
@@ -876,6 +875,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
+	td->td_retval[1] = 0;
 
 	/*
 	 * Reset the hardware debug registers if they were in use.
@@ -1906,8 +1906,8 @@ set_regs(struct thread *td, struct reg *regs)
 		tp->tf_fs = regs->r_fs;
 		tp->tf_gs = regs->r_gs;
 		tp->tf_flags = TF_HASSEGS;
+		td->td_pcb->pcb_full_iret = 1;
 	}
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	return (0);
 }
 
@@ -1975,6 +1975,9 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	    ("not suspended thread %p", td));
+	fpugetregs(td);
 	fill_fpregs_xmm(&td->td_pcb->pcb_user_save, fpregs);
 	return (0);
 }
@@ -1985,6 +1988,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
 	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_user_save);
+	fpuuserinited(td);
 	return (0);
 }
 
@@ -2090,7 +2094,6 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		td->td_pcb->pcb_fsbase = mcp->mc_fsbase;
 		td->td_pcb->pcb_gsbase = mcp->mc_gsbase;
 	}
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }
@@ -2099,8 +2102,9 @@ static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
 
-	mcp->mc_ownedfp = fpugetuserregs(td,
-	    (struct savefpu *)&mcp->mc_fpstate);
+	mcp->mc_ownedfp = fpugetregs(td);
+	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
 }
 
@@ -2120,7 +2124,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
 		fpstate = (struct savefpu *)&mcp->mc_fpstate;
 		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
-		fpusetuserregs(td, fpstate);
+		fpusetregs(td, fpstate);
 	} else
 		return (EINVAL);
 	return (0);

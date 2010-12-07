@@ -974,7 +974,7 @@ alc_attach(device_t dev)
 	/* Set up MII bus. */
 	error = mii_attach(dev, &sc->alc_miibus, ifp, alc_mediachange,
 	    alc_mediastatus, BMSR_DEFCAPMASK, sc->alc_phyaddr, MII_OFFSET_ANY,
-	    0);
+	    MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -2475,12 +2475,10 @@ alc_mac_config(struct alc_softc *sc)
 	}
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		reg |= MAC_CFG_FULL_DUPLEX;
-#ifdef notyet
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
 			reg |= MAC_CFG_TX_FC;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
 			reg |= MAC_CFG_RX_FC;
-#endif
 	}
 	CSR_WRITE_4(sc, ALC_MAC_CFG, reg);
 }

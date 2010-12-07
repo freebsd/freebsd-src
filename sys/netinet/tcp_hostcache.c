@@ -106,10 +106,10 @@ __FBSDID("$FreeBSD$");
 #define TCP_HOSTCACHE_EXPIRE		60*60	/* one hour */
 #define TCP_HOSTCACHE_PRUNE		5*60	/* every 5 minutes */
 
-STATIC_VNET_DEFINE(struct tcp_hostcache, tcp_hostcache);
+static VNET_DEFINE(struct tcp_hostcache, tcp_hostcache);
 #define	V_tcp_hostcache		VNET(tcp_hostcache)
 
-STATIC_VNET_DEFINE(struct callout, tcp_hc_callout);
+static VNET_DEFINE(struct callout, tcp_hc_callout);
 #define	V_tcp_hc_callout	VNET(tcp_hc_callout)
 
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);

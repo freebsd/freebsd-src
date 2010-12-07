@@ -213,7 +213,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->ref_count = 1;
 	object->memattr = VM_MEMATTR_DEFAULT;
 	object->flags = 0;
-	object->uip = NULL;
+	object->cred = NULL;
 	object->charge = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		object->flags = OBJ_ONEMAPPING;
@@ -634,15 +634,15 @@ vm_object_destroy(vm_object_t object)
 	/*
 	 * Release the allocation charge.
 	 */
-	if (object->uip != NULL) {
+	if (object->cred != NULL) {
 		KASSERT(object->type == OBJT_DEFAULT ||
 		    object->type == OBJT_SWAP,
-		    ("vm_object_terminate: non-swap obj %p has uip",
+		    ("vm_object_terminate: non-swap obj %p has cred",
 		     object));
-		swap_release_by_uid(object->charge, object->uip);
+		swap_release_by_cred(object->charge, object->cred);
 		object->charge = 0;
-		uifree(object->uip);
-		object->uip = NULL;
+		crfree(object->cred);
+		object->cred = NULL;
 	}
 
 	/*
@@ -661,7 +661,7 @@ vm_object_destroy(vm_object_t object)
 void
 vm_object_terminate(vm_object_t object)
 {
-	vm_page_t p;
+	vm_page_t p, p_next;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
@@ -701,21 +701,40 @@ vm_object_terminate(vm_object_t object)
 		object->ref_count));
 
 	/*
-	 * Now free any remaining pages. For internal objects, this also
-	 * removes them from paging queues. Don't free wired pages, just
-	 * remove them from the object. 
+	 * Free any remaining pageable pages.  This also removes them from the
+	 * paging queues.  However, don't free wired pages, just remove them
+	 * from the object.  Rather than incrementally removing each page from
+	 * the object, the page and object are reset to any empty state. 
 	 */
-	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
+	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
 		KASSERT(!p->busy && (p->oflags & VPO_BUSY) == 0,
-			("vm_object_terminate: freeing busy page %p "
-			"p->busy = %d, p->oflags %x\n", p, p->busy, p->oflags));
+		    ("vm_object_terminate: freeing busy page %p", p));
 		vm_page_lock(p);
+		/*
+		 * Optimize the page's removal from the object by resetting
+		 * its "object" field.  Specifically, if the page is not
+		 * wired, then the effect of this assignment is that
+		 * vm_page_free()'s call to vm_page_remove() will return
+		 * immediately without modifying the page or the object.
+		 */ 
+		p->object = NULL;
 		if (p->wire_count == 0) {
 			vm_page_free(p);
 			PCPU_INC(cnt.v_pfree);
-		} else
-			vm_page_remove(p);
+		}
 		vm_page_unlock(p);
+	}
+	/*
+	 * If the object contained any pages, then reset it to an empty state.
+	 * None of the object's fields, including "resident_page_count", were
+	 * modified by the preceding loop.
+	 */
+	if (object->resident_page_count != 0) {
+		object->root = NULL;
+		TAILQ_INIT(&object->memq);
+		object->resident_page_count = 0;
+		if (object->type == OBJT_VNODE)
+			vdrop(object->handle);
 	}
 
 #if VM_NRESERVLEVEL > 0
@@ -802,9 +821,11 @@ rescan:
 		np = TAILQ_NEXT(p, listq);
 		if (p->valid == 0)
 			continue;
-		while (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
+		if (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
 			if (object->generation != curgeneration)
 				goto rescan;
+			np = vm_page_find_least(object, pi);
+			continue;
 		}
 		vm_page_test_dirty(p);
 		if (p->dirty == 0)
@@ -820,7 +841,6 @@ rescan:
 			continue;
 
 		n = vm_object_page_collect_flush(object, p, pagerflags);
-		KASSERT(n > 0, ("vm_object_page_collect_flush failed"));
 		if (object->generation != curgeneration)
 			goto rescan;
 		np = vm_page_find_least(object, pi + n);
@@ -835,57 +855,40 @@ rescan:
 static int
 vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags)
 {
-	int runlen;
-	int maxf;
-	int chkb;
-	int maxb;
-	int i, index;
-	vm_pindex_t pi;
-	vm_page_t maf[vm_pageout_page_count];
-	vm_page_t mab[vm_pageout_page_count];
-	vm_page_t ma[vm_pageout_page_count];
-	vm_page_t tp, p1;
+	vm_page_t ma[vm_pageout_page_count], p_first, tp;
+	int count, i, mreq, runlen;
 
 	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	vm_page_lock_assert(p, MA_NOTOWNED);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	pi = p->pindex;
-	maxf = 0;
-	for (i = 1, p1 = p; i < vm_pageout_page_count; i++) {
-		tp = vm_page_next(p1);
+
+	count = 1;
+	mreq = 0;
+
+	for (tp = p; count < vm_pageout_page_count; count++) {
+		tp = vm_page_next(tp);
 		if (tp == NULL || tp->busy != 0 || (tp->oflags & VPO_BUSY) != 0)
 			break;
 		vm_page_test_dirty(tp);
 		if (tp->dirty == 0)
 			break;
-		maf[i - 1] = p1 = tp;
-		maxf++;
 	}
 
-	maxb = 0;
-	chkb = vm_pageout_page_count -  maxf;
-	for (i = 1, p1 = p; i < chkb; i++) {
-		tp = vm_page_prev(p1);
+	for (p_first = p; count < vm_pageout_page_count; count++) {
+		tp = vm_page_prev(p_first);
 		if (tp == NULL || tp->busy != 0 || (tp->oflags & VPO_BUSY) != 0)
 			break;
 		vm_page_test_dirty(tp);
 		if (tp->dirty == 0)
 			break;
-		mab[i - 1] = p1 = tp;
-		maxb++;
+		p_first = tp;
+		mreq++;
 	}
 
-	for (i = 0; i < maxb; i++) {
-		index = (maxb - i) - 1;
-		ma[index] = mab[i];
-	}
-	ma[maxb] = p;
-	for (i = 0; i < maxf; i++) {
-		index = (maxb + i) + 1;
-		ma[index] = maf[i];
-	}
+	for (tp = p_first, i = 0; i < count; tp = TAILQ_NEXT(tp, listq), i++)
+		ma[i] = tp;
 
-	vm_pageout_flush(ma, maxb + maxf + 1, pagerflags, maxb + 1, &runlen);
+	vm_pageout_flush(ma, count, pagerflags, mreq, &runlen);
 	return (runlen);
 }
 
@@ -1244,9 +1247,9 @@ vm_object_split(vm_map_entry_t entry)
 			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
 	}
-	if (orig_object->uip != NULL) {
-		new_object->uip = orig_object->uip;
-		uihold(orig_object->uip);
+	if (orig_object->cred != NULL) {
+		new_object->cred = orig_object->cred;
+		crhold(orig_object->cred);
 		new_object->charge = ptoa(size);
 		KASSERT(orig_object->charge >= ptoa(size),
 		    ("orig_object->charge < 0"));
@@ -1925,20 +1928,20 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	/*
 	 * Account for the charge.
 	 */
-	if (prev_object->uip != NULL) {
+	if (prev_object->cred != NULL) {
 
 		/*
 		 * If prev_object was charged, then this mapping,
 		 * althought not charged now, may become writable
-		 * later. Non-NULL uip in the object would prevent
+		 * later. Non-NULL cred in the object would prevent
 		 * swap reservation during enabling of the write
 		 * access, so reserve swap now. Failed reservation
 		 * cause allocation of the separate object for the map
 		 * entry, and swap reservation for this entry is
 		 * managed in appropriate time.
 		 */
-		if (!reserved && !swap_reserve_by_uid(ptoa(next_size),
-		    prev_object->uip)) {
+		if (!reserved && !swap_reserve_by_cred(ptoa(next_size),
+		    prev_object->cred)) {
 			return (FALSE);
 		}
 		prev_object->charge += ptoa(next_size);
@@ -1956,7 +1959,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 			swap_pager_freespace(prev_object,
 					     next_pindex, next_size);
 #if 0
-		if (prev_object->uip != NULL) {
+		if (prev_object->cred != NULL) {
 			KASSERT(prev_object->charge >=
 			    ptoa(prev_object->size - next_pindex),
 			    ("object %p overcharged 1 %jx %jx", prev_object,
@@ -2108,10 +2111,10 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 		return;
 
 	db_iprintf(
-	    "Object %p: type=%d, size=0x%jx, res=%d, ref=%d, flags=0x%x uip %d charge %jx\n",
+	    "Object %p: type=%d, size=0x%jx, res=%d, ref=%d, flags=0x%x ruid %d charge %jx\n",
 	    object, (int)object->type, (uintmax_t)object->size,
 	    object->resident_page_count, object->ref_count, object->flags,
-	    object->uip ? object->uip->ui_uid : -1, (uintmax_t)object->charge);
+	    object->cred ? object->cred->cr_ruid : -1, (uintmax_t)object->charge);
 	db_iprintf(" sref=%d, backing_object(%d)=(%p)+0x%jx\n",
 	    object->shadow_count, 
 	    object->backing_object ? object->backing_object->ref_count : 0,

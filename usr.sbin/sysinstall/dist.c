@@ -757,6 +757,9 @@ distExtract(char *parent, Distribution *me)
 			canceled = 1;	
 
 		    status = FALSE;
+		} else {
+			// ignore any failures with DIST_LOCAL
+			status = TRUE;
 		}
 	    }
 	    break;
@@ -913,7 +916,7 @@ distExtractAll(dialogMenuItem *self)
     restorescr(w);
 
     if (extract_status == FALSE)
-	status = DITEM_FAILURE;
+	status = FALSE;
 
     return status;
 }

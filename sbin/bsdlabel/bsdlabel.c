@@ -370,10 +370,12 @@ readboot(void)
 		p[60] = (st.st_size + secsize - 1) / secsize;
 		p[61] = 1;
 		p[62] = 0;
+		close(fd);
 		return;
 	} else if ((!alphacksum) && st.st_size <= BBSIZE) {
 		if (read(fd, bootarea, st.st_size) != st.st_size)
 			err(1, "read error %s", xxboot);
+		close(fd);
 		return;
 	}
 	errx(1, "boot code %s is wrong size", xxboot);
@@ -515,7 +517,7 @@ readlabel(int flag)
 
 	f = open(specname, O_RDONLY);
 	if (f < 0)
-		err(1, specname);
+		err(1, "%s", specname);
 	if (is_file)
 		get_file_parms(f);
 	else {
