@@ -105,7 +105,10 @@ acl_from_aces(struct acl *aclp, const ace_t *aces, int nentries)
 	struct acl_entry *entry;
 	const ace_t *ace;
 
-	KASSERT(nentries >= 1, ("empty ZFS ACL"));
+	if (nentries < 1) {
+		printf("acl_from_aces: empty ZFS ACL; returning EINVAL.\n");
+		return (EINVAL);
+	}
 
 	if (nentries > ACL_MAX_ENTRIES) {
 		/*
