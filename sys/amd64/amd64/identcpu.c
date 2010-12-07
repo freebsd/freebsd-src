@@ -437,10 +437,8 @@ panicifcpuunsupported(void)
 static void
 tsc_freq_changed(void *arg __unused, const struct cf_level *level, int status)
 {
-	/*
-	 * If there was an error during the transition or
-	 * TSC is P-state invariant, don't do anything.
-	 */
+
+	/* If there was an error during the transition, don't do anything. */
 	if (status != 0)
 		return;
 
