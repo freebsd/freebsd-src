@@ -520,8 +520,9 @@ ichwd_attach(device_t dev)
 	    device_get_desc(dev), sc->ich_version);
 
 	/*
-	 * Determine if we are coming up after a watchdog-induced reset.
-	 * This bit is cleared in ichwd_sts_reset().
+	 * Determine if we are coming up after a watchdog-induced reset.  Some
+	 * BIOSes may clear this bit at bootup, preventing us from reporting
+	 * this case on such systems.  We clear this bit in ichwd_sts_reset().
 	 */
 	if ((ichwd_read_tco_2(sc, TCO2_STS) & TCO_SECOND_TO_STS) != 0)
 		device_printf(dev,
