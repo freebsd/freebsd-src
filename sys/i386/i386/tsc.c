@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/power.h>
 #include <sys/smp.h>
 #include <machine/clock.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -102,6 +103,28 @@ init_TSC(void)
 	tsc_freq = tscval[1] - tscval[0];
 	if (bootverbose)
 		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
+
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_AMD:
+		if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+		    CPUID_TO_FAMILY(cpu_id) >= 0x10 || cpu_id == 0x60fb2)
+			tsc_is_invariant = 1;
+		break;
+	case CPU_VENDOR_INTEL:
+		if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+		    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
+		    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
+		    CPUID_TO_MODEL(cpu_id) >= 0x3))
+			tsc_is_invariant = 1;
+		break;
+	case CPU_VENDOR_CENTAUR:
+		if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		    CPUID_TO_MODEL(cpu_id) >= 0xf &&
+		    (rdmsr(0x1203) & 0x100000000ULL) == 0)
+			tsc_is_invariant = 1;
+		break;
+	}
 
 	/*
 	 * Inform CPU accounting about our boot-time clock rate.  Once the
