@@ -50,7 +50,7 @@ __ieee754_log2f(float x)
 	SET_FLOAT_WORD(x,hx|(i^0x3f800000));	/* normalize x or x/2 */
 	k += (i>>23);
 	f = __kernel_logf(x);
-	x = x - 1;
+	x = x - (float)1.0;
 	GET_FLOAT_WORD(hx,x);
 	SET_FLOAT_WORD(hi,hx&0xfffff000);
 	lo = x - hi;
