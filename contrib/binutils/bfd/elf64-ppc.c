@@ -9753,6 +9753,9 @@ ppc64_elf_action_discarded (asection *sec)
   if (strcmp (".got", sec->name) == 0)
     return 0;
 
+  if (strcmp (".got1", sec->name) == 0)
+    return 0;
+
   return _bfd_elf_default_action_discarded (sec);
 }
 
