@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(BUILTIN) && !defined(SHELL)
+#ifndef SHELL
 #ifndef lint
 static char const copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
@@ -69,9 +69,7 @@ static const char rcsid[] =
 #define	warnx3(a, b, c)		warnx(a, b, c)
 #endif
 
-#ifndef BUILTIN
 #include <locale.h>
-#endif
 
 #define PF(f, func) do { \
 	char *b = NULL; \
@@ -105,17 +103,13 @@ static void	 usage(void);
 static char **gargv;
 
 int
-#ifdef BUILTIN
-progprintf(int argc, char *argv[])
-#else
 main(int argc, char *argv[])
-#endif
 {
 	size_t len;
 	int ch, chopped, end, rval;
 	char *format, *fmt, *start;
 
-#if !defined(BUILTIN) && !defined(SHELL)
+#ifndef SHELL
 	(void) setlocale(LC_NUMERIC, "");
 #endif
 #ifdef SHELL
