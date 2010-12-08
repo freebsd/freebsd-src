@@ -50,7 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
+#ifdef __i386__
+#define MAX_BPAGES 512
+#else
 #define MAX_BPAGES 8192
+#endif
 #define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
 #define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
 
