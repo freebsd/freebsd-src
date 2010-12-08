@@ -1306,6 +1306,7 @@ const char *msgtypes[] = {
 	"RTM_NEWMADDR: new multicast group membership on iface",
 	"RTM_DELMADDR: multicast group membership removed from iface",
 	"RTM_IFANNOUNCE: interface arrival/departure",
+	"RTM_IEEE80211: IEEE 802.11 wireless event",
 	0,
 };
 
