@@ -31,6 +31,7 @@
  * TrapSinkTable
  */
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
 #include <stdio.h>

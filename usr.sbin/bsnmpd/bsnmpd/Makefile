@@ -2,6 +2,8 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
+.include <bsd.own.mk>
+
 CONTRIB=${.CURDIR}/../../../contrib/bsnmp
 .PATH: ${CONTRIB}/snmpd
 
@@ -11,7 +13,7 @@ SRCS+=	oid.h tree.c tree.h
 XSYM=	snmpMIB begemotSnmpdModuleTable begemotSnmpd begemotTrapSinkTable \
 	sysUpTime snmpTrapOID coldStart authenticationFailure \
 	begemotSnmpdTransUdp begemotSnmpdTransLsock begemotSnmpdLocalPortTable \
-	freeBSDVersion
+	freeBSD freeBSDVersion
 CLEANFILES= oid.h tree.c tree.h
 MAN=	bsnmpd.1 snmpmod.3
 NO_WERROR=
@@ -30,6 +32,10 @@ DPADD=	${LIBBEGEMOT} ${LIBBSNMP} ${LIBWRAP}
 LDADD=	-lbegemot -lbsnmp -lwrap
 
 LDFLAGS= -export-dynamic
+
+.if ${MK_OPENSSL} != "no"
+CFLAGS+= -DHAVE_LIBCRYPTO
+.endif
 
 oid.h: tree.def Makefile
 	gensnmptree -e ${XSYM} < ${.ALLSRC:M*.def} > ${.TARGET}
