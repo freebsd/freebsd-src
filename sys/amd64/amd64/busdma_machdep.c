@@ -141,6 +141,11 @@ int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 int _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
     void *buf, bus_size_t buflen, int flags);
 
+#ifdef XEN
+#undef pmap_kextract
+#define pmap_kextract pmap_kextract_ma
+#endif
+
 /*
  * Return true if a match is made.
  *
