@@ -48,11 +48,13 @@
 
 static int read_efi_label(nvlist_t *config, diskaddr_t *sb);
 
+#ifdef sun
 #if defined(__i386) || defined(__amd64)
 #define	BOOTCMD	"installgrub(1M)"
 #else
 #define	BOOTCMD	"installboot(1M)"
 #endif
+#endif	/* sun */
 
 /*
  * ====================================================================
@@ -1888,6 +1890,7 @@ zpool_vdev_attach(zpool_handle_t *zhp,
 	zcmd_free_nvlists(&zc);
 
 	if (ret == 0) {
+#ifdef sun
 		if (rootpool) {
 			/*
 			 * XXX - This should be removed once we can
@@ -1898,6 +1901,7 @@ zpool_vdev_attach(zpool_handle_t *zhp,
 			    "be sure to invoke %s to make '%s' bootable.\n"),
 			    BOOTCMD, new_disk);
 		}
+#endif	/* sun */
 		return (0);
 	}
 
