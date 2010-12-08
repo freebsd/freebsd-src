@@ -288,30 +288,23 @@ static __inline void
 ichwd_tmr_set(struct ichwd_softc *sc, unsigned int timeout)
 {
 
-	/*
-	 * If the datasheets are to be believed, the minimum value
-	 * actually varies from chipset to chipset - 4 for ICH5 and 2 for
-	 * all other chipsets.  I suspect this is a bug in the ICH5
-	 * datasheet and that the minimum is uniformly 2, but I'd rather
-	 * err on the side of caution.
-	 */
-	if (timeout < 4)
-		timeout = 4;
+	if (timeout < TCO_RLD_TMR_MIN)
+		timeout = TCO_RLD_TMR_MIN;
 
 	if (sc->ich_version <= 5) {
 		uint8_t tmr_val8 = ichwd_read_tco_1(sc, TCO_TMR1);
 
-		tmr_val8 &= 0xc0;
-		if (timeout > 0x3f)
-			timeout = 0x3f;
+		tmr_val8 &= (~TCO_RLD1_TMR_MAX & 0xff);
+		if (timeout > TCO_RLD1_TMR_MAX)
+			timeout = TCO_RLD1_TMR_MAX;
 		tmr_val8 |= timeout;
 		ichwd_write_tco_1(sc, TCO_TMR1, tmr_val8);
 	} else {
 		uint16_t tmr_val16 = ichwd_read_tco_2(sc, TCO_TMR2);
 
-		tmr_val16 &= 0xfc00;
-		if (timeout > 0x03ff)
-			timeout = 0x03ff;
+		tmr_val16 &= (~TCO_RLD2_TMR_MAX & 0xffff);
+		if (timeout > TCO_RLD2_TMR_MAX)
+			timeout = TCO_RLD2_TMR_MAX;
 		tmr_val16 |= timeout;
 		ichwd_write_tco_2(sc, TCO_TMR2, tmr_val16);
 	}
