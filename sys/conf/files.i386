@@ -312,7 +312,6 @@ i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
-i386/i386/tsc.c			standard
 i386/i386/uio_machdep.c		standard
 i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
@@ -415,3 +414,4 @@ x86/x86/mptable.c		optional apic native
 x86/x86/mptable_pci.c		optional apic pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
+x86/x86/tsc.c			standard
