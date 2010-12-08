@@ -115,11 +115,11 @@ static void	mask_addr(void);
 static void	monitor(void);
 static const char	*netname(struct sockaddr *);
 static void	newroute(int, char **);
-static void	pmsg_addrs(char *, int);
-static void	pmsg_common(struct rt_msghdr *);
+static void	pmsg_addrs(char *, int, size_t);
+static void	pmsg_common(struct rt_msghdr *, size_t);
 static int	prefixlen(const char *);
 static void	print_getmsg(struct rt_msghdr *, int);
-static void	print_rtmsg(struct rt_msghdr *, int);
+static void	print_rtmsg(struct rt_msghdr *, size_t);
 static const char	*routename(struct sockaddr *);
 static int	rtmsg(int, int);
 static void	set_metric(char *, int);
@@ -1307,7 +1307,6 @@ const char *msgtypes[] = {
 	"RTM_DELMADDR: multicast group membership removed from iface",
 	"RTM_IFANNOUNCE: interface arrival/departure",
 	"RTM_IEEE80211: IEEE 802.11 wireless event",
-	0,
 };
 
 char metricnames[] =
@@ -1325,8 +1324,11 @@ char ifnetflags[] =
 char addrnames[] =
 "\1DST\2GATEWAY\3NETMASK\4GENMASK\5IFP\6IFA\7AUTHOR\010BRD";
 
+static const char errfmt[] =
+"\n%s: truncated route message, only %zu bytes left\n";
+
 static void
-print_rtmsg(struct rt_msghdr *rtm, int msglen __unused)
+print_rtmsg(struct rt_msghdr *rtm, size_t msglen)
 {
 	struct if_msghdr *ifm;
 	struct ifa_msghdr *ifam;
@@ -1343,13 +1345,22 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen __unused)
 		    rtm->rtm_version);
 		return;
 	}
-	if (msgtypes[rtm->rtm_type] != NULL)
+	if (rtm->rtm_type < sizeof(msgtypes) / sizeof(msgtypes[0]))
 		(void)printf("%s: ", msgtypes[rtm->rtm_type]);
 	else
-		(void)printf("#%d: ", rtm->rtm_type);
+		(void)printf("unknown type %d: ", rtm->rtm_type);
 	(void)printf("len %d, ", rtm->rtm_msglen);
+
+#define	REQUIRE(x)	do {		\
+	if (msglen < sizeof(x))		\
+		goto badlen;		\
+	else				\
+		msglen -= sizeof(x);	\
+	} while (0)
+
 	switch (rtm->rtm_type) {
 	case RTM_IFINFO:
+		REQUIRE(struct if_msghdr);
 		ifm = (struct if_msghdr *)rtm;
 		(void) printf("if# %d, ", ifm->ifm_index);
 		switch (ifm->ifm_data.ifi_link_state) {
@@ -1365,23 +1376,26 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen __unused)
 		}
 		(void) printf("link: %s, flags:", state);
 		bprintf(stdout, ifm->ifm_flags, ifnetflags);
-		pmsg_addrs((char *)(ifm + 1), ifm->ifm_addrs);
+		pmsg_addrs((char *)(ifm + 1), ifm->ifm_addrs, msglen);
 		break;
 	case RTM_NEWADDR:
 	case RTM_DELADDR:
+		REQUIRE(struct ifa_msghdr);
 		ifam = (struct ifa_msghdr *)rtm;
 		(void) printf("metric %d, flags:", ifam->ifam_metric);
 		bprintf(stdout, ifam->ifam_flags, routeflags);
-		pmsg_addrs((char *)(ifam + 1), ifam->ifam_addrs);
+		pmsg_addrs((char *)(ifam + 1), ifam->ifam_addrs, msglen);
 		break;
 #ifdef RTM_NEWMADDR
 	case RTM_NEWMADDR:
 	case RTM_DELMADDR:
+		REQUIRE(struct ifma_msghdr);
 		ifmam = (struct ifma_msghdr *)rtm;
-		pmsg_addrs((char *)(ifmam + 1), ifmam->ifmam_addrs);
+		pmsg_addrs((char *)(ifmam + 1), ifmam->ifmam_addrs, msglen);
 		break;
 #endif
 	case RTM_IFANNOUNCE:
+		REQUIRE(struct if_announcemsghdr);
 		ifan = (struct if_announcemsghdr *)rtm;
 		(void) printf("if# %d, what: ", ifan->ifan_index);
 		switch (ifan->ifan_what) {
@@ -1402,8 +1416,14 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen __unused)
 		(void) printf("pid: %ld, seq %d, errno %d, flags:",
 			(long)rtm->rtm_pid, rtm->rtm_seq, rtm->rtm_errno);
 		bprintf(stdout, rtm->rtm_flags, routeflags);
-		pmsg_common(rtm);
+		pmsg_common(rtm, msglen);
 	}
+
+	return;
+
+badlen:
+	(void)printf(errfmt, __func__, msglen);
+#undef	REQUIRE
 }
 
 static void
@@ -1491,7 +1511,7 @@ print_getmsg(struct rt_msghdr *rtm, int msglen)
 #undef msec
 #define	RTA_IGN	(RTA_DST|RTA_GATEWAY|RTA_NETMASK|RTA_IFP|RTA_IFA|RTA_BRD)
 	if (verbose)
-		pmsg_common(rtm);
+		pmsg_common(rtm, msglen);
 	else if (rtm->rtm_addrs &~ RTA_IGN) {
 		(void) printf("sockaddrs: ");
 		bprintf(stdout, rtm->rtm_addrs, addrnames);
@@ -1501,17 +1521,21 @@ print_getmsg(struct rt_msghdr *rtm, int msglen)
 }
 
 static void
-pmsg_common(struct rt_msghdr *rtm)
+pmsg_common(struct rt_msghdr *rtm, size_t msglen)
 {
 	(void) printf("\nlocks: ");
 	bprintf(stdout, rtm->rtm_rmx.rmx_locks, metricnames);
 	(void) printf(" inits: ");
 	bprintf(stdout, rtm->rtm_inits, metricnames);
-	pmsg_addrs(((char *)(rtm + 1)), rtm->rtm_addrs);
+	if (msglen > sizeof(struct rt_msghdr))
+		pmsg_addrs(((char *)(rtm + 1)), rtm->rtm_addrs,
+		    msglen - sizeof(struct rt_msghdr));
+	else
+		(void) fflush(stdout);
 }
 
 static void
-pmsg_addrs(char *cp, int addrs)
+pmsg_addrs(char *cp, int addrs, size_t len)
 {
 	struct sockaddr *sa;
 	int i;
@@ -1526,7 +1550,12 @@ pmsg_addrs(char *cp, int addrs)
 	for (i = 1; i != 0; i <<= 1)
 		if (i & addrs) {
 			sa = (struct sockaddr *)cp;
+			if (len == 0 || len < SA_SIZE(sa)) {
+				(void) printf(errfmt, __func__, len);
+				break;
+			}
 			(void) printf(" %s", routename(sa));
+			len -= SA_SIZE(sa);
 			cp += SA_SIZE(sa);
 		}
 	(void) putchar('\n');
