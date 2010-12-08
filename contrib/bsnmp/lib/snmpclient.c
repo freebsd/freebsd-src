@@ -852,6 +852,9 @@ snmp_client_init(struct snmp_client *c)
 
 	strcpy(c->read_community, "public");
 	strcpy(c->write_community, "private");
+	
+	c->security_model = SNMP_SECMODEL_USM;
+	strcpy(c->cname, "");
 
 	c->timeout.tv_sec = 3;
 	c->timeout.tv_usec = 0;
@@ -864,6 +867,8 @@ snmp_client_init(struct snmp_client *c)
 	c->max_reqid = INT32_MAX;
 	c->min_reqid = 0;
 	c->next_reqid = 0;
+
+	c->engine.max_msg_size = 1500; /* XXX */
 }
 
 
@@ -1132,7 +1137,8 @@ snmp_close(void)
 void
 snmp_pdu_create(struct snmp_pdu *pdu, u_int op)
 {
-	memset(pdu,0,sizeof(struct snmp_pdu));
+	memset(pdu, 0, sizeof(struct snmp_pdu));
+
 	if (op == SNMP_PDU_SET)
 		strlcpy(pdu->community, snmp_client.write_community,
 		    sizeof(pdu->community));
@@ -1145,6 +1151,33 @@ snmp_pdu_create(struct snmp_pdu *pdu, u_int op)
 	pdu->error_status = 0;
 	pdu->error_index = 0;
 	pdu->nbindings = 0;
+
+	if (snmp_client.version != SNMP_V3)
+		return;
+
+	pdu->identifier = ++snmp_client.identifier;
+	pdu->engine.max_msg_size = snmp_client.engine.max_msg_size;
+	pdu->flags = 0;
+	pdu->security_model = snmp_client.security_model;
+
+	if (snmp_client.security_model == SNMP_SECMODEL_USM)
+		snmp_pdu_init_secparams(pdu, &snmp_client.engine,
+		    &snmp_client.user);
+	else
+		seterr(&snmp_client, "unknown security model");
+
+	if (snmp_client.clen > 0) {
+		memcpy(pdu->context_engine, snmp_client.cengine,
+		    snmp_client.clen);
+		pdu->context_engine_len = snmp_client.clen;
+	} else {
+		memcpy(pdu->context_engine, snmp_client.engine.engine_id,
+		    snmp_client.engine.engine_len);
+		pdu->context_engine_len = snmp_client.engine.engine_len;
+	}
+
+	strlcpy(pdu->context_name, snmp_client.cname,
+	    sizeof(pdu->context_name));
 }
 
 /* add pairs of (struct asn_oid, enum snmp_syntax) to an existing pdu */
@@ -1406,14 +1439,23 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 	abuf.asn_ptr = buf;
 	abuf.asn_len = ret;
 
+	memset(pdu, 0, sizeof(*pdu));
+	if (snmp_client.security_model == SNMP_SECMODEL_USM)
+		snmp_pdu_init_secparams(pdu, &snmp_client.engine,
+		    &snmp_client.user);
+
 	if (SNMP_CODE_OK != (ret = snmp_pdu_decode(&abuf, pdu, &ip))) {
 		seterr(&snmp_client, "snmp_decode_pdu: failed %d", ret);
 		free(buf);
 		return (-1);
 	}
+
 	free(buf);
 	if (snmp_client.dump_pdus)
 		snmp_pdu_dump(pdu);
+
+	snmp_client.engine.engine_time = pdu->engine.engine_time;
+	snmp_client.engine.engine_boots = pdu->engine.engine_boots;
 
 	return (+1);
 }
@@ -1682,6 +1724,93 @@ snmp_dialog(struct snmp_v1_pdu *req, struct snmp_v1_pdu *resp)
 	errno = ETIMEDOUT;
 	seterr(&snmp_client, "retry count exceeded");
         return (-1);
+}
+
+int
+snmp_discover_engine(char *passwd)
+{
+	char cname[SNMP_ADM_STR32_SIZ];
+	enum snmp_authentication cap;
+	enum snmp_privacy cpp;
+	struct snmp_pdu req, resp;
+
+	if (snmp_client.version != SNMP_V3)
+		seterr(&snmp_client, "wrong version");
+
+	strlcpy(cname, snmp_client.user.sec_name, sizeof(cname));
+	cap = snmp_client.user.auth_proto;
+	cpp = snmp_client.user.priv_proto;
+
+	snmp_client.engine.engine_len = 0;
+	snmp_client.engine.engine_boots = 0;
+	snmp_client.engine.engine_time = 0;
+	snmp_client.user.auth_proto = SNMP_AUTH_NOAUTH;
+	snmp_client.user.priv_proto = SNMP_PRIV_NOPRIV;
+	memset(snmp_client.user.sec_name, 0, sizeof(snmp_client.user.sec_name));
+
+	snmp_pdu_create(&req, SNMP_PDU_GET);
+
+	if (snmp_dialog(&req, &resp) == -1)
+		 return (-1);
+
+	if (resp.version != req.version) {
+		seterr(&snmp_client, "wrong version");
+		return (-1);
+	}
+
+	if (resp.error_status != SNMP_ERR_NOERROR) {
+		seterr(&snmp_client, "Error %d in responce", resp.error_status);
+		return (-1);
+	}
+
+	snmp_client.engine.engine_len = resp.engine.engine_len;
+	snmp_client.engine.max_msg_size = resp.engine.max_msg_size;
+	memcpy(snmp_client.engine.engine_id, resp.engine.engine_id,
+	    resp.engine.engine_len);
+
+	strlcpy(snmp_client.user.sec_name, cname,
+	    sizeof(snmp_client.user.sec_name));
+	snmp_client.user.auth_proto = cap;
+	snmp_client.user.priv_proto = cpp;
+
+	if (snmp_client.user.auth_proto == SNMP_AUTH_NOAUTH)
+		return (0);
+
+	if (passwd == NULL ||
+	    snmp_passwd_to_keys(&snmp_client.user, passwd) != SNMP_CODE_OK ||
+	    snmp_get_local_keys(&snmp_client.user, snmp_client.engine.engine_id,
+	    snmp_client.engine.engine_len) != SNMP_CODE_OK)
+		return (-1);
+
+	if (resp.engine.engine_boots != 0)
+		snmp_client.engine.engine_boots = resp.engine.engine_boots;
+
+	if (resp.engine.engine_time != 0) {
+		snmp_client.engine.engine_time = resp.engine.engine_time;
+		return (0);
+	}
+
+	snmp_pdu_create(&req, SNMP_PDU_GET);
+	req.engine.engine_boots = 0;
+	req.engine.engine_time = 0;
+
+	if (snmp_dialog(&req, &resp) == -1)
+		 return (-1);
+
+	if (resp.version != req.version) {
+		seterr(&snmp_client, "wrong version");
+		return (-1);
+	}
+
+	if (resp.error_status != SNMP_ERR_NOERROR) {
+		seterr(&snmp_client, "Error %d in responce", resp.error_status);
+		return (-1);
+	}
+
+	snmp_client.engine.engine_boots = resp.engine.engine_boots;
+	snmp_client.engine.engine_time = resp.engine.engine_time;
+
+	return (0);
 }
 
 int

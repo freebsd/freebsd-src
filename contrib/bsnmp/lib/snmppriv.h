@@ -34,11 +34,17 @@
 
 enum asn_err snmp_binding_encode(struct asn_buf *, const struct snmp_value *);
 enum snmp_code snmp_pdu_encode_header(struct asn_buf *, struct snmp_pdu *);
-enum snmp_code snmp_fix_encoding(struct asn_buf *, const struct snmp_pdu *);
-enum asn_err snmp_parse_message_hdr(struct asn_buf *b, struct snmp_pdu *pdu,
-    asn_len_t *lenp);
+enum snmp_code snmp_fix_encoding(struct asn_buf *, struct snmp_pdu *);
 enum asn_err snmp_parse_pdus_hdr(struct asn_buf *b, struct snmp_pdu *pdu,
     asn_len_t *lenp);
+
+void snmp_pdu_init_secparams(struct snmp_pdu *, struct snmp_engine *,
+    struct snmp_user *);
+
+enum snmp_code snmp_pdu_calc_digest(struct asn_buf *, const struct snmp_pdu *,
+    uint8_t *);
+enum snmp_code snmp_pdu_encrypt(struct asn_buf *, const struct snmp_pdu *);
+enum snmp_code snmp_pdu_decrypt(struct asn_buf *, const struct snmp_pdu *);
 
 #define DEFAULT_HOST "localhost"
 #define DEFAULT_PORT "snmp"

@@ -196,5 +196,15 @@
           )
         )
       )
+      (10 snmpFrameworkMIB
+        (2 snmpFrameworkMIBObjects
+          (1 snmpEngine
+            (1 snmpEngineID OCTETSTRING | SnmpEngineID op_snmp_engine GET)
+            (2 snmpEngineBoots INTEGER op_snmp_engine GET)
+            (3 snmpEngineTime INTEGER op_snmp_engine GET)
+            (4 snmpEngineMaxMessageSize INTEGER op_snmp_engine GET)
+          )
+        )
+      )
   ))
 )

@@ -5,6 +5,12 @@
  *
  * Author: Harti Brandt <harti@freebsd.org>
  * 
+ * Copyright (c) 2010 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Shteryana Sotirova Shopova
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -271,112 +277,144 @@ parse_pdus(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *ip)
 	return (err);
 }
 
-/*
- * Parse the outer SEQUENCE value. ASN_ERR_TAG means 'bad version'.
- */
-enum asn_err
-snmp_parse_message_hdr(struct asn_buf *b, struct snmp_pdu *pdu, asn_len_t *lenp)
+
+static enum asn_err
+parse_secparams(struct asn_buf *b, struct snmp_pdu *pdu)
 {
-	int32_t version;
-	u_char type;
-	u_int comm_len;
+	asn_len_t octs_len;
+	u_char buf[256]; /* XXX: calc max possible size here */
+	struct asn_buf tb;
 
-	if (asn_get_integer(b, &version) != ASN_ERR_OK) {
-		snmp_error("cannot decode version");
+	memset(buf, 0, 256);
+	tb.asn_ptr = buf;
+	tb.asn_len = 256;
+
+	if (asn_get_octetstring(b, buf, &tb.asn_len) != ASN_ERR_OK) {
+		snmp_error("cannot parse usm header");
 		return (ASN_ERR_FAILED);
 	}
 
-	if (version == 0) {
-		pdu->version = SNMP_V1;
-	} else if (version == 1) {
-		pdu->version = SNMP_V2c;
-	} else {
-		pdu->version = SNMP_Verr;
-		snmp_error("unsupported SNMP version");
-		return (ASN_ERR_TAG);
-	}
-
-	comm_len = SNMP_COMMUNITY_MAXLEN;
-	if (asn_get_octetstring(b, (u_char *)pdu->community,
-	    &comm_len) != ASN_ERR_OK) {
-		snmp_error("cannot decode community");
-		return (ASN_ERR_FAILED);
-	}
-	pdu->community[comm_len] = '\0';
-
-	if (asn_get_header(b, &type, lenp) != ASN_ERR_OK) {
-		snmp_error("cannot get pdu header");
-		return (ASN_ERR_FAILED);
-	}
-	if ((type & ~ASN_TYPE_MASK) !=
-	    (ASN_TYPE_CONSTRUCTED | ASN_CLASS_CONTEXT)) {
-		snmp_error("bad pdu header tag");
-		return (ASN_ERR_FAILED);
-	}
-	pdu->type = type & ASN_TYPE_MASK;
-
-	switch (pdu->type) {
-
-	  case SNMP_PDU_GET:
-	  case SNMP_PDU_GETNEXT:
-	  case SNMP_PDU_RESPONSE:
-	  case SNMP_PDU_SET:
-		break;
-
-	  case SNMP_PDU_TRAP:
-		if (pdu->version != SNMP_V1) {
-			snmp_error("bad pdu type %u", pdu->type);
-			return (ASN_ERR_FAILED);
-		}
-		break;
-
-	  case SNMP_PDU_GETBULK:
-	  case SNMP_PDU_INFORM:
-	  case SNMP_PDU_TRAP2:
-	  case SNMP_PDU_REPORT:
-		if (pdu->version == SNMP_V1) {
-			snmp_error("bad pdu type %u", pdu->type);
-			return (ASN_ERR_FAILED);
-		}
-		break;
-
-	  default:
-		snmp_error("bad pdu type %u", pdu->type);
+	if (asn_get_sequence(&tb, &octs_len) != ASN_ERR_OK) {
+		snmp_error("cannot decode usm header");
 		return (ASN_ERR_FAILED);
 	}
 
- 
-	if (*lenp > b->asn_len) {
-		snmp_error("pdu length too long");
+	octs_len = SNMP_ENGINE_ID_SIZ;
+	if (asn_get_octetstring(&tb, (u_char *)&pdu->engine.engine_id,
+	    &octs_len) != ASN_ERR_OK) {
+		snmp_error("cannot decode msg engine id");
 		return (ASN_ERR_FAILED);
+	}
+	pdu->engine.engine_len = octs_len;
+
+	if (asn_get_integer(&tb, &pdu->engine.engine_boots) != ASN_ERR_OK) {
+		snmp_error("cannot decode msg engine boots");
+		return (ASN_ERR_FAILED);
+	}
+
+	if (asn_get_integer(&tb, &pdu->engine.engine_time) != ASN_ERR_OK) {
+		snmp_error("cannot decode msg engine time");
+		return (ASN_ERR_FAILED);
+	}
+
+	octs_len = SNMP_ADM_STR32_SIZ - 1;
+	if (asn_get_octetstring(&tb, (u_char *)&pdu->user.sec_name, &octs_len)
+	    != ASN_ERR_OK) {
+		snmp_error("cannot decode msg user name");
+		return (ASN_ERR_FAILED);
+	}
+	pdu->user.sec_name[octs_len] = '\0';
+
+	octs_len = sizeof(pdu->msg_digest);
+	if (asn_get_octetstring(&tb, (u_char *)&pdu->msg_digest, &octs_len) !=
+	    ASN_ERR_OK || ((pdu->flags & SNMP_MSG_AUTH_FLAG) != 0 &&
+	    octs_len != sizeof(pdu->msg_digest))) {
+		snmp_error("cannot decode msg authentication param");
+		return (ASN_ERR_FAILED);
+	}
+
+	octs_len = sizeof(pdu->msg_salt);
+	if (asn_get_octetstring(&tb, (u_char *)&pdu->msg_salt, &octs_len) !=
+	    ASN_ERR_OK ||((pdu->flags & SNMP_MSG_PRIV_FLAG) != 0 &&
+	    octs_len != sizeof(pdu->msg_salt))) {
+		snmp_error("cannot decode msg authentication param");
+		return (ASN_ERR_FAILED);
+	}
+
+	if ((pdu->flags & SNMP_MSG_AUTH_FLAG) != 0) {
+		pdu->digest_ptr = b->asn_ptr - SNMP_USM_AUTH_SIZE;
+		pdu->digest_ptr -= octs_len + ASN_MAXLENLEN;
 	}
 
 	return (ASN_ERR_OK);
 }
 
-static enum asn_err
-parse_message(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *ip)
+static enum snmp_code
+pdu_encode_secparams(struct asn_buf *b, struct snmp_pdu *pdu)
 {
-	enum asn_err err;
-	asn_len_t len, trailer;
+	u_char buf[256], *sptr;
+        struct asn_buf tb;
+        size_t auth_off, moved = 0;
 
-	err = snmp_parse_message_hdr(b, pdu, &len);
-	if (ASN_ERR_STOPPED(err))
-		return (err);
+	auth_off = 0;
+	memset(buf, 0, 256);
+	tb.asn_ptr = buf;
+	tb.asn_len = 256;
 
-	trailer = b->asn_len - len;
-	b->asn_len = len;
+	if (asn_put_temp_header(&tb, (ASN_TYPE_SEQUENCE|ASN_TYPE_CONSTRUCTED),
+	    &sptr) != ASN_ERR_OK)
+		return (SNMP_CODE_FAILED);
 
-	err = parse_pdus(b, pdu, ip);
-	if (ASN_ERR_STOPPED(err))
-		return (ASN_ERR_FAILED);
+	if (asn_put_octetstring(&tb, (u_char *)pdu->engine.engine_id,
+	    pdu->engine.engine_len) != ASN_ERR_OK)
+		return (SNMP_CODE_FAILED);
 
-	if (b->asn_len != 0)
-		snmp_error("ignoring trailing junk after pdu");
+	if (asn_put_integer(&tb, pdu->engine.engine_boots) != ASN_ERR_OK)
+		return (SNMP_CODE_FAILED);
 
-	b->asn_len = trailer;
+	if (asn_put_integer(&tb, pdu->engine.engine_time) != ASN_ERR_OK)
+		return (SNMP_CODE_FAILED);
 
-	return (err);
+	if (asn_put_octetstring(&tb, (u_char *)pdu->user.sec_name,
+	    strlen(pdu->user.sec_name)) != ASN_ERR_OK)
+		return (SNMP_CODE_FAILED);
+
+	if ((pdu->flags & SNMP_MSG_AUTH_FLAG) != 0) {
+		auth_off = sizeof(buf) - tb.asn_len + ASN_MAXLENLEN;
+		if (asn_put_octetstring(&tb, (u_char *)pdu->msg_digest,
+		    sizeof(pdu->msg_digest)) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+	} else {
+		if (asn_put_octetstring(&tb, (u_char *)pdu->msg_digest, 0)
+		    != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+	}
+
+	if ((pdu->flags & SNMP_MSG_PRIV_FLAG) != 0) {
+		if (asn_put_octetstring(&tb, (u_char *)pdu->msg_salt,
+		    sizeof(pdu->msg_salt)) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+	} else {
+		if (asn_put_octetstring(&tb, (u_char *)pdu->msg_salt, 0)
+		    != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+	}
+
+	if (asn_commit_header(&tb, sptr, &moved) != ASN_ERR_OK)
+		return (SNMP_CODE_FAILED);
+
+	if ((pdu->flags & SNMP_MSG_AUTH_FLAG) != 0)
+		pdu->digest_ptr = b->asn_ptr + auth_off - moved;
+
+	if (asn_put_octetstring(b, buf, sizeof(buf) - tb.asn_len) != ASN_ERR_OK)
+		return (SNMP_CODE_FAILED);
+	pdu->digest_ptr += ASN_MAXLENLEN;
+
+	if ((pdu->flags & SNMP_MSG_PRIV_FLAG) != 0 && asn_put_temp_header(b,
+	    ASN_TYPE_OCTETSTRING, &pdu->encrypted_ptr) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+	return (SNMP_CODE_OK);
 }
 
 /*
@@ -388,9 +426,45 @@ parse_message(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *ip)
 enum snmp_code
 snmp_pdu_decode(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *ip)
 {
+	enum snmp_code code;
+
+	if ((code = snmp_pdu_decode_header(b, pdu)) != SNMP_CODE_OK)
+		return (code);
+
+	if (pdu->version == SNMP_V3) {
+		if (pdu->security_model != SNMP_SECMODEL_USM)
+			return (SNMP_CODE_FAILED);
+		if ((code = snmp_pdu_decode_secmode(b, pdu)) != SNMP_CODE_OK)
+			return (code);
+	}
+
+	code = snmp_pdu_decode_scoped(b, pdu, ip);
+
+	switch (code) {
+	  case SNMP_CODE_FAILED:
+		snmp_pdu_free(pdu);
+		break;
+
+	  case SNMP_CODE_BADENC:
+		if (pdu->version == SNMP_Verr)
+			return (SNMP_CODE_BADVERS);
+
+	  default:
+		break;
+	}
+
+	return (code);
+}
+
+enum snmp_code
+snmp_pdu_decode_header(struct asn_buf *b, struct snmp_pdu *pdu)
+{
+	int32_t version;
+	u_int octs_len;
 	asn_len_t len;
 
-	memset(pdu, 0, sizeof(*pdu));
+	pdu->outer_ptr = b->asn_ptr;
+	pdu->outer_len = b->asn_len;
 
 	if (asn_get_sequence(b, &len) != ASN_ERR_OK) {
 		snmp_error("cannot decode pdu header");
@@ -405,30 +479,190 @@ snmp_pdu_decode(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *ip)
 		b->asn_len = len;
 	}
 
-	switch (parse_message(b, pdu, ip)) {
-
-	  case ASN_ERR_OK:
-		return (SNMP_CODE_OK);
-
-	  case ASN_ERR_FAILED:
-	  case ASN_ERR_EOBUF:
-		snmp_pdu_free(pdu);
+	if (asn_get_integer(b, &version) != ASN_ERR_OK) {
+		snmp_error("cannot decode version");
 		return (SNMP_CODE_FAILED);
+	}
 
-	  case ASN_ERR_BADLEN:
-		return (SNMP_CODE_BADLEN);
+	if (version == 0)
+		pdu->version = SNMP_V1;
+	else if (version == 1)
+		pdu->version = SNMP_V2c;
+	else if (version == 3)
+		pdu->version = SNMP_V3;
+	else {
+		pdu->version = SNMP_Verr;
+		snmp_error("unsupported SNMP version");
+		return (SNMP_CODE_BADENC);
+	}
 
-	  case ASN_ERR_RANGE:
-		return (SNMP_CODE_OORANGE);
+	if (pdu->version == SNMP_V3) {
+		if (asn_get_sequence(b, &len) != ASN_ERR_OK) {
+			snmp_error("cannot decode pdu global data header");
+			return (SNMP_CODE_FAILED);
+		}
 
-	  case ASN_ERR_TAG:
-		if (pdu->version == SNMP_Verr)
-			return (SNMP_CODE_BADVERS);
-		else
-			return (SNMP_CODE_BADENC);
+		if (asn_get_integer(b, &pdu->identifier) != ASN_ERR_OK) {
+			snmp_error("cannot decode msg indetifier");
+			return (SNMP_CODE_FAILED);
+		}
+
+		if (asn_get_integer(b, &pdu->engine.max_msg_size)
+		    != ASN_ERR_OK) {
+			snmp_error("cannot decode msg size");
+			return (SNMP_CODE_FAILED);
+		}
+
+		octs_len = 1;
+		if (asn_get_octetstring(b, (u_char *)&pdu->flags,
+		    &octs_len) != ASN_ERR_OK) {
+			snmp_error("cannot decode msg flags");
+			return (SNMP_CODE_FAILED);
+		}
+
+		if (asn_get_integer(b, &pdu->security_model) != ASN_ERR_OK) {
+			snmp_error("cannot decode msg size");
+			return (SNMP_CODE_FAILED);
+		}
+
+		if (pdu->security_model != SNMP_SECMODEL_USM)
+			return (SNMP_CODE_FAILED);
+
+		if (parse_secparams(b, pdu) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+	} else {
+		octs_len = SNMP_COMMUNITY_MAXLEN;
+		if (asn_get_octetstring(b, (u_char *)pdu->community,
+		    &octs_len) != ASN_ERR_OK) {
+			snmp_error("cannot decode community");
+			return (SNMP_CODE_FAILED);
+		}
+		pdu->community[octs_len] = '\0';
 	}
 
 	return (SNMP_CODE_OK);
+}
+
+enum snmp_code
+snmp_pdu_decode_scoped(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *ip)
+{
+	u_char type;
+	asn_len_t len, trailer;
+	enum asn_err err;
+
+	if (pdu->version == SNMP_V3) {
+		if (asn_get_sequence(b, &len) != ASN_ERR_OK) {
+			snmp_error("cannot decode scoped pdu header");
+			return (SNMP_CODE_FAILED);
+		}
+
+		len = SNMP_ENGINE_ID_SIZ;
+		if (asn_get_octetstring(b, (u_char *)&pdu->context_engine,
+		    &len) != ASN_ERR_OK) {
+			snmp_error("cannot decode msg context engine");
+			return (SNMP_CODE_FAILED);
+		}
+		pdu->context_engine_len = len;
+
+		len = SNMP_CONTEXT_NAME_SIZ;
+		if (asn_get_octetstring(b, (u_char *)&pdu->context_name,
+		    &len) != ASN_ERR_OK) {
+			snmp_error("cannot decode msg context name");
+			return (SNMP_CODE_FAILED);
+		}
+		pdu->context_name[len] = '\0';
+	}
+
+	if (asn_get_header(b, &type, &len) != ASN_ERR_OK) {
+		snmp_error("cannot get pdu header");
+		return (SNMP_CODE_FAILED);
+	}
+	if ((type & ~ASN_TYPE_MASK) !=
+	    (ASN_TYPE_CONSTRUCTED | ASN_CLASS_CONTEXT)) {
+		snmp_error("bad pdu header tag");
+		return (SNMP_CODE_FAILED);
+	}
+	pdu->type = type & ASN_TYPE_MASK;
+
+	switch (pdu->type) {
+
+	  case SNMP_PDU_GET:
+	  case SNMP_PDU_GETNEXT:
+	  case SNMP_PDU_RESPONSE:
+	  case SNMP_PDU_SET:
+		break;
+
+	  case SNMP_PDU_TRAP:
+		if (pdu->version != SNMP_V1) {
+			snmp_error("bad pdu type %u", pdu->type);
+			return (SNMP_CODE_FAILED);
+		}
+		break;
+
+	  case SNMP_PDU_GETBULK:
+	  case SNMP_PDU_INFORM:
+	  case SNMP_PDU_TRAP2:
+	  case SNMP_PDU_REPORT:
+		if (pdu->version == SNMP_V1) {
+			snmp_error("bad pdu type %u", pdu->type);
+			return (SNMP_CODE_FAILED);
+		}
+		break;
+
+	  default:
+		snmp_error("bad pdu type %u", pdu->type);
+		return (SNMP_CODE_FAILED);
+	}
+
+	trailer = b->asn_len - len;
+	b->asn_len = len;
+
+	err = parse_pdus(b, pdu, ip);
+	if (ASN_ERR_STOPPED(err))
+		return (SNMP_CODE_FAILED);
+
+	if (b->asn_len != 0)
+		snmp_error("ignoring trailing junk after pdu");
+
+	b->asn_len = trailer;
+
+	return (SNMP_CODE_OK);
+}
+
+enum snmp_code
+snmp_pdu_decode_secmode(struct asn_buf *b, struct snmp_pdu *pdu)
+{
+	u_char type;
+	enum snmp_code code;
+	uint8_t	digest[SNMP_USM_AUTH_SIZE];
+
+	if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH &&
+	    (pdu->flags & SNMP_MSG_AUTH_FLAG) == 0)
+		return (SNMP_CODE_BADSECLEVEL);
+
+	if ((code = snmp_pdu_calc_digest(b, pdu, digest)) !=
+	    SNMP_CODE_OK)
+		return (SNMP_CODE_FAILED);
+
+	if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH &&
+	    memcmp(digest, pdu->msg_digest, sizeof(pdu->msg_digest)) != 0)
+		return (SNMP_CODE_BADDIGEST);
+
+	if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV && (asn_get_header(b, &type,
+	    &pdu->scoped_len) != ASN_ERR_OK || type != ASN_TYPE_OCTETSTRING)) {
+		snmp_error("cannot decode encrypted pdu");
+		return (SNMP_CODE_FAILED);
+	}
+	pdu->scoped_ptr = b->asn_ptr;
+
+	if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV &&
+	    (pdu->flags & SNMP_MSG_PRIV_FLAG) == 0)
+		return (SNMP_CODE_BADSECLEVEL);
+
+	if ((code = snmp_pdu_decrypt(b, pdu)) != SNMP_CODE_OK)
+		return (SNMP_CODE_FAILED);
+
+	return (code);
 }
 
 /*
@@ -500,6 +734,7 @@ enum snmp_code
 snmp_pdu_encode_header(struct asn_buf *b, struct snmp_pdu *pdu)
 {
 	enum asn_err err;
+	u_char *v3_hdr_ptr;
 
 	if (asn_put_temp_header(b, (ASN_TYPE_SEQUENCE|ASN_TYPE_CONSTRUCTED),
 	    &pdu->outer_ptr) != ASN_ERR_OK)
@@ -509,14 +744,62 @@ snmp_pdu_encode_header(struct asn_buf *b, struct snmp_pdu *pdu)
 		err = asn_put_integer(b, 0);
 	else if (pdu->version == SNMP_V2c)
 		err = asn_put_integer(b, 1);
+	else if (pdu->version == SNMP_V3)
+		err = asn_put_integer(b, 3);
 	else
 		return (SNMP_CODE_BADVERS);
 	if (err != ASN_ERR_OK)
 		return (SNMP_CODE_FAILED);
 
-	if (asn_put_octetstring(b, (u_char *)pdu->community,
-	    strlen(pdu->community)) != ASN_ERR_OK)
-		return (SNMP_CODE_FAILED);
+	if (pdu->version == SNMP_V3) {
+		if (asn_put_temp_header(b, (ASN_TYPE_SEQUENCE |
+		    ASN_TYPE_CONSTRUCTED), &v3_hdr_ptr) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+	
+		if (asn_put_integer(b, pdu->identifier) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+		if (asn_put_integer(b, pdu->engine.max_msg_size) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+		if (pdu->type != SNMP_PDU_RESPONSE &&
+		    pdu->type != SNMP_PDU_TRAP &&
+		    pdu->type != SNMP_PDU_REPORT)
+			pdu->flags |= SNMP_MSG_REPORT_FLAG;
+
+		if (asn_put_octetstring(b, (u_char *)&pdu->flags, 1)
+		    != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+		if (asn_put_integer(b, pdu->security_model) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+		if (asn_commit_header(b, v3_hdr_ptr, NULL) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+		if (pdu->security_model != SNMP_SECMODEL_USM)
+			return (SNMP_CODE_FAILED);
+
+		if (pdu_encode_secparams(b, pdu) != SNMP_CODE_OK)
+			return (SNMP_CODE_FAILED);
+
+		/*  View-based Access Conntrol information */
+		if (asn_put_temp_header(b, (ASN_TYPE_SEQUENCE |
+		    ASN_TYPE_CONSTRUCTED), &pdu->scoped_ptr) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+		if (asn_put_octetstring(b, (u_char *)pdu->context_engine,
+		    pdu->context_engine_len) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+		if (asn_put_octetstring(b, (u_char *)pdu->context_name,
+		    strlen(pdu->context_name)) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+	} else {
+		if (asn_put_octetstring(b, (u_char *)pdu->community,
+		    strlen(pdu->community)) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+	}
 
 	if (asn_put_temp_header(b, (ASN_TYPE_CONSTRUCTED | ASN_CLASS_CONTEXT |
 	    pdu->type), &pdu->pdu_ptr) != ASN_ERR_OK)
@@ -550,13 +833,66 @@ snmp_pdu_encode_header(struct asn_buf *b, struct snmp_pdu *pdu)
 	return (SNMP_CODE_OK);
 }
 
-enum snmp_code
-snmp_fix_encoding(struct asn_buf *b, const struct snmp_pdu *pdu)
+static enum asn_err
+snmp_pdu_fix_padd(struct asn_buf *b, struct snmp_pdu *pdu)
 {
-	if (asn_commit_header(b, pdu->vars_ptr) != ASN_ERR_OK ||
-	    asn_commit_header(b, pdu->pdu_ptr) != ASN_ERR_OK ||
-	    asn_commit_header(b, pdu->outer_ptr) != ASN_ERR_OK)
+	asn_len_t padlen;
+
+	if (pdu->user.priv_proto == SNMP_PRIV_DES && pdu->scoped_len % 8 != 0) {
+		padlen = 8 - (pdu->scoped_len % 8);
+		if (asn_pad(b, padlen) != ASN_ERR_OK)
+			return (ASN_ERR_FAILED);
+		pdu->scoped_len += padlen;
+	}
+
+	return (ASN_ERR_OK);
+}
+
+enum snmp_code
+snmp_fix_encoding(struct asn_buf *b, struct snmp_pdu *pdu)
+{
+	size_t moved = 0;
+	enum snmp_code code;
+
+	if (asn_commit_header(b, pdu->vars_ptr, NULL) != ASN_ERR_OK ||
+	    asn_commit_header(b, pdu->pdu_ptr, NULL) != ASN_ERR_OK)
 		return (SNMP_CODE_FAILED);
+
+	if (pdu->version == SNMP_V3) {
+		if (asn_commit_header(b, pdu->scoped_ptr, NULL) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+		pdu->scoped_len = b->asn_ptr - pdu->scoped_ptr;
+		if ((code = snmp_pdu_fix_padd(b, pdu))!= ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+
+		if (pdu->security_model != SNMP_SECMODEL_USM)
+			return (SNMP_CODE_FAILED);
+
+		if (snmp_pdu_encrypt(b, pdu) != SNMP_CODE_OK)
+			return (SNMP_CODE_FAILED);
+
+		if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV &&
+		    asn_commit_header(b, pdu->encrypted_ptr, NULL) != ASN_ERR_OK)
+			return (SNMP_CODE_FAILED);
+	}
+
+	if (asn_commit_header(b, pdu->outer_ptr, &moved) != ASN_ERR_OK)
+		return (SNMP_CODE_FAILED);
+
+	pdu->outer_len = b->asn_ptr - pdu->outer_ptr;
+	pdu->digest_ptr -= moved;
+
+	if (pdu->version == SNMP_V3) {
+		if ((code = snmp_pdu_calc_digest(b, pdu, pdu->msg_digest)) !=
+		    SNMP_CODE_OK)
+			return (SNMP_CODE_FAILED);
+
+		if ((pdu->flags & SNMP_MSG_AUTH_FLAG) != 0)
+			memcpy(pdu->digest_ptr, pdu->msg_digest,
+			    sizeof(pdu->msg_digest));
+	}
+
 	return (SNMP_CODE_OK);
 }
 
@@ -639,7 +975,7 @@ snmp_binding_encode(struct asn_buf *b, const struct snmp_value *binding)
 		return (err);
 	}
 
-	err = asn_commit_header(b, ptr);
+	err = asn_commit_header(b, ptr, NULL);
 	if (err != ASN_ERR_OK) {
 		*b = save;
 		return (err);
@@ -775,6 +1111,8 @@ snmp_pdu_dump(const struct snmp_pdu *pdu)
 		vers = "SNMPv1";
 	else if (pdu->version == SNMP_V2c)
 		vers = "SNMPv2c";
+	else if (pdu->version == SNMP_V3)
+		vers = "SNMPv3";
 	else
 		vers = "v?";
 
@@ -835,6 +1173,39 @@ snmp_value_copy(struct snmp_value *to, const struct snmp_value *from)
 	} else
 		to->v = from->v;
 	return (0);
+}
+
+void
+snmp_pdu_init_secparams(struct snmp_pdu *pdu, struct snmp_engine *eng,
+    struct snmp_user *user)
+{
+	int32_t rval;
+
+	memcpy(&pdu->engine, eng, sizeof(pdu->engine));
+	memcpy(&pdu->user, user, sizeof(pdu->user));
+
+	if (user->auth_proto != SNMP_AUTH_NOAUTH)
+		pdu->flags |= SNMP_MSG_AUTH_FLAG;
+
+	switch (user->priv_proto) {
+	case SNMP_PRIV_DES:
+		memcpy(pdu->msg_salt, &eng->engine_boots,
+		    sizeof(eng->engine_boots));
+		rval = random();
+		memcpy(pdu->msg_salt + sizeof(eng->engine_boots), &rval,
+		    sizeof(int32_t));
+		pdu->flags |= SNMP_MSG_PRIV_FLAG;
+		break;
+	case SNMP_PRIV_AES:
+		rval = random();
+		memcpy(pdu->msg_salt, &rval, sizeof(int32_t));
+		rval = random();
+		memcpy(pdu->msg_salt + sizeof(int32_t), &rval, sizeof(int32_t));
+		pdu->flags |= SNMP_MSG_PRIV_FLAG;
+		break;
+	default:
+		break;
+	}
 }
 
 void

@@ -13,6 +13,8 @@ SUBDIR=	${_snmp_atm} \
 	snmp_hostres \
 	snmp_mibII \
 	snmp_pf \
+	snmp_usm \
+	snmp_vacm \
 	snmp_wlan
 
 .if ${MK_NETGRAPH_SUPPORT} != "no"

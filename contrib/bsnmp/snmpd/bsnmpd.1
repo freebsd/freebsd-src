@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.12 2006/02/27 09:50:03 brandt_h Exp $
 .\"
-.Dd October 23, 2010
+.Dd September 9, 2010
 .Dt BSNMPD 1
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Op Fl dh
 .Op Fl c Ar file
 .Op Fl D Ar options
+.Op Fl e Ar file
 .Op Fl I Ar paths
 .Op Fl l Ar prefix
 .Op Fl m Ar variable Ns Op = Ns Ar value
@@ -68,9 +69,11 @@ Use
 .Ar file
 as configuration file instead of the standard one.
 .It Fl D Ar options
-Debugging options are specified as a comma separated string.
+Debugging options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
 The following options are available.
-.Bl -tag -width "trace=level"
+.Bl -tag -width ".It Cm trace Ns Cm = Ns Cm level"
 .It Cm dump
 Dump all sent and received PDUs to the terminal.
 .It Cm events
@@ -80,8 +83,11 @@ to 10.
 .It Cm trace Ns Cm = Ns Cm level
 Set the snmp library trace flag to the specified
 value.
-The value can be specified in the usual C-syntax for numbers.
 .El
+The value can be specified in the usual C-syntax for numbers.
+.It Fl e Ar file
+Specify an alternate file where the agent's engine id and number of boots
+are saved.
 .It Fl I Ar paths
 Specify a colon separated list of directories to search for configuration
 include files.
@@ -246,6 +252,8 @@ Default configuration file, where the default
 .Aq prefix
 is
 .Dq snmpd .
+.It Pa /var/ Ns Ao Ar prefix Ac Ns \&.engine
+Default engine id file.
 .It Pa /var/run/ Ns Ao Ar prefix Ac Ns \&.pid
 Default pid file.
 .It Pa /etc:/usr/etc/:/usr/local/etc
