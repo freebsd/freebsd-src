@@ -2071,7 +2071,7 @@ AcpiDbGenerateGpe (
         return;
     }
 
-    (void) AcpiEvGpeDispatch (GpeEventInfo, GpeNumber);
+    (void) AcpiEvGpeDispatch (NULL, GpeEventInfo, GpeNumber);
 }
 
 

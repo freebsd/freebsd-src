@@ -467,6 +467,7 @@ AcpiEvCreateGpeBlock (
 
     GpeBlock->Node = GpeDevice;
     GpeBlock->GpeCount = (UINT16) (RegisterCount * ACPI_GPE_REGISTER_WIDTH);
+    GpeBlock->Initialized = FALSE;
     GpeBlock->RegisterCount = RegisterCount;
     GpeBlock->BlockBaseNumber = GpeBlockBaseNumber;
 
@@ -493,11 +494,12 @@ AcpiEvCreateGpeBlock (
         return_ACPI_STATUS (Status);
     }
 
+    AcpiGbl_AllGpesInitialized = FALSE;
+
     /* Find all GPE methods (_Lxx or_Exx) for this block */
 
     WalkInfo.GpeBlock = GpeBlock;
     WalkInfo.GpeDevice = GpeDevice;
-    WalkInfo.EnableThisGpe = FALSE;
     WalkInfo.ExecuteByOwnerId = FALSE;
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_METHOD, GpeDevice,
@@ -529,30 +531,26 @@ AcpiEvCreateGpeBlock (
  *
  * FUNCTION:    AcpiEvInitializeGpeBlock
  *
- * PARAMETERS:  GpeDevice           - Handle to the parent GPE block
- *              GpeBlock            - Gpe Block info
+ * PARAMETERS:  ACPI_GPE_CALLBACK
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Initialize and enable a GPE block. First find and run any
- *              _PRT methods associated with the block, then enable the
- *              appropriate GPEs.
+ * DESCRIPTION: Initialize and enable a GPE block. Enable GPEs that have
+ *              associated methods.
  *              Note: Assumes namespace is locked.
  *
  ******************************************************************************/
 
 ACPI_STATUS
 AcpiEvInitializeGpeBlock (
-    ACPI_NAMESPACE_NODE     *GpeDevice,
-    ACPI_GPE_BLOCK_INFO     *GpeBlock)
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Ignored)
 {
     ACPI_STATUS             Status;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
-    ACPI_GPE_WALK_INFO      WalkInfo;
-    UINT32                  WakeGpeCount;
     UINT32                  GpeEnabledCount;
     UINT32                  GpeIndex;
-    UINT32                  GpeNumber;
     UINT32                  i;
     UINT32                  j;
 
@@ -560,50 +558,21 @@ AcpiEvInitializeGpeBlock (
     ACPI_FUNCTION_TRACE (EvInitializeGpeBlock);
 
 
-    /* Ignore a null GPE block (e.g., if no GPE block 1 exists) */
-
-    if (!GpeBlock)
+    /*
+     * Ignore a null GPE block (e.g., if no GPE block 1 exists), and
+     * any GPE blocks that have been initialized already.
+     */
+    if (!GpeBlock || GpeBlock->Initialized)
     {
         return_ACPI_STATUS (AE_OK);
     }
 
     /*
-     * Runtime option: Should wake GPEs be enabled at runtime?  The default
-     * is no, they should only be enabled just as the machine goes to sleep.
+     * Enable all GPEs that have a corresponding method and have the
+     * ACPI_GPE_CAN_WAKE flag unset. Any other GPEs within this block
+     * must be enabled via the acpi_enable_gpe() interface.
      */
-    if (AcpiGbl_LeaveWakeGpesDisabled)
-    {
-        /*
-         * Differentiate runtime vs wake GPEs, via the _PRW control methods.
-         * Each GPE that has one or more _PRWs that reference it is by
-         * definition a wake GPE and will not be enabled while the machine
-         * is running.
-         */
-        WalkInfo.GpeBlock = GpeBlock;
-        WalkInfo.GpeDevice = GpeDevice;
-        WalkInfo.ExecuteByOwnerId = FALSE;
-
-        Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-                    ACPI_UINT32_MAX, ACPI_NS_WALK_UNLOCK,
-                    AcpiEvMatchPrwAndGpe, NULL, &WalkInfo, NULL);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_EXCEPTION ((AE_INFO, Status, "While executing _PRW methods"));
-        }
-    }
-
-    /*
-     * Enable all GPEs that have a corresponding method and are not
-     * capable of generating wakeups. Any other GPEs within this block
-     * must be enabled via the AcpiEnableGpe interface.
-     */
-    WakeGpeCount = 0;
     GpeEnabledCount = 0;
-
-    if (GpeDevice == AcpiGbl_FadtGpeDevice)
-    {
-        GpeDevice = NULL;
-    }
 
     for (i = 0; i < GpeBlock->RegisterCount; i++)
     {
@@ -613,45 +582,24 @@ AcpiEvInitializeGpeBlock (
 
             GpeIndex = (i * ACPI_GPE_REGISTER_WIDTH) + j;
             GpeEventInfo = &GpeBlock->EventInfo[GpeIndex];
-            GpeNumber = GpeIndex + GpeBlock->BlockBaseNumber;
 
             /*
-             * If the GPE has already been enabled for runtime
-             * signalling, make sure that it remains enabled, but
-             * do not increment its reference count.
+             * Ignore GPEs that have no corresponding _Lxx/_Exx method
+             * and GPEs that are used to wake the system
              */
-            if (GpeEventInfo->RuntimeCount)
-            {
-                Status = AcpiEvEnableGpe (GpeEventInfo);
-                goto Enabled;
-            }
-
-            /* Ignore GPEs that can wake the system */
-
-            if (GpeEventInfo->Flags & ACPI_GPE_CAN_WAKE)
-            {
-                WakeGpeCount++;
-                if (AcpiGbl_LeaveWakeGpesDisabled)
-                {
-                    continue;
-                }
-            }
-
-            /* Ignore GPEs that have no corresponding _Lxx/_Exx method */
-
-            if (!(GpeEventInfo->Flags & ACPI_GPE_DISPATCH_METHOD))
+            if (((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) == ACPI_GPE_DISPATCH_NONE) ||
+                ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) == ACPI_GPE_DISPATCH_HANDLER) ||
+                (GpeEventInfo->Flags & ACPI_GPE_CAN_WAKE))
             {
                 continue;
             }
 
-            /* Enable this GPE */
-
-            Status = AcpiEnableGpe (GpeDevice, GpeNumber);
-Enabled:
+            Status = AcpiEvAddGpeReference (GpeEventInfo);
             if (ACPI_FAILURE (Status))
             {
                 ACPI_EXCEPTION ((AE_INFO, Status,
-                    "Could not enable GPE 0x%02X", GpeNumber));
+                    "Could not enable GPE 0x%02X",
+                    GpeIndex + GpeBlock->BlockBaseNumber));
                 continue;
             }
 
@@ -659,13 +607,13 @@ Enabled:
         }
     }
 
-    if (GpeEnabledCount || WakeGpeCount)
+    if (GpeEnabledCount)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
-            "Enabled %u Runtime GPEs, added %u Wake GPEs in this block\n",
-            GpeEnabledCount, WakeGpeCount));
+            "Enabled %u GPEs in this block\n", GpeEnabledCount));
     }
 
+    GpeBlock->Initialized = TRUE;
     return_ACPI_STATUS (AE_OK);
 }
 

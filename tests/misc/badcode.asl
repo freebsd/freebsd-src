@@ -132,7 +132,16 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
     }
     Device (H4)
     {
-        Name (_HID, "acpi0001")      // non-hex chars must be uppercase
+        Name (_HID, "acpi0001")     // non-hex chars must be uppercase
+    }
+    Device (H5)
+    {
+        Name (_HID, "PNP-123")      // HID must be alphanumeric
+    }
+    Device (H6)
+    {
+        Name (_HID, "")             // Illegal Null HID
+        Name (_CID, "")             // Illegal Null CID
     }
 
     // Predefined Name typechecking

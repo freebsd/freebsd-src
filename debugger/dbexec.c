@@ -180,6 +180,9 @@ AcpiDbExecuteMethod (
     ACPI_DEVICE_INFO        *ObjInfo;
 
 
+    ACPI_FUNCTION_TRACE (DbExecuteMethod);
+
+
     if (AcpiGbl_DbOutputToFile && !AcpiDbgLevel)
     {
         AcpiOsPrintf ("Warning: debug output is not enabled!\n");
@@ -190,7 +193,7 @@ AcpiDbExecuteMethod (
     Status = AcpiGetHandle (NULL, Info->Pathname, &Handle);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     /* Get the object info for number of method parameters */
@@ -198,7 +201,7 @@ AcpiDbExecuteMethod (
     Status = AcpiGetObjectInfo (Handle, &ObjInfo);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     ParamObjects.Pointer = NULL;
@@ -269,7 +272,20 @@ AcpiDbExecuteMethod (
     AcpiGbl_CmSingleStep = FALSE;
     AcpiGbl_MethodExecuting = FALSE;
 
-    return (Status);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status,
+        "while executing %s from debugger", Info->Pathname));
+
+        if (Status == AE_BUFFER_OVERFLOW)
+        {
+            ACPI_ERROR ((AE_INFO,
+            "Possible overflow of internal debugger buffer (size 0x%X needed 0x%X)",
+                ACPI_DEBUG_BUFFER_SIZE, (UINT32) ReturnObj->Length));
+        }
+    }
+
+    return_ACPI_STATUS (Status);
 }
 
 
