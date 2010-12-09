@@ -543,6 +543,7 @@ again:
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
+	td2->td_lend_user_pri = PRI_MAX;
 
 #ifdef VIMAGE
 	td2->td_vnet = NULL;
