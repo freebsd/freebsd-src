@@ -149,6 +149,8 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
+#define	UMA_MD_SMALL_ALLOC
+
 /*
  * max number of non-contig chunks of physical RAM you can have
  */
