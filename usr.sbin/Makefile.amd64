@@ -27,4 +27,7 @@ SUBDIR+=	ndiscvt
 .endif
 SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
+.if ${MK_SYSINSTALL} != "no"
+SUBDIR+=	sade
+.endif
 SUBDIR+=	zzz
