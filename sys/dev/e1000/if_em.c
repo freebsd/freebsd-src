@@ -525,7 +525,7 @@ em_attach(device_t dev)
 
 	/* Sysctl for setting the interface flow control */
 	em_set_flow_cntrl(adapter, "flow_control",
-	    "max number of rx packets to process",
+	    "configure flow control",
 	    &adapter->fc_setting, em_fc_setting);
 
 	/*
@@ -3751,46 +3751,43 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 	cleaned = -1;
 	while (i != limit) {
 		rxbuf = &rxr->rx_buffers[i];
-		/*
-		** Just skip entries with a buffer,
-		** they can only be due to an error
-		** and are to be reused.
-		*/
-		if (rxbuf->m_head != NULL)
-			goto reuse;
-		m = m_getjcl(M_DONTWAIT, MT_DATA,
-		    M_PKTHDR, adapter->rx_mbuf_sz);
-		/*
-		** If we have a temporary resource shortage
-		** that causes a failure, just abort refresh
-		** for now, we will return to this point when
-		** reinvoked from em_rxeof.
-		*/
-		if (m == NULL)
-			goto update;
+		if (rxbuf->m_head == NULL) {
+			m = m_getjcl(M_DONTWAIT, MT_DATA,
+			    M_PKTHDR, adapter->rx_mbuf_sz);
+			/*
+			** If we have a temporary resource shortage
+			** that causes a failure, just abort refresh
+			** for now, we will return to this point when
+			** reinvoked from em_rxeof.
+			*/
+			if (m == NULL)
+				goto update;
+		} else
+			m = rxbuf->m_head;
+
 		m->m_len = m->m_pkthdr.len = adapter->rx_mbuf_sz;
+		m->m_flags |= M_PKTHDR;
+		m->m_data = m->m_ext.ext_buf;
 
 		/* Use bus_dma machinery to setup the memory mapping  */
 		error = bus_dmamap_load_mbuf_sg(rxr->rxtag, rxbuf->map,
 		    m, segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
+			printf("Refresh mbufs: hdr dmamap load"
+			    " failure - %d\n", error);
 			m_free(m);
+			rxbuf->m_head = NULL;
 			goto update;
 		}
-
-		/* If nsegs is wrong then the stack is corrupt. */
-		KASSERT(nsegs == 1, ("Too many segments returned!"));
-	
+		rxbuf->m_head = m;
 		bus_dmamap_sync(rxr->rxtag,
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
-		rxbuf->m_head = m;
 		rxr->rx_base[i].buffer_addr = htole64(segs[0].ds_addr);
-reuse:
+
 		cleaned = i;
 		/* Calculate next index */
 		if (++i == adapter->num_rx_desc)
 			i = 0;
-		/* This is the work marker for refresh */
 		rxr->next_to_refresh = i;
 	}
 update:
@@ -4208,8 +4205,8 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 		len = le16toh(cur->length);
 		eop = (status & E1000_RXD_STAT_EOP) != 0;
 
-		if ((rxr->discard == TRUE) || (cur->errors &
-		    E1000_RXD_ERR_FRAME_ERR_MASK)) {
+		if ((cur->errors & E1000_RXD_ERR_FRAME_ERR_MASK) ||
+		    (rxr->discard == TRUE)) {
 			ifp->if_ierrors++;
 			++rxr->rx_discarded;
 			if (!eop) /* Catch subsequent segs */
@@ -4306,9 +4303,7 @@ next_desc:
 static __inline void
 em_rx_discard(struct rx_ring *rxr, int i)
 {
-	struct adapter		*adapter = rxr->adapter;
 	struct em_buffer	*rbuf;
-	struct mbuf		*m;
 
 	rbuf = &rxr->rx_buffers[i];
 	/* Free any previous pieces */
@@ -4318,14 +4313,14 @@ em_rx_discard(struct rx_ring *rxr, int i)
 		rxr->fmp = NULL;
 		rxr->lmp = NULL;
 	}
-                         
-	/* Reset state, keep loaded DMA map and reuse */
-	m = rbuf->m_head;
-	m->m_len = m->m_pkthdr.len = adapter->rx_mbuf_sz;
-	m->m_flags |= M_PKTHDR;
-	m->m_data = m->m_ext.ext_buf;
-	m->m_next = NULL;
-
+	/*
+	** Free buffer and allow em_refresh_mbufs()
+	** to clean up and recharge buffer.
+	*/
+	if (rbuf->m_head) {
+		m_free(rbuf->m_head);
+		rbuf->m_head = NULL;
+	}
 	return;
 }
 

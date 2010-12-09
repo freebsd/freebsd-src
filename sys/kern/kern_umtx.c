@@ -1407,17 +1407,19 @@ umtx_propagate_priority(struct thread *td)
 
 	for (;;) {
 		td = pi->pi_owner;
-		if (td == NULL)
+		if (td == NULL || td == curthread)
 			return;
 
 		MPASS(td->td_proc != NULL);
 		MPASS(td->td_proc->p_magic == P_MAGIC);
 
-		if (UPRI(td) <= pri)
-			return;
-
 		thread_lock(td);
-		sched_lend_user_prio(td, pri);
+		if (td->td_lend_user_pri > pri)
+			sched_lend_user_prio(td, pri);
+		else {
+			thread_unlock(td);
+			break;
+		}
 		thread_unlock(td);
 
 		/*
@@ -3587,8 +3589,8 @@ umtx_thread_cleanup(struct thread *td)
 		pi->pi_owner = NULL;
 		TAILQ_REMOVE(&uq->uq_pi_contested, pi, pi_link);
 	}
-	thread_lock(td);
-	td->td_flags &= ~TDF_UBORROWING;
-	thread_unlock(td);
 	mtx_unlock_spin(&umtx_lock);
+	thread_lock(td);
+	sched_unlend_user_prio(td, PRI_MAX);
+	thread_unlock(td);
 }

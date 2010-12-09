@@ -247,7 +247,7 @@ print_apacket(const struct bpf_xhdr *hdr, struct usbpf_pkthdr *up,
 	printf(" usbus%d.%d 0x%02x %s %s", up->up_busunit, up->up_address,
 	    up->up_endpoint,
 	    xfertype_table[up->up_xfertype],
-	    up->up_type == USBPF_XFERTAP_SUBMIT ? ">" : "<");
+	    up->up_type == USBPF_XFERTAP_SUBMIT ? "S" : "D");
 	printf(" (%d/%d)", up->up_frames, up->up_length);
 	if (up->up_type == USBPF_XFERTAP_DONE)
 		printf(" %s", errstr_table[up->up_error]);

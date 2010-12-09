@@ -2,6 +2,7 @@
 
 SUBDIR=	gensnmptree	\
 	bsnmpd		\
-	modules
+	modules		\
+	tools
 
 .include <bsd.subdir.mk>

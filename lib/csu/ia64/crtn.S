@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 	.file	"crtn.S"
 
 	.section .init,"ax",@progbits

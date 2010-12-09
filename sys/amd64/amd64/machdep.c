@@ -492,7 +492,6 @@ sigreturn(td, uap)
 #endif
 
 	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);
 }
@@ -564,13 +563,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	thread_unlock(curthread);
 #endif
 
-	/*
-	 * Calculate the difference in readings, convert to Mhz, and
-	 * subtract 0.5% of the total.  Empirical testing has shown that
-	 * overhead in DELAY() works out to approximately this value.
-	 */
-	tsc2 -= tsc1;
-	*rate = tsc2 * 1000 - tsc2 * 5;
+	*rate = (tsc2 - tsc1) * 1000;
 	return (0);
 }
 
@@ -876,6 +869,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
+	td->td_retval[1] = 0;
 
 	/*
 	 * Reset the hardware debug registers if they were in use.
@@ -1906,8 +1900,8 @@ set_regs(struct thread *td, struct reg *regs)
 		tp->tf_fs = regs->r_fs;
 		tp->tf_gs = regs->r_gs;
 		tp->tf_flags = TF_HASSEGS;
+		td->td_pcb->pcb_full_iret = 1;
 	}
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	return (0);
 }
 
@@ -2094,7 +2088,6 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		td->td_pcb->pcb_fsbase = mcp->mc_fsbase;
 		td->td_pcb->pcb_gsbase = mcp->mc_gsbase;
 	}
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }

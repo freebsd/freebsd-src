@@ -46,11 +46,12 @@ __FBSDID("$FreeBSD$");
  *   fpequal(NaN, NaN) is true
  *   fpequal(+0.0, -0.0) is false
  */
-inline int
+static inline int
 fpequal(long double x, long double y)
 {
 
-	return ((x == y && signbit(x) == signbit(y)) || (isnan(x) && isnan(y)));
+	return ((x == y && !signbit(x) == !signbit(y))
+		|| (isnan(x) && isnan(y)));
 }
 
 /*
@@ -63,7 +64,7 @@ fpequal(long double x, long double y)
 	feclearexcept(ALL_STD_EXCEPT);					      \
 	long double __result = func((__x), (__y));			      \
 	if (fetestexcept(ALL_STD_EXCEPT)) {				      \
-		fprintf(stderr, #func "(%L.20g, %L.20g) raised 0x%x\n",	      \
+		fprintf(stderr, #func "(%.20Lg, %.20Lg) raised 0x%x\n",	      \
 			(x), (y), fetestexcept(FE_ALL_EXCEPT));		      \
 		ok = 0;							      \
 	}								      \
@@ -104,7 +105,7 @@ testall_r(long double big, long double small)
  * in all rounding modes and with the arguments in different orders.
  * The input 'big' must be >= 'small'.
  */
-int
+void
 testall(int testnum, long double big, long double small)
 {
 	static const int rmodes[] = {

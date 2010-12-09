@@ -1677,8 +1677,8 @@ sched_user_prio(struct thread *td, u_char prio)
 {
 
 	td->td_base_user_pri = prio;
-	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
-                return;
+	if (td->td_lend_user_pri <= prio)
+		return;
 	td->td_user_pri = prio;
 }
 
@@ -1687,8 +1687,10 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_flags |= TDF_UBORROWING;
-	td->td_user_pri = prio;
+	if (prio < td->td_lend_user_pri)
+		td->td_lend_user_pri = prio;
+	if (prio < td->td_user_pri)
+		td->td_user_pri = prio;
 }
 
 void
@@ -1698,12 +1700,11 @@ sched_unlend_user_prio(struct thread *td, u_char prio)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	base_pri = td->td_base_user_pri;
-	if (prio >= base_pri) {
-		td->td_flags &= ~TDF_UBORROWING;
-		sched_user_prio(td, base_pri);
-	} else {
-		sched_lend_user_prio(td, prio);
-	}
+	td->td_lend_user_pri = prio;
+	if (prio > base_pri)
+		td->td_user_pri = base_pri;
+	else
+		td->td_user_pri = prio;
 }
 
 /*

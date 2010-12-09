@@ -220,7 +220,6 @@ static const char rcsid[] =
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
-#include <netinet/udp_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
@@ -1424,7 +1423,7 @@ tcp_check(const u_char *data, int seq)
 
 	return (ntohs(tcp->th_sport) == ident
 	    && ntohs(tcp->th_dport) == port + (fixedPort ? 0 : seq))
-	    && tcp->th_seq == (ident << 16) | (port + seq);
+	    && tcp->th_seq == (((tcp_seq)ident << 16) | (port + seq));
 }
 
 void
@@ -1497,19 +1496,17 @@ u_short
 p_cksum(struct ip *ip, u_short *data, int len)
 {
 	static struct ipovly ipo;
-	u_short sumh, sumd;
-	u_long sumt;
+	u_short sum[2];
 
 	ipo.ih_pr = ip->ip_p;
 	ipo.ih_len = htons(len);
 	ipo.ih_src = ip->ip_src;
 	ipo.ih_dst = ip->ip_dst;
 
-	sumh = in_cksum((u_short*)&ipo, sizeof(ipo)); /* pseudo ip hdr cksum */
-	sumd = in_cksum((u_short*)data, len);	      /* payload data cksum */
-	sumt = (sumh << 16) | (sumd);
+	sum[1] = in_cksum((u_short*)&ipo, sizeof(ipo)); /* pseudo ip hdr cksum */
+	sum[0] = in_cksum(data, len);                   /* payload data cksum */
 
-	return ~in_cksum((u_short*)&sumt, sizeof(sumt));
+	return ~in_cksum(sum, sizeof(sum));
 }
 
 /*

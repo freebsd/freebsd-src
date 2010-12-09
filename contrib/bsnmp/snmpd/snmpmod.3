@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.14 2005/10/04 13:30:35 brandt_h Exp $
 .\"
-.Dd February 27, 2006
+.Dd September 9, 2010
 .Dt SNMPMOD 3
 .Os
 .Sh NAME
@@ -60,6 +60,8 @@
 .Nm comm_define ,
 .Nm community ,
 .Nm oid_zeroDotZero ,
+.Nm oid_usmUnknownEngineIDs ,
+.Nm oid_usmNotInTimeWindows ,
 .Nm reqid_allocate ,
 .Nm reqid_next ,
 .Nm reqid_base ,
@@ -99,7 +101,16 @@
 .Nm index_compare ,
 .Nm index_compare_off ,
 .Nm index_append ,
-.Nm index_append_off
+.Nm index_append_off,
+.Nm bsnmpd_get_usm_stats,
+.Nm bsnmpd_reset_usm_stats,
+.Nm usm_first_user,
+.Nm usm_next_user,
+.Nm usm_find_user,
+.Nm usm_new_user,
+.Nm usm_delete_user,
+.Nm usm_flush_users,
+.Nm usm_user
 .Nd "SNMP daemon loadable module interface"
 .Sh LIBRARY
 Begemot SNMP library
@@ -228,6 +239,25 @@ Begemot SNMP library
 .Fn index_append "struct asn_oid *dst" "u_int sub" "const struct asn_oid *src"
 .Ft void
 .Fn index_append_off "struct asn_oid *dst" "u_int sub" "const struct asn_oid *src" "u_int off"
+.Ft struct snmpd_usmstat *
+.Fn bsnmpd_get_usm_stats "void"
+.Ft void
+.Fn bsnmpd_reset_usm_stats "void"
+.Ft struct usm_user *
+.Fn usm_first_user "void"
+.Ft struct usm_user *
+.Fn usm_next_user "struct usm_user *uuser"
+.Ft struct usm_user *
+.Fn usm_find_user "uint8_t *engine" "uint32_t elen" "char *uname"
+.Ft struct usm_user *
+.Fn usm_new_user "uint8_t *engine" "uint32_t elen" "char *uname"
+.Ft void
+.Fn usm_delete_user "struct usm_user *"
+.Ft void
+.Fn usm_flush_users "void"
+.Vt extern struct usm_user *usm_user;
+.Vt extern const struct asn_oid oid_usmUnknownEngineIDs;
+.Vt extern const struct asn_oid oid_usmNotInTimeWindows;
 .Sh DESCRIPTION
 The
 .Xr bsnmpd 1
@@ -539,7 +569,7 @@ This is the initial community string.
 .El
 .Pp
 The function returns a globally unique community identifier.
-If a PDU is
+If a SNMPv1 or SNMPv2 PDU is
 received who's community string matches, this identifier is set into the global
 .Va community .
 .Pp
@@ -549,10 +579,76 @@ returns the current community string for the given community.
 .Pp
 All communities defined by a module are automatically released when the module
 is unloaded.
+.Ss THE USER-BASED SECURITY GROUP
+The scalar statistics of the USM group are held in the global variable
+.Va snmpd_usmstats :
+.Bd -literal -offset indent
+struct snmpd_usmstat {
+	uint32_t	unsupported_seclevels;
+	uint32_t	not_in_time_windows;
+	uint32_t	unknown_users;
+	uint32_t	unknown_engine_ids;
+	uint32_t	wrong_digests;
+	uint32_t	decrypt_errors;
+};
+.Ed
+.Fn bsnmpd_get_usm_stats
+returns a pointer to the global structure containing the statistics.
+.Fn bsnmpd_reset_usm_stats
+clears the statistics of the USM group.
+.Pp
+A global list of configured USM users is maintained by the daemon.
+.Bd -literal -offset indent
+struct usm_user {
+	struct snmp_user		suser;
+	uint8_t				user_engine_id[SNMP_ENGINE_ID_SIZ];
+	uint32_t			user_engine_len;
+	char				user_public[SNMP_USM_NAME_SIZ];
+	uint32_t			user_public_len;
+	int32_t				status;
+	int32_t				type;
+	SLIST_ENTRY(usm_user)		up;
+};
+.Ed
+This structure represents an USM user. The daemon only responds to SNMPv3 PDUs
+with user credentials matching an USM user entry in its global list.
+If a SNMPv3 PDU is received, whose security model is USM, the global
+.Va usm_user
+is set to point at the user entry that matches the credentials contained in
+the PDU.
+However, the daemon does not create or remove USM users, it gives an interface
+to external loadable module(s) to manage the list.
+.Fn usm_new_user
+adds an user entry in the list, and
+.Fn usm_delete_user
+deletes an existing entry from the list.
+.Fn usm_flush_users
+is used to remove all configured USM users.
+.Fn usm_first_user
+will return the first user in the list, or
+.Li NULL
+if the list is empty.
+.Fn usm_next_user
+will return  the next user of a given entry if one exists, or
+.Li NULL .
+The list is sorted according to the USM user name and Engine ID.
+.Fn usm_find_user
+returns the USM user entry matching the given
+.Fa engine
+and
+.Fa uname
+or
+.Li NULL
+if an user with the specified name and engine id is not present in the list.
 .Ss WELL KNOWN OIDS
 The global variable
 .Va oid_zeroDotZero
 contains the OID 0.0.
+The global variables
+.Va oid_usmUnknownEngineIDs
+.Va oid_usmNotInTimeWindows
+contains the OIDs 1.3.6.1.6.3.15.1.1.4.0 and  1.3.6.1.6.3.15.1.1.2.0 used
+in the SNMPv3 USM Engine Discovery.
 .Ss REQUEST ID RANGES
 For modules that implement SNMP client functions besides SNMP agent functions
 it may be necessary to identify SNMP requests by their identifier to allow

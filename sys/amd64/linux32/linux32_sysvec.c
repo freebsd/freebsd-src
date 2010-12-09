@@ -865,13 +865,13 @@ exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	regs->tf_flags = TF_HASSEGS;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = imgp->ps_strings;
-	td->td_pcb->pcb_full_iret = 1;
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
 	fpstate_drop(td);
 
-	/* Return via doreti so that we can change to a different %cs */
-	pcb->pcb_flags |= PCB_FULLCTX | PCB_32BIT;
+	/* Do full restore on return so that we can change to a different %cs */
+	pcb->pcb_flags |= PCB_32BIT;
 	pcb->pcb_flags &= ~PCB_GS32BIT;
+	pcb->pcb_full_iret = 1;
 	td->td_retval[1] = 0;
 }
 
