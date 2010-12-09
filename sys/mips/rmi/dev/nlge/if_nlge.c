@@ -213,7 +213,6 @@ static int	send_fmn_msg_tx(struct nlge_softc *, struct msgrng_msg *,
 //#define DEBUG
 #ifdef DEBUG
 static int	mac_debug = 1;
-static int 	reg_dump = 0;
 #undef PDEBUG
 #define PDEBUG(fmt, args...) \
         do {\

@@ -3098,7 +3098,7 @@ pads(pmap_t pm)
 				    va >= VM_MAXUSER_ADDRESS)
 					continue;
 				ptep = pmap_pte(pm, va);
-				if (pmap_pte_v(ptep))
+				if (pte_test(ptep, PTE_V))
 					printf("%x:%x ", va, *(int *)ptep);
 			}
 
