@@ -138,7 +138,7 @@ sb_intr_init(int cpuid)
 static void
 mips_init(void)
 {
-	int i, cfe_mem_idx, tmp;
+	int i, j, cfe_mem_idx, tmp;
 	uint64_t maxmem;
 
 #ifdef CFE_ENV
@@ -224,6 +224,11 @@ mips_init(void)
 
 	realmem = btoc(physmem);
 #endif
+
+	for (j = 0; j < i; j += 2) {
+		dump_avail[j] = phys_avail[j];
+		dump_avail[j+1] = phys_avail[j+1] - phys_avail[j];
+	}
 
 	physmem = realmem;
 
