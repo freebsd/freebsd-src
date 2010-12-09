@@ -97,7 +97,6 @@ amd64/amd64/atomic.c		standard
 amd64/amd64/autoconf.c		standard
 amd64/amd64/bios.c		standard
 amd64/amd64/bpf_jit_machdep.c	optional	bpf_jitter
-amd64/amd64/busdma_machdep.c	standard
 amd64/amd64/cpu_switch.S	standard
 amd64/amd64/db_disasm.c		optional	ddb
 amd64/amd64/db_interface.c	optional	ddb
@@ -126,7 +125,6 @@ amd64/amd64/stack_machdep.c	optional	ddb | stack
 amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
 amd64/amd64/trap.c		standard
-amd64/amd64/tsc.c		standard
 amd64/amd64/uio_machdep.c	standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
@@ -318,6 +316,7 @@ x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
 x86/pci/qpi.c			standard
+x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/io_apic.c		standard
 x86/x86/local_apic.c		standard
@@ -326,3 +325,4 @@ x86/x86/mptable.c		optional	mptable
 x86/x86/mptable_pci.c		optional	mptable pci
 x86/x86/msi.c			optional	pci
 x86/x86/nexus.c			standard
+x86/x86/tsc.c			standard

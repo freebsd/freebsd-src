@@ -288,7 +288,14 @@ typedef struct cyc_id {
 
 typedef struct cyc_xcallarg {
 	cyc_cpu_t *cyx_cpu;
-	hrtime_t cyx_exp;
+	cyc_handler_t *cyx_hdlr;
+	cyc_time_t *cyx_when;
+	cyc_index_t cyx_ndx;
+	cyc_index_t *cyx_heap;
+	cyclic_t *cyx_cyclics;
+	cyc_index_t cyx_size;
+	uint16_t cyx_flags;
+	int cyx_wait;
 } cyc_xcallarg_t;
 
 #define	CY_DEFAULT_PERCPU	1

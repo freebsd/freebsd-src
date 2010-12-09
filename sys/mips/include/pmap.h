@@ -163,6 +163,9 @@ void pmap_kenter_temporary_free(vm_paddr_t pa);
 int pmap_compute_pages_to_dump(void);
 void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
+void pmap_grow_direct_page_cache(void);
+vm_page_t pmap_alloc_direct_page(unsigned int index, int req);
+
 #endif				/* _KERNEL */
 
 #endif				/* !LOCORE */

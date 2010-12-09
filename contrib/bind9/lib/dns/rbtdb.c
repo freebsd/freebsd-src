@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.270.12.16.10.3 2010/08/13 07:25:21 marka Exp $ */
+/* $Id: rbtdb.c,v 1.270.12.16.10.6 2010/11/16 07:46:23 marka Exp $ */
 
 /*! \file */
 
@@ -5421,14 +5421,14 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
     dns_rdataset_t *addedrdataset, isc_stdtime_t now)
 {
 	rbtdb_changed_t *changed = NULL;
-	rdatasetheader_t *topheader, *topheader_prev, *header;
+	rdatasetheader_t *topheader, *topheader_prev, *header, *sigheader;
 	unsigned char *merged;
 	isc_result_t result;
 	isc_boolean_t header_nx;
 	isc_boolean_t newheader_nx;
 	isc_boolean_t merge;
 	dns_rdatatype_t rdtype, covers;
-	rbtdb_rdatatype_t negtype;
+	rbtdb_rdatatype_t negtype, sigtype;
 	dns_trust_t trust;
 	int idx;
 
@@ -5466,7 +5466,7 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 
 	newheader_nx = NONEXISTENT(newheader) ? ISC_TRUE : ISC_FALSE;
 	topheader_prev = NULL;
-
+	sigheader = NULL;
 	negtype = 0;
 	if (rbtversion == NULL && !newheader_nx) {
 		rdtype = RBTDB_RDATATYPE_BASE(newheader->type);
@@ -5475,26 +5475,34 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 			 * We're adding a negative cache entry.
 			 */
 			covers = RBTDB_RDATATYPE_EXT(newheader->type);
-			if (covers == dns_rdatatype_any) {
+			sigtype = RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig,
+							covers);
+			for (topheader = rbtnode->data;
+			     topheader != NULL;
+			     topheader = topheader->next) {
 				/*
-				 * We're adding an negative cache entry
+				 * If we're adding an negative cache entry
 				 * which covers all types (NXDOMAIN,
 				 * NODATA(QTYPE=ANY)).
 				 *
 				 * We make all other data stale so that the
 				 * only rdataset that can be found at this
 				 * node is the negative cache entry.
+				 *
+				 * Otherwise look for any RRSIGs of the
+				 * given type so they can be marked stale
+				 * later.
 				 */
-				for (topheader = rbtnode->data;
-				     topheader != NULL;
-				     topheader = topheader->next) {
+				if (covers == dns_rdatatype_any) {
 					set_ttl(rbtdb, topheader, 0);
 					topheader->attributes |=
 						RDATASET_ATTR_STALE;
-				}
-				rbtnode->dirty = 1;
-				goto find_header;
+					rbtnode->dirty = 1;
+				} else if (topheader->type == sigtype)
+					sigheader = topheader;
 			}
+			if (covers == dns_rdatatype_any)
+				goto find_header;
 			negtype = RBTDB_RDATATYPE_VALUE(covers, 0);
 		} else {
 			/*
@@ -5732,6 +5740,11 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 			if (rbtversion == NULL) {
 				set_ttl(rbtdb, header, 0);
 				header->attributes |= RDATASET_ATTR_STALE;
+				if (sigheader != NULL) {
+					set_ttl(rbtdb, sigheader, 0);
+					sigheader->attributes |=
+						 RDATASET_ATTR_STALE;
+				}
 			}
 			idx = newheader->node->locknum;
 			if (IS_CACHE(rbtdb)) {
@@ -7071,6 +7084,8 @@ dns_rbtdb_create
 	 * change.
 	 */
 	if (!IS_CACHE(rbtdb)) {
+		dns_rbtnode_t *nsec3node;
+
 		rbtdb->origin_node = NULL;
 		result = dns_rbt_addnode(rbtdb->tree, &rbtdb->common.origin,
 					 &rbtdb->origin_node);
@@ -7092,6 +7107,32 @@ dns_rbtdb_create
 #else
 		rbtdb->origin_node->locknum =
 			dns_name_hash(&name, ISC_TRUE) %
+			rbtdb->node_lock_count;
+#endif
+		/*
+		 * Add an apex node to the NSEC3 tree so that NSEC3 searches
+		 * return partial matches when there is only a single NSEC3
+		 * record in the tree.
+		 */
+		nsec3node = NULL;
+		result = dns_rbt_addnode(rbtdb->nsec3, &rbtdb->common.origin,
+					 &nsec3node);
+		if (result != ISC_R_SUCCESS) {
+			INSIST(result != ISC_R_EXISTS);
+			free_rbtdb(rbtdb, ISC_FALSE, NULL);
+			return (result);
+		}
+		nsec3node->nsec3 = 1;
+		/*
+		 * We need to give the nsec3 origin node the right locknum.
+		 */
+		dns_name_init(&name, NULL);
+		dns_rbt_namefromnode(nsec3node, &name);
+#ifdef DNS_RBT_USEHASH
+		nsec3node->locknum = nsec3node->hashval %
+			rbtdb->node_lock_count;
+#else
+		nsec3node->locknum = dns_name_hash(&name, ISC_TRUE) %
 			rbtdb->node_lock_count;
 #endif
 	}

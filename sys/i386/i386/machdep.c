@@ -1157,12 +1157,16 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	thread_unlock(curthread);
 #endif
 
+	tsc2 -= tsc1;
+	if (tsc_freq != 0 && !tsc_is_broken) {
+		*rate = tsc2 * 1000;
+		return (0);
+	}
+
 	/*
-	 * Calculate the difference in readings, convert to Mhz, and
-	 * subtract 0.5% of the total.  Empirical testing has shown that
+	 * Subtract 0.5% of the total.  Empirical testing has shown that
 	 * overhead in DELAY() works out to approximately this value.
 	 */
-	tsc2 -= tsc1;
 	*rate = tsc2 * 1000 - tsc2 * 5;
 	return (0);
 }

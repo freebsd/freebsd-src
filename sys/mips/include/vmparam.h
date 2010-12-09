@@ -46,11 +46,6 @@
 /*
  * Machine dependent constants mips processors.
  */
-/*
- * USRTEXT is the start of the user text/data space, while USRSTACK
- * is the top (end) of the user stack.
- */
-#define	USRTEXT		(1*PAGE_SIZE)
 
 /*
  * Virtual memory related constants, all in bytes
@@ -94,7 +89,6 @@
 #define	VM_MAX_ADDRESS		((vm_offset_t)(intptr_t)(int32_t)0xffffffff)
 
 #define	VM_MINUSER_ADDRESS	((vm_offset_t)0x00000000)
-#define	VM_MAX_MMAP_ADDR	VM_MAXUSER_ADDRESS
 
 #ifdef __mips_n64
 #define	VM_MAXUSER_ADDRESS	(VM_MINUSER_ADDRESS + (NPDEPG * NBSEG))
@@ -154,6 +148,8 @@
 #ifndef VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
+
+#define	UMA_MD_SMALL_ALLOC
 
 /*
  * max number of non-contig chunks of physical RAM you can have
