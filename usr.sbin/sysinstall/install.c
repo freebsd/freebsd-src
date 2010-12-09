@@ -853,7 +853,7 @@ try_media:
     i = distExtractAll(self);
 
     if (i == FALSE)
-	    return FALSE;
+	    return DITEM_FAILURE;
 
     /* When running as init, *now* it's safe to grab the rc.foo vars */
     installEnvironment();
