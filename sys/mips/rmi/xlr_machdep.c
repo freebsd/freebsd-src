@@ -363,8 +363,8 @@ xlr_mem_init(void)
 				       (void *)phys_avail[0], 
 				       (void *)phys_avail[1]);
 
-				dump_avail[0] = boot_map->physmem_map[0].addr;
-				dump_avail[1] = boot_map->physmem_map[0].size;
+				dump_avail[0] = phys_avail[0];
+				dump_avail[1] = phys_avail[1];
 
 			} else {
 /*
@@ -394,8 +394,8 @@ xlr_mem_init(void)
 				       (void *)phys_avail[j+1]);
 			}
 
-			dump_avail[j] = boot_map->physmem_map[j].addr;
-			dump_avail[j+1] = boot_map->physmem_map[j].size;
+			dump_avail[j] = phys_avail[j];
+			dump_avail[j+1] = phys_avail[j+1];
 
 			physsz += boot_map->physmem_map[i].size;
 		}
