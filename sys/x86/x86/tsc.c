@@ -107,7 +107,7 @@ init_TSC(void)
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
 		if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-		    CPUID_TO_FAMILY(cpu_id) >= 0x10 || cpu_id == 0x60fb2)
+		    CPUID_TO_FAMILY(cpu_id) >= 0x10)
 			tsc_is_invariant = 1;
 		break;
 	case CPU_VENDOR_INTEL:
