@@ -105,13 +105,6 @@ __FBSDID("$FreeBSD$");
         (MSI_MIPS_DATA_TRGRLVL | MSI_MIPS_DATA_DELFIXED |	       \
 	 MSI_MIPS_DATA_ASSERT | (irq))
 
-#define DEBUG
-#ifdef DEBUG
-#define dbg_devprintf	device_printf
-#else
-#define dbg_devprintf(dev, fmt, ...)
-#endif
-
 struct xlr_pcib_softc {
 	bus_dma_tag_t	sc_pci_dmat;	/* PCI DMA tag pointer */
 };
