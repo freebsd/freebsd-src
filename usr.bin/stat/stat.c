@@ -30,7 +30,8 @@
 #include <sys/cdefs.h>
 #if 0
 #ifndef lint
-__RCSID("$NetBSD: stat.c,v 1.30 2010/11/25 04:33:30 dholland Exp $");
+__RCSID("$NetBSD: stat.c,v 1.30 2010/11/25 04:33:30 dholland Exp $"
+"$OpenBSD: stat.c,v 1.14 2009/06/24 09:44:25 sobrado Exp $");
 #endif
 #endif
 
@@ -226,7 +227,8 @@ main(int argc, char *argv[])
 		quiet = 1;
 	} else {
 		options = "f:FlLnqrst:x";
-		synopsis = "[-FlLnqrsx] [-f format] [-t timefmt] [file ...]";
+		synopsis = "[-FLnq] [-f format | -l | -r | -s | -x] "
+		    "[-t timefmt] [file ...]";
 	}
 
 	while ((ch = getopt(argc, argv, options)) != -1)
