@@ -275,7 +275,7 @@ octeon_memory_init(void)
 		phys_avail[1] = 96 << 20;
 
 		dump_avail[0] = phys_avail[0];
-		dump_avail[1] = phys_avail[1] - phys_avail[0];
+		dump_avail[1] = phys_avail[1];
 
 		realmem = physmem = btoc(phys_avail[1] - phys_avail[0]);
 		return;
@@ -317,10 +317,8 @@ octeon_memory_init(void)
 		i += 2;
 	}
 
-	for (j = 0; j < i; j += 2) {
+	for (j = 0; j < i; j++)
 		dump_avail[j] = phys_avail[j];
-		dump_avail[j+1] = phys_avail[j+1] - phys_avail[j];
-	}
 
 	realmem = physmem;
 }

@@ -182,7 +182,7 @@ mips_init(void)
 	phys_avail[1] = ctob(realmem);
 
 	dump_avail[0] = phys_avail[0];
-	dump_avail[1] = phys_avail[1] - phys_avail[0];
+	dump_avail[1] = phys_avail[1];
 
 	physmem = realmem;
 
