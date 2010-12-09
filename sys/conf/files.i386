@@ -272,7 +272,6 @@ i386/i386/autoconf.c		standard
 i386/i386/bios.c		optional native
 i386/i386/bioscall.s		optional native
 i386/i386/bpf_jit_machdep.c	optional bpf_jitter
-i386/i386/busdma_machdep.c	standard
 i386/i386/db_disasm.c		optional ddb
 i386/i386/db_interface.c	optional ddb
 i386/i386/db_trace.c		optional ddb
@@ -406,6 +405,7 @@ x86/isa/isa_dma.c		optional isa
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional isa
 x86/pci/qpi.c			standard
+x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
