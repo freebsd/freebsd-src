@@ -17,8 +17,8 @@ DPADD+= ${LIBCRYPTO}
 LDADD+= -lcrypto
 .endif
 
-LINKS=  ${DESTDIR}/usr/bin/bsnmpget ${DESTDIR}/usr/bin/bsnmpwalk
-LINKS+=  ${DESTDIR}/usr/bin/bsnmpget ${DESTDIR}/usr/bin/bsnmpset
+LINKS=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpwalk
+LINKS+=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpset
 
 MAN=	bsnmpget.1
 
