@@ -537,18 +537,25 @@ typedef struct acpi_predefined_data
 
 /* Dispatch info for each GPE -- either a method or handler, cannot be both */
 
-typedef struct acpi_handler_info
+typedef struct acpi_gpe_handler_info
 {
-    ACPI_EVENT_HANDLER              Address;        /* Address of handler, if any */
+    ACPI_GPE_HANDLER                Address;        /* Address of handler, if any */
     void                            *Context;       /* Context to be passed to handler */
     ACPI_NAMESPACE_NODE             *MethodNode;    /* Method node for this GPE level (saved) */
+    UINT8                           OriginalFlags;  /* Original (pre-handler) GPE info */
+    BOOLEAN                         OriginallyEnabled; /* True if GPE was originally enabled */
 
-} ACPI_HANDLER_INFO;
+} ACPI_GPE_HANDLER_INFO;
 
+/*
+ * GPE dispatch info. At any time, the GPE can have at most one type
+ * of dispatch - Method, Handler, or Implicit Notify.
+ */
 typedef union acpi_gpe_dispatch_info
 {
     ACPI_NAMESPACE_NODE             *MethodNode;    /* Method node for this GPE level */
-    struct acpi_handler_info        *Handler;
+    struct acpi_gpe_handler_info    *Handler;       /* Installed GPE handler */
+    ACPI_NAMESPACE_NODE             *DeviceNode;    /* Parent _PRW device for implicit notify */
 
 } ACPI_GPE_DISPATCH_INFO;
 
@@ -594,6 +601,7 @@ typedef struct acpi_gpe_block_info
     UINT32                          RegisterCount;  /* Number of register pairs in block */
     UINT16                          GpeCount;       /* Number of individual GPEs in block */
     UINT8                           BlockBaseNumber;/* Base GPE number for this block */
+    BOOLEAN                         Initialized;    /* TRUE if this block is initialized */
 
 } ACPI_GPE_BLOCK_INFO;
 
@@ -614,7 +622,6 @@ typedef struct acpi_gpe_walk_info
     ACPI_GPE_BLOCK_INFO             *GpeBlock;
     UINT16                          Count;
     ACPI_OWNER_ID                   OwnerId;
-    BOOLEAN                         EnableThisGpe;
     BOOLEAN                         ExecuteByOwnerId;
 
 } ACPI_GPE_WALK_INFO;

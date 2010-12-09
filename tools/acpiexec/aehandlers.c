@@ -428,13 +428,18 @@ AeTableHandler (
     void                    *Table,
     void                    *Context)
 {
+    ACPI_STATUS             Status;
+
 
     if (Event > ACPI_NUM_TABLE_EVENTS)
     {
         Event = ACPI_NUM_TABLE_EVENTS;
     }
 
-    /* TBD: could dump entire table header, need a header dump routine */
+    /* Enable any GPEs associated with newly-loaded GPE methods */
+
+    Status = AcpiUpdateAllGpes ();
+    AE_CHECK_OK (AcpiUpdateAllGpes, Status);
 
     printf ("[AcpiExec] Table Event %s, [%4.4s] %p\n",
         TableEvents[Event], ((ACPI_TABLE_HEADER *) Table)->Signature, Table);
@@ -446,16 +451,61 @@ AeTableHandler (
  *
  * FUNCTION:    AeGpeHandler
  *
- * DESCRIPTION: GPE handler for acpiexec
+ * DESCRIPTION: Common GPE handler for acpiexec
  *
  *****************************************************************************/
 
 UINT32
 AeGpeHandler (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
     void                    *Context)
 {
-    AcpiOsPrintf ("Received a GPE at handler\n");
-    return (0);
+    ACPI_NAMESPACE_NODE     *DeviceNode = (ACPI_NAMESPACE_NODE *) GpeDevice;
+
+
+    AcpiOsPrintf ("[AcpiExec] GPE Handler received GPE%02X (GPE block %4.4s)\n",
+        GpeNumber, GpeDevice ? DeviceNode->Name.Ascii : "FADT");
+
+    return (ACPI_REENABLE_GPE);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AeGlobalEventHandler
+ *
+ * DESCRIPTION: Global GPE/Fixed event handler
+ *
+ *****************************************************************************/
+
+void
+AeGlobalEventHandler (
+    UINT32                  Type,
+    ACPI_HANDLE             Device,
+    UINT32                  EventNumber,
+    void                    *Context)
+{
+    char                    *TypeName;
+
+
+    switch (Type)
+    {
+    case ACPI_EVENT_TYPE_GPE:
+        TypeName = "GPE";
+        break;
+
+    case ACPI_EVENT_TYPE_FIXED:
+        TypeName = "FixedEvent";
+        break;
+
+    default:
+        TypeName = "UNKNOWN";
+        break;
+    }
+
+    AcpiOsPrintf ("[AcpiExec] Global Event Handler received: Type %s Number %.2X Dev %p\n",
+        TypeName, EventNumber, Device);
 }
 
 

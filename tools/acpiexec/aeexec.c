@@ -586,6 +586,9 @@ AeMiscellaneousTests (
     Status = AcpiEnableEvent (ACPI_EVENT_GLOBAL, 0);
     AE_CHECK_OK (AcpiEnableEvent, Status);
 
+    Status = AcpiInstallGlobalEventHandler (AeGlobalEventHandler, NULL);
+    AE_CHECK_OK (AcpiInstallGlobalEventHandler, Status);
+
     /*
      * GPEs: Handlers, enable/disable, etc.
      */
@@ -634,6 +637,20 @@ AeMiscellaneousTests (
     Status = AcpiInstallGpeHandler (NULL, 5, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
     AE_CHECK_OK (AcpiInstallGpeHandler, Status);
 
+    Status = AcpiGetHandle (NULL, "\\_SB", &Handle);
+    AE_CHECK_OK (AcpiGetHandle, Status);
+
+    Status = AcpiSetupGpeForWake (Handle, NULL, 5);
+    AE_CHECK_OK (AcpiSetupGpeForWake, Status);
+
+    Status = AcpiSetGpeWakeMask (NULL, 5, ACPI_GPE_ENABLE);
+    AE_CHECK_OK (AcpiGpeWakeup, Status);
+
+    Status = AcpiSetupGpeForWake (Handle, NULL, 6);
+    AE_CHECK_OK (AcpiSetupGpeForWake, Status);
+
+    Status = AcpiSetupGpeForWake (Handle, NULL, 9);
+    AE_CHECK_OK (AcpiSetupGpeForWake, Status);
 
     Status = AcpiInstallGpeHandler (NULL, 0x19, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
     AE_CHECK_OK (AcpiInstallGpeHandler, Status);
@@ -653,6 +670,10 @@ AeMiscellaneousTests (
 
     AfInstallGpeBlock ();
 
+    /* Here is where the GPEs are actually "enabled" */
+
+    Status = AcpiUpdateAllGpes ();
+    AE_CHECK_OK (AcpiUpdateAllGpes, Status);
 
     Status = AcpiGetHandle (NULL, "RSRC", &Handle);
     if (ACPI_SUCCESS (Status))

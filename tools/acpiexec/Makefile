@@ -61,6 +61,7 @@ OBJS = \
 	evsci.o \
 	evxface.o \
 	evxfevnt.o \
+	evxfgpe.o \
 	evxfregn.o \
 	exconfig.o \
 	exconvrt.o \
@@ -315,6 +316,9 @@ evxface.o :         $(ACPICA_CORE)/events/evxface.c
 	$(COMPILE)
 
 evxfevnt.o :        $(ACPICA_CORE)/events/evxfevnt.c
+	$(COMPILE)
+
+evxfgpe.o :         $(ACPICA_CORE)/events/evxfgpe.c
 	$(COMPILE)
 
 evxfregn.o :        $(ACPICA_CORE)/events/evxfregn.c

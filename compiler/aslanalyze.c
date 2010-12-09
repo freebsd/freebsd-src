@@ -684,19 +684,45 @@ AnCheckId (
     UINT32                  AlphaPrefixLength;
 
 
+    /* Only care about string versions of _HID/_CID (integers are legal) */
+
     if (Op->Asl.ParseOpcode != PARSEOP_STRING_LITERAL)
     {
         return;
     }
 
+    /* For both _HID and _CID, the string must be non-null */
+
     Length = strlen (Op->Asl.Value.String);
+    if (!Length)
+    {
+        AslError (ASL_ERROR, ASL_MSG_NULL_STRING,
+            Op, NULL);
+        return;
+    }
 
     /*
-     * If _HID/_CID is a string, all characters must be alphanumeric.
-     * One of the things we want to catch here is the use of
-     * a leading asterisk in the string -- an odd construct
-     * that certain platform manufacturers are fond of.
+     * One of the things we want to catch here is the use of a leading
+     * asterisk in the string -- an odd construct that certain platform
+     * manufacturers are fond of. Technically, a leading asterisk is OK
+     * for _CID, but a valid use of this has not been seen.
      */
+    if (*Op->Asl.Value.String == '*')
+    {
+        AslError (ASL_ERROR, ASL_MSG_LEADING_ASTERISK,
+            Op, Op->Asl.Value.String);
+        return;
+    }
+
+    /* _CID strings are bus-specific, no more checks can be performed */
+
+    if (Type == ASL_TYPE_CID)
+    {
+        return;
+    }
+
+    /* For _HID, all characters must be alphanumeric */
+
     for (i = 0; Op->Asl.Value.String[i]; i++)
     {
         if (!isalnum ((int) Op->Asl.Value.String[i]))
@@ -705,13 +731,6 @@ AnCheckId (
                 Op, Op->Asl.Value.String);
             break;
         }
-    }
-
-    if (Type == ASL_TYPE_CID)
-    {
-        /* _CID strings are bus-specific, no more checks can be performed */
-
-        return;
     }
 
     /* _HID String must be of the form "XXX####" or "ACPI####" */

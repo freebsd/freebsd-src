@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20101013
+#define ACPI_CA_VERSION                 0x20101209
 
 #include "actypes.h"
 #include "actbl.h"
@@ -142,7 +142,6 @@ extern UINT32               AcpiDbgLayer;
 extern UINT8                AcpiGbl_EnableInterpreterSlack;
 extern UINT8                AcpiGbl_AllMethodsSerialized;
 extern UINT8                AcpiGbl_CreateOsiMethod;
-extern UINT8                AcpiGbl_LeaveWakeGpesDisabled;
 extern UINT8                AcpiGbl_UseDefaultRegisterWidths;
 extern ACPI_NAME            AcpiGbl_TraceMethodName;
 extern UINT32               AcpiGbl_TraceFlags;
@@ -152,7 +151,7 @@ extern UINT8                AcpiGbl_TruncateIoAddresses;
 
 
 /*
- * Global interfaces
+ * Initialization
  */
 ACPI_STATUS
 AcpiInitializeTables (
@@ -176,16 +175,20 @@ ACPI_STATUS
 AcpiTerminate (
     void);
 
-ACPI_STATUS
-AcpiSubsystemStatus (
-    void);
 
+/*
+ * Miscellaneous global interfaces
+ */
 ACPI_STATUS
 AcpiEnable (
     void);
 
 ACPI_STATUS
 AcpiDisable (
+    void);
+
+ACPI_STATUS
+AcpiSubsystemStatus (
     void);
 
 ACPI_STATUS
@@ -211,6 +214,7 @@ AcpiInstallInterface (
 ACPI_STATUS
 AcpiRemoveInterface (
     ACPI_STRING             InterfaceName);
+
 
 /*
  * ACPI Memory management
@@ -381,6 +385,11 @@ AcpiInstallInitializationHandler (
     UINT32                  Function);
 
 ACPI_STATUS
+AcpiInstallGlobalEventHandler (
+    ACPI_GBL_EVENT_HANDLER  Handler,
+    void                    *Context);
+
+ACPI_STATUS
 AcpiInstallFixedEventHandler (
     UINT32                  AcpiEvent,
     ACPI_EVENT_HANDLER      Handler,
@@ -390,6 +399,20 @@ ACPI_STATUS
 AcpiRemoveFixedEventHandler (
     UINT32                  AcpiEvent,
     ACPI_EVENT_HANDLER      Handler);
+
+ACPI_STATUS
+AcpiInstallGpeHandler (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    UINT32                  Type,
+    ACPI_GPE_HANDLER        Address,
+    void                    *Context);
+
+ACPI_STATUS
+AcpiRemoveGpeHandler (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    ACPI_GPE_HANDLER        Address);
 
 ACPI_STATUS
 AcpiInstallNotifyHandler (
@@ -419,20 +442,6 @@ AcpiRemoveAddressSpaceHandler (
     ACPI_ADR_SPACE_HANDLER  Handler);
 
 ACPI_STATUS
-AcpiInstallGpeHandler (
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT32                  Type,
-    ACPI_EVENT_HANDLER      Address,
-    void                    *Context);
-
-ACPI_STATUS
-AcpiRemoveGpeHandler (
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    ACPI_EVENT_HANDLER      Address);
-
-ACPI_STATUS
 AcpiInstallExceptionHandler (
     ACPI_EXCEPTION_HANDLER  Handler);
 
@@ -442,7 +451,7 @@ AcpiInstallInterfaceHandler (
 
 
 /*
- * Event interfaces
+ * Global Lock interfaces
  */
 ACPI_STATUS
 AcpiAcquireGlobalLock (
@@ -453,6 +462,10 @@ ACPI_STATUS
 AcpiReleaseGlobalLock (
     UINT32                  Handle);
 
+
+/*
+ * Fixed Event interfaces
+ */
 ACPI_STATUS
 AcpiEnableEvent (
     UINT32                  Event,
@@ -474,13 +487,11 @@ AcpiGetEventStatus (
 
 
 /*
- * GPE Interfaces
+ * General Purpose Event (GPE) Interfaces
  */
 ACPI_STATUS
-AcpiSetGpe (
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT8                   Action);
+AcpiUpdateAllGpes (
+    void);
 
 ACPI_STATUS
 AcpiEnableGpe (
@@ -498,7 +509,24 @@ AcpiClearGpe (
     UINT32                  GpeNumber);
 
 ACPI_STATUS
-AcpiGpeWakeup (
+AcpiSetGpe (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    UINT8                   Action);
+
+ACPI_STATUS
+AcpiFinishGpe (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber);
+
+ACPI_STATUS
+AcpiSetupGpeForWake (
+    ACPI_HANDLE             ParentDevice,
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber);
+
+ACPI_STATUS
+AcpiSetGpeWakeMask (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
     UINT8                   Action);

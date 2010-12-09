@@ -895,6 +895,7 @@ AcpiUtInitGlobals (
 
     /* GPE support */
 
+    AcpiGbl_AllGpesInitialized          = FALSE;
     AcpiGbl_GpeXruptListHead            = NULL;
     AcpiGbl_GpeFadtBlocks[0]            = NULL;
     AcpiGbl_GpeFadtBlocks[1]            = NULL;
@@ -908,6 +909,7 @@ AcpiUtInitGlobals (
     AcpiGbl_InitHandler                 = NULL;
     AcpiGbl_TableHandler                = NULL;
     AcpiGbl_InterfaceHandler            = NULL;
+    AcpiGbl_GlobalEventHandler          = NULL;
 
     /* Global Lock support */
 

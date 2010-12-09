@@ -208,40 +208,44 @@ ACPI_STRING_TABLE           LinuxDataTypes[] = {
 
     /* Declarations first - ACPI types and standard C types */
 
-    {"INT64       ",             "s64         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"UINT64      ",             "u64         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"UINT32      ",             "u32         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"INT32       ",             "s32         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"UINT16      ",             "u16         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"INT16       ",             "s16         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"UINT8       ",             "u8          ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"BOOLEAN     ",             "u8          ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"char        ",             "char        ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"void        ",             "void        ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"char *      ",             "char *      ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"void *      ",             "void *      ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"int         ",             "int         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"FILE        ",             "FILE        ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
-    {"size_t      ",             "size_t      ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"INT64       ",            "s64         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"UINT64      ",            "u64         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"UINT32      ",            "u32         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"INT32       ",            "s32         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"UINT16      ",            "u16         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"INT16       ",            "s16         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"UINT8       ",            "u8          ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"BOOLEAN     ",            "u8          ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"char        ",            "char        ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"void        ",            "void        ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"char *      ",            "char *      ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"void *      ",            "void *      ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"int         ",            "int         ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"FILE        ",            "FILE        ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
+    {"size_t      ",            "size_t      ",     REPLACE_WHOLE_WORD | EXTRA_INDENT_C},
 
     /* Now do embedded typecasts */
 
-    {"UINT64",                   "u64",                      REPLACE_WHOLE_WORD},
-    {"UINT32",                   "u32",                      REPLACE_WHOLE_WORD},
-    {"UINT16",                   "u16",                      REPLACE_WHOLE_WORD},
-    {"UINT8",                    "u8",                       REPLACE_WHOLE_WORD},
-    {"BOOLEAN",                  "u8",                       REPLACE_WHOLE_WORD},
+    {"UINT64",                  "u64",              REPLACE_WHOLE_WORD},
+    {"UINT32",                  "u32",              REPLACE_WHOLE_WORD},
+    {"UINT16",                  "u16",              REPLACE_WHOLE_WORD},
+    {"UINT8",                   "u8",               REPLACE_WHOLE_WORD},
+    {"BOOLEAN",                 "u8",               REPLACE_WHOLE_WORD},
 
-    {"INT64  ",                  "s64    ",                  REPLACE_WHOLE_WORD},
-    {"INT64",                    "s64",                      REPLACE_WHOLE_WORD},
-    {"INT32  ",                  "s32    ",                  REPLACE_WHOLE_WORD},
-    {"INT32",                    "s32",                      REPLACE_WHOLE_WORD},
-    {"INT16  ",                  "s16    ",                  REPLACE_WHOLE_WORD},
-    {"INT8   ",                  "s8     ",                  REPLACE_WHOLE_WORD},
-    {"INT16",                    "s16",                      REPLACE_WHOLE_WORD},
-    {"INT8",                     "s8",                       REPLACE_WHOLE_WORD},
+    {"INT64  ",                 "s64    ",          REPLACE_WHOLE_WORD},
+    {"INT64",                   "s64",              REPLACE_WHOLE_WORD},
+    {"INT32  ",                 "s32    ",          REPLACE_WHOLE_WORD},
+    {"INT32",                   "s32",              REPLACE_WHOLE_WORD},
+    {"INT16  ",                 "s16    ",          REPLACE_WHOLE_WORD},
+    {"INT8   ",                 "s8     ",          REPLACE_WHOLE_WORD},
+    {"INT16",                   "s16",              REPLACE_WHOLE_WORD},
+    {"INT8",                    "s8",               REPLACE_WHOLE_WORD},
 
-    {NULL,                       NULL,                       0},
+    /* Include file paths */
+
+    {"\"acpi.h\"",              "<acpi/acpi.h>",    REPLACE_WHOLE_WORD},
+
+    {NULL,                      NULL,               0}
 };
 
 ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
@@ -298,12 +302,12 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_GPE_DEVICE_INFO",                SRC_TYPE_STRUCT},
     {"ACPI_GPE_EVENT_INFO",                 SRC_TYPE_STRUCT},
     {"ACPI_GPE_HANDLER",                    SRC_TYPE_SIMPLE},
+    {"ACPI_GPE_HANDLER_INFO",               SRC_TYPE_STRUCT},
     {"ACPI_GPE_INDEX_INFO",                 SRC_TYPE_STRUCT},
     {"ACPI_GPE_REGISTER_INFO",              SRC_TYPE_STRUCT},
     {"ACPI_GPE_WALK_INFO",                  SRC_TYPE_STRUCT},
     {"ACPI_GPE_XRUPT_INFO",                 SRC_TYPE_STRUCT},
     {"ACPI_HANDLE",                         SRC_TYPE_SIMPLE},
-    {"ACPI_HANDLER_INFO",                   SRC_TYPE_STRUCT},
     {"ACPI_INIT_HANDLER",                   SRC_TYPE_SIMPLE},
     {"ACPI_IDENTIFIER_TABLE",               SRC_TYPE_STRUCT},
     {"ACPI_INIT_WALK_INFO",                 SRC_TYPE_STRUCT},

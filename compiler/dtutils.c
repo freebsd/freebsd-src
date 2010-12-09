@@ -573,6 +573,7 @@ DtGetFieldLength (
     case ACPI_DMT_UINT8:
     case ACPI_DMT_CHKSUM:
     case ACPI_DMT_SPACEID:
+    case ACPI_DMT_ACCWIDTH:
     case ACPI_DMT_IVRS:
     case ACPI_DMT_MADT:
     case ACPI_DMT_SRAT:
