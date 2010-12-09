@@ -23,6 +23,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 	.section .init,"ax",@progbits
 	addq	$8,%rsp
 	ret
@@ -30,6 +33,3 @@
 	.section .fini,"ax",@progbits
 	addq	$8,%rsp
 	ret
-
-	.section .rodata
-.ascii "$FreeBSD$\0"
