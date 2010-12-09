@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 	.text
 	.align	4
@@ -47,5 +49,3 @@ _start:
 	int3
 	.cfi_endproc
 	.size	_start, . - _start
-
-	.ident	"$FreeBSD$"
