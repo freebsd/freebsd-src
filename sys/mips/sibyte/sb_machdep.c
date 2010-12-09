@@ -225,10 +225,8 @@ mips_init(void)
 	realmem = btoc(physmem);
 #endif
 
-	for (j = 0; j < i; j += 2) {
+	for (j = 0; j < i; j++)
 		dump_avail[j] = phys_avail[j];
-		dump_avail[j+1] = phys_avail[j+1] - phys_avail[j];
-	}
 
 	physmem = realmem;
 
