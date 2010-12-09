@@ -430,7 +430,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	new_end = vm_reserv_startup(&vaddr, new_end, high_water);
 #endif
-#if defined(__amd64__) || defined(__mips__)
+#if defined(__amd64__)
 	/*
 	 * pmap_map on amd64 and mips can come out of the direct-map, not kvm
 	 * like i386, so the pages must be tracked for a crashdump to include
