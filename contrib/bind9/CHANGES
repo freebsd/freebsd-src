@@ -1,3 +1,30 @@
+	--- 9.4-ESV-R4 released ---
+
+2970.	[security]	Adding a NO DATA negative cache entry failed to clear
+			any matching RRSIG records.  A subsequent lookup of
+			of NO DATA cache entry could trigger a INSIST when the
+			unexpected RRSIG was also returned with the NO DATA
+			cache entry.
+
+			CVE-2010-3613, VU#706148. [RT #22288]
+
+2968.	[security]	Named could fail to prove a data set was insecure
+			before marking it as insecure.  One set of conditions
+			that can trigger this occurs naturally when rolling
+			DNSKEY algorithms.
+
+			CVE-2010-3614, VU#837744. [RT #22309]
+
+2966.	[bug]		isc_print_vsnprintf() failed to check if there was
+			space available in the buffer when adding a left
+			justified character with a non zero width,
+			(e.g. "%-1c"). [RT #22270]
+
+2962.	[port]		win32: add more dependancies to BINDBuild.dsw.
+			[RT #22062]
+
+2786.	[bug]		Additional could be promoted to answer. [RT #20663]
+
 	--- 9.4-ESV-R3 released ---
 
 2925.	[bug]		Named failed to accept uncachable negative responses
