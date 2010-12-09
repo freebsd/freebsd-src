@@ -793,6 +793,10 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 		if (err) {
 			goto done;
 		}
+		/* if the device disappeared, just give up */
+		if (!(UGETW(ps.wPortStatus) & UPS_CURRENT_CONNECT_STATUS)) {
+			goto done;
+		}
 		/* check if reset is complete */
 		if (UGETW(ps.wPortChange) & UPS_C_PORT_RESET) {
 			break;

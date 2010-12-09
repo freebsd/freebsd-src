@@ -265,7 +265,7 @@ octeon_memory_init(void)
 {
 	vm_paddr_t phys_end;
 	int64_t addr;
-	unsigned i;
+	unsigned i, j;
 
 	phys_end = round_page(MIPS_KSEG0_TO_PHYS((vm_offset_t)&end));
 
@@ -273,6 +273,9 @@ octeon_memory_init(void)
 		/* Simulator we limit to 96 meg */
 		phys_avail[0] = phys_end;
 		phys_avail[1] = 96 << 20;
+
+		dump_avail[0] = phys_avail[0];
+		dump_avail[1] = phys_avail[1];
 
 		realmem = physmem = btoc(phys_avail[1] - phys_avail[0]);
 		return;
@@ -313,6 +316,9 @@ octeon_memory_init(void)
 
 		i += 2;
 	}
+
+	for (j = 0; j < i; j++)
+		dump_avail[j] = phys_avail[j];
 
 	realmem = physmem;
 }

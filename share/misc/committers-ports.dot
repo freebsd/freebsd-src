@@ -80,6 +80,7 @@ eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04"]
 farrokhi [label="Babak Farrokhi\nfarrokhi@FreeBSD.org\n2006/11/07"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
+flo [label="Florian Smeets\nflo@FreeBSD.org\n2010/12/07"]
 fluffy [label="Dima Panov\nfluffy@FreeBSD.org\n2009/08/10"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
@@ -230,6 +231,7 @@ erwin -> lth
 erwin -> simon
 
 fjoe -> danfe
+fjoe -> flo
 fjoe -> krion
 fjoe -> osa
 
@@ -262,6 +264,7 @@ itetcu -> dryice
 itetcu -> sahil
 
 jadawin -> bapt
+jadawin -> flo
 
 joerg -> netchild
 

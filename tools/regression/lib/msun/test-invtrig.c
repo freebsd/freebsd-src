@@ -118,7 +118,7 @@ fpequal(long double x, long double y, long double tol)
 
 	if (isnan(x) && isnan(y))
 		return (1);
-	if (signbit(x) != signbit(y))
+	if (!signbit(x) != !signbit(y))
 		return (0);
 	if (x == y)
 		return (1);

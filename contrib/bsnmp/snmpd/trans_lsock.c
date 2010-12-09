@@ -31,6 +31,7 @@
  * Local domain socket transport
  */
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/un.h>
 #include <sys/stat.h>
 

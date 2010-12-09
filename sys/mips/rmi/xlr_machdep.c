@@ -363,6 +363,9 @@ xlr_mem_init(void)
 				       (void *)phys_avail[0], 
 				       (void *)phys_avail[1]);
 
+				dump_avail[0] = phys_avail[0];
+				dump_avail[1] = phys_avail[1];
+
 			} else {
 /*
  * Can't use this code yet, because most of the fixed allocations happen from
@@ -390,6 +393,10 @@ xlr_mem_init(void)
 				       (void *)phys_avail[j], 
 				       (void *)phys_avail[j+1]);
 			}
+
+			dump_avail[j] = phys_avail[j];
+			dump_avail[j+1] = phys_avail[j+1];
+
 			physsz += boot_map->physmem_map[i].size;
 		}
 	}
