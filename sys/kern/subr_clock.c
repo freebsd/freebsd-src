@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
 
-#define ct_debug bootverbose
+static int ct_debug;
 static int adjkerntz;		/* local offset from UTC in seconds */
 static int wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 
@@ -60,6 +60,8 @@ int tz_dsttime;
  * This have traditionally been in machdep, but should probably be moved to
  * kern.
  */
+SYSCTL_INT(_machdep, OID_AUTO, ct_debug,
+	CTLFLAG_RW, &ct_debug, 0, "Print ct debug if enabled.");
 SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock,
     CTLFLAG_RW, &wall_cmos_clock, 0, "CMOS clock keeps wall time");
 
