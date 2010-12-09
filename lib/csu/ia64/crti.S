@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * This file (and its companion crtn.S) form the terminators of the
  * .init and .fini sections.
