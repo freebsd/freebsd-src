@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "jailp.h"
 
 struct cfjails ready = TAILQ_HEAD_INITIALIZER(ready);
-struct cfjails waiting = TAILQ_HEAD_INITIALIZER(waiting);
+struct cfjails depend = TAILQ_HEAD_INITIALIZER(depend);
 
 static void dep_add(struct cfjail *from, struct cfjail *to, unsigned flags);
 static int cmp_jailptr(const void *a, const void *b);
@@ -133,7 +133,7 @@ dep_setup(int docf)
 			requeue(j, &cfjails);
 			dep_done(j, DF_NOFAIL);
 		}
-		while ((j = TAILQ_FIRST(&waiting)) != NULL) {
+		while ((j = TAILQ_FIRST(&depend)) != NULL) {
 			jail_warnx(j, "dependency loop");
 			j->flags |= JF_FAILED;
 			do {
@@ -222,7 +222,7 @@ dep_check(struct cfjail *j)
 	}
 	if (ndeps == 0)
 		return 0;
-	requeue(j, &waiting);
+	requeue(j, &depend);
 	return 1;
 }
 
@@ -256,7 +256,7 @@ dep_done(struct cfjail *j, unsigned flags)
 				jail_warnx(dj, "skipped");
 			dj->flags |= JF_FAILED;
 		}
-		if (!--dj->ndeps && dj->queue == &waiting)
+		if (!--dj->ndeps && dj->queue == &depend)
 			requeue(dj, &ready);
 	}
 }
@@ -315,7 +315,7 @@ start_state(const char *target, unsigned state, int running)
 		TAILQ_FOREACH_SAFE(j, &cfjails, tq, tj) {
 			j->flags = (j->flags & JF_FAILED) | state | JF_WILD;
 			dep_reset(j);
-			requeue(j, j->ndeps ? &waiting : &ready);
+			requeue(j, j->ndeps ? &depend : &ready);
 		}
 	} else if (wild_jail_name(target)) {
 		/*

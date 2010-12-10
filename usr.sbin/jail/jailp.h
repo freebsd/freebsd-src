@@ -63,8 +63,7 @@
 #define JF_MOUNTED	0x0200	/* Filesystems have been mounted */
 #define JF_PERSIST	0x0400	/* Jail is temporarily persistent */
 #define JF_TIMEOUT	0x0800	/* A command (or process kill) timed out */
-#define JF_RUNQ		0x1000	/* Jail was in the run qeueue */
-#define JF_BACKGROUND	0x2000	/* Command was run in the background */
+#define JF_SLEEPQ	0x2000	/* Waiting on a command and/or timeout */
 
 #define JF_OP_MASK		(JF_START | JF_SET | JF_STOP)
 #define JF_RESTART		(JF_START | JF_STOP)
@@ -188,10 +187,9 @@ extern void failed(struct cfjail *j);
 extern void jail_note(const struct cfjail *j, const char *fmt, ...);
 extern void jail_warnx(const struct cfjail *j, const char *fmt, ...);
 
-extern int run_command(struct cfjail *j, int *plimit, enum intparam comparam);
-extern int finish_command(struct cfjail *j, int *plimit);
+extern int run_command(struct cfjail *j, enum intparam comparam);
+extern int finish_command(struct cfjail *j);
 extern struct cfjail *next_proc(int nonblock);
-extern int term_procs(struct cfjail *j);
 
 extern void load_config(void);
 extern struct cfjail *add_jail(void);
@@ -220,6 +218,7 @@ extern int yyparse(void);
 
 extern struct cfjails cfjails;
 extern struct cfjails ready;
-extern struct cfjails waiting;
+extern struct cfjails depend;
 extern const char *cfname;
+extern int paralimit;
 extern int verbose;

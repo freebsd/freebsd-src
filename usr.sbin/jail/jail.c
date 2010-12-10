@@ -91,11 +91,10 @@ main(int argc, char **argv)
 	size_t sysvallen;
 	unsigned op, pi;
 	int ch, docf, error, i, oldcl, sysval;
-	int dflag, iflag, plimit, Rflag;
+	int dflag, iflag, Rflag;
 	char enforce_statfs[4];
 
 	op = 0;
-	plimit = -1;
 	dflag = iflag = Rflag = 0;
 	docf = 1;
 	cfname = CONF_FILE;
@@ -135,9 +134,9 @@ main(int argc, char **argv)
 			docf = 0;
 			break;
 		case 'p':
-			plimit = strtol(optarg, NULL, 10);
-			if (plimit == 0)
-				plimit = -1;
+			paralimit = strtol(optarg, NULL, 10);
+			if (paralimit == 0)
+				paralimit = -1;
 			break;
 		case 'q':
 			verbose = -1;
@@ -293,18 +292,18 @@ main(int argc, char **argv)
 		if (j->flags & JF_FAILED) {
 			clear_persist(j);
 			if (j->flags & JF_MOUNTED) {
-				(void)run_command(j, NULL, IP_MOUNT_DEVFS);
-				if (run_command(j, NULL, IP__MOUNT_FROM_FSTAB))
-					while (run_command(j, NULL, 0)) ;
-				if (run_command(j, NULL, IP_MOUNT))
-					while (run_command(j, NULL, 0)) ;
+				(void)run_command(j, IP_MOUNT_DEVFS);
+				if (run_command(j, IP__MOUNT_FROM_FSTAB))
+					while (run_command(j, 0)) ;
+				if (run_command(j, IP_MOUNT))
+					while (run_command(j, 0)) ;
 			}
 			if (j->flags & JF_IFUP) {
-				if (run_command(j, NULL, IP__IP4_IFADDR))
-					while (run_command(j, NULL, 0)) ;
+				if (run_command(j, IP__IP4_IFADDR))
+					while (run_command(j, 0)) ;
 #ifdef INET6
-				if (run_command(j, NULL, IP__IP6_IFADDR))
-					while (run_command(j, NULL, 0)) ;
+				if (run_command(j, IP__IP6_IFADDR))
+					while (run_command(j, 0)) ;
 #endif
 			}
 			error = 1;
@@ -327,8 +326,7 @@ main(int argc, char **argv)
 			    (j->flags & (JF_SET | JF_DEPEND)) == JF_SET
 			    ? dflag || bool_param(j->intparams[IP_ALLOW_DYING])
 			    : 0);
-		if (j->comstring != NULL &&
-		    (finish_command(j, &plimit) || run_command(j, &plimit, 0)))
+		if (finish_command(j) || run_command(j, 0))
 			continue;
 
 		switch (j->flags & JF_OP_MASK) {
@@ -379,30 +377,30 @@ main(int argc, char **argv)
 					continue;
 				if (j->jid > 0)
 					goto jail_create_done;
-				if (run_command(j, &plimit, IP__IP4_IFADDR))
+				if (run_command(j, IP__IP4_IFADDR))
 					continue;
 				/* FALLTHROUGH */
 			case IP__IP4_IFADDR:
 #ifdef INET6
-				if (run_command(j, &plimit, IP__IP6_IFADDR))
+				if (run_command(j, IP__IP6_IFADDR))
 					continue;
 				/* FALLTHROUGH */
 			case IP__IP6_IFADDR:
 #endif
-				if (run_command(j, &plimit, IP_MOUNT))
+				if (run_command(j, IP_MOUNT))
 					continue;
 				/* FALLTHROUGH */
 			case IP_MOUNT:
-				if (run_command(j, &plimit,
+				if (run_command(j,
 				    IP__MOUNT_FROM_FSTAB))
 					continue;
 				/* FALLTHROUGH */
 			case IP__MOUNT_FROM_FSTAB:
-				if (run_command(j, &plimit, IP_MOUNT_DEVFS))
+				if (run_command(j, IP_MOUNT_DEVFS))
 					continue;
 				/* FALLTHROUGH */
 			case IP_MOUNT_DEVFS:
-				if (run_command(j, &plimit, IP_EXEC_PRESTART))
+				if (run_command(j, IP_EXEC_PRESTART))
 					continue;
 				/* FALLTHROUGH */
 			case IP_EXEC_PRESTART:
@@ -416,19 +414,19 @@ main(int argc, char **argv)
 					jail_note(j, "created\n");
 				dep_done(j, DF_LIGHT);
 				if (bool_param(j->intparams[KP_VNET]) &&
-				    run_command(j, &plimit, IP_VNET_INTERFACE))
+				    run_command(j, IP_VNET_INTERFACE))
 					continue;
 				/* FALLTHROUGH */
 			case IP_VNET_INTERFACE:
-				if (run_command(j, &plimit, IP_EXEC_START))
+				if (run_command(j, IP_EXEC_START))
 					continue;
 				/* FALLTHROUGH */
 			case IP_EXEC_START:
-				if (run_command(j, &plimit, IP_COMMAND))
+				if (run_command(j, IP_COMMAND))
 					continue;
 				/* FALLTHROUGH */
 			case IP_COMMAND:
-				if (run_command(j, &plimit, IP_EXEC_POSTSTART))
+				if (run_command(j, IP_EXEC_POSTSTART))
 					continue;
 				/* FALLTHROUGH */
 			case IP_EXEC_POSTSTART:
@@ -482,16 +480,15 @@ main(int argc, char **argv)
 						    j->name);
 					goto jail_remove_done;
 				}
-				if (run_command(j, &plimit, IP_EXEC_PRESTOP))
+				if (run_command(j, IP_EXEC_PRESTOP))
 					continue;
 				/* FALLTHROUGH */
 			case IP_EXEC_PRESTOP:
-				if (run_command(j, &plimit, IP_EXEC_STOP))
+				if (run_command(j, IP_EXEC_STOP))
 					continue;
 				/* FALLTHROUGH */
 			case IP_EXEC_STOP:
-				j->comparam = IP_STOP_TIMEOUT;
-				if (term_procs(j))
+				if (run_command(j, IP_STOP_TIMEOUT))
 					continue;
 				/* FALLTHROUGH */
 			case IP_STOP_TIMEOUT:
@@ -502,29 +499,28 @@ main(int argc, char **argv)
 				     wild_jail_name(argv[0]) || verbose > 0))
 					jail_note(j, "removed\n");
 				dep_done(j, DF_LIGHT);
-				if (run_command(j, &plimit, IP_EXEC_POSTSTOP))
+				if (run_command(j, IP_EXEC_POSTSTOP))
 					continue;
 				/* FALLTHROUGH */
 			case IP_EXEC_POSTSTOP:
-				if (run_command(j, &plimit, IP_MOUNT_DEVFS))
+				if (run_command(j, IP_MOUNT_DEVFS))
 					continue;
 				/* FALLTHROUGH */
 			case IP_MOUNT_DEVFS:
-				if (run_command(j, &plimit,
-				    IP__MOUNT_FROM_FSTAB))
+				if (run_command(j, IP__MOUNT_FROM_FSTAB))
 					continue;
 				/* FALLTHROUGH */
 			case IP__MOUNT_FROM_FSTAB:
-				if (run_command(j, &plimit, IP_MOUNT))
+				if (run_command(j, IP_MOUNT))
 					continue;
 				/* FALLTHROUGH */
 			case IP_MOUNT:
-				if (run_command(j, &plimit, IP__IP4_IFADDR))
+				if (run_command(j, IP__IP4_IFADDR))
 					continue;
 				/* FALLTHROUGH */
 			case IP__IP4_IFADDR:
 #ifdef INET6
-				if (run_command(j, &plimit, IP__IP6_IFADDR))
+				if (run_command(j, IP__IP6_IFADDR))
 					continue;
 				/* FALLTHROUGH */
 			case IP__IP6_IFADDR:
@@ -536,7 +532,7 @@ main(int argc, char **argv)
 					j->flags &= ~JF_STOP;
 					dep_reset(j);
 					requeue(j,
-					    j->ndeps ? &waiting : &ready);
+					    j->ndeps ? &depend : &ready);
 				}
 			}
 			break;
