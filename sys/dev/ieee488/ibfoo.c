@@ -333,6 +333,14 @@ gpib_ib_wait_xfer(struct upd7210 *u, struct ibfoo *ib)
 			break;
 		}
 	}
+	if ((u->rreg[ISR1] & IXR1_ENDRX) != 0) {
+		ib->ap->__retval |= END;
+		ib->ap->__ibsta |= END;
+	}
+	if ((u->rreg[ISR2] & IXR2_SRQI) != 0) {
+		ib->ap->__retval |= SRQI;
+		ib->ap->__ibsta |= SRQI;
+	}
 	ib->mode = BUSY;
 	ib->buf = NULL;
 	upd7210_wr(u, IMR1, 0);
