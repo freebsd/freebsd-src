@@ -62,6 +62,8 @@ struct phash {
 	pid_t			pid;
 };
 
+int paralimit = -1;
+
 extern char **environ;
 
 static int get_user_info(struct cfjail *j, const char *username,
@@ -69,6 +71,7 @@ static int get_user_info(struct cfjail *j, const char *username,
 static void add_proc(struct cfjail *j, pid_t pid);
 static void clear_procs(struct cfjail *j);
 static struct cfjail *find_proc(pid_t pid);
+static int term_procs(struct cfjail *j);
 static int check_path(struct cfjail *j, const char *pname, const char *path,
     int isfile, const char *umount_type);
 
@@ -81,7 +84,7 @@ static int kq;
  * Run a command associated with a jail, possibly inside the jail.
  */
 int
-run_command(struct cfjail *j, int *plimit, enum intparam comparam)
+run_command(struct cfjail *j, enum intparam comparam)
 {
 	const struct passwd *pwd;
 	struct cfstring *comstring, *s;
@@ -96,37 +99,47 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 	static char *cleanenv;
 
 	if (comparam) {
-		if (comparam == IP_MOUNT_DEVFS
-		    ? !bool_param(j->intparams[IP_MOUNT_DEVFS])
-		    : j->intparams[comparam] == NULL)
-			return 0;
+		switch (comparam) {
+		case IP_MOUNT_DEVFS:
+			if (!bool_param(j->intparams[IP_MOUNT_DEVFS]))
+				return 0;
+			/* FALLTHROUGH */
+		case IP_STOP_TIMEOUT:
+			j->comstring = COMSTRING_DUMMY;
+			break;
+		default:
+			if (j->intparams[comparam] == NULL)
+				return 0;
+			j->comstring =
+			    STAILQ_FIRST(&j->intparams[comparam]->val);
+		}
 		j->comparam = comparam;
-		j->comstring = comparam == IP_MOUNT_DEVFS ? COMSTRING_DUMMY
-		    : STAILQ_FIRST(&j->intparams[comparam]->val);
-	} else {
+	} else
 		comparam = j->comparam;
-		if (!(j->flags & JF_RUNQ))
-			j->comstring = j->comstring == COMSTRING_DUMMY
-			    ? NULL : STAILQ_NEXT(j->comstring, tq);
-	}
+ next_comstring:
 	comstring = j->comstring;
-	if (comstring == NULL ||
-	    (comstring != COMSTRING_DUMMY && comstring->len == 0))
+	if (comstring == NULL)
 		return 0;
-	if (plimit && *plimit == 0) {
-		j->flags |= JF_RUNQ;
+	if (paralimit == 0) {
 		requeue(j, &runnable);
 		return 1;
 	}
-	j->flags &= ~(JF_RUNQ | JF_BACKGROUND);
+	j->comstring =
+	    comstring == COMSTRING_DUMMY ? NULL : STAILQ_NEXT(comstring, tq);
+	if (comstring != COMSTRING_DUMMY && comstring->len == 0)
+		goto next_comstring;
 	/*
 	 * Collect exec arguments.  Internal commands for network and
-	 * mounting build their own argument lists (XXX they should be
-	 * truly internal).
+	 * mounting build their own argument lists.
 	 */
 	bg = j->flags & JF_FAILED;
 	down = j->flags & (JF_STOP | JF_FAILED);
-	if (comparam == IP__IP4_IFADDR) {
+	switch (comparam) {
+	case IP_STOP_TIMEOUT:
+		/* This isn't really a command */
+		return term_procs(j);
+
+	case IP__IP4_IFADDR:
 		argv = alloca(8 * sizeof(char *));
 		*(const char **)&argv[0] = _PATH_IFCONFIG;
 		if ((cs = strchr(comstring->s, '|'))) {
@@ -157,8 +170,10 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 		*(const char **)&argv[argc] = down ? "-alias" : "alias";
 		argv[argc + 1] = NULL;
 		j->flags |= JF_IFUP;
+		break;
+
 #ifdef INET6
-	} else if (comparam == IP__IP6_IFADDR) {
+	case IP__IP6_IFADDR:
 		argv = alloca(8 * sizeof(char *));
 		*(const char **)&argv[0] = _PATH_IFCONFIG;
 		if ((cs = strchr(comstring->s, '|'))) {
@@ -181,8 +196,10 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 		*(const char **)&argv[argc] = down ? "-alias" : "alias";
 		argv[argc + 1] = NULL;
 		j->flags |= JF_IFUP;
+		break;	
 #endif
-	} else if (comparam == IP_VNET_INTERFACE) {
+
+	case IP_VNET_INTERFACE:
 		argv = alloca(5 * sizeof(char *));
 		*(const char **)&argv[0] = _PATH_IFCONFIG;
 		argv[1] = comstring->s;
@@ -192,7 +209,10 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 			jidstr ? jidstr : string_param(j->intparams[KP_NAME]);
 		argv[4] = NULL;
 		j->flags |= JF_IFUP;
-	} else if (comparam == IP_MOUNT || comparam == IP__MOUNT_FROM_FSTAB) {
+		break;
+
+	case IP_MOUNT:
+	case IP__MOUNT_FROM_FSTAB:
 		argv = alloca(8 * sizeof(char *));
 		comcs = alloca(comstring->len + 1);
 		strcpy(comcs, comstring->s);
@@ -201,7 +221,7 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 		     cs = strtok(NULL, " \t\f\v\r\n"))
 			argv[argc++] = cs;
 		if (argc == 0)
-			return 0;
+			goto next_comstring;
 		if (argc < 3) {
 			jail_warnx(j, "%s: %s: missing information",
 			    j->intparams[comparam]->name, comstring->s);
@@ -233,7 +253,9 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 		}
 		*(const char **)&argv[1] = "-t";
 		j->flags |= JF_MOUNTED;
-	} else if (comparam == IP_MOUNT_DEVFS) {
+		break;
+
+	case IP_MOUNT_DEVFS:
 		path = string_param(j->intparams[KP_PATH]);
 		if (path == NULL) {
 			jail_warnx(j, "mount.devfs: no path");
@@ -266,7 +288,11 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 			argv[3] = NULL;
 		}
 		j->flags |= JF_MOUNTED;
-	} else if (comparam == IP_COMMAND && j->name == NULL) {
+		break;
+
+	case IP_COMMAND:
+		if (j->name != NULL)
+			goto default_command;
 		argc = 0;
 		STAILQ_FOREACH(s, &j->intparams[IP_COMMAND]->val, tq)
 			argc++;
@@ -276,36 +302,40 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 			argv[argc++] = s->s;
 		argv[argc] = NULL;
 		j->comstring = NULL;
-	} else if ((cs = strpbrk(comstring->s, "!\"$&'()*;<>?[\\]`{|}~")) &&
-		   !(cs[0] == '&' && cs[1] == '\0')) {
-		argv = alloca(4 * sizeof(char *));
-		*(const char **)&argv[0] = _PATH_BSHELL;
-		*(const char **)&argv[1] = "-c";
-		argv[2] = comstring->s;
-		argv[3] = NULL;
-	} else {
-		if (cs) {
-			*cs = 0;
-			bg = 1;
-		}
-		comcs = alloca(comstring->len + 1);
-		strcpy(comcs, comstring->s);	
-		argc = 0;
-		for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
-		     cs = strtok(NULL, " \t\f\v\r\n"))
-			argc++;
-		argv = alloca((argc + 1) * sizeof(char *));
-		strcpy(comcs, comstring->s);	
-		argc = 0;
-		for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
-		     cs = strtok(NULL, " \t\f\v\r\n"))
-			argv[argc++] = cs;
-		argv[argc] = NULL;
-	}
-	if (argv[0] == NULL)
-		return 0;
+		break;
 
-	j->pstatus = 0;
+	default:
+	default_command:
+		if ((cs = strpbrk(comstring->s, "!\"$&'()*;<>?[\\]`{|}~")) &&
+		    !(cs[0] == '&' && cs[1] == '\0')) {
+			argv = alloca(4 * sizeof(char *));
+			*(const char **)&argv[0] = _PATH_BSHELL;
+			*(const char **)&argv[1] = "-c";
+			argv[2] = comstring->s;
+			argv[3] = NULL;
+		} else {
+			if (cs) {
+				*cs = 0;
+				bg = 1;
+			}
+			comcs = alloca(comstring->len + 1);
+			strcpy(comcs, comstring->s);	
+			argc = 0;
+			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
+			     cs = strtok(NULL, " \t\f\v\r\n"))
+				argc++;
+			argv = alloca((argc + 1) * sizeof(char *));
+			strcpy(comcs, comstring->s);	
+			argc = 0;
+			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
+			     cs = strtok(NULL, " \t\f\v\r\n"))
+				argv[argc++] = cs;
+			argv[argc] = NULL;
+		}
+	}
+
+	if (argv[0] == NULL)
+		goto next_comstring;
 	if (int_param(j->intparams[IP_EXEC_TIMEOUT], &timeout) &&
 	    timeout != 0) {
 		clock_gettime(CLOCK_REALTIME, &j->timeout);
@@ -357,10 +387,11 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 		err(1, "fork");
 	if (pid > 0) {
 		if (bg) {
-			j->flags |= JF_BACKGROUND;
+			free(j->comline);
+			j->comline = NULL;
 			requeue(j, &ready);
 		} else {
-			--*plimit;
+			paralimit--;
 			add_proc(j, pid);
 		}
 		return 1;
@@ -434,15 +465,18 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
  * Check command exit status
  */
 int
-finish_command(struct cfjail *j, int *plimit)
+finish_command(struct cfjail *j)
 {
 	int error;
 
-	if (j->flags & (JF_RUNQ | JF_BACKGROUND))
+	if (!(j->flags & JF_SLEEPQ))
 		return 0;
-	++*plimit;
-	if (!TAILQ_EMPTY(&runnable))
-		requeue(TAILQ_FIRST(&runnable), &ready);
+	j->flags &= ~JF_SLEEPQ;
+	if (j->comparam != IP_STOP_TIMEOUT) {
+		paralimit++;
+		if (!TAILQ_EMPTY(&runnable))
+			requeue(TAILQ_FIRST(&runnable), &ready);
+	}
 	error = 0;
 	if (j->flags & JF_TIMEOUT) {
 		j->flags &= ~JF_TIMEOUT;
@@ -458,10 +492,12 @@ finish_command(struct cfjail *j, int *plimit)
 			    j->comline, WTERMSIG(j->pstatus));
 		else
 			jail_warnx(j, "%s: failed", j->comline);
+		j->pstatus = 0;
 		failed(j);
 		error = -1;
 	}
 	free(j->comline);
+	j->comline = NULL;
 	return error;
 }
 
@@ -526,9 +562,91 @@ next_proc(int nonblock)
 }
 
 /*
+ * Add a process to the hash, tied to a jail.
+ */
+static void
+add_proc(struct cfjail *j, pid_t pid)
+{
+	struct kevent ke;
+	struct cfjail *tj;
+	struct phash *ph;
+
+	if (!kq && (kq = kqueue()) < 0)
+		err(1, "kqueue");
+	EV_SET(&ke, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+	if (kevent(kq, &ke, 1, NULL, 0, NULL) < 0)
+		err(1, "kevent");
+	ph = emalloc(sizeof(struct phash));
+	ph->j = j;
+	ph->pid = pid;
+	LIST_INSERT_HEAD(&phash[pid % PHASH_SIZE], ph, le);
+	j->nprocs++;
+	j->flags |= JF_SLEEPQ;
+	if (j->timeout.tv_sec == 0)
+		requeue(j, &sleeping);
+	else {
+		/* File the jail in the sleep queue acording to its timeout. */
+		TAILQ_REMOVE(j->queue, j, tq);
+		TAILQ_FOREACH(tj, &sleeping, tq) {
+			if (!tj->timeout.tv_sec ||
+			    j->timeout.tv_sec < tj->timeout.tv_sec ||
+			    (j->timeout.tv_sec == tj->timeout.tv_sec &&
+			    j->timeout.tv_nsec <= tj->timeout.tv_nsec)) {
+				TAILQ_INSERT_BEFORE(tj, j, tq);
+				break;
+			}
+		}
+		if (tj == NULL)
+			TAILQ_INSERT_TAIL(&sleeping, j, tq);
+		j->queue = &sleeping;
+	}
+}
+
+/*
+ * Remove any processes from the hash that correspond to a jail.
+ */
+static void
+clear_procs(struct cfjail *j)
+{
+	struct kevent ke;
+	struct phash *ph, *tph;
+	int i;
+
+	j->nprocs = 0;
+	for (i = 0; i < PHASH_SIZE; i++)
+		LIST_FOREACH_SAFE(ph, &phash[i], le, tph)
+			if (ph->j == j) {
+				EV_SET(&ke, ph->pid, EVFILT_PROC, EV_DELETE,
+				    NOTE_EXIT, 0, NULL);
+				(void)kevent(kq, &ke, 1, NULL, 0, NULL);
+				LIST_REMOVE(ph, le);
+				free(ph);
+			}
+}
+
+/*
+ * Find the jail that corresponds to an exited process.
+ */
+static struct cfjail *
+find_proc(pid_t pid)
+{
+	struct cfjail *j;
+	struct phash *ph;
+
+	LIST_FOREACH(ph, &phash[pid % PHASH_SIZE], le)
+		if (ph->pid == pid) {
+			j = ph->j;
+			LIST_REMOVE(ph, le);
+			free(ph);
+			return --j->nprocs ? NULL : j;
+		}
+	return NULL;
+}
+
+/*
  * Send SIGTERM to all processes in a jail and wait for them to die.
  */
-int
+static int
 term_procs(struct cfjail *j)
 {
 	struct kinfo_proc *ki;
@@ -571,85 +689,6 @@ term_procs(struct cfjail *j)
 		return 1;
 	}
 	return 0;
-}
-
-/*
- * Add a process to the hash, tied to a jail.
- */
-static void
-add_proc(struct cfjail *j, pid_t pid)
-{
-	struct kevent ke;
-	struct cfjail *tj;
-	struct phash *ph;
-
-	if (!kq && (kq = kqueue()) < 0)
-		err(1, "kqueue");
-	EV_SET(&ke, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
-	if (kevent(kq, &ke, 1, NULL, 0, NULL) < 0)
-		err(1, "kevent");
-	ph = emalloc(sizeof(struct phash));
-	ph->j = j;
-	ph->pid = pid;
-	LIST_INSERT_HEAD(&phash[pid % PHASH_SIZE], ph, le);
-	j->nprocs++;
-	if (j->timeout.tv_sec) {
-		TAILQ_REMOVE(j->queue, j, tq);
-		TAILQ_FOREACH(tj, &sleeping, tq) {
-			if (!tj->timeout.tv_sec ||
-			    j->timeout.tv_sec < tj->timeout.tv_sec ||
-			    (j->timeout.tv_sec == tj->timeout.tv_sec &&
-			    j->timeout.tv_nsec <= tj->timeout.tv_nsec)) {
-				TAILQ_INSERT_BEFORE(tj, j, tq);
-				break;
-			}
-		}
-		if (tj == NULL)
-			TAILQ_INSERT_TAIL(&sleeping, j, tq);
-		j->queue = &sleeping;
-	} else
-		requeue(j, &sleeping);
-}
-
-/*
- * Remove any processes from the hash that correspond to a jail.
- */
-static void
-clear_procs(struct cfjail *j)
-{
-	struct kevent ke;
-	struct phash *ph, *tph;
-	int i;
-
-	j->nprocs = 0;
-	for (i = 0; i < PHASH_SIZE; i++)
-		LIST_FOREACH_SAFE(ph, &phash[i], le, tph)
-			if (ph->j == j) {
-				EV_SET(&ke, ph->pid, EVFILT_PROC, EV_DELETE,
-				    NOTE_EXIT, 0, NULL);
-				(void)kevent(kq, &ke, 1, NULL, 0, NULL);
-				LIST_REMOVE(ph, le);
-				free(ph);
-			}
-}
-
-/*
- * Find the jail that corresponds to an exited process.
- */
-static struct cfjail *
-find_proc(pid_t pid)
-{
-	struct cfjail *j;
-	struct phash *ph;
-
-	LIST_FOREACH(ph, &phash[pid % PHASH_SIZE], le)
-		if (ph->pid == pid) {
-			j = ph->j;
-			LIST_REMOVE(ph, le);
-			free(ph);
-			return --j->nprocs ? NULL : j;
-		}
-	return NULL;
 }
 
 /*
