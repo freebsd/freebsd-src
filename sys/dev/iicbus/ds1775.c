@@ -127,14 +127,15 @@ ds1775_probe(device_t dev)
 		return (ENXIO);
 
 	if (strcmp(name, "temp-monitor") != 0 ||
-	    strcmp(compatible, "ds1775") != 0)
+	    (strcmp(compatible, "ds1775") != 0 &&
+	     strcmp(compatible, "lm75") != 0))
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
 
-	device_set_desc(dev, "Temp-Monitor DS1755");
+	device_set_desc(dev, "Temp-Monitor DS1775");
 
 	return (0);
 }
