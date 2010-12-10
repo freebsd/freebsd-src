@@ -1019,7 +1019,7 @@ gpib_ib_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thre
 	ap->__iberr = 0;
 	ap->__ibsta = 0;
 	ap->__ibcnt = 0;
-	ap->retval = 0;
+	ap->__retval = 0;
 
 	if (ap->__field & __F_TMO) {
 		if (ap->tmo < 0 || ap->tmo >= max_timeouts)
