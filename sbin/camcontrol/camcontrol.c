@@ -5026,14 +5026,7 @@ getdevid(struct cam_devitem *item)
 		goto bailout;
 	}
 
-	item->device_id_len = CAM_SCSI_DEVID_MAXLEN;
-	item->device_id = malloc(item->device_id_len);
-	if (item->device_id == NULL) {
-		warn("%s: unable to allocate %d bytes", __func__,
-		     item->device_id_len);
-		retval = 1;
-		goto bailout;
-	}
+	item->device_id_len = 0;
 
 	ccb = cam_getccb(dev);
 	if (ccb == NULL) {
@@ -5044,12 +5037,19 @@ getdevid(struct cam_devitem *item)
 
 	bzero(&(&ccb->ccb_h)[1],
 	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+
+	/*
+	 * On the first try, we just probe for the size of the data, and
+	 * then allocate that much memory and try again.
+	 */
+retry:
 	ccb->ccb_h.func_code = XPT_GDEV_ADVINFO;
 	ccb->ccb_h.flags = CAM_DIR_IN;
 	ccb->cgdai.flags = CGDAI_FLAG_PROTO;
 	ccb->cgdai.buftype = CGDAI_TYPE_SCSI_DEVID;
 	ccb->cgdai.bufsiz = item->device_id_len;
-	ccb->cgdai.buf = (uint8_t *)item->device_id;
+	if (item->device_id_len != 0)
+		ccb->cgdai.buf = (uint8_t *)item->device_id;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
 		warn("%s: error sending XPT_GDEV_ADVINFO CCB", __func__);
@@ -5061,6 +5061,29 @@ getdevid(struct cam_devitem *item)
 		warnx("%s: CAM status %#x", __func__, ccb->ccb_h.status);
 		retval = 1;
 		goto bailout;
+	}
+
+	if (item->device_id_len == 0) {
+		/*
+		 * This is our first time through.  Allocate the buffer,
+		 * and then go back to get the data.
+		 */
+		if (ccb->cgdai.provsiz == 0) {
+			warnx("%s: invalid .provsiz field returned with "
+			     "XPT_GDEV_ADVINFO CCB", __func__);
+			retval = 1;
+			goto bailout;
+		}
+		item->device_id_len = ccb->cgdai.provsiz;
+		item->device_id = malloc(item->device_id_len);
+		if (item->device_id == NULL) {
+			warn("%s: unable to allocate %d bytes", __func__,
+			     item->device_id_len);
+			retval = 1;
+			goto bailout;
+		}
+		ccb->ccb_h.status = CAM_REQ_INPROG;
+		goto retry;
 	}
 
 bailout:
@@ -5158,9 +5181,8 @@ buildbusdevlist(struct cam_devlist *devlist)
 				dev_result = 
 				     &ccb.cdm.matches[i].result.device_result;
 
-				if ((dev_result->flags
-				     & DEV_RESULT_UNCONFIGURED)
-				 && ((arglist & CAM_ARG_VERBOSE) == 0)) {
+				if (dev_result->flags &
+				    DEV_RESULT_UNCONFIGURED) {
 					skip_device = 1;
 					break;
 				} else
