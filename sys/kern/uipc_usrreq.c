@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
@@ -113,6 +114,13 @@ static int		unp_rights;	/* (g) File descriptors in flight. */
 static struct unp_head	unp_shead;	/* (l) List of stream sockets. */
 static struct unp_head	unp_dhead;	/* (l) List of datagram sockets. */
 
+struct unp_defer {
+	SLIST_ENTRY(unp_defer) ud_link;
+	struct file *ud_fp;
+};
+static SLIST_HEAD(, unp_defer) unp_defers;
+static int unp_defers_count;
+
 static const struct sockaddr	sun_noname = { sizeof(sun_noname), AF_LOCAL };
 
 /*
@@ -122,6 +130,13 @@ static const struct sockaddr	sun_noname = { sizeof(sun_noname), AF_LOCAL };
  * code.  See unp_gc() for a full description.
  */
 static struct task	unp_gc_task;
+
+/*
+ * The close of unix domain sockets attached as SCM_RIGHTS is
+ * postponed to the taskqueue, to avoid arbitrary recursion depth.
+ * The attached sockets might have another sockets attached.
+ */
+static struct task	unp_defer_task;
 
 /*
  * Both send and receive buffers are allocated PIPSIZ bytes of buffering for
@@ -152,8 +167,11 @@ SYSCTL_ULONG(_net_local_dgram, OID_AUTO, maxdgram, CTLFLAG_RW,
 	   &unpdg_sendspace, 0, "Default datagram send space.");
 SYSCTL_ULONG(_net_local_dgram, OID_AUTO, recvspace, CTLFLAG_RW,
 	   &unpdg_recvspace, 0, "Default datagram receive space.");
-SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, 
+SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0,
     "File descriptors in flight.");
+SYSCTL_INT(_net_local, OID_AUTO, deferred, CTLFLAG_RD,
+    &unp_defers_count, 0,
+    "File descriptors deferred to taskqueue for close.");
 
 /*-
  * Locking and synchronization:
@@ -203,6 +221,7 @@ SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0,
  */
 static struct rwlock	unp_link_rwlock;
 static struct mtx	unp_list_lock;
+static struct mtx	unp_defers_lock;
 
 #define	UNP_LINK_LOCK_INIT()		rw_init(&unp_link_rwlock,	\
 					    "unp_link_rwlock")
@@ -223,6 +242,11 @@ static struct mtx	unp_list_lock;
 					    "unp_list_lock", NULL, MTX_DEF)
 #define	UNP_LIST_LOCK()			mtx_lock(&unp_list_lock)
 #define	UNP_LIST_UNLOCK()		mtx_unlock(&unp_list_lock)
+
+#define	UNP_DEFERRED_LOCK_INIT()	mtx_init(&unp_defers_lock, \
+					    "unp_defer", NULL, MTX_DEF)
+#define	UNP_DEFERRED_LOCK()		mtx_lock(&unp_defers_lock)
+#define	UNP_DEFERRED_UNLOCK()		mtx_unlock(&unp_defers_lock)
 
 #define UNP_PCB_LOCK_INIT(unp)		mtx_init(&(unp)->unp_mtx,	\
 					    "unp_mtx", "unp_mtx",	\
@@ -249,8 +273,9 @@ static void	unp_init(void);
 static int	unp_internalize(struct mbuf **, struct thread *);
 static void	unp_internalize_fp(struct file *);
 static int	unp_externalize(struct mbuf *, struct mbuf **);
-static void	unp_externalize_fp(struct file *);
+static int	unp_externalize_fp(struct file *);
 static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
+static void	unp_process_defers(void * __unused, int);
 
 /*
  * Definitions of protocols supported in the LOCAL domain.
@@ -1658,9 +1683,12 @@ unp_init(void)
 	    NULL, EVENTHANDLER_PRI_ANY);
 	LIST_INIT(&unp_dhead);
 	LIST_INIT(&unp_shead);
+	SLIST_INIT(&unp_defers);
 	TASK_INIT(&unp_gc_task, 0, unp_gc, NULL);
+	TASK_INIT(&unp_defer_task, 0, unp_process_defers, NULL);
 	UNP_LINK_LOCK_INIT();
 	UNP_LIST_LOCK_INIT();
+	UNP_DEFERRED_LOCK_INIT();
 }
 
 static int
@@ -1864,9 +1892,45 @@ fptounp(struct file *fp)
 static void
 unp_discard(struct file *fp)
 {
+	struct unp_defer *dr;
 
-	unp_externalize_fp(fp);
-	(void) closef(fp, (struct thread *)NULL);
+	if (unp_externalize_fp(fp)) {
+		dr = malloc(sizeof(*dr), M_TEMP, M_WAITOK);
+		dr->ud_fp = fp;
+		UNP_DEFERRED_LOCK();
+		SLIST_INSERT_HEAD(&unp_defers, dr, ud_link);
+		UNP_DEFERRED_UNLOCK();
+		atomic_add_int(&unp_defers_count, 1);
+		taskqueue_enqueue(taskqueue_thread, &unp_defer_task);
+	} else
+		(void) closef(fp, (struct thread *)NULL);
+}
+
+static void
+unp_process_defers(void *arg __unused, int pending)
+{
+	struct unp_defer *dr;
+	SLIST_HEAD(, unp_defer) drl;
+	int count;
+
+	SLIST_INIT(&drl);
+	for (;;) {
+		UNP_DEFERRED_LOCK();
+		if (SLIST_FIRST(&unp_defers) == NULL) {
+			UNP_DEFERRED_UNLOCK();
+			break;
+		}
+		SLIST_SWAP(&unp_defers, &drl, unp_defer);
+		UNP_DEFERRED_UNLOCK();
+		count = 0;
+		while ((dr = SLIST_FIRST(&drl)) != NULL) {
+			SLIST_REMOVE_HEAD(&drl, ud_link);
+			closef(dr->ud_fp, NULL);
+			free(dr, M_TEMP);
+			count++;
+		}
+		atomic_add_int(&unp_defers_count, -count);
+	}
 }
 
 static void
@@ -1884,16 +1948,21 @@ unp_internalize_fp(struct file *fp)
 	UNP_LINK_WUNLOCK();
 }
 
-static void
+static int
 unp_externalize_fp(struct file *fp)
 {
 	struct unpcb *unp;
+	int ret;
 
 	UNP_LINK_WLOCK();
-	if ((unp = fptounp(fp)) != NULL)
+	if ((unp = fptounp(fp)) != NULL) {
 		unp->unp_msgcount--;
+		ret = 1;
+	} else
+		ret = 0;
 	unp_rights--;
 	UNP_LINK_WUNLOCK();
+	return (ret);
 }
 
 /*
