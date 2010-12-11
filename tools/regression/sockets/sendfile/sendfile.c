@@ -35,6 +35,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <md5.h>
 #include <signal.h>
@@ -408,7 +409,7 @@ cleanup(void)
 }
 
 int
-main(void)
+main(int argc, char *argv[])
 {
 	char *page_buffer;
 	int pagesize;
@@ -422,8 +423,20 @@ main(void)
 		FAIL_ERR("malloc")
 	bzero(page_buffer, TEST_PAGES * pagesize);
 
-	snprintf(path, PATH_MAX, "/tmp/sendfile.XXXXXXXXXXXX");
-	file_fd = mkstemp(path);
+	if (argc == 1) {
+		snprintf(path, PATH_MAX, "/tmp/sendfile.XXXXXXXXXXXX");
+		file_fd = mkstemp(path);
+		if (file_fd == -1)
+			FAIL_ERR("mkstemp");
+	} else if (argc == 2) {
+		(void)strlcpy(path, argv[1], sizeof(path));
+		file_fd = open(path, O_CREAT | O_TRUNC | O_RDWR, 0600);
+		if (file_fd == -1)
+			FAIL_ERR("open");
+	} else {
+		FAIL("usage: sendfile [path]");
+	}
+
 	atexit(cleanup);
 
 	len = write(file_fd, page_buffer, TEST_PAGES * pagesize);
