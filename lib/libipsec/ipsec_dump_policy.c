@@ -162,7 +162,8 @@ ipsec_dump_policy(policy, delimiter)
 			return NULL;
 		}
 		buf = newbuf;
-		snprintf(buf, buflen, "%s%s%s", buf, delimiter, isrbuf);
+		snprintf(buf + strlen(buf), buflen - strlen(buf),
+		    "%s%s", delimiter, isrbuf);
 
 		off += xisr->sadb_x_ipsecrequest_len;
 	}
