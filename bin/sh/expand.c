@@ -137,6 +137,18 @@ expandhere(union node *arg, int fd)
 	xwrite(fd, stackblock(), expdest - stackblock());
 }
 
+static char *
+stputs_quotes(const char *data, const char *syntax, char *p)
+{
+	while (*data) {
+		CHECKSTRSPACE(2, p);
+		if (syntax[(int)*data] == CCTL)
+			USTPUTC(CTLESC, p);
+		USTPUTC(*data++, p);
+	}
+	return (p);
+}
+#define STPUTS_QUOTES(data, syntax, p) p = stputs_quotes((data), syntax, p)
 
 /*
  * Perform expansions on an argument, placing the resulting list of arguments
@@ -334,11 +346,10 @@ done:
 	if (*home == '\0')
 		goto lose;
 	*p = c;
-	while ((c = *home++) != '\0') {
-		if (quotes && SQSYNTAX[(int)c] == CCTL)
-			STPUTC(CTLESC, expdest);
-		STPUTC(c, expdest);
-	}
+	if (quotes)
+		STPUTS_QUOTES(home, SQSYNTAX, expdest);
+	else
+		STPUTS(home, expdest);
 	return (p);
 lose:
 	*p = c;
@@ -723,12 +734,10 @@ again: /* jump here after setting a variable with ${var=text} */
 					varlen++;
 			}
 			else {
-				while (*val) {
-					if (quotes &&
-					    syntax[(int)*val] == CCTL)
-						STPUTC(CTLESC, expdest);
-					STPUTC(*val++, expdest);
-				}
+				if (quotes)
+					STPUTS_QUOTES(val, syntax, expdest);
+				else
+					STPUTS(val, expdest);
 
 			}
 		}
@@ -877,7 +886,14 @@ varisset(char *name, int nulok)
 	return 1;
 }
 
-
+static void
+strtodest(const char *p, int flag, int subtype, int quoted)
+{
+	if (flag & (EXP_FULL | EXP_CASE) && subtype != VSLENGTH)
+		STPUTS_QUOTES(p, quoted ? DQSYNTAX : BASESYNTAX, expdest);
+	else
+		STPUTS(p, expdest);
+}
 
 /*
  * Add the value of a specialized variable to the stack string.
@@ -891,21 +907,6 @@ varvalue(char *name, int quoted, int subtype, int flag)
 	int i;
 	char sep;
 	char **ap;
-	char const *syntax;
-
-#define STRTODEST(p) \
-	do {\
-	if (flag & (EXP_FULL | EXP_CASE) && subtype != VSLENGTH) { \
-		syntax = quoted? DQSYNTAX : BASESYNTAX; \
-		while (*p) { \
-			if (syntax[(int)*p] == CCTL) \
-				STPUTC(CTLESC, expdest); \
-			STPUTC(*p++, expdest); \
-		} \
-	} else \
-		STPUTS(p, expdest); \
-	} while (0)
-
 
 	switch (*name) {
 	case '$':
@@ -931,7 +932,7 @@ numvar:
 	case '@':
 		if (flag & EXP_FULL && quoted) {
 			for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
-				STRTODEST(p);
+				strtodest(p, flag, subtype, quoted);
 				if (*ap)
 					STPUTC('\0', expdest);
 			}
@@ -944,21 +945,21 @@ numvar:
 		else
 			sep = ' ';
 		for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
-			STRTODEST(p);
+			strtodest(p, flag, subtype, quoted);
 			if (*ap && sep)
 				STPUTC(sep, expdest);
 		}
 		break;
 	case '0':
 		p = arg0;
-		STRTODEST(p);
+		strtodest(p, flag, subtype, quoted);
 		break;
 	default:
 		if (is_digit(*name)) {
 			num = atoi(name);
 			if (num > 0 && num <= shellparam.nparam) {
 				p = shellparam.p[num - 1];
-				STRTODEST(p);
+				strtodest(p, flag, subtype, quoted);
 			}
 		}
 		break;
