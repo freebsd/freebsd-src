@@ -292,6 +292,9 @@ moea64_pte_unset_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt,
 
 	pvo_pt->pte_hi &= ~LPTE_VALID;
 
+	/* Finish all pending operations */
+	isync();
+
 	/*
 	 * Force the reg & chg bits back into the PTEs.
 	 */
