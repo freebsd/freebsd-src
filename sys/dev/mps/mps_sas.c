@@ -121,6 +121,7 @@ struct mpssas_devprobe {
 
 MALLOC_DEFINE(M_MPSSAS, "MPSSAS", "MPS SAS memory");
 
+static __inline int mpssas_set_lun(uint8_t *lun, u_int ccblun);
 static struct mpssas_target * mpssas_alloc_target(struct mpssas_softc *,
     struct mpssas_target *);
 static struct mpssas_target * mpssas_find_target(struct mpssas_softc *, int,
@@ -162,6 +163,43 @@ static void mpssas_action_resetdev(struct mpssas_softc *, union ccb *);
 static void mpssas_resetdev_complete(struct mps_softc *, struct mps_command *);
 static void mpssas_freeze_device(struct mpssas_softc *, struct mpssas_target *);
 static void mpssas_unfreeze_device(struct mpssas_softc *, struct mpssas_target *) __unused;
+
+/*
+ * Abstracted so that the driver can be backwards and forwards compatible
+ * with future versions of CAM that will provide this functionality.
+ */
+#define MPS_SET_LUN(lun, ccblun)	\
+	mpssas_set_lun(lun, ccblun)
+
+static __inline int
+mpssas_set_lun(uint8_t *lun, u_int ccblun)
+{
+	uint64_t *newlun;
+
+	newlun = (uint64_t *)lun;
+	*newlun = 0;
+	if (ccblun <= 0xff) {
+		/* Peripheral device address method, LUN is 0 to 255 */
+		lun[1] = ccblun;
+	} else if (ccblun <= 0x3fff) {
+		/* Flat space address method, LUN is <= 16383 */
+		scsi_ulto2b(ccblun, lun);
+		lun[0] |= 0x40;
+	} else if (ccblun <= 0xffffff) {
+		/* Extended flat space address method, LUN is <= 16777215 */
+		scsi_ulto3b(ccblun, &lun[1]);
+		/* Extended Flat space address method */
+		lun[0] = 0xc0;
+		/* Length = 1, i.e. LUN is 3 bytes long */
+		lun[0] |= 0x10;
+		/* Extended Address Method */
+		lun[0] |= 0x02;
+	} else {
+		return (EINVAL);
+	}
+
+	return (0);
+}
 
 static struct mpssas_target *
 mpssas_alloc_target(struct mpssas_softc *sassc, struct mpssas_target *probe)
@@ -1366,14 +1404,12 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		break;
 	}
 
-	/* XXX Need to handle multi-level LUNs */
-	if (csio->ccb_h.target_lun > 255) {
+	if (MPS_SET_LUN(req->LUN, csio->ccb_h.target_lun) != 0) {
 		mps_free_command(sc, cm);
 		ccb->ccb_h.status = CAM_LUN_INVALID;
 		xpt_done(ccb);
 		return;
 	}
-	req->LUN[1] = csio->ccb_h.target_lun;
 
 	if (csio->ccb_h.flags & CAM_CDB_POINTER)
 		bcopy(csio->cdb_io.cdb_ptr, &req->CDB.CDB32[0], csio->cdb_len);
