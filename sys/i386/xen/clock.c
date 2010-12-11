@@ -340,7 +340,8 @@ clkintr(void *arg)
 	 * time base.
 	 */
 	
-	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version) {
+	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version &&
+	    !independent_wallclock) {
 		printf("[XEN] hypervisor wallclock nudged; nudging TOD.\n");
 		update_wallclock();
 		add_uptime_to_wallclock();
