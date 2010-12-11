@@ -7,7 +7,6 @@
 LIB=	bsnmptools
 #INTERNALLIB=
 SRCS=	bsnmpimport.c bsnmpmap.c bsnmptools.c bsnmptc.c
-CFLAGS+= -g -Wall -Werror
 
 SHLIB_MAJOR=	0
 
