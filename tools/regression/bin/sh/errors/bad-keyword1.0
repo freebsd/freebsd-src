@@ -1,4 +1,4 @@
 # $FreeBSD$
 
-echo ':; fi' | sh -n 2>/dev/null && exit 1
+echo ':; fi' | ${SH} -n 2>/dev/null && exit 1
 exit 0
