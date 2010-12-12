@@ -46,7 +46,6 @@ struct stackmark {
 extern char *stacknxt;
 extern int stacknleft;
 extern int sstrnleft;
-extern int herefd;
 
 pointer ckmalloc(size_t);
 pointer ckrealloc(pointer, int);
