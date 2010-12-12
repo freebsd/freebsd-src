@@ -149,3 +149,6 @@ STOP_NMI		opt_cpu.h
 
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h
+
+# Xen DomU Support
+XEN			opt_global.h

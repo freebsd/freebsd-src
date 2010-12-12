@@ -626,7 +626,7 @@ static int      xenpic_vector(struct intsrc *isrc);
 static int      xenpic_source_pending(struct intsrc *isrc); 
 static void     xenpic_suspend(struct pic* pic); 
 static void     xenpic_resume(struct pic* pic); 
-static int      xenpic_assign_cpu(struct intsrc *, u_int apic_id);
+static void     xenpic_assign_cpu(struct intsrc *, u_int apic_id);
 
 
 struct pic xenpic_dynirq_template  =  { 
@@ -752,11 +752,10 @@ xenpic_resume(struct pic* pic)
 	TODO; 
 }
 
-static int
+static void
 xenpic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 { 
 	TODO; 
-	return (EOPNOTSUPP);
 }
 
 void

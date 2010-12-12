@@ -43,6 +43,39 @@
  * to each CPU's data can be set up for things like "check curproc on all
  * other processors"
  */
+
+#ifdef XEN
+#ifndef NR_VIRQS
+#define NR_VIRQS        24
+#endif
+#ifndef NR_IPIS
+#define NR_IPIS         2
+#endif
+
+/* These are peridically updated in shared_info, and then copied here. */
+struct shadow_time_info {
+        uint64_t tsc_timestamp;     /* TSC at last update of time vals.  */
+        uint64_t system_timestamp;  /* Time, in nanosecs, since boot.    */
+        uint32_t tsc_to_nsec_mul;
+        uint32_t tsc_to_usec_mul;
+        int tsc_shift;
+        uint32_t version;
+};
+
+#define PCPU_XEN_FIELDS							\
+	;								\
+	u_int	pc_cr3;		/* track cr3 for R1/R3*/		\
+	vm_paddr_t *pc_pdir_shadow;					\
+	uint64_t pc_processed_system_time;				\
+	struct shadow_time_info pc_shadow_time;				\
+	int	pc_resched_irq;						\
+	int	pc_callfunc_irq;					\
+	int	pc_virq_to_irq[NR_VIRQS];				\
+	int	pc_ipi_to_irq[NR_IPIS]
+#else
+#define PCPU_XEN_FIELDS
+#endif
+
 #define	PCPU_MD_FIELDS							\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
 	struct	pmap *pc_curpmap;					\
@@ -55,6 +88,7 @@
 	u_int	pc_apic_id;						\
 	int	pc_private_tss;		/* Flag indicating private tss*/\
 	u_int	pc_cmci_mask		/* MCx banks for CMCI */	\
+	PCPU_XEN_FIELDS
 
 
 #ifdef _KERNEL
