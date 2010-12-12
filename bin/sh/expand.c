@@ -132,7 +132,6 @@ collate_range_cmp(int c1, int c2)
 void
 expandhere(union node *arg, int fd)
 {
-	herefd = fd;
 	expandarg(arg, (struct arglist *)NULL, 0);
 	xwrite(fd, stackblock(), expdest - stackblock());
 }
@@ -469,7 +468,6 @@ expbackq(union node *cmd, int quoted, int flag)
 	char lastc;
 	int startloc = dest - stackblock();
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
-	int saveherefd;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 	int nnl;
 
@@ -477,15 +475,12 @@ expbackq(union node *cmd, int quoted, int flag)
 	saveifs = ifsfirst;
 	savelastp = ifslastp;
 	saveargbackq = argbackq;
-	saveherefd = herefd;
-	herefd = -1;
 	p = grabstackstr(dest);
 	evalbackcmd(cmd, &in);
 	ungrabstackstr(p, dest);
 	ifsfirst = saveifs;
 	ifslastp = savelastp;
 	argbackq = saveargbackq;
-	herefd = saveherefd;
 
 	p = in.buf;
 	lastc = '\0';
@@ -544,16 +539,13 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 	char *loc = NULL;
 	char *q;
 	int c = 0;
-	int saveherefd = herefd;
 	struct nodelist *saveargbackq = argbackq;
 	int amount;
 
-	herefd = -1;
 	argstr(p, (subtype == VSTRIMLEFT || subtype == VSTRIMLEFTMAX ||
 	    subtype == VSTRIMRIGHT || subtype == VSTRIMRIGHTMAX ?
 	    EXP_CASE : 0) | EXP_TILDE);
 	STACKSTRNUL(expdest);
-	herefd = saveherefd;
 	argbackq = saveargbackq;
 	startp = stackblock() + startloc;
 	if (str == NULL)
