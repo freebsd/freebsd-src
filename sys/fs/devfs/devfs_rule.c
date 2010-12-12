@@ -742,6 +742,11 @@ devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm)
 		devfs_ruleset_reap(cds);
 	}
 
+	if (rsnum == 0) {
+		dm->dm_ruleset = 0;
+		return (0);
+	}
+
 	ds = devfs_ruleset_bynum(rsnum);
 	if (ds == NULL)
 		ds = devfs_ruleset_create(rsnum);
