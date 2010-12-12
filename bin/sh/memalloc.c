@@ -128,7 +128,6 @@ static struct stackmark *markp;
 char *stacknxt;
 int stacknleft;
 int sstrnleft;
-int herefd = -1;
 
 
 static void
@@ -309,11 +308,6 @@ growstackstr(void)
 	int len;
 
 	len = stackblocksize();
-	if (herefd >= 0 && len >= 1024) {
-		xwrite(herefd, stackblock(), len);
-		sstrnleft = len;
-		return stackblock();
-	}
 	return growstrstackblock(len);
 }
 
