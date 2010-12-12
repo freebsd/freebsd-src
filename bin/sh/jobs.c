@@ -153,10 +153,8 @@ out:				out2fmt_flush("sh: can't access tty; job control turned off\n");
 				mflag = 0;
 				return;
 			}
-			if (initialpgrp == -1)
-				initialpgrp = getpgrp();
-			else if (initialpgrp != getpgrp()) {
-				killpg(0, SIGTTIN);
+			if (initialpgrp != getpgrp()) {
+				kill(0, SIGTTIN);
 				continue;
 			}
 		} while (0);
@@ -222,7 +220,6 @@ fgcmd(int argc __unused, char **argv)
 int
 bgcmd(int argc, char **argv)
 {
-	char s[64];
 	struct job *jp;
 
 	do {
@@ -233,8 +230,7 @@ bgcmd(int argc, char **argv)
 			continue;
 		restartjob(jp);
 		jp->foreground = 0;
-		fmtstr(s, 64, "[%td] ", jp - jobtab + 1);
-		out1str(s);
+		out1fmt("[%td] ", jp - jobtab + 1);
 		printjobcmd(jp);
 	} while (--argc > 1);
 	return 0;
@@ -251,7 +247,7 @@ restartjob(struct job *jp)
 		return;
 	setcurjob(jp);
 	INTOFF;
-	killpg(jp->ps[0].pid, SIGCONT);
+	kill(-jp->ps[0].pid, SIGCONT);
 	for (ps = jp->ps, i = jp->nprocs ; --i >= 0 ; ps++) {
 		if (WIFSTOPPED(ps->status)) {
 			ps->status = -1;
@@ -951,9 +947,7 @@ waitforjob(struct job *jp, int *origstatus)
 	if (! JOBS || jp->state == JOBDONE)
 		freejob(jp);
 	if (int_pending()) {
-		if (WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
-			kill(getpid(), SIGINT);
-		else
+		if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGINT)
 			CLEAR_PENDING_INT;
 	}
 #if JOBS
