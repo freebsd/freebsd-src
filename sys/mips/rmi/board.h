@@ -195,6 +195,7 @@ xlr_is_xls_b0(void)
 /* all our knowledge of chip and board that cannot be detected run-time goes here */
 enum gmac_block_types { XLR_GMAC, XLR_XGMAC, XLR_SPI4};
 enum gmac_port_types  { XLR_RGMII, XLR_SGMII, XLR_PORT0_RGMII, XLR_XGMII, XLR_XAUI };
+enum i2c_dev_types { I2C_RTC, I2C_THERMAL, I2C_EEPROM };
 
 struct xlr_board_info {
 	int is_xls;
@@ -207,6 +208,13 @@ struct xlr_board_info {
 	struct bucket_size *bucket_sizes;      /* pointer to Core station bucket */
 	int *msgmap;                           /* mapping of message station to devices */
 	int gmacports;                         /* number of gmac ports on the board */
+	struct xlr_i2c_dev_t {
+		uint32_t addr;	
+		unsigned int enabled;          /* mask of devs enabled */   
+		int type;
+		int unit;
+		char *dev_name;
+	} xlr_i2c_device[3];
 	struct xlr_gmac_block_t {              /* refers to the set of GMACs controlled by a 
                                                   network accelarator */
 		int  type;                     /* see  enum gmac_block_types */

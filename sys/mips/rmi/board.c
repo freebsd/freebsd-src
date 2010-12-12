@@ -42,6 +42,11 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/board.h>
 #include <mips/rmi/pic.h>
 
+#define XLR_I2C_RTC_ADDR 		0xd0
+#define XLR_I2C_EEPROM_ADDR 		0xa0
+#define XLR_I2C_TEMPSENSOR_ADDR     	0x98 
+#define XLR_I2C_ATX8_TEMPSENSOR_ADDR	0x9a
+
 struct stn_cc *xlr_core_cc_configs[] = { &cc_table_cpu_0, &cc_table_cpu_1,
     &cc_table_cpu_2, &cc_table_cpu_3, &cc_table_cpu_4, &cc_table_cpu_5,
     &cc_table_cpu_6, &cc_table_cpu_7};
@@ -231,6 +236,7 @@ xls_board_specific_overrides(struct xlr_board_info* board)
 {
 	struct xlr_gmac_block_t *blk0, *blk1;
 	int i;
+	struct xlr_i2c_dev_t* iic_blk;
 
 	blk0 = &board->gmac_block[0];
 	blk1 = &board->gmac_block[1];
@@ -283,7 +289,11 @@ xls_board_specific_overrides(struct xlr_board_info* board)
 		break;
 
 	case RMI_XLR_BOARD_ARIZONA_VIII:
-		if (blk1->enabled) {
+		iic_blk = &xlr_board_info.xlr_i2c_device[I2C_THERMAL];
+		if (iic_blk->enabled) {
+			iic_blk->addr = XLR_I2C_ATX8_TEMPSENSOR_ADDR;
+		}	
+		if (blk1->enabled) { 
 			/* There is just one Octal PHY on the board and it is 
 			 * connected to the MII interface for NA Quad 0. */
 			for (i = 0; i < 4; i++) { 
@@ -358,6 +368,7 @@ int
 xlr_board_info_setup()
 {
 	struct xlr_gmac_block_t *blk0, *blk1, *blk2;
+	struct xlr_i2c_dev_t* iic_blk;
 	int i;
 
 	/* This setup code is long'ish because the same base driver
@@ -412,6 +423,14 @@ xlr_board_info_setup()
 	blk0 = &xlr_board_info.gmac_block[0];
 	blk1 = &xlr_board_info.gmac_block[1];
 	blk2 = &xlr_board_info.gmac_block[2];
+	
+	iic_blk = xlr_board_info.xlr_i2c_device;
+	iic_blk[I2C_RTC].enabled = 1;
+	iic_blk[I2C_RTC].addr = XLR_I2C_RTC_ADDR;
+	iic_blk[I2C_THERMAL].enabled = 1;
+	iic_blk[I2C_THERMAL].addr = XLR_I2C_TEMPSENSOR_ADDR;
+	iic_blk[I2C_EEPROM].enabled = 1;
+	iic_blk[I2C_EEPROM].addr = XLR_I2C_EEPROM_ADDR;
 
 	if (xlr_is_xls()) {
 		xlr_board_info.is_xls = 1;
