@@ -1,161 +1,23 @@
 #
 # XENHVM -- Xen HVM kernel configuration file for FreeBSD/amd64
 #
-# For more information on this file, please read the config(5) manual page,
-# and/or the handbook section on Kernel Configuration Files:
-#
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
-#
-# The handbook is also available locally in /usr/share/doc/handbook
-# if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
-# latest information.
-#
-# An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../conf/NOTES and NOTES files.
-# If you are in doubt as to the purpose or necessity of a line, check first
-# in NOTES.
-#
 # $FreeBSD$
-
-cpu		HAMMER
+#
+include		GENERIC
 ident		XENHVM
 
-# To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"		# Default places to look for devices.
-
-# Use the following to compile in values accessible to the kernel
-# through getenv() (or kenv(1) in userland). The format of the file
-# is 'variable=value', see kenv(1)
-#
-# env		"GENERIC.env"
-
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	MODULES_OVERRIDE=""
 
-options 	SCHED_ULE		# ULE scheduler
-options 	PREEMPTION		# Enable kernel thread preemption
-options 	INET			# InterNETworking
-options 	INET6			# IPv6 communications protocols
-options 	SCTP			# Stream Control Transmission Protocol
-options 	FFS			# Berkeley Fast Filesystem
-options 	SOFTUPDATES		# Enable FFS soft updates support
-options 	UFS_ACL			# Support for access control lists
-options 	UFS_DIRHASH		# Improve performance on big directories
-options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
-options 	MD_ROOT			# MD is a potential root device
-options 	NFSCLIENT		# Network Filesystem Client
-options 	NFSSERVER		# Network Filesystem Server
-options 	NFSLOCKD		# Network Lock Manager
-options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
-options 	MSDOSFS			# MSDOS Filesystem
-options 	CD9660			# ISO 9660 Filesystem
-options 	PROCFS			# Process filesystem (requires PSEUDOFS)
-options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	GEOM_PART_GPT		# GUID Partition Tables.
-options 	GEOM_LABEL		# Provides labelization
-options 	COMPAT_43TTY		# BSD 4.3 TTY compat (sgtty)
-options 	COMPAT_FREEBSD32	# Compatible with i386 binaries
-options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
-options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
-options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
-options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
-options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
-options 	KTRACE			# ktrace(1) support
-options 	STACK			# stack(9) support
-options 	SYSVSHM			# SYSV-style shared memory
-options 	SYSVMSG			# SYSV-style message queues
-options 	SYSVSEM			# SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
-options 	AUDIT			# Security event auditing
-#options 	KDTRACE_FRAME		# Ensure frames are compiled in
-#options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+#
+# Adaptive locks rely on a lock-free pointer read to determine the run state
+# of the thread holding a lock when under contention; under a virtualisation
+# system, the thread run state may not accurately reflect whether the thread
+# (or rather its host VCPU) is actually executing.  As such, disable this
+# optimisation.
+#
 options 	NO_ADAPTIVE_MUTEXES
 options 	NO_ADAPTIVE_RWLOCKS
-
-# Debugging for use in -current
-options 	KDB			# Enable kernel debugger support.
-options 	DDB			# Support DDB.
-options 	GDB			# Support remote GDB.
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-options 	WITNESS			# Enable checks to detect deadlocks and cycles
-options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-
-# Make an SMP-capable kernel by default
-options 	SMP			# Symmetric MultiProcessor Kernel
-
-# CPU frequency control
-device		cpufreq
-
-# Bus support.
-device		acpi
-device		pci
-
-# Floppy drives
-device		fdc
 
 # Xen HVM support
 options 	XENHVM
 device		xenpci
-
-# ATA and ATAPI devices
-device		ata
-device		atadisk		# ATA disk drives
-device		ataraid		# ATA RAID drives
-device		atapicd		# ATAPI CDROM drives
-device		atapifd		# ATAPI floppy drives
-device		atapist		# ATAPI tape drives
-options 	ATA_STATIC_ID	# Static device numbering
-
-# SCSI peripherals
-device		scbus		# SCSI bus (required for SCSI)
-device		ch		# SCSI media changers
-device		da		# Direct Access (disks)
-device		sa		# Sequential Access (tape etc)
-device		cd		# CD
-device		pass		# Passthrough device (direct SCSI access)
-device		ses		# SCSI Environmental Services (and SAF-TE)
-
-
-# atkbdc0 controls both the keyboard and the PS/2 mouse
-device		atkbdc		# AT keyboard controller
-device		atkbd		# AT keyboard
-device		psm		# PS/2 mouse
-
-device		kbdmux		# keyboard multiplexer
-
-device		vga		# VGA video card driver
-
-device		splash		# Splash screen and screen saver support
-
-# syscons is the default console driver, resembling an SCO console
-device		sc
-
-device		agp		# support several AGP chipsets
-
-# Serial (COM) ports
-device		uart		# Generic UART driver
-
-# PCI Ethernet NICs that use the common MII bus controller code.
-# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
-device		miibus		# MII bus support
-device		re		# RealTek 8139C+/8169/8169S/8110S
-
-# Pseudo devices.
-device		loop		# Network loopback
-device		random		# Entropy device
-device		ether		# Ethernet support
-device		tun		# Packet tunnel.
-device		pty		# BSD-style compatibility pseudo ttys
-device		md		# Memory "disks"
-device		gif		# IPv6 and IPv4 tunneling
-device		faith		# IPv6-to-IPv4 relaying (translation)
-device		firmware	# firmware assist module
-
-# The `bpf' device enables the Berkeley Packet Filter.
-# Be aware of the administrative consequences of enabling this!
-# Note that 'bpf' is required for DHCP.
-device		bpf		# Berkeley packet filter
