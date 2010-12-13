@@ -92,7 +92,7 @@ static int	 getint(int *);
 static int	 getnum(intmax_t *, uintmax_t *, int);
 static const char
 		*getstr(void);
-static char	*mknum(char *, int);
+static char	*mknum(char *, char);
 static void	 usage(void);
 
 static char **gargv;
@@ -336,7 +336,7 @@ printf_doformat(char *start, int *rval)
 }
 
 static char *
-mknum(char *str, int ch)
+mknum(char *str, char ch)
 {
 	static char *copy;
 	static size_t copy_size;
