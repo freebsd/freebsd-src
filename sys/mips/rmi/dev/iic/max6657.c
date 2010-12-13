@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 struct max6657_softc {
 	uint32_t	sc_addr;
 	device_t	sc_dev;
-	struct mtx	sc_mtx;
 	int		sc_curtemp;
 	int		sc_lastupdate;	/* in ticks */
 };
@@ -101,7 +100,6 @@ max6657_attach(device_t dev)
 	}
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
-	mtx_init(&sc->sc_mtx, "max6657", "max6657", MTX_DEF);
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"temp", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
@@ -132,7 +130,6 @@ max6657_update(struct max6657_softc *sc)
 {
 	int v;
 
-	mtx_lock(&sc->sc_mtx);
 	/* NB: no point in updating any faster than the chip */
 	if (ticks - sc->sc_lastupdate > hz) {
 		v = max6657_read(sc->sc_dev, sc->sc_addr, MAX6657_EXT_TEMP);
@@ -140,7 +137,6 @@ max6657_update(struct max6657_softc *sc)
 			sc->sc_curtemp = v;
 		sc->sc_lastupdate = ticks;
 	}
-	mtx_unlock(&sc->sc_mtx);
 }
 
 static device_method_t max6657_methods[] = {
