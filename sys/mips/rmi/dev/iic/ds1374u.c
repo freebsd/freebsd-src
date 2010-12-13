@@ -85,36 +85,22 @@ ds1374u_attach(device_t dev)
 	return (0);
 }
 
-
-static int
-ds1374u_write(device_t dev, int reg, uint8_t val) 
-{
-	uint8_t data[2];
-	struct ds1374u_softc *sc = device_get_softc(dev);
-	struct iic_msg msgs[1] = {
-	     { sc->sc_addr, IIC_M_WR, 2, data },
-	};
-
-	data[0] = reg;
-	data[1] = val;
-	if (iicbus_transfer(dev, msgs, 1) == 0) 
-		return (0);
-	else
-		return (-1);
-}
-
 static int 
 ds1374u_settime(device_t dev, struct timespec *ts)
 {
-	int i; 
-	int temp = 0; 
+	/* NB: register pointer precedes actual data */
+	uint8_t data[5] = { DS1374_RTC_COUNTER };
+	struct ds1374u_softc *sc = device_get_softc(dev);
+	struct iic_msg msgs[1] = {
+	     { sc->sc_addr, IIC_M_WR, 5, data },
+	};
 
-	for (i = 0; i < 4; i++) {
-		temp = (ts->tv_sec >> (8*i)) & 0xff; 
-		if (ds1374u_write(dev, DS1374_RTC_COUNTER+i, temp)!=0)
-			return (-1);
-	}
-	return 0;
+	data[1] = (ts->tv_sec >> 0) & 0xff;
+	data[2] = (ts->tv_sec >> 8) & 0xff;
+	data[3] = (ts->tv_sec >> 16) & 0xff;
+	data[4] = (ts->tv_sec >> 24) & 0xff;
+
+	return iicbus_transfer(dev, msgs, 1);
 }
 
 static int
@@ -137,7 +123,6 @@ ds1374u_gettime(device_t dev, struct timespec *ts)
 		ts->tv_nsec = 0;
 	}
 	return error;
-	return 0;
 }
 
 static device_method_t ds1374u_methods[] = {
