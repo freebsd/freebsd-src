@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,8 +65,6 @@ static const char rcsid[] =
 #define	warnx2(a, b, c)		warnx(a, b)
 #define	warnx3(a, b, c)		warnx(a, b, c)
 #endif
-
-#include <locale.h>
 
 #define PF(f, func) do { \
 	char *b = NULL; \
