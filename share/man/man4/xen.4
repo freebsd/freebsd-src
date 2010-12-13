@@ -1,0 +1,115 @@
+.\" Copyright (c) 2010 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of 
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+.\" ("CTSRD"), as part of the DARPA CRASH research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 13, 2010
+.Dt XEN 4
+.Os
+.Sh NAME
+.Nm xen 
+.Nd Xen Hypervisor Guest (DomU) Support
+.Sh SYNOPSIS
+To compile para-virtualized (PV) Xen guest support into the i386 kernel, place
+the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options PAE"
+.Cd "options XEN"
+.Ed
+.Pp
+To compile hardware-assisted virtualization (HVM) Xen guest support into the
+amd64 kernel, place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options XENHVM"
+.Ed
+.Pp
+To compile the Xen PCI bus and para-virtualized (PV) drivers into an amd64
+or i386 kernel, place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device xenpci"
+.Ed
+.Sh DESCRIPTION
+The Xen Hypervisor allows multiple virtual machines to be run on a single
+computer system.
+When first released, Xen required that i386 kernels be compiled
+"para-virtualized" as the x86 instruction set was not fully virtualizable.
+With later instruction set extensions from AMD and Intel to support fully
+virtualizable instructions, unmodified kernels could also be supported,
+referred to as hardware-assisted virtualization (HVM).
+HVM systems may still use para-virtualized drivers, which are aware of
+virtualization and able to optimize certain behaviours to improve
+performance or semantics.
+.Pp
+.Fx
+supports a fully para-virtualized (PV) kernel on the i386 architecture using
+.Cd "options XEN" ;
+currently, this requires use of a PAE kernel, enabled via
+.Cd "options PAE" .
+.Fx
+supports hardware-assited virtualization (HVM) on both the i386 and amd64
+kernels; however, PV device drivers with an HVM kernel are only supported on
+the amd64 architecture.
+.Pp
+Para-virtualized device drivers are required in order to support certain
+functionality, such as the dynamic addition of new virtual devices, and the
+"balloon driver" (returning physical memory to the Hypervisor on demand),
+and VM suspend/resume.
+.Sh SEE ALSO
+.Xr pae 4
+.Sh HISTORY
+Support for
+.Nm
+first appeared in
+.Fx 8.1 .
+.Sh AUTHORS
+.An -nosplit
+.Fx
+support for Xen was first added by
+.An Kip Mac Aq kmacy@FreeBSD.org
+and
+.An Doug Rabson Aq dfr@FreeBSD.org .
+Further refinements were made by
+.An Justin Gibbs Aq gibbs@FreeBSD.org ,
+.An Adrian Chadd Aq adrian@FreeBSD.org ,
+and
+.An Colin Percival Aq cperciva@FreeBSD.org .
+This manual page was written by
+.An Robert Watson Aq rwatson@FreeBSD.org .
+.Sh BUGS
+.Fx
+is only able to run as a Xen guest (DomU) and not as a Xen host (Dom0).
+.Pp
+A fully para-virtualized (PV) kernel is only supported on i386, and not
+amd64.
+.Pp
+Para-virtualized drivers under hardware-assisted virtualization (HVM) kernel
+are only supported on amd64, not i386.
+.P
+As of this release, Xen DomU support is not heavily tested; instability has
+been reported during VM migration of PV kernels, and certain PV driver
+features, such as the balloon driver, are under-exercised.
