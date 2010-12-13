@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 struct at24co2n_softc {
 	uint32_t	sc_addr;
 	device_t	sc_dev;
-	struct mtx	sc_mtx;
 	uint8_t		sc_mac_addr[6];
 };
 
@@ -103,8 +102,6 @@ at24co2n_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
 
-	mtx_init(&sc->sc_mtx, "eeprom", "eeprom", MTX_DEF);
-
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"eeprom-mac", CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 		at24co2n_mac_sysctl, "A", "mac address");
@@ -121,9 +118,7 @@ at24co2n_read_mac(struct at24co2n_softc *sc)
 	     { sc->sc_addr, IIC_M_RD, 6, sc->sc_mac_addr},
 	};
 
-	mtx_lock(&sc->sc_mtx);
 	iicbus_transfer(sc->sc_dev, msgs, 2);
-	mtx_unlock(&sc->sc_mtx);
 }
 
 static device_method_t at24co2n_methods[] = {
