@@ -39,13 +39,14 @@
  * shared, or eread, lock, and one for threads waiting for an
  * exclusive, or write, lock.
  *
- * A thread calls turnstile_lock() to lock the turnstile chain associated
- * with a given lock.  A thread calls turnstile_wait() when the lock is
- * contested to be put on the queue and block.  If a thread needs to retry
- * a lock operation instead of blocking, it should call turnstile_release()
- * to unlock the associated turnstile chain lock.
+ * A thread calls turnstile_chain_lock() to lock the turnstile chain
+ * associated with a given lock.  A thread calls turnstile_wait() when
+ * the lock is contested to be put on the queue and block.  If a thread
+ * calls turnstile_trywait() and decides to retry a lock operation instead
+ * of blocking, it should call turnstile_cancel() to unlock the associated
+ * turnstile chain lock.
  *
- * When a lock is released, the thread calls turnstile_lookup() to loop
+ * When a lock is released, the thread calls turnstile_lookup() to look
  * up the turnstile associated with the given lock in the hash table.  Then
  * it calls either turnstile_signal() or turnstile_broadcast() to mark
  * blocked threads for a pending wakeup.  turnstile_signal() marks the
@@ -55,7 +56,7 @@
  * releasing the lock, turnstile_unpend() must be called to wake up the
  * pending thread(s) and give up ownership of the turnstile.
  *
- * Alternatively, if a thread wishes to relinquish ownership of a thread
+ * Alternatively, if a thread wishes to relinquish ownership of a lock
  * without waking up any waiters, it may call turnstile_disown().
  *
  * When a lock is acquired that already has at least one thread contested
