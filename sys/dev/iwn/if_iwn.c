@@ -1983,7 +1983,8 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/*
 		 * RUN -> RUN transition; Just restart the timers.
 		 */
-		if (vap->iv_state == IEEE80211_S_RUN) {
+		if (vap->iv_state == IEEE80211_S_RUN &&
+		    vap->iv_opmode != IEEE80211_M_MONITOR) {
 			iwn_calib_reset(sc);
 			break;
 		}
@@ -4851,11 +4852,9 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	struct iwn_node_info node;
 	int error;
 
-	sc->calib.state = IWN_CALIB_STATE_INIT;
-
 	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
 		/* Link LED blinks while monitoring. */
-		iwn_set_led(sc, IWN_LED_LINK, 5, 5);
+		iwn_set_led(sc, IWN_LED_LINK, 20, 20);
 		return 0;
 	}
 	error = iwn_set_timing(sc, ni);
