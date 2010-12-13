@@ -887,8 +887,6 @@ xxreadtoken(void)
 	startlinno = plinno;
 	for (;;) {	/* until token or start of word found */
 		c = pgetc_macro();
-		if (c == ' ' || c == '\t')
-			continue;		/* quick check for white space first */
 		switch (c) {
 		case ' ': case '\t':
 			continue;
