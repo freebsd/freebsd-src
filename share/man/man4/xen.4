@@ -35,21 +35,21 @@
 .Nm xen 
 .Nd Xen Hypervisor Guest (DomU) Support
 .Sh SYNOPSIS
-To compile para-virtualized (PV) Xen guest support into the i386 kernel, place
-the following line in your kernel configuration file:
+To compile para-virtualized (PV) Xen guest support into an i386 kernel, place
+the following lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options PAE"
 .Cd "options XEN"
 .Ed
 .Pp
-To compile hardware-assisted virtualization (HVM) Xen guest support into the
+To compile hardware-assisted virtualization (HVM) Xen guest support into an
 amd64 kernel, place the following line in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options XENHVM"
 .Ed
 .Pp
-To compile the Xen PCI bus and para-virtualized (PV) drivers into an amd64
-or i386 kernel, place the following line in your kernel configuration file:
+To compile support for Xenbux and Xen PV drivers into an amd64 or i386
+kernel, place the following line in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device xenpci"
 .Ed
@@ -58,27 +58,86 @@ The Xen Hypervisor allows multiple virtual machines to be run on a single
 computer system.
 When first released, Xen required that i386 kernels be compiled
 "para-virtualized" as the x86 instruction set was not fully virtualizable.
+Primarily, para-virtualization modifies the virtual memory system to use
+hypervisor calls (hypercalls) rather than direct hardware instructions to
+modify the TLB, although para-virtualized device drivers were also required
+to access resources such as virtual network interfaces and disk devices.
+.Pp
 With later instruction set extensions from AMD and Intel to support fully
-virtualizable instructions, unmodified kernels could also be supported,
-referred to as hardware-assisted virtualization (HVM).
-HVM systems may still use para-virtualized drivers, which are aware of
-virtualization and able to optimize certain behaviours to improve
-performance or semantics.
+virtualizable instructions, unmodified virtual memory systems can also be
+supported; this is referred to as hardware-assisted virtualization (HVM).
+HVM configurations may either rely on transparently emulated hardware
+peripherals, or para-virtualized drivers, which are aware of virtualization,
+and hence able to optimize certain behaviors to improve performance or
+semantics.
 .Pp
 .Fx
 supports a fully para-virtualized (PV) kernel on the i386 architecture using
 .Cd "options XEN" ;
 currently, this requires use of a PAE kernel, enabled via
 .Cd "options PAE" .
+.Pp
 .Fx
-supports hardware-assited virtualization (HVM) on both the i386 and amd64
+supports hardware-assisted virtualization (HVM) on both the i386 and amd64
 kernels; however, PV device drivers with an HVM kernel are only supported on
-the amd64 architecture.
+the amd64 architecture, and require
+.Cd "options XENHVM" .
 .Pp
 Para-virtualized device drivers are required in order to support certain
-functionality, such as the dynamic addition of new virtual devices, and the
-"balloon driver" (returning physical memory to the Hypervisor on demand),
-and VM suspend/resume.
+functionality, such as processing management requests, returning idle
+physical memory pages to the hypevisor, etc.
+.Ss Para-virtualized drivers
+Adding
+.Cd "options xenpci"
+to the kernel configuration enables the Xen para-virtualized drivers:
+.Bl -hang -offset indent -width blkfront
+.It Nm balloon
+Allow physical memory pages to be returned to the hypervisor as a result of
+manual tuning or automatic policy.
+.It Nm blkback
+Exports local block devices to other Xen domains where they can then be
+imported via
+.Nm blkfront .
+.It Nm blkfront
+Import block devices from other Xen domains as local block devices, to be
+used for file systems, swap, etc.
+.It Nm console
+Export the low-level system console via the Xen console service.
+.It Nm control
+Process management operations from Domain 0, including power off, reboot,
+suspend, crash, and halt requests.
+.It Nm evtchn
+Expose Xen events via the
+.Pa /dev/xen/evtchn
+special device.
+.It Nm netback
+Export local network interfacest to other Xen domains where they can be
+imported via
+.Nm netfront .
+.It Nm netfront
+Import network interfaces from other Xen domains as local network interfaces,
+which may be used for IPv4, IPv6, etc.
+.It Nm pcifront
+No description.
+.It Nm xenpci
+No description.
+.El
+.Ss Performance
+In general, PV drivers will perform better than emulated hardware, and are
+the recommended configuration.
+.Pp
+Using a hypervisor introduces a second layer of scheduling that may limit the
+effectiveness of certain
+.Fx
+scheduling optimisations.
+Among these is adaptive locking, which is no longer able to determine whether
+a thread holding a lock is in execution.
+It is recommended that adaptive locking be disabled when using Xen:
+.Bd -ragged -offset indent
+.Cd "options NO_ADAPTIVE_MUTEXES"
+.Cd "options NO_ADAPTIVE_RWLOCKS"
+.Cd "options NO_ADAPTIVE_SX"
+.Ed
 .Sh SEE ALSO
 .Xr pae 4
 .Sh HISTORY
@@ -90,7 +149,7 @@ first appeared in
 .An -nosplit
 .Fx
 support for Xen was first added by
-.An Kip Mac Aq kmacy@FreeBSD.org
+.An Kip Macy Aq kmacy@FreeBSD.org
 and
 .An Doug Rabson Aq dfr@FreeBSD.org .
 Further refinements were made by
