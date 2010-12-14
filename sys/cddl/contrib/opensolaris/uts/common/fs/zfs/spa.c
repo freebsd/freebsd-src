@@ -1595,6 +1595,12 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 		 */
 		if (need_update)
 			spa_async_request(spa, SPA_ASYNC_CONFIG_UPDATE);
+
+		/*
+		 * Check all DTLs to see if anything needs resilvering.
+		 */
+		if (vdev_resilver_needed(rvd, NULL, NULL))
+			spa_async_request(spa, SPA_ASYNC_RESILVER);
 	}
 
 	error = 0;
