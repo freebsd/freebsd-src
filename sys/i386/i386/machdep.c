@@ -1131,6 +1131,10 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	if (!tsc_present)
 		return (EOPNOTSUPP);
 
+	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
+	if (tsc_is_invariant)
+		return (EOPNOTSUPP);
+
 	/* If we're booting, trust the rate calibrated moments ago. */
 	if (cold) {
 		*rate = tsc_freq;
