@@ -133,7 +133,7 @@ scheduling optimisations.
 Among these is adaptive locking, which is no longer able to determine whether
 a thread holding a lock is in execution.
 It is recommended that adaptive locking be disabled when using Xen:
-.Bd -ragged -offset indent
+.Bd -unfilled -offset indent
 .Cd "options NO_ADAPTIVE_MUTEXES"
 .Cd "options NO_ADAPTIVE_RWLOCKS"
 .Cd "options NO_ADAPTIVE_SX"
