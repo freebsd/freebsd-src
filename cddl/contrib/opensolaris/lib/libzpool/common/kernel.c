@@ -174,11 +174,13 @@ rw_init(krwlock_t *rwlp, char *name, int type, void *arg)
 	rwlock_init(&rwlp->rw_lock, USYNC_THREAD, NULL);
 	rwlp->rw_owner = NULL;
 	rwlp->initialized = B_TRUE;
+	rwlp->rw_count = 0;
 }
 
 void
 rw_destroy(krwlock_t *rwlp)
 {
+	ASSERT(rwlp->rw_count == 0);
 	rwlock_destroy(&rwlp->rw_lock);
 	rwlp->rw_owner = (void *)-1UL;
 	rwlp->initialized = B_FALSE;
@@ -306,9 +308,9 @@ cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime)
 	struct timeval tv;
 	clock_t delta;
 
-	ASSERT(abstime > 0);
+	abstime += lbolt;
 top:
-	delta = abstime;
+	delta = abstime - lbolt;
 	if (delta <= 0)
 		return (-1);
 
@@ -319,7 +321,7 @@ top:
 	ts.tv_nsec = tv.tv_usec * 1000 + (delta % hz) * (NANOSEC / hz);
 	ASSERT(ts.tv_nsec >= 0);
 
-	if(ts.tv_nsec >= NANOSEC) {
+	if (ts.tv_nsec >= NANOSEC) {
 		ts.tv_sec++;
 		ts.tv_nsec -= NANOSEC;
 	}
