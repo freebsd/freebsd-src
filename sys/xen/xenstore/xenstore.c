@@ -1102,7 +1102,6 @@ xs_probe(device_t dev)
 	 * Uncontitionally return success.
 	 */
 	device_set_desc(dev, "XenStore");
-printf("xs_probe: Probe retuns 0\n");
 	return (0);
 }
 
