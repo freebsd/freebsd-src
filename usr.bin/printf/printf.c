@@ -106,7 +106,7 @@ main(int argc, char *argv[])
 	char *format, *fmt, *start;
 
 #ifndef SHELL
-	(void) setlocale(LC_NUMERIC, "");
+	(void) setlocale(LC_ALL, "");
 #endif
 #ifdef SHELL
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
