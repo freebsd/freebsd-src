@@ -102,7 +102,7 @@ int
 main(int argc, char *argv[])
 {
 	size_t len;
-	int ch, chopped, end, rval;
+	int chopped, end, rval;
 	char *format, *fmt, *start;
 
 #ifndef SHELL
@@ -111,15 +111,15 @@ main(int argc, char *argv[])
 #ifdef SHELL
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
 #endif
-	while ((ch = getopt(argc, argv, "")) != -1)
-		switch (ch) {
-		case '?':
-		default:
-			usage();
-			/* NOTREACHED */
-		}
-	argc -= optind;
-	argv += optind;
+	/* Skip argv[0] which is the process name */
+	argv++;
+	argc--;
+
+	/* Need to accept/ignore "--" option. */
+	if (argc >= 1 && strcmp(*argv, "--") == 0) {
+		argc--;
+		argv++;
+	}
 
 	if (argc < 1) {
 		usage();
