@@ -1099,7 +1099,7 @@ xs_probe(device_t dev)
 	 * We are either operating within a PV kernel or being probed
 	 * as the child of the successfully attached xenpci device.
 	 * Thus we are in a Xen environment and there will be a XenStore.
-	 * Uncontitionally return success.
+	 * Unconditionally return success.
 	 */
 	device_set_desc(dev, "XenStore");
 	return (0);
