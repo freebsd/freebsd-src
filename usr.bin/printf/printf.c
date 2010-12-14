@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #ifdef SHELL
@@ -115,14 +116,14 @@ main(int argc, char *argv[])
 		case '?':
 		default:
 			usage();
-			return (1);
+			/* NOTREACHED */
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 1) {
 		usage();
-		return (1);
+		/* NOTREACHED */
 	}
 
 #ifdef SHELL
@@ -562,4 +563,5 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: printf format [arguments ...]\n");
+	exit(EX_USAGE);
 }
