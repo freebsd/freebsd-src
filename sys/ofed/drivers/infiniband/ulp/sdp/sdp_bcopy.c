@@ -33,6 +33,8 @@
  */
 #include "sdp.h"
 
+static void sdp_nagle_timeout(void *data);
+
 #ifdef CONFIG_INFINIBAND_SDP_DEBUG_DATA
 void _dump_packet(const char *func, int line, struct socket *sk, char *str,
 		struct mbuf *mb, const struct sdp_bsdh *h)
@@ -85,7 +87,7 @@ void _dump_packet(const char *func, int line, struct socket *sk, char *str,
 		srcah = (struct sdp_srcah *)(h+1);
 
 		len += snprintf(buf + len, 255-len, " | payload: 0x%lx, "
-				"len: 0x%x, rkey: 0x%x, vaddr: 0x%llx |",
+				"len: 0x%x, rkey: 0x%x, vaddr: 0x%jx |",
 				ntohl(h->len) - sizeof(struct sdp_bsdh) - 
 				sizeof(struct sdp_srcah),
 				ntohl(srcah->len), ntohl(srcah->rkey),
@@ -99,95 +101,79 @@ void _dump_packet(const char *func, int line, struct socket *sk, char *str,
 }
 #endif
 
-static inline void update_send_head(struct socket *sk, struct mbuf *mb)
+static inline int
+sdp_nagle_off(struct sdp_sock *ssk, struct mbuf *mb)
 {
-	struct page *page;
-	sk->sk_send_head = mb->next;
-	if (sk->sk_send_head == (struct mbuf *)&sk->sk_write_queue) {
-		sk->sk_send_head = NULL;
-		page = sk->sk_sndmsg_page;
-		if (page) {
-			put_page(page);
-			sk->sk_sndmsg_page = NULL;
-		}
-	}
-}
 
-static inline int sdp_nagle_off(struct sdp_sock *ssk, struct mbuf *mb)
-{
-	struct sdp_bsdh *h = (struct sdp_bsdh *)mb_transport_header(mb);
+	struct sdp_bsdh *h;
+
+	h = mtod(mb, struct sdp_bsdh *);
 	int send_now =
+#ifdef SDP_ZCOPY
 		BZCOPY_STATE(mb) ||
+#endif
 		unlikely(h->mid != SDP_MID_DATA) ||
-		(ssk->nonagle & TCP_NAGLE_OFF) ||
+		(ssk->flags & SDP_NODELAY) ||
 		!ssk->nagle_last_unacked ||
-		mb->next != (struct mbuf *)&ssk->isk.sk.sk_write_queue ||
-		mb->len + sizeof(struct sdp_bsdh) >= ssk->xmit_size_goal ||
-		(SDP_SKB_CB(mb)->flags & TCPCB_FLAG_PSH);
+		mb->m_pkthdr.len >= ssk->xmit_size_goal ||
+		(mb->m_flags & M_PUSH);
 
 	if (send_now) {
 		unsigned long mseq = ring_head(ssk->tx_ring);
 		ssk->nagle_last_unacked = mseq;
 	} else {
-		if (!timer_pending(&ssk->nagle_timer)) {
-			mod_timer(&ssk->nagle_timer,
-					jiffies + SDP_NAGLE_TIMEOUT);
-			sdp_dbg_data(&ssk->isk.sk, "Starting nagle timer\n");
+		if (!callout_pending(&ssk->nagle_timer)) {
+			callout_reset(&ssk->nagle_timer, SDP_NAGLE_TIMEOUT,
+			    sdp_nagle_timeout, ssk);
+			sdp_dbg_data(ssk->socket, "Starting nagle timer\n");
 		}
 	}
-	sdp_dbg_data(&ssk->isk.sk, "send_now = %d last_unacked = %ld\n",
+	sdp_dbg_data(ssk->socket, "send_now = %d last_unacked = %ld\n",
 		send_now, ssk->nagle_last_unacked);
 
 	return send_now;
 }
 
-void sdp_nagle_timeout(unsigned long data)
+static void
+sdp_nagle_timeout(void *data)
 {
 	struct sdp_sock *ssk = (struct sdp_sock *)data;
-	struct socket *sk = &ssk->isk.sk;
+	struct socket *sk = ssk->socket;
 
 	sdp_dbg_data(sk, "last_unacked = %ld\n", ssk->nagle_last_unacked);
 
-	if (!ssk->nagle_last_unacked)
-		goto out2;
-
-	/* Only process if the socket is not in use */
-	bh_lock_sock(sk);
-	if (sock_owned_by_user(sk)) {
-		sdp_dbg_data(sk, "socket is busy - will try later\n");
-		goto out;
-	}
-
-	if (sk->sk_state == TCPS_CLOSED) {
-		bh_unlock_sock(sk);
+	if (!callout_active(&ssk->nagle_timer))
 		return;
-	}
+	callout_deactivate(&ssk->nagle_timer);
 
+	if (!ssk->nagle_last_unacked)
+		goto out;
+	if (ssk->state == TCPS_CLOSED)
+		return;
 	ssk->nagle_last_unacked = 0;
-	sdp_post_sends(ssk, GFP_ATOMIC);
+	sdp_post_sends(ssk, M_DONTWAIT);
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		sk_stream_write_space(&ssk->isk.sk);
+	sowwakeup(ssk->socket);
 out:
-	bh_unlock_sock(sk);
-out2:
-	if (sk->sk_send_head) /* If has pending sends - rearm */
-		mod_timer(&ssk->nagle_timer, jiffies + SDP_NAGLE_TIMEOUT);
+	if (sk->so_snd.sb_sndptr)
+		callout_reset(&ssk->nagle_timer, SDP_NAGLE_TIMEOUT,
+		    sdp_nagle_timeout, ssk);
 }
 
-void sdp_post_sends(struct sdp_sock *ssk, gfp_t gfp)
+void
+sdp_post_sends(struct sdp_sock *ssk, int wait)
 {
 	/* TODO: nonagle? */
 	struct mbuf *mb;
 	int post_count = 0;
-	struct socket *sk = &ssk->isk.sk;
+	struct socket *sk;
 
+	sk = ssk->socket;
 	if (unlikely(!ssk->id)) {
-		if (ssk->isk.sk.sk_send_head) {
-			sdp_dbg(&ssk->isk.sk,
+		if (sk->so_snd.sb_sndptr) {
+			sdp_dbg(ssk->socket,
 				"Send on socket without cmid ECONNRESET.\n");
-			/* TODO: flush send queue? */
-			sdp_reset(&ssk->isk.sk);
+			sdp_notify(ssk, ECONNRESET);
 		}
 		return;
 	}
@@ -199,39 +185,42 @@ void sdp_post_sends(struct sdp_sock *ssk, gfp_t gfp)
 	    ring_tail(ssk->rx_ring) >= ssk->recv_request_head &&
 	    tx_credits(ssk) >= SDP_MIN_TX_CREDITS &&
 	    sdp_tx_ring_slots_left(ssk)) {
+		mb = sdp_alloc_mb_chrcvbuf_ack(sk,
+		    ssk->recv_bytes - SDP_HEAD_SIZE, wait);
+		if (mb == NULL)
+			goto allocfail;
 		ssk->recv_request = 0;
-
-		mb = sdp_alloc_mb_chrcvbuf_ack(sk, 
-				ssk->recv_frags * PAGE_SIZE, gfp);
-
 		sdp_post_send(ssk, mb);
 		post_count++;
 	}
 
 	if (tx_credits(ssk) <= SDP_MIN_TX_CREDITS &&
-	       sdp_tx_ring_slots_left(ssk) &&
-	       ssk->isk.sk.sk_send_head &&
-		sdp_nagle_off(ssk, ssk->isk.sk.sk_send_head)) {
+	    sdp_tx_ring_slots_left(ssk) && sk->so_snd.sb_sndptr &&
+	    sdp_nagle_off(ssk, sk->so_snd.sb_sndptr)) {
 		SDPSTATS_COUNTER_INC(send_miss_no_credits);
 	}
 
 	while (tx_credits(ssk) > SDP_MIN_TX_CREDITS &&
-	       sdp_tx_ring_slots_left(ssk) &&
-	       (mb = ssk->isk.sk.sk_send_head) &&
-		sdp_nagle_off(ssk, mb)) {
-		update_send_head(&ssk->isk.sk, mb);
-		__mb_dequeue(&ssk->isk.sk.sk_write_queue);
+	    sdp_tx_ring_slots_left(ssk) && (mb = sk->so_snd.sb_sndptr) &&
+	    sdp_nagle_off(ssk, mb)) {
+		struct mbuf *n;
 
+		SOCKBUF_LOCK(&sk->so_snd);
+		sk->so_snd.sb_sndptr = mb->m_nextpkt;
+		sk->so_snd.sb_mb = mb->m_nextpkt;
+		for (n = mb; n != NULL; n = mb->m_next)
+			sbfree(&sk->so_snd, mb);
+		SB_EMPTY_FIXUP(&sk->so_snd);
+		SOCKBUF_UNLOCK(&sk->so_snd);
 		sdp_post_send(ssk, mb);
-
 		post_count++;
 	}
 
-	if (credit_update_needed(ssk) &&
-	    likely((1 << ssk->isk.sk.sk_state) &
-		    (TCPF_ESTABLISHED | TCPF_FIN_WAIT1))) {
-
-		mb = sdp_alloc_mb_data(&ssk->isk.sk, gfp);
+	if (credit_update_needed(ssk) && ssk->state >= TCPS_ESTABLISHED &&
+	    ssk->state < TCPS_FIN_WAIT_2) {
+		mb = sdp_alloc_mb_data(ssk->socket, wait);
+		if (mb == NULL)
+			goto allocfail;
 		sdp_post_send(ssk, mb);
 
 		SDPSTATS_COUNTER_INC(post_send_credits);
@@ -243,17 +232,21 @@ void sdp_post_sends(struct sdp_sock *ssk, gfp_t gfp)
 	 * If one credit is available, an implementation shall only send SDP
 	 * messages that provide additional credits and also do not contain ULP
 	 * payload. */
-	if (unlikely(ssk->sdp_disconnect) &&
-			!ssk->isk.sk.sk_send_head &&
-			tx_credits(ssk) > 1) {
-		ssk->sdp_disconnect = 0;
-
-		mb = sdp_alloc_mb_disconnect(sk, gfp);
+	if ((ssk->flags & SDP_NEEDFIN) && !sk->so_snd.sb_sndptr &&
+	    tx_credits(ssk) > 1) {
+		mb = sdp_alloc_mb_disconnect(sk, wait);
+		if (mb == NULL)
+			goto allocfail;
+		ssk->flags &= ~SDP_NEEDFIN;
 		sdp_post_send(ssk, mb);
-
 		post_count++;
 	}
-
 	if (post_count)
 		sdp_xmit_poll(ssk, 0);
+	return;
+
+allocfail:
+	ssk->nagle_last_unacked = -1;
+	callout_reset(&ssk->nagle_timer, 1, sdp_nagle_timeout, ssk);
+	return;
 }

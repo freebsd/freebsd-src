@@ -3,19 +3,15 @@
 
 #define SDPSTATS_ON
 
-#ifdef CONFIG_INFINIBAND_SDP_DEBUG_DATA
-#define SDP_PROFILING
-#endif
 //#define GETNSTIMEODAY_SUPPORTED
 
-#define _sdp_printk(func, line, level, sk, format, arg...) do {               \
-	preempt_disable(); \
-	printk(level "%s:%d sdp_sock(%5d:%d %d:%d): " format,             \
-	       func, line, \
-	       current->pid, smp_processor_id(), \
-	       (sk) ? inet_sk(sk)->num : -1,                 \
-	       (sk) ? ntohs(inet_sk(sk)->dport) : -1, ## arg); \
-	preempt_enable(); \
+#define _sdp_printk(func, line, level, sk, format, arg...)	\
+do {								\
+	printk(level "%s:%d %p sdp_sock(%d:%d %d:%d): " format "\n",	\
+	       func, line, sk ? sdp_sk(sk) : NULL,		\
+	       curproc->p_pid, PCPU_GET(cpuid),			\
+	       (sk) && sdp_sk(sk) ? sdp_sk(sk)->lport : -1,	\
+	       (sk) && sdp_sk(sk) ? ntohs(sdp_sk(sk)->fport) : -1, ## arg);	\
 } while (0)
 #define sdp_printk(level, sk, format, arg...)                \
 	_sdp_printk(__func__, __LINE__, level, sk, format, ## arg)
@@ -99,25 +95,6 @@ extern int sdp_debug_level;
 		sdp_printk(KERN_WARNING, sk, format , ## arg); \
 	} while (0)
 
-#define sock_ref(sk, msg, sock_op) ({ \
-	if (!atomic_read(&(sk)->sk_refcnt)) {\
-		sdp_warn(sk, "%s:%d - %s (%s) ref = 0.\n", \
-				 __func__, __LINE__, #sock_op, msg); \
-		WARN_ON(1); \
-	} else { \
-		sdp_dbg(sk, "%s:%d - %s (%s) ref = %d.\n", __func__, __LINE__, \
-			#sock_op, msg, atomic_read(&(sk)->sk_refcnt)); \
-		sock_op(sk); \
-	}\
-})
-
-#define sk_common_release(sk) do { \
-		sdp_dbg(sk, "%s:%d - sock_put(" SOCK_REF_ALIVE \
-			") - refcount = %d from withing sk_common_release\n",\
-			__func__, __LINE__, atomic_read(&(sk)->sk_refcnt));\
-		sk_common_release(sk); \
-} while (0)
-
 #else /* CONFIG_INFINIBAND_SDP_DEBUG */
 #define sdp_dbg(priv, format, arg...)                        \
 	do { (void) (priv); } while (0)
@@ -164,10 +141,10 @@ static inline char *sdp_state_str(int state)
 		ENUM2STR(TCPS_SYN_SENT),
 		ENUM2STR(TCPS_SYN_RECEIVED),
 		ENUM2STR(TCPS_FIN_WAIT_1),
-		ENUM2STR(TCP_FIN_WAIT2),
+		ENUM2STR(TCPS_FIN_WAIT_2),
 		ENUM2STR(TCPS_TIME_WAIT),
 		ENUM2STR(TCPS_CLOSED),
-		ENUM2STR(TCPS_CLOSED_WAIT),
+		ENUM2STR(TCPS_CLOSE_WAIT),
 		ENUM2STR(TCPS_LAST_ACK),
 		ENUM2STR(TCPS_LISTEN),
 		ENUM2STR(TCPS_CLOSING),

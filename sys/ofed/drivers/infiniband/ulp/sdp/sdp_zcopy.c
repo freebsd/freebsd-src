@@ -116,7 +116,7 @@ static int sdp_post_srcavail_cancel(struct socket *sk)
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct mbuf *mb;
 
-	sdp_dbg_data(&ssk->isk.sk, "Posting srcavail cancel\n");
+	sdp_dbg_data(ssk->socket, "Posting srcavail cancel\n");
 
 	mb = sdp_alloc_mb_srcavail_cancel(sk, 0);
 	mb_entail(sk, ssk, mb);
@@ -133,7 +133,7 @@ void srcavail_cancel_timeout(struct work_struct *work)
 {
 	struct sdp_sock *ssk =
 		container_of(work, struct sdp_sock, srcavail_cancel_work.work);
-	struct socket *sk = &ssk->isk.sk;
+	struct socket *sk = ssk->socket;
 
 	lock_sock(sk);
 
@@ -148,7 +148,7 @@ void srcavail_cancel_timeout(struct work_struct *work)
 static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 		int ignore_signals)
 {
-	struct socket *sk = &ssk->isk.sk;
+	struct socket *sk = ssk->socket;
 	int err = 0;
 	long vm_wait = 0;
 	long current_timeo = *timeo_p;
@@ -206,7 +206,7 @@ static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 				ssk->rx_sa &&
 				(tx_sa->bytes_acked < tx_sa->bytes_sent) && 
 				vm_wait);
-		sdp_dbg_data(&ssk->isk.sk, "woke up sleepers\n");
+		sdp_dbg_data(ssk->socket, "woke up sleepers\n");
 
 		posts_handler_get(ssk);
 
@@ -238,7 +238,7 @@ static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 
 static void sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
 {
-	struct socket *sk = &ssk->isk.sk;
+	struct socket *sk = ssk->socket;
 	long timeo = HZ * 5; /* Timeout for for RDMA read */
 	DEFINE_WAIT(wait);
 
@@ -268,7 +268,7 @@ static void sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
 		sk_wait_event(sk, &timeo, 
 			!ssk->tx_ring.rdma_inflight->busy);
 		sdp_prf1(sk, NULL, "Woke up");
-		sdp_dbg_data(&ssk->isk.sk, "woke up sleepers\n");
+		sdp_dbg_data(ssk->socket, "woke up sleepers\n");
 
 		posts_handler_get(ssk);
 	}
@@ -287,7 +287,7 @@ int sdp_post_rdma_rd_compl(struct sdp_sock *ssk,
 	if (rx_sa->used <= rx_sa->reported)
 		return 0;
 
-	mb = sdp_alloc_mb_rdmardcompl(&ssk->isk.sk, copied, 0);
+	mb = sdp_alloc_mb_rdmardcompl(ssk->socket, copied, 0);
 
 	rx_sa->reported += copied;
 
@@ -336,7 +336,7 @@ static inline int sge_bytes(struct ib_sge *sge, int sge_cnt)
 }
 void sdp_handle_sendsm(struct sdp_sock *ssk, u32 mseq_ack)
 {
-	struct socket *sk = &ssk->isk.sk;
+	struct socket *sk = ssk->socket;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ssk->tx_sa_lock, flags);
@@ -368,7 +368,7 @@ out:
 void sdp_handle_rdma_read_compl(struct sdp_sock *ssk, u32 mseq_ack,
 		u32 bytes_completed)
 {
-	struct socket *sk = &ssk->isk.sk;
+	struct socket *sk = ssk->socket;
 	unsigned long flags;
 
 	sdp_prf1(sk, NULL, "RdmaRdCompl ssk=%p tx_sa=%p", ssk, ssk->tx_sa);
@@ -554,7 +554,7 @@ int sdp_rdma_to_iovec(struct socket *sk, struct iovec *iov, struct mbuf *mb,
 	int len = *used;
 	int copied;
 
-	sdp_dbg_data(&ssk->isk.sk, "preparing RDMA read."
+	sdp_dbg_data(ssk->socket, "preparing RDMA read."
 		" len: 0x%x. buffer len: 0x%lx\n", len, iov->iov_len);
 
 	sock_hold(sk, SOCK_REF_RDMA_RD);
@@ -574,7 +574,7 @@ int sdp_rdma_to_iovec(struct socket *sk, struct iovec *iov, struct mbuf *mb,
 	rc = sdp_post_rdma_read(sk, rx_sa);
 	if (unlikely(rc)) {
 		sdp_warn(sk, "ib_post_send failed with status %d.\n", rc);
-		sdp_set_error(&ssk->isk.sk, -ECONNRESET);
+		sdp_set_error(ssk->socket, -ECONNRESET);
 		wake_up(&ssk->wq);
 		goto err_post_send;
 	}
@@ -726,7 +726,7 @@ int sdp_sendmsg_zcopy(struct kiocb *iocb, struct socket *sk, struct iovec *iov)
 		return 0;
 	}
 
-	sock_hold(&ssk->isk.sk, SOCK_REF_ZCOPY);
+	sock_hold(ssk->socket, SOCK_REF_ZCOPY);
 
 	SDPSTATS_COUNTER_INC(sendmsg_zcopy_segment);
 
@@ -761,7 +761,7 @@ err_alloc_tx_sa:
 
 	sdp_prf1(sk, NULL, "sdp_sendmsg_zcopy end rc: %d copied: %d", rc, copied);
 
-	sock_put(&ssk->isk.sk, SOCK_REF_ZCOPY);
+	sock_put(ssk->socket, SOCK_REF_ZCOPY);
 
 	if (rc < 0 && rc != -EAGAIN && rc != -ETIME)
 		return rc;
