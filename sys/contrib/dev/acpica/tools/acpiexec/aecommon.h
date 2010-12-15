@@ -250,6 +250,15 @@ AeRegionHandler (
 
 UINT32
 AeGpeHandler (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    void                    *Context);
+
+void
+AeGlobalEventHandler (
+    UINT32                  Type,
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  EventNumber,
     void                    *Context);
 
 #endif /* _AECOMMON */

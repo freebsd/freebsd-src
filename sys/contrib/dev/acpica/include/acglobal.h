@@ -174,13 +174,6 @@ UINT8       ACPI_INIT_GLOBAL (AcpiGbl_AllMethodsSerialized, FALSE);
 UINT8       ACPI_INIT_GLOBAL (AcpiGbl_CreateOsiMethod, TRUE);
 
 /*
- * Disable wakeup GPEs during runtime? Default is TRUE because WAKE and
- * RUNTIME GPEs should never be shared, and WAKE GPEs should typically only
- * be enabled just before going to sleep.
- */
-UINT8       ACPI_INIT_GLOBAL (AcpiGbl_LeaveWakeGpesDisabled, TRUE);
-
-/*
  * Optionally use default values for the ACPI register widths. Set this to
  * TRUE to use the defaults, if an FADT contains incorrect widths/lengths.
  */
@@ -434,10 +427,13 @@ ACPI_EXTERN UINT8                       AcpiGbl_SleepTypeB;
  *
  ****************************************************************************/
 
-extern      ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventInfo[ACPI_NUM_FIXED_EVENTS];
-ACPI_EXTERN ACPI_FIXED_EVENT_HANDLER    AcpiGbl_FixedEventHandlers[ACPI_NUM_FIXED_EVENTS];
+ACPI_EXTERN UINT8                       AcpiGbl_AllGpesInitialized;
 ACPI_EXTERN ACPI_GPE_XRUPT_INFO        *AcpiGbl_GpeXruptListHead;
 ACPI_EXTERN ACPI_GPE_BLOCK_INFO        *AcpiGbl_GpeFadtBlocks[ACPI_MAX_GPE_BLOCKS];
+ACPI_EXTERN ACPI_GBL_EVENT_HANDLER      AcpiGbl_GlobalEventHandler;
+ACPI_EXTERN void                       *AcpiGbl_GlobalEventHandlerContext;
+ACPI_EXTERN ACPI_FIXED_EVENT_HANDLER    AcpiGbl_FixedEventHandlers[ACPI_NUM_FIXED_EVENTS];
+extern      ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventInfo[ACPI_NUM_FIXED_EVENTS];
 
 
 /*****************************************************************************

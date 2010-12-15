@@ -168,7 +168,7 @@ acpi_button_attach(device_t dev)
     acpi_wake_set_enable(dev, 1);
     if (acpi_parse_prw(sc->button_handle, &prw) == 0)
 	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit);
-    
+
     return_VALUE (0);
 }
 

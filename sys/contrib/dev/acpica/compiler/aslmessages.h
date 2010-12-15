@@ -258,6 +258,9 @@ typedef enum
     ASL_MSG_NULL_DESCRIPTOR,
     ASL_MSG_UPPER_CASE,
     ASL_MSG_HID_LENGTH,
+    ASL_MSG_NULL_STRING,
+    ASL_MSG_LEADING_ASTERISK,
+
     ASL_MSG_INVALID_FIELD_NAME,
     ASL_MSG_INTEGER_SIZE,
     ASL_MSG_INVALID_HEX_INTEGER,
@@ -382,7 +385,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_VENDOR_LIST */                "Too many vendor data bytes (7 max)",
 /*    ASL_MSG_WRITE */                      "Could not write file",
 /*    ASL_MSG_MULTIPLE_DEFAULT */           "More than one Default statement within Switch construct",
-/*    ASL_MSG_TIMEOUT */                    "Possible operator timeout is ignored",
+/*    ASL_MSG_TIMEOUT */                    "Result is not used, possible operator timeout will be missed",
 /*    ASL_MSG_RESULT_NOT_USED */            "Result is not used, operator has no effect",
 /*    ASL_MSG_NOT_REFERENCED */             "Namespace object is not referenced",
 /*    ASL_MSG_NON_ZERO */                   "Operand evaluates to zero",
@@ -403,6 +406,8 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_NULL_DESCRIPTOR */            "Min/Max/Length/Gran are all zero, but no resource tag",
 /*    ASL_MSG_UPPER_CASE */                 "Non-hex letters must be upper case",
 /*    ASL_MSG_HID_LENGTH */                 "_HID string must be exactly 7 or 8 characters",
+/*    ASL_MSG_NULL_STRING */                "Invalid zero-length (null) string",
+/*    ASL_MSG_LEADING_ASTERISK */           "Invalid leading asterisk",
 
 /* These messages are used by the data table compiler only */
 
