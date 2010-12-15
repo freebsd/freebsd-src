@@ -76,6 +76,7 @@ options 	INVARIANTS		# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+options		ALT_BREAK_TO_DEBUGGER
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
@@ -92,6 +93,7 @@ device		infiniband
 device		ipoib
 device		mlx4
 device		mthca
+device		sdp
 
 # Floppy drives
 device		fdc
