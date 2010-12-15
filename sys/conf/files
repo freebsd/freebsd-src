@@ -195,6 +195,7 @@ contrib/dev/acpica/events/evrgnini.c		optional acpi
 contrib/dev/acpica/events/evsci.c		optional acpi
 contrib/dev/acpica/events/evxface.c		optional acpi
 contrib/dev/acpica/events/evxfevnt.c		optional acpi
+contrib/dev/acpica/events/evxfgpe.c		optional acpi
 contrib/dev/acpica/events/evxfregn.c		optional acpi
 contrib/dev/acpica/executer/exconfig.c		optional acpi
 contrib/dev/acpica/executer/exconvrt.c		optional acpi

@@ -896,7 +896,8 @@ AcpiDbDisplayGpes (
                     GpeIndex = (i * ACPI_GPE_REGISTER_WIDTH) + j;
                     GpeEventInfo = &GpeBlock->EventInfo[GpeIndex];
 
-                    if (!(GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK))
+                    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+                        ACPI_GPE_DISPATCH_NONE)
                     {
                         /* This GPE is not used (no method or handler), ignore it */
 
@@ -906,8 +907,7 @@ AcpiDbDisplayGpes (
                     AcpiOsPrintf (
                         "        GPE %.2X: %p  RunRefs %2.2X Flags %2.2X (",
                         GpeBlock->BlockBaseNumber + GpeIndex, GpeEventInfo,
-                        GpeEventInfo->RuntimeCount,
-                        GpeEventInfo->Flags);
+                        GpeEventInfo->RuntimeCount, GpeEventInfo->Flags);
 
                     /* Decode the flags byte */
 
@@ -931,14 +931,17 @@ AcpiDbDisplayGpes (
 
                     switch (GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK)
                     {
-                    case ACPI_GPE_DISPATCH_NOT_USED:
+                    case ACPI_GPE_DISPATCH_NONE:
                         AcpiOsPrintf ("NotUsed");
+                        break;
+                    case ACPI_GPE_DISPATCH_METHOD:
+                        AcpiOsPrintf ("Method");
                         break;
                     case ACPI_GPE_DISPATCH_HANDLER:
                         AcpiOsPrintf ("Handler");
                         break;
-                    case ACPI_GPE_DISPATCH_METHOD:
-                        AcpiOsPrintf ("Method");
+                    case ACPI_GPE_DISPATCH_NOTIFY:
+                        AcpiOsPrintf ("Notify");
                         break;
                     default:
                         AcpiOsPrintf ("UNKNOWN: %X",

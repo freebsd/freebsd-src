@@ -295,6 +295,19 @@ static const char           *AcpiDmFadtProfiles[] =
     "Unknown Profile Type"
 };
 
+#define ACPI_GAS_WIDTH_RESERVED     5
+
+static const char           *AcpiDmGasAccessWidth[] =
+{
+    "Undefined/Legacy",
+    "Byte Access:8",
+    "Word Access:16",
+    "DWord Access:32",
+    "QWord Access:64",
+    "Unknown Width Encoding"
+};
+
+
 /*******************************************************************************
  *
  * ACPI Table Data, indexed by signature.
@@ -669,6 +682,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_UINT8:
         case ACPI_DMT_CHKSUM:
         case ACPI_DMT_SPACEID:
+        case ACPI_DMT_ACCWIDTH:
         case ACPI_DMT_IVRS:
         case ACPI_DMT_MADT:
         case ACPI_DMT_SRAT:
@@ -882,6 +896,19 @@ AcpiDmDumpTable (
             /* Address Space ID */
 
             AcpiOsPrintf ("%2.2X (%s)\n", *Target, AcpiUtGetRegionName (*Target));
+            break;
+
+        case ACPI_DMT_ACCWIDTH:
+
+            /* Encoded Access Width */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_GAS_WIDTH_RESERVED)
+            {
+                Temp8 = ACPI_GAS_WIDTH_RESERVED;
+            }
+
+            AcpiOsPrintf ("%2.2X (%s)\n", Temp8, AcpiDmGasAccessWidth[Temp8]);
             break;
 
         case ACPI_DMT_GAS:

@@ -180,54 +180,6 @@ AcpiEvInitializeEvents (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiEvInstallFadtGpes
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Completes initialization of the FADT-defined GPE blocks
- *              (0 and 1). This causes the _PRW methods to be run, so the HW
- *              must be fully initialized at this point, including global lock
- *              support.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiEvInstallFadtGpes (
-    void)
-{
-    ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_TRACE (EvInstallFadtGpes);
-
-
-    /* Namespace must be locked */
-
-    Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
-
-    /* FADT GPE Block 0 */
-
-    (void) AcpiEvInitializeGpeBlock (
-                AcpiGbl_FadtGpeDevice, AcpiGbl_GpeFadtBlocks[0]);
-
-    /* FADT GPE Block 1 */
-
-    (void) AcpiEvInitializeGpeBlock (
-                AcpiGbl_FadtGpeDevice, AcpiGbl_GpeFadtBlocks[1]);
-
-    (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
-    return_ACPI_STATUS (AE_OK);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AcpiEvInstallXruptHandlers
  *
  * PARAMETERS:  None
@@ -366,9 +318,17 @@ AcpiEvFixedEventDetect (
         if ((FixedStatus & AcpiGbl_FixedEventInfo[i].StatusBitMask) &&
             (FixedEnable & AcpiGbl_FixedEventInfo[i].EnableBitMask))
         {
-            /* Found an active (signalled) event */
-
+            /*
+             * Found an active (signalled) event. Invoke global event
+             * handler if present.
+             */
             AcpiFixedEventCount[i]++;
+            if (AcpiGbl_GlobalEventHandler)
+            {
+                AcpiGbl_GlobalEventHandler (ACPI_EVENT_TYPE_FIXED, NULL,
+                     i, AcpiGbl_GlobalEventHandlerContext);
+            }
+
             IntStatus |= AcpiEvFixedEventDispatch (i);
         }
     }
