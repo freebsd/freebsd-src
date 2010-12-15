@@ -1589,6 +1589,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 	de_dotdot = TAILQ_NEXT(de_dotdot, de_list);	/* ".." */
 	TAILQ_INSERT_AFTER(&dd->de_dlist, de_dotdot, de, de_list);
 	devfs_dir_ref_de(dmp, dd);
+	devfs_rules_apply(dmp, de);
 
 	return (devfs_allocv(de, ap->a_dvp->v_mount, LK_EXCLUSIVE, ap->a_vpp));
 }
