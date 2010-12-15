@@ -218,7 +218,7 @@ EcUnlock(struct acpi_ec_softc *sc)
 	AcpiReleaseGlobalLock(sc->ec_glkhandle);
 }
 
-static uint32_t		EcGpeHandler(void *Context);
+static UINT32		EcGpeHandler(ACPI_HANDLE, UINT32, void *);
 static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function,
 				void *Context, void **return_Context);
 static ACPI_STATUS	EcSpaceHandler(UINT32 Function,
@@ -498,7 +498,7 @@ acpi_ec_attach(device_t dev)
      */
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE handler\n"));
     Status = AcpiInstallGpeHandler(sc->ec_gpehandle, sc->ec_gpebit,
-		ACPI_GPE_EDGE_TRIGGERED, &EcGpeHandler, sc);
+		ACPI_GPE_EDGE_TRIGGERED, EcGpeHandler, sc);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
@@ -529,7 +529,7 @@ acpi_ec_attach(device_t dev)
     return (0);
 
 error:
-    AcpiRemoveGpeHandler(sc->ec_gpehandle, sc->ec_gpebit, &EcGpeHandler);
+    AcpiRemoveGpeHandler(sc->ec_gpehandle, sc->ec_gpebit, EcGpeHandler);
     AcpiRemoveAddressSpaceHandler(sc->ec_handle, ACPI_ADR_SPACE_EC,
 	EcSpaceHandler);
     if (sc->ec_csr_res)
@@ -690,8 +690,8 @@ EcGpeQueryHandler(void *Context)
  * The GPE handler is called when IBE/OBF or SCI events occur.  We are
  * called from an unknown lock context.
  */
-static uint32_t
-EcGpeHandler(void *Context)
+static UINT32
+EcGpeHandler(ACPI_HANDLE GpeDevice, UINT32 GpeNumber, void *Context)
 {
     struct acpi_ec_softc *sc = Context;
     ACPI_STATUS		       Status;
@@ -722,7 +722,12 @@ EcGpeHandler(void *Context)
 	else
 	    printf("EcGpeHandler: queuing GPE query handler failed\n");
     }
-    return (0);
+
+    /*
+     * XXX jkim
+     * AcpiFinishGpe() should be used at the necessary places.
+     */
+    return (ACPI_REENABLE_GPE);
 }
 
 static ACPI_STATUS

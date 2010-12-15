@@ -128,10 +128,6 @@ ACPI_STATUS
 AcpiEvInstallXruptHandlers (
     void);
 
-ACPI_STATUS
-AcpiEvInstallFadtGpes (
-    void);
-
 UINT32
 AcpiEvFixedEventDetect (
     void);
@@ -181,6 +177,14 @@ ACPI_STATUS
 AcpiEvEnableGpe (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
+ACPI_STATUS
+AcpiEvAddGpeReference (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
+
+ACPI_STATUS
+AcpiEvRemoveGpeReference (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
+
 ACPI_GPE_EVENT_INFO *
 AcpiEvGetGpeEventInfo (
     ACPI_HANDLE             GpeDevice,
@@ -190,6 +194,10 @@ ACPI_GPE_EVENT_INFO *
 AcpiEvLowGetGpeInfo (
     UINT32                  GpeNumber,
     ACPI_GPE_BLOCK_INFO     *GpeBlock);
+
+ACPI_STATUS
+AcpiEvFinishGpe (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
 
 /*
@@ -206,8 +214,9 @@ AcpiEvCreateGpeBlock (
 
 ACPI_STATUS
 AcpiEvInitializeGpeBlock (
-    ACPI_NAMESPACE_NODE     *GpeDevice,
-    ACPI_GPE_BLOCK_INFO     *GpeBlock);
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context);
 
 ACPI_STATUS
 AcpiEvDeleteGpeBlock (
@@ -215,6 +224,7 @@ AcpiEvDeleteGpeBlock (
 
 UINT32
 AcpiEvGpeDispatch (
+    ACPI_NAMESPACE_NODE     *GpeDevice,
     ACPI_GPE_EVENT_INFO     *GpeEventInfo,
     UINT32                  GpeNumber);
 
@@ -236,13 +246,6 @@ AcpiEvMatchGpeMethod (
     void                    *Context,
     void                    **ReturnValue);
 
-ACPI_STATUS
-AcpiEvMatchPrwAndGpe (
-    ACPI_HANDLE             ObjHandle,
-    UINT32                  Level,
-    void                    *Context,
-    void                    **ReturnValue);
-
 /*
  * evgpeutil - GPE utilities
  */
@@ -254,6 +257,12 @@ AcpiEvWalkGpeList (
 BOOLEAN
 AcpiEvValidGpeEvent (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo);
+
+ACPI_STATUS
+AcpiEvGetGpeDevice (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context);
 
 ACPI_GPE_XRUPT_INFO *
 AcpiEvGetGpeXruptBlock (
