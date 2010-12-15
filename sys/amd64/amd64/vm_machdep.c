@@ -339,10 +339,9 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		 * Reconstruct pc, we know that 'syscall' is 2 bytes,
 		 * lcall $X,y is 7 bytes, int 0x80 is 2 bytes.
 		 * We saved this in tf_err.
-		 * We have to do a full context restore so that %r10
-		 * (which was holding the value of %rcx) is restored
+		 * %r10 (which was holding the value of %rcx) is restored
 		 * for the next iteration.
-		 * r10 restore is only required for freebsd/amd64 processes,
+		 * %r10 restore is only required for freebsd/amd64 processes,
 		 * but shall be innocent for any ia32 ABI.
 		 */
 		td->td_frame->tf_rip -= td->td_frame->tf_err;
