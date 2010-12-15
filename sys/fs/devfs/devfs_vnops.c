@@ -1580,6 +1580,11 @@ devfs_symlink(struct vop_symlink_args *ap)
 	de_covered = devfs_find(dd, de->de_dirent->d_name,
 	    de->de_dirent->d_namlen, 0);
 	if (de_covered != NULL) {
+		if ((de_covered->de_flags & DE_USER) != 0) {
+			devfs_delete(dmp, de, DEVFS_DEL_NORECURSE);
+			sx_xunlock(&dmp->dm_lock);
+			return (EEXIST);
+		}
 		KASSERT((de_covered->de_flags & DE_COVERED) == 0,
 		    ("devfs_symlink: entry %p already covered", de_covered));
 		de_covered->de_flags |= DE_COVERED;
