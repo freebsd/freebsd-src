@@ -73,7 +73,6 @@ struct pcb {
 #define	PCB_USERFPUINITDONE 0x10 /* fpu user state is initialized */
 #define	PCB_GS32BIT	0x20	/* linux gs switch */
 #define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
-#define	PCB_FULLCTX	0x80	/* full context restore on sysret */
 
 	uint16_t	pcb_initial_fpucw;
 
