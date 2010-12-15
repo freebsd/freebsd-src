@@ -3411,8 +3411,7 @@ __umtx_op_rw_rdlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 	if (uap->uaddr2 == NULL) {
 		error = do_rw_rdlock(td, uap->obj, uap->val, 0);
 	} else {
-		error = copyin(uap->uaddr2, &timeout,
-		    sizeof(timeout));
+		error = copyin_timeout32(uap->uaddr2, &timeout);
 		if (error != 0)
 			return (error);
 		if (timeout.tv_nsec >= 1000000000 ||
