@@ -738,25 +738,26 @@ typedef UINT32                          ACPI_EVENT_STATUS;
 
 /*
  * GPE info flags - Per GPE
- * +-------+---+-+-+
- * |  7:4  |3:2|1|0|
- * +-------+---+-+-+
- *     |     |  | |
- *     |     |  | +--- Interrupt type: edge or level triggered
- *     |     |  +----- GPE can wake the system
- *     |     +-------- Type of dispatch:to method, handler, or none
- *     +-------------- <Reserved>
+ * +-------+-+-+---+
+ * |  7:4  |3|2|1:0|
+ * +-------+-+-+---+
+ *     |    | |  |
+ *     |    | |  +-- Type of dispatch:to method, handler, notify, or none
+ *     |    | +----- Interrupt type: edge or level triggered
+ *     |    +------- Is a Wake GPE
+ *     +------------ <Reserved>
  */
-#define ACPI_GPE_XRUPT_TYPE_MASK        (UINT8) 0x01
-#define ACPI_GPE_LEVEL_TRIGGERED        (UINT8) 0x01
+#define ACPI_GPE_DISPATCH_NONE          (UINT8) 0x00
+#define ACPI_GPE_DISPATCH_METHOD        (UINT8) 0x01
+#define ACPI_GPE_DISPATCH_HANDLER       (UINT8) 0x02
+#define ACPI_GPE_DISPATCH_NOTIFY        (UINT8) 0x03
+#define ACPI_GPE_DISPATCH_MASK          (UINT8) 0x03
+
+#define ACPI_GPE_LEVEL_TRIGGERED        (UINT8) 0x04
 #define ACPI_GPE_EDGE_TRIGGERED         (UINT8) 0x00
+#define ACPI_GPE_XRUPT_TYPE_MASK        (UINT8) 0x04
 
-#define ACPI_GPE_CAN_WAKE               (UINT8) 0x02
-
-#define ACPI_GPE_DISPATCH_MASK          (UINT8) 0x0C
-#define ACPI_GPE_DISPATCH_HANDLER       (UINT8) 0x04
-#define ACPI_GPE_DISPATCH_METHOD        (UINT8) 0x08
-#define ACPI_GPE_DISPATCH_NOT_USED      (UINT8) 0x00
+#define ACPI_GPE_CAN_WAKE               (UINT8) 0x08
 
 /*
  * Flags for GPE and Lock interfaces
@@ -1015,7 +1016,23 @@ typedef void
  * Various handlers and callback procedures
  */
 typedef
+void (*ACPI_GBL_EVENT_HANDLER) (
+    UINT32                          EventType,
+    ACPI_HANDLE                     Device,
+    UINT32                          EventNumber,
+    void                            *Context);
+
+#define ACPI_EVENT_TYPE_GPE         0
+#define ACPI_EVENT_TYPE_FIXED       1
+
+typedef
 UINT32 (*ACPI_EVENT_HANDLER) (
+    void                            *Context);
+
+typedef
+UINT32 (*ACPI_GPE_HANDLER) (
+    ACPI_HANDLE                     GpeDevice,
+    UINT32                          GpeNumber,
     void                            *Context);
 
 typedef
@@ -1097,6 +1114,11 @@ UINT32 (*ACPI_INTERFACE_HANDLER) (
 
 #define ACPI_INTERRUPT_NOT_HANDLED      0x00
 #define ACPI_INTERRUPT_HANDLED          0x01
+
+/* GPE handler return values */
+
+#define ACPI_REENABLE_GPE               0x80
+
 
 /* Length of 32-bit EISAID values when converted back to a string */
 

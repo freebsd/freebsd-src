@@ -282,7 +282,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoGas[] =
     {ACPI_DMT_SPACEID,  ACPI_GAS_OFFSET (SpaceId),                  "Space ID", 0},
     {ACPI_DMT_UINT8,    ACPI_GAS_OFFSET (BitWidth),                 "Bit Width", 0},
     {ACPI_DMT_UINT8,    ACPI_GAS_OFFSET (BitOffset),                "Bit Offset", 0},
-    {ACPI_DMT_UINT8,    ACPI_GAS_OFFSET (AccessWidth),              "Access Width", 0},
+    {ACPI_DMT_ACCWIDTH, ACPI_GAS_OFFSET (AccessWidth),              "Encoded Access Width", 0},
     {ACPI_DMT_UINT64,   ACPI_GAS_OFFSET (Address),                  "Address", 0},
     ACPI_DMT_TERMINATOR
 };

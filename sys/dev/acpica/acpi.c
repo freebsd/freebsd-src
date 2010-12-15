@@ -664,6 +664,12 @@ acpi_attach(device_t dev)
     if (!acpi_disabled("bus"))
 	acpi_probe_children(dev);
 
+    /* Update all GPEs and enable runtime GPEs. */
+    status = AcpiUpdateAllGpes();
+    if (ACPI_FAILURE(status))
+	device_printf(dev, "Could not update all GPEs: %s\n",
+	    AcpiFormatException(status));
+
     /* Allow sleep request after a while. */
     timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
 
@@ -1670,6 +1676,7 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
 static ACPI_STATUS
 acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
+    struct acpi_prw_data prw;
     ACPI_OBJECT_TYPE type;
     ACPI_HANDLE h;
     device_t bus, child;
@@ -1699,6 +1706,8 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    if (strcmp(handle_str, "\\_SB_") == 0 ||
 		strcmp(handle_str, "\\_TZ_") == 0)
 		break;
+	    if (acpi_parse_prw(handle, &prw) == 0)
+		AcpiSetupGpeForWake(handle, prw.gpe_handle, prw.gpe_bit);
 	    /* FALLTHROUGH */
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
@@ -2597,14 +2606,16 @@ acpi_wake_set_enable(device_t dev, int enable)
 
     flags = acpi_get_flags(dev);
     if (enable) {
-	status = AcpiGpeWakeup(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_ENABLE);
+	status = AcpiSetGpeWakeMask(prw.gpe_handle, prw.gpe_bit,
+	    ACPI_GPE_ENABLE);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "enable wake failed\n");
 	    return (ENXIO);
 	}
 	acpi_set_flags(dev, flags | ACPI_FLAG_WAKE_ENABLED);
     } else {
-	status = AcpiGpeWakeup(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_DISABLE);
+	status = AcpiSetGpeWakeMask(prw.gpe_handle, prw.gpe_bit,
+	    ACPI_GPE_DISABLE);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "disable wake failed\n");
 	    return (ENXIO);
@@ -2634,7 +2645,7 @@ acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate)
      * and set _PSW.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiGpeWakeup(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_DISABLE);
+	AcpiSetGpeWakeMask(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_DISABLE);
 	if (bootverbose)
 	    device_printf(dev, "wake_prep disabled wake for %s (S%d)\n",
 		acpi_name(handle), sstate);
@@ -2671,7 +2682,7 @@ acpi_wake_run_prep(ACPI_HANDLE handle, int sstate)
      * clear _PSW and turn off any power resources it used.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiGpeWakeup(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_ENABLE);
+	AcpiSetGpeWakeMask(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_ENABLE);
 	if (bootverbose)
 	    device_printf(dev, "run_prep re-enabled %s\n", acpi_name(handle));
     } else {
