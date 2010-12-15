@@ -426,7 +426,9 @@ fpudna(void)
 		fxrstor(&fpu_initialstate);
 		if (pcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
 			fldcw(pcb->pcb_initial_fpucw);
-		fpuuserinited(curthread);
+		pcb->pcb_flags |= PCB_FPUINITDONE;
+		if (PCB_USER_FPU(pcb))
+			pcb->pcb_flags |= PCB_USERFPUINITDONE;
 	} else
 		fxrstor(pcb->pcb_save);
 	critical_exit();
