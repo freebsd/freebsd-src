@@ -488,7 +488,6 @@ sigreturn(td, uap)
 #endif
 
 	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);
 }
@@ -1897,7 +1896,6 @@ set_regs(struct thread *td, struct reg *regs)
 		tp->tf_gs = regs->r_gs;
 		tp->tf_flags = TF_HASSEGS;
 	}
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	return (0);
 }
 
@@ -2084,7 +2082,6 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		td->td_pcb->pcb_fsbase = mcp->mc_fsbase;
 		td->td_pcb->pcb_gsbase = mcp->mc_gsbase;
 	}
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }
