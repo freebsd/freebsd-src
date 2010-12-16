@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-include		std.SWARM
+include		"std.SWARM"
 
 ident		SWARM64_SMP
 
