@@ -7,7 +7,4 @@ GEOM_CLASS=	virstor
 SRCS+=	binstream.c
 SRCS+=	g_virstor_md.c
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
-
 .include <bsd.lib.mk>
