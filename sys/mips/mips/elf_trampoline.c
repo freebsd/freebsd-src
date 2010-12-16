@@ -42,7 +42,10 @@ __FBSDID("$FreeBSD$");
  * need to include opt_global.h manually.
  */
 #include "opt_global.h"
-#include "opt_kernname.h"
+
+#ifndef KERNNAME
+#error Kernel name not provided
+#endif
 
 extern char kernel_start[];
 extern char kernel_end[];
