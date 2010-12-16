@@ -31,7 +31,7 @@ CFLAGS+= -DHAVE_STDINT_H -DHAVE_INTTYPES_H -DHAVE_ERR_H -DHAVE_STRLCPY
 DPADD=	${LIBBEGEMOT} ${LIBBSNMP} ${LIBWRAP}
 LDADD=	-lbegemot -lbsnmp -lwrap
 
-LDFLAGS= -export-dynamic
+LDFLAGS= -Wl,-export-dynamic
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+= -DHAVE_LIBCRYPTO
