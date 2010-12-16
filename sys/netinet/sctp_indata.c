@@ -2585,8 +2585,9 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	int num_chunks = 0;	/* number of control chunks processed */
 	int stop_proc = 0;
 	int chk_length, break_flag, last_chunk;
-	int abort_flag = 0, was_a_gap = 0;
+	int abort_flag = 0, was_a_gap;
 	struct mbuf *m;
+	uint32_t highest_tsn;
 
 	/* set the rwnd */
 	sctp_set_rwnd(stcb, &stcb->asoc);
@@ -2594,11 +2595,12 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	m = *mm;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
-	if (compare_with_wrap(stcb->asoc.highest_tsn_inside_map,
-	    stcb->asoc.cumulative_tsn, MAX_TSN)) {
-		/* there was a gap before this data was processed */
-		was_a_gap = 1;
+	if (compare_with_wrap(asoc->highest_tsn_inside_nr_map, asoc->highest_tsn_inside_map, MAX_TSN)) {
+		highest_tsn = asoc->highest_tsn_inside_nr_map;
+	} else {
+		highest_tsn = asoc->highest_tsn_inside_map;
 	}
+	was_a_gap = compare_with_wrap(highest_tsn, stcb->asoc.cumulative_tsn, MAX_TSN);
 	/*
 	 * setup where we got the last DATA packet from for any SACK that
 	 * may need to go out. Don't bump the net. This is done ONLY when a
