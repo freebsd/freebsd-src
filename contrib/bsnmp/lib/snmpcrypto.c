@@ -87,8 +87,7 @@ snmp_digest_init(const struct snmp_user *user, EVP_MD_CTX *ctx,
 }
 
 enum snmp_code
-snmp_pdu_calc_digest(struct asn_buf *b, const struct snmp_pdu *pdu,
-    uint8_t *digest)
+snmp_pdu_calc_digest(const struct snmp_pdu *pdu, uint8_t *digest)
 {
 	uint8_t md[EVP_MAX_MD_SIZE], extkey[SNMP_EXTENDED_KEY_SIZ];
 	uint8_t key1[SNMP_EXTENDED_KEY_SIZ], key2[SNMP_EXTENDED_KEY_SIZ];
@@ -140,7 +139,7 @@ failed:
 
 static int32_t
 snmp_pdu_cipher_init(const struct snmp_pdu *pdu, int32_t len,
-    EVP_CIPHER_CTX *ctx, const EVP_CIPHER **ctype, uint8_t *piv)
+    const EVP_CIPHER **ctype, uint8_t *piv)
 {
 	int i;
 	uint32_t netint;
@@ -172,14 +171,14 @@ snmp_pdu_cipher_init(const struct snmp_pdu *pdu, int32_t len,
 }
 
 enum snmp_code
-snmp_pdu_encrypt(struct asn_buf *b, const struct snmp_pdu *pdu)
+snmp_pdu_encrypt(const struct snmp_pdu *pdu)
 {
 	int32_t err, olen;
 	uint8_t iv[SNMP_PRIV_AES_IV_SIZ];
 	const EVP_CIPHER *ctype;
 	EVP_CIPHER_CTX ctx;
 
-	err = snmp_pdu_cipher_init(pdu, pdu->scoped_len, &ctx, &ctype, iv);
+	err = snmp_pdu_cipher_init(pdu, pdu->scoped_len, &ctype, iv);
 	if (err < 0)
 		return (SNMP_CODE_EDECRYPT);
 	else if (err == 0)
@@ -200,14 +199,14 @@ snmp_pdu_encrypt(struct asn_buf *b, const struct snmp_pdu *pdu)
 }
 
 enum snmp_code
-snmp_pdu_decrypt(struct asn_buf *b, const struct snmp_pdu *pdu)
+snmp_pdu_decrypt(const struct snmp_pdu *pdu)
 {
 	int32_t err, olen;
 	uint8_t iv[SNMP_PRIV_AES_IV_SIZ];
 	const EVP_CIPHER *ctype;
 	EVP_CIPHER_CTX ctx;
 
-	err = snmp_pdu_cipher_init(pdu, pdu->scoped_len, &ctx, &ctype, iv);
+	err = snmp_pdu_cipher_init(pdu, pdu->scoped_len, &ctype, iv);
 	if (err < 0)
 		return (SNMP_CODE_EDECRYPT);
 	else if (err == 0)
@@ -310,8 +309,8 @@ snmp_get_local_keys(struct snmp_user *user, uint8_t *eid, uint32_t elen)
 enum snmp_code
 snmp_calc_keychange(struct snmp_user *user, uint8_t *keychange)
 {
-	int32_t i, err, rvalue[SNMP_AUTH_HMACSHA_KEY_SIZ / 4];
-	uint32_t  keylen, olen;
+	int32_t err, rvalue[SNMP_AUTH_HMACSHA_KEY_SIZ / 4];
+	uint32_t i, keylen, olen;
 	const EVP_MD *dtype;
 	EVP_MD_CTX ctx;
 
@@ -340,8 +339,7 @@ snmp_calc_keychange(struct snmp_user *user, uint8_t *keychange)
 #else /* !HAVE_LIBCRYPTO */
 
 enum snmp_code
-snmp_pdu_calc_digest(struct asn_buf *b __unused, const struct snmp_pdu *pdu,
-    uint8_t *digest __unused)
+snmp_pdu_calc_digest(const struct snmp_pdu *pdu, uint8_t *digest __unused)
 {
 	if  (pdu->user.auth_proto != SNMP_AUTH_NOAUTH)
 		return (SNMP_CODE_BADSECLEVEL);
@@ -351,7 +349,7 @@ snmp_pdu_calc_digest(struct asn_buf *b __unused, const struct snmp_pdu *pdu,
 }
 
 enum snmp_code
-snmp_pdu_encrypt(struct asn_buf *b __unused, const struct snmp_pdu *pdu)
+snmp_pdu_encrypt(const struct snmp_pdu *pdu)
 {
 	if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV)
 		return (SNMP_CODE_BADSECLEVEL);
@@ -360,7 +358,7 @@ snmp_pdu_encrypt(struct asn_buf *b __unused, const struct snmp_pdu *pdu)
 }
 
 enum snmp_code
-snmp_pdu_decrypt(struct asn_buf *b __unused, const struct snmp_pdu *pdu)
+snmp_pdu_decrypt(const struct snmp_pdu *pdu)
 {
 	if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV)
 		return (SNMP_CODE_BADSECLEVEL);
