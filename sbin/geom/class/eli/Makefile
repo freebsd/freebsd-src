@@ -11,7 +11,7 @@ SRCS+=	sha2.c
 DPADD=	${LIBMD} ${LIBCRYPTO}
 LDADD=	-lmd -lcrypto
 
-WARNS?=	6
+WARNS?=	3
 
 CFLAGS+=-I${.CURDIR}/../../../../sys
 
