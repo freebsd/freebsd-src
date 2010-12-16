@@ -41,10 +41,9 @@ enum asn_err snmp_parse_pdus_hdr(struct asn_buf *b, struct snmp_pdu *pdu,
 void snmp_pdu_init_secparams(struct snmp_pdu *, struct snmp_engine *,
     struct snmp_user *);
 
-enum snmp_code snmp_pdu_calc_digest(struct asn_buf *, const struct snmp_pdu *,
-    uint8_t *);
-enum snmp_code snmp_pdu_encrypt(struct asn_buf *, const struct snmp_pdu *);
-enum snmp_code snmp_pdu_decrypt(struct asn_buf *, const struct snmp_pdu *);
+enum snmp_code snmp_pdu_calc_digest(const struct snmp_pdu *, uint8_t *);
+enum snmp_code snmp_pdu_encrypt(const struct snmp_pdu *);
+enum snmp_code snmp_pdu_decrypt(const struct snmp_pdu *);
 
 #define DEFAULT_HOST "localhost"
 #define DEFAULT_PORT "snmp"
