@@ -1142,8 +1142,7 @@ local_send_thread(void *arg)
 				} else if (ret != ggio->gctl_length) {
 					reqlog(LOG_WARNING, 0, ggio,
 					    "Local request failed (%zd != %jd), trying remote node. ",
-					    (intmax_t)ret,
-					    (intmax_t)ggio->gctl_length);
+					    ret, (intmax_t)ggio->gctl_length);
 				}
 				QUEUE_INSERT1(hio, send, rncomp);
 				continue;
@@ -1162,7 +1161,7 @@ local_send_thread(void *arg)
 				hio->hio_errors[ncomp] = EIO;
 				reqlog(LOG_WARNING, 0, ggio,
 				    "Local request failed (%zd != %jd): ",
-				    (intmax_t)ret, (intmax_t)ggio->gctl_length);
+				    ret, (intmax_t)ggio->gctl_length);
 			} else {
 				hio->hio_errors[ncomp] = 0;
 			}
