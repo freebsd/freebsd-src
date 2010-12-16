@@ -294,6 +294,7 @@ int cvm_oct_common_init(struct ifnet *ifp)
 	switch (cvmx_sysinfo_get()->board_type) {
 #if defined(OCTEON_VENDOR_LANNER)
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
 		if (priv->phy_id == 16)
 			cvm_oct_mv88e61xx_setup_device(ifp);
 		break;
