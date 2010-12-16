@@ -284,6 +284,8 @@ OLD_FILES+=usr/share/man/man9/ieee80211_watchdog.9.gz
 OLD_FILES+=usr/share/man/man9/ieee80211_wep_crypt.9.gz
 # 20090801: vimage.h removed in favour of vnet.h
 OLD_FILES+=usr/include/sys/vimage.h
+# 20101208: libbsnmp was moved to usr/lib
+OLD_LIBS+=lib/libbsnmp.so.5
 # 20090719: library version bump for 8.0
 OLD_LIBS+=lib/libalias.so.6
 OLD_LIBS+=lib/libavl.so.1
