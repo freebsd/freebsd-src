@@ -392,7 +392,16 @@ static int __cvmx_pcie_rc_initialize_link_gen1(int pcie_port)
     /* Lane swap needs to be manually enabled for CN52XX */
     if (OCTEON_IS_MODEL(OCTEON_CN52XX) && (pcie_port == 1))
     {
-      pescx_ctl_status.s.lane_swp = 1;
+      switch (cvmx_sysinfo_get()->board_type)
+      {
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
+	  break;
+#endif
+	default:
+	  pescx_ctl_status.s.lane_swp = 1;
+	  break;
+      }
       cvmx_write_csr(CVMX_PESCX_CTL_STATUS(pcie_port),pescx_ctl_status.u64);
     }
 
