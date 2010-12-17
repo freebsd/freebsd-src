@@ -3911,16 +3911,11 @@ retry:
 void
 vunmapbuf(struct buf *bp)
 {
-	int pidx;
 	int npages;
 
 	npages = bp->b_npages;
 	pmap_qremove(trunc_page((vm_offset_t)bp->b_data), npages);
-	for (pidx = 0; pidx < npages; pidx++) {
-		vm_page_lock(bp->b_pages[pidx]);
-		vm_page_unhold(bp->b_pages[pidx]);
-		vm_page_unlock(bp->b_pages[pidx]);
-	}
+	vm_page_unhold_pages(bp->b_pages, npages);
 	
 	bp->b_data = bp->b_saveaddr;
 }
