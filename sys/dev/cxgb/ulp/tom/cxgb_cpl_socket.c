@@ -454,7 +454,7 @@ sendmore:
 	while (uiotmp.uio_resid > 0) {
 		rv = cxgb_vm_page_to_miov(toep, &uiotmp, &m);
 		if (rv) {
-			vm_fault_unhold_pages(toep->tp_pages, count);
+			vm_page_unhold_pages(toep->tp_pages, count);
 			return (rv);
 		}
 		uio->uio_resid -= m->m_pkthdr.len;
@@ -469,7 +469,7 @@ sendmore:
 	 * 
 	 */
 	cxgb_wait_dma_completion(toep);
-	vm_fault_unhold_pages(toep->tp_pages, count);
+	vm_page_unhold_pages(toep->tp_pages, count);
 	/*
 	 * If there is more data to send adjust local copy of iov
 	 * to point to teh start
