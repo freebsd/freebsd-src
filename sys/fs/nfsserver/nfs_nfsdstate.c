@@ -4275,7 +4275,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, __unused vnode_t vp,
  */
 static int
 nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
-    __unused vnode_t vp)
+    vnode_t vp)
 {
 	struct nfsclient *clp = stp->ls_clp;
 	int gotlock, error, retrycnt, zapped_clp;
@@ -4568,8 +4568,6 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	int32_t starttime;
 	int error;
 
-	KASSERT(!VOP_ISLOCKED(vp), ("vp %p is locked", vp));
-
 	/*
 	 * First, check to see if the server is currently running and it has
 	 * been called for a regular file when issuing delegations.
@@ -4578,6 +4576,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	    nfsrv_issuedelegs == 0)
 		return;
 
+	KASSERT((VOP_ISLOCKED(vp) != LK_EXCLUSIVE), ("vp %p is locked", vp));
 	/*
 	 * First, get a reference on the nfsv4rootfs_lock so that an
 	 * exclusive lock cannot be acquired by another thread.
@@ -4593,7 +4592,12 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	NFSGETNANOTIME(&mytime);
 	starttime = (u_int32_t)mytime.tv_sec;
 	do {
-		error = nfsrv_checkremove(vp, 0, p);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		if ((vp->v_iflag & VI_DOOMED) == 0)
+			error = nfsrv_checkremove(vp, 0, p);
+		else
+			error = EPERM;
+		VOP_UNLOCK(vp, 0);
 		if (error == NFSERR_DELAY) {
 			NFSGETNANOTIME(&mytime);
 			if (((u_int32_t)mytime.tv_sec - starttime) >
