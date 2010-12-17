@@ -390,6 +390,7 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 
 	if (val > 0) {
 		sc->bst.rate = val * factor;
+		sc->bst.state &= ~SMBATT_BS_DISCHARGING;
 		sc->bst.state |= ACPI_BATT_STAT_CHARGING;
 	} else if (val < 0)
 		sc->bst.rate = (-val) * factor;
