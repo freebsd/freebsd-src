@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 1995
+.Dd December 17, 2010
 .Dt SHMGET 2
 .Os
 .Sh NAME
@@ -34,7 +34,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In machine/param.h
 .In sys/types.h
 .In sys/ipc.h
 .In sys/shm.h
@@ -80,17 +79,17 @@ the following constants into the
 .Fa flag
 argument:
 .Bl -tag -width XSHM_WXX6XXX
-.It Dv SHM_R
-Read access for user.
-.It Dv SHM_W
-Write access for user.
-.It Dv ( SHM_R>>3 )
+.It Dv S_IRUSR
+Read access for owner.
+.It Dv S_IWUSR
+Write access for owner.
+.It Dv S_IRGRP
 Read access for group.
-.It Dv ( SHM_W>>3 )
+.It Dv S_IWGRP
 Write access for group.
-.It Dv ( SHM_R>>6 )
+.It Dv S_IROTH
 Read access for other.
-.It Dv ( SHM_W>>6 )
+.It Dv S_IWOTH
 Write access for other.
 .El
 .\"
@@ -143,4 +142,5 @@ already exists.
 .Xr shmat 2 ,
 .Xr shmctl 2 ,
 .Xr shmdt 2 ,
-.Xr ftok 3
+.Xr ftok 3 ,
+.Xr stat 2
