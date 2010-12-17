@@ -3156,7 +3156,6 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 				SCTP_STAT_INCR(sctps_pdrpmark);
 				if (tp1->sent != SCTP_DATAGRAM_RESEND)
 					sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
-				tp1->sent = SCTP_DATAGRAM_RESEND;
 				/*
 				 * mark it as if we were doing a FR, since
 				 * we will be getting gap ack reports behind
@@ -3191,6 +3190,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 					sctp_flight_size_decrease(tp1);
 					sctp_total_flight_decrease(stcb, tp1);
 				}
+				tp1->sent = SCTP_DATAGRAM_RESEND;
 			} {
 				/* audit code */
 				unsigned int audit;
