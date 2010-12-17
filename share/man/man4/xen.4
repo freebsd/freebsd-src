@@ -40,17 +40,14 @@ the following lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options PAE"
 .Cd "options XEN"
+.Cd "nooptions NATIVE"
 .Ed
 .Pp
-To compile hardware-assisted virtualization (HVM) Xen guest support into an
-amd64 kernel, place the following line in your kernel configuration file:
+To compile hardware-assisted virtualization (HVM) Xen guest support with
+para-virtualized drivers into an amd64 kernel, place the following lines in
+your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options XENHVM"
-.Ed
-.Pp
-To compile support for Xenbux and Xen PV drivers into an amd64 or i386
-kernel, place the following line in your kernel configuration file:
-.Bd -ragged -offset indent
 .Cd "device xenpci"
 .Ed
 .Sh DESCRIPTION
@@ -73,7 +70,9 @@ semantics.
 .Pp
 .Fx
 supports a fully para-virtualized (PV) kernel on the i386 architecture using
-.Cd "options XEN" ;
+.Cd "options XEN"
+and
+.Cd "nooptions NATIVE" ;
 currently, this requires use of a PAE kernel, enabled via
 .Cd "options PAE" .
 .Pp
@@ -81,16 +80,23 @@ currently, this requires use of a PAE kernel, enabled via
 supports hardware-assisted virtualization (HVM) on both the i386 and amd64
 kernels; however, PV device drivers with an HVM kernel are only supported on
 the amd64 architecture, and require
-.Cd "options XENHVM" .
+.Cd "options XENHVM"
+and
+.Cd "device xenpci" .
 .Pp
 Para-virtualized device drivers are required in order to support certain
 functionality, such as processing management requests, returning idle
 physical memory pages to the hypervisor, etc.
 .Ss Xen DomU device drivers
-Adding
-.Cd "options xenpci"
-to the kernel configuration enables the Xen administrative or
-para-virtualized drivers:
+Xen administrative and para-virtualized drivers are automatically added to
+the kernel if a PV kernel is compiled using
+.Cd "options XEN" ;
+for HVM environments,
+.Cd "options XENHVM"
+and
+.Cd "device xenpci"
+are required.
+The follow drivers are supported:
 .Bl -hang -offset indent -width blkfront
 .It Nm balloon
 Allow physical memory pages to be returned to the hypervisor as a result of
