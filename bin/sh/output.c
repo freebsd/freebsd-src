@@ -64,8 +64,7 @@ __FBSDID("$FreeBSD$");
 
 
 #define OUTBUFSIZ BUFSIZ
-#define BLOCK_OUT -2		/* output to a fixed block of memory */
-#define MEM_OUT -3		/* output to dynamically allocated memory */
+#define MEM_OUT -2		/* output to dynamically allocated memory */
 #define OUTPUT_ERR 01		/* error occurred on output */
 
 static int doformat_wr(void *, const char *, int);
@@ -180,18 +179,12 @@ outbin(const void *data, size_t len, struct output *file)
 		outc(*p++, file);
 }
 
-static char out_junk[16];
-
 void
 emptyoutbuf(struct output *dest)
 {
 	int offset;
 
-	if (dest->fd == BLOCK_OUT) {
-		dest->nextc = out_junk;
-		dest->nleft = sizeof out_junk;
-		dest->flags |= OUTPUT_ERR;
-	} else if (dest->buf == NULL) {
+	if (dest->buf == NULL) {
 		INTOFF;
 		dest->buf = ckmalloc(dest->bufsize);
 		dest->nextc = dest->buf;
@@ -282,18 +275,12 @@ void
 fmtstr(char *outbuf, int length, const char *fmt, ...)
 {
 	va_list ap;
-	struct output strout;
 
-	strout.nextc = outbuf;
-	strout.nleft = length;
-	strout.fd = BLOCK_OUT;
-	strout.flags = 0;
+	INTOFF;
 	va_start(ap, fmt);
-	doformat(&strout, fmt, ap);
+	vsnprintf(outbuf, length, fmt, ap);
 	va_end(ap);
-	outc('\0', &strout);
-	if (strout.flags & OUTPUT_ERR)
-		outbuf[length - 1] = '\0';
+	INTON;
 }
 
 static int

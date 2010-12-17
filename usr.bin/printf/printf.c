@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -53,6 +49,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,8 +65,6 @@ static const char rcsid[] =
 #define	warnx2(a, b, c)		warnx(a, b)
 #define	warnx3(a, b, c)		warnx(a, b, c)
 #endif
-
-#include <locale.h>
 
 #define PF(f, func) do { \
 	char *b = NULL; \
@@ -97,7 +92,7 @@ static int	 getint(int *);
 static int	 getnum(intmax_t *, uintmax_t *, int);
 static const char
 		*getstr(void);
-static char	*mknum(char *, int);
+static char	*mknum(char *, char);
 static void	 usage(void);
 
 static char **gargv;
@@ -110,7 +105,7 @@ main(int argc, char *argv[])
 	char *format, *fmt, *start;
 
 #ifndef SHELL
-	(void) setlocale(LC_NUMERIC, "");
+	(void) setlocale(LC_ALL, "");
 #endif
 #ifdef SHELL
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
@@ -341,7 +336,7 @@ printf_doformat(char *start, int *rval)
 }
 
 static char *
-mknum(char *str, int ch)
+mknum(char *str, char ch)
 {
 	static char *copy;
 	static size_t copy_size;

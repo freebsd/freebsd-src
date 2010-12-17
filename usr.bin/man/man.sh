@@ -535,10 +535,10 @@ man_setup() {
 		MACHINE=${mflag##*:}
 	fi
 	if [ -z "$MACHINE_ARCH" ]; then
-		MACHINE_ARCH=$(sysctl -n hw.machine_arch)
+		MACHINE_ARCH=$($SYSCTL -n hw.machine_arch)
 	fi
 	if [ -z "$MACHINE" ]; then
-		MACHINE=$(sysctl -n hw.machine)
+		MACHINE=$($SYSCTL -n hw.machine)
 	fi
 	decho "Using architecture: $MACHINE_ARCH:$MACHINE"
 
@@ -895,6 +895,7 @@ EQN=/usr/bin/eqn
 COL=/usr/bin/col
 NROFF='/usr/bin/groff -S -Wall -mtty-char -man'
 PIC=/usr/bin/pic
+SYSCTL=/sbin/sysctl
 TBL=/usr/bin/tbl
 TROFF='/usr/bin/groff -S -man'
 REFER=/usr/bin/refer

@@ -640,7 +640,7 @@ snmp_pdu_decode_secmode(struct asn_buf *b, struct snmp_pdu *pdu)
 	    (pdu->flags & SNMP_MSG_AUTH_FLAG) == 0)
 		return (SNMP_CODE_BADSECLEVEL);
 
-	if ((code = snmp_pdu_calc_digest(b, pdu, digest)) !=
+	if ((code = snmp_pdu_calc_digest(pdu, digest)) !=
 	    SNMP_CODE_OK)
 		return (SNMP_CODE_FAILED);
 
@@ -659,7 +659,7 @@ snmp_pdu_decode_secmode(struct asn_buf *b, struct snmp_pdu *pdu)
 	    (pdu->flags & SNMP_MSG_PRIV_FLAG) == 0)
 		return (SNMP_CODE_BADSECLEVEL);
 
-	if ((code = snmp_pdu_decrypt(b, pdu)) != SNMP_CODE_OK)
+	if ((code = snmp_pdu_decrypt(pdu)) != SNMP_CODE_OK)
 		return (SNMP_CODE_FAILED);
 
 	return (code);
@@ -869,7 +869,7 @@ snmp_fix_encoding(struct asn_buf *b, struct snmp_pdu *pdu)
 		if (pdu->security_model != SNMP_SECMODEL_USM)
 			return (SNMP_CODE_FAILED);
 
-		if (snmp_pdu_encrypt(b, pdu) != SNMP_CODE_OK)
+		if (snmp_pdu_encrypt(pdu) != SNMP_CODE_OK)
 			return (SNMP_CODE_FAILED);
 
 		if (pdu->user.priv_proto != SNMP_PRIV_NOPRIV &&
@@ -884,7 +884,7 @@ snmp_fix_encoding(struct asn_buf *b, struct snmp_pdu *pdu)
 	pdu->digest_ptr -= moved;
 
 	if (pdu->version == SNMP_V3) {
-		if ((code = snmp_pdu_calc_digest(b, pdu, pdu->msg_digest)) !=
+		if ((code = snmp_pdu_calc_digest(pdu, pdu->msg_digest)) !=
 		    SNMP_CODE_OK)
 			return (SNMP_CODE_FAILED);
 

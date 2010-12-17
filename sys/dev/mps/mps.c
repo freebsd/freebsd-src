@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
+#include <sys/endian.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -607,9 +608,16 @@ mps_alloc_queues(struct mps_softc *sc)
 static int
 mps_alloc_replies(struct mps_softc *sc)
 {
-	int rsize;
+	int rsize, num_replies;
 
-	rsize = sc->facts->ReplyFrameSize * sc->num_replies * 4; 
+	/*
+	 * sc->num_replies should be one less than sc->fqdepth.  We need to
+	 * allocate space for sc->fqdepth replies, but only sc->num_replies
+	 * replies can be used at once.
+	 */
+	num_replies = max(sc->fqdepth, sc->num_replies);
+
+	rsize = sc->facts->ReplyFrameSize * num_replies * 4; 
         if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -782,11 +790,19 @@ mps_init_queues(struct mps_softc *sc)
 
 	memset((uint8_t *)sc->post_queue, 0xff, sc->pqdepth * 8);
 
+	/*
+	 * According to the spec, we need to use one less reply than we
+	 * have space for on the queue.  So sc->num_replies (the number we
+	 * use) should be less than sc->fqdepth (allocated size).
+	 */
 	if (sc->num_replies >= sc->fqdepth)
 		return (EINVAL);
 
-	for (i = 0; i < sc->num_replies; i++)
-		sc->free_queue[i] = sc->reply_busaddr + i * sc->facts->ReplyFrameSize * 4;
+	/*
+	 * Initialize all of the free queue entries.
+	 */
+	for (i = 0; i < sc->fqdepth; i++)
+		sc->free_queue[i] = sc->reply_busaddr + (i * sc->facts->ReplyFrameSize * 4);
 	sc->replyfreeindex = sc->num_replies;
 
 	return (0);
@@ -907,7 +923,6 @@ mps_attach(struct mps_softc *sc)
 	 * replies.
 	 */
 	sc->replypostindex = 0;
-	sc->replycurindex = 0;
 	mps_regwrite(sc, MPI2_REPLY_FREE_HOST_INDEX_OFFSET, sc->replyfreeindex);
 	mps_regwrite(sc, MPI2_REPLY_POST_HOST_INDEX_OFFSET, 0);
 
@@ -1211,7 +1226,8 @@ mps_intr_locked(void *data)
 		desc = &sc->post_queue[pq];
 		flags = desc->Default.ReplyFlags &
 		    MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
-		if (flags == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
+		if ((flags == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
+		 || (desc->Words.High == 0xffffffff))
 			break;
 
 		switch (flags) {
@@ -1224,9 +1240,36 @@ mps_intr_locked(void *data)
 			uint32_t baddr;
 			uint8_t *reply;
 
+			/*
+			 * Re-compose the reply address from the address
+			 * sent back from the chip.  The ReplyFrameAddress
+			 * is the lower 32 bits of the physical address of
+			 * particular reply frame.  Convert that address to
+			 * host format, and then use that to provide the
+			 * offset against the virtual address base
+			 * (sc->reply_frames).
+			 */
+			baddr = le32toh(desc->AddressReply.ReplyFrameAddress);
 			reply = sc->reply_frames +
-			    sc->replycurindex * sc->facts->ReplyFrameSize * 4;
-			baddr = desc->AddressReply.ReplyFrameAddress;
+				(baddr - ((uint32_t)sc->reply_busaddr));
+			/*
+			 * Make sure the reply we got back is in a valid
+			 * range.  If not, go ahead and panic here, since
+			 * we'll probably panic as soon as we deference the
+			 * reply pointer anyway.
+			 */
+			if ((reply < sc->reply_frames)
+			 || (reply > (sc->reply_frames +
+			     (sc->fqdepth * sc->facts->ReplyFrameSize * 4)))) {
+				printf("%s: WARNING: reply %p out of range!\n",
+				       __func__, reply);
+				printf("%s: reply_frames %p, fqdepth %d, "
+				       "frame size %d\n", __func__,
+				       sc->reply_frames, sc->fqdepth,
+				       sc->facts->ReplyFrameSize * 4);
+				printf("%s: baddr %#x,\n", __func__, baddr);
+				panic("Reply address out of range");
+			}
 			if (desc->AddressReply.SMID == 0) {
 				mps_dispatch_event(sc, baddr,
 				   (MPI2_EVENT_NOTIFICATION_REPLY *) reply);
@@ -1236,8 +1279,6 @@ mps_intr_locked(void *data)
 				cm->cm_reply_data =
 				    desc->AddressReply.ReplyFrameAddress;
 			}
-			if (++sc->replycurindex >= sc->fqdepth)
-				sc->replycurindex = 0;
 			break;
 		}
 		case MPI2_RPY_DESCRIPT_FLAGS_TARGETASSIST_SUCCESS:

@@ -281,8 +281,10 @@ devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dire
 		de->de_dir = dd;
 	} else {
 		de->de_dir = dotdot;
+		sx_assert(&dmp->dm_lock, SX_XLOCKED);
 		TAILQ_INSERT_TAIL(&dotdot->de_dlist, dd, de_list);
 		dotdot->de_links++;
+		devfs_rules_apply(dmp, dd);
 	}
 
 #ifdef MAC

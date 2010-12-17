@@ -412,27 +412,6 @@ AcpiInitializeObjects (
     }
 
     /*
-     * Initialize the GPE blocks defined in the FADT (GPE block 0 and 1).
-     * The runtime GPEs are enabled here.
-     *
-     * This is where the _PRW methods are executed for the GPEs. These
-     * methods can only be executed after the SCI and Global Lock handlers are
-     * installed and initialized.
-     *
-     * GPEs can only be enabled after the _REG, _STA, and _INI methods have
-     * been run. This ensures that all Operation Regions and all Devices have
-     * been initialized and are ready.
-     */
-    if (!(Flags & ACPI_NO_EVENT_INIT))
-    {
-        Status = AcpiEvInstallFadtGpes ();
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-    }
-
-    /*
      * Empty the caches (delete the cached objects) on the assumption that
      * the table load filled them up more than they will be at runtime --
      * thus wasting non-paged memory.

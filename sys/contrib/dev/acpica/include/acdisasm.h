@@ -189,6 +189,7 @@ typedef const struct acpi_dmtable_info
 #define ACPI_DMT_EINJINST               38
 #define ACPI_DMT_ERSTACT                39
 #define ACPI_DMT_ERSTINST               40
+#define ACPI_DMT_ACCWIDTH               41
 
 
 typedef

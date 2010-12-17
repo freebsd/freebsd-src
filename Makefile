@@ -271,7 +271,7 @@ make: .PHONY
 
 tinderbox:
 	cd ${.CURDIR} && \
-		DOING_TINDERBOX=YES ${MAKE} ${JFLAG} universe
+		DOING_TINDERBOX=YES ${MAKE} JFLAG=${JFLAG} universe
 
 #
 # universe

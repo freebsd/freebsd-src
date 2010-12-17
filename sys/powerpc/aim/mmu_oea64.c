@@ -1114,6 +1114,7 @@ void moea64_set_scratchpage_pa(mmu_t mmup, int which, vm_offset_t pa) {
 	MOEA64_PTE_CHANGE(mmup, moea64_scratchpage_pte[which],
 	    &moea64_scratchpage_pvo[which]->pvo_pte.lpte,
 	    moea64_scratchpage_pvo[which]->pvo_vpn);
+	isync();
 }
 
 void

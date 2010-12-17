@@ -1888,8 +1888,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		mnw = 1;
 
 	if (uap->flags & SF_SYNC) {
-		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK);
-		memset(sfs, 0, sizeof *sfs);
+		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
 		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
 	}

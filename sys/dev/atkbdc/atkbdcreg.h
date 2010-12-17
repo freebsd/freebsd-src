@@ -192,6 +192,7 @@ struct resource;
 typedef struct atkbdc_softc {
     struct resource *port0;	/* data port */
     struct resource *port1;	/* status port */
+    struct resource *irq;
     bus_space_tag_t iot;
     bus_space_handle_t ioh0;
     bus_space_handle_t ioh1;
