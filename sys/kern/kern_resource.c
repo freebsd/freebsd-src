@@ -462,29 +462,27 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	u_char	newpri;
 	u_char	oldpri;
 
-	thread_lock(td);
 	switch (RTP_PRIO_BASE(rtp->type)) {
 	case RTP_PRIO_REALTIME:
-		if (rtp->prio > RTP_PRIO_MAX) {
-			thread_unlock(td);
+		if (rtp->prio > RTP_PRIO_MAX)
 			return (EINVAL);
-		}
 		newpri = PRI_MIN_REALTIME + rtp->prio;
 		break;
 	case RTP_PRIO_NORMAL:
-		if (rtp->prio >  (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE)) {
-			thread_unlock(td);
+		if (rtp->prio > (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE))
 			return (EINVAL);
-		}
 		newpri = PRI_MIN_TIMESHARE + rtp->prio;
 		break;
 	case RTP_PRIO_IDLE:
+		if (rtp->prio > RTP_PRIO_MAX)
+			return (EINVAL);
 		newpri = PRI_MIN_IDLE + rtp->prio;
 		break;
 	default:
-		thread_unlock(td);
 		return (EINVAL);
 	}
+
+	thread_lock(td);
 	sched_class(td, rtp->type);	/* XXX fix */
 	oldpri = td->td_user_pri;
 	sched_user_prio(td, newpri);
