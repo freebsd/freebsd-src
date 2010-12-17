@@ -601,6 +601,35 @@ vm_page_unhold(vm_page_t mem)
 }
 
 /*
+ *	vm_page_unhold_pages:
+ *
+ *	Unhold each of the pages that is referenced by the given array.
+ */ 
+void
+vm_page_unhold_pages(vm_page_t *ma, int count)
+{
+	struct mtx *mtx, *new_mtx;
+
+	mtx = NULL;
+	for (; count != 0; count--) {
+		/*
+		 * Avoid releasing and reacquiring the same page lock.
+		 */
+		new_mtx = vm_page_lockptr(*ma);
+		if (mtx != new_mtx) {
+			if (mtx != NULL)
+				mtx_unlock(mtx);
+			mtx = new_mtx;
+			mtx_lock(mtx);
+		}
+		vm_page_unhold(*ma);
+		ma++;
+	}
+	if (mtx != NULL)
+		mtx_unlock(mtx);
+}
+
+/*
  *	vm_page_free:
  *
  *	Free a page.

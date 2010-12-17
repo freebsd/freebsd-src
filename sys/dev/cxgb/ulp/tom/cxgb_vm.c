@@ -150,16 +150,3 @@ error:
 		}
 	return (EFAULT);
 }
-
-void
-vm_fault_unhold_pages(vm_page_t *mp, int count)
-{
-
-	KASSERT(count >= 0, ("negative count %d", count));
-	while (count--) {
-		vm_page_lock(*mp);
-		vm_page_unhold(*mp);
-		vm_page_unlock(*mp);
-		mp++;
-	}
-}
