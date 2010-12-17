@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2010
+.Dd December 17, 2010
 .Dt XEN 4
 .Os
 .Sh NAME
@@ -88,8 +88,8 @@ Para-virtualized device drivers are required in order to support certain
 functionality, such as processing management requests, returning idle
 physical memory pages to the hypervisor, etc.
 .Ss Xen DomU device drivers
-Xen administrative and para-virtualized drivers are automatically added to
-the kernel if a PV kernel is compiled using
+Xen para-virtualized drivers are automatically added to the kernel if a PV
+kernel is compiled using
 .Cd "options XEN" ;
 for HVM environments,
 .Cd "options XENHVM"
