@@ -60,9 +60,9 @@ trampoline: ${KERNEL_KO}.tramp.bin
 ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 	$S/$M/$M/inckern.S 
 	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
-	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
-	sed s/${KERNLOADADDR}/${TRAMPLOADADDR}/ ${LDSCRIPT_NAME} | \
-		sed s/" + SIZEOF_HEADERS"//  > ${LDSCRIPT_NAME}.tramp.noheader
+		-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
+	sed -e s/${KERNLOADADDR}/${TRAMPLOADADDR}/ -e s/" + SIZEOF_HEADERS"// \
+		 ${LDSCRIPT_NAME} > ${LDSCRIPT_NAME}.tramp.noheader
 	${CC} -O -nostdlib -I. -I$S ${TRAMP_EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
 		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader  \
 		-DKERNNAME="\"${KERNEL_KO}.tmp\"" $S/$M/$M/elf_trampoline.c \
