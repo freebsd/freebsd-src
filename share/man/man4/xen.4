@@ -85,7 +85,7 @@ the amd64 architecture, and require
 .Pp
 Para-virtualized device drivers are required in order to support certain
 functionality, such as processing management requests, returning idle
-physical memory pages to the hypevisor, etc.
+physical memory pages to the hypervisor, etc.
 .Ss Xen DomU device drivers
 Adding
 .Cd "options xenpci"
@@ -112,7 +112,7 @@ Expose Xen events via the
 .Pa /dev/xen/evtchn
 special device.
 .It Nm netback
-Export local network interfacest to other Xen domains where they can be
+Export local network interfaces to other Xen domains where they can be
 imported via
 .Nm netfront .
 .It Nm netfront
