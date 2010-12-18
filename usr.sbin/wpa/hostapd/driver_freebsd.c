@@ -35,8 +35,7 @@
 struct bsd_driver_data {
 	struct hostapd_data *hapd;      /* back pointer */
 
-	int     ioctl_sock;                  /* open socket for 802.11 ioctls */
-	int     wext_sock;
+	int     sock;                  /* open socket for 802.11 ioctls */
 	struct l2_packet_data *sock_xmit;/* raw packet xmit socket */
 	int     route;                  /* routing socket for events */
 	char    iface[IFNAMSIZ+1];     /* interface name */
@@ -48,8 +47,6 @@ struct bsd_driver_data {
 	int     prev_privacy;   /* privacy state to restore on deinit */
 	int     prev_wpa;       /* wpa state to restore on deinit */
 };
-
-static const struct wpa_driver_ops bsd_driver_ops;
 
 static int
 bsd_set80211(void *priv, int op, int val, const void *arg, int arg_len)
@@ -64,7 +61,7 @@ bsd_set80211(void *priv, int op, int val, const void *arg, int arg_len)
 	ireq.i_data = (void *) arg;
 	ireq.i_len = arg_len;
 
-	if (ioctl(drv->ioctl_sock, SIOCS80211, &ireq) < 0) {
+	if (ioctl(drv->sock, SIOCS80211, &ireq) < 0) {
 		wpa_printf(MSG_ERROR, "ioctl[SIOCS80211, op=%u, val=%u, "
 			   "arg_len=%u]: %s", op, val, arg_len,
 			   strerror(errno));
@@ -85,7 +82,7 @@ bsd_get80211(void *priv, struct ieee80211req *ireq, int op, void *arg,
 	ireq->i_len = arg_len;
 	ireq->i_data = arg;
 
-	if (ioctl(drv->ioctl_sock, SIOCG80211, ireq) < 0) {
+	if (ioctl(drv->sock, SIOCG80211, ireq) < 0) {
 		wpa_printf(MSG_ERROR, "ioctl[SIOCS80211, op=%u, "
 			   "arg_len=%u]: %s", op, arg_len, strerror(errno));
 		return -1;
@@ -178,13 +175,13 @@ bsd_set_iface_flags(void *priv, int flags)
 
 	wpa_printf(MSG_DEBUG, "%s: flags=0x%x\n", __func__, flags);
 
-	if (drv->ioctl_sock < 0)
+	if (drv->sock < 0)
 		return -1;
 
 	memset(&ifr, 0, sizeof(ifr));
 	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", drv->iface);
 
-	if (ioctl(drv->ioctl_sock, SIOCGIFFLAGS, &ifr) != 0) {
+	if (ioctl(drv->sock, SIOCGIFFLAGS, &ifr) != 0) {
 		perror("ioctl[SIOCGIFFLAGS]");
 		return -1;
 	}
@@ -200,7 +197,7 @@ bsd_set_iface_flags(void *priv, int flags)
 		ifr.ifr_flags |= flags;
 	}
 
-	if (ioctl(drv->ioctl_sock, SIOCSIFFLAGS, &ifr) != 0) {
+	if (ioctl(drv->sock, SIOCSIFFLAGS, &ifr) != 0) {
 		perror("ioctl[SIOCSIFFLAGS]");
 		return -1;
 	}
@@ -712,8 +709,8 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 	}
 
 	drv->hapd = hapd;
-	drv->ioctl_sock = socket(PF_INET, SOCK_DGRAM, 0);
-	if (drv->ioctl_sock < 0) {
+	drv->sock = socket(PF_INET, SOCK_DGRAM, 0);
+	if (drv->sock < 0) {
 		perror("socket[PF_INET,SOCK_DGRAM]");
 		goto bad;
 	}
@@ -755,8 +752,8 @@ bad:
 	if (drv != NULL) {
 		if (drv->sock_xmit != NULL)
 			l2_packet_deinit(drv->sock_xmit);
-		if (drv->ioctl_sock >= 0)
-			close(drv->ioctl_sock);
+		if (drv->sock >= 0)
+			close(drv->sock);
 		free(drv);
 	}
 	return NULL;
@@ -773,8 +770,8 @@ bsd_deinit(void *priv)
 		close(drv->route);
 	}
 	(void) bsd_set_iface_flags(drv, -IFF_UP);
-	if (drv->ioctl_sock >= 0)
-		close(drv->ioctl_sock);
+	if (drv->sock >= 0)
+		close(drv->sock);
 	if (drv->sock_xmit != NULL)
 		l2_packet_deinit(drv->sock_xmit);
 	free(drv);
