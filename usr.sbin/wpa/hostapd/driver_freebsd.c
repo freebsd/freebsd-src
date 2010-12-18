@@ -24,14 +24,11 @@
 
 #include <sys/socket.h>
 #include <net/if.h>
+#include <net/route.h>
 #include <netinet/in.h>
 
 #include <net80211/ieee80211_ioctl.h>
-
-#undef RSN_VERSION
-#undef WPA_VERSION
-#undef WPA_OUI_TYPE
-#undef WME_OUI_TYPE
+#include <net80211/ieee80211_freebsd.h>
 
 #include "l2_packet/l2_packet.h"
 
@@ -53,9 +50,6 @@ struct bsd_driver_data {
 };
 
 static const struct wpa_driver_ops bsd_driver_ops;
-
-static int bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-    int reason_code);
 
 static int
 bsd_set80211(void *priv, int op, int val, const void *arg, int arg_len)
@@ -121,16 +115,58 @@ set80211param(struct bsd_driver_data *drv, int op, int arg)
 	return bsd_set80211(drv, op, arg, NULL, 0);
 }
 
-static const char *
-ether_sprintf(const u8 *addr)
+static int
+bsd_get_ssid(void *priv, u8 *buf, int len)
 {
-	static char buf[sizeof(MACSTR)];
+	struct bsd_driver_data *drv = priv;
 
-	if (addr != NULL)
-		snprintf(buf, sizeof(buf), MACSTR, MAC2STR(addr));
-	else
-		snprintf(buf, sizeof(buf), MACSTR, 0,0,0,0,0,0);
-	return buf;
+	int ssid_len = get80211var(priv, IEEE80211_IOC_SSID, buf, len);
+
+	wpa_printf(MSG_DEBUG, "%s: ssid=\"%.*s\"\n", __func__, ssid_len, buf);
+
+	return ssid_len;
+}
+
+static int
+bsd_set_ssid(void *priv, const u8 *buf, int len)
+{
+	struct bsd_driver_data *drv = priv;
+	struct hostapd_data *hapd = drv->hapd;
+
+	wpa_printf(MSG_DEBUG, "%s: ssid=\"%.*s\"\n", __func__, len, buf);
+
+	return set80211var(priv, IEEE80211_IOC_SSID, buf, len);
+}
+
+static int
+bsd_del_key(void *priv, const u8 *addr, int key_idx)
+{
+	struct ieee80211req_del_key wk;
+
+	os_memset(&wk, 0, sizeof(wk));
+	if (addr == NULL) {
+		wpa_printf(MSG_DEBUG, "%s: key_idx=%d", __func__, key_idx);
+		wk.idk_keyix = key_idx;
+	} else {
+		wpa_printf(MSG_DEBUG, "%s: addr=" MACSTR, __func__,
+			   MAC2STR(addr));
+		os_memcpy(wk.idk_macaddr, addr, IEEE80211_ADDR_LEN);
+		wk.idk_keyix = (u_int8_t) IEEE80211_KEYIX_NONE;	/* XXX */
+	}
+
+	return set80211var(priv, IEEE80211_IOC_DELKEY, &wk, sizeof(wk));
+}
+
+static int
+bsd_send_mlme_param(void *priv, const u8 op, const u16 reason, const u8 *addr)
+{
+	struct ieee80211req_mlme mlme;
+
+	os_memset(&mlme, 0, sizeof(mlme));
+	mlme.im_op = op;
+	mlme.im_reason = reason;
+	os_memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
+	return set80211var(priv, IEEE80211_IOC_MLME, &mlme, sizeof(mlme));
 }
 
 static int
@@ -175,94 +211,6 @@ static int
 bsd_commit(void *priv)
 {
 	return bsd_set_iface_flags(priv, IFF_UP);
-}
-
-static int
-bsd_set_ieee8021x(void *priv, struct wpa_bss_params *params)
-{
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d\n", __func__, params->enabled);
-
-	if (!params->enabled) {
-		/* XXX restore state */
-		return set80211param(priv, IEEE80211_IOC_AUTHMODE,
-			IEEE80211_AUTH_AUTO);
-	}
-	if (!params->wpa && !params->ieee802_1x) {
-		wpa_printf(MSG_ERROR, "%s: No 802.1X or WPA enabled",
-			   __func__);
-		return -1;
-	}
-	if (params->wpa && set80211param(priv,IEEE80211_IOC_WPA, params->wpa)) {
-		wpa_printf(MSG_ERROR, "%s: Failed to configure WPA state",
-			  __func__);
-		return -1;
-	}
-	if (set80211param(priv, IEEE80211_IOC_AUTHMODE,
-		(params->wpa ?  IEEE80211_AUTH_WPA : IEEE80211_AUTH_8021X))) {
-		wpa_printf(MSG_ERROR, "%s: Failed to enable WPA/802.1X",
-			   __func__);
-		return -1;
-	}
-	return 0;
-}
-
-static int
-bsd_set_privacy(void *priv, int enabled)
-{
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d\n", __func__, enabled);
-
-	return set80211param(priv, IEEE80211_IOC_PRIVACY, enabled);
-}
-
-static int
-bsd_send_mlme_param(void *priv, const u8 op, const u16 reason, const u8 *addr)
-{
-	struct ieee80211req_mlme mlme;
-
-	os_memset(&mlme, 0, sizeof(mlme));
-	mlme.im_op = op;
-	mlme.im_reason = reason;
-	os_memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
-	return set80211var(priv, IEEE80211_IOC_MLME, &mlme, sizeof(mlme));
-}
-
-static int
-bsd_set_sta_authorized(void *priv, const u8 *addr,
-		       int total_flags, int flags_or, int flags_and)
-{
-	int authorized = -1;
-
-	/* For now, only support setting Authorized flag */
-	if (flags_or & WPA_STA_AUTHORIZED)
-		authorized = 1;
-	if (!(flags_and & WPA_STA_AUTHORIZED))
-		authorized = 0;
-
-	if (authorized < 0)
-		return 0;
-
-	return bsd_send_mlme_param(priv, authorized ?
-				   IEEE80211_MLME_AUTHORIZE :
-				   IEEE80211_MLME_UNAUTHORIZE, 0, addr);
-}
-
-static int
-bsd_del_key(void *priv, const u8 *addr, int key_idx)
-{
-	struct ieee80211req_del_key wk;
-
-	os_memset(&wk, 0, sizeof(wk));
-	if (addr == NULL) {
-		wpa_printf(MSG_DEBUG, "%s: key_idx=%d", __func__, key_idx);
-		wk.idk_keyix = key_idx;
-	} else {
-		wpa_printf(MSG_DEBUG, "%s: addr=" MACSTR, __func__,
-			   MAC2STR(addr));
-		os_memcpy(wk.idk_macaddr, addr, IEEE80211_ADDR_LEN);
-		wk.idk_keyix = (u_int8_t) IEEE80211_KEYIX_NONE;	/* XXX */
-	}
-
-	return set80211var(priv, IEEE80211_IOC_DELKEY, &wk, sizeof(wk));
 }
 
 static int
@@ -328,6 +276,162 @@ bsd_set_key(const char *ifname, void *priv, enum wpa_alg alg,
 	return set80211var(priv, IEEE80211_IOC_WPAKEY, &wk, sizeof(wk));
 }
 
+static int
+bsd_set_ieee8021x(void *priv, struct wpa_bss_params *params)
+{
+	wpa_printf(MSG_DEBUG, "%s: enabled=%d\n", __func__, params->enabled);
+
+	if (!params->enabled) {
+		/* XXX restore state */
+		return set80211param(priv, IEEE80211_IOC_AUTHMODE,
+			IEEE80211_AUTH_AUTO);
+	}
+	if (!params->wpa && !params->ieee802_1x) {
+		wpa_printf(MSG_ERROR, "%s: No 802.1X or WPA enabled",
+			   __func__);
+		return -1;
+	}
+	if (params->wpa && set80211param(priv,IEEE80211_IOC_WPA, params->wpa)) {
+		wpa_printf(MSG_ERROR, "%s: Failed to configure WPA state",
+			  __func__);
+		return -1;
+	}
+	if (set80211param(priv, IEEE80211_IOC_AUTHMODE,
+		(params->wpa ?  IEEE80211_AUTH_WPA : IEEE80211_AUTH_8021X))) {
+		wpa_printf(MSG_ERROR, "%s: Failed to enable WPA/802.1X",
+			   __func__);
+		return -1;
+	}
+	return 0;
+}
+
+static int
+bsd_set_sta_authorized(void *priv, const u8 *addr,
+		       int total_flags, int flags_or, int flags_and)
+{
+	int authorized = -1;
+
+	/* For now, only support setting Authorized flag */
+	if (flags_or & WPA_STA_AUTHORIZED)
+		authorized = 1;
+	if (!(flags_and & WPA_STA_AUTHORIZED))
+		authorized = 0;
+
+	if (authorized < 0)
+		return 0;
+
+	return bsd_send_mlme_param(priv, authorized ?
+				   IEEE80211_MLME_AUTHORIZE :
+				   IEEE80211_MLME_UNAUTHORIZE, 0, addr);
+}
+
+static void
+bsd_new_sta(void *priv, void *ctx, u8 addr[IEEE80211_ADDR_LEN])
+{
+	struct ieee80211req_wpaie ie;
+	int ielen = 0;
+	u8 *iebuf = NULL;
+
+	/*
+	 * Fetch and validate any negotiated WPA/RSN parameters.
+	 */
+	memset(&ie, 0, sizeof(ie));
+	memcpy(ie.wpa_macaddr, addr, IEEE80211_ADDR_LEN);
+	if (get80211var(priv, IEEE80211_IOC_WPAIE, &ie, sizeof(ie)) < 0) {
+		printf("Failed to get WPA/RSN information element.\n");
+		goto no_ie;
+	}
+	iebuf = ie.wpa_ie;
+	ielen = ie.wpa_ie[1];
+	if (ielen == 0)
+		iebuf = NULL;
+	else
+		ielen += 2;
+
+no_ie:
+        drv_event_assoc(ctx, addr, iebuf, ielen);
+
+}
+
+static int
+bsd_send_eapol(void *priv, const u8 *addr, const u8 *data, size_t data_len,
+	       int encrypt, const u8 *own_addr)
+	      
+{
+	struct bsd_driver_data *drv = priv;
+	struct hostapd_data *hapd = drv->hapd;
+	unsigned char buf[3000];
+	unsigned char *bp = buf;
+	struct l2_ethhdr *eth;
+	size_t len;
+	int status;
+
+	/*
+	 * Prepend the Etherent header.  If the caller left us
+	 * space at the front we could just insert it but since
+	 * we don't know we copy to a local buffer.  Given the frequency
+	 * and size of frames this probably doesn't matter.
+	 */
+	len = data_len + sizeof(struct l2_ethhdr);
+	if (len > sizeof(buf)) {
+		bp = malloc(len);
+		if (bp == NULL) {
+			printf("EAPOL frame discarded, cannot malloc temp "
+				"buffer of size %u!\n", len);
+			return -1;
+		}
+	}
+	eth = (struct l2_ethhdr *) bp;
+	memcpy(eth->h_dest, addr, ETH_ALEN);
+	memcpy(eth->h_source, own_addr, ETH_ALEN);
+	eth->h_proto = htons(ETH_P_EAPOL);
+	memcpy(eth+1, data, data_len);
+
+	wpa_hexdump(MSG_MSGDUMP, "TX EAPOL", bp, len);
+
+	status = l2_packet_send(drv->sock_xmit, addr, ETH_P_EAPOL, bp, len);
+
+	if (bp != buf)
+		free(bp);
+	return status;
+}
+
+static int
+bsd_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
+{
+	wpa_printf(MSG_DEBUG, "%s: set WPA+RSN ie (len %lu)", __func__,
+		   (unsigned long)ie_len);
+	return bsd_set80211(priv, IEEE80211_IOC_APPIE, IEEE80211_APPIE_WPA,
+			    ie, ie_len);
+}
+
+#undef RSN_VERSION
+#undef WPA_VERSION
+#undef WPA_OUI_TYPE
+#undef WME_OUI_TYPE
+
+static int bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
+    int reason_code);
+
+static const char *
+ether_sprintf(const u8 *addr)
+{
+	static char buf[sizeof(MACSTR)];
+
+	if (addr != NULL)
+		snprintf(buf, sizeof(buf), MACSTR, MAC2STR(addr));
+	else
+		snprintf(buf, sizeof(buf), MACSTR, 0,0,0,0,0,0);
+	return buf;
+}
+
+static int
+bsd_set_privacy(void *priv, int enabled)
+{
+	wpa_printf(MSG_DEBUG, "%s: enabled=%d\n", __func__, enabled);
+
+	return set80211param(priv, IEEE80211_IOC_PRIVACY, enabled);
+}
 
 static int
 bsd_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
@@ -403,15 +507,6 @@ bsd_sta_clear_stats(void *priv, const u8 *addr)
 }
 
 static int
-bsd_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
-{
-	wpa_printf(MSG_DEBUG, "%s: set WPA+RSN ie (len %lu)", __func__,
-		   (unsigned long)ie_len);
-	return bsd_set80211(priv, IEEE80211_IOC_APPIE, IEEE80211_APPIE_WPA,
-			    ie, ie_len);
-}
-
-static int
 bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr, int reason_code)
 {
 	return bsd_send_mlme_param(priv, IEEE80211_MLME_DEAUTH, reason_code,
@@ -425,37 +520,6 @@ bsd_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
 	return bsd_send_mlme_param(priv, IEEE80211_MLME_DISASSOC, reason_code,
 				   addr);
 }
-
-static void
-bsd_new_sta(void *priv, void *ctx, u8 addr[IEEE80211_ADDR_LEN])
-{
-	struct ieee80211req_wpaie ie;
-	int ielen = 0;
-	u8 *iebuf = NULL;
-
-	/*
-	 * Fetch and validate any negotiated WPA/RSN parameters.
-	 */
-	memset(&ie, 0, sizeof(ie));
-	memcpy(ie.wpa_macaddr, addr, IEEE80211_ADDR_LEN);
-	if (get80211var(priv, IEEE80211_IOC_WPAIE, &ie, sizeof(ie)) < 0) {
-		printf("Failed to get WPA/RSN information element.\n");
-		goto no_ie;
-	}
-	iebuf = ie.wpa_ie;
-	ielen = ie.wpa_ie[1];
-	if (ielen == 0)
-		iebuf = NULL;
-	else
-		ielen += 2;
-
-no_ie:
-        drv_event_assoc(ctx, addr, iebuf, ielen);
-
-}
-
-#include <net/route.h>
-#include <net80211/ieee80211_freebsd.h>
 
 static void
 bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
@@ -559,77 +623,11 @@ bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 	}
 }
 
-static int
-bsd_send_eapol(void *priv, const u8 *addr, const u8 *data, size_t data_len,
-	       int encrypt, const u8 *own_addr)
-	      
-{
-	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
-	unsigned char buf[3000];
-	unsigned char *bp = buf;
-	struct l2_ethhdr *eth;
-	size_t len;
-	int status;
-
-	/*
-	 * Prepend the Etherent header.  If the caller left us
-	 * space at the front we could just insert it but since
-	 * we don't know we copy to a local buffer.  Given the frequency
-	 * and size of frames this probably doesn't matter.
-	 */
-	len = data_len + sizeof(struct l2_ethhdr);
-	if (len > sizeof(buf)) {
-		bp = malloc(len);
-		if (bp == NULL) {
-			printf("EAPOL frame discarded, cannot malloc temp "
-				"buffer of size %u!\n", len);
-			return -1;
-		}
-	}
-	eth = (struct l2_ethhdr *) bp;
-	memcpy(eth->h_dest, addr, ETH_ALEN);
-	memcpy(eth->h_source, own_addr, ETH_ALEN);
-	eth->h_proto = htons(ETH_P_EAPOL);
-	memcpy(eth+1, data, data_len);
-
-	wpa_hexdump(MSG_MSGDUMP, "TX EAPOL", bp, len);
-
-	status = l2_packet_send(drv->sock_xmit, addr, ETH_P_EAPOL, bp, len);
-
-	if (bp != buf)
-		free(bp);
-	return status;
-}
-
 static void
 handle_read(void *ctx, const u8 *src_addr, const u8 *buf, size_t len)
 {
 	struct bsd_driver_data *drv = ctx;
 	drv_event_eapol_rx(drv->hapd, src_addr, buf, len);
-}
-
-static int
-bsd_get_ssid(void *priv, u8 *buf, int len)
-{
-	struct bsd_driver_data *drv = priv;
-
-	int ssid_len = get80211var(priv, IEEE80211_IOC_SSID, buf, len);
-
-	wpa_printf(MSG_DEBUG, "%s: ssid=\"%.*s\"\n", __func__, ssid_len, buf);
-
-	return ssid_len;
-}
-
-static int
-bsd_set_ssid(void *priv, const u8 *buf, int len)
-{
-	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
-
-	wpa_printf(MSG_DEBUG, "%s: ssid=\"%.*s\"\n", __func__, len, buf);
-
-	return set80211var(priv, IEEE80211_IOC_SSID, buf, len);
 }
 
 static int
