@@ -1645,9 +1645,15 @@ wpi_notif_intr(struct wpi_softc *sc)
 	struct wpi_rx_data *data;
 	uint32_t hw;
 
+	bus_dmamap_sync(sc->shared_dma.tag, sc->shared_dma.map,
+	    BUS_DMASYNC_POSTREAD);
+
 	hw = le32toh(sc->shared->next);
 	while (sc->rxq.cur != hw) {
 		data = &sc->rxq.data[sc->rxq.cur];
+
+		bus_dmamap_sync(sc->rxq.data_dmat, data->map,
+		    BUS_DMASYNC_POSTREAD);
 		desc = (void *)data->m->m_ext.ext_buf;
 
 		DPRINTFN(WPI_DEBUG_NOTIFY,
