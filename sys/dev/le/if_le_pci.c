@@ -312,7 +312,6 @@ le_pci_attach(device_t dev)
 	LE_LOCK_INIT(sc, device_get_nameunit(dev));
 
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_IOPORT);
 
 	i = PCIR_BAR(0);
 	lesc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
