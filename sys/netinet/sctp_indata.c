@@ -1754,7 +1754,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	    asoc->fragmented_delivery_inprogress == 0 &&
 	    TAILQ_EMPTY(&asoc->resetHead) &&
 	    ((ordered == 0) ||
-	    ((asoc->strmin[strmno].last_sequence_delivered + 1) == strmseq &&
+	    ((uint16_t) (asoc->strmin[strmno].last_sequence_delivered + 1) == strmseq &&
 	    TAILQ_EMPTY(&asoc->strmin[strmno].inqueue)))) {
 		/* Candidate for express delivery */
 		/*
