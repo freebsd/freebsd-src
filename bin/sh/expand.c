@@ -557,8 +557,6 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 		amount = startp - expdest;
 		STADJUST(amount, expdest);
 		varflags &= ~VSNUL;
-		if (c != 0)
-			*loc = c;
 		return 1;
 
 	case VSQUESTION:
