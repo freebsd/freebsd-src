@@ -14,6 +14,7 @@
  *
  * $FreeBSD$
  */
+
 #include "includes.h"
 #include <sys/ioctl.h>
 
@@ -33,19 +34,19 @@
 #include "l2_packet/l2_packet.h"
 
 struct bsd_driver_data {
-	struct hostapd_data *hapd;      /* back pointer */
+	struct hostapd_data *hapd;	/* back pointer */
 
-	int     sock;                  /* open socket for 802.11 ioctls */
+	int	sock;			/* open socket for 802.11 ioctls */
 	struct l2_packet_data *sock_xmit;/* raw packet xmit socket */
-	int     route;                  /* routing socket for events */
-	char    ifname[IFNAMSIZ+1];     /* interface name */
-	unsigned int ifindex;           /* interface index */
-	void    *ctx;
-	struct wpa_driver_capa capa;    /* driver capability */
-	int     is_ap;                  /* Access point mode */
-	int     prev_roaming;   /* roaming state to restore on deinit */
-	int     prev_privacy;   /* privacy state to restore on deinit */
-	int     prev_wpa;       /* wpa state to restore on deinit */
+	int	route;			/* routing socket for events */
+	char	ifname[IFNAMSIZ+1];	/* interface name */
+	unsigned int ifindex;		/* interface index */
+	void	*ctx;
+	struct wpa_driver_capa capa;	/* driver capability */
+	int	is_ap;			/* Access point mode */
+	int	prev_roaming;	/* roaming state to restore on deinit */
+	int	prev_privacy;	/* privacy state to restore on deinit */
+	int	prev_wpa;	/* wpa state to restore on deinit */
 };
 
 static int
@@ -190,6 +191,7 @@ bsd_ctrl_iface(void *priv, int enable)
 		perror("ioctl[SIOCSIFFLAGS]");
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -207,8 +209,8 @@ bsd_set_key(const char *ifname, void *priv, enum wpa_alg alg,
 	struct ieee80211req_key wk;
 
 	wpa_printf(MSG_DEBUG, "%s: alg=%d addr=%p key_idx=%d set_tx=%d "
-		  "seq_len=%zu key_len=%zu", __func__, alg, addr, key_idx,
-		  set_tx, seq_len, key_len);
+		   "seq_len=%zu key_len=%zu", __func__, alg, addr, key_idx,
+		   set_tx, seq_len, key_len);
 
 	if (alg == WPA_ALG_NONE) {
 		return bsd_del_key(priv, addr, key_idx);
@@ -281,7 +283,7 @@ bsd_set_ieee8021x(void *priv, struct wpa_bss_params *params)
 	if (!params->enabled) {
 		/* XXX restore state */
 		return set80211param(priv, IEEE80211_IOC_AUTHMODE,
-			IEEE80211_AUTH_AUTO);
+				     IEEE80211_AUTH_AUTO);
 	}
 	if (!params->wpa && !params->ieee802_1x) {
 		wpa_printf(MSG_ERROR, "%s: No 802.1X or WPA enabled",
@@ -290,11 +292,11 @@ bsd_set_ieee8021x(void *priv, struct wpa_bss_params *params)
 	}
 	if (params->wpa && bsd_configure_wpa(priv, params) != 0) {
 		wpa_printf(MSG_ERROR, "%s: Failed to configure WPA state",
-			  __func__);
+			   __func__);
 		return -1;
 	}
 	if (set80211param(priv, IEEE80211_IOC_AUTHMODE,
-		(params->wpa ?  IEEE80211_AUTH_WPA : IEEE80211_AUTH_8021X))) {
+		(params->wpa ? IEEE80211_AUTH_WPA : IEEE80211_AUTH_8021X))) {
 		wpa_printf(MSG_ERROR, "%s: Failed to enable WPA/802.1X",
 			   __func__);
 		return -1;
@@ -346,14 +348,12 @@ bsd_new_sta(void *priv, void *ctx, u8 addr[IEEE80211_ADDR_LEN])
 		ielen += 2;
 
 no_ie:
-        drv_event_assoc(ctx, addr, iebuf, ielen);
-
+	drv_event_assoc(ctx, addr, iebuf, ielen);
 }
 
 static int
 bsd_send_eapol(void *priv, const u8 *addr, const u8 *data, size_t data_len,
 	       int encrypt, const u8 *own_addr)
-	      
 {
 	struct bsd_driver_data *drv = priv;
 	unsigned char buf[3000];
@@ -410,7 +410,7 @@ bsd_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
 #undef WPA_OUI_TYPE
 
 static int bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
-    int reason_code);
+			  int reason_code);
 
 static const char *
 ether_sprintf(const u8 *addr)
@@ -439,7 +439,7 @@ bsd_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
 	struct ieee80211req_key wk;
 
 	wpa_printf(MSG_DEBUG, "%s: addr=%s idx=%d",
-	    __func__, ether_sprintf(addr), idx);
+		   __func__, ether_sprintf(addr), idx);
 
 	memset(&wk, 0, sizeof(wk));
 	if (addr == NULL)
@@ -505,7 +505,7 @@ static int
 bsd_sta_clear_stats(void *priv, const u8 *addr)
 {
 	struct ieee80211req_sta_stats stats;
-	
+
 	wpa_printf(MSG_DEBUG, "%s: addr=%s", __func__, ether_sprintf(addr));
 
 	/* zero station statistics */
