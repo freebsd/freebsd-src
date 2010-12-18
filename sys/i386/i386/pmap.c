@@ -1299,13 +1299,13 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	ptep = pmap_pte(pmap, va);
 	pte = (ptep != NULL) ? *ptep : 0;
 	pmap_pte_release(ptep);
+	PMAP_UNLOCK(pmap);
 	if ((pte & PG_V) != 0) {
 		if ((pte & PG_PS) != 0)
 			rtval = (pte & PG_PS_FRAME) | (va & PDRMASK);
 		else
 			rtval = (pte & PG_FRAME) | (va & PAGE_MASK);
 	}
-	PMAP_UNLOCK(pmap);
 	return (rtval);
 }
 
