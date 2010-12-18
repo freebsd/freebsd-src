@@ -168,10 +168,10 @@ bsd_set_iface_flags(void *priv, int flags)
 	if (drv->sock < 0)
 		return -1;
 
-	memset(&ifr, 0, sizeof(ifr));
-	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", drv->ifname);
+	os_memset(&ifr, 0, sizeof(ifr));
+	os_strlcpy(ifr.ifr_name, drv->ifname, sizeof(ifr.ifr_name));
 
-	if (ioctl(drv->sock, SIOCGIFFLAGS, &ifr) != 0) {
+	if (ioctl(drv->sock, SIOCGIFFLAGS, &ifr) < 0) {
 		perror("ioctl[SIOCGIFFLAGS]");
 		return -1;
 	}
@@ -187,7 +187,7 @@ bsd_set_iface_flags(void *priv, int flags)
 		ifr.ifr_flags |= flags;
 	}
 
-	if (ioctl(drv->sock, SIOCSIFFLAGS, &ifr) != 0) {
+	if (ioctl(drv->sock, SIOCSIFFLAGS, &ifr) < 0) {
 		perror("ioctl[SIOCSIFFLAGS]");
 		return -1;
 	}
@@ -697,7 +697,7 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 		perror("socket[PF_INET,SOCK_DGRAM]");
 		goto bad;
 	}
-	memcpy(drv->ifname, params->ifname, sizeof(drv->ifname));
+	os_strlcpy(drv->ifname, params->ifname, sizeof(drv->ifname));
 	/*
 	 * NB: We require the interface name be mappable to an index.
 	 *     This implies we do not support having wpa_supplicant
@@ -733,13 +733,13 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 
 	return drv;
 bad:
-	if (drv != NULL) {
-		if (drv->sock_xmit != NULL)
-			l2_packet_deinit(drv->sock_xmit);
-		if (drv->sock >= 0)
-			close(drv->sock);
-		free(drv);
-	}
+	if (drv == NULL)
+		return NULL;
+	if (drv->sock_xmit != NULL)
+		l2_packet_deinit(drv->sock_xmit);
+	if (drv->sock >= 0)
+		close(drv->sock);
+	os_free(drv);
 	return NULL;
 }
 
@@ -758,7 +758,7 @@ bsd_deinit(void *priv)
 		close(drv->sock);
 	if (drv->sock_xmit != NULL)
 		l2_packet_deinit(drv->sock_xmit);
-	free(drv);
+	os_free(drv);
 }
 
 const struct wpa_driver_ops wpa_driver_bsd_ops = {
