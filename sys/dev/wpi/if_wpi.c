@@ -3004,14 +3004,12 @@ wpi_rfkill_resume(struct wpi_softc *sc)
 	if (ntries == 1000) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for thermal calibration\n");
-		WPI_UNLOCK(sc);
 		return;
 	}
 	DPRINTFN(WPI_DEBUG_TEMP,("temperature %d\n", sc->temp));
 
 	if (wpi_config(sc) != 0) {
 		device_printf(sc->sc_dev, "device config failed\n");
-		WPI_UNLOCK(sc);
 		return;
 	}
 
