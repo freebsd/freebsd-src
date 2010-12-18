@@ -38,7 +38,7 @@ struct bsd_driver_data {
 	int     sock;                  /* open socket for 802.11 ioctls */
 	struct l2_packet_data *sock_xmit;/* raw packet xmit socket */
 	int     route;                  /* routing socket for events */
-	char    iface[IFNAMSIZ+1];     /* interface name */
+	char    ifname[IFNAMSIZ+1];     /* interface name */
 	unsigned int ifindex;           /* interface index */
 	void    *ctx;
 	struct wpa_driver_capa capa;    /* driver capability */
@@ -55,7 +55,7 @@ bsd_set80211(void *priv, int op, int val, const void *arg, int arg_len)
 	struct ieee80211req ireq;
 
 	os_memset(&ireq, 0, sizeof(ireq));
-	os_strlcpy(ireq.i_name, drv->iface, sizeof(ireq.i_name));
+	os_strlcpy(ireq.i_name, drv->ifname, sizeof(ireq.i_name));
 	ireq.i_type = op;
 	ireq.i_val = val;
 	ireq.i_data = (void *) arg;
@@ -77,7 +77,7 @@ bsd_get80211(void *priv, struct ieee80211req *ireq, int op, void *arg,
 	struct bsd_driver_data *drv = priv;
 
 	os_memset(ireq, 0, sizeof(*ireq));
-	os_strlcpy(ireq->i_name, drv->iface, sizeof(ireq->i_name));
+	os_strlcpy(ireq->i_name, drv->ifname, sizeof(ireq->i_name));
 	ireq->i_type = op;
 	ireq->i_len = arg_len;
 	ireq->i_data = arg;
@@ -179,7 +179,7 @@ bsd_set_iface_flags(void *priv, int flags)
 		return -1;
 
 	memset(&ifr, 0, sizeof(ifr));
-	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", drv->iface);
+	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", drv->ifname);
 
 	if (ioctl(drv->sock, SIOCGIFFLAGS, &ifr) != 0) {
 		perror("ioctl[SIOCGIFFLAGS]");
@@ -714,7 +714,7 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 		perror("socket[PF_INET,SOCK_DGRAM]");
 		goto bad;
 	}
-	memcpy(drv->iface, params->ifname, sizeof(drv->iface));
+	memcpy(drv->ifname, params->ifname, sizeof(drv->ifname));
 	/*
 	 * NB: We require the interface name be mappable to an index.
 	 *     This implies we do not support having wpa_supplicant
@@ -722,13 +722,14 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 	 *     doesn't belong here; it's really the job of devd.
 	 *     XXXSCW: devd is FreeBSD-specific.
 	 */
-	drv->ifindex = if_nametoindex(drv->iface);
+	drv->ifindex = if_nametoindex(drv->ifname);
 	if (drv->ifindex == 0) {
-		printf("%s: interface %s does not exist", __func__, drv->iface);
+		printf("%s: interface %s does not exist", __func__,
+		       drv->ifname);
 		goto bad;
 	}
 
-	drv->sock_xmit = l2_packet_init(drv->iface, NULL, ETH_P_EAPOL,
+	drv->sock_xmit = l2_packet_init(drv->ifname, NULL, ETH_P_EAPOL,
 					handle_read, drv, 1);
 	if (drv->sock_xmit == NULL)
 		goto bad;
