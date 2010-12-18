@@ -1,0 +1,263 @@
+.\" Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 18, 2010
+.Dt GRAID 8
+.Os
+.Sh NAME
+.Nm graid
+.Nd "control utility for software RAID devices"
+.Sh SYNOPSIS
+.Nm
+.Cm label
+.Op Fl Fhnv
+.Op Fl b Ar balance
+.Op Fl s Ar slice
+.Ar name
+.Ar prov ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm configure
+.Op Fl adfFhnv
+.Op Fl b Ar balance
+.Op Fl s Ar slice
+.Ar name
+.Nm
+.Cm configure
+.Op Fl v
+.Fl p Ar priority
+.Ar name
+.Ar prov
+.Nm
+.Cm rebuild
+.Op Fl v
+.Ar name
+.Ar prov ...
+.Nm
+.Cm insert
+.Op Fl hiv
+.Op Fl p Ar priority
+.Ar name
+.Ar prov ...
+.Nm
+.Cm remove
+.Op Fl v
+.Ar name
+.Ar prov ...
+.Nm
+.Cm activate
+.Op Fl v
+.Ar name
+.Ar prov ...
+.Nm
+.Cm deactivate
+.Op Fl v
+.Ar name
+.Ar prov ...
+.Nm
+.Cm forget
+.Op Fl v
+.Ar name ...
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm dump
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for software RAID configurations.
+After a RAID's creation, all components are detected and configured
+automatically.
+All operations like failure detection, stale component detection, rebuild
+of stale components, etc.\& are also done automatically.
+The
+.Nm
+utility uses on-disk metadata to store all needed information.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm deactivate"
+.It Cm label
+Create a mirror.
+The order of components is important, because a component's priority is based on its position
+(starting from 0 to 255).
+The component with the biggest priority is used by the
+.Cm prefer
+balance algorithm
+and is also used as a master component when resynchronization is needed,
+e.g.\& after a power failure when the device was open for writing.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl b Ar balance"
+.It Fl b Ar balance
+Specifies balance algorithm to use, one of:
+.Bl -tag -width ".Cm round-robin"
+.It Cm load
+Read from the component with the lowest load.
+This is the default balance algorithm.
+.It Cm prefer
+Read from the component with the biggest priority.
+.It Cm round-robin
+Use round-robin algorithm when choosing component to read.
+.It Cm split
+Split read requests, which are bigger than or equal to slice size on N pieces,
+where N is the number of active components.
+.El
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl n
+Turn off autosynchronization of stale components.
+.It Fl s Ar slice
+When using the
+.Cm split
+balance algorithm and an I/O READ request is bigger than or equal to this value,
+the I/O request will be split into N pieces, where N is the number of active
+components.
+Defaults to 4096 bytes.
+.El
+.It Cm clear
+Clear metadata on the given providers.
+.It Cm configure
+Configure the given device.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl p Ar priority"
+.It Fl a
+Turn on autosynchronization of stale components.
+.It Fl b Ar balance
+Specifies balance algorithm to use.
+.It Fl d
+Do not hardcode providers' names in metadata.
+.It Fl f
+Synchronize device after a power failure or system crash.
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl n
+Turn off autosynchronization of stale components.
+.It Fl p Ar priority
+Specifies priority for the given component
+.Ar prov .
+.It Fl s Ar slice
+Specifies slice size for
+.Cm split
+balance algorithm.
+.El
+.It Cm rebuild
+Rebuild the given mirror components forcibly.
+If autosynchronization was not turned off for the given device, this command
+should be unnecessary.
+.It Cm insert
+Add the given component(s) to the existing mirror.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl p Ar priority"
+.It Fl h
+Hardcode providers' names in metadata.
+.It Fl i
+Mark component(s) as inactive immediately after insertion.
+.It Fl p Ar priority
+Specifies priority of the given component(s).
+.El
+.It Cm remove
+Remove the given component(s) from the mirror and clear metadata on it.
+.It Cm activate
+Activate the given component(s), which were marked as inactive before.
+.It Cm deactivate
+Mark the given component(s) as inactive, so it will not be automatically
+connected to the mirror.
+.It Cm forget
+Forget about components which are not connected.
+This command is useful when a disk has failed and cannot be reconnected, preventing the
+.Cm remove
+command from being used to remove it.
+.It Cm stop
+Stop the given mirror.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given mirror even if it is opened.
+.El
+.It Cm dump
+Dump metadata stored on the given providers.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl v"
+.It Fl v
+Be more verbose.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr dumpon 8 ,
+.Xr geom 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr savecore 8 ,
+.Xr umount 8 ,
+.Xr vinum 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An Alexander Motin Aq mav@FreeBSD.org

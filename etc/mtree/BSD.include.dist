@@ -176,6 +176,8 @@
         ..
         nop
         ..
+        raid
+        ..
         raid3
         ..
         shsec

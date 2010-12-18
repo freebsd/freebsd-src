@@ -13,6 +13,7 @@ SUBDIR+=mirror
 SUBDIR+=multipath
 SUBDIR+=nop
 SUBDIR+=part
+SUBDIR+=raid
 SUBDIR+=raid3
 SUBDIR+=shsec
 SUBDIR+=stripe
