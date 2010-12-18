@@ -116,8 +116,8 @@ ndis_devcompare(bustype, t, dev)
 	while(t->ndis_name != NULL) {
 		if ((pci_get_vendor(dev) == t->ndis_vid) &&
 		    (pci_get_device(dev) == t->ndis_did) &&
-		    ((pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
-		    t->ndis_subsys) || t->ndis_subsys == 0)) {
+		    (pci_get_subvendor(dev) == t->ndis_subsys ||
+		     t->ndis_subsys == 0)) {
 			device_set_desc(dev, t->ndis_name);
 			return(TRUE);
 		}
@@ -201,7 +201,6 @@ ndis_attach_pci(dev)
 					error = ENXIO;
 					goto fail;
 				}
-				pci_enable_io(dev, SYS_RES_IOPORT);
 				break;
 			case SYS_RES_MEMORY:
 				if (sc->ndis_res_altmem != NULL &&
@@ -239,7 +238,6 @@ ndis_attach_pci(dev)
 						goto fail;
 					}
 				}
-				pci_enable_io(dev, SYS_RES_MEMORY);
 				break;
 			case SYS_RES_IRQ:
 				rid = rle->rid;
@@ -309,11 +307,8 @@ ndis_attach_pci(dev)
 		    (pci_get_device(dev) == t->ndis_did)) {
 			if (t->ndis_subsys == 0)
 				defidx = devidx;
-			else {
-				if (t->ndis_subsys ==
-				    pci_read_config(dev, PCIR_SUBVEND_0, 4))
-					break;
-			}
+			else if (pci_get_subvendor(dev) == t->ndis_subsys)
+				break;
 		}
 		t++;
 		devidx++;
