@@ -356,40 +356,11 @@ bsd_send_eapol(void *priv, const u8 *addr, const u8 *data, size_t data_len,
 	       int encrypt, const u8 *own_addr)
 {
 	struct bsd_driver_data *drv = priv;
-	unsigned char buf[3000];
-	unsigned char *bp = buf;
-	struct l2_ethhdr *eth;
-	size_t len;
-	int status;
 
-	/*
-	 * Prepend the Etherent header.  If the caller left us
-	 * space at the front we could just insert it but since
-	 * we don't know we copy to a local buffer.  Given the frequency
-	 * and size of frames this probably doesn't matter.
-	 */
-	len = data_len + sizeof(struct l2_ethhdr);
-	if (len > sizeof(buf)) {
-		bp = malloc(len);
-		if (bp == NULL) {
-			printf("EAPOL frame discarded, cannot malloc temp "
-				"buffer of size %u!\n", len);
-			return -1;
-		}
-	}
-	eth = (struct l2_ethhdr *) bp;
-	memcpy(eth->h_dest, addr, ETH_ALEN);
-	memcpy(eth->h_source, own_addr, ETH_ALEN);
-	eth->h_proto = htons(ETH_P_EAPOL);
-	memcpy(eth+1, data, data_len);
+	wpa_hexdump(MSG_MSGDUMP, "TX EAPOL", data, data_len);
 
-	wpa_hexdump(MSG_MSGDUMP, "TX EAPOL", bp, len);
-
-	status = l2_packet_send(drv->sock_xmit, addr, ETH_P_EAPOL, bp, len);
-
-	if (bp != buf)
-		free(bp);
-	return status;
+	return l2_packet_send(drv->sock_xmit, addr, ETH_P_EAPOL, data,
+			      data_len);
 }
 
 static int
@@ -739,7 +710,7 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 	}
 
 	drv->sock_xmit = l2_packet_init(drv->ifname, NULL, ETH_P_EAPOL,
-					handle_read, drv, 1);
+					handle_read, drv, 0);
 	if (drv->sock_xmit == NULL)
 		goto bad;
 	if (l2_packet_get_own_addr(drv->sock_xmit, params->own_addr))
