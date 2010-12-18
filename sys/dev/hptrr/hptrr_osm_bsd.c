@@ -989,7 +989,6 @@ static void hpt_stop_tasks(PVBUS_EXT vbus_ext)
 static	d_open_t	hpt_open;
 static	d_close_t	hpt_close;
 static	d_ioctl_t	hpt_ioctl;
-static	void		hpt_bus_scan_cb(struct cam_periph *periph, union ccb *ccb);
 static  int 		hpt_rescan_bus(void);
 
 static struct cdevsw hpt_cdevsw = {
@@ -1381,7 +1380,6 @@ invalid:
 
 static int	hpt_rescan_bus(void)
 {
-	struct cam_path		*path;
 	union ccb			*ccb;
 	PVBUS 				vbus;
 	PVBUS_EXT			vbus_ext;	
@@ -1391,17 +1389,15 @@ static int	hpt_rescan_bus(void)
 #endif
 
 	ldm_for_each_vbus(vbus, vbus_ext) {
-		if (xpt_create_path(&path, xpt_periph, cam_sim_path(vbus_ext->sim),
-			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)	
-			return(EIO);
-		if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK)) == NULL)
+		if ((ccb = xpt_alloc_ccb()) == NULL)
 			return(ENOMEM);
-		bzero(ccb, sizeof(union ccb));
-		xpt_setup_ccb(&ccb->ccb_h, path, 5);
-		ccb->ccb_h.func_code = XPT_SCAN_BUS;
-		ccb->ccb_h.cbfcnp = hpt_bus_scan_cb;
-		ccb->crcn.flags = CAM_FLAG_NONE;
-		xpt_action(ccb);
+		if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+		    cam_sim_path(vbus_ext->sim),
+		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			xpt_free_ccb(ccb);
+			return(EIO);
+		}
+		xpt_rescan(ccb);
 	}
 	
 #if (__FreeBSD_version >= 500000)
@@ -1409,16 +1405,4 @@ static int	hpt_rescan_bus(void)
 #endif
 
 	return(0);	
-}
-
-static	void	hpt_bus_scan_cb(struct cam_periph *periph, union ccb *ccb)
-{
-	if (ccb->ccb_h.status != CAM_REQ_CMP)
-		KdPrint(("cam_scan_callback: failure status = %x",ccb->ccb_h.status));
-	else
-		KdPrint(("Scan bus successfully!"));
-
-	xpt_free_path(ccb->ccb_h.path);
-	free(ccb, M_TEMP);
-	return;
 }

@@ -60,15 +60,53 @@ static struct isa_pnp_id ata_ids[] = {
 static int
 ata_isa_probe(device_t dev)
 {
+    struct resource *io = NULL, *ctlio = NULL;
+    u_long tmp;
+    int rid;
+
+    /* check isapnp ids */
+    if (ISA_PNP_PROBE(device_get_parent(dev), dev, ata_ids) == ENXIO)
+	return ENXIO;
+
+    /* allocate the io port range */
+    rid = ATA_IOADDR_RID;
+    if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+				  ATA_IOSIZE, RF_ACTIVE)))
+	return ENXIO;
+
+    /* set the altport range */
+    if (bus_get_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID, &tmp, &tmp)) {
+	bus_set_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID,
+			 rman_get_start(io) + ATA_CTLOFFSET, ATA_CTLIOSIZE);
+    }
+
+    /* allocate the altport range */
+    rid = ATA_CTLADDR_RID; 
+    if (!(ctlio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+				     ATA_CTLIOSIZE, RF_ACTIVE))) {
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
+	return ENXIO;
+    }
+
+    /* Release resources to reallocate on attach. */
+    bus_release_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID, ctlio);
+    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
+
+    return (ata_probe(dev));
+}
+
+static int
+ata_isa_attach(device_t dev)
+{
     struct ata_channel *ch = device_get_softc(dev);
     struct resource *io = NULL, *ctlio = NULL;
     u_long tmp;
     int i, rid;
 
-    /* check isapnp ids */
-    if (ISA_PNP_PROBE(device_get_parent(dev), dev, ata_ids) == ENXIO)
-	return ENXIO;
-    
+    if (ch->attached)
+	return (0);
+    ch->attached = 1;
+
     /* allocate the io port range */
     rid = ATA_IOADDR_RID;
     if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
@@ -103,15 +141,58 @@ ata_isa_probe(device_t dev)
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
     ata_generic_hw(dev);
-    return ata_probe(dev);
+    return ata_attach(dev);
 }
+
+static int
+ata_isa_detach(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+    int error;
+
+    if (!ch->attached)
+	return (0);
+    ch->attached = 0;
+
+    error = ata_detach(dev);
+
+    bus_release_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID,
+	ch->r_io[ATA_CONTROL].res);
+    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID,
+	ch->r_io[ATA_IDX_ADDR].res);
+    return (error);
+}
+
+static int
+ata_isa_suspend(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_suspend(dev);
+}
+
+static int
+ata_isa_resume(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_resume(dev);
+}
+
 
 static device_method_t ata_isa_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,     ata_isa_probe),
-    DEVMETHOD(device_attach,    ata_attach),
-    DEVMETHOD(device_suspend,   ata_suspend),
-    DEVMETHOD(device_resume,    ata_resume),
+    DEVMETHOD(device_attach,    ata_isa_attach),
+    DEVMETHOD(device_detach,    ata_isa_detach),
+    DEVMETHOD(device_suspend,   ata_isa_suspend),
+    DEVMETHOD(device_resume,    ata_isa_resume),
 
     { 0, 0 }
 };

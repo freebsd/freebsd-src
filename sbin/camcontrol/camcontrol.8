@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2006
+.Dd July 1, 2010
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -58,6 +58,11 @@
 .Op Fl D
 .Op Fl S
 .Op Fl R
+.Nm
+.Ic identify
+.Op device id
+.Op generic args
+.Op Fl v
 .Nm
 .Ic reportluns
 .Op device id
@@ -116,10 +121,14 @@
 .Ic cmd
 .Op device id
 .Op generic args
+.Aq Fl a Ar cmd Op args
 .Aq Fl c Ar cmd Op args
+.Op Fl d
+.Op Fl f
 .Op Fl i Ar len Ar fmt
 .Bk -words
 .Op Fl o Ar len Ar fmt Op args
+.Op Fl r Ar fmt
 .Ek
 .Nm
 .Ic debug
@@ -143,6 +152,7 @@
 .Op generic args
 .Op Fl c
 .Op Fl D Ar enable|disable
+.Op Fl M Ar mode
 .Op Fl O Ar offset
 .Op Fl q
 .Op Fl R Ar syncrate
@@ -158,6 +168,20 @@
 .Op Fl r
 .Op Fl w
 .Op Fl y
+.Nm
+.Ic idle
+.Op device id
+.Op generic args
+.Op Fl t Ar time
+.Nm
+.Ic standby
+.Op device id
+.Op generic args
+.Op Fl t Ar time
+.Nm
+.Ic sleep
+.Op device id
+.Op generic args
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -283,6 +307,8 @@ This is to aid in script writing.
 .It Fl R
 Print out transfer rate information.
 .El
+.It Ic identify
+Send a ATA identify command (0xec) to a device.
 .It Ic reportluns
 Send the SCSI REPORT LUNS (0xA0) command to the given device.
 By default,
@@ -480,26 +506,36 @@ Saved values
 .El
 .El
 .It Ic cmd
-Allows the user to send an arbitrary SCSI CDB to any device.
+Allows the user to send an arbitrary ATA or SCSI CDB to any device.
 The
 .Ic cmd
 function requires the
 .Fl c
-argument to specify the CDB.
+argument to specify SCSI CDB or the
+.Fl a
+argument to specify ATA Command Block registers values.
 Other arguments are optional, depending on
 the command type.
 The command and data specification syntax is documented
 in
 .Xr cam_cdbparse 3 .
-NOTE: If the CDB specified causes data to be transfered to or from the
+NOTE: If the CDB specified causes data to be transferred to or from the
 SCSI device in question, you MUST specify either
 .Fl i
 or
 .Fl o .
 .Bl -tag -width 17n
+.It Fl a Ar cmd Op args
+This specifies the content of 12 ATA Command Block registers (command,
+features, lba_low, lba_mid, lba_high, device, lba_low_exp, lba_mid_exp.
+lba_high_exp, features_exp, sector_count, sector_count_exp).
 .It Fl c Ar cmd Op args
 This specifies the SCSI CDB.
-CDBs may be 6, 10, 12 or 16 bytes.
+SCSI CDBs may be 6, 10, 12 or 16 bytes.
+.It Fl d
+Specifies DMA protocol to be used for ATA command.
+.It Fl f
+Specifies FPDMA (NCQ) protocol to be used for ATA command.
 .It Fl i Ar len Ar fmt
 This specifies the amount of data to read, and how it should be displayed.
 If the format is
@@ -513,6 +549,13 @@ If the format is
 .Sq - ,
 .Ar len
 bytes of data will be read from standard input and written to the device.
+.It Fl r Ar fmt
+This specifies that 11 result ATA Command Block registers should be displayed
+(status, error, lba_low, lba_mid, lba_high, device, lba_low_exp, lba_mid_exp,
+lba_high_exp, sector_count, sector_count_exp), and how.
+If the format is
+.Sq - ,
+11 result registers will be written to standard output in hex.
 .El
 .It Ic debug
 Turn on CAM debugging printfs in the kernel.
@@ -670,6 +713,8 @@ Show or set current negotiation settings.
 This is the default.
 .It Fl D Ar enable|disable
 Enable or disable disconnection.
+.It Fl M Ar mode
+Set ATA mode.
 .It Fl O Ar offset
 Set the command delay offset.
 .It Fl q
@@ -800,6 +845,17 @@ The user
 will not be asked about the timeout if a timeout is specified on the
 command line.
 .El
+.It Ic idle
+Put ATA device into IDLE state. Optional parameter
+.Pq Fl t
+specifies automatic standby timer value in seconds. Value 0 disables timer.
+.It Ic standby
+Put ATA device into STANDBY state. Optional parameter
+.Pq Fl t
+specifies automatic standby timer value in seconds. Value 0 disables timer.
+.It Ic sleep
+Put ATA device into SLEEP state. Note that the only way get device out of
+this state may be reset.
 .It Ic help
 Print out verbose usage information.
 .El

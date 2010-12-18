@@ -130,6 +130,7 @@ struct da_softc {
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 	struct callout		sendordered_c;
+	uint64_t wwpn;
 };
 
 struct da_quirk_entry {
@@ -537,6 +538,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Storcase (Kingston) InfoStation IFS FC2/SATA-R 201A
+		 * PR: 129858
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "IFS", "FC2/SATA-R*",
+		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Samsung YP-U3 mp3-player
 		 * PR: 125398
 		 */
@@ -546,6 +555,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Netac", "OnlyDisk*",
 		 "2000"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Sony Cyber-Shot DSC cameras
+		 * PR: usb/137035
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE | DA_Q_NO_PREVENT
 	}
 };
 
@@ -713,7 +730,7 @@ daclose(struct disk *dp)
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
 		union	ccb *ccb;
 
-		ccb = cam_periph_getccb(periph, /*priority*/1);
+		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 		scsi_synchronize_cache(&ccb->csio,
 				       /*retries*/1,
@@ -797,19 +814,6 @@ dastrategy(struct bio *bp)
 
 	cam_periph_lock(periph);
 
-#if 0
-	/*
-	 * check it's not too big a transfer for our adapter
-	 */
-	scsi_minphys(bp,&sd_switch);
-#endif
-
-	/*
-	 * Mask interrupts so that the pack cannot be invalidated until
-	 * after we are in the queue.  Otherwise, we might not properly
-	 * clean up one of the buffers.
-	 */
-	
 	/*
 	 * If the device has been made invalid, error out
 	 */
@@ -827,7 +831,7 @@ dastrategy(struct bio *bp)
 	/*
 	 * Schedule ourselves for performing the work.
 	 */
-	xpt_schedule(periph, /* XXX priority */1);
+	xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	cam_periph_unlock(periph);
 
 	return;
@@ -856,8 +860,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	}
 
 	if (length > 0) {
-		periph->flags |= CAM_PERIPH_POLLED;
-		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_read_write(&csio,
 				/*retries*/1,
@@ -882,7 +885,6 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 			else
 				printf("status == 0x%x, scsi status == 0x%x\n",
 				       csio.ccb_h.status, csio.scsi_status);
-			periph->flags |= CAM_PERIPH_POLLED;
 			return(EIO);
 		}
 		cam_periph_unlock(periph);
@@ -894,7 +896,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	 */
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
 
-		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&csio,
 				       /*retries*/1,
@@ -926,7 +928,6 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 			}
 		}
 	}
-	periph->flags &= ~CAM_PERIPH_POLLED;
 	cam_periph_unlock(periph);
 	return (0);
 }
@@ -1020,6 +1021,9 @@ daasync(void *callback_arg, u_int32_t code,
 		if (cgd == NULL)
 			break;
 
+		if (cgd->protocol != PROTO_SCSI)
+			break;
+
 		if (SID_TYPE(&cgd->inq_data) != T_DIRECT
 		    && SID_TYPE(&cgd->inq_data) != T_RBC
 		    && SID_TYPE(&cgd->inq_data) != T_OPTICAL)
@@ -1070,10 +1074,16 @@ dasysctlinit(void *context, int pending)
 	struct cam_periph *periph;
 	struct da_softc *softc;
 	char tmpstr[80], tmpstr2[80];
+	struct ccb_trans_settings cts;
 
 	periph = (struct cam_periph *)context;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	/*
+	 * periph was held for us when this task was enqueued
+	 */
+	if (periph->flags & CAM_PERIPH_INVALID) {
+		cam_periph_release(periph);
 		return;
+	}
 
 	softc = (struct da_softc *)periph->softc;
 	snprintf(tmpstr, sizeof(tmpstr), "CAM DA unit %d", periph->unit_number);
@@ -1091,14 +1101,38 @@ dasysctlinit(void *context, int pending)
 	}
 
 	/*
-	 * Now register the sysctl handler, so the user can the value on
+	 * Now register the sysctl handler, so the user can change the value on
 	 * the fly.
 	 */
-	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
 
+	/*
+	 * Add some addressing info.
+	 */
+	memset(&cts, 0, sizeof (cts));
+	xpt_setup_ccb(&cts.ccb_h, periph->path, /*priority*/1);
+	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+	cam_periph_lock(periph);
+	xpt_action((union ccb *)&cts);
+	cam_periph_unlock(periph);
+	if (cts.ccb_h.status != CAM_REQ_CMP) {
+		cam_periph_release(periph);
+		return;
+	}
+	if (cts.protocol == PROTO_SCSI && cts.transport == XPORT_FC) {
+		struct ccb_trans_settings_fc *fc = &cts.xport_specific.fc;
+		if (fc->valid & CTS_FC_VALID_WWPN) {
+			softc->wwpn = fc->wwpn;
+			SYSCTL_ADD_XLONG(&softc->sysctl_ctx,
+			    SYSCTL_CHILDREN(softc->sysctl_tree),
+			    OID_AUTO, "wwpn", CTLTYPE_QUAD | CTLFLAG_RD,
+			    &softc->wwpn, "World Wide Port Name");
+		}
+	}
 	cam_periph_release(periph);
 }
 
@@ -1187,7 +1221,8 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->quirks = DA_Q_NONE;
 
 	/* Check if the SIM does not want 6 byte commands */
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, /*priority*/1);
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
@@ -1228,22 +1263,6 @@ daregister(struct cam_periph *periph, void *arg)
 	 * Register this media as a disk
 	 */
 
-	mtx_unlock(periph->sim->mtx);
-	softc->disk = disk_alloc();
-	softc->disk->d_open = daopen;
-	softc->disk->d_close = daclose;
-	softc->disk->d_strategy = dastrategy;
-	softc->disk->d_dump = dadump;
-	softc->disk->d_name = "da";
-	softc->disk->d_drv1 = periph;
-	softc->disk->d_maxsize = DFLTPHYS; /* XXX: probably not arbitrary */
-	softc->disk->d_unit = periph->unit_number;
-	softc->disk->d_flags = 0;
-	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0)
-		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
-	disk_create(softc->disk, DISK_VERSION);
-	mtx_lock(periph->sim->mtx);
-
 	/*
 	 * Add async callbacks for bus reset and
 	 * bus device reset calls.  I don't bother
@@ -1261,7 +1280,6 @@ daregister(struct cam_periph *periph, void *arg)
 	 * the end of probe.
 	 */
 	(void)cam_periph_hold(periph, PRIBIO);
-	xpt_schedule(periph, /*priority*/5);
 
 	/*
 	 * Schedule a periodic event to occasionally send an
@@ -1271,6 +1289,35 @@ daregister(struct cam_periph *periph, void *arg)
 	callout_reset(&softc->sendordered_c,
 	    (DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL,
 	    dasendorderedtag, softc);
+
+	mtx_unlock(periph->sim->mtx);
+	softc->disk = disk_alloc();
+	softc->disk->d_open = daopen;
+	softc->disk->d_close = daclose;
+	softc->disk->d_strategy = dastrategy;
+	softc->disk->d_dump = dadump;
+	softc->disk->d_name = "da";
+	softc->disk->d_drv1 = periph;
+	if (cpi.maxio == 0)
+		softc->disk->d_maxsize = DFLTPHYS;	/* traditional default */
+	else if (cpi.maxio > MAXPHYS)
+		softc->disk->d_maxsize = MAXPHYS;	/* for safety */
+	else
+		softc->disk->d_maxsize = cpi.maxio;
+	softc->disk->d_unit = periph->unit_number;
+	softc->disk->d_flags = 0;
+	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0)
+		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	strlcpy(softc->disk->d_ident, cgd->serial_num,
+	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
+	softc->disk->d_hba_vendor = cpi.hba_vendor;
+	softc->disk->d_hba_device = cpi.hba_device;
+	softc->disk->d_hba_subvendor = cpi.hba_subvendor;
+	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
+	disk_create(softc->disk, DISK_VERSION);
+	mtx_lock(periph->sim->mtx);
+
+	xpt_schedule(periph, CAM_PRIORITY_DEV);
 
 	return(CAM_REQ_CMP);
 }
@@ -1307,7 +1354,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 			bioq_remove(&softc->bio_queue, bp);
 
-			if ((softc->flags & DA_FLAG_NEED_OTAG) != 0) {
+			if ((bp->bio_flags & BIO_ORDERED) != 0
+			 || (softc->flags & DA_FLAG_NEED_OTAG) != 0) {
 				softc->flags &= ~DA_FLAG_NEED_OTAG;
 				softc->ordered_tag_count++;
 				tag_code = MSG_ORDERED_Q_TAG;
@@ -1321,7 +1369,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 						/*retries*/da_retry_count,
 						/*cbfcnp*/dadone,
 						/*tag_action*/tag_code,
-						/*read_op*/bp->bio_cmd == BIO_READ,
+						/*read_op*/bp->bio_cmd
+							== BIO_READ,
 						/*byte2*/0,
 						softc->minimum_cmd_size,
 						/*lba*/bp->bio_pblkno,
@@ -1330,17 +1379,24 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 						/*data_ptr*/ bp->bio_data,
 						/*dxfer_len*/ bp->bio_bcount,
 						/*sense_len*/SSD_FULL_SIZE,
-						/*timeout*/da_default_timeout*1000);
+						da_default_timeout * 1000);
 				break;
 			case BIO_FLUSH:
+				/*
+				 * BIO_FLUSH doesn't currently communicate
+				 * range data, so we synchronize the cache
+				 * over the whole disk.  We also force
+				 * ordered tag semantics the flush applies
+				 * to all previously queued I/O.
+				 */
 				scsi_synchronize_cache(&start_ccb->csio,
 						       /*retries*/1,
 						       /*cbfcnp*/dadone,
-						       MSG_SIMPLE_Q_TAG,
-						       /*begin_lba*/0,/* Cover the whole disk */
+						       MSG_ORDERED_Q_TAG,
+						       /*begin_lba*/0,
 						       /*lb_count*/0,
 						       SSD_FULL_SIZE,
-						       /*timeout*/da_default_timeout*1000);
+						       da_default_timeout*1000);
 				break;
 			}
 			start_ccb->ccb_h.ccb_state = DA_CCB_BUFFER_IO;
@@ -1367,7 +1423,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		
 		if (bp != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, /* XXX priority */1);
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 		break;
 	}
@@ -1477,8 +1533,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
+	u_int32_t  priority;
 
 	softc = (struct da_softc *)periph->softc;
+	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) {
 	case DA_CCB_BUFFER_IO:
@@ -1596,7 +1654,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					softc->state = DA_STATE_PROBE2;
 					free(rdcap, M_SCSIDA);
 					xpt_release_ccb(done_ccb);
-					xpt_schedule(periph, /*priority*/5);
+					xpt_schedule(periph, priority);
 					return;
 				}
 			} else {
@@ -1609,7 +1667,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * give them an 'illegal' value we'll avoid that
 			 * here.
 			 */
-			if (block_size >= MAXPHYS || block_size == 0) {
+			if (block_size == 0 && maxsector == 0) {
+				snprintf(announce_buf, sizeof(announce_buf),
+				        "0MB (no media?)");
+			} else if (block_size >= MAXPHYS || block_size == 0) {
 				xpt_print(periph->path,
 				    "unsupportable block size %ju\n",
 				    (uintmax_t) block_size);
@@ -1664,7 +1725,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 				xpt_setup_ccb(&cgd.ccb_h, 
 					      done_ccb->ccb_h.path,
-					      /* priority */ 1);
+					      CAM_PRIORITY_NORMAL);
 				cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 				xpt_action((union ccb *)&cgd);
 
@@ -1729,6 +1790,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Create our sysctl variables, now that we know
 			 * we have successfully attached.
 			 */
+			(void) cam_periph_acquire(periph);	/* increase the refcount */
 			taskqueue_enqueue(taskqueue_thread,&softc->sysctl_task);
 		}
 		softc->state = DA_STATE_NORMAL;	
@@ -1818,7 +1880,7 @@ daprevent(struct cam_periph *periph, int action)
 		return;
 	}
 
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_prevent(&ccb->csio,
 		     /*retries*/1,
@@ -1868,7 +1930,7 @@ dagetcapacity(struct cam_periph *periph)
 	if (rcap == NULL)
 		return (ENOMEM);
 		
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 	scsi_read_capacity(&ccb->csio,
 			   /*retries*/4,
 			   /*cbfncp*/dadone,
@@ -1932,8 +1994,15 @@ dagetcapacity(struct cam_periph *periph)
 
 done:
 
-	if (error == 0)
-		dasetgeom(periph, block_len, maxsector);
+	if (error == 0) {
+		if (block_len >= MAXPHYS || block_len == 0) {
+			xpt_print(periph->path,
+			    "unsupportable block size %ju\n",
+			    (uintmax_t) block_len);
+			error = EINVAL;
+		} else
+			dasetgeom(periph, block_len, maxsector);
+	}
 
 	xpt_release_ccb(ccb);
 
@@ -1962,7 +2031,7 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector)
 	 * up with something that will make this a bootable
 	 * device.
 	 */
-	xpt_setup_ccb(&ccg.ccb_h, periph->path, /*priority*/1);
+	xpt_setup_ccb(&ccg.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	ccg.ccb_h.func_code = XPT_CALC_GEOMETRY;
 	ccg.block_size = dp->secsize;
 	ccg.volume_size = dp->sectors;
@@ -2036,7 +2105,7 @@ dashutdown(void * arg, int howto)
 			continue;
 		}
 
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
 		ccb.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&ccb.csio,

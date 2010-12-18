@@ -155,8 +155,6 @@ struct ses_softc {
 #define	SES_FLAG_OPEN		0x02
 #define	SES_FLAG_INITIALIZED	0x04
 
-#define SESUNIT(x)       (minor((x)))
-
 static	d_open_t	sesopen;
 static	d_close_t	sesclose;
 static	d_ioctl_t	sesioctl;
@@ -253,6 +251,9 @@ sesasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			break;
 		}
 
+		if (cgd->protocol != PROTO_SCSI)
+			break;
+
 		inq_len = cgd->inq_data.additional_length + 4;
 
 		/*
@@ -344,7 +345,7 @@ sesregister(struct cam_periph *periph, void *arg)
 	}
 
 	cam_periph_unlock(periph);
-	softc->ses_dev = make_dev(&ses_cdevsw, unit2minor(periph->unit_number),
+	softc->ses_dev = make_dev(&ses_cdevsw, periph->unit_number,
 	    UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 	    periph->periph_name, periph->unit_number);
 	cam_periph_lock(periph);
@@ -1554,7 +1555,7 @@ ses_encode(char *b, int amt, uint8_t *ep, int elt, int elm, SesComStat *sp)
  */
 
 static int safte_getconfig(ses_softc_t *);
-static int safte_rdstat(ses_softc_t *, int);;
+static int safte_rdstat(ses_softc_t *, int);
 static int set_objstat_sel(ses_softc_t *, ses_objstat *, int);
 static int wrbuf16(ses_softc_t *, uint8_t, uint8_t, uint8_t, uint8_t, int);
 static void wrslot_stat(ses_softc_t *, int);
@@ -2256,7 +2257,7 @@ safte_rdstat(ses_softc_t *ssc, int slpflg)
 		ssc->ses_objmap[oid].encstat[0] = SES_OBJSTAT_NOTAVAIL;
 		ssc->ses_objmap[oid].encstat[1] = 0;
 		ssc->ses_objmap[oid].encstat[2] = sdata[r];
-		ssc->ses_objmap[oid].encstat[3] = 0;;
+		ssc->ses_objmap[oid].encstat[3] = 0;
 		ssc->ses_objmap[oid++].svalid = 1;
 		r++;
 	}

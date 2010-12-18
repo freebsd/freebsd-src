@@ -90,9 +90,14 @@ cam/cam_periph.c		optional scbus
 cam/cam_queue.c			optional scbus
 cam/cam_sim.c			optional scbus
 cam/cam_xpt.c			optional scbus
+cam/ata/ata_all.c		optional scbus
+cam/ata/ata_xpt.c		optional scbus
+cam/ata/ata_pmp.c		optional scbus
+cam/scsi/scsi_xpt.c		optional scbus
 cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
+cam/ata/ata_da.c		optional ada | da
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
@@ -432,6 +437,7 @@ dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
 dev/aha/aha_mca.c		optional aha mca
 dev/ahb/ahb.c			optional ahb eisa
+dev/ahci/ahci.c			optional ahci pci
 dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
 dev/aic7xxx/ahc_eisa.c		optional ahc eisa
@@ -459,23 +465,47 @@ dev/an/if_an_isa.c		optional an isa
 dev/an/if_an_pccard.c		optional an pccard
 dev/an/if_an_pci.c		optional an pci
 dev/asr/asr.c			optional asr pci
-dev/ata/ata_if.m		optional ata
-dev/ata/ata-all.c		optional ata
-dev/ata/ata-card.c		optional ata pccard
-dev/ata/ata-cbus.c		optional ata pc98
-dev/ata/ata-chipset.c		optional ata pci
+dev/ata/ata_if.m		optional ata | atacore
+dev/ata/ata-all.c		optional ata | atacore
+dev/ata/ata-dma.c		optional ata | atacore
+dev/ata/ata-lowlevel.c		optional ata | atacore
+dev/ata/ata-queue.c		optional ata | atacore
+dev/ata/ata-sata.c		optional ata | atacore
+dev/ata/ata-card.c		optional ata pccard | atapccard
+dev/ata/ata-cbus.c		optional ata pc98 | atapc98
+dev/ata/ata-isa.c		optional ata isa | ataisa
+dev/ata/ata-pci.c		optional ata pci | atapci
+dev/ata/chipsets/ata-ahci.c	optional ata pci | ataahci | ataacerlabs | \
+					 ataati | ataintel | atajmicron | \
+					 atavia | atanvidia
+dev/ata/chipsets/ata-acard.c	optional ata pci | ataacard
+dev/ata/chipsets/ata-acerlabs.c	optional ata pci | ataacerlabs
+dev/ata/chipsets/ata-adaptec.c	optional ata pci | ataadaptec
+dev/ata/chipsets/ata-amd.c	optional ata pci | ataamd
+dev/ata/chipsets/ata-ati.c	optional ata pci | ataati
+dev/ata/chipsets/ata-cenatek.c	optional ata pci | atacenatek
+dev/ata/chipsets/ata-cypress.c	optional ata pci | atacypress
+dev/ata/chipsets/ata-cyrix.c	optional ata pci | atacyrix
+dev/ata/chipsets/ata-highpoint.c	optional ata pci | atahighpoint
+dev/ata/chipsets/ata-intel.c	optional ata pci | ataintel
+dev/ata/chipsets/ata-ite.c	optional ata pci | ataite
+dev/ata/chipsets/ata-jmicron.c	optional ata pci | atajmicron
+dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell | ataadaptec
+dev/ata/chipsets/ata-micron.c	optional ata pci | atamicron
+dev/ata/chipsets/ata-national.c	optional ata pci | atanational
+dev/ata/chipsets/ata-netcell.c	optional ata pci | atanetcell
+dev/ata/chipsets/ata-nvidia.c	optional ata pci | atanvidia
+dev/ata/chipsets/ata-promise.c	optional ata pci | atapromise
+dev/ata/chipsets/ata-serverworks.c	optional ata pci | ataserverworks
+dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage | ataati
+dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
+dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
-dev/ata/ata-dma.c		optional ata pci
-dev/ata/ata-isa.c		optional ata isa
-dev/ata/ata-lowlevel.c		optional ata
-dev/ata/ata-pci.c		optional ata pci
-dev/ata/ata-queue.c		optional ata
 dev/ata/ata-raid.c		optional ataraid
-dev/ata/ata-usb.c		optional atausb
-dev/ata/atapi-cam.c		optional atapicam
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
+dev/ata/atapi-cam.c		optional atapicam
 #
 dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -1001,6 +1031,9 @@ dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
 dev/mpt/mpt_user.c		optional mpt
 dev/msk/if_msk.c		optional msk
+dev/mvs/mvs.c			optional mvs
+dev/mvs/mvs_if.m		optional mvs
+dev/mvs/mvs_pci.c		optional mvs pci
 dev/mxge/if_mxge.c		optional mxge pci
 dev/mxge/mxge_lro.c		optional mxge pci
 dev/mxge/mxge_eth_z8e.c		optional mxge pci
@@ -1123,6 +1156,7 @@ dev/si/si3_t225.c		optional si
 dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
+dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci
 dev/smbus/smb.c			optional smb

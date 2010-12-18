@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_queue.h>
 #include <cam/cam_xpt.h>
 #include <cam/scsi/scsi_all.h>
 #include <sys/sbuf.h>
@@ -2879,7 +2880,7 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 			}
 		}
 	}
-#ifdef KERNEL
+#ifdef _KERNEL
 	if (bootverbose)
 		sense_flags |= SF_PRINT_ALWAYS;
 #endif
@@ -2994,27 +2995,29 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 	struct scsi_inquiry_data *inq_data;
 	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 #ifdef _KERNEL
-	struct	  ccb_getdev cgd;
+	struct	  ccb_getdev *cgd;
 #endif /* _KERNEL */
 
 #ifdef _KERNEL
+	if ((cgd = (struct ccb_getdev*)xpt_alloc_ccb_nowait()) == NULL)
+		return(-1);
 	/*
 	 * Get the device information.
 	 */
-	xpt_setup_ccb(&cgd.ccb_h,
+	xpt_setup_ccb(&cgd->ccb_h,
 		      csio->ccb_h.path,
-		      /*priority*/ 1);
-	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-	xpt_action((union ccb *)&cgd);
+		      CAM_PRIORITY_NORMAL);
+	cgd->ccb_h.func_code = XPT_GDEV_TYPE;
+	xpt_action((union ccb *)cgd);
 
 	/*
 	 * If the device is unconfigured, just pretend that it is a hard
 	 * drive.  scsi_op_desc() needs this.
 	 */
-	if (cgd.ccb_h.status == CAM_DEV_NOT_THERE)
-		cgd.inq_data.device = T_DIRECT;
+	if (cgd->ccb_h.status == CAM_DEV_NOT_THERE)
+		cgd->inq_data.device = T_DIRECT;
 
-	inq_data = &cgd.inq_data;
+	inq_data = &cgd->inq_data;
 
 #else /* !_KERNEL */
 
@@ -3054,7 +3057,7 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 	struct	  scsi_sense_data *sense;
 	struct	  scsi_inquiry_data *inq_data;
 #ifdef _KERNEL
-	struct	  ccb_getdev cgd;
+	struct	  ccb_getdev *cgd;
 #endif /* _KERNEL */
 	u_int32_t info;
 	int	  error_code;
@@ -3082,23 +3085,25 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 #endif /* _KERNEL/!_KERNEL */
 
 #ifdef _KERNEL
+	if ((cgd = (struct ccb_getdev*)xpt_alloc_ccb_nowait()) == NULL)
+		return(-1);
 	/*
 	 * Get the device information.
 	 */
-	xpt_setup_ccb(&cgd.ccb_h,
+	xpt_setup_ccb(&cgd->ccb_h,
 		      csio->ccb_h.path,
-		      /*priority*/ 1);
-	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-	xpt_action((union ccb *)&cgd);
+		      CAM_PRIORITY_NORMAL);
+	cgd->ccb_h.func_code = XPT_GDEV_TYPE;
+	xpt_action((union ccb *)cgd);
 
 	/*
 	 * If the device is unconfigured, just pretend that it is a hard
 	 * drive.  scsi_op_desc() needs this.
 	 */
-	if (cgd.ccb_h.status == CAM_DEV_NOT_THERE)
-		cgd.inq_data.device = T_DIRECT;
+	if (cgd->ccb_h.status == CAM_DEV_NOT_THERE)
+		cgd->inq_data.device = T_DIRECT;
 
-	inq_data = &cgd.inq_data;
+	inq_data = &cgd->inq_data;
 
 #else /* !_KERNEL */
 
@@ -3124,9 +3129,12 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 	 * If the sense data is a physical pointer, forget it.
 	 */
 	if (csio->ccb_h.flags & CAM_SENSE_PTR) {
-		if (csio->ccb_h.flags & CAM_SENSE_PHYS)
+		if (csio->ccb_h.flags & CAM_SENSE_PHYS) {
+#ifdef _KERNEL
+			xpt_free_ccb((union ccb*)cgd);
+#endif /* _KERNEL/!_KERNEL */
 			return(-1);
-		else {
+		} else {
 			/* 
 			 * bcopy the pointer to avoid unaligned access
 			 * errors on finicky architectures.  We don't
@@ -3144,9 +3152,12 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 		 * dumped on one of the bogus pointer deferences above
 		 * already.)
 		 */
-		if (csio->ccb_h.flags & CAM_SENSE_PHYS) 
+		if (csio->ccb_h.flags & CAM_SENSE_PHYS) {
+#ifdef _KERNEL
+			xpt_free_ccb((union ccb*)cgd);
+#endif /* _KERNEL/!_KERNEL */
 			return(-1);
-		else
+		} else
 			sense = &csio->sense_data;
 	}
 
@@ -3156,9 +3167,10 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 	error_code = sense->error_code & SSD_ERRCODE;
 	sense_key = sense->flags & SSD_KEY;
 
+	sbuf_printf(sb, "SCSI sense: ");
 	switch (error_code) {
 	case SSD_DEFERRED_ERROR:
-		sbuf_printf(sb, "Deferred Error: ");
+		sbuf_printf(sb, "Deferred error: ");
 
 		/* FALLTHROUGH */
 	case SSD_CURRENT_ERROR:
@@ -3211,8 +3223,7 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 			}
 		}
 
-		sbuf_printf(sb, " asc:%x,%x\n%s%s", asc, ascq, 
-			    path_str, asc_desc);
+		sbuf_printf(sb, " asc:%x,%x (%s)", asc, ascq, asc_desc);
 
 		if (sense->extra_len >= 7 && sense->fru) {
 			sbuf_printf(sb, " field replaceable unit: %x", 
@@ -3264,7 +3275,7 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 
 	}
 	default:
-		sbuf_printf(sb, "Sense Error Code 0x%x", sense->error_code);
+		sbuf_printf(sb, "Error code 0x%x", sense->error_code);
 		if (sense->error_code & SSD_ERRCODE_VALID) {
 			sbuf_printf(sb, " at block no. %d (decimal)",
 				    info = scsi_4btoul(sense->info));
@@ -3273,6 +3284,9 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 
 	sbuf_printf(sb, "\n");
 
+#ifdef _KERNEL
+	xpt_free_ccb((union ccb*)cgd);
+#endif /* _KERNEL/!_KERNEL */
 	return(0);
 }
 
@@ -3937,6 +3951,57 @@ scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 	scsi_cmd->opcode = REPORT_LUNS;
 	scsi_cmd->select_report = select_report;
+	scsi_ulto4b(alloc_len, scsi_cmd->length);
+}
+
+void
+scsi_report_target_group(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 u_int8_t tag_action, u_int8_t pdf,
+		 void *buf, u_int32_t alloc_len,
+		 u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_target_group *scsi_cmd;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      /*data_ptr*/(u_int8_t *)buf,
+		      /*dxfer_len*/alloc_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+	scsi_cmd = (struct scsi_target_group *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = MAINTENANCE_IN;
+	scsi_cmd->service_action = REPORT_TARGET_PORT_GROUPS | pdf;
+	scsi_ulto4b(alloc_len, scsi_cmd->length);
+}
+
+void
+scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 u_int8_t tag_action, void *buf, u_int32_t alloc_len,
+		 u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_target_group *scsi_cmd;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/(u_int8_t *)buf,
+		      /*dxfer_len*/alloc_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+	scsi_cmd = (struct scsi_target_group *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = MAINTENANCE_OUT;
+	scsi_cmd->service_action = SET_TARGET_PORT_GROUPS;
 	scsi_ulto4b(alloc_len, scsi_cmd->length);
 }
 

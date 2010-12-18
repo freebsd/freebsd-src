@@ -91,6 +91,10 @@ ata_pccard_attach(device_t dev)
     struct resource *io, *ctlio;
     int i, rid, err;
 
+    if (ch->attached)
+	return (0);
+    ch->attached = 1;
+
     /* allocate the io range to get start and length */
     rid = ATA_IOADDR_RID;
     if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
@@ -141,6 +145,10 @@ ata_pccard_detach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     int i;
+
+    if (!ch->attached)
+	return (0);
+    ch->attached = 0;
 
     ata_detach(dev);
     if (ch->r_io[ATA_CONTROL].res != ch->r_io[ATA_DATA].res)

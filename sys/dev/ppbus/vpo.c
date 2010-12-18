@@ -84,9 +84,6 @@ struct vpo_data {
 /* cam related functions */
 static void	vpo_action(struct cam_sim *sim, union ccb *ccb);
 static void	vpo_poll(struct cam_sim *sim);
-static void	vpo_cam_rescan_callback(struct cam_periph *periph,
-					union ccb *ccb);
-static void	vpo_cam_rescan(struct vpo_data *vpo);
 
 static void
 vpo_identify(driver_t *driver, device_t parent)
@@ -176,37 +173,7 @@ vpo_attach(device_t dev)
 
 	/* all went ok */
 
-	vpo_cam_rescan(vpo);	/* have CAM rescan the bus */
-
 	return (0);
-}
-
-static void
-vpo_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-        free(ccb, M_TEMP);
-}
-
-static void
-vpo_cam_rescan(struct vpo_data *vpo)
-{
-        struct cam_path *path;
-        union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
-
-        if (xpt_create_path(&path, xpt_periph, cam_sim_path(vpo->sim), 0, 0)
-            != CAM_REQ_CMP) {
-		/* A failure is benign as the user can do a manual rescan */
-		free(ccb, M_TEMP);
-                return;
-	}
-
-        xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
-        ccb->ccb_h.func_code = XPT_SCAN_BUS;
-        ccb->ccb_h.cbfcnp = vpo_cam_rescan_callback;
-        ccb->crcn.flags = CAM_FLAG_NONE;
-        xpt_action(ccb);
-
-        /* The scan is in progress now. */
 }
 
 /*
@@ -429,6 +396,8 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "Iomega", HBA_IDLEN);
 		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
 		cpi->unit_number = sim->unit_number;
+		cpi->transport = XPORT_PPB;
+		cpi->transport_version = 0;
 
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);

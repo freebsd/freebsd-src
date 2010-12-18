@@ -85,7 +85,7 @@ static int ata_raid_sis_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_sis_write_meta(struct ar_softc *rdp);
 static int ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_via_write_meta(struct ar_softc *rdp);
-static struct ata_request *ata_raid_init_request(struct ar_softc *rdp, struct bio *bio);
+static struct ata_request *ata_raid_init_request(device_t dev, struct ar_softc *rdp, struct bio *bio);
 static int ata_raid_send_request(struct ata_request *request);
 static int ata_raid_rw(device_t dev, u_int64_t lba, void *data, u_int bcount, int flags);
 static char * ata_raid_format(struct ar_softc *rdp);
@@ -266,7 +266,7 @@ ata_raid_flush(struct bio *bp)
     for (disk = 0; disk < rdp->total_disks; disk++) {
 	if ((dev = rdp->disks[disk].dev) == NULL)
 	    continue;
-	if (!(request = ata_raid_init_request(rdp, bp)))
+	if (!(request = ata_raid_init_request(dev, rdp, bp)))
 	    return ENOMEM;
 	request->dev = dev;
 	request->u.ata.command = ATA_FLUSHCACHE;
@@ -356,7 +356,7 @@ ata_raid_strategy(struct bio *bp)
 	if (!(drv == 0 && rdp->format == AR_F_HPTV2_RAID))
 	    lba += rdp->offset_sectors;
 
-	if (!(request = ata_raid_init_request(rdp, bp))) {
+	if (!(request = ata_raid_init_request(rdp->disks[drv].dev, rdp, bp))) {
 	    biofinish(bp, NULL, EIO);
 	    return;
 	}
@@ -378,7 +378,7 @@ ata_raid_strategy(struct bio *bp)
 		return;
 	    }
 	    request->this = drv;
-	    request->dev = rdp->disks[request->this].dev;
+	    request->dev = rdp->disks[drv].dev;
 	    ata_raid_send_request(request);
 	    break;
 
@@ -407,7 +407,7 @@ ata_raid_strategy(struct bio *bp)
 	    if (rdp->status & AR_S_REBUILDING)
 		blk = ((lba / rdp->interleave) * rdp->width) * rdp->interleave +
 		      (rdp->interleave * (drv % rdp->width)) +
-		      lba % rdp->interleave;;
+		      lba % rdp->interleave;
 
 	    if (bp->bio_cmd == BIO_READ) {
 		int src_online =
@@ -460,12 +460,14 @@ ata_raid_strategy(struct bio *bp)
 		    /* do we have a spare to rebuild on ? */
 		    if (rdp->disks[this].flags & AR_DF_SPARE) {
 			if ((composite = ata_alloc_composite())) {
-			    if ((rebuild = ata_alloc_request())) {
+			    if ((rebuild = ata_raid_init_request(
+				    	   rdp->disks[this].dev, rdp, bp))) {
 				rdp->rebuild_lba = blk + chunk;
-				bcopy(request, rebuild,
-				      sizeof(struct ata_request));
+				rebuild->data = request->data;
+				rebuild->bytecount = request->bytecount;
+				rebuild->u.ata.lba = request->u.ata.lba;
+				rebuild->u.ata.count = request->u.ata.count;
 				rebuild->this = this;
-				rebuild->dev = rdp->disks[this].dev;
 				rebuild->flags &= ~ATA_R_READ;
 				rebuild->flags |= ATA_R_WRITE;
 				mtx_init(&composite->lock,
@@ -521,14 +523,16 @@ ata_raid_strategy(struct bio *bp)
 			int this = drv + rdp->width;
 
 			if ((composite = ata_alloc_composite())) {
-			    if ((mirror = ata_alloc_request())) {
+			    if ((mirror = ata_raid_init_request(
+				    	  rdp->disks[this].dev, rdp, bp))) {
 				if ((blk <= rdp->rebuild_lba) &&
 				    ((blk + chunk) > rdp->rebuild_lba))
 				    rdp->rebuild_lba = blk + chunk;
-				bcopy(request, mirror,
-				      sizeof(struct ata_request));
+				mirror->data = request->data;
+				mirror->bytecount = request->bytecount;
+				mirror->u.ata.lba = request->u.ata.lba;
+				mirror->u.ata.count = request->u.ata.count;
 				mirror->this = this;
-				mirror->dev = rdp->disks[this].dev;
 				mtx_init(&composite->lock,
 					 "ATA PseudoRAID mirror lock",
 					 NULL, MTX_DEF);
@@ -859,6 +863,7 @@ ata_raid_config_changed(struct ar_softc *rdp, int writeback)
     int disk, count, status;
 
     mtx_lock(&rdp->lock);
+
     /* set default all working mode */
     status = rdp->status;
     rdp->status &= ~AR_S_DEGRADED;
@@ -913,6 +918,11 @@ ata_raid_config_changed(struct ar_softc *rdp, int writeback)
     }
 
     if (rdp->status != status) {
+	
+	/* raid status has changed, update metadata */
+	writeback = 1;
+
+	/* announce we have trouble ahead */
 	if (!(rdp->status & AR_S_READY)) {
 	    printf("ar%d: FAILURE - %s array broken\n",
 		   rdp->lun, ata_raid_type(rdp));
@@ -1666,9 +1676,8 @@ ata_raid_adaptec_read_meta(device_t dev, struct ar_softc **raidp)
 	if (be32toh(meta->generation) >= raid->generation) {
 	    struct ata_device *atadev = device_get_softc(parent);
 	    struct ata_channel *ch = device_get_softc(GRANDPARENT(dev));
-	    int disk_number = (ch->unit << !(ch->flags & ATA_NO_SLAVE)) +
-			      ATA_DEV(atadev->unit);
-
+	    int disk_number =
+		(ch->unit << !(ch->flags & ATA_NO_SLAVE)) + atadev->unit;
 	    raid->disks[disk_number].dev = parent;
 	    raid->disks[disk_number].sectors = 
 		be32toh(meta->configs[disk_number + 1].sectors);
@@ -2620,11 +2629,14 @@ ata_raid_intel_write_meta(struct ar_softc *rdp)
     }
 
     rdp->generation++;
-    microtime(&timestamp);
+    if (!rdp->magic_0) {
+	microtime(&timestamp);
+	rdp->magic_0 = timestamp.tv_sec ^ timestamp.tv_usec;
+    }
 
     bcopy(INTEL_MAGIC, meta->intel_id, sizeof(meta->intel_id));
     bcopy(INTEL_VERSION_1100, meta->version, sizeof(meta->version));
-    meta->config_id = timestamp.tv_sec;
+    meta->config_id = rdp->magic_0;
     meta->generation = rdp->generation;
     meta->total_disks = rdp->total_disks;
     meta->total_volumes = 1;                                    /* XXX SOS */
@@ -2645,7 +2657,7 @@ ata_raid_intel_write_meta(struct ar_softc *rdp)
 	    bcopy(atadev->param.serial + len, meta->disk[disk].serial,
 		  sizeof(rdp->disks[disk].serial));
 	    meta->disk[disk].sectors = rdp->disks[disk].sectors;
-	    meta->disk[disk].id = (ch->unit << 16) | ATA_DEV(atadev->unit);
+	    meta->disk[disk].id = (ch->unit << 16) | atadev->unit;
 	}
 	else
 	    meta->disk[disk].sectors = rdp->total_sectors / rdp->width;
@@ -3670,7 +3682,7 @@ ata_raid_promise_write_meta(struct ar_softc *rdp)
 		device_get_softc(device_get_parent(rdp->disks[disk].dev));
 
 	    meta->raid.channel = ch->unit;
-	    meta->raid.device = ATA_DEV(atadev->unit);
+	    meta->raid.device = atadev->unit;
 	    meta->raid.disk_sectors = rdp->disks[disk].sectors;
 	    meta->raid.disk_offset = rdp->offset_sectors;
 	}
@@ -3758,7 +3770,7 @@ ata_raid_promise_write_meta(struct ar_softc *rdp)
 		    device_get_softc(rdp->disks[drive].dev);
 
 		meta->raid.disk[drive].channel = ch->unit;
-		meta->raid.disk[drive].device = ATA_DEV(atadev->unit);
+		meta->raid.disk[drive].device = atadev->unit;
 	    }
 	    meta->raid.disk[drive].magic_0 =
 		PR_MAGIC0(meta->raid.disk[drive]) | timestamp.tv_sec;
@@ -4084,7 +4096,7 @@ ata_raid_sis_write_meta(struct ar_softc *rdp)
 	    struct ata_channel *ch = 
 		device_get_softc(device_get_parent(rdp->disks[disk].dev));
 	    struct ata_device *atadev = device_get_softc(rdp->disks[disk].dev);
-	    int disk_number = 1 + ATA_DEV(atadev->unit) + (ch->unit << 1);
+	    int disk_number = 1 + atadev->unit + (ch->unit << 1);
 
 	    meta->disks |= disk_number << ((1 - disk) << 2);
 	}
@@ -4122,7 +4134,7 @@ ata_raid_sis_write_meta(struct ar_softc *rdp)
 	    bcopy(atadev->param.model, meta->model, sizeof(meta->model));
 
 	    /* XXX SOS if total_disks > 2 this may not float */
-	    meta->disk_number = 1 + ATA_DEV(atadev->unit) + (ch->unit << 1);
+	    meta->disk_number = 1 + atadev->unit + (ch->unit << 1);
 
 	    if (testing || bootverbose)
 		ata_raid_sis_print_meta(meta);
@@ -4366,7 +4378,7 @@ ata_raid_via_write_meta(struct ar_softc *rdp)
 }
 
 static struct ata_request *
-ata_raid_init_request(struct ar_softc *rdp, struct bio *bio)
+ata_raid_init_request(device_t dev, struct ar_softc *rdp, struct bio *bio)
 {
     struct ata_request *request;
 
@@ -4374,6 +4386,7 @@ ata_raid_init_request(struct ar_softc *rdp, struct bio *bio)
 	printf("FAILURE - out of memory in ata_raid_init_request\n");
 	return NULL;
     }
+    request->dev = dev;
     request->timeout = ATA_REQUEST_TIMEOUT;
     request->retries = 2;
     request->callback = ata_raid_done;

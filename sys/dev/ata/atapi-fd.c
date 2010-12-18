@@ -85,7 +85,7 @@ afd_attach(device_t dev)
 	return ENOMEM;
     }
     device_set_ivars(dev, fdp);
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
 
     if (afd_sense(dev)) {
 	device_set_ivars(dev, NULL);
@@ -105,10 +105,7 @@ afd_attach(device_t dev)
     fdp->disk->d_ioctl = afd_ioctl;
     fdp->disk->d_name = "afd";
     fdp->disk->d_drv1 = dev;
-    if (ch->dma)
-	fdp->disk->d_maxsize = ch->dma->max_iosize;
-    else
-	fdp->disk->d_maxsize = DFLTPHYS;
+    fdp->disk->d_maxsize = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
     fdp->disk->d_unit = device_get_unit(dev);
     disk_create(fdp->disk, DISK_VERSION);
     return 0;
@@ -135,13 +132,14 @@ afd_detach(device_t dev)
     return 0;
 }
 
-static void
+static int
 afd_shutdown(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
+    return 0;
 }
 
 static int
@@ -149,12 +147,12 @@ afd_reinit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
-    
-    if (((atadev->unit == ATA_MASTER) && !(ch->devices & ATA_ATAPI_MASTER)) ||
-	((atadev->unit == ATA_SLAVE) && !(ch->devices & ATA_ATAPI_SLAVE))) {
+
+    /* if detach pending, return error */
+    if (!(ch->devices & (ATA_ATAPI_MASTER << atadev->unit)))
 	return 1;
-    }
-    ATA_SETMODE(device_get_parent(dev), dev);
+
+    ata_setmode(dev);
     return 0;
 }
 
@@ -242,9 +240,7 @@ afd_strategy(struct bio *bp)
     }
     request->dev = dev;
     request->bio = bp;
-    bcopy(ccb, request->u.atapi.ccb,
-	  (atadev->param.config & ATA_PROTO_MASK) == 
-	  ATA_PROTO_ATAPI_12 ? 16 : 12);
+    bcopy(ccb, request->u.atapi.ccb, 16);
     request->data = bp->bio_data;
     request->bytecount = count * fdp->sectorsize;
     request->transfersize = min(request->bytecount, 65534);
@@ -404,11 +400,11 @@ afd_describe(device_t dev)
     else
 	strcpy(sizestring, "(no media)");
  
-    device_printf(dev, "%s <%.40s %.8s> at ata%d-%s %s\n",
+    device_printf(dev, "%s <%.40s %.8s> at ata%d-%s %s %s\n",
 		  sizestring, atadev->param.model, atadev->param.revision,
-		  device_get_unit(ch->dev),
-		  (atadev->unit == ATA_MASTER) ? "master" : "slave",
-		  ata_mode2str(atadev->mode));
+		  device_get_unit(ch->dev), ata_unit2str(atadev),
+		  ata_mode2str(atadev->mode),
+		  ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
     if (bootverbose) {
 	device_printf(dev, "%ju sectors [%juC/%dH/%dS]\n",
 	    	      fdp->mediasize / fdp->sectorsize,

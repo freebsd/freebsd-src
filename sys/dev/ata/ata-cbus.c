@@ -106,7 +106,8 @@ static int
 ata_cbus_attach(device_t dev)
 {
     struct ata_cbus_controller *ctlr = device_get_softc(dev);
-    int rid;
+    device_t child;
+    int rid, unit;
 
     /* allocate resources */
     rid = ATA_IOADDR_RID;
@@ -159,12 +160,16 @@ ata_cbus_attach(device_t dev)
     ctlr->locked_bank = -1;
     ctlr->restart_bank = -1;
 
-    if (!device_add_child(dev, "ata", 0))
-	return ENOMEM;
-    if (!device_add_child(dev, "ata", 1))
-	return ENOMEM;
+    for (unit = 0; unit < 2; unit++) {
+	child = device_add_child(dev, "ata", unit);
+	if (child == NULL)
+	    device_printf(dev, "failed to add ata child device\n");
+	else
+	    device_set_ivars(child, (void *)(intptr_t)unit);
+    }
 
-    return bus_generic_attach(dev);
+    bus_generic_attach(dev);
+    return (0);
 }
 
 static struct resource *
@@ -259,19 +264,26 @@ DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, 0, 0);
 static int
 ata_cbuschannel_probe(device_t dev)
 {
+    char buffer[32];
+
+    sprintf(buffer, "ATA channel %d", (int)(intptr_t)device_get_ivars(dev));
+    device_set_desc_copy(dev, buffer);
+
+    return ata_probe(dev);
+}
+
+static int
+ata_cbuschannel_attach(device_t dev)
+{
     struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    device_t *children;
-    int count, i;
+    int i;
 
-    /* find channel number on this controller */
-    device_get_children(device_get_parent(dev), &children, &count);
-    for (i = 0; i < count; i++) {
-	if (children[i] == dev) 
-	    ch->unit = i;
-    }
-    free(children, M_TEMP);
+    if (ch->attached)
+	return (0);
+    ch->attached = 1;
 
+    ch->unit = (intptr_t)device_get_ivars(dev);
     /* setup the resource vectors */
     for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
 	ch->r_io[i].res = ctlr->io;
@@ -285,7 +297,42 @@ ata_cbuschannel_probe(device_t dev)
     /* initialize softc for this channel */
     ch->flags |= ATA_USE_16BIT;
     ata_generic_hw(dev);
-    return ata_probe(dev);
+
+    return ata_attach(dev);
+}
+
+static int
+ata_cbuschannel_detach(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+    ch->attached = 0;
+
+    return ata_detach(dev);
+}
+
+static int
+ata_cbuschannel_suspend(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_suspend(dev);
+}
+
+static int
+ata_cbuschannel_resume(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (!ch->attached)
+	return (0);
+
+    return ata_resume(dev);
 }
 
 static int
@@ -333,10 +380,10 @@ ata_cbuschannel_banking(device_t dev, int flags)
 static device_method_t ata_cbuschannel_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,     ata_cbuschannel_probe),
-    DEVMETHOD(device_attach,    ata_attach),
-    DEVMETHOD(device_detach,    ata_detach),
-    DEVMETHOD(device_suspend,   ata_suspend),
-    DEVMETHOD(device_resume,    ata_resume),
+    DEVMETHOD(device_attach,    ata_cbuschannel_attach),
+    DEVMETHOD(device_detach,    ata_cbuschannel_detach),
+    DEVMETHOD(device_suspend,   ata_cbuschannel_suspend),
+    DEVMETHOD(device_resume,    ata_cbuschannel_resume),
 
     /* ATA methods */
     DEVMETHOD(ata_locking,      ata_cbuschannel_banking),

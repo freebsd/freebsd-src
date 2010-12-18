@@ -394,6 +394,7 @@ load_format(const char *pagedb_path, int page)
 
 	SLIST_INIT(&namelist);
 
+	c = '\0';
 	depth = 0;
 	lineno = 0;
 	found = 0;

@@ -191,6 +191,10 @@ _inq(struct cam_sim *sim, union ccb *ccb, int maxluns)
      strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
      cpi->unit_number = cam_sim_unit(sim);
      cpi->ccb_h.status = CAM_REQ_CMP;
+#if defined(KNOB_VALID_ADDRESS)
+     cpi->transport = XPORT_ISCSI;
+     cpi->transport_version = 0;
+#endif
 }
 
 static void

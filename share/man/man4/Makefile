@@ -6,6 +6,7 @@ MAN=	aac.4 \
 	${_acpi_dock.4} \
 	acpi_thermal.4 \
 	acpi_video.4 \
+	ada.4 \
 	adv.4 \
 	adw.4 \
 	ae.4 \
@@ -14,6 +15,7 @@ MAN=	aac.4 \
 	aha.4 \
 	ahb.4 \
 	ahc.4 \
+	ahci.4 \
 	ahd.4 \
 	aio.4 \
 	alc.4 \
@@ -192,6 +194,7 @@ MAN=	aac.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
+	mvs.4 \
 	mxge.4 \
 	my.4 \
 	natm.4 \
@@ -315,6 +318,7 @@ MAN=	aac.4 \
 	sge.4 \
 	si.4 \
 	siftr.4 \
+	siis.4 \
 	sio.4 \
 	sis.4 \
 	sk.4 \

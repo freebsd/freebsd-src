@@ -52,17 +52,25 @@ void
 ata_queue_request(struct ata_request *request)
 {
     struct ata_channel *ch;
+    struct ata_device *atadev = device_get_softc(request->dev);
 
     /* treat request as virgin (this might be an ATA_R_REQUEUE) */
     request->result = request->status = request->error = 0;
 
-    /* check that that the device is still valid */
+    /* Prepare paramers required by low-level code. */
+    request->unit = atadev->unit;
     if (!(request->parent = device_get_parent(request->dev))) {
 	request->result = ENXIO;
 	if (request->callback)
 	    (request->callback)(request);
 	return;
     }
+    if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16)
+	request->flags |= ATA_R_ATAPI16;
+    if ((atadev->param.config & ATA_DRQ_MASK) == ATA_DRQ_INTR)
+	request->flags |= ATA_R_ATAPI_INTR;
+    if ((request->flags & ATA_R_ATAPI) == 0)
+	ata_modify_if_48bit(request);
     ch = device_get_softc(request->parent);
     callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
     if (!request->callback && !(request->flags & ATA_R_REQUEUE))
@@ -150,15 +158,11 @@ ata_atapicmd(device_t dev, u_int8_t *ccb, caddr_t data,
 	     int count, int flags, int timeout)
 {
     struct ata_request *request = ata_alloc_request();
-    struct ata_device *atadev = device_get_softc(dev);
     int error = ENOMEM;
 
     if (request) {
 	request->dev = dev;
-	if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
-	    bcopy(ccb, request->u.atapi.ccb, 12);
-	else
-	    bcopy(ccb, request->u.atapi.ccb, 16);
+	bcopy(ccb, request->u.atapi.ccb, 16);
 	request->data = data;
 	request->bytecount = count;
 	request->transfersize = min(request->bytecount, 65534);
@@ -218,20 +222,17 @@ ata_start(device_t dev)
 		    ata_finish(request);
 		    return;
 		}
-		if (dumping) {
-		    mtx_unlock(&ch->state_mtx);
-		    mtx_unlock(&ch->queue_mtx);
-		    while (ch->running) {
-			ata_interrupt(ch);
-			DELAY(10);
-		    }
-		    return;
-		}       
 	    }
 	    mtx_unlock(&ch->state_mtx);
 	}
     }
     mtx_unlock(&ch->queue_mtx);
+    if (dumping) {
+	while (ch->running) {
+	    ata_interrupt(ch);
+	    DELAY(10);
+	}
+    }
 }
 
 void
@@ -366,9 +367,9 @@ ata_completed(void *context, int dummy)
 			      "\6MEDIA_CHANGED\5NID_NOT_FOUND"
 			      "\4MEDIA_CHANGE_REQEST"
 			      "\3ABORTED\2NO_MEDIA\1ILLEGAL_LENGTH");
-		if ((request->flags & ATA_R_DMA) &&
-		    (request->dmastat & ATA_BMSTAT_ERROR))
-		    printf(" dma=0x%02x", request->dmastat);
+		if ((request->flags & ATA_R_DMA) && request->dma &&
+		    (request->dma->status & ATA_BMSTAT_ERROR))
+		    printf(" dma=0x%02x", request->dma->status);
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
 		    printf(" LBA=%ju", request->u.ata.lba);
 		printf("\n");
@@ -443,8 +444,8 @@ ata_completed(void *context, int dummy)
 		printf("\n");
 	}
 
-	if ((request->u.atapi.sense.key & ATA_SENSE_KEY_MASK ?
-	     request->u.atapi.sense.key & ATA_SENSE_KEY_MASK : 
+	if (!request->result &&
+	     (request->u.atapi.sense.key & ATA_SENSE_KEY_MASK ||
 	     request->error))
 	    request->result = EIO;
     }
@@ -510,9 +511,18 @@ ata_timeout(struct ata_request *request)
      */
     if (ch->state == ATA_ACTIVE) {
 	request->flags |= ATA_R_TIMEOUT;
+	if (ch->dma.unload)
+	    ch->dma.unload(request);
+	ch->running = NULL;
+	ch->state = ATA_IDLE;
+#ifdef ATA_CAM
+	ata_cam_end_transaction(ch->dev, request);
+#endif
 	mtx_unlock(&ch->state_mtx);
 	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
+#ifndef ATA_CAM
 	ata_finish(request);
+#endif
     }
     else {
 	mtx_unlock(&ch->state_mtx);
@@ -556,6 +566,24 @@ ata_fail_requests(device_t dev)
         TAILQ_REMOVE(&fail_requests, request, chain);
         ata_finish(request);
     }
+}
+
+/*
+ * Rudely drop all requests queued to the channel of specified device.
+ * XXX: The requests are leaked, use only in fatal case.
+ */
+void
+ata_drop_requests(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_request *request, *tmp;
+
+    mtx_lock(&ch->queue_mtx);
+    TAILQ_FOREACH_SAFE(request, &ch->ata_queue, chain, tmp) {
+	TAILQ_REMOVE(&ch->ata_queue, request, chain);
+	request->result = ENXIO;
+    }
+    mtx_unlock(&ch->queue_mtx);
 }
 
 static u_int64_t
@@ -703,11 +731,13 @@ ata_cmd2str(struct ata_request *request)
 	case 0x24: return ("READ48");
 	case 0x25: return ("READ_DMA48");
 	case 0x26: return ("READ_DMA_QUEUED48");
+	case 0x27: return ("READ_NATIVE_MAX_ADDRESS48");
 	case 0x29: return ("READ_MUL48");
 	case 0x30: return ("WRITE");
 	case 0x34: return ("WRITE48");
 	case 0x35: return ("WRITE_DMA48");
 	case 0x36: return ("WRITE_DMA_QUEUED48");
+	case 0x37: return ("SET_MAX_ADDRESS48");
 	case 0x39: return ("WRITE_MUL48");
 	case 0x70: return ("SEEK");
 	case 0xa0: return ("PACKET_CMD");
@@ -736,6 +766,9 @@ ata_cmd2str(struct ata_request *request)
 	    }
 	    sprintf(buffer, "SETFEATURES 0x%02x", request->u.ata.feature);
 	    return buffer;
+	case 0xf5: return ("SECURITY_FREE_LOCK");
+	case 0xf8: return ("READ_NATIVE_MAX_ADDRESS");
+	case 0xf9: return ("SET_MAX_ADDRESS");
 	}
     }
     sprintf(buffer, "unknown CMD (0x%02x)", request->u.ata.command);

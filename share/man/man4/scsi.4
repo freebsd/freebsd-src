@@ -24,15 +24,15 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd October 15, 1998
-.Dt SCSI 4
+.Dd March 4, 2010
+.Dt CAM 4
 .Os
 .Sh NAME
-.Nm SCSI ,
 .Nm CAM
-.Nd CAM SCSI subsystem
+.Nd Common Access Method SCSI/ATA subsystem
 .Sh SYNOPSIS
 .Cd "device scbus"
+.Cd "device ada"
 .Cd "device cd"
 .Cd "device ch"
 .Cd "device da"
@@ -49,31 +49,32 @@
 .Cd "options SCSI_NO_OP_STRINGS"
 .Cd "options SCSI_DELAY=8000"
 .Sh DESCRIPTION
-The CAM
-.Tn SCSI
+The
+.Nm
 subsystem provides a uniform and modular system for the implementation
 of drivers to control various
 .Tn SCSI
+and
+.Tn ATA
 devices, and to utilize different
 .Tn SCSI
+and
+.Tn ATA
 host adapters through host adapter drivers.
-When the system probes the
-.Tn SCSI
-busses, it attaches any devices it finds to the appropriate
-drivers.
+When the system probes busses, it attaches any devices it finds to the
+appropriate drivers.
 The
 .Xr pass 4
-driver, if it is configured in the kernel, will attach to all
-.Tn SCSI
-devices.
+driver, if it is configured in the kernel, will attach to all devices.
 .Sh KERNEL CONFIGURATION
 There are a number of generic kernel configuration options for the
-CAM
-.Tn SCSI
+.Nm
 subsystem:
 .Bl -tag -width SCSI_NO_SENSE_STRINGS
 .It Dv CAMDEBUG
-This option enables the CAM debugging printf code.
+This option enables the
+.Nm
+debugging printf code.
 This will not actually
 cause any debugging information to be printed out when included by itself.
 Enabling printouts requires additional configuration.
@@ -82,12 +83,11 @@ See below for details.
 This sets the maximum allowable number of concurrent "high power" commands.
 A "high power" command is a command that takes more electrical power than
 most to complete.
-An example of this (and the only command currently
-tagged as "high power") is the
+An example of this is the
 .Tn SCSI
 START UNIT command.
-Starting a SCSI disk often takes significantly more
-electrical power than normal operation of the disk.
+Starting a disk often takes significantly more electrical power than normal
+operation.
 This option allows the
 user to specify how many concurrent high power commands may be outstanding
 without overloading the power supply on his computer.
@@ -120,7 +120,9 @@ problems.
 This is the
 .Tn SCSI
 "bus settle delay."
-In CAM, it is specified in
+In
+.Nm ,
+it is specified in
 .Em milliseconds ,
 not seconds like the old
 .Tn SCSI
@@ -148,9 +150,9 @@ In that case, the
 will be reset to 100ms.
 .El
 .Pp
-All devices and the SCSI busses support boot time allocation so that
+All devices and busses support dynamic allocation so that
 an upper number of devices and controllers does not need to be configured;
-.Cd "device da0"
+.Cd "device da"
 will suffice for any number of disk drivers.
 .Pp
 The devices are either
@@ -204,7 +206,9 @@ hint.da.0.unit="0"
 This assigns
 .Em da0
 to target 0, unit (lun) 0 of scbus 0.
-Omitting the target or unit hints will instruct CAM to treat them as wildcards
+Omitting the target or unit hints will instruct
+.Nm
+to treat them as wildcards
 and use the first respective counted instances.
 These examples can be combined together to allow a peripheral device to be
 wired to any particular controller, bus, target, and/or unit instance.
@@ -221,7 +225,9 @@ The system allows common device drivers to work through many different
 types of adapters.
 The adapters take requests from the upper layers and do
 all IO between the
-.Em SCSI
+.Tn SCSI
+or
+.Tn ATA
 bus and the system.
 The maximum size of a transfer is governed by the
 adapter.
@@ -233,7 +239,8 @@ Some adapters support
 in which the system is capable of operating as a device, responding to
 operations initiated by another system.
 Target mode is supported for
-some adapters, but is not yet complete for this version of the CAM
+some adapters, but is not yet complete for this version of the
+.Nm
 .Tn SCSI
 subsystem.
 .Sh FILES
@@ -278,7 +285,9 @@ Users can enable debugging from their kernel config file, by using
 the following kernel config options:
 .Bl -tag -width CAM_DEBUG_TARGET
 .It Dv CAMDEBUG
-This enables CAM debugging.
+This enables
+.Nm
+debugging.
 Without this option, users will not even be able
 to turn on debugging from userland via
 .Xr camcontrol 8 .
@@ -313,9 +322,12 @@ See
 .Xr camcontrol 8
 for details.
 .Sh SEE ALSO
+.Xr ada 4 ,
 .Xr aha 4 ,
 .Xr ahb 4 ,
 .Xr ahc 4 ,
+.Xr ahci 4 ,
+.Xr ata 4 ,
 .Xr bt 4 ,
 .Xr cd 4 ,
 .Xr ch 4 ,
@@ -326,15 +338,26 @@ for details.
 .Xr xpt 4 ,
 .Xr camcontrol 8
 .Sh HISTORY
-The CAM
+The
+.Nm
 .Tn SCSI
 subsystem first appeared in
 .Fx 3.0 .
+The
+.Nm
+ATA support was added in
+.Fx 8.0 .
 .Sh AUTHORS
 .An -nosplit
-The CAM
+The
+.Nm
 .Tn SCSI
 subsystem was written by
 .An Justin Gibbs
 and
 .An Kenneth Merry .
+The
+.Nm
+.Tn ATA
+support was added by
+.An Alexander Motin Aq mav@FreeBSD.org .

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 4, 2008
+.Dd July 3, 2010
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -81,6 +81,13 @@ To support ATAPI floppy drives:
 To support ATAPI tape drives:
 .Cd device atapist
 .Pp
+To turn
+.Xr ata 4
+subsystem controller drivers into cam(4) interface modules (disables all native
+.Xr ata 4
+APIs and peripheral drivers):
+.Cd options ATA_CAM
+.Pp
 The following tunables are settable from the loader:
 .Bl -ohang
 .It Va hw.ata.ata_dma
@@ -93,6 +100,28 @@ set to 1 for DMA access, 0 for PIO (default is DMA).
 set to 1 to enable Write Caching, 0 to disable (default is enabled).
 .Em WARNING :
 can cause data loss on power failures and crashes.
+.It Va hint.atapci.X.msi
+set to 1 to allow Message Signalled Interrupts (MSI) to be used by
+specified PCI ATA controller, if supported.
+.It Va hint.ata.X.devX.mode
+limits initial ATA mode for specified device on specified channel.
+.It Va hint.ata.X.mode
+limits initial ATA mode for every device on specified channel.
+.It Va hint.ata.X.pm_level
+controls SATA interface Power Management for specified channel,
+allowing to save some power by the cost of additional command latency.
+Possible values:
+.Bl -tag -compact
+.It 0
+interface Power Management is disabled, default value.
+.It 1
+device is allowed to initiate PM state change, host is passive.
+.It 2
+host initiates PARTIAL PM state transition every time port becomes idle.
+.It 3
+host initiates SLUMBER PM state transition every time port becomes idle.
+.El
+Modes 2 and 3 are implemented only for AHCI driver now.
 .El
 .Sh DESCRIPTION
 The
@@ -107,11 +136,11 @@ The currently supported ATA/SATA controller chips are:
 .It Acard:
 ATP850P, ATP860A, ATP860R, ATP865A, ATP865R.
 .It ALI:
-M5229, M5281, M5287, M5288, M5289.
+M5228, M5229, M5281, M5283, M5287, M5288, M5289.
 .It AMD:
 AMD756, AMD766, AMD768, AMD8111, CS5536.
 .It ATI:
-IXP200, IXP300, IXP400.
+IXP200, IXP300, IXP400, IXP600, IXP700, IXP800.
 .It CMD:
 CMD646, CMD646U2, CMD648, CMD649.
 .It Cypress:
@@ -121,19 +150,22 @@ Cyrix 5530.
 .It HighPoint:
 HPT302, HPT366, HPT368, HPT370, HPT371, HPT372, HPT372N, HPT374.
 .It Intel:
-6300ESB, 31244, PIIX, PIIX3, PIIX4, ESB2, ICH, ICH0, ICH2, ICH3, ICH4, ICH5, ICH6, ICH7, ICH8, ICH9, ICH10.
+6300ESB, 31244, PIIX, PIIX3, PIIX4, ESB2, ICH, ICH0, ICH2, ICH3, ICH4, ICH5,
+ICH6, ICH7, ICH8, ICH9, ICH10, SCH, PCH.
 .It ITE:
 IT8211F, IT8212F, IT8213F.
 .It JMicron:
 JMB360, JMB361, JMB363, JMB365, JMB366, JMB368.
 .It Marvell
-88SX5040, 88SX5041, 88SX5080, 88SX5081, 88SX6041, 88SX6081, 88SX6101, 88SX6141.
+88SX5040, 88SX5041, 88SX5080, 88SX5081, 88SX6041, 88SX6042, 88SX6081, 88SX6101,
+88SX6102, 88SX6111, 88SX6121, 88SX6141, 88SX6145, 88SX7042.
 .It National:
 SC1100.
 .It NetCell:
 NC3000, NC5000.
 .It nVidia:
-nForce, nForce2, nForce2 MCP, nForce3, nForce3 MCP, nForce3 Pro, nForce4.
+nForce, nForce2, nForce2 MCP, nForce3, nForce3 MCP, nForce3 Pro, nForce4,
+MCP51, MCP55, MCP61, MCP65, MCP67, MCP73, MCP77, MCP79, MCP89.
 .It Promise:
 PDC20246, PDC20262, PDC20263, PDC20265, PDC20267, PDC20268, PDC20269, PDC20270,
 PDC20271, PDC20275, PDC20276, PDC20277, PDC20318, PDC20319, PDC20371, PDC20375,
@@ -149,7 +181,9 @@ SIS180, SIS181, SIS182, SIS5513, SIS530, SIS540, SIS550, SIS620, SIS630,
 SIS630S, SIS633, SIS635, SIS730, SIS733, SIS735, SIS745, SIS961, SIS962,
 SIS963, SIS964, SIS965.
 .It VIA:
-VT6410, VT6420, VT6421, VT82C586, VT82C586B, VT82C596, VT82C596B, VT82C686, VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237, VT8237A, VT8237S, VT8251.
+VT6410, VT6420, VT6421, VT82C586, VT82C586B, VT82C596, VT82C596B, VT82C686,
+VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237,
+VT8237A, VT8237S, VT8251, CX700, VX800, VX855, VX900.
 .El
 .Pp
 Unknown ATA chipsets are supported in PIO modes, and if the standard
@@ -194,6 +228,13 @@ but be aware that your hardware might
 support it and can potentially
 .Em hang
 the entire system causing data loss.
+.Pp
+The
+.Nm acd
+driver implements most of the
+.Fn ioctl
+requests documented by
+.Xr cd 4 .
 .Sh FILES
 .Bl -tag -width ".Pa /sys/i386/conf/GENERIC" -compact
 .It Pa /dev/ad*
@@ -232,9 +273,13 @@ and not depend on attach order.
 .Pp
 Native Command Queuing (NCQ) on SATA drives is not yet supported.
 .Sh SEE ALSO
+.Xr ahci 4 ,
+.Xr cam 4 ,
 .Xr ataraid 4 ,
 .Xr atacontrol 8 ,
-.Xr burncd 8
+.Xr burncd 8 ,
+.Xr cd 4 ,
+.Xr siis 4
 .Sh HISTORY
 The
 .Nm

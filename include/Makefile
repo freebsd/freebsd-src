@@ -41,7 +41,7 @@ LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 	nfs nfsclient nfsserver \
 	pccard sys vm
 
-LSUBDIRS=	cam/scsi \
+LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/lmc dev/mfi dev/ofw \
 	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \

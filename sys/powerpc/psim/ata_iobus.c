@@ -114,9 +114,7 @@ ata_iobus_attach(device_t dev)
 	 * Add a single child per controller. Should be able
 	 * to add two
 	 */
-	device_add_child(dev, "ata",
-			 devclass_find_free_unit(ata_devclass, 0));
-
+	device_add_child(dev, "ata", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -212,7 +210,7 @@ ata_iobus_release_resource(device_t dev, device_t child, int type, int rid,
  */
 
 static  int  ata_iobus_sub_probe(device_t dev);
-static  void ata_iobus_sub_setmode(device_t parent, device_t dev);
+static  int  ata_iobus_sub_setmode(device_t dev, int target, int mode);
 
 static device_method_t ata_iobus_sub_methods[] = {
 	/* Device interface */
@@ -247,11 +245,9 @@ ata_iobus_sub_probe(device_t dev)
 	return ata_probe(dev);
 }
 
-static void
-ata_iobus_sub_setmode(device_t parent, device_t dev)
+static int
+ata_iobus_sub_setmode(device_t parent, int target, int mode)
 {
-	struct ata_device *atadev = device_get_softc(dev);
-
 	/* Only ever PIO mode here... */
-	atadev->mode = ATA_PIO;
+	return (ATA_PIO);
 }

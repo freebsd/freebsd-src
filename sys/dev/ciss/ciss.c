@@ -169,8 +169,6 @@ static void	ciss_unmap_request(struct ciss_request *cr);
 static int	ciss_cam_init(struct ciss_softc *sc);
 static void	ciss_cam_rescan_target(struct ciss_softc *sc,
 				       int bus, int target);
-static void	ciss_cam_rescan_all(struct ciss_softc *sc);
-static void	ciss_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb);
 static void	ciss_cam_action(struct cam_sim *sim, union ccb *ccb);
 static int	ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio);
 static int	ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio);
@@ -2550,13 +2548,6 @@ ciss_cam_init(struct ciss_softc *sc)
 	mtx_unlock(&sc->ciss_mtx);
     }
 
-    /*
-     * Initiate a rescan of the bus.
-     */
-    mtx_lock(&sc->ciss_mtx);
-    ciss_cam_rescan_all(sc);
-    mtx_unlock(&sc->ciss_mtx);
-
     return(0);
 }
 
@@ -2566,51 +2557,24 @@ ciss_cam_init(struct ciss_softc *sc)
 static void
 ciss_cam_rescan_target(struct ciss_softc *sc, int bus, int target)
 {
-    struct cam_path	*path;
     union ccb		*ccb;
 
     debug_called(1);
 
-    if ((ccb = malloc(sizeof(union ccb), CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO)) == NULL) {
+    if ((ccb = xpt_alloc_ccb_nowait()) == NULL) {
 	ciss_printf(sc, "rescan failed (can't allocate CCB)\n");
 	return;
     }
 
-    if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->ciss_cam_sim[bus]),
-			target, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+	    cam_sim_path(sc->ciss_cam_sim[bus]),
+	    target, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 	ciss_printf(sc, "rescan failed (can't create path)\n");
-	free(ccb, CISS_MALLOC_CLASS);
+	xpt_free_ccb(ccb);
 	return;
     }
-
-    xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
-    ccb->ccb_h.func_code = XPT_SCAN_BUS;
-    ccb->ccb_h.cbfcnp = ciss_cam_rescan_callback;
-    ccb->crcn.flags = CAM_FLAG_NONE;
-    xpt_action(ccb);
-
+    xpt_rescan(ccb);
     /* scan is now in progress */
-}
-
-static void
-ciss_cam_rescan_all(struct ciss_softc *sc)
-{
-    int i;
-
-    /* Rescan the logical buses */
-    for (i = 0; i < sc->ciss_max_logical_bus; i++)
-	ciss_cam_rescan_target(sc, i, CAM_TARGET_WILDCARD);
-    /* Rescan the physical buses */
-    for (i = CISS_PHYSICAL_BASE; i < sc->ciss_max_physical_bus +
-	 CISS_PHYSICAL_BASE; i++)
-	ciss_cam_rescan_target(sc, i, CAM_TARGET_WILDCARD);
-}
-
-static void
-ciss_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-    xpt_free_path(ccb->ccb_h.path);
-    free(ccb, CISS_MALLOC_CLASS);
 }
 
 /************************************************************************

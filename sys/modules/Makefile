@@ -13,6 +13,7 @@ SUBDIR=	${_3dfx} \
 	${_agp} \
 	aha \
 	${_ahb} \
+	ahci \
 	${_aic} \
 	aic7xxx \
 	aio \
@@ -191,6 +192,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	mvs \
 	mxge \
 	my \
 	${_ncp} \
@@ -255,6 +257,7 @@ SUBDIR=	${_3dfx} \
 	sem \
 	sf \
 	sge \
+	siis \
 	siftr \
 	${_sio} \
 	sis \

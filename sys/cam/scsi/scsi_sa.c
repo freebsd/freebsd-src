@@ -173,13 +173,9 @@ typedef enum {
 	SA_QUIRK_NO_CPAGE	= 0x80	/* Don't use DEVICE COMPRESSION page */
 } sa_quirks;
 
-/* units are bits 4-7, 16-21 (1024 units) */
-#define SAUNIT(DEV) \
-	(((minor(DEV) & 0xF0) >> 4) |  ((minor(DEV) & 0x3f0000) >> 16))
-
-#define SAMODE(z) ((minor(z) & 0x3))
-#define SADENSITY(z) (((minor(z) >> 2) & 0x3))
-#define	SA_IS_CTRL(z) (minor(z) & (1 << 29))
+#define	SAMODE(z)	(dev2unit(z) & 0x3)
+#define	SADENSITY(z)	((dev2unit(z) >> 2) & 0x3)
+#define	SA_IS_CTRL(z)	(dev2unit(z) & (1 << 4))
 
 #define SA_NOT_CTLDEV	0
 #define SA_CTLDEV	1
@@ -188,9 +184,8 @@ typedef enum {
 #define SA_ATYPE_NR	1
 #define SA_ATYPE_ER	2
 
-#define SAMINOR(ctl, unit, mode, access) \
-	((ctl << 29) | ((unit & 0x3f0) << 16) | ((unit & 0xf) << 4) | \
-	(mode << 0x2) | (access & 0x3))
+#define	SAMINOR(ctl, mode, access) \
+	((ctl << 4) | (mode << 2) | (access & 0x3))
 
 #define SA_NUM_MODES	4
 struct sa_devs {
@@ -445,10 +440,7 @@ saopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
-	int unit;
 	int error;
-
-	unit = SAUNIT(dev);
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
@@ -460,7 +452,7 @@ saopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	softc = (struct sa_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE|CAM_DEBUG_INFO,
-	    ("saopen(%d): dev=0x%x softc=0x%x\n", unit, unit, softc->flags));
+	    ("saopen(%s): softc=0x%x\n", devtoname(dev), softc->flags));
 
 	if (SA_IS_CTRL(dev)) {
 		softc->ctrl_mode = 1;
@@ -521,10 +513,9 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	sa_softc *softc;
-	int	unit, mode, error, writing, tmp;
+	int	mode, error, writing, tmp;
 	int	closedbits = SA_FLAG_OPEN;
 
-	unit = SAUNIT(dev);
 	mode = SAMODE(dev);
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
@@ -535,7 +526,7 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	softc = (struct sa_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE|CAM_DEBUG_INFO,
-	    ("saclose(%d): dev=0x%x softc=0x%x\n", unit, unit, softc->flags));
+	    ("saclose(%s): softc=0x%x\n", devtoname(dev), softc->flags));
 
 
 	softc->open_rdonly = 0; 
@@ -795,7 +786,7 @@ sastrategy(struct bio *bp)
 	/*
 	 * Schedule ourselves for performing the work.
 	 */
-	xpt_schedule(periph, 1);
+	xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	cam_periph_unlock(periph);
 
 	return;
@@ -1407,6 +1398,9 @@ saasync(void *callback_arg, u_int32_t code,
 		if (cgd == NULL)
 			break;
 
+		if (cgd->protocol != PROTO_SCSI)
+			break;
+
 		if (SID_TYPE(&cgd->inq_data) != T_SEQUENTIAL)
 			break;
 
@@ -1496,26 +1490,26 @@ saregister(struct cam_periph *periph, void *arg)
 	    DEVSTAT_TYPE_IF_SCSI, DEVSTAT_PRIORITY_TAPE);
 
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
-	    periph->unit_number, 0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
+	    0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
 	    0660, "%s%d.ctl", periph->periph_name, periph->unit_number);
 	softc->devs.ctl_dev->si_drv1 = periph;
 
 	for (i = 0; i < SA_NUM_MODES; i++) {
 
 		softc->devs.mode_devs[i].r_dev = make_dev(&sa_cdevsw,
-		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_R),
+		    SAMINOR(SA_NOT_CTLDEV, i, SA_ATYPE_R),
 		    UID_ROOT, GID_OPERATOR, 0660, "%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 		softc->devs.mode_devs[i].r_dev->si_drv1 = periph;
 
 		softc->devs.mode_devs[i].nr_dev = make_dev(&sa_cdevsw,
-		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_NR),
+		    SAMINOR(SA_NOT_CTLDEV, i, SA_ATYPE_NR),
 		    UID_ROOT, GID_OPERATOR, 0660, "n%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 		softc->devs.mode_devs[i].nr_dev->si_drv1 = periph;
 
 		softc->devs.mode_devs[i].er_dev = make_dev(&sa_cdevsw,
-		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_ER),
+		    SAMINOR(SA_NOT_CTLDEV, i, SA_ATYPE_ER),
 		    UID_ROOT, GID_OPERATOR, 0660, "e%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 		softc->devs.mode_devs[i].er_dev->si_drv1 = periph;
@@ -1695,7 +1689,7 @@ again:
 		
 		if (bp != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, 1);
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 		break;
 	}

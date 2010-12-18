@@ -1011,7 +1011,6 @@ struct umass_softc {
 	unsigned char 		cam_scsi_command2[CAM_MAX_CDBLEN];
 	struct scsi_sense	cam_scsi_sense;
 	struct scsi_sense	cam_scsi_test_unit_ready;
-	struct callout		cam_scsi_rescan_ch;
 
 	int			timeout;		/* in msecs */
 
@@ -1129,10 +1128,6 @@ static void umass_cam_sense_cb	(struct umass_softc *sc, void *priv,
 				int residue, int status);
 static void umass_cam_quirk_cb	(struct umass_softc *sc, void *priv,
 				int residue, int status);
-
-static void umass_cam_rescan_callback
-				(struct cam_periph *periph,union ccb *ccb);
-static void umass_cam_rescan	(void *addr);
 
 static int umass_cam_attach_sim	(struct umass_softc *sc);
 static int umass_cam_attach	(struct umass_softc *sc);
@@ -1326,7 +1321,6 @@ umass_attach(device_t self)
 	sc->sc_dev = self;
 	sc->iface = uaa->iface;
 	sc->ifaceno = uaa->ifaceno;
-	callout_init(&sc->cam_scsi_rescan_ch, 0);
 
 	/* initialise the proto and drive values in the umass_softc (again) */
 	(void) umass_match_proto(sc, sc->iface, uaa->device);
@@ -1585,7 +1579,6 @@ umass_detach(device_t self)
 	if (sc->intrin_pipe)
 		usbd_abort_pipe(sc->intrin_pipe);
 
-	callout_drain(&sc->cam_scsi_rescan_ch);
 	if ((sc->proto & UMASS_PROTO_SCSI) ||
 	    (sc->proto & UMASS_PROTO_ATAPI) ||
 	    (sc->proto & UMASS_PROTO_UFI) ||
@@ -2659,55 +2652,6 @@ umass_cam_attach_sim(struct umass_softc *sc)
 	return(0);
 }
 
-static void
-umass_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-#ifdef USB_DEBUG
-	if (ccb->ccb_h.status != CAM_REQ_CMP) {
-		DPRINTF(UDMASS_SCSI, ("%s:%d Rescan failed, 0x%04x\n",
-			periph->periph_name, periph->unit_number,
-			ccb->ccb_h.status));
-	} else {
-		DPRINTF(UDMASS_SCSI, ("%s%d: Rescan succeeded\n",
-			periph->periph_name, periph->unit_number));
-	}
-#endif
-
-	xpt_free_path(ccb->ccb_h.path);
-	free(ccb, M_USBDEV);
-}
-
-static void
-umass_cam_rescan(void *addr)
-{
-	struct umass_softc *sc = (struct umass_softc *) addr;
-	struct cam_path *path;
-	union ccb *ccb;
-
-	DPRINTF(UDMASS_SCSI, ("scbus%d: scanning for %s:%d:%d:%d\n",
-		cam_sim_path(sc->umass_sim),
-		device_get_nameunit(sc->sc_dev), cam_sim_path(sc->umass_sim),
-		device_get_unit(sc->sc_dev), CAM_LUN_WILDCARD));
-
-	ccb = malloc(sizeof(union ccb), M_USBDEV, M_NOWAIT | M_ZERO);
-	if (ccb == NULL)
-		return;
-	if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->umass_sim),
-			    device_get_unit(sc->sc_dev), CAM_LUN_WILDCARD)
-	    != CAM_REQ_CMP) {
-		free(ccb, M_USBDEV);
-		return;
-	}
-
-	xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
-	ccb->ccb_h.func_code = XPT_SCAN_BUS;
-	ccb->ccb_h.cbfcnp = umass_cam_rescan_callback;
-	ccb->crcn.flags = CAM_FLAG_NONE;
-	xpt_action(ccb);
-
-	/* The scan is in progress now. */
-}
-
 static int
 umass_cam_attach(struct umass_softc *sc)
 {
@@ -2718,18 +2662,6 @@ umass_cam_attach(struct umass_softc *sc)
 			device_get_nameunit(sc->sc_dev), cam_sim_path(sc->umass_sim),
 			device_get_unit(sc->sc_dev), CAM_LUN_WILDCARD,
 			cam_sim_path(sc->umass_sim));
-
-	if (!cold) {
-		/* Notify CAM of the new device after a short delay. Any
-		 * failure is benign, as the user can still do it by hand
-		 * (camcontrol rescan <busno>). Only do this if we are not
-		 * booting, because CAM does a scan after booting has
-		 * completed, when interrupts have been enabled.
-		 */
-
-		callout_reset(&sc->cam_scsi_rescan_ch, MS_TO_TICKS(200),
-		    umass_cam_rescan, sc);
-	}
 
 	return(0);	/* always succesfull */
 }

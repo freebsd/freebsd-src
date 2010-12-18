@@ -111,7 +111,7 @@ ast_attach(device_t dev)
 	return ENOMEM;
     }
     device_set_ivars(dev, stp);
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
 
     if (ast_sense(dev)) {
 	device_set_ivars(dev, NULL);
@@ -138,23 +138,15 @@ ast_attach(device_t dev)
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_SEQUENTIAL | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_TAPE);
-    device = make_dev(&ast_cdevsw, 2 * device_get_unit(dev),
-		      UID_ROOT, GID_OPERATOR, 0640, "ast%d",
-		      device_get_unit(dev));
+    device = make_dev(&ast_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0640,
+    		      "ast%d", device_get_unit(dev));
     device->si_drv1 = dev;
-    if (ch->dma)
-	device->si_iosize_max = ch->dma->max_iosize;
-    else
-	device->si_iosize_max = DFLTPHYS;
+    device->si_iosize_max = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
     stp->dev1 = device;
-    device = make_dev(&ast_cdevsw, 2 * device_get_unit(dev) + 1,
-		      UID_ROOT, GID_OPERATOR, 0640, "nast%d",
-		      device_get_unit(dev));
+    device = make_dev(&ast_cdevsw, 1, UID_ROOT, GID_OPERATOR, 0640,
+		      "nast%d", device_get_unit(dev));
     device->si_drv1 = dev;
-    if (ch->dma)
-	device->si_iosize_max = ch->dma->max_iosize;
-    else
-	device->si_iosize_max = DFLTPHYS;
+    device->si_iosize_max = ch->dma.max_iosize;
     stp->dev2 = device;
 
     /* announce we are here and ready */
@@ -181,13 +173,14 @@ ast_detach(device_t dev)
     return 0;
 }
 
-static void
+static int
 ast_shutdown(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
+    return 0;
 }
 
 static int
@@ -196,11 +189,11 @@ ast_reinit(device_t dev)
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
 
-    if (((atadev->unit == ATA_MASTER) && !(ch->devices & ATA_ATAPI_MASTER)) ||
-	((atadev->unit == ATA_SLAVE) && !(ch->devices & ATA_ATAPI_SLAVE))) {
+    /* if detach pending, return error */
+    if (!(ch->devices & (ATA_ATAPI_MASTER << atadev->unit)))
 	return 1;
-    }
-    ATA_SETMODE(device_get_parent(dev), dev);
+
+    ata_setmode(dev);
     return 0;
 }
 
@@ -243,8 +236,8 @@ ast_close(struct cdev *cdev, int flags, int fmt, struct thread *td)
 	(stp->flags & (F_DATA_WRITTEN | F_FM_WRITTEN)) == F_DATA_WRITTEN)
 	ast_write_filemark(dev, ATAPI_WF_WRITE);
 
-    /* if minor is even rewind on close */
-    if (!(minor(cdev) & 0x01))
+    /* if unit is zero rewind on close */
+    if (dev2unit(cdev) == 0)
 	ast_rewind(dev);
 
     if (stp->cap.lock && count_dev(cdev) == 1)
@@ -380,7 +373,6 @@ static void
 ast_strategy(struct bio *bp)
 {
     device_t dev = bp->bio_dev->si_drv1;
-    struct ata_device *atadev = device_get_softc(dev);
     struct ast_softc *stp = device_get_ivars(dev);
     struct ata_request *request;
     u_int32_t blkcount;
@@ -433,9 +425,7 @@ ast_strategy(struct bio *bp)
     }
     request->dev = dev;
     request->driver = bp;
-    bcopy(ccb, request->u.atapi.ccb,
-	  (atadev->param.config & ATA_PROTO_MASK) == 
-	  ATA_PROTO_ATAPI_12 ? 16 : 12);
+    bcopy(ccb, request->u.atapi.ccb, 16);
     request->data = bp->bio_data;
     request->bytecount = blkcount * stp->blksize;
     request->transfersize = min(request->bytecount, 65534);
@@ -678,13 +668,13 @@ ast_describe(device_t dev)
     if (bootverbose) {
 	device_printf(dev, "<%.40s/%.8s> tape drive at ata%d as %s\n",
 		      atadev->param.model, atadev->param.revision,
-		      device_get_unit(ch->dev),
-		      (atadev->unit == ATA_MASTER) ? "master" : "slave");
+		      device_get_unit(ch->dev), ata_unit2str(atadev));
 	device_printf(dev, "%dKB/s, ", stp->cap.max_speed);
 	printf("transfer limit %d blk%s, ",
 	       stp->cap.ctl, (stp->cap.ctl > 1) ? "s" : "");
 	printf("%dKB buffer, ", (stp->cap.buffer_size * DEV_BSIZE) / 1024);
-	printf("%s\n", ata_mode2str(atadev->mode));
+	printf("%s %s\n", ata_mode2str(atadev->mode),
+	    ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
 	device_printf(dev, "Medium: ");
 	switch (stp->cap.medium_type) {
 	    case 0x00:
@@ -715,11 +705,11 @@ ast_describe(device_t dev)
 	printf("\n");
     }
     else {
-	device_printf(dev, "TAPE <%.40s/%.8s> at ata%d-%s %s\n",
+	device_printf(dev, "TAPE <%.40s/%.8s> at ata%d-%s %s %s\n",
 		      atadev->param.model, atadev->param.revision,
-		      device_get_unit(ch->dev),
-		      (atadev->unit == ATA_MASTER) ? "master" : "slave",
-		      ata_mode2str(atadev->mode));
+		      device_get_unit(ch->dev), ata_unit2str(atadev),
+		      ata_mode2str(atadev->mode),
+		      ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
     }
 }
 
