@@ -160,7 +160,7 @@ bsd_send_mlme_param(void *priv, const u8 op, const u16 reason, const u8 *addr)
 }
 
 static int
-bsd_set_iface_flags(void *priv, int flags)
+bsd_ctrl_iface(void *priv, int enable)
 {
 	struct bsd_driver_data *drv = priv;
 	struct ifreq ifr;
@@ -176,15 +176,14 @@ bsd_set_iface_flags(void *priv, int flags)
 		return -1;
 	}
 
-	if (flags < 0) {
-		flags = -flags;
-		if ((ifr.ifr_flags & flags) == 0)
+	if (enable) {
+		if ((ifr.ifr_flags & IFF_UP) == IFF_UP)
 			return 0;
-		ifr.ifr_flags &= ~flags;
+		ifr.ifr_flags |= IFF_UP;
 	} else {
-		if ((ifr.ifr_flags & flags) == flags)
+		if ((ifr.ifr_flags & IFF_UP) == 0)
 			return 0;
-		ifr.ifr_flags |= flags;
+		ifr.ifr_flags &= ~IFF_UP;
 	}
 
 	if (ioctl(drv->sock, SIOCSIFFLAGS, &ifr) < 0) {
@@ -197,7 +196,7 @@ bsd_set_iface_flags(void *priv, int flags)
 static int
 bsd_commit(void *priv)
 {
-	return bsd_set_iface_flags(priv, IFF_UP);
+	return bsd_ctrl_iface(priv, 1);
 }
 
 static int
@@ -449,12 +448,25 @@ bsd_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
 	if (get80211var(priv, IEEE80211_IOC_WPAKEY, &wk, sizeof(wk)) < 0) {
 		printf("Failed to get encryption.\n");
 		return -1;
-	} else {
-		/* NB: upper layer expects tsc in network order */
-		wk.ik_keytsc = htole64(wk.ik_keytsc);
-		memcpy(seq, &wk.ik_keytsc, sizeof(wk.ik_keytsc));
-		return 0;
 	}
+
+#ifdef WORDS_BIGENDIAN
+	{
+		/*
+		 * wk.ik_keytsc is in host byte order (big endian), need to
+		 * swap it to match with the byte order used in WPA.
+		 */
+		int i;
+		u8 tmp[WPA_KEY_RSC_LEN];
+		memcpy(tmp, &wk.ik_keytsc, sizeof(wk.ik_keytsc));
+		for (i = 0; i < WPA_KEY_RSC_LEN; i++) {
+			seq[i] = tmp[WPA_KEY_RSC_LEN - i - 1];
+		}
+	}
+#else /* WORDS_BIGENDIAN */
+	memcpy(seq, &wk.ik_keytsc, sizeof(wk.ik_keytsc));
+#endif /* WORDS_BIGENDIAN */
+	return 0;
 }
 
 
@@ -731,7 +743,7 @@ bsd_init(struct hostapd_data *hapd, struct wpa_init_params *params)
 		goto bad;
 
 	/* mark down during setup */
-	if (bsd_set_iface_flags(drv, -IFF_UP) < 0)
+	if (bsd_ctrl_iface(drv, 0) < 0)
 		goto bad;
 
 	drv->route = socket(PF_ROUTE, SOCK_RAW, 0);
@@ -764,7 +776,7 @@ bsd_deinit(void *priv)
 		eloop_unregister_read_sock(drv->route);
 		close(drv->route);
 	}
-	(void) bsd_set_iface_flags(drv, -IFF_UP);
+	bsd_ctrl_iface(drv, 0);
 	if (drv->sock >= 0)
 		close(drv->sock);
 	if (drv->sock_xmit != NULL)
