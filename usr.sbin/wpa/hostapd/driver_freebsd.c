@@ -401,10 +401,13 @@ bsd_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
 			    ie, ie_len);
 }
 
+/*
+ * Avoid conflicts with hostapd definitions by undefining couple of defines
+ * from net80211 header files.
+ */
 #undef RSN_VERSION
 #undef WPA_VERSION
 #undef WPA_OUI_TYPE
-#undef WME_OUI_TYPE
 
 static int bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
     int reason_code);
