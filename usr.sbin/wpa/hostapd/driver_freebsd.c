@@ -215,34 +215,35 @@ bsd_set_privacy(void *priv, int enabled)
 }
 
 static int
-bsd_set_sta_authorized(void *priv, const u8 *addr, int authorized)
+bsd_send_mlme_param(void *priv, const u8 op, const u16 reason, const u8 *addr)
 {
-	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_mlme mlme;
 
-	wpa_printf(MSG_DEBUG, "%s: addr=%s authorized=%d\n",
-		__func__, ether_sprintf(addr), authorized);
-
-	if (authorized)
-		mlme.im_op = IEEE80211_MLME_AUTHORIZE;
-	else
-		mlme.im_op = IEEE80211_MLME_UNAUTHORIZE;
-	mlme.im_reason = 0;
-	memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
+	os_memset(&mlme, 0, sizeof(mlme));
+	mlme.im_op = op;
+	mlme.im_reason = reason;
+	os_memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
 	return set80211var(priv, IEEE80211_IOC_MLME, &mlme, sizeof(mlme));
 }
 
 static int
-bsd_sta_set_flags(void *priv, const u8 *addr, int total_flags,
-	int flags_or, int flags_and)
+bsd_set_sta_authorized(void *priv, const u8 *addr,
+		       int total_flags, int flags_or, int flags_and)
 {
+	int authorized = -1;
+
 	/* For now, only support setting Authorized flag */
 	if (flags_or & WPA_STA_AUTHORIZED)
-		return bsd_set_sta_authorized(priv, addr, 1);
+		authorized = 1;
 	if (!(flags_and & WPA_STA_AUTHORIZED))
-		return bsd_set_sta_authorized(priv, addr, 0);
-	return 0;
+		authorized = 0;
+
+	if (authorized < 0)
+		return 0;
+
+	return bsd_send_mlme_param(priv, authorized ?
+				   IEEE80211_MLME_AUTHORIZE :
+				   IEEE80211_MLME_UNAUTHORIZE, 0, addr);
 }
 
 static int
@@ -413,32 +414,16 @@ bsd_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
 static int
 bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr, int reason_code)
 {
-	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
-	struct ieee80211req_mlme mlme;
-
-	wpa_printf(MSG_DEBUG, "%s: addr=%s reason_code=%d\n",
-		__func__, ether_sprintf(addr), reason_code);
-
-	mlme.im_op = IEEE80211_MLME_DEAUTH;
-	mlme.im_reason = reason_code;
-	memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
-	return set80211var(priv, IEEE80211_IOC_MLME, &mlme, sizeof(mlme));
+	return bsd_send_mlme_param(priv, IEEE80211_MLME_DEAUTH, reason_code,
+				   addr);
 }
 
 static int
-bsd_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr, int reason_code)
+bsd_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
+		 int reason_code)
 {
-	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
-	struct ieee80211req_mlme mlme;
-
-	wpa_printf(MSG_DEBUG, "%s: addr=%s reason_code=%d\n",
-		__func__, ether_sprintf(addr), reason_code);
-
-	mlme.im_reason = reason_code;
-	memcpy(mlme.im_macaddr, addr, IEEE80211_ADDR_LEN);
-	return set80211var(priv, IEEE80211_IOC_MLME, &mlme, sizeof(mlme));
+	return bsd_send_mlme_param(priv, IEEE80211_MLME_DISASSOC, reason_code,
+				   addr);
 }
 
 static void
@@ -807,7 +792,7 @@ const struct wpa_driver_ops wpa_driver_bsd_ops = {
 	.get_seqnum		= bsd_get_seqnum,
 	.flush			= bsd_flush,
 	.set_generic_elem	= bsd_set_opt_ie,
-	.sta_set_flags		= bsd_sta_set_flags,
+	.sta_set_flags		= bsd_set_sta_authorized,
 	.read_sta_data		= bsd_read_sta_driver_data,
 	.hapd_send_eapol	= bsd_send_eapol,
 	.sta_disassoc		= bsd_sta_disassoc,
