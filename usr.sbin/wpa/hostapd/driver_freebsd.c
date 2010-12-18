@@ -113,22 +113,19 @@ set80211param(struct bsd_driver_data *drv, int op, int arg)
 }
 
 static int
-bsd_get_ssid(void *priv, u8 *buf, int len)
+bsd_get_ssid(void *priv, u8 *ssid, int len)
 {
 	struct bsd_driver_data *drv = priv;
 
-	int ssid_len = get80211var(priv, IEEE80211_IOC_SSID, buf, len);
-
-	return ssid_len;
+	return get80211var(drv, IEEE80211_IOC_SSID, ssid, IEEE80211_NWID_LEN);
 }
 
 static int
-bsd_set_ssid(void *priv, const u8 *buf, int len)
+bsd_set_ssid(void *priv, const u8 *ssid, int ssid_len)
 {
 	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
 
-	return set80211var(priv, IEEE80211_IOC_SSID, buf, len);
+	return set80211var(drv, IEEE80211_IOC_SSID, ssid, ssid_len);
 }
 
 static int
@@ -166,7 +163,6 @@ static int
 bsd_set_iface_flags(void *priv, int flags)
 {
 	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
 	struct ifreq ifr;
 
 	if (drv->sock < 0)
@@ -350,7 +346,6 @@ bsd_send_eapol(void *priv, const u8 *addr, const u8 *data, size_t data_len,
 	      
 {
 	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
 	unsigned char buf[3000];
 	unsigned char *bp = buf;
 	struct l2_ethhdr *eth;
@@ -428,8 +423,6 @@ static int
 bsd_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
 	       u8 *seq)
 {
-	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_key wk;
 
 	wpa_printf(MSG_DEBUG, "%s: addr=%s idx=%d",
@@ -442,7 +435,7 @@ bsd_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
 		memcpy(wk.ik_macaddr, addr, IEEE80211_ADDR_LEN);
 	wk.ik_keyix = idx;
 
-	if (get80211var(drv, IEEE80211_IOC_WPAKEY, &wk, sizeof(wk)) < 0) {
+	if (get80211var(priv, IEEE80211_IOC_WPAKEY, &wk, sizeof(wk)) < 0) {
 		printf("Failed to get encryption.\n");
 		return -1;
 	} else {
@@ -468,11 +461,11 @@ static int
 bsd_read_sta_driver_data(void *priv, struct hostap_sta_driver_data *data,
 			 const u8 *addr)
 {
-	struct bsd_driver_data *drv = priv;
 	struct ieee80211req_sta_stats stats;
 
 	memcpy(stats.is_u.macaddr, addr, IEEE80211_ADDR_LEN);
-	if (get80211var(drv, IEEE80211_IOC_STA_STATS, &stats, sizeof(stats)) > 0) {
+	if (get80211var(priv, IEEE80211_IOC_STA_STATS, &stats, sizeof(stats))
+	    > 0) {
 		/* XXX? do packets counts include non-data frames? */
 		data->rx_packets = stats.is_stats.ns_rx_data;
 		data->rx_bytes = stats.is_stats.ns_rx_bytes;
@@ -485,8 +478,6 @@ bsd_read_sta_driver_data(void *priv, struct hostap_sta_driver_data *data,
 static int
 bsd_sta_clear_stats(void *priv, const u8 *addr)
 {
-	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_sta_stats stats;
 	
 	wpa_printf(MSG_DEBUG, "%s: addr=%s", __func__, ether_sprintf(addr));
@@ -494,7 +485,8 @@ bsd_sta_clear_stats(void *priv, const u8 *addr)
 	/* zero station statistics */
 	memset(&stats, 0, sizeof(stats));
 	memcpy(stats.is_u.macaddr, addr, IEEE80211_ADDR_LEN);
-	return set80211var(drv, IEEE80211_IOC_STA_STATS, &stats, sizeof(stats));
+	return set80211var(priv, IEEE80211_IOC_STA_STATS, &stats,
+			   sizeof(stats));
 }
 
 static int
@@ -516,7 +508,6 @@ static void
 bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 {
 	struct bsd_driver_data *drv = ctx;
-	struct hostapd_data *hapd = drv->hapd;
 	char buf[2048];
 	struct if_announcemsghdr *ifan;
 	struct rt_msghdr *rtm;
@@ -588,12 +579,12 @@ bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 			auth = (struct ieee80211_auth_event *) &ifan[1];
 			wpa_printf(MSG_DEBUG, "802.11 AUTH, STA = " MACSTR,
 			    MAC2STR(auth->iev_addr));
-			n = hostapd_allowed_address(hapd, auth->iev_addr,
+			n = hostapd_allowed_address(drv->hapd, auth->iev_addr,
 				NULL, 0, NULL, NULL, NULL);
 			switch (n) {
 			case HOSTAPD_ACL_ACCEPT:
 			case HOSTAPD_ACL_REJECT:
-				hostapd_set_radius_acl_auth(hapd,
+				hostapd_set_radius_acl_auth(drv->hapd,
 				    auth->iev_addr, n, 0);
 				wpa_printf(MSG_DEBUG,
 				    "802.11 AUTH, STA = " MACSTR " hostapd says: %s",
@@ -624,10 +615,8 @@ handle_read(void *ctx, const u8 *src_addr, const u8 *buf, size_t len)
 static int
 bsd_set_countermeasures(void *priv, int enabled)
 {
-	struct bsd_driver_data *drv = priv;
-
 	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __FUNCTION__, enabled);
-	return set80211param(drv, IEEE80211_IOC_COUNTERMEASURES, enabled);
+	return set80211param(priv, IEEE80211_IOC_COUNTERMEASURES, enabled);
 }
 
 #ifdef CONFIG_DRIVER_RADIUS_ACL_NOT_YET
