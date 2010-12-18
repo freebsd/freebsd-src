@@ -246,21 +246,19 @@ bsd_sta_set_flags(void *priv, const u8 *addr, int total_flags,
 }
 
 static int
-bsd_del_key(void *priv, const unsigned char *addr, int key_idx)
+bsd_del_key(void *priv, const u8 *addr, int key_idx)
 {
-	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_del_key wk;
 
-	wpa_printf(MSG_DEBUG, "%s: addr=%s key_idx=%d\n",
-		__func__, ether_sprintf(addr), key_idx);
-
-	memset(&wk, 0, sizeof(wk));
-	if (addr != NULL) {
-		memcpy(wk.idk_macaddr, addr, IEEE80211_ADDR_LEN);
-		wk.idk_keyix = (u_int8_t) IEEE80211_KEYIX_NONE;	/* XXX */
-	} else {
+	os_memset(&wk, 0, sizeof(wk));
+	if (addr == NULL) {
+		wpa_printf(MSG_DEBUG, "%s: key_idx=%d", __func__, key_idx);
 		wk.idk_keyix = key_idx;
+	} else {
+		wpa_printf(MSG_DEBUG, "%s: addr=" MACSTR, __func__,
+			   MAC2STR(addr));
+		os_memcpy(wk.idk_macaddr, addr, IEEE80211_ADDR_LEN);
+		wk.idk_keyix = (u_int8_t) IEEE80211_KEYIX_NONE;	/* XXX */
 	}
 
 	return set80211var(priv, IEEE80211_IOC_DELKEY, &wk, sizeof(wk));
