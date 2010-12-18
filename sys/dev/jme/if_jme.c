@@ -730,8 +730,9 @@ jme_attach(device_t dev)
 
 	/* Set up MII bus. */
 	error = mii_attach(dev, &sc->jme_miibus, ifp, jme_mediachange,
-	    jme_mediastatus, BMSR_DEFCAPMASK, sc->jme_phyaddr, MII_OFFSET_ANY,
-	    MIIF_DOPAUSE);
+	    jme_mediastatus, BMSR_DEFCAPMASK,
+	    sc->jme_flags & JME_FLAG_FPGA ? MII_PHY_ANY : sc->jme_phyaddr,
+	    MII_OFFSET_ANY, MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
