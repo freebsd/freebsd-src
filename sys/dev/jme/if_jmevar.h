@@ -185,19 +185,22 @@ struct jme_softc {
 	uint32_t		jme_tx_dma_size;
 	uint32_t		jme_rx_dma_size;
 	int			jme_flags;
-#define	JME_FLAG_FPGA		0x0001
-#define	JME_FLAG_PCIE		0x0002
-#define	JME_FLAG_PCIX		0x0003
-#define	JME_FLAG_MSI		0x0004
-#define	JME_FLAG_MSIX		0x0010
-#define	JME_FLAG_PMCAP		0x0020
-#define	JME_FLAG_FASTETH	0x0040
-#define	JME_FLAG_NOJUMBO	0x0080
-#define	JME_FLAG_TXCLK		0x0100
-#define	JME_FLAG_DMA32BIT	0x0200
-#define	JME_FLAG_HWMIB		0x0400
-#define	JME_FLAG_DETACH		0x4000
-#define	JME_FLAG_LINK		0x8000
+#define	JME_FLAG_FPGA		0x00000001
+#define	JME_FLAG_PCIE		0x00000002
+#define	JME_FLAG_PCIX		0x00000004
+#define	JME_FLAG_MSI		0x00000008
+#define	JME_FLAG_MSIX		0x00000010
+#define	JME_FLAG_PMCAP		0x00000020
+#define	JME_FLAG_FASTETH	0x00000040
+#define	JME_FLAG_NOJUMBO	0x00000080
+#define	JME_FLAG_RXCLK		0x00000100
+#define	JME_FLAG_TXCLK		0x00000200
+#define	JME_FLAG_DMA32BIT	0x00000400
+#define	JME_FLAG_HWMIB		0x00000800
+#define	JME_FLAG_EFUSE		0x00001000
+#define	JME_FLAG_PCCPCD		0x00002000
+#define	JME_FLAG_DETACH		0x40000000
+#define	JME_FLAG_LINK		0x80000000
 
 	struct jme_hw_stats	jme_ostats;
 	struct jme_hw_stats	jme_stats;
@@ -210,8 +213,10 @@ struct jme_softc {
 	uint32_t		jme_rxcsr;
 	int			jme_process_limit;
 	int			jme_tx_coal_to;
+	int			jme_tx_pcd_to;
 	int			jme_tx_coal_pkt;
 	int			jme_rx_coal_to;
+	int			jme_rx_pcd_to;
 	int			jme_rx_coal_pkt;
 	volatile int		jme_morework;
 
