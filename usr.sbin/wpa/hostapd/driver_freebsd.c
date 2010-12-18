@@ -264,6 +264,17 @@ bsd_set_key(const char *ifname, void *priv, enum wpa_alg alg,
 }
 
 static int
+bsd_configure_wpa(void *priv, struct wpa_bss_params *params)
+{
+	wpa_printf(MSG_DEBUG, "%s: enable WPA= 0x%x", __func__, params->wpa);
+	if (set80211param(priv, IEEE80211_IOC_WPA, params->wpa)) {
+		printf("Unable to set WPA to %u\n", params->wpa);
+		return -1;
+	}
+	return 0;
+}
+
+static int
 bsd_set_ieee8021x(void *priv, struct wpa_bss_params *params)
 {
 	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __func__, params->enabled);
@@ -278,7 +289,7 @@ bsd_set_ieee8021x(void *priv, struct wpa_bss_params *params)
 			   __func__);
 		return -1;
 	}
-	if (params->wpa && set80211param(priv,IEEE80211_IOC_WPA, params->wpa)) {
+	if (params->wpa && bsd_configure_wpa(priv, params) != 0) {
 		wpa_printf(MSG_ERROR, "%s: Failed to configure WPA state",
 			  __func__);
 		return -1;
