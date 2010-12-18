@@ -485,6 +485,7 @@ MAN=	aac.4 \
 	wlan_xauth.4 \
 	${_wpi.4} \
 	xe.4 \
+	${_xen.4} \
 	xl.4 \
 	xpt.4 \
 	zero.4 \
@@ -671,6 +672,7 @@ _spkr.4=	spkr.4
 _tpm.4=		tpm.4
 _urtw.4=	urtw.4
 _wpi.4=		wpi.4
+_xen.4=		xen.4
 
 MLINKS+=lindev.4 full.4
 .endif
