@@ -119,8 +119,6 @@ bsd_get_ssid(void *priv, u8 *buf, int len)
 
 	int ssid_len = get80211var(priv, IEEE80211_IOC_SSID, buf, len);
 
-	wpa_printf(MSG_DEBUG, "%s: ssid=\"%.*s\"\n", __func__, ssid_len, buf);
-
 	return ssid_len;
 }
 
@@ -129,8 +127,6 @@ bsd_set_ssid(void *priv, const u8 *buf, int len)
 {
 	struct bsd_driver_data *drv = priv;
 	struct hostapd_data *hapd = drv->hapd;
-
-	wpa_printf(MSG_DEBUG, "%s: ssid=\"%.*s\"\n", __func__, len, buf);
 
 	return set80211var(priv, IEEE80211_IOC_SSID, buf, len);
 }
@@ -172,8 +168,6 @@ bsd_set_iface_flags(void *priv, int flags)
 	struct bsd_driver_data *drv = priv;
 	struct hostapd_data *hapd = drv->hapd;
 	struct ifreq ifr;
-
-	wpa_printf(MSG_DEBUG, "%s: flags=0x%x\n", __func__, flags);
 
 	if (drv->sock < 0)
 		return -1;
@@ -276,7 +270,7 @@ bsd_set_key(const char *ifname, void *priv, enum wpa_alg alg,
 static int
 bsd_set_ieee8021x(void *priv, struct wpa_bss_params *params)
 {
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d\n", __func__, params->enabled);
+	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __func__, params->enabled);
 
 	if (!params->enabled) {
 		/* XXX restore state */
@@ -425,7 +419,7 @@ ether_sprintf(const u8 *addr)
 static int
 bsd_set_privacy(void *priv, int enabled)
 {
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d\n", __func__, enabled);
+	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __func__, enabled);
 
 	return set80211param(priv, IEEE80211_IOC_PRIVACY, enabled);
 }
@@ -438,7 +432,7 @@ bsd_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
 	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_key wk;
 
-	wpa_printf(MSG_DEBUG, "%s: addr=%s idx=%d\n",
+	wpa_printf(MSG_DEBUG, "%s: addr=%s idx=%d",
 	    __func__, ether_sprintf(addr), idx);
 
 	memset(&wk, 0, sizeof(wk));
@@ -495,7 +489,7 @@ bsd_sta_clear_stats(void *priv, const u8 *addr)
 	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_sta_stats stats;
 	
-	wpa_printf(MSG_DEBUG, "%s: addr=%s\n", __func__, ether_sprintf(addr));
+	wpa_printf(MSG_DEBUG, "%s: addr=%s", __func__, ether_sprintf(addr));
 
 	/* zero station statistics */
 	memset(&stats, 0, sizeof(stats));
