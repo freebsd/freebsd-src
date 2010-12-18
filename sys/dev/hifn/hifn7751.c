@@ -355,14 +355,11 @@ static int
 hifn_attach(device_t dev)
 {
 	struct hifn_softc *sc = device_get_softc(dev);
-	u_int32_t cmd;
 	caddr_t kva;
 	int rseg, rid;
 	char rbase;
 	u_int16_t ena, rev;
 
-	KASSERT(sc != NULL, ("hifn_attach: null software carrier!"));
-	bzero(sc, sizeof (*sc));
 	sc->sc_dev = dev;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "hifn driver", MTX_DEF);
@@ -402,30 +399,13 @@ hifn_attach(device_t dev)
 	}
 
 	/*
-	 * Configure support for memory-mapped access to
-	 * registers and for DMA operations.
-	 */
-#define	PCIM_ENA	(PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN)
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	cmd |= PCIM_ENA;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	if ((cmd & PCIM_ENA) != PCIM_ENA) {
-		device_printf(dev, "failed to enable %s\n",
-			(cmd & PCIM_ENA) == 0 ?
-				"memory mapping & bus mastering" :
-			(cmd & PCIM_CMD_MEMEN) == 0 ?
-				"memory mapping" : "bus mastering");
-		goto fail_pci;
-	}
-#undef PCIM_ENA
-
-	/*
 	 * Setup PCI resources. Note that we record the bus
 	 * tag and handle for each register mapping, this is
 	 * used by the READ_REG_0, WRITE_REG_0, READ_REG_1,
 	 * and WRITE_REG_1 macros throughout the driver.
 	 */
+	pci_enable_busmaster(dev);
+
 	rid = HIFN_BAR0;
 	sc->sc_bar0res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 			 			RF_ACTIVE);
@@ -727,10 +707,6 @@ hifn_resume(device_t dev)
 {
 	struct hifn_softc *sc = device_get_softc(dev);
 #ifdef notyet
-	/* reenable busmastering */
-	pci_enable_busmaster(dev);
-	pci_enable_io(dev, HIFN_RES);
-
         /* reinitialize interface if necessary */
         if (ifp->if_flags & IFF_UP)
                 rl_init(sc);
@@ -910,7 +886,7 @@ hifn_set_retry(struct hifn_softc *sc)
 {
 	/* NB: RETRY only responds to 8-bit reads/writes */
 	pci_write_config(sc->sc_dev, HIFN_RETRY_TIMEOUT, 0, 1);
-	pci_write_config(sc->sc_dev, HIFN_TRDY_TIMEOUT, 0, 4);
+	pci_write_config(sc->sc_dev, HIFN_TRDY_TIMEOUT, 0, 1);
 }
 
 /*
