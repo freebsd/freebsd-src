@@ -58,18 +58,42 @@ static int bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
     int reason_code);
 
 static int
-set80211var(struct bsd_driver_data *drv, int op, const void *arg, int arg_len)
+bsd_set80211(void *priv, int op, int val, const void *arg, int arg_len)
 {
+	struct bsd_driver_data *drv = priv;
 	struct ieee80211req ireq;
 
-	memset(&ireq, 0, sizeof(ireq));
-	strncpy(ireq.i_name, drv->iface, IFNAMSIZ);
+	os_memset(&ireq, 0, sizeof(ireq));
+	os_strlcpy(ireq.i_name, drv->iface, sizeof(ireq.i_name));
 	ireq.i_type = op;
-	ireq.i_len = arg_len;
+	ireq.i_val = val;
 	ireq.i_data = (void *) arg;
+	ireq.i_len = arg_len;
 
 	if (ioctl(drv->ioctl_sock, SIOCS80211, &ireq) < 0) {
-		perror("ioctl[SIOCS80211]");
+		wpa_printf(MSG_ERROR, "ioctl[SIOCS80211, op=%u, val=%u, "
+			   "arg_len=%u]: %s", op, val, arg_len,
+			   strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+static int
+bsd_get80211(void *priv, struct ieee80211req *ireq, int op, void *arg,
+	     int arg_len)
+{
+	struct bsd_driver_data *drv = priv;
+
+	os_memset(ireq, 0, sizeof(*ireq));
+	os_strlcpy(ireq->i_name, drv->iface, sizeof(ireq->i_name));
+	ireq->i_type = op;
+	ireq->i_len = arg_len;
+	ireq->i_data = arg;
+
+	if (ioctl(drv->ioctl_sock, SIOCG80211, ireq) < 0) {
+		wpa_printf(MSG_ERROR, "ioctl[SIOCS80211, op=%u, "
+			   "arg_len=%u]: %s", op, arg_len, strerror(errno));
 		return -1;
 	}
 	return 0;
@@ -80,34 +104,21 @@ get80211var(struct bsd_driver_data *drv, int op, void *arg, int arg_len)
 {
 	struct ieee80211req ireq;
 
-	memset(&ireq, 0, sizeof(ireq));
-	strncpy(ireq.i_name, drv->iface, IFNAMSIZ);
-	ireq.i_type = op;
-	ireq.i_len = arg_len;
-	ireq.i_data = arg;
-
-	if (ioctl(drv->ioctl_sock, SIOCG80211, &ireq) < 0) {
-		perror("ioctl[SIOCG80211]");
+	if (bsd_get80211(drv, &ireq, op, arg, arg_len) < 0)
 		return -1;
-	}
 	return ireq.i_len;
+}
+
+static int
+set80211var(struct bsd_driver_data *drv, int op, const void *arg, int arg_len)
+{
+	return bsd_set80211(drv, op, 0, arg, arg_len);
 }
 
 static int
 set80211param(struct bsd_driver_data *drv, int op, int arg)
 {
-	struct ieee80211req ireq;
-
-	memset(&ireq, 0, sizeof(ireq));
-	strncpy(ireq.i_name, drv->iface, IFNAMSIZ);
-	ireq.i_type = op;
-	ireq.i_val = arg;
-
-	if (ioctl(drv->ioctl_sock, SIOCS80211, &ireq) < 0) {
-		perror("ioctl[SIOCS80211]");
-		return -1;
-	}
-	return 0;
+	return bsd_set80211(drv, op, arg, NULL, 0);
 }
 
 static const char *
@@ -395,24 +406,10 @@ bsd_sta_clear_stats(void *priv, const u8 *addr)
 static int
 bsd_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
 {
-	struct bsd_driver_data *drv = priv;
-	struct hostapd_data *hapd = drv->hapd;
-	struct ieee80211req ireq;
-
-	memset(&ireq, 0, sizeof(ireq));
-	strncpy(ireq.i_name, drv->iface, IFNAMSIZ);
-	ireq.i_type = IEEE80211_IOC_APPIE;
-	ireq.i_val = IEEE80211_APPIE_WPA;
-	ireq.i_data = (void *) ie;
-	ireq.i_len = ie_len;
-
-	wpa_printf(MSG_DEBUG, "%s: set WPA+RSN ie (len %d)\n",
-	    __func__, ie_len);
-	if (ioctl(drv->ioctl_sock, SIOCS80211, &ireq) < 0) {
-		printf("Unable to set WPA+RSN ie\n");
-		return -1;
-	}
-	return 0;
+	wpa_printf(MSG_DEBUG, "%s: set WPA+RSN ie (len %lu)", __func__,
+		   (unsigned long)ie_len);
+	return bsd_set80211(priv, IEEE80211_IOC_APPIE, IEEE80211_APPIE_WPA,
+			    ie, ie_len);
 }
 
 static int
