@@ -854,10 +854,12 @@ jme_detach(device_t dev)
 		}
 	}
 
-	bus_release_resources(dev, sc->jme_irq_spec, sc->jme_irq);
+	if (sc->jme_irq[0] != NULL)
+		bus_release_resources(dev, sc->jme_irq_spec, sc->jme_irq);
 	if ((sc->jme_flags & (JME_FLAG_MSIX | JME_FLAG_MSI)) != 0)
 		pci_release_msi(dev);
-	bus_release_resources(dev, sc->jme_res_spec, sc->jme_res);
+	if (sc->jme_res[0] != NULL)
+		bus_release_resources(dev, sc->jme_res_spec, sc->jme_res);
 	mtx_destroy(&sc->jme_mtx);
 
 	return (0);
