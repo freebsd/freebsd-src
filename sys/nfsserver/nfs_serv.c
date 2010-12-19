@@ -2826,11 +2826,11 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_td = NULL;
 	eofflag = 0;
-	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
 		cookies = NULL;
 	}
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_READDIR(vp, &io, cred, &eofflag, &ncookies, &cookies);
 	off = (off_t)io.uio_offset;
 	if (!cookies && !error)
@@ -3114,12 +3114,12 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_td = NULL;
 	eofflag = 0;
-	vn_lock(vp, LK_SHARED | LK_RETRY);
 	vp_locked = 1;
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
 		cookies = NULL;
 	}
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_READDIR(vp, &io, cred, &eofflag, &ncookies, &cookies);
 	off = (u_quad_t)io.uio_offset;
 	getret = VOP_GETATTR(vp, &at, cred);
