@@ -62,8 +62,7 @@ extern const char *version;
  * mail.
  */
 int
-setfile(name)
-	char *name;
+setfile(char *name)
 {
 	FILE *ibuf;
 	int checkmode, i, fd;
@@ -165,7 +164,7 @@ nomail:
  * started reading mail.
  */
 int
-incfile()
+incfile(void)
 {
 	off_t newsize;
 	int omsgCount = msgCount;
@@ -198,7 +197,7 @@ static int	reset_on_stop;		/* do a reset() if stopped */
  * print no prompt.
  */
 void
-commands()
+commands(void)
 {
 	int n, eofloop = 0;
 	char linebuf[LINESIZE];
@@ -275,9 +274,7 @@ commands()
  * Contxt is non-zero if called while composing mail.
  */
 int
-execute(linebuf, contxt)
-	char linebuf[];
-	int contxt;
+execute(char linebuf[], int contxt)
 {
 	char word[LINESIZE];
 	char *arglist[MAXARGC];
@@ -472,8 +469,7 @@ out:
  * lists to message list functions.
  */
 void
-setmsize(sz)
-	int sz;
+setmsize(int sz)
 {
 
 	if (msgvec != NULL)
@@ -487,8 +483,7 @@ setmsize(sz)
  */
 
 __const struct cmd *
-lex(word)
-	char word[];
+lex(char word[])
 {
 	const struct cmd *cp;
 
@@ -514,8 +509,7 @@ lex(word)
  * Return true if yep.
  */
 int
-isprefix(as1, as2)
-	const char *as1, *as2;
+isprefix(const char *as1, const char *as2)
 {
 	const char *s1, *s2;
 
@@ -537,10 +531,8 @@ isprefix(as1, as2)
 
 static int	inithdr;		/* am printing startup headers */
 
-/*ARGSUSED*/
 void
-intr(s)
-	int s;
+intr(int s __unused)
 {
 
 	noreset = 0;
@@ -564,8 +556,7 @@ intr(s)
  * When we wake up after ^Z, reprint the prompt.
  */
 void
-stop(s)
-	int s;
+stop(int s)
 {
 	sig_t old_action = signal(s, SIG_DFL);
 	sigset_t nset;
@@ -585,10 +576,8 @@ stop(s)
 /*
  * Branch here on hangup signal and simulate "exit".
  */
-/*ARGSUSED*/
 void
-hangup(s)
-	int s;
+hangup(int s __unused)
 {
 
 	/* nothing to do? */
@@ -600,7 +589,7 @@ hangup(s)
  * give the message count, and print a header listing.
  */
 void
-announce()
+announce(void)
 {
 	int vec[2], mdot;
 
@@ -620,8 +609,7 @@ announce()
  * Return a likely place to set dot.
  */
 int
-newfileinfo(omsgCount)
-	int omsgCount;
+newfileinfo(int omsgCount)
 {
 	struct message *mp;
 	int u, n, mdot, d, s;
@@ -681,10 +669,8 @@ newfileinfo(omsgCount)
  * Print the current version number.
  */
 
-/*ARGSUSED*/
 int
-pversion(e)
-	int e;
+pversion(int e __unused)
 {
 
 	printf("Version %s\n", version);
@@ -695,8 +681,7 @@ pversion(e)
  * Load a file of user definitions.
  */
 void
-load(name)
-	char *name;
+load(char *name)
 {
 	FILE *in, *oldin;
 

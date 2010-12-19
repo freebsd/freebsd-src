@@ -50,8 +50,7 @@ __FBSDID("$FreeBSD$");
  * accomodate all funny formats.
  */
 int
-ishead(linebuf)
-	char linebuf[];
+ishead(char linebuf[])
 {
 	struct headline hl;
 	char parbuf[BUFSIZ];
@@ -73,10 +72,8 @@ ishead(linebuf)
 	return (1);
 }
 
-/*ARGSUSED*/
 void
-fail(linebuf, reason)
-	const char *linebuf, *reason;
+fail(const char *linebuf __unused, const char *reason __unused)
 {
 
 	/*
@@ -93,9 +90,7 @@ fail(linebuf, reason)
  * structure.  Actually, it scans.
  */
 void
-parse(line, hl, pbuf)
-	char line[], pbuf[];
-	struct headline *hl;
+parse(char line[], struct headline *hl, char pbuf[])
 {
 	char *cp, *sp;
 	char word[LINESIZE];
@@ -134,9 +129,7 @@ parse(line, hl, pbuf)
  * the left string into it.
  */
 char *
-copyin(src, space)
-	char *src;
-	char **space;
+copyin(char *src, char **space)
 {
 	char *cp, *top;
 
@@ -183,8 +176,7 @@ static char *date_formats[] = {
 };
 
 int
-isdate(date)
-	char date[];
+isdate(char date[])
 {
 	int i;
 
@@ -200,8 +192,7 @@ isdate(date)
  * Return 1 if they match, 0 if they don't
  */
 int
-cmatch(cp, tp)
-	char *cp, *tp;
+cmatch(char *cp, char *tp)
 {
 
 	while (*cp != '\0' && *tp != '\0')
@@ -256,8 +247,7 @@ cmatch(cp, tp)
  * or NULL if none follow.
  */
 char *
-nextword(wp, wbuf)
-	char *wp, *wbuf;
+nextword(char *wp, char *wbuf)
 {
 	int c;
 
