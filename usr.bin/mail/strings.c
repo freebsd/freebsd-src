@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
  */
 
 char *
-salloc(size)
-	int size;
+salloc(int size)
 {
 	char *t;
 	int s, index;
@@ -94,7 +93,7 @@ salloc(size)
  * since last reset.
  */
 void
-sreset()
+sreset(void)
 {
 	struct strings *sp;
 	int index;
@@ -116,7 +115,7 @@ sreset()
  * Meant to be called in main, after initialization.
  */
 void
-spreserve()
+spreserve(void)
 {
 	struct strings *sp;
 
