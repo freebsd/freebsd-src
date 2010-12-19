@@ -1291,21 +1291,23 @@ pmap_pte_quick(pmap_t pmap, vm_offset_t va)
 vm_paddr_t 
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
-	pt_entry_t pte, *ptep;
 	vm_paddr_t rtval;
+	pt_entry_t *pte;
+	pd_entry_t pde;
 
 	rtval = 0;
 	PMAP_LOCK(pmap);
-	ptep = pmap_pte(pmap, va);
-	pte = (ptep != NULL) ? *ptep : 0;
-	pmap_pte_release(ptep);
-	PMAP_UNLOCK(pmap);
-	if ((pte & PG_V) != 0) {
-		if ((pte & PG_PS) != 0)
-			rtval = (pte & PG_PS_FRAME) | (va & PDRMASK);
-		else
-			rtval = (pte & PG_FRAME) | (va & PAGE_MASK);
+	pde = pmap->pm_pdir[va >> PDRSHIFT];
+	if (pde != 0) {
+		if ((pde & PG_PS) != 0)
+			rtval = (pde & PG_PS_FRAME) | (va & PDRMASK);
+		else {
+			pte = pmap_pte(pmap, va);
+			rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
+			pmap_pte_release(pte);
+		}
 	}
+	PMAP_UNLOCK(pmap);
 	return (rtval);
 }
 
@@ -1319,30 +1321,40 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
+	pd_entry_t pde;
 	pt_entry_t pte, *ptep;
-	vm_paddr_t locked_pa, pa;
 	vm_page_t m;
+	vm_paddr_t pa;
 
-	locked_pa = 0;
+	pa = 0;
 	m = NULL;
 	PMAP_LOCK(pmap);
 retry:
-	ptep = pmap_pte(pmap, va);
-	pte = (ptep != NULL) ? *ptep : 0;
-	pmap_pte_release(ptep);
-	if ((pte & PG_V) != 0 &&
-	    ((pte & PG_RW) != 0 || (prot & VM_PROT_WRITE) == 0)) {
-		if ((pte & PG_PS) != 0) {
-			/* Compute the physical address of the 4KB page. */
-			pa = (pte & PG_PS_FRAME) | (va & PG_FRAME & PDRMASK);
-		} else
-			pa = pte & PG_FRAME;
-		if (vm_page_pa_tryrelock(pmap, pa, &locked_pa))
-			goto retry;
-		m = PHYS_TO_VM_PAGE(pa);
-		vm_page_hold(m);
-		PA_UNLOCK(locked_pa);
+	pde = *pmap_pde(pmap, va);
+	if (pde != 0) {
+		if (pde & PG_PS) {
+			if ((pde & PG_RW) || (prot & VM_PROT_WRITE) == 0) {
+				if (vm_page_pa_tryrelock(pmap, (pde & PG_PS_FRAME) |
+				       (va & PDRMASK), &pa))
+					goto retry;
+				m = PHYS_TO_VM_PAGE((pde & PG_PS_FRAME) |
+				    (va & PDRMASK));
+				vm_page_hold(m);
+			}
+		} else {
+			ptep = pmap_pte(pmap, va);
+			pte = *ptep;
+			pmap_pte_release(ptep);
+			if (pte != 0 &&
+			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
+				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME, &pa))
+					goto retry;
+				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
+				vm_page_hold(m);
+			}
+		}
 	}
+	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
@@ -4979,30 +4991,39 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
+	pd_entry_t *pdep;
 	pt_entry_t *ptep, pte;
 	vm_paddr_t pa;
 	int val;
 
 	PMAP_LOCK(pmap);
 retry:
-	ptep = pmap_pte(pmap, addr);
-	pte = (ptep != NULL) ? *ptep : 0;
-	pmap_pte_release(ptep);
-	if ((pte & PG_V) != 0) {
-		val = MINCORE_INCORE;
-		if ((pte & PG_PS) != 0) {
-			val |= MINCORE_SUPER;
+	pdep = pmap_pde(pmap, addr);
+	if (*pdep != 0) {
+		if (*pdep & PG_PS) {
+			pte = *pdep;
 			/* Compute the physical address of the 4KB page. */
-			pa = (pte & PG_PS_FRAME) | (addr & PG_FRAME & PDRMASK);
-		} else
+			pa = ((*pdep & PG_PS_FRAME) | (addr & PDRMASK)) &
+			    PG_FRAME;
+			val = MINCORE_SUPER;
+		} else {
+			ptep = pmap_pte(pmap, addr);
+			pte = *ptep;
+			pmap_pte_release(ptep);
 			pa = pte & PG_FRAME;
+			val = 0;
+		}
+	} else {
+		pte = 0;
+		pa = 0;
+		val = 0;
+	}
+	if ((pte & PG_V) != 0) {
+		val |= MINCORE_INCORE;
 		if ((pte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
 		if ((pte & PG_A) != 0)
 			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
-	} else {
-		val = 0;
-		pa = 0;
 	}
 	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
 	    (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER) &&
