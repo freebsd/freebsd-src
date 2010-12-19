@@ -267,9 +267,7 @@
 
 /* Define if your assembler supports -relax option. */
 #ifndef USED_FOR_TARGET
-# ifdef __sparc64__
-#  define HAVE_AS_RELAX_OPTION 1
-# endif
+#define HAVE_AS_RELAX_OPTION 1
 #endif
 
 
@@ -891,9 +889,7 @@
 
 /* Define if your PowerPC64 linker only needs function descriptor syms. */
 #ifndef USED_FOR_TARGET
-# ifdef __powerpc64__
-#  define HAVE_LD_NO_DOT_SYMS 1
-# endif
+#define HAVE_LD_NO_DOT_SYMS 1
 #endif
 
 
