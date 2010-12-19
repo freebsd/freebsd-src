@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
  * and forking a sh -c
  */
 int
-shell(str)
-	char *str;
+shell(char *str)
 {
 	sig_t sigint = signal(SIGINT, SIG_IGN);
 	char *sh;
@@ -73,8 +72,7 @@ shell(str)
  */
 /*ARGSUSED*/
 int
-dosh(str)
-	char *str;
+dosh(char *str __unused)
 {
 	sig_t sigint = signal(SIGINT, SIG_IGN);
 	char *sh;
@@ -92,9 +90,7 @@ dosh(str)
  * last issued command where possible.
  */
 int
-bangexp(str, strsize)
-	char *str;
-	size_t strsize;
+bangexp(char *str, size_t strsize)
 {
 	char bangbuf[BUFSIZ];
 	static char lastbang[BUFSIZ];
@@ -148,7 +144,7 @@ overf:
  */
 
 int
-help()
+help(void)
 {
 	int c;
 	FILE *f;
@@ -167,8 +163,7 @@ help()
  * Change user's working directory.
  */
 int
-schdir(arglist)
-	char **arglist;
+schdir(char **arglist)
 {
 	char *cp;
 
@@ -187,8 +182,7 @@ schdir(arglist)
 }
 
 int
-respond(msgvec)
-	int *msgvec;
+respond(int *msgvec)
 {
 	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (dorespond(msgvec));
@@ -201,8 +195,7 @@ respond(msgvec)
  * message header and send them off to mail1()
  */
 int
-dorespond(msgvec)
-	int *msgvec;
+dorespond(int *msgvec)
 {
 	struct message *mp;
 	char *cp, *rcv, *replyto;
@@ -267,8 +260,7 @@ dorespond(msgvec)
  * it does not already.
  */
 char *
-reedit(subj)
-	char *subj;
+reedit(char *subj)
 {
 	char *newsubj;
 
@@ -288,8 +280,7 @@ reedit(subj)
  * back to the system mailbox.
  */
 int
-preserve(msgvec)
-	int *msgvec;
+preserve(int *msgvec)
 {
 	int *ip, mesg;
 	struct message *mp;
@@ -312,8 +303,7 @@ preserve(msgvec)
  * Mark all given messages as unread.
  */
 int
-unread(msgvec)
-	int	msgvec[];
+unread(int msgvec[])
 {
 	int *ip;
 
@@ -329,8 +319,7 @@ unread(msgvec)
  * Print the size of each message.
  */
 int
-messize(msgvec)
-	int *msgvec;
+messize(int *msgvec)
 {
 	struct message *mp;
 	int *ip, mesg;
@@ -348,8 +337,7 @@ messize(msgvec)
  * by returning an error.
  */
 int
-rexit(e)
-	int e;
+rexit(int e __unused)
 {
 	if (sourcing)
 		return (1);
@@ -362,8 +350,7 @@ rexit(e)
  * of csh.
  */
 int
-set(arglist)
-	char **arglist;
+set(char **arglist)
 {
 	struct var *vp;
 	char *cp, *cp2;
@@ -409,8 +396,7 @@ set(arglist)
  * Unset a bunch of variable values.
  */
 int
-unset(arglist)
-	char **arglist;
+unset(char **arglist)
 {
 	struct var *vp, *vp2;
 	int errs, h;
@@ -449,8 +435,7 @@ unset(arglist)
  * Put add users to a group.
  */
 int
-group(argv)
-	char **argv;
+group(char **argv)
 {
 	struct grouphead *gh;
 	struct group *gp;
@@ -505,8 +490,7 @@ group(argv)
  * order.
  */
 void
-sort(list)
-	char **list;
+sort(char **list)
 {
 	char **ap;
 
@@ -522,8 +506,7 @@ sort(list)
  * qsort.
  */
 int
-diction(a, b)
-	const void *a, *b;
+diction(const void *a, const void *b)
 {
 	return (strcmp(*(const char **)a, *(const char **)b));
 }
@@ -534,8 +517,7 @@ diction(a, b)
 
 /*ARGSUSED*/
 int
-null(e)
-	int e;
+null(int e __unused)
 {
 	return (0);
 }
@@ -545,8 +527,7 @@ null(e)
  * the current file.
  */
 int
-file(argv)
-	char **argv;
+file(char **argv)
 {
 
 	if (argv[0] == NULL) {
@@ -563,8 +544,7 @@ file(argv)
  * Expand file names like echo
  */
 int
-echo(argv)
-	char **argv;
+echo(char **argv)
 {
 	char **ap, *cp;
 
@@ -581,8 +561,7 @@ echo(argv)
 }
 
 int
-Respond(msgvec)
-	int *msgvec;
+Respond(int *msgvec)
 {
 	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (doRespond(msgvec));
@@ -596,8 +575,7 @@ Respond(msgvec)
  * reply.
  */
 int
-doRespond(msgvec)
-	int msgvec[];
+doRespond(int msgvec[])
 {
 	struct header head;
 	struct message *mp;
@@ -634,8 +612,7 @@ doRespond(msgvec)
  * .mailrc and do some things if sending, others if receiving.
  */
 int
-ifcmd(argv)
-	char **argv;
+ifcmd(char **argv)
 {
 	char *cp;
 
@@ -666,7 +643,7 @@ ifcmd(argv)
  * flip over the conditional flag.
  */
 int
-elsecmd()
+elsecmd(void)
 {
 
 	switch (cond) {
@@ -694,7 +671,7 @@ elsecmd()
  * End of if statement.  Just set cond back to anything.
  */
 int
-endifcmd()
+endifcmd(void)
 {
 
 	if (cond == CANY) {
@@ -709,8 +686,7 @@ endifcmd()
  * Set the list of alternate names.
  */
 int
-alternates(namelist)
-	char **namelist;
+alternates(char **namelist)
 {
 	int c;
 	char **ap, **ap2, *cp;
