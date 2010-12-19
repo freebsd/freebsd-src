@@ -22,6 +22,7 @@
 #include "driver.h"
 #include "eloop.h"
 #include "common/ieee802_11_defs.h"
+#include "common/wpa_common.h"
 
 #include <sys/socket.h>
 #include <net/if.h>
