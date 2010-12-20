@@ -1384,6 +1384,7 @@ pmap_qremove(vm_offset_t sva, int count)
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
+	PT_UPDATES_FLUSH();
 	pmap_invalidate_range(kernel_pmap, sva, va);
 	critical_exit();
 	vm_page_unlock_queues();
@@ -1854,15 +1855,24 @@ pmap_release(pmap_t pmap)
 		m = ptdpg[i];
 		ma = xpmap_ptom(VM_PAGE_TO_PHYS(m));
 		/* unpinning L1 and L2 treated the same */
+#if 0
                 xen_pgd_unpin(ma);
+#else
+		if (i == NPGPTD)
+	                xen_pgd_unpin(ma);
+#endif
 #ifdef PAE
-		KASSERT(xpmap_ptom(VM_PAGE_TO_PHYS(m)) == (pmap->pm_pdpt[i] & PG_FRAME),
-		    ("pmap_release: got wrong ptd page"));
+		if (i < NPGPTD)
+			KASSERT(xpmap_ptom(VM_PAGE_TO_PHYS(m)) == (pmap->pm_pdpt[i] & PG_FRAME),
+			    ("pmap_release: got wrong ptd page"));
 #endif
 		m->wire_count--;
 		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free(m);
 	}
+#ifdef PAE
+	pmap_qremove((vm_offset_t)pmap->pm_pdpt, 1);
+#endif
 	PMAP_LOCK_DESTROY(pmap);
 }
 
