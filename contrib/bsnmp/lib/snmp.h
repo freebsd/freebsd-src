@@ -89,6 +89,10 @@ enum snmp_version {
 	SNMP_V3,
 };
 
+#define	SNMP_MPM_SNMP_V1		0
+#define	SNMP_MPM_SNMP_V2c		1
+#define	SNMP_MPM_SNMP_V3		3
+
 #define	SNMP_ADM_STR32_SIZ		(32 + 1)
 #define	SNMP_AUTH_KEY_SIZ		40
 #define	SNMP_PRIV_KEY_SIZ		32
@@ -255,6 +259,7 @@ int snmp_value_parse(const char *, enum snmp_syntax, union snmp_values *);
 int snmp_value_copy(struct snmp_value *, const struct snmp_value *);
 
 void snmp_pdu_free(struct snmp_pdu *);
+void snmp_pdu_init_secparams(struct snmp_pdu *);
 enum snmp_code snmp_pdu_decode(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *);
 enum snmp_code snmp_pdu_decode_header(struct asn_buf *, struct snmp_pdu *);
 enum snmp_code snmp_pdu_decode_scoped(struct asn_buf *, struct snmp_pdu *, int32_t *);

@@ -30,6 +30,9 @@
 #
 # System group and private Begemot SNMPd MIB.
 #
+
+include "tc.def"
+
 (1 internet
   (2 mgmt
     (1 mibII
