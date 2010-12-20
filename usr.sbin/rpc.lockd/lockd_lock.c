@@ -197,6 +197,7 @@ enum hwlock_status lock_hwlock(struct file_lock *fl);
 enum split_status split_nfslock(const struct file_lock *exist_lock,
     const struct file_lock *unlock_lock, struct file_lock **left_lock,
     struct file_lock **right_lock);
+int	duplicate_block(struct file_lock *fl);
 void	add_blockingfilelock(struct file_lock *fl);
 enum hwlock_status	unlock_hwlock(const struct file_lock *fl);
 enum hwlock_status	test_hwlock(const struct file_lock *fl,
@@ -1198,7 +1199,7 @@ test_hwlock(fl, conflicting_fl)
 int
 duplicate_block(struct file_lock *fl)
 {
-	struct file_lock *ifl,*nfl;
+	struct file_lock *ifl;
 	int retval = 0;
 
 	debuglog("Entering duplicate_block");
