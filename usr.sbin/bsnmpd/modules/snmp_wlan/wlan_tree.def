@@ -29,7 +29,16 @@
 # $FreeBSD$
 #
 
-include "tc.def"
+#include "tc.def"
+
+typedef RowStatus ENUM (
+	1 active
+	2 notInService
+	3 notReady
+	4 createAndGo
+	5 createAndWait
+	6 destroy
+)
 
 typedef TruthValue ENUM (
 	1 true
