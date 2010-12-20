@@ -764,6 +764,7 @@ snmp_pdu_encode_header(struct asn_buf *b, struct snmp_pdu *pdu)
 
 		if (pdu->type != SNMP_PDU_RESPONSE &&
 		    pdu->type != SNMP_PDU_TRAP &&
+		    pdu->type != SNMP_PDU_TRAP2 &&
 		    pdu->type != SNMP_PDU_REPORT)
 			pdu->flags |= SNMP_MSG_REPORT_FLAG;
 
@@ -1176,23 +1177,19 @@ snmp_value_copy(struct snmp_value *to, const struct snmp_value *from)
 }
 
 void
-snmp_pdu_init_secparams(struct snmp_pdu *pdu, struct snmp_engine *eng,
-    struct snmp_user *user)
+snmp_pdu_init_secparams(struct snmp_pdu *pdu)
 {
 	int32_t rval;
 
-	memcpy(&pdu->engine, eng, sizeof(pdu->engine));
-	memcpy(&pdu->user, user, sizeof(pdu->user));
-
-	if (user->auth_proto != SNMP_AUTH_NOAUTH)
+	if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH)
 		pdu->flags |= SNMP_MSG_AUTH_FLAG;
 
-	switch (user->priv_proto) {
+	switch (pdu->user.priv_proto) {
 	case SNMP_PRIV_DES:
-		memcpy(pdu->msg_salt, &eng->engine_boots,
-		    sizeof(eng->engine_boots));
+		memcpy(pdu->msg_salt, &pdu->engine.engine_boots,
+		    sizeof(pdu->engine.engine_boots));
 		rval = random();
-		memcpy(pdu->msg_salt + sizeof(eng->engine_boots), &rval,
+		memcpy(pdu->msg_salt + sizeof(pdu->engine.engine_boots), &rval,
 		    sizeof(int32_t));
 		pdu->flags |= SNMP_MSG_PRIV_FLAG;
 		break;
