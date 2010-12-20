@@ -66,7 +66,7 @@ vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr, vm_page_t *mp,
     int count, vm_prot_t prot)
 {
 	vm_offset_t end, va;
-	int faults;
+	int faults, rv;
 	pmap_t pmap;
 	vm_page_t m, *pages;
 	
@@ -124,8 +124,8 @@ vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr, vm_page_t *mp,
 	 * trigger a fault where neccessary
 	 */
 	for (pages = mp, va = addr; va < end; va += PAGE_SIZE, pages++) {
-		if (*pages == NULL && vm_fault_hold(map, va, prot,
-		    VM_FAULT_NORMAL, pages) != KERN_SUCCESS)
+		if (*pages == NULL && (rv = vm_fault_hold(map, va, prot,
+		    VM_FAULT_NORMAL, pages)) != KERN_SUCCESS)
 			goto error;
 	}
 	return (0);
