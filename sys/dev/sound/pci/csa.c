@@ -133,7 +133,7 @@ clkrun_hack(int run)
 			if (pci_get_vendor(*childp) == 0x8086 && pci_get_device(*childp) == 0x7113) {
 				port = (pci_read_config(*childp, 0x41, 1) << 8) + 0x10;
 				/* XXX */
-				btag = I386_BUS_SPACE_IO;
+				btag = X86_BUS_SPACE_IO;
 
 				control = bus_space_read_2(btag, 0x0, port);
 				control &= ~0x2000;
