@@ -84,14 +84,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/rtprio.h>
 
-#ifdef __amd64__
-#define	BUS_SPACE_IO	AMD64_BUS_SPACE_IO
-#define	BUS_SPACE_MEM	AMD64_BUS_SPACE_MEM
-#else
-#define	BUS_SPACE_IO	I386_BUS_SPACE_IO
-#define	BUS_SPACE_MEM	I386_BUS_SPACE_MEM
-#endif
-
 #define	ELF_KERN_STR	("elf"__XSTRING(__ELF_WORD_SIZE)" kernel")
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
@@ -425,7 +417,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	switch (type) {
 	case SYS_RES_IOPORT:
 #ifdef PC98
-		error = i386_bus_space_handle_alloc(I386_BUS_SPACE_IO,
+		error = i386_bus_space_handle_alloc(X86_BUS_SPACE_IO,
 		    rman_get_start(r), rman_get_size(r), &bh);
 		if (error)
 			return (error);
@@ -433,18 +425,18 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 #else
 		rman_set_bushandle(r, rman_get_start(r));
 #endif
-		rman_set_bustag(r, BUS_SPACE_IO);
+		rman_set_bustag(r, X86_BUS_SPACE_IO);
 		break;
 	case SYS_RES_MEMORY:
 #ifdef PC98
-		error = i386_bus_space_handle_alloc(I386_BUS_SPACE_MEM,
+		error = i386_bus_space_handle_alloc(X86_BUS_SPACE_MEM,
 		    rman_get_start(r), rman_get_size(r), &bh);
 		if (error)
 			return (error);
 #endif
 		vaddr = pmap_mapdev(rman_get_start(r), rman_get_size(r));
 		rman_set_virtual(r, vaddr);
-		rman_set_bustag(r, BUS_SPACE_MEM);
+		rman_set_bustag(r, X86_BUS_SPACE_MEM);
 #ifdef PC98
 		/* PC-98: the type of bus_space_handle_t is the structure. */
 		bh->bsh_base = (bus_addr_t) vaddr;
