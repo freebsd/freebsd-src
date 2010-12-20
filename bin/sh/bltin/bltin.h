@@ -57,21 +57,12 @@
 #define fwrite(ptr, size, nmemb, file) outbin(ptr, (size) * (nmemb), file)
 #define fflush flushout
 #define INITARGS(argv)
-#define warnx1(a, b, c) {				\
-	char buf[64];					\
-	(void)snprintf(buf, sizeof(buf), a);		\
-	error("%s", buf);				\
-}
-#define warnx2(a, b, c) {				\
-	char buf[64];					\
-	(void)snprintf(buf, sizeof(buf), a, b);		\
-	error("%s", buf);				\
-}
-#define warnx3(a, b, c) {				\
-	char buf[64];					\
-	(void)snprintf(buf, sizeof(buf), a, b, c);	\
-	error("%s", buf);				\
-}
+#define warnx(...) do {					\
+	out2fmt_flush("%s: ", commandname);		\
+	out2fmt_flush(__VA_ARGS__);			\
+	out2fmt_flush("\n");				\
+	} while (0)
+#define errx(exitstatus, ...) error(__VA_ARGS__)
 
 #else
 #undef NULL
