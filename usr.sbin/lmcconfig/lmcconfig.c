@@ -1940,7 +1940,7 @@ static void load_xilinx(char *name)
   FILE *f;
   char *ucode;
   int i, length;
-  char c;
+  int c;
 
   if (verbose) printf("Load firmware from file %s...\n", name);
   if ((f = fopen(name, "r")) == 0)
