@@ -372,10 +372,8 @@ sis_read_cmos(struct sis_softc *sc, device_t dev, caddr_t dest, int off, int cnt
 	pci_write_config(bridge, 0x48, reg|0x40, 1);
 
 	/* XXX */
-#if defined(__i386__)
-	btag = I386_BUS_SPACE_IO;
-#elif defined(__amd64__)
-	btag = AMD64_BUS_SPACE_IO;
+#if defined(__amd64__) || defined(__i386__)
+	btag = X86_BUS_SPACE_IO;
 #endif
 
 	for (i = 0; i < cnt; i++) {
