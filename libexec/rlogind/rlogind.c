@@ -477,7 +477,7 @@ protocol(int f, int p)
 }
 
 void
-cleanup(int signo)
+cleanup(int signo __unused)
 {
 
 	shutdown(netf, SHUT_RDWR);
