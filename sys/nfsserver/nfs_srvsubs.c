@@ -1144,6 +1144,8 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 			vput(*vpp);
 			*vpp = NULL;
 			error = NFSERR_AUTHERR | AUTH_TOOWEAK;
+			vfs_unbusy(mp);
+			goto out;
 		}
 	}
 #endif
