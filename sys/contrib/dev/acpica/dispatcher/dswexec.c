@@ -400,10 +400,26 @@ AcpiDsExecBeginOp (
              * we must enter this object into the namespace.  The created
              * object is temporary and will be deleted upon completion of
              * the execution of this method.
+             *
+             * Note 10/2010: Except for the Scope() op. This opcode does
+             * not actually create a new object, it refers to an existing
+             * object. However, for Scope(), we want to indeed open a
+             * new scope.
              */
-            Status = AcpiDsLoad2BeginOp (WalkState, NULL);
+            if (Op->Common.AmlOpcode != AML_SCOPE_OP)
+            {
+                Status = AcpiDsLoad2BeginOp (WalkState, NULL);
+            }
+            else
+            {
+                Status = AcpiDsScopeStackPush (Op->Named.Node,
+                            Op->Named.Node->Type, WalkState);
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
+            }
         }
-
         break;
 
 

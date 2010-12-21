@@ -1645,9 +1645,15 @@ wpi_notif_intr(struct wpi_softc *sc)
 	struct wpi_rx_data *data;
 	uint32_t hw;
 
+	bus_dmamap_sync(sc->shared_dma.tag, sc->shared_dma.map,
+	    BUS_DMASYNC_POSTREAD);
+
 	hw = le32toh(sc->shared->next);
 	while (sc->rxq.cur != hw) {
 		data = &sc->rxq.data[sc->rxq.cur];
+
+		bus_dmamap_sync(sc->rxq.data_dmat, data->map,
+		    BUS_DMASYNC_POSTREAD);
 		desc = (void *)data->m->m_ext.ext_buf;
 
 		DPRINTFN(WPI_DEBUG_NOTIFY,
@@ -2429,6 +2435,9 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
 		sc->config.flags |= htole32(WPI_CONFIG_AUTO |
 		    WPI_CONFIG_24GHZ);
+	} else {
+		sc->config.flags &= ~htole32(WPI_CONFIG_AUTO |
+		    WPI_CONFIG_24GHZ);
 	}
 	if (IEEE80211_IS_CHAN_A(ni->ni_chan)) {
 		sc->config.cck_mask  = 0;
@@ -3004,14 +3013,12 @@ wpi_rfkill_resume(struct wpi_softc *sc)
 	if (ntries == 1000) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for thermal calibration\n");
-		WPI_UNLOCK(sc);
 		return;
 	}
 	DPRINTFN(WPI_DEBUG_TEMP,("temperature %d\n", sc->temp));
 
 	if (wpi_config(sc) != 0) {
 		device_printf(sc->sc_dev, "device config failed\n");
-		WPI_UNLOCK(sc);
 		return;
 	}
 
@@ -3554,7 +3561,9 @@ wpi_set_channel(struct ieee80211com *ic)
 	 * are already taken care of by their respective firmware commands.
 	 */
 	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
+		WPI_LOCK(sc);
 		error = wpi_config(sc);
+		WPI_UNLOCK(sc);
 		if (error != 0)
 			device_printf(sc->sc_dev,
 			    "error %d settting channel\n", error);

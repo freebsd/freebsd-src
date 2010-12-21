@@ -143,13 +143,13 @@ device          umass           # Disks/Mass storage - Requires scbus and da
 
 #i2c
 # Not yet
-#device      ic
-#device      iic
-#device      iicbb
-#device      iicbus
-#device      xlr_rtc
-#device      xlr_temperature
-#device      xlr_eeprom
+device      ic
+device      iic
+device      iicbb
+device      iicbus
+device      ds1374u	# RTC on XLR boards
+device      max6657	# Temparature sensor on XLR boards
+device      at24co2n	# EEPROM on XLR boards
 
 #crypto
 # Not yet

@@ -185,8 +185,6 @@ static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 static int init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot);
-static vm_page_t pmap_alloc_pte_page(unsigned int index, int req);
-static void pmap_grow_pte_page_cache(void);
 
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
@@ -1062,8 +1060,8 @@ pmap_pinit0(pmap_t pmap)
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
 
-static void
-pmap_grow_pte_page_cache()
+void
+pmap_grow_direct_page_cache()
 {
 
 #ifdef __mips_n64
@@ -1073,8 +1071,8 @@ pmap_grow_pte_page_cache()
 #endif
 }
 
-static vm_page_t
-pmap_alloc_pte_page(unsigned int index, int req)
+vm_page_t
+pmap_alloc_direct_page(unsigned int index, int req)
 {
 	vm_page_t m;
 
@@ -1107,8 +1105,8 @@ pmap_pinit(pmap_t pmap)
 	/*
 	 * allocate the page directory page
 	 */
-	while ((ptdpg = pmap_alloc_pte_page(NUSERPGTBLS, VM_ALLOC_NORMAL)) == NULL)
-	       pmap_grow_pte_page_cache();
+	while ((ptdpg = pmap_alloc_direct_page(NUSERPGTBLS, VM_ALLOC_NORMAL)) == NULL)
+	       pmap_grow_direct_page_cache();
 
 	ptdva = MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(ptdpg));
 	pmap->pm_segtab = (pd_entry_t *)ptdva;
@@ -1141,11 +1139,11 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 	/*
 	 * Find or fabricate a new pagetable page
 	 */
-	if ((m = pmap_alloc_pte_page(ptepindex, VM_ALLOC_NORMAL)) == NULL) {
+	if ((m = pmap_alloc_direct_page(ptepindex, VM_ALLOC_NORMAL)) == NULL) {
 		if (flags & M_WAITOK) {
 			PMAP_UNLOCK(pmap);
 			vm_page_unlock_queues();
-			pmap_grow_pte_page_cache();
+			pmap_grow_direct_page_cache();
 			vm_page_lock_queues();
 			PMAP_LOCK(pmap);
 		}
@@ -1313,7 +1311,7 @@ pmap_growkernel(vm_offset_t addr)
 #ifdef __mips_n64
 		if (*pdpe == 0) {
 			/* new intermediate page table entry */
-			nkpg = pmap_alloc_pte_page(nkpt, VM_ALLOC_INTERRUPT);
+			nkpg = pmap_alloc_direct_page(nkpt, VM_ALLOC_INTERRUPT);
 			if (nkpg == NULL)
 				panic("pmap_growkernel: no memory to grow kernel");
 			*pdpe = (pd_entry_t)MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(nkpg));
@@ -1333,7 +1331,7 @@ pmap_growkernel(vm_offset_t addr)
 		/*
 		 * This index is bogus, but out of the way
 		 */
-		nkpg = pmap_alloc_pte_page(nkpt, VM_ALLOC_INTERRUPT);
+		nkpg = pmap_alloc_direct_page(nkpt, VM_ALLOC_INTERRUPT);
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 		nkpt++;
@@ -3100,7 +3098,7 @@ pads(pmap_t pm)
 				    va >= VM_MAXUSER_ADDRESS)
 					continue;
 				ptep = pmap_pte(pm, va);
-				if (pmap_pte_v(ptep))
+				if (pte_test(ptep, PTE_V))
 					printf("%x:%x ", va, *(int *)ptep);
 			}
 

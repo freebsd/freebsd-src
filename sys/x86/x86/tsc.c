@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/power.h>
 #include <sys/smp.h>
 #include <machine/clock.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -49,7 +50,7 @@ __FBSDID("$FreeBSD$");
 uint64_t	tsc_freq;
 int		tsc_is_broken;
 int		tsc_is_invariant;
-u_int		tsc_present;
+int		tsc_present;
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
 
 SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
@@ -103,13 +104,37 @@ init_TSC(void)
 	if (bootverbose)
 		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
 
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_AMD:
+		if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+		    CPUID_TO_FAMILY(cpu_id) >= 0x10)
+			tsc_is_invariant = 1;
+		break;
+	case CPU_VENDOR_INTEL:
+		if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+		    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
+		    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
+		    CPUID_TO_MODEL(cpu_id) >= 0x3))
+			tsc_is_invariant = 1;
+		break;
+	case CPU_VENDOR_CENTAUR:
+		if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		    CPUID_TO_MODEL(cpu_id) >= 0xf &&
+		    (rdmsr(0x1203) & 0x100000000ULL) == 0)
+			tsc_is_invariant = 1;
+		break;
+	}
+
 	/*
-	 * Inform CPU accounting about our boot-time clock rate.  Once the
-	 * system is finished booting, we will get the real max clock rate
-	 * via tsc_freq_max().  This also will be updated if someone loads
-	 * a cpufreq driver after boot that discovers a new max frequency.
+	 * Inform CPU accounting about our boot-time clock rate.  This will
+	 * be updated if someone loads a cpufreq driver after boot that
+	 * discovers a new max frequency.
 	 */
 	set_cputicker(rdtsc, tsc_freq, 1);
+
+	if (tsc_is_invariant)
+		return;
 
 	/* Register to find out about changes in CPU frequency. */
 	tsc_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
@@ -174,9 +199,6 @@ tsc_levels_changed(void *arg, int unit)
 	int count, error;
 	uint64_t max_freq;
 
-	if (tsc_is_invariant)
-		return;
-
 	/* Only use values from the first CPU, assuming all are equal. */
 	if (unit != 0)
 		return;
@@ -210,8 +232,7 @@ static void
 tsc_freq_changing(void *arg, const struct cf_level *level, int *status)
 {
 
-	if (*status != 0 || timecounter != &tsc_timecounter ||
-	    tsc_is_invariant)
+	if (*status != 0 || timecounter != &tsc_timecounter)
 		return;
 
 	printf("timecounter TSC must not be in use when "
@@ -223,11 +244,9 @@ tsc_freq_changing(void *arg, const struct cf_level *level, int *status)
 static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 {
-	/*
-	 * If there was an error during the transition or
-	 * TSC is P-state invariant, don't do anything.
-	 */
-	if (status != 0 || tsc_is_invariant)
+
+	/* If there was an error during the transition, don't do anything. */
+	if (status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */

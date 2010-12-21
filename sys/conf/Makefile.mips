@@ -50,6 +50,7 @@ HACK_EXTRA_FLAGS=-shared
 # is extremely poor, as well as -mno-abicalls to force no ABI usage.
 CFLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
 HACK_EXTRA_FLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
+TRAMP_EXTRA_FLAGS=${EXTRA_FLAGS} $(ARCH_FLAGS)
 
 # XXX hardcoded kernel entry point
 ASM_CFLAGS+=${CFLAGS} -D_LOCORE -DLOCORE
@@ -59,24 +60,13 @@ trampoline: ${KERNEL_KO}.tramp.bin
 ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 	$S/$M/$M/inckern.S 
 	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
-	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
-	sed s/${KERNLOADADDR}/${TRAMPLOADADDR}/ ${LDSCRIPT_NAME} | \
-		sed s/" + SIZEOF_HEADERS"//  > ${LDSCRIPT_NAME}.tramp.noheader
-	# Generate .S file that setups stack and jumps to trampoline
-	echo "#include <machine/asm.h>" >tmphack.S
-	echo "ENTRY(_start)" >>tmphack.S
-	echo "PTR_LA t0, kernel_end" >>tmphack.S
-	echo "move sp, t0" >>tmphack.S
-	echo "add sp, 0x2000" >>tmphack.S
-	echo "and sp, ~0x7" >>tmphack.S
-	echo "PTR_LA t0, _startC" >>tmphack.S
-	echo "j t0" >>tmphack.S
-	echo "END(_start)" >>tmphack.S
-	echo "#define KERNNAME \"${KERNEL_KO}.tmp\""  >opt_kernname.h 
-	${CC} -O -nostdlib -I. -I$S ${HACK_EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
-		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader tmphack.S \
-		$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
-		-o ${KERNEL_KO}.tramp.noheader 
+		-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
+	sed -e s/${KERNLOADADDR}/${TRAMPLOADADDR}/ -e s/" + SIZEOF_HEADERS"// \
+		 ${LDSCRIPT_NAME} > ${LDSCRIPT_NAME}.tramp.noheader
+	${CC} -O -nostdlib -I. -I$S ${TRAMP_EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
+		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader  \
+		-DKERNNAME="\"${KERNEL_KO}.tmp\"" $S/$M/$M/elf_trampoline.c \
+		$S/$M/$M/inckern.S  -o ${KERNEL_KO}.tramp.noheader 
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
 		${KERNEL_KO}.tramp.bin \
 

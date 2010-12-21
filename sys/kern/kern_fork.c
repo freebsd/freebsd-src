@@ -194,6 +194,93 @@ SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, sysctl_kern_randompid, "I", "Random PID modulus");
 
 static int
+fork_findpid(int flags)
+{
+	struct proc *p;
+	int trypid;
+	static int pidchecked = 0;
+
+	sx_assert(&allproc_lock, SX_XLOCKED);
+
+	/*
+	 * Find an unused process ID.  We remember a range of unused IDs
+	 * ready to use (from lastpid+1 through pidchecked-1).
+	 *
+	 * If RFHIGHPID is set (used during system boot), do not allocate
+	 * low-numbered pids.
+	 */
+	trypid = lastpid + 1;
+	if (flags & RFHIGHPID) {
+		if (trypid < 10)
+			trypid = 10;
+	} else {
+		if (randompid)
+			trypid += arc4random() % randompid;
+	}
+retry:
+	/*
+	 * If the process ID prototype has wrapped around,
+	 * restart somewhat above 0, as the low-numbered procs
+	 * tend to include daemons that don't exit.
+	 */
+	if (trypid >= PID_MAX) {
+		trypid = trypid % PID_MAX;
+		if (trypid < 100)
+			trypid += 100;
+		pidchecked = 0;
+	}
+	if (trypid >= pidchecked) {
+		int doingzomb = 0;
+
+		pidchecked = PID_MAX;
+		/*
+		 * Scan the active and zombie procs to check whether this pid
+		 * is in use.  Remember the lowest pid that's greater
+		 * than trypid, so we can avoid checking for a while.
+		 */
+		p = LIST_FIRST(&allproc);
+again:
+		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
+			while (p->p_pid == trypid ||
+			    (p->p_pgrp != NULL &&
+			    (p->p_pgrp->pg_id == trypid ||
+			    (p->p_session != NULL &&
+			    p->p_session->s_sid == trypid)))) {
+				trypid++;
+				if (trypid >= pidchecked)
+					goto retry;
+			}
+			if (p->p_pid > trypid && pidchecked > p->p_pid)
+				pidchecked = p->p_pid;
+			if (p->p_pgrp != NULL) {
+				if (p->p_pgrp->pg_id > trypid &&
+				    pidchecked > p->p_pgrp->pg_id)
+					pidchecked = p->p_pgrp->pg_id;
+				if (p->p_session != NULL &&
+				    p->p_session->s_sid > trypid &&
+				    pidchecked > p->p_session->s_sid)
+					pidchecked = p->p_session->s_sid;
+			}
+		}
+		if (!doingzomb) {
+			doingzomb = 1;
+			p = LIST_FIRST(&zombproc);
+			goto again;
+		}
+	}
+
+	/*
+	 * RFHIGHPID does not mess with the lastpid counter during boot.
+	 */
+	if (flags & RFHIGHPID)
+		pidchecked = 0;
+	else
+		lastpid = trypid;
+
+	return (trypid);
+}
+
+static int
 fork_norfproc(struct thread *td, int flags, struct proc **procp)
 {
 	int error;
@@ -244,127 +331,20 @@ fail:
 	return (error);
 }
 
-int
-fork1(struct thread *td, int flags, int pages, struct proc **procp)
+static void
+do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
+    struct vmspace *vm2)
 {
-	struct proc *p1, *p2, *pptr;
-	struct proc *newproc;
-	int ok, trypid;
-	static int curfail, pidchecked = 0;
-	static struct timeval lastfail;
+	struct proc *p1, *pptr;
+	int trypid;
 	struct filedesc *fd;
 	struct filedesc_to_leader *fdtol;
-	struct thread *td2;
 	struct sigacts *newsigacts;
-	struct vmspace *vm2;
-	vm_ooffset_t mem_charged;
-	int error;
 
-	/* Can't copy and clear. */
-	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
-		return (EINVAL);
+	sx_assert(&proctree_lock, SX_SLOCKED);
+	sx_assert(&allproc_lock, SX_XLOCKED);
 
 	p1 = td->td_proc;
-
-	/*
-	 * Here we don't create a new process, but we divorce
-	 * certain parts of a process from itself.
-	 */
-	if ((flags & RFPROC) == 0)
-		return (fork_norfproc(td, flags, procp));
-
-	/*
-	 * XXX
-	 * We did have single-threading code here
-	 * however it proved un-needed and caused problems
-	 */
-
-	mem_charged = 0;
-	vm2 = NULL;
-	if (pages == 0)
-		pages = KSTACK_PAGES;
-	/* Allocate new proc. */
-	newproc = uma_zalloc(proc_zone, M_WAITOK);
-	td2 = FIRST_THREAD_IN_PROC(newproc);
-	if (td2 == NULL) {
-		td2 = thread_alloc(pages);
-		if (td2 == NULL) {
-			error = ENOMEM;
-			goto fail1;
-		}
-		proc_linkup(newproc, td2);
-	} else {
-		if (td2->td_kstack == 0 || td2->td_kstack_pages != pages) {
-			if (td2->td_kstack != 0)
-				vm_thread_dispose(td2);
-			if (!thread_alloc_stack(td2, pages)) {
-				error = ENOMEM;
-				goto fail1;
-			}
-		}
-	}
-
-	if ((flags & RFMEM) == 0) {
-		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
-		if (vm2 == NULL) {
-			error = ENOMEM;
-			goto fail1;
-		}
-		if (!swap_reserve(mem_charged)) {
-			/*
-			 * The swap reservation failed. The accounting
-			 * from the entries of the copied vm2 will be
-			 * substracted in vmspace_free(), so force the
-			 * reservation there.
-			 */
-			swap_reserve_force(mem_charged);
-			error = ENOMEM;
-			goto fail1;
-		}
-	} else
-		vm2 = NULL;
-#ifdef MAC
-	mac_proc_init(newproc);
-#endif
-	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
-	STAILQ_INIT(&newproc->p_ktr);
-
-	/* We have to lock the process tree while we look for a pid. */
-	sx_slock(&proctree_lock);
-
-	/*
-	 * Although process entries are dynamically created, we still keep
-	 * a global limit on the maximum number we will create.  Don't allow
-	 * a nonprivileged user to use the last ten processes; don't let root
-	 * exceed the limit. The variable nprocs is the current number of
-	 * processes, maxproc is the limit.
-	 */
-	sx_xlock(&allproc_lock);
-	if ((nprocs >= maxproc - 10 && priv_check_cred(td->td_ucred,
-	    PRIV_MAXPROC, 0) != 0) || nprocs >= maxproc) {
-		error = EAGAIN;
-		goto fail;
-	}
-
-	/*
-	 * Increment the count of procs running with this uid. Don't allow
-	 * a nonprivileged user to exceed their current limit.
-	 *
-	 * XXXRW: Can we avoid privilege here if it's not needed?
-	 */
-	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, 0);
-	if (error == 0)
-		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
-	else {
-		PROC_LOCK(p1);
-		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
-		    lim_cur(p1, RLIMIT_NPROC));
-		PROC_UNLOCK(p1);
-	}
-	if (!ok) {
-		error = EAGAIN;
-		goto fail;
-	}
 
 	/*
 	 * Increment the nprocs resource before blocking can occur.  There
@@ -372,83 +352,10 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 	 */
 	nprocs++;
 
-	/*
-	 * Find an unused process ID.  We remember a range of unused IDs
-	 * ready to use (from lastpid+1 through pidchecked-1).
-	 *
-	 * If RFHIGHPID is set (used during system boot), do not allocate
-	 * low-numbered pids.
-	 */
-	trypid = lastpid + 1;
-	if (flags & RFHIGHPID) {
-		if (trypid < 10)
-			trypid = 10;
-	} else {
-		if (randompid)
-			trypid += arc4random() % randompid;
-	}
-retry:
-	/*
-	 * If the process ID prototype has wrapped around,
-	 * restart somewhat above 0, as the low-numbered procs
-	 * tend to include daemons that don't exit.
-	 */
-	if (trypid >= PID_MAX) {
-		trypid = trypid % PID_MAX;
-		if (trypid < 100)
-			trypid += 100;
-		pidchecked = 0;
-	}
-	if (trypid >= pidchecked) {
-		int doingzomb = 0;
+	trypid = fork_findpid(flags);
 
-		pidchecked = PID_MAX;
-		/*
-		 * Scan the active and zombie procs to check whether this pid
-		 * is in use.  Remember the lowest pid that's greater
-		 * than trypid, so we can avoid checking for a while.
-		 */
-		p2 = LIST_FIRST(&allproc);
-again:
-		for (; p2 != NULL; p2 = LIST_NEXT(p2, p_list)) {
-			while (p2->p_pid == trypid ||
-			    (p2->p_pgrp != NULL &&
-			    (p2->p_pgrp->pg_id == trypid ||
-			    (p2->p_session != NULL &&
-			    p2->p_session->s_sid == trypid)))) {
-				trypid++;
-				if (trypid >= pidchecked)
-					goto retry;
-			}
-			if (p2->p_pid > trypid && pidchecked > p2->p_pid)
-				pidchecked = p2->p_pid;
-			if (p2->p_pgrp != NULL) {
-				if (p2->p_pgrp->pg_id > trypid &&
-				    pidchecked > p2->p_pgrp->pg_id)
-					pidchecked = p2->p_pgrp->pg_id;
-				if (p2->p_session != NULL &&
-				    p2->p_session->s_sid > trypid &&
-				    pidchecked > p2->p_session->s_sid)
-					pidchecked = p2->p_session->s_sid;
-			}
-		}
-		if (!doingzomb) {
-			doingzomb = 1;
-			p2 = LIST_FIRST(&zombproc);
-			goto again;
-		}
-	}
 	sx_sunlock(&proctree_lock);
 
-	/*
-	 * RFHIGHPID does not mess with the lastpid counter during boot.
-	 */
-	if (flags & RFHIGHPID)
-		pidchecked = 0;
-	else
-		lastpid = trypid;
-
-	p2 = newproc;
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
 	/*
@@ -543,6 +450,7 @@ again:
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
+	td2->td_lend_user_pri = PRI_MAX;
 
 #ifdef VIMAGE
 	td2->td_vnet = NULL;
@@ -775,11 +683,133 @@ again:
 		cv_wait(&p2->p_pwait, &p2->p_mtx);
 	PROC_UNLOCK(p2);
 
+}
+
+int
+fork1(struct thread *td, int flags, int pages, struct proc **procp)
+{
+	struct proc *p1;
+	struct proc *newproc;
+	int ok;
+	struct thread *td2;
+	struct vmspace *vm2;
+	vm_ooffset_t mem_charged;
+	int error;
+	static int curfail;
+	static struct timeval lastfail;
+
+	/* Can't copy and clear. */
+	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
+		return (EINVAL);
+
+	p1 = td->td_proc;
+
 	/*
-	 * Return child proc pointer to parent.
+	 * Here we don't create a new process, but we divorce
+	 * certain parts of a process from itself.
 	 */
-	*procp = p2;
-	return (0);
+	if ((flags & RFPROC) == 0)
+		return (fork_norfproc(td, flags, procp));
+
+	/*
+	 * XXX
+	 * We did have single-threading code here
+	 * however it proved un-needed and caused problems
+	 */
+
+	mem_charged = 0;
+	vm2 = NULL;
+	if (pages == 0)
+		pages = KSTACK_PAGES;
+	/* Allocate new proc. */
+	newproc = uma_zalloc(proc_zone, M_WAITOK);
+	td2 = FIRST_THREAD_IN_PROC(newproc);
+	if (td2 == NULL) {
+		td2 = thread_alloc(pages);
+		if (td2 == NULL) {
+			error = ENOMEM;
+			goto fail1;
+		}
+		proc_linkup(newproc, td2);
+	} else {
+		if (td2->td_kstack == 0 || td2->td_kstack_pages != pages) {
+			if (td2->td_kstack != 0)
+				vm_thread_dispose(td2);
+			if (!thread_alloc_stack(td2, pages)) {
+				error = ENOMEM;
+				goto fail1;
+			}
+		}
+	}
+
+	if ((flags & RFMEM) == 0) {
+		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
+		if (vm2 == NULL) {
+			error = ENOMEM;
+			goto fail1;
+		}
+		if (!swap_reserve(mem_charged)) {
+			/*
+			 * The swap reservation failed. The accounting
+			 * from the entries of the copied vm2 will be
+			 * substracted in vmspace_free(), so force the
+			 * reservation there.
+			 */
+			swap_reserve_force(mem_charged);
+			error = ENOMEM;
+			goto fail1;
+		}
+	} else
+		vm2 = NULL;
+#ifdef MAC
+	mac_proc_init(newproc);
+#endif
+	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
+	STAILQ_INIT(&newproc->p_ktr);
+
+	/* We have to lock the process tree while we look for a pid. */
+	sx_slock(&proctree_lock);
+
+	/*
+	 * Although process entries are dynamically created, we still keep
+	 * a global limit on the maximum number we will create.  Don't allow
+	 * a nonprivileged user to use the last ten processes; don't let root
+	 * exceed the limit. The variable nprocs is the current number of
+	 * processes, maxproc is the limit.
+	 */
+	sx_xlock(&allproc_lock);
+	if ((nprocs >= maxproc - 10 && priv_check_cred(td->td_ucred,
+	    PRIV_MAXPROC, 0) != 0) || nprocs >= maxproc) {
+		error = EAGAIN;
+		goto fail;
+	}
+
+	/*
+	 * Increment the count of procs running with this uid. Don't allow
+	 * a nonprivileged user to exceed their current limit.
+	 *
+	 * XXXRW: Can we avoid privilege here if it's not needed?
+	 */
+	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, 0);
+	if (error == 0)
+		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
+	else {
+		PROC_LOCK(p1);
+		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
+		    lim_cur(p1, RLIMIT_NPROC));
+		PROC_UNLOCK(p1);
+	}
+	if (ok) {
+		do_fork(td, flags, newproc, td2, vm2);
+
+		/*
+		 * Return child proc pointer to parent.
+		 */
+		*procp = newproc;
+		return (0);
+	}
+
+	error = EAGAIN;
 fail:
 	sx_sunlock(&proctree_lock);
 	if (ppsratecheck(&lastfail, &curfail, 1))

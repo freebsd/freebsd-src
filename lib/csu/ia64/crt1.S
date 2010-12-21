@@ -24,7 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-		.ident		"$FreeBSD$"
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 		.text
 

@@ -147,12 +147,20 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	if (nfsrv_openpluslock > NFSRV_V4STATELIMIT)
 		return (NFSERR_RESOURCE);
 
-	if ((nd->nd_flag & ND_GSS) && nfsrv_nogsscallback)
+	if (nfsrv_issuedelegs == 0 ||
+	    ((nd->nd_flag & ND_GSS) != 0 && nfsrv_nogsscallback != 0))
 		/*
-		 * Don't do callbacks for AUTH_GSS.
-		 * (Since these aren't yet debugged, they might cause the
-		 *  server to crap out, if they get past the Init call to
-		 *  the client.)
+		 * Don't do callbacks when delegations are disabled or
+		 * for AUTH_GSS unless enabled via nfsrv_nogsscallback.
+		 * If establishing a callback connection is attempted
+		 * when a firewall is blocking the callback path, the
+		 * server may wait too long for the connect attempt to
+		 * succeed during the Open. Some clients, such as Linux,
+		 * may timeout and give up on the Open before the server
+		 * replies. Also, since AUTH_GSS callbacks are not
+		 * yet interoperability tested, they might cause the
+		 * server to crap out, if they get past the Init call to
+		 * the client.
 		 */
 		new_clp->lc_program = 0;
 
@@ -4267,7 +4275,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, __unused vnode_t vp,
  */
 static int
 nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
-    __unused vnode_t vp)
+    vnode_t vp)
 {
 	struct nfsclient *clp = stp->ls_clp;
 	int gotlock, error, retrycnt, zapped_clp;
@@ -4560,8 +4568,6 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	int32_t starttime;
 	int error;
 
-	KASSERT(!VOP_ISLOCKED(vp), ("vp %p is locked", vp));
-
 	/*
 	 * First, check to see if the server is currently running and it has
 	 * been called for a regular file when issuing delegations.
@@ -4570,6 +4576,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	    nfsrv_issuedelegs == 0)
 		return;
 
+	KASSERT((VOP_ISLOCKED(vp) != LK_EXCLUSIVE), ("vp %p is locked", vp));
 	/*
 	 * First, get a reference on the nfsv4rootfs_lock so that an
 	 * exclusive lock cannot be acquired by another thread.
@@ -4585,7 +4592,12 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	NFSGETNANOTIME(&mytime);
 	starttime = (u_int32_t)mytime.tv_sec;
 	do {
-		error = nfsrv_checkremove(vp, 0, p);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		if ((vp->v_iflag & VI_DOOMED) == 0)
+			error = nfsrv_checkremove(vp, 0, p);
+		else
+			error = EPERM;
+		VOP_UNLOCK(vp, 0);
 		if (error == NFSERR_DELAY) {
 			NFSGETNANOTIME(&mytime);
 			if (((u_int32_t)mytime.tv_sec - starttime) >

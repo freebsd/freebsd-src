@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/in_cksum.h>
 
@@ -98,9 +97,9 @@ static struct jme_dev {
 	const char	*jme_name;
 } jme_devs[] = {
 	{ VENDORID_JMICRON, DEVICEID_JMC250,
-	    "JMicron Inc, JMC250 Gigabit Ethernet" },
+	    "JMicron Inc, JMC25x Gigabit Ethernet" },
 	{ VENDORID_JMICRON, DEVICEID_JMC260,
-	    "JMicron Inc, JMC260 Fast Ethernet" },
+	    "JMicron Inc, JMC26x Fast Ethernet" },
 };
 
 static int jme_miibus_readreg(device_t, int, int);
@@ -111,7 +110,9 @@ static int jme_mediachange(struct ifnet *);
 static int jme_probe(device_t);
 static int jme_eeprom_read_byte(struct jme_softc *, uint8_t, uint8_t *);
 static int jme_eeprom_macaddr(struct jme_softc *);
+static int jme_efuse_macaddr(struct jme_softc *);
 static void jme_reg_macaddr(struct jme_softc *);
+static void jme_set_macaddr(struct jme_softc *, uint8_t *);
 static void jme_map_intr_vector(struct jme_softc *);
 static int jme_attach(device_t);
 static int jme_detach(device_t);
@@ -153,6 +154,8 @@ static void jme_set_filter(struct jme_softc *);
 static void jme_stats_clear(struct jme_softc *);
 static void jme_stats_save(struct jme_softc *);
 static void jme_stats_update(struct jme_softc *);
+static void jme_phy_down(struct jme_softc *);
+static void jme_phy_up(struct jme_softc *);
 static int sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int sysctl_hw_jme_tx_coal_to(SYSCTL_HANDLER_ARGS);
 static int sysctl_hw_jme_tx_coal_pkt(SYSCTL_HANDLER_ARGS);
@@ -433,6 +436,55 @@ jme_eeprom_macaddr(struct jme_softc *sc)
 	return (ENOENT);
 }
 
+static int
+jme_efuse_macaddr(struct jme_softc *sc)
+{
+	uint32_t reg;
+	int i;
+
+	reg = pci_read_config(sc->jme_dev, JME_EFUSE_CTL1, 4);
+	if ((reg & (EFUSE_CTL1_AUTOLOAD_ERR | EFUSE_CTL1_AUTOLAOD_DONE)) !=
+	    EFUSE_CTL1_AUTOLAOD_DONE)
+		return (ENOENT);
+	/* Reset eFuse controller. */
+	reg = pci_read_config(sc->jme_dev, JME_EFUSE_CTL2, 4);
+	reg |= EFUSE_CTL2_RESET;
+	pci_write_config(sc->jme_dev, JME_EFUSE_CTL2, reg, 4);
+	reg = pci_read_config(sc->jme_dev, JME_EFUSE_CTL2, 4);
+	reg &= ~EFUSE_CTL2_RESET;
+	pci_write_config(sc->jme_dev, JME_EFUSE_CTL2, reg, 4);
+
+	/* Have eFuse reload station address to MAC controller. */
+	reg = pci_read_config(sc->jme_dev, JME_EFUSE_CTL1, 4);
+	reg &= ~EFUSE_CTL1_CMD_MASK;
+	reg |= EFUSE_CTL1_CMD_AUTOLOAD | EFUSE_CTL1_EXECUTE;
+	pci_write_config(sc->jme_dev, JME_EFUSE_CTL1, reg, 4);
+
+	/*
+	 * Verify completion of eFuse autload command.  It should be
+	 * completed within 108us.
+	 */
+	DELAY(110);
+	for (i = 10; i > 0; i--) {
+		reg = pci_read_config(sc->jme_dev, JME_EFUSE_CTL1, 4);
+		if ((reg & (EFUSE_CTL1_AUTOLOAD_ERR |
+		    EFUSE_CTL1_AUTOLAOD_DONE)) != EFUSE_CTL1_AUTOLAOD_DONE) {
+			DELAY(20);
+			continue;
+		}
+		if ((reg & EFUSE_CTL1_EXECUTE) == 0)
+			break;
+		/* Station address loading is still in progress. */
+		DELAY(20);
+	}
+	if (i == 0) {
+		device_printf(sc->jme_dev, "eFuse autoload timed out.\n");
+		return (ETIMEDOUT);
+	}
+
+	return (0);
+}
+
 static void
 jme_reg_macaddr(struct jme_softc *sc)
 {
@@ -447,12 +499,55 @@ jme_reg_macaddr(struct jme_softc *sc)
 		device_printf(sc->jme_dev,
 		    "Failed to retrieve Ethernet address.\n");
 	} else {
+		/*
+		 * For controllers that use eFuse, the station address
+		 * could also be extracted from JME_PCI_PAR0 and
+		 * JME_PCI_PAR1 registers in PCI configuration space.
+		 * Each register holds exactly half of station address(24bits)
+		 * so use JME_PAR0, JME_PAR1 registers instead.
+		 */
 		sc->jme_eaddr[0] = (par0 >> 0) & 0xFF;
 		sc->jme_eaddr[1] = (par0 >> 8) & 0xFF;
 		sc->jme_eaddr[2] = (par0 >> 16) & 0xFF;
 		sc->jme_eaddr[3] = (par0 >> 24) & 0xFF;
 		sc->jme_eaddr[4] = (par1 >> 0) & 0xFF;
 		sc->jme_eaddr[5] = (par1 >> 8) & 0xFF;
+	}
+}
+
+static void
+jme_set_macaddr(struct jme_softc *sc, uint8_t *eaddr)
+{
+	uint32_t val;
+	int i;
+
+	if ((sc->jme_flags & JME_FLAG_EFUSE) != 0) {
+		/*
+		 * Avoid reprogramming station address if the address
+		 * is the same as previous one.  Note, reprogrammed
+		 * station address is permanent as if it was written
+		 * to EEPROM. So if station address was changed by
+		 * admistrator it's possible to lose factory configured
+		 * address when driver fails to restore its address.
+		 * (e.g. reboot or system crash)
+		 */
+		if (bcmp(eaddr, sc->jme_eaddr, ETHER_ADDR_LEN) != 0) {
+			for (i = 0; i < ETHER_ADDR_LEN; i++) {
+				val = JME_EFUSE_EEPROM_FUNC0 <<
+				    JME_EFUSE_EEPROM_FUNC_SHIFT;
+				val |= JME_EFUSE_EEPROM_PAGE_BAR1 <<
+				    JME_EFUSE_EEPROM_PAGE_SHIFT;
+				val |= (JME_PAR0 + i) <<
+				    JME_EFUSE_EEPROM_ADDR_SHIFT;
+				val |= eaddr[i] << JME_EFUSE_EEPROM_DATA_SHIFT;
+				pci_write_config(sc->jme_dev, JME_EFUSE_EEPROM,
+				    val | JME_EFUSE_EEPROM_WRITE, 4);
+			}
+		}
+	} else {
+		CSR_WRITE_4(sc, JME_PAR0,
+		    eaddr[3] << 24 | eaddr[2] << 16 | eaddr[1] << 8 | eaddr[0]);
+		CSR_WRITE_4(sc, JME_PAR1, eaddr[5] << 8 | eaddr[4]);
 	}
 }
 
@@ -535,7 +630,7 @@ jme_attach(device_t dev)
 	struct mii_data *mii;
 	uint32_t reg;
 	uint16_t burst;
-	int error, i, msic, msixc, pmc;
+	int error, i, mii_flags, msic, msixc, pmc;
 
 	error = 0;
 	sc = device_get_softc(dev);
@@ -637,11 +732,14 @@ jme_attach(device_t dev)
 		goto fail;
 	}
 
+	/* Identify controller features and bugs. */
 	if (CHIPMODE_REVFM(sc->jme_chip_rev) >= 2) {
 		if ((sc->jme_rev & DEVICEID_JMC2XX_MASK) == DEVICEID_JMC260 &&
 		    CHIPMODE_REVFM(sc->jme_chip_rev) == 2)
 			sc->jme_flags |= JME_FLAG_DMA32BIT;
-		sc->jme_flags |= JME_FLAG_TXCLK;
+		if (CHIPMODE_REVFM(sc->jme_chip_rev) >= 5)
+			sc->jme_flags |= JME_FLAG_EFUSE | JME_FLAG_PCCPCD;
+		sc->jme_flags |= JME_FLAG_TXCLK | JME_FLAG_RXCLK;
 		sc->jme_flags |= JME_FLAG_HWMIB;
 	}
 
@@ -649,14 +747,20 @@ jme_attach(device_t dev)
 	jme_reset(sc);
 
 	/* Get station address. */
-	reg = CSR_READ_4(sc, JME_SMBCSR);
-	if ((reg & SMBCSR_EEPROM_PRESENT) != 0)
-		error = jme_eeprom_macaddr(sc);
-	if (error != 0 || (reg & SMBCSR_EEPROM_PRESENT) == 0) {
-		if (error != 0 && (bootverbose))
+	if ((sc->jme_flags & JME_FLAG_EFUSE) != 0) {
+		error = jme_efuse_macaddr(sc);
+		if (error == 0)
+			jme_reg_macaddr(sc);
+	} else {
+		error = ENOENT;
+		reg = CSR_READ_4(sc, JME_SMBCSR);
+		if ((reg & SMBCSR_EEPROM_PRESENT) != 0)
+			error = jme_eeprom_macaddr(sc);
+		if (error != 0 && bootverbose)
 			device_printf(sc->jme_dev,
 			    "ethernet hardware address not found in EEPROM.\n");
-		jme_reg_macaddr(sc);
+		if (error != 0)
+			jme_reg_macaddr(sc);
 	}
 
 	/*
@@ -676,7 +780,7 @@ jme_attach(device_t dev)
 	/* Set max allowable DMA size. */
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &i) == 0) {
 		sc->jme_flags |= JME_FLAG_PCIE;
-		burst = pci_read_config(dev, i + 0x08, 2);
+		burst = pci_read_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, 2);
 		if (bootverbose) {
 			device_printf(dev, "Read request size : %d bytes.\n",
 			    128 << ((burst >> 12) & 0x07));
@@ -729,10 +833,17 @@ jme_attach(device_t dev)
 	}
 	ifp->if_capenable = ifp->if_capabilities;
 
+	/* Wakeup PHY. */
+	jme_phy_up(sc);
+	mii_flags = MIIF_DOPAUSE;
+	/* Ask PHY calibration to PHY driver. */
+	if (CHIPMODE_REVFM(sc->jme_chip_rev) >= 5)
+		mii_flags |= MIIF_MACPRIV0;
 	/* Set up MII bus. */
 	error = mii_attach(dev, &sc->jme_miibus, ifp, jme_mediachange,
-	    jme_mediastatus, BMSR_DEFCAPMASK, sc->jme_phyaddr, MII_OFFSET_ANY,
-	    MIIF_DOPAUSE);
+	    jme_mediastatus, BMSR_DEFCAPMASK,
+	    sc->jme_flags & JME_FLAG_FPGA ? MII_PHY_ANY : sc->jme_phyaddr,
+	    MII_OFFSET_ANY, mii_flags);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -825,6 +936,9 @@ jme_detach(device_t dev)
 		taskqueue_drain(sc->jme_tq, &sc->jme_int_task);
 		taskqueue_drain(sc->jme_tq, &sc->jme_tx_task);
 		taskqueue_drain(taskqueue_swi, &sc->jme_link_task);
+		/* Restore possibly modified station address. */
+		if ((sc->jme_flags & JME_FLAG_EFUSE) != 0)
+			jme_set_macaddr(sc, sc->jme_eaddr);
 		ether_ifdetach(ifp);
 	}
 
@@ -854,10 +968,12 @@ jme_detach(device_t dev)
 		}
 	}
 
-	bus_release_resources(dev, sc->jme_irq_spec, sc->jme_irq);
+	if (sc->jme_irq[0] != NULL)
+		bus_release_resources(dev, sc->jme_irq_spec, sc->jme_irq);
 	if ((sc->jme_flags & (JME_FLAG_MSIX | JME_FLAG_MSI)) != 0)
 		pci_release_msi(dev);
-	bus_release_resources(dev, sc->jme_res_spec, sc->jme_res);
+	if (sc->jme_res[0] != NULL)
+		bus_release_resources(dev, sc->jme_res_spec, sc->jme_res);
 	mtx_destroy(&sc->jme_mtx);
 
 	return (0);
@@ -1483,9 +1599,11 @@ jme_setwol(struct jme_softc *sc)
 			CSR_WRITE_4(sc, JME_GHC, CSR_READ_4(sc, JME_GHC) &
 			    ~(GHC_TX_OFFLD_CLK_100 | GHC_TX_MAC_CLK_100 |
 			    GHC_TX_OFFLD_CLK_1000 | GHC_TX_MAC_CLK_1000));
+		if ((sc->jme_flags & JME_FLAG_RXCLK) != 0)
+			CSR_WRITE_4(sc, JME_GPREG1,
+			    CSR_READ_4(sc, JME_GPREG1) | GPREG1_RX_MAC_CLK_DIS);
 		/* No PME capability, PHY power down. */
-		jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr,
-		    MII_BMCR, BMCR_PDOWN);
+		jme_phy_down(sc);
 		return;
 	}
 
@@ -1517,8 +1635,7 @@ jme_setwol(struct jme_softc *sc)
 	pci_write_config(sc->jme_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
 	if ((ifp->if_capenable & IFCAP_WOL) == 0) {
 		/* No WOL, PHY power down. */
-		jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr,
-		    MII_BMCR, BMCR_PDOWN);
+		jme_phy_down(sc);
 	}
 }
 
@@ -1556,6 +1673,8 @@ jme_resume(device_t dev)
 		pci_write_config(sc->jme_dev,
 		    pmc + PCIR_POWER_STATUS, pmstat, 2);
 	}
+	/* Wakeup PHY. */
+	jme_phy_up(sc);
 	ifp = sc->jme_ifp;
 	if ((ifp->if_flags & IFF_UP) != 0) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
@@ -2181,7 +2300,7 @@ jme_link_task(void *arg, int pending)
 	 * procuder/consumer index.
 	 */
 	sc->jme_cdata.jme_rx_cons = 0;
-	atomic_set_int(&sc->jme_morework, 0);
+	sc->jme_morework = 0;
 	jme_init_tx_ring(sc);
 	/* Initialize shadow status block. */
 	jme_init_ssb(sc);
@@ -2208,6 +2327,13 @@ jme_link_task(void *arg, int pending)
 		CSR_WRITE_4(sc, JME_RXCSR, sc->jme_rxcsr | RXCSR_RX_ENB |
 		    RXCSR_RXQ_START);
 		CSR_WRITE_4(sc, JME_TXCSR, sc->jme_txcsr | TXCSR_TX_ENB);
+		/* Lastly enable TX/RX clock. */
+		if ((sc->jme_flags & JME_FLAG_TXCLK) != 0)
+			CSR_WRITE_4(sc, JME_GHC,
+			    CSR_READ_4(sc, JME_GHC) & ~GHC_TX_MAC_CLK_DIS);
+		if ((sc->jme_flags & JME_FLAG_RXCLK) != 0)
+			CSR_WRITE_4(sc, JME_GPREG1,
+			    CSR_READ_4(sc, JME_GPREG1) & ~GPREG1_RX_MAC_CLK_DIS);
 	}
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -2251,10 +2377,9 @@ jme_int_task(void *arg, int pending)
 	ifp = sc->jme_ifp;
 
 	status = CSR_READ_4(sc, JME_INTR_STATUS);
-	more = atomic_readandclear_int(&sc->jme_morework);
-	if (more != 0) {
+	if (sc->jme_morework != 0) {
+		sc->jme_morework = 0;
 		status |= INTR_RXQ_COAL | INTR_RXQ_COAL_TO;
-		more = 0;
 	}
 	if ((status & JME_INTRS) == 0 || status == 0xFFFFFFFF)
 		goto done;
@@ -2270,7 +2395,7 @@ jme_int_task(void *arg, int pending)
 		if ((status & (INTR_RXQ_COAL | INTR_RXQ_COAL_TO)) != 0) {
 			more = jme_rxintr(sc, sc->jme_process_limit);
 			if (more != 0)
-				atomic_set_int(&sc->jme_morework, 1);
+				sc->jme_morework = 1;
 		}
 		if ((status & INTR_RXQ_DESC_EMPTY) != 0) {
 			/*
@@ -2587,13 +2712,45 @@ jme_tick(void *arg)
 static void
 jme_reset(struct jme_softc *sc)
 {
+	uint32_t ghc, gpreg;
 
 	/* Stop receiver, transmitter. */
 	jme_stop_rx(sc);
 	jme_stop_tx(sc);
+
+	/* Reset controller. */
 	CSR_WRITE_4(sc, JME_GHC, GHC_RESET);
+	CSR_READ_4(sc, JME_GHC);
 	DELAY(10);
-	CSR_WRITE_4(sc, JME_GHC, 0);
+	/*
+	 * Workaround Rx FIFO overruns seen under certain conditions.
+	 * Explicitly synchorize TX/RX clock.  TX/RX clock should be
+	 * enabled only after enabling TX/RX MACs.
+	 */
+	if ((sc->jme_flags & (JME_FLAG_TXCLK | JME_FLAG_RXCLK)) != 0) {
+		/* Disable TX clock. */
+		CSR_WRITE_4(sc, JME_GHC, GHC_RESET | GHC_TX_MAC_CLK_DIS);
+		/* Disable RX clock. */
+		gpreg = CSR_READ_4(sc, JME_GPREG1);
+		CSR_WRITE_4(sc, JME_GPREG1, gpreg | GPREG1_RX_MAC_CLK_DIS);
+		gpreg = CSR_READ_4(sc, JME_GPREG1);
+		/* De-assert RESET but still disable TX clock. */
+		CSR_WRITE_4(sc, JME_GHC, GHC_TX_MAC_CLK_DIS);
+		ghc = CSR_READ_4(sc, JME_GHC);
+
+		/* Enable TX clock. */
+		CSR_WRITE_4(sc, JME_GHC, ghc & ~GHC_TX_MAC_CLK_DIS);
+		/* Enable RX clock. */
+		CSR_WRITE_4(sc, JME_GPREG1, gpreg & ~GPREG1_RX_MAC_CLK_DIS);
+		CSR_READ_4(sc, JME_GPREG1);
+
+		/* Disable TX/RX clock again. */
+		CSR_WRITE_4(sc, JME_GHC, GHC_TX_MAC_CLK_DIS);
+		CSR_WRITE_4(sc, JME_GPREG1, gpreg | GPREG1_RX_MAC_CLK_DIS);
+	} else
+		CSR_WRITE_4(sc, JME_GHC, 0);
+	CSR_READ_4(sc, JME_GHC);
+	DELAY(10);
 }
 
 static void
@@ -2612,7 +2769,6 @@ jme_init_locked(struct jme_softc *sc)
 {
 	struct ifnet *ifp;
 	struct mii_data *mii;
-	uint8_t eaddr[ETHER_ADDR_LEN];
 	bus_addr_t paddr;
 	uint32_t reg;
 	int error;
@@ -2648,10 +2804,7 @@ jme_init_locked(struct jme_softc *sc)
 	jme_init_ssb(sc);
 
 	/* Reprogram the station address. */
-	bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
-	CSR_WRITE_4(sc, JME_PAR0,
-	    eaddr[3] << 24 | eaddr[2] << 16 | eaddr[1] << 8 | eaddr[0]);
-	CSR_WRITE_4(sc, JME_PAR1, eaddr[5] << 8 | eaddr[4]);
+	jme_set_macaddr(sc, IF_LLADDR(sc->jme_ifp));
 
 	/*
 	 * Configure Tx queue.
@@ -2788,6 +2941,30 @@ jme_init_locked(struct jme_softc *sc)
 	reg |= (sc->jme_rx_coal_pkt << PCCRX_COAL_PKT_SHIFT) &
 	    PCCRX_COAL_PKT_MASK;
 	CSR_WRITE_4(sc, JME_PCCRX0, reg);
+
+	/*
+	 * Configure PCD(Packet Completion Deferring).  It seems PCD
+	 * generates an interrupt when the time interval between two
+	 * back-to-back incoming/outgoing packet is long enough for
+	 * it to reach its timer value 0. The arrival of new packets
+	 * after timer has started causes the PCD timer to restart.
+	 * Unfortunately, it's not clear how PCD is useful at this
+	 * moment, so just use the same of PCC parameters.
+	 */
+	if ((sc->jme_flags & JME_FLAG_PCCPCD) != 0) {
+		sc->jme_rx_pcd_to = sc->jme_rx_coal_to;
+		if (sc->jme_rx_coal_to > PCDRX_TO_MAX)
+			sc->jme_rx_pcd_to = PCDRX_TO_MAX;
+		sc->jme_tx_pcd_to = sc->jme_tx_coal_to;
+		if (sc->jme_tx_coal_to > PCDTX_TO_MAX)
+			sc->jme_tx_pcd_to = PCDTX_TO_MAX;
+		reg = sc->jme_rx_pcd_to << PCDRX0_TO_THROTTLE_SHIFT;
+		reg |= sc->jme_rx_pcd_to << PCDRX0_TO_SHIFT;
+		CSR_WRITE_4(sc, PCDRX_REG(0), reg);
+		reg = sc->jme_tx_pcd_to << PCDTX_TO_THROTTLE_SHIFT;
+		reg |= sc->jme_tx_pcd_to << PCDTX_TO_SHIFT;
+		CSR_WRITE_4(sc, JME_PCDTX, reg);
+	}
 
 	/* Configure shadow status block but don't enable posting. */
 	paddr = sc->jme_rdata.jme_ssb_block_paddr;
@@ -2980,7 +3157,7 @@ jme_init_rx_ring(struct jme_softc *sc)
 
 	sc->jme_cdata.jme_rx_cons = 0;
 	JME_RXCHAIN_RESET(sc);
-	atomic_set_int(&sc->jme_morework, 0);
+	sc->jme_morework = 0;
 
 	rd = &sc->jme_rdata;
 	bzero(rd->jme_rx_ring, JME_RX_RING_SIZE);
@@ -3192,6 +3369,43 @@ jme_stats_update(struct jme_softc *sc)
 	stat->rx_bad_frames += ostat->rx_bad_frames;
 	stat->tx_good_frames += ostat->tx_good_frames;
 	stat->tx_bad_frames += ostat->tx_bad_frames;
+}
+
+static void
+jme_phy_down(struct jme_softc *sc)
+{
+	uint32_t reg;
+
+	jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr, MII_BMCR, BMCR_PDOWN);
+	if (CHIPMODE_REVFM(sc->jme_chip_rev) >= 5) {
+		reg = CSR_READ_4(sc, JME_PHYPOWDN);
+		reg |= 0x0000000F;
+		CSR_WRITE_4(sc, JME_PHYPOWDN, reg);
+		reg = pci_read_config(sc->jme_dev, JME_PCI_PE1, 4);
+		reg &= ~PE1_GIGA_PDOWN_MASK;
+		reg |= PE1_GIGA_PDOWN_D3;
+		pci_write_config(sc->jme_dev, JME_PCI_PE1, reg, 4);
+	}
+}
+
+static void
+jme_phy_up(struct jme_softc *sc)
+{
+	uint32_t reg;
+	uint16_t bmcr;
+
+	bmcr = jme_miibus_readreg(sc->jme_dev, sc->jme_phyaddr, MII_BMCR);
+	bmcr &= ~BMCR_PDOWN;
+	jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr, MII_BMCR, bmcr);
+	if (CHIPMODE_REVFM(sc->jme_chip_rev) >= 5) {
+		reg = CSR_READ_4(sc, JME_PHYPOWDN);
+		reg &= ~0x0000000F;
+		CSR_WRITE_4(sc, JME_PHYPOWDN, reg);
+		reg = pci_read_config(sc->jme_dev, JME_PCI_PE1, 4);
+		reg &= ~PE1_GIGA_PDOWN_MASK;
+		reg |= PE1_GIGA_PDOWN_DIS;
+		pci_write_config(sc->jme_dev, JME_PCI_PE1, reg, 4);
+	}
 }
 
 static int

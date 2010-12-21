@@ -65,20 +65,21 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
+#include <sys/param.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+
 #include <errno.h>
+#include <inttypes.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <unistd.h>
 #if defined(NETGRAPH)
 # include <netgraph.h>
 #endif
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
 #include <net/if.h>
 
 #include <dev/lmc/if_lmc.h>
@@ -95,8 +96,13 @@ int		update   = 0;	/* update driver config */
 int             verbose  = 0;	/* verbose output */
 u_int8_t	checksum;	/* gate array ucode file checksum */
 
-void usage()
-  {
+/* Functions currently unused. Keep compiler happy and provide prototypes. */
+void ioctl_snmp_loop(u_int32_t);
+void init_srom(int);
+
+static void
+usage(void)
+{
   fprintf(stderr, "Usage: %s interface [-abBcCdDeEfhiLmMpPsStTuUvVwWxXyYzZ?]\n", progname);
   fprintf(stderr, "or\n");
   fprintf(stderr, "Usage: %s interface -1 [-aABcdeEfFgiIlLpPstTuUvxX]\n", progname);
@@ -147,7 +153,7 @@ void usage()
 
   fprintf(stderr, "The -1 switch precedes T1/E1 commands.\n");
   fprintf(stderr, "\t-a <y|b|a> Stop  sending Yellow|Blue|AIS signal\n");
-  fprintf(stderr, "\t-A <y|b|a> Start sending Yellow|Blue}AIS signal\n");
+  fprintf(stderr, "\t-A <y|b|a> Start sending Yellow|Blue|AIS signal\n");
   fprintf(stderr, "\t-B <number> Send BOP msg 25 times\n");
   fprintf(stderr, "\t-c <number> Set cable length in meters\n");
   fprintf(stderr, "\t-d Print status of T1 DSU/CSU\n");
@@ -209,10 +215,11 @@ void usage()
   fprintf(stderr, "\t   1:OFF 2:DigitalLink|Kentrox 3:Larse\n");
   fprintf(stderr, "\t-v Set verbose printout mode\n");
   fprintf(stderr, "\t-V <number> Write to T3 VCXO freq control DAC\n");
-  }
+}
 
-void call_driver(unsigned long cmd, struct iohdr *iohdr)
-  {
+static void
+call_driver(unsigned long cmd, struct iohdr *iohdr)
+{
   int error = 0;
 
   strncpy(iohdr->ifname, ifname, sizeof(iohdr->ifname));
@@ -259,10 +266,11 @@ void call_driver(unsigned long cmd, struct iohdr *iohdr)
     fprintf(stderr, "%s: This version of %s is incompatible with the device driver\n", progname, progname);
     exit(1);
     }
-  }
+}
 
-u_int32_t read_pci_config(u_int8_t addr)
-  {
+static u_int32_t
+read_pci_config(u_int8_t addr)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -273,10 +281,11 @@ u_int32_t read_pci_config(u_int8_t addr)
   call_driver(LMCIOCREAD, &ioctl.iohdr);
 
   return ioctl.data;
-  }
+}
 
-void write_pci_config(u_int8_t addr, u_int32_t data)
-  {
+static void
+write_pci_config(u_int8_t addr, u_int32_t data)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOW;
@@ -286,10 +295,11 @@ void write_pci_config(u_int8_t addr, u_int32_t data)
   ioctl.data = data;
 
   call_driver(LMCIOCWRITE, &ioctl.iohdr);
-  }
+}
 
-u_int32_t read_csr(u_int8_t addr)
-  {
+static u_int32_t
+read_csr(u_int8_t addr)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -300,10 +310,11 @@ u_int32_t read_csr(u_int8_t addr)
   call_driver(LMCIOCREAD, &ioctl.iohdr);
 
   return ioctl.data;
-  }
+}
 
-void write_csr(u_int8_t addr, u_int32_t data)
-  {
+static void
+write_csr(u_int8_t addr, u_int32_t data)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOW;
@@ -313,10 +324,11 @@ void write_csr(u_int8_t addr, u_int32_t data)
   ioctl.data = data;
 
   call_driver(LMCIOCWRITE, &ioctl.iohdr);
-  }
+}
 
-u_int16_t read_srom(u_int8_t addr)
-  {
+static u_int16_t
+read_srom(u_int8_t addr)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -327,10 +339,11 @@ u_int16_t read_srom(u_int8_t addr)
   call_driver(LMCIOCREAD, &ioctl.iohdr);
 
   return ioctl.data;
-  }
+}
 
-void write_srom(u_int8_t addr, u_int16_t data)
-  {
+static void
+write_srom(u_int8_t addr, u_int16_t data)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOW;
@@ -340,10 +353,11 @@ void write_srom(u_int8_t addr, u_int16_t data)
   ioctl.data = data;
 
   call_driver(LMCIOCWRITE, &ioctl.iohdr);
-  }
+}
 
-u_int8_t read_bios_rom(u_int32_t addr)
-  {
+static u_int8_t
+read_bios_rom(u_int32_t addr)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -354,10 +368,11 @@ u_int8_t read_bios_rom(u_int32_t addr)
   call_driver(LMCIOCREAD, &ioctl.iohdr);
 
   return ioctl.data;
-  }
+}
 
-void write_bios_rom(u_int32_t addr, u_int8_t data)
-  {
+static void
+write_bios_rom(u_int32_t addr, u_int8_t data)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOW;
@@ -367,10 +382,11 @@ void write_bios_rom(u_int32_t addr, u_int8_t data)
   ioctl.data = data;
 
   call_driver(LMCIOCWRITE, &ioctl.iohdr);
-  }
+}
 
-u_int16_t read_mii(u_int8_t addr)
-  {
+static u_int16_t
+read_mii(u_int8_t addr)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -381,10 +397,11 @@ u_int16_t read_mii(u_int8_t addr)
   call_driver(LMCIOCREAD, &ioctl.iohdr);
 
   return ioctl.data;
-  }
+}
 
-void write_mii(u_int8_t addr, u_int16_t data)
-  {
+static void
+write_mii(u_int8_t addr, u_int16_t data)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOW;
@@ -394,10 +411,11 @@ void write_mii(u_int8_t addr, u_int16_t data)
   ioctl.data = data;
 
   call_driver(LMCIOCWRITE, &ioctl.iohdr);
-  }
+}
 
-unsigned char read_framer(u_int16_t addr)
-  {
+static unsigned char
+read_framer(u_int16_t addr)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -408,10 +426,11 @@ unsigned char read_framer(u_int16_t addr)
   call_driver(LMCIOCREAD, &ioctl.iohdr);
 
   return ioctl.data;
-  }
+}
 
-void write_framer(u_int16_t addr, u_int8_t data)
-  {
+static void
+write_framer(u_int16_t addr, u_int8_t data)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOW;
@@ -421,10 +440,11 @@ void write_framer(u_int16_t addr, u_int8_t data)
   ioctl.data = data;
 
   call_driver(LMCIOCWRITE, &ioctl.iohdr);
-  }
+}
 
-void write_synth(struct synth synth)
-  {
+static void
+write_synth(struct synth synth)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOW;
@@ -433,10 +453,11 @@ void write_synth(struct synth synth)
   bcopy(&synth, &ioctl.data, sizeof(synth));
 
   call_driver(LMCIOCWRITE, &ioctl.iohdr);
-  }
+}
 
-void write_dac(u_int16_t data)
-  {
+static void
+write_dac(u_int16_t data)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOW;
@@ -445,10 +466,11 @@ void write_dac(u_int16_t data)
   ioctl.data = data;
 
   call_driver(LMCIOCWRITE, &ioctl.iohdr);
-  }
+}
 
-void reset_xilinx()
-  {
+static void
+reset_xilinx(void)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -456,10 +478,11 @@ void reset_xilinx()
   ioctl.cmd = IOCTL_XILINX_RESET;
 
   call_driver(LMCIOCTL, &ioctl.iohdr);
-  }
+}
 
-void load_xilinx_from_rom()
-  {
+static void
+load_xilinx_from_rom(void)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -467,10 +490,11 @@ void load_xilinx_from_rom()
   ioctl.cmd = IOCTL_XILINX_ROM;
 
   call_driver(LMCIOCTL, &ioctl.iohdr);
-  }
+}
 
-void load_xilinx_from_file(char *ucode, u_int32_t len)
-  {
+static void
+load_xilinx_from_file(char *ucode, u_int32_t len)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -480,10 +504,11 @@ void load_xilinx_from_file(char *ucode, u_int32_t len)
   ioctl.ucode = ucode;
 
   call_driver(LMCIOCTL, &ioctl.iohdr);
-  }
+}
 
-void ioctl_snmp_send(u_int32_t send)
-  {
+static void
+ioctl_snmp_send(u_int32_t send)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -492,10 +517,11 @@ void ioctl_snmp_send(u_int32_t send)
   ioctl.data = send;
 
   call_driver(LMCIOCTL, &ioctl.iohdr);
-  }
+}
 
-void ioctl_snmp_loop(u_int32_t loop)
-  {
+void
+ioctl_snmp_loop(u_int32_t loop)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -504,10 +530,11 @@ void ioctl_snmp_loop(u_int32_t loop)
   ioctl.data = loop;
 
   call_driver(LMCIOCTL, &ioctl.iohdr);
-  }
+}
 
-void ioctl_reset_cntrs()
-  {
+static void
+ioctl_reset_cntrs(void)
+{
   struct ioctl ioctl;
 
   ioctl.iohdr.direction = DIR_IOWR;
@@ -515,39 +542,44 @@ void ioctl_reset_cntrs()
   ioctl.cmd = IOCTL_RESET_CNTRS;
 
   call_driver(LMCIOCTL, &ioctl.iohdr);
-  }
+}
 
-void ioctl_read_config()
-  {
+static void
+ioctl_read_config(void)
+{
   config.iohdr.direction = DIR_IOWR;
   config.iohdr.length = sizeof(struct config);
 
   call_driver(LMCIOCGCFG, &config.iohdr);
-  }
+}
 
-void ioctl_write_config()
-  {
+static void
+ioctl_write_config(void)
+{
   config.iohdr.direction = DIR_IOW;
   config.iohdr.length = sizeof(struct config);
 
   call_driver(LMCIOCSCFG, &config.iohdr);
-  }
+}
 
-void ioctl_read_status()
-  {
+static void
+ioctl_read_status(void)
+{
   status.iohdr.direction = DIR_IOWR;
   status.iohdr.length = sizeof(struct status);
 
   call_driver(LMCIOCGSTAT, &status.iohdr);
-  }
+}
 
-void print_card_name()
-  {
+static void
+print_card_name(void)
+{
   printf("Card name:\t\t%s\n", ifname);
-  }
+}
 
-void print_card_type()
-  {
+static void
+print_card_type(void)
+{
   printf("Card type:\t\t");
   switch(status.card_type)
     {
@@ -570,10 +602,11 @@ void print_card_type()
       printf("unknown card_type: %d\n", status.card_type);
       break;
     }
-  }
+}
 
-void print_status()
-  {
+static void
+print_status(void)
+{
   char *status_string;
 
   if      (status.oper_status == STATUS_UP)
@@ -585,21 +618,24 @@ void print_status()
   else
     status_string = "Unknown";
   printf("Link status:\t\t%s\n", status_string);
-  }
+}
 
-void print_tx_speed()
-  {
+static void
+print_tx_speed(void)
+{
   printf("Tx Speed:\t\t%u\n", status.tx_speed);
-  }
+}
 
-void print_debug()
-  {
+static void
+print_debug(void)
+{
   if (config.debug != 0)
     printf("Debug:\t\t\t%s\n", "On");
-  }
+}
 
-void print_line_prot()
-  {
+static void
+print_line_prot(void)
+{
   char *on = "On", *off = "Off";
 
   printf("Line Prot/Pkg:\t\t");
@@ -659,10 +695,11 @@ void print_line_prot()
   if (status.line_pkg == PKG_SPPP)
     printf("SPPP Keep-alives:\t%s\n",
      config.keep_alive ? on : off);
-  }
+}
 
-void print_crc_len()
-  {
+static void
+print_crc_len(void)
+{
   printf("CRC length:\t\t");
   if (config.crc_len == CFG_CRC_0)
     printf("no CRC\n");
@@ -672,10 +709,11 @@ void print_crc_len()
     printf("32 bits\n");
   else
     printf("bad crc_len: %d\n", config.crc_len);
-  }
+}
 
-void print_loop_back()
-  {
+static void
+print_loop_back(void)
+{
   printf("Loopback:\t\t");
   switch (config.loop_back)
     {
@@ -713,10 +751,11 @@ void print_loop_back()
       printf("unknown loop_back: %d\n", config.loop_back);
       break;
     }
-  }
+}
 
-void print_tx_clk_src()
-  {
+static void
+print_tx_clk_src(void)
+{
   printf("Tx Clk src:\t\t");
   switch (config.tx_clk_src)
     {
@@ -736,10 +775,11 @@ void print_tx_clk_src()
       printf("unknown tx_clk_src: %d\n", config.tx_clk_src);
       break;
     }
-  }
+}
 
-void print_format()
-  {
+static void
+print_format(void)
+{
   printf("Format-Frame/Code:\t");
   switch (config.format)
     {
@@ -774,10 +814,11 @@ void print_format()
       printf("unknown format: %d\n", config.format);
       break;
     }
-  }
+}
 
-void print_dte_dce()
-  {
+static void
+print_dte_dce(void)
+{
   printf("DTE or DCE:\t\t");
   switch(config.dte_dce)
     {
@@ -791,10 +832,11 @@ void print_dte_dce()
       printf("unknown dte_dce: %d\n", config.dte_dce);
       break;
     }
-  }
+}
 
-void print_synth_freq()
-  {
+static void
+print_synth_freq(void)
+{
   double Fref = 20e6;
   double Fout, Fvco;
 
@@ -803,10 +845,11 @@ void print_synth_freq()
   Fout =  Fvco / (1<<(config.synth.x+config.synth.r+config.synth.prescale));
 
   printf("Synth freq:\t\t%.0f\n", Fout);
-  }
+}
 
-void synth_freq(unsigned long target)
-  {
+static void
+synth_freq(unsigned long target)
+{
   unsigned int n, m, v, x, r;
   double Fout, Fvco, Ftarg;
   double newdiff, olddiff;
@@ -849,29 +892,33 @@ void synth_freq(unsigned long target)
   printf("N=%u, M=%u, V=%u, X=%u, R=%u\n", config.synth.n,
    config.synth.m, config.synth.v, config.synth.x, config.synth.r);
 #endif
-  }
+}
 
-void print_cable_len()
-  {
+static void
+print_cable_len(void)
+{
   printf("Cable length:\t\t%d meters\n", config.cable_len);
-  }
+}
 
-void print_cable_type()
-  {
+static void
+print_cable_type(void)
+{
   printf("Cable type:\t\t");
   if (status.cable_type > 7)
     printf("unknown cable_type: %d\n", status.cable_type);
   else
     printf("%s\n", ssi_cables[status.cable_type]);
-  }
+}
 
-void print_time_slots()
-  {
+static void
+print_time_slots(void)
+{
   printf("TimeSlot [31-0]:\t0x%08X\n", config.time_slots);
-  }
+}
 
-void print_scrambler()
-  {
+static void
+print_scrambler(void)
+{
   printf("Scrambler:\t\t");
   if (config.scrambler == CFG_SCRAM_OFF)
     printf("off\n");
@@ -881,21 +928,22 @@ void print_scrambler()
     printf("Larse: X^20+X^17+1 w/28ZS\n");
   else
     printf("unknown scrambler: %d\n", config.scrambler);
-  }
+}
 
-double vga_dbs(u_int8_t vga)
-  {
+static double
+vga_dbs(u_int8_t vga)
+{
   if  (vga <  0x0F)                   return  0.0;
   if ((vga >= 0x0F) && (vga <= 0x1B)) return  0.0 + 0.77 * (vga - 0x0F);
   if ((vga >= 0x1C) && (vga <= 0x33)) return 10.0 + 1.25 * (vga - 0x1C);
   if ((vga >= 0x34) && (vga <= 0x39)) return 40.0 + 1.67 * (vga - 0x34);
-  if ((vga >= 0x3A) && (vga <= 0x3F)) return 50.0 + 2.80 * (vga - 0x3A);
-  if  (vga >  0x3F)                   return 64.0;
-  return 0.0;  /* suppress compiler warning */
-  }
+  if ((vga >= 0x3A) && (vga <  0x3F)) return 50.0 + 2.80 * (vga - 0x3A);
+                                      return 64.0;
+}
 
-void print_rx_gain()
-  {
+static void
+print_rx_gain(void)
+{
   printf("Rx gain max:\t\t");
 
   if (config.rx_gain == CFG_GAIN_AUTO)
@@ -903,10 +951,11 @@ void print_rx_gain()
      vga_dbs(read_framer(Bt8370_VGA_MAX) & 0x3F));
   else
     printf("up to %02.1f dB\n", vga_dbs(config.rx_gain));
-  }
+}
 
-void print_tx_lbo()
-  {
+static void
+print_tx_lbo(void)
+{
   u_int8_t saved_lbo = config.tx_lbo;
 
   printf("LBO = ");
@@ -937,10 +986,11 @@ void print_tx_lbo()
 
   if (saved_lbo == CFG_LBO_AUTO)
     config.tx_lbo = saved_lbo;
-  }
+}
 
-void print_tx_pulse()
-  {
+static void
+print_tx_pulse(void)
+{
   u_int8_t saved_pulse = config.tx_pulse;
 
   printf("Tx pulse shape:\t\t");
@@ -984,10 +1034,11 @@ void print_tx_pulse()
 
   if (saved_pulse == CFG_PULSE_AUTO)
     config.tx_pulse = saved_pulse;
-  }
+}
 
-void print_ssi_sigs()
-  {
+static void
+print_ssi_sigs(void)
+{
   u_int32_t mii16 = status.snmp.ssi.sigs;
   char *on = "On", *off = "Off";
 
@@ -1002,10 +1053,11 @@ void print_ssi_sigs()
    (mii16 & MII16_SSI_LL)  ? on : off,
    (mii16 & MII16_SSI_RL)  ? on : off,
    (mii16 & MII16_SSI_TM)  ? on : off);
-  }
+}
 
-void print_hssi_sigs()
-  {
+static void
+print_hssi_sigs(void)
+{
   u_int32_t mii16 = status.snmp.hssi.sigs;
   char *on = "On", *off = "Off";
 
@@ -1017,10 +1069,11 @@ void print_hssi_sigs()
    (mii16 & MII16_HSSI_LB) ? on : off,
    (mii16 & MII16_HSSI_LC) ? on : off,
    (mii16 & MII16_HSSI_TM) ? on : off);
-  }
+}
 
-void print_events()
-  {
+static void
+print_events(void)
+{
   char *time;
   struct timeval tv;
   struct timezone tz;
@@ -1034,10 +1087,10 @@ void print_events()
     time = (char *)ctime((time_t *)&status.cntrs.reset_time.tv_sec);
   printf("Cntrs reset:\t\t%s", time);
 
-  if (status.cntrs.ibytes)     printf("Rx bytes:\t\t%qu\n",    status.cntrs.ibytes);
-  if (status.cntrs.obytes)     printf("Tx bytes:\t\t%qu\n",    status.cntrs.obytes);
-  if (status.cntrs.ipackets)   printf("Rx packets:\t\t%qu\n",  status.cntrs.ipackets);
-  if (status.cntrs.opackets)   printf("Tx packets:\t\t%qu\n",  status.cntrs.opackets);
+  if (status.cntrs.ibytes)     printf("Rx bytes:\t\t%ju\n",    (uintmax_t)status.cntrs.ibytes);
+  if (status.cntrs.obytes)     printf("Tx bytes:\t\t%ju\n",    (uintmax_t)status.cntrs.obytes);
+  if (status.cntrs.ipackets)   printf("Rx packets:\t\t%ju\n",  (uintmax_t)status.cntrs.ipackets);
+  if (status.cntrs.opackets)   printf("Tx packets:\t\t%ju\n",  (uintmax_t)status.cntrs.opackets);
   if (status.cntrs.ierrors)    printf("Rx errors:\t\t%u\n",    status.cntrs.ierrors);
   if (status.cntrs.oerrors)    printf("Tx errors:\t\t%u\n",    status.cntrs.oerrors);
   if (status.cntrs.idiscards)  printf("Rx discards:\t\t%u\n",  status.cntrs.idiscards);
@@ -1062,10 +1115,11 @@ void print_events()
     if (status.cntrs.lck_ioctl) printf("Lck ioctl:\t\t%u\n",   status.cntrs.lck_ioctl);
     if (status.cntrs.lck_intr)  printf("Lck intr:\t\t%u\n",    status.cntrs.lck_intr);
     }
-  }
+}
 
-void print_summary()
-  {
+static void
+print_summary(void)
+{
   switch(status.card_type)
     {
     case TLP_CSID_HSSI:
@@ -1158,10 +1212,11 @@ void print_summary()
       break;
       }
     }
-  }
+}
 
-char *print_t3_bop(int bop_code)
-  {
+static char *
+print_t3_bop(int bop_code)
+{
   switch(bop_code)
     {
     case 0x00:
@@ -1181,10 +1236,11 @@ char *print_t3_bop(int bop_code)
     default:
       return "Unknown BOP code";
     }
-  }
+}
 
-void print_t3_snmp()
-  {
+static void
+print_t3_snmp(void)
+{
   printf("SNMP performance data:\n");
   printf(" LCV=%d",  status.snmp.t3.lcv);
   printf(" LOS=%d", (status.snmp.t3.line & TLINE_LOS)    ? 1 : 0);
@@ -1196,10 +1252,11 @@ void print_t3_snmp()
   printf("  FEBE=%d", status.snmp.t3.febe);
   printf(" RAI=%d", (status.snmp.t3.line & TLINE_RX_RAI) ? 1 : 0);
   printf("\n");
-  }
+}
 
-void print_t3_dsu()
-  {
+static void
+print_t3_dsu(void)
+{
   char *no = "No", *yes = "Yes";
   u_int16_t mii16 = read_mii(16);
   u_int8_t ctl1   = read_framer(T3CSR_CTL1);
@@ -1244,10 +1301,11 @@ void print_t3_dsu()
    read_framer(T3CSR_RX_FEAC)  & 0x3F,
    print_t3_bop(read_framer(T3CSR_RX_FEAC) & 0x3F));
   print_t3_snmp();
-  }
+}
 
-void t3_cmd(int argc, char **argv)
-  {
+static void
+t3_cmd(int argc, char **argv)
+{
   int ch;
 
   while ((ch = getopt(argc, argv, "a:A:B:c:de:fF:lLsS:vV:")) != -1)
@@ -1428,10 +1486,11 @@ void t3_cmd(int argc, char **argv)
         } /* case */
       } /* switch */
     } /* while */
-  } /* proc */
+} /* proc */
 
-void print_test_pattern(int patt)
-  {
+static void
+print_test_pattern(int patt)
+{
   printf("Test Pattern:\t\t");
   switch (patt)
     {
@@ -1484,10 +1543,11 @@ void print_test_pattern(int patt)
       printf("framed X^23+X^18+1 w/14ZS\n");
       break;
     }
-  }
+}
 
-char *print_t1_bop(int bop_code)
-  {
+static char *
+print_t1_bop(int bop_code)
+{
   switch(bop_code)
     {
     case 0x00:
@@ -1507,10 +1567,11 @@ char *print_t1_bop(int bop_code)
     default:
       return "Unknown BOP code";
     }
-  }
+}
 
-void print_far_report(int index)
-  {
+static void
+print_far_report(int index)
+{
   u_int16_t far = status.snmp.t1.prm[index];
 
   printf(" SEQ=%d ", (far & T1PRM_SEQ)>>8);
@@ -1527,10 +1588,11 @@ void print_far_report(int index)
   printf(" SL=%d", (far & T1PRM_SL) ? 1 : 0);
   printf(" LB=%d", (far & T1PRM_LB) ? 1 : 0);
   printf("\n");
-  }
+}
 
-void print_t1_snmp()
-  {
+static void
+print_t1_snmp(void)
+{
   printf("SNMP Near-end performance data:\n");
   printf(" LCV=%d",  status.snmp.t1.lcv);
   printf(" LOS=%d", (status.snmp.t1.line & TLINE_LOS)    ? 1 : 0);
@@ -1549,10 +1611,11 @@ void print_t1_snmp()
     print_far_report(2);
     print_far_report(3);
     }
-  }
+}
 
-void print_t1_dsu()
-  {
+static void
+print_t1_dsu(void)
+{
   char *no = "No", *yes = "Yes";
   u_int16_t mii16  = read_mii(16);
   u_int8_t isr0    = read_framer(Bt8370_ISR0);
@@ -1639,10 +1702,11 @@ void print_t1_dsu()
      read_framer(Bt8370_RBOP), print_t1_bop(read_framer(Bt8370_RBOP)&0x3F));
     }
   print_t1_snmp();
-  }
+}
 
-void t1_cmd(int argc, char **argv)
-  {
+static void
+t1_cmd(int argc, char **argv)
+{
   int ch;
 
   while ((ch = getopt(argc, argv, "a:A:B:c:de:E:fF:g:iIlLpPstT:u:U:vxX")) != -1)
@@ -1919,11 +1983,12 @@ void t1_cmd(int argc, char **argv)
         } /* case */
       } /* switch */
     } /* while */
-  } /* proc */
+} /* proc */
 
 /* used when reading Motorola S-Record format ROM files */
-unsigned char read_hex(FILE *f)
-  {
+static unsigned char
+read_hex(FILE *f)
+{
   unsigned char a, b, c;
   for (a=0, b=0; a<2; a++)
     {
@@ -1934,14 +1999,15 @@ unsigned char read_hex(FILE *f)
     }
   checksum += b;
   return b;
-  }
+}
 
-static void load_xilinx(char *name)
-  {
+static void
+load_xilinx(char *name)
+{
   FILE *f;
   char *ucode;
   int i, length;
-  char c;
+  int c;
 
   if (verbose) printf("Load firmware from file %s...\n", name);
   if ((f = fopen(name, "r")) == 0)
@@ -2011,11 +2077,12 @@ static void load_xilinx(char *name)
     }
 
   load_xilinx_from_file(ucode, length);
-  }
+}
 
 /* 32-bit CRC calculated right-to-left over 8-bit bytes */
-u_int32_t crc32(char *bufp, int len)
-  {
+static u_int32_t
+crc32(char *bufp, int len)
+{
   int bit, i;
   u_int32_t data;
   u_int32_t crc  = 0xFFFFFFFFL;
@@ -2026,11 +2093,12 @@ u_int32_t crc32(char *bufp, int len)
       crc = (crc >> 1) ^ (((crc ^ data) & 1) ? poly : 0);
 
   return crc;
-  }
+}
 
 /* 8-bit CRC calculated left-to-right over 16-bit words */
-u_int8_t crc8(u_int16_t *bufp, int len)
-  {
+static u_int8_t
+crc8(u_int16_t *bufp, int len)
+{
   int bit, i;
   u_int16_t data;
   u_int8_t crc  = 0xFF;
@@ -2043,11 +2111,12 @@ u_int8_t crc8(u_int16_t *bufp, int len)
       crc = (crc << 1) ^ ((((crc >> 7) ^ (data >> bit)) & 1) ? poly : 0);
       }
   return crc;
-  }
+}
 
 /* HSSI=3, DS3=4, SSI=5, T1E1=6, HSSIc=7, SDSL=8 */
-void init_srom(int board)
-  {
+void
+init_srom(int board)
+{
   int i;
   u_int16_t srom[64];
 
@@ -2076,10 +2145,11 @@ void init_srom(int board)
     }
   printf("\n\n");
 #endif
-  }
+}
 
-int main(int argc, char **argv)
-  {
+int
+main(int argc, char **argv)
+{
   int i, error, ch;
   char *optstring = "13a:bBcCdDeEf:Fhi:L:mM:pP:sS:tT:uUvVwW:xXyYzZ?";
 
@@ -2482,4 +2552,4 @@ int main(int argc, char **argv)
   if (update) ioctl_write_config();
 
   exit(0);
-  }
+}

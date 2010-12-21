@@ -34,6 +34,7 @@
  * Variable access for SNMPd
  */
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
 #include <sys/utsname.h>
@@ -42,6 +43,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include <syslog.h>
 
 #include "snmpmod.h"
@@ -162,7 +164,83 @@ init_actvals(void)
 	return (0);
 }
 
+/*
+ * Initialize global variables of the snmpEngine group.
+ */
+int
+init_snmpd_engine(void)
+{
+	char *hostid;
 
+	snmpd_engine.engine_boots = 1;
+	snmpd_engine.engine_time = 1;
+	snmpd_engine.max_msg_size = 1500; /* XXX */
+
+	snmpd_engine.engine_id[0] = ((OID_freeBSD & 0xff000000) >> 24) | 0x80;
+	snmpd_engine.engine_id[1] = (OID_freeBSD & 0xff0000) >> 16;
+	snmpd_engine.engine_id[2] = (OID_freeBSD & 0xff00) >> 8;
+	snmpd_engine.engine_id[3] = OID_freeBSD & 0xff;
+	snmpd_engine.engine_id[4] = 128;
+	snmpd_engine.engine_len = 5;
+
+	if ((hostid = act_getkernint(KERN_HOSTID)) == NULL)
+		return (-1);
+
+	if (strlen(hostid) > SNMP_ENGINE_ID_SIZ - snmpd_engine.engine_len) {
+		memcpy(snmpd_engine.engine_id + snmpd_engine.engine_len,
+		    hostid, SNMP_ENGINE_ID_SIZ - snmpd_engine.engine_len);
+		snmpd_engine.engine_len = SNMP_ENGINE_ID_SIZ;
+	} else {
+		memcpy(snmpd_engine.engine_id + snmpd_engine.engine_len,
+		    hostid, strlen(hostid));
+		snmpd_engine.engine_len += strlen(hostid);		
+	}
+
+	free(hostid);
+
+	return (0);
+}
+
+int
+set_snmpd_engine(void)
+{
+	FILE *fp;
+	uint32_t i;
+	uint8_t *cptr, engine[2 * SNMP_ENGINE_ID_SIZ + 2];
+	uint8_t myengine[2 * SNMP_ENGINE_ID_SIZ + 2];
+
+	if (engine_file[0] == '\0')
+		return (-1);
+
+	cptr = myengine;
+	for (i = 0; i < snmpd_engine.engine_len; i++)
+		cptr += sprintf(cptr, "%.2x", snmpd_engine.engine_id[i]);
+	*cptr++ = '\n';
+	*cptr++ = '\0';
+
+	if ((fp = fopen(engine_file, "r+")) != NULL) {
+		if (fgets(engine, sizeof(engine) - 1, fp) == NULL ||
+		    fscanf(fp, "%u",  &snmpd_engine.engine_boots) <= 0) {
+			fclose(fp);
+			goto save_boots;
+		}
+
+		fclose(fp);
+		if (strcmp(myengine, engine) != 0)
+			snmpd_engine.engine_boots = 1;
+		else
+			snmpd_engine.engine_boots++;
+	} else if (errno != ENOENT)
+		return (-1);
+
+save_boots:
+	if ((fp = fopen(engine_file, "w+")) == NULL)
+		return (-1);
+	fprintf(fp, "%s%u\n", myengine, snmpd_engine.engine_boots);
+	fclose(fp);
+
+	return (0);
+}
 
 /*************************************************************
  *
@@ -977,6 +1055,103 @@ op_snmp_set(struct snmp_context *ctx __unused, struct snmp_value *value,
 		return (SNMP_ERR_NOERROR);
 	}
 	abort();
+}
+
+/*
+ * SNMP Engine
+ */
+int
+op_snmp_engine(struct snmp_context *ctx __unused, struct snmp_value *value,
+    u_int sub, u_int iidx __unused, enum snmp_op op)
+{
+	asn_subid_t which = value->var.subs[sub - 1];
+
+	switch (op) {
+	case SNMP_OP_GETNEXT:
+		abort();
+
+	case SNMP_OP_GET:
+		break;
+
+	case SNMP_OP_SET:
+		if (community != COMM_INITIALIZE)
+			return (SNMP_ERR_NOT_WRITEABLE);
+		switch (which) {
+		case LEAF_snmpEngineID:
+			if (value->v.octetstring.len > SNMP_ENGINE_ID_SIZ)
+				return (SNMP_ERR_WRONG_VALUE);
+			ctx->scratch->ptr1 = malloc(snmpd_engine.engine_len);
+			if (ctx->scratch->ptr1 == NULL)
+				return (SNMP_ERR_GENERR);
+			memcpy(ctx->scratch->ptr1, snmpd_engine.engine_id,
+			    snmpd_engine.engine_len);
+			ctx->scratch->int1 = snmpd_engine.engine_len;
+			snmpd_engine.engine_len = value->v.octetstring.len;
+			memcpy(snmpd_engine.engine_id,
+			    value->v.octetstring.octets,
+			    value->v.octetstring.len);
+			break;
+
+		case LEAF_snmpEngineMaxMessageSize:
+			ctx->scratch->int1 = snmpd_engine.max_msg_size;
+			snmpd_engine.max_msg_size = value->v.integer;
+			break;
+	
+		default:
+			return (SNMP_ERR_NOT_WRITEABLE);
+		}
+		return (SNMP_ERR_NOERROR);
+
+	case SNMP_OP_ROLLBACK:
+		switch (which) {
+		case LEAF_snmpEngineID:
+			snmpd_engine.engine_len = ctx->scratch->int1;
+			memcpy(snmpd_engine.engine_id, ctx->scratch->ptr1,
+			    snmpd_engine.engine_len);
+			free(ctx->scratch->ptr1);
+			break;
+
+		case LEAF_snmpEngineMaxMessageSize:
+			snmpd_engine.max_msg_size = ctx->scratch->int1;
+			break;
+
+		default:
+			abort();
+		}
+		return (SNMP_ERR_NOERROR);
+
+	case SNMP_OP_COMMIT:
+		if (which == LEAF_snmpEngineID) {
+			if (set_snmpd_engine() < 0) {
+				snmpd_engine.engine_len = ctx->scratch->int1;
+				memcpy(snmpd_engine.engine_id,
+				    ctx->scratch->ptr1, ctx->scratch->int1);
+			}	
+			free(ctx->scratch->ptr1);
+		}
+		return (SNMP_ERR_NOERROR);
+	}
+
+
+	switch (which) {
+	case LEAF_snmpEngineID:
+		return (string_get(value, snmpd_engine.engine_id,
+		    snmpd_engine.engine_len));
+	case LEAF_snmpEngineBoots:
+		value->v.integer = snmpd_engine.engine_boots;
+		break;
+	case LEAF_snmpEngineTime:
+		snmpd_engine.engine_time = (get_ticks() - start_tick) / 100ULL;
+		value->v.integer = snmpd_engine.engine_time;
+		break;
+	case LEAF_snmpEngineMaxMessageSize:
+		value->v.integer = snmpd_engine.max_msg_size;
+		break;
+	default:
+		return (SNMP_ERR_NOSUCHNAME);
+	}
+
+	return (SNMP_ERR_NOERROR);
 }
 
 /*

@@ -521,7 +521,7 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 	register_t	msr;
 	vm_offset_t	off;
 	vm_paddr_t	pa_base;
-	int		i, ofw_mappings;
+	int		i;
 
 	bzero(translations, sz);
 	if (OF_getprop(mmu, "translations", translations, sz) == -1)
@@ -531,7 +531,7 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 	sz /= sizeof(*translations);
 	qsort(translations, sz, sizeof (*translations), om_cmp);
 
-	for (i = 0, ofw_mappings = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++) {
 		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
 		    (uint32_t)(translations[i].om_pa_lo), translations[i].om_va,
 		    translations[i].om_len);
@@ -558,8 +558,6 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 
 			moea64_kenter(mmup, translations[i].om_va + off,
 			    pa_base + off);
-
-			ofw_mappings++;
 		}
 		ENABLE_TRANS(msr);
 	}
@@ -1114,6 +1112,7 @@ void moea64_set_scratchpage_pa(mmu_t mmup, int which, vm_offset_t pa) {
 	MOEA64_PTE_CHANGE(mmup, moea64_scratchpage_pte[which],
 	    &moea64_scratchpage_pvo[which]->pvo_pte.lpte,
 	    moea64_scratchpage_pvo[which]->pvo_vpn);
+	isync();
 }
 
 void

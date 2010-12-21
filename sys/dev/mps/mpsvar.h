@@ -135,7 +135,6 @@ struct mps_softc {
 	TAILQ_HEAD(, mps_command)	tm_list;
 	int				replypostindex;
 	int				replyfreeindex;
-	int				replycurindex;
 
 	struct resource			*mps_regs_resource;
 	bus_space_handle_t		mps_bhandle;

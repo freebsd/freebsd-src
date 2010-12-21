@@ -74,11 +74,22 @@ struct acpi_bst {
     uint32_t volt;			/* Present Voltage */
 };
 
+/*
+ * Note that the following definitions represent status bits for internal
+ * driver state.  The first three of them (charging, discharging and critical)
+ * conveninetly conform to ACPI specification of status returned by _BST
+ * method.  Other definitions (not present, etc) are synthetic.
+ * Also note that according to the specification the charging and discharging
+ * status bits must not be set at the same time.
+ */
 #define ACPI_BATT_STAT_DISCHARG		0x0001
 #define ACPI_BATT_STAT_CHARGING		0x0002
 #define ACPI_BATT_STAT_CRITICAL		0x0004
-#define ACPI_BATT_STAT_NOT_PRESENT	0x0007
-#define ACPI_BATT_STAT_MAX		0x0007
+#define ACPI_BATT_STAT_INVALID					\
+    (ACPI_BATT_STAT_DISCHARG | ACPI_BATT_STAT_CHARGING)
+#define ACPI_BATT_STAT_BST_MASK					\
+    (ACPI_BATT_STAT_INVALID | ACPI_BATT_STAT_CRITICAL)
+#define ACPI_BATT_STAT_NOT_PRESENT	ACPI_BATT_STAT_BST_MASK
 
 union acpi_battery_ioctl_arg {
     int			 unit;	/* Device unit or ACPI_BATTERY_ALL_UNITS. */

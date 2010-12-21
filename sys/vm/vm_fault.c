@@ -201,13 +201,20 @@ unlock_and_deallocate(struct faultstate *fs)
  *	KERN_SUCCESS is returned if the page fault is handled; otherwise,
  *	a standard error specifying why the fault is fatal is returned.
  *
- *
  *	The map in question must be referenced, and remains so.
  *	Caller may hold no locks.
  */
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
-	 int fault_flags)
+    int fault_flags)
+{
+
+	return (vm_fault_hold(map, vaddr, fault_type, fault_flags, NULL));
+}
+
+int
+vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
+    int fault_flags, vm_page_t *m_hold)
 {
 	vm_prot_t prot;
 	int is_first_object_locked, result;
@@ -880,7 +887,8 @@ vnode_locked:
 	if (hardfault)
 		fs.entry->lastr = fs.pindex + faultcount - behind;
 
-	if (prot & VM_PROT_WRITE) {
+	if ((prot & VM_PROT_WRITE) != 0 ||
+	    (fault_flags & VM_FAULT_DIRTY) != 0) {
 		vm_object_set_writeable_dirty(fs.object);
 
 		/*
@@ -906,8 +914,9 @@ vnode_locked:
 		 * Also tell the backing pager, if any, that it should remove
 		 * any swap backing since the page is now dirty.
 		 */
-		if ((fault_type & VM_PROT_WRITE) != 0 &&
-		    (fault_flags & VM_FAULT_CHANGE_WIRING) == 0) {
+		if (((fault_type & VM_PROT_WRITE) != 0 &&
+		    (fault_flags & VM_FAULT_CHANGE_WIRING) == 0) ||
+		    (fault_flags & VM_FAULT_DIRTY) != 0) {
 			vm_page_dirty(fs.m);
 			vm_pager_page_unswapped(fs.m);
 		}
@@ -949,6 +958,10 @@ vnode_locked:
 			vm_page_unwire(fs.m, 1);
 	} else
 		vm_page_activate(fs.m);
+	if (m_hold != NULL) {
+		*m_hold = fs.m;
+		vm_page_hold(fs.m);
+	}
 	vm_page_unlock(fs.m);
 	vm_page_wakeup(fs.m);
 

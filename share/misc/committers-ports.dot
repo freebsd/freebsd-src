@@ -80,6 +80,7 @@ eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04"]
 farrokhi [label="Babak Farrokhi\nfarrokhi@FreeBSD.org\n2006/11/07"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
+flo [label="Florian Smeets\nflo@FreeBSD.org\n2010/12/07"]
 fluffy [label="Dima Panov\nfluffy@FreeBSD.org\n2009/08/10"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
@@ -166,6 +167,7 @@ trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
+wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
 xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
 yzlin [label="Yi-Jheng Lin\nyzlin@FreeBSD.org\n2009/07/19"]
@@ -230,6 +232,7 @@ erwin -> lth
 erwin -> simon
 
 fjoe -> danfe
+fjoe -> flo
 fjoe -> krion
 fjoe -> osa
 
@@ -262,6 +265,8 @@ itetcu -> dryice
 itetcu -> sahil
 
 jadawin -> bapt
+jadawin -> flo
+jadawin -> wen
 
 joerg -> netchild
 
@@ -312,6 +317,7 @@ miwi -> mva
 miwi -> nox
 miwi -> tabthorpe
 miwi -> trasz
+miwi -> wen
 
 mnag -> jmelo
 

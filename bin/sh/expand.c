@@ -132,11 +132,22 @@ collate_range_cmp(int c1, int c2)
 void
 expandhere(union node *arg, int fd)
 {
-	herefd = fd;
 	expandarg(arg, (struct arglist *)NULL, 0);
 	xwrite(fd, stackblock(), expdest - stackblock());
 }
 
+static char *
+stputs_quotes(const char *data, const char *syntax, char *p)
+{
+	while (*data) {
+		CHECKSTRSPACE(2, p);
+		if (syntax[(int)*data] == CCTL)
+			USTPUTC(CTLESC, p);
+		USTPUTC(*data++, p);
+	}
+	return (p);
+}
+#define STPUTS_QUOTES(data, syntax, p) p = stputs_quotes((data), syntax, p)
 
 /*
  * Perform expansions on an argument, placing the resulting list of arguments
@@ -334,11 +345,10 @@ done:
 	if (*home == '\0')
 		goto lose;
 	*p = c;
-	while ((c = *home++) != '\0') {
-		if (quotes && SQSYNTAX[(int)c] == CCTL)
-			STPUTC(CTLESC, expdest);
-		STPUTC(c, expdest);
-	}
+	if (quotes)
+		STPUTS_QUOTES(home, SQSYNTAX, expdest);
+	else
+		STPUTS(home, expdest);
 	return (p);
 lose:
 	*p = c;
@@ -458,7 +468,6 @@ expbackq(union node *cmd, int quoted, int flag)
 	char lastc;
 	int startloc = dest - stackblock();
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
-	int saveherefd;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 	int nnl;
 
@@ -466,15 +475,12 @@ expbackq(union node *cmd, int quoted, int flag)
 	saveifs = ifsfirst;
 	savelastp = ifslastp;
 	saveargbackq = argbackq;
-	saveherefd = herefd;
-	herefd = -1;
 	p = grabstackstr(dest);
 	evalbackcmd(cmd, &in);
 	ungrabstackstr(p, dest);
 	ifsfirst = saveifs;
 	ifslastp = savelastp;
 	argbackq = saveargbackq;
-	herefd = saveherefd;
 
 	p = in.buf;
 	lastc = '\0';
@@ -493,8 +499,6 @@ expbackq(union node *cmd, int quoted, int flag)
 		}
 		lastc = *p++;
 		if (lastc != '\0') {
-			if (quotes && syntax[(int)lastc] == CCTL)
-				STPUTC(CTLESC, dest);
 			if (lastc == '\n') {
 				nnl++;
 			} else {
@@ -502,6 +506,8 @@ expbackq(union node *cmd, int quoted, int flag)
 					nnl--;
 					STPUTC('\n', dest);
 				}
+				if (quotes && syntax[(int)lastc] == CCTL)
+					STPUTC(CTLESC, dest);
 				STPUTC(lastc, dest);
 			}
 		}
@@ -533,16 +539,13 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 	char *loc = NULL;
 	char *q;
 	int c = 0;
-	int saveherefd = herefd;
 	struct nodelist *saveargbackq = argbackq;
 	int amount;
 
-	herefd = -1;
 	argstr(p, (subtype == VSTRIMLEFT || subtype == VSTRIMLEFTMAX ||
 	    subtype == VSTRIMRIGHT || subtype == VSTRIMRIGHTMAX ?
 	    EXP_CASE : 0) | EXP_TILDE);
 	STACKSTRNUL(expdest);
-	herefd = saveherefd;
 	argbackq = saveargbackq;
 	startp = stackblock() + startloc;
 	if (str == NULL)
@@ -554,8 +557,6 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 		amount = startp - expdest;
 		STADJUST(amount, expdest);
 		varflags &= ~VSNUL;
-		if (c != 0)
-			*loc = c;
 		return 1;
 
 	case VSQUESTION:
@@ -723,12 +724,10 @@ again: /* jump here after setting a variable with ${var=text} */
 					varlen++;
 			}
 			else {
-				while (*val) {
-					if (quotes &&
-					    syntax[(int)*val] == CCTL)
-						STPUTC(CTLESC, expdest);
-					STPUTC(*val++, expdest);
-				}
+				if (quotes)
+					STPUTS_QUOTES(val, syntax, expdest);
+				else
+					STPUTS(val, expdest);
 
 			}
 		}
@@ -877,7 +876,14 @@ varisset(char *name, int nulok)
 	return 1;
 }
 
-
+static void
+strtodest(const char *p, int flag, int subtype, int quoted)
+{
+	if (flag & (EXP_FULL | EXP_CASE) && subtype != VSLENGTH)
+		STPUTS_QUOTES(p, quoted ? DQSYNTAX : BASESYNTAX, expdest);
+	else
+		STPUTS(p, expdest);
+}
 
 /*
  * Add the value of a specialized variable to the stack string.
@@ -891,21 +897,6 @@ varvalue(char *name, int quoted, int subtype, int flag)
 	int i;
 	char sep;
 	char **ap;
-	char const *syntax;
-
-#define STRTODEST(p) \
-	do {\
-	if (flag & (EXP_FULL | EXP_CASE) && subtype != VSLENGTH) { \
-		syntax = quoted? DQSYNTAX : BASESYNTAX; \
-		while (*p) { \
-			if (syntax[(int)*p] == CCTL) \
-				STPUTC(CTLESC, expdest); \
-			STPUTC(*p++, expdest); \
-		} \
-	} else \
-		STPUTS(p, expdest); \
-	} while (0)
-
 
 	switch (*name) {
 	case '$':
@@ -931,7 +922,7 @@ numvar:
 	case '@':
 		if (flag & EXP_FULL && quoted) {
 			for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
-				STRTODEST(p);
+				strtodest(p, flag, subtype, quoted);
 				if (*ap)
 					STPUTC('\0', expdest);
 			}
@@ -944,21 +935,21 @@ numvar:
 		else
 			sep = ' ';
 		for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
-			STRTODEST(p);
+			strtodest(p, flag, subtype, quoted);
 			if (*ap && sep)
 				STPUTC(sep, expdest);
 		}
 		break;
 	case '0':
 		p = arg0;
-		STRTODEST(p);
+		strtodest(p, flag, subtype, quoted);
 		break;
 	default:
 		if (is_digit(*name)) {
 			num = atoi(name);
 			if (num > 0 && num <= shellparam.nparam) {
 				p = shellparam.p[num - 1];
-				STRTODEST(p);
+				strtodest(p, flag, subtype, quoted);
 			}
 		}
 		break;

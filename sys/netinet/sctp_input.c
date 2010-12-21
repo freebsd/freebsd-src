@@ -3156,7 +3156,6 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 				SCTP_STAT_INCR(sctps_pdrpmark);
 				if (tp1->sent != SCTP_DATAGRAM_RESEND)
 					sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
-				tp1->sent = SCTP_DATAGRAM_RESEND;
 				/*
 				 * mark it as if we were doing a FR, since
 				 * we will be getting gap ack reports behind
@@ -3191,6 +3190,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 					sctp_flight_size_decrease(tp1);
 					sctp_total_flight_decrease(stcb, tp1);
 				}
+				tp1->sent = SCTP_DATAGRAM_RESEND;
 			} {
 				/* audit code */
 				unsigned int audit;
@@ -5650,13 +5650,15 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 		 */
 	}
 	if ((data_processed == 0) && (fwd_tsn_seen)) {
-		int was_a_gap = 0;
+		int was_a_gap;
+		uint32_t highest_tsn;
 
-		if (compare_with_wrap(stcb->asoc.highest_tsn_inside_map,
-		    stcb->asoc.cumulative_tsn, MAX_TSN)) {
-			/* there was a gap before this data was processed */
-			was_a_gap = 1;
+		if (compare_with_wrap(stcb->asoc.highest_tsn_inside_nr_map, stcb->asoc.highest_tsn_inside_map, MAX_TSN)) {
+			highest_tsn = stcb->asoc.highest_tsn_inside_nr_map;
+		} else {
+			highest_tsn = stcb->asoc.highest_tsn_inside_map;
 		}
+		was_a_gap = compare_with_wrap(highest_tsn, stcb->asoc.cumulative_tsn, MAX_TSN);
 		stcb->asoc.send_sack = 1;
 		sctp_sack_check(stcb, was_a_gap, &abort_flag);
 		if (abort_flag) {

@@ -81,14 +81,53 @@ MTX_SYSINIT(zombie_lock, &zombie_lock, "zombie lock", MTX_SPIN);
 
 static void thread_zombie(struct thread *);
 
+#define TID_BUFFER_SIZE	1024
+
 struct mtx tid_lock;
 static struct unrhdr *tid_unrhdr;
-
+static lwpid_t tid_buffer[TID_BUFFER_SIZE];
+static int tid_head, tid_tail;
 static MALLOC_DEFINE(M_TIDHASH, "tidhash", "thread hash");
 
 struct	tidhashhead *tidhashtbl;
 u_long	tidhash;
 struct	rwlock tidhash_lock;
+
+static lwpid_t
+tid_alloc(void)
+{
+	lwpid_t	tid;
+
+	tid = alloc_unr(tid_unrhdr);
+	if (tid != -1)
+		return (tid);
+	mtx_lock(&tid_lock);
+	if (tid_head == tid_tail) {
+		mtx_unlock(&tid_lock);
+		return (-1);
+	}
+	tid = tid_buffer[tid_head++];
+	tid_head %= TID_BUFFER_SIZE;
+	mtx_unlock(&tid_lock);
+	return (tid);
+}
+
+static void
+tid_free(lwpid_t tid)
+{
+	lwpid_t tmp_tid = -1;
+
+	mtx_lock(&tid_lock);
+	if ((tid_tail + 1) % TID_BUFFER_SIZE == tid_head) {
+		tmp_tid = tid_buffer[tid_head++];
+		tid_head = (tid_head + 1) % TID_BUFFER_SIZE;
+	}
+	tid_buffer[tid_tail++] = tid;
+	tid_tail %= TID_BUFFER_SIZE;
+	mtx_unlock(&tid_lock);
+	if (tmp_tid != -1)
+		free_unr(tid_unrhdr, tmp_tid);
+}
 
 /*
  * Prepare a thread for use.
@@ -102,7 +141,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td->td_state = TDS_INACTIVE;
 	td->td_oncpu = NOCPU;
 
-	td->td_tid = alloc_unr(tid_unrhdr);
+	td->td_tid = tid_alloc();
 
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
@@ -110,6 +149,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	 * end of a context switch.
 	 */
 	td->td_critnest = 1;
+	td->td_lend_user_pri = PRI_MAX;
 	EVENTHANDLER_INVOKE(thread_ctor, td);
 #ifdef AUDIT
 	audit_thread_alloc(td);
@@ -155,7 +195,7 @@ thread_dtor(void *mem, int size, void *arg)
 	osd_thread_exit(td);
 
 	EVENTHANDLER_INVOKE(thread_dtor, td);
-	free_unr(tid_unrhdr, td->td_tid);
+	tid_free(td->td_tid);
 }
 
 /*

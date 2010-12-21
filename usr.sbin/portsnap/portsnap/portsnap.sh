@@ -632,7 +632,7 @@ fetch_snapshot() {
 	fetch -r http://${SERVERNAME}/s/${SNAPSHOTHASH}.tgz || return 1
 
 	echo -n "Extracting snapshot... "
-	tar -xzf ${SNAPSHOTHASH}.tgz snap/ || return 1
+	tar -xz --numeric-owner -f ${SNAPSHOTHASH}.tgz snap/ || return 1
 	rm ${SNAPSHOTHASH}.tgz
 	echo "done."
 
@@ -896,12 +896,12 @@ extract_run() {
 		*/)
 			rm -rf ${PORTSDIR}/${FILE%/}
 			mkdir -p ${PORTSDIR}/${FILE}
-			tar -xzf ${WORKDIR}/files/${HASH}.gz	\
+			tar -xz --numeric-owner -f ${WORKDIR}/files/${HASH}.gz \
 			    -C ${PORTSDIR}/${FILE}
 			;;
 		*)
 			rm -f ${PORTSDIR}/${FILE}
-			tar -xzf ${WORKDIR}/files/${HASH}.gz	\
+			tar -xz --numeric-owner -f ${WORKDIR}/files/${HASH}.gz \
 			    -C ${PORTSDIR} ${FILE}
 			;;
 		esac
@@ -966,11 +966,11 @@ update_run() {
 		case ${FILE} in
 		*/)
 			mkdir -p ${PORTSDIR}/${FILE}
-			tar -xzf ${WORKDIR}/files/${HASH}.gz	\
+			tar -xz --numeric-owner -f ${WORKDIR}/files/${HASH}.gz \
 			    -C ${PORTSDIR}/${FILE}
 			;;
 		*)
-			tar -xzf ${WORKDIR}/files/${HASH}.gz	\
+			tar -xz --numeric-owner -f ${WORKDIR}/files/${HASH}.gz \
 			    -C ${PORTSDIR} ${FILE}
 			;;
 		esac
