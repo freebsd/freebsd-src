@@ -863,7 +863,7 @@ static void
 destroy_devl(struct cdev *dev)
 {
 	struct cdevsw *csw;
-	struct cdev_privdata *p, *p1;
+	struct cdev_privdata *p;
 
 	mtx_assert(&devmtx, MA_OWNED);
 	KASSERT(dev->si_flags & SI_NAMED,
@@ -908,7 +908,7 @@ destroy_devl(struct cdev *dev)
 	dev_unlock();
 	notify_destroy(dev);
 	mtx_lock(&cdevpriv_mtx);
-	LIST_FOREACH_SAFE(p, &dev->si_priv->cdp_fdpriv, cdpd_list, p1) {
+	while ((p = LIST_FIRST(&dev->si_priv->cdp_fdpriv)) != NULL) {
 		devfs_destroy_cdevpriv(p);
 		mtx_lock(&cdevpriv_mtx);
 	}
