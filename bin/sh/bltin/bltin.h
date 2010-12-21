@@ -57,11 +57,7 @@
 #define fwrite(ptr, size, nmemb, file) outbin(ptr, (size) * (nmemb), file)
 #define fflush flushout
 #define INITARGS(argv)
-#define warnx(...) do {					\
-	out2fmt_flush("%s: ", commandname);		\
-	out2fmt_flush(__VA_ARGS__);			\
-	out2fmt_flush("\n");				\
-	} while (0)
+#define warnx warning
 #define errx(exitstatus, ...) error(__VA_ARGS__)
 
 #else
