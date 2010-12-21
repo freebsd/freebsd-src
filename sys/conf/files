@@ -2138,9 +2138,11 @@ kern/kern_exit.c		standard
 kern/kern_fail.c		standard
 kern/kern_fork.c		standard
 kern/kern_gzio.c		optional gzio
+kern/kern_hhook.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
 kern/kern_jail.c		standard
+kern/kern_khelp.c		standard
 kern/kern_kthread.c		standard
 kern/kern_ktr.c			optional ktr
 kern/kern_ktrace.c		standard
