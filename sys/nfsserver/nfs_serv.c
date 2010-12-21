@@ -3036,9 +3036,11 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	int usevget = 1, vfslocked;
 	struct componentname cn;
+	struct mount *mntp = NULL;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	vfslocked = 0;
+	vp_locked = 0;
 	if (!v3)
 		panic("nfsrv_readdirplus: v3 proc called on a v2 connection");
 	fhp = &nfh.fh_generic;
@@ -3058,14 +3060,17 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (siz > xfer)
 		siz = xfer;
 	fullsiz = siz;
-	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
-	vp_locked = 1;
-	if (!error && vp->v_type != VDIR) {
-		error = ENOTDIR;
-		vput(vp);
-		vp = NULL;
-		vp_locked = 0;
+	error = nfsrv_fhtovp(fhp, NFSRV_FLAG_BUSY, &vp, &vfslocked, nfsd, slp,
+	    nam, &rdonly);
+	if (!error) {
+		vp_locked = 1;
+		mntp = vp->v_mount;
+		if (vp->v_type != VDIR) {
+			error = ENOTDIR;
+			vput(vp);
+			vp = NULL;
+			vp_locked = 0;
+		}
 	}
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
@@ -3207,8 +3212,8 @@ again:
 				 * For readdir_and_lookup get the vnode using
 				 * the file number.
 				 */
-				error = VFS_VGET(vp->v_mount, dp->d_fileno,
-				    LK_SHARED, &nvp);
+				error = VFS_VGET(mntp, dp->d_fileno, LK_SHARED,
+				    &nvp);
 				if (error != 0 && error != EOPNOTSUPP) {
 					error = 0;
 					goto invalid;
