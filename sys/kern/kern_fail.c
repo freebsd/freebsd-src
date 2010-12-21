@@ -177,6 +177,7 @@ fail_point_init(struct fail_point *fp, const char *fmt, ...)
 		va_end(ap);
 	}
 	fp->fp_name = name;
+	fp->fp_location = "";
 	fp->fp_flags |= FAIL_POINT_DYNAMIC_NAME;
 	fp->fp_sleep_fn = NULL;
 	fp->fp_sleep_arg = NULL;
@@ -372,10 +373,10 @@ fail_point_set(struct fail_point *fp, char *buf)
  end:
 #ifdef IWARNING
 	if (error)
-		IWARNING("Failed to set %s (%s) to %s",
+		IWARNING("Failed to set %s %s to %s",
 		    fp->fp_name, fp->fp_location, buf);
 	else
-		INOTICE("Set %s (%s) to %s",
+		INOTICE("Set %s %s to %s",
 		    fp->fp_name, fp->fp_location, buf);
 #endif /* IWARNING */
 
