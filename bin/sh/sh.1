@@ -456,9 +456,10 @@ would become
 Aliases provide a convenient way for naive users to
 create shorthands for commands without having to learn how
 to create functions with arguments.
-They can also be
-used to create lexically obscure code.
-This use is discouraged.
+Using aliases in scripts is discouraged
+because the command that defines them must be executed
+before the code that uses them is parsed.
+This is fragile and not portable.
 .Pp
 An alias name may be escaped in a command line, so that it is not
 replaced by its alias value, by using quoting characters within or
