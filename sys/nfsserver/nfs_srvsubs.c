@@ -1166,9 +1166,9 @@ out:
 	if (credanon != NULL)
 		crfree(credanon);
 
-	if (error) {
+	if (error)
 		VFS_UNLOCK_GIANT(vfslocked);
-	} else
+	else
 		*vfslockedp = vfslocked;
 	return (error);
 }
