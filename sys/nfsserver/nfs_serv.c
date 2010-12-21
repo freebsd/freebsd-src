@@ -213,8 +213,7 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	tl = nfsm_dissect_nonblock(u_int32_t *, NFSX_UNSIGNED);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		nfsm_srvpostop_attr(1, NULL);
@@ -280,8 +279,7 @@ nfsrv_getattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vfslocked = 0;
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp, nam,
-	    &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(0);
 		error = 0;
@@ -389,8 +387,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	/*
 	 * Now that we have all the fields, lets do it.
 	 */
-	error = nfsrv_fhtovp(fhp, 1, &vp, &tvfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &tvfslocked, nfsd, slp, nam, &rdonly);
 	vfslocked = nfsrv_lockedpair(vfslocked, tvfslocked);
 	if (error) {
 		nfsm_reply(2 * NFSX_UNSIGNED);
@@ -712,8 +709,7 @@ nfsrv_readlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	uiop->uio_rw = UIO_READ;
 	uiop->uio_segflg = UIO_SYSSPACE;
 	uiop->uio_td = NULL;
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(2 * NFSX_UNSIGNED);
 		if (v3)
@@ -808,8 +804,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 * as well.
 	 */
 
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		vp = NULL;
 		nfsm_reply(2 * NFSX_UNSIGNED);
@@ -1109,8 +1104,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	error = nfsrv_fhtovp(fhp, 1, &vp, &tvfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &tvfslocked, nfsd, slp, nam, &rdonly);
 	vfslocked = nfsrv_lockedpair(vfslocked, tvfslocked);
 	if (error) {
 		vp = NULL;
@@ -2102,8 +2096,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsm_srvmtofh(dfhp);
 	nfsm_srvnamesiz(len);
 
-	error = nfsrv_fhtovp(fhp, TRUE, &vp, &tvfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &tvfslocked, nfsd, slp, nam, &rdonly);
 	vfslocked = nfsrv_lockedpair(vfslocked, tvfslocked);
 	if (error) {
 		nfsm_reply(NFSX_POSTOPATTR(v3) + NFSX_WCCDATA(v3));
@@ -2770,8 +2763,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (siz > xfer)
 		siz = xfer;
 	fullsiz = siz;
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (!error && vp->v_type != VDIR) {
 		error = ENOTDIR;
 		vput(vp);
@@ -3066,7 +3058,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (siz > xfer)
 		siz = xfer;
 	fullsiz = siz;
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp,
 	    nam, &rdonly, TRUE);
 	vp_locked = 1;
 	if (!error && vp->v_type != VDIR) {
@@ -3375,6 +3367,8 @@ invalid:
 nfsmout:
 	if (vp)
 		vrele(vp);
+	if (mntp)
+		vfs_unbusy(mntp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return(error);
 }
@@ -3426,8 +3420,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	off = fxdr_hyper(tl);
 	tl += 2;
 	cnt = fxdr_unsigned(int, *tl);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &tvfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &tvfslocked, nfsd, slp, nam, &rdonly);
 	vfslocked = nfsrv_lockedpair(vfslocked, tvfslocked);
 	if (error) {
 		nfsm_reply(2 * NFSX_UNSIGNED);
@@ -3571,8 +3564,7 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vfslocked = 0;
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		if (v3)
@@ -3666,8 +3658,7 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhp = &nfh.fh_generic;
 	vfslocked = 0;
 	nfsm_srvmtofh(fhp);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		nfsm_srvpostop_attr(getret, &at);
@@ -3741,8 +3732,7 @@ nfsrv_pathconf(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vfslocked = 0;
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		nfsm_srvpostop_attr(getret, &at);
