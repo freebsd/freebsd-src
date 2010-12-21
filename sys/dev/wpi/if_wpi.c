@@ -2429,6 +2429,9 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
 		sc->config.flags |= htole32(WPI_CONFIG_AUTO |
 		    WPI_CONFIG_24GHZ);
+	} else {
+		sc->config.flags &= ~htole32(WPI_CONFIG_AUTO |
+		    WPI_CONFIG_24GHZ);
 	}
 	if (IEEE80211_IS_CHAN_A(ni->ni_chan)) {
 		sc->config.cck_mask  = 0;
