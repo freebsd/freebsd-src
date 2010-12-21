@@ -46,9 +46,10 @@ struct osd {
 
 #define	OSD_THREAD	0
 #define	OSD_JAIL	1
+#define	OSD_KHELP	2
 
 #define	OSD_FIRST	OSD_THREAD
-#define	OSD_LAST	OSD_JAIL
+#define	OSD_LAST	OSD_KHELP
 
 typedef void (*osd_destructor_t)(void *value);
 typedef int (*osd_method_t)(void *obj, void *data);
