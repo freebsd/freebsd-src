@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2010
+.Dd December 21, 2010
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2049,6 +2049,10 @@ If the
 .Fl s
 option is specified, only the PIDs of the job commands are printed, one per
 line.
+.It Ic kill
+A built-in equivalent of
+.Xr kill 1
+that additionally supports sending signals to jobs.
 .It Ic local Oo Ar variable ... Oc Op Fl
 See the
 .Sx Functions
@@ -2477,6 +2481,7 @@ will return the argument.
 .Xr echo 1 ,
 .Xr ed 1 ,
 .Xr emacs 1 ,
+.Xr kill 1 ,
 .Xr printf 1 ,
 .Xr pwd 1 ,
 .Xr test 1 ,
