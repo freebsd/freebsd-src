@@ -292,7 +292,7 @@ sctp_notify(struct sctp_inpcb *inp,
 			 * PF state.
 			 */
 			/* Stop any running T3 timers here? */
-			if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+			if ((stcb->asoc.sctp_cmt_on_off > 0) &&
 			    (stcb->asoc.sctp_cmt_pf > 0)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
 				SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
@@ -2840,17 +2840,17 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
 			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 			if (stcb) {
-				if (av->assoc_value != 0)
-					stcb->asoc.sctp_cmt_on_off = 1;
-				else
-					stcb->asoc.sctp_cmt_on_off = 0;
+				stcb->asoc.sctp_cmt_on_off = av->assoc_value;
+				if (stcb->asoc.sctp_cmt_on_off > 2) {
+					stcb->asoc.sctp_cmt_on_off = 2;
+				}
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				SCTP_INP_WLOCK(inp);
-				if (av->assoc_value != 0)
-					inp->sctp_cmt_on_off = 1;
-				else
-					inp->sctp_cmt_on_off = 0;
+				inp->sctp_cmt_on_off = av->assoc_value;
+				if (inp->sctp_cmt_on_off > 2) {
+					inp->sctp_cmt_on_off = 2;
+				}
 				SCTP_INP_WUNLOCK(inp);
 			}
 		} else {
