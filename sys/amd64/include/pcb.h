@@ -71,7 +71,7 @@ struct pcb {
 	struct region_descriptor pcb_ldt;
 	uint16_t	pcb_tr;
 
-	u_char		pcb_flags;
+	u_int		pcb_flags;
 #define	PCB_FULL_IRET	0x01	/* full iret is required */
 #define	PCB_DBREGS	0x02	/* process using debug registers */
 #define	PCB_KERNFPU	0x04	/* kernel uses fpu */
@@ -111,20 +111,20 @@ struct trapframe;
  * because traps and interrupts are executed only on instruction boundary.
  */
 static __inline void
-set_pcb_flags(struct pcb *pcb, const u_char flags)
+set_pcb_flags(struct pcb *pcb, const u_int flags)
 {
 
-	__asm __volatile("orb %b1,%0"
-	    : "=m" (pcb->pcb_flags) : "iq" (flags), "m" (pcb->pcb_flags)
+	__asm __volatile("orl %1,%0"
+	    : "=m" (pcb->pcb_flags) : "ir" (flags), "m" (pcb->pcb_flags)
 	    : "cc");
 }
 
 static __inline void
-clear_pcb_flags(struct pcb *pcb, const u_char flags)
+clear_pcb_flags(struct pcb *pcb, const u_int flags)
 {
 
-	__asm __volatile("andb %b1,%0"
-	    : "=m" (pcb->pcb_flags) : "iq" (~flags), "m" (pcb->pcb_flags)
+	__asm __volatile("andl %1,%0"
+	    : "=m" (pcb->pcb_flags) : "ir" (~flags), "m" (pcb->pcb_flags)
 	    : "cc");
 }
 
