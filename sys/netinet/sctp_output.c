@@ -3686,7 +3686,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 						 * Stop any running T3
 						 * timers here?
 						 */
-						if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+						if ((stcb->asoc.sctp_cmt_on_off > 0) &&
 						    (stcb->asoc.sctp_cmt_pf > 0)) {
 							net->dest_state &= ~SCTP_ADDR_PF;
 							SCTPDBG(SCTP_DEBUG_OUTPUT1, "Destination %p moved from PF to unreachable.\n",
@@ -7325,7 +7325,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		    (net == stcb->asoc.primary_destination)) {
 			/* ran dry for primary network net */
 			SCTP_STAT_INCR(sctps_primary_randry);
-		} else if (stcb->asoc.sctp_cmt_on_off == 1) {
+		} else if (stcb->asoc.sctp_cmt_on_off > 0) {
 			/* ran dry with CMT on */
 			SCTP_STAT_INCR(sctps_cmt_randry);
 		}
@@ -7526,7 +7526,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 		*reason_code = 8;
 		return (0);
 	}
-	if (asoc->sctp_cmt_on_off == 1) {
+	if (asoc->sctp_cmt_on_off > 0) {
 		/* get the last start point */
 		start_at = asoc->last_net_cmt_send_started;
 		if (start_at == NULL) {
@@ -8028,7 +8028,7 @@ again_one_more_time:
 			}
 		}
 		/* JRI: if dest is in PF state, do not send data to it */
-		if ((asoc->sctp_cmt_on_off == 1) &&
+		if ((asoc->sctp_cmt_on_off > 0) &&
 		    (asoc->sctp_cmt_pf > 0) &&
 		    (net->dest_state & SCTP_ADDR_PF)) {
 			goto no_data_fill;
@@ -8036,7 +8036,7 @@ again_one_more_time:
 		if (net->flight_size >= net->cwnd) {
 			goto no_data_fill;
 		}
-		if ((asoc->sctp_cmt_on_off == 1) &&
+		if ((asoc->sctp_cmt_on_off > 0) &&
 		    (SCTP_BASE_SYSCTL(sctp_buffer_splitting) & SCTP_RECV_BUFFER_SPLITTING) &&
 		    (net->flight_size > max_rwnd_per_dest)) {
 			goto no_data_fill;
@@ -8047,7 +8047,7 @@ again_one_more_time:
 		 * net. For now, this is better than nothing and it disabled
 		 * by default...
 		 */
-		if ((asoc->sctp_cmt_on_off == 1) &&
+		if ((asoc->sctp_cmt_on_off > 0) &&
 		    (SCTP_BASE_SYSCTL(sctp_buffer_splitting) & SCTP_SEND_BUFFER_SPLITTING) &&
 		    (max_send_per_dest > 0) &&
 		    (net->flight_size > max_send_per_dest)) {
@@ -8268,7 +8268,7 @@ no_data_fill:
 				 * restart it.
 				 */
 				sctp_timer_start(SCTP_TIMER_TYPE_SEND, inp, stcb, net);
-			} else if ((asoc->sctp_cmt_on_off == 1) &&
+			} else if ((asoc->sctp_cmt_on_off > 0) &&
 				    (asoc->sctp_cmt_pf > 0) &&
 				    pf_hbflag &&
 				    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF) &&
@@ -9576,7 +9576,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			 */
 			if (net->ref_count > 1)
 				sctp_move_chunks_from_net(stcb, net);
-		} else if ((asoc->sctp_cmt_on_off == 1) &&
+		} else if ((asoc->sctp_cmt_on_off > 0) &&
 			    (asoc->sctp_cmt_pf > 0) &&
 		    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 			/*
@@ -10073,7 +10073,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	else
 		flags = 0;
 
-	if ((asoc->sctp_cmt_on_off == 1) &&
+	if ((asoc->sctp_cmt_on_off > 0) &&
 	    SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) {
 		/*-
 		 * CMT DAC algorithm: If 2 (i.e., 0x10) packets have been
