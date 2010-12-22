@@ -53,15 +53,19 @@ sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 	uint32_t cwnd_in_mtu;
 
 	assoc = &stcb->asoc;
-	/*
-	 * We take the minimum of the burst limit and the initial congestion
-	 * window. The initial congestion window is at least two times the
-	 * MTU.
-	 */
 	cwnd_in_mtu = SCTP_BASE_SYSCTL(sctp_initial_cwnd);
-	if ((assoc->max_burst > 0) && (cwnd_in_mtu > assoc->max_burst))
-		cwnd_in_mtu = assoc->max_burst;
-	net->cwnd = (net->mtu - sizeof(struct sctphdr)) * cwnd_in_mtu;
+	if (cwnd_in_mtu == 0) {
+		/* Using 0 means that the value of RFC 4960 is used. */
+		net->cwnd = min((net->mtu * 4), max((2 * net->mtu), SCTP_INITIAL_CWND));
+	} else {
+		/*
+		 * We take the minimum of the burst limit and the initial
+		 * congestion window.
+		 */
+		if ((assoc->max_burst > 0) && (cwnd_in_mtu > assoc->max_burst))
+			cwnd_in_mtu = assoc->max_burst;
+		net->cwnd = (net->mtu - sizeof(struct sctphdr)) * cwnd_in_mtu;
+	}
 	net->ssthresh = assoc->peers_rwnd;
 
 	SDT_PROBE(sctp, cwnd, net, init,
