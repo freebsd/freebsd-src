@@ -55,7 +55,7 @@ u_int g_raid_debug = 1000;
 TUNABLE_INT("kern.geom.raid.debug", &g_raid_debug);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RW, &g_raid_debug, 0,
     "Debug level");
-static u_int g_raid_start_timeout = 4;
+u_int g_raid_start_timeout = 4;
 TUNABLE_INT("kern.geom.raid.start_timeout", &g_raid_start_timeout);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, timeout, CTLFLAG_RW, &g_raid_start_timeout,
     0, "Time to wait on all mirror components");
@@ -122,6 +122,8 @@ g_raid_disk_state2str(int state)
 		return ("SPARE");
 	case G_RAID_DISK_S_OFFLINE:
 		return ("OFFLINE");
+	case G_RAID_DISK_S_STALE:
+		return ("STALE");
 	default:
 		return ("INVALID");
 	}
@@ -1297,12 +1299,13 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 }
 
 int
-g_raid_stop_disk(struct g_raid_disk *disk)
+g_raid_destroy_disk(struct g_raid_disk *disk)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd, *tmp;
 
 	sc = disk->d_softc;
+	G_RAID_DEBUG(2, "Destroying disk.");
 	if (disk->d_consumer) {
 		g_topology_lock();
 		g_raid_kill_consumer(sc, disk->d_consumer);
@@ -1315,21 +1318,9 @@ g_raid_stop_disk(struct g_raid_disk *disk)
 		LIST_REMOVE(sd, sd_next);
 		sd->sd_disk = NULL;
 	}
-	return (0);
-}
-
-int
-g_raid_destroy_disk(struct g_raid_disk *disk)
-{
-	struct g_raid_softc *sc;
-	int error;
-
-	sc = disk->d_softc;
-	G_RAID_DEBUG(2, "Destroying disk.");
-	error = g_raid_stop_disk(disk);
-	if (error)
-		return (error);
 	LIST_REMOVE(disk, d_next);
+	if (sc->sc_md)
+		G_RAID_MD_FREE_DISK(sc->sc_md, disk);
 	free(disk, M_RAID);
 	return (0);
 }

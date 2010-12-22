@@ -71,6 +71,12 @@ METHOD int write {
 	struct g_raid_disk *disk;
 };
 
+# free_disk() - disk destructor.
+METHOD int free_disk {
+	struct g_raid_md_object *md;
+	struct g_raid_disk *disk;
+};
+
 # free() - destructor.
 METHOD int free {
 	struct g_raid_md_object *md;
