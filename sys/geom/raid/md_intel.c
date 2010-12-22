@@ -149,6 +149,7 @@ struct g_raid_md_intel_object {
 	int			 mdio_started;
 };
 
+static g_raid_md_create_t g_raid_md_create_intel;
 static g_raid_md_taste_t g_raid_md_taste_intel;
 static g_raid_md_event_t g_raid_md_event_intel;
 static g_raid_md_write_t g_raid_md_write_intel;
@@ -156,6 +157,7 @@ static g_raid_md_free_disk_t g_raid_md_free_disk_intel;
 static g_raid_md_free_t g_raid_md_free_intel;
 
 static kobj_method_t g_raid_md_intel_methods[] = {
+	KOBJMETHOD(g_raid_md_create,	g_raid_md_create_intel),
 	KOBJMETHOD(g_raid_md_taste,	g_raid_md_taste_intel),
 	KOBJMETHOD(g_raid_md_event,	g_raid_md_event_intel),
 	KOBJMETHOD(g_raid_md_write,	g_raid_md_write_intel),
@@ -455,6 +457,26 @@ g_raid_intel_go(void *arg)
 		g_raid_md_intel_start(sc);
 	}
 	sx_xunlock(&sc->sc_lock);
+}
+
+static int
+g_raid_md_create_intel(struct g_raid_md_object *md, struct g_class *mp,
+    struct g_geom **gp)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_md_intel_object *mdi;
+	char name[16];
+
+	mdi = (struct g_raid_md_intel_object *)md;
+	mdi->mdio_config_id = arc4random();
+	snprintf(name, sizeof(name), "Intel-%08x", mdi->mdio_config_id);
+	sc = g_raid_create_node(mp, name, md);
+	if (sc == NULL)
+		return (G_RAID_MD_TASTE_FAIL);
+	md->mdo_softc = sc;
+	*gp = sc->sc_geom;
+	G_RAID_DEBUG(1, "Created new node %s", sc->sc_name);
+	return (G_RAID_MD_TASTE_NEW);
 }
 
 static int

@@ -278,8 +278,12 @@ int g_raid_tr_modevent(module_t, int, void *);
     };								\
     DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
 
+const char * g_raid_volume_level2str(int level, int qual);
+int g_raid_volume_str2level(const char *str, int *level, int *qual);
+
 struct g_raid_softc * g_raid_create_node(struct g_class *mp,
     const char *name, struct g_raid_md_object *md);
+int g_raid_create_node_format(const char *format, struct g_geom **gp);
 struct g_raid_volume * g_raid_create_volume(struct g_raid_softc *sc,
     const char *name);
 struct g_raid_disk * g_raid_create_disk(struct g_raid_softc *sc);
@@ -307,7 +311,7 @@ u_int g_raid_nsubdisks(struct g_raid_volume *vol, int state);
 int g_raid_destroy(struct g_raid_softc *sc, int how);
 int g_raid_event_send(void *arg, int event, int flags);
 
-g_ctl_req_t g_raid_config;
+g_ctl_req_t g_raid_ctl;
 #endif	/* _KERNEL */
 
 #endif	/* !_G_RAID_H_ */

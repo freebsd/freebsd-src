@@ -92,7 +92,7 @@ static void g_raid_fini(struct g_class *mp);
 struct g_class g_raid_class = {
 	.name = G_RAID_CLASS_NAME,
 	.version = G_VERSION,
-	.ctlreq = g_raid_config,
+	.ctlreq = g_raid_ctl,
 	.taste = g_raid_taste,
 	.destroy_geom = g_raid_destroy_geom,
 	.init = g_raid_init,
@@ -219,7 +219,7 @@ g_raid_volume_event2str(int event)
 	}
 }
 
-static const char *
+const char *
 g_raid_volume_level2str(int level, int qual)
 {
 
@@ -251,6 +251,41 @@ g_raid_volume_level2str(int level, int qual)
 	default:
 		return ("UNKNOWN");
 	}
+}
+
+int
+g_raid_volume_str2level(const char *str, int *level, int *qual)
+{
+
+	*level = G_RAID_VOLUME_RL_UNKNOWN;
+	*qual = G_RAID_VOLUME_RLQ_NONE;
+	if (strcasecmp(str, "RAID0") == 0)
+		*level = G_RAID_VOLUME_RL_RAID0;
+	else if (strcasecmp(str, "RAID1") == 0)
+		*level = G_RAID_VOLUME_RL_RAID1;
+	else if (strcasecmp(str, "RAID3") == 0)
+		*level = G_RAID_VOLUME_RL_RAID3;
+	else if (strcasecmp(str, "RAID4") == 0)
+		*level = G_RAID_VOLUME_RL_RAID4;
+	else if (strcasecmp(str, "RAID5") == 0)
+		*level = G_RAID_VOLUME_RL_RAID5;
+	else if (strcasecmp(str, "RAID6") == 0)
+		*level = G_RAID_VOLUME_RL_RAID6;
+	else if (strcasecmp(str, "RAID10") == 0)
+		*level = G_RAID_VOLUME_RL_RAID10;
+	else if (strcasecmp(str, "RAID1E") == 0)
+		*level = G_RAID_VOLUME_RL_RAID1E;
+	else if (strcasecmp(str, "SINGLE") == 0)
+		*level = G_RAID_VOLUME_RL_SINGLE;
+	else if (strcasecmp(str, "CONCAT") == 0)
+		*level = G_RAID_VOLUME_RL_CONCAT;
+	else if (strcasecmp(str, "RAID5E") == 0)
+		*level = G_RAID_VOLUME_RL_RAID5E;
+	else if (strcasecmp(str, "RAID5EE") == 0)
+		*level = G_RAID_VOLUME_RL_RAID5EE;
+	else
+		return (0);
+	return (1);
 }
 
 static const char *
@@ -1233,12 +1268,15 @@ g_raid_destroy_node(struct g_raid_softc *sc, int worker)
 		kobj_delete((kobj_t)sc->sc_md, M_RAID);
 		sc->sc_md = NULL;
 	}
-	G_RAID_DEBUG(1, "Destroying node %s.", sc->sc_name);
-	g_topology_lock();
-	sc->sc_geom->softc = NULL;
-	g_wither_geom(sc->sc_geom, ENXIO);
-	g_topology_unlock();
-	sc->sc_geom = NULL;
+	if (sc->sc_geom != NULL) {
+		G_RAID_DEBUG(1, "Destroying node %s.", sc->sc_name);
+		g_topology_lock();
+		sc->sc_geom->softc = NULL;
+		g_wither_geom(sc->sc_geom, ENXIO);
+		g_topology_unlock();
+		sc->sc_geom = NULL;
+	} else
+		G_RAID_DEBUG(1, "Destroying node.");
 	if (worker) {
 		mtx_destroy(&sc->sc_queue_mtx);
 		sx_xunlock(&sc->sc_lock);
@@ -1421,6 +1459,31 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_destroy_geom(gp);
 	G_RAID_DEBUG(2, "Tasting %s done.", pp->name);
 	return (geom);
+}
+
+int
+g_raid_create_node_format(const char *format, struct g_geom **gp)
+{
+	struct g_raid_md_class *class;
+	struct g_raid_md_object *obj;
+	int status;
+
+	G_RAID_DEBUG(2, "Creating node for %s metadata.", format);
+	LIST_FOREACH(class, &g_raid_md_classes, mdc_list) {
+		if (strcasecmp(class->name, format) == 0)
+			break;
+	}
+	if (class == NULL) {
+		G_RAID_DEBUG(2, "Creating node for %s metadata.", format);
+		return (G_RAID_MD_TASTE_FAIL);
+	}
+	obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
+	    M_WAITOK);
+	obj->mdo_class = class;
+	status = G_RAID_MD_CREATE(obj, &g_raid_class, gp);
+	if (status != G_RAID_MD_TASTE_NEW)
+		kobj_delete((kobj_t)obj, M_RAID);
+	return (status);
 }
 
 static int
