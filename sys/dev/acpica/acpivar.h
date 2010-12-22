@@ -58,6 +58,7 @@ struct acpi_softc {
     int			acpi_enabled;
     int			acpi_sstate;
     int			acpi_sleep_disabled;
+    int			acpi_resources_reserved;
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
