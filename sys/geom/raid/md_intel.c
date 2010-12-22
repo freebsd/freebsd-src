@@ -42,41 +42,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_MD_INTEL, "md_intel_data", "GEOM_RAID Intel metadata");
 
-struct intel_raid_conf {
-	uint8_t            intel_id[24];
-#define INTEL_MAGIC             "Intel Raid ISM Cfg Sig. "
-
-	uint8_t            version[6];
-#define INTEL_VERSION_1100      "1.1.00"
-#define INTEL_VERSION_1201      "1.2.01"
-#define INTEL_VERSION_1202      "1.2.02"
-
-	uint8_t            dummy_0[2];
-	uint32_t           checksum;
-	uint32_t           config_size;
-	uint32_t           config_id;
-	uint32_t           generation;
-	uint32_t           dummy_1[2];
-	uint8_t            total_disks;
-	uint8_t            total_volumes;
-	uint8_t            dummy_2[2];
-	uint32_t           filler_0[39];
-	struct {
-#define INTEL_SERIAL_LEN	16
-		uint8_t        serial[INTEL_SERIAL_LEN];
-		uint32_t       sectors;
-		uint32_t       id;
-		uint32_t       flags;
-#define INTEL_F_SPARE           0x01
-#define INTEL_F_ASSIGNED        0x02
-#define INTEL_F_DOWN            0x04
-#define INTEL_F_ONLINE          0x08
-
-		uint32_t       filler[5];
-    } __packed disk[1];
-    uint32_t           filler_1[62];
-} __packed;
-
 struct intel_raid_map {
 	uint32_t	offset;
 	uint32_t	disk_sectors;
@@ -98,7 +63,7 @@ struct intel_raid_map {
 	uint8_t		failed_disk_num;
 	uint8_t		ddf;
 	uint32_t	filler_2[7];
-	uint32_t	disk_idx[1];
+	uint32_t	disk_idx[1];	/* total_disks entries. */
 #define INTEL_DI_IDX	0x00ffffff
 #define INTEL_DI_RBLD	0x01000000
 } __packed;
@@ -132,8 +97,52 @@ struct intel_raid_vol {
 	uint16_t	verify_errors;
 	uint16_t	bad_blocks;
 	uint32_t	filler_1[4];
-	struct intel_raid_map map[1];
+	struct intel_raid_map map[1];	/* 2 entries if migr_state != 0. */
 } __packed;
+
+struct intel_raid_disk {
+#define INTEL_SERIAL_LEN	16
+	uint8_t		serial[INTEL_SERIAL_LEN];
+	uint32_t	sectors;
+	uint32_t	id;
+	uint32_t	flags;
+#define INTEL_F_SPARE           0x01
+#define INTEL_F_ASSIGNED        0x02
+#define INTEL_F_DOWN            0x04
+#define INTEL_F_ONLINE          0x08
+
+	uint32_t	filler[5];
+} __packed;
+
+struct intel_raid_conf {
+	uint8_t		intel_id[24];
+#define INTEL_MAGIC             "Intel Raid ISM Cfg Sig. "
+
+	uint8_t		version[6];
+#define INTEL_VERSION_1100      "1.1.00"
+#define INTEL_VERSION_1201      "1.2.01"
+#define INTEL_VERSION_1202      "1.2.02"
+
+	uint8_t		dummy_0[2];
+	uint32_t	checksum;
+	uint32_t	config_size;
+	uint32_t	config_id;
+	uint32_t	generation;
+	uint32_t	dummy_1[2];
+	uint8_t		total_disks;
+	uint8_t		total_volumes;
+	uint8_t		dummy_2[2];
+	uint32_t	filler_0[39];
+	struct intel_raid_disk	disk[1];	/* total_disks entries. */
+	/* Here goes total_volumes of struct intel_raid_vol. */
+} __packed;
+
+#define INTEL_MAX_MD_SIZE(ndisks)				\
+    (sizeof(struct intel_raid_conf) +				\
+     sizeof(struct intel_raid_disk) * (ndisks - 1) +		\
+     sizeof(struct intel_raid_vol) * 2 +			\
+     sizeof(struct intel_raid_map) * 2 +			\
+     sizeof(uint32_t) * (ndisks - 1) * 4)
 
 struct g_raid_md_intel_perdisk {
 	struct intel_raid_conf	*pd_meta;
