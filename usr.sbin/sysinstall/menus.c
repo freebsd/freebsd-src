@@ -1958,7 +1958,7 @@ DMenu MenuSysconsKeyrate = {
       { "Normal", "\"Normal\" keyboard repeat rate",	dmenuVarCheck,	dmenuSetVariable, NULL, "keyrate=normal" },
       { "Fast",	"Fast keyboard repeat rate",	dmenuVarCheck,	dmenuSetVariable, NULL, "keyrate=fast" },
       { "Default", "Use default keyboard repeat rate",	dmenuVarCheck,	dmenuSetVariable, NULL, "keyrate=NO" },
-      { NULL } },
+      { NULL } }
 };
 
 DMenu MenuSysconsSaver = {
@@ -1994,9 +1994,11 @@ DMenu MenuSysconsSaver = {
 	dmenuVarCheck, configSaver, NULL, "saver=star" },
       { "c Warp",	"A \"stars warping\" effect",
 	dmenuVarCheck, configSaver, NULL, "saver=warp" },
+      { "d None",	"Disable the screensaver",
+        dmenuVarCheck, configSaver, NULL, "saver=NO" },
       { "Timeout",	"Set the screen saver timeout interval",
 	NULL, configSaverTimeout, NULL, NULL, ' ', ' ', ' ' },
-      { NULL } },
+      { NULL } }
 };
 
 #ifndef PC98
