@@ -170,7 +170,7 @@ alltraps:
 	jz	alltraps_testi		/* already running with kernel GS.base */
 	swapgs
 	movq	PCPU(CURPCB),%rdi
-	andb	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -243,7 +243,7 @@ alltraps_noen:
 	jz	1f	/* already running with kernel GS.base */
 	swapgs
 	movq	PCPU(CURPCB),%rdi
-	andb	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 1:	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -294,7 +294,7 @@ IDTVEC(page)
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
 	movq	PCPU(CURPCB),%rdi
-	andb	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 1:	movq	%cr2,%rdi		/* preserve %cr2 before ..  */
 	movq	%rdi,TF_ADDR(%rsp)	/* enabling interrupts. */
 	movw	%fs,TF_FS(%rsp)
@@ -324,7 +324,7 @@ IDTVEC(prot)
 	jz	2f			/* already running with kernel GS.base */
 1:	swapgs
 2:	movq	PCPU(CURPCB),%rdi
-	orb	$PCB_FULL_IRET,PCB_FLAGS(%rdi)	/* always full iret from GPF */
+	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)	/* always full iret from GPF */
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -356,7 +356,7 @@ IDTVEC(fast_syscall)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 	movq	PCPU(CURPCB),%r11
-	andb	$~PCB_FULL_IRET,PCB_FLAGS(%r11)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r11)
 	sti
 	movq	$KUDSEL,TF_SS(%rsp)
 	movq	$KUCSEL,TF_CS(%rsp)
@@ -661,7 +661,7 @@ doreti_exit:
 	 */
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jz	ld_regs
-	testb	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
 	jz	ld_regs
 	testl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	je	set_segs
