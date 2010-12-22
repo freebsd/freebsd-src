@@ -18,6 +18,9 @@ PROG=	rtadvd
 MAN=	rtadvd.conf.5 rtadvd.8
 SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c dump.c
 
+DPADD=  ${LIBUTIL}
+LDADD=  -lutil
+
 CFLAGS+= -DHAVE_ARC4RANDOM -DHAVE_POLL_H -DROUTEINFO
 
 WARNS?=	1
