@@ -94,7 +94,7 @@ END(cpu_throw)
 ENTRY(cpu_switch)
 	/* Switch to new thread.  First, save context. */
 	movq	TD_PCB(%rdi),%r8
-	movb	$1,PCB_FULL_IRET(%r8)
+	orb	$PCB_FULL_IRET,PCB_FLAGS(%r8)
 
 	movq	(%rsp),%rax			/* Hardware registers */
 	movq	%r15,PCB_R15(%r8)
@@ -106,7 +106,7 @@ ENTRY(cpu_switch)
 	movq	%rbx,PCB_RBX(%r8)
 	movq	%rax,PCB_RIP(%r8)
 
-	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
+	testb	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jnz	store_dr			/* static predict not taken */
 done_store_dr:
 
@@ -210,7 +210,7 @@ done_tss:
 	movq	%rsi,PCPU(CURTHREAD)		/* into next thread */
 
 	/* Test if debug registers should be restored. */
-	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
+	testb	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jnz	load_dr				/* static predict not taken */
 done_load_dr:
 
