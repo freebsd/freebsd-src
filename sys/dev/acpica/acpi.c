@@ -1150,6 +1150,14 @@ acpi_reserve_resources(device_t dev)
 		continue;
 
 	    /*
+	     * Don't reserve the resource if it is already allocated.
+	     * The acpi_ec(4) driver can allocate its resources early
+	     * if ECDT is present.
+	     */
+	    if (rle->res != NULL)
+		continue;
+
+	    /*
 	     * Try to reserve the resource from our parent.  If this
 	     * fails because the resource is a system resource, just
 	     * let it be.  The resource range is already reserved so
