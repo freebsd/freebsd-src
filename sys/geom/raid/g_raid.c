@@ -284,8 +284,8 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 	else if (strcasecmp(str, "RAID5EE") == 0)
 		*level = G_RAID_VOLUME_RL_RAID5EE;
 	else
-		return (0);
-	return (1);
+		return (-1);
+	return (0);
 }
 
 static const char *

@@ -49,14 +49,14 @@ HEADER {
 # Default implementations of methods.
 CODE {
 	static int
-	g_raid_md_create_default(struct g_raid_tr_object *tr)
+	g_raid_md_create_default(struct g_raid_md_object *md)
 	{
 
 		return (G_RAID_MD_TASTE_FAIL);
 	}
 
 	static int
-	g_raid_md_ctl_default(struct g_raid_tr_object *tr,
+	g_raid_md_ctl_default(struct g_raid_md_object *md,
 	    struct gctl_req *req)
 	{
 
@@ -81,13 +81,13 @@ METHOD int taste {
 
 # ctl() - user-level control commands handling method.
 METHOD int ctl {
-	struct g_raid_md_object *tr;
+	struct g_raid_md_object *md;
 	struct gctl_req *req;
 } DEFAULT g_raid_md_ctl_default;
 
 # event() - events handling method.
 METHOD int event {
-	struct g_raid_md_object *tr;
+	struct g_raid_md_object *md;
 	struct g_raid_disk *disk;
 	u_int event;
 };

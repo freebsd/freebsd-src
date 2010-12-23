@@ -120,6 +120,7 @@ struct intel_raid_conf {
 
 	uint8_t		version[6];
 #define INTEL_VERSION_1100      "1.1.00"
+#define INTEL_VERSION_1200      "1.2.00"
 #define INTEL_VERSION_1201      "1.2.01"
 #define INTEL_VERSION_1202      "1.2.02"
 
@@ -161,6 +162,7 @@ struct g_raid_md_intel_object {
 static g_raid_md_create_t g_raid_md_create_intel;
 static g_raid_md_taste_t g_raid_md_taste_intel;
 static g_raid_md_event_t g_raid_md_event_intel;
+static g_raid_md_ctl_t g_raid_md_ctl_intel;
 static g_raid_md_write_t g_raid_md_write_intel;
 static g_raid_md_free_disk_t g_raid_md_free_disk_intel;
 static g_raid_md_free_t g_raid_md_free_intel;
@@ -169,6 +171,7 @@ static kobj_method_t g_raid_md_intel_methods[] = {
 	KOBJMETHOD(g_raid_md_create,	g_raid_md_create_intel),
 	KOBJMETHOD(g_raid_md_taste,	g_raid_md_taste_intel),
 	KOBJMETHOD(g_raid_md_event,	g_raid_md_event_intel),
+	KOBJMETHOD(g_raid_md_ctl,	g_raid_md_ctl_intel),
 	KOBJMETHOD(g_raid_md_write,	g_raid_md_write_intel),
 	KOBJMETHOD(g_raid_md_free_disk,	g_raid_md_free_disk_intel),
 	KOBJMETHOD(g_raid_md_free,	g_raid_md_free_intel),
@@ -184,42 +187,42 @@ static struct g_raid_md_class g_raid_md_intel_class = {
 
 
 static struct intel_raid_map *
-intel_get_map(struct intel_raid_vol *vol, int i)
+intel_get_map(struct intel_raid_vol *mvol, int i)
 {
-	struct intel_raid_map *map;
+	struct intel_raid_map *mmap;
 
-	if (i > (vol->migr_state ? 1 : 0))
+	if (i > (mvol->migr_state ? 1 : 0))
 		return (NULL);
-	map = &vol->map[0];
+	mmap = &mvol->map[0];
 	for (; i > 0; i--) {
-		map = (struct intel_raid_map *)
-		    &map->disk_idx[map->total_disks];
+		mmap = (struct intel_raid_map *)
+		    &mmap->disk_idx[mmap->total_disks];
 	}
-	return ((struct intel_raid_map *)map);
+	return ((struct intel_raid_map *)mmap);
 }
 
 static struct intel_raid_vol *
 intel_get_volume(struct intel_raid_conf *meta, int i)
 {
-	struct intel_raid_vol *vol;
-	struct intel_raid_map *map;
+	struct intel_raid_vol *mvol;
+	struct intel_raid_map *mmap;
 
 	if (i > 1)
 		return (NULL);
-	vol = (struct intel_raid_vol *)&meta->disk[meta->total_disks];
+	mvol = (struct intel_raid_vol *)&meta->disk[meta->total_disks];
 	for (; i > 0; i--) {
-		map = intel_get_map(vol, vol->migr_state ? 1 : 0);
-		vol = (struct intel_raid_vol *)
-		    &map->disk_idx[map->total_disks];
+		mmap = intel_get_map(mvol, mvol->migr_state ? 1 : 0);
+		mvol = (struct intel_raid_vol *)
+		    &mmap->disk_idx[mmap->total_disks];
 	}
-	return (vol);
+	return (mvol);
 }
 
 static void
 g_raid_md_intel_print(struct intel_raid_conf *meta)
 {
-	struct intel_raid_vol *vol;
-	struct intel_raid_map *map;
+	struct intel_raid_vol *mvol;
+	struct intel_raid_map *mmap;
 	int i, j, k;
 
 	printf("********* ATA Intel MatrixRAID Metadata *********\n");
@@ -238,34 +241,34 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 		    meta->disk[i].id, meta->disk[i].flags);
 	}
 	for (i = 0; i < meta->total_volumes; i++) {
-		vol = intel_get_volume(meta, i);
+		mvol = intel_get_volume(meta, i);
 		printf(" ****** Volume %d ******\n", i);
-		printf(" name               %.16s\n", vol->name);
-		printf(" total_sectors      %ju\n", vol->total_sectors);
-		printf(" state              %u\n", vol->state);
-		printf(" reserved           %u\n", vol->reserved);
-		printf(" curr_migr_unit     %u\n", vol->curr_migr_unit);
-		printf(" checkpoint_id      %u\n", vol->checkpoint_id);
-		printf(" migr_state         %u\n", vol->migr_state);
-		printf(" migr_type          %u\n", vol->migr_type);
-		printf(" dirty              %u\n", vol->dirty);
+		printf(" name               %.16s\n", mvol->name);
+		printf(" total_sectors      %ju\n", mvol->total_sectors);
+		printf(" state              %u\n", mvol->state);
+		printf(" reserved           %u\n", mvol->reserved);
+		printf(" curr_migr_unit     %u\n", mvol->curr_migr_unit);
+		printf(" checkpoint_id      %u\n", mvol->checkpoint_id);
+		printf(" migr_state         %u\n", mvol->migr_state);
+		printf(" migr_type          %u\n", mvol->migr_type);
+		printf(" dirty              %u\n", mvol->dirty);
 
-		for (j = 0; j < (vol->migr_state ? 2 : 1); j++) {
+		for (j = 0; j < (mvol->migr_state ? 2 : 1); j++) {
 			printf("  *** Map %d ***\n", j);
-			map = intel_get_map(vol, j);
-			printf("  offset            %u\n", map->offset);
-			printf("  disk_sectors      %u\n", map->disk_sectors);
-			printf("  stripe_count      %u\n", map->stripe_count);
-			printf("  stripe_sectors    %u\n", map->stripe_sectors);
-			printf("  status            %u\n", map->status);
-			printf("  type              %u\n", map->type);
-			printf("  total_disks       %u\n", map->total_disks);
-			printf("  total_domains     %u\n", map->total_domains);
-			printf("  failed_disk_num   %u\n", map->failed_disk_num);
-			printf("  ddf               %u\n", map->ddf);
+			mmap = intel_get_map(mvol, j);
+			printf("  offset            %u\n", mmap->offset);
+			printf("  disk_sectors      %u\n", mmap->disk_sectors);
+			printf("  stripe_count      %u\n", mmap->stripe_count);
+			printf("  stripe_sectors    %u\n", mmap->stripe_sectors);
+			printf("  status            %u\n", mmap->status);
+			printf("  type              %u\n", mmap->type);
+			printf("  total_disks       %u\n", mmap->total_disks);
+			printf("  total_domains     %u\n", mmap->total_domains);
+			printf("  failed_disk_num   %u\n", mmap->failed_disk_num);
+			printf("  ddf               %u\n", mmap->ddf);
 			printf("  disk_idx         ");
-			for (k = 0; k < map->total_disks; k++)
-				printf(" 0x%08x", map->disk_idx[k]);
+			for (k = 0; k < mmap->total_disks; k++)
+				printf(" 0x%08x", mmap->disk_idx[k]);
 			printf("\n");
 		}
 	}
@@ -277,9 +280,118 @@ intel_meta_copy(struct intel_raid_conf *meta)
 {
 	struct intel_raid_conf *nmeta;
 
-	nmeta = malloc(meta->config_size, M_MD_INTEL, M_WAITOK | M_ZERO);
+	nmeta = malloc(meta->config_size, M_MD_INTEL, M_WAITOK);
 	memcpy(nmeta, meta, meta->config_size);
 	return (nmeta);
+}
+
+static struct intel_raid_conf *
+intel_meta_read(struct g_consumer *cp)
+{
+	struct g_provider *pp;
+	struct intel_raid_conf *meta;
+	char *buf;
+	int error, i, left;
+	uint32_t checksum, *ptr;
+
+	pp = cp->provider;
+
+	/* Read the anchor sector. */
+	buf = g_read_data(cp,
+	    pp->mediasize - pp->sectorsize * 2, pp->sectorsize, &error);
+	if (buf == NULL) {
+		G_RAID_DEBUG(1, "Cannot read metadata from %s (error=%d).",
+		    pp->name, error);
+		return (NULL);
+	}
+	meta = (struct intel_raid_conf *)buf;
+
+	/* Check if this is an Intel RAID struct */
+	if (strncmp(meta->intel_id, INTEL_MAGIC, strlen(INTEL_MAGIC))) {
+		G_RAID_DEBUG(1, "Intel signature check failed on %s", pp->name);
+		g_free(buf);
+		return (NULL);
+	}
+	if (meta->config_size > 65536) {
+		G_RAID_DEBUG(1, "Intel metadata size looks too big: %d",
+		    meta->config_size);
+		g_free(buf);
+		return (NULL);
+	}
+	meta = malloc(meta->config_size, M_MD_INTEL, M_WAITOK);
+	memcpy(meta, buf, pp->sectorsize);
+	g_free(buf);
+
+	/* Read all the rest, if needed. */
+	if (meta->config_size > pp->sectorsize) {
+		left = (meta->config_size - 1) / pp->sectorsize;
+		buf = g_read_data(cp,
+		    pp->mediasize - pp->sectorsize * (2 + left),
+		    pp->sectorsize * left, &error);
+		if (buf == NULL) {
+			G_RAID_DEBUG(1, "Cannot read remaining metadata"
+			    " part from %s (error=%d).",
+			    pp->name, error);
+			free(meta, M_MD_INTEL);
+			return (NULL);
+		}
+		memcpy(((char *)meta) + pp->sectorsize, buf,
+		    pp->sectorsize * left);
+		g_free(buf);
+	}
+
+	/* Check metadata checksum. */
+	for (checksum = 0, ptr = (uint32_t *)meta, i = 0;
+	    i < (meta->config_size / sizeof(uint32_t)); i++) {
+		checksum += *ptr++;
+	}
+	checksum -= meta->checksum;
+	if (checksum != meta->checksum) {
+		G_RAID_DEBUG(1, "Intel checksum check failed on %s", pp->name);
+		free(meta, M_MD_INTEL);
+		return (NULL);
+	}
+
+	return (meta);
+}
+
+static int
+intel_meta_write(struct g_consumer *cp, struct intel_raid_conf *meta)
+{
+	struct g_provider *pp;
+	char *buf;
+	int error, i, sectors;
+	uint32_t checksum, *ptr;
+
+	pp = cp->provider;
+
+	/* Recalculate checksum for case if metadata were changed. */
+	meta->checksum = 0;
+	for (checksum = 0, ptr = (uint32_t *)meta, i = 0;
+	    i < (meta->config_size / sizeof(uint32_t)); i++) {
+		checksum += *ptr++;
+	}
+	meta->checksum = checksum;
+
+	/* Create and fill buffer. */
+	sectors = (meta->config_size + pp->sectorsize - 1) / pp->sectorsize;
+	buf = malloc(sectors * pp->sectorsize, M_MD_INTEL, M_WAITOK | M_ZERO);
+	if (sectors > 1) {
+		memcpy(buf, ((char *)meta) + pp->sectorsize,
+		    (sectors - 1) * pp->sectorsize);
+	}
+	memcpy(buf + (sectors - 1) * pp->sectorsize, meta, pp->sectorsize);
+
+	error = g_write_data(cp,
+	    pp->mediasize - pp->sectorsize * (1 + sectors),
+	    buf, pp->sectorsize * sectors);
+	if (error != 0) {
+		G_RAID_DEBUG(1, "Cannot write metadata to %s (error=%d).",
+		    pp->name, error);
+	}
+
+	free(buf, M_MD_INTEL);
+	return (error);
 }
 
 #if 0
@@ -299,13 +411,13 @@ g_raid_md_intel_get_disk(struct g_raid_softc *sc, int id)
 static struct g_raid_volume *
 g_raid_md_intel_get_volume(struct g_raid_softc *sc, int id)
 {
-	struct g_raid_volume	*vol;
+	struct g_raid_volume	*mvol;
 
-	LIST_FOREACH(vol, &sc->sc_volumes, v_next) {
-		if ((intptr_t)(vol->v_md_data) == id)
+	LIST_FOREACH(mvol, &sc->sc_volumes, v_next) {
+		if ((intptr_t)(mvol->v_md_data) == id)
 			break;
 	}
-	return (vol);
+	return (mvol);
 }
 
 static void
@@ -319,7 +431,7 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 	struct g_raid_md_intel_perdisk *pd;
 	struct intel_raid_conf *meta, *pdmeta;
 	struct intel_raid_vol *mvol;
-	struct intel_raid_map *map;
+	struct intel_raid_map *mmap;
 	int i, j;
 
 	sc = disk->d_softc;
@@ -340,18 +452,18 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 	/* Create subdisks. */
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
-		map = intel_get_map(mvol, 0);
-		for (j = 0; j < map->total_disks; j++) {
-			if ((map->disk_idx[j] & INTEL_DI_IDX) == pd->pd_disk_pos)
+		mmap = intel_get_map(mvol, 0);
+		for (j = 0; j < mmap->total_disks; j++) {
+			if ((mmap->disk_idx[j] & INTEL_DI_IDX) == pd->pd_disk_pos)
 				break;
 		}
-		if (j == map->total_disks)
+		if (j == mmap->total_disks)
 			continue;
 		vol = g_raid_md_intel_get_volume(sc, i);
 		sd = &vol->v_subdisks[j];
 		sd->sd_disk = disk;
-		sd->sd_offset = map->offset * 512; //ZZZ
-		sd->sd_size = map->disk_sectors;
+		sd->sd_offset = mmap->offset * 512; //ZZZ
+		sd->sd_size = mmap->disk_sectors;
 		LIST_INSERT_HEAD(&disk->d_subdisks, sd, sd_next);
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 		    G_RAID_EVENT_SUBDISK);
@@ -366,7 +478,7 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 	struct g_raid_md_intel_object *mdi;
 	struct intel_raid_conf *meta;
 	struct intel_raid_vol *mvol;
-	struct intel_raid_map *map;
+	struct intel_raid_map *mmap;
 	struct g_raid_volume *vol;
 	struct g_raid_disk *disk;
 	int i;
@@ -377,23 +489,23 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 	/* Create volumes */
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
-		map = intel_get_map(mvol, 0);
+		mmap = intel_get_map(mvol, 0);
 		vol = g_raid_create_volume(sc, mvol->name);
 		vol->v_md_data = (void *)(intptr_t)i;
-		if (map->type == INTEL_T_RAID0)
+		if (mmap->type == INTEL_T_RAID0)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
-		else if (map->type == INTEL_T_RAID1 &&
-		    map->total_disks < 4)
+		else if (mmap->type == INTEL_T_RAID1 &&
+		    mmap->total_disks < 4)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
-		else if (map->type == INTEL_T_RAID1)
+		else if (mmap->type == INTEL_T_RAID1)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID10;
-		else if (map->type == INTEL_T_RAID5)
+		else if (mmap->type == INTEL_T_RAID5)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
 		else
 			vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
-		vol->v_strip_size = map->stripe_sectors * 512; //ZZZ
-		vol->v_disks_count = map->total_disks;
+		vol->v_strip_size = mmap->stripe_sectors * 512; //ZZZ
+		vol->v_disks_count = mmap->total_disks;
 		vol->v_mediasize = mvol->total_sectors * 512; //ZZZ
 		vol->v_sectorsize = 512; //ZZZ
 		g_raid_start_volume(vol);
@@ -500,9 +612,7 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	struct intel_raid_conf *meta;
 	struct g_raid_md_intel_perdisk *pd;
 	struct g_geom *geom;
-	uint32_t checksum, *ptr;
-	char *buf, *tmp;
-	int i, error, serial_len, disk_pos, result;
+	int error, serial_len, disk_pos, result;
 	char serial[INTEL_SERIAL_LEN];
 	char name[16];
 
@@ -511,9 +621,9 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	pp = cp->provider;
 
 	/* Read metadata from device. */
-	meta = malloc(pp->sectorsize * 2, M_MD_INTEL, M_WAITOK | M_ZERO);
+	meta = NULL;
 	if (g_access(cp, 1, 0, 0) != 0)
-		goto fail1;
+		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
 	serial_len = sizeof(serial);
 	error = g_io_getattr("GEOM::ident", cp, &serial_len, serial);
@@ -522,35 +632,13 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		    pp->name, error);
 		goto fail2;
 	}
-	buf = g_read_data(cp,
-	    pp->mediasize - pp->sectorsize * 3, pp->sectorsize * 2,
-	    &error);
-	if (buf == NULL) {
-		G_RAID_DEBUG(1, "Cannot read metadata from %s (error=%d).",
-		    pp->name, error);
-		goto fail2;
-	}
+	meta = intel_meta_read(cp);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
-	tmp = (char *)meta;
-	memcpy(tmp, buf + pp->sectorsize, pp->sectorsize);
-	memcpy(tmp + pp->sectorsize, buf, pp->sectorsize);
-	g_free(buf);
+	if (meta == NULL)
+		return (G_RAID_MD_TASTE_FAIL);
 
-	/* Check if this is a Intel RAID struct */
-	if (strncmp(meta->intel_id, INTEL_MAGIC, strlen(INTEL_MAGIC))) {
-		G_RAID_DEBUG(1, "Intel signature check failed on %s", pp->name);
-		goto fail1;
-	}
-	for (checksum = 0, ptr = (uint32_t *)meta, i = 0;
-	    i < (meta->config_size / sizeof(uint32_t)); i++) {
-		checksum += *ptr++;
-	}
-	checksum -= meta->checksum;
-	if (checksum != meta->checksum) {
-		G_RAID_DEBUG(1, "Intel checksum check failed on %s", pp->name);
-		goto fail1;
-	}
+	/* Check this disk position in obtained metadata. */
 	for (disk_pos = 0; disk_pos < meta->total_disks; disk_pos++) {
 		if (strncmp(meta->disk[disk_pos].serial, serial, serial_len)) {
 			G_RAID_DEBUG(1, "Intel serial mismatch '%s' '%s'",
@@ -655,6 +743,188 @@ g_raid_md_event_intel(struct g_raid_md_object *md,
 		break;
 	}
 	return (0);
+}
+
+static int
+g_raid_md_ctl_intel(struct g_raid_md_object *md,
+    struct gctl_req *req)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_disk *disk;
+	struct g_raid_md_intel_object *mdi;
+	struct g_raid_md_intel_perdisk *pd;
+	struct g_consumer *cp;
+	struct g_provider *pp;
+	struct intel_raid_conf *meta;
+	struct intel_raid_vol *mvol;
+	struct intel_raid_map *mmap;
+	char arg[16];
+	const char *verb, *volname, *levelname, *diskname;
+	int *nargs;
+	uint64_t size, sectorsize;
+	int numdisks, i, level, qual, serial_len;
+	int error;
+
+	sc = md->mdo_softc;
+	mdi = (struct g_raid_md_intel_object *)md;
+	verb = gctl_get_param(req, "verb", NULL);
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (strcmp(verb, "label") == 0) {
+
+		if (*nargs < 4) {
+			gctl_error(req, "Invalid number of arguments.");
+			return (-1);
+		}
+		volname = gctl_get_asciiparam(req, "arg1");
+		if (volname == NULL) {
+			gctl_error(req, "No volume name.");
+			return (-2);
+		}
+		levelname = gctl_get_asciiparam(req, "arg2");
+		if (levelname == NULL) {
+			gctl_error(req, "No RAID level.");
+			return (-3);
+		}
+		if (g_raid_volume_str2level(levelname, &level, &qual)) {
+			gctl_error(req, "Unknown RAID level '%s'.", levelname);
+			return (-4);
+		}
+		if (level != G_RAID_VOLUME_RL_RAID0 &&
+		    level != G_RAID_VOLUME_RL_RAID1 &&
+		    level != G_RAID_VOLUME_RL_RAID5 &&
+		    level != G_RAID_VOLUME_RL_RAID10) {
+			gctl_error(req, "Unsupported RAID level.");
+			return (-5);
+		}
+		numdisks = *nargs - 3;
+		meta = mdi->mdio_meta = malloc(INTEL_MAX_MD_SIZE(numdisks),
+		    M_MD_INTEL, M_WAITOK | M_ZERO);
+		memcpy(&meta->intel_id[0], INTEL_MAGIC, sizeof(INTEL_MAGIC));
+		memcpy(&meta->version[0], INTEL_VERSION_1200,
+		    sizeof(INTEL_VERSION_1200));
+		meta->config_size = INTEL_MAX_MD_SIZE(numdisks);
+		meta->config_id = mdi->mdio_config_id;
+		meta->generation = 1;
+		meta->total_disks = numdisks;
+		meta->total_volumes = 1;
+		error = 0;
+		size = 0xffffffffffffffffllu;
+		sectorsize = 0;
+		for (i = 0; i < numdisks; i++) {
+			snprintf(arg, sizeof(arg), "arg%d", i + 3);
+			diskname = gctl_get_asciiparam(req, arg);
+			if (diskname == NULL) {
+				gctl_error(req, "No disk name (%s).", arg);
+				error = -6;
+				break;
+			}
+			if (strncmp(diskname, "/dev/", 5) == 0)
+				diskname += 5;
+			g_topology_lock();
+			pp = g_provider_by_name(diskname);
+			if (pp == NULL) {
+				gctl_error(req, "Provider '%s' not found.",
+				    diskname);
+				g_topology_unlock();
+				error = -7;
+				break;
+			}
+			cp = g_new_consumer(sc->sc_geom);
+			if (g_attach(cp, pp) != 0) {
+				gctl_error(req, "Can't attach provider '%s'.",
+				    diskname);
+				g_destroy_consumer(cp);
+				g_topology_unlock();
+				error = -7;
+				break;
+			}
+			if (g_access(cp, 1, 1, 1) != 0) {
+				gctl_error(req, "Can't open provider '%s'.",
+				    diskname);
+				g_detach(cp);
+				g_destroy_consumer(cp);
+				g_topology_unlock();
+				error = -7;
+				break;
+			}
+
+			pd = malloc(sizeof(*pd), M_MD_INTEL, M_WAITOK | M_ZERO);
+			pd->pd_disk_pos = i;
+			disk = g_raid_create_disk(sc);
+			disk->d_md_data = (void *)pd;
+			disk->d_consumer = cp;
+			cp->private = disk;
+
+			g_topology_unlock();
+
+			serial_len = sizeof(meta->disk[i].serial);
+			error = g_io_getattr("GEOM::ident", cp,
+			    &serial_len, &meta->disk[i].serial[0]);
+			if (error != 0) {
+				gctl_error(req,
+				    "Can't get serial for provider '%s'.",
+				    diskname);
+				error = -8;
+				break;
+			}
+			meta->disk[i].sectors = pp->mediasize / pp->sectorsize;
+			if (size > meta->disk[i].sectors)
+				size = meta->disk[i].sectors;
+			if (sectorsize < pp->sectorsize)
+				sectorsize = pp->sectorsize;
+			meta->disk[i].id = 0xffffffff;
+			meta->disk[i].flags = INTEL_F_ASSIGNED | INTEL_F_ONLINE;
+		}
+		if (error != 0)
+			return (error);
+
+		/* Reserve some space for metadata. */
+		size -= (4096 + sectorsize - 1) / sectorsize + 1;
+
+		size &= ~127;	/* Assume stripe size 64K */
+		mvol = intel_get_volume(meta, 0);
+		strlcpy(&mvol->name[0], volname, sizeof(mvol->name));
+		if (level == G_RAID_VOLUME_RL_RAID0)
+			mvol->total_sectors = size * numdisks;
+		else if (level == G_RAID_VOLUME_RL_RAID5)
+			mvol->total_sectors = size * (numdisks - 1);
+		else
+			mvol->total_sectors = size * (numdisks / 2);
+		mmap = intel_get_map(mvol, 0);
+		mmap->offset = 0;
+		mmap->disk_sectors = size;
+		mmap->stripe_count = size / 128;
+		mmap->stripe_sectors = 128;
+		mmap->status = INTEL_S_READY;
+		if (level == G_RAID_VOLUME_RL_RAID0)
+			mmap->type = INTEL_T_RAID0;
+		else if (level == G_RAID_VOLUME_RL_RAID1 ||
+		    level == G_RAID_VOLUME_RL_RAID10)
+			mmap->type = INTEL_T_RAID1;
+		else
+			mmap->type = INTEL_T_RAID5;
+		mmap->total_disks = numdisks;
+		if (level == G_RAID_VOLUME_RL_RAID10)
+			mmap->total_domains = numdisks / 2;
+		else if (level == G_RAID_VOLUME_RL_RAID1)
+			mmap->total_domains = numdisks;
+		else
+			mmap->total_domains = 1;
+		mmap->failed_disk_num = ~0;
+		mmap->ddf = 1;
+		for (i = 0; i < numdisks; i++)
+			mmap->disk_idx[i] = i;
+		g_raid_md_intel_print(meta);
+		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+			pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
+			pd->pd_meta = intel_meta_copy(meta);
+			intel_meta_write(disk->d_consumer, meta);
+		}
+		mdi->mdio_started = 1;
+		g_raid_md_intel_start(sc);
+		return (0);
+	}
+	return (-100);
 }
 
 static int
