@@ -205,8 +205,8 @@ struct umtxq_chain {
 			 PRI_MAX_TIMESHARE : (td)->td_user_pri)
 
 #define	GOLDEN_RATIO_PRIME	2654404609U
-#define	UMTX_CHAINS		128
-#define	UMTX_SHIFTS		(__WORD_BIT - 7)
+#define	UMTX_CHAINS		512
+#define	UMTX_SHIFTS		(__WORD_BIT - 9)
 
 #define THREAD_SHARE		0
 #define PROCESS_SHARE		1
