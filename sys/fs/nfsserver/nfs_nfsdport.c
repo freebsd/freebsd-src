@@ -1486,7 +1486,6 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 		return (0);
 	}
 	not_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs");
-	NFSVOPUNLOCK(vp, 0, p);
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
 	eofflag = 0;
@@ -1504,10 +1503,8 @@ again:
 	io.uio_segflg = UIO_SYSSPACE;
 	io.uio_rw = UIO_READ;
 	io.uio_td = NULL;
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	nd->nd_repstat = VOP_READDIR(vp, &io, nd->nd_cred, &eofflag, &ncookies,
 	    &cookies);
-	NFSVOPUNLOCK(vp, 0, p);
 	off = (u_int64_t)io.uio_offset;
 	if (io.uio_resid)
 		siz -= io.uio_resid;
@@ -1524,7 +1521,7 @@ again:
 	 * Handles the failed cases. nd->nd_repstat == 0 past here.
 	 */
 	if (nd->nd_repstat) {
-		vrele(vp);
+		vput(vp);
 		free((caddr_t)rbuf, M_TEMP);
 		if (cookies)
 			free((caddr_t)cookies, M_TEMP);
@@ -1537,7 +1534,7 @@ again:
 	 * rpc reply
 	 */
 	if (siz == 0) {
-		vrele(vp);
+		vput(vp);
 		if (nd->nd_flag & ND_NFSV2) {
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		} else {
@@ -1584,6 +1581,7 @@ again:
 		toff = off;
 		goto again;
 	}
+	vput(vp);
 
 	/*
 	 * dirlen is the size of the reply, including all XDR and must
@@ -1642,7 +1640,6 @@ again:
 	}
 	if (cpos < cend)
 		eofflag = 0;
-	vrele(vp);
 	NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = newnfs_false;
 	if (eofflag)
@@ -1852,7 +1849,7 @@ again:
 		toff = off;
 		goto again;
 	}
-	NFSVOPUNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0);
 
 	/*
 	 * Save this position, in case there is an error before one entry
@@ -1938,10 +1935,11 @@ again:
 						    dp->d_name[1] == '.')
 							cn.cn_flags |=
 							    ISDOTDOT;
-						if (!VOP_ISLOCKED(vp))
-							vn_lock(vp,
-							    LK_EXCLUSIVE |
-							    LK_RETRY);
+						if (vn_lock(vp, LK_EXCLUSIVE)
+						    != 0) {
+							nd->nd_repstat = EPERM;
+							break;
+						}
 						if ((vp->v_vflag & VV_ROOT) != 0
 						    && (cn.cn_flags & ISDOTDOT)
 						    != 0) {
@@ -2000,7 +1998,7 @@ again:
 				*tl = txdr_unsigned(*cookiep);
 				dirlen += nfsm_strtom(nd, dp->d_name, nlen);
 				if (nvp != NULL)
-					NFSVOPUNLOCK(nvp, 0, p);
+					VOP_UNLOCK(nvp, 0);
 				if (refp != NULL) {
 					dirlen += nfsrv_putreferralattr(nd,
 					    &savbits, refp, 0,
@@ -2031,10 +2029,7 @@ again:
 		cookiep++;
 		ncookies--;
 	}
-	if (!usevget && VOP_ISLOCKED(vp))
-		vput(vp);
-	else
-		vrele(vp);
+	vrele(vp);
 
 	/*
 	 * If dirlen > cnt, we must strip off the last entry. If that
