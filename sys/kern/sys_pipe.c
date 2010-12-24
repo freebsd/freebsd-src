@@ -749,7 +749,7 @@ pipe_build_write_buffer(wpipe, uio)
 {
 	pmap_t pmap;
 	u_int size;
-	int i, j;
+	int i;
 	vm_offset_t addr, endaddr;
 
 	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
@@ -771,11 +771,7 @@ pipe_build_write_buffer(wpipe, uio)
 		 */
 	race:
 		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0) {
-			for (j = 0; j < i; j++) {
-				vm_page_lock(wpipe->pipe_map.ms[j]);
-				vm_page_unhold(wpipe->pipe_map.ms[j]);
-				vm_page_unlock(wpipe->pipe_map.ms[j]);
-			}
+			vm_page_unhold_pages(wpipe->pipe_map.ms, i);
 			return (EFAULT);
 		}
 		wpipe->pipe_map.ms[i] = pmap_extract_and_hold(pmap, addr,
@@ -812,14 +808,9 @@ static void
 pipe_destroy_write_buffer(wpipe)
 	struct pipe *wpipe;
 {
-	int i;
 
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
-	for (i = 0; i < wpipe->pipe_map.npages; i++) {
-		vm_page_lock(wpipe->pipe_map.ms[i]);
-		vm_page_unhold(wpipe->pipe_map.ms[i]);
-		vm_page_unlock(wpipe->pipe_map.ms[i]);
-	}
+	vm_page_unhold_pages(wpipe->pipe_map.ms, wpipe->pipe_map.npages);
 	wpipe->pipe_map.npages = 0;
 }
 

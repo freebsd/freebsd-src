@@ -632,6 +632,14 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 }
 
 
+pid_t
+getjobpgrp(char *name)
+{
+	struct job *jp;
+
+	jp = getjob(name);
+	return -jp->ps[0].pid;
+}
 
 /*
  * Return a new job structure,

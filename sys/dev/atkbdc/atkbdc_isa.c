@@ -272,14 +272,16 @@ atkbdc_isa_add_child(device_t bus, u_int order, const char *name, int unit)
 	 * list entry so we can use a standard bus_get_resource()
 	 * method.
 	 */
-	if (sc->irq == NULL) {
-		if (resource_int_value(name, unit, "irq", &t) != 0)
-			t = -1;
-	} else
-		t = rman_get_start(sc->irq);
-	if (t > 0)
-		resource_list_add(&ivar->resources, SYS_RES_IRQ, ivar->rid,
-				  t, t, 1);
+	if (order == KBDC_RID_KBD) {
+		if (sc->irq == NULL) {
+			if (resource_int_value(name, unit, "irq", &t) != 0)
+				t = -1;
+		} else
+			t = rman_get_start(sc->irq);
+		if (t > 0)
+			resource_list_add(&ivar->resources, SYS_RES_IRQ,
+			    ivar->rid, t, t, 1);
+	}
 
 	if (resource_disabled(name, unit))
 		device_disable(child);

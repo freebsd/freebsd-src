@@ -60,10 +60,6 @@ static const char rcsid[] =
 #include "bltin/bltin.h"
 #include "memalloc.h"
 #include "error.h"
-#else
-#define	warnx1(a, b, c)		warnx(a)
-#define	warnx2(a, b, c)		warnx(a, b)
-#define	warnx3(a, b, c)		warnx(a, b, c)
 #endif
 
 #define PF(f, func) do { \
@@ -165,7 +161,7 @@ main(int argc, char *argv[])
 		}
 
 		if (end == 1) {
-			warnx1("missing format character", NULL, NULL);
+			warnx("missing format character");
 #ifdef SHELL
 			INTON;
 #endif
@@ -226,7 +222,7 @@ printf_doformat(char *start, int *rval)
 	} else
 		haveprec = 0;
 	if (!*fmt) {
-		warnx1("missing format character", NULL, NULL);
+		warnx("missing format character");
 		return (NULL);
 	}
 
@@ -244,7 +240,7 @@ printf_doformat(char *start, int *rval)
 		mod_ldbl = 1;
 		fmt++;
 		if (!strchr("aAeEfFgG", *fmt)) {
-			warnx2("bad modifier L for %%%c", *fmt, NULL);
+			warnx("bad modifier L for %%%c", *fmt);
 			return (NULL);
 		}
 	} else {
@@ -266,7 +262,7 @@ printf_doformat(char *start, int *rval)
 		p = strdup(getstr());
 #endif
 		if (p == NULL) {
-			warnx2("%s", strerror(ENOMEM), NULL);
+			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		getout = escape(p, 0, &len);
@@ -328,7 +324,7 @@ printf_doformat(char *start, int *rval)
 		break;
 	}
 	default:
-		warnx2("illegal format character %c", convch, NULL);
+		warnx("illegal format character %c", convch);
 		return (NULL);
 	}
 	*fmt = nextch;
@@ -352,7 +348,7 @@ mknum(char *str, char ch)
 		if ((newcopy = realloc(copy, newlen)) == NULL)
 #endif
 		{
-			warnx2("%s", strerror(ENOMEM), NULL);
+			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		copy = newcopy;
@@ -465,7 +461,7 @@ getint(int *ip)
 		return (1);
 	rval = 0;
 	if (val < INT_MIN || val > INT_MAX) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	*ip = (int)val;
@@ -496,15 +492,15 @@ getnum(intmax_t *ip, uintmax_t *uip, int signedconv)
 	else
 		*uip = strtoumax(*gargv, &ep, 0);
 	if (ep == *gargv) {
-		warnx2("%s: expected numeric value", *gargv, NULL);
+		warnx("%s: expected numeric value", *gargv);
 		rval = 1;
 	}
 	else if (*ep != '\0') {
-		warnx2("%s: not completely converted", *gargv, NULL);
+		warnx("%s: not completely converted", *gargv);
 		rval = 1;
 	}
 	if (errno == ERANGE) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	++gargv;
@@ -532,14 +528,14 @@ getfloating(long double *dp, int mod_ldbl)
 	else
 		*dp = strtod(*gargv, &ep);
 	if (ep == *gargv) {
-		warnx2("%s: expected numeric value", *gargv, NULL);
+		warnx("%s: expected numeric value", *gargv);
 		rval = 1;
 	} else if (*ep != '\0') {
-		warnx2("%s: not completely converted", *gargv, NULL);
+		warnx("%s: not completely converted", *gargv);
 		rval = 1;
 	}
 	if (errno == ERANGE) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	++gargv;

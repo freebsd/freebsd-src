@@ -53,15 +53,19 @@ sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 	uint32_t cwnd_in_mtu;
 
 	assoc = &stcb->asoc;
-	/*
-	 * We take the minimum of the burst limit and the initial congestion
-	 * window. The initial congestion window is at least two times the
-	 * MTU.
-	 */
 	cwnd_in_mtu = SCTP_BASE_SYSCTL(sctp_initial_cwnd);
-	if ((assoc->max_burst > 0) && (cwnd_in_mtu > assoc->max_burst))
-		cwnd_in_mtu = assoc->max_burst;
-	net->cwnd = (net->mtu - sizeof(struct sctphdr)) * cwnd_in_mtu;
+	if (cwnd_in_mtu == 0) {
+		/* Using 0 means that the value of RFC 4960 is used. */
+		net->cwnd = min((net->mtu * 4), max((2 * net->mtu), SCTP_INITIAL_CWND));
+	} else {
+		/*
+		 * We take the minimum of the burst limit and the initial
+		 * congestion window.
+		 */
+		if ((assoc->max_burst > 0) && (cwnd_in_mtu > assoc->max_burst))
+			cwnd_in_mtu = assoc->max_burst;
+		net->cwnd = (net->mtu - sizeof(struct sctphdr)) * cwnd_in_mtu;
+	}
 	net->ssthresh = assoc->peers_rwnd;
 
 	SDT_PROBE(sctp, cwnd, net, init,
@@ -80,12 +84,12 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	struct sctp_nets *net;
 
 	/*-
-	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off == 1) &&
+	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off > 0) &&
 	 * (net->fast_retran_loss_recovery == 0)))
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if ((asoc->fast_retran_loss_recovery == 0) ||
-		    (asoc->sctp_cmt_on_off == 1)) {
+		    (asoc->sctp_cmt_on_off > 0)) {
 			/* out of a RFC2582 Fast recovery window? */
 			if (net->net_ack > 0) {
 				/*
@@ -250,7 +254,7 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * 
 			 * Should we stop any running T3 timer here?
 			 */
-			if ((asoc->sctp_cmt_on_off == 1) &&
+			if ((asoc->sctp_cmt_on_off > 0) &&
 			    (asoc->sctp_cmt_pf > 0) &&
 			    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
@@ -274,10 +278,9 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * CMT fast recovery code
 		 */
 		/*
-		 * if (sctp_cmt_on_off == 1 &&
-		 * net->fast_retran_loss_recovery &&
-		 * net->will_exit_fast_recovery == 0) { @@@ Do something }
-		 * else if (sctp_cmt_on_off == 0 &&
+		 * if (sctp_cmt_on_off > 0 && net->fast_retran_loss_recovery
+		 * && net->will_exit_fast_recovery == 0) { @@@ Do something
+		 * } else if (sctp_cmt_on_off == 0 &&
 		 * asoc->fast_retran_loss_recovery && will_exit == 0) {
 		 */
 #endif
@@ -296,7 +299,7 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * moved.
 		 */
 		if (accum_moved ||
-		    ((asoc->sctp_cmt_on_off == 1) && net->new_pseudo_cumack)) {
+		    ((asoc->sctp_cmt_on_off > 0) && net->new_pseudo_cumack)) {
 			/* If the cumulative ack moved we can proceed */
 			if (net->cwnd <= net->ssthresh) {
 				/* We are in slow start */
@@ -759,12 +762,12 @@ sctp_hs_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	struct sctp_nets *net;
 
 	/*
-	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off == 1) &&
+	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off > 0) &&
 	 * (net->fast_retran_loss_recovery == 0)))
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if ((asoc->fast_retran_loss_recovery == 0) ||
-		    (asoc->sctp_cmt_on_off == 1)) {
+		    (asoc->sctp_cmt_on_off > 0)) {
 			/* out of a RFC2582 Fast recovery window? */
 			if (net->net_ack > 0) {
 				/*
@@ -917,7 +920,7 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * 
 			 * Should we stop any running T3 timer here?
 			 */
-			if ((asoc->sctp_cmt_on_off == 1) &&
+			if ((asoc->sctp_cmt_on_off > 0) &&
 			    (asoc->sctp_cmt_pf > 0) &&
 			    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
@@ -937,10 +940,9 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * CMT fast recovery code
 		 */
 		/*
-		 * if (sctp_cmt_on_off == 1 &&
-		 * net->fast_retran_loss_recovery &&
-		 * net->will_exit_fast_recovery == 0) { @@@ Do something }
-		 * else if (sctp_cmt_on_off == 0 &&
+		 * if (sctp_cmt_on_off > 0 && net->fast_retran_loss_recovery
+		 * && net->will_exit_fast_recovery == 0) { @@@ Do something
+		 * } else if (sctp_cmt_on_off == 0 &&
 		 * asoc->fast_retran_loss_recovery && will_exit == 0) {
 		 */
 #endif
@@ -959,7 +961,7 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * moved.
 		 */
 		if (accum_moved ||
-		    ((asoc->sctp_cmt_on_off == 1) && net->new_pseudo_cumack)) {
+		    ((asoc->sctp_cmt_on_off > 0) && net->new_pseudo_cumack)) {
 			/* If the cumulative ack moved we can proceed */
 			if (net->cwnd <= net->ssthresh) {
 				/* We are in slow start */
@@ -1403,7 +1405,7 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * 
 			 * Should we stop any running T3 timer here?
 			 */
-			if ((asoc->sctp_cmt_on_off == 1) &&
+			if ((asoc->sctp_cmt_on_off > 0) &&
 			    (asoc->sctp_cmt_pf > 0) &&
 			    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
@@ -1423,10 +1425,9 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * CMT fast recovery code
 		 */
 		/*
-		 * if (sctp_cmt_on_off == 1 &&
-		 * net->fast_retran_loss_recovery &&
-		 * net->will_exit_fast_recovery == 0) { @@@ Do something }
-		 * else if (sctp_cmt_on_off == 0 &&
+		 * if (sctp_cmt_on_off > 0 && net->fast_retran_loss_recovery
+		 * && net->will_exit_fast_recovery == 0) { @@@ Do something
+		 * } else if (sctp_cmt_on_off == 0 &&
 		 * asoc->fast_retran_loss_recovery && will_exit == 0) {
 		 */
 #endif
@@ -1445,7 +1446,7 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * moved.
 		 */
 		if (accum_moved ||
-		    ((asoc->sctp_cmt_on_off == 1) && net->new_pseudo_cumack)) {
+		    ((asoc->sctp_cmt_on_off > 0) && net->new_pseudo_cumack)) {
 			htcp_cong_avoid(stcb, net);
 			measure_achieved_throughput(stcb, net);
 		} else {
@@ -1481,12 +1482,12 @@ sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	struct sctp_nets *net;
 
 	/*
-	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off == 1) &&
+	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off > 0) &&
 	 * (net->fast_retran_loss_recovery == 0)))
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if ((asoc->fast_retran_loss_recovery == 0) ||
-		    (asoc->sctp_cmt_on_off == 1)) {
+		    (asoc->sctp_cmt_on_off > 0)) {
 			/* out of a RFC2582 Fast recovery window? */
 			if (net->net_ack > 0) {
 				/*

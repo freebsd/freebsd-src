@@ -175,7 +175,7 @@ different_gl:
 	*newgl = p;
 	return (0);
 unpin:
-	vm_fault_unhold_pages(p->dgl_pages, npages);
+	vm_page_unhold_pages(p->dgl_pages, npages);
 
 free_gl:
 	
@@ -208,7 +208,7 @@ ddp_gl_free_pages(struct ddp_gather_list *gl, int dirty)
 	/*
 	 * XXX mark pages as dirty before unholding 
 	 */
-	vm_fault_unhold_pages(gl->dgl_pages, gl->dgl_nelem);
+	vm_page_unhold_pages(gl->dgl_pages, gl->dgl_nelem);
 }
 
 void

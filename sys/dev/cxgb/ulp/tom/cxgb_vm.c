@@ -122,20 +122,11 @@ vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr, vm_page_t *mp,
 	/*
 	 * Pages either have insufficient permissions or are not present
 	 * trigger a fault where neccessary
-	 * 
 	 */
-	rv = 0;
 	for (pages = mp, va = addr; va < end; va += PAGE_SIZE, pages++) {
-		/*
-		 * Account for a very narrow race where the page may be
-		 * taken away from us before it is held
-		 */
-		while (*pages == NULL) {
-			rv = vm_fault(map, va, prot, VM_FAULT_NORMAL);
-			if (rv) 
-				goto error;
-			*pages = pmap_extract_and_hold(pmap, va, prot);
-		}
+		if (*pages == NULL && (rv = vm_fault_hold(map, va, prot,
+		    VM_FAULT_NORMAL, pages)) != KERN_SUCCESS)
+			goto error;
 	}
 	return (0);
 error:	
@@ -149,17 +140,4 @@ error:
 			*pages = NULL;
 		}
 	return (EFAULT);
-}
-
-void
-vm_fault_unhold_pages(vm_page_t *mp, int count)
-{
-
-	KASSERT(count >= 0, ("negative count %d", count));
-	while (count--) {
-		vm_page_lock(*mp);
-		vm_page_unhold(*mp);
-		vm_page_unlock(*mp);
-		mp++;
-	}
 }

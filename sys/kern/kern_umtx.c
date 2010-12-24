@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/syscallsubr.h>
 #include <sys/eventhandler.h>
 #include <sys/umtx.h>
 
@@ -204,8 +205,8 @@ struct umtxq_chain {
 			 PRI_MAX_TIMESHARE : (td)->td_user_pri)
 
 #define	GOLDEN_RATIO_PRIME	2654404609U
-#define	UMTX_CHAINS		128
-#define	UMTX_SHIFTS		(__WORD_BIT - 7)
+#define	UMTX_CHAINS		512
+#define	UMTX_SHIFTS		(__WORD_BIT - 9)
 
 #define THREAD_SHARE		0
 #define PROCESS_SHARE		1
@@ -2351,6 +2352,7 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	struct timeval tv;
 	struct timespec cts, ets, tts;
 	uint32_t flags;
+	uint32_t clockid;
 	int error;
 
 	uq = td->td_umtxq;
@@ -2358,16 +2360,29 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	error = umtx_key_get(cv, TYPE_CV, GET_SHARE(flags), &uq->uq_key);
 	if (error != 0)
 		return (error);
+
+	if ((wflags & CVWAIT_CLOCKID) != 0) {
+		clockid = fuword32(&cv->c_clockid);
+		if (clockid < CLOCK_REALTIME ||
+		    clockid >= CLOCK_THREAD_CPUTIME_ID) {
+			/* hmm, only HW clock id will work. */
+			return (EINVAL);
+		}
+	} else {
+		clockid = CLOCK_REALTIME;
+	}
+
 	umtxq_lock(&uq->uq_key);
 	umtxq_busy(&uq->uq_key);
 	umtxq_insert(uq);
 	umtxq_unlock(&uq->uq_key);
 
 	/*
-	 * The magic thing is we should set c_has_waiters to 1 before
-	 * releasing user mutex.
+	 * Set c_has_waiters to 1 before releasing user mutex, also
+	 * don't modify cache line when unnecessary.
 	 */
-	suword32(__DEVOLATILE(uint32_t *, &cv->c_has_waiters), 1);
+	if (fuword32(__DEVOLATILE(uint32_t *, &cv->c_has_waiters)) == 0)
+		suword32(__DEVOLATILE(uint32_t *, &cv->c_has_waiters), 1);
 
 	umtxq_lock(&uq->uq_key);
 	umtxq_unbusy(&uq->uq_key);
@@ -2377,21 +2392,25 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	
 	umtxq_lock(&uq->uq_key);
 	if (error == 0) {
-		if ((wflags & UMTX_CHECK_UNPARKING) &&
-		    (td->td_pflags & TDP_WAKEUP)) {
-			td->td_pflags &= ~TDP_WAKEUP;
-			error = EINTR;
-		} else if (timeout == NULL) {
+		if (timeout == NULL) {
 			error = umtxq_sleep(uq, "ucond", 0);
 		} else {
-			getnanouptime(&ets);
-			timespecadd(&ets, timeout);
-			TIMESPEC_TO_TIMEVAL(&tv, timeout);
+			if ((wflags & CVWAIT_ABSTIME) == 0) {
+				kern_clock_gettime(td, clockid, &ets);
+				timespecadd(&ets, timeout);
+				tts = *timeout;
+			} else { /* absolute time */
+				ets = *timeout;
+				tts = *timeout;
+				kern_clock_gettime(td, clockid, &cts);
+				timespecsub(&tts, &cts);
+			}
+			TIMESPEC_TO_TIMEVAL(&tv, &tts);
 			for (;;) {
 				error = umtxq_sleep(uq, "ucond", tvtohz(&tv));
 				if (error != ETIMEDOUT)
 					break;
-				getnanouptime(&cts);
+				kern_clock_gettime(td, clockid, &cts);
 				if (timespeccmp(&cts, &ets, >=)) {
 					error = ETIMEDOUT;
 					break;
@@ -2406,7 +2425,24 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	if ((uq->uq_flags & UQF_UMTXQ) == 0)
 		error = 0;
 	else {
-		umtxq_remove(uq);
+		/*
+		 * This must be timeout,interrupted by signal or
+		 * surprious wakeup, clear c_has_waiter flag when
+		 * necessary.
+		 */
+		umtxq_busy(&uq->uq_key);
+		if ((uq->uq_flags & UQF_UMTXQ) != 0) {
+			int oldlen = uq->uq_cur_queue->length;
+			umtxq_remove(uq);
+			if (oldlen == 1) {
+				umtxq_unlock(&uq->uq_key);
+				suword32(
+				    __DEVOLATILE(uint32_t *,
+					 &cv->c_has_waiters), 0);
+				umtxq_lock(&uq->uq_key);
+			}
+		}
+		umtxq_unbusy(&uq->uq_key);
 		if (error == ERESTART)
 			error = EINTR;
 	}
@@ -3029,6 +3065,32 @@ __umtx_op_wake(struct thread *td, struct _umtx_op_args *uap)
 	return (kern_umtx_wake(td, uap->obj, uap->val, 0));
 }
 
+#define BATCH_SIZE	128
+static int
+__umtx_op_nwake_private(struct thread *td, struct _umtx_op_args *uap)
+{
+	int count = uap->val;
+	void *uaddrs[BATCH_SIZE];
+	char **upp = (char **)uap->obj;
+	int tocopy;
+	int error = 0;
+	int i, pos = 0;
+
+	while (count > 0) {
+		tocopy = count;
+		if (tocopy > BATCH_SIZE)
+			tocopy = BATCH_SIZE;
+		error = copyin(upp+pos, uaddrs, tocopy * sizeof(char *));
+		if (error != 0)
+			break;
+		for (i = 0; i < tocopy; ++i)
+			kern_umtx_wake(td, uaddrs[i], INT_MAX, 1);
+		count -= tocopy;
+		pos += tocopy;
+	}
+	return (error);
+}
+
 static int
 __umtx_op_wake_private(struct thread *td, struct _umtx_op_args *uap)
 {
@@ -3245,7 +3307,8 @@ static _umtx_op_func op_table[] = {
 	__umtx_op_wait_umutex,		/* UMTX_OP_UMUTEX_WAIT */
 	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
 	__umtx_op_sem_wait,		/* UMTX_OP_SEM_WAIT */
-	__umtx_op_sem_wake		/* UMTX_OP_SEM_WAKE */
+	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
+	__umtx_op_nwake_private		/* UMTX_OP_NWAKE_PRIVATE */
 };
 
 int
@@ -3487,6 +3550,32 @@ __umtx_op_sem_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 	return (do_sem_wait(td, uap->obj, ts));
 }
 
+static int
+__umtx_op_nwake_private32(struct thread *td, struct _umtx_op_args *uap)
+{
+	int count = uap->val;
+	uint32_t uaddrs[BATCH_SIZE];
+	uint32_t **upp = (uint32_t **)uap->obj;
+	int tocopy;
+	int error = 0;
+	int i, pos = 0;
+
+	while (count > 0) {
+		tocopy = count;
+		if (tocopy > BATCH_SIZE)
+			tocopy = BATCH_SIZE;
+		error = copyin(upp+pos, uaddrs, tocopy * sizeof(uint32_t));
+		if (error != 0)
+			break;
+		for (i = 0; i < tocopy; ++i)
+			kern_umtx_wake(td, (void *)(intptr_t)uaddrs[i],
+				INT_MAX, 1);
+		count -= tocopy;
+		pos += tocopy;
+	}
+	return (error);
+}
+
 static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_lock_umtx_compat32,	/* UMTX_OP_LOCK */
 	__umtx_op_unlock_umtx_compat32,	/* UMTX_OP_UNLOCK */
@@ -3508,7 +3597,8 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_wait_umutex_compat32, /* UMTX_OP_UMUTEX_WAIT */
 	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
 	__umtx_op_sem_wait_compat32,	/* UMTX_OP_SEM_WAIT */
-	__umtx_op_sem_wake		/* UMTX_OP_SEM_WAKE */
+	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
+	__umtx_op_nwake_private32	/* UMTX_OP_NWAKE_PRIVATE */
 };
 
 int

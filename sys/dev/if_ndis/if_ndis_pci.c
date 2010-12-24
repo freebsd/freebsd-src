@@ -110,14 +110,20 @@ ndis_devcompare(bustype, t, dev)
 	struct ndis_pci_type	*t;
 	device_t		dev;
 {
+	uint16_t		vid, did;
+	uint32_t		subsys;
+
 	if (bustype != PCIBus)
 		return(FALSE);
 
+	vid = pci_get_vendor(dev);
+	did = pci_get_device(dev);
+	subsys = pci_get_subdevice(dev);
+	subsys = (subsys << 16) | pci_get_subvendor(dev);
+
 	while(t->ndis_name != NULL) {
-		if ((pci_get_vendor(dev) == t->ndis_vid) &&
-		    (pci_get_device(dev) == t->ndis_did) &&
-		    ((pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
-		    t->ndis_subsys) || t->ndis_subsys == 0)) {
+		if ((t->ndis_vid == vid) && (t->ndis_did == did) &&
+		    (t->ndis_subsys == subsys || t->ndis_subsys == 0)) {
 			device_set_desc(dev, t->ndis_name);
 			return(TRUE);
 		}
@@ -169,6 +175,8 @@ ndis_attach_pci(dev)
 	struct resource_list	*rl;
 	struct resource_list_entry	*rle;
 	struct drvdb_ent	*db;
+	uint16_t		vid, did;
+	uint32_t		subsys;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -201,7 +209,6 @@ ndis_attach_pci(dev)
 					error = ENXIO;
 					goto fail;
 				}
-				pci_enable_io(dev, SYS_RES_IOPORT);
 				break;
 			case SYS_RES_MEMORY:
 				if (sc->ndis_res_altmem != NULL &&
@@ -239,7 +246,6 @@ ndis_attach_pci(dev)
 						goto fail;
 					}
 				}
-				pci_enable_io(dev, SYS_RES_MEMORY);
 				break;
 			case SYS_RES_IRQ:
 				rid = rle->rid;
@@ -302,18 +308,19 @@ ndis_attach_pci(dev)
 
 	/* Figure out exactly which device we matched. */
 
+	vid = pci_get_vendor(dev);
+	did = pci_get_device(dev);
+	subsys = pci_get_subdevice(dev);
+	subsys = (subsys << 16) | pci_get_subvendor(dev);
+
 	t = db->windrv_devlist;
 
 	while(t->ndis_name != NULL) {
-		if ((pci_get_vendor(dev) == t->ndis_vid) &&
-		    (pci_get_device(dev) == t->ndis_did)) {
+		if (t->ndis_vid == vid && t->ndis_did == did) {
 			if (t->ndis_subsys == 0)
 				defidx = devidx;
-			else {
-				if (t->ndis_subsys ==
-				    pci_read_config(dev, PCIR_SUBVEND_0, 4))
-					break;
-			}
+			else if (t->ndis_subsys == subsys)
+				break;
 		}
 		t++;
 		devidx++;

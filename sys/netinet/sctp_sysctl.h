@@ -325,9 +325,9 @@ struct sctp_sysctl {
 #define SCTPCTL_OUTGOING_STREAMS_DEFAULT SCTP_OSTREAM_INITIAL
 
 /* cmt_on_off: CMT on/off flag */
-#define SCTPCTL_CMT_ON_OFF_DESC		"CMT on/off flag"
+#define SCTPCTL_CMT_ON_OFF_DESC		"CMT settings"
 #define SCTPCTL_CMT_ON_OFF_MIN		0
-#define SCTPCTL_CMT_ON_OFF_MAX		1
+#define SCTPCTL_CMT_ON_OFF_MAX		2
 #define SCTPCTL_CMT_ON_OFF_DEFAULT	0
 
 /* EY - nr_sack_on_off: NR_SACK on/off flag */
@@ -500,7 +500,7 @@ struct sctp_sysctl {
 
 /* Initial congestion window in MTU */
 #define SCTPCTL_INITIAL_CWND_DESC	"Initial congestion window in MTUs"
-#define SCTPCTL_INITIAL_CWND_MIN	1
+#define SCTPCTL_INITIAL_CWND_MIN	0
 #define SCTPCTL_INITIAL_CWND_MAX	0xffffffff
 #define SCTPCTL_INITIAL_CWND_DEFAULT	3
 

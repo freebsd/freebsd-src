@@ -34,6 +34,5 @@ $FreeBSD$
 
 int vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr,
     vm_page_t *mp, int count, vm_prot_t prot);
-void vm_fault_unhold_pages(vm_page_t *mp, int count);
 
 #endif

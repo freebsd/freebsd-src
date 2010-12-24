@@ -224,7 +224,7 @@ cdphysical(char *dest)
 	}
 	p = findcwd(NULL);
 	if (p == NULL)
-		out2fmt_flush("cd: warning: failed to get name of current directory\n");
+		warning("warning: failed to get name of current directory");
 	updatepwd(p);
 	INTON;
 	return (0);

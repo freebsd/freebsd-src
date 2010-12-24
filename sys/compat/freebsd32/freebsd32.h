@@ -328,6 +328,7 @@ struct kinfo_proc32 {
 	uint32_t ki_pcb;
 	uint32_t ki_kstack;
 	uint32_t ki_udata;
+	uint32_t ki_tdaddr;
 	uint32_t ki_spareptrs[KI_NSPARE_PTR];	/* spare room for growth */
 	int	ki_sparelongs[KI_NSPARE_LONG];
 	int	ki_sflag;

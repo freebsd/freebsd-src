@@ -6153,7 +6153,8 @@ indir_trunc(freework, dbn, lbn)
 		if (jnewblk->jn_lbn > 0)
 			i = (jnewblk->jn_lbn - -lbn) / lbnadd;
 		else
-			i = (jnewblk->jn_lbn - (lbn + 1)) / lbnadd;
+			i = (-(jnewblk->jn_lbn + level - 1) - -(lbn + level)) /
+			    lbnadd;
 		KASSERT(i >= 0 && i < NINDIR(fs),
 		    ("indir_trunc: Index out of range %d parent %jd lbn %jd",
 		    i, lbn, jnewblk->jn_lbn));
