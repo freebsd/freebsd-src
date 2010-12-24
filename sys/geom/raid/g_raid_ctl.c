@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2009 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,500 +43,76 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <geom/raid/g_raid.h>
+#include "g_raid_md_if.h"
 
 
-#if 0
 static struct g_raid_softc *
-g_raid_find_device(struct g_class *mp, const char *name)
+g_raid_find_node(struct g_class *mp, const char *name)
 {
 	struct g_raid_softc *sc;
 	struct g_geom *gp;
 
-	g_topology_lock();
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
 		if (sc->sc_stopping != 0)
 			continue;
-		if (strcmp(gp->name, name) == 0 ||
-		    strcmp(sc->sc_name, name) == 0) {
-			g_topology_unlock();
-			sx_xlock(&sc->sc_lock);
+		if (strcasecmp(sc->sc_name, name) == 0)
 			return (sc);
-		}
 	}
+	return (NULL);
+}
+
+static void
+g_raid_ctl_label(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_geom *geom;
+	struct g_raid_softc *sc;
+	const char *format;
+	int *nargs;
+	int crstatus, ctlstatus;
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs < 4) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	format = gctl_get_asciiparam(req, "arg0");
+	if (format == NULL) {
+		gctl_error(req, "No format recieved.");
+		return;
+	}
+	crstatus = g_raid_create_node_format(format, &geom);
+	if (crstatus == G_RAID_MD_TASTE_FAIL) {
+		gctl_error(req, "Failed to create node with format '%s'.",
+		    format);
+		return;
+	}
+	sc = (struct g_raid_softc *)geom->softc;
 	g_topology_unlock();
-	return (NULL);
-}
-
-static struct g_raid_disk *
-g_raid_find_disk(struct g_raid_softc *sc, const char *name)
-{
-	struct g_raid_disk *disk;
-
-	sx_assert(&sc->sc_lock, SX_XLOCKED);
-	if (strncmp(name, "/dev/", 5) == 0)
-		name += 5;
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_consumer == NULL)
-			continue;
-		if (disk->d_consumer->provider == NULL)
-			continue;
-		if (strcmp(disk->d_consumer->provider->name, name) == 0)
-			return (disk);
-	}
-	return (NULL);
-}
-
-static void
-g_raid_ctl_configure(struct gctl_req *req, struct g_class *mp)
-{
-	struct g_raid_softc *sc;
-	struct g_raid_disk *disk;
-	const char *name, *balancep, *prov;
-	intmax_t *slicep, *priority;
-	uint32_t slice;
-	uint8_t balance;
-	int *autosync, *noautosync, *failsync, *nofailsync, *hardcode, *dynamic;
-	int *nargs, do_sync = 0, dirty = 1, do_priority = 0;
-
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs != 1 && *nargs != 2) {
-		gctl_error(req, "Invalid number of arguments.");
-		return;
-	}
-	name = gctl_get_asciiparam(req, "arg0");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
-	balancep = gctl_get_asciiparam(req, "balance");
-	if (balancep == NULL) {
-		gctl_error(req, "No '%s' argument.", "balance");
-		return;
-	}
-	autosync = gctl_get_paraml(req, "autosync", sizeof(*autosync));
-	if (autosync == NULL) {
-		gctl_error(req, "No '%s' argument.", "autosync");
-		return;
-	}
-	noautosync = gctl_get_paraml(req, "noautosync", sizeof(*noautosync));
-	if (noautosync == NULL) {
-		gctl_error(req, "No '%s' argument.", "noautosync");
-		return;
-	}
-	failsync = gctl_get_paraml(req, "failsync", sizeof(*failsync));
-	if (failsync == NULL) {
-		gctl_error(req, "No '%s' argument.", "failsync");
-		return;
-	}
-	nofailsync = gctl_get_paraml(req, "nofailsync", sizeof(*nofailsync));
-	if (nofailsync == NULL) {
-		gctl_error(req, "No '%s' argument.", "nofailsync");
-		return;
-	}
-	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
-	if (hardcode == NULL) {
-		gctl_error(req, "No '%s' argument.", "hardcode");
-		return;
-	}
-	dynamic = gctl_get_paraml(req, "dynamic", sizeof(*dynamic));
-	if (dynamic == NULL) {
-		gctl_error(req, "No '%s' argument.", "dynamic");
-		return;
-	}
-	priority = gctl_get_paraml(req, "priority", sizeof(*priority));
-	if (priority == NULL) {
-		gctl_error(req, "No '%s' argument.", "priority");
-		return;
-	}
-	if (*priority < -1 || *priority > 255) {
-		gctl_error(req, "Priority range is 0 to 255, %jd given",
-		    *priority);
-		return;
-	}
-	/* 
-	 * Since we have a priority, we also need a provider now.
-	 * Note: be WARNS safe, by always assigning prov and only throw an
-	 * error if *priority != -1.
-	 */
-	prov = gctl_get_asciiparam(req, "arg1");
-	if (*priority > -1) {
-		if (prov == NULL) {
-			gctl_error(req, "Priority needs a disk name");
-			return;
-		}
-		do_priority = 1;
-	}
-	if (*autosync && *noautosync) {
-		gctl_error(req, "'%s' and '%s' specified.", "autosync",
-		    "noautosync");
-		return;
-	}
-	if (*failsync && *nofailsync) {
-		gctl_error(req, "'%s' and '%s' specified.", "failsync",
-		    "nofailsync");
-		return;
-	}
-	if (*hardcode && *dynamic) {
-		gctl_error(req, "'%s' and '%s' specified.", "hardcode",
-		    "dynamic");
-		return;
-	}
-	sc = g_raid_find_device(mp, name);
-	if (sc == NULL) {
-		gctl_error(req, "No such device: %s.", name);
-		return;
-	}
-	if (*balancep == '\0')
-		balance = sc->sc_balance;
-	else {
-		if (balance_id(balancep) == -1) {
-			gctl_error(req, "Invalid balance algorithm.");
-			sx_xunlock(&sc->sc_lock);
-			return;
-		}
-		balance = balance_id(balancep);
-	}
-	slicep = gctl_get_paraml(req, "slice", sizeof(*slicep));
-	if (slicep == NULL) {
-		gctl_error(req, "No '%s' argument.", "slice");
-		sx_xunlock(&sc->sc_lock);
-		return;
-	}
-	if (*slicep == -1)
-		slice = sc->sc_slice;
-	else
-		slice = *slicep;
-	/* Enforce usage() of -p not allowing any other options. */
-	if (do_priority && (*autosync || *noautosync || *failsync ||
-	    *nofailsync || *hardcode || *dynamic || *slicep != -1 ||
-	    *balancep != '\0')) {
-		sx_xunlock(&sc->sc_lock);
-		gctl_error(req, "only -p accepted when setting priority");
-		return;
-	}
-	if (sc->sc_balance == balance && sc->sc_slice == slice && !*autosync &&
-	    !*noautosync && !*failsync && !*nofailsync && !*hardcode &&
-	    !*dynamic && !do_priority) {
-		sx_xunlock(&sc->sc_lock);
-		gctl_error(req, "Nothing has changed.");
-		return;
-	}
-	if ((!do_priority && *nargs != 1) || (do_priority && *nargs != 2)) {
-		sx_xunlock(&sc->sc_lock);
-		gctl_error(req, "Invalid number of arguments.");
-		return;
-	}
-	if (g_raid_ndisks(sc, -1) < sc->sc_ndisks) {
-		sx_xunlock(&sc->sc_lock);
-		gctl_error(req, "Not all disks connected. Try 'forget' command "
-		    "first.");
-		return;
-	}
-	sc->sc_balance = balance;
-	sc->sc_slice = slice;
-	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOAUTOSYNC) != 0) {
-		if (*autosync) {
-			sc->sc_flags &= ~G_RAID_DEVICE_FLAG_NOAUTOSYNC;
-			do_sync = 1;
-		}
-	} else {
-		if (*noautosync)
-			sc->sc_flags |= G_RAID_DEVICE_FLAG_NOAUTOSYNC;
-	}
-	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOFAILSYNC) != 0) {
-		if (*failsync)
-			sc->sc_flags &= ~G_RAID_DEVICE_FLAG_NOFAILSYNC;
-	} else {
-		if (*nofailsync) {
-			sc->sc_flags |= G_RAID_DEVICE_FLAG_NOFAILSYNC;
-			dirty = 0;
-		}
-	}
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-		/*
-		 * Handle priority first, since we only need one disk, do one
-		 * operation on it and then we're done. No need to check other
-		 * flags, as usage doesn't allow it.
-		 */
-		if (do_priority) {
-			if (strcmp(disk->d_consumer->provider->name, prov) == 0) {
-				if (disk->d_priority == *priority)
-					gctl_error(req, "Nothing has changed.");
-				else {
-					disk->d_priority = *priority;
-					g_raid_update_metadata(disk);
-				}
-				break;
-			}
-			continue;
-		}
-		if (do_sync) {
-			if (disk->d_state == G_RAID_DISK_STATE_SYNCHRONIZING)
-				disk->d_flags &= ~G_RAID_DISK_FLAG_FORCE_SYNC;
-		}
-		if (!dirty)
-			disk->d_flags &= ~G_RAID_DISK_FLAG_DIRTY;
-		g_raid_update_metadata(disk);
-		if (do_sync) {
-			if (disk->d_state == G_RAID_DISK_STATE_STALE) {
-				g_raid_event_send(disk,
-				    G_RAID_DISK_STATE_DISCONNECTED,
-				    G_RAID_EVENT_DISK);
-			}
-		}
+	sx_xlock(&sc->sc_lock);
+	ctlstatus = G_RAID_MD_CTL(sc->sc_md, req);
+	if (ctlstatus < 0) {
+		gctl_error(req, "Command failed: %d.", ctlstatus);
+		if (crstatus == G_RAID_MD_TASTE_NEW)
+			g_raid_destroy_node(sc, 0);
 	}
 	sx_xunlock(&sc->sc_lock);
-}
-
-static void
-g_raid_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
-{
-	struct g_raid_metadata md;
-	struct g_raid_softc *sc;
-	struct g_raid_disk *disk;
-	struct g_provider *pp;
-	const char *name;
-	char param[16];
-	int error, *nargs;
-	u_int i;
-
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 2) {
-		gctl_error(req, "Too few arguments.");
-		return;
-	}
-	name = gctl_get_asciiparam(req, "arg0");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
-	sc = g_raid_find_device(mp, name);
-	if (sc == NULL) {
-		gctl_error(req, "No such device: %s.", name);
-		return;
-	}
-	for (i = 1; i < (u_int)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%u' argument.", i);
-			continue;
-		}
-		disk = g_raid_find_disk(sc, name);
-		if (disk == NULL) {
-			gctl_error(req, "No such provider: %s.", name);
-			continue;
-		}
-		if (g_raid_ndisks(sc, G_RAID_DISK_STATE_ACTIVE) == 1 &&
-		    disk->d_state == G_RAID_DISK_STATE_ACTIVE) {
-			/*
-			 * This is the last active disk. There will be nothing
-			 * to rebuild it from, so deny this request.
-			 */
-			gctl_error(req,
-			    "Provider %s is the last active provider in %s.",
-			    name, sc->sc_geom->name);
-			break;
-		}
-		/*
-		 * Do rebuild by resetting syncid, disconnecting the disk and
-		 * connecting it again.
-		 */
-		if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOAUTOSYNC) != 0)
-			disk->d_flags |= G_RAID_DISK_FLAG_FORCE_SYNC;
-		g_raid_update_metadata(disk);
-		pp = disk->d_consumer->provider;
-		g_topology_lock();
-		error = g_raid_read_metadata(disk->d_consumer, &md);
-		g_topology_unlock();
-		g_raid_event_send(disk, G_RAID_DISK_STATE_DISCONNECTED,
-		    G_RAID_EVENT_WAIT);
-		if (error != 0) {
-			gctl_error(req, "Cannot read metadata from %s.",
-			    pp->name);
-			continue;
-		}
-		error = g_raid_add_disk(sc, pp, &md);
-		if (error != 0) {
-			gctl_error(req, "Cannot reconnect component %s.",
-			    pp->name);
-			continue;
-		}
-	}
-	sx_xunlock(&sc->sc_lock);
-}
-
-static void
-g_raid_ctl_remove(struct gctl_req *req, struct g_class *mp)
-{
-	struct g_raid_softc *sc;
-	struct g_raid_disk *disk;
-	const char *name;
-	char param[16];
-	int *nargs;
-	u_int i;
-
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 2) {
-		gctl_error(req, "Too few arguments.");
-		return;
-	}
-	name = gctl_get_asciiparam(req, "arg0");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
-	sc = g_raid_find_device(mp, name);
-	if (sc == NULL) {
-		gctl_error(req, "No such device: %s.", name);
-		return;
-	}
-	if (g_raid_ndisks(sc, -1) < sc->sc_ndisks) {
-		sx_xunlock(&sc->sc_lock);
-		gctl_error(req, "Not all disks connected. Try 'forget' command "
-		    "first.");
-		return;
-	}
-	for (i = 1; i < (u_int)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%u' argument.", i);
-			continue;
-		}
-		disk = g_raid_find_disk(sc, name);
-		if (disk == NULL) {
-			gctl_error(req, "No such provider: %s.", name);
-			continue;
-		}
-		g_raid_event_send(disk, G_RAID_DISK_STATE_DESTROY,
-		    G_RAID_EVENT_DISK);
-	}
-	sx_xunlock(&sc->sc_lock);
-}
-
-static void
-g_raid_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
-{
-	struct g_raid_softc *sc;
-	struct g_raid_disk *disk;
-	const char *name;
-	char param[16];
-	int *nargs;
-	u_int i;
-
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 2) {
-		gctl_error(req, "Too few arguments.");
-		return;
-	}
-	name = gctl_get_asciiparam(req, "arg0");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%u' argument.", 0);
-		return;
-	}
-	sc = g_raid_find_device(mp, name);
-	if (sc == NULL) {
-		gctl_error(req, "No such device: %s.", name);
-		return;
-	}
-	for (i = 1; i < (u_int)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%u' argument.", i);
-			continue;
-		}
-		disk = g_raid_find_disk(sc, name);
-		if (disk == NULL) {
-			gctl_error(req, "No such provider: %s.", name);
-			continue;
-		}
-		disk->d_flags |= G_RAID_DISK_FLAG_INACTIVE;
-		disk->d_flags &= ~G_RAID_DISK_FLAG_FORCE_SYNC;
-		g_raid_update_metadata(disk);
-		sc->sc_bump_id |= G_RAID_BUMP_SYNCID;
-		g_raid_event_send(disk, G_RAID_DISK_STATE_DISCONNECTED,
-		    G_RAID_EVENT_DISK);
-	}
-	sx_xunlock(&sc->sc_lock);
-}
-
-static void
-g_raid_ctl_forget(struct gctl_req *req, struct g_class *mp)
-{
-	struct g_raid_softc *sc;
-	struct g_raid_disk *disk;
-	const char *name;
-	char param[16];
-	int *nargs;
-	u_int i;
-
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs < 1) {
-		gctl_error(req, "Missing device(s).");
-		return;
-	}
-
-	for (i = 0; i < (u_int)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%u' argument.", i);
-			return;
-		}
-		sc = g_raid_find_device(mp, name);
-		if (sc == NULL) {
-			gctl_error(req, "No such device: %s.", name);
-			return;
-		}
-		if (g_raid_ndisks(sc, -1) == sc->sc_ndisks) {
-			sx_xunlock(&sc->sc_lock);
-			G_RAID_DEBUG(1,
-			    "All disks connected in %s, skipping.",
-			    sc->sc_name);
-			continue;
-		}
-		sc->sc_ndisks = g_raid_ndisks(sc, -1);
-		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-			g_raid_update_metadata(disk);
-		}
-		sx_xunlock(&sc->sc_lock);
-	}
+	g_topology_lock();
 }
 
 static void
 g_raid_ctl_stop(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_raid_softc *sc;
-	int *force, *nargs, error;
-	const char *name;
-	char param[16];
-	u_int i;
-	int how;
+	const char *nodename;
+	int *nargs, *force;
+	int error, how;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -544,46 +120,72 @@ g_raid_ctl_stop(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*nargs < 1) {
-		gctl_error(req, "Missing device(s).");
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	nodename = gctl_get_asciiparam(req, "arg0");
+	if (nodename == NULL) {
+		gctl_error(req, "No node name recieved.");
+		return;
+	}
+	sc = g_raid_find_node(mp, nodename);
+	if (sc == NULL) {
+		gctl_error(req, "Node '%s' not found.", nodename);
 		return;
 	}
 	force = gctl_get_paraml(req, "force", sizeof(*force));
-	if (force == NULL) {
-		gctl_error(req, "No '%s' argument.", "force");
-		return;
-	}
-	if (*force)
+	if (force != NULL && *force)
 		how = G_RAID_DESTROY_HARD;
 	else
 		how = G_RAID_DESTROY_SOFT;
-
-	for (i = 0; i < (u_int)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%u' argument.", i);
-			return;
-		}
-		sc = g_raid_find_device(mp, name);
-		if (sc == NULL) {
-			gctl_error(req, "No such device: %s.", name);
-			return;
-		}
-		g_cancel_event(sc);
-		error = g_raid_destroy(sc, how);
-		if (error != 0) {
-			gctl_error(req, "Cannot destroy device %s (error=%d).",
-			    sc->sc_geom->name, error);
-			sx_xunlock(&sc->sc_lock);
-			return;
-		}
-		/* No need to unlock, because lock is already dead. */
-	}
+	g_topology_unlock();
+	sx_xlock(&sc->sc_lock);
+	error = g_raid_destroy(sc, how);
+	if (error != 0)
+		sx_xunlock(&sc->sc_lock);
+	g_topology_lock();
 }
-#endif
+
+static void
+g_raid_ctl_other(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_raid_softc *sc;
+	const char *nodename;
+	int *nargs;
+	int ctlstatus;
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs < 1) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	nodename = gctl_get_asciiparam(req, "arg0");
+	if (nodename == NULL) {
+		gctl_error(req, "No node name recieved.");
+		return;
+	}
+	sc = g_raid_find_node(mp, nodename);
+	if (sc == NULL) {
+		gctl_error(req, "Node '%s' not found.", nodename);
+		return;
+	}
+	g_topology_unlock();
+	sx_xlock(&sc->sc_lock);
+	if (sc->sc_md != NULL) {
+		ctlstatus = G_RAID_MD_CTL(sc->sc_md, req);
+		if (ctlstatus < 0)
+			gctl_error(req, "Command failed: %d.", ctlstatus);
+	}
+	sx_xunlock(&sc->sc_lock);
+	g_topology_lock();
+}
 
 void
-g_raid_config(struct gctl_req *req, struct g_class *mp, const char *verb)
+g_raid_ctl(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
 	uint32_t *version;
 
@@ -599,20 +201,10 @@ g_raid_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		return;
 	}
 
-	g_topology_unlock();
-	/*if (strcmp(verb, "configure") == 0)
-		g_raid_ctl_configure(req, mp);
-	else if (strcmp(verb, "rebuild") == 0)
-		g_raid_ctl_rebuild(req, mp);
-	else if (strcmp(verb, "remove") == 0)
-		g_raid_ctl_remove(req, mp);
-	else if (strcmp(verb, "deactivate") == 0)
-		g_raid_ctl_deactivate(req, mp);
-	else if (strcmp(verb, "forget") == 0)
-		g_raid_ctl_forget(req, mp);
+	if (strcmp(verb, "label") == 0)
+		g_raid_ctl_label(req, mp);
 	else if (strcmp(verb, "stop") == 0)
 		g_raid_ctl_stop(req, mp);
-	else*/
-		gctl_error(req, "Unknown verb.");
-	g_topology_lock();
+	else
+		g_raid_ctl_other(req, mp);
 }

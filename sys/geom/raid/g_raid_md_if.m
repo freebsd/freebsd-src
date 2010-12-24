@@ -40,17 +40,38 @@
 
 INTERFACE g_raid_md;
 
-# Default implementations of methods.
-CODE {
-};
-
 HEADER {
 #define G_RAID_MD_TASTE_FAIL		-1
 #define G_RAID_MD_TASTE_EXISTING	 0
 #define G_RAID_MD_TASTE_NEW		 1
 };
 
-# taste() - disk taste method.
+# Default implementations of methods.
+CODE {
+	static int
+	g_raid_md_create_default(struct g_raid_md_object *md)
+	{
+
+		return (G_RAID_MD_TASTE_FAIL);
+	}
+
+	static int
+	g_raid_md_ctl_default(struct g_raid_md_object *md,
+	    struct gctl_req *req)
+	{
+
+		return (-1);
+	}
+};
+
+# create() - create new node from scratch.
+METHOD int create {
+	struct g_raid_md_object *md;
+	struct g_class *mp;
+	struct g_geom **gp;
+} DEFAULT g_raid_md_create_default;
+
+# taste() - taste disk and, if needed, create new node.
 METHOD int taste {
 	struct g_raid_md_object *md;
 	struct g_class *mp;
@@ -58,15 +79,27 @@ METHOD int taste {
 	struct g_geom **gp;
 };
 
+# ctl() - user-level control commands handling method.
+METHOD int ctl {
+	struct g_raid_md_object *md;
+	struct gctl_req *req;
+} DEFAULT g_raid_md_ctl_default;
+
 # event() - events handling method.
 METHOD int event {
-	struct g_raid_md_object *tr;
+	struct g_raid_md_object *md;
 	struct g_raid_disk *disk;
 	u_int event;
 };
 
 # write() - metadata write method.
 METHOD int write {
+	struct g_raid_md_object *md;
+	struct g_raid_disk *disk;
+};
+
+# free_disk() - disk destructor.
+METHOD int free_disk {
 	struct g_raid_md_object *md;
 	struct g_raid_disk *disk;
 };
