@@ -510,7 +510,7 @@ void ncl_invalcaches(vnode_t);
 
 /* nfs_nfsdport.c */
 int nfsvno_getattr(vnode_t, struct nfsvattr *, struct ucred *,
-    NFSPROC_T *);
+    NFSPROC_T *, int);
 int nfsvno_setattr(vnode_t, struct nfsvattr *, struct ucred *,
     NFSPROC_T *, struct nfsexstuff *);
 int nfsvno_getfh(vnode_t, fhandle_t *, NFSPROC_T *);
