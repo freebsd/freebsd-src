@@ -58,6 +58,7 @@ struct g_raid_tr_object;
 
 #ifdef _KERNEL
 extern u_int g_raid_debug;
+extern u_int g_raid_start_timeout;
 
 #define	G_RAID_DEBUG(lvl, fmt, ...)	do {				\
 	if (g_raid_debug >= (lvl)) {					\
@@ -101,6 +102,7 @@ struct g_raid_event {
 #define G_RAID_DISK_S_ACTIVE		0x01
 #define G_RAID_DISK_S_SPARE		0x02
 #define G_RAID_DISK_S_OFFLINE		0x03
+#define G_RAID_DISK_S_STALE		0x04
 
 #define G_RAID_DISK_E_DISCONNECTED	0x01
 
@@ -276,17 +278,17 @@ int g_raid_tr_modevent(module_t, int, void *);
     };								\
     DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
 
+const char * g_raid_volume_level2str(int level, int qual);
+int g_raid_volume_str2level(const char *str, int *level, int *qual);
+
 struct g_raid_softc * g_raid_create_node(struct g_class *mp,
     const char *name, struct g_raid_md_object *md);
+int g_raid_create_node_format(const char *format, struct g_geom **gp);
 struct g_raid_volume * g_raid_create_volume(struct g_raid_softc *sc,
     const char *name);
 struct g_raid_disk * g_raid_create_disk(struct g_raid_softc *sc);
 
 int g_raid_start_volume(struct g_raid_volume *vol);
-
-int g_raid_stop_node(struct g_raid_softc *sc);
-int g_raid_stop_volume(struct g_raid_volume *vol);
-int g_raid_stop_disk(struct g_raid_disk *disk);
 
 int g_raid_destroy_node(struct g_raid_softc *sc, int worker);
 int g_raid_destroy_volume(struct g_raid_volume *vol);
@@ -309,7 +311,7 @@ u_int g_raid_nsubdisks(struct g_raid_volume *vol, int state);
 int g_raid_destroy(struct g_raid_softc *sc, int how);
 int g_raid_event_send(void *arg, int event, int flags);
 
-g_ctl_req_t g_raid_config;
+g_ctl_req_t g_raid_ctl;
 #endif	/* _KERNEL */
 
 #endif	/* !_G_RAID_H_ */
