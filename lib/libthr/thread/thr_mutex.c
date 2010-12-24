@@ -653,7 +653,7 @@ mutex_unlock_common(struct pthread_mutex *m, int cv)
 		m->m_count > 0)) {
 		m->m_count--;
 	} else {
-		if (curthread->will_sleep == 0 && (m->m_flags & PMUTEX_FLAG_DEFERED) != 0) {
+		if ((m->m_flags & PMUTEX_FLAG_DEFERED) != 0) {
 			defered = 1;
 			m->m_flags &= ~PMUTEX_FLAG_DEFERED;
         	} else
@@ -662,7 +662,7 @@ mutex_unlock_common(struct pthread_mutex *m, int cv)
 		DEQUEUE_MUTEX(curthread, m);
 		_thr_umutex_unlock(&m->m_lock, id);
 
-		if (defered)  {
+		if (curthread->will_sleep == 0 && defered)  {
 			_thr_wake_all(curthread->defer_waiters,
 				curthread->nwaiter_defer);
 			curthread->nwaiter_defer = 0;
