@@ -350,8 +350,8 @@ KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
 universe_kernconfs:
 .for kernel in ${KERNCONFS}
 TARGET_ARCH_${kernel}!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
-			config -m ${.CURDIR}/sys/${TARGET}/conf/${kernel} | \
-			cut -f 2
+	config -m ${.CURDIR}/sys/${TARGET}/conf/${kernel} 2> /dev/null | \
+	cut -f 2
 universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
 universe_kernconf_${TARGET}_${kernel}:
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
