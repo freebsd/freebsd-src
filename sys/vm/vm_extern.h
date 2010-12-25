@@ -85,7 +85,6 @@ int vslock(void *, size_t);
 void vsunlock(void *, size_t);
 void vm_object_print(/* db_expr_t */ long, boolean_t, /* db_expr_t */ long,
 			  char *);
-int vm_fault_quick(caddr_t v, int prot);
 struct sf_buf *vm_imgact_map_page(vm_object_t object, vm_ooffset_t offset);
 void vm_imgact_unmap_page(struct sf_buf *sf);
 void vm_thread_dispose(struct thread *td);
