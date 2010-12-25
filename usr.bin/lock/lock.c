@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <ctype.h>
 #include <errno.h>
+#include <paths.h>
 #include <pwd.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -99,6 +100,7 @@ main(int argc, char **argv)
 	openlog("lock", LOG_ODELAY, LOG_AUTH);
 
 	sectimeout = TIMEOUT;
+	pw = NULL;
 	mypw = NULL;
 	usemine = 0;
 	no_timeout = 0;
@@ -134,6 +136,8 @@ main(int argc, char **argv)
 	gethostname(hostname, sizeof(hostname));
 	if (!(ttynam = ttyname(0)))
 		errx(1, "not a terminal?");
+	if (strncmp(ttynam, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		ttynam += strlen(_PATH_DEV);
 	if (gettimeofday(&timval, (struct timezone *)NULL))
 		err(1, "gettimeofday");
 	nexttime = timval.tv_sec + (sectimeout * 60);
@@ -193,7 +197,10 @@ main(int argc, char **argv)
 	}
 
 	/* header info */
-	(void)printf("lock: %s on %s.", ttynam, hostname);
+	if (pw != NULL)
+		(void)printf("lock: %s using %s on %s.", pw->pw_name, ttynam, hostname);
+	else
+		(void)printf("lock: %s on %s.", ttynam, hostname);
 	if (no_timeout)
 		(void)printf(" no timeout.");
 	else
