@@ -34,7 +34,7 @@ CFLAGS+=	-fPIC
 .else
 CFLAGS+=	-fpic
 .endif
-CFLAGS+=	-DPIC
+CFLAGS+=	-DPIC $(DEBUG)
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic -lssp_nonshared
