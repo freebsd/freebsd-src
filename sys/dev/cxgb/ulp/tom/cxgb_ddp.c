@@ -90,7 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <ulp/tom/cxgb_t3_ddp.h>
 #include <ulp/tom/cxgb_toepcb.h>
 #include <ulp/tom/cxgb_tcp.h>
-#include <ulp/tom/cxgb_vm.h>
 
 
 #define MAX_SCHEDULE_TIMEOUT	300
@@ -130,14 +129,6 @@ t3_pin_pages(bus_dma_tag_t tag, bus_dmamap_t dmamap, vm_offset_t addr,
 	struct ddp_gather_list *p;
 	vm_map_t map;
 	
-	/*
-	 * XXX need x86 agnostic check
-	 */
-	if (addr + len > VM_MAXUSER_ADDRESS)
-		return (EFAULT);
-
-
-	
 	pg_off = addr & PAGE_MASK;
 	npages = (pg_off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	p = malloc(sizeof(struct ddp_gather_list) + npages * sizeof(vm_page_t *),
@@ -146,10 +137,11 @@ t3_pin_pages(bus_dma_tag_t tag, bus_dmamap_t dmamap, vm_offset_t addr,
 		return (ENOMEM);
 
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	err = vm_fault_hold_user_pages(map, addr, p->dgl_pages, npages,
-	    VM_PROT_READ | VM_PROT_WRITE);
-	if (err)
+	if (vm_fault_quick_hold_pages(map, addr, len, VM_PROT_READ |
+	    VM_PROT_WRITE, p->dgl_pages, npages) < 0) {
+		err = EFAULT;
 		goto free_gl;
+	}
 
 	if (gl && gl->dgl_offset == pg_off && gl->dgl_nelem >= npages &&
 	    gl->dgl_length >= len) {
