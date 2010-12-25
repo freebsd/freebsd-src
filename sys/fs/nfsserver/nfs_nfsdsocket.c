@@ -354,7 +354,7 @@ APPLESTATIC void
 nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
     NFSPROC_T *p)
 {
-	int error = 0;
+	int error = 0, lktype;
 	vnode_t vp;
 	mount_t mp = NULL;
 	struct nfsrvfh fh;
@@ -380,12 +380,20 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 				nd->nd_repstat = NFSERR_GARBAGE;
 				return;
 			}
+			if (nd->nd_procnum == NFSPROC_READ ||
+			    nd->nd_procnum == NFSPROC_READDIR ||
+			    nd->nd_procnum == NFSPROC_READLINK ||
+			    nd->nd_procnum == NFSPROC_GETATTR ||
+			    nd->nd_procnum == NFSPROC_ACCESS)
+				lktype = LK_SHARED;
+			else
+				lktype = LK_EXCLUSIVE;
 			nes.nes_vfslocked = 0;
 			if (nd->nd_flag & ND_PUBLOOKUP)
-				nfsd_fhtovp(nd, &nfs_pubfh, &vp, &nes,
+				nfsd_fhtovp(nd, &nfs_pubfh, lktype, &vp, &nes,
 				    &mp, nfs_writerpc[nd->nd_procnum], p);
 			else
-				nfsd_fhtovp(nd, &fh, &vp, &nes,
+				nfsd_fhtovp(nd, &fh, lktype, &vp, &nes,
 				    &mp, nfs_writerpc[nd->nd_procnum], p);
 			if (nd->nd_repstat == NFSERR_PROGNOTV4)
 				return;
@@ -700,7 +708,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				goto nfsmout;
 			if (!nd->nd_repstat) {
 				nes.nes_vfslocked = vpnes.nes_vfslocked;
-				nfsd_fhtovp(nd, &fh, &nvp, &nes, &mp,
+				nfsd_fhtovp(nd, &fh, LK_SHARED, &nvp, &nes, &mp,
 				    0, p);
 			}
 			/* For now, allow this for non-export FHs */
@@ -715,7 +723,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		case NFSV4OP_PUTPUBFH:
 			if (nfs_pubfhset) {
 			    nes.nes_vfslocked = vpnes.nes_vfslocked;
-			    nfsd_fhtovp(nd, &nfs_pubfh, &nvp,
+			    nfsd_fhtovp(nd, &nfs_pubfh, LK_SHARED, &nvp,
 				&nes, &mp, 0, p);
 			} else {
 			    nd->nd_repstat = NFSERR_NOFILEHANDLE;
@@ -731,7 +739,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		case NFSV4OP_PUTROOTFH:
 			if (nfs_rootfhset) {
 				nes.nes_vfslocked = vpnes.nes_vfslocked;
-				nfsd_fhtovp(nd, &nfs_rootfh, &nvp,
+				nfsd_fhtovp(nd, &nfs_rootfh, LK_SHARED, &nvp,
 				    &nes, &mp, 0, p);
 				if (!nd->nd_repstat) {
 					if (vp)
@@ -907,24 +915,28 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			if (nfsv4_opflag[op].retfh != 0)
 				panic("nfsrvd_compound");
 			if (nfsv4_opflag[op].needscfh) {
-				if (vp) {
-					VREF(vp);
-					if (nfsv4_opflag[op].modifyfs)
-						NFS_STARTWRITE(NULL, &mp);
-					NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
-				} else {
+				if (vp != NULL) {
+					if (vn_lock(vp, nfsv4_opflag[op].lktype)
+					    != 0)
+						nd->nd_repstat = NFSERR_PERM;
+				} else
 					nd->nd_repstat = NFSERR_NOFILEHANDLE;
+				if (nd->nd_repstat != 0) {
 					if (op == NFSV4OP_SETATTR) {
-					    /*
-					     * Setattr reply requires a bitmap
-					     * even for errors like these.
-					     */
-					    NFSM_BUILD(tl, u_int32_t *,
-						NFSX_UNSIGNED);
-					    *tl = 0;
+						/*
+						 * Setattr reply requires a
+						 * bitmap even for errors like
+						 * these.
+						 */
+						NFSM_BUILD(tl, u_int32_t *,
+						    NFSX_UNSIGNED);
+						*tl = 0;
 					}
 					break;
 				}
+				VREF(vp);
+				if (nfsv4_opflag[op].modifyfs)
+					NFS_STARTWRITE(NULL, &mp);
 				error = (*(nfsrv4_ops0[op]))(nd, isdgram, vp,
 				    p, &vpnes);
 				if (nfsv4_opflag[op].modifyfs)

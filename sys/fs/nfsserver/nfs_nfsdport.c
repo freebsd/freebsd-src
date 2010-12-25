@@ -180,7 +180,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 			return (ETXTBSY);
 	}
 	if (vpislocked == 0)
-		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	/*
 	 * Should the override still be applied when ACLs are enabled?
@@ -218,7 +218,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		}
 	}
 	if (vpislocked == 0)
-		NFSVOPUNLOCK(vp, 0, p);
+		VOP_UNLOCK(vp, 0);
 	return (error);
 }
 
@@ -1916,7 +1916,7 @@ again:
 				if (refp == NULL) {
 					if (usevget)
 						r = VFS_VGET(vp->v_mount,
-						    dp->d_fileno, LK_EXCLUSIVE,
+						    dp->d_fileno, LK_SHARED,
 						    &nvp);
 					else
 						r = EOPNOTSUPP;
@@ -1925,7 +1925,7 @@ again:
 							usevget = 0;
 							cn.cn_nameiop = LOOKUP;
 							cn.cn_lkflags =
-							    LK_EXCLUSIVE |
+							    LK_SHARED |
 							    LK_RETRY;
 							cn.cn_cred =
 							    nd->nd_cred;
@@ -1941,7 +1941,7 @@ again:
 						    dp->d_name[1] == '.')
 							cn.cn_flags |=
 							    ISDOTDOT;
-						if (vn_lock(vp, LK_EXCLUSIVE)
+						if (vn_lock(vp, LK_SHARED)
 						    != 0) {
 							nd->nd_repstat = EPERM;
 							break;
@@ -2454,7 +2454,8 @@ nfsvno_checkexp(struct mount *mp, struct sockaddr *nam, struct nfsexstuff *exp,
  */
 int
 nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
-    struct vnode **vpp, struct nfsexstuff *exp, struct ucred **credp)
+    int lktype, struct vnode **vpp, struct nfsexstuff *exp,
+    struct ucred **credp)
 {
 	int i, error, *secflavors;
 
@@ -2481,6 +2482,13 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 				exp->nes_secflavors[i] = secflavors[i];
 		}
 	}
+	if (error == 0 && lktype == LK_SHARED)
+		/*
+		 * It would be much better to pass lktype to VFS_FHTOVP(),
+		 * but this will have to do until VFS_FHTOVP() has a lock
+		 * type argument like VFS_VGET().
+		 */
+		vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
 	return (error);
 }
 
@@ -2518,7 +2526,7 @@ nfsvno_pathconf(struct vnode *vp, int flag, register_t *retf,
  *       call VFS_LOCK_GIANT()
  */
 void
-nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp,
+nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
     struct vnode **vpp, struct nfsexstuff *exp,
     struct mount **mpp, int startwrite, struct thread *p)
 {
@@ -2555,7 +2563,7 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp,
 	if (startwrite)
 		vn_start_write(NULL, mpp, V_WAIT);
 
-	nd->nd_repstat = nfsvno_fhtovp(mp, fhp, nd->nd_nam, vpp, exp,
+	nd->nd_repstat = nfsvno_fhtovp(mp, fhp, nd->nd_nam, lktype, vpp, exp,
 	    &credanon);
 
 	/*

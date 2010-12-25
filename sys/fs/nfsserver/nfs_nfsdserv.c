@@ -1392,7 +1392,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		nd->nd_cred->cr_uid = nd->nd_saveduid;
 		/* Won't lock vfs if already locked, mp == NULL */
 		tnes.nes_vfslocked = exp->nes_vfslocked;
-		nfsd_fhtovp(nd, &tfh, &tdp, &tnes, &mp, 0, p);
+		nfsd_fhtovp(nd, &tfh, LK_EXCLUSIVE, &tdp, &tnes, &mp, 0, p);
 		if (tdp) {
 			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd->nd_cred,
 			    p, 1);
@@ -1546,7 +1546,8 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 			}
 			/* Won't lock vfs if already locked, mp == NULL */
 			tnes.nes_vfslocked = exp->nes_vfslocked;
-			nfsd_fhtovp(nd, &dfh, &dp, &tnes, &mp, 0, p);
+			nfsd_fhtovp(nd, &dfh, LK_EXCLUSIVE, &dp, &tnes, &mp, 0,
+			    p);
 			if (dp)
 				NFSVOPUNLOCK(dp, 0, p);
 		}
@@ -3141,7 +3142,7 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	vput(vp);
 	savflag = nd->nd_flag;
 	if (!nd->nd_repstat) {
-		nfsd_fhtovp(nd, &fh, &vp, &retnes, &mp, 0, p);
+		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, &mp, 0, p);
 		if (vp)
 			vput(vp);
 	}
