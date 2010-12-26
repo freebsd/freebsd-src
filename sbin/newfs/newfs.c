@@ -136,7 +136,7 @@ main(int argc, char *argv[])
 	part_name = 'c';
 	reserved = 0;
 	while ((ch = getopt(argc, argv,
-	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:lm:no:r:s:")) != -1)
+	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:lm:no:p:r:s:")) != -1)
 		switch (ch) {
 		case 'E':
 			Eflag = 1;
