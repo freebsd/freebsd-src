@@ -231,7 +231,7 @@ growstackblock(int min)
 
 	if (min < stacknleft)
 		min = stacknleft;
-	if (newlen >= INT_MAX / 2 - ALIGN(sizeof(struct stack_block)))
+	if (min >= INT_MAX / 2 - ALIGN(sizeof(struct stack_block)))
 		error("Out of space");
 	min += stacknleft;
 	min += ALIGN(sizeof(struct stack_block));
