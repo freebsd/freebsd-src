@@ -3037,6 +3037,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	struct vattr va, at, *vap = &va;
 	struct nfs_fattr *fp;
 	int len, nlen, rem, xfer, tsiz, i, error = 0, error1, getret = 1;
+	int vp_locked;
 	int siz, cnt, fullsiz, eofflag, rdonly, dirlen, ncookies;
 	u_quad_t off, toff, verf;
 	u_long *cookies = NULL, *cookiep; /* needs to be int64_t or off_t */
@@ -3067,10 +3068,12 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fullsiz = siz;
 	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
 	    nam, &rdonly, TRUE);
+	vp_locked = 1;
 	if (!error && vp->v_type != VDIR) {
 		error = ENOTDIR;
 		vput(vp);
 		vp = NULL;
+		vp_locked = 0;
 	}
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
@@ -3090,6 +3093,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = nfsrv_access(vp, VEXEC, cred, rdonly, 0);
 	if (error) {
 		vput(vp);
+		vp_locked = 0;
 		vp = NULL;
 		nfsm_reply(NFSX_V3POSTOPATTR);
 		nfsm_srvpostop_attr(getret, &at);
@@ -3097,6 +3101,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto nfsmout;
 	}
 	VOP_UNLOCK(vp, 0);
+	vp_locked = 0;
 	rbuf = malloc(siz, M_TEMP, M_WAITOK);
 again:
 	iv.iov_base = rbuf;
@@ -3110,6 +3115,7 @@ again:
 	io.uio_td = NULL;
 	eofflag = 0;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
+	vp_locked = 1;
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
 		cookies = NULL;
@@ -3118,6 +3124,7 @@ again:
 	off = (u_quad_t)io.uio_offset;
 	getret = VOP_GETATTR(vp, &at, cred);
 	VOP_UNLOCK(vp, 0);
+	vp_locked = 0;
 	if (!cookies && !error)
 		error = NFSERR_PERM;
 	if (!error)
@@ -3238,8 +3245,10 @@ again:
 				} else {
 					cn.cn_flags &= ~ISDOTDOT;
 				}
-				if (!VOP_ISLOCKED(vp))
+				if (!vp_locked) {
 					vn_lock(vp, LK_SHARED | LK_RETRY);
+					vp_locked = 1;
+				}
 				if ((vp->v_vflag & VV_ROOT) != 0 &&
 				    (cn.cn_flags & ISDOTDOT) != 0) {
 					vref(vp);
@@ -3342,7 +3351,7 @@ invalid:
 		cookiep++;
 		ncookies--;
 	}
-	if (!usevget && VOP_ISLOCKED(vp))
+	if (!usevget && vp_locked)
 		vput(vp);
 	else
 		vrele(vp);
