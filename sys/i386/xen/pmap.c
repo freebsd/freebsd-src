@@ -1015,7 +1015,9 @@ pmap_pte_release(pt_entry_t *pte)
 	if ((pt_entry_t *)((vm_offset_t)pte & ~PAGE_MASK) == PADDR2) {
 		CTR1(KTR_PMAP, "pmap_pte_release: pte=0x%jx",
 		    *PMAP2);
+		vm_page_lock_queues();
 		PT_SET_VA(PMAP2, 0, TRUE);
+		vm_page_unlock_queues();
 		mtx_unlock(&PMAP2mutex);
 	}
 }
