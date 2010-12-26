@@ -34,28 +34,42 @@
 .Nm
 .Fl d
 .Op Fl T
+.Op Fl f
 .Op Fl j
 .Op Fl v
 .Op Fl z
 .Ar archive
-.Ar files ...
+.Ar
 .Nm
 .Fl m
 .Op Fl T
 .Op Fl a Ar position-after
 .Op Fl b Ar position-before
+.Op Fl f
 .Op Fl i Ar position-before
 .Op Fl j
-.Op Fl s
+.Op Fl s | Fl S
 .Op Fl z
 .Ar archive
-.Ar files ...
+.Ar
 .Nm
 .Fl p
 .Op Fl T
+.Op Fl f
 .Op Fl v
 .Ar archive
-.Op Ar files ...
+.Op Ar
+.Nm
+.Fl q
+.Op Fl T
+.Op Fl c
+.Op Fl D
+.Op Fl f
+.Op Fl s | Fl S
+.Op Fl v
+.Op Fl z
+.Ar archive
+.Ar
 .Nm
 .Fl r
 .Op Fl T
@@ -63,14 +77,15 @@
 .Op Fl b Ar position-before
 .Op Fl c
 .Op Fl D
+.Op Fl f
 .Op Fl i Ar position-before
 .Op Fl j
-.Op Fl s
+.Op Fl s | Fl S
 .Op Fl u
 .Op Fl v
 .Op Fl z
 .Ar archive
-.Ar files ...
+.Ar
 .Nm
 .Fl s
 .Op Fl j
@@ -78,19 +93,23 @@
 .Ar archive
 .Nm
 .Fl t
+.Op Fl f
 .Op Fl T
 .Op Fl v
 .Ar archive
-.Op Ar files ...
+.Op Ar
 .Nm
 .Fl x
 .Op Fl C
 .Op Fl T
+.Op Fl f
 .Op Fl o
 .Op Fl u
 .Op Fl v
 .Ar archive
-.Op Ar files ...
+.Op Ar
+.Nm
+.Fl M
 .Nm ranlib
 .Op Fl D
 .Ar archive ...
@@ -141,13 +160,13 @@ When used with option
 .Fl m
 this option specifies that the archive members specified by
 arguments
-.Ar files ...
+.Ar
 are moved to after the archive member named by argument
 .Ar member-after .
 When used with option
 .Fl r
 this option specifies that the files specified by arguments
-.Ar files ...
+.Ar
 are added after the archive member named by argument
 .Ar member-after .
 .It Fl b Ar member-before
@@ -155,13 +174,13 @@ When used with option
 .Fl m
 this option specifies that the archive members specified by
 arguments
-.Ar files ...
+.Ar
 are moved to before the archive member named by argument
 .Ar member-before .
 When used with option
 .Fl r
 this option specifies that the files specified by arguments
-.Ar files ...
+.Ar
 are added before the archive member named by argument
 .Ar member-before .
 .It Fl c
@@ -176,7 +195,7 @@ Prevent extracted files from replacing like-named files
 in the file system.
 .It Fl d
 Delete the members named by arguments
-.Ar files ...
+.Ar
 from the archive specified by argument
 .Ar archive .
 The archive's symbol table, if present, is updated to reflect
@@ -188,7 +207,7 @@ or
 .Fl q
 option, insert 0's instead of the real mtime, uid and gid values 
 and 0644 instead of file mode from the members named by arguments
-.Ar files ... .
+.Ar .
 This ensures that checksums on the resulting archives are reproducible
 when member contents are identical.
 .It Fl f
@@ -199,9 +218,13 @@ Synonymous with option
 .Fl b .
 .It Fl j
 This option is accepted but ignored.
+.It Fl l
+This option is accepted for compatibility with GNU
+.Xr ar 1 ,
+but is ignored.
 .It Fl m
 Move archive members specified by arguments
-.Ar files ...
+.Ar
 within the archive.
 If a position has been specified by one of the
 .Fl a ,
@@ -214,19 +237,21 @@ If no position has been specified, the specified members are moved
 to the end of the archive.
 If the archive has a symbol table, it is updated to reflect the
 new contents of the archive.
+.It Fl M
+Read and execute MRI librarian commands from standard input.
 .It Fl o
 Preserve the original modification times of members when extracting
 them.
 .It Fl p
 Write the contents of the specified archive members named by
 arguments
-.Ar files ...
+.Ar
 to standard output.
 If no members were specified, the contents of all the files in the
 archive are written in the order they appear in the archive.
 .It Fl q
 Append the files specified by arguments
-.Ar files ...
+.Ar
 to the archive specified by argument
 .Ar archive
 without checking if the files already exist in the archive and
@@ -241,14 +266,14 @@ option
 will update the archive's symbol table.
 .It Fl r
 Replace (add) the files specified by arguments
-.Ar files ...
+.Ar
 in the archive specified by argument
 .Ar archive ,
 creating the archive if necessary.
-Files that replace existing files do not change the order of files
-within the archive.
+Replacing existing members will not change the order of members within
+the archive.
 If a file named in arguments
-.Ar files ...
+.Ar
 does not exist, existing members in the archive that match that
 name are not changed.
 New files are added to the end of the archive unless one of the
@@ -271,9 +296,11 @@ with the
 .Fl s
 option alone is equivalent to invoking
 .Nm ranlib .
+.It Fl S
+Do not generate an archive symbol table.
 .It Fl t
 List the files specified by arguments
-.Ar files ...
+.Ar
 in the order in which they appear in the archive, one per line.
 If no files are specified, all files in the archive are listed.
 .It Fl T
@@ -284,13 +311,13 @@ Conditionally update the archive or extract members.
 When used with the
 .Fl r
 option, files named by arguments
-.Ar files ...
+.Ar
 will be replaced in the archive if they are newer than their
 archived versions.
 When used with the
 .Fl x
 option, the members specified by arguments
-.Ar files ...
+.Ar
 will be extracted only if they are newer than the corresponding
 files in the file system.
 .It Fl v
@@ -340,9 +367,11 @@ the file size in bytes, the file modification time in
 format
 .Dq "%b %e %H:%M %Y" ,
 and the name of the file.
+.It Fl V
+Print a version string and exit.
 .It Fl x
 Extract archive members specified by arguments
-.Ar files ...
+.Ar
 into the current directory.
 If no members have been specified, extract all members of the archive.
 If the file corresponding to an extracted member does not exist it
@@ -393,12 +422,27 @@ use:
 .Xr strftime 3 ,
 .Xr strmode 3 ,
 .Xr ar 5
-.\" .Sh COMPATIBILITY
-.\" .Nm
-.\" is expected to be compatible with GNU and SVR4
-.\" .Nm .
-.\" .Sh STANDARDS
-.\" Do the POSIX/SuSv3 standards have anything to say about AR(1)?
+.Sh STANDARDS COMPLIANCE
+The
+.Nm
+utility's support for the
+.Fl a ,
+.Fl b ,
+.Fl c ,
+.Fl i ,
+.Fl m ,
+.Fl p ,
+.Fl q ,
+.Fl r ,
+.Fl s ,
+.Fl t ,
+.Fl u ,
+.Fl v ,
+.Fl C
+and
+.Fl T
+options is believed to be compliant with
+.St -p1003.2 .
 .Sh HISTORY
 An
 .Nm
