@@ -115,7 +115,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	/*
 	 * Verify that access to the given address is allowed from user-space.
 	 */
-	if (vm_fault_quick_hold_pages(map, uva, len, &pp, 1, VM_PROT_READ) <
+	if (vm_fault_quick_hold_pages(map, uva, len, VM_PROT_READ, &pp, 1) <
 	    0) {
 		socow_stats.fail_not_mapped++;
 		return(0);
