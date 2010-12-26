@@ -535,6 +535,16 @@ resource_statement:	RESOURCE resource_start OB resource_entries CB
 
 resource_start:	STR
 	{
+		/* Check if there is no duplicate entry. */
+		TAILQ_FOREACH(curres, &lconfig->hc_resources, hr_next) {
+			if (strcmp(curres->hr_name, $1) == 0) {
+				pjdlog_error("Resource %s configured more than once.",
+				    curres->hr_name);
+				free($1);
+				return (1);
+			}
+		}
+
 		/*
 		 * Clear those, so we can tell if they were set at
 		 * resource-level or not.
