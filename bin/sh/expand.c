@@ -502,13 +502,14 @@ expbackq(union node *cmd, int quoted, int flag)
 			if (lastc == '\n') {
 				nnl++;
 			} else {
+				CHECKSTRSPACE(nnl + 2, dest);
 				while (nnl > 0) {
 					nnl--;
-					STPUTC('\n', dest);
+					USTPUTC('\n', dest);
 				}
 				if (quotes && syntax[(int)lastc] == CCTL)
-					STPUTC(CTLESC, dest);
-				STPUTC(lastc, dest);
+					USTPUTC(CTLESC, dest);
+				USTPUTC(lastc, dest);
 			}
 		}
 	}
