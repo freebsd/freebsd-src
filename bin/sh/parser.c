@@ -1093,9 +1093,8 @@ done:
                 popfile();
 		tokpushback = 0;
 	}
-	while (stackblocksize() <= savelen)
-		growstackblock();
 	STARTSTACKSTR(out);
+	CHECKSTRSPACE(savelen + 1, out);
 	INTOFF;
 	if (str) {
 		memcpy(out, str, savelen);
