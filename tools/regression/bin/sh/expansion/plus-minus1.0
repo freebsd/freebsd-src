@@ -49,8 +49,6 @@ testcase 'set -- ${w:+$w"$w"}'			'3|a|b|ca b c'
 testcase 'set -- "${s+a b}"'			'1|a b'
 testcase 'set -- "${e:-a b}"'			'1|a b'
 testcase 'set -- ${e:-\}}'			'1|}'
-# Currently broken in FreeBSD /bin/sh
-#testcase 'set -- "${e:-\}}"'			'1|}'
 testcase 'set -- ${e:+{}}'			'1|}'
 testcase 'set -- "${e:+{}}"'			'1|}'
 
