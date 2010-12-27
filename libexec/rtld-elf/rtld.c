@@ -2278,7 +2278,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	    }
 	} else {
 	    assert(handle == RTLD_DEFAULT);
-	    res = symlook_obj(&req, obj);
+	    res = symlook_default(&req, obj);
 	    if (res == 0) {
 		defobj = req.defobj_out;
 		def = req.sym_out;
