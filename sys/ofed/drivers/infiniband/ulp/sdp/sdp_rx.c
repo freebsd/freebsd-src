@@ -166,7 +166,7 @@ sdp_post_recvs_needed(struct sdp_sock *ssk)
 	int buffer_size = ssk->recv_bytes;
 	unsigned long max_bytes;
 
-	if (!ssk->qp_active)
+	if (!ssk->qp_active || !ssk->socket)
 		return 0;
 
 	max_bytes = ssk->socket->so_snd.sb_mbmax * scale;
@@ -243,8 +243,8 @@ sdp_sock_queue_rcv_mb(struct socket *sk, struct mbuf *mb)
 
 	m_adj(mb, SDP_HEAD_SIZE);
 	SOCKBUF_LOCK(&sk->so_rcv);
-/*	if (unlikely(h->flags & SDP_OOB_PRES))
-		sdp_urg(ssk, mb); XXX */
+	if (unlikely(h->flags & SDP_OOB_PRES))
+		sdp_urg(ssk, mb);
 	sbappend_locked(&sk->so_rcv, mb);
 	sorwakeup_locked(sk);
 	return mb;
@@ -327,9 +327,10 @@ static int
 sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 {
 	struct sdp_bsdh *h;
-	struct socket *sk = ssk->socket;
+	struct socket *sk;
 
 	SDP_WLOCK_ASSERT(ssk);
+	sk = ssk->socket;
  	h = mtod(mb, struct sdp_bsdh *);
 	switch (h->mid) {
 	case SDP_MID_DATA:
@@ -404,12 +405,23 @@ sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 static int
 sdp_process_rx_mb(struct sdp_sock *ssk, struct mbuf *mb)
 {
-	struct socket *sk = ssk->socket;
+	struct socket *sk;
 	struct sdp_bsdh *h;
 	unsigned long mseq_ack;
 	int credits_before;
 
 	h = mtod(mb, struct sdp_bsdh *);
+	sk = ssk->socket;
+	/*
+	 * If another thread is in so_pcbfree this may be partially torn
+	 * down but no further synchronization is required as the destroying
+	 * thread will wait for receive to shutdown before discarding the
+	 * socket.
+	 */
+	if (sk == NULL) {
+		m_freem(mb);
+		return 0;
+	}
 
 	SDPSTATS_HIST_LINEAR(credits_before_update, tx_credits(ssk));
 
@@ -481,7 +493,7 @@ sdp_process_rx_wc(struct sdp_sock *ssk, struct ib_wc *wc)
 		return NULL;
 
 	if (unlikely(wc->status)) {
-		if (ssk->qp_active) {
+		if (ssk->qp_active && sk) {
 			sdp_dbg(sk, "Recv completion with error. "
 					"Status %d, vendor: %d\n",
 				wc->status, wc->vendor_err);
@@ -524,7 +536,7 @@ sdp_bzcopy_write_space(struct sdp_sock *ssk)
 {
 	struct socket *sk = ssk->socket;
 
-	if (tx_credits(ssk) >= ssk->min_bufs)
+	if (tx_credits(ssk) >= ssk->min_bufs && sk)
 		sowwakeup(sk);
 }
 

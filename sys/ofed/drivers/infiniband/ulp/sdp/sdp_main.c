@@ -1391,6 +1391,10 @@ sdp_rcvoob(struct socket *so, struct mbuf *m, int flags)
 
 	ssk = sdp_sk(so);
 	SDP_WLOCK(ssk);
+	if (!rx_ring_trylock(&ssk->rx_ring)) {
+		SDP_WUNLOCK(ssk);
+		return (ECONNRESET);
+	}
 	if (ssk->flags & (SDP_TIMEWAIT | SDP_DROPPED)) {
 		error = ECONNRESET;
 		goto out;
@@ -1398,20 +1402,20 @@ sdp_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	if ((so->so_oobmark == 0 &&
 	     (so->so_rcv.sb_state & SBS_RCVATMARK) == 0) ||
 	    so->so_options & SO_OOBINLINE ||
-	    ssk->flags & SDP_HADOOB) {
+	    ssk->oobflags & SDP_HADOOB) {
 		error = EINVAL;
 		goto out;
 	}
-	if ((ssk->flags & SDP_HAVEOOB) == 0) {
+	if ((ssk->oobflags & SDP_HAVEOOB) == 0) {
 		error = EWOULDBLOCK;
 		goto out;
 	}
 	m->m_len = 1;
 	*mtod(m, caddr_t) = ssk->iobc;
 	if ((flags & MSG_PEEK) == 0)
-		ssk->flags ^= (SDP_HAVEOOB | SDP_HADOOB);
-
+		ssk->oobflags ^= (SDP_HAVEOOB | SDP_HADOOB);
 out:
+	rx_ring_unlock(&ssk->rx_ring);
 	SDP_WUNLOCK(ssk);
 	return (error);
 }
@@ -1423,6 +1427,28 @@ sdp_sock_init(void *mem, int size, int flags)
 
 	rw_init(&ssk->lock, "sdpsock");
 	return (0);
+}
+
+void
+sdp_urg(struct sdp_sock *ssk, struct mbuf *mb)
+{
+	struct mbuf *m;
+	struct socket *so;
+
+	so = ssk->socket;
+	if (so == NULL)
+		return;
+
+	so->so_oobmark = so->so_rcv.sb_cc + mb->m_pkthdr.len - 1;
+	sohasoutofband(so);
+	ssk->oobflags &= ~(SDP_HAVEOOB | SDP_HADOOB);
+	if (!(so->so_options & SO_OOBINLINE)) {
+		for (m = mb; m->m_next != NULL; m = m->m_next);
+		ssk->iobc = *(mtod(m, char *) + m->m_len - 1);
+		ssk->oobflags |= SDP_HAVEOOB;
+		m->m_len--;
+		mb->m_pkthdr.len--;
+	}
 }
 
 /*

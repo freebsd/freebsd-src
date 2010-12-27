@@ -357,6 +357,7 @@ struct sdp_moderation {
 	int moder_time;
 };
 
+/* These are flags fields. */
 #define	SDP_TIMEWAIT	0x0001		/* In ssk timewait state. */
 #define	SDP_DROPPED	0x0002		/* Socket has been dropped. */
 #define	SDP_SOCKREF	0x0004		/* Holding a sockref for close. */
@@ -364,8 +365,10 @@ struct sdp_moderation {
 #define	SDP_NEEDFIN	0x0010		/* Send a fin on the next tx. */
 #define	SDP_DREQWAIT	0x0020		/* Waiting on DREQ. */
 #define	SDP_HAVEOOB	0x0040		/* Have OOB data. */
-#define	SDP_HADOOB	0x0080		/* Had OOB data. */
-#define	SDP_DESTROY	0x0100		/* Being destroyed. */
+
+/* These are oobflags */
+#define	SDP_HADOOB	0x0001		/* Had OOB data. */
+#define	SDP_DESTROY	0x0002		/* Being destroyed. */
 
 struct sdp_sock {
 	LIST_ENTRY(sdp_sock) list;
@@ -383,6 +386,7 @@ struct sdp_sock {
 	in_port_t fport;
 	in_addr_t faddr;
 	int flags;
+	int oobflags;		/* protected by rx lock. */
 	int state;
 	int softerror;
 	int recv_bytes;		/* Bytes per recv. buf including header */
