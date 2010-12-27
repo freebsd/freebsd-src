@@ -198,7 +198,8 @@ main(int argc, char **argv)
 
 	/* header info */
 	if (pw != NULL)
-		(void)printf("lock: %s using %s on %s.", pw->pw_name, ttynam, hostname);
+		(void)printf("lock: %s using %s on %s.", pw->pw_name,
+		    ttynam, hostname);
 	else
 		(void)printf("lock: %s on %s.", ttynam, hostname);
 	if (no_timeout)
