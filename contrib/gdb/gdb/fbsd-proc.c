@@ -124,6 +124,7 @@ fbsd_make_corefile_notes (bfd *obfd, int *note_size)
   fpregset_t fpregs;
   char *note_data = NULL;
   Elf_Internal_Ehdr *i_ehdrp;
+  char fakename;
 
   /* Put a "FreeBSD" label in the ELF header.  */
   i_ehdrp = elf_elfheader (obfd);
@@ -137,6 +138,10 @@ fbsd_make_corefile_notes (bfd *obfd, int *note_size)
   fill_fpregset (&fpregs, -1);
   note_data = elfcore_write_prfpreg (obfd, note_data, note_size,
 				     &fpregs, sizeof (fpregs));
+
+  fakename = '\0';
+  note_data = elfcore_write_thrmisc (obfd, note_data, note_size,
+				     &fakename, sizeof (fakename));
 
   if (get_exec_file (0))
     {

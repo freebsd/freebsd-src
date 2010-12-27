@@ -1213,12 +1213,14 @@ typedef struct prpsinfo32 elf_prpsinfo_t;
 typedef struct fpreg32 elf_prfpregset_t;
 typedef struct fpreg32 elf_fpregset_t;
 typedef struct reg32 elf_gregset_t;
+typedef struct thrmisc32 elf_thrmisc_t;
 #else
 typedef prstatus_t elf_prstatus_t;
 typedef prpsinfo_t elf_prpsinfo_t;
 typedef prfpregset_t elf_prfpregset_t;
 typedef prfpregset_t elf_fpregset_t;
 typedef gregset_t elf_gregset_t;
+typedef thrmisc_t elf_thrmisc_t;
 #endif
 
 static void
@@ -1228,10 +1230,12 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 		elf_prstatus_t status;
 		elf_prfpregset_t fpregset;
 		elf_prpsinfo_t psinfo;
+		elf_thrmisc_t thrmisc;
 	} *tempdata;
 	elf_prstatus_t *status;
 	elf_prfpregset_t *fpregset;
 	elf_prpsinfo_t *psinfo;
+	elf_thrmisc_t *thrmisc;
 	struct proc *p;
 	struct thread *thr;
 	size_t ehoff, noteoff, notesz, phoff;
@@ -1254,11 +1258,13 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 		status = &tempdata->status;
 		fpregset = &tempdata->fpregset;
 		psinfo = &tempdata->psinfo;
+		thrmisc = &tempdata->thrmisc;
 	} else {
 		tempdata = NULL;
 		status = NULL;
 		fpregset = NULL;
 		psinfo = NULL;
+		thrmisc = NULL;
 	}
 
 	if (dst != NULL) {
@@ -1298,11 +1304,15 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 			fill_regs(thr, &status->pr_reg);
 			fill_fpregs(thr, fpregset);
 #endif
+			memset(&thrmisc->_pad, 0, sizeof (thrmisc->_pad));
+			strcpy(thrmisc->pr_tname, thr->td_name);
 		}
 		__elfN(putnote)(dst, off, "FreeBSD", NT_PRSTATUS, status,
 		    sizeof *status);
 		__elfN(putnote)(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
 		    sizeof *fpregset);
+		__elfN(putnote)(dst, off, "FreeBSD", NT_THRMISC, thrmisc,
+		    sizeof *thrmisc);
 		/*
 		 * Allow for MD specific notes, as well as any MD
 		 * specific preparations for writing MI notes.

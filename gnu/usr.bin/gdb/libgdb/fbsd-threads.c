@@ -426,6 +426,46 @@ fbsd_thread_deactivate (void)
   init_thread_list ();
 }
 
+static char * 
+fbsd_thread_get_name (lwpid_t lwpid)
+{
+  static char last_thr_name[MAXCOMLEN + 1];
+  char section_name[32];
+  struct ptrace_lwpinfo lwpinfo;
+  bfd_size_type size;
+  struct bfd_section *section;
+
+  if (target_has_execution)
+    {
+      if (ptrace (PT_LWPINFO, lwpid, (caddr_t)&lwpinfo, sizeof (lwpinfo)) == -1)
+        goto fail;
+      strncpy (last_thr_name, lwpinfo.pl_tdname, sizeof (last_thr_name) - 1);
+    }
+  else
+    {
+      snprintf (section_name, sizeof (section_name), ".tname/%u", lwpid);
+      section = bfd_get_section_by_name (core_bfd, section_name);
+      if (! section)
+        goto fail;
+
+      /* Section size fix-up. */
+      size = bfd_section_size (core_bfd, section);
+      if (size > sizeof (last_thr_name))
+        size = sizeof (last_thr_name);
+
+      if (! bfd_get_section_contents (core_bfd, section, last_thr_name,
+	       (file_ptr)0, size))
+        goto fail;
+      if (last_thr_name[0] == '\0')
+        goto fail;
+    }
+    last_thr_name[sizeof (last_thr_name) - 1] = '\0';
+    return last_thr_name;
+fail:
+     strcpy (last_thr_name, "<unknown>");
+     return last_thr_name;
+}
+
 static void
 fbsd_thread_new_objfile (struct objfile *objfile)
 {
@@ -1158,7 +1198,7 @@ fbsd_thread_find_new_threads (void)
 static char *
 fbsd_thread_pid_to_str (ptid_t ptid)
 {
-  static char buf[64];
+  static char buf[64 + MAXCOMLEN];
 
   if (IS_THREAD (ptid))
     {
@@ -1178,8 +1218,9 @@ fbsd_thread_pid_to_str (ptid_t ptid)
 
       if (ti.ti_lid != 0)
         {
-          snprintf (buf, sizeof (buf), "Thread %llx (LWP %d)",
-                    (unsigned long long)th.th_thread, ti.ti_lid);
+          snprintf (buf, sizeof (buf), "Thread %llx (LWP %d/%s)",
+                    (unsigned long long)th.th_thread, ti.ti_lid,
+                    fbsd_thread_get_name (ti.ti_lid));
         }
       else
         {
