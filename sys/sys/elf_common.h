@@ -480,6 +480,7 @@ typedef struct {
 #define	NT_PRSTATUS	1	/* Process status. */
 #define	NT_FPREGSET	2	/* Floating point registers. */
 #define	NT_PRPSINFO	3	/* Process state info. */
+#define	NT_THRMISC	7	/* Thread miscellaneous info. */
 
 /* Symbol Binding - ELFNN_ST_BIND - st_info */
 #define	STB_LOCAL	0	/* Local symbol */

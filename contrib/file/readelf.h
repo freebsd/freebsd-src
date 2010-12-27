@@ -224,6 +224,7 @@ typedef struct {
 #define NT_TASKSTRUCT	4
 #define	NT_PLATFORM	5
 #define	NT_AUXV		6
+#define	NT_THRMISC	7
 
 /* Note types used in executables */
 /* NetBSD executables (name = "NetBSD") */

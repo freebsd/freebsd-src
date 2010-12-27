@@ -366,6 +366,7 @@
 #define NT_PRPSINFO	3		/* Contains copy of prpsinfo struct */
 #define NT_TASKSTRUCT	4		/* Contains copy of task struct */
 #define NT_AUXV		6		/* Contains copy of Elfxx_auxv_t */
+#define NT_THRMISC	7		/* Contains copy of thrmisc struct */
 #define NT_PRXFPREG	0x46e62b7f	/* Contains a user_xfpregs_struct; */
 					/*   note name must be "LINUX".  */
 

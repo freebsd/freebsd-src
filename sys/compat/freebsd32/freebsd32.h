@@ -240,6 +240,11 @@ struct prpsinfo32 {
         char    pr_psargs[PRARGSZ+1];
 };
 
+struct thrmisc32 {
+        char    pr_tname[MAXCOMLEN+1];
+        u_int   _pad;
+};
+
 struct mq_attr32 {
 	int	mq_flags;
 	int	mq_maxmsg;
