@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/taskqueue.h>
+#include <sys/eventhandler.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -204,6 +205,50 @@ static moduledata_t lagg_mod = {
 
 DECLARE_MODULE(if_lagg, lagg_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
+#if __FreeBSD_version >= 800000
+/*
+ * This routine is run via an vlan
+ * config EVENT
+ */
+static void
+lagg_register_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
+{
+        struct lagg_softc       *sc = ifp->if_softc;
+        struct lagg_port        *lp;
+
+        if (ifp->if_softc !=  arg)   /* Not our event */
+                return;
+
+        LAGG_RLOCK(sc);
+        if (!SLIST_EMPTY(&sc->sc_ports)) {
+                SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+                        EVENTHANDLER_INVOKE(vlan_config, lp->lp_ifp, vtag);
+        }
+        LAGG_RUNLOCK(sc);
+}
+
+/*
+ * This routine is run via an vlan
+ * unconfig EVENT
+ */
+static void
+lagg_unregister_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
+{
+        struct lagg_softc       *sc = ifp->if_softc;
+        struct lagg_port        *lp;
+
+        if (ifp->if_softc !=  arg)   /* Not our event */
+                return;
+
+        LAGG_RLOCK(sc);
+        if (!SLIST_EMPTY(&sc->sc_ports)) {
+                SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+                        EVENTHANDLER_INVOKE(vlan_unconfig, lp->lp_ifp, vtag);
+        }
+        LAGG_RUNLOCK(sc);
+}
+#endif
+
 static int
 lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
@@ -259,6 +304,13 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	 */
 	ether_ifattach(ifp, eaddr);
 
+#if __FreeBSD_version >= 800000
+	sc->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
+		lagg_register_vlan, sc, EVENTHANDLER_PRI_FIRST);
+	sc->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
+		lagg_unregister_vlan, sc, EVENTHANDLER_PRI_FIRST);
+#endif
+
 	/* Insert into the global list of laggs */
 	mtx_lock(&lagg_list_mtx);
 	SLIST_INSERT_HEAD(&lagg_list, sc, sc_entries);
@@ -277,6 +329,11 @@ lagg_clone_destroy(struct ifnet *ifp)
 
 	lagg_stop(sc);
 	ifp->if_flags &= ~IFF_UP;
+
+#if __FreeBSD_version >= 800000
+	EVENTHANDLER_DEREGISTER(vlan_config, sc->vlan_attach);
+	EVENTHANDLER_DEREGISTER(vlan_unconfig, sc->vlan_detach);
+#endif
 
 	/* Shutdown and remove lagg ports */
 	while ((lp = SLIST_FIRST(&sc->sc_ports)) != NULL)
