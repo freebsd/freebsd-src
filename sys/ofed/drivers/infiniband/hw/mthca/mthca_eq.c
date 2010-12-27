@@ -865,38 +865,21 @@ int mthca_init_eq_table(struct mthca_dev *dev)
 		};
 
 		for (i = 0; i < MTHCA_NUM_EQ; ++i) {
-#ifdef __linux__
 			err = request_irq(dev->eq_table.eq[i].msi_x_vector,
 					  mthca_is_memfree(dev) ?
 					  mthca_arbel_msi_x_interrupt :
 					  mthca_tavor_msi_x_interrupt,
 					  0, eq_name[i], dev->eq_table.eq + i);
-#else
-			err = request_irq(dev->eq_table.eq[i].msi_x_vector,
-					  mthca_is_memfree(dev) ?
-					  mthca_arbel_msi_x_interrupt :
-					  mthca_tavor_msi_x_interrupt,
-					  0, eq_name[i], dev->eq_table.eq + i,
-					  &dev->pdev->dev);
-#endif
 			if (err)
 				goto err_out_cmd;
 			dev->eq_table.eq[i].have_irq = 1;
 		}
 	} else {
-#ifdef __linux__
 		err = request_irq(dev->pdev->irq,
 				  mthca_is_memfree(dev) ?
 				  mthca_arbel_interrupt :
 				  mthca_tavor_interrupt,
 				  IRQF_SHARED, DRV_NAME, dev);
-#else
-		err = request_irq(dev->pdev->irq,
-				  mthca_is_memfree(dev) ?
-				  mthca_arbel_interrupt :
-				  mthca_tavor_interrupt,
-				  IRQF_SHARED, DRV_NAME, dev, &dev->pdev->dev);
-#endif
 		if (err)
 			goto err_out_cmd;
 		dev->eq_table.have_irq = 1;

@@ -1208,7 +1208,6 @@ err_uar_table_free:
 
 static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 {
-#ifdef __linux__
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry *entries;
 	int nreq;
@@ -1255,15 +1254,6 @@ no_msi:
 
 	for (i = 0; i < 2; ++i)
 		priv->eq_table.eq[i].irq = dev->pdev->irq;
-#else
-	struct mlx4_priv *priv = mlx4_priv(dev);
-	int i;
-
-	dev->caps.num_comp_vectors = 1;
-
-	for (i = 0; i < 2; ++i)
-		priv->eq_table.eq[i].irq = dev->pdev->irq;
-#endif
 }
 
 static int mlx4_init_port_info(struct mlx4_dev *dev, int port)

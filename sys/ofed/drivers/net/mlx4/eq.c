@@ -611,28 +611,17 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 			} else
 				eq_name = async_eq_name;
 
-#ifdef __linux__
 			err = request_irq(priv->eq_table.eq[i].irq,
 					  mlx4_msi_x_interrupt, 0, eq_name,
 					  priv->eq_table.eq + i);
-#else
-			err = request_irq(priv->eq_table.eq[i].irq,
-					  mlx4_msi_x_interrupt, 0, eq_name,
-					  priv->eq_table.eq + i, &dev->pdev->dev);
-#endif
 			if (err)
 				goto err_out_async;
 
 			priv->eq_table.eq[i].have_irq = 1;
 		}
 	} else {
-#ifdef __linux__
 		err = request_irq(dev->pdev->irq, mlx4_interrupt,
 				  IRQF_SHARED, DRV_NAME, dev);
-#else
-		err = request_irq(dev->pdev->irq, mlx4_interrupt,
-				  IRQF_SHARED, DRV_NAME, dev, &dev->pdev->dev);
-#endif
 		if (err)
 			goto err_out_async;
 

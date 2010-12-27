@@ -29,6 +29,8 @@
 #ifndef	_LINUX_PCI_H_
 #define	_LINUX_PCI_H_
 
+#define	CONFIG_PCI_MSI
+
 #include <linux/types.h>
 
 #include <sys/param.h>
@@ -100,11 +102,14 @@ struct pci_driver {
 };
 
 extern struct list_head pci_drivers;
+extern struct list_head pci_devices;
+extern spinlock_t pci_lock;
 
 #define	__devexit_p(x)	x
 
 struct pci_dev {
 	struct device		dev;
+	struct list_head	links;
 	struct pci_driver	*pdrv;
 	uint64_t		dma_mask;
 	uint16_t		device;
@@ -132,6 +137,24 @@ _pci_get_bar(struct pci_dev *pdev, int bar)
 	if ((rle = _pci_get_rle(pdev, SYS_RES_MEMORY, bar)) == NULL)
 		rle = _pci_get_rle(pdev, SYS_RES_IOPORT, bar);
 	return (rle);
+}
+
+static inline struct device *
+_pci_find_irq_dev(unsigned int irq)
+{
+	struct pci_dev *pdev;
+
+	spin_lock(&pci_lock);
+	list_for_each_entry(pdev, &pci_devices, links) {
+		if (irq == pdev->dev.irq)
+			break;
+		if (irq >= pdev->dev.msix && irq < pdev->dev.msix_max)
+			break;
+	}
+	spin_unlock(&pci_lock);
+	if (pdev)
+		return &pdev->dev;
+	return (NULL);
 }
 
 static inline unsigned long
@@ -340,14 +363,17 @@ linux_pci_find(device_t dev, struct pci_device_id **idp)
 	vendor = pci_get_vendor(dev);
 	device = pci_get_device(dev);
 
+	spin_lock(&pci_lock);
 	list_for_each_entry(pdrv, &pci_drivers, links) {
 		for (id = pdrv->id_table; id->vendor != 0; id++) {
 			if (vendor == id->vendor && device == id->device) {
 				*idp = id;
+				spin_unlock(&pci_lock);
 				return (pdrv);
 			}
 		}
 	}
+	spin_unlock(&pci_lock);
 	return (NULL);
 }
 
@@ -378,6 +404,7 @@ linux_pci_attach(device_t dev)
 	pdev = device_get_softc(dev);
 	pdev->dev.parent = &linux_rootdev;
 	pdev->dev.bsddev = dev;
+	INIT_LIST_HEAD(&pdev->dev.irqents);
 	pdev->device = id->device;
 	pdev->vendor = id->vendor;
 	pdev->dev.dma_mask = &pdev->dma_mask;
@@ -388,12 +415,22 @@ linux_pci_attach(device_t dev)
 	    kobject_name(&pdev->dev.kobj));
 	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 0);
 	if (rle)
-		pdev->irq = rle->start;
+		pdev->dev.irq = rle->start;
+	else
+		pdev->dev.irq = 0;
+	pdev->irq = pdev->dev.irq;
 	mtx_unlock(&Giant);
+	spin_lock(&pci_lock);
+	list_add(&pdev->links, &pci_devices);
+	spin_unlock(&pci_lock);
 	error = pdrv->probe(pdev, id);
 	mtx_lock(&Giant);
-	if (error)
+	if (error) {
+		spin_lock(&pci_lock);
+		list_del(&pdev->links);
+		spin_unlock(&pci_lock);
 		return (-error);
+	}
 	return (0);
 }
 
@@ -404,6 +441,9 @@ linux_pci_detach(device_t dev)
 
 	pdev = device_get_softc(dev);
 	pdev->pdrv->remove(pdev);
+	spin_lock(&pci_lock);
+	list_del(&pdev->links);
+	spin_unlock(&pci_lock);
 	return (0);
 }
 
@@ -420,7 +460,9 @@ pci_register_driver(struct pci_driver *pdrv)
 	devclass_t bus;
 	int error;
 
+	spin_lock(&pci_lock);
 	list_add(&pdrv->links, &pci_drivers);
+	spin_unlock(&pci_lock);
 	bus = devclass_find("pci");
 	pdrv->driver.name = pdrv->name;
 	pdrv->driver.methods = pci_methods;
@@ -442,6 +484,40 @@ pci_unregister_driver(struct pci_driver *pdrv)
 	list_del(&pdrv->links);
 	bus = devclass_find("pci");
 	devclass_delete_driver(bus, &pdrv->driver);
+}
+
+struct msix_entry {
+	int entry;
+	int vector;
+};
+
+/*
+ * Enable msix, positive errors indicate actual number of available
+ * vectors.  Negative errors are failures.
+ */
+static inline int
+pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
+{
+	struct resource_list_entry *rle;
+	int error;
+	int avail;
+	int i;
+
+	avail = pci_msix_count(pdev->dev.bsddev);
+	if (avail < nreq) {
+		if (avail == 0)
+			return -EINVAL;
+		return avail;
+	}
+	avail = nreq;
+	if ((error = -pci_alloc_msix(pdev->dev.bsddev, &avail)) != 0)
+		return error;
+	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 1);
+	pdev->dev.msix = rle->start;
+	pdev->dev.msix_max = rle->start + avail;
+	for (i = 0; i < nreq; i++)
+		entries[i].vector = pdev->dev.msix + i;
+	return (0);
 }
 
 /* XXX This should not be necessary. */

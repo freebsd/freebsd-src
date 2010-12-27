@@ -61,6 +61,8 @@ struct kobject class_root;
 struct device linux_rootdev;
 struct class miscclass;
 struct list_head pci_drivers;
+struct list_head pci_devices;
+spinlock_t pci_lock;
 
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
@@ -528,6 +530,8 @@ linux_compat_init(void)
 	miscclass.name = "misc";
 	class_register(&miscclass);
 	INIT_LIST_HEAD(&pci_drivers);
+	INIT_LIST_HEAD(&pci_devices);
+	spin_lock_init(&pci_lock);
 }
 
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);

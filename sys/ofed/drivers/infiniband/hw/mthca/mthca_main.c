@@ -932,7 +932,6 @@ err_uar_table_free:
 
 static int mthca_enable_msi_x(struct mthca_dev *mdev)
 {
-#ifdef __linux__
 	struct msix_entry entries[3];
 	int err;
 
@@ -953,9 +952,6 @@ static int mthca_enable_msi_x(struct mthca_dev *mdev)
 	mdev->eq_table.eq[MTHCA_EQ_CMD  ].msi_x_vector = entries[2].vector;
 
 	return 0;
-#else
-	return -EINVAL;
-#endif
 }
 
 /* Types of supported HCA */

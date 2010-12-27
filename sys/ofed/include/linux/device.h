@@ -55,17 +55,17 @@ struct class {
 
 struct device {
 	struct device	*parent;
+	struct list_head irqents;
 	device_t	bsddev;
 	dev_t		devt;
 	struct class	*class;
 	void		(*release)(struct device *dev);
-	irqreturn_t	(*irqhandler)(int, void *);
-	void		*irqarg;
-	void		*irqtag;
 	struct kobject	kobj;
 	uint64_t	*dma_mask;
 	void		*driver_data;
-
+	unsigned int	irq;
+	unsigned int	msix;
+	unsigned int	msix_max;
 };
 
 extern struct device linux_rootdev;
