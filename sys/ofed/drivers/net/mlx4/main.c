@@ -1192,11 +1192,7 @@ err_pd_table_free:
 	mlx4_cleanup_pd_table(dev);
 
 err_kar_unmap:
-#ifdef __linux__
 	iounmap(priv->kar);
-#else
-	pmap_unmapdev((vm_offset_t)priv->kar, PAGE_SIZE);
-#endif
 
 err_uar_free:
 	mlx4_uar_free(dev, &priv->driver_uar);
@@ -1528,11 +1524,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		mlx4_cleanup_xrcd_table(dev);
 		mlx4_cleanup_pd_table(dev);
 
-#ifdef __linux__
 		iounmap(priv->kar);
-#else
-		pmap_unmapdev((vm_offset_t)priv->kar, PAGE_SIZE);
-#endif
 		mlx4_uar_free(dev, &priv->driver_uar);
 		mlx4_cleanup_uar_table(dev);
 		mlx4_free_eq_table(dev);

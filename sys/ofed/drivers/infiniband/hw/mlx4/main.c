@@ -1469,11 +1469,7 @@ err_counter:
 		mlx4_counter_free(ibdev->dev, ibdev->counters[k - 1]);
 
 err_map:
-#ifdef __linux__
 	iounmap(ibdev->uar_map);
-#else
-	pmap_unmapdev((vm_offset_t)ibdev->uar_map, PAGE_SIZE);
-#endif
 
 err_uar:
 	mlx4_uar_free(dev, &ibdev->priv_uar);
@@ -1507,11 +1503,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 		flush_workqueue(wq);
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
-#ifdef __linux__
 	iounmap(ibdev->uar_map);
-#else
-	pmap_unmapdev((vm_offset_t)ibdev->uar_map, PAGE_SIZE);
-#endif
 
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);

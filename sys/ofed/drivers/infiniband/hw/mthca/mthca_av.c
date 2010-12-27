@@ -370,11 +370,7 @@ void mthca_cleanup_av_table(struct mthca_dev *dev)
 		return;
 
 	if (dev->av_table.av_map)
-#ifdef __linux__
 		iounmap(dev->av_table.av_map);
-#else
-		pmap_unmapdev((vm_offset_t)dev->av_table.av_map, MTHCA_AV_SIZE);
-#endif
 	pci_pool_destroy(dev->av_table.pool);
 	mthca_alloc_cleanup(&dev->av_table.alloc);
 }

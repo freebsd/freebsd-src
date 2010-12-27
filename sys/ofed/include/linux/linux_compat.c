@@ -35,7 +35,11 @@
 #include <sys/mutex.h>
 #include <sys/bus.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/stdarg.h>
+#include <machine/pmap.h>
 
 #include <linux/kobject.h>
 #include <linux/device.h>
@@ -45,6 +49,7 @@
 #include <linux/file.h>
 #include <linux/sysfs.h>
 #include <linux/mm.h>
+#include <linux/io.h>
 
 #include <vm/vm_pager.h>
 
@@ -56,6 +61,12 @@ MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 #undef file
 #undef cdev
 #define	RB_ROOT(head)	(head)->rbh_root
+#undef LIST_HEAD
+/* From sys/queue.h */
+#define LIST_HEAD(name, type)						\
+struct name {								\
+	struct type *lh_first;	/* first element */			\
+}
 
 struct kobject class_root;
 struct device linux_rootdev;
@@ -510,10 +521,67 @@ struct fileops linuxfileops = {
 	.fo_close = linux_file_close
 };
 
+/*
+ * Hash of iomap addresses.  This is infrequently accessed and does not
+ * need to be particularly large.  This is done because we must store the
+ * caller's idea of the map size to properly unmap.
+ */
+struct iomap {
+	LIST_ENTRY(iomap)	im_next;
+	void 			*im_addr;
+	unsigned long		im_size;
+};
+
+LIST_HEAD(iomaphd, iomap);
+#define	IOMAP_HASH_SIZE	64
+#define	IOMAP_HASH_MASK	(IOMAP_HASH_SIZE - 1)
+#define	IO_HASH(addr)	((uintptr_t)(addr) >> PAGE_SHIFT) & IOMAP_HASH_MASK
+static struct iomaphd iomaphead[IOMAP_HASH_SIZE];
+static struct mtx iomaplock;
+
+void *
+ioremap(vm_paddr_t phys_addr, unsigned long size)
+{
+	struct iomap *iomap;
+	void *addr;
+
+	addr = pmap_mapdev(phys_addr, size);
+	if (addr == NULL)
+		return (NULL);
+	iomap = kmalloc(sizeof(*iomap), GFP_KERNEL);
+	mtx_lock(&iomaplock);
+	iomap->im_size = size;
+	iomap->im_addr = addr;
+	LIST_INSERT_HEAD(&iomaphead[IO_HASH(addr)], iomap, im_next);
+	mtx_unlock(&iomaplock);
+
+	return (addr);
+}
+
+void
+iounmap(void *addr)
+{
+	struct iomap *iomap;
+
+	mtx_lock(&iomaplock);
+	LIST_FOREACH(iomap, &iomaphead[IO_HASH(addr)], im_next)
+		if (iomap->im_addr == addr)
+			break;
+	if (iomap)
+		LIST_REMOVE(iomap, im_next);
+	mtx_unlock(&iomaplock);
+	if (iomap == NULL)
+		return;
+	pmap_unmapdev((vm_offset_t)addr, iomap->im_size);
+	kfree(iomap);
+}
+
+
 static void
 linux_compat_init(void)
 {
 	struct sysctl_oid *rootoid;
+	int i;
 
 	rootoid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(),
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
@@ -532,6 +600,9 @@ linux_compat_init(void)
 	INIT_LIST_HEAD(&pci_drivers);
 	INIT_LIST_HEAD(&pci_devices);
 	spin_lock_init(&pci_lock);
+	mtx_init(&iomaplock, "IO Map lock", NULL, MTX_DEF);
+	for (i = 0; i < IOMAP_HASH_SIZE; i++)
+		LIST_INIT(&iomaphead[i]);
 }
 
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);

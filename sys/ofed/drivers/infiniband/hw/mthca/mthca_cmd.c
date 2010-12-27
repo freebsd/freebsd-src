@@ -490,11 +490,7 @@ int mthca_cmd_init(struct mthca_dev *dev)
 					MTHCA_MAILBOX_SIZE,
 					MTHCA_MAILBOX_SIZE, 0);
 	if (!dev->cmd.pool) {
-#ifdef __linux__
 		iounmap(dev->hcr);
-#else
-		pmap_unmapdev((vm_offset_t)dev->hcr, MTHCA_HCR_SIZE);
-#endif
 		return -ENOMEM;
 	}
 
@@ -504,18 +500,9 @@ int mthca_cmd_init(struct mthca_dev *dev)
 void mthca_cmd_cleanup(struct mthca_dev *dev)
 {
 	pci_pool_destroy(dev->cmd.pool);
-#ifdef __linux__
 	iounmap(dev->hcr);
-#else
-	pmap_unmapdev((vm_offset_t)dev->hcr, MTHCA_HCR_SIZE);
-#endif
 	if (dev->cmd.flags & MTHCA_CMD_POST_DOORBELLS)
-#ifdef __linux__
 		iounmap(dev->cmd.dbell_map);
-#else
-		pmap_unmapdev((vm_offset_t)dev->cmd.dbell_map,
-		    dev->cmd.dbell_size);
-#endif
 }
 
 /*

@@ -112,21 +112,13 @@ int mlx4_reset(struct mlx4_dev *dev)
 	if (sem) {
 		mlx4_err(dev, "Failed to obtain HW semaphore, aborting\n");
 		err = -EAGAIN;
-#ifdef __linux__
 		iounmap(reset);
-#else
-		pmap_unmapdev((vm_offset_t)reset, MLX4_RESET_SIZE);
-#endif
 		goto out;
 	}
 
 	/* actually hit reset */
 	writel(MLX4_RESET_VALUE, reset + MLX4_RESET_OFFSET);
-#ifdef __linux__
 	iounmap(reset);
-#else
-	pmap_unmapdev((vm_offset_t)reset, MLX4_RESET_SIZE);
-#endif
 
 	/* Docs say to wait one second before accessing device */
 	msleep(1000);

@@ -916,11 +916,7 @@ err_pd_table_free:
 	mthca_cleanup_pd_table(dev);
 
 err_kar_unmap:
-#ifdef __linux__
 	iounmap(dev->kar);
-#else
-	pmap_unmapdev((vm_offset_t)dev->kar, PAGE_SIZE);
-#endif
 
 err_uar_free:
 	mthca_uar_free(dev, &dev->driver_uar);
@@ -1189,11 +1185,7 @@ static void __mthca_remove_one(struct pci_dev *pdev)
 		mthca_cleanup_mr_table(mdev);
 		mthca_cleanup_pd_table(mdev);
 
-#ifdef __linux__
 		iounmap(mdev->kar);
-#else
-		pmap_unmapdev((vm_offset_t)mdev->kar, PAGE_SIZE);
-#endif
 		mthca_uar_free(mdev, &mdev->driver_uar);
 		mthca_cleanup_uar_table(mdev);
 		mthca_close_hca(mdev);

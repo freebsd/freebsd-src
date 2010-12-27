@@ -955,22 +955,11 @@ err_reserve_fmr:
 
 err_fmr_mtt_buddy:
 	if (dev->mr_table.tavor_fmr.mtt_base)
-#ifdef __linux__
 		iounmap(dev->mr_table.tavor_fmr.mtt_base);
-#else
-		pmap_unmapdev((vm_offset_t)dev->mr_table.tavor_fmr.mtt_base,
-		    dev->mr_table.tavor_fmr.mtt_size);
-		
-#endif
 
 err_fmr_mtt:
 	if (dev->mr_table.tavor_fmr.mpt_base)
-#ifdef __linux__
 		iounmap(dev->mr_table.tavor_fmr.mpt_base);
-#else
-		pmap_unmapdev((vm_offset_t)dev->mr_table.tavor_fmr.mpt_base,
-		    dev->mr_table.tavor_fmr.mpt_size);
-#endif
 
 err_fmr_mpt:
 	mthca_buddy_cleanup(&dev->mr_table.mtt_buddy);
@@ -990,19 +979,9 @@ void mthca_cleanup_mr_table(struct mthca_dev *dev)
 	mthca_buddy_cleanup(&dev->mr_table.mtt_buddy);
 
 	if (dev->mr_table.tavor_fmr.mtt_base)
-#ifdef __linux__
 		iounmap(dev->mr_table.tavor_fmr.mtt_base);
-#else
-		pmap_unmapdev((vm_offset_t)dev->mr_table.tavor_fmr.mtt_base,
-		    dev->mr_table.tavor_fmr.mtt_size);
-#endif
 	if (dev->mr_table.tavor_fmr.mpt_base)
-#ifdef __linux__
 		iounmap(dev->mr_table.tavor_fmr.mpt_base);
-#else
-		pmap_unmapdev((vm_offset_t)dev->mr_table.tavor_fmr.mpt_base,
-		    dev->mr_table.tavor_fmr.mpt_size);
-#endif
 
 	mthca_alloc_cleanup(&dev->mr_table.mpt_alloc);
 }

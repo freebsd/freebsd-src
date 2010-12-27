@@ -348,11 +348,7 @@ int mlx4_cmd_init(struct mlx4_dev *dev)
 					 MLX4_MAILBOX_SIZE,
 					 MLX4_MAILBOX_SIZE, 0);
 	if (!priv->cmd.pool) {
-#ifdef __linux__
 		iounmap(priv->cmd.hcr);
-#else
-		pmap_unmapdev((vm_offset_t)priv->cmd.hcr, MLX4_HCR_SIZE);
-#endif
 		return -ENOMEM;
 	}
 
@@ -364,11 +360,7 @@ void mlx4_cmd_cleanup(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	pci_pool_destroy(priv->cmd.pool);
-#ifdef __linux__
 	iounmap(priv->cmd.hcr);
-#else
-	pmap_unmapdev((vm_offset_t)priv->cmd.hcr, MLX4_HCR_SIZE);
-#endif
 }
 
 /*

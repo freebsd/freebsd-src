@@ -29,10 +29,6 @@
 #ifndef	_LINUX_IO_H_
 #define	_LINUX_IO_H_
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/pmap.h>
-
 static inline uint32_t
 __raw_readl(const volatile void *addr)
 {
@@ -90,15 +86,11 @@ writew(uint16_t b, void *addr)
         *(volatile uint16_t *)addr = b;
 }
 
-#define	ioremap	pmap_mapdev
+void *ioremap(vm_paddr_t phys_addr, unsigned long size);
+void iounmap(void *addr);
 
 #define	memset_io(a, b, c)	memset((a), (b), (c))
 #define	memcpy_fromio(a, b, c)	memcpy((a), (b), (c))
 #define	memcpy_toio(a, b, c)	memcpy((a), (b), (c))
-
-/*
- * iounmap is not defined as pmap_unmapdev requires a length that can
- * not easily be determined on BSD.
- */
 
 #endif	/* _LINUX_IO_H_ */

@@ -164,11 +164,7 @@ int mthca_reset(struct mthca_dev *mdev)
 		}
 
 		writel(MTHCA_RESET_VALUE, reset);
-#ifdef __linux__
 		iounmap(reset);
-#else
-		pmap_unmapdev((vm_offset_t)reset, 4);
-#endif
 	}
 
 	/* Docs say to wait one second before accessing device */

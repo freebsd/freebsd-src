@@ -174,12 +174,7 @@ void mthca_stop_catas_poll(struct mthca_dev *dev)
 	del_timer_sync(&dev->catas_err.timer);
 
 	if (dev->catas_err.map)
-#ifdef __linux__
 		iounmap(dev->catas_err.map);
-#else
-		pmap_unmapdev((vm_offset_t)dev->catas_err.map,
-		    dev->catas_err.size * 4);
-#endif
 
 	spin_lock_irq(&catas_lock);
 	list_del(&dev->catas_err.list);
