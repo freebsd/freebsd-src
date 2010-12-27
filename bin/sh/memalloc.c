@@ -127,7 +127,7 @@ static struct stack_block *stackp;
 static struct stackmark *markp;
 char *stacknxt;
 int stacknleft;
-int sstrnleft;
+char *sstrend;
 
 
 static void
@@ -146,6 +146,7 @@ stnewblock(int nbytes)
 	sp->prev = stackp;
 	stacknxt = SPACE(sp);
 	stacknleft = allocsize - (stacknxt - (char*)sp);
+	sstrend = stacknxt + stacknleft;
 	stackp = sp;
 	INTON;
 }
@@ -204,6 +205,7 @@ popstackmark(struct stackmark *mark)
 	}
 	stacknxt = mark->stacknxt;
 	stacknleft = mark->stacknleft;
+	sstrend = stacknxt + stacknleft;
 	INTON;
 }
 
@@ -250,6 +252,7 @@ growstackblock(int min)
 		stackp = sp;
 		stacknxt = SPACE(sp);
 		stacknleft = newlen - (stacknxt - (char*)sp);
+		sstrend = stacknxt + stacknleft;
 
 		/*
 		 * Stack marks pointing to the start of the old block
@@ -306,7 +309,6 @@ static char *
 growstrstackblock(int n, int min)
 {
 	growstackblock(min);
-	sstrnleft = stackblocksize() - n;
 	return stackblock() + n;
 }
 
@@ -325,22 +327,12 @@ growstackstr(void)
  */
 
 char *
-makestrspace(int min)
+makestrspace(int min, char *p)
 {
 	int len;
 
-	len = stackblocksize() - sstrnleft;
+	len = p - stackblock();
 	return (growstrstackblock(len, min));
-}
-
-
-
-void
-ungrabstackstr(char *s, char *p)
-{
-	stacknleft += stacknxt - s;
-	stacknxt = s;
-	sstrnleft = stacknleft - (p - s);
 }
 
 
@@ -349,7 +341,6 @@ stputbin(const char *data, int len, char *p)
 {
 	CHECKSTRSPACE(len, p);
 	memcpy(p, data, len);
-	sstrnleft -= len;
 	return (p + len);
 }
 
