@@ -1077,12 +1077,6 @@ in_pcbfree(struct inpcb *inp)
  * maintaining the invariant that so_pcb always points to a valid inpcb until
  * in_pcbdetach().
  *
- * XXXRW: An inp_lport of 0 is used to indicate that the inpcb is not on hash
- * lists, but can lead to confusing netstat output, as open sockets with
- * closed TCP connections will no longer appear to have their bound port
- * number.  An explicit flag would be better, as it would allow us to leave
- * the port number intact after the connection is dropped.
- *
  * XXXRW: Possibly in_pcbdrop() should also prevent future notifications by
  * in_pcbnotifyall() and in_pcbpurgeif0()?
  */
