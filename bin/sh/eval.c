@@ -578,6 +578,8 @@ evalbackcmd(union node *n, struct backcmd *result)
 	int pip[2];
 	struct job *jp;
 	struct stackmark smark;		/* unnecessary */
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
 
 	setstackmark(&smark);
 	result->fd = -1;
@@ -590,7 +592,19 @@ evalbackcmd(union node *n, struct backcmd *result)
 	}
 	if (n->type == NCMD) {
 		exitstatus = oexitstatus;
-		evalcommand(n, EV_BACKCMD, result);
+		savehandler = handler;
+		if (setjmp(jmploc.loc)) {
+			if (exception == EXERROR || exception == EXEXEC)
+				exitstatus = 2;
+			else if (exception != 0) {
+				handler = savehandler;
+				longjmp(handler->loc, 1);
+			}
+		} else {
+			handler = &jmploc;
+			evalcommand(n, EV_BACKCMD, result);
+		}
+		handler = savehandler;
 	} else {
 		exitstatus = 0;
 		if (pipe(pip) < 0)
