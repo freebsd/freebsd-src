@@ -2225,27 +2225,14 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, vm_page_t *free)
 	if (oldpte & PG_G)
 		pmap_invalidate_page(kernel_pmap, va);
 	pmap->pm_stats.resident_count -= 1;
-	/*
-	 * XXX This is not strictly correctly, but somewhere along the line
-	 * we are losing the managed bit on some pages. It is unclear to me
-	 * why, but I think the most likely explanation is that xen's writable
-	 * page table implementation doesn't respect the unused bits.
-	 */
-	if ((oldpte & PG_MANAGED) || ((oldpte & PG_V) && (va < VM_MAXUSER_ADDRESS))
-		) {
+	if (oldpte & PG_MANAGED) {
 		m = PHYS_TO_VM_PAGE(xpmap_mtop(oldpte) & PG_FRAME);
-
-		if (!(oldpte & PG_MANAGED))
-			printf("va=0x%x is unmanaged :-( pte=0x%llx\n", va, oldpte);
-
 		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			vm_page_dirty(m);
 		if (oldpte & PG_A)
 			vm_page_flag_set(m, PG_REFERENCED);
 		pmap_remove_entry(pmap, m, va);
-	} else if ((va < VM_MAXUSER_ADDRESS) && (oldpte & PG_V))
-		printf("va=0x%x is unmanaged :-( pte=0x%llx\n", va, oldpte);
-
+	}
 	return (pmap_unuse_pt(pmap, va, free));
 }
 
