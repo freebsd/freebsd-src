@@ -238,7 +238,7 @@ static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 struct tcpcb_mem {
 	struct	tcpcb		tcb;
 	struct	tcp_timer	tt;
-	struct cc_var		ccv;
+	struct	cc_var		ccv;
 };
 
 static VNET_DEFINE(uma_zone_t, tcpcb_zone);
