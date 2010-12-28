@@ -63,4 +63,5 @@ void expari(int);
 int patmatch(const char *, const char *, int);
 void rmescapes(char *);
 int casematch(union node *, const char *);
+int expandhassideeffects(const char *);
 int wordexpcmd(int, char **);

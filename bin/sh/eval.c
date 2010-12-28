@@ -94,6 +94,7 @@ static void evalsubshell(union node *, int);
 static void evalredir(union node *, int);
 static void expredir(union node *);
 static void evalpipe(union node *);
+static int is_valid_fast_cmdsubst(union node *n);
 static void evalcommand(union node *, int, struct backcmd *);
 static void prehash(union node *);
 
@@ -565,6 +566,19 @@ evalpipe(union node *n)
 
 
 
+static int
+is_valid_fast_cmdsubst(union node *n)
+{
+	union node *argp;
+
+	if (n->type != NCMD)
+		return 0;
+	for (argp = n->ncmd.args ; argp ; argp = argp->narg.next)
+		if (expandhassideeffects(argp->narg.text))
+			return 0;
+	return 1;
+}
+
 /*
  * Execute a command inside back quotes.  If it's a builtin command, we
  * want to save its output in a block obtained from malloc.  Otherwise
@@ -590,7 +604,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 		exitstatus = 0;
 		goto out;
 	}
-	if (n->type == NCMD) {
+	if (is_valid_fast_cmdsubst(n)) {
 		exitstatus = oexitstatus;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
