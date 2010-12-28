@@ -284,7 +284,8 @@ device		apm_saver	# Requires APM
 #
 # ISA bus
 #
-device		isa		# Required by npx(4)
+# Already in DEFAULTS, which means we don't need it here.
+#device		isa		# Required by npx(4)
 
 #
 # Options for `isa':
@@ -372,7 +373,8 @@ options		X86BIOS
 
 #
 # The Numeric Processing eXtension driver.  This is non-optional.
-device		npx
+# Already in DEFAULTS, which means we don't need it here.
+#device		npx
 hint.npx.0.flags="0x0"
 hint.npx.0.irq="13"
 
