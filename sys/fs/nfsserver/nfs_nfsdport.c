@@ -2781,66 +2781,6 @@ nfsvno_getvp(fhandle_t *fhp)
 }
 
 /*
- * Check to see it a byte range lock held by a process running
- * locally on the server conflicts with the new lock.
- */
-int
-nfsvno_localconflict(struct vnode *vp, int ftype, u_int64_t first,
-    u_int64_t end, struct nfslockconflict *cfp, struct thread *td)
-{
-	int error;
-	struct flock fl;
-
-	if (!nfsrv_dolocallocks)
-		return (0);
-	fl.l_whence = SEEK_SET;
-	fl.l_type = ftype;
-	fl.l_start = (off_t)first;
-	if (end == NFS64BITSSET)
-		fl.l_len = 0;
-	else
-		fl.l_len = (off_t)(end - first);
-	/*
-	 * For FreeBSD8, the l_pid and l_sysid must be set to the same
-	 * values for all calls, so that all locks will be held by the
-	 * nfsd server. (The nfsd server handles conflicts between the
-	 * various clients.)
-	 * Since an NFSv4 lockowner is a ClientID plus an array of up to 1024
-	 * bytes, so it can't be put in l_sysid.
-	 */
-	if (nfsv4_sysid == 0)
-		nfsv4_sysid = nlm_acquire_next_sysid();
-	fl.l_pid = (pid_t)0;
-	fl.l_sysid = (int)nfsv4_sysid;
-
-	NFSVOPUNLOCK(vp, 0, td);
-	error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_GETLK, &fl,
-	    (F_POSIX | F_REMOTE));
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (error)
-		return (error);
-	if (fl.l_type == F_UNLCK)
-		return (0);
-	if (cfp != NULL) {
-		cfp->cl_clientid.lval[0] = cfp->cl_clientid.lval[1] = 0;
-		cfp->cl_first = (u_int64_t)fl.l_start;
-		if (fl.l_len == 0)
-			cfp->cl_end = NFS64BITSSET;
-		else
-			cfp->cl_end = (u_int64_t)
-			    (fl.l_start + fl.l_len);
-		if (fl.l_type == F_WRLCK)
-			cfp->cl_flags = NFSLCK_WRITE;
-		else
-			cfp->cl_flags = NFSLCK_READ;
-		sprintf(cfp->cl_owner, "LOCALID%d", fl.l_pid);
-		cfp->cl_ownerlen = strlen(cfp->cl_owner);
-		return (NFSERR_DENIED);
-	}
-	return (NFSERR_INVAL);
-}
-
-/*
  * Do a local VOP_ADVLOCK().
  */
 int
