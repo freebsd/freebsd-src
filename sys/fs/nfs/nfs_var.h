@@ -569,8 +569,6 @@ int nfsvno_fhtovp(mount_t, fhandle_t *, NFSSOCKADDR_T, int,
 int nfsvno_pathconf(vnode_t, int, register_t *, struct ucred *,
     NFSPROC_T *);
 vnode_t nfsvno_getvp(fhandle_t *);
-int nfsvno_localconflict(vnode_t, int, u_int64_t, u_int64_t,
-    struct nfslockconflict *, NFSPROC_T *);
 int nfsvno_advlock(vnode_t, int, u_int64_t, u_int64_t, NFSPROC_T *);
 void nfsvno_unlockvfs(mount_t);
 int nfsvno_lockvfs(mount_t);
