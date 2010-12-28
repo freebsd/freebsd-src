@@ -1084,7 +1084,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 		if (*mp == NULL)
 			pmap_failed = TRUE;
 		else if ((prot & VM_PROT_WRITE) != 0 &&
-		    (*ma)->dirty != VM_PAGE_BITS_ALL) {
+		    (*mp)->dirty != VM_PAGE_BITS_ALL) {
 			/*
 			 * Explicitly dirty the physical page.  Otherwise, the
 			 * caller's changes may go unnoticed because they are
