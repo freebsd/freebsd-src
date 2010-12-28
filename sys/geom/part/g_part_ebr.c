@@ -357,6 +357,8 @@ g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
     struct g_part_parms *gpp)
 {
 #if defined(GEOM_PART_EBR_COMPAT)
+	if (req == G_PART_CTL_DESTROY)
+		return (0);
 	return (ECANCELED);
 #else
 	/*
