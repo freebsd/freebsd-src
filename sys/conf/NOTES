@@ -1110,7 +1110,8 @@ options 	VFS_AIO
 device		random
 
 # The system memory devices; /dev/mem, /dev/kmem
-device		mem
+# In various system's DEFAULTS file, so we don't need it here.
+#device		mem
 
 # The kernel symbol table device; /dev/ksyms
 device		ksyms
