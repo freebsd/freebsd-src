@@ -3,5 +3,7 @@
 
 PROG=	gcore
 SRCS=	elfcore.c gcore.c
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 .include <bsd.prog.mk>
