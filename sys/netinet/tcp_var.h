@@ -200,7 +200,7 @@ struct tcpcb {
 	void	*t_toe;			/* TOE pcb pointer */
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
 	struct cc_algo	*cc_algo;	/* congestion control algorithm */
-	struct cc_var	*ccv;
+	struct cc_var	*ccv;		/* congestion control specific vars */
 	struct osd	*osd;		/* storage for Khelp module data */
 
 	int	t_ispare;		/* explicit pad for 64bit alignment */
