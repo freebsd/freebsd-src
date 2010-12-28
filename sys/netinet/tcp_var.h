@@ -201,6 +201,7 @@ struct tcpcb {
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
 	struct cc_algo	*cc_algo;	/* congestion control algorithm */
 	struct cc_var	*ccv;
+	struct osd	*osd;		/* storage for Khelp module data */
 
 	int	t_ispare;		/* explicit pad for 64bit alignment */
 	void	*t_pspare2[4];		/* 4 TBD */
@@ -501,6 +502,22 @@ struct	tcpstat {
 void	kmod_tcpstat_inc(int statnum);
 #define	KMOD_TCPSTAT_INC(name)						\
 	kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(u_long))
+
+/*
+ * TCP specific helper hook point identifiers.
+ */
+#define	HHOOK_TCP_EST_IN		0
+#define	HHOOK_TCP_EST_OUT		1
+#define	HHOOK_TCP_LAST			HHOOK_TCP_EST_OUT
+
+struct tcp_hhook_data {
+	struct tcpcb *tp;
+	struct tcphdr *th;
+	struct tcpopt *to;
+	long len;
+	int tso;
+	tcp_seq  curack;
+};
 #endif
 
 /*
@@ -607,6 +624,9 @@ VNET_DECLARE(int, tcp_do_ecn);			/* TCP ECN enabled/disabled */
 VNET_DECLARE(int, tcp_ecn_maxretries);
 #define	V_tcp_do_ecn		VNET(tcp_do_ecn)
 #define	V_tcp_ecn_maxretries	VNET(tcp_ecn_maxretries)
+
+VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
+#define	V_tcp_hhh		VNET(tcp_hhh)
 
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 int	 tcp_ccalgounload(struct cc_algo *unload_algo);
