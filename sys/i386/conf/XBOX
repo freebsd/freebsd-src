@@ -47,8 +47,6 @@ options 	TIMER_FREQ=1125000	# Gives ~733.34MHz CPU
 
 #device		apic			# I/O APIC
 
-# Bus support.  Do not remove isa, even if you have no isa slots
-device		isa
 device		pci
 
 # ATA and ATAPI devices
@@ -61,13 +59,8 @@ options 	ATA_STATIC_ID	# Static device numbering
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)
 
-# Floating point support - do not disable.
-device		npx
-
 # Pseudo devices.
 device		loop		# Network loopback
-device		mem		# Memory and kernel memory devices
-device		io		# I/O device
 device		random		# Entropy device
 device		ether		# Ethernet support
 #device		tun		# Packet tunnel.
