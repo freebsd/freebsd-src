@@ -287,6 +287,14 @@ octeon_memory_init(void)
 	 */
 	i = 0;
 	while (i < PHYS_AVAIL_ENTRIES) {
+		/*
+		 * If there is less than 2MB of memory available in 128-byte
+		 * blocks, do not steal any more memory.  We need to leave some
+		 * memory for the command queues to be allocated out of.
+		 */
+		if (cvmx_bootmem_available_mem(128) < 2 << 20)
+			break;
+
 		addr = cvmx_bootmem_phy_alloc(1 << 20, phys_end,
 					      ~(vm_paddr_t)0, PAGE_SIZE, 0);
 		if (addr == -1)
