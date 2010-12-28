@@ -35,15 +35,15 @@
 .extern _DYNAMIC
 
 _ENTRY(_rtld_start)
-	stdu    %r1,-96(%r1)	/* 16-byte aligned stack for reg saves +
+	stdu    %r1,-144(%r1)	/* 16-byte aligned stack for reg saves +
 				exit_proc & obj _rtld args +
 				backchain & lrsave stack frame */
-	std     %r3,48(%r1)	/*  argc */
-	std     %r4,56(%r1)	/*  argv */
-	std     %r5,64(%r1)	/*  envp */
-/*	std     %r6,72(%r1)   *//*  obj (always 0) */
-/*	std     %r7,80(%r1)   *//*  cleanup (always 0) */
-	std     %r8,88(%r1)	/*  ps_strings */
+	std     %r3,96(%r1)	/*  argc */
+	std     %r4,104(%r1)	/*  argv */
+	std     %r5,112(%r1)	/*  envp */
+/*	std     %r6,120(%r1)   *//*  obj (always 0) */
+/*	std     %r7,128(%r1)   *//*  cleanup (always 0) */
+	std     %r8,136(%r1)	/*  ps_strings */
 
 	/*
 	 * Perform initial relocation of ld-elf.so. Not as easy as it
@@ -75,10 +75,10 @@ _ENTRY(_rtld_start)
 	 * original stack layout has to be found by moving back a word
 	 * from the argv pointer.
 	 */
-	ld	%r4,56(%r1)
+	ld	%r4,104(%r1)
         addi    %r3,%r4,-8	/* locate argc ptr, &argv[-1] */
-	addi	%r4,%r1,80	/* &exit_proc on stack */
-	addi	%r5,%r1,72	/* &obj_main on stack */
+	addi	%r4,%r1,128	/* &exit_proc on stack */
+	addi	%r5,%r1,120	/* &obj_main on stack */
 
 	bl      ._rtld		/* &_start = _rtld(sp, &exit_proc, &obj_main)*/
 	nop
@@ -90,12 +90,12 @@ _ENTRY(_rtld_start)
 	/*
 	 * Restore args, with new obj/exit proc
 	 */
-	ld      %r3,48(%r1)     /* argc */
-	ld      %r4,56(%r1)	/* argv */
-	ld      %r5,64(%r1)	/* envp */
-	ld      %r6,72(%r1)	/* obj */
-	ld      %r7,80(%r1)	/* exit proc */
-	ld      %r8,88(%r1)	/* ps_strings */
+	ld      %r3,96(%r1)     /* argc */
+	ld      %r4,104(%r1)	/* argv */
+	ld      %r5,112(%r1)	/* envp */
+	ld      %r6,120(%r1)	/* obj */
+	ld      %r7,128(%r1)	/* exit proc */
+	ld      %r8,136(%r1)	/* ps_strings */
 
 	blrl	/* _start(argc, argv, envp, obj, cleanup, ps_strings) */
 
@@ -119,16 +119,17 @@ _ENTRY(_rtld_bind_start)
 	mfcr    %r0
 	std     %r0,8(%r1)		# save cr
 
-	stdu    %r1,-48-9*8(%r1)	# stack space for 8 regs + header
-	std	%r3,48+0*8(%r1)		# save r3-r31
-	std	%r4,48+1*8(%r1)
-	std	%r5,48+2*8(%r1)
-	std	%r6,48+3*8(%r1)
-	std	%r7,48+4*8(%r1)
-	std	%r8,48+5*8(%r1)
-	std	%r9,48+6*8(%r1)
-	std	%r10,48+7*8(%r1)
-	std	%r12,48+8*8(%r1)
+	stdu    %r1,-48-12*8(%r1)	# stack space for 8 regs + header
+					#   + 2 save regs
+	std	%r3,64+0*8(%r1)		# save r3-r31
+	std	%r4,64+1*8(%r1)
+	std	%r5,64+2*8(%r1)
+	std	%r6,64+3*8(%r1)
+	std	%r7,64+4*8(%r1)
+	std	%r8,64+5*8(%r1)
+	std	%r9,64+6*8(%r1)
+	std	%r10,64+7*8(%r1)
+	std	%r12,64+8*8(%r1)
 
 	ld	%r3,0(%r11)
 	ld	%r4,8(%r11)
@@ -140,22 +141,21 @@ _ENTRY(_rtld_bind_start)
 	ld	%r3,0(%r3)
 	mtctr   %r3			# move absolute target addr into ctr
 
-        ld	%r3,48+0*8(%r1)		# restore r3-r31
-        ld	%r4,48+1*8(%r1)
-        ld	%r5,48+2*8(%r1)
-        ld	%r6,48+3*8(%r1)
-	ld	%r7,48+4*8(%r1)
-	ld	%r8,48+5*8(%r1)
-	ld	%r9,48+6*8(%r1)
-	ld	%r10,48+7*8(%r1)
-	ld	%r12,48+8*8(%r1)
+	ld	%r3,64+0*8(%r1)		# restore r3-r31
+	ld	%r4,64+1*8(%r1)
+	ld	%r5,64+2*8(%r1)
+	ld	%r6,64+3*8(%r1)
+	ld	%r7,64+4*8(%r1)
+	ld	%r8,64+5*8(%r1)
+	ld	%r9,64+6*8(%r1)
+	ld	%r10,64+7*8(%r1)
+	ld	%r12,64+8*8(%r1)
 
-        addi    %r1,%r1,48+9*8		# restore stack
+	ld	%r1,0(%r1)		# restore stack
+	ld	%r0,8(%r1)		# restore cr
+	mtcr    %r0
+	ld	%r0,16(%r1)		# restore lr
+	mtlr    %r0
 
-        ld	%r0,8(%r1)		# restore cr
-        mtcr    %r0
-        ld	%r0,16(%r1)		# restore lr
-        mtlr    %r0
-
-        bctr				# jump to target
+	bctr				# jump to target
 
