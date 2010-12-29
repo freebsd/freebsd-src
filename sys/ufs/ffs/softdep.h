@@ -657,7 +657,6 @@ struct mkdir {
 	struct	buf *md_buf;		/* MKDIR_BODY: buffer holding dir */
 	LIST_ENTRY(mkdir) md_mkdirs;	/* list of all mkdirs */
 };
-LIST_HEAD(mkdirlist, mkdir) mkdirlisthd;
 
 /*
  * A "dirrem" structure describes an operation to decrement the link
