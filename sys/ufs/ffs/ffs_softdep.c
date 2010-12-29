@@ -691,6 +691,8 @@ static struct malloc_type *memtype[] = {
 	M_JTRUNC
 };
 
+static LIST_HEAD(mkdirlist, mkdir) mkdirlisthd;
+
 #define DtoM(type) (memtype[type])
 
 /*
