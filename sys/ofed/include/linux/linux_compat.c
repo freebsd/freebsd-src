@@ -34,6 +34,9 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bus.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/filio.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -440,8 +443,6 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	return (error);
 }
 
-
-
 struct cdevsw linuxcdevsw = {
 	.d_version = D_VERSION,
 	.d_flags = D_TRACKCLOSE,
@@ -510,15 +511,52 @@ linux_file_close(struct file *file, struct thread *td)
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
 	error = -filp->f_op->release(NULL, filp);
+	funsetown(&filp->f_sigio);
 	kfree(filp);
 
+	return (error);
+}
+
+static int
+linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
+    struct thread *td)
+{
+	struct linux_file *filp;
+	int error;
+
+	filp = (struct linux_file *)fp->f_data;
+	filp->f_flags = fp->f_flag;
+	error = 0;
+
+	switch (cmd) {
+	case FIONBIO:
+		break;
+	case FIOASYNC:
+		if (filp->f_op->fasync == NULL)
+			break;
+		error = filp->f_op->fasync(0, filp, fp->f_flag & FASYNC);
+		break;
+	case FIOSETOWN:
+		error = fsetown(*(int *)data, &filp->f_sigio);
+		if (error == 0)
+			error = filp->f_op->fasync(0, filp,
+			    fp->f_flag & FASYNC);
+		break;
+	case FIOGETOWN:
+		*(int *)data = fgetown(&filp->f_sigio);
+		break;
+	default:
+		error = ENOTTY;
+		break;
+	}
 	return (error);
 }
 
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
 	.fo_poll = linux_file_poll,
-	.fo_close = linux_file_close
+	.fo_close = linux_file_close,
+	.fo_ioctl = linux_file_ioctl
 };
 
 /*

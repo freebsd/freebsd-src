@@ -121,6 +121,7 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 };
 
 #ifdef __linux__
+/* BSD Does not require a fake mountpoint for all files. */
 static struct vfsmount *uverbs_event_mnt;
 #endif
 
@@ -372,14 +373,12 @@ static unsigned int ib_uverbs_event_poll(struct file *filp,
 	return pollflags;
 }
 
-#ifdef __linux__
 static int ib_uverbs_event_fasync(int fd, struct file *filp, int on)
 {
 	struct ib_uverbs_event_file *file = filp->private_data;
 
 	return fasync_helper(fd, filp, on, &file->async_queue);
 }
-#endif
 
 static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 {
@@ -409,9 +408,7 @@ static const struct file_operations uverbs_event_fops = {
 	.read 	 = ib_uverbs_event_read,
 	.poll    = ib_uverbs_event_poll,
 	.release = ib_uverbs_event_close,
-#ifdef __linux__
 	.fasync  = ib_uverbs_event_fasync
-#endif
 };
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
@@ -448,10 +445,7 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 	wake_up_interruptible(&file->poll_wait);
 	if (file->filp)
 		selwakeup(&file->filp->f_selinfo);
-#ifdef __linux__
-	/* funsetown ? */
 	kill_fasync(&file->async_queue, SIGIO, POLL_IN);
-#endif
 }
 
 static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
@@ -486,10 +480,7 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	wake_up_interruptible(&file->async_file->poll_wait);
 	if (file->async_file->filp)
 		selwakeup(&file->async_file->filp->f_selinfo);
-#ifdef __linux__	
-	/* funsetown? */
 	kill_fasync(&file->async_file->async_queue, SIGIO, POLL_IN);
-#endif
 }
 
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
@@ -563,7 +554,6 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	ev_file->is_async    = is_async;
 	ev_file->is_closed   = 0;
 
-#ifdef __linux__
 	*fd = get_unused_fd();
 	if (*fd < 0) {
 		ret = *fd;
@@ -582,28 +572,12 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 		goto err_fd;
 	}
 
-#else
-	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
-	if (filp == NULL) {
-		ret = -ENOMEM;
-		goto err;
-	}
-	filp->f_op = &uverbs_event_fops;
-	ret = falloc(curthread, &filp->_file, fd);
-	if (ret) {
-		ret = -ret;
-		goto err;
-	}
-	finit(filp->_file, FREAD, DTYPE_DEV, filp, &badfileops);
-#endif
 	filp->private_data = ev_file;
 
 	return filp;
 
-#ifdef __linux__
 err_fd:
 	put_unused_fd(*fd);
-#endif
 
 err:
 	kfree(ev_file);

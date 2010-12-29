@@ -120,6 +120,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 				      chunk->nents, DMA_BIDIRECTIONAL, &chunk->attrs);
 		for (i = 0; i < chunk->nents; ++i) {
 #ifdef __linux__
+			/* XXX I need to set the proper page flags here too. */
 			struct page *page = sg_page(&chunk->page_list[i]);
 			if (umem->writable && dirty)
 				set_page_dirty_lock(page);

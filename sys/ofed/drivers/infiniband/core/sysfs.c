@@ -444,6 +444,7 @@ static void ib_device_release(struct device *device)
 }
 
 #ifdef __linux__
+/* BSD supports this through devfs(5) and devd(8). */
 static int ib_device_uevent(struct device *device,
 			    struct kobj_uevent_env *env)
 {

@@ -68,12 +68,30 @@ struct linux_file {
 	const struct file_operations	*f_op;
 	void 		*private_data;
 	int		f_flags;
+	int		f_mode;	/* Just starting mode. */
 	struct dentry	*f_dentry;
 	struct dentry	f_dentry_store;
 	struct selinfo	f_selinfo;
+	struct sigio	*f_sigio;
 };
 
-#define	file	linux_file
+#define	file		linux_file
+#define	fasync_struct	sigio *
+
+#define	fasync_helper(fd, filp, on, queue)				\
+({									\
+	if ((on))							\
+		*(queue) = &(filp)->f_sigio;				\
+	else								\
+		*(queue) = NULL;					\
+	0;								\
+})
+
+#define	kill_fasync(queue, sig, pollstat)				\
+do {									\
+	if (*(queue) != NULL)						\
+		pgsigio(*(queue), (sig), 0);				\
+} while (0)
 
 typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 
@@ -86,6 +104,7 @@ struct file_operations {
 	int (*mmap)(struct file *, struct vm_area_struct *);
 	int (*open)(struct inode *, struct file *);
 	int (*release)(struct inode *, struct file *);
+	int (*fasync)(int, struct file *, int);
 #if 0
 	/* We do not support these methods.  Don't permit them to compile. */
 	loff_t (*llseek)(struct file *, loff_t, int);
@@ -100,7 +119,6 @@ struct file_operations {
 	int (*flush)(struct file *, fl_owner_t id);
 	int (*fsync)(struct file *, struct dentry *, int datasync);
 	int (*aio_fsync)(struct kiocb *, int datasync);
-	int (*fasync)(int, struct file *, int);
 	int (*lock)(struct file *, int, struct file_lock *);
 	ssize_t (*sendpage)(struct file *, struct page *, int, size_t,
 	    loff_t *, int);
@@ -115,6 +133,11 @@ struct file_operations {
 	int (*setlease)(struct file *, long, struct file_lock **);
 #endif
 };
+#define	fops_get(fops)	(fops)
+
+#define	FMODE_READ	FREAD
+#define	FMODE_WRITE	FWRITE
+#define	FMODE_EXEC	FEXEC
 
 static inline int
 register_chrdev_region(dev_t dev, unsigned range, const char *name)

@@ -1135,6 +1135,7 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 		goto out;
 	}
 
+	/* XXX vlan */
 	read_lock(&dev_base_lock);
 	for_each_netdev(&init_net, tmp) {
 		if (ndev && (tmp == ndev
@@ -1195,7 +1196,6 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 out:
 	kfree(work);
 	return ret;
-	return 0;
 }
 
 static void handle_en_event(struct mlx4_ib_dev *dev, int port, unsigned long event)
@@ -1221,6 +1221,7 @@ static void netdev_removed(struct mlx4_ib_dev *dev, int port)
 	update_ipv6_gids(dev, port, 1);
 }
 
+/* XXX netdev event needed. */
 static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event,
 				void *ptr)
 {

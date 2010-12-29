@@ -585,6 +585,7 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 EXPORT_SYMBOL(rdma_addr_cancel);
 
 #ifdef __linux__
+/* XXX Need this callback to reduce timeout time. */
 static int netevent_callback(struct notifier_block *self, unsigned long event,
 	void *ctx)
 {

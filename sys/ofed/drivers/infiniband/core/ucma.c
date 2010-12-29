@@ -596,6 +596,7 @@ static void ucma_copy_iboe_route(struct rdma_ucm_query_route_resp *resp,
 	switch (route->num_paths) {
 	case 0:
 		dev_addr = &route->addr.dev_addr;
+		/* XXX Vlan missing. */
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 		dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
 		if (dev) {

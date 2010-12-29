@@ -54,6 +54,10 @@ linux_fget(unsigned int fd)
 static inline void
 fput(struct linux_file *filp)
 {
+	if (filp->_file == NULL) {
+		kfree(filp);
+		return;
+	}
 	if (refcount_release(&filp->_file->f_count)) {
 		_fdrop(filp->_file, curthread);
 		kfree(filp);
@@ -63,20 +67,52 @@ fput(struct linux_file *filp)
 static inline void
 put_unused_fd(unsigned int fd)
 {
-	struct linux_file *file;
+	struct file *file;
 
-	file = linux_fget(fd);
+	file = fget_unlocked(curthread->td_proc->p_fd, fd);
 	if (file == NULL)
 		return;
-	if (file->_file)
-		fdclose(curthread->td_proc->p_fd, file->_file, fd, curthread);
+	fdclose(curthread->td_proc->p_fd, file, fd, curthread);
 }
 
 static inline void
 fd_install(unsigned int fd, struct linux_file *filp)
 {
-	filp->_file->f_ops = &linuxfileops;
+	struct file *file;
+
+	file = fget_unlocked(curthread->td_proc->p_fd, fd);
+	filp->_file = file;
+        finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
 }
+
+static inline int
+get_unused_fd(void)
+{
+	struct file *file;
+	int error;
+	int fd;
+
+	error = falloc(curthread, &file, &fd);
+	if (error)
+		return -error;
+	return fd;
+}
+
+static inline struct linux_file *
+_alloc_file(int mode, const struct file_operations *fops)
+{
+	struct linux_file *filp;
+
+	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
+	if (filp == NULL) 
+		return (NULL);
+	filp->f_op = fops;
+	filp->f_mode = mode;
+
+	return filp;
+}
+
+#define	alloc_file(mnt, root, mode, fops)	_alloc_file((mode), (fops))
 
 #define	file	linux_file
 #define	fget	linux_fget

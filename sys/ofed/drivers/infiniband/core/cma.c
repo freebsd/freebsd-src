@@ -1682,6 +1682,7 @@ out:
 }
 
 #ifdef __linux__
+/* XXX I need to add an EVENTHANDLER based system for handling these events. */
 static void cma_ndev_work_handler(struct work_struct *_work)
 {
 	struct cma_ndev_work *work = container_of(_work, struct cma_ndev_work, work);
