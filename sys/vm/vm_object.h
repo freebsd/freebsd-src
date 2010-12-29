@@ -155,7 +155,6 @@ struct vm_object {
 #define	OBJ_NOSPLIT	0x0010		/* dont split this object */
 #define OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 #define OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty, only for vnode */
-#define OBJ_CLEANING	0x0200
 #define	OBJ_COLORED	0x1000		/* pg_color is defined */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */

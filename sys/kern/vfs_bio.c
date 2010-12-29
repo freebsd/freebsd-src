@@ -2523,7 +2523,7 @@ vfs_setdirty_locked_object(struct buf *bp)
 	 * We qualify the scan for modified pages on whether the
 	 * object has been flushed yet.
 	 */
-	if (object->flags & (OBJ_MIGHTBEDIRTY|OBJ_CLEANING)) {
+	if ((object->flags & OBJ_MIGHTBEDIRTY) != 0) {
 		vm_offset_t boffset;
 		vm_offset_t eoffset;
 
