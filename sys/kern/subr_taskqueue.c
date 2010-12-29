@@ -251,10 +251,12 @@ taskqueue_run(struct taskqueue *queue)
 }
 
 int
-taskqueue_cancel(struct taskqueue *queue, struct task *task)
+taskqueue_cancel(struct taskqueue *queue, struct task *task, int wait)
 {
 	int pending;
 
+	if (wait)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 	if (queue->tq_spin) {		/* XXX */
 		mtx_lock_spin(&queue->tq_mutex);
 		pending = task->ta_pending;
@@ -264,12 +266,11 @@ taskqueue_cancel(struct taskqueue *queue, struct task *task)
 				    task, ta_link);
 				task->ta_pending = 0;
 				break;
-			} else
+			} else if (wait)
 				msleep_spin(task, &queue->tq_mutex, "-", 0);
 		}
 		mtx_unlock_spin(&queue->tq_mutex);
 	} else {
-		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 		mtx_lock(&queue->tq_mutex);
 		pending = task->ta_pending;
@@ -279,7 +280,7 @@ taskqueue_cancel(struct taskqueue *queue, struct task *task)
 				    task, ta_link);
 				task->ta_pending = 0;
 				break;
-			} else
+			} else if (wait)
 				msleep(task, &queue->tq_mutex, PWAIT, "-", 0);
 		}
 		mtx_unlock(&queue->tq_mutex);
