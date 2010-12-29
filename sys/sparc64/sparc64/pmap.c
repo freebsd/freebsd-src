@@ -156,6 +156,8 @@ struct pmap kernel_pmap_store;
  */
 static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size, uint32_t colors);
 
+static void pmap_bootstrap_set_tte(struct tte *tp, u_long vpn, u_long data);
+
 /*
  * Map the given physical page at the specified virtual address in the
  * target pmap with the protection requested.  If specified the page
@@ -166,12 +168,26 @@ static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size, uint32_t colors);
 static void pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, boolean_t wired);
 
-extern int tl1_immu_miss_patch_1[];
-extern int tl1_immu_miss_patch_2[];
-extern int tl1_dmmu_miss_patch_1[];
-extern int tl1_dmmu_miss_patch_2[];
-extern int tl1_dmmu_prot_patch_1[];
-extern int tl1_dmmu_prot_patch_2[];
+extern int tl1_dmmu_miss_direct_patch_tsb_phys_1[];
+extern int tl1_dmmu_miss_direct_patch_tsb_phys_end_1[];
+extern int tl1_dmmu_miss_patch_asi_1[];
+extern int tl1_dmmu_miss_patch_quad_ldd_1[];
+extern int tl1_dmmu_miss_patch_tsb_1[];
+extern int tl1_dmmu_miss_patch_tsb_2[];
+extern int tl1_dmmu_miss_patch_tsb_mask_1[];
+extern int tl1_dmmu_miss_patch_tsb_mask_2[];
+extern int tl1_dmmu_prot_patch_asi_1[];
+extern int tl1_dmmu_prot_patch_quad_ldd_1[];
+extern int tl1_dmmu_prot_patch_tsb_1[];
+extern int tl1_dmmu_prot_patch_tsb_2[];
+extern int tl1_dmmu_prot_patch_tsb_mask_1[];
+extern int tl1_dmmu_prot_patch_tsb_mask_2[];
+extern int tl1_immu_miss_patch_asi_1[];
+extern int tl1_immu_miss_patch_quad_ldd_1[];
+extern int tl1_immu_miss_patch_tsb_1[];
+extern int tl1_immu_miss_patch_tsb_2[];
+extern int tl1_immu_miss_patch_tsb_mask_1[];
+extern int tl1_immu_miss_patch_tsb_mask_2[];
 
 /*
  * If user pmap is processed with pmap_remove and with pmap_remove and the
@@ -302,13 +318,21 @@ pmap_bootstrap(u_int cpu_impl)
 	vm_size_t physsz;
 	vm_size_t virtsz;
 	u_long data;
+	u_long vpn;
 	phandle_t pmem;
 	phandle_t vmem;
 	u_int dtlb_slots_avail;
 	int i;
 	int j;
 	int sz;
+	uint32_t asi;
 	uint32_t colors;
+	uint32_t ldd;
+
+	/*
+	 * Set the kernel context.
+	 */
+	pmap_set_kctx();
 
 	colors = dcache_color_ignore != 0 ? 1 : DCACHE_COLORS;
 
@@ -355,40 +379,56 @@ pmap_bootstrap(u_int cpu_impl)
 	/*
 	 * Calculate the size of kernel virtual memory, and the size and mask
 	 * for the kernel TSB based on the phsyical memory size but limited
-	 * by the amount of dTLB slots available for locked entries (given
-	 * that for spitfire-class CPUs all of the dt64 slots can hold locked
-	 * entries but there is no large dTLB for unlocked ones, we don't use
-	 * more than half of it for locked entries).
+	 * by the amount of dTLB slots available for locked entries if we have
+	 * to lock the TSB in the TLB (given that for spitfire-class CPUs all
+	 * of the dt64 slots can hold locked entries but there is no large
+	 * dTLB for unlocked ones, we don't use more than half of it for the
+	 * TSB).
+	 * Note that for reasons unknown OpenSolaris doesn't take advantage of
+	 * ASI_ATOMIC_QUAD_LDD_PHYS on UltraSPARC-III.  However, given that no
+	 * public documentation is available for these, the latter just might
+	 * not support it, yet.
 	 */
-	dtlb_slots_avail = 0;
-	for (i = 0; i < dtlb_slots; i++) {
-		data = dtlb_get_data(i);
-		if ((data & (TD_V | TD_L)) != (TD_V | TD_L))
-			dtlb_slots_avail++;
-	}
-#ifdef SMP
-	dtlb_slots_avail -= PCPU_PAGES;
-#endif
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
-	    cpu_impl < CPU_IMPL_ULTRASPARCIII)
-		dtlb_slots_avail /= 2;
 	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
-	virtsz = MIN(virtsz,
-	    (dtlb_slots_avail * PAGE_SIZE_4M) << (PAGE_SHIFT - TTE_SHIFT));
+	if (cpu_impl >= CPU_IMPL_ULTRASPARCIIIp)
+		tsb_kernel_ldd_phys = 1;
+	else {
+		dtlb_slots_avail = 0;
+		for (i = 0; i < dtlb_slots; i++) {
+			data = dtlb_get_data(i);
+			if ((data & (TD_V | TD_L)) != (TD_V | TD_L))
+				dtlb_slots_avail++;
+		}
+#ifdef SMP
+		dtlb_slots_avail -= PCPU_PAGES;
+#endif
+		if (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
+		    cpu_impl < CPU_IMPL_ULTRASPARCIII)
+			dtlb_slots_avail /= 2;
+		virtsz = MIN(virtsz, (dtlb_slots_avail * PAGE_SIZE_4M) <<
+		    (PAGE_SHIFT - TTE_SHIFT));
+	}
 	vm_max_kernel_address = VM_MIN_KERNEL_ADDRESS + virtsz;
 	tsb_kernel_size = virtsz >> (PAGE_SHIFT - TTE_SHIFT);
 	tsb_kernel_mask = (tsb_kernel_size >> TTE_SHIFT) - 1;
 
 	/*
-	 * Allocate the kernel TSB and lock it in the TLB.
+	 * Allocate the kernel TSB and lock it in the TLB if necessary.
 	 */
 	pa = pmap_bootstrap_alloc(tsb_kernel_size, colors);
 	if (pa & PAGE_MASK_4M)
-		panic("pmap_bootstrap: tsb unaligned\n");
+		panic("pmap_bootstrap: TSB unaligned\n");
 	tsb_kernel_phys = pa;
-	tsb_kernel = (struct tte *)(VM_MIN_KERNEL_ADDRESS - tsb_kernel_size);
-	pmap_map_tsb();
-	bzero(tsb_kernel, tsb_kernel_size);
+	if (tsb_kernel_ldd_phys == 0) {
+		tsb_kernel =
+		    (struct tte *)(VM_MIN_KERNEL_ADDRESS - tsb_kernel_size);
+		pmap_map_tsb();
+		bzero(tsb_kernel, tsb_kernel_size);
+	} else {
+		tsb_kernel =
+		    (struct tte *)TLB_PHYS_TO_DIRECT(tsb_kernel_phys);
+		aszero(ASI_PHYS_USE_EC, tsb_kernel_phys, tsb_kernel_size);
+	}
 
 	/*
 	 * Allocate and map the dynamic per-CPU area for the BSP.
@@ -403,35 +443,84 @@ pmap_bootstrap(u_int cpu_impl)
 	msgbufp = (struct msgbuf *)TLB_PHYS_TO_DIRECT(pa);
 
 	/*
-	 * Patch the virtual address and the tsb mask into the trap table.
+	 * Patch the TSB addresses and mask as well as the ASIs used to load
+	 * it into the trap table.
 	 */
 
-#define	SETHI(rd, imm22) \
-	(EIF_OP(IOP_FORM2) | EIF_F2_RD(rd) | EIF_F2_OP2(INS0_SETHI) | \
+#define	LDDA_R_I_R(rd, imm_asi, rs1, rs2)				\
+	(EIF_OP(IOP_LDST) | EIF_F3_RD(rd) | EIF_F3_OP3(INS3_LDDA) |	\
+	    EIF_F3_RS1(rs1) | EIF_F3_I(0) | EIF_F3_IMM_ASI(imm_asi) |	\
+	    EIF_F3_RS2(rs2))
+#define	OR_R_I_R(rd, imm13, rs1)					\
+	(EIF_OP(IOP_MISC) | EIF_F3_RD(rd) | EIF_F3_OP3(INS2_OR) |	\
+	    EIF_F3_RS1(rs1) | EIF_F3_I(1) | EIF_IMM(imm13, 13))
+#define	SETHI(rd, imm22)						\
+	(EIF_OP(IOP_FORM2) | EIF_F2_RD(rd) | EIF_F2_OP2(INS0_SETHI) |	\
 	    EIF_IMM((imm22) >> 10, 22))
-#define	OR_R_I_R(rd, imm13, rs1) \
-	(EIF_OP(IOP_MISC) | EIF_F3_RD(rd) | EIF_F3_OP3(INS2_OR) | \
+#define	WR_R_I(rd, imm13, rs1)						\
+	(EIF_OP(IOP_MISC) | EIF_F3_RD(rd) | EIF_F3_OP3(INS2_WR) |	\
 	    EIF_F3_RS1(rs1) | EIF_F3_I(1) | EIF_IMM(imm13, 13))
 
-#define	PATCH(addr) do { \
-	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) || \
-	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0, IF_F3_RS1(addr[1])) || \
-	    addr[2] != SETHI(IF_F2_RD(addr[2]), 0x0)) \
-		panic("pmap_boostrap: patched instructions have changed"); \
-	addr[0] |= EIF_IMM((tsb_kernel_mask) >> 10, 22); \
-	addr[1] |= EIF_IMM(tsb_kernel_mask, 10); \
-	addr[2] |= EIF_IMM(((vm_offset_t)tsb_kernel) >> 10, 22); \
-	flush(addr); \
-	flush(addr + 1); \
-	flush(addr + 2); \
+#define	PATCH_ASI(addr, asi) do {					\
+	if (addr[0] != WR_R_I(IF_F3_RD(addr[0]), 0x0,			\
+	    IF_F3_RS1(addr[0])))					\
+		panic("%s: patched instructions have changed",		\
+		    __func__);						\
+	addr[0] |= EIF_IMM((asi), 13);					\
+	flush(addr);							\
 } while (0)
 
-	PATCH(tl1_immu_miss_patch_1);
-	PATCH(tl1_immu_miss_patch_2);
-	PATCH(tl1_dmmu_miss_patch_1);
-	PATCH(tl1_dmmu_miss_patch_2);
-	PATCH(tl1_dmmu_prot_patch_1);
-	PATCH(tl1_dmmu_prot_patch_2);
+#define	PATCH_LDD(addr, asi) do {					\
+	if (addr[0] != LDDA_R_I_R(IF_F3_RD(addr[0]), 0x0,		\
+	    IF_F3_RS1(addr[0]), IF_F3_RS2(addr[0])))			\
+		panic("%s: patched instructions have changed",		\
+		    __func__);						\
+	addr[0] |= EIF_F3_IMM_ASI(asi);					\
+	flush(addr);							\
+} while (0)
+
+#define	PATCH_TSB(addr, val) do {					\
+	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) ||			\
+	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0,			\
+	    IF_F3_RS1(addr[1])))					\
+		panic("%s: patched instructions have changed",		\
+		    __func__);						\
+	addr[0] |= EIF_IMM((val) >> 10, 22);				\
+	addr[1] |= EIF_IMM((val), 10);					\
+	flush(addr);							\
+	flush(addr + 1);						\
+} while (0)
+
+	if (tsb_kernel_ldd_phys == 0) {
+		asi = ASI_N;
+		ldd = ASI_NUCLEUS_QUAD_LDD;
+		off = (vm_offset_t)tsb_kernel;
+	} else {
+		asi = ASI_PHYS_USE_EC;
+		ldd = ASI_ATOMIC_QUAD_LDD_PHYS;
+		off = (vm_offset_t)tsb_kernel_phys;
+	}
+	PATCH_TSB(tl1_dmmu_miss_direct_patch_tsb_phys_1, tsb_kernel_phys);
+	PATCH_TSB(tl1_dmmu_miss_direct_patch_tsb_phys_end_1,
+	    tsb_kernel_phys + tsb_kernel_size - 1);
+	PATCH_ASI(tl1_dmmu_miss_patch_asi_1, asi);
+	PATCH_LDD(tl1_dmmu_miss_patch_quad_ldd_1, ldd);
+	PATCH_TSB(tl1_dmmu_miss_patch_tsb_1, off);
+	PATCH_TSB(tl1_dmmu_miss_patch_tsb_2, off);
+	PATCH_TSB(tl1_dmmu_miss_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB(tl1_dmmu_miss_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_ASI(tl1_dmmu_prot_patch_asi_1, asi);
+	PATCH_LDD(tl1_dmmu_prot_patch_quad_ldd_1, ldd);
+	PATCH_TSB(tl1_dmmu_prot_patch_tsb_1, off);
+	PATCH_TSB(tl1_dmmu_prot_patch_tsb_2, off);
+	PATCH_TSB(tl1_dmmu_prot_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB(tl1_dmmu_prot_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_ASI(tl1_immu_miss_patch_asi_1, asi);
+	PATCH_LDD(tl1_immu_miss_patch_quad_ldd_1, ldd);
+	PATCH_TSB(tl1_immu_miss_patch_tsb_1, off);
+	PATCH_TSB(tl1_immu_miss_patch_tsb_2, off);
+	PATCH_TSB(tl1_immu_miss_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB(tl1_immu_miss_patch_tsb_mask_2, tsb_kernel_mask);
 
 	/*
 	 * Enter fake 8k pages for the 4MB kernel pages, so that
@@ -442,9 +531,10 @@ pmap_bootstrap(u_int cpu_impl)
 		va = kernel_tlbs[i].te_va;
 		for (off = 0; off < PAGE_SIZE_4M; off += PAGE_SIZE) {
 			tp = tsb_kvtotte(va + off);
-			tp->tte_vpn = TV_VPN(va + off, TS_8K);
-			tp->tte_data = TD_V | TD_8K | TD_PA(pa + off) |
-			    TD_REF | TD_SW | TD_CP | TD_CV | TD_P | TD_W;
+			vpn = TV_VPN(va + off, TS_8K);
+			data = TD_V | TD_8K | TD_PA(pa + off) | TD_REF |
+			    TD_SW | TD_CP | TD_CV | TD_P | TD_W;
+			pmap_bootstrap_set_tte(tp, vpn, data);
 		}
 	}
 
@@ -485,9 +575,10 @@ pmap_bootstrap(u_int cpu_impl)
 		pa = kstack0_phys + i * PAGE_SIZE;
 		va = kstack0 + i * PAGE_SIZE;
 		tp = tsb_kvtotte(va);
-		tp->tte_vpn = TV_VPN(va, TS_8K);
-		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW |
-		    TD_CP | TD_CV | TD_P | TD_W;
+		vpn = TV_VPN(va, TS_8K);
+		data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW | TD_CP |
+		    TD_CV | TD_P | TD_W;
+		pmap_bootstrap_set_tte(tp, vpn, data);
 	}
 
 	/*
@@ -527,9 +618,8 @@ pmap_bootstrap(u_int cpu_impl)
 		    off += PAGE_SIZE) {
 			va = translations[i].om_start + off;
 			tp = tsb_kvtotte(va);
-			tp->tte_vpn = TV_VPN(va, TS_8K);
-			tp->tte_data =
-			    ((translations[i].om_tte &
+			vpn = TV_VPN(va, TS_8K);
+			data = ((translations[i].om_tte &
 			    ~((TD_SOFT2_MASK << TD_SOFT2_SHIFT) |
 			    (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
 			    cpu_impl < CPU_IMPL_ULTRASPARCIII ?
@@ -537,6 +627,7 @@ pmap_bootstrap(u_int cpu_impl)
 			    (TD_RSVD_CH_MASK << TD_RSVD_CH_SHIFT)) |
 			    (TD_SOFT_MASK << TD_SOFT_SHIFT))) | TD_EXEC) +
 			    off;
+			pmap_bootstrap_set_tte(tp, vpn, data);
 		}
 	}
 
@@ -571,20 +662,17 @@ pmap_bootstrap(u_int cpu_impl)
 	tlb_flush_nonlocked();
 }
 
+/*
+ * Map the 4MB kernel TSB pages.
+ */
 void
 pmap_map_tsb(void)
 {
 	vm_offset_t va;
 	vm_paddr_t pa;
 	u_long data;
-	register_t s;
 	int i;
 
-	s = intr_disable();
-
-	/*
-	 * Map the 4MB TSB pages.
-	 */
 	for (i = 0; i < tsb_kernel_size; i += PAGE_SIZE_4M) {
 		va = (vm_offset_t)tsb_kernel + i;
 		pa = tsb_kernel_phys + i;
@@ -594,16 +682,19 @@ pmap_map_tsb(void)
 		    TLB_TAR_CTX(TLB_CTX_KERNEL));
 		stxa_sync(0, ASI_DTLB_DATA_IN_REG, data);
 	}
+}
 
-	/*
-	 * Set the secondary context to be the kernel context (needed for
-	 * FP block operations in the kernel).
-	 */
+/*
+ * Set the secondary context to be the kernel context (needed for FP block
+ * operations in the kernel).
+ */
+void
+pmap_set_kctx(void)
+{
+
 	stxa(AA_DMMU_SCXR, ASI_DMMU, (ldxa(AA_DMMU_SCXR, ASI_DMMU) &
 	    TLB_CXR_PGSZ_MASK) | TLB_CTX_KERNEL);
 	flush(KERNBASE);
-
-	intr_restore(s);
 }
 
 /*
@@ -626,6 +717,27 @@ pmap_bootstrap_alloc(vm_size_t size, uint32_t colors)
 		return (pa);
 	}
 	panic("pmap_bootstrap_alloc");
+}
+
+/*
+ * Set a TTE.  This function is intended as a helper when tsb_kernel is
+ * direct-mapped but we haven't taken over the trap table, yet, as it's the
+ * case when we are taking advantage of ASI_ATOMIC_QUAD_LDD_PHYS to access
+ * the kernel TSB.
+ */
+void
+pmap_bootstrap_set_tte(struct tte *tp, u_long vpn, u_long data)
+{
+
+	if (tsb_kernel_ldd_phys == 0) {
+		tp->tte_vpn = vpn;
+		tp->tte_data = data;
+	} else {
+		stxa((vm_paddr_t)tp + offsetof(struct tte, tte_vpn),
+		    ASI_PHYS_USE_EC, vpn);
+		stxa((vm_paddr_t)tp + offsetof(struct tte, tte_data),
+		    ASI_PHYS_USE_EC, data);
+	}
 }
 
 /*
