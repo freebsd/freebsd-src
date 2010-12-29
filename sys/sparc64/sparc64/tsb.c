@@ -26,8 +26,10 @@
  * SUCH DAMAGE.
  *
  *	from BSDI: pmap.c,v 1.28.2.15 2000/04/27 03:10:31 cp Exp
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_pmap.h"
@@ -43,7 +45,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#include <vm/vm.h> 
+#include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
@@ -78,6 +80,8 @@ struct tte *tsb_kernel;
 vm_size_t tsb_kernel_mask;
 vm_size_t tsb_kernel_size;
 vm_paddr_t tsb_kernel_phys;
+vm_paddr_t tsb_kernel_phys_end;
+u_int tsb_kernel_ldd_phys;
 
 struct tte *
 tsb_tte_lookup(pmap_t pm, vm_offset_t va)
