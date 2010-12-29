@@ -147,7 +147,7 @@ SRCS+=	${file}.c
 . endif
 .endfor
 
-.if ${MACHINE_CPUARCH} != "sparc64"
+.if ${MACHINE_CPUARCH} != "sparc64" && ${MACHINE_CPUARCH} != "mips"
 . if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=libcompiler_rt.a ${LIBDIR}/libgcc.a
 . endif
