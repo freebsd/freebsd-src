@@ -76,7 +76,7 @@ ufs_inactive(ap)
 	struct thread *td = ap->a_td;
 	mode_t mode;
 	int error = 0;
-	int isize;
+	off_t isize;
 	struct mount *mp;
 
 	mp = NULL;
