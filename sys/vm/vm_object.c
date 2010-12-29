@@ -809,8 +809,6 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 
 	tend = (end == 0) ? object->size : end;
 
-	vm_object_set_flag(object, OBJ_CLEANING);
-
 	/*
 	 * Make the page read-only so we can then clear the object flags.
 	 *
@@ -849,7 +847,6 @@ rescan:
 	VOP_FSYNC(vp, (pagerflags & VM_PAGER_PUT_SYNC) ? MNT_WAIT : 0);
 #endif
 
-	vm_object_clear_flag(object, OBJ_CLEANING);
 	if (clearobjflags && start == 0 && tend == object->size)
 		vm_object_clear_flag(object, OBJ_MIGHTBEDIRTY);
 }
