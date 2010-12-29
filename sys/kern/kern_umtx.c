@@ -243,7 +243,6 @@ static int umtx_key_get(void *addr, int type, int share,
 static void umtx_key_release(struct umtx_key *key);
 static struct umtx_pi *umtx_pi_alloc(int);
 static void umtx_pi_free(struct umtx_pi *pi);
-static void umtx_pi_adjust_locked(struct thread *td, u_char oldpri);
 static int do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags);
 static void umtx_thread_cleanup(struct thread *td);
 static void umtx_exec_hook(void *arg __unused, struct proc *p __unused,
@@ -1428,9 +1427,10 @@ umtx_propagate_priority(struct thread *td)
 		 */
 		uq = td->td_umtxq;
 		pi = uq->uq_pi_blocked;
-		/* Resort td on the list if needed. */
-		if (!umtx_pi_adjust_thread(pi, td))
+		if (pi == NULL)
 			break;
+		/* Resort td on the list if needed. */
+		umtx_pi_adjust_thread(pi, td);
 	}
 }
 
@@ -1439,11 +1439,11 @@ umtx_propagate_priority(struct thread *td)
  * it is interrupted by signal or resumed by others.
  */
 static void
-umtx_unpropagate_priority(struct umtx_pi *pi)
+umtx_repropagate_priority(struct umtx_pi *pi)
 {
 	struct umtx_q *uq, *uq_owner;
 	struct umtx_pi *pi2;
-	int pri, oldpri;
+	int pri;
 
 	mtx_assert(&umtx_lock, MA_OWNED);
 
@@ -1462,12 +1462,10 @@ umtx_unpropagate_priority(struct umtx_pi *pi)
 		if (pri > uq_owner->uq_inherited_pri)
 			pri = uq_owner->uq_inherited_pri;
 		thread_lock(pi->pi_owner);
-		oldpri = pi->pi_owner->td_user_pri;
-		sched_unlend_user_prio(pi->pi_owner, pri);
+		sched_lend_user_prio(pi->pi_owner, pri);
 		thread_unlock(pi->pi_owner);
-		if (uq_owner->uq_pi_blocked != NULL)
-			umtx_pi_adjust_locked(pi->pi_owner, oldpri);
-		pi = uq_owner->uq_pi_blocked;
+		if ((pi = uq_owner->uq_pi_blocked) != NULL)
+			umtx_pi_adjust_thread(pi, uq_owner->uq_thread);
 	}
 }
 
@@ -1524,31 +1522,6 @@ umtx_pi_claim(struct umtx_pi *pi, struct thread *owner)
 	return (0);
 }
 
-static void
-umtx_pi_adjust_locked(struct thread *td, u_char oldpri)
-{
-	struct umtx_q *uq;
-	struct umtx_pi *pi;
-
-	uq = td->td_umtxq;
-	/*
-	 * Pick up the lock that td is blocked on.
-	 */
-	pi = uq->uq_pi_blocked;
-	MPASS(pi != NULL);
-
-	/* Resort the turnstile on the list. */
-	if (!umtx_pi_adjust_thread(pi, td))
-		return;
-
-	/*
-	 * If our priority was lowered and we are at the head of the
-	 * turnstile, then propagate our new priority up the chain.
-	 */
-	if (uq == TAILQ_FIRST(&pi->pi_blocked) && UPRI(td) < oldpri)
-		umtx_propagate_priority(td);
-}
-
 /*
  * Adjust a thread's order position in its blocked PI mutex,
  * this may result new priority propagating process.
@@ -1565,8 +1538,10 @@ umtx_pi_adjust(struct thread *td, u_char oldpri)
 	 * Pick up the lock that td is blocked on.
 	 */
 	pi = uq->uq_pi_blocked;
-	if (pi != NULL)
-		umtx_pi_adjust_locked(td, oldpri);
+	if (pi != NULL) {
+		umtx_pi_adjust_thread(pi, td);
+		umtx_repropagate_priority(pi);
+	}
 	mtx_unlock_spin(&umtx_lock);
 }
 
@@ -1635,7 +1610,7 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 	td->td_flags &= ~TDF_UPIBLOCKED;
 	thread_unlock(td);
 	TAILQ_REMOVE(&pi->pi_blocked, uq, uq_lockq);
-	umtx_unpropagate_priority(pi);
+	umtx_repropagate_priority(pi);
 	mtx_unlock_spin(&umtx_lock);
 	umtxq_unlock(&uq->uq_key);
 
@@ -1937,7 +1912,7 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 			}
 		}
 		thread_lock(curthread);
-		sched_unlend_user_prio(curthread, pri);
+		sched_lend_user_prio(curthread, pri);
 		thread_unlock(curthread);
 		mtx_unlock_spin(&umtx_lock);
 		if (uq_first)
@@ -2062,7 +2037,7 @@ _do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 		if (pri > uq->uq_inherited_pri)
 			pri = uq->uq_inherited_pri;
 		thread_lock(td);
-		sched_unlend_user_prio(td, pri);
+		sched_lend_user_prio(td, pri);
 		thread_unlock(td);
 		mtx_unlock_spin(&umtx_lock);
 	}
@@ -2081,7 +2056,7 @@ _do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 		if (pri > uq->uq_inherited_pri)
 			pri = uq->uq_inherited_pri;
 		thread_lock(td);
-		sched_unlend_user_prio(td, pri);
+		sched_lend_user_prio(td, pri);
 		thread_unlock(td);
 		mtx_unlock_spin(&umtx_lock);
 	}
@@ -2172,7 +2147,7 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags)
 		if (pri > uq->uq_inherited_pri)
 			pri = uq->uq_inherited_pri;
 		thread_lock(td);
-		sched_unlend_user_prio(td, pri);
+		sched_lend_user_prio(td, pri);
 		thread_unlock(td);
 		mtx_unlock_spin(&umtx_lock);
 	}
@@ -3680,6 +3655,6 @@ umtx_thread_cleanup(struct thread *td)
 	}
 	mtx_unlock_spin(&umtx_lock);
 	thread_lock(td);
-	sched_unlend_user_prio(td, PRI_MAX);
+	sched_lend_user_prio(td, PRI_MAX);
 	thread_unlock(td);
 }
