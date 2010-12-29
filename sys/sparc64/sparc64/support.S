@@ -44,19 +44,6 @@ __FBSDID("$FreeBSD$");
 	.register %g3, #ignore
 	.register %g6, #ignore
 
-#define	E	/* empty */
-
-/*
- * Generate load and store instructions for the corresponding width and asi
- * (or not).  Note that we want to evaluate the macro args before
- * concatenating, so that E really turns into nothing.
- */
-#define	_LD(w, a)	ld ## w ## a
-#define	_ST(w, a)	st ## w ## a
-
-#define	LD(w, a)	_LD(w, a)
-#define	ST(w, a)	_ST(w, a)
-
 /*
  * Common code for copy routines.
  *
@@ -233,7 +220,7 @@ END(ascopy)
  */
 ENTRY(ascopyfrom)
 	wr	%o0, 0, %asi
-	_MEMCPY(%o2, %o1, %o3, E, E, a, %asi)
+	_MEMCPY(%o2, %o1, %o3, EMPTY, EMPTY, a, %asi)
 	retl
 	 nop
 END(ascopyfrom)
@@ -243,7 +230,7 @@ END(ascopyfrom)
  */
 ENTRY(ascopyto)
 	wr	%o1, 0, %asi
-	_MEMCPY(%o2, %o0, %o3, a, %asi, E, E)
+	_MEMCPY(%o2, %o0, %o3, a, %asi, EMPTY, EMPTY)
 	retl
 	 nop
 END(ascopyto)
@@ -307,7 +294,7 @@ ENTRY(bcopy)
 	/*
 	 * Do the fast version.
 	 */
-3:	_MEMCPY(%o1, %o0, %o2, E, E, E, E)
+3:	_MEMCPY(%o1, %o0, %o2, EMPTY, EMPTY, EMPTY, EMPTY)
 	retl
 	 nop
 END(bcopy)
@@ -316,7 +303,7 @@ END(bcopy)
  * void bzero(void *b, size_t len)
  */
 ENTRY(bzero)
-	_MEMSET(%o0, %g0, %o1, E, E)
+	_MEMSET(%o0, %g0, %o1, EMPTY, EMPTY)
 	retl
 	 nop
 END(bzero)
@@ -325,7 +312,7 @@ END(bzero)
  * int copystr(const void *src, void *dst, size_t len, size_t *done)
  */
 ENTRY(copystr)
-	_COPYSTR(%o0, %o1, %o2, %o3, E, E, E, E)
+	_COPYSTR(%o0, %o1, %o2, %o3, EMPTY, EMPTY, EMPTY, EMPTY)
 	retl
 	 mov	%g1, %o0
 END(copystr)
@@ -335,7 +322,7 @@ END(copystr)
  */
 ENTRY(memcpy)
 	mov	%o0, %o3
-	_MEMCPY(%o3, %o1, %o2, E, E, E, E)
+	_MEMCPY(%o3, %o1, %o2, EMPTY, EMPTY, EMPTY, EMPTY)
 	retl
 	 nop
 END(memcpy)
@@ -345,7 +332,7 @@ END(memcpy)
  */
 ENTRY(memset)
 	mov	%o0, %o3
-	_MEMSET(%o3, %o1, %o2, E, E)
+	_MEMSET(%o3, %o1, %o2, EMPTY, EMPTY)
 	retl
 	 nop
 END(memset)
@@ -359,7 +346,7 @@ copy_nofault_begin:
  */
 ENTRY(copyin)
 	wr	%g0, ASI_AIUP, %asi
-	_MEMCPY(%o1, %o0, %o2, E, E, a, %asi)
+	_MEMCPY(%o1, %o0, %o2, EMPTY, EMPTY, a, %asi)
 	retl
 	 clr	%o0
 END(copyin)
@@ -369,7 +356,7 @@ END(copyin)
  */
 ENTRY(copyinstr)
 	wr	%g0, ASI_AIUP, %asi
-	_COPYSTR(%o0, %o1, %o2, %o3, a, %asi, E, E)
+	_COPYSTR(%o0, %o1, %o2, %o3, a, %asi, EMPTY, EMPTY)
 	retl
 	 mov	%g1, %o0
 END(copyinstr)
@@ -379,7 +366,7 @@ END(copyinstr)
  */
 ENTRY(copyout)
 	wr	%g0, ASI_AIUP, %asi
-	_MEMCPY(%o1, %o0, %o2, a, %asi, E, E)
+	_MEMCPY(%o1, %o0, %o2, a, %asi, EMPTY, EMPTY)
 	retl
 	 clr	%o0
 END(copyout)
