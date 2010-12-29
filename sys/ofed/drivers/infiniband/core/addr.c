@@ -427,17 +427,21 @@ static int addr_resolve(struct sockaddr *src_in,
 	}
 	/*
 	 * If it's not multicast or broadcast and the route doesn't match the
-	 * requested interface return unreachable.
+	 * requested interface return unreachable.  Otherwise fetch the
+	 * correct interface pointer and unlock the route.
 	 */
 	if (multi || bcast) {
+		if (ifp == NULL)
+			ifp = rte->rt_ifp;
 		RTFREE_LOCKED(rte);
 	} else if (ifp && ifp != rte->rt_ifp) {
 		RTFREE_LOCKED(rte);
 		return -ENETUNREACH;
-	} else
+	} else {
+		if (ifp == NULL)
+			ifp = rte->rt_ifp;
 		RT_UNLOCK(rte);
-	if (ifp == NULL)
-		ifp = rte->rt_ifp;
+	}
 mcast:
 	if (bcast)
 		return rdma_copy_addr(addr, ifp, ifp->if_broadcastaddr);
@@ -584,17 +588,19 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
 
-#ifdef __linux__
-/* XXX Need this callback to reduce timeout time. */
 static int netevent_callback(struct notifier_block *self, unsigned long event,
 	void *ctx)
 {
 	if (event == NETEVENT_NEIGH_UPDATE) {
+#ifdef __linux__
 		struct neighbour *neigh = ctx;
 
 		if (neigh->nud_state & NUD_VALID) {
 			set_timeout(jiffies);
 		}
+#else
+		set_timeout(jiffies);
+#endif
 	}
 	return 0;
 }
@@ -602,7 +608,6 @@ static int netevent_callback(struct notifier_block *self, unsigned long event,
 static struct notifier_block nb = {
 	.notifier_call = netevent_callback
 };
-#endif
 
 static int addr_init(void)
 {
@@ -611,17 +616,13 @@ static int addr_init(void)
 	if (!addr_wq)
 		return -ENOMEM;
 
-#ifdef __linux__
 	register_netevent_notifier(&nb);
-#endif
 	return 0;
 }
 
 static void addr_cleanup(void)
 {
-#ifdef __linux__
 	unregister_netevent_notifier(&nb);
-#endif
 	destroy_workqueue(addr_wq);
 }
 

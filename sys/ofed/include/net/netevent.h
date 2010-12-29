@@ -25,3 +25,47 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#ifndef	_LINUX_NET_NETEVENT_H_
+#define	_LINUX_NET_NETEVENT_H_
+
+#include <netinet/if_ether.h>
+
+enum netevent_notif_type {
+	NETEVENT_NEIGH_UPDATE = 0,
+#if 0 /* Unsupported events. */
+        NETEVENT_PMTU_UPDATE,
+        NETEVENT_REDIRECT,
+#endif
+};
+
+struct llentry;
+
+static inline void
+_handle_arp_update_event(void *arg, struct llentry *lle)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETEVENT_NEIGH_UPDATE, lle);
+}
+
+static inline int
+register_netevent_notifier(struct notifier_block *nb)
+{
+	nb->tags[NETEVENT_NEIGH_UPDATE] = EVENTHANDLER_REGISTER(
+	    arp_update_event, _handle_arp_update_event, nb, 0);
+	return (0);
+}
+
+static inline int
+unregister_netevent_notifier(struct notifier_block *nb)
+{
+
+	EVENTHANDLER_DEREGISTER(arp_update_event,
+	    nb->tags[NETEVENT_NEIGH_UPDATE]);
+
+	return (0);
+}
+
+#endif /* _LINUX_NET_NETEVENT_H_ */
