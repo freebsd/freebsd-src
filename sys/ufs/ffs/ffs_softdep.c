@@ -6140,17 +6140,20 @@ indir_trunc(freework, dbn, lbn)
 		ufs1fmt = 0;
 		bap2 = (ufs2_daddr_t *)bp->b_data;
 	}
+
+	if (needj)
+		freework->fw_ref += NINDIR(fs) + 1;
+
 	/*
 	 * Reclaim indirect blocks which never made it to disk.
 	 */
 	cnt = 0;
 	LIST_FOREACH_SAFE(wk, &wkhd, wk_list, wkn) {
-		struct workhead freewk;
 		if (wk->wk_type != D_JNEWBLK)
 			continue;
-		WORKLIST_REMOVE_UNLOCKED(wk);
-		LIST_INIT(&freewk);
-		WORKLIST_INSERT_UNLOCKED(&freewk, wk);
+		ACQUIRE_LOCK(&lk);
+		WORKLIST_REMOVE(wk);
+		FREE_LOCK(&lk);
 		jnewblk = WK_JNEWBLK(wk);
 		if (jnewblk->jn_lbn > 0)
 			i = (jnewblk->jn_lbn - -lbn) / lbnadd;
@@ -6158,8 +6161,8 @@ indir_trunc(freework, dbn, lbn)
 			i = (-(jnewblk->jn_lbn + level - 1) - -(lbn + level)) /
 			    lbnadd;
 		KASSERT(i >= 0 && i < NINDIR(fs),
-		    ("indir_trunc: Index out of range %d parent %jd lbn %jd",
-		    i, lbn, jnewblk->jn_lbn));
+		    ("indir_trunc: Index out of range %d parent %jd lbn %jd level %d",
+		    i, lbn, jnewblk->jn_lbn, level));
 		/* Clear the pointer so it isn't found below. */
 		if (ufs1fmt) {
 			nb = bap1[i];
@@ -6171,13 +6174,29 @@ indir_trunc(freework, dbn, lbn)
 		KASSERT(nb == jnewblk->jn_blkno,
 		    ("indir_trunc: Block mismatch %jd != %jd",
 		    nb, jnewblk->jn_blkno));
-		ffs_blkfree(ump, fs, freeblks->fb_devvp, jnewblk->jn_blkno,
-		    fs->fs_bsize, freeblks->fb_previousinum, &freewk);
+		if (level != 0) {
+			ufs_lbn_t nlbn;
+
+			nlbn = (lbn + 1) - (i * lbnadd);
+			nfreework = newfreework(freeblks, freework,
+			    nlbn, nb, fs->fs_frag, 0);
+			WORKLIST_INSERT_UNLOCKED(&nfreework->fw_jwork, wk);
+			freedeps++;
+			indir_trunc(nfreework, fsbtodb(fs, nb), nlbn);
+		} else {
+			struct workhead freewk;
+
+			LIST_INIT(&freewk);
+			ACQUIRE_LOCK(&lk);
+			WORKLIST_INSERT(&freewk, wk);
+			FREE_LOCK(&lk);
+			ffs_blkfree(ump, fs, freeblks->fb_devvp,
+			    jnewblk->jn_blkno, fs->fs_bsize,
+			    freeblks->fb_previousinum, &freewk);
+		}
 		cnt++;
 	}
 	ACQUIRE_LOCK(&lk);
-	if (needj)
-		freework->fw_ref += NINDIR(fs) + 1;
 	/* Any remaining journal work can be completed with freeblks. */
 	jwork_move(&freeblks->fb_jwork, &wkhd);
 	FREE_LOCK(&lk);
