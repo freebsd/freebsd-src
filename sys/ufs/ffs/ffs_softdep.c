@@ -6918,7 +6918,7 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	 * newdirrem() to setup the full directory remove which requires
 	 * isrmdir > 1.
 	 */
-	dirrem = newdirrem(bp, dp, ip, isrmdir?2:0, &prevdirrem);
+	dirrem = newdirrem(bp, dp, ip, isrmdir, &prevdirrem);
 	/*
 	 * Add the dirrem to the inodedep's pending remove list for quick
 	 * discovery later.
@@ -7152,14 +7152,12 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 			    ip->i_effnlink + 2);
 			dotremref = newjremref(dirrem, ip, ip, DOT_OFFSET,
 			    ip->i_effnlink + 1);
-		} else
-			jremref = newjremref(dirrem, dp, ip, dp->i_offset,
-			    ip->i_effnlink + 1);
-		if (isrmdir > 1) {
 			dotdotremref = newjremref(dirrem, ip, dp, DOTDOT_OFFSET,
 			    dp->i_effnlink + 1);
 			dotdotremref->jr_state |= MKDIR_PARENT;
-		}
+		} else
+			jremref = newjremref(dirrem, dp, ip, dp->i_offset,
+			    ip->i_effnlink + 1);
 	}
 	ACQUIRE_LOCK(&lk);
 	lbn = lblkno(dp->i_fs, dp->i_offset);
@@ -7184,7 +7182,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * cancel it.  Any pending journal work will be added to the dirrem
 	 * to be completed when the workitem remove completes.
 	 */
-	if (isrmdir > 1)
+	if (isrmdir)
 		dotdotremref = cancel_diradd_dotdot(ip, dirrem, dotdotremref);
 	/*
 	 * Check for a diradd dependency for the same directory entry.

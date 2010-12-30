@@ -1497,7 +1497,9 @@ relock:
 			/* Don't go to bad here as the new link exists. */
 			if (error)
 				goto unlockout;
-		}
+		} else if (DOINGSUJ(tdvp))
+			/* Journal must account for each new link. */
+			softdep_setup_dotdot_link(tdp, fip);
 		fip->i_offset = mastertemplate.dot_reclen;
 		ufs_dirrewrite(fip, fdp, newparent, DT_DIR, 0);
 		cache_purge(fdvp);
