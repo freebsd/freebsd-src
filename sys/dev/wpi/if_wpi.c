@@ -1052,9 +1052,18 @@ wpi_free_rx_ring(struct wpi_softc *sc, struct wpi_rx_ring *ring)
 
 	wpi_dma_contig_free(&ring->desc_dma);
 
-	for (i = 0; i < WPI_RX_RING_COUNT; i++)
-		if (ring->data[i].m != NULL)
-			m_freem(ring->data[i].m);
+	for (i = 0; i < WPI_RX_RING_COUNT; i++) {
+		struct wpi_rx_data *data = &ring->data[i];
+
+		if (data->m != NULL) {
+			bus_dmamap_sync(ring->data_dmat, data->map,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(ring->data_dmat, data->map);
+			m_freem(data->m);
+		}
+		if (data->map != NULL)
+			bus_dmamap_destroy(ring->data_dmat, data->map);
+	}
 }
 
 static int
@@ -1461,6 +1470,7 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		return;
 	}
 
+	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	head = (struct wpi_rx_head *)((caddr_t)(stat + 1) + stat->len);
 	tail = (struct wpi_rx_tail *)((caddr_t)(head + 1) + le16toh(head->len));
 
@@ -1491,6 +1501,8 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		ifp->if_ierrors++;
 		return;
 	}
+	bus_dmamap_unload(ring->data_dmat, data->map);
+
 	error = bus_dmamap_load(ring->data_dmat, data->map,
 	    mtod(mnew, caddr_t), MJUMPAGESIZE,
 	    wpi_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
