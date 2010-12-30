@@ -2922,14 +2922,15 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 			net = lchk->whoTo;
 			break;
 		}
-		if (compare_with_wrap(lchk->rec.data.TSN_seq, tsn, MAX_TSN))
+		if (SCTP_TSN_GT(lchk->rec.data.TSN_seq, tsn)) {
 			break;
+		}
 	}
 	if (net == NULL)
 		/* default is we use the primary */
 		net = stcb->asoc.primary_destination;
 
-	if (compare_with_wrap(tsn, stcb->asoc.last_cwr_tsn, MAX_TSN)) {
+	if (SCTP_TSN_GT(tsn, stcb->asoc.last_cwr_tsn)) {
 		/*
 		 * JRS - Use the congestion control given in the pluggable
 		 * CC module
@@ -2970,8 +2971,7 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb)
 		 * don't need to worry about more than one!
 		 */
 		ecne = mtod(chk->data, struct sctp_ecne_chunk *);
-		if (compare_with_wrap(ntohl(cp->tsn), ntohl(ecne->tsn),
-		    MAX_TSN) || (cp->tsn == ecne->tsn)) {
+		if (SCTP_TSN_GE(ntohl(cp->tsn), ntohl(ecne->tsn))) {
 			/* this covers this ECNE, we can remove it */
 			stcb->asoc.ecn_echo_cnt_onq--;
 			TAILQ_REMOVE(&stcb->asoc.control_send_queue, chk,
@@ -3060,8 +3060,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 					/* found it */
 					break;
 				}
-				if (compare_with_wrap(tp1->rec.data.TSN_seq, tsn,
-				    MAX_TSN)) {
+				if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, tsn)) {
 					/* not found */
 					tp1 = NULL;
 					break;
@@ -3668,8 +3667,7 @@ sctp_handle_str_reset_request_out(struct sctp_tcb *stcb,
 		if (trunc) {
 			sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_DENIED);
 			asoc->last_reset_action[0] = SCTP_STREAM_RESET_DENIED;
-		} else if ((tsn == asoc->cumulative_tsn) ||
-		    (compare_with_wrap(asoc->cumulative_tsn, tsn, MAX_TSN))) {
+		} else if (SCTP_TSN_GE(asoc->cumulative_tsn, tsn)) {
 			/* we can do it now */
 			sctp_reset_in_stream(stcb, number_entries, req->list_of_streams);
 			sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_PERFORMED);
@@ -4613,8 +4611,7 @@ process_control_chunks:
 				stcb->asoc.seen_a_sack_this_pkt = 1;
 				if ((stcb->asoc.pr_sctp_cnt == 0) &&
 				    (num_seg == 0) &&
-				    ((compare_with_wrap(cum_ack, stcb->asoc.last_acked_seq, MAX_TSN)) ||
-				    (cum_ack == stcb->asoc.last_acked_seq)) &&
+				    SCTP_TSN_GE(cum_ack, stcb->asoc.last_acked_seq) &&
 				    (stcb->asoc.saw_sack_with_frags == 0) &&
 				    (stcb->asoc.saw_sack_with_nr_frags == 0) &&
 				    (!TAILQ_EMPTY(&stcb->asoc.sent_queue))
@@ -4707,8 +4704,7 @@ process_control_chunks:
 				stcb->asoc.seen_a_sack_this_pkt = 1;
 				if ((stcb->asoc.pr_sctp_cnt == 0) &&
 				    (num_seg == 0) && (num_nr_seg == 0) &&
-				    ((compare_with_wrap(cum_ack, stcb->asoc.last_acked_seq, MAX_TSN)) ||
-				    (cum_ack == stcb->asoc.last_acked_seq)) &&
+				    SCTP_TSN_GE(cum_ack, stcb->asoc.last_acked_seq) &&
 				    (stcb->asoc.saw_sack_with_frags == 0) &&
 				    (stcb->asoc.saw_sack_with_nr_frags == 0) &&
 				    (!TAILQ_EMPTY(&stcb->asoc.sent_queue))) {
@@ -5353,8 +5349,7 @@ sctp_process_ecn_marked_a(struct sctp_tcb *stcb, struct sctp_nets *net,
 		 * don't want the point falling way behind by more than
 		 * 2^^31 and then having it be incorrect.
 		 */
-		if (compare_with_wrap(stcb->asoc.cumulative_tsn,
-		    stcb->asoc.last_echo_tsn, MAX_TSN)) {
+		if (SCTP_TSN_GT(stcb->asoc.cumulative_tsn, stcb->asoc.last_echo_tsn)) {
 			stcb->asoc.last_echo_tsn = stcb->asoc.cumulative_tsn;
 		}
 	} else if ((ecn_bits & SCTP_ECT0_BIT) == SCTP_ECT0_BIT) {
@@ -5363,8 +5358,7 @@ sctp_process_ecn_marked_a(struct sctp_tcb *stcb, struct sctp_nets *net,
 		 * don't want the point falling way behind by more than
 		 * 2^^31 and then having it be incorrect.
 		 */
-		if (compare_with_wrap(stcb->asoc.cumulative_tsn,
-		    stcb->asoc.last_echo_tsn, MAX_TSN)) {
+		if (SCTP_TSN_GT(stcb->asoc.cumulative_tsn, stcb->asoc.last_echo_tsn)) {
 			stcb->asoc.last_echo_tsn = stcb->asoc.cumulative_tsn;
 		}
 	}
@@ -5381,8 +5375,7 @@ sctp_process_ecn_marked_b(struct sctp_tcb *stcb, struct sctp_nets *net,
 		 * chunk to the output chunk queue. The incoming CWR will
 		 * remove this chunk.
 		 */
-		if (compare_with_wrap(high_tsn, stcb->asoc.last_echo_tsn,
-		    MAX_TSN)) {
+		if (SCTP_TSN_GT(high_tsn, stcb->asoc.last_echo_tsn)) {
 			/* Yep, we need to add a ECNE */
 			sctp_send_ecn_echo(stcb, net, high_tsn);
 			stcb->asoc.last_echo_tsn = high_tsn;
@@ -5621,12 +5614,12 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 		int was_a_gap;
 		uint32_t highest_tsn;
 
-		if (compare_with_wrap(stcb->asoc.highest_tsn_inside_nr_map, stcb->asoc.highest_tsn_inside_map, MAX_TSN)) {
+		if (SCTP_TSN_GT(stcb->asoc.highest_tsn_inside_nr_map, stcb->asoc.highest_tsn_inside_map)) {
 			highest_tsn = stcb->asoc.highest_tsn_inside_nr_map;
 		} else {
 			highest_tsn = stcb->asoc.highest_tsn_inside_map;
 		}
-		was_a_gap = compare_with_wrap(highest_tsn, stcb->asoc.cumulative_tsn, MAX_TSN);
+		was_a_gap = SCTP_TSN_GT(highest_tsn, stcb->asoc.cumulative_tsn);
 		stcb->asoc.send_sack = 1;
 		sctp_sack_check(stcb, was_a_gap, &abort_flag);
 		if (abort_flag) {
