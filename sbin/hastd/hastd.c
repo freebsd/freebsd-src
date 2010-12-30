@@ -619,6 +619,9 @@ main_loop(void)
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGCHLD) == 0);
 
+	pjdlog_info("Started successfully, running protocol version %d.",
+	    HAST_PROTO_VERSION);
+
 	for (;;) {
 		while ((signo = sigtimedwait(&mask, NULL, &sigtimeout)) != -1) {
 			switch (signo) {
