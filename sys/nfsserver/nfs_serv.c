@@ -213,8 +213,7 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	tl = nfsm_dissect_nonblock(u_int32_t *, NFSX_UNSIGNED);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		nfsm_srvpostop_attr(1, NULL);
@@ -280,8 +279,7 @@ nfsrv_getattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vfslocked = 0;
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp, nam,
-	    &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(0);
 		error = 0;
@@ -389,8 +387,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	/*
 	 * Now that we have all the fields, lets do it.
 	 */
-	error = nfsrv_fhtovp(fhp, 1, &vp, &tvfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &tvfslocked, nfsd, slp, nam, &rdonly);
 	vfslocked = nfsrv_lockedpair(vfslocked, tvfslocked);
 	if (error) {
 		nfsm_reply(2 * NFSX_UNSIGNED);
@@ -712,8 +709,7 @@ nfsrv_readlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	uiop->uio_rw = UIO_READ;
 	uiop->uio_segflg = UIO_SYSSPACE;
 	uiop->uio_td = NULL;
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(2 * NFSX_UNSIGNED);
 		if (v3)
@@ -808,8 +804,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 * as well.
 	 */
 
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		vp = NULL;
 		nfsm_reply(2 * NFSX_UNSIGNED);
@@ -1109,8 +1104,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	error = nfsrv_fhtovp(fhp, 1, &vp, &tvfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &tvfslocked, nfsd, slp, nam, &rdonly);
 	vfslocked = nfsrv_lockedpair(vfslocked, tvfslocked);
 	if (error) {
 		vp = NULL;
@@ -2102,8 +2096,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsm_srvmtofh(dfhp);
 	nfsm_srvnamesiz(len);
 
-	error = nfsrv_fhtovp(fhp, TRUE, &vp, &tvfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &tvfslocked, nfsd, slp, nam, &rdonly);
 	vfslocked = nfsrv_lockedpair(vfslocked, tvfslocked);
 	if (error) {
 		nfsm_reply(NFSX_POSTOPATTR(v3) + NFSX_WCCDATA(v3));
@@ -2744,7 +2737,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	u_quad_t off, toff, verf;
 	u_long *cookies = NULL, *cookiep; /* needs to be int64_t or off_t */
-	int vfslocked;
+	int vfslocked, not_zfs;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	vfslocked = 0;
@@ -2770,8 +2763,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (siz > xfer)
 		siz = xfer;
 	fullsiz = siz;
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (!error && vp->v_type != VDIR) {
 		error = ENOTDIR;
 		vput(vp);
@@ -2809,6 +2801,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
+	not_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs") != 0;
 	VOP_UNLOCK(vp, 0);
 
 	/*
@@ -2826,11 +2819,11 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_td = NULL;
 	eofflag = 0;
-	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
 		cookies = NULL;
 	}
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_READDIR(vp, &io, cred, &eofflag, &ncookies, &cookies);
 	off = (off_t)io.uio_offset;
 	if (!cookies && !error)
@@ -2895,10 +2888,12 @@ again:
 	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
+	 * Since the offset cookies don't monotonically increase for ZFS,
+	 * this is not done when ZFS is the file system.
 	 */
 	while (cpos < cend && ncookies > 0 &&
 		(dp->d_fileno == 0 || dp->d_type == DT_WHT ||
-		 ((u_quad_t)(*cookiep)) <= toff)) {
+		 (not_zfs != 0 && ((u_quad_t)(*cookiep)) <= toff))) {
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
@@ -3044,9 +3039,12 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	int usevget = 1, vfslocked;
 	struct componentname cn;
+	struct mount *mntp = NULL;
+	int not_zfs;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	vfslocked = 0;
+	vp_locked = 0;
 	if (!v3)
 		panic("nfsrv_readdirplus: v3 proc called on a v2 connection");
 	fhp = &nfh.fh_generic;
@@ -3066,14 +3064,17 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (siz > xfer)
 		siz = xfer;
 	fullsiz = siz;
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
-	vp_locked = 1;
-	if (!error && vp->v_type != VDIR) {
-		error = ENOTDIR;
-		vput(vp);
-		vp = NULL;
-		vp_locked = 0;
+	error = nfsrv_fhtovp(fhp, NFSRV_FLAG_BUSY, &vp, &vfslocked, nfsd, slp,
+	    nam, &rdonly);
+	if (!error) {
+		vp_locked = 1;
+		mntp = vp->v_mount;
+		if (vp->v_type != VDIR) {
+			error = ENOTDIR;
+			vput(vp);
+			vp = NULL;
+			vp_locked = 0;
+		}
 	}
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
@@ -3100,6 +3101,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
+	not_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs") != 0;
 	VOP_UNLOCK(vp, 0);
 	vp_locked = 0;
 	rbuf = malloc(siz, M_TEMP, M_WAITOK);
@@ -3114,12 +3116,12 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_td = NULL;
 	eofflag = 0;
-	vn_lock(vp, LK_SHARED | LK_RETRY);
 	vp_locked = 1;
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
 		cookies = NULL;
 	}
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_READDIR(vp, &io, cred, &eofflag, &ncookies, &cookies);
 	off = (u_quad_t)io.uio_offset;
 	getret = VOP_GETATTR(vp, &at, cred);
@@ -3179,10 +3181,12 @@ again:
 	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
+	 * Since the offset cookies don't monotonically increase for ZFS,
+	 * this is not done when ZFS is the file system.
 	 */
 	while (cpos < cend && ncookies > 0 &&
 		(dp->d_fileno == 0 || dp->d_type == DT_WHT ||
-		 ((u_quad_t)(*cookiep)) <= toff)) {
+		 (not_zfs != 0 && ((u_quad_t)(*cookiep)) <= toff))) {
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
@@ -3215,8 +3219,8 @@ again:
 				 * For readdir_and_lookup get the vnode using
 				 * the file number.
 				 */
-				error = VFS_VGET(vp->v_mount, dp->d_fileno,
-				    LK_SHARED, &nvp);
+				error = VFS_VGET(mntp, dp->d_fileno, LK_SHARED,
+				    &nvp);
 				if (error != 0 && error != EOPNOTSUPP) {
 					error = 0;
 					goto invalid;
@@ -3375,6 +3379,8 @@ invalid:
 nfsmout:
 	if (vp)
 		vrele(vp);
+	if (mntp)
+		vfs_unbusy(mntp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return(error);
 }
@@ -3426,8 +3432,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	off = fxdr_hyper(tl);
 	tl += 2;
 	cnt = fxdr_unsigned(int, *tl);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &tvfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &tvfslocked, nfsd, slp, nam, &rdonly);
 	vfslocked = nfsrv_lockedpair(vfslocked, tvfslocked);
 	if (error) {
 		nfsm_reply(2 * NFSX_UNSIGNED);
@@ -3571,8 +3576,7 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vfslocked = 0;
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		if (v3)
@@ -3666,8 +3670,7 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhp = &nfh.fh_generic;
 	vfslocked = 0;
 	nfsm_srvmtofh(fhp);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		nfsm_srvpostop_attr(getret, &at);
@@ -3741,8 +3744,7 @@ nfsrv_pathconf(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vfslocked = 0;
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
-	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, nfsd, slp,
-	    nam, &rdonly, TRUE);
+	error = nfsrv_fhtovp(fhp, 0, &vp, &vfslocked, nfsd, slp, nam, &rdonly);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		nfsm_srvpostop_attr(getret, &at);
