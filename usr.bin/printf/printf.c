@@ -58,7 +58,6 @@ static const char rcsid[] =
 #ifdef SHELL
 #define main printfcmd
 #include "bltin/bltin.h"
-#include "memalloc.h"
 #include "error.h"
 #endif
 
@@ -256,11 +255,7 @@ printf_doformat(char *start, int *rval)
 		char *p;
 		int getout;
 
-#ifdef SHELL
-		p = savestr(getstr());
-#else
 		p = strdup(getstr());
-#endif
 		if (p == NULL) {
 			warnx("%s", strerror(ENOMEM));
 			return (NULL);
@@ -269,11 +264,7 @@ printf_doformat(char *start, int *rval)
 		*(fmt - 1) = 's';
 		PF(start, p);
 		*(fmt - 1) = 'b';
-#ifdef SHELL
-		ckfree(p);
-#else
 		free(p);
-#endif
 		if (getout)
 			return (fmt);
 		break;
@@ -342,11 +333,7 @@ mknum(char *str, char ch)
 	len = strlen(str) + 2;
 	if (len > copy_size) {
 		newlen = ((len + 1023) >> 10) << 10;
-#ifdef SHELL
-		if ((newcopy = ckrealloc(copy, newlen)) == NULL)
-#else
 		if ((newcopy = realloc(copy, newlen)) == NULL)
-#endif
 		{
 			warnx("%s", strerror(ENOMEM));
 			return (NULL);

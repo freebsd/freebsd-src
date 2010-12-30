@@ -57,7 +57,7 @@ sctp_early_fr_timer(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
-	struct sctp_tmit_chunk *chk, *tp2;
+	struct sctp_tmit_chunk *chk, *pchk;
 	struct timeval now, min_wait, tv;
 	unsigned int cur_rtt, cnt = 0, cnt_resend = 0;
 
@@ -88,9 +88,7 @@ sctp_early_fr_timer(struct sctp_inpcb *inp,
 		 */
 		min_wait.tv_sec = min_wait.tv_usec = 0;
 	}
-	chk = TAILQ_LAST(&stcb->asoc.sent_queue, sctpchunk_listhead);
-	for (; chk != NULL; chk = tp2) {
-		tp2 = TAILQ_PREV(chk, sctpchunk_listhead, sctp_next);
+	TAILQ_FOREACH_REVERSE_SAFE(chk, &stcb->asoc.sent_queue, sctpchunk_listhead, sctp_next, pchk) {
 		if (chk->whoTo != net) {
 			continue;
 		}
@@ -574,20 +572,14 @@ sctp_backoff_on_timeout(struct sctp_tcb *stcb,
 static void
 sctp_recover_sent_list(struct sctp_tcb *stcb)
 {
-	struct sctp_tmit_chunk *chk, *tp2;
+	struct sctp_tmit_chunk *chk, *nchk;
 	struct sctp_association *asoc;
 
 	asoc = &stcb->asoc;
-	chk = TAILQ_FIRST(&stcb->asoc.sent_queue);
-	for (; chk != NULL; chk = tp2) {
-		tp2 = TAILQ_NEXT(chk, sctp_next);
-		if ((compare_with_wrap(stcb->asoc.last_acked_seq,
-		    chk->rec.data.TSN_seq,
-		    MAX_TSN)) ||
-		    (stcb->asoc.last_acked_seq == chk->rec.data.TSN_seq)) {
-
+	TAILQ_FOREACH_SAFE(chk, &asoc->sent_queue, sctp_next, nchk) {
+		if (SCTP_TSN_GE(asoc->last_acked_seq, chk->rec.data.TSN_seq)) {
 			SCTP_PRINTF("Found chk:%p tsn:%x <= last_acked_seq:%x\n",
-			    chk, chk->rec.data.TSN_seq, stcb->asoc.last_acked_seq);
+			    chk, chk->rec.data.TSN_seq, asoc->last_acked_seq);
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
 			if (chk->pr_sctp_on) {
 				if (asoc->pr_sctp_cnt != 0)
@@ -597,19 +589,17 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 				/* sa_ignore NO_NULL_CHK */
 				sctp_free_bufspace(stcb, asoc, chk, 1);
 				sctp_m_freem(chk->data);
+				chk->data = NULL;
 				if (asoc->peer_supports_prsctp && PR_SCTP_BUF_ENABLED(chk->flags)) {
 					asoc->sent_queue_cnt_removeable--;
 				}
 			}
-			chk->data = NULL;
 			asoc->sent_queue_cnt--;
 			sctp_free_a_chunk(stcb, chk);
 		}
 	}
 	SCTP_PRINTF("after recover order is as follows\n");
-	chk = TAILQ_FIRST(&stcb->asoc.sent_queue);
-	for (; chk != NULL; chk = tp2) {
-		tp2 = TAILQ_NEXT(chk, sctp_next);
+	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
 		SCTP_PRINTF("chk:%p TSN:%x\n", chk, chk->rec.data.TSN_seq);
 	}
 }
@@ -631,7 +621,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	 * We only mark chunks that have been outstanding long enough to
 	 * have received feed-back.
 	 */
-	struct sctp_tmit_chunk *chk, *tp2;
+	struct sctp_tmit_chunk *chk, *nchk;
 	struct sctp_nets *lnets;
 	struct timeval now, min_wait, tv;
 	int cur_rtt;
@@ -697,13 +687,8 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 #ifndef INVARIANTS
 start_again:
 #endif
-	chk = TAILQ_FIRST(&stcb->asoc.sent_queue);
-	for (; chk != NULL; chk = tp2) {
-		tp2 = TAILQ_NEXT(chk, sctp_next);
-		if ((compare_with_wrap(stcb->asoc.last_acked_seq,
-		    chk->rec.data.TSN_seq,
-		    MAX_TSN)) ||
-		    (stcb->asoc.last_acked_seq == chk->rec.data.TSN_seq)) {
+	TAILQ_FOREACH_SAFE(chk, &stcb->asoc.sent_queue, sctp_next, nchk) {
+		if (SCTP_TSN_GE(stcb->asoc.last_acked_seq, chk->rec.data.TSN_seq)) {
 			/* Strange case our list got out of order? */
 			SCTP_PRINTF("Our list is out of order? last_acked:%x chk:%x",
 			    (unsigned int)stcb->asoc.last_acked_seq, (unsigned int)chk->rec.data.TSN_seq);
@@ -1158,8 +1143,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 
 		lchk = sctp_try_advance_peer_ack_point(stcb, &stcb->asoc);
 		/* C3. See if we need to send a Fwd-TSN */
-		if (compare_with_wrap(stcb->asoc.advanced_peer_ack_point,
-		    stcb->asoc.last_acked_seq, MAX_TSN)) {
+		if (SCTP_TSN_GT(stcb->asoc.advanced_peer_ack_point, stcb->asoc.last_acked_seq)) {
 			/*
 			 * ISSUE with ECN, see FWD-TSN processing for notes
 			 * on issues that will occur when the ECN NONCE
@@ -1369,7 +1353,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
 	struct sctp_nets *alt;
-	struct sctp_tmit_chunk *asconf, *chk, *nchk;
+	struct sctp_tmit_chunk *asconf, *chk;
 
 	/* is this a first send, or a retransmission? */
 	if (TAILQ_EMPTY(&stcb->asoc.asconf_send_queue)) {
@@ -1427,8 +1411,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				atomic_add_int(&alt->ref_count, 1);
 			}
 		}
-		for (chk = asconf; chk; chk = nchk) {
-			nchk = TAILQ_NEXT(chk, sctp_next);
+		TAILQ_FOREACH(chk, &stcb->asoc.asconf_send_queue, sctp_next) {
 			if (chk->whoTo != alt) {
 				sctp_free_remote_addr(chk->whoTo);
 				chk->whoTo = alt;

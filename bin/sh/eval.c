@@ -94,6 +94,7 @@ static void evalsubshell(union node *, int);
 static void evalredir(union node *, int);
 static void expredir(union node *);
 static void evalpipe(union node *);
+static int is_valid_fast_cmdsubst(union node *n);
 static void evalcommand(union node *, int, struct backcmd *);
 static void prehash(union node *);
 
@@ -565,6 +566,19 @@ evalpipe(union node *n)
 
 
 
+static int
+is_valid_fast_cmdsubst(union node *n)
+{
+	union node *argp;
+
+	if (n->type != NCMD)
+		return 0;
+	for (argp = n->ncmd.args ; argp ; argp = argp->narg.next)
+		if (expandhassideeffects(argp->narg.text))
+			return 0;
+	return 1;
+}
+
 /*
  * Execute a command inside back quotes.  If it's a builtin command, we
  * want to save its output in a block obtained from malloc.  Otherwise
@@ -578,6 +592,8 @@ evalbackcmd(union node *n, struct backcmd *result)
 	int pip[2];
 	struct job *jp;
 	struct stackmark smark;		/* unnecessary */
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
 
 	setstackmark(&smark);
 	result->fd = -1;
@@ -588,9 +604,21 @@ evalbackcmd(union node *n, struct backcmd *result)
 		exitstatus = 0;
 		goto out;
 	}
-	if (n->type == NCMD) {
+	if (is_valid_fast_cmdsubst(n)) {
 		exitstatus = oexitstatus;
-		evalcommand(n, EV_BACKCMD, result);
+		savehandler = handler;
+		if (setjmp(jmploc.loc)) {
+			if (exception == EXERROR || exception == EXEXEC)
+				exitstatus = 2;
+			else if (exception != 0) {
+				handler = savehandler;
+				longjmp(handler->loc, 1);
+			}
+		} else {
+			handler = &jmploc;
+			evalcommand(n, EV_BACKCMD, result);
+		}
+		handler = savehandler;
 	} else {
 		exitstatus = 0;
 		if (pipe(pip) < 0)
@@ -615,7 +643,31 @@ out:
 		result->fd, result->buf, result->nleft, result->jp));
 }
 
-
+/*
+ * Check if a builtin can safely be executed in the same process,
+ * even though it should be in a subshell (command substitution).
+ * Note that jobid, jobs, times and trap can show information not
+ * available in a child process; this is deliberate.
+ * The arguments should already have been expanded.
+ */
+static int
+safe_builtin(int idx, int argc, char **argv)
+{
+	if (idx == BLTINCMD || idx == COMMANDCMD || idx == ECHOCMD ||
+	    idx == FALSECMD || idx == JOBIDCMD || idx == JOBSCMD ||
+	    idx == KILLCMD || idx == PRINTFCMD || idx == PWDCMD ||
+	    idx == TESTCMD || idx == TIMESCMD || idx == TRUECMD ||
+	    idx == TYPECMD)
+		return (1);
+	if (idx == EXPORTCMD || idx == TRAPCMD || idx == ULIMITCMD ||
+	    idx == UMASKCMD)
+		return (argc <= 1 || (argc == 2 && argv[1][0] == '-'));
+	if (idx == SETCMD)
+		return (argc <= 1 || (argc == 2 && (argv[1][0] == '-' ||
+		    argv[1][0] == '+') && argv[1][1] == 'o' &&
+		    argv[1][2] == '\0'));
+	return (0);
+}
 
 /*
  * Execute a simple command.
@@ -833,10 +885,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	 || ((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
 	    && ((flags & EV_EXIT) == 0 || have_traps()))
 	 || ((flags & EV_BACKCMD) != 0
-	    && (cmdentry.cmdtype != CMDBUILTIN
-		 || cmdentry.u.index == CDCMD
-		 || cmdentry.u.index == DOTCMD
-		 || cmdentry.u.index == EVALCMD))) {
+	    && (cmdentry.cmdtype != CMDBUILTIN ||
+		 !safe_builtin(cmdentry.u.index, argc, argv)))) {
 		jp = makejob(cmd, 1);
 		mode = cmd->ncmd.backgnd;
 		if (flags & EV_BACKCMD) {

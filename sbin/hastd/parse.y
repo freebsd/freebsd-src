@@ -55,7 +55,7 @@ extern char *yytext;
 
 static struct hastd_config *lconfig;
 static struct hast_resource *curres;
-static bool mynode;
+static bool mynode, hadmynode;
 
 static char depth0_control[HAST_ADDRSIZE];
 static char depth0_listen[HAST_ADDRSIZE];
@@ -106,6 +106,44 @@ isitme(const char *name)
 	/*
 	 * Looks like this isn't about us.
 	 */
+	return (0);
+}
+
+static int
+node_names(char **namesp)
+{
+	static char names[MAXHOSTNAMELEN * 3];
+	char buf[MAXHOSTNAMELEN];
+	char *pos;
+	size_t bufsize;
+
+	if (gethostname(buf, sizeof(buf)) < 0) {
+		pjdlog_errno(LOG_ERR, "gethostname() failed");
+		return (-1);
+	}
+
+	/* First component of the host name. */
+	pos = strchr(buf, '.');
+	if (pos != NULL && pos != buf) {
+		(void)strlcpy(names, buf, MIN((size_t)(pos - buf + 1),
+		    sizeof(names)));
+		(void)strlcat(names, ", ", sizeof(names));
+	}
+
+	/* Full host name. */
+	(void)strlcat(names, buf, sizeof(names));
+	(void)strlcat(names, ", ", sizeof(names));
+
+	/* Host UUID. */
+	bufsize = sizeof(buf);
+	if (sysctlbyname("kern.hostuuid", buf, &bufsize, NULL, 0) < 0) {
+		pjdlog_errno(LOG_ERR, "sysctlbyname(kern.hostuuid) failed");
+		return (-1);
+	}
+	(void)strlcat(names, buf, sizeof(names));
+
+	*namesp = names;
+
 	return (0);
 }
 
@@ -424,6 +462,20 @@ resource_statement:	RESOURCE resource_start OB resource_entries CB
 	{
 		if (curres != NULL) {
 			/*
+			 * There must be section for this node, at least with
+			 * remote address configuration.
+			 */
+			if (!hadmynode) {
+				char *names;
+
+				if (node_names(&names) != 0)
+					return (1);
+				pjdlog_error("No resource %s configuration for this node (acceptable node names: %s).",
+				    curres->hr_name, names);
+				return (1);
+			}
+
+			/*
 			 * Let's see there are some resource-level settings
 			 * that we can use for node-level settings.
 			 */
@@ -483,12 +535,23 @@ resource_statement:	RESOURCE resource_start OB resource_entries CB
 
 resource_start:	STR
 	{
+		/* Check if there is no duplicate entry. */
+		TAILQ_FOREACH(curres, &lconfig->hc_resources, hr_next) {
+			if (strcmp(curres->hr_name, $1) == 0) {
+				pjdlog_error("Resource %s configured more than once.",
+				    curres->hr_name);
+				free($1);
+				return (1);
+			}
+		}
+
 		/*
 		 * Clear those, so we can tell if they were set at
 		 * resource-level or not.
 		 */
 		depth1_provname[0] = '\0';
 		depth1_localpath[0] = '\0';
+		hadmynode = false;
 
 		curres = calloc(1, sizeof(*curres));
 		if (curres == NULL) {
@@ -614,7 +677,7 @@ resource_node_start:	STR
 			case 0:
 				break;
 			case 1:
-				mynode = true;
+				mynode = hadmynode = true;
 				break;
 			default:
 				assert(!"invalid isitme() return value");

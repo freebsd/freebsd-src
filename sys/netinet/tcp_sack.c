@@ -425,6 +425,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	 * are received.
 	 */
 	sblkp = &sack_blocks[num_sack_blks - 1];	/* Last SACK block */
+	tp->sackhint.last_sack_ack = sblkp->end;
 	if (SEQ_LT(tp->snd_fack, sblkp->start)) {
 		/*
 		 * The highest SACK block is beyond fack.  Append new SACK

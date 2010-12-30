@@ -36,31 +36,39 @@ do_copy_relocations(Obj_Entry *dstobj)
 	    		void *dstaddr;
 			const Elf_Sym *dstsym;
 			const char *name;
-			unsigned long hash;
 			size_t size;
 			const void *srcaddr;
 			const Elf_Sym *srcsym;
-			Obj_Entry *srcobj;
-			const Ver_Entry *ve;
+			const Obj_Entry *srcobj, *defobj;
+			SymLook req;
+			int res;
 			
 			dstaddr = (void *) (dstobj->relocbase + rel->r_offset);
 			dstsym = dstobj->symtab + ELF_R_SYM(rel->r_info);
 			name = dstobj->strtab + dstsym->st_name;
-			hash = elf_hash(name);
 			size = dstsym->st_size;
-			ve = fetch_ventry(dstobj, ELF_R_SYM(rel->r_info));
-			
-			for (srcobj = dstobj->next;  srcobj != NULL;  srcobj = srcobj->next)
-				if ((srcsym = symlook_obj(name, hash, srcobj, ve, 0)) != NULL)
+
+			symlook_init(&req, name);
+			req.ventry = fetch_ventry(dstobj,
+			    ELF_R_SYM(rel->r_info));
+			for (srcobj = dstobj->next;  srcobj != NULL; 
+			     srcobj = srcobj->next) {
+				res = symlook_obj(&req, srcobj);
+				if (res == 0) {
+					srcsym = req.sym_out;
+					defobj = req.defobj_out;
 					break;
-			
+				}
+			}			
 			if (srcobj == NULL) {
-				_rtld_error("Undefined symbol \"%s\" referenced from COPY"
-				    " relocation in %s", name, dstobj->path);
-				return -1;
+				_rtld_error(
+"Undefined symbol \"%s\" referenced from COPY relocation in %s",
+				    name, dstobj->path);
+				return (-1);
 			}
 			
-			srcaddr = (const void *) (srcobj->relocbase + srcsym->st_value);
+			srcaddr = (const void *)(defobj->relocbase +
+			    srcsym->st_value);
 			memcpy(dstaddr, srcaddr, size);
 		}
 	}
@@ -123,7 +131,8 @@ store_ptr(void *where, Elf_Addr val)
 }
 
 static int
-reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache)
+reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
+    RtldLockState *lockstate)
 {
 	Elf_Addr        *where;
 	const Elf_Sym   *def;
@@ -149,7 +158,8 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache)
 		if (addend & 0x00800000)
 			addend |= 0xff000000;
 		
-		def = find_symdef(symnum, obj, &defobj, false, cache);
+		def = find_symdef(symnum, obj, &defobj, false, cache,
+		    lockstate);
 		if (def == NULL)
 				return -1;
 			tmp = (Elf_Addr)obj->relocbase + def->st_value
@@ -175,7 +185,8 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache)
 
 		case R_ARM_ABS32:	/* word32 B + S + A */
 		case R_ARM_GLOB_DAT:	/* word32 B + S */
-			def = find_symdef(symnum, obj, &defobj, false, cache);
+			def = find_symdef(symnum, obj, &defobj, false, cache,
+			    lockstate);
 			if (def == NULL)
 				return -1;
 			if (__predict_true(RELOC_ALIGNED_P(where))) {
@@ -240,7 +251,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache)
  *  * Process non-PLT relocations
  *   */
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 {
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
@@ -259,7 +270,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 
 	rellim = (const Elf_Rel *)((caddr_t)obj->rel + obj->relsize);
 	for (rel = obj->rel; rel < rellim; rel++) {
-		if (reloc_nonplt_object(obj, rel, cache) < 0)
+		if (reloc_nonplt_object(obj, rel, cache, lockstate) < 0)
 			goto done;
 	}
 	r = 0;
@@ -296,7 +307,7 @@ reloc_plt(Obj_Entry *obj)
  *  * LD_BIND_NOW was set - force relocation for all jump slots
  *   */
 int
-reloc_jmpslots(Obj_Entry *obj)
+reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 {
 	const Obj_Entry *defobj;
 	const Elf_Rel *rellim;
@@ -310,7 +321,7 @@ reloc_jmpslots(Obj_Entry *obj)
 		assert(ELF_R_TYPE(rel->r_info) == R_ARM_JUMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 		def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		    true, NULL);
+		    true, NULL, lockstate);
 		if (def == NULL) {
 			dbg("reloc_jmpslots: sym not found");
 			return (-1);

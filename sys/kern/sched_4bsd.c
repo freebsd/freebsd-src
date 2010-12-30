@@ -892,24 +892,12 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	if (prio < td->td_lend_user_pri)
-		td->td_lend_user_pri = prio;
-	if (prio < td->td_user_pri)
-		td->td_user_pri = prio;
-}
-
-void
-sched_unlend_user_prio(struct thread *td, u_char prio)
-{
-	u_char base_pri;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	base_pri = td->td_base_user_pri;
 	td->td_lend_user_pri = prio;
-	if (prio > base_pri)
-		td->td_user_pri = base_pri;
-	else
-		td->td_user_pri = prio;
+	td->td_user_pri = min(prio, td->td_base_user_pri);
+	if (td->td_priority > td->td_user_pri)
+		sched_prio(td, td->td_user_pri);
+	else if (td->td_priority != td->td_user_pri)
+		td->td_flags |= TDF_NEEDRESCHED;
 }
 
 void
