@@ -632,8 +632,7 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 	asoc = &stcb->asoc;
 	serial_num = ntohl(cp->serial_number);
 
-	if (compare_with_wrap(asoc->asconf_seq_in, serial_num, MAX_TSN) ||
-	    serial_num == asoc->asconf_seq_in) {
+	if (SCTP_TSN_GE(asoc->asconf_seq_in, serial_num)) {
 		/* got a duplicate ASCONF */
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "handle_asconf: got duplicate serial number = %xh\n",
