@@ -2944,7 +2944,7 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 			net = lchk->whoTo;
 			break;
 		}
-		if (compare_with_wrap(lchk->rec.data.TSN_seq, tsn, MAX_SEQ))
+		if (compare_with_wrap(lchk->rec.data.TSN_seq, tsn, MAX_TSN))
 			break;
 		lchk = TAILQ_NEXT(lchk, sctp_next);
 	}
