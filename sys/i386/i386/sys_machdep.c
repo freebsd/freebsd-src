@@ -450,6 +450,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
         new_ldt->ldt_refcnt = 1; 
         new_ldt->ldt_active = 0; 
  
+	mtx_lock_spin(&dt_lock);
         if ((pldt = mdp->md_ldt)) { 
                 if (len > pldt->ldt_len) 
                         len = pldt->ldt_len; 
@@ -458,8 +459,10 @@ user_ldt_alloc(struct mdproc *mdp, int len)
         } else { 
                 bcopy(ldt, new_ldt->ldt_base, PAGE_SIZE); 
         } 
+        mtx_unlock_spin(&dt_lock);  /* XXX kill once pmap locking fixed. */
         pmap_map_readonly(kernel_pmap, (vm_offset_t)new_ldt->ldt_base, 
                           new_ldt->ldt_len*sizeof(union descriptor)); 
+        mtx_lock_spin(&dt_lock);  /* XXX kill once pmap locking fixed. */
         return (new_ldt);
 } 
 #else
