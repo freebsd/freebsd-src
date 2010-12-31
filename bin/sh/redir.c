@@ -155,6 +155,7 @@ openredirect(union node *redir, char memory[10])
 	int fd = redir->nfile.fd;
 	char *fname;
 	int f;
+	int e;
 
 	/*
 	 * We suppress interrupts so that we won't leave open file
@@ -173,7 +174,11 @@ openredirect(union node *redir, char memory[10])
 			error("cannot open %s: %s", fname, strerror(errno));
 movefd:
 		if (f != fd) {
-			dup2(f, fd);
+			if (dup2(f, fd) == -1) {
+				e = errno;
+				close(f);
+				error("%d: %s", fd, strerror(e));
+			}
 			close(f);
 		}
 		break;
