@@ -66,13 +66,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#if 0
-#include "if_vtereg.h"
-#include "if_vtevar.h"
-#else
 #include <dev/vte/if_vtereg.h>
 #include <dev/vte/if_vtevar.h>
-#endif
 
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
