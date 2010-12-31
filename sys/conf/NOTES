@@ -1995,6 +1995,7 @@ device		xmphy		# XaQti XMAC II
 #       Technologies VT3043 `Rhine I' and VT86C100A `Rhine II' chips,
 #       including the D-Link DFE520TX and D-Link DFE530TX (see 'rl' for
 #       DFE530TX+), the Hawking Technologies PN102TX, and the AOpen/Acer ALN-320.
+# vte:  DM&P Vortex86 RDC R6040 Fast Ethernet
 # vx:   3Com 3C590 and 3C595
 # wb:   Support for fast ethernet adapters based on the Winbond W89C840F chip.
 #       Note: this is not the same as the Winbond W89C940F, which is a
@@ -2067,6 +2068,7 @@ device		stge		# Sundance/Tamarack TC9021 gigabit Ethernet
 device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
+device		vte		# DM&P Vortex86 RDC R6040 Fast Ethernet
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
