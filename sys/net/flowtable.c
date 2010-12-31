@@ -195,7 +195,8 @@ static VNET_DEFINE(uma_zone_t, flow_ipv6_zone);
 #define	V_flow_ipv6_zone	VNET(flow_ipv6_zone)
 
 
-static struct cv 	flowclean_cv;
+static struct cv 	flowclean_f_cv;
+static struct cv 	flowclean_c_cv;
 static struct mtx	flowclean_lock;
 static uint32_t		flowclean_cycles;
 static uint32_t		flowclean_freq;
@@ -951,7 +952,7 @@ flow_full(struct flowtable *ft)
 		if ((ft->ft_flags & FL_HASH_ALL) == 0)
 			ft->ft_udp_idle = ft->ft_fin_wait_idle =
 			    ft->ft_syn_idle = ft->ft_tcp_idle = 5;
-		cv_broadcast(&flowclean_cv);
+		cv_broadcast(&flowclean_c_cv);
 	} else if (!full && ft->ft_full) {
 		flowclean_freq = 20*hz;
 		if ((ft->ft_flags & FL_HASH_ALL) == 0)
@@ -1560,14 +1561,14 @@ flowtable_cleaner(void)
 		}
 		VNET_LIST_RUNLOCK();
 
-		flowclean_cycles++;
 		/*
 		 * The 10 second interval between cleaning checks
 		 * is arbitrary
 		 */
 		mtx_lock(&flowclean_lock);
-		cv_broadcast(&flowclean_cv);
-		cv_timedwait(&flowclean_cv, &flowclean_lock, flowclean_freq);
+		flowclean_cycles++;
+		cv_broadcast(&flowclean_f_cv);
+		cv_timedwait(&flowclean_c_cv, &flowclean_lock, flowclean_freq);
 		mtx_unlock(&flowclean_lock);
 	}
 }
@@ -1580,8 +1581,8 @@ flowtable_flush(void *unused __unused)
 	mtx_lock(&flowclean_lock);
 	start = flowclean_cycles;
 	while (start == flowclean_cycles) {
-		cv_broadcast(&flowclean_cv);
-		cv_wait(&flowclean_cv, &flowclean_lock);
+		cv_broadcast(&flowclean_c_cv);
+		cv_wait(&flowclean_f_cv, &flowclean_lock);
 	}
 	mtx_unlock(&flowclean_lock);
 }
@@ -1613,7 +1614,8 @@ static void
 flowtable_init(const void *unused __unused)
 {
 
-	cv_init(&flowclean_cv, "flowcleanwait");
+	cv_init(&flowclean_c_cv, "c_flowcleanwait");
+	cv_init(&flowclean_f_cv, "f_flowcleanwait");
 	mtx_init(&flowclean_lock, "flowclean lock", NULL, MTX_DEF);
 	EVENTHANDLER_REGISTER(ifnet_departure_event, flowtable_flush, NULL,
 	    EVENTHANDLER_PRI_ANY);
