@@ -28,31 +28,31 @@ node [color=grey62, style=filled, bgcolor=black];
 
 # Alumni go here.. Try to keep things sorted.
 
-adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03\n2006/05/30"]
 alm [label="Andrew Moore\nalm@FreeBSD.org\n1993/06/12\n????/??/??"]
 archie [label="Archie Cobbs\narchie@FreeBSD.org\n1998/11/06\n2006/06/09"]
 asmodai [label="Jeroen Ruigrok\nasmodai@FreeBSD.org\n1999/12/16\n2001/11/16"]
 cjc [label="Crist J. Clark\ncjc@FreeBSD.org\n2001/06/01\n2006/12/29"]
-furuta [label="Atsushi Furuta\nfuruta@FreeBSD.org\n2000/06/21\n????/??/??"]
+furuta [label="Atsushi Furuta\nfuruta@FreeBSD.org\n2000/06/21\n2003/03/08"]
 jtc [label="J.T. Conklin\njtc@FreeBSD.org\n1993/06/12\n????/??/??"]
 keichii [label="Michael Wu\nkeichii@FreeBSD.org\n2001/03/07\n2006/04/28"]
-mb [label="Maxim Bolotin\nmb@FreeBSD.org\n2000/04/06\n????/??/??"]
+mb [label="Maxim Bolotin\nmb@FreeBSD.org\n2000/04/06\n2003/03/08"]
 nate [label="Nate Willams\nnate@FreeBSD.org\n1993/06/12\n2003/12/15"]
 non [label="Noriaki Mitsnaga\nnon@FreeBSD.org\n2000/06/19\n2007/03/06"]
-rgrimes [label="Rod Grimes\nrgrimes@FreeBSD.org\n1993/06/12\n????/??/??"]
-shafeeq [label="Shafeeq Sinnamohideen\nshafeeq@FreeBSD.org\n2000/06/19\n????/??/??"]
+rgrimes [label="Rod Grimes\nrgrimes@FreeBSD.org\n1993/06/12\n2003/03/08"]
+shafeeq [label="Shafeeq Sinnamohideen\nshafeeq@FreeBSD.org\n2000/06/19\n2006/04/06"]
 sheldonh [label="Sheldon Hearn\nsheldonh@FreeBSD.org\n1999/06/14\n2006/05/13"]
 shin [label="Yoshinobu Inoue\nshin@FreeBSD.org\n1999/07/29\n2003/03/08"]
 tmm [label="Thomas Moestl\ntmm@FreeBSD.org\n2001/03/07\n2006/07/12"]
-toshi [label="Toshihiko Arai\ntoshi@FreeBSD.org\n2000/07/06\n????/??/??"]
+toshi [label="Toshihiko Arai\ntoshi@FreeBSD.org\n2000/07/06\n2003/03/08"]
 tshiozak [label="Takuya SHIOZAKI\ntshiozak@FreeBSD.org\n2001/04/25\n2003/03/08"]
-uch [label="UCHIYAMA Yasushi\nuch@FreeBSD.org\n2000/06/21\n????/??/??"]
+uch [label="UCHIYAMA Yasushi\nuch@FreeBSD.org\n2000/06/21\n2002/04/24"]
 
 node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current src committers go here. Try to keep things sorted.
 
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1993/10/31"]
+adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03"]
 ae [label="Andrey V. Elsukov\nae@FreeBSD.org\n2010/06/03"]
 akiyama [label="Shunsuke Akiyama\nakiyama@FreeBSD.org\n2000/06/19"]
 ambrisko [label="Doug Ambrisko\nambrisko@FreeBSD.org\n2001/12/19"]
