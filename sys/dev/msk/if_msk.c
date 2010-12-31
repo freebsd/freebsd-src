@@ -3070,7 +3070,7 @@ msk_rxcsum(struct msk_if_softc *sc_if, uint32_t control, struct mbuf *m)
 	default:
 		return;
 	}
-	csum = ntohs(sc_if->msk_csum & 0xFFFF);
+	csum = bswap16(sc_if->msk_csum & 0xFFFF);
 	/* Checksum fixup for IP options. */
 	len = hlen - sizeof(struct ip);
 	if (len > 0) {
