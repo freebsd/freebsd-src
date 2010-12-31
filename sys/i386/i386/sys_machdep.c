@@ -761,10 +761,14 @@ i386_set_ldt_data(struct thread *td, int start, int num,
 
 	mtx_assert(&dt_lock, MA_OWNED);
 
-	/* Fill in range */
-	bcopy(descs,
-	    &((union descriptor *)(pldt->ldt_base))[start],
-	    num * sizeof(union descriptor));
+	while (num) {
+		xen_update_descriptor(
+		    &((union descriptor *)(pldt->ldt_base))[start],
+		    descs);
+		num--;
+		start++;
+		descs++;
+	}
 	return (0);
 }
 #else
