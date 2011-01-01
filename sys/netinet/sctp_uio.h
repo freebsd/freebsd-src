@@ -417,7 +417,7 @@ union sctp_notification {
 #define SCTP_AUTHENTICATION_EVENT		0x0008
 #define SCTP_STREAM_RESET_EVENT			0x0009
 #define SCTP_SENDER_DRY_EVENT			0x000a
-#define SCTP__NOTIFICATIONS_STOPPED_EVENT	0x000b	/* we don't send this */
+#define SCTP_NOTIFICATIONS_STOPPED_EVENT	0x000b	/* we don't send this */
 /*
  * socket option structs
  */
