@@ -755,6 +755,12 @@ vm_object_terminate(vm_object_t object)
 	vm_object_destroy(object);
 }
 
+/*
+ * Make the page read-only so that we can clear the object flags.  However, if
+ * this is a nosync mmap then the object is likely to stay dirty so do not
+ * mess with the page and do not clear the object flags.  Returns TRUE if the
+ * page should be flushed, and FALSE otherwise.
+ */
 static boolean_t
 vm_object_page_remove_write(vm_page_t p, int flags, int *clearobjflags)
 {
@@ -808,15 +814,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	pagerflags |= (flags & OBJPC_INVAL) != 0 ? VM_PAGER_PUT_INVAL : 0;
 
 	tend = (end == 0) ? object->size : end;
-
-	/*
-	 * Make the page read-only so we can then clear the object flags.
-	 *
-	 * However, if this is a nosync mmap then the object is likely to 
-	 * stay dirty so do not mess with the page and do not clear the
-	 * object flags.
-	 */
-	clearobjflags = 1;
+	clearobjflags = start == 0 && tend == object->size;
 
 rescan:
 	curgeneration = object->generation;
@@ -847,7 +845,7 @@ rescan:
 	VOP_FSYNC(vp, (pagerflags & VM_PAGER_PUT_SYNC) ? MNT_WAIT : 0);
 #endif
 
-	if (clearobjflags && start == 0 && tend == object->size)
+	if (clearobjflags)
 		vm_object_clear_flag(object, OBJ_MIGHTBEDIRTY);
 }
 
