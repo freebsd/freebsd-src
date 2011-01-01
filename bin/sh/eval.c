@@ -997,8 +997,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		 */
 		if (argc == 0 && !(flags & EV_BACKCMD))
 			cmdentry.special = 1;
-		if (cmdentry.special)
-			listsetvar(cmdenviron);
+		listsetvar(cmdenviron, cmdentry.special ? 0 : VNOSET);
 		if (argc > 0)
 			bltinsetlocale();
 		commandname = argv[0];

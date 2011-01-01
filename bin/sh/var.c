@@ -333,6 +333,8 @@ setvareq(char *s, int flags)
 				len = strchr(s, '=') - s;
 				error("%.*s: is read only", len, s);
 			}
+			if (flags & VNOSET)
+				return;
 			INTOFF;
 
 			if (vp->func && (flags & VNOFUNC) == 0)
@@ -365,6 +367,8 @@ setvareq(char *s, int flags)
 		}
 	}
 	/* not found */
+	if (flags & VNOSET)
+		return;
 	vp = ckmalloc(sizeof (*vp));
 	vp->flags = flags;
 	vp->text = s;
@@ -386,13 +390,13 @@ setvareq(char *s, int flags)
  */
 
 void
-listsetvar(struct strlist *list)
+listsetvar(struct strlist *list, int flags)
 {
 	struct strlist *lp;
 
 	INTOFF;
 	for (lp = list ; lp ; lp = lp->next) {
-		setvareq(savestr(lp->text), 0);
+		setvareq(savestr(lp->text), flags);
 	}
 	INTON;
 }
