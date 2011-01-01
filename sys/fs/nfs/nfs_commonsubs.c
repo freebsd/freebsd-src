@@ -109,7 +109,7 @@ struct nfsv4_opflag nfsv4_opflag[NFSV4OP_NOPS] = {
 	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutFH */
 	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutPubFH */
 	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutRootFH */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Read */
+	{ 0, 1, 0, 0, LK_SHARED },		/* Read */
 	{ 0, 1, 0, 0, LK_SHARED },		/* Readdir */
 	{ 0, 1, 0, 0, LK_SHARED },		/* ReadLink */
 	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Remove */
