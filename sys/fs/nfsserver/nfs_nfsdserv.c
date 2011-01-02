@@ -2676,9 +2676,12 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		};
 		stp->ls_flags |= NFSLCK_RECLAIM;
 		vp = dp;
-		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		nd->nd_repstat = nfsrv_opencheck(clientid, &stateid, stp, vp,
-		    nd, p, nd->nd_repstat);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		if ((vp->v_iflag & VI_DOOMED) == 0)
+			nd->nd_repstat = nfsrv_opencheck(clientid, &stateid,
+			    stp, vp, nd, p, nd->nd_repstat);
+		else
+			nd->nd_repstat = NFSERR_PERM;
 	} else {
 		nd->nd_repstat = NFSERR_BADXDR;
 		vrele(dp);
