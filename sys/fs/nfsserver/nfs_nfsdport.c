@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <nlm/nlm.h>
 
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
-extern int nfsv4root_set;
 extern int nfsrv_useacl;
 extern int newnfs_numnfsd;
 extern struct mount nfsv4root_mnt;
@@ -2677,10 +2676,9 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 	fhandle_t fh;
 
 	error = vfs_export(&nfsv4root_mnt, &nfsexargp->export);
-	if ((nfsexargp->export.ex_flags & MNT_DELEXPORT)) {
+	if ((nfsexargp->export.ex_flags & MNT_DELEXPORT) != 0)
 		nfs_rootfhset = 0;
-		nfsv4root_set = 0;
-	} else if (error == 0) {
+	else if (error == 0) {
 		if (nfsexargp->fspec == NULL)
 			return (EPERM);
 		/*

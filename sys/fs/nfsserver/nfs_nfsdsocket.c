@@ -50,8 +50,6 @@ extern struct nfsclienthashhead nfsclienthash[NFSCLIENTHASHSIZE];
 extern int nfsrc_floodlevel, nfsrc_tcpsavedreplies;
 NFSV4ROOTLOCKMUTEX;
 NFSSTATESPINLOCK;
-vnode_t nfsv4root_vp = NULL;
-int nfsv4root_set = 0;
 
 int (*nfsrv3_procs0[NFS_V3NPROCS])(struct nfsrv_descript *,
     int, vnode_t , NFSPROC_T *, struct nfsexstuff *) = {
@@ -748,20 +746,8 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					NFSVOPUNLOCK(vp, 0, p);
 					vpnes = nes;
 				}
-			} else if (nfsv4root_vp && nfsv4root_set) {
-				if (vp) {
-					if (vpnes.nes_vfslocked)
-						nfsvno_unlockvfs(mp);
-					vrele(vp);
-				}
-				vp = nfsv4root_vp;
-				VREF(vp);
-				NFSVNO_SETEXRDONLY(&vpnes);
-				vpnes.nes_vfslocked = 0;
-				mp = vnode_mount(vp);
-			} else {
+			} else
 				nd->nd_repstat = NFSERR_NOFILEHANDLE;
-			}
 			break;
 		case NFSV4OP_SAVEFH:
 			if (vp && NFSVNO_EXPORTED(&vpnes)) {
@@ -859,17 +845,6 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				vfs_statfs(vnode_mount(nvp))->f_fsid.val[0] ||
 				vfs_statfs(mp)->f_fsid.val[1] !=
 				vfs_statfs(vnode_mount(nvp))->f_fsid.val[1]) {
-				if (vfs_statfs(vnode_mount(nvp))->f_fsid.val[0] ==
-				    NFSV4ROOT_FSID0 &&
-				    vfs_statfs(vnode_mount(nvp))->f_fsid.val[1] ==
-				    NFSV4ROOT_FSID1) {
-				    if (vpnes.nes_vfslocked) {
-					nfsvno_unlockvfs(mp);
-					vpnes.nes_vfslocked = 0;
-				    }
-				    NFSVNO_SETEXRDONLY(&vpnes);
-				    mp = vnode_mount(nvp);
-				} else {
 				    nd->nd_repstat = nfsvno_checkexp(vnode_mount(nvp),
 					nd->nd_nam, &nes, &credanon);
 				    if (!nd->nd_repstat)
@@ -885,7 +860,6 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					vpnes.nes_vfslocked =
 					    nfsvno_lockvfs(mp);
 				    }
-				}
 			    }
 			    if (!nd->nd_repstat) {
 				    vrele(vp);
