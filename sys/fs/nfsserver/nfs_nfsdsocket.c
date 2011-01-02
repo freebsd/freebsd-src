@@ -902,13 +902,15 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				nd->nd_repstat = NFSERR_XDEV;
 				break;
 			}
-			VREF(vp);
-			VREF(savevp);
 			if (nfsv4_opflag[op].modifyfs)
 				NFS_STARTWRITE(NULL, &mp);
-			NFSVOPLOCK(savevp, LK_EXCLUSIVE | LK_RETRY, p);
-			error = (*(nfsrv4_ops2[op]))(nd, isdgram, savevp,
-			    vp, p, &savevpnes, &vpnes);
+			if (vn_lock(savevp, LK_EXCLUSIVE) == 0) {
+				VREF(vp);
+				VREF(savevp);
+				error = (*(nfsrv4_ops2[op]))(nd, isdgram,
+				    savevp, vp, p, &savevpnes, &vpnes);
+			} else
+				nd->nd_repstat = NFSERR_PERM;
 			if (nfsv4_opflag[op].modifyfs)
 				NFS_ENDWRITE(mp);
 		    } else {
@@ -916,12 +918,15 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				panic("nfsrvd_compound");
 			if (nfsv4_opflag[op].needscfh) {
 				if (vp != NULL) {
+					if (nfsv4_opflag[op].modifyfs)
+						NFS_STARTWRITE(NULL, &mp);
 					if (vn_lock(vp, nfsv4_opflag[op].lktype)
-					    != 0)
+					    == 0)
+						VREF(vp);
+					else
 						nd->nd_repstat = NFSERR_PERM;
-				} else
+				} else {
 					nd->nd_repstat = NFSERR_NOFILEHANDLE;
-				if (nd->nd_repstat != 0) {
 					if (op == NFSV4OP_SETATTR) {
 						/*
 						 * Setattr reply requires a
@@ -934,11 +939,9 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					}
 					break;
 				}
-				VREF(vp);
-				if (nfsv4_opflag[op].modifyfs)
-					NFS_STARTWRITE(NULL, &mp);
-				error = (*(nfsrv4_ops0[op]))(nd, isdgram, vp,
-				    p, &vpnes);
+				if (nd->nd_repstat == 0)
+					error = (*(nfsrv4_ops0[op]))(nd,
+					    isdgram, vp, p, &vpnes);
 				if (nfsv4_opflag[op].modifyfs)
 					NFS_ENDWRITE(mp);
 			} else {

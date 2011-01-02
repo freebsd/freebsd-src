@@ -153,6 +153,10 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 	struct vattr vattr;
 	int error = 0, getret = 0;
 
+	if (vpislocked == 0) {
+		if (vn_lock(vp, LK_SHARED) != 0)
+			return (EPERM);
+	}
 	if (accmode & VWRITE) {
 		/* Just vn_writechk() changed to check rdonly */
 		/*
@@ -166,7 +170,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 			case VREG:
 			case VDIR:
 			case VLNK:
-				return (EROFS);
+				error = EROFS;
 			default:
 				break;
 			}
@@ -176,11 +180,14 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		 * the inode, try to free it up once.  If
 		 * we fail, we can't allow writing.
 		 */
-		if (vp->v_vflag & VV_TEXT)
-			return (ETXTBSY);
+		if ((vp->v_vflag & VV_TEXT) != 0 && error == 0)
+			error = ETXTBSY;
 	}
-	if (vpislocked == 0)
-		vn_lock(vp, LK_SHARED | LK_RETRY);
+	if (error != 0) {
+		if (vpislocked == 0)
+			VOP_UNLOCK(vp, 0);
+		return (error);
+	}
 
 	/*
 	 * Should the override still be applied when ACLs are enabled?
@@ -1097,9 +1104,11 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 		goto out;
 	}
 	if (ndflag & ND_NFSV4) {
-		NFSVOPLOCK(fvp, LK_EXCLUSIVE | LK_RETRY, p);
-		error = nfsrv_checkremove(fvp, 0, p);
-		NFSVOPUNLOCK(fvp, 0, p);
+		if (vn_lock(fvp, LK_EXCLUSIVE) == 0) {
+			error = nfsrv_checkremove(fvp, 0, p);
+			VOP_UNLOCK(fvp, 0);
+		} else
+			error = EPERM;
 		if (tvp && !error)
 			error = nfsrv_checkremove(tvp, 1, p);
 	} else {
@@ -1156,13 +1165,16 @@ nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
 			error = EXDEV;
 	}
 	if (!error) {
-		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		error = VOP_LINK(ndp->ni_dvp, vp, &ndp->ni_cnd);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		if ((vp->v_iflag & VI_DOOMED) == 0)
+			error = VOP_LINK(ndp->ni_dvp, vp, &ndp->ni_cnd);
+		else
+			error = EPERM;
 		if (ndp->ni_dvp == vp)
 			vrele(ndp->ni_dvp);
 		else
 			vput(ndp->ni_dvp);
-		NFSVOPUNLOCK(vp, 0, p);
+		VOP_UNLOCK(vp, 0);
 	} else {
 		if (ndp->ni_dvp == ndp->ni_vp)
 			vrele(ndp->ni_dvp);
@@ -2793,6 +2805,11 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 
 	if (nfsrv_dolocallocks == 0)
 		return (0);
+
+	/* Check for VI_DOOMED here, so that VOP_ADVLOCK() isn't performed. */
+	if ((vp->v_iflag & VI_DOOMED) != 0)
+		return (EPERM);
+
 	fl.l_whence = SEEK_SET;
 	fl.l_type = ftype;
 	fl.l_start = (off_t)first;
