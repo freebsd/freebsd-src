@@ -351,7 +351,10 @@ universe_kernconfs:
 .for kernel in ${KERNCONFS}
 TARGET_ARCH_${kernel}!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
 	config -m ${.CURDIR}/sys/${TARGET}/conf/${kernel} 2> /dev/null | \
-	cut -f 2
+	grep -v WARNING: | cut -f 2
+.if empty(TARGET_ARCH_${kernel})
+.error "Target architecture for ${TARGET}/conf/${kernel} unknown.  config(8) likely too old."
+.endif
 universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
 universe_kernconf_${TARGET}_${kernel}:
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
