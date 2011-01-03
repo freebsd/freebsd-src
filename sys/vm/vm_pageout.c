@@ -326,7 +326,8 @@ vm_pageout_clean(vm_page_t m)
 	vm_pindex_t pindex = m->pindex;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	object = m->object;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
 	/*
 	 * It doesn't cost us anything to pageout OBJT_DEFAULT or OBJT_SWAP
@@ -343,6 +344,7 @@ vm_pageout_clean(vm_page_t m)
 	KASSERT(m->busy == 0 && (m->oflags & VPO_BUSY) == 0,
 	    ("vm_pageout_clean: page %p is busy", m));
 	KASSERT(m->hold_count == 0, ("vm_pageout_clean: page %p is held", m));
+	vm_page_unlock(m);
 
 	mc[vm_pageout_page_count] = pb = ps = m;
 	pageout_count = 1;
@@ -369,7 +371,6 @@ vm_pageout_clean(vm_page_t m)
 	 * first and attempt to align our cluster, then do a 
 	 * forward scan if room remains.
 	 */
-	object = m->object;
 more:
 	while (ib && pageout_count < vm_pageout_page_count) {
 		vm_page_t p;
@@ -434,7 +435,6 @@ more:
 	if (ib && pageout_count < vm_pageout_page_count)
 		goto more;
 
-	vm_page_unlock(m);
 	/*
 	 * we allow reads during pageouts...
 	 */
