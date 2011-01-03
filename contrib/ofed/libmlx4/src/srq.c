@@ -128,6 +128,7 @@ int mlx4_alloc_srq_buf(struct ibv_pd *pd, struct ibv_srq_attr *attr,
 		       struct mlx4_srq *srq)
 {
 	struct mlx4_wqe_srq_next_seg *next;
+	struct mlx4_wqe_data_seg *scatter;
 	int size;
 	int buf_size;
 	int i;
@@ -160,6 +161,11 @@ int mlx4_alloc_srq_buf(struct ibv_pd *pd, struct ibv_srq_attr *attr,
 	for (i = 0; i < srq->max; ++i) {
 		next = get_wqe(srq, i);
 		next->next_wqe_index = htons((i + 1) & (srq->max - 1));
+
+		for (scatter = (void *) (next + 1);
+		     (void *) scatter < (void *) next + (1 << srq->wqe_shift);
+		     ++scatter)
+			scatter->lkey = htonl(MLX4_INVALID_LKEY);
 	}
 
 	srq->head = 0;
@@ -167,3 +173,53 @@ int mlx4_alloc_srq_buf(struct ibv_pd *pd, struct ibv_srq_attr *attr,
 
 	return 0;
 }
+
+struct mlx4_srq *mlx4_find_xrc_srq(struct mlx4_context *ctx, uint32_t xrc_srqn)
+{
+	int tind = (xrc_srqn & (ctx->num_xrc_srqs - 1)) >> ctx->xrc_srq_table_shift;
+
+	if (ctx->xrc_srq_table[tind].refcnt)
+		return ctx->xrc_srq_table[tind].table[xrc_srqn & ctx->xrc_srq_table_mask];
+	else
+		return NULL;
+}
+
+int mlx4_store_xrc_srq(struct mlx4_context *ctx, uint32_t xrc_srqn,
+		       struct mlx4_srq *srq)
+{
+	int tind = (xrc_srqn & (ctx->num_xrc_srqs - 1)) >> ctx->xrc_srq_table_shift;
+	int ret = 0;
+
+	pthread_mutex_lock(&ctx->xrc_srq_table_mutex);
+
+	if (!ctx->xrc_srq_table[tind].refcnt) {
+		ctx->xrc_srq_table[tind].table = calloc(ctx->xrc_srq_table_mask + 1,
+							sizeof(struct mlx4_srq *));
+		if (!ctx->xrc_srq_table[tind].table) {
+			ret = -1;
+			goto out;
+		}
+	}
+
+	++ctx->xrc_srq_table[tind].refcnt;
+	ctx->xrc_srq_table[tind].table[xrc_srqn & ctx->xrc_srq_table_mask] = srq;
+
+out:
+	pthread_mutex_unlock(&ctx->xrc_srq_table_mutex);
+	return ret;
+}
+
+void mlx4_clear_xrc_srq(struct mlx4_context *ctx, uint32_t xrc_srqn)
+{
+	int tind = (xrc_srqn & (ctx->num_xrc_srqs - 1)) >> ctx->xrc_srq_table_shift;
+
+	pthread_mutex_lock(&ctx->xrc_srq_table_mutex);
+
+	if (!--ctx->xrc_srq_table[tind].refcnt)
+		free(ctx->xrc_srq_table[tind].table);
+	else
+		ctx->xrc_srq_table[tind].table[xrc_srqn & ctx->xrc_srq_table_mask] = NULL;
+
+	pthread_mutex_unlock(&ctx->xrc_srq_table_mutex);
+}
+

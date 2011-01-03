@@ -54,7 +54,8 @@ enum {
 
 struct mlx4_wqe_ctrl_seg {
 	uint32_t		owner_opcode;
-	uint8_t			reserved[3];
+	uint16_t                vlan_tag;
+	uint8_t                 ins_vlan;
 	uint8_t			fence_size;
 	/*
 	 * High 24 bits are SRC remote buffer; low 8 bits are flags:
@@ -65,7 +66,7 @@ struct mlx4_wqe_ctrl_seg {
 	 * [1]   SE (solicited event)
 	 * [0]   FL (force loopback)
 	 */
-	uint32_t		srcrb_flags;
+	uint32_t		xrcrb_flags;
 	/*
 	 * imm is immediate data for send/RDMA write w/ immediate;
 	 * also invalidation key for send with invalidate; input
@@ -78,7 +79,8 @@ struct mlx4_wqe_datagram_seg {
 	uint32_t		av[8];
 	uint32_t		dqpn;
 	uint32_t		qkey;
-	uint32_t		reserved[2];
+	uint16_t		vlan;
+	uint8_t			mac[6];
 };
 
 struct mlx4_wqe_data_seg {

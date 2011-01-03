@@ -10,3 +10,5 @@ rocee_examples.patch
 qpt_raw_eth.patch
 configure_in-AC_PROG_LIBTOOL-for-automake.patch
 rpm_spec_changelog_fix.patch
+iboe_adapt_new_api.patch
+support_gid_change.patch

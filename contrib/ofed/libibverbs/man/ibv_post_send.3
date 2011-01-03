@@ -60,6 +60,7 @@ uint32_t        remote_qkey;    /* Q_Key number of the destination QP */
 } ud;
 .in -8
 } wr;
+uint32_t                xrc_remote_srq_num;     /* SRQ number of the destination XRC */
 .in -8
 };
 .sp
@@ -76,15 +77,15 @@ uint32_t                lkey;                   /* Key of the local Memory Regio
 Each QP Transport Service Type supports a specific set of opcodes, as shown in the following table:
 .PP
 .nf
-OPCODE                      | IBV_QPT_UD | IBV_QPT_UC | IBV_QPT_RC
-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-
-IBV_WR_SEND                 |     X      |     X      |     X
-IBV_WR_SEND_WITH_IMM        |     X      |     X      |     X
-IBV_WR_RDMA_WRITE           |            |     X      |     X
-IBV_WR_RDMA_WRITE_WITH_IMM  |            |     X      |     X
-IBV_WR_RDMA_READ            |            |            |     X
-IBV_WR_ATOMIC_CMP_AND_SWP   |            |            |     X
-IBV_WR_ATOMIC_FETCH_AND_ADD |            |            |     X
+OPCODE                      | IBV_QPT_UD | IBV_QPT_UC | IBV_QPT_RC | IBV_QPT_XRC
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-
+IBV_WR_SEND                 |     X      |     X      |     X      |     X
+IBV_WR_SEND_WITH_IMM        |     X      |     X      |     X      |     X
+IBV_WR_RDMA_WRITE           |            |     X      |     X      |     X
+IBV_WR_RDMA_WRITE_WITH_IMM  |            |     X      |     X      |     X
+IBV_WR_RDMA_READ            |            |            |     X      |     X
+IBV_WR_ATOMIC_CMP_AND_SWP   |            |            |     X      |     X
+IBV_WR_ATOMIC_FETCH_AND_ADD |            |            |     X      |     X
 .fi
 .PP
 The attribute send_flags describes the properties of the \s-1WR\s0. It is either 0 or the bitwise \s-1OR\s0 of one or more of the following flags:
@@ -114,6 +115,7 @@ IBV_SEND_INLINE flag was set, the buffer can be reused immediately
 after the call returns.
 .SH "SEE ALSO"
 .BR ibv_create_qp (3),
+.BR ibv_create_xrc_rcv_qp (3),
 .BR ibv_create_ah (3),
 .BR ibv_post_recv (3),
 .BR ibv_post_srq_recv (3),

@@ -66,7 +66,46 @@ struct {
 	HCA(MELLANOX, 0x6354),	/* MT25408 "Hermon" QDR */
 	HCA(MELLANOX, 0x6732),	/* MT25408 "Hermon" DDR PCIe gen2 */
 	HCA(MELLANOX, 0x673c),	/* MT25408 "Hermon" QDR PCIe gen2 */
+	HCA(MELLANOX, 0x6368), /* MT25448 [ConnectX EN 10GigE, PCIe 2.0 2.5GT/s] */
+	HCA(MELLANOX, 0x6750), /* MT26448 [ConnectX EN 10GigE, PCIe 2.0 5GT/s] */
+	HCA(MELLANOX, 0x6372), /* MT25408 [ConnectX EN 10GigE 10GBaseT, PCIe 2.0 2.5GT/s] */
+	HCA(MELLANOX, 0x675a), /* MT25408 [ConnectX EN 10GigE 10GBaseT, PCIe Gen2 5GT/s] */
+	HCA(MELLANOX, 0x6764), /* MT26468 [ConnectX EN 10GigE, PCIe 2.0 5GT/s] */
+	HCA(MELLANOX, 0x6746), /* MT26438 ConnectX VPI PCIe 2.0 5GT/s - IB QDR / 10GigE Virt+ */
+	HCA(MELLANOX, 0x676e), /* MT26478 ConnectX EN 40GigE PCIe 2.0 5GT/s */
+	HCA(MELLANOX, 0x6778), /* MT26488 ConnectX VPI PCIe 2.0 5GT/s - IB DDR / 10GigE Virt+ */
+	HCA(MELLANOX, 0x1000),
+	HCA(MELLANOX, 0x1001),
+	HCA(MELLANOX, 0x1002),
+	HCA(MELLANOX, 0x1003),
+	HCA(MELLANOX, 0x1004),
+	HCA(MELLANOX, 0x1005),
+	HCA(MELLANOX, 0x1006),
+	HCA(MELLANOX, 0x1007),
+	HCA(MELLANOX, 0x1008),
+	HCA(MELLANOX, 0x1009),
+	HCA(MELLANOX, 0x100a),
+	HCA(MELLANOX, 0x100b),
+	HCA(MELLANOX, 0x100c),
+	HCA(MELLANOX, 0x100d),
+	HCA(MELLANOX, 0x100e),
+	HCA(MELLANOX, 0x100f),
 };
+
+#ifdef HAVE_IBV_MORE_OPS
+static struct ibv_more_ops mlx4_more_ops = {
+#ifdef HAVE_IBV_XRC_OPS
+	.create_xrc_srq   = mlx4_create_xrc_srq,
+	.open_xrc_domain  = mlx4_open_xrc_domain,
+	.close_xrc_domain = mlx4_close_xrc_domain,
+	.create_xrc_rcv_qp = mlx4_create_xrc_rcv_qp,
+	.modify_xrc_rcv_qp = mlx4_modify_xrc_rcv_qp,
+	.query_xrc_rcv_qp = mlx4_query_xrc_rcv_qp,
+	.reg_xrc_rcv_qp   = mlx4_reg_xrc_rcv_qp,
+	.unreg_xrc_rcv_qp = mlx4_unreg_xrc_rcv_qp,
+#endif
+};
+#endif
 
 static struct ibv_context_ops mlx4_ctx_ops = {
 	.query_device  = mlx4_query_device,
@@ -104,6 +143,7 @@ static struct ibv_context *mlx4_alloc_context(struct ibv_device *ibdev, int cmd_
 	struct ibv_get_context		cmd;
 	struct mlx4_alloc_ucontext_resp resp;
 	int				i;
+	struct ibv_device_attr		dev_attrs;
 
 	context = calloc(1, sizeof *context);
 	if (!context)
@@ -122,6 +162,15 @@ static struct ibv_context *mlx4_alloc_context(struct ibv_device *ibdev, int cmd_
 	pthread_mutex_init(&context->qp_table_mutex, NULL);
 	for (i = 0; i < MLX4_QP_TABLE_SIZE; ++i)
 		context->qp_table[i].refcnt = 0;
+
+	context->num_xrc_srqs = resp.qp_tab_size;
+	context->xrc_srq_table_shift = ffs(context->num_xrc_srqs) - 1
+				       - MLX4_XRC_SRQ_TABLE_BITS;
+	context->xrc_srq_table_mask = (1 << context->xrc_srq_table_shift) - 1;
+
+	pthread_mutex_init(&context->xrc_srq_table_mutex, NULL);
+	for (i = 0; i < MLX4_XRC_SRQ_TABLE_SIZE; ++i)
+		context->xrc_srq_table[i].refcnt = 0;
 
 	for (i = 0; i < MLX4_NUM_DB_TYPE; ++i)
 		context->db_list[i] = NULL;
@@ -155,8 +204,29 @@ static struct ibv_context *mlx4_alloc_context(struct ibv_device *ibdev, int cmd_
 	pthread_spin_init(&context->uar_lock, PTHREAD_PROCESS_PRIVATE);
 
 	context->ibv_ctx.ops = mlx4_ctx_ops;
+#ifdef HAVE_IBV_XRC_OPS
+	context->ibv_ctx.more_ops = &mlx4_more_ops;
+#endif
+
+	if (mlx4_query_device(&context->ibv_ctx, &dev_attrs))
+		goto query_free;
+
+	context->max_qp_wr = dev_attrs.max_qp_wr;
+	context->max_sge = dev_attrs.max_sge;
+	context->max_cqe = dev_attrs.max_cqe;
+	if (!(dev_attrs.device_cap_flags & IBV_DEVICE_XRC)) {
+		fprintf(stderr, PFX "There is a mismatch between "
+		        "the kernel and the userspace libraries: "
+			"Kernel does not support XRC. Exiting.\n");
+		goto query_free;
+	}
 
 	return &context->ibv_ctx;
+
+query_free:
+	munmap(context->uar, to_mdev(ibdev)->page_size);
+	if (context->bf_page)
+		munmap(context->bf_page, to_mdev(ibdev)->page_size);
 
 err_free:
 	free(context);

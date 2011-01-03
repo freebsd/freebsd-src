@@ -191,31 +191,33 @@ int __ibv_get_async_event(struct ibv_context *context,
 
 	event->event_type = ev.event_type;
 
-	switch (event->event_type) {
-	case IBV_EVENT_CQ_ERR:
-		event->element.cq = (void *) (uintptr_t) ev.element;
-		break;
+	if (event->event_type & IBV_XRC_QP_EVENT_FLAG) {
+		event->element.xrc_qp_num = ev.element;
+	} else
+		switch (event->event_type) {
+		case IBV_EVENT_CQ_ERR:
+			event->element.cq = (void *) (uintptr_t) ev.element;
+			break;
 
-	case IBV_EVENT_QP_FATAL:
-	case IBV_EVENT_QP_REQ_ERR:
-	case IBV_EVENT_QP_ACCESS_ERR:
-	case IBV_EVENT_COMM_EST:
-	case IBV_EVENT_SQ_DRAINED:
-	case IBV_EVENT_PATH_MIG:
-	case IBV_EVENT_PATH_MIG_ERR:
-	case IBV_EVENT_QP_LAST_WQE_REACHED:
-		event->element.qp = (void *) (uintptr_t) ev.element;
-		break;
+		case IBV_EVENT_QP_FATAL:
+		case IBV_EVENT_QP_REQ_ERR:
+		case IBV_EVENT_QP_ACCESS_ERR:
+		case IBV_EVENT_COMM_EST:
+		case IBV_EVENT_SQ_DRAINED:
+		case IBV_EVENT_PATH_MIG:
+		case IBV_EVENT_PATH_MIG_ERR:
+		case IBV_EVENT_QP_LAST_WQE_REACHED:
+			event->element.qp = (void *) (uintptr_t) ev.element;
+			break;
 
-	case IBV_EVENT_SRQ_ERR:
-	case IBV_EVENT_SRQ_LIMIT_REACHED:
-		event->element.srq = (void *) (uintptr_t) ev.element;
-		break;
-
-	default:
-		event->element.port_num = ev.element;
-		break;
-	}
+		case IBV_EVENT_SRQ_ERR:
+		case IBV_EVENT_SRQ_LIMIT_REACHED:
+			event->element.srq = (void *) (uintptr_t) ev.element;
+			break;
+		default:
+			event->element.port_num = ev.element;
+			break;
+		}
 
 	if (context->ops.async_event)
 		context->ops.async_event(event);

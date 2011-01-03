@@ -184,6 +184,19 @@ static int print_all_port_gids(struct ibv_context *ctx, uint8_t port_num, int tb
 	return rc;
 }
 
+static const char *link_layer_str(uint8_t link_layer)
+{
+	switch (link_layer) {
+	case IBV_LINK_LAYER_UNSPECIFIED:
+	case IBV_LINK_LAYER_INFINIBAND:
+		return "IB";
+	case IBV_LINK_LAYER_ETHERNET:
+		return "Ethernet";
+	default:
+		return "Unknown";
+	}
+}
+
 static int print_hca_cap(struct ibv_device *ib_dev, uint8_t ib_port)
 {
 	struct ibv_context *ctx;
@@ -284,6 +297,7 @@ static int print_hca_cap(struct ibv_device *ib_dev, uint8_t ib_port)
 		printf("\t\t\tsm_lid:\t\t\t%d\n", port_attr.sm_lid);
 		printf("\t\t\tport_lid:\t\t%d\n", port_attr.lid);
 		printf("\t\t\tport_lmc:\t\t0x%02x\n", port_attr.lmc);
+		printf("\t\t\tlink_layer:\t\t%s\n", link_layer_str(port_attr.link_layer));
 
 		if (verbose) {
 			printf("\t\t\tmax_msg_sz:\t\t0x%x\n", port_attr.max_msg_sz);

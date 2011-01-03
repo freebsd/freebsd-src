@@ -68,6 +68,14 @@ struct mlx4_resize_cq {
 	__u64				buf_addr;
 };
 
+#ifdef HAVE_IBV_XRC_OPS
+struct mlx4_create_xrc_srq {
+	struct ibv_create_xrc_srq	ibv_cmd;
+	__u64				buf_addr;
+	__u64				db_addr;
+};
+#endif
+
 struct mlx4_create_srq {
 	struct ibv_create_srq		ibv_cmd;
 	__u64				buf_addr;
@@ -89,5 +97,13 @@ struct mlx4_create_qp {
 	__u8				sq_no_prefetch;	/* was reserved in ABI 2 */
 	__u8				reserved[5];
 };
+
+#ifdef HAVE_IBV_XRC_OPS
+struct mlx4_open_xrc_domain_resp {
+	struct ibv_open_xrc_domain_resp	ibv_resp;
+	__u32				xrcdn;
+	__u32				reserved;
+};
+#endif
 
 #endif /* MLX4_ABI_H */

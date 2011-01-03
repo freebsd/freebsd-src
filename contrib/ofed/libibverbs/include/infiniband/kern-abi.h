@@ -85,7 +85,15 @@ enum {
 	IB_USER_VERBS_CMD_MODIFY_SRQ,
 	IB_USER_VERBS_CMD_QUERY_SRQ,
 	IB_USER_VERBS_CMD_DESTROY_SRQ,
-	IB_USER_VERBS_CMD_POST_SRQ_RECV
+	IB_USER_VERBS_CMD_POST_SRQ_RECV,
+	IB_USER_VERBS_CMD_CREATE_XRC_SRQ,
+	IB_USER_VERBS_CMD_OPEN_XRC_DOMAIN,
+	IB_USER_VERBS_CMD_CLOSE_XRC_DOMAIN,
+	IB_USER_VERBS_CMD_CREATE_XRC_RCV_QP,
+	IB_USER_VERBS_CMD_MODIFY_XRC_RCV_QP,
+	IB_USER_VERBS_CMD_QUERY_XRC_RCV_QP,
+	IB_USER_VERBS_CMD_REG_XRC_RCV_QP,
+	IB_USER_VERBS_CMD_UNREG_XRC_RCV_QP,
 };
 
 /*
@@ -223,7 +231,8 @@ struct ibv_query_port_resp {
 	__u8  active_width;
 	__u8  active_speed;
 	__u8  phys_state;
-	__u8  reserved[3];
+	__u8  link_layer;
+	__u8  reserved[2];
 };
 
 struct ibv_alloc_pd {
@@ -567,6 +576,93 @@ struct ibv_destroy_qp_resp {
 	__u32 events_reported;
 };
 
+struct ibv_create_xrc_rcv_qp {
+	__u32 command;
+	__u16 in_words;
+	__u16 out_words;
+	__u64 response;
+	__u64 user_handle;
+	__u32 xrc_domain_handle;
+	__u32 max_send_wr;
+	__u32 max_recv_wr;
+	__u32 max_send_sge;
+	__u32 max_recv_sge;
+	__u32 max_inline_data;
+	__u8  sq_sig_all;
+	__u8  qp_type;
+	__u8  reserved[6];
+	__u64 driver_data[0];
+};
+
+struct ibv_create_xrc_rcv_qp_resp {
+	__u32 qpn;
+	__u32 reserved;
+};
+
+struct ibv_modify_xrc_rcv_qp {
+	__u32 command;
+	__u16 in_words;
+	__u16 out_words;
+	__u32 xrc_domain_handle;
+	__u32 qp_num;
+	struct ibv_qp_dest dest;
+	struct ibv_qp_dest alt_dest;
+	__u32 attr_mask;
+	__u32 qkey;
+	__u32 rq_psn;
+	__u32 sq_psn;
+	__u32 dest_qp_num;
+	__u32 qp_access_flags;
+	__u16 pkey_index;
+	__u16 alt_pkey_index;
+	__u8  qp_state;
+	__u8  cur_qp_state;
+	__u8  path_mtu;
+	__u8  path_mig_state;
+	__u8  en_sqd_async_notify;
+	__u8  max_rd_atomic;
+	__u8  max_dest_rd_atomic;
+	__u8  min_rnr_timer;
+	__u8  port_num;
+	__u8  timeout;
+	__u8  retry_cnt;
+	__u8  rnr_retry;
+	__u8  alt_port_num;
+	__u8  alt_timeout;
+	__u8  reserved[6];
+	__u64 driver_data[0];
+};
+
+struct ibv_query_xrc_rcv_qp {
+	__u32 command;
+	__u16 in_words;
+	__u16 out_words;
+	__u64 response;
+	__u32 xrc_domain_handle;
+	__u32 qp_num;
+	__u32 attr_mask;
+	__u32 reserved;
+	__u64 driver_data[0];
+};
+
+struct ibv_reg_xrc_rcv_qp {
+	__u32 command;
+	__u16 in_words;
+	__u16 out_words;
+	__u32 xrc_domain_handle;
+	__u32 qp_num;
+	__u64 driver_data[0];
+};
+
+struct ibv_unreg_xrc_rcv_qp {
+	__u32 command;
+	__u16 in_words;
+	__u16 out_words;
+	__u32 xrc_domain_handle;
+	__u32 qp_num;
+	__u64 driver_data[0];
+};
+
 struct ibv_kern_send_wr {
 	__u64 wr_id;
 	__u32 num_sge;
@@ -706,6 +802,21 @@ struct ibv_create_srq {
 	__u64 driver_data[0];
 };
 
+struct ibv_create_xrc_srq {
+	__u32 command;
+	__u16 in_words;
+	__u16 out_words;
+	__u64 response;
+	__u64 user_handle;
+	__u32 pd_handle;
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 srq_limit;
+	__u32 xrcd_handle;
+	__u32 xrc_cq;
+	__u64 driver_data[0];
+};
+
 struct ibv_create_srq_resp {
 	__u32 srq_handle;
 	__u32 max_wr;
@@ -752,6 +863,30 @@ struct ibv_destroy_srq {
 
 struct ibv_destroy_srq_resp {
 	__u32 events_reported;
+};
+
+struct ibv_open_xrc_domain {
+	__u32 command;
+	__u16 in_words;
+	__u16 out_words;
+	__u64 response;
+	__u32 fd;
+	__u32 oflags;
+	__u64 driver_data[0];
+};
+
+struct ibv_open_xrc_domain_resp {
+	__u32 xrcd_handle;
+};
+
+struct ibv_close_xrc_domain {
+	__u32 command;
+	__u16 in_words;
+	__u16 out_words;
+	__u64 response;
+	__u32 xrcd_handle;
+	__u32 reserved;
+	__u64 driver_data[0];
 };
 
 /*
@@ -803,6 +938,14 @@ enum {
 	 * trick opcodes in IBV_INIT_CMD() doesn't break.
 	 */
 	IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL_V2 = -1,
+	IB_USER_VERBS_CMD_CREATE_XRC_SRQ_V2 = -1,
+	IB_USER_VERBS_CMD_OPEN_XRC_DOMAIN_V2 = -1,
+	IB_USER_VERBS_CMD_CLOSE_XRC_DOMAIN_V2 = -1,
+	IB_USER_VERBS_CMD_CREATE_XRC_RCV_QP_V2 = -1,
+	IB_USER_VERBS_CMD_MODIFY_XRC_RCV_QP_V2 = -1,
+	IB_USER_VERBS_CMD_QUERY_XRC_RCV_QP_V2 = -1,
+	IB_USER_VERBS_CMD_REG_XRC_RCV_QP_V2 = -1,
+	IB_USER_VERBS_CMD_UNREG_XRC_RCV_QP_V2 = -1,
 };
 
 struct ibv_destroy_cq_v1 {
