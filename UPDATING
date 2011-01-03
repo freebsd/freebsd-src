@@ -22,6 +22,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110103:
+	If you are trying to run make universe on a -stable system, and you get
+	the following warning:
+"Makefile", line 356: "Target architecture for i386/conf/GENERIC unknown.  config(8) likely too old."
+	or something similar to it, then you must upgrade your -stable system
+	to 8.2-Release or newer (really, any time after r210146 7/15/2010 in
+	stable/8) or build the config from the latest stable/8 branch and
+	install it on your system.
+
+	Prior to this date, building a current universe on 8-stable system from
+	between 7/15/2010 and 1/2/2011 would result in a weird shell parsing
+	error in the first kernel build phase.  A new config on those old systems
+	will fix that problem for older versions of -current.
+
 20101228:
 	The TCP stack has been modified to allow Khelp modules to interact with
 	it via helper hook points and store per-connection data in the TCP
