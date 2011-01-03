@@ -60,7 +60,9 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/poll.h>
+#ifdef __linux__
 #include <sys/epoll.h>
+#endif
 
 #ifdef SOLARIS_BUILD
 /* We're done protecting ourselves from the header prototypes */
@@ -152,6 +154,7 @@ typedef int (*pselect_func_t) (int n,
 typedef int (*poll_func_t) (struct pollfd * ufds,
 							unsigned long int nfds, int timeout);
 
+#ifdef __linux__
 typedef int (*epoll_create_func_t) (int size);
 
 typedef int (*epoll_ctl_func_t) (int epfd,
@@ -165,6 +168,7 @@ typedef int (*epoll_pwait_func_t) (int epfd,
 								   struct epoll_event * events,
 								   int maxevents,
 								   int timeout, const sigset_t * sigmask);
+#endif
 
 
 struct socket_lib_funcs {
@@ -184,10 +188,12 @@ struct socket_lib_funcs {
 	select_func_t select;
 	pselect_func_t pselect;
 	poll_func_t poll;
+#ifdef __linux__
 	epoll_create_func_t epoll_create;
 	epoll_ctl_func_t epoll_ctl;
 	epoll_wait_func_t epoll_wait;
 	epoll_pwait_func_t epoll_pwait;
+#endif
 };								/* socket_lib_funcs */
 
 #ifdef SOLARIS_BUILD
@@ -910,6 +916,7 @@ find_free_port(const struct sockaddr *sin_addr,
 				goto close_and_mark;
 			} else {
 				int err;
+#ifdef __linux__
 				socklen_t len = sizeof(int);
 
 				ret = getsockopt(tmp_sd[1 - tmp_turn], SOL_TCP,
@@ -919,6 +926,9 @@ find_free_port(const struct sockaddr *sin_addr,
 							  __func__, strerror(errno));
 					goto close_and_mark;
 				}
+#else
+				err = -errno;
+#endif
 				if (-ENOENT == err || -EADDRINUSE != err) {
 					/* bind() failed due to either:
 					 * 1. IP is ETH, not IB, so can't bind() to sdp socket.
@@ -1028,11 +1038,15 @@ check_legal_bind(const struct sockaddr *sin_addr,
 
 		if (EADDRINUSE != errno)
 			goto done;
+#ifdef __linux__
 		if (-1 == getsockopt(*sdp_sd, SOL_TCP, SDP_LAST_BIND_ERR, &err, &len)) {
 			__sdp_log(9, "Error check_legal_bind:getsockopt: %s\n",
 					  strerror(errno));
 			goto done;
 		}
+#else
+		err = -errno;
+#endif
 		if (-ENOENT != err) {
 			/* bind() failed due to real error. Can't continue */
 			__sdp_log(9, "Error check_legal_bind: "
@@ -2164,7 +2178,7 @@ done:
    if we have shadow we must poll on it too - which requires a hack back 
    and forth
 */
-int poll(struct pollfd *ufds, unsigned long int nfds, int timeout)
+int poll(struct pollfd *ufds, nfds_t nfds, int timeout)
 {
 	int ret;
 	int shadow_fd;
@@ -2255,6 +2269,7 @@ done:
 	return ret;
 }								/* poll */
 
+#ifdef __linux__
 /* ========================================================================= */
 /*..epoll_create -- replacement socket call.                                 */
 /*
@@ -2379,6 +2394,7 @@ epoll_pwait(int epfd,
 			  program_invocation_short_name, epfd, ret);
 	return ret;
 }								/* epoll_pwait */
+#endif
 
 /* ========================================================================= */
 
@@ -2516,6 +2532,7 @@ void __sdp_init(void)
 		fprintf(stderr, "%s\n", error_str);
 	}
 
+#ifdef __linux__
 	_socket_funcs.epoll_create = dlsym(__libc_dl_handle, "epoll_create");
 	if (NULL != (error_str = dlerror())) {
 		fprintf(stderr, "%s\n", error_str);
@@ -2535,6 +2552,7 @@ void __sdp_init(void)
 	if (NULL != (error_str = dlerror())) {
 		fprintf(stderr, "%s\n", error_str);
 	}
+#endif
 #ifdef SOLARIS_BUILD
 	_socket_xnet_funcs.socket = dlsym(__libc_dl_handle, "__xnet_socket");
 	if (NULL != (error_str = dlerror())) {
