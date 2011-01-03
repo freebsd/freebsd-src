@@ -28,7 +28,9 @@ MAN=	ibv_alloc_pd.3 ibv_asyncwatch.1 ibv_attach_mcast.3 ibv_create_ah.3 \
 	ibv_post_srq_recv.3 ibv_query_device.3 ibv_query_gid.3 \
 	ibv_query_pkey.3 ibv_query_port.3 ibv_query_qp.3 ibv_query_srq.3 \
 	ibv_rate_to_mult.3 ibv_rc_pingpong.1 ibv_reg_mr.3 ibv_req_notify_cq.3 \
-	ibv_resize_cq.3 ibv_srq_pingpong.1 ibv_uc_pingpong.1 ibv_ud_pingpong.1
+	ibv_resize_cq.3 ibv_srq_pingpong.1 ibv_uc_pingpong.1 ibv_ud_pingpong.1 \
+	ibv_query_xrc_rcv_qp.3 ibv_reg_xrc_rcv_qp.3 ibv_modify_xrc_rcv_qp.3 \
+	verbs.7 ibv_create_xrc_rcv_qp.3 ibv_open_xrc_domain.3
 
 
 CFLAGS+= -DHAVE_CONFIG_H -DIBV_CONFIG_DIR=\"/etc/ibverbs/\"

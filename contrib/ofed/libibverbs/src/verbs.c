@@ -717,8 +717,8 @@ static int is_tagged_vlan(const union ibv_gid *gid)
 	return tag < 0x1000;
 }
 
-int __ibv_resolve_eth_gid(struct ibv_pd *pd, uint8_t port_num,
-			  const union ibv_gid *dgid, uint8_t sgid_index,
+int __ibv_resolve_eth_gid(const struct ibv_pd *pd, uint8_t port_num,
+			  union ibv_gid *dgid, uint8_t sgid_index,
 			  uint8_t mac[], uint16_t *vlan, uint8_t *tagged,
 			  uint8_t *is_mcast)
 {
