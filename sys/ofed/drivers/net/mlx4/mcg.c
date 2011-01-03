@@ -36,6 +36,7 @@
 #include <linux/slab.h>
 
 #include <linux/mlx4/cmd.h>
+#include <linux/mlx4/driver.h>
 
 #include "mlx4.h"
 
@@ -97,7 +98,8 @@ static int mlx4_MGID_HASH(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox
  * entry in hash chain and *mgm holds end of hash chain.
  */
 static int find_mgm(struct mlx4_dev *dev,
-		    u8 *gid, struct mlx4_cmd_mailbox *mgm_mailbox,
+		    u8 *gid, enum mlx4_mcast_prot prot,
+		    struct mlx4_cmd_mailbox *mgm_mailbox,
 		    u16 *hash, int *prev, int *index)
 {
 	struct mlx4_cmd_mailbox *mailbox;
@@ -136,7 +138,8 @@ static int find_mgm(struct mlx4_dev *dev,
 			return err;
 		}
 
-		if (!memcmp(mgm->gid, gid, 16))
+		if (!memcmp(mgm->gid, gid, 16) &&
+				(prot == be32_to_cpu(mgm->members_count) >> 30))
 			return err;
 
 		*prev = *index;
@@ -148,7 +151,7 @@ static int find_mgm(struct mlx4_dev *dev,
 }
 
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
-			  int block_mcast_loopback)
+			  int block_mcast_loopback, enum mlx4_mcast_prot prot)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cmd_mailbox *mailbox;
@@ -167,7 +170,7 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 
 	mutex_lock(&priv->mcg_table.mutex);
 
-	err = find_mgm(dev, gid, mailbox, &hash, &prev, &index);
+	err = find_mgm(dev, gid, prot, mailbox, &hash, &prev, &index);
 	if (err)
 		goto out;
 
@@ -206,7 +209,7 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	mgm->qp[members_count++] = cpu_to_be32((qp->qpn & MGM_QPN_MASK) |
 					       (!!mlx4_blck_lb << MGM_BLCK_LB_BIT));
 
-	mgm->members_count       = cpu_to_be32(members_count);
+	mgm->members_count = cpu_to_be32(members_count | ((u32) prot << 30));
 
 	err = mlx4_WRITE_MCG(dev, index, mailbox);
 	if (err)
@@ -241,7 +244,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(mlx4_multicast_attach);
 
-int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
+int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+						enum mlx4_mcast_prot prot)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cmd_mailbox *mailbox;
@@ -259,7 +263,7 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
 
 	mutex_lock(&priv->mcg_table.mutex);
 
-	err = find_mgm(dev, gid, mailbox, &hash, &prev, &index);
+	err = find_mgm(dev, gid, prot, mailbox, &hash, &prev, &index);
 	if (err)
 		goto out;
 
@@ -281,7 +285,7 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
 	}
 
 
-	mgm->members_count = cpu_to_be32(--members_count);
+	mgm->members_count = cpu_to_be32(--members_count | ((u32) prot << 30));
 	mgm->qp[loc]       = mgm->qp[i - 1];
 	mgm->qp[i - 1]     = 0;
 

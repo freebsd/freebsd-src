@@ -48,16 +48,13 @@
 
 #define SDP_MAJV_MINV 0x22
 
-SDP_MODPARAM_SINT(sdp_link_layer_ib_only, 1, "Support only link layer of "
+SDP_MODPARAM_SINT(sdp_link_layer_ib_only, 0, "Support only link layer of "
 		"type Infiniband");
-
-enum {
-	SDP_HH_SIZE = 76,
-	SDP_HAH_SIZE = 180,
-};
 
 static void sdp_qp_event_handler(struct ib_event *event, void *data)
 {
+	sdp_warn(NULL, "unexpected invocation: event: %d, data=%p\n",
+			event->event, data);
 }
 
 static int sdp_get_max_dev_sge(struct ib_device *dev)
@@ -82,6 +79,7 @@ static int sdp_init_qp(struct sock *sk, struct rdma_cm_id *id)
 		.event_handler = sdp_qp_event_handler,
 		.cap.max_send_wr = SDP_TX_SIZE,
 		.cap.max_recv_wr = SDP_RX_SIZE,
+		.cap.max_inline_data = sdp_inline_thresh,
         	.sq_sig_type = IB_SIGNAL_REQ_WR,
         	.qp_type = IB_QPT_RC,
 	};
@@ -95,10 +93,10 @@ static int sdp_init_qp(struct sock *sk, struct rdma_cm_id *id)
 
 	qp_init_attr.cap.max_send_sge = MIN(sdp_sk(sk)->max_sge, SDP_MAX_SEND_SGES);
 	sdp_dbg(sk, "Setting max send sge to: %d\n", qp_init_attr.cap.max_send_sge);
-		
+
 	qp_init_attr.cap.max_recv_sge = MIN(sdp_sk(sk)->max_sge, SDP_MAX_RECV_SGES);
 	sdp_dbg(sk, "Setting max recv sge to: %d\n", qp_init_attr.cap.max_recv_sge);
-		
+
 	sdp_sk(sk)->sdp_dev = ib_get_client_data(device, &sdp_client);
 	if (!sdp_sk(sk)->sdp_dev) {
 		sdp_warn(sk, "SDP not available on device %s\n", device->name);
@@ -126,8 +124,7 @@ static int sdp_init_qp(struct sock *sk, struct rdma_cm_id *id)
 	sdp_sk(sk)->ib_device = device;
 	sdp_sk(sk)->qp_active = 1;
 	sdp_sk(sk)->context.device = device;
-
-	init_waitqueue_head(&sdp_sk(sk)->wq);
+	sdp_sk(sk)->inline_thresh = qp_init_attr.cap.max_inline_data;
 
 	sdp_dbg(sk, "%s done\n", __func__);
 	return 0;
@@ -174,17 +171,24 @@ static int sdp_connect_handler(struct sock *sk, struct rdma_cm_id *id,
 	inet_sk(child)->dport = dst_addr->sin_port;
 	inet_sk(child)->daddr = dst_addr->sin_addr.s_addr;
 
-	bh_unlock_sock(child);
+#ifdef SDP_SOCK_HISTORY
+	sdp_ssk_hist_rename(sk);
+#endif
 	__sock_put(child, SOCK_REF_CLONE);
+
+	down_read(&device_removal_lock);
 
 	rc = sdp_init_qp(child, id);
 	if (rc) {
+		bh_unlock_sock(child);
+		up_read(&device_removal_lock);
 		sdp_sk(child)->destructed_already = 1;
+#ifdef SDP_SOCK_HISTORY
+		sdp_ssk_hist_close(child);
+#endif
 		sk_free(child);
 		return rc;
 	}
-
-	sdp_add_sock(sdp_sk(child));
 
 	sdp_sk(child)->max_bufs = ntohs(h->bsdh.bufs);
 	atomic_set(&sdp_sk(child)->tx_ring.credits, sdp_sk(child)->max_bufs);
@@ -202,6 +206,10 @@ static int sdp_connect_handler(struct sock *sk, struct rdma_cm_id *id,
 	list_add_tail(&sdp_sk(child)->backlog_queue,
 			&sdp_sk(sk)->backlog_queue);
 	sdp_sk(child)->parent = sk;
+
+	bh_unlock_sock(child);
+	sdp_add_sock(sdp_sk(child));
+	up_read(&device_removal_lock);
 
 	sdp_exch_state(child, TCPF_LISTEN | TCPF_CLOSE, TCP_SYN_RECV);
 
@@ -248,10 +256,13 @@ static int sdp_response_handler(struct sock *sk, struct rdma_cm_id *id,
 	inet_sk(sk)->dport = dst_addr->sin_port;
 	inet_sk(sk)->daddr = dst_addr->sin_addr.s_addr;
 
+#ifdef SDP_SOCK_HISTORY
+	sdp_ssk_hist_rename(sk);
+#endif
 	return 0;
 }
 
-static int sdp_connected_handler(struct sock *sk, struct rdma_cm_event *event)
+static int sdp_connected_handler(struct sock *sk)
 {
 	struct sock *parent;
 	sdp_dbg(sk, "%s\n", __func__);
@@ -261,6 +272,9 @@ static int sdp_connected_handler(struct sock *sk, struct rdma_cm_event *event)
 
 	sdp_exch_state(sk, TCPF_SYN_RECV, TCP_ESTABLISHED);
 
+#ifdef SDP_SOCK_HISTORY
+	sdp_ssk_hist_rename(sk);
+#endif
 	sdp_set_default_moderation(sdp_sk(sk));
 
 	if (sock_flag(sk, SOCK_KEEPOPEN))
@@ -296,10 +310,11 @@ static int sdp_disconnected_handler(struct sock *sk)
 	sdp_dbg(sk, "%s\n", __func__);
 
 	if (ssk->tx_ring.cq)
-		sdp_xmit_poll(ssk, 1);
+		if (sdp_xmit_poll(ssk, 1))
+			sdp_post_sends(ssk, 0);
 
 	if (sk->sk_state == TCP_SYN_RECV) {
-		sdp_connected_handler(sk, NULL);
+		sdp_connected_handler(sk);
 
 		if (rcv_nxt(ssk))
 			return 0;
@@ -321,14 +336,16 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 
 	sk = id->context;
 	if (!sk) {
-		sdp_dbg(NULL, "cm_id is being torn down, event %d\n",
-		       	event->event);
+		sdp_dbg(NULL, "cm_id is being torn down, event %s\n",
+		       	rdma_cm_event_str(event->event));
 		return event->event == RDMA_CM_EVENT_CONNECT_REQUEST ?
 			-EINVAL : 0;
 	}
 
+	sdp_add_to_history(sk, rdma_cm_event_str(event->event));
+
 	lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
-	sdp_dbg(sk, "%s event %d id %p\n", __func__, event->event, id);
+	sdp_dbg(sk, "event: %s\n", rdma_cm_event_str(event->event));
 	if (!sdp_sk(sk)->id) {
 		sdp_dbg(sk, "socket is being torn down\n");
 		rc = event->event == RDMA_CM_EVENT_CONNECT_REQUEST ?
@@ -339,16 +356,14 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 
 	switch (event->event) {
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
-		sdp_dbg(sk, "RDMA_CM_EVENT_ADDR_RESOLVED\n");
-
 		if (sdp_link_layer_ib_only &&
-			rdma_node_get_transport(id->device->node_type) == 
+			rdma_node_get_transport(id->device->node_type) ==
 				RDMA_TRANSPORT_IB &&
-			rdma_port_link_layer(id->device, id->port_num) !=
+			rdma_port_get_link_layer(id->device, id->port_num) !=
 				IB_LINK_LAYER_INFINIBAND) {
 			sdp_dbg(sk, "Link layer is: %d. Only IB link layer "
 				"is allowed\n",
-				rdma_port_link_layer(id->device, id->port_num));
+				rdma_port_get_link_layer(id->device, id->port_num));
 			rc = -ENETUNREACH;
 			break;
 		}
@@ -356,16 +371,12 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		rc = rdma_resolve_route(id, SDP_ROUTE_TIMEOUT);
 		break;
 	case RDMA_CM_EVENT_ADDR_ERROR:
-		sdp_dbg(sk, "RDMA_CM_EVENT_ADDR_ERROR\n");
 		rc = -ENETUNREACH;
 		break;
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
-		sdp_dbg(sk, "RDMA_CM_EVENT_ROUTE_RESOLVED : %p\n", id);
 		rc = sdp_init_qp(sk, id);
 		if (rc)
 			break;
-		atomic_set(&sdp_sk(sk)->remote_credits,
-				rx_ring_posted(sdp_sk(sk)));
 		memset(&hh, 0, sizeof hh);
 		hh.bsdh.mid = SDP_MID_HELLO;
 		hh.bsdh.len = htonl(sizeof(struct sdp_hh));
@@ -374,9 +385,10 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		hh.majv_minv = SDP_MAJV_MINV;
 		sdp_init_buffers(sdp_sk(sk), rcvbuf_initial_size);
 		hh.bsdh.bufs = htons(rx_ring_posted(sdp_sk(sk)));
+		atomic_set(&sdp_sk(sk)->remote_credits,
+				rx_ring_posted(sdp_sk(sk)));
 		hh.localrcvsz = hh.desremrcvsz = htonl(sdp_sk(sk)->recv_frags *
 				PAGE_SIZE + sizeof(struct sdp_bsdh));
-		hh.max_adverts = 0x1;
 		inet_sk(sk)->saddr = inet_sk(sk)->rcv_saddr =
 			((struct sockaddr_in *)&id->route.addr.src_addr)->sin_addr.s_addr;
 		memset(&conn_param, 0, sizeof conn_param);
@@ -385,15 +397,13 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		conn_param.responder_resources = 4 /* TODO */;
 		conn_param.initiator_depth = 4 /* TODO */;
 		conn_param.retry_count = SDP_RETRY_COUNT;
-		SDP_DUMP_PACKET(NULL, "TX", NULL, &hh.bsdh);
+		SDP_DUMP_PACKET(sk, "TX", NULL, &hh.bsdh);
 		rc = rdma_connect(id, &conn_param);
 		break;
 	case RDMA_CM_EVENT_ROUTE_ERROR:
-		sdp_dbg(sk, "RDMA_CM_EVENT_ROUTE_ERROR : %p\n", id);
 		rc = -ETIMEDOUT;
 		break;
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
-		sdp_dbg(sk, "RDMA_CM_EVENT_CONNECT_REQUEST\n");
 		rc = sdp_connect_handler(sk, id, event);
 		if (rc) {
 			sdp_dbg(sk, "Destroying qp\n");
@@ -428,7 +438,6 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		}
 		break;
 	case RDMA_CM_EVENT_CONNECT_RESPONSE:
-		sdp_dbg(sk, "RDMA_CM_EVENT_CONNECT_RESPONSE\n");
 		rc = sdp_response_handler(sk, id, event);
 		if (rc) {
 			sdp_dbg(sk, "Destroying qp\n");
@@ -437,26 +446,20 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 			rc = rdma_accept(id, NULL);
 		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
-		sdp_dbg(sk, "RDMA_CM_EVENT_CONNECT_ERROR\n");
 		rc = -ETIMEDOUT;
 		break;
 	case RDMA_CM_EVENT_UNREACHABLE:
-		sdp_dbg(sk, "RDMA_CM_EVENT_UNREACHABLE\n");
 		rc = -ENETUNREACH;
 		break;
 	case RDMA_CM_EVENT_REJECTED:
-		sdp_dbg(sk, "RDMA_CM_EVENT_REJECTED\n");
 		rc = -ECONNREFUSED;
 		break;
 	case RDMA_CM_EVENT_ESTABLISHED:
-		sdp_dbg(sk, "RDMA_CM_EVENT_ESTABLISHED\n");
 		inet_sk(sk)->saddr = inet_sk(sk)->rcv_saddr =
 			((struct sockaddr_in *)&id->route.addr.src_addr)->sin_addr.s_addr;
-		rc = sdp_connected_handler(sk, event);
+		rc = sdp_connected_handler(sk);
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED: /* This means DREQ/DREP received */
-		sdp_dbg(sk, "RDMA_CM_EVENT_DISCONNECTED\n");
-
 		if (sk->sk_state == TCP_LAST_ACK) {
 			sdp_cancel_dreq_wait_timeout(sdp_sk(sk));
 
@@ -475,17 +478,18 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 					"TCP_CLOSE_WAIT taking reference to "
 					"let close() finish the work\n");
 				sock_hold(sk, SOCK_REF_CMA);
+				sdp_start_cma_timewait_timeout(sdp_sk(sk),
+						SDP_CMA_TIMEWAIT_TIMEOUT);
+
 			}
-			sdp_set_error(sk, EPIPE);
+			sdp_set_error(sk, -EPIPE);
 			rc = sdp_disconnected_handler(sk);
 		}
 		break;
 	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
-		sdp_dbg(sk, "RDMA_CM_EVENT_TIMEWAIT_EXIT\n");
 		rc = sdp_disconnected_handler(sk);
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-		sdp_dbg(sk, "RDMA_CM_EVENT_DEVICE_REMOVAL\n");
 		rc = -ENETRESET;
 		break;
 	default:
@@ -495,7 +499,7 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		break;
 	}
 
-	sdp_dbg(sk, "%s event %d handled\n", __func__, event->event);
+	sdp_dbg(sk, "event: %s handled\n", rdma_cm_event_str(event->event));
 
 	if (rc && sdp_sk(sk)->id == id) {
 		child = sk;
@@ -508,7 +512,8 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 
 	release_sock(sk);
 
-	sdp_dbg(sk, "event %d done. status %d\n", event->event, rc);
+	sdp_dbg(sk, "event: %s done. status %d\n",
+			rdma_cm_event_str(event->event), rc);
 
 	if (parent) {
 		lock_sock(parent);
@@ -524,7 +529,7 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 done:
 		release_sock(parent);
 		if (child)
-			sk_common_release(child);
+			sdp_common_release(child);
 	}
 	return rc;
 }

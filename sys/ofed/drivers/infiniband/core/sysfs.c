@@ -79,7 +79,7 @@ static ssize_t port_attr_show(struct kobject *kobj,
 	return port_attr->show(p, port_attr, buf);
 }
 
-static struct sysfs_ops port_sysfs_ops = {
+static const struct sysfs_ops port_sysfs_ops = {
 	.show = port_attr_show
 };
 
@@ -225,7 +225,7 @@ static ssize_t phys_state_show(struct ib_port *p, struct port_attribute *unused,
 static ssize_t link_layer_show(struct ib_port *p, struct port_attribute *unused,
 			       char *buf)
 {
-	switch (rdma_port_link_layer(p->ibdev, p->port_num)) {
+	switch (rdma_port_get_link_layer(p->ibdev, p->port_num)) {
 	case IB_LINK_LAYER_INFINIBAND:
 		return sprintf(buf, "%s\n", "IB");
 	case IB_LINK_LAYER_ETHERNET:

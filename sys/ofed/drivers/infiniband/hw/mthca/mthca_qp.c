@@ -1240,14 +1240,20 @@ static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
 			     struct mthca_pd *pd, struct mthca_qp *qp)
 {
 	int max_data_size = mthca_max_data_size(dev, qp, dev->limits.max_desc_sz);
+        u32 max_inline_data;
 
 	/* Sanity check QP size before proceeding */
 	if (cap->max_send_wr  	 > dev->limits.max_wqes ||
 	    cap->max_recv_wr  	 > dev->limits.max_wqes ||
 	    cap->max_send_sge 	 > dev->limits.max_sg   ||
-	    cap->max_recv_sge 	 > dev->limits.max_sg   ||
+	    cap->max_recv_sge 	 > dev->limits.max_sg)
+		return -EINVAL;
+
+	if (pd->ibpd.uobject &&
 	    cap->max_inline_data > mthca_max_inline_data(pd, max_data_size))
 		return -EINVAL;
+
+	max_inline_data = pd->ibpd.uobject ? cap->max_inline_data : 0;
 
 	/*
 	 * For MLX transport we need 2 extra send gather entries:
@@ -1268,7 +1274,7 @@ static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
 
 	qp->rq.max_gs = cap->max_recv_sge;
 	qp->sq.max_gs = max_t(int, cap->max_send_sge,
-			      ALIGN(cap->max_inline_data + MTHCA_INLINE_HEADER_SIZE,
+			      ALIGN(max_inline_data + MTHCA_INLINE_HEADER_SIZE,
 				    MTHCA_INLINE_CHUNK_SIZE) /
 			      sizeof (struct mthca_data_seg));
 

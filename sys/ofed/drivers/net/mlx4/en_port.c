@@ -170,9 +170,53 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 	else
 		state->link_speed = 10000;
 	state->transciver = qport_context->transceiver;
+	if (be32_to_cpu(qport_context->transceiver_code_hi) & 0x400)
+		state->transciver = 0x80;
 
 out:
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
+	return err;
+}
+
+static int read_iboe_counters(struct mlx4_dev *dev, int index, u64 counters[])
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	int err;
+	int mode;
+	struct mlx4_counters_ext *ext;
+	struct mlx4_counters *reg;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return -ENOMEM;
+
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, index, 0,
+			   MLX4_CMD_QUERY_IF_STAT, MLX4_CMD_TIME_CLASS_C);
+	if (err)
+		goto out;
+
+	mode = be32_to_cpu(((struct mlx4_counters *)mailbox->buf)->counter_mode) & 0xf;
+	switch (mode) {
+	case 0:
+		reg = mailbox->buf;
+		counters[0] = be64_to_cpu(reg->rx_frames);
+		counters[1] = be64_to_cpu(reg->tx_frames);
+		counters[2] = be64_to_cpu(reg->rx_bytes);
+		counters[3] = be64_to_cpu(reg->tx_bytes);
+		break;
+	case 1:
+		ext = mailbox->buf;
+		counters[0] = be64_to_cpu(ext->rx_uni_frames);
+		counters[1] = be64_to_cpu(ext->tx_uni_frames);
+		counters[2] = be64_to_cpu(ext->rx_uni_bytes);
+		counters[3] = be64_to_cpu(ext->tx_uni_bytes);
+		break;
+	default:
+		err = -EINVAL;
+	}
+
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
 
@@ -185,6 +229,13 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	u64 in_mod = reset << 8 | port;
 	int err;
 	int i;
+	int counter;
+	u64 counters[4];
+
+	memset(counters, 0, sizeof counters);
+	counter = mlx4_get_iboe_counter(priv->mdev->dev, port);
+	if (counter >= 0)
+		err = read_iboe_counters(priv->mdev->dev, counter, counters);
 
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
 	if (IS_ERR(mailbox))
@@ -199,14 +250,14 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 
 	spin_lock_bh(&priv->stats_lock);
 
-	stats->rx_packets = 0;
-	stats->rx_bytes = 0;
+	stats->rx_packets = counters[0];
+	stats->rx_bytes = counters[2];
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		stats->rx_packets += priv->rx_ring[i].packets;
 		stats->rx_bytes += priv->rx_ring[i].bytes;
 	}
-	stats->tx_packets = 0;
-	stats->tx_bytes = 0;
+	stats->tx_packets = counters[1];
+	stats->tx_bytes = counters[3];
 	for (i = 0; i <= priv->tx_ring_num; i++) {
 		stats->tx_packets += priv->tx_ring[i].packets;
 		stats->tx_bytes += priv->tx_ring[i].bytes;

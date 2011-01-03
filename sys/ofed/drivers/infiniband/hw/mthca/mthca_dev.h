@@ -51,8 +51,8 @@
 
 #define DRV_NAME	"ib_mthca"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"1.0-ofed1.5.1"
-#define DRV_RELDATE	"April 4, 2008"
+#define DRV_VERSION	"1.0-ofed1.5.2"
+#define DRV_RELDATE	"August 4, 2010"
 
 enum {
 	MTHCA_FLAG_DDR_HIDDEN = 1 << 1,

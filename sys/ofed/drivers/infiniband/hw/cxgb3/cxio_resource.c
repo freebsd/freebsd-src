@@ -39,6 +39,8 @@
 #include "cxio_resource.h"
 #include "cxio_hal.h"
 
+#include "genalloc.c"
+
 static struct kfifo *rhdl_fifo;
 static spinlock_t rhdl_fifo_lock;
 

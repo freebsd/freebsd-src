@@ -82,6 +82,7 @@ module_param_named(wc_pat, qib_wc_pat, uint, S_IRUGO);
 MODULE_PARM_DESC(wc_pat, "enable write-combining via PAT mechanism");
 
 struct workqueue_struct *qib_wq;
+struct workqueue_struct *qib_cq_wq;
 
 static void verify_interrupt(unsigned long);
 
@@ -92,9 +93,11 @@ unsigned long *qib_cpulist;
 /* set number of contexts we'll actually use */
 void qib_set_ctxtcnt(struct qib_devdata *dd)
 {
-	if (!qib_cfgctxts)
-		dd->cfgctxts = dd->ctxtcnt;
-	else if (qib_cfgctxts < dd->num_pports) {
+	if (!qib_cfgctxts) {
+		dd->cfgctxts = dd->first_user_ctxt + num_online_cpus();
+		if (dd->cfgctxts > dd->ctxtcnt)
+			dd->cfgctxts = dd->ctxtcnt;
+	} else if (qib_cfgctxts < dd->num_pports) {
 		dd->cfgctxts = dd->ctxtcnt;
 		qib_dbg("Configured to use too few ctxts (%u); using %u\n",
 			qib_cfgctxts, dd->cfgctxts);
@@ -1095,6 +1098,16 @@ static int __init qlogic_ib_init(void)
 	 * removal.
 	 */
 	qib_wq = create_workqueue("qib");
+	if (!qib_wq) {
+		ret = -ENOMEM;
+		goto bail_trace;
+	}
+
+	qib_cq_wq = create_singlethread_workqueue("qib_cq");
+	if (!qib_cq_wq) {
+		ret = -ENOMEM;
+		goto bail_wq;
+	}
 
 	/*
 	 * These must be called before the driver is registered with
@@ -1104,7 +1117,7 @@ static int __init qlogic_ib_init(void)
 	if (!idr_pre_get(&qib_unit_table, GFP_KERNEL)) {
 		printk(KERN_ERR QIB_DRV_NAME ": idr_pre_get() failed\n");
 		ret = -ENOMEM;
-		goto bail_trace;
+		goto bail_cq_wq;
 	}
 
 	if (qib_wc_pat) {
@@ -1134,6 +1147,10 @@ bail_unit:
 	idr_destroy(&qib_unit_table);
 bail_trace:
 	qib_trace_fini();
+bail_cq_wq:
+	destroy_workqueue(qib_cq_wq);
+bail_wq:
+	destroy_workqueue(qib_wq);
 bail_dev:
 	qib_dev_cleanup();
 bail:
@@ -1163,6 +1180,7 @@ static void __exit qlogic_ib_cleanup(void)
 	}
 
 	destroy_workqueue(qib_wq);
+	destroy_workqueue(qib_cq_wq);
 
 	qib_cpulist_count = 0;
 	kfree(qib_cpulist);
@@ -1335,8 +1353,18 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 
 	if (qib_mini_init || initfail || ret) {
 		qib_stop_timers(dd);
+		flush_scheduled_work();
 		for (pidx = 0; pidx < dd->num_pports; ++pidx)
 			dd->f_quiet_serdes(dd->pport + pidx);
+		if (qib_mini_init)
+			goto bail;
+		if (!j) {
+			(void) qibfs_remove(dd);
+			qib_device_remove(dd);
+		}
+		if (!ret)
+			qib_unregister_ib_device(dd);
+		qib_postinit_cleanup(dd);
 		if (initfail)
 			ret = initfail;
 		goto bail;
@@ -1539,6 +1567,9 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 		dma_addr_t pa = rcd->rcvegrbuf_phys[chunk];
 		unsigned i;
 
+		/* clear for security and sanity on each use */
+		memset(rcd->rcvegrbuf[chunk], 0, size);
+
 		for (i = 0; e < egrcnt && i < egrperchunk; e++, i++) {
 			dd->f_put_tid(dd, e + egroff +
 					  (u64 __iomem *)
@@ -1566,6 +1597,12 @@ bail:
 	return -ENOMEM;
 }
 
+/*
+ * Note: Changes to this routine should be mirrored
+ * for the diagnostics routine qib_remap_ioaddr32().
+ * There is also related code for VL15 buffers in qib_init_7322_variables().
+ * The teardown code that unmaps is in qib_pcie_ddcleanup()
+ */
 int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 {
 	u64 __iomem *qib_kregbase = NULL;

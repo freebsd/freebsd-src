@@ -99,14 +99,15 @@ void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int solicited)
 	wc->head = next;
 
 	if (cq->notify == IB_CQ_NEXT_COMP ||
-	    (cq->notify == IB_CQ_SOLICITED && solicited)) {
+	    (cq->notify == IB_CQ_SOLICITED &&
+	     (solicited || entry->status != IB_WC_SUCCESS))) {
 		cq->notify = IB_CQ_NONE;
 		cq->triggered++;
 		/*
 		 * This will cause send_complete() to be called in
 		 * another thread.
 		 */
-		queue_work(qib_wq, &cq->comptask);
+		queue_work(qib_cq_wq, &cq->comptask);
 	}
 
 	spin_unlock_irqrestore(&cq->lock, flags);

@@ -351,7 +351,8 @@ enum ib_event_type {
 	IB_EVENT_SRQ_ERR,
 	IB_EVENT_SRQ_LIMIT_REACHED,
 	IB_EVENT_QP_LAST_WQE_REACHED,
-	IB_EVENT_CLIENT_REREGISTER
+	IB_EVENT_CLIENT_REREGISTER,
+	IB_EVENT_GID_CHANGE,
 };
 
 enum ib_event_flags {
@@ -571,7 +572,8 @@ enum ib_qp_type {
 	IB_QPT_UD,
 	IB_QPT_XRC,
 	IB_QPT_RAW_IPV6,
-	IB_QPT_RAW_ETY
+	IB_QPT_RAW_ETY,
+	IB_QPT_RAW_ETH
 };
 
 enum ib_qp_create_flags {
@@ -1209,9 +1211,6 @@ struct ib_device {
 	int 			   (*unreg_xrc_rcv_qp)(struct ib_xrcd *xrcd,
 						       void *context,
 						       u32 qp_num);
-	int			   (*get_eth_l2_addr)(struct ib_device *device, u8 port,
-						      union ib_gid *dgid, int sgid_idx,
-						      u8 *mac, u16 *vlan_id);
 
 	struct ib_dma_mapping_ops   *dma_ops;
 
@@ -1306,8 +1305,8 @@ int ib_query_device(struct ib_device *device,
 int ib_query_port(struct ib_device *device,
 		  u8 port_num, struct ib_port_attr *port_attr);
 
-enum rdma_link_layer rdma_port_link_layer(struct ib_device *device,
-					  u8 port_num);
+enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
+					       u8 port_num);
 
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid);
@@ -2167,17 +2166,5 @@ int ib_dealloc_xrcd(struct ib_xrcd *xrcd);
  * @device: The device on which to allocate the xrcd.
  */
 struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device);
-
-/**
-  * ib_get_eth_l2_addr - get the mac and vlan id for the specified gid
-  * @device: IB device used for traffic
-  * @port: port number used.
-  * @gid: gid to be resolved into mac
-  * @sgid_idx: index to port's gid table for the corresponding address vector
-  * @mac: mac of the port bearing this gid
-  * @vlan_id: vlan to be used to reach this gid
-  */
-int ib_get_eth_l2_addr(struct ib_device *device, u8 port, union ib_gid *gid,
-		       int sgid_idx, u8 *mac, __u16 *vlan_id);
 
 #endif /* IB_VERBS_H */

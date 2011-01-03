@@ -79,6 +79,7 @@ struct nes_mr {
 	u16               pbls_used;
 	u8                mode;
 	u8                pbl_4k;
+	u32               mcrqf;
 };
 
 struct nes_hw_pb {
@@ -116,7 +117,8 @@ struct nes_cq {
 	spinlock_t       lock;
 	u8               virtual_cq;
 	u8               pad[3];
-	u32		 mcrqf;
+	atomic_t         usecnt;
+	u32              mcrqf;
 };
 
 struct nes_wq {
@@ -130,6 +132,7 @@ struct disconn_work {
 
 struct iw_cm_id;
 struct ietf_mpa_frame;
+struct nes_ud_file;
 
 struct nes_qp {
 	struct ib_qp          ibqp;
@@ -176,5 +179,7 @@ struct nes_qp {
 	u8                    hw_tcp_state;
 	u8                    term_flags;
 	u8                    sq_kmapped;
+	struct nes_ud_file    *rx_ud_wq;
+	struct nes_ud_file    *tx_ud_wq;
 };
 #endif			/* NES_VERBS_H */

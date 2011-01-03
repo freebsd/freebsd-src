@@ -3,6 +3,7 @@
 
 #include <linux/workqueue.h>
 #include <linux/wait.h>
+#include <linux/rwsem.h>
 #include <net/inet_sock.h>
 #include <net/tcp.h> /* For urgent data flags */
 #include <rdma/ib_verbs.h>
@@ -11,28 +12,32 @@
 #include <rdma/ib_cm.h>
 #include "sdp_dbg.h"
 
+#define sk_ssk(ssk) ((struct sock *)ssk)
+
 /* Interval between sucessive polls in the Tx routine when polling is used
    instead of interrupts (in per-core Tx rings) - should be power of 2 */
 #define SDP_TX_POLL_MODER	16
 #define SDP_TX_POLL_TIMEOUT	(HZ / 20)
 #define SDP_NAGLE_TIMEOUT (HZ / 10)
 
+#define SDP_RX_ARMING_DELAY	(msecs_to_jiffies(10))
+#define SDP_RDMA_READ_TIMEOUT	(60 * HZ) /* timeout - fatal hw error */
+
 #define SDP_SRCAVAIL_CANCEL_TIMEOUT (HZ * 5)
 #define SDP_SRCAVAIL_ADV_TIMEOUT (1 * HZ)
-#define SDP_SRCAVAIL_PAYLOAD_LEN 1
 
 #define SDP_RESOLVE_TIMEOUT 1000
 #define SDP_ROUTE_TIMEOUT 1000
 #define SDP_RETRY_COUNT 5
 #define SDP_KEEPALIVE_TIME (120 * 60 * HZ)
 #define SDP_FIN_WAIT_TIMEOUT (60 * HZ) /* like TCP_FIN_TIMEOUT */
+#define SDP_CMA_TIMEWAIT_TIMEOUT (150 * HZ)
 
 #define SDP_TX_SIZE 0x40
 #define SDP_RX_SIZE 0x40
+#define SDP_DEF_INLINE_THRESH 256
 
 #define SDP_FMR_SIZE (MIN(0x1000, PAGE_SIZE) / sizeof(u64))
-#define SDP_FMR_POOL_SIZE	1024
-#define SDP_FMR_DIRTY_SIZE	( SDP_FMR_POOL_SIZE / 4 )
 
 #define SDP_MAX_RDMA_READ_LEN (PAGE_SIZE * (SDP_FMR_SIZE - 2))
 
@@ -45,7 +50,7 @@
 /* limit tx payload len, if the sink supports bigger buffers than the source
  * can handle.
  * or rx fragment size (limited by sge->length size) */
-#define SDP_MAX_PAYLOAD ((1 << 16) - SDP_SKB_HEAD_SIZE)
+#define SDP_MAX_PAYLOAD ((1UL << 16) - SDP_SKB_HEAD_SIZE)
 
 #define SDP_NUM_WC 4
 
@@ -62,7 +67,6 @@
 #define SDP_BZCOPY_POLL_TIMEOUT (HZ / 10)
 
 #define SDP_AUTO_CONF	0xffff
-#define AUTO_MOD_DELAY (HZ / 4)
 
 struct sdp_skb_cb {
 	__u32		seq;		/* Starting sequence number	*/
@@ -91,12 +95,32 @@ struct sdp_skb_cb {
 	(ssk->tx_ring.rdma_inflight ? ssk->tx_ring.rdma_inflight->busy : 0))
 
 #define posts_handler(ssk) atomic_read(&ssk->somebody_is_doing_posts)
-#define posts_handler_get(ssk) atomic_inc(&ssk->somebody_is_doing_posts)
-#define posts_handler_put(ssk) do {\
-	atomic_dec(&ssk->somebody_is_doing_posts); \
-	sdp_do_posts(ssk); \
+#define posts_handler_get(ssk)						\
+	do {								\
+		atomic_inc(&ssk->somebody_is_doing_posts);		\
+		sdp_postpone_rx_timer(ssk);				\
+	} while (0)
+
+#define posts_handler_put(ssk, intr_delay)				\
+	do {								\
+		sdp_do_posts(ssk);					\
+		if (atomic_dec_and_test(&ssk->somebody_is_doing_posts) && \
+			likely(ssk->qp_active))				\
+				sdp_schedule_arm_rx_cq(ssk, intr_delay);\
+	} while (0)
+
+#define sdp_common_release(sk) do { \
+		sdp_dbg(sk, "%s:%d - sock_put(SOCK_REF_ALIVE" \
+			") - refcount = %d from withing sk_common_release\n",\
+			__func__, __LINE__, atomic_read(&(sk)->sk_refcnt));\
+		percpu_counter_inc((sk)->sk_prot->orphan_count);\
+		sdp_add_to_history(sk, "sdp_common_release");	\
+		_sdp_add_to_history(sk, "SOCK_REF_ALIVE", __func__, __LINE__, \
+				2, SOCK_REF_ALIVE); \
+		sk_common_release(sk); \
 } while (0)
 
+extern int sdp_inline_thresh;
 extern int sdp_zcopy_thresh;
 extern struct workqueue_struct *sdp_wq;
 extern struct list_head sock_list;
@@ -105,6 +129,7 @@ extern int rcvbuf_initial_size;
 extern struct proto sdp_proto;
 extern struct workqueue_struct *rx_comp_wq;
 extern atomic_t sdp_current_mem_usage;
+extern int top_mem_usage;
 extern spinlock_t sdp_large_sockets_lock;
 extern struct ib_client sdp_client;
 #ifdef SDPSTATS_ON
@@ -197,7 +222,12 @@ struct sdp_srcah {
 
 struct sdp_buf {
         struct sk_buff *skb;
+	/* The relation of mapping <-> pages is like this:
+	 * mapping[0] doesn't have a correspondent page.
+	 * mapping[i + 1] <-> pages[i]
+	 */
         u64             mapping[SDP_MAX_SEND_SGES];
+	struct page 	*pages[SDP_MAX_SEND_SGES - 1];
 } __attribute__((__packed__));
 
 struct sdp_chrecvbuf {
@@ -217,10 +247,6 @@ struct bzcopy_state {
 	struct page         **pages;
 };
 
-enum rx_sa_flag {
-	RX_SA_ABORTED    = 2,
-};
-
 enum tx_sa_flag {
 	TX_SA_SENDSM     = 0x01,
 	TX_SA_CROSS_SEND = 0x02,
@@ -232,8 +258,8 @@ enum tx_sa_flag {
 struct rx_srcavail_state {
 	/* Advertised buffer stuff */
 	u32 mseq;
-	u32 used;
 	u32 reported;
+	u32 copied;
 	u32 len;
 	u32 rkey;
 	u64 vaddr;
@@ -244,7 +270,7 @@ struct rx_srcavail_state {
 
 	/* Utility */
 	u8  busy;
-	enum rx_sa_flag  flags;
+	struct sk_buff *skb; /* SrcAvail skb */
 };
 
 struct tx_srcavail_state {
@@ -270,7 +296,7 @@ struct sdp_tx_ring {
 	atomic_t          	tail;
 	struct ib_cq 	 	*cq;
 
-	int 		  	una_seq;
+	u32 		  	una_seq;
 	atomic_t 	  	credits;
 #define tx_credits(ssk) (atomic_read(&ssk->tx_ring.credits))
 
@@ -285,10 +311,7 @@ struct sdp_rx_ring {
 	atomic_t          tail;
 	struct ib_cq 	 *cq;
 
-	int		 destroyed;
-	rwlock_t 	 destroyed_lock;
-
-	struct tasklet_struct 	tasklet;
+	struct timer_list	cq_arm_timer;
 };
 
 struct sdp_device {
@@ -327,22 +350,35 @@ struct sdp_sock {
 	struct sk_buff_head rx_ctl_q;
 	struct sock *parent;
 	struct sdp_device *sdp_dev;
+	int cpu;
+
+	unsigned int sk_id;
+
+#ifdef SDP_SOCK_HISTORY
+	struct sdp_sock_hist hst[SDP_SOCK_HISTORY_LEN];
+	unsigned long hst_idx; /* next free slot */
+	spinlock_t hst_lock;
+	struct dentry *hst_dentr;
+#endif /* SDP_SOCK_HISTORY */
 
 	int qp_active;
-	struct tx_srcavail_state *tx_sa;
-	struct rx_srcavail_state *rx_sa;
 	spinlock_t tx_sa_lock;
-	struct delayed_work srcavail_cancel_work;
-	int srcavail_cancel_mseq;
+	struct tx_srcavail_state *tx_sa;
+
+	/* set when SrcAvail received, reset when SendSM/RdmaRdCompl sent */
+	struct rx_srcavail_state *rx_sa;
+
+	u32 sa_cancel_mseq;
+	int sa_cancel_arrived; /* is 'sa_cancel_mseq' relevant or not, sticky */
 
 	struct ib_ucontext context;
 
 	int max_sge;
 
 	struct work_struct rx_comp_work;
-	wait_queue_head_t wq;
 
 	struct delayed_work dreq_wait_work;
+	struct delayed_work cma_timewait_work;
 	struct work_struct destroy_work;
 
 	int tx_compl_pending;
@@ -355,12 +391,12 @@ struct sdp_sock {
 #define rcv_nxt(ssk) atomic_read(&(ssk->rcv_nxt))
 	atomic_t rcv_nxt;
 
-	int write_seq;
-	int pushed_seq;
+	u32 write_seq;
 	int xmit_size_goal;
 	int nonagle;
 
 	int dreq_wait_timeout;
+	int cma_timewait_timeout;
 
 	unsigned keepalive_time;
 
@@ -371,8 +407,8 @@ struct sdp_sock {
 	unsigned keepalive_rx_head;
 
 	int destructed_already;
-	int sdp_disconnect;
-	int destruct_in_process;
+	int sdp_disconnect; /* Need to send SDP_MID_DISCONNECT */
+	int id_destroyed_already; /* for sdp_remove_device() only */
 
 	struct sdp_rx_ring rx_ring;
 	struct sdp_tx_ring tx_ring;
@@ -387,7 +423,7 @@ struct sdp_sock {
 	unsigned max_bufs;	/* Initial buffers offered by other side */
 	unsigned min_bufs;	/* Low water mark to wake senders */
 
-	unsigned long nagle_last_unacked; /* mseq of lastest unacked packet */
+	u32 nagle_last_unacked; /* mseq of lastest unacked packet */
 	struct timer_list nagle_timer; /* timeout waiting for ack */
 
 	atomic_t               remote_credits;
@@ -411,12 +447,12 @@ struct sdp_sock {
 
 	unsigned long tx_packets;
 	unsigned long rx_packets;
-	unsigned long tx_bytes;
 	unsigned long rx_bytes;
 	struct sdp_moderation auto_mod;
 
 	/* ZCOPY data: -1:use global; 0:disable zcopy; >0: zcopy threshold */
 	int zcopy_thresh;
+	int inline_thresh;
 
 	int last_bind_err;
 };
@@ -427,31 +463,15 @@ static inline void tx_sa_reset(struct tx_srcavail_state *tx_sa)
 			sizeof(*tx_sa) - offsetof(typeof(*tx_sa), busy));
 }
 
-static inline void rx_ring_unlock(struct sdp_rx_ring *rx_ring)
+static inline int sdp_chk_sa_cancel(struct sdp_sock *ssk, struct rx_srcavail_state *rx_sa)
 {
-	read_unlock_bh(&rx_ring->destroyed_lock);
-}
-
-static inline int rx_ring_trylock(struct sdp_rx_ring *rx_ring)
-{
-	read_lock_bh(&rx_ring->destroyed_lock);
-	if (rx_ring->destroyed) {
-		rx_ring_unlock(rx_ring);
-		return 0;
-	}
-	return 1;
-}
-
-static inline void rx_ring_destroy_lock(struct sdp_rx_ring *rx_ring)
-{
-	write_lock_bh(&rx_ring->destroyed_lock);
-	rx_ring->destroyed = 1;
-	write_unlock_bh(&rx_ring->destroyed_lock);
+	return ssk->sa_cancel_arrived &&
+		before(rx_sa->mseq, ssk->sa_cancel_mseq);
 }
 
 static inline struct sdp_sock *sdp_sk(const struct sock *sk)
 {
-	        return (struct sdp_sock *)sk;
+	return (struct sdp_sock *)sk;
 }
 
 static inline int _sdp_exch_state(const char *func, int line, struct sock *sk,
@@ -467,16 +487,18 @@ static inline int _sdp_exch_state(const char *func, int line, struct sock *sk,
 		sdp_state_str(state), from_states);
 
 	if ((1 << sk->sk_state) & ~from_states) {
-		sdp_warn(sk, "trying to exchange state from unexpected state "
-			"%s to state %s. expected states: 0x%x\n",
-			sdp_state_str(sk->sk_state), sdp_state_str(state),
-			from_states);
+		sdp_warn(sk, "%s:%d: trying to exchange state from unexpected "
+				"state %s to state %s. expected states: 0x%x\n",
+				func, line, sdp_state_str(sk->sk_state),
+				sdp_state_str(state), from_states);
 	}
 
 	old = sk->sk_state;
 	sk->sk_state = state;
 
 	spin_unlock_irqrestore(&sdp_sk(sk)->lock, flags);
+
+	sdp_add_to_history(sk, sdp_state_str(state));
 
 	return old;
 }
@@ -493,27 +515,10 @@ static inline void sdp_set_error(struct sock *sk, int err)
 
 	if ((1 << sk->sk_state) & ib_teardown_states)
 		sdp_exch_state(sk, ib_teardown_states, TCP_TIME_WAIT);
-	else
+	else if (TCP_TIME_WAIT != sk->sk_state)
 		sdp_exch_state(sk, ~0, TCP_CLOSE);
 
 	sk->sk_error_report(sk);
-}
-
-static inline void sdp_arm_rx_cq(struct sock *sk)
-{
-	sdp_prf(sk, NULL, "Arming RX cq");
-	sdp_dbg_data(sk, "Arming RX cq\n");
-
-	ib_req_notify_cq(sdp_sk(sk)->rx_ring.cq, IB_CQ_NEXT_COMP);
-}
-
-static inline void sdp_arm_tx_cq(struct sock *sk)
-{
-	sdp_prf(sk, NULL, "Arming TX cq");
-	sdp_dbg_data(sk, "Arming TX cq. credits: %d, posted: %d\n",
-		tx_credits(sdp_sk(sk)), tx_ring_posted(sdp_sk(sk)));
-
-	ib_req_notify_cq(sdp_sk(sk)->tx_ring.cq, IB_CQ_NEXT_COMP);
 }
 
 /* return the min of:
@@ -531,6 +536,25 @@ static inline int tx_slots_free(struct sdp_sock *ssk)
 
 	return min_free - SDP_MIN_TX_CREDITS;
 };
+
+static inline unsigned sdp_cycles_to_usecs(unsigned long c)
+{
+#ifdef CONFIG_PPC
+	return c / tb_ticks_per_usec;
+#elif defined(__ia64__)
+	return c / local_cpu_data->cyc_per_usec;
+#else
+	return c * 1000 / cpu_khz;
+#endif
+}
+
+static inline int sdp_has_free_mem(void)
+{
+	/* TODO: count also kmalloc's and skb's allocations. */
+
+	return !top_mem_usage || atomic_read(&sdp_current_mem_usage) <
+		top_mem_usage << (20 - PAGE_SHIFT);
+}
 
 /* utilities */
 static inline char *mid2str(int mid)
@@ -551,10 +575,20 @@ static inline char *mid2str(int mid)
 		ENUM2STR(SDP_MID_SINKAVAIL),
 	};
 
-	if (mid >= ARRAY_SIZE(mid2str))
+	if (mid < 0 || mid >= ARRAY_SIZE(mid2str)) {
+		printk(KERN_WARNING "mid %d is illegal\n", mid);
 		return NULL;
+	}
 
 	return mid2str[mid];
+}
+
+static inline void sdp_free_skb(struct sk_buff *skb)
+{
+	if (unlikely(skb_shinfo(skb)->nr_frags))
+		atomic_sub(skb_shinfo(skb)->nr_frags, &sdp_current_mem_usage);
+
+	__kfree_skb(skb);
 }
 
 static inline struct sk_buff *sdp_stream_alloc_skb(struct sock *sk, int size,
@@ -596,8 +630,9 @@ static inline struct sk_buff *sdp_alloc_skb(struct sock *sk, u8 mid, int size,
 			gfp = GFP_KERNEL;
 	}
 
-	skb = sdp_stream_alloc_skb(sk, sizeof(struct sdp_bsdh) + size, gfp);
-	BUG_ON(!skb);
+	skb = sdp_stream_alloc_skb(sk, size, gfp);
+	if (unlikely(!skb))
+		return NULL;
 
         skb_header_release(skb);
 
@@ -608,9 +643,9 @@ static inline struct sk_buff *sdp_alloc_skb(struct sock *sk, u8 mid, int size,
 
 	return skb;
 }
-static inline struct sk_buff *sdp_alloc_skb_data(struct sock *sk, gfp_t gfp)
+static inline struct sk_buff *sdp_alloc_skb_data(struct sock *sk, int size, gfp_t gfp)
 {
-	return sdp_alloc_skb(sk, SDP_MID_DATA, 0, gfp);
+	return sdp_alloc_skb(sk, SDP_MID_DATA, size, gfp);
 }
 
 static inline struct sk_buff *sdp_alloc_skb_disconnect(struct sock *sk,
@@ -626,6 +661,8 @@ static inline struct sk_buff *sdp_alloc_skb_chrcvbuf_ack(struct sock *sk,
 	struct sdp_chrecvbuf *resp_size;
 
 	skb = sdp_alloc_skb(sk, SDP_MID_CHRCVBUF_ACK, sizeof(*resp_size), gfp);
+	if (unlikely(!skb))
+		return NULL;
 
 	resp_size = (struct sdp_chrecvbuf *)skb_put(skb, sizeof *resp_size);
 	resp_size->size = htonl(size);
@@ -640,6 +677,8 @@ static inline struct sk_buff *sdp_alloc_skb_srcavail(struct sock *sk,
 	struct sdp_srcah *srcah;
 
 	skb = sdp_alloc_skb(sk, SDP_MID_SRCAVAIL, sizeof(*srcah), gfp);
+	if (unlikely(!skb))
+		return NULL;
 
 	srcah = (struct sdp_srcah *)skb_put(skb, sizeof(*srcah));
 	srcah->len = htonl(len);
@@ -662,6 +701,8 @@ static inline struct sk_buff *sdp_alloc_skb_rdmardcompl(struct sock *sk,
 	struct sdp_rrch *rrch;
 
 	skb = sdp_alloc_skb(sk, SDP_MID_RDMARDCOMPL, sizeof(*rrch), gfp);
+	if (unlikely(!skb))
+		return NULL;
 
 	rrch = (struct sdp_rrch *)skb_put(skb, sizeof(*rrch));
 	rrch->len = htonl(len);
@@ -678,6 +719,15 @@ static inline int sdp_tx_ring_slots_left(struct sdp_sock *ssk)
 	return SDP_TX_SIZE - tx_ring_posted(ssk);
 }
 
+/* Return true if need to send credit update. Rules are:
+ * - at least half of the RX buffer is available
+ * - 1.5 * c < p
+ * - has TX credits
+ * - has room in tx Q
+ *
+ * p = number of posted buffers
+ * c = current credits count at the peer
+ */
 static inline int credit_update_needed(struct sdp_sock *ssk)
 {
 	int c;
@@ -696,36 +746,55 @@ static inline int credit_update_needed(struct sdp_sock *ssk)
 #define SDPSTATS_MAX_HIST_SIZE 256
 struct sdpstats {
 	u32 post_send[256];
+	u32 inline_sends;
 	u32 sendmsg_bcopy_segment;
 	u32 sendmsg_bzcopy_segment;
 	u32 sendmsg_zcopy_segment;
 	u32 sendmsg;
+	u32 recvmsg;
 	u32 post_send_credits;
-	u32 sendmsg_nagle_skip;
 	u32 sendmsg_seglen[25];
 	u32 send_size[25];
 	u32 post_recv;
+	u32 rx_int_arm;
+	u32 tx_int_arm;
 	u32 rx_int_count;
 	u32 tx_int_count;
+	u32 rx_int_wake_up;
+	u32 rx_int_queue;
+	u32 rx_int_no_op;
+	u32 rx_cq_modified;
+	u32 rx_cq_arm_timer;
+	u32 rx_wq;
 	u32 bzcopy_poll_miss;
 	u32 send_wait_for_mem;
 	u32 send_miss_no_credits;
 	u32 rx_poll_miss;
+	u32 rx_poll_hit;
+	u32 poll_hit_usec[16];
 	u32 tx_poll_miss;
 	u32 tx_poll_hit;
 	u32 tx_poll_busy;
+	u32 tx_poll_no_op;
 	u32 memcpy_count;
 	u32 credits_before_update[64];
 	u32 zcopy_tx_timeout;
 	u32 zcopy_cross_send;
 	u32 zcopy_tx_aborted;
 	u32 zcopy_tx_error;
+	u32 fmr_alloc_error;
+	u32 keepalive_timer;
+	u32 nagle_timer;
 };
 
 static inline void sdpstats_hist(u32 *h, u32 val, u32 maxidx, int is_log)
 {
 	int idx = is_log ? ilog2(val) : val;
-	if (idx > maxidx)
+
+	/* ilog2(0) == -1 */
+	if (idx < 0)
+		idx = 0;
+	else if (unlikely(idx > maxidx))
 		idx = maxidx;
 
 	h[idx]++;
@@ -757,6 +826,10 @@ static inline void sdp_cleanup_sdp_buf(struct sdp_sock *ssk, struct sdp_buf *sbu
 	struct ib_device *dev = ssk->ib_device;
 
 	skb = sbuf->skb;
+	sbuf->skb = NULL;
+
+	if (!sbuf->mapping[0])
+		return; /* Inlined send - nothing to cleanup */
 
 	ib_dma_unmap_single(dev, sbuf->mapping[0], head_size, dir);
 
@@ -764,7 +837,64 @@ static inline void sdp_cleanup_sdp_buf(struct sdp_sock *ssk, struct sdp_buf *sbu
 		ib_dma_unmap_page(dev, sbuf->mapping[i + 1],
 				  skb_shinfo(skb)->frags[i].size,
 				  dir);
+		sbuf->mapping[i + 1] = 0;
 	}
+}
+
+static inline void sdp_postpone_rx_timer(struct sdp_sock *ssk)
+{
+	if (timer_pending(&ssk->rx_ring.cq_arm_timer) && ssk->qp_active)
+		mod_timer(&ssk->rx_ring.cq_arm_timer, MAX_JIFFY_OFFSET);
+}
+
+static inline void sdp_arm_rx_cq(struct sock *sk)
+{
+	if (unlikely(!sdp_sk(sk)->rx_ring.cq))
+		return;
+
+	SDPSTATS_COUNTER_INC(rx_int_arm);
+	sdp_dbg_data(sk, "Arming RX cq\n");
+
+	sdp_postpone_rx_timer(sdp_sk(sk));
+
+	if (unlikely(0 > ib_req_notify_cq(sdp_sk(sk)->rx_ring.cq,
+					IB_CQ_NEXT_COMP)))
+		sdp_warn(sk, "error arming rx cq\n");
+}
+
+static inline void sdp_arm_tx_cq(struct sock *sk)
+{
+	if (unlikely(!sdp_sk(sk)->tx_ring.cq))
+		return;
+
+	SDPSTATS_COUNTER_INC(tx_int_arm);
+	sdp_dbg_data(sk, "Arming TX cq. credits: %d, posted: %d\n",
+		tx_credits(sdp_sk(sk)), tx_ring_posted(sdp_sk(sk)));
+
+	if (unlikely(0 > ib_req_notify_cq(sdp_sk(sk)->tx_ring.cq,
+					IB_CQ_NEXT_COMP)))
+		sdp_warn(sk, "error arming tx cq\n");
+}
+
+static inline void sdp_schedule_arm_rx_cq(struct sdp_sock *ssk,
+		unsigned long delay)
+{
+	if (unlikely(!ssk->rx_ring.cq))
+		return;
+
+	if (delay && ssk->qp_active)
+		mod_timer(&ssk->rx_ring.cq_arm_timer, jiffies + delay);
+	else {
+		/* There is no point of setting up a timer for an immediate
+		 * cq-arming, better arm it now. */
+		sdp_arm_rx_cq(sk_ssk(ssk));
+	}
+}
+
+static inline int somebody_is_waiting(struct sock *sk)
+{
+	return sk->sk_socket &&
+		test_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
 }
 
 /* sdp_main.c */
@@ -778,7 +908,10 @@ void sdp_cancel_dreq_wait_timeout(struct sdp_sock *ssk);
 void sdp_reset_sk(struct sock *sk, int rc);
 void sdp_reset(struct sock *sk);
 int sdp_tx_wait_memory(struct sdp_sock *ssk, long *timeo_p, int *credits_needed);
-void skb_entail(struct sock *sk, struct sdp_sock *ssk, struct sk_buff *skb);
+void sdp_skb_entail(struct sock *sk, struct sk_buff *skb);
+void sdp_start_cma_timewait_timeout(struct sdp_sock *ssk, int timeo);
+int sdp_abort_rx_srcavail(struct sock *sk);
+extern struct rw_semaphore device_removal_lock;
 
 /* sdp_proc.c */
 int __init sdp_proc_init(void);
@@ -797,15 +930,15 @@ void sdp_nagle_timeout(unsigned long data);
 void sdp_post_keepalive(struct sdp_sock *ssk);
 
 /* sdp_rx.c */
-void sdp_rx_ring_init(struct sdp_sock *ssk);
 int sdp_rx_ring_create(struct sdp_sock *ssk, struct ib_device *device);
 void sdp_rx_ring_destroy(struct sdp_sock *ssk);
 int sdp_resize_buffers(struct sdp_sock *ssk, u32 new_size);
 int sdp_init_buffers(struct sdp_sock *ssk, u32 new_size);
 void sdp_do_posts(struct sdp_sock *ssk);
 void sdp_rx_comp_full(struct sdp_sock *ssk);
-void sdp_remove_large_sock(struct sdp_sock *ssk);
+void sdp_remove_large_sock(const struct sdp_sock *ssk);
 void sdp_handle_disconn(struct sock *sk);
+int sdp_poll_rx_cq(struct sdp_sock *ssk);
 
 /* sdp_zcopy.c */
 int sdp_sendmsg_zcopy(struct kiocb *iocb, struct sock *sk, struct iovec *iov);
@@ -814,12 +947,11 @@ void sdp_handle_sendsm(struct sdp_sock *ssk, u32 mseq_ack);
 void sdp_handle_rdma_read_compl(struct sdp_sock *ssk, u32 mseq_ack,
 		u32 bytes_completed);
 int sdp_handle_rdma_read_cqe(struct sdp_sock *ssk);
-int sdp_rdma_to_iovec(struct sock *sk, struct iovec *iov, struct sk_buff *skb,
-		unsigned long *used);
-int sdp_post_rdma_rd_compl(struct sdp_sock *ssk,
+int sdp_rdma_to_iovec(struct sock *sk, struct iovec *iov, int msg_iovlen,
+	       	struct sk_buff *skb, unsigned long *used, u32 offset);
+int sdp_post_rdma_rd_compl(struct sock *sk,
 		struct rx_srcavail_state *rx_sa);
 int sdp_post_sendsm(struct sock *sk);
-void srcavail_cancel_timeout(struct work_struct *work);
 void sdp_abort_srcavail(struct sock *sk);
 void sdp_abort_rdma_read(struct sock *sk);
 

@@ -31,13 +31,23 @@
  */
 
 #include <linux/proc_fs.h>
+#include <linux/debugfs.h>
 #include <rdma/sdp_socket.h>
+#include <linux/vmalloc.h>
 #include "sdp.h"
 
 #ifdef CONFIG_PROC_FS
 
+#define DEBUGFS_SDP_BASE "sdp"
 #define PROC_SDP_STATS "sdpstats"
 #define PROC_SDP_PERF "sdpprf"
+
+#if defined(SDP_SOCK_HISTORY) || defined(SDP_PROFILING)
+struct dentry *sdp_dbgfs_base;
+#endif
+#ifdef SDP_PROFILING
+struct dentry *sdp_prof_file = NULL;
+#endif
 
 /* just like TCP fs */
 struct sdp_seq_afinfo {
@@ -69,6 +79,14 @@ static void *sdp_get_idx(struct seq_file *seq, loff_t pos)
 	return NULL;
 }
 
+#define sdp_sock_hold_return(sk, msg)					\
+	({								\
+	_sdp_add_to_history(sk, #msg, __func__, __LINE__, HOLD_REF, msg); \
+	sdp_dbg(sk, "%s:%d - %s (%s) ref = %d.\n", __func__, __LINE__, \
+		"sock_hold", #msg, atomic_read(&(sk)->sk_refcnt)); \
+	atomic_inc_return(&(sk)->sk_refcnt);				\
+	})
+
 static void *sdp_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	void *start = NULL;
@@ -81,8 +99,12 @@ static void *sdp_seq_start(struct seq_file *seq, loff_t *pos)
 
 	spin_lock_irq(&sock_list_lock);
 	start = sdp_get_idx(seq, *pos - 1);
-	if (start)
-		sock_hold((struct sock *)start, SOCK_REF_SEQ);
+	if (!start)
+		goto out;
+
+	if (sdp_sock_hold_return((struct sock *)start, SOCK_REF_SEQ) < 2)
+		start = NULL;
+out:
 	spin_unlock_irq(&sock_list_lock);
 
 	return start;
@@ -98,10 +120,13 @@ static void *sdp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		next = sdp_get_idx(seq, 0);
 	else
 		next = sdp_get_idx(seq, *pos);
-	if (next)
-		sock_hold((struct sock *)next, SOCK_REF_SEQ);
-	spin_unlock_irq(&sock_list_lock);
+	if (!next)
+		goto out;
 
+	if (sdp_sock_hold_return((struct sock *)next, SOCK_REF_SEQ) < 2)
+		next = NULL;
+out:
+	spin_unlock_irq(&sock_list_lock);
 	*pos += 1;
 	st->num++;
 
@@ -170,7 +195,7 @@ static int sdp_seq_open(struct inode *inode, struct file *file)
 #define _kzalloc(size,flags) kzalloc(size,flags)
 #undef kzalloc
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
-#define kzalloc(s,f) _kzalloc(s,f)	
+#define kzalloc(s,f) _kzalloc(s,f)
 	if (!s)
 		return -ENOMEM;
 	s->family               = afinfo->family;
@@ -209,12 +234,19 @@ static void sdpstats_seq_hist(struct seq_file *seq, char *str, u32 *h, int n,
 {
 	int i;
 	u32 max = 0;
+	int first = -1, last = n - 1;
 
 	seq_printf(seq, "%s:\n", str);
 
 	for (i = 0; i < n; i++) {
 		if (h[i] > max)
 			max = h[i];
+
+		if (first == -1 && h[i])
+			first = i;
+
+		if (h[i])
+			last = i;
 	}
 
 	if (max == 0) {
@@ -222,14 +254,14 @@ static void sdpstats_seq_hist(struct seq_file *seq, char *str, u32 *h, int n,
 		return;
 	}
 
-	for (i = 0; i < n; i++) {
+	for (i = first; i <= last; i++) {
 		char s[51];
 		int j = 50 * h[i] / max;
 		int val = is_log ? (i == n-1 ? 0 : 1<<i) : i;
 		memset(s, '*', j);
 		s[j] = '\0';
 
-		seq_printf(seq, "%10d | %-50s - %d\n", val, s, h[i]);
+		seq_printf(seq, "%10d | %-50s - %u\n", val, s, h[i]);
 	}
 }
 
@@ -239,7 +271,7 @@ static void sdpstats_seq_hist(struct seq_file *seq, char *str, u32 *h, int n,
 	for_each_possible_cpu(__i)                              \
 		__val += per_cpu(sdpstats, __i).var;		\
 	__val;							\
-})	
+})
 
 #define SDPSTATS_HIST_GET(hist, hist_len, sum) ({ \
 	unsigned int __i;                                       \
@@ -253,16 +285,29 @@ static void sdpstats_seq_hist(struct seq_file *seq, char *str, u32 *h, int n,
 })
 
 #define __sdpstats_seq_hist(seq, msg, hist, is_log) ({		\
-	u32 tmp_hist[SDPSTATS_MAX_HIST_SIZE];			\
 	int hist_len = ARRAY_SIZE(__get_cpu_var(sdpstats).hist);\
-	memset(tmp_hist, 0, sizeof(tmp_hist));			\
-	SDPSTATS_HIST_GET(hist, hist_len, tmp_hist);	\
-	sdpstats_seq_hist(seq, msg, tmp_hist, hist_len, is_log);\
+	memset(h, 0, sizeof(*h) * h_len);			\
+	SDPSTATS_HIST_GET(hist, hist_len, h);	\
+	sdpstats_seq_hist(seq, msg, h, hist_len, is_log);\
+})
+
+#define __sdpstats_seq_hist_pcpu(seq, msg, hist) ({		\
+	unsigned int __i;                                       \
+	memset(h, 0, sizeof(*h) * h_len);				\
+	for_each_possible_cpu(__i) {                            \
+		h[__i] = per_cpu(sdpstats, __i).hist;		\
+	} 							\
+	sdpstats_seq_hist(seq, msg, h, NR_CPUS, 0);		\
 })
 
 static int sdpstats_seq_show(struct seq_file *seq, void *v)
 {
 	int i;
+	size_t h_len = max(NR_CPUS, SDPSTATS_MAX_HIST_SIZE);
+	u32 *h;
+
+	if (!(h = vmalloc(h_len * sizeof(*h))))
+		return -ENOMEM;
 
 	seq_printf(seq, "SDP statistics:\n");
 
@@ -275,6 +320,8 @@ static int sdpstats_seq_show(struct seq_file *seq, void *v)
 		SDPSTATS_COUNTER_GET(sendmsg));
 	seq_printf(seq, "bcopy segments     \t\t: %d\n",
 		SDPSTATS_COUNTER_GET(sendmsg_bcopy_segment));
+	seq_printf(seq, "inline sends       \t\t: %d\n",
+		SDPSTATS_COUNTER_GET(inline_sends));
 	seq_printf(seq, "bzcopy segments    \t\t: %d\n",
 		SDPSTATS_COUNTER_GET(sendmsg_bzcopy_segment));
 	seq_printf(seq, "zcopy segments    \t\t: %d\n",
@@ -293,6 +340,8 @@ static int sdpstats_seq_show(struct seq_file *seq, void *v)
         }
 
 	seq_printf(seq, "\n");
+	seq_printf(seq, "sdp_recvmsg() calls\t\t: %d\n",
+		SDPSTATS_COUNTER_GET(recvmsg));
 	seq_printf(seq, "post_recv         \t\t: %d\n",
 		SDPSTATS_COUNTER_GET(post_recv));
 	seq_printf(seq, "BZCopy poll miss  \t\t: %d\n",
@@ -303,12 +352,27 @@ static int sdpstats_seq_show(struct seq_file *seq, void *v)
 		SDPSTATS_COUNTER_GET(send_miss_no_credits));
 
 	seq_printf(seq, "rx_poll_miss      \t\t: %d\n", SDPSTATS_COUNTER_GET(rx_poll_miss));
+	seq_printf(seq, "rx_poll_hit       \t\t: %d\n", SDPSTATS_COUNTER_GET(rx_poll_hit));
+	__sdpstats_seq_hist(seq, "poll_hit_usec", poll_hit_usec, 1);
+	seq_printf(seq, "rx_cq_arm_timer      \t\t: %d\n", SDPSTATS_COUNTER_GET(rx_cq_arm_timer));
+
 	seq_printf(seq, "tx_poll_miss      \t\t: %d\n", SDPSTATS_COUNTER_GET(tx_poll_miss));
 	seq_printf(seq, "tx_poll_busy      \t\t: %d\n", SDPSTATS_COUNTER_GET(tx_poll_busy));
 	seq_printf(seq, "tx_poll_hit       \t\t: %d\n", SDPSTATS_COUNTER_GET(tx_poll_hit));
+	seq_printf(seq, "tx_poll_no_op     \t\t: %d\n", SDPSTATS_COUNTER_GET(tx_poll_no_op));
+
+	seq_printf(seq, "keepalive timer   \t\t: %d\n", SDPSTATS_COUNTER_GET(keepalive_timer));
+	seq_printf(seq, "nagle timer       \t\t: %d\n", SDPSTATS_COUNTER_GET(nagle_timer));
 
 	seq_printf(seq, "CQ stats:\n");
-	seq_printf(seq, "- RX interrupts\t\t: %d\n", SDPSTATS_COUNTER_GET(rx_int_count));
+	seq_printf(seq, "- RX irq armed  \t\t: %d\n", SDPSTATS_COUNTER_GET(rx_int_arm));
+	seq_printf(seq, "- RX interrupts \t\t: %d\n", SDPSTATS_COUNTER_GET(rx_int_count));
+	seq_printf(seq, "- RX int wake up\t\t: %d\n", SDPSTATS_COUNTER_GET(rx_int_wake_up));
+	seq_printf(seq, "- RX int queue  \t\t: %d\n", SDPSTATS_COUNTER_GET(rx_int_queue));
+	seq_printf(seq, "- RX int no op  \t\t: %d\n", SDPSTATS_COUNTER_GET(rx_int_no_op));
+	seq_printf(seq, "- RX cq modified\t\t: %d\n", SDPSTATS_COUNTER_GET(rx_cq_modified));
+
+	seq_printf(seq, "- TX irq armed\t\t: %d\n", SDPSTATS_COUNTER_GET(tx_int_arm));
 	seq_printf(seq, "- TX interrupts\t\t: %d\n", SDPSTATS_COUNTER_GET(tx_int_count));
 
 	seq_printf(seq, "ZCopy stats:\n");
@@ -316,6 +380,16 @@ static int sdpstats_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "- TX cross send\t\t: %d\n", SDPSTATS_COUNTER_GET(zcopy_cross_send));
 	seq_printf(seq, "- TX aborted by peer\t: %d\n", SDPSTATS_COUNTER_GET(zcopy_tx_aborted));
 	seq_printf(seq, "- TX error\t\t: %d\n", SDPSTATS_COUNTER_GET(zcopy_tx_error));
+	seq_printf(seq, "- FMR alloc error\t: %d\n", SDPSTATS_COUNTER_GET(fmr_alloc_error));
+
+	__sdpstats_seq_hist_pcpu(seq, "CPU sendmsg", sendmsg);
+	__sdpstats_seq_hist_pcpu(seq, "CPU recvmsg", recvmsg);
+	__sdpstats_seq_hist_pcpu(seq, "CPU rx_irq", rx_int_count);
+	__sdpstats_seq_hist_pcpu(seq, "CPU rx_wq", rx_wq);
+	__sdpstats_seq_hist_pcpu(seq, "CPU tx_irq", tx_int_count);
+
+	vfree(h);
+
 	return 0;
 }
 
@@ -349,26 +423,35 @@ static struct file_operations sdpstats_fops = {
 
 #ifdef SDP_PROFILING
 struct sdpprf_log sdpprf_log[SDPPRF_LOG_SIZE];
-int sdpprf_log_count;
+atomic_t sdpprf_log_count;
 
-static unsigned long long start_t;
+static cycles_t start_t;
+
+static inline void remove_newline(char *s)
+{
+	while (*s) {
+		if (*s == '\n')
+			*s = '\0';
+		++s;
+	}
+}
 
 static int sdpprf_show(struct seq_file *m, void *v)
 {
 	struct sdpprf_log *l = v;
-	unsigned long nsec_rem, t;
+	unsigned long usec_rem, t;
 
-	if (!sdpprf_log_count) {
+	if (!atomic_read(&sdpprf_log_count)) {
 		seq_printf(m, "No performance logs\n");
 		goto out;
 	}
 
-	t = l->time - start_t;
-	nsec_rem = do_div(t, 1000000000);
-
+	t = sdp_cycles_to_usecs(l->time - start_t);
+	usec_rem = do_div(t, USEC_PER_SEC);
+	remove_newline(l->msg);
 	seq_printf(m, "%-6d: [%5lu.%06lu] %-50s - [%d{%d} %d:%d] "
 			"skb: %p %s:%d\n",
-			l->idx, (unsigned long)t, nsec_rem/1000,
+			l->idx, t, usec_rem,
 			l->msg, l->pid, l->cpu, l->sk_num, l->sk_dport,
 			l->skb, l->func, l->line);
 out:
@@ -380,15 +463,15 @@ static void *sdpprf_start(struct seq_file *p, loff_t *pos)
 	int idx = *pos;
 
 	if (!*pos) {
-		if (!sdpprf_log_count)
+		if (!atomic_read(&sdpprf_log_count))
 			return SEQ_START_TOKEN;
 	}
 
-	if (*pos >= MIN(sdpprf_log_count, SDPPRF_LOG_SIZE - 1))
+	if (*pos >= MIN(atomic_read(&sdpprf_log_count), SDPPRF_LOG_SIZE - 1))
 		return NULL;
 
-	if (sdpprf_log_count >= SDPPRF_LOG_SIZE - 1) {
-		int off = sdpprf_log_count & (SDPPRF_LOG_SIZE - 1);
+	if (atomic_read(&sdpprf_log_count) >= SDPPRF_LOG_SIZE - 1) {
+		int off = atomic_read(&sdpprf_log_count) & (SDPPRF_LOG_SIZE - 1);
 		idx = (idx + off) & (SDPPRF_LOG_SIZE - 1);
 
 	}
@@ -402,7 +485,7 @@ static void *sdpprf_next(struct seq_file *p, void *v, loff_t *pos)
 {
 	struct sdpprf_log *l = v;
 
-	if (++*pos >= MIN(sdpprf_log_count, SDPPRF_LOG_SIZE - 1))
+	if (++*pos >= MIN(atomic_read(&sdpprf_log_count), SDPPRF_LOG_SIZE - 1))
 		return NULL;
 
 	++l;
@@ -435,7 +518,7 @@ static int sdpprf_open(struct inode *inode, struct file *file)
 static ssize_t sdpprf_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *offs)
 {
-	sdpprf_log_count = 0;
+	atomic_set(&sdpprf_log_count,  0);
 	printk(KERN_INFO "Cleared sdpprf statistics\n");
 
 	return count;
@@ -450,14 +533,221 @@ static struct file_operations sdpprf_fops = {
 };
 #endif /* SDP_PROFILING */
 
+#ifdef SDP_SOCK_HISTORY
+
+void sdp_print_history(struct sock *sk)
+{
+	struct sdp_sock *ssk = sdp_sk(sk);
+	unsigned i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ssk->hst_lock, flags);
+
+	sdp_warn(sk, "############## %p %s %lu/%zu ##############\n",
+			sk, sdp_state_str(sk->sk_state),
+			ssk->hst_idx, ARRAY_SIZE(ssk->hst));
+
+	for (i = 0; i < ssk->hst_idx; ++i) {
+		struct sdp_sock_hist *hst = &ssk->hst[i];
+		char *ref_str = reftype2str(hst->ref_type);
+
+		if (hst->ref_type == NOT_REF)
+			ref_str = "";
+
+		if (hst->cnt != 1) {
+			sdp_warn(sk, "[%s:%d pid: %d] %s %s : %d\n",
+					hst->func, hst->line, hst->pid,
+					ref_str, hst->str, hst->cnt);
+		} else {
+			sdp_warn(sk, "[%s:%d pid: %d] %s %s\n",
+					hst->func, hst->line, hst->pid,
+					ref_str, hst->str);
+		}
+	}
+
+	spin_unlock_irqrestore(&ssk->hst_lock, flags);
+}
+
+void _sdp_add_to_history(struct sock *sk, const char *str,
+		const char *func, int line, int ref_type, int ref_enum)
+{
+	struct sdp_sock *ssk = sdp_sk(sk);
+	unsigned i;
+	unsigned long flags;
+	struct sdp_sock_hist *hst;
+
+ 	spin_lock_irqsave(&ssk->hst_lock, flags);
+
+	i = ssk->hst_idx;
+
+	if (i >= ARRAY_SIZE(ssk->hst)) {
+		//sdp_warn(sk, "overflow, drop: %s\n", s);
+		++ssk->hst_idx;
+		goto out;
+	}
+
+	if (ssk->hst[i].str)
+		sdp_warn(sk, "overwriting %s\n", ssk->hst[i].str);
+
+	switch (ref_type) {
+		case NOT_REF:
+		case HOLD_REF:
+simple_add:
+			hst = &ssk->hst[i];
+			hst->str = (char *)str;
+			hst->func = (char *)func;
+			hst->line = line;
+			hst->ref_type = ref_type;
+			hst->ref_enum = ref_enum;
+			hst->cnt = 1;
+			hst->pid = current->pid;
+			++ssk->hst_idx;
+			break;
+		case PUT_REF:
+		case __PUT_REF:
+			/* Try to shrink history by attaching HOLD+PUT
+			 * together */
+			hst = i > 0 ? &ssk->hst[i - 1] : NULL;
+			if (hst && hst->ref_type == HOLD_REF &&
+					hst->ref_enum == ref_enum) {
+				hst->ref_type = BOTH_REF;
+				hst->func = (char *)func;
+				hst->line = line;
+				hst->pid = current->pid;
+
+				/* try to shrink some more - by summing up */
+				--i;
+				hst = i > 0 ? &ssk->hst[i - 1] : NULL;
+				if (hst && hst->ref_type == BOTH_REF &&
+						hst->ref_enum == ref_enum) {
+					++hst->cnt;
+					hst->func = (char *)func;
+					hst->line = line;
+					hst->pid = current->pid;
+					ssk->hst[i].str = NULL;
+
+					--ssk->hst_idx;
+				}
+			} else
+				goto simple_add;
+			break;
+		default:
+			sdp_warn(sk, "error\n");
+	}
+out:
+	spin_unlock_irqrestore(&ssk->hst_lock, flags);
+}
+static int sdp_ssk_hist_seq_show(struct seq_file *seq, void *v)
+{
+	struct sock *sk = seq->private;
+	struct sdp_sock *ssk = sdp_sk(sk);
+	unsigned i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ssk->hst_lock, flags);
+
+	seq_printf(seq, "############## %p %s %lu/%zu ##############\n",
+			sk, sdp_state_str(sk->sk_state),
+			ssk->hst_idx, ARRAY_SIZE(ssk->hst));
+
+	for (i = 0; i < ssk->hst_idx; ++i) {
+		struct sdp_sock_hist *hst = &ssk->hst[i];
+		char *ref_str = reftype2str(hst->ref_type);
+
+		if (hst->ref_type == NOT_REF)
+			ref_str = "";
+
+		if (hst->cnt != 1) {
+			seq_printf(seq, "[%30s:%-5d pid: %-6d] %s %s : %d\n",
+					hst->func, hst->line, hst->pid,
+					ref_str, hst->str, hst->cnt);
+		} else {
+			seq_printf(seq, "[%30s:%-5d pid: %-6d] %s %s\n",
+					hst->func, hst->line, hst->pid,
+					ref_str, hst->str);
+		}
+	}
+
+	spin_unlock_irqrestore(&ssk->hst_lock, flags);
+	return 0;
+}
+
+static int sdp_ssk_hist_seq_open(struct inode *inode, struct file *file)
+{
+	struct sock *sk = inode->i_private;
+
+	return single_open(file, sdp_ssk_hist_seq_show, sk);
+}
+
+static struct file_operations ssk_hist_fops = {
+	.owner	 = THIS_MODULE,
+	.open	 = sdp_ssk_hist_seq_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = single_release,
+};
+
+static void sdp_ssk_hist_name(char *sk_name, int len, struct sock *sk)
+{
+	int lport = inet_sk(sk)->num;
+	int rport = ntohs(inet_sk(sk)->dport);
+
+	snprintf(sk_name, len, "%05x_%d:%d",
+			sdp_sk(sk)->sk_id, lport, rport);
+}
+
+int sdp_ssk_hist_open(struct sock *sk)
+{
+	int ret = 0;
+	char sk_name[256];
+	struct sdp_sock *ssk = sdp_sk(sk);
+
+	if (!sdp_dbgfs_base) {
+		return 0;
+	}
+
+	sdp_ssk_hist_name(sk_name, sizeof(sk_name), sk);
+
+	ssk->hst_dentr = debugfs_create_file(sk_name, S_IRUGO | S_IWUGO, 
+			sdp_dbgfs_base, sk, &ssk_hist_fops);
+	if (IS_ERR(ssk->hst_dentr)) {
+		ret = PTR_ERR(ssk->hst_dentr);
+		ssk->hst_dentr = NULL;
+	}
+
+	return ret;
+}
+
+int sdp_ssk_hist_close(struct sock *sk)
+{
+	if (sk && sdp_sk(sk)->hst_dentr)
+		debugfs_remove(sdp_sk(sk)->hst_dentr);
+	return 0;
+}
+
+int sdp_ssk_hist_rename(struct sock *sk)
+{
+	char sk_name[256];
+	struct dentry *d;
+
+	if (!sk || !sdp_sk(sk)->hst_dentr)
+		return 0;
+
+	sdp_ssk_hist_name(sk_name, sizeof(sk_name), sk);
+
+	d = debugfs_rename(sdp_dbgfs_base, sdp_sk(sk)->hst_dentr, sdp_dbgfs_base, sk_name);
+	if (IS_ERR(d))
+		return PTR_ERR(d);
+
+	return 0;
+}
+#endif
+
 int __init sdp_proc_init(void)
 {
 	struct proc_dir_entry *p = NULL;
 #ifdef SDPSTATS_ON
 	struct proc_dir_entry *stats = NULL;
-#endif
-#ifdef SDP_PROFILING
-	struct proc_dir_entry *prof = NULL;
 #endif
 
 	sdp_seq_afinfo.seq_fops->owner         = sdp_seq_afinfo.owner;
@@ -465,6 +755,19 @@ int __init sdp_proc_init(void)
 	sdp_seq_afinfo.seq_fops->read          = seq_read;
 	sdp_seq_afinfo.seq_fops->llseek        = seq_lseek;
 	sdp_seq_afinfo.seq_fops->release       = seq_release_private;
+
+#if defined(SDP_PROFILING) || defined(SDP_SOCK_HISTORY)
+	sdp_dbgfs_base = debugfs_create_dir(DEBUGFS_SDP_BASE, NULL);
+	if (!sdp_dbgfs_base || IS_ERR(sdp_dbgfs_base)) {
+		if (PTR_ERR(sdp_dbgfs_base) == -ENODEV)
+			printk(KERN_WARNING "sdp: debugfs is not supported.\n");
+		else {
+			printk(KERN_ERR "sdp: error creating debugfs information %ld\n",
+					PTR_ERR(sdp_dbgfs_base));
+			return -EINVAL;
+		}
+	}
+#endif
 
 	p = proc_net_fops_create(&init_net, sdp_seq_afinfo.name, S_IRUGO,
 				 sdp_seq_afinfo.seq_fops);
@@ -483,9 +786,9 @@ int __init sdp_proc_init(void)
 #endif
 
 #ifdef SDP_PROFILING
-	prof = proc_net_fops_create(&init_net, PROC_SDP_PERF,
-			S_IRUGO | S_IWUGO, &sdpprf_fops);
-	if (!prof)
+	sdp_prof_file = debugfs_create_file(PROC_SDP_PERF, S_IRUGO | S_IWUGO, 
+			sdp_dbgfs_base, NULL, &sdpprf_fops);
+	if (!sdp_prof_file)
 		goto no_mem_prof;
 #endif
 
@@ -502,7 +805,7 @@ no_mem_stats:
 #endif
 	proc_net_remove(&init_net, sdp_seq_afinfo.name);
 
-no_mem:	
+no_mem:
 	return -ENOMEM;
 }
 
@@ -515,7 +818,10 @@ void sdp_proc_unregister(void)
 	proc_net_remove(&init_net, PROC_SDP_STATS);
 #endif
 #ifdef SDP_PROFILING
-	proc_net_remove(&init_net, PROC_SDP_PERF);
+	debugfs_remove(sdp_prof_file);
+#endif
+#if defined(SDP_PROFILING) || defined(SDP_SOCK_HISTORY)
+	debugfs_remove(sdp_dbgfs_base);
 #endif
 }
 

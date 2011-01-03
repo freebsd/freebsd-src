@@ -362,7 +362,6 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	unsigned long flags;
 	int ret;
 	u8 p;
-	int force_grh;
 
 	read_lock_irqsave(&cm.device_lock, flags);
 	list_for_each_entry(cm_dev, &cm.device_list, list) {
@@ -383,10 +382,8 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 		return ret;
 
 	av->port = port;
-	force_grh = rdma_port_link_layer(cm_dev->ib_device, port->port_num) ==
-		IB_LINK_LAYER_ETHERNET ? 1 : 0;
 	ib_init_ah_from_path(cm_dev->ib_device, port->port_num, path,
-			     &av->ah_attr, force_grh);
+			     &av->ah_attr);
 	av->timeout = path->packet_life_time + 1;
 	return 0;
 }
@@ -2446,10 +2443,12 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 		msg_response = CM_MSG_RESPONSE_REP;
 		break;
 	case IB_CM_ESTABLISHED:
-		cm_state = cm_id->state;
-		lap_state = IB_CM_MRA_LAP_SENT;
-		msg_response = CM_MSG_RESPONSE_OTHER;
-		break;
+		if (cm_id->lap_state == IB_CM_LAP_RCVD) {
+			cm_state = cm_id->state;
+			lap_state = IB_CM_MRA_LAP_SENT;
+			msg_response = CM_MSG_RESPONSE_OTHER;
+			break;
+		}
 	default:
 		ret = -EINVAL;
 		goto error1;

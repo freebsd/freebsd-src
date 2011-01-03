@@ -45,6 +45,8 @@
 
 #include <rdma/ib_umem.h>
 
+#include "nes_ud.h"
+
 atomic_t mod_qp_timouts;
 atomic_t qps_created;
 atomic_t sw_qps_destroyed;
@@ -517,7 +519,7 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	memset(props, 0, sizeof(*props));
 	memcpy(&props->sys_image_guid, nesvnic->netdev->dev_addr, 6);
 
-	props->fw_ver = nesdev->nesadapter->fw_ver;
+	props->fw_ver = nesdev->nesadapter->firmware_version;
 	props->device_cap_flags = nesdev->nesadapter->device_cap_flags;
 	props->vendor_id = nesdev->nesadapter->vendor_id;
 	props->vendor_part_id = nesdev->nesadapter->vendor_part_id;
@@ -583,7 +585,9 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 	props->lmc = 0;
 	props->sm_lid = 0;
 	props->sm_sl = 0;
-	if (nesvnic->linkup)
+	if (netif_queue_stopped(netdev))
+		props->state = IB_PORT_DOWN;
+	else if (nesvnic->linkup)
 		props->state = IB_PORT_ACTIVE;
 	else
 		props->state = IB_PORT_DOWN;
@@ -596,7 +600,7 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 	props->active_width = IB_WIDTH_4X;
 	props->active_speed = 1;
 	props->max_msg_sz = 0x80000000;
-
+	props->link_layer = IB_LINK_LAYER_ETHERNET;
 	return 0;
 }
 
@@ -1138,7 +1142,6 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	if (init_attr->create_flags)
 		return ERR_PTR(-EINVAL);
 
-	atomic_inc(&qps_created);
 	switch (init_attr->qp_type) {
 		case IB_QPT_RC:
 			if (nes_drv_opt & NES_DRV_OPT_NO_INLINE_DATA) {
@@ -1404,10 +1407,123 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 					nesqp->hwqp.qp_id, nesqp, (u32)sizeof(*nesqp));
 			spin_lock_init(&nesqp->lock);
 			nes_add_ref(&nesqp->ibqp);
+			/* moved here to be sure that QP is really created */
+			/*(now it counted a number of QP creation trials */
+			atomic_inc(&qps_created);
 			break;
-		default:
-			nes_debug(NES_DBG_QP, "Invalid QP type: %d\n", init_attr->qp_type);
-			return ERR_PTR(-EINVAL);
+
+	case IB_QPT_RAW_ETH:
+	if (!ibpd->uobject)
+		return ERR_PTR(-EINVAL);
+
+	/* we are about to destroy those cqs w/o destroying qp
+	 now free memory for nespbl that is not used
+	 first map nespbl with the qp created */
+	if (ibpd->uobject->context) {
+		nes_ucontext = to_nesucontext(ibpd->uobject->context);
+		if (udata) {
+			if (ib_copy_from_udata(&req,
+				udata,
+				sizeof(struct nes_create_qp_req))) {
+				return ERR_PTR(-EFAULT);
+			}
+			if (req.user_wqe_buffers) {
+				err = 1;
+				list_for_each_entry(nespbl,
+				&nes_ucontext->qp_reg_mem_list,
+				list) {
+					if (nespbl->user_base ==
+						req.user_wqe_buffers) {
+						list_del(&nespbl->list);
+						err = 0;
+						/* done with memory allocated
+						during nes_reg_user_mr() */
+						pci_free_consistent(
+							nesdev->pcidev,
+							nespbl->pbl_size,
+							nespbl->pbl_vbase,
+							nespbl->pbl_pbase);
+						kfree(nespbl);
+						break;
+					}
+				}
+			}
+		}
+	}
+	/* Need 512 (actually now 1024) byte alignment on this structure */
+	mem = kzalloc(sizeof(*nesqp)+NES_SW_CONTEXT_ALIGN-1, GFP_KERNEL);
+	if (!mem) {
+		nes_debug(NES_DBG_UD, "Unable to allocate QP\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	u64nesqp = (unsigned long)mem;
+	u64nesqp += ((u64)NES_SW_CONTEXT_ALIGN) - 1;
+	u64temp = ((u64)NES_SW_CONTEXT_ALIGN) - 1;
+	u64nesqp &= ~u64temp;
+	nesqp = (struct nes_qp *)(unsigned long)u64nesqp;
+	nesqp->allocated_buffer = mem;
+
+	nesqp->rx_ud_wq = nes_ud_create_wq(nesvnic, 1);
+	nesqp->tx_ud_wq = nes_ud_create_wq(nesvnic, 0);
+	if ((!nesqp->rx_ud_wq) || (!nesqp->tx_ud_wq)) {
+		kfree(nesqp->allocated_buffer);
+		return ERR_PTR(-EFAULT);
+	}
+
+	nesqp->ibqp_state = IB_QPS_RTS;
+	/* create association between qp and tx/rx files
+	 it is used when CQ is replaced from user space */
+	nesqp->rx_ud_wq->qp_ptr = nesqp;
+	nesqp->tx_ud_wq->qp_ptr = nesqp;
+
+	sq_size = init_attr->cap.max_send_wr;
+	rq_size = init_attr->cap.max_recv_wr;
+	nes_debug(NES_DBG_UD, "%s(%d) sq_size=%d rq_size=%d\n",
+				__func__,
+				__LINE__, sq_size, rq_size);
+	uresp.actual_sq_size = sq_size;
+	uresp.actual_rq_size = rq_size;
+
+	/* Init qp size due to ibv_query_qp requirements */
+	nesqp->hwqp.sq_size = sq_size;
+	nesqp->hwqp.rq_size = rq_size;
+
+	/* enhance the response qp number with adapter number and QP number
+	on this adapter
+	 user space will use this identifier when packets will be posted */
+	uresp.qp_id = nesqp->rx_ud_wq->qpn |
+			(nesqp->rx_ud_wq->adapter_no << 12) |
+			(nesqp->rx_ud_wq->rsc_idx << 8);
+	uresp.qp_id = uresp.qp_id |
+			((nesqp->tx_ud_wq->qpn |
+			(nesqp->tx_ud_wq->adapter_no << 12) |
+			(nesqp->tx_ud_wq->rsc_idx << 8)) << 16);
+
+	nesqp->hwqp.qp_id = uresp.qp_id;
+	nesqp->ibqp.qp_num = uresp.qp_id;
+
+	nes_debug(NES_DBG_UD, "%s(%d) qpid=0x%x\n",
+			__func__, __LINE__, uresp.qp_id);
+	if (ib_copy_to_udata(udata, &uresp, sizeof uresp)) {
+		kfree(nesqp->allocated_buffer);
+		return ERR_PTR(-EFAULT);
+	}
+	/* the usecount is decreased because without it
+	the cq re-creation in user-spce will fail */
+	atomic_dec(&init_attr->send_cq->usecnt);
+	atomic_dec(&init_attr->recv_cq->usecnt);
+	nes_add_ref(&nesqp->ibqp);
+	spin_lock_init(&nesqp->lock);
+
+	/* moved here to be sure that QP is really created
+	(now it counted a number of QP creation trials */
+	atomic_inc(&qps_created);
+	return &nesqp->ibqp;
+
+	default:
+		nes_debug(NES_DBG_QP, "Invalid QP type: %d\n",
+					init_attr->qp_type);
+		return ERR_PTR(-EINVAL);
 	}
 
 	nesqp->sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR);
@@ -1461,6 +1577,8 @@ static void nes_clean_cq(struct nes_qp *nesqp, struct nes_cq *nescq)
 static int nes_destroy_qp(struct ib_qp *ibqp)
 {
 	struct nes_qp *nesqp = to_nesqp(ibqp);
+	struct nes_cq *scq;
+	struct nes_cq *rcq;
 	struct nes_ucontext *nes_ucontext;
 	struct ib_qp_attr attr;
 	struct iw_cm_id *cm_id;
@@ -1469,6 +1587,39 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 
 	atomic_inc(&sw_qps_destroyed);
 	nesqp->destroyed = 1;
+
+	if (nesqp->ibqp.qp_type == IB_QPT_RAW_ETH) {
+		/* check the QP refernece count */
+		if (atomic_read(&nesqp->refcount) == 0)
+			BUG();
+		if (atomic_dec_and_test(&nesqp->refcount)) {
+			/* destroy send and rcv  QPs */
+			if (nesqp->rx_ud_wq)
+				nes_ud_destroy_wq(nesqp->rx_ud_wq);
+			nesqp->rx_ud_wq = 0;
+
+			if (nesqp->tx_ud_wq)
+				nes_ud_destroy_wq(nesqp->tx_ud_wq);
+			nesqp->tx_ud_wq = 0;
+			atomic_inc(&qps_destroyed);
+
+			/* to prevent the destroy of cq before QP
+			destroy the usecount is used */
+			if (ibqp->send_cq) {
+				scq = to_nescq(ibqp->send_cq);
+				atomic_inc(&ibqp->send_cq->usecnt);
+				atomic_dec(&scq->usecnt);
+			}
+			if (ibqp->recv_cq) {
+				rcq = to_nescq(ibqp->recv_cq);
+				atomic_inc(&ibqp->recv_cq->usecnt);
+				atomic_dec(&rcq->usecnt);
+			}
+			/* free memory for the qp */
+			kfree(nesqp->allocated_buffer);
+		}
+		return 0;
+	}
 
 	/* Blow away the connection if it exists. */
 	if (nesqp->ibqp_state >= IB_QPS_INIT && nesqp->ibqp_state <= IB_QPS_RTS) {
@@ -1566,9 +1717,18 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	/* to make sure that RAW ETH cq will be not destoyed
+	without qp destroy the internal usecount is used
+	 the ibcq usecount cannot be used because the  RAW ETH makes
+	recreation of the CQs after QP creation
+	 when this situation occured (mcrqf != 0) the usecount is increase
+	 the ibcq usecount is cleared after successfull CQ creation */
+	atomic_set(&nescq->usecnt, 0);
+
 	nescq->hw_cq.cq_size = max(entries + 1, 5);
 	nescq->hw_cq.cq_number = cq_num;
 	nescq->ibcq.cqe = nescq->hw_cq.cq_size - 1;
+	nescq->mcrqf = 0;
 
 
 	if (context) {
@@ -1585,8 +1745,23 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 				nescq->hw_cq.cq_number = nesvnic->nic.qp_id + 28 + 2 * ((nes_ucontext->mcrqf & 0xf) - 1);
 			else if (nes_ucontext->mcrqf & 0x40000000)
 				nescq->hw_cq.cq_number = nes_ucontext->mcrqf & 0xffff;
+			else if (nes_ucontext->mcrqf & 0x20000000) {
+				/* the cq number is coded
+						adapter:4/nic:4/cq_num:8 */
+				nescq->hw_cq.cq_number =
+						nes_ucontext->mcrqf & 0x00ff;
+
+				/* to prevent the cq destroy before qp destroy
+				the internal usecount is increased
+				in this place it is the  RAW ETH specific CQ
+				(after re-creation)
+				only  RAW ETH type QP destroy can decrease
+				this usecounter */
+				atomic_inc(&nescq->usecnt);
+			}
 			else
 				nescq->hw_cq.cq_number = nesvnic->mcrq_qp_id + nes_ucontext->mcrqf-1;
+
 			nescq->mcrqf = nes_ucontext->mcrqf;
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 		}
@@ -1775,6 +1950,10 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 			kfree(nescq);
 			return ERR_PTR(-EFAULT);
 		}
+		if (nes_ucontext->mcrqf & 0x20000000) {
+			/* change the cq address only for  RAW in QP pointer */
+			nes_ud_cq_replace(nesvnic, nescq);
+		}
 	}
 
 	return &nescq->ibcq;
@@ -1804,6 +1983,11 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 	nesdev = nesvnic->nesdev;
 	nesadapter = nesdev->nesadapter;
 
+	if (atomic_read(&nescq->usecnt) != 0) {
+		nes_debug(NES_DBG_CQ, "CQ is in use now. %d\n",
+				(int) atomic_read(&nescq->usecnt));
+		return -EBUSY;
+	}
 	nes_debug(NES_DBG_CQ, "Destroy CQ%u\n", nescq->hw_cq.cq_number);
 
 	/* Send DestroyCQ request to CQP */
@@ -2539,6 +2723,13 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				nesmr->ibmr.lkey = stag;
 				nesmr->mode = IWNES_MEMREG_TYPE_MEM;
 				ibmr = &nesmr->ibmr;
+				/* register memory parallelly for RAW ETH */
+				if (nes_ud_reg_mr(region, length,
+						virt, stag) == 0) {
+					ib_umem_release(region);
+					kfree(nesmr);
+					ibmr = ERR_PTR(-ENOMEM);
+				}
 			} else {
 				ib_umem_release(region);
 				kfree(nesmr);
@@ -2732,6 +2923,9 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 	}
 	nes_free_resource(nesadapter, nesadapter->allocated_mrs,
 			(ib_mr->rkey & 0x0fffff00) >> 8);
+	ret = nes_ud_dereg_mr(ib_mr->rkey);
+	if (ret != 0)
+		return ret;
 
 	kfree(nesmr);
 
@@ -2939,6 +3133,10 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			nesqp->hwqp.qp_id, attr->qp_state, nesqp->ibqp_state,
 			nesqp->iwarp_state, atomic_read(&nesqp->refcount));
 
+	if (ibqp->qp_type == IB_QPT_RAW_ETH) {
+		ret = nes_ud_modify_qp(ibqp, attr, attr_mask, &udata);
+		return ret;
+	}
 	spin_lock_irqsave(&nesqp->lock, qplockflags);
 
 	nes_debug(NES_DBG_MOD_QP, "QP%u: hw_iwarp_state=0x%X, hw_tcp_state=0x%X,"
@@ -3064,6 +3262,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						nesqp->hte_added = 0;
 					}
 				if ((nesqp->hw_tcp_state > NES_AEQE_TCP_STATE_CLOSED) &&
+						(nesdev->iw_status) &&
 						(nesqp->hw_tcp_state != NES_AEQE_TCP_STATE_TIME_WAIT)) {
 					next_iwarp_state |= NES_CQP_QP_RESET;
 				} else {
@@ -3216,8 +3415,10 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  */
 static int nes_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
+	int ret =  -ENOSYS;
+	struct nes_qp *nesqp = to_nesqp(ibqp);
+	ret =  nes_ud_subscribe_mcast(nesqp->rx_ud_wq, gid);
+	return ret;
 }
 
 
@@ -3226,8 +3427,10 @@ static int nes_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
  */
 static int nes_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
-	nes_debug(NES_DBG_INIT, "\n");
-	return -ENOSYS;
+	int ret =  -ENOSYS;
+	struct nes_qp *nesqp = to_nesqp(ibqp);
+	ret =  nes_ud_unsubscribe_mcast(nesqp->rx_ud_wq, gid);
+	return ret;
 }
 
 
@@ -3876,6 +4079,9 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 			(1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ) |
 			(1ull << IB_USER_VERBS_CMD_CREATE_QP) |
 			(1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
+			(1ull << IB_USER_VERBS_CMD_QUERY_QP) |
+			(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST) |
+			(1ull << IB_USER_VERBS_CMD_DETACH_MCAST) |
 			(1ull << IB_USER_VERBS_CMD_POLL_CQ) |
 			(1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
 			(1ull << IB_USER_VERBS_CMD_ALLOC_MW) |
@@ -3919,8 +4125,9 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.alloc_fast_reg_page_list = nes_alloc_fast_reg_page_list;
 	nesibdev->ibdev.free_fast_reg_page_list = nes_free_fast_reg_page_list;
 
-	nesibdev->ibdev.attach_mcast = nes_multicast_attach;
 	nesibdev->ibdev.detach_mcast = nes_multicast_detach;
+	nesibdev->ibdev.attach_mcast = nes_multicast_attach;
+
 	nesibdev->ibdev.process_mad = nes_process_mad;
 
 	nesibdev->ibdev.req_notify_cq = nes_req_notify_cq;
@@ -3943,6 +4150,53 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 
 	return nesibdev;
 }
+
+
+/**
+ * nes_handle_delayed_event
+ */
+static void nes_handle_delayed_event(unsigned long data)
+{
+	struct nes_vnic *nesvnic = (void *) data;
+
+	if (nesvnic->delayed_event != nesvnic->last_dispatched_event) {
+		struct ib_event event;
+
+		event.device = &nesvnic->nesibdev->ibdev;
+		if (!event.device)
+			goto stop_timer;
+		event.event = nesvnic->delayed_event;
+		event.element.port_num = nesvnic->logical_port + 1;
+		ib_dispatch_event(&event);
+	}
+
+stop_timer:
+	nesvnic->event_timer.function = NULL;
+}
+
+
+void  nes_port_ibevent(struct nes_vnic *nesvnic)
+{
+	struct nes_ib_device *nesibdev = nesvnic->nesibdev;
+	struct nes_device *nesdev = nesvnic->nesdev;
+	struct ib_event event;
+	event.device = &nesibdev->ibdev;
+	event.element.port_num = nesvnic->logical_port + 1;
+	event.event = nesdev->iw_status ? IB_EVENT_PORT_ACTIVE : IB_EVENT_PORT_ERR;
+
+	if (!nesvnic->event_timer.function) {
+		ib_dispatch_event(&event);
+		nesvnic->last_dispatched_event = event.event;
+		nesvnic->event_timer.function = nes_handle_delayed_event;
+		nesvnic->event_timer.data = (unsigned long) nesvnic;
+		nesvnic->event_timer.expires = jiffies + NES_EVENT_DELAY;
+		add_timer(&nesvnic->event_timer);
+	} else {
+		mod_timer(&nesvnic->event_timer, jiffies + NES_EVENT_DELAY);
+	}
+	nesvnic->delayed_event = event.event;
+}
+
 
 
 /**

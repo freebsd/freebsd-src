@@ -242,8 +242,11 @@ static int mlx4_cmd_poll(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 					  __raw_readl(hcr + HCR_OUT_PARAM_OFFSET + 4));
 	stat = be32_to_cpu((__force __be32) __raw_readl(hcr + HCR_STATUS_OFFSET)) >> 24;
 	err = mlx4_status_to_errno(stat);
-	if (err)
-		mlx4_err(dev, "command 0x%x failed: fw status = 0x%x\n", op, stat);
+	if (err) {
+		if (op != MLX4_CMD_SET_NODE || stat != CMD_STAT_BAD_OP)
+			mlx4_err(dev, "command 0x%x failed: fw status = 0x%x\n",
+				 op, stat);
+	}
 
 out:
 	up(&priv->cmd.poll_sem);
@@ -296,8 +299,9 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 
 	err = context->result;
 	if (err) {
-		mlx4_err(dev, "command 0x%x failed: fw status = 0x%x\n",
-			 op, context->fw_status);
+		if (op != MLX4_CMD_SET_NODE || context->fw_status != CMD_STAT_BAD_OP)
+			mlx4_err(dev, "command 0x%x failed: fw status = 0x%x\n",
+				 op, context->fw_status);
 		goto out;
 	}
 

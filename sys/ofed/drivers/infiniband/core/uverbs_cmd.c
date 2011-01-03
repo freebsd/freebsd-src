@@ -1856,38 +1856,6 @@ err:
 	return ret;
 }
 
-ssize_t ib_uverbs_get_eth_l2_addr(struct ib_uverbs_file *file, const char __user *buf,
-				  int in_len, int out_len)
-{
-	struct ib_uverbs_get_eth_l2_addr       cmd;
-	struct ib_uverbs_get_eth_l2_addr_resp  resp;
-	int              ret;
-	struct ib_pd    *pd;
-
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
-
-	pd = idr_read_pd(cmd.pd_handle, file->ucontext);
-	if (!pd)
-		return -EINVAL;
-
-	ret = ib_get_eth_l2_addr(pd->device, cmd.port, (union ib_gid *)cmd.gid,
-				 cmd.sgid_idx, resp.mac, &resp.vlan_id);
-	put_pd_read(pd);
-	if (!ret) {
-		if (copy_to_user((void __user *) (unsigned long) cmd.response,
-				 &resp, sizeof resp))
-			return -EFAULT;
-
-		return in_len;
-	}
-
-	return ret;
-}
-
 ssize_t ib_uverbs_destroy_ah(struct ib_uverbs_file *file,
 			     const char __user *buf, int in_len, int out_len)
 {
