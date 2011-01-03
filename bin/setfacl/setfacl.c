@@ -201,12 +201,14 @@ main(int argc, char *argv[])
 
 		if (stat(file->filename, &sb) == -1) {
 			warn("%s: stat() failed", file->filename);
+			carried_error++;
 			continue;
 		}
 
 		if (acl_type == ACL_TYPE_DEFAULT && S_ISDIR(sb.st_mode) == 0) {
 			warnx("%s: default ACL may only be set on a directory",
 			    file->filename);
+			carried_error++;
 			continue;
 		}
 
@@ -218,6 +220,7 @@ main(int argc, char *argv[])
 			if (acl_type == ACL_TYPE_DEFAULT) {
 				warnx("%s: there are no default entries "
 			           "in NFSv4 ACLs", file->filename);
+				carried_error++;
 				continue;
 			}
 			acl_type = ACL_TYPE_NFS4;
@@ -240,6 +243,7 @@ main(int argc, char *argv[])
 			else
 				warn("%s: acl_get_file() failed",
 				    file->filename);
+			carried_error++;
 			continue;
 		}
 
