@@ -65,6 +65,9 @@ SUBDIR+=secure
 SUBDIR+=share
 .endif
 SUBDIR+=sys usr.bin usr.sbin
+.if !defined(MK_OFED) || ${MK_OFED} != "no"
+SUBDIR+=contrib/ofed
+.endif
 #
 # We must do etc/ last for install/distribute to work.
 #
@@ -1177,7 +1180,11 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 _lib_libthr=	lib/libthr
 .endif
 
-_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib
+.if !defined(MK_OFED) || ${MK_OFED} != "no"
+_ofed_lib=	contrib/ofed/usr.lib/
+.endif
+
+_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
