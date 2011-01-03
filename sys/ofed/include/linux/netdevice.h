@@ -54,9 +54,99 @@ extern struct net init_net;
 #define	net_device	ifnet
 
 #define	dev_get_by_index(n, idx)	ifnet_byindex_ref((idx))
+#define	dev_hold(d)	if_ref((d))
 #define	dev_put(d)	if_rele((d))
 
 #define	netif_running(dev)	!!(dev->if_drv_flags & IFF_DRV_RUNNING)
 #define	netif_oper_up(dev)	!!(dev->if_flags & IFF_UP)
+
+static inline void
+_handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	if (linkstate == LINK_STATE_UP)
+		nb->notifier_call(nb, NETDEV_UP, ifp);
+	else
+		nb->notifier_call(nb, NETDEV_DOWN, ifp);
+}
+
+static inline void
+_handle_ifnet_arrival_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_REGISTER, ifp);
+}
+
+static inline void
+_handle_ifnet_departure_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_UNREGISTER, ifp);
+}
+
+static inline int
+register_netdevice_notifier(struct notifier_block *nb)
+{
+
+	nb->tags[NETDEV_UP] = EVENTHANDLER_REGISTER(
+	    ifnet_link_event, _handle_ifnet_link_event, nb, 0);
+	nb->tags[NETDEV_REGISTER] = EVENTHANDLER_REGISTER(
+	    ifnet_arrival_event, _handle_ifnet_arrival_event, nb, 0);
+	nb->tags[NETDEV_UNREGISTER] = EVENTHANDLER_REGISTER(
+	    ifnet_departure_event, _handle_ifnet_departure_event, nb, 0);
+	return (0);
+}
+
+static inline int
+unregister_netdevice_notifier(struct notifier_block *nb)
+{
+
+        EVENTHANDLER_DEREGISTER(ifnet_link_event, nb->tags[NETDEV_UP]);
+        EVENTHANDLER_DEREGISTER(ifnet_arrival_event, nb->tags[NETDEV_REGISTER]);
+        EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+	    nb->tags[NETDEV_UNREGISTER]);
+	return (0);
+}
+
+#define	rtnl_lock()
+#define	rtnl_unlock()
+
+static inline int
+dev_mc_delete(struct net_device *dev, void *addr, int alen, int all)
+{
+	struct sockaddr_dl sdl;
+
+	if (alen > sizeof(sdl.sdl_data))
+		return (-EINVAL);
+	memset(&sdl, 0, sizeof(sdl));
+	sdl.sdl_len = sizeof(sdl);
+	sdl.sdl_family = AF_LINK;
+	sdl.sdl_alen = alen;
+	memcpy(&sdl.sdl_data, addr, alen);
+
+	return -if_delmulti(dev, (struct sockaddr *)&sdl);
+}
+
+static inline int
+dev_mc_add(struct net_device *dev, void *addr, int alen, int newonly)
+{
+	struct sockaddr_dl sdl;
+
+	if (alen > sizeof(sdl.sdl_data))
+		return (-EINVAL);
+	memset(&sdl, 0, sizeof(sdl));
+	sdl.sdl_len = sizeof(sdl);
+	sdl.sdl_family = AF_LINK;
+	sdl.sdl_alen = alen;
+	memcpy(&sdl.sdl_data, addr, alen);
+
+	return -if_addmulti(dev, (struct sockaddr *)&sdl, NULL);
+}
 
 #endif	/* _LINUX_NETDEVICE_H_ */

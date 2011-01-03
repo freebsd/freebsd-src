@@ -94,9 +94,7 @@ static void init_query_mad(struct ib_smp *mad)
 	mad->method	   = IB_MGMT_METHOD_GET;
 }
 
-#ifdef __linux__
 static union ib_gid zgid;
-#endif
 
 static int mlx4_ib_query_device(struct ib_device *ibdev,
 				struct ib_device_attr *props)
@@ -664,10 +662,9 @@ static int add_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
 int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		   union ib_gid *gid)
 {
-	int ret = 0;
-#ifdef __linux__
 	u8 mac[6];
 	struct net_device *ndev;
+	int ret = 0;
 
 	if (!mqp->port)
 		return 0;
@@ -684,7 +681,6 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		rtnl_unlock();
 		dev_put(ndev);
 	}
-#endif
 
 	return ret;
 }
@@ -732,10 +728,8 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	int err;
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
-#ifdef __linux__
 	u8 mac[6];
 	struct net_device *ndev;
-#endif
 	struct gid_entry *ge;
 
 	err = mlx4_multicast_detach(mdev->dev,
@@ -746,7 +740,6 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	mutex_lock(&mqp->mutex);
 	ge = find_gid_entry(mqp, gid->raw);
 	if (ge) {
-#ifdef __linux__
 		spin_lock(&mdev->iboe.lock);
 		ndev = ge->added ? mdev->iboe.netdevs[ge->port - 1] : NULL;
 		if (ndev)
@@ -759,7 +752,6 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 			rtnl_unlock();
 			dev_put(ndev);
 		}
-#endif
 		list_del(&ge->list);
 		kfree(ge);
 	} else
@@ -1056,7 +1048,6 @@ struct attribute_group diag_counters_group = {
 	.attrs  = diag_rprt_attrs
 };
 
-#ifdef __linux__
 static void mlx4_addrconf_ifid_eui48(u8 *eui, int is_vlan, u16 vlan_id, struct net_device *dev)
 {
 #ifdef __linux__
@@ -1114,12 +1105,14 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 {
 	struct net_device *ndev = dev->iboe.netdevs[port - 1];
 	struct update_gid_work *work;
+#ifdef __linux__
 	struct net_device *tmp;
+#endif
 	int i;
 	u8 *hits;
 	int ret;
 	union ib_gid gid;
-	int free = -1;
+	int tofree = -1;
 	int found;
 	int need_update = 0;
 	int is_vlan;
@@ -1135,14 +1128,16 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 		goto out;
 	}
 
-	/* XXX vlan */
+#ifdef __linux__
 	read_lock(&dev_base_lock);
 	for_each_netdev(&init_net, tmp) {
 		if (ndev && (tmp == ndev
+	/* XXX vlan */
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 			 || vlan_dev_real_dev(tmp) == ndev)) {
 #else
 						)) {
+#endif
 #endif
 			gid.global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
@@ -1155,23 +1150,25 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 			mlx4_addrconf_ifid_eui48(&gid.raw[8], is_vlan, vid, ndev);
 			found = 0;
 			for (i = 0; i < 128; ++i) {
-				if (free < 0 &&
+				if (tofree < 0 &&
 				    !memcmp(&dev->iboe.gid_table[port - 1][i], &zgid, sizeof zgid))
-					free = i;
+					tofree = i;
 				if (!memcmp(&dev->iboe.gid_table[port - 1][i], &gid, sizeof gid)) {
 					hits[i] = 1;
 					found = 1;
 					break;
 				}
 			}
-			if (!found && free >= 0) {
-				dev->iboe.gid_table[port - 1][free] = gid;
-				hits[free] = 1;
+			if (!found && tofree >= 0) {
+				dev->iboe.gid_table[port - 1][tofree] = gid;
+				hits[tofree] = 1;
 				++need_update;
 			}
+#ifdef __linux__
 		}
 	}
 	read_unlock(&dev_base_lock);
+#endif
 
 	for (i = 0; i < 128; ++i)
 		if (!hits[i]) {
@@ -1221,7 +1218,6 @@ static void netdev_removed(struct mlx4_ib_dev *dev, int port)
 	update_ipv6_gids(dev, port, 1);
 }
 
-/* XXX netdev event needed. */
 static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event,
 				void *ptr)
 {
@@ -1231,8 +1227,10 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 	struct mlx4_ib_iboe *iboe;
 	int port;
 
+#ifdef __linux__
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
+#endif
 
 	ibdev = container_of(this, struct mlx4_ib_dev, iboe.nb);
 	iboe = &ibdev->iboe;
@@ -1268,7 +1266,6 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 
 	return NOTIFY_DONE;
 }
-#endif
 
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
@@ -1434,14 +1431,12 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
-#ifdef __linux__
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE && !iboe->nb.notifier_call) {
 		iboe->nb.notifier_call = mlx4_ib_netdev_event;
 		err = register_netdevice_notifier(&iboe->nb);
 		if (err)
 			goto err_reg;
 	}
-#endif
 	for (i = 0; i < ARRAY_SIZE(mlx4_class_attributes); ++i) {
 		if (device_create_file(&ibdev->ib_dev.dev,
 				       mlx4_class_attributes[i]))
@@ -1456,10 +1451,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	return ibdev;
 
 err_notif:
-#ifdef __linux__
 	if (unregister_netdevice_notifier(&ibdev->iboe.nb))
 		printk(KERN_WARNING "failure unregistering notifier\n");
-#endif
 	flush_workqueue(wq);
 
 err_reg:
@@ -1498,9 +1491,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 		mlx4_counter_free(ibdev->dev, ibdev->counters[k]);
 
 	if (ibdev->iboe.nb.notifier_call) {
-#ifdef __linux__
 		unregister_netdevice_notifier(&ibdev->iboe.nb);
-#endif
 		flush_workqueue(wq);
 		ibdev->iboe.nb.notifier_call = NULL;
 	}

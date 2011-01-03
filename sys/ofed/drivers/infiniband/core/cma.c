@@ -1681,8 +1681,6 @@ out:
 	kfree(work);
 }
 
-#ifdef __linux__
-/* XXX I need to add an EVENTHANDLER based system for handling these events. */
 static void cma_ndev_work_handler(struct work_struct *_work)
 {
 	struct cma_ndev_work *work = container_of(_work, struct cma_ndev_work, work);
@@ -1706,7 +1704,6 @@ out:
 		rdma_destroy_id(&id_priv->id);
 	kfree(work);
 }
-#endif
 
 static int cma_resolve_ib_route(struct rdma_id_private *id_priv, int timeout_ms)
 {
@@ -3183,7 +3180,6 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 }
 EXPORT_SYMBOL(rdma_leave_multicast);
 
-#ifdef __linux__
 static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id_priv)
 {
 	struct rdma_dev_addr *dev_addr;
@@ -3191,10 +3187,17 @@ static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id
 
 	dev_addr = &id_priv->id.route.addr.dev_addr;
 
+#ifdef __linux__
 	if ((dev_addr->bound_dev_if == ndev->ifindex) &&
 	    memcmp(dev_addr->src_dev_addr, ndev->dev_addr, ndev->addr_len)) {
 		printk(KERN_INFO "RDMA CM addr change for ndev %s used by id %p\n",
 		       ndev->name, &id_priv->id);
+#else
+	if ((dev_addr->bound_dev_if == ndev->if_index) &&
+	    memcmp(dev_addr->src_dev_addr, IF_LLADDR(ndev), ndev->if_addrlen)) {
+		printk(KERN_INFO "RDMA CM addr change for ndev %s used by id %p\n",
+		       ndev->if_xname, &id_priv->id);
+#endif
 		work = kzalloc(sizeof *work, GFP_KERNEL);
 		if (!work)
 			return -ENOMEM;
@@ -3217,6 +3220,7 @@ static int cma_netdev_callback(struct notifier_block *self, unsigned long event,
 	struct rdma_id_private *id_priv;
 	int ret = NOTIFY_DONE;
 
+#ifdef __linux__
 	if (dev_net(ndev) != &init_net)
 		return NOTIFY_DONE;
 
@@ -3225,6 +3229,10 @@ static int cma_netdev_callback(struct notifier_block *self, unsigned long event,
 
 	if (!(ndev->flags & IFF_MASTER) || !(ndev->priv_flags & IFF_BONDING))
 		return NOTIFY_DONE;
+#else
+	if (event != NETDEV_DOWN && event != NETDEV_UNREGISTER)
+		return NOTIFY_DONE;
+#endif
 
 	mutex_lock(&lock);
 	list_for_each_entry(cma_dev, &dev_list, list)
@@ -3242,7 +3250,6 @@ out:
 static struct notifier_block cma_nb = {
 	.notifier_call = cma_netdev_callback
 };
-#endif
 
 static void cma_add_one(struct ib_device *device)
 {
@@ -3352,9 +3359,7 @@ static int cma_init(void)
 
 	ib_sa_register_client(&sa_client);
 	rdma_addr_register_client(&addr_client);
-#ifdef __linux__
 	register_netdevice_notifier(&cma_nb);
-#endif
 
 	ret = ib_register_client(&cma_client);
 	if (ret)
@@ -3362,9 +3367,7 @@ static int cma_init(void)
 	return 0;
 
 err:
-#ifdef __linux__
 	unregister_netdevice_notifier(&cma_nb);
-#endif
 	rdma_addr_unregister_client(&addr_client);
 	ib_sa_unregister_client(&sa_client);
 	destroy_workqueue(cma_wq);
@@ -3374,9 +3377,7 @@ err:
 static void cma_cleanup(void)
 {
 	ib_unregister_client(&cma_client);
-#ifdef __linux__
 	unregister_netdevice_notifier(&cma_nb);
-#endif
 	rdma_addr_unregister_client(&addr_client);
 	ib_sa_unregister_client(&sa_client);
 	destroy_workqueue(cma_wq);
