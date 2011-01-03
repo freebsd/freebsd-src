@@ -316,17 +316,20 @@ kthread_exit(void)
 
 	p = curthread->td_proc;
 
-
 	/* A module may be waiting for us to exit. */
 	wakeup(curthread);
+
+	/*
+	 * The last exiting thread in a kernel process must tear down
+	 * the whole process.
+	 */
 	rw_wlock(&tidhash_lock);
 	PROC_LOCK(p);
 	if (p->p_numthreads == 1) {
 		PROC_UNLOCK(p);
 		rw_wunlock(&tidhash_lock);
 		kproc_exit(0);
-
-		/* NOTREACHED. */
+		/* NOTREACHED */
 	}
 	LIST_REMOVE(curthread, td_hash);
 	rw_wunlock(&tidhash_lock);
