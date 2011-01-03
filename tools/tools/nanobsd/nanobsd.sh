@@ -91,7 +91,7 @@ NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
 NANO_DRIVE=ad0
 
 # Target media size in 512 bytes sectors
-NANO_MEDIASIZE=1200000
+NANO_MEDIASIZE=1500000
 
 # Number of code images on media (1 or 2)
 NANO_IMAGES=2
