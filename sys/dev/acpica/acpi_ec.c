@@ -707,7 +707,7 @@ EcGpeHandler(ACPI_HANDLE GpeDevice, UINT32 GpeNumber, void *Context)
      * address and then data values.)
      */
     atomic_add_int(&sc->ec_gencount, 1);
-    wakeup(&sc);
+    wakeup(sc);
 
     /*
      * If the EC_SCI bit of the status register is set, queue a query handler.
@@ -863,7 +863,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
 	 */
 	for (i = 0; i < count; i++) {
 	    if (gen_count == sc->ec_gencount)
-		tsleep(&sc, 0, "ecgpe", slp_ival);
+		tsleep(sc, 0, "ecgpe", slp_ival);
 	    /*
 	     * Record new generation count.  It's possible the GPE was
 	     * just to notify us that a query is needed and we need to
