@@ -84,46 +84,46 @@ NFSSOCKMUTEX;
  * Define it here, since it is used by both the client and server.
  */
 struct nfsv4_opflag nfsv4_opflag[NFSV4OP_NOPS] = {
-	{ 0, 0, 0, 0 },		/* undef */
-	{ 0, 0, 0, 0 },		/* undef */
-	{ 0, 0, 0, 0 },		/* undef */
-	{ 0, 1, 0, 0 },		/* Access */
-	{ 0, 1, 0, 0 },		/* Close */
-	{ 0, 2, 0, 1 },		/* Commit */
-	{ 1, 2, 1, 1 },		/* Create */
-	{ 0, 0, 0, 0 },		/* Delegpurge */
-	{ 0, 1, 0, 0 },		/* Delegreturn */
-	{ 0, 1, 0, 0 },		/* Getattr */
-	{ 0, 1, 0, 0 },		/* GetFH */
-	{ 2, 1, 1, 1 },		/* Link */
-	{ 0, 1, 0, 0 },		/* Lock */
-	{ 0, 1, 0, 0 },		/* LockT */
-	{ 0, 1, 0, 0 },		/* LockU */
-	{ 1, 1, 0, 0 },		/* Lookup */
-	{ 1, 1, 0, 0 },		/* Lookupp */
-	{ 0, 1, 0, 0 },		/* NVerify */
-	{ 1, 1, 0, 1 },		/* Open */
-	{ 1, 1, 0, 0 },		/* OpenAttr */
-	{ 0, 1, 0, 0 },		/* OpenConfirm */
-	{ 0, 1, 0, 0 },		/* OpenDowngrade */
-	{ 1, 0, 0, 0 },		/* PutFH */
-	{ 1, 0, 0, 0 },		/* PutPubFH */
-	{ 1, 0, 0, 0 },		/* PutRootFH */
-	{ 0, 1, 0, 0 },		/* Read */
-	{ 0, 1, 0, 0 },		/* Readdir */
-	{ 0, 1, 0, 0 },		/* ReadLink */
-	{ 0, 2, 1, 1 },		/* Remove */
-	{ 2, 1, 1, 1 },		/* Rename */
-	{ 0, 0, 0, 0 },		/* Renew */
-	{ 0, 0, 0, 0 },		/* RestoreFH */
-	{ 0, 1, 0, 0 },		/* SaveFH */
-	{ 0, 1, 0, 0 },		/* SecInfo */
-	{ 0, 2, 1, 1 },		/* Setattr */
-	{ 0, 0, 0, 0 },		/* SetClientID */
-	{ 0, 0, 0, 0 },		/* SetClientIDConfirm */
-	{ 0, 1, 0, 0 },		/* Verify */
-	{ 0, 2, 1, 1 },		/* Write */
-	{ 0, 0, 0, 0 },		/* ReleaseLockOwner */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* undef */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* undef */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* undef */
+	{ 0, 1, 0, 0, LK_SHARED },		/* Access */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Close */
+	{ 0, 2, 0, 1, LK_EXCLUSIVE },		/* Commit */
+	{ 1, 2, 1, 1, LK_EXCLUSIVE },		/* Create */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* Delegpurge */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Delegreturn */
+	{ 0, 1, 0, 0, LK_SHARED },		/* Getattr */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* GetFH */
+	{ 2, 1, 1, 1, LK_EXCLUSIVE },		/* Link */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Lock */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* LockT */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* LockU */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* Lookup */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* Lookupp */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* NVerify */
+	{ 1, 1, 0, 1, LK_EXCLUSIVE },		/* Open */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* OpenAttr */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* OpenConfirm */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* OpenDowngrade */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutFH */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutPubFH */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutRootFH */
+	{ 0, 1, 0, 0, LK_SHARED },		/* Read */
+	{ 0, 1, 0, 0, LK_SHARED },		/* Readdir */
+	{ 0, 1, 0, 0, LK_SHARED },		/* ReadLink */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Remove */
+	{ 2, 1, 1, 1, LK_EXCLUSIVE },		/* Rename */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* Renew */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* RestoreFH */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* SaveFH */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* SecInfo */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Setattr */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* SetClientID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* SetClientIDConfirm */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Verify */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Write */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* ReleaseLockOwner */
 };
 #endif	/* !APPLEKEXT */
 
@@ -1824,6 +1824,21 @@ nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex)
 }
 
 /*
+ * Get a reference as above, but return failure instead of sleeping if
+ * an exclusive lock is held.
+ */
+APPLESTATIC int
+nfsv4_getref_nonblock(struct nfsv4lock *lp)
+{
+
+	if ((lp->nfslock_lock & NFSV4LOCK_LOCK) != 0)
+		return (0);
+
+	lp->nfslock_usecnt++;
+	return (1);
+}
+
+/*
  * Test for a lock. Return 1 if locked, 0 otherwise.
  */
 APPLESTATIC int
@@ -1967,12 +1982,14 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 		    !NFSHASNFS4ACL(vnode_mount(vp)))) {
 			NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACL);
 		} else if (naclp != NULL) {
-			NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			error = VOP_ACCESS(vp, VREAD_ACL, cred, p);
-			if (error == 0)
-				error = VOP_GETACL(vp, ACL_TYPE_NFS4, naclp,
-				    cred, p);
-			NFSVOPUNLOCK(vp, 0, p);
+			if (vn_lock(vp, LK_SHARED) == 0) {
+				error = VOP_ACCESS(vp, VREAD_ACL, cred, p);
+				if (error == 0)
+					error = VOP_GETACL(vp, ACL_TYPE_NFS4,
+					    naclp, cred, p);
+				VOP_UNLOCK(vp, 0);
+			} else
+				error = NFSERR_PERM;
 			if (error != 0) {
 				if (reterr) {
 					nd->nd_repstat = NFSERR_ACCES;

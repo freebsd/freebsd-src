@@ -7,7 +7,7 @@
  */
 
 static void
-systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
+systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 {
 	int64_t *iarg  = (int64_t *) uarg;
 	switch (sysnum) {
@@ -1770,6 +1770,17 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* nnpfs_syscall */
+	case 339: {
+		struct nnpfs_syscall_args *p = params;
+		iarg[0] = p->operation; /* int */
+		uarg[1] = (intptr_t) p->a_pathP; /* char * */
+		iarg[2] = p->a_opcode; /* int */
+		uarg[3] = (intptr_t) p->a_paramsP; /* void * */
+		iarg[4] = p->a_followSymlinks; /* int */
+		*n_args = 5;
+		break;
+	}
 	/* sigprocmask */
 	case 340: {
 		struct sigprocmask_args *p = params;
@@ -2009,6 +2020,19 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		uarg[0] = (intptr_t) p->path; /* char * */
 		iarg[1] = p->flags; /* int */
 		*n_args = 2;
+		break;
+	}
+	/* afs3_syscall */
+	case 377: {
+		struct afs3_syscall_args *p = params;
+		iarg[0] = p->syscall; /* long */
+		iarg[1] = p->parm1; /* long */
+		iarg[2] = p->parm2; /* long */
+		iarg[3] = p->parm3; /* long */
+		iarg[4] = p->parm4; /* long */
+		iarg[5] = p->parm5; /* long */
+		iarg[6] = p->parm6; /* long */
+		*n_args = 7;
 		break;
 	}
 	/* nmount */
@@ -5900,6 +5924,28 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* nnpfs_syscall */
+	case 339:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		case 4:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* sigprocmask */
 	case 340:
 		switch(ndx) {
@@ -6320,6 +6366,34 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* afs3_syscall */
+	case 377:
+		switch(ndx) {
+		case 0:
+			p = "long";
+			break;
+		case 1:
+			p = "long";
+			break;
+		case 2:
+			p = "long";
+			break;
+		case 3:
+			p = "long";
+			break;
+		case 4:
+			p = "long";
+			break;
+		case 5:
+			p = "long";
+			break;
+		case 6:
+			p = "long";
 			break;
 		default:
 			break;

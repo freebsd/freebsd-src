@@ -31,12 +31,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2009
+.Dd November 23, 2010
 .Dt BGE 4
 .Os
 .Sh NAME
 .Nm bge
-.Nd "Broadcom BCM570x/5714/5721/5722/5750/5751/5752/5761/5784/5789/57780 PCI Gigabit Ethernet adapter driver"
+.Nd "Broadcom BCM57xx/BCM590x Gigabit/Fast Ethernet driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -56,8 +56,8 @@ if_bge_load="YES"
 The
 .Nm
 driver provides support for various NICs based on the Broadcom BCM570x,
-5714, 5721, 5722, 5750, 5751, 5752, 5761, 5784, 5789 and 57780 families
-of Gigabit Ethernet controller chips.
+571x, 572x, 575x, 576x, 578x, 5776x and 5778x Gigabit Ethernet controller
+chips and the 590x and 5779x Fast Ethernet controller chips.
 .Pp
 All of these NICs are capable of 10, 100 and 1000Mbps speeds over CAT5
 copper cable, except for the SysKonnect SK-9D41 which supports only
@@ -82,7 +82,7 @@ copper gigabit transceivers,
 which support autonegotiation of 10, 100 and 1000Mbps modes in
 full or half duplex.
 .Pp
-The BCM5700, BCM5701, BCM5702, BCM5703 and BCM5704 also support
+The BCM5700, BCM5701, BCM5702, BCM5703, BCM5704 and BCM5717 also support
 jumbo frames, which can be configured
 via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
@@ -144,27 +144,6 @@ Force full duplex operation.
 Force half duplex operation.
 .El
 .Pp
-The
-.Nm
-driver also supports one special link option for 1000baseTX cards:
-.Bl -tag -width ".Cm link0"
-.It Cm link0
-With 1000baseTX cards, establishing a link between two ports requires
-that one port be configured as a master and the other a slave.
-With autonegotiation,
-the master/slave settings will be chosen automatically.
-However when manually selecting the link state, it is necessary to
-force one side of the link to be a master and the other a slave.
-The
-.Nm
-driver configures the ports as slaves by default.
-Setting the
-.Cm link0
-flag with
-.Xr ifconfig 8
-will set a port as a master instead.
-.El
-.Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh HARDWARE
@@ -218,6 +197,26 @@ prompt before booting the kernel, or stored in
 Allow the ASF feature for cooperating with IPMI.
 Can cause system lockup problems on a small number of systems.
 Enabled by default.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va dev.bge.%d.forced_collapse
+Allow collapsing multiple transmit buffers into a single buffer
+to increase transmit performance with the cost of CPU cycles.
+The default value is 0 to disable transmit buffer collapsing.
+.It Va dev.bge.%d.forced_udpcsum
+Enable UDP transmit checksum offloading even if controller can generate
+UDP datagrams with checksum value 0.
+UDP datagrams with checksum value 0 can confuse receiver host as it means
+sender did not compute UDP checksum.
+The default value is 0 which disables UDP transmit checksum offloading.
+The interface need to be brought down and up again before a change takes
+effect.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

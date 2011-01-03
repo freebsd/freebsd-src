@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.85.2.1 2008-02-05 19:36:58 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.86 2008-02-05 19:36:13 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -62,6 +62,9 @@ static void icmp6_rrenum_print(const u_char *, const u_char *);
 #define abs(a)	((0 < (a)) ? (a) : -(a))
 #endif
 
+/* inline the various RPL definitions */
+#define ND_RPL_MESSAGE 0x9B
+
 static struct tok icmp6_type_values[] = {
     { ICMP6_DST_UNREACH, "destination unreachable"},
     { ICMP6_PACKET_TOO_BIG, "packet too big"},
@@ -91,6 +94,7 @@ static struct tok icmp6_type_values[] = {
     { ICMP6_NI_REPLY, "node information reply"},
     { MLD6_MTRACE, "mtrace message"},
     { MLD6_MTRACE_RESP, "mtrace response"},
+    { ND_RPL_MESSAGE,   "RPL"},
     { 0,	NULL }
 };
 
@@ -131,6 +135,7 @@ static struct tok icmp6_opt_values[] = {
    { ND_OPT_PREFIX_INFORMATION, "prefix info"},
    { ND_OPT_REDIRECTED_HEADER, "redirected header"},
    { ND_OPT_MTU, "mtu"},
+   { ND_OPT_RDNSS, "rdnss"},
    { ND_OPT_ADVINTERVAL, "advertisement interval"},
    { ND_OPT_HOMEAGENT_INFO, "homeagent information"},
    { ND_OPT_ROUTE_INFO, "route info"},
@@ -232,8 +237,87 @@ static int icmp6_cksum(const struct ip6_hdr *ip6, const struct icmp6_hdr *icp,
 	return (sum);
 }
 
+enum ND_RPL_CODE {
+        ND_RPL_DAG_IS=0x01,
+        ND_RPL_DAG_IO=0x02,
+        ND_RPL_DAO   =0x04
+};
+
+enum ND_RPL_DIO_FLAGS {
+        ND_RPL_DIO_GROUNDED = 0x80,
+        ND_RPL_DIO_DATRIG   = 0x40,
+        ND_RPL_DIO_DASUPPORT= 0x20,
+        ND_RPL_DIO_RES4     = 0x10,
+        ND_RPL_DIO_RES3     = 0x08,
+        ND_RPL_DIO_PRF_MASK = 0x07,  /* 3-bit preference */
+};
+
+struct nd_rpl_dio {
+        u_int8_t rpl_flags;
+        u_int8_t rpl_seq;
+        u_int8_t rpl_instanceid;
+        u_int8_t rpl_dagrank;
+        u_int8_t rpl_dagid[16];
+};
+
+static void
+rpl_print(netdissect_options *ndo,
+          const struct icmp6_hdr *hdr,
+          const u_char *bp, u_int length _U_)
+{
+        struct nd_rpl_dio *dio = (struct nd_rpl_dio *)bp;
+
+        ND_TCHECK(dio->rpl_dagid);
+
+        switch(hdr->icmp6_code) {
+        case ND_RPL_DAG_IS:
+                ND_PRINT((ndo, ", DAG Information Solicitation"));
+                if(ndo->ndo_vflag) {
+                }
+                break;
+        case ND_RPL_DAG_IO:
+                ND_PRINT((ndo, ", DAG Information Object"));
+                if(ndo->ndo_vflag) {
+                        char dagid[65];
+                        char *d = dagid;
+                        int  i;
+                        for(i=0;i<16;i++) {
+                                if(isprint(dio->rpl_dagid[i])) {
+                                        *d++ = dio->rpl_dagid[i];
+                                } else {
+                                        int cnt=snprintf(d,4,"0x%02x",
+                                                         dio->rpl_dagid[i]);
+                                        d += cnt;
+                                }
+                        }
+                        *d++ = '\0';
+                        ND_PRINT((ndo, " [seq:%u,instance:%u,rank:%u,dagid:%s]",
+                                  dio->rpl_seq,
+                                  dio->rpl_instanceid,
+                                  dio->rpl_dagrank,
+                                  dagid));
+                }
+                break;
+        case ND_RPL_DAO:
+                ND_PRINT((ndo, ", Destination Advertisement Object"));
+                if(ndo->ndo_vflag) {
+                }
+                break;
+        default:
+                ND_PRINT((ndo, ", RPL message, unknown code %u",hdr->icmp6_code));
+                break;
+        }
+	return;
+trunc:
+	ND_PRINT((ndo," [|truncated]"));
+	return;
+        
+}
+
+
 void
-icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
+icmp6_print(netdissect_options *ndo,
+            const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 {
 	const struct icmp6_hdr *dp;
 	const struct ip6_hdr *ip;
@@ -505,6 +589,9 @@ icmp6_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 					length - MPADVLEN);
 		}
 		break;
+        case ND_RPL_MESSAGE:
+                rpl_print(ndo, dp, &dp->icmp6_data8[0], length);
+                break;
 	default:
                 printf(", length %u", length);
                 if (vflag <= 1)
@@ -600,12 +687,14 @@ icmp6_opt_print(const u_char *bp, int resid)
 	const struct nd_opt_prefix_info *opp;
 	const struct icmp6_opts_redirect *opr;
 	const struct nd_opt_mtu *opm;
+	const struct nd_opt_rdnss *oprd;
 	const struct nd_opt_advinterval *opa;
 	const struct nd_opt_homeagent_info *oph;
 	const struct nd_opt_route_info *opri;
 	const u_char *cp, *ep;
 	struct in6_addr in6, *in6p;
 	size_t l;
+	u_int i;
 
 #define ECHECK(var) if ((u_char *)&(var) > ep - sizeof(var)) return
 
@@ -664,6 +753,17 @@ icmp6_opt_print(const u_char *bp, int resid)
                                EXTRACT_32BITS(&opm->nd_opt_mtu_mtu),
                                (op->nd_opt_len != 1) ? "bad option length" : "" );
                         break;
+		case ND_OPT_RDNSS:
+			oprd = (struct nd_opt_rdnss *)op;
+			l = (op->nd_opt_len - 1) / 2;
+			printf(" lifetime %us,", 
+				EXTRACT_32BITS(&oprd->nd_opt_rdnss_lifetime)); 
+			for (i = 0; i < l; i++) {
+				TCHECK(oprd->nd_opt_rdnss_addr[i]);
+				printf(" addr: %s", 
+				    ip6addr_string(&oprd->nd_opt_rdnss_addr[i]));
+			}
+			break;
 		case ND_OPT_ADVINTERVAL:
 			opa = (struct nd_opt_advinterval *)op;
 			TCHECK(opa->nd_opt_adv_interval);
@@ -753,7 +853,7 @@ mldv2_report_print(const u_char *bp, u_int len)
     }
 
     TCHECK(icp->icmp6_data16[1]);
-    ngroups = ntohs(icp->icmp6_data16[1]);
+    ngroups = EXTRACT_16BITS(&icp->icmp6_data16[1]);
     printf(", %d group record(s)", ngroups);
     if (vflag > 0) {
 	/* Print the group records */
@@ -812,7 +912,7 @@ mldv2_query_print(const u_char *bp, u_int len)
 	return;
     }
     TCHECK(icp->icmp6_data16[0]);
-    mrc = ntohs(icp->icmp6_data16[0]);
+    mrc = EXTRACT_16BITS(&icp->icmp6_data16[0]);
     if (mrc < 32768) {
 	mrt = mrc;
     } else {
@@ -841,7 +941,7 @@ mldv2_query_print(const u_char *bp, u_int len)
     }
 
     TCHECK2(bp[26], 2);
-    nsrcs = ntohs(*(u_short *)&bp[26]);
+    nsrcs = EXTRACT_16BITS(&bp[26]);
     if (nsrcs > 0) {
 	if (len < 28 + nsrcs * sizeof(struct in6_addr))
 	    printf(" [invalid number of sources]");
@@ -863,7 +963,7 @@ trunc:
     return;
 }
 
-void
+static void
 dnsname_print(const u_char *cp, const u_char *ep)
 {
 	int i;

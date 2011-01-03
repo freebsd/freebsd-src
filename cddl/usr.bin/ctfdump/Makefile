@@ -4,7 +4,6 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/dump
 
 PROG=		ctfdump
-NO_MAN=
 SRCS=		dump.c \
 		symbol.c \
 		utils.c

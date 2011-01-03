@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.h,v 1.23 2010/01/26 01:28:35 djm Exp $ */
+/* $OpenBSD: clientloop.h,v 1.25 2010/06/25 23:15:36 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -39,7 +39,7 @@
 
 /* Client side main loop for the interactive session. */
 int	 client_loop(int, int, int);
-void	 client_x11_get_proto(const char *, const char *, u_int,
+void	 client_x11_get_proto(const char *, const char *, u_int, u_int,
 	    char **, char **);
 void	 client_global_request_reply_fwd(int, u_int32_t, void *);
 void	 client_session2_setup(int, int, int, const char *, struct termios *,
@@ -63,6 +63,7 @@ void	 client_register_global_confirm(global_confirm_cb *, void *);
 #define SSHMUX_COMMAND_ALIVE_CHECK	2	/* Check master is alive */
 #define SSHMUX_COMMAND_TERMINATE	3	/* Ask master to exit */
 #define SSHMUX_COMMAND_STDIO_FWD	4	/* Open stdio fwd (ssh -W) */
+#define SSHMUX_COMMAND_FORWARD		5	/* Forward only, no command */
 
 void	muxserver_listen(void);
 void	muxclient(const char *);

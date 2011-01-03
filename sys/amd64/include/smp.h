@@ -35,6 +35,14 @@ extern int			mp_naps;
 extern int			boot_cpu_id;
 extern struct pcb		stoppcbs[];
 extern int			cpu_apic_ids[];
+#ifdef COUNT_IPIS
+extern u_long *ipi_invltlb_counts[MAXCPU];
+extern u_long *ipi_invlrng_counts[MAXCPU];
+extern u_long *ipi_invlpg_counts[MAXCPU];
+extern u_long *ipi_invlcache_counts[MAXCPU];
+extern u_long *ipi_rendezvous_counts[MAXCPU];
+extern u_long *ipi_lazypmap_counts[MAXCPU];
+#endif
 
 /* IPI handlers */
 inthand_t
@@ -52,10 +60,11 @@ void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
 void	cpususpend_handler(void);
 void	init_secondary(void);
-int	ipi_nmi_handler(void);
-void	ipi_selected(cpumask_t cpus, u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 void 	ipi_bitmap_handler(struct trapframe frame);
+void	ipi_cpu(int cpu, u_int ipi);
+int	ipi_nmi_handler(void);
+void	ipi_selected(cpumask_t cpus, u_int ipi);
 u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
 void	smp_cache_flush(void);

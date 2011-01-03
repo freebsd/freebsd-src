@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2010
+.Dd July 24, 2010
 .Dt PS 1
 .Os
 .Sh NAME
@@ -291,6 +291,7 @@ the include file
 .It Dv "P_PPWAIT" Ta No "0x00010	Parent is waiting for child to exec/exit"
 .It Dv "P_PROFIL" Ta No "0x00020	Has started profiling"
 .It Dv "P_STOPPROF" Ta No "0x00040	Has thread in requesting to stop prof"
+.It Dv "P_HASTHREADS" Ta No "0x00080	Has had threads (no cleanup shortcuts)"
 .It Dv "P_SUGID" Ta No "0x00100		Had set id privileges since last exec"
 .It Dv "P_SYSTEM" Ta No "0x00200	System proc: no sigs, stats or swapping"
 .It Dv "P_SINGLE_EXIT" Ta No "0x00400	Threads suspending should exit, not wait"
@@ -590,6 +591,8 @@ symbolic process state (alias
 saved gid from a setgid executable
 .It Cm svuid
 saved UID from a setuid executable
+.It Cm tdaddr
+thread address
 .It Cm tdev
 control terminal device number
 .It Cm time

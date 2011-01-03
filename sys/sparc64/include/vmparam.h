@@ -121,10 +121,24 @@
 #define	VM_NFREEORDER		12
 
 /*
- * Disable superpage reservations.
+ * Only one memory domain.
+ */
+#ifndef VM_NDOMAIN
+#define	VM_NDOMAIN		1
+#endif
+
+/*
+ * Enable superpage reservations: 1 level.
  */
 #ifndef	VM_NRESERVLEVEL
-#define	VM_NRESERVLEVEL		0
+#define	VM_NRESERVLEVEL		1
+#endif
+
+/*
+ * Level 0 reservations consist of 512 pages.
+ */
+#ifndef	VM_LEVEL_0_ORDER
+#define	VM_LEVEL_0_ORDER	9
 #endif
 
 /*
@@ -220,6 +234,14 @@
  */
 #ifndef VM_KMEM_SIZE_SCALE
 #define	VM_KMEM_SIZE_SCALE	(3)
+#endif
+
+/*
+ * Ceiling on amount of kmem_map kva space.
+ */
+#ifndef VM_KMEM_SIZE_MAX
+#define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 3 / 5)
 #endif
 
 /*

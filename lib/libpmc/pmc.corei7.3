@@ -613,7 +613,7 @@ Counter 0, 1 only
 .It Li L1D_CACHE_LOCK.HIT
 .Pq Event 42H , Umask 01H
 Counts retired load locks that hit in the L1 data cache or hit in an already
-allocated fill buffer.	The lock portion of the load lock transaction must
+allocated fill buffer. The lock portion of the load lock transaction must
 hit in the L1D.
 The initial load will pull the lock into the L1 data cache. Counter 0, 1
 only
@@ -833,7 +833,7 @@ Counts mispredicted indirect branches that have a rear return mnemonic.
 Counts mispredicted non-indirect near calls executed, (should always be 0).
 .It Li BR_MISP_EXEC.INDIRECT_NEAR_CALL
 .Pq Event 89H , Umask 20H
-Counts mispredicted indirect near calls exeucted, including both register
+Counts mispredicted indirect near calls executed, including both register
 and memory indirect.
 .It Li BR_MISP_EXEC.NEAR_CALLS
 .Pq Event 89H , Umask 30H
@@ -898,7 +898,7 @@ necessarily executed or retired.
 .It Li BACLEAR_FORCE_IQ
 .Pq Event A7H , Umask 01H
 Counts number of times a BACLEAR was forced by the Instruction Queue. The IQ
-is also responsible for providing conditional branch prediciton direction
+is also responsible for providing conditional branch prediction direction
 based on a static scheme and dynamic data provided by the L2 Branch
 Prediction Unit. If the conditional branch target is not found in the Target
 Array and the IQ predicts that the branch is taken, then the IQ will force
@@ -993,7 +993,7 @@ Counting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will not
 count as retired instructions.
 .It Li INST_RETIRED.X87
 .Pq Event C0H , Umask 02H
-Counts the number of MMX instructions retired:.
+Counts the number of MMX instructions retired.
 .It Li INST_RETIRED.MMX
 .Pq Event C0H , Umask 04H
 Counts the number of floating point computational operations retired:
@@ -1179,7 +1179,7 @@ Counts unfusion events due to floating point exception to a fused uop.
 Counts the number of branch instructions decoded.
 .It Li BPU_MISSED_CALL_RET
 .Pq Event E5H , Umask 01H
-Counts number of times the Branch Prediciton Unit missed predicting a call
+Counts number of times the Branch Prediction Unit missed predicting a call
 or return branch.
 .It Li BACLEAR.CLEAR
 .Pq Event E6H , Umask 01H

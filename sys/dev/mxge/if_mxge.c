@@ -1855,9 +1855,20 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 
 	tcp = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
 	cum_len = -(ip_off + ((ip->ip_hl + tcp->th_off) << 2));
+	cksum_offset = ip_off + (ip->ip_hl << 2);
 
 	/* TSO implies checksum offload on this hardware */
-	cksum_offset = ip_off + (ip->ip_hl << 2);
+	if (__predict_false((m->m_pkthdr.csum_flags & (CSUM_TCP)) == 0)) {
+		/*
+		 * If packet has full TCP csum, replace it with pseudo hdr
+		 * sum that the NIC expects, otherwise the NIC will emit
+		 * packets with bad TCP checksums.
+		 */
+		m->m_pkthdr.csum_flags = CSUM_TCP;
+		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+		tcp->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+			htons(IPPROTO_TCP + (m->m_pkthdr.len - cksum_offset)));		
+	}
 	flags = MXGEFW_FLAGS_TSO_HDR | MXGEFW_FLAGS_FIRST;
 
 	
@@ -2778,7 +2789,8 @@ static struct mxge_media_type mxge_sfp_media_types[] =
 	{0,		(1 << 7),	"Reserved"},
 	{IFM_10G_LRM,	(1 << 6),	"10GBASE-LRM"},
 	{IFM_10G_LR, 	(1 << 5),	"10GBASE-LR"},
-	{IFM_10G_SR,	(1 << 4),	"10GBASE-SR"}
+	{IFM_10G_SR,	(1 << 4),	"10GBASE-SR"},
+	{IFM_10G_TWINAX,(1 << 0),	"10GBASE-Twinax"}
 };
 
 static void
@@ -4475,6 +4487,8 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 				      "message %d\n", i);
 			goto abort_with_intr;
 		}
+		bus_describe_intr(sc->dev, sc->msix_irq_res[i],
+				  sc->msix_ih[i], "s%d", i);
 	}
 
 	if (mxge_verbose) {

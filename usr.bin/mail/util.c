@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -56,8 +52,7 @@ static char *save2str(char *, char *);
  * Return a pointer to a dynamic copy of the argument.
  */
 char *
-savestr(str)
-	char *str;
+savestr(char *str)
 {
 	char *new;
 	int size = strlen(str) + 1;
@@ -71,8 +66,7 @@ savestr(str)
  * Make a copy of new argument incorporating old one.
  */
 static char *
-save2str(str, old)
-	char *str, *old;
+save2str(char *str, char *old)
 {
 	char *new;
 	int newsize = strlen(str) + 1;
@@ -94,8 +88,7 @@ save2str(str, old)
  * back to the system mailbox on exit.
  */
 void
-touch(mp)
-	struct message *mp;
+touch(struct message *mp)
 {
 
 	mp->m_flag |= MTOUCH;
@@ -108,8 +101,7 @@ touch(mp)
  * Return true if it is.
  */
 int
-isdir(name)
-	char name[];
+isdir(char name[])
 {
 	struct stat sbuf;
 
@@ -122,8 +114,7 @@ isdir(name)
  * Count the number of arguments in the given string raw list.
  */
 int
-argcount(argv)
-	char **argv;
+argcount(char **argv)
 {
 	char **ap;
 
@@ -137,9 +128,7 @@ argcount(argv)
  * pointer (or NULL if the desired header field is not available).
  */
 char *
-hfield(field, mp)
-	const char *field;
-	struct message *mp;
+hfield(const char *field, struct message *mp)
 {
 	FILE *ibuf;
 	char linebuf[LINESIZE];
@@ -168,11 +157,7 @@ hfield(field, mp)
  * Must deal with \ continuations & other such fraud.
  */
 int
-gethfield(f, linebuf, rem, colon)
-	FILE *f;
-	char linebuf[];
-	int rem;
-	char **colon;
+gethfield(FILE *f, char linebuf[], int rem, char **colon)
 {
 	char line2[LINESIZE];
 	char *cp, *cp2;
@@ -227,10 +212,7 @@ gethfield(f, linebuf, rem, colon)
  */
 
 char*
-ishfield(linebuf, colon, field)
-	char linebuf[];
-	char *colon;
-	const char *field;
+ishfield(char linebuf[], char *colon, const char *field)
 {
 	char *cp = colon;
 
@@ -250,10 +232,7 @@ ishfield(linebuf, colon, field)
  * dsize: space left in buffer (including space for NULL)
  */
 void
-istrncpy(dest, src, dsize)
-	char *dest;
-	const char *src;
-	size_t dsize;
+istrncpy(char *dest, const char *src, size_t dsize)
 {
 
 	strlcpy(dest, src, dsize);
@@ -282,8 +261,7 @@ static struct sstack sstack[SSTACK_SIZE];
  * that they are no longer reading from a tty (in all probability).
  */
 int
-source(arglist)
-	char **arglist;
+source(char **arglist)
 {
 	FILE *fi;
 	char *cp;
@@ -315,7 +293,7 @@ source(arglist)
  * Update the "sourcing" flag as appropriate.
  */
 int
-unstack()
+unstack(void)
 {
 	if (ssp <= 0) {
 		printf("\"Source\" stack over-pop.\n");
@@ -339,8 +317,7 @@ unstack()
  * This is nifty for the shell.
  */
 void
-alter(name)
-	char *name;
+alter(char *name)
 {
 	struct stat sb;
 	struct timeval tv[2];
@@ -359,9 +336,7 @@ alter(name)
  * before returning it.
  */
 char *
-nameof(mp, reptype)
-	struct message *mp;
-	int reptype;
+nameof(struct message *mp, int reptype)
 {
 	char *cp, *cp2;
 
@@ -382,8 +357,7 @@ nameof(mp, reptype)
  * Ignore it.
  */
 char *
-skip_comment(cp)
-	char *cp;
+skip_comment(char *cp)
 {
 	int nesting = 1;
 
@@ -409,8 +383,7 @@ skip_comment(cp)
  * of "host-phrase."
  */
 char *
-skin(name)
-	char *name;
+skin(char *name)
 {
 	char *nbuf, *bufend, *cp, *cp2;
 	int c, gotlt, lastsp;
@@ -496,10 +469,11 @@ skin(name)
 				*cp2++ = ' ';
 			}
 			*cp2++ = c;
-			if (c == ',' && *cp == ' ' && !gotlt) {
+			if (c == ',' && !gotlt &&
+			    (*cp == ' ' || *cp == '"' || *cp == '<')) {
 				*cp2++ = ' ';
-				while (*++cp == ' ')
-					;
+				while (*cp == ' ')
+					cp++;
 				lastsp = 0;
 				bufend = cp2;
 			}
@@ -520,9 +494,7 @@ skin(name)
  *	2 -- get sender's name for Reply
  */
 char *
-name1(mp, reptype)
-	struct message *mp;
-	int reptype;
+name1(struct message *mp, int reptype)
 {
 	char namebuf[LINESIZE];
 	char linebuf[LINESIZE];
@@ -581,9 +553,7 @@ newname:
  * Count the occurances of c in str
  */
 int
-charcount(str, c)
-	char *str;
-	int c;
+charcount(char *str, int c)
 {
 	char *cp;
 	int i;
@@ -598,9 +568,7 @@ charcount(str, c)
  * See if the given header field is supposed to be ignored.
  */
 int
-isign(field, ignore)
-	const char *field;
-	struct ignoretab ignore[2];
+isign(const char *field, struct ignoretab ignore[2])
 {
 	char realfld[LINESIZE];
 
@@ -618,9 +586,7 @@ isign(field, ignore)
 }
 
 int
-member(realfield, table)
-	char *realfield;
-	struct ignoretab *table;
+member(char *realfield, struct ignoretab *table)
 {
 	struct ignore *igp;
 

@@ -48,9 +48,9 @@ procfs_doproctype(PFS_FILL_ARGS)
 	static const char *none = "Not Available";
 
 	if (p != NULL && p->p_sysent && p->p_sysent->sv_name)
-		sbuf_printf(sb, p->p_sysent->sv_name);
+		sbuf_printf(sb, "%s", p->p_sysent->sv_name);
 	else
-		sbuf_printf(sb, none);
+		sbuf_printf(sb, "%s", none);
 	sbuf_putc(sb, '\n');
 	return (0);
 }

@@ -400,6 +400,7 @@ static devclass_t ural_devclass;
 DRIVER_MODULE(ural, uhub, ural_driver, ural_devclass, NULL, 0);
 MODULE_DEPEND(ural, usb, 1, 1, 1);
 MODULE_DEPEND(ural, wlan, 1, 1, 1);
+MODULE_VERSION(ural, 1);
 
 static int
 ural_match(device_t self)
@@ -709,7 +710,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_RUN:
-		ni = vap->iv_bss;
+		ni = ieee80211_ref_node(vap->iv_bss);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
 			ural_update_slot(ic->ic_ifp);
@@ -727,6 +728,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    "could not allocate beacon\n");
 				RAL_UNLOCK(sc);
 				IEEE80211_LOCK(ic);
+				ieee80211_free_node(ni);
 				return (-1);
 			}
 			ieee80211_ref_node(ni);
@@ -735,6 +737,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    "could not send beacon\n");
 				RAL_UNLOCK(sc);
 				IEEE80211_LOCK(ic);
+				ieee80211_free_node(ni);
 				return (-1);
 			}
 		}
@@ -752,7 +755,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
 			ural_ratectl_start(sc, ni);
-
+		ieee80211_free_node(ni);
 		break;
 
 	default:
@@ -1157,7 +1160,7 @@ ural_sendprot(struct ural_softc *sc,
 	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
 
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort);
+	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
 	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 	flags = RAL_TX_RETRY(7);
 	if (prot == IEEE80211_PROT_RTSCTS) {
@@ -2235,10 +2238,11 @@ ural_ratectl_task(void *arg, int pending)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ural_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	int ok, fail;
 	int sum, retrycnt;
 
+	ni = ieee80211_ref_node(vap->iv_bss);
 	RAL_LOCK(sc);
 	/* read and clear statistic registers (STA_CSR0 to STA_CSR10) */
 	ural_read_multi(sc, RAL_STA_CSR0, sc->sta, sizeof(sc->sta));
@@ -2256,6 +2260,7 @@ ural_ratectl_task(void *arg, int pending)
 
 	usb_callout_reset(&uvp->ratectl_ch, hz, ural_ratectl_timeout, uvp);
 	RAL_UNLOCK(sc);
+	ieee80211_free_node(ni);
 }
 
 static int

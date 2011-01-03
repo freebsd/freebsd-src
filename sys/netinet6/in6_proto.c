@@ -67,9 +67,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_ipstealth.h"
-#include "opt_carp.h"
 #include "opt_sctp.h"
 #include "opt_mpath.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -111,10 +111,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/pim6_var.h>
 #include <netinet6/nd6.h>
 
-#ifdef DEV_CARP
-#include <netinet/ip_carp.h>
-#endif
-
 #ifdef SCTP
 #include <netinet/in_pcb.h>
 #include <netinet/sctp_pcb.h>
@@ -130,6 +126,10 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6protosw.h>
 
+#ifdef FLOWTABLE
+#include <net/flowtable.h>
+#endif
+
 /*
  * TCP/IP protocol family: IP6, ICMP6, UDP, TCP.
  */
@@ -139,6 +139,14 @@ static	struct pr_usrreqs nousrreqs;
 
 #define PR_LISTEN	0
 #define PR_ABRTACPTDIS	0
+
+/* Spacer for loadable protocols. */
+#define IP6PROTOSPACER   			\
+{						\
+	.pr_domain =		&inet6domain,	\
+	.pr_protocol =		PROTO_SPACER,	\
+	.pr_usrreqs =		&nousrreqs	\
+}
 
 struct ip6protosw inet6sw[] = {
 {
@@ -323,18 +331,15 @@ struct ip6protosw inet6sw[] = {
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 },
-#ifdef DEV_CARP
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_CARP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		carp6_input,
-	.pr_output =		rip6_output,
-	.pr_ctloutput =		rip6_ctloutput,
-	.pr_usrreqs =		&rip6_usrreqs
-},
-#endif /* DEV_CARP */
+/* Spacer n-times for loadable protocols. */
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
 /* raw wildcard */
 {
 	.pr_type =		SOCK_RAW,
@@ -567,6 +572,16 @@ SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_MCAST_PMTU, mcast_pmtu, CTLFLAG_RW,
 #ifdef IPSTEALTH
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_RW,
 	&VNET_NAME(ip6stealth), 0, "");
+#endif
+
+#ifdef FLOWTABLE
+VNET_DEFINE(int, ip6_output_flowtable_size) = 2048;
+VNET_DEFINE(struct flowtable *, ip6_ft);
+#define	V_ip6_output_flowtable_size	VNET(ip6_output_flowtable_size)
+
+SYSCTL_VNET_INT(_net_inet6_ip6, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
+    &VNET_NAME(ip6_output_flowtable_size), 2048,
+    "number of entries in the per-cpu output flow caches");
 #endif
 
 /* net.inet6.icmp6 */

@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mntent.h>
 #include <sys/mnttab.h>
+
+#include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,75 +91,126 @@ optadd(char *mntopts, size_t size, const char *opt)
 	strlcat(mntopts, opt, size);
 }
 
+void
+statfs2mnttab(struct statfs *sfs, struct mnttab *mp)
+{
+	static char mntopts[MNTMAXSTR];
+	long flags;
+
+	mntopts[0] = '\0';
+
+	flags = sfs->f_flags;
+#define	OPTADD(opt)	optadd(mntopts, sizeof(mntopts), (opt))
+	if (flags & MNT_RDONLY)
+		OPTADD(MNTOPT_RO);
+	else
+		OPTADD(MNTOPT_RW);
+	if (flags & MNT_NOSUID)
+		OPTADD(MNTOPT_NOSUID);
+	else
+		OPTADD(MNTOPT_SETUID);
+	if (flags & MNT_UPDATE)
+		OPTADD(MNTOPT_REMOUNT);
+	if (flags & MNT_NOATIME)
+		OPTADD(MNTOPT_NOATIME);
+	else
+		OPTADD(MNTOPT_ATIME);
+	OPTADD(MNTOPT_NOXATTR);
+	if (flags & MNT_NOEXEC)
+		OPTADD(MNTOPT_NOEXEC);
+	else
+		OPTADD(MNTOPT_EXEC);
+#undef	OPTADD
+	mp->mnt_special = sfs->f_mntfromname;
+	mp->mnt_mountp = sfs->f_mntonname;
+	mp->mnt_fstype = sfs->f_fstypename;
+	mp->mnt_mntopts = mntopts;
+}
+
+static struct statfs *gsfs = NULL;
+static int allfs = 0;
+
+static int
+statfs_init(void)
+{
+	struct statfs *sfs;
+	int error;
+
+	if (gsfs != NULL) {
+		free(gsfs);
+		gsfs = NULL;
+	}
+	allfs = getfsstat(NULL, 0, MNT_WAIT);
+	if (allfs == -1)
+		goto fail;
+	gsfs = malloc(sizeof(gsfs[0]) * allfs * 2);
+	if (gsfs == NULL)
+		goto fail;
+	allfs = getfsstat(gsfs, (long)(sizeof(gsfs[0]) * allfs * 2),
+	    MNT_WAIT);
+	if (allfs == -1)
+		goto fail;
+	sfs = realloc(gsfs, allfs * sizeof(gsfs[0]));
+	if (sfs != NULL)
+		gsfs = sfs;
+	return (0);
+fail:
+	error = errno;
+	if (gsfs != NULL)
+		free(gsfs);
+	gsfs = NULL;
+	allfs = 0;
+	return (error);
+}
+
 int
 getmntany(FILE *fd __unused, struct mnttab *mgetp, struct mnttab *mrefp)
 {
-	static struct statfs *sfs = NULL;
-	static char mntopts[MNTMAXSTR];
-	struct opt *o;
-	long i, n, flags;
+	struct statfs *sfs;
+	int i, error;
 
-	if (sfs != NULL) {
-		free(sfs);
-		sfs = NULL;
-	}
-	mntopts[0] = '\0';
+	error = statfs_init();
+	if (error != 0)
+		return (error);
 
-	n = getfsstat(NULL, 0, MNT_NOWAIT);
-	if (n == -1)
-		return (-1);
-	n = sizeof(*sfs) * (n + 8);
-	sfs = malloc(n);
-	if (sfs == NULL)
-		return (-1);
-	n = getfsstat(sfs, n, MNT_WAIT);
-	if (n == -1) {
-		free(sfs);
-		sfs = NULL;
-		return (-1);
-	}
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < allfs; i++) {
 		if (mrefp->mnt_special != NULL &&
-		    strcmp(mrefp->mnt_special, sfs[i].f_mntfromname) != 0) {
+		    strcmp(mrefp->mnt_special, gsfs[i].f_mntfromname) != 0) {
 			continue;
 		}
 		if (mrefp->mnt_mountp != NULL &&
-		    strcmp(mrefp->mnt_mountp, sfs[i].f_mntonname) != 0) {
+		    strcmp(mrefp->mnt_mountp, gsfs[i].f_mntonname) != 0) {
 			continue;
 		}
 		if (mrefp->mnt_fstype != NULL &&
-		    strcmp(mrefp->mnt_fstype, sfs[i].f_fstypename) != 0) {
+		    strcmp(mrefp->mnt_fstype, gsfs[i].f_fstypename) != 0) {
 			continue;
 		}
-		flags = sfs[i].f_flags;
-#define	OPTADD(opt)	optadd(mntopts, sizeof(mntopts), (opt))
-		if (flags & MNT_RDONLY)
-			OPTADD(MNTOPT_RO);
-		else
-			OPTADD(MNTOPT_RW);
-		if (flags & MNT_NOSUID)
-			OPTADD(MNTOPT_NOSUID);
-		else
-			OPTADD(MNTOPT_SETUID);
-		if (flags & MNT_UPDATE)
-			OPTADD(MNTOPT_REMOUNT);
-		if (flags & MNT_NOATIME)
-			OPTADD(MNTOPT_NOATIME);
-		else
-			OPTADD(MNTOPT_ATIME);
-		OPTADD(MNTOPT_NOXATTR);
-		if (flags & MNT_NOEXEC)
-			OPTADD(MNTOPT_NOEXEC);
-		else
-			OPTADD(MNTOPT_EXEC);
-#undef	OPTADD
-		mgetp->mnt_special = sfs[i].f_mntfromname;
-		mgetp->mnt_mountp = sfs[i].f_mntonname;
-		mgetp->mnt_fstype = sfs[i].f_fstypename;
-		mgetp->mnt_mntopts = mntopts;
+		statfs2mnttab(&gsfs[i], mgetp);
 		return (0);
 	}
-	free(sfs);
-	sfs = NULL;
 	return (-1);
+}
+
+int
+getmntent(FILE *fp, struct mnttab *mp)
+{
+	struct statfs *sfs;
+	int error, nfs;
+
+	nfs = (int)lseek(fileno(fp), 0, SEEK_CUR);
+	if (nfs == -1)
+		return (errno);
+	/* If nfs is 0, we want to refresh out cache. */
+	if (nfs == 0 || gsfs == NULL) {
+		error = statfs_init();
+		if (error != 0)
+			return (error);
+	}
+	if (nfs >= allfs)
+		return (-1);
+	statfs2mnttab(&gsfs[nfs], mp);
+	if (lseek(fileno(fp), 1, SEEK_CUR) == -1)
+		return (errno);
+	return (0);
 }

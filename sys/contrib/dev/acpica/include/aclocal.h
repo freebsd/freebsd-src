@@ -275,8 +275,9 @@ typedef struct acpi_namespace_node
     UINT8                           Flags;          /* Miscellaneous flags */
     ACPI_OWNER_ID                   OwnerId;        /* Node creator */
     ACPI_NAME_UNION                 Name;           /* ACPI Name, always 4 chars per ACPI spec */
+    struct acpi_namespace_node      *Parent;        /* Parent node */
     struct acpi_namespace_node      *Child;         /* First child */
-    struct acpi_namespace_node      *Peer;          /* Peer. Parent if ANOBJ_END_OF_PEER_LIST set */
+    struct acpi_namespace_node      *Peer;          /* First peer */
 
     /*
      * The following fields are used by the ASL compiler and disassembler only
@@ -292,7 +293,7 @@ typedef struct acpi_namespace_node
 
 /* Namespace Node flags */
 
-#define ANOBJ_END_OF_PEER_LIST          0x01    /* End-of-list, Peer field points to parent */
+#define ANOBJ_RESERVED                  0x01    /* Available for use */
 #define ANOBJ_TEMPORARY                 0x02    /* Node is create by a method and is temporary */
 #define ANOBJ_METHOD_ARG                0x04    /* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08    /* Node is a method local */
@@ -536,18 +537,25 @@ typedef struct acpi_predefined_data
 
 /* Dispatch info for each GPE -- either a method or handler, cannot be both */
 
-typedef struct acpi_handler_info
+typedef struct acpi_gpe_handler_info
 {
-    ACPI_EVENT_HANDLER              Address;        /* Address of handler, if any */
+    ACPI_GPE_HANDLER                Address;        /* Address of handler, if any */
     void                            *Context;       /* Context to be passed to handler */
     ACPI_NAMESPACE_NODE             *MethodNode;    /* Method node for this GPE level (saved) */
+    UINT8                           OriginalFlags;  /* Original (pre-handler) GPE info */
+    BOOLEAN                         OriginallyEnabled; /* True if GPE was originally enabled */
 
-} ACPI_HANDLER_INFO;
+} ACPI_GPE_HANDLER_INFO;
 
+/*
+ * GPE dispatch info. At any time, the GPE can have at most one type
+ * of dispatch - Method, Handler, or Implicit Notify.
+ */
 typedef union acpi_gpe_dispatch_info
 {
     ACPI_NAMESPACE_NODE             *MethodNode;    /* Method node for this GPE level */
-    struct acpi_handler_info        *Handler;
+    struct acpi_gpe_handler_info    *Handler;       /* Installed GPE handler */
+    ACPI_NAMESPACE_NODE             *DeviceNode;    /* Parent _PRW device for implicit notify */
 
 } ACPI_GPE_DISPATCH_INFO;
 
@@ -562,7 +570,6 @@ typedef struct acpi_gpe_event_info
     UINT8                           Flags;          /* Misc info about this GPE */
     UINT8                           GpeNumber;      /* This GPE */
     UINT8                           RuntimeCount;   /* References to a run GPE */
-    UINT8                           WakeupCount;    /* References to a wake GPE */
 
 } ACPI_GPE_EVENT_INFO;
 
@@ -594,6 +601,7 @@ typedef struct acpi_gpe_block_info
     UINT32                          RegisterCount;  /* Number of register pairs in block */
     UINT16                          GpeCount;       /* Number of individual GPEs in block */
     UINT8                           BlockBaseNumber;/* Base GPE number for this block */
+    BOOLEAN                         Initialized;    /* TRUE if this block is initialized */
 
 } ACPI_GPE_BLOCK_INFO;
 
@@ -614,7 +622,6 @@ typedef struct acpi_gpe_walk_info
     ACPI_GPE_BLOCK_INFO             *GpeBlock;
     UINT16                          Count;
     ACPI_OWNER_ID                   OwnerId;
-    BOOLEAN                         EnableThisGpe;
     BOOLEAN                         ExecuteByOwnerId;
 
 } ACPI_GPE_WALK_INFO;
@@ -1080,6 +1087,7 @@ typedef struct acpi_bit_register_info
     ACPI_BITMASK_POWER_BUTTON_STATUS   | \
     ACPI_BITMASK_SLEEP_BUTTON_STATUS   | \
     ACPI_BITMASK_RT_CLOCK_STATUS       | \
+    ACPI_BITMASK_PCIEXP_WAKE_STATUS    | \
     ACPI_BITMASK_WAKE_STATUS)
 
 #define ACPI_BITMASK_TIMER_ENABLE               0x0001
@@ -1136,16 +1144,22 @@ typedef struct acpi_bit_register_info
 #define ACPI_OSI_WIN_VISTA              0x07
 #define ACPI_OSI_WINSRV_2008            0x08
 #define ACPI_OSI_WIN_VISTA_SP1          0x09
-#define ACPI_OSI_WIN_7                  0x0A
+#define ACPI_OSI_WIN_VISTA_SP2          0x0A
+#define ACPI_OSI_WIN_7                  0x0B
 
 #define ACPI_ALWAYS_ILLEGAL             0x00
 
 typedef struct acpi_interface_info
 {
-    char                    *Name;
-    UINT8                   Value;
+    char                        *Name;
+    struct acpi_interface_info  *Next;
+    UINT8                       Flags;
+    UINT8                       Value;
 
 } ACPI_INTERFACE_INFO;
+
+#define ACPI_OSI_INVALID                0x01
+#define ACPI_OSI_DYNAMIC                0x02
 
 typedef struct acpi_port_info
 {
@@ -1246,6 +1260,14 @@ typedef struct acpi_external_list
 #define ACPI_IPATH_ALLOCATED    0x01
 
 
+typedef struct acpi_external_file
+{
+    char                        *Path;
+    struct acpi_external_file   *Next;
+
+} ACPI_EXTERNAL_FILE;
+
+
 /*****************************************************************************
  *
  * Debugger
@@ -1257,7 +1279,7 @@ typedef struct acpi_db_method_info
     ACPI_HANDLE                     MainThreadGate;
     ACPI_HANDLE                     ThreadCompleteGate;
     ACPI_HANDLE                     InfoGate;
-    UINT32                          *Threads;
+    ACPI_THREAD_ID                  *Threads;
     UINT32                          NumThreads;
     UINT32                          NumCreated;
     UINT32                          NumCompleted;

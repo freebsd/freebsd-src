@@ -58,6 +58,7 @@ struct acpi_softc {
     int			acpi_enabled;
     int			acpi_sstate;
     int			acpi_sleep_disabled;
+    int			acpi_resources_reserved;
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
@@ -342,6 +343,7 @@ int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
 		    u_int flags);
 void		acpi_walk_subtables(void *first, void *end,
 		    acpi_subtable_handler *handler, void *arg);
+BOOLEAN		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);
@@ -392,6 +394,11 @@ EVENTHANDLER_DECLARE(acpi_wakeup_event, acpi_event_handler_t);
 /* Device power control. */
 ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
 ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);
+int		acpi_device_pwr_for_sleep(device_t bus, device_t dev,
+		    int *dstate);
+
+/* APM emulation */
+void		acpi_apm_init(struct acpi_softc *);
 
 /* Misc. */
 static __inline struct acpi_softc *

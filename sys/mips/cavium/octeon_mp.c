@@ -31,19 +31,27 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/smp.h>
 #include <sys/systm.h>
 
 #include <machine/hwfunc.h>
+#include <machine/md_var.h>
 #include <machine/smp.h>
 
 #include <mips/cavium/octeon_pcmap_regs.h>
+
+#include <contrib/octeon-sdk/cvmx.h>
+#include <contrib/octeon-sdk/cvmx-interrupt.h>
+
+/* XXX */
+extern cvmx_bootinfo_t *octeon_bootinfo;
 
 unsigned octeon_ap_boot = ~0;
 
 void
 platform_ipi_send(int cpuid)
 {
-	oct_write64(OCTEON_CIU_MBOX_SETX(cpuid), 1);
+	cvmx_write_csr(CVMX_CIU_MBOX_SETX(cpuid), 1);
 	mips_wbflush();
 }
 
@@ -52,9 +60,9 @@ platform_ipi_clear(void)
 {
 	uint64_t action;
 
-	action = oct_read64(OCTEON_CIU_MBOX_CLRX(PCPU_GET(cpuid)));
+	action = cvmx_read_csr(CVMX_CIU_MBOX_CLRX(PCPU_GET(cpuid)));
 	KASSERT(action == 1, ("unexpected IPIs: %#jx", (uintmax_t)action));
-	oct_write64(OCTEON_CIU_MBOX_CLRX(PCPU_GET(cpuid)), action);
+	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(PCPU_GET(cpuid)), action);
 }
 
 int
@@ -66,18 +74,29 @@ platform_ipi_intrnum(void)
 void
 platform_init_ap(int cpuid)
 {
+	unsigned ipi_int_mask, clock_int_mask;
+
 	/*
 	 * Set the exception base.
 	 */
 	mips_wr_ebase(0x80000000 | cpuid);
 
 	/*
-	 * Set up interrupts, clear IPIs and unmask the IPI interrupt.
+	 * Clear any pending IPIs.
+	 */
+	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(cpuid), 0xffffffff);
+
+	/*
+	 * Set up interrupts.
 	 */
 	octeon_ciu_reset();
 
-	oct_write64(OCTEON_CIU_MBOX_CLRX(cpuid), 0xffffffff);
-	ciu_enable_interrupts(cpuid, CIU_INT_1, CIU_EN_0, OCTEON_CIU_ENABLE_MBOX_INTR, CIU_MIPS_IP3);
+	/*
+	 * Unmask the clock and ipi interrupts.
+	 */
+	clock_int_mask = hard_int_mask(5);
+	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
+	set_intr_mask(ipi_int_mask | clock_int_mask);
 
 	mips_wbflush();
 }
@@ -85,7 +104,13 @@ platform_init_ap(int cpuid)
 int
 platform_num_processors(void)
 {
-	return (fls(octeon_core_mask));
+	return (bitcount32(octeon_bootinfo->core_mask));
+}
+
+struct cpu_group *
+platform_smp_topo(void)
+{
+	return (smp_topo_none());
 }
 
 int

@@ -43,12 +43,12 @@ __weak_reference(_pthread_timedjoin_np, pthread_timedjoin_np);
 
 static void backout_join(void *arg)
 {
-	struct pthread *curthread = _get_curthread();
 	struct pthread *pthread = (struct pthread *)arg;
+	struct pthread *curthread = _get_curthread();
 
-	THREAD_LIST_LOCK(curthread);
+	THR_THREAD_LOCK(curthread, pthread);
 	pthread->joiner = NULL;
-	THREAD_LIST_UNLOCK(curthread);
+	THR_THREAD_UNLOCK(curthread, pthread);
 }
 
 int
@@ -68,6 +68,10 @@ _pthread_timedjoin_np(pthread_t pthread, void **thread_return,
 	return (join_common(pthread, thread_return, abstime));
 }
 
+/*
+ * Cancellation behavior:
+ *   if the thread is canceled, joinee is not recycled.
+ */
 static int
 join_common(pthread_t pthread, void **thread_return,
 	const struct timespec *abstime)
@@ -84,29 +88,30 @@ join_common(pthread_t pthread, void **thread_return,
 	if (pthread == curthread)
 		return (EDEADLK);
 
-	THREAD_LIST_LOCK(curthread);
-	if ((ret = _thr_find_thread(curthread, pthread, 1)) != 0) {
-		ret = ESRCH;
-	} else if ((pthread->tlflags & TLFLAGS_DETACHED) != 0) {
+	if ((ret = _thr_find_thread(curthread, pthread, 1)) != 0)
+		return (ESRCH);
+
+	if ((pthread->flags & THR_FLAGS_DETACHED) != 0) {
 		ret = EINVAL;
 	} else if (pthread->joiner != NULL) {
 		/* Multiple joiners are not supported. */
 		ret = ENOTSUP;
 	}
 	if (ret) {
-		THREAD_LIST_UNLOCK(curthread);
+		THR_THREAD_UNLOCK(curthread, pthread);
 		return (ret);
 	}
 	/* Set the running thread to be the joiner: */
 	pthread->joiner = curthread;
 
-	THREAD_LIST_UNLOCK(curthread);
+	THR_THREAD_UNLOCK(curthread, pthread);
 
 	THR_CLEANUP_PUSH(curthread, backout_join, pthread);
 	_thr_cancel_enter(curthread);
 
 	tid = pthread->tid;
 	while (pthread->tid != TID_TERMINATED) {
+		_thr_testcancel(curthread);
 		if (abstime != NULL) {
 			clock_gettime(CLOCK_REALTIME, &ts);
 			TIMESPEC_SUB(&ts2, abstime, &ts);
@@ -122,21 +127,20 @@ join_common(pthread_t pthread, void **thread_return,
 			break;
 	}
 
-	_thr_cancel_leave(curthread);
+	_thr_cancel_leave(curthread, 0);
 	THR_CLEANUP_POP(curthread, 0);
 
 	if (ret == ETIMEDOUT) {
-		THREAD_LIST_LOCK(curthread);
+		THR_THREAD_LOCK(curthread, pthread);
 		pthread->joiner = NULL;
-		THREAD_LIST_UNLOCK(curthread);
+		THR_THREAD_UNLOCK(curthread, pthread);
 	} else {
 		ret = 0;
 		tmp = pthread->ret;
-		THREAD_LIST_LOCK(curthread);
-		pthread->tlflags |= TLFLAGS_DETACHED;
+		THR_THREAD_LOCK(curthread, pthread);
+		pthread->flags |= THR_FLAGS_DETACHED;
 		pthread->joiner = NULL;
-		THR_GCLIST_ADD(pthread);
-		THREAD_LIST_UNLOCK(curthread);
+		_thr_try_gc(curthread, pthread); /* thread lock released */
 
 		if (thread_return != NULL)
 			*thread_return = tmp;

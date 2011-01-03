@@ -15,9 +15,9 @@
 #include "includes.h"
 
 #include "common.h"
-#include "sha1.h"
-#include "md5.h"
-#include "crypto.h"
+#include "crypto/crypto.h"
+#include "crypto/md5.h"
+#include "crypto/sha1.h"
 #include "ikev2_common.h"
 
 

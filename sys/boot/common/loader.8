@@ -334,12 +334,6 @@ Some options may require a value,
 while others define behavior just by being set.
 Both types of builtin variables are described below.
 .Bl -tag -width bootfile
-.It Va acpi_load
-Unset this to disable automatic loading of the ACPI module.
-See also
-.Va hint.acpi.0.disabled
-in
-.Xr device.hints 5 .
 .It Va autoboot_delay
 Number of seconds
 .Ic autoboot
@@ -643,7 +637,6 @@ by it as arguments, and it is processed by a special parser which
 is not used for regular Forth commands.
 .Pp
 This special parser applies the following rules to the parsed text:
-.Pp
 .Bl -enum
 .It
 All backslash characters are preprocessed.
@@ -806,7 +799,7 @@ Evaluates the remainder of the input buffer under a
 exception guard.
 .It Ic .#
 Works like
-.Ic .
+.Ic "."
 but without outputting a trailing space.
 .It Ic fclose Pq Ar fd --
 Closes a file.

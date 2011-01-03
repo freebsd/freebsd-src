@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_carp.h"
 #include "opt_mpath.h"
 
 #include <sys/param.h>
@@ -73,10 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
-
-#ifdef DEV_CARP
 #include <netinet/ip_carp.h>
-#endif
+#include <netinet6/send.h>
 
 #define SDL(s) ((struct sockaddr_dl *)s)
 
@@ -222,14 +219,10 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	 * (3) "tentative" address on which DAD is being performed.
 	 */
 	/* (1) and (3) check. */
-#ifdef DEV_CARP
 	if (ifp->if_carp)
-		ifa = carp_iamatch6(ifp->if_carp, &taddr6);
+		ifa = (*carp_iamatch6_p)(ifp, &taddr6);
 	if (ifa == NULL)
 		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
-#else
-	ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
-#endif
 
 	/* (2) check. */
 	if (ifa == NULL) {
@@ -387,16 +380,14 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
     const struct in6_addr *taddr6, struct llentry *ln, int dad)
 {
 	struct mbuf *m;
+	struct m_tag *mtag;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_solicit *nd_ns;
-	struct in6_addr *src, src_in;
 	struct ip6_moptions im6o;
 	int icmp6len;
 	int maxlen;
 	caddr_t mac;
 	struct route_in6 ro;
-
-	bzero(&ro, sizeof(ro));
 
 	if (IN6_IS_ADDR_MULTICAST(taddr6))
 		return;
@@ -423,6 +414,8 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	if (m == NULL)
 		return;
 	m->m_pkthdr.rcvif = NULL;
+
+	bzero(&ro, sizeof(ro));
 
 	if (daddr6 == NULL || IN6_IS_ADDR_MULTICAST(daddr6)) {
 		m->m_flags |= M_MCAST;
@@ -473,28 +466,35 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		 * - saddr6 belongs to the outgoing interface.
 		 * Otherwise, we perform the source address selection as usual.
 		 */
-		struct ip6_hdr *hip6;		/* hold ip6 */
-		struct in6_addr *hsrc = NULL;
+		struct in6_addr *hsrc;
 
-		if ((ln != NULL) && ln->la_hold) {
-			/*
-			 * assuming every packet in la_hold has the same IP
-			 * header
-			 */
-			hip6 = mtod(ln->la_hold, struct ip6_hdr *);
-			/* XXX pullup? */
-			if (sizeof(*hip6) < ln->la_hold->m_len)
-				hsrc = &hip6->ip6_src;
-			else
-				hsrc = NULL;
+		hsrc = NULL;
+		if (ln != NULL) {
+			LLE_RLOCK(ln);
+			if (ln->la_hold != NULL) {
+				struct ip6_hdr *hip6;		/* hold ip6 */
+
+				/*
+				 * assuming every packet in la_hold has the same IP
+				 * header
+				 */
+				hip6 = mtod(ln->la_hold, struct ip6_hdr *);
+				/* XXX pullup? */
+				if (sizeof(*hip6) < ln->la_hold->m_len) {
+					ip6->ip6_src = hip6->ip6_src;
+					hsrc = &hip6->ip6_src;
+				}
+			}
+			LLE_RUNLOCK(ln);
 		}
 		if (hsrc && (ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
 		    hsrc)) != NULL) {
-			src = hsrc;
+			/* ip6_src set already. */
 			ifa_free(ifa);
 		} else {
 			int error;
 			struct sockaddr_in6 dst_sa;
+			struct in6_addr src_in;
 
 			bzero(&dst_sa, sizeof(dst_sa));
 			dst_sa.sin6_family = AF_INET6;
@@ -512,7 +512,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 				    error));
 				goto bad;
 			}
-			src = &src_in;
+			ip6->ip6_src = src_in;
 		}
 	} else {
 		/*
@@ -522,10 +522,8 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		 * above), but we do so here explicitly to make the intention
 		 * clearer.
 		 */
-		bzero(&src_in, sizeof(src_in));
-		src = &src_in;
+		bzero(&ip6->ip6_src, sizeof(ip6->ip6_src));
 	}
-	ip6->ip6_src = *src;
 	nd_ns = (struct nd_neighbor_solicit *)(ip6 + 1);
 	nd_ns->nd_ns_type = ND_NEIGHBOR_SOLICIT;
 	nd_ns->nd_ns_code = 0;
@@ -564,6 +562,15 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	nd_ns->nd_ns_cksum = 0;
 	nd_ns->nd_ns_cksum =
 	    in6_cksum(m, IPPROTO_ICMPV6, sizeof(*ip6), icmp6len);
+
+	if (send_sendso_input_hook != NULL) {
+		mtag = m_tag_get(PACKET_TAG_ND_OUTGOING,
+			sizeof(unsigned short), M_NOWAIT);
+		if (mtag == NULL)
+			goto bad;
+		*(unsigned short *)(mtag + 1) = nd_ns->nd_ns_type;
+		m_tag_prepend(m, mtag);
+	}
 
 	ip6_output(m, NULL, &ro, dad ? IPV6_UNSPECSRC : 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
@@ -612,6 +619,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	struct llentry *ln = NULL;
 	union nd_opts ndopts;
 	struct mbuf *chain = NULL;
+	struct m_tag *mtag;
 	struct sockaddr_in6 sin6;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
@@ -881,6 +889,15 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * we assume ifp is not a loopback here, so just set
 			 * the 2nd argument as the 1st one.
 			 */
+
+			if (send_sendso_input_hook != NULL) {
+				mtag = m_tag_get(PACKET_TAG_ND_OUTGOING,
+				    sizeof(unsigned short), M_NOWAIT);
+				if (mtag == NULL)
+					goto bad;
+				m_tag_prepend(m, mtag);
+			}
+
 			nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &chain);
 		}
 	}
@@ -925,6 +942,7 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
     struct sockaddr *sdl0)
 {
 	struct mbuf *m;
+	struct m_tag *mtag;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
 	struct ip6_moptions im6o;
@@ -1029,14 +1047,10 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		 * my address) use lladdr configured for the interface.
 		 */
 		if (sdl0 == NULL) {
-#ifdef DEV_CARP
 			if (ifp->if_carp)
-				mac = carp_macmatch6(ifp->if_carp, m, taddr6);
+				mac = (*carp_macmatch6_p)(ifp, m, taddr6);
 			if (mac == NULL)
 				mac = nd6_ifptomac(ifp);
-#else
-			mac = nd6_ifptomac(ifp);
-#endif
 		} else if (sdl0->sa_family == AF_LINK) {
 			struct sockaddr_dl *sdl;
 			sdl = (struct sockaddr_dl *)sdl0;
@@ -1066,6 +1080,15 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	nd_na->nd_na_cksum = 0;
 	nd_na->nd_na_cksum =
 	    in6_cksum(m, IPPROTO_ICMPV6, sizeof(struct ip6_hdr), icmp6len);
+
+	if (send_sendso_input_hook != NULL) {
+		mtag = m_tag_get(PACKET_TAG_ND_OUTGOING,
+		    sizeof(unsigned short), M_NOWAIT);
+		if (mtag == NULL)
+			goto bad;
+		*(unsigned short *)(mtag + 1) = nd_na->nd_na_type;
+		m_tag_prepend(m, mtag);
+	}
 
 	ip6_output(m, NULL, &ro, 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);

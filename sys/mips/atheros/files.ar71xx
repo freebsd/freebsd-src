@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 mips/atheros/apb.c		standard
+mips/atheros/ar71xx_gpio.c	optional gpio
 mips/atheros/ar71xx_machdep.c	standard
 mips/atheros/ar71xx_ehci.c	optional ehci
 mips/atheros/ar71xx_ohci.c	optional ohci
@@ -15,3 +16,7 @@ mips/atheros/uart_cpu_ar71xx.c	optional uart
 mips/atheros/ar71xx_bus_space_reversed.c	standard
 mips/mips/intr_machdep.c        standard
 mips/mips/tick.c		standard
+mips/atheros/ar71xx_setup.c	standard
+mips/atheros/ar71xx_chip.c	standard
+mips/atheros/ar724x_chip.c	standard
+mips/atheros/ar91xx_chip.c	standard

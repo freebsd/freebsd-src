@@ -6,7 +6,7 @@
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
 .\"
-.\" Author: Harti Brandt <harti@freebsd.org>
+.\" Author: Harti Brandt <harti@FreeBSD.org>
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.14 2005/10/04 13:30:35 brandt_h Exp $
 .\"
-.Dd February 27, 2006
+.Dd December 19, 2010
 .Dt SNMPMOD 3
 .Os
 .Sh NAME
@@ -60,6 +60,8 @@
 .Nm comm_define ,
 .Nm community ,
 .Nm oid_zeroDotZero ,
+.Nm oid_usmUnknownEngineIDs ,
+.Nm oid_usmNotInTimeWindows ,
 .Nm reqid_allocate ,
 .Nm reqid_next ,
 .Nm reqid_base ,
@@ -81,6 +83,7 @@
 .Nm snmp_output ,
 .Nm snmp_send_port ,
 .Nm snmp_send_trap ,
+.Nm snmp_pdu_auth_access
 .Nm string_save ,
 .Nm string_commit ,
 .Nm string_rollback ,
@@ -99,7 +102,36 @@
 .Nm index_compare ,
 .Nm index_compare_off ,
 .Nm index_append ,
-.Nm index_append_off
+.Nm index_append_off,
+.Nm snmpd_usmstats,
+.Nm bsnmpd_get_usm_stats,
+.Nm bsnmpd_reset_usm_stats,
+.Nm usm_first_user,
+.Nm usm_next_user,
+.Nm usm_find_user,
+.Nm usm_new_user,
+.Nm usm_delete_user,
+.Nm usm_flush_users,
+.Nm usm_user
+.Nm snmpd_target_stat
+.Nm bsnmpd_get_target_stats
+.Nm target_first_address
+.Nm target_next_address
+.Nm target_new_address
+.Nm target_activate_address
+.Nm target_delete_address
+.Nm target_first_param
+.Nm target_next_param
+.Nm target_new_param
+.Nm target_delete_param
+.Nm target_first_notify
+.Nm target_next_notify
+.Nm target_new_notify
+.Nm target_delete_notify
+.Nm target_flush_all
+.Nm target_address
+.Nm target_param
+.Nm target_notify
 .Nd "SNMP daemon loadable module interface"
 .Sh LIBRARY
 Begemot SNMP library
@@ -190,6 +222,8 @@ Begemot SNMP library
 .Fc
 .Ft void
 .Fn snmp_send_trap "const struct asn_oid *oid" "..."
+.Ft enum snmp_code
+.Fn snmp_pdu_auth_access "struct snmp_pdu *pdu" "int32_t *ip"
 .Ft int
 .Fn string_save "struct snmp_value *val" "struct snmp_context *ctx" "ssize_t req_size" "u_char **strp"
 .Ft void
@@ -228,6 +262,56 @@ Begemot SNMP library
 .Fn index_append "struct asn_oid *dst" "u_int sub" "const struct asn_oid *src"
 .Ft void
 .Fn index_append_off "struct asn_oid *dst" "u_int sub" "const struct asn_oid *src" "u_int off"
+.Vt extern struct snmpd_usmstat snmpd_usmstats ;
+.Ft struct snmpd_usmstat *
+.Fn bsnmpd_get_usm_stats "void"
+.Ft void
+.Fn bsnmpd_reset_usm_stats "void"
+.Ft struct usm_user *
+.Fn usm_first_user "void"
+.Ft struct usm_user *
+.Fn usm_next_user "struct usm_user *uuser"
+.Ft struct usm_user *
+.Fn usm_find_user "uint8_t *engine" "uint32_t elen" "char *uname"
+.Ft struct usm_user *
+.Fn usm_new_user "uint8_t *engine" "uint32_t elen" "char *uname"
+.Ft void
+.Fn usm_delete_user "struct usm_user *"
+.Ft void
+.Fn usm_flush_users "void"
+.Vt extern struct usm_user *usm_user;
+.Ft struct snmpd_target_stats *
+.Fn bsnmpd_get_target_stats "void"
+.Ft struct target_address *
+.Fn target_first_address "void"
+.Ft struct target_address *
+.Fn target_next_address "struct target_address *"
+.Ft struct target_address *
+.Fn target_new_address "char *"
+.Ft int
+.Fn target_activate_address "struct target_address *"
+.Ft int
+.Fn target_delete_address "struct target_address *"
+.Ft struct target_param *
+.Fn target_first_param "void"
+.Ft struct target_param *
+.Fn target_next_param "struct target_param *"
+.Ft struct target_param *
+.Fn target_new_param "char *"
+.Ft int
+.Fn target_delete_param "struct target_param *"
+.Ft struct target_notify *
+.Fn target_first_notify "void"
+.Ft struct target_notify *
+.Fn target_next_notify "struct target_notify *"
+.Ft struct target_notify *
+.Fn target_new_notify "char *"
+.Ft int
+.Fn target_delete_notify "struct target_notify *"
+.Ft void
+.Fn target_flush_all "void"
+.Vt extern const struct asn_oid oid_usmUnknownEngineIDs;
+.Vt extern const struct asn_oid oid_usmNotInTimeWindows;
 .Sh DESCRIPTION
 The
 .Xr bsnmpd 1
@@ -539,7 +623,7 @@ This is the initial community string.
 .El
 .Pp
 The function returns a globally unique community identifier.
-If a PDU is
+If a SNMPv1 or SNMPv2 PDU is
 received who's community string matches, this identifier is set into the global
 .Va community .
 .Pp
@@ -549,16 +633,179 @@ returns the current community string for the given community.
 .Pp
 All communities defined by a module are automatically released when the module
 is unloaded.
+.Ss THE USER-BASED SECURITY GROUP
+The scalar statistics of the USM group are held in the global variable
+.Va snmpd_usmstats :
+.Bd -literal -offset indent
+struct snmpd_usmstat {
+	uint32_t	unsupported_seclevels;
+	uint32_t	not_in_time_windows;
+	uint32_t	unknown_users;
+	uint32_t	unknown_engine_ids;
+	uint32_t	wrong_digests;
+	uint32_t	decrypt_errors;
+};
+.Ed
+.Fn bsnmpd_get_usm_stats
+returns a pointer to the global structure containing the statistics.
+.Fn bsnmpd_reset_usm_stats
+clears the statistics of the USM group.
+.Pp
+A global list of configured USM users is maintained by the daemon.
+.Bd -literal -offset indent
+struct usm_user {
+	struct snmp_user		suser;
+	uint8_t				user_engine_id[SNMP_ENGINE_ID_SIZ];
+	uint32_t			user_engine_len;
+	char				user_public[SNMP_ADM_STR32_SIZ];
+	uint32_t			user_public_len;
+	int32_t				status;
+	int32_t				type;
+	SLIST_ENTRY(usm_user)		up;
+};
+.Ed
+This structure represents an USM user. The daemon only responds to SNMPv3 PDUs
+with user credentials matching an USM user entry in its global list.
+If a SNMPv3 PDU is received, whose security model is USM, the global
+.Va usm_user
+is set to point at the user entry that matches the credentials contained in
+the PDU.
+However, the daemon does not create or remove USM users, it gives an interface
+to external loadable module(s) to manage the list.
+.Fn usm_new_user
+adds an user entry in the list, and
+.Fn usm_delete_user
+deletes an existing entry from the list.
+.Fn usm_flush_users
+is used to remove all configured USM users.
+.Fn usm_first_user
+will return the first user in the list, or
+.Li NULL
+if the list is empty.
+.Fn usm_next_user
+will return  the next user of a given entry if one exists, or
+.Li NULL .
+The list is sorted according to the USM user name and Engine ID.
+.Fn usm_find_user
+returns the USM user entry matching the given
+.Fa engine
+and
+.Fa uname
+or
+.Li NULL
+if an user with the specified name and engine id is not present in the list.
+.Ss THE MANAGEMENT TARGET GROUP
+The Management Target group holds target address information used when sending
+SNMPv3 notifications.
+.Pp
+The scalar statistics of the Management Target group are held in the global
+variable
+.Va snmpd_target_stats :
+.Bd -literal -offset indent
+struct snmpd_target_stats {
+	uint32_t			unavail_contexts;
+	uint32_t			unknown_contexts;
+};
+.Ed
+.Fn bsnmpd_get_target_stats
+returns a pointer to the global structure containing the statistics.
+.Pp
+Three global lists of configured management target addresses, parameters and
+notifications respectively are maintained by the daemon.
+.Bd -literal -offset indent
+struct target_address {
+	char				name[SNMP_ADM_STR32_SIZ];
+	uint8_t				address[SNMP_UDP_ADDR_SIZ];
+	int32_t				timeout;
+	int32_t				retry;
+	char				taglist[SNMP_TAG_SIZ];
+	char				paramname[SNMP_ADM_STR32_SIZ];
+	int32_t				type;
+	int32_t				socket;
+	int32_t				status;
+	SLIST_ENTRY(target_address)	ta;
+};
+.Ed
+This structure represents a SNMPv3 Management Target address. Each time a SNMP
+TRAP is send the daemon will send the Trap to all active Management Target
+addresses in its global list.
+.Bd -literal -offset indent
+struct target_param {
+	char				name[SNMP_ADM_STR32_SIZ];
+	int32_t				mpmodel;
+	int32_t				sec_model;
+	char				secname[SNMP_ADM_STR32_SIZ];
+	enum snmp_usm_level		sec_level;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(target_param)	tp;
+};
+.Ed
+This structure represents the information used to generate SNMP messages to the
+associated SNMPv3 Management Target addresses.
+.Bd -literal -offset indent
+struct target_notify {
+	char				name[SNMP_ADM_STR32_SIZ];
+	char				taglist[SNMP_TAG_SIZ];
+	int32_t				notify_type;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(target_notify)	tn;
+};
+.Ed
+This structure represents Notification Tag entries - SNMP notifications are sent
+to the Target address for each entry in the Management Target Address list that
+has a tag matching the specified tag in this structure.
+.Pp
+The daemon does not create or remove entries in the Management Target group
+lists, it gives an interface to external loadable module(s) to manage the lists.
+.Fn target_new_address
+adds a target address entry, and
+.Fn target_delete_address
+deletes an existing entry from the target address list.
+.Fn target_activate_address
+creates a socket associated with the target address entry so that SNMP
+notifications may actually be send to that target address.
+.Fn target_first_address
+will return a pointer to the first target address entry in the list, while
+.Fn target_next_address
+will return a pointer to the next target address of a given entry if one exists.
+.Fn target_new_param
+adds a target parameters' entry, and
+.Fn target_delete_param
+deletes an existing entry from the target parameters list.
+.Fn target_first_param
+will return a pointer to the first target parameters' entry in the list, while
+.Fn target_next_param
+will return a pointer to the next target parameters of a given entry if one
+exists.
+.Fn target_new_notify
+adds a notification target entry, and
+.Fn target_delete_notify
+deletes an existing entry from the notification target list.
+.Fn target_first_notify
+will return a pointer to the first notification target entry in the list, while
+.Fn target_next_notify
+will return a pointer to the next notification target of a given entry if one
+exists.
+.Fn target_flush_all
+is used to remove all configured data from the three global Management Target
+Group lists.
 .Ss WELL KNOWN OIDS
 The global variable
 .Va oid_zeroDotZero
 contains the OID 0.0.
+The global variables
+.Va oid_usmUnknownEngineIDs
+.Va oid_usmNotInTimeWindows
+contains the OIDs 1.3.6.1.6.3.15.1.1.4.0 and  1.3.6.1.6.3.15.1.1.2.0 used
+in the SNMPv3 USM Engine Discovery.
 .Ss REQUEST ID RANGES
 For modules that implement SNMP client functions besides SNMP agent functions
 it may be necessary to identify SNMP requests by their identifier to allow
 easier routing of responses to the correct sub-system.
 Request id ranges
-provide a way to aquire globally non-overlapping sub-ranges of the entire
+provide a way to acquire globally non-overlapping sub-ranges of the entire
 31-bit id range.
 .Pp
 A request id range is allocated with
@@ -586,7 +833,7 @@ The function
 .Fn reqid_istype
 checks whether the request id
 .Fa reqid
-is withing the range identified by
+is within the range identified by
 .Fa type .
 The function
 .Fn reqid_type
@@ -744,6 +991,14 @@ The arguments are the
 identifying the trap and a NULL-terminated list of
 .Vt struct snmp_value
 pointers that are to be inserted into the trap binding list.
+.Fn snmp_pdu_auth_access
+verifies whether access to the object IDs contained in the
+.Fa pdu
+ should be granted or denied, according to the configured View-Based Access
+rules.
+.Fa ip
+contains the index of the first varbinding to which access was denied, or 0 if
+access to all varbindings in the PDU is granted.
 .Ss SIMPLE ACTION SUPPORT
 For simple scalar variables that need no dependencies a number of support
 functions is available to handle the set, commit, rollback and get.
@@ -926,4 +1181,4 @@ beginning at position
 This implementation conforms to the applicable IETF RFCs and ITU-T
 recommendations.
 .Sh AUTHORS
-.An Hartmut Brandt Aq harti@freebsd.org
+.An Hartmut Brandt Aq harti@FreeBSD.org

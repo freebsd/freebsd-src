@@ -46,17 +46,6 @@
 /*
  * Machine dependent constants mips processors.
  */
-/*
- * USRTEXT is the start of the user text/data space, while USRSTACK
- * is the top (end) of the user stack.
- */
-#define	USRTEXT		(1*PAGE_SIZE)
-/*
- * USRSTACK needs to start a little below 0x8000000 because the R8000
- * and some QED CPUs perform some virtual address checks before the
- * offset is calculated.
- */
-#define	USRSTACK	0x7ffff000	/* Start of user stack */
 
 /*
  * Virtual memory related constants, all in bytes
@@ -100,15 +89,30 @@
 #define	VM_MAX_ADDRESS		((vm_offset_t)(intptr_t)(int32_t)0xffffffff)
 
 #define	VM_MINUSER_ADDRESS	((vm_offset_t)0x00000000)
-#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x80000000)
-#define	VM_MAX_MMAP_ADDR	VM_MAXUSER_ADDRESS
 
-#define	VM_MIN_KERNEL_ADDRESS		((vm_offset_t)0xC0000000)
-#define	VM_MAX_KERNEL_ADDRESS		((vm_offset_t)0xFFFFC000)
-#if 0
-#define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
+#ifdef __mips_n64
+#define	VM_MAXUSER_ADDRESS	(VM_MINUSER_ADDRESS + (NPDEPG * NBSEG))
+#define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)0xc000000000000000)
+#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + (NPDEPG * NBSEG))
 #else
+#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x80000000)
+#define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)0xC0000000)
+#define	VM_MAX_KERNEL_ADDRESS	((vm_offset_t)0xFFFFC000)
+#endif
+
 #define	KERNBASE		((vm_offset_t)(intptr_t)(int32_t)0x80000000)
+/*
+ * USRSTACK needs to start a little below 0x8000000 because the R8000
+ * and some QED CPUs perform some virtual address checks before the
+ * offset is calculated.
+ */
+#define	USRSTACK		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+ 
+/*
+ * Only one memory domain.
+ */
+#ifndef VM_NDOMAIN
+#define	VM_NDOMAIN		1
 #endif
 
 /*
@@ -118,7 +122,6 @@
 #ifndef	VM_NRESERVLEVEL
 #define	VM_NRESERVLEVEL		0
 #endif
-
 
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
@@ -146,6 +149,8 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
+#define	UMA_MD_SMALL_ALLOC
+
 /*
  * max number of non-contig chunks of physical RAM you can have
  */
@@ -168,21 +173,29 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * we support 1 free list:
+ * we support 2 free lists:
  *
- *	- DEFAULT for all systems
+ *	- DEFAULT for direct mapped (KSEG0) pages.
+ *	  Note: This usage of DEFAULT may be misleading because we use
+ *	  DEFAULT for allocating direct mapped pages. The normal page
+ *	  allocations use HIGHMEM if available, and then DEFAULT. 
+ *	- HIGHMEM for other pages 
  */
-
+#ifdef __mips_n64
 #define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
+#define	VM_FREELIST_DIRECT	VM_FREELIST_DEFAULT
+#else
+#define	VM_NFREELIST		2
+#define	VM_FREELIST_DEFAULT	1
+#define	VM_FREELIST_HIGHMEM	0
+#define	VM_FREELIST_DIRECT	VM_FREELIST_DEFAULT
+#define	VM_HIGHMEM_ADDRESS	((vm_paddr_t)0x20000000)
+#endif
 
 /*
  * The largest allocation size is 1MB.
  */
 #define	VM_NFREEORDER		9
-
-#define SEGSHIFT	22		/* LOG2(NBSEG) */
-#define NBSEG		(1 << SEGSHIFT)	/* bytes/segment */
-#define SEGOFSET	(NBSEG-1)	/* byte offset into segment */
 
 #endif /* !_MACHINE_VMPARAM_H_ */

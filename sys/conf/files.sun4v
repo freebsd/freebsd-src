@@ -29,6 +29,7 @@ dev/ofw/openfirm.c		standard
 dev/ofw/openfirmio.c		standard
 dev/ofw/openpromio.c		standard
 dev/uart/uart_cpu_sparc64.c	optional	uart
+kern/kern_clocksource.c		standard
 kern/syscalls.c			optional	ktr
 libkern/ffs.c			standard
 libkern/ffsl.c			standard

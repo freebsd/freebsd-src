@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_kdb.h"
+#include "opt_stack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -37,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/stack.h>
 #include <sys/sysctl.h>
 
 #include <machine/kdb.h>
@@ -93,7 +95,7 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
  */
 #ifdef SMP
 static int kdb_stop_cpus = 1;
-SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLFLAG_RW | CTLFLAG_TUN,
     &kdb_stop_cpus, 0, "stop other CPUs when entering the debugger");
 TUNABLE_INT("debug.kdb.stop_cpus", &kdb_stop_cpus);
 #endif
@@ -230,7 +232,7 @@ kdb_panic(const char *msg)
 	stop_cpus_hard(PCPU_GET(other_cpus));
 #endif
 	printf("KDB: panic\n");
-	panic(msg);
+	panic("%s", msg);
 }
 
 void
@@ -300,6 +302,15 @@ kdb_backtrace(void)
 		printf("KDB: stack backtrace:\n");
 		kdb_dbbe->dbbe_trace();
 	}
+#ifdef STACK
+	else {
+		struct stack st;
+
+		printf("KDB: stack backtrace:\n");
+		stack_save(&st);
+		stack_print_ddb(&st);
+	}
+#endif
 }
 
 /*

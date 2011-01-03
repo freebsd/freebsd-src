@@ -66,6 +66,7 @@
 
 #define TTY_NAME	"/dev/%s"
 #define SYSCTL_TEST	"dev.uhso.%d.%%driver"
+#define SYSCTL_LOCATION "dev.uhso.%d.%%location"
 #define SYSCTL_PORTS	"dev.uhso.%d.ports"
 #define SYSCTL_NETIF	"dev.uhso.%d.netif"
 #define SYSCTL_NAME_TTY	"dev.uhso.%d.port.%s.tty"
@@ -207,9 +208,6 @@ tmr_run(struct timers *tmrs)
 	while (te->timeout <= 0) {
 		te2 = TAILQ_NEXT(te, next);
 		TAILQ_REMOVE(&tmrs->head, te, next);
-		if (te2 != NULL)
-			te2->timeout -= tmrs->res;
-
 		te->func(te->id, te->arg);
 		free(te);
 		te = te2;
@@ -579,12 +577,13 @@ readline(int fd, char *buf, size_t bufsz)
 static int
 at_cmd(struct ctx *ctx, const char *resp, resp_cb cb, resp_arg *ra, const char *cf, ...)
 {
+	char buf[512];
+	char cmd[64];
 	size_t l;
 	int n, error, retval = 0;
 	va_list ap;
 	fd_set set;
-	char buf[512];
-	char cmd[64];
+	char *p;
 
 	va_start(ap, cf);
 	vsnprintf(cmd, sizeof(cmd), cf, ap);
@@ -614,12 +613,12 @@ at_cmd(struct ctx *ctx, const char *resp, resp_cb cb, resp_arg *ra, const char *
 		do {
 			FD_SET(ctx->fd, &set);
 			error = select(ctx->fd + 1, &set, NULL, NULL, NULL);
-			if (error < 0 && errno == EINTR && ctx->flags & FLG_WDEXP) {
+			if (ctx->flags & FLG_WDEXP) {
 				watchdog_disable(ctx);
-				retval = -2;
-				break;
+				return (-2);
 			}
 		} while (error <= 0 && errno == EINTR);
+		watchdog_disable(ctx);
 
 		if (error <= 0) {
 			retval = -2;
@@ -635,24 +634,30 @@ at_cmd(struct ctx *ctx, const char *resp, resp_cb cb, resp_arg *ra, const char *
 		if (strcmp(buf, "\r\n") == 0 || strcmp(buf, "\n") == 0)
 			continue;
 
+		if ((p = strchr(buf, '\r')) != NULL)
+			*p = '\0';
+		else if ((p = strchr(buf, '\n')) != NULL)
+			*p = '\0';
 #ifdef DEBUG
-		fprintf(stderr, "SYNC_RESP: %s", buf);
+		fprintf(stderr, "SYNC_RESP: %s\n", buf);
 #endif
 
+		/* Skip local echo */
+		if (strncasecmp(cmd, buf, strlen(buf)) == 0)
+			continue;
+
+		if (cb != NULL)
+			cb(ra, cmd, buf);
+
 		if (strncmp(buf, "OK", 2) == 0) {
+			retval = retval ? retval : 0;
 			break;
-		}
-		else if (strncmp(buf, "ERROR", 5) == 0) {
+		} else if (strstr(buf, "ERROR") != NULL) {
 			retval = -1;
 			break;
 		}
-
-		if (resp != NULL) {
-			retval = strncmp(resp, buf, l);
-			if (retval == 0 && cb != NULL) {
-				cb(ra, cmd, buf);
-			}
-		}
+		if (resp != NULL)
+			retval = strncmp(buf, resp, l);
 	}
 #ifdef DEBUG
 	fprintf(stderr, "SYNC_RETVAL=%d\n", retval);
@@ -684,6 +689,10 @@ saveresp(resp_arg *ra, const char *cmd, const char *resp)
 	char **buf;
 	int i = ra->val[1].int32;
 
+#ifdef DEBUG
+	fprintf(stderr, "Save '%s'\n", resp);
+#endif
+
 	buf = realloc(ra->val[0].ptr, sizeof(char *) * (i + 1));
 	if (buf == NULL)
 		return;
@@ -692,6 +701,19 @@ saveresp(resp_arg *ra, const char *cmd, const char *resp)
 
 	ra->val[0].ptr = buf;
 	ra->val[1].int32 = i + 1;
+}
+
+static void
+freeresp(resp_arg *ra)
+{
+	char **buf;
+	int i;
+
+	buf = ra->val[0].ptr;
+	for (i = 0; i < ra->val[1].int32; i++) {
+		free(buf[i]);
+	}
+	free(buf);
 }
 
 static void
@@ -992,129 +1014,119 @@ static const char *port_type_list[] = {
 
 /*
  * Attempts to find a list of control tty for the interface
- * FreeBSD attaches USb devices per interface so we have to go through
+ * FreeBSD attaches USB devices per interface so we have to go through
  * hoops to find which ttys that belong to our network interface.
  */
 static char **
 get_tty(struct ctx *ctx)
 {
-	char buf[64];
-	char data[128];
-	size_t len;
-	int error;
-	unsigned int i;
+	char buf[64], data[128];
+	int error, i, usbport, usbport0, list_size = 0;
 	char **list = NULL;
-	int list_size = 0;
-	const char **p;
+	size_t len;
+	const char **p, *q;
 	
+	/*
+	 * Look for the network interface first
+	 */
 	for (i = 0; ; i++) {
-		/* Basic test to check if we're even in the right ballpark */
+		/* Check if we still have uhso nodes to check */
 		snprintf(buf, 64, SYSCTL_TEST, i);
 		len = 127;
 		error = sysctlbyname(buf, data, &len, NULL, 0);
+		data[len] = '\0';
 #ifdef DEBUG
 		fprintf(stderr, "sysctl %s returned(%d): %s\n",
 		    buf, error, error == 0 ? data : "FAILED");
 #endif
-		if (error < 0)
-			return NULL;
-		if (strcasecmp(data, "uhso") != 0)
+		if (error < 0 || strcasecmp(data, "uhso") != 0)
 			return NULL;
 
-		/* Check for interface */
+		/* Check if this node contains the network interface we want */
 		snprintf(buf, 64, SYSCTL_NETIF, i);
 		len = 127;
 		error = sysctlbyname(buf, data, &len, NULL, 0);
+		data[len] = '\0';
 #ifdef DEBUG
 		fprintf(stderr, "sysctl %s returned(%d): %s\n",
 		    buf, error, error == 0 ? data : "FAILED");
 #endif
-		if (error < 0)
-			continue;
-
-		if (strcasecmp(data, ctx->ifnam) != 0)
-			continue;
-#ifdef DEBUG
-		fprintf(stderr, "Found %s at %s\n", ctx->ifnam, buf);
-#endif
-		break;
+		if (error == 0 && strcasecmp(data, ctx->ifnam) == 0)
+			break;
 	}
 
-	/* Add multiplexed ports */	
-	for (p = port_type_list; *p != NULL; p++) {
-		snprintf(buf, 64, SYSCTL_NAME_TTY, i, *p);
-		len = 127;
-		error = sysctlbyname(buf, data, &len, NULL, 0);
+	/* Figure out the USB port location */
+	snprintf(buf, 64, SYSCTL_LOCATION, i);
+	len = 127;
+	error = sysctlbyname(buf, data, &len, NULL, 0);
+	data[len] = '\0';
 #ifdef DEBUG
-		fprintf(stderr, "sysctl %s returned(%d): %s\n",
-		    buf, error, error == 0 ? data : "FAILED");
+	fprintf(stderr, "sysctl %s returned(%d): %s\n",
+	    buf, error, error == 0 ? data : "FAILED");
 #endif
-		if (error == 0) {
-			list = realloc(list, (list_size + 1) * sizeof(char *));
-			list[list_size] = malloc(strlen(data) + strlen(TTY_NAME));
-			sprintf(list[list_size], TTY_NAME, data);
-			list_size++;
+	if (error != 0)
+		return (NULL);
+
+	q = strstr(data, "port=");
+	if (q != NULL) {
+		error = sscanf(q, " port=%d", &usbport);
+		if (error != 1) {
+#ifdef DEBUG
+			fprintf(stderr, "failed to read usb port location from '%s'\n", data);
+#endif
+			return (NULL);
 		}
-	}
-	
-	/*
-	 * We can return directly if we found multiplexed serial ports because
-	 * devices with these ports only have additional diagnostic ports (useless)
-	 * and modem ports (for used with pppd).
-	 */
-	if (list_size > 0) {
-		list = realloc(list, (list_size + 1) * sizeof(char *));
-		list[list_size] = NULL;
-		return list;
-	}
-
-	/*
-	 * The network port is on a high numbered interface so we walk backwards until
-	 * we hit anything other than application/control.
-	 */
-
-	for (--i; i >= 0; i--) {
-		/* Basic test to check if we're even in the right ballpark */
-		snprintf(buf, 64, SYSCTL_TEST, i);
-		len = 127;
-		error = sysctlbyname(buf, data, &len, NULL, 0);
+	} else {
 #ifdef DEBUG
-		fprintf(stderr, "sysctl %s returned(%d): %s\n",
-		    buf, error, error == 0 ? data : "FAILED");
+			fprintf(stderr, "failed to parse location '%s'\n", data);
 #endif
-		if (error < 0)
-			break;
-		if (strcasecmp(data, "uhso") != 0)
-			break;
+			return (NULL);
+	}
+#ifdef DEBUG
+	fprintf(stderr, "USB port location=%d\n", usbport);
+#endif
 
-		/* Test for useable ports */
+	/*
+	 * Now go through it all again but only look at those matching the
+	 * usb port location we found.
+	 */
+	for (i = 0; ; i++) {
+		snprintf(buf, 64, SYSCTL_LOCATION, i);
+		len = 127;
+		memset(&data, 0, sizeof(data));
+		error = sysctlbyname(buf, data, &len, NULL, 0);
+		if (error != 0)
+			break;
+		data[len] = '\0';
+		q = strstr(data, "port=");
+		if (q == NULL)
+			continue;
+		sscanf(q, " port=%d", &usbport0);
+		if (usbport != usbport0)
+			continue;
+
+		/* Try to add ports */	
 		for (p = port_type_list; *p != NULL; p++) {
-			snprintf(buf, 64, SYSCTL_NAME_TTY, i, p);
+			snprintf(buf, 64, SYSCTL_NAME_TTY, i, *p);
 			len = 127;
+			memset(&data, 0, sizeof(data));
 			error = sysctlbyname(buf, data, &len, NULL, 0);
+			data[len] = '\0';
+#ifdef DEBUG
+			fprintf(stderr, "sysctl %s returned(%d): %s\n",
+			    buf, error, error == 0 ? data : "FAILED");
+#endif
 			if (error == 0) {
 				list = realloc(list, (list_size + 1) * sizeof(char *));
 				list[list_size] = malloc(strlen(data) + strlen(TTY_NAME));
-				sprintf(list[list_size], TTY_NAME, data);
-				list_size++;
+		    		sprintf(list[list_size], TTY_NAME, data);
+		    		list_size++;
 			}
 		}
-
-		/* HACK! first port is a diagnostic port, we abort here */
-		snprintf(buf, 64, SYSCTL_NAME_TTY, i, "diagnostic");
-		len = 127;
-		error = sysctlbyname(buf, data, &len, NULL, 0);
-#ifdef DEBUG
-		fprintf(stderr, "sysctl %s returned(%d): %s\n",
-		    buf, error, error == 0 ? data : "FAILED");
-#endif
-		if (error == 0)
-			break;
 	}
-
 	list = realloc(list, (list_size + 1) * sizeof(char *));
 	list[list_size] = NULL;
-	return list;	
+	return (list);
 }
 
 static int
@@ -1146,13 +1158,28 @@ do_connect(struct ctx *ctx, const char *tty)
 
 	error = at_cmd(ctx, NULL, NULL, NULL, "AT\r\n");
 	if (error == -2) {
-		warnx("failed to read from device");
+		warnx("failed to read from device %s", tty);
 		return (-1);
 	}
 
 	/* Check for PIN */
 	error = at_cmd(ctx, "+CPIN: READY", NULL, NULL, "AT+CPIN?\r\n");
 	if (error != 0) {
+		ra.val[0].ptr = NULL;
+		ra.val[1].int32 = 0;
+		error = at_cmd(ctx, "+CME ERROR", saveresp, &ra, "AT+CPIN?\r\n");
+		if (ra.val[1].int32 > 0) {
+			char *p;
+
+			buf = ra.val[0].ptr;
+			if (strstr(buf[0], "+CME ERROR:") != NULL) {
+				buf[0] += 12;
+				errx(1, buf[0]);
+			}
+			freeresp(&ra);
+		} else
+			freeresp(&ra);
+
 		if (ctx->pin == NULL) {
 			errx(1, "device requires PIN");
 		}
@@ -1445,6 +1472,8 @@ main(int argc, char *argv[])
 	}
 	else {
 		tty_list = get_tty(&ctx);
+		if (tty_list == NULL)
+			errx(1, "%s does not appear to be a uhso device", ifnam);
 #ifdef DEBUG
 		if (tty_list == NULL) {
 			fprintf(stderr, "get_tty returned empty list\n");
@@ -1507,7 +1536,7 @@ main(int argc, char *argv[])
 			    network_access_type[ctx.con_net_type]);
 			if (ctx.dbm < 0)
 				printf(", signal: %d dBm", ctx.dbm);
-			printf("\r");
+			printf("\t\t\t\r");
 			fflush(stdout);
 		}
 	}

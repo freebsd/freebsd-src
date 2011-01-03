@@ -108,15 +108,20 @@ static void
 write_scom(register_t address, uint64_t value)
 {
 	register_t msr;
+	#ifndef __powerpc64__
 	register_t hi, lo, scratch;
-
-	hi = (value >> 32) & 0xffffffff;
-	lo = value & 0xffffffff;
+	#endif
 
 	msr = mfmsr();
 	mtmsr(msr & ~PSL_EE); isync();
 
+	#ifdef __powerpc64__
+	mtspr(SPR_SCOMD, value);
+	#else
+	hi = (value >> 32) & 0xffffffff;
+	lo = value & 0xffffffff;
 	mtspr64(SPR_SCOMD, hi, lo, scratch); 
+	#endif
 	isync();
 	mtspr(SPR_SCOMC, address | SCOMC_WRITE);
 	isync();
@@ -200,6 +205,11 @@ pcr_attach(device_t dev)
 	if (cpu <= 0) {
 		device_printf(dev,"No CPU device tree node!\n");
 		return (ENXIO);
+	}
+
+	if (OF_getproplen(cpu, "power-mode-data") <= 0) {
+		/* Use the first CPU's node */
+		cpu = OF_child(OF_parent(cpu));
 	}
 
 	/*

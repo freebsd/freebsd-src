@@ -88,6 +88,20 @@ teken_subr_cons25_set_bell_pitch_duration(teken_t *t, unsigned int pitch,
 }
 
 static void
+teken_subr_cons25_set_graphic_rendition(teken_t *t, unsigned int cmd,
+    unsigned int param __unused)
+{
+
+	switch (cmd) {
+	case 0: /* Reset. */
+		t->t_curattr = t->t_defattr;
+		break;
+	default:
+		teken_printf("unsupported attribute %u\n", cmd);
+	}
+}
+
+static void
 teken_subr_cons25_set_terminal_mode(teken_t *t, unsigned int mode)
 {
 

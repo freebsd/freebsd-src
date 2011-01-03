@@ -46,13 +46,21 @@
 #include <arm/s3c2xx0/s3c2xx0reg.h>
 
 /*
- * Map the device registers into kernel space
+ * Map the device registers into kernel space.
+ *
+ * As most devices use less than 1 page of memory reduce
+ * the distance between allocations by right shifting
+ * S3C24X0_DEV_SHIFT bits. Because the UART takes 3*0x4000
+ * bytes the upper limit on S3C24X0_DEV_SHIFT is 4.
+ * TODO: Fix the UART code so we can increase this value.
  */
 #define	S3C24X0_DEV_START	0x48000000
 #define	S3C24X0_DEV_STOP	0x60000000
-#define	S3C24X0_DEV_VA_OFFSET	0xD0000000
-#define	S3C24X0_DEV_VA_SIZE	(S3C24X0_DEV_STOP - S3C24X0_DEV_START)
-#define	S3C24X0_DEV_PA_TO_VA(x)	(x - S3C24X0_DEV_START + S3C24X0_DEV_VA_OFFSET)
+#define	S3C24X0_DEV_VA_OFFSET	0xD8000000
+#define	S3C24X0_DEV_SHIFT	4
+#define	S3C24X0_DEV_PA_SIZE	(S3C24X0_DEV_STOP - S3C24X0_DEV_START)
+#define	S3C24X0_DEV_VA_SIZE	(S3C24X0_DEV_PA_SIZE >> S3C24X0_DEV_SHIFT)
+#define	S3C24X0_DEV_PA_TO_VA(x)	((x >> S3C24X0_DEV_SHIFT) - S3C24X0_DEV_START + S3C24X0_DEV_VA_OFFSET)
 
 /*
  * Physical address of integrated peripherals
@@ -77,7 +85,7 @@
 #define	S3C24X0_UART0_PA_BASE	0x50000000
 #define	S3C24X0_UART0_BASE	S3C24X0_DEV_PA_TO_VA(S3C24X0_UART0_PA_BASE)
 #define	S3C24X0_UART_PA_BASE(n)	(S3C24X0_UART0_PA_BASE+0x4000*(n))
-#define	S3C24X0_UART_BASE(n)	S3C24X0_DEV_PA_TO_VA(S3C24X0_UART_PA_BASE(n))
+#define	S3C24X0_UART_BASE(n)	(S3C24X0_UART0_BASE+0x4000*(n))
 #define	S3C24X0_TIMER_PA_BASE 	0x51000000
 #define	S3C24X0_TIMER_BASE 	S3C24X0_DEV_PA_TO_VA(S3C24X0_TIMER_PA_BASE)
 #define	S3C24X0_USBDC_PA_BASE 	0x5200140
@@ -91,6 +99,9 @@
 #define	S3C24X0_IIS_BASE 	S3C24X0_DEV_PA_TO_VA(S3C24X0_IIS_PA_BASE)
 #define	S3C24X0_GPIO_PA_BASE	0x56000000
 #define	S3C24X0_GPIO_BASE	S3C24X0_DEV_PA_TO_VA(S3C24X0_GPIO_PA_BASE)
+#define	S3C24X0_RTC_PA_BASE	0x57000000
+#define	S3C24X0_RTC_BASE	S3C24X0_DEV_PA_TO_VA(S3C24X0_RTC_PA_BASE)
+#define	S3C24X0_RTC_SIZE	0x8C
 #define	S3C24X0_ADC_PA_BASE 	0x58000000
 #define	S3C24X0_ADC_BASE 	S3C24X0_DEV_PA_TO_VA(S3C24X0_ADC_PA_BASE)
 #define	S3C24X0_SPI0_PA_BASE 	0x59000000
@@ -196,7 +207,10 @@
 #define	S3C24X0_INT_BFLT 	7	/* Battery fault */
 #define	S3C24X0_INT_8_23	5	/* Ext int 8..23 */
 #define	S3C24X0_INT_4_7 	4	/* Ext int 4..7 */
-#define	S3C24X0_INT_EXT(n)	(n) /* External interrupt [3:0] for 24{1,4}0 */
+#define	S3C24X0_INT_3		3
+#define	S3C24X0_INT_2		2
+#define	S3C24X0_INT_1		1
+#define	S3C24X0_INT_0		0
 
 /* 24{1,4}0 has more than 32 interrupt sources.  These are sub-sources
  * that are OR-ed into main interrupt sources, and controlled via
@@ -218,6 +232,15 @@
 #define	S3C24X0_INT_ERR0	(S3C24X0_SUBIRQ_MIN+2)	/* UART0 Error */
 #define	S3C24X0_INT_TXD0	(S3C24X0_SUBIRQ_MIN+1)	/* UART0 Tx */
 #define	S3C24X0_INT_RXD0	(S3C24X0_SUBIRQ_MIN+0)	/* UART0 Rx */
+
+/*
+ * Support for external interrupts. We use values from 48
+ * to allow new CPU's to allocate new subirq's.
+ */
+#define	S3C24X0_EXTIRQ_MIN	48
+#define	S3C24X0_EXTIRQ_COUNT	24
+#define	S3C24X0_EXTIRQ_MAX	(S3C24X0_EXTIRQ_MIN + S3C24X0_EXTIRQ_COUNT - 1)
+#define	S3C24X0_INT_EXT(n)	(S3C24X0_EXTIRQ_MIN + (n))
 
 /* DMA controller */
 /* XXX */
@@ -634,7 +657,30 @@
 
 #define	ADCDAT_DATAMASK  	0x3ff
 
-/* RTC */ /* XXX */
+/* RTC */
+#define	RTC_RTCCON		0x40
+#define	 RTCCON_RTCEN		(1<<0)
+#define	 RTCCON_CLKSEL		(1<<1)
+#define	 RTCCON_CNTSEL		(1<<2)
+#define	 RTCCON_CLKRST		(1<<3)
+#define	RTC_TICNT0		0x44
+/* TICNT1 on 2440 */
+#define	RTC_RTCALM		0x50
+#define	RTC_ALMSEC		0x54
+#define	RTC_ALMMIN		0x58
+#define	RTC_ALMHOUR		0x5C
+#define	RTC_ALMDATE		0x60
+#define	RTC_ALMMON		0x64
+#define	RTC_ALMYEAR		0x68
+/* RTCRST on 2410 */
+#define	RTC_BCDSEC		0x70
+#define	RTC_BCDMIN		0x74
+#define	RTC_BCDHOUR		0x78
+#define	RTC_BCDDATE		0x7C
+#define	RTC_BCDDAY		0x80
+#define	RTC_BCDMON		0x84
+#define	RTC_BCDYEAR		0x88
+
 
 /* SPI */
 #define	S3C24X0_SPI_SIZE 	0x20

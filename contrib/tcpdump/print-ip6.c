@@ -38,12 +38,38 @@ static const char rcsid[] _U_ =
 #include <stdlib.h>
 #include <string.h>
 
+#include "netdissect.h"
 #include "interface.h"
 #include "addrtoname.h"
 #include "extract.h"
 
 #include "ip6.h"
 #include "ipproto.h"
+
+/*
+ * Compute a V6-style checksum by building a pseudoheader.
+ */
+int
+nextproto6_cksum(const struct ip6_hdr *ip6, const u_short *data,
+		 u_int len, u_int next_proto)
+{
+        size_t i;
+        u_int32_t sum = 0;
+	union ip6_pseudo_hdr phu;
+
+        /* pseudo-header */
+        memset(&phu, 0, sizeof(phu));
+        phu.ph.ph_src = ip6->ip6_src;
+        phu.ph.ph_dst = ip6->ip6_dst;
+        phu.ph.ph_len = htonl(len);
+        phu.ph.ph_nxt = next_proto;
+
+        for (i = 0; i < sizeof(phu.pa) / sizeof(phu.pa[0]); i++) {
+                sum += phu.pa[i];
+	}
+
+        return in_cksum(data, len, sum);
+}
 
 /*
  * print an IP6 datagram.
@@ -172,7 +198,7 @@ ip6_print(register const u_char *bp, register u_int length)
 			udp_print(cp, len, (const u_char *)ip6, fragmented);
 			return;
 		case IPPROTO_ICMPV6:
-			icmp6_print(cp, len, (const u_char *)ip6, fragmented);
+			icmp6_print(gndo, cp, len, (const u_char *)ip6, fragmented);
 			return;
 		case IPPROTO_AH:
 			advance = ah_print(cp);
@@ -195,7 +221,8 @@ ip6_print(register const u_char *bp, register u_int length)
 		    }
 
 		case IPPROTO_PIM:
-			pim_print(cp, len);
+			pim_print(cp, len, nextproto6_cksum(ip6, (u_short *)cp, len,
+							    IPPROTO_PIM));
 			return;
 
 		case IPPROTO_OSPF:

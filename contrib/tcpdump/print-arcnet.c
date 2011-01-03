@@ -35,6 +35,7 @@ static const char rcsid[] _U_ =
 #include <pcap.h>
 
 #include "interface.h"
+#include "extract.h"
 #include "arcnet.h"
 
 static int arcnet_encap_print(u_char arctype, const u_char *p,
@@ -151,11 +152,11 @@ arcnet_if_print(const struct pcap_pkthdr *h, const u_char *p)
 				return (caplen);
 			}
 			flag = ap->arc_flag2;
-			seqid = ntohs(ap->arc_seqid2);
+			seqid = EXTRACT_16BITS(&ap->arc_seqid2);
 			archdrlen = ARC_HDRNEWLEN_EXC;
 		} else {
 			flag = ap->arc_flag;
-			seqid = ntohs(ap->arc_seqid);
+			seqid = EXTRACT_16BITS(&ap->arc_seqid);
 			archdrlen = ARC_HDRNEWLEN;
 		}
 	}

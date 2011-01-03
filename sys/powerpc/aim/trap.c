@@ -34,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ktrace.h"
-
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
@@ -50,9 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
-#ifdef KTRACE
-#include <sys/ktrace.h>
-#endif
 #include <sys/vmmeter.h>
 
 #include <security/audit/audit.h>
@@ -65,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 
+#include <machine/_inttypes.h>
 #include <machine/altivec.h>
 #include <machine/cpu.h>
 #include <machine/db_machdep.h>
@@ -86,13 +82,15 @@ static int	ppc_instr_emulate(struct trapframe *frame);
 static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
 
+#ifdef __powerpc64__
+static int	handle_slb_spill(pmap_t pm, vm_offset_t addr);
+#endif
+
 int	setfault(faultbuf);		/* defined in locore.S */
 
 /* Why are these not defined in a header? */
 int	badaddr(void *, size_t);
 int	badaddr_read(void *, size_t, int *);
-
-extern char	*syscallnames[];
 
 struct powerpc_exception {
 	u_int	vector;
@@ -103,7 +101,9 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ 0x0100, "system reset" },
 	{ 0x0200, "machine check" },
 	{ 0x0300, "data storage interrupt" },
+	{ 0x0380, "data segment exception" },
 	{ 0x0400, "instruction storage interrupt" },
+	{ 0x0480, "instruction segment exception" },
 	{ 0x0500, "external interrupt" },
 	{ 0x0600, "alignment" },
 	{ 0x0700, "program" },
@@ -173,6 +173,15 @@ trap(struct trapframe *frame)
 			sig = SIGTRAP;
 			break;
 
+#ifdef __powerpc64__
+		case EXC_ISE:
+		case EXC_DSE:
+			if (handle_slb_spill(&p->p_vmspace->vm_pmap,
+			    (type == EXC_ISE) ? frame->srr0 :
+			    frame->cpu.aim.dar) != 0)
+				sig = SIGSEGV;
+			break;
+#endif
 		case EXC_DSI:
 		case EXC_ISI:
 			sig = trap_pfault(frame, 1);
@@ -194,9 +203,19 @@ trap(struct trapframe *frame)
 			enable_vec(td);
 			break;
 
-		case EXC_VECAST:
-			printf("Vector assist exception!\n");
-			sig = SIGILL;
+		case EXC_VECAST_G4:
+		case EXC_VECAST_G5:
+			/*
+			 * We get a VPU assist exception for IEEE mode
+			 * vector operations on denormalized floats.
+			 * Emulating this is a giant pain, so for now,
+			 * just switch off IEEE mode and treat them as
+			 * zero.
+			 */
+
+			save_vec(td);
+			td->td_pcb->pcb_vec.vscr |= ALTIVEC_VSCR_NJ;
+			enable_vec(td);
 			break;
 
 		case EXC_ALI:
@@ -229,6 +248,23 @@ trap(struct trapframe *frame)
 			if (trap_pfault(frame, 0) == 0)
  				return;
 			break;
+#ifdef __powerpc64__
+		case EXC_DSE:
+			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {
+				__asm __volatile ("slbmte %0, %1" ::
+				     "r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
+				     "r"(USER_SLB_SLBE));
+				return;
+			}
+
+			/* FALLTHROUGH */
+		case EXC_ISE:
+			if (handle_slb_spill(kernel_pmap,
+			    (type == EXC_ISE) ? frame->srr0 :
+			    frame->cpu.aim.dar) != 0)
+				panic("Fault handling kernel SLB miss");
+			return;
+#endif
 		case EXC_MCHK:
 			if (handle_onfault(frame))
  				return;
@@ -278,16 +314,19 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	printf("   exception       = 0x%x (%s)\n", vector >> 8,
 	    trapname(vector));
 	switch (vector) {
+	case EXC_DSE:
 	case EXC_DSI:
-		printf("   virtual address = 0x%x\n", frame->cpu.aim.dar);
+		printf("   virtual address = 0x%" PRIxPTR "\n",
+		    frame->cpu.aim.dar);
 		break;
+	case EXC_ISE:
 	case EXC_ISI:
-		printf("   virtual address = 0x%x\n", frame->srr0);
+		printf("   virtual address = 0x%" PRIxPTR "\n", frame->srr0);
 		break;
 	}
-	printf("   srr0            = 0x%x\n", frame->srr0);
-	printf("   srr1            = 0x%x\n", frame->srr1);
-	printf("   lr              = 0x%x\n", frame->lr);
+	printf("   srr0            = 0x%" PRIxPTR "\n", frame->srr0);
+	printf("   srr1            = 0x%" PRIxPTR "\n", frame->srr1);
+	printf("   lr              = 0x%" PRIxPTR "\n", frame->lr);
 	printf("   curthread       = %p\n", curthread);
 	if (curthread != NULL)
 		printf("          pid = %d, comm = %s\n",
@@ -320,126 +359,154 @@ handle_onfault(struct trapframe *frame)
 	return (0);
 }
 
-void
-syscall(struct trapframe *frame)
+int
+cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
-	caddr_t		params;
-	struct		sysent *callp;
-	struct		thread *td;
-	struct		proc *p;
-	int		error, n;
-	size_t		narg;
-	register_t	args[10];
-	u_int		code;
+	struct proc *p;
+	struct trapframe *frame;
+	caddr_t	params;
+	size_t argsz;
+	int error, n, i;
 
-	td = PCPU_GET(curthread);
 	p = td->td_proc;
+	frame = td->td_frame;
 
-	PCPU_INC(cnt.v_syscall);
-
-	code = frame->fixreg[0];
+	sa->code = frame->fixreg[0];
 	params = (caddr_t)(frame->fixreg + FIRSTARG);
 	n = NARGREG;
 
-	if (p->p_sysent->sv_prepsyscall) {
-		/*
-		 * The prep code is MP aware.
-		 */
-		(*p->p_sysent->sv_prepsyscall)(frame, args, &code, &params);
-	} else if (code == SYS_syscall) {
+	if (sa->code == SYS_syscall) {
 		/*
 		 * code is first argument,
 		 * followed by actual args.
 		 */
-		code = *(u_int *) params;
+		sa->code = *(register_t *) params;
 		params += sizeof(register_t);
 		n -= 1;
-	} else if (code == SYS___syscall) {
+	} else if (sa->code == SYS___syscall) {
 		/*
 		 * Like syscall, but code is a quad,
 		 * so as to maintain quad alignment
 		 * for the rest of the args.
 		 */
-		params += sizeof(register_t);
-		code = *(u_int *) params;
-		params += sizeof(register_t);
-		n -= 2;
+		if (p->p_sysent->sv_flags & SV_ILP32) {
+			params += sizeof(register_t);
+			sa->code = *(register_t *) params;
+			params += sizeof(register_t);
+			n -= 2;
+		} else {
+			sa->code = *(register_t *) params;
+			params += sizeof(register_t);
+			n -= 1;
+		}
 	}
 
  	if (p->p_sysent->sv_mask)
- 		code &= p->p_sysent->sv_mask;
+		sa->code &= p->p_sysent->sv_mask;
+	if (sa->code >= p->p_sysent->sv_size)
+		sa->callp = &p->p_sysent->sv_table[0];
+	else
+		sa->callp = &p->p_sysent->sv_table[sa->code];
 
- 	if (code >= p->p_sysent->sv_size)
- 		callp = &p->p_sysent->sv_table[0];
-  	else
- 		callp = &p->p_sysent->sv_table[code];
+	sa->narg = sa->callp->sy_narg;
 
-	narg = callp->sy_narg;
+	if (p->p_sysent->sv_flags & SV_ILP32) {
+		argsz = sizeof(uint32_t);
 
-	if (narg > n) {
-		bcopy(params, args, n * sizeof(register_t));
-		error = copyin(MOREARGS(frame->fixreg[1]), args + n,
-			       (narg - n) * sizeof(register_t));
-		params = (caddr_t)args;
-	} else
+		for (i = 0; i < n; i++)
+			sa->args[i] = ((u_register_t *)(params))[i] &
+			    0xffffffff;
+	} else {
+		argsz = sizeof(uint64_t);
+
+		for (i = 0; i < n; i++)
+			sa->args[i] = ((u_register_t *)(params))[i];
+	}
+
+	if (sa->narg > n)
+		error = copyin(MOREARGS(frame->fixreg[1]), sa->args + n,
+			       (sa->narg - n) * argsz);
+	else
 		error = 0;
 
-	CTR5(KTR_SYSC, "syscall: p=%s %s(%x %x %x)", td->td_name,
-	     syscallnames[code],
-	     frame->fixreg[FIRSTARG],
-	     frame->fixreg[FIRSTARG+1],
-	     frame->fixreg[FIRSTARG+2]);
+#ifdef __powerpc64__
+	if (p->p_sysent->sv_flags & SV_ILP32 && sa->narg > n) {
+		/* Expand the size of arguments copied from the stack */
 
-#ifdef	KTRACE
-	if (KTRPOINT(td, KTR_SYSCALL))
-		ktrsyscall(code, narg, (register_t *)params);
+		for (i = sa->narg; i >= n; i--)
+			sa->args[i] = ((uint32_t *)(&sa->args[n]))[i-n];
+	}
 #endif
-
-	td->td_syscalls++;
 
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = frame->fixreg[FIRSTARG + 1];
-
-		STOPEVENT(p, S_SCE, narg);
-
-		PTRACESTOP_SC(p, td, S_PT_SCE);
-
-		AUDIT_SYSCALL_ENTER(code, td);
-		error = (*callp->sy_call)(td, params);
-		AUDIT_SYSCALL_EXIT(error, td);
-
-		CTR3(KTR_SYSC, "syscall: p=%s %s ret=%x", td->td_name,
-		     syscallnames[code], td->td_retval[0]);
 	}
+	return (error);
+}
 
-	cpu_set_syscall_retval(td, error);
+void
+syscall(struct trapframe *frame)
+{
+	struct thread *td;
+	struct syscall_args sa;
+	int error;
 
+	td = PCPU_GET(curthread);
+	td->td_frame = frame;
+
+#ifdef __powerpc64__
 	/*
-	 * Check for misbehavior.
+	 * Speculatively restore last user SLB segment, which we know is
+	 * invalid already, since we are likely to do copyin()/copyout().
 	 */
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
-	KASSERT(td->td_critnest == 0,
-	    ("System call %s returning in a critical section",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???"));
-	KASSERT(td->td_locks == 0,
-	    ("System call %s returning with %d locks held",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???",
-	    td->td_locks));
-
-#ifdef	KTRACE
-	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(code, error, td->td_retval[0]);
+	__asm __volatile ("slbmte %0, %1; isync" ::
+            "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
 #endif
 
-	/*
-	 * Does the comment in the i386 code about errno apply here?
-	 */
-	STOPEVENT(p, S_SCX, code);
- 
-	PTRACESTOP_SC(p, td, S_PT_SCX);
+	error = syscallenter(td, &sa);
+	syscallret(td, error, &sa);
 }
+
+#ifdef __powerpc64__
+static int 
+handle_slb_spill(pmap_t pm, vm_offset_t addr)
+{
+	struct slb *user_entry;
+	uint64_t esid;
+	int i;
+
+	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
+
+	if (pm == kernel_pmap) {
+		slb_insert_kernel((esid << SLBE_ESID_SHIFT) | SLBE_VALID,
+		    kernel_va_to_slbv(addr));
+		return (0);
+	}
+
+	PMAP_LOCK(pm);
+	user_entry = user_va_to_slb_entry(pm, addr);
+
+	if (user_entry == NULL) {
+		/* allocate_vsid auto-spills it */
+		(void)allocate_user_vsid(pm, esid, 0);
+	} else {
+		/*
+		 * Check that another CPU has not already mapped this.
+		 * XXX: Per-thread SLB caches would be better.
+		 */
+		for (i = 0; i < pm->pm_slb_len; i++)
+			if (pm->pm_slb[i] == user_entry)
+				break;
+
+		if (i == pm->pm_slb_len)
+			slb_insert_user(pm, user_entry);
+	}
+	PMAP_UNLOCK(pm);
+
+	return (0);
+}
+#endif
 
 static int
 trap_pfault(struct trapframe *frame, int user)
@@ -450,7 +517,7 @@ trap_pfault(struct trapframe *frame, int user)
 	vm_map_t	map;
 	vm_prot_t	ftype;
 	int		rv;
-	u_int		user_sr;
+	register_t	user_sr;
 
 	td = curthread;
 	p = td->td_proc;
@@ -468,16 +535,15 @@ trap_pfault(struct trapframe *frame, int user)
 	if (user) {
 		map = &p->p_vmspace->vm_map;
 	} else {
-		if ((eva >> ADDR_SR_SHFT) == USER_SR) {
+		if ((eva >> ADDR_SR_SHFT) == (USER_ADDR >> ADDR_SR_SHFT)) {
 			if (p->p_vmspace == NULL)
 				return (SIGSEGV);
 
-			__asm ("mfsr %0, %1"
-			    : "=r"(user_sr)
-			    : "K"(USER_SR));
+			map = &p->p_vmspace->vm_map;
+
+			user_sr = td->td_pcb->pcb_cpu.aim.usr_segm;
 			eva &= ADDR_PIDX | ADDR_POFF;
 			eva |= user_sr << ADDR_SR_SHFT;
-			map = &p->p_vmspace->vm_map;
 		} else {
 			map = kernel_map;
 		}
@@ -553,7 +619,7 @@ badaddr_read(void *addr, size_t size, int *rptr)
 		x = *(volatile int32_t *)addr;
 		break;
 	default:
-		panic("badaddr: invalid size (%d)", size);
+		panic("badaddr: invalid size (%zd)", size);
 	}
 
 	/* Make sure we took the machine check, if we caused one. */

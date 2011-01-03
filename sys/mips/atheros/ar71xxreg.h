@@ -137,7 +137,30 @@
 #define		USB_CTRL_CONFIG_RESUME_UTMI_PLS_DIS	(1 << 1)
 #define		USB_CTRL_CONFIG_UTMI_BACKWARD_ENB	(1 << 0)
 
+#define	AR71XX_GPIO_BASE		0x18040000
+#define		AR71XX_GPIO_OE			0x00
+#define		AR71XX_GPIO_IN			0x04
+#define		AR71XX_GPIO_OUT			0x08
+#define		AR71XX_GPIO_SET			0x0c
+#define		AR71XX_GPIO_CLEAR		0x10
+#define		AR71XX_GPIO_INT			0x14
+#define		AR71XX_GPIO_INT_TYPE		0x18
+#define		AR71XX_GPIO_INT_POLARITY	0x1c
+#define		AR71XX_GPIO_INT_PENDING		0x20
+#define		AR71XX_GPIO_INT_MASK		0x24
+#define		AR71XX_GPIO_FUNCTION		0x28
+#define			GPIO_FUNC_STEREO_EN     (1 << 17)
+#define			GPIO_FUNC_SLIC_EN       (1 << 16)
+#define			GPIO_FUNC_SPI_CS2_EN    (1 << 13)
+				/* CS2 is shared with GPIO_1 */
+#define			GPIO_FUNC_SPI_CS1_EN    (1 << 12)
+				/* CS1 is shared with GPIO_0 */
+#define			GPIO_FUNC_UART_EN       (1 << 8)
+#define			GPIO_FUNC_USB_OC_EN     (1 << 4)
+#define			GPIO_FUNC_USB_CLK_EN    (0)
+
 #define	AR71XX_BASE_FREQ		40000000
+#define	AR71XX_PLL_CPU_BASE		0x18050000
 #define	AR71XX_PLL_CPU_CONFIG		0x18050000
 #define		PLL_SW_UPDATE			(1 << 31)
 #define		PLL_LOCKED			(1 << 30)
@@ -158,6 +181,8 @@
 #define		PLL_BYPASS			(1 << 1)
 #define		PLL_POWER_DOWN			(1 << 0)
 #define	AR71XX_PLL_SEC_CONFIG		0x18050004
+#define		AR71XX_PLL_ETH0_SHIFT		17
+#define		AR71XX_PLL_ETH1_SHIFT		19
 #define	AR71XX_PLL_CPU_CLK_CTRL		0x18050008
 #define	AR71XX_PLL_ETH_INT0_CLK		0x18050010
 #define	AR71XX_PLL_ETH_INT1_CLK		0x18050014
@@ -170,6 +195,9 @@
 #define		PLL_ETH_INT_CLK_1000		0x00110000
 #define	AR71XX_PLL_ETH_EXT_CLK		0x18050018
 #define	AR71XX_PLL_PCI_CLK		0x1805001C
+
+/* Reset block */
+#define	AR71XX_RST_BLOCK_BASE	0x18060000
 
 #define AR71XX_RST_WDOG_CONTROL	0x18060008
 #define		RST_WDOG_LAST			(1 << 31)
@@ -211,6 +239,33 @@
 #define		RST_RESET_USB_PHY	(1 <<  4)
 #define		RST_RESET_PCI_BUS	(1 <<  1)
 #define		RST_RESET_PCI_CORE	(1 <<  0)
+
+/* Chipset revision details */
+#define	AR71XX_RST_RESET_REG_REV_ID	0x18060090
+#define		REV_ID_MAJOR_MASK	0xfff0
+#define		REV_ID_MAJOR_AR71XX	0x00a0
+#define		REV_ID_MAJOR_AR913X	0x00b0
+#define		REV_ID_MAJOR_AR7240	0x00c0
+#define		REV_ID_MAJOR_AR7241	0x0100
+#define		REV_ID_MAJOR_AR7242	0x1100
+
+/* AR71XX chipset revision details */
+#define		AR71XX_REV_ID_MINOR_MASK	0x3
+#define		AR71XX_REV_ID_MINOR_AR7130	0x0
+#define		AR71XX_REV_ID_MINOR_AR7141	0x1
+#define		AR71XX_REV_ID_MINOR_AR7161	0x2
+#define		AR71XX_REV_ID_REVISION_MASK	0x3
+#define		AR71XX_REV_ID_REVISION_SHIFT	2
+
+/* AR724X chipset revision details */
+#define		AR724X_REV_ID_REVISION_MASK	0x3
+
+/* AR91XX chipset revision details */
+#define		AR91XX_REV_ID_MINOR_MASK	0x3
+#define		AR91XX_REV_ID_MINOR_AR9130	0x0
+#define		AR91XX_REV_ID_MINOR_AR9132	0x1
+#define		AR91XX_REV_ID_REVISION_MASK	0x3
+#define		AR91XX_REV_ID_REVISION_SHIFT	2
 
 /*
  * GigE adapters region
@@ -436,37 +491,38 @@
 #define ATH_WRITE_REG(reg, val) \
     *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
 
-static inline uint64_t
-ar71xx_cpu_freq(void)
+static inline void
+ar71xx_ddr_flush(uint32_t reg)
+{ 
+	ATH_WRITE_REG(reg, 1);
+	while ((ATH_READ_REG(reg) & 0x1))
+		;
+	ATH_WRITE_REG(reg, 1);
+	while ((ATH_READ_REG(reg) & 0x1))
+		;
+} 
+
+static inline void
+ar71xx_write_pll(uint32_t cfg_reg, uint32_t pll_reg, uint32_t pll, uint32_t pll_reg_shift)
 {
-        uint32_t pll_config, div;
-        uint64_t freq;
+	uint32_t sec_cfg;
 
-        /* PLL freq */
-        pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-        div = ((pll_config >> PLL_FB_SHIFT) & PLL_FB_MASK) + 1;
-        freq = div * AR71XX_BASE_FREQ;
-        /* CPU freq */
-        div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK)
-            + 1;
-        freq = freq / div;
+	/* set PLL registers */
+	sec_cfg = ATH_READ_REG(cfg_reg);
+	sec_cfg &= ~(3 << pll_reg_shift);
+	sec_cfg |= (2 << pll_reg_shift);
 
-	return (freq);
+	ATH_WRITE_REG(cfg_reg, sec_cfg);
+	DELAY(100);
+
+	ATH_WRITE_REG(pll_reg, pll);
+	sec_cfg |= (3 << pll_reg_shift);
+	ATH_WRITE_REG(cfg_reg, sec_cfg);
+	DELAY(100);
+
+	sec_cfg &= ~(3 << pll_reg_shift);
+	ATH_WRITE_REG(cfg_reg, sec_cfg);
+	DELAY(100);
 }
-
-static inline uint64_t
-ar71xx_ahb_freq(void)
-{
-        uint32_t pll_config, div;
-        uint64_t freq;
-
-        /* PLL freq */
-        pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-        /* AHB freq */
-        div = (((pll_config >> PLL_AHB_DIV_SHIFT) & PLL_AHB_DIV_MASK) + 1) * 2;
-        freq = ar71xx_cpu_freq() / div;
-	return (freq);
-}
-
 
 #endif /* _AR71XX_REG_H_ */

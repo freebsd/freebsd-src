@@ -91,7 +91,7 @@ platform_cpu_init()
 static void
 mips_init(void)
 {
-	int i;
+	int i, j;
 
 	printf("entry: mips_init()\n");
 
@@ -127,6 +127,9 @@ mips_init(void)
 
 	realmem = btoc(physmem);
 #endif
+
+	for (j = 0; j < i; j++)
+		dump_avail[j] = phys_avail[j];
 
 	physmem = realmem;
 

@@ -22,9 +22,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
 
@@ -47,7 +48,7 @@
 
 static devclass_t	sc_devclass;
 
-static sc_softc_t main_softc;
+static sc_softc_t	main_softc;
 #ifdef SC_NO_SUSPEND_VTYSWITCH
 static int sc_no_suspend_vtswitch = 1;
 #else
@@ -55,31 +56,34 @@ static int sc_no_suspend_vtswitch = 0;
 #endif
 static int sc_cur_scr;
 
-TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", (int *)&sc_no_suspend_vtswitch);
+TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", &sc_no_suspend_vtswitch);
 SYSCTL_DECL(_hw_syscons);
 SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RW,
-	&sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
+    &sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
 
 static void
-scidentify (driver_t *driver, device_t parent)
+scidentify(driver_t *driver, device_t parent)
 {
+
 	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "sc", 0);
 }
 
 static int
 scprobe(device_t dev)
 {
+
 	/* No pnp support */
 	if (isa_get_vendorid(dev))
 		return (ENXIO);
 
 	device_set_desc(dev, "System console");
-	return sc_probe_unit(device_get_unit(dev), device_get_flags(dev));
+	return (sc_probe_unit(device_get_unit(dev), device_get_flags(dev)));
 }
 
 static int
 scattach(device_t dev)
 {
+
 	return sc_attach_unit(device_get_unit(dev), device_get_flags(dev));
 }
 
@@ -127,7 +131,8 @@ scresume(device_t dev)
 int
 sc_max_unit(void)
 {
-	return devclass_get_maxunit(sc_devclass);
+
+	return (devclass_get_maxunit(sc_devclass));
 }
 
 sc_softc_t
@@ -136,52 +141,52 @@ sc_softc_t
 	sc_softc_t *sc;
 
 	if (unit < 0)
-		return NULL;
-	if (flags & SC_KERNEL_CONSOLE) {
+		return (NULL);
+	if ((flags & SC_KERNEL_CONSOLE) != 0) {
 		/* FIXME: clear if it is wired to another unit! */
 		sc = &main_softc;
 	} else {
-	        sc = (sc_softc_t *)device_get_softc(devclass_get_device(sc_devclass, unit));
+	        sc = device_get_softc(devclass_get_device(sc_devclass, unit));
 		if (sc == NULL)
-			return NULL;
+			return (NULL);
 	}
 	sc->unit = unit;
-	if (!(sc->flags & SC_INIT_DONE)) {
+	if ((sc->flags & SC_INIT_DONE) == 0) {
 		sc->keyboard = -1;
 		sc->adapter = -1;
 		sc->mouse_char = SC_MOUSE_CHAR;
 	}
-	return sc;
+	return (sc);
 }
 
 sc_softc_t
 *sc_find_softc(struct video_adapter *adp, struct keyboard *kbd)
 {
 	sc_softc_t *sc;
-	int units;
 	int i;
+	int units;
 
 	sc = &main_softc;
-	if (((adp == NULL) || (adp == sc->adp))
-	    && ((kbd == NULL) || (kbd == sc->kbd)))
-		return sc;
+	if ((adp == NULL || adp == sc->adp) &&
+	    (kbd == NULL || kbd == sc->kbd))
+		return (sc);
 	units = devclass_get_maxunit(sc_devclass);
 	for (i = 0; i < units; ++i) {
-	        sc = (sc_softc_t *)device_get_softc(devclass_get_device(sc_devclass, i));
+	        sc = device_get_softc(devclass_get_device(sc_devclass, i));
 		if (sc == NULL)
 			continue;
-		if (((adp == NULL) || (adp == sc->adp))
-		    && ((kbd == NULL) || (kbd == sc->kbd)))
-			return sc;
+		if ((adp == NULL || adp == sc->adp) &&
+		    (kbd == NULL || kbd == sc->kbd))
+			return (sc);
 	}
-	return NULL;
+	return (NULL);
 }
 
 int
 sc_get_cons_priority(int *unit, int *flags)
 {
 	const char *at;
-	int u, f;
+	int f, u;
 
 	*unit = -1;
 	for (u = 0; u < 16; u++) {
@@ -207,7 +212,7 @@ sc_get_cons_priority(int *unit, int *flags)
 		*unit = 0;
 		*flags = 0;
 	}
-	return CN_INTERNAL;
+	return (CN_INTERNAL);
 }
 
 void
@@ -225,12 +230,12 @@ sc_tone(int herz)
 
 	if (herz) {
 		if (timer_spkr_acquire())
-			return EBUSY;
+			return (EBUSY);
 		timer_spkr_setfreq(herz);
-	} else {
+	} else
 		timer_spkr_release();
-	}
-	return 0;
+
+	return (0);
 }
 
 static device_method_t sc_methods[] = {

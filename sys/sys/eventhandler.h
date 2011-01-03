@@ -183,10 +183,6 @@ typedef void (*vm_lowmem_handler_t)(void *, int);
 #define	LOWMEM_PRI_DEFAULT	EVENTHANDLER_PRI_FIRST
 EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 
-/* Low vnodes event */
-typedef void (*vfs_lowvnodes_handler_t)(void *, int);
-EVENTHANDLER_DECLARE(vfs_lowvnodes, vfs_lowvnodes_handler_t);
-
 /* Root mounted event */
 typedef void (*mountroot_handler_t)(void *);
 EVENTHANDLER_DECLARE(mountroot, mountroot_handler_t);

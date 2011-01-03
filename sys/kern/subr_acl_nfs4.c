@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008-2009 Edward Tomasz Napierała <trasz@FreeBSD.org>
+ * Copyright (c) 2008-2010 Edward Tomasz Napierała <trasz@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/acl.h>
 #else
 #include <errno.h>
@@ -49,9 +50,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #define KASSERT(a, b) assert(a)
 #define CTASSERT(a)
-#endif /* _KERNEL */
+
+void		acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode);
+
+#endif /* !_KERNEL */
+
+static int	acl_nfs4_old_semantics = 1;
 
 #ifdef _KERNEL
+
+SYSCTL_INT(_vfs, OID_AUTO, acl_nfs4_old_semantics, CTLFLAG_RW,
+    &acl_nfs4_old_semantics, 1, "Use pre-PSARC/2010/029 NFSv4 ACL semantics");
 
 static struct {
 	accmode_t accmode;
@@ -162,6 +171,7 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	accmode_t priv_granted = 0;
 	int denied, explicitly_denied, access_mask, is_directory,
 	    must_be_owner = 0;
+	mode_t file_mode = 0;
 
 	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND |
 	    VEXPLICIT_DENY | VREAD_NAMED_ATTRS | VWRITE_NAMED_ATTRS |
@@ -216,6 +226,17 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 			denied = EPERM;
 	}
 
+	/*
+	 * For VEXEC, ensure that at least one execute bit is set for
+	 * non-directories. We have to check the mode here to stay
+	 * consistent with execve(2). See the test in
+	 * exec_check_permissions().
+	 */
+	acl_nfs4_sync_mode_from_acl(&file_mode, aclp);
+	if (!denied && !is_directory && (accmode & VEXEC) &&
+	    (file_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0)
+		denied = EACCES;
+
 	if (!denied)
 		return (0);
 
@@ -236,8 +257,14 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 		    PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
-		if ((accmode & VEXEC) && !priv_check_cred(cred,
-		    PRIV_VFS_EXEC, 0))
+		/*
+		 * Ensure that at least one execute bit is on. Otherwise,
+		 * a privileged user will always succeed, and we don't want
+		 * this to happen unless the file really is executable.
+		 */
+		if ((accmode & VEXEC) && (file_mode &
+		    (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
+		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
@@ -331,8 +358,9 @@ _acl_duplicate_entry(struct acl *aclp, int entry_index)
 	return (&(aclp->acl_entry[entry_index + 1]));
 }
 
-void
-acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode, int file_owner_id)
+static void
+acl_nfs4_sync_acl_from_mode_draft(struct acl *aclp, mode_t mode,
+    int file_owner_id)
 {
 	int i, meets, must_append;
 	struct acl_entry *entry, *copy, *previous,
@@ -342,7 +370,6 @@ acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode, int file_owner_id)
 	const int WRITE = 02;
 	const int EXEC = 01;
 
-	KASSERT(aclp->acl_cnt >= 0, ("aclp->acl_cnt >= 0"));
 	KASSERT(aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 
@@ -677,6 +704,17 @@ acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode, int file_owner_id)
 }
 
 void
+acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode,
+    int file_owner_id)
+{
+
+	if (acl_nfs4_old_semantics)
+		acl_nfs4_sync_acl_from_mode_draft(aclp, mode, file_owner_id);
+	else
+		acl_nfs4_trivial_from_mode(aclp, mode);
+}
+
+void
 acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
 {
 	int i;
@@ -799,8 +837,12 @@ acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
 	*_mode = mode | (old_mode & ACL_PRESERVE_MASK);
 }
 
-void		
-acl_nfs4_compute_inherited_acl(const struct acl *parent_aclp,
+/*
+ * Calculate inherited ACL in a manner compatible with NFSv4 Minor Version 1,
+ * draft-ietf-nfsv4-minorversion1-03.txt.
+ */
+static void		
+acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
     struct acl *child_aclp, mode_t mode, int file_owner_id,
     int is_directory)
 {
@@ -959,6 +1001,218 @@ acl_nfs4_compute_inherited_acl(const struct acl *parent_aclp,
 	acl_nfs4_sync_acl_from_mode(child_aclp, mode, file_owner_id);
 }
 
+/*
+ * Populate the ACL with entries inherited from parent_aclp.
+ */
+static void		
+acl_nfs4_inherit_entries(const struct acl *parent_aclp,
+    struct acl *child_aclp, mode_t mode, int file_owner_id,
+    int is_directory)
+{
+	int i, flags, tag;
+	const struct acl_entry *parent_entry;
+	struct acl_entry *entry;
+
+	KASSERT(parent_aclp->acl_cnt > 0, ("parent_aclp->acl_cnt > 0"));
+	KASSERT(parent_aclp->acl_cnt <= ACL_MAX_ENTRIES,
+	    ("parent_aclp->acl_cnt <= ACL_MAX_ENTRIES"));
+
+	for (i = 0; i < parent_aclp->acl_cnt; i++) {
+		parent_entry = &(parent_aclp->acl_entry[i]);
+		flags = parent_entry->ae_flags;
+		tag = parent_entry->ae_tag;
+
+		/*
+		 * Don't inherit owner@, group@, or everyone@ entries.
+		 */
+		if (tag == ACL_USER_OBJ || tag == ACL_GROUP_OBJ ||
+		    tag == ACL_EVERYONE)
+			continue;
+
+		/*
+		 * Entry is not inheritable at all.
+		 */
+		if ((flags & (ACL_ENTRY_DIRECTORY_INHERIT |
+		    ACL_ENTRY_FILE_INHERIT)) == 0)
+			continue;
+
+		/*
+		 * We're creating a file, but entry is not inheritable
+		 * by files.
+		 */
+		if (!is_directory && (flags & ACL_ENTRY_FILE_INHERIT) == 0)
+			continue;
+
+		/*
+		 * Entry is inheritable only by files, but has NO_PROPAGATE
+		 * flag set, and we're creating a directory, so it wouldn't
+		 * propagate to any file in that directory anyway.
+		 */
+		if (is_directory &&
+		    (flags & ACL_ENTRY_DIRECTORY_INHERIT) == 0 &&
+		    (flags & ACL_ENTRY_NO_PROPAGATE_INHERIT))
+			continue;
+
+		/*
+		 * Entry qualifies for being inherited.
+		 */
+		KASSERT(child_aclp->acl_cnt + 1 <= ACL_MAX_ENTRIES,
+		    ("child_aclp->acl_cnt + 1 <= ACL_MAX_ENTRIES"));
+		entry = &(child_aclp->acl_entry[child_aclp->acl_cnt]);
+		*entry = *parent_entry;
+		child_aclp->acl_cnt++;
+
+		entry->ae_flags &= ~ACL_ENTRY_INHERIT_ONLY;
+
+		/*
+		 * If the type of the ACE is neither ALLOW nor DENY,
+		 * then leave it as it is and proceed to the next one.
+		 */
+		if (entry->ae_entry_type != ACL_ENTRY_TYPE_ALLOW &&
+		    entry->ae_entry_type != ACL_ENTRY_TYPE_DENY)
+			continue;
+
+		/*
+		 * If the ACL_ENTRY_NO_PROPAGATE_INHERIT is set, or if
+		 * the object being created is not a directory, then clear
+		 * the following flags: ACL_ENTRY_NO_PROPAGATE_INHERIT,
+		 * ACL_ENTRY_FILE_INHERIT, ACL_ENTRY_DIRECTORY_INHERIT,
+		 * ACL_ENTRY_INHERIT_ONLY.
+		 */
+		if (entry->ae_flags & ACL_ENTRY_NO_PROPAGATE_INHERIT ||
+		    !is_directory) {
+			entry->ae_flags &= ~(ACL_ENTRY_NO_PROPAGATE_INHERIT |
+			ACL_ENTRY_FILE_INHERIT | ACL_ENTRY_DIRECTORY_INHERIT |
+			ACL_ENTRY_INHERIT_ONLY);
+		}
+
+		/*
+		 * If the object is a directory and ACL_ENTRY_FILE_INHERIT
+		 * is set, but ACL_ENTRY_DIRECTORY_INHERIT is not set, ensure
+		 * that ACL_ENTRY_INHERIT_ONLY is set.
+		 */
+		if (is_directory &&
+		    (entry->ae_flags & ACL_ENTRY_FILE_INHERIT) &&
+		    ((entry->ae_flags & ACL_ENTRY_DIRECTORY_INHERIT) == 0)) {
+			entry->ae_flags |= ACL_ENTRY_INHERIT_ONLY;
+		}
+
+		if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW &&
+		    (entry->ae_flags & ACL_ENTRY_INHERIT_ONLY) == 0) {
+			/*
+			 * Some permissions must never be inherited.
+			 */
+			entry->ae_perm &= ~(ACL_WRITE_ACL | ACL_WRITE_OWNER |
+			    ACL_WRITE_NAMED_ATTRS | ACL_WRITE_ATTRIBUTES);
+
+			/*
+			 * Others must be masked according to the file mode.
+			 */
+			if ((mode & S_IRGRP) == 0)
+				entry->ae_perm &= ~ACL_READ_DATA;
+			if ((mode & S_IWGRP) == 0)
+				entry->ae_perm &=
+				    ~(ACL_WRITE_DATA | ACL_APPEND_DATA);
+			if ((mode & S_IXGRP) == 0)
+				entry->ae_perm &= ~ACL_EXECUTE;
+		}
+	}
+}
+
+/*
+ * Calculate inherited ACL in a manner compatible with PSARC/2010/029.
+ * It's also being used to calculate a trivial ACL, by inheriting from
+ * a NULL ACL.
+ */
+static void		
+acl_nfs4_compute_inherited_acl_psarc(const struct acl *parent_aclp,
+    struct acl *aclp, mode_t mode, int file_owner_id, int is_directory)
+{
+	acl_perm_t user_allow_first = 0, user_deny = 0, group_deny = 0;
+	acl_perm_t user_allow, group_allow, everyone_allow;
+
+	KASSERT(aclp->acl_cnt == 0, ("aclp->acl_cnt == 0"));
+
+	user_allow = group_allow = everyone_allow = ACL_READ_ACL |
+	    ACL_READ_ATTRIBUTES | ACL_READ_NAMED_ATTRS | ACL_SYNCHRONIZE;
+	user_allow |= ACL_WRITE_ACL | ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
+	    ACL_WRITE_NAMED_ATTRS;
+
+	if (mode & S_IRUSR)
+		user_allow |= ACL_READ_DATA;
+	if (mode & S_IWUSR)
+		user_allow |= (ACL_WRITE_DATA | ACL_APPEND_DATA);
+	if (mode & S_IXUSR)
+		user_allow |= ACL_EXECUTE;
+
+	if (mode & S_IRGRP)
+		group_allow |= ACL_READ_DATA;
+	if (mode & S_IWGRP)
+		group_allow |= (ACL_WRITE_DATA | ACL_APPEND_DATA);
+	if (mode & S_IXGRP)
+		group_allow |= ACL_EXECUTE;
+
+	if (mode & S_IROTH)
+		everyone_allow |= ACL_READ_DATA;
+	if (mode & S_IWOTH)
+		everyone_allow |= (ACL_WRITE_DATA | ACL_APPEND_DATA);
+	if (mode & S_IXOTH)
+		everyone_allow |= ACL_EXECUTE;
+
+	user_deny = ((group_allow | everyone_allow) & ~user_allow);
+	group_deny = everyone_allow & ~group_allow;
+	user_allow_first = group_deny & ~user_deny;
+
+	if (user_allow_first != 0)
+		_acl_append(aclp, ACL_USER_OBJ, user_allow_first,
+		    ACL_ENTRY_TYPE_ALLOW);
+	if (user_deny != 0)
+		_acl_append(aclp, ACL_USER_OBJ, user_deny,
+		    ACL_ENTRY_TYPE_DENY);
+	if (group_deny != 0)
+		_acl_append(aclp, ACL_GROUP_OBJ, group_deny,
+		    ACL_ENTRY_TYPE_DENY);
+
+	if (parent_aclp != NULL)
+		acl_nfs4_inherit_entries(parent_aclp, aclp, mode,
+		    file_owner_id, is_directory);
+
+	_acl_append(aclp, ACL_USER_OBJ, user_allow, ACL_ENTRY_TYPE_ALLOW);
+	_acl_append(aclp, ACL_GROUP_OBJ, group_allow, ACL_ENTRY_TYPE_ALLOW);
+	_acl_append(aclp, ACL_EVERYONE, everyone_allow, ACL_ENTRY_TYPE_ALLOW);
+}
+
+void		
+acl_nfs4_compute_inherited_acl(const struct acl *parent_aclp,
+    struct acl *child_aclp, mode_t mode, int file_owner_id,
+    int is_directory)
+{
+
+	if (acl_nfs4_old_semantics)
+		acl_nfs4_compute_inherited_acl_draft(parent_aclp, child_aclp,
+		    mode, file_owner_id, is_directory);
+	else
+		acl_nfs4_compute_inherited_acl_psarc(parent_aclp, child_aclp,
+		    mode, file_owner_id, is_directory);
+}
+
+/*
+ * Calculate trivial ACL in a manner compatible with PSARC/2010/029.
+ * Note that this results in an ACL different from (but semantically
+ * equal to) the "canonical six" trivial ACL computed using algorithm
+ * described in draft-ietf-nfsv4-minorversion1-03.txt, 3.16.6.2.
+ *
+ * This routine is not static only because the code is being used in libc.
+ * Kernel code should call acl_nfs4_sync_acl_from_mode() instead.
+ */
+void
+acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode)
+{
+
+	aclp->acl_cnt = 0;
+	acl_nfs4_compute_inherited_acl_psarc(NULL, aclp, mode, -1, -1);
+}
+
 #ifdef _KERNEL
 static int
 _acls_are_equal(const struct acl *a, const struct acl *b)
@@ -995,7 +1249,7 @@ acl_nfs4_is_trivial(const struct acl *aclp, int file_owner_id)
 	mode_t tmpmode = 0;
 	struct acl *tmpaclp;
 
-	if (aclp->acl_cnt != 6)
+	if (aclp->acl_cnt > 6)
 		return (0);
 
 	/*
@@ -1006,10 +1260,23 @@ acl_nfs4_is_trivial(const struct acl *aclp, int file_owner_id)
 	 *      this slow implementation significantly speeds things up
 	 *      for files that don't have non-trivial ACLs - it's critical
 	 *      for performance to not use EA when they are not needed.
+	 *
+	 * First try the PSARC/2010/029 semantics.
 	 */
 	tmpaclp = acl_alloc(M_WAITOK | M_ZERO);
 	acl_nfs4_sync_mode_from_acl(&tmpmode, aclp);
-	acl_nfs4_sync_acl_from_mode(tmpaclp, tmpmode, file_owner_id);
+	acl_nfs4_trivial_from_mode(tmpaclp, tmpmode);
+	trivial = _acls_are_equal(aclp, tmpaclp);
+	if (trivial) {
+		acl_free(tmpaclp);
+		return (trivial);
+	}
+
+	/*
+	 * Check if it's a draft-ietf-nfsv4-minorversion1-03.txt trivial ACL.
+	 */
+	tmpaclp->acl_cnt = 0;
+	acl_nfs4_sync_acl_from_mode_draft(tmpaclp, tmpmode, file_owner_id);
 	trivial = _acls_are_equal(aclp, tmpaclp);
 	acl_free(tmpaclp);
 

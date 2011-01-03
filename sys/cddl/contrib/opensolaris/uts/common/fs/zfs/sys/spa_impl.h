@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -87,7 +87,9 @@ typedef enum spa_log_state {
 
 enum zio_taskq_type {
 	ZIO_TASKQ_ISSUE = 0,
+	ZIO_TASKQ_ISSUE_HIGH,
 	ZIO_TASKQ_INTERRUPT,
+	ZIO_TASKQ_INTERRUPT_HIGH,
 	ZIO_TASKQ_TYPES
 };
 
@@ -101,11 +103,11 @@ struct spa {
 	nvlist_t	*spa_config_syncing;	/* currently syncing config */
 	uint64_t	spa_config_txg;		/* txg of last config change */
 	int		spa_sync_pass;		/* iterate-to-convergence */
-	int		spa_state;		/* pool state */
+	pool_state_t	spa_state;		/* pool state */
 	int		spa_inject_ref;		/* injection references */
-	uint8_t		spa_traverse_wanted;	/* traverse lock wanted */
 	uint8_t		spa_sync_on;		/* sync threads are running */
 	spa_load_state_t spa_load_state;	/* current load operation */
+	boolean_t	spa_load_verbatim;	/* load the given config? */
 	taskq_t		*spa_zio_taskq[ZIO_TYPES][ZIO_TASKQ_TYPES];
 	dsl_pool_t	*spa_dsl_pool;
 	metaslab_class_t *spa_normal_class;	/* normal data class */
@@ -125,7 +127,6 @@ struct spa {
 	uint64_t	spa_syncing_txg;	/* txg currently syncing */
 	uint64_t	spa_sync_bplist_obj;	/* object for deferred frees */
 	bplist_t	spa_sync_bplist;	/* deferred-free bplist */
-	krwlock_t	spa_traverse_lock;	/* traverse vs. spa_sync() */
 	uberblock_t	spa_ubsync;		/* last synced uberblock */
 	uberblock_t	spa_uberblock;		/* current uberblock */
 	kmutex_t	spa_scrub_lock;		/* resilver/scrub lock */
@@ -143,9 +144,6 @@ struct spa {
 	int		spa_async_suspended;	/* async tasks suspended */
 	kcondvar_t	spa_async_cv;		/* wait for thread_exit() */
 	uint16_t	spa_async_tasks;	/* async task mask */
-	kmutex_t	spa_async_root_lock;	/* protects async root count */
-	uint64_t	spa_async_root_count;	/* number of async root zios */
-	kcondvar_t	spa_async_root_cv;	/* notify when count == 0 */
 	char		*spa_root;		/* alternate root directory */
 	uint64_t	spa_ena;		/* spa-wide ereport ENA */
 	boolean_t	spa_last_open_failed;	/* true if last open faled */
@@ -165,13 +163,14 @@ struct spa {
 	uint64_t	spa_failmode;		/* failure mode for the pool */
 	uint64_t	spa_delegation;		/* delegation on/off */
 	list_t		spa_config_list;	/* previous cache file(s) */
+	zio_t		*spa_async_zio_root;	/* root of all async I/O */
 	zio_t		*spa_suspend_zio_root;	/* root of all suspended I/O */
 	kmutex_t	spa_suspend_lock;	/* protects suspend_zio_root */
 	kcondvar_t	spa_suspend_cv;		/* notification of resume */
 	uint8_t		spa_suspended;		/* pool is suspended */
-	boolean_t	spa_import_faulted;	/* allow faulted vdevs */
 	boolean_t	spa_is_root;		/* pool is root */
 	int		spa_minref;		/* num refs when first opened */
+	int		spa_mode;		/* FREAD | FWRITE */
 	spa_log_state_t spa_log_state;		/* log state */
 	/*
 	 * spa_refcnt & spa_config_lock must be the last elements

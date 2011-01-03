@@ -75,20 +75,6 @@ static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
  *        inode for the file.
  *   2) quadradically rehash into other cylinder groups, until an
  *        available block is located.
- *
- * A preference may be optionally specified. If a preference is given
- * the following hierarchy is used to allocate a block:
- *   1) allocate the requested block.
- *   2) allocate a rotationally optimal block in the same cylinder.
- *   3) allocate a block in the same cylinder group.
- *   4) quadradically rehash into other cylinder groups, until an
- *        available block is located.
- * If no block preference is given the following hierarchy is used
- * to allocate a block:
- *   1) allocate a block in the cylinder group that contains the
- *        inode for the file.
- *   2) quadradically rehash into other cylinder groups, until an
- *        available block is located.
  */
 
 int

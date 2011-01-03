@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* YIPS @(#)$Id: isakmp.h,v 1.11 2007-08-29 02:38:14 mcr Exp $ */
+/* YIPS @(#)$Id: isakmp.h,v 1.12 2007-11-24 18:13:33 mcr Exp $ */
 
 /* refer to RFC 2408 */
 
@@ -127,6 +127,7 @@ struct isakmp {
 #define ISAKMP_NPTYPE_N     11 /* Notification */
 #define ISAKMP_NPTYPE_D     12 /* Delete */
 #define ISAKMP_NPTYPE_VID   13 /* Vendor ID */
+#define ISAKMP_NPTYPE_v2E   46 /* v2 Encrypted payload */
 
 #define IKEv1_MAJOR_VERSION  1
 #define IKEv1_MINOR_VERSION  0
@@ -422,14 +423,31 @@ struct ikev2_ke {
 };
 
 
+/* 3.5.  Identification Payloads */
+enum ikev2_id_type {
+	ID_IPV4_ADDR=1,
+	ID_FQDN=2,
+	ID_RFC822_ADDR=3,
+	ID_IPV6_ADDR=5,
+	ID_DER_ASN1_DN=9,
+	ID_DER_ASN1_GN=10,
+	ID_KEY_ID=11,
+};
+struct ikev2_id {
+	struct isakmp_gen h;
+	u_int8_t  type;        /* ID type */
+	u_int8_t  res1;
+	u_int16_t res2;
+	/* SPI */
+	/* Notification Data */
+};
+
 /* 3.10 Notification Payload */
 struct ikev2_n {
 	struct isakmp_gen h;
 	u_int8_t  prot_id;  /* Protocol-ID */
 	u_int8_t  spi_size; /* SPI Size */
 	u_int16_t type;     /* Notify Message Type */
-	/* SPI */
-	/* Notification Data */
 };
 
 enum ikev2_n_type {

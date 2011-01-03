@@ -47,8 +47,13 @@ __FBSDID("$FreeBSD$");
 
 static int	atkbdc_isa_probe(device_t dev);
 static int	atkbdc_isa_attach(device_t dev);
-static device_t	atkbdc_isa_add_child(device_t bus, int order, const char *name,
+static device_t	atkbdc_isa_add_child(device_t bus, u_int order, const char *name,
 		    int unit);
+static struct resource *atkbdc_isa_alloc_resource(device_t dev, device_t child,
+		    int type, int *rid, u_long start, u_long end,
+		    u_long count, u_int flags);
+static int	atkbdc_isa_release_resource(device_t dev, device_t child,
+		    int type, int rid, struct resource *r);
 
 static device_method_t atkbdc_isa_methods[] = {
 	DEVMETHOD(device_probe,		atkbdc_isa_probe),
@@ -61,8 +66,8 @@ static device_method_t atkbdc_isa_methods[] = {
 	DEVMETHOD(bus_read_ivar,	atkbdc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	atkbdc_write_ivar),
 	DEVMETHOD(bus_get_resource_list,atkbdc_get_resource_list),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_alloc_resource,	atkbdc_isa_alloc_resource),
+	DEVMETHOD(bus_release_resource,	atkbdc_isa_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
@@ -170,8 +175,6 @@ atkbdc_isa_probe(device_t dev)
 	device_verbose(dev);
 
 	error = atkbdc_probe_unit(device_get_unit(dev), port0, port1);
-	if (error == 0)
-		bus_generic_probe(dev);
 
 	bus_release_resource(dev, SYS_RES_IOPORT, 0, port0);
 	bus_release_resource(dev, SYS_RES_IOPORT, 1, port1);
@@ -216,26 +219,39 @@ atkbdc_isa_attach(device_t dev)
 		return ENXIO;
 	}
 
+	/*
+	 * If the device is not created by the PnP BIOS or ACPI, then
+	 * the hint for the IRQ is on the child atkbd device, not the
+	 * keyboard controller, so this can fail.
+	 */
+	rid = 0;
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
+
 	error = atkbdc_attach_unit(unit, sc, sc->port0, sc->port1);
 	if (error) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->port0);
 		bus_release_resource(dev, SYS_RES_IOPORT, 1, sc->port1);
+		if (sc->irq != NULL)
+			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 		return error;
 	}
 	*(atkbdc_softc_t **)device_get_softc(dev) = sc;
 
+	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
 	return 0;
 }
 
 static device_t
-atkbdc_isa_add_child(device_t bus, int order, const char *name, int unit)
+atkbdc_isa_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	atkbdc_device_t	*ivar;
+	atkbdc_softc_t	*sc;
 	device_t	child;
 	int		t;
 
+	sc = *(atkbdc_softc_t **)device_get_softc(bus);
 	ivar = malloc(sizeof(struct atkbdc_device), M_ATKBDDEV,
 		M_NOWAIT | M_ZERO);
 	if (!ivar)
@@ -251,18 +267,21 @@ atkbdc_isa_add_child(device_t bus, int order, const char *name, int unit)
 	ivar->rid = order;
 
 	/*
-	 * If the device is not created by the PnP BIOS or ACPI,
-	 * refer to device hints for IRQ.
+	 * If the device is not created by the PnP BIOS or ACPI, refer
+	 * to device hints for IRQ.  We always populate the resource
+	 * list entry so we can use a standard bus_get_resource()
+	 * method.
 	 */
-	if (ISA_PNP_PROBE(device_get_parent(bus), bus, atkbdc_ids) != 0) {
-		if (resource_int_value(name, unit, "irq", &t) != 0)
-			t = -1;
-	} else {
-		t = bus_get_resource_start(bus, SYS_RES_IRQ, ivar->rid);
+	if (order == KBDC_RID_KBD) {
+		if (sc->irq == NULL) {
+			if (resource_int_value(name, unit, "irq", &t) != 0)
+				t = -1;
+		} else
+			t = rman_get_start(sc->irq);
+		if (t > 0)
+			resource_list_add(&ivar->resources, SYS_RES_IRQ,
+			    ivar->rid, t, t, 1);
 	}
-	if (t > 0)
-		resource_list_add(&ivar->resources, SYS_RES_IRQ, ivar->rid,
-				  t, t, 1);
 
 	if (resource_disabled(name, unit))
 		device_disable(child);
@@ -270,6 +289,31 @@ atkbdc_isa_add_child(device_t bus, int order, const char *name, int unit)
 	device_set_ivars(child, ivar);
 
 	return child;
+}
+
+struct resource *
+atkbdc_isa_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	atkbdc_softc_t	*sc;
+	
+	sc = *(atkbdc_softc_t **)device_get_softc(dev);
+	if (type == SYS_RES_IRQ && *rid == KBDC_RID_KBD && sc->irq != NULL)
+		return (sc->irq);
+	return (bus_generic_rl_alloc_resource(dev, child, type, rid, start,
+	    end, count, flags));
+}
+
+static int
+atkbdc_isa_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	atkbdc_softc_t	*sc;
+	
+	sc = *(atkbdc_softc_t **)device_get_softc(dev);
+	if (type == SYS_RES_IRQ && rid == KBDC_RID_KBD && r == sc->irq)
+		return (0);
+	return (bus_generic_rl_release_resource(dev, child, type, rid, r));
 }
 
 DRIVER_MODULE(atkbdc, isa, atkbdc_isa_driver, atkbdc_devclass, 0, 0);

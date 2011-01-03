@@ -63,14 +63,14 @@ struct task {
 .Fn taskqueue_enqueue "struct taskqueue *queue" "struct task *task"
 .Ft int
 .Fn taskqueue_enqueue_fast "struct taskqueue *queue" "struct task *task"
-.Ft void
-.Fn taskqueue_run "struct taskqueue *queue"
-.Ft void
-.Fn taskqueue_run_fast "struct taskqueue *queue"
+.Ft int
+.Fn taskqueue_cancel "struct taskqueue *queue" "struct task *task" "u_int *pendp"
 .Ft void
 .Fn taskqueue_drain "struct taskqueue *queue" "struct task *task"
 .Ft int
 .Fn taskqueue_member "struct taskqueue *queue" "struct thread *td"
+.Ft void
+.Fn taskqueue_run "struct taskqueue *queue"
 .Fn TASK_INIT "struct task *task" "int priority" "task_fn_t *func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
 .Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
@@ -143,12 +143,6 @@ when the enqueuing must happen from a fast interrupt handler.
 This method uses spin locks to avoid the possibility of sleeping in the fast
 interrupt context.
 .Pp
-To execute all the tasks on a queue,
-call
-.Fn taskqueue_run
-or
-.Fn taskqueue_run_fast
-depending on the flavour of the queue.
 When a task is executed,
 first it is removed from the queue,
 the value of
@@ -170,6 +164,31 @@ is called on the task pointer passed to
 .Fn taskqueue_enqueue .
 .Pp
 The
+.Fn taskqueue_cancel
+function is used to cancel a task.
+The
+.Va ta_pending
+count is cleared, and the old value returned in the reference
+parameter
+.Fa pendp ,
+if it is non- Dv NULL .
+If the task is currently running,
+.Dv EBUSY
+is returned, otherwise 0.
+To implement a blocking
+.Fn taskqueue_cancel
+that waits for a running task to finish, it could look like:
+.Bd -literal -offset indent
+while (taskqueue_cancel(tq, task, NULL) != 0)
+	taskqueue_drain(tq, task);
+.Ed
+.Pp
+Note that, as with
+.Fn taskqueue_drain ,
+the caller is responsible for ensuring that the task is not re-enqueued
+after being canceled.
+.Pp
+The
 .Fn taskqueue_drain
 function is used to wait for the task to finish.
 There is no guarantee that the task will not be
@@ -182,11 +201,17 @@ function returns
 .No 1
 if the given thread
 .Fa td
-is part of the given taskqeueue
+is part of the given taskqueue
 .Fa queue
 and
 .No 0
 otherwise.
+.Pp
+The
+.Fn taskqueue_run
+function will run all pending tasks in the specified
+.Fa queue .
+Normally this function is only used internally.
 .Pp
 A convenience macro,
 .Fn TASK_INIT "task" "priority" "func" "context"

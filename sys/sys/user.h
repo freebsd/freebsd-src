@@ -85,7 +85,7 @@
  */
 #define	KI_NSPARE_INT	9
 #define	KI_NSPARE_LONG	12
-#define	KI_NSPARE_PTR	7
+#define	KI_NSPARE_PTR	6
 
 #ifndef _KERNEL
 #ifndef KINFO_PROC_SIZE
@@ -188,6 +188,7 @@ struct kinfo_proc {
 	struct	pcb *ki_pcb;		/* kernel virtual addr of pcb */
 	void	*ki_kstack;		/* kernel virtual addr of stack */
 	void	*ki_udata;		/* User convenience pointer */
+	struct	thread *ki_tdaddr;	/* address of thread */
 	/*
 	 * When adding new variables, take space for pointers from the
 	 * front of ki_spareptrs, and longs from the end of ki_sparelongs.
@@ -336,6 +337,7 @@ struct kinfo_file {
 
 #define	KVME_FLAG_COW		0x00000001
 #define	KVME_FLAG_NEEDS_COPY	0x00000002
+#define	KVME_FLAG_NOCOREDUMP	0x00000004
 
 #if defined(__amd64__)
 #define	KINFO_OVMENTRY_SIZE	1168

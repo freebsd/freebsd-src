@@ -513,10 +513,10 @@ AcpiExReleaseMutex (
         (ObjDesc != AcpiGbl_GlobalLockMutex))
     {
         ACPI_ERROR ((AE_INFO,
-            "Thread %p cannot release Mutex [%4.4s] acquired by thread %p",
-            ACPI_CAST_PTR (void, WalkState->Thread->ThreadId),
+            "Thread %u cannot release Mutex [%4.4s] acquired by thread %u",
+            (UINT32) WalkState->Thread->ThreadId,
             AcpiUtGetNodeName (ObjDesc->Mutex.Node),
-            ACPI_CAST_PTR (void, OwnerThread->ThreadId)));
+            (UINT32) OwnerThread->ThreadId));
         return_ACPI_STATUS (AE_AML_NOT_OWNER);
     }
 

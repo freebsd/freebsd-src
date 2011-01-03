@@ -97,6 +97,7 @@ static uint8_t scsi_cmotech_eject[] =   { 0xff, 0x52, 0x44, 0x45, 0x56, 0x43,
 static uint8_t scsi_huawei_eject[] =	{ 0x11, 0x06, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00 };
+static uint8_t scsi_tct_eject[] =	{ 0x06, 0xf5, 0x04, 0x02, 0x52, 0x70 };
 
 #define	BULK_SIZE		64	/* dummy */
 #define	ERR_CSW_FAILED		-1
@@ -467,7 +468,6 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	sc->data_rem = data_len;
 	sc->data_timeout = (data_timeout + USB_MS_HZ);
 	sc->actlen = 0;
-	sc->data_ptr = data_ptr;
 	sc->cmd_len = cmd_len;
 	bzero(&sc->cbw.CBWCDB, sizeof(sc->cbw.CBWCDB));
 	bcopy(cmd_ptr, &sc->cbw.CBWCDB, cmd_len);
@@ -618,6 +618,15 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
 		    &scsi_huawei_eject, sizeof(scsi_huawei_eject),
 		    USB_MS_HZ);
+		break;
+	case MSC_EJECT_TCT:
+		/*
+		 * TCTMobile needs DIR_IN flag. To get it, we
+		 * supply a dummy data with the command.
+		 */
+		err = bbb_command_start(sc, DIR_IN, 0, &sc->buffer,
+		    sizeof(sc->buffer), &scsi_tct_eject,
+		    sizeof(scsi_tct_eject), USB_MS_HZ);
 		break;
 	default:
 		printf("usb_msc_eject: unknown eject method (%d)\n", method);

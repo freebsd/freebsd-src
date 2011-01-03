@@ -36,8 +36,8 @@
 .Sh DESCRIPTION
 The
 .Lb libelf
-library provides functions that allow an application to read and
-manipulate ELF object files, and to read
+provides functions that allow an application to read and manipulate
+ELF object files, and to read
 .Xr ar 1
 archives.
 The library allows the manipulation of ELF objects in a byte ordering
@@ -111,11 +111,13 @@ constraints.
 Accordingly, the
 .Xr ELF 3
 library offers translation facilities
-.Xr ( elf32_xlatetof 3 ,
+.Po
+.Xr elf32_xlatetof 3 ,
 .Xr elf32_xlatetom 3 ,
 .Xr elf64_xlatetof 3
 and
-.Xr elf64_xlatetom 3 )
+.Xr elf64_xlatetom 3
+.Pc
 to and from these
 representations and also provides higher-level APIs that retrieve and store
 data from the ELF object in a transparent manner.
@@ -461,7 +463,7 @@ Close an ELF descriptor and release all its resources.
 .It Fn elf_memory
 Opens an
 .Xr ar 1
-archive or ELF object present in a memory arena.
+archive or ELF object present in a memory area.
 .It Fn elf_version
 Sets the operating version.
 .El
@@ -561,7 +563,7 @@ descriptor and can set the
 member of the descriptor to point to a region of memory allocated
 using
 .Xr malloc 3 .
-It is the applications responsibility to free this arena, though the
+It is the applications responsibility to free this area, though the
 library will reclaim the space used by the
 .Vt Elf_Data
 descriptor itself.

@@ -4,8 +4,8 @@
 PROG=	sh
 INSTALLFLAGS= -S
 SHSRCS=	alias.c arith.y arith_lex.l cd.c echo.c error.c eval.c exec.c expand.c \
-	histedit.c input.c jobs.c mail.c main.c memalloc.c miscbltin.c \
-	mystring.c options.c output.c parser.c redir.c show.c \
+	histedit.c input.c jobs.c kill.c mail.c main.c memalloc.c miscbltin.c \
+	mystring.c options.c output.c parser.c printf.c redir.c show.c \
 	test.c trap.c var.c
 GENSRCS= builtins.c init.c nodes.c syntax.c
 GENHDRS= builtins.h nodes.h syntax.h token.h
@@ -21,12 +21,14 @@ LDADD= -ll -ledit -ltermcap
 LFLAGS= -8	# 8-bit lex scanner for arithmetic
 CFLAGS+=-DSHELL -I. -I${.CURDIR}
 # for debug:
-# CFLAGS+= -g -DDEBUG=2
+# DEBUG_FLAGS+= -g -DDEBUG=2 -fno-inline
 WARNS?=	2
 WFORMAT=0
 
 .PATH:	${.CURDIR}/bltin \
-	${.CURDIR}/../../bin/test
+	${.CURDIR}/../kill \
+	${.CURDIR}/../test \
+	${.CURDIR}/../../usr.bin/printf
 
 CLEANFILES+= mkinit mkinit.o mknodes mknodes.o \
 	mksyntax mksyntax.o
@@ -61,5 +63,8 @@ syntax.c syntax.h: mksyntax
 
 token.h: mktokens
 	sh ${.CURDIR}/mktokens
+
+regress:
+	cd ${.CURDIR}/../../tools/regression/bin/sh && ${MAKE} SH=${.OBJDIR}/sh
 
 .include <bsd.prog.mk>

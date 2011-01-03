@@ -119,6 +119,7 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -167,7 +168,7 @@ AslDoResponseFile (
 
 
 #define ASL_TOKEN_SEPARATORS    " \t\n"
-#define ASL_SUPPORTED_OPTIONS   "@:2b:c:d^e:fgh^i^I:l^no:p:r:s:t:v:w:x:"
+#define ASL_SUPPORTED_OPTIONS   "@:2b:c:d^e:fgh^i^I:l^no:p:r:s:t:T:v:w:x:z"
 
 
 /*******************************************************************************
@@ -213,13 +214,18 @@ Options (
     printf ("  -cr            Disable Resource Descriptor error checking\n");
     printf ("  -r<Revision>   Override table header Revision (1-255)\n");
 
-    printf ("\nListings:\n");
+    printf ("\nASL Listing Files:\n");
     printf ("  -l             Create mixed listing file (ASL source and AML) (*.lst)\n");
     printf ("  -ln            Create namespace file (*.nsp)\n");
     printf ("  -ls            Create combined source file (expanded includes) (*.src)\n");
 
+    printf ("\nACPI Data Tables:\n");
+    printf ("  -T <Sig>       Create table template file for <Sig> (or \"ALL\")\n");
+    printf ("  -vt            Create verbose templates (full disassembly)\n");
+
     printf ("\nAML Disassembler:\n");
     printf ("  -d  [file]     Disassemble or decode binary ACPI table to file (*.dsl)\n");
+    printf ("  -da [f1,f2]    Disassemble multiple tables from single namespace\n");
     printf ("  -dc [file]     Disassemble AML and immediately compile it\n");
     printf ("                 (Obtain DSDT from current system if no input file)\n");
     printf ("  -e  [f1,f2]    Include ACPI table(s) for external symbol resolution\n");
@@ -230,6 +236,7 @@ Options (
     printf ("  -h             Additional help and compiler debug options\n");
     printf ("  -hc            Display operators allowed in constant expressions\n");
     printf ("  -hr            Display ACPI reserved method names\n");
+    printf ("  -ht            Display currently supported ACPI table names\n");
 }
 
 
@@ -268,6 +275,7 @@ HelpMessage (
     printf ("  -n             Parse only, no output generation\n");
     printf ("  -ot            Display compile times\n");
     printf ("  -x<level>      Set debug level for trace output\n");
+    printf ("  -z             Do not insert new compiler ID for DataTables\n");
 }
 
 
@@ -288,7 +296,8 @@ Usage (
     void)
 {
 
-    printf ("Usage:    %s [Options] [Files]\n\n", CompilerName);
+    printf ("%s\n", ASL_COMPLIANCE);
+    printf ("Usage:    %s [Options] [Files]\n\n", ASL_INVOCATION_NAME);
     Options ();
 }
 
@@ -454,6 +463,7 @@ AslDoOptions (
     BOOLEAN                 IsResponseFile)
 {
     int                     j;
+    ACPI_STATUS             Status;
 
 
     /* Get the command line options */
@@ -528,6 +538,11 @@ AslDoOptions (
             Gbl_DoCompile = FALSE;
             break;
 
+        case 'a':
+            Gbl_DoCompile = FALSE;
+            Gbl_DisassembleAll = TRUE;
+            break;
+
         case 'c':
             break;
 
@@ -541,7 +556,12 @@ AslDoOptions (
 
 
     case 'e':
-        Gbl_ExternalFilename = AcpiGbl_Optarg;
+        Status = AcpiDmAddToExternalFileList (AcpiGbl_Optarg);
+        if (ACPI_FAILURE (Status))
+        {
+            printf ("Could not add %s to external list\n", AcpiGbl_Optarg);
+            return (-1);
+        }
         break;
 
 
@@ -580,11 +600,14 @@ AslDoOptions (
             ApDisplayReservedNames ();
             exit (0);
 
+        case 't':
+            UtDisplaySupportedTables ();
+            exit (0);
+
         default:
             printf ("Unknown option: -h%s\n", AcpiGbl_Optarg);
             return (-1);
         }
-        break;
 
 
     case 'I': /* Add an include file search directory */
@@ -767,6 +790,12 @@ AslDoOptions (
         break;
 
 
+    case 'T':
+        Gbl_DoTemplates = TRUE;
+        Gbl_TemplateSignature = AcpiGbl_Optarg;
+        break;
+
+
     case 'v':
 
         switch (AcpiGbl_Optarg[0])
@@ -793,6 +822,10 @@ AslDoOptions (
 
         case 's':
             Gbl_DoSignon = FALSE;
+            break;
+
+        case 't':
+            Gbl_VerboseTemplates = TRUE;
             break;
 
         default:
@@ -831,6 +864,12 @@ AslDoOptions (
         break;
 
 
+    case 'z':
+
+        Gbl_UseOriginalCompilerId = TRUE;
+        break;
+
+
     default:
 
         return (-1);
@@ -858,13 +897,14 @@ AslCommandLine (
     char                    **argv)
 {
     int                     BadCommandLine = 0;
+    ACPI_STATUS             Status;
 
 
     /* Minimum command line contains at least the command and an input file */
 
     if (argc < 2)
     {
-        AslCompilerSignon (ASL_FILE_STDOUT);
+        printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
         Usage ();
         exit (1);
     }
@@ -872,6 +912,16 @@ AslCommandLine (
     /* Process all command line options */
 
     BadCommandLine = AslDoOptions (argc, argv, FALSE);
+
+    if (Gbl_DoTemplates)
+    {
+        Status = DtCreateTemplates (Gbl_TemplateSignature);
+        if (ACPI_FAILURE (Status))
+        {
+            exit (-1);
+        }
+        exit (1);
+    }
 
     /* Next parameter must be the input filename */
 
@@ -885,7 +935,7 @@ AslCommandLine (
 
     if (Gbl_DoSignon)
     {
-        AslCompilerSignon (ASL_FILE_STDOUT);
+        printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
     }
 
     /* Abort if anything went wrong on the command line */
@@ -920,8 +970,11 @@ main (
     char                    **argv)
 {
     ACPI_STATUS             Status;
-    int                     Index;
+    int                     Index1;
+    int                     Index2;
 
+
+    AcpiGbl_ExternalFileList = NULL;
 
 #ifdef _DEBUG
     _CrtSetDbgFlag (_CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF |
@@ -931,7 +984,7 @@ main (
     /* Init and command line */
 
     AslInitialize ();
-    Index = AslCommandLine (argc, argv);
+    Index1 = Index2 = AslCommandLine (argc, argv);
 
     /* Options that have no additional parameters or pathnames */
 
@@ -945,17 +998,36 @@ main (
         return (0);
     }
 
+    if (Gbl_DisassembleAll)
+    {
+        while (argv[Index1])
+        {
+            Status = AslDoOnePathname (argv[Index1], AcpiDmAddToExternalFileList);
+            if (ACPI_FAILURE (Status))
+            {
+                return (-1);
+            }
+
+            Index1++;
+        }
+    }
+
     /* Process each pathname/filename in the list, with possible wildcards */
 
-    while (argv[Index])
+    while (argv[Index2])
     {
-        Status = AslDoOnePathname (argv[Index]);
+        Status = AslDoOnePathname (argv[Index2], AslDoOneFile);
         if (ACPI_FAILURE (Status))
         {
             return (-1);
         }
 
-        Index++;
+        Index2++;
+    }
+
+    if (AcpiGbl_ExternalFileList)
+    {
+        AcpiDmClearExternalFileList();
     }
 
     return (0);

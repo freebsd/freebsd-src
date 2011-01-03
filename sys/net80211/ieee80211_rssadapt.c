@@ -58,12 +58,12 @@ struct rssadapt_expavgctl {
 };
 
 static struct rssadapt_expavgctl master_expavgctl = {
-	rc_decay_denom : 16,
-	rc_decay_old : 15,
-	rc_thresh_denom : 8,
-	rc_thresh_old : 4,
-	rc_avgrssi_denom : 8,
-	rc_avgrssi_old : 4
+	.rc_decay_denom = 16,
+	.rc_decay_old = 15,
+	.rc_thresh_denom = 8,
+	.rc_thresh_old = 4,
+	.rc_avgrssi_denom = 8,
+	.rc_avgrssi_old = 4
 };
 
 #ifdef interpolate

@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.252 2010/03/07 11:57:13 dtucker Exp $ */
+/* $OpenBSD: session.c,v 1.256 2010/06/25 07:20:04 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -48,6 +48,7 @@ __RCSID("$FreeBSD$");
 #include <arpa/inet.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <grp.h>
 #ifdef HAVE_PATHS_H
 #include <paths.h>
@@ -105,7 +106,7 @@ __RCSID("$FreeBSD$");
 /* func */
 
 Session *session_new(void);
-void	session_set_fds(Session *, int, int, int, int);
+void	session_set_fds(Session *, int, int, int, int, int);
 void	session_pty_cleanup(Session *);
 void	session_proctitle(Session *);
 int	session_setup_x11fwd(Session *);
@@ -448,6 +449,9 @@ do_exec_no_pty(Session *s, const char *command)
 #ifdef USE_PIPES
 	int pin[2], pout[2], perr[2];
 
+	if (s == NULL)
+		fatal("do_exec_no_pty: no session");
+
 	/* Allocate pipes for communicating with the program. */
 	if (pipe(pin) < 0) {
 		error("%s: pipe in: %.100s", __func__, strerror(errno));
@@ -460,7 +464,8 @@ do_exec_no_pty(Session *s, const char *command)
 		return -1;
 	}
 	if (pipe(perr) < 0) {
-		error("%s: pipe err: %.100s", __func__, strerror(errno));
+		error("%s: pipe err: %.100s", __func__,
+		    strerror(errno));
 		close(pin[0]);
 		close(pin[1]);
 		close(pout[0]);
@@ -470,21 +475,22 @@ do_exec_no_pty(Session *s, const char *command)
 #else
 	int inout[2], err[2];
 
+	if (s == NULL)
+		fatal("do_exec_no_pty: no session");
+
 	/* Uses socket pairs to communicate with the program. */
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, inout) < 0) {
 		error("%s: socketpair #1: %.100s", __func__, strerror(errno));
 		return -1;
 	}
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, err) < 0) {
-		error("%s: socketpair #2: %.100s", __func__, strerror(errno));
+		error("%s: socketpair #2: %.100s", __func__,
+		    strerror(errno));
 		close(inout[0]);
 		close(inout[1]);
 		return -1;
 	}
 #endif
-
-	if (s == NULL)
-		fatal("do_exec_no_pty: no session");
 
 	session_proctitle(s);
 
@@ -596,11 +602,8 @@ do_exec_no_pty(Session *s, const char *command)
 	close(perr[1]);
 
 	if (compat20) {
-		if (s->is_subsystem) {
-			close(perr[0]);
-			perr[0] = -1;
-		}
-		session_set_fds(s, pin[1], pout[0], perr[0], 0);
+		session_set_fds(s, pin[1], pout[0], perr[0],
+		    s->is_subsystem, 0);
 	} else {
 		/* Enter the interactive session. */
 		server_loop(pid, pin[1], pout[0], perr[0]);
@@ -616,10 +619,8 @@ do_exec_no_pty(Session *s, const char *command)
 	 * handle the case that fdin and fdout are the same.
 	 */
 	if (compat20) {
-		session_set_fds(s, inout[1], inout[1],
-		    s->is_subsystem ? -1 : err[1], 0);
-		if (s->is_subsystem)
-			close(err[1]);
+		session_set_fds(s, inout[1], inout[1], err[1],
+		    s->is_subsystem, 0);
 	} else {
 		server_loop(pid, inout[1], inout[1], err[1]);
 		/* server_loop has closed inout[1] and err[1]. */
@@ -741,7 +742,7 @@ do_exec_pty(Session *s, const char *command)
 	s->ptymaster = ptymaster;
 	packet_set_interactive(1);
 	if (compat20) {
-		session_set_fds(s, ptyfd, fdout, -1, 1);
+		session_set_fds(s, ptyfd, fdout, -1, 1, 1);
 	} else {
 		server_loop(pid, ptyfd, fdout, -1);
 		/* server_loop _has_ closed ptyfd and fdout. */
@@ -893,24 +894,6 @@ do_motd(void)
 {
 	FILE *f;
 	char buf[256];
-#ifdef HAVE_LOGIN_CAP
-	const char *fname;
-#endif
-
-#ifdef HAVE_LOGIN_CAP
-	fname = login_getcapstr(lc, "copyright", NULL, NULL);
-	if (fname != NULL && (f = fopen(fname, "r")) != NULL) {
-		while (fgets(buf, sizeof(buf), f) != NULL)
-			fputs(buf, stdout);
-			fclose(f);
-	} else
-#endif /* HAVE_LOGIN_CAP */
-		(void)printf("%s\n\t%s %s\n",
-	"Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
-	"The Regents of the University of California. ",
-	"All rights reserved.");
-
-	(void)printf("\n");
 
 	if (options.print_motd) {
 #ifdef HAVE_LOGIN_CAP
@@ -1822,7 +1805,8 @@ do_child(Session *s, const char *command)
 #ifdef HAVE_LOGIN_CAP
 		r = login_getcapbool(lc, "requirehome", 0);
 #endif
-		if (r || options.chroot_directory == NULL)
+		if (r || options.chroot_directory == NULL ||
+		    strcasecmp(options.chroot_directory, "none") == 0)
 			fprintf(stderr, "Could not chdir to home "
 			    "directory %s: %s\n", pw->pw_dir,
 			    strerror(errno));
@@ -2167,7 +2151,8 @@ session_subsystem_req(Session *s)
 	u_int i;
 
 	packet_check_eom();
-	logit("subsystem request for %.100s", subsys);
+	logit("subsystem request for %.100s by user %s", subsys,
+	    s->pw->pw_name);
 
 	for (i = 0; i < options.num_subsystems; i++) {
 		if (strcmp(subsys, options.subsystem_name[i]) == 0) {
@@ -2349,7 +2334,8 @@ session_input_channel_req(Channel *c, const char *rtype)
 }
 
 void
-session_set_fds(Session *s, int fdin, int fdout, int fderr, int is_tty)
+session_set_fds(Session *s, int fdin, int fdout, int fderr, int ignore_fderr,
+    int is_tty)
 {
 	if (!compat20)
 		fatal("session_set_fds: called for proto != 2.0");
@@ -2361,7 +2347,7 @@ session_set_fds(Session *s, int fdin, int fdout, int fderr, int is_tty)
 		fatal("no channel for session %d", s->self);
 	channel_set_fds(s->chanid,
 	    fdout, fdin, fderr,
-	    fderr == -1 ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
+	    ignore_fderr ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
 	    1, is_tty, CHAN_SES_WINDOW_DEFAULT);
 }
 

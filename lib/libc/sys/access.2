@@ -188,6 +188,27 @@ is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
 .El
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr intro 2 ,
+.Xr stat 2
+.Sh STANDARDS
+The
+.Fn access
+system call is expected to conform to
+.St -p1003.1-90 .
+The
+.Fn faccessat
+system call follows The Open Group Extended API Set 2 specification.
+.Sh HISTORY
+The
+.Fn access
+function appeared in
+.At v7 .
+The
+.Fn faccessat
+system call appeared in
+.Fx 8.0 .
 .Sh SECURITY CONSIDERATIONS
 The
 .Fn access
@@ -212,24 +233,3 @@ of the st_mode bits that the application might not understand --
 e.g. in the case of AFS).
 It also allows a cheaper file existence test than
 .Xr stat 2 .
-.Sh SEE ALSO
-.Xr chmod 2 ,
-.Xr intro 2 ,
-.Xr stat 2
-.Sh STANDARDS
-The
-.Fn access
-system call is expected to conform to
-.St -p1003.1-90 .
-The
-.Fn faccessat
-system call follows The Open Group Extended API Set 2 specification.
-.Sh HISTORY
-The
-.Fn access
-function appeared in
-.At v7 .
-The
-.Fn faccessat
-system call appeared in
-.Fx 8.0 .

@@ -84,7 +84,8 @@ const char *modes[] = {
 #define DEVCTL_MAXBUF	1024
 
 static int	read_usage_times(int *load);
-static int	read_freqs(int *numfreqs, int **freqs, int **power);
+static int	read_freqs(int *numfreqs, int **freqs, int **power,
+		    int minfreq, int maxfreq);
 static int	set_freq(int freq);
 static void	acline_init(void);
 static void	acline_read(void);
@@ -174,10 +175,10 @@ read_usage_times(int *load)
 }
 
 static int
-read_freqs(int *numfreqs, int **freqs, int **power)
+read_freqs(int *numfreqs, int **freqs, int **power, int minfreq, int maxfreq)
 {
 	char *freqstr, *p, *q;
-	int i;
+	int i, j;
 	size_t len = 0;
 
 	if (sysctl(levels_mib, 4, NULL, &len, NULL, 0))
@@ -201,17 +202,28 @@ read_freqs(int *numfreqs, int **freqs, int **power)
 		free(*freqs);
 		return (-1);
 	}
-	for (i = 0, p = freqstr; i < *numfreqs; i++) {
+	for (i = 0, j = 0, p = freqstr; i < *numfreqs; i++) {
 		q = strchr(p, ' ');
 		if (q != NULL)
 			*q = '\0';
-		if (sscanf(p, "%d/%d", &(*freqs)[i], &(*power)[i]) != 2) {
+		if (sscanf(p, "%d/%d", &(*freqs)[j], &(*power)[i]) != 2) {
 			free(freqstr);
 			free(*freqs);
 			free(*power);
 			return (-1);
 		}
+		if (((*freqs)[j] >= minfreq || minfreq == -1) &&
+		    ((*freqs)[j] <= maxfreq || maxfreq == -1))
+			j++;
 		p = q + 1;
+	}
+
+	*numfreqs = j;
+	if ((*freqs = realloc(*freqs, *numfreqs * sizeof(int))) == NULL) {
+		free(freqstr);
+		free(*freqs);
+		free(*power);
+		return (-1);
 	}
 
 	free(freqstr);
@@ -422,7 +434,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: powerd [-v] [-a mode] [-b mode] [-i %%] [-n mode] [-p ival] [-r %%] [-P pidfile]\n");
+"usage: powerd [-v] [-a mode] [-b mode] [-i %%] [-m freq] [-M freq] [-n mode] [-p ival] [-r %%] [-P pidfile]\n");
 	exit(1);
 }
 
@@ -435,7 +447,8 @@ main(int argc, char * argv[])
 	struct pidfh *pfh = NULL;
 	const char *pidfile = NULL;
 	int freq, curfreq, initfreq, *freqs, i, j, *mwatts, numfreqs, load;
-	int ch, mode, mode_ac, mode_battery, mode_none;
+	int minfreq = -1, maxfreq = -1;
+	int ch, mode, mode_ac, mode_battery, mode_none, idle, to;
 	uint64_t mjoules_used;
 	size_t len;
 
@@ -452,7 +465,7 @@ main(int argc, char * argv[])
 	if (geteuid() != 0)
 		errx(1, "must be root to run");
 
-	while ((ch = getopt(argc, argv, "a:b:i:n:p:P:r:v")) != -1)
+	while ((ch = getopt(argc, argv, "a:b:i:m:M:n:p:P:r:v")) != -1)
 		switch (ch) {
 		case 'a':
 			parse_mode(optarg, &mode_ac, ch);
@@ -465,6 +478,22 @@ main(int argc, char * argv[])
 			if (cpu_idle_mark < 0 || cpu_idle_mark > 100) {
 				warnx("%d is not a valid percent",
 				    cpu_idle_mark);
+				usage();
+			}
+			break;
+		case 'm':
+			minfreq = atoi(optarg);
+			if (minfreq < 0) {
+				warnx("%d is not a valid CPU frequency",
+				    minfreq);
+				usage();
+			}
+			break;
+		case 'M':
+			maxfreq = atoi(optarg);
+			if (maxfreq < 0) {
+				warnx("%d is not a valid CPU frequency",
+				    maxfreq);
 				usage();
 			}
 			break;
@@ -515,8 +544,10 @@ main(int argc, char * argv[])
 	/* Check if we can read the load and supported freqs. */
 	if (read_usage_times(NULL))
 		err(1, "read_usage_times");
-	if (read_freqs(&numfreqs, &freqs, &mwatts))
+	if (read_freqs(&numfreqs, &freqs, &mwatts, minfreq, maxfreq))
 		err(1, "error reading supported CPU frequencies");
+	if (numfreqs == 0)
+		errx(1, "no CPU frequencies in user-specified range");
 
 	/* Run in the background unless in verbose mode. */
 	if (!vflag) {
@@ -548,9 +579,54 @@ main(int argc, char * argv[])
 	signal(SIGINT, handle_sigs);
 	signal(SIGTERM, handle_sigs);
 
-	freq = initfreq = get_freq();
+	freq = initfreq = curfreq = get_freq();
+	i = get_freq_id(curfreq, freqs, numfreqs);
 	if (freq < 1)
 		freq = 1;
+
+	/*
+	 * If we are in adaptive mode and the current frequency is outside the
+	 * user-defined range, adjust it to be within the user-defined range.
+	 */
+	acline_read();
+	if (acline_status > SRC_UNKNOWN)
+		errx(1, "invalid AC line status %d", acline_status);
+	if ((acline_status == SRC_AC &&
+	    (mode_ac == MODE_ADAPTIVE || mode_ac == MODE_HIADAPTIVE)) ||
+	    (acline_status == SRC_BATTERY &&
+	    (mode_battery == MODE_ADAPTIVE || mode_battery == MODE_HIADAPTIVE)) ||
+	    (acline_status == SRC_UNKNOWN &&
+	    (mode_none == MODE_ADAPTIVE || mode_none == MODE_HIADAPTIVE))) {
+		/* Read the current frequency. */
+		len = sizeof(curfreq);
+		if (sysctl(freq_mib, 4, &curfreq, &len, NULL, 0) != 0) {
+			if (vflag)
+				warn("error reading current CPU frequency");
+		}
+		if (curfreq < freqs[numfreqs - 1]) {
+			if (vflag) {
+				printf("CPU frequency is below user-defined "
+				    "minimum; changing frequency to %d "
+				    "MHz\n", freqs[numfreqs - 1]);
+			}
+			if (set_freq(freqs[numfreqs - 1]) != 0) {
+				warn("error setting CPU freq %d",
+				    freqs[numfreqs - 1]);
+			}
+		} else if (curfreq > freqs[0]) {
+			if (vflag) {
+				printf("CPU frequency is above user-defined "
+				    "maximum; changing frequency to %d "
+				    "MHz\n", freqs[0]);
+			}
+			if (set_freq(freqs[0]) != 0) {
+				warn("error setting CPU freq %d",
+				    freqs[0]);
+			}
+		}
+	}
+
+	idle = 0;
 	/* Main loop. */
 	for (;;) {
 		FD_ZERO(&fdset);
@@ -560,8 +636,14 @@ main(int argc, char * argv[])
 		} else {
 			nfds = 0;
 		}
-		timeout.tv_sec = poll_ival / 1000000;
-		timeout.tv_usec = poll_ival % 1000000;
+		if (mode == MODE_HIADAPTIVE || idle < 120)
+			to = poll_ival;
+		else if (idle < 360)
+			to = poll_ival * 2;
+		else
+			to = poll_ival * 4;
+		timeout.tv_sec = to / 1000000;
+		timeout.tv_usec = to % 1000000;
 		select(nfds, &fdset, NULL, &fdset, &timeout);
 
 		/* If the user requested we quit, print some statistics. */
@@ -590,11 +672,12 @@ main(int argc, char * argv[])
 		}
 
 		/* Read the current frequency. */
-		if ((curfreq = get_freq()) == 0)
-			continue;
-
-		i = get_freq_id(curfreq, freqs, numfreqs);
-	
+		if (idle % 32 == 0) {
+			if ((curfreq = get_freq()) == 0)
+				continue;
+			i = get_freq_id(curfreq, freqs, numfreqs);
+		}
+		idle++;
 		if (vflag) {
 			/* Keep a sum of all power actually used. */
 			if (mwatts[i] != -1)
@@ -611,6 +694,7 @@ main(int argc, char * argv[])
 					    "changing frequency to %d MHz\n",
 					    modes[acline_status], freq);
 				}
+				idle = 0;
 				if (set_freq(freq) != 0) {
 					warn("error setting CPU freq %d",
 					    freq);
@@ -629,6 +713,7 @@ main(int argc, char * argv[])
 					    "changing frequency to %d MHz\n",
 					    modes[acline_status], freq);
 				}
+				idle = 0;
 				if (set_freq(freq) != 0) {
 					warn("error setting CPU freq %d",
 				    	    freq);
@@ -689,6 +774,7 @@ main(int argc, char * argv[])
 				    " speed from %d MHz to %d MHz\n",
 				    freqs[i], freqs[j]);
 			}
+			idle = 0;
 			if (set_freq(freqs[j]))
 				warn("error setting CPU frequency %d",
 				    freqs[j]);

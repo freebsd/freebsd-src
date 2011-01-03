@@ -257,12 +257,10 @@ static void
 acpi_dock_insert(device_t dev)
 {
 	struct acpi_dock_softc *sc;
-	ACPI_HANDLE	h;
 
 	ACPI_SERIAL_ASSERT(dock);
 
 	sc = device_get_softc(dev);
-	h = acpi_get_handle(dev);
 
 	if (sc->status == ACPI_DOCK_STATUS_UNDOCKED ||
 	    sc->status == ACPI_DOCK_STATUS_UNKNOWN) {
@@ -414,7 +412,6 @@ acpi_dock_status_sysctl(SYSCTL_HANDLER_ARGS)
 	device_t	dev;
 	int		status, err;
 
-	err = 0;
 	dev = (device_t)arg1;
 
 	sc = device_get_softc(dev);

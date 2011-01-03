@@ -35,7 +35,7 @@
 .\"	@(#)a.out.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd June 10, 2010
 .Dt A.OUT 5
 .Os
 .Sh NAME
@@ -307,13 +307,13 @@ structures:
 .Bd -literal -offset indent
 struct nlist {
 	union {
-		char	*n_name;
-		long	n_strx;
+		const char	*n_name;
+		long		n_strx;
 	} n_un;
-	unsigned char	n_type;
-	char		n_other;
-	short		n_desc;
-	unsigned long	n_value;
+	unsigned char		n_type;
+	char			n_other;
+	short			n_desc;
+	unsigned long		n_value;
 };
 .Ed
 .Pp

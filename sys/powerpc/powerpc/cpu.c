@@ -64,6 +64,7 @@
 #include <sys/conf.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
@@ -73,11 +74,14 @@
 #include <machine/smp.h>
 #include <machine/spr.h>
 
-int powerpc_pow_enabled;
-
 static void	cpu_6xx_setup(int cpuid, uint16_t vers);
 static void	cpu_e500_setup(int cpuid, uint16_t vers);
 static void	cpu_970_setup(int cpuid, uint16_t vers);
+
+int powerpc_pow_enabled;
+void (*cpu_idle_hook)(void) = NULL;
+static void	cpu_idle_60x(void);
+static void	cpu_idle_e500(void);
 
 struct cputab {
 	const char	*name;
@@ -145,6 +149,9 @@ static const struct cputab models[] = {
 	   0, cpu_e500_setup },
         { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN,
 	   0, cpu_e500_setup },
+        { "IBM Cell Broadband Engine",	IBMCELLBE,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   NULL},
         { "Unknown PowerPC CPU",	0,		REVFMT_HEX, 0, NULL },
 };
 
@@ -220,7 +227,7 @@ cpu_setup(u_int cpuid)
 	}
 
 	if (cpu_est_clockrate(0, &cps) == 0)
-		printf(", %lld.%02lld MHz", cps / 1000000, (cps / 10000) % 100);
+		printf(", %jd.%02jd MHz", cps / 1000000, (cps / 10000) % 100);
 	printf("\n");
 
 	cpu_features |= cp->features;
@@ -374,6 +381,9 @@ cpu_6xx_setup(int cpuid, uint16_t vers)
 	}
 
 	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, bitmask);
+
+	if (cpu_idle_hook == NULL)
+		cpu_idle_hook = cpu_idle_60x;
 }
 
 
@@ -441,6 +451,9 @@ cpu_e500_setup(int cpuid, uint16_t vers)
 	mtspr(SPR_HID0, hid0);
 
 	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, HID0_E500_BITMASK);
+
+	if (cpu_idle_hook == NULL)
+		cpu_idle_hook = cpu_idle_e500;
 }
 
 static void
@@ -455,8 +468,8 @@ cpu_970_setup(int cpuid, uint16_t vers)
 	/* Configure power-saving mode */
 	switch (vers) {
 	case IBM970MP:
-		hid0_hi |= (HID0_DEEPNAP | HID0_DPM);
-		hid0_hi &= ~(HID0_DOZE | HID0_NAP);
+		hid0_hi |= (HID0_DEEPNAP | HID0_NAP | HID0_DPM);
+		hid0_hi &= ~HID0_DOZE;
 		break;
 	default:
 		hid0_hi |= (HID0_NAP | HID0_DPM);
@@ -478,6 +491,8 @@ cpu_970_setup(int cpuid, uint16_t vers)
 	    : "=r" (hid0_hi) : "K" (SPR_HID0));
 	printf("cpu%d: HID0 %b\n", cpuid, (int)(hid0_hi), HID0_970_BITMASK);
 #endif
+
+	cpu_idle_hook = cpu_idle_60x;
 }
 
 static int
@@ -488,5 +503,89 @@ cpu_feature_bit(SYSCTL_HANDLER_ARGS)
 	result = (cpu_features & arg2) ? 1 : 0;
 
 	return (sysctl_handle_int(oidp, &result, 0, req));
+}
+
+void
+cpu_idle(int busy)
+{
+
+#ifdef INVARIANTS
+	if ((mfmsr() & PSL_EE) != PSL_EE) {
+		struct thread *td = curthread;
+		printf("td msr %#lx\n", (u_long)td->td_md.md_saved_msr);
+		panic("ints disabled in idleproc!");
+	}
+#endif
+
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
+	if (cpu_idle_hook != NULL) {
+		if (!busy) {
+			critical_enter();
+			cpu_idleclock();
+		}
+		cpu_idle_hook();
+		if (!busy) {
+			cpu_activeclock();
+			critical_exit();
+		}
+	}
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+	return (0);
+}
+
+static void
+cpu_idle_60x(void)
+{
+	register_t msr;
+	uint16_t vers;
+
+	if (!powerpc_pow_enabled)
+		return;
+
+	msr = mfmsr();
+	vers = mfpvr() >> 16;
+
+#ifdef AIM
+	switch (vers) {
+	case IBM970:
+	case IBM970FX:
+	case IBM970MP:
+	case MPC7447A:
+	case MPC7448:
+	case MPC7450:
+	case MPC7455:
+	case MPC7457:
+		__asm __volatile("\
+			    dssall; sync; mtmsr %0; isync"
+			    :: "r"(msr | PSL_POW));
+		break;
+	default:
+		powerpc_sync();
+		mtmsr(msr | PSL_POW);
+		isync();
+		break;
+	}
+#endif
+}
+
+static void
+cpu_idle_e500(void)
+{
+	register_t msr;
+
+	msr = mfmsr();
+
+#ifdef E500
+	/* Freescale E500 core RM section 6.4.1. */
+	__asm __volatile("msync; mtmsr %0; isync" ::
+	    "r" (msr | PSL_WE));
+#endif
 }
 

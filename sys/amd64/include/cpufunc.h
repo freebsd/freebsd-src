@@ -421,40 +421,40 @@ invlpg(u_long addr)
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
 }
 
-static __inline u_int
+static __inline u_short
 rfs(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%fs,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%fs,%0" : "=rm" (sel));
 	return (sel);
 }
 
-static __inline u_int
+static __inline u_short
 rgs(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%gs,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%gs,%0" : "=rm" (sel));
 	return (sel);
 }
 
-static __inline u_int
+static __inline u_short
 rss(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%ss,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%ss,%0" : "=rm" (sel));
 	return (sel);
 }
 
 static __inline void
-load_ds(u_int sel)
+load_ds(u_short sel)
 {
-	__asm __volatile("mov %0,%%ds" : : "rm" (sel));
+	__asm __volatile("movw %0,%%ds" : : "rm" (sel));
 }
 
 static __inline void
-load_es(u_int sel)
+load_es(u_short sel)
 {
-	__asm __volatile("mov %0,%%es" : : "rm" (sel));
+	__asm __volatile("movw %0,%%es" : : "rm" (sel));
 }
 
 static __inline void
@@ -476,10 +476,10 @@ cpu_mwait(int extensions, int hints)
 #define	MSR_FSBASE	0xc0000100
 #endif
 static __inline void
-load_fs(u_int sel)
+load_fs(u_short sel)
 {
 	/* Preserve the fsbase value across the selector load */
-	__asm __volatile("rdmsr; mov %0,%%fs; wrmsr"
+	__asm __volatile("rdmsr; movw %0,%%fs; wrmsr"
 	    : : "rm" (sel), "c" (MSR_FSBASE) : "eax", "edx");
 }
 
@@ -487,28 +487,28 @@ load_fs(u_int sel)
 #define	MSR_GSBASE	0xc0000101
 #endif
 static __inline void
-load_gs(u_int sel)
+load_gs(u_short sel)
 {
 	/*
 	 * Preserve the gsbase value across the selector load.
 	 * Note that we have to disable interrupts because the gsbase
 	 * being trashed happens to be the kernel gsbase at the time.
 	 */
-	__asm __volatile("pushfq; cli; rdmsr; mov %0,%%gs; wrmsr; popfq"
+	__asm __volatile("pushfq; cli; rdmsr; movw %0,%%gs; wrmsr; popfq"
 	    : : "rm" (sel), "c" (MSR_GSBASE) : "eax", "edx");
 }
 #else
 /* Usable by userland */
 static __inline void
-load_fs(u_int sel)
+load_fs(u_short sel)
 {
-	__asm __volatile("mov %0,%%fs" : : "rm" (sel));
+	__asm __volatile("movw %0,%%fs" : : "rm" (sel));
 }
 
 static __inline void
-load_gs(u_int sel)
+load_gs(u_short sel)
 {
-	__asm __volatile("mov %0,%%gs" : : "rm" (sel));
+	__asm __volatile("movw %0,%%gs" : : "rm" (sel));
 }
 #endif
 
@@ -692,8 +692,8 @@ void	load_dr4(u_int64_t dr4);
 void	load_dr5(u_int64_t dr5);
 void	load_dr6(u_int64_t dr6);
 void	load_dr7(u_int64_t dr7);
-void	load_fs(u_int sel);
-void	load_gs(u_int sel);
+void	load_fs(u_short sel);
+void	load_gs(u_short sel);
 void	ltr(u_short sel);
 void	outb(u_int port, u_char data);
 void	outl(u_int port, u_int data);

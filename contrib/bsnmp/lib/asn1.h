@@ -93,7 +93,7 @@ enum asn_err asn_get_header(struct asn_buf *, u_char *, asn_len_t *);
 enum asn_err asn_put_header(struct asn_buf *, u_char, asn_len_t);
 
 enum asn_err asn_put_temp_header(struct asn_buf *, u_char, u_char **);
-enum asn_err asn_commit_header(struct asn_buf *, u_char *);
+enum asn_err asn_commit_header(struct asn_buf *, u_char *, size_t *);
 
 enum asn_err asn_get_integer_raw(struct asn_buf *, asn_len_t, int32_t *);
 enum asn_err asn_get_integer(struct asn_buf *, int32_t *);
@@ -129,6 +129,7 @@ enum asn_err asn_get_timeticks(struct asn_buf *, uint32_t *);
 enum asn_err asn_put_timeticks(struct asn_buf *, uint32_t);
 
 enum asn_err asn_skip(struct asn_buf *, asn_len_t);
+enum asn_err asn_pad(struct asn_buf *, asn_len_t);
 
 /*
  * Utility functions for OIDs

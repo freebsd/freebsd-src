@@ -6,7 +6,7 @@
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
 .\"
-.\" Author: Harti Brandt <harti@freebsd.org>
+.\" Author: Harti Brandt <harti@FreeBSD.org>
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.12 2005/10/04 08:46:50 brandt_h Exp $
 .\"
-.Dd October 4, 2005
+.Dd September 9, 2010
 .Dt BSNMPCLIENT 3
 .Os
 .Sh NAME
@@ -52,7 +52,8 @@
 .Nm snmp_table_cb_f ,
 .Nm snmp_table_fetch ,
 .Nm snmp_table_fetch_async ,
-.Nm snmp_dialog
+.Nm snmp_dialog ,
+.Nm snmp_discover_engine
 .Nd "SNMP client library"
 .Sh LIBRARY
 Begemot SNMP library
@@ -102,44 +103,56 @@ Begemot SNMP library
 .Fn snmp_table_fetch_async "const struct snmp_table *descr" "void *list" "snmp_table_cb_f callback" "void *uarg"
 .Ft int
 .Fn snmp_dialog "struct snmp_pdu *req" "struct snmp_pdu *resp"
+.Ft int
+.Fn snmp_discover_engine "void"
 .Sh DESCRIPTION
 The SNMP library contains routines to easily build SNMP client applications
-that use SNMP versions 1 or 2.
+that use SNMP versions 1, 2 or 3.
 Most of the routines use a
 .Vt struct snmp_client :
 .Bd -literal -offset indent
 struct snmp_client {
-	enum snmp_version version;
-	int	trans;	/* transport type to use */
+	enum snmp_version	version;
+	int			trans;	/* which transport to use */
 
 	/* these two are read-only for the application */
-	char	*cport;	/* port number as string */
-	char	*chost;	/* host name or IP address as string */
+	char			*cport;	/* port number as string */
+	char			*chost;	/* host name or IP address as string */
 
-	char	read_community[SNMP_COMMUNITY_MAXLEN + 1];
-	char	write_community[SNMP_COMMUNITY_MAXLEN + 1];
+	char			read_community[SNMP_COMMUNITY_MAXLEN + 1];
+	char			write_community[SNMP_COMMUNITY_MAXLEN + 1];
 
-	struct timeval	timeout;
-	u_int	retries;
+	/* SNMPv3 specific fields */
+	int32_t			identifier;
+	int32_t			security_model;
+	struct snmp_engine	engine;
+	struct snmp_user	user;
 
-	int	dump_pdus;
+	/* SNMPv3 Access control - VACM*/
+	uint32_t		clen;
+	uint8_t			cengine[SNMP_ENGINE_ID_SIZ];
+	char			cname[SNMP_CONTEXT_NAME_SIZ];
 
-	size_t	txbuflen;
-	size_t	rxbuflen;
+	struct timeval		timeout;
+	u_int			retries;
 
-	int	fd;
+	int			dump_pdus;
 
-	int32_t	next_reqid;
-	int32_t	max_reqid;
-	int32_t	min_reqid;
+	size_t			txbuflen;
+	size_t			rxbuflen;
 
-	char	error[SNMP_STRERROR_LEN];
+	int			fd;
 
-	snmp_timeout_start_f timeout_start;
-	snmp_timeout_stop_f timeout_stop;
+	int32_t			next_reqid;
+	int32_t			max_reqid;
+	int32_t			min_reqid;
 
-	/* private */
-	char	local_path[sizeof(SNMP_LOCAL_PATH)];
+	char			error[SNMP_STRERROR_LEN];
+
+	snmp_timeout_start_f	timeout_start;
+	snmp_timeout_stop_f	timeout_stop;
+
+	char			local_path[sizeof(SNMP_LOCAL_PATH)];
 };
 .Ed
 .Pp
@@ -194,6 +207,23 @@ The default is
 The community name to be used for SET requests.
 The default is
 .Sq private .
+.It Va identifier
+The message indentifier value to be used with SNMPv3 PDUs. Incremented with
+each transmitted PDU.
+.It Va security_model
+The security model to be used with SNMPv3 PDUs. Currently only User-Based
+Security model specified by RFC 3414 (value 3) is supported.
+.It Va engine
+The authorative SNMP engine parameters to be used with SNMPv3 PDUs.
+.It Va user
+The USM SNMP user credentials to be used with SNMPv3 PDUs.
+.It Va clen
+The length of the context engine id to be used with SNMPv3 PDUs.
+.It Va cengine
+The context engine id to be used with SNMPv3 PDUs. Default is empty.
+.It Va cname
+The context name to be used with SNMPv3 PDUs. Default is
+.Sq "" .
 .It Va timeout
 The maximum time to wait for responses to requests.
 If the time elapses, the request is resent up to
@@ -617,6 +647,21 @@ returns -1.
 If a response was received 0 is returned.
 .Pp
 The function
+.Fn snmp_discover_engine
+is used to discover the authorative snmpEngineId of a remote SNMPv3 agent.
+A request PDU with empty USM user name is sent and the client's engine
+parameters are set according to the snmpEngine parameters received in the
+response PDU.
+If the client is configured to use authentication and/or privacy and the
+snmpEngineBoots and/or snmpEngineTime in the response had zero values, an
+additional request (possibly encrypted) with the appropriate user credentials
+is sent to fetch the missing values.
+Note, that the function blocks until the discovery proccess is completed.
+If no response could be received after all timeouts and retries, or the
+response contained errors the function returns -1.
+If the discovery proccess was completed 0 is returned.
+.Pp
+The function
 .Fn snmp_parse_server
 is used to parse an SNMP server specification string and fill in the
 fields of a
@@ -654,5 +699,5 @@ filed of
 This implementation conforms to the applicable IETF RFCs and ITU-T
 recommendations.
 .Sh AUTHORS
-.An Hartmut Brandt Aq harti@freebsd.org
+.An Hartmut Brandt Aq harti@FreeBSD.org
 .An Kendy Kutzner Aq kutzner@fokus.gmd.de

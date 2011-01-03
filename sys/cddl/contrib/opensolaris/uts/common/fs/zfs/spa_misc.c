@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -230,7 +230,7 @@ static kmutex_t spa_l2cache_lock;
 static avl_tree_t spa_l2cache_avl;
 
 kmem_cache_t *spa_buffer_pool;
-int spa_mode;
+int spa_mode_global;
 
 #ifdef ZFS_DEBUG
 /* Everything except dprintf is on by default in debug builds */
@@ -428,10 +428,7 @@ spa_add(const char *name, const char *altroot)
 
 	spa = kmem_zalloc(sizeof (spa_t), KM_SLEEP);
 
-	rw_init(&spa->spa_traverse_lock, NULL, RW_DEFAULT, NULL);
-
 	mutex_init(&spa->spa_async_lock, NULL, MUTEX_DEFAULT, NULL);
-	mutex_init(&spa->spa_async_root_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_scrub_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_errlog_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_errlist_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -440,7 +437,6 @@ spa_add(const char *name, const char *altroot)
 	mutex_init(&spa->spa_props_lock, NULL, MUTEX_DEFAULT, NULL);
 
 	cv_init(&spa->spa_async_cv, NULL, CV_DEFAULT, NULL);
-	cv_init(&spa->spa_async_root_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&spa->spa_scrub_io_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&spa->spa_suspend_cv, NULL, CV_DEFAULT, NULL);
 
@@ -513,15 +509,11 @@ spa_remove(spa_t *spa)
 
 	spa_config_lock_destroy(spa);
 
-	rw_destroy(&spa->spa_traverse_lock);
-
 	cv_destroy(&spa->spa_async_cv);
-	cv_destroy(&spa->spa_async_root_cv);
 	cv_destroy(&spa->spa_scrub_io_cv);
 	cv_destroy(&spa->spa_suspend_cv);
 
 	mutex_destroy(&spa->spa_async_lock);
-	mutex_destroy(&spa->spa_async_root_lock);
 	mutex_destroy(&spa->spa_scrub_lock);
 	mutex_destroy(&spa->spa_errlog_lock);
 	mutex_destroy(&spa->spa_errlist_lock);
@@ -888,8 +880,10 @@ spa_vdev_exit(spa_t *spa, vdev_t *vd, uint64_t txg, int error)
 		txg_wait_synced(spa->spa_dsl_pool, txg);
 
 	if (vd != NULL) {
-		ASSERT(!vd->vdev_detached || vd->vdev_dtl.smo_object == 0);
+		ASSERT(!vd->vdev_detached || vd->vdev_dtl_smo.smo_object == 0);
+		spa_config_enter(spa, SCL_ALL, spa, RW_WRITER);
 		vdev_free(vd);
+		spa_config_exit(spa, SCL_ALL, spa);
 	}
 
 	/*
@@ -919,6 +913,15 @@ spa_vdev_state_exit(spa_t *spa, vdev_t *vd, int error)
 		vdev_state_dirty(vd->vdev_top);
 
 	spa_config_exit(spa, SCL_STATE_ALL, spa);
+
+	/*
+	 * If anything changed, wait for it to sync.  This ensures that,
+	 * from the system administrator's perspective, zpool(1M) commands
+	 * are synchronous.  This is important for things like zpool offline:
+	 * when the command completes, you expect no further I/O from ZFS.
+	 */
+	if (vd != NULL)
+		txg_wait_synced(spa->spa_dsl_pool, 0);
 
 	return (error);
 }
@@ -1122,21 +1125,46 @@ zfs_panic_recover(const char *fmt, ...)
 }
 
 /*
+ * This is a stripped-down version of strtoull, suitable only for converting
+ * lowercase hexidecimal numbers that don't overflow.
+ */
+uint64_t
+zfs_strtonum(const char *str, char **nptr)
+{
+	uint64_t val = 0;
+	char c;
+	int digit;
+
+	while ((c = *str) != '\0') {
+		if (c >= '0' && c <= '9')
+			digit = c - '0';
+		else if (c >= 'a' && c <= 'f')
+			digit = 10 + c - 'a';
+		else
+			break;
+
+		val *= 16;
+		val += digit;
+
+		str++;
+	}
+
+	if (nptr)
+		*nptr = (char *)str;
+
+	return (val);
+}
+
+/*
  * ==========================================================================
  * Accessor functions
  * ==========================================================================
  */
 
-krwlock_t *
-spa_traverse_rwlock(spa_t *spa)
-{
-	return (&spa->spa_traverse_lock);
-}
-
 boolean_t
-spa_traverse_wanted(spa_t *spa)
+spa_shutting_down(spa_t *spa)
 {
-	return (spa->spa_traverse_wanted);
+	return (spa->spa_async_suspended);
 }
 
 dsl_pool_t *
@@ -1205,7 +1233,7 @@ spa_first_txg(spa_t *spa)
 	return (spa->spa_first_txg);
 }
 
-int
+pool_state_t
 spa_state(spa_t *spa)
 {
 	return (spa->spa_state);
@@ -1365,7 +1393,7 @@ spa_init(int mode)
 	avl_create(&spa_l2cache_avl, spa_l2cache_compare, sizeof (spa_aux_t),
 	    offsetof(spa_aux_t, aux_avl));
 
-	spa_mode = mode;
+	spa_mode_global = mode;
 
 	refcount_sysinit();
 	unique_init();
@@ -1421,4 +1449,16 @@ boolean_t
 spa_is_root(spa_t *spa)
 {
 	return (spa->spa_is_root);
+}
+
+boolean_t
+spa_writeable(spa_t *spa)
+{
+	return (!!(spa->spa_mode & FWRITE));
+}
+
+int
+spa_mode(spa_t *spa)
+{
+	return (spa->spa_mode);
 }

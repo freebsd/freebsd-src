@@ -61,6 +61,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_pf.h>
 
 /* function prototypes  */
 
@@ -103,10 +104,15 @@ static driver_t usb_driver = {
 	.size = 0,
 };
 
+/* Host Only Drivers */
 DRIVER_MODULE(usbus, ohci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uhci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, ehci, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, xhci, usb_driver, usb_devclass, 0, 0);
+
+/* Device Only Drivers */
 DRIVER_MODULE(usbus, at91_udp, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, musbotg, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uss820, usb_driver, usb_devclass, 0, 0);
 
 /*------------------------------------------------------------------------*
@@ -119,6 +125,16 @@ usb_probe(device_t dev)
 {
 	DPRINTF("\n");
 	return (0);
+}
+
+static void
+usb_root_mount_rel(struct usb_bus *bus)
+{
+	if (bus->bus_roothold != NULL) {
+		DPRINTF("Releasing root mount hold %p\n", bus->bus_roothold);
+		root_mount_rel(bus->bus_roothold);
+		bus->bus_roothold = NULL;
+	}
 }
 
 /*------------------------------------------------------------------------*
@@ -164,10 +180,7 @@ usb_detach(device_t dev)
 	usb_callout_drain(&bus->power_wdog);
 
 	/* Let the USB explore process detach all devices. */
-	if (bus->bus_roothold != NULL) {
-		root_mount_rel(bus->bus_roothold);
-		bus->bus_roothold = NULL;
-	}
+	usb_root_mount_rel(bus);
 
 	USB_BUS_LOCK(bus);
 	if (usb_proc_msignal(&bus->explore_proc,
@@ -193,6 +206,8 @@ usb_detach(device_t dev)
 	/* Get rid of control transfer process */
 
 	usb_proc_free(&bus->control_xfer_proc);
+
+	usbpf_detach(bus);
 
 	return (0);
 }
@@ -234,19 +249,17 @@ usb_bus_explore(struct usb_proc_msg *pm)
 
 		USB_BUS_UNLOCK(bus);
 
+#if USB_HAVE_POWERD
 		/*
 		 * First update the USB power state!
 		 */
 		usb_bus_powerd(bus);
-
+#endif
 		 /* Explore the Root USB HUB. */
 		(udev->hub->explore) (udev);
 		USB_BUS_LOCK(bus);
 	}
-	if (bus->bus_roothold != NULL) {
-		root_mount_rel(bus->bus_roothold);
-		bus->bus_roothold = NULL;
-	}
+	usb_root_mount_rel(bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -301,11 +314,13 @@ usb_power_wdog(void *arg)
 	usb_proc_rewakeup(&bus->explore_proc);	/* recover from DDB */
 #endif
 
+#if USB_HAVE_POWERD
 	USB_BUS_UNLOCK(bus);
 
 	usb_bus_power_update(bus);
 
 	USB_BUS_LOCK(bus);
+#endif
 }
 
 /*------------------------------------------------------------------------*
@@ -348,8 +363,14 @@ usb_bus_attach(struct usb_proc_msg *pm)
 		device_printf(bus->bdev, "480Mbps Wireless USB v2.5\n");
 		break;
 
+	case USB_REV_3_0:
+		speed = USB_SPEED_SUPER;
+		device_printf(bus->bdev, "4.8Gbps Super Speed USB v3.0\n");
+		break;
+
 	default:
 		device_printf(bus->bdev, "Unsupported USB revision\n");
+		usb_root_mount_rel(bus);
 		return;
 	}
 
@@ -391,6 +412,7 @@ usb_bus_attach(struct usb_proc_msg *pm)
 	if (err) {
 		device_printf(bus->bdev, "Root HUB problem, error=%s\n",
 		    usbd_errstr(err));
+		usb_root_mount_rel(bus);
 	}
 
 	/* set softc - we are ready */
@@ -414,6 +436,8 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 	if (usb_devclass_ptr == NULL)
 		usb_devclass_ptr = devclass_find("usbus");
 	mtx_unlock(&Giant);
+
+	usbpf_attach(bus);
 
 	/* Initialise USB process messages */
 	bus->explore_msg[0].hdr.pm_callback = &usb_bus_explore;
@@ -577,3 +601,4 @@ usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 
 	mtx_destroy(&bus->bus_mtx);
 }
+

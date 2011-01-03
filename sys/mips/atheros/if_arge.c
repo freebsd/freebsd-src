@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/taskqueue.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -78,6 +79,7 @@ MODULE_DEPEND(arge, miibus, 1, 1, 1);
 
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/if_argevar.h>
+#include <mips/atheros/ar71xx_cpudef.h>
 
 #undef ARGE_DEBUG
 #ifdef ARGE_DEBUG
@@ -180,14 +182,10 @@ MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_DEF);
 static void
 arge_flush_ddr(struct arge_softc *sc)
 {
-
-	ATH_WRITE_REG(sc->arge_ddr_flush_reg, 1);
-	while (ATH_READ_REG(sc->arge_ddr_flush_reg) & 1)
-		;
-
-	ATH_WRITE_REG(sc->arge_ddr_flush_reg, 1);
-	while (ATH_READ_REG(sc->arge_ddr_flush_reg) & 1)
-		;
+	if (sc->arge_mac_unit == 0)
+		ar71xx_device_flush_ddr_ge0();
+	else
+		ar71xx_device_flush_ddr_ge1();
 }
 
 static int 
@@ -196,6 +194,26 @@ arge_probe(device_t dev)
 
 	device_set_desc(dev, "Atheros AR71xx built-in ethernet interface");
 	return (0);
+}
+
+static void
+arge_attach_sysctl(device_t dev)
+{
+	struct arge_softc *sc = device_get_softc(dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debug", CTLFLAG_RW, &sc->arge_debug, 0,
+		"arge interface debugging flags");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tx_pkts_aligned", CTLFLAG_RW, &sc->stats.tx_pkts_aligned, 0,
+		"number of TX aligned packets");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned, 0,
+		"number of TX unaligned packets");
 }
 
 static int
@@ -215,15 +233,6 @@ arge_attach(device_t dev)
 
 	KASSERT(((sc->arge_mac_unit == 0) || (sc->arge_mac_unit == 1)), 
 	    ("if_arge: Only MAC0 and MAC1 supported"));
-	if (sc->arge_mac_unit == 0) {
-		sc->arge_ddr_flush_reg = AR71XX_WB_FLUSH_GE0;
-		sc->arge_pll_reg = AR71XX_PLL_ETH_INT0_CLK;
-		sc->arge_pll_reg_shift = 17;
-	} else {
-		sc->arge_ddr_flush_reg = AR71XX_WB_FLUSH_GE1;
-		sc->arge_pll_reg = AR71XX_PLL_ETH_INT1_CLK;
-		sc->arge_pll_reg_shift = 19;
-	}
 
 	/*
 	 *  Get which PHY of 5 available we should use for this unit
@@ -360,19 +369,9 @@ arge_attach(device_t dev)
 	DELAY(20);
 
 	/* Step 2. Punt the MAC core from the central reset register */
-	reg = ATH_READ_REG(AR71XX_RST_RESET);
-	if (sc->arge_mac_unit == 0) 
-		reg |= RST_RESET_GE0_MAC;
-	else if (sc->arge_mac_unit == 1) 
-		reg |= RST_RESET_GE1_MAC;
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
 	DELAY(100);
-	reg = ATH_READ_REG(AR71XX_RST_RESET);
-	if (sc->arge_mac_unit == 0) 
-		reg &= ~RST_RESET_GE0_MAC;
-	else if (sc->arge_mac_unit == 1) 
-		reg &= ~RST_RESET_GE1_MAC;
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
 
 	/* Step 3. Reconfigure MAC block */
 	ARGE_WRITE(sc, AR71XX_MAC_CFG1, 
@@ -425,10 +424,11 @@ arge_attach(device_t dev)
 
 	if (phys_total == 1) {
 		/* Do MII setup. */
-		if (mii_phy_probe(dev, &sc->arge_miibus,
-		    arge_ifmedia_upd, arge_ifmedia_sts)) {
-			device_printf(dev, "MII without any phy!\n");
-			error = ENXIO;
+		error = mii_attach(dev, &sc->arge_miibus, ifp,
+		    arge_ifmedia_upd, arge_ifmedia_sts, BMSR_DEFCAPMASK,
+		    MII_PHY_ANY, MII_OFFSET_ANY, 0);
+		if (error != 0) {
+			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 	}
@@ -456,6 +456,9 @@ arge_attach(device_t dev)
 		ether_ifdetach(ifp);
 		goto fail;
 	}
+
+	/* setup sysctl variables */
+	arge_attach_sysctl(dev);
 
 fail:
 	if (error) 
@@ -659,7 +662,8 @@ arge_link_task(void *arg, int pending)
 static void
 arge_set_pll(struct arge_softc *sc, int media, int duplex)
 {
-	uint32_t		cfg, ifcontrol, rx_filtmask, pll, sec_cfg;
+	uint32_t		cfg, ifcontrol, rx_filtmask;
+	int if_speed;
 
 	cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
 	cfg &= ~(MAC_CFG2_IFACE_MODE_1000 
@@ -678,21 +682,21 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	switch(media) {
 	case IFM_10_T:
 		cfg |= MAC_CFG2_IFACE_MODE_10_100;
-		pll = PLL_ETH_INT_CLK_10;
+		if_speed = 10;
 		break;
 	case IFM_100_TX:
 		cfg |= MAC_CFG2_IFACE_MODE_10_100;
 		ifcontrol |= MAC_IFCONTROL_SPEED;
-		pll = PLL_ETH_INT_CLK_100;
+		if_speed = 100;
 		break;
 	case IFM_1000_T:
 	case IFM_1000_SX:
 		cfg |= MAC_CFG2_IFACE_MODE_1000;
 		rx_filtmask |= FIFO_RX_MASK_BYTE_MODE;
-		pll = PLL_ETH_INT_CLK_1000;
+		if_speed = 1000;
 		break;
 	default:
-		pll = PLL_ETH_INT_CLK_100;
+		if_speed = 100;
 		device_printf(sc->arge_dev, 
 		    "Unknown media %d\n", media);
 	}
@@ -706,22 +710,10 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	    rx_filtmask);
 
 	/* set PLL registers */
-	sec_cfg = ATH_READ_REG(AR71XX_PLL_SEC_CONFIG);
-	sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
-	sec_cfg |= (2 << sc->arge_pll_reg_shift);
-
-	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-	DELAY(100);
-
-	ATH_WRITE_REG(sc->arge_pll_reg, pll);
-
-	sec_cfg |= (3 << sc->arge_pll_reg_shift);
-	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-	DELAY(100);
-
-	sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
-	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-	DELAY(100);
+	if (sc->arge_mac_unit == 0)
+		ar71xx_device_set_pll_ge0(if_speed);
+	else
+		ar71xx_device_set_pll_ge1(if_speed);
 }
 
 
@@ -818,6 +810,28 @@ arge_init_locked(struct arge_softc *sc)
 }
 
 /*
+ * Return whether the mbuf chain is correctly aligned
+ * for the arge TX engine.
+ *
+ * The TX engine requires each fragment to be aligned to a
+ * 4 byte boundary and the size of each fragment except
+ * the last to be a multiple of 4 bytes.
+ */
+static int
+arge_mbuf_chain_is_tx_aligned(struct mbuf *m0)
+{
+	struct mbuf *m;
+
+	for (m = m0; m != NULL; m = m->m_next) {
+		if((mtod(m, intptr_t) & 3) != 0)
+			return 0;
+		if ((m->m_next != NULL) && ((m->m_len & 0x03) != 0))
+			return 0;
+	}
+	return 1;
+}
+
+/*
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
@@ -837,14 +851,16 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	 * even 4 bytes
 	 */
 	m = *m_head;
-	if((mtod(m, intptr_t) & 3) != 0) {
+	if (! arge_mbuf_chain_is_tx_aligned(m)) {
+		sc->stats.tx_pkts_unaligned++;
 		m = m_defrag(*m_head, M_DONTWAIT);
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
 		*m_head = m;
-	}
+	} else
+		sc->stats.tx_pkts_aligned++;
 
 	prod = sc->arge_cdata.arge_tx_prod;
 	txd = &sc->arge_cdata.arge_txdesc[prod];

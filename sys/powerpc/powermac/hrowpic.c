@@ -45,7 +45,6 @@
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
@@ -70,6 +69,7 @@ static void	hrowpic_eoi(device_t, u_int);
 static void	hrowpic_ipi(device_t, u_int);
 static void	hrowpic_mask(device_t, u_int);
 static void	hrowpic_unmask(device_t, u_int);
+static uint32_t hrowpic_id(device_t dev);
 
 static device_method_t  hrowpic_methods[] = {
 	/* Device interface */
@@ -80,6 +80,7 @@ static device_method_t  hrowpic_methods[] = {
 	DEVMETHOD(pic_dispatch,		hrowpic_dispatch),
 	DEVMETHOD(pic_enable,		hrowpic_enable),
 	DEVMETHOD(pic_eoi,		hrowpic_eoi),
+	DEVMETHOD(pic_id,		hrowpic_id),
 	DEVMETHOD(pic_ipi,		hrowpic_ipi),
 	DEVMETHOD(pic_mask,		hrowpic_mask),
 	DEVMETHOD(pic_unmask,		hrowpic_unmask),
@@ -169,6 +170,8 @@ hrowpic_attach(device_t dev)
 	hrowpic_write_reg(sc, HPIC_CLEAR,  HPIC_SECONDARY, 0xffffffff);
 
 	powerpc_register_pic(dev, 64);
+	root_pic = dev; /* Heathrow systems have only one PIC */
+
 	return (0);
 }
 
@@ -266,12 +269,9 @@ static void
 hrowpic_mask(device_t dev, u_int irq)
 {
 	struct hrowpic_softc *sc;
-	int bank;
 
 	sc = device_get_softc(dev);
 	hrowpic_toggle_irq(sc, irq, 0);
-	bank = (irq >= 32) ? HPIC_SECONDARY : HPIC_PRIMARY ;
-	hrowpic_write_reg(sc, HPIC_CLEAR, bank, 1U << (irq & 0x1f));
 }
 
 static void
@@ -282,3 +282,10 @@ hrowpic_unmask(device_t dev, u_int irq)
 	sc = device_get_softc(dev);
 	hrowpic_toggle_irq(sc, irq, 1);
 }
+
+static uint32_t
+hrowpic_id(device_t dev)
+{
+	return (ofw_bus_get_node(dev));
+}
+

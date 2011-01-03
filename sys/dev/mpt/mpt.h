@@ -743,6 +743,7 @@ struct mpt_softc {
 	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
 	uint32_t		max_seg_cnt;	/* calculated after IOC facts */
+	uint32_t		max_cam_seg_cnt;/* calculated from MAXPHYS*/
 
 	/*
 	 * Hardware management
@@ -995,9 +996,6 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 /* Max MPT Reply we are willing to accept (must be power of 2) */
 #define MPT_REPLY_SIZE   	256
 
-/* Max i/o size, based on legacy MAXPHYS.  Can be increased. */
-#define MPT_MAXPHYS		(128 * 1024)
-
 /*
  * Must be less than 16384 in order for target mode to work
  */
@@ -1114,10 +1112,10 @@ do {						\
 		mpt_prt(mpt, __VA_ARGS__);	\
 } while (0)
 
-#define mpt_lprtc(mpt, level, ...)		 \
-do {						 \
-	if (level <= (mpt)->debug_level)	 \
-		mpt_prtc(mpt, __VA_ARGS__);	 \
+#define mpt_lprtc(mpt, level, ...)		\
+do {						\
+	if (level <= (mpt)->verbose)		\
+		mpt_prtc(mpt, __VA_ARGS__);	\
 } while (0)
 #else
 void mpt_lprt(struct mpt_softc *, int, const char *, ...)
@@ -1159,18 +1157,12 @@ mpt_tag_2_req(struct mpt_softc *mpt, uint32_t tag)
 	KASSERT(mpt->tgt_cmd_ptrs[rtg], ("no cmd backpointer"));
 	return (mpt->tgt_cmd_ptrs[rtg]);
 }
-
+#endif
 
 static __inline int
 mpt_req_on_free_list(struct mpt_softc *, request_t *);
 static __inline int
 mpt_req_on_pending_list(struct mpt_softc *, request_t *);
-
-static __inline void
-mpt_req_spcl(struct mpt_softc *, request_t *, const char *, int);
-static __inline void
-mpt_req_not_spcl(struct mpt_softc *, request_t *, const char *, int);
-
 
 /*
  * Is request on freelist?
@@ -1203,6 +1195,12 @@ mpt_req_on_pending_list(struct mpt_softc *mpt, request_t *req)
 	}
 	return (0);
 }
+
+#ifdef	INVARIANTS
+static __inline void
+mpt_req_spcl(struct mpt_softc *, request_t *, const char *, int);
+static __inline void
+mpt_req_not_spcl(struct mpt_softc *, request_t *, const char *, int);
 
 /*
  * Make sure that req *is* part of one of the special lists

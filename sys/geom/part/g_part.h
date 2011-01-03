@@ -59,6 +59,7 @@ enum g_part_alias {
 	G_PART_ALIAS_MS_LDM_DATA,	/* A Microsoft LDM Data part. entry. */
 	G_PART_ALIAS_MS_LDM_METADATA,	/* A Microsoft LDM Metadata entry. */
 	G_PART_ALIAS_MS_RESERVED,	/* A Microsoft Reserved part. entry. */
+	G_PART_ALIAS_MS_NTFS,		/* A Microsoft NTFS partition entry */
 	G_PART_ALIAS_NETBSD_CCD,	/* A NetBSD CCD partition entry. */
 	G_PART_ALIAS_NETBSD_CGD,	/* A NetBSD CGD partition entry. */
 	G_PART_ALIAS_NETBSD_FFS,	/* A NetBSD FFS partition entry. */
@@ -131,6 +132,7 @@ struct g_part_table {
 	int		gpt_modified:1;	/* Table changes have been made. */
 	int		gpt_opened:1;	/* Permissions obtained. */
 	int		gpt_fixgeom:1;	/* Geometry is fixed. */
+	int		gpt_corrupt:1;	/* Table is corrupt. */
 };
 
 struct g_part_entry *g_part_new_entry(struct g_part_table *, int, quad_t,
@@ -168,6 +170,7 @@ enum g_part_ctl {
 #define	G_PART_PARM_VERSION	0x0800
 #define	G_PART_PARM_BOOTCODE	0x1000
 #define	G_PART_PARM_ATTRIB	0x2000
+#define	G_PART_PARM_FORCE	0x4000
 
 struct g_part_parms {
 	unsigned int	gpp_parms;
@@ -185,6 +188,7 @@ struct g_part_parms {
 	const void	*gpp_codeptr;
 	unsigned int	gpp_codesize;
 	const char	*gpp_attrib;
+	unsigned int	gpp_force;
 };
 
 void g_part_geometry_heads(off_t, u_int, off_t *, u_int *);

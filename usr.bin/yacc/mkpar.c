@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -73,7 +69,7 @@ static void unused_rules(void);
 
 
 void
-make_parser()
+make_parser(void)
 {
     int i;
 
@@ -90,8 +86,7 @@ make_parser()
 
 
 static action *
-parse_actions(stateno)
-int stateno;
+parse_actions(int stateno)
 {
     action *actions;
 
@@ -102,8 +97,7 @@ int stateno;
 
 
 static action *
-get_shifts(stateno)
-int stateno;
+get_shifts(int stateno)
 {
     action *actions, *temp;
     shifts *sp;
@@ -137,9 +131,7 @@ int stateno;
 }
 
 static action *
-add_reductions(stateno, actions)
-int stateno;
-action *actions;
+add_reductions(int stateno, action *actions)
 {
     int i, j, m, n;
     int ruleno, tokensetsize;
@@ -163,9 +155,7 @@ action *actions;
 
 
 static action *
-add_reduce(actions, ruleno, symbol)
-action *actions;
-int ruleno, symbol;
+add_reduce(action *actions, int ruleno, int symbol)
 {
     action *temp, *prev, *next;
 
@@ -204,7 +194,7 @@ int ruleno, symbol;
 
 
 static void
-find_final_state()
+find_final_state(void)
 {
     int goal, i;
     short *tostate;
@@ -222,12 +212,12 @@ find_final_state()
 
 
 static void
-unused_rules()
+unused_rules(void)
 {
     int i;
     action *p;
 
-    rules_used = (short *) MALLOC(nrules*sizeof(short));
+    rules_used = malloc(nrules*sizeof(short));
     if (rules_used == 0) no_space();
 
     for (i = 0; i < nrules; ++i)
@@ -256,7 +246,7 @@ unused_rules()
 
 
 static void
-remove_conflicts()
+remove_conflicts(void)
 {
     int i;
     int symbol;
@@ -333,7 +323,7 @@ remove_conflicts()
 
 
 static void
-total_conflicts()
+total_conflicts(void)
 {
     /* Warn if s/r != expect or if any r/r */
     if ((SRtotal != SRexpect) || RRtotal)
@@ -352,8 +342,7 @@ total_conflicts()
 
 
 static int
-sole_reduction(stateno)
-int stateno;
+sole_reduction(int stateno)
 {
     int count, ruleno;
     action *p;
@@ -381,7 +370,7 @@ int stateno;
 
 
 static void
-defreds()
+defreds(void)
 {
     int i;
 
@@ -391,26 +380,25 @@ defreds()
 }
 
 static void
-free_action_row(p)
-action *p;
+free_action_row(action *p)
 {
   action *q;
 
   while (p)
     {
       q = p->next;
-      FREE(p);
+      free(p);
       p = q;
     }
 }
 
 void
-free_parser()
+free_parser(void)
 {
   int i;
 
   for (i = 0; i < nstates; i++)
     free_action_row(parser[i]);
 
-  FREE(parser);
+  free(parser);
 }

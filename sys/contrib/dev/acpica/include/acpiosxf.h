@@ -394,7 +394,7 @@ ACPI_STATUS
 AcpiOsReadPciConfiguration (
     ACPI_PCI_ID             *PciId,
     UINT32                  Reg,
-    void                    *Value,
+    UINT64                  *Value,
     UINT32                  Width);
 
 ACPI_STATUS
@@ -406,22 +406,8 @@ AcpiOsWritePciConfiguration (
 
 
 /*
- * Interim function needed for PCI IRQ routing
- */
-void
-AcpiOsDerivePciId(
-    ACPI_HANDLE             Device,
-    ACPI_HANDLE             Region,
-    ACPI_PCI_ID             **PciId);
-
-
-/*
  * Miscellaneous
  */
-ACPI_STATUS
-AcpiOsValidateInterface (
-    char                    *Interface);
-
 BOOLEAN
 AcpiOsReadable (
     void                    *Pointer,

@@ -737,10 +737,8 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			if (xpt_create_path(&dpath, periph,
 			    xpt_path_path_id(periph->path),
 			    i, 0) != CAM_REQ_CMP) {
-				printf("pmpdone: xpt_create_path failed"
-				    ", bus scan halted\n");
-				xpt_free_ccb(done_ccb);
-				goto done;
+				printf("pmpdone: xpt_create_path failed\n");
+				continue;
 			}
 			/* If we did hard reset to this device, inform XPT. */
 			if ((softc->reset & softc->found & (1 << i)) != 0)

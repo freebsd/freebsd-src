@@ -97,4 +97,3 @@ _pthread_rwlockattr_setpshared(pthread_rwlockattr_t *rwlockattr, int pshared)
 
 	return(0);
 }
-

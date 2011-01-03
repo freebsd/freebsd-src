@@ -44,6 +44,7 @@ sip_print(register const u_char *pptr, register u_int len)
         return;
 
     for (idx = 0; idx < len; idx++) {
+        TCHECK2(*(pptr+idx), 2);
         if (EXTRACT_16BITS(pptr+idx) != 0x0d0a) { /* linefeed ? */
             safeputchar(*(pptr+idx));
         } else {
@@ -57,4 +58,7 @@ sip_print(register const u_char *pptr, register u_int len)
         print_unknown_data(pptr,"\n\t",len);
 
     return;
+
+trunc:
+    printf("[|sip]");
 }

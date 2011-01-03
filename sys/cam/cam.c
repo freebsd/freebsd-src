@@ -37,12 +37,14 @@ __FBSDID("$FreeBSD$");
 #else /* _KERNEL */
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <camlib.h>
 #endif /* _KERNEL */
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/scsi/scsi_all.h>
+#include <cam/scsi/smp_all.h>
 #include <sys/sbuf.h>
 
 #ifdef _KERNEL
@@ -59,7 +61,7 @@ const struct cam_status_entry cam_status_table[] = {
 	{ CAM_REQ_ABORTED,	 "CCB request aborted by the host"	     },
 	{ CAM_UA_ABORT,		 "Unable to abort CCB request"		     },
 	{ CAM_REQ_CMP_ERR,	 "CCB request completed with an error"	     },
-	{ CAM_BUSY,		 "CAM subsytem is busy"			     },
+	{ CAM_BUSY,		 "CAM subsystem is busy"		     },
 	{ CAM_REQ_INVALID,	 "CCB request was invalid"		     },
 	{ CAM_PATH_INVALID,	 "Supplied Path ID is invalid"		     },
 	{ CAM_DEV_NOT_THERE,	 "Device Not Present"			     },
@@ -83,6 +85,8 @@ const struct cam_status_entry cam_status_table[] = {
 	{ CAM_REQ_TOO_BIG,	 "The request was too large for this host"   },
 	{ CAM_REQUEUE_REQ,	 "Unconditionally Re-queue Request",	     },
 	{ CAM_ATA_STATUS_ERROR,	 "ATA Status Error"			     },
+	{ CAM_SCSI_IT_NEXUS_LOST,"Initiator/Target Nexus Lost"               },
+	{ CAM_SMP_STATUS_ERROR,	 "SMP Status Error"                          },
 	{ CAM_IDE,		 "Initiator Detected Error Message Received" },
 	{ CAM_RESRC_UNAVAIL,	 "Resource Unavailable"			     },
 	{ CAM_UNACKED_EVENT,	 "Unacknowledged Event by Host"		     },
@@ -263,6 +267,21 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 				break;
 			}
 			break;
+		case XPT_SMP_IO:
+			switch (proto_flags & CAM_EPF_LEVEL_MASK) {
+			case CAM_EPF_NONE:
+				break;
+			case CAM_EPF_ALL:
+				proto_flags |= CAM_ESMF_PRINT_FULL_CMD;
+				/* FALLTHROUGH */
+			case CAM_EPF_NORMAL:
+			case CAM_EPF_MINIMAL:
+				proto_flags |= CAM_ESMF_PRINT_STATUS;
+				/* FALLTHROUGH */
+			default:
+				break;
+			}
+			break;
 		default:
 			break;
 	}
@@ -287,6 +306,12 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 #else /* !_KERNEL */
 			scsi_command_string(device, &ccb->csio, &sb);
 #endif /* _KERNEL/!_KERNEL */
+			sbuf_printf(&sb, "\n");
+			break;
+		case XPT_SMP_IO:
+			smp_command_sbuf(&ccb->smpio, &sb, path_str, 79 -
+					 strlen(path_str), (proto_flags &
+					 CAM_ESMF_PRINT_FULL_CMD) ? 79 : 0);
 			sbuf_printf(&sb, "\n");
 			break;
 		default:
@@ -354,6 +379,19 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 						SSS_FLAG_NONE);
 #endif /* _KERNEL/!_KERNEL */
 			}
+			break;
+		case XPT_SMP_IO:
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) !=
+			     CAM_SMP_STATUS_ERROR)
+				break;
+
+			if (proto_flags & CAM_ESF_PRINT_STATUS) {
+				sbuf_cat(&sb, path_str);
+				sbuf_printf(&sb, "SMP status: %s (%#x)\n",
+				    smp_error_desc(ccb->smpio.smp_response[2]),
+						   ccb->smpio.smp_response[2]);
+			}
+			/* There is no SMP equivalent to SCSI sense. */
 			break;
 		default:
 			break;

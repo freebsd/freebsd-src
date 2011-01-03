@@ -17,10 +17,10 @@ CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 
-LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_ARCH}
+LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_CPUARCH}
 LDFLAGS=	-Wl,-T${LDSCRIPT}
 
-NEWVERSWHAT=	"SKI boot" ${MACHINE_ARCH}
+NEWVERSWHAT=	"SKI boot" ${MACHINE_CPUARCH}
 
 vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}

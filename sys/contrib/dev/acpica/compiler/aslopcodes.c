@@ -592,9 +592,9 @@ OpcDoEisaId (
         /* Create ID big-endian first (bits are contiguous) */
 
         BigEndianId =
-            (UINT32) (InString[0] - 0x40) << 26 |
-            (UINT32) (InString[1] - 0x40) << 21 |
-            (UINT32) (InString[2] - 0x40) << 16 |
+            (UINT32) ((UINT8) (InString[0] - 0x40)) << 26 |
+            (UINT32) ((UINT8) (InString[1] - 0x40)) << 21 |
+            (UINT32) ((UINT8) (InString[2] - 0x40)) << 16 |
 
             (UtHexCharToValue (InString[3])) << 12 |
             (UtHexCharToValue (InString[4])) << 8  |

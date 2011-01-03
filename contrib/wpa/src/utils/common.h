@@ -17,22 +17,29 @@
 
 #include "os.h"
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GLIBC__)
 #include <endian.h>
 #include <byteswap.h>
 #endif /* __linux__ */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || \
+    defined(__OpenBSD__)
 #include <sys/types.h>
 #include <sys/endian.h>
 #define __BYTE_ORDER	_BYTE_ORDER
 #define	__LITTLE_ENDIAN	_LITTLE_ENDIAN
 #define	__BIG_ENDIAN	_BIG_ENDIAN
+#ifdef __OpenBSD__
+#define bswap_16 swap16
+#define bswap_32 swap32
+#define bswap_64 swap64
+#else /* __OpenBSD__ */
 #define bswap_16 bswap16
 #define bswap_32 bswap32
 #define bswap_64 bswap64
+#endif /* __OpenBSD__ */
 #endif /* defined(__FreeBSD__) || defined(__NetBSD__) ||
-	* defined(__DragonFly__) */
+	* defined(__DragonFly__) || defined(__OpenBSD__) */
 
 #ifdef __APPLE__
 #include <sys/types.h>
@@ -307,6 +314,24 @@ static inline unsigned int wpa_swap_32(unsigned int v)
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
 #endif
+#ifndef IFNAMSIZ
+#define IFNAMSIZ 16
+#endif
+#ifndef ETH_P_ALL
+#define ETH_P_ALL 0x0003
+#endif
+#ifndef ETH_P_PAE
+#define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
+#endif /* ETH_P_PAE */
+#ifndef ETH_P_EAPOL
+#define ETH_P_EAPOL ETH_P_PAE
+#endif /* ETH_P_EAPOL */
+#ifndef ETH_P_RSN_PREAUTH
+#define ETH_P_RSN_PREAUTH 0x88c7
+#endif /* ETH_P_RSN_PREAUTH */
+#ifndef ETH_P_RRB
+#define ETH_P_RRB 0x890D
+#endif /* ETH_P_RRB */
 
 
 #ifdef __GNUC__
@@ -411,6 +436,7 @@ typedef u64 __bitwise le64;
 #endif /* __must_check */
 
 int hwaddr_aton(const char *txt, u8 *addr);
+int hwaddr_aton2(const char *txt, u8 *addr);
 int hexstr2bin(const char *hex, u8 *buf, size_t len);
 void inc_byte_array(u8 *counter, size_t len);
 void wpa_get_ntp_timestamp(u8 *buf);
@@ -434,5 +460,18 @@ static inline int is_zero_ether_addr(const u8 *a)
 }
 
 #include "wpa_debug.h"
+
+
+/*
+ * gcc 4.4 ends up generating strict-aliasing warnings about some very common
+ * networking socket uses that do not really result in a real problem and
+ * cannot be easily avoided with union-based type-punning due to struct
+ * definitions including another struct in system header files. To avoid having
+ * to fully disable strict-aliasing warnings, provide a mechanism to hide the
+ * typecast from aliasing for now. A cleaner solution will hopefully be found
+ * in the future to handle these cases.
+ */
+void * __hide_aliasing_typecast(void *foo);
+#define aliasing_hide_typecast(a,t) (t *) __hide_aliasing_typecast((a))
 
 #endif /* COMMON_H */

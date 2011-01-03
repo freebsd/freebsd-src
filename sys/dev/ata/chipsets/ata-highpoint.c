@@ -216,7 +216,7 @@ ata_highpoint_check_80pin(device_t dev, int mode)
     res = pci_read_config(parent, 0x5a, 1) & (ch->unit ? 0x1:0x2);
     pci_write_config(parent, reg, val, 1);
 
-    if (mode > ATA_UDMA2 && res) {
+    if (ata_dma_check_80pin && mode > ATA_UDMA2 && res) {
 	ata_print_cable(dev, "controller");
 	mode = ATA_UDMA2;
     }

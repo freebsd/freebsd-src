@@ -80,7 +80,7 @@ BEGIN
 	i++;
 
 	end = j = k = 0;
-	printf("#!/usr/perl5/bin/perl\n\nBEGIN {\n");
+	printf("#!/usr/bin/perl\n\nBEGIN {\n");
 }
 
 tick-1ms

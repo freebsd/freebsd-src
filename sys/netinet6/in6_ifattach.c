@@ -267,6 +267,7 @@ found:
 	/* get EUI64 */
 	switch (ifp->if_type) {
 	case IFT_ETHER:
+	case IFT_L2VLAN:
 	case IFT_FDDI:
 	case IFT_ISO88025:
 	case IFT_ATM:

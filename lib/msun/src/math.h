@@ -97,7 +97,7 @@ extern const union __nan_un {
     : (sizeof (x) == sizeof (double)) ? isinf(x)	\
     : __isinfl(x))
 #define	isnan(x)					\
-    ((sizeof (x) == sizeof (float)) ? isnanf(x)		\
+    ((sizeof (x) == sizeof (float)) ? __isnanf(x)	\
     : (sizeof (x) == sizeof (double)) ? isnan(x)	\
     : __isnanl(x))
 #define	isnormal(x)					\
@@ -179,6 +179,7 @@ int	__isfinite(double) __pure2;
 int	__isfinitel(long double) __pure2;
 int	__isinff(float) __pure2;
 int	__isinfl(long double) __pure2;
+int	__isnanf(float) __pure2;
 int	__isnanl(long double) __pure2;
 int	__isnormalf(float) __pure2;
 int	__isnormal(double) __pure2;
@@ -235,6 +236,7 @@ double	lgamma(double);
 long long llrint(double);
 long long llround(double);
 double	log1p(double);
+double	log2(double);
 double	logb(double);
 long	lrint(double);
 long	lround(double);
@@ -318,6 +320,7 @@ int	ilogbf(float) __pure2;
 float	ldexpf(float, int);
 float	log10f(float);
 float	log1pf(float);
+float	log2f(float);
 float	logf(float);
 float	modff(float, float *);	/* fundamentally !__pure2 */
 

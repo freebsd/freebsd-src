@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2008 Poul-Henning Kamp
+ * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,12 +40,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/proc.h>
+#include <sys/rman.h>
+#include <sys/timeet.h>
 
 #include <isa/rtc.h>
 #ifdef DEV_ISA
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 #endif
+#include <machine/intr_machdep.h>
+#include "clock_if.h"
 
 #define	RTC_LOCK	mtx_lock_spin(&clock_lock)
 #define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
@@ -98,7 +104,7 @@ readrtc(int port)
 	return(bcd2bin(rtcin(port)));
 }
 
-void
+static void
 atrtc_start(void)
 {
 
@@ -106,7 +112,7 @@ atrtc_start(void)
 	writertc(RTC_STATUSB, RTCSB_24HR);
 }
 
-void
+static void
 atrtc_rate(unsigned rate)
 {
 
@@ -114,11 +120,20 @@ atrtc_rate(unsigned rate)
 	writertc(RTC_STATUSA, rtc_statusa);
 }
 
-void
+static void
 atrtc_enable_intr(void)
 {
 
 	rtc_statusb |= RTCSB_PINTR;
+	writertc(RTC_STATUSB, rtc_statusb);
+	rtcin(RTC_INTR);
+}
+
+static void
+atrtc_disable_intr(void)
+{
+
+	rtc_statusb &= ~RTCSB_PINTR;
 	writertc(RTC_STATUSB, rtc_statusb);
 	rtcin(RTC_INTR);
 }
@@ -135,40 +150,70 @@ atrtc_restore(void)
 	rtcin(RTC_INTR);
 }
 
-int
-atrtc_setup_clock(void)
-{
-	int diag;
-
-	if (atrtcclock_disable)
-		return (0);
-
-	diag = rtcin(RTC_DIAG);
-	if (diag != 0) {
-		printf("RTC BIOS diagnostic error %b\n",
-		    diag, RTCDG_BITS);
-		return (0);
-	}
-
-	stathz = RTC_NOPROFRATE;
-	profhz = RTC_PROFRATE;
-
-	return (1);
-}
-
 /**********************************************************************
  * RTC driver for subr_rtc
  */
-
-#include "clock_if.h"
-
-#include <sys/rman.h>
 
 struct atrtc_softc {
 	int port_rid, intr_rid;
 	struct resource *port_res;
 	struct resource *intr_res;
+	void *intr_handler;
+	struct eventtimer et;
 };
+
+static int
+rtc_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period)
+{
+
+	atrtc_rate(max(fls((period->frac + (period->frac >> 1)) >> 32) - 17, 1));
+	atrtc_enable_intr();
+	return (0);
+}
+
+static int
+rtc_stop(struct eventtimer *et)
+{
+
+	atrtc_disable_intr();
+	return (0);
+}
+
+/*
+ * This routine receives statistical clock interrupts from the RTC.
+ * As explained above, these occur at 128 interrupts per second.
+ * When profiling, we receive interrupts at a rate of 1024 Hz.
+ *
+ * This does not actually add as much overhead as it sounds, because
+ * when the statistical clock is active, the hardclock driver no longer
+ * needs to keep (inaccurate) statistics on its own.  This decouples
+ * statistics gathering from scheduling interrupts.
+ *
+ * The RTC chip requires that we read status register C (RTC_INTR)
+ * to acknowledge an interrupt, before it will generate the next one.
+ * Under high interrupt load, rtcintr() can be indefinitely delayed and
+ * the clock can tick immediately after the read from RTC_INTR.  In this
+ * case, the mc146818A interrupt signal will not drop for long enough
+ * to register with the 8259 PIC.  If an interrupt is missed, the stat
+ * clock will halt, considerably degrading system performance.  This is
+ * why we use 'while' rather than a more straightforward 'if' below.
+ * Stat clock ticks can still be lost, causing minor loss of accuracy
+ * in the statistics, but the stat clock will no longer stop.
+ */
+static int
+rtc_intr(void *arg)
+{
+	struct atrtc_softc *sc = (struct atrtc_softc *)arg;
+	int flag = 0;
+
+	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
+		flag = 1;
+		if (sc->et.et_active)
+			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
+	}
+	return(flag ? FILTER_HANDLED : FILTER_STRAY);
+}
 
 /*
  * Attach to the ISA PnP descriptors for the timer and realtime clock.
@@ -183,36 +228,63 @@ atrtc_probe(device_t dev)
 {
 	int result;
 	
-	device_set_desc(dev, "AT Real Time Clock");
 	result = ISA_PNP_PROBE(device_get_parent(dev), dev, atrtc_ids);
-	/* ENXIO if wrong PnP-ID, ENOENT ifno PnP-ID, zero if good PnP-iD */
-	if (result != ENOENT)
-		return(result);
-	/* All PC's have an RTC, and we're hosed without it, so... */
-	return (BUS_PROBE_LOW_PRIORITY);
+	/* ENOENT means no PnP-ID, device is hinted. */
+	if (result == ENOENT) {
+		device_set_desc(dev, "AT realtime clock");
+		return (BUS_PROBE_LOW_PRIORITY);
+	}
+	return (result);
 }
 
 static int
 atrtc_attach(device_t dev)
 {
 	struct atrtc_softc *sc;
+	u_long s;
 	int i;
 
-	/*
-	 * Not that we need them or anything, but grab our resources
-	 * so they show up, correctly attributed, in the big picture.
-	 */
-	
 	sc = device_get_softc(dev);
-	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &sc->port_rid, IO_RTC, IO_RTC + 1, 2, RF_ACTIVE)))
-		device_printf(dev,"Warning: Couldn't map I/O.\n");
-	if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-	    &sc->intr_rid, 8, 8, 1, RF_ACTIVE)))
-		device_printf(dev,"Warning: Couldn't map Interrupt.\n");
+	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
+	    IO_RTC, IO_RTC + 1, 2, RF_ACTIVE);
+	if (sc->port_res == NULL)
+		device_printf(dev, "Warning: Couldn't map I/O.\n");
+	atrtc_start();
 	clock_register(dev, 1000000);
-	if (resource_int_value("atrtc", 0, "clock", &i) == 0 && i == 0)
-		atrtcclock_disable = 1;
+	bzero(&sc->et, sizeof(struct eventtimer));
+	if (!atrtcclock_disable &&
+	    (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	     "clock", &i) != 0 || i != 0)) {
+		sc->intr_rid = 0;
+		while (bus_get_resource(dev, SYS_RES_IRQ, sc->intr_rid,
+		    &s, NULL) == 0 && s != 8)
+			sc->intr_rid++;
+		sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
+		    &sc->intr_rid, 8, 8, 1, RF_ACTIVE);
+		if (sc->intr_res == NULL) {
+			device_printf(dev, "Can't map interrupt.\n");
+			return (0);
+		} else if ((bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
+		    rtc_intr, NULL, sc, &sc->intr_handler))) {
+			device_printf(dev, "Can't setup interrupt.\n");
+			return (0);
+		} else { 
+			/* Bind IRQ to BSP to avoid live migration. */
+			bus_bind_intr(dev, sc->intr_res, 0);
+		}
+		sc->et.et_name = "RTC";
+		sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_POW2DIV;
+		sc->et.et_quality = 0;
+		sc->et.et_frequency = 32768;
+		sc->et.et_min_period.sec = 0;
+		sc->et.et_min_period.frac = 0x0008LLU << 48;
+		sc->et.et_max_period.sec = 0;
+		sc->et.et_max_period.frac = 0x8000LLU << 48;
+		sc->et.et_start = rtc_start;
+		sc->et.et_stop = rtc_stop;
+		sc->et.et_priv = dev;
+		et_register(&sc->et);
+	}
 	return(0);
 }
 

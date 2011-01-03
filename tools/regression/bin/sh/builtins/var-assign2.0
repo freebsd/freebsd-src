@@ -40,16 +40,16 @@ UTILS="alias,\
 
 set -e
 
-# With 'command', variable assignments affect the shell environment.
+# With 'command', variable assignments do not affect the shell environment.
 
 set -- ${SPECIAL}
 for cmd in "$@"
 do
-	sh -c "VAR=0; VAR=1 command ${cmd}; exit \${VAR}" >/dev/null 2>&1
+	${SH} -c "VAR=0; VAR=1 command ${cmd}; exit \${VAR}" >/dev/null 2>&1
 done
 
 set -- ${UTILS}
 for cmd in "$@"
 do
-	sh -c "VAR=0; VAR=1 command ${cmd}; exit \${VAR}" >/dev/null 2>&1
+	${SH} -c "VAR=0; VAR=1 command ${cmd}; exit \${VAR}" >/dev/null 2>&1
 done

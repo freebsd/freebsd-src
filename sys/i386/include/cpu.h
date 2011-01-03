@@ -43,12 +43,6 @@
 #include <machine/frame.h>
 #include <machine/segments.h>
 
-/*
- * definitions of cpu-dependent requirements
- * referenced in generic code
- */
-#undef	COPY_SIGCODE		/* don't copy sigcode above user stack in exec */
-
 #define	cpu_exec(p)	/* nothing */
 #define	cpu_swapin(p)	/* nothing */
 #define	cpu_getstack(td)		((td)->td_frame->tf_esp)
@@ -62,7 +56,7 @@
 #ifdef _KERNEL
 extern char	btext[];
 extern char	etext[];
-extern u_int	tsc_present;
+extern int	tsc_present;
 
 void	cpu_halt(void);
 void	cpu_reset(void);

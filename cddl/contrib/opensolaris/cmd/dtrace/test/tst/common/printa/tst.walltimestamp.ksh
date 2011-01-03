@@ -33,7 +33,7 @@ fi
 dtrace=$1
 
 # The output files assumes the timezone is US/Pacific
-TZ=US/Pacific
+export TZ=America/Los_Angeles
 
 $dtrace -s /dev/stdin <<EOF
 #pragma D option quiet

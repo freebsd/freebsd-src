@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_mp_watchdog.h"
 #include "opt_sched.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -56,11 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/cpufunc.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
@@ -99,12 +100,25 @@ char *nmi_stack;
 void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
-struct xpcb **stopxpcbs = NULL;
+struct pcb **susppcbs = NULL;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
 vm_offset_t smp_tlb_addr2;
 volatile int smp_tlb_wait;
+
+#ifdef COUNT_IPIS
+/* Interrupt counts. */
+static u_long *ipi_preempt_counts[MAXCPU];
+static u_long *ipi_ast_counts[MAXCPU];
+u_long *ipi_invltlb_counts[MAXCPU];
+u_long *ipi_invlrng_counts[MAXCPU];
+u_long *ipi_invlpg_counts[MAXCPU];
+u_long *ipi_invlcache_counts[MAXCPU];
+u_long *ipi_rendezvous_counts[MAXCPU];
+u_long *ipi_lazypmap_counts[MAXCPU];
+static u_long *ipi_hardclock_counts[MAXCPU];
+#endif
 
 extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
@@ -112,7 +126,6 @@ extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
  * Local data and functions.
  */
 
-static u_int logical_cpus;
 static volatile cpumask_t ipi_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
@@ -138,8 +151,8 @@ int apic_cpuids[MAX_APIC_ID + 1];
 static volatile u_int cpu_ipi_pending[MAXCPU];
 
 static u_int boot_address;
-static int cpu_logical;
-static int cpu_cores;
+static int cpu_logical;			/* logical cpus per core */
+static int cpu_cores;			/* cores per package */
 
 static void	assign_cpu_ids(void);
 static void	set_interrupt_apic_ids(void);
@@ -148,7 +161,7 @@ static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
 static int	hlt_logical_cpus;
-static u_int	hyperthreading_cpus;
+static u_int	hyperthreading_cpus;	/* logical cpus sharing L1 cache */
 static cpumask_t	hyperthreading_cpus_mask;
 static int	hyperthreading_allowed = 1;
 static struct	sysctl_ctx_list logical_cpu_clist;
@@ -162,24 +175,108 @@ mem_range_AP_init(void)
 }
 
 static void
+topo_probe_amd(void)
+{
+
+	/* AMD processors do not support HTT. */
+	cpu_cores = (amd_feature2 & AMDID2_CMP) != 0 ?
+	    (cpu_procinfo2 & AMDID_CMP_CORES) + 1 : 1;
+	cpu_logical = 1;
+}
+
+/*
+ * Round up to the next power of two, if necessary, and then
+ * take log2.
+ * Returns -1 if argument is zero.
+ */
+static __inline int
+mask_width(u_int x)
+{
+
+	return (fls(x << (1 - powerof2(x))) - 1);
+}
+
+static void
+topo_probe_0x4(void)
+{
+	u_int p[4];
+	int pkg_id_bits;
+	int core_id_bits;
+	int max_cores;
+	int max_logical;
+	int id;
+
+	/* Both zero and one here mean one logical processor per package. */
+	max_logical = (cpu_feature & CPUID_HTT) != 0 ?
+	    (cpu_procinfo & CPUID_HTT_CORES) >> 16 : 1;
+	if (max_logical <= 1)
+		return;
+
+	/*
+	 * Because of uniformity assumption we examine only
+	 * those logical processors that belong to the same
+	 * package as BSP.  Further, we count number of
+	 * logical processors that belong to the same core
+	 * as BSP thus deducing number of threads per core.
+	 */
+	cpuid_count(0x04, 0, p);
+	max_cores = ((p[0] >> 26) & 0x3f) + 1;
+	core_id_bits = mask_width(max_logical/max_cores);
+	if (core_id_bits < 0)
+		return;
+	pkg_id_bits = core_id_bits + mask_width(max_cores);
+
+	for (id = 0; id <= MAX_APIC_ID; id++) {
+		/* Check logical CPU availability. */
+		if (!cpu_info[id].cpu_present || cpu_info[id].cpu_disabled)
+			continue;
+		/* Check if logical CPU has the same package ID. */
+		if ((id >> pkg_id_bits) != (boot_cpu_id >> pkg_id_bits))
+			continue;
+		cpu_cores++;
+		/* Check if logical CPU has the same package and core IDs. */
+		if ((id >> core_id_bits) == (boot_cpu_id >> core_id_bits))
+			cpu_logical++;
+	}
+
+	KASSERT(cpu_cores >= 1 && cpu_logical >= 1,
+	    ("topo_probe_0x4 couldn't find BSP"));
+
+	cpu_cores /= cpu_logical;
+	hyperthreading_cpus = cpu_logical;
+}
+
+static void
 topo_probe_0xb(void)
 {
-	int logical;
-	int p[4];
+	u_int p[4];
 	int bits;
-	int type;
 	int cnt;
 	int i;
+	int logical;
+	int type;
 	int x;
 
-	/* We only support two levels for now. */
+	/* We only support three levels for now. */
 	for (i = 0; i < 3; i++) {
-		cpuid_count(0x0B, i, p);
+		cpuid_count(0x0b, i, p);
+
+		/* Fall back if CPU leaf 11 doesn't really exist. */
+		if (i == 0 && p[1] == 0) {
+			topo_probe_0x4();
+			return;
+		}
+
 		bits = p[0] & 0x1f;
 		logical = p[1] &= 0xffff;
 		type = (p[2] >> 8) & 0xff;
 		if (type == 0 || logical == 0)
 			break;
+		/*
+		 * Because of uniformity assumption we examine only
+		 * those logical processors that belong to the same
+		 * package as BSP.
+		 */
 		for (cnt = 0, x = 0; x <= MAX_APIC_ID; x++) {
 			if (!cpu_info[x].cpu_present ||
 			    cpu_info[x].cpu_disabled)
@@ -197,76 +294,16 @@ topo_probe_0xb(void)
 	cpu_cores /= cpu_logical;
 }
 
-static void
-topo_probe_0x4(void)
-{
-	u_int threads_per_cache, p[4];
-	u_int htt, cmp;
-	int i;
-
-	htt = cmp = 1;
-	/*
-	 * If this CPU supports HTT or CMP then mention the
-	 * number of physical/logical cores it contains.
-	 */
-	if (cpu_feature & CPUID_HTT)
-		htt = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-	if (cpu_vendor_id == CPU_VENDOR_AMD && (amd_feature2 & AMDID2_CMP))
-		cmp = (cpu_procinfo2 & AMDID_CMP_CORES) + 1;
-	else if (cpu_vendor_id == CPU_VENDOR_INTEL && (cpu_high >= 4)) {
-		cpuid_count(4, 0, p);
-		if ((p[0] & 0x1f) != 0)
-			cmp = ((p[0] >> 26) & 0x3f) + 1;
-	}
-	cpu_cores = cmp;
-	cpu_logical = htt / cmp;
-
-	/* Setup the initial logical CPUs info. */
-	if (cpu_feature & CPUID_HTT)
-		logical_cpus = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-
-	/*
-	 * Work out if hyperthreading is *really* enabled.  This
-	 * is made really ugly by the fact that processors lie: Dual
-	 * core processors claim to be hyperthreaded even when they're
-	 * not, presumably because they want to be treated the same
-	 * way as HTT with respect to per-cpu software licensing.
-	 * At the time of writing (May 12, 2005) the only hyperthreaded
-	 * cpus are from Intel, and Intel's dual-core processors can be
-	 * identified via the "deterministic cache parameters" cpuid
-	 * calls.
-	 */
-	/*
-	 * First determine if this is an Intel processor which claims
-	 * to have hyperthreading support.
-	 */
-	if ((cpu_feature & CPUID_HTT) && cpu_vendor_id == CPU_VENDOR_INTEL) {
-		/*
-		 * If the "deterministic cache parameters" cpuid calls
-		 * are available, use them.
-		 */
-		if (cpu_high >= 4) {
-			/* Ask the processor about the L1 cache. */
-			for (i = 0; i < 1; i++) {
-				cpuid_count(4, i, p);
-				threads_per_cache = ((p[0] & 0x3ffc000) >> 14) + 1;
-				if (hyperthreading_cpus < threads_per_cache)
-					hyperthreading_cpus = threads_per_cache;
-				if ((p[0] & 0x1f) == 0)
-					break;
-			}
-		}
-
-		/*
-		 * If the deterministic cache parameters are not
-		 * available, or if no caches were reported to exist,
-		 * just accept what the HTT flag indicated.
-		 */
-		if (hyperthreading_cpus == 0)
-			hyperthreading_cpus = logical_cpus;
-	}
-}
-
+/*
+ * Both topology discovery code and code that consumes topology
+ * information assume top-down uniformity of the topology.
+ * That is, all physical packages must be identical and each
+ * core in a package must have the same number of threads.
+ * Topology information is queried only on BSP, on which this
+ * code runs and for which it can query CPUID information.
+ * Then topology is extrapolated on all packages using the
+ * uniformity assumption.
+ */
 static void
 topo_probe(void)
 {
@@ -275,15 +312,33 @@ topo_probe(void)
 	if (cpu_topo_probed)
 		return;
 
-	logical_cpus = logical_cpus_mask = 0;
-	if (cpu_high >= 0xb)
-		topo_probe_0xb();
-	else if (cpu_high)
-		topo_probe_0x4();
-	if (cpu_cores == 0)
-		cpu_cores = mp_ncpus > 0 ? mp_ncpus : 1;
-	if (cpu_logical == 0)
-		cpu_logical = 1;
+	logical_cpus_mask = 0;
+	if (mp_ncpus <= 1)
+		cpu_cores = cpu_logical = 1;
+	else if (cpu_vendor_id == CPU_VENDOR_AMD)
+		topo_probe_amd();
+	else if (cpu_vendor_id == CPU_VENDOR_INTEL) {
+		/*
+		 * See Intel(R) 64 Architecture Processor
+		 * Topology Enumeration article for details.
+		 *
+		 * Note that 0x1 <= cpu_high < 4 case should be
+		 * compatible with topo_probe_0x4() logic when
+		 * CPUID.1:EBX[23:16] > 0 (cpu_cores will be 1)
+		 * or it should trigger the fallback otherwise.
+		 */
+		if (cpu_high >= 0xb)
+			topo_probe_0xb();
+		else if (cpu_high >= 0x1)
+			topo_probe_0x4();
+	}
+
+	/*
+	 * Fallback: assume each logical CPU is in separate
+	 * physical package.  That is, no multi-core, no SMT.
+	 */
+	if (cpu_cores == 0 || cpu_logical == 0)
+		cpu_cores = cpu_logical = 1;
 	cpu_topo_probed = 1;
 }
 
@@ -367,7 +422,7 @@ cpu_add(u_int apic_id, char boot_cpu)
 	}
 	if (mp_ncpus < MAXCPU) {
 		mp_ncpus++;
-		mp_maxid = mp_ncpus -1;
+		mp_maxid = mp_ncpus - 1;
 	}
 	if (bootverbose)
 		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
@@ -390,7 +445,7 @@ cpu_mp_setmaxid(void)
 	else
 		KASSERT(mp_maxid >= mp_ncpus - 1,
 		    ("%s: counters out of sync: max %d, count %d", __func__,
-			mp_maxid, mp_ncpus));		
+			mp_maxid, mp_ncpus));
 }
 
 int
@@ -661,7 +716,8 @@ init_secondary(void)
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
 	/* Determine if we are a logical CPU. */
-	if (logical_cpus > 1 && PCPU_GET(apic_id) % logical_cpus != 0)
+	/* XXX Calculation depends on cpu_logical being a power of 2, e.g. 2 */
+	if (cpu_logical > 1 && PCPU_GET(apic_id) % cpu_logical != 0)
 		logical_cpus_mask |= PCPU_GET(cpumask);
 	
 	/* Determine if we are a hyperthread. */
@@ -692,9 +748,12 @@ init_secondary(void)
 	load_fs(_ufssel);
 	mtx_unlock_spin(&ap_boot_mtx);
 
-	/* wait until all the AP's are up */
+	/* Wait until all the AP's are up. */
 	while (smp_started == 0)
 		ia32_pause();
+
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
 
 	sched_throw(NULL);
 
@@ -970,6 +1029,42 @@ start_ap(int apic_id)
 	return 0;		/* return FAILURE */
 }
 
+#ifdef COUNT_XINVLTLB_HITS
+u_int xhits_gbl[MAXCPU];
+u_int xhits_pg[MAXCPU];
+u_int xhits_rng[MAXCPU];
+SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, global, CTLFLAG_RW, &xhits_gbl,
+    sizeof(xhits_gbl), "IU", "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, page, CTLFLAG_RW, &xhits_pg,
+    sizeof(xhits_pg), "IU", "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, range, CTLFLAG_RW, &xhits_rng,
+    sizeof(xhits_rng), "IU", "");
+
+u_int ipi_global;
+u_int ipi_page;
+u_int ipi_range;
+u_int ipi_range_size;
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_global, CTLFLAG_RW, &ipi_global, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_page, CTLFLAG_RW, &ipi_page, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range, CTLFLAG_RW, &ipi_range, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range_size, CTLFLAG_RW, &ipi_range_size,
+    0, "");
+
+u_int ipi_masked_global;
+u_int ipi_masked_page;
+u_int ipi_masked_range;
+u_int ipi_masked_range_size;
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_global, CTLFLAG_RW,
+    &ipi_masked_global, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_page, CTLFLAG_RW,
+    &ipi_masked_page, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range, CTLFLAG_RW,
+    &ipi_masked_range, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range_size, CTLFLAG_RW,
+    &ipi_masked_range_size, 0, "");
+#endif /* COUNT_XINVLTLB_HITS */
+
 /*
  * Flush the TLB on all other CPU's
  */
@@ -999,7 +1094,7 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	int ncpu, othercpus;
 
 	othercpus = mp_ncpus - 1;
-	if (mask == (u_int)-1) {
+	if (mask == (cpumask_t)-1) {
 		ncpu = othercpus;
 		if (ncpu < 1)
 			return;
@@ -1024,13 +1119,37 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
-	if (mask == (u_int)-1)
+	if (mask == (cpumask_t)-1)
 		ipi_all_but_self(vector);
 	else
 		ipi_selected(mask, vector);
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
 	mtx_unlock_spin(&smp_ipi_mtx);
+}
+
+/*
+ * Send an IPI to specified CPU handling the bitmap logic.
+ */
+static void
+ipi_send_cpu(int cpu, u_int ipi)
+{
+	u_int bitmap, old_pending, new_pending;
+
+	KASSERT(cpu_apic_ids[cpu] != -1, ("IPI to non-existent CPU %d", cpu));
+
+	if (IPI_IS_BITMAPED(ipi)) {
+		bitmap = 1 << ipi;
+		ipi = IPI_BITMAP_VECTOR;
+		do {
+			old_pending = cpu_ipi_pending[cpu];
+			new_pending = old_pending | bitmap;
+		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
+		    old_pending, new_pending)); 
+		if (old_pending)
+			return;
+	}
+	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
 }
 
 void
@@ -1047,6 +1166,9 @@ smp_invltlb(void)
 
 	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLTLB, 0, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_global++;
+#endif
 	}
 }
 
@@ -1054,8 +1176,12 @@ void
 smp_invlpg(vm_offset_t addr)
 {
 
-	if (smp_started)
+	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLPG, addr, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_page++;
+#endif
+	}
 }
 
 void
@@ -1064,6 +1190,10 @@ smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
 
 	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLRNG, addr1, addr2);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_range++;
+		ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
+#endif
 	}
 }
 
@@ -1073,6 +1203,9 @@ smp_masked_invltlb(cpumask_t mask)
 
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, 0, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_masked_global++;
+#endif
 	}
 }
 
@@ -1082,6 +1215,9 @@ smp_masked_invlpg(cpumask_t mask, vm_offset_t addr)
 
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, addr, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_masked_page++;
+#endif
 	}
 }
 
@@ -1091,30 +1227,48 @@ smp_masked_invlpg_range(cpumask_t mask, vm_offset_t addr1, vm_offset_t addr2)
 
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, addr1, addr2);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_masked_range++;
+		ipi_masked_range_size += (addr2 - addr1) / PAGE_SIZE;
+#endif
 	}
 }
 
 void
 ipi_bitmap_handler(struct trapframe frame)
 {
+	struct trapframe *oldframe;
+	struct thread *td;
 	int cpu = PCPU_GET(cpuid);
 	u_int ipi_bitmap;
 
+	critical_enter();
+	td = curthread;
+	td->td_intr_nesting_level++;
+	oldframe = td->td_intr_frame;
+	td->td_intr_frame = &frame;
 	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
-
-	if (ipi_bitmap & (1 << IPI_PREEMPT))
-		sched_preempt(curthread);
-
-	/* Nothing to do for AST */
-
-	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
-		hardclockintr(&frame);
-
-	if (ipi_bitmap & (1 << IPI_STATCLOCK))
-		statclockintr(&frame);
-
-	if (ipi_bitmap & (1 << IPI_PROFCLOCK))
-		profclockintr(&frame);
+	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
+#ifdef COUNT_IPIS
+		(*ipi_preempt_counts[cpu])++;
+#endif
+		sched_preempt(td);
+	}
+	if (ipi_bitmap & (1 << IPI_AST)) {
+#ifdef COUNT_IPIS
+		(*ipi_ast_counts[cpu])++;
+#endif
+		/* Nothing to do for AST */
+	}
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
+#ifdef COUNT_IPIS
+		(*ipi_hardclock_counts[cpu])++;
+#endif
+		hardclockintr();
+	}
+	td->td_intr_frame = oldframe;
+	td->td_intr_nesting_level--;
+	critical_exit();
 }
 
 /*
@@ -1124,14 +1278,6 @@ void
 ipi_selected(cpumask_t cpus, u_int ipi)
 {
 	int cpu;
-	u_int bitmap = 0;
-	u_int old_pending;
-	u_int new_pending;
-
-	if (IPI_IS_BITMAPED(ipi)) { 
-		bitmap = 1 << ipi;
-		ipi = IPI_BITMAP_VECTOR;
-	}
 
 	/*
 	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
@@ -1145,23 +1291,27 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
 		cpus &= ~(1 << cpu);
-
-		KASSERT(cpu_apic_ids[cpu] != -1,
-		    ("IPI to non-existent CPU %d", cpu));
-
-		if (bitmap) {
-			do {
-				old_pending = cpu_ipi_pending[cpu];
-				new_pending = old_pending | bitmap;
-			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],old_pending, new_pending));	
-
-			if (old_pending)
-				continue;
-		}
-
-		lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+		ipi_send_cpu(cpu, ipi);
 	}
+}
 
+/*
+ * send an IPI to a specific CPU.
+ */
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	/*
+	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
+	 * of help in order to understand what is the source.
+	 * Set the mask of receiving CPUs for this purpose.
+	 */
+	if (ipi == IPI_STOP_HARD)
+		atomic_set_int(&ipi_nmi_pending, 1 << cpu);
+
+	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
+	ipi_send_cpu(cpu, ipi);
 }
 
 /*
@@ -1215,8 +1365,11 @@ ipi_nmi_handler()
 void
 cpustop_handler(void)
 {
-	int cpu = PCPU_GET(cpuid);
-	int cpumask = PCPU_GET(cpumask);
+	cpumask_t cpumask;
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	savectx(&stoppcbs[cpu]);
 
@@ -1243,20 +1396,24 @@ cpustop_handler(void)
 void
 cpususpend_handler(void)
 {
-	struct savefpu *stopfpu;
+	cpumask_t cpumask;
 	register_t cr3, rf;
-	int cpu = PCPU_GET(cpuid);
-	int cpumask = PCPU_GET(cpumask);
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	rf = intr_disable();
 	cr3 = rcr3();
-	stopfpu = &stopxpcbs[cpu]->xpcb_pcb.pcb_save;
-	if (savectx2(stopxpcbs[cpu])) {
-		fpugetregs(curthread, stopfpu);
+
+	if (savectx(susppcbs[cpu])) {
 		wbinvd();
 		atomic_set_int(&stopped_cpus, cpumask);
-	} else
-		fpusetregs(curthread, stopfpu);
+	} else {
+		pmap_init_pat();
+		PCPU_SET(switchtime, 0);
+		PCPU_SET(switchticks, ticks);
+	}
 
 	/* Wait for resume */
 	while (!(started_cpus & cpumask))
@@ -1267,6 +1424,7 @@ cpususpend_handler(void)
 
 	/* Restore CR3 and enable interrupts */
 	load_cr3(cr3);
+	mca_resume();
 	lapic_setup(0);
 	intr_restore(rf);
 }
@@ -1419,18 +1577,55 @@ SYSINIT(cpu_hlt, SI_SUB_SMP, SI_ORDER_ANY, cpu_hlt_setup, NULL);
 int
 mp_grab_cpu_hlt(void)
 {
-	u_int mask = PCPU_GET(cpumask);
+	cpumask_t mask;
 #ifdef MP_WATCHDOG
-	u_int cpuid = PCPU_GET(cpuid);
+	u_int cpuid;
 #endif
 	int retval;
 
+	mask = PCPU_GET(cpumask);
 #ifdef MP_WATCHDOG
+	cpuid = PCPU_GET(cpuid);
 	ap_watchdog(cpuid);
 #endif
 
-	retval = mask & hlt_cpus_mask;
-	while (mask & hlt_cpus_mask)
+	retval = 0;
+	while (mask & hlt_cpus_mask) {
+		retval = 1;
 		__asm __volatile("sti; hlt" : : : "memory");
+	}
 	return (retval);
 }
+
+#ifdef COUNT_IPIS
+/*
+ * Setup interrupt counters for IPI handlers.
+ */
+static void
+mp_ipi_intrcnt(void *dummy)
+{
+	char buf[64];
+	int i;
+
+	CPU_FOREACH(i) {
+		snprintf(buf, sizeof(buf), "cpu%d:invltlb", i);
+		intrcnt_add(buf, &ipi_invltlb_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:invlrng", i);
+		intrcnt_add(buf, &ipi_invlrng_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:invlpg", i);
+		intrcnt_add(buf, &ipi_invlpg_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:preempt", i);
+		intrcnt_add(buf, &ipi_preempt_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:ast", i);
+		intrcnt_add(buf, &ipi_ast_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:rendezvous", i);
+		intrcnt_add(buf, &ipi_rendezvous_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:lazypmap", i);
+		intrcnt_add(buf, &ipi_lazypmap_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:hardclock", i);
+		intrcnt_add(buf, &ipi_hardclock_counts[i]);
+	}
+}
+SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
+#endif
+

@@ -90,7 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <ulp/tom/cxgb_t3_ddp.h>
 #include <ulp/tom/cxgb_toepcb.h>
 #include <ulp/tom/cxgb_tcp.h>
-#include <ulp/tom/cxgb_vm.h>
 
 
 static int	(*pru_sosend)(struct socket *so, struct sockaddr *addr,
@@ -218,8 +217,9 @@ cxgb_hold_iovec_pages(struct uio *uio, vm_page_t *m, int *held, vm_prot_t prot)
 		
 		count = min(count, npages);
 
-		err = vm_fault_hold_user_pages(map,
-			(vm_offset_t)iov->iov_base, mp, count, prot);
+		/* The following return value is not used. XXX */
+		err = vm_fault_quick_hold_pages(map,
+		    (vm_offset_t)iov->iov_base, iov->iov_len, prot, mp, count);
 		mp += count;
 		totcount += count;
 		curbytes = iov->iov_len;
@@ -454,7 +454,7 @@ sendmore:
 	while (uiotmp.uio_resid > 0) {
 		rv = cxgb_vm_page_to_miov(toep, &uiotmp, &m);
 		if (rv) {
-			vm_fault_unhold_pages(toep->tp_pages, count);
+			vm_page_unhold_pages(toep->tp_pages, count);
 			return (rv);
 		}
 		uio->uio_resid -= m->m_pkthdr.len;
@@ -469,7 +469,7 @@ sendmore:
 	 * 
 	 */
 	cxgb_wait_dma_completion(toep);
-	vm_fault_unhold_pages(toep->tp_pages, count);
+	vm_page_unhold_pages(toep->tp_pages, count);
 	/*
 	 * If there is more data to send adjust local copy of iov
 	 * to point to teh start
@@ -503,7 +503,7 @@ cxgb_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	 *  - the number of bytes to be transferred exceeds the threshold
 	 *  - the number of bytes currently in flight won't exceed the in-flight
 	 *    threshold XXX TODO
-	 *  - vm_fault_hold_user_pages succeeds
+	 *  - vm_fault_quick_hold_pages succeeds
 	 *  - blocking socket XXX for now
 	 *
 	 */
@@ -970,7 +970,7 @@ cxgb_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 *  - the number of bytes to be transferred exceeds the threshold
 	 *  - the number of bytes currently in flight won't exceed the in-flight
 	 *    threshold XXX TODO
-	 *  - vm_fault_hold_user_pages succeeds
+	 *  - vm_fault_quick_hold_pages succeeds
 	 *  - blocking socket XXX for now
 	 *  - iovcnt is 1
 	 *

@@ -15,7 +15,7 @@ perform kernel debugging, you would do:
 
 
 This directory also contains a kgdb script that given a crash dump number
-automaticly extract the path to the kernel source, run gdb to extract
+automatically extract the path to the kernel source, run gdb to extract
 information about kernel modules loaded, and then rerun gdb loading the
 necessary symbols for the modules.  You need to make sure you build the
-modules w/ debugging symbols seperately to get things to work.
+modules w/ debugging symbols separately to get things to work.

@@ -83,7 +83,7 @@ MLINKS+=resolver.5 resolv.conf.5
 MAN+=	hesiod.conf.5 
 .endif
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _boot.config.5=	boot.config.5
 .endif
 

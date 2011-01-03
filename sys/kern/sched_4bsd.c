@@ -157,6 +157,12 @@ static struct runq runq_pcpu[MAXCPU];
 long runq_length[MAXCPU];
 #endif
 
+struct pcpuidlestat {
+	u_int idlecalls;
+	u_int oldidlecalls;
+};
+static DPCPU_DEFINE(struct pcpuidlestat, idlestat);
+
 static void
 setup_runqs(void)
 {
@@ -684,6 +690,7 @@ sched_rr_interval(void)
 void
 sched_clock(struct thread *td)
 {
+	struct pcpuidlestat *stat;
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -703,6 +710,10 @@ sched_clock(struct thread *td)
 	if (!TD_IS_IDLETHREAD(td) &&
 	    ticks - PCPU_GET(switchticks) >= sched_quantum)
 		td->td_flags |= TDF_NEEDRESCHED;
+
+	stat = DPCPU_PTR(idlestat);
+	stat->oldidlecalls = stat->idlecalls;
+	stat->idlecalls = 0;
 }
 
 /*
@@ -868,40 +879,25 @@ sched_prio(struct thread *td, u_char prio)
 void
 sched_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_base_user_pri = prio;
-	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
+	if (td->td_lend_user_pri <= prio)
 		return;
-	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 }
 
 void
 sched_lend_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_flags |= TDF_UBORROWING;
-	oldprio = td->td_user_pri;
-	td->td_user_pri = prio;
-}
-
-void
-sched_unlend_user_prio(struct thread *td, u_char prio)
-{
-	u_char base_pri;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	base_pri = td->td_base_user_pri;
-	if (prio >= base_pri) {
-		td->td_flags &= ~TDF_UBORROWING;
-		sched_user_prio(td, base_pri);
-	} else {
-		sched_lend_user_prio(td, prio);
-	}
+	td->td_lend_user_pri = prio;
+	td->td_user_pri = min(prio, td->td_base_user_pri);
+	if (td->td_priority > td->td_user_pri)
+		sched_prio(td, td->td_user_pri);
+	else if (td->td_priority != td->td_user_pri)
+		td->td_flags |= TDF_NEEDRESCHED;
 }
 
 void
@@ -1137,7 +1133,15 @@ forward_wakeup(int cpunum)
 	}
 	if (map) {
 		forward_wakeups_delivered++;
-		ipi_selected(map, IPI_AST);
+		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+			id = pc->pc_cpumask;
+			if ((map & id) == 0)
+				continue;
+			if (cpu_idle_wakeup(pc->pc_cpuid))
+				map &= ~id;
+		}
+		if (map)
+			ipi_selected(map, IPI_AST);
 		return (1);
 	}
 	if (cpunum == NOCPU)
@@ -1154,7 +1158,8 @@ kick_other_cpu(int pri, int cpuid)
 	pcpu = pcpu_find(cpuid);
 	if (idle_cpus_mask & pcpu->pc_cpumask) {
 		forward_wakeups_delivered++;
-		ipi_selected(pcpu->pc_cpumask, IPI_AST);
+		if (!cpu_idle_wakeup(cpuid))
+			ipi_cpu(cpuid, IPI_AST);
 		return;
 	}
 
@@ -1167,13 +1172,13 @@ kick_other_cpu(int pri, int cpuid)
 	if (pri <= PRI_MAX_ITHD)
 #endif /* ! FULL_PREEMPTION */
 	{
-		ipi_selected(pcpu->pc_cpumask, IPI_PREEMPT);
+		ipi_cpu(cpuid, IPI_PREEMPT);
 		return;
 	}
 #endif /* defined(IPI_PREEMPTION) && defined(PREEMPTION) */
 
 	pcpu->pc_curthread->td_flags |= TDF_NEEDRESCHED;
-	ipi_selected(pcpu->pc_cpumask, IPI_AST);
+	ipi_cpu(cpuid, IPI_AST);
 	return;
 }
 #endif /* SMP */
@@ -1190,9 +1195,7 @@ sched_pickcpu(struct thread *td)
 		best = td->td_lastcpu;
 	else
 		best = NOCPU;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu))
 			continue;
 	
@@ -1462,9 +1465,8 @@ sched_bind(struct thread *td, int cpu)
 {
 	struct td_sched *ts;
 
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	KASSERT(TD_IS_RUNNING(td),
-	    ("sched_bind: cannot bind non-running thread"));
+	THREAD_LOCK_ASSERT(td, MA_OWNED|MA_NOTRECURSED);
+	KASSERT(td == curthread, ("sched_bind: can only bind curthread"));
 
 	ts = td->td_sched;
 
@@ -1482,6 +1484,7 @@ void
 sched_unbind(struct thread* td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT(td == curthread, ("sched_unbind: can only bind curthread"));
 	td->td_flags &= ~TDF_BOUND;
 }
 
@@ -1523,12 +1526,13 @@ sched_pctcpu(struct thread *td)
 {
 	struct td_sched *ts;
 
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
 	return (ts->ts_pctcpu);
 }
 
 void
-sched_tick(void)
+sched_tick(int cnt)
 {
 }
 
@@ -1538,12 +1542,16 @@ sched_tick(void)
 void
 sched_idletd(void *dummy)
 {
+	struct pcpuidlestat *stat;
 
+	stat = DPCPU_PTR(idlestat);
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
-		while (sched_runnable() == 0)
-			cpu_idle(0);
+		while (sched_runnable() == 0) {
+			cpu_idle(stat->idlecalls + stat->oldidlecalls > 64);
+			stat->idlecalls++;
+		}
 
 		mtx_lock_spin(&sched_lock);
 		mi_switch(SW_VOL | SWT_IDLE, NULL);
@@ -1626,9 +1634,7 @@ sched_affinity(struct thread *td)
 	 */
 	ts = td->td_sched;
 	ts->ts_flags &= ~TSF_AFFINITY;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu)) {
 			ts->ts_flags |= TSF_AFFINITY;
 			break;
@@ -1669,7 +1675,7 @@ sched_affinity(struct thread *td)
 
 		td->td_flags |= TDF_NEEDRESCHED;
 		if (td != curthread)
-			ipi_selected(1 << cpu, IPI_AST);
+			ipi_cpu(cpu, IPI_AST);
 		break;
 	default:
 		break;

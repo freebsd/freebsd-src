@@ -60,6 +60,9 @@
 #		Unload a module.
 #
 
+# backwards compat option for older systems.
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
@@ -78,7 +81,14 @@ OBJCOPY?=	objcopy
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
-.if ${CC} == "icc"
+# amd64 and mips use direct linking for kmod, all others use shared binaries
+.if ${MACHINE_CPUARCH} != amd64 && ${MACHINE_CPUARCH} != mips
+__KLD_SHARED=yes
+.else
+__KLD_SHARED=no
+.endif
+
+.if ${CC:T:Micc} == "icc"
 CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 .else
 . if !empty(CFLAGS:M-O[23s]) && empty(CFLAGS:M-fno-strict-aliasing)
@@ -91,7 +101,7 @@ CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
 # Don't use any standard or source-relative include directories.
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 NOSTDINC=	-X
 .else
 CSTD=		c99
@@ -111,7 +121,7 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${CC} != "icc"
+.if ${CC:T:Micc} != "icc" && ${CC:T:Mclang} != "clang"
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
@@ -119,21 +129,21 @@ CFLAGS+= --param large-function-growth=1000
 
 # Disallow common variables, and if we end up with commons from
 # somewhere unexpected, allocate storage for them in the module itself.
-.if ${CC} != "icc"
+.if ${CC:T:Micc} != "icc"
 CFLAGS+=	-fno-common
 .endif
 LDFLAGS+=	-d -warn-common
 
 CFLAGS+=	${DEBUG_FLAGS}
-.if ${MACHINE_ARCH} == amd64
+.if ${MACHINE_CPUARCH} == amd64
 CFLAGS+=	-fno-omit-frame-pointer
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == powerpc
 CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
 
-.if ${MACHINE_ARCH} == "mips"
+.if ${MACHINE_CPUARCH} == mips
 CFLAGS+=	-G0 -fno-pic -mno-abicalls -mlong-calls
 .endif
 
@@ -187,7 +197,7 @@ ${PROG}.symbols: ${FULLPROG}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
-.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != mips
+.if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
@@ -200,7 +210,7 @@ EXPORT_SYMS?=	NO
 CLEANFILES+=	export_syms
 .endif
 
-.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != mips
+.if ${__KLD_SHARED} == yes
 ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
@@ -220,14 +230,16 @@ ${FULLPROG}: ${OBJS}
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .endif
-.if !defined(DEBUG_FLAGS) && \
-    (${MACHINE_ARCH} == amd64 || ${MACHINE_ARCH} == mips)
+.if !defined(DEBUG_FLAGS) && ${__KLD_SHARED} == no
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 
 _ILINKS=@ machine
-.if ${MACHINE} != ${MACHINE_ARCH}
-_ILINKS+=${MACHINE_ARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH}
+_ILINKS+=${MACHINE_CPUARCH}
+.endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_ILINKS+=x86
 .endif
 
 all: objwarn ${PROG}
@@ -254,12 +266,12 @@ SYSDIR=	${_dir}
 
 ${_ILINKS}:
 	@case ${.TARGET} in \
-	${MACHINE_ARCH}) \
-		path=${SYSDIR}/${MACHINE_ARCH}/include ;; \
 	machine) \
 		path=${SYSDIR}/${MACHINE}/include ;; \
 	@) \
 		path=${SYSDIR} ;; \
+	*) \
+		path=${SYSDIR}/${.TARGET}/include ;; \
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
@@ -451,11 +463,11 @@ assym.s: @/kern/genassym.sh
 .endif
 	sh @/kern/genassym.sh genassym.o > ${.TARGET}
 .if exists(@)
-genassym.o: @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c
+genassym.o: @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
 .endif
 genassym.o: @ machine ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
-	    @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c
+	    @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
 .endif
 
 lint: ${SRCS}

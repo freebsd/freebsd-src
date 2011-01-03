@@ -45,7 +45,8 @@
 #define	FXP_CSR_FLASHCONTROL	12	/* flash control (2 bytes) */
 #define	FXP_CSR_EEPROMCONTROL	14	/* eeprom control (2 bytes) */
 #define	FXP_CSR_MDICONTROL	16	/* mdi control (4 bytes) */
-#define	FXP_CSR_FLOWCONTROL	0x19	/* flow control (2 bytes) */
+#define	FXP_CSR_FC_THRESH	0x19	/* flow control (1 byte) */
+#define	FXP_CSR_FC_STATUS	0x1A	/* flow control status (1 byte) */
 #define	FXP_CSR_PMDR		0x1B	/* power management driver (1 byte) */
 #define	FXP_CSR_GENCONTROL	0x1C	/* general control (1 byte) */
 
@@ -418,7 +419,15 @@ struct fxp_stats {
 	uint32_t rx_overrun_errors;
 	uint32_t rx_cdt_errors;
 	uint32_t rx_shortframes;
+	uint32_t tx_pause;
+	uint32_t rx_pause;
+	uint32_t rx_controls;
+	uint16_t tx_tco;
+	uint16_t rx_tco;
 	uint32_t completion_status;
+	uint32_t reserved0;
+	uint32_t reserved1;
+	uint32_t reserved2;
 };
 #define FXP_STATS_DUMP_COMPLETE	0xa005
 #define FXP_STATS_DR_COMPLETE	0xa007

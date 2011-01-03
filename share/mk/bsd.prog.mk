@@ -60,13 +60,19 @@ LDADD+=	-lobjc -lpthread
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
+.if target(beforelinking)
+${PROG}: ${OBJS} beforelinking
+.else
 ${PROG}: ${OBJS}
+.endif
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} && \
+		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS})
 
 .else	# !defined(SRCS)
 
@@ -84,13 +90,19 @@ SRCS=	${PROG}.c
 # - it's useful to keep objects around for crunching.
 OBJS=	${PROG}.o
 
+.if target(beforelinking)
+${PROG}: ${OBJS} beforelinking
+.else
 ${PROG}: ${OBJS}
+.endif
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} && \
+		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS})
 .endif
 
 .endif

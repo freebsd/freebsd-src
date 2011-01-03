@@ -461,7 +461,7 @@ case ${firewall_type} in
 	if [ $ipv6_available -eq 0 ]; then
 		${fwcmd} add pass udp from fe80::/10 to me 546 in
 	fi
-	# Some servers will ping the IP while trying to decide if it's 
+	# Some servers will ping the IP while trying to decide if it's
 	# still in use.
 	${fwcmd} add pass icmp from any to any icmptype 8
 	if [ $ipv6_available -eq 0 ]; then
@@ -476,11 +476,11 @@ case ${firewall_type} in
 
 	# Add permits for this workstations published services below
 	# Only IPs and nets in firewall_allowservices is allowed in.
-	# If you really wish to let anyone use services on your 
+	# If you really wish to let anyone use services on your
 	# workstation, then set "firewall_allowservices='any'" in /etc/rc.conf
 	#
 	# Note: We don't use keep-state as that would allow DoS of
-	#       our statetable. 
+	#       our statetable.
 	#       You can add 'keep-state' to the lines for slightly
 	#       better performance if you fell that DoS of your
 	#       workstation won't be a problem.

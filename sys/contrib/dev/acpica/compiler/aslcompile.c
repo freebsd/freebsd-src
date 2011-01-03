@@ -117,6 +117,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslcompile")
@@ -127,16 +128,12 @@ static void
 CmFlushSourceCode (
     void);
 
-static ACPI_STATUS
-FlCheckForAscii (
-    ASL_FILE_INFO           *FileInfo);
-
-void
+static void
 FlConsumeAnsiComment (
     ASL_FILE_INFO           *FileInfo,
     ASL_FILE_STATUS         *Status);
 
-void
+static void
 FlConsumeNewComment (
     ASL_FILE_INFO           *FileInfo,
     ASL_FILE_STATUS         *Status);
@@ -159,6 +156,7 @@ AslCompilerSignon (
     UINT32                  FileId)
 {
     char                    *Prefix = "";
+    char                    *UtilityName;
 
 
     /* Set line prefix depending on the destination file type */
@@ -196,36 +194,21 @@ AslCompilerSignon (
         break;
     }
 
-    /*
-     * Compiler signon with copyright
-     */
-    FlPrintFile (FileId,
-        "%s\n%s%s\n%s",
-        Prefix,
-        Prefix, IntelAcpiCA,
-        Prefix);
-
     /* Running compiler or disassembler? */
 
     if (Gbl_DisasmFlag)
     {
-        FlPrintFile (FileId,
-            "%s", DisassemblerId);
+        UtilityName = AML_DISASSEMBLER_NAME;
     }
     else
     {
-        FlPrintFile (FileId,
-            "%s", CompilerId);
+        UtilityName = ASL_COMPILER_NAME;
     }
 
-    /* Version, copyright, compliance */
+    /* Compiler signon with copyright */
 
-    FlPrintFile (FileId,
-        " version %X\n%s%s\n%s%s\n%s\n",
-        (UINT32) ACPI_CA_VERSION,
-        Prefix, CompilerCopyright,
-        Prefix, CompilerCompliance,
-        Prefix);
+    FlPrintFile (FileId, "%s\n", Prefix);
+    FlPrintFile (FileId, ACPI_COMMON_HEADER (UtilityName, Prefix));
 }
 
 
@@ -349,7 +332,7 @@ CmFlushSourceCode (
  *
  ******************************************************************************/
 
-void
+static void
 FlConsumeAnsiComment (
     ASL_FILE_INFO           *FileInfo,
     ASL_FILE_STATUS         *Status)
@@ -393,7 +376,7 @@ FlConsumeAnsiComment (
 }
 
 
-void
+static void
 FlConsumeNewComment (
     ASL_FILE_INFO           *FileInfo,
     ASL_FILE_STATUS         *Status)
@@ -433,7 +416,7 @@ FlConsumeNewComment (
  *
  ******************************************************************************/
 
-static ACPI_STATUS
+ACPI_STATUS
 FlCheckForAscii (
     ASL_FILE_INFO           *FileInfo)
 {
@@ -543,31 +526,6 @@ CmDoCompile (
 
     FullCompile = UtBeginEvent ("*** Total Compile time ***");
     Event = UtBeginEvent ("Open input and output files");
-
-    /* Open the required input and output files */
-
-    Status = FlOpenInputFile (Gbl_Files[ASL_FILE_INPUT].Filename);
-    if (ACPI_FAILURE (Status))
-    {
-        AePrintErrorLog (ASL_FILE_STDERR);
-        return -1;
-    }
-
-    /* Check for 100% ASCII source file (comments are ignored) */
-
-    Status = FlCheckForAscii (&Gbl_Files[ASL_FILE_INPUT]);
-    if (ACPI_FAILURE (Status))
-    {
-        AePrintErrorLog (ASL_FILE_STDERR);
-        return -1;
-    }
-
-    Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
-    if (ACPI_FAILURE (Status))
-    {
-        AePrintErrorLog (ASL_FILE_STDERR);
-        return -1;
-    }
     UtEndEvent (Event);
 
     /* Build the parse tree */
@@ -888,19 +846,24 @@ CmCleanupAndExit (
 
     if (Gbl_NsLookupCount)
     {
-        DbgPrint (ASL_DEBUG_OUTPUT, "\n\nMiscellaneous compile statistics\n\n");
-        DbgPrint (ASL_DEBUG_OUTPUT, "%32s : %d\n", "Total Namespace searches",
-            Gbl_NsLookupCount);
-        DbgPrint (ASL_DEBUG_OUTPUT, "%32s : %d usec\n", "Time per search",
-            ((UINT32) (AslGbl_Events[AslGbl_NamespaceEvent].EndTime -
-                        AslGbl_Events[AslGbl_NamespaceEvent].StartTime) /
-                        10) / Gbl_NsLookupCount);
-    }
+        DbgPrint (ASL_DEBUG_OUTPUT,
+            "\n\nMiscellaneous compile statistics\n\n");
 
+        DbgPrint (ASL_DEBUG_OUTPUT,
+            "%32s : %u\n", "Total Namespace searches",
+            Gbl_NsLookupCount);
+
+        DbgPrint (ASL_DEBUG_OUTPUT,
+            "%32s : %u usec\n", "Time per search", ((UINT32)
+            (AslGbl_Events[AslGbl_NamespaceEvent].EndTime -
+                AslGbl_Events[AslGbl_NamespaceEvent].StartTime) / 10) /
+                Gbl_NsLookupCount);
+    }
 
     if (Gbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
-        printf ("\nMaximum error count (%d) exceeded\n", ASL_MAX_ERROR_COUNT);
+        printf ("\nMaximum error count (%u) exceeded\n",
+            ASL_MAX_ERROR_COUNT);
     }
 
     UtDisplaySummary (ASL_FILE_STDOUT);
@@ -914,22 +877,38 @@ CmCleanupAndExit (
 
     /* Delete AML file if there are errors */
 
-    if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors))
+    if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors) &&
+        Gbl_Files[ASL_FILE_AML_OUTPUT].Handle)
     {
-        remove (Gbl_Files[ASL_FILE_AML_OUTPUT].Filename);
+        if (remove (Gbl_Files[ASL_FILE_AML_OUTPUT].Filename))
+        {
+            printf ("%s: ",
+                Gbl_Files[ASL_FILE_AML_OUTPUT].Filename);
+            perror ("Could not delete AML file");
+        }
     }
 
     /*
      * Delete intermediate ("combined") source file (if -ls flag not set)
+     * This file is created during normal ASL/AML compiles. It is not
+     * created by the data table compiler.
+     *
+     * If the -ls flag is set, then the .SRC file should not be deleted.
+     * In this case, Gbl_SourceOutputFlag is set to TRUE.
+     *
+     * Note: Handles are cleared by FlCloseFile above, so we look at the
+     * filename instead, to determine if the .SRC file was actually
+     * created.
      *
      * TBD: SourceOutput should be .TMP, then rename if we want to keep it?
      */
-    if (!Gbl_SourceOutputFlag)
+    if (!Gbl_SourceOutputFlag && Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename)
     {
         if (remove (Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename))
         {
-            printf ("Could not remove SRC file, %s\n",
+            printf ("%s: ",
                 Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
+            perror ("Could not delete SRC file");
         }
     }
 }

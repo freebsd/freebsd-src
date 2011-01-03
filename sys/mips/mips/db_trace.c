@@ -140,7 +140,7 @@ loop:
 	}
 	/* check for bad SP: could foul up next frame */
 	/*XXX MIPS64 bad: this hard-coded SP is lame */
-	if (sp & 3 || sp < 0x80000000) {
+	if (sp & 3 || (uintptr_t)sp < 0x80000000u) {
 		(*printfn) ("SP 0x%x: not in kernel\n", sp);
 		ra = 0;
 		subr = 0;
@@ -168,9 +168,9 @@ loop:
 		subr = (uintptr_t)MipsTLBInvalidException;
 	else if (pcBetween(fork_trampoline, savectx))
 		subr = (uintptr_t)fork_trampoline;
-	else if (pcBetween(savectx, mips_cpu_throw))
+	else if (pcBetween(savectx, cpu_throw))
 		subr = (uintptr_t)savectx;
-	else if (pcBetween(mips_cpu_throw, cpu_switch))
+	else if (pcBetween(cpu_throw, cpu_switch))
 		subr = (uintptr_t)cpu_throw;
 	else if (pcBetween(cpu_switch, MipsSwitchFPState))
 		subr = (uintptr_t)cpu_switch;
@@ -377,7 +377,7 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 
 
 int
-db_md_clr_watchpoint( db_expr_t addr, db_expr_t size)
+db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
 {
 
 	return(0);
@@ -403,8 +403,8 @@ db_trace_thread(struct thread *thr, int count)
 	struct pcb *ctx;
 
 	if (thr == curthread) {
-		sp = (register_t)__builtin_frame_address(0);
-		ra = (register_t)__builtin_return_address(0);
+		sp = (register_t)(intptr_t)__builtin_frame_address(0);
+		ra = (register_t)(intptr_t)__builtin_return_address(0);
 
         	__asm __volatile(
 			"jal 99f\n"
@@ -432,8 +432,8 @@ void
 db_show_mdpcpu(struct pcpu *pc)
 {
 
-	db_printf("ipis	    = 0x%x\n", pc->pc_pending_ipis);
+	db_printf("ipis         = 0x%x\n", pc->pc_pending_ipis);
 	db_printf("next ASID    = %d\n", pc->pc_next_asid);
-	db_printf("GENID	    = %d\n", pc->pc_asid_generation);
+	db_printf("GENID        = %d\n", pc->pc_asid_generation);
 	return;
 }

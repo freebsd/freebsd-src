@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.82 2010/02/26 20:29:54 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.83 2010/04/16 01:47:26 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -483,6 +483,7 @@ ssh_encode_identity_ssh2(Buffer *b, Key *key, const char *comment)
 		buffer_put_bignum2(b, key->rsa->p);
 		buffer_put_bignum2(b, key->rsa->q);
 		break;
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		if (key->cert == NULL || buffer_len(&key->cert->certblob) == 0)
 			fatal("%s: no cert/certblob", __func__);
@@ -500,6 +501,7 @@ ssh_encode_identity_ssh2(Buffer *b, Key *key, const char *comment)
 		buffer_put_bignum2(b, key->dsa->pub_key);
 		buffer_put_bignum2(b, key->dsa->priv_key);
 		break;
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		if (key->cert == NULL || buffer_len(&key->cert->certblob) == 0)
 			fatal("%s: no cert/certblob", __func__);
@@ -535,8 +537,10 @@ ssh_add_identity_constrained(AuthenticationConnection *auth, Key *key,
 		break;
 	case KEY_RSA:
 	case KEY_RSA_CERT:
+	case KEY_RSA_CERT_V00:
 	case KEY_DSA:
 	case KEY_DSA_CERT:
+	case KEY_DSA_CERT_V00:
 		type = constrained ?
 		    SSH2_AGENTC_ADD_ID_CONSTRAINED :
 		    SSH2_AGENTC_ADD_IDENTITY;

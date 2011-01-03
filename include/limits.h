@@ -70,7 +70,7 @@
 #endif
 
 #if __POSIX_VISIBLE >= 199309
-#define	_POSIX_AIO_LISTIO_MAX	16
+#define	_POSIX_AIO_LISTIO_MAX	2
 #define	_POSIX_AIO_MAX		1
 #define	_POSIX_DELAYTIMER_MAX	32
 #define	_POSIX_MQ_OPEN_MAX	8

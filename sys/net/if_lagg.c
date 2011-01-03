@@ -162,6 +162,14 @@ static const struct {
 	{ LAGG_PROTO_NONE,		NULL }
 };
 
+SYSCTL_DECL(_net_link);
+SYSCTL_NODE(_net_link, OID_AUTO, lagg, CTLFLAG_RW, 0, "Link Aggregation");
+
+static int lagg_failover_rx_all = 0; /* Allow input on any failover links */
+SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW,
+    &lagg_failover_rx_all, 0,
+    "Accept input from any interface in a failover lagg");
+
 static int
 lagg_modevent(module_t mod, int type, void *data)
 {
@@ -1560,7 +1568,7 @@ lagg_fail_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct lagg_port *tmp_tp;
 
-	if (lp == sc->sc_primary) {
+	if (lp == sc->sc_primary || lagg_failover_rx_all) {
 		m->m_pkthdr.rcvif = ifp;
 		return (m);
 	}

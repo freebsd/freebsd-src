@@ -33,15 +33,15 @@
  * Definitions for fifolog "protocol": the on-media layout.
  *
  * The fifolog on-media record has three layers:
- *   The outher timestamping and synchronization layer.
- *   The zlib implemented data compression
+ *   The outer timestamping and synchronization layer.
+ *   The zlib implemented data compression.
  *   The inner sequencing and identification layer.
  *
- * All three layers are synchronized at a subset of the outher layer
+ * All three layers are synchronized at a subset of the outer layer
  * record boundaries, from where reading can be initiated.
  *
  *
- * The outher layer:
+ * The outer layer:
  * -----------------
  * The first record in a fifolog contains a magic string and version
  * information along with a 32be encoded recordsize for all records
@@ -55,7 +55,7 @@
  *	0	32be	sequence_number
  *			The sequence number is randomly chosen for the
  *			fifolog and increments once for each record written.
- *			It's precense allow quick identification of the next
+ *			It's presence allow quick identification of the next
  *			record to be written using a binary search for the
  *			first place where a discontinuity in the sequence
  *			numbers occur.
@@ -89,14 +89,14 @@
  * In most cases, the timer will expire before zlib has filled an entire
  * record in which case Z_SYNC_FLUSH will be used to force as much as
  * possible into the buffer before it is written.  This is not marked
- * in outher layer (apart from a natural correlation with padding) since
+ * in outer layer (apart from a natural correlation with padding) since
  * zlibs data stream handles this without help.
  *
  *
  * The inner layer:
  * ----------------
- * The inner layer contains data indentification and to the second 
- * timestamping (the timestamp in the outherlayer only marks the 
+ * The inner layer contains data identification and to the second 
+ * timestamping (the timestamp in the outer layer only marks the 
  * first possible timestamp for content in the SYNC record).
  * 
  *	offset	type	contents
@@ -113,7 +113,7 @@
  *	4	32be	time_t containing POSIX's understanding of UTC.
  *
  * Then follows the content, either as a NUL terminated string or as
- * a lenght encoded binary sequence:
+ * a length encoded binary sequence:
  *
  * If (ident & FIFOLOG_LENGTH) the record is prefixed by:
  *	{0|4}	8	length of binary data

@@ -117,7 +117,14 @@ struct socket {
 		void	*so_accept_filter_arg;	/* saved filter args */
 		char	*so_accept_filter_str;	/* saved user args */
 	} *so_accf;
+	/*
+	 * so_fibnum, so_user_cookie and friends can be used to attach
+	 * some user-specified metadata to a socket, which then can be
+	 * used by the kernel for various actions.
+	 * so_user_cookie is used by ipfw/dummynet.
+	 */
 	int so_fibnum;		/* routing domain for this socket */
+	uint32_t so_user_cookie;
 };
 
 /*
@@ -233,17 +240,6 @@ struct xsocket {
 		ACCEPT_UNLOCK();					\
 	}								\
 } while (0)
-
-#define	sotryfree(so) do {						\
-	ACCEPT_LOCK_ASSERT();						\
-	SOCK_LOCK_ASSERT(so);						\
-	if ((so)->so_count == 0)					\
-		sofree(so);						\
-	else {								\
-		SOCK_UNLOCK(so);					\
-		ACCEPT_UNLOCK();					\
-	}								\
-} while(0)
 
 /*
  * In sorwakeup() and sowwakeup(), acquire the socket buffer lock to

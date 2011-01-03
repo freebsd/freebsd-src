@@ -133,15 +133,13 @@ coretemp_attach(device_t dev)
 	struct coretemp_softc *sc = device_get_softc(dev);
 	device_t pdev;
 	uint64_t msr;
-	int cpu_model;
-	int cpu_mask;
+	int cpu_model, cpu_stepping;
+	int ret, tjtarget;
 
 	sc->sc_dev = dev;
 	pdev = device_get_parent(dev);
-	cpu_model = (cpu_id >> 4) & 15;
-	/* extended model */
-	cpu_model += ((cpu_id >> 16) & 0xf) << 4;
-	cpu_mask = cpu_id & 15;
+	cpu_model = CPUID_TO_MODEL(cpu_id);
+	cpu_stepping = cpu_id & CPUID_STEPPING;
 
 	/*
 	 * Some CPUs, namely the PIII, don't have thermal sensors, but
@@ -164,7 +162,7 @@ coretemp_attach(device_t dev)
 	 *
 	 * Adapted from the Linux coretemp driver.
 	 */
-	if (cpu_model == 0xe && cpu_mask < 0xc) {
+	if (cpu_model == 0xe && cpu_stepping < 0xc) {
 		msr = rdmsr(MSR_BIOS_SIGN);
 		msr = msr >> 32;
 		if (msr < 0x39) {
@@ -174,19 +172,67 @@ coretemp_attach(device_t dev)
 		}
 	}
 #endif
+
 	/*
-	 * On some Core 2 CPUs, there's an undocumented MSR that
-	 * can tell us if Tj(max) is 100 or 85.
-	 *
-	 * The if-clause for CPUs having the MSR_IA32_EXT_CONFIG was adapted
-	 * from the Linux coretemp driver.
+	 * Use 100C as the initial value.
 	 */
 	sc->sc_tjmax = 100;
-	if ((cpu_model == 0xf && cpu_mask >= 2) || cpu_model == 0xe) {
+
+	if ((cpu_model == 0xf && cpu_stepping >= 2) || cpu_model == 0xe) {
+		/*
+		 * On some Core 2 CPUs, there's an undocumented MSR that
+		 * can tell us if Tj(max) is 100 or 85.
+		 *
+		 * The if-clause for CPUs having the MSR_IA32_EXT_CONFIG was adapted
+		 * from the Linux coretemp driver.
+		 */
 		msr = rdmsr(MSR_IA32_EXT_CONFIG);
 		if (msr & (1 << 30))
 			sc->sc_tjmax = 85;
+	} else if (cpu_model == 0x17) {
+		switch (cpu_stepping) {
+		case 0x6:	/* Mobile Core 2 Duo */
+			sc->sc_tjmax = 104;
+			break;
+		default:	/* Unknown stepping */
+			break;
+		}
+	} else {
+		/*
+		 * Attempt to get Tj(max) from MSR IA32_TEMPERATURE_TARGET.
+		 *
+		 * This method is described in Intel white paper "CPU
+		 * Monitoring With DTS/PECI". (#322683)
+		 */
+		ret = rdmsr_safe(MSR_IA32_TEMPERATURE_TARGET, &msr);
+		if (ret == 0) {
+			tjtarget = (msr >> 16) & 0xff;
+			
+			/*
+			 * On earlier generation of processors, the value
+			 * obtained from IA32_TEMPERATURE_TARGET register is
+			 * an offset that needs to be summed with a model
+			 * specific base.  It is however not clear what
+			 * these numbers are, with the publicly available
+			 * documents from Intel.
+			 *
+			 * For now, we consider [70, 100]C range, as
+			 * described in #322683, as "reasonable" and accept
+			 * these values whenever the MSR is available for
+			 * read, regardless the CPU model.
+			 */
+			if (tjtarget >= 70 && tjtarget <= 100)
+				sc->sc_tjmax = tjtarget;
+			else
+				device_printf(dev, "Tj(target) value %d "
+				    "does not seem right.\n", tjtarget);
+		} else
+			device_printf(dev, "Can not get Tj(target) "
+			    "from your CPU, using 100C.\n");
 	}
+
+	if (bootverbose)
+		device_printf(dev, "Setting TjMax=%d\n", sc->sc_tjmax);
 
 	/*
 	 * Add the "temperature" MIB to dev.cpu.N.

@@ -45,6 +45,7 @@
 #define VSTACK		0x10	/* text is allocated on the stack */
 #define VUNSET		0x20	/* the variable is not set */
 #define VNOFUNC		0x40	/* don't call the callback function */
+#define VNOSET		0x80	/* do not set variable - just readonly test */
 
 
 struct var {
@@ -77,6 +78,7 @@ extern struct var vps2;
 extern struct var vps4;
 #ifndef NO_HISTORY
 extern struct var vhistsize;
+extern struct var vterm;
 #endif
 
 /*
@@ -96,6 +98,7 @@ extern struct var vhistsize;
 #define optindval()	(voptind.text + 7)
 #ifndef NO_HISTORY
 #define histsizeval()	(vhistsize.text + 9)
+#define termval()	(vterm.text + 5)
 #endif
 
 #define mpathset()	((vmpath.flags & VUNSET) == 0)
@@ -104,7 +107,7 @@ void initvar(void);
 void setvar(const char *, const char *, int);
 void setvareq(char *, int);
 struct strlist;
-void listsetvar(struct strlist *);
+void listsetvar(struct strlist *, int);
 char *lookupvar(const char *);
 char *bltinlookup(const char *, int);
 void bltinsetlocale(void);

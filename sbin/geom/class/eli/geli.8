@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2008
+.Dd December 3, 2010
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -56,6 +56,7 @@ utility:
 .Op Fl B Ar backupfile
 .Op Fl e Ar ealgo
 .Op Fl i Ar iterations
+.Op Fl J Ar newpassfile
 .Op Fl K Ar newkeyfile
 .Op Fl l Ar keylen
 .Op Fl s Ar sectorsize
@@ -66,6 +67,7 @@ utility:
 .Nm
 .Cm attach
 .Op Fl dprv
+.Op Fl j Ar passfile
 .Op Fl k Ar keyfile
 .Ar prov
 .Nm
@@ -91,6 +93,8 @@ utility:
 .Cm setkey
 .Op Fl pPv
 .Op Fl i Ar iterations
+.Op Fl j Ar passfile
+.Op Fl J Ar newpassfile
 .Op Fl k Ar keyfile
 .Op Fl K Ar newkeyfile
 .Op Fl n Ar keyno
@@ -111,8 +115,23 @@ utility:
 .Ar file
 .Nm
 .Cm restore
-.Op Fl v
+.Op Fl fv
 .Ar file
+.Ar prov
+.Nm
+.Cm suspend
+.Op Fl v
+.Fl a | Ar prov ...
+.Nm
+.Cm resume
+.Op Fl pv
+.Op Fl j Ar passfile
+.Op Fl k Ar keyfile
+.Ar prov
+.Nm
+.Cm resize
+.Op Fl v
+.Fl s Ar oldsize
 .Ar prov
 .Nm
 .Cm clear
@@ -146,11 +165,12 @@ framework, so when there is crypto hardware available,
 will make use of it automatically.
 .It
 Supports many cryptographic algorithms (currently
-.Nm AES ,
-.Nm Blowfish ,
-.Nm Camellia
+.Nm AES-XTS ,
+.Nm AES-CBC ,
+.Nm Blowfish-CBC ,
+.Nm Camellia-CBC
 and
-.Nm 3DES ) .
+.Nm 3DES-CBC ) .
 .It
 Can optionally perform data authentication (integrity verification) utilizing
 one of the following algorithms:
@@ -197,6 +217,8 @@ Allows to attach a provider with a random, one-time key - useful for swap
 partitions and temporary file systems.
 .It
 Allows to verify data integrity (data authentication).
+.It
+Allows to suspend and resume encrypted devices.
 .El
 .Pp
 The first argument to
@@ -217,7 +239,7 @@ The metadata can be recovered with the
 subcommand described below.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar aalgo"
+.Bl -tag -width ".Fl J Ar newpassfile"
 .It Fl a Ar aalgo
 Enable data integrity verification (authentication) using the given algorithm.
 This will reduce size of available storage and also reduce speed.
@@ -252,39 +274,44 @@ as the
 .It Fl e Ar ealgo
 Encryption algorithm to use.
 Currently supported algorithms are:
-.Nm AES ,
-.Nm Blowfish ,
-.Nm Camellia
+.Nm AES-XTS ,
+.Nm AES-CBC ,
+.Nm Blowfish-CBC ,
+.Nm Camellia-CBC
 and
-.Nm 3DES .
+.Nm 3DES-CBC .
 The default and recommended algorithm is
-.Nm AES .
+.Nm AES-XTS .
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2.
 If this option is not specified,
 .Nm
 will find the number of iterations which is equal to 2 seconds of crypto work.
 If 0 is given, PKCS#5v2 will not be used.
+.It Fl J Ar newpassfile
+Specifies a file which contains the passphrase or its part.
+If
+.Ar newpassfile
+is given as -, standard input will be used.
+Only the first line (excluding new-line character) is taken from the given file.
+This argument can be specified multiple times.
 .It Fl K Ar newkeyfile
 Specifies a file which contains part of the key.
 If
 .Ar newkeyfile
 is given as -, standard input will be used.
-Here is how more than one file with a key component can be used:
-.Bd -literal -offset indent
-# cat key1 key2 key3 | geli init -K - /dev/da0
-.Ed
+This argument can be specified multiple times.
 .It Fl l Ar keylen
 Key length to use with the given cryptographic algorithm.
 If not given, the default key length for the given algorithm is used, which is:
 128 for
-.Nm AES ,
-128 for
-.Nm Blowfish ,
-128 for
-.Nm Camellia
+.Nm AES-XTS ,
+.Nm AES-CBC ,
+.Nm Blowfish-CBC
+and
+.Nm Camellia-CBC
 and 192 for
-.Nm 3DES .
+.Nm 3DES-CBC .
 .It Fl P
 Do not use passphrase as the key component.
 .It Fl s Ar sectorsize
@@ -302,7 +329,7 @@ provider's name with an
 suffix.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar algo"
+.Bl -tag -width ".Fl j Ar passfile"
 .It Fl d
 If specified, a decrypted provider will be detached automatically on last close.
 This can help with short memory - user does not have to remember to detach the
@@ -313,6 +340,13 @@ Probably a better choice is the
 .Fl l
 option for the
 .Cm detach
+subcommand.
+.It Fl j Ar passfile
+Specifies a file which contains the passphrase or its part.
+For more information see the description of the
+.Fl J
+option for the
+.Cm init
 subcommand.
 .It Fl k Ar keyfile
 Specifies a file which contains part of the key.
@@ -332,7 +366,7 @@ Detach the given providers, which means remove the devfs entry
 and clear the keys from memory.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar algo"
+.Bl -tag -width ".Fl f"
 .It Fl f
 Force detach - detach even if the provider is open.
 .It Fl l
@@ -347,7 +381,7 @@ Attach the given providers with random, one-time keys.
 The command can be used to encrypt swap partitions or temporary file systems.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar aalgo"
+.Bl -tag -width ".Fl a Ar sectorsize"
 .It Fl a Ar aalgo
 Enable data integrity verification (authentication).
 For more information, see the description of the
@@ -402,13 +436,17 @@ When a provider is attached, the user does not have to provide
 an old passphrase/keyfile.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar algo"
+.Bl -tag -width ".Fl J Ar newpassfile"
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2.
 If 0 is given, PKCS#5v2 will not be used.
 To be able to use this option with
 .Cm setkey
 subcommand, only one key have to be defined and this key has to be changed.
+.It Fl j Ar passfile
+Specifies a file which contains the old passphrase or its part.
+.It Fl J Ar newpassfile
+Specifies a file which contains the new passphrase or its part.
 .It Fl k Ar keyfile
 Specifies a file which contains part of the old key.
 .It Fl K Ar newkeyfile
@@ -432,7 +470,9 @@ will not be detached even if all keys will be destroyed.
 It can be even rescued with the
 .Cm setkey
 subcommand.
-.Bl -tag -width ".Fl a Ar algo"
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl a Ar keyno"
 .It Fl a
 Destroy all keys (does not need
 .Fl f
@@ -456,7 +496,9 @@ backup, your data is gone for good.
 In case the provider was attached with the
 .Fl r
 flag, the keys will not be destroyed, only the provider will be detached.
-.Bl -tag -width ".Fl a Ar algo"
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl a"
 .It Fl a
 If specified, all currently attached providers will be killed.
 .El
@@ -464,6 +506,97 @@ If specified, all currently attached providers will be killed.
 Backup metadata from the given provider to the given file.
 .It Cm restore
 Restore metadata from the given file to the given provider.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Metadata contains the size of the provider to ensure that the correct
+partition or slice is attached.
+If an attempt is made to restore metadata to a provider that has a different
+size,
+.Nm
+will refuse to restore the data unless the
+.Fl f
+switch is used.
+If the partition or slice has been grown, the
+.Cm resize
+subcommand should be used rather than attempting to relocate the metadata
+through
+.Cm backup
+and
+.Cm restore .
+.El
+.It Cm suspend
+Suspend device by waiting for all inflight request to finish, clearing all
+sensitive informations (like keys) from the kernel memory and blocking all
+further I/O requests until the
+.Cm resume
+subcommand is executed.
+This functionality is useful for eg. laptops - when one wants to suspend a
+laptop, one does not want to leave encrypted device attached.
+Instead of closing all files and directories opened from a file system placed
+on an encrypted device, unmounting the file system and detaching the device,
+the
+.Cm suspend
+subcommand can be used.
+Any access to the encrypted device will be blocked until the keys are
+recovered through
+.Cm resume
+subcommand, thus there is no need to close nor unmount anything.
+The
+.Cm suspend
+subcommand does not work with devices created with the
+.Cm onetime
+subcommand.
+Please note that sensitive data might still be present in memory after
+suspending encrypted device, because of file system cache, etc.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl a"
+.It Fl a
+Suspend all
+.Nm
+devices.
+.El
+.It Cm resume
+Resume previously suspended device.
+The caller must ensure that executing this subcommand won't try to access
+suspended device, which will lead to a deadlock.
+For example suspending device, which contains file system where the
+.Nm
+utility is stored is bad idea.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl j Ar passfile"
+.It Fl j Ar passfile
+Specifies a file which contains the passphrase or its part.
+For more information see the description of the
+.Fl J
+option for the
+.Cm init
+subcommand.
+.It Fl k Ar keyfile
+Specifies a file which contains part of the key.
+For more information see the description of the
+.Fl K
+option for the
+.Cm init
+subcommand.
+.It Fl p
+Do not use passphrase as the key component.
+.El
+.It Cm resize
+Inform
+.Nm
+that the provider has been resized.
+The old metadata block is relocated to the correct position at the end of the
+provider and the provider size is updated.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl s Ar oldsize"
+.It Fl s Ar oldsize
+The size of the provider before it was resized.
+.El
 .It Cm clear
 Clear metadata from the given providers.
 .It Cm dump
@@ -603,7 +736,7 @@ keyfile:
 # dd if=/dev/random of=/boot/keys/da0.key0 bs=32k count=1
 # dd if=/dev/random of=/boot/keys/da0.key1 bs=32k count=1
 # dd if=/dev/random of=/boot/keys/da0.key2 bs=32k count=1
-# cat /boot/keys/da0.key0 /boot/keys/da0.key1 /boot/keys/da0.key2 | geli init -b -K - da0
+# geli init -b -K /boot/keys/da0.key0 -K /boot/keys/da0.key1 -K /boot/keys/da0.key2 da0
 Enter new passphrase:
 Reenter new passphrase:
 # dd if=/dev/random of=/dev/da1s3a bs=1m
@@ -665,6 +798,61 @@ geli: Cannot read metadata from /dev/da0: Invalid argument.
 # geli attach /dev/da0
 Enter passphrase:
 .Ed
+.Pp
+If an encrypted filesystem is extended, it is necessary to relocate and
+update the metadata:
+.Bd -literal -offset indent
+# gpart create -s GPT ada0
+# gpart add -s 1g -t freebsd-ufs -i 1 ada0
+# geli init -K keyfile -P ada0p1
+# gpart resize -s 2g -i 1 ada0
+# geli resize -s 1g ada0p1
+# geli attach -k keyfile -p ada0p1
+.Ed
+.Pp
+Initialize provider with passphrase split into two files.
+The provider can be attached by giving those two files or by giving
+.Dq foobar
+passphrase on
+.Nm
+prompt:
+.Bd -literal -offset indent
+# echo foo > da0.pass0
+# echo bar > da0.pass1
+# geli init -J da0.pass0 -J da0.pass1 da0
+# geli attach -j da0.pass0 -j da0.pass1 da0
+# geli detach da0
+# geli attach da0
+Enter passphrase: foobar
+.Ed
+.Pp
+Suspend all
+.Nm
+devices, suspend a laptop, then resume devices one by one after resuming a
+laptop:
+.Bd -literal -offset indent
+# geli suspend -a
+# zzz
+<resume your laptop>
+# geli resume -p -k keyfile gpt/secret
+# geli resume gpt/private
+Enter passphrase:
+.Ed
+.Sh ENCRYPTION MODES
+.Nm
+supports two encryption modes:
+.Nm XTS ,
+which was standardized as
+.Nm IEE P1619
+and
+.Nm CBC
+with unpredictable IV.
+The
+.Nm CBC
+mode used by
+.Nm
+is very similar to the mode
+.Nm ESSIV .
 .Sh DATA AUTHENTICATION
 .Nm
 can verify data integrity when an authentication algorithm is specified.
@@ -685,6 +873,10 @@ changes with the data he owns without notice.
 In other words
 .Nm
 will not protect your data against replay attacks.
+.Pp
+It is recommended to write the whole provider before the first use,
+in order to make sure that all sectors and their corresponding
+checksums are properly initialized into a consistent state.
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr gbde 4 ,

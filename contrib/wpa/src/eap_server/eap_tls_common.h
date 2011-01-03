@@ -1,6 +1,6 @@
 /*
- * hostapd / EAP-TLS/PEAP/TTLS/FAST common functions
- * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
+ * EAP-TLS/PEAP/TTLS/FAST server common functions
+ * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,19 +15,46 @@
 #ifndef EAP_TLS_COMMON_H
 #define EAP_TLS_COMMON_H
 
+/**
+ * struct eap_ssl_data - TLS data for EAP methods
+ */
 struct eap_ssl_data {
+	/**
+	 * conn - TLS connection context data from tls_connection_init()
+	 */
 	struct tls_connection *conn;
 
+	/**
+	 * tls_out - TLS message to be sent out in fragments
+	 */
+	struct wpabuf *tls_out;
+
+	/**
+	 * tls_out_pos - The current position in the outgoing TLS message
+	 */
+	size_t tls_out_pos;
+
+	/**
+	 * tls_out_limit - Maximum fragment size for outgoing TLS messages
+	 */
 	size_t tls_out_limit;
 
+	/**
+	 * tls_in - Received TLS message buffer for re-assembly
+	 */
+	struct wpabuf *tls_in;
+
+	/**
+	 * phase2 - Whether this TLS connection is used in EAP phase 2 (tunnel)
+	 */
 	int phase2;
 
+	/**
+	 * eap - EAP state machine allocated with eap_server_sm_init()
+	 */
 	struct eap_sm *eap;
 
 	enum { MSG, FRAG_ACK, WAIT_FRAG_ACK } state;
-	struct wpabuf *in_buf;
-	struct wpabuf *out_buf;
-	size_t out_used;
 	struct wpabuf tmpbuf;
 };
 
@@ -53,7 +80,7 @@ struct wpabuf * eap_server_tls_build_ack(u8 id, int eap_type, int version);
 int eap_server_tls_phase1(struct eap_sm *sm, struct eap_ssl_data *data);
 struct wpabuf * eap_server_tls_encrypt(struct eap_sm *sm,
 				       struct eap_ssl_data *data,
-				       const u8 *plain, size_t plain_len);
+				       const struct wpabuf *plain);
 int eap_server_tls_process(struct eap_sm *sm, struct eap_ssl_data *data,
 			   struct wpabuf *respData, void *priv, int eap_type,
 			   int (*proc_version)(struct eap_sm *sm, void *priv,

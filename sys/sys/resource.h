@@ -92,7 +92,7 @@ struct rusage {
 #define	RLIMIT_NPROC	7		/* number of processes */
 #define	RLIMIT_NOFILE	8		/* number of open files */
 #define	RLIMIT_SBSIZE	9		/* maximum size of all socket buffers */
-#define RLIMIT_VMEM	10		/* virtual process size (inclusive of mmap) */
+#define	RLIMIT_VMEM	10		/* virtual process size (incl. mmap) */
 #define	RLIMIT_AS	RLIMIT_VMEM	/* standard name for RLIMIT_VMEM */
 #define	RLIMIT_NPTS	11		/* pseudo-terminals */
 #define	RLIMIT_SWAP	12		/* swap used */

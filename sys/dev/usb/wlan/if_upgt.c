@@ -182,8 +182,10 @@ static const struct usb_device_id upgt_devs_2[] = {
 	UPGT_DEV(FSC,		E5400),
 	UPGT_DEV(GLOBESPAN,	PRISM_GT_1),
 	UPGT_DEV(GLOBESPAN,	PRISM_GT_2),
+	UPGT_DEV(NETGEAR,	WG111V2_2),
 	UPGT_DEV(INTERSIL,	PRISM_GT),
 	UPGT_DEV(SMC,		2862WG),
+	UPGT_DEV(USR,		USR5422),
 	UPGT_DEV(WISTRONNEWEB,	UR045G),
 	UPGT_DEV(XYRATEX,	PRISM_GT_1),
 	UPGT_DEV(XYRATEX,	PRISM_GT_2),
@@ -651,7 +653,7 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	struct upgt_data *data_cmd;
 	struct upgt_lmac_mem *mem;
 	struct upgt_lmac_filter *filter;
@@ -706,6 +708,7 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 		filter->unknown3 = htole16(UPGT_FILTER_UNKNOWN3);
 		break;
 	case IEEE80211_S_RUN:
+		ni = ieee80211_ref_node(vap->iv_bss);
 		/* XXX monitor mode isn't tested yet.  */
 		if (vap->iv_opmode == IEEE80211_M_MONITOR) {
 			filter->type = htole16(UPGT_FILTER_TYPE_MONITOR);
@@ -729,6 +732,7 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 			filter->rxhw = htole32(sc->sc_eeprom_hwrx);
 			filter->unknown3 = htole16(UPGT_FILTER_UNKNOWN3);
 		}
+		ieee80211_free_node(ni);
 		break;
 	default:
 		device_printf(sc->sc_dev,

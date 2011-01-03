@@ -79,6 +79,7 @@ txg_init(dsl_pool_t *dp, uint64_t txg)
 
 	rw_init(&tx->tx_suspend, NULL, RW_DEFAULT, NULL);
 	mutex_init(&tx->tx_sync_lock, NULL, MUTEX_DEFAULT, NULL);
+
 	cv_init(&tx->tx_sync_more_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&tx->tx_sync_done_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&tx->tx_quiesce_more_cv, NULL, CV_DEFAULT, NULL);
@@ -99,13 +100,14 @@ txg_fini(dsl_pool_t *dp)
 
 	ASSERT(tx->tx_threads == 0);
 
-	cv_destroy(&tx->tx_exit_cv);
-	cv_destroy(&tx->tx_quiesce_done_cv);
-	cv_destroy(&tx->tx_quiesce_more_cv);
-	cv_destroy(&tx->tx_sync_done_cv);
-	cv_destroy(&tx->tx_sync_more_cv);
 	rw_destroy(&tx->tx_suspend);
 	mutex_destroy(&tx->tx_sync_lock);
+
+	cv_destroy(&tx->tx_sync_more_cv);
+	cv_destroy(&tx->tx_sync_done_cv);
+	cv_destroy(&tx->tx_quiesce_more_cv);
+	cv_destroy(&tx->tx_quiesce_done_cv);
+	cv_destroy(&tx->tx_exit_cv);
 
 	for (c = 0; c < max_ncpus; c++) {
 		int i;
@@ -144,7 +146,7 @@ txg_sync_start(dsl_pool_t *dp)
 	 * 32-bit x86.  This is due in part to nested pools and
 	 * scrub_visitbp() recursion.
 	 */
-	tx->tx_sync_thread = thread_create(NULL, 12<<10, txg_sync_thread,
+	tx->tx_sync_thread = thread_create(NULL, 32<<10, txg_sync_thread,
 	    dp, 0, &p0, TS_RUN, minclsyspri);
 
 	mutex_exit(&tx->tx_sync_lock);
@@ -309,12 +311,14 @@ txg_sync_thread(void *arg)
 		uint64_t txg;
 
 		/*
-		 * We sync when there's someone waiting on us, or the
-		 * quiesce thread has handed off a txg to us, or we have
-		 * reached our timeout.
+		 * We sync when we're scrubbing, there's someone waiting
+		 * on us, or the quiesce thread has handed off a txg to
+		 * us, or we have reached our timeout.
 		 */
 		timer = (delta >= timeout ? 0 : timeout - delta);
-		while (!tx->tx_exiting && timer > 0 &&
+		while ((dp->dp_scrub_func == SCRUB_FUNC_NONE ||
+		    spa_shutting_down(dp->dp_spa)) &&
+		    !tx->tx_exiting && timer > 0 &&
 		    tx->tx_synced_txg >= tx->tx_sync_txg_waiting &&
 		    tx->tx_quiesced_txg == 0) {
 			dprintf("waiting; tx_synced=%llu waiting=%llu dp=%p\n",

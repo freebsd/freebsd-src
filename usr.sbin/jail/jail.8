@@ -27,7 +27,7 @@
 .\"
 .\" ----------------------------------------------------------------------------
 .\" "THE BEER-WARE LICENSE" (Revision 42):
-.\" <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
 .\" can do whatever you want with this stuff. If we meet some day, and you think
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
@@ -256,7 +256,7 @@ Source address selection is enabled by default for all jails and a
 .Va ip4.nosaddrsel
 setting of a parent jail is not inherited for any child jails.
 .It Va ip4
-Control the availablity of IPv4 addresses.
+Control the availability of IPv4 addresses.
 Possible values are
 .Dq inherit
 to allow unrestricted access to all system addresses,
@@ -563,7 +563,6 @@ inside the jail; others apply both for constraining a particular application
 or for running a virtual server.
 .Pp
 Start a shell in the jail:
-.Pp
 .Bd -literal -offset indent
 jail -c path=/data/jail/192.0.2.100 host.hostname=testhostname \\
 	ip4.addr=192.0.2.100 command=/bin/sh
@@ -691,7 +690,6 @@ cannot be used successfully within the jail.
 To kill all processes in a
 jail, you may log into the jail and, as root, use one of the following
 commands, depending on what you want to accomplish:
-.Pp
 .Bd -literal -offset indent
 kill -TERM -1
 kill -KILL -1
@@ -892,7 +890,7 @@ originally done by
 for IPv4.
 .Pp
 .An James Gritton
-added the extensible jail parameters and hierchical jails.
+added the extensible jail parameters and hierarchical jails.
 .Sh BUGS
 Jail currently lacks the ability to allow access to
 specific jail information via

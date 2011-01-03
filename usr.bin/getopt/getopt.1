@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd April 3, 1999
+.Dd July 7, 2010
 .Dt GETOPT 1
 .Os
 .Sh NAME
@@ -50,7 +50,6 @@ and
 and the option
 .Fl o ,
 which requires an argument.
-.Pp
 .Bd -literal -offset indent
 args=\`getopt abo: $*\`
 # you should not use \`getopt abo: "$@"\` since that would parse
@@ -64,9 +63,9 @@ set \-\- $args
 # You cannot use the set command with a backquoted getopt directly,
 # since the exit code from getopt would be shadowed by those of set,
 # which is zero by definition.
-for i
+while true;
 do
-	case "$i"
+	case "$1"
 	in
 		\-a|\-b)
 			echo flag $i set; sflags="${i#-}$sflags";
@@ -83,7 +82,6 @@ echo oarg is "'"$oarg"'"
 .Ed
 .Pp
 This code will accept any of the following as equivalent:
-.Pp
 .Bd -literal -offset indent
 cmd \-aoarg file file
 cmd \-a \-o arg file file

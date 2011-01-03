@@ -386,16 +386,16 @@
 ;
 ; The following are reserved for loadable syscalls
 ;
-210	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
-211	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
-212	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
-213	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
-214	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
-215	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
-216	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
-217	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
-218	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
-219	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+210	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
+211	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
+212	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
+213	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
+214	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
+215	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
+216	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
+217	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
+218	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
+219	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 
 ;
 ; The following were introduced with NetBSD/4.4Lite-2

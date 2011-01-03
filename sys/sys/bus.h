@@ -85,8 +85,11 @@ struct u_device {
  * included in case devctl_notify isn't sufficiently general.
  */
 boolean_t devctl_process_running(void);
+void devctl_notify_f(const char *__system, const char *__subsystem,
+    const char *__type, const char *__data, int __flags);
 void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
+void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
 
 /**
@@ -253,6 +256,7 @@ int	resource_list_add_next(struct resource_list *rl,
 			  u_long start, u_long end, u_long count);
 int	resource_list_busy(struct resource_list *rl,
 			   int type, int rid);
+int	resource_list_reserved(struct resource_list *rl, int type, int rid);
 struct resource_list_entry*
 	resource_list_find(struct resource_list *rl,
 			   int type, int rid);
@@ -295,7 +299,7 @@ void	root_bus_configure(void);
 int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 				      int rid, struct resource *r);
 device_t
-	bus_generic_add_child(device_t dev, int order, const char *name,
+	bus_generic_add_child(device_t dev, u_int order, const char *name,
 			      int unit);
 struct resource *
 	bus_generic_alloc_resource(device_t bus, device_t child, int type,
@@ -407,7 +411,7 @@ bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
  * Access functions for device.
  */
 device_t	device_add_child(device_t dev, const char *name, int unit);
-device_t	device_add_child_ordered(device_t dev, int order,
+device_t	device_add_child_ordered(device_t dev, u_int order,
 					 const char *name, int unit);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);

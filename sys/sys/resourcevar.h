@@ -80,7 +80,9 @@ struct plimit {
 };
 
 /*-
- * Per uid resource consumption
+ * Per uid resource consumption.  This structure is used to track
+ * the total resource consumption (process count, socket buffer size,
+ * etc) for the uid and impose limits.
  *
  * Locking guide:
  * (a) Constant from inception
@@ -131,7 +133,7 @@ void	 rucollect(struct rusage *ru, struct rusage *ru2);
 void	 rufetch(struct proc *p, struct rusage *ru);
 void	 rufetchcalc(struct proc *p, struct rusage *ru, struct timeval *up,
 	    struct timeval *sp);
-void	 ruxagg_locked(struct rusage_ext *rux, struct thread *td);
+void	 ruxagg(struct proc *p, struct thread *td);
 int	 suswintr(void *base, int word);
 struct uidinfo
 	*uifind(uid_t uid);

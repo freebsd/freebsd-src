@@ -120,6 +120,13 @@
 #define	VM_NFREEORDER		16
 
 /*
+ * Only one memory domain.
+ */
+#ifndef VM_NDOMAIN
+#define	VM_NDOMAIN		1
+#endif
+
+/*
  * Disable superpage reservations.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -129,7 +136,7 @@
 /*
  * Manipulating region bits of an address.
  */
-#define IA64_RR_BASE(n)         (((u_int64_t) (n)) << 61)
+#define IA64_RR_BASE(n)         (((uint64_t) (n)) << 61)
 #define IA64_RR_MASK(x)         ((x) & ((1L << 61) - 1))
 
 #define IA64_PHYS_TO_RR7(x)     ((x) | IA64_RR_BASE(7))

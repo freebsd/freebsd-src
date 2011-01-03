@@ -55,6 +55,7 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_llatbl.h>
+#include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
@@ -673,12 +674,22 @@ route_output(struct mbuf *m, struct socket *so)
 		 * another search to retrieve the prefix route of
 		 * the local end point of the PPP link.
 		 */
-		if ((rtm->rtm_flags & RTF_ANNOUNCE) &&
-		    (rt->rt_ifp->if_flags & IFF_POINTOPOINT)) {
+		if (rtm->rtm_flags & RTF_ANNOUNCE) {
 			struct sockaddr laddr;
-			rt_maskedcopy(rt->rt_ifa->ifa_addr,
-				      &laddr,
-				      rt->rt_ifa->ifa_netmask);
+
+			if (rt->rt_ifp != NULL && 
+			    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
+				struct ifaddr *ifa;
+
+				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1);
+				if (ifa != NULL)
+					rt_maskedcopy(ifa->ifa_addr,
+						      &laddr,
+						      ifa->ifa_netmask);
+			} else
+				rt_maskedcopy(rt->rt_ifa->ifa_addr,
+					      &laddr,
+					      rt->rt_ifa->ifa_netmask);
 			/* 
 			 * refactor rt and no lock operation necessary
 			 */
@@ -1428,7 +1439,7 @@ copy_ifdata32(struct if_data *src, struct if_data32 *dst)
 	CP(*src, *dst, ifi_addrlen);
 	CP(*src, *dst, ifi_hdrlen);
 	CP(*src, *dst, ifi_link_state);
-	CP(*src, *dst, ifi_datalen);
+	dst->ifi_datalen = sizeof(struct if_data32);
 	CP(*src, *dst, ifi_mtu);
 	CP(*src, *dst, ifi_metric);
 	CP(*src, *dst, ifi_baudrate);
@@ -1462,6 +1473,7 @@ sysctl_iflist(int af, struct walkarg *w)
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
+		IF_ADDR_LOCK(ifp);
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
 		len = rt_msg2(RTM_IFINFO, &info, NULL, w);
@@ -1519,10 +1531,13 @@ sysctl_iflist(int af, struct walkarg *w)
 					goto done;
 			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 		info.rti_info[RTAX_IFA] = info.rti_info[RTAX_NETMASK] =
 			info.rti_info[RTAX_BRD] = NULL;
 	}
 done:
+	if (ifp != NULL)
+		IF_ADDR_UNLOCK(ifp);
 	IFNET_RUNLOCK();
 	return (error);
 }

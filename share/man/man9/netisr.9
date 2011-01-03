@@ -103,7 +103,7 @@ If the protocol implements
 .Va nh_m2flow ,
 then
 .Nm
-will query the protocol in the evet that the
+will query the protocol in the event that the
 .Vt mbuf
 doesn't have a flow ID, falling back on source ordering.
 .It NETISR_POLICY_CPU
@@ -120,7 +120,7 @@ whose fields are defined as follows:
 .Bl -tag -width "netisr_handler_t nh_handler"
 .It Vt "const char *" Va nh_name
 Unique character string name of the protocol, which may be included in
-.Xr 2 sysctl
+.Xr sysctl 2
 MIB names, so should not contain whitespace.
 .It Vt netisr_handler_t Va nh_handler
 Protocol handler function that will be invoked on each packet received for
@@ -173,7 +173,7 @@ Both accept a protocol number and
 .Vt mbuf
 argument, but while
 .Fn netisr_queue
-will always execute the protocol handler asynchonously in a deferred
+will always execute the protocol handler asynchronously in a deferred
 context,
 .Fn netisr_dispatch
 will optionally direct dispatch if permitted by global and per-protocol

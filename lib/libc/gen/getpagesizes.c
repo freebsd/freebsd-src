@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <errno.h>
+#include <link.h>
+
+#include "libc_private.h"
 
 /*
  * Retrieves page size information from the system.  Specifically, returns the
@@ -51,7 +54,7 @@ getpagesizes(size_t pagesize[], int nelem)
 	static u_long ps[MAXPAGESIZES];
 	static int nops;
 	size_t size;
-	int i; 
+	int error, i;
 
 	if (nelem < 0 || (nelem > 0 && pagesize == NULL)) {
 		errno = EINVAL;
@@ -59,9 +62,13 @@ getpagesizes(size_t pagesize[], int nelem)
 	}
 	/* Cache the result of the sysctl(2). */
 	if (nops == 0) {
+		error = _elf_aux_info(AT_PAGESIZES, ps, sizeof(ps));
 		size = sizeof(ps);
-		if (sysctlbyname("hw.pagesizes", ps, &size, NULL, 0) == -1)
-			return (-1);
+		if (error != 0 || ps[0] == 0) {
+			if (sysctlbyname("hw.pagesizes", ps, &size, NULL, 0)
+			    == -1)
+				return (-1);
+		}
 		/* Count the number of page sizes that are supported. */
 		nops = size / sizeof(ps[0]);
 		while (nops > 0 && ps[nops - 1] == 0)

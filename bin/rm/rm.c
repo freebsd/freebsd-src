@@ -402,8 +402,8 @@ rm_file(char **argv)
  * This is a cheap way to *really* delete files.  Note that only regular
  * files are deleted, directories (and therefore names) will remain.
  * Also, this assumes a fixed-block file system (like FFS, or a V7 or a
- * System V file system).  In a logging file system, you'll have to have
- * kernel support.
+ * System V file system).  In a logging or COW file system, you'll have to
+ * have kernel support.
  */
 int
 rm_overwrite(char *file, struct stat *sbp)

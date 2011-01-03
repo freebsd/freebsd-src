@@ -4,14 +4,17 @@ SRCS+=	boot.c commands.c console.c devopen.c interp.c
 SRCS+=	interp_backslash.c interp_parse.c ls.c misc.c 
 SRCS+=	module.c panic.c
 
-.if ${MACHINE} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	load_elf32.c load_elf32_obj.c reloc_elf32.c
 SRCS+=	load_elf64.c load_elf64_obj.c reloc_elf64.c
 .elif ${MACHINE} == "pc98"
 SRCS+=	load_elf32.c load_elf32_obj.c reloc_elf32.c
-.elif ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "arm"
+.elif ${MACHINE_CPUARCH} == "arm"
 SRCS+=	load_elf32.c reloc_elf32.c
-.elif ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "ia64"
+.elif ${MACHINE_CPUARCH} == "powerpc"
+SRCS+=	load_elf32.c reloc_elf32.c
+SRCS+=	load_elf64.c reloc_elf64.c
+.elif ${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "ia64"
 SRCS+=	load_elf64.c reloc_elf64.c
 .endif
 

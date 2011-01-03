@@ -466,7 +466,6 @@ As the
 .Nm
 driver requires the keyboard driver and the video card driver,
 the kernel configuration file should contain the following lines.
-.Pp
 .Bd -literal -offset indent
 device atkbdc
 device atkbd
@@ -523,14 +522,6 @@ to the kernel.
 .Dl "makeoptions SC_DFLT_FONT=cp850
 .Dl "device sc"
 .\".Sh DIAGNOSTICS
-.Sh CAVEATS
-The amount of data that is possible to insert from the cut buffer is limited
-by the
-.Brq Dv MAX_INPUT ,
-a system limit on the number of bytes that may be stored in the terminal
-input queue - usually 1024 bytes
-(see
-.Xr termios 4 ) .
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr login 1 ,
@@ -562,5 +553,13 @@ driver was written by
 .An S\(/oren Schmidt Aq sos@FreeBSD.org .
 This manual page was written by
 .An Kazutaka Yokota Aq yokota@FreeBSD.org .
+.Sh CAVEATS
+The amount of data that is possible to insert from the cut buffer is limited
+by the
+.Brq Dv MAX_INPUT ,
+a system limit on the number of bytes that may be stored in the terminal
+input queue - usually 1024 bytes
+(see
+.Xr termios 4 ) .
 .Sh BUGS
 This manual page is incomplete and urgently needs revision.

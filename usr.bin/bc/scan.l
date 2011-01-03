@@ -23,7 +23,6 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <histedit.h>
-#include <signal.h>
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
@@ -47,6 +46,7 @@ static void	 init_strbuf(void);
 static void	 add_str(const char *);
 static int	 bc_yyinput(char *, int);
 
+#define YY_NO_INPUT
 #undef YY_INPUT
 #define YY_INPUT(buf,retval,max) \
 	(retval = bc_yyinput(buf, max))
@@ -235,22 +235,6 @@ add_str(const char *str)
 	strlcat(strbuf, str, strbuf_sz);
 }
 
-/* ARGSUSED */
-void
-abort_line(int sig)
-{
-	static const char str[] = "[\n]P\n";
-	int save_errno;
-
-	switch (sig) {
-	default:
-		save_errno = errno;
-		YY_FLUSH_BUFFER;	/* XXX signal race? */
-		write(STDOUT_FILENO, str, sizeof(str) - 1);
-		errno = save_errno;
-	}
-}
-
 int
 yywrap(void)
 {
@@ -288,8 +272,6 @@ yywrap(void)
 	} else if (fileindex == sargc) {
 		fileindex++;
 		yyin = stdin;
-		if (interactive)
-			signal(SIGINT, abort_line);
 		lineno = 1;
 		filename = "stdin";
 		return (0);

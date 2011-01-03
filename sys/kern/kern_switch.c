@@ -133,9 +133,7 @@ sysctl_stats_reset(SYSCTL_HANDLER_ARGS)
 		if (p == oidp || p->oid_arg1 == NULL)
 			continue;
 		counter = (uintptr_t)p->oid_arg1;
-		for (i = 0; i <= mp_maxid; i++) {
-			if (CPU_ABSENT(i))
-				continue;
+		CPU_FOREACH(i) {
 			*(long *)(dpcpu_off[i] + counter) = 0;
 		}
 	}

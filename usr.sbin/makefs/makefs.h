@@ -1,4 +1,4 @@
-/*	$NetBSD: makefs.h,v 1.14 2004/06/20 22:20:18 jmc Exp $	*/
+/*	$NetBSD: makefs.h,v 1.20 2008/12/28 21:51:46 christos Exp $	*/
 
 /*
  * Copyright (c) 2001 Wasabi Systems, Inc.
@@ -126,27 +126,7 @@ typedef struct {
 	int	needswap;	/* non-zero if byte swapping needed */
 	int	sectorsize;	/* sector size */
 
-		/* ffs specific options */
-	int	bsize;		/* block size */
-	int	fsize;		/* fragment size */
-	int	cpg;		/* cylinders per group */
-	int	cpgflg;		/* cpg was specified by user */
-	int	density;	/* bytes per inode */
-	int	ntracks;	/* number of tracks */
-	int	nsectors;	/* number of sectors */
-	int	rpm;		/* rpm */
-	int	minfree;	/* free space threshold */
-	int	optimization;	/* optimization (space or time) */
-	int	maxcontig;	/* max contiguous blocks to allocate */
-	int	rotdelay;	/* rotational delay between blocks */
-	int	maxbpg;		/* maximum blocks per file in a cyl group */
-	int	nrpos;		/* # of distinguished rotational positions */
-	int	avgfilesize;	/* expected average file size */
-	int	avgfpdir;	/* expected # of files per directory */
-	int	version;	/* filesystem version (1 = FFS, 2 = UFS2) */
-	int	maxbsize;	/* maximum extent size */
-	int	maxblkspercg;	/* max # of blocks per cylinder group */
-			/* XXX: support `old' file systems ? */
+	void	*fs_specific;	/* File system specific additions. */
 } fsinfo_t;
 
 
@@ -164,15 +144,22 @@ typedef struct {
 } option_t;
 
 
-void		apply_specfile(const char *, const char *, fsnode *);
+void		apply_specfile(const char *, const char *, fsnode *, int);
 void		dump_fsnodes(const char *, fsnode *);
 const char *	inode_type(mode_t);
 int		set_option(option_t *, const char *, const char *);
 fsnode *	walk_dir(const char *, fsnode *);
+void		free_fsnodes(fsnode *);
 
+void		ffs_prep_opts(fsinfo_t *);
 int		ffs_parse_opts(const char *, fsinfo_t *);
+void		ffs_cleanup_opts(fsinfo_t *);
 void		ffs_makefs(const char *, const char *, fsnode *, fsinfo_t *);
 
+void		cd9660_prep_opts(fsinfo_t *);
+int		cd9660_parse_opts(const char *, fsinfo_t *);
+void		cd9660_cleanup_opts(fsinfo_t *);
+void		cd9660_makefs(const char *, const char *, fsnode *, fsinfo_t *);
 
 
 extern	u_int		debug;
@@ -211,6 +198,7 @@ extern	struct timespec	start_time;
 #define	DEBUG_BUF_GETBLK		0x02000000
 #define	DEBUG_APPLY_SPECFILE		0x04000000
 #define	DEBUG_APPLY_SPECENTRY		0x08000000
+#define	DEBUG_APPLY_SPECONLY		0x10000000
 
 
 #define	TIMER_START(x)				\
@@ -222,8 +210,9 @@ extern	struct timespec	start_time;
 		struct timeval end, td;			\
 		gettimeofday(&end, NULL);		\
 		timersub(&end, &(x), &td);		\
-		printf("%s took %ld.%06ld seconds\n",	\
-		    (d), (long) td.tv_sec, (long) td.tv_usec);	\
+		printf("%s took %lld.%06ld seconds\n",	\
+		    (d), (long long)td.tv_sec,		\
+		    (long)td.tv_usec);			\
 	}
 
 
@@ -249,56 +238,56 @@ extern	struct timespec	start_time;
  * File system internal flags, also in fs_flags.
  * (Pick highest number to avoid conflicts with others)
  */
-#define	FS_SWAPPED	0x80000000	/* file system is endian swapped */
-#define	FS_INTERNAL	0x80000000	/* mask for internal flags */
+#define        FS_SWAPPED      0x80000000      /* file system is endian swapped */
+#define        FS_INTERNAL     0x80000000      /* mask for internal flags */
 
-#define	FS_ISCLEAN	1
+#define        FS_ISCLEAN      1
 
-#define	DINODE1_SIZE	(sizeof(struct ufs1_dinode))
-#define	DINODE2_SIZE	(sizeof(struct ufs2_dinode))
+#define        DINODE1_SIZE    (sizeof(struct ufs1_dinode))
+#define        DINODE2_SIZE    (sizeof(struct ufs2_dinode))
 
-#define MAXSYMLINKLEN_UFS1	((NDADDR + NIADDR) * sizeof(ufs1_daddr_t))
-#define MAXSYMLINKLEN_UFS2	((NDADDR + NIADDR) * sizeof(ufs2_daddr_t))
+#define MAXSYMLINKLEN_UFS1     ((NDADDR + NIADDR) * sizeof(ufs1_daddr_t))
+#define MAXSYMLINKLEN_UFS2     ((NDADDR + NIADDR) * sizeof(ufs2_daddr_t))
 
 #if (BYTE_ORDER == LITTLE_ENDIAN)
-#define DIRSIZ_SWAP(oldfmt, dp, needswap)	\
-    (((oldfmt) && !(needswap)) ?	\
+#define DIRSIZ_SWAP(oldfmt, dp, needswap)      \
+    (((oldfmt) && !(needswap)) ?       \
     DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
 #else
-#define DIRSIZ_SWAP(oldfmt, dp, needswap)	\
-    (((oldfmt) && (needswap)) ?		\
+#define DIRSIZ_SWAP(oldfmt, dp, needswap)      \
+    (((oldfmt) && (needswap)) ?                \
     DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
 #endif
 
-#define	cg_chkmagic_swap(cgp, ns) \
+#define        cg_chkmagic_swap(cgp, ns) \
     (ufs_rw32((cgp)->cg_magic, (ns)) == CG_MAGIC)
-#define	cg_inosused_swap(cgp, ns) \
+#define        cg_inosused_swap(cgp, ns) \
     ((u_int8_t *)((u_int8_t *)(cgp) + ufs_rw32((cgp)->cg_iusedoff, (ns))))
-#define	cg_blksfree_swap(cgp, ns) \
+#define        cg_blksfree_swap(cgp, ns) \
     ((u_int8_t *)((u_int8_t *)(cgp) + ufs_rw32((cgp)->cg_freeoff, (ns))))
-#define	cg_clustersfree_swap(cgp, ns) \
+#define        cg_clustersfree_swap(cgp, ns) \
     ((u_int8_t *)((u_int8_t *)(cgp) + ufs_rw32((cgp)->cg_clusteroff, (ns))))
-#define	cg_clustersum_swap(cgp, ns) \
+#define        cg_clustersum_swap(cgp, ns) \
     ((int32_t *)((uintptr_t)(cgp) + ufs_rw32((cgp)->cg_clustersumoff, ns)))
 
 struct fs;
-void	ffs_fragacct_swap(struct fs *, int, int32_t [], int, int);
+void   ffs_fragacct_swap(struct fs *, int, int32_t [], int, int);
 
 /*
  * Declarations for compat routines.
  */
 long long strsuftoll(const char *, const char *, long long, long long);
 long long strsuftollx(const char *, const char *,
-			long long, long long, char *, size_t);
+                       long long, long long, char *, size_t);
 
 struct passwd;
 int uid_from_user(const char *, uid_t *);
 int pwcache_userdb(int (*)(int), void (*)(void),
-		struct passwd * (*)(const char *), struct passwd * (*)(uid_t));
+               struct passwd * (*)(const char *), struct passwd * (*)(uid_t));
 struct group;
 int gid_from_group(const char *, gid_t *);
 int pwcache_groupdb(int (*)(int), void (*)(void),
-		struct group * (*)(const char *), struct group * (*)(gid_t));
+               struct group * (*)(const char *), struct group * (*)(gid_t));
 
 int setup_getid(const char *dir);
 

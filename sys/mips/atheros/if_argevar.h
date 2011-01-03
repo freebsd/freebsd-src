@@ -23,6 +23,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __IF_ARGEVAR_H__
@@ -148,10 +150,12 @@ struct arge_softc {
 	uint32_t		arge_intr_status;
 	int			arge_mac_unit;
 	int			arge_phymask;
-	uint32_t		arge_ddr_flush_reg;
-	uint32_t		arge_pll_reg;
-	uint32_t		arge_pll_reg_shift;
 	int			arge_if_flags;
+	uint32_t		arge_debug;
+	struct {
+		uint32_t	tx_pkts_unaligned;
+		uint32_t	tx_pkts_aligned;
+	} stats;
 };
 
 #endif /* __IF_ARGEVAR_H__ */

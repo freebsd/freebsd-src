@@ -252,7 +252,14 @@
  * If the "xaddq" operation (64bit xadd) is available on this architecture,
  * ISC_PLATFORM_HAVEXADDQ will be defined.
  */
+/*
+ * FreeBSD local modification, preserve this over upgrades
+ */
+#ifdef __amd64__
+#define ISC_PLATFORM_HAVEXADDQ 1
+#else
 #undef ISC_PLATFORM_HAVEXADDQ
+#endif
 
 /*
  * If the "atomic swap" operation is available on this architecture,

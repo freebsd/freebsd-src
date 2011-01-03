@@ -211,7 +211,7 @@ ngt_disconnect(hook_p hook)
 	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	if (hook != sc->hook)
-		panic(__func__);
+		panic("%s", __func__);
 
 	NGTLOCK(sc);
 	sc->hook = NULL;
@@ -317,7 +317,7 @@ ngt_rcvdata(hook_p hook, item_p item)
 	struct mbuf *m;
 
 	if (hook != sc->hook)
-		panic(__func__);
+		panic("%s", __func__);
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);

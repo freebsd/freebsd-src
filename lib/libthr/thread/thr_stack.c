@@ -154,7 +154,7 @@ _thr_stack_alloc(struct pthread_attr *attr)
 	 * Use the garbage collector lock for synchronization of the
 	 * spare stack lists and allocations from usrstack.
 	 */
-	THREAD_LIST_LOCK(curthread);
+	THREAD_LIST_WRLOCK(curthread);
 	/*
 	 * If the stack and guard sizes are default, try to allocate a stack
 	 * from the default-size stack cache:

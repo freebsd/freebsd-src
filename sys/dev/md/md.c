@@ -103,6 +103,8 @@ static MALLOC_DEFINE(M_MDSECT, "md_sectors", "Memory Disk Sectors");
 
 static int md_debug;
 SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0, "");
+static int md_malloc_wait;
+SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0, "");
 
 #if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
 /*
@@ -124,12 +126,13 @@ static g_init_t g_md_init;
 static g_fini_t g_md_fini;
 static g_start_t g_md_start;
 static g_access_t g_md_access;
-static void g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, 
-    struct g_consumer *cp __unused, struct g_provider *pp);
+static void g_md_dumpconf(struct sbuf *sb, const char *indent,
+    struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp);
 
-static int	mdunits;
+static int mdunits;
 static struct cdev *status_dev = 0;
 static struct sx md_sx;
+static struct unrhdr *md_uh;
 
 static d_ioctl_t mdctlioctl;
 
@@ -207,11 +210,12 @@ new_indir(u_int shift)
 {
 	struct indir *ip;
 
-	ip = malloc(sizeof *ip, M_MD, M_NOWAIT | M_ZERO);
+	ip = malloc(sizeof *ip, M_MD, (md_malloc_wait ? M_WAITOK : M_NOWAIT)
+	    | M_ZERO);
 	if (ip == NULL)
 		return (NULL);
 	ip->array = malloc(sizeof(uintptr_t) * NINDIR,
-	    M_MDSECT, M_NOWAIT | M_ZERO);
+	    M_MDSECT, (md_malloc_wait ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (ip->array == NULL) {
 		free(ip, M_MD);
 		return (NULL);
@@ -255,7 +259,7 @@ dimension(off_t size)
 {
 	off_t rcnt;
 	struct indir *ip;
-	int i, layer;
+	int layer;
 
 	rcnt = size;
 	layer = 0;
@@ -263,9 +267,6 @@ dimension(off_t size)
 		rcnt /= NINDIR;
 		layer++;
 	}
-	/* figure out log2(NINDIR) */
-	for (i = NINDIR, nshift = -1; i; nshift++)
-		i >>= 1;
 
 	/*
 	 * XXX: the top layer is probably not fully populated, so we allocate
@@ -458,6 +459,7 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 			} else {
 				if (osp <= 255) {
 					sp = (uintptr_t)uma_zalloc(sc->uma,
+					    md_malloc_wait ? M_WAITOK :
 					    M_NOWAIT);
 					if (sp == 0) {
 						error = ENOSPC;
@@ -666,12 +668,10 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		sched_unpin();
 		vm_page_wakeup(m);
 		vm_page_lock(m);
-		vm_page_lock_queues();
 		vm_page_activate(m);
+		vm_page_unlock(m);
 		if (bp->bio_cmd == BIO_WRITE)
 			vm_page_dirty(m);
-		vm_page_unlock_queues();
-		vm_page_unlock(m);
 
 		/* Actions on further pages start at offset 0 */
 		p += PAGE_SIZE - offs;
@@ -679,7 +679,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 #if 0
 if (bootverbose || bp->bio_offset / PAGE_SIZE < 17)
 printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid %d dirty %d @ %d\n",
-    m->wire_count, m->busy, 
+    m->wire_count, m->busy,
     m->flags, m->hold_count, m->act_count, m->queue, m->valid, m->dirty, i);
 #endif
 	}
@@ -717,11 +717,12 @@ md_kthread(void *arg)
 		}
 		mtx_unlock(&sc->queue_mtx);
 		if (bp->bio_cmd == BIO_GETATTR) {
-			if (sc->fwsectors && sc->fwheads &&
+			if ((sc->fwsectors && sc->fwheads &&
 			    (g_handleattr_int(bp, "GEOM::fwsectors",
 			    sc->fwsectors) ||
 			    g_handleattr_int(bp, "GEOM::fwheads",
-			    sc->fwheads)))
+			    sc->fwheads))) ||
+			    g_handleattr_int(bp, "GEOM::candelete", 1))
 				error = -1;
 			else
 				error = EOPNOTSUPP;
@@ -753,20 +754,20 @@ mdfind(int unit)
 static struct md_s *
 mdnew(int unit, int *errp, enum md_types type)
 {
-	struct md_s *sc, *sc2;
-	int error, max = -1;
+	struct md_s *sc;
+	int error;
 
 	*errp = 0;
-	LIST_FOREACH(sc2, &md_softc_list, list) {
-		if (unit == sc2->unit) {
-			*errp = EBUSY;
-			return (NULL);
-		}
-		if (unit == -1 && sc2->unit > max) 
-			max = sc2->unit;
-	}
 	if (unit == -1)
-		unit = max + 1;
+		unit = alloc_unr(md_uh);
+	else
+		unit = alloc_unr_specific(md_uh, unit);
+
+	if (unit == -1) {
+		*errp = EBUSY;
+		return (NULL);
+	}
+
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->type = type;
 	bioq_init(&sc->bio_queue);
@@ -779,6 +780,7 @@ mdnew(int unit, int *errp, enum md_types type)
 		return (sc);
 	LIST_REMOVE(sc, list);
 	mtx_destroy(&sc->queue_mtx);
+	free_unr(md_uh, sc->unit);
 	free(sc, M_MD);
 	*errp = error;
 	return (NULL);
@@ -787,7 +789,6 @@ mdnew(int unit, int *errp, enum md_types type)
 static void
 mdinit(struct md_s *sc)
 {
-
 	struct g_geom *gp;
 	struct g_provider *pp;
 
@@ -854,7 +855,8 @@ mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 
 		nsectors = sc->mediasize / sc->sectorsize;
 		for (u = 0; u < nsectors; u++) {
-			sp = (uintptr_t)uma_zalloc(sc->uma, M_NOWAIT | M_ZERO);
+			sp = (uintptr_t)uma_zalloc(sc->uma, md_malloc_wait ?
+			    M_WAITOK : M_NOWAIT | M_ZERO);
 			if (sp != 0)
 				error = s_write(sc->indir, u, sp);
 			else
@@ -913,18 +915,26 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 {
 	struct vattr vattr;
 	struct nameidata nd;
+	char *fname;
 	int error, flags, vfslocked;
 
-	error = copyinstr(mdio->md_file, sc->file, sizeof(sc->file), NULL);
-	if (error != 0)
-		return (error);
-	flags = FREAD|FWRITE;
 	/*
-	 * If the user specified that this is a read only device, unset the
-	 * FWRITE mask before trying to open the backing store.
+	 * Kernel-originated requests must have the filename appended
+	 * to the mdio structure to protect against malicious software.
 	 */
-	if ((mdio->md_options & MD_READONLY) != 0)
-		flags &= ~FWRITE;
+	fname = mdio->md_file;
+	if ((void *)fname != (void *)(mdio + 1)) {
+		error = copyinstr(fname, sc->file, sizeof(sc->file), NULL);
+		if (error != 0)
+			return (error);
+	} else
+		strlcpy(sc->file, fname, sizeof(sc->file));
+
+	/*
+	 * If the user specified that this is a read only device, don't
+	 * set the FWRITE mask before trying to open the backing store.
+	 */
+	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE);
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
@@ -934,7 +944,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	if (nd.ni_vp->v_type != VREG) {
 		error = EINVAL;
 		goto bad;
-	}	
+	}
 	error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred);
 	if (error != 0)
 		goto bad;
@@ -1017,6 +1027,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 		uma_zdestroy(sc->uma);
 
 	LIST_REMOVE(sc, list);
+	free_unr(md_uh, sc->unit);
 	free(sc, M_MD);
 	return (0);
 }
@@ -1102,8 +1113,11 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		}
 		if (mdio->md_options & MD_AUTOUNIT)
 			sc = mdnew(-1, &error, mdio->md_type);
-		else
+		else {
+			if (mdio->md_unit > INT_MAX)
+				return (EINVAL);
 			sc = mdnew(mdio->md_unit, &error, mdio->md_type);
+		}
 		if (sc == NULL)
 			return (error);
 		if (mdio->md_options & MD_AUTOUNIT)
@@ -1185,7 +1199,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 static int
 mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
-	int error; 
+	int error;
 
 	sx_xlock(&md_sx);
 	error = xmdctlioctl(dev, cmd, addr, flags, td);
@@ -1217,15 +1231,20 @@ md_preloaded(u_char *image, size_t length)
 static void
 g_md_init(struct g_class *mp __unused)
 {
-
 	caddr_t mod;
 	caddr_t c;
 	u_char *ptr, *name, *type;
 	unsigned len;
+	int i;
+
+	/* figure out log2(NINDIR) */
+	for (i = NINDIR, nshift = -1; i; nshift++)
+		i >>= 1;
 
 	mod = NULL;
 	sx_init(&md_sx, "MD config lock");
 	g_topology_unlock();
+	md_uh = new_unrhdr(0, INT_MAX, NULL);
 #ifdef MD_ROOT_SIZE
 	sx_xlock(&md_sx);
 	md_preloaded(mfs_root.start, sizeof(mfs_root.start));
@@ -1257,7 +1276,7 @@ g_md_init(struct g_class *mp __unused)
 }
 
 static void
-g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, 
+g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp __unused, struct g_provider *pp)
 {
 	struct md_s *mp;
@@ -1322,4 +1341,5 @@ g_md_fini(struct g_class *mp __unused)
 	sx_destroy(&md_sx);
 	if (status_dev != NULL)
 		destroy_dev(status_dev);
+	delete_unrhdr(md_uh);
 }

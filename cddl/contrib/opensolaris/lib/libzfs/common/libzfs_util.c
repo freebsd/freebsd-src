@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -210,6 +210,9 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_ACTIVE_SPARE:
 		return (dgettext(TEXT_DOMAIN, "pool has active shared spare "
 		    "device"));
+	case EZFS_UNPLAYED_LOGS:
+		return (dgettext(TEXT_DOMAIN, "log device has unplayed intent "
+		    "logs"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:
@@ -364,6 +367,11 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	case ENOTSUP:
 		zfs_verror(hdl, EZFS_BADVERSION, fmt, ap);
 		break;
+	case EAGAIN:
+		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+		    "pool I/O is currently suspended"));
+		zfs_verror(hdl, EZFS_POOLUNAVAIL, fmt, ap);
+		break;
 	default:
 		zfs_error_aux(hdl, strerror(errno));
 		zfs_verror(hdl, EZFS_UNKNOWN, fmt, ap);
@@ -437,6 +445,11 @@ zpool_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	case EDQUOT:
 		zfs_verror(hdl, EZFS_NOSPC, fmt, ap);
 		return (-1);
+	case EAGAIN:
+		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+		    "pool I/O is currently suspended"));
+		zfs_verror(hdl, EZFS_POOLUNAVAIL, fmt, ap);
+		break;
 
 	default:
 		zfs_error_aux(hdl, strerror(error));
@@ -480,7 +493,6 @@ zfs_realloc(libzfs_handle_t *hdl, void *ptr, size_t oldsize, size_t newsize)
 
 	if ((ret = realloc(ptr, newsize)) == NULL) {
 		(void) no_memory(hdl);
-		free(ptr);
 		return (NULL);
 	}
 
@@ -595,6 +607,7 @@ libzfs_init(void)
 
 	zfs_prop_init();
 	zpool_prop_init();
+	libzfs_mnttab_init(hdl);
 
 	return (hdl);
 }
@@ -612,6 +625,7 @@ libzfs_fini(libzfs_handle_t *hdl)
 		(void) free(hdl->libzfs_log_str);
 	zpool_free_handles(hdl);
 	namespace_clear(hdl);
+	libzfs_mnttab_fini(hdl);
 	free(hdl);
 }
 
@@ -802,6 +816,10 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 	cbp->cb_colwidths[GET_COL_SOURCE] = strlen(dgettext(TEXT_DOMAIN,
 	    "SOURCE"));
 
+	/* first property is always NAME */
+	assert(cbp->cb_proplist->pl_prop ==
+	    ((type == ZFS_TYPE_POOL) ?  ZPOOL_PROP_NAME : ZFS_PROP_NAME));
+
 	/*
 	 * Go through and calculate the widths for each column.  For the
 	 * 'source' column, we kludge it up by taking the worst-case scenario of
@@ -829,9 +847,13 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 		}
 
 		/*
-		 * 'VALUE' column
+		 * 'VALUE' column.  The first property is always the 'name'
+		 * property that was tacked on either by /sbin/zfs's
+		 * zfs_do_get() or when calling zprop_expand_list(), so we
+		 * ignore its width.  If the user specified the name property
+		 * to display, then it will be later in the list in any case.
 		 */
-		if ((pl->pl_prop != ZFS_PROP_NAME || !pl->pl_all) &&
+		if (pl != cbp->cb_proplist &&
 		    pl->pl_width > cbp->cb_colwidths[GET_COL_VALUE])
 			cbp->cb_colwidths[GET_COL_VALUE] = pl->pl_width;
 
@@ -1016,9 +1038,9 @@ zfs_nicestrtonum(libzfs_handle_t *hdl, const char *value, uint64_t *num)
 		return (-1);
 	}
 
-	/* Rely on stroll() to process the numeric portion.  */
+	/* Rely on stroull() to process the numeric portion.  */
 	errno = 0;
-	*num = strtoll(value, &end, 10);
+	*num = strtoull(value, &end, 10);
 
 	/*
 	 * Check for ERANGE, which indicates that the value is too large to fit
@@ -1208,7 +1230,7 @@ addlist(libzfs_handle_t *hdl, char *propname, zprop_list_t **listp,
 	 * dataset property,
 	 */
 	if (prop == ZPROP_INVAL && (type == ZFS_TYPE_POOL ||
-	    !zfs_prop_user(propname))) {
+	    (!zfs_prop_user(propname) && !zfs_prop_userquota(propname)))) {
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 		    "invalid property '%s'"), propname);
 		return (zfs_error(hdl, EZFS_BADPROP,

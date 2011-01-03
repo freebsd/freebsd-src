@@ -471,7 +471,8 @@ coda_ioctl(struct vop_ioctl_args *ap)
 		    iap->path)););
 		return (EINVAL);
 	}
-	if (iap->vi.in_size > VC_MAXDATASIZE) {
+	if (iap->vi.in_size > VC_MAXDATASIZE ||
+	    iap->vi.out_size > VC_MAXDATASIZE) {
 		NDFREE(&ndp, 0);
 		return (EINVAL);
 	}
@@ -1548,9 +1549,6 @@ coda_reclaim(struct vop_reclaim_args *ap)
 				    "%p, cp %p\n", vp, cp);
 		}
 #endif
-	} else {
-		if (prtactive && vp->v_usecount != 0)
-			vprint("coda_reclaim: pushing active", vp);
 	}
 	cache_purge(vp);
 	coda_free(VTOC(vp));

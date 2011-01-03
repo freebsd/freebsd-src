@@ -80,6 +80,7 @@ struct varinit {
 
 #ifndef NO_HISTORY
 struct var vhistsize;
+struct var vterm;
 #endif
 struct var vifs;
 struct var vmail;
@@ -90,9 +91,9 @@ struct var vps1;
 struct var vps2;
 struct var vps4;
 struct var vvers;
-STATIC struct var voptind;
+static struct var voptind;
 
-STATIC const struct varinit varinit[] = {
+static const struct varinit varinit[] = {
 #ifndef NO_HISTORY
 	{ &vhistsize,	VUNSET,				"HISTSIZE=",
 	  sethistsize },
@@ -114,25 +115,29 @@ STATIC const struct varinit varinit[] = {
 	  NULL },
 	{ &vps4,	0,				"PS4=+ ",
 	  NULL },
+#ifndef NO_HISTORY
+	{ &vterm,	VUNSET,				"TERM=",
+	  setterm },
+#endif
 	{ &voptind,	0,				"OPTIND=1",
 	  getoptsreset },
 	{ NULL,	0,				NULL,
 	  NULL }
 };
 
-STATIC struct var *vartab[VTABSIZE];
+static struct var *vartab[VTABSIZE];
 
-STATIC const char *const locale_names[7] = {
+static const char *const locale_names[7] = {
 	"LC_COLLATE", "LC_CTYPE", "LC_MONETARY",
 	"LC_NUMERIC", "LC_TIME", "LC_MESSAGES", NULL
 };
-STATIC const int locale_categories[7] = {
+static const int locale_categories[7] = {
 	LC_COLLATE, LC_CTYPE, LC_MONETARY, LC_NUMERIC, LC_TIME, LC_MESSAGES, 0
 };
 
-STATIC struct var **hashvar(const char *);
-STATIC int varequal(const char *, const char *);
-STATIC int localevar(const char *);
+static struct var **hashvar(const char *);
+static int varequal(const char *, const char *);
+static int localevar(const char *);
 
 /*
  * Initialize the variable symbol tables and import the environment.
@@ -263,7 +268,7 @@ setvar(const char *name, const char *val, int flags)
 	setvareq(nameeq, flags);
 }
 
-STATIC int
+static int
 localevar(const char *s)
 {
 	const char *const *ss;
@@ -328,6 +333,8 @@ setvareq(char *s, int flags)
 				len = strchr(s, '=') - s;
 				error("%.*s: is read only", len, s);
 			}
+			if (flags & VNOSET)
+				return;
 			INTOFF;
 
 			if (vp->func && (flags & VNOFUNC) == 0)
@@ -360,6 +367,8 @@ setvareq(char *s, int flags)
 		}
 	}
 	/* not found */
+	if (flags & VNOSET)
+		return;
 	vp = ckmalloc(sizeof (*vp));
 	vp->flags = flags;
 	vp->text = s;
@@ -381,13 +390,13 @@ setvareq(char *s, int flags)
  */
 
 void
-listsetvar(struct strlist *list)
+listsetvar(struct strlist *list, int flags)
 {
 	struct strlist *lp;
 
 	INTOFF;
 	for (lp = list ; lp ; lp = lp->next) {
-		setvareq(savestr(lp->text), 0);
+		setvareq(savestr(lp->text), flags);
 	}
 	INTON;
 }
@@ -426,11 +435,15 @@ bltinlookup(const char *name, int doall)
 {
 	struct strlist *sp;
 	struct var *v;
+	char *result;
 
+	result = NULL;
 	for (sp = cmdenviron ; sp ; sp = sp->next) {
 		if (varequal(sp->text, name))
-			return strchr(sp->text, '=') + 1;
+			result = strchr(sp->text, '=') + 1;
 	}
+	if (result != NULL)
+		return result;
 	for (v = *hashvar(name) ; v ; v = v->next) {
 		if (varequal(v->text, name)) {
 			if ((v->flags & VUNSET)
@@ -624,10 +637,10 @@ showvarscmd(int argc __unused, char **argv __unused)
 
 	qsort(vars, n, sizeof(*vars), var_compare);
 	for (i = 0; i < n; i++) {
-		for (s = vars[i]; *s != '='; s++)
-			out1c(*s);
-		out1c('=');
-		out1qstr(s + 1);
+		s = strchr(vars[i], '=');
+		s++;
+		outbin(vars[i], s - vars[i], out1);
+		out1qstr(s);
 		out1c('\n');
 	}
 	ckfree(vars);
@@ -701,12 +714,15 @@ found:;
 						out1str(cmdname);
 						out1c(' ');
 					}
-					for (p = vp->text ; *p != '=' ; p++)
-						out1c(*p);
+					p = strchr(vp->text, '=');
 					if (values && !(vp->flags & VUNSET)) {
-						out1c('=');
-						out1qstr(p + 1);
-					}
+						p++;
+						outbin(vp->text, p - vp->text,
+						    out1);
+						out1qstr(p);
+					} else
+						outbin(vp->text, p - vp->text,
+						    out1);
 					out1c('\n');
 				}
 			}
@@ -796,6 +812,7 @@ poplocalvars(void)
 		if (vp == NULL) {	/* $- saved */
 			memcpy(optlist, lvp->text, sizeof optlist);
 			ckfree(lvp->text);
+			optschanged();
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
 			(void)unsetvar(vp->text);
 		} else {
@@ -817,7 +834,7 @@ setvarcmd(int argc, char **argv)
 	else if (argc == 3)
 		setvar(argv[1], argv[2], 0);
 	else
-		error("List assignment not implemented");
+		error("too many arguments");
 	return 0;
 }
 
@@ -900,7 +917,7 @@ unsetvar(const char *s)
  * Find the appropriate entry in the hash table from the name.
  */
 
-STATIC struct var **
+static struct var **
 hashvar(const char *p)
 {
 	unsigned int hashval;
@@ -919,7 +936,7 @@ hashvar(const char *p)
  * either '=' or '\0'.
  */
 
-STATIC int
+static int
 varequal(const char *p, const char *q)
 {
 	while (*p == *q++) {

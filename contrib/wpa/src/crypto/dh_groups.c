@@ -19,6 +19,8 @@
 #include "dh_groups.h"
 
 
+#ifdef ALL_DH_GROUPS
+
 /* RFC 4306, B.1. Group 1 - 768 Bit MODP
  * Generator: 2
  * Prime: 2^768 - 2 ^704 - 1 + 2^64 * { [2^638 pi] + 149686 }
@@ -63,6 +65,8 @@ static const u8 dh_group2_prime[128] = {
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 };
 
+#endif /* ALL_DH_GROUPS */
+
 /* RFC 3526, 2. Group 5 - 1536 Bit MODP
  * Generator: 2
  * Prime: 2^1536 - 2^1472 - 1 + 2^64 * { [2^1406 pi] + 741804 }
@@ -94,6 +98,8 @@ static const u8 dh_group5_prime[192] = {
 	0xF1, 0x74, 0x6C, 0x08, 0xCA, 0x23, 0x73, 0x27,
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 };
+
+#ifdef ALL_DH_GROUPS
 
 /* RFC 3526, 3. Group 14 - 2048 Bit MODP
  * Generator: 2
@@ -503,6 +509,8 @@ static const u8 dh_group18_prime[1024] = {
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 };
 
+#endif /* ALL_DH_GROUPS */
+
 
 #define DH_GROUP(id) \
 { id, dh_group ## id ## _generator, sizeof(dh_group ## id ## _generator), \
@@ -510,14 +518,16 @@ dh_group ## id ## _prime, sizeof(dh_group ## id ## _prime) }
 		
 
 static struct dh_group dh_groups[] = {
+	DH_GROUP(5),
+#ifdef ALL_DH_GROUPS
 	DH_GROUP(1),
 	DH_GROUP(2),
-	DH_GROUP(5),
 	DH_GROUP(14),
 	DH_GROUP(15),
 	DH_GROUP(16),
 	DH_GROUP(17),
 	DH_GROUP(18)
+#endif /* ALL_DH_GROUPS */
 };
 
 #define NUM_DH_GROUPS (sizeof(dh_groups) / sizeof(dh_groups[0]))
@@ -609,11 +619,12 @@ struct wpabuf * dh_derive_shared(const struct wpabuf *peer_public,
 	if (crypto_mod_exp(wpabuf_head(peer_public), wpabuf_len(peer_public),
 			   wpabuf_head(own_private), wpabuf_len(own_private),
 			   dh->prime, dh->prime_len,
-			   wpabuf_put(shared, shared_len), &shared_len) < 0) {
+			   wpabuf_mhead(shared), &shared_len) < 0) {
 		wpabuf_free(shared);
 		wpa_printf(MSG_INFO, "DH: crypto_mod_exp failed");
 		return NULL;
 	}
+	wpabuf_put(shared, shared_len);
 	wpa_hexdump_buf_key(MSG_DEBUG, "DH: shared key", shared);
 
 	return shared;

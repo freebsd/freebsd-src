@@ -44,7 +44,7 @@ fi
 
 dtrace=$1
 
-$dtrace -qwm unix'{chill(15); printf("Done chilling"); exit(0);}'
+$dtrace -qwm kernel'{chill(15); printf("Done chilling"); exit(0);}'
 status=$?
 
 if [ "$status" -ne 0 ]; then

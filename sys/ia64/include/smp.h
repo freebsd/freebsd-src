@@ -25,6 +25,7 @@ extern int ia64_ipi_stop;
 extern int ia64_ipi_wakeup;
 
 void	ipi_all_but_self(int ipi);
+void	ipi_cpu(int cpu, u_int ipi);
 void	ipi_selected(cpumask_t cpus, int ipi);
 void	ipi_send(struct pcpu *, int ipi);
 

@@ -87,8 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
 
-static void vm_contig_grow_cache(int tries);
-
 static int
 vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 {
@@ -102,7 +100,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
 	if (!VM_OBJECT_TRYLOCK(object) &&
-	    !vm_pageout_fallback_object_lock(m, next)) {
+	    (!vm_pageout_fallback_object_lock(m, next) || m->hold_count != 0)) {
 		vm_page_unlock(m);
 		VM_OBJECT_UNLOCK(object);
 		return (EAGAIN);
@@ -113,7 +111,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 		return (EBUSY);
 	}
 	vm_page_test_dirty(m);
-	if (m->dirty == 0 && m->hold_count == 0)
+	if (m->dirty == 0)
 		pmap_remove_all(m);
 	if (m->dirty != 0) {
 		vm_page_unlock(m);
@@ -142,14 +140,13 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 			   object->type == OBJT_DEFAULT) {
 			vm_page_unlock_queues();
 			m_tmp = m;
-			vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC);
+			vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC, 0, NULL);
 			VM_OBJECT_UNLOCK(object);
 			vm_page_lock_queues();
 			return (0);
 		}
 	} else {
-		if (m->hold_count == 0)
-			vm_page_cache(m);
+		vm_page_cache(m);
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(object);
@@ -157,9 +154,10 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 }
 
 static int
-vm_contig_launder(int queue)
+vm_contig_launder(int queue, vm_paddr_t low, vm_paddr_t high)
 {
 	vm_page_t m, next;
+	vm_paddr_t pa;
 	int error;
 
 	TAILQ_FOREACH_SAFE(m, &vm_page_queues[queue].pl, pageq, next) {
@@ -168,11 +166,15 @@ vm_contig_launder(int queue)
 		if ((m->flags & PG_MARKER) != 0)
 			continue;
 
-		if (!vm_pageout_page_lock(m, &next)) {
+		pa = VM_PAGE_TO_PHYS(m);
+		if (pa < low || pa + PAGE_SIZE > high)
+			continue;
+
+		if (!vm_pageout_page_lock(m, &next) || m->hold_count != 0) {
 			vm_page_unlock(m);
-			return (FALSE);
+			continue;
 		}
-		KASSERT(VM_PAGE_INQUEUE2(m, queue),
+		KASSERT(m->queue == queue,
 		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
 		error = vm_contig_launder_page(m, &next);
 		vm_page_lock_assert(m, MA_NOTOWNED);
@@ -203,8 +205,8 @@ vm_page_release_contig(vm_page_t m, vm_pindex_t count)
 /*
  * Increase the number of cached pages.
  */
-static void
-vm_contig_grow_cache(int tries)
+void
+vm_contig_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
 {
 	int actl, actmax, inactl, inactmax;
 
@@ -214,11 +216,11 @@ vm_contig_grow_cache(int tries)
 	actl = 0;
 	actmax = tries < 2 ? 0 : cnt.v_active_count;
 again:
-	if (inactl < inactmax && vm_contig_launder(PQ_INACTIVE)) {
+	if (inactl < inactmax && vm_contig_launder(PQ_INACTIVE, low, high)) {
 		inactl++;
 		goto again;
 	}
-	if (actl < actmax && vm_contig_launder(PQ_ACTIVE)) {
+	if (actl < actmax && vm_contig_launder(PQ_ACTIVE, low, high)) {
 		actl++;
 		goto again;
 	}
@@ -261,7 +263,7 @@ retry:
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
 				VM_OBJECT_UNLOCK(object);
 				vm_map_unlock(map);
-				vm_contig_grow_cache(tries);
+				vm_contig_grow_cache(tries, low, high);
 				vm_map_lock(map);
 				VM_OBJECT_LOCK(object);
 				goto retry;
@@ -368,7 +370,7 @@ retry:
 	pages = vm_phys_alloc_contig(npgs, low, high, alignment, boundary);
 	if (pages == NULL) {
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			vm_contig_grow_cache(tries);
+			vm_contig_grow_cache(tries, low, high);
 			tries++;
 			goto retry;
 		}

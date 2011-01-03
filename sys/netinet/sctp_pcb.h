@@ -177,8 +177,6 @@ struct sctp_epinfo {
 	struct sctppcbhead listhead;
 	struct sctpladdr addr_wq;
 
-	struct sctpiterators iteratorhead;
-	int threads_must_exit;
 	/* ep zone info */
 	sctp_zone_t ipi_zone_ep;
 	sctp_zone_t ipi_zone_asoc;
@@ -191,10 +189,10 @@ struct sctp_epinfo {
 	sctp_zone_t ipi_zone_asconf_ack;
 
 	struct rwlock ipi_ep_mtx;
-	struct mtx it_mtx;
 	struct mtx ipi_iterator_wq_mtx;
 	struct rwlock ipi_addr_mtx;
 	struct mtx ipi_pktlog_mtx;
+	struct mtx wq_addr_mtx;
 	uint32_t ipi_count_ep;
 
 	/* assoc/tcb zone info */
@@ -228,14 +226,9 @@ struct sctp_epinfo {
 	uint32_t ipi_free_chunks;
 	uint32_t ipi_free_strmoq;
 
-
 	struct sctpvtaghead vtag_timewait[SCTP_STACK_VTAG_HASH_SIZE];
 
 	/* address work queue handling */
-#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
-	uint32_t iterator_running;
-	SCTP_PROCESS_STRUCT thread_proc;
-#endif
 	struct sctp_timer addr_wq_timer;
 
 };
@@ -396,6 +389,7 @@ struct sctp_inpcb {
 	uint32_t sctp_frag_point;
 	uint32_t partial_delivery_point;
 	uint32_t sctp_context;
+	uint32_t sctp_cmt_on_off;
 	struct sctp_nonpad_sndrcvinfo def_send;
 	/*-
 	 * These three are here for the sosend_dgram
@@ -627,6 +621,12 @@ sctp_initiate_iterator(inp_func inpf,
     end_func ef,
     struct sctp_inpcb *,
     uint8_t co_off);
+
+#ifdef INVARIANTS
+void
+     sctp_validate_no_locks(struct sctp_inpcb *inp);
+
+#endif
 
 #endif				/* _KERNEL */
 #endif				/* !__sctp_pcb_h__ */

@@ -32,7 +32,7 @@
 .\"     @(#)stab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd June 10, 2010
 .Dt STAB 5
 .Os
 .Sh NAME
@@ -79,7 +79,7 @@ consists of the following structure:
 
 struct nlist {
 	union {
-		char	*n_name;	/* for use when in-core */
+		const char *n_name;	/* for use when in-core */
 		long	n_strx;		/* index into file string table */
 	} n_un;
 	unsigned char	n_type;		/* type flag */

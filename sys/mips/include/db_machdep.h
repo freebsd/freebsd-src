@@ -55,7 +55,7 @@ typedef	register_t	db_expr_t;	/* expression - signed */
 #define	SOFTWARE_SSTEP_EMUL	/* next_instr_address() emulates 100% */
 db_addr_t	next_instr_address(db_addr_t, boolean_t);
 #define	BKPT_SIZE			(4)
-#define	BKPT_SET(ins)			(BREAK_DDB)
+#define	BKPT_SET(ins)			(MIPS_BREAK_DDB)
 #define	DB_VALID_BREAKPOINT(addr)	(((addr) & 3) == 0)
 
 #define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BREAK)
@@ -65,7 +65,7 @@ db_addr_t	next_instr_address(db_addr_t, boolean_t);
 #define	BKPT_SKIP					\
 	do {							\
 		if((db_get_value(kdb_frame->pc, sizeof(int), FALSE) &	\
-		    ~BREAK_VAL_MASK) == BREAK_INSTR) {			\
+		    ~MIPS_BREAK_VAL_MASK) == MIPS_BREAK_INSTR) {	\
 			kdb_frame->pc += BKPT_SIZE;			\
 			kdb_thrctx->pcb_regs.pc +=  BKPT_SIZE;		\
 		}							\

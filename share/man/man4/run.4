@@ -98,7 +98,9 @@ driver can be configured at runtime with
 or on boot with
 .Xr hostname.if 5 .
 .Sh HARDWARE
-The following adapters should work:
+The 
+.Nm
+driver supports the following wireless adapters:
 .Pp
 .Bl -tag -width Ds -offset indent -compact
 .It Airlink101 AWLL6090
@@ -150,7 +152,6 @@ The following adapters should work:
 .El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev run0 inet 192.168.0.20 \e
     netmask 0xffffff00

@@ -191,7 +191,10 @@ struct sysentvec svr4_sysvec = {
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz     = NULL,
-	.sv_flags	= SV_ABI_UNDEF | SV_IA32 | SV_ILP32
+	.sv_flags	= SV_ABI_UNDEF | SV_IA32 | SV_ILP32,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
+	.sv_syscallnames = NULL,
 };
 
 const char      svr4_emul_path[] = "/compat/svr4";
@@ -306,5 +309,5 @@ static moduledata_t svr4_elf_mod = {
 	svr4_elf_modevent,
 	0
 };
-DECLARE_MODULE(svr4elf, svr4_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+DECLARE_MODULE_TIED(svr4elf, svr4_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_DEPEND(svr4elf, streams, 1, 1, 1);

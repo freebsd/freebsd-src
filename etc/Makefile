@@ -22,8 +22,12 @@ BIN1=	auth.conf \
 
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
-.else
+.elif exists(${.CURDIR}/etc.${MACHINE_ARCH}/ttys)
 BIN1+=	etc.${MACHINE_ARCH}/ttys
+.elif exists(${.CURDIR}/etc.${MACHINE_CPUARCH}/ttys)
+BIN1+=	etc.${MACHINE_CPUARCH}/ttys
+.else
+.error etc.MACHINE/ttys missing
 .endif
 
 OPENBSMDIR=			${.CURDIR}/../contrib/openbsm
@@ -62,10 +66,6 @@ BIN1+=	hosts.lpd printcap
 
 .if ${MK_MAIL} != "no"
 BIN1+=	${.CURDIR}/../usr.bin/mail/misc/mail.rc
-.endif
-
-.if ${MK_MAN} != "no"
-BIN1+=	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config
 .endif
 
 .if ${MK_NTP} != "no"
@@ -249,10 +249,12 @@ distribution:
 	    ${DESTDIR}/var/crash
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FREEBSD} ${DESTDIR}/
+.if ${MK_BOOT} != "no"
 .if exists(${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints)
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
 	    ${DESTDIR}/boot/device.hints
+.endif
 .endif
 
 distrib-dirs:

@@ -453,6 +453,13 @@ vop_advlockasync {
 };
 
 
+%% advlockpurge	vp	E E E
+
+vop_advlockpurge {
+	IN struct vnode *vp;
+};
+
+
 %% reallocblks	vp	E E E
 
 vop_reallocblks {

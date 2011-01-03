@@ -66,6 +66,8 @@
         ..
         ppp             gname=network mode=0770
         ..
+        wpa_supplicant
+        ..
     ..
     rwho            gname=daemon mode=0775
     ..

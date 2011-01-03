@@ -42,7 +42,8 @@ struct ksiginfo;
 typedef	int	sy_call_t(struct thread *, void *);
 
 /* Used by the machine dependent syscall() code. */
-typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *);
+typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *,
+    int);
 
 /*
  * Used by loaded syscalls to convert arguments to a DTrace array
@@ -61,10 +62,18 @@ struct sysent {			/* system call table */
 	u_int32_t sy_entry;	/* DTrace entry ID for systrace. */
 	u_int32_t sy_return;	/* DTrace return ID for systrace. */
 	u_int32_t sy_flags;	/* General flags for system calls. */
+	u_int32_t sy_thrcnt;
 };
+
+#define	SY_THR_FLAGMASK	0x7
+#define	SY_THR_STATIC	0x1
+#define	SY_THR_DRAINING	0x2
+#define	SY_THR_ABSENT	0x4
+#define	SY_THR_INCR	0x8
 
 struct image_params;
 struct __sigset;
+struct syscall_args;
 struct trapframe;
 struct vnode;
 
@@ -103,6 +112,10 @@ struct sysentvec {
 	void		(*sv_fixlimit)(struct rlimit *, int);
 	u_long		*sv_maxssiz;
 	u_int		sv_flags;
+	void		(*sv_set_syscall_retval)(struct thread *, int);
+	int		(*sv_fetch_syscall_args)(struct thread *, struct
+			    syscall_args *);
+	const char	**sv_syscallnames;
 };
 
 #define	SV_ILP32	0x000100
@@ -123,6 +136,7 @@ extern struct sysentvec aout_sysvec;
 extern struct sysentvec elf_freebsd_sysvec;
 extern struct sysentvec null_sysvec;
 extern struct sysent sysent[];
+extern const char *syscallnames[];
 
 #define	NO_SYSCALL (-1)
 
@@ -196,11 +210,17 @@ int	syscall_module_handler(struct module *mod, int what, void *arg);
 int	syscall_helper_register(struct syscall_helper_data *sd);
 int	syscall_helper_unregister(struct syscall_helper_data *sd);
 
+struct proc;
+const char *syscallname(struct proc *p, u_int code);
+
 /* Special purpose system call functions. */
 struct nosys_args;
 
 int	lkmnosys(struct thread *, struct nosys_args *);
 int	lkmressys(struct thread *, struct nosys_args *);
+
+int	syscall_thread_enter(struct thread *td, struct sysent *se);
+void	syscall_thread_exit(struct thread *td, struct sysent *se);
 
 #endif /* _KERNEL */
 

@@ -42,7 +42,7 @@
 #define	_POWERPC_INCLUDE_PARAM_H_
 
 /*
- * Machine dependent constants for PowerPC (32-bit only currently)
+ * Machine dependent constants for PowerPC
  */
 
 #include <machine/_align.h>
@@ -54,12 +54,21 @@
 #define	MACHINE		"powerpc"
 #endif
 #ifndef MACHINE_ARCH
+#ifdef __powerpc64__
+#define	MACHINE_ARCH	"powerpc64"
+#else
 #define	MACHINE_ARCH	"powerpc"
 #endif
+#endif
 #define	MID_MACHINE	MID_POWERPC
+#ifdef __powerpc64__
+#ifndef	MACHINE_ARCH32
+#define	MACHINE_ARCH32	"powerpc"
+#endif
+#endif
 
 #if defined(SMP) || defined(KLD_MODULE)
-#define	MAXCPU		2
+#define	MAXCPU		4	
 #else
 #define	MAXCPU		1
 #endif /* SMP || KLD_MODULE */
@@ -72,7 +81,7 @@
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits). 
  */
-#define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof (t) - 1)) == 0)
+#define	ALIGNED_POINTER(p, t)	((((uintptr_t)(p)) & (sizeof (t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
@@ -82,8 +91,8 @@
 #define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
 #define	PAGE_SHIFT	12
-#define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
-#define	PAGE_MASK	(PAGE_SIZE - 1)
+#define	PAGE_SIZE	(1L << PAGE_SHIFT)	/* Page size */
+#define	PAGE_MASK	(vm_offset_t)(PAGE_SIZE - 1)
 #define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
 #define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
@@ -99,15 +108,13 @@
  */
 #define	trunc_page(x)		((unsigned long)(x) & ~(PAGE_MASK))
 #define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
-#define	trunc_4mpage(x)		((unsigned)(x) & ~PDRMASK)
-#define	round_4mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
 
 #define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
 #define	ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
 
-#define	powerpc_btop(x)		((unsigned)(x) >> PAGE_SHIFT)
-#define	powerpc_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
+#define	powerpc_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
+#define	powerpc_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
 
-#define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
+#define	pgtok(x)		((x) * (PAGE_SIZE / 1024UL))
 
 #endif /* !_POWERPC_INCLUDE_PARAM_H_ */

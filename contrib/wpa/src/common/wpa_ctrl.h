@@ -40,14 +40,24 @@ extern "C" {
 #define WPA_EVENT_EAP_NOTIFICATION "CTRL-EVENT-EAP-NOTIFICATION "
 /** EAP authentication started (EAP-Request/Identity received) */
 #define WPA_EVENT_EAP_STARTED "CTRL-EVENT-EAP-STARTED "
+/** EAP method proposed by the server */
+#define WPA_EVENT_EAP_PROPOSED_METHOD "CTRL-EVENT-EAP-PROPOSED-METHOD "
 /** EAP method selected */
 #define WPA_EVENT_EAP_METHOD "CTRL-EVENT-EAP-METHOD "
+/** EAP peer certificate from TLS */
+#define WPA_EVENT_EAP_PEER_CERT "CTRL-EVENT-EAP-PEER-CERT "
+/** EAP TLS certificate chain validation error */
+#define WPA_EVENT_EAP_TLS_CERT_ERROR "CTRL-EVENT-EAP-TLS-CERT-ERROR "
 /** EAP authentication completed successfully */
 #define WPA_EVENT_EAP_SUCCESS "CTRL-EVENT-EAP-SUCCESS "
 /** EAP authentication failed (EAP-Failure received) */
 #define WPA_EVENT_EAP_FAILURE "CTRL-EVENT-EAP-FAILURE "
 /** New scan results available */
 #define WPA_EVENT_SCAN_RESULTS "CTRL-EVENT-SCAN-RESULTS "
+/** A new BSS entry was added (followed by BSS entry id and BSSID) */
+#define WPA_EVENT_BSS_ADDED "CTRL-EVENT-BSS-ADDED "
+/** A BSS entry was removed (followed by BSS entry id and BSSID) */
+#define WPA_EVENT_BSS_REMOVED "CTRL-EVENT-BSS-REMOVED "
 
 /** WPS overlap detected in PBC mode */
 #define WPS_EVENT_OVERLAP "WPS-OVERLAP-DETECTED "
@@ -69,11 +79,24 @@ extern "C" {
 /** WPS enrollment attempt timed out and was terminated */
 #define WPS_EVENT_TIMEOUT "WPS-TIMEOUT "
 
+#define WPS_EVENT_ENROLLEE_SEEN "WPS-ENROLLEE-SEEN "
+
+/* WPS ER events */
+#define WPS_EVENT_ER_AP_ADD "WPS-ER-AP-ADD "
+#define WPS_EVENT_ER_AP_REMOVE "WPS-ER-AP-REMOVE "
+#define WPS_EVENT_ER_ENROLLEE_ADD "WPS-ER-ENROLLEE-ADD "
+#define WPS_EVENT_ER_ENROLLEE_REMOVE "WPS-ER-ENROLLEE-REMOVE "
+
 /* hostapd control interface - fixed message prefixes */
 #define WPS_EVENT_PIN_NEEDED "WPS-PIN-NEEDED "
 #define WPS_EVENT_NEW_AP_SETTINGS "WPS-NEW-AP-SETTINGS "
 #define WPS_EVENT_REG_SUCCESS "WPS-REG-SUCCESS "
 #define WPS_EVENT_AP_SETUP_LOCKED "WPS-AP-SETUP-LOCKED "
+#define WPS_EVENT_AP_SETUP_UNLOCKED "WPS-AP-SETUP-UNLOCKED "
+#define WPS_EVENT_AP_PIN_ENABLED "WPS-AP-PIN-ENABLED "
+#define WPS_EVENT_AP_PIN_DISABLED "WPS-AP-PIN-DISABLED "
+#define AP_STA_CONNECTED "AP-STA-CONNECTED "
+#define AP_STA_DISCONNECTED "AP-STA-DISCONNECTED "
 
 
 /* wpa_supplicant/hostapd control interface access */

@@ -327,6 +327,7 @@ struct uma_zone {
 	u_int64_t	uz_allocs UMA_ALIGN; /* Total number of allocations */
 	u_int64_t	uz_frees;	/* Total number of frees */
 	u_int64_t	uz_fails;	/* Total number of alloc failures */
+	u_int64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint16_t	uz_fills;	/* Outstanding bucket fills */
 	uint16_t	uz_count;	/* Highest value ub_ptr can have */
 

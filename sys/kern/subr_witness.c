@@ -135,7 +135,7 @@ __FBSDID("$FreeBSD$");
 #define	WITNESS_COUNT 		1024
 #define	WITNESS_CHILDCOUNT 	(WITNESS_COUNT * 4)
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
-#define	WITNESS_PENDLIST	512
+#define	WITNESS_PENDLIST	768
 
 /* Allocate 256 KB of stack data space */
 #define	WITNESS_LO_DATA_COUNT	2048
@@ -154,8 +154,7 @@ __FBSDID("$FreeBSD$");
 #define	MAX_W_NAME	64
 
 #define	BADSTACK_SBUF_SIZE	(256 * WITNESS_COUNT)
-#define	CYCLEGRAPH_SBUF_SIZE	8192
-#define	FULLGRAPH_SBUF_SIZE	32768
+#define	FULLGRAPH_SBUF_SIZE	512
 
 /*
  * These flags go in the witness relationship matrix and describe the
@@ -343,10 +342,10 @@ static int	sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS);
 static void	witness_add_fullgraph(struct sbuf *sb, struct witness *parent);
 #ifdef DDB
 static void	witness_ddb_compute_levels(void);
-static void	witness_ddb_display(void(*)(const char *fmt, ...));
-static void	witness_ddb_display_descendants(void(*)(const char *fmt, ...),
+static void	witness_ddb_display(int(*)(const char *fmt, ...));
+static void	witness_ddb_display_descendants(int(*)(const char *fmt, ...),
 		    struct witness *, int indent);
-static void	witness_ddb_display_list(void(*prnt)(const char *fmt, ...),
+static void	witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
 		    struct witness_list *list);
 static void	witness_ddb_level_descendants(struct witness *parent, int l);
 static void	witness_ddb_list(struct thread *td);
@@ -367,7 +366,8 @@ static int	witness_lock_order_check(struct witness *parent,
 static struct witness_lock_order_data	*witness_lock_order_get(
 					    struct witness *parent,
 					    struct witness *child);
-static void	witness_list_lock(struct lock_instance *instance);
+static void	witness_list_lock(struct lock_instance *instance,
+		    int (*prnt)(const char *fmt, ...));
 static void	witness_setflag(struct lock_object *lock, int flag, int set);
 
 #ifdef KDB
@@ -494,6 +494,7 @@ static struct witness_order_list_entry order_lists[] = {
 #ifdef	HWPMC_HOOKS
 	{ "pmc-sleep", &lock_class_mtx_sleep },
 #endif
+	{ "time lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * Sockets
@@ -653,7 +654,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "callout", &lock_class_mtx_spin },
 	{ "entropy harvest mutex", &lock_class_mtx_spin },
 	{ "syscons video lock", &lock_class_mtx_spin },
-	{ "time lock", &lock_class_mtx_spin },
 #ifdef SMP
 	{ "smp rendezvous", &lock_class_mtx_spin },
 #endif
@@ -908,7 +908,7 @@ witness_ddb_level_descendants(struct witness *w, int l)
 }
 
 static void
-witness_ddb_display_descendants(void(*prnt)(const char *fmt, ...),
+witness_ddb_display_descendants(int(*prnt)(const char *fmt, ...),
     struct witness *w, int indent)
 {
 	int i;
@@ -938,7 +938,7 @@ witness_ddb_display_descendants(void(*prnt)(const char *fmt, ...),
 }
 
 static void
-witness_ddb_display_list(void(*prnt)(const char *fmt, ...),
+witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
     struct witness_list *list)
 {
 	struct witness *w;
@@ -953,7 +953,7 @@ witness_ddb_display_list(void(*prnt)(const char *fmt, ...),
 }
 	
 static void
-witness_ddb_display(void(*prnt)(const char *fmt, ...))
+witness_ddb_display(int(*prnt)(const char *fmt, ...))
 {
 	struct witness *w;
 
@@ -1597,7 +1597,7 @@ witness_thread_exit(struct thread *td)
 		printf("Thread %p exiting with the following locks held:\n",
 					    td);
 				n++;
-				witness_list_lock(&lle->ll_children[i]);
+				witness_list_lock(&lle->ll_children[i], printf);
 				
 			}
 		panic("Thread %p cannot exit while holding sleeplocks\n", td);
@@ -1646,7 +1646,7 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 				printf(" locks held:\n");
 			}
 			n++;
-			witness_list_lock(lock1);
+			witness_list_lock(lock1, printf);
 		}
 
 	/*
@@ -1677,7 +1677,7 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 		if (flags & WARN_SLEEPOK)
 			printf(" non-sleepable");
 		printf(" locks held:\n");
-		n += witness_list_locks(&lock_list);
+		n += witness_list_locks(&lock_list, printf);
 	} else
 		sched_unpin();
 	if (flags & WARN_PANIC && n)
@@ -2063,16 +2063,17 @@ find_instance(struct lock_list_entry *list, struct lock_object *lock)
 }
 
 static void
-witness_list_lock(struct lock_instance *instance)
+witness_list_lock(struct lock_instance *instance,
+    int (*prnt)(const char *fmt, ...))
 {
 	struct lock_object *lock;
 
 	lock = instance->li_lock;
-	printf("%s %s %s", (instance->li_flags & LI_EXCLUSIVE) != 0 ?
+	prnt("%s %s %s", (instance->li_flags & LI_EXCLUSIVE) != 0 ?
 	    "exclusive" : "shared", LOCK_CLASS(lock)->lc_name, lock->lo_name);
 	if (lock->lo_witness->w_name != lock->lo_name)
-		printf(" (%s)", lock->lo_witness->w_name);
-	printf(" r = %d (%p) locked @ %s:%d\n",
+		prnt(" (%s)", lock->lo_witness->w_name);
+	prnt(" r = %d (%p) locked @ %s:%d\n",
 	    instance->li_flags & LI_RECURSEMASK, lock, instance->li_file,
 	    instance->li_line);
 }
@@ -2101,7 +2102,8 @@ witness_proc_has_locks(struct proc *p)
 #endif
 
 int
-witness_list_locks(struct lock_list_entry **lock_list)
+witness_list_locks(struct lock_list_entry **lock_list,
+    int (*prnt)(const char *fmt, ...))
 {
 	struct lock_list_entry *lle;
 	int i, nheld;
@@ -2109,7 +2111,7 @@ witness_list_locks(struct lock_list_entry **lock_list)
 	nheld = 0;
 	for (lle = *lock_list; lle != NULL; lle = lle->ll_next)
 		for (i = lle->ll_count - 1; i >= 0; i--) {
-			witness_list_lock(&lle->ll_children[i]);
+			witness_list_lock(&lle->ll_children[i], prnt);
 			nheld++;
 		}
 	return (nheld);
@@ -2123,7 +2125,8 @@ witness_list_locks(struct lock_list_entry **lock_list)
  * see when it was last acquired.
  */
 void
-witness_display_spinlock(struct lock_object *lock, struct thread *owner)
+witness_display_spinlock(struct lock_object *lock, struct thread *owner,
+    int (*prnt)(const char *fmt, ...))
 {
 	struct lock_instance *instance;
 	struct pcpu *pc;
@@ -2133,7 +2136,7 @@ witness_display_spinlock(struct lock_object *lock, struct thread *owner)
 	pc = pcpu_find(owner->td_oncpu);
 	instance = find_instance(pc->pc_spinlocks, lock);
 	if (instance != NULL)
-		witness_list_lock(instance);
+		witness_list_lock(instance, prnt);
 }
 
 void
@@ -2306,7 +2309,7 @@ witness_ddb_list(struct thread *td)
 	if (witness_watch < 1)
 		return;
 
-	witness_list_locks(&td->td_sleeplocks);
+	witness_list_locks(&td->td_sleeplocks, db_printf);
 
 	/*
 	 * We only handle spinlocks if td == curthread.  This is somewhat broken
@@ -2322,7 +2325,7 @@ witness_ddb_list(struct thread *td)
 	 * handle threads on other CPU's for now.
 	 */
 	if (td == curthread && PCPU_GET(spinlocks) != NULL)
-		witness_list_locks(PCPU_PTR(spinlocks));
+		witness_list_locks(PCPU_PTR(spinlocks), db_printf);
 }
 
 DB_SHOW_COMMAND(locks, db_witness_list)
@@ -2541,7 +2544,7 @@ sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 	error = 0;
-	sb = sbuf_new(NULL, NULL, FULLGRAPH_SBUF_SIZE, SBUF_FIXEDLEN);
+	sb = sbuf_new_for_sysctl(NULL, NULL, FULLGRAPH_SBUF_SIZE, req);
 	if (sb == NULL)
 		return (ENOMEM);
 	sbuf_printf(sb, "\n");
@@ -2554,19 +2557,9 @@ sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS)
 	mtx_unlock_spin(&w_mtx);
 
 	/*
-	 * While using SBUF_FIXEDLEN, check if the sbuf overflowed.
-	 */
-	if (sbuf_overflowed(sb)) {
-		sbuf_delete(sb);
-		panic("%s: sbuf overflowed, bump FULLGRAPH_SBUF_SIZE value\n",
-		    __func__);
-	}
-
-	/*
 	 * Close the sbuf and return to userland.
 	 */
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	error = sbuf_finish(sb);
 	sbuf_delete(sb);
 
 	return (error);

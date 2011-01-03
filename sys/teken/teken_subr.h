@@ -725,11 +725,17 @@ teken_subr_newpage(teken_t *t)
 	if (t->t_stateflags & TS_CONS25) {
 		teken_rect_t tr;
 
-		tr.tr_begin.tp_row = tr.tr_begin.tp_col = 0;
-		tr.tr_end = t->t_winsize;
+		/* Clear screen. */
+		tr.tr_begin.tp_row = t->t_originreg.ts_begin;
+		tr.tr_begin.tp_col = 0;
+		tr.tr_end.tp_row = t->t_originreg.ts_end;
+		tr.tr_end.tp_col = t->t_winsize.tp_col;
 		teken_funcs_fill(t, &tr, BLANK, &t->t_curattr);
 
-		t->t_cursor.tp_row = t->t_cursor.tp_col = 0;
+		/* Cursor at top left. */
+		t->t_cursor.tp_row = t->t_originreg.ts_begin;
+		t->t_cursor.tp_col = 0;
+		t->t_stateflags &= ~TS_WRAPPED;
 		teken_funcs_cursor(t);
 	} else {
 		teken_subr_newline(t);
@@ -1293,9 +1299,8 @@ teken_subr_vertical_position_absolute(teken_t *t, unsigned int row)
 {
 
 	t->t_cursor.tp_row = t->t_originreg.ts_begin + row - 1;
-	if (row >= t->t_originreg.ts_end)
+	if (t->t_cursor.tp_row >= t->t_originreg.ts_end)
 		t->t_cursor.tp_row = t->t_originreg.ts_end - 1;
-
 
 	t->t_stateflags &= ~TS_WRAPPED;
 	teken_funcs_cursor(t);

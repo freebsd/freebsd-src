@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/ar71xxreg.h>
 
+#include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xx_cpudef.h>
+
 extern char edata[], end[];
 
 uint32_t ar711_base_mac[ETHER_ADDR_LEN];
@@ -118,9 +121,7 @@ platform_identify(void)
 void
 platform_reset(void)
 {
-	uint32_t reg = ATH_READ_REG(AR71XX_RST_RESET);
-
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg | RST_RESET_FULL_CHIP);
+	ar71xx_device_stop(RST_RESET_FULL_CHIP);
 	/* Wait for reset */
 	while(1)
 		;
@@ -143,9 +144,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	uint64_t platform_counter_freq;
-	uint32_t reg;
 	int argc, i, count = 0;
-	char **argv, **envp;
+	char **argv, **envp, *var;
 	vm_offset_t kernend;
 
 	/* 
@@ -167,19 +167,9 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * Protect ourselves from garbage in registers 
 	 */
 	if (MIPS_IS_VALID_PTR(envp)) {
-		for (i = 0; envp[i]; i += 2)
-		{
+		for (i = 0; envp[i]; i += 2) {
 			if (strcmp(envp[i], "memsize") == 0)
 				realmem = btoc(strtoul(envp[i+1], NULL, 16));
-			else if (strcmp(envp[i], "ethaddr") == 0) {
-				count = sscanf(envp[i+1], "%x.%x.%x.%x.%x.%x", 
-				    &ar711_base_mac[0], &ar711_base_mac[1],
-				    &ar711_base_mac[2], &ar711_base_mac[3],
-				    &ar711_base_mac[4], &ar711_base_mac[5]);
-				if (count < 6)
-					memset(ar711_base_mac, 0,
-					    sizeof(ar711_base_mac));
-			}
 		}
 	}
 
@@ -194,6 +184,9 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	phys_avail[0] = MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 	phys_avail[1] = ctob(realmem);
 
+	dump_avail[0] = phys_avail[0];
+	dump_avail[1] = phys_avail[1] - phys_avail[0];
+
 	physmem = realmem;
 
 	/*
@@ -202,10 +195,20 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * should be called first.
 	 */
 	init_param1();
+
+	/* Detect the system type - this is needed for subsequent chipset-specific calls */
+	ar71xx_detect_sys_type();
+	ar71xx_detect_sys_frequency();
+
 	platform_counter_freq = ar71xx_cpu_freq();
 	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
 	init_static_kenv(boot1_env, sizeof(boot1_env));
+
+	printf("CPU platform: %s\n", ar71xx_get_system_type());
+	printf("CPU Frequency=%d MHz\n", u_ar71xx_cpu_freq / 1000000);
+	printf("CPU DDR Frequency=%d MHz\n", u_ar71xx_ddr_freq / 1000000);
+	printf("CPU AHB Frequency=%d MHz\n", u_ar71xx_ahb_freq / 1000000); 
 
 	printf("platform frequency: %lld\n", platform_counter_freq);
 	printf("arguments: \n");
@@ -235,6 +238,22 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	else 
 		printf ("envp is invalid\n");
 
+	/*
+	 * "ethaddr" is passed via envp on RedBoot platforms
+	 * "kmac" is passed via argv on RouterBOOT platforms
+	 */
+	if ((var = getenv("ethaddr")) != NULL ||
+	    (var = getenv("kmac")) != NULL) {
+		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
+		    &ar711_base_mac[0], &ar711_base_mac[1],
+		    &ar711_base_mac[2], &ar711_base_mac[3],
+		    &ar711_base_mac[4], &ar711_base_mac[5]);
+		if (count < 6)
+			memset(ar711_base_mac, 0,
+			    sizeof(ar711_base_mac));
+		freeenv(var);
+	}
+
 	init_param2(physmem);
 	mips_cpu_init();
 	pmap_bootstrap();
@@ -244,22 +263,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	/*
 	 * Reset USB devices 
 	 */
-	reg = ATH_READ_REG(AR71XX_RST_RESET);
-	reg |= 
-	    RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY;
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
-	DELAY(1000);
-	reg &= 
-	    ~(RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY);
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
-	
-	ATH_WRITE_REG(AR71XX_USB_CTRL_CONFIG,
-	    USB_CTRL_CONFIG_OHCI_DES_SWAP | USB_CTRL_CONFIG_OHCI_BUF_SWAP |
-	    USB_CTRL_CONFIG_EHCI_DES_SWAP | USB_CTRL_CONFIG_EHCI_BUF_SWAP);
-
-	ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ, 
-	    (32 << USB_CTRL_FLADJ_HOST_SHIFT) | (3 << USB_CTRL_FLADJ_A5_SHIFT));
-	DELAY(1000);
+	ar71xx_init_usb_peripheral();
 
 	kdb_init();
 #ifdef KDB

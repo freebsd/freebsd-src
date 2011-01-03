@@ -1041,7 +1041,8 @@
       || TARGET_MIPS9000
       || ISA_MIPS32
       || ISA_MIPS32R2
-      || ISA_MIPS64)
+      || ISA_MIPS64
+      || ISA_MIPS64R2)
     return "mul\t%0,%1,%2";
   return "mult\t%0,%1,%2";
 }

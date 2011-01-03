@@ -51,22 +51,6 @@
 #define TW_CLI_RESET_TIMEOUT_PERIOD	60 /* seconds */
 #define TW_CLI_MAX_RESET_ATTEMPTS	2
 
-/* Possible values of ctlr->state. */
-/* Initialization done, and controller is active. */
-#define TW_CLI_CTLR_STATE_ACTIVE		(1<<0)
-/* Interrupts on controller enabled. */
-#define TW_CLI_CTLR_STATE_INTR_ENABLED		(1<<1)
-/* Data buffer for internal requests in use. */
-#define TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY	(1<<2)
-/* More AEN's need to be retrieved. */
-#define TW_CLI_CTLR_STATE_GET_MORE_AENS		(1<<3)
-/* Controller is being reset. */
-#define	TW_CLI_CTLR_STATE_RESET_IN_PROGRESS	(1<<4)
-/* G133 controller is in 'phase 1' of being reset. */
-#define TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS	(1<<5)
-/* G66 register write access bug needs to be worked around. */
-#define TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED	(1<<6)
-
 /* Possible values of ctlr->ioctl_lock.lock. */
 #define TW_CLI_LOCK_FREE		0x0	/* lock is free */
 #define TW_CLI_LOCK_HELD		0x1	/* lock is held */
@@ -90,7 +74,6 @@
 #define TW_CLI_PCI_CONFIG_STATUS_OFFSET		0x6 /* status register offset */
 #endif /* TW_OSL_PCI_CONFIG_ACCESSIBLE */
 
-#pragma pack(1)
 
 #ifdef TW_OSL_DEBUG
 struct tw_cli_q_stats {
@@ -105,7 +88,8 @@ struct tw_cli_q_stats {
 #define TW_CLI_BUSY_Q		1	/* q of reqs submitted to fw */
 #define TW_CLI_PENDING_Q	2	/* q of reqs deferred due to 'q full' */
 #define TW_CLI_COMPLETE_Q	3	/* q of reqs completed by fw */
-#define TW_CLI_Q_COUNT		4	/* total number of queues */
+#define TW_CLI_RESET_Q		4	/* q of reqs reset by timeout */
+#define TW_CLI_Q_COUNT		5	/* total number of queues */
 
 
 /* CL's internal request context. */
@@ -146,7 +130,13 @@ struct tw_cli_ctlr_context {
 
 	TW_UINT32		device_id;	/* controller device id */
 	TW_UINT32		arch_id;	/* controller architecture id */
-	TW_UINT32		state;		/* controller state */
+	TW_UINT8 		active;			  /* Initialization done, and controller is active. */
+	TW_UINT8 		interrupts_enabled;	  /* Interrupts on controller enabled. */
+	TW_UINT8 		internal_req_busy;	  /* Data buffer for internal requests in use. */
+	TW_UINT8 		get_more_aens;		  /* More AEN's need to be retrieved. */
+	TW_UINT8 		reset_needed;		  /* Controller needs a soft reset. */
+	TW_UINT8 		reset_in_progress;	  /* Controller is being reset. */
+	TW_UINT8 		reset_phase1_in_progress; /* In 'phase 1' of reset. */
 	TW_UINT32		flags;		/* controller settings */
 	TW_UINT32		sg_size_factor;	/* SG element size should be a
 							multiple of this */
@@ -199,10 +189,6 @@ struct tw_cli_ctlr_context {
 						submission */
 	TW_LOCK_HANDLE		*io_lock;/* ptr to lock held during cmd
 						submission */
-	TW_LOCK_HANDLE		intr_lock_handle;/* lock held during
-						ISR/response intr processing */
-	TW_LOCK_HANDLE		*intr_lock;/* ptr to lock held during ISR/
-						response intr processing */
 
 #ifdef TW_OSL_CAN_SLEEP
 	TW_SLEEP_HANDLE		sleep_handle;	/* handle to co-ordinate sleeps
@@ -221,7 +207,6 @@ struct tw_cli_ctlr_context {
 #endif /* TW_OSL_DEBUG */
 };
 
-#pragma pack()
 
 
 /*

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/sysproto.h>
+#include <sys/taskqueue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -117,6 +118,7 @@ int		nfs_pbuf_freecnt = -1;	/* start out unlimited */
 
 struct nfs_bufq	nfs_bufq;
 static struct mtx nfs_xid_mtx;
+struct task	nfs_nfsiodnew_task;
 
 /*
  * and the reverse mapping from generic to Version 2 procedure numbers
@@ -199,10 +201,7 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 	int uiosiz, clflg, rem;
 	char *cp;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1)
-		panic("nfsm_uiotombuf: iovcnt != 1");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1, ("nfsm_uiotombuf: iovcnt != 1"));
 
 	if (siz > MLEN)		/* or should it >= MCLBYTES ?? */
 		clflg = 1;
@@ -357,6 +356,7 @@ nfs_init(struct vfsconf *vfsp)
 	 */
 	mtx_init(&nfs_iod_mtx, "NFS iod lock", NULL, MTX_DEF);
 	mtx_init(&nfs_xid_mtx, "NFS xid lock", NULL, MTX_DEF);
+	TASK_INIT(&nfs_nfsiodnew_task, 0, nfs_nfsiodnew_tq, NULL);
 
 	nfs_pbuf_freecnt = nswbuf / 2 + 1;
 
@@ -371,9 +371,13 @@ nfs_uninit(struct vfsconf *vfsp)
 	/*
 	 * Tell all nfsiod processes to exit. Clear nfs_iodmax, and wakeup
 	 * any sleeping nfsiods so they check nfs_iodmax and exit.
+	 * Drain nfsiodnew task before we wait for them to finish.
 	 */
 	mtx_lock(&nfs_iod_mtx);
 	nfs_iodmax = 0;
+	mtx_unlock(&nfs_iod_mtx);
+	taskqueue_drain(taskqueue_thread, &nfs_nfsiodnew_task);
+	mtx_lock(&nfs_iod_mtx);
 	for (i = 0; i < nfs_numasync; i++)
 		if (nfs_iodwant[i] == NFSIOD_AVAILABLE)
 			wakeup(&nfs_iodwant[i]);
@@ -473,7 +477,6 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	u_short vmode;
 	struct timespec mtime, mtime_save;
 	int v3 = NFS_ISV3(vp);
-	struct thread *td = curthread;
 	int error = 0;
 
 	md = *mdp;
@@ -577,14 +580,6 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 		vap->va_filerev = 0;
 	}
 	np->n_attrstamp = time_second;
-	/* Timestamp the NFS otw getattr fetch */
-	if (td->td_proc) {
-		np->n_ac_ts_tid = td->td_tid;
-		np->n_ac_ts_pid = td->td_proc->p_pid;
-		np->n_ac_ts_syscalls = td->td_syscalls;
-	} else
-		bzero(&np->n_ac_ts, sizeof(struct nfs_attrcache_timestamp));
-	
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (dontshrink && vap->va_size < np->n_size) {
@@ -789,10 +784,7 @@ nfs_getcookie(struct nfsnode *np, off_t off, int add)
 	
 	pos = (uoff_t)off / NFS_DIRBLKSIZ;
 	if (pos == 0 || off < 0) {
-#ifdef DIAGNOSTIC
-		if (add)
-			panic("nfs getcookie add at <= 0");
-#endif
+		KASSERT(!add, ("nfs getcookie add at <= 0"));
 		return (&nfs_nullcookie);
 	}
 	pos--;
@@ -843,10 +835,7 @@ nfs_invaldir(struct vnode *vp)
 {
 	struct nfsnode *np = VTONFS(vp);
 
-#ifdef DIAGNOSTIC
-	if (vp->v_type != VDIR)
-		panic("nfs: invaldir not dir");
-#endif
+	KASSERT(vp->v_type == VDIR, ("nfs: invaldir not dir"));
 	nfs_dircookie_lock(np);
 	np->n_direofoffset = 0;
 	np->n_cookieverf.nfsuquad[0] = 0;

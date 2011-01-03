@@ -79,7 +79,6 @@ firmware license
 .El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev wpi0 inet 192.168.0.20 \e
     netmask 0xffffff00
@@ -117,10 +116,6 @@ unload/reload the driver to continue.
 The hardware switch controlling the radio is currently turned off. 
 Data transmission is not possible in this state.
 .El
-.Sh BUGS
-Not all the error messages are documented here.
-.Pp
-Background scanning is not currently supported.
 .Sh SEE ALSO
 .Xr wpifw 4 ,
 .Xr pci 4 ,
@@ -143,3 +138,7 @@ ported
 .Nm
 to
 .Fx .
+.Sh BUGS
+Not all the error messages are documented here.
+.Pp
+Background scanning is not currently supported.

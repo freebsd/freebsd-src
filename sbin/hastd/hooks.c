@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -31,38 +32,75 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #include <sys/wait.h>
 
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <syslog.h>
 #include <libgen.h>
 #include <paths.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 
 #include <pjdlog.h>
 
 #include "hooks.h"
+#include "synch.h"
+
+/* Report processes that are running for too long not often than this value. */
+#define	REPORT_INTERVAL	60
+
+/* Are we initialized? */
+static bool hooks_initialized = false;
+
+/*
+ * Keep all processes we forked on a global queue, so we can report nicely
+ * when they finish or report that they are running for a long time.
+ */
+#define	HOOKPROC_MAGIC_ALLOCATED	0x80090ca
+#define	HOOKPROC_MAGIC_ONLIST		0x80090c0
+struct hookproc {
+	/* Magic. */
+	int	hp_magic;
+	/* PID of a forked child. */
+	pid_t	hp_pid;
+	/* When process were forked? */
+	time_t	hp_birthtime;
+	/* When we logged previous reported? */
+	time_t	hp_lastreport;
+	/* Path to executable and all the arguments we passed. */
+	char	hp_comm[PATH_MAX];
+	TAILQ_ENTRY(hookproc) hp_next;
+};
+static TAILQ_HEAD(, hookproc) hookprocs;
+static pthread_mutex_t hookprocs_lock;
+
+static void hook_remove(struct hookproc *hp);
+static void hook_free(struct hookproc *hp);
 
 static void
 descriptors(void)
 {
-	long maxfd;
 	int fd;
 
 	/*
-	 * Close all descriptors.
+	 * Close all (or almost all) descriptors.
 	 */
-	maxfd = sysconf(_SC_OPEN_MAX);
-	if (maxfd < 0) {
-		pjdlog_errno(LOG_WARNING, "sysconf(_SC_OPEN_MAX) failed");
-		maxfd = 1024;
+	if (pjdlog_mode_get() == PJDLOG_MODE_STD) {
+		closefrom(MAX(MAX(STDIN_FILENO, STDOUT_FILENO),
+		    STDERR_FILENO) + 1);
+		return;
 	}
-	for (fd = 0; fd <= maxfd; fd++)
-		close(fd);
+
+	closefrom(0);
+
 	/*
 	 * Redirect stdin, stdout and stderr to /dev/null.
 	 */
@@ -95,28 +133,221 @@ descriptors(void)
 	}
 }
 
-int
+void
+hook_init(void)
+{
+
+	assert(!hooks_initialized);
+
+	mtx_init(&hookprocs_lock);
+	TAILQ_INIT(&hookprocs);
+	hooks_initialized = true;
+}
+
+void
+hook_fini(void)
+{
+	struct hookproc *hp;
+
+	assert(hooks_initialized);
+
+	mtx_lock(&hookprocs_lock);
+	while ((hp = TAILQ_FIRST(&hookprocs)) != NULL) {
+		assert(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
+		assert(hp->hp_pid > 0);
+
+		hook_remove(hp);
+		hook_free(hp);
+	}
+	mtx_unlock(&hookprocs_lock);
+
+	mtx_destroy(&hookprocs_lock);
+	TAILQ_INIT(&hookprocs);
+	hooks_initialized = false;
+}
+
+static struct hookproc *
+hook_alloc(const char *path, char **args)
+{
+	struct hookproc *hp;
+	unsigned int ii;
+
+	hp = malloc(sizeof(*hp));
+	if (hp == NULL) {
+		pjdlog_error("Unable to allocate %zu bytes of memory for a hook.",
+		    sizeof(*hp));
+		return (NULL);
+	}
+
+	hp->hp_pid = 0;
+	hp->hp_birthtime = hp->hp_lastreport = time(NULL);
+	(void)strlcpy(hp->hp_comm, path, sizeof(hp->hp_comm));
+	/* We start at 2nd argument as we don't want to have exec name twice. */
+	for (ii = 1; args[ii] != NULL; ii++) {
+		(void)strlcat(hp->hp_comm, " ", sizeof(hp->hp_comm));
+		(void)strlcat(hp->hp_comm, args[ii], sizeof(hp->hp_comm));
+	}
+	if (strlen(hp->hp_comm) >= sizeof(hp->hp_comm) - 1) {
+		pjdlog_error("Exec path too long, correct configuration file.");
+		free(hp);
+		return (NULL);
+	}
+	hp->hp_magic = HOOKPROC_MAGIC_ALLOCATED;
+	return (hp);
+}
+
+static void
+hook_add(struct hookproc *hp, pid_t pid)
+{
+
+	assert(hp->hp_magic == HOOKPROC_MAGIC_ALLOCATED);
+	assert(hp->hp_pid == 0);
+
+	hp->hp_pid = pid;
+	mtx_lock(&hookprocs_lock);
+	hp->hp_magic = HOOKPROC_MAGIC_ONLIST;
+	TAILQ_INSERT_TAIL(&hookprocs, hp, hp_next);
+	mtx_unlock(&hookprocs_lock);
+}
+
+static void
+hook_remove(struct hookproc *hp)
+{
+
+	assert(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
+	assert(hp->hp_pid > 0);
+	assert(mtx_owned(&hookprocs_lock));
+
+	TAILQ_REMOVE(&hookprocs, hp, hp_next);
+	hp->hp_magic = HOOKPROC_MAGIC_ALLOCATED;
+}
+
+static void
+hook_free(struct hookproc *hp)
+{
+
+	assert(hp->hp_magic == HOOKPROC_MAGIC_ALLOCATED);
+	assert(hp->hp_pid > 0);
+
+	hp->hp_magic = 0;
+	free(hp);
+}
+
+static struct hookproc *
+hook_find(pid_t pid)
+{
+	struct hookproc *hp;
+
+	assert(mtx_owned(&hookprocs_lock));
+
+	TAILQ_FOREACH(hp, &hookprocs, hp_next) {
+		assert(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
+		assert(hp->hp_pid > 0);
+
+		if (hp->hp_pid == pid)
+			break;
+	}
+
+	return (hp);
+}
+
+void
+hook_check_one(pid_t pid, int status)
+{
+	struct hookproc *hp;
+
+	mtx_lock(&hookprocs_lock);
+	hp = hook_find(pid);
+	if (hp == NULL) {
+		mtx_unlock(&hookprocs_lock);
+		pjdlog_debug(1, "Unknown process pid=%u", pid);
+		return;
+	}
+	hook_remove(hp);
+	mtx_unlock(&hookprocs_lock);
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+		pjdlog_debug(1, "Hook exited gracefully (pid=%u, cmd=[%s]).",
+		    pid, hp->hp_comm);
+	} else if (WIFSIGNALED(status)) {
+		pjdlog_error("Hook was killed (pid=%u, signal=%d, cmd=[%s]).",
+		    pid, WTERMSIG(status), hp->hp_comm);
+	} else {
+		pjdlog_error("Hook exited ungracefully (pid=%u, exitcode=%d, cmd=[%s]).",
+		    pid, WIFEXITED(status) ? WEXITSTATUS(status) : -1,
+		    hp->hp_comm);
+	}
+	hook_free(hp);
+}
+
+void
+hook_check(void)
+{
+	struct hookproc *hp, *hp2;
+	time_t now;
+
+	assert(hooks_initialized);
+
+	/*
+	 * Report about processes that are running for a long time.
+	 */
+	now = time(NULL);
+	mtx_lock(&hookprocs_lock);
+	TAILQ_FOREACH_SAFE(hp, &hookprocs, hp_next, hp2) {
+		assert(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
+		assert(hp->hp_pid > 0);
+
+		/*
+		 * If process doesn't exists we somehow missed it.
+		 * Not much can be done expect for logging this situation.
+		 */
+		if (kill(hp->hp_pid, 0) == -1 && errno == ESRCH) {
+			pjdlog_warning("Hook disappeared (pid=%u, cmd=[%s]).",
+			    hp->hp_pid, hp->hp_comm);
+			hook_remove(hp);
+			hook_free(hp);
+			continue;
+		}
+
+		/*
+		 * Skip proccesses younger than 1 minute.
+		 */
+		if (now - hp->hp_lastreport < REPORT_INTERVAL)
+			continue;
+
+		/*
+		 * Hook is running for too long, report it.
+		 */
+		pjdlog_warning("Hook is running for %ju seconds (pid=%u, cmd=[%s]).",
+		    (uintmax_t)(now - hp->hp_birthtime), hp->hp_pid,
+		    hp->hp_comm);
+		hp->hp_lastreport = now;
+	}
+	mtx_unlock(&hookprocs_lock);
+}
+
+void
 hook_exec(const char *path, ...)
 {
 	va_list ap;
-	int ret;
 
 	va_start(ap, path);
-	ret = hook_execv(path, ap);
+	hook_execv(path, ap);
 	va_end(ap);
-	return (ret);
 }
 
-int
+void
 hook_execv(const char *path, va_list ap)
 {
+	struct hookproc *hp;
 	char *args[64];
 	unsigned int ii;
-	pid_t pid, wpid;
-	int status;
+	sigset_t mask;
+	pid_t pid;
+
+	assert(hooks_initialized);
 
 	if (path == NULL || path[0] == '\0')
-		return (0);
+		return;
 
 	memset(args, 0, sizeof(args));
 	args[0] = basename(path);
@@ -127,22 +358,25 @@ hook_execv(const char *path, va_list ap)
 	}
 	assert(ii < sizeof(args) / sizeof(args[0]));
 
+	hp = hook_alloc(path, args);
+	if (hp == NULL)
+		return;
+
 	pid = fork();
 	switch (pid) {
 	case -1:	/* Error. */
-		pjdlog_errno(LOG_ERR, "Unable to fork %s", path);
-		return (-1);
+		pjdlog_errno(LOG_ERR, "Unable to fork to execute %s", path);
+		hook_free(hp);
+		return;
 	case 0:		/* Child. */
 		descriptors();
+		PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+		PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 		execv(path, args);
 		pjdlog_errno(LOG_ERR, "Unable to execute %s", path);
 		exit(EX_SOFTWARE);
 	default:	/* Parent. */
+		hook_add(hp, pid);
 		break;
 	}
-
-	wpid = waitpid(pid, &status, 0);
-	assert(wpid == pid);
-
-	return (WEXITSTATUS(status));
 }

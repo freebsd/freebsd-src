@@ -29,6 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/sysctl.h>
+#include <errno.h>
+#include <link.h>
+#include "libc_private.h"
 
 int __getosreldate(void);
 
@@ -51,7 +54,11 @@ __getosreldate(void)
 
 	if (osreldate != 0)
 		return (osreldate);
-	
+
+	error = _elf_aux_info(AT_OSRELDATE, &osreldate, sizeof(osreldate));
+	if (error == 0 && osreldate != 0)
+		return (osreldate);
+
 	oid[0] = CTL_KERN;
 	oid[1] = KERN_OSRELDATE;
 	osrel = 0;

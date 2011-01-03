@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -96,7 +92,7 @@ static int top;
 
 
 void
-lalr()
+lalr(void)
 {
     tokensetsize = WORDSIZE(ntokens);
 
@@ -116,7 +112,7 @@ lalr()
 
 
 static void
-set_state_table()
+set_state_table(void)
 {
     core *sp;
 
@@ -128,7 +124,7 @@ set_state_table()
 
 
 static void
-set_accessing_symbol()
+set_accessing_symbol(void)
 {
     core *sp;
 
@@ -140,7 +136,7 @@ set_accessing_symbol()
 
 
 static void
-set_shift_table()
+set_shift_table(void)
 {
     shifts *sp;
 
@@ -152,7 +148,7 @@ set_shift_table()
 
 
 static void
-set_reduction_table()
+set_reduction_table(void)
 {
     reductions *rp;
 
@@ -164,7 +160,7 @@ set_reduction_table()
 
 
 static void
-set_maxrhs()
+set_maxrhs(void)
 {
   short *itemp;
   short *item_end;
@@ -193,7 +189,7 @@ set_maxrhs()
 
 
 static void
-initialize_LA()
+initialize_LA(void)
 {
   int i, j, k;
   reductions *rp;
@@ -231,7 +227,7 @@ initialize_LA()
 
 
 static void
-set_goto_map()
+set_goto_map(void)
 {
   shifts *sp;
   int i;
@@ -293,7 +289,7 @@ set_goto_map()
 	}
     }
 
-  FREE(temp_map + ntokens);
+  free(temp_map + ntokens);
 }
 
 
@@ -301,9 +297,7 @@ set_goto_map()
 /*  Map_goto maps a state/symbol pair into its numeric representation.	*/
 
 static int
-map_goto(state, symbol)
-int state;
-int symbol;
+map_goto(int state, int symbol)
 {
     int high;
     int low;
@@ -330,7 +324,7 @@ int symbol;
 
 
 static void
-initialize_F()
+initialize_F(void)
 {
   int i;
   int j;
@@ -398,17 +392,17 @@ initialize_F()
   for (i = 0; i < ngotos; i++)
     {
       if (reads[i])
-	FREE(reads[i]);
+	free(reads[i]);
     }
 
-  FREE(reads);
-  FREE(edge);
+  free(reads);
+  free(edge);
 }
 
 
 
 static void
-build_relations()
+build_relations(void)
 {
   int i;
   int j;
@@ -489,20 +483,19 @@ build_relations()
 
   for (i = 0; i < ngotos; i++)
     if (includes[i])
-      FREE(includes[i]);
+      free(includes[i]);
 
-  FREE(includes);
+  free(includes);
 
   includes = new_includes;
 
-  FREE(edge);
-  FREE(states);
+  free(edge);
+  free(states);
 }
 
 
 static void
-add_lookback_edge(stateno, ruleno, gotono)
-int stateno, ruleno, gotono;
+add_lookback_edge(int stateno, int ruleno, int gotono)
 {
     int i, k;
     int found;
@@ -529,9 +522,7 @@ int stateno, ruleno, gotono;
 
 
 static short **
-transpose(R, n)
-short **R;
-int n;
+transpose(short **R, int n)
 {
   short **new_R;
   short **temp_R;
@@ -567,7 +558,7 @@ int n;
 	}
     }
 
-  FREE(nedges);
+  free(nedges);
 
   for (i = 0; i < n; i++)
     {
@@ -579,7 +570,7 @@ int n;
 	}
     }
 
-  FREE(temp_R);
+  free(temp_R);
 
   return (new_R);
 }
@@ -587,14 +578,14 @@ int n;
 
 
 static void
-compute_FOLLOWS()
+compute_FOLLOWS(void)
 {
   digraph(includes);
 }
 
 
 static void
-compute_lookaheads()
+compute_lookaheads(void)
 {
   int i, n;
   unsigned *fp1, *fp2, *fp3;
@@ -620,17 +611,16 @@ compute_lookaheads()
     for (sp = lookback[i]; sp; sp = next)
       {
         next = sp->next;
-        FREE(sp);
+        free(sp);
       }
 
-  FREE(lookback);
-  FREE(F);
+  free(lookback);
+  free(F);
 }
 
 
 static void
-digraph(relation)
-short **relation;
+digraph(short **relation)
 {
   int i;
 
@@ -648,16 +638,14 @@ short **relation;
 	traverse(i, relation);
     }
 
-  FREE(INDEX);
-  FREE(VERTICES);
+  free(INDEX);
+  free(VERTICES);
 }
 
 
 
 static void
-traverse(i, R)
-int i;
-short **R;
+traverse(int i, short **R)
 {
   unsigned *fp1;
   unsigned *fp2;

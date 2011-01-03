@@ -570,7 +570,7 @@ pt_thr_validate(const td_thrhandle_t *th)
 }
 
 static td_err_e
-pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
+pt_thr_old_get_info(const td_thrhandle_t *th, td_old_thrinfo_t *info)
 {
 	const td_thragent_t *ta = th->th_ta;
 	struct ptrace_lwpinfo linfo;
@@ -657,6 +657,16 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	info->ti_db_suspended = ((dflags & TMDF_SUSPEND) != 0);
 	info->ti_type = TD_THR_USER;
 	return (0);
+}
+
+static td_err_e
+pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
+{
+	td_err_e e;
+
+	e = pt_thr_old_get_info(th, (td_old_thrinfo_t *)info);
+	bzero(&info->ti_siginfo, sizeof(info->ti_siginfo));
+	return (e);
 }
 
 #ifdef __i386__
@@ -1114,6 +1124,7 @@ struct ta_ops libpthread_db_ops = {
 	.to_thr_dbsuspend	= pt_thr_dbsuspend,
 	.to_thr_event_enable	= pt_thr_event_enable,
 	.to_thr_event_getmsg	= pt_thr_event_getmsg,
+	.to_thr_old_get_info	= pt_thr_old_get_info,
 	.to_thr_get_info	= pt_thr_get_info,
 	.to_thr_getfpregs	= pt_thr_getfpregs,
 	.to_thr_getgregs	= pt_thr_getgregs,

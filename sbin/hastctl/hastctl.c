@@ -432,7 +432,7 @@ main(int argc, char *argv[])
 
 	pjdlog_debug_set(debug);
 
-	cfg = yy_config_parse(cfgpath);
+	cfg = yy_config_parse(cfgpath, true);
 	assert(cfg != NULL);
 
 	switch (cmd) {

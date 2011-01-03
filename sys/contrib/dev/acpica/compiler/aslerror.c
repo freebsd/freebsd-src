@@ -241,6 +241,8 @@ AePrintException (
     UINT32                  ErrorColumn;
     FILE                    *OutputFile;
     FILE                    *SourceFile;
+    long                    FileSize;
+    BOOLEAN                 PrematureEOF = FALSE;
 
 
     if (Gbl_NoErrors)
@@ -280,7 +282,27 @@ AePrintException (
     /* Get the file handles */
 
     OutputFile = Gbl_Files[FileId].Handle;
+
+    /* Use the merged header/source file if present, otherwise use input file */
+
     SourceFile = Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle;
+    if (!SourceFile)
+    {
+        SourceFile = Gbl_Files[ASL_FILE_INPUT].Handle;
+    }
+
+    if (SourceFile)
+    {
+        /* Determine if the error occurred at source file EOF */
+
+        fseek (SourceFile, 0, SEEK_END);
+        FileSize = ftell (SourceFile);
+
+        if ((long) Enode->LogicalByteOffset >= FileSize)
+        {
+            PrematureEOF = TRUE;
+        }
+    }
 
     if (Header)
     {
@@ -297,36 +319,45 @@ AePrintException (
 
             if (Enode->LineNumber)
             {
-                fprintf (OutputFile, "%6u: ", Enode->LineNumber);
+                fprintf (OutputFile, " %6u: ", Enode->LineNumber);
 
                 /*
-                 * Seek to the offset in the combined source file, read the source
-                 * line, and write it to the output.
+                 * If not at EOF, get the corresponding source code line and
+                 * display it. Don't attempt this if we have a premature EOF
+                 * condition.
                  */
-                Actual = fseek (SourceFile, (long) Enode->LogicalByteOffset,
-                            (int) SEEK_SET);
-                if (Actual)
+                if (!PrematureEOF)
                 {
-                    fprintf (OutputFile,
-                        "[*** iASL: Seek error on source code temp file %s ***]",
-                        Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
-                }
-                else
-                {
-                    RActual = fread (&SourceByte, 1, 1, SourceFile);
-                    if (!RActual)
+                    /*
+                     * Seek to the offset in the combined source file, read
+                     * the source line, and write it to the output.
+                     */
+                    Actual = fseek (SourceFile, (long) Enode->LogicalByteOffset,
+                                (int) SEEK_SET);
+                    if (Actual)
                     {
                         fprintf (OutputFile,
-                            "[*** iASL: Read error on source code temp file %s ***]",
+                            "[*** iASL: Seek error on source code temp file %s ***]",
                             Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
                     }
-
-                    else while (RActual && SourceByte && (SourceByte != '\n'))
+                    else
                     {
-                        fwrite (&SourceByte, 1, 1, OutputFile);
                         RActual = fread (&SourceByte, 1, 1, SourceFile);
+                        if (!RActual)
+                        {
+                            fprintf (OutputFile,
+                                "[*** iASL: Read error on source code temp file %s ***]",
+                                Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
+                        }
+
+                        else while (RActual && SourceByte && (SourceByte != '\n'))
+                        {
+                            fwrite (&SourceByte, 1, 1, OutputFile);
+                            RActual = fread (&SourceByte, 1, 1, SourceFile);
+                        }
                     }
                 }
+
                 fprintf (OutputFile, "\n");
             }
         }
@@ -351,7 +382,7 @@ AePrintException (
     {
         /* Decode the message ID */
 
-        fprintf (OutputFile, "%s %4.4d -",
+        fprintf (OutputFile, "%s %4.4d - ",
                     AslErrorLevel[Enode->Level],
                     Enode->MessageId + ((Enode->Level+1) * 1000));
 
@@ -369,7 +400,7 @@ AePrintException (
                 ExtraMessage = NULL;
             }
 
-            if (Gbl_VerboseErrors)
+            if (Gbl_VerboseErrors && !PrematureEOF)
             {
                 SourceColumn = Enode->Column + Enode->FilenameLength + 6 + 2;
                 ErrorColumn = ASL_ERROR_LEVEL_LENGTH + 5 + 2 + 1;
@@ -397,6 +428,11 @@ AePrintException (
             if (ExtraMessage)
             {
                 fprintf (OutputFile, " (%s)", ExtraMessage);
+            }
+
+            if (PrematureEOF)
+            {
+                fprintf (OutputFile, " and premature End-Of-File");
             }
 
             fprintf (OutputFile, "\n");
@@ -525,7 +561,7 @@ AslCommonError (
     Gbl_ExceptionCount[Level]++;
     if (Gbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
-        printf ("\nMaximum error count (%d) exceeded\n", ASL_MAX_ERROR_COUNT);
+        printf ("\nMaximum error count (%u) exceeded\n", ASL_MAX_ERROR_COUNT);
 
         Gbl_SourceLine = 0;
         Gbl_NextError = Gbl_ErrorLog;

@@ -80,7 +80,7 @@ __byte_swap_int_var(__uint32_t x)
 	return (_x);
 }
 
-#ifdef __OPTIMIZE__
+#if 1 /* def __OPTIMIZE__ */
 
 #define	__byte_swap_int_const(x) \
 	(__uint32_t)((((x) & 0xff000000) >> 24) | \
@@ -106,7 +106,7 @@ __byte_swap_long_var(__uint64_t x)
 	return (_x);
 }
 
-#ifdef __OPTIMIZE__
+#if 1 /* def __OPTIMIZE__ */
 
 #define	__byte_swap_long_const(x) \
 	(__uint64_t)((((__uint64_t)x >> 56) |		\

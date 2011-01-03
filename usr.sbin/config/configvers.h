@@ -26,7 +26,7 @@
  * was a huge problem for 'make buildkernel' which was run with the installed
  * /usr/sbin/config, not a cross built one.  We started bumping the version
  * number as a way to trap cases where the previous installworld was not
- * compatable with the new buildkernel.  The buildtools phase and much more
+ * compatible with the new buildkernel.  The buildtools phase and much more
  * comprehensive error code returns solved this original problem.
  *
  * Most end-users will use buildkernel and the build tools from buildworld.
@@ -49,5 +49,5 @@
  *
  * $FreeBSD$
  */
-#define	CONFIGVERS	600009
+#define	CONFIGVERS	600011
 #define	MAJOR_VERS(x)	((x) / 100000)

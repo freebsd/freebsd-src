@@ -354,6 +354,8 @@ uchcom_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -368,7 +370,7 @@ uchcom_detach(device_t dev)
 
 	DPRINTFN(11, "\n");
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UCHCOM_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
@@ -855,3 +857,4 @@ static devclass_t uchcom_devclass;
 DRIVER_MODULE(uchcom, uhub, uchcom_driver, uchcom_devclass, NULL, 0);
 MODULE_DEPEND(uchcom, ucom, 1, 1, 1);
 MODULE_DEPEND(uchcom, usb, 1, 1, 1);
+MODULE_VERSION(uchcom, 1);

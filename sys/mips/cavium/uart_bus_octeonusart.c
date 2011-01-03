@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/cavium/octeon_pcmap_regs.h>
 
+#include <contrib/octeon-sdk/cvmx.h>
+
 #include "uart_if.h"
 
 extern struct uart_class uart_oct16550_class;
@@ -101,8 +103,12 @@ uart_octeon_probe(device_t dev)
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 	sc->sc_bas.bst = uart_bus_space_mem;
-	if (bus_space_map(sc->sc_bas.bst, OCTEON_MIO_UART0, OCTEON_MIO_UART_SIZE,
-	    0, &sc->sc_bas.bsh) != 0)
+	/*
+	 * XXX
+	 * RBR isn't really a great base address.
+	 */
+	if (bus_space_map(sc->sc_bas.bst, CVMX_MIO_UARTX_RBR(0),
+	    uart_getrange(sc->sc_class), 0, &sc->sc_bas.bsh) != 0)
 		return (ENXIO);
 	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, unit));
 }

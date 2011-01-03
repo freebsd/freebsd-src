@@ -268,6 +268,14 @@ else printf(" fhl=0\n");
 #else
 				NFSLOCKNODE(np);
 				np->n_flag &= ~NDELEGMOD;
+				/*
+				 * Invalidate the attribute cache, so that
+				 * attributes that pre-date the issue of a
+				 * delegation are not cached, since the
+				 * cached attributes will remain valid while
+				 * the delegation is held.
+				 */
+				NFSINVALATTRCACHE(np);
 				NFSUNLOCKNODE(np);
 #endif
 				(void) nfscl_deleg(nmp->nm_mountp,
@@ -1445,10 +1453,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	struct nfsrv_descript *nd = &nfsd;
 	nfsattrbit_t attrbits;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1)
-		panic("nfs: writerpc iovcnt > 1");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	*attrflagp = 0;
 	tsiz = uio_uio_resid(uiop);
 	NFSLOCKMNT(nmp);
@@ -1727,6 +1732,12 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		error = nfsrpc_createv4(dvp, name, namelen, vap, cverf, fmode,
 		  owp, &dp, cred, p, dnap, nnap, nfhpp, attrflagp, dattrflagp,
 		  dstuff, &unlocked);
+		/*
+		 * There is no need to invalidate cached attributes here,
+		 * since new post-delegation issue attributes are always
+		 * returned by nfsrpc_createv4() and these will update the
+		 * attribute cache.
+		 */
 		if (dp != NULL)
 			(void) nfscl_deleg(nmp->nm_mountp, owp->nfsow_clp,
 			    (*nfhpp)->nfh_fh, (*nfhpp)->nfh_len, cred, p, &dp);
@@ -2501,10 +2512,9 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	u_int32_t *tl2 = NULL;
 	size_t tresid;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1 || (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)))
-		panic("nfs readdirrpc bad uio");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1 &&
+	    (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)) == 0,
+	    ("nfs readdirrpc bad uio"));
 
 	/*
 	 * There is no point in reading a lot more than uio_resid, however
@@ -2939,10 +2949,9 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	size_t tresid;
 	u_int32_t *tl2 = NULL, fakefileno = 0xffffffff, rderr;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1 || (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)))
-		panic("nfs readdirplusrpc bad uio");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1 &&
+	    (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)) == 0,
+	    ("nfs readdirplusrpc bad uio"));
 	*attrflagp = 0;
 	if (eofp != NULL)
 		*eofp = 0;
@@ -3284,8 +3293,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    ndp->ni_vp = newvp;
 				    NFSCNHASH(cnp, HASHINIT);
 				    if (cnp->cn_namelen <= NCHNAMLEN) {
-					np->n_ctime =
-					  np->n_vattr.na_ctime.tv_sec;
+					np->n_ctime = np->n_vattr.na_ctime;
 					cache_enter(ndp->ni_dvp,ndp->ni_vp,cnp);
 				    }
 				    if (unlocknewvp)

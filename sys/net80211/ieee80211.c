@@ -486,8 +486,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
 	ieee80211_radiotap_vattach(vap);
-
-	ieee80211_ratectl_set(vap, IEEE80211_RATECTL_AMRR);
+	ieee80211_ratectl_set(vap, IEEE80211_RATECTL_NONE);
 
 	return 0;
 }

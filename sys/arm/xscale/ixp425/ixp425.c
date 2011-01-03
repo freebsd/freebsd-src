@@ -66,6 +66,8 @@ uint32_t intr_steer2 = 0;
 
 struct	ixp425_softc *ixp425_softc = NULL;
 
+struct mtx ixp425_gpio_mtx;
+
 static int	ixp425_probe(device_t);
 static void	ixp425_identify(driver_t *, device_t);
 static int	ixp425_attach(device_t);
@@ -164,6 +166,7 @@ ixp425_set_gpio(struct ixp425_softc *sc, int pin, int type)
 {
 	uint32_t gpiotr = GPIO_CONF_READ_4(sc, GPIO_TYPE_REG(pin));
 
+	IXP4XX_GPIO_LOCK();
 	/* clear interrupt type */
 	GPIO_CONF_WRITE_4(sc, GPIO_TYPE_REG(pin),
 	    gpiotr &~ GPIO_TYPE(pin, GPIO_TYPE_MASK));
@@ -176,6 +179,7 @@ ixp425_set_gpio(struct ixp425_softc *sc, int pin, int type)
 	/* configure gpio line as an input */
 	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOER, 
 	    GPIO_CONF_READ_4(sc, IXP425_GPIO_GPOER) | (1<<pin));
+	IXP4XX_GPIO_UNLOCK();
 }
 
 static __inline void
@@ -313,6 +317,7 @@ ixp425_attach(device_t dev)
 	}
 	arm_post_filter = ixp425_post_filter;
 
+	mtx_init(&ixp425_gpio_mtx, "gpio", NULL, MTX_DEF);
 	if (bus_space_map(sc->sc_iot, IXP425_GPIO_HWBASE, IXP425_GPIO_SIZE,
 	    0, &sc->sc_gpio_ioh))
 		panic("%s: unable to map GPIO registers", __func__);
@@ -369,7 +374,7 @@ ixp425_hinted_child(device_t bus, const char *dname, int dunit)
 }
 
 static device_t
-ixp425_add_child(device_t dev, int order, const char *name, int unit)
+ixp425_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct ixp425_ivar *ivar;

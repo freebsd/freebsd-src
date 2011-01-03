@@ -62,9 +62,9 @@
  * Minimum partition sizes
  */
 #if defined(__ia64__) || defined(__sparc64__) || defined(__amd64__)
-#define ROOT_MIN_SIZE			128
+#define ROOT_MIN_SIZE			280
 #else
-#define ROOT_MIN_SIZE			118
+#define ROOT_MIN_SIZE			180
 #endif
 #define SWAP_MIN_SIZE			32
 #define USR_MIN_SIZE			160
@@ -82,10 +82,10 @@
  * for this configuration we scale things relative to the NOM vs DEFAULT
  * sizes.  If the disk is larger then /home will get any remaining space.
  */
-#define ROOT_DEFAULT_SIZE		512
+#define ROOT_DEFAULT_SIZE		1024
 #define USR_DEFAULT_SIZE		8192
-#define VAR_DEFAULT_SIZE		1024
-#define TMP_DEFAULT_SIZE		512
+#define VAR_DEFAULT_SIZE		4096
+#define TMP_DEFAULT_SIZE		1024
 #define HOME_DEFAULT_SIZE		USR_DEFAULT_SIZE
 
 /*
@@ -93,9 +93,9 @@
  * when we have insufficient disk space.  If this isn't sufficient we scale
  * down using the MIN sizes instead.
  */
-#define ROOT_NOMINAL_SIZE		256
+#define ROOT_NOMINAL_SIZE		512
 #define USR_NOMINAL_SIZE		1536
-#define VAR_NOMINAL_SIZE		128
+#define VAR_NOMINAL_SIZE		512
 #define TMP_NOMINAL_SIZE		128
 #define HOME_NOMINAL_SIZE		USR_NOMINAL_SIZE
 
@@ -999,6 +999,7 @@ diskLabel(Device *dev)
 	    else {
 		char *val;
 		daddr_t size;
+		long double dsize;
 		struct chunk *tmp;
 		char osize[80];
 		u_long flags = 0;
@@ -1019,22 +1020,27 @@ diskLabel(Device *dev)
 #endif
 				  "%jd blocks (%jdMB) are free.",
 				  (intmax_t)sz, (intmax_t)sz / ONE_MEG);
-		if (!val || (size = strtoimax(val, &cp, 0)) <= 0) {
+		if (!val || (dsize = strtold(val, &cp)) <= 0) {
 		    clear_wins();
 		    break;
 		}
 
 		if (*cp) {
 		    if (toupper(*cp) == 'M')
-			size *= ONE_MEG;
+			size = (daddr_t) (dsize * ONE_MEG);
 		    else if (toupper(*cp) == 'G')
-			size *= ONE_GIG;
+			size = (daddr_t) (dsize * ONE_GIG);
 #ifndef __ia64__
 		    else if (toupper(*cp) == 'C')
-			size *= (label_chunk_info[here].c->disk->bios_hd * label_chunk_info[here].c->disk->bios_sect);
+			size = (daddr_t) dsize * (label_chunk_info[here].c->disk->bios_hd * label_chunk_info[here].c->disk->bios_sect);
 #endif
+		    else
+			size = (daddr_t) dsize;
+		} else {
+			size = (daddr_t) dsize;
 		}
-		if (size <= FS_MIN_SIZE) {
+
+		if (size < FS_MIN_SIZE) {
 		    msgConfirm("The minimum filesystem size is %dMB", FS_MIN_SIZE / ONE_MEG);
 		    clear_wins();
 		    break;

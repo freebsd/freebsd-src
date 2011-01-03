@@ -214,10 +214,12 @@ bd_init(void)
     /* sequence 0, 0x80 */
     for (base = 0; base <= 0x80; base += 0x80) {
 	for (unit = base; (nbdinfo < MAXBDDEV); unit++) {
+#ifndef VIRTUALBOX
 	    /* check the BIOS equipment list for number of fixed disks */
 	    if((base == 0x80) &&
 	       (nfd >= *(unsigned char *)PTOV(BIOS_NUMDRIVES)))
-	        break;
+		break;
+#endif
 
 	    bdinfo[nbdinfo].bd_unit = unit;
 	    bdinfo[nbdinfo].bd_flags = (unit < 0x80) ? BD_FLOPPY : 0;

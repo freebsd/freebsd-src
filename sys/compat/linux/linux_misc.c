@@ -1695,34 +1695,23 @@ linux_setdomainname(struct thread *td, struct linux_setdomainname_args *args)
 int
 linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 {
-	struct linux_emuldata *em, *td_em, *tmp_em;
-	struct proc *sp;
+	struct linux_emuldata *em;
 
 #ifdef DEBUG
 	if (ldebug(exit_group))
 		printf(ARGS(exit_group, "%i"), args->error_code);
 #endif
 
-	if (linux_use26(td)) {
-		td_em = em_find(td->td_proc, EMUL_DONTLOCK);
-
-		KASSERT(td_em != NULL, ("exit_group: emuldata not found.\n"));
-
-		EMUL_SHARED_RLOCK(&emul_shared_lock);
-		LIST_FOREACH_SAFE(em, &td_em->shared->threads, threads, tmp_em) {
-			if (em->pid == td_em->pid)
-				continue;
-
-			sp = pfind(em->pid);
-			psignal(sp, SIGKILL);
-			PROC_UNLOCK(sp);
-#ifdef DEBUG
-			printf(LMSG("linux_sys_exit_group: kill PID %d\n"), em->pid);
-#endif
-		}
-
-		EMUL_SHARED_RUNLOCK(&emul_shared_lock);
+	em = em_find(td->td_proc, EMUL_DONTLOCK);
+	if (em->shared->refs > 1) {
+		EMUL_SHARED_WLOCK(&emul_shared_lock);
+		em->shared->flags |= EMUL_SHARED_HASXSTAT;
+		em->shared->xstat = W_EXITCODE(args->error_code, 0);
+		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
+		if (linux_use26(td))
+			linux_kill_threads(td, SIGKILL);
 	}
+
 	/*
 	 * XXX: we should send a signal to the parent if
 	 * SIGNAL_EXIT_GROUP is set. We ignore that (temporarily?)

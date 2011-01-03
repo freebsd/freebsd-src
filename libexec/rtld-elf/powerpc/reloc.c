@@ -38,6 +38,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 
 #include "debug.h"
@@ -74,12 +75,12 @@ do_copy_relocations(Obj_Entry *dstobj)
 		void *dstaddr;
 		const Elf_Sym *dstsym;
 		const char *name;
-		unsigned long hash;
 		size_t size;
 		const void *srcaddr;
 		const Elf_Sym *srcsym = NULL;
-		Obj_Entry *srcobj;
-		const Ver_Entry *ve;
+		const Obj_Entry *srcobj, *defobj;
+		SymLook req;
+		int res;
 
 		if (ELF_R_TYPE(rela->r_info) != R_PPC_COPY) {
 			continue;
@@ -88,14 +89,16 @@ do_copy_relocations(Obj_Entry *dstobj)
 		dstaddr = (void *) (dstobj->relocbase + rela->r_offset);
 		dstsym = dstobj->symtab + ELF_R_SYM(rela->r_info);
 		name = dstobj->strtab + dstsym->st_name;
-		hash = elf_hash(name);
 		size = dstsym->st_size;
-		ve = fetch_ventry(dstobj, ELF_R_SYM(rela->r_info));
+		symlook_init(&req, name);
+		req.ventry = fetch_ventry(dstobj, ELF_R_SYM(rela->r_info));
 
 		for (srcobj = dstobj->next;  srcobj != NULL;
 		     srcobj = srcobj->next) {
-			if ((srcsym = symlook_obj(name, hash, srcobj, ve, 0))
-			    != NULL) {
+			res = symlook_obj(&req, srcobj);
+			if (res == 0) {
+				srcsym = req.sym_out;
+				defobj = req.defobj_out;
 				break;
 			}
 		}
@@ -107,7 +110,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 			return (-1);
 		}
 
-		srcaddr = (const void *) (srcobj->relocbase+srcsym->st_value);
+		srcaddr = (const void *) (defobj->relocbase+srcsym->st_value);
 		memcpy(dstaddr, srcaddr, size);
 		dbg("copy_reloc: src=%p,dst=%p,size=%d\n",srcaddr,dstaddr,size);
 	}
@@ -156,7 +159,7 @@ reloc_non_plt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
  */
 static int
 reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
-		    SymCache *cache)
+    SymCache *cache, RtldLockState *lockstate)
 {
 	Elf_Addr        *where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 	const Elf_Sym   *def;
@@ -171,7 +174,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
         case R_PPC_ADDR32:    /* word32 S + A */
         case R_PPC_GLOB_DAT:  /* word32 S + A */
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-				  false, cache);
+		    false, cache, lockstate);
 		if (def == NULL) {
 			return (-1);
 		}
@@ -218,7 +221,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 
 	case R_PPC_DTPMOD32:
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    false, cache);
+		    false, cache, lockstate);
 
 		if (def == NULL)
 			return (-1);
@@ -229,7 +232,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 
 	case R_PPC_TPREL32:
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    false, cache);
+		    false, cache, lockstate);
 
 		if (def == NULL)
 			return (-1);
@@ -258,7 +261,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		
 	case R_PPC_DTPREL32:
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    false, cache);
+		    false, cache, lockstate);
 
 		if (def == NULL)
 			return (-1);
@@ -282,12 +285,11 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
  * Process non-PLT relocations
  */
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 {
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 	SymCache *cache;
-	int bytes = obj->nchains * sizeof(SymCache);
 	int r = -1;
 
 	/*
@@ -295,10 +297,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
 	if (obj != obj_rtld) {
-		cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON,
-		    -1, 0);
-		if (cache == MAP_FAILED)
-			cache = NULL;
+		cache = calloc(obj->nchains, sizeof(SymCache));
+		/* No need to check for NULL here */
 	} else
 		cache = NULL;
 
@@ -309,14 +309,14 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	 */
 	relalim = (const Elf_Rela *)((caddr_t)obj->rela + obj->relasize);
 	for (rela = obj->rela; rela < relalim; rela++) {
-		if (reloc_nonplt_object(obj_rtld, obj, rela, cache) < 0)
+		if (reloc_nonplt_object(obj_rtld, obj, rela, cache, lockstate)
+		    < 0)
 			goto done;
 	}
 	r = 0;
 done:
-	if (cache) {
-		munmap(cache, bytes);
-	}
+	if (cache != NULL)
+		free(cache);
 	return (r);
 }
 
@@ -404,7 +404,7 @@ reloc_plt(Obj_Entry *obj)
  * LD_BIND_NOW was set - force relocation for all jump slots
  */
 int
-reloc_jmpslots(Obj_Entry *obj)
+reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 {
 	const Obj_Entry *defobj;
 	const Elf_Rela *relalim;
@@ -418,7 +418,7 @@ reloc_jmpslots(Obj_Entry *obj)
 		assert(ELF_R_TYPE(rela->r_info) == R_PPC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		   true, NULL);
+		    true, NULL, lockstate);
 		if (def == NULL) {
 			dbg("reloc_jmpslots: sym not found");
 			return (-1);
@@ -485,6 +485,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 
 		jmptab = obj->pltgot + JMPTAB_BASE(N);
 		jmptab[reloff] = target;
+		powerpc_mb(); /* Order jmptab update before next changes */
 
 		if (reloff < PLT_EXTENDED_BEGIN) {
 			/* for extended PLT entries, we keep the old code */
@@ -493,7 +494,8 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 
 			/* li   r11,reloff */
 			/* b    pltcall  # use indirect pltcall routine */
-			wherep[0] = 0x39600000 | reloff;
+
+			/* first instruction same as before */
 			wherep[1] = 0x48000000 | (distance & 0x03fffffc);
 			__syncicache(wherep, 8);
 		}
@@ -581,7 +583,7 @@ init_pltgot(Obj_Entry *obj)
 	 * Sync the icache for the byte range represented by the
 	 * trampoline routines and call slots.
 	 */
-	__syncicache(pltcall, 72 + N * 8);
+	__syncicache(obj->pltgot, JMPTAB_BASE(N)*4);
 }
 
 void

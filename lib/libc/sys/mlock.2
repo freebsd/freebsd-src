@@ -28,7 +28,7 @@
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2004
+.Dd July 27, 2010
 .Dt MLOCK 2
 .Os
 .Sh NAME
@@ -116,11 +116,12 @@ The caller is not the super-user.
 .It Bq Er EINVAL
 The address given is not page aligned or the length is negative.
 .It Bq Er EAGAIN
-Locking the indicated range would exceed either the system or per-process
-limit for locked memory.
+Locking the indicated range would exceed the system limit for locked memory.
 .It Bq Er ENOMEM
 Some portion of the indicated address range is not allocated.
 There was an error faulting/mapping a page.
+Locking the indicated range would exceed the per-process limit for locked
+memory.
 .El
 The
 .Fn munlock

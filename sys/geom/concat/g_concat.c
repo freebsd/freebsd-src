@@ -212,6 +212,39 @@ g_concat_access(struct g_provider *pp, int dr, int dw, int de)
 }
 
 static void
+g_concat_kernel_dump(struct bio *bp)
+{
+	struct g_concat_softc *sc;
+	struct g_concat_disk *disk;
+	struct bio *cbp;
+	struct g_kerneldump *gkd;
+	u_int i;
+
+	sc = bp->bio_to->geom->softc;
+	gkd = (struct g_kerneldump *)bp->bio_data;
+	for (i = 0; i < sc->sc_ndisks; i++) {
+		if (sc->sc_disks[i].d_start <= gkd->offset &&
+		    sc->sc_disks[i].d_end > gkd->offset)
+			break;
+	}
+	if (i == sc->sc_ndisks)
+		g_io_deliver(bp, EOPNOTSUPP);
+	disk = &sc->sc_disks[i];
+	gkd->offset -= disk->d_start;
+	if (gkd->length > disk->d_end - disk->d_start - gkd->offset)
+		gkd->length = disk->d_end - disk->d_start - gkd->offset;
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		g_io_deliver(bp, ENOMEM);
+		return;
+	}
+	cbp->bio_done = g_std_done;
+	g_io_request(cbp, disk->d_consumer);
+	G_CONCAT_DEBUG(1, "Kernel dump will go to %s.",
+	    disk->d_consumer->provider->name);
+}
+
+static void
 g_concat_flush(struct g_concat_softc *sc, struct bio *bp)
 {
 	struct bio_queue_head queue;
@@ -280,7 +313,12 @@ g_concat_start(struct bio *bp)
 		g_concat_flush(sc, bp);
 		return;
 	case BIO_GETATTR:
+		if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
+			g_concat_kernel_dump(bp);
+			return;
+		}
 		/* To which provider it should be delivered? */
+		/* FALLTHROUGH */
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;

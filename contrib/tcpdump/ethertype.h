@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.29.2.1 2008-02-06 10:49:22 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.30 2008-02-06 10:47:53 guy Exp $ (LBL)
  * $FreeBSD$
  */
 
@@ -76,6 +76,9 @@
 #endif
 #ifndef ETHERTYPE_SCA
 #define ETHERTYPE_SCA		0x6007
+#endif
+#ifndef ETHERTYPE_TEB
+#define ETHERTYPE_TEB		0x6558
 #endif
 #ifndef	ETHERTYPE_LANBRIDGE
 #define	ETHERTYPE_LANBRIDGE	0x8038

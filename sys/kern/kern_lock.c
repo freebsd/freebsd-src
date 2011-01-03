@@ -396,6 +396,34 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 	STACK_ZERO(lk);
 }
 
+/*
+ * XXX: Gross hacks to manipulate external lock flags after
+ * initialization.  Used for certain vnode and buf locks.
+ */
+void
+lockallowshare(struct lock *lk)
+{
+
+	lockmgr_assert(lk, KA_XLOCKED);
+	lk->lock_object.lo_flags &= ~LK_NOSHARE;
+}
+
+void
+lockallowrecurse(struct lock *lk)
+{
+
+	lockmgr_assert(lk, KA_XLOCKED);
+	lk->lock_object.lo_flags |= LO_RECURSABLE;
+}
+
+void
+lockdisablerecurse(struct lock *lk)
+{
+
+	lockmgr_assert(lk, KA_XLOCKED);
+	lk->lock_object.lo_flags &= ~LO_RECURSABLE;
+}
+
 void
 lockdestroy(struct lock *lk)
 {

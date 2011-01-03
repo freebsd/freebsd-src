@@ -141,7 +141,6 @@ they have the same form as the
 .Dv SIOCIFADDR
 command (see
 .Xr intro 4 ) .
-.Pp
 .Bl -tag -width SIOCSIFNETMASK
 .It Dv SIOCSIFNETMASK
 Set interface network mask.
@@ -280,12 +279,6 @@ in the reassembling queue for a packet.
 .%B PS1
 .%N 8
 .Re
-.Sh CAVEATS
-The Internet protocol support is subject to change as
-the Internet protocols develop.
-Users should not depend
-on details of the current implementation, but rather
-the services exported.
 .Sh HISTORY
 The
 .Nm
@@ -295,3 +288,9 @@ The
 .Dq protocol cloning
 code appeared in
 .Fx 2.1 .
+.Sh CAVEATS
+The Internet protocol support is subject to change as
+the Internet protocols develop.
+Users should not depend
+on details of the current implementation, but rather
+the services exported.

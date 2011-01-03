@@ -64,17 +64,17 @@ ssize_t	get_field(int peer, char *buffer, ssize_t size);
  */
 struct packettypes {
 	int	value;
-	char	*name;
+	const char *const name;
 };
 extern struct packettypes packettypes[];
-char *packettype(int);
+const char *packettype(int);
 
 /*
  * RP_
  */
 struct rp_errors {
 	int	error;
-	char	*desc;
+	const char *const desc;
 };
 extern struct rp_errors rp_errors[];
 char	*rp_strerror(int error);
@@ -89,15 +89,15 @@ char	*rp_strerror(int error);
 #define DEBUG_ACCESS	0x0008
 struct debugs {
 	int	value;
-	char	*name;
-	char	*desc;
+	const char *const name;
+	const char *const desc;
 };
 extern int	debug;
 extern struct debugs debugs[];
 extern int	packetdroppercentage;
 int	debug_find(char *s);
 int	debug_finds(char *s);
-char	*debug_show(int d);
+const char *debug_show(int d);
 
 /*
  * Log routines

@@ -143,11 +143,6 @@ __FBSDID("$FreeBSD$");
 #define	MOUSE_PS2PLUS_PACKET_TYPE(b)	\
     (((b[0] & 0x30) >> 2) | ((b[1] & 0x30) >> 4))
 
-/* some macros */
-#define	PSM_UNIT(dev)		(dev2unit(dev) >> 1)
-#define	PSM_NBLOCKIO(dev)	(dev2unit(dev) & 1)
-#define	PSM_MKMINOR(unit,block)	(((unit) << 1) | ((block) ? 0:1))
-
 /* ring buffer */
 typedef struct ringbuf {
 	int		count;	/* # of valid elements in the buffer */
@@ -305,8 +300,6 @@ struct psm_softc {		/* Driver status information */
 	struct sigio	*async;		/* Processes waiting for SIGIO */
 };
 static devclass_t psm_devclass;
-#define	PSM_SOFTC(unit)	\
-    ((struct psm_softc*)devclass_get_softc(psm_devclass, unit))
 
 /* driver state flags (state) */
 #define	PSM_VALID		0x80
@@ -1112,6 +1105,7 @@ psmidentify(driver_t *driver, device_t parent)
 	irq = bus_get_resource_start(psmc, SYS_RES_IRQ, 0);
 	if (irq <= 0)
 		return;
+	bus_delete_resource(psmc, SYS_RES_IRQ, 0);
 	bus_set_resource(psm, SYS_RES_IRQ, KBDC_RID_AUX, irq, 1);
 }
 
@@ -1140,8 +1134,7 @@ psmprobe(device_t dev)
 
 	/* see if IRQ is available */
 	rid = KBDC_RID_AUX;
-	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
+	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->intr == NULL) {
 		if (bootverbose)
 			device_printf(dev, "unable to allocate IRQ\n");
@@ -1221,12 +1214,12 @@ psmprobe(device_t dev)
 	 * be that this is only the case when the controller DOES have the aux
 	 * port but the port is not wired on the motherboard.) The keyboard
 	 * controllers without the port, such as the original AT, are
-	 * supporsed to return with an error code or simply time out. In any
+	 * supposed to return with an error code or simply time out. In any
 	 * case, we have to continue probing the port even when the controller
 	 * passes this test.
 	 *
 	 * XXX: some controllers erroneously return the error code 1, 2 or 3
-	 * when it has the perfectly functional aux port. We have to ignore
+	 * when it has a perfectly functional aux port. We have to ignore
 	 * this error code. Even if the controller HAS error with the aux
 	 * port, it will be detected later...
 	 * XXX: another incompatible controller returns PSM_ACK (0xfa)...
@@ -1257,7 +1250,7 @@ psmprobe(device_t dev)
 	if (sc->config & PSM_CONFIG_NORESET) {
 		/*
 		 * Don't try to reset the pointing device.  It may possibly be
-		 * left in the unknown state, though...
+		 * left in an unknown state, though...
 		 */
 	} else {
 		/*
@@ -1284,7 +1277,7 @@ psmprobe(device_t dev)
 	}
 
 	/*
-	 * both the aux port and the aux device is functioning, see if the
+	 * both the aux port and the aux device are functioning, see if the
 	 * device can be enabled. NOTE: when enabled, the device will start
 	 * sending data; we shall immediately disable the device once we know
 	 * the device can be enabled.
@@ -1445,8 +1438,7 @@ psmattach(device_t dev)
 
 	/* Setup our interrupt handler */
 	rid = KBDC_RID_AUX;
-	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
+	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->intr == NULL)
 		return (ENXIO);
 	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, NULL, psmintr, sc,
@@ -1457,10 +1449,10 @@ psmattach(device_t dev)
 	}
 
 	/* Done */
-	sc->dev = make_dev(&psm_cdevsw, PSM_MKMINOR(unit, FALSE), 0, 0, 0666,
-	    "psm%d", unit);
-	sc->bdev = make_dev(&psm_cdevsw, PSM_MKMINOR(unit, TRUE), 0, 0, 0666,
-	    "bpsm%d", unit);
+	sc->dev = make_dev(&psm_cdevsw, 0, 0, 0, 0666, "psm%d", unit);
+	sc->dev->si_drv1 = sc;
+	sc->bdev = make_dev(&psm_cdevsw, 0, 0, 0, 0666, "bpsm%d", unit);
+	sc->bdev->si_drv1 = sc;
 
 	if (!verbose)
 		printf("psm%d: model %s, device ID %d\n",
@@ -1504,14 +1496,13 @@ psmdetach(device_t dev)
 static int
 psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	int unit = PSM_UNIT(dev);
 	struct psm_softc *sc;
 	int command_byte;
 	int err;
 	int s;
 
 	/* Get device data */
-	sc = PSM_SOFTC(unit);
+	sc = dev->si_drv1;
 	if ((sc == NULL) || (sc->state & PSM_VALID) == 0) {
 		/* the device is no longer valid/functioning */
 		return (ENXIO);
@@ -1521,7 +1512,7 @@ psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 	if (sc->state & PSM_OPEN)
 		return (EBUSY);
 
-	device_busy(devclass_get_device(psm_devclass, unit));
+	device_busy(devclass_get_device(psm_devclass, sc->unit));
 
 	/* Initialize state */
 	sc->mode.level = sc->dflt_mode.level;
@@ -1565,7 +1556,8 @@ psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 		kbdc_lock(sc->kbdc, FALSE);
 		splx(s);
 		log(LOG_ERR,
-		    "psm%d: unable to set the command byte (psmopen).\n", unit);
+		    "psm%d: unable to set the command byte (psmopen).\n",
+		    sc->unit);
 		return (EIO);
 	}
 	/*
@@ -1590,8 +1582,7 @@ psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 static int
 psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	int unit = PSM_UNIT(dev);
-	struct psm_softc *sc = PSM_SOFTC(unit);
+	struct psm_softc *sc = dev->si_drv1;
 	int stat[3];
 	int command_byte;
 	int s;
@@ -1615,7 +1606,8 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	    KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT |
 	    KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 		log(LOG_ERR,
-		    "psm%d: failed to disable the aux int (psmclose).\n", unit);
+		    "psm%d: failed to disable the aux int (psmclose).\n",
+		    sc->unit);
 		/* CONTROLLER ERROR;
 		 * NOTE: we shall force our way through. Because the only
 		 * ill effect we shall see is that we may not be able
@@ -1643,12 +1635,13 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 			 */
 			log(LOG_ERR,
 			    "psm%d: failed to disable the device (psmclose).\n",
-			    unit);
+			    sc->unit);
 		}
 
 		if (get_mouse_status(sc->kbdc, stat, 0, 3) < 3)
 			log(LOG_DEBUG,
-			    "psm%d: failed to get status (psmclose).\n", unit);
+			    "psm%d: failed to get status (psmclose).\n",
+			    sc->unit);
 	}
 
 	if (!set_controller_command_byte(sc->kbdc,
@@ -1661,7 +1654,7 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 		 */
 		log(LOG_ERR,
 		    "psm%d: failed to disable the aux port (psmclose).\n",
-		    unit);
+		    sc->unit);
 	}
 
 	/* remove anything left in the output buffer */
@@ -1676,7 +1669,7 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	/* close is almost always successful */
 	sc->state &= ~PSM_OPEN;
 	kbdc_lock(sc->kbdc, FALSE);
-	device_unbusy(devclass_get_device(psm_devclass, unit));
+	device_unbusy(devclass_get_device(psm_devclass, sc->unit));
 	return (0);
 }
 
@@ -1745,7 +1738,7 @@ tame_mouse(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *status,
 static int
 psmread(struct cdev *dev, struct uio *uio, int flag)
 {
-	register struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
+	struct psm_softc *sc = dev->si_drv1;
 	u_char buf[PSM_SMALLBUFSIZE];
 	int error = 0;
 	int s;
@@ -1757,7 +1750,7 @@ psmread(struct cdev *dev, struct uio *uio, int flag)
 	/* block until mouse activity occured */
 	s = spltty();
 	while (sc->queue.count <= 0) {
-		if (PSM_NBLOCKIO(dev)) {
+		if (dev != sc->bdev) {
 			splx(s);
 			return (EWOULDBLOCK);
 		}
@@ -1892,7 +1885,7 @@ unblock_mouse_data(struct psm_softc *sc, int c)
 static int
 psmwrite(struct cdev *dev, struct uio *uio, int flag)
 {
-	register struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
+	struct psm_softc *sc = dev->si_drv1;
 	u_char buf[PSM_SMALLBUFSIZE];
 	int error = 0, i, l;
 
@@ -1925,7 +1918,7 @@ static int
 psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td)
 {
-	struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
+	struct psm_softc *sc = dev->si_drv1;
 	mousemode_t mode;
 	mousestatus_t status;
 #if (defined(MOUSE_GETVARS))
@@ -3270,7 +3263,7 @@ psmsoftintr(void *arg)
 		MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN,
 		MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN
 	};
-	register struct psm_softc *sc = arg;
+	struct psm_softc *sc = arg;
 	mousestatus_t ms;
 	packetbuf_t *pb;
 	int x, y, z, c, l, s;
@@ -3519,7 +3512,7 @@ next:
 static int
 psmpoll(struct cdev *dev, int events, struct thread *td)
 {
-	struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
+	struct psm_softc *sc = dev->si_drv1;
 	int s;
 	int revents = 0;
 
@@ -4634,6 +4627,7 @@ create_a_copy(device_t atkbdc, device_t me)
 
 	/* move our resource to the found device */
 	irq = bus_get_resource_start(me, SYS_RES_IRQ, 0);
+	bus_delete_resource(me, SYS_RES_IRQ, 0);
 	bus_set_resource(psm, SYS_RES_IRQ, KBDC_RID_AUX, irq, 1);
 
 	/* ...then probe and attach it */
@@ -4667,7 +4661,7 @@ psmcpnp_probe(device_t dev)
 		    "assuming irq %ld\n", irq);
 		bus_set_resource(dev, SYS_RES_IRQ, rid, irq, 1);
 	}
-	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_SHAREABLE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, 0);
 	bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 
 	/* keep quiet */
@@ -4681,22 +4675,12 @@ static int
 psmcpnp_attach(device_t dev)
 {
 	device_t atkbdc;
-	int rid;
 
 	/* find the keyboard controller, which may be on acpi* or isa* bus */
 	atkbdc = devclass_get_device(devclass_find(ATKBDC_DRIVER_NAME),
 	    device_get_unit(dev));
 	if ((atkbdc != NULL) && (device_get_state(atkbdc) == DS_ATTACHED))
 		create_a_copy(atkbdc, dev);
-	else {
-		/*
-		 * If we don't have the AT keyboard controller yet,
-		 * just reserve the IRQ for later use...
-		 * (See psmidentify() above.)
-		 */
-		rid = 0;
-		bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_SHAREABLE);
-	}
 
 	return (0);
 }

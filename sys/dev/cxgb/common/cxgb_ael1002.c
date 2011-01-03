@@ -297,6 +297,9 @@ static int get_link_status_r(struct cphy *phy, int *link_ok, int *speed,
 		if (err)
 			return err;
 		*link_ok = (stat0 & stat1 & (stat2 >> 12)) & 1;
+
+		if (*link_ok == 0)
+			return (0);
 	}
 	if (speed)
 		*speed = SPEED_10000;
@@ -1946,8 +1949,6 @@ static int ael2020_intr_enable(struct cphy *phy)
 	err = set_phy_regs(phy, regs);
 	if (err)
 		return err;
-
-	phy->caps |= POLL_LINK_1ST_TIME;
 
 	/* enable standard Link Alarm Status Interrupts */
 	err = t3_phy_lasi_intr_enable(phy);

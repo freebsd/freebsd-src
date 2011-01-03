@@ -68,7 +68,7 @@ ofw_mapmem(vm_offset_t dest, const size_t len)
 	/*
 	 * Trim area covered by existing mapping, if any
 	 */
-	if (dest < (last_dest + last_len)) {
+	if (dest < (last_dest + last_len) && dest >= last_dest) {
 		nlen -= (last_dest + last_len) - dest;
 		dest = last_dest + last_len;
 	}
@@ -91,16 +91,22 @@ ofw_mapmem(vm_offset_t dest, const size_t len)
                 return (ENOMEM);
         }
 
-        if (OF_call_method("claim", mmu, 3, 1, destp, dlen, 0, &addr) == -1) {
-                printf("ofw_mapmem: virtual claim failed\n");
-                return (ENOMEM);
-        }
+	/*
+	 * We only do virtual memory management when real_mode is false.
+	 */
+	if (real_mode == 0) {
+		if (OF_call_method("claim", mmu, 3, 1, destp, dlen, 0, &addr)
+		    == -1) {
+			printf("ofw_mapmem: virtual claim failed\n");
+			return (ENOMEM);
+		}
 
-        if (OF_call_method("map", mmu, 4, 0, destp, destp, dlen, 0) == -1) {
-                printf("ofw_mapmem: map failed\n");
-                return (ENOMEM);
-        }
-
+		if (OF_call_method("map", mmu, 4, 0, destp, destp, dlen, 0)
+		    == -1) {
+			printf("ofw_mapmem: map failed\n");
+			return (ENOMEM);
+		}
+	}
         last_dest = (vm_offset_t) destp;
         last_len  = dlen;
 

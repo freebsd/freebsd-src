@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # sys sources
-.PATH: ${.CURDIR}/${MACHINE_ARCH}/sys ${.CURDIR}/sys
+.PATH: ${.CURDIR}/${LIBC_ARCH}/sys ${.CURDIR}/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
@@ -13,16 +13,17 @@
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
-.if exists(${.CURDIR}/${MACHINE_ARCH}/sys/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_ARCH}/sys/Makefile.inc"
-.endif
+.sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
 
 # Sources common to both syscall interfaces:
-SRCS+=	stack_protector.c __error.c
+SRCS+=	stack_protector.c stack_protector_compat.c __error.c
 .if !defined(WITHOUT_SYSCALL_COMPAT)
 SRCS+=	fcntl.c ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c
 PSEUDO+= _fcntl.o
 .endif
+SRCS+= sigwait.c
+NOASM+= sigwait.o
+PSEUDO+= _sigwait.o
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}

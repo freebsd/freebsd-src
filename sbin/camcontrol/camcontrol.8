@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2010
+.Dd November 30, 2010
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -131,6 +131,43 @@
 .Op Fl r Ar fmt
 .Ek
 .Nm
+.Ic smpcmd
+.Op device id
+.Op generic args
+.Aq Fl r Ar len Ar fmt Op args
+.Aq Fl R Ar len Ar fmt Op args
+.Nm
+.Ic smprg
+.Op device id
+.Op generic args
+.Op Fl l
+.Nm
+.Ic smppc
+.Op device id
+.Op generic args
+.Aq Fl p Ar phy
+.Op Fl l
+.Op Fl o Ar operation
+.Op Fl d Ar name
+.Op Fl m Ar rate
+.Op Fl M Ar rate
+.Op Fl T Ar pp_timeout
+.Op Fl a Ar enable|disable
+.Op Fl A Ar enable|disable
+.Op Fl s Ar enable|disable
+.Op Fl S Ar enable|disable
+.Nm
+.Ic smpphylist
+.Op device id
+.Op generic args
+.Op Fl l
+.Op Fl q
+.Nm
+.Ic smpmaninfo
+.Op device id
+.Op generic args
+.Op Fl l
+.Nm
 .Ic debug
 .Op Fl I
 .Op Fl P
@@ -207,9 +244,6 @@ A device identifier can take one of three forms:
 .Bl -tag -width 14n
 .It deviceUNIT
 Specify a device name and unit number combination, like "da5" or "cd3".
-Note that character device node names (e.g.\& /dev/da0) are
-.Em not
-allowed here.
 .It bus:target
 Specify a bus number and target id.
 The bus number can be determined from
@@ -519,7 +553,7 @@ the command type.
 The command and data specification syntax is documented
 in
 .Xr cam_cdbparse 3 .
-NOTE: If the CDB specified causes data to be transfered to or from the
+NOTE: If the CDB specified causes data to be transferred to or from the
 SCSI device in question, you MUST specify either
 .Fl i
 or
@@ -556,6 +590,177 @@ lba_high_exp, sector_count, sector_count_exp), and how.
 If the format is
 .Sq - ,
 11 result registers will be written to standard output in hex.
+.El
+.It Ic smpcmd
+Allows the user to send an arbitrary Serial 
+Management Protocol (SMP) command to a device.
+The
+.Ic smpcmd
+function requires the
+.Fl r
+argument to specify the SMP request to be sent, and the
+.Fl R
+argument to specify the format of the SMP response.
+The syntax for the SMP request and response arguments is documented in
+.Xr cam_cdbparse 3 .
+.Pp
+Note that SAS adapters that support SMP passthrough (at least the currently
+known adapters) do not accept CRC bytes from the user in the request and do
+not pass CRC bytes back to the user in the response.
+Therefore users should not include the CRC bytes in the length of the
+request and not expect CRC bytes to be returned in the response.
+.Bl -tag -width 17n
+.It Fl r Ar len Ar fmt Op args
+This specifies the size of the SMP request, without the CRC bytes, and the
+SMP request format.  If the format is
+.Sq - ,
+.Ar len
+bytes of data will be read from standard input and written as the SMP
+request.
+.It Fl R Ar len Ar fmt Op args
+This specifies the size of the buffer allocated for the SMP response, and
+the SMP response format.
+If the format is
+.Sq - ,
+.Ar len
+bytes of data will be allocated for the response and the response will be
+written to standard output.
+.El
+.It Ic smprg
+Allows the user to send the Serial Management Protocol (SMP) Report General
+command to a device.
+.Nm
+will display the data returned by the Report General command.
+If the SMP target supports the long response format, the additional data
+will be requested and displayed automatically.
+.Bl -tag -width 8n
+.It Fl l
+Request the long response format only.
+Not all SMP targets support the long response format.
+This option causes
+.Nm
+to skip sending the initial report general request without the long bit set
+and only issue a report general request with the long bit set.
+.El
+.It Ic smppc
+Allows the user to issue the Serial Management Protocol (SMP) PHY Control
+command to a device.
+This function should be used with some caution, as it can render devices
+inaccessible, and could potentially cause data corruption as well.
+The
+.Fl p
+argument is required to specify the PHY to operate on.
+.Bl -tag -width 17n
+.It Fl p Ar phy
+Specify the PHY to operate on.
+This argument is required. 
+.It Fl l
+Request the long request/response format.
+Not all SMP targets support the long response format.
+For the PHY Control command, this currently only affects whether the
+request length is set to a value other than 0.
+.It Fl o Ar operation
+Specify a PHY control operation.
+Only one
+.Fl o
+operation may be specified.
+The operation may be specified numerically (in decimal, hexadecimal, or octal)
+or one of the following operation names may be specified:
+.Bl -tag -width 16n
+.It nop
+No operation.
+It is not necessary to specify this argument.
+.It linkreset
+Send the LINK RESET command to the phy.
+.It hardreset
+Send the HARD RESET command to the phy.
+.It disable
+Send the DISABLE command to the phy.
+Note that the LINK RESET or HARD RESET commands should re-enable the phy.
+.It clearerrorlog
+Send the CLEAR ERROR LOG command.
+This clears the error log counters for the specified phy.
+.It clearaffiliation
+Send the CLEAR AFFILIATION command.
+This clears the affiliation from the STP initiator port with the same SAS
+address as the SMP initiator that requests the clear operation.
+.It sataportsel
+Send the TRANSMIT SATA PORT SELECTION SIGNAL command to the phy.
+This will cause a SATA port selector to use the given phy as its active phy
+and make the other phy inactive.
+.It clearitnl
+Send the CLEAR STP I_T NEXUS LOSS command to the PHY.
+.It setdevname
+Send the SET ATTACHED DEVICE NAME command to the PHY.
+This requires the
+.Fl d
+argument to specify the device name.
+.El
+.It Fl d Ar name
+Specify the attached device name.
+This option is needed with the
+.Fl o Ar setdevname
+phy operation.
+The name is a 64-bit number, and can be specified in decimal, hexadecimal
+or octal format.
+.It Fl m Ar rate
+Set the minimum physical link rate for the phy.
+This is a numeric argument.
+Currently known link rates are:
+.Bl -tag -width 5n
+.It 0x0
+Do not change current value.
+.It 0x8
+1.5 Gbps
+.It 0x9
+3 Gbps
+.It 0xa
+6 Gbps
+.El
+.Pp
+Other values may be specified for newer physical link rates.
+.It Fl M Ar rate
+Set the maximum physical link rate for the phy.
+This is a numeric argument.
+See the
+.Fl m
+argument description for known link rate arguments.
+.It Fl T Ar pp_timeout
+Set the partial pathway timeout value, in microseconds.
+See the
+.Tn ANSI
+.Tn SAS
+Protcol Layer (SPL)
+specification for more information on this field.
+.It Fl a Ar enable|disable
+Enable or disable SATA slumber phy power conditions.
+.It Fl A Ar enable|disable
+Enable or disable SATA partial power conditions.
+.It Fl s Ar enable|disable
+Enable or disable SAS slumber phy power conditions.
+.It Fl S Ar enable|disable
+Enable or disable SAS partial phy power conditions.
+.El
+.It Ic smpphylist
+List phys attached to a SAS expander, the address of the end device
+attached to the phy, and the inquiry data for that device and peripheral
+devices attached to that device.
+The inquiry data and peripheral devices are displayed if available.
+.Bl -tag -width 5n
+.It Fl l
+Turn on the long response format for the underlying SMP commands used for
+this command.
+.It Fl q
+Only print out phys that are attached to a device in the CAM EDT (Existing
+Device Table).
+.El
+.It Ic smpmaninfo
+Send the SMP Report Manufacturer Information command to the device and
+display the response.
+.Bl -tag -width 5n
+.It Fl l
+Turn on the long response format for the underlying SMP commands used for
+this command.
 .El
 .It Ic debug
 Turn on CAM debugging printfs in the kernel.
@@ -800,7 +1005,6 @@ The
 and
 .Fl y
 arguments can be useful for scripts.
-.Pp
 .Bl -tag -width 6n
 .It Fl q
 Be quiet, do not print any status messages.
@@ -846,11 +1050,13 @@ will not be asked about the timeout if a timeout is specified on the
 command line.
 .El
 .It Ic idle
-Put ATA device into IDLE state. Optional parameter specifies automatic
-idle timer value in seconds.
+Put ATA device into IDLE state. Optional parameter
+.Pq Fl t
+specifies automatic standby timer value in seconds. Value 0 disables timer.
 .It Ic standby
-Put ATA device into STANDBY state. Optional parameter specifies automatic
-standby timer value in seconds.
+Put ATA device into STANDBY state. Optional parameter
+.Pq Fl t
+specifies automatic standby timer value in seconds. Value 0 disables timer.
 .It Ic sleep
 Put ATA device into SLEEP state. Note that the only way get device out of
 this state may be reset.
@@ -891,7 +1097,6 @@ utility will report whether the disk is ready, but will not display sense
 information if the command fails since the
 .Fl v
 switch was not specified.
-.Pp
 .Bd -literal -offset indent
 camcontrol tur da1 -E -C 4 -t 50 -v
 .Ed
@@ -918,7 +1123,6 @@ Display the buffer size of cd1,
 and display the first 10 bytes from the cache on cd1.
 Display SCSI sense
 information if the command fails.
-.Pp
 .Bd -literal -offset indent
 camcontrol cmd -n cd -u 1 -v -c "3B 00 00 00 00 00 00 00 0e 00" \e
 	-o 14 "00 00 00 00 1 2 3 4 5 6 v v v v" 7 8 9 8
@@ -931,7 +1135,6 @@ Print out sense information if
 the command fails.
 Be very careful with this command, improper use may
 cause data corruption.
-.Pp
 .Bd -literal -offset indent
 camcontrol modepage da3 -m 1 -e -P 3
 .Ed
@@ -958,13 +1161,11 @@ changed.
 .Dl camcontrol tags da5 -N 24
 .Pp
 Set the number of concurrent transactions for da5 to 24.
-.Pp
 .Bd -literal -offset indent
 camcontrol negotiate -n da -u 4 -T disable
 .Ed
 .Pp
 Disable tagged queueing for da4.
-.Pp
 .Bd -literal -offset indent
 camcontrol negotiate -n da -u 3 -R 20.000 -O 15 -a
 .Ed
@@ -972,6 +1173,14 @@ camcontrol negotiate -n da -u 3 -R 20.000 -O 15 -a
 Negotiate a sync rate of 20MHz and an offset of 15 with da3.
 Then send a
 Test Unit Ready command to make the settings take effect.
+.Pp
+.Bd -literal -offset indent
+camcontrol smpcmd ses0 -v -r 4 "40 0 00 0" -R 1020 "s9 i1"
+.Ed
+.Pp
+Send the SMP REPORT GENERAL command to ses0, and display the number of PHYs
+it contains.
+Display SMP errors if the command fails.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,

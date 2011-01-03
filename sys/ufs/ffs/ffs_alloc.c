@@ -80,8 +80,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/taskqueue.h>
 
 #include <security/audit/audit.h>
+
+#include <geom/geom.h>
 
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/extattr.h>
@@ -92,6 +95,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
+#include <ufs/ffs/softdep.h>
 
 typedef ufs2_daddr_t allocfcn_t(struct inode *ip, u_int cg, ufs2_daddr_t bpref,
 				  int size, int rsize);
@@ -99,6 +103,11 @@ typedef ufs2_daddr_t allocfcn_t(struct inode *ip, u_int cg, ufs2_daddr_t bpref,
 static ufs2_daddr_t ffs_alloccg(struct inode *, u_int, ufs2_daddr_t, int, int);
 static ufs2_daddr_t
 	      ffs_alloccgblk(struct inode *, struct buf *, ufs2_daddr_t, int);
+static void	ffs_blkfree_cg(struct ufsmount *, struct fs *,
+		    struct vnode *, ufs2_daddr_t, long, ino_t,
+		    struct workhead *);
+static void	ffs_blkfree_trim_completed(struct bio *);
+static void	ffs_blkfree_trim_task(void *ctx, int pending __unused);
 #ifdef INVARIANTS
 static int	ffs_checkblk(struct inode *, ufs2_daddr_t, long);
 #endif
@@ -191,11 +200,6 @@ retry:
 	bno = ffs_hashalloc(ip, cg, bpref, size, size, ffs_alloccg);
 	if (bno > 0) {
 		delta = btodb(size);
-		if (ip->i_flag & IN_SPACECOUNTED) {
-			UFS_LOCK(ump);
-			fs->fs_pendingblocks += delta;
-			UFS_UNLOCK(ump);
-		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
 			ip->i_flag |= IN_CHANGE;
@@ -321,11 +325,6 @@ retry:
 		if (bp->b_blkno != fsbtodb(fs, bno))
 			panic("ffs_realloccg: bad blockno");
 		delta = btodb(nsize - osize);
-		if (ip->i_flag & IN_SPACECOUNTED) {
-			UFS_LOCK(ump);
-			fs->fs_pendingblocks += delta;
-			UFS_UNLOCK(ump);
-		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
 			ip->i_flag |= IN_CHANGE;
@@ -394,11 +393,6 @@ retry:
 			ffs_blkfree(ump, fs, ip->i_devvp, bprev, (long)osize,
 			    ip->i_number, NULL);
 		delta = btodb(nsize - osize);
-		if (ip->i_flag & IN_SPACECOUNTED) {
-			UFS_LOCK(ump);
-			fs->fs_pendingblocks += delta;
-			UFS_UNLOCK(ump);
-		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
 			ip->i_flag |= IN_CHANGE;
@@ -1846,8 +1840,8 @@ gotit:
  * free map. If a fragment is deallocated, a possible
  * block reassembly is checked.
  */
-void
-ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
+static void
+ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	struct ufsmount *ump;
 	struct fs *fs;
 	struct vnode *devvp;
@@ -1977,6 +1971,95 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
 		softdep_setup_blkfree(UFSTOVFS(ump), bp, bno,
 		    numfrags(fs, size), dephd);
 	bdwrite(bp);
+}
+
+TASKQUEUE_DEFINE_THREAD(ffs_trim);
+
+struct ffs_blkfree_trim_params {
+	struct task task;
+	struct ufsmount *ump;
+	struct vnode *devvp;
+	ufs2_daddr_t bno;
+	long size;
+	ino_t inum;
+	struct workhead *pdephd;
+	struct workhead dephd;
+};
+
+static void
+ffs_blkfree_trim_task(ctx, pending)
+	void *ctx;
+	int pending;
+{
+	struct ffs_blkfree_trim_params *tp;
+
+	tp = ctx;
+	ffs_blkfree_cg(tp->ump, tp->ump->um_fs, tp->devvp, tp->bno, tp->size,
+	    tp->inum, tp->pdephd);
+	vn_finished_secondary_write(UFSTOVFS(tp->ump));
+	free(tp, M_TEMP);
+}
+
+static void
+ffs_blkfree_trim_completed(bip)
+	struct bio *bip;
+{
+	struct ffs_blkfree_trim_params *tp;
+
+	tp = bip->bio_caller2;
+	g_destroy_bio(bip);
+	TASK_INIT(&tp->task, 0, ffs_blkfree_trim_task, tp);
+	taskqueue_enqueue(taskqueue_ffs_trim, &tp->task);
+}
+
+void
+ffs_blkfree(ump, fs, devvp, bno, size, inum, dephd)
+	struct ufsmount *ump;
+	struct fs *fs;
+	struct vnode *devvp;
+	ufs2_daddr_t bno;
+	long size;
+	ino_t inum;
+	struct workhead *dephd;
+{
+	struct mount *mp;
+	struct bio *bip;
+	struct ffs_blkfree_trim_params *tp;
+
+	if (!ump->um_candelete) {
+		ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd);
+		return;
+	}
+
+	/*
+	 * Postpone the set of the free bit in the cg bitmap until the
+	 * BIO_DELETE is completed.  Otherwise, due to disk queue
+	 * reordering, TRIM might be issued after we reuse the block
+	 * and write some new data into it.
+	 */
+	tp = malloc(sizeof(struct ffs_blkfree_trim_params), M_TEMP, M_WAITOK);
+	tp->ump = ump;
+	tp->devvp = devvp;
+	tp->bno = bno;
+	tp->size = size;
+	tp->inum = inum;
+	if (dephd != NULL) {
+		LIST_INIT(&tp->dephd);
+		LIST_SWAP(dephd, &tp->dephd, worklist, wk_list);
+		tp->pdephd = &tp->dephd;
+	} else
+		tp->pdephd = NULL;
+
+	bip = g_alloc_bio();
+	bip->bio_cmd = BIO_DELETE;
+	bip->bio_offset = dbtob(fsbtodb(fs, bno));
+	bip->bio_done = ffs_blkfree_trim_completed;
+	bip->bio_length = size;
+	bip->bio_caller2 = tp;
+
+	mp = UFSTOVFS(ump);
+	vn_start_secondary_write(NULL, &mp, 0);
+	g_io_request(bip, (struct g_consumer *)devvp->v_bufobj.bo_private);
 }
 
 #ifdef INVARIANTS
@@ -2422,11 +2505,6 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
 		ip = VTOI(vp);
-		if (ip->i_flag & IN_SPACECOUNTED) {
-			UFS_LOCK(ump);
-			fs->fs_pendingblocks += cmd.size;
-			UFS_UNLOCK(ump);
-		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + cmd.size);
 		ip->i_flag |= IN_CHANGE;
 		vput(vp);

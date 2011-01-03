@@ -175,7 +175,8 @@ print_stream(struct stream *s)
  * Parse rcsfile from path and return a pointer to it.
  */
 struct rcsfile *
-rcsfile_frompath(char *path, char *name, char *cvsroot, char *colltag, int ro)
+rcsfile_frompath(const char *path, const char *name, const char *cvsroot,
+    const char *colltag, int ro)
 {
 	struct rcsfile *rf;
 	FILE *infp;

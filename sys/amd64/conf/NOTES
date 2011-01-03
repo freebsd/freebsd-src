@@ -11,6 +11,12 @@
 # We want LINT to cover profiling as well.
 profile         2
 
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
 
 #####################################################################
 # SMP OPTIONS:
@@ -29,6 +35,11 @@ device		mptable			# Optional MPSPEC mptable support
 # Watchdog routines.
 #
 options 	MP_WATCHDOG
+
+# Debugging options.
+#
+options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
+options 	COUNT_IPIS		# Per-CPU IPI interrupt counters
 
 
 
@@ -317,6 +328,7 @@ device		wpi
 #   iwn5000fw:		Specific module for the 5000 only
 #   iwn5150fw:		Specific module for the 5150 only
 #   iwn6000fw:		Specific module for the 6000 only
+#   iwn6050fw:		Specific module for the 6050 only
 # mwlfw:	Marvell 88W8363 firmware
 # wpifw:	Intel 3945ABG Wireless LAN Controller firmware
 
@@ -334,6 +346,7 @@ device		iwn1000fw
 device		iwn5000fw
 device		iwn5150fw
 device		iwn6000fw
+device		iwn6050fw
 device		mwlfw
 device		wpifw
 
@@ -408,6 +421,7 @@ options 	SAFE_RNDTEST	# enable rndtest support
 # vpd: Vital Product Data kernel interface
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card
+# tpm: Trusted Platform Module
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -423,6 +437,7 @@ device		smbios
 device		vpd
 device		asmc
 #device		si
+device		tpm
 
 #
 # Laptop/Notebook options:

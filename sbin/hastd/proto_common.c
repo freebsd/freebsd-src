@@ -42,8 +42,7 @@ __FBSDID("$FreeBSD$");
 
 /* Maximum size of packet we want to use when sending data. */
 #ifndef MAX_SEND_SIZE
-//#define	MAX_SEND_SIZE	32768
-#define	MAX_SEND_SIZE	131072
+#define	MAX_SEND_SIZE	32768
 #endif
 
 int

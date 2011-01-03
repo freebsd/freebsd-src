@@ -220,6 +220,11 @@ DEFINE_TEST(test_acl_freebsd)
 		skipping("ACL tests require that ACL support be enabled on the filesystem");
 		return;
 	}
+	if (n != 0 && errno == EINVAL) {
+		close(fd);
+		skipping("POSIX.1e ACL tests require that POSIX.1e ACL support be enabled on the filesystem");
+		return;
+	}
 	failure("acl_set_fd(): errno = %d (%s)",
 	    errno, strerror(errno));
 	assertEqualInt(0, n);

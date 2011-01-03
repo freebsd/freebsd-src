@@ -42,25 +42,18 @@
 #include <sys/resource.h>
 #include <machine/pcpu.h>
 
+#define	DPCPU_SETNAME		"set_pcpu"
+#define	DPCPU_SYMPREFIX		"pcpu_entry_"
+
+#ifdef _KERNEL
+
 /*
  * Define a set for pcpu data.
- * 
- * We don't use SET_DECLARE because it defines the set as 'a' when we
- * want 'aw'.  gcc considers uninitialized data in a separate section
- * writable, and there is no generic zero initializer that works for
- * structs and scalars.
  */
 extern uintptr_t *__start_set_pcpu;
+__GLOBL(__start_set_pcpu);
 extern uintptr_t *__stop_set_pcpu;
-
-__asm__(
-#ifdef __arm__
-	".section set_pcpu, \"aw\", %progbits\n"
-#else
-	".section set_pcpu, \"aw\", @progbits\n"
-#endif
-	"\t.p2align " __XSTRING(CACHE_LINE_SHIFT) "\n"
-	"\t.previous");
+__GLOBL(__stop_set_pcpu);
 
 /*
  * Array of dynamic pcpu base offsets.  Indexed by id.
@@ -82,7 +75,7 @@ extern uintptr_t dpcpu_off[];
  */
 #define	DPCPU_NAME(n)		pcpu_entry_##n
 #define	DPCPU_DECLARE(t, n)	extern t DPCPU_NAME(n)
-#define	DPCPU_DEFINE(t, n)	t DPCPU_NAME(n) __section("set_pcpu") __used
+#define	DPCPU_DEFINE(t, n)	t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
 
 /*
  * Accessors with a given base.
@@ -105,6 +98,43 @@ extern uintptr_t dpcpu_off[];
 #define	DPCPU_ID_PTR(i, n)	_DPCPU_PTR(dpcpu_off[(i)], n)
 #define	DPCPU_ID_GET(i, n)	(*DPCPU_ID_PTR(i, n))
 #define	DPCPU_ID_SET(i, n, v)	(*DPCPU_ID_PTR(i, n) = v)
+
+/*
+ * Utility macros.
+ */
+#define	DPCPU_SUM(n) __extension__					\
+({									\
+	u_int _i;							\
+	__typeof(*DPCPU_PTR(n)) sum;					\
+									\
+	sum = 0;							\
+	CPU_FOREACH(_i) {						\
+		sum += *DPCPU_ID_PTR(_i, n);				\
+	}								\
+	sum;								\
+})
+
+#define	DPCPU_VARSUM(n, var) __extension__				\
+({									\
+	u_int _i;							\
+	__typeof((DPCPU_PTR(n))->var) sum;				\
+									\
+	sum = 0;							\
+	CPU_FOREACH(_i) {						\
+		sum += (DPCPU_ID_PTR(_i, n))->var;			\
+	}								\
+	sum;								\
+})
+
+#define	DPCPU_ZERO(n) do {						\
+	u_int _i;							\
+									\
+	CPU_FOREACH(_i) {						\
+		bzero(DPCPU_ID_PTR(_i, n), sizeof(*DPCPU_PTR(n)));	\
+	}								\
+} while(0)
+
+#endif /* _KERNEL */
 
 /* 
  * XXXUPS remove as soon as we have per cpu variable
@@ -143,6 +173,8 @@ struct pcpu {
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
 	struct device	*pc_device;
 	void		*pc_netisr;		/* netisr SWI cookie */
+	int		pc_dnweight;		/* vm_page_dontneed() */
+	int		pc_domain;		/* Memory domain. */
 
 	/*
 	 * Stuff for read mostly lock

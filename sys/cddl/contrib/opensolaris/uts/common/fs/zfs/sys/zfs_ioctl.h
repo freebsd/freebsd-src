@@ -118,7 +118,7 @@ typedef struct zinject_record {
 	uint32_t	zi_error;
 	uint64_t	zi_type;
 	uint32_t	zi_freq;
-	uint32_t	zi_pad;	/* pad out to 64 bit alignment */
+	uint32_t	zi_failfast;
 } zinject_record_t;
 
 #define	ZINJECT_NULL		0x1
@@ -168,6 +168,13 @@ typedef struct zfs_cmd {
 	struct drr_begin zc_begin_record;
 	zinject_record_t zc_inject_record;
 } zfs_cmd_t;
+
+typedef struct zfs_useracct {
+	char zu_domain[256];
+	uid_t zu_rid;
+	uint32_t zu_pad;
+	uint64_t zu_space;
+} zfs_useracct_t;
 
 #define	ZVOL_MAX_MINOR	(1 << 16)
 #define	ZFS_MIN_MINOR	(ZVOL_MAX_MINOR + 1)

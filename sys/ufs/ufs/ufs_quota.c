@@ -522,8 +522,8 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
-	VOP_UNLOCK(vp, 0);
 	if (vp->v_type != VREG) {
+		VOP_UNLOCK(vp, 0);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EACCES);
@@ -532,6 +532,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	UFS_LOCK(ump);
 	if ((ump->um_qflags[type] & (QTF_OPENING|QTF_CLOSING)) != 0) {
 		UFS_UNLOCK(ump);
+		VOP_UNLOCK(vp, 0);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (EALREADY);
@@ -539,6 +540,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	ump->um_qflags[type] |= QTF_OPENING|QTF_CLOSING;
 	UFS_UNLOCK(ump);
 	if ((error = dqopen(vp, ump, type)) != 0) {
+		VOP_UNLOCK(vp, 0);
 		UFS_LOCK(ump);
 		ump->um_qflags[type] &= ~(QTF_OPENING|QTF_CLOSING);
 		UFS_UNLOCK(ump);
@@ -546,6 +548,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
+	VOP_UNLOCK(vp, 0);
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_QUOTA;
 	MNT_IUNLOCK(mp);
@@ -1169,8 +1172,9 @@ dqopen(struct vnode *vp, struct ufsmount *ump, int type)
 	struct dqhdr64 dqh;
 	struct iovec aiov;
 	struct uio auio;
-	int error, vfslocked;
+	int error;
 
+	ASSERT_VOP_LOCKED(vp, "dqopen");
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = &dqh;
@@ -1180,9 +1184,7 @@ dqopen(struct vnode *vp, struct ufsmount *ump, int type)
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = (struct thread *)0;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	error = VOP_READ(vp, &auio, 0, ump->um_cred[type]);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	if (error != 0)
 		return (error);

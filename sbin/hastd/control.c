@@ -32,17 +32,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <signal.h>
 
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "hast.h"
 #include "hastd.h"
 #include "hast_proto.h"
+#include "hooks.h"
 #include "nv.h"
 #include "pjdlog.h"
 #include "proto.h"
@@ -50,19 +52,33 @@ __FBSDID("$FreeBSD$");
 
 #include "control.h"
 
-static void
-control_set_role(struct hastd_config *cfg, struct nv *nvout, uint8_t role,
-    struct hast_resource *res, const char *name, unsigned int no)
+void
+child_cleanup(struct hast_resource *res)
 {
 
-	assert(cfg != NULL);
-	assert(nvout != NULL);
-	assert(name != NULL);
+	proto_close(res->hr_ctrl);
+	res->hr_ctrl = NULL;
+	if (res->hr_event != NULL) {
+		proto_close(res->hr_event);
+		res->hr_event = NULL;
+	}
+	res->hr_workerpid = 0;
+}
+
+static void
+control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
+    uint8_t role, struct hast_resource *res, const char *name, unsigned int no)
+{
+	int oldrole;
 
 	/* Name is always needed. */
-	nv_add_string(nvout, name, "resource%u", no);
+	if (name != NULL)
+		nv_add_string(nvout, name, "resource%u", no);
 
 	if (res == NULL) {
+		assert(cfg != NULL);
+		assert(name != NULL);
+
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (strcmp(res->hr_name, name) == 0)
 				break;
@@ -85,6 +101,7 @@ control_set_role(struct hastd_config *cfg, struct nv *nvout, uint8_t role,
 	pjdlog_info("Role changed to %s.", role2str(role));
 
 	/* Change role to the new one. */
+	oldrole = res->hr_role;
 	res->hr_role = role;
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 
@@ -106,13 +123,22 @@ control_set_role(struct hastd_config *cfg, struct nv *nvout, uint8_t role,
 			pjdlog_debug(1, "Worker process %u stopped.",
 			    (unsigned int)res->hr_workerpid);
 		}
-		res->hr_workerpid = 0;
+		child_cleanup(res);
 	}
 
 	/* Start worker process if we are changing to primary. */
 	if (role == HAST_ROLE_PRIMARY)
 		hastd_primary(res);
 	pjdlog_prefix_set("%s", "");
+	hook_exec(res->hr_exec, "role", res->hr_name, role2str(oldrole),
+	    role2str(res->hr_role), NULL);
+}
+
+void
+control_set_role(struct hast_resource *res, uint8_t role)
+{
+
+	control_set_role_common(NULL, NULL, role, res, NULL, 0);
 }
 
 static void
@@ -306,7 +332,7 @@ control_handle(struct hastd_config *cfg)
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			switch (cmd) {
 			case HASTCTL_SET_ROLE:
-				control_set_role(cfg, nvout, role, res,
+				control_set_role_common(cfg, nvout, role, res,
 				    res->hr_name, ii++);
 				break;
 			case HASTCTL_STATUS:
@@ -329,8 +355,8 @@ control_handle(struct hastd_config *cfg)
 				break;
 			switch (cmd) {
 			case HASTCTL_SET_ROLE:
-				control_set_role(cfg, nvout, role, NULL, str,
-				    ii);
+				control_set_role_common(cfg, nvout, role, NULL,
+				    str, ii);
 				break;
 			case HASTCTL_STATUS:
 				control_status(cfg, nvout, NULL, str, ii);
@@ -375,7 +401,8 @@ ctrl_thread(void *arg)
 				pthread_exit(NULL);
 			pjdlog_errno(LOG_ERR,
 			    "Unable to receive control message");
-			continue;
+			kill(getpid(), SIGTERM);
+			pthread_exit(NULL);
 		}
 		cmd = nv_get_uint8(nvin, "cmd");
 		if (cmd == 0) {

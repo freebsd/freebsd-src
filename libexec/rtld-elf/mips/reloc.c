@@ -41,13 +41,19 @@ __FBSDID("$FreeBSD$");
 #include "debug.h"
 #include "rtld.h"
 
+#ifdef __mips_n64
+#define	GOT1_MASK	0x8000000000000000UL
+#else
+#define	GOT1_MASK	0x80000000UL
+#endif
+
 void
 init_pltgot(Obj_Entry *obj)
 {
 	if (obj->pltgot != NULL) {
 		obj->pltgot[0] = (Elf_Addr) &_rtld_bind_start;
-		/* XXX only if obj->pltgot[1] & 0x80000000 ?? */
-		obj->pltgot[1] |= (Elf_Addr) obj;
+		if (obj->pltgot[1] & 0x80000000)
+			obj->pltgot[1] = (Elf_Addr) obj | GOT1_MASK;
 	}
 }
 
@@ -64,12 +70,12 @@ void _rtld_relocate_nonplt_self(Elf_Dyn *, Elf_Addr);
  * It is possible for the compiler to emit relocations for unaligned data.
  * We handle this situation with these inlines.
  */
-#if ELFSIZE == 64
+#ifdef __mips_n64
 /*
  * ELF64 MIPS encodes the relocs uniquely.  The first 32-bits of info contain
  * the symbol index.  The top 32-bits contain three relocation types encoded
  * in big-endian integer with first relocation in LSB.  This means for little
- * endian we have to byte swap that interger (r_type).
+ * endian we have to byte swap that integer (r_type).
  */
 #define	Elf_Sxword			Elf64_Sxword
 #define	ELF_R_NXTTYPE_64_P(r_type)	((((r_type) >> 8) & 0xff) == R_TYPE(64))
@@ -90,7 +96,7 @@ load_ptr(void *where, size_t len)
 	Elf_Sxword val;
 
 	if (__predict_true(((uintptr_t)where & (len - 1)) == 0)) {
-#if ELFSIZE == 64
+#ifdef __mips_n64
 		if (len == sizeof(Elf_Sxword))
 			return *(Elf_Sxword *)where;
 #endif
@@ -111,7 +117,7 @@ static __inline void
 store_ptr(void *where, Elf_Sxword val, size_t len)
 {
 	if (__predict_true(((uintptr_t)where & (len - 1)) == 0)) {
-#if ELFSIZE == 64
+#ifdef __mips_n64
 		if (len == sizeof(Elf_Sxword)) {
 			*(Elf_Sxword *)where = val;
 			return;
@@ -165,7 +171,7 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 		}
 	}
 
-	i = (got[1] & 0x80000000) ? 2 : 1;
+	i = (got[1] & GOT1_MASK) ? 2 : 1;
 	/* Relocate the local GOT entries */
 	got += i;
 	for (; i < local_gotno; i++) {
@@ -197,7 +203,7 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 				: sizeof(Elf_Sword);
 			Elf_Sxword old = load_ptr(where, rlen);
 			Elf_Sxword val = old;
-#if ELFSIZE == 64
+#ifdef __mips_n64
 			assert(r_type == R_TYPE(REL32)
 			    || r_type == (R_TYPE(REL32)|(R_TYPE(64) << 8)));
 #endif
@@ -232,7 +238,8 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
         const Obj_Entry *defobj;
         Elf_Addr target;
 
-        def = find_symdef(reloff, obj, &defobj, SYMLOOK_IN_PLT, NULL);
+        def = find_symdef(reloff, obj, &defobj, SYMLOOK_IN_PLT, NULL,
+	    NULL);
         if (def == NULL)
 		_rtld_error("bind failed no symbol");
 
@@ -247,7 +254,7 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 }
 
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 {
 	const Elf_Rel *rel;
 	const Elf_Rel *rellim;
@@ -272,7 +279,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	dbg("%s: broken=%d", obj->path, broken);
 #endif
 
-	i = (got[1] & 0x80000000) ? 2 : 1;
+	i = (got[1] & GOT1_MASK) ? 2 : 1;
 
 	/* Relocate the local GOT entries */
 	got += i;
@@ -306,7 +313,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 			 * to 0 if there are non-PLT references, but older
 			 * versions of GNU ld do not do this.
 			 */
-			def = find_symdef(i, obj, &defobj, false, NULL);
+			def = find_symdef(i, obj, &defobj, false, NULL,
+			    lockstate);
 			if (def == NULL)
 				return -1;
 			*got = def->st_value + (Elf_Addr)defobj->relocbase;
@@ -347,7 +355,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 			}
 		} else {
 			/* TODO: add cache here */
-			def = find_symdef(i, obj, &defobj, false, NULL);
+			def = find_symdef(i, obj, &defobj, false, NULL,
+			    lockstate);
 			if (def == NULL) {
 				dbg("Warning4, cant find symbole %d", i);
 				return -1;
@@ -481,7 +490,7 @@ reloc_plt(Obj_Entry *obj)
  * LD_BIND_NOW was set - force relocation for all jump slots
  */
 int
-reloc_jmpslots(Obj_Entry *obj)
+reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 {
 	/* Do nothing */
 	obj->jmpslots_done = true;

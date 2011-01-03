@@ -1480,7 +1480,7 @@ static const struct avr32dci_config_desc avr32dci_confd = {
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
 		.bInterfaceSubClass = UISUBCLASS_HUB,
-		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
+		.bInterfaceProtocol = 0,
 	},
 	.endpd = {
 		.bLength = sizeof(struct usb_endpoint_descriptor),

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2010
+.Dd August 29, 2010
 .Dt GSCHED 8
 .Os
 .Sh NAME
@@ -92,12 +92,11 @@ which in turn forwards requests to the existing geom.
 This operation allows one to start/stop a scheduling service
 on an already existing provider.
 .Pp
-A subsequent 'destroy' will remove the newly created geom and
+A subsequent "destroy" will remove the newly created geom and
 hook the provider back to the original geom.
-.Ar algorithm
 .It Cm configure
 Configure existing scheduling provider.  It supports the same options
-as the 
+as the
 .Nm create
 command.
 .It Cm destroy
@@ -136,16 +135,16 @@ maximum amount of debug information is printed.
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 The following example shows how to create a scheduling provider for disk
-.Pa /dev/da0
-, and how to destroy it.
+.Pa /dev/ad0 ,
+and how to destroy it.
 .Bd -literal -offset indent
 # Load the geom_sched module:
 kldload geom_sched
 # Load some scheduler classes used by geom_sched:
 kldload gsched_rr gsched_as
-# Configure device ad0 to use scheduler 'rr':
-geom sched insert -s rr ad0
-# Now provider ad0 uses the 'rr' algorithm;
+# Configure device ad0 to use scheduler "rr":
+geom sched insert -a rr ad0
+# Now provider ad0 uses the "rr" algorithm;
 # the new geom is ad0.sched.
 # Remove the scheduler on the device:
 geom sched destroy -v ad0.sched.
@@ -157,7 +156,8 @@ geom sched destroy -v ad0.sched.
 .Sh HISTORY
 The
 .Nm
-utility appeared in April 2010.
+utility first appeared in
+.Fx 8.1 .
 .Sh AUTHORS
 .An Fabio Checconi Aq fabio@FreeBSD.org
 .An Luigi Rizzo Aq luigi@FreeBSD.org

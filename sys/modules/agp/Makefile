@@ -4,15 +4,18 @@
 
 KMOD=	agp
 SRCS=	agp.c agp_if.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	agp_i810.c agp_intel.c agp_via.c agp_sis.c agp_ali.c agp_amd.c \
 	agp_nvidia.c agp_ati.c
 .endif
 .if ${MACHINE} == "i386"
 SRCS+=	agp_amd64.c
 .endif
-.if  ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	agp_amd64.c agp_i810.c agp_via.c
+.endif
+.if ${MACHINE_CPUARCH} == "powerpc"
+SRCS+=  agp_apple.c
 .endif
 SRCS+=	device_if.h bus_if.h agp_if.h pci_if.h
 SRCS+=	opt_agp.h opt_bus.h

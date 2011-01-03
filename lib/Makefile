@@ -34,6 +34,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libbsm \
 	libauditd \
 	libcom_err \
+	libcompiler_rt \
 	libcrypt \
 	libelf \
 	libkvm \
@@ -53,6 +54,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libarchive \
 	${_libatm} \
 	libbegemot \
+	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
 	libbz2 \
@@ -76,6 +78,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
+	liblzma \
 	libmagic \
 	libmemstat \
 	${_libmilter} \
@@ -87,8 +90,9 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libpcap \
 	${_libpkg} \
 	${_libpmc} \
-	libproc \
+	${_libproc} \
 	librt \
+	${_librtld_db} \
 	${_libsdp} \
 	${_libsm} \
 	${_libsmb} \
@@ -107,12 +111,15 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libwrap \
 	liby \
 	libz \
-	${_bind}
+	${_bind} \
+	${_clang}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
-.elif exists(${.CURDIR}/csu/${MACHINE_ARCH}/Makefile)
+.elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
 _csu=csu/${MACHINE_ARCH}
+.elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}/Makefile)
+_csu=csu/${MACHINE_CPUARCH}
 .else
 _csu=csu
 .endif
@@ -134,6 +141,10 @@ _libsdp=	libsdp
 
 .if ${MK_BSNMP} != "no"
 _libbsnmp=	libbsnmp
+.endif
+
+.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
+_clang=		clang
 .endif
 
 .if ${MK_GPIB} != "no"
@@ -161,32 +172,32 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
 _libsmb=	libsmb
 _libvgl=	libvgl
+_libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
-_libsmb=	libsmb
-_libvgl=	libvgl
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _libsmb=	libsmb
 .endif
 

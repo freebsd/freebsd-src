@@ -3,9 +3,9 @@
 
 cd / || exit 3
 failures=0
-[ "$(PWD=foo sh -c 'pwd')" = / ] || : $((failures += 1))
-[ "$(PWD=/var/empty sh -c 'pwd')" = / ] || : $((failures += 1))
-[ "$(PWD=/var/empty/foo sh -c 'pwd')" = / ] || : $((failures += 1))
-[ "$(PWD=/bin/ls sh -c 'pwd')" = / ] || : $((failures += 1))
+[ "$(PWD=foo ${SH} -c 'pwd')" = / ] || : $((failures += 1))
+[ "$(PWD=/var/empty ${SH} -c 'pwd')" = / ] || : $((failures += 1))
+[ "$(PWD=/var/empty/foo ${SH} -c 'pwd')" = / ] || : $((failures += 1))
+[ "$(PWD=/bin/ls ${SH} -c 'pwd')" = / ] || : $((failures += 1))
 
 exit $((failures != 0))

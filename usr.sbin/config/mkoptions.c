@@ -77,12 +77,14 @@ options(void)
 	}	
 
 	if (maxusers == 0) {
-		/* printf("maxusers not specified; will auto-size\n"); */
+		/* fprintf(stderr, "maxusers not specified; will auto-size\n"); */
 	} else if (maxusers < users.u_min) {
-		printf("minimum of %d maxusers assumed\n", users.u_min);
+		fprintf(stderr, "minimum of %d maxusers assumed\n",
+		    users.u_min);
 		maxusers = users.u_min;
 	} else if (maxusers > users.u_max)
-		printf("warning: maxusers > %d (%d)\n", users.u_max, maxusers);
+		fprintf(stderr, "warning: maxusers > %d (%d)\n",
+		    users.u_max, maxusers);
 
 	/* Fake MAXUSERS as an option. */
 	op = (struct opt *)calloc(1, sizeof(*op));
@@ -94,11 +96,25 @@ options(void)
 	SLIST_INSERT_HEAD(&opt, op, op_next);
 
 	read_options();
+
+	/* Fake the value of MACHINE_ARCH as an option if necessary */
+	SLIST_FOREACH(ol, &otab, o_next) {
+		if (strcasecmp(ol->o_name, machinearch) != 0)
+			continue;
+
+		op = (struct opt *)calloc(1, sizeof(*op));
+		if (op == NULL)
+			err(EXIT_FAILURE, "calloc");
+		op->op_name = ns(ol->o_name);
+		SLIST_INSERT_HEAD(&opt, op, op_next);
+		break;
+	}
+
 	SLIST_FOREACH(op, &opt, op_next) {
 		SLIST_FOREACH(ol, &otab, o_next) {
 			if (eq(op->op_name, ol->o_name) &&
 			    (ol->o_flags & OL_ALIAS)) {
-				printf("Mapping option %s to %s.\n",
+				fprintf(stderr, "Mapping option %s to %s.\n",
 				    op->op_name, ol->o_file);
 				op->op_name = ol->o_file;
 				break;
@@ -109,7 +125,7 @@ options(void)
 		do_option(ol->o_name);
 	SLIST_FOREACH(op, &opt, op_next) {
 		if (!op->op_ownfile && strncmp(op->op_name, "DEV_", 4)) {
-			printf("%s: unknown option \"%s\"\n",
+			fprintf(stderr, "%s: unknown option \"%s\"\n",
 			       PREFIX, op->op_name);
 			exit(1);
 		}
@@ -146,7 +162,7 @@ do_option(char *name)
 			if (value == NULL)
 				value = ns("1");
 			if (oldvalue != NULL && !eq(value, oldvalue))
-				printf(
+				fprintf(stderr,
 			    "%s: option \"%s\" redefined from %s to %s\n",
 				   PREFIX, op->op_name, oldvalue,
 				   value);
@@ -204,12 +220,14 @@ do_option(char *name)
 			if (eq(inw, ol->o_name))
 				break;
 		if (!eq(inw, name) && !ol) {
-			printf("WARNING: unknown option `%s' removed from %s\n",
-				inw, file);
+			fprintf(stderr,
+			    "WARNING: unknown option `%s' removed from %s\n",
+			    inw, file);
 			tidy++;
 		} else if (ol != NULL && !eq(basefile, ol->o_file)) {
-			printf("WARNING: option `%s' moved from %s to %s\n",
-				inw, basefile, ol->o_file);
+			fprintf(stderr,
+			    "WARNING: option `%s' moved from %s to %s\n",
+			    inw, basefile, ol->o_file);
 			tidy++;
 		} else {
 			op = (struct opt *) calloc(1, sizeof *op);
@@ -298,8 +316,8 @@ check_duplicate(const char *fname, const char *this)
 
 	SLIST_FOREACH(po, &otab, o_next) {
 		if (eq(po->o_name, this)) {
-			printf("%s: Duplicate option %s.\n",
-			       fname, this);
+			fprintf(stderr, "%s: Duplicate option %s.\n",
+			    fname, this);
 			exit(1);
 		}
 	}
@@ -333,8 +351,11 @@ update_option(const char *this, char *val, int flags)
 			return;
 		}
 	}
-	printf("Compat option %s not listed in options file.\n", this);
-	exit(1);
+	/*
+	 * Option not found, but that's OK, we just ignore it since it
+	 * may be for another arch.
+	 */
+	return;
 }
 
 static int
@@ -361,8 +382,8 @@ read_option_file(const char *fname, int flags)
 			return (1);
 		if (val == 0) {
 			if (flags) {
-				printf("%s: compat file requires two words "
-				    "per line at %s\n", fname, this);
+				fprintf(stderr, "%s: compat file requires two"
+				    " words per line at %s\n", fname, this);
 				exit(1);
 			}
 			char *s = ns(this);

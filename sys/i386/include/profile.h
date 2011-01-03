@@ -77,17 +77,17 @@
 #error
 #endif /* !__GNUCLIKE_ASM */
 #else /* !GUPROF */
-#define	MCOUNT_DECL(s)	u_long s;
+#define	MCOUNT_DECL(s)	register_t s;
 #ifdef SMP
 extern int	mcount_lock;
-#define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); \
+#define	MCOUNT_ENTER(s)	{ s = intr_disable(); \
  			  while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1)) \
 			  	/* nothing */ ; }
 #define	MCOUNT_EXIT(s)	{ atomic_store_rel_int(&mcount_lock, 0); \
-			  write_eflags(s); }
+			  intr_restore(s); }
 #else
-#define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); }
-#define	MCOUNT_EXIT(s)	(write_eflags(s))
+#define	MCOUNT_ENTER(s)	{ s = intr_disable(); }
+#define	MCOUNT_EXIT(s)	(intr_restore(s))
 #endif
 #endif /* GUPROF */
 

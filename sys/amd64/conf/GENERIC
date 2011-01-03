@@ -55,14 +55,13 @@ options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
-options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
-options		FLOWTABLE		# per-cpu routing cache
+options 	FLOWTABLE		# per-cpu routing cache
 #options 	KDTRACE_FRAME		# Ensure frames are compiled in
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
@@ -77,6 +76,7 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options		ALT_BREAK_TO_DEBUGGER
+options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
@@ -119,6 +119,7 @@ device		hptiop		# Highpoint RocketRaid 3xxx series
 device		isp		# Qlogic family
 #device		ispfw		# Firmware for QLogic HBAs- normally a module
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		trm		# Tekram DC395U/UW/F DC315U adapters
@@ -302,6 +303,7 @@ device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 device		urio		# Diamond Rio 500 MP3 player
 # USB Serial devices
+device		u3g		# USB-based 3G modems (Option, Huawei, Sierra)
 device		uark		# Technologies ARK3116 based serial adapters
 device		ubsa		# Belkin F5U103 and compatible serial adapters
 device		uftdi		# For FTDI usb serial adapters

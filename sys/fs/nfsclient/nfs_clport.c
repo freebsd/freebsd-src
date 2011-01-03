@@ -230,9 +230,9 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	/*
 	 * NFS supports recursive and shared locking.
 	 */
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	VN_LOCK_AREC(vp);
 	VN_LOCK_ASHARE(vp);
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	error = insmntque(vp, mntp);
 	if (error != 0) {
 		*npp = NULL;
@@ -340,7 +340,6 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	struct nfsnode *np;
 	struct nfsmount *nmp;
 	struct timespec mtime_save;
-	struct thread *td = curthread;
 
 	/*
 	 * If v_type == VNON it is a new node, so fill in the v_type,
@@ -386,14 +385,6 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	else
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	np->n_attrstamp = time_second;
-	/* Timestamp the NFS otw getattr fetch */
-	if (td->td_proc) {
-		np->n_ac_ts_tid = td->td_tid;
-		np->n_ac_ts_pid = td->td_proc->p_pid;
-		np->n_ac_ts_syscalls = td->td_syscalls;
-	} else
-		bzero(&np->n_ac_ts, sizeof(struct nfs_attrcache_timestamp));
-	
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (dontshrink && vap->va_size < np->n_size) {
@@ -1275,4 +1266,7 @@ DECLARE_MODULE(nfscl, nfscl_mod, SI_SUB_VFS, SI_ORDER_FIRST);
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfscl, 1);
 MODULE_DEPEND(nfscl, nfscommon, 1, 1, 1);
+MODULE_DEPEND(nfscl, krpc, 1, 1, 1);
+MODULE_DEPEND(nfscl, nfssvc, 1, 1, 1);
+MODULE_DEPEND(nfscl, nfslock, 1, 1, 1);
 

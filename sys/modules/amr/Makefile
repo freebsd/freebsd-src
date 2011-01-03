@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../dev/amr
 
 SUBDIR= amr_cam
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SUBDIR+= amr_linux
 .endif
 

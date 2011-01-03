@@ -843,6 +843,7 @@ check_llbcast(struct mibif *ifp)
 	  case IFT_ETHER:
 	  case IFT_FDDI:
 	  case IFT_ISO88025:
+	  case IFT_L2VLAN:
 		if (mib_find_rcvaddr(ifp->index, ether_bcast, 6) == NULL &&
 		    (rcv = mib_rcvaddr_create(ifp, ether_bcast, 6)) != NULL)
 			rcv->flags |= MIBRCVADDR_BCAST;

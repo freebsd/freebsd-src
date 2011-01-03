@@ -1,0 +1,5 @@
+/* $FreeBSD$ */
+
+LLVM_DISASSEMBLER(X86)
+
+#undef LLVM_DISASSEMBLER

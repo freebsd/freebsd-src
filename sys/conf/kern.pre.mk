@@ -5,6 +5,9 @@
 
 .include <bsd.own.mk>
 
+# backwards compat option for older systems.
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
 KERNEL?=	kernel
@@ -12,7 +15,7 @@ KODIR?=		/boot/${KERNEL}
 LDSCRIPT_NAME?=	ldscript.$M
 LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 
-M=	${MACHINE_ARCH}
+M=	${MACHINE_CPUARCH}
 
 AWK?=		awk
 LINT?=		lint
@@ -20,17 +23,17 @@ NM?=		nm
 OBJCOPY?=	objcopy
 SIZE?=		size
 
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 COPTFLAGS?=	-O
 .else
 . if defined(DEBUG)
 _MINUS_O=	-O
 CTFFLAGS+=	-g
 . else
-_MINUS_O=	-O2
+_MINUS_O=	-O
 . endif
-. if ${MACHINE_ARCH} == "amd64"
-COPTFLAGS?=-O2 -frename-registers -pipe
+. if ${MACHINE_CPUARCH} == "amd64"
+COPTFLAGS?=-O -frename-registers -pipe
 . else
 COPTFLAGS?=${_MINUS_O} -pipe
 . endif
@@ -39,13 +42,13 @@ COPTFLAGS+= -fno-strict-aliasing
 . endif
 .endif
 .if !defined(NO_CPU_COPTFLAGS)
-. if ${CC} == "icc"
+. if ${CC:T:Micc} == "icc"
 COPTFLAGS+= ${_ICC_CPUCFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 . else
 COPTFLAGS+= ${_CPUCFLAGS}
 . endif
 .endif
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 C_DIALECT=
 NOSTDINC= -X
 .else
@@ -89,10 +92,19 @@ INCLUDES+= -I$S/dev/cxgb
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
-.if ${CC} != "icc"
+.if ${CC:T:Micc} != "icc"
+.if ${CC:T:Mclang} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
+.if ${MACHINE_CPUARCH} != "mips"
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
+.else
+# XXX Actually a gross hack just for Octeon because of the Simple Executive.
+CFLAGS+= --param inline-unit-growth=10000
+CFLAGS+= --param large-function-growth=100000
+CFLAGS+= --param max-inline-insns-single=10000
+.endif
+.endif
 WERROR?= -Werror
 .endif
 
@@ -100,8 +112,8 @@ WERROR?= -Werror
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-.if ${CC} == "icc"
-.error "Profiling doesn't work with icc yet"
+.if ${CC:T:Micc} == "icc" || ${CC:T:Mclang} == "clang"
+.error "Profiling doesn't work with icc or clang yet"
 .endif
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2
@@ -159,11 +171,15 @@ SYSTEM_DEP+= ${LDSCRIPT}
 # them.
 
 MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
+MKMODULESENV+=	MACHINE_CPUARCH=${MACHINE_CPUARCH}
 .if (${KERN_IDENT} == LINT)
 MKMODULESENV+=	ALL_MODULES=LINT
 .endif
 .if defined(MODULES_OVERRIDE)
 MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
+.endif
+.if defined(WITHOUT_MODULES)
+MKMODULESENV+=	WITHOUT_MODULES="${WITHOUT_MODULES}"
 .endif
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"

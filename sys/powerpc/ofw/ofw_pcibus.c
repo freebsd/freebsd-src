@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcireg.h>
@@ -192,20 +193,39 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 		pci_add_child(dev, (struct pci_devinfo *)dinfo);
 
 		/*
-                 * Some devices don't have an intpin set, but do have
-                 * interrupts. These are fully specified, and set in the
+		 * Some devices don't have an intpin set, but do have
+		 * interrupts. These are fully specified, and set in the
 		 * interrupts property, so add that value to the device's
 		 * resource list.
-                 */
-                if (dinfo->opd_dinfo.cfg.intpin == 0) {
-                        ofw_pci_intr_t intr;
+		 */
+		if (dinfo->opd_dinfo.cfg.intpin == 0) {
+			ofw_pci_intr_t intr[2];
+			phandle_t iparent;
+			int icells;
 
 			if (OF_getprop(child, "interrupts", &intr, 
 			    sizeof(intr)) > 0) {
-                                resource_list_add(&dinfo->opd_dinfo.resources,
-                                    SYS_RES_IRQ, 0, intr, intr, 1);
+				iparent = 0;
+				icells = 1;
+				OF_getprop(child, "interrupt-parent", &iparent,
+				    sizeof(iparent));
+				OF_getprop(iparent, "#interrupt-cells", &icells,
+				    sizeof(icells));
+
+				if (iparent != 0)
+					intr[0] = INTR_VEC(iparent, intr[0]);
+
+				if (iparent != 0 && icells > 1) {
+					powerpc_config_intr(intr[0],
+					    (intr[1] & 1) ? INTR_TRIGGER_LEVEL :
+					    INTR_TRIGGER_EDGE,
+					    INTR_POLARITY_LOW);
+				}
+
+				resource_list_add(&dinfo->opd_dinfo.resources,
+				    SYS_RES_IRQ, 0, intr[0], intr[0], 1);
 			}
-                }
+		}
 	}
 }
 
@@ -245,15 +265,27 @@ ofw_pcibus_enum_bus(device_t dev, u_int domain, u_int busno)
 
 			dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(
 			    pcib, domain, busno, s, f, sizeof(*dinfo));
-			if (dinfo != NULL) {
-				dinfo->opd_obdinfo.obd_node = -1;
+			if (dinfo == NULL)
+				continue;
 
-				dinfo->opd_obdinfo.obd_name = NULL;
-				dinfo->opd_obdinfo.obd_compat = NULL;
-				dinfo->opd_obdinfo.obd_type = NULL;
-				dinfo->opd_obdinfo.obd_model = NULL;
-				pci_add_child(dev, (struct pci_devinfo *)dinfo);
+			dinfo->opd_obdinfo.obd_node = -1;
+
+			dinfo->opd_obdinfo.obd_name = NULL;
+			dinfo->opd_obdinfo.obd_compat = NULL;
+			dinfo->opd_obdinfo.obd_type = NULL;
+			dinfo->opd_obdinfo.obd_model = NULL;
+
+			/*
+			 * For non OFW-devices, don't believe 0 
+			 * for an interrupt.
+			 */
+			if (dinfo->opd_dinfo.cfg.intline == 0) {
+				dinfo->opd_dinfo.cfg.intline = PCI_INVALID_IRQ;
+				PCIB_WRITE_CONFIG(pcib, busno, s, f, 
+				    PCIR_INTLINE, PCI_INVALID_IRQ, 1);
 			}
+
+			pci_add_child(dev, (struct pci_devinfo *)dinfo);
 		}
 	}
 }
@@ -276,7 +308,7 @@ static int
 ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 {
 	ofw_pci_intr_t intr;
-	phandle_t node;
+	phandle_t node, iparent;
 	int isz;
 
 	node = ofw_bus_get_node(child);
@@ -286,12 +318,12 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	
 		/*
 		 * XXX: Right now we don't have anything sensible to do here,
-		 * since the ofw_imap stuff relies on nodes have a reg
-		 * property. There exists ways around this, so the ePAPR
+		 * since the ofw_imap stuff relies on nodes having a reg
+		 * property. There exist ways around this, so the ePAPR
 		 * spec will need to be studied.
 		 */
 
-		return (0);
+		return (PCI_INVALID_IRQ);
 
 #ifdef NOTYET
 		intr = pci_get_intpin(child);
@@ -301,18 +333,29 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	}
 	
 	/*
+	 * Try to determine the node's interrupt parent so we know which
+	 * PIC to use.
+	 */
+
+	iparent = -1;
+	if (OF_getprop(node, "interrupt-parent", &iparent, sizeof(iparent)) < 0)
+		iparent = -1;
+	
+	/*
 	 * Any AAPL,interrupts property gets priority and is
 	 * fully specified (i.e. does not need routing)
 	 */
 
 	isz = OF_getprop(node, "AAPL,interrupts", &intr, sizeof(intr));
-	if (isz == sizeof(intr)) {
-		return (intr);
-	}
+	if (isz == sizeof(intr))
+		return ((iparent == -1) ? intr : INTR_VEC(iparent, intr));
 
 	isz = OF_getprop(node, "interrupts", &intr, sizeof(intr));
-	if (isz != sizeof(intr)) {
-		/* No property; our best guess is the intpin. */
+	if (isz == sizeof(intr)) {
+		if (iparent != -1)
+			intr = INTR_VEC(iparent, intr);
+	} else {
+		/* No property: our best guess is the intpin. */
 		intr = pci_get_intpin(child);
 	}
 	

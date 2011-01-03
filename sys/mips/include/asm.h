@@ -257,10 +257,6 @@ _C_LABEL(x):
 	EXPORT(x ## End);	\
 	END(x)
 
-#define	KSEG0TEXT_START
-#define	KSEG0TEXT_END
-#define	KSEG0TEXT	.text
-
 /*
  * Macros to panic and printf from assembly language.
  */
@@ -810,10 +806,11 @@ _C_LABEL(x):
  *       9	S7
  *       10	SP
  *       11	S8
- *       12	signal mask	(dependant on magic)
- *       13	(con't)
+ *       12	GP		(dependent on ABI)
+ *       13	signal mask	(dependant on magic)
  *       14	(con't)
  *       15	(con't)
+ *       16	(con't)
  *
  * The magic number number identifies the jmp_buf and
  * how the buffer was created as well as providing
@@ -838,9 +835,26 @@ _C_LABEL(x):
 #define _JB_REG_S7		9
 #define _JB_REG_SP		10
 #define _JB_REG_S8		11
+#if defined(__mips_n32) || defined(__mips_n64)
+#define	_JB_REG_GP		12
+#endif
 
 /* Only valid with the _JB_MAGIC_SETJMP magic */
 
-#define _JB_SIGMASK		12
+#define _JB_SIGMASK		13
 
+/*
+ * Various macros for dealing with TLB hazards
+ * (a) why so many?
+ * (b) when to use?
+ * (c) why not used everywhere?
+ */
+/*
+ * Assume that w alaways need nops to escape CP0 hazard
+ * TODO: Make hazard delays configurable. Stuck with 5 cycles on the moment
+ * For more info on CP0 hazards see Chapter 7 (p.99) of "MIPS32 Architecture 
+ *    For Programmers Volume III: The MIPS32 Privileged Resource Architecture"
+ */
+#define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
+#define	HAZARD_DELAY	nop;nop;nop;nop;nop;
 #endif /* !_MACHINE_ASM_H_ */

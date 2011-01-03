@@ -49,6 +49,7 @@ divert(-1)
 include(SRCDIR`/elf_types.m4')
 
 define(BYTE_SIZE,	1)
+define(GNUHASH_SIZE,	1)
 define(NOTE_SIZE,	1)
 
 /*

@@ -16,8 +16,16 @@ OBJ_ROOT= ${.OBJDIR}/../..
 OBJ_BU= ${OBJ_ROOT}/binutils
 OBJ_GDB= ${OBJ_ROOT}/gdb
 
-TARGET_ARCH?= ${MACHINE_ARCH}
-TARGET_SUBDIR= ${BMAKE_GDB}/arch/${TARGET_ARCH}
+# These assignments duplicate much of the functionality of
+# MACHINE_CPUARCH, but there's no easy way to export make functions...
+
+.if defined(TARGET_ARCH)
+TARGET_CPUARCH=${TARGET_ARCH:C/mipse[bl]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+.else
+TARGET_CPUARCH=${MACHINE_CPUARCH}
+.endif
+TARGET_ARCH?=	${MACHINE_ARCH}
+TARGET_SUBDIR= ${BMAKE_GDB}/arch/${TARGET_CPUARCH}
 
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 GDB_CROSS_DEBUGGER=
@@ -31,7 +39,7 @@ GDB_CROSS_DEBUGGER=
 CFLAGS+= -DHAVE_CONFIG_H -DRL_NO_COMPAT -DMI_OUT=1 -DTUI=1
 CFLAGS+= -I.
 CFLAGS+= -I${TARGET_SUBDIR}
-CFLAGS+= -I${BMAKE_BU}/libbfd -I${BMAKE_BU}/libbfd/${TARGET_ARCH}
+CFLAGS+= -I${BMAKE_BU}/libbfd -I${BMAKE_BU}/libbfd/${TARGET_CPUARCH}
 CFLAGS+= -I${CNTRB_GDB}/gdb
 CFLAGS+= -I${CNTRB_GDB}/gdb/config
 CFLAGS+= -I${CNTRB_GDB}/include

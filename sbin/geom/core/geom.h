@@ -28,7 +28,7 @@
 
 #ifndef _GEOM_H_
 #define	_GEOM_H_
-#define	G_LIB_VERSION	4
+#define	G_LIB_VERSION	5
 
 #define	G_FLAG_NONE	0x0000
 #define	G_FLAG_VERBOSE	0x0001
@@ -38,24 +38,30 @@
 #define	G_TYPE_BOOL	0x01
 #define	G_TYPE_STRING	0x02
 #define	G_TYPE_NUMBER	0x03
-#define	G_TYPE_ASCNUM	0x04
-#define	G_TYPE_ASCLBA	0x05
 #define	G_TYPE_MASK	0x0f
 #define	G_TYPE_DONE	0x10
+#define	G_TYPE_MULTI	0x20
+#define	G_TYPE_NUMMASK	0xff00
+#define	G_TYPE_NUMSHIFT	8
 
 #define	G_OPT_MAX	16
 #define	G_OPT_DONE(opt)		do { (opt)->go_type |= G_TYPE_DONE; } while (0)
 #define	G_OPT_ISDONE(opt)	((opt)->go_type & G_TYPE_DONE)
+#define	G_OPT_ISMULTI(opt)	((opt)->go_type & G_TYPE_MULTI)
 #define	G_OPT_TYPE(opt)		((opt)->go_type & G_TYPE_MASK)
+#define	G_OPT_NUM(opt)		(((opt)->go_type & G_TYPE_NUMMASK) >> G_TYPE_NUMSHIFT)
+#define	G_OPT_NUMINC(opt)	((opt)->go_type += (1 << G_TYPE_NUMSHIFT))
+
+#define	G_VAL_OPTIONAL	((void *)-1)
 
 #define G_OPT_SENTINEL	{ '\0', NULL, NULL, G_TYPE_NONE }
 #define G_NULL_OPTS	{ G_OPT_SENTINEL }
-#define	G_CMD_SENTINEL	{ NULL, 0, NULL, G_NULL_OPTS, NULL, NULL }
+#define	G_CMD_SENTINEL	{ NULL, 0, NULL, G_NULL_OPTS, NULL }
 
 struct g_option {
 	char		 go_char;
 	const char	*go_name;
-	void		*go_val;
+	const void	*go_val;
 	unsigned	 go_type;
 };
 
@@ -64,7 +70,6 @@ struct g_command {
 	unsigned	 gc_flags;
 	void		(*gc_func)(struct gctl_req *, unsigned);
 	struct g_option	gc_options[G_OPT_MAX];
-	const char	*gc_argname;
 	const char	*gc_usage;
 };
 #endif	/* !_GEOM_H_ */

@@ -57,7 +57,23 @@
 #define	MACHINE		"mips"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"mips"
+#if _BYTE_ORDER == _BIG_ENDIAN
+#ifdef __mips_n64
+#define	MACHINE_ARCH	"mips64eb"
+#elif defined(__mips_n32)
+#define	MACHINE_ARCH	"mipsn32eb"
+#else
+#define	MACHINE_ARCH	"mipseb"
+#endif
+#else
+#ifdef __mips_n64
+#define	MACHINE_ARCH	"mips64el"
+#elif defined(__mips_n32)
+#define	MACHINE_ARCH	"mipsn32el"
+#else
+#define	MACHINE_ARCH	"mipsel"
+#endif
+#endif
 #endif
 
 /*
@@ -70,7 +86,7 @@
 #define	MID_MACHINE	0	/* None but has to be defined */
 
 #ifdef SMP
-#define	MAXSMPCPU	16
+#define	MAXSMPCPU	32
 #define	MAXCPU		MAXSMPCPU
 #else
 #define	MAXSMPCPU	1
@@ -103,8 +119,23 @@
 #define	PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
 #define	PAGE_SIZE	(1<<PAGE_SHIFT) /* bytes/page */
 #define	PAGE_MASK	(PAGE_SIZE-1)
+
 #define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 #define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
+
+#if defined(__mips_n64)
+#define	SEGSHIFT	31		/* LOG2(NBSEG) */
+#define	NBSEG		(1ul << SEGSHIFT)	/* bytes/segment */
+#define	PDRSHIFT	22              /* second level */
+#define	PDRMASK		((1 << PDRSHIFT) - 1)
+#else
+#define	SEGSHIFT	22		/* LOG2(NBSEG) */
+#define	NBSEG		(1 << SEGSHIFT)	/* bytes/segment */
+#define	PDRSHIFT	SEGSHIFT	/* alias for SEG in 32 bit */
+#define	PDRMASK		((1 << PDRSHIFT) - 1)
+#endif
+#define	NBPDR		(1 << PDRSHIFT)	/* bytes/pagedir */
+#define	SEGMASK		(NBSEG-1)	/* byte offset into segment */
 
 #define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
 
@@ -114,7 +145,7 @@
 /*
  * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
  */
-#define	KSTACK_PAGES		2	/* kernel stack*/
+#define	KSTACK_PAGES		2	/* kernel stack */
 #define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
 
 #define	UPAGES			2

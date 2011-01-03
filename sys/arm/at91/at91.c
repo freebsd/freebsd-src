@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Olivier Houchard.  All rights reserved.
+ * Copyright (c) 2010 Greg Ansley.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,14 +44,23 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91var.h>
+#include <arm/at91/at91_pmcvar.h>
+#include <arm/at91/at91_aicreg.h>
 
 static struct at91_softc *at91_softc;
 
 static void at91_eoi(void *);
 
+extern const struct pmap_devmap at91_devmap[];
+
+uint32_t at91_chip_id;
+
+#ifdef AT91C_MASTER_CLOCK
 uint32_t at91_master_clock = AT91C_MASTER_CLOCK;
+#else
+uint32_t at91_master_clock;
+#endif
 
 static int
 at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
@@ -97,6 +107,19 @@ static void
 at91_barrier(void *t, bus_space_handle_t bsh, bus_size_t size, bus_size_t b, 
     int a)
 {
+}
+
+struct arm32_dma_range *
+bus_dma_get_range(void)
+{
+
+	return (NULL);
+}
+
+int
+bus_dma_get_range_nb(void)
+{
+	return (0);
 }
 
 bs_protos(generic);
@@ -212,6 +235,7 @@ struct bus_space at91_bs_tag = {
 static int
 at91_probe(device_t dev)
 {
+
 	device_set_desc(dev, "AT91 device bus");
 	arm_post_filter = at91_eoi;
 	return (0);
@@ -224,324 +248,38 @@ at91_identify(driver_t *drv, device_t parent)
 	BUS_ADD_CHILD(parent, 0, "atmelarm", 0);
 }
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-	return (0);
-}
-
-extern void irq_entry(void);
-
-static void
-at91_add_child(device_t dev, int prio, const char *name, int unit,
-    bus_addr_t addr, bus_size_t size, int irq0, int irq1, int irq2)
-{
-	device_t kid;
-	struct at91_ivar *ivar;
-
-	kid = device_add_child_ordered(dev, prio, name, unit);
-	if (kid == NULL) {
-	    printf("Can't add child %s%d ordered\n", name, unit);
-	    return;
-	}
-	ivar = malloc(sizeof(*ivar), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (ivar == NULL) {
-		device_delete_child(dev, kid);
-		printf("Can't add alloc ivar\n");
-		return;
-	}
-	device_set_ivars(kid, ivar);
-	resource_list_init(&ivar->resources);
-	if (irq0 != -1)
-		bus_set_resource(kid, SYS_RES_IRQ, 0, irq0, 1);
-	if (irq1 != 0)
-		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
-	if (irq2 != 0)
-		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
-	if (addr != 0)
-		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
-}
-
-struct cpu_devs
-{
-	const char *name;
-	int unit;
-	bus_addr_t mem_base;
-	bus_size_t mem_len;
-	int irq0;
-	int irq1;
-	int irq2;
-};
-
-struct cpu_devs at91rm9200_devs[] =
-{
-	// All the "system" devices
-	{
-		"at91_st", 0,
-		AT91RM92_BASE + AT91RM92_ST_BASE, AT91RM92_ST_SIZE,
-		AT91RM92_IRQ_SYSTEM
-	},
-	{
-		"at91_pio", 0,
-		AT91RM92_BASE + AT91RM92_PIOA_BASE, AT91RM92_PIO_SIZE,
-		AT91RM92_IRQ_SYSTEM
-	},
-	{
-		"at91_pio", 1,
-		AT91RM92_BASE + AT91RM92_PIOB_BASE, AT91RM92_PIO_SIZE,
-		AT91RM92_IRQ_SYSTEM
-	},
-	{
-		"at91_pio", 2,
-		AT91RM92_BASE + AT91RM92_PIOC_BASE, AT91RM92_PIO_SIZE,
-		AT91RM92_IRQ_SYSTEM
-	},
-	{
-		"at91_pio", 3,
-		AT91RM92_BASE + AT91RM92_PIOD_BASE, AT91RM92_PIO_SIZE,
-		AT91RM92_IRQ_SYSTEM
-	},
-	{
-		"at91_pmc", 0,
-		AT91RM92_BASE + AT91RM92_PMC_BASE, AT91RM92_PMC_SIZE,
-		AT91RM92_IRQ_SYSTEM
-	},
-	{
-		"at91_aic", 0,
-		AT91RM92_BASE + AT91RM92_AIC_BASE, AT91RM92_AIC_SIZE,
-		0	// Interrupt controller has no interrupts!
-	},
-	{
-		"at91_rtc", 0,
-		AT91RM92_BASE + AT91RM92_RTC_BASE, AT91RM92_RTC_SIZE,
-		AT91RM92_IRQ_SYSTEM
-	},
-	{
-		"at91_mc", 0,
-		AT91RM92_BASE + AT91RM92_MC_BASE, AT91RM92_MC_SIZE,
-		AT91RM92_IRQ_SYSTEM
-	},
-
-	// All other devices
-	{
-		"at91_tc", 0,
-		AT91RM92_BASE + AT91RM92_TC0_BASE, AT91RM92_TC_SIZE,
-		AT91RM92_IRQ_TC0, AT91RM92_IRQ_TC1, AT91RM92_IRQ_TC2
-	},
-	{
-		"at91_tc", 1,
-		AT91RM92_BASE + AT91RM92_TC1_BASE, AT91RM92_TC_SIZE,
-		AT91RM92_IRQ_TC3, AT91RM92_IRQ_TC4, AT91RM92_IRQ_TC5
-	},
-	{
-		"at91_udp", 0,
-		AT91RM92_BASE + AT91RM92_UDP_BASE, AT91RM92_UDP_SIZE,
-		AT91RM92_IRQ_UDP, AT91RM92_IRQ_PIOB
-	},
-	{
-		"at91_mci", 0,
-		AT91RM92_BASE + AT91RM92_MCI_BASE, AT91RM92_MCI_SIZE,
-		AT91RM92_IRQ_MCI
-	},
-	{
-		"at91_twi", 0,
-		AT91RM92_BASE + AT91RM92_TWI_BASE, AT91RM92_TWI_SIZE,
-		AT91RM92_IRQ_TWI
-	},
-	{
-		"ate", 0,
-		AT91RM92_BASE + AT91RM92_EMAC_BASE, AT91RM92_EMAC_SIZE,
-		AT91RM92_IRQ_EMAC
-	},
-#ifndef SKYEYE_WORKAROUNDS
-	{
-		"uart", 0,
-		AT91RM92_BASE + AT91RM92_DBGU_BASE, AT91RM92_DBGU_SIZE,
-		AT91RM92_IRQ_SYSTEM
-	},
-	{
-		"uart", 1,
-		AT91RM92_BASE + AT91RM92_USART0_BASE, AT91RM92_USART_SIZE,
-		AT91RM92_IRQ_USART0
-	},
-	{
-		"uart", 2,
-		AT91RM92_BASE + AT91RM92_USART1_BASE, AT91RM92_USART_SIZE,
-		AT91RM92_IRQ_USART1
-	},
-	{
-		"uart", 3,
-		AT91RM92_BASE + AT91RM92_USART2_BASE, AT91RM92_USART_SIZE,
-		AT91RM92_IRQ_USART2
-	},
-	{
-		"uart", 4,
-		AT91RM92_BASE + AT91RM92_USART3_BASE, AT91RM92_USART_SIZE,
-		AT91RM92_IRQ_USART3
-	},
-#else
-	{
-		"uart", 0,
-		AT91RM92_BASE + AT91RM92_USART0_BASE, AT91RM92_USART_SIZE,
-		AT91RM92_IRQ_USART0
-	},
-#endif
-	{
-		"at91_ssc", 0,
-		AT91RM92_BASE + AT91RM92_SSC0_BASE, AT91RM92_SSC_SIZE,
-		AT91RM92_IRQ_SSC0
-	},
-	{
-		"at91_ssc", 1,
-		AT91RM92_BASE + AT91RM92_SSC1_BASE, AT91RM92_SSC_SIZE,
-		AT91RM92_IRQ_SSC1
-	},
-	{
-		"at91_ssc", 2,
-		AT91RM92_BASE + AT91RM92_SSC2_BASE, AT91RM92_SSC_SIZE,
-		AT91RM92_IRQ_SSC2
-	},
-	{
-		"spi", 0,
-		AT91RM92_BASE + AT91RM92_SPI_BASE, AT91RM92_SPI_SIZE,
-		AT91RM92_IRQ_SPI
-	},
-	{
-		"ohci", 0,
-		AT91RM92_OHCI_BASE, AT91RM92_OHCI_SIZE,
-		AT91RM92_IRQ_UHP
-	},
-	{
-		"at91_cfata", 0,
-		AT91RM92_CF_BASE, AT91RM92_CF_SIZE,
-		-1
-	},
-	{	0, 0, 0, 0, 0 }
-};
-
-static void
-at91_cpu_add_builtin_children(device_t dev, struct at91_softc *sc)
-{
-	int i;
-	struct cpu_devs *walker;
-	
-	// XXX should look at the device id in the DBGU register and
-	// XXX based on the CPU load in these devices
-	for (i = 0, walker = at91rm9200_devs; walker->name; i++, walker++) {
-		at91_add_child(dev, i, walker->name, walker->unit,
-		    walker->mem_base, walker->mem_len, walker->irq0,
-		    walker->irq1, walker->irq2);
-	}
-}
-
-#define NORMDEV 50
-
-/*
- * Standard priority levels for the system.  0 is lowest and 7 is highest.
- * These values are the ones Atmel uses for its Linux port, which differ
- * a little form the ones that are in the standard distribution.  Also,
- * the ones marked with 'TWEEK' are different based on experience.
- */
-static int irq_prio[32] =
-{
-	7,	/* Advanced Interrupt Controller (FIQ) */
-	7,	/* System Peripherals */
-	1,	/* Parallel IO Controller A */
-	1,	/* Parallel IO Controller B */
-	1,	/* Parallel IO Controller C */
-	1,	/* Parallel IO Controller D */
-	5,	/* USART 0 */
-	5,	/* USART 1 */
-	5,	/* USART 2 */
-	5,	/* USART 3 */
-	0,	/* Multimedia Card Interface */
-	2,	/* USB Device Port */
-	4,	/* Two-Wire Interface */		/* TWEEK */
-	5,	/* Serial Peripheral Interface */
-	4,	/* Serial Synchronous Controller 0 */
-	6,	/* Serial Synchronous Controller 1 */	/* TWEEK */
-	4,	/* Serial Synchronous Controller 2 */
-	0,	/* Timer Counter 0 */
-	6,	/* Timer Counter 1 */			/* TWEEK */
-	0,	/* Timer Counter 2 */
-	0,	/* Timer Counter 3 */
-	0,	/* Timer Counter 4 */
-	0,	/* Timer Counter 5 */
-	2,	/* USB Host port */
-	3,	/* Ethernet MAC */
-	0,	/* Advanced Interrupt Controller (IRQ0) */
-	0,	/* Advanced Interrupt Controller (IRQ1) */
-	0,	/* Advanced Interrupt Controller (IRQ2) */
-	0,	/* Advanced Interrupt Controller (IRQ3) */
-	0,	/* Advanced Interrupt Controller (IRQ4) */
-	0,	/* Advanced Interrupt Controller (IRQ5) */
- 	0	/* Advanced Interrupt Controller (IRQ6) */
-};
-
 static int
 at91_attach(device_t dev)
 {
 	struct at91_softc *sc = device_get_softc(dev);
-	int i;
+	const struct pmap_devmap *pdevmap;
 
 	at91_softc = sc;
 	sc->sc_st = &at91_bs_tag;
-	sc->sc_sh = AT91RM92_BASE;
+	sc->sc_sh = AT91_BASE;
 	sc->dev = dev;
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91RM92_SYS_BASE,
-	    AT91RM92_SYS_SIZE, &sc->sc_sys_sh) != 0)
-		panic("Enable to map IRQ registers");
+
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
 	sc->sc_irq_rman.rm_descr = "AT91 IRQs";
-	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_mem_rman.rm_descr = "AT91 Memory";
 	if (rman_init(&sc->sc_irq_rman) != 0 ||
 	    rman_manage_region(&sc->sc_irq_rman, 1, 31) != 0)
 		panic("at91_attach: failed to set up IRQ rman");
-	if (rman_init(&sc->sc_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_mem_rman, 0xdff00000ul,
-	    0xdffffffful) != 0)
+
+	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
+	sc->sc_mem_rman.rm_descr = "AT91 Memory";
+	if (rman_init(&sc->sc_mem_rman) != 0)
 		panic("at91_attach: failed to set up memory rman");
-	if (rman_manage_region(&sc->sc_mem_rman, AT91RM92_OHCI_BASE,
-	    AT91RM92_OHCI_BASE + AT91RM92_OHCI_SIZE - 1) != 0)
-		panic("at91_attach: failed to set up ohci memory");
-	if (rman_manage_region(&sc->sc_mem_rman, AT91RM92_CF_BASE,
-	    AT91RM92_CF_BASE + AT91RM92_CF_SIZE - 1) != 0)
-		panic("at91_attach: failed to set up CompactFlash ATA memory");
-
-	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_SVR + 
-		    i * 4, i);
-		/* Priority. */
-		bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_SMR + i * 4,
-		    irq_prio[i]);
-		if (i < 8)
-			bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_EOICR,
-			    1);
+	for ( pdevmap = at91_devmap; pdevmap->pd_va != 0; pdevmap++) {
+		if (rman_manage_region(&sc->sc_mem_rman, pdevmap->pd_va,
+		    pdevmap->pd_va + pdevmap->pd_size - 1) != 0)
+			panic("at91_attach: failed to set up memory rman");
 	}
-	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_SPU, 32);
-	/* No debug. */
-	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_DCR, 0);
-	/* Disable and clear all interrupts. */
-	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_IDCR, 0xffffffff);
-	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_ICCR, 0xffffffff);
 
-	/* XXX */
-	/* Disable all interrupts for RTC (0xe24 == RTC_IDR) */
-	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, 0xe24, 0xffffffff);
-	/* DIsable all interrupts for DBGU */
-	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, 0x20c, 0xffffffff);
-	/* Disable all interrupts for the SDRAM controller */
-	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, 0xfa8, 0xffffffff);
 
-	at91_cpu_add_builtin_children(dev, sc);
+	/* Our device list will be added automatically by the cpu device
+	 * e.g. at91rm9200.c when it is identified. To ensure that the
+	 * CPU and PMC are attached first any other "identified" devices 
+	 * call BUS_ADD_CHILD(9) with an "order" of at least 2. */
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -630,11 +368,11 @@ at91_setup_intr(device_t dev, device_t child,
 {
 	struct at91_softc *sc = device_get_softc(dev);
 
-	if (rman_get_start(ires) == AT91RM92_IRQ_SYSTEM && filt == NULL)
+	if (rman_get_start(ires) == sc->sc_irq_system && filt == NULL)
 		panic("All system interrupt ISRs must be FILTER");
 	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, 
 	    intr, arg, cookiep);
-	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_IECR,
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IECR,
 	    1 << rman_get_start(ires));
 	return (0);
 }
@@ -645,7 +383,7 @@ at91_teardown_intr(device_t dev, device_t child, struct resource *res,
 {
 	struct at91_softc *sc = device_get_softc(dev);
 
-	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_IDCR, 
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 
 	    1 << rman_get_start(res));
 	return (BUS_TEARDOWN_INTR(device_get_parent(dev), child, res, cookie));
 }
@@ -697,8 +435,7 @@ arm_mask_irq(uintptr_t nb)
 {
 	
 	bus_space_write_4(at91_softc->sc_st, 
-	    at91_softc->sc_sys_sh, IC_IDCR, 1 << nb);
-
+	    at91_softc->sc_aic_sh, IC_IDCR, 1 << nb);
 }
 
 int
@@ -708,12 +445,12 @@ arm_get_next_irq(int last __unused)
 	int irq;
 	
 	irq = bus_space_read_4(at91_softc->sc_st,
-	    at91_softc->sc_sys_sh, IC_IVR);
+	    at91_softc->sc_aic_sh, IC_IVR);
 	status = bus_space_read_4(at91_softc->sc_st,
-	    at91_softc->sc_sys_sh, IC_ISR);
+	    at91_softc->sc_aic_sh, IC_ISR);
 	if (status == 0) {
 		bus_space_write_4(at91_softc->sc_st,
-		    at91_softc->sc_sys_sh, IC_EOICR, 1);
+		    at91_softc->sc_aic_sh, IC_EOICR, 1);
 		return (-1);
 	}
 	return (irq);
@@ -724,16 +461,15 @@ arm_unmask_irq(uintptr_t nb)
 {
 	
 	bus_space_write_4(at91_softc->sc_st, 
-	at91_softc->sc_sys_sh, IC_IECR, 1 << nb);
-	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_sys_sh,
+	at91_softc->sc_aic_sh, IC_IECR, 1 << nb);
+	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_aic_sh,
 	    IC_EOICR, 0);
-
 }
 
 static void
 at91_eoi(void *unused)
 {
-	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_sys_sh,
+	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_aic_sh,
 	    IC_EOICR, 0);
 }
 
@@ -761,6 +497,7 @@ static driver_t at91_driver = {
 	at91_methods,
 	sizeof(struct at91_softc),
 };
+
 static devclass_t at91_devclass;
 
 DRIVER_MODULE(atmelarm, nexus, at91_driver, at91_devclass, 0, 0);

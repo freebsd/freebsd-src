@@ -200,7 +200,12 @@ __ieee754_jn(int n, double x)
 			}
 	     	    }
 		}
-	    	b = (t*__ieee754_j0(x)/b);
+		z = __ieee754_j0(x);
+		w = __ieee754_j1(x);
+		if (fabs(z) >= fabs(w))
+		    b = (t*z/b);
+		else
+		    b = (t*w/a);
 	    }
 	}
 	if(sgn==1) return -b; else return b;

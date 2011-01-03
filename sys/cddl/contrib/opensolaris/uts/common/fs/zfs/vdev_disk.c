@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -47,6 +47,7 @@ typedef struct vdev_disk_buf {
 static int
 vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 {
+	spa_t *spa = vd->vdev_spa;
 	vdev_disk_t *dvd;
 	struct dk_minfo dkm;
 	int error;
@@ -95,7 +96,7 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 
 	error = EINVAL;		/* presume failure */
 
-	if (vd->vdev_path != NULL && !spa_is_root(vd->vdev_spa)) {
+	if (vd->vdev_path != NULL && !spa_is_root(spa)) {
 		ddi_devid_t devid;
 
 		if (vd->vdev_wholedisk == -1ULL) {
@@ -105,18 +106,18 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 
 			(void) snprintf(buf, len, "%ss0", vd->vdev_path);
 
-			if (ldi_open_by_name(buf, spa_mode, kcred,
+			if (ldi_open_by_name(buf, spa_mode(spa), kcred,
 			    &lh, zfs_li) == 0) {
 				spa_strfree(vd->vdev_path);
 				vd->vdev_path = buf;
 				vd->vdev_wholedisk = 1ULL;
-				(void) ldi_close(lh, spa_mode, kcred);
+				(void) ldi_close(lh, spa_mode(spa), kcred);
 			} else {
 				kmem_free(buf, len);
 			}
 		}
 
-		error = ldi_open_by_name(vd->vdev_path, spa_mode, kcred,
+		error = ldi_open_by_name(vd->vdev_path, spa_mode(spa), kcred,
 		    &dvd->vd_lh, zfs_li);
 
 		/*
@@ -126,7 +127,8 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		    ldi_get_devid(dvd->vd_lh, &devid) == 0) {
 			if (ddi_devid_compare(devid, dvd->vd_devid) != 0) {
 				error = EINVAL;
-				(void) ldi_close(dvd->vd_lh, spa_mode, kcred);
+				(void) ldi_close(dvd->vd_lh, spa_mode(spa),
+				    kcred);
 				dvd->vd_lh = NULL;
 			}
 			ddi_devid_free(devid);
@@ -146,7 +148,7 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 */
 	if (error != 0 && vd->vdev_devid != NULL)
 		error = ldi_open_by_devid(dvd->vd_devid, dvd->vd_minor,
-		    spa_mode, kcred, &dvd->vd_lh, zfs_li);
+		    spa_mode(spa), kcred, &dvd->vd_lh, zfs_li);
 
 	/*
 	 * If all else fails, then try opening by physical path (if available)
@@ -156,8 +158,8 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 */
 	if (error) {
 		if (vd->vdev_physpath != NULL &&
-		    (dev = ddi_pathname_to_dev_t(vd->vdev_physpath)) != ENODEV)
-			error = ldi_open_by_dev(&dev, OTYP_BLK, spa_mode,
+		    (dev = ddi_pathname_to_dev_t(vd->vdev_physpath)) != NODEV)
+			error = ldi_open_by_dev(&dev, OTYP_BLK, spa_mode(spa),
 			    kcred, &dvd->vd_lh, zfs_li);
 
 		/*
@@ -165,10 +167,9 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		 * as above.  This hasn't been used in a very long time and we
 		 * don't need to propagate its oddities to this edge condition.
 		 */
-		if (error && vd->vdev_path != NULL &&
-		    !spa_is_root(vd->vdev_spa))
-			error = ldi_open_by_name(vd->vdev_path, spa_mode, kcred,
-			    &dvd->vd_lh, zfs_li);
+		if (error && vd->vdev_path != NULL && !spa_is_root(spa))
+			error = ldi_open_by_name(vd->vdev_path, spa_mode(spa),
+			    kcred, &dvd->vd_lh, zfs_li);
 	}
 
 	if (error) {
@@ -253,7 +254,7 @@ vdev_disk_close(vdev_t *vd)
 		ddi_devid_free(dvd->vd_devid);
 
 	if (dvd->vd_lh != NULL)
-		(void) ldi_close(dvd->vd_lh, spa_mode, kcred);
+		(void) ldi_close(dvd->vd_lh, spa_mode(vd->vdev_spa), kcred);
 
 	kmem_free(dvd, sizeof (vdev_disk_t));
 	vd->vdev_tsd = NULL;
@@ -400,8 +401,9 @@ vdev_disk_io_start(zio_t *zio)
 
 	bioinit(bp);
 	bp->b_flags = B_BUSY | B_NOCACHE |
-	    (zio->io_type == ZIO_TYPE_READ ? B_READ : B_WRITE) |
-	    ((zio->io_flags & ZIO_FLAG_IO_RETRY) ? 0 : B_FAILFAST);
+	    (zio->io_type == ZIO_TYPE_READ ? B_READ : B_WRITE);
+	if (!(zio->io_flags & (ZIO_FLAG_IO_RETRY | ZIO_FLAG_TRYHARD)))
+		bp->b_flags |= B_FAILFAST;
 	bp->b_bcount = zio->io_size;
 	bp->b_un.b_addr = zio->io_data;
 	bp->b_lblkno = lbtodb(zio->io_offset);
@@ -469,7 +471,7 @@ vdev_disk_read_rootlabel(char *devpath, char *devid, nvlist_t **config)
 	if (devid != NULL && ddi_devid_str_decode(devid, &tmpdevid,
 	    &minor_name) == 0) {
 		error = ldi_open_by_devid(tmpdevid, minor_name,
-		    spa_mode, kcred, &vd_lh, zfs_li);
+		    FREAD, kcred, &vd_lh, zfs_li);
 		ddi_devid_free(tmpdevid);
 		ddi_devid_str_free(minor_name);
 	}
@@ -492,8 +494,7 @@ vdev_disk_read_rootlabel(char *devpath, char *devid, nvlist_t **config)
 		/* read vdev label */
 		offset = vdev_label_offset(size, l, 0);
 		if (vdev_disk_physio(vd_lh, (caddr_t)label,
-		    VDEV_SKIP_SIZE + VDEV_BOOT_HEADER_SIZE +
-		    VDEV_PHYS_SIZE, offset, B_READ) != 0)
+		    VDEV_SKIP_SIZE + VDEV_PHYS_SIZE, offset, B_READ) != 0)
 			continue;
 
 		if (nvlist_unpack(label->vl_vdev_phys.vp_nvlist,

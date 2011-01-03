@@ -266,6 +266,7 @@ static struct _s_x rule_options[] = {
 	{ "estab",		TOK_ESTAB },
 	{ "established",	TOK_ESTAB },
 	{ "setup",		TOK_SETUP },
+	{ "sockarg",		TOK_SOCKARG },
 	{ "tcpdatalen",		TOK_TCPDATALEN },
 	{ "tcpflags",		TOK_TCPFLAGS },
 	{ "tcpflgs",		TOK_TCPFLAGS },
@@ -1337,6 +1338,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 			case O_FIB:
 				printf(" fib %u", cmd->arg1 );
+				break;
+			case O_SOCKARG:
+				printf(" sockarg");
 				break;
 
 			case O_IN:
@@ -3530,6 +3534,9 @@ read_options:
 			NEED1("fib requires fib number");
 			fill_cmd(cmd, O_FIB, 0, strtoul(*av, NULL, 0));
 			av++;
+			break;
+		case TOK_SOCKARG:
+			fill_cmd(cmd, O_SOCKARG, 0, 0);
 			break;
 
 		case TOK_LOOKUP: {

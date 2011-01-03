@@ -506,8 +506,8 @@ vn_read(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *active_cred;
-	struct thread *td;
 	int flags;
+	struct thread *td;
 {
 	struct vnode *vp;
 	int error, ioflag;
@@ -572,8 +572,8 @@ vn_write(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *active_cred;
-	struct thread *td;
 	int flags;
+	struct thread *td;
 {
 	struct vnode *vp;
 	struct mount *mp;

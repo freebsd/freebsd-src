@@ -42,9 +42,9 @@ typedef uint64_t pci_addr_t;
 /* Interesting values for PCI power management */
 struct pcicfg_pp {
     uint16_t	pp_cap;		/* PCI power management capabilities */
-    uint8_t	pp_status;	/* config space address of PCI power status reg */
-    uint8_t	pp_pmcsr;	/* config space address of PMCSR reg */
-    uint8_t	pp_data;	/* config space address of PCI power data reg */
+    uint8_t	pp_status;	/* conf. space addr. of PM control/status reg */
+    uint8_t	pp_bse;		/* conf. space addr. of PM BSE reg */
+    uint8_t	pp_data;	/* conf. space addr. of PM data reg */
 };
  
 struct vpd_readonly {
@@ -444,12 +444,6 @@ pci_msix_count(device_t dev)
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
-
-/*
- * Can be used by MD code to request the PCI bus to re-map an MSI or
- * MSI-X message.
- */
-int	pci_remap_msi_irq(device_t dev, u_int irq);
 
 /* Can be used by drivers to manage the MSI-X table. */
 int	pci_pending_msix(device_t dev, u_int index);

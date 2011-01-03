@@ -3068,9 +3068,7 @@ uhci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 			}
 			break;
 		case UE_BULK:
-			if (udev->speed != USB_SPEED_LOW) {
-				ep->methods = &uhci_device_bulk_methods;
-			}
+			ep->methods = &uhci_device_bulk_methods;
 			break;
 		default:
 			/* do nothing */
@@ -3086,7 +3084,7 @@ uhci_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
-uhci_get_dma_delay(struct usb_bus *bus, uint32_t *pus)
+uhci_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 {
 	/*
 	 * Wait until hardware has finished any possible use of the

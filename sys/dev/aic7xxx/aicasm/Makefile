@@ -24,7 +24,7 @@ WARNS?=	5
 DEPENDFILE=	.depend_aicasm
 .endif
 
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 CFLAGS+=	-restrict
 NOSTDINC=	-X
 .else

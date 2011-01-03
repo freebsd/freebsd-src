@@ -482,11 +482,10 @@ __LA_DECL void		archive_read_extract_set_skip_file(struct archive *,
 /* Close the file and release most resources. */
 __LA_DECL int		 archive_read_close(struct archive *);
 /* Release all resources and destroy the object. */
-/* Note that archive_read_finish will call archive_read_close for you. */
-#if ARCHIVE_VERSION_NUMBER < 2000000
-/* Erroneously declared to return void in libarchive 1.x */
-__LA_DECL void		 archive_read_finish(struct archive *);
-#else
+/* Note that archive_read_free will call archive_read_close for you. */
+__LA_DECL int		 archive_read_free(struct archive *);
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Synonym for archive_read_free() for backwards compatibility. */
 __LA_DECL int		 archive_read_finish(struct archive *);
 #endif
 
@@ -503,7 +502,7 @@ __LA_DECL int		 archive_read_finish(struct archive *);
  *      - archive_write_header to write the header
  *      - archive_write_data to write the entry data
  *   5) archive_write_close to close the output
- *   6) archive_write_finish to cleanup the writer and release resources
+ *   6) archive_write_free to cleanup the writer and release resources
  */
 __LA_DECL struct archive	*archive_write_new(void);
 __LA_DECL int		 archive_write_set_bytes_per_block(struct archive *,
@@ -584,13 +583,12 @@ __LA_DECL __LA_SSIZE_T	 archive_write_data_block(struct archive *,
 #endif
 __LA_DECL int		 archive_write_finish_entry(struct archive *);
 __LA_DECL int		 archive_write_close(struct archive *);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-/* Return value was incorrect in libarchive 1.x. */
-__LA_DECL void		 archive_write_finish(struct archive *);
-#else
-/* Libarchive 2.x and later returns an error if this fails. */
-/* It can fail if the archive wasn't already closed, in which case
- * archive_write_finish() will implicitly call archive_write_close(). */
+
+/* This can fail if the archive wasn't already closed, in which case
+ * archive_write_free() will implicitly call archive_write_close(). */
+__LA_DECL int		 archive_write_free(struct archive *);
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Synonym for archive_write_free() for backwards compatibility. */
 __LA_DECL int		 archive_write_finish(struct archive *);
 #endif
 
@@ -619,7 +617,7 @@ __LA_DECL int		archive_write_set_options(struct archive *_a,
  *      - construct an appropriate struct archive_entry structure
  *      - archive_write_header to create the file/dir/etc on disk
  *      - archive_write_data to write the entry data
- *   4) archive_write_finish to cleanup the writer and release resources
+ *   4) archive_write_free to cleanup the writer and release resources
  *
  * In particular, you can use this in conjunction with archive_read()
  * to pull entries out of an archive and create them on disk.

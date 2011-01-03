@@ -38,7 +38,9 @@ struct iic_msg
 	uint16_t	flags;
 #define	IIC_M_WR	0	/* Fake flag for write */
 #define	IIC_M_RD	0x0001	/* read vs write */
-	uint16_t	len;	/* msg legnth */
+#define	IIC_M_NOSTOP	0x0002	/* do not send a I2C stop after message */
+#define	IIC_M_NOSTART	0x0004	/* do not send a I2C start before message */
+	uint16_t	len;	/* msg length */
 	uint8_t *	buf;
 };
 

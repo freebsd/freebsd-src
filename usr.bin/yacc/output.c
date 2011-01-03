@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -95,7 +91,7 @@ static const char line_format[] = "#line %d \"%s\"\n";
 
 
 void
-output()
+output(void)
 {
     free_itemsets();
     free_shifts();
@@ -119,7 +115,7 @@ output()
 
 
 static void
-output_prefix()
+output_prefix(void)
 {
     if (symbol_prefix == NULL)
 	symbol_prefix = "yy";
@@ -184,7 +180,7 @@ output_prefix()
 
 
 static void
-output_rule_data()
+output_rule_data(void)
 {
     int i;
     int j;
@@ -232,7 +228,7 @@ output_rule_data()
 
 
 static void
-output_yydefred()
+output_yydefred(void)
 {
     int i, j;
 
@@ -260,7 +256,7 @@ output_yydefred()
 
 
 static void
-output_actions()
+output_actions(void)
 {
     nvectors = 2*nstates + nvars;
 
@@ -270,15 +266,15 @@ output_actions()
     width = NEW2(nvectors, short);
 
     token_actions();
-    FREE(lookaheads);
-    FREE(LA);
-    FREE(LAruleno);
-    FREE(accessing_symbol);
+    free(lookaheads);
+    free(LA);
+    free(LAruleno);
+    free(accessing_symbol);
 
     goto_actions();
-    FREE(goto_map + ntokens);
-    FREE(from_state);
-    FREE(to_state);
+    free(goto_map + ntokens);
+    free(from_state);
+    free(to_state);
 
     sort_actions();
     pack_table();
@@ -289,7 +285,7 @@ output_actions()
 
 
 static void
-token_actions()
+token_actions(void)
 {
     int i, j;
     int shiftcount, reducecount;
@@ -370,11 +366,11 @@ token_actions()
 	    }
 	}
     }
-    FREE(actionrow);
+    free(actionrow);
 }
 
 static void
-goto_actions()
+goto_actions(void)
 {
     int i, j, k;
 
@@ -403,12 +399,11 @@ goto_actions()
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(state_count);
+    free(state_count);
 }
 
 static int
-default_goto(symbol)
-int symbol;
+default_goto(int symbol)
 {
     int i;
     int m;
@@ -444,9 +439,7 @@ int symbol;
 
 
 static void
-save_column(symbol, default_state)
-int symbol;
-int default_state;
+save_column(int symbol, int default_state)
 {
     int i;
     int m;
@@ -487,7 +480,7 @@ int default_state;
 }
 
 static void
-sort_actions()
+sort_actions(void)
 {
   int i;
   int j;
@@ -523,7 +516,7 @@ sort_actions()
 
 
 static void
-pack_table()
+pack_table(void)
 {
     int i;
     int place;
@@ -558,14 +551,14 @@ pack_table()
     for (i = 0; i < nvectors; i++)
     {
 	if (froms[i])
-	    FREE(froms[i]);
+	    free(froms[i]);
 	if (tos[i])
-	    FREE(tos[i]);
+	    free(tos[i]);
     }
 
-    FREE(froms);
-    FREE(tos);
-    FREE(pos);
+    free(froms);
+    free(tos);
+    free(pos);
 }
 
 
@@ -586,8 +579,7 @@ pack_table()
 /*  order.								*/
 
 static int
-matching_vector(vector)
-int vector;
+matching_vector(int vector)
 {
     int i;
     int j;
@@ -627,8 +619,7 @@ int vector;
 
 
 static int
-pack_vector(vector)
-int vector;
+pack_vector(int vector)
 {
     int i, j, k;
     int t;
@@ -705,7 +696,7 @@ int vector;
 
 
 static void
-output_base()
+output_base(void)
 {
     int i, j;
 
@@ -767,13 +758,13 @@ output_base()
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(base);
+    free(base);
 }
 
 
 
 static void
-output_table()
+output_table(void)
 {
     int i;
     int j;
@@ -800,13 +791,13 @@ output_table()
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(table);
+    free(table);
 }
 
 
 
 static void
-output_check()
+output_check(void)
 {
     int i;
     int j;
@@ -831,13 +822,12 @@ output_check()
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(check);
+    free(check);
 }
 
 
 static int
-is_C_identifier(name)
-char *name;
+is_C_identifier(char *name)
 {
     char *s;
     int c;
@@ -869,7 +859,7 @@ char *name;
 
 
 static void
-output_defines()
+output_defines(void)
 {
     int c, i;
     char *s;
@@ -928,7 +918,7 @@ output_defines()
 
 
 static void
-output_stored_text()
+output_stored_text(void)
 {
     int c;
     FILE *in, *out;
@@ -956,7 +946,7 @@ output_stored_text()
 
 
 static void
-output_debug()
+output_debug(void)
 {
     int i, j, k, max;
     char **symnam, *s;
@@ -978,7 +968,7 @@ output_debug()
     ++outline;
     fprintf(code_file, "#define YYMAXTOKEN %d\n", max);
 
-    symnam = (char **) MALLOC((max+1)*sizeof(char *));
+    symnam = malloc((max+1)*sizeof(char *));
     if (symnam == 0) no_space();
 
     /* Note that it is  not necessary to initialize the element		*/
@@ -1114,7 +1104,7 @@ output_debug()
     }
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(symnam);
+    free(symnam);
 
     if (!rflag) ++outline;
     fprintf(output_file, "const char * const %srule[] = {\n", symbol_prefix);
@@ -1173,7 +1163,7 @@ output_debug()
 
 
 static void
-output_stype()
+output_stype(void)
 {
     if (!unionized && ntags == 0)
     {
@@ -1184,7 +1174,7 @@ output_stype()
 
 
 static void
-output_trailing_text()
+output_trailing_text(void)
 {
     int c, last;
     FILE *in, *out;
@@ -1242,7 +1232,7 @@ output_trailing_text()
 
 
 static void
-output_semantic_actions()
+output_semantic_actions(void)
 {
     int c, last;
     FILE *out;
@@ -1280,44 +1270,44 @@ output_semantic_actions()
 
 
 static void
-free_itemsets()
+free_itemsets(void)
 {
     core *cp, *next;
 
-    FREE(state_table);
+    free(state_table);
     for (cp = first_state; cp; cp = next)
     {
 	next = cp->next;
-	FREE(cp);
+	free(cp);
     }
 }
 
 
 static void
-free_shifts()
+free_shifts(void)
 {
     shifts *sp, *next;
 
-    FREE(shift_table);
+    free(shift_table);
     for (sp = first_shift; sp; sp = next)
     {
 	next = sp->next;
-	FREE(sp);
+	free(sp);
     }
 }
 
 
 
 static void
-free_reductions()
+free_reductions(void)
 {
     reductions *rp, *next;
 
-    FREE(reduction_table);
+    free(reduction_table);
     for (rp = first_reduction; rp; rp = next)
     {
 	next = rp->next;
-	FREE(rp);
+	free(rp);
     }
 }
 
@@ -1338,9 +1328,9 @@ increase_maxtable(int loc)
     newmax = maxtable;
 
     do { newmax += 200; } while (newmax <= loc);
-    table = (short *) REALLOC(table, newmax*sizeof(short));
+    table = realloc(table, newmax*sizeof(short));
 	if (table == 0) no_space();
-	check = (short *) REALLOC(check, newmax*sizeof(short));
+	check = realloc(check, newmax*sizeof(short));
 	if (check == 0) no_space();
 	for (l  = maxtable; l < newmax; ++l)
 	{

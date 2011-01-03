@@ -15,12 +15,12 @@
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/tls.h"
+#include "crypto/sha1.h"
+#include "eap_common/eap_tlv_common.h"
 #include "eap_i.h"
 #include "eap_tls_common.h"
 #include "eap_config.h"
-#include "tls.h"
-#include "eap_common/eap_tlv_common.h"
-#include "sha1.h"
 #include "eap_fast_pac.h"
 
 #ifdef EAP_FAST_DYNAMIC
@@ -918,10 +918,7 @@ static int eap_fast_parse_pac_info(struct eap_fast_pac *entry, int type,
 		entry->a_id_info_len = len;
 		break;
 	case PAC_TYPE_PAC_TYPE:
-		/*
-		 * draft-cam-winget-eap-fast-provisioning-04.txt,
-		 * Section 4.2.6 - PAC-Type TLV
-		 */
+		/* RFC 5422, Section 4.2.6 - PAC-Type TLV */
 		if (len != 2) {
 			wpa_printf(MSG_INFO, "EAP-FAST: Invalid PAC-Type "
 				   "length %lu (expected 2)",
@@ -961,7 +958,7 @@ static int eap_fast_process_pac_info(struct eap_fast_pac *entry)
 	size_t left, len;
 	int type;
 
-	/* draft-cam-winget-eap-fast-provisioning-04.txt, Section 4.2.4 */
+	/* RFC 5422, Section 4.2.4 */
 
 	/* PAC-Type defaults to Tunnel PAC (Type 1) */
 	entry->pac_type = PAC_TYPE_TUNNEL_PAC;
@@ -1448,9 +1445,9 @@ static int eap_fast_process_start(struct eap_sm *sm,
 
 	/* EAP-FAST Version negotiation (section 3.1) */
 	wpa_printf(MSG_DEBUG, "EAP-FAST: Start (server ver=%d, own ver=%d)",
-		   flags & EAP_PEAP_VERSION_MASK, data->fast_version);
-	if ((flags & EAP_PEAP_VERSION_MASK) < data->fast_version)
-		data->fast_version = flags & EAP_PEAP_VERSION_MASK;
+		   flags & EAP_TLS_VERSION_MASK, data->fast_version);
+	if ((flags & EAP_TLS_VERSION_MASK) < data->fast_version)
+		data->fast_version = flags & EAP_TLS_VERSION_MASK;
 	wpa_printf(MSG_DEBUG, "EAP-FAST: Using FAST version %d",
 		   data->fast_version);
 

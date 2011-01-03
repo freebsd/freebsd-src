@@ -61,7 +61,7 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 */
 	ASSERT(vd->vdev_path != NULL && vd->vdev_path[0] == '/');
 	error = vn_openat(vd->vdev_path + 1, UIO_SYSSPACE,
-	    spa_mode | FOFFMAX, 0, &vp, 0, 0, rootdir, -1);
+	    spa_mode(vd->vdev_spa) | FOFFMAX, 0, &vp, 0, 0, rootdir, -1);
 
 	if (error) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
@@ -75,7 +75,7 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 * Make sure it's a regular file.
 	 */
 	if (vp->v_type != VREG) {
-		(void) VOP_CLOSE(vp, spa_mode, 1, 0, kcred, NULL);
+		(void) VOP_CLOSE(vp, spa_mode(vd->vdev_spa), 1, 0, kcred, NULL);
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (ENODEV);
 	}
@@ -90,7 +90,7 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error) {
-		(void) VOP_CLOSE(vp, spa_mode, 1, 0, kcred, NULL);
+		(void) VOP_CLOSE(vp, spa_mode(vd->vdev_spa), 1, 0, kcred, NULL);
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (error);
 	}
@@ -110,7 +110,8 @@ vdev_file_close(vdev_t *vd)
 		return;
 
 	if (vf->vf_vnode != NULL)
-		(void) VOP_CLOSE(vf->vf_vnode, spa_mode, 1, 0, kcred, NULL);
+		(void) VOP_CLOSE(vf->vf_vnode, spa_mode(vd->vdev_spa), 1, 0,
+		    kcred, NULL);
 	kmem_free(vf, sizeof (vdev_file_t));
 	vd->vdev_tsd = NULL;
 }

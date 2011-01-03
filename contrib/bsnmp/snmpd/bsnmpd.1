@@ -6,7 +6,7 @@
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
 .\"
-.\" Author: Harti Brandt <harti@freebsd.org>
+.\" Author: Harti Brandt <harti@FreeBSD.org>
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.12 2006/02/27 09:50:03 brandt_h Exp $
 .\"
-.Dd February 27, 2006
+.Dd September 9, 2010
 .Dt BSNMPD 1
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Op Fl dh
 .Op Fl c Ar file
 .Op Fl D Ar options
+.Op Fl e Ar file
 .Op Fl I Ar paths
 .Op Fl l Ar prefix
 .Op Fl m Ar variable Ns Op = Ns Ar value
@@ -49,7 +50,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon server the internet SNMP (Simple Network Management Protocol).
+daemon serves the internet SNMP (Simple Network Management Protocol).
 It is intended to serve only the absolute basic MIBs and implement all other
 MIBs through loadable modules.
 In this way the
@@ -59,11 +60,10 @@ can be used in unexpected ways.
 The options are as follows:
 .Bl -tag -width ".It Fl D Ar options"
 .It Fl d
-This option is used for debugging
-.Nm
-and causes it not to daemonize itself.
+Do not daemonize.
+Used for debugging.
 .It Fl h
-This option prints a short usage message.
+Print a short usage message.
 .It Fl c Ar file
 Use
 .Ar file
@@ -75,33 +75,35 @@ flag followed by a comma separated string of options.
 The following options are available.
 .Bl -tag -width ".It Cm trace Ns Cm = Ns Cm level"
 .It Cm dump
-This option causes all sent and received PDUs to be dumped to the terminal.
+Dump all sent and received PDUs to the terminal.
 .It Cm events
-This causes the debugging level of the event library (see
+Set the debugging level of the event library (see
 .Xr eventlib 3 )
-to be set to 10.
+to 10.
 .It Cm trace Ns Cm = Ns Cm level
-This option causes the snmp library trace flag to be set to the specified
+Set the snmp library trace flag to the specified
 value.
-The value can be specified in the usual C-syntax for numbers.
 .El
+The value can be specified in the usual C-syntax for numbers.
+.It Fl e Ar file
+Specify an alternate file where the agent's engine id and number of boots
+are saved.
 .It Fl I Ar paths
-This option specifies a colon separated list of directories to search for
-configuration include files.
+Specify a colon separated list of directories to search for configuration
+include files.
 The default is
 .Pa /etc:/usr/etc/:/usr/local/etc .
 These paths are only searched for include specified within <> parentheses.
 .It Fl l Ar prefix
-The
+Use
 .Ar prefix
-is used as the default basename for the pid and the configuration files.
+as the default basename for the pid and the configuration files.
 .It Fl m Ar variable Ns Op = Ns Ar value
 Define a configuration variable.
 .It Fl p Ar file
 Specify an alternate pid file instead of the default one.
 .El
 .Sh CONFIGURATION
-The
 .Nm
 reads its configuration from either the default or the user specified
 configuration file.
@@ -218,7 +220,7 @@ If the
 element is a hostname, the IP address of the host is looked up and the four
 elements of the IP address are appended to the oid.
 .Pp
-For example a oid of
+For example, an oid of
 .Bd -unfilled -offset indent
 myvariable.27.foooll.[localhost]."&^!"
 .Ed
@@ -250,16 +252,18 @@ Default configuration file, where the default
 .Aq prefix
 is
 .Dq snmpd .
+.It Pa /var/ Ns Ao Ar prefix Ac Ns \&.engine
+Default engine id file.
 .It Pa /var/run/ Ns Ao Ar prefix Ac Ns \&.pid
 Default pid file.
 .It Pa /etc:/usr/etc/:/usr/local/etc
-This is the default search path for system include files.
+Default search path for system include files.
 .It Pa @MIBSPATH@FOKUS-MIB.txt
 .It Pa @MIBSPATH@BEGEMOT-MIB.txt
 .It Pa @MIBSPATH@BEGEMOT-SNMPD.txt
-The definitions for the MIBs implemented in the daemon.
+Definitions for the MIBs implemented in the daemon.
 .It Pa /etc/hosts.allow, /etc/hosts.deny
-Access controls that should be enforced by TCP wrappers should be defined here.
+Access controls that should be enforced by TCP wrappers are defined here.
 Further details are described in
 .Xr hosts_access 5 .
 .El
@@ -271,6 +275,6 @@ The
 .Nm
 conforms to the applicable IETF RFCs.
 .Sh AUTHORS
-.An Hartmut Brandt Aq harti@freebsd.org
+.An Hartmut Brandt Aq harti@FreeBSD.org
 .Sh BUGS
 Sure.

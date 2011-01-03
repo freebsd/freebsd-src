@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <dev/pci/pcivar.h>
 #include "mvs.h"
 
 #include <cam/cam.h>
@@ -51,10 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_debug.h>
 
 /* local prototypes */
+static int mvs_ch_init(device_t dev);
+static int mvs_ch_deinit(device_t dev);
 static int mvs_ch_suspend(device_t dev);
 static int mvs_ch_resume(device_t dev);
 static void mvs_dmainit(device_t dev);
-static void mvs_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
+static void mvs_dmasetupc_cb(void *xsc,
+	bus_dma_segment_t *segs, int nsegs, int error);
 static void mvs_dmafini(device_t dev);
 static void mvs_slotsalloc(device_t dev);
 static void mvs_slotsfree(device_t dev);
@@ -76,7 +80,8 @@ static void mvs_crbq_intr(device_t dev);
 static void mvs_begin_transaction(device_t dev, union ccb *ccb);
 static void mvs_legacy_execute_transaction(struct mvs_slot *slot);
 static void mvs_timeout(struct mvs_slot *slot);
-static void mvs_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error);
+static void mvs_dmasetprd(void *arg,
+	bus_dma_segment_t *segs, int nsegs, int error);
 static void mvs_requeue_frozen(device_t dev);
 static void mvs_execute_transaction(struct mvs_slot *slot);
 static void mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et);
@@ -133,7 +138,7 @@ mvs_ch_attach(device_t dev)
 		return (ENXIO);
 	mvs_dmainit(dev);
 	mvs_slotsalloc(dev);
-	mvs_ch_resume(dev);
+	mvs_ch_init(dev);
 	mtx_lock(&ch->mtx);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -215,7 +220,7 @@ mvs_ch_detach(device_t dev)
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
-	mvs_ch_suspend(dev);
+	mvs_ch_deinit(dev);
 	mvs_slotsfree(dev);
 	mvs_dmafini(dev);
 
@@ -225,19 +230,7 @@ mvs_ch_detach(device_t dev)
 }
 
 static int
-mvs_ch_suspend(device_t dev)
-{
-	struct mvs_channel *ch = device_get_softc(dev);
-
-	/* Stop EDMA */
-	mvs_set_edma_mode(dev, MVS_EDMA_OFF);
-	/* Disable port interrupts. */
-	ATA_OUTL(ch->r_mem, EDMA_IEM, 0);
-	return (0);
-}
-
-static int
-mvs_ch_resume(device_t dev)
+mvs_ch_init(device_t dev)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
 	uint32_t reg;
@@ -264,6 +257,45 @@ mvs_ch_resume(device_t dev)
 	return (0);
 }
 
+static int
+mvs_ch_deinit(device_t dev)
+{
+	struct mvs_channel *ch = device_get_softc(dev);
+
+	/* Stop EDMA */
+	mvs_set_edma_mode(dev, MVS_EDMA_OFF);
+	/* Disable port interrupts. */
+	ATA_OUTL(ch->r_mem, EDMA_IEM, 0);
+	return (0);
+}
+
+static int
+mvs_ch_suspend(device_t dev)
+{
+	struct mvs_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	xpt_freeze_simq(ch->sim, 1);
+	while (ch->oslots)
+		msleep(ch, &ch->mtx, PRIBIO, "mvssusp", hz/100);
+	mvs_ch_deinit(dev);
+	mtx_unlock(&ch->mtx);
+	return (0);
+}
+
+static int
+mvs_ch_resume(device_t dev)
+{
+	struct mvs_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	mvs_ch_init(dev);
+	mvs_reset(dev);
+	xpt_release_simq(ch->sim, TRUE);
+	mtx_unlock(&ch->mtx);
+	return (0);
+}
+
 struct mvs_dc_cb_args {
 	bus_addr_t maddr;
 	int error;
@@ -284,9 +316,11 @@ mvs_dmainit(device_t dev)
 	if (bus_dmamem_alloc(ch->dma.workrq_tag, (void **)&ch->dma.workrq, 0,
 	    &ch->dma.workrq_map))
 		goto error;
-	if (bus_dmamap_load(ch->dma.workrq_tag, ch->dma.workrq_map, ch->dma.workrq,
-	    MVS_WORKRQ_SIZE, mvs_dmasetupc_cb, &dcba, 0) || dcba.error) {
-		bus_dmamem_free(ch->dma.workrq_tag, ch->dma.workrq, ch->dma.workrq_map);
+	if (bus_dmamap_load(ch->dma.workrq_tag, ch->dma.workrq_map,
+	    ch->dma.workrq, MVS_WORKRQ_SIZE, mvs_dmasetupc_cb, &dcba, 0) ||
+	    dcba.error) {
+		bus_dmamem_free(ch->dma.workrq_tag,
+		    ch->dma.workrq, ch->dma.workrq_map);
 		goto error;
 	}
 	ch->dma.workrq_bus = dcba.maddr;
@@ -299,9 +333,11 @@ mvs_dmainit(device_t dev)
 	if (bus_dmamem_alloc(ch->dma.workrp_tag, (void **)&ch->dma.workrp, 0,
 	    &ch->dma.workrp_map))
 		goto error;
-	if (bus_dmamap_load(ch->dma.workrp_tag, ch->dma.workrp_map, ch->dma.workrp,
-	    MVS_WORKRP_SIZE, mvs_dmasetupc_cb, &dcba, 0) || dcba.error) {
-		bus_dmamem_free(ch->dma.workrp_tag, ch->dma.workrp, ch->dma.workrp_map);
+	if (bus_dmamap_load(ch->dma.workrp_tag, ch->dma.workrp_map,
+	    ch->dma.workrp, MVS_WORKRP_SIZE, mvs_dmasetupc_cb, &dcba, 0) ||
+	    dcba.error) {
+		bus_dmamem_free(ch->dma.workrp_tag,
+		    ch->dma.workrp, ch->dma.workrp_map);
 		goto error;
 	}
 	ch->dma.workrp_bus = dcba.maddr;
@@ -341,7 +377,8 @@ mvs_dmafini(device_t dev)
 	}
 	if (ch->dma.workrp_bus) {
 		bus_dmamap_unload(ch->dma.workrp_tag, ch->dma.workrp_map);
-		bus_dmamem_free(ch->dma.workrp_tag, ch->dma.workrp, ch->dma.workrp_map);
+		bus_dmamem_free(ch->dma.workrp_tag,
+		    ch->dma.workrp, ch->dma.workrp_map);
 		ch->dma.workrp_bus = 0;
 		ch->dma.workrp_map = NULL;
 		ch->dma.workrp = NULL;
@@ -352,7 +389,8 @@ mvs_dmafini(device_t dev)
 	}
 	if (ch->dma.workrq_bus) {
 		bus_dmamap_unload(ch->dma.workrq_tag, ch->dma.workrq_map);
-		bus_dmamem_free(ch->dma.workrq_tag, ch->dma.workrq, ch->dma.workrq_map);
+		bus_dmamem_free(ch->dma.workrq_tag,
+		    ch->dma.workrq, ch->dma.workrq_map);
 		ch->dma.workrq_bus = 0;
 		ch->dma.workrq_map = NULL;
 		ch->dma.workrq = NULL;
@@ -414,14 +452,16 @@ mvs_setup_edma_queues(device_t dev)
 	ATA_OUTL(ch->r_mem, EDMA_REQQBAH, work >> 32);
 	ATA_OUTL(ch->r_mem, EDMA_REQQIP, work & 0xffffffff);
 	ATA_OUTL(ch->r_mem, EDMA_REQQOP, work & 0xffffffff);
-	bus_dmamap_sync(ch->dma.workrq_tag, ch->dma.workrq_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(ch->dma.workrq_tag, ch->dma.workrq_map,
+	    BUS_DMASYNC_PREWRITE);
 	/* Reponses queue. */
-	bzero(ch->dma.workrp, 256);
+	memset(ch->dma.workrp, 0xff, MVS_WORKRP_SIZE);
 	work = ch->dma.workrp_bus;
 	ATA_OUTL(ch->r_mem, EDMA_RESQBAH, work >> 32);
 	ATA_OUTL(ch->r_mem, EDMA_RESQIP, work & 0xffffffff);
 	ATA_OUTL(ch->r_mem, EDMA_RESQOP, work & 0xffffffff);
-	bus_dmamap_sync(ch->dma.workrp_tag, ch->dma.workrp_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(ch->dma.workrp_tag, ch->dma.workrp_map,
+	    BUS_DMASYNC_PREREAD);
 	ch->out_idx = 0;
 	ch->in_idx = 0;
 }
@@ -648,20 +688,15 @@ mvs_ch_intr(void *data)
 	int i, ccs, port = -1, selfdis = 0;
 	int edma = (ch->numtslots != 0 || ch->numdslots != 0);
 
-//device_printf(dev, "irq cause %02x EDMA %d IEC %08x\n",
-//    arg->cause, edma, ATA_INL(ch->r_mem, EDMA_IEC));
 	/* New item in response queue. */
 	if ((arg->cause & 2) && edma)
 		mvs_crbq_intr(dev);
 	/* Some error or special event. */
 	if (arg->cause & 1) {
 		iec = ATA_INL(ch->r_mem, EDMA_IEC);
-//device_printf(dev, "irq cause %02x EDMA %d IEC %08x\n",
-//    arg->cause, edma, iec);
 		if (iec & EDMA_IE_SERRINT) {
 			serr = ATA_INL(ch->r_mem, SATA_SE);
 			ATA_OUTL(ch->r_mem, SATA_SE, serr);
-//device_printf(dev, "SERR %08x\n", serr);
 		}
 		/* EDMA self-disabled due to error. */
 		if (iec & EDMA_IE_ESELFDIS)
@@ -676,7 +711,6 @@ mvs_ch_intr(void *data)
 				fisic = SATA_FISC_FISWAIT4HOSTRDYEN_B1;
 			else	/* For Gen-IIe - read FIS interrupt cause. */
 				fisic = ATA_INL(ch->r_mem, SATA_FISIC);
-//device_printf(dev, "FISIC %08x\n", fisic);
 		}
 		if (selfdis)
 			ch->curr_mode = MVS_EDMA_UNKNOWN;
@@ -715,7 +749,6 @@ mvs_ch_intr(void *data)
 					}
 				}
 			}
-//device_printf(dev, "err slot %d port %d\n", ccs, port);
 			mvs_requeue_frozen(dev);
 			for (i = 0; i < MVS_MAX_SLOTS; i++) {
 				/* XXX: reqests in loading state. */
@@ -741,7 +774,8 @@ mvs_ch_intr(void *data)
 					ch->fatalerr = 1;
 				    }
 				} else if (iec & 0xfc1e9000) {
-					if (ch->numtslots == 0 && i != ccs && port != -2)
+					if (ch->numtslots == 0 &&
+					    i != ccs && port != -2)
 						et = MVS_ERR_INNOCENT;
 					else
 						et = MVS_ERR_SATA;
@@ -793,8 +827,6 @@ mvs_legacy_intr(device_t dev)
 
 	/* Clear interrupt and get status. */
 	status = mvs_getstatus(dev, 1);
-//	device_printf(dev, "Legacy intr status %02x\n",
-//	    status);
 	if (slot->state < MVS_SLOT_RUNNING)
 	    return;
 	port = ccb->ccb_h.target_id & 0x0f;
@@ -837,7 +869,8 @@ mvs_legacy_intr(device_t dev)
 			/* If data write command - put them */
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
 				if (mvs_wait(dev, ATA_S_DRQ, ATA_S_BUSY, 1000) < 0) {
-				    device_printf(dev, "timeout waiting for write DRQ\n");
+				    device_printf(dev,
+					"timeout waiting for write DRQ\n");
 				    et = MVS_ERR_TIMEOUT;
 				    goto end_finished;
 				}
@@ -860,19 +893,18 @@ mvs_legacy_intr(device_t dev)
 		ATA_OUTL(ch->r_mem, DMA_C, 0);
 		goto end_finished;
 	} else {			/* ATAPI PIO */
-		length = ATA_INB(ch->r_mem,ATA_CYL_LSB) | (ATA_INB(ch->r_mem,ATA_CYL_MSB) << 8);
+		length = ATA_INB(ch->r_mem,ATA_CYL_LSB) |
+		    (ATA_INB(ch->r_mem,ATA_CYL_MSB) << 8);
 		ireason = ATA_INB(ch->r_mem,ATA_IREASON);
-//device_printf(dev, "status %02x, ireason %02x, length %d\n", status, ireason, length);
 		switch ((ireason & (ATA_I_CMD | ATA_I_IN)) |
 			(status & ATA_S_DRQ)) {
 
 		case ATAPI_P_CMDOUT:
-device_printf(dev, "ATAPI CMDOUT\n");
+		    device_printf(dev, "ATAPI CMDOUT\n");
 		    /* Return wait for interrupt */
 		    return;
 
 		case ATAPI_P_WRITE:
-//device_printf(dev, "ATAPI WRITE\n");
 		    if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 			device_printf(dev, "trying to write on read buffer\n");
 			et = MVS_ERR_TFE;
@@ -890,7 +922,6 @@ device_printf(dev, "ATAPI CMDOUT\n");
 		    return;
 
 		case ATAPI_P_READ:
-//device_printf(dev, "ATAPI READ\n");
 		    if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
 			device_printf(dev, "trying to read on write buffer\n");
 			et = MVS_ERR_TFE;
@@ -907,7 +938,6 @@ device_printf(dev, "ATAPI CMDOUT\n");
 		    return;
 
 		case ATAPI_P_DONEDRQ:
-device_printf(dev, "ATAPI DONEDRQ\n");
 		    device_printf(dev,
 			  "WARNING - DONEDRQ non conformant device\n");
 		    if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
@@ -928,13 +958,13 @@ device_printf(dev, "ATAPI DONEDRQ\n");
 
 		case ATAPI_P_ABORT:
 		case ATAPI_P_DONE:
-//device_printf(dev, "ATAPI ABORT/DONE\n");
 		    if (status & (ATA_S_ERROR | ATA_S_DWF))
 			et = MVS_ERR_TFE;
 		    goto end_finished;
 
 		default:
-		    device_printf(dev, "unknown transfer phase (status %02x, ireason %02x)\n",
+		    device_printf(dev, "unknown transfer phase"
+			" (status %02x, ireason %02x)\n",
 			status, ireason);
 		    et = MVS_ERR_TFE;
 		}
@@ -950,38 +980,54 @@ mvs_crbq_intr(device_t dev)
 	struct mvs_channel *ch = device_get_softc(dev);
 	struct mvs_crpb *crpb;
 	union ccb *ccb;
-	int in_idx, cin_idx, slot;
+	int in_idx, fin_idx, cin_idx, slot;
+	uint32_t val;
 	uint16_t flags;
 
-	in_idx = (ATA_INL(ch->r_mem, EDMA_RESQIP) & EDMA_RESQP_ERPQP_MASK) >>
+	val = ATA_INL(ch->r_mem, EDMA_RESQIP);
+	if (val == 0)
+		val = ATA_INL(ch->r_mem, EDMA_RESQIP);
+	in_idx = (val & EDMA_RESQP_ERPQP_MASK) >>
 	    EDMA_RESQP_ERPQP_SHIFT;
 	bus_dmamap_sync(ch->dma.workrp_tag, ch->dma.workrp_map,
 	    BUS_DMASYNC_POSTREAD);
-	cin_idx = ch->in_idx;
+	fin_idx = cin_idx = ch->in_idx;
 	ch->in_idx = in_idx;
 	while (in_idx != cin_idx) {
 		crpb = (struct mvs_crpb *)
-		    (ch->dma.workrp + MVS_CRPB_OFFSET + (MVS_CRPB_SIZE * cin_idx));
+		    (ch->dma.workrp + MVS_CRPB_OFFSET +
+		    (MVS_CRPB_SIZE * cin_idx));
 		slot = le16toh(crpb->id) & MVS_CRPB_TAG_MASK;
 		flags = le16toh(crpb->rspflg);
-//device_printf(dev, "CRPB %d %d %04x\n", cin_idx, slot, flags);
 		/*
 		 * Handle only successfull completions here.
 		 * Errors will be handled by main intr handler.
 		 */
-		if (ch->numtslots != 0 || (flags & EDMA_IE_EDEVERR) == 0) {
-if ((flags >> 8) & ATA_S_ERROR)
-device_printf(dev, "ERROR STATUS CRPB %d %d %04x\n", cin_idx, slot, flags);
+		if (crpb->id == 0xffff && crpb->rspflg == 0xffff) {
+			device_printf(dev, "Unfilled CRPB "
+			    "%d (%d->%d) tag %d flags %04x rs %08x\n",
+			    cin_idx, fin_idx, in_idx, slot, flags, ch->rslots);
+		} else if (ch->numtslots != 0 ||
+		    (flags & EDMA_IE_EDEVERR) == 0) {
+			crpb->id = 0xffff;
+			crpb->rspflg = 0xffff;
 			if (ch->slot[slot].state >= MVS_SLOT_RUNNING) {
 				ccb = ch->slot[slot].ccb;
-				ccb->ataio.res.status = (flags & MVS_CRPB_ATASTS_MASK) >>
+				ccb->ataio.res.status =
+				    (flags & MVS_CRPB_ATASTS_MASK) >>
 				    MVS_CRPB_ATASTS_SHIFT;
 				mvs_end_transaction(&ch->slot[slot], MVS_ERR_NONE);
-			} else 
-device_printf(dev, "EMPTY CRPB %d (->%d) %d %04x\n", cin_idx, in_idx, slot, flags);
-		} else
-device_printf(dev, "ERROR FLAGS CRPB %d %d %04x\n", cin_idx, slot, flags);
-
+			} else {
+				device_printf(dev, "Unused tag in CRPB "
+				    "%d (%d->%d) tag %d flags %04x rs %08x\n",
+				    cin_idx, fin_idx, in_idx, slot, flags,
+				    ch->rslots);
+			}
+		} else {
+			device_printf(dev,
+			    "CRPB with error %d tag %d flags %04x\n",
+			    cin_idx, slot, flags);
+		}
 		cin_idx = (cin_idx + 1) & (MVS_MAX_SLOTS - 1);
 	}
 	bus_dmamap_sync(ch->dma.workrp_tag, ch->dma.workrp_map,
@@ -1236,8 +1282,6 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 	ch->rslots |= (1 << slot->slot);
 	ATA_OUTB(ch->r_mem, SATA_SATAICTL, port << SATA_SATAICTL_PMPTX_SHIFT);
 	if (ccb->ccb_h.func_code == XPT_ATA_IO) {
-//		device_printf(dev, "%d Legacy command %02x size %d\n",
-//		    port, ccb->ataio.cmd.command, ccb->ataio.dxfer_len);
 		mvs_tfd_write(dev, ccb);
 		/* Device reset doesn't interrupt. */
 		if (ccb->ataio.cmd.command == ATA_DEVICE_RESET) {
@@ -1257,7 +1301,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 		/* If data write command - output the data */
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
 			if (mvs_wait(dev, ATA_S_DRQ, ATA_S_BUSY, 1000) < 0) {
-				device_printf(dev, "timeout waiting for write DRQ\n");
+				device_printf(dev,
+				    "timeout waiting for write DRQ\n");
 				mvs_end_transaction(slot, MVS_ERR_TIMEOUT);
 				return;
 			}
@@ -1266,9 +1311,6 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 			   ch->transfersize / 2);
 		}
 	} else {
-//		device_printf(dev, "%d ATAPI command %02x size %d dma %d\n",
-//		    port, ccb->csio.cdb_io.cdb_bytes[0], ccb->csio.dxfer_len,
-//		    ch->basic_dma);
 		ch->donecount = 0;
 		ch->transfersize = min(ccb->csio.dxfer_len,
 		    ch->curr[port].bytecount);
@@ -1301,7 +1343,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 		    DELAY(20);
 		}
 		if (timeout <= 0) {
-			device_printf(dev, "timeout waiting for ATAPI command ready\n");
+			device_printf(dev,
+			    "timeout waiting for ATAPI command ready\n");
 			mvs_end_transaction(slot, MVS_ERR_TIMEOUT);
 			return;
 		}
@@ -1341,8 +1384,6 @@ mvs_execute_transaction(struct mvs_slot *slot)
 	int port = ccb->ccb_h.target_id & 0x0f;
 	int i;
 
-//	device_printf(dev, "%d EDMA command %02x size %d slot %d tag %d\n",
-//	    port, ccb->ataio.cmd.command, ccb->ataio.dxfer_len, slot->slot, slot->tag);
 	/* Get address of the prepared EPRD */
 	eprd = ch->dma.workrq_bus + MVS_EPRD_OFFSET + (MVS_EPRD_SIZE * slot->slot);
 	/* Prepare CRQB. Gen IIe uses different CRQB format. */
@@ -1522,8 +1563,8 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 	device_t dev = slot->dev;
 	struct mvs_channel *ch = device_get_softc(dev);
 	union ccb *ccb = slot->ccb;
+	int lastto;
 
-//device_printf(dev, "cmd done status %d\n", et);
 	bus_dmamap_sync(ch->dma.workrq_tag, ch->dma.workrq_map,
 	    BUS_DMASYNC_POSTWRITE);
 	/* Read result registers to the result struct
@@ -1604,11 +1645,6 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 	ch->oslots &= ~(1 << slot->slot);
 	ch->rslots &= ~(1 << slot->slot);
 	ch->aslots &= ~(1 << slot->slot);
-	if (et != MVS_ERR_TIMEOUT) {
-		if (ch->toslots == (1 << slot->slot))
-			xpt_release_simq(ch->sim, TRUE);
-		ch->toslots &= ~(1 << slot->slot);
-	}
 	slot->state = MVS_SLOT_EMPTY;
 	slot->ccb = NULL;
 	/* Update channel stats. */
@@ -1627,6 +1663,13 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 	} else {
 		ch->numpslots--;
 		ch->basic_dma = 0;
+	}
+	/* Cancel timeout state if request completed normally. */
+	if (et != MVS_ERR_TIMEOUT) {
+		lastto = (ch->toslots == (1 << slot->slot));
+		ch->toslots &= ~(1 << slot->slot);
+		if (lastto)
+			xpt_release_simq(ch->sim, TRUE);
 	}
 	/* If it was our READ LOG command - process it. */
 	if (ch->readlog) {
@@ -1698,6 +1741,7 @@ mvs_issue_read_log(device_t dev)
 	ataio = &ccb->ataio;
 	ataio->data_ptr = malloc(512, M_MVS, M_NOWAIT);
 	if (ataio->data_ptr == NULL) {
+		xpt_free_ccb(ccb);
 		device_printf(dev, "Unable allocate memory for READ LOG command");
 		return; /* XXX */
 	}
@@ -1758,7 +1802,8 @@ mvs_process_read_log(device_t dev, union ccb *ccb)
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 			device_printf(dev, "Error while READ LOG EXT\n");
 		else if ((data[0] & 0x80) == 0) {
-			device_printf(dev, "Non-queued command error in READ LOG EXT\n");
+			device_printf(dev,
+			    "Non-queued command error in READ LOG EXT\n");
 		}
 		for (i = 0; i < MVS_MAX_SLOTS; i++) {
 			if (!ch->hold[i])
@@ -1987,7 +2032,7 @@ mvs_check_ids(device_t dev, union ccb *ccb)
 static void
 mvsaction(struct cam_sim *sim, union ccb *ccb)
 {
-	device_t dev;
+	device_t dev, parent;
 	struct mvs_channel *ch;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("mvsaction func_code=%x\n",
@@ -2122,6 +2167,7 @@ mvsaction(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
+		parent = device_get_parent(dev);
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE;
 		if (!(ch->quirks & MVS_Q_GENI)) {
@@ -2150,6 +2196,12 @@ mvsaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->maxio = MAXPHYS;
+		if ((ch->quirks & MVS_Q_SOC) == 0) {
+			cpi->hba_vendor = pci_get_vendor(parent);
+			cpi->hba_device = pci_get_device(parent);
+			cpi->hba_subvendor = pci_get_subvendor(parent);
+			cpi->hba_subdevice = pci_get_subdevice(parent);
+		}
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}

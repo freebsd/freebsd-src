@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from BSDI $Id: mutex.h,v 2.7.2.35 2000/04/27 03:10:26 cp Exp $
+ *	from BSDI Id: mutex.h,v 2.7.2.35 2000/04/27 03:10:26 cp
  * $FreeBSD$
  */
 
@@ -197,7 +197,7 @@ extern struct lock_class lock_class_lockmgr;
 extern struct lock_class *lock_classes[];
 
 void	lock_init(struct lock_object *, struct lock_class *,
-    const char *, const char *, int);
+	    const char *, const char *, int);
 void	lock_destroy(struct lock_object *);
 void	spinlock_enter(void);
 void	spinlock_exit(void);
@@ -205,17 +205,19 @@ void	witness_init(struct lock_object *, const char *);
 void	witness_destroy(struct lock_object *);
 int	witness_defineorder(struct lock_object *, struct lock_object *);
 void	witness_checkorder(struct lock_object *, int, const char *, int,
-    struct lock_object *);
+	    struct lock_object *);
 void	witness_lock(struct lock_object *, int, const char *, int);
 void	witness_upgrade(struct lock_object *, int, const char *, int);
 void	witness_downgrade(struct lock_object *, int, const char *, int);
 void	witness_unlock(struct lock_object *, int, const char *, int);
 void	witness_save(struct lock_object *, const char **, int *);
 void	witness_restore(struct lock_object *, const char *, int);
-int	witness_list_locks(struct lock_list_entry **);
+int	witness_list_locks(struct lock_list_entry **,
+	    int (*)(const char *, ...));
 int	witness_warn(int, struct lock_object *, const char *, ...);
 void	witness_assert(struct lock_object *, int, const char *, int);
-void	witness_display_spinlock(struct lock_object *, struct thread *);
+void	witness_display_spinlock(struct lock_object *, struct thread *,
+	    int (*)(const char *, ...));
 int	witness_line(struct lock_object *);
 void	witness_norelease(struct lock_object *);
 void	witness_releaseok(struct lock_object *);

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 28, 1998
+.Dd May 9, 2010
 .Dt PTHREAD_COND_TIMEDWAIT 3
 .Os
 .Sh NAME
@@ -56,6 +56,11 @@ time specified in
 .Fa abstime ,
 and the current thread reacquires the lock on
 .Fa mutex .
+.Pp
+The clock used to measure
+.Fa abstime
+can be specified during creation of the condition variable using
+.Xr pthread_condattr_setclock 3 .
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_cond_timedwait
@@ -87,7 +92,8 @@ was not locked by the calling thread.
 .Xr pthread_cond_destroy 3 ,
 .Xr pthread_cond_init 3 ,
 .Xr pthread_cond_signal 3 ,
-.Xr pthread_cond_wait 3
+.Xr pthread_cond_wait 3 ,
+.Xr pthread_condattr_setclock 3
 .Sh STANDARDS
 The
 .Fn pthread_cond_timedwait

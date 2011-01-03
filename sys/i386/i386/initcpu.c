@@ -116,14 +116,13 @@ u_int	cpu_mxcsr_mask;		/* valid bits in mxcsr */
 static void
 init_bluelightning(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	need_post_dma_flush = 1;
 #endif
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	invd();
@@ -144,7 +143,7 @@ init_bluelightning(void)
 	/* Enable caching in CR0. */
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
 	invd();
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 /*
@@ -153,11 +152,10 @@ init_bluelightning(void)
 static void
 init_486dlc(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr0;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 	invd();
 
 	ccr0 = read_cyrix_reg(CCR0);
@@ -189,7 +187,7 @@ init_486dlc(void)
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
 	invd();
 #endif /* !CYRIX_CACHE_WORKS */
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 
@@ -199,11 +197,10 @@ init_486dlc(void)
 static void
 init_cy486dx(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr2;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 	invd();
 
 	ccr2 = read_cyrix_reg(CCR2);
@@ -220,7 +217,7 @@ init_cy486dx(void)
 #endif
 
 	write_cyrix_reg(CCR2, ccr2);
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 
@@ -230,11 +227,10 @@ init_cy486dx(void)
 static void
 init_5x86(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr2, ccr3, ccr4, pcr0;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
@@ -320,29 +316,28 @@ init_5x86(void)
 	/* Lock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_LOCK_NW);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 #ifdef CPU_I486_ON_386
 /*
  * There are i486 based upgrade products for i386 machines.
- * In this case, BIOS doesn't enables CPU cache.
+ * In this case, BIOS doesn't enable CPU cache.
  */
 static void
 init_i486_on_386(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	need_post_dma_flush = 1;
 #endif
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0, NW = 0 */
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 #endif
 
@@ -354,11 +349,10 @@ init_i486_on_386(void)
 static void
 init_6x86(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr3, ccr4;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
@@ -422,7 +416,7 @@ init_6x86(void)
 	/* Lock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_LOCK_NW);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 #endif /* I486_CPU */
 
@@ -435,11 +429,10 @@ init_6x86(void)
 static void
 init_6x86MX(void)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_char	ccr3, ccr4;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
@@ -489,7 +482,7 @@ init_6x86MX(void)
 	/* Lock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_LOCK_NW);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 static void
@@ -513,11 +506,10 @@ static void
 init_mendocino(void)
 {
 #ifdef CPU_PPRO2CELERON
-	u_long	eflags;
+	register_t	saveintr;
 	u_int64_t	bbl_cr_ctl3;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
@@ -541,7 +533,7 @@ init_mendocino(void)
 	}
 
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));
-	write_eflags(eflags);
+	intr_restore(saveintr);
 #endif /* CPU_PPRO2CELERON */
 }
 
@@ -680,7 +672,7 @@ initializecpu(void)
 			     (cpu_id & ~0xf) == 0x670 ||
 			     (cpu_id & ~0xf) == 0x680)) {
 				u_int regs[4];
-				wrmsr(0xC0010015, rdmsr(0xC0010015) & ~0x08000);
+				wrmsr(MSR_HWCR, rdmsr(MSR_HWCR) & ~0x08000);
 				do_cpuid(1, regs);
 				cpu_feature = regs[3];
 			}
@@ -724,17 +716,17 @@ initializecpu(void)
 	if ((cpu_feature & CPUID_CLFSH) != 0)
 		cpu_clflush_line_size = ((cpu_procinfo >> 8) & 0xff) * 8;
 	/*
-	 * XXXKIB: (temporary) hack to work around traps generated when
-	 * CLFLUSHing APIC registers window.
+	 * XXXKIB: (temporary) hack to work around traps generated
+	 * when CLFLUSHing APIC register window under virtualization
+	 * environments.  These environments tend to disable the
+	 * CPUID_SS feature even though the native CPU supports it.
 	 */
 	TUNABLE_INT_FETCH("hw.clflush_disable", &hw_clflush_disable);
-	if (cpu_vendor_id == CPU_VENDOR_INTEL && !(cpu_feature & CPUID_SS) &&
-	    hw_clflush_disable == -1)
+	if (vm_guest != VM_GUEST_NO && hw_clflush_disable == -1)
 		cpu_feature &= ~CPUID_CLFSH;
 	/*
 	 * Allow to disable CLFLUSH feature manually by
-	 * hw.clflush_disable tunable.  This may help Xen guest on some AMD
-	 * CPUs.
+	 * hw.clflush_disable tunable.
 	 */
 	if (hw_clflush_disable == 1)
 		cpu_feature &= ~CPUID_CLFSH;
@@ -795,14 +787,14 @@ void
 enable_K5_wt_alloc(void)
 {
 	u_int64_t	msr;
-	register_t	savecrit;
+	register_t	saveintr;
 
 	/*
 	 * Write allocate is supported only on models 1, 2, and 3, with
 	 * a stepping of 4 or greater.
 	 */
 	if (((cpu_id & 0xf0) > 0) && ((cpu_id & 0x0f) > 3)) {
-		savecrit = intr_disable();
+		saveintr = intr_disable();
 		msr = rdmsr(0x83);		/* HWCR */
 		wrmsr(0x83, msr & !(0x10));
 
@@ -833,7 +825,7 @@ enable_K5_wt_alloc(void)
 
 		msr=rdmsr(0x83);
 		wrmsr(0x83, msr|0x10); /* enable write allocate */
-		intr_restore(savecrit);
+		intr_restore(saveintr);
 	}
 }
 
@@ -842,10 +834,9 @@ enable_K6_wt_alloc(void)
 {
 	quad_t	size;
 	u_int64_t	whcr;
-	u_long	eflags;
+	register_t	saveintr;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 	wbinvd();
 
 #ifdef CPU_DISABLE_CACHE
@@ -895,7 +886,7 @@ enable_K6_wt_alloc(void)
 #endif
 	wrmsr(0x0c0000082, whcr);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 void
@@ -903,10 +894,9 @@ enable_K6_2_wt_alloc(void)
 {
 	quad_t	size;
 	u_int64_t	whcr;
-	u_long	eflags;
+	register_t	saveintr;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 	wbinvd();
 
 #ifdef CPU_DISABLE_CACHE
@@ -956,7 +946,7 @@ enable_K6_2_wt_alloc(void)
 #endif
 	wrmsr(0x0c0000082, whcr);
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 #endif /* I585_CPU && CPU_WT_ALLOC */
 
@@ -966,15 +956,14 @@ enable_K6_2_wt_alloc(void)
 
 DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 {
-	u_long	eflags;
+	register_t saveintr;
 	u_int	cr0;
 	u_char	ccr1, ccr2, ccr3;
 	u_char	ccr0 = 0, ccr4 = 0, ccr5 = 0, pcr0 = 0;
 
 	cr0 = rcr0();
 	if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
-		eflags = read_eflags();
-		disable_intr();
+		saveintr = intr_disable();
 
 
 		if ((cpu != CPU_M1SC) && (cpu != CPU_CY486DX)) {
@@ -992,7 +981,7 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 				pcr0 = read_cyrix_reg(PCR0);
 			write_cyrix_reg(CCR3, ccr3);		/* Restore CCR3. */
 		}
-		write_eflags(eflags);
+		intr_restore(saveintr);
 
 		if ((cpu != CPU_M1SC) && (cpu != CPU_CY486DX))
 			printf("CCR0=%x, ", (u_int)ccr0);

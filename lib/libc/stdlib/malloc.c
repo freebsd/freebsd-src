@@ -180,6 +180,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <limits.h>
+#include <link.h>
 #include <pthread.h>
 #include <sched.h>
 #include <stdarg.h>
@@ -193,6 +194,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "un-namespace.h"
+
+#include "libc_private.h"
 
 #define	RB_COMPACT
 #include "rb.h"
@@ -249,8 +252,13 @@ __FBSDID("$FreeBSD$");
 #  define LG_SIZEOF_PTR		2
 #  define NO_TLS
 #endif
-#ifdef __powerpc__
+#ifdef __powerpc64__
 #  define LG_QUANTUM		4
+#  define LG_SIZEOF_PTR		3
+#  define TLS_MODEL		/* default */
+#elif defined(__powerpc__)
+#  define LG_QUANTUM		4
+#  define LG_SIZEOF_PTR		2
 #  define TLS_MODEL		/* default */
 #endif
 #ifdef __s390x__
@@ -5348,14 +5356,20 @@ small_size2bin_init_hard(void)
 static unsigned
 malloc_ncpus(void)
 {
+	int mib[2];
 	unsigned ret;
-	size_t retlen = sizeof(ret);
-	int mib[] = {CTL_HW, HW_NCPU};
+	int error;
+	size_t len;
 
-	if (sysctl(mib, sizeof(mib) / sizeof(int), &ret, &retlen,
-	    (void *)0, 0) == -1) {
-		/* Error. */
-		ret = 1;
+	error = _elf_aux_info(AT_NCPUS, &ret, sizeof(ret));
+	if (error != 0 || ret == 0) {
+		mib[0] = CTL_HW;
+		mib[1] = HW_NCPU;
+		len = sizeof(ret);
+		if (sysctl(mib, 2, &ret, &len, (void *)NULL, 0) == -1) {
+			/* Error. */
+			ret = 1;
+		}
 	}
 
 	return (ret);

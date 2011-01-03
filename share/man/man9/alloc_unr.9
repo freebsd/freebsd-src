@@ -24,13 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2010
+.Dd July 5, 2010
 .Dt ALLOC_UNR 9
 .Os
 .Sh NAME
 .Nm new_unrhdr ,
 .Nm delete_unrhdr ,
 .Nm alloc_unr ,
+.Nm alloc_unr_specific ,
 .Nm free_unr
 .Nd "kernel unit number allocator"
 .Sh SYNOPSIS
@@ -43,6 +44,8 @@
 .Fn alloc_unr "struct unrhdr *uh"
 .Ft int
 .Fn alloc_unrl "struct unrhdr *uh"
+.Ft int
+.Fn alloc_unr_specific "struct unrhdr *uh" "u_int item"
 .Ft void
 .Fn free_unr "struct unrhdr *uh" "u_int item"
 .Sh DESCRIPTION
@@ -81,6 +84,13 @@ is returned.
 Same as
 .Fn alloc_unr
 except that mutex is assumed to be already locked and thus is not used.
+.It Fn alloc_unr_specific uh item
+Allocate a specific unit number.
+This function allocates memory and thus may sleep.
+The allocated unit number is returned on success.
+If the specified number is already allocated or out of the range,
+.Li \-1
+is returned.
 .It Fn free_unr uh item
 Free a previously allocated unit number.
 This function may require allocating memory, and thus it can sleep.

@@ -163,6 +163,8 @@ ia64_store_mca_state(void* arg)
 	sched_bind(td, pc->pc_cpuid);
 	thread_unlock(td);
 
+	ia64_mca_init_ap();
+
 	/*
 	 * Get and save the CPU specific MCA records. Should we get the
 	 * MCA state for each processor, or just the CMC state?
@@ -403,6 +405,16 @@ ipi_selected(cpumask_t cpus, int ipi)
 		if (cpus & pc->pc_cpumask)
 			ipi_send(pc, ipi);
 	}
+}
+
+/*
+ * send an IPI to a specific CPU.
+ */
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	ipi_send(cpuid_to_pcpu[cpu], ipi);
 }
 
 /*

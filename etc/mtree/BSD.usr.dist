@@ -227,6 +227,8 @@
             ..
             iscsi
             ..
+            jails
+            ..
             kld
                 cdev
                     module
@@ -260,6 +262,8 @@
                 ..
             ..
             nwclient
+            ..
+            pc-sysinstall
             ..
             perfmon
             ..
@@ -1224,6 +1228,20 @@
                 ..
                 man3
                 ..
+            ..
+        ..
+        pc-sysinstall
+            backend
+            ..
+            backend-partmanager
+            ..
+            backend-query
+            ..
+            conf
+                license
+                ..
+            ..
+            doc
             ..
         ..
         security

@@ -1,6 +1,6 @@
 /*
  * Wi-Fi Protected Setup
- * Copyright (c) 2007-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2007-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,6 +32,7 @@ enum wsc_op_code {
 
 struct wps_registrar;
 struct upnp_wps_device_sm;
+struct wps_er;
 
 /**
  * struct wps_credential - WPS Credential
@@ -42,7 +43,7 @@ struct upnp_wps_device_sm;
  * @key_idx: Key index
  * @key: Key
  * @key_len: Key length in octets
- * @mac_addr: MAC address of the peer
+ * @mac_addr: MAC address of the Credential receiver
  * @cred_attr: Unparsed Credential attribute data (used only in cred_cb());
  *	this may be %NULL, if not used
  * @cred_attr_len: Length of cred_attr in octets
@@ -60,6 +61,9 @@ struct wps_credential {
 	size_t cred_attr_len;
 };
 
+#define WPS_DEV_TYPE_LEN 8
+#define WPS_DEV_TYPE_BUFSIZE 21
+
 /**
  * struct wps_device_data - WPS Device Data
  * @mac_addr: Device MAC address
@@ -68,9 +72,7 @@ struct wps_credential {
  * @model_name: Model Name (0..32 octets encoded in UTF-8)
  * @model_number: Model Number (0..32 octets encoded in UTF-8)
  * @serial_number: Serial Number (0..32 octets encoded in UTF-8)
- * @categ: Primary Device Category
- * @oui: Primary Device OUI
- * @sub_categ: Primary Device Sub-Category
+ * @pri_dev_type: Primary Device Type
  * @os_version: OS Version
  * @rf_bands: RF bands (WPS_RF_24GHZ, WPS_RF_50GHZ flags)
  */
@@ -81,11 +83,20 @@ struct wps_device_data {
 	char *model_name;
 	char *model_number;
 	char *serial_number;
-	u16 categ;
-	u32 oui;
-	u16 sub_categ;
+	u8 pri_dev_type[WPS_DEV_TYPE_LEN];
 	u32 os_version;
 	u8 rf_bands;
+};
+
+struct oob_conf_data {
+	enum {
+		OOB_METHOD_UNKNOWN = 0,
+		OOB_METHOD_DEV_PWD_E,
+		OOB_METHOD_DEV_PWD_R,
+		OOB_METHOD_CRED,
+	} oob_method;
+	struct wpabuf *dev_password;
+	struct wpabuf *pubkey_hash;
 };
 
 /**
@@ -121,6 +132,30 @@ struct wps_config {
 	 * assoc_wps_ie: (Re)AssocReq WPS IE (in AP; %NULL if not AP)
 	 */
 	const struct wpabuf *assoc_wps_ie;
+
+	/**
+	 * new_ap_settings - New AP settings (%NULL if not used)
+	 *
+	 * This parameter provides new AP settings when using a wireless
+	 * stations as a Registrar to configure the AP. %NULL means that AP
+	 * will not be reconfigured, i.e., the station will only learn the
+	 * current AP settings by using AP PIN.
+	 */
+	const struct wps_credential *new_ap_settings;
+
+	/**
+	 * peer_addr: MAC address of the peer in AP; %NULL if not AP
+	 */
+	const u8 *peer_addr;
+
+	/**
+	 * use_psk_key - Use PSK format key in Credential
+	 *
+	 * Force PSK format to be used instead of ASCII passphrase when
+	 * building Credential for an Enrollee. The PSK value is set in
+	 * struct wpa_context::psk.
+	 */
+	int use_psk_key;
 };
 
 struct wps_data * wps_init(const struct wps_config *cfg);
@@ -163,6 +198,7 @@ int wps_is_selected_pin_registrar(const struct wpabuf *msg);
 const u8 * wps_get_uuid_e(const struct wpabuf *msg);
 
 struct wpabuf * wps_build_assoc_req_ie(enum wps_request_type req_type);
+struct wpabuf * wps_build_assoc_resp_ie(void);
 struct wpabuf * wps_build_probe_req_ie(int pbc, struct wps_device_data *dev,
 				       const u8 *uuid,
 				       enum wps_request_type req_type);
@@ -189,16 +225,15 @@ struct wps_registrar_config {
 	 * set_ie_cb - Callback for WPS IE changes
 	 * @ctx: Higher layer context data (cb_ctx)
 	 * @beacon_ie: WPS IE for Beacon
-	 * @beacon_ie_len: WPS IE length for Beacon
 	 * @probe_resp_ie: WPS IE for Probe Response
-	 * @probe_resp_ie_len: WPS IE length for Probe Response
 	 * Returns: 0 on success, -1 on failure
 	 *
 	 * This callback is called whenever the WPS IE in Beacon or Probe
-	 * Response frames needs to be changed (AP only).
+	 * Response frames needs to be changed (AP only). Callee is responsible
+	 * for freeing the buffers.
 	 */
-	int (*set_ie_cb)(void *ctx, const u8 *beacon_ie, size_t beacon_ie_len,
-			 const u8 *probe_resp_ie, size_t probe_resp_ie_len);
+	int (*set_ie_cb)(void *ctx, struct wpabuf *beacon_ie,
+			 struct wpabuf *probe_resp_ie);
 
 	/**
 	 * pin_needed_cb - Callback for requesting a PIN
@@ -224,6 +259,40 @@ struct wps_registrar_config {
 	 */
 	void (*reg_success_cb)(void *ctx, const u8 *mac_addr,
 			       const u8 *uuid_e);
+
+	/**
+	 * set_sel_reg_cb - Callback for reporting selected registrar changes
+	 * @ctx: Higher layer context data (cb_ctx)
+	 * @sel_reg: Whether the Registrar is selected
+	 * @dev_passwd_id: Device Password ID to indicate with method or
+	 *	specific password the Registrar intends to use
+	 * @sel_reg_config_methods: Bit field of active config methods
+	 *
+	 * This callback is called whenever the Selected Registrar state
+	 * changes (e.g., a new PIN becomes available or PBC is invoked). This
+	 * callback is only used by External Registrar implementation;
+	 * set_ie_cb() is used by AP implementation in similar caes, but it
+	 * provides the full WPS IE data instead of just the minimal Registrar
+	 * state information.
+	 */
+	void (*set_sel_reg_cb)(void *ctx, int sel_reg, u16 dev_passwd_id,
+			       u16 sel_reg_config_methods);
+
+	/**
+	 * enrollee_seen_cb - Callback for reporting Enrollee based on ProbeReq
+	 * @ctx: Higher layer context data (cb_ctx)
+	 * @addr: MAC address of the Enrollee
+	 * @uuid_e: UUID of the Enrollee
+	 * @pri_dev_type: Primary device type
+	 * @config_methods: Config Methods
+	 * @dev_password_id: Device Password ID
+	 * @request_type: Request Type
+	 * @dev_name: Device Name (if available)
+	 */
+	void (*enrollee_seen_cb)(void *ctx, const u8 *addr, const u8 *uuid_e,
+				 const u8 *pri_dev_type, u16 config_methods,
+				 u16 dev_password_id, u8 request_type,
+				 const char *dev_name);
 
 	/**
 	 * cb_ctx: Higher layer context data for Registrar callbacks
@@ -266,6 +335,11 @@ struct wps_registrar_config {
 	 * to be set with a suitable Credential and skip_cred_build being used.
 	 */
 	int disable_auto_conf;
+
+	/**
+	 * static_wep_only - Whether the BSS supports only static WEP
+	 */
+	int static_wep_only;
 };
 
 
@@ -291,7 +365,37 @@ enum wps_event {
 	/**
 	 * WPS_EV_PWD_AUTH_FAIL - Password authentication failed
 	 */
-	WPS_EV_PWD_AUTH_FAIL
+	WPS_EV_PWD_AUTH_FAIL,
+
+	/**
+	 * WPS_EV_PBC_OVERLAP - PBC session overlap detected
+	 */
+	WPS_EV_PBC_OVERLAP,
+
+	/**
+	 * WPS_EV_PBC_TIMEOUT - PBC walktime expired before protocol run start
+	 */
+	WPS_EV_PBC_TIMEOUT,
+
+	/**
+	 * WPS_EV_ER_AP_ADD - ER: AP added
+	 */
+	WPS_EV_ER_AP_ADD,
+
+	/**
+	 * WPS_EV_ER_AP_REMOVE - ER: AP removed
+	 */
+	WPS_EV_ER_AP_REMOVE,
+
+	/**
+	 * WPS_EV_ER_ENROLLEE_ADD - ER: Enrollee added
+	 */
+	WPS_EV_ER_ENROLLEE_ADD,
+
+	/**
+	 * WPS_EV_ER_ENROLLEE_REMOVE - ER: Enrollee removed
+	 */
+	WPS_EV_ER_ENROLLEE_REMOVE
 };
 
 /**
@@ -330,6 +434,36 @@ union wps_event_data {
 		int enrollee;
 		int part;
 	} pwd_auth_fail;
+
+	struct wps_event_er_ap {
+		const u8 *uuid;
+		const u8 *mac_addr;
+		const char *friendly_name;
+		const char *manufacturer;
+		const char *manufacturer_url;
+		const char *model_description;
+		const char *model_name;
+		const char *model_number;
+		const char *model_url;
+		const char *serial_number;
+		const char *upc;
+		const u8 *pri_dev_type;
+		u8 wps_state;
+	} ap;
+
+	struct wps_event_er_enrollee {
+		const u8 *uuid;
+		const u8 *mac_addr;
+		int m1_received;
+		u16 config_methods;
+		u16 dev_passwd_id;
+		const u8 *pri_dev_type;
+		const char *dev_name;
+		const char *manufacturer;
+		const char *model_name;
+		const char *model_number;
+		const char *serial_number;
+	} enrollee;
 };
 
 /**
@@ -398,6 +532,31 @@ struct wps_context {
 	struct wps_device_data dev;
 
 	/**
+	 * oob_conf - OOB Config data
+	 */
+	struct oob_conf_data oob_conf;
+
+	/**
+	 * oob_dev_pw_id - OOB Device password id
+	 */
+	u16 oob_dev_pw_id;
+
+	/**
+	 * dh_ctx - Context data for Diffie-Hellman operation
+	 */
+	void *dh_ctx;
+
+	/**
+	 * dh_privkey - Diffie-Hellman private key
+	 */
+	struct wpabuf *dh_privkey;
+
+	/**
+	 * dh_pubkey_oob - Diffie-Hellman public key
+	 */
+	struct wpabuf *dh_pubkey;
+
+	/**
 	 * config_methods - Enabled configuration methods
 	 *
 	 * Bit field of WPS_CONFIG_*
@@ -420,6 +579,14 @@ struct wps_context {
 	 * If %NULL, Registrar will generate per-device PSK. In addition, AP
 	 * uses this when acting as an Enrollee to notify Registrar of the
 	 * current configuration.
+	 *
+	 * When using WPA/WPA2-Person, this key can be either the ASCII
+	 * passphrase (8..63 characters) or the 32-octet PSK (64 hex
+	 * characters). When this is set to the ASCII passphrase, the PSK can
+	 * be provided in the psk buffer and used per-Enrollee to control which
+	 * key type is included in the Credential (e.g., to reduce calculation
+	 * need on low-powered devices by provisioning PSK while still allowing
+	 * other devices to get the passphrase).
 	 */
 	u8 *network_key;
 
@@ -427,6 +594,19 @@ struct wps_context {
 	 * network_key_len - Length of network_key in octets
 	 */
 	size_t network_key_len;
+
+	/**
+	 * psk - The current network PSK
+	 *
+	 * This optional value can be used to provide the current PSK if
+	 * network_key is set to the ASCII passphrase.
+	 */
+	u8 psk[32];
+
+	/**
+	 * psk_set - Whether psk value is set
+	 */
+	int psk_set;
 
 	/**
 	 * ap_settings - AP Settings override for M7 (only used at AP)
@@ -494,25 +674,63 @@ struct wps_context {
 	struct upnp_pending_message *upnp_msgs;
 };
 
+struct oob_device_data {
+	char *device_name;
+	char *device_path;
+	void * (*init_func)(struct wps_context *, struct oob_device_data *,
+			    int);
+	struct wpabuf * (*read_func)(void *);
+	int (*write_func)(void *, struct wpabuf *);
+	void (*deinit_func)(void *);
+};
+
+struct oob_nfc_device_data {
+	int (*init_func)(char *);
+	void * (*read_func)(size_t *);
+	int (*write_func)(void *, size_t);
+	void (*deinit_func)(void);
+};
 
 struct wps_registrar *
 wps_registrar_init(struct wps_context *wps,
 		   const struct wps_registrar_config *cfg);
 void wps_registrar_deinit(struct wps_registrar *reg);
 int wps_registrar_add_pin(struct wps_registrar *reg, const u8 *uuid,
-			  const u8 *pin, size_t pin_len);
+			  const u8 *pin, size_t pin_len, int timeout);
 int wps_registrar_invalidate_pin(struct wps_registrar *reg, const u8 *uuid);
 int wps_registrar_unlock_pin(struct wps_registrar *reg, const u8 *uuid);
 int wps_registrar_button_pushed(struct wps_registrar *reg);
 void wps_registrar_probe_req_rx(struct wps_registrar *reg, const u8 *addr,
 				const struct wpabuf *wps_data);
 int wps_registrar_update_ie(struct wps_registrar *reg);
-int wps_registrar_set_selected_registrar(struct wps_registrar *reg,
-					 const struct wpabuf *msg);
+int wps_registrar_get_info(struct wps_registrar *reg, const u8 *addr,
+			   char *buf, size_t buflen);
 
 unsigned int wps_pin_checksum(unsigned int pin);
 unsigned int wps_pin_valid(unsigned int pin);
 unsigned int wps_generate_pin(void);
 void wps_free_pending_msgs(struct upnp_pending_message *msgs);
+
+struct oob_device_data * wps_get_oob_device(char *device_type);
+struct oob_nfc_device_data * wps_get_oob_nfc_device(char *device_name);
+int wps_get_oob_method(char *method);
+int wps_process_oob(struct wps_context *wps, struct oob_device_data *oob_dev,
+		    int registrar);
+int wps_attr_text(struct wpabuf *data, char *buf, char *end);
+
+struct wps_er * wps_er_init(struct wps_context *wps, const char *ifname);
+void wps_er_refresh(struct wps_er *er);
+void wps_er_deinit(struct wps_er *er, void (*cb)(void *ctx), void *ctx);
+void wps_er_set_sel_reg(struct wps_er *er, int sel_reg, u16 dev_passwd_id,
+			u16 sel_reg_config_methods);
+int wps_er_pbc(struct wps_er *er, const u8 *uuid);
+int wps_er_learn(struct wps_er *er, const u8 *uuid, const u8 *pin,
+		 size_t pin_len);
+
+int wps_dev_type_str2bin(const char *str, u8 dev_type[WPS_DEV_TYPE_LEN]);
+char * wps_dev_type_bin2str(const u8 dev_type[WPS_DEV_TYPE_LEN], char *buf,
+			    size_t buf_len);
+void uuid_gen_mac_addr(const u8 *mac_addr, u8 *uuid);
+u16 wps_config_methods_str2bin(const char *str);
 
 #endif /* WPS_H */

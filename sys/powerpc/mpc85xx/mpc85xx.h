@@ -1,5 +1,6 @@
 /*-
  * Copyright (C) 2008 Semihalf, Rafal Jaworowski
+ * Copyright 2006 by Juniper Networks.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,10 +30,61 @@
 #ifndef _MPC85XX_H_
 #define _MPC85XX_H_
 
+/*
+ * Configuration control and status registers
+ */
+#define	OCP85XX_CCSRBAR		(CCSRBAR_VA + 0x0)
+#define	OCP85XX_BPTR		(CCSRBAR_VA + 0x20)
+
+/*
+ * E500 Coherency Module registers
+ */
+#define	OCP85XX_EEBPCR		(CCSRBAR_VA + 0x1010)
+
+/*
+ * Local access registers
+ */
+#define	OCP85XX_LAWBAR(n)	(CCSRBAR_VA + 0xc08 + 0x20 * (n))
+#define	OCP85XX_LAWSR(n)	(CCSRBAR_VA + 0xc10 + 0x20 * (n))
+
+#define	OCP85XX_TGTIF_LBC	4
+#define	OCP85XX_TGTIF_RAM_INTL	11
+#define	OCP85XX_TGTIF_RIO	12
+#define	OCP85XX_TGTIF_RAM1	15
+#define	OCP85XX_TGTIF_RAM2	22
+
+/*
+ * L2 cache registers
+ */
+#define OCP85XX_L2CTL		(CCSRBAR_VA + 0x20000)
+
+/*
+ * Power-On Reset configuration
+ */
+#define	OCP85XX_PORDEVSR	(CCSRBAR_VA + 0xe000c)
+#define OCP85XX_PORDEVSR_IO_SEL	0x00780000
+#define OCP85XX_PORDEVSR_IO_SEL_SHIFT 19
+
+#define	OCP85XX_PORDEVSR2	(CCSRBAR_VA + 0xe0014)
+
+#define	OCP85XX_DEVDISR		(CCSRBAR_VA + 0xe0070)
+#define	OCP85XX_DEVDISR_PCIE0	0x20000000
+#define	OCP85XX_DEVDISR_PCIE1	0x04000000
+#define	OCP85XX_DEVDISR_PCIE2	0x02000000
+
+/*
+ * Status Registers.
+ */
+#define	OCP85XX_RSTCR		(CCSRBAR_VA + 0xe00b0)
+
+/*
+ * Prototypes.
+ */
 uint32_t ccsr_read4(uintptr_t addr);
 void ccsr_write4(uintptr_t addr, uint32_t val);
 int law_enable(int trgt, u_long addr, u_long size);
 int law_disable(int trgt, u_long addr, u_long size);
 int law_getmax(void);
+int law_pci_target(struct resource *, int *, int *);
 
 #endif /* _MPC85XX_H_ */

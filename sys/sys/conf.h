@@ -54,6 +54,7 @@ struct file;
 struct cdev {
 	void		*__si_reserved;
 	u_int		si_flags;
+#define	SI_ETERNAL	0x0001	/* never destroyed */
 #define SI_ALIAS	0x0002	/* carrier of alias name */
 #define SI_NAMED	0x0004	/* make_dev{_alias} has been called */
 #define SI_CHEAPCLONE	0x0008	/* can be removed_dev'ed when vnode reclaims */
@@ -249,9 +250,9 @@ int	destroy_dev_sched(struct cdev *dev);
 int	destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg);
 void	destroy_dev_drain(struct cdevsw *csw);
 void	drain_dev_clone_events(void);
-struct cdevsw *dev_refthread(struct cdev *_dev);
-struct cdevsw *devvn_refthread(struct vnode *vp, struct cdev **devp);
-void	dev_relthread(struct cdev *_dev);
+struct cdevsw *dev_refthread(struct cdev *_dev, int *_ref);
+struct cdevsw *devvn_refthread(struct vnode *vp, struct cdev **devp, int *_ref);
+void	dev_relthread(struct cdev *_dev, int _ref);
 void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
 void	dev_ref(struct cdev *dev);
 void	dev_refl(struct cdev *dev);
@@ -262,18 +263,30 @@ struct cdev *make_dev(struct cdevsw *_devsw, int _unit, uid_t _uid, gid_t _gid,
 struct cdev *make_dev_cred(struct cdevsw *_devsw, int _unit,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _perms,
 		const char *_fmt, ...) __printflike(7, 8);
-#define	MAKEDEV_REF     0x1
-#define	MAKEDEV_WHTOUT	0x2
-#define	MAKEDEV_NOWAIT	0x4
-#define	MAKEDEV_WAITOK	0x8
+#define	MAKEDEV_REF		0x01
+#define	MAKEDEV_WHTOUT		0x02
+#define	MAKEDEV_NOWAIT		0x04
+#define	MAKEDEV_WAITOK		0x08
+#define	MAKEDEV_ETERNAL		0x10
+#define	MAKEDEV_CHECKNAME	0x20
 struct cdev *make_dev_credf(int _flags,
 		struct cdevsw *_devsw, int _unit,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
 		const char *_fmt, ...) __printflike(8, 9);
-struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...) __printflike(2, 3);
+int	make_dev_p(int _flags, struct cdev **_cdev, struct cdevsw *_devsw,
+		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
+		const char *_fmt, ...) __printflike(8, 9);
+struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...)
+		__printflike(2, 3);
 void	dev_lock(void);
 void	dev_unlock(void);
 void	setconf(void);
+
+#ifdef KLD_MODULE
+#define	MAKEDEV_ETERNAL_KLD	0
+#else
+#define	MAKEDEV_ETERNAL_KLD	MAKEDEV_ETERNAL
+#endif
 
 #define	dev2unit(d)	((d)->si_drv0)
 

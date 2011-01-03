@@ -15,6 +15,9 @@ FBSD_1.0 {
     dlinfo;
     dl_iterate_phdr;
     r_debug_state;
+#ifdef __powerpc64__
+    .r_debug_state;
+#endif
     __tls_get_addr;
 };
 
@@ -24,4 +27,5 @@ FBSDprivate_1.0 {
     _rtld_free_tls;
     _rtld_atfork_pre;
     _rtld_atfork_post;
+    _rtld_addr_phdr;
 };

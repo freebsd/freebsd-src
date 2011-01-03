@@ -189,8 +189,8 @@ retry:
 	if ((pn->pn_flags & PFS_PROCDEP) != 0)
 		(*vpp)->v_vflag |= VV_PROCDEP;
 	pvd->pvd_vnode = *vpp;
-	VN_LOCK_AREC(*vpp);
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+	VN_LOCK_AREC(*vpp);
 	error = insmntque(*vpp, mp);
 	if (error != 0) {
 		free(pvd, M_PFSVNCACHE);

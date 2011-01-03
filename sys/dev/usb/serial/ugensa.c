@@ -153,6 +153,7 @@ static driver_t ugensa_driver = {
 DRIVER_MODULE(ugensa, uhub, ugensa_driver, ugensa_devclass, NULL, 0);
 MODULE_DEPEND(ugensa, ucom, 1, 1, 1);
 MODULE_DEPEND(ugensa, usb, 1, 1, 1);
+MODULE_VERSION(ugensa, 1);
 
 static const struct usb_device_id ugensa_devs[] = {
 	{USB_VPI(USB_VENDOR_AIRPRIME, USB_PRODUCT_AIRPRIME_PC5220, 0)},
@@ -246,6 +247,8 @@ ugensa_attach(device_t dev)
 		DPRINTF("attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);			/* success */
 
 detach:
@@ -259,7 +262,7 @@ ugensa_detach(device_t dev)
 	struct ugensa_softc *sc = device_get_softc(dev);
 	uint8_t x;
 
-	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom, sc->sc_niface);
+	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom);
 
 	for (x = 0; x < sc->sc_niface; x++) {
 		usbd_transfer_unsetup(sc->sc_sub[x].sc_xfer, UGENSA_N_TRANSFER);

@@ -117,8 +117,6 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
-#include <contrib/dev/acpica/include/amlcode.h>
-#include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/acpredef.h>
 
 
@@ -251,7 +249,7 @@ ApCheckForPredefinedMethod (
 
         if (MethodInfo->NumArguments != 0)
         {
-            sprintf (MsgBuffer, "%s requires %d", Op->Asl.ExternalName, 0);
+            sprintf (MsgBuffer, "%s requires %u", Op->Asl.ExternalName, 0);
 
             AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_HI, Op,
                 MsgBuffer);
@@ -274,7 +272,7 @@ ApCheckForPredefinedMethod (
         if ((MethodInfo->NumArguments != RequiredArgsCurrent) &&
             (MethodInfo->NumArguments != RequiredArgsOld))
         {
-            sprintf (MsgBuffer, "%4.4s requires %d",
+            sprintf (MsgBuffer, "%4.4s requires %u",
                 PredefinedNames[Index].Info.Name, RequiredArgsCurrent);
 
             if (MethodInfo->NumArguments > RequiredArgsCurrent)
@@ -731,7 +729,7 @@ ApDisplayReservedNames (
     ThisName = PredefinedNames;
     while (ThisName->Info.Name[0])
     {
-        printf ("%4.4s    Requires %d arguments, ",
+        printf ("%4.4s    Requires %u arguments, ",
             ThisName->Info.Name, ThisName->Info.ParamCount & 0x0F);
 
         if (ThisName->Info.ExpectedBtypes)

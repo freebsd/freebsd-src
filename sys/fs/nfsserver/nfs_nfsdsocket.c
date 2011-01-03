@@ -50,8 +50,6 @@ extern struct nfsclienthashhead nfsclienthash[NFSCLIENTHASHSIZE];
 extern int nfsrc_floodlevel, nfsrc_tcpsavedreplies;
 NFSV4ROOTLOCKMUTEX;
 NFSSTATESPINLOCK;
-vnode_t nfsv4root_vp = NULL;
-int nfsv4root_set = 0;
 
 int (*nfsrv3_procs0[NFS_V3NPROCS])(struct nfsrv_descript *,
     int, vnode_t , NFSPROC_T *, struct nfsexstuff *) = {
@@ -354,7 +352,7 @@ APPLESTATIC void
 nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
     NFSPROC_T *p)
 {
-	int error = 0;
+	int error = 0, lktype;
 	vnode_t vp;
 	mount_t mp = NULL;
 	struct nfsrvfh fh;
@@ -364,10 +362,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 	 * Get a locked vnode for the first file handle
 	 */
 	if (!(nd->nd_flag & ND_NFSV4)) {
-#ifdef DIAGNOSTIC
-		if (nd->nd_repstat)
-			panic("nfsrvd_dorpc");
-#endif
+		KASSERT(nd->nd_repstat == 0, ("nfsrvd_dorpc"));
 		/*
 		 * For NFSv3, if the malloc/mget allocation is near limits,
 		 * return NFSERR_DELAY.
@@ -383,12 +378,20 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 				nd->nd_repstat = NFSERR_GARBAGE;
 				return;
 			}
+			if (nd->nd_procnum == NFSPROC_READ ||
+			    nd->nd_procnum == NFSPROC_READDIR ||
+			    nd->nd_procnum == NFSPROC_READLINK ||
+			    nd->nd_procnum == NFSPROC_GETATTR ||
+			    nd->nd_procnum == NFSPROC_ACCESS)
+				lktype = LK_SHARED;
+			else
+				lktype = LK_EXCLUSIVE;
 			nes.nes_vfslocked = 0;
 			if (nd->nd_flag & ND_PUBLOOKUP)
-				nfsd_fhtovp(nd, &nfs_pubfh, &vp, &nes,
+				nfsd_fhtovp(nd, &nfs_pubfh, lktype, &vp, &nes,
 				    &mp, nfs_writerpc[nd->nd_procnum], p);
 			else
-				nfsd_fhtovp(nd, &fh, &vp, &nes,
+				nfsd_fhtovp(nd, &fh, lktype, &vp, &nes,
 				    &mp, nfs_writerpc[nd->nd_procnum], p);
 			if (nd->nd_repstat == NFSERR_PROGNOTV4)
 				return;
@@ -536,8 +539,6 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		    NFSV4ROOTLOCKMUTEXPTR);
 	NFSUNLOCKV4ROOTMUTEX();
 	if (igotlock) {
-		NFSLOCKSTATE();	/* to avoid a race with */
-		NFSUNLOCKSTATE();	/* nfsrv_servertimer() */
 		/*
 		 * If I got the lock, I can update the stable storage file.
 		 * Done when the grace period is over or a client has long
@@ -705,7 +706,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				goto nfsmout;
 			if (!nd->nd_repstat) {
 				nes.nes_vfslocked = vpnes.nes_vfslocked;
-				nfsd_fhtovp(nd, &fh, &nvp, &nes, &mp,
+				nfsd_fhtovp(nd, &fh, LK_SHARED, &nvp, &nes, &mp,
 				    0, p);
 			}
 			/* For now, allow this for non-export FHs */
@@ -720,7 +721,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		case NFSV4OP_PUTPUBFH:
 			if (nfs_pubfhset) {
 			    nes.nes_vfslocked = vpnes.nes_vfslocked;
-			    nfsd_fhtovp(nd, &nfs_pubfh, &nvp,
+			    nfsd_fhtovp(nd, &nfs_pubfh, LK_SHARED, &nvp,
 				&nes, &mp, 0, p);
 			} else {
 			    nd->nd_repstat = NFSERR_NOFILEHANDLE;
@@ -736,7 +737,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		case NFSV4OP_PUTROOTFH:
 			if (nfs_rootfhset) {
 				nes.nes_vfslocked = vpnes.nes_vfslocked;
-				nfsd_fhtovp(nd, &nfs_rootfh, &nvp,
+				nfsd_fhtovp(nd, &nfs_rootfh, LK_SHARED, &nvp,
 				    &nes, &mp, 0, p);
 				if (!nd->nd_repstat) {
 					if (vp)
@@ -745,20 +746,8 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					NFSVOPUNLOCK(vp, 0, p);
 					vpnes = nes;
 				}
-			} else if (nfsv4root_vp && nfsv4root_set) {
-				if (vp) {
-					if (vpnes.nes_vfslocked)
-						nfsvno_unlockvfs(mp);
-					vrele(vp);
-				}
-				vp = nfsv4root_vp;
-				VREF(vp);
-				NFSVNO_SETEXRDONLY(&vpnes);
-				vpnes.nes_vfslocked = 0;
-				mp = vnode_mount(vp);
-			} else {
+			} else
 				nd->nd_repstat = NFSERR_NOFILEHANDLE;
-			}
 			break;
 		case NFSV4OP_SAVEFH:
 			if (vp && NFSVNO_EXPORTED(&vpnes)) {
@@ -856,17 +845,6 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				vfs_statfs(vnode_mount(nvp))->f_fsid.val[0] ||
 				vfs_statfs(mp)->f_fsid.val[1] !=
 				vfs_statfs(vnode_mount(nvp))->f_fsid.val[1]) {
-				if (vfs_statfs(vnode_mount(nvp))->f_fsid.val[0] ==
-				    NFSV4ROOT_FSID0 &&
-				    vfs_statfs(vnode_mount(nvp))->f_fsid.val[1] ==
-				    NFSV4ROOT_FSID1) {
-				    if (vpnes.nes_vfslocked) {
-					nfsvno_unlockvfs(mp);
-					vpnes.nes_vfslocked = 0;
-				    }
-				    NFSVNO_SETEXRDONLY(&vpnes);
-				    mp = vnode_mount(nvp);
-				} else {
 				    nd->nd_repstat = nfsvno_checkexp(vnode_mount(nvp),
 					nd->nd_nam, &nes, &credanon);
 				    if (!nd->nd_repstat)
@@ -882,12 +860,15 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					vpnes.nes_vfslocked =
 					    nfsvno_lockvfs(mp);
 				    }
-				}
 			    }
+			    if (op == NFSV4OP_LOOKUP || op == NFSV4OP_LOOKUPP)
+				    /* Lookup ops return a locked vnode */
+				    VOP_UNLOCK(nvp, 0);
 			    if (!nd->nd_repstat) {
 				    vrele(vp);
 				    vp = nvp;
-			    }
+			    } else
+				    vrele(nvp);
 			}
 			if (nfsv4_opflag[op].modifyfs)
 				NFS_ENDWRITE(mp);
@@ -899,39 +880,46 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				nd->nd_repstat = NFSERR_XDEV;
 				break;
 			}
-			VREF(vp);
-			VREF(savevp);
 			if (nfsv4_opflag[op].modifyfs)
 				NFS_STARTWRITE(NULL, &mp);
-			NFSVOPLOCK(savevp, LK_EXCLUSIVE | LK_RETRY, p);
-			error = (*(nfsrv4_ops2[op]))(nd, isdgram, savevp,
-			    vp, p, &savevpnes, &vpnes);
+			if (vn_lock(savevp, LK_EXCLUSIVE) == 0) {
+				VREF(vp);
+				VREF(savevp);
+				error = (*(nfsrv4_ops2[op]))(nd, isdgram,
+				    savevp, vp, p, &savevpnes, &vpnes);
+			} else
+				nd->nd_repstat = NFSERR_PERM;
 			if (nfsv4_opflag[op].modifyfs)
 				NFS_ENDWRITE(mp);
 		    } else {
 			if (nfsv4_opflag[op].retfh != 0)
 				panic("nfsrvd_compound");
 			if (nfsv4_opflag[op].needscfh) {
-				if (vp) {
-					VREF(vp);
+				if (vp != NULL) {
 					if (nfsv4_opflag[op].modifyfs)
 						NFS_STARTWRITE(NULL, &mp);
-					NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
+					if (vn_lock(vp, nfsv4_opflag[op].lktype)
+					    == 0)
+						VREF(vp);
+					else
+						nd->nd_repstat = NFSERR_PERM;
 				} else {
 					nd->nd_repstat = NFSERR_NOFILEHANDLE;
 					if (op == NFSV4OP_SETATTR) {
-					    /*
-					     * Setattr reply requires a bitmap
-					     * even for errors like these.
-					     */
-					    NFSM_BUILD(tl, u_int32_t *,
-						NFSX_UNSIGNED);
-					    *tl = 0;
+						/*
+						 * Setattr reply requires a
+						 * bitmap even for errors like
+						 * these.
+						 */
+						NFSM_BUILD(tl, u_int32_t *,
+						    NFSX_UNSIGNED);
+						*tl = 0;
 					}
 					break;
 				}
-				error = (*(nfsrv4_ops0[op]))(nd, isdgram, vp,
-				    p, &vpnes);
+				if (nd->nd_repstat == 0)
+					error = (*(nfsrv4_ops0[op]))(nd,
+					    isdgram, vp, p, &vpnes);
 				if (nfsv4_opflag[op].modifyfs)
 					NFS_ENDWRITE(mp);
 			} else {

@@ -114,13 +114,6 @@
 #define         ATA_SS_IPM_PARTIAL      0x00000200
 #define         ATA_SS_IPM_SLUMBER      0x00000600
 
-#define         ATA_SS_CONWELL_MASK \
-		    (ATA_SS_DET_MASK|ATA_SS_SPD_MASK|ATA_SS_IPM_MASK)
-#define         ATA_SS_CONWELL_GEN1 \
-		    (ATA_SS_DET_PHY_ONLINE|ATA_SS_SPD_GEN1|ATA_SS_IPM_ACTIVE)
-#define         ATA_SS_CONWELL_GEN2 \
-		    (ATA_SS_DET_PHY_ONLINE|ATA_SS_SPD_GEN2|ATA_SS_IPM_ACTIVE)
-
 #define ATA_SERROR                      14
 #define         ATA_SE_DATA_CORRECTED   0x00000001
 #define         ATA_SE_COMM_CORRECTED   0x00000002
@@ -542,6 +535,7 @@ struct ata_cam_device {
 	int			mode;
 	u_int			bytecount;
 	u_int			atapi;
+	u_int			caps;
 };
 #endif
 
@@ -564,6 +558,10 @@ struct ata_channel {
 #define         ATA_CHECKS_CABLE	0x20
 #define         ATA_NO_ATAPI_DMA	0x40
 #define         ATA_SATA		0x80
+#define         ATA_DMA_BEFORE_CMD	0x100
+#define         ATA_KNOWN_PRESENCE	0x200
+#define         ATA_STATUS_IS_LONG	0x400
+#define         ATA_PERIODIC_POLL	0x800
 
     int				pm_level;	/* power management level */
     int                         devices;        /* what is present */
@@ -590,6 +588,7 @@ struct ata_channel {
 	struct ata_cam_device	user[16];       /* User-specified settings */                             
 	struct ata_cam_device	curr[16];       /* Current settings */                                    
 #endif
+	struct callout		poll_callout;	/* Periodic status poll. */
 };
 
 /* disk bay/enclosure related */
@@ -624,6 +623,7 @@ void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
 char *ata_unit2str(struct ata_device *atadev);
 const char *ata_mode2str(int mode);
+int ata_str2mode(const char *str);
 const char *ata_satarev2str(int rev);
 int ata_atapi(device_t dev, int target);
 int ata_pmode(struct ata_params *ap);
@@ -662,7 +662,7 @@ void ata_dmainit(device_t);
 void ata_dmafini(device_t dev);
 
 /* ata-sata.c: */
-void ata_sata_phy_check_events(device_t dev);
+void ata_sata_phy_check_events(device_t dev, int port);
 int ata_sata_scr_read(struct ata_channel *ch, int port, int reg, uint32_t *val);
 int ata_sata_scr_write(struct ata_channel *ch, int port, int reg, uint32_t val);
 int ata_sata_phy_reset(device_t dev, int port, int quick);

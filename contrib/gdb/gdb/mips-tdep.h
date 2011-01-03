@@ -78,7 +78,7 @@ enum {
   MIPS_EMBED_BADVADDR_REGNUM = 35,
   MIPS_EMBED_CAUSE_REGNUM = 36,
   MIPS_EMBED_PC_REGNUM = 37,
-  MIPS_EMBED_FP0_REGNUM = 38
+  MIPS_EMBED_FP0_REGNUM = 40
 };
 
 /* Defined in mips-tdep.c and used in remote-mips.c */

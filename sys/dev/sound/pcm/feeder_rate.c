@@ -159,7 +159,7 @@ int feeder_rate_quality = Z_QUALITY_DEFAULT;
 static int feeder_rate_polyphase_max = Z_POLYPHASE_MAX;
 
 #ifdef _KERNEL
-static const char feeder_rate_presets[] = FEEDER_RATE_PRESETS;
+static char feeder_rate_presets[] = FEEDER_RATE_PRESETS;
 SYSCTL_STRING(_hw_snd, OID_AUTO, feeder_rate_presets, CTLFLAG_RD,
     &feeder_rate_presets, 0, "compile-time rate presets");
 

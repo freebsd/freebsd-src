@@ -41,9 +41,9 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)from: main.c	8.1 (Berkeley) 6/20/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -454,8 +454,9 @@ opentty(const char *tty, int flags)
 }
 
 static void
-defttymode()
+defttymode(void)
 {
+	struct termios def;
 
 	/* Start with default tty settings. */
 	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
@@ -471,10 +472,11 @@ defttymode()
 	 * to leave their idea of the preferred VERASE key value
 	 * there.
 	 */
-	tmode.c_iflag = TTYDEF_IFLAG;
-	tmode.c_oflag = TTYDEF_OFLAG;
-	tmode.c_lflag = TTYDEF_LFLAG;
-	tmode.c_cflag = TTYDEF_CFLAG;
+	cfmakesane(&def);
+	tmode.c_iflag = def.c_iflag;
+	tmode.c_oflag = def.c_oflag;
+	tmode.c_lflag = def.c_lflag;
+	tmode.c_cflag = def.c_cflag;
 	if (NC)
 		tmode.c_cflag |= CLOCAL;
 	omode = tmode;
@@ -797,7 +799,7 @@ putf(const char *cp)
  * Read a gettytab database entry and perform necessary quirks.
  */
 static void
-dogettytab()
+dogettytab(void)
 {
 	
 	/* Read the database entry. */

@@ -39,9 +39,7 @@ The options are as follows:
 Do not advertise 8BITMIME support in LMTP mode.
 .TP 
 .B \-B
-Turn off the attempts to notify the
-.Dq biff
-service.
+Turn off the attempts to notify the ``biff'' service.
 .TP 
 .B \-b
 Return a permanent error instead of a temporary error
@@ -63,11 +61,8 @@ Specify the sender's name.
 Turn on LMTP mode.
 .TP
 .B \-s
-Turn off the
-.Xr fsync 2
-call that forces the mailbox to be committed to disk before returning a
-.Dq success
-status.
+Turn off the fsync(2) call that forces the mailbox to be committed
+to disk before returning a "success" status.
 .TP 
 .BI \-r " from"
 Specify the sender's name (for backward compatibility).

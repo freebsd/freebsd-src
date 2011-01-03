@@ -733,6 +733,10 @@ cdregister(struct cam_periph *periph, void *arg)
 	else
 		softc->disk->d_maxsize = cpi.maxio;
 	softc->disk->d_flags = 0;
+	softc->disk->d_hba_vendor = cpi.hba_vendor;
+	softc->disk->d_hba_device = cpi.hba_device;
+	softc->disk->d_hba_subvendor = cpi.hba_subvendor;
+	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
 
@@ -2528,7 +2532,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 
 			error = cdgetmode(periph, &params, AUDIO_PAGE);
 			if (error) {
-				free(&params.mode_buf, M_SCSICD);
+				free(params.mode_buf, M_SCSICD);
 				cam_periph_unlock(periph);
 				break;
 			}

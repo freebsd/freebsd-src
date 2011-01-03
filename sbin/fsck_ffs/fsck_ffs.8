@@ -176,10 +176,10 @@ the super block for the file system.
 An alternate super block is usually located at block 32 for UFS1,
 and block 160 for UFS2.
 .It Fl C
-Check if file system was dismouted cleanly.
+Check if file system was dismounted cleanly.
 If so, skip file system checks (like "preen").
 However, if the file system was not cleanly dismounted, do full checks,
-is if
+as if
 .Nm
 was invoked without
 .Fl C .
@@ -315,6 +315,15 @@ If the
 .Pa lost+found
 directory does not exist, it is created.
 If there is insufficient space its size is increased.
+.Pp
+The full foreground
+.Nm
+checks for many more problems that may occur after an
+unrecoverable disk write error.
+Thus, it is recommended that you perform foreground
+.Nm
+on your systems periodically and whenever you encounter
+unrecoverable disk write errors or file-system\-related panics.
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab

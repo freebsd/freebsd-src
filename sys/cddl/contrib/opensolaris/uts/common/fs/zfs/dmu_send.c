@@ -23,8 +23,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/dmu.h>
 #include <sys/dmu_impl.h>
 #include <sys/dmu_tx.h>
@@ -172,66 +170,61 @@ dump_dnode(struct backuparg *ba, uint64_t object, dnode_phys_t *dnp)
 	(level) * (dnp->dn_indblkshift - SPA_BLKPTRSHIFT)))
 
 static int
-backup_cb(traverse_blk_cache_t *bc, spa_t *spa, void *arg)
+backup_cb(spa_t *spa, blkptr_t *bp, const zbookmark_t *zb,
+    const dnode_phys_t *dnp, void *arg)
 {
 	struct backuparg *ba = arg;
-	uint64_t object = bc->bc_bookmark.zb_object;
-	int level = bc->bc_bookmark.zb_level;
-	uint64_t blkid = bc->bc_bookmark.zb_blkid;
-	blkptr_t *bp = bc->bc_blkptr.blk_birth ? &bc->bc_blkptr : NULL;
 	dmu_object_type_t type = bp ? BP_GET_TYPE(bp) : DMU_OT_NONE;
-	void *data = bc->bc_data;
 	int err = 0;
 
 	if (issig(JUSTLOOKING) && issig(FORREAL))
 		return (EINTR);
 
-	ASSERT(data || bp == NULL);
-
-	if (bp == NULL && object == 0) {
-		uint64_t span = BP_SPAN(bc->bc_dnode, level);
-		uint64_t dnobj = (blkid * span) >> DNODE_SHIFT;
+	if (zb->zb_object != 0 && DMU_OBJECT_IS_SPECIAL(zb->zb_object)) {
+		return (0);
+	} else if (bp == NULL && zb->zb_object == 0) {
+		uint64_t span = BP_SPAN(dnp, zb->zb_level);
+		uint64_t dnobj = (zb->zb_blkid * span) >> DNODE_SHIFT;
 		err = dump_freeobjects(ba, dnobj, span >> DNODE_SHIFT);
 	} else if (bp == NULL) {
-		uint64_t span = BP_SPAN(bc->bc_dnode, level);
-		err = dump_free(ba, object, blkid * span, span);
-	} else if (data && level == 0 && type == DMU_OT_DNODE) {
-		dnode_phys_t *blk = data;
+		uint64_t span = BP_SPAN(dnp, zb->zb_level);
+		err = dump_free(ba, zb->zb_object, zb->zb_blkid * span, span);
+	} else if (zb->zb_level > 0 || type == DMU_OT_OBJSET) {
+		return (0);
+	} else if (type == DMU_OT_DNODE) {
+		dnode_phys_t *blk;
 		int i;
 		int blksz = BP_GET_LSIZE(bp);
+		uint32_t aflags = ARC_WAIT;
+		arc_buf_t *abuf;
 
+		if (arc_read_nolock(NULL, spa, bp,
+		    arc_getbuf_func, &abuf, ZIO_PRIORITY_ASYNC_READ,
+		    ZIO_FLAG_CANFAIL, &aflags, zb) != 0)
+			return (EIO);
+
+		blk = abuf->b_data;
 		for (i = 0; i < blksz >> DNODE_SHIFT; i++) {
-			uint64_t dnobj =
-			    (blkid << (DNODE_BLOCK_SHIFT - DNODE_SHIFT)) + i;
+			uint64_t dnobj = (zb->zb_blkid <<
+			    (DNODE_BLOCK_SHIFT - DNODE_SHIFT)) + i;
 			err = dump_dnode(ba, dnobj, blk+i);
 			if (err)
 				break;
 		}
-	} else if (level == 0 &&
-	    type != DMU_OT_DNODE && type != DMU_OT_OBJSET) {
+		(void) arc_buf_remove_ref(abuf, &abuf);
+	} else { /* it's a level-0 block of a regular object */
+		uint32_t aflags = ARC_WAIT;
+		arc_buf_t *abuf;
 		int blksz = BP_GET_LSIZE(bp);
-		if (data == NULL) {
-			uint32_t aflags = ARC_WAIT;
-			arc_buf_t *abuf;
-			zbookmark_t zb;
 
-			zb.zb_objset = ba->os->os->os_dsl_dataset->ds_object;
-			zb.zb_object = object;
-			zb.zb_level = level;
-			zb.zb_blkid = blkid;
-			(void) arc_read_nolock(NULL, spa, bp,
-			    arc_getbuf_func, &abuf, ZIO_PRIORITY_ASYNC_READ,
-			    ZIO_FLAG_MUSTSUCCEED, &aflags, &zb);
+		if (arc_read_nolock(NULL, spa, bp,
+		    arc_getbuf_func, &abuf, ZIO_PRIORITY_ASYNC_READ,
+		    ZIO_FLAG_CANFAIL, &aflags, zb) != 0)
+			return (EIO);
 
-			if (abuf) {
-				err = dump_data(ba, type, object, blkid * blksz,
-				    blksz, abuf->b_data);
-				(void) arc_buf_remove_ref(abuf, &abuf);
-			}
-		} else {
-			err = dump_data(ba, type, object, blkid * blksz,
-			    blksz, data);
-		}
+		err = dump_data(ba, type, zb->zb_object, zb->zb_blkid * blksz,
+		    blksz, abuf->b_data);
+		(void) arc_buf_remove_ref(abuf, &abuf);
 	}
 
 	ASSERT(err == 0 || err == EINTR);
@@ -311,8 +304,7 @@ dmu_sendbackup(objset_t *tosnap, objset_t *fromsnap, boolean_t fromorigin,
 		return (ba.err);
 	}
 
-	err = traverse_dsl_dataset(ds, fromtxg,
-	    ADVANCE_PRE | ADVANCE_HOLES | ADVANCE_DATA | ADVANCE_NOLOCK,
+	err = traverse_dataset(ds, fromtxg, TRAVERSE_PRE | TRAVERSE_PREFETCH,
 	    backup_cb, &ba);
 
 	if (err) {

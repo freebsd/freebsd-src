@@ -6316,6 +6316,7 @@ struct fw_info {
 
 #define BCE_DMA_ALIGN		8
 #define BCE_DMA_BOUNDARY	0
+#define BCE_RX_BUF_ALIGN	16
 
 #define BCE_MAX_CONTEXT		4
 
@@ -6789,6 +6790,7 @@ struct bce_softc
 	/* Number of VLAN tagged frames stripped. */
 	u32			vlan_tagged_frames_stripped;
 #endif
+	uint8_t *nvram_buf;
 };
 
 #endif /* __BCEREG_H_DEFINED */

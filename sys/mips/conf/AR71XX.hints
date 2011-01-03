@@ -47,6 +47,18 @@ hint.arge.1.fduplex=1
 # Uncomment this hint for RS (not PRO)
 # hint.arge.0.phymask=70000
 
+# GPIO
+hint.gpio.0.at="apb0"
+hint.gpio.0.maddr=0x18040000
+hint.gpio.0.msize=0x1000
+hint.gpio.0.irq=2
+
+# RF led
+hint.gpioled.0.at="gpiobus0"
+hint.gpioled.0.name="rf"
+# pin 2
+hint.gpioled.0.pins=0x0004
+
 # SPI flash
 hint.spi.0.at="nexus0"
 hint.spi.0.maddr=0x1f000000

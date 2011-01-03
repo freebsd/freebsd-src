@@ -153,6 +153,7 @@ public:
 	void set_pidfile(const char *);
 	void reset();
 	void parse();
+	void close_pidfile();
 	void open_pidfile();
 	void write_pidfile();
 	void remove_pidfile();

@@ -54,7 +54,6 @@
  *
  * $FreeBSD$
  */
-#include "opt_psim.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -64,6 +63,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -115,10 +115,16 @@ static int	nexus_attach(device_t);
 /*
  * Bus interface
  */
-static device_t nexus_add_child(device_t, int, const char *, int);
+static device_t nexus_add_child(device_t, u_int, const char *, int);
 static void	nexus_probe_nomatch(device_t, device_t);
 static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
+#ifdef SMP
+static int	nexus_bind_intr(device_t dev, device_t child,
+		    struct resource *irq, int cpu);
+#endif
+static int	nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+		    enum intr_polarity pol);
 static int	nexus_setup_intr(device_t, device_t, struct resource *, int,
 		    driver_filter_t *, driver_intr_t *, void *, void **);
 static int	nexus_teardown_intr(device_t, device_t, struct resource *,
@@ -157,11 +163,16 @@ static device_method_t nexus_methods[] = {
 	/* Bus interface. Resource management is business of the children... */
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	nexus_write_ivar),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+#ifdef SMP
+	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
+#endif
+	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
@@ -202,13 +213,10 @@ nexus_attach(device_t dev)
 	struct		nexus_softc *sc;
 	u_long		start, end;
 
-	if ((root = OF_peer(0)) == -1)
-		panic("nexus_probe: OF_peer failed.");
-
 	sc = device_get_softc(dev);
 
 	start = 0;
-	end = INTR_VECTORS - 1;
+	end = MAX_PICS*INTR_VECTORS - 1;
 
 	sc->sc_rman.rm_start = start;
 	sc->sc_rman.rm_end = end;
@@ -218,6 +226,9 @@ nexus_attach(device_t dev)
 	    rman_manage_region(&sc->sc_rman, start, end))
 		panic("nexus_probe IRQ rman");
 
+	if ((root = OF_peer(0)) == 0)
+		return (bus_generic_attach(dev));
+		
 	/*
 	 * Now walk the OFW tree to locate top-level devices
 	 */
@@ -251,7 +262,7 @@ nexus_probe_nomatch(device_t dev, device_t child)
 }
 
 static device_t
-nexus_add_child(device_t dev, int order, const char *name, int unit)
+nexus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct nexus_devinfo *dinfo;
@@ -361,6 +372,23 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *res,
 {
 
 	return (powerpc_teardown_intr(cookie));
+}
+
+#ifdef SMP
+static int
+nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
+{
+
+        return (powerpc_bind_intr(rman_get_start(irq), cpu));
+}
+#endif
+        
+static int
+nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+
+        return (powerpc_config_intr(irq, trig, pol));
 }
 
 /*

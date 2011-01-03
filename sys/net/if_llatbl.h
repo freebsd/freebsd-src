@@ -58,6 +58,7 @@ struct llentry {
 	struct lltable		 *lle_tbl;
 	struct llentries	 *lle_head;
 	struct mbuf		 *la_hold;
+	int     		 la_numheld;  /* # of packets currently held */
 	time_t			 la_expire;
 	uint16_t		 la_flags;    
 	uint16_t		 la_asked;
@@ -116,19 +117,12 @@ struct llentry {
 		LLE_WUNLOCK(lle);				\
 	}							\
 	/* guard against invalid refs */			\
-	lle = 0;						\
+	lle = NULL;						\
 } while (0)
 
 #define	LLE_FREE(lle) do {					\
 	LLE_WLOCK(lle);						\
-	if ((lle)->lle_refcnt <= 1)				\
-		(lle)->lle_tbl->llt_free((lle)->lle_tbl, (lle));\
-	else {							\
-		(lle)->lle_refcnt--;				\
-		LLE_WUNLOCK(lle);				\
-	}							\
-	/* guard against invalid refs */			\
-	lle = NULL;						\
+	LLE_FREE_LOCKED(lle);					\
 } while (0)
 
 
@@ -187,10 +181,12 @@ struct lltable *lltable_init(struct ifnet *, int);
 void		lltable_free(struct lltable *);
 void		lltable_prefix_free(int, struct sockaddr *, 
                        struct sockaddr *);
+#if 0
 void		lltable_drain(int);
+#endif
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
-void		llentry_free(struct llentry *);
+size_t		llentry_free(struct llentry *);
 int		llentry_update(struct llentry **, struct lltable *,
                        struct sockaddr_storage *, struct ifnet *);
 

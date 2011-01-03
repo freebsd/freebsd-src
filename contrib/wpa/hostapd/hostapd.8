@@ -3,7 +3,7 @@
 hostapd \- IEEE 802.11 AP, IEEE 802.1X/WPA/WPA2/EAP/RADIUS Authenticator
 .SH SYNOPSIS
 .B hostapd
-[-hdBKtv] [-P <PID file>] <configuration file(s)>
+[\-hdBKtv] [\-P <PID file>] <configuration file(s)>
 .SH DESCRIPTION
 This manual page documents briefly the
 .B hostapd
@@ -12,7 +12,7 @@ daemon.
 .B hostapd
 is a user space daemon for access point and authentication servers.
 It implements IEEE 802.11 access point management, IEEE 802.1X/WPA/WPA2/EAP Authenticators and RADIUS authentication server.
-The current version supports Linux (Host AP, madwifi, Prism54 drivers) and FreeBSD (net80211).
+The current version supports Linux (Host AP, madwifi, mac80211-based drivers) and FreeBSD (net80211).
 
 .B hostapd
 is designed to be a "daemon" program that runs in the background and acts as the backend component controlling authentication.

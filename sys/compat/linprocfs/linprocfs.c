@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
 #include <sys/sem.h>
@@ -95,6 +96,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #endif /* __i386__ || __amd64__ */
+
+#ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32_util.h>
+#endif
 
 #ifdef COMPAT_LINUX32				/* XXX */
 #include <machine/../linux32/linux.h>
@@ -271,11 +276,12 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		sbuf_printf(sb,
 		    "processor\t: %d\n"
 		    "vendor_id\t: %.20s\n"
-		    "cpu family\t: %d\n"
-		    "model\t\t: %d\n"
+		    "cpu family\t: %u\n"
+		    "model\t\t: %u\n"
 		    "model name\t: %s\n"
-		    "stepping\t: %d\n\n",
-		    i, cpu_vendor, class, cpu, model, cpu_id & 0xf);
+		    "stepping\t: %u\n\n",
+		    i, cpu_vendor, CPUID_TO_FAMILY(cpu_id),
+		    CPUID_TO_MODEL(cpu_id), model, cpu_id & CPUID_STEPPING);
 		/* XXX per-cpu vendor / class / model / id? */
 	}
 
@@ -468,9 +474,7 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    T2J(cp_time[CP_NICE]),
 	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
 	    T2J(cp_time[CP_IDLE]));
-	for (i = 0; i <= mp_maxid; ++i) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		pcpu = pcpu_find(i);
 		cp = pcpu->pc_cp_time;
 		sbuf_printf(sb, "cpu%d %ld %ld %ld %ld\n", i,
@@ -888,57 +892,172 @@ linprocfs_doprocroot(PFS_FILL_ARGS)
 	return (0);
 }
 
+#define MAX_ARGV_STR	512	/* Max number of argv-like strings */
+#define UIO_CHUNK_SZ	256	/* Max chunk size (bytes) for uiomove */
+
+static int
+linprocfs_doargv(struct thread *td, struct proc *p, struct sbuf *sb,
+    void (*resolver)(const struct ps_strings, u_long *, int *))
+{
+	struct iovec iov;
+	struct uio tmp_uio;
+	struct ps_strings pss;
+	int ret, i, n_elements, elm_len;
+	u_long addr, pbegin;
+	char **env_vector, *envp;
+	char env_string[UIO_CHUNK_SZ];
+#ifdef COMPAT_FREEBSD32
+	struct freebsd32_ps_strings pss32;
+	uint32_t *env_vector32;
+#endif
+
+#define	UIO_HELPER(uio, iov, base, len, cnt, offset, sz, flg, rw, td)	\
+do {									\
+	iov.iov_base = (caddr_t)(base);					\
+	iov.iov_len = (len); 						\
+	uio.uio_iov = &(iov); 						\
+	uio.uio_iovcnt = (cnt);	 					\
+	uio.uio_offset = (off_t)(offset);				\
+	uio.uio_resid = (sz); 						\
+	uio.uio_segflg = (flg);						\
+	uio.uio_rw = (rw); 						\
+	uio.uio_td = (td);						\
+} while (0)
+
+	env_vector = malloc(sizeof(char *) * MAX_ARGV_STR, M_TEMP, M_WAITOK);
+
+#ifdef COMPAT_FREEBSD32
+	env_vector32 = NULL;
+	if ((p->p_sysent->sv_flags & SV_ILP32) != 0) {
+		env_vector32 = malloc(sizeof(*env_vector32) * MAX_ARGV_STR,
+		    M_TEMP, M_WAITOK);
+		elm_len = sizeof(int32_t);
+		envp = (char *)env_vector32;
+
+		UIO_HELPER(tmp_uio, iov, &pss32, sizeof(pss32), 1,
+		    (off_t)(p->p_sysent->sv_psstrings),
+		    sizeof(pss32), UIO_SYSSPACE, UIO_READ, td);
+		ret = proc_rwmem(p, &tmp_uio);
+		if (ret != 0)
+			goto done;
+		pss.ps_argvstr = PTRIN(pss32.ps_argvstr);
+		pss.ps_nargvstr = pss32.ps_nargvstr;
+		pss.ps_envstr = PTRIN(pss32.ps_envstr);
+		pss.ps_nenvstr = pss32.ps_nenvstr;
+	} else {
+#endif
+		elm_len = sizeof(char *);
+		envp = (char *)env_vector;
+
+		UIO_HELPER(tmp_uio, iov, &pss, sizeof(pss), 1,
+		    (off_t)(p->p_sysent->sv_psstrings),
+		    sizeof(pss), UIO_SYSSPACE, UIO_READ, td);
+		ret = proc_rwmem(p, &tmp_uio);
+		if (ret != 0)
+			goto done;
+#ifdef COMPAT_FREEBSD32
+	}
+#endif
+
+	/* Get the array address and the number of elements */
+	resolver(pss, &addr, &n_elements);
+
+	/* Consistent with lib/libkvm/kvm_proc.c */
+	if (n_elements > MAX_ARGV_STR) {
+		ret = E2BIG;
+		goto done;
+	}
+
+	UIO_HELPER(tmp_uio, iov, envp, n_elements * elm_len, 1,
+	    (vm_offset_t)(addr), iov.iov_len, UIO_SYSSPACE, UIO_READ, td);
+	ret = proc_rwmem(p, &tmp_uio);
+	if (ret != 0)
+		goto done;
+#ifdef COMPAT_FREEBSD32
+	if (env_vector32 != NULL) {
+		for (i = 0; i < n_elements; i++)
+			env_vector[i] = PTRIN(env_vector32[i]);
+	}
+#endif
+
+	/* Now we can iterate through the list of strings */
+	for (i = 0; i < n_elements; i++) {
+		pbegin = (vm_offset_t)env_vector[i];
+		for (;;) {
+			UIO_HELPER(tmp_uio, iov, env_string, sizeof(env_string),
+			    1, pbegin, iov.iov_len, UIO_SYSSPACE, UIO_READ, td);
+			ret = proc_rwmem(p, &tmp_uio);
+			if (ret != 0)
+				goto done;
+
+			if (!strvalid(env_string, UIO_CHUNK_SZ)) {
+				/*
+				 * We didn't find the end of the string.
+				 * Add the string to the buffer and move
+				 * the pointer.  But do not allow strings
+				 * of unlimited length.
+				 */
+				sbuf_bcat(sb, env_string, UIO_CHUNK_SZ);
+				if (sbuf_len(sb) >= ARG_MAX) {
+					ret = E2BIG;
+					goto done;
+				}
+				pbegin += UIO_CHUNK_SZ;
+			} else {
+				sbuf_cat(sb, env_string);
+				break;
+			}
+		}
+		sbuf_bcat(sb, "", 1);
+	}
+#undef UIO_HELPER
+
+done:
+	free(env_vector, M_TEMP);
+#ifdef COMPAT_FREEBSD32
+	free(env_vector32, M_TEMP);
+#endif
+	return (ret);
+}
+
+static void
+ps_string_argv(const struct ps_strings ps, u_long *addr, int *n)
+{
+
+	*addr = (u_long) ps.ps_argvstr;
+	*n = ps.ps_nargvstr;
+}
+
+static void
+ps_string_env(const struct ps_strings ps, u_long *addr, int *n)
+{
+
+	*addr = (u_long) ps.ps_envstr;
+	*n = ps.ps_nenvstr;
+}
+
 /*
  * Filler function for proc/pid/cmdline
  */
 static int
 linprocfs_doproccmdline(PFS_FILL_ARGS)
 {
-	struct ps_strings pstr;
-	char **ps_argvstr;
-	int error, i;
-
-	/*
-	 * If we are using the ps/cmdline caching, use that.  Otherwise
-	 * revert back to the old way which only implements full cmdline
-	 * for the currept process and just p->p_comm for all other
-	 * processes.
-	 * Note that if the argv is no longer available, we deliberately
-	 * don't fall back on p->p_comm or return an error: the authentic
-	 * Linux behaviour is to return zero-length in this case.
-	 */
+	int ret;
 
 	PROC_LOCK(p);
-	if (p->p_args && p_cansee(td, p) == 0) {
+	if ((ret = p_cansee(td, p)) != 0) {
+		PROC_UNLOCK(p);
+		return (ret);
+	}
+	if (p->p_args != NULL) {
 		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
 		PROC_UNLOCK(p);
-	} else if (p != td->td_proc) {
-		PROC_UNLOCK(p);
-		sbuf_printf(sb, "%.*s", MAXCOMLEN, p->p_comm);
-	} else {
-		PROC_UNLOCK(p);
-		error = copyin((void *)p->p_sysent->sv_psstrings, &pstr,
-		    sizeof(pstr));
-		if (error)
-			return (error);
-		if (pstr.ps_nargvstr > ARG_MAX)
-			return (E2BIG);
-		ps_argvstr = malloc(pstr.ps_nargvstr * sizeof(char *),
-		    M_TEMP, M_WAITOK);
-		error = copyin((void *)pstr.ps_argvstr, ps_argvstr,
-		    pstr.ps_nargvstr * sizeof(char *));
-		if (error) {
-			free(ps_argvstr, M_TEMP);
-			return (error);
-		}
-		for (i = 0; i < pstr.ps_nargvstr; i++) {
-			sbuf_copyin(sb, ps_argvstr[i], 0);
-			sbuf_printf(sb, "%c", '\0');
-		}
-		free(ps_argvstr, M_TEMP);
+		return (0);
 	}
+	PROC_UNLOCK(p);
 
-	return (0);
+	ret = linprocfs_doargv(td, p, sb, ps_string_argv);
+	return (ret);
 }
 
 /*
@@ -947,9 +1066,17 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 static int
 linprocfs_doprocenviron(PFS_FILL_ARGS)
 {
+	int ret;
 
-	sbuf_printf(sb, "doprocenviron\n%c", '\0');
-	return (0);
+	PROC_LOCK(p);
+	if ((ret = p_cansee(td, p)) != 0) {
+		PROC_UNLOCK(p);
+		return (ret);
+	}
+	PROC_UNLOCK(p);
+
+	ret = linprocfs_doargv(td, p, sb, ps_string_env);
+	return (ret);
 }
 
 /*

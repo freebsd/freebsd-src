@@ -37,12 +37,11 @@ __FBSDID("$FreeBSD$");
 
 #if defined(_KERNEL) || defined(__Userspace__)
 
-#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
+extern struct iterator_control sctp_it_ctl;
 void sctp_wakeup_iterator(void);
 
 void sctp_startup_iterator(void);
 
-#endif
 
 #ifdef INET6
 void sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa);

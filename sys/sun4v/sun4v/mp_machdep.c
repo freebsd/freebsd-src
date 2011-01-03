@@ -115,7 +115,7 @@ vm_offset_t mp_tramp;
 
 u_int	mp_boot_mid;
 
-static volatile u_int	shutdown_cpus;
+static volatile cpumask_t	shutdown_cpus;
 
 void cpu_mp_unleash(void *);
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
@@ -392,7 +392,6 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	tte_hash_set_scratchpad_kernel(kernel_pmap->pm_hash);
 	trap_init();
 	cpu_intrq_init();
-	tick_start();
 
 #ifdef TRAP_TRACING
 	mp_trap_trace_init();
@@ -413,6 +412,10 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	while (csa->csa_count != 0)
 		;
+
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
+
 	/* ok, now enter the scheduler */
 	sched_throw(NULL);
 }
@@ -467,6 +470,23 @@ cpu_ipi_preempt(struct trapframe *tf)
 }
 
 void
+cpu_ipi_hardclock(struct trapframe *tf)
+{
+	struct trapframe *oldframe;
+	struct thread *td;
+
+	critical_enter();
+	td = curthread;
+	td->td_intr_nesting_level++;
+	oldframe = td->td_intr_frame;
+	td->td_intr_frame = tf;
+	hardclockintr();
+	td->td_intr_frame = oldframe;
+	td->td_intr_nesting_level--;
+	critical_exit();
+}
+
+void
 cpu_ipi_selected(int cpu_count, uint16_t *cpulist, u_long d0, u_long d1, u_long d2, uint64_t *ackmask)
 {
 
@@ -518,9 +538,8 @@ retry:
 	}
 }
 
-
 void
-ipi_selected(u_int icpus, u_int ipi)
+ipi_selected(cpumask_t icpus, u_int ipi)
 {
 	int i, cpu_count;
 	uint16_t *cpulist;
@@ -533,7 +552,6 @@ ipi_selected(u_int icpus, u_int ipi)
 	 * 4) handling 4-way threading vs 2-way threading should happen here
 	 *    and not in forward wakeup
 	 */
-	
 	cpulist = PCPU_GET(cpulist);
 	cpus = (icpus & ~PCPU_GET(cpumask));
 	
@@ -545,8 +563,32 @@ ipi_selected(u_int icpus, u_int ipi)
 		cpu_count++;
 	}
 
-	cpu_ipi_selected(cpu_count, cpulist, (u_long)tl_ipi_level, ipi, 0, &ackmask);
-	
+	cpu_ipi_selected(cpu_count, cpulist, (u_long)tl_ipi_level, ipi, 0,
+	    &ackmask);
+}
+
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+	int cpu_count;
+	uint16_t *cpulist;
+	uint64_t ackmask;
+
+	/* 
+	 * 
+	 * 3) forward_wakeup appears to abuse ASTs
+	 * 4) handling 4-way threading vs 2-way threading should happen here
+	 *    and not in forward wakeup
+	 */
+	cpulist = PCPU_GET(cpulist);
+	if (PCPU_GET(cpumask) & (1 << cpu))
+		cpu_count = 0;
+	else {
+		cpulist[0] = (uint16_t)cpu;
+		cpu_count = 1;
+	}
+	cpu_ipi_selected(cpu_count, cpulist, (u_long)tl_ipi_level, ipi, 0,
+	    &ackmask);
 }
 
 void

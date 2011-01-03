@@ -108,9 +108,11 @@ typedef void (*end_func) (void *ptr, uint32_t val);
 
 struct sctp_iterator {
 	TAILQ_ENTRY(sctp_iterator) sctp_nxt_itr;
+	struct vnet *vn;
 	struct sctp_timer tmr;
 	struct sctp_inpcb *inp;	/* current endpoint */
 	struct sctp_tcb *stcb;	/* current* assoc */
+	struct sctp_inpcb *next_inp;	/* special hook to skip to */
 	asoc_func function_assoc;	/* per assoc function */
 	inp_func function_inp;	/* per endpoint function */
 	inp_func function_inp_end;	/* end INP function */
@@ -129,6 +131,7 @@ struct sctp_iterator {
 #define SCTP_ITERATOR_DO_ALL_INP	0x00000001
 #define SCTP_ITERATOR_DO_SINGLE_INP	0x00000002
 
+
 TAILQ_HEAD(sctpiterators, sctp_iterator);
 
 struct sctp_copy_all {
@@ -144,6 +147,20 @@ struct sctp_asconf_iterator {
 	struct sctpladdr list_of_work;
 	int cnt;
 };
+
+struct iterator_control {
+	struct mtx ipi_iterator_wq_mtx;
+	struct mtx it_mtx;
+	SCTP_PROCESS_STRUCT thread_proc;
+	struct sctpiterators iteratorhead;
+	struct sctp_iterator *cur_it;
+	uint32_t iterator_running;
+	uint32_t iterator_flags;
+};
+
+#define SCTP_ITERATOR_MUST_EXIT   	0x00000001
+#define SCTP_ITERATOR_STOP_CUR_IT  	0x00000002
+#define SCTP_ITERATOR_STOP_CUR_INP  	0x00000004
 
 struct sctp_net_route {
 	sctp_rtentry_t *ro_rt;
@@ -852,6 +869,7 @@ struct sctp_association {
 
 	unsigned int size_on_reasm_queue;
 	unsigned int cnt_on_reasm_queue;
+	unsigned int fwd_tsn_cnt;
 	/* amount of data (bytes) currently in flight (on all destinations) */
 	unsigned int total_flight;
 	/* Total book size in flight */
@@ -1040,6 +1058,7 @@ struct sctp_association {
 	uint8_t delayed_connection;
 	uint8_t ifp_had_enobuf;
 	uint8_t saw_sack_with_frags;
+	uint8_t saw_sack_with_nr_frags;
 	uint8_t in_asocid_hash;
 	uint8_t assoc_up_sent;
 	uint8_t adaptation_needed;

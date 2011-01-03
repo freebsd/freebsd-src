@@ -53,17 +53,34 @@
 #define PIC_GOT(x)	x
 #endif
 
+#ifdef __powerpc64__
+#undef	PIC_PLT
+#define	PIC_PLT(x)	__CONCAT(.,x)
+#endif
+
 #define	CNAME(csym)		csym
 #define	ASMNAME(asmsym)		asmsym
+#ifdef __powerpc64__
+#define	HIDENAME(asmsym)	__CONCAT(_,asmsym)
+#else
 #define	HIDENAME(asmsym)	__CONCAT(.,asmsym)
+#endif
 
 #define	_GLOBAL(x) \
 	.data; .align 2; .globl x; x:
 
+#ifdef __powerpc64__ 
+#define _ENTRY(x) \
+	.text; .align 2; .globl x; .section ".opd","aw"; \
+	.align 3; x: \
+	    .quad .x,.TOC.@tocbase,0; .previous; \
+	.align 4; .globl .x; .type .x,@function; .x:
+#else
 #define	_ENTRY(x) \
 	.text; .align 4; .globl x; .type x,@function; x:
+#endif
 
-#ifdef GPROF
+#if defined(PROF) || (defined(_KERNEL) && defined(GPROF))
 # define	_PROF_PROLOGUE	mflr 0; stw 0,4(1); bl _mcount
 #else
 # define	_PROF_PROLOGUE

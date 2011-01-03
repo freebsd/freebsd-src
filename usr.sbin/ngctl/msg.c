@@ -35,8 +35,10 @@
  * OF SUCH DAMAGE.
  *
  * $Whistle: msg.c,v 1.2 1999/11/29 23:38:35 archie Exp $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <netgraph.h>
@@ -121,7 +123,7 @@ MsgCmd(int ac, char **av)
  * Read and display the next incoming control message
  */
 void
-MsgRead()
+MsgRead(void)
 {
 	struct ng_mesg *m, *m2;
 	struct ng_mesg *ascii;

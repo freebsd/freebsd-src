@@ -99,7 +99,6 @@ print_mesg(const char *tty, CTL_MSG *request,
 {
 	struct timeval now;
 	time_t clock_sec;
-	struct timezone zone;
 	struct tm *localclock;
 	struct iovec iovec;
 	char line_buf[N_LINES][N_CHARS];
@@ -110,7 +109,7 @@ print_mesg(const char *tty, CTL_MSG *request,
 
 	i = 0;
 	max_size = 0;
-	gettimeofday(&now, &zone);
+	gettimeofday(&now, NULL);
 	clock_sec = now.tv_sec;
 	localclock = localtime(&clock_sec);
 	(void)snprintf(line_buf[i], N_CHARS, " ");

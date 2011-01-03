@@ -339,9 +339,7 @@ netisr_register(const struct netisr_handler *nhp)
 	} else
 		netisr_proto[proto].np_qlimit = nhp->nh_qlimit;
 	netisr_proto[proto].np_policy = nhp->nh_policy;
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		bzero(npwp, sizeof(*npwp));
 		npwp->nw_qlimit = netisr_proto[proto].np_qlimit;
@@ -373,9 +371,7 @@ netisr_clearqdrops(const struct netisr_handler *nhp)
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    name));
 
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		npwp->nw_qdrops = 0;
 	}
@@ -408,9 +404,7 @@ netisr_getqdrops(const struct netisr_handler *nhp, u_int64_t *qdropp)
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    name));
 
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		*qdropp += npwp->nw_qdrops;
 	}
@@ -474,9 +468,7 @@ netisr_setqlimit(const struct netisr_handler *nhp, u_int qlimit)
 	    name));
 
 	netisr_proto[proto].np_qlimit = qlimit;
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		npwp->nw_qlimit = qlimit;
 	}
@@ -540,9 +532,7 @@ netisr_unregister(const struct netisr_handler *nhp)
 	netisr_proto[proto].np_m2cpuid = NULL;
 	netisr_proto[proto].np_qlimit = 0;
 	netisr_proto[proto].np_policy = 0;
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		netisr_drain_proto(npwp);
 		bzero(npwp, sizeof(*npwp));
@@ -1136,9 +1126,7 @@ sysctl_netisr_workstream(SYSCTL_HANDLER_ARGS)
 	    M_ZERO | M_WAITOK);
 	counter = 0;
 	NETISR_RLOCK(&tracker);
-	for (cpuid = 0; cpuid < MAXCPU; cpuid++) {
-		if (CPU_ABSENT(cpuid))
-			continue;
+	CPU_FOREACH(cpuid) {
 		nwsp = DPCPU_ID_PTR(cpuid, nws);
 		if (nwsp->nws_intr_event == NULL)
 			continue;
@@ -1192,9 +1180,7 @@ sysctl_netisr_work(SYSCTL_HANDLER_ARGS)
 	    M_TEMP, M_ZERO | M_WAITOK);
 	counter = 0;
 	NETISR_RLOCK(&tracker);
-	for (cpuid = 0; cpuid < MAXCPU; cpuid++) {
-		if (CPU_ABSENT(cpuid))
-			continue;
+	CPU_FOREACH(cpuid) {
 		nwsp = DPCPU_ID_PTR(cpuid, nws);
 		if (nwsp->nws_intr_event == NULL)
 			continue;
@@ -1243,9 +1229,7 @@ DB_SHOW_COMMAND(netisr, db_show_netisr)
 
 	db_printf("%3s %6s %5s %5s %5s %8s %8s %8s %8s\n", "CPU", "Proto",
 	    "Len", "WMark", "Max", "Disp", "HDisp", "Drop", "Queue");
-	for (cpuid = 0; cpuid <= mp_maxid; cpuid++) {
-		if (CPU_ABSENT(cpuid))
-			continue;
+	CPU_FOREACH(cpuid) {
 		nwsp = DPCPU_ID_PTR(cpuid, nws);
 		if (nwsp->nws_intr_event == NULL)
 			continue;

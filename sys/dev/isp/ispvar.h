@@ -426,6 +426,7 @@ typedef struct {
 			new_portid	: 24;
 	uint64_t	node_wwn;
 	uint64_t	port_wwn;
+	uint32_t	gone_timer;
 } fcportdb_t;
 
 #define	FC_PORTDB_STATE_NIL		0

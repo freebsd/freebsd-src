@@ -31,7 +31,7 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-CC=/usr/sfw/bin/gcc
+CC=/usr/bin/gcc
 CFLAGS=
 
 doit()

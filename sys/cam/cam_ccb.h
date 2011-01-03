@@ -66,7 +66,7 @@ typedef enum {
 					      */
 	CAM_SCATTER_VALID	= 0x00000010,/* Scatter/gather list is valid  */
 	CAM_DIS_AUTOSENSE	= 0x00000020,/* Disable autosense feature     */
-	CAM_DIR_RESV		= 0x00000000,/* Data direction (00:reserved)  */
+	CAM_DIR_BOTH		= 0x00000000,/* Data direction (00:IN/OUT)    */
 	CAM_DIR_IN		= 0x00000040,/* Data direction (01:DATA IN)   */
 	CAM_DIR_OUT		= 0x00000080,/* Data direction (10:DATA OUT)  */
 	CAM_DIR_NONE		= 0x000000C0,/* Data direction (11:no data)   */
@@ -144,6 +144,8 @@ typedef enum {
 				/* Device statistics (error counts, etc.) */
 	XPT_FREEZE_QUEUE	= 0x0d,
 				/* Freeze device queue */
+	XPT_GDEV_ADVINFO	= 0x0e,
+				/* Advanced device information */
 /* SCSI Control Functions: 0x10->0x1F */
 	XPT_ABORT		= 0x10,
 				/* Abort the specified CCB */
@@ -184,6 +186,14 @@ typedef enum {
 				/*
 				 * Set SIM specific knob values.
 				 */
+
+	XPT_SMP_IO		= 0x1b | XPT_FC_DEV_QUEUED,
+				/* Serial Management Protocol */
+
+	XPT_SCAN_TGT		= 0x1E | XPT_FC_QUEUED | XPT_FC_USER_CCB
+				       | XPT_FC_XPT_ONLY,
+				/* Scan Target */
+
 /* HBA engine commands 0x20->0x2F */
 	XPT_ENG_INQ		= 0x20 | XPT_FC_XPT_ONLY,
 				/* HBA engine feature inquiry */
@@ -591,12 +601,42 @@ struct ccb_pathinq {
 		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
 	u_int		maxio;		/* Max supported I/O size, in bytes. */
+	u_int16_t	hba_vendor;	/* HBA vendor ID */
+	u_int16_t	hba_device;	/* HBA device ID */
+	u_int16_t	hba_subvendor;	/* HBA subvendor ID */
+	u_int16_t	hba_subdevice;	/* HBA subdevice ID */
 };
 
 /* Path Statistics CCB */
 struct ccb_pathstats {
 	struct	ccb_hdr	ccb_h;
 	struct	timeval last_reset;	/* Time of last bus reset/loop init */
+};
+
+typedef enum {
+	SMP_FLAG_NONE		= 0x00,
+	SMP_FLAG_REQ_SG		= 0x01,
+	SMP_FLAG_RSP_SG		= 0x02
+} ccb_smp_pass_flags;
+
+/*
+ * Serial Management Protocol CCB
+ * XXX Currently the semantics for this CCB are that it is executed either
+ * by the addressed device, or that device's parent (i.e. an expander for
+ * any device on an expander) if the addressed device doesn't support SMP.
+ * Later, once we have the ability to probe SMP-only devices and put them
+ * in CAM's topology, the CCB will only be executed by the addressed device
+ * if possible.
+ */
+struct ccb_smpio {
+	struct ccb_hdr		ccb_h;
+	uint8_t			*smp_request;
+	int			smp_request_len;
+	uint16_t		smp_request_sglist_cnt;
+	uint8_t			*smp_response;
+	int			smp_response_len;
+	uint16_t		smp_response_sglist_cnt;
+	ccb_smp_pass_flags	flags;
 };
 
 typedef union {
@@ -1045,6 +1085,26 @@ struct ccb_eng_exec {	/* This structure must match SCSIIO size */
 #define XPT_CCB_INVALID	-1	/* for signaling a bad CCB to free */
 
 /*
+ * CCB for getting advanced device information.  This operates in a fashion
+ * similar to XPT_GDEV_TYPE.  Specify the target in ccb_h, the buffer
+ * type requested, and provide a buffer size/buffer to write to.  If the
+ * buffer is too small, the handler will set GDEVAI_FLAG_MORE.
+ */
+struct ccb_getdev_advinfo {
+	struct ccb_hdr ccb_h;
+	uint32_t flags;
+#define	CGDAI_FLAG_TRANSPORT	0x1
+#define	CGDAI_FLAG_PROTO	0x2
+	uint32_t buftype;		/* IN: Type of data being requested */
+	/* NB: buftype is interpreted on a per-transport basis */
+#define	CGDAI_TYPE_SCSI_DEVID	1
+	off_t bufsiz;			/* IN: Size of external buffer */
+#define	CAM_SCSI_DEVID_MAXLEN	65536	/* length in buffer is an uint16_t */
+	off_t provsiz;			/* OUT: Size required/used */
+	uint8_t *buf;			/* IN/OUT: Buffer for requested data */
+};
+
+/*
  * Union of all CCB types for kernel space allocation.  This union should
  * never be used for manipulating CCBs - its only use is for the allocation
  * and deallocation of raw CCB space and is the return type of xpt_ccb_alloc
@@ -1078,9 +1138,11 @@ union ccb {
 	struct	ccb_notify_acknowledge	cna2;
 	struct	ccb_eng_inq		cei;
 	struct	ccb_eng_exec		cee;
+	struct	ccb_smpio		smpio;
 	struct 	ccb_rescan		crcn;
 	struct  ccb_debug		cdbg;
 	struct	ccb_ataio		ataio;
+	struct	ccb_getdev_advinfo	cgdai;
 };
 
 __BEGIN_DECLS
@@ -1105,6 +1167,13 @@ cam_fill_ataio(struct ccb_ataio *ataio, u_int32_t retries,
 	      u_int32_t flags, u_int tag_action,
 	      u_int8_t *data_ptr, u_int32_t dxfer_len,
 	      u_int32_t timeout);
+
+static __inline void
+cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries, 
+	       void (*cbfcnp)(struct cam_periph *, union ccb *), uint32_t flags,
+	       uint8_t *smp_request, int smp_request_len,
+	       uint8_t *smp_response, int smp_response_len,
+	       uint32_t timeout);
 
 static __inline void
 cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
@@ -1161,6 +1230,32 @@ cam_fill_ataio(struct ccb_ataio *ataio, u_int32_t retries,
 	ataio->data_ptr = data_ptr;
 	ataio->dxfer_len = dxfer_len;
 	ataio->tag_action = tag_action;
+}
+
+static __inline void
+cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries, 
+	       void (*cbfcnp)(struct cam_periph *, union ccb *), uint32_t flags,
+	       uint8_t *smp_request, int smp_request_len,
+	       uint8_t *smp_response, int smp_response_len,
+	       uint32_t timeout)
+{
+#ifdef _KERNEL
+	KASSERT((flags & CAM_DIR_MASK) == CAM_DIR_BOTH,
+		("direction != CAM_DIR_BOTH"));
+	KASSERT((smp_request != NULL) && (smp_response != NULL),
+		("need valid request and response buffers"));
+	KASSERT((smp_request_len != 0) && (smp_response_len != 0),
+		("need non-zero request and response lengths"));
+#endif /*_KERNEL*/
+	smpio->ccb_h.func_code = XPT_SMP_IO;
+	smpio->ccb_h.flags = flags;
+	smpio->ccb_h.retry_count = retries;
+	smpio->ccb_h.cbfcnp = cbfcnp;
+	smpio->ccb_h.timeout = timeout;
+	smpio->smp_request = smp_request;
+	smpio->smp_request_len = smp_request_len;
+	smpio->smp_response = smp_response;
+	smpio->smp_response_len = smp_response_len;
 }
 
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);

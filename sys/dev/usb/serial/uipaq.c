@@ -683,14 +683,14 @@ static const struct usb_device_id uipaq_devs[] = {
 	{USB_VPI(USB_VENDOR_HTC, 0x0a9e, 0)},
 	/* SmartPhone USB Sync */
 	{USB_VPI(USB_VENDOR_HTC, 0x0a9f, 0)},
-	/* "High Tech Computer Corp" */
-	{USB_VPI(USB_VENDOR_HTC, 0x0bce, 0)},
 	/**/
 	{USB_VPI(USB_VENDOR_HTC, USB_PRODUCT_HTC_PPC6700MODEM, 0)},
 	/**/
 	{USB_VPI(USB_VENDOR_HTC, USB_PRODUCT_HTC_SMARTPHONE, 0)},
 	/**/
 	{USB_VPI(USB_VENDOR_HTC, USB_PRODUCT_HTC_WINMOBILE, 0)},
+	/* High Tech Computer Wizard Smartphone */
+	{USB_VPI(USB_VENDOR_HTC, USB_PRODUCT_HTC_WIZARD, 0)},
 	/* JVC USB Sync */
 	{USB_VPI(USB_VENDOR_JVC, 0x3011, 0)},
 	/* JVC USB Sync */
@@ -1085,6 +1085,7 @@ static driver_t uipaq_driver = {
 DRIVER_MODULE(uipaq, uhub, uipaq_driver, uipaq_devclass, NULL, 0);
 MODULE_DEPEND(uipaq, ucom, 1, 1, 1);
 MODULE_DEPEND(uipaq, usb, 1, 1, 1);
+MODULE_VERSION(uipaq, 1);
 
 static int
 uipaq_probe(device_t dev)
@@ -1160,6 +1161,8 @@ uipaq_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -1172,7 +1175,7 @@ uipaq_detach(device_t dev)
 {
 	struct uipaq_softc *sc = device_get_softc(dev);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UIPAQ_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 

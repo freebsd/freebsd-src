@@ -39,8 +39,6 @@
 #ifndef _SYS_VNODE_H
 #define	_SYS_VNODE_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include_next <sys/vnode.h>
 
 #ifdef	__cplusplus
@@ -266,6 +264,14 @@ typedef struct xvattr {
 	ASSERT((xvap)->xva_vattr.va_mask | AT_XVATTR);		\
 	ASSERT((xvap)->xva_magic == XVA_MAGIC);			\
 	(xvap)->xva_reqattrmap[XVA_INDEX(attr)] |= XVA_ATTRBIT(attr)
+/*
+ * XVA_CLR_REQ() clears an attribute bit in the proper element in the bitmap
+ * of requested attributes (xva_reqattrmap[]).
+ */
+#define	XVA_CLR_REQ(xvap, attr)					\
+	ASSERT((xvap)->xva_vattr.va_mask | AT_XVATTR);		\
+	ASSERT((xvap)->xva_magic == XVA_MAGIC);			\
+	(xvap)->xva_reqattrmap[XVA_INDEX(attr)] &= ~XVA_ATTRBIT(attr)
 
 /*
  * XVA_SET_RTN() sets an attribute bit in the proper element in the bitmap
@@ -372,6 +378,7 @@ struct taskq;
  * Flags for VOP_READDIR
  */
 #define	V_RDDIR_ENTFLAGS	0x01	/* request dirent flags */
+#define	V_RDDIR_ACCFILTER	0x02	/* filter out inaccessible dirents */
 
 /*
  * Public vnode manipulation functions.

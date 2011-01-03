@@ -453,7 +453,7 @@ pt_thr_validate(const td_thrhandle_t *th)
 }
 
 static td_err_e
-pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
+pt_thr_get_info_common(const td_thrhandle_t *th, td_thrinfo_t *info, int old)
 {
 	const td_thragent_t *ta = th->th_ta;
 	struct ptrace_lwpinfo linfo;
@@ -489,6 +489,13 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	if (ret == PS_OK) {
 		info->ti_sigmask = linfo.pl_sigmask;
 		info->ti_pending = linfo.pl_siglist;
+		if (!old) {
+			if ((linfo.pl_flags & PL_FLAG_SI) != 0)
+				info->ti_siginfo = linfo.pl_siginfo;
+			else
+				bzero(&info->ti_siginfo,
+				    sizeof(info->ti_siginfo));
+		}
 	} else
 		return (ret);
 	if (state == ta->thread_state_running)
@@ -499,6 +506,20 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 		info->ti_state = TD_THR_SLEEP;
 	info->ti_type = TD_THR_USER;
 	return (0);
+}
+
+static td_err_e
+pt_thr_old_get_info(const td_thrhandle_t *th, td_old_thrinfo_t *info)
+{
+
+	return (pt_thr_get_info_common(th, (td_thrinfo_t *)info, 1));
+}
+
+static td_err_e
+pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
+{
+
+	return (pt_thr_get_info_common(th, info, 0));
 }
 
 #ifdef __i386__
@@ -761,6 +782,7 @@ struct ta_ops libthr_db_ops = {
 	.to_thr_dbsuspend	= pt_thr_dbsuspend,
 	.to_thr_event_enable	= pt_thr_event_enable,
 	.to_thr_event_getmsg	= pt_thr_event_getmsg,
+	.to_thr_old_get_info	= pt_thr_old_get_info,
 	.to_thr_get_info	= pt_thr_get_info,
 	.to_thr_getfpregs	= pt_thr_getfpregs,
 	.to_thr_getgregs	= pt_thr_getgregs,

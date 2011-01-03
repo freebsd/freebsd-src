@@ -1,5 +1,5 @@
  /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2009 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <camlib.h>
 
-#include "iscsi.h"
+#include <dev/iscsi/initiator/iscsi.h>
 #include "iscontrol.h"
 
 /*
@@ -94,6 +94,11 @@ __FBSDID("$FreeBSD$");
 #define OPT_iqn				34
 #define OPT_sockbufsize			35
 
+/*
+ | sentinel
+ */
+#define OPT_end				0
+
 #define _OFF(v)	((int)&((isc_opt_t *)NULL)->v)
 #define _E(u, s, v) {.usage=u, .scope=s, .name=#v, .tokenID=OPT_##v}
 
@@ -145,7 +150,7 @@ textkey_t keyMap[] = {
      
      _E(U_LO, S_SW, sessionType),
 
-     {0}
+     _E(0, 0, end)
 };
 
 #define _OPT_INT(w)	strtol((char *)w, NULL, 0)
@@ -154,7 +159,7 @@ textkey_t keyMap[] = {
 static __inline  int
 _OPT_BOOL(char *w)
 {
-     if(isalpha(*w))
+     if(isalpha((unsigned char)*w))
 	  return strcasecmp(w, "TRUE") == 0;
      else
 	  return _OPT_INT(w);
@@ -244,13 +249,12 @@ getConfig(FILE *fd, char *key, char **Ar, int *nargs)
 	  len = 0;
      state = 0;
      while((lp = getline(fd)) != NULL) {
-	  for(; isspace(*lp); lp++)
+	  for(; isspace((unsigned char)*lp); lp++)
 	       ;
 	  switch(state) {
 	  case 0:
 	       if((p = strchr(lp, '{')) != NULL) {
-		    n = 0;
-		    while((--p > lp) && *p && isspace(*p));
+		    while((--p > lp) && *p && isspace((unsigned char)*p));
 		    n = p - lp;
 		    if(len && strncmp(lp, key, MAX(n, len)) == 0)
 			 state = 2;
@@ -273,7 +277,7 @@ getConfig(FILE *fd, char *key, char **Ar, int *nargs)
 	  }
 
 	  
-	  for(p = &lp[strlen(lp)-1]; isspace(*p); p--)
+	  for(p = &lp[strlen(lp)-1]; isspace((unsigned char)*p); p--)
 	       *p = 0;
 	  if((*nargs)-- > 0)
 	       *ar++ = strdup(lp);
@@ -352,9 +356,9 @@ parseArgs(int nargs, char **args, isc_opt_t *op)
 	       continue;
 	  *p = 0;
 	  v = p + 1;
-	  while(isspace(*--p))
+	  while(isspace((unsigned char)*--p))
 	       *p = 0;
-	  while(isspace(*v))
+	  while(isspace((unsigned char)*v))
 	       v++;
 	  if((tk = keyLookup(*ar)) == NULL)
 	       continue;

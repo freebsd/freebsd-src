@@ -398,8 +398,6 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	int n;
 	static int waiting;
 
-	pfrom = (from == NULL) ? &from_local : from;
-
 	if (debug&DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG,
 		    "Waiting %d seconds for packet", timeoutpacket);
@@ -423,6 +421,7 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	}
 
 	waiting++;
+	pfrom = (from == NULL) ? &from_local : from;
 	fromlen = sizeof(*pfrom);
 	n = recvfrom(peer, data, size, 0, (struct sockaddr *)pfrom, &fromlen);
 

@@ -180,6 +180,9 @@ AcpiDbExecuteMethod (
     ACPI_DEVICE_INFO        *ObjInfo;
 
 
+    ACPI_FUNCTION_TRACE (DbExecuteMethod);
+
+
     if (AcpiGbl_DbOutputToFile && !AcpiDbgLevel)
     {
         AcpiOsPrintf ("Warning: debug output is not enabled!\n");
@@ -190,7 +193,7 @@ AcpiDbExecuteMethod (
     Status = AcpiGetHandle (NULL, Info->Pathname, &Handle);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     /* Get the object info for number of method parameters */
@@ -198,7 +201,7 @@ AcpiDbExecuteMethod (
     Status = AcpiGetObjectInfo (Handle, &ObjInfo);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     ParamObjects.Pointer = NULL;
@@ -269,7 +272,20 @@ AcpiDbExecuteMethod (
     AcpiGbl_CmSingleStep = FALSE;
     AcpiGbl_MethodExecuting = FALSE;
 
-    return (Status);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status,
+        "while executing %s from debugger", Info->Pathname));
+
+        if (Status == AE_BUFFER_OVERFLOW)
+        {
+            ACPI_ERROR ((AE_INFO,
+            "Possible overflow of internal debugger buffer (size 0x%X needed 0x%X)",
+                ACPI_DEBUG_BUFFER_SIZE, (UINT32) ReturnObj->Length));
+        }
+    }
+
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -567,14 +583,12 @@ AcpiDbMethodThread (
     if (Info->InitArgs)
     {
         AcpiDbUInt32ToHexString (Info->NumCreated, Info->IndexOfThreadStr);
-        AcpiDbUInt32ToHexString (ACPI_TO_INTEGER (AcpiOsGetThreadId ()),
-            Info->IdOfThreadStr);
+        AcpiDbUInt32ToHexString ((UINT32) AcpiOsGetThreadId (), Info->IdOfThreadStr);
     }
 
     if (Info->Threads && (Info->NumCreated < Info->NumThreads))
     {
-        Info->Threads[Info->NumCreated++] =
-            ACPI_TO_INTEGER (AcpiOsGetThreadId());
+        Info->Threads[Info->NumCreated++] = AcpiOsGetThreadId();
     }
 
     LocalInfo = *Info;
@@ -602,7 +616,7 @@ AcpiDbMethodThread (
 #if 0
         if ((i % 100) == 0)
         {
-            AcpiOsPrintf ("%d executions, Thread 0x%x\n", i, AcpiOsGetThreadId ());
+            AcpiOsPrintf ("%u executions, Thread 0x%x\n", i, AcpiOsGetThreadId ());
         }
 
         if (ReturnObj.Length)
@@ -722,8 +736,8 @@ AcpiDbCreateExecutionThreads (
     /* Array to store IDs of threads */
 
     AcpiGbl_DbMethodInfo.NumThreads = NumThreads;
-    Size = 4 * AcpiGbl_DbMethodInfo.NumThreads;
-    AcpiGbl_DbMethodInfo.Threads = (UINT32 *) AcpiOsAllocate (Size);
+    Size = sizeof (ACPI_THREAD_ID) * AcpiGbl_DbMethodInfo.NumThreads;
+    AcpiGbl_DbMethodInfo.Threads = AcpiOsAllocate (Size);
     if (AcpiGbl_DbMethodInfo.Threads == NULL)
     {
         AcpiOsPrintf ("No memory for thread IDs array\n");

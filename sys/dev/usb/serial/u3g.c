@@ -62,6 +62,7 @@
 #include <dev/usb/usb_msctest.h>
 
 #include <dev/usb/serial/usb_serial.h>
+#include <dev/usb/quirk/usb_quirk.h>
 
 #ifdef USB_DEBUG
 static int u3g_debug = 0;
@@ -71,7 +72,7 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
     &u3g_debug, 0, "Debug level");
 #endif
 
-#define	U3G_MAXPORTS		8
+#define	U3G_MAXPORTS		12
 #define	U3G_CONFIG_INDEX	0
 #define	U3G_BSIZE		2048
 
@@ -84,6 +85,7 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GSP_HSPA		6
 #define	U3GSP_MAX		7
 
+/* Eject methods; See also usb_quirks.h:UQ_MSC_EJECT_* */
 #define	U3GINIT_HUAWEI		1	/* Requires Huawei init command */
 #define	U3GINIT_SIERRA		2	/* Requires Sierra init command */
 #define	U3GINIT_SCSIEJECT	3	/* Requires SCSI eject command */
@@ -93,6 +95,7 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GINIT_WAIT		7	/* Device reappears after a delay */
 #define	U3GINIT_SAEL_M460	8	/* Requires vendor init */
 #define	U3GINIT_HUAWEISCSI	9	/* Requires Huawei SCSI init command */
+#define	U3GINIT_TCT		10	/* Requires TCT Mobile init command */
 
 enum {
 	U3G_BULK_WR,
@@ -178,6 +181,7 @@ static driver_t u3g_driver = {
 DRIVER_MODULE(u3g, uhub, u3g_driver, u3g_devclass, u3g_driver_loaded, 0);
 MODULE_DEPEND(u3g, ucom, 1, 1, 1);
 MODULE_DEPEND(u3g, usb, 1, 1, 1);
+MODULE_VERSION(u3g, 1);
 
 static const struct usb_device_id u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
@@ -277,15 +281,21 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(HUAWEI, E143D, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E143E, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E143F, U3GINIT_HUAWEI),
-	U3G_DEV(HUAWEI, E14AC, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E180V, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220BIS, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, MOBILE, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E1752, U3GINIT_HUAWEISCSI),
+	U3G_DEV(HUAWEI, E1820, U3GINIT_HUAWEISCSI),
+	U3G_DEV(HUAWEI, K3765, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, K3765_INIT, U3GINIT_HUAWEISCSI),
 	U3G_DEV(KYOCERA2, CDMA_MSM_K, 0),
 	U3G_DEV(KYOCERA2, KPC680, 0),
+	U3G_DEV(LONGCHEER, WM66, U3GINIT_HUAWEI),
+	U3G_DEV(LONGCHEER, DISK, U3GINIT_TCT),
+	U3G_DEV(LONGCHEER, W14, 0),
 	U3G_DEV(MERLIN, V620, 0),
+	U3G_DEV(NEOTEL, PRIME, 0),
 	U3G_DEV(NOVATEL, E725, 0),
 	U3G_DEV(NOVATEL, ES620, 0),
 	U3G_DEV(NOVATEL, ES620_2, 0),
@@ -448,6 +458,7 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(SIERRA, MC5727, 0),
 	U3G_DEV(SIERRA, MC5727_2, 0),
 	U3G_DEV(SIERRA, MC5728, 0),
+	U3G_DEV(SIERRA, MC8700, 0),
 	U3G_DEV(SIERRA, MC8755, 0),
 	U3G_DEV(SIERRA, MC8755_2, 0),
 	U3G_DEV(SIERRA, MC8755_3, 0),
@@ -490,6 +501,7 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(STELERA, E1011, 0),
 	U3G_DEV(STELERA, E1012, 0),
 	U3G_DEV(TCTMOBILE, X060S, 0),
+	U3G_DEV(TCTMOBILE, X080S, U3GINIT_TCT),
 	U3G_DEV(TELIT, UC864E, 0),
 	U3G_DEV(TELIT, UC864G, 0),
 	U3G_DEV(TLAYTECH, TEU800, 0),
@@ -635,6 +647,7 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 	struct usb_interface *iface;
 	struct usb_interface_descriptor *id;
 	int error;
+	unsigned long method;
 
 	if (uaa->dev_state != UAA_DEV_READY)
 		return;
@@ -645,10 +658,37 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 	id = iface->idesc;
 	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
 		return;
-	if (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa))
+
+	if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEI))
+		method = U3GINIT_HUAWEI;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_SIERRA))
+		method = U3GINIT_SIERRA;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_SCSIEJECT))
+		method = U3GINIT_SCSIEJECT;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_REZERO))
+		method = U3GINIT_REZERO;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_ZTESTOR))
+		method = U3GINIT_ZTESTOR;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_CMOTECH))
+		method = U3GINIT_CMOTECH;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_WAIT))
+		method = U3GINIT_WAIT;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI))
+		method = U3GINIT_HUAWEISCSI;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_TCT))
+		method = U3GINIT_TCT;
+	else if (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa) == 0)
+		method = USB_GET_DRIVER_INFO(uaa);
+	else
 		return;		/* no device match */
 
-	switch (USB_GET_DRIVER_INFO(uaa)) {
+	if (bootverbose) {
+		printf("Ejecting %s %s using method %ld\n",
+		       usb_get_manufacturer(udev),
+		       usb_get_product(udev), method);
+	}
+
+	switch (method) {
 		case U3GINIT_HUAWEI:
 			error = u3g_huawei_init(udev);
 			break;
@@ -662,10 +702,14 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 			error = usb_msc_eject(udev, 0, MSC_EJECT_REZERO);
 			break;
 		case U3GINIT_ZTESTOR:
-			error = usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
+			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
+			error |= usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
 			break;
 		case U3GINIT_CMOTECH:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_CMOTECH);
+			break;
+		case U3GINIT_TCT:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_TCT);
 			break;
 		case U3GINIT_SIERRA:
 			error = u3g_sierra_init(udev);
@@ -736,8 +780,10 @@ u3g_attach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 
 	type = USB_GET_DRIVER_INFO(uaa);
-	if (type == U3GINIT_SAEL_M460)
+	if (type == U3GINIT_SAEL_M460
+	    || usb_test_quirk(uaa, UQ_MSC_EJECT_SAEL_M460)) {
 		u3g_sael_m460_init(uaa->device);
+	}
 
 	/* copy in USB config */
 	for (n = 0; n != U3G_N_TRANSFER; n++) 
@@ -808,8 +854,10 @@ u3g_attach(device_t dev)
 		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
 	device_printf(dev, "Found %u port%s.\n", sc->sc_numports,
 	    sc->sc_numports > 1 ? "s":"");
+
 	return (0);
 
 detach:
@@ -821,15 +869,15 @@ static int
 u3g_detach(device_t dev)
 {
 	struct u3g_softc *sc = device_get_softc(dev);
-	uint8_t m;
+	uint8_t subunit;
 
 	DPRINTF("sc=%p\n", sc);
 
 	/* NOTE: It is not dangerous to detach more ports than attached! */
-	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom, U3G_MAXPORTS);
+	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom);
 
-	for (m = 0; m != U3G_MAXPORTS; m++)
-		usbd_transfer_unsetup(sc->sc_xfer[m], U3G_N_TRANSFER);
+	for (subunit = 0; subunit != U3G_MAXPORTS; subunit++)
+		usbd_transfer_unsetup(sc->sc_xfer[subunit], U3G_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -841,7 +889,7 @@ u3g_start_read(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* start read endpoint */
-	usbd_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
+	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
 	return;
 }
 
@@ -851,7 +899,7 @@ u3g_stop_read(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* stop read endpoint */
-	usbd_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
+	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
 	return;
 }
 
@@ -860,7 +908,7 @@ u3g_start_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usbd_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
 	return;
 }
 
@@ -869,7 +917,7 @@ u3g_stop_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usbd_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
+	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
 	return;
 }
 

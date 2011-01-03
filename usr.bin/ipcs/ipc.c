@@ -128,7 +128,7 @@ sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vecarr)
 void
 kget(int idx, void *addr, size_t size)
 {
-	char *symn;			/* symbol name */
+	const char *symn;		/* symbol name */
 	size_t tsiz;
 	int rv;
 	unsigned long kaddr;

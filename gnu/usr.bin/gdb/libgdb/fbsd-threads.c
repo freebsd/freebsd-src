@@ -426,6 +426,46 @@ fbsd_thread_deactivate (void)
   init_thread_list ();
 }
 
+static char * 
+fbsd_thread_get_name (lwpid_t lwpid)
+{
+  static char last_thr_name[MAXCOMLEN + 1];
+  char section_name[32];
+  struct ptrace_lwpinfo lwpinfo;
+  bfd_size_type size;
+  struct bfd_section *section;
+
+  if (target_has_execution)
+    {
+      if (ptrace (PT_LWPINFO, lwpid, (caddr_t)&lwpinfo, sizeof (lwpinfo)) == -1)
+        goto fail;
+      strncpy (last_thr_name, lwpinfo.pl_tdname, sizeof (last_thr_name) - 1);
+    }
+  else
+    {
+      snprintf (section_name, sizeof (section_name), ".tname/%u", lwpid);
+      section = bfd_get_section_by_name (core_bfd, section_name);
+      if (! section)
+        goto fail;
+
+      /* Section size fix-up. */
+      size = bfd_section_size (core_bfd, section);
+      if (size > sizeof (last_thr_name))
+        size = sizeof (last_thr_name);
+
+      if (! bfd_get_section_contents (core_bfd, section, last_thr_name,
+	       (file_ptr)0, size))
+        goto fail;
+      if (last_thr_name[0] == '\0')
+        goto fail;
+    }
+    last_thr_name[sizeof (last_thr_name) - 1] = '\0';
+    return last_thr_name;
+fail:
+     strcpy (last_thr_name, "<unknown>");
+     return last_thr_name;
+}
+
 static void
 fbsd_thread_new_objfile (struct objfile *objfile)
 {
@@ -1158,7 +1198,7 @@ fbsd_thread_find_new_threads (void)
 static char *
 fbsd_thread_pid_to_str (ptid_t ptid)
 {
-  static char buf[64];
+  static char buf[64 + MAXCOMLEN];
 
   if (IS_THREAD (ptid))
     {
@@ -1178,8 +1218,9 @@ fbsd_thread_pid_to_str (ptid_t ptid)
 
       if (ti.ti_lid != 0)
         {
-          snprintf (buf, sizeof (buf), "Thread %llx (LWP %d)",
-                    (unsigned long long)th.th_thread, ti.ti_lid);
+          snprintf (buf, sizeof (buf), "Thread %llx (LWP %d/%s)",
+                    (unsigned long long)th.th_thread, ti.ti_lid,
+                    fbsd_thread_get_name (ti.ti_lid));
         }
       else
         {
@@ -1299,6 +1340,7 @@ fbsd_thread_signal_cmd (char *exp, int from_tty)
   td_thrhandle_t th;
   td_thrinfo_t ti;
   td_err_e err;
+  const char *code;
 
   if (!fbsd_thread_active || !IS_THREAD(inferior_ptid))
     return;
@@ -1315,6 +1357,42 @@ fbsd_thread_signal_cmd (char *exp, int from_tty)
   fbsd_print_sigset(&ti.ti_sigmask);
   printf_filtered("signal pending:\n");
   fbsd_print_sigset(&ti.ti_pending);
+  if (ti.ti_siginfo.si_signo != 0) {
+   printf_filtered("si_signo %d si_errno %d", ti.ti_siginfo.si_signo,
+     ti.ti_siginfo.si_errno);
+   if (ti.ti_siginfo.si_errno != 0)
+    printf_filtered(" (%s)", strerror(ti.ti_siginfo.si_errno));
+   printf_filtered("\n");
+   switch (ti.ti_siginfo.si_code) {
+   case SI_NOINFO:
+	code = "NOINFO";
+	break;
+    case SI_USER:
+	code = "USER";
+	break;
+    case SI_QUEUE:
+	code = "QUEUE";
+	break;
+    case SI_TIMER:
+	code = "TIMER";
+	break;
+    case SI_ASYNCIO:
+	code = "ASYNCIO";
+	break;
+    case SI_MESGQ:
+	code = "MESGQ";
+	break;
+    case SI_KERNEL:
+	code = "KERNEL";
+	break;
+    default:
+	code = "UNKNOWN";
+	break;
+    }
+    printf_filtered("si_code %s si_pid %d si_uid %d si_status %x si_addr %p\n",
+      code, ti.ti_siginfo.si_pid, ti.ti_siginfo.si_uid, ti.ti_siginfo.si_status,
+      ti.ti_siginfo.si_addr);
+  }
 }
 
 static int

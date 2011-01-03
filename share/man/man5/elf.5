@@ -134,7 +134,6 @@ typedef struct {
         Elf32_Half      e_shstrndx;
 } Elf32_Ehdr;
 .Ed
-.Pp
 .Bd -literal -offset indent
 typedef struct {
 	unsigned char   e_ident[EI_NIDENT];
@@ -429,7 +428,6 @@ and
 members.
 As with the Elf executable header, the program header
 also has different versions depending on the architecture:
-.Pp
 .Bd -literal -offset indent
 typedef struct {
         Elf32_Word      p_type;
@@ -442,7 +440,6 @@ typedef struct {
         Elf32_Word      p_align;
 } Elf32_Phdr;
 .Ed
-.Pp
 .Bd -literal -offset indent
 typedef struct {
         Elf64_Word      p_type;
@@ -465,8 +462,8 @@ member in the total struct.
 .It Dv p_type
 This member of the Phdr struct tells what kind of segment this array
 element describes or how to interpret the array element's information.
-.Bl -tag -width "PT_DYNAMIC" -compact
 .Pp
+.Bl -tag -width "PT_DYNAMIC" -compact
 .It Dv PT_NULL
 The array element is unused and the other members' values are undefined.
 This lets the program header have ignored entries.
@@ -658,7 +655,6 @@ typedef struct {
 	Elf32_Word      sh_entsize;
 } Elf32_Shdr;
 .Ed
-.Pp
 .Bd -literal -offset indent
 typedef struct {
 	Elf64_Word      sh_name;
@@ -1088,7 +1084,6 @@ An object file's symbol table holds information needed to locate and
 relocate a program's symbolic definitions and references.
 A symbol table
 index is a subscript into this array.
-.Pp
 .Bd -literal -offset indent
 typedef struct {
 	Elf32_Word      st_name;
@@ -1099,7 +1094,6 @@ typedef struct {
 	Elf32_Half      st_shndx;
 } Elf32_Sym;
 .Ed
-.Pp
 .Bd -literal -offset indent
 typedef struct {
 	Elf64_Word      st_name;
@@ -1227,7 +1221,6 @@ program image.
 Relocation entries are these data.
 .Pp
 Relocation structures that do not need an addend:
-.Pp
 .Bd -literal -offset indent
 typedef struct {
 	Elf32_Addr      r_offset;
@@ -1242,7 +1235,6 @@ typedef struct {
 .Ed
 .Pp
 Relocation structures that need an addend:
-.Pp
 .Bd -literal -offset indent
 typedef struct {
 	Elf32_Addr      r_offset;

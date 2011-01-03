@@ -82,11 +82,13 @@ int
 main(int argc, char *argv[])
 {
 	char *avalue, *jvalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
+	char *tvalue;
 	const char *special, *on;
 	const char *name;
 	int active;
 	int Aflag, aflag, eflag, evalue, fflag, fvalue, jflag, Jflag, Lflag;
 	int lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue, pflag, sflag;
+	int tflag;
 	int svalue, Sflag, Svalue;
 	int ch, found_arg, i;
 	const char *chg[2];
@@ -96,12 +98,13 @@ main(int argc, char *argv[])
 	if (argc < 3)
 		usage();
 	Aflag = aflag = eflag = fflag = jflag = Jflag = Lflag = lflag = 0;
-	mflag = Nflag = nflag = oflag = pflag = sflag = 0;
+	mflag = Nflag = nflag = oflag = pflag = sflag = tflag = 0;
 	avalue = jvalue = Jvalue = Lvalue = lvalue = Nvalue = nvalue = NULL;
 	evalue = fvalue = mvalue = ovalue = svalue = Svalue = 0;
 	active = 0;
 	found_arg = 0;		/* At least one arg is required. */
-	while ((ch = getopt(argc, argv, "Aa:e:f:j:J:L:l:m:N:n:o:ps:S:")) != -1)
+	while ((ch = getopt(argc, argv, "Aa:e:f:j:J:L:l:m:N:n:o:ps:S:t:"))
+	    != -1)
 		switch (ch) {
 
 		case 'A':
@@ -268,6 +271,18 @@ main(int argc, char *argv[])
 			Sflag = 1;
 			break;
 
+		case 't':
+			found_arg = 1;
+			name = "trim";
+			tvalue = optarg;
+			if (strcmp(tvalue, "enable") != 0 &&
+			    strcmp(tvalue, "disable") != 0) {
+				errx(10, "bad %s (options are %s)",
+				    name, "`enable' or `disable'");
+			}
+			tflag = 1;
+			break;
+
 		default:
 			usage();
 		}
@@ -358,10 +373,12 @@ main(int argc, char *argv[])
 				warnx("%s remains unchanged as disabled", name);
 			} else {
 				journal_clear();
- 				sblock.fs_flags &= ~(FS_DOSOFTDEP | FS_SUJ);
+ 				sblock.fs_flags &= ~FS_SUJ;
 				sblock.fs_sujfree = 0;
- 				warnx("%s cleared, "
-				    "remove .sujournal to reclaim space", name);
+ 				warnx("%s cleared but soft updates still set.",
+				    name);
+
+				warnx("remove .sujournal to reclaim space");
 			}
  		}
 	}
@@ -491,6 +508,24 @@ main(int argc, char *argv[])
 			sblock.fs_avgfpdir = svalue;
 		}
 	}
+	if (tflag) {
+		name = "issue TRIM to the disk";
+ 		if (strcmp(tvalue, "enable") == 0) {
+			if (sblock.fs_flags & FS_TRIM)
+				warnx("%s remains unchanged as enabled", name);
+			else {
+ 				sblock.fs_flags |= FS_TRIM;
+ 				warnx("%s set", name);
+			}
+ 		} else if (strcmp(tvalue, "disable") == 0) {
+			if ((~sblock.fs_flags & FS_TRIM) == FS_TRIM)
+				warnx("%s remains unchanged as disabled", name);
+			else {
+ 				sblock.fs_flags &= ~FS_TRIM;
+ 				warnx("%s cleared", name);
+			}
+ 		}
+	}
 
 	if (sbwrite(&disk, Aflag) == -1)
 		goto err;
@@ -546,7 +581,7 @@ journal_balloc(void)
 			 * Try to minimize fragmentation by requiring a minimum
 			 * number of blocks present.
 			 */
-			if (cgp->cg_cs.cs_nbfree > 128 * 1024 * 1024)
+			if (cgp->cg_cs.cs_nbfree > 256 * 1024)
 				break;
 			if (contig == 0 && cgp->cg_cs.cs_nbfree)
 				break;
@@ -906,6 +941,8 @@ journal_alloc(int64_t size)
 		if (size / sblock.fs_fsize > sblock.fs_fpg)
 			size = sblock.fs_fpg * sblock.fs_fsize;
 		size = MAX(SUJ_MIN, size);
+		/* fsck does not support fragments in journal files. */
+		size = roundup(size, sblock.fs_bsize);
 	}
 	resid = blocks = size / sblock.fs_bsize;
 	if (sblock.fs_cstotal.cs_nbfree < blocks) {
@@ -1007,12 +1044,13 @@ out:
 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
 "              [-J enable | disable] [-j enable | disable]", 
 "              [-L volname] [-l enable | disable] [-m minfree]",
 "              [-N enable | disable] [-n enable | disable]",
-"              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
+"              [-o space | time] [-p] [-s avgfpdir] [-t enable | disable]",
+"              special | filesystem");
 	exit(2);
 }
 
@@ -1031,6 +1069,8 @@ printfs(void)
 		(sblock.fs_flags & FS_SUJ)? "enabled" : "disabled");
 	warnx("gjournal: (-J)                                     %s",
 		(sblock.fs_flags & FS_GJOURNAL)? "enabled" : "disabled");
+	warnx("trim: (-t)                                         %s", 
+		(sblock.fs_flags & FS_TRIM)? "enabled" : "disabled");
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);
 	warnx("average file size: (-f)                            %d",

@@ -329,16 +329,23 @@ typedef void (task_func_t)(void *);
 #define	TASKQ_PREPOPULATE	0x0001
 #define	TASKQ_CPR_SAFE		0x0002	/* Use CPR safe protocol */
 #define	TASKQ_DYNAMIC		0x0004	/* Use dynamic thread scheduling */
+#define	TASKQ_THREADS_CPU_PCT	0x0008	/* Use dynamic thread scheduling */
 
 #define	TQ_SLEEP	KM_SLEEP	/* Can block for memory */
 #define	TQ_NOSLEEP	KM_NOSLEEP	/* cannot block for memory; may fail */
 #define	TQ_NOQUEUE	0x02	/* Do not enqueue if can't dispatch */
+
+extern taskq_t *system_taskq;
 
 extern taskq_t	*taskq_create(const char *, int, pri_t, int, int, uint_t);
 extern taskqid_t taskq_dispatch(taskq_t *, task_func_t, void *, uint_t);
 extern void	taskq_destroy(taskq_t *);
 extern void	taskq_wait(taskq_t *);
 extern int	taskq_member(taskq_t *, void *);
+extern void	system_taskq_init(void);
+
+#define	taskq_dispatch_safe(tq, func, arg, task)			\
+	taskq_dispatch((tq), (func), (arg), TQ_SLEEP)
 
 #define	XVA_MAPSIZE	3
 #define	XVA_MAGIC	0x78766174
@@ -583,6 +590,8 @@ typedef struct ksiddomain {
 
 ksiddomain_t *ksid_lookupdomain(const char *);
 void ksiddomain_rele(ksiddomain_t *);
+
+typedef	uint32_t	idmap_rid_t;
 
 #define	SX_SYSINIT(name, lock, desc)
 

@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd August 5, 2008
-.Dt archive_write_disk 3
+.Dt ARCHIVE_WRITE_DISK 3
 .Os
 .Sh NAME
 .Nm archive_write_disk_new ,
@@ -38,7 +38,7 @@
 .Nm archive_write_data ,
 .Nm archive_write_finish_entry ,
 .Nm archive_write_close ,
-.Nm archive_write_finish
+.Nm archive_write_free
 .Nd functions for creating objects on disk
 .Sh SYNOPSIS
 .In archive.h
@@ -73,7 +73,7 @@
 .Ft int
 .Fn archive_write_close "struct archive *"
 .Ft int
-.Fn archive_write_finish "struct archive *"
+.Fn archive_write_free "struct archive *"
 .Sh DESCRIPTION
 These functions provide a complete API for creating objects on
 disk from
@@ -239,7 +239,7 @@ The
 .Nm
 library maintains a list of all such deferred attributes and
 sets them when this function is invoked.
-.It Fn archive_write_finish
+.It Fn archive_write_free
 Invokes
 .Fn archive_write_close
 if it was not invoked manually, then releases all resources.

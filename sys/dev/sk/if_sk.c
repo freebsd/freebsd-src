@@ -545,9 +545,6 @@ sk_xmac_miibus_readreg(sc_if, phy, reg)
 {
 	int			i;
 
-	if (sc_if->sk_phytype == SK_PHYTYPE_XMAC && phy != 0)
-		return(0);
-
 	SK_XM_WRITE_2(sc_if, XM_PHY_ADDR, reg|(phy << 8));
 	SK_XM_READ_2(sc_if, XM_PHY_DATA);
 	if (sc_if->sk_phytype != SK_PHYTYPE_XMAC) {
@@ -628,9 +625,8 @@ sk_marv_miibus_readreg(sc_if, phy, reg)
 	u_int16_t		val;
 	int			i;
 
-	if (phy != 0 ||
-	    (sc_if->sk_phytype != SK_PHYTYPE_MARV_COPPER &&
-	     sc_if->sk_phytype != SK_PHYTYPE_MARV_FIBER)) {
+	if (sc_if->sk_phytype != SK_PHYTYPE_MARV_COPPER &&
+	    sc_if->sk_phytype != SK_PHYTYPE_MARV_FIBER) {
 		return(0);
 	}
 
@@ -1169,14 +1165,17 @@ sk_ioctl(ifp, command, data)
 			break;
 		}
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if (IFCAP_HWCSUM & ifp->if_capenable &&
-			    IFCAP_HWCSUM & ifp->if_capabilities)
-				ifp->if_hwassist = SK_CSUM_FEATURES;
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				ifp->if_hwassist |= SK_CSUM_FEATURES;
 			else
-				ifp->if_hwassist = 0;
+				ifp->if_hwassist &= ~SK_CSUM_FEATURES;
 		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0) 
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 		SK_IF_UNLOCK(sc_if);
 		break;
 	default:
@@ -1320,8 +1319,10 @@ sk_attach(dev)
 	struct sk_softc		*sc;
 	struct sk_if_softc	*sc_if;
 	struct ifnet		*ifp;
-	int			i, port, error;
+	u_int32_t		r;
+	int			error, i, phy, port;
 	u_char			eaddr[6];
+	u_char			inv_mac[] = {0, 0, 0, 0, 0, 0};
 
 	if (dev == NULL)
 		return(EINVAL);
@@ -1363,13 +1364,23 @@ sk_attach(dev)
 	 * SK_GENESIS has a bug in checksum offload - From linux.
 	 */
 	if (sc_if->sk_softc->sk_type != SK_GENESIS) {
-		ifp->if_capabilities = IFCAP_HWCSUM;
-		ifp->if_hwassist = SK_CSUM_FEATURES;
+		ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_RXCSUM;
+		ifp->if_hwassist = 0;
 	} else {
 		ifp->if_capabilities = 0;
 		ifp->if_hwassist = 0;
 	}
 	ifp->if_capenable = ifp->if_capabilities;
+	/*
+	 * Some revision of Yukon controller generates corrupted
+	 * frame when TX checksum offloading is enabled.  The
+	 * frame has a valid checksum value so payload might be
+	 * modified during TX checksum calculation. Disable TX
+	 * checksum offloading but give users chance to enable it
+	 * when they know their controller works without problems
+	 * with TX checksum offloading.
+	 */
+	ifp->if_capenable &= ~IFCAP_TXCSUM;
 	ifp->if_ioctl = sk_ioctl;
 	ifp->if_start = sk_start;
 	ifp->if_init = sk_init;
@@ -1391,6 +1402,23 @@ sk_attach(dev)
 		eaddr[i] =
 		    sk_win_read_1(sc, SK_MAC0_0 + (port * 8) + i);
 
+	/* Verify whether the station address is invalid or not. */
+	if (bcmp(eaddr, inv_mac, sizeof(inv_mac)) == 0) {
+		device_printf(sc_if->sk_if_dev,
+		    "Generating random ethernet address\n");
+		r = arc4random();
+		/*
+		 * Set OUI to convenient locally assigned address.  'b'
+		 * is 0x62, which has the locally assigned bit set, and
+		 * the broadcast/multicast bit clear.
+		 */
+		eaddr[0] = 'b';
+		eaddr[1] = 's';
+		eaddr[2] = 'd';
+		eaddr[3] = (r >> 16) & 0xff;
+		eaddr[4] = (r >>  8) & 0xff;
+		eaddr[5] = (r >>  0) & 0xff;
+	}
 	/*
 	 * Set up RAM buffer addresses. The NIC will have a certain
 	 * amount of SRAM on it, somewhere between 512K and 2MB. We
@@ -1483,23 +1511,27 @@ sk_attach(dev)
 	/*
 	 * Do miibus setup.
 	 */
+	phy = MII_PHY_ANY;
 	switch (sc->sk_type) {
 	case SK_GENESIS:
 		sk_init_xmac(sc_if);
+		if (sc_if->sk_phytype == SK_PHYTYPE_XMAC)
+			phy = 0;
 		break;
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
 		sk_init_yukon(sc_if);
+		phy = 0;
 		break;
 	}
 
 	SK_IF_UNLOCK(sc_if);
-	if (mii_phy_probe(dev, &sc_if->sk_miibus,
-	    sk_ifmedia_upd, sk_ifmedia_sts)) {
-		device_printf(sc_if->sk_if_dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc_if->sk_miibus, ifp, sk_ifmedia_upd,
+	    sk_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(sc_if->sk_if_dev, "attaching PHYs failed\n");
 		ether_ifdetach(ifp);
-		error = ENXIO;
 		goto fail;
 	}
 
@@ -3324,6 +3356,7 @@ sk_init_yukon(sc_if)
 	u_int16_t		reg;
 	struct sk_softc		*sc;
 	struct ifnet		*ifp;
+	u_int8_t		*eaddr;
 	int			i;
 
 	SK_IF_LOCK_ASSERT(sc_if);
@@ -3399,19 +3432,19 @@ sk_init_yukon(sc_if)
 		reg |= YU_SMR_MFL_JUMBO;
 	SK_YU_WRITE_2(sc_if, YUKON_SMR, reg);
 
-	/* Setup Yukon's address */
-	for (i = 0; i < 3; i++) {
-		/* Write Source Address 1 (unicast filter) */
+	/* Setup Yukon's station address */
+	eaddr = IF_LLADDR(sc_if->sk_ifp);
+	for (i = 0; i < 3; i++)
+		SK_YU_WRITE_2(sc_if, SK_MAC0_0 + i * 4,
+		    eaddr[i * 2] | eaddr[i * 2 + 1] << 8);
+	/* Set GMAC source address of flow control. */
+	for (i = 0; i < 3; i++)
 		SK_YU_WRITE_2(sc_if, YUKON_SAL1 + i * 4,
-			      IF_LLADDR(sc_if->sk_ifp)[i * 2] |
-			      IF_LLADDR(sc_if->sk_ifp)[i * 2 + 1] << 8);
-	}
-
-	for (i = 0; i < 3; i++) {
-		reg = sk_win_read_2(sc_if->sk_softc,
-				    SK_MAC1_0 + i * 2 + sc_if->sk_port * 8);
-		SK_YU_WRITE_2(sc_if, YUKON_SAL2 + i * 4, reg);
-	}
+		    eaddr[i * 2] | eaddr[i * 2 + 1] << 8);
+	/* Set GMAC virtual address. */
+	for (i = 0; i < 3; i++)
+		SK_YU_WRITE_2(sc_if, YUKON_SAL2 + i * 4,
+		    eaddr[i * 2] | eaddr[i * 2 + 1] << 8);
 
 	/* Set Rx filter */
 	sk_rxfilter_yukon(sc_if);

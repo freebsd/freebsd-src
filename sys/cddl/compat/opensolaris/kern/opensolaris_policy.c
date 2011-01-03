@@ -239,9 +239,8 @@ secpolicy_vnode_create_gid(struct ucred *cred)
 }
 
 int
-secpolicy_vnode_setids_setgids(struct vnode *vp, struct ucred *cred, gid_t gid)
+secpolicy_vnode_setids_setgids(vnode_t *vp, struct ucred *cred, gid_t gid)
 {
-
 	if (groupmember(gid, cred))
 		return (0);
 	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
@@ -333,7 +332,7 @@ secpolicy_vnode_owner(struct vnode *vp, cred_t *cred, uid_t owner)
 }
 
 int
-secpolicy_vnode_chown(struct vnode *vp, cred_t *cred, boolean_t check_self)
+secpolicy_vnode_chown(struct vnode *vp, cred_t *cred, uid_t owner)
 {
 
 	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
@@ -365,4 +364,11 @@ secpolicy_xvattr(struct vnode *vp, xvattr_t *xvap, uid_t owner, cred_t *cr,
 	if (secpolicy_fs_owner(vp->v_mount, cr) == 0)
 		return (0);
 	return (priv_check_cred(cr, PRIV_VFS_SYSFLAGS, 0));
+}
+
+int
+secpolicy_smb(cred_t *cr)
+{
+
+	return (priv_check_cred(cr, PRIV_NETSMB, 0));
 }

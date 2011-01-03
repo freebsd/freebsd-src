@@ -6,13 +6,17 @@
 
 VERSION=	"2.15 [FreeBSD] 2004-05-23"
 
-TARGET_ARCH?=	${MACHINE_ARCH}
-.if ${TARGET_ARCH} == "amd64"
-BINUTILS_ARCH=x86_64
+.if defined(TARGET_ARCH)
+TARGET_CPUARCH=${TARGET_ARCH:C/mipse[bl]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
 .else
-BINUTILS_ARCH=${TARGET_ARCH}
+TARGET_CPUARCH=${MACHINE_CPUARCH}
 .endif
+TARGET_ARCH?=	${MACHINE_ARCH}
+BINUTILS_ARCH=${TARGET_ARCH:C/amd64/x86_64/}
 TARGET_TUPLE?=	${BINUTILS_ARCH}-obrien-freebsd
+.if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH} == "mipseb"
+TARGET_BIG_ENDIAN=t
+.endif
 
 # RELTOP is the relative path to this point in the source or object
 # tree, from any subdirectory of same.  It gets extra "../" prefixes
@@ -22,36 +26,25 @@ RELTOP:= ..
 RELSRC=	${RELTOP}/../../../contrib/binutils
 SRCDIR=	${.CURDIR}/${RELSRC}
 
-.if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "i386" || \
-	${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "mips"
+.if ${TARGET_CPUARCH} == "arm" || ${TARGET_CPUARCH} == "i386" || \
+	${TARGET_ARCH} == "powerpc" || \
+	(${TARGET_CPUARCH} == "mips" && \
+		(!defined(TARGET_ABI) || ${TARGET_ABI} != "n64"))
 CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=32
 .else
 CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=64
 .endif
 
 CFLAGS+= -I.
-.if exists(${.CURDIR}/${TARGET_ARCH})
-CFLAGS+= -I${.CURDIR}/${TARGET_ARCH}
-.endif
 CFLAGS+= -I${.CURDIR}
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbfd
 CFLAGS+= -I${.OBJDIR}/${RELTOP}/libbfd
 CFLAGS+= -I${SRCDIR}/include
 
-.if exists(${.CURDIR}/${TARGET_ARCH})
-.PATH: ${.CURDIR}/${TARGET_ARCH}
-.endif
+ARCHS=	${TARGET_CPUARCH}
 
-ARCHS=	${TARGET_ARCH}
-
-.for _arch in ${CROSS_ARCH}
-.if (${ARCHS:R:M${_arch:R}} == "")
-ARCHS+= $(_arch)
+.if exists(${.CURDIR}/Makefile.${TARGET_ARCH})
+.include "${.CURDIR}/Makefile.${TARGET_ARCH}"
+.elif exists(${.CURDIR}/Makefile.${TARGET_CPUARCH})
+.include "${.CURDIR}/Makefile.${TARGET_CPUARCH}"
 .endif
-.endfor
-
-.for _arch in ${ARCHS}
-.if exists(${.CURDIR}/Makefile.${_arch})
-.include "${.CURDIR}/Makefile.${_arch}"
-.endif
-.endfor

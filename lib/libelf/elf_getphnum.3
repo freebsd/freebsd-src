@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2006
+.Dd August 5, 2009
 .Dt ELF_GETPHNUM 3
 .Os
 .Sh NAME
@@ -36,6 +36,11 @@
 .Ft int
 .Fn elf_getphnum "Elf *elf" "size_t *phnum"
 .Sh DESCRIPTION
+This function is deprecated.
+Please use function
+.Xr elf_getphdrnum 3
+instead.
+.Pp
 Function
 .Fn elf_getphnum
 retrieves the number of ELF program headers associated with descriptor
@@ -81,7 +86,8 @@ was corrupt.
 .Xr elf32_getehdr 3 ,
 .Xr elf64_getehdr 3 ,
 .Xr elf_getident 3 ,
-.Xr elf_getshnum 3 ,
-.Xr elf_getshstrndx 3 ,
+.Xr elf_getphdrnum 3 ,
+.Xr elf_getshdrnum 3 ,
+.Xr elf_getshdrstrndx 3 ,
 .Xr gelf 3 ,
 .Xr gelf_getehdr 3

@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/zfs_context.h>
 #include <sys/dnode.h>
@@ -31,6 +29,7 @@
 #include <sys/dmu_zfetch.h>
 #include <sys/dmu.h>
 #include <sys/dbuf.h>
+#include <sys/kstat.h>
 
 /*
  * I'm against tune-ables, but these should probably exist as tweakable globals
@@ -76,6 +75,41 @@ static int		dmu_zfetch_stream_insert(zfetch_t *, zstream_t *);
 static zstream_t	*dmu_zfetch_stream_reclaim(zfetch_t *);
 static void		dmu_zfetch_stream_remove(zfetch_t *, zstream_t *);
 static int		dmu_zfetch_streams_equal(zstream_t *, zstream_t *);
+
+typedef struct zfetch_stats {
+	kstat_named_t zfetchstat_hits;
+	kstat_named_t zfetchstat_misses;
+	kstat_named_t zfetchstat_colinear_hits;
+	kstat_named_t zfetchstat_colinear_misses;
+	kstat_named_t zfetchstat_stride_hits;
+	kstat_named_t zfetchstat_stride_misses;
+	kstat_named_t zfetchstat_reclaim_successes;
+	kstat_named_t zfetchstat_reclaim_failures;
+	kstat_named_t zfetchstat_stream_resets;
+	kstat_named_t zfetchstat_stream_noresets;
+	kstat_named_t zfetchstat_bogus_streams;
+} zfetch_stats_t;
+
+static zfetch_stats_t zfetch_stats = {
+	{ "hits",			KSTAT_DATA_UINT64 },
+	{ "misses",			KSTAT_DATA_UINT64 },
+	{ "colinear_hits",		KSTAT_DATA_UINT64 },
+	{ "colinear_misses",		KSTAT_DATA_UINT64 },
+	{ "stride_hits",		KSTAT_DATA_UINT64 },
+	{ "stride_misses",		KSTAT_DATA_UINT64 },
+	{ "reclaim_successes",		KSTAT_DATA_UINT64 },
+	{ "reclaim_failures",		KSTAT_DATA_UINT64 },
+	{ "streams_resets",		KSTAT_DATA_UINT64 },
+	{ "streams_noresets",		KSTAT_DATA_UINT64 },
+	{ "bogus_streams",		KSTAT_DATA_UINT64 },
+};
+
+#define	ZFETCHSTAT_INCR(stat, val) \
+	atomic_add_64(&zfetch_stats.stat.value.ui64, (val));
+
+#define	ZFETCHSTAT_BUMP(stat)		ZFETCHSTAT_INCR(stat, 1);
+
+kstat_t		*zfetch_ksp;
 
 /*
  * Given a zfetch structure and a zstream structure, determine whether the
@@ -213,6 +247,29 @@ dmu_zfetch_dofetch(zfetch_t *zf, zstream_t *zs)
 	zs->zst_last = LBOLT;
 }
 
+void
+zfetch_init(void)
+{
+
+	zfetch_ksp = kstat_create("zfs", 0, "zfetchstats", "misc",
+	    KSTAT_TYPE_NAMED, sizeof (zfetch_stats) / sizeof (kstat_named_t),
+	    KSTAT_FLAG_VIRTUAL);
+
+	if (zfetch_ksp != NULL) {
+		zfetch_ksp->ks_data = &zfetch_stats;
+		kstat_install(zfetch_ksp);
+	}
+}
+
+void
+zfetch_fini(void)
+{
+	if (zfetch_ksp != NULL) {
+		kstat_delete(zfetch_ksp);
+		zfetch_ksp = NULL;
+	}
+}
+
 /*
  * This takes a pointer to a zfetch structure and a dnode.  It performs the
  * necessary setup for the zfetch structure, grokking data from the
@@ -283,7 +340,7 @@ dmu_zfetch_fetchsz(dnode_t *dn, uint64_t blkid, uint64_t nblks)
 }
 
 /*
- * given a zfetch and a zsearch structure, see if there is an associated zstream
+ * given a zfetch and a zstream structure, see if there is an associated zstream
  * for this block read.  If so, it starts a prefetch for the stream it
  * located and returns true, otherwise it returns false
  */
@@ -315,6 +372,7 @@ top:
 		 */
 		if (zs->zst_len == 0) {
 			/* bogus stream */
+			ZFETCHSTAT_BUMP(zfetchstat_bogus_streams);
 			continue;
 		}
 
@@ -324,9 +382,14 @@ top:
 		 */
 		if (zh->zst_offset >= zs->zst_offset &&
 		    zh->zst_offset < zs->zst_offset + zs->zst_len) {
-			/* already fetched */
-			rc = 1;
-			goto out;
+			if (prefetched) {
+				/* already fetched */
+				ZFETCHSTAT_BUMP(zfetchstat_stride_hits);
+				rc = 1;
+				goto out;
+			} else {
+				ZFETCHSTAT_BUMP(zfetchstat_stride_misses);
+			}
 		}
 
 		/*
@@ -439,6 +502,7 @@ top:
 		if (reset) {
 			zstream_t *remove = zs;
 
+			ZFETCHSTAT_BUMP(zfetchstat_stream_resets);
 			rc = 0;
 			mutex_exit(&zs->zst_lock);
 			rw_exit(&zf->zf_rwlock);
@@ -457,6 +521,7 @@ top:
 				}
 			}
 		} else {
+			ZFETCHSTAT_BUMP(zfetchstat_stream_noresets);
 			rc = 1;
 			dmu_zfetch_dofetch(zf, zs);
 			mutex_exit(&zs->zst_lock);
@@ -513,13 +578,12 @@ dmu_zfetch_stream_insert(zfetch_t *zf, zstream_t *zs)
 		zs_next = list_next(&zf->zf_stream, zs_walk);
 
 		if (dmu_zfetch_streams_equal(zs_walk, zs)) {
-		    return (0);
+			return (0);
 		}
 	}
 
 	list_insert_head(&zf->zf_stream, zs);
 	zf->zf_stream_cnt++;
-
 	return (1);
 }
 
@@ -623,8 +687,15 @@ dmu_zfetch(zfetch_t *zf, uint64_t offset, uint64_t size, int prefetched)
 	    P2ALIGN(offset, blksz)) >> blkshft;
 
 	fetched = dmu_zfetch_find(zf, &zst, prefetched);
-	if (!fetched) {
-		fetched = dmu_zfetch_colinear(zf, &zst);
+	if (fetched) {
+		ZFETCHSTAT_BUMP(zfetchstat_hits);
+	} else {
+		ZFETCHSTAT_BUMP(zfetchstat_misses);
+		if (fetched = dmu_zfetch_colinear(zf, &zst)) {
+			ZFETCHSTAT_BUMP(zfetchstat_colinear_hits);
+		} else {
+			ZFETCHSTAT_BUMP(zfetchstat_colinear_misses);
+		}
 	}
 
 	if (!fetched) {
@@ -634,11 +705,14 @@ dmu_zfetch(zfetch_t *zf, uint64_t offset, uint64_t size, int prefetched)
 		 * we still couldn't find a stream, drop the lock, and allocate
 		 * one if possible.  Otherwise, give up and go home.
 		 */
-		if (newstream == NULL) {
+		if (newstream) {
+			ZFETCHSTAT_BUMP(zfetchstat_reclaim_successes);
+		} else {
 			uint64_t	maxblocks;
 			uint32_t	max_streams;
 			uint32_t	cur_streams;
 
+			ZFETCHSTAT_BUMP(zfetchstat_reclaim_failures);
 			cur_streams = zf->zf_stream_cnt;
 			maxblocks = zf->zf_dnode->dn_maxblkid;
 
@@ -651,7 +725,6 @@ dmu_zfetch(zfetch_t *zf, uint64_t offset, uint64_t size, int prefetched)
 			if (cur_streams >= max_streams) {
 				return;
 			}
-
 			newstream = kmem_zalloc(sizeof (zstream_t), KM_SLEEP);
 		}
 

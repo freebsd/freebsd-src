@@ -2882,7 +2882,7 @@ bwn_set_channel(struct ieee80211com *ic)
 
 	error = bwn_switch_band(sc, ic->ic_curchan);
 	if (error)
-		goto fail;;
+		goto fail;
 	bwn_mac_suspend(mac);
 	bwn_set_txretry(mac, BWN_RETRY_SHORT, BWN_RETRY_LONG);
 	chan = ieee80211_chan2ieee(ic, ic->ic_curchan);
@@ -2906,7 +2906,7 @@ bwn_set_channel(struct ieee80211com *ic)
 			bwn_rf_turnon(mac);
 			if (!(mac->mac_flags & BWN_MAC_FLAG_RADIO_ON))
 				device_printf(sc->sc_dev,
-				    "please turns on the RF switch\n");
+				    "please turn on the RF switch\n");
 		} else
 			bwn_rf_turnoff(mac);
 	}
@@ -8260,7 +8260,7 @@ bwn_switch_band(struct bwn_softc *sc, struct ieee80211_channel *chan)
 	device_printf(sc->sc_dev, "switching to %s-GHz band\n",
 	    IEEE80211_IS_CHAN_2GHZ(chan) ? "2" : "5");
 
-	down_dev = sc->sc_curmac;;
+	down_dev = sc->sc_curmac;
 	status = down_dev->mac_status;
 	if (status >= BWN_MAC_STATUS_STARTED)
 		bwn_core_stop(down_dev);
@@ -8329,6 +8329,7 @@ bwn_phy_reset(struct bwn_mac *mac)
 static int
 bwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
+	const struct ieee80211_txparam *tp;
 	struct bwn_vap *bvp = BWN_VAP(vap);
 	struct ieee80211com *ic= vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
@@ -8377,6 +8378,11 @@ bwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		bwn_set_pretbtt(mac);
 		bwn_spu_setdelay(mac, 0);
 		bwn_set_macaddr(mac);
+
+		/* Initializes ratectl for a node. */
+		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
+		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
+			ieee80211_ratectl_node_init(vap->iv_bss);
 	}
 
 	BWN_UNLOCK(sc);
@@ -8994,7 +9000,7 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 	struct bwn_stats *stats = &mac->mac_stats;
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
-	int slot;
+	int retrycnt = 0, slot;
 
 	BWN_ASSERT_LOCKED(mac->mac_sc);
 
@@ -9027,7 +9033,7 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 					    status->ack ?
 					      IEEE80211_RATECTL_TX_SUCCESS :
 					      IEEE80211_RATECTL_TX_FAILURE,
-					    NULL, 0);
+					    &retrycnt, 0);
 					break;
 				}
 				slot = bwn_dma_nextslot(dr, slot);
@@ -9048,7 +9054,7 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 			    status->ack ?
 			      IEEE80211_RATECTL_TX_SUCCESS :
 			      IEEE80211_RATECTL_TX_FAILURE,
-			    NULL, 0);
+			    &retrycnt, 0);
 		}
 		bwn_pio_handle_txeof(mac, status);
 	}
@@ -9066,7 +9072,7 @@ bwn_pio_rxeof(struct bwn_pio_rxqueue *prq)
 	struct mbuf *m;
 	uint32_t ctl32, macstat, v32;
 	unsigned int i, padding;
-	uint16_t ctl16, len, v16;
+	uint16_t ctl16, len, totlen, v16;
 	unsigned char *mp;
 	char *data;
 
@@ -9125,7 +9131,8 @@ ready:
 	}
 
 	padding = (macstat & BWN_RX_MAC_PADDING) ? 2 : 0;
-	KASSERT(len + padding <= MCLBYTES, ("too big..\n"));
+	totlen = len + padding;
+	KASSERT(totlen <= MCLBYTES, ("too big..\n"));
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		device_printf(sc->sc_dev, "%s: out of memory", __func__);
@@ -9133,12 +9140,12 @@ ready:
 	}
 	mp = mtod(m, unsigned char *);
 	if (prq->prq_rev >= 8) {
-		siba_read_multi_4(sc->sc_dev, mp + padding, (len & ~3),
+		siba_read_multi_4(sc->sc_dev, mp, (totlen & ~3),
 		    prq->prq_base + BWN_PIO8_RXDATA);
-		if (len & 3) {
+		if (totlen & 3) {
 			v32 = bwn_pio_rx_read_4(prq, BWN_PIO8_RXDATA);
-			data = &(mp[len + padding - 1]);
-			switch (len & 3) {
+			data = &(mp[totlen - 1]);
+			switch (totlen & 3) {
 			case 3:
 				*data = (v32 >> 16);
 				data--;
@@ -9150,16 +9157,16 @@ ready:
 			}
 		}
 	} else {
-		siba_read_multi_2(sc->sc_dev, mp + padding, (len & ~1),
+		siba_read_multi_2(sc->sc_dev, mp, (totlen & ~1),
 		    prq->prq_base + BWN_PIO_RXDATA);
-		if (len & 1) {
+		if (totlen & 1) {
 			v16 = bwn_pio_rx_read_2(prq, BWN_PIO_RXDATA);
-			mp[len + padding - 1] = v16;
+			mp[totlen - 1] = v16;
 		}
 	}
 
 	m->m_pkthdr.rcvif = ifp;
-	m->m_len = m->m_pkthdr.len = len + padding;
+	m->m_len = m->m_pkthdr.len = totlen;
 
 	bwn_rxeof(prq->prq_mac, m, &rxhdr);
 
@@ -12821,9 +12828,9 @@ bwn_phy_lp_calc_rx_iq_comp(struct bwn_mac *mac, uint16_t sample)
 	int _t;								\
 	_t = _x - 11;							\
 	if (_t >= 0)							\
-		tmp[3] = (_y << (31 - _x)) / (_z >> _t);		\
+		_v = (_y << (31 - _x)) / (_z >> _t);			\
 	else								\
-		tmp[3] = (_y << (31 - _x)) / (_z << -_t);		\
+		_v = (_y << (31 - _x)) / (_z << -_t);			\
 } while (0)
 	struct bwn_phy_lp_iq_est ie;
 	uint16_t v0, v1;

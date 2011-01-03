@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  *
  */
 /*
- | $Id: iscsi_subr.c,v 1.17 2006/11/26 14:50:43 danny Exp danny $
+ | $Id: iscsi_subr.c 743 2009-08-08 10:54:53Z danny $
  */
 
 #include <sys/cdefs.h>
@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -122,7 +123,7 @@ iscsi_r2t(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 		    bs = MIN(bs, bleft);
 		    
 		    wpq->pdu.ds_len	= bs;
-		    wpq->pdu.ds		= bp;
+		    wpq->pdu.ds_addr	= bp;
 		    
 		    error = isc_qout(sp, wpq);
 		    sdebug(6, "bs=%x bo=%x bp=%p dsn=%x error=%d", bs, bo, bp, dsn, error);
@@ -188,16 +189,16 @@ getSenseData(u_int status, union ccb *ccb, pduq_t *pq)
  | Some information is from SAM draft.
  */
 static void
-_scsi_done(struct isc_softc *isp, u_int response, u_int status, union ccb *ccb, pduq_t *pq)
+_scsi_done(isc_session_t *sp, u_int response, u_int status, union ccb *ccb, pduq_t *pq)
 {
      struct ccb_hdr	*ccb_h = &ccb->ccb_h;
 
      debug_called(8);
 
      if(status || response) {
-	  debug(3, "response=%x status=%x ccb=%p pq=%p", response, status, ccb, pq);
+	  sdebug(3, "response=%x status=%x ccb=%p pq=%p", response, status, ccb, pq);
 	  if(pq != NULL)
-	       debug(3, "mp=%p buf=%p len=%d", pq->mp, pq->buf, pq->len);
+	       sdebug(3, "mp=%p buf=%p len=%d", pq->mp, pq->buf, pq->len);
      }
      ccb_h->status = 0;
      switch(response) {
@@ -241,9 +242,9 @@ _scsi_done(struct isc_softc *isp, u_int response, u_int status, union ccb *ccb, 
 	  ccb_h->status = CAM_REQ_CMP_ERR; //CAM_REQ_ABORTED;
 	  break;
      }
-     debug(5, "ccb_h->status=%x", ccb_h->status);
+     sdebug(5, "ccb_h->status=%x", ccb_h->status);
 
-     XPT_DONE(isp, ccb);
+     XPT_DONE(sp, ccb);
 }
 
 /*
@@ -256,16 +257,17 @@ iscsi_requeue(isc_session_t *sp)
      u_int	i, n, last;
 
      debug_called(8);
-     last = -1;
-     i = 0;
+     i = last = 0;
      sp->flags |= ISC_HOLD;
      while((pq = i_dqueue_hld(sp)) != NULL) {
 	  i++;
-	  _scsi_done(sp->isc, 0, 0x28, pq->ccb, NULL);
-	  n = ntohl(pq->pdu.ipdu.bhs.CmdSN);
-	  if(last > n)
-	       last = n;
-	  sdebug(2, "last=%x n=%x", last, n);
+	  if(pq->ccb != NULL) {
+	       _scsi_done(sp, 0, 0x28, pq->ccb, NULL);
+	       n = ntohl(pq->pdu.ipdu.bhs.CmdSN);
+	       if(last==0 || (last > n))
+		    last = n;
+	       sdebug(2, "last=%x n=%x", last, n);
+	  }
 	  pdu_free(sp->isc, pq);
      }
      sp->flags &= ~ISC_HOLD;
@@ -316,14 +318,22 @@ iscsi_cleanup(isc_session_t *sp)
      TAILQ_FOREACH_SAFE(pq, &sp->hld, pq_link, pqtmp) {
 	  sdebug(3, "hld pq=%p", pq);
 	  if(pq->ccb)
-	       _scsi_done(sp->isc, 1, 0x40, pq->ccb, NULL);
+	       _scsi_done(sp, 1, 0x40, pq->ccb, NULL);
 	  TAILQ_REMOVE(&sp->hld, pq, pq_link);
+	  if(pq->buf) {
+	       free(pq->buf, M_ISCSIBUF);
+	       pq->buf = NULL;
+	  }
 	  pdu_free(sp->isc, pq);
      }
      while((pq = i_dqueue_snd(sp, BIT(0)|BIT(1)|BIT(2))) != NULL) {
 	  sdebug(3, "pq=%p", pq);
 	  if(pq->ccb)
-	       _scsi_done(sp->isc, 1, 0x40, pq->ccb, NULL);
+	       _scsi_done(sp, 1, 0x40, pq->ccb, NULL);
+	  if(pq->buf) {
+	       free(pq->buf, M_ISCSIBUF);
+	       pq->buf = NULL;
+	  }
 	  pdu_free(sp->isc, pq);
      }
 
@@ -338,7 +348,7 @@ iscsi_done(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 
      debug_called(8);
 
-     _scsi_done(sp->isc, cmd->response, cmd->status, opq->ccb, pq);
+     _scsi_done(sp, cmd->response, cmd->status, opq->ccb, pq);
 
      pdu_free(sp->isc, opq);
 }
@@ -394,7 +404,7 @@ iscsi_reject(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
      debug_called(8);
      //XXX: check RFC 10.17.1 (page 176)
      ccb->ccb_h.status = CAM_REQ_ABORTED;
-     XPT_DONE(sp->isc, ccb);
+     XPT_DONE(sp, ccb);
  
      pdu_free(sp->isc, opq);
 }
@@ -405,10 +415,8 @@ iscsi_reject(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 static int
 dwl(isc_session_t *sp, int lun, u_char *lp)
 {
-     int	i;
-
      debug_called(8);
-
+     sdebug(4, "lun=%d", lun);
      /*
       | mapping LUN to iSCSI LUN
       | check the SAM-2 specs
@@ -429,14 +437,6 @@ dwl(isc_session_t *sp, int lun, u_char *lp)
 	  return -1;
      }
 
-     for(i = 0; i < sp->target_nluns; i++)
-	  if(sp->target_lun[i] == lun)
-	       return 0;
-     if(sp->target_nluns < ISCSI_MAX_LUNS)
-	  sp->target_lun[sp->target_nluns++] = lun;
-
-     sdebug(3, "nluns=%d lun=%d", sp->target_nluns, lun);
-
      return 0;
 }
 
@@ -446,8 +446,7 @@ dwl(isc_session_t *sp, int lun, u_char *lp)
 int
 scsi_encap(struct cam_sim *sim, union ccb *ccb)
 {
-     struct isc_softc	*isp = (struct isc_softc *)cam_sim_softc(sim);
-     isc_session_t	*sp;
+     isc_session_t	*sp = cam_sim_softc(sim);
      struct ccb_scsiio	*csio = &ccb->csio;
      struct ccb_hdr	*ccb_h = &ccb->ccb_h;
      pduq_t		*pq;
@@ -458,33 +457,19 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
      debug(4, "ccb->sp=%p", ccb_h->spriv_ptr0);
      sp = ccb_h->spriv_ptr0;
 
-     if((pq = pdu_alloc(isp, M_NOWAIT)) == NULL) {
+     if((pq = pdu_alloc(sp->isc, M_NOWAIT)) == NULL) {
 	  debug(2, "ccb->sp=%p", ccb_h->spriv_ptr0);
 	  sdebug(1, "pdu_alloc failed sc->npdu_max=%d npdu_alloc=%d",
 		 sp->isc->npdu_max, sp->isc->npdu_alloc);
 	  while((pq = pdu_alloc(sp->isc, M_NOWAIT)) == NULL) {
-	       sdebug(3, "waiting...");
+	       sdebug(2, "waiting...");
 #if __FreeBSD_version >= 700000
 	       pause("isc_encap", 5*hz);
 #else
 	       tsleep(sp->isc, 0, "isc_encap", 5*hz);
 #endif
 	  }
-#if 0
-	  sdebug(3, "freezing");
-	  ccb->ccb_h.status = CAM_REQUEUE_REQ;
-	  ic_freeze(sp);
-	  return 0;
-#endif
      }
-
-#if 0
-     if((sp->flags & ISC_FFPHASE) == 0) {
-	  ccb->ccb_h.status = CAM_DEV_NOT_THERE; // CAM_NO_NEXUS;
-	  sdebug(3, "no active session with target %d", ccb_h->target_id);
-	  goto bad;
-     }
-#endif
      cmd = &pq->pdu.ipdu.scsi_req;
      cmd->opcode = ISCSI_SCSI_CMD;
      cmd->F = 1;
@@ -493,8 +478,8 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
       */
      switch(csio->tag_action) {
      case MSG_SIMPLE_Q_TAG:	cmd->attr = iSCSI_TASK_SIMPLE;	break;
-     case MSG_HEAD_OF_Q_TAG:	cmd->attr = iSCSI_TASK_ORDER;	break;
-     case MSG_ORDERED_Q_TAG:	cmd->attr = iSCSI_TASK_HOFQ;	break;
+     case MSG_HEAD_OF_Q_TAG:	cmd->attr = iSCSI_TASK_HOFQ;	break;
+     case MSG_ORDERED_Q_TAG:	cmd->attr = iSCSI_TASK_ORDER;	break;
      case MSG_ACA_TASK:		cmd->attr = iSCSI_TASK_ACA;	break;
      }
 
@@ -532,7 +517,8 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
 	  return 1; 
  invalid:
      ccb->ccb_h.status = CAM_REQ_INVALID;
-     pdu_free(isp, pq);
+     pdu_free(sp->isc, pq);
+
      return 0;
 }
 
@@ -573,15 +559,15 @@ scsi_decap(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 				csio->data_ptr, bp? mtod(pq->mp, caddr_t): 0,
 				ntohl(cmd->edtlen), pq->pdu.ds_len, pq->mp);
 			 if(ntohl(cmd->edtlen) >= pq->pdu.ds_len) {
-			      int		offset, len = pq->pdu.ds_len;
+			      int	offset, len = pq->pdu.ds_len;
 
 			      if(pq->mp != NULL) {
-			      caddr_t		dp;
+				   caddr_t		dp;
 
-			      offset = ntohl(rcmd->bo);
-			      dp = csio->data_ptr + offset;
-			      i_mbufcopy(pq->mp, dp, len);
-			 }
+				   offset = ntohl(rcmd->bo);
+				   dp = csio->data_ptr + offset;
+				   i_mbufcopy(pq->mp, dp, len);
+			      }
 			 }
 			 else {
 			      xdebug("edtlen=%d < ds_len=%d",
@@ -592,7 +578,7 @@ scsi_decap(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 			 /*
 			  | contains also the SCSI Status
 			  */
-			 _scsi_done(sp->isc, 0, rcmd->status, opq->ccb, NULL);
+			 _scsi_done(sp, 0, rcmd->status, opq->ccb, NULL);
 			 return 0;
 		    } else
 			 return 1;

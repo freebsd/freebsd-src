@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
-#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -74,9 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_options.h>
 #include <machine/in_cksum.h>
-#ifdef DEV_CARP
 #include <netinet/ip_carp.h>
-#endif
 #ifdef IPSEC
 #include <netinet/ip_ipsec.h>
 #endif /* IPSEC */
@@ -606,10 +603,7 @@ passin:
 	 */
 	checkif = V_ip_checkinterface && (V_ipforwarding == 0) && 
 	    ifp != NULL && ((ifp->if_flags & IFF_LOOPBACK) == 0) &&
-#ifdef DEV_CARP
-	    !ifp->if_carp &&
-#endif
-	    (dchg == 0);
+	    ifp->if_carp == NULL && (dchg == 0);
 
 	/*
 	 * Check for exact addresses in the hash bucket.
@@ -1293,12 +1287,12 @@ ip_drain(void)
  * in inetsw[], either statically or through pf_proto_register().
  */
 int
-ipproto_register(u_char ipproto)
+ipproto_register(short ipproto)
 {
 	struct protosw *pr;
 
 	/* Sanity checks. */
-	if (ipproto == 0)
+	if (ipproto <= 0 || ipproto >= IPPROTO_MAX)
 		return (EPROTONOSUPPORT);
 
 	/*
@@ -1316,24 +1310,20 @@ ipproto_register(u_char ipproto)
 	     pr < inetdomain.dom_protoswNPROTOSW; pr++) {
 		if (pr->pr_domain->dom_family == PF_INET &&
 		    pr->pr_protocol && pr->pr_protocol == ipproto) {
-			/* Be careful to only index valid IP protocols. */
-			if (pr->pr_protocol < IPPROTO_MAX) {
-				ip_protox[pr->pr_protocol] = pr - inetsw;
-				return (0);
-			} else
-				return (EINVAL);
+			ip_protox[pr->pr_protocol] = pr - inetsw;
+			return (0);
 		}
 	}
 	return (EPROTONOSUPPORT);
 }
 
 int
-ipproto_unregister(u_char ipproto)
+ipproto_unregister(short ipproto)
 {
 	struct protosw *pr;
 
 	/* Sanity checks. */
-	if (ipproto == 0)
+	if (ipproto <= 0 || ipproto >= IPPROTO_MAX)
 		return (EPROTONOSUPPORT);
 
 	/* Check if the protocol was indeed registered. */

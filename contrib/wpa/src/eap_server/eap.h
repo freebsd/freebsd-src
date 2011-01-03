@@ -15,7 +15,7 @@
 #ifndef EAP_H
 #define EAP_H
 
-#include "defs.h"
+#include "common/defs.h"
 #include "eap_common/eap_defs.h"
 #include "eap_server/eap_methods.h"
 #include "wpabuf.h"
@@ -91,6 +91,7 @@ struct eapol_callbacks {
 
 struct eap_config {
 	void *ssl_ctx;
+	void *msg_ctx;
 	void *eap_sim_db_priv;
 	Boolean backend_auth;
 	int eap_server;
@@ -105,6 +106,7 @@ struct eap_config {
 	int tnc;
 	struct wps_context *wps;
 	const struct wpabuf *assoc_wps_ie;
+	const u8 *peer_addr;
 };
 
 

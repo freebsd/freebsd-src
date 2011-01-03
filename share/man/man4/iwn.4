@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2010
+.Dd July 20, 2010
 .Dt IWN 4
 .Os
 .Sh NAME
@@ -51,6 +51,7 @@ Choose one from:
 .Cd "device iwn5000fw"
 .Cd "device iwn5150fw"
 .Cd "device iwn6000fw"
+.Cd "device iwn6050fw"
 .Ed
 .Pp
 Or you can use
@@ -70,6 +71,7 @@ iwn1000fw_load="YES"
 iwn5000fw_load="YES"
 iwn5150fw_load="YES"
 iwn6000fw_load="YES"
+iwn6050fw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -94,7 +96,6 @@ This driver requires the firmware built with the
 module to work.
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev iwn0 inet 192.168.0.20 \e
     netmask 0xffffff00

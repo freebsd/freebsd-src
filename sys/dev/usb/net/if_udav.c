@@ -172,6 +172,7 @@ MODULE_DEPEND(udav, uether, 1, 1, 1);
 MODULE_DEPEND(udav, usb, 1, 1, 1);
 MODULE_DEPEND(udav, ether, 1, 1, 1);
 MODULE_DEPEND(udav, miibus, 1, 1, 1);
+MODULE_VERSION(udav, 1);
 
 static const struct usb_ether_methods udav_ue_methods = {
 	.ue_attach_post = udav_attach_post,

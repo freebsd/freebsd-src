@@ -108,7 +108,8 @@
 #define	APIC_LOCAL_INTS	240
 #define	APIC_ERROR_INT	APIC_LOCAL_INTS
 #define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
-#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
+#define	APIC_CMC_INT	(APIC_LOCAL_INTS + 2)
+#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 3)
 
 #define	IPI_RENDEZVOUS		(APIC_IPI_INTS)	/* Inter-CPU rendezvous. */
 #define	IPI_INVLTLB		(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
@@ -123,9 +124,7 @@
 #define	IPI_AST		0 	/* Generate software trap. */
 #define IPI_PREEMPT     1
 #define IPI_HARDCLOCK   2 
-#define IPI_STATCLOCK   3 
-#define IPI_PROFCLOCK   4 
-#define IPI_BITMAP_LAST IPI_PROFCLOCK
+#define IPI_BITMAP_LAST IPI_HARDCLOCK
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
@@ -136,7 +135,8 @@
 #define	APIC_LOCAL_INTS	240
 #define	APIC_ERROR_INT	APIC_LOCAL_INTS
 #define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
-#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
+#define	APIC_CMC_INT	(APIC_LOCAL_INTS + 2)
+#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 3)
 
 #define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
 #define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
@@ -151,9 +151,7 @@
 #define	IPI_AST		0 	/* Generate software trap. */
 #define IPI_PREEMPT     1
 #define IPI_HARDCLOCK   2 
-#define IPI_STATCLOCK   3 
-#define IPI_PROFCLOCK   4 
-#define IPI_BITMAP_LAST IPI_PROFCLOCK
+#define IPI_BITMAP_LAST IPI_HARDCLOCK
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
@@ -172,7 +170,8 @@
 #define	LVT_ERROR	3
 #define	LVT_PMC		4
 #define	LVT_THERMAL	5
-#define	LVT_MAX		LVT_THERMAL
+#define	LVT_CMCI	6
+#define	LVT_MAX		LVT_CMCI
 
 #ifndef LOCORE
 
@@ -185,12 +184,6 @@
 #define	APIC_BUS_EISA		1
 #define	APIC_BUS_PCI		2
 #define	APIC_BUS_MAX		APIC_BUS_PCI
-
-enum lapic_clock {
-	LAPIC_CLOCK_NONE,
-	LAPIC_CLOCK_HARDCLOCK,
-	LAPIC_CLOCK_ALL
-};
 
 /*
  * An APIC enumerator is a psuedo bus driver that enumerates APIC's including
@@ -208,8 +201,8 @@ struct apic_enumerator {
 inthand_t
 	IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
 	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
-	IDTVEC(apic_isr7), IDTVEC(errorint), IDTVEC(spuriousint),
-	IDTVEC(timerint);
+	IDTVEC(apic_isr7), IDTVEC(cmcint), IDTVEC(errorint),
+	IDTVEC(spuriousint), IDTVEC(timerint);
 
 extern vm_paddr_t lapic_paddr;
 extern int apic_cpuids[];
@@ -239,6 +232,7 @@ void	lapic_create(u_int apic_id, int boot_cpu);
 void	lapic_disable(void);
 void	lapic_disable_pmc(void);
 void	lapic_dump(const char *str);
+void	lapic_enable_cmc(void);
 int	lapic_enable_pmc(void);
 void	lapic_eoi(void);
 int	lapic_id(void);
@@ -247,6 +241,7 @@ int	lapic_intr_pending(u_int vector);
 void	lapic_ipi_raw(register_t icrlo, u_int dest);
 void	lapic_ipi_vectored(u_int vector, int dest);
 int	lapic_ipi_wait(int delay);
+void	lapic_handle_cmc(void);
 void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
@@ -260,7 +255,6 @@ int	lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 	    enum intr_trigger trigger);
 void	lapic_set_tpr(u_int vector);
 void	lapic_setup(int boot);
-enum lapic_clock	lapic_setup_clock(enum lapic_clock srcsdes);
 
 #endif /* !LOCORE */
 #endif /* _MACHINE_APICVAR_H_ */

@@ -195,15 +195,21 @@ deadlkres(void)
 		panic("%s: possible deadlock detected on allproc_lock\n",
 				    __func__);
 			tryl++;
-			pause("allproc_lock deadlkres", sleepfreq * hz);
+			pause("allproc", sleepfreq * hz);
 			continue;
 		}
 		tryl = 0;
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			FOREACH_THREAD_IN_PROC(p, td) {
+
+				/*
+				 * Once a thread is found in "interesting"
+				 * state a possible ticks wrap-up needs to be
+				 * checked.
+				 */
 				thread_lock(td);
-				if (TD_ON_LOCK(td)) {
+				if (TD_ON_LOCK(td) && ticks < td->td_blktick) {
 
 					/*
 					 * The thread should be blocked on a
@@ -212,9 +218,6 @@ deadlkres(void)
 					 */
 					MPASS(td->td_blocked != NULL);
 
-					/* Handle ticks wrap-up. */
-					if (ticks < td->td_blktick)
-						continue;
 					tticks = ticks - td->td_blktick;
 					thread_unlock(td);
 					if (tticks > blkticks) {
@@ -230,11 +233,9 @@ deadlkres(void)
 	panic("%s: possible deadlock detected for %p, blocked for %d ticks\n",
 						    __func__, td, tticks);
 					}
-				} else if (TD_IS_SLEEPING(td)) {
-
-					/* Handle ticks wrap-up. */
-					if (ticks < td->td_blktick)
-						continue;
+				} else if (TD_IS_SLEEPING(td) &&
+				    TD_ON_SLEEPQ(td) &&
+				    ticks < td->td_blktick) {
 
 					/*
 					 * Check if the thread is sleeping on a
@@ -287,7 +288,7 @@ deadlkres(void)
 		sx_sunlock(&allproc_lock);
 
 		/* Sleep for sleepfreq seconds. */
-		pause("deadlkres", sleepfreq * hz);
+		pause("-", sleepfreq * hz);
 	}
 }
 
@@ -318,9 +319,7 @@ read_cpu_time(long *cp_time)
 
 	/* Sum up global cp_time[]. */
 	bzero(cp_time, sizeof(long) * CPUSTATES);
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		for (j = 0; j < CPUSTATES; j++)
 			cp_time[j] += pc->pc_cp_time[j];
@@ -374,6 +373,9 @@ int	profprocs;
 int	ticks;
 int	psratio;
 
+static DPCPU_DEFINE(int, pcputicks);	/* Per-CPU version of ticks. */
+static int global_hardclock_run = 0;
+
 /*
  * Initialize clock frequencies and start both clocks running.
  */
@@ -388,7 +390,7 @@ initclocks(dummy)
 	 * Set divisors to 1 (normal case) and let the machine-specific
 	 * code do its bit.
 	 */
-	mtx_init(&time_lock, "time lock", NULL, MTX_SPIN);
+	mtx_init(&time_lock, "time lock", NULL, MTX_DEF);
 	cpu_initclocks();
 
 	/*
@@ -435,7 +437,7 @@ hardclock_cpu(int usermode)
 		PROC_SUNLOCK(p);
 	}
 	thread_lock(td);
-	sched_tick();
+	sched_tick(1);
 	td->td_flags |= flags;
 	thread_unlock(td);
 
@@ -455,7 +457,8 @@ hardclock(int usermode, uintfptr_t pc)
 
 	atomic_add_int((volatile int *)&ticks, 1);
 	hardclock_cpu(usermode);
-	tc_ticktock();
+	tc_ticktock(1);
+	cpu_tick_calibration();
 	/*
 	 * If no separate statistics clock is available, run it from here.
 	 *
@@ -472,6 +475,94 @@ hardclock(int usermode, uintfptr_t pc)
 	if (watchdog_enabled > 0 && --watchdog_ticks <= 0)
 		watchdog_fire();
 #endif /* SW_WATCHDOG */
+}
+
+void
+hardclock_anycpu(int cnt, int usermode)
+{
+	struct pstats *pstats;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	int *t = DPCPU_PTR(pcputicks);
+	int flags, global, newticks;
+#ifdef SW_WATCHDOG
+	int i;
+#endif /* SW_WATCHDOG */
+
+	/*
+	 * Update per-CPU and possibly global ticks values.
+	 */
+	*t += cnt;
+	do {
+		global = ticks;
+		newticks = *t - global;
+		if (newticks <= 0) {
+			if (newticks < -1)
+				*t = global - 1;
+			newticks = 0;
+			break;
+		}
+	} while (!atomic_cmpset_int(&ticks, global, *t));
+
+	/*
+	 * Run current process's virtual and profile time, as needed.
+	 */
+	pstats = p->p_stats;
+	flags = 0;
+	if (usermode &&
+	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
+		PROC_SLOCK(p);
+		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL],
+		    tick * cnt) == 0)
+			flags |= TDF_ALRMPEND | TDF_ASTPENDING;
+		PROC_SUNLOCK(p);
+	}
+	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
+		PROC_SLOCK(p);
+		if (itimerdecr(&pstats->p_timer[ITIMER_PROF],
+		    tick * cnt) == 0)
+			flags |= TDF_PROFPEND | TDF_ASTPENDING;
+		PROC_SUNLOCK(p);
+	}
+	thread_lock(td);
+	sched_tick(cnt);
+	td->td_flags |= flags;
+	thread_unlock(td);
+
+#ifdef	HWPMC_HOOKS
+	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
+		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
+#endif
+	callout_tick();
+	/* We are in charge to handle this tick duty. */
+	if (newticks > 0) {
+		/* Dangerous and no need to call these things concurrently. */
+		if (atomic_cmpset_acq_int(&global_hardclock_run, 0, 1)) {
+			tc_ticktock(newticks);
+#ifdef DEVICE_POLLING
+			/* This is very short and quick. */
+			hardclock_device_poll();
+#endif /* DEVICE_POLLING */
+			atomic_store_rel_int(&global_hardclock_run, 0);
+		}
+#ifdef SW_WATCHDOG
+		if (watchdog_enabled > 0) {
+			i = atomic_fetchadd_int(&watchdog_ticks, -newticks);
+			if (i > 0 && i <= newticks)
+				watchdog_fire();
+		}
+#endif /* SW_WATCHDOG */
+	}
+	if (curcpu == CPU_FIRST())
+		cpu_tick_calibration();
+}
+
+void
+hardclock_sync(int cpu)
+{
+	int	*t = DPCPU_ID_PTR(cpu, pcputicks);
+
+	*t = ticks;
 }
 
 /*
@@ -549,10 +640,10 @@ startprofclock(p)
 		return;
 	if ((p->p_flag & P_PROFIL) == 0) {
 		p->p_flag |= P_PROFIL;
-		mtx_lock_spin(&time_lock);
+		mtx_lock(&time_lock);
 		if (++profprocs == 1)
 			cpu_startprofclock();
-		mtx_unlock_spin(&time_lock);
+		mtx_unlock(&time_lock);
 	}
 }
 
@@ -576,10 +667,10 @@ stopprofclock(p)
 		if ((p->p_flag & P_PROFIL) == 0)
 			return;
 		p->p_flag &= ~P_PROFIL;
-		mtx_lock_spin(&time_lock);
+		mtx_lock(&time_lock);
 		if (--profprocs == 0)
 			cpu_stopprofclock();
-		mtx_unlock_spin(&time_lock);
+		mtx_unlock(&time_lock);
 	}
 }
 
@@ -740,7 +831,7 @@ static void
 watchdog_fire(void)
 {
 	int nintr;
-	u_int64_t inttotal;
+	uint64_t inttotal;
 	u_long *curintr;
 	char *curname;
 

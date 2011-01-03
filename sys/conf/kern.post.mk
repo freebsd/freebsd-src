@@ -84,8 +84,8 @@ gdbinit:
 	grep -v '# XXX' ${S}/../tools/debugscripts/dot.gdbinit | \
 	    sed "s:MODPATH:${.OBJDIR}/modules:" > .gdbinit
 	cp ${S}/../tools/debugscripts/gdbinit.kernel ${.CURDIR}
-.if exists(${S}/../tools/debugscripts/gdbinit.${MACHINE_ARCH})
-	cp ${S}/../tools/debugscripts/gdbinit.${MACHINE_ARCH} \
+.if exists(${S}/../tools/debugscripts/gdbinit.${MACHINE_CPUARCH})
+	cp ${S}/../tools/debugscripts/gdbinit.${MACHINE_CPUARCH} \
 	    ${.CURDIR}/gdbinit.machine
 .endif
 .endif
@@ -166,8 +166,11 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	mv .newdep .depend
 
 _ILINKS= machine
-.if ${MACHINE} != ${MACHINE_ARCH}
-_ILINKS+= ${MACHINE_ARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH}
+_ILINKS+= ${MACHINE_CPUARCH}
+.endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_ILINKS+= x86
 .endif
 
 # Ensure that the link exists without depending on it when it exists.
@@ -181,8 +184,8 @@ ${_ILINKS}:
 	@case ${.TARGET} in \
 	machine) \
 		path=${S}/${MACHINE}/include ;; \
-	${MACHINE_ARCH}) \
-		path=${S}/${MACHINE_ARCH}/include ;; \
+	*) \
+		path=${S}/${.TARGET}/include ;; \
 	esac ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}

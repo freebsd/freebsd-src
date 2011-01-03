@@ -133,16 +133,16 @@ struct sem_undo {
  * Configuration parameters
  */
 #ifndef SEMMNI
-#define SEMMNI	10		/* # of semaphore identifiers */
+#define SEMMNI	50		/* # of semaphore identifiers */
 #endif
 #ifndef SEMMNS
-#define SEMMNS	60		/* # of semaphores in system */
+#define SEMMNS	340		/* # of semaphores in system */
 #endif
 #ifndef SEMUME
-#define SEMUME	10		/* max # of undo entries per process */
+#define SEMUME	50		/* max # of undo entries per process */
 #endif
 #ifndef SEMMNU
-#define SEMMNU	30		/* # of undo structures in system */
+#define SEMMNU	150		/* # of undo structures in system */
 #endif
 
 /* shouldn't need tuning */
@@ -212,7 +212,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semvmx, CTLFLAG_RW, &seminfo.semvmx, 0,
 SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RW, &seminfo.semaem, 0,
     "Adjust on exit max value");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sema, CTLFLAG_RD,
-    NULL, 0, sysctl_sema, "", "");
+    NULL, 0, sysctl_sema, "", "Semaphore id pool");
 
 static struct syscall_helper_data sem_syscalls[] = {
 	SYSCALL_INIT_HELPER(__semctl),

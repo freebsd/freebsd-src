@@ -204,6 +204,29 @@ struct ata_pci_controller {
 #define ATA_I82801JI_AH         0x3a228086
 #define ATA_I82801JI_R1         0x3a258086
 #define ATA_I82801JI_S2         0x3a268086
+
+#define ATA_5Series_S1          0x3b208086
+#define ATA_5Series_S2          0x3b218086
+#define ATA_5Series_AH1         0x3b228086
+#define ATA_5Series_AH2         0x3b238086
+#define ATA_5Series_R1          0x3b258086
+#define ATA_5Series_S3          0x3b268086
+#define ATA_5Series_S4          0x3b288086
+#define ATA_5Series_AH3         0x3b298086
+#define ATA_5Series_R2          0x3b2c8086
+#define ATA_5Series_S5          0x3b2d8086
+#define ATA_5Series_S6          0x3b2e8086
+#define ATA_5Series_AH4         0x3b2f8086
+
+#define ATA_CPT_S1              0x1c008086
+#define ATA_CPT_S2              0x1c018086
+#define ATA_CPT_AH1             0x1c028086
+#define ATA_CPT_AH2             0x1c038086
+#define ATA_CPT_R1              0x1c048086
+#define ATA_CPT_R2              0x1c058086
+#define ATA_CPT_S3              0x1c088086
+#define ATA_CPT_S4              0x1c098086
+
 #define ATA_I31244              0x32008086
 #define ATA_ISCH                0x811a8086
 
@@ -489,7 +512,10 @@ struct ata_pci_controller {
 #define ATA_VIACX700            0x83241106
 #define ATA_VIASATAIDE          0x53241106
 #define ATA_VIAVX800            0x83531106
+#define ATA_VIASATAIDE2         0xc4091106
 #define ATA_VIAVX855            0x84091106
+#define ATA_VIASATAIDE3         0x90011106
+#define ATA_VIAVX900            0x84101106
 
 /* global prototypes ata-pci.c */
 int ata_pci_probe(device_t dev);
@@ -502,6 +528,8 @@ int ata_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 uint32_t ata_pci_read_config(device_t dev, device_t child, int reg, int width);
 void ata_pci_write_config(device_t dev, device_t child, int reg, 
     uint32_t val, int width);
+int ata_pci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen);
 struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
 int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, struct resource *r);
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_filter_t *filter, driver_intr_t *function, void *argument, void **cookiep);
@@ -550,6 +578,7 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr), \
     DEVMETHOD(pci_read_config,		ata_pci_read_config), \
     DEVMETHOD(pci_write_config,		ata_pci_write_config), \
+    DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str), \
     { 0, 0 } \
 }; \
 static driver_t __CONCAT(dname,_driver) = { \

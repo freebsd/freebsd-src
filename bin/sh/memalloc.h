@@ -45,8 +45,7 @@ struct stackmark {
 
 extern char *stacknxt;
 extern int stacknleft;
-extern int sstrnleft;
-extern int herefd;
+extern char *sstrend;
 
 pointer ckmalloc(size_t);
 pointer ckrealloc(pointer, int);
@@ -56,22 +55,32 @@ pointer stalloc(int);
 void stunalloc(pointer);
 void setstackmark(struct stackmark *);
 void popstackmark(struct stackmark *);
-void growstackblock(void);
 void grabstackblock(int);
 char *growstackstr(void);
-char *makestrspace(void);
-void ungrabstackstr(char *, char *);
+char *makestrspace(int, char *);
+char *stputbin(const char *data, int len, char *p);
+char *stputs(const char *data, char *p);
 
 
 
 #define stackblock() stacknxt
 #define stackblocksize() stacknleft
-#define STARTSTACKSTR(p)	p = stackblock(), sstrnleft = stackblocksize()
-#define STPUTC(c, p)	(--sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(), *p++ = (c)))
-#define CHECKSTRSPACE(n, p)	{ if (sstrnleft < n) p = makestrspace(); }
-#define USTPUTC(c, p)	(--sstrnleft, *p++ = (c))
-#define STACKSTRNUL(p)	(sstrnleft == 0? (p = growstackstr(), *p = '\0') : (*p = '\0'))
-#define STUNPUTC(p)	(++sstrnleft, --p)
+#define STARTSTACKSTR(p)	p = stackblock()
+#define STPUTC(c, p)	do { if (p == sstrend) p = growstackstr(); *p++ = (c); } while(0)
+#define CHECKSTRSPACE(n, p)	{ if (sstrend - p < n) p = makestrspace(n, p); }
+#define USTPUTC(c, p)	(*p++ = (c))
+/*
+ * STACKSTRNUL's use is where we want to be able to turn a stack
+ * (non-sentinel, character counting string) into a C string,
+ * and later pretend the NUL is not there.
+ * Note: Because of STACKSTRNUL's semantics, STACKSTRNUL cannot be used
+ * on a stack that will grabstackstr()ed.
+ */
+#define STACKSTRNUL(p)	(p == sstrend ? (p = growstackstr(), *p = '\0') : (*p = '\0'))
+#define STUNPUTC(p)	(--p)
 #define STTOPC(p)	p[-1]
-#define STADJUST(amount, p)	(p += (amount), sstrnleft -= (amount))
-#define grabstackstr(p)	stalloc(stackblocksize() - sstrnleft)
+#define STADJUST(amount, p)	(p += (amount))
+#define grabstackstr(p)	stalloc((char *)p - stackblock())
+#define ungrabstackstr(s, p)	stunalloc((s))
+#define STPUTBIN(s, len, p)	p = stputbin((s), (len), p)
+#define STPUTS(s, p)	p = stputs((s), p)

@@ -239,6 +239,12 @@ extern int nfs_debug;
 
 #endif
 
+/*
+ * The following flags can be passed to nfsrv_fhtovp() function.
+ */
+/* Leave file system busy on success. */
+#define	NFSRV_FLAG_BUSY		0x01
+
 struct mbuf *nfs_rephead(int, struct nfsrv_descript *, int, struct mbuf **,
 	    caddr_t *);
 void	nfsm_srvfattr(struct nfsrv_descript *, struct vattr *,
@@ -264,7 +270,7 @@ int	nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
 int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **, int *,
 	    struct nfsrv_descript *, struct nfssvc_sock *, struct sockaddr *,
-	    int *, int);
+	    int *);
 int	nfsrv_setpublicfs(struct mount *, struct netexport *,
 	    struct export_args *);
 int	nfs_ispublicfh(fhandle_t *);

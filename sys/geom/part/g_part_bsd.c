@@ -99,7 +99,7 @@ static struct g_part_scheme g_part_bsd_scheme = {
 	sizeof(struct g_part_bsd_table),
 	.gps_entrysz = sizeof(struct g_part_bsd_entry),
 	.gps_minent = 8,
-	.gps_maxent = 20,
+	.gps_maxent = 20,	/* Only 22 entries fit in 512 byte sectors */
 	.gps_bootcodesz = BBSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_bsd);
@@ -240,6 +240,12 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 static int
 g_part_bsd_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
+	struct g_part_bsd_table *table;
+
+	table = (struct g_part_bsd_table *)basetable;
+	if (table->bbarea != NULL)
+		g_free(table->bbarea);
+	table->bbarea = NULL;
 
 	/* Wipe the second sector to clear the partitioning. */
 	basetable->gpt_smhead |= 2;

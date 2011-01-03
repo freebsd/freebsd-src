@@ -57,7 +57,6 @@ The
 .Fn setlocale
 function recognizes several categories of routines.
 These are the categories and the sets of routines they select:
-.Pp
 .Bl -tag -width LC_MONETARY
 .It Dv LC_ALL
 Set the entire locale generically.
@@ -103,11 +102,11 @@ function.
 .Pp
 Only three locales are defined by default,
 the empty string
-.Li "\&""\|""
+.Li \&"\|"
 which denotes the native environment, and the
-.Li "\&""C""
+.Li \&"C"
 and
-.Li "\&""POSIX""
+.Li \&"POSIX"
 locales, which denote the C language environment.
 A
 .Fa locale
@@ -117,7 +116,7 @@ causes
 .Fn setlocale
 to return the current locale.
 By default, C programs start in the
-.Li "\&""C""
+.Li \&"C"
 locale.
 The only function in the library that sets the locale is
 .Fn setlocale ;

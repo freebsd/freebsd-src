@@ -132,6 +132,13 @@
 #define	VM_NFREEORDER		13
 
 /*
+ * Only one memory domain.
+ */
+#ifndef VM_NDOMAIN
+#define	VM_NDOMAIN		1
+#endif
+
+/*
  * Enable superpage reservations: 1 level.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -156,8 +163,9 @@
  * 0x0000000000000000 - 0x00007fffffffffff   user map
  * 0x0000800000000000 - 0xffff7fffffffffff   does not exist (hole)
  * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
- * 0xffff804020101000 - 0xfffffeffffffffff   unused
- * 0xffffff0000000000 - 0xffffff7fffffffff   512GB direct map mappings
+ * 0xffff804020101000 - 0xfffffdffffffffff   unused
+ * 0xfffffe0000000000 - 0xfffffeffffffffff   1TB direct map
+ * 0xffffff0000000000 - 0xffffff7fffffffff   unused
  * 0xffffff8000000000 - 0xffffffffffffffff   512GB kernel map
  *
  * Within the kernel map:
@@ -169,7 +177,7 @@
 #define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-512, 0, 0)
 
 #define	DMAP_MIN_ADDRESS	KVADDR(DMPML4I, 0, 0, 0)
-#define	DMAP_MAX_ADDRESS	KVADDR(DMPML4I+1, 0, 0, 0)
+#define	DMAP_MAX_ADDRESS	KVADDR(DMPML4I + NDMPML4E, 0, 0, 0)
 
 #define	KERNBASE		KVADDR(KPML4I, KPDPI, 0, 0)
 
@@ -198,7 +206,7 @@
  * is the total KVA space allocated for kmem_map.
  */
 #ifndef VM_KMEM_SIZE_SCALE
-#define	VM_KMEM_SIZE_SCALE	(3)
+#define	VM_KMEM_SIZE_SCALE	(1)
 #endif
 
 /*

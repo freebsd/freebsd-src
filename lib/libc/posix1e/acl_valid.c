@@ -79,20 +79,14 @@ acl_valid(acl_t acl)
 int
 acl_valid_file_np(const char *pathp, acl_type_t type, acl_t acl)
 {
-	int	error;
 
 	if (pathp == NULL || acl == NULL) {
 		errno = EINVAL;
 		return (-1);
 	}
 	type = _acl_type_unold(type);
-	if (_posix1e_acl(acl, type)) {
-		error = _posix1e_acl_sort(acl);
-		if (error) {
-			errno = error;
-			return (-1);
-		}
-	}
+	if (_posix1e_acl(acl, type))
+		_posix1e_acl_sort(acl);
 
 	return (__acl_aclcheck_file(pathp, type, &acl->ats_acl));
 }
@@ -100,20 +94,14 @@ acl_valid_file_np(const char *pathp, acl_type_t type, acl_t acl)
 int
 acl_valid_link_np(const char *pathp, acl_type_t type, acl_t acl)
 {
-	int	error;
 
 	if (pathp == NULL || acl == NULL) {
 		errno = EINVAL;
 		return (-1);
 	}
 	type = _acl_type_unold(type);
-	if (_posix1e_acl(acl, type)) {
-		error = _posix1e_acl_sort(acl);
-		if (error) {
-			errno = error;
-			return (-1);
-		}
-	}
+	if (_posix1e_acl(acl, type))
+		_posix1e_acl_sort(acl);
 
 	return (__acl_aclcheck_link(pathp, type, &acl->ats_acl));
 }
@@ -121,20 +109,14 @@ acl_valid_link_np(const char *pathp, acl_type_t type, acl_t acl)
 int
 acl_valid_fd_np(int fd, acl_type_t type, acl_t acl)
 {
-	int	error;
 
 	if (acl == NULL) {
 		errno = EINVAL;
 		return (-1);
 	}
 	type = _acl_type_unold(type);
-	if (_posix1e_acl(acl, type)) {
-		error = _posix1e_acl_sort(acl);
-		if (error) {
-			errno = error;
-			return (-1);
-		}
-	}
+	if (_posix1e_acl(acl, type))
+		_posix1e_acl_sort(acl);
 
 	acl->ats_cur_entry = 0;
 

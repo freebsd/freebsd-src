@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -254,12 +250,15 @@ initkre(void)
 					cp1++;
 				if (cp1 != cp && *cp1 == ':' &&
 				    *(cp1 + 1) == ' ') {
+					sz = strlen(cp);
 					*cp1 = '\0';
 					cp1 = cp1 + 2;
 					cp2 = strdup(cp);
-					bcopy(cp1, cp, strlen(cp1) + 1);
-					strcat(cp, " ");
-					strcat(cp, cp2);
+					bcopy(cp1, cp, sz - (cp1 - cp) + 1);
+					if (sz <= 10 + 4) {
+						strcat(cp, " ");
+						strcat(cp, cp2 + 3);
+					}
 					free(cp2);
 				}
 			}
@@ -440,6 +439,9 @@ showkre(void)
 	for (i = 0; i < nintr; i++) {
 		if (s.intrcnt[i] == 0)
 			continue;
+		X(intrcnt);
+		l = (int)((float)s.intrcnt[i]/etime + 0.5);
+		inttotal += l;
 		if (intrloc[i] == 0) {
 			if (nextintsrow == LINES)
 				continue;
@@ -447,9 +449,6 @@ showkre(void)
 			mvprintw(intrloc[i], INTSCOL + 6, "%-10.10s",
 				intrname[i]);
 		}
-		X(intrcnt);
-		l = (int)((float)s.intrcnt[i]/etime + 0.5);
-		inttotal += l;
 		putint(l, intrloc[i], INTSCOL, 5);
 	}
 	putint(inttotal, INTSROW + 1, INTSCOL, 5);

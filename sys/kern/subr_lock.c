@@ -139,8 +139,8 @@ struct lock_profile_object {
 	int		lpo_line;
 	uint16_t	lpo_ref;
 	uint16_t	lpo_cnt;
-	u_int64_t	lpo_acqtime;
-	u_int64_t	lpo_waittime;
+	uint64_t	lpo_acqtime;
+	uint64_t	lpo_waittime;
 	u_int		lpo_contest_locking;
 };
 
@@ -170,7 +170,7 @@ SLIST_HEAD(lphead, lock_prof);
 
 /*
  * Array of objects and profs for each type of object for each cpu.  Spinlocks
- * are handled seperately because a thread may be preempted and acquire a
+ * are handled separately because a thread may be preempted and acquire a
  * spinlock while in the lock profiling code of a non-spinlock.  In this way
  * we only need a critical section to protect the per-cpu lists.
  */
@@ -191,23 +191,22 @@ struct lock_prof_cpu *lp_cpu[MAXCPU];
 volatile int lock_prof_enable = 0;
 static volatile int lock_prof_resetting;
 
-/* SWAG: sbuf size = avg stat. line size * number of locks */
-#define LPROF_SBUF_SIZE		256 * 400
+#define LPROF_SBUF_SIZE		256
 
 static int lock_prof_rejected;
 static int lock_prof_skipspin;
 static int lock_prof_skipcount;
 
 #ifndef USE_CPU_NANOSECONDS
-u_int64_t
+uint64_t
 nanoseconds(void)
 {
 	struct bintime bt;
-	u_int64_t ns;
+	uint64_t ns;
 
 	binuptime(&bt);
 	/* From bintime2timespec */
-	ns = bt.sec * (u_int64_t)1000000000;
+	ns = bt.sec * (uint64_t)1000000000;
 	ns += ((uint64_t)1000000000 * (uint32_t)(bt.frac >> 32)) >> 32;
 	return (ns);
 }
@@ -256,9 +255,7 @@ lock_prof_idle(void)
 
 	td = curthread;
 	thread_lock(td);
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		sched_bind(td, cpu);
 	}
 	sched_unbind(td);
@@ -386,8 +383,6 @@ lock_prof_type_stats(struct lock_prof_type *type, struct sbuf *sb, int spin,
 				continue;
 			lock_prof_sum(l, &lp, i, spin, t);
 			lock_prof_output(&lp, sb);
-			if (sbuf_overflowed(sb))
-				return;
 		}
 	}
 }
@@ -395,13 +390,11 @@ lock_prof_type_stats(struct lock_prof_type *type, struct sbuf *sb, int spin,
 static int
 dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 {
-	static int multiplier = 1;
 	struct sbuf *sb;
 	int error, cpu, t;
 	int enabled;
 
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, LPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
+	sb = sbuf_new_for_sysctl(NULL, NULL, LPROF_SBUF_SIZE, req);
 	sbuf_printf(sb, "\n%8s %9s %11s %11s %11s %6s %6s %2s %6s %s\n",
 	    "max", "wait_max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
 	enabled = lock_prof_enable;
@@ -413,16 +406,13 @@ retry_sbufops:
 			continue;
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[0], sb, 0, t);
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[1], sb, 1, t);
-		if (sbuf_overflowed(sb)) {
-			sbuf_delete(sb);
-			multiplier++;
-			goto retry_sbufops;
-		}
 	}
 	lock_prof_enable = enabled;
 
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	error = sbuf_finish(sb);
+	/* Output a trailing NUL. */
+	if (error == 0)
+		error = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (error);
 }
@@ -600,7 +590,7 @@ lock_profile_release_lock(struct lock_object *lo)
 	struct lock_profile_object *l;
 	struct lock_prof_type *type;
 	struct lock_prof *lp;
-	u_int64_t holdtime;
+	uint64_t curtime, holdtime;
 	struct lpohead *head;
 	int spin;
 
@@ -628,9 +618,11 @@ lock_profile_release_lock(struct lock_object *lo)
 	lp = lock_profile_lookup(lo, spin, l->lpo_file, l->lpo_line);
 	if (lp == NULL)
 		goto release;
-	holdtime = nanoseconds() - l->lpo_acqtime;
-	if (holdtime < 0)
+	curtime = nanoseconds();
+	if (curtime < l->lpo_acqtime)
 		goto release;
+	holdtime = curtime - l->lpo_acqtime;
+
 	/*
 	 * Record if the lock has been held longer now than ever
 	 * before.

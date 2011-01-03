@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #if defined(__powerpc__) || defined(__sparc64__)
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
 #endif
@@ -140,12 +141,17 @@ static struct resource_spec gem_pci_res_spec[] = {
 	{ -1, 0 }
 };
 
+#define	GEM_SHARED_PINS		"shared-pins"
+#define	GEM_SHARED_PINS_SERDES	"serdes"
+
 static int
 gem_pci_attach(device_t dev)
 {
 	struct gem_softc *sc;
 	int i;
-#if !(defined(__powerpc__) || defined(__sparc64__))
+#if defined(__powerpc__) || defined(__sparc64__)
+	char buf[sizeof(GEM_SHARED_PINS)];
+#else
 	int j;
 #endif
 
@@ -207,6 +213,12 @@ gem_pci_attach(device_t dev)
 
 #if defined(__powerpc__) || defined(__sparc64__)
 	OF_getetheraddr(dev, sc->sc_enaddr);
+	if (OF_getprop(ofw_bus_get_node(dev), GEM_SHARED_PINS, buf,
+	    sizeof(buf)) > 0) {
+		buf[sizeof(buf) - 1] = '\0';
+		if (strcmp(buf, GEM_SHARED_PINS_SERDES) == 0)
+			sc->sc_flags |= GEM_SERDES;
+	}
 #else
 	/*
 	 * Dig out VPD (vital product data) and read NA (network address).

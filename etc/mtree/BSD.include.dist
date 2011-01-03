@@ -83,6 +83,10 @@
         scsi
         ..
     ..
+    clang
+        2.8
+        ..
+    ..
     crypto
     ..
     dev
@@ -159,6 +163,10 @@
         unionfs
         ..
     ..
+    gcc
+        4.2
+        ..
+    ..
     geom
         cache
         ..
@@ -216,6 +224,8 @@
     libmilter
     ..
     lwres
+    ..
+    lzma
     ..
     machine
         pc

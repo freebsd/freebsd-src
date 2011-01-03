@@ -109,6 +109,18 @@ for any of the errors specified for the library functions
 .Xr readlink 2
 and
 .Xr getcwd 3 .
+.Sh SEE ALSO
+.Xr getcwd 3
+.\" .Sh STANDARDS
+.\" The
+.\" .Fn realpath
+.\" function conforms to
+.\" .St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn realpath
+function first appeared in
+.Bx 4.4 .
 .Sh CAVEATS
 This implementation of
 .Fn realpath
@@ -121,15 +133,3 @@ under certain circumstances, return a relative
 .Fa resolved_path
 when given a relative
 .Fa pathname .
-.Sh "SEE ALSO"
-.Xr getcwd 3
-.Sh STANDARDS
-The
-.Fn realpath
-function conforms to
-.St -p1003.1-2001 .
-.Sh HISTORY
-The
-.Fn realpath
-function first appeared in
-.Bx 4.4 .

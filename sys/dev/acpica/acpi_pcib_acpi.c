@@ -65,7 +65,6 @@ struct acpi_hpcib_softc {
 
 static int		acpi_pcib_acpi_probe(device_t bus);
 static int		acpi_pcib_acpi_attach(device_t bus);
-static int		acpi_pcib_acpi_resume(device_t bus);
 static int		acpi_pcib_read_ivar(device_t dev, device_t child,
 			    int which, uintptr_t *result);
 static int		acpi_pcib_write_ivar(device_t dev, device_t child,
@@ -94,7 +93,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(device_attach,		acpi_pcib_acpi_attach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		bus_generic_suspend),
-    DEVMETHOD(device_resume,		acpi_pcib_acpi_resume),
+    DEVMETHOD(device_resume,		bus_generic_resume),
 
     /* Bus interface */
     DEVMETHOD(bus_print_child,		bus_generic_print_child),
@@ -117,6 +116,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(pcib_alloc_msix,		acpi_pcib_alloc_msix),
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
     DEVMETHOD(pcib_map_msi,		acpi_pcib_map_msi),
+    DEVMETHOD(pcib_power_for_sleep,	acpi_pcib_power_for_sleep),
 
     {0, 0}
 };
@@ -255,13 +255,6 @@ acpi_pcib_acpi_attach(device_t dev)
 	    bus0_seen = 1;
 
     return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_bus));
-}
-
-static int
-acpi_pcib_acpi_resume(device_t dev)
-{
-
-    return (acpi_pcib_resume(dev));
 }
 
 /*

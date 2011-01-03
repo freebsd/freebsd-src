@@ -217,11 +217,14 @@ ata_kauai_probe(device_t dev)
 	ch = &sc->sc_ch.sc_ch;
 
 	compatstring = ofw_bus_get_compat(dev);
-	if (compatstring != NULL && strcmp(compatstring,"shasta-ata") == 0)
+	if (compatstring != NULL && strcmp(compatstring,"shasta-ata") == 0) {
+		ch->flags |= ATA_NO_ATAPI_DMA;
 		sc->shasta = 1;
+	}
 
-	/* Regular Kauai controllers apparently need this hack */
-	if (!sc->shasta)
+	/* Pre-K2 controllers apparently need this hack */
+	if (!sc->shasta &&
+	    (compatstring == NULL || strcmp(compatstring, "K2-UATA") != 0))
 		bus_set_resource(dev, SYS_RES_IRQ, 0, 39, 1);
 
         rid = PCIR_BARS;

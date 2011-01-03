@@ -28,7 +28,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2008
+.Dd December 9, 2010
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd construct a new UFS1/UFS2 file system
 .Sh SYNOPSIS
 .Nm
-.Op Fl EJNUln
+.Op Fl EJNUlnt
 .Op Fl L Ar volname
 .Op Fl O Ar filesystem-type
 .Op Fl S Ar sector-size
@@ -79,10 +79,10 @@ The following options define the general layout policies:
 Erase the content of the disk before making the filesystem.
 The reserved area in front of the superblock (for bootcode) will not be erased.
 .Pp
-This is a relevant option for flash based storage devices that use
-wear levelling algorithms.
+This option is only relevant for flash based storage devices that use
+wear-leveling algorithms.
 .Pp
-NB: Erasing may take as long time as writing every sector on the disk.
+Erasing may take a long time as it writes to every sector on the disk.
 .It Fl J
 Enable journaling on the new file system via gjournal.
 See
@@ -125,8 +125,9 @@ and the number of bytes per inode.
 .It Fl d Ar max-extent-size
 The file system may choose to store large files using extents.
 This parameter specifies the largest extent size that may be used.
-It is presently limited to its default value which is 16 times
-the file system blocksize.
+The default value is the file system blocksize.
+It is presently limited to a maximum value of 16 times the
+file system blocksize and a minimum value of the file system blocksize.
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
@@ -240,6 +241,14 @@ A valid
 .Ar size
 value cannot be larger than the default one,
 which means that the file system cannot extend into the reserved space.
+.It Fl t
+Turn on the TRIM enable flag.
+If enabled, and if the underlying device supports the BIO_DELETE
+command, the file system will send a delete request to the underlying
+device for each freed block.
+The trim enable flag is typically set when the underlying device
+uses flash-memory as the device can use the delete command to
+pre-zero or at least avoid copying blocks that have been deleted.
 .El
 .Pp
 The following options override the standard sizes for the disk geometry.

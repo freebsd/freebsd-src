@@ -48,22 +48,16 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+#include <dev/pci/pci_private.h>
 #include <dev/pci/pcib_private.h>
 
 #include "pcib_if.h"
 
-#ifdef __HAVE_ACPI
-#include <contrib/dev/acpica/include/acpi.h>
-#include "acpi_if.h"
-#else
-#define	ACPI_PWR_FOR_SLEEP(x, y, z)
-#endif
-
-extern int		pci_do_power_resume;
-
 static int		pcib_probe(device_t dev);
 static int		pcib_suspend(device_t dev);
 static int		pcib_resume(device_t dev);
+static int		pcib_power_for_sleep(device_t pcib, device_t dev,
+			    int *pstate);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -95,6 +89,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_alloc_msix,		pcib_alloc_msix),
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
     DEVMETHOD(pcib_map_msi,		pcib_map_msi),
+    DEVMETHOD(pcib_power_for_sleep,	pcib_power_for_sleep),
 
     { 0, 0 }
 };
@@ -447,18 +442,16 @@ pcib_attach(device_t dev)
 int
 pcib_suspend(device_t dev)
 {
-	device_t	acpi_dev;
+	device_t	pcib;
 	int		dstate, error;
 
 	pcib_cfg_save(device_get_softc(dev));
 	error = bus_generic_suspend(dev);
-	if (error == 0 && pci_do_power_resume) {
-		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
-		if (acpi_dev != NULL) {
-			dstate = PCI_POWERSTATE_D3;
-			ACPI_PWR_FOR_SLEEP(acpi_dev, dev, &dstate);
+	if (error == 0 && pci_do_power_suspend) {
+		dstate = PCI_POWERSTATE_D3;
+		pcib = device_get_parent(device_get_parent(dev));
+		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
 			pci_set_powerstate(dev, dstate);
-		}
 	}
 	return (error);
 }
@@ -466,14 +459,12 @@ pcib_suspend(device_t dev)
 int
 pcib_resume(device_t dev)
 {
-	device_t	acpi_dev;
+	device_t	pcib;
 
 	if (pci_do_power_resume) {
-		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
-		if (acpi_dev != NULL) {
-			ACPI_PWR_FOR_SLEEP(acpi_dev, dev, NULL);
+		pcib = device_get_parent(device_get_parent(dev));
+		if (PCIB_POWER_FOR_SLEEP(pcib, dev, NULL) == 0)
 			pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-		}
 	}
 	pcib_cfg_restore(device_get_softc(dev));
 	return (bus_generic_resume(dev));
@@ -790,6 +781,16 @@ pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 	return (0);
 }
 
+/* Pass request for device power state up to parent bridge. */
+int
+pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_POWER_FOR_SLEEP(bus, dev, pstate));
+}
+
 /*
  * Try to read the bus number of a host-PCI bridge using appropriate config
  * registers.
@@ -859,7 +860,9 @@ host_pcib_get_busno(pci_read_config_fn read_config, int bus, int slot, int func,
 	case 0x00171166:
 	case 0x01011166:
 	case 0x010f1014:
+	case 0x01101166:
 	case 0x02011166:
+	case 0x02251166:
 	case 0x03021014:
 		*busnum = read_config(bus, slot, func, 0x44, 1);
 		break;

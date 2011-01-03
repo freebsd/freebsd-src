@@ -259,7 +259,7 @@ static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 				       *(1 << dma->bufs[i].page_order),
 				       (dma->bufs[i].seg_count
 					* (1 << dma->bufs[i].page_order))
-				       * PAGE_SIZE / 1024);
+				       * (int)PAGE_SIZE / 1024);
 	}
 	DRM_SYSCTL_PRINT("\n");
 	for (i = 0; i < dma->buf_count; i++) {

@@ -10,6 +10,7 @@ SUBDIR=	${_3dfx} \
 	accf_http \
 	${_acpi} \
 	ae \
+	${_aesni} \
 	age \
 	${_agp} \
 	aha \
@@ -50,6 +51,7 @@ SUBDIR=	${_3dfx} \
 	${_cardbus} \
 	cas \
 	${_cbb} \
+	cc \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
@@ -111,6 +113,7 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_ie} \
 	if_bridge \
+	if_carp \
 	if_disc \
 	if_edsc \
 	if_ef \
@@ -144,6 +147,7 @@ SUBDIR=	${_3dfx} \
 	${_iwn} \
 	${_iwnfw} \
 	${_ixgb} \
+	${_ixgbe} \
 	jme \
 	joy \
 	kbdmux \
@@ -182,6 +186,7 @@ SUBDIR=	${_3dfx} \
 	${_mly} \
 	mmc \
 	mmcsd \
+	mps \
 	mpt \
 	mqueue \
 	msdosfs \
@@ -190,6 +195,7 @@ SUBDIR=	${_3dfx} \
 	msk \
 	mvs \
 	mwl \
+	mwlfw \
 	mxge \
 	my \
 	${_ncp} \
@@ -202,6 +208,7 @@ SUBDIR=	${_3dfx} \
 	nfsclient \
 	nfscommon \
 	nfsd \
+	nfslock \
 	nfslockd \
 	nfsserver \
 	nfssvc \
@@ -252,9 +259,11 @@ SUBDIR=	${_3dfx} \
 	${_scsi_low} \
 	sdhci \
 	sem \
+	send \
 	sf \
 	sge \
 	siba_bwn \
+	siftr \
 	siis \
 	sis \
 	sk \
@@ -277,6 +286,7 @@ SUBDIR=	${_3dfx} \
 	ti \
 	tl \
 	tmpfs \
+	${_tpm} \
 	trm \
 	${_twa} \
 	twe \
@@ -295,6 +305,7 @@ SUBDIR=	${_3dfx} \
 	vkbd \
 	${_vpo} \
 	vr \
+	vte \
 	vx \
 	wb \
 	${_wi} \
@@ -315,13 +326,13 @@ SUBDIR=	${_3dfx} \
 	${_zfs} \
 	zlib \
 
-.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "arm" && \
-	${MACHINE_ARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_CPUARCH} != "mips"
 _syscons=	syscons
 _vpo=		vpo
 .endif
 
-.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 # no BUS_SPACE_UNSPECIFIED
 # No barrier instruction support (specific to this driver)
 _sym=		sym
@@ -352,7 +363,7 @@ _pf=		pf
 _pflog=		pflog
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 # XXX some of these can move to the general case when de-i386'ed
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
@@ -436,6 +447,9 @@ _zfs=		zfs
 .if ${MACHINE} == "i386"
 _aac=		aac
 _acpi=		acpi
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_aesni=		aesni
+.endif
 _ahb=		ahb
 _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
@@ -465,17 +479,17 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_ixgbe=		ixgbe
 _mly=		mly
 _nfe=		nfe
 _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
+_tpm=		tpm
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _s3=		s3
 _twa=		twa
@@ -489,9 +503,12 @@ _snc=		snc
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 _aac=		aac
 _acpi=		acpi
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_aesni=		aesni
+.endif
 _agp=		agp
 _an=		an
 _amdsbwd=	amdsbwd
@@ -537,6 +554,7 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_ixgbe=		ixgbe
 _lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
@@ -551,9 +569,7 @@ _nxge=		nxge
 _opensolaris=	opensolaris
 .endif
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _pccard=	pccard
 _rdma=		rdma	
@@ -565,6 +581,7 @@ _sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
+_tpm=		tpm
 _twa=		twa
 _vesa=		vesa
 _x86bios=	x86bios
@@ -576,7 +593,7 @@ _zfs=		zfs
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 _aac=		aac
 _aic=		aic
 _an=		an
@@ -609,12 +626,14 @@ _sound=		sound
 _splash=	splash
 _sppp=		sppp
 _streams=	streams
+_tpm=		tpm
 _twa=		twa
 _wi=		wi
 _xe=		xe
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
+_agp=		agp
 _an=		an
 _bm=		bm
 _cpufreq=	cpufreq
@@ -623,7 +642,16 @@ _smbfs=		smbfs
 _sound=		sound
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "powerpc64"
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_opensolaris=	opensolaris
+.endif
+.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
+_zfs=		zfs
+.endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "sparc64"
 _auxio=		auxio
 _em=		em
 _epic=		epic

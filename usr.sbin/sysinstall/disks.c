@@ -79,7 +79,6 @@ static struct chunk *chunk_info[CHUNK_INFO_ENTRIES];
 static int current_chunk;
 
 static void	diskPartitionNonInteractive(Device *dev);
-static u_char *	bootalloc(char *name, size_t *size);
 
 static void
 record_chunks(Disk *d)
@@ -216,7 +215,44 @@ print_command_summary(void)
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
+#endif /* WITH_SLICES */
 
+#if !defined(__ia64__)
+static u_char *
+bootalloc(char *name, size_t *size)
+{
+    char buf[FILENAME_MAX];
+    struct stat sb;
+
+    snprintf(buf, sizeof buf, "/boot/%s", name);
+    if (stat(buf, &sb) != -1) {
+	int fd;
+
+	fd = open(buf, O_RDONLY);
+	if (fd != -1) {
+	    u_char *cp;
+
+	    cp = malloc(sb.st_size);
+	    if (read(fd, cp, sb.st_size) != sb.st_size) {
+		free(cp);
+		close(fd);
+		msgDebug("bootalloc: couldn't read %ld bytes from %s\n", (long)sb.st_size, buf);
+		return NULL;
+	    }
+	    close(fd);
+	    if (size != NULL)
+		*size = sb.st_size;
+	    return cp;
+	}
+	msgDebug("bootalloc: couldn't open %s\n", buf);
+    }
+    else
+	msgDebug("bootalloc: can't stat %s\n", buf);
+    return NULL;
+}
+#endif /* !defined(__ia64__) */
+
+#ifdef WITH_SLICES
 #ifdef PC98
 static void
 getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
@@ -443,6 +479,7 @@ diskPartition(Device *dev)
 	    else {
 		char *val, tmp[20], name[16], *cp;
 		daddr_t size;
+		long double dsize;
 		int subtype;
 		chunk_e partitiontype;
 #ifdef PC98
@@ -457,11 +494,20 @@ diskPartition(Device *dev)
 		snprintf(tmp, 20, "%jd", (intmax_t)chunk_info[current_chunk]->size);
 		val = msgGetInput(tmp, "Please specify the size for new FreeBSD slice in blocks\n"
 				  "or append a trailing `M' for megabytes (e.g. 20M).");
-		if (val && (size = strtoimax(val, &cp, 0)) > 0) {
+		if (val && (dsize = strtold(val, &cp)) > 0 && dsize < UINT32_MAX) {
 		    if (*cp && toupper(*cp) == 'M')
-			size *= ONE_MEG;
+			size = (daddr_t) (dsize * ONE_MEG);
 		    else if (*cp && toupper(*cp) == 'G')
-			size *= ONE_GIG;
+			size = (daddr_t) (dsize * ONE_GIG);
+		    else
+			size = (daddr_t) dsize;
+
+		    if (size < ONE_MEG) {
+			msgConfirm("The minimum slice size is 1MB");
+			break;
+		    }
+
+
 		    sprintf(tmp, "%d", SUBTYPE_FREEBSD);
 		    val = msgGetInput(tmp, "Enter type of partition to create:\n\n"
 			"Pressing Enter will choose the default, a native FreeBSD\n"
@@ -732,39 +778,6 @@ diskPartition(Device *dev)
 }
 #endif /* WITH_SLICES */
 
-static u_char *
-bootalloc(char *name, size_t *size)
-{
-    char buf[FILENAME_MAX];
-    struct stat sb;
-
-    snprintf(buf, sizeof buf, "/boot/%s", name);
-    if (stat(buf, &sb) != -1) {
-	int fd;
-
-	fd = open(buf, O_RDONLY);
-	if (fd != -1) {
-	    u_char *cp;
-
-	    cp = malloc(sb.st_size);
-	    if (read(fd, cp, sb.st_size) != sb.st_size) {
-		free(cp);
-		close(fd);
-		msgDebug("bootalloc: couldn't read %ld bytes from %s\n", (long)sb.st_size, buf);
-		return NULL;
-	    }
-	    close(fd);
-	    if (size != NULL)
-		*size = sb.st_size;
-	    return cp;
-	}
-	msgDebug("bootalloc: couldn't open %s\n", buf);
-    }
-    else
-	msgDebug("bootalloc: can't stat %s\n", buf);
-    return NULL;
-}
-
 #ifdef WITH_SLICES 
 static int
 partitionHook(dialogMenuItem *selected)
@@ -874,7 +887,9 @@ diskPartitionWrite(dialogMenuItem *self)
 	msgDebug("diskPartitionWrite: Examining %d devices\n", deviceCount(devs));
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
+#if !defined(__ia64__)
 	static u_char *boot1;
+#endif
 #if defined(__i386__) || defined(__amd64__)
 	static u_char *boot2;
 #endif
@@ -915,7 +930,8 @@ diskPartitionNonInteractive(Device *dev)
 {
     char *cp;
     int i, all_disk = 0;
-    daddr_t sz;
+    daddr_t size;
+    long double dsize;
 #ifdef PC98
     u_char *bootipl;
     size_t bootipl_size;
@@ -959,7 +975,7 @@ diskPartitionNonInteractive(Device *dev)
 		/* If a chunk is at least 10MB in size, use it. */
 		if (chunk_info[i]->type == unused && chunk_info[i]->size > (10 * ONE_MEG)) {
 		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size,
-				 freebsd, 3,
+				 freebsd, SUBTYPE_FREEBSD,
 				 (chunk_info[i]->flags & CHUNK_ALIGN),
 				 "FreeBSD");
 		    variable_set2(DISK_PARTITIONED, "yes", 0);
@@ -983,16 +999,19 @@ diskPartitionNonInteractive(Device *dev)
 
 	    All_FreeBSD(d, all_disk = TRUE);
 	}
-	else if ((sz = strtoimax(cp, &cp, 0))) {
-	    /* Look for sz bytes free */
+	else if ((dsize = strtold(cp, &cp))) {
 	    if (*cp && toupper(*cp) == 'M')
-		sz *= ONE_MEG;
+		size *= (daddr_t) (dsize * ONE_MEG);
 	    else if (*cp && toupper(*cp) == 'G')
-		sz *= ONE_GIG;
+		size = (daddr_t) (dsize * ONE_GIG);
+	    else
+		size = (daddr_t) dsize;
+
+	    /* Look for size bytes free */
 	    for (i = 0; chunk_info[i]; i++) {
 		/* If a chunk is at least sz MB, use it. */
-		if (chunk_info[i]->type == unused && chunk_info[i]->size >= sz) {
-		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3,
+		if (chunk_info[i]->type == unused && chunk_info[i]->size >= size) {
+		    Create_Chunk(d, chunk_info[i]->offset, size, freebsd, SUBTYPE_FREEBSD,
 				 (chunk_info[i]->flags & CHUNK_ALIGN),
 				 "FreeBSD");
 		    variable_set2(DISK_PARTITIONED, "yes", 0);
@@ -1001,7 +1020,7 @@ diskPartitionNonInteractive(Device *dev)
 	    }
 	    if (!chunk_info[i]) {
 		    msgConfirm("Unable to find %jd free blocks on this disk!",
-			(intmax_t)sz);
+			(intmax_t)size);
 		return;
 	    }
 	}

@@ -62,10 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/cpuset.h>
 #include <sys/sbuf.h>
-#ifdef KTRACE
-#include <sys/uio.h>
-#include <sys/ktrace.h>
-#endif
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -80,7 +76,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if defined(__sparc64__) || defined(__mips__)
+#if defined(__sparc64__)
 #error "This architecture is not currently compatible with ULE"
 #endif
 
@@ -169,7 +165,7 @@ static struct td_sched td_sched0;
  *		before throttling back.
  * SLP_RUN_FORK:	Maximum slp+run time to inherit at fork time.
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
- * INTERACT_THRESH:	Threshhold for placement on the current runq.
+ * INTERACT_THRESH:	Threshold for placement on the current runq.
  */
 #define	SCHED_SLP_RUN_MAX	((hz * 5) << SCHED_TICK_SHIFT)
 #define	SCHED_SLP_RUN_FORK	((hz / 2) << SCHED_TICK_SHIFT)
@@ -200,7 +196,7 @@ static int preempt_thresh = 0;
 #endif
 static int static_boost = PRI_MIN_TIMESHARE;
 static int sched_idlespins = 10000;
-static int sched_idlespinthresh = 4;
+static int sched_idlespinthresh = 16;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -212,6 +208,7 @@ struct tdq {
 	struct mtx	tdq_lock;		/* run queue lock. */
 	struct cpu_group *tdq_cg;		/* Pointer to cpu topology. */
 	volatile int	tdq_load;		/* Aggregate load. */
+	volatile int	tdq_cpu_idle;		/* cpu_idle() is active. */
 	int		tdq_sysload;		/* For loadavg, !ITHD load. */
 	int		tdq_transferable;	/* Transferable thread count. */
 	short		tdq_switchcnt;		/* Switches this tick. */
@@ -851,7 +848,7 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		 * IPI the target cpu to force it to reschedule with the new
 		 * workload.
 		 */
-		ipi_selected(1 << TDQ_ID(low), IPI_PREEMPT);
+		ipi_cpu(TDQ_ID(low), IPI_PREEMPT);
 	}
 	tdq_unlock_pair(high, low);
 	return (moved);
@@ -970,11 +967,11 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 		 * If the MD code has an idle wakeup routine try that before
 		 * falling back to IPI.
 		 */
-		if (cpu_idle_wakeup(cpu))
+		if (!tdq->tdq_cpu_idle || cpu_idle_wakeup(cpu))
 			return;
 	}
 	tdq->tdq_ipipending = 1;
-	ipi_selected(1 << cpu, IPI_PREEMPT);
+	ipi_cpu(cpu, IPI_PREEMPT);
 }
 
 /*
@@ -1254,9 +1251,7 @@ sched_setup_smp(void)
 	int i;
 
 	cpu_top = smp_topo();
-	for (i = 0; i < MAXCPU; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		tdq = TDQ_CPU(i);
 		tdq_setup(tdq);
 		tdq->tdq_cg = smp_topo_find(cpu_top, i);
@@ -1680,39 +1675,24 @@ sched_prio(struct thread *td, u_char prio)
 void
 sched_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	td->td_base_user_pri = prio;
-	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
-                return;
-	oldprio = td->td_user_pri;
+	if (td->td_lend_user_pri <= prio)
+		return;
 	td->td_user_pri = prio;
 }
 
 void
 sched_lend_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_flags |= TDF_UBORROWING;
-	oldprio = td->td_user_pri;
-	td->td_user_pri = prio;
-}
-
-void
-sched_unlend_user_prio(struct thread *td, u_char prio)
-{
-	u_char base_pri;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	base_pri = td->td_base_user_pri;
-	if (prio >= base_pri) {
-		td->td_flags &= ~TDF_UBORROWING;
-		sched_user_prio(td, base_pri);
-	} else {
-		sched_lend_user_prio(td, prio);
-	}
+	td->td_lend_user_pri = prio;
+	td->td_user_pri = min(prio, td->td_base_user_pri);
+	if (td->td_priority > td->td_user_pri)
+		sched_prio(td, td->td_user_pri);
+	else if (td->td_priority != td->td_user_pri)
+		td->td_flags |= TDF_NEEDRESCHED;
 }
 
 /*
@@ -1803,10 +1783,18 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		srqflag = (flags & SW_PREEMPT) ?
 		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 		    SRQ_OURSELF|SRQ_YIELDING;
+#ifdef SMP
+		if (THREAD_CAN_MIGRATE(td) && !THREAD_CAN_SCHED(td, ts->ts_cpu))
+			ts->ts_cpu = sched_pickcpu(td, 0);
+#endif
 		if (ts->ts_cpu == cpuid)
 			tdq_runq_add(tdq, td, srqflag);
-		else
+		else {
+			KASSERT(THREAD_CAN_MIGRATE(td) ||
+			    (ts->ts_flags & TSF_BOUND) != 0,
+			    ("Thread %p shouldn't migrate", td));
 			mtx = sched_switch_migrate(tdq, td, srqflag);
+		}
 	} else {
 		/* This thread must be going to sleep. */
 		TDQ_LOCK(tdq);
@@ -2160,7 +2148,7 @@ sched_clock(struct thread *td)
  * is easier than trying to scale based on stathz.
  */
 void
-sched_tick(void)
+sched_tick(int cnt)
 {
 	struct td_sched *ts;
 
@@ -2172,11 +2160,11 @@ sched_tick(void)
 	if (ts->ts_incrtick == ticks)
 		return;
 	/* Adjust ticks for pctcpu */
-	ts->ts_ticks += 1 << SCHED_TICK_SHIFT;
+	ts->ts_ticks += cnt << SCHED_TICK_SHIFT;
 	ts->ts_ltick = ticks;
 	ts->ts_incrtick = ticks;
 	/*
-	 * Update if we've exceeded our desired tick threshhold by over one
+	 * Update if we've exceeded our desired tick threshold by over one
 	 * second.
 	 */
 	if (ts->ts_ftick + SCHED_TICK_MAX < ts->ts_ltick)
@@ -2367,7 +2355,7 @@ sched_pctcpu(struct thread *td)
 	if (ts == NULL)
 		return (0);
 
-	thread_lock(td);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (ts->ts_ticks) {
 		int rtick;
 
@@ -2376,7 +2364,6 @@ sched_pctcpu(struct thread *td)
 		rtick = min(SCHED_TICK_HZ(ts) / SCHED_TICK_SECS, hz);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
 	}
-	thread_unlock(td);
 
 	return (pctcpu);
 }
@@ -2390,7 +2377,6 @@ sched_affinity(struct thread *td)
 {
 #ifdef SMP
 	struct td_sched *ts;
-	int cpu;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
@@ -2403,18 +2389,14 @@ sched_affinity(struct thread *td)
 	}
 	if (!TD_IS_RUNNING(td))
 		return;
-	td->td_flags |= TDF_NEEDRESCHED;
-	if (!THREAD_CAN_MIGRATE(td))
-		return;
 	/*
-	 * Assign the new cpu and force a switch before returning to
-	 * userspace.  If the target thread is not running locally send
-	 * an ipi to force the issue.
+	 * Force a switch before returning to userspace.  If the
+	 * target thread is not running locally send an ipi to force
+	 * the issue.
 	 */
-	cpu = ts->ts_cpu;
-	ts->ts_cpu = sched_pickcpu(td, 0);
-	if (cpu != PCPU_GET(cpuid))
-		ipi_selected(1 << cpu, IPI_PREEMPT);
+	td->td_flags |= TDF_NEEDRESCHED;
+	if (td != curthread)
+		ipi_cpu(ts->ts_cpu, IPI_PREEMPT);
 #endif
 }
 
@@ -2427,9 +2409,11 @@ sched_bind(struct thread *td, int cpu)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED|MA_NOTRECURSED);
+	KASSERT(td == curthread, ("sched_bind: can only bind curthread"));
 	ts = td->td_sched;
 	if (ts->ts_flags & TSF_BOUND)
 		sched_unbind(td);
+	KASSERT(THREAD_CAN_MIGRATE(td), ("%p must be migratable", td));
 	ts->ts_flags |= TSF_BOUND;
 	sched_pin();
 	if (PCPU_GET(cpuid) == cpu)
@@ -2448,6 +2432,7 @@ sched_unbind(struct thread *td)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT(td == curthread, ("sched_unbind: can only bind curthread"));
 	ts = td->td_sched;
 	if ((ts->ts_flags & TSF_BOUND) == 0)
 		return;
@@ -2484,7 +2469,7 @@ sched_load(void)
 	int i;
 
 	total = 0;
-	for (i = 0; i <= mp_maxid; i++)
+	CPU_FOREACH(i)
 		total += TDQ_CPU(i)->tdq_sysload;
 	return (total);
 #else
@@ -2546,8 +2531,14 @@ sched_idletd(void *dummy)
 			}
 		}
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
-		if (tdq->tdq_load == 0)
-			cpu_idle(switchcnt > 1);
+		if (tdq->tdq_load == 0) {
+			tdq->tdq_cpu_idle = 1;
+			if (tdq->tdq_load == 0) {
+				cpu_idle(switchcnt > sched_idlespinthresh * 4);
+				tdq->tdq_switchcnt++;
+			}
+			tdq->tdq_cpu_idle = 0;
+		}
 		if (tdq->tdq_load) {
 			thread_lock(td);
 			mi_switch(SW_VOL | SWT_IDLE, NULL);
@@ -2642,7 +2633,7 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	int i, first;
 
 	sbuf_printf(sb, "%*s<group level=\"%d\" cache-level=\"%d\">\n", indent,
-	    "", indent, cg->cg_level);
+	    "", 1 + indent / 2, cg->cg_level);
 	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"0x%x\">", indent, "",
 	    cg->cg_count, cg->cg_mask);
 	first = TRUE;
@@ -2657,14 +2648,16 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	}
 	sbuf_printf(sb, "</cpu>\n");
 
-	sbuf_printf(sb, "%*s <flags>", indent, "");
 	if (cg->cg_flags != 0) {
+		sbuf_printf(sb, "%*s <flags>", indent, "");
 		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
-			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>\n");
+			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>");
+		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
+			sbuf_printf(sb, "<flag name=\"THREAD\">THREAD group</flag>");
 		if ((cg->cg_flags & CG_FLAG_SMT) != 0)
-			sbuf_printf(sb, "<flag name=\"THREAD\">SMT group</flag>\n");
+			sbuf_printf(sb, "<flag name=\"SMT\">SMT group</flag>");
+		sbuf_printf(sb, "</flags>\n");
 	}
-	sbuf_printf(sb, "</flags>\n");
 
 	if (cg->cg_children > 0) {
 		sbuf_printf(sb, "%*s <children>\n", indent, "");
@@ -2704,6 +2697,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(topo);
 	return (err);
 }
+
 #endif
 
 SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
@@ -2740,6 +2734,7 @@ SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
 SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
     CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A", 
     "XML dump of detected CPU topology");
+
 #endif
 
 /* ps compat.  All cpu percentages from ULE are weighted. */

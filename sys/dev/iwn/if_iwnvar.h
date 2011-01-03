@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_iwnvar.h,v 1.17 2010/02/17 18:23:00 damien Exp $	*/
+/*	$OpenBSD: if_iwnvar.h,v 1.18 2010/04/30 16:06:46 damien Exp $	*/
 
 /*-
  * Copyright (c) 2007, 2008
@@ -150,7 +150,8 @@ struct iwn_fw_part {
 };
 
 struct iwn_fw_info {
-	u_char			*data;
+	const uint8_t		*data;
+	size_t			size;
 	struct iwn_fw_part	init;
 	struct iwn_fw_part	main;
 	struct iwn_fw_part	boot;
@@ -262,9 +263,24 @@ struct iwn_softc {
 
 	int			calib_cnt;
 	struct iwn_calib_state	calib;
+	u_int			calib_init;
+	u_int			calib_runtime;
+#define	IWN_CALIB_XTAL			(1 << IWN_CALIB_IDX_XTAL)
+#define	IWN_CALIB_DC			(1 << IWN_CALIB_IDX_DC)
+#define	IWN_CALIB_LO			(1 << IWN_CALIB_IDX_LO)
+#define	IWN_CALIB_TX_IQ			(1 << IWN_CALIB_IDX_TX_IQ)
+#define	IWN_CALIB_TX_IQ_PERIODIC	(1 << IWN_CALIB_IDX_TX_IQ_PERIODIC)
+#define	IWN_CALIB_BASE_BAND		(1 << IWN_CALIB_IDX_BASE_BAND)
+#define	IWN_CALIB_NUM			6
+	struct iwn_calib_info	calib_results[IWN_CALIB_NUM];
+#define	IWN_CALIB_IDX_XTAL		0
+#define	IWN_CALIB_IDX_DC		1
+#define	IWN_CALIB_IDX_LO		2
+#define	IWN_CALIB_IDX_TX_IQ		3
+#define	IWN_CALIB_IDX_TX_IQ_PERIODIC	4
+#define	IWN_CALIB_IDX_BASE_BAND		5
 
 	struct iwn_fw_info	fw;
-	struct iwn_calib_info	calibcmd[5];
 	uint32_t		errptr;
 
 	struct iwn_rx_stat	last_rx_stat;
@@ -283,7 +299,6 @@ struct iwn_softc {
 	uint16_t		rfcfg;
 	uint8_t			calib_ver;
 	char			eeprom_domain[4];
-	uint32_t		eeprom_crystal;
 	int16_t			eeprom_voltage;
 	int8_t			maxpwr2GHz;
 	int8_t			maxpwr5GHz;
@@ -307,7 +322,7 @@ struct iwn_softc {
 
 #define IWN_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
-	     MTX_NETWORK_LOCK, MTX_DEF)
+	    MTX_NETWORK_LOCK, MTX_DEF)
 #define IWN_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define IWN_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define IWN_UNLOCK(_sc)			mtx_unlock(&(_sc)->sc_mtx)

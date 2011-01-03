@@ -428,6 +428,10 @@ v_ex(sp, vp)
 			if (tp->term == TERM_BS)
 				break;
 
+			/* If the user changed their mind, return. */
+			if (tp->term != TERM_OK)
+				break;
+
 			/* Log the command. */
 			if (O_STR(sp, O_CEDIT) != NULL && v_ecl_log(sp, tp))
 				return (1);

@@ -15,7 +15,7 @@
 #include "includes.h"
 
 #include "common.h"
-#include "sha1.h"
+#include "crypto/sha1.h"
 #include "eap_peap_common.h"
 
 void peap_prfplus(int version, const u8 *key, size_t key_len,

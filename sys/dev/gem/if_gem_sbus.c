@@ -131,6 +131,8 @@ gem_sbus_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_variant = GEM_SUN_GEM;
 	sc->sc_dev = dev;
+	/* All known SBus models use a SERDES. */
+	sc->sc_flags = GEM_SERDES;
 
 	if (bus_alloc_resources(dev, gem_sbus_res_spec, sc->sc_res)) {
 		device_printf(dev, "failed to allocate resources\n");

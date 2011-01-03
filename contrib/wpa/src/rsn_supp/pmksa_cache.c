@@ -15,12 +15,10 @@
 #include "includes.h"
 
 #include "common.h"
-#include "wpa.h"
 #include "eloop.h"
-#include "sha1.h"
-#include "sha256.h"
-#include "wpa_i.h"
 #include "eapol_supp/eapol_supp_sm.h"
+#include "wpa.h"
+#include "wpa_i.h"
 #include "pmksa_cache.h"
 
 #if defined(IEEE8021X_EAPOL) && !defined(CONFIG_NO_WPA2)
@@ -36,39 +34,6 @@ struct rsn_pmksa_cache {
 			int replace);
 	void *ctx;
 };
-
-
-/**
- * rsn_pmkid - Calculate PMK identifier
- * @pmk: Pairwise master key
- * @pmk_len: Length of pmk in bytes
- * @aa: Authenticator address
- * @spa: Supplicant address
- * @use_sha256: Whether to use SHA256-based KDF
- *
- * IEEE Std 802.11i-2004 - 8.5.1.2 Pairwise key hierarchy
- * PMKID = HMAC-SHA1-128(PMK, "PMK Name" || AA || SPA)
- */
-static void rsn_pmkid(const u8 *pmk, size_t pmk_len, const u8 *aa,
-		      const u8 *spa, u8 *pmkid, int use_sha256)
-{
-	char *title = "PMK Name";
-	const u8 *addr[3];
-	const size_t len[3] = { 8, ETH_ALEN, ETH_ALEN };
-	unsigned char hash[SHA256_MAC_LEN];
-
-	addr[0] = (u8 *) title;
-	addr[1] = aa;
-	addr[2] = spa;
-
-#ifdef CONFIG_IEEE80211W
-	if (use_sha256)
-		hmac_sha256_vector(pmk, pmk_len, 3, addr, len, hash);
-	else
-#endif /* CONFIG_IEEE80211W */
-		hmac_sha1_vector(pmk, pmk_len, 3, addr, len, hash);
-	os_memcpy(pmkid, hash, PMKID_LEN);
-}
 
 
 static void pmksa_cache_set_expiration(struct rsn_pmksa_cache *pmksa);
@@ -167,7 +132,7 @@ pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 	struct rsn_pmksa_cache_entry *entry, *pos, *prev;
 	struct os_time now;
 
-	if (pmksa->sm->proto != WPA_PROTO_RSN || pmk_len > PMK_LEN)
+	if (pmk_len > PMK_LEN)
 		return NULL;
 
 	entry = os_zalloc(sizeof(*entry));
@@ -439,7 +404,7 @@ int pmksa_cache_set_current(struct wpa_sm *sm, const u8 *pmkid,
 
 /**
  * pmksa_cache_list - Dump text list of entries in PMKSA cache
- * @sm: Pointer to WPA state machine data from wpa_sm_init()
+ * @pmksa: Pointer to PMKSA cache data from pmksa_cache_init()
  * @buf: Buffer for the list
  * @len: Length of the buffer
  * Returns: number of bytes written to buffer
@@ -447,7 +412,7 @@ int pmksa_cache_set_current(struct wpa_sm *sm, const u8 *pmkid,
  * This function is used to generate a text format representation of the
  * current PMKSA cache contents for the ctrl_iface PMKSA command.
  */
-int pmksa_cache_list(struct wpa_sm *sm, char *buf, size_t len)
+int pmksa_cache_list(struct rsn_pmksa_cache *pmksa, char *buf, size_t len)
 {
 	int i, ret;
 	char *pos = buf;
@@ -462,7 +427,7 @@ int pmksa_cache_list(struct wpa_sm *sm, char *buf, size_t len)
 		return pos - buf;
 	pos += ret;
 	i = 0;
-	entry = sm->pmksa->pmksa;
+	entry = pmksa->pmksa;
 	while (entry) {
 		i++;
 		ret = os_snprintf(pos, buf + len - pos, "%d " MACSTR " ",

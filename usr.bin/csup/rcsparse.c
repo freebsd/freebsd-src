@@ -318,6 +318,14 @@ parse_deltatexts(struct rcsfile *rf, yyscan_t *sp, int token)
 		d = rcsfile_getdelta(rf, revnum);
 		free(revnum);
 
+		/*
+		 * XXX: The RCS file is corrupt, but lie and say it is ok.
+		 * If it is actually broken, then the MD5 mismatch will
+		 * trigger a fixup.
+		 */
+		if (d == NULL)
+			return (0);
+
 		/* log string */
 		asserttoken(sp, KEYWORD);
 		asserttoken(sp, STRING);

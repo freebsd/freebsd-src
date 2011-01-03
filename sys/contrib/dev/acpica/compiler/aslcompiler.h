@@ -147,6 +147,7 @@
 
 #include <contrib/dev/acpica/compiler/asldefine.h>
 #include <contrib/dev/acpica/compiler/asltypes.h>
+#include <contrib/dev/acpica/compiler/aslmessages.h>
 #include <contrib/dev/acpica/compiler/aslglobal.h>
 
 
@@ -189,11 +190,20 @@ AslPushInputFileStack (
     char                    *Filename);
 
 /*
- * aslstartup - called from main
+ * aslstartup - entered from main()
  */
+void
+AslInitializeGlobals (
+    void);
+
+typedef
+ACPI_STATUS (*ASL_PATHNAME_CALLBACK) (
+    char *);
+
 ACPI_STATUS
 AslDoOnePathname (
-    char                    *Pathname);
+    char                    *Pathname,
+    ASL_PATHNAME_CALLBACK   Callback);
 
 ACPI_STATUS
 AslDoOneFile (
@@ -221,6 +231,10 @@ CmDoOutputFiles (
 void
 CmCleanupAndExit (
     void);
+
+ACPI_STATUS
+FlCheckForAscii (
+    ASL_FILE_INFO           *FileInfo);
 
 
 /*
@@ -423,6 +437,16 @@ OptOptimizeNamePath (
 void
 CgGenerateAmlOutput (
     void);
+
+
+/*
+ * aslfile
+ */
+void
+FlOpenFile (
+    UINT32                  FileId,
+    char                    *Filename,
+    char                    *Mode);
 
 
 /*
@@ -663,6 +687,10 @@ ACPI_STATUS
 LsDisplayNamespace (
     void);
 
+void
+LsSetupNsList (
+    void                    *Handle);
+
 
 /*
  * aslutils - common compiler utilites
@@ -678,6 +706,10 @@ DbgPrint (
 #define ASL_DEBUG_OUTPUT    0
 #define ASL_PARSE_OUTPUT    1
 #define ASL_TREE_OUTPUT     2
+
+void
+UtDisplaySupportedTables (
+    void);
 
 void
 UtDisplayConstantOpcodes (
@@ -764,7 +796,8 @@ RsSmallAddressCheck (
     ACPI_PARSE_OBJECT       *MinOp,
     ACPI_PARSE_OBJECT       *MaxOp,
     ACPI_PARSE_OBJECT       *LengthOp,
-    ACPI_PARSE_OBJECT       *AlignOp);
+    ACPI_PARSE_OBJECT       *AlignOp,
+    ACPI_PARSE_OBJECT       *Op);
 
 void
 RsLargeAddressCheck (
@@ -776,7 +809,8 @@ RsLargeAddressCheck (
     ACPI_PARSE_OBJECT       *MinOp,
     ACPI_PARSE_OBJECT       *MaxOp,
     ACPI_PARSE_OBJECT       *LengthOp,
-    ACPI_PARSE_OBJECT       *GranOp);
+    ACPI_PARSE_OBJECT       *GranOp,
+    ACPI_PARSE_OBJECT       *Op);
 
 UINT16
 RsGetStringDataLength (
@@ -1002,6 +1036,17 @@ ASL_RESOURCE_NODE *
 RsDoWordBusNumberDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset);
+
+/*
+ * Entry to data table compiler subsystem
+ */
+ACPI_STATUS
+DtDoCompile(
+    void);
+
+ACPI_STATUS
+DtCreateTemplates (
+    char                    *Signature);
 
 #endif /*  __ASLCOMPILER_H */
 

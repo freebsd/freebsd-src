@@ -54,7 +54,6 @@
 #define TSB_MAX_RESIZE          (20 - TSB_INIT_SHIFT - PAGE_SHIFT)
 
 typedef	struct pmap *pmap_t;
-typedef uint32_t pmap_cpumask_t;
 
 struct pv_entry;
 struct tte_hash;
@@ -77,8 +76,8 @@ struct pmap {
 	struct hv_tsb_info      pm_tsb;
 	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
 	u_int			pm_retries;
-	pmap_cpumask_t          pm_active;      /* mask of cpus currently using pmap */
-	pmap_cpumask_t          pm_tlbactive;   /* mask of cpus that have used this pmap */
+	cpumask_t		pm_active;      /* mask of cpus currently using pmap */
+	cpumask_t		pm_tlbactive;   /* mask of cpus that have used this pmap */
 	struct	pmap_statistics pm_stats;
 	uint32_t                pm_tsb_miss_count;
 	uint32_t                pm_tsb_cap_miss_count;

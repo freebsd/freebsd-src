@@ -612,7 +612,7 @@ AcpiDbDisplayResults (
     for (i = 0; i < ResultCount; i++)
     {
         ObjDesc = Frame->Results.ObjDesc[Index];
-        AcpiOsPrintf ("Result%d: ", i);
+        AcpiOsPrintf ("Result%u: ", i);
         AcpiDmDisplayInternalObject (ObjDesc, WalkState);
         if (Index == 0)
         {
@@ -722,7 +722,7 @@ AcpiDbDisplayObjectType (
     {
         for (i = 0; i < Info->CompatibleIdList.Count; i++)
         {
-            AcpiOsPrintf ("CID %d: %s\n", i,
+            AcpiOsPrintf ("CID %u: %s\n", i,
                 Info->CompatibleIdList.Ids[i].String);
         }
     }
@@ -854,7 +854,7 @@ AcpiDbDisplayGpes (
                 GpeType = "GPE Block Device";
             }
 
-            AcpiOsPrintf ("\nBlock %d - Info %p  DeviceNode %p [%s] - %s\n",
+            AcpiOsPrintf ("\nBlock %u - Info %p  DeviceNode %p [%s] - %s\n",
                 Block, GpeBlock, GpeBlock->Node, Buffer, GpeType);
 
             AcpiOsPrintf ("    Registers:    %u (%u GPEs)\n",
@@ -896,7 +896,8 @@ AcpiDbDisplayGpes (
                     GpeIndex = (i * ACPI_GPE_REGISTER_WIDTH) + j;
                     GpeEventInfo = &GpeBlock->EventInfo[GpeIndex];
 
-                    if (!(GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK))
+                    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+                        ACPI_GPE_DISPATCH_NONE)
                     {
                         /* This GPE is not used (no method or handler), ignore it */
 
@@ -904,10 +905,9 @@ AcpiDbDisplayGpes (
                     }
 
                     AcpiOsPrintf (
-                        "        GPE %.2X: %p  RunRefs %2.2X   WakeRefs %2.2X Flags %2.2X (",
+                        "        GPE %.2X: %p  RunRefs %2.2X Flags %2.2X (",
                         GpeBlock->BlockBaseNumber + GpeIndex, GpeEventInfo,
-                        GpeEventInfo->RuntimeCount, GpeEventInfo->WakeupCount,
-                        GpeEventInfo->Flags);
+                        GpeEventInfo->RuntimeCount, GpeEventInfo->Flags);
 
                     /* Decode the flags byte */
 
@@ -931,14 +931,17 @@ AcpiDbDisplayGpes (
 
                     switch (GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK)
                     {
-                    case ACPI_GPE_DISPATCH_NOT_USED:
+                    case ACPI_GPE_DISPATCH_NONE:
                         AcpiOsPrintf ("NotUsed");
+                        break;
+                    case ACPI_GPE_DISPATCH_METHOD:
+                        AcpiOsPrintf ("Method");
                         break;
                     case ACPI_GPE_DISPATCH_HANDLER:
                         AcpiOsPrintf ("Handler");
                         break;
-                    case ACPI_GPE_DISPATCH_METHOD:
-                        AcpiOsPrintf ("Method");
+                    case ACPI_GPE_DISPATCH_NOTIFY:
+                        AcpiOsPrintf ("Notify");
                         break;
                     default:
                         AcpiOsPrintf ("UNKNOWN: %X",

@@ -28,18 +28,14 @@
 
 #include "assym.s"
 
-#include <sys/mutex.h>
-
 #include <machine/asm.h>
 #include <machine/hid.h>
 #include <machine/param.h>
 #include <machine/spr.h>
-#include <machine/psl.h>
 #include <machine/pte.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 #include <machine/tlb.h>
-#include <machine/bootinfo.h>
 
 #define TMPSTACKSZ	16384
 

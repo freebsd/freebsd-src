@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -57,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/vmmeter.h>
 #include <sys/pcpu.h>
 
@@ -181,6 +178,7 @@ main(int argc, char *argv[])
 {
 	int c, todo;
 	unsigned int interval;
+	float f;
 	int reps;
 	char *memf, *nlistf;
 	char errbuf[_POSIX2_LINE_MAX];
@@ -243,7 +241,9 @@ main(int argc, char *argv[])
 #endif
 			break;
 		case 'w':
-			interval = atoi(optarg);
+			/* Convert to milliseconds. */
+			f = atof(optarg);
+			interval = f * 1000;
 			break;
 		case 'z':
 			todo |= ZMEMSTAT;
@@ -298,7 +298,8 @@ main(int argc, char *argv[])
 #define	BACKWARD_COMPATIBILITY
 #ifdef	BACKWARD_COMPATIBILITY
 	if (*argv) {
-		interval = atoi(*argv);
+		f = atof(*argv);
+		interval = f * 1000;
 		if (*++argv)
 			reps = atoi(*argv);
 	}
@@ -308,7 +309,7 @@ main(int argc, char *argv[])
 		if (!reps)
 			reps = -1;
 	} else if (reps)
-		interval = 1;
+		interval = 1 * 1000;
 
 	if (todo & FORKSTAT)
 		doforkst();
@@ -423,7 +424,7 @@ fill_pcpu(struct pcpu ***pcpup, int* maxcpup)
 {
 	struct pcpu **pcpu;
 	
-	int maxcpu, size, i;
+	int maxcpu, i;
 
 	*pcpup = NULL;
 	
@@ -652,9 +653,11 @@ dovmstat(unsigned int interval, int reps)
 	size_t size;
 	int ncpus, maxid;
 	u_long cpumask;
+	int rate_adj;
 
 	uptime = getuptime();
 	halfuptime = uptime / 2;
+	rate_adj = 1;
 
 	/*
 	 * If the user stops the program (control-Z) and then resumes it,
@@ -766,7 +769,7 @@ dovmstat(unsigned int interval, int reps)
 		(void)printf("%2d %1d %1d",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define vmstat_pgtok(a) ((a) * (sum.v_page_size >> 10))
-#define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
+#define	rate(x)	(((x) * rate_adj + halfuptime) / uptime)	/* round */
 		if (hflag) {
 			printf(" ");
 			prthuman(total.t_avm * (u_int64_t)sum.v_page_size, 7);
@@ -806,15 +809,16 @@ dovmstat(unsigned int interval, int reps)
 			break;
 		osum = sum;
 		uptime = interval;
+		rate_adj = 1000;
 		/*
 		 * We round upward to avoid losing low-frequency events
-		 * (i.e., >= 1 per interval but < 1 per second).
+		 * (i.e., >= 1 per interval but < 1 per millisecond).
 		 */
 		if (interval != 1)
 			halfuptime = (uptime + 1) / 2;
 		else
 			halfuptime = 0;
-		(void)sleep(interval);
+		(void)usleep(interval * 1000);
 	}
 }
 
@@ -1286,16 +1290,17 @@ domemstat_zone(void)
 				    memstat_strerror(error));
 		}
 	}
-	printf("%-20s %8s  %8s  %8s  %8s  %8s  %8s\n\n", "ITEM", "SIZE",
-	    "LIMIT", "USED", "FREE", "REQUESTS", "FAILURES");
+	printf("%-20s %6s %6s %8s %8s %8s %4s %4s\n\n", "ITEM", "SIZE",
+	    "LIMIT", "USED", "FREE", "REQ", "FAIL", "SLEEP");
 	for (mtp = memstat_mtl_first(mtlp); mtp != NULL;
 	    mtp = memstat_mtl_next(mtp)) {
 		strlcpy(name, memstat_get_name(mtp), MEMTYPE_MAXNAME);
 		strcat(name, ":");
-		printf("%-20s %8llu, %8llu, %8llu, %8llu, %8llu, %8llu\n", name,
+		printf("%-20s %6llu, %6llu,%8llu,%8llu,%8llu,%4llu,%4llu\n",name,
 		    memstat_get_size(mtp), memstat_get_countlimit(mtp),
 		    memstat_get_count(mtp), memstat_get_free(mtp),
-		    memstat_get_numallocs(mtp), memstat_get_failures(mtp));
+		    memstat_get_numallocs(mtp), memstat_get_failures(mtp),
+		    memstat_get_sleeps(mtp));
 	}
 	memstat_mtl_free(mtlp);
 	printf("\n");

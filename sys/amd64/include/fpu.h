@@ -73,6 +73,17 @@ struct  savefpu {
 	u_char sv_pad[96];
 } __aligned(16);
 
+#ifdef _KERNEL
+struct fpu_kern_ctx {
+	struct savefpu hwstate;
+	struct savefpu *prev;
+	uint32_t flags;
+};
+#define	FPU_KERN_CTX_FPUINITDONE 0x01
+
+#define	PCB_USER_FPU(pcb) (((pcb)->pcb_flags & PCB_KERNFPU) == 0)
+#endif
+
 /*
  * The hardware default control word for i387's and later coprocessors is
  * 0x37F, giving:
@@ -101,10 +112,22 @@ void	fpudna(void);
 void	fpudrop(void);
 void	fpuexit(struct thread *td);
 int	fpuformat(void);
-int	fpugetregs(struct thread *td, struct savefpu *addr);
+int	fpugetregs(struct thread *td);
 void	fpuinit(void);
 void	fpusetregs(struct thread *td, struct savefpu *addr);
 int	fputrap(void);
+void	fpuuserinited(struct thread *td);
+int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
+	    u_int flags);
+int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
+int	fpu_kern_thread(u_int flags);
+int	is_fpu_kern_thread(u_int flags);
+
+/*
+ * Flags for fpu_kern_enter() and fpu_kern_thread().
+ */
+#define	FPU_KERN_NORMAL	0x0000
+
 #endif
 
 #endif /* !_MACHINE_FPU_H_ */

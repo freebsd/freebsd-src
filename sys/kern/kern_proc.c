@@ -64,10 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/vnode.h>
 #include <sys/eventhandler.h>
-#ifdef KTRACE
-#include <sys/uio.h>
-#include <sys/ktrace.h>
-#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -86,30 +82,30 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE(proc, kernel, ctor, entry);
+SDT_PROBE_DEFINE(proc, kernel, ctor, entry, entry);
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 2, "void *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, ctor, return);
+SDT_PROBE_DEFINE(proc, kernel, ctor, return, return);
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 2, "void *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, dtor, entry);
+SDT_PROBE_DEFINE(proc, kernel, dtor, entry, entry);
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 2, "void *");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 3, "struct thread *");
-SDT_PROBE_DEFINE(proc, kernel, dtor, return);
+SDT_PROBE_DEFINE(proc, kernel, dtor, return, return);
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 2, "void *");
-SDT_PROBE_DEFINE(proc, kernel, init, entry);
+SDT_PROBE_DEFINE(proc, kernel, init, entry, entry);
 SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 2, "int");
-SDT_PROBE_DEFINE(proc, kernel, init, return);
+SDT_PROBE_DEFINE(proc, kernel, init, return, return);
 SDT_PROBE_ARGTYPE(proc, kernel, init, return, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, init, return, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, init, return, 2, "int");
@@ -148,7 +144,8 @@ struct mtx ppeers_lock;
 uma_zone_t proc_zone;
 
 int kstack_pages = KSTACK_PAGES;
-SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0,
+    "Kernel stack size in pages");
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 #ifdef COMPAT_FREEBSD32
@@ -717,9 +714,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_textvp = p->p_textvp;
 #ifdef KTRACE
 	kp->ki_tracep = p->p_tracevp;
-	mtx_lock(&ktrace_mtx);
 	kp->ki_traceflag = p->p_traceflag;
-	mtx_unlock(&ktrace_mtx);
 #endif
 	kp->ki_fd = p->p_fd;
 	kp->ki_vmspace = p->p_vmspace;
@@ -784,18 +779,16 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	rufetch(p, &kp->ki_rusage);
 	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
 	PROC_SUNLOCK(p);
-	if ((p->p_flag & P_INMEM) && p->p_stats != NULL) {
-		kp->ki_start = p->p_stats->p_start;
-		timevaladd(&kp->ki_start, &boottime);
-		PROC_SLOCK(p);
-		calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
-		PROC_SUNLOCK(p);
-		calccru(p, &kp->ki_childutime, &kp->ki_childstime);
+	kp->ki_start = p->p_stats->p_start;
+	timevaladd(&kp->ki_start, &boottime);
+	PROC_SLOCK(p);
+	calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
+	PROC_SUNLOCK(p);
+	calccru(p, &kp->ki_childutime, &kp->ki_childstime);
+	/* Some callers want child times in a single value. */
+	kp->ki_childtime = kp->ki_childstime;
+	timevaladd(&kp->ki_childtime, &kp->ki_childutime);
 
-		/* Some callers want child-times in a single value */
-		kp->ki_childtime = kp->ki_childstime;
-		timevaladd(&kp->ki_childtime, &kp->ki_childutime);
-	}
 	tp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;
@@ -848,6 +841,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	struct proc *p;
 
 	p = td->td_proc;
+	kp->ki_tdaddr = td;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	thread_lock(td);
@@ -1577,6 +1571,8 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_flags |= KVME_FLAG_COW;
 		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
 			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
+		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
+			kve->kve_flags |= KVME_FLAG_NOCOREDUMP;
 
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
@@ -1752,6 +1748,8 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_flags |= KVME_FLAG_COW;
 		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
 			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
+		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
+			kve->kve_flags |= KVME_FLAG_NOCOREDUMP;
 
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);

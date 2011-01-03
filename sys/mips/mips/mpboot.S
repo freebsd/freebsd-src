@@ -36,25 +36,30 @@
 	.set	noat
 	.set	noreorder
 
-#ifdef TARGET_OCTEON
+/* XXX move this to a header file */
+#if defined(CPU_CNMIPS)
 #define CLEAR_STATUS \
-	mfc0    a0, COP_0_STATUS_REG    ;\
+	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
 	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER | MIPS_SR_BEV)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER | MIPS_SR_BEV) ; \
 	and     a0, a0, a2              ; \
-        mtc0    a0, COP_0_STATUS_REG    
+        mtc0    a0, MIPS_COP_0_STATUS
+#elif defined(__mips_n64)
+#define CLEAR_STATUS \
+	li	a0, (MIPS_SR_KX | MIPS_SR_UX) ; \
+	mtc0	a0, MIPS_COP_0_STATUS
 #else
 #define CLEAR_STATUS \
-	mtc0	zero, COP_0_STATUS_REG
+	mtc0	zero, MIPS_COP_0_STATUS
 #endif
 
 GLOBAL(mpentry)
 	CLEAR_STATUS			/* disable interrupts */
 
-	mtc0	zero, COP_0_CAUSE_REG	/* clear soft interrupts */
+	mtc0	zero, MIPS_COP_0_CAUSE	/* clear soft interrupts */
 
-	li	t0, CFG_K0_CACHED	/* make sure kseg0 is cached */
+	li	t0, MIPS_CCA_CACHED	/* make sure kseg0 is cached */
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 
@@ -78,7 +83,6 @@ GLOBAL(mpentry)
 
 	jal	platform_init_ap
 	move	a0, s0
-
 	jal	smp_init_secondary
 	move	a0, s0
 

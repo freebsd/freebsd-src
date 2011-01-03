@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600004
+%VERSREQ=	600010
 
 STD8X16FONT?=	iso
 
@@ -28,7 +28,12 @@ S=	./@
 S=	../../..
 .endif
 .endif
+
+LDSCRIPT_NAME?= ldscript.${MACHINE_ARCH}
+
 .include "$S/conf/kern.pre.mk"
+
+INCLUDES+= -I$S/contrib/libfdt
 
 CFLAGS+= -msoft-float
 

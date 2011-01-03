@@ -98,6 +98,7 @@ struct vop_vector default_vnodeops = {
 	.vop_accessx =		vop_stdaccessx,
 	.vop_advlock =		vop_stdadvlock,
 	.vop_advlockasync =	vop_stdadvlockasync,
+	.vop_advlockpurge =	vop_stdadvlockpurge,
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
 	.vop_fsync =		VOP_NULL,
@@ -284,6 +285,9 @@ get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
 
 		*cpos = dirbuf;
 		*len = (dirbuflen - uio.uio_resid);
+
+		if (*len == 0)
+			return (ENOENT);
 	}
 
 	dp = (struct dirent *)(*cpos);
@@ -411,6 +415,16 @@ vop_stdadvlockasync(struct vop_advlockasync_args *ap)
 		return (error);
 
 	return (lf_advlockasync(ap, &(vp->v_lockf), vattr.va_size));
+}
+
+int
+vop_stdadvlockpurge(struct vop_advlockpurge_args *ap)
+{
+	struct vnode *vp;
+
+	vp = ap->a_vp;
+	lf_purgelocks(vp, &vp->v_lockf);
+	return (0);
 }
 
 /*

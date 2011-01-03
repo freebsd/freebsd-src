@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#include <machine/mips-exts.h>
 #include <machine/cpuregs.h>
 
 #include <vm/vm.h>
@@ -49,20 +48,19 @@ __FBSDID("$FreeBSD$");
 
 #include <opencrypto/cryptodev.h>
 
-
-#include <mips/xlr/iomap.h>
-#include <mips/xlr/pic.h>
-#include <mips/xlr/shared_structs.h>
-#include <mips/xlr/iomap.h>
-#include <mips/xlr/msgring.h>
-#include <mips/xlr/board.h>
+#include <mips/rmi/rmi_mips_exts.h>
+#include <mips/rmi/iomap.h>
+#include <mips/rmi/pic.h>
+#include <mips/rmi/rmi_boot_info.h>
+#include <mips/rmi/msgring.h>
+#include <mips/rmi/board.h>
 #include <mips/rmi/dev/sec/rmilib.h>
 #include <mips/rmi/dev/sec/desc.h>
 
 
-// static int msgrng_stnid_pk0 = MSGRNG_STNID_PK0;
+/* static int msgrng_stnid_pk0 = MSGRNG_STNID_PK0; */
 
-/*#define RMI_SEC_DEBUG */
+/* #define RMI_SEC_DEBUG */
 
 #define SMP_CACHE_BYTES XLR_CACHELINE_SIZE
 #define NUM_CHUNKS(size, bits) ( ((size)>>(bits)) + (((size)&((1<<(bits))-1))?1:0) )
@@ -72,73 +70,35 @@ symkey_desc_pt g_desc;
 struct xlr_sec_command *g_cmd;
 
 #ifdef XLR_SEC_CMD_DEBUG
-static void
-     decode_symkey_desc(symkey_desc_pt desc, uint32_t cfg_vector);
-
+static void decode_symkey_desc(symkey_desc_pt desc, uint32_t cfg_vector);
 #endif
 
-void print_buf(char *desc, void *data, int len);
+static int xlr_sec_cipher_hash_command(xlr_sec_io_pt op, symkey_desc_pt desc,
+    uint8_t);
+static xlr_sec_error_t xlr_sec_setup_descriptor(xlr_sec_io_pt op,
+    unsigned int flags, symkey_desc_pt desc, uint32_t * cfg_vector);
 
-static int
-    xlr_sec_cipher_hash_command(xlr_sec_io_pt op, symkey_desc_pt desc, uint8_t);
-
-static xlr_sec_error_t
-xlr_sec_setup_descriptor(xlr_sec_io_pt op,
-    unsigned int flags,
-    symkey_desc_pt desc,
-    uint32_t * cfg_vector);
-
-static
-xlr_sec_error_t 
-xlr_sec_setup_packet(xlr_sec_io_pt op,
-    symkey_desc_pt desc,
-    unsigned int flags,
-    uint64_t * data,
-    PacketDescriptor_pt pkt_desc,
-    ControlDescriptor_pt ctl_desc,
-    uint32_t vector,
-    PacketDescriptor_pt next_pkt_desc,
+static xlr_sec_error_t xlr_sec_setup_packet(xlr_sec_io_pt op,
+    symkey_desc_pt desc, unsigned int flags, uint64_t * data,
+    PacketDescriptor_pt pkt_desc, ControlDescriptor_pt ctl_desc,
+    uint32_t vector, PacketDescriptor_pt next_pkt_desc,
     uint8_t multi_frag_flag);
-
-static int
-    xlr_sec_submit_message(symkey_desc_pt desc, uint32_t cfg_vector);
-
-static
-xlr_sec_error_t 
-xlr_sec_setup_cipher(xlr_sec_io_pt op,
-    ControlDescriptor_pt ctl_desc,
-    uint32_t * vector);
-
-static
-xlr_sec_error_t 
-xlr_sec_setup_digest(xlr_sec_io_pt op,
-    ControlDescriptor_pt ctl_desc,
-    uint32_t * vector);
-
-static
-xlr_sec_error_t 
-xlr_sec_setup_cksum(xlr_sec_io_pt op,
+static int xlr_sec_submit_message(symkey_desc_pt desc, uint32_t cfg_vector);
+static xlr_sec_error_t xlr_sec_setup_cipher(xlr_sec_io_pt op,
+    ControlDescriptor_pt ctl_desc, uint32_t * vector);
+static xlr_sec_error_t xlr_sec_setup_digest(xlr_sec_io_pt op,
+    ControlDescriptor_pt ctl_desc, uint32_t * vector);
+static xlr_sec_error_t xlr_sec_setup_cksum(xlr_sec_io_pt op,
     ControlDescriptor_pt ctl_desc);
+static xlr_sec_error_t xlr_sec_control_setup(xlr_sec_io_pt op,
+    unsigned int flags, uint64_t * control, ControlDescriptor_pt ctl_desc,
+    xlr_sec_drv_user_t * user, uint32_t vector);
+static void xlr_sec_free_desc(symkey_desc_pt desc); 
 
-static
-xlr_sec_error_t 
-xlr_sec_control_setup(xlr_sec_io_pt op,
-    unsigned int flags,
-    uint64_t * control,
-    ControlDescriptor_pt ctl_desc,
-    xlr_sec_drv_user_t * user,
-    uint32_t vector);
-
-
-xlr_sec_error_t
-xlr_sec_submit_op(symkey_desc_pt desc);
-
-static void xlr_sec_free_desc(symkey_desc_pt desc);
-
-void 
-xlr_sec_msgring_handler(int bucket, int size, int code, int stid,
+void print_buf(char *desc, void *data, int len);
+xlr_sec_error_t xlr_sec_submit_op(symkey_desc_pt desc);
+void xlr_sec_msgring_handler(int bucket, int size, int code, int stid,
     struct msgrng_msg *msg, void *data);
-
 
 void 
 xlr_sec_init(struct xlr_sec_softc *sc)
@@ -146,12 +106,8 @@ xlr_sec_init(struct xlr_sec_softc *sc)
 	unsigned int i;
 	xlr_reg_t *mmio;
 
-
 	mmio = sc->mmio = xlr_io_mmio(XLR_IO_SECURITY_OFFSET);
-
 	xlr_write_reg(mmio, SEC_DMA_CREDIT, SEC_DMA_CREDIT_CONFIG);
-
-
 	xlr_write_reg(mmio, SEC_CONFIG2, SEC_CFG2_ROUND_ROBIN_ON);
 
 	for (i = 0; i < 8; i++)
@@ -168,7 +124,6 @@ xlr_sec_init(struct xlr_sec_softc *sc)
 		    xls_cc_table_sec.counters[i >> 3][i & 0x07] :
 		    cc_table_sec.counters[i >> 3][i & 0x07]);
 
-
 	/*
 	 * Register a bucket handler with the phoenix messaging subsystem
 	 * For now, register handler for bucket 0->5 in msg stn 0
@@ -179,30 +134,23 @@ xlr_sec_init(struct xlr_sec_softc *sc)
 	return;
 }
 
-
-
 int 
 xlr_sec_setup(struct xlr_sec_session *ses,
     struct xlr_sec_command *cmd,
-    symkey_desc_pt desc
-)
+    symkey_desc_pt desc)
 {
 	xlr_sec_io_pt op;
 	int size, ret_val;
 	int iv_len;
-
 
 	desc->ses = ses;
 	op = &cmd->op;
 	if (op == NULL)
 		return (-ENOMEM);
 
-
-
 	desc->ctl_desc.instruction = 0;
 	memset(&desc->ctl_desc.cipherHashInfo, 0, sizeof(CipherHashInfo_t));
 	desc->control = 0;
-
 	desc->pkt_desc[0].srcLengthIVOffUseIVNext = 0;
 	desc->pkt_desc[0].dstDataSettings = 0;
 	desc->pkt_desc[0].authDstNonceLow = 0;
@@ -211,11 +159,9 @@ xlr_sec_setup(struct xlr_sec_session *ses,
 	desc->pkt_desc[1].dstDataSettings = 0;
 	desc->pkt_desc[1].authDstNonceLow = 0;
 	desc->pkt_desc[1].ckSumDstNonceHiCFBMaskLLWMask = 0;
-
 	desc->data = 0;
 	desc->ctl_result = 0;
 	desc->data_result = 0;
-
 
 	if (op->flags & XLR_SEC_FLAGS_HIGH_PRIORITY)
 		if (!xlr_is_xls())
@@ -225,7 +171,6 @@ xlr_sec_setup(struct xlr_sec_session *ses,
 	desc->user.user_dest = (uint8_t *) (unsigned long)op->dest_buf;
 	desc->user.user_auth = (uint8_t *) (unsigned long)op->auth_dest;
 
-
 	if ((op->cipher_type == XLR_SEC_CIPHER_TYPE_ARC4) &&
 	    (!op->rc4_state && (op->rc4_loadstate || op->rc4_savestate))) {
 		printf(" ** Load/Save State and no State **");
@@ -233,7 +178,6 @@ xlr_sec_setup(struct xlr_sec_session *ses,
 		return (-EINVAL);
 	}
 	desc->user.user_state = (uint8_t *) (unsigned long)op->rc4_state;
-
 
 	switch (op->cipher_type) {
 	case XLR_SEC_CIPHER_TYPE_NONE:
@@ -260,10 +204,6 @@ xlr_sec_setup(struct xlr_sec_session *ses,
 		xlr_sec_free_desc(desc);
 		return (-EINVAL);
 	}
-
-
-
-
 	size = op->source_buf_size + iv_len;
 
 	/*
@@ -276,7 +216,8 @@ xlr_sec_setup(struct xlr_sec_session *ses,
 
 	if (op->cipher_type == XLR_SEC_CIPHER_TYPE_NONE) {
 		if (op->source_buf_size != 0) {
-			memcpy(desc->user.aligned_src, (uint8_t *) (unsigned long)op->source_buf,
+			memcpy(desc->user.aligned_src,
+			    (uint8_t *)(uintptr_t)op->source_buf,
 			    op->source_buf_size);
 		}
 	} else {
@@ -306,11 +247,8 @@ xlr_sec_setup(struct xlr_sec_session *ses,
 		}
 	}
 
-
-
 	/* Set source to new kernel space */
 	op->source_buf = (uint64_t) (unsigned long)desc->user.aligned_src;
-
 
 	/*
 	 * Build new dest buffer, for Cipher output only
@@ -324,7 +262,6 @@ xlr_sec_setup(struct xlr_sec_session *ses,
 	} else {
 		/* DEBUG -dpk */
 		XLR_SEC_CMD_DIAG("dest_buf_size = %d \n", op->dest_buf_size);
-
 		size = op->dest_buf_size + iv_len;
 
 		/*
@@ -335,11 +272,9 @@ xlr_sec_setup(struct xlr_sec_session *ses,
 		    op->cipher_mode == XLR_SEC_CIPHER_MODE_CTR)
 			size += XLR_SEC_AES_BLOCK_SIZE - 1;
 		op->dest_buf = (uint64_t) (unsigned long)desc->user.aligned_dest;
-
 	}
 
 	ret_val = xlr_sec_cipher_hash_command(op, desc, ses->multi_frag_flag);
-
 	return (ret_val);
 
 }
@@ -396,7 +331,6 @@ xlr_sec_cipher_hash_command(xlr_sec_io_pt op, symkey_desc_pt desc,
 	return err;
 }
 
-
 static xlr_sec_error_t
 xlr_sec_setup_descriptor(xlr_sec_io_pt op,
     unsigned int flags,
@@ -406,7 +340,6 @@ xlr_sec_setup_descriptor(xlr_sec_io_pt op,
 	xlr_sec_error_t err;
 
 	XLR_SEC_CMD_DIAG("xlr_sec_setup_descriptor: ENTER\n");
-
 
 	if ((err = xlr_sec_setup_cipher(op, &desc->ctl_desc, cfg_vector)) != XLR_SEC_ERR_NONE) {
 		XLR_SEC_CMD_DIAG("xlr_sec_setup_descriptor: xlr_sec_setup_cipher done err %d\n",
@@ -483,7 +416,7 @@ xlr_sec_setup_packet(xlr_sec_io_pt op,
 
 	len = op->source_buf_size + byte_offset - global_offset;
 	if (multi_frag_flag) {
-		next_seg_addr = (uint64_t) vtophys((void *)(unsigned long)(desc->next_src_buf));
+		next_seg_addr = (uint64_t)vtophys((void *)(uintptr_t)desc->next_src_buf);
 		next_seg_addr = (next_seg_addr & ~(SMP_CACHE_BYTES - 1));
 		next_len = desc->next_src_len;
 	}
@@ -505,14 +438,12 @@ xlr_sec_setup_packet(xlr_sec_io_pt op,
 	 */
 	cipher_offset_dwords = (op->iv_offset + byte_offset) >> 3;
 
-
 	if (op->cipher_mode == XLR_SEC_CIPHER_MODE_F8 ||
 	    op->cipher_mode == XLR_SEC_CIPHER_MODE_CTR) {
 		if (multi_frag_flag) {
 			int nlhmac = ((op->source_buf_size + global_offset + 7 - op->cipher_offset) >> 3) & 1;
 
 			pkt_desc->srcLengthIVOffUseIVNext =
-
 			    FIELD_VALUE(PKT_DSC_HASHBYTES, len & 7) |
 			    FIELD_VALUE(PKT_DSC_IVOFF, cipher_offset_dwords) |
 			    FIELD_VALUE(PKT_DSC_PKTLEN, nlhmac + ((len + 7) >> 3)) |
@@ -539,7 +470,6 @@ xlr_sec_setup_packet(xlr_sec_io_pt op,
 	} else {
 		if (multi_frag_flag) {
 			pkt_desc->srcLengthIVOffUseIVNext =
-
 			    FIELD_VALUE(PKT_DSC_HASHBYTES, len & 7) |
 			    FIELD_VALUE(PKT_DSC_IVOFF, cipher_offset_dwords) |
 			    FIELD_VALUE(PKT_DSC_PKTLEN, (len + 7) >> 3) |
@@ -890,7 +820,6 @@ xlr_sec_setup_packet(xlr_sec_io_pt op,
 			CLEAR_SET_FIELD(next_pkt_desc->ckSumDstNonceHiCFBMaskLLWMask,
 			    PKT_DSC_CKSUM_DST_ADDR,
 			    (uint64_t) vtophys((void *)(unsigned long)desc->next_cksum_dest));
-
 		}
 	}
 	/*
@@ -902,17 +831,13 @@ xlr_sec_setup_packet(xlr_sec_io_pt op,
 	XLR_SEC_CMD_DIAG(" xlr_sec_setup_packet():  pkt_desc=%p   phys_pkt_desc=%llx \n",
 	    pkt_desc, (unsigned long long)vtophys(pkt_desc));
 
-
-
 	CLEAR_SET_FIELD(*data, MSG_CMD_DATA_ADDR, ((uint64_t) vtophys(pkt_desc)));
 	CLEAR_SET_FIELD(*data, MSG_CMD_DATA_CTL, SEC_EOP);
 	CLEAR_SET_FIELD(*data, MSG_CMD_DATA_LEN, MSG_CMD_DATA_LEN_LOAD);
 
-
 	XLR_SEC_CMD_DIAG("xlr_sec_setup_packet:  DONE\n");
 
 #ifdef RMI_SEC_DEBUG
-
 	{
 		printf("data desc\n");
 		printf("srcLengthIVOffUseIVNext = 0x%llx\n", pkt_desc->srcLengthIVOffUseIVNext);
@@ -1036,9 +961,7 @@ xlr_sec_submit_message(symkey_desc_pt desc, uint32_t cfg_vector)
 	int ret_val = 0;
 
 	XLR_SEC_CMD_DIAG("xlr_sec_submit_message:  ENTER\n");
-
 	err = XLR_SEC_ERR_NONE;
-
 	XLR_SEC_CMD_DIAG_SYM_DESC(desc, cfg_vector);
 
 	do {
@@ -1206,7 +1129,6 @@ xlr_sec_setup_cipher(xlr_sec_io_pt op,
 	return XLR_SEC_ERR_NONE;
 }
 
-
 static
 xlr_sec_error_t 
 xlr_sec_setup_digest(xlr_sec_io_pt op,
@@ -1304,7 +1226,6 @@ xlr_sec_setup_digest(xlr_sec_io_pt op,
 	*vector |= digest_vector;
 
 	XLR_SEC_CMD_DIAG("xlr_sec_setup_digest: EXIT  vector = %04x\n", *vector);
-
 	return XLR_SEC_ERR_NONE;
 }
 
@@ -1349,7 +1270,6 @@ xlr_sec_control_setup(xlr_sec_io_pt op,
 #ifdef SYM_DEBUG
 	XLR_SEC_CMD_DIAG(" ENTER  vector = %04x\n", vector);
 #endif
-
 
 	switch (vector) {
 	case XLR_SEC_VECTOR_MAC:
@@ -1970,7 +1890,6 @@ xlr_sec_control_setup(xlr_sec_io_pt op,
 	return XLR_SEC_ERR_NONE;
 }
 
-
 xlr_sec_error_t
 xlr_sec_submit_op(symkey_desc_pt desc)
 {
@@ -2013,30 +1932,17 @@ xlr_sec_submit_op(symkey_desc_pt desc)
 	XLR_SEC_CMD_DIAG("[%s]: IN_IRQ=%d  msg0=0x%llx  msg1=0x%llx \n",
 	    __FUNCTION__, desc->op_ctl.flags, send_msg.msg0, send_msg.msg1);
 
-
-
 	retries = 100;
-
 	while (retries--) {
-		msgrng_flags_save(msgrng_flags);
-
-		code = message_send_retry(SEC_MSGRING_WORDSIZE,
-		    MSGRNG_CODE_SEC,
-		    desc->op_ctl.stn_id,
-		    &send_msg);
-
-
-		msgrng_flags_restore(msgrng_flags);
-
+		msgrng_flags = msgrng_access_enable();
+		code = message_send(SEC_MSGRING_WORDSIZE, MSGRNG_CODE_SEC,
+		    desc->op_ctl.stn_id, &send_msg);
+		msgrng_restore(msgrng_flags);
 		if (code == 0)
 			break;
 	}
-
-
 	return (XLR_SEC_ERR_NONE);
 }
-
-
 
 symkey_desc_pt 
 xlr_sec_allocate_desc(void *session_ptr)
@@ -2090,7 +1996,6 @@ xlr_sec_allocate_desc(void *session_ptr)
 	new->user.kern_auth = new->user.user_auth = NULL;
 	new->user.aligned_auth = new->user.user_auth = NULL;
 
-
 	/* find cacheline alignment */
 	aligned = new;
 	addr = (uint64_t) vtophys(new);
@@ -2101,6 +2006,7 @@ xlr_sec_allocate_desc(void *session_ptr)
 	/* setup common control info */
 	aligned->op_ctl.phys_self = addr;
 	aligned->op_ctl.stn_id = MSGRNG_STNID_SEC0;
+	aligned->op_ctl.vaddr = (uintptr_t)aligned;
 
 	return (aligned);
 }
@@ -2114,8 +2020,6 @@ xlr_sec_free_desc(symkey_desc_pt desc)
 		return;
 	}
 	contigfree(desc, sizeof(symkey_desc_t), M_DEVBUF);
-
-
 	return;
 }
 
@@ -2816,7 +2720,7 @@ decode_symkey_desc(symkey_desc_pt desc, uint32_t cfg_vector)
 		break;
 	}
 	DPRINT("PACKET DESCRIPTOR: \n");
-	word = desc->pkt_desc.srcLengthIVOffUseIVNext;
+	word = 0; //desc->pkt_desc.srcLengthIVOffUseIVNext;
 	DPRINT("\tSrcLengthIVOffsetIVNext:   %llx\n", word);
 	DPRINT("\t\tLoad HMAC         = %lld \n",
 	    GET_FIELD(word, PKT_DSC_LOADHMACKEY));
@@ -2841,7 +2745,7 @@ decode_symkey_desc(symkey_desc_pt desc, uint32_t cfg_vector)
 	DPRINT("\t\tGlobal Src Offset = %lld \n",
 	    GET_FIELD(word, PKT_DSC_SEGOFFSET));
 
-	word = desc->pkt_desc.dstDataSettings;
+	word = 0; //desc->pkt_desc.dstDataSettings;
 	DPRINT("\tdstDataSettings:  %llx \n", word);
 	DPRINT("\t\tArc4 Byte Count   = %lld \n", GET_FIELD(word,
 	    PKT_DSC_ARC4BYTECOUNT));
@@ -2859,7 +2763,7 @@ decode_symkey_desc(symkey_desc_pt desc, uint32_t cfg_vector)
 	    PKT_DSC_CPHR_DST_DWOFFSET));
 	DPRINT("\t\tCipher Dest Offset= %lld \n", GET_FIELD(word,
 	    PKT_DSC_CPHR_DST_OFFSET));
-	word = desc->pkt_desc.authDstNonceLow;
+	word = 0; //desc->pkt_desc.authDstNonceLow;
 	DPRINT("\tauthDstNonceLow:  %llx \n", word);
 	DPRINT("\t\tNonce Low 24      = %lld \n", GET_FIELD(word,
 	    PKT_DSC_NONCE_LOW));
@@ -2867,7 +2771,7 @@ decode_symkey_desc(symkey_desc_pt desc, uint32_t cfg_vector)
 	    PKT_DSC_AUTH_DST_ADDR));
 	DPRINT("\t\tCipher Offset High= %lld \n", GET_FIELD(word,
 	    PKT_DSC_CIPH_OFF_HI));
-	word = desc->pkt_desc.ckSumDstNonceHiCFBMaskLLWMask;
+	word = 0; //desc->pkt_desc.ckSumDstNonceHiCFBMaskLLWMask;
 	DPRINT("\tckSumDstNonceHiCFBMaskLLWMask:  %llx \n", word);
 	DPRINT("\t\tHash Byte off     = %lld \n", GET_FIELD(word, PKT_DSC_HASH_BYTE_OFF));
 	DPRINT("\t\tPacket Len bytes  = %lld \n", GET_FIELD(word, PKT_DSC_PKTLEN_BYTES));
@@ -2897,7 +2801,7 @@ xlr_sec_msgring_handler(int bucket, int size, int code, int stid,
 	symkey_desc_pt desc = NULL;
 	struct xlr_sec_session *ses = NULL;
 	struct xlr_sec_command *cmd = NULL;
-
+	uint32_t flags;
 
 	if (code != MSGRNG_CODE_SEC) {
 		panic("xlr_sec_msgring_handler: bad code = %d,"
@@ -2915,7 +2819,6 @@ xlr_sec_msgring_handler(int bucket, int size, int code, int stid,
 	 */
 	sec_eng = GET_FIELD(msg->msg0, MSG_CTL_OP_TYPE);
 	sec_pipe = GET_FIELD(msg->msg1, MSG_CTL_OP_TYPE);
-
 
 	error = msg->msg0 >> 40 & 0x1ff;
 	if (error)
@@ -2938,12 +2841,11 @@ xlr_sec_msgring_handler(int bucket, int size, int code, int stid,
 		 * they are used for the engine and pipe Id.
 		 */
 		addr = GET_FIELD(msg->msg1, MSG_RSLT_DATA_DSC_ADDR);
-
 		addr = addr & ~((1 << 5) - 1);
 		if (!addr) {
 			panic("[%s:STNID_SEC]:  NULL symkey addr!\n", __FUNCTION__);
-
 		}
+
 		/*
 		 * The adddress points to the data descriptor. The operation
 		 * descriptor is defined with the 32-byte cacheline size in
@@ -2951,7 +2853,10 @@ xlr_sec_msgring_handler(int bucket, int size, int code, int stid,
 		 * reference the symkey descriptor.   (ref:  xlr_sec_desc.h)
 		 */
 		addr = addr - sizeof(OperationDescriptor_t);
-		desc = (symkey_desc_pt) MIPS_PHYS_TO_KSEG0(addr);
+		flags = xlr_enable_kx();
+		desc = (symkey_desc_pt)(uintptr_t)xlr_paddr_ld(addr + 
+		    offsetof(OperationDescriptor_t, vaddr));
+		xlr_restore_kx(flags);
 
 		if (!desc) {
 			printf("\nerror : not getting desc back correctly \n");
@@ -3099,10 +3004,8 @@ xlr_sec_msgring_handler(int bucket, int size, int code, int stid,
 	}
 #endif
 
-
 	/* Copy cipher-data to User-space */
 	if (op->cipher_type != XLR_SEC_CIPHER_TYPE_NONE) {
-
 		size = op->dest_buf_size;
 
 		/* DEBUG -dpk */
@@ -3119,14 +3022,12 @@ xlr_sec_msgring_handler(int bucket, int size, int code, int stid,
 			crypto_copyback(cmd->crp->crp_flags, cmd->crp->crp_buf, 0,
 			    cmd->op.dest_buf_size, (caddr_t)(long)desc->user.aligned_dest + op->cipher_offset);
 			crypto_done(cmd->crp);
-
 		}
 
-
 	}
+
 	/* Copy digest to User-space */
 	if (op->digest_type != XLR_SEC_DIGEST_TYPE_NONE) {
-
 		int offset = 0;
 
 		switch (op->digest_type) {
@@ -3163,7 +3064,6 @@ xlr_sec_msgring_handler(int bucket, int size, int code, int stid,
 	}
 	if (op->cipher_type == XLR_SEC_CIPHER_TYPE_ARC4 &&
 	    op->rc4_savestate) {
-
 		size = XLR_SEC_MAX_RC4_STATE_SIZE;
 
 		XLR_SEC_CMD_DIAG("state:  to_addr=%p  from_addr=%p  size=%d \n",

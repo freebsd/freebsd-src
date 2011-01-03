@@ -165,9 +165,14 @@ flush_taskqueue(struct taskqueue *tq)
 	taskqueue_drain(tq, &flushtask);
 }
 
-#define	cancel_work_sync(work)						\
-	(work)->taskqueue ?						\
-	taskqueue_cancel((work)->taskqueue, &(work)->work_task, 1) : 0
+static inline int
+cancel_work_sync(struct work_struct *work)
+{
+	if (work->taskqueue &&
+	    taskqueue_cancel(work->taskqueue, &work->work_task, NULL))
+		taskqueue_drain(work->taskqueue, &work->work_task);
+	return 0;
+}
 
 /*
  * This may leave work running on another CPU as it does on Linux.
@@ -175,13 +180,12 @@ flush_taskqueue(struct taskqueue *tq)
 static inline int
 cancel_delayed_work(struct delayed_work *work)
 {
-	int error;
 
 	callout_stop(&work->timer);
-	if (work->work.taskqueue)
-		error = taskqueue_cancel(work->work.taskqueue,
-		    &work->work.work_task, 0);
-	return error;
+	if (work->work.taskqueue &&
+	    taskqueue_cancel(work->work.taskqueue, &work->work.work_task, NULL))
+		taskqueue_drain(work->work.taskqueue, &work->work.work_task);
+	return 0;
 }
 
 #endif	/* _LINUX_WORKQUEUE_H_ */

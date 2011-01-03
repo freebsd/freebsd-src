@@ -53,27 +53,27 @@ static void mp_add(struct gctl_req *);
 struct g_command class_commands[] = {
 	{
 		"label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, mp_main, G_NULL_OPTS,
-		NULL, "[-v] name prov ..."
+		"[-v] name prov ..."
 	},
 	{
 		"add", G_FLAG_VERBOSE | G_FLAG_LOADKLD, mp_main, G_NULL_OPTS,
-		NULL, "[-v] name prov ..."
+		"[-v] name prov ..."
 	},
 	{
 		"destroy", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
-		NULL, "[-v] prov ..."
+		"[-v] prov ..."
 	},
 	{
 		"clear", G_FLAG_VERBOSE, mp_main, G_NULL_OPTS,
-		NULL, "[-v] prov ..."
+		"[-v] prov ..."
 	},
 	{
 		"rotate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
-		NULL, "[-v] prov ..."
+		"[-v] prov ..."
 	},
 	{
 		"getactive", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
-		NULL, "[-v] prov ..."
+		"[-v] prov ..."
 	},
 	G_CMD_SENTINEL
 };
@@ -149,16 +149,6 @@ mp_label(struct gctl_req *req)
 	}
 
 	/*
-	 * Allocate a sector to write as metadata.
-	 */
-	sector = malloc(secsize);
-	if (sector == NULL) {
-		gctl_error(req, "unable to allocate metadata buffer");
-		return;
-	}
-	memset(sector, 0, secsize);
-
-	/*
 	 * Generate metadata.
 	 */
 	strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));
@@ -189,6 +179,16 @@ mp_label(struct gctl_req *req)
 		gctl_error(req, "cannot clear metadata on %s: %s.", name, strerror(error));
 		return;
 	}
+
+	/*
+	 * Allocate a sector to write as metadata.
+	 */
+	sector = malloc(secsize);
+	if (sector == NULL) {
+		gctl_error(req, "unable to allocate metadata buffer");
+		return;
+	}
+	memset(sector, 0, secsize);
 
 	/*
 	 * encode the metadata
@@ -222,17 +222,28 @@ mp_label(struct gctl_req *req)
 	}
 }
 
+
 static void
 mp_clear(struct gctl_req *req)
 {
 	const char *name;
-	int error;
+	int error, i, nargs;
 
-	name = gctl_get_ascii(req, "arg1");
-	error = g_metadata_clear(name, G_MULTIPATH_MAGIC);
-	if (error != 0) {
-		fprintf(stderr, "Can't clear metadata on %s: %s.\n", name, strerror(error));
-		gctl_error(req, "Not fully done.");
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
+		gctl_error(req, "Too few arguments.");
+		return;
+	}
+
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
+		error = g_metadata_clear(name, G_MULTIPATH_MAGIC);
+		if (error != 0) {
+			fprintf(stderr, "Can't clear metadata on %s: %s.\n",
+			    name, strerror(error));
+			gctl_error(req, "Not fully done.");
+			continue;
+		}
 	}
 }
 

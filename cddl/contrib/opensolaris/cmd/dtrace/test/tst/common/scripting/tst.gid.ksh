@@ -82,5 +82,5 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-#/usr/bin/rm -f $dfilename
+#/bin/rm -f $dfilename
 exit 0

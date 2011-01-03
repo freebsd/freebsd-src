@@ -641,7 +641,7 @@ isp_pci_attach(device_t dev)
 	int isp_nvports = 0;
 	uint32_t data, cmd, linesz, did;
 	struct isp_pcisoftc *pcs;
-	ispsoftc_t *isp = NULL;
+	ispsoftc_t *isp;
 	size_t psize, xsize;
 	char fwname[32];
 
@@ -966,30 +966,28 @@ isp_pci_attach(device_t dev)
 	return (0);
 
 bad:
-	if (pcs && pcs->ih) {
+	if (pcs->ih) {
 		(void) bus_teardown_intr(dev, irq, pcs->ih);
 	}
-	if (locksetup && isp) {
+	if (locksetup) {
 		mtx_destroy(&isp->isp_osinfo.lock);
 	}
 	if (irq) {
 		(void) bus_release_resource(dev, SYS_RES_IRQ, iqd, irq);
 	}
-	if (pcs && pcs->msicount) {
+	if (pcs->msicount) {
 		pci_release_msi(dev);
 	}
 	if (regs) {
 		(void) bus_release_resource(dev, rtp, rgd, regs);
 	}
-	if (pcs) {
-		if (pcs->pci_isp.isp_param) {
-			free(pcs->pci_isp.isp_param, M_DEVBUF);
-			pcs->pci_isp.isp_param = NULL;
-		}
-		if (pcs->pci_isp.isp_osinfo.pc.ptr) {
-			free(pcs->pci_isp.isp_osinfo.pc.ptr, M_DEVBUF);
-			pcs->pci_isp.isp_osinfo.pc.ptr = NULL;
-		}
+	if (pcs->pci_isp.isp_param) {
+		free(pcs->pci_isp.isp_param, M_DEVBUF);
+		pcs->pci_isp.isp_param = NULL;
+	}
+	if (pcs->pci_isp.isp_osinfo.pc.ptr) {
+		free(pcs->pci_isp.isp_osinfo.pc.ptr, M_DEVBUF);
+		pcs->pci_isp.isp_osinfo.pc.ptr = NULL;
 	}
 	return (ENXIO);
 }
@@ -1725,6 +1723,8 @@ tdma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
 			ddir = ISP_FROM_DEVICE;
 		} else {
+			dm_segs = NULL;
+			nseg = 0;
 			ddir = ISP_NOXFR;
 		}
 	} else {

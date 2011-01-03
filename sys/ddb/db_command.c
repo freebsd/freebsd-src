@@ -633,7 +633,7 @@ db_kill(dummy1, dummy2, dummy3, dummy4)
 	if (!db_expression(&pid))
 		DB_ERROR(("Missing process ID\n"));
 	db_skip_to_eol();
-	if (sig < 1 || sig > _SIG_MAXSIG)
+	if (!_SIG_VALID(sig))
 		DB_ERROR(("Signal number out of range\n"));
 
 	/*
@@ -661,13 +661,42 @@ out:
 #undef DB_ERROR
 }
 
+/*
+ * Reboot.  In case there is an additional argument, take it as delay in
+ * seconds.  Default to 15s if we cannot parse it and make sure we will
+ * never wait longer than 1 week.  Some code is similar to
+ * kern_shutdown.c:shutdown_panic().
+ */
+#ifndef	DB_RESET_MAXDELAY
+#define	DB_RESET_MAXDELAY	(3600 * 24 * 7)
+#endif
+
 static void
-db_reset(dummy1, dummy2, dummy3, dummy4)
-	db_expr_t	dummy1;
-	boolean_t	dummy2;
-	db_expr_t	dummy3;
-	char *		dummy4;
+db_reset(db_expr_t addr, boolean_t have_addr, db_expr_t count __unused,
+    char *modif __unused)
 {
+	int delay, loop;
+
+	if (have_addr) {
+		delay = (int)db_hex2dec(addr);
+
+		/* If we parse to fail, use 15s. */
+		if (delay == -1)
+			delay = 15;
+
+		/* Cap at one week. */
+		if ((uintmax_t)delay > (uintmax_t)DB_RESET_MAXDELAY)
+			delay = DB_RESET_MAXDELAY;
+
+		db_printf("Automatic reboot in %d seconds - "
+		    "press a key on the console to abort\n", delay);
+		for (loop = delay * 10; loop > 0; --loop) {
+			DELAY(1000 * 100); /* 1/10th second */
+			/* Did user type a key? */
+			if (cncheckc() != -1)
+				return;
+		}
+	}
 
 	cpu_reset();
 }
@@ -770,4 +799,29 @@ db_stack_trace_all(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3,
 		}
 		kdb_jmpbuf(prev_jb);
 	}
+}
+
+/*
+ * Take the parsed expression value from the command line that was parsed
+ * as a hexadecimal value and convert it as if the expression was parsed
+ * as a decimal value.  Returns -1 if the expression was not a valid
+ * decimal value.
+ */
+db_expr_t
+db_hex2dec(db_expr_t expr)
+{
+	uintptr_t x, y;
+	db_expr_t val;
+
+	y = 1;
+	val = 0;
+	x = expr;
+	while (x != 0) {
+		if (x % 16 > 9)
+			return (-1);
+		val += (x % 16) * (y);
+		x >>= 4;
+		y *= 10;
+	}
+	return (val);
 }

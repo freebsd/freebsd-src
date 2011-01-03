@@ -48,10 +48,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -261,6 +257,7 @@ Mkopt_list:
 
 Mkoption:
 	Save_id { newopt(&mkopt, $1, ns(""), 0); } |
+	Save_id EQUALS { newopt(&mkopt, $1, ns(""), 0); } |
 	Save_id EQUALS Opt_value { newopt(&mkopt, $1, $3, 0); } |
 	Save_id PLUSEQUALS Opt_value { newopt(&mkopt, $1, $3, 1); } ;
 
@@ -365,7 +362,8 @@ newdev(char *name)
 	struct device *np;
 
 	if (finddev(&dtab, name)) {
-		printf("WARNING: duplicate device `%s' encountered.\n", name);
+		fprintf(stderr,
+		    "WARNING: duplicate device `%s' encountered.\n", name);
 		return;
 	}
 
@@ -425,7 +423,8 @@ newopt(struct opt_head *list, char *name, char *value, int append)
 
 	op2 = findopt(list, name);
 	if (op2 != NULL && !append) {
-		printf("WARNING: duplicate option `%s' encountered.\n", name);
+		fprintf(stderr,
+		    "WARNING: duplicate option `%s' encountered.\n", name);
 		return;
 	}
 

@@ -293,6 +293,7 @@ static void dc_decode_leaf_sia(struct dc_softc *, struct dc_eblock_sia *);
 static void dc_decode_leaf_mii(struct dc_softc *, struct dc_eblock_mii *);
 static void dc_decode_leaf_sym(struct dc_softc *, struct dc_eblock_sym *);
 static void dc_apply_fixup(struct dc_softc *, int);
+static int dc_check_multiport(struct dc_softc *);
 
 #ifdef DC_USEIOSPACE
 #define DC_RES			SYS_RES_IOPORT
@@ -778,26 +779,6 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 	sc = device_get_softc(dev);
 	bzero(&frame, sizeof(frame));
 
-	/*
-	 * Note: both the AL981 and AN983 have internal PHYs,
-	 * however the AL981 provides direct access to the PHY
-	 * registers while the AN983 uses a serial MII interface.
-	 * The AN983's MII interface is also buggy in that you
-	 * can read from any MII address (0 to 31), but only address 1
-	 * behaves normally. To deal with both cases, we pretend
-	 * that the PHY is at MII address 1.
-	 */
-	if (DC_IS_ADMTEK(sc) && phy != DC_ADMTEK_PHYADDR)
-		return (0);
-
-	/*
-	 * Note: the ukphy probes of the RS7112 report a PHY at
-	 * MII address 0 (possibly HomePNA?) and 1 (ethernet)
-	 * so we only respond to correct one.
-	 */
-	if (DC_IS_CONEXANT(sc) && phy != DC_CONEXANT_PHYADDR)
-		return (0);
-
 	if (sc->dc_pmode != DC_PMODE_MII) {
 		if (phy == (MII_NPHY - 1)) {
 			switch (reg) {
@@ -899,12 +880,6 @@ dc_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	sc = device_get_softc(dev);
 	bzero(&frame, sizeof(frame));
-
-	if (DC_IS_ADMTEK(sc) && phy != DC_ADMTEK_PHYADDR)
-		return (0);
-
-	if (DC_IS_CONEXANT(sc) && phy != DC_CONEXANT_PHYADDR)
-		return (0);
 
 	if (DC_IS_PNIC(sc)) {
 		CSR_WRITE_4(sc, DC_PN_MII, DC_PN_MIIOPCODE_WRITE |
@@ -1814,14 +1789,12 @@ dc_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 dc_attach(device_t dev)
 {
-	int tmp = 0;
 	uint32_t eaddr[(ETHER_ADDR_LEN+3)/4];
 	u_int32_t command;
 	struct dc_softc *sc;
 	struct ifnet *ifp;
 	u_int32_t reg, revision;
-	int error = 0, rid, mac_offset;
-	int i;
+	int error, i, mac_offset, phy, rid, tmp;
 	u_int8_t *mac;
 
 	sc = device_get_softc(dev);
@@ -2088,6 +2061,20 @@ dc_attach(device_t dev)
 		break;
 	}
 
+	bcopy(eaddr, sc->dc_eaddr, sizeof(eaddr));
+	/*
+	 * If we still have invalid station address, see whether we can
+	 * find station address for chip 0.  Some multi-port controllers
+	 * just store station address for chip 0 if they have a shared
+	 * SROM.
+	 */
+	if ((sc->dc_eaddr[0] == 0 && (sc->dc_eaddr[1] & ~0xffff) == 0) ||
+	    (sc->dc_eaddr[0] == 0xffffffff &&
+	    (sc->dc_eaddr[1] & 0xffff) == 0xffff)) {
+		if (dc_check_multiport(sc) == 0)
+			bcopy(sc->dc_eaddr, eaddr, sizeof(eaddr));
+	}
+
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
@@ -2202,6 +2189,7 @@ dc_attach(device_t dev)
 	 * old selection (SIA only or SIA/SYM) and attach the dcphy
 	 * driver instead.
 	 */
+	tmp = 0;
 	if (DC_IS_INTEL(sc)) {
 		dc_apply_fixup(sc, IFM_AUTO);
 		tmp = sc->dc_pmode;
@@ -2210,7 +2198,7 @@ dc_attach(device_t dev)
 
 	/*
 	 * Setup General Purpose port mode and data so the tulip can talk
-	 * to the MII.  This needs to be done before mii_phy_probe so that
+	 * to the MII.  This needs to be done before mii_attach so that
 	 * we can actually see them.
 	 */
 	if (DC_IS_XIRCOM(sc)) {
@@ -2222,16 +2210,37 @@ dc_attach(device_t dev)
 		DELAY(10);
 	}
 
-	error = mii_phy_probe(dev, &sc->dc_miibus,
-	    dc_ifmedia_upd, dc_ifmedia_sts);
+	phy = MII_PHY_ANY;
+	/*
+	 * Note: both the AL981 and AN983 have internal PHYs, however the
+	 * AL981 provides direct access to the PHY registers while the AN983
+	 * uses a serial MII interface. The AN983's MII interface is also
+	 * buggy in that you can read from any MII address (0 to 31), but
+	 * only address 1 behaves normally. To deal with both cases, we
+	 * pretend that the PHY is at MII address 1.
+	 */
+	if (DC_IS_ADMTEK(sc))
+		phy = DC_ADMTEK_PHYADDR;
+
+	/*
+	 * Note: the ukphy probes of the RS7112 report a PHY at MII address
+	 * 0 (possibly HomePNA?) and 1 (ethernet) so we only respond to the
+	 * correct one.
+	 */
+	if (DC_IS_CONEXANT(sc))
+		phy = DC_CONEXANT_PHYADDR;
+
+	error = mii_attach(dev, &sc->dc_miibus, ifp, dc_ifmedia_upd,
+	    dc_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
 
 	if (error && DC_IS_INTEL(sc)) {
 		sc->dc_pmode = tmp;
 		if (sc->dc_pmode != DC_PMODE_SIA)
 			sc->dc_pmode = DC_PMODE_SYM;
 		sc->dc_flags |= DC_21143_NWAY;
-		mii_phy_probe(dev, &sc->dc_miibus,
-		    dc_ifmedia_upd, dc_ifmedia_sts);
+		mii_attach(dev, &sc->dc_miibus, ifp, dc_ifmedia_upd,
+		    dc_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
+		    MII_OFFSET_ANY, 0);
 		/*
 		 * For non-MII cards, we need to have the 21143
 		 * drive the LEDs. Except there are some systems
@@ -2246,7 +2255,7 @@ dc_attach(device_t dev)
 	}
 
 	if (error) {
-		device_printf(dev, "MII without any PHY!\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -3807,4 +3816,35 @@ dc_shutdown(device_t dev)
 	DC_UNLOCK(sc);
 
 	return (0);
+}
+
+static int
+dc_check_multiport(struct dc_softc *sc)
+{
+	struct dc_softc *dsc;
+	devclass_t dc;
+	device_t child;
+	uint8_t *eaddr;
+	int unit;
+
+	dc = devclass_find("dc");
+	for (unit = 0; unit < devclass_get_maxunit(dc); unit++) {
+		child = devclass_get_device(dc, unit);
+		if (child == NULL)
+			continue;
+		if (child == sc->dc_dev)
+			continue;
+		if (device_get_parent(child) != device_get_parent(sc->dc_dev))
+			continue;
+		if (unit > device_get_unit(sc->dc_dev))
+			continue;
+		dsc = device_get_softc(child);
+		device_printf(sc->dc_dev, "Using station address of %s as base",
+		    device_get_nameunit(child));
+		bcopy(dsc->dc_eaddr, sc->dc_eaddr, ETHER_ADDR_LEN);
+		eaddr = (uint8_t *)sc->dc_eaddr;
+		eaddr[5]++;
+		return (0);
+	}
+	return (ENOENT);
 }

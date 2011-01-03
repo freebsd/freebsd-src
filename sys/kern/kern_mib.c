@@ -232,9 +232,31 @@ sysctl_hw_pagesizes(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw, OID_AUTO, pagesizes, CTLTYPE_ULONG | CTLFLAG_RD,
     NULL, 0, sysctl_hw_pagesizes, "LU", "Supported page sizes");
 
-static char	machine_arch[] = MACHINE_ARCH;
-SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
-    machine_arch, 0, "System architecture");
+#ifdef SCTL_MASK32
+int adaptive_machine_arch = 1;
+SYSCTL_INT(_debug, OID_AUTO, adaptive_machine_arch, CTLFLAG_RW,
+    &adaptive_machine_arch, 1,
+    "Adapt reported machine architecture to the ABI of the binary");
+#endif
+
+static int
+sysctl_hw_machine_arch(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	static const char machine_arch[] = MACHINE_ARCH;
+#ifdef SCTL_MASK32
+	static const char machine_arch32[] = MACHINE_ARCH32;
+
+	if ((req->flags & SCTL_MASK32) != 0 && adaptive_machine_arch)
+		error = SYSCTL_OUT(req, machine_arch32, sizeof(machine_arch32));
+	else
+#endif
+		error = SYSCTL_OUT(req, machine_arch, sizeof(machine_arch));
+	return (error);
+
+}
+SYSCTL_PROC(_hw, HW_MACHINE_ARCH, machine_arch, CTLTYPE_STRING | CTLFLAG_RD,
+    NULL, 0, sysctl_hw_machine_arch, "A", "System architecture");
 
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)

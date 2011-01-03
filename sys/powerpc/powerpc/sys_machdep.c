@@ -31,9 +31,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/sysproto.h>
 
+#include "opt_compat.h"
+
+#ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32_proto.h>
+
+int
+freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
+{
+
+	return (EINVAL);
+}
+#endif
+
 int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
 
 	return (EINVAL);
 }
+

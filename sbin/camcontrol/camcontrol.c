@@ -33,11 +33,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdint.h>
 #include <sys/types.h>
 #include <sys/endian.h>
+#include <sys/sbuf.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <err.h>
@@ -50,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_da.h>
 #include <cam/scsi/scsi_pass.h>
 #include <cam/scsi/scsi_message.h>
+#include <cam/scsi/smp_all.h>
 #include <cam/ata/ata_all.h>
 #include <camlib.h>
 #include "camcontrol.h"
@@ -77,7 +81,12 @@ typedef enum {
 	CAM_CMD_IDENTIFY	= 0x00000013,
 	CAM_CMD_IDLE		= 0x00000014,
 	CAM_CMD_STANDBY		= 0x00000015,
-	CAM_CMD_SLEEP		= 0x00000016
+	CAM_CMD_SLEEP		= 0x00000016,
+	CAM_CMD_SMP_CMD		= 0x00000017,
+	CAM_CMD_SMP_RG		= 0x00000018,
+	CAM_CMD_SMP_PC		= 0x00000019,
+	CAM_CMD_SMP_PHYLIST	= 0x0000001a,
+	CAM_CMD_SMP_MANINFO	= 0x0000001b
 } cam_cmdmask;
 
 typedef enum {
@@ -116,8 +125,8 @@ typedef enum {
 } cam_argmask;
 
 struct camcontrol_opts {
-	const char	*optname;	
-	cam_cmdmask	cmdnum;
+	const char	*optname;
+	uint32_t	cmdnum;
 	cam_argmask	argnum;
 	const char	*subopt;
 };
@@ -126,6 +135,9 @@ struct camcontrol_opts {
 static const char scsicmd_opts[] = "a:c:dfi:o:r";
 static const char readdefect_opts[] = "f:GP";
 static const char negotiate_opts[] = "acD:M:O:qR:T:UW:";
+static const char smprg_opts[] = "l";
+static const char smppc_opts[] = "a:A:d:lm:M:o:p:s:S:T:";
+static const char smpphylist_opts[] = "lq";
 #endif
 
 struct camcontrol_opts option_table[] = {
@@ -145,6 +157,14 @@ struct camcontrol_opts option_table[] = {
 #ifndef MINIMALISTIC
 	{"cmd", CAM_CMD_SCSI_CMD, CAM_ARG_NONE, scsicmd_opts},
 	{"command", CAM_CMD_SCSI_CMD, CAM_ARG_NONE, scsicmd_opts},
+	{"smpcmd", CAM_CMD_SMP_CMD, CAM_ARG_NONE, "r:R:"},
+	{"smprg", CAM_CMD_SMP_RG, CAM_ARG_NONE, smprg_opts},
+	{"smpreportgeneral", CAM_CMD_SMP_RG, CAM_ARG_NONE, smprg_opts},
+	{"smppc", CAM_CMD_SMP_PC, CAM_ARG_NONE, smppc_opts},
+	{"smpphycontrol", CAM_CMD_SMP_PC, CAM_ARG_NONE, smppc_opts},
+	{"smpplist", CAM_CMD_SMP_PHYLIST, CAM_ARG_NONE, smpphylist_opts},
+	{"smpphylist", CAM_CMD_SMP_PHYLIST, CAM_ARG_NONE, smpphylist_opts},
+	{"smpmaninfo", CAM_CMD_SMP_MANINFO, CAM_ARG_NONE, "l"},
 	{"defects", CAM_CMD_READ_DEFECTS, CAM_ARG_NONE, readdefect_opts},
 	{"defectlist", CAM_CMD_READ_DEFECTS, CAM_ARG_NONE, readdefect_opts},
 #endif /* MINIMALISTIC */
@@ -173,11 +193,25 @@ typedef enum {
 	CC_OR_FOUND
 } camcontrol_optret;
 
+struct cam_devitem {
+	struct device_match_result dev_match;
+	int num_periphs;
+	struct periph_match_result *periph_matches;
+	struct scsi_vpd_device_id *device_id;
+	int device_id_len;
+	STAILQ_ENTRY(cam_devitem) links;
+};
+
+struct cam_devlist {
+	STAILQ_HEAD(, cam_devitem) dev_queue;
+	path_id_t path_id;
+};
+
 cam_cmdmask cmdlist;
 cam_argmask arglist;
 
-
-camcontrol_optret getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum,
+camcontrol_optret getoption(struct camcontrol_opts *table, char *arg,
+			    uint32_t *cmdnum, cam_argmask *argnum,
 			    const char **subopt);
 #ifndef MINIMALISTIC
 static int getdevlist(struct cam_device *device);
@@ -204,8 +238,23 @@ static int readdefects(struct cam_device *device, int argc, char **argv,
 		       char *combinedopt, int retry_count, int timeout);
 static void modepage(struct cam_device *device, int argc, char **argv,
 		     char *combinedopt, int retry_count, int timeout);
-static int scsicmd(struct cam_device *device, int argc, char **argv, 
+static int scsicmd(struct cam_device *device, int argc, char **argv,
 		   char *combinedopt, int retry_count, int timeout);
+static int smpcmd(struct cam_device *device, int argc, char **argv,
+		  char *combinedopt, int retry_count, int timeout);
+static int smpreportgeneral(struct cam_device *device, int argc, char **argv,
+			    char *combinedopt, int retry_count, int timeout);
+static int smpphycontrol(struct cam_device *device, int argc, char **argv,
+			 char *combinedopt, int retry_count, int timeout);
+static int smpmaninfo(struct cam_device *device, int argc, char **argv,
+		      char *combinedopt, int retry_count, int timeout);
+static int getdevid(struct cam_devitem *item);
+static int buildbusdevlist(struct cam_devlist *devlist);
+static void freebusdevlist(struct cam_devlist *devlist);
+static struct cam_devitem *findsasdevice(struct cam_devlist *devlist,
+					 uint64_t sasaddr);
+static int smpphylist(struct cam_device *device, int argc, char **argv,
+		      char *combinedopt, int retry_count, int timeout);
 static int tagcontrol(struct cam_device *device, int argc, char **argv,
 		      char *combinedopt);
 static void cts_print(struct cam_device *device,
@@ -234,13 +283,13 @@ static int atapm(struct cam_device *device, int argc, char **argv,
 #endif
 
 camcontrol_optret
-getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum, 
-	  const char **subopt)
+getoption(struct camcontrol_opts *table, char *arg, uint32_t *cmdnum,
+	  cam_argmask *argnum, const char **subopt)
 {
 	struct camcontrol_opts *opts;
 	int num_matches = 0;
 
-	for (opts = option_table; (opts != NULL) && (opts->optname != NULL);
+	for (opts = table; (opts != NULL) && (opts->optname != NULL);
 	     opts++) {
 		if (strncmp(opts->optname, arg, strlen(arg)) == 0) {
 			*cmdnum = opts->cmdnum;
@@ -622,7 +671,7 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 		else
 			fprintf(stdout,
 				"Error received from stop unit command\n");
-			
+
 		if (arglist & CAM_ARG_VERBOSE) {
 			cam_error_print(device, ccb, CAM_ESF_ALL,
 					CAM_EPF_ALL, stderr);
@@ -688,7 +737,7 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 	union ccb *ccb;
 	struct scsi_inquiry_data *inq_buf;
 	int error = 0;
-	
+
 	ccb = cam_getccb(device);
 
 	if (ccb == NULL) {
@@ -721,13 +770,13 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 	 *    scsi_inquiry() will convert an inq_len (which is passed in as
 	 *    a u_int32_t, but the field in the CDB is only 1 byte) of 256
 	 *    to 0.  Evidently, very few devices meet the spec in that
-	 *    regard.  Some devices, like many Seagate disks, take the 0 as 
+	 *    regard.  Some devices, like many Seagate disks, take the 0 as
 	 *    0, and don't return any data.  One Pioneer DVD-R drive
 	 *    returns more data than the command asked for.
 	 *
 	 *    So, since there are numerous devices that just don't work
 	 *    right with the full inquiry size, we don't send the full size.
-	 * 
+	 *
 	 *  - The second reason not to use the full inquiry data length is
 	 *    that we don't need it here.  The only reason we issue a
 	 *    standard inquiry is to get the vendor name, device name,
@@ -1181,7 +1230,7 @@ atacapprint(struct ata_params *parm)
 	}
 
 	printf("\nFeature                      "
-		"Support  Enable    Value           Vendor\n");
+		"Support  Enabled   Value           Vendor\n");
 	printf("read ahead                     %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");
@@ -1201,16 +1250,13 @@ atacapprint(struct ata_params *parm)
 			    ATA_QUEUE_LEN(parm->queue) + 1);
 		} else
 			printf("\n");
-	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
-		printf("Native Command Queuing (NCQ)   %s	",
-			parm->satacapabilities & ATA_SUPPORT_NCQ ?
-				"yes" : "no");
-		if (parm->satacapabilities & ATA_SUPPORT_NCQ) {
-			printf("	%d tags\n",
-			    ATA_QUEUE_LEN(parm->queue) + 1);
-		} else
-			printf("\n");
-	}
+	printf("Native Command Queuing (NCQ)   ");
+	if (parm->satacapabilities != 0xffff &&
+	    (parm->satacapabilities & ATA_SUPPORT_NCQ)) {
+		printf("yes		%d tags\n",
+		    ATA_QUEUE_LEN(parm->queue) + 1);
+	} else
+		printf("no\n");
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_SMART ? "yes" : "no");
@@ -1223,28 +1269,39 @@ atacapprint(struct ata_params *parm)
 	printf("power management               %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no");
-	printf("advanced power management      %s	%s	%d/0x%02X\n",
+	printf("advanced power management      %s	%s",
 		parm->support.command2 & ATA_SUPPORT_APM ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no",
-		parm->apm_value, parm->apm_value);
-	printf("automatic acoustic management  %s	%s	"
-		"%d/0x%02X	%d/0x%02X\n",
+		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no");
+		if (parm->support.command2 & ATA_SUPPORT_APM) {
+			printf("	%d/0x%02X\n",
+			    parm->apm_value, parm->apm_value);
+		} else
+			printf("\n");
+	printf("automatic acoustic management  %s	%s",
 		parm->support.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no",
-		parm->enabled.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no",
-		ATA_ACOUSTIC_CURRENT(parm->acoustic),
-		ATA_ACOUSTIC_CURRENT(parm->acoustic),
-		ATA_ACOUSTIC_VENDOR(parm->acoustic),
-		ATA_ACOUSTIC_VENDOR(parm->acoustic));
+		parm->enabled.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no");
+		if (parm->support.command2 & ATA_SUPPORT_AUTOACOUSTIC) {
+			printf("	%d/0x%02X	%d/0x%02X\n",
+			    ATA_ACOUSTIC_CURRENT(parm->acoustic),
+			    ATA_ACOUSTIC_CURRENT(parm->acoustic),
+			    ATA_ACOUSTIC_VENDOR(parm->acoustic),
+			    ATA_ACOUSTIC_VENDOR(parm->acoustic));
+		} else
+			printf("\n");
 	printf("media status notification      %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_NOTIFY ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_NOTIFY ? "yes" : "no");
 	printf("power-up in Standby            %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_STANDBY ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_STANDBY ? "yes" : "no");
-	printf("write-read-verify              %s	%s	%d/0x%x\n",
+	printf("write-read-verify              %s	%s",
 		parm->support2 & ATA_SUPPORT_WRITEREADVERIFY ? "yes" : "no",
-		parm->enabled2 & ATA_SUPPORT_WRITEREADVERIFY ? "yes" : "no",
-		parm->wrv_mode, parm->wrv_mode);
+		parm->enabled2 & ATA_SUPPORT_WRITEREADVERIFY ? "yes" : "no");
+		if (parm->support2 & ATA_SUPPORT_WRITEREADVERIFY) {
+			printf("	%d/0x%x\n",
+			    parm->wrv_mode, parm->wrv_mode);
+		} else
+			printf("\n");
 	printf("unload                         %s	%s\n",
 		parm->support.extension & ATA_SUPPORT_UNLOAD ? "yes" : "no",
 		parm->enabled.extension & ATA_SUPPORT_UNLOAD ? "yes" : "no");
@@ -1254,7 +1311,6 @@ atacapprint(struct ata_params *parm)
 	printf("data set management (TRIM)     %s\n",
 		parm->support_dsm & ATA_SUPPORT_DSM_TRIM ? "yes" : "no");
 }
-
 
 static int
 ataidentify(struct cam_device *device, int retry_count, int timeout)
@@ -1519,6 +1575,7 @@ rescan_or_reset_bus(int bus, int rescan)
 	bzero(&(&matchccb.ccb_h)[1],
 	      sizeof(struct ccb_dev_match) - sizeof(struct ccb_hdr));
 	matchccb.ccb_h.func_code = XPT_DEV_MATCH;
+	matchccb.ccb_h.path_id = CAM_BUS_WILDCARD;
 	bufsize = sizeof(struct dev_match_result) * 20;
 	matchccb.cdm.match_buf_len = bufsize;
 	matchccb.cdm.matches=(struct dev_match_result *)malloc(bufsize);
@@ -1902,7 +1959,7 @@ readdefects(struct cam_device *device, int argc, char **argv,
 
 	/*
 	 * XXX KDM  I should probably clean up the printout format for the
-	 * disk defects. 
+	 * disk defects.
 	 */
 	switch (returned_format & SRDDH10_DLIST_FORMAT_MASK){
 		case SRDDH10_PHYSICAL_SECTOR_FORMAT:
@@ -2011,7 +2068,7 @@ void
 reassignblocks(struct cam_device *device, u_int32_t *blocks, int num_blocks)
 {
 	union ccb *ccb;
-	
+
 	ccb = cam_getccb(device);
 
 	cam_freeccb(ccb);
@@ -2114,7 +2171,7 @@ mode_select(struct cam_device *device, int save_pages, int retry_count,
 			err(1, "error sending mode select command");
 		else
 			errx(1, "error sending mode select command");
-		
+
 	}
 
 	cam_freeccb(ccb);
@@ -2294,7 +2351,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			if (arglist & CAM_ARG_CMD_IN) {
 				warnx("command must either be "
 				      "read or write, not both");
-				error = 1;	
+				error = 1;
 				goto scsicmd_bailout;
 			}
 			arglist |= CAM_ARG_CMD_OUT;
@@ -2447,10 +2504,12 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+		const char *warnstr = "error sending command";
+
 		if (retval < 0)
-			warn("error sending command");
+			warn(warnstr);
 		else
-			warnx("error sending command");
+			warnx(warnstr);
 
 		if (arglist & CAM_ARG_VERBOSE) {
 			cam_error_print(device, ccb, CAM_ESF_ALL,
@@ -2611,7 +2670,7 @@ camdebug(int argc, char **argv, char *combinedopt)
 			warnx("bus:target, or bus:target:lun to debug");
 		}
 	}
-	
+
 	if (error == 0) {
 
 		ccb.ccb_h.func_code = XPT_DEBUG;
@@ -2874,7 +2933,7 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 }
 
 /*
- * Get a path inquiry CCB for the specified device.  
+ * Get a path inquiry CCB for the specified device.
  */
 static int
 get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
@@ -2913,7 +2972,7 @@ get_cpi_bailout:
 }
 
 /*
- * Get a get device CCB for the specified device.  
+ * Get a get device CCB for the specified device.
  */
 static int
 get_cgd(struct cam_device *device, struct ccb_getdev *cgd)
@@ -3083,6 +3142,14 @@ cpi_print(struct ccb_pathinq *cpi)
 		cpi->initiator_id);
 	fprintf(stdout, "%s SIM vendor: %s\n", adapter_str, cpi->sim_vid);
 	fprintf(stdout, "%s HBA vendor: %s\n", adapter_str, cpi->hba_vid);
+	fprintf(stdout, "%s HBA vendor ID: 0x%04x\n",
+	    adapter_str, cpi->hba_vendor);
+	fprintf(stdout, "%s HBA device ID: 0x%04x\n",
+	    adapter_str, cpi->hba_device);
+	fprintf(stdout, "%s HBA subvendor ID: 0x%04x\n",
+	    adapter_str, cpi->hba_subvendor);
+	fprintf(stdout, "%s HBA subdevice ID: 0x%04x\n",
+	    adapter_str, cpi->hba_subdevice);
 	fprintf(stdout, "%s bus ID: %d\n", adapter_str, cpi->bus_id);
 	fprintf(stdout, "%s base transfer speed: ", adapter_str);
 	if (cpi->base_transfer_speed > 1000)
@@ -3092,6 +3159,8 @@ cpi_print(struct ccb_pathinq *cpi)
 	else
 		fprintf(stdout, "%dKB/sec\n",
 			(cpi->base_transfer_speed % 1000) * 1000);
+	fprintf(stdout, "%s maximum transfer size: %u bytes\n",
+	    adapter_str, cpi->maxio);
 }
 
 static int
@@ -3754,9 +3823,9 @@ doreport:
 					fprintf(stdout,
 						"\rFormatting:  %ju.%02u %% "
 						"(%d/%d) done",
-						(uintmax_t)(percentage / 
+						(uintmax_t)(percentage /
 						(0x10000 * 100)),
-						(unsigned)((percentage / 
+						(unsigned)((percentage /
 						0x10000) % 100),
 						val, 0x10000);
 					fflush(stdout);
@@ -3946,7 +4015,7 @@ retry:
 			case RPL_LUNDATA_ATYP_PERIPH:
 				if ((lundata->luns[i].lundata[j] &
 				    RPL_LUNDATA_PERIPH_BUS_MASK) != 0)
-					fprintf(stdout, "%d:", 
+					fprintf(stdout, "%d:",
 						lundata->luns[i].lundata[j] &
 						RPL_LUNDATA_PERIPH_BUS_MASK);
 				else if ((j == 0)
@@ -3984,7 +4053,7 @@ retry:
 				field_len_code = (lundata->luns[i].lundata[j] &
 					RPL_LUNDATA_EXT_LEN_MASK) >> 4;
 				field_len = field_len_code * 2;
-		
+
 				if ((eam_code == RPL_LUNDATA_EXT_EAM_WK)
 				 && (field_len_code == 0x00)) {
 					fprintf(stdout, "%d",
@@ -4256,6 +4325,1229 @@ bailout:
 }
 
 static int
+smpcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
+       int retry_count, int timeout)
+{
+	int c, error;
+	union ccb *ccb;
+	uint8_t *smp_request = NULL, *smp_response = NULL;
+	int request_size = 0, response_size = 0;
+	int fd_request = 0, fd_response = 0;
+	char *datastr = NULL;
+	struct get_hook hook;
+	int retval;
+	int flags = 0;
+
+	/*
+	 * Note that at the moment we don't support sending SMP CCBs to
+	 * devices that aren't probed by CAM.
+	 */
+	ccb = cam_getccb(device);
+	if (ccb == NULL) {
+		warnx("%s: error allocating CCB", __func__);
+		return (1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'R':
+			arglist |= CAM_ARG_CMD_IN;
+			response_size = strtol(optarg, NULL, 0);
+			if (response_size <= 0) {
+				warnx("invalid number of response bytes %d",
+				      response_size);
+				error = 1;
+				goto smpcmd_bailout;
+			}
+			hook.argc = argc - optind;
+			hook.argv = argv + optind;
+			hook.got = 0;
+			optind++;
+			datastr = cget(&hook, NULL);
+			/*
+			 * If the user supplied "-" instead of a format, he
+			 * wants the data to be written to stdout.
+			 */
+			if ((datastr != NULL)
+			 && (datastr[0] == '-'))
+				fd_response = 1;
+
+			smp_response = (u_int8_t *)malloc(response_size);
+			if (smp_response == NULL) {
+				warn("can't malloc memory for SMP response");
+				error = 1;
+				goto smpcmd_bailout;
+			}
+			break;
+		case 'r':
+			arglist |= CAM_ARG_CMD_OUT;
+			request_size = strtol(optarg, NULL, 0);
+			if (request_size <= 0) {
+				warnx("invalid number of request bytes %d",
+				      request_size);
+				error = 1;
+				goto smpcmd_bailout;
+			}
+			hook.argc = argc - optind;
+			hook.argv = argv + optind;
+			hook.got = 0;
+			datastr = cget(&hook, NULL);
+			smp_request = (u_int8_t *)malloc(request_size);
+			if (smp_request == NULL) {
+				warn("can't malloc memory for SMP request");
+				error = 1;
+				goto smpcmd_bailout;
+			}
+			bzero(smp_request, request_size);
+			/*
+			 * If the user supplied "-" instead of a format, he
+			 * wants the data to be read from stdin.
+			 */
+			if ((datastr != NULL)
+			 && (datastr[0] == '-'))
+				fd_request = 1;
+			else
+				buff_encode_visit(smp_request, request_size,
+						  datastr,
+						  iget, &hook);
+			optind += hook.got;
+			break;
+		default:
+			break;
+		}
+	}
+
+	/*
+	 * If fd_data is set, and we're writing to the device, we need to
+	 * read the data the user wants written from stdin.
+	 */
+	if ((fd_request == 1) && (arglist & CAM_ARG_CMD_OUT)) {
+		ssize_t amt_read;
+		int amt_to_read = request_size;
+		u_int8_t *buf_ptr = smp_request;
+
+		for (amt_read = 0; amt_to_read > 0;
+		     amt_read = read(STDIN_FILENO, buf_ptr, amt_to_read)) {
+			if (amt_read == -1) {
+				warn("error reading data from stdin");
+				error = 1;
+				goto smpcmd_bailout;
+			}
+			amt_to_read -= amt_read;
+			buf_ptr += amt_read;
+		}
+	}
+
+	if (((arglist & CAM_ARG_CMD_IN) == 0)
+	 || ((arglist & CAM_ARG_CMD_OUT) == 0)) {
+		warnx("%s: need both the request (-r) and response (-R) "
+		      "arguments", __func__);
+		error = 1;
+		goto smpcmd_bailout;
+	}
+
+	flags |= CAM_DEV_QFRZDIS;
+
+	cam_fill_smpio(&ccb->smpio,
+		       /*retries*/ retry_count,
+		       /*cbfcnp*/ NULL,
+		       /*flags*/ flags,
+		       /*smp_request*/ smp_request,
+		       /*smp_request_len*/ request_size,
+		       /*smp_response*/ smp_response,
+		       /*smp_response_len*/ response_size,
+		       /*timeout*/ timeout ? timeout : 5000);
+
+	ccb->smpio.flags = SMP_FLAG_NONE;
+
+	if (((retval = cam_send_ccb(device, ccb)) < 0)
+	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+		const char *warnstr = "error sending command";
+
+		if (retval < 0)
+			warn(warnstr);
+		else
+			warnx(warnstr);
+
+		if (arglist & CAM_ARG_VERBOSE) {
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		}
+	}
+
+	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
+	 && (response_size > 0)) {
+		if (fd_response == 0) {
+			buff_decode_visit(smp_response, response_size,
+					  datastr, arg_put, NULL);
+			fprintf(stdout, "\n");
+		} else {
+			ssize_t amt_written;
+			int amt_to_write = response_size;
+			u_int8_t *buf_ptr = smp_response;
+
+			for (amt_written = 0; (amt_to_write > 0) &&
+			     (amt_written = write(STDOUT_FILENO, buf_ptr,
+						  amt_to_write)) > 0;){
+				amt_to_write -= amt_written;
+				buf_ptr += amt_written;
+			}
+			if (amt_written == -1) {
+				warn("error writing data to stdout");
+				error = 1;
+				goto smpcmd_bailout;
+			} else if ((amt_written == 0)
+				&& (amt_to_write > 0)) {
+				warnx("only wrote %u bytes out of %u",
+				      response_size - amt_to_write, 
+				      response_size);
+			}
+		}
+	}
+smpcmd_bailout:
+	if (ccb != NULL)
+		cam_freeccb(ccb);
+
+	if (smp_request != NULL)
+		free(smp_request);
+
+	if (smp_response != NULL)
+		free(smp_response);
+
+	return (error);
+}
+
+static int
+smpreportgeneral(struct cam_device *device, int argc, char **argv,
+		 char *combinedopt, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	struct smp_report_general_request *request = NULL;
+	struct smp_report_general_response *response = NULL;
+	struct sbuf *sb = NULL;
+	int error = 0;
+	int c, long_response = 0;
+	int retval;
+
+	/*
+	 * Note that at the moment we don't support sending SMP CCBs to
+	 * devices that aren't probed by CAM.
+	 */
+	ccb = cam_getccb(device);
+	if (ccb == NULL) {
+		warnx("%s: error allocating CCB", __func__);
+		return (1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'l':
+			long_response = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	request = malloc(sizeof(*request));
+	if (request == NULL) {
+		warn("%s: unable to allocate %zd bytes", __func__,
+		     sizeof(*request));
+		error = 1;
+		goto bailout;
+	}
+
+	response = malloc(sizeof(*response));
+	if (response == NULL) {
+		warn("%s: unable to allocate %zd bytes", __func__,
+		     sizeof(*response));
+		error = 1;
+		goto bailout;
+	}
+
+try_long:
+	smp_report_general(&ccb->smpio,
+			   retry_count,
+			   /*cbfcnp*/ NULL,
+			   request,
+			   /*request_len*/ sizeof(*request),
+			   (uint8_t *)response,
+			   /*response_len*/ sizeof(*response),
+			   /*long_response*/ long_response,
+			   timeout);
+
+	if (((retval = cam_send_ccb(device, ccb)) < 0)
+	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+		const char *warnstr = "error sending command";
+
+		if (retval < 0)
+			warn(warnstr);
+		else
+			warnx(warnstr);
+
+		if (arglist & CAM_ARG_VERBOSE) {
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		}
+		error = 1;
+		goto bailout;
+	}
+
+	/*
+	 * If the device supports the long response bit, try again and see
+	 * if we can get all of the data.
+	 */
+	if ((response->long_response & SMP_RG_LONG_RESPONSE)
+	 && (long_response == 0)) {
+		ccb->ccb_h.status = CAM_REQ_INPROG;
+		bzero(&(&ccb->ccb_h)[1],
+		      sizeof(union ccb) - sizeof(struct ccb_hdr));
+		long_response = 1;
+		goto try_long;
+	}
+
+	/*
+	 * XXX KDM detect and decode SMP errors here.
+	 */
+	sb = sbuf_new_auto();
+	if (sb == NULL) {
+		warnx("%s: error allocating sbuf", __func__);
+		goto bailout;
+	}
+
+	smp_report_general_sbuf(response, sizeof(*response), sb);
+
+	sbuf_finish(sb);
+
+	printf("%s", sbuf_data(sb));
+
+bailout:
+	if (ccb != NULL)
+		cam_freeccb(ccb);
+
+	if (request != NULL)
+		free(request);
+
+	if (response != NULL)
+		free(response);
+
+	if (sb != NULL)
+		sbuf_delete(sb);
+
+	return (error);
+}
+
+struct camcontrol_opts phy_ops[] = {
+	{"nop", SMP_PC_PHY_OP_NOP, CAM_ARG_NONE, NULL},
+	{"linkreset", SMP_PC_PHY_OP_LINK_RESET, CAM_ARG_NONE, NULL},
+	{"hardreset", SMP_PC_PHY_OP_HARD_RESET, CAM_ARG_NONE, NULL},
+	{"disable", SMP_PC_PHY_OP_DISABLE, CAM_ARG_NONE, NULL},
+	{"clearerrlog", SMP_PC_PHY_OP_CLEAR_ERR_LOG, CAM_ARG_NONE, NULL},
+	{"clearaffiliation", SMP_PC_PHY_OP_CLEAR_AFFILIATON, CAM_ARG_NONE,NULL},
+	{"sataportsel", SMP_PC_PHY_OP_TRANS_SATA_PSS, CAM_ARG_NONE, NULL},
+	{"clearitnl", SMP_PC_PHY_OP_CLEAR_STP_ITN_LS, CAM_ARG_NONE, NULL},
+	{"setdevname", SMP_PC_PHY_OP_SET_ATT_DEV_NAME, CAM_ARG_NONE, NULL},
+	{NULL, 0, 0, NULL}
+};
+
+static int
+smpphycontrol(struct cam_device *device, int argc, char **argv,
+	      char *combinedopt, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	struct smp_phy_control_request *request = NULL;
+	struct smp_phy_control_response *response = NULL;
+	int long_response = 0;
+	int retval = 0;
+	int phy = -1;
+	uint32_t phy_operation = SMP_PC_PHY_OP_NOP;
+	int phy_op_set = 0;
+	uint64_t attached_dev_name = 0;
+	int dev_name_set = 0;
+	uint32_t min_plr = 0, max_plr = 0;
+	uint32_t pp_timeout_val = 0;
+	int slumber_partial = 0;
+	int set_pp_timeout_val = 0;
+	int c;
+
+	/*
+	 * Note that at the moment we don't support sending SMP CCBs to
+	 * devices that aren't probed by CAM.
+	 */
+	ccb = cam_getccb(device);
+	if (ccb == NULL) {
+		warnx("%s: error allocating CCB", __func__);
+		return (1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'a':
+		case 'A':
+		case 's':
+		case 'S': {
+			int enable = -1;
+
+			if (strcasecmp(optarg, "enable") == 0)
+				enable = 1;
+			else if (strcasecmp(optarg, "disable") == 0)
+				enable = 2;
+			else {
+				warnx("%s: Invalid argument %s", __func__,
+				      optarg);
+				retval = 1;
+				goto bailout;
+			}
+			switch (c) {
+			case 's':
+				slumber_partial |= enable <<
+						   SMP_PC_SAS_SLUMBER_SHIFT;
+				break;
+			case 'S':
+				slumber_partial |= enable <<
+						   SMP_PC_SAS_PARTIAL_SHIFT;
+				break;
+			case 'a':
+				slumber_partial |= enable <<
+						   SMP_PC_SATA_SLUMBER_SHIFT;
+				break;
+			case 'A':
+				slumber_partial |= enable <<
+						   SMP_PC_SATA_PARTIAL_SHIFT;
+				break;
+			default:
+				warnx("%s: programmer error", __func__);
+				retval = 1;
+				goto bailout;
+				break; /*NOTREACHED*/
+			}
+			break;
+		}
+		case 'd':
+			attached_dev_name = (uintmax_t)strtoumax(optarg,
+								 NULL,0);
+			dev_name_set = 1;
+			break;
+		case 'l':
+			long_response = 1;
+			break;
+		case 'm':
+			/*
+			 * We don't do extensive checking here, so this
+			 * will continue to work when new speeds come out.
+			 */
+			min_plr = strtoul(optarg, NULL, 0);
+			if ((min_plr == 0)
+			 || (min_plr > 0xf)) {
+				warnx("%s: invalid link rate %x",
+				      __func__, min_plr);
+				retval = 1;
+				goto bailout;
+			}
+			break;
+		case 'M':
+			/*
+			 * We don't do extensive checking here, so this
+			 * will continue to work when new speeds come out.
+			 */
+			max_plr = strtoul(optarg, NULL, 0);
+			if ((max_plr == 0)
+			 || (max_plr > 0xf)) {
+				warnx("%s: invalid link rate %x",
+				      __func__, max_plr);
+				retval = 1;
+				goto bailout;
+			}
+			break;
+		case 'o': {
+			camcontrol_optret optreturn;
+			cam_argmask argnums;
+			const char *subopt;
+
+			if (phy_op_set != 0) {
+				warnx("%s: only one phy operation argument "
+				      "(-o) allowed", __func__);
+				retval = 1;
+				goto bailout;
+			}
+
+			phy_op_set = 1;
+
+			/*
+			 * Allow the user to specify the phy operation
+			 * numerically, as well as with a name.  This will
+			 * future-proof it a bit, so options that are added
+			 * in future specs can be used.
+			 */
+			if (isdigit(optarg[0])) {
+				phy_operation = strtoul(optarg, NULL, 0);
+				if ((phy_operation == 0)
+				 || (phy_operation > 0xff)) {
+					warnx("%s: invalid phy operation %#x",
+					      __func__, phy_operation);
+					retval = 1;
+					goto bailout;
+				}
+				break;
+			}
+			optreturn = getoption(phy_ops, optarg, &phy_operation,
+					      &argnums, &subopt);
+
+			if (optreturn == CC_OR_AMBIGUOUS) {
+				warnx("%s: ambiguous option %s", __func__,
+				      optarg);
+				usage(0);
+				retval = 1;
+				goto bailout;
+			} else if (optreturn == CC_OR_NOT_FOUND) {
+				warnx("%s: option %s not found", __func__,
+				      optarg);
+				usage(0);
+				retval = 1;
+				goto bailout;
+			}
+			break;
+		}
+		case 'p':
+			phy = atoi(optarg);
+			break;
+		case 'T':
+			pp_timeout_val = strtoul(optarg, NULL, 0);
+			if (pp_timeout_val > 15) {
+				warnx("%s: invalid partial pathway timeout "
+				      "value %u, need a value less than 16",
+				      __func__, pp_timeout_val);
+				retval = 1;
+				goto bailout;
+			}
+			set_pp_timeout_val = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (phy == -1) {
+		warnx("%s: a PHY (-p phy) argument is required",__func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (((dev_name_set != 0)
+	  && (phy_operation != SMP_PC_PHY_OP_SET_ATT_DEV_NAME))
+	 || ((phy_operation == SMP_PC_PHY_OP_SET_ATT_DEV_NAME)
+	  && (dev_name_set == 0))) {
+		warnx("%s: -d name and -o setdevname arguments both "
+		      "required to set device name", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	request = malloc(sizeof(*request));
+	if (request == NULL) {
+		warn("%s: unable to allocate %zd bytes", __func__,
+		     sizeof(*request));
+		retval = 1;
+		goto bailout;
+	}
+
+	response = malloc(sizeof(*response));
+	if (response == NULL) {
+		warn("%s: unable to allocate %zd bytes", __func__,
+		     sizeof(*request));
+		retval = 1;
+		goto bailout;
+	}
+
+	smp_phy_control(&ccb->smpio,
+			retry_count,
+			/*cbfcnp*/ NULL,
+			request,
+			sizeof(*request),
+			(uint8_t *)response,
+			sizeof(*response),
+			long_response,
+			/*expected_exp_change_count*/ 0,
+			phy,
+			phy_operation,
+			(set_pp_timeout_val != 0) ? 1 : 0,
+			attached_dev_name,
+			min_plr,
+			max_plr,
+			slumber_partial,
+			pp_timeout_val,
+			timeout);
+
+	if (((retval = cam_send_ccb(device, ccb)) < 0)
+	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+		const char *warnstr = "error sending command";
+
+		if (retval < 0)
+			warn(warnstr);
+		else
+			warnx(warnstr);
+
+		if (arglist & CAM_ARG_VERBOSE) {
+			/*
+			 * Use CAM_EPF_NORMAL so we only get one line of
+			 * SMP command decoding.
+			 */
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_NORMAL, stderr);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	/* XXX KDM print out something here for success? */
+bailout:
+	if (ccb != NULL)
+		cam_freeccb(ccb);
+
+	if (request != NULL)
+		free(request);
+
+	if (response != NULL)
+		free(response);
+
+	return (retval);
+}
+
+static int
+smpmaninfo(struct cam_device *device, int argc, char **argv,
+	   char *combinedopt, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	struct smp_report_manuf_info_request request;
+	struct smp_report_manuf_info_response response;
+	struct sbuf *sb = NULL;
+	int long_response = 0;
+	int retval = 0;
+	int c;
+
+	/*
+	 * Note that at the moment we don't support sending SMP CCBs to
+	 * devices that aren't probed by CAM.
+	 */
+	ccb = cam_getccb(device);
+	if (ccb == NULL) {
+		warnx("%s: error allocating CCB", __func__);
+		return (1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'l':
+			long_response = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	bzero(&request, sizeof(request));
+	bzero(&response, sizeof(response));
+
+	smp_report_manuf_info(&ccb->smpio,
+			      retry_count,
+			      /*cbfcnp*/ NULL,
+			      &request,
+			      sizeof(request),
+			      (uint8_t *)&response,
+			      sizeof(response),
+			      long_response,
+			      timeout);
+
+	if (((retval = cam_send_ccb(device, ccb)) < 0)
+	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+		const char *warnstr = "error sending command";
+
+		if (retval < 0)
+			warn(warnstr);
+		else
+			warnx(warnstr);
+
+		if (arglist & CAM_ARG_VERBOSE) {
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	sb = sbuf_new_auto();
+	if (sb == NULL) {
+		warnx("%s: error allocating sbuf", __func__);
+		goto bailout;
+	}
+
+	smp_report_manuf_info_sbuf(&response, sizeof(response), sb);
+
+	sbuf_finish(sb);
+
+	printf("%s", sbuf_data(sb));
+
+bailout:
+
+	if (ccb != NULL)
+		cam_freeccb(ccb);
+
+	if (sb != NULL)
+		sbuf_delete(sb);
+
+	return (retval);
+}
+
+static int
+getdevid(struct cam_devitem *item)
+{
+	int retval = 0;
+	union ccb *ccb = NULL;
+
+	struct cam_device *dev;
+
+	dev = cam_open_btl(item->dev_match.path_id,
+			   item->dev_match.target_id,
+			   item->dev_match.target_lun, O_RDWR, NULL);
+
+	if (dev == NULL) {
+		warnx("%s", cam_errbuf);
+		retval = 1;
+		goto bailout;
+	}
+
+	item->device_id_len = 0;
+
+	ccb = cam_getccb(dev);
+	if (ccb == NULL) {
+		warnx("%s: error allocating CCB", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+
+	/*
+	 * On the first try, we just probe for the size of the data, and
+	 * then allocate that much memory and try again.
+	 */
+retry:
+	ccb->ccb_h.func_code = XPT_GDEV_ADVINFO;
+	ccb->ccb_h.flags = CAM_DIR_IN;
+	ccb->cgdai.flags = CGDAI_FLAG_PROTO;
+	ccb->cgdai.buftype = CGDAI_TYPE_SCSI_DEVID;
+	ccb->cgdai.bufsiz = item->device_id_len;
+	if (item->device_id_len != 0)
+		ccb->cgdai.buf = (uint8_t *)item->device_id;
+
+	if (cam_send_ccb(dev, ccb) < 0) {
+		warn("%s: error sending XPT_GDEV_ADVINFO CCB", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (ccb->ccb_h.status != CAM_REQ_CMP) {
+		warnx("%s: CAM status %#x", __func__, ccb->ccb_h.status);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (item->device_id_len == 0) {
+		/*
+		 * This is our first time through.  Allocate the buffer,
+		 * and then go back to get the data.
+		 */
+		if (ccb->cgdai.provsiz == 0) {
+			warnx("%s: invalid .provsiz field returned with "
+			     "XPT_GDEV_ADVINFO CCB", __func__);
+			retval = 1;
+			goto bailout;
+		}
+		item->device_id_len = ccb->cgdai.provsiz;
+		item->device_id = malloc(item->device_id_len);
+		if (item->device_id == NULL) {
+			warn("%s: unable to allocate %d bytes", __func__,
+			     item->device_id_len);
+			retval = 1;
+			goto bailout;
+		}
+		ccb->ccb_h.status = CAM_REQ_INPROG;
+		goto retry;
+	}
+
+bailout:
+	if (dev != NULL)
+		cam_close_device(dev);
+
+	if (ccb != NULL)
+		cam_freeccb(ccb);
+
+	return (retval);
+}
+
+/*
+ * XXX KDM merge this code with getdevtree()?
+ */
+static int
+buildbusdevlist(struct cam_devlist *devlist)
+{
+	union ccb ccb;
+	int bufsize, fd = -1;
+	struct dev_match_pattern *patterns;
+	struct cam_devitem *item = NULL;
+	int skip_device = 0;
+	int retval = 0;
+
+	if ((fd = open(XPT_DEVICE, O_RDWR)) == -1) {
+		warn("couldn't open %s", XPT_DEVICE);
+		return(1);
+	}
+
+	bzero(&ccb, sizeof(union ccb));
+
+	ccb.ccb_h.path_id = CAM_XPT_PATH_ID;
+	ccb.ccb_h.target_id = CAM_TARGET_WILDCARD;
+	ccb.ccb_h.target_lun = CAM_LUN_WILDCARD;
+
+	ccb.ccb_h.func_code = XPT_DEV_MATCH;
+	bufsize = sizeof(struct dev_match_result) * 100;
+	ccb.cdm.match_buf_len = bufsize;
+	ccb.cdm.matches = (struct dev_match_result *)malloc(bufsize);
+	if (ccb.cdm.matches == NULL) {
+		warnx("can't malloc memory for matches");
+		close(fd);
+		return(1);
+	}
+	ccb.cdm.num_matches = 0;
+	ccb.cdm.num_patterns = 2;
+	ccb.cdm.pattern_buf_len = sizeof(struct dev_match_pattern) *
+		ccb.cdm.num_patterns;
+
+	patterns = (struct dev_match_pattern *)malloc(ccb.cdm.pattern_buf_len);
+	if (patterns == NULL) {
+		warnx("can't malloc memory for patterns");
+		retval = 1;
+		goto bailout;
+	}
+
+	ccb.cdm.patterns = patterns;
+	bzero(patterns, ccb.cdm.pattern_buf_len);
+
+	patterns[0].type = DEV_MATCH_DEVICE;
+	patterns[0].pattern.device_pattern.flags = DEV_MATCH_PATH;
+	patterns[0].pattern.device_pattern.path_id = devlist->path_id;
+	patterns[1].type = DEV_MATCH_PERIPH;
+	patterns[1].pattern.periph_pattern.flags = PERIPH_MATCH_PATH;
+	patterns[1].pattern.periph_pattern.path_id = devlist->path_id;
+
+	/*
+	 * We do the ioctl multiple times if necessary, in case there are
+	 * more than 100 nodes in the EDT.
+	 */
+	do {
+		unsigned int i;
+
+		if (ioctl(fd, CAMIOCOMMAND, &ccb) == -1) {
+			warn("error sending CAMIOCOMMAND ioctl");
+			retval = 1;
+			goto bailout;
+		}
+
+		if ((ccb.ccb_h.status != CAM_REQ_CMP)
+		 || ((ccb.cdm.status != CAM_DEV_MATCH_LAST)
+		    && (ccb.cdm.status != CAM_DEV_MATCH_MORE))) {
+			warnx("got CAM error %#x, CDM error %d\n",
+			      ccb.ccb_h.status, ccb.cdm.status);
+			retval = 1;
+			goto bailout;
+		}
+
+		for (i = 0; i < ccb.cdm.num_matches; i++) {
+			switch (ccb.cdm.matches[i].type) {
+			case DEV_MATCH_DEVICE: {
+				struct device_match_result *dev_result;
+
+				dev_result = 
+				     &ccb.cdm.matches[i].result.device_result;
+
+				if (dev_result->flags &
+				    DEV_RESULT_UNCONFIGURED) {
+					skip_device = 1;
+					break;
+				} else
+					skip_device = 0;
+
+				item = malloc(sizeof(*item));
+				if (item == NULL) {
+					warn("%s: unable to allocate %zd bytes",
+					     __func__, sizeof(*item));
+					retval = 1;
+					goto bailout;
+				}
+				bzero(item, sizeof(*item));
+				bcopy(dev_result, &item->dev_match,
+				      sizeof(*dev_result));
+				STAILQ_INSERT_TAIL(&devlist->dev_queue, item,
+						   links);
+
+				if (getdevid(item) != 0) {
+					retval = 1;
+					goto bailout;
+				}
+				break;
+			}
+			case DEV_MATCH_PERIPH: {
+				struct periph_match_result *periph_result;
+
+				periph_result =
+				      &ccb.cdm.matches[i].result.periph_result;
+
+				if (skip_device != 0)
+					break;
+				item->num_periphs++;
+				item->periph_matches = realloc(
+					item->periph_matches,
+					item->num_periphs *
+					sizeof(struct periph_match_result));
+				if (item->periph_matches == NULL) {
+					warn("%s: error allocating periph "
+					     "list", __func__);
+					retval = 1;
+					goto bailout;
+				}
+				bcopy(periph_result, &item->periph_matches[
+				      item->num_periphs - 1],
+				      sizeof(*periph_result));
+				break;
+			}
+			default:
+				fprintf(stderr, "%s: unexpected match "
+					"type %d\n", __func__,
+					ccb.cdm.matches[i].type);
+				retval = 1;
+				goto bailout;
+				break; /*NOTREACHED*/
+			}
+		}
+	} while ((ccb.ccb_h.status == CAM_REQ_CMP)
+		&& (ccb.cdm.status == CAM_DEV_MATCH_MORE));
+bailout:
+
+	if (fd != -1)
+		close(fd);
+
+	free(patterns);
+
+	free(ccb.cdm.matches);
+
+	if (retval != 0)
+		freebusdevlist(devlist);
+
+	return (retval);
+}
+
+static void
+freebusdevlist(struct cam_devlist *devlist)
+{
+	struct cam_devitem *item, *item2;
+
+	STAILQ_FOREACH_SAFE(item, &devlist->dev_queue, links, item2) {
+		STAILQ_REMOVE(&devlist->dev_queue, item, cam_devitem,
+			      links);
+		free(item->device_id);
+		free(item->periph_matches);
+		free(item);
+	}
+}
+
+static struct cam_devitem *
+findsasdevice(struct cam_devlist *devlist, uint64_t sasaddr)
+{
+	struct cam_devitem *item;
+
+	STAILQ_FOREACH(item, &devlist->dev_queue, links) {
+		uint8_t *item_addr;
+
+		/*
+		 * XXX KDM look for LUN IDs as well?
+		 */
+		item_addr = scsi_get_sas_addr(item->device_id,
+					      item->device_id_len);
+		if (item_addr == NULL)
+			continue;
+
+		if (scsi_8btou64(item_addr) == sasaddr)
+			return (item);
+	}
+
+	return (NULL);
+}
+
+static int
+smpphylist(struct cam_device *device, int argc, char **argv,
+	   char *combinedopt, int retry_count, int timeout)
+{
+	struct smp_report_general_request *rgrequest = NULL;
+	struct smp_report_general_response *rgresponse = NULL;
+	struct smp_discover_request *disrequest = NULL;
+	struct smp_discover_response *disresponse = NULL;
+	struct cam_devlist devlist;
+	union ccb *ccb;
+	int long_response = 0;
+	int num_phys = 0;
+	int quiet = 0;
+	int retval;
+	int i, c;
+
+	/*
+	 * Note that at the moment we don't support sending SMP CCBs to
+	 * devices that aren't probed by CAM.
+	 */
+	ccb = cam_getccb(device);
+	if (ccb == NULL) {
+		warnx("%s: error allocating CCB", __func__);
+		return (1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+
+	rgrequest = malloc(sizeof(*rgrequest));
+	if (rgrequest == NULL) {
+		warn("%s: unable to allocate %zd bytes", __func__,
+		     sizeof(*rgrequest));
+		retval = 1;
+		goto bailout;
+	}
+
+	rgresponse = malloc(sizeof(*rgresponse));
+	if (rgresponse == NULL) {
+		warn("%s: unable to allocate %zd bytes", __func__,
+		     sizeof(*rgresponse));
+		retval = 1;
+		goto bailout;
+	}
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'l':
+			long_response = 1;
+			break;
+		case 'q':
+			quiet = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	smp_report_general(&ccb->smpio,
+			   retry_count,
+			   /*cbfcnp*/ NULL,
+			   rgrequest,
+			   /*request_len*/ sizeof(*rgrequest),
+			   (uint8_t *)rgresponse,
+			   /*response_len*/ sizeof(*rgresponse),
+			   /*long_response*/ long_response,
+			   timeout);
+
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (((retval = cam_send_ccb(device, ccb)) < 0)
+	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+		const char *warnstr = "error sending command";
+
+		if (retval < 0)
+			warn(warnstr);
+		else
+			warnx(warnstr);
+
+		if (arglist & CAM_ARG_VERBOSE) {
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	num_phys = rgresponse->num_phys;
+
+	if (num_phys == 0) {
+		if (quiet == 0)
+			fprintf(stdout, "%s: No Phys reported\n", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	STAILQ_INIT(&devlist.dev_queue);
+	devlist.path_id = device->path_id;
+
+	retval = buildbusdevlist(&devlist);
+	if (retval != 0)
+		goto bailout;
+
+	if (quiet == 0) {
+		fprintf(stdout, "%d PHYs:\n", num_phys);
+		fprintf(stdout, "PHY  Attached SAS Address\n");
+	}
+
+	disrequest = malloc(sizeof(*disrequest));
+	if (disrequest == NULL) {
+		warn("%s: unable to allocate %zd bytes", __func__,
+		     sizeof(*disrequest));
+		retval = 1;
+		goto bailout;
+	}
+
+	disresponse = malloc(sizeof(*disresponse));
+	if (disresponse == NULL) {
+		warn("%s: unable to allocate %zd bytes", __func__,
+		     sizeof(*disresponse));
+		retval = 1;
+		goto bailout;
+	}
+
+	for (i = 0; i < num_phys; i++) {
+		struct cam_devitem *item;
+		struct device_match_result *dev_match;
+		char vendor[16], product[48], revision[16];
+		char tmpstr[256];
+		int j;
+
+		bzero(&(&ccb->ccb_h)[1],
+		      sizeof(union ccb) - sizeof(struct ccb_hdr));
+
+		ccb->ccb_h.status = CAM_REQ_INPROG;
+		ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+		smp_discover(&ccb->smpio,
+			     retry_count,
+			     /*cbfcnp*/ NULL,
+			     disrequest,
+			     sizeof(*disrequest),
+			     (uint8_t *)disresponse,
+			     sizeof(*disresponse),
+			     long_response,
+			     /*ignore_zone_group*/ 0,
+			     /*phy*/ i,
+			     timeout);
+
+		if (((retval = cam_send_ccb(device, ccb)) < 0)
+		 || (((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+		  && (disresponse->function_result != SMP_FR_PHY_VACANT))) {
+			const char *warnstr = "error sending command";
+
+			if (retval < 0)
+				warn(warnstr);
+			else
+				warnx(warnstr);
+
+			if (arglist & CAM_ARG_VERBOSE) {
+				cam_error_print(device, ccb, CAM_ESF_ALL,
+						CAM_EPF_ALL, stderr);
+			}
+			retval = 1;
+			goto bailout;
+		}
+
+		if (disresponse->function_result == SMP_FR_PHY_VACANT) {
+			if (quiet == 0)
+				fprintf(stdout, "%3d  <vacant>\n", i);
+			continue;
+		}
+
+		item = findsasdevice(&devlist,
+			scsi_8btou64(disresponse->attached_sas_address));
+
+		if ((quiet == 0)
+		 || (item != NULL)) {
+			fprintf(stdout, "%3d  0x%016jx", i,
+				(uintmax_t)scsi_8btou64(
+				disresponse->attached_sas_address));
+			if (item == NULL) {
+				fprintf(stdout, "\n");
+				continue;
+			}
+		} else if (quiet != 0)
+			continue;
+
+		dev_match = &item->dev_match;
+
+		if (dev_match->protocol == PROTO_SCSI) {
+			cam_strvis(vendor, dev_match->inq_data.vendor,
+				   sizeof(dev_match->inq_data.vendor),
+				   sizeof(vendor));
+			cam_strvis(product, dev_match->inq_data.product,
+				   sizeof(dev_match->inq_data.product),
+				   sizeof(product));
+			cam_strvis(revision, dev_match->inq_data.revision,
+				   sizeof(dev_match->inq_data.revision),
+				   sizeof(revision));
+			sprintf(tmpstr, "<%s %s %s>", vendor, product,
+				revision);
+		} else if ((dev_match->protocol == PROTO_ATA)
+			|| (dev_match->protocol == PROTO_SATAPM)) {
+			cam_strvis(product, dev_match->ident_data.model,
+				   sizeof(dev_match->ident_data.model),
+				   sizeof(product));
+			cam_strvis(revision, dev_match->ident_data.revision,
+				   sizeof(dev_match->ident_data.revision),
+				   sizeof(revision));
+			sprintf(tmpstr, "<%s %s>", product, revision);
+		} else {
+			sprintf(tmpstr, "<>");
+		}
+		fprintf(stdout, "   %-33s ", tmpstr);
+
+		/*
+		 * If we have 0 periphs, that's a bug...
+		 */
+		if (item->num_periphs == 0) {
+			fprintf(stdout, "\n");
+			continue;
+		}
+
+		fprintf(stdout, "(");
+		for (j = 0; j < item->num_periphs; j++) {
+			if (j > 0)
+				fprintf(stdout, ",");
+
+			fprintf(stdout, "%s%d",
+				item->periph_matches[j].periph_name,
+				item->periph_matches[j].unit_number);
+				
+		}
+		fprintf(stdout, ")\n");
+	}
+bailout:
+	if (ccb != NULL)
+		cam_freeccb(ccb);
+
+	free(rgrequest);
+
+	free(rgresponse);
+
+	free(disrequest);
+
+	free(disresponse);
+
+	freebusdevlist(&devlist);
+
+	return (retval);
+}
+
+static int
 atapm(struct cam_device *device, int argc, char **argv,
 		 char *combinedopt, int retry_count, int timeout)
 {
@@ -4295,14 +5587,19 @@ atapm(struct cam_device *device, int argc, char **argv,
 		cmd = ATA_SLEEP;
 		t = -1;
 	}
+
 	if (t < 0)
 		sc = 0;
 	else if (t <= (240 * 5))
-		sc = t / 5;
+		sc = (t + 4) / 5;
+	else if (t <= (252 * 5))
+		/* special encoding for 21 minutes */
+		sc = 252;
 	else if (t <= (11 * 30 * 60))
-		sc = t / (30 * 60) + 241;
+		sc = (t - 1) / (30 * 60) + 241;
 	else
 		sc = 253;
+
 	cam_fill_ataio(&ccb->ataio,
 		      retry_count,
 		      NULL,
@@ -4342,7 +5639,7 @@ bailout:
 
 #endif /* MINIMALISTIC */
 
-void 
+void
 usage(int verbose)
 {
 	fprintf(verbose ? stdout : stderr,
@@ -4370,6 +5667,16 @@ usage(int verbose)
 "        camcontrol cmd        [dev_id][generic args]\n"
 "                              <-a cmd [args] | -c cmd [args]>\n"
 "                              [-d] [-f] [-i len fmt|-o len fmt [args]] [-r fmt]\n"
+"        camcontrol smpcmd     [dev_id][generic args]\n"
+"                              <-r len fmt [args]> <-R len fmt [args]>\n"
+"        camcontrol smprg      [dev_id][generic args][-l]\n"
+"        camcontrol smppc      [dev_id][generic args] <-p phy> [-l]\n"
+"                              [-o operation][-d name][-m rate][-M rate]\n"
+"                              [-T pp_timeout][-a enable|disable]\n"
+"                              [-A enable|disable][-s enable|disable]\n"
+"                              [-S enable|disable]\n"
+"        camcontrol smpphylist [dev_id][generic args][-l][-q]\n"
+"        camcontrol smpmaninfo [dev_id][generic args][-l]\n"
 "        camcontrol debug      [-I][-P][-T][-S][-X][-c]\n"
 "                              <all|bus[:target[:lun]]|off>\n"
 "        camcontrol tags       [dev_id][generic args] [-N tags] [-q] [-v]\n"
@@ -4403,7 +5710,12 @@ usage(int verbose)
 "reset       reset all busses, the given bus, or bus:target:lun\n"
 "defects     read the defect list of the specified device\n"
 "modepage    display or edit (-e) the given mode page\n"
-"cmd         send the given scsi command, may need -i or -o as well\n"
+"cmd         send the given SCSI command, may need -i or -o as well\n"
+"smpcmd      send the given SMP command, requires -o and -i\n"
+"smprg       send the SMP Report General command\n"
+"smppc       send the SMP PHY Control command, requires -p\n"
+"smpphylist  display phys attached to a SAS expander\n"
+"smpmaninfo  send the SMP Report Manufacturer Info command\n"
 "debug       turn debugging on/off for a bus, target, or lun, or all devices\n"
 "tags        report or set the number of transaction slots for a device\n"
 "negotiate   report or set device negotiation parameters\n"
@@ -4453,6 +5765,28 @@ usage(int verbose)
 "-c cdb [args]     specify the SCSI CDB\n"
 "-i len fmt        specify input data and input data format\n"
 "-o len fmt [args] specify output data and output data fmt\n"
+"smpcmd arguments:\n"
+"-r len fmt [args] specify the SMP command to be sent\n"
+"-R len fmt [args] specify SMP response format\n"
+"smprg arguments:\n"
+"-l                specify the long response format\n"
+"smppc arguments:\n"
+"-p phy            specify the PHY to operate on\n"
+"-l                specify the long request/response format\n"
+"-o operation      specify the phy control operation\n"
+"-d name           set the attached device name\n"
+"-m rate           set the minimum physical link rate\n"
+"-M rate           set the maximum physical link rate\n"
+"-T pp_timeout     set the partial pathway timeout value\n"
+"-a enable|disable enable or disable SATA slumber\n"
+"-A enable|disable enable or disable SATA partial phy power\n"
+"-s enable|disable enable or disable SAS slumber\n"
+"-S enable|disable enable or disable SAS partial phy power\n"
+"smpphylist arguments:\n"
+"-l                specify the long response format\n"
+"-q                only print phys with attached devices\n"
+"smpmaninfo arguments:\n"
+"-l                specify the long response format\n"
 "debug arguments:\n"
 "-I                CAM_DEBUG_INFO -- scsi commands, errors, data\n"
 "-T                CAM_DEBUG_TRACE -- routine flow tracking\n"
@@ -4484,7 +5818,7 @@ usage(int verbose)
 #endif /* MINIMALISTIC */
 }
 
-int 
+int
 main(int argc, char **argv)
 {
 	int c;
@@ -4514,7 +5848,7 @@ main(int argc, char **argv)
 	/*
 	 * Get the base option.
 	 */
-	optreturn = getoption(argv[1], &cmdlist, &arglist, &subopt);
+	optreturn = getoption(option_table,argv[1], &cmdlist, &arglist,&subopt);
 
 	if (optreturn == CC_OR_AMBIGUOUS) {
 		warnx("ambiguous option %s", argv[1]);
@@ -4534,7 +5868,7 @@ main(int argc, char **argv)
 	 * this.  getopt is kinda braindead, so you end up having to run
 	 * through the options twice, and give each invocation of getopt
 	 * the option string for the other invocation.
-	 * 
+	 *
 	 * You would think that you could just have two groups of options.
 	 * The first group would get parsed by the first invocation of
 	 * getopt, and the second group would get parsed by the second
@@ -4543,13 +5877,13 @@ main(int argc, char **argv)
 	 * to the argument _after_ the first argument in the second group.
 	 * So when the second invocation of getopt comes around, it doesn't
 	 * recognize the first argument it gets and then bails out.
-	 * 
+	 *
 	 * A nice alternative would be to have a flag for getopt that says
 	 * "just keep parsing arguments even when you encounter an unknown
 	 * argument", but there isn't one.  So there's no real clean way to
 	 * easily parse two sets of arguments without having one invocation
 	 * of getopt know about the other.
-	 * 
+	 *
 	 * Without this hack, the first invocation of getopt would work as
 	 * long as the generic arguments are first, but the second invocation
 	 * (in the subfunction) would fail in one of two ways.  In the case
@@ -4563,14 +5897,14 @@ main(int argc, char **argv)
 	 * whether optind had been incremented one option too far.  The
 	 * mechanics of that, however, are more daunting than just giving
 	 * both invocations all of the expect options for either invocation.
-	 * 
+	 *
 	 * Needless to say, I wouldn't mind if someone invented a better
 	 * (non-GPL!) command line parsing interface than getopt.  I
 	 * wouldn't mind if someone added more knobs to getopt to make it
 	 * work better.  Who knows, I may talk myself into doing it someday,
 	 * if the standards weenies let me.  As it is, it just leads to
 	 * hackery like this and causes people to avoid it in some cases.
-	 * 
+	 *
 	 * KDM, September 8th, 1998
 	 */
 	if (subopt != NULL)
@@ -4595,15 +5929,7 @@ main(int argc, char **argv)
 		char name[30];
 		int rv;
 
-		/*
-		 * First catch people who try to do things like:
-		 * camcontrol tur /dev/da0 
-		 * camcontrol doesn't take device nodes as arguments.
-		 */
-		if (argv[2][0] == '/') {
-			warnx("%s is not a valid device identifier", argv[2]);
-			errx(1, "please read the camcontrol(8) man page");
-		} else if (isdigit(argv[2][0])) {
+		if (isdigit(argv[2][0])) {
 			/* device specified as bus:target[:lun] */
 			rv = parse_btl(argv[2], &bus, &target, &lun, &arglist);
 			if (rv < 2)
@@ -4751,6 +6077,27 @@ main(int argc, char **argv)
 		case CAM_CMD_SCSI_CMD:
 			error = scsicmd(cam_dev, argc, argv, combinedopt,
 					retry_count, timeout);
+			break;
+		case CAM_CMD_SMP_CMD:
+			error = smpcmd(cam_dev, argc, argv, combinedopt,
+				       retry_count, timeout);
+			break;
+		case CAM_CMD_SMP_RG:
+			error = smpreportgeneral(cam_dev, argc, argv,
+						 combinedopt, retry_count,
+						 timeout);
+			break;
+		case CAM_CMD_SMP_PC:
+			error = smpphycontrol(cam_dev, argc, argv, combinedopt, 
+					      retry_count, timeout);
+			break;
+		case CAM_CMD_SMP_PHYLIST:
+			error = smpphylist(cam_dev, argc, argv, combinedopt,
+					   retry_count, timeout);
+			break;
+		case CAM_CMD_SMP_MANINFO:
+			error = smpmaninfo(cam_dev, argc, argv, combinedopt,
+					   retry_count, timeout);
 			break;
 		case CAM_CMD_DEBUG:
 			error = camdebug(argc, argv, combinedopt);

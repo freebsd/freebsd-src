@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2010
+.Dd May 14, 2010
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -604,7 +604,7 @@ If the interface was reset when previously marked down,
 the hardware will be re-initialized.
 .El
 .Pp
-The following parameters are for ICMPv6 Neightbor Discovery Protocol.
+The following parameters are for ICMPv6 Neighbor Discovery Protocol.
 Note that the address family keyword
 .Dq Li inet6
 is needed for them:
@@ -616,7 +616,7 @@ Clear a flag
 .Cm accept_rtadv .
 .It Cm auto_linklocal
 Set a flag to perform automatic link-local address configuration when
-the interface becomes avalilable.
+the interface becomes available.
 .It Cm -auto_linklocal
 Clear a flag
 .Cm auto_linklocal .
@@ -645,7 +645,7 @@ Set a flag to enable Neighbor Unreachability Detection.
 Clear a flag
 .Cm nud .
 .It Cm prefer_source
-Set a flag to prefer addesses on the interface as candidates of the
+Set a flag to prefer addresses on the interface as candidates of the
 source address for outgoing packets.
 .It Cm -prefer_source
 Clear a flag
@@ -738,7 +738,7 @@ operation:
 .It Cm ampdu
 Enable sending and receiving AMPDU frames when using 802.11n (default).
 The 802.11n specification states a compliant station must be capable
-of receiving AMPDU frames but transmision is optional.
+of receiving AMPDU frames but transmission is optional.
 Use
 .Fl ampdu
 to disable all use of AMPDU with 802.11n.
@@ -939,7 +939,7 @@ should be used by specifying ``6:g''.
 Similarly the channel width can be specified by appending it
 with ``/''; e.g. ``6/40'' specifies a 40MHz wide channel,
 These attributes can be combined as in: ``6:ht/40''.
-The full set of flags specified following a `:'' are:
+The full set of flags specified following a ``:'' are:
 .Cm a
 (802.11a),
 .Cm b
@@ -966,7 +966,7 @@ The full set of channel widths following a '/' are:
 (20MHz mostly for use in specifying ht20),
 and
 .Cm 40 
-(40MHz mostly for use in specifying ht40),
+(40MHz mostly for use in specifying ht40).
 In addition,
 a 40MHz HT channel specification may include the location
 of the extension channel by appending ``+'' or ``-'' for above and below,
@@ -999,7 +999,7 @@ according to a least-congested criteria.
 DFS support is mandatory for some 5Ghz frequencies in certain
 locales (e.g. ETSI).
 By default DFS is enabled according to the regulatory definitions
-specified in /etc/regdomain.xml and the curent country code, regdomain,
+specified in /etc/regdomain.xml and the current country code, regdomain,
 and channel.
 Note the underlying device (and driver) must support radar detection
 for full DFS support to work.
@@ -1294,6 +1294,10 @@ Quality of Service (QoS).
 Indicates that the station is using QoS encapsulation for
 data frame.
 QoS encapsulation is enabled only when WME mode is enabled.
+.It Li S
+Short Preamble.
+Indicates that the station is doing short preamble to optionally
+improve throughput performance with 802.11g and 802.11b.
 .It Li T
 Transitional Security Network (TSN).
 Indicates that the station associated using TSN; see also
@@ -1368,6 +1372,10 @@ Quality of Service (QoS).
 Indicates that the station is using QoS encapsulation for
 data frame.
 QoS encapsulation is enabled only when WME mode is enabled.
+.It Li S
+Short Preamble.
+Indicates that the station is doing short preamble to optionally
+improve throughput performance with 802.11g and 802.11b.
 .It Li T
 Transitional Security Network (TSN).
 Indicates that the station associated using TSN; see also
@@ -1711,7 +1719,7 @@ If an
 .Ar index
 is not given, key 1 is set.
 A WEP key will be either 5 or 13
-characters (40 or 104 bits) depending of the local network and the
+characters (40 or 104 bits) depending on the local network and the
 capabilities of the adaptor.
 It may be specified either as a plain
 string or as a string of hexadecimal digits preceded by
@@ -1934,9 +1942,9 @@ Nodes on the mesh without a path to this root mesh station with try to
 discover a path to us.
 .It Cm PROACTIVE
 Send broadcast path requests every two seconds and every node must reply with
-with a path reply even if it already has a path to this root mesh station,
+with a path reply even if it already has a path to this root mesh station.
 .It Cm RANN
-Send broadcast root annoucement (RANN) frames.
+Send broadcast root announcement (RANN) frames.
 Nodes on the mesh without a path to this root mesh station with try to
 discover a path to us.
 .El
@@ -2252,7 +2260,7 @@ Another name for the
 .Fl tunnel
 parameter.
 .It Cm accept_rev_ethip_ver
-Set a flag to acccept both correct EtherIP packets and ones
+Set a flag to accept both correct EtherIP packets and ones
 with reversed version field.  Enabled by default.
 This is for backward compatibility with
 .Fx 6.1 ,

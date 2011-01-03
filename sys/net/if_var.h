@@ -876,7 +876,7 @@ struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
 int		ifa_ifwithaddr_check(struct sockaddr *);
 struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
-struct	ifaddr *ifa_ifwithnet(struct sockaddr *);
+struct	ifaddr *ifa_ifwithnet(struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *);
 struct	ifaddr *ifa_ifwithroute_fib(int, struct sockaddr *, struct sockaddr *, u_int);
 

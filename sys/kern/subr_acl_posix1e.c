@@ -90,8 +90,14 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		     PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
-		if ((accmode & VEXEC) && !priv_check_cred(cred,
-		    PRIV_VFS_EXEC, 0))
+		/*
+		 * Ensure that at least one execute bit is on. Otherwise,
+		 * a privileged user will always succeed, and we don't want
+		 * this to happen unless the file really is executable.
+		 */
+		if ((accmode & VEXEC) && (acl_posix1e_acl_to_mode(acl) &
+		    (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
+		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
@@ -558,7 +564,7 @@ acl_posix1e_check(struct acl *acl)
 	 */
 	num_acl_user_obj = num_acl_user = num_acl_group_obj = num_acl_group =
 	    num_acl_mask = num_acl_other = 0;
-	if (acl->acl_cnt > ACL_MAX_ENTRIES || acl->acl_cnt < 0)
+	if (acl->acl_cnt > ACL_MAX_ENTRIES)
 		return (EINVAL);
 	for (i = 0; i < acl->acl_cnt; i++) {
 		/*

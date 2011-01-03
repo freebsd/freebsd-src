@@ -131,6 +131,8 @@ mvs_attach(device_t dev)
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
 	/* Setup our own memory management for channels. */
+	ctlr->sc_iomem.rm_start = rman_get_start(ctlr->r_mem);
+	ctlr->sc_iomem.rm_end = rman_get_end(ctlr->r_mem);
 	ctlr->sc_iomem.rm_type = RMAN_ARRAY;
 	ctlr->sc_iomem.rm_descr = "I/O memory addresses";
 	if ((error = rman_init(&ctlr->sc_iomem)) != 0) {
@@ -293,7 +295,6 @@ mvs_intr(void *data)
 	u_int32_t ic, aic;
 
 	ic = ATA_INL(ctlr->r_mem, CHIP_SOC_MIC);
-//device_printf(ctlr->dev, "irq MIC:%08x\n", ic);
 	if ((ic & IC_HC0) == 0)
 		return;
 	/* Acknowledge interrupts of this HC. */
@@ -413,6 +414,16 @@ mvs_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
+static int
+mvs_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 static device_method_t mvs_methods[] = {
 	DEVMETHOD(device_probe,     mvs_probe),
 	DEVMETHOD(device_attach,    mvs_attach),
@@ -425,6 +436,7 @@ static device_method_t mvs_methods[] = {
 	DEVMETHOD(bus_setup_intr,   mvs_setup_intr),
 	DEVMETHOD(bus_teardown_intr,mvs_teardown_intr),
 	DEVMETHOD(mvs_edma,         mvs_edma),
+	DEVMETHOD(bus_child_location_str, mvs_child_location_str),
 	{ 0, 0 }
 };
 static driver_t mvs_driver = {

@@ -90,7 +90,7 @@ static struct siba_devid siba_devids[] = {
 
 static int	siba_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
-static device_t	siba_add_child(device_t, int, const char *, int);
+static device_t	siba_add_child(device_t, u_int, const char *, int);
 static struct resource *
 		siba_alloc_resource(device_t, device_t, int, int *, u_long,
 		    u_long, u_long, u_int);
@@ -505,7 +505,7 @@ siba_destroy_devinfo(struct siba_devinfo *sdi)
 
 /* XXX is this needed? */
 static device_t
-siba_add_child(device_t dev, int order, const char *name, int unit)
+siba_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 #if 1
 

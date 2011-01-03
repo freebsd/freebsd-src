@@ -120,6 +120,13 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXEOL);
 		}
 
+		if (AR_SREV_MERLIN(ah) || AR_SREV_KITE(ah)) {
+			uint32_t isr5;
+			isr5 = OS_REG_READ(ah, AR_ISR_S5_S);
+			if (isr5 & AR_ISR_S5_TIM_TIMER)
+				*masked |= HAL_INT_TIM_TIMER;
+		}
+
 		/* Interrupt Mitigation on AR5416 */
 #ifdef AR5416_INT_MITIGATION
 		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))

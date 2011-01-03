@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -75,7 +71,6 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 	struct tftphdr *rp;
 	int n, i;
 	uint16_t block;
-	uint32_t amount;
 	struct sockaddr_storage serv;	/* valid server port number */
 	char recvbuffer[MAXPKTSIZE];
 	struct tftp_stats tftp_stats;
@@ -162,7 +157,7 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 	tftp_send(peer, &block, &tftp_stats);
 
 	read_close();
-	if (amount > 0)
+	if (tftp_stats.amount > 0)
 		printstats("Sent", verbose, &tftp_stats);
 
 	txrx_error = 1;
@@ -229,7 +224,10 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		/* Otherwise it is a fatal error */
 		break;
 	}
-
+	if (i == 12) {
+		printf("Transfer timed out.\n");
+		return;
+	}
 	if (rp->th_opcode == ERROR) {
 		tftp_log(LOG_ERR, "Error code %d: %s", rp->th_code, rp->th_msg);
 		return;
@@ -239,8 +237,6 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		warn("write_init");
 		return;
 	}
-
-	stats_init(&tftp_stats);
 
 	/*
 	 * If the first packet is an OACK packet instead of an DATA packet,

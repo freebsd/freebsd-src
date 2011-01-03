@@ -194,7 +194,7 @@ bus_space_subregion(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 #define	BUS_SPACE_BARRIER_WRITE		0x02	/* force write barrier */
 
 #ifdef BUS_SPACE_DEBUG
-#define	KTR_BUS				KTR_CT2
+#define	KTR_BUS				KTR_SPARE2
 #define	__BUS_DEBUG_ACCESS(h, o, desc, sz) do {				\
 	CTR4(KTR_BUS, "bus space: %s %d: handle %#lx, offset %#lx",	\
 	    (desc), (sz), (h), (o));					\

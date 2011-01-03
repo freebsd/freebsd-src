@@ -140,6 +140,7 @@
 #define	RXMAC_STRIP_VLAN	0x0020
 #define	RXMAC_STRIP_FCS		0x0010
 #define	RXMAC_PAD_ENB		0x0004
+#define	RXMAC_CSUM_ENB		0x0002
 
 #define	SGE_RX_PAD_BYTES	10
 
@@ -283,7 +284,9 @@ struct sge_desc {
 #define	SGE_RX_RING_CNT		256 /* [8, 1024] */
 #define	SGE_TX_RING_CNT		256 /* [8, 8192] */
 #define	SGE_DESC_ALIGN		16
-#define	SGE_MAXTXSEGS		16
+#define	SGE_MAXTXSEGS		32
+#define	SGE_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
+#define	SGE_TSO_MAXSEGSIZE	4096
 #define	SGE_RX_BUF_ALIGN	sizeof(uint64_t)
 
 #define	SGE_RX_RING_SZ		(SGE_RX_RING_CNT * sizeof(struct sge_desc))

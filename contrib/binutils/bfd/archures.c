@@ -1,6 +1,6 @@
 /* BFD library support routines for architectures.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003
+   2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
    Hacked by John Gilmore and Steve Chamberlain of Cygnus Support.
 
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -141,10 +141,12 @@ DESCRIPTION
 .#define bfd_mach_mips6000		6000
 .#define bfd_mach_mips7000		7000
 .#define bfd_mach_mips8000		8000
+.#define bfd_mach_mips9000		9000
 .#define bfd_mach_mips10000		10000
 .#define bfd_mach_mips12000		12000
 .#define bfd_mach_mips16		16
 .#define bfd_mach_mips5                 5
+.#define bfd_mach_mips_octeon           6502
 .#define bfd_mach_mips_sb1              12310201 {* octal 'SB', 01 *}
 .#define bfd_mach_mipsisa32             32
 .#define bfd_mach_mipsisa32r2           33

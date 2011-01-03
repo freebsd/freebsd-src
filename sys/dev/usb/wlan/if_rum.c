@@ -118,6 +118,9 @@ static const struct usb_device_id rum_devs[] = {
     RUM_DEV(HUAWEI3COM, WUB320G),
     RUM_DEV(MELCO, G54HP),
     RUM_DEV(MELCO, SG54HP),
+    RUM_DEV(MELCO, WLIUCG),
+    RUM_DEV(MELCO, WLRUCG),
+    RUM_DEV(MELCO, WLRUCGAOSS),
     RUM_DEV(MSI, RT2573_1),
     RUM_DEV(MSI, RT2573_2),
     RUM_DEV(MSI, RT2573_3),
@@ -138,9 +141,6 @@ static const struct usb_device_id rum_devs[] = {
     RUM_DEV(SURECOM, RT2573),
 #undef RUM_DEV
 };
-
-MODULE_DEPEND(rum, wlan, 1, 1, 1);
-MODULE_DEPEND(rum, usb, 1, 1, 1);
 
 static device_probe_t rum_match;
 static device_attach_t rum_attach;
@@ -197,6 +197,7 @@ static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_update_slot(struct ifnet *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
+static void		rum_update_mcast(struct ifnet *);
 static void		rum_update_promisc(struct ifnet *);
 static void		rum_setpromisc(struct rum_softc *);
 static const char	*rum_get_rf(int);
@@ -514,6 +515,7 @@ rum_attach(device_t self)
 
 	ic->ic_vap_create = rum_vap_create;
 	ic->ic_vap_delete = rum_vap_delete;
+	ic->ic_update_mcast = rum_update_mcast;
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
@@ -719,7 +721,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_RUN:
-		ni = vap->iv_bss;
+		ni = ieee80211_ref_node(vap->iv_bss);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
 			rum_update_slot(ic->ic_ifp);
@@ -743,6 +745,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
 			rum_ratectl_start(sc, ni);
+		ieee80211_free_node(ni);
 		break;
 	default:
 		break;
@@ -1049,7 +1052,7 @@ rum_sendprot(struct rum_softc *sc,
 	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
 
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort);
+	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
 	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 	flags = RT2573_TX_MORE_FRAG;
 	if (prot == IEEE80211_PROT_RTSCTS) {
@@ -1815,6 +1818,17 @@ rum_update_promisc(struct ifnet *ifp)
 	RUM_UNLOCK(sc);
 }
 
+static void
+rum_update_mcast(struct ifnet *ifp)
+{
+	static int warning_printed;
+
+	if (warning_printed == 0) {
+		if_printf(ifp, "need to implement %s\n", __func__);
+		warning_printed = 1;
+	}
+}
+
 static const char *
 rum_get_rf(int rev)
 {
@@ -2216,7 +2230,7 @@ rum_ratectl_task(void *arg, int pending)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct rum_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	int ok, fail;
 	int sum, retrycnt;
 
@@ -2230,8 +2244,10 @@ rum_ratectl_task(void *arg, int pending)
 	sum = ok+fail;
 	retrycnt = (le32toh(sc->sta[5]) & 0xffff) + fail;
 
+	ni = ieee80211_ref_node(vap->iv_bss);
 	ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
 	(void) ieee80211_ratectl_rate(ni, NULL, 0);
+	ieee80211_free_node(ni);
 
 	ifp->if_oerrors += fail;	/* count TX retry-fail as Tx errors */
 
@@ -2350,3 +2366,6 @@ static driver_t rum_driver = {
 static devclass_t rum_devclass;
 
 DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, NULL, 0);
+MODULE_DEPEND(rum, wlan, 1, 1, 1);
+MODULE_DEPEND(rum, usb, 1, 1, 1);
+MODULE_VERSION(rum, 1);

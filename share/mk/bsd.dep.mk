@@ -125,14 +125,14 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
-.if ${CC} == "icc"
-MKDEP_CFLAGS=	${CFLAGS:M-X*} ${CFLAGS:M-[BID]*}
-MKDEP_CXXFLAGS=	${CXXFLAGS:M-X*} ${CXXFLAGS:M-[BID]*}
-MKDEP_OBJCFLAGS=${OBJCFLAGS:M-X*} ${OBJCFLAGS:M-[BID]*}
+.if ${CC:T:Micc} == "icc"
+MKDEP_CFLAGS=	${CFLAGS:M-X*} ${CFLAGS:M-[BIDU]*}
+MKDEP_CXXFLAGS=	${CXXFLAGS:M-X*} ${CXXFLAGS:M-[BIDU]*}
+MKDEP_OBJCFLAGS=${OBJCFLAGS:M-X*} ${OBJCFLAGS:M-[BIDU]*}
 .else
-MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*}
-MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BID]*}
-MKDEP_OBJCFLAGS=${OBJCFLAGS:M-nostdinc*} ${OBJCFLAGS:M-[BID]*} ${OBJCFLAGS:M-Wno-import*}
+MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*}
+MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*}
+MKDEP_OBJCFLAGS=${OBJCFLAGS:M-nostdinc*} ${OBJCFLAGS:M-[BIDU]*} ${OBJCFLAGS:M-Wno-import*}
 .endif
 
 DPSRCS+= ${SRCS}

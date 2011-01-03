@@ -224,7 +224,6 @@ RsDoMemory24Descriptor (
     ACPI_PARSE_OBJECT       *MinOp = NULL;
     ACPI_PARSE_OBJECT       *MaxOp = NULL;
     ACPI_PARSE_OBJECT       *LengthOp = NULL;
-    ACPI_PARSE_OBJECT       *AlignOp = NULL;
     ASL_RESOURCE_NODE       *Rnode;
     UINT32                  i;
 
@@ -270,7 +269,6 @@ RsDoMemory24Descriptor (
             Descriptor->Memory24.Alignment = (UINT16) InitializerOp->Asl.Value.Integer;
             RsCreateByteField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Alignment));
-            AlignOp = InitializerOp;
             break;
 
         case 4: /* Length */
@@ -302,7 +300,7 @@ RsDoMemory24Descriptor (
         Descriptor->Memory24.Maximum,
         Descriptor->Memory24.AddressLength,
         Descriptor->Memory24.Alignment,
-        MinOp, MaxOp, LengthOp, NULL);
+        MinOp, MaxOp, LengthOp, NULL, Op);
 
     return (Rnode);
 }
@@ -410,7 +408,7 @@ RsDoMemory32Descriptor (
         Descriptor->Memory32.Maximum,
         Descriptor->Memory32.AddressLength,
         Descriptor->Memory32.Alignment,
-        MinOp, MaxOp, LengthOp, AlignOp);
+        MinOp, MaxOp, LengthOp, AlignOp, Op);
 
     return (Rnode);
 }

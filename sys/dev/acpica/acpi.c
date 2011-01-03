@@ -46,9 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/power.h>
 #include <sys/sbuf.h>
-#ifdef SMP
 #include <sys/sched.h>
-#endif
 #include <sys/smp.h>
 #include <sys/timetc.h>
 
@@ -67,10 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
-
-#include "pci_if.h"
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pci_private.h>
 
 #include <vm/vm_param.h>
 
@@ -92,6 +86,11 @@ static struct cdevsw acpi_cdevsw = {
 	.d_name =	"acpi",
 };
 
+struct acpi_interface {
+	ACPI_STRING	*data;
+	int		num;
+};
+
 /* Global mutex for locking access to the ACPI subsystem. */
 struct mtx	acpi_mutex;
 
@@ -107,7 +106,7 @@ static int	acpi_attach(device_t dev);
 static int	acpi_suspend(device_t dev);
 static int	acpi_resume(device_t dev);
 static int	acpi_shutdown(device_t dev);
-static device_t	acpi_add_child(device_t bus, int order, const char *name,
+static device_t	acpi_add_child(device_t bus, u_int order, const char *name,
 			int unit);
 static int	acpi_print_child(device_t bus, device_t child);
 static void	acpi_probe_nomatch(device_t bus, device_t child);
@@ -117,7 +116,10 @@ static int	acpi_read_ivar(device_t dev, device_t child, int index,
 static int	acpi_write_ivar(device_t dev, device_t child, int index,
 			uintptr_t value);
 static struct resource_list *acpi_get_rlist(device_t dev, device_t child);
+static void	acpi_reserve_resources(device_t dev);
 static int	acpi_sysres_alloc(device_t dev);
+static int	acpi_set_resource(device_t dev, device_t child, int type,
+			int rid, u_long start, u_long count);
 static struct resource *acpi_alloc_resource(device_t bus, device_t child,
 			int type, int *rid, u_long start, u_long end,
 			u_long count, u_int flags);
@@ -131,21 +133,17 @@ static char	*acpi_device_id_probe(device_t bus, device_t dev, char **ids);
 static ACPI_STATUS acpi_device_eval_obj(device_t bus, device_t dev,
 		    ACPI_STRING pathname, ACPI_OBJECT_LIST *parameters,
 		    ACPI_BUFFER *ret);
-static int	acpi_device_pwr_for_sleep(device_t bus, device_t dev,
-		    int *dstate);
 static ACPI_STATUS acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level,
 		    void *context, void **retval);
 static ACPI_STATUS acpi_device_scan_children(device_t bus, device_t dev,
 		    int max_depth, acpi_scan_cb_t user_fn, void *arg);
-static int	acpi_set_powerstate_method(device_t bus, device_t child,
-		    int state);
+static int	acpi_set_powerstate(device_t child, int state);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child,
 		    struct isa_pnp_id *ids);
 static void	acpi_probe_children(device_t bus);
 static void	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 		    void *context, void **status);
-static BOOLEAN	acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 static void	acpi_sleep_enable(void *arg);
 static ACPI_STATUS acpi_sleep_disable(struct acpi_softc *sc);
 static ACPI_STATUS acpi_EnterSleepState(struct acpi_softc *sc, int state);
@@ -173,6 +171,7 @@ static void	acpi_enable_pcie(void);
 #endif
 static void	acpi_hint_device_unit(device_t acdev, device_t child,
 		    const char *name, int *unitp);
+static void	acpi_reset_interfaces(device_t dev);
 
 static device_method_t acpi_methods[] = {
     /* Device interface */
@@ -191,7 +190,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_read_ivar,		acpi_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_write_ivar),
     DEVMETHOD(bus_get_resource_list,	acpi_get_rlist),
-    DEVMETHOD(bus_set_resource,		bus_generic_rl_set_resource),
+    DEVMETHOD(bus_set_resource,		acpi_set_resource),
     DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
     DEVMETHOD(bus_alloc_resource,	acpi_alloc_resource),
     DEVMETHOD(bus_release_resource,	acpi_release_resource),
@@ -209,9 +208,6 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(acpi_evaluate_object,	acpi_device_eval_obj),
     DEVMETHOD(acpi_pwr_for_sleep,	acpi_device_pwr_for_sleep),
     DEVMETHOD(acpi_scan_children,	acpi_device_scan_children),
-
-    /* PCI emulation */
-    DEVMETHOD(pci_set_powerstate,	acpi_set_powerstate_method),
 
     /* ISA emulation */
     DEVMETHOD(isa_pnp_probe,		acpi_isa_pnp_probe),
@@ -245,6 +241,16 @@ SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
 	      acpi_ca_version, 0, "Version of Intel ACPI-CA");
 
 /*
+ * Allow overriding _OSI methods.
+ */
+static char acpi_install_interface[256];
+TUNABLE_STR("hw.acpi.install_interface", acpi_install_interface,
+    sizeof(acpi_install_interface));
+static char acpi_remove_interface[256];
+TUNABLE_STR("hw.acpi.remove_interface", acpi_remove_interface,
+    sizeof(acpi_remove_interface));
+
+/*
  * Allow override of whether methods execute in parallel or not.
  * Enable this for serial behavior, which fixes "AE_ALREADY_EXISTS"
  * errors for AML that really can't handle parallel method execution.
@@ -266,12 +272,6 @@ static int acpi_interpreter_slack = 1;
 TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
-
-/* Power devices off and on in suspend and resume.  XXX Remove once tested. */
-static int acpi_do_powerstate = 1;
-TUNABLE_INT("debug.acpi.do_powerstate", &acpi_do_powerstate);
-SYSCTL_INT(_debug_acpi, OID_AUTO, do_powerstate, CTLFLAG_RW,
-    &acpi_do_powerstate, 1, "Turn off devices when suspending.");
 
 /* Reset system clock while resuming.  XXX Remove once tested. */
 static int acpi_reset_clock = 1;
@@ -486,6 +486,9 @@ acpi_attach(device_t dev)
 	goto out;
     }
 
+    /* Override OS interfaces if the user requested. */
+    acpi_reset_interfaces(dev);
+
     /* Load ACPI name space. */
     status = AcpiLoadTables();
     if (ACPI_FAILURE(status)) {
@@ -498,29 +501,6 @@ acpi_attach(device_t dev)
     /* Handle MCFG table if present. */
     acpi_enable_pcie();
 #endif
-
-    /* Install the default address space handlers. */
-    status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
-		ACPI_ADR_SPACE_SYSTEM_MEMORY, ACPI_DEFAULT_HANDLER, NULL, NULL);
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "Could not initialise SystemMemory handler: %s\n",
-		      AcpiFormatException(status));
-	goto out;
-    }
-    status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
-		ACPI_ADR_SPACE_SYSTEM_IO, ACPI_DEFAULT_HANDLER, NULL, NULL);
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "Could not initialise SystemIO handler: %s\n",
-		      AcpiFormatException(status));
-	goto out;
-    }
-    status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
-		ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "could not initialise PciConfig handler: %s\n",
-		      AcpiFormatException(status));
-	goto out;
-    }
 
     /*
      * Note that some systems (specifically, those with namespace evaluation
@@ -615,6 +595,10 @@ acpi_attach(device_t dev)
 	freeenv(env);
     }
 
+    /* Only enable reboot by default if the FADT says it is available. */
+    if (AcpiGbl_FADT.Flags & ACPI_FADT_RESET_REGISTER)
+	sc->acpi_handle_reboot = 1;
+
     /* Only enable S4BIOS by default if the FACS says it is available. */
     if (AcpiGbl_FACS->Flags & ACPI_FACS_S4_BIOS_PRESENT)
 	sc->acpi_s4bios = 1;
@@ -683,6 +667,12 @@ acpi_attach(device_t dev)
     if (!acpi_disabled("bus"))
 	acpi_probe_children(dev);
 
+    /* Update all GPEs and enable runtime GPEs. */
+    status = AcpiUpdateAllGpes();
+    if (ACPI_FAILURE(status))
+	device_printf(dev, "Could not update all GPEs: %s\n",
+	    AcpiFormatException(status));
+
     /* Allow sleep request after a while. */
     timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
 
@@ -692,45 +682,43 @@ acpi_attach(device_t dev)
     return_VALUE (error);
 }
 
+static void
+acpi_set_power_children(device_t dev, int state)
+{
+	device_t child, parent;
+	device_t *devlist;
+	struct pci_devinfo *dinfo;
+	int dstate, i, numdevs;
+
+	if (device_get_children(dev, &devlist, &numdevs) != 0)
+		return;
+
+	/*
+	 * Retrieve and set D-state for the sleep state if _SxD is present.
+	 * Skip children who aren't attached since they are handled separately.
+	 */
+	parent = device_get_parent(dev);
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		dinfo = device_get_ivars(child);
+		dstate = state;
+		if (device_is_attached(child) &&
+		    acpi_device_pwr_for_sleep(parent, dev, &dstate) == 0)
+			acpi_set_powerstate(child, dstate);
+	}
+	free(devlist, M_TEMP);
+}
+
 static int
 acpi_suspend(device_t dev)
 {
-    device_t child, *devlist;
-    int error, i, numdevs, pstate;
+    int error;
 
     GIANT_REQUIRED;
 
-    /* First give child devices a chance to suspend. */
     error = bus_generic_suspend(dev);
-    if (error)
-	return (error);
-
-    /*
-     * Now, set them into the appropriate power state, usually D3.  If the
-     * device has an _SxD method for the next sleep state, use that power
-     * state instead.
-     */
-    error = device_get_children(dev, &devlist, &numdevs);
-    if (error)
-	return (error);
-    for (i = 0; i < numdevs; i++) {
-	/* If the device is not attached, we've powered it down elsewhere. */
-	child = devlist[i];
-	if (!device_is_attached(child))
-	    continue;
-
-	/*
-	 * Default to D3 for all sleep states.  The _SxD method is optional
-	 * so set the powerstate even if it's absent.
-	 */
-	pstate = PCI_POWERSTATE_D3;
-	error = acpi_device_pwr_for_sleep(device_get_parent(child),
-	    child, &pstate);
-	if ((error == 0 || error == ESRCH) && acpi_do_powerstate)
-	    pci_set_powerstate(child, pstate);
-    }
-    free(devlist, M_TEMP);
-    error = 0;
+    if (error == 0)
+	acpi_set_power_children(dev, ACPI_STATE_D3);
 
     return (error);
 }
@@ -738,28 +726,10 @@ acpi_suspend(device_t dev)
 static int
 acpi_resume(device_t dev)
 {
-    ACPI_HANDLE handle;
-    int i, numdevs, error;
-    device_t child, *devlist;
 
     GIANT_REQUIRED;
 
-    /*
-     * Put all devices in D0 before resuming them.  Call _S0D on each one
-     * since some systems expect this.
-     */
-    error = device_get_children(dev, &devlist, &numdevs);
-    if (error)
-	return (error);
-    for (i = 0; i < numdevs; i++) {
-	child = devlist[i];
-	handle = acpi_get_handle(child);
-	if (handle)
-	    AcpiEvaluateObject(handle, "_S0D", NULL, NULL);
-	if (device_is_attached(child) && acpi_do_powerstate)
-	    pci_set_powerstate(child, PCI_POWERSTATE_D0);
-    }
-    free(devlist, M_TEMP);
+    acpi_set_power_children(dev, ACPI_STATE_D0);
 
     return (bus_generic_resume(dev));
 }
@@ -786,7 +756,7 @@ acpi_shutdown(device_t dev)
  * Handle a new device being added
  */
 static device_t
-acpi_add_child(device_t bus, int order, const char *name, int unit)
+acpi_add_child(device_t bus, u_int order, const char *name, int unit)
 {
     struct acpi_device	*ad;
     device_t		child;
@@ -835,7 +805,7 @@ static void
 acpi_probe_nomatch(device_t bus, device_t child)
 {
 #ifdef ACPI_ENABLE_POWERDOWN_NODRIVER
-    pci_set_powerstate(child, PCI_POWERSTATE_D3);
+    acpi_set_powerstate(child, ACPI_STATE_D3);
 #endif
 }
 
@@ -857,9 +827,9 @@ acpi_driver_added(device_t dev, driver_t *driver)
 	child = devlist[i];
 	if (device_get_state(child) == DS_NOTPRESENT) {
 #ifdef ACPI_ENABLE_POWERDOWN_NODRIVER
-	    pci_set_powerstate(child, PCI_POWERSTATE_D0);
+	    acpi_set_powerstate(child, ACPI_STATE_D0);
 	    if (device_probe_and_attach(child) != 0)
-		pci_set_powerstate(child, PCI_POWERSTATE_D3);
+		acpi_set_powerstate(child, ACPI_STATE_D3);
 #else
 	    device_probe_and_attach(child);
 #endif
@@ -1142,73 +1112,152 @@ acpi_sysres_alloc(device_t dev)
     return (0);
 }
 
+static char *pcilink_ids[] = { "PNP0C0F", NULL };
+static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
+
+/*
+ * Reserve declared resources for devices found during attach once system
+ * resources have been allocated.
+ */
+static void
+acpi_reserve_resources(device_t dev)
+{
+    struct resource_list_entry *rle;
+    struct resource_list *rl;
+    struct acpi_device *ad;
+    struct acpi_softc *sc;
+    device_t *children;
+    int child_count, i;
+
+    sc = device_get_softc(dev);
+    if (device_get_children(dev, &children, &child_count) != 0)
+	return;
+    for (i = 0; i < child_count; i++) {
+	ad = device_get_ivars(children[i]);
+	rl = &ad->ad_rl;
+
+	/* Don't reserve system resources. */
+	if (ACPI_ID_PROBE(dev, children[i], sysres_ids) != NULL)
+	    continue;
+
+	STAILQ_FOREACH(rle, rl, link) {
+	    /*
+	     * Don't reserve IRQ resources.  There are many sticky things
+	     * to get right otherwise (e.g. IRQs for psm, atkbd, and HPET
+	     * when using legacy routing).
+	     */
+	    if (rle->type == SYS_RES_IRQ)
+		continue;
+
+	    /*
+	     * Don't reserve the resource if it is already allocated.
+	     * The acpi_ec(4) driver can allocate its resources early
+	     * if ECDT is present.
+	     */
+	    if (rle->res != NULL)
+		continue;
+
+	    /*
+	     * Try to reserve the resource from our parent.  If this
+	     * fails because the resource is a system resource, just
+	     * let it be.  The resource range is already reserved so
+	     * that other devices will not use it.  If the driver
+	     * needs to allocate the resource, then
+	     * acpi_alloc_resource() will sub-alloc from the system
+	     * resource.
+	     */
+	    resource_list_reserve(rl, dev, children[i], rle->type, &rle->rid,
+		rle->start, rle->end, rle->count, 0);
+	}
+    }
+    free(children, M_TEMP);
+    sc->acpi_resources_reserved = 1;
+}
+
+static int
+acpi_set_resource(device_t dev, device_t child, int type, int rid,
+    u_long start, u_long count)
+{
+    struct acpi_softc *sc = device_get_softc(dev);
+    struct acpi_device *ad = device_get_ivars(child);
+    struct resource_list *rl = &ad->ad_rl;
+    u_long end;
+    
+    /* Ignore IRQ resources for PCI link devices. */
+    if (type == SYS_RES_IRQ && ACPI_ID_PROBE(dev, child, pcilink_ids) != NULL)
+	return (0);
+
+    /* If the resource is already allocated, fail. */
+    if (resource_list_busy(rl, type, rid))
+	return (EBUSY);
+
+    /* If the resource is already reserved, release it. */
+    if (resource_list_reserved(rl, type, rid))
+	resource_list_unreserve(rl, dev, child, type, rid);
+
+    /* Add the resource. */
+    end = (start + count - 1);
+    resource_list_add(rl, type, rid, start, end, count);
+
+    /* Don't reserve resources until the system resources are allocated. */
+    if (!sc->acpi_resources_reserved)
+	return (0);
+
+    /* Don't reserve system resources. */
+    if (ACPI_ID_PROBE(dev, child, sysres_ids) != NULL)
+	return (0);
+
+    /*
+     * Don't reserve IRQ resources.  There are many sticky things to
+     * get right otherwise (e.g. IRQs for psm, atkbd, and HPET when
+     * using legacy routing).
+     */
+    if (type == SYS_RES_IRQ)
+	return (0);
+
+    /*
+     * Reserve the resource.
+     *
+     * XXX: Ignores failure for now.  Failure here is probably a
+     * BIOS/firmware bug?
+     */
+    resource_list_reserve(rl, dev, child, type, &rid, start, end, count, 0);
+    return (0);
+}
+
 static struct resource *
 acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
     ACPI_RESOURCE ares;
-    struct acpi_device *ad = device_get_ivars(child);
-    struct resource_list *rl = &ad->ad_rl;
+    struct acpi_device *ad;
     struct resource_list_entry *rle;
+    struct resource_list *rl;
     struct resource *res;
     struct rman *rm;
-
-    res = NULL;
-
-    /* We only handle memory and IO resources through rman. */
-    switch (type) {
-    case SYS_RES_IOPORT:
-	rm = &acpi_rman_io;
-	break;
-    case SYS_RES_MEMORY:
-	rm = &acpi_rman_mem;
-	break;
-    default:
-	rm = NULL;
-    }
-	    
-    ACPI_SERIAL_BEGIN(acpi);
+    int isdefault = (start == 0UL && end == ~0UL);
 
     /*
-     * If this is an allocation of the "default" range for a given RID, and
-     * we know what the resources for this device are (i.e., they're on the
-     * child's resource list), use those start/end values.
+     * First attempt at allocating the resource.  For direct children,
+     * use resource_list_alloc() to handle reserved resources.  For
+     * other dveices, pass the request up to our parent.
      */
-    if (bus == device_get_parent(child) && start == 0UL && end == ~0UL) {
-	rle = resource_list_find(rl, type, *rid);
-	if (rle == NULL)
-	    goto out;
-	start = rle->start;
-	end = rle->end;
-	count = rle->count;
-    }
+    if (bus == device_get_parent(child)) {
+	ad = device_get_ivars(child);
+	rl = &ad->ad_rl;
 
-    /*
-     * If this is an allocation of a specific range, see if we can satisfy
-     * the request from our system resource regions.  If we can't, pass the
-     * request up to the parent.
-     */
-    if (start + count - 1 == end && rm != NULL)
-	res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
-	    child);
-    if (res == NULL) {
-	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
-	    start, end, count, flags);
-    } else {
-	rman_set_rid(res, *rid);
-
-	/* If requested, activate the resource using the parent's method. */
-	if (flags & RF_ACTIVE)
-	    if (bus_activate_resource(child, type, *rid, res) != 0) {
-		rman_release_resource(res);
-		res = NULL;
-		goto out;
-	    }
-    }
-
-    if (res != NULL && device_get_parent(child) == bus)
-	switch (type) {
-	case SYS_RES_IRQ:
+	/*
+	 * Simulate the behavior of the ISA bus for direct children
+	 * devices.  That is, if a non-default range is specified for
+	 * a resource that doesn't exist, use bus_set_resource() to
+	 * add the resource before allocating it.  Note that these
+	 * resources will not be reserved.
+	 */
+	if (!isdefault && resource_list_find(rl, type, *rid) == NULL)
+		resource_list_add(rl, type, *rid, start, end, count);
+	res = resource_list_alloc(rl, bus, child, type, rid, start, end, count,
+	    flags);
+	if (res != NULL && type == SYS_RES_IRQ) {
 	    /*
 	     * Since bus_config_intr() takes immediate effect, we cannot
 	     * configure the interrupt associated with a device when we
@@ -1219,11 +1268,59 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	     */
 	    if (ACPI_SUCCESS(acpi_lookup_irq_resource(child, *rid, res, &ares)))
 		acpi_config_intr(child, &ares);
-	    break;
 	}
 
-out:
-    ACPI_SERIAL_END(acpi);
+	/*
+	 * If this is an allocation of the "default" range for a given
+	 * RID, fetch the exact bounds for this resource from the
+	 * resource list entry to try to allocate the range from the
+	 * system resource regions.
+	 */
+	if (res == NULL && isdefault) {
+	    rle = resource_list_find(rl, type, *rid);
+	    if (rle != NULL) {
+		start = rle->start;
+		end = rle->end;
+		count = rle->count;
+	    }
+	}
+    } else
+	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
+	    start, end, count, flags);
+    if (res != NULL || start + count - 1 != end)
+	return (res);
+
+    /*
+     * If the first attempt failed and this is an allocation of a
+     * specific range, try to satisfy the request via a suballocation
+     * from our system resource regions.  Note that we only handle
+     * memory and I/O port system resources.
+     */
+    switch (type) {
+    case SYS_RES_IOPORT:
+	rm = &acpi_rman_io;
+	break;
+    case SYS_RES_MEMORY:
+	rm = &acpi_rman_mem;
+	break;
+    default:
+	return (NULL);
+    }
+
+    res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
+	child);
+    if (res == NULL)
+	return (NULL);
+
+    rman_set_rid(res, *rid);
+
+    /* If requested, activate the resource using the parent's method. */
+    if (flags & RF_ACTIVE)
+	if (bus_activate_resource(child, type, *rid, res) != 0) {
+	    rman_release_resource(res);
+	    return (NULL);
+	}
+
     return (res);
 }
 
@@ -1246,26 +1343,20 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid,
 	rm = NULL;
     }
 
-    ACPI_SERIAL_BEGIN(acpi);
-
     /*
      * If this resource belongs to one of our internal managers,
-     * deactivate it and release it to the local pool.  If it doesn't,
-     * pass this request up to the parent.
+     * deactivate it and release it to the local pool.
      */
     if (rm != NULL && rman_is_region_manager(r, rm)) {
 	if (rman_get_flags(r) & RF_ACTIVE) {
 	    ret = bus_deactivate_resource(child, type, rid, r);
 	    if (ret != 0)
-		goto out;
+		return (ret);
 	}
-	ret = rman_release_resource(r);
-    } else
-	ret = BUS_RELEASE_RESOURCE(device_get_parent(bus), child, type, rid, r);
+	return (rman_release_resource(r));
+    }
 
-out:
-    ACPI_SERIAL_END(acpi);
-    return (ret);
+    return (bus_generic_rl_release_resource(bus, child, type, rid, r));
 }
 
 static void
@@ -1274,6 +1365,12 @@ acpi_delete_resource(device_t bus, device_t child, int type, int rid)
     struct resource_list *rl;
 
     rl = acpi_get_rlist(bus, child);
+    if (resource_list_busy(rl, type, rid)) {
+	device_printf(bus, "delete_resource: Resource still owned by child"
+	    " (type=%d, rid=%d)\n", type, rid);
+	return;
+    }
+    resource_list_unreserve(rl, bus, child, type, rid);
     resource_list_delete(rl, type, rid);
 }
 
@@ -1418,16 +1515,14 @@ acpi_device_eval_obj(device_t bus, device_t dev, ACPI_STRING pathname,
     return (AcpiEvaluateObject(h, pathname, parameters, ret));
 }
 
-static int
+int
 acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
 {
     struct acpi_softc *sc;
     ACPI_HANDLE handle;
     ACPI_STATUS status;
     char sxd[8];
-    int error;
 
-    sc = device_get_softc(bus);
     handle = acpi_get_handle(dev);
 
     /*
@@ -1436,7 +1531,7 @@ acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
      * set to D3 and it appears that such legacy devices may
      * need special handling in their drivers.
      */
-    if (handle == NULL ||
+    if (dstate == NULL || handle == NULL ||
 	acpi_MatchHid(handle, "PNP0500") ||
 	acpi_MatchHid(handle, "PNP0501") ||
 	acpi_MatchHid(handle, "PNP0502") ||
@@ -1445,28 +1540,19 @@ acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
 	return (ENXIO);
 
     /*
-     * Override next state with the value from _SxD, if present.  If no
-     * dstate argument was provided, don't fetch the return value.
+     * Override next state with the value from _SxD, if present.
+     * Note illegal _S0D is evaluated because some systems expect this.
      */
+    sc = device_get_softc(bus);
     snprintf(sxd, sizeof(sxd), "_S%dD", sc->acpi_sstate);
-    if (dstate)
-	status = acpi_GetInteger(handle, sxd, dstate);
-    else
-	status = AcpiEvaluateObject(handle, sxd, NULL, NULL);
-
-    switch (status) {
-    case AE_OK:
-	error = 0;
-	break;
-    case AE_NOT_FOUND:
-	error = ESRCH;
-	break;
-    default:
-	error = ENXIO;
-	break;
+    status = acpi_GetInteger(handle, sxd, dstate);
+    if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	    device_printf(dev, "failed to get %s on %s: %s\n", sxd,
+		acpi_name(handle), AcpiFormatException(status));
+	    return (ENXIO);
     }
 
-    return (error);
+    return (0);
 }
 
 /* Callback arg for our implementation of walking the namespace. */
@@ -1548,13 +1634,11 @@ acpi_device_scan_children(device_t bus, device_t dev, int max_depth,
  * device power states since it's close enough to ACPI.
  */
 static int
-acpi_set_powerstate_method(device_t bus, device_t child, int state)
+acpi_set_powerstate(device_t child, int state)
 {
     ACPI_HANDLE h;
     ACPI_STATUS status;
-    int error;
 
-    error = 0;
     h = acpi_get_handle(child);
     if (state < ACPI_STATE_D0 || state > ACPI_D_STATES_MAX)
 	return (EINVAL);
@@ -1563,12 +1647,16 @@ acpi_set_powerstate_method(device_t bus, device_t child, int state)
 
     /* Ignore errors if the power methods aren't present. */
     status = acpi_pwr_switch_consumer(h, state);
-    if (ACPI_FAILURE(status) && status != AE_NOT_FOUND
-	&& status != AE_BAD_PARAMETER)
-	device_printf(bus, "failed to set ACPI power state D%d on %s: %s\n",
-	    state, acpi_name(h), AcpiFormatException(status));
+    if (ACPI_SUCCESS(status)) {
+	if (bootverbose)
+	    device_printf(child, "set ACPI power state D%d on %s\n",
+		state, acpi_name(h));
+    } else if (status != AE_NOT_FOUND)
+	device_printf(child,
+	    "failed to set ACPI power state D%d on %s: %s\n", state,
+	    acpi_name(h), AcpiFormatException(status));
 
-    return (error);
+    return (0);
 }
 
 static int
@@ -1671,11 +1759,14 @@ acpi_probe_children(device_t bus)
     /* Pre-allocate resources for our rman from any sysresource devices. */
     acpi_sysres_alloc(bus);
 
+    /* Reserve resources already allocated to children. */
+    acpi_reserve_resources(bus);
+
     /* Create any static children by calling device identify methods. */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "device identify routines\n"));
     bus_generic_probe(bus);
 
-    /* Probe/attach all children, created staticly and from the namespace. */
+    /* Probe/attach all children, created statically and from the namespace. */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "acpi bus_generic_attach\n"));
     bus_generic_attach(bus);
 
@@ -1695,10 +1786,10 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
     ACPI_OBJECT_TYPE type;
 
     /*
-     * 1. I/O port and memory system resource holders
-     * 2. Embedded controllers (to handle early accesses)
-     * 3. PCI Link Devices
-     * 100000. CPUs
+     * 1. CPUs
+     * 2. I/O port and memory system resource holders
+     * 3. Embedded controllers (to handle early accesses)
+     * 4. PCI Link Devices
      */
     AcpiGetType(handle, &type);
     if (type == ACPI_TYPE_PROCESSOR)
@@ -1718,14 +1809,17 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
 static ACPI_STATUS
 acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
+    struct acpi_prw_data prw;
     ACPI_OBJECT_TYPE type;
     ACPI_HANDLE h;
     device_t bus, child;
+    char *handle_str;
     int order;
-    char *handle_str, **search;
-    static char *scopes[] = {"\\_PR_", "\\_TZ_", "\\_SI_", "\\_SB_", NULL};
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    if (acpi_disabled("children"))
+	return_ACPI_STATUS (AE_OK);
 
     /* Skip this device if we think we'll have trouble with it. */
     if (acpi_avoid(handle))
@@ -1733,33 +1827,30 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 
     bus = (device_t)context;
     if (ACPI_SUCCESS(AcpiGetType(handle, &type))) {
+	handle_str = acpi_name(handle);
 	switch (type) {
 	case ACPI_TYPE_DEVICE:
+	    /*
+	     * Since we scan from \, be sure to skip system scope objects.
+	     * \_SB_ and \_TZ_ are defined in ACPICA as devices to work around
+	     * BIOS bugs.  For example, \_SB_ is to allow \_SB_._INI to be run
+	     * during the intialization and \_TZ_ is to support Notify() on it.
+	     */
+	    if (strcmp(handle_str, "\\_SB_") == 0 ||
+		strcmp(handle_str, "\\_TZ_") == 0)
+		break;
+	    if (acpi_parse_prw(handle, &prw) == 0)
+		AcpiSetupGpeForWake(handle, prw.gpe_handle, prw.gpe_bit);
+	    /* FALLTHROUGH */
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
 	case ACPI_TYPE_POWER:
-	    if (acpi_disabled("children"))
-		break;
-
-	    /*
-	     * Since we scan from \, be sure to skip system scope objects.
-	     * At least \_SB and \_TZ are detected as devices (ACPI-CA bug?)
-	     */
-	    handle_str = acpi_name(handle);
-	    for (search = scopes; *search != NULL; search++) {
-		if (strcmp(handle_str, *search) == 0)
-		    break;
-	    }
-	    if (*search != NULL)
-		break;
-
 	    /* 
 	     * Create a placeholder device for this node.  Sort the
 	     * placeholder so that the probe/attach passes will run
 	     * breadth-first.  Orders less than ACPI_DEV_BASE_ORDER
 	     * are reserved for special objects (i.e., system
-	     * resources).  CPU devices have a very high order to
-	     * ensure they are probed after other devices.
+	     * resources).
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
 	    order = level * 10 + 100;
@@ -1848,19 +1939,15 @@ acpi_shutdown_final(void *arg, int howto)
 	    DELAY(1000000);
 	    device_printf(sc->acpi_dev, "power-off failed - timeout\n");
 	}
-    } else if ((howto & RB_HALT) == 0 &&
-	(AcpiGbl_FADT.Flags & ACPI_FADT_RESET_REGISTER) &&
-	sc->acpi_handle_reboot) {
+    } else if ((howto & RB_HALT) == 0 && sc->acpi_handle_reboot) {
 	/* Reboot using the reset register. */
-	status = AcpiWrite(
-	    AcpiGbl_FADT.ResetValue, &AcpiGbl_FADT.ResetRegister);
-	if (ACPI_FAILURE(status))
-	    device_printf(sc->acpi_dev, "reset failed - %s\n",
-		AcpiFormatException(status));
-	else {
+	status = AcpiReset();
+	if (ACPI_SUCCESS(status)) {
 	    DELAY(1000000);
 	    device_printf(sc->acpi_dev, "reset failed - timeout\n");
-	}
+	} else if (status != AE_NOT_EXIST)
+	    device_printf(sc->acpi_dev, "reset failed - %s\n",
+		AcpiFormatException(status));
     } else if (sc->acpi_do_disable && panicstr == NULL) {
 	/*
 	 * Only disable ACPI if the user requested.  On some systems, writing
@@ -1944,7 +2031,7 @@ acpi_BatteryIsPresent(device_t dev)
 /*
  * Match a HID string against a handle
  */
-static BOOLEAN
+BOOLEAN
 acpi_MatchHid(ACPI_HANDLE h, const char *hid) 
 {
     ACPI_DEVICE_INFO	*devinfo;
@@ -2320,25 +2407,26 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 {
 #if defined(__amd64__) || defined(__i386__)
     struct apm_clone_data *clone;
+    ACPI_STATUS status;
 
     if (state < ACPI_STATE_S1 || state > ACPI_S_STATES_MAX)
 	return (EINVAL);
     if (!acpi_sleep_states[state])
 	return (EOPNOTSUPP);
 
-    /* S5 (soft-off) should be entered directly with no waiting. */
-    if (state == ACPI_STATE_S5) {
-	if (ACPI_SUCCESS(acpi_EnterSleepState(sc, state)))
-	    return (0);
-	else
-	    return (ENXIO);
-    }
+    ACPI_LOCK(acpi);
 
     /* If a suspend request is already in progress, just return. */
-    ACPI_LOCK(acpi);
     if (sc->acpi_next_sstate != 0) {
     	ACPI_UNLOCK(acpi);
 	return (0);
+    }
+
+    /* S5 (soft-off) should be entered directly with no waiting. */
+    if (state == ACPI_STATE_S5) {
+    	ACPI_UNLOCK(acpi);
+	status = acpi_EnterSleepState(sc, state);
+	return (ACPI_SUCCESS(status) ? 0 : ENXIO);
     }
 
     /* Record the pending state and notify all apm devices. */
@@ -2347,18 +2435,15 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 	clone->notify_status = APM_EV_NONE;
 	if ((clone->flags & ACPI_EVF_DEVD) == 0) {
 	    selwakeuppri(&clone->sel_read, PZERO);
-	    KNOTE_UNLOCKED(&clone->sel_read.si_note, 0);
+	    KNOTE_LOCKED(&clone->sel_read.si_note, 0);
 	}
     }
 
     /* If devd(8) is not running, immediately enter the sleep state. */
     if (!devctl_process_running()) {
 	ACPI_UNLOCK(acpi);
-	if (ACPI_SUCCESS(acpi_EnterSleepState(sc, sc->acpi_next_sstate))) {
-	    return (0);
-	} else {
-	    return (ENXIO);
-	}
+	status = acpi_EnterSleepState(sc, state);
+	return (ACPI_SUCCESS(status) ? 0 : ENXIO);
     }
 
     /*
@@ -2524,11 +2609,11 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	return_ACPI_STATUS (AE_OK);
     }
 
-#ifdef SMP
-    thread_lock(curthread);
-    sched_bind(curthread, 0);
-    thread_unlock(curthread);
-#endif
+    if (smp_started) {
+	thread_lock(curthread);
+	sched_bind(curthread, 0);
+	thread_unlock(curthread);
+    }
 
     /*
      * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
@@ -2595,7 +2680,6 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
      * process.  This handles both the error and success cases.
      */
 backout:
-    sc->acpi_next_sstate = 0;
     if (slp_state >= ACPI_SS_GPE_SET) {
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
@@ -2606,14 +2690,15 @@ backout:
 	DEVICE_RESUME(root_bus);
     if (slp_state >= ACPI_SS_SLEPT)
 	acpi_enable_fixed_events(sc);
+    sc->acpi_next_sstate = 0;
 
     mtx_unlock(&Giant);
 
-#ifdef SMP
-    thread_lock(curthread);
-    sched_unbind(curthread);
-    thread_unlock(curthread);
-#endif
+    if (smp_started) {
+	thread_lock(curthread);
+	sched_unbind(curthread);
+	thread_unlock(curthread);
+    }
 
     /* Allow another sleep request after a while. */
     timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
@@ -2654,16 +2739,16 @@ acpi_wake_set_enable(device_t dev, int enable)
 
     flags = acpi_get_flags(dev);
     if (enable) {
-	status = AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit,
-	    ACPI_GPE_TYPE_WAKE_RUN);
+	status = AcpiSetGpeWakeMask(prw.gpe_handle, prw.gpe_bit,
+	    ACPI_GPE_ENABLE);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "enable wake failed\n");
 	    return (ENXIO);
 	}
 	acpi_set_flags(dev, flags | ACPI_FLAG_WAKE_ENABLED);
     } else {
-	status = AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit,
-	    ACPI_GPE_TYPE_WAKE);
+	status = AcpiSetGpeWakeMask(prw.gpe_handle, prw.gpe_bit,
+	    ACPI_GPE_DISABLE);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "disable wake failed\n");
 	    return (ENXIO);
@@ -2693,7 +2778,7 @@ acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate)
      * and set _PSW.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_TYPE_WAKE);
+	AcpiSetGpeWakeMask(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_DISABLE);
 	if (bootverbose)
 	    device_printf(dev, "wake_prep disabled wake for %s (S%d)\n",
 		acpi_name(handle), sstate);
@@ -2730,7 +2815,7 @@ acpi_wake_run_prep(ACPI_HANDLE handle, int sstate)
      * clear _PSW and turn off any power resources it used.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_TYPE_WAKE_RUN);
+	AcpiSetGpeWakeMask(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_ENABLE);
 	if (bootverbose)
 	    device_printf(dev, "run_prep re-enabled %s\n", acpi_name(handle));
     } else {
@@ -3546,6 +3631,93 @@ acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS)
 	ACPI_SERIAL_END(acpi);
 
 	return (0);
+}
+
+static int
+acpi_parse_interfaces(char *str, struct acpi_interface *iface)
+{
+	char *p;
+	size_t len;
+	int i, j;
+
+	p = str;
+	while (isspace(*p) || *p == ',')
+		p++;
+	len = strlen(p);
+	if (len == 0)
+		return (0);
+	p = strdup(p, M_TEMP);
+	for (i = 0; i < len; i++)
+		if (p[i] == ',')
+			p[i] = '\0';
+	i = j = 0;
+	while (i < len)
+		if (isspace(p[i]) || p[i] == '\0')
+			i++;
+		else {
+			i += strlen(p + i) + 1;
+			j++;
+		}
+	if (j == 0) {
+		free(p, M_TEMP);
+		return (0);
+	}
+	iface->data = malloc(sizeof(*iface->data) * j, M_TEMP, M_WAITOK);
+	iface->num = j;
+	i = j = 0;
+	while (i < len)
+		if (isspace(p[i]) || p[i] == '\0')
+			i++;
+		else {
+			iface->data[j] = p + i;
+			i += strlen(p + i) + 1;
+			j++;
+		}
+
+	return (j);
+}
+
+static void
+acpi_free_interfaces(struct acpi_interface *iface)
+{
+
+	free(iface->data[0], M_TEMP);
+	free(iface->data, M_TEMP);
+}
+
+static void
+acpi_reset_interfaces(device_t dev)
+{
+	struct acpi_interface list;
+	ACPI_STATUS status;
+	int i;
+
+	if (acpi_parse_interfaces(acpi_install_interface, &list) > 0) {
+		for (i = 0; i < list.num; i++) {
+			status = AcpiInstallInterface(list.data[i]);
+			if (ACPI_FAILURE(status))
+				device_printf(dev,
+				    "failed to install _OSI(\"%s\"): %s\n",
+				    list.data[i], AcpiFormatException(status));
+			else if (bootverbose)
+				device_printf(dev, "installed _OSI(\"%s\")\n",
+				    list.data[i]);
+		}
+		acpi_free_interfaces(&list);
+	}
+	if (acpi_parse_interfaces(acpi_remove_interface, &list) > 0) {
+		for (i = 0; i < list.num; i++) {
+			status = AcpiRemoveInterface(list.data[i]);
+			if (ACPI_FAILURE(status))
+				device_printf(dev,
+				    "failed to remove _OSI(\"%s\"): %s\n",
+				    list.data[i], AcpiFormatException(status));
+			else if (bootverbose)
+				device_printf(dev, "removed _OSI(\"%s\")\n",
+				    list.data[i]);
+		}
+		acpi_free_interfaces(&list);
+	}
 }
 
 static int

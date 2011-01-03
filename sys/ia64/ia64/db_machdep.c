@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/kdb.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #include <machine/pcb.h>
 #include <machine/setjmp.h>
 #include <machine/unwind.h>
@@ -579,11 +578,11 @@ db_show_mdpcpu(struct pcpu *pc)
 {
 	struct pcpu_md *md = &pc->pc_md;
 
-	db_printf("MD: vhpt  = %#lx\n", md->vhpt);
-	db_printf("MD: lid   = %#lx\n", md->lid);
-	db_printf("MD: clock = %#lx/%#lx\n", md->clock, md->clockadj);
-	db_printf("MD: stats = %p\n", &md->stats);
-	db_printf("MD: pmap  = %p\n", md->current_pmap);
+	db_printf("MD: vhpt     = %#lx\n", md->vhpt);
+	db_printf("MD: lid      = %#lx\n", md->lid);
+	db_printf("MD: clock    = %#lx/%#lx\n", md->clock, md->clockadj);
+	db_printf("MD: stats    = %p\n", &md->stats);
+	db_printf("MD: pmap     = %p\n", md->current_pmap);
 }
 
 void

@@ -56,7 +56,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 
 LSUBSUBDIRS=	dev/mpt/mpilib
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 _dev_powermac_nvram=	dev/powermac_nvram
 .endif
 
@@ -115,8 +115,11 @@ INCSLINKS+=	machine/$i ${INCLUDEDIR}/$i
 INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
 .endfor
 
-.if ${MACHINE} != ${MACHINE_ARCH}
-_MARCH=${MACHINE_ARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH}
+_MARCHS=	${MACHINE_CPUARCH}
+.endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_MARCHS+=	x86
 .endif
 
 .include <bsd.prog.mk>
@@ -126,7 +129,7 @@ ${SHARED}: compat
 
 # Take care of stale directory-level symlinks.
 compat:
-.for i in ${LDIRS} ${LSUBDIRS} machine ${_MARCH} crypto
+.for i in ${LDIRS} ${LSUBDIRS} machine ${_MARCHS} crypto
 	if [ -L ${DESTDIR}${INCLUDEDIR}/$i ]; then \
 		rm -f ${DESTDIR}${INCLUDEDIR}/$i; \
 	fi
@@ -142,7 +145,7 @@ compat:
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \
-	${_MARCH}
+	${_MARCHS}
 .if exists(${DESTDIR}${INCLUDEDIR}/$i)
 	cd ${DESTDIR}${INCLUDEDIR}/$i; \
 	for h in *.h; do \
@@ -189,7 +192,8 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/machine/pc
 .endif
-.if defined(_MARCH)
+.for _MARCH in ${_MARCHS}
+.if exists(${.CURDIR}/../sys/${_MARCH}/include)
 	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
@@ -203,6 +207,7 @@ copies:
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc
 .endif
 .endif
+.endfor
 	cd ${.CURDIR}/../sys/rpc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
 	    ${DESTDIR}${INCLUDEDIR}/rpc
@@ -276,7 +281,8 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/machine/pc; \
 	done
 .endif
-.if defined(_MARCH)
+.for _MARCH in ${_MARCHS}
+.if exists(${.CURDIR}/../sys/${_MARCH}/include)
 	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
@@ -294,6 +300,7 @@ symlinks:
 	done
 .endif
 .endif
+.endfor
 	cd ${.CURDIR}/../sys/fs/cd9660; \
 	for h in *.h; do \
 		ln -fs ../../../../sys/fs/cd9660/$$h \
