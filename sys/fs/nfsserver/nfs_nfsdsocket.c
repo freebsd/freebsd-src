@@ -861,10 +861,14 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					    nfsvno_lockvfs(mp);
 				    }
 			    }
+			    if (op == NFSV4OP_LOOKUP || op == NFSV4OP_LOOKUPP)
+				    /* Lookup ops return a locked vnode */
+				    VOP_UNLOCK(nvp, 0);
 			    if (!nd->nd_repstat) {
 				    vrele(vp);
 				    vp = nvp;
-			    }
+			    } else
+				    vrele(nvp);
 			}
 			if (nfsv4_opflag[op].modifyfs)
 				NFS_ENDWRITE(mp);
