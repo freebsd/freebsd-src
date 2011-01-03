@@ -230,7 +230,6 @@ void osm_pkey_rec_rcv_process(IN void *ctx, IN void *data)
 	osm_madw_t *p_madw = data;
 	const ib_sa_mad_t *p_rcvd_mad;
 	const ib_pkey_table_record_t *p_rcvd_rec;
-	const cl_ptr_vector_t *p_tbl;
 	const osm_port_t *p_port = NULL;
 	const ib_pkey_table_t *p_pkey;
 	cl_qlist_t rec_list;
@@ -312,11 +311,6 @@ void osm_pkey_rec_rcv_process(IN void *ctx, IN void *data)
 	   work load, since we don't have to search every port
 	 */
 	if (comp_mask & IB_PKEY_COMPMASK_LID) {
-
-		p_tbl = &sa->p_subn->port_lid_tbl;
-
-		CL_ASSERT(cl_ptr_vector_get_size(p_tbl) < 0x10000);
-
 		status = osm_get_port_by_base_lid(sa->p_subn, p_rcvd_rec->lid,
 						  &p_port);
 		if (status != IB_SUCCESS || p_port == NULL) {

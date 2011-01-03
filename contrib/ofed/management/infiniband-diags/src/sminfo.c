@@ -78,7 +78,7 @@ char *statestr[] = {
 	[SMINFO_MASTER] "SMINFO_MASTER",
 };
 
-#define STATESTR(s)	(((uint)(s)) < SMINFO_STATE_LAST ? statestr[s] : "???")
+#define STATESTR(s)	(((unsigned)(s)) < SMINFO_STATE_LAST ? statestr[s] : "???")
 
 int
 main(int argc, char **argv)
@@ -88,7 +88,7 @@ main(int argc, char **argv)
 	ib_portid_t portid = {0};
 	int timeout = 0;	/* use default */
 	uint8_t *p;
-	uint act = 0;
+	unsigned act = 0;
 	int prio = 0, state = SMINFO_STANDBY;
 	uint64_t guid = 0, key = 0;
 	extern int ibdebug;

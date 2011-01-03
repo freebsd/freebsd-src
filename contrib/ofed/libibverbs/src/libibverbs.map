@@ -91,6 +91,22 @@ IBVERBS_1.1 {
 		ibv_dontfork_range;
 		ibv_dofork_range;
 		ibv_register_driver;
+		ibv_create_xrc_srq;
+		ibv_cmd_create_xrc_srq;
+		ibv_open_xrc_domain;
+		ibv_cmd_open_xrc_domain;
+		ibv_close_xrc_domain;
+		ibv_cmd_close_xrc_domain;
+		ibv_create_xrc_rcv_qp;
+		ibv_cmd_create_xrc_rcv_qp;
+		ibv_modify_xrc_rcv_qp;
+		ibv_cmd_modify_xrc_rcv_qp;
+		ibv_query_xrc_rcv_qp;
+		ibv_cmd_query_xrc_rcv_qp;
+		ibv_reg_xrc_rcv_qp;
+		ibv_cmd_reg_xrc_rcv_qp;
+		ibv_unreg_xrc_rcv_qp;
+		ibv_cmd_unreg_xrc_rcv_qp;
 
 		ibv_node_type_str;
 		ibv_port_state_str;

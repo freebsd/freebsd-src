@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(infiniband-diags, 1.4.4, general@lists.openfabrics.org)
+AC_INIT(infiniband-diags, 1.5.0, general@lists.openfabrics.org)
 AC_CONFIG_AUX_DIR(config)
 AM_CONFIG_HEADER(config.h)
 AM_INIT_AUTOMAKE

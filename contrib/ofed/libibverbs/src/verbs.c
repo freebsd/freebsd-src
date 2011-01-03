@@ -366,6 +366,9 @@ struct ibv_srq *__ibv_create_srq(struct ibv_pd *pd,
 		srq->context          = pd->context;
 		srq->srq_context      = srq_init_attr->srq_context;
 		srq->pd               = pd;
+		srq->xrc_domain       = NULL;
+		srq->xrc_cq           = NULL;
+		srq->xrc_srq_num      = 0;
 		srq->events_completed = 0;
 		pthread_mutex_init(&srq->mutex, NULL);
 		pthread_cond_init(&srq->cond, NULL);
@@ -374,6 +377,32 @@ struct ibv_srq *__ibv_create_srq(struct ibv_pd *pd,
 	return srq;
 }
 default_symver(__ibv_create_srq, ibv_create_srq);
+
+struct ibv_srq *ibv_create_xrc_srq(struct ibv_pd *pd,
+				   struct ibv_xrc_domain *xrc_domain,
+				   struct ibv_cq *xrc_cq,
+				   struct ibv_srq_init_attr *srq_init_attr)
+{
+	struct ibv_srq *srq;
+
+	if (!pd->context->more_ops)
+		return NULL;
+
+	srq = pd->context->more_ops->create_xrc_srq(pd, xrc_domain,
+						    xrc_cq, srq_init_attr);
+	if (srq) {
+		srq->context          = pd->context;
+		srq->srq_context      = srq_init_attr->srq_context;
+		srq->pd               = pd;
+		srq->xrc_domain       = xrc_domain;
+		srq->xrc_cq           = xrc_cq;
+		srq->events_completed = 0;
+		pthread_mutex_init(&srq->mutex, NULL);
+		pthread_cond_init(&srq->cond, NULL);
+	}
+
+	return srq;
+}
 
 int __ibv_modify_srq(struct ibv_srq *srq,
 		     struct ibv_srq_attr *srq_attr,
@@ -410,6 +439,8 @@ struct ibv_qp *__ibv_create_qp(struct ibv_pd *pd,
 		qp->qp_type          = qp_init_attr->qp_type;
 		qp->state	     = IBV_QPS_RESET;
 		qp->events_completed = 0;
+		qp->xrc_domain       = qp_init_attr->qp_type == IBV_QPT_XRC ?
+			qp_init_attr->xrc_domain : NULL;
 		pthread_mutex_init(&qp->mutex, NULL);
 		pthread_cond_init(&qp->cond, NULL);
 	}
@@ -543,3 +574,181 @@ int __ibv_detach_mcast(struct ibv_qp *qp, const union ibv_gid *gid, uint16_t lid
 	return qp->context->ops.detach_mcast(qp, gid, lid);
 }
 default_symver(__ibv_detach_mcast, ibv_detach_mcast);
+
+struct ibv_xrc_domain *ibv_open_xrc_domain(struct ibv_context *context,
+					   int fd, int oflag)
+{
+	struct ibv_xrc_domain *d;
+
+	if (!context->more_ops)
+		return NULL;
+
+	d = context->more_ops->open_xrc_domain(context, fd, oflag);
+	if (d)
+		d->context = context;
+
+	return d;
+}
+
+int ibv_close_xrc_domain(struct ibv_xrc_domain *d)
+{
+	if (!d->context->more_ops)
+		return 0;
+
+	return d->context->more_ops->close_xrc_domain(d);
+}
+
+int ibv_create_xrc_rcv_qp(struct ibv_qp_init_attr *init_attr,
+			  uint32_t *xrc_rcv_qpn)
+{
+	struct ibv_context *c;
+	if (!init_attr || !(init_attr->xrc_domain))
+		return EINVAL;
+
+	c = init_attr->xrc_domain->context;
+	if (!c->more_ops)
+		return ENOSYS;
+
+	return c->more_ops->create_xrc_rcv_qp(init_attr,
+					      xrc_rcv_qpn);
+}
+
+int ibv_modify_xrc_rcv_qp(struct ibv_xrc_domain *d,
+			  uint32_t xrc_rcv_qpn,
+			  struct ibv_qp_attr *attr,
+			  int attr_mask)
+{
+	if (!d || !attr)
+		return EINVAL;
+
+	if (!d->context->more_ops)
+		return ENOSYS;
+
+	return d->context->more_ops->modify_xrc_rcv_qp(d, xrc_rcv_qpn, attr,
+						       attr_mask);
+}
+
+int ibv_query_xrc_rcv_qp(struct ibv_xrc_domain *d,
+			 uint32_t xrc_rcv_qpn,
+			 struct ibv_qp_attr *attr,
+			 int attr_mask,
+			 struct ibv_qp_init_attr *init_attr)
+{
+	if (!d)
+		return EINVAL;
+
+	if (!d->context->more_ops)
+		return ENOSYS;
+
+	return d->context->more_ops->query_xrc_rcv_qp(d, xrc_rcv_qpn, attr,
+						      attr_mask, init_attr);
+}
+
+int ibv_reg_xrc_rcv_qp(struct ibv_xrc_domain *d,
+		       uint32_t xrc_rcv_qpn)
+{
+	return d->context->more_ops->reg_xrc_rcv_qp(d, xrc_rcv_qpn);
+}
+
+int ibv_unreg_xrc_rcv_qp(struct ibv_xrc_domain *d,
+			 uint32_t xrc_rcv_qpn)
+{
+	return d->context->more_ops->unreg_xrc_rcv_qp(d, xrc_rcv_qpn);
+}
+
+
+static uint16_t get_vlan_id(const union ibv_gid *dgid)
+{
+	return dgid->raw[11] << 8 | dgid->raw[12];
+}
+
+static void get_ll_mac(const union ibv_gid *gid, uint8_t *mac)
+{
+	memcpy(mac, &gid->raw[8], 3);
+	memcpy(mac + 3, &gid->raw[13], 3);
+	mac[0] ^= 2;
+}
+
+static int is_multicast_gid(const union ibv_gid *gid)
+{
+	return gid->raw[0] == 0xff;
+}
+
+static void get_mcast_mac(const union ibv_gid *gid, uint8_t *mac)
+{
+	int i;
+
+	mac[0] = 0x33;
+	mac[1] = 0x33;
+	for (i = 2; i < 6; ++i)
+		mac[i] = gid->raw[i + 10];
+}
+
+static int is_link_local_gid(const union ibv_gid *gid)
+{
+	uint32_t hi = *(uint32_t *)(gid->raw);
+	uint32_t lo = *(uint32_t *)(gid->raw + 4);
+	if (hi == htonl(0xfe800000) && lo == 0)
+		return 1;
+
+	return 0;
+}
+
+static int resolve_gid(const union ibv_gid *dgid, uint8_t *mac, uint8_t *is_mcast)
+{
+	if (is_link_local_gid(dgid)) {
+		get_ll_mac(dgid, mac);
+		*is_mcast = 0;
+	} else if (is_multicast_gid(dgid)) {
+		get_mcast_mac(dgid, mac);
+		*is_mcast = 1;
+	} else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int is_tagged_vlan(const union ibv_gid *gid)
+{
+	uint16_t tag;
+
+	tag = gid->raw[11] << 8 |  gid->raw[12];
+
+	return tag < 0x1000;
+}
+
+int __ibv_resolve_eth_gid(struct ibv_pd *pd, uint8_t port_num,
+			  const union ibv_gid *dgid, uint8_t sgid_index,
+			  uint8_t mac[], uint16_t *vlan, uint8_t *tagged,
+			  uint8_t *is_mcast)
+{
+	int err;
+	union ibv_gid sgid;
+	int stagged, svlan;
+
+	err = resolve_gid(dgid, mac, is_mcast);
+	if (err)
+		return err;
+
+	err = ibv_query_gid(pd->context, port_num, sgid_index, &sgid);
+	if (err)
+		return err;
+
+	stagged = is_tagged_vlan(&sgid);
+	if (stagged) {
+		if (!is_tagged_vlan(dgid) && !is_mcast)
+			return -1;
+
+		svlan = get_vlan_id(&sgid);
+		if (svlan != get_vlan_id(dgid) && !is_mcast)
+			return -1;
+
+		*tagged = 1;
+		*vlan = svlan;
+	} else
+		*tagged = 0;
+
+	return 0;
+}
+default_symver(__ibv_resolve_eth_gid, ibv_resolve_eth_gid);
+

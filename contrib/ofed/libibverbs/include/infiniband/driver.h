@@ -99,6 +99,11 @@ int ibv_cmd_create_srq(struct ibv_pd *pd,
 		       struct ibv_srq *srq, struct ibv_srq_init_attr *attr,
 		       struct ibv_create_srq *cmd, size_t cmd_size,
 		       struct ibv_create_srq_resp *resp, size_t resp_size);
+int ibv_cmd_create_xrc_srq(struct ibv_pd *pd,
+		       struct ibv_srq *srq, struct ibv_srq_init_attr *attr,
+		       uint32_t xrc_domain, uint32_t xrc_cq,
+		       struct ibv_create_xrc_srq *cmd, size_t cmd_size,
+		       struct ibv_create_srq_resp *resp, size_t resp_size);
 int ibv_cmd_modify_srq(struct ibv_srq *srq,
 		       struct ibv_srq_attr *srq_attr,
 		       int srq_attr_mask,
@@ -134,6 +139,22 @@ int ibv_cmd_detach_mcast(struct ibv_qp *qp, const union ibv_gid *gid, uint16_t l
 
 int ibv_dontfork_range(void *base, size_t size);
 int ibv_dofork_range(void *base, size_t size);
+int ibv_cmd_open_xrc_domain(struct ibv_context *context, int fd, int oflag,
+			    struct ibv_xrc_domain *d,
+			    struct ibv_open_xrc_domain_resp *resp,
+			    size_t resp_size);
+int ibv_cmd_close_xrc_domain(struct ibv_xrc_domain *d);
+int ibv_cmd_create_xrc_rcv_qp(struct ibv_qp_init_attr *init_attr,
+			      uint32_t *xrc_rcv_qpn);
+int ibv_cmd_modify_xrc_rcv_qp(struct ibv_xrc_domain *d, uint32_t xrc_rcv_qpn,
+			      struct ibv_qp_attr *attr, int attr_mask);
+int ibv_cmd_query_xrc_rcv_qp(struct ibv_xrc_domain *d, uint32_t xrc_rcv_qpn,
+			     struct ibv_qp_attr *attr, int attr_mask,
+			     struct ibv_qp_init_attr *init_attr);
+int ibv_cmd_reg_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
+			   uint32_t xrc_qp_num);
+int ibv_cmd_unreg_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
+			     uint32_t xrc_qp_num);
 
 /*
  * sysfs helper functions
@@ -142,5 +163,10 @@ const char *ibv_get_sysfs_path(void);
 
 int ibv_read_sysfs_file(const char *dir, const char *file,
 			char *buf, size_t size);
+
+int ibv_resolve_eth_gid(const struct ibv_pd *pd, uint8_t port_num,
+			union ibv_gid *dgid, uint8_t sgid_index,
+			uint8_t mac[], uint16_t *vlan, uint8_t *tagged,
+			uint8_t *is_mcast);
 
 #endif /* INFINIBAND_DRIVER_H */

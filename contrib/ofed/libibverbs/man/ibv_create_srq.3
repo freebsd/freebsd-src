@@ -10,12 +10,26 @@ ibv_create_srq, ibv_destroy_srq \- create or destroy a shared receive queue (SRQ
 .BI "struct ibv_srq *ibv_create_srq(struct ibv_pd " "*pd" ", struct "
 .BI "                               ibv_srq_init_attr " "*srq_init_attr" );
 .sp
+.BI "struct ibv_srq *ibv_create_xrc_srq(struct ibv_pd " "*pd" ",
+.BI "                                   struct ibv_xrc_domain " "*xrc_domain" ",
+.BI "                                   struct ibv_cq " "*xrc_cq" ",
+.BI "                                   struct ibv_srq_init_attr " "*srq_init_attr" );
+.sp
 .BI "int ibv_destroy_srq(struct ibv_srq " "*srq" );
 .fi
 .SH "DESCRIPTION"
 .B ibv_create_srq()
 creates a shared receive queue (SRQ) associated with the protection domain
 .I pd\fR.
+.PP
+.B ibv_create_xrc_srq()
+creates an XRC shared receive queue (SRQ) associated with the protection domain
+.I pd\fR,
+the XRC domain
+.I xrc_domain
+and the CQ which will hold the XRC completion
+.I xrc_cq\fR.
+.PP
 The argument
 .I srq_init_attr
 is an ibv_srq_init_attr struct, as defined in <infiniband/verbs.h>.

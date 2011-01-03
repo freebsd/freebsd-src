@@ -178,7 +178,7 @@ pkey_table(ib_portid_t *dest, char **argv, int argc)
 	uint8_t data[IB_SMP_DATA_SIZE];
 	uint32_t i, j, k;
 	uint16_t *p;
-	uint mod;
+	unsigned mod;
 	int n, t, phy_ports;
 	int portnum = 0;
 
@@ -355,7 +355,7 @@ guid_info(ib_portid_t *dest, char **argv, int argc)
 	uint8_t data[IB_SMP_DATA_SIZE];
 	uint32_t i, j, k;
 	uint64_t *p;
-	uint mod;
+	unsigned mod;
 	int n;
 
 	/* Get the guid capacity */

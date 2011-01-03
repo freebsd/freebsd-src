@@ -22,7 +22,7 @@ index fe9ab62..a340ffb 100644
  	IBV_QPT_UD,
 -	IBV_QPT_XRC
 +	IBV_QPT_XRC,
-+	IBV_QPT_RAW_ETH = 7
++	IBV_QPT_RAW_ETH = 8
  };
  
  struct ibv_qp_cap {

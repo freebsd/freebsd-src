@@ -586,65 +586,6 @@ boolean_t osm_port_share_pkey(IN osm_log_t * p_log,
 *
 *********/
 
-/****f* OpenSM: osm_lid_share_pkey
-* NAME
-*  osm_lid_share_pkey
-*
-* DESCRIPTION
-*  Checks if the given lids and port_numbers share a pkey.
-*  The meaning P_Key matching:
-*  10.9.3 :
-*   In the following, let M_P_Key(Message P_Key) be the P_Key in the incoming
-*   packet and E_P_Key(Endnode P_Key) be the P_Key it is being compared against
-*   in the packet's destination endnode.
-*
-*    If:
-*    * neither M_P_Key nor E_P_Key are the invalid P_Key
-*    * and the low-order 15 bits of the M_P_Key match the low order 15
-*      bits of the E_P_Key
-*    * and the high order bit(membership type) of both the M_P_Key and
-*      E_P_Key are not both 0 (i.e., both are not Limited members of
-*      the partition)
-*
-*    then the P_Keys are said to match.
-*
-* SYNOPSIS
-*/
-boolean_t osm_lid_share_pkey(IN osm_log_t * p_log,
-			     IN const struct osm_subn *const p_subn,
-			     IN const ib_net16_t lid1,
-			     IN const uint8_t port_num1,
-			     IN const ib_net16_t lid2,
-			     IN const uint8_t port_num2);
-
-/*
-* PARAMETERS
-*  p_log
-*     [in] Pointer to a log object.
-*
-*  p_subn
-*     [in] Pointer to the subnet object for accessing of the options.
-*
-*  lid1
-*     [in] lid number of first port.
-*
-*  port_num1
-*     [in] port number of first port.
-*
-*  lid2
-*     [in] lid number of second port.
-*
-*  port_num2
-*     [in] port number of second port.
-*
-* RETURN VALUES
-*  Returns TRUE if the 2 physical ports that belong to these lids/port_numbers
-*  are matching. FALSE otherwise.
-*
-* NOTES
-*
-*********/
-
 /****f* OpenSM: osm_physp_has_pkey
 * NAME
 *  osm_physp_has_pkey

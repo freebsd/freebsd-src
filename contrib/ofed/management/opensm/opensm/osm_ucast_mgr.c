@@ -400,7 +400,7 @@ int osm_ucast_mgr_set_fwd_table(IN osm_ucast_mgr_t * const p_mgr,
 	for (block_id_ho = 0;
 	     osm_switch_get_lft_block(p_sw, block_id_ho, block);
 	     block_id_ho++) {
-		if (!p_sw->need_update && !p_mgr->p_subn->need_update &&
+		if (!p_sw->need_update &&
 		    !memcmp(block,
 			    p_sw->new_lft + block_id_ho * IB_SMP_DATA_SIZE,
 			    IB_SMP_DATA_SIZE))
@@ -855,7 +855,7 @@ int osm_ucast_mgr_process(IN osm_ucast_mgr_t * const p_mgr)
 		"%s tables configured on all switches\n",
 		osm_routing_engine_type_str(p_osm->routing_engine_used));
 
-        if (p_mgr->p_subn->opt.use_ucast_cache)
+	if (p_mgr->p_subn->opt.use_ucast_cache)
 		p_mgr->cache_valid = TRUE;
 
 Exit:

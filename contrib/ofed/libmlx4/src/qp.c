@@ -143,6 +143,8 @@ static void set_datagram_seg(struct mlx4_wqe_datagram_seg *dseg,
 	memcpy(dseg->av, &to_mah(wr->wr.ud.ah)->av, sizeof (struct mlx4_av));
 	dseg->dqpn = htonl(wr->wr.ud.remote_qpn);
 	dseg->qkey = htonl(wr->wr.ud.remote_qkey);
+	dseg->vlan = htons(to_mah(wr->wr.ud.ah)->vlan);
+	memcpy(dseg->mac, to_mah(wr->wr.ud.ah)->mac, 6);
 }
 
 static void __set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ibv_sge *sg)
@@ -226,7 +228,7 @@ int mlx4_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 		ctrl = wqe = get_send_wqe(qp, ind & (qp->sq.wqe_cnt - 1));
 		qp->sq.wrid[ind & (qp->sq.wqe_cnt - 1)] = wr->wr_id;
 
-		ctrl->srcrb_flags =
+		ctrl->xrcrb_flags =
 			(wr->send_flags & IBV_SEND_SIGNALED ?
 			 htonl(MLX4_WQE_CTRL_CQ_UPDATE) : 0) |
 			(wr->send_flags & IBV_SEND_SOLICITED ?
@@ -243,6 +245,9 @@ int mlx4_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 		size = sizeof *ctrl / 16;
 
 		switch (ibqp->qp_type) {
+		case IBV_QPT_XRC:
+			ctrl->xrcrb_flags |= htonl(wr->xrc_remote_srq_num << 8);
+			/* fall thru */
 		case IBV_QPT_RC:
 		case IBV_QPT_UC:
 			switch (wr->opcode) {
@@ -281,6 +286,11 @@ int mlx4_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 			set_datagram_seg(wqe, wr);
 			wqe  += sizeof (struct mlx4_wqe_datagram_seg);
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
+			if (to_mah(wr->wr.ud.ah)->tagged) {
+				ctrl->ins_vlan = 1 << 6;
+				ctrl->vlan_tag = htons(to_mah(wr->wr.ud.ah)->vlan);
+			}
+
 			break;
 
 		default:
@@ -393,7 +403,7 @@ out:
 
 	if (nreq == 1 && inl && size > 1 && size < ctx->bf_buf_size / 16) {
 		ctrl->owner_opcode |= htonl((qp->sq.head & 0xffff) << 8);
-		*(uint32_t *) ctrl->reserved |= qp->doorbell_qpn;
+		*(uint32_t *) (&ctrl->vlan_tag) |= qp->doorbell_qpn;
 		/*
 		 * Make sure that descriptor is written to memory
 		 * before writing to BlueFlame page.
@@ -495,7 +505,7 @@ out:
 	return ret;
 }
 
-static int num_inline_segs(int data, enum ibv_qp_type type)
+int num_inline_segs(int data, enum ibv_qp_type type)
 {
 	/*
 	 * Inline data segments are not allowed to cross 64 byte
@@ -543,6 +553,7 @@ void mlx4_calc_sq_wqe_size(struct ibv_qp_cap *cap, enum ibv_qp_type type,
 		size += sizeof (struct mlx4_wqe_raddr_seg);
 		break;
 
+	case IBV_QPT_XRC:
 	case IBV_QPT_RC:
 		size += sizeof (struct mlx4_wqe_raddr_seg);
 		/*
@@ -621,8 +632,10 @@ void mlx4_set_sq_sizes(struct mlx4_qp *qp, struct ibv_qp_cap *cap,
 		       enum ibv_qp_type type)
 {
 	int wqe_size;
+	struct mlx4_context *ctx = to_mctx(qp->ibv_qp.context);
 
-	wqe_size = (1 << qp->sq.wqe_shift) - sizeof (struct mlx4_wqe_ctrl_seg);
+	wqe_size = min((1 << qp->sq.wqe_shift), MLX4_MAX_WQE_SIZE) -
+		sizeof (struct mlx4_wqe_ctrl_seg);
 	switch (type) {
 	case IBV_QPT_UD:
 		wqe_size -= sizeof (struct mlx4_wqe_datagram_seg);
@@ -630,6 +643,7 @@ void mlx4_set_sq_sizes(struct mlx4_qp *qp, struct ibv_qp_cap *cap,
 
 	case IBV_QPT_UC:
 	case IBV_QPT_RC:
+	case IBV_QPT_XRC:
 		wqe_size -= sizeof (struct mlx4_wqe_raddr_seg);
 		break;
 
@@ -638,8 +652,9 @@ void mlx4_set_sq_sizes(struct mlx4_qp *qp, struct ibv_qp_cap *cap,
 	}
 
 	qp->sq.max_gs	     = wqe_size / sizeof (struct mlx4_wqe_data_seg);
-	cap->max_send_sge    = qp->sq.max_gs;
-	qp->sq.max_post	     = qp->sq.wqe_cnt - qp->sq_spare_wqes;
+	cap->max_send_sge    = min(ctx->max_sge, qp->sq.max_gs);
+	qp->sq.max_post	     = min(ctx->max_qp_wr,
+				   qp->sq.wqe_cnt - qp->sq_spare_wqes);
 	cap->max_send_wr     = qp->sq.max_post;
 
 	/*

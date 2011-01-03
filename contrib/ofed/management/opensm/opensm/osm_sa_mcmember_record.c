@@ -144,16 +144,13 @@ static ib_net16_t __get_new_mlid(osm_sa_t *sa, ib_net16_t requested_mlid)
  we silently drop it. Since it was an intermediate group no need to
  re-route it.
 **********************************************************************/
-static void __cleanup_mgrp(IN osm_sa_t * sa, IN ib_net16_t const mlid)
+static void __cleanup_mgrp(IN osm_sa_t * sa, osm_mgrp_t *mgrp)
 {
-	osm_mgrp_t *p_mgrp = osm_get_mgrp_by_mlid(sa->p_subn, mlid);
-
 	/* Remove MGRP only if osm_mcm_port_t count is 0 and
 	   not a well known group */
-	if (p_mgrp && cl_is_qmap_empty(&p_mgrp->mcm_port_tbl) &&
-	    p_mgrp->well_known == FALSE) {
-		sa->p_subn->mgroups[cl_ntoh16(mlid) - IB_LID_MCAST_START_HO] = NULL;
-		osm_mgrp_delete(p_mgrp);
+	if (cl_is_qmap_empty(&mgrp->mcm_port_tbl) && !mgrp->well_known) {
+		sa->p_subn->mgroups[cl_ntoh16(mgrp->mlid) - IB_LID_MCAST_START_HO] = NULL;
+		osm_mgrp_delete(mgrp);
 	}
 }
 
@@ -1275,7 +1272,7 @@ __osm_mcmr_rcv_join_mgrp(IN osm_sa_t * sa, IN osm_madw_t * const p_madw)
 	    || !__validate_port_caps(sa->p_log, p_mgrp, p_physp)
 	    || !(join_state != 0)) {
 		/* since we might have created the new group we need to cleanup */
-		__cleanup_mgrp(sa, mlid);
+		__cleanup_mgrp(sa, p_mgrp);
 
 		CL_PLOCK_RELEASE(sa->p_lock);
 
@@ -1314,7 +1311,7 @@ __osm_mcmr_rcv_join_mgrp(IN osm_sa_t * sa, IN osm_madw_t * const p_madw)
 
 	if (status != IB_SUCCESS) {
 		/* we fail to add the port so we might need to delete the group */
-		__cleanup_mgrp(sa, mlid);
+		__cleanup_mgrp(sa, p_mgrp);
 
 		CL_PLOCK_RELEASE(sa->p_lock);
 
@@ -1347,13 +1344,10 @@ __osm_mcmr_rcv_join_mgrp(IN osm_sa_t * sa, IN osm_madw_t * const p_madw)
 		CL_PLOCK_EXCL_ACQUIRE(sa->p_lock);
 
 		/* the request for routing failed so we need to remove the port */
-		p_mgrp = osm_get_mgrp_by_mlid(sa->p_subn, mlid);
-		if (p_mgrp != NULL) {
-			osm_mgrp_delete_port(sa->p_subn, sa->p_log, p_mgrp,
-					     p_recvd_mcmember_rec->port_gid.
-					     unicast.interface_id);
-			__cleanup_mgrp(sa, mlid);
-		}
+		osm_mgrp_delete_port(sa->p_subn, sa->p_log, p_mgrp,
+				     p_recvd_mcmember_rec->port_gid.
+				     unicast.interface_id);
+		__cleanup_mgrp(sa, p_mgrp);
 		CL_PLOCK_RELEASE(sa->p_lock);
 		osm_sa_send_error(sa, p_madw, IB_SA_MAD_STATUS_NO_RESOURCES);
 		goto Exit;

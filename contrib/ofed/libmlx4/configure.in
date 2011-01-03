@@ -42,6 +42,12 @@ AC_CHECK_HEADER(valgrind/memcheck.h,
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_CHECK_SIZEOF(long)
+AC_CHECK_MEMBER(struct ibv_context.more_ops,
+    [AC_DEFINE([HAVE_IBV_MORE_OPS], 1, [Define to 1 if more_ops is a member of ibv_context])],,
+    [#include <infiniband/verbs.h>])
+AC_CHECK_MEMBER(struct ibv_more_ops.create_xrc_srq,
+    [AC_DEFINE([HAVE_IBV_XRC_OPS], 1, [Define to 1 if have xrc ops])],,
+    [#include <infiniband/verbs.h>])
 
 dnl Checks for library functions
 AC_CHECK_FUNC(ibv_read_sysfs_file, [],

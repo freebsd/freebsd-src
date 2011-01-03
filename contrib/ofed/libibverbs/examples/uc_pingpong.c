@@ -66,17 +66,19 @@ struct pingpong_context {
 	int			 size;
 	int			 rx_depth;
 	int			 pending;
+	struct ibv_port_attr	 portinfo;
 };
 
 struct pingpong_dest {
 	int lid;
 	int qpn;
 	int psn;
+	union ibv_gid gid;
 };
 
 static int pp_connect_ctx(struct pingpong_context *ctx, int port, int my_psn,
 			  enum ibv_mtu mtu, int sl,
-			  struct pingpong_dest *dest)
+			  struct pingpong_dest *dest, int sgid_idx)
 {
 	struct ibv_qp_attr attr = {
 		.qp_state		= IBV_QPS_RTR,
@@ -91,6 +93,14 @@ static int pp_connect_ctx(struct pingpong_context *ctx, int port, int my_psn,
 			.port_num	= port
 		}
 	};
+
+	if (dest->gid.global.interface_id) {
+		attr.ah_attr.is_global = 1;
+		attr.ah_attr.grh.hop_limit = 1;
+		attr.ah_attr.grh.dgid = dest->gid;
+		attr.ah_attr.grh.sgid_index = sgid_idx;
+	}
+
 	if (ibv_modify_qp(ctx->qp, &attr,
 			  IBV_QP_STATE              |
 			  IBV_QP_AV                 |
@@ -122,10 +132,11 @@ static struct pingpong_dest *pp_client_exch_dest(const char *servername, int por
 		.ai_socktype = SOCK_STREAM
 	};
 	char *service;
-	char msg[sizeof "0000:000000:000000"];
+	char msg[sizeof "0000:000000:000000:00000000000000000000000000000000"];
 	int n;
 	int sockfd = -1;
 	struct pingpong_dest *rem_dest = NULL;
+	char gid[33];
 
 	if (asprintf(&service, "%d", port) < 0)
 		return NULL;
@@ -156,7 +167,8 @@ static struct pingpong_dest *pp_client_exch_dest(const char *servername, int por
 		return NULL;
 	}
 
-	sprintf(msg, "%04x:%06x:%06x", my_dest->lid, my_dest->qpn, my_dest->psn);
+	gid_to_wire_gid(&my_dest->gid, gid);
+	sprintf(msg, "%04x:%06x:%06x:%s", my_dest->lid, my_dest->qpn, my_dest->psn, gid);
 	if (write(sockfd, msg, sizeof msg) != sizeof msg) {
 		fprintf(stderr, "Couldn't send local address\n");
 		goto out;
@@ -174,7 +186,8 @@ static struct pingpong_dest *pp_client_exch_dest(const char *servername, int por
 	if (!rem_dest)
 		goto out;
 
-	sscanf(msg, "%x:%x:%x", &rem_dest->lid, &rem_dest->qpn, &rem_dest->psn);
+	sscanf(msg, "%x:%x:%x:%s", &rem_dest->lid, &rem_dest->qpn, &rem_dest->psn, gid);
+	wire_gid_to_gid(gid, &rem_dest->gid);
 
 out:
 	close(sockfd);
@@ -184,7 +197,8 @@ out:
 static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 						 int ib_port, enum ibv_mtu mtu,
 						 int port, int sl,
-						 const struct pingpong_dest *my_dest)
+						 const struct pingpong_dest *my_dest,
+						 int sgid_idx)
 {
 	struct addrinfo *res, *t;
 	struct addrinfo hints = {
@@ -193,10 +207,11 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 		.ai_socktype = SOCK_STREAM
 	};
 	char *service;
-	char msg[sizeof "0000:000000:000000"];
+	char msg[sizeof "0000:000000:000000:00000000000000000000000000000000"];
 	int n;
 	int sockfd = -1, connfd;
 	struct pingpong_dest *rem_dest = NULL;
+	char gid[33];
 
 	if (asprintf(&service, "%d", port) < 0)
 		return NULL;
@@ -250,16 +265,18 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 	if (!rem_dest)
 		goto out;
 
-	sscanf(msg, "%x:%x:%x", &rem_dest->lid, &rem_dest->qpn, &rem_dest->psn);
+	sscanf(msg, "%x:%x:%x:%s", &rem_dest->lid, &rem_dest->qpn, &rem_dest->psn, gid);
+	wire_gid_to_gid(gid, &rem_dest->gid);
 
-	if (pp_connect_ctx(ctx, ib_port, my_dest->psn, mtu, sl, rem_dest)) {
+	if (pp_connect_ctx(ctx, ib_port, my_dest->psn, mtu, sl, rem_dest, sgid_idx)) {
 		fprintf(stderr, "Couldn't connect to remote QP\n");
 		free(rem_dest);
 		rem_dest = NULL;
 		goto out;
 	}
 
-	sprintf(msg, "%04x:%06x:%06x", my_dest->lid, my_dest->qpn, my_dest->psn);
+	gid_to_wire_gid(&my_dest->gid, gid);
+	sprintf(msg, "%04x:%06x:%06x:%s", my_dest->lid, my_dest->qpn, my_dest->psn, gid);
 	if (write(connfd, msg, sizeof msg) != sizeof msg) {
 		fprintf(stderr, "Couldn't send local address\n");
 		free(rem_dest);
@@ -280,7 +297,7 @@ static struct pingpong_context *pp_init_ctx(struct ibv_device *ib_dev, int size,
 {
 	struct pingpong_context *ctx;
 
-	ctx = malloc(sizeof *ctx);
+	ctx = calloc(1, sizeof *ctx);
 	if (!ctx)
 		return NULL;
 
@@ -468,6 +485,7 @@ static void usage(const char *argv0)
 	printf("  -n, --iters=<iters>    number of exchanges (default 1000)\n");
 	printf("  -l, --sl=<sl>          service level value\n");
 	printf("  -e, --events           sleep on CQ events (default poll)\n");
+	printf("  -g, --gid-idx=<gid index> local port gid index\n");
 }
 
 int main(int argc, char *argv[])
@@ -491,6 +509,8 @@ int main(int argc, char *argv[])
 	int                      rcnt, scnt;
 	int                      num_cq_events = 0;
 	int                      sl = 0;
+	int			 gidx = -1;
+	char			 gid[33];
 
 	srand48(getpid() * time(NULL));
 
@@ -507,10 +527,11 @@ int main(int argc, char *argv[])
 			{ .name = "iters",    .has_arg = 1, .val = 'n' },
 			{ .name = "sl",       .has_arg = 1, .val = 'l' },
 			{ .name = "events",   .has_arg = 0, .val = 'e' },
+			{ .name = "gid-idx",  .has_arg = 1, .val = 'g' },
 			{ 0 }
 		};
 
-		c = getopt_long(argc, argv, "p:d:i:s:m:r:n:l:e", long_options, NULL);
+		c = getopt_long(argc, argv, "p:d:i:s:m:r:n:l:eg:", long_options, NULL);
 		if (c == -1)
 			break;
 
@@ -561,6 +582,10 @@ int main(int argc, char *argv[])
 
 		case 'e':
 			++use_event;
+			break;
+
+		case 'g':
+			gidx = strtol(optarg, NULL, 0);
 			break;
 
 		default:
@@ -618,30 +643,45 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 
-	my_dest.lid = pp_get_local_lid(ctx->context, ib_port);
-	my_dest.qpn = ctx->qp->qp_num;
-	my_dest.psn = lrand48() & 0xffffff;
-	if (!my_dest.lid) {
+	if (pp_get_port_info(ctx->context, ib_port, &ctx->portinfo)) {
+		fprintf(stderr, "Couldn't get port info\n");
+		return 1;
+	}
+
+	my_dest.lid = ctx->portinfo.lid;
+	if (ctx->portinfo.link_layer == IBV_LINK_LAYER_INFINIBAND && !my_dest.lid) {
 		fprintf(stderr, "Couldn't get local LID\n");
 		return 1;
 	}
 
-	printf("  local address:  LID 0x%04x, QPN 0x%06x, PSN 0x%06x\n",
-	       my_dest.lid, my_dest.qpn, my_dest.psn);
+	if (gidx >= 0) {
+		if (ibv_query_gid(ctx->context, ib_port, gidx, &my_dest.gid)) {
+			fprintf(stderr, "Could not get local gid for gid index %d\n", gidx);
+			return 1;
+		}
+	} else
+		memset(&my_dest.gid, 0, sizeof my_dest.gid);
+
+	my_dest.qpn = ctx->qp->qp_num;
+	my_dest.psn = lrand48() & 0xffffff;
+	inet_ntop(AF_INET6, &my_dest.gid, gid, sizeof gid);
+	printf("  local address:  LID 0x%04x, QPN 0x%06x, PSN 0x%06x, GID %s\n",
+	       my_dest.lid, my_dest.qpn, my_dest.psn, gid);
 
 	if (servername)
 		rem_dest = pp_client_exch_dest(servername, port, &my_dest);
 	else
-		rem_dest = pp_server_exch_dest(ctx, ib_port, mtu, port, sl, &my_dest);
+		rem_dest = pp_server_exch_dest(ctx, ib_port, mtu, port, sl, &my_dest, gidx);
 
 	if (!rem_dest)
 		return 1;
 
-	printf("  remote address: LID 0x%04x, QPN 0x%06x, PSN 0x%06x\n",
-	       rem_dest->lid, rem_dest->qpn, rem_dest->psn);
+	inet_ntop(AF_INET6, &rem_dest->gid, gid, sizeof gid);
+	printf("  remote address: LID 0x%04x, QPN 0x%06x, PSN 0x%06x, GID %s\n",
+	       rem_dest->lid, rem_dest->qpn, rem_dest->psn, gid);
 
 	if (servername)
-		if (pp_connect_ctx(ctx, ib_port, my_dest.psn, mtu, sl, rem_dest))
+		if (pp_connect_ctx(ctx, ib_port, my_dest.psn, mtu, sl, rem_dest, gidx))
 			return 1;
 
 	ctx->pending = PINGPONG_RECV_WRID;

@@ -194,8 +194,9 @@ static int mlx4_poll_one(struct mlx4_cq *cq,
 {
 	struct mlx4_wq *wq;
 	struct mlx4_cqe *cqe;
-	struct mlx4_srq *srq;
+	struct mlx4_srq *srq = NULL;
 	uint32_t qpn;
+	uint32_t srqn;
 	uint32_t g_mlpath_rqpn;
 	uint16_t wqe_index;
 	int is_error;
@@ -221,20 +222,29 @@ static int mlx4_poll_one(struct mlx4_cq *cq,
 	is_error = (cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
 		MLX4_CQE_OPCODE_ERROR;
 
-	if (!*cur_qp ||
-	    (ntohl(cqe->my_qpn) & 0xffffff) != (*cur_qp)->ibv_qp.qp_num) {
+	if (qpn & MLX4_XRC_QPN_BIT && !is_send) {
+		srqn = ntohl(cqe->g_mlpath_rqpn) & 0xffffff;
+		/*
+		 * We do not have to take the XRC SRQ table lock here,
+		 * because CQs will be locked while XRC SRQs are removed
+		 * from the table.
+		 */
+		srq = mlx4_find_xrc_srq(to_mctx(cq->ibv_cq.context), srqn);
+		if (!srq)
+			return CQ_POLL_ERR;
+	} else if (!*cur_qp || (qpn & 0xffffff) != (*cur_qp)->ibv_qp.qp_num) {
 		/*
 		 * We do not have to take the QP table lock here,
 		 * because CQs will be locked while QPs are removed
 		 * from the table.
 		 */
 		*cur_qp = mlx4_find_qp(to_mctx(cq->ibv_cq.context),
-				       ntohl(cqe->my_qpn) & 0xffffff);
+				       qpn & 0xffffff);
 		if (!*cur_qp)
 			return CQ_POLL_ERR;
 	}
 
-	wc->qp_num = (*cur_qp)->ibv_qp.qp_num;
+	wc->qp_num = qpn & 0xffffff;
 
 	if (is_send) {
 		wq = &(*cur_qp)->sq;
@@ -242,6 +252,10 @@ static int mlx4_poll_one(struct mlx4_cq *cq,
 		wq->tail += (uint16_t) (wqe_index - (uint16_t) wq->tail);
 		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
 		++wq->tail;
+	} else if (srq) {
+		wqe_index = htons(cqe->wqe_index);
+		wc->wr_id = srq->wrid[wqe_index];
+		mlx4_free_srq_wqe(srq, wqe_index);
 	} else if ((*cur_qp)->ibv_qp.srq) {
 		srq = to_msrq((*cur_qp)->ibv_qp.srq);
 		wqe_index = htons(cqe->wqe_index);
@@ -387,6 +401,10 @@ void __mlx4_cq_clean(struct mlx4_cq *cq, uint32_t qpn, struct mlx4_srq *srq)
 	uint32_t prod_index;
 	uint8_t owner_bit;
 	int nfreed = 0;
+	int is_xrc_srq = 0;
+
+	if (srq && srq->ibv_srq.xrc_cq)
+		is_xrc_srq = 1;
 
 	/*
 	 * First we need to find the current producer index, so we
@@ -405,7 +423,12 @@ void __mlx4_cq_clean(struct mlx4_cq *cq, uint32_t qpn, struct mlx4_srq *srq)
 	 */
 	while ((int) --prod_index - (int) cq->cons_index >= 0) {
 		cqe = get_cqe(cq, prod_index & cq->ibv_cq.cqe);
-		if ((ntohl(cqe->my_qpn) & 0xffffff) == qpn) {
+		if (is_xrc_srq &&
+		    (ntohl(cqe->g_mlpath_rqpn & 0xffffff) == srq->srqn) &&
+		    !(cqe->owner_sr_opcode & MLX4_CQE_IS_SEND_MASK)) {
+			mlx4_free_srq_wqe(srq, ntohs(cqe->wqe_index));
+			++nfreed;
+		} else if ((ntohl(cqe->my_qpn) & 0xffffff) == qpn) {
 			if (srq && !(cqe->owner_sr_opcode & MLX4_CQE_IS_SEND_MASK))
 				mlx4_free_srq_wqe(srq, ntohs(cqe->wqe_index));
 			++nfreed;

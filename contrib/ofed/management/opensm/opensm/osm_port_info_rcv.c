@@ -317,7 +317,7 @@ __osm_pi_rcv_process_switch_port(IN osm_sm_t * sm,
 	}
 
 	if (ib_port_info_get_port_state(p_pi) > IB_LINK_INIT && p_node->sw &&
-	    p_node->sw->need_update == 1 && port_num != 0)
+	    p_node->sw->need_update == 1)
 		p_node->sw->need_update = 0;
 
 	if (p_physp->need_update)

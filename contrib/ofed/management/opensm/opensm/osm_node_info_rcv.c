@@ -154,17 +154,18 @@ __osm_ni_rcv_set_links(IN osm_sm_t * sm,
 		goto _exit;
 	}
 
-	/* When setting the link, ports on both
-	   sides of the link should be initialized */
+	/*
+	   We have seen this neighbor node before, but we might
+	   not have seen this port on the neighbor node before.
+	   We should not set links to an uninitialized port on the
+	   neighbor, so check validity up front.  If it's not
+	   valid, do nothing, since we'll see this link again
+	   when we probe the neighbor.
+	 */
 	if (!osm_node_link_has_valid_ports(p_node, port_num,
 					   p_neighbor_node,
-					   p_ni_context->port_num)) {
-		OSM_LOG(sm->p_log, OSM_LOG_DEBUG,
-			"Link at node 0x%" PRIx64 ", port %u - no valid ports\n",
-			cl_ntoh64(osm_node_get_node_guid(p_node)), port_num);
-		CL_ASSERT(0);
+					   p_ni_context->port_num))
 		goto _exit;
-	}
 
 	if (osm_node_link_exists(p_node, port_num,
 				 p_neighbor_node, p_ni_context->port_num)) {
@@ -536,25 +537,7 @@ __osm_ni_rcv_process_existing_switch(IN osm_sm_t * sm,
 				     IN osm_node_t * const p_node,
 				     IN const osm_madw_t * const p_madw)
 {
-
-	ib_smp_t *p_smp;
-	ib_node_info_t *p_ni;
-	uint8_t port_num;
-
 	OSM_LOG_ENTER(sm->p_log);
-
-	p_smp = osm_madw_get_smp_ptr(p_madw);
-	p_ni = (ib_node_info_t *) ib_smp_get_payload_ptr(p_smp);
-	port_num = ib_node_info_get_local_port_num(p_ni);
-
-	if (!osm_node_get_physp_ptr(p_node, port_num)) {
-		OSM_LOG(sm->p_log, OSM_LOG_DEBUG,
-			"Creating physp for node GUID:0x%"
-			PRIx64 ", port %u\n",
-			cl_ntoh64(osm_node_get_node_guid(p_node)),
-			port_num);
-		osm_node_init_physp(p_node, p_madw);
-	}
 
 	/*
 	   If this switch has already been probed during this sweep,
