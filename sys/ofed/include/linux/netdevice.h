@@ -57,8 +57,9 @@ extern struct net init_net;
 #define	dev_hold(d)	if_ref((d))
 #define	dev_put(d)	if_rele((d))
 
-#define	netif_running(dev)	!!(dev->if_drv_flags & IFF_DRV_RUNNING)
-#define	netif_oper_up(dev)	!!(dev->if_flags & IFF_UP)
+#define	netif_running(dev)	!!((dev)->if_drv_flags & IFF_DRV_RUNNING)
+#define	netif_oper_up(dev)	!!((dev)->if_flags & IFF_UP)
+#define	netif_carrier_ok(dev)	netif_running(dev)
 
 static inline void
 _handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)

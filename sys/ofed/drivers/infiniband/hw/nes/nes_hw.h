@@ -45,6 +45,7 @@
 #define NES_PHY_TYPE_KR	       9
 
 #define NES_MULTICAST_PF_MAX 8
+#define NES_A0 3
 
 enum pci_regs {
 	NES_INT_STAT = 0x0000,
@@ -1097,11 +1098,12 @@ struct nes_adapter {
 	u32 wqm_wat;
 	u32 core_clock;
 	u32 firmware_version;
+	u32 eeprom_version;
 
 	u32 nic_rx_eth_route_err;
 
 	u32 et_rx_coalesce_usecs;
-	u32	et_rx_max_coalesced_frames;
+	u32 et_rx_max_coalesced_frames;
 	u32 et_rx_coalesce_usecs_irq;
 	u32 et_rx_max_coalesced_frames_irq;
 	u32 et_pkt_rate_low;
@@ -1178,6 +1180,8 @@ struct nes_ib_fast_reg_page_list {
 
 struct nes_ib_device;
 
+#define NES_EVENT_DELAY msecs_to_jiffies(100)
+
 struct nes_vnic {
 	struct nes_ib_device *nesibdev;
 	u64 sq_full;
@@ -1232,6 +1236,10 @@ struct nes_vnic {
 	u32 lro_max_aggr;
 	struct net_lro_mgr lro_mgr;
 	struct net_lro_desc lro_desc[NES_MAX_LRO_DESCRIPTORS];
+	struct timer_list event_timer;
+	enum ib_event_type delayed_event;
+	enum ib_event_type last_dispatched_event;
+	spinlock_t port_ibevent_lock;
 };
 
 struct nes_ib_device {
@@ -1332,6 +1340,10 @@ struct nes_terminate_hdr {
 #define RDMA_READ_REQ_OPCODE	1
 #define BAD_FRAME_OFFSET	64
 #define CQE_MAJOR_DRV		0x8000
+
+/* Used for link status recheck after interrupt processing */
+#define NES_LINK_RECHECK_DELAY	msecs_to_jiffies(50)
+#define NES_LINK_RECHECK_MAX	60
 
 #define nes_vlan_rx vlan_hwaccel_receive_skb
 #define nes_netif_rx netif_receive_skb

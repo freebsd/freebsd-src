@@ -50,8 +50,8 @@
 #include "en_port.h"
 
 #define DRV_NAME	"mlx4_en"
-#define DRV_VERSION	"1.5.1"
-#define DRV_RELDATE	"Feb 2010"
+#define DRV_VERSION	"1.5.2"
+#define DRV_RELDATE	"July 2010"
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
 
@@ -279,6 +279,8 @@ struct mlx4_en_tx_ring {
 	unsigned long bytes;
 	unsigned long packets;
 	spinlock_t comp_lock;
+	struct mlx4_bf bf;
+	bool bf_enabled;
 };
 
 struct mlx4_en_ipfrag {
@@ -352,6 +354,7 @@ struct mlx4_en_cq {
 	u16 moder_cnt;
 	struct mlx4_cqe *buf;
 #define MLX4_EN_OPCODE_ERROR	0x1e
+	u32 tot_rx;
 };
 
 struct mlx4_en_port_profile {
@@ -476,6 +479,11 @@ struct mlx4_en_priv {
 	struct mlx4_en_port_profile *prof;
 	struct net_device *dev;
 	struct vlan_group *vlgrp;
+	bool vlgrp_modified;
+#define MLX4_VLREG_SIZE	512
+	u8 vlan_register[MLX4_VLREG_SIZE];
+	u8 vlan_unregister[MLX4_VLREG_SIZE];
+	spinlock_t vlan_lock;
 	struct net_device_stats stats;
 	struct net_device_stats ret_stats;
 	struct mlx4_en_port_state port_state;

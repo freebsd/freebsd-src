@@ -90,7 +90,6 @@ enum {
 	IB_USER_VERBS_CMD_QUERY_XRC_RCV_QP,
 	IB_USER_VERBS_CMD_REG_XRC_RCV_QP,
 	IB_USER_VERBS_CMD_UNREG_XRC_RCV_QP,
-	IB_USER_VERBS_CMD_GET_ETH_L2_ADDR,
 };
 
 /*
@@ -629,20 +628,6 @@ struct ib_uverbs_create_ah_resp {
 
 struct ib_uverbs_destroy_ah {
 	__u32 ah_handle;
-};
-
-struct ib_uverbs_get_eth_l2_addr {
-	__u64	response;
-	__u32	pd_handle;
-	__u8	port;
-	__u8	sgid_idx;
-	__u8	reserved[2];
-	__u8	gid[16];
-};
-
-struct ib_uverbs_get_eth_l2_addr_resp {
-	__u8	mac[6];
-	__u16	vlan_id;
 };
 
 struct ib_uverbs_attach_mcast {

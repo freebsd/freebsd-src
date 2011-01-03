@@ -94,7 +94,7 @@ rdma_node_get_transport(enum rdma_node_type node_type)
 }
 EXPORT_SYMBOL(rdma_node_get_transport);
 
-enum rdma_link_layer rdma_port_link_layer(struct ib_device *device, u8 port_num)
+enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device, u8 port_num)
 {
 	if (device->get_link_layer)
 		return device->get_link_layer(device, port_num);
@@ -108,7 +108,7 @@ enum rdma_link_layer rdma_port_link_layer(struct ib_device *device, u8 port_num)
 		return IB_LINK_LAYER_UNSPECIFIED;
 	}
 }
-EXPORT_SYMBOL(rdma_port_link_layer);
+EXPORT_SYMBOL(rdma_port_get_link_layer);
 
 /* Protection domains */
 
@@ -371,8 +371,8 @@ EXPORT_SYMBOL(ib_create_qp);
 
 static const struct {
 	int			valid;
-	enum ib_qp_attr_mask	req_param[IB_QPT_RAW_ETY + 1];
-	enum ib_qp_attr_mask	opt_param[IB_QPT_RAW_ETY + 1];
+	enum ib_qp_attr_mask	req_param[IB_QPT_RAW_ETH + 1];
+	enum ib_qp_attr_mask	opt_param[IB_QPT_RAW_ETH + 1];
 } qp_state_table[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = {
 		[IB_QPS_RESET] = { .valid = 1 },
@@ -382,6 +382,7 @@ static const struct {
 				[IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
 						IB_QP_PORT			|
 						IB_QP_QKEY),
+				[IB_QPT_RAW_ETH] = IB_QP_PORT,
 				[IB_QPT_UC]  = (IB_QP_PKEY_INDEX		|
 						IB_QP_PORT			|
 						IB_QP_ACCESS_FLAGS),
@@ -1001,9 +1002,21 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 {
 	if (!qp->device->attach_mcast)
 		return -ENOSYS;
-	if (gid->raw[0] != 0xff || qp->qp_type != IB_QPT_UD)
-		return -EINVAL;
 
+	switch (rdma_node_get_transport(qp->device->node_type)) {
+	case RDMA_TRANSPORT_IB:
+		if (qp->qp_type == IB_QPT_RAW_ETH) {
+			/* In raw Etherent mgids the 63 msb's should be 0 */
+			if (gid->global.subnet_prefix & cpu_to_be64(~1ULL))
+				return -EINVAL;
+		} else if (gid->raw[0] != 0xff || qp->qp_type != IB_QPT_UD)
+			return -EINVAL;
+		break;
+	case RDMA_TRANSPORT_IWARP:
+		if (qp->qp_type != IB_QPT_RAW_ETH)
+			return -EINVAL;
+		break;
+	}
 	return qp->device->attach_mcast(qp, gid, lid);
 }
 EXPORT_SYMBOL(ib_attach_mcast);
@@ -1012,9 +1025,21 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 {
 	if (!qp->device->detach_mcast)
 		return -ENOSYS;
-	if (gid->raw[0] != 0xff || qp->qp_type != IB_QPT_UD)
-		return -EINVAL;
 
+	switch (rdma_node_get_transport(qp->device->node_type)) {
+	case RDMA_TRANSPORT_IB:
+		if (qp->qp_type == IB_QPT_RAW_ETH) {
+			/* In raw Etherent mgids the 63 msb's should be 0 */
+			if (gid->global.subnet_prefix & cpu_to_be64(~1ULL))
+				return -EINVAL;
+		} else if (gid->raw[0] != 0xff || qp->qp_type != IB_QPT_UD)
+			return -EINVAL;
+		break;
+	case RDMA_TRANSPORT_IWARP:
+		if (qp->qp_type != IB_QPT_RAW_ETH)
+			return -EINVAL;
+		break;
+	}
 	return qp->device->detach_mcast(qp, gid, lid);
 }
 EXPORT_SYMBOL(ib_detach_mcast);
@@ -1046,12 +1071,3 @@ struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device)
 }
 EXPORT_SYMBOL(ib_alloc_xrcd);
 
-int ib_get_eth_l2_addr(struct ib_device *device, u8 port, union ib_gid *gid,
-		       int sgid_idx, u8 *mac, __u16 *vlan_id)
-{
-	if (!device->get_eth_l2_addr)
-		return -ENOSYS;
-
-	return device->get_eth_l2_addr(device, port, gid, sgid_idx, mac, vlan_id);
-}
-EXPORT_SYMBOL(ib_get_eth_l2_addr);

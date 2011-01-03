@@ -174,6 +174,7 @@ struct mlx4_ib_qp {
 	struct mutex		mutex;
 	u32			flags;
 	struct list_head	xrc_reg_list;
+	spinlock_t		xrc_reg_list_lock;
 	u16			xrcdn;
 	u8			port;
 	u8			alt_port;
@@ -183,6 +184,8 @@ struct mlx4_ib_qp {
 	u8			state;
 	int			mlx_type;
 	struct list_head	gid_list;
+	int			max_inline_data;
+	struct mlx4_bf		bf;
 };
 
 struct mlx4_ib_srq {
@@ -216,8 +219,6 @@ struct mlx4_ib_dev {
 	struct ib_device	ib_dev;
 	struct mlx4_dev	       *dev;
 	int			num_ports;
-	void __iomem	       *uar_map;
-
 	struct mlx4_uar		priv_uar;
 	u32			priv_pdn;
 	MLX4_DECLARE_DOORBELL_LOCK(uar_lock);
@@ -392,14 +393,11 @@ int mlx4_ib_unreg_xrc_rcv_qp(struct ib_xrcd *xrcd, void *context, u32 qp_num);
 int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
 			u8 *mac, int *is_mcast, u8 port);
 
-int mlx4_ib_get_eth_l2_addr(struct ib_device *device, u8 port, union ib_gid *dgid,
-			    int sgid_idx, u8 *mac, u16 *vlan_id);
-
 static inline int mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 {
 	u8 port = be32_to_cpu(ah->av.ib.port_pd) >> 24 & 3;
 
-	if (rdma_port_link_layer(ah->ibah.device, port) == IB_LINK_LAYER_ETHERNET)
+	if (rdma_port_get_link_layer(ah->ibah.device, port) == IB_LINK_LAYER_ETHERNET)
 		return 1;
 
 	return !!(ah->av.ib.g_slid & 0x80);

@@ -51,8 +51,8 @@
 #include "wc.h"
 
 #define DRV_NAME	MLX4_IB_DRV_NAME
-#define DRV_VERSION	"1.0-ofed1.5.1"
-#define DRV_RELDATE	"April 4, 2008"
+#define DRV_VERSION	"1.0-ofed1.5.2"
+#define DRV_RELDATE	"August 4, 2010"
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
@@ -169,7 +169,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_srq		   = dev->dev->caps.num_srqs - dev->dev->caps.reserved_srqs;
 	props->max_srq_wr	   = dev->dev->caps.max_srq_wqes - 1;
 	props->max_srq_sge	   = dev->dev->caps.max_srq_sge;
-	props->max_fast_reg_page_list_len = PAGE_SIZE / sizeof (u64);
+	props->max_fast_reg_page_list_len = MAX_FAST_REG_PAGES;
 	props->local_ca_ack_delay  = dev->dev->caps.local_ca_ack_delay;
 	props->atomic_cap	   = dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_ATOMIC ?
 		IB_ATOMIC_HCA : IB_ATOMIC_NONE;
@@ -223,6 +223,7 @@ static void ib_link_query_port(struct ib_device *ibdev, u8 port,
 	props->link_layer	= IB_LINK_LAYER_INFINIBAND;
 }
 
+#ifdef notyet
 static int eth_to_ib_width(int w)
 {
 	switch (w) {
@@ -251,6 +252,7 @@ static int eth_to_ib_speed(int s)
 		return 1;
 	}
 }
+#endif
 
 static u8 state_to_phys_state(enum ib_port_state state)
 {
@@ -263,35 +265,10 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 {
 	struct mlx4_ib_iboe *iboe = &to_mdev(ibdev)->iboe;
 	struct net_device *ndev;
-	struct mlx4_cmd_mailbox *mailbox;
-	struct mlx4_dev *dev = to_mdev(ibdev)->dev;
-	int err;
-	u32 *outbox;
-	u32 fl;
 	enum ib_mtu tmp;
 
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-
-	err = mlx4_cmd_box(dev, 0, mailbox->dma, port, 0, MLX4_CMD_QUERY_PORT,
-			   MLX4_CMD_TIME_CLASS_B);
-	if (err)
-		goto out;
-	outbox = mailbox->buf;
-
-	fl = be32_to_cpu(outbox[0x40 / 4]);
-	if (fl & 1 << 31)
-		props->active_width = eth_to_ib_width(fl & 0xffff);
-	else
-		props->active_width = IB_WIDTH_1X;
-
-	fl = be32_to_cpu(outbox[0x44 / 4]);
-	if (fl & 1 << 31)
-		props->active_speed = eth_to_ib_speed(fl & 0xffff);
-	else
-		props->active_speed = 1;
-
+	props->active_width	= IB_WIDTH_4X;
+	props->active_speed	= 1;
 	props->port_cap_flags	= IB_PORT_CM_SUP;
 	props->gid_tbl_len	= to_mdev(ibdev)->dev->caps.gid_table_len[port];
 	props->max_msg_sz	= to_mdev(ibdev)->dev->caps.max_msg_sz;
@@ -309,23 +286,21 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	spin_lock(&iboe->lock);
 	ndev = iboe->netdevs[port - 1];
 	if (!ndev)
-		goto out_ul;
+		goto out;
 
 #ifdef __linux__
 	tmp = iboe_get_mtu(ndev->mtu);
 #else
 	tmp = iboe_get_mtu(ndev->if_mtu);
 #endif
-	props->active_mtu = tmp ? min(props->max_mtu, tmp) : 0;
-	props->state		= netif_running(ndev) &&  netif_oper_up(ndev) ?
+	props->active_mtu = tmp ? min(props->max_mtu, tmp) : IB_MTU_256;
+	props->state		= netif_carrier_ok(ndev) &&  netif_oper_up(ndev) ?
 					IB_PORT_ACTIVE : IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 
-out_ul:
-	spin_unlock(&iboe->lock);
 out:
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	return err;
+	spin_unlock(&iboe->lock);
+	return 0;
 }
 
 static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
@@ -412,7 +387,7 @@ static int iboe_query_gid(struct ib_device *ibdev, u8 port, int index,
 static int mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 			     union ib_gid *gid)
 {
-	if (rdma_port_link_layer(ibdev, port) == IB_LINK_LAYER_INFINIBAND)
+	if (rdma_port_get_link_layer(ibdev, port) == IB_LINK_LAYER_INFINIBAND)
 		return __mlx4_ib_query_gid(ibdev, port, index, gid);
 	else
 		return iboe_query_gid(ibdev, port, index, gid);
@@ -449,14 +424,34 @@ out:
 static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 				 struct ib_device_modify *props)
 {
+	struct mlx4_cmd_mailbox *mailbox;
+	int err;
+
 	if (mask & ~IB_DEVICE_MODIFY_NODE_DESC)
 		return -EOPNOTSUPP;
 
-	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
-		spin_lock(&to_mdev(ibdev)->sm_lock);
-		memcpy(ibdev->node_desc, props->node_desc, 64);
-		spin_unlock(&to_mdev(ibdev)->sm_lock);
-	}
+	if (!(mask & IB_DEVICE_MODIFY_NODE_DESC))
+		return 0;
+
+	spin_lock(&to_mdev(ibdev)->sm_lock);
+	memcpy(ibdev->node_desc, props->node_desc, 64);
+	spin_unlock(&to_mdev(ibdev)->sm_lock);
+
+	/* if possible, pass node desc to FW, so it can generate
+	 * a 144 trap. If cmd fails, just ignore.
+	 */
+	mailbox = mlx4_alloc_cmd_mailbox(to_mdev(ibdev)->dev);
+	if (IS_ERR(mailbox))
+		return 0;
+
+	memset(mailbox->buf, 0, 256);
+	memcpy(mailbox->buf, props->node_desc, 64);
+	err = mlx4_cmd(to_mdev(ibdev)->dev, mailbox->dma, 1, 0,
+		       MLX4_CMD_SET_NODE, MLX4_CMD_TIME_CLASS_A);
+	if (err)
+		mlx4_ib_dbg("SET_NODE command failed (%d)", err);
+
+	mlx4_free_cmd_mailbox(to_mdev(ibdev)->dev, mailbox);
 
 	return 0;
 }
@@ -692,7 +687,9 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
 
 	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw, !!(mqp->flags &
-				    MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK));
+				MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
+				(ibqp->qp_type == IB_QPT_RAW_ETH) ?
+				MLX4_MCAST_PROT_EN : MLX4_MCAST_PROT_IB);
 	if (err)
 		return err;
 
@@ -703,7 +700,9 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	return 0;
 
 err_add:
-	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw);
+	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+				(ibqp->qp_type == IB_QPT_RAW_ETH) ?
+				MLX4_MCAST_PROT_EN : MLX4_MCAST_PROT_IB);
 	return err;
 }
 
@@ -732,8 +731,9 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct net_device *ndev;
 	struct gid_entry *ge;
 
-	err = mlx4_multicast_detach(mdev->dev,
-				    &mqp->mqp, gid->raw);
+	err = mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+				(ibqp->qp_type == IB_QPT_RAW_ETH) ?
+				MLX4_MCAST_PROT_EN : MLX4_MCAST_PROT_IB);
 	if (err)
 		return err;
 
@@ -1048,7 +1048,7 @@ struct attribute_group diag_counters_group = {
 	.attrs  = diag_rprt_attrs
 };
 
-static void mlx4_addrconf_ifid_eui48(u8 *eui, int is_vlan, u16 vlan_id, struct net_device *dev)
+static void mlx4_addrconf_ifid_eui48(u8 *eui, u16 vlan_id, struct net_device *dev)
 {
 #ifdef __linux__
 	memcpy(eui, dev->dev_addr, 3);
@@ -1057,7 +1057,7 @@ static void mlx4_addrconf_ifid_eui48(u8 *eui, int is_vlan, u16 vlan_id, struct n
 	memcpy(eui, IF_LLADDR(dev), 3);
 	memcpy(eui + 5, IF_LLADDR(dev) + 3, 3);
 #endif
-	if (is_vlan) {
+	if (vlan_id < 0x1000) {
 		eui[3] = vlan_id >> 8;
 		eui[4] = vlan_id & 0xff;
 	} else {
@@ -1093,7 +1093,7 @@ static void update_gids_task(struct work_struct *work)
 		memcpy(gw->dev->iboe.gid_table[gw->port - 1], gw->gids, sizeof gw->gids);
 		event.device = &gw->dev->ib_dev;
 		event.element.port_num = gw->port;
-		event.event    = IB_EVENT_LID_CHANGE;
+		event.event    = IB_EVENT_GID_CHANGE;
 		ib_dispatch_event(&event);
 	}
 
@@ -1101,55 +1101,49 @@ static void update_gids_task(struct work_struct *work)
 	kfree(gw);
 }
 
+enum {
+	MLX4_MAX_EFF_VLANS = 128 - MLX4_VLAN_REGULAR,
+};
+
 static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 {
 	struct net_device *ndev = dev->iboe.netdevs[port - 1];
 	struct update_gid_work *work;
-#ifdef __linux__
 	struct net_device *tmp;
-#endif
 	int i;
 	u8 *hits;
 	int ret;
 	union ib_gid gid;
-	int tofree = -1;
+	int tofree;
 	int found;
 	int need_update = 0;
-	int is_vlan;
 	u16 vid;
 
 	work = kzalloc(sizeof *work, GFP_ATOMIC);
 	if (!work)
 		return -ENOMEM;
 
-	hits = kzalloc(128, GFP_ATOMIC);
+	hits = kzalloc(MLX4_MAX_EFF_VLANS + 1, GFP_ATOMIC);
 	if (!hits) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
+	/* XXX vlan */
 #ifdef __linux__
 	read_lock(&dev_base_lock);
 	for_each_netdev(&init_net, tmp) {
-		if (ndev && (tmp == ndev
-	/* XXX vlan */
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-			 || vlan_dev_real_dev(tmp) == ndev)) {
+		if (ndev && (tmp == ndev || rdma_vlan_dev_real_dev(tmp) == ndev)) {
 #else
-						)) {
-#endif
+		tmp = ndev;
+		if (ndev) {
 #endif
 			gid.global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-			vid = vlan_dev_vlan_id(tmp);
-			is_vlan = tmp->priv_flags & IFF_802_1Q_VLAN;
-#else
-			vid = 0;
-			is_vlan = 0;
-#endif
-			mlx4_addrconf_ifid_eui48(&gid.raw[8], is_vlan, vid, ndev);
+			vid = rdma_vlan_dev_vlan_id(tmp);
+			mlx4_addrconf_ifid_eui48(&gid.raw[8], vid, ndev);
 			found = 0;
-			for (i = 0; i < 128; ++i) {
+			tofree = -1;
+			for (i = 0; i < MLX4_MAX_EFF_VLANS + 1; ++i) {
 				if (tofree < 0 &&
 				    !memcmp(&dev->iboe.gid_table[port - 1][i], &zgid, sizeof zgid))
 					tofree = i;
@@ -1159,18 +1153,25 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 					break;
 				}
 			}
-			if (!found && tofree >= 0) {
-				dev->iboe.gid_table[port - 1][tofree] = gid;
-				hits[tofree] = 1;
-				++need_update;
+
+			if (!found) {
+				if (tmp == ndev  && (memcmp(&dev->iboe.gid_table[port - 1][0], &gid, sizeof gid) || !memcmp(&dev->iboe.gid_table[port - 1][0], &zgid, sizeof gid))) {
+					dev->iboe.gid_table[port - 1][0] = gid;
+					++need_update;
+					hits[0] = 1;
+				} else if (tofree >= 0) {
+					dev->iboe.gid_table[port - 1][tofree] = gid;
+					hits[tofree] = 1;
+					++need_update;
+				}
 			}
-#ifdef __linux__
 		}
+#ifdef __linux__
 	}
 	read_unlock(&dev_base_lock);
 #endif
 
-	for (i = 0; i < 128; ++i)
+	for (i = 0; i < MLX4_MAX_EFF_VLANS + 1; ++i)
 		if (!hits[i]) {
 			if (memcmp(&dev->iboe.gid_table[port - 1][i], &zgid, sizeof zgid))
 				++need_update;
@@ -1199,6 +1200,9 @@ static void handle_en_event(struct mlx4_ib_dev *dev, int port, unsigned long eve
 {
 	switch (event) {
 	case NETDEV_UP:
+#ifdef __linux__
+	case NETDEV_CHANGEADDR:
+#endif
 		update_ipv6_gids(dev, port, 0);
 		break;
 
@@ -1247,19 +1251,11 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 		}
 	}
 
-	if (dev == iboe->netdevs[0]
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-			|| vlan_dev_real_dev(dev) == iboe->netdevs[0])
-#else
-			)
-#endif
+	if (dev == iboe->netdevs[0] ||
+	    (iboe->netdevs[0] && rdma_vlan_dev_real_dev(dev) == iboe->netdevs[0]))
 		handle_en_event(ibdev, 1, event);
 	else if (dev == iboe->netdevs[1]
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-			|| vlan_dev_real_dev(dev) == iboe->netdevs[1])
-#else
-			)
-#endif
+		 || (iboe->netdevs[1] && rdma_vlan_dev_real_dev(dev) == iboe->netdevs[1]))
 		handle_en_event(ibdev, 2, event);
 
 	spin_unlock(&iboe->lock);
@@ -1303,8 +1299,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (mlx4_uar_alloc(dev, &ibdev->priv_uar))
 		goto err_pd;
 
-	ibdev->uar_map = ioremap(ibdev->priv_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
-	if (!ibdev->uar_map)
+	ibdev->priv_uar.map = ioremap(ibdev->priv_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
+	if (!ibdev->priv_uar.map)
 		goto err_uar;
 	MLX4_INIT_DOORBELL_LOCK(&ibdev->uar_lock);
 
@@ -1341,8 +1337,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
 		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_GET_ETH_L2_ADDR);
+		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
 
 	ibdev->ib_dev.query_device	= mlx4_ib_query_device;
 	ibdev->ib_dev.query_port	= mlx4_ib_query_port;
@@ -1410,7 +1405,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			(1ull << IB_USER_VERBS_CMD_UNREG_XRC_RCV_QP);
 	}
 
-	ibdev->ib_dev.get_eth_l2_addr		= mlx4_ib_get_eth_l2_addr;
 
 	spin_lock_init(&iboe->lock);
 	if (init_node_data(ibdev))
@@ -1420,6 +1414,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[k]);
 		if (err)
 			ibdev->counters[k] = -1;
+		else
+			mlx4_set_iboe_counter(dev, ibdev->counters[k], k + 1);
 	}
 
 	spin_lock_init(&ibdev->sm_lock);
@@ -1463,7 +1459,7 @@ err_counter:
 		mlx4_counter_free(ibdev->dev, ibdev->counters[k - 1]);
 
 err_map:
-	iounmap(ibdev->uar_map);
+	iounmap(ibdev->priv_uar.map);
 
 err_uar:
 	mlx4_uar_free(dev, &ibdev->priv_uar);
@@ -1495,7 +1491,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 		flush_workqueue(wq);
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
-	iounmap(ibdev->uar_map);
+	iounmap(ibdev->priv_uar.map);
 
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);

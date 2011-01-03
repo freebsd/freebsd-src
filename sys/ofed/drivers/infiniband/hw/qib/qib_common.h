@@ -280,7 +280,7 @@ struct qib_base_info {
  * may not be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
-#define QIB_USER_SWMINOR 10
+#define QIB_USER_SWMINOR 11
 
 #define QIB_USER_SWVERSION ((QIB_USER_SWMAJOR << 16) | QIB_USER_SWMINOR)
 
@@ -295,7 +295,22 @@ struct qib_base_info {
  * spi_sw_version field of qib_base_info, so the user code can in turn
  * check for compatibility with the kernel.
 */
+#ifndef QIB_KERN_TYPE
+#define QIB_KERN_TYPE 0
+#endif
 #define QIB_KERN_SWVERSION ((QIB_KERN_TYPE << 31) | QIB_USER_SWVERSION)
+
+/*
+ * If the unit is specified via open, HCA choice is fixed.  If port is
+ * specified, it's also fixed.  Otherwise we try to spread contexts
+ * across ports and HCAs, using different algorithims.  WITHIN is
+ * the old default, prior to this mechanism.
+ */
+#define QIB_PORT_ALG_ACROSS 0 /* round robin contexts across HCAs, then
+			       * ports; this is the default */
+#define QIB_PORT_ALG_WITHIN 1 /* use all contexts on an HCA (round robin
+			       * active ports within), then next HCA */
+#define QIB_PORT_ALG_COUNT 2 /* number of algorithm choices */
 
 /*
  * This structure is passed to qib_userinit() to tell the driver where
@@ -315,7 +330,7 @@ struct qib_user_info {
 	/* size of struct base_info to write to */
 	__u32 spu_base_info_size;
 
-	__u32 _spu_unused3;
+	__u32 spu_port_alg; /* which QIB_PORT_ALG_*; unused user minor < 11 */
 
 	/*
 	 * If two or more processes wish to share a context, each process

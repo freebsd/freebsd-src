@@ -97,6 +97,11 @@ struct mlx4_en_query_port_context {
 	u16 reserved3[5];
 	__be64 mac;
 	u8 transceiver;
+	u8 reserved4[3];
+	__be32 wavelenth;
+	u32 reserved5;
+	__be32 transceiver_code_hi;
+	__be32 transceiver_code_low;
 };
 
 

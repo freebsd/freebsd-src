@@ -54,6 +54,11 @@ enum mlx4_prot {
 	MLX4_PROT_EN,
 };
 
+enum mlx4_mcast_prot {
+	MLX4_MCAST_PROT_IB = 0,
+	MLX4_MCAST_PROT_EN = 1,
+};
+
 struct mlx4_interface {
 	void *			(*add)	 (struct mlx4_dev *dev);
 	void			(*remove)(struct mlx4_dev *dev, void *context);
@@ -71,5 +76,7 @@ void mlx4_unregister_interface(struct mlx4_interface *intf);
 void *mlx4_get_prot_dev(struct mlx4_dev *dev, enum mlx4_prot proto, int port);
 
 struct mlx4_dev *mlx4_query_interface(void *, int *port);
+void mlx4_set_iboe_counter(struct mlx4_dev *dev, int index, u8 port);
+int mlx4_get_iboe_counter(struct mlx4_dev *dev, u8 port);
 
 #endif /* MLX4_DRIVER_H */

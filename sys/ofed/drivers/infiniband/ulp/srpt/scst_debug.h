@@ -57,6 +57,7 @@
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 18)
+#ifndef WARN_ON_ONCE
 #define WARN_ON_ONCE(condition) ({				\
 	static int __warned;					\
 	typeof(condition) __ret_warn_once = (condition);	\
@@ -68,6 +69,7 @@
 		}						\
 	unlikely(__ret_warn_once);				\
 })
+#endif
 #endif
 
 #ifdef CONFIG_SCST_EXTRACHECKS

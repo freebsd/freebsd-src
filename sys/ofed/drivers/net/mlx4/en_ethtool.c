@@ -94,8 +94,10 @@ static int mlx4_en_set_tso(struct net_device *dev, u32 data)
 			struct net_device *vdev;
 			for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
 				vdev = vlan_group_get_device(priv->vlgrp, i);
-				vdev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
-				vlan_group_set_device(priv->vlgrp, i, vdev);
+				if (vdev) {
+					vdev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
+					vlan_group_set_device(priv->vlgrp, i, vdev);
+				}
 			}
 		}
 #endif
@@ -109,8 +111,10 @@ static int mlx4_en_set_tso(struct net_device *dev, u32 data)
 			struct net_device *vdev;
 			for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
 				vdev = vlan_group_get_device(priv->vlgrp, i);
-				vdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-				vlan_group_set_device(priv->vlgrp, i, vdev);
+				if (vdev) {
+					vdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+					vlan_group_set_device(priv->vlgrp, i, vdev);
+				}
 			}
 		}
 #endif

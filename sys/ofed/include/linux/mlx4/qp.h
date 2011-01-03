@@ -314,6 +314,7 @@ struct mlx4_wqe_data_seg {
 
 enum {
 	MLX4_INLINE_ALIGN	= 64,
+	MLX4_INLINE_SEG		= 1 << 31,
 };
 
 struct mlx4_wqe_inline_seg {
@@ -337,6 +338,7 @@ static inline struct mlx4_qp *__mlx4_qp_lookup(struct mlx4_dev *dev, u32 qpn)
 	return radix_tree_lookup(&dev->qp_table_tree, qpn & (dev->caps.num_qps - 1));
 }
 
+struct mlx4_qp *mlx4_qp_lookup_lock(struct mlx4_dev *dev, u32 qpn);
 void mlx4_qp_remove(struct mlx4_dev *dev, struct mlx4_qp *qp);
 int mlx4_qp_get_region(struct mlx4_dev *dev, enum mlx4_qp_region region,
 			int *base_qpn, int *cnt);

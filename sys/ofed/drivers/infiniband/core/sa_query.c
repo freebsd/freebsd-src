@@ -580,17 +580,17 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 		struct ib_sa_port *port =
 			&sa_dev->port[event->element.port_num - sa_dev->start_port];
 
-		if (rdma_port_link_layer(handler->device, port->port_num) == IB_LINK_LAYER_INFINIBAND) {
-			spin_lock_irqsave(&port->ah_lock, flags);
-			if (port->sm_ah)
-				kref_put(&port->sm_ah->ref, free_sm_ah);
-			port->sm_ah = NULL;
-			spin_unlock_irqrestore(&port->ah_lock, flags);
+		if (rdma_port_get_link_layer(handler->device, port->port_num) != IB_LINK_LAYER_INFINIBAND)
+			return;
 
-			schedule_work(&sa_dev->port[event->element.port_num -
-				      sa_dev->start_port].update_task);
-		}
+		spin_lock_irqsave(&port->ah_lock, flags);
+		if (port->sm_ah)
+			kref_put(&port->sm_ah->ref, free_sm_ah);
+		port->sm_ah = NULL;
+		spin_unlock_irqrestore(&port->ah_lock, flags);
 
+		schedule_work(&sa_dev->port[event->element.port_num -
+					    sa_dev->start_port].update_task);
 	}
 }
 
@@ -656,11 +656,11 @@ static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
 }
 
 int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
-			 struct ib_sa_path_rec *rec, struct ib_ah_attr *ah_attr,
-			 int force_grh)
+			 struct ib_sa_path_rec *rec, struct ib_ah_attr *ah_attr)
 {
 	int ret;
 	u16 gid_index;
+	int force_grh;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
 	ah_attr->dlid = be16_to_cpu(rec->dlid);
@@ -669,6 +669,8 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 				 get_src_path_mask(device, port_num);
 	ah_attr->port_num = port_num;
 	ah_attr->static_rate = rec->rate;
+
+	force_grh = rdma_port_get_link_layer(device, port_num) == IB_LINK_LAYER_ETHERNET;
 
 	if (rec->hop_limit > 1 || force_grh) {
 		ah_attr->ah_flags = IB_AH_GRH;
@@ -1337,7 +1339,7 @@ static void ib_sa_add_one(struct ib_device *device)
 
 	for (i = 0; i <= e - s; ++i) {
 		spin_lock_init(&sa_dev->port[i].ah_lock);
-		if (rdma_port_link_layer(device, i + 1) != IB_LINK_LAYER_INFINIBAND)
+		if (rdma_port_get_link_layer(device, i + 1) != IB_LINK_LAYER_INFINIBAND)
 			continue;
 
 		sa_dev->port[i].sm_ah    = NULL;
@@ -1377,14 +1379,14 @@ static void ib_sa_add_one(struct ib_device *device)
 		goto err;
 
 	for (i = 0; i <= e - s; ++i)
-		if (rdma_port_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND)
+		if (rdma_port_get_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND)
 			update_sm_ah(&sa_dev->port[i].update_task);
 
 	return;
 
 err:
 	while (--i >= 0)
-		if (rdma_port_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND) {
+		if (rdma_port_get_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND) {
 			if (!IS_ERR(sa_dev->port[i].notice_agent))
 				ib_unregister_mad_agent(sa_dev->port[i].notice_agent);
 			if (!IS_ERR(sa_dev->port[i].agent))
@@ -1409,7 +1411,7 @@ static void ib_sa_remove_one(struct ib_device *device)
 	flush_scheduled_work();
 
 	for (i = 0; i <= sa_dev->end_port - sa_dev->start_port; ++i) {
-		if (rdma_port_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND) {
+		if (rdma_port_get_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND) {
 			ib_unregister_mad_agent(sa_dev->port[i].notice_agent);
 			ib_unregister_mad_agent(sa_dev->port[i].agent);
 			if (sa_dev->port[i].sm_ah)

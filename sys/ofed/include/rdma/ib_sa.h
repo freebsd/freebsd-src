@@ -492,6 +492,20 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 			     struct ib_sa_mcmember_rec *rec,
 			     struct ib_ah_attr *ah_attr);
 
+/**
+ * ib_init_ah_from_path - Initialize address handle attributes based on an SA
+ *   path record.
+ */
+int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
+			 struct ib_sa_path_rec *rec,
+			 struct ib_ah_attr *ah_attr);
+
+/**
+ * ib_sa_unpack_path - Convert a path record from MAD format to struct
+ * ib_sa_path_rec.
+ */
+void ib_sa_unpack_path(void *attribute, struct ib_sa_path_rec *rec);
+
 struct ib_inform_info {
 	void		*context;
 	int		(*callback)(int status,
@@ -541,20 +555,5 @@ ib_sa_register_inform_info(struct ib_sa_client *client,
  * not be called from within the registration callback.
  */
 void ib_sa_unregister_inform_info(struct ib_inform_info *info);
-
-/**
- * ib_sa_unpack_path - Convert a path record from MAD format to struct
- * ib_sa_path_rec.
- */
-void ib_sa_unpack_path(void *attribute, struct ib_sa_path_rec *rec);
-
-/**
- * ib_init_ah_from_path - Initialize address handle attributes based on an SA
- *   path record.
- */
-int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
-			 struct ib_sa_path_rec *rec,
-			 struct ib_ah_attr *ah_attr,
-			 int force_grh);
 
 #endif /* IB_SA_H */

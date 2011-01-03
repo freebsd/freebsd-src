@@ -289,11 +289,11 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		if (sdp_link_layer_ib_only &&
 			rdma_node_get_transport(id->device->node_type) == 
 				RDMA_TRANSPORT_IB &&
-			rdma_port_link_layer(id->device, id->port_num) !=
+			rdma_port_get_link_layer(id->device, id->port_num) !=
 				IB_LINK_LAYER_INFINIBAND) {
 			sdp_dbg(sk, "Link layer is: %d. Only IB link layer "
 				"is allowed\n",
-				rdma_port_link_layer(id->device, id->port_num));
+				rdma_port_get_link_layer(id->device, id->port_num));
 			rc = -ENETUNREACH;
 			break;
 		}

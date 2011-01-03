@@ -1143,7 +1143,7 @@ static ssize_t qib_trace_write(struct file *file, const char __user *ubuf,
 		void __user *to = cmd.buf;
 		unsigned long left = (unsigned long) cmd.size;
 		unsigned int read_cursor;
-			
+
 		if (cmd.type == IPATH_TRACE_DUMP)
 			DPRINTK("got trace_dump len %lu pid=%u\n",
 				left, current->tgid);
@@ -1338,7 +1338,7 @@ bail:
 /*
  * Called when the qib module is unloaded
  */
-void __exit qib_trace_fini(void)
+void qib_trace_fini(void)
 {
 	if (qib_trace_buf) {
 		qib_cdev_cleanup(&evt_dev.cdev, &evt_dev.device);

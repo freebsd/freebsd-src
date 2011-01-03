@@ -445,13 +445,14 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	qkey = be32_to_cpu(ohdr->u.ud.deth[0]);
 	src_qp = be32_to_cpu(ohdr->u.ud.deth[1]) & QIB_QPN_MASK;
 
-	/* Get the number of bytes the message was padded by. */
+	/*
+	 * Get the number of bytes the message was padded by
+	 * and drop incomplete packets.
+	 */
 	pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
-	if (unlikely(tlen < (hdrsize + pad + 4))) {
-		/* Drop incomplete packets. */
-		ibp->n_pkt_drops++;
-		goto bail;
-	}
+	if (unlikely(tlen < (hdrsize + pad + 4)))
+		goto drop;
+
 	tlen -= hdrsize + pad + 4;
 
 	/*
@@ -460,10 +461,8 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	 */
 	if (qp->ibqp.qp_num) {
 		if (unlikely(hdr->lrh[1] == IB_LID_PERMISSIVE ||
-			     hdr->lrh[3] == IB_LID_PERMISSIVE)) {
-			ibp->n_pkt_drops++;
-			goto bail;
-		}
+			     hdr->lrh[3] == IB_LID_PERMISSIVE))
+			goto drop;
 		if (qp->ibqp.qp_num > 1) {
 			u16 pkey1, pkey2;
 
@@ -476,7 +475,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 						0xF,
 					      src_qp, qp->ibqp.qp_num,
 					      hdr->lrh[3], hdr->lrh[1]);
-				goto bail;
+				return;
 			}
 		}
 		if (unlikely(qkey != qp->qkey)) {
@@ -484,30 +483,24 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 				      (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
 				      src_qp, qp->ibqp.qp_num,
 				      hdr->lrh[3], hdr->lrh[1]);
-			goto bail;
+			return;
 		}
 		/* Drop invalid MAD packets (see 13.5.3.1). */
 		if (unlikely(qp->ibqp.qp_num == 1 &&
 			     (tlen != 256 ||
-			      (be16_to_cpu(hdr->lrh[0]) >> 12) == 15))) {
-			ibp->n_pkt_drops++;
-			goto bail;
-		}
+			      (be16_to_cpu(hdr->lrh[0]) >> 12) == 15)))
+			goto drop;
 	} else {
 		struct ib_smp *smp;
 
 		/* Drop invalid MAD packets (see 13.5.3.1). */
-		if (tlen != 256 || (be16_to_cpu(hdr->lrh[0]) >> 12) != 15) {
-			ibp->n_pkt_drops++;
-			goto bail;
-		}
+		if (tlen != 256 || (be16_to_cpu(hdr->lrh[0]) >> 12) != 15)
+			goto drop;
 		smp = (struct ib_smp *) data;
 		if ((hdr->lrh[1] == IB_LID_PERMISSIVE ||
 		     hdr->lrh[3] == IB_LID_PERMISSIVE) &&
-		    smp->mgmt_class != IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) {
-			ibp->n_pkt_drops++;
-			goto bail;
-		}
+		    smp->mgmt_class != IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
+			goto drop;
 	}
 
 	/*
@@ -519,27 +512,18 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	    opcode == IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE) {
 		wc.ex.imm_data = ohdr->u.ud.imm_data;
 		wc.wc_flags = IB_WC_WITH_IMM;
-		hdrsize += sizeof(u32);
+		tlen -= sizeof(u32);
 	} else if (opcode == IB_OPCODE_UD_SEND_ONLY) {
 		wc.ex.imm_data = 0;
 		wc.wc_flags = 0;
-	} else {
-		ibp->n_pkt_drops++;
-		goto bail;
-	}
+	} else
+		goto drop;
 
 	/*
 	 * A GRH is expected to preceed the data even if not
 	 * present on the wire.
 	 */
 	wc.byte_len = tlen + sizeof(struct ib_grh);
-
-	/*
-	 * We need to serialize getting a receive work queue entry and
-	 * generating a completion for it against QPs sending to this QP
-	 * locally.
-	 */
-	spin_lock(&qp->r_lock);
 
 	/*
 	 * Get the next work request entry to find where to put the data.
@@ -552,19 +536,18 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 		ret = qib_get_rwqe(qp, 0);
 		if (ret < 0) {
 			qib_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
-			goto bail_unlock;
+			return;
 		}
 		if (!ret) {
 			if (qp->ibqp.qp_num == 0)
 				ibp->n_vl15_dropped++;
-			goto bail_unlock;
+			return;
 		}
 	}
 	/* Silently drop packets which are too big. */
 	if (unlikely(wc.byte_len > qp->r_len)) {
 		qp->r_flags |= QIB_R_REUSE_SGE;
-		ibp->n_pkt_drops++;
-		goto bail_unlock;
+		goto drop;
 	}
 	if (has_grh) {
 		qib_copy_sge(&qp->r_sge, &hdr->u.l.grh,
@@ -579,7 +562,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 			qp->r_sge.sge = *qp->r_sge.sg_list++;
 	}
 	if (!test_and_clear_bit(QIB_R_WRID_VALID, &qp->r_aflags))
-		goto bail_unlock;
+		return;
 	wc.wr_id = qp->r_wr_id;
 	wc.status = IB_WC_SUCCESS;
 	wc.opcode = IB_WC_RECV;
@@ -601,7 +584,8 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 		     (ohdr->bth[0] &
 			cpu_to_be32(IB_BTH_SOLICITED)) != 0);
-bail_unlock:
-	spin_unlock(&qp->r_lock);
-bail:;
+	return;
+
+drop:
+	ibp->n_pkt_drops++;
 }

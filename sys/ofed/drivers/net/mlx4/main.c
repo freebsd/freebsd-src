@@ -38,6 +38,7 @@
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/io-mapping.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
@@ -129,7 +130,7 @@ MODULE_PARM_DESC(log_num_mtt,
 
 static int log_mtts_per_seg = 0;
 module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
-MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-5)");
+MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-7)");
 
 static void process_mod_param_profile(void)
 {
@@ -179,6 +180,22 @@ void *mlx4_get_prot_dev(struct mlx4_dev *dev, enum mlx4_prot proto, int port)
 	return mlx4_find_get_prot_dev(dev, proto, port);
 }
 EXPORT_SYMBOL(mlx4_get_prot_dev);
+
+void mlx4_set_iboe_counter(struct mlx4_dev *dev, int index, u8 port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	priv->iboe_counter_index[port - 1] = index;
+}
+EXPORT_SYMBOL(mlx4_set_iboe_counter);
+
+int mlx4_get_iboe_counter(struct mlx4_dev *dev, u8 port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	return priv->iboe_counter_index[port - 1];
+}
+EXPORT_SYMBOL(mlx4_get_iboe_counter);
 
 int mlx4_check_port_params(struct mlx4_dev *dev,
 			   enum mlx4_port_type *port_type)
@@ -857,8 +874,31 @@ static void mlx4_free_icms(struct mlx4_dev *dev)
 	mlx4_free_icm(dev, priv->fw.aux_icm, 0);
 }
 
+static int map_bf_area(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	resource_size_t bf_start;
+	resource_size_t bf_len;
+	int err = 0;
+
+	bf_start = pci_resource_start(dev->pdev, 2) + (dev->caps.num_uars << PAGE_SHIFT);
+	bf_len = pci_resource_len(dev->pdev, 2) - (dev->caps.num_uars << PAGE_SHIFT);
+	priv->bf_mapping = io_mapping_create_wc(bf_start, bf_len);
+	if (!priv->bf_mapping)
+		err = -ENOMEM;
+
+	return err;
+}
+
+static void unmap_bf_area(struct mlx4_dev *dev)
+{
+	if (mlx4_priv(dev)->bf_mapping)
+		io_mapping_free(mlx4_priv(dev)->bf_mapping);
+}
+
 static void mlx4_close_hca(struct mlx4_dev *dev)
 {
+	unmap_bf_area(dev);
 	mlx4_CLOSE_HCA(dev, 0);
 	mlx4_free_icms(dev);
 	mlx4_UNMAP_FA(dev);
@@ -925,6 +965,9 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		goto err_stop_fw;
 	}
 
+	if (map_bf_area(dev))
+		mlx4_dbg(dev, "Kernel support for blue flame is not available for kernels < 2.6.28\n");
+
 	init_hca.log_uar_sz = ilog2(dev->caps.num_uars);
 
 	err = mlx4_init_icm(dev, &dev_cap, &init_hca, icm_size);
@@ -955,6 +998,7 @@ err_free_icm:
 	mlx4_free_icms(dev);
 
 err_stop_fw:
+	unmap_bf_area(dev);
 	mlx4_UNMAP_FA(dev);
 	mlx4_free_icm(dev, priv->fw.fw_icm, 0);
 
@@ -1298,6 +1342,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct mlx4_dev *dev;
 	int err;
 	int port;
+	int i;
 
 	printk(KERN_INFO PFX "Initializing %s\n",
 	       pci_name(pdev));
@@ -1376,6 +1421,11 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	INIT_LIST_HEAD(&priv->pgdir_list);
 	mutex_init(&priv->pgdir_mutex);
+	for (i = 0; i < MLX4_MAX_PORTS; ++i)
+		priv->iboe_counter_index[i] = -1;
+
+	INIT_LIST_HEAD(&priv->bf_list);
+	mutex_init(&priv->bf_mutex);
 
 	/*
 	 * Now reset the HCA before we touch the PCI capabilities or
@@ -1599,7 +1649,7 @@ static int __init mlx4_verify_params(void)
 
 	if (log_mtts_per_seg == 0)
 		log_mtts_per_seg = ilog2(MLX4_MTT_ENTRY_PER_SEG);
-	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 5)) {
+	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 7)) {
 		printk(KERN_WARNING "mlx4_core: bad log_mtts_per_seg: %d\n", log_mtts_per_seg);
 		return -1;
 	}

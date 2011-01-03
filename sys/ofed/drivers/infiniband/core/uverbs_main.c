@@ -117,7 +117,6 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_QUERY_XRC_RCV_QP]	= ib_uverbs_query_xrc_rcv_qp,
 	[IB_USER_VERBS_CMD_REG_XRC_RCV_QP]	= ib_uverbs_reg_xrc_rcv_qp,
 	[IB_USER_VERBS_CMD_UNREG_XRC_RCV_QP]	= ib_uverbs_unreg_xrc_rcv_qp,
-	[IB_USER_VERBS_CMD_GET_ETH_L2_ADDR]	= ib_uverbs_get_eth_l2_addr,
 };
 
 #ifdef __linux__

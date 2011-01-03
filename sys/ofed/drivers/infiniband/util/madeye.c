@@ -401,7 +401,7 @@ static void snoop_smi_handler(struct ib_mad_agent *mad_agent,
 
 	if (!smp && hdr->mgmt_class != mgmt_class)
 		return;
-	if (attr_id && hdr->attr_id != attr_id)
+	if (attr_id && be16_to_cpu(hdr->attr_id) != attr_id)
 		return;
 
 	printk("Madeye:sent SMP\n");
@@ -413,7 +413,7 @@ static void recv_smi_handler(struct ib_mad_agent *mad_agent,
 {
 	if (!smp && mad_recv_wc->recv_buf.mad->mad_hdr.mgmt_class != mgmt_class)
 		return;
-	if (attr_id && mad_recv_wc->recv_buf.mad->mad_hdr.attr_id != attr_id)
+	if (attr_id && be16_to_cpu(mad_recv_wc->recv_buf.mad->mad_hdr.attr_id) != attr_id)
 		return;
 
 	printk("Madeye:recv SMP\n");
@@ -446,7 +446,7 @@ static void snoop_gsi_handler(struct ib_mad_agent *mad_agent,
 
 	if (!gmp && hdr->mgmt_class != mgmt_class)
 		return;
-	if (attr_id && hdr->attr_id != attr_id)
+	if (attr_id && be16_to_cpu(hdr->attr_id) != attr_id)
 		return;
 
 	printk("Madeye:sent GMP\n");
@@ -468,7 +468,7 @@ static void recv_gsi_handler(struct ib_mad_agent *mad_agent,
 
 	if (!gmp && hdr->mgmt_class != mgmt_class)
 		return;
-	if (attr_id && mad_recv_wc->recv_buf.mad->mad_hdr.attr_id != attr_id)
+	if (attr_id && be16_to_cpu(mad_recv_wc->recv_buf.mad->mad_hdr.attr_id) != attr_id)
 		return;
 
 	printk("Madeye:recv GMP\n");

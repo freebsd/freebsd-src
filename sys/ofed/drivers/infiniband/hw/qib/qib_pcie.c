@@ -117,9 +117,11 @@ int qib_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	} else
 		ret = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
-	if (ret)
+	if (ret) {
 		qib_early_err(&pdev->dev,
 			      "Unable to set DMA consistent mask: %d\n", ret);
+		goto bail;
+	}
 
 	pci_set_master(pdev);
 #ifdef CONFIG_PCIEAER
@@ -130,6 +132,7 @@ int qib_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 			qib_early_err(&pdev->dev,
 				      "Unable to enable pcie error reporting"
 				      ": %d\n", ret);
+			ret = 0;
 	} else
 		qib_dbg("AER capability not found! AER reports not enabled\n");
 #endif
@@ -216,6 +219,11 @@ void qib_pcie_ddcleanup(struct qib_devdata *dd)
 		qib_cdbg(VERBOSE, "Unmapping userbase %p\n",
 			 dd->userbase);
 		iounmap(dd->userbase);
+	}
+	if (dd->piovl15base) {
+		qib_cdbg(VERBOSE, "Unmapping vl15base %p\n",
+			 dd->piovl15base);
+		iounmap(dd->piovl15base);
 	}
 
 	qib_cdbg(VERBOSE, "calling pci_disable_device\n");

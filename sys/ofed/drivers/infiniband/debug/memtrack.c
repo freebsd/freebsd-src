@@ -435,13 +435,10 @@ static int create_procfs_tree(void)
         for (i=0, bit_mask=1; i<MEMTRACK_NUM_OF_MEMTYPES; ++i, bit_mask<<=1) {
                 if (bit_mask & track_mask) {
                         proc_ent = create_proc_entry(rsc_names[i], S_IRUGO, memtrack_tree);
-                        if ( !proc_ent ) {
+                        if ( !proc_ent )
                                 goto undo_create_root;
-                        }
-                        else {
-                                proc_ent->proc_fops = &memtrack_proc_fops;
-                                proc_ent->owner = THIS_MODULE;
-                        }
+
+			proc_ent->proc_fops = &memtrack_proc_fops;
                 }
         }
 

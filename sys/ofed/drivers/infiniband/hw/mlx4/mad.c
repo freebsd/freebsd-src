@@ -229,6 +229,16 @@ static void forward_trap(struct mlx4_ib_dev *dev, u8 port_num, struct ib_mad *ma
 	}
 }
 
+static int is_vendor_id(__be16 attr_id)
+{
+	return (attr_id & IB_SMP_ATTR_VENDOR_MASK) == IB_SMP_ATTR_VENDOR_MASK;
+}
+
+static int supported_vendor_id(__be16 attr_id)
+{
+	return 1;
+}
+
 static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
                           struct ib_wc *in_wc, struct ib_grh *in_grh,
                           struct ib_mad *in_mad, struct ib_mad *out_mad)
@@ -256,8 +266,8 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		 * MADs -- the SMA can't handle them.
 		 */
 		if (in_mad->mad_hdr.attr_id == IB_SMP_ATTR_SM_INFO ||
-		    ((in_mad->mad_hdr.attr_id & IB_SMP_ATTR_VENDOR_MASK) ==
-		     IB_SMP_ATTR_VENDOR_MASK))
+		    (is_vendor_id(in_mad->mad_hdr.attr_id) &&
+		    !supported_vendor_id(in_mad->mad_hdr.attr_id)))
 			return IB_MAD_RESULT_SUCCESS;
 	} else if (in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT ||
 		   in_mad->mad_hdr.mgmt_class == MLX4_IB_VENDOR_CLASS1   ||
@@ -343,6 +353,7 @@ static int rdmaoe_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_nu
 	if (err)
 		err = IB_MAD_RESULT_FAILURE;
 	else {
+		memset(out_mad->data, 0, sizeof out_mad->data);
 		mode = be32_to_cpu(((struct mlx4_counters *)mailbox->buf)->counter_mode) & 0xf;
 		switch (mode) {
 		case 0:
@@ -367,7 +378,7 @@ int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags,	u8 port_num,
 			struct ib_wc *in_wc, struct ib_grh *in_grh,
 			struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
-	switch (rdma_port_link_layer(ibdev, port_num)) {
+	switch (rdma_port_get_link_layer(ibdev, port_num)) {
 	case IB_LINK_LAYER_INFINIBAND:
 		return ib_process_mad(ibdev, mad_flags, port_num, in_wc,
 				      in_grh, in_mad, out_mad);
@@ -393,7 +404,7 @@ int mlx4_ib_mad_init(struct mlx4_ib_dev *dev)
 	enum rdma_link_layer ll;
 
 	for (p = 0; p < dev->num_ports; ++p) {
-		ll = rdma_port_link_layer(&dev->ib_dev, p + 1);
+		ll = rdma_port_get_link_layer(&dev->ib_dev, p + 1);
 		for (q = 0; q <= 1; ++q) {
 			if (ll == IB_LINK_LAYER_INFINIBAND) {
 				agent = ib_register_mad_agent(&dev->ib_dev, p + 1,

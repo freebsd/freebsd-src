@@ -100,15 +100,19 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 	int err;
 	int is_mcast;
 	u16 vlan_tag;
+	union ib_gid sgid;
 
 	err = mlx4_ib_resolve_grh(ibdev, ah_attr, mac, &is_mcast, ah_attr->port_num);
 	if (err)
 		return ERR_PTR(err);
 
-	memcpy(ah->av.eth.mac_0_1, mac, 2);
-	memcpy(ah->av.eth.mac_2_5, mac + 2, 4);
-	vlan_tag = rdma_get_vlan_id(&ah_attr->grh.dgid);
-	vlan_tag |= (ah_attr->sl & 7) << 13;
+	memcpy(ah->av.eth.mac, mac, 6);
+	err = ib_get_cached_gid(pd->device, ah_attr->port_num, ah_attr->grh.sgid_index, &sgid);
+	if (err)
+		return ERR_PTR(err);
+	vlan_tag = rdma_get_vlan_id(&sgid);
+	if (vlan_tag < 0x1000)
+		vlan_tag |= (ah_attr->sl & 7) << 13;
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn | (ah_attr->port_num << 24));
 	ah->av.eth.gid_index = ah_attr->grh.sgid_index;
 	ah->av.eth.vlan = cpu_to_be16(vlan_tag);
@@ -140,7 +144,7 @@ struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
 
-	if (rdma_port_link_layer(pd->device, ah_attr->port_num) == IB_LINK_LAYER_ETHERNET) {
+	if (rdma_port_get_link_layer(pd->device, ah_attr->port_num) == IB_LINK_LAYER_ETHERNET) {
 		if (!(ah_attr->ah_flags & IB_AH_GRH)) {
 			ret = ERR_PTR(-EINVAL);
 			goto out;
@@ -172,7 +176,7 @@ int mlx4_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 	memset(ah_attr, 0, sizeof *ah_attr);
 	ah_attr->sl = be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 28;
 	ah_attr->port_num = be32_to_cpu(ah->av.ib.port_pd) >> 24;
-	ll = rdma_port_link_layer(ibah->device, ah_attr->port_num);
+	ll = rdma_port_get_link_layer(ibah->device, ah_attr->port_num);
 	ah_attr->dlid = ll == IB_LINK_LAYER_INFINIBAND ? be16_to_cpu(ah->av.ib.dlid) : 0;
 	if (ah->av.ib.stat_rate)
 		ah_attr->static_rate = ah->av.ib.stat_rate - MLX4_STAT_RATE_OFFSET;
@@ -196,29 +200,6 @@ int mlx4_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 int mlx4_ib_destroy_ah(struct ib_ah *ah)
 {
 	kfree(to_mah(ah));
-	return 0;
-}
-
-int mlx4_ib_get_eth_l2_addr(struct ib_device *device, u8 port, union ib_gid *dgid,
-			    int sgid_idx, u8 *mac, u16 *vlan_id)
-{
-	int err;
-	struct mlx4_ib_dev *ibdev = to_mdev(device);
-	struct ib_ah_attr ah_attr = {
-		.port_num = port,
-	};
-	int is_mcast;
-	union ib_gid sgid;
-
-	memcpy(ah_attr.grh.dgid.raw, dgid, 16);
-	err = mlx4_ib_resolve_grh(ibdev, &ah_attr, mac, &is_mcast, port);
-	if (err)
-		ERR_PTR(err);
-
-	err = ib_get_cached_gid(device, port, sgid_idx, &sgid);
-	if (err)
-		return err;
-	*vlan_id = rdma_get_vlan_id(&sgid);
 	return 0;
 }
 

@@ -25,28 +25,56 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef	_LINUX_TYPES_H_
-#define	_LINUX_TYPES_H_
 
-#include <sys/cdefs.h>
-#include <sys/types.h>
-#include <linux/compiler.h>
-#include <asm/types.h>
+#ifndef	_LINUX_IO_MAPPING_H_
+#define	_LINUX_IO_MAPPING_H_
 
-typedef __u16 __le16;
-typedef __u16 __be16;
-typedef __u32 __le32;
-typedef __u32 __be32;
-typedef __u64 __le64;
-typedef __u64 __be64;
+#include <linux/types.h>
+#include <linux/io.h>
 
-typedef unsigned long kernel_ulong_t;
-typedef unsigned int    uint;
-typedef unsigned gfp_t;
-typedef uint64_t loff_t;
-typedef vm_paddr_t resource_size_t;
+struct io_mapping;
 
-#define	DECLARE_BITMAP(n, bits)						\
-	unsigned long n[howmany(bits, sizeof(long) * 8)]
+static inline struct io_mapping *
+io_mapping_create_wc(resource_size_t base, unsigned long size)
+{
+	struct io_mapping *map;
 
-#endif	/* _LINUX_TYPES_H_ */
+	map = ioremap(base, size);
+	/* XXX Set write combine. */
+	return (map);
+}
+
+static inline void
+io_mapping_free(struct io_mapping *mapping)
+{
+
+	iounmap(mapping);
+}
+
+static inline void *
+io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
+{
+
+	return (((char *)mapping) + offset);
+}
+
+static inline void
+io_mapping_unmap_atomic(void *vaddr)
+{
+
+}
+
+static inline void *
+io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
+{
+
+	return (((char *) mapping) + offset);
+}
+
+static inline void
+io_mapping_unmap(void *vaddr)
+{
+
+}
+
+#endif	/* _LINUX_IO_MAPPING_H_ */

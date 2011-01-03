@@ -48,8 +48,8 @@
 
 #define DRV_NAME	"mlx4_core"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"1.0-ofed1.5.1"
-#define DRV_RELDATE	"April 4, 2008"
+#define DRV_VERSION	"1.0-ofed1.5.2"
+#define DRV_RELDATE	"August 4, 2010"
 
 enum {
 	MLX4_HCR_BASE		= 0x80680,
@@ -107,6 +107,7 @@ struct mlx4_bitmap {
 	u32			max;
 	u32                     reserved_top;
 	u32			mask;
+	u32			avail;
 	spinlock_t		lock;
 	unsigned long	       *table;
 };
@@ -311,6 +312,8 @@ struct mlx4_priv {
 	struct mlx4_qp_table	qp_table;
 	struct mlx4_mcg_table	mcg_table;
 	struct mlx4_bitmap	counters_bitmap;
+	struct list_head	bf_list;
+	struct mutex		bf_mutex;
 
 	struct mlx4_catas_err	catas_err;
 
@@ -324,6 +327,8 @@ struct mlx4_priv {
 	int                     changed_ports;
 	struct mlx4_sense       sense;
 	struct mutex		port_mutex;
+	int			iboe_counter_index[MLX4_MAX_PORTS];
+	struct io_mapping      *bf_mapping;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -339,6 +344,7 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap);
 void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj);
 u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align);
 void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt);
+u32 mlx4_bitmap_avail(struct mlx4_bitmap *bitmap);
 int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 		     u32 reserved_bot, u32 resetrved_top);
 void mlx4_bitmap_cleanup(struct mlx4_bitmap *bitmap);

@@ -48,27 +48,20 @@
 static void mlx4_en_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
-	int err;
 
 	en_dbg(HW, priv, "Registering VLAN group:%p\n", grp);
-	priv->vlgrp = grp;
 
-	mutex_lock(&mdev->state_lock);
-	if (mdev->device_up && priv->port_up) {
-		err = mlx4_SET_VLAN_FLTR(mdev->dev, priv->port, grp);
-		if (err)
-			en_err(priv, "Failed configuring VLAN filter\n");
-	}
-	mutex_unlock(&mdev->state_lock);
+	spin_lock_bh(&priv->vlan_lock);
+	priv->vlgrp = grp;
+	priv->vlgrp_modified = true;
+	spin_unlock_bh(&priv->vlan_lock);
 }
 
 static void mlx4_en_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
-	int err;
 	int idx;
+	u8 field;
 #ifndef HAVE_NETDEV_VLAN_FEATURES
 	struct net_device *vdev;
 #endif
@@ -79,17 +72,15 @@ static void mlx4_en_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	en_dbg(HW, priv, "adding VLAN:%d (vlgrp entry:%p)\n",
 	       vid, vlan_group_get_device(priv->vlgrp, vid));
 
-	/* Add VID to port VLAN filter */
-	mutex_lock(&mdev->state_lock);
-	if (mdev->device_up && priv->port_up) {
-		err = mlx4_SET_VLAN_FLTR(mdev->dev, priv->port, priv->vlgrp);
-		if (err)
-			en_err(priv, "Failed configuring VLAN filter\n");
-	}
-	if (mlx4_register_vlan(mdev->dev, priv->port, vid, &idx))
-		en_dbg(HW, priv, "failed adding vlan %d\n", vid);
-	mutex_unlock(&mdev->state_lock);
-
+	spin_lock_bh(&priv->vlan_lock);
+	priv->vlgrp_modified = true;
+	idx = vid >> 3;
+	field = 1 << (vid & 0x7);
+	if (priv->vlan_unregister[idx] & field)
+		priv->vlan_unregister[idx] &= ~field;
+	else
+		priv->vlan_register[idx] |= field;
+	spin_unlock_bh(&priv->vlan_lock);
 #ifndef HAVE_NETDEV_VLAN_FEATURES
 	vdev = vlan_group_get_device(priv->vlgrp, vid);
 	vdev->features |= dev->features;
@@ -101,30 +92,24 @@ static void mlx4_en_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 static void mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
-	int err;
 	int idx;
+	u8 field;
 
 	if (!priv->vlgrp)
 		return;
 
 	en_dbg(HW, priv, "Killing VID:%d (vlgrp:%p vlgrp entry:%p)\n",
 	       vid, priv->vlgrp, vlan_group_get_device(priv->vlgrp, vid));
+	spin_lock_bh(&priv->vlan_lock);
+	priv->vlgrp_modified = true;
 	vlan_group_set_device(priv->vlgrp, vid, NULL);
-
-	/* Remove VID from port VLAN filter */
-	mutex_lock(&mdev->state_lock);
-	if (!mlx4_find_cached_vlan(mdev->dev, priv->port, vid, &idx))
-		mlx4_unregister_vlan(mdev->dev, priv->port, idx);
+	idx = vid >> 3;
+	field = 1 << (vid & 0x7);
+	if (priv->vlan_register[idx] & field)
+		priv->vlan_register[idx] &= ~field;
 	else
-		en_dbg(HW, priv, "could not find vid %d in cache\n", vid);
-
-	if (mdev->device_up && priv->port_up) {
-		err = mlx4_SET_VLAN_FLTR(mdev->dev, priv->port, priv->vlgrp);
-		if (err)
-			en_err(priv, "Failed configuring VLAN filter\n");
-	}
-	mutex_unlock(&mdev->state_lock);
+		priv->vlan_unregister[idx] |= field;
+	spin_unlock_bh(&priv->vlan_lock);
 }
 
 u64 mlx4_en_mac_to_u64(u8 *addr)
@@ -518,6 +503,47 @@ out:
 	priv->last_moder_jiffies = jiffies;
 }
 
+static void mlx4_en_handle_vlans(struct mlx4_en_priv *priv)
+{
+	u8 vlan_register[MLX4_VLREG_SIZE];
+	u8 vlan_unregister[MLX4_VLREG_SIZE];
+	int i, j, idx;
+	u16 vid;
+
+	/* cache the vlan data for processing 
+	 * done under lock to avoid changes during work */
+	spin_lock_bh(&priv->vlan_lock);
+	for (i = 0; i < MLX4_VLREG_SIZE; i++) {
+		vlan_register[i] = priv->vlan_register[i];
+		priv->vlan_register[i] = 0;
+		vlan_unregister[i] = priv->vlan_unregister[i];
+		priv->vlan_unregister[i] = 0;
+	}
+	priv->vlgrp_modified = false;
+	spin_unlock_bh(&priv->vlan_lock);
+
+	/* Configure the vlan filter 
+	 * The vlgrp is updated with all the vids that need to be allowed */
+	if (mlx4_SET_VLAN_FLTR(priv->mdev->dev, priv->port, priv->vlgrp))
+		en_err(priv, "Failed configuring VLAN filter\n");
+
+	/* Configure the VLAN table */
+	for (i = 0; i < MLX4_VLREG_SIZE; i++) {
+		for (j = 0; j < 8; j++) {
+			vid = (i << 3) + j;
+			if (vlan_register[i] & (1 << j))
+				if (mlx4_register_vlan(priv->mdev->dev, priv->port, vid, &idx))
+					en_dbg(HW, priv, "failed registering vlan %d\n", vid);
+			if (vlan_unregister[i] & (1 << j)) {
+				if (!mlx4_find_cached_vlan(priv->mdev->dev, priv->port, vid, &idx))
+					mlx4_unregister_vlan(priv->mdev->dev, priv->port, idx);
+				else
+					en_dbg(HW, priv, "could not find vid %d in cache\n", vid);
+			}
+		}
+	}
+}
+
 static void mlx4_en_do_get_stats(struct work_struct *work)
 {
 	struct delayed_work *delay = to_delayed_work(work);
@@ -530,10 +556,15 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 	if (err)
 		en_dbg(HW, priv, "Could not update stats \n");
 
+
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up) {
-		if (priv->port_up)
+		if (priv->port_up) {
+			if (priv->vlgrp_modified)
+				mlx4_en_handle_vlans(priv);
+
 			mlx4_en_auto_moderation(priv);
+		}
 
 		queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
 	}
@@ -998,6 +1029,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 
 	SET_NETDEV_DEV(dev, &mdev->dev->pdev->dev);
+	dev->dev_id =  port - 1;
 
 	/*
 	 * Initialize driver private data
@@ -1019,6 +1051,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->mac_index = -1;
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
 	spin_lock_init(&priv->stats_lock);
+	spin_lock_init(&priv->vlan_lock);
 	INIT_WORK(&priv->mcast_task, mlx4_en_do_set_multicast);
 	INIT_WORK(&priv->mac_task, mlx4_en_do_set_mac);
 	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);

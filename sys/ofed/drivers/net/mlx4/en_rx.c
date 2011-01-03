@@ -53,6 +53,10 @@ static int mlx4_en_get_frag_header(struct skb_frag_struct *frags, void **mac_hdr
 	return 0;
 }
 
+enum {
+	MIN_RX_ARM = 1024,
+};
+
 static int mlx4_en_alloc_frag(struct mlx4_en_priv *priv,
 			      struct mlx4_en_rx_desc *rx_desc,
 			      struct skb_frag_struct *skb_frags,
@@ -956,12 +960,19 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 		done = mlx4_en_process_rx_cq_skb(dev, cq, budget);
 
 	/* If we used up all the quota - we're probably not done yet... */
-	if (done == budget)
+	cq->tot_rx += done;
+	if (done == budget) {
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
+		if (cq->tot_rx >= MIN_RX_ARM) {
+			cq->tot_rx -= MIN_RX_ARM;
+			mlx4_en_arm_cq(priv, cq);
+		}
+	}	
 	else {
 		/* Done for now */
 		napi_complete(napi);
 		mlx4_en_arm_cq(priv, cq);
+		cq->tot_rx = 0;
 	}
 	return done;
 }

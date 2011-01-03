@@ -269,7 +269,7 @@ void ib_ud_header_init(int     		    payload_bytes,
 	if (lrh_present)
 		header->lrh.packet_length = cpu_to_be16(packet_length);
 
-	if (header->immediate_present)
+	if (immediate_present)
 		header->bth.opcode           = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE;
 	else
 		header->bth.opcode           = IB_OPCODE_UD_SEND_ONLY;

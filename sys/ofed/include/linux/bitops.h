@@ -60,6 +60,9 @@ __flsl(long mask)
 	return (flsl(mask) - 1);
 }
 
+
+#define	ffz(mask)	__ffs(~(mask))
+
 static inline unsigned long
 find_first_bit(unsigned long *addr, unsigned long size)
 {

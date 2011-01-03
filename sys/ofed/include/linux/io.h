@@ -93,4 +93,26 @@ void iounmap(void *addr);
 #define	memcpy_fromio(a, b, c)	memcpy((a), (b), (c))
 #define	memcpy_toio(a, b, c)	memcpy((a), (b), (c))
 
+static inline void
+__iowrite64_copy(void *to, void *from, size_t count)
+{
+#ifdef __LP64__
+	uint64_t *src;
+	uint64_t *dst;
+	int i;
+
+	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
+		__raw_writeq(*src, dst);
+#else
+	uint32_t *src;
+	uint32_t *dst;
+	int i;
+
+	count *= 2;
+	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
+		__raw_writel(*src, dst);
+#endif
+}
+
+
 #endif	/* _LINUX_IO_H_ */
