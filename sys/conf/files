@@ -2768,6 +2768,22 @@ ofed/drivers/infiniband/ulp/ipoib/ipoib_verbs.c	optional ipoib		\
 #	no-depend							\
 #	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 
+ofed/drivers/infiniband/ulp/sdp/sdp_bcopy.c	optional sdp		\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
+ofed/drivers/infiniband/ulp/sdp/sdp_main.c	optional sdp		\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
+ofed/drivers/infiniband/ulp/sdp/sdp_rx.c	optional sdp		\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
+ofed/drivers/infiniband/ulp/sdp/sdp_cma.c	optional sdp		\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
+ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp		\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
+
 ofed/drivers/infiniband/hw/mlx4/ah.c		optional mlx4		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
