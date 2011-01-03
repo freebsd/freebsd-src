@@ -246,7 +246,6 @@ struct alc_softc {
 	int			alc_buf_size;
 
 	struct task		alc_int_task;
-	struct task		alc_tx_task;
 	struct taskqueue	*alc_tq;
 	struct mtx		alc_mtx;
 };

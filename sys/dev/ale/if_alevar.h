@@ -222,7 +222,6 @@ struct ale_softc {
 	int			ale_pagesize;
 
 	struct task		ale_int_task;
-	struct task		ale_tx_task;
 	struct task		ale_link_task;
 	struct taskqueue	*ale_tq;
 	struct mtx		ale_mtx;
