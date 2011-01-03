@@ -855,6 +855,7 @@ ipoib_intf_alloc(const char *name)
 	sdl->sdl_type = IFT_INFINIBAND;
 	sdl->sdl_alen = dev->if_addrlen;
 	priv->dev = dev;
+	if_link_state_change(dev, LINK_STATE_DOWN);
 
 	bpfattach(dev, DLT_EN10MB, IPOIB_HEADER_LEN);
 

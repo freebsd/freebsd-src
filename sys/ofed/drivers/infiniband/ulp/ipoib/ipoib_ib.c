@@ -660,6 +660,7 @@ int ipoib_ib_dev_down(struct ifnet *dev, int flush)
 	ipoib_dbg(priv, "downing ib_dev\n");
 
 	clear_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
+	if_link_state_change(dev, LINK_STATE_DOWN);
 
 	/* Shutdown the P_Key thread if still active */
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {

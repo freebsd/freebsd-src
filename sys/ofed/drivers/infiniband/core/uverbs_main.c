@@ -552,6 +552,7 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	ev_file->async_queue = NULL;
 	ev_file->is_async    = is_async;
 	ev_file->is_closed   = 0;
+	ev_file->filp	     = NULL;
 
 	*fd = get_unused_fd();
 	if (*fd < 0) {

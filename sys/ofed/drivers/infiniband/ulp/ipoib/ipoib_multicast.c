@@ -331,6 +331,7 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work)
 		ipoib_dbg(priv, "Keeping carrier off until IB port is active\n");
 		return;
 	}
+	if_link_state_change(priv->dev, LINK_STATE_UP);
 }
 
 static int ipoib_mcast_join_complete(int status,
