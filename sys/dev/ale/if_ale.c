@@ -136,6 +136,7 @@ static void	ale_setlinkspeed(struct ale_softc *);
 static void	ale_setwol(struct ale_softc *);
 static int	ale_shutdown(device_t);
 static void	ale_start(struct ifnet *);
+static void	ale_start_locked(struct ifnet *);
 static void	ale_stats_clear(struct ale_softc *);
 static void	ale_stats_update(struct ale_softc *);
 static void	ale_stop(struct ale_softc *);
@@ -143,7 +144,6 @@ static void	ale_stop_mac(struct ale_softc *);
 static int	ale_suspend(device_t);
 static void	ale_sysctl_node(struct ale_softc *);
 static void	ale_tick(void *);
-static void	ale_tx_task(void *, int);
 static void	ale_txeof(struct ale_softc *);
 static void	ale_watchdog(struct ale_softc *);
 static int	sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
@@ -625,7 +625,6 @@ ale_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Create local taskq. */
-	TASK_INIT(&sc->ale_tx_task, 1, ale_tx_task, ifp);
 	sc->ale_tq = taskqueue_create_fast("ale_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->ale_tq);
 	if (sc->ale_tq == NULL) {
@@ -682,7 +681,6 @@ ale_detach(device_t dev)
 		ALE_UNLOCK(sc);
 		callout_drain(&sc->ale_tick_ch);
 		taskqueue_drain(sc->ale_tq, &sc->ale_int_task);
-		taskqueue_drain(sc->ale_tq, &sc->ale_tx_task);
 		taskqueue_drain(taskqueue_swi, &sc->ale_link_task);
 		ether_ifdetach(ifp);
 	}
@@ -1845,16 +1843,18 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 }
 
 static void
-ale_tx_task(void *arg, int pending)
+ale_start(struct ifnet *ifp)
 {
-	struct ifnet *ifp;
+        struct ale_softc *sc;
 
-	ifp = (struct ifnet *)arg;
-	ale_start(ifp);
+	sc = ifp->if_softc;
+	ALE_LOCK(sc);
+	ale_start_locked(ifp);
+	ALE_UNLOCK(sc);
 }
 
 static void
-ale_start(struct ifnet *ifp)
+ale_start_locked(struct ifnet *ifp)
 {
         struct ale_softc *sc;
         struct mbuf *m_head;
@@ -1862,17 +1862,15 @@ ale_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	ALE_LOCK(sc);
+	ALE_LOCK_ASSERT(sc);
 
 	/* Reclaim transmitted frames. */
 	if (sc->ale_cdata.ale_tx_cnt >= ALE_TX_DESC_HIWAT)
 		ale_txeof(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->ale_flags & ALE_FLAG_LINK) == 0) {
-		ALE_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->ale_flags & ALE_FLAG_LINK) == 0)
 		return;
-	}
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -1933,7 +1931,7 @@ ale_watchdog(struct ale_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ale_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue(sc->ale_tq, &sc->ale_tx_task);
+		ale_start_locked(ifp);
 }
 
 static int
@@ -2320,7 +2318,7 @@ ale_int_task(void *arg, int pending)
 			return;
 		}
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue(sc->ale_tq, &sc->ale_tx_task);
+			ale_start_locked(ifp);
 	}
 
 	if (more == EAGAIN ||
