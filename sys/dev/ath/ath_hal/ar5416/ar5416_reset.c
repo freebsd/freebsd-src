@@ -170,7 +170,16 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	OS_REG_WRITE(ah, AR_RSSI_THR, rssiThrReg);
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
+	if (AR_SREV_MERLIN_10_OR_LATER(ah))
+		OS_REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
 
+	if (AR_SREV_KITE(ah)) {
+		uint32_t val;
+		val = OS_REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
+		val &= ~AR_PHY_RIFS_INIT_DELAY;
+		OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
+	}
+	
 	AH5416(ah)->ah_writeIni(ah, chan);
 
 	/* Setup 11n MAC/Phy mode registers */
@@ -1019,8 +1028,11 @@ ar5416SetResetPowerOn(struct ath_hal *ah)
     /*
      * RTC reset and clear
      */
+    OS_REG_WRITE(ah, AR_RC, AR_RC_AHB);
     OS_REG_WRITE(ah, AR_RTC_RESET, 0);
     OS_DELAY(20);
+    OS_REG_WRITE(ah, AR_RC, 0);
+
     OS_REG_WRITE(ah, AR_RTC_RESET, 1);
 
     /*
@@ -1996,7 +2008,7 @@ ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
          * for last gain, pdGainBoundary == Pmax_t2, so will
          * have to extrapolate
          */
-        if (tgtIndex > maxIndex) {  /* need to extrapolate above */
+        if (tgtIndex >= maxIndex) {  /* need to extrapolate above */
             while ((ss <= tgtIndex) && (k < (AR5416_NUM_PDADC_VALUES - 1))) {
                 tmpVal = (int16_t)((vpdTableI[i][sizeCurrVpdTable - 1] +
                           (ss - maxIndex +1) * vpdStep));

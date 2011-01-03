@@ -9,7 +9,6 @@ SRCS=	vnode_if.h \
 	nfs_clcomsubs.c \
 	nfs_clport.c \
 	nfs_clbio.c \
-	nfs_cllock.c \
 	nfs_clnfsiod.c \
 	nfs_clnode.c \
 	nfs_clsubs.c \

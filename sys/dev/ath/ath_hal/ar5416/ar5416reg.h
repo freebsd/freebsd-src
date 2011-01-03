@@ -127,6 +127,7 @@
 #define	AR_EXTRCCNT		0x8328	/* extension channel rx clear count */
 #define	AR_SELFGEN_MASK		0x832c	/* rx and cal chain masks */
 #define	AR_PCU_TXBUF_CTRL	0x8340
+#define	AR_PCU_MISC_MODE2	0x8344
 
 /* DMA & PCI Registers in PCI space (usable during sleep)*/
 #define	AR_RC_AHB		0x00000001	/* AHB reset */
@@ -243,6 +244,10 @@
 #define	AR_ISR_S2_CST		0x00400000	/* Carrier sense timeout */
 #define	AR_ISR_S2_GTT		0x00800000	/* Global transmit timeout */
 #define	AR_ISR_S2_TSFOOR	0x40000000	/* RX TSF out of range */
+
+#define	AR_ISR_S5		0x0098
+#define	AR_ISR_S5_S		0x00d8
+#define	AR_ISR_S5_TIM_TIMER	0x00000010
 
 #define	AR_INTR_SPURIOUS	0xffffffff
 #define	AR_INTR_RTC_IRQ		0x00000001	/* rtc in shutdown state */
@@ -495,6 +500,8 @@
 #define	AR_PCU_CLEAR_VMF		0x01000000 /* clear vmf mode (fast cc)*/
 #define	AR_PCU_CLEAR_BA_VALID		0x04000000 /* clear ba state */
 
+#define	AR_PCU_MISC_MODE2_HWWAR1	0x00100000
+
 /* GPIO Interrupt */
 #define	AR_INTR_GPIO		0x3FF00000	/* gpio interrupted */
 #define	AR_INTR_GPIO_S		20
@@ -520,6 +527,8 @@
 
 #define	AR_GPIO_INTR_POL_VAL	0x1FFF
 #define	AR_GPIO_INTR_POL_VAL_S	0
+
+#define	AR_GPIO_JTAG_DISABLE	0x00020000
 
 #define	AR_2040_JOINED_RX_CLEAR	0x00000001	/* use ctl + ext rx_clear for cca */
 
@@ -603,7 +612,7 @@
 	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_MERLIN_20)
 #define	AR_SREV_MERLIN_20_OR_LATER(_ah) \
 	(AR_SREV_MERLIN_20(_ah) || \
-	 AH_PRIVATE((_ah))->ah_macVersion > AR_XSREV_VERSION_MERLIN)
+	 AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_MERLIN)
 
 #define	AR_SREV_KITE(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_KITE)

@@ -351,7 +351,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 				return(1);
 		}
 	} else {
-#ifdef	__FreeBSD__	/* and OSX too ? */
+#ifdef __FreeBSD__	/* and OSX too ? */
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
@@ -1329,7 +1329,7 @@ do {								\
 				/* For diverted packets, args->rule.info
 				 * contains the divert port (in host format)
 				 * reason and direction.
-	 			 */
+				 */
 				uint32_t i = args->rule.info;
 				match = (i&IPFW_IS_MASK) == IPFW_IS_DIVERT &&
 				    cmd->arg1 & ((i & IPFW_INFO_IN) ? 1 : 2);
@@ -1801,6 +1801,39 @@ do {								\
 					match = 1;
 				break;
 
+			case O_SOCKARG:	{
+				struct inpcb *inp = args->inp;
+				struct inpcbinfo *pi;
+				
+				if (is_ipv6) /* XXX can we remove this ? */
+					break;
+
+				if (proto == IPPROTO_TCP)
+					pi = &V_tcbinfo;
+				else if (proto == IPPROTO_UDP)
+					pi = &V_udbinfo;
+				else
+					break;
+
+				/* For incomming packet, lookup up the 
+				inpcb using the src/dest ip/port tuple */
+				if (inp == NULL) {
+					INP_INFO_RLOCK(pi);
+					inp = in_pcblookup_hash(pi, 
+						src_ip, htons(src_port),
+						dst_ip, htons(dst_port),
+						0, NULL);
+					INP_INFO_RUNLOCK(pi);
+				}
+				
+				if (inp && inp->inp_socket) {
+					tablearg = inp->inp_socket->so_user_cookie;
+					if (tablearg)
+						match = 1;
+				}
+				break;
+			}
+
 			case O_TAGGED: {
 				struct m_tag *mtag;
 				uint32_t tag = (cmd->arg1 == IP_FW_TABLEARG) ?
@@ -2012,14 +2045,15 @@ do {								\
 				     (1 << chain->map[f_pos]->set));
 				    f_pos++)
 				;
-			    /* prepare to enter the inner loop */
+			    /* Re-enter the inner loop at the skipto rule. */
 			    f = chain->map[f_pos];
 			    l = f->cmd_len;
 			    cmd = f->cmd;
 			    match = 1;
 			    cmdlen = 0;
 			    skip_or = 0;
-			    break;
+			    continue;
+			    break;	/* not reached */
 
 			case O_REJECT:
 				/*
@@ -2083,6 +2117,8 @@ do {								\
 				set_match(args, f_pos, chain);
 				args->rule.info = (cmd->arg1 == IP_FW_TABLEARG) ?
 					tablearg : cmd->arg1;
+				if (V_fw_one_pass)
+					args->rule.info |= IPFW_ONEPASS;
 				retval = (cmd->opcode == O_NETGRAPH) ?
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
 				l = 0;          /* exit inner loop */

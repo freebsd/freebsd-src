@@ -63,7 +63,7 @@ _BUS_SPACE_CALL_FUNCS_PROTO(SBUS_RA_mem,u_int16_t,2)
 _BUS_SPACE_CALL_FUNCS_PROTO(SBUS_RA_mem,u_int32_t,4)
 
 struct bus_space_tag SBUS_io_space_tag = {
-	BUS_SPACE_IO,
+	BUS_SPACE_TAG_IO,
 
 	/* direct bus access methods */
 	{
@@ -81,7 +81,7 @@ struct bus_space_tag SBUS_io_space_tag = {
 };
 
 struct bus_space_tag SBUS_mem_space_tag = {
-	BUS_SPACE_MEM,
+	BUS_SPACE_TAG_MEM,
 
 	/* direct bus access methods */
 	{
@@ -109,7 +109,7 @@ _BUS_SPACE_CALL_FUNCS_PROTO(NEPC_RA_io,u_int16_t,2)
 _BUS_SPACE_CALL_FUNCS_PROTO(NEPC_RA_io,u_int32_t,4)
 
 struct bus_space_tag NEPC_io_space_tag = {
-	BUS_SPACE_IO,
+	BUS_SPACE_TAG_IO,
 
 	/* direct bus access methods */
 	{
@@ -127,7 +127,7 @@ struct bus_space_tag NEPC_io_space_tag = {
 };
 
 struct bus_space_tag NEPC_mem_space_tag = {
-	BUS_SPACE_MEM,
+	BUS_SPACE_TAG_MEM,
 
 	/* direct bus access methods */
 	{
@@ -256,7 +256,7 @@ i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t pbsh,
 
 	pbase = pbsh->bsh_base + offset;
 	switch (t->bs_tag) {
-	case BUS_SPACE_IO:
+	case BUS_SPACE_TAG_IO:
 		if (pbsh->bsh_iatsz > 0) {
 			if (offset >= pbsh->bsh_iatsz || 
 			    offset + size > pbsh->bsh_iatsz)
@@ -265,7 +265,7 @@ i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t pbsh,
 		}
 		break;
 
-	case BUS_SPACE_MEM:
+	case BUS_SPACE_TAG_MEM:
 		if (pbsh->bsh_iatsz > 0)
 			return EINVAL;
 		if (offset > pbsh->bsh_sz || offset + size > pbsh->bsh_sz)
@@ -282,7 +282,7 @@ i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t pbsh,
 		return error;
 
 	switch (t->bs_tag) {
-	case BUS_SPACE_IO:
+	case BUS_SPACE_TAG_IO:
 		if (pbsh->bsh_iatsz > 0) {
 			for (i = 0; i < size; i ++)
 				bsh->bsh_iat[i] = pbsh->bsh_iat[i + offset];
@@ -295,7 +295,7 @@ i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t pbsh,
 		}
 		break;
 
-	case BUS_SPACE_MEM:
+	case BUS_SPACE_TAG_MEM:
 		break;
 	}
 

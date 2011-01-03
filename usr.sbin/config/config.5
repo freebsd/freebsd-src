@@ -86,9 +86,9 @@ Directives are processed in order of appearance with subsequent
 directive lines overriding the effect of prior ones.
 .Pp
 The list of keywords and their meanings are as follows:
+.Pp
 .Bl -tag -width indent -compact
 .\" -------- CPU --------
-.Pp
 .It Ic cpu Ar cputype
 Specify the CPU this kernel will run on.
 There can be more than one
@@ -208,9 +208,9 @@ When
 .Ar cpuarch
 is not specified, it is assumed to be the same as
 .Ar arch .
-.Ar arch 
+.Ar arch
 corresponds to MACHINE.
-.Ar cpuarch 
+.Ar cpuarch
 corresponds to MACHINE_ARCH.
 .Pp
 A kernel configuration file may have only one
@@ -351,7 +351,6 @@ option to
 The following kernel configuration directives are obsolete.
 .Bl -tag -width indent
 .\" -------- CONFIG --------
-.Pp
 .It Ic config
 This directive was used to specify the device to be used for the root
 file system.

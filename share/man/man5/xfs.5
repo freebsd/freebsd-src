@@ -67,22 +67,6 @@ port contains the
 utility for
 creating XFS file systems, and also other utilities for analyzing,
 and repairing XFS file systems.
-.Sh CAVEATS
-The port of XFS to
-.Fx
-is currently incomplete.
-Only read-only access is supported for XFS volumes.
-Writing to a volume is not supported.
-.Pp
-The
-.Fl p
-flag to
-.Cm mkfs.xfs
-can be used to create an XFS file system which is populated with files
-and other metadata.
-This can be used to quickly create a read-only file system which
-can be tested on
-.Fx .
 .Sh HISTORY
 XFS was originally written by SGI for the IRIX operating system.
 SGI ported XFS to Linux, and released the source code under the GNU
@@ -106,3 +90,19 @@ first appeared in
 .Sh AUTHORS
 This manual page was written by
 .An Craig Rodrigues Aq rodrigc@FreeBSD.org .
+.Sh CAVEATS
+The port of XFS to
+.Fx
+is currently incomplete.
+Only read-only access is supported for XFS volumes.
+Writing to a volume is not supported.
+.Pp
+The
+.Fl p
+flag to
+.Cm mkfs.xfs
+can be used to create an XFS file system which is populated with files
+and other metadata.
+This can be used to quickly create a read-only file system which
+can be tested on
+.Fx .

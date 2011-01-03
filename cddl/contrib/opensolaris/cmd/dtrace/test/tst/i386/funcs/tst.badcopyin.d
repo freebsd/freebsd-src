@@ -20,11 +20,9 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * ASSERTION:
@@ -43,11 +41,12 @@
 
 BEGIN
 {
-	lbolt = copyin((uintptr_t)&`lbolt, sizeof (int));
+	dtrace_zero = copyin((uintptr_t)&`dtrace_zero, sizeof (int));
 	exit(1);
 }
 
 ERROR
 {
-	exit(arg4 == DTRACEFLT_BADADDR && arg5 == (uint64_t)&`lbolt ? 0 : 1);
+	exit(arg4 == DTRACEFLT_BADADDR &&
+	    arg5 == (uint64_t)&`dtrace_zero ? 0 : 1);
 }

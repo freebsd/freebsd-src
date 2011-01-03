@@ -121,12 +121,13 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	struct radix_node *rn = rn_match(v_arg, head);
 	struct rtentry *rt = (struct rtentry *)rn;
 
-	/*XXX locking? */
-	if (rt && rt->rt_refcnt == 0) {		/* this is first reference */
+	if (rt) {
+		RT_LOCK(rt);
 		if (rt->rt_flags & RTPRF_OURS) {
 			rt->rt_flags &= ~RTPRF_OURS;
 			rt->rt_rmx.rmx_expire = 0;
 		}
+		RT_UNLOCK(rt);
 	}
 	return rn;
 }
@@ -408,14 +409,28 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 	if (rt->rt_ifa == ap->ifa &&
 	    (ap->del || !(rt->rt_flags & RTF_STATIC))) {
 		/*
-		 * We need to disable the automatic prune that happens
-		 * in this case in rtrequest() because it will blow
-		 * away the pointers that rn_walktree() needs in order
-		 * continue our descent.  We will end up deleting all
-		 * the routes that rtrequest() would have in any case,
-		 * so that behavior is not needed there.
+		 * Aquire a reference so that it can later be freed
+		 * as the refcount would be 0 here in case of at least
+		 * ap->del.
+		 */
+		RT_ADDREF(rt);
+		/*
+		 * Disconnect it from the tree and permit protocols
+		 * to cleanup.
 		 */
 		rtexpunge(rt);
+		/*
+		 * At this point it is an rttrash node, and in case
+		 * the above is the only reference we must free it.
+		 * If we do not noone will have a pointer and the
+		 * rtentry will be leaked forever.
+		 * In case someone else holds a reference, we are
+		 * fine as we only decrement the refcount. In that
+		 * case if the other entity calls RT_REMREF, we
+		 * will still be leaking but at least we tried.
+		 */
+		RTFREE_LOCKED(rt);
+		return (0);
 	}
 	RT_UNLOCK(rt);
 	return 0;

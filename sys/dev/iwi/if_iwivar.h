@@ -193,6 +193,7 @@ struct iwi_softc {
 	struct task		sc_restarttask;	/* restart adapter processing */
 	struct task		sc_disassoctask;
 	struct task		sc_wmetask;	/* set wme parameters */
+	struct task		sc_monitortask;
 
 	unsigned int		sc_softled : 1,	/* enable LED gpio status */
 				sc_ledstate: 1,	/* LED on/off state */

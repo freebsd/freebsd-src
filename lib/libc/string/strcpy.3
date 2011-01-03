@@ -174,16 +174,6 @@ Note that because
 .Xr strlcpy 3
 is not defined in any standards, it should
 only be used when portability is not a concern.
-.Sh SECURITY CONSIDERATIONS
-The
-.Fn strcpy
-function is easily misused in a manner which enables malicious users
-to arbitrarily change a running program's functionality through a
-buffer overflow attack.
-(See
-the FSA
-and
-.Sx EXAMPLES . )
 .Sh SEE ALSO
 .Xr bcopy 3 ,
 .Xr memccpy 3 ,
@@ -214,3 +204,13 @@ and
 .Fn stpncpy
 was added in
 .Fx 8.0 .
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn strcpy
+function is easily misused in a manner which enables malicious users
+to arbitrarily change a running program's functionality through a
+buffer overflow attack.
+(See
+the FSA
+and
+.Sx EXAMPLES . )

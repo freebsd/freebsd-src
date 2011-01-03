@@ -389,8 +389,8 @@ xfs_vn_allocate(xfs_mount_t *mp, xfs_inode_t *ip, struct xfs_vnode **vpp)
 		return (error);
 	}
 
-	VN_LOCK_AREC(vp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	VN_LOCK_AREC(vp);
 	error = insmntque(vp, XVFSTOMNT(XFS_MTOVFS(mp)));
 	if (error != 0) {
 		kmem_free(vdata, sizeof(*vdata));

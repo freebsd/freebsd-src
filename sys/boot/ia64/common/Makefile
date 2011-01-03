@@ -9,7 +9,7 @@ INTERNALLIB=
 SRCS=		autoload.c bootinfo.c copy.c devicename.c exec.c
 
 CFLAGS+=	-I${.CURDIR}/../../efi/include
-CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_ARCH}
+CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 
@@ -17,7 +17,7 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_ARCH}
+CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
 .endif
 
 .PATH: ${.CURDIR}/../../common

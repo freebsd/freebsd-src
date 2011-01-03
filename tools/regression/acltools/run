@@ -271,6 +271,8 @@ sub exec_test($$) {
   *STDOUT->autoflush();
   *OUT->autoflush();
 
+  $SIG{CHLD} = 'IGNORE';
+
   if (fork()) {
     # Server
     if (*IN_DUP) {

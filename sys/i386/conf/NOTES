@@ -11,6 +11,12 @@
 # We want LINT to cover profiling as well.
 profile         2
 
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
 
 #####################################################################
 # SMP OPTIONS:
@@ -476,9 +482,6 @@ options 	ACPI_DEBUG
 # ACPI WMI Mapping driver
 device		acpi_wmi
 
-# ACPI Asus Desktop Extras. (voltage, temp, fan)
-device		acpi_aiboost
-
 # ACPI Asus Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_asus
 
@@ -505,6 +508,9 @@ device		acpi_video
 
 # ACPI Docking Station
 device		acpi_dock
+
+# ACPI ASOC ATK0110 ASUSTeK AI Booster (voltage, temperature and fan sensors)
+device		aibs
 
 # The cpufreq(4) driver provides support for non-ACPI CPU frequency control
 device		cpufreq
@@ -632,6 +638,7 @@ device		wpi
 #   iwn5000fw:		Specific module for the 5000 only
 #   iwn5150fw:		Specific module for the 5150 only
 #   iwn6000fw:		Specific module for the 6000 only
+#   iwn6050fw:		Specific module for the 6050 only
 # mwlfw:	Marvell 88W8363 firmware
 # wpifw:	Intel 3945ABG Wireless LAN Controller firmware
 
@@ -649,6 +656,7 @@ device		iwn1000fw
 device		iwn5000fw
 device		iwn5150fw
 device		iwn6000fw
+device		iwn6050fw
 device		mwlfw
 device		wpifw
 
@@ -743,6 +751,7 @@ device		glxsb		# AMD Geode LX Security Block
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card driver
+# tpm: Trusted Platform Module
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -781,6 +790,7 @@ hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
 device		asmc
 #device		si
+device		tpm
 
 #
 # Laptop/Notebook options:

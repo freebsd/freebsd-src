@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
@@ -8,6 +10,7 @@ NO_MAN=
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
+SRCS+=		ucmpdi2.c
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
@@ -18,6 +21,11 @@ LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	no
 LOADER_GZIP_SUPPORT?=	no
 LOADER_BZIP2_SUPPORT?=	no
+.if ${MK_FDT} != "no"
+LOADER_FDT_SUPPORT=	yes
+.else
+LOADER_FDT_SUPPORT=	no
+.endif
 
 .if ${LOADER_DISK_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_DISK_SUPPORT
@@ -46,6 +54,12 @@ CFLAGS+=	-DLOADER_NFS_SUPPORT
 .if ${LOADER_TFTP_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
 .endif
+.if ${LOADER_FDT_SUPPORT} == "yes"
+CFLAGS+=	-I${.CURDIR}/../../fdt
+CFLAGS+=	-I${.OBJDIR}/../../fdt
+CFLAGS+=	-DLOADER_FDT_SUPPORT
+LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
+.endif
 
 .if !defined(NO_FORTH)
 # Enable BootForth
@@ -55,9 +69,9 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
+.PATH:		${.CURDIR}/../../common ${.CURDIR}/../../../libkern
 .include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../..
 CFLAGS+=	-I.
 
 CLEANFILES+=	vers.c ${PROG}.help
@@ -79,8 +93,8 @@ CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 # where to get libstand from
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBUBOOT} -lstand
+DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBSTAND}
+LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} -lstand
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}

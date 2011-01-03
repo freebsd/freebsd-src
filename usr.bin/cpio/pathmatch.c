@@ -131,7 +131,6 @@ pm(const char *p, const char *s, int flags)
 				s = pm_slashskip(s);
 			}
 			return (*s == '\0');
-			break;
 		case '?':
 			/* ? always succeds, unless we hit end of 's' */
 			if (*s == '\0')
@@ -150,7 +149,6 @@ pm(const char *p, const char *s, int flags)
 				++s;
 			}
 			return (0);
-			break;
 		case '[':
 			/*
 			 * Find the end of the [...] character class,
@@ -229,9 +227,17 @@ pathmatch(const char *p, const char *s, int flags)
 		flags &= ~PATHMATCH_NO_ANCHOR_START;
 	}
 
-	/* Certain patterns anchor implicitly. */
-	if (*p == '*' || *p == '/')
+	if (*p == '/' && *s != '/')
+		return (0);
+
+	/* Certain patterns and file names anchor implicitly. */
+	if (*p == '*' || *p == '/' || *p == '/') {
+		while (*p == '/')
+			++p;
+		while (*s == '/')
+			++s;
 		return (pm(p, s, flags));
+	}
 
 	/* If start is unanchored, try to match start of each path element. */
 	if (flags & PATHMATCH_NO_ANCHOR_START) {

@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -687,7 +687,7 @@ vdev_raidz_io_start(zio_t *zio)
 			rc->rc_skipped = 1;
 			continue;
 		}
-		if (vdev_dtl_contains(&cvd->vdev_dtl_map, bp->blk_birth, 1)) {
+		if (vdev_dtl_contains(cvd, DTL_MISSING, bp->blk_birth, 1)) {
 			if (c >= rm->rm_firstdatacol)
 				rm->rm_missingdata++;
 			else
@@ -697,7 +697,7 @@ vdev_raidz_io_start(zio_t *zio)
 			continue;
 		}
 		if (c >= rm->rm_firstdatacol || rm->rm_missingdata > 0 ||
-		    (zio->io_flags & ZIO_FLAG_SCRUB)) {
+		    (zio->io_flags & (ZIO_FLAG_SCRUB | ZIO_FLAG_RESILVER))) {
 			zio_nowait(zio_vdev_child_io(zio, NULL, cvd,
 			    rc->rc_offset, rc->rc_data, rc->rc_size,
 			    zio->io_type, zio->io_priority, 0,
@@ -1165,7 +1165,7 @@ vdev_raidz_io_done(zio_t *zio)
 done:
 	zio_checksum_verified(zio);
 
-	if (zio->io_error == 0 && (spa_mode & FWRITE) &&
+	if (zio->io_error == 0 && spa_writeable(zio->io_spa) &&
 	    (unexpected_errors || (zio->io_flags & ZIO_FLAG_RESILVER))) {
 		/*
 		 * Use the good data we have in hand to repair damaged children.
@@ -1180,7 +1180,8 @@ done:
 			zio_nowait(zio_vdev_child_io(zio, NULL, cvd,
 			    rc->rc_offset, rc->rc_data, rc->rc_size,
 			    ZIO_TYPE_WRITE, zio->io_priority,
-			    ZIO_FLAG_IO_REPAIR, NULL, NULL));
+			    ZIO_FLAG_IO_REPAIR | (unexpected_errors ?
+			    ZIO_FLAG_SELF_HEAL : 0), NULL, NULL));
 		}
 	}
 }

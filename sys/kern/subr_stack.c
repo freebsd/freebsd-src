@@ -44,9 +44,7 @@ static MALLOC_DEFINE(M_STACK, "stack", "Stack Traces");
 
 static int stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen,
 	    long *offset);
-#ifdef DDB
 static int stack_symbol_ddb(vm_offset_t pc, const char **name, long *offset);
-#endif
 
 struct stack *
 stack_create(void)
@@ -125,7 +123,6 @@ stack_print_short(struct stack *st)
 	printf("\n");
 }
 
-#ifdef DDB
 void
 stack_print_ddb(struct stack *st)
 {
@@ -141,6 +138,7 @@ stack_print_ddb(struct stack *st)
 	}
 }
 
+#ifdef DDB
 void
 stack_print_short_ddb(struct stack *st)
 {
@@ -255,7 +253,6 @@ stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen, long *offset)
 		return (0);
 }
 
-#ifdef DDB
 static int
 stack_symbol_ddb(vm_offset_t pc, const char **name, long *offset)
 {
@@ -275,4 +272,3 @@ stack_symbol_ddb(vm_offset_t pc, const char **name, long *offset)
 	*name = "??";
 	return (ENOENT);
 }
-#endif

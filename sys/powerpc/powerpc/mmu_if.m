@@ -90,7 +90,8 @@ CODE {
 		return;
 	}
 
-	static int mmu_null_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr)
+	static int mmu_null_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
+	    vm_paddr_t *locked_pa)
 	{
 		return (0);
 	}
@@ -109,6 +110,24 @@ CODE {
 	static struct pmap_md *mmu_null_scan_md(mmu_t mmu, struct pmap_md *p)
 	{
 		return (NULL);
+	}
+
+	static void *mmu_null_mapdev_attr(mmu_t mmu, vm_offset_t pa,
+	    vm_size_t size, vm_memattr_t ma)
+	{
+		return MMU_MAPDEV(mmu, pa, size);
+	}
+
+	static void mmu_null_kenter_attr(mmu_t mmu, vm_offset_t va,
+	    vm_offset_t pa, vm_memattr_t ma)
+	{
+		MMU_KENTER(mmu, va, pa);
+	}
+
+	static void mmu_null_page_set_memattr(mmu_t mmu, vm_page_t m,
+	    vm_memattr_t ma)
+	{
+		return;
 	}
 };
 
@@ -633,12 +652,11 @@ METHOD void zero_page_idle {
 
 
 /**
- * @brief Extract mincore(2) information from a mapping. This routine is
- * optional and is an optimisation: the mincore code will call is_modified
- * and ts_referenced if no result is returned.
+ * @brief Extract mincore(2) information from a mapping.
  *
  * @param _pmap		physical map
  * @param _addr		page virtual address
+ * @param _locked_pa	page physical address
  *
  * @retval 0		no result
  * @retval non-zero	mincore(2) flag values
@@ -647,6 +665,7 @@ METHOD int mincore {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 	vm_offset_t	_addr;
+	vm_paddr_t	*_locked_pa;
 } DEFAULT mmu_null_mincore;
 
 
@@ -746,6 +765,37 @@ METHOD void * mapdev {
 	vm_size_t	_size;
 };
 
+/**
+ * @brief Create a kernel mapping for a given physical address range.
+ * Called by bus code on behalf of device drivers. The mapping does not
+ * have to be a virtual address: it can be a direct-mapped physical address
+ * if that is supported by the MMU.
+ *
+ * @param _pa		start physical address
+ * @param _size		size in bytes of mapping
+ * @param _attr		cache attributes
+ *
+ * @retval addr		address of mapping.
+ */
+METHOD void * mapdev_attr {
+	mmu_t		_mmu;
+	vm_offset_t	_pa;
+	vm_size_t	_size;
+	vm_memattr_t	_attr;
+} DEFAULT mmu_null_mapdev_attr;
+
+/**
+ * @brief Change cache control attributes for a page. Should modify all
+ * mappings for that page.
+ *
+ * @param _m		page to modify
+ * @param _ma		new cache control attributes
+ */
+METHOD void page_set_memattr {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+	vm_memattr_t	_ma;
+} DEFAULT mmu_null_page_set_memattr;
 
 /**
  * @brief Remove the mapping created by mapdev. Called when a driver
@@ -786,6 +836,19 @@ METHOD void kenter {
 	vm_offset_t	_pa;
 };
 
+/**
+ * @brief Map a wired page into kernel virtual address space
+ *
+ * @param _va		mapping virtual address
+ * @param _pa		mapping physical address
+ * @param _ma		mapping cache control attributes
+ */
+METHOD void kenter_attr {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+	vm_offset_t	_pa;
+	vm_memattr_t	_ma;
+} DEFAULT mmu_null_kenter_attr;
 
 /**
  * @brief Determine if the given physical address range has been direct-mapped.

@@ -174,16 +174,19 @@ int
 swap_reserve(vm_ooffset_t incr)
 {
 
-	return (swap_reserve_by_uid(incr, curthread->td_ucred->cr_ruidinfo));
+	return (swap_reserve_by_cred(incr, curthread->td_ucred));
 }
 
 int
-swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
+swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 {
 	vm_ooffset_t r, s;
 	int res, error;
 	static int curfail;
 	static struct timeval lastfail;
+	struct uidinfo *uip;
+	
+	uip = cred->cr_ruidinfo;
 
 	if (incr & PAGE_MASK)
 		panic("swap_reserve: & PAGE_MASK");
@@ -249,17 +252,20 @@ swap_reserve_force(vm_ooffset_t incr)
 void
 swap_release(vm_ooffset_t decr)
 {
-	struct uidinfo *uip;
+	struct ucred *cred;
 
 	PROC_LOCK(curproc);
-	uip = curthread->td_ucred->cr_ruidinfo;
-	swap_release_by_uid(decr, uip);
+	cred = curthread->td_ucred;
+	swap_release_by_cred(decr, cred);
 	PROC_UNLOCK(curproc);
 }
 
 void
-swap_release_by_uid(vm_ooffset_t decr, struct uidinfo *uip)
+swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 {
+ 	struct uidinfo *uip;
+	
+	uip = cred->cr_ruidinfo;
 
 	if (decr & PAGE_MASK)
 		panic("swap_release: & PAGE_MASK");
@@ -382,8 +388,10 @@ static void
 swp_pager_free_nrpage(vm_page_t m)
 {
 
+	vm_page_lock(m);
 	if (m->wire_count == 0)
 		vm_page_free(m);
+	vm_page_unlock(m);
 }
 
 /*
@@ -577,9 +585,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 {
 	vm_object_t object;
 	vm_pindex_t pindex;
-	struct uidinfo *uip;
 
-	uip = NULL;
 	pindex = OFF_TO_IDX(offset + PAGE_MASK + size);
 	if (handle) {
 		mtx_lock(&Giant);
@@ -593,19 +599,18 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
 		if (object == NULL) {
 			if (cred != NULL) {
-				uip = cred->cr_ruidinfo;
-				if (!swap_reserve_by_uid(size, uip)) {
+				if (!swap_reserve_by_cred(size, cred)) {
 					sx_xunlock(&sw_alloc_sx);
 					mtx_unlock(&Giant);
 					return (NULL);
 				}
-				uihold(uip);
+				crhold(cred);
 			}
 			object = vm_object_allocate(OBJT_DEFAULT, pindex);
 			VM_OBJECT_LOCK(object);
 			object->handle = handle;
 			if (cred != NULL) {
-				object->uip = uip;
+				object->cred = cred;
 				object->charge = size;
 			}
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
@@ -615,15 +620,14 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		mtx_unlock(&Giant);
 	} else {
 		if (cred != NULL) {
-			uip = cred->cr_ruidinfo;
-			if (!swap_reserve_by_uid(size, uip))
+			if (!swap_reserve_by_cred(size, cred))
 				return (NULL);
-			uihold(uip);
+			crhold(cred);
 		}
 		object = vm_object_allocate(OBJT_DEFAULT, pindex);
 		VM_OBJECT_LOCK(object);
 		if (cred != NULL) {
-			object->uip = uip;
+			object->cred = cred;
 			object->charge = size;
 		}
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
@@ -1137,17 +1141,10 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	if (0 < i || j < count) {
 		int k;
 
-		
-		for (k = 0; k < i; ++k) {
-			vm_page_lock(m[k]);
+		for (k = 0; k < i; ++k)
 			swp_pager_free_nrpage(m[k]);
-			vm_page_unlock(m[k]);
-		}
-		for (k = j; k < count; ++k) {
-			vm_page_lock(m[k]);
+		for (k = j; k < count; ++k)
 			swp_pager_free_nrpage(m[k]);
-			vm_page_unlock(m[k]);
-		}
 	}
 
 	/*
@@ -1465,8 +1462,8 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
  *	Completion routine for asynchronous reads and writes from/to swap.
  *	Also called manually by synchronous code to finish up a bp.
  *
- *	For READ operations, the pages are PG_BUSY'd.  For WRITE operations, 
- *	the pages are vm_page_t->busy'd.  For READ operations, we PG_BUSY 
+ *	For READ operations, the pages are VPO_BUSY'd.  For WRITE operations, 
+ *	the pages are vm_page_t->busy'd.  For READ operations, we VPO_BUSY 
  *	unbusy all pages except the 'main' request page.  For WRITE 
  *	operations, we vm_page_t->busy'd unbusy all pages ( we can do this 
  *	because we marked them all VM_PAGER_PEND on return from putpages ).
@@ -1514,8 +1511,6 @@ swp_pager_async_iodone(struct buf *bp)
 	for (i = 0; i < bp->b_npages; ++i) {
 		vm_page_t m = bp->b_pages[i];
 
-		vm_page_lock(m);
-		vm_page_lock_queues();
 		m->oflags &= ~VPO_SWAPINPROG;
 
 		if (bp->b_ioflags & BIO_ERROR) {
@@ -1558,7 +1553,9 @@ swp_pager_async_iodone(struct buf *bp)
 				 * then finish the I/O.
 				 */
 				vm_page_dirty(m);
+				vm_page_lock(m);
 				vm_page_activate(m);
+				vm_page_unlock(m);
 				vm_page_io_finish(m);
 			}
 		} else if (bp->b_iocmd == BIO_READ) {
@@ -1593,11 +1590,12 @@ swp_pager_async_iodone(struct buf *bp)
 			 * left busy.
 			 */
 			if (i != bp->b_pager.pg_reqpage) {
+				vm_page_lock(m);
 				vm_page_deactivate(m);
+				vm_page_unlock(m);
 				vm_page_wakeup(m);
-			} else {
+			} else
 				vm_page_flash(m);
-			}
 		} else {
 			/*
 			 * For write success, clear the dirty
@@ -1609,11 +1607,12 @@ swp_pager_async_iodone(struct buf *bp)
 			    " protected", m));
 			vm_page_undirty(m);
 			vm_page_io_finish(m);
-			if (vm_page_count_severe())
+			if (vm_page_count_severe()) {
+				vm_page_lock(m);
 				vm_page_try_to_cache(m);
+				vm_page_unlock(m);
+			}
 		}
-		vm_page_unlock_queues();
-		vm_page_unlock(m);
 	}
 
 	/*
@@ -1680,8 +1679,6 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 			}
 		}
 		index += SWAP_META_PAGES;
-		if (index > 0x20000000)
-			panic("swap_pager_isswapped: failed to locate all swap meta blocks");
 	}
 	mtx_unlock(&swhash_mtx);
 	return (0);
@@ -1710,11 +1707,9 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
-		vm_page_lock(m);
-		vm_page_lock_queues();
-		vm_page_activate(m);
 		vm_page_dirty(m);
-		vm_page_unlock_queues();
+		vm_page_lock(m);
+		vm_page_activate(m);
 		vm_page_unlock(m);
 		vm_page_wakeup(m);
 		vm_pager_page_unswapped(m);
@@ -1724,11 +1719,9 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_subtract(object, 1);
-	vm_page_lock(m);
-	vm_page_lock_queues();
 	vm_page_dirty(m);
-	vm_page_dontneed(m);
-	vm_page_unlock_queues();
+	vm_page_lock(m);
+	vm_page_deactivate(m);
 	vm_page_unlock(m);
 	vm_page_wakeup(m);
 	vm_pager_page_unswapped(m);
@@ -2000,8 +1993,6 @@ swp_pager_meta_free_all(vm_object_t object)
 		}
 		mtx_unlock(&swhash_mtx);
 		index += SWAP_META_PAGES;
-		if (index > 0x20000000)
-			panic("swp_pager_meta_free_all: failed to locate all swap meta blocks");
 	}
 }
 

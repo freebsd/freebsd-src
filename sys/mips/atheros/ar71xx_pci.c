@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
+#include <machine/intr_machdep.h>
 #include <machine/pmap.h>
 
 #include <dev/pci/pcivar.h>
@@ -54,6 +55,8 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar71xx_pci_bus_space.h>
+
+#include <mips/atheros/ar71xx_cpudef.h>
 
 #undef AR71XX_PCI_DEBUG
 #ifdef AR71XX_PCI_DEBUG
@@ -70,6 +73,7 @@ struct ar71xx_pci_softc {
 	struct rman		sc_irq_rman;
 
 	struct intr_event	*sc_eventstab[AR71XX_PCI_NIRQS];	
+	mips_intrcnt_t		sc_intr_counter[AR71XX_PCI_NIRQS];	
 	struct resource		*sc_irq;
 	void			*sc_ih;
 };
@@ -256,7 +260,6 @@ ar71xx_pci_attach(device_t dev)
 {
 	int busno = 0;
 	int rid = 0;
-	uint32_t reset;
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
@@ -293,15 +296,10 @@ ar71xx_pci_attach(device_t dev)
 	}
 
 	/* reset PCI core and PCI bus */
-	reset = ATH_READ_REG(AR71XX_RST_RESET);
-	reset |= (RST_RESET_PCI_CORE | RST_RESET_PCI_BUS);
-	ATH_WRITE_REG(AR71XX_RST_RESET, reset);
-	ATH_READ_REG(AR71XX_RST_RESET);
+	ar71xx_device_stop(RST_RESET_PCI_CORE | RST_RESET_PCI_BUS);
 	DELAY(100000);
 
-	reset &= ~(RST_RESET_PCI_CORE | RST_RESET_PCI_BUS);
-	ATH_WRITE_REG(AR71XX_RST_RESET, reset);
-	ATH_READ_REG(AR71XX_RST_RESET);
+	ar71xx_device_start(RST_RESET_PCI_CORE | RST_RESET_PCI_BUS);
 	DELAY(100000);
 
 	/* Init PCI windows */
@@ -436,13 +434,20 @@ ar71xx_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)irq, 0, irq, 
 		    ar71xx_pci_mask_irq, ar71xx_pci_unmask_irq, NULL, NULL,
-		    "ar71xx_pci intr%d:", irq);
+		    "pci intr%d:", irq);
 
-		sc->sc_eventstab[irq] = event;
+		if (error == 0) {
+			sc->sc_eventstab[irq] = event;
+			sc->sc_intr_counter[irq] =
+			    mips_intrcnt_create(event->ie_name);
+		}
+		else
+			return error;
 	}
 
 	intr_event_add_handler(event, device_get_nameunit(child), filt,
 	    handler, arg, intr_priority(flags), flags, cookiep);
+	mips_intrcnt_setname(sc->sc_intr_counter[irq], event->ie_fullname);
 
 	ar71xx_pci_unmask_irq((void*)irq);
 
@@ -497,6 +502,7 @@ ar71xx_pci_intr(void *arg)
 
 			/* TODO: frame instead of NULL? */
 			intr_event_handle(event, NULL);
+			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
 		}
 	}
 

@@ -278,9 +278,9 @@ zfs_replay_create_acl(zfsvfs_t *zfsvfs,
 	uint64_t txtype;
 	int error;
 
+	txtype = (lr->lr_common.lrc_txtype & ~TX_CI);
 	if (byteswap) {
 		byteswap_uint64_array(lracl, sizeof (*lracl));
-		txtype = (int)lr->lr_common.lrc_txtype;
 		if (txtype == TX_CREATE_ACL_ATTR ||
 		    txtype == TX_MKDIR_ACL_ATTR) {
 			lrattr = (lr_attr_t *)(caddr_t)(lracl + 1);
@@ -321,7 +321,7 @@ zfs_replay_create_acl(zfsvfs_t *zfsvfs,
 
 	if (lr->lr_common.lrc_txtype & TX_CI)
 		vflg |= FIGNORECASE;
-	switch ((int)lr->lr_common.lrc_txtype) {
+	switch (txtype) {
 	case TX_CREATE_ACL:
 		aclstart = (caddr_t)(lracl + 1);
 		fuidstart = (caddr_t)aclstart +
@@ -402,7 +402,8 @@ bail:
 
 	VN_RELE(ZTOV(dzp));
 
-	zfs_fuid_info_free(zfsvfs->z_fuid_replay);
+	if (zfsvfs->z_fuid_replay)
+		zfs_fuid_info_free(zfsvfs->z_fuid_replay);
 	zfsvfs->z_fuid_replay = NULL;
 
 	return (error);
@@ -425,9 +426,9 @@ zfs_replay_create(zfsvfs_t *zfsvfs, lr_create_t *lr, boolean_t byteswap)
 	struct componentname cn;
 	int error;
 
+	txtype = (lr->lr_common.lrc_txtype & ~TX_CI);
 	if (byteswap) {
 		byteswap_uint64_array(lr, sizeof (*lr));
-		txtype = (int)lr->lr_common.lrc_txtype;
 		if (txtype == TX_CREATE_ATTR || txtype == TX_MKDIR_ATTR)
 			zfs_replay_swap_attrs((lr_attr_t *)(lr + 1));
 	}
@@ -477,7 +478,7 @@ zfs_replay_create(zfsvfs_t *zfsvfs, lr_create_t *lr, boolean_t byteswap)
 	cn.cn_flags = SAVENAME;
 
 	vn_lock(ZTOV(dzp), LK_EXCLUSIVE | LK_RETRY);
-	switch ((int)lr->lr_common.lrc_txtype) {
+	switch (txtype) {
 	case TX_CREATE_ATTR:
 		lrattr = (lr_attr_t *)(caddr_t)(lr + 1);
 		xvatlen = ZIL_XVAT_SIZE(lrattr->lr_attr_masksize);
@@ -709,6 +710,59 @@ zfs_replay_write(zfsvfs_t *zfsvfs, lr_write_t *lr, boolean_t byteswap)
 	znode_t	*zp;
 	int error;
 	ssize_t resid;
+	uint64_t orig_eof, eod;
+
+	if (byteswap)
+		byteswap_uint64_array(lr, sizeof (*lr));
+
+	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0) {
+		/*
+		 * As we can log writes out of order, it's possible the
+		 * file has been removed. In this case just drop the write
+		 * and return success.
+		 */
+		if (error == ENOENT)
+			error = 0;
+		return (error);
+	}
+	orig_eof = zp->z_phys->zp_size;
+	eod = lr->lr_offset + lr->lr_length; /* end of data for this write */
+
+	/* If it's a dmu_sync() block get the data and write the whole block */
+	if (lr->lr_common.lrc_reclen == sizeof (lr_write_t))
+		zil_get_replay_data(zfsvfs->z_log, lr);
+
+	error = vn_rdwr(UIO_WRITE, ZTOV(zp), data, lr->lr_length,
+	    lr->lr_offset, UIO_SYSSPACE, 0, RLIM64_INFINITY, kcred, &resid);
+
+	/*
+	 * This may be a write from a dmu_sync() for a whole block,
+	 * and may extend beyond the current end of the file.
+	 * We can't just replay what was written for this TX_WRITE as
+	 * a future TX_WRITE2 may extend the eof and the data for that
+	 * write needs to be there. So we write the whole block and
+	 * reduce the eof.
+	 */
+	if (orig_eof < zp->z_phys->zp_size) /* file length grew ? */
+		zp->z_phys->zp_size = eod;
+
+	VN_RELE(ZTOV(zp));
+
+	return (error);
+}
+
+/*
+ * TX_WRITE2 are only generated when dmu_sync() returns EALREADY
+ * meaning the pool block is already being synced. So now that we always write
+ * out full blocks, all we have to do is expand the eof if
+ * the file is grown.
+ */
+static int
+zfs_replay_write2(zfsvfs_t *zfsvfs, lr_write_t *lr, boolean_t byteswap)
+{
+	znode_t	*zp;
+	int error;
+	uint64_t end;
 
 	if (byteswap)
 		byteswap_uint64_array(lr, sizeof (*lr));
@@ -724,8 +778,11 @@ zfs_replay_write(zfsvfs_t *zfsvfs, lr_write_t *lr, boolean_t byteswap)
 		return (error);
 	}
 
-	error = vn_rdwr(UIO_WRITE, ZTOV(zp), data, lr->lr_length,
-	    lr->lr_offset, UIO_SYSSPACE, 0, RLIM64_INFINITY, kcred, &resid);
+	end = lr->lr_offset + lr->lr_length;
+	if (end > zp->z_phys->zp_size) {
+		ASSERT3U(end - zp->z_phys->zp_size, <, zp->z_blksz);
+		zp->z_phys->zp_size = end;
+	}
 
 	VN_RELE(ZTOV(zp));
 
@@ -944,4 +1001,5 @@ zil_replay_func_t *zfs_replay_vector[TX_MAX_TYPE] = {
 	zfs_replay_create_acl,	/* TX_MKDIR_ACL */
 	zfs_replay_create,	/* TX_MKDIR_ATTR */
 	zfs_replay_create_acl,	/* TX_MKDIR_ACL_ATTR */
+	zfs_replay_write2,	/* TX_WRITE2 */
 };

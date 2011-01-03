@@ -81,10 +81,10 @@ MKINIT struct redirtab *redirlist;
  * background commands, where we want to redirect fd0 to /dev/null only
  * if it hasn't already been redirected.
 */
-STATIC int fd0_redirected = 0;
+static int fd0_redirected = 0;
 
-STATIC void openredirect(union node *, char[10 ]);
-STATIC int openhere(union node *);
+static void openredirect(union node *, char[10 ]);
+static int openhere(union node *);
 
 
 /*
@@ -148,13 +148,14 @@ redirect(union node *redir, int flags)
 }
 
 
-STATIC void
+static void
 openredirect(union node *redir, char memory[10])
 {
 	struct stat sb;
 	int fd = redir->nfile.fd;
 	char *fname;
 	int f;
+	int e;
 
 	/*
 	 * We suppress interrupts so that we won't leave open file
@@ -173,7 +174,11 @@ openredirect(union node *redir, char memory[10])
 			error("cannot open %s: %s", fname, strerror(errno));
 movefd:
 		if (f != fd) {
-			dup2(f, fd);
+			if (dup2(f, fd) == -1) {
+				e = errno;
+				close(f);
+				error("%d: %s", fd, strerror(e));
+			}
 			close(f);
 		}
 		break;
@@ -217,8 +222,11 @@ movefd:
 		if (redir->ndup.dupfd >= 0) {	/* if not ">&-" */
 			if (memory[redir->ndup.dupfd])
 				memory[fd] = 1;
-			else
-				dup2(redir->ndup.dupfd, fd);
+			else {
+				if (dup2(redir->ndup.dupfd, fd) < 0)
+					error("%d: %s", redir->ndup.dupfd,
+							strerror(errno));
+			}
 		} else {
 			close(fd);
 		}
@@ -240,7 +248,7 @@ movefd:
  * the pipe without forking.
  */
 
-STATIC int
+static int
 openhere(union node *redir)
 {
 	int pip[2];

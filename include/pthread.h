@@ -98,7 +98,7 @@
  * Static initialization values. 
  */
 #define PTHREAD_MUTEX_INITIALIZER	NULL
-#define PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP	NULL
+#define PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP	((pthread_mutex_t)1)
 #define PTHREAD_COND_INITIALIZER	NULL
 #define PTHREAD_RWLOCK_INITIALIZER	NULL
 
@@ -134,6 +134,15 @@ enum pthread_mutextype {
 };
 
 #define PTHREAD_MUTEX_DEFAULT		PTHREAD_MUTEX_ERRORCHECK
+
+enum pthread_rwlocktype_np
+{
+	PTHREAD_RWLOCK_PREFER_READER_NP,
+	PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP,
+	PTHREAD_RWLOCK_PREFER_WRITER_NP,
+	PTHREAD_RWLOCK_DEFAULT_NP =
+		PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP
+};
 
 struct _pthread_cleanup_info {
 	__uintptr_t	pthread_cleanup_pad[8];
@@ -233,11 +242,14 @@ int		pthread_rwlock_tryrdlock(pthread_rwlock_t *);
 int		pthread_rwlock_trywrlock(pthread_rwlock_t *);
 int		pthread_rwlock_unlock(pthread_rwlock_t *);
 int		pthread_rwlock_wrlock(pthread_rwlock_t *);
-int		pthread_rwlockattr_init(pthread_rwlockattr_t *);
+int		pthread_rwlockattr_destroy(pthread_rwlockattr_t *);
+int		pthread_rwlockattr_getkind_np(const pthread_rwlockattr_t *,
+			int *);
 int		pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *,
 			int *);
+int		pthread_rwlockattr_init(pthread_rwlockattr_t *);
+int		pthread_rwlockattr_setkind_np(pthread_rwlockattr_t *, int);
 int		pthread_rwlockattr_setpshared(pthread_rwlockattr_t *, int);
-int		pthread_rwlockattr_destroy(pthread_rwlockattr_t *);
 pthread_t	pthread_self(void);
 int		pthread_setspecific(pthread_key_t, const void *);
 

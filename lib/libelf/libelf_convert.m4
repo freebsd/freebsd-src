@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006,2007 Joseph Koshy
+ * Copyright (c) 2006-2008 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,22 +85,22 @@ __FBSDID("$FreeBSD$");
  * destination pointer is incremented after the write.
  */
 #define	WRITE_BYTE(P,X) do {						\
-		unsigned char *const _p = (unsigned char *) (P);	\
-		_p[0]		= (unsigned char) (X);			\
+		char *const _p = (char *) (P);	\
+		_p[0]		= (char) (X);			\
 		(P)		= _p + 1;				\
 	} while (0)
 #define	WRITE_HALF(P,X)	do {						\
 		uint16_t _t	= (X);					\
-		unsigned char *const _p	= (unsigned char *) (P);	\
-		unsigned const char *const _q = (unsigned char *) &_t;	\
+		char *const _p	= (char *) (P);	\
+		const char *const _q = (char *) &_t;	\
 		_p[0]		= _q[0];				\
 		_p[1]		= _q[1];				\
 		(P) 		= _p + 2;				\
 	} while (0)
 #define	WRITE_WORD(P,X)	do {						\
 		uint32_t _t	= (X);					\
-		unsigned char *const _p	= (unsigned char *) (P);	\
-		unsigned const char *const _q = (unsigned char *) &_t;	\
+		char *const _p	= (char *) (P);	\
+		const char *const _q = (char *) &_t;	\
 		_p[0]		= _q[0];				\
 		_p[1]		= _q[1];				\
 		_p[2]		= _q[2];				\
@@ -112,8 +112,8 @@ __FBSDID("$FreeBSD$");
 #define	WRITE_SWORD(P,X)	WRITE_WORD(P,X)
 #define	WRITE_WORD64(P,X)	do {					\
 		uint64_t _t	= (X);					\
-		unsigned char *const _p	= (unsigned char *) (P);	\
-		unsigned const char *const _q = (unsigned char *) &_t;	\
+		char *const _p	= (char *) (P);	\
+		const char *const _q = (char *) &_t;	\
 		_p[0]		= _q[0];				\
 		_p[1]		= _q[1];				\
 		_p[2]		= _q[2];				\
@@ -141,16 +141,16 @@ __FBSDID("$FreeBSD$");
  */
 
 #define	READ_BYTE(P,X)	do {						\
-		const unsigned char *const _p =				\
-			(const unsigned char *) (P);			\
+		const char *const _p =				\
+			(const char *) (P);			\
 		(X)		= _p[0];				\
 		(P)		= (P) + 1;				\
 	} while (0)
 #define	READ_HALF(P,X)	do {						\
 		uint16_t _t;						\
-		unsigned char *const _q = (unsigned char *) &_t;	\
-		const unsigned char *const _p =				\
-			(const unsigned char *) (P);			\
+		char *const _q = (char *) &_t;	\
+		const char *const _p =				\
+			(const char *) (P);			\
 		_q[0]		= _p[0];				\
 		_q[1]		= _p[1];				\
 		(P)		= (P) + 2;				\
@@ -158,9 +158,9 @@ __FBSDID("$FreeBSD$");
 	} while (0)
 #define	READ_WORD(P,X)	do {						\
 		uint32_t _t;						\
-		unsigned char *const _q = (unsigned char *) &_t;	\
-		const unsigned char *const _p =				\
-			(const unsigned char *) (P);			\
+		char *const _q = (char *) &_t;	\
+		const char *const _p =				\
+			(const char *) (P);			\
 		_q[0]		= _p[0];				\
 		_q[1]		= _p[1];				\
 		_q[2]		= _p[2];				\
@@ -173,9 +173,9 @@ __FBSDID("$FreeBSD$");
 #define	READ_SWORD(P,X)		READ_WORD(P,X)
 #define	READ_WORD64(P,X)	do {					\
 		uint64_t _t;						\
-		unsigned char *const _q = (unsigned char *) &_t;	\
-		const unsigned char *const _p =				\
-			(const unsigned char *) (P);			\
+		char *const _q = (char *) &_t;	\
+		const char *const _p =				\
+			(const char *) (P);			\
 		_q[0]		= _p[0];				\
 		_q[1]		= _p[1];				\
 		_q[2]		= _p[2];				\
@@ -234,8 +234,10 @@ define(`IGNORE',
 
 IGNORE(MOVEP)
 IGNORE(NOTE)
+IGNORE(GNUHASH)
 
 define(IGNORE_BYTE,		1)	/* 'lator, leave 'em bytes alone */
+define(IGNORE_GNUHASH,		1)
 define(IGNORE_NOTE,		1)
 define(IGNORE_SXWORD32,		1)
 define(IGNORE_XWORD32,		1)
@@ -274,18 +276,18 @@ define(`SIZEDEP_OFF',	1)
  * `$4': ELF class specifier for types, one of [`32', `64']
  */
 define(`MAKEPRIM_TO_F',`
-static void
-libelf_cvt_$1$3_tof(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_$1$3_tof(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	Elf$4_$2 t, *s = (Elf$4_$2 *) (uintptr_t) src;
 	size_t c;
 
-	if (dst == src && !byteswap)
-		return;
+	(void) dsz;
 
 	if (!byteswap) {
 		(void) memcpy(dst, src, count * sizeof(*s));
-		return;
+		return (1);
 	}
 
 	for (c = 0; c < count; c++) {
@@ -293,22 +295,25 @@ libelf_cvt_$1$3_tof(char *dst, char *src, size_t count, int byteswap)
 		SWAP_$1$3(t);
 		WRITE_$1$3(dst,t);
 	}
+
+	return (1);
 }
 ')
 
 define(`MAKEPRIM_TO_M',`
-static void
-libelf_cvt_$1$3_tom(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_$1$3_tom(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	Elf$4_$2 t, *d = (Elf$4_$2 *) (uintptr_t) dst;
 	size_t c;
 
-	if (dst == src && !byteswap)
-		return;
+	if (dsz < count * sizeof(Elf$4_$2))
+		return (0);
 
 	if (!byteswap) {
 		(void) memcpy(dst, src, count * sizeof(*d));
-		return;
+		return (1);
 	}
 
 	for (c = 0; c < count; c++) {
@@ -316,6 +321,8 @@ libelf_cvt_$1$3_tom(char *dst, char *src, size_t count, int byteswap)
 		SWAP_$1$3(t);
 		*d++ = t;
 	}
+
+	return (1);
 }
 ')
 
@@ -392,11 +399,14 @@ define(`READ_STRUCT',
 
 define(`MAKE_TO_F',
   `ifdef(`IGNORE_'$1$3,`',`
-static void
-libelf_cvt$3_$1_tof(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt$3_$1_tof(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	Elf$3_$2	t, *s;
 	size_t c;
+
+	(void) dsz;
 
 	s = (Elf$3_$2 *) (uintptr_t) src;
 	for (c = 0; c < count; c++) {
@@ -406,21 +416,27 @@ libelf_cvt$3_$1_tof(char *dst, char *src, size_t count, int byteswap)
 		}
 		WRITE_STRUCT($2,$3)
 	}
+
+	return (1);
 }
 ')')
 
 define(`MAKE_TO_M',
   `ifdef(`IGNORE_'$1$3,`',`
-static void
-libelf_cvt$3_$1_tom(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt$3_$1_tom(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	Elf$3_$2	 t, *d;
-	unsigned char	*s,*s0;
+	char		*s,*s0;
 	size_t		fsz;
 
 	fsz = elf$3_fsize(ELF_T_$1, (size_t) 1, EV_CURRENT);
 	d   = ((Elf$3_$2 *) (uintptr_t) dst) + (count - 1);
-	s0  = (unsigned char *) src + (count - 1) * fsz;
+	s0  = (char *) src + (count - 1) * fsz;
+
+	if (dsz < count * sizeof(Elf$3_$2))
+		return (0);
 
 	while (count--) {
 		s = s0;
@@ -430,6 +446,8 @@ libelf_cvt$3_$1_tom(char *dst, char *src, size_t count, int byteswap)
 		}
 		*d-- = t; s0 -= fsz;
 	}
+
+	return (1);
 }
 ')')
 
@@ -475,13 +493,215 @@ divert(0)
  * simple memcpy suffices for both directions of conversion.
  */
 
-static void
-libelf_cvt_BYTE_tox(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_BYTE_tox(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	(void) byteswap;
+	if (dsz < count)
+		return (0);
 	if (dst != src)
 		(void) memcpy(dst, src, count);
+	return (1);
 }
+
+MAKE_TYPE_CONVERTERS(ELF_TYPE_LIST)
+
+#if	__FreeBSD_version >= 800062
+/*
+ * Sections of type ELF_T_GNUHASH start with a header containing 4 32-bit
+ * words.  Bloom filter data comes next, followed by hash buckets and the
+ * hash chain.
+ *
+ * Bloom filter words are 64 bit wide on ELFCLASS64 objects and are 32 bit
+ * wide on ELFCLASS32 objects.  The other objects in this section are 32
+ * bits wide.
+ *
+ * Argument `srcsz' denotes the number of bytes to be converted.  In the
+ * 32-bit case we need to translate `srcsz' to a count of 32-bit words.
+ */
+
+static int
+libelf_cvt32_GNUHASH_tom(char *dst, size_t dsz, char *src, size_t srcsz,
+    int byteswap)
+{
+	return (libelf_cvt_WORD_tom(dst, dsz, src, srcsz / sizeof(uint32_t),
+	        byteswap));
+}
+
+static int
+libelf_cvt32_GNUHASH_tof(char *dst, size_t dsz, char *src, size_t srcsz,
+    int byteswap)
+{
+	return (libelf_cvt_WORD_tof(dst, dsz, src, srcsz / sizeof(uint32_t),
+	        byteswap));
+}
+
+static int
+libelf_cvt64_GNUHASH_tom(char *dst, size_t dsz, char *src, size_t srcsz,
+    int byteswap)
+{
+	size_t sz;
+	uint64_t t64, *bloom64;
+	Elf_GNU_Hash_Header *gh;
+	uint32_t n, nbuckets, nchains, maskwords, shift2, symndx, t32;
+	uint32_t *buckets, *chains;
+
+	sz = 4 * sizeof(uint32_t);	/* File header is 4 words long. */
+	if (dsz < sizeof(Elf_GNU_Hash_Header) || srcsz < sz)
+		return (0);
+
+	/* Read in the section header and byteswap if needed. */
+	READ_WORD(src, nbuckets);
+	READ_WORD(src, symndx);
+	READ_WORD(src, maskwords);
+	READ_WORD(src, shift2);
+
+	srcsz -= sz;
+
+	if (byteswap) {
+		SWAP_WORD(nbuckets);
+		SWAP_WORD(symndx);
+		SWAP_WORD(maskwords);
+		SWAP_WORD(shift2);
+	}
+
+	/* Check source buffer and destination buffer sizes. */
+	sz = nbuckets * sizeof(uint32_t) + maskwords * sizeof(uint64_t);
+	if (srcsz < sz || dsz < sz + sizeof(Elf_GNU_Hash_Header))
+		return (0);
+
+	gh = (Elf_GNU_Hash_Header *) (uintptr_t) dst;
+	gh->gh_nbuckets  = nbuckets;
+	gh->gh_symndx    = symndx;
+	gh->gh_maskwords = maskwords;
+	gh->gh_shift2    = shift2;
+	
+	dsz -= sizeof(Elf_GNU_Hash_Header);
+	dst += sizeof(Elf_GNU_Hash_Header);
+
+	bloom64 = (uint64_t *) (uintptr_t) dst;
+
+	/* Copy bloom filter data. */
+	for (n = 0; n < maskwords; n++) {
+		READ_XWORD(src, t64);
+		if (byteswap)
+			SWAP_XWORD(t64);
+		bloom64[n] = t64;
+	}
+
+	/* The hash buckets follows the bloom filter. */
+	dst += maskwords * sizeof(uint64_t);
+	buckets = (uint32_t *) (uintptr_t) dst;
+
+	for (n = 0; n < nbuckets; n++) {
+		READ_WORD(src, t32);
+		if (byteswap)
+			SWAP_WORD(t32);
+		buckets[n] = t32;
+	}
+
+	dst += nbuckets * sizeof(uint32_t);
+
+	/* The hash chain follows the hash buckets. */
+	dsz -= sz;
+	srcsz -= sz;
+
+	if (dsz < srcsz)	/* Destination lacks space. */
+	        return (0);
+
+	nchains = srcsz / sizeof(uint32_t);
+	chains = (uint32_t *) (uintptr_t) dst;
+
+	for (n = 0; n < nchains; n++) {
+		READ_WORD(src, t32);
+		if (byteswap)
+			SWAP_WORD(t32);
+		*chains++ = t32;
+	}
+
+	return (1);
+}
+
+static int
+libelf_cvt64_GNUHASH_tof(char *dst, size_t dsz, char *src, size_t srcsz,
+    int byteswap)
+{
+	uint32_t *s32;
+	size_t sz, hdrsz;
+	uint64_t *s64, t64;
+	Elf_GNU_Hash_Header *gh;
+	uint32_t maskwords, n, nbuckets, nchains, t0, t1, t2, t3, t32;
+
+	hdrsz = 4 * sizeof(uint32_t);	/* Header is 4x32 bits. */
+	if (dsz < hdrsz || srcsz < sizeof(Elf_GNU_Hash_Header))
+		return (0);
+
+	gh = (Elf_GNU_Hash_Header *) (uintptr_t) src;
+
+	t0 = nbuckets = gh->gh_nbuckets;
+	t1 = gh->gh_symndx;
+	t2 = maskwords = gh->gh_maskwords;
+	t3 = gh->gh_shift2;
+
+	src   += sizeof(Elf_GNU_Hash_Header);
+	srcsz -= sizeof(Elf_GNU_Hash_Header);
+	dsz   -= hdrsz;
+
+	sz = gh->gh_nbuckets * sizeof(uint32_t) + gh->gh_maskwords *
+	    sizeof(uint64_t);
+
+	if (srcsz < sz || dsz < sz)
+		return (0);
+
+ 	/* Write out the header. */
+	if (byteswap) {
+		SWAP_WORD(t0);
+		SWAP_WORD(t1);
+		SWAP_WORD(t2);
+		SWAP_WORD(t3);
+	}
+
+	WRITE_WORD(dst, t0);
+	WRITE_WORD(dst, t1);
+	WRITE_WORD(dst, t2);
+	WRITE_WORD(dst, t3);
+
+	/* Copy the bloom filter and the hash table. */
+	s64 = (uint64_t *) (uintptr_t) src;
+	for (n = 0; n < maskwords; n++) {
+		t64 = *s64++;
+		if (byteswap)
+			SWAP_XWORD(t64);
+		WRITE_WORD64(dst, t64);
+	}
+
+	s32 = (uint32_t *) s64;
+	for (n = 0; n < nbuckets; n++) {
+		t32 = *s32++;
+		if (byteswap)
+			SWAP_WORD(t32);
+		WRITE_WORD(dst, t32);
+	}
+
+	srcsz -= sz;
+	dsz   -= sz;
+
+	/* Copy out the hash chains. */
+	if (dsz < srcsz)
+		return (0);
+
+	nchains = srcsz / sizeof(uint32_t);
+	for (n = 0; n < nchains; n++) {
+		t32 = *s32++;
+		if (byteswap)
+			SWAP_WORD(t32);
+		WRITE_WORD(dst, t32);
+	}
+
+	return (1);
+}
+#endif
 
 /*
  * Elf_Note structures comprise a fixed size header followed by variable
@@ -489,70 +709,84 @@ libelf_cvt_BYTE_tox(char *dst, char *src, size_t count, int byteswap)
  * not the strings.
  *
  * Argument `count' denotes the total number of bytes to be converted.
+ * The destination buffer needs to be at least `count' bytes in size.
  */
-static void
-libelf_cvt_NOTE_tom(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_NOTE_tom(char *dst, size_t dsz, char *src, size_t count, 
+    int byteswap)
 {
 	uint32_t namesz, descsz, type;
 	Elf_Note *en;
-	size_t sz;
+	size_t sz, hdrsz;
 
-	if (dst == src && !byteswap)
-		return;
+	if (dsz < count)	/* Destination buffer is too small. */
+		return (0);
+
+	hdrsz = 3 * sizeof(uint32_t);
+	if (count < hdrsz)		/* Source too small. */
+		return (0);
 
 	if (!byteswap) {
 		(void) memcpy(dst, src, count);
-		return;
+		return (1);
 	}
 
-	while (count > sizeof(Elf_Note)) {
-
+	/* Process all notes in the section. */
+	while (count > hdrsz) {
+		/* Read the note header. */
 		READ_WORD(src, namesz);
 		READ_WORD(src, descsz);
 		READ_WORD(src, type);
 
-		if (byteswap) {
-			SWAP_WORD(namesz);
-			SWAP_WORD(descsz);
-			SWAP_WORD(type);
-		}
+		/* Translate. */
+		SWAP_WORD(namesz);
+		SWAP_WORD(descsz);
+		SWAP_WORD(type);
 
+		/* Copy out the translated note header. */
 		en = (Elf_Note *) (uintptr_t) dst;
 		en->n_namesz = namesz;
 		en->n_descsz = descsz;
 		en->n_type = type;
 
+		dsz -= sizeof(Elf_Note);
 		dst += sizeof(Elf_Note);
+		count -= hdrsz;
 
 		ROUNDUP2(namesz, 4);
 		ROUNDUP2(descsz, 4);
 
 		sz = namesz + descsz;
 
-		if (count < sz)
-			sz = count;
+		if (count < sz || dsz < sz)	/* Buffers are too small. */
+			return (0);
 
 		(void) memcpy(dst, src, sz);
 
 		src += sz;
 		dst += sz;
+
 		count -= sz;
+		dsz -= sz;
 	}
+
+	return (1);
 }
 
-static void
-libelf_cvt_NOTE_tof(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_NOTE_tof(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	uint32_t namesz, descsz, type;
 	Elf_Note *en;
 	size_t sz;
 
-	if (dst == src && !byteswap)
-		return;
+	if (dsz < count)
+		return (0);
 
 	if (!byteswap) {
 		(void) memcpy(dst, src, count);
-		return;
+		return (1);
 	}
 
 	while (count > sizeof(Elf_Note)) {
@@ -562,12 +796,9 @@ libelf_cvt_NOTE_tof(char *dst, char *src, size_t count, int byteswap)
 		descsz = en->n_descsz;
 		type = en->n_type;
 
-		if (byteswap) {
-			SWAP_WORD(namesz);
-			SWAP_WORD(descsz);
-			SWAP_WORD(type);
-		}
-
+		SWAP_WORD(namesz);
+		SWAP_WORD(descsz);
+		SWAP_WORD(type);
 
 		WRITE_WORD(dst, namesz);
 		WRITE_WORD(dst, descsz);
@@ -589,15 +820,19 @@ libelf_cvt_NOTE_tof(char *dst, char *src, size_t count, int byteswap)
 		dst += sz;
 		count -= sz;
 	}
+
+	return (1);
 }
 
-MAKE_TYPE_CONVERTERS(ELF_TYPE_LIST)
-
 struct converters {
-	void	(*tof32)(char *dst, char *src, size_t cnt, int byteswap);
-	void	(*tom32)(char *dst, char *src, size_t cnt, int byteswap);
-	void	(*tof64)(char *dst, char *src, size_t cnt, int byteswap);
-	void	(*tom64)(char *dst, char *src, size_t cnt, int byteswap);
+	int	(*tof32)(char *dst, size_t dsz, char *src, size_t cnt,
+		    int byteswap);
+	int	(*tom32)(char *dst, size_t dsz, char *src, size_t cnt,
+		    int byteswap);
+	int	(*tof64)(char *dst, size_t dsz, char *src, size_t cnt,
+		    int byteswap);
+	int	(*tom64)(char *dst, size_t dsz, char *src, size_t cnt,
+		    int byteswap);
 };
 
 divert(-1)
@@ -639,6 +874,16 @@ CONVERTER_NAMES(ELF_TYPE_LIST)
 		.tof64 = libelf_cvt_BYTE_tox,
 		.tom64 = libelf_cvt_BYTE_tox
 	},
+
+#if	__FreeBSD_version >= 800062
+	[ELF_T_GNUHASH] = {
+		.tof32 = libelf_cvt32_GNUHASH_tof,
+		.tom32 = libelf_cvt32_GNUHASH_tom,
+		.tof64 = libelf_cvt64_GNUHASH_tof,
+		.tom64 = libelf_cvt64_GNUHASH_tom
+	},
+#endif
+
 	[ELF_T_NOTE] = {
 		.tof32 = libelf_cvt_NOTE_tof,
 		.tom32 = libelf_cvt_NOTE_tom,
@@ -647,8 +892,8 @@ CONVERTER_NAMES(ELF_TYPE_LIST)
 	}
 };
 
-void (*_libelf_get_translator(Elf_Type t, int direction, int elfclass))
- (char *_dst, char *_src, size_t _cnt, int _byteswap)
+int (*_libelf_get_translator(Elf_Type t, int direction, int elfclass))
+ (char *_dst, size_t dsz, char *_src, size_t _cnt, int _byteswap)
 {
 	assert(elfclass == ELFCLASS32 || elfclass == ELFCLASS64);
 	assert(direction == ELF_TOFILE || direction == ELF_TOMEMORY);

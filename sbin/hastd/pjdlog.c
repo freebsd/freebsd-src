@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -59,6 +57,9 @@ pjdlog_mode_set(int mode)
 	assert(mode == PJDLOG_MODE_STD || mode == PJDLOG_MODE_SYSLOG);
 
 	pjdlog_mode = mode;
+
+	if (mode == PJDLOG_MODE_SYSLOG)
+		openlog(NULL, LOG_PID, LOG_DAEMON);
 }
 
 /*
@@ -213,12 +214,12 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
 		/* Attach debuglevel if this is debug log. */
 		if (loglevel == LOG_DEBUG)
 			fprintf(out, "[%d]", debuglevel);
-		fprintf(out, " ");
-		fprintf(out, "%s", pjdlog_prefix);
+		fprintf(out, " %s", pjdlog_prefix);
 		vfprintf(out, fmt, ap);
 		if (error != -1)
 			fprintf(out, ": %s.", strerror(error));
 		fprintf(out, "\n");
+		fflush(out);
 		break;
 	    }
 	case PJDLOG_MODE_SYSLOG:
@@ -325,6 +326,7 @@ pjdlogv_exit(int exitcode, const char *fmt, va_list ap)
 
 	pjdlogv_errno(LOG_ERR, fmt, ap);
 	exit(exitcode);
+	/* NOTREACHED */
 }
 
 /*
@@ -350,6 +352,7 @@ pjdlogv_exitx(int exitcode, const char *fmt, va_list ap)
 
 	pjdlogv(LOG_ERR, fmt, ap);
 	exit(exitcode);
+	/* NOTREACHED */
 }
 
 /*
@@ -365,3 +368,23 @@ pjdlog_exitx(int exitcode, const char *fmt, ...)
 	/* NOTREACHED */
 	va_end(ap);
 }
+
+/*
+ * Log assertion and exit.
+ */
+void
+pjdlog_verify(const char *func, const char *file, int line,
+    const char *failedexpr)
+{
+
+	if (func == NULL) {
+		pjdlog_critical("Assertion failed: (%s), file %s, line %d.",
+		    failedexpr, file, line);
+	} else {
+		pjdlog_critical("Assertion failed: (%s), function %s, file %s, line %d.",
+		    failedexpr, func, file, line);
+	}
+	abort();
+        /* NOTREACHED */
+}
+

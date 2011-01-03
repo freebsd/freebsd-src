@@ -108,14 +108,18 @@ main(int argc, char **argv)
 	struct stat buf;
 	int ch, len;
 	char *p;
-	char xxx[MAXPATHLEN];
 	char *kernfile;
+	int printmachine;
 
+	printmachine = 0;
 	kernfile = NULL;
-	while ((ch = getopt(argc, argv, "Cd:gpVx:")) != -1)
+	while ((ch = getopt(argc, argv, "Cd:gmpVx:")) != -1)
 		switch (ch) {
 		case 'C':
 			filebased = 1;
+			break;
+		case 'm':
+			printmachine = 1;
 			break;
 		case 'd':
 			if (*destdir == '\0')
@@ -171,13 +175,6 @@ main(int argc, char **argv)
 		strlcat(destdir, PREFIX, sizeof(destdir));
 	}
 
-	p = path((char *)NULL);
-	if (stat(p, &buf)) {
-		if (mkdir(p, 0777))
-			err(2, "%s", p);
-	} else if (!S_ISDIR(buf.st_mode))
-		errx(EXIT_FAILURE, "%s isn't a directory", p);
-
 	SLIST_INIT(&cputype);
 	SLIST_INIT(&mkopt);
 	SLIST_INIT(&opt);
@@ -207,32 +204,19 @@ main(int argc, char **argv)
 	}
 	checkversion();
 
-	/*
-	 * make symbolic links in compilation directory
-	 * for "sys" (to make genassym.c work along with #include <sys/xxx>)
-	 * and similarly for "machine".
-	 */
-	if (*srcdir == '\0')
-		(void)snprintf(xxx, sizeof(xxx), "../../include");
-	else
-		(void)snprintf(xxx, sizeof(xxx), "%s/%s/include",
-		    srcdir, machinename);
-	(void) unlink(path("machine"));
-	(void) symlink(xxx, path("machine"));
-	if (strcmp(machinename, machinearch) != 0) {
-		/*
-		 * make symbolic links in compilation directory for
-		 * machinearch, if it is different than machinename.
-		 */
-		if (*srcdir == '\0')
-			(void)snprintf(xxx, sizeof(xxx), "../../../%s/include",
-			    machinearch);
-		else
-			(void)snprintf(xxx, sizeof(xxx), "%s/%s/include",
-			    srcdir, machinearch);
-		(void) unlink(path(machinearch));
-		(void) symlink(xxx, path(machinearch));
+	if (printmachine) {
+		printf("%s\t%s\n",machinename,machinearch);
+		exit(0);
 	}
+
+	/* Make compile directory */
+	p = path((char *)NULL);
+	if (stat(p, &buf)) {
+		if (mkdir(p, 0777))
+			err(2, "%s", p);
+	} else if (!S_ISDIR(buf.st_mode))
+		errx(EXIT_FAILURE, "%s isn't a directory", p);
+
 	configfile();			/* put config file into kernel*/
 	options();			/* make options .h files */
 	makefile();			/* build Makefile */
@@ -280,7 +264,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: config [-CgpV] [-d destdir] sysname\n");
+	fprintf(stderr, "usage: config [-CgmpV] [-d destdir] sysname\n");
 	fprintf(stderr, "       config -x kernel\n");
 	exit(EX_USAGE);
 }

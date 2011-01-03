@@ -29,10 +29,7 @@
 #		obj depend all install clean cleandepend cleanobj
 
 .include <bsd.own.mk>
-
-.if ${MACHINE_ARCH} == "mips"
-MK_RESCUE=no	# not yet
-.endif
+.include <bsd.arch.inc.mk>
 
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
@@ -121,16 +118,31 @@ VERSION+=	${OSRELDATE}
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/}
+TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-TARGET=		${TARGET_ARCH}
+TARGET=		${TARGET_ARCH:C/mipse[lb]/mips/:C/armeb/arm/}
+.endif
+# Legacy names, for a transition period mips:mips -> mipsel:mips
+.if defined(TARGET) && defined(TARGET_ARCH) && \
+    ${TARGET_ARCH} == "mips" && ${TARGET} == "mips"
+.warning "TARGET_ARCH of mips is deprecated in favor of mipsel or mipseb"
+.if defined(TARGET_BIG_ENDIAN)
+TARGET_ARCH=mipseb
+.else
+TARGET_ARCH=mipsel
+.endif
+.endif
+# arm with TARGET_BIG_ENDIAN -> armeb
+.if defined(TARGET_ARCH) && ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
+.warning "TARGET_ARCH of arm with TARGET_BIG_ENDIAN is deprecated.  use armeb"
+TARGET_ARCH=armeb
 .endif
 # Otherwise, default to current machine type and architecture.
 TARGET?=	${MACHINE}
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-KNOWN_ARCHES?=	amd64 arm i386 i386/pc98 ia64 mips powerpc sparc64 sparc64/sun4v
+KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -164,10 +176,10 @@ BUILD_ARCH!=	uname -p
 .error To cross-build, set TARGET_ARCH.
 .endif
 .endif
-.if ${MACHINE} == ${TARGET} && !defined(CROSS_BUILD_TESTING)
+.if ${MACHINE} == ${TARGET} && ${MACHINE_ARCH} == ${TARGET_ARCH} && !defined(CROSS_BUILD_TESTING)
 OBJTREE=	${MAKEOBJDIRPREFIX}
 .else
-OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}
+OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
 # /usr/games added for fortune which depend on strfile
@@ -264,40 +276,53 @@ WMAKEENV+=	NO_CTF=1
 .endif
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 # 32 bit world
 LIB32TMP=	${OBJTREE}${.CURDIR}/lib32
 
+.if ${TARGET_ARCH} == "amd64"
 .if empty(TARGET_CPUTYPE)
 LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 .else
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
-LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -mfancy-math-387 -DCOMPAT_32BIT \
+LIB32CPUFLAGS+=	-mfancy-math-387
+LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
+		MACHINE_CPU="i686 mmx sse sse2" \
+		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
+		AS="${AS} --32"
+
+.elif ${TARGET_ARCH} == "powerpc64"
+.if empty(TARGET_CPUTYPE)
+LIB32CPUFLAGS=	-mcpu=powerpc
+.else
+LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
+.endif
+LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc \
+		LD="${LD} -m elf32ppc"
+.endif
+
+
+LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
 		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
 
 # Yes, the flags are redundant.
-LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
+LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
 		VERSION="${VERSION}" \
-		MACHINE=i386 \
-		MACHINE_ARCH=i386 \
-		MACHINE_CPU="i686 mmx sse sse2" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		CC="${CC} ${LIB32FLAGS}" \
 		CXX="${CXX} ${LIB32FLAGS}" \
 		OBJC="${OBJC} ${LIB32FLAGS}" \
-		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		AS="${AS} --32" \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO \
-		-DWITHOUT_HTML -DNO_CTF DESTDIR=${LIB32TMP}
+		-DWITHOUT_HTML -DNO_CTF -DNO_LINT DESTDIR=${LIB32TMP}
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
 .endif
 
@@ -338,7 +363,7 @@ _worldtmp:
 	@echo "--------------------------------------------------------------"
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
-.if ${TARGET_ARCH} == "amd64"
+.if defined(LIB32TMP)
 	rm -rf ${LIB32TMP}
 .endif
 .else
@@ -382,7 +407,7 @@ _cleanobj:
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
-.if ${TARGET_ARCH} == "amd64"
+.if defined(LIB32TMP)
 	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
 .endif
 .endif
@@ -430,7 +455,7 @@ everything:
 	@echo ">>> stage 4.4: building everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} par-all
-.if ${TARGET_ARCH} == "amd64"
+.if defined(LIB32TMP)
 build32:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -512,7 +537,7 @@ WMAKE_TGTS+=	_cleanobj _obj _build-tools
 WMAKE_TGTS+=	_cross-tools
 .endif
 WMAKE_TGTS+=	_includes _libraries _depend everything
-.if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
 WMAKE_TGTS+=	build32
 .endif
 
@@ -662,7 +687,7 @@ reinstall:
 	@echo ">>> Installing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
@@ -671,7 +696,7 @@ redistribute:
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
-.if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 \
 	    DISTRIBUTION=lib32
 .endif
@@ -707,7 +732,11 @@ KERNCONF=${KERNFAST}
 KERNCONF=	${KERNEL}
 KERNWARN=
 .else
+.if ${TARGET_ARCH} == "powerpc64"
+KERNCONF?=	GENERIC64
+.else
 KERNCONF?=	GENERIC
+.endif
 .endif
 INSTKERNNAME?=	kernel
 
@@ -956,18 +985,31 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
+# XXX: There is no way to specify bootstrap tools depending on MK-flags
+# with different per-architecture default values. Always build tblgen.
+_clang_tblgen= \
+	lib/clang/libllvmsupport \
+	lib/clang/libllvmsystem \
+	usr.bin/clang/tblgen
+
 .if ${MK_CDDL} != "no"
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
 
+.if ${MK_FDT} != "no"
+_dtc= gnu/usr.bin/dtc
+.endif
+
 bootstrap-tools:
 .for _tool in \
+    ${_clang_tblgen} \
     ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
     ${_ar} \
+    ${_dtc} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \
@@ -1050,8 +1092,15 @@ _kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
+.if ${CC:T:Mclang} == "clang"
+_clang=		usr.bin/clang
+_clang_libs=	lib/clang
+.endif
+
 cross-tools:
 .for _tool in \
+    ${_clang_libs} \
+    ${_clang} \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
@@ -1089,7 +1138,7 @@ libraries:
 #
 # static libgcc.a prerequisite for shared libc
 #
-_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
+_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc lib/libcompiler_rt
 
 # These dependencies are not automatically generated:
 #
@@ -1099,10 +1148,13 @@ _prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
 _startup_libs=	gnu/lib/csu
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
 _startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
-.else
+.elif exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
 _startup_libs+=	lib/csu/${MACHINE_ARCH}
+.else
+_startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 .endif
 _startup_libs+=	gnu/lib/libgcc
+_startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
 
 gnu/lib/libgcc__L: lib/libc__L
@@ -1113,7 +1165,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 		lib/libbz2 lib/libcom_err lib/libcrypt \
 		lib/libexpat lib/libfetch \
 		${_lib_libgssapi} ${_lib_libipx} \
-		lib/libkiconv lib/libkvm lib/libmd \
+		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
@@ -1440,3 +1492,41 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .endif
+
+.if !empty(KRNLOBJDIR) && !empty(KERNCONF)
+DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
+
+.if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
+.if exists(${KERNCONFDIR}/${KERNCONF})
+FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
+	${KERNCONFDIR}/${KERNCONF}
+.endif
+.endif
+
+.endif
+
+.if !defined(DTBOUTPUTPATH) || !exists(${DTBOUTPUTPATH})
+DTBOUTPUTPATH= ${.CURDIR}
+.endif
+
+#
+# Build 'standalone' Device Tree Blob
+#
+builddtb:
+	@if [ "${FDT_DTS_FILE}" = "" ]; then \
+		echo "ERROR: FDT_DTS_FILE must be specified!"; \
+		exit 1; \
+	fi;	\
+	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE} ]; then \
+		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
+			exist!"; \
+		exit 1;	\
+	fi;	\
+	if [ "${DTBOUTPUTPATH}" = "${.CURDIR}" ]; then	\
+		echo "WARNING: DTB will be placed in the current working \
+			directory"; \
+	fi
+	@PATH=${TMPPATH} \
+	dtc -O dtb -o \
+	    ${DTBOUTPUTPATH}/`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 \
+	    -p 1024 ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE}

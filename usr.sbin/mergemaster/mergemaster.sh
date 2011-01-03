@@ -617,14 +617,14 @@ case "${RERUN}" in
       case "${DESTDIR}" in
       '') ;;
       *)
-        ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs
+        ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs >/dev/null
         ;;
       esac
       od=${TEMPROOT}/usr/obj
-      ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution;} ||
+      ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs >/dev/null &&
+      MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc >/dev/null &&
+      MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc >/dev/null &&
+      MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution >/dev/null;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
       echo "      the temproot environment";

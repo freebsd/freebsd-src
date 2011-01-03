@@ -43,10 +43,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -184,6 +180,7 @@ main(int argc, char **argv)
 	long select_generation;
 	char **specified_devices;
 	devstat_select_mode select_mode;
+	float f;
 	int havelast = 0;
 
 	matches = NULL;
@@ -239,9 +236,10 @@ main(int argc, char **argv)
 				break;
 			case 'w':
 				wflag++;
-				waittime = atoi(optarg);
+				f = atof(optarg);
+				waittime = f * 1000;
 				if (waittime < 1)
-					errx(1, "wait time is < 1");
+					errx(1, "wait time is < 1ms");
 				break;
 			case 'x':
 				xflag++;
@@ -378,12 +376,13 @@ main(int argc, char **argv)
 	 * Look for the traditional wait time and count arguments.
 	 */
 	if (*argv) {
-		waittime = atoi(*argv);
+		f = atof(*argv);
+		waittime = f * 1000;
 
 		/* Let the user know he goofed, but keep going anyway */
 		if (wflag != 0)
 			warnx("discarding previous wait interval, using"
-			      " %d instead", waittime);
+			      " %g instead", waittime / 1000.0);
 		wflag++;
 
 		if (*++argv) {
@@ -401,7 +400,7 @@ main(int argc, char **argv)
 	 * to an interval of 1 second.
 	 */
 	if ((wflag == 0) && (cflag > 0))
-		waittime = 1;
+		waittime = 1 * 1000;
 
 	/*
 	 * If the user specified a wait time, but not a count, we want to
@@ -602,7 +601,7 @@ main(int argc, char **argv)
 		if (count >= 0 && --count <= 0)
 			break;
 
-		sleep(waittime);
+		usleep(waittime * 1000);
 		havelast = 1;
 	}
 
@@ -747,11 +746,11 @@ devstats(int perf_select, long double etime, int havelast)
 		printf("\n");
 		if (Iflag == 0)
 			printf(
-		"device     r/s   w/s    kr/s    kw/s wait svc_t  %%b  "
+		"device     r/s   w/s    kr/s    kw/s qlen svc_t  %%b  "
 			    );
 		else
 			printf(
-		"device     r/i   w/i    kr/i    kw/i wait svc_t  %%b  "
+		"device     r/i   w/i    kr/i    kw/i qlen svc_t  %%b  "
 			    );
 		if (Tflag > 0)
 			printf("tin  tout ");

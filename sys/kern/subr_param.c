@@ -53,10 +53,10 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifndef HZ
-#  if defined(__amd64__) || defined(__i386__) || defined(__ia64__) || defined(__sparc64__)
-#    define	HZ 1000
-#  else
+#  if defined(__mips__) || defined(__arm__)
 #    define	HZ 100
+#  else
+#    define	HZ 1000
 #  endif
 #  ifndef HZ_VM
 #    define	HZ_VM 100
@@ -149,6 +149,7 @@ static const char *const vm_bnames[] = {
 	"QEMU",				/* QEMU */
 	"Plex86",			/* Plex86 */
 	"Bochs",			/* Bochs */
+	"Xen",				/* Xen */
 	NULL
 };
 

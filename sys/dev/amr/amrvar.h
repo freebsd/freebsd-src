@@ -66,8 +66,8 @@
 # define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);} while(0)
 # define debug_called(level)		do {if (level <= AMR_DEBUG) printf("%s: called\n", __func__);} while(0)
 #else
-# define debug(level, fmt, args...)
-# define debug_called(level)
+# define debug(level, fmt, args...)	do {} while (0)
+# define debug_called(level)		do {} while (0)
 #endif
 #define xdebug(fmt, args...)	printf("%s: " fmt "\n", __func__ , ##args)
 

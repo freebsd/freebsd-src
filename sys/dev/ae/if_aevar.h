@@ -111,7 +111,6 @@ typedef struct ae_softc	{
 
 	struct mtx		mtx;
 
-	int			phyaddr;
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	uint8_t			flags;
 	int			if_flags;

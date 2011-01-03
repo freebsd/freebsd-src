@@ -182,11 +182,8 @@ busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
 static void
 dflt_lock(void *arg, bus_dma_lock_op_t op)
 {
-#ifdef INVARIANTS
+
 	panic("driver error: busdma dflt_lock called");
-#else
-	printf("DRIVER_ERROR: busdma dflt_lock called\n");
-#endif
 }
 
 /*
@@ -631,9 +628,18 @@ nexus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	if (flags & BUS_DMA_ZERO)
 		mflags |= M_ZERO;
 
-	if ((dmat->dt_maxsize <= PAGE_SIZE)) {
+	/*
+	 * XXX:
+	 * (dmat->dt_alignment < dmat->dt_maxsize) is just a quick hack; the
+	 * exact alignment guarantees of malloc need to be nailed down, and
+	 * the code below should be rewritten to take that into account.
+	 *
+	 * In the meantime, we'll warn the user if malloc gets it wrong.
+	 */
+	if (dmat->dt_maxsize <= PAGE_SIZE &&
+	    dmat->dt_alignment < dmat->dt_maxsize)
 		*vaddr = malloc(dmat->dt_maxsize, M_DEVBUF, mflags);
-	} else {
+	else {
 		/*
 		 * XXX use contigmalloc until it is merged into this
 		 * facility and handles multi-seg allocations.  Nobody
@@ -646,6 +652,8 @@ nexus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	}
 	if (*vaddr == NULL)
 		return (ENOMEM);
+	if (vtophys(*vaddr) % dmat->dt_alignment)
+		printf("%s: failed to align memory properly.\n", __func__);
 	return (0);
 }
 
@@ -657,11 +665,11 @@ static void
 nexus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
 
-	if ((dmat->dt_maxsize <= PAGE_SIZE))
+	if (dmat->dt_maxsize <= PAGE_SIZE &&
+	    dmat->dt_alignment < dmat->dt_maxsize)
 		free(vaddr, M_DEVBUF);
-	else {
+	else
 		contigfree(vaddr, dmat->dt_maxsize, M_DEVBUF);
-	}
 }
 
 struct bus_dma_methods nexus_dma_methods = {

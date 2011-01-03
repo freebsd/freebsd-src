@@ -44,24 +44,24 @@ caddr_t
 preload_search_by_name(const char *name)
 {
     caddr_t	curp;
-    u_int32_t	*hdr;
+    uint32_t	*hdr;
     int		next;
     
     if (preload_metadata != NULL) {
 	
 	curp = preload_metadata;
 	for (;;) {
-	    hdr = (u_int32_t *)curp;
+	    hdr = (uint32_t *)curp;
 	    if (hdr[0] == 0 && hdr[1] == 0)
 		break;
 
 	    /* Search for a MODINFO_NAME field */
 	    if ((hdr[0] == MODINFO_NAME) &&
-		!strcmp(name, curp + sizeof(u_int32_t) * 2))
+		!strcmp(name, curp + sizeof(uint32_t) * 2))
 		return(curp);
 
 	    /* skip to next field */
-	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = sizeof(uint32_t) * 2 + hdr[1];
 	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}
@@ -76,7 +76,7 @@ caddr_t
 preload_search_by_type(const char *type)
 {
     caddr_t	curp, lname;
-    u_int32_t	*hdr;
+    uint32_t	*hdr;
     int		next;
 
     if (preload_metadata != NULL) {
@@ -84,7 +84,7 @@ preload_search_by_type(const char *type)
 	curp = preload_metadata;
 	lname = NULL;
 	for (;;) {
-	    hdr = (u_int32_t *)curp;
+	    hdr = (uint32_t *)curp;
 	    if (hdr[0] == 0 && hdr[1] == 0)
 		break;
 
@@ -94,11 +94,11 @@ preload_search_by_type(const char *type)
 
 	    /* Search for a MODINFO_TYPE field */
 	    if ((hdr[0] == MODINFO_TYPE) &&
-		!strcmp(type, curp + sizeof(u_int32_t) * 2))
+		!strcmp(type, curp + sizeof(uint32_t) * 2))
 		return(lname);
 
 	    /* skip to next field */
-	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = sizeof(uint32_t) * 2 + hdr[1];
 	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}
@@ -113,7 +113,7 @@ caddr_t
 preload_search_next_name(caddr_t base)
 {
     caddr_t	curp;
-    u_int32_t	*hdr;
+    uint32_t	*hdr;
     int		next;
     
     if (preload_metadata != NULL) {
@@ -122,15 +122,15 @@ preload_search_next_name(caddr_t base)
 	if (base) {
 	    /* skip to next field */
 	    curp = base;
-	    hdr = (u_int32_t *)curp;
-	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    hdr = (uint32_t *)curp;
+	    next = sizeof(uint32_t) * 2 + hdr[1];
 	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	} else
 	    curp = preload_metadata;
 
 	for (;;) {
-	    hdr = (u_int32_t *)curp;
+	    hdr = (uint32_t *)curp;
 	    if (hdr[0] == 0 && hdr[1] == 0)
 		break;
 
@@ -139,7 +139,7 @@ preload_search_next_name(caddr_t base)
 		return curp;
 
 	    /* skip to next field */
-	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = sizeof(uint32_t) * 2 + hdr[1];
 	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}
@@ -155,13 +155,13 @@ caddr_t
 preload_search_info(caddr_t mod, int inf)
 {
     caddr_t	curp;
-    u_int32_t	*hdr;
-    u_int32_t	type = 0;
+    uint32_t	*hdr;
+    uint32_t	type = 0;
     int		next;
 
     curp = mod;
     for (;;) {
-	hdr = (u_int32_t *)curp;
+	hdr = (uint32_t *)curp;
 	/* end of module data? */
 	if (hdr[0] == 0 && hdr[1] == 0)
 	    break;
@@ -182,10 +182,10 @@ preload_search_info(caddr_t mod, int inf)
 	 * data.
 	 */
 	if (hdr[0] == inf)
-	    return(curp + (sizeof(u_int32_t) * 2));
+	    return(curp + (sizeof(uint32_t) * 2));
 
 	/* skip to next field */
-	next = sizeof(u_int32_t) * 2 + hdr[1];
+	next = sizeof(uint32_t) * 2 + hdr[1];
 	next = roundup(next, sizeof(u_long));
 	curp += next;
     }
@@ -199,7 +199,7 @@ void
 preload_delete_name(const char *name)
 {
     caddr_t	curp;
-    u_int32_t	*hdr;
+    uint32_t	*hdr;
     int		next;
     int		clearing;
     
@@ -208,13 +208,13 @@ preload_delete_name(const char *name)
 	clearing = 0;
 	curp = preload_metadata;
 	for (;;) {
-	    hdr = (u_int32_t *)curp;
+	    hdr = (uint32_t *)curp;
 	    if (hdr[0] == 0 && hdr[1] == 0)
 		break;
 
 	    /* Search for a MODINFO_NAME field */
 	    if (hdr[0] == MODINFO_NAME) {
-		if (!strcmp(name, curp + sizeof(u_int32_t) * 2))
+		if (!strcmp(name, curp + sizeof(uint32_t) * 2))
 		    clearing = 1;	/* got it, start clearing */
 		else if (clearing)
 		    clearing = 0;	/* at next one now.. better stop */
@@ -223,7 +223,7 @@ preload_delete_name(const char *name)
 		hdr[0] = MODINFO_EMPTY;
 
 	    /* skip to next field */
-	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = sizeof(uint32_t) * 2 + hdr[1];
 	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}
@@ -235,7 +235,7 @@ void
 preload_bootstrap_relocate(vm_offset_t offset)
 {
     caddr_t	curp;
-    u_int32_t	*hdr;
+    uint32_t	*hdr;
     vm_offset_t	*ptr;
     int		next;
     
@@ -243,7 +243,7 @@ preload_bootstrap_relocate(vm_offset_t offset)
 	
 	curp = preload_metadata;
 	for (;;) {
-	    hdr = (u_int32_t *)curp;
+	    hdr = (uint32_t *)curp;
 	    if (hdr[0] == 0 && hdr[1] == 0)
 		break;
 
@@ -252,14 +252,14 @@ preload_bootstrap_relocate(vm_offset_t offset)
 	    case MODINFO_ADDR:
 	    case MODINFO_METADATA|MODINFOMD_SSYM:
 	    case MODINFO_METADATA|MODINFOMD_ESYM:
-		ptr = (vm_offset_t *)(curp + (sizeof(u_int32_t) * 2));
+		ptr = (vm_offset_t *)(curp + (sizeof(uint32_t) * 2));
 		*ptr += offset;
 		break;
 	    }
 	    /* The rest is beyond us for now */
 
 	    /* skip to next field */
-	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = sizeof(uint32_t) * 2 + hdr[1];
 	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}

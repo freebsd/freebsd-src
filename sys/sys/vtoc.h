@@ -53,9 +53,10 @@
 #define	VTOC_TAG_FREEBSD_ZFS	0x0904
 
 #define	VTOC_FLAG_UNMNT		0x01	/* unmountable partition */
-#define VTOC_FLAG_RDONLY	0x10    /* partition is read/only */
+#define	VTOC_FLAG_RDONLY	0x10    /* partition is read/only */
 
 #define	VTOC_ASCII_LEN	128
+#define	VTOC_BOOTSIZE	8192		/* 16 sectors */
 #define	VTOC_MAGIC	0xdabe
 #define	VTOC_RAW_PART	2
 #define	VTOC_SANITY	0x600ddeee

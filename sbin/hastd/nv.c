@@ -46,6 +46,35 @@ __FBSDID("$FreeBSD$");
 #include <ebuf.h>
 #include <nv.h>
 
+#define	NV_TYPE_NONE		0
+
+#define	NV_TYPE_INT8		1
+#define	NV_TYPE_UINT8		2
+#define	NV_TYPE_INT16		3
+#define	NV_TYPE_UINT16		4
+#define	NV_TYPE_INT32		5
+#define	NV_TYPE_UINT32		6
+#define	NV_TYPE_INT64		7
+#define	NV_TYPE_UINT64		8
+#define	NV_TYPE_INT8_ARRAY	9
+#define	NV_TYPE_UINT8_ARRAY	10
+#define	NV_TYPE_INT16_ARRAY	11
+#define	NV_TYPE_UINT16_ARRAY	12
+#define	NV_TYPE_INT32_ARRAY	13
+#define	NV_TYPE_UINT32_ARRAY	14
+#define	NV_TYPE_INT64_ARRAY	15
+#define	NV_TYPE_UINT64_ARRAY	16
+#define	NV_TYPE_STRING		17
+
+#define	NV_TYPE_MASK		0x7f
+#define	NV_TYPE_FIRST		NV_TYPE_INT8
+#define	NV_TYPE_LAST		NV_TYPE_STRING
+
+#define	NV_ORDER_NETWORK	0x00
+#define	NV_ORDER_HOST		0x80
+
+#define	NV_ORDER_MASK		0x80
+
 #define	NV_MAGIC	0xaea1e
 struct nv {
 	int	nv_magic;
@@ -534,6 +563,29 @@ nv_get_string(struct nv *nv, const char *namefmt, ...)
 	return (str);
 }
 
+bool
+nv_exists(struct nv *nv, const char *namefmt, ...)
+{
+	struct nvhdr *nvh;
+	va_list nameap;
+	int snverror, serrno;
+
+	if (nv == NULL)
+		return (false);
+
+	serrno = errno;
+	snverror = nv->nv_error;
+
+	va_start(nameap, namefmt);
+	nvh = nv_find(nv, NV_TYPE_NONE, namefmt, nameap);
+	va_end(nameap);
+
+	errno = serrno;
+	nv->nv_error = snverror;
+
+	return (nvh != NULL);
+}
+
 /*
  * Dump content of the nv structure.
  */
@@ -707,8 +759,10 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 		assert(errno != 0);
 		if (nv->nv_error == 0)
 			nv->nv_error = errno;
+		free(nvh);
 		return;
 	}
+	free(nvh);
 	/* Add the actual data. */
 	if (ebuf_add_tail(nv->nv_ebuf, value, vsize) < 0) {
 		assert(errno != 0);
@@ -768,7 +822,8 @@ nv_find(struct nv *nv, int type, const char *namefmt, va_list nameap)
 		assert(size >= NVH_SIZE(nvh));
 		nv_swap(nvh, true);
 		if (strcmp(nvh->nvh_name, name) == 0) {
-			if ((nvh->nvh_type & NV_TYPE_MASK) != type) {
+			if (type != NV_TYPE_NONE &&
+			    (nvh->nvh_type & NV_TYPE_MASK) != type) {
 				errno = EINVAL;
 				if (nv->nv_error == 0)
 					nv->nv_error = EINVAL;

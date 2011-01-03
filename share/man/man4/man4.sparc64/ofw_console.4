@@ -78,19 +78,6 @@ terminal output device in case the console output device is the screen
 .It Pa /dev/tty[a-z]
 terminal device in case both the console input and output device is tty[a-z]
 .El
-.Sh CAVEATS
-Since the Open Firmware will handle BREAK
-(or Stop-A)
-sequences before
-.Nm ,
-the preferred way to enter
-.Xr ddb 4
-when using
-.Nm
-is to include
-.Cd "options ALT_BREAK_TO_DEBUGGER"
-in a ddb-enabled kernel, and enter the alternate BREAK sequence
-(RETURN TILDE CTRL-b).
 .Sh SEE ALSO
 .Xr creator 4 ,
 .Xr machfb 4 ,
@@ -107,6 +94,19 @@ The
 .Nm
 driver was written by
 .An "Benno Rice" Aq benno@FreeBSD.org .
+.Sh CAVEATS
+Since the Open Firmware will handle BREAK
+(or Stop-A)
+sequences before
+.Nm ,
+the preferred way to enter
+.Xr ddb 4
+when using
+.Nm
+is to include
+.Cd "options ALT_BREAK_TO_DEBUGGER"
+in a ddb-enabled kernel, and enter the alternate BREAK sequence
+(RETURN TILDE CTRL-b).
 .Sh BUGS
 The
 .Nm

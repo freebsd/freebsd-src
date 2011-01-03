@@ -59,7 +59,7 @@ case "$daily_status_mailq_enable" in
 		fi;;
 	    esac
 	fi;;
-		
+
     *)  rc=0;;
 esac
 

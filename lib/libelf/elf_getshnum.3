@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2006
+.Dd August 5, 2009
 .Dt ELF_GETSHNUM 3
 .Os
 .Sh NAME
@@ -36,6 +36,11 @@
 .Ft int
 .Fn elf_getshnum "Elf *elf" "size_t *shnum"
 .Sh DESCRIPTION
+This function is deprecated.
+Please use
+.Xr elf_getshdrnum 3
+instead.
+.Pp
 Function
 .Fn elf_getshnum
 retrieves the number of ELF sections associated with descriptor
@@ -73,6 +78,7 @@ lacks an ELF Executable header.
 .Xr elf32_getehdr 3 ,
 .Xr elf64_getehdr 3 ,
 .Xr elf_getident 3 ,
-.Xr elf_getshstrndx 3 ,
+.Xr elf_getphdrnum 3 ,
+.Xr elf_getshdrstrndx 3 ,
 .Xr gelf 3 ,
 .Xr gelf_getehdr 3

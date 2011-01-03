@@ -48,6 +48,7 @@ static char *rcsid = "$FreeBSD$";
  */
 
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #include <err.h>
 #include <paths.h>
 #include <stdarg.h>
@@ -152,6 +153,26 @@ botch(s)
 static void xprintf(const char *, ...);
 #define TRACE()	xprintf("TRACE %s:%d\n", __FILE__, __LINE__)
 
+extern int pagesize;
+
+static int
+rtld_getpagesize(void)
+{
+	int mib[2];
+	size_t size;
+
+	if (pagesize != 0)
+		return (pagesize);
+
+	mib[0] = CTL_HW;
+	mib[1] = HW_PAGESIZE;
+	size = sizeof(pagesize);
+	if (sysctl(mib, 2, &pagesize, &size, NULL, 0) == -1)
+		return (-1);
+	return (pagesize);
+
+}
+
 void *
 malloc(nbytes)
 	size_t nbytes;
@@ -166,7 +187,7 @@ malloc(nbytes)
 	 * align break pointer so all data will be page aligned.
 	 */
 	if (pagesz == 0) {
-		pagesz = n = getpagesize();
+		pagesz = n = rtld_getpagesize();
 		if (morepages(NPOOLPAGES) == 0)
 			return NULL;
 		op = (union overhead *)(pagepool_start);

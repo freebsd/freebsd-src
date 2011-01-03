@@ -28,11 +28,6 @@
 
 #include "tc.def"
 
-typedef TruthValue ENUM (
-	1 true
-	2 false
-)
-
 typedef RowStatus ENUM (
 	1 active
 	2 notInService
@@ -40,6 +35,11 @@ typedef RowStatus ENUM (
 	4 createAndGo
 	5 createAndWait
 	6 destroy
+)
+
+typedef TruthValue ENUM (
+	1 true
+	2 false
 )
 
 typedef StpPortState ENUM (

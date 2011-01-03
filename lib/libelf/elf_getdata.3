@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006,2008,2010 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2006
+.Dd April 30, 2010
 .Dt ELF_GETDATA 3
 .Os
 .Sh NAME
@@ -142,6 +142,32 @@ always returns
 .Vt Elf_Data
 structures of type
 .Dv ELF_T_BYTE .
+.Ss Special handling of SHT_NOBITS sections
+For sections of type
+.Dv SHT_NOBITS ,
+the functions
+.Fn elf_getdata
+and
+.Fn elf_rawdata
+return a pointer to a valid
+.Vt Elf_Data
+structure that has its
+.Va d_buf
+member set to NULL and its
+.Va d_size
+member set to the size of the section.
+.Pp
+If an application wishes to create a section of type
+.Dv SHT_NOBITS ,
+it should add a data buffer to the section using function
+.Fn elf_newdata .
+It should then set the
+.Va d_buf
+and
+.Va d_size
+members of the returned
+.Vt Elf_Data
+structure to NULL and the desired size of the section respectively.
 .Sh RETURN VALUES
 These functions return a valid pointer to a data descriptor if successful, or
 NULL if an error occurs.
@@ -167,6 +193,7 @@ An out of memory condition was detected.
 .Xr elf_getscn 3 ,
 .Xr elf_getshdr 3 ,
 .Xr elf_newscn 3 ,
+.Xr elf_rawfile 3 ,
 .Xr elf_update 3 ,
 .Xr elf_version 3 ,
 .Xr gelf 3

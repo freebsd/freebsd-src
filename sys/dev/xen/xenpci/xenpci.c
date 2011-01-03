@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 char *hypercall_stubs;
 shared_info_t *HYPERVISOR_shared_info;
 static vm_paddr_t shared_info_pa;
+static device_t nexus;
 
 /*
  * This is used to find our platform device instance.
@@ -80,7 +81,7 @@ xenpci_cpuid_base(void)
 {
 	uint32_t base, regs[4];
 
-	for (base = 0x40000000; base < 0x40001000; base += 0x100) {
+	for (base = 0x40000000; base < 0x40010000; base += 0x100) {
 		do_cpuid(base, regs);
 		if (!memcmp("XenVMMXenVMM", &regs[1], 12)
 		    && (regs[0] - base) >= 2)
@@ -204,14 +205,21 @@ xenpci_allocate_resources(device_t dev)
 
 	scp->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 			&scp->rid_irq, RF_SHAREABLE|RF_ACTIVE);
-	if (scp->res_irq == NULL)
+	if (scp->res_irq == NULL) {
+		printf("xenpci Could not allocate irq.\n");
 		goto errexit;
+	}
 
 	scp->rid_memory = PCIR_BAR(1);
 	scp->res_memory = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 			&scp->rid_memory, RF_ACTIVE);
-	if (scp->res_memory == NULL)
+	if (scp->res_memory == NULL) {
+		printf("xenpci Could not allocate memory bar.\n");
 		goto errexit;
+	}
+
+	scp->phys_next = rman_get_start(scp->res_memory);
+
 	return (0);
 
 errexit:
@@ -252,6 +260,36 @@ xenpci_alloc_space(size_t sz, vm_paddr_t *pa)
 	} else {
 		return (ENOMEM);
 	}
+}
+
+static struct resource *
+xenpci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	return (BUS_ALLOC_RESOURCE(nexus, child, type, rid, start,
+	    end, count, flags));
+}
+
+
+static int
+xenpci_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	return (BUS_RELEASE_RESOURCE(nexus, child, type, rid, r));
+}
+
+static int
+xenpci_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	return (BUS_ACTIVATE_RESOURCE(nexus, child, type, rid, r));
+}
+
+static int
+xenpci_deactivate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+	return (BUS_DEACTIVATE_RESOURCE(nexus, child, type, rid, r));
 }
 
 /*
@@ -303,20 +341,36 @@ xenpci_probe(device_t dev)
 static int
 xenpci_attach(device_t dev)
 {
-        int error;
+	int error;
 	struct xenpci_softc *scp = device_get_softc(dev);
 	struct xen_add_to_physmap xatp;
 	vm_offset_t shared_va;
+	devclass_t dc;
+
+	/*
+	 * Find and record nexus0.  Since we are not really on the
+	 * PCI bus, all resource operations are directed to nexus
+	 * instead of through our parent.
+	 */
+	if ((dc = devclass_find("nexus"))  == 0
+	 || (nexus = devclass_get_device(dc, 0)) == 0) {
+		device_printf(dev, "unable to find nexus.");
+		return (ENOENT);
+	}
 
 	error = xenpci_allocate_resources(dev);
-	if (error)
+	if (error) {
+		device_printf(dev, "xenpci_allocate_resources failed(%d).\n",
+		    error);
 		goto errexit;
-
-	scp->phys_next = rman_get_start(scp->res_memory);
+	}
 
 	error = xenpci_init_hypercall_stubs(dev, scp);
-	if (error)
+	if (error) {
+		device_printf(dev, "xenpci_init_hypercall_stubs failed(%d).\n",
+		    error);
 		goto errexit;
+	}
 
 	setup_xen_features();
 
@@ -346,7 +400,7 @@ errexit:
 	 * Undo anything we may have done.
 	 */
 	xenpci_deallocate_resources(dev);
-        return (error);
+	return (error);
 }
 
 /*
@@ -364,8 +418,9 @@ xenpci_detach(device_t dev)
 	 */
 	if (scp->intr_cookie != NULL) {
 		if (BUS_TEARDOWN_INTR(parent, dev,
-			scp->res_irq, scp->intr_cookie) != 0)
-				printf("intr teardown failed.. continuing\n");
+		    scp->res_irq, scp->intr_cookie) != 0)
+			device_printf(dev,
+			    "intr teardown failed.. continuing\n");
 		scp->intr_cookie = NULL;
 	}
 
@@ -386,6 +441,10 @@ static device_method_t xenpci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
+	DEVMETHOD(bus_alloc_resource,   xenpci_alloc_resource),
+	DEVMETHOD(bus_release_resource, xenpci_release_resource),
+	DEVMETHOD(bus_activate_resource, xenpci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, xenpci_deactivate_resource),
 
 	{ 0, 0 }
 };

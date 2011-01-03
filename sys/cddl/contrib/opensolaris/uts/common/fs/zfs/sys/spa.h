@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -44,7 +44,6 @@ typedef struct spa spa_t;
 typedef struct vdev vdev_t;
 typedef struct metaslab metaslab_t;
 typedef struct zilog zilog_t;
-typedef struct traverse_handle traverse_handle_t;
 typedef struct spa_aux_vdev spa_aux_vdev_t;
 struct dsl_pool;
 
@@ -209,8 +208,8 @@ typedef struct blkptr {
 #define	DVA_SET_GANG(dva, x)	BF64_SET((dva)->dva_word[1], 63, 1, x)
 
 #define	BP_GET_LSIZE(bp)	\
-	(BP_IS_HOLE(bp) ? 0 : \
-	BF64_GET_SB((bp)->blk_prop, 0, 16, SPA_MINBLOCKSHIFT, 1))
+	BF64_GET_SB((bp)->blk_prop, 0, 16, SPA_MINBLOCKSHIFT, 1)
+
 #define	BP_SET_LSIZE(bp, x)	\
 	BF64_SET_SB((bp)->blk_prop, 0, 16, SPA_MINBLOCKSHIFT, 1, x)
 
@@ -330,7 +329,7 @@ extern int spa_check_rootconf(char *devpath, char *devid,
 extern boolean_t spa_rootdev_validate(nvlist_t *nv);
 extern int spa_import_rootpool(char *devpath, char *devid);
 extern int spa_import(const char *pool, nvlist_t *config, nvlist_t *props);
-extern int spa_import_faulted(const char *, nvlist_t *, nvlist_t *);
+extern int spa_import_verbatim(const char *, nvlist_t *, nvlist_t *);
 extern nvlist_t *spa_tryimport(nvlist_t *tryconfig);
 extern int spa_destroy(char *pool);
 extern int spa_export(char *pool, nvlist_t **oldconfig, boolean_t force,
@@ -353,9 +352,11 @@ extern void spa_inject_delref(spa_t *spa);
 extern int spa_vdev_add(spa_t *spa, nvlist_t *nvroot);
 extern int spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot,
     int replacing);
-extern int spa_vdev_detach(spa_t *spa, uint64_t guid, int replace_done);
+extern int spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid,
+    int replace_done);
 extern int spa_vdev_remove(spa_t *spa, uint64_t guid, boolean_t unspare);
 extern int spa_vdev_setpath(spa_t *spa, uint64_t guid, const char *newpath);
+extern int spa_vdev_setfru(spa_t *spa, uint64_t guid, const char *newfru);
 
 /* spare state (which is global across all pools) */
 extern void spa_spare_add(vdev_t *vd);
@@ -438,8 +439,7 @@ extern void spa_vdev_state_enter(spa_t *spa);
 extern int spa_vdev_state_exit(spa_t *spa, vdev_t *vd, int error);
 
 /* Accessor functions */
-extern krwlock_t *spa_traverse_rwlock(spa_t *spa);
-extern boolean_t spa_traverse_wanted(spa_t *spa);
+extern boolean_t spa_shutting_down(spa_t *spa);
 extern struct dsl_pool *spa_get_dsl(spa_t *spa);
 extern blkptr_t *spa_get_rootblkptr(spa_t *spa);
 extern void spa_set_rootblkptr(spa_t *spa, const blkptr_t *bp);
@@ -450,7 +450,7 @@ extern uint64_t spa_guid(spa_t *spa);
 extern uint64_t spa_last_synced_txg(spa_t *spa);
 extern uint64_t spa_first_txg(spa_t *spa);
 extern uint64_t spa_version(spa_t *spa);
-extern int spa_state(spa_t *spa);
+extern pool_state_t spa_state(spa_t *spa);
 extern uint64_t spa_freeze_txg(spa_t *spa);
 extern uint64_t spa_get_alloc(spa_t *spa);
 extern uint64_t spa_get_space(spa_t *spa);
@@ -478,6 +478,10 @@ extern boolean_t spa_has_spare(spa_t *, uint64_t guid);
 extern uint64_t bp_get_dasize(spa_t *spa, const blkptr_t *bp);
 extern boolean_t spa_has_slogs(spa_t *spa);
 extern boolean_t spa_is_root(spa_t *spa);
+extern boolean_t spa_writeable(spa_t *spa);
+extern int spa_mode(spa_t *spa);
+extern uint64_t zfs_strtonum(const char *str, char **nptr);
+#define	strtonum(str, nptr)	zfs_strtonum((str), (nptr))
 
 /* history logging */
 typedef enum history_log_type {
@@ -531,6 +535,7 @@ extern void spa_boot_init();
 extern int spa_prop_set(spa_t *spa, nvlist_t *nvp);
 extern int spa_prop_get(spa_t *spa, nvlist_t **nvp);
 extern void spa_prop_clear_bootfs(spa_t *spa, uint64_t obj, dmu_tx_t *tx);
+extern void spa_configfile_set(spa_t *, nvlist_t *, boolean_t);
 
 /* asynchronous event notification */
 extern void spa_event_notify(spa_t *spa, vdev_t *vdev, const char *name);
@@ -548,7 +553,7 @@ _NOTE(CONSTCOND) } while (0)
 #define	dprintf_bp(bp, fmt, ...)
 #endif
 
-extern int spa_mode;			/* mode, e.g. FREAD | FWRITE */
+extern int spa_mode_global;			/* mode, e.g. FREAD | FWRITE */
 
 #ifdef	__cplusplus
 }

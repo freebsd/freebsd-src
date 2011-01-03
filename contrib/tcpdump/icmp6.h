@@ -276,7 +276,7 @@ struct nd_opt_hdr {		/* Neighbor discovery option header */
 #define ND_OPT_ADVINTERVAL		7
 #define ND_OPT_HOMEAGENT_INFO		8
 #define ND_OPT_ROUTE_INFO		9	/* draft-ietf-ipngwg-router-preference, not officially assigned yet */
-
+#define ND_OPT_RDNSS			25
 
 struct nd_opt_prefix_info {	/* prefix information */
 	u_int8_t	nd_opt_pi_type;
@@ -306,6 +306,14 @@ struct nd_opt_mtu {		/* MTU option */
 	u_int8_t	nd_opt_mtu_len;
 	u_int16_t	nd_opt_mtu_reserved;
 	u_int32_t	nd_opt_mtu_mtu;
+};
+
+struct nd_opt_rdnss {		/* RDNSS RFC 5006 */
+	u_int8_t	nd_opt_rdnss_type;
+	u_int8_t	nd_opt_rdnss_len;
+	u_int16_t	nd_opt_rdnss_reserved;
+	u_int32_t	nd_opt_rdnss_lifetime;
+	struct in6_addr nd_opt_rdnss_addr[1];	/* variable-length */
 };
 
 struct nd_opt_advinterval {	/* Advertisement interval option */

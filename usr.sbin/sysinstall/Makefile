@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} != "ia64"
+.if ${MACHINE_CPUARCH} != "ia64"
 _wizard=	wizard.c
 .endif
 
@@ -14,13 +14,13 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 	system.c tcpip.c termcap.c ttys.c ufs.c usb.c user.c \
 	variable.c ${_wizard} keymap.h countries.h
 
-CFLAGS+= -DUSE_GZIP=1
+CFLAGS+= -DUSE_GZIP=1 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
 CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
 
-WARNS?=	1
+WARNS?=  2	
 
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
@@ -79,8 +79,9 @@ KEYMAPS= be.iso bg.bds.ctrlcaps bg.phonetic.ctrlcaps br275.iso \
 	ce.iso2 cs.latin2.qwertz danish.iso el.iso07 \
 	estonian.cp850 estonian.iso estonian.iso15 finnish.iso fr.iso \
 	german.iso gr.elot.acc gr.us101.acc  hr.iso hu.iso2.101keys \
-	it.iso icelandic.iso jp.106 norwegian.iso pl_PL.ISO8859-2 \
-	pt.iso ru.koi8-r si.iso sk.iso2 spanish.iso swedish.iso \
+	it.iso icelandic.iso jp.106 latinamerican latinamerican.iso.acc \
+	norwegian.iso pl_PL.ISO8859-2 \
+	pt.iso ru.koi8-r si.iso sk.iso2 spanish.iso spanish.iso.acc swedish.iso \
 	swissfrench.iso \
 	swissgerman.iso ua.koi8-u ua.koi8-u.shift.alt uk.iso us.dvorak \
 	us.iso us.pc-ctrl us.unix

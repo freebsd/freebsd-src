@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.255 2010/03/05 06:50:35 jmc Exp $
+.\" $OpenBSD: sshd.8,v 1.257 2010/08/04 05:37:01 djm Exp $
 .\" $FreeBSD$
-.Dd March 5 2010
+.Dd August 4, 2010
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -598,13 +598,23 @@ Limit local
 .Li ``ssh -L''
 port forwarding such that it may only connect to the specified host and
 port.
-IPv6 addresses can be specified with an alternative syntax:
-.Ar host Ns / Ns Ar port .
+IPv6 addresses can be specified by enclosing the address in square brackets.
 Multiple
 .Cm permitopen
 options may be applied separated by commas.
 No pattern matching is performed on the specified hostnames,
 they must be literal domains or addresses.
+.It Cm principals="principals"
+On a
+.Cm cert-authority
+line, specifies allowed principals for certificate authentication as a
+comma-separated list.
+At least one name from the list must appear in the certificate's
+list of principals for the certificate to be accepted.
+This option is ignored for keys that are not marked as trusted certificate
+signers using the
+.Cm cert-authority
+option.
 .It Cm tunnel="n"
 Force a
 .Xr tun 4

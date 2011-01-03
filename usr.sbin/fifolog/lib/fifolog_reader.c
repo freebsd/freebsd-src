@@ -225,6 +225,8 @@ fifolog_reader_chop(struct fifolog_reader *fr, fifolog_reader_render_t *func, vo
 		if (u & FIFOLOG_LENGTH) {
 			v = p[w];
 			w++;
+			if (p + w + v >= q)
+				return (p);
 		} else {
 			for (v = 0; p + v + w < q && p[v + w] != '\0'; v++)
 				continue;
@@ -302,8 +304,10 @@ fifolog_reader_process(struct fifolog_reader *fr, off_t from, fifolog_reader_ren
 			if (i == Z_STREAM_END) {
 				i = inflateReset(zs);
 			}
-			if (i != Z_OK)
+			if (i != Z_OK) {
 				fprintf(stderr, "inflate = %d\n", i);
+				exit (250);
+			}
 			assert(i == Z_OK);
 			if (zs->avail_out != fr->olen) {
 				q = fr->obuf + (fr->olen - zs->avail_out);

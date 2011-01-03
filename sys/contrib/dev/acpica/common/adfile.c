@@ -126,13 +126,13 @@
 
 /* Local prototypes */
 
-INT32
+static INT32
 AdWriteBuffer (
     char                    *Filename,
     char                    *Buffer,
     UINT32                  Length);
 
-char                        FilenameBuf[20];
+static char                 FilenameBuf[20];
 
 
 /******************************************************************************
@@ -190,7 +190,7 @@ AdGenerateFilename (
  *
  ******************************************************************************/
 
-INT32
+static INT32
 AdWriteBuffer (
     char                    *Filename,
     char                    *Buffer,

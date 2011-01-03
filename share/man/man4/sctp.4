@@ -203,7 +203,7 @@ association.
 .It Dv SCTP_INITMSG
 This option allows you to get or set the default sending
 parameters when an association is implicitly setup.
-It allows you to change such things as the maxium number of
+It allows you to change such things as the maximum number of
 streams allowed inbound and the number of streams requested
 of the peer.
 .It Dv SCTP_AUTOCLOSE
@@ -278,7 +278,7 @@ By default, when opening an IPV6 socket, when
 data arrives on the socket from a peer's
 V4 address the V4 address  will be presented with an address family
 of AF_INET.
-If this is undesireable, then this option
+If this is undesirable, then this option
 can be enabled which will then convert all V4 addresses
 into mapped V6 representations.
 .It Dv SCTP_MAXSEG
@@ -338,8 +338,8 @@ a peer.
 This option will let you get or set the list of
 HMAC algorithms used to authenticate peers.
 Note that the HMAC values are in priority order where
-the first HMAC identifier is the most prefered
-and the last is the least prefered.
+the first HMAC identifier is the most preferred
+and the last is the least preferred.
 .It Dv SCTP_AUTH_ACTIVE_KEY
 This option allows you to make a key active for
 the generation of authentication information.
@@ -386,7 +386,7 @@ special flag
 .Dv SCTP_EOR
 passed in the sctp_sndrcvinfo flags field.
 This effectively makes all sends part of the same message
-until the user specifices differently.
+until the user specifies differently.
 This means that a caller must NOT change the stream number until
 after the
 .Dv SCTP_EOR

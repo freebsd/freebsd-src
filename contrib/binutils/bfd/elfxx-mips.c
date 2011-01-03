@@ -1,6 +1,6 @@
 /* MIPS-specific support for ELF
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2006 Free Software Foundation, Inc.
 
    Most of the information added by Ian Lance Taylor, Cygnus Support,
    <ian@cygnus.com>.
@@ -23,7 +23,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* This file handles functionality common to the different MIPS ABI's.  */
 
@@ -4088,6 +4088,12 @@ _bfd_elf_mips_mach (flagword flags)
     case E_MIPS_MACH_5500:
       return bfd_mach_mips5500;
 
+    case E_MIPS_MACH_9000:
+      return bfd_mach_mips9000;
+
+    case E_MIPS_MACH_OCTEON:
+      return bfd_mach_mips_octeon;
+
     case E_MIPS_MACH_SB1:
       return bfd_mach_mips_sb1;
 
@@ -4324,6 +4330,15 @@ _bfd_mips_elf_section_processing (bfd *abfd, Elf_Internal_Shdr *hdr)
 
 	  bfd_mips_elf_swap_options_in (abfd, (Elf_External_Options *) l,
 					&intopt);
+	  if (intopt.size < sizeof (Elf_External_Options))
+	    {
+	      (*_bfd_error_handler)
+		(_("Warning: bad `%s' option size %u smaller than its header"),
+		MIPS_ELF_OPTIONS_SECTION_NAME (abfd), intopt.size);
+	      break;
+	    }
+
+
 	  if (ABI_64_P (abfd) && intopt.kind == ODK_REGINFO)
 	    {
 	      bfd_byte buf[8];
@@ -4536,6 +4551,14 @@ _bfd_mips_elf_section_from_shdr (bfd *abfd, Elf_Internal_Shdr *hdr,
 
 	  bfd_mips_elf_swap_options_in (abfd, (Elf_External_Options *) l,
 					&intopt);
+	  if (intopt.size < sizeof (Elf_External_Options))
+	    {
+	      (*_bfd_error_handler)
+		(_("Warning: bad `%s' option size %u smaller than its header"),
+		MIPS_ELF_OPTIONS_SECTION_NAME (abfd), intopt.size);
+	      break;
+	    }
+
 	  if (ABI_64_P (abfd) && intopt.kind == ODK_REGINFO)
 	    {
 	      Elf64_Internal_RegInfo intreg;
@@ -7142,6 +7165,10 @@ mips_set_isa_flags (bfd *abfd)
       val = E_MIPS_ARCH_4 | E_MIPS_MACH_5500;
       break;
 
+    case bfd_mach_mips9000:
+      val = E_MIPS_ARCH_4 | E_MIPS_MACH_9000;
+      break;
+
     case bfd_mach_mips5000:
     case bfd_mach_mips7000:
     case bfd_mach_mips8000:
@@ -7152,6 +7179,10 @@ mips_set_isa_flags (bfd *abfd)
 
     case bfd_mach_mips5:
       val = E_MIPS_ARCH_5;
+      break;
+
+    case bfd_mach_mips_octeon:
+      val = E_MIPS_ARCH_64R2 | E_MIPS_MACH_OCTEON;
       break;
 
     case bfd_mach_mips_sb1:
@@ -8856,6 +8887,9 @@ struct mips_mach_extension {
    are ordered topologically with MIPS I extensions listed last.  */
 
 static const struct mips_mach_extension mips_mach_extensions[] = {
+  /* MIPS64r2 extensions.  */
+  { bfd_mach_mips_octeon, bfd_mach_mipsisa64r2 },
+
   /* MIPS64 extensions.  */
   { bfd_mach_mipsisa64r2, bfd_mach_mipsisa64 },
   { bfd_mach_mips_sb1, bfd_mach_mipsisa64 },
@@ -8879,6 +8913,7 @@ static const struct mips_mach_extension mips_mach_extensions[] = {
   { bfd_mach_mips10000, bfd_mach_mips8000 },
   { bfd_mach_mips5000, bfd_mach_mips8000 },
   { bfd_mach_mips7000, bfd_mach_mips8000 },
+  { bfd_mach_mips9000, bfd_mach_mips8000 },
 
   /* VR4100 extensions.  */
   { bfd_mach_mips4120, bfd_mach_mips4100 },
@@ -8913,11 +8948,26 @@ mips_mach_extends_p (unsigned long base, unsigned long extension)
 {
   size_t i;
 
-  for (i = 0; extension != base && i < ARRAY_SIZE (mips_mach_extensions); i++)
-    if (extension == mips_mach_extensions[i].extension)
-      extension = mips_mach_extensions[i].base;
+  if (extension == base)
+    return TRUE;
 
-  return extension == base;
+  if (base == bfd_mach_mipsisa32
+      && mips_mach_extends_p (bfd_mach_mipsisa64, extension))
+    return TRUE;
+
+  if (base == bfd_mach_mipsisa32r2
+      && mips_mach_extends_p (bfd_mach_mipsisa64r2, extension))
+    return TRUE;
+
+  for (i = 0; i < ARRAY_SIZE (mips_mach_extensions); i++)
+    if (extension == mips_mach_extensions[i].extension)
+      {
+	extension = mips_mach_extensions[i].base;
+	if (extension == base)
+	  return TRUE;
+      }
+
+  return FALSE;
 }
 
 

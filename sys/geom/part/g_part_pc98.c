@@ -458,6 +458,7 @@ g_part_pc98_read(struct g_part_table *basetable, struct g_consumer *cp)
 	basetable->gpt_first = cyl;
 	basetable->gpt_last = msize - (msize % cyl) - 1;
 
+	g_free(buf);
 	return (0);
 }
 

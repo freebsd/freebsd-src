@@ -91,15 +91,15 @@ struct tblentry {
 };
 
 
-STATIC struct tblentry *cmdtable[CMDTABLESIZE];
-STATIC int builtinloc = -1;		/* index in path of %builtin, or -1 */
+static struct tblentry *cmdtable[CMDTABLESIZE];
+static int builtinloc = -1;		/* index in path of %builtin, or -1 */
 int exerrno = 0;			/* Last exec error */
 
 
-STATIC void tryexec(char *, char **, char **);
-STATIC void printentry(struct tblentry *, int);
-STATIC struct tblentry *cmdlookup(const char *, int);
-STATIC void delete_cmd_entry(void);
+static void tryexec(char *, char **, char **);
+static void printentry(struct tblentry *, int);
+static struct tblentry *cmdlookup(const char *, int);
+static void delete_cmd_entry(void);
 
 
 
@@ -147,7 +147,7 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 }
 
 
-STATIC void
+static void
 tryexec(char *cmd, char **argv, char **envp)
 {
 	int e;
@@ -190,9 +190,8 @@ padvance(const char **path, const char *name)
 	for (p = start; *p && *p != ':' && *p != '%'; p++)
 		; /* nothing */
 	len = p - start + strlen(name) + 2;	/* "2" is for '/' and '\0' */
-	while (stackblocksize() < len)
-		growstackblock();
-	q = stackblock();
+	STARTSTACKSTR(q);
+	CHECKSTRSPACE(len, q);
 	if (p != start) {
 		memcpy(q, start, p - start);
 		q += p - start;
@@ -265,7 +264,7 @@ hashcmd(int argc __unused, char **argv __unused)
 }
 
 
-STATIC void
+static void
 printentry(struct tblentry *cmdp, int verbose)
 {
 	int idx;
@@ -615,10 +614,10 @@ deletefuncs(void)
  * entry.
  */
 
-STATIC struct tblentry **lastcmdentry;
+static struct tblentry **lastcmdentry;
 
 
-STATIC struct tblentry *
+static struct tblentry *
 cmdlookup(const char *name, int add)
 {
 	int hashval;
@@ -655,7 +654,7 @@ cmdlookup(const char *name, int add)
  * Delete the command entry returned on the last lookup.
  */
 
-STATIC void
+static void
 delete_cmd_entry(void)
 {
 	struct tblentry *cmdp;

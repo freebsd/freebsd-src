@@ -283,7 +283,8 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
 		case SPICDS_TYPE_WM8770:
 			left = left + 27;
 			break;
-		case SPICDS_TYPE_AK4381 || SPICDS_TYPE_AK4396:
+		case SPICDS_TYPE_AK4381:
+		case SPICDS_TYPE_AK4396:
 			left = left * 255 / 100;
 			break;
 		default:

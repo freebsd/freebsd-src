@@ -176,7 +176,7 @@ AcpiNsBuildExternalPath (
         /* Put the name into the buffer */
 
         ACPI_MOVE_32_TO_32 ((NameBuffer + Index), &ParentNode->Name);
-        ParentNode = AcpiNsGetParentNode (ParentNode);
+        ParentNode = ParentNode->Parent;
 
         /* Prefix name with the path separator */
 
@@ -298,7 +298,7 @@ AcpiNsGetPathnameLength (
             return 0;
         }
         Size += ACPI_PATH_SEGMENT_LENGTH;
-        NextNode = AcpiNsGetParentNode (NextNode);
+        NextNode = NextNode->Parent;
     }
 
     if (!Size)

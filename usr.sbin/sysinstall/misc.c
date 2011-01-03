@@ -238,7 +238,7 @@ item_add(dialogMenuItem *list, char *prompt, char *title,
 	 int (*checked)(dialogMenuItem *self),
 	 int (*fire)(dialogMenuItem *self),
 	 void (*selected)(dialogMenuItem *self, int is_selected),
-	 void *data, int *aux, int *curr, int *max)
+	 void *data, void *aux, int *curr, int *max)
 {
     dialogMenuItem *d;
 

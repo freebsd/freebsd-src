@@ -30,6 +30,7 @@
     <year>2007</year>
     <year>2008</year>
     <year>2009</year>
+    <year>2010</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -312,6 +313,11 @@
         &man.clear.locks.8; command has been added to clear locks held
         on behalf of an NFS client.</para>
 
+      <para role="merged">The <application>ZFS</application> file system
+        has been upgraded to version 14.  Additional changes include
+        support for NFSv4 ACLs, a speedup of zfs send and an improved L2ARC.
+        New statistics for prefetch and L2ARC have been introduced.</para>
+
     </sect3>
   </sect2>
 
@@ -325,6 +331,9 @@
     <para>BSD-licensed versions of &man.ar.1; and &man.ranlib.1;,
       based on <filename>libarchive</filename>, have replaced the GNU
       Binutils versions of these utilities.</para>
+
+    <para>BSD-licensed versions of &man.bc.1; and &man.dc.1; have
+      replaced their GNU counterparts.</para>
 
     <para role="merged">&man.chflags.1; now supports a <option>-v</option> flag for
       verbose output and a <option>-f</option> flag to ignore errors
@@ -372,6 +381,9 @@
 
     <para>&man.nc.1; now supports a <option>-O</option> switch to
       disable the use of TCP options.</para>
+
+    <para>&man.nc.1;'s <option>-o</option> switch has been deprecated.
+      It will be removed in a future release.</para>
 
     <para>The &man.ping6.8; utility now returns <literal>2</literal>
       when the packet transmission was successful but no responses
@@ -483,6 +495,10 @@
 
     <para><application>WPA Supplicant</application> has been
       updated from 0.5.8 to 0.5.10.</para>
+
+    <para role="merged">A snapshot of <application>xz</application> as of
+      12 April 2010 has been added. More information can be found in the 
+      &man.xz.1;, &man.xzdec.1; and &man.lzmainfo.1; manual pages.</para>
 
   </sect2>
 

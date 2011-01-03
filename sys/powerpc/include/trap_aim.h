@@ -39,7 +39,9 @@
 #define	EXC_RST		0x0100		/* Reset; all but IBM4xx */
 #define	EXC_MCHK	0x0200		/* Machine Check */
 #define	EXC_DSI		0x0300		/* Data Storage Interrupt */
+#define	EXC_DSE		0x0380		/* Data Segment Interrupt */
 #define	EXC_ISI		0x0400		/* Instruction Storage Interrupt */
+#define	EXC_ISE		0x0480		/* Instruction Segment Interrupt */
 #define	EXC_EXI		0x0500		/* External Interrupt */
 #define	EXC_ALI		0x0600		/* Alignment Interrupt */
 #define	EXC_PGM		0x0700		/* Program Interrupt */
@@ -52,9 +54,12 @@
 /* The following is only available on the 601: */
 #define	EXC_RUNMODETRC	0x2000		/* Run Mode/Trace Exception */
 
+/* The following are only available on 970(G5): */
+#define	EXC_VECAST_G5	0x1700		/* AltiVec Assist */
+
 /* The following are only available on 7400(G4): */
 #define	EXC_VEC		0x0f20		/* AltiVec Unavailable */
-#define	EXC_VECAST	0x1600		/* AltiVec Assist */
+#define	EXC_VECAST_G4	0x1600		/* AltiVec Assist */
 
 /* The following are only available on 604/750/7400: */
 #define	EXC_PERF	0x0f00		/* Performance Monitoring */

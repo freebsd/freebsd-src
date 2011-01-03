@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/ucontext.h>
 #include <sys/lock.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/ptrace.h>
 #include <sys/syslog.h>
@@ -140,16 +141,16 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Build the argument list for the signal handler. */
 	regs->a0 = sig;
-	regs->a2 = (register_t)&sfp->sf_uc;
+	regs->a2 = (register_t)(intptr_t)&sfp->sf_uc;
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
-		regs->a1 = (register_t)&sfp->sf_si;
+		regs->a1 = (register_t)(intptr_t)&sfp->sf_si;
 		/* sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher; */
 
 		/* fill siginfo structure */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = ksi->ksi_code;
-		sf.sf_si.si_addr = (void*)regs->badvaddr;
+		sf.sf_si.si_addr = (void*)(intptr_t)regs->badvaddr;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		regs->a1 = ksi->ksi_code;
@@ -172,13 +173,13 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
-	regs->pc = (register_t) catcher;
-	regs->t9 = (register_t) catcher;
-	regs->sp = (register_t) sfp;
+	regs->pc = (register_t)(intptr_t)catcher;
+	regs->t9 = (register_t)(intptr_t)catcher;
+	regs->sp = (register_t)(intptr_t)sfp;
 	/*
 	 * Signal trampoline code is at base of user stack.
 	 */
-	regs->ra = (register_t) PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->ra = (register_t)(intptr_t)PS_STRINGS - *(p->p_sysent->sv_szsigcode);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -231,12 +232,12 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (ucp->uc_mcontext.mc_regs[ZERO] != UCONTEXT_MAGIC) {
 		printf("sigreturn: pid %d, ucp %p\n", td->td_proc->p_pid, ucp);
 		printf("  old sp %p ra %p pc %p\n",
-		    (void *)regs->sp, (void *)regs->ra, (void *)regs->pc);
+		    (void *)(intptr_t)regs->sp, (void *)(intptr_t)regs->ra, (void *)(intptr_t)regs->pc);
 		printf("  new sp %p ra %p pc %p z %p\n",
-		    (void *)ucp->uc_mcontext.mc_regs[SP],
-		    (void *)ucp->uc_mcontext.mc_regs[RA],
-		    (void *)ucp->uc_mcontext.mc_regs[PC],
-		    (void *)ucp->uc_mcontext.mc_regs[ZERO]);
+		    (void *)(intptr_t)ucp->uc_mcontext.mc_regs[SP],
+		    (void *)(intptr_t)ucp->uc_mcontext.mc_regs[RA],
+		    (void *)(intptr_t)ucp->uc_mcontext.mc_regs[PC],
+		    (void *)(intptr_t)ucp->uc_mcontext.mc_regs[ZERO]);
 		return EINVAL;
 	}
 /* #endif */
@@ -310,7 +311,7 @@ ptrace_single_step(struct thread *td)
 	unsigned va;
 	struct trapframe *locr0 = td->td_frame;
 	int i;
-	int bpinstr = BREAK_SSTEP;
+	int bpinstr = MIPS_BREAK_SSTEP;
 	int curinstr;
 	struct proc *p;
 
@@ -478,20 +479,48 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
 
 	/*
-	 * Make sp 64-bit aligned.
+	 * The stack pointer has to be aligned to accommodate the largest
+	 * datatype at minimum.  This probably means it should be 16-byte
+	 * aligned, but for now we're 8-byte aligning it.
 	 */
 	td->td_frame->sp = ((register_t) stack) & ~(sizeof(__int64_t) - 1);
+
+	/*
+	 * If we're running o32 or n32 programs but have 64-bit registers,
+	 * GCC may use stack-relative addressing near the top of user
+	 * address space that, due to sign extension, will yield an
+	 * invalid address.  For instance, if sp is 0x7fffff00 then GCC
+	 * might do something like this to load a word from 0x7ffffff0:
+	 *
+	 * 	addu	sp, sp, 32768
+	 * 	lw	t0, -32528(sp)
+	 *
+	 * On systems with 64-bit registers, sp is sign-extended to
+	 * 0xffffffff80007f00 and the load is instead done from
+	 * 0xffffffff7ffffff0.
+	 *
+	 * To prevent this, we subtract 64K from the stack pointer here.
+	 *
+	 * For consistency, we should just always do this unless we're
+	 * running n64 programs.  For now, since we don't support
+	 * COMPAT_FREEBSD32 on n64 kernels, we just do it unless we're
+	 * running n64 kernels.
+	 */
+#if !defined(__mips_n64)
+	td->td_frame->sp -= 65536;
+#endif
+
 	td->td_frame->pc = imgp->entry_addr & ~3;
 	td->td_frame->t9 = imgp->entry_addr & ~3; /* abicall req */
-#if 0
-//	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB;
-//?	td->td_frame->sr |=  idle_mask & ALL_INT_MASK;
-#else
-	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB |
-	    (mips_rd_status() & ALL_INT_MASK);
+	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
+	    (mips_rd_status() & MIPS_SR_INT_MASK);
+#if defined(__mips_n32) 
+	td->td_frame->sr |= MIPS_SR_PX;
+#elif  defined(__mips_n64)
+	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
 #endif
-#ifdef TARGET_OCTEON
-	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX |
+#ifdef CPU_CNMIPS
+	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS_SR_PX | MIPS_SR_UX |
 	    MIPS_SR_KX | MIPS_SR_SX;
 #endif
 	/*

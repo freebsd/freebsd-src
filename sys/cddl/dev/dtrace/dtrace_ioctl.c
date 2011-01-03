@@ -27,6 +27,55 @@ SYSCTL_INT(_debug_dtrace, OID_AUTO, verbose_ioctl, CTLFLAG_RW, &dtrace_verbose_i
 
 #define DTRACE_IOCTL_PRINTF(fmt, ...)	if (dtrace_verbose_ioctl) printf(fmt, ## __VA_ARGS__ )
 
+static int
+dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
+    struct thread *td)
+{
+	int rval;
+	dof_helper_t *dhp = NULL;
+	dof_hdr_t *dof = NULL;
+
+	switch (cmd) {
+	case DTRACEHIOC_ADDDOF:
+		dhp = (dof_helper_t *)addr;
+		/* XXX all because dofhp_dof is 64 bit */
+#ifdef __i386
+		addr = (caddr_t)(uint32_t)dhp->dofhp_dof;
+#else
+		addr = (caddr_t)dhp->dofhp_dof;
+#endif
+		/* FALLTHROUGH */
+	case DTRACEHIOC_ADD:
+		dof = dtrace_dof_copyin((intptr_t)addr, &rval);
+
+		if (dof == NULL)
+			return (rval);
+
+		mutex_enter(&dtrace_lock);
+		if ((rval = dtrace_helper_slurp((dof_hdr_t *)dof, dhp)) != -1) {
+			if (dhp) {
+				dhp->gen = rval;
+				copyout(dhp, addr, sizeof(*dhp));
+			}
+			rval = 0;
+		} else {
+			rval = EINVAL;
+		}
+		mutex_exit(&dtrace_lock);
+		return (rval);
+	case DTRACEHIOC_REMOVE:
+		mutex_enter(&dtrace_lock);
+		rval = dtrace_helper_destroygen((int)*addr);
+		mutex_exit(&dtrace_lock);
+
+		return (rval);
+	default:
+		break;
+	}
+
+	return (ENOTTY);
+}
+
 /* ARGSUSED */
 static int
 dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,

@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2010
+.Dd July 20, 2010
 .Dt UHSO 4
 .Os
 .Sh NAME
@@ -43,8 +43,9 @@ based on their packet interface.
 Each device has a set of serial ports and a raw IP packet interface.
 The serial ports of the device are accessed through the
 .Xr ucom 4
-driver which makes them behave like a
-.Xr tty 4 .
+driver which makes them behave like
+.Xr tty 4
+devices.
 The packet interface is exposed as a network interface.
 .Pp
 Establishing a connection on the packet interface is achieved by using the
@@ -60,16 +61,27 @@ these calls.
 Each device usually have at least two or more serial ports, their individual purpose
 can be identified through
 .Xr sysctl 8 .
+Ports identified as
+.Dq Modem
+features a normal modem interface that can be used with PPP.
+Ports identified as
+.Dq Diagnostic
+uses a proprietary binary interface used for firmware upgrades, this port does not
+have a AT command interface and can not be used to control the device.
+Other ports features an AT command interface that can be used for normal device control.
 .Sh HARDWARE
 The
 .Nm
-driver supports at least the following cards
+driver should work with most devices from Option.
+The following devices have been verified to work
 .Pp
 .Bl -bullet -compact
 .It
 Option GlobeSurfer iCON 7.2 (new firmware)
 .It
 Option iCON 225
+.It
+Option iCON 452
 .It
 Option iCON 505
 .El
@@ -87,8 +99,13 @@ This behavior can be disabled by setting
 .Va hw.usb.uhso.auto_switch
 to 0 using
 .Xr sysctl 8
+.Sh FILES
+.Bl -tag -width "XXXXXX"
+.It Pa /dev/cuaU?.?
+.El
 .Sh EXAMPLES
-Establishing a packet interface connection
+Establishing a packet interface connection using the AT command interface available
+at one of the serial ports
 .Bd -literal -offset indent
 AT+CGDCONT=1,,"apn.provider"
 AT_OWANCALL=1,1,1
@@ -112,11 +129,8 @@ The connection can be terminated with
 .Bd -literal -offset indent
 AT_OWANCALL=1,0,1
 .Ed
-.Sh FILES
-.Bl -tag -width "XXXXXX"
-.It Pa /dev/cuaU?.?
-.El
 .Sh SEE ALSO
+.Xr uhsoctl 1 ,
 .Xr ucom 4 ,
 .Xr usb 4
 .Sh AUTHORS

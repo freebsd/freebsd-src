@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/unistd.h>
@@ -47,7 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
-#include <nfsclient/nfsnode.h>
 #include <nfsclient/nfsmount.h>
 
 #include <nlm/nlm_prot.h>
@@ -196,7 +196,6 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 {
 	struct thread *td = curthread;
 	struct nfsmount *nmp;
-	struct nfsnode *np;
 	off_t size;
 	size_t fhlen;
 	union nfsfh fh;
@@ -214,6 +213,7 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	struct nlm_file_svid *ns;
 	int svid;
 	int error;
+	int is_v3;
 
 	ASSERT_VOP_LOCKED(vp, "nlm_advlock_1");
 
@@ -225,18 +225,13 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	if (op == F_SETLK || op == F_UNLCK)
 		nfs_vinvalbuf(vp, V_SAVE, td, 1);
 
-	np = VTONFS(vp);
 	nmp = VFSTONFS(vp->v_mount);
-	size = np->n_size;
-	sa = nmp->nm_nam;
-	memcpy(&ss, sa, sa->sa_len);
-	sa = (struct sockaddr *) &ss;
 	strcpy(servername, nmp->nm_hostname);
-	fhlen = np->n_fhsize;
-	memcpy(&fh.fh_bytes, np->n_fhp, fhlen);
+	nmp->nm_getinfo(vp, fh.fh_bytes, &fhlen, &ss, &is_v3, &size);
+	sa = (struct sockaddr *) &ss;
 	timo.tv_sec = nmp->nm_timeo / NFS_HZ;
 	timo.tv_usec = (nmp->nm_timeo % NFS_HZ) * (1000000 / NFS_HZ);
-	if (NFS_ISV3(vp))
+	if (is_v3 != 0)
 		vers = NLM_VERS4;
 	else
 		vers = NLM_VERS;

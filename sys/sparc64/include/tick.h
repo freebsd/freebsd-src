@@ -29,10 +29,9 @@
 #ifndef _MACHINE_TICK_H_
 #define	_MACHINE_TICK_H_
 
-extern u_int hardclock_use_stick;
+extern u_int tick_et_use_stick;
 
 void	tick_clear(u_int cpu_impl);
-void	tick_start(void);
 void	tick_stop(u_int cpu_impl);
 
 #endif

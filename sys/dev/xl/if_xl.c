@@ -246,6 +246,7 @@ static int xl_watchdog(struct xl_softc *);
 static int xl_shutdown(device_t);
 static int xl_suspend(device_t);
 static int xl_resume(device_t);
+static void xl_setwol(struct xl_softc *);
 
 #ifdef DEVICE_POLLING
 static int xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
@@ -522,16 +523,6 @@ xl_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	/*
-	 * Pretend that PHYs are only available at MII address 24.
-	 * This is to guard against problems with certain 3Com ASIC
-	 * revisions that incorrectly map the internal transceiver
-	 * control registers at all MII addresses. This can cause
-	 * the miibus code to attach the same PHY several times over.
-	 */
-	if ((sc->xl_flags & XL_FLAG_PHYOK) == 0 && phy != 24)
-		return (0);
-
 	bzero((char *)&frame, sizeof(frame));
 	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
@@ -549,9 +540,6 @@ xl_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	sc = device_get_softc(dev);
 
-	if ((sc->xl_flags & XL_FLAG_PHYOK) == 0 && phy != 24)
-		return (0);
-
 	bzero((char *)&frame, sizeof(frame));
 	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
@@ -567,6 +555,7 @@ xl_miibus_statchg(device_t dev)
 {
 	struct xl_softc		*sc;
 	struct mii_data		*mii;
+	uint8_t			macctl;
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->xl_miibus);
@@ -575,11 +564,22 @@ xl_miibus_statchg(device_t dev)
 
 	/* Set ASIC's duplex mode to match the PHY. */
 	XL_SEL_WIN(3);
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
-		CSR_WRITE_1(sc, XL_W3_MAC_CTRL, XL_MACCTRL_DUPLEX);
-	else
-		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
-		    (CSR_READ_1(sc, XL_W3_MAC_CTRL) & ~XL_MACCTRL_DUPLEX));
+	macctl = CSR_READ_1(sc, XL_W3_MAC_CTRL);
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
+		macctl |= XL_MACCTRL_DUPLEX;
+		if (sc->xl_type == XL_TYPE_905B) {
+			if ((IFM_OPTIONS(mii->mii_media_active) &
+			    IFM_ETH_RXPAUSE) != 0)
+				macctl |= XL_MACCTRL_FLOW_CONTROL_ENB;
+			else
+				macctl &= ~XL_MACCTRL_FLOW_CONTROL_ENB;
+		}
+	} else {
+		macctl &= ~XL_MACCTRL_DUPLEX;
+		if (sc->xl_type == XL_TYPE_905B)
+			macctl &= ~XL_MACCTRL_FLOW_CONTROL_ENB;
+	}
+	CSR_WRITE_1(sc, XL_W3_MAC_CTRL, macctl);
 }
 
 /*
@@ -1145,11 +1145,11 @@ static int
 xl_attach(device_t dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
-	u_int16_t		xcvr[2];
+	u_int16_t		sinfo2, xcvr[2];
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
-	int			media;
-	int			unit, error = 0, rid, res;
+	int			media, pmcap;
+	int			error = 0, phy, rid, res, unit;
 	uint16_t		did;
 
 	sc = device_get_softc(dev);
@@ -1405,6 +1405,18 @@ xl_attach(device_t dev)
 	else
 		sc->xl_type = XL_TYPE_90X;
 
+	/* Check availability of WOL. */
+	if ((sc->xl_caps & XL_CAPS_PWRMGMT) != 0 &&
+	    pci_find_extcap(dev, PCIY_PMG, &pmcap) == 0) {
+		sc->xl_pmcap = pmcap;
+		sc->xl_flags |= XL_FLAG_WOL;
+		sinfo2 = 0;
+		xl_read_eeprom(sc, (caddr_t)&sinfo2, XL_EE_SOFTINFO2, 1, 0);
+		if ((sinfo2 & XL_SINFO2_AUX_WOL_CON) == 0 && bootverbose)
+			device_printf(dev,
+			    "No auxiliary remote wakeup connector!\n");
+	}
+
 	/* Set the TX start threshold for best performance. */
 	sc->xl_tx_thresh = XL_MIN_FRAMELEN;
 
@@ -1419,6 +1431,8 @@ xl_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_HWCSUM;
 #endif
 	}
+	if ((sc->xl_flags & XL_FLAG_WOL) != 0)
+		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -1452,10 +1466,20 @@ xl_attach(device_t dev)
 		if (bootverbose)
 			device_printf(dev, "found MII/AUTO\n");
 		xl_setcfg(sc);
-		if (mii_phy_probe(dev, &sc->xl_miibus,
-		    xl_ifmedia_upd, xl_ifmedia_sts)) {
-			device_printf(dev, "no PHY found!\n");
-			error = ENXIO;
+		/*
+		 * Attach PHYs only at MII address 24 if !XL_FLAG_PHYOK.
+		 * This is to guard against problems with certain 3Com ASIC
+		 * revisions that incorrectly map the internal transceiver
+		 * control registers at all MII addresses.
+		 */
+		phy = MII_PHY_ANY;
+		if ((sc->xl_flags & XL_FLAG_PHYOK) == 0)
+			phy = 24;
+		error = mii_attach(dev, &sc->xl_miibus, ifp, xl_ifmedia_upd,
+		    xl_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY,
+		    sc->xl_type == XL_TYPE_905B ? MIIF_DOPAUSE : 0);
+		if (error != 0) {
+			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 		goto done;
@@ -1635,7 +1659,6 @@ xl_detach(device_t dev)
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		XL_LOCK(sc);
-		xl_reset(sc);
 		xl_stop(sc);
 		XL_UNLOCK(sc);
 		taskqueue_drain(taskqueue_swi, &sc->xl_task);
@@ -2246,7 +2269,7 @@ xl_intr(void *arg)
 		}
 
 		if (status & XL_STAT_ADFAIL) {
-			xl_reset(sc);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			xl_init_locked(sc);
 		}
 
@@ -2317,7 +2340,7 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			}
 
 			if (status & XL_STAT_ADFAIL) {
-				xl_reset(sc);
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				xl_init_locked(sc);
 			}
 
@@ -2745,10 +2768,15 @@ xl_init_locked(struct xl_softc *sc)
 
 	XL_LOCK_ASSERT(sc);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	xl_stop(sc);
+
+	/* Reset the chip to a known state. */
+	xl_reset(sc);
 
 	if (sc->xl_miibus == NULL) {
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_RESET);
@@ -2761,6 +2789,15 @@ xl_init_locked(struct xl_softc *sc)
 	if (sc->xl_miibus != NULL)
 		mii = device_get_softc(sc->xl_miibus);
 
+	/*
+	 * Clear WOL status and disable all WOL feature as WOL
+	 * would interfere Rx operation under normal environments.
+	 */
+	if ((sc->xl_flags & XL_FLAG_WOL) != 0) {
+		XL_SEL_WIN(7);
+		CSR_READ_2(sc, XL_W7_BM_PME);
+		CSR_WRITE_2(sc, XL_W7_BM_PME, 0);
+	}
 	/* Init our MAC address */
 	XL_SEL_WIN(2);
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
@@ -2993,6 +3030,7 @@ xl_ifmedia_upd(struct ifnet *ifp)
 	if (sc->xl_media & XL_MEDIAOPT_MII ||
 	    sc->xl_media & XL_MEDIAOPT_BTX ||
 	    sc->xl_media & XL_MEDIAOPT_BT4) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		xl_init_locked(sc);
 	} else {
 		xl_setmode(sc, ifm->ifm_media);
@@ -3083,7 +3121,7 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct xl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	int			error = 0;
+	int			error = 0, mask;
 	struct mii_data		*mii = NULL;
 	u_int8_t		rxfilt;
 
@@ -3108,10 +3146,8 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				CSR_WRITE_2(sc, XL_COMMAND,
 				    XL_CMD_RX_SET_FILT|rxfilt);
 				XL_SEL_WIN(7);
-			} else {
-				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-					xl_init_locked(sc);
-			}
+			} else
+				xl_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				xl_stop(sc);
@@ -3143,40 +3179,50 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 #ifdef DEVICE_POLLING
-		if (ifr->ifr_reqcap & IFCAP_POLLING &&
-		    !(ifp->if_capenable & IFCAP_POLLING)) {
-			error = ether_poll_register(xl_poll, ifp);
-			if (error)
-				return(error);
-			XL_LOCK(sc);
-			/* Disable interrupts */
-			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
-			ifp->if_capenable |= IFCAP_POLLING;
-			XL_UNLOCK(sc);
-			return (error);
-		}
-		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
-		    ifp->if_capenable & IFCAP_POLLING) {
-			error = ether_poll_deregister(ifp);
-			/* Enable interrupts. */
-			XL_LOCK(sc);
-			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
-			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
-			if (sc->xl_flags & XL_FLAG_FUNCREG)
-				bus_space_write_4(sc->xl_ftag, sc->xl_fhandle,
-				    4, 0x8000);
-			ifp->if_capenable &= ~IFCAP_POLLING;
-			XL_UNLOCK(sc);
-			return (error);
+		if ((mask & IFCAP_POLLING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_POLLING) != 0) {
+			ifp->if_capenable ^= IFCAP_POLLING;
+			if ((ifp->if_capenable & IFCAP_POLLING) != 0) {
+				error = ether_poll_register(xl_poll, ifp);
+				if (error)
+					break;
+				XL_LOCK(sc);
+				/* Disable interrupts */
+				CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
+				ifp->if_capenable |= IFCAP_POLLING;
+				XL_UNLOCK(sc);
+			} else {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupts. */
+				XL_LOCK(sc);
+				CSR_WRITE_2(sc, XL_COMMAND,
+				    XL_CMD_INTR_ACK | 0xFF);
+				CSR_WRITE_2(sc, XL_COMMAND,
+				    XL_CMD_INTR_ENB | XL_INTRS);
+				if (sc->xl_flags & XL_FLAG_FUNCREG)
+					bus_space_write_4(sc->xl_ftag,
+					    sc->xl_fhandle, 4, 0x8000);
+				XL_UNLOCK(sc);
+			}
 		}
 #endif /* DEVICE_POLLING */
 		XL_LOCK(sc);
-		ifp->if_capenable = ifr->ifr_reqcap;
-		if (ifp->if_capenable & IFCAP_TXCSUM)
-			ifp->if_hwassist = XL905B_CSUM_FEATURES;
-		else
-			ifp->if_hwassist = 0;
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				ifp->if_hwassist |= XL905B_CSUM_FEATURES;
+			else
+				ifp->if_hwassist &= ~XL905B_CSUM_FEATURES;
+		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
+			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		XL_UNLOCK(sc);
 		break;
 	default:
@@ -3226,7 +3272,7 @@ xl_watchdog(struct xl_softc *sc)
 		device_printf(sc->xl_dev,
 		    "no carrier - transceiver cable problem?\n");
 
-	xl_reset(sc);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	xl_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
@@ -3319,16 +3365,8 @@ xl_stop(struct xl_softc *sc)
 static int
 xl_shutdown(device_t dev)
 {
-	struct xl_softc		*sc;
 
-	sc = device_get_softc(dev);
-
-	XL_LOCK(sc);
-	xl_reset(sc);
-	xl_stop(sc);
-	XL_UNLOCK(sc);
-
-	return (0);
+	return (xl_suspend(dev));
 }
 
 static int
@@ -3340,6 +3378,7 @@ xl_suspend(device_t dev)
 
 	XL_LOCK(sc);
 	xl_stop(sc);
+	xl_setwol(sc);
 	XL_UNLOCK(sc);
 
 	return (0);
@@ -3356,11 +3395,43 @@ xl_resume(device_t dev)
 
 	XL_LOCK(sc);
 
-	xl_reset(sc);
-	if (ifp->if_flags & IFF_UP)
+	if (ifp->if_flags & IFF_UP) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		xl_init_locked(sc);
+	}
 
 	XL_UNLOCK(sc);
 
 	return (0);
+}
+
+static void
+xl_setwol(struct xl_softc *sc)
+{
+	struct ifnet		*ifp;
+	u_int16_t		cfg, pmstat;
+
+	if ((sc->xl_flags & XL_FLAG_WOL) == 0)
+		return;
+
+	ifp = sc->xl_ifp;
+	XL_SEL_WIN(7);
+	/* Clear any pending PME events. */
+	CSR_READ_2(sc, XL_W7_BM_PME);
+	cfg = 0;
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		cfg |= XL_BM_PME_MAGIC;
+	CSR_WRITE_2(sc, XL_W7_BM_PME, cfg);
+	/* Enable RX. */
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_ENABLE);
+	/* Request PME. */
+	pmstat = pci_read_config(sc->xl_dev,
+	    sc->xl_pmcap + PCIR_POWER_STATUS, 2);
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		pmstat |= PCIM_PSTAT_PMEENABLE;
+	else
+		pmstat &= ~PCIM_PSTAT_PMEENABLE;
+	pci_write_config(sc->xl_dev,
+	    sc->xl_pmcap + PCIR_POWER_STATUS, pmstat, 2);
 }

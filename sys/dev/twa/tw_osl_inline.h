@@ -108,21 +108,6 @@
 
 
 
-/*
- * Function name:	tw_osl_ctlr_ready
- * Description:		CL calls this function to notify the OS Layer that it
- *			is ready to accept new requests.  This function is
- *			called only if a call to tw_osl_ctlr_busy has been
- *			made previously.  We don't use this function as of now.
- *
- * Input:		ctlr_handle	-- ptr to controller handle
- * Output:		None
- * Return value:	None
- */
-#define tw_osl_ctlr_ready(ctlr_handle)
-
-
-
 #ifdef TW_OSL_DEBUG
 
 /*

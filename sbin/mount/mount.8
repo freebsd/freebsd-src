@@ -305,9 +305,6 @@ When you are done with the mounted snapshot:
 umount /mnt
 mdconfig -d -u 4
 .Ed
-.Pp
-Further details can be found in the file at
-.Pa /usr/src/sys/ufs/ffs/README.snapshot .
 .El
 .It Cm suiddir
 A directory on the mounted file system will respond to the SUID bit
@@ -525,6 +522,7 @@ support for a particular file system might be provided either on a static
 .Xr nmount 2 ,
 .Xr acl 3 ,
 .Xr mac 4 ,
+.Xr devfs 5 ,
 .Xr ext2fs 5 ,
 .Xr fstab 5 ,
 .Xr procfs 5 ,
@@ -542,6 +540,11 @@ support for a particular file system might be provided either on a static
 .Xr umount 8 ,
 .Xr zfs 8 ,
 .Xr zpool 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v1 .
 .Sh CAVEATS
 After a successful
 .Nm ,
@@ -564,10 +567,5 @@ gets a
 signal (that causes an update of the export list)
 only when the file system is mounted via
 .Nm .
-.Sh HISTORY
-A
-.Nm
-utility appeared in
-.At v1 .
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.

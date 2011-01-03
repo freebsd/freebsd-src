@@ -466,7 +466,7 @@ TrCreateLeafNode (
     Op = TrAllocateNode (ParseOpcode);
 
     DbgPrint (ASL_PARSE_OUTPUT,
-        "\nCreateLeafNode  Ln/Col %d/%d NewNode %p  Op %s\n\n",
+        "\nCreateLeafNode  Ln/Col %u/%u NewNode %p  Op %s\n\n",
         Op->Asl.LineNumber, Op->Asl.Column, Op, UtGetOpName(ParseOpcode));
 
     return Op;
@@ -498,7 +498,7 @@ TrCreateValuedLeafNode (
     Op = TrAllocateNode (ParseOpcode);
 
     DbgPrint (ASL_PARSE_OUTPUT,
-        "\nCreateValuedLeafNode  Ln/Col %d/%d NewNode %p  Op %s  Value %8.8X%8.8X  ",
+        "\nCreateValuedLeafNode  Ln/Col %u/%u NewNode %p  Op %s  Value %8.8X%8.8X  ",
         Op->Asl.LineNumber, Op->Asl.Column, Op, UtGetOpName(ParseOpcode),
         ACPI_FORMAT_UINT64 (Value));
     Op->Asl.Value.Integer = Value;
@@ -575,7 +575,7 @@ TrCreateNode (
     Op = TrAllocateNode (ParseOpcode);
 
     DbgPrint (ASL_PARSE_OUTPUT,
-        "\nCreateNode  Ln/Col %d/%d NewParent %p Child %d Op %s  ",
+        "\nCreateNode  Ln/Col %u/%u NewParent %p Child %u Op %s  ",
         Op->Asl.LineNumber, Op->Asl.Column, Op, NumChildren, UtGetOpName(ParseOpcode));
 
     /* Some extra debug output based on the parse opcode */
@@ -694,7 +694,7 @@ TrLinkChildren (
     TrSetEndLineNumber (Op);
 
     DbgPrint (ASL_PARSE_OUTPUT,
-        "\nLinkChildren  Line [%d to %d] NewParent %p Child %d Op %s  ",
+        "\nLinkChildren  Line [%u to %u] NewParent %p Child %u Op %s  ",
         Op->Asl.LineNumber, Op->Asl.EndLine,
         Op, NumChildren, UtGetOpName(Op->Asl.ParseOpcode));
 
@@ -882,7 +882,7 @@ TrLinkPeerNodes (
 
 
     DbgPrint (ASL_PARSE_OUTPUT,
-        "\nLinkPeerNodes: (%d) ", NumPeers);
+        "\nLinkPeerNodes: (%u) ", NumPeers);
 
     va_start (ap, NumPeers);
     This = va_arg (ap, ACPI_PARSE_OBJECT *);
@@ -893,7 +893,7 @@ TrLinkPeerNodes (
      */
     for (i = 0; i < (NumPeers -1); i++)
     {
-        DbgPrint (ASL_PARSE_OUTPUT, "%d=%p ", (i+1), This);
+        DbgPrint (ASL_PARSE_OUTPUT, "%u=%p ", (i+1), This);
 
         while (This->Asl.Next)
         {

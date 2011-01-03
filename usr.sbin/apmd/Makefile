@@ -5,17 +5,12 @@ MAN=	apmd.8
 MANSUBDIR= /i386
 SRCS=	apmd.c apmdlex.l apmdparse.y y.tab.h
 
-WARNS?=	0
+WARNS?=	3
 
 DPADD=	${LIBL}
 LDADD=	-ll
 
-YFLAGS+=-v
-CFLAGS+=-I. -I${.CURDIR} #-DYY_STACK_USED
-# for debug:
-#CFLAGS+= -g -DDEBUG
-
-CLEANFILES= y.output
+CFLAGS+= -I${.CURDIR}
 
 test:
 	./apmd -d -f etc/apmd.conf -n

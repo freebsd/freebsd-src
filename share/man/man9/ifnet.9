@@ -588,6 +588,31 @@ longer than permitted by the Ethernet specification.
 .It Dv IFCAP_JUMBO_MTU
 This Ethernet interface can transmit and receive frames up to
 9000 bytes long.
+.It Dv IFCAP_TSO4
+This Ethernet interface supports TCP Segmentation offloading.
+.It Dv IFCAP_TSO6
+This Ethernet interface supports TCP6 Segmentation offloading.
+.It Dv IFCAP_TSO
+A shorthand for 
+.Pq Dv IFCAP_TSO4 | IFCAP_TSO6 .
+.It Dv IFCAP_TOE4
+This Ethernet interface supports TCP offloading.
+.It Dv IFCAP_TOE6
+This Ethernet interface supports TCP6 offloading.
+.It Dv ICAP_TOE
+A Shorthand for 
+.Pq Dv IFCAP_TOE4 | IFCAP_TOE6 .
+.It Dv IFCAP_WOL_UCAST
+This Ethernet interface supports waking up on any Unicast packet.
+.It Dv IFCAP_WOL_MCAST
+This Ethernet interface supports waking up on any Multicast packet.
+.It Dv IFCAP_WOL_MAGIC
+This Ethernet interface supports waking up on any Magic packet such
+as those sent by
+.Xr wake 8 .
+.It Dv IFCAP_WOL
+A shorthand for
+.Pq Dv IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC .
 .El
 .Pp
 The ability of advanced network interfaces to offload certain

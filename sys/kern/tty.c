@@ -263,12 +263,14 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	if (!tty_opened(tp)) {
 		/* Set proper termios flags. */
-		if (TTY_CALLOUT(tp, dev)) {
+		if (TTY_CALLOUT(tp, dev))
 			tp->t_termios = tp->t_termios_init_out;
-		} else {
+		else
 			tp->t_termios = tp->t_termios_init_in;
-		}
 		ttydevsw_param(tp, &tp->t_termios);
+		/* Prevent modem control on callout devices and /dev/console. */
+		if (TTY_CALLOUT(tp, dev) || dev == dev_console)
+			tp->t_termios.c_cflag |= CLOCAL;
 
 		ttydevsw_modem(tp, SER_DTR|SER_RTS, 0);
 
@@ -281,7 +283,7 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	}
 
 	/* Wait for Carrier Detect. */
-	if (!TTY_CALLOUT(tp, dev) && (oflags & O_NONBLOCK) == 0 &&
+	if ((oflags & O_NONBLOCK) == 0 &&
 	    (tp->t_termios.c_cflag & CLOCAL) == 0) {
 		while ((ttydevsw_modem(tp, 0, 0) & SER_DCD) == 0) {
 			error = tty_wait(tp, &tp->t_dcdwait);
@@ -1040,7 +1042,8 @@ tty_rel_free(struct tty *tp)
 	tp->t_dev = NULL;
 	tty_unlock(tp);
 
-	destroy_dev_sched_cb(dev, tty_dealloc, tp);
+	if (dev != NULL)
+		destroy_dev_sched_cb(dev, tty_dealloc, tp);
 }
 
 void
@@ -1796,7 +1799,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	struct cdev *dev;
 	struct cdevsw *cdp;
 	struct filedesc *fdp;
-	int error;
+	int error, ref;
 
 	/* Validate the file descriptor. */
 	if ((fdp = p->p_fd) == NULL)
@@ -1822,7 +1825,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	}
 
 	/* Make sure it is a TTY. */
-	cdp = devvn_refthread(fp->f_vnode, &dev);
+	cdp = devvn_refthread(fp->f_vnode, &dev, &ref);
 	if (cdp == NULL) {
 		error = ENXIO;
 		goto done1;
@@ -1858,7 +1861,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 		th->th_rint = ttyhook_defrint;
 
 done3:	tty_unlock(tp);
-done2:	dev_relthread(dev);
+done2:	dev_relthread(dev, ref);
 done1:	fdrop(fp, curthread);
 	return (error);
 }

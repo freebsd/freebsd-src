@@ -305,6 +305,8 @@ main(int argc, char *argv[])
 		}
 		cp = ifa->ifa_name;
 
+		if ((ifa->ifa_flags & IFF_CANTCONFIG) != 0)
+			continue;
 		if (downonly && (ifa->ifa_flags & IFF_UP) != 0)
 			continue;
 		if (uponly && (ifa->ifa_flags & IFF_UP) == 0)
@@ -319,7 +321,9 @@ main(int argc, char *argv[])
 				/* special case for "ether" address family */
 				if (!strcmp(afp->af_name, "ether")) {
 					if (sdl == NULL ||
-					    sdl->sdl_type != IFT_ETHER ||
+					    (sdl->sdl_type != IFT_ETHER &&
+					    sdl->sdl_type != IFT_L2VLAN &&
+					    sdl->sdl_type != IFT_BRIDGE) ||
 					    sdl->sdl_alen != ETHER_ADDR_LEN)
 						continue;
 				} else {

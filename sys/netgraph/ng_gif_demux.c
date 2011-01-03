@@ -391,7 +391,7 @@ ng_gif_demux_disconnect(hook_p hook)
 	else {
 		iffam = get_iffam_from_hook(priv, hook);
 		if (iffam == NULL)
-			panic(__func__);
+			panic("%s", __func__);
 		*get_hook_from_iffam(priv, iffam) = NULL;
 	}
 

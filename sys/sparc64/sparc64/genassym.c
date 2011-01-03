@@ -105,10 +105,6 @@ ASSYM(IC_SIZE, offsetof(struct cacheinfo, ic_size));
 ASSYM(IC_LINESIZE, offsetof(struct cacheinfo, ic_linesize));
 #endif
 
-#ifdef SMP
-ASSYM(ICA_PA, offsetof(struct ipi_cache_args, ica_pa));
-#endif
-
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
 ASSYM(KTR_LINE, offsetof(struct ktr_entry, ktr_line));
 ASSYM(KTR_FILE, offsetof(struct ktr_entry, ktr_file));
@@ -140,6 +136,7 @@ ASSYM(TS_MIN, TS_MIN);
 ASSYM(TS_MAX, TS_MAX);
 ASSYM(TLB_DAR_SLOT_SHIFT, TLB_DAR_SLOT_SHIFT);
 ASSYM(TLB_CXR_PGSZ_MASK, TLB_CXR_PGSZ_MASK);
+ASSYM(TLB_DIRECT_ADDRESS_MASK, TLB_DIRECT_ADDRESS_MASK);
 ASSYM(TLB_DIRECT_TO_TTE_MASK, TLB_DIRECT_TO_TTE_MASK);
 ASSYM(TV_SIZE_BITS, TV_SIZE_BITS);
 #endif
@@ -160,6 +157,7 @@ ASSYM(HASH_ENTRY_SHIFT, HASH_ENTRY_SHIFT);
 
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 
+ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
@@ -214,7 +212,12 @@ ASSYM(IR_ARG, offsetof(struct intr_request, ir_arg));
 ASSYM(IR_PRI, offsetof(struct intr_request, ir_pri));
 ASSYM(IR_VEC, offsetof(struct intr_request, ir_vec));
 
-#ifdef SMP
+#if defined(SUN4U) && defined(SMP)
+ASSYM(ICA_PA, offsetof(struct ipi_cache_args, ica_pa));
+
+ASSYM(IRA_MASK, offsetof(struct ipi_rd_args, ira_mask));
+ASSYM(IRA_VAL, offsetof(struct ipi_rd_args, ira_val));
+
 ASSYM(ITA_MASK, offsetof(struct ipi_tlb_args, ita_mask));
 ASSYM(ITA_PMAP, offsetof(struct ipi_tlb_args, ita_pmap));
 ASSYM(ITA_START, offsetof(struct ipi_tlb_args, ita_start));

@@ -187,7 +187,6 @@ When and where a function depends on the settings of one or more variables
 will be noted in the following table:
 .Pp
 .Sy "Function Glossary" :
-.Pp
 .Bl -tag -width indent
 .It configAnonFTP
 Invoke the Anonymous FTP configuration menu.
@@ -218,10 +217,10 @@ Configure host as a user of the Network Time Protocol.
 .Pp
 .Sy Variables :
 .Bl -tag -width indent
-.It ntpdate_flags
-The flags to
-.Xr ntpdate 8 ,
-that is to say the name of the server to sync from.
+.It ntpdate_hosts
+Whitespace-separated list of
+.Xr ntpdate 8
+servers to sync from.
 .El
 .It configPCNFSD
 Configure host to support PC NFS.
@@ -428,7 +427,7 @@ Dictionary information (for tools like spell).
 .It Li info
 GNU info files and other extra docs.
 .It Li lib32
-(amd64 only)
+(amd64 and powerpc64 only)
 32-bit runtime compatibility libraries.
 .It Li ports
 The ports collection.
@@ -640,12 +639,10 @@ The domain name of the host being installed (optional).
 .It defaultrouter
 The default router for this host (non-optional).
 .It netDev
-Which host interface to use
-.Ar ( ed0
-or
-.Ar ep0 ,
-for example.
-Non-optional).
+Which network interface to use. 
+Multiple network interfaces may be specified using a comma delimited list. 
+If netDev is set to ANY, all available network interfaces will be probed and the
+first interface found to have a link will be used. (non-optional).
 .It netInteractive
 If set, bring up the interactive network setup form even
 if all relevant configuration variables are already set (optional).
@@ -747,8 +744,7 @@ Default: user@host
 .Sy Variables :
 .Bl -tag -width indent
 .It cpioVerbose
-Can be used to set the verbosity of cpio extractions to low, medium or
-high.
+Can be used to set the verbosity of cpio extractions to low or high.
 .El
 .It mediaGetType
 Interactively get the user to specify some type of media.
@@ -898,9 +894,6 @@ Use
 and
 .Xr bsdlabel 8
 for these tasks.
-.Pp
-This utility is a prototype which lasted several years past
-its expiration date and is greatly in need of death.
 .Pp
 There are a (great) number of undocumented variables.
 UTSL.

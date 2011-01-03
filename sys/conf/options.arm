@@ -23,8 +23,6 @@ KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
 LOADERRAMADDR		opt_global.h
 PHYSADDR		opt_global.h
-PHYSMEM_SIZE		opt_global.h
-MII_ADDR_BASE		opt_global.h
 SKYEYE_WORKAROUNDS	opt_global.h
 SOC_MV_DISCOVERY	opt_global.h
 SOC_MV_KIRKWOOD		opt_global.h
@@ -33,8 +31,11 @@ STARTUP_PAGETABLE_ADDR	opt_global.h
 XSCALE_CACHE_READ_WRITE_ALLOCATE	opt_global.h
 XSACLE_DISABLE_CCNT	opt_timer.h
 VERBOSE_INIT_ARM	opt_global.h
+AT91_ATE_USE_RMII	opt_at91.h
 AT91_BWCT		opt_at91.h
 AT91_TSC		opt_at91.h
 AT91_KWIKBYTE		opt_at91.h
+AT91_MCI_HAS_4WIRE	opt_at91.h
+AT91_MCI_SLOT_B		opt_at91.h
 CPU_FA526		opt_global.h
 CPU_FA626TE		opt_global.h

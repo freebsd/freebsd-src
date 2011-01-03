@@ -75,7 +75,8 @@
 	/* Pointer to the CPU LDT descriptor */				\
 	struct system_segment_descriptor *pc_ldt;			\
 	/* Pointer to the CPU TSS descriptor */				\
-	struct system_segment_descriptor *pc_tss			\
+	struct system_segment_descriptor *pc_tss;			\
+	u_int	pc_cmci_mask		/* MCx banks for CMCI */	\
 	PCPU_XEN_FIELDS
 
 #ifdef _KERNEL
@@ -215,12 +216,12 @@ extern struct pcpu *pcpup;
 #define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
-static __inline struct thread *
+static __inline __pure2 struct thread *
 __curthread(void)
 {
 	struct thread *td;
 
-	__asm __volatile("movq %%gs:0,%0" : "=r" (td));
+	__asm("movq %%gs:0,%0" : "=r" (td));
 	return (td);
 }
 #define	curthread		(__curthread())

@@ -95,9 +95,10 @@ static void cxgb_build_medialist(struct port_info *);
 static void cxgb_media_status(struct ifnet *, struct ifmediareq *);
 static int setup_sge_qsets(adapter_t *);
 static void cxgb_async_intr(void *);
-static void cxgb_ext_intr_handler(void *, int);
 static void cxgb_tick_handler(void *, int);
 static void cxgb_tick(void *);
+static void link_check_callout(void *);
+static void check_link_status(void *, int);
 static void setup_rss(adapter_t *sc);
 static int alloc_filters(struct adapter *);
 static int setup_hw_filters(struct adapter *);
@@ -238,6 +239,10 @@ TUNABLE_INT("hw.cxgb.snd_queue_len", &cxgb_snd_queue_len);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, snd_queue_len, CTLFLAG_RDTUN,
     &cxgb_snd_queue_len, 0, "send queue size ");
 
+static int nfilters = -1;
+TUNABLE_INT("hw.cxgb.nfilters", &nfilters);
+SYSCTL_INT(_hw_cxgb, OID_AUTO, nfilters, CTLFLAG_RDTUN,
+    &nfilters, 0, "max number of entries in the filter table");
 
 enum {
 	MAX_TXQ_ENTRIES      = 16384,
@@ -454,20 +459,18 @@ cxgb_controller_attach(device_t dev)
 
 	/* find the PCIe link width and set max read request to 4KB*/
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
-		uint16_t lnk, pectl;
-		lnk = pci_read_config(dev, reg + 0x12, 2);
-		sc->link_width = (lnk >> 4) & 0x3f;
-		
-		pectl = pci_read_config(dev, reg + 0x8, 2);
-		pectl = (pectl & ~0x7000) | (5 << 12);
-		pci_write_config(dev, reg + 0x8, pectl, 2);
-	}
+		uint16_t lnk;
 
-	if (sc->link_width != 0 && sc->link_width <= 4 &&
-	    (ai->nports0 + ai->nports1) <= 2) {
-		device_printf(sc->dev,
-		    "PCIe x%d Link, expect reduced performance\n",
-		    sc->link_width);
+		lnk = pci_read_config(dev, reg + PCIR_EXPRESS_LINK_STA, 2);
+		sc->link_width = (lnk & PCIM_LINK_STA_WIDTH) >> 4;
+		if (sc->link_width < 8 &&
+		    (ai->caps & SUPPORTED_10000baseT_Full)) {
+			device_printf(sc->dev,
+			    "PCIe x%d Link, expect reduced performance\n",
+			    sc->link_width);
+		}
+
+		pci_set_max_read_req(dev, 4096);
 	}
 
 	touch_bars(dev);
@@ -584,7 +587,6 @@ cxgb_controller_attach(device_t dev)
 
 	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(dev));
-	TASK_INIT(&sc->ext_intr_task, 0, cxgb_ext_intr_handler, sc);
 	TASK_INIT(&sc->tick_task, 0, cxgb_tick_handler, sc);
 
 	
@@ -668,7 +670,7 @@ cxgb_controller_attach(device_t dev)
 		 sc->params.vpd.port_type[2], sc->params.vpd.port_type[3]);
 
 	device_printf(sc->dev, "Firmware Version %s\n", &sc->fw_version[0]);
-	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
+	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 	t3_add_attach_sysctls(sc);
 out:
 	if (error)
@@ -976,7 +978,7 @@ cxgb_makedev(struct port_info *pi)
 {
 	
 	pi->port_cdev = make_dev(&cxgb_cdevsw, pi->ifp->if_dunit,
-	    UID_ROOT, GID_WHEEL, 0600, if_name(pi->ifp));
+	    UID_ROOT, GID_WHEEL, 0600, "%s", if_name(pi->ifp));
 	
 	if (pi->port_cdev == NULL)
 		return (ENOMEM);
@@ -1004,6 +1006,9 @@ cxgb_port_attach(device_t dev)
 	snprintf(p->lockbuf, PORT_NAME_LEN, "cxgb port lock %d:%d",
 	    device_get_unit(device_get_parent(dev)), p->port_id);
 	PORT_LOCK_INIT(p, p->lockbuf);
+
+	callout_init(&p->link_check_ch, CALLOUT_MPSAFE);
+	TASK_INIT(&p->link_check_task, 0, check_link_status, p);
 
 	/* Allocate an ifnet object and set it up */
 	ifp = p->ifp = if_alloc(IFT_ETHER);
@@ -1258,29 +1263,6 @@ void t3_os_phymod_changed(struct adapter *adap, int port_id)
 		KASSERT(mod < ARRAY_SIZE(mod_str),
 			("invalid PHY module type %d", mod));
 		if_printf(pi->ifp, "%s PHY module inserted\n", mod_str[mod]);
-	}
-}
-
-/*
- * Interrupt-context handler for external (PHY) interrupts.
- */
-void
-t3_os_ext_intr_handler(adapter_t *sc)
-{
-	if (cxgb_debug)
-		printf("t3_os_ext_intr_handler\n");
-	/*
-	 * Schedule a task to handle external interrupts as they may be slow
-	 * and we use a mutex to protect MDIO registers.  We disable PHY
-	 * interrupts in the meantime and let the task reenable them when
-	 * it's done.
-	 */
-	if (sc->slow_intr_mask) {
-		ADAPTER_LOCK(sc);
-		sc->slow_intr_mask &= ~F_T3DBG;
-		t3_write_reg(sc, A_PL_INT_ENABLE0, sc->slow_intr_mask);
-		taskqueue_enqueue(sc->tq, &sc->ext_intr_task);
-		ADAPTER_UNLOCK(sc);
 	}
 }
 
@@ -1652,6 +1634,7 @@ static int
 cxgb_up(struct adapter *sc)
 {
 	int err = 0;
+	unsigned int mxf = t3_mc5_size(&sc->mc5) - MC5_MIN_TIDS;
 
 	KASSERT(sc->open_device_map == 0, ("%s: device(s) already open (%x)",
 					   __func__, sc->open_device_map));
@@ -1668,11 +1651,13 @@ cxgb_up(struct adapter *sc)
 			if ((err = update_tpsram(sc)))
 				goto out;
 
-		if (is_offload(sc)) {
+		if (is_offload(sc) && nfilters != 0) {
 			sc->params.mc5.nservers = 0;
-			sc->params.mc5.nroutes = 0;
-			sc->params.mc5.nfilters = t3_mc5_size(&sc->mc5) -
-			    MC5_MIN_TIDS;
+
+			if (nfilters < 0)
+				sc->params.mc5.nfilters = mxf;
+			else
+				sc->params.mc5.nfilters = min(nfilters, mxf);
 		}
 
 		err = t3_init_hw(sc, 0);
@@ -1793,11 +1778,12 @@ cxgb_init_locked(struct port_info *p)
 	struct adapter *sc = p->adapter;
 	struct ifnet *ifp = p->ifp;
 	struct cmac *mac = &p->mac;
-	int i, rc = 0, may_sleep = 0;
+	int i, rc = 0, may_sleep = 0, gave_up_lock = 0;
 
 	ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	while (!IS_DOOMED(p) && IS_BUSY(sc)) {
+		gave_up_lock = 1;
 		if (mtx_sleep(&sc->flags, &sc->lock, PCATCH, "cxgbinit", 0)) {
 			rc = EINTR;
 			goto done;
@@ -1817,6 +1803,7 @@ cxgb_init_locked(struct port_info *p)
 
 	if (may_sleep) {
 		SET_BUSY(sc);
+		gave_up_lock = 1;
 		ADAPTER_UNLOCK(sc);
 	}
 
@@ -1845,8 +1832,6 @@ cxgb_init_locked(struct port_info *p)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	PORT_UNLOCK(p);
 
-	t3_link_changed(sc, p->port_id);
-
 	for (i = p->first_qset; i < p->first_qset + p->nqsets; i++) {
 		struct sge_qset *qs = &sc->sge.qs[i];
 		struct sge_txq *txq = &qs->txq[TXQ_ETH];
@@ -1857,14 +1842,18 @@ cxgb_init_locked(struct port_info *p)
 
 	/* all ok */
 	setbit(&sc->open_device_map, p->port_id);
+	callout_reset(&p->link_check_ch,
+	    p->phy.caps & SUPPORTED_LINK_IRQ ?  hz * 3 : hz / 4,
+	    link_check_callout, p);
 
 done:
 	if (may_sleep) {
 		ADAPTER_LOCK(sc);
 		KASSERT(IS_BUSY(sc), ("%s: controller not busy.", __func__));
 		CLR_BUSY(sc);
-		wakeup_one(&sc->flags);
 	}
+	if (gave_up_lock)
+		wakeup_one(&sc->flags);
 	ADAPTER_UNLOCK(sc);
 	return (rc);
 }
@@ -1930,8 +1919,10 @@ cxgb_uninit_synchronized(struct port_info *pi)
 	clrbit(&sc->open_device_map, pi->port_id);
 	t3_port_intr_disable(sc, pi->port_id);
 	taskqueue_drain(sc->tq, &sc->slow_intr_task);
-	taskqueue_drain(sc->tq, &sc->ext_intr_task);
 	taskqueue_drain(sc->tq, &sc->tick_task);
+
+	callout_drain(&pi->link_check_ch);
+	taskqueue_drain(sc->tq, &pi->link_check_task);
 
 	PORT_LOCK(pi);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -1979,7 +1970,6 @@ cxgb_set_lro(struct port_info *p, int enabled)
 	struct adapter *adp = p->adapter;
 	struct sge_qset *q;
 
-	PORT_LOCK_ASSERT_OWNED(p);
 	for (i = 0; i < p->nqsets; i++) {
 		q = &adp->sge.qs[p->first_qset + i];
 		q->lro.enabled = (enabled != 0);
@@ -2289,61 +2279,47 @@ cxgb_async_intr(void *data)
 {
 	adapter_t *sc = data;
 
-	if (cxgb_debug)
-		device_printf(sc->dev, "cxgb_async_intr\n");
-	/*
-	 * May need to sleep - defer to taskqueue
-	 */
+	t3_write_reg(sc, A_PL_INT_ENABLE0, 0);
+	(void) t3_read_reg(sc, A_PL_INT_ENABLE0);
 	taskqueue_enqueue(sc->tq, &sc->slow_intr_task);
 }
 
 static void
-cxgb_ext_intr_handler(void *arg, int count)
+link_check_callout(void *arg)
 {
-	adapter_t *sc = (adapter_t *)arg;
+	struct port_info *pi = arg;
+	struct adapter *sc = pi->adapter;
 
-	if (cxgb_debug)
-		printf("cxgb_ext_intr_handler\n");
+	if (!isset(&sc->open_device_map, pi->port_id))
+		return;
 
-	t3_phy_intr_handler(sc);
-
-	/* Now reenable external interrupts */
-	ADAPTER_LOCK(sc);
-	if (sc->slow_intr_mask) {
-		sc->slow_intr_mask |= F_T3DBG;
-		t3_write_reg(sc, A_PL_INT_CAUSE0, F_T3DBG);
-		t3_write_reg(sc, A_PL_INT_ENABLE0, sc->slow_intr_mask);
-	}
-	ADAPTER_UNLOCK(sc);
-}
-
-static inline int
-link_poll_needed(struct port_info *p)
-{
-	struct cphy *phy = &p->phy;
-
-	if (phy->caps & POLL_LINK_1ST_TIME) {
-		p->phy.caps &= ~POLL_LINK_1ST_TIME;
-		return (1);
-	}
-
-	return (p->link_fault || !(phy->caps & SUPPORTED_LINK_IRQ));
+	taskqueue_enqueue(sc->tq, &pi->link_check_task);
 }
 
 static void
-check_link_status(adapter_t *sc)
+check_link_status(void *arg, int pending)
 {
-	int i;
+	struct port_info *pi = arg;
+	struct adapter *sc = pi->adapter;
 
-	for (i = 0; i < (sc)->params.nports; ++i) {
-		struct port_info *p = &sc->port[i];
+	if (!isset(&sc->open_device_map, pi->port_id))
+		return;
 
-		if (!isset(&sc->open_device_map, p->port_id))
-			continue;
+	t3_link_changed(sc, pi->port_id);
 
-		if (link_poll_needed(p))
-			t3_link_changed(sc, i);
-	}
+	if (pi->link_fault || !(pi->phy.caps & SUPPORTED_LINK_IRQ))
+		callout_reset(&pi->link_check_ch, hz, link_check_callout, pi);
+}
+
+void
+t3_os_link_intr(struct port_info *pi)
+{
+	/*
+	 * Schedule a link check in the near future.  If the link is flapping
+	 * rapidly we'll keep resetting the callout and delaying the check until
+	 * things stabilize a bit.
+	 */
+	callout_reset(&pi->link_check_ch, hz / 4, link_check_callout, pi);
 }
 
 static void
@@ -2395,7 +2371,7 @@ cxgb_tick(void *arg)
 		return;
 
 	taskqueue_enqueue(sc->tq, &sc->tick_task);	
-	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
+	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 }
 
 static void
@@ -2408,8 +2384,6 @@ cxgb_tick_handler(void *arg, int count)
 
 	if (sc->flags & CXGB_SHUTDOWN || !(sc->flags & FULL_INIT_DONE))
 		return;
-
-	check_link_status(sc);
 
 	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
 		check_t3b2_mac(sc);
@@ -3080,7 +3054,6 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		if (!error) {
 			v = (uint32_t *)buf;
 
-			ioqs->bufsize -= 4 * sizeof(uint32_t);
 			ioqs->ioq_rx_enable = *v++;
 			ioqs->ioq_tx_enable = *v++;
 			ioqs->ioq_rx_status = *v++;

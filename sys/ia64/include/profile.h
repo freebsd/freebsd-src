@@ -32,7 +32,7 @@
 #define	_MCOUNT_DECL	void __mcount
 #define	MCOUNT
 
-#define	FUNCTION_ALIGNMENT	32
+#define	FUNCTION_ALIGNMENT	16
 
 typedef unsigned long	fptrdiff_t;
 

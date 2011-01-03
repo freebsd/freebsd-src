@@ -31,11 +31,6 @@
  * $FreeBSD$
  */
 
-/*
- * This file is pretty much the same as Christos' svr4_util.h
- * (for now).
- */
-
 #ifndef	_LINUX_UTIL_H_
 #define	_LINUX_UTIL_H_
 

@@ -318,7 +318,7 @@ int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request)
 	if (!dev->agp || !dev->agp->acquired)
 		return EINVAL;
 
-	DRM_DEBUG("agp_bind, page_size=%x\n", PAGE_SIZE);
+	DRM_DEBUG("agp_bind, page_size=%x\n", (int)PAGE_SIZE);
 
 	entry = drm_agp_lookup_entry(dev, (void *)request->handle);
 	if (entry == NULL || entry->bound)

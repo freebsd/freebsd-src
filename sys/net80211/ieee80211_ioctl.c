@@ -1518,6 +1518,7 @@ setmlme_assoc_adhoc(struct ieee80211vap *vap,
 	memcpy(vap->iv_des_ssid[0].ssid, ssid, ssid_len);
 	vap->iv_des_nssid = 1;
 
+	memset(&sr, 0, sizeof(sr));
 	sr.sr_flags = IEEE80211_IOC_SCAN_ACTIVE | IEEE80211_IOC_SCAN_ONCE;
 	sr.sr_duration = IEEE80211_IOC_SCAN_FOREVER;
 	memcpy(sr.sr_ssid[0].ssid, ssid, ssid_len);
@@ -1627,8 +1628,10 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	if (list == NULL)
 		return ENOMEM;
 	error = copyin(ireq->i_data, list, ireq->i_len);
-	if (error)
+	if (error) {
+		free(list, M_TEMP);
 		return error;
+	}
 	nchan = 0;
 	chanlist = list + ireq->i_len;		/* NB: zero'd already */
 	maxchan = ireq->i_len * NBBY;
@@ -1644,8 +1647,10 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 			nchan++;
 		}
 	}
-	if (nchan == 0)
+	if (nchan == 0) {
+		free(list, M_TEMP);
 		return EINVAL;
+	}
 	if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&	/* XXX */
 	    isclr(chanlist, ic->ic_bsschan->ic_ieee))
 		ic->ic_bsschan = IEEE80211_CHAN_ANYC;

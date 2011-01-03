@@ -241,6 +241,7 @@ struct usb_ncm_func_descriptor {
 #define	UCDC_NCM_CAP_ENCAP	0x04
 #define	UCDC_NCM_CAP_MAX_DATA	0x08
 #define	UCDC_NCM_CAP_CRCMODE	0x10
+#define	UCDC_NCM_CAP_MAX_DGRAM	0x20
 } __packed;
 
 /* Communications interface specific class request codes */
@@ -276,7 +277,7 @@ struct usb_ncm_parameters {
 	uWord	wNdpOutDivisor;
 	uWord	wNdpOutPayloadRemainder;
 	uWord	wNdpOutAlignment;
-	uWord	wReserved26;
+	uWord	wNtbOutMaxDatagrams;
 } __packed;
 
 /* Communications interface specific class notification codes */

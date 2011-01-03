@@ -7,6 +7,4 @@ BINMODE=4555
 DPADD=	${LIBCRYPT}
 LDADD=	-lcrypt
 
-WARNS?=	1
-
 .include <bsd.prog.mk>

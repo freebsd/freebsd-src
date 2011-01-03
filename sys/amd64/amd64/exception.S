@@ -108,6 +108,10 @@ IDTVEC(dbg)
 	TRAP_NOEN(T_TRCTRAP)
 IDTVEC(bpt)
 	TRAP_NOEN(T_BPTFLT)
+#ifdef KDTRACE_HOOKS
+IDTVEC(dtrace_ret)
+	TRAP_NOEN(T_DTRACE_RET)
+#endif
 
 /* Regular traps; The cpu does not supply tf_err for these. */
 #define	TRAP(a)	 \
@@ -166,7 +170,7 @@ alltraps:
 	jz	alltraps_testi		/* already running with kernel GS.base */
 	swapgs
 	movq	PCPU(CURPCB),%rdi
-	movb	$0,PCB_FULL_IRET(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -191,6 +195,7 @@ alltraps_pushregs_no_rdi:
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
 	FAKE_MCOUNT(TF_RIP(%rsp))
 #ifdef KDTRACE_HOOKS
 	/*
@@ -238,7 +243,7 @@ alltraps_noen:
 	jz	1f	/* already running with kernel GS.base */
 	swapgs
 	movq	PCPU(CURPCB),%rdi
-	movb	$0,PCB_FULL_IRET(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 1:	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -270,6 +275,7 @@ IDTVEC(dblfault)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
@@ -288,7 +294,7 @@ IDTVEC(page)
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
 	movq	PCPU(CURPCB),%rdi
-	movb	$0,PCB_FULL_IRET(%rdi)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 1:	movq	%cr2,%rdi		/* preserve %cr2 before ..  */
 	movq	%rdi,TF_ADDR(%rsp)	/* enabling interrupts. */
 	movw	%fs,TF_FS(%rsp)
@@ -318,7 +324,7 @@ IDTVEC(prot)
 	jz	2f			/* already running with kernel GS.base */
 1:	swapgs
 2:	movq	PCPU(CURPCB),%rdi
-	movb	$1,PCB_FULL_IRET(%rdi)	/* always full iret from GPF */
+	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)	/* always full iret from GPF */
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
@@ -350,7 +356,7 @@ IDTVEC(fast_syscall)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 	movq	PCPU(CURPCB),%r11
-	movb	$0,PCB_FULL_IRET(%r11)
+	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r11)
 	sti
 	movq	$KUDSEL,TF_SS(%rsp)
 	movq	$KUCSEL,TF_CS(%rsp)
@@ -369,11 +375,11 @@ IDTVEC(fast_syscall)
 	movq	%r14,TF_R14(%rsp)	/* C preserved */
 	movq	%r15,TF_R15(%rsp)	/* C preserved */
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp,%rdi
 	call	syscall
 	movq	PCPU(CURPCB),%rax
-	andq	$~PCB_FULLCTX,PCB_FLAGS(%rax)
 	MEXITCOUNT
 	jmp	doreti
 
@@ -434,6 +440,7 @@ IDTVEC(nmi)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
 	xorl	%ebx,%ebx
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jnz	nmi_fromuserspace
@@ -553,7 +560,7 @@ nmi_restoreregs:
 	movq	TF_R14(%rsp),%r14
 	movq	TF_R15(%rsp),%r15
 	addq	$TF_RIP,%rsp
-	iretq
+	jmp	doreti_iret
 
 ENTRY(fork_trampoline)
 	movq	%r12,%rdi		/* function */
@@ -654,8 +661,8 @@ doreti_exit:
 	 */
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jz	ld_regs
-	cmpb	$0,PCB_FULL_IRET(%r8)
-	je	ld_regs
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	jz	ld_regs
 	testl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	je	set_segs
 

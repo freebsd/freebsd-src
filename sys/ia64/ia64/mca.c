@@ -28,6 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -36,6 +37,7 @@
 #include <sys/uuid.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
+#include <machine/intr.h>
 #include <machine/mca.h>
 #include <machine/pal.h>
 #include <machine/sal.h>
@@ -72,6 +74,8 @@ SYSCTL_INT(_hw_mca, OID_AUTO, last, CTLFLAG_RD, &mca_last, 0,
 
 static struct mtx mca_sysctl_lock;
 
+static u_int mca_xiv_cmc;
+
 static int
 mca_sysctl_inject(SYSCTL_HANDLER_ARGS)
 {
@@ -87,7 +91,12 @@ mca_sysctl_inject(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	/* For example: val=137 causes a fatal CPU error. */
+	/*
+	 * Example values for injecting PAL determined machine checks:
+	 *	corrected	9
+	 *	recoverable	73
+	 *	fatal		137
+	 */
 	res = ia64_call_pal_stacked(PAL_MC_ERROR_INJECT, val, 0, 0);
 	printf("%s: %#lx, %#lx, %#lx, %#lx\n", __func__, res.pal_status,
 	    res.pal_result[0], res.pal_result[1], res.pal_result[2]);
@@ -227,6 +236,26 @@ ia64_mca_save_state(int type)
 	}
 }
 
+static u_int
+ia64_mca_intr(struct thread *td, u_int xiv, struct trapframe *tf)
+{
+
+	if (xiv == mca_xiv_cmc) {
+		printf("MCA: corrected machine check (CMC) interrupt\n");
+		return (0);
+	}
+
+	return (0);
+}
+
+void
+ia64_mca_init_ap(void)
+{
+
+	if (mca_xiv_cmc != 0)
+		ia64_set_cmcv(mca_xiv_cmc);
+}
+
 void
 ia64_mca_init(void)
 {
@@ -289,4 +318,14 @@ ia64_mca_init(void)
 	 */
 	for (i = 0; i < SAL_INFO_TYPES; i++)
 		ia64_mca_save_state(i);
+
+	/*
+	 * Allocate a XIV for CMC interrupts, so that we can collect and save
+	 * the corrected processor checks.
+	 */
+	mca_xiv_cmc = ia64_xiv_alloc(PI_SOFT, IA64_XIV_PLAT, ia64_mca_intr);
+	if (mca_xiv_cmc != 0)
+		ia64_set_cmcv(mca_xiv_cmc);
+	else
+		printf("MCA: CMC vector could not be allocated\n");
 }

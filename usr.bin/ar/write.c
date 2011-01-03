@@ -163,11 +163,24 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 	if (mtime != 0 && bsdar->options & AR_U && sb.st_mtime <= mtime)
 		goto giveup;
 
-	obj->uid = sb.st_uid;
-	obj->gid = sb.st_gid;
-	obj->md = sb.st_mode;
+	/*
+	 * When option '-D' is specified, mtime and UID / GID from the file
+	 * will be replaced with 0, and file mode with 644. This ensures that 
+	 * checksums will match for two archives containing the exact same
+	 * files.
+	 */
+	if (bsdar->options & AR_D) {
+		obj->uid = 0;
+		obj->gid = 0;
+		obj->mtime = 0;
+		obj->md = S_IFREG | 0644;
+	} else {
+		obj->uid = sb.st_uid;
+		obj->gid = sb.st_gid;
+		obj->mtime = sb.st_mtime;
+		obj->md = sb.st_mode;
+	}
 	obj->size = sb.st_size;
-	obj->mtime = sb.st_mtime;
 	obj->dev = sb.st_dev;
 	obj->ino = sb.st_ino;
 
@@ -247,7 +260,7 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
-	archive_read_support_compression_all(a);
+	archive_read_support_compression_none(a);
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_filename(a, archive, DEF_BLKSZ));
 	for (;;) {
@@ -263,13 +276,6 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 			bsdar_warnc(bsdar, 0, "Retrying...");
 			continue;
 		}
-
-		/*
-		 * Remember the compression mode of existing archive.
-		 * If neither -j nor -z is specified, this mode will
-		 * be used for resulting archive.
-		 */
-		bsdar->compression = archive_compression(a);
 
 		name = archive_entry_pathname(entry);
 
@@ -359,9 +365,6 @@ write_archive(struct bsdar *bsdar, char mode)
 	nobj = NULL;
 	pos = NULL;
 	memset(&sb, 0, sizeof(sb));
-
-	/* By default, no compression is assumed. */
-	bsdar->compression = ARCHIVE_COMPRESSION_NONE;
 
 	/*
 	 * Test if the specified archive exists, to figure out
@@ -618,23 +621,7 @@ write_objs(struct bsdar *bsdar)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_write_new failed");
 
 	archive_write_set_format_ar_svr4(a);
-
-	/* The compression mode of the existing archive is used
-	 * for the result archive or if creating a new archive, we
-	 * do not compress archive by default. This default behavior can
-	 * be overrided by compression mode specified explicitly
-	 * through command line option `-j' or `-z'.
-	 */
-	if (bsdar->options & AR_J)
-		bsdar->compression = ARCHIVE_COMPRESSION_BZIP2;
-	if (bsdar->options & AR_Z)
-		bsdar->compression = ARCHIVE_COMPRESSION_GZIP;
-	if (bsdar->compression == ARCHIVE_COMPRESSION_BZIP2)
-		archive_write_set_compression_bzip2(a);
-	else if (bsdar->compression == ARCHIVE_COMPRESSION_GZIP)
-		archive_write_set_compression_gzip(a);
-	else
-		archive_write_set_compression_none(a);
+	archive_write_set_compression_none(a);
 
 	AC(archive_write_open_filename(a, bsdar->filename));
 
@@ -647,7 +634,8 @@ write_objs(struct bsdar *bsdar)
 	    bsdar->options & AR_S) {
 		entry = archive_entry_new();
 		archive_entry_copy_pathname(entry, "/");
-		archive_entry_set_mtime(entry, time(NULL), 0);
+		if ((bsdar->options & AR_D) == 0)
+			archive_entry_set_mtime(entry, time(NULL), 0);
 		archive_entry_set_size(entry, (bsdar->s_cnt + 1) *
 		    sizeof(uint32_t) + bsdar->s_sn_sz);
 		AC(archive_write_header(a, entry));

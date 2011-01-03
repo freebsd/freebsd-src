@@ -75,7 +75,7 @@ static const char *guess_subclass(struct pci_conf *p);
 static int load_vendors(void);
 static void readit(const char *, const char *, int);
 static void writeit(const char *, const char *, const char *, int);
-static void chkattached(const char *, int);
+static void chkattached(const char *);
 
 static int exitstatus = 0;
 
@@ -148,8 +148,7 @@ main(int argc, char **argv)
 	if (listmode) {
 		list_devs(verbose, bars, caps);
 	} else if (attachedmode) {
-		chkattached(argv[optind],
-		    byte ? 1 : isshort ? 2 : 4);
+		chkattached(argv[optind]);
 	} else if (readmode) {
 		readit(argv[optind], argv[optind + 1],
 		    byte ? 1 : isshort ? 2 : 4);
@@ -646,15 +645,12 @@ writeit(const char *name, const char *reg, const char *data, int width)
 }
 
 static void
-chkattached(const char *name, int width)
+chkattached(const char *name)
 {
 	int fd;
 	struct pci_io pi;
 
 	pi.pi_sel = getsel(name);
-	pi.pi_reg = 0;
-	pi.pi_width = width;
-	pi.pi_data = 0;
 
 	fd = open(_PATH_DEVPCI, O_RDWR, 0);
 	if (fd < 0)

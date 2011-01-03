@@ -293,6 +293,9 @@ Enumeration values are all uppercase.
 enum enumtype { ONE, TWO } et;
 .Ed
 .Pp
+The use of internal_underscores in identifiers is preferred over
+camelCase or TitleCase.
+.Pp
 In declarations, do not put any whitespace between asterisks and
 adjacent tokens, except for tokens that are identifiers related to
 types.
@@ -676,7 +679,6 @@ might not be in scope.)
 Test pointers against
 .Dv NULL ,
 e.g., use:
-.Pp
 .Bd -literal
 (p = f()) == NULL
 .Ed

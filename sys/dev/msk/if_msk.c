@@ -401,9 +401,6 @@ msk_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct msk_if_softc *sc_if;
 
-	if (phy != PHY_ADDR_MARV)
-		return (0);
-
 	sc_if = device_get_softc(dev);
 
 	return (msk_phy_readreg(sc_if, phy, reg));
@@ -441,9 +438,6 @@ static int
 msk_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct msk_if_softc *sc_if;
-
-	if (phy != PHY_ADDR_MARV)
-		return (0);
 
 	sc_if = device_get_softc(dev);
 
@@ -535,11 +529,11 @@ msk_miibus_statchg(device_t dev)
 			break;
 		}
 
-		/* Disable Rx flow control. */
-		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0) == 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		    IFM_ETH_RXPAUSE) == 0)
 			gmac |= GM_GPCR_FC_RX_DIS;
-		/* Disable Tx flow control. */
-		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG1) == 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		     IFM_ETH_TXPAUSE) == 0)
 			gmac |= GM_GPCR_FC_TX_DIS;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
 			gmac |= GM_GPCR_DUP_FULL;
@@ -551,7 +545,8 @@ msk_miibus_statchg(device_t dev)
 		GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
 		gmac = GMC_PAUSE_OFF;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
-			if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0) != 0)
+			if ((IFM_OPTIONS(mii->mii_media_active) &
+			    IFM_ETH_RXPAUSE) != 0)
 				gmac = GMC_PAUSE_ON;
 		}
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), gmac);
@@ -1163,7 +1158,7 @@ mskc_setup_rambuffer(struct msk_softc *sc)
 	sc->msk_pflags |= MSK_FLAG_RAMBUF;
 	/*
 	 * Give receiver 2/3 of memory and round down to the multiple
-	 * of 1024. Tx/Rx RAM buffer size of Yukon II shoud be multiple
+	 * of 1024. Tx/Rx RAM buffer size of Yukon II should be multiple
 	 * of 1024.
 	 */
 	sc->msk_rxqsize = rounddown((sc->msk_ramsize * 1024 * 2) / 3, 1024);
@@ -1334,7 +1329,7 @@ mskc_reset(struct msk_softc *sc)
 
 	pci_write_config(sc->msk_dev, PCIR_STATUS, status |
 	    PCIM_STATUS_PERR | PCIM_STATUS_SERR | PCIM_STATUS_RMABORT |
-	    PCIM_STATUS_RTABORT | PCIM_STATUS_PERRREPORT, 2);
+	    PCIM_STATUS_RTABORT | PCIM_STATUS_MDPERR, 2);
 	CSR_WRITE_2(sc, B0_CTST, CS_MRST_CLR);
 
 	switch (sc->msk_bustype) {
@@ -1627,7 +1622,7 @@ msk_attach(device_t dev)
 		 */
         	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO;
 		/*
-		 * Enable Rx checksum offloading for VLAN taggedd frames
+		 * Enable Rx checksum offloading for VLAN tagged frames
 		 * if controller support new descriptor format.
 		 */
 		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 &&
@@ -1647,10 +1642,11 @@ msk_attach(device_t dev)
 	 * Do miibus setup.
 	 */
 	MSK_IF_UNLOCK(sc_if);
-	error = mii_phy_probe(dev, &sc_if->msk_miibus, msk_mediachange,
-	    msk_mediastatus);
+	error = mii_attach(dev, &sc_if->msk_miibus, ifp, msk_mediachange,
+	    msk_mediastatus, BMSR_DEFCAPMASK, PHY_ADDR_MARV, MII_OFFSET_ANY,
+	    mmd->mii_flags);
 	if (error != 0) {
-		device_printf(sc_if->msk_if_dev, "no PHY found!\n");
+		device_printf(sc_if->msk_if_dev, "attaching PHYs failed\n");
 		ether_ifdetach(ifp);
 		error = ENXIO;
 		goto fail;
@@ -1814,7 +1810,7 @@ mskc_attach(device_t dev)
 			 * does not rely on status word of received frame
 			 * in msk_rxeof() which in turn disables all
 			 * hardware assistance bits reported by the status
-			 * word as well as validity of the recevied frame.
+			 * word as well as validity of the received frame.
 			 * Just pass received frames to upper stack with
 			 * minimal test and let upper stack handle them.
 			 */
@@ -1891,8 +1887,11 @@ mskc_attach(device_t dev)
 	}
 	mmd->port = MSK_PORT_A;
 	mmd->pmd = sc->msk_pmd;
-	 if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S' || sc->msk_pmd == 'P')
+	mmd->mii_flags |= MIIF_DOPAUSE;
+	if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
 		mmd->mii_flags |= MIIF_HAVEFIBER;
+	if (sc->msk_pmd == 'P')
+		mmd->mii_flags |= MIIF_HAVEFIBER | MIIF_MACPRIV0;
 	device_set_ivars(sc->msk_devs[MSK_PORT_A], mmd);
 
 	if (sc->msk_num_port > 1) {
@@ -1911,8 +1910,10 @@ mskc_attach(device_t dev)
 		}
 		mmd->port = MSK_PORT_B;
 		mmd->pmd = sc->msk_pmd;
-	 	if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S' || sc->msk_pmd == 'P')
+	 	if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
 			mmd->mii_flags |= MIIF_HAVEFIBER;
+	 	if (sc->msk_pmd == 'P')
+			mmd->mii_flags |= MIIF_HAVEFIBER | MIIF_MACPRIV0;
 		device_set_ivars(sc->msk_devs[MSK_PORT_B], mmd);
 	}
 
@@ -2144,10 +2145,10 @@ msk_txrx_dma_alloc(struct msk_if_softc *sc_if)
 	 * what DMA address is used and chain another descriptor for the
 	 * 64bits DMA operation. This also means descriptor ring size is
 	 * variable. Limiting DMA address to be in 32bit address space greatly
-	 * simplyfies descriptor handling and possibly would increase
+	 * simplifies descriptor handling and possibly would increase
 	 * performance a bit due to efficient handling of descriptors.
 	 * Apart from harassing checksum offloading mechanisms, it seems
-	 * it's really bad idea to use a seperate descriptor for 64bit
+	 * it's really bad idea to use a separate descriptor for 64bit
 	 * DMA operation to save small descriptor memory. Anyway, I've
 	 * never seen these exotic scheme on ethernet interface hardware.
 	 */
@@ -2644,7 +2645,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 			 * Short UDP packets appear to be handled correctly by
 			 * Yukon II. Also I assume this bug does not happen on
 			 * controllers that use newer descriptor format or
-			 * automatic Tx checksum calaulcation.
+			 * automatic Tx checksum calculation.
 			 */
 			m = m_pullup(m, offset + sizeof(struct tcphdr));
 			if (m == NULL) {
@@ -2781,7 +2782,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	/* Update producer index. */
 	sc_if->msk_cdata.msk_tx_prod = prod;
 
-	/* Set EOP on the last desciptor. */
+	/* Set EOP on the last descriptor. */
 	prod = (prod + MSK_TX_RING_CNT - 1) % MSK_TX_RING_CNT;
 	tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
 	tx_le->msk_control |= htole32(EOP);
@@ -3069,7 +3070,7 @@ msk_rxcsum(struct msk_if_softc *sc_if, uint32_t control, struct mbuf *m)
 	default:
 		return;
 	}
-	csum = ntohs(sc_if->msk_csum & 0xFFFF);
+	csum = bswap16(sc_if->msk_csum & 0xFFFF);
 	/* Checksum fixup for IP options. */
 	len = hlen - sizeof(struct ip);
 	if (len > 0) {
@@ -3322,7 +3323,7 @@ msk_intr_gmac(struct msk_if_softc *sc_if)
 		 * XXX
 		 * In case of Tx underrun, we may need to flush/reset
 		 * Tx MAC but that would also require resynchronization
-		 * with status LEs. Reintializing status LEs would
+		 * with status LEs. Reinitializing status LEs would
 		 * affect other port in dual MAC configuration so it
 		 * should be avoided as possible as we can.
 		 * Due to lack of documentation it's all vague guess but
@@ -3405,7 +3406,7 @@ msk_intr_hwerr(struct msk_softc *sc)
 		CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		pci_write_config(sc->msk_dev, PCIR_STATUS, v16 |
 		    PCIM_STATUS_PERR | PCIM_STATUS_SERR | PCIM_STATUS_RMABORT |
-		    PCIM_STATUS_RTABORT | PCIM_STATUS_PERRREPORT, 2);
+		    PCIM_STATUS_RTABORT | PCIM_STATUS_MDPERR, 2);
 		CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	}
 
@@ -3834,7 +3835,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	msk_setvlan(sc_if, ifp);
 
 	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0) {
-		/* Set Rx Pause threshould. */
+		/* Set Rx Pause threshold. */
 		CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_LP_THR),
 		    MSK_ECU_LLPP);
 		CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_UP_THR),

@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/oui.h,v 1.7.2.1 2008-01-09 09:44:39 hannes Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/oui.h,v 1.8 2008-01-09 09:40:47 hannes Exp $ (LBL) */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code
@@ -14,8 +14,8 @@
  * Original code by Hannes Gredler (hannes@juniper.net)
  */
 
-extern struct tok oui_values[];
-extern struct tok smi_values[];
+extern const struct tok oui_values[];
+extern const struct tok smi_values[];
 
 #define OUI_ENCAP_ETHER 0x000000        /* encapsulated Ethernet */
 #define OUI_CISCO       0x00000c        /* Cisco protocols */

@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/in_cksum.h>
 
@@ -208,9 +207,6 @@ ale_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->ale_phyaddr)
-		return (0);
-
 	CSR_WRITE_4(sc, ALE_MDIO, MDIO_OP_EXECUTE | MDIO_OP_READ |
 	    MDIO_SUP_PREAMBLE | MDIO_CLK_25_4 | MDIO_REG_ADDR(reg));
 	for (i = ALE_PHY_TIMEOUT; i > 0; i--) {
@@ -236,9 +232,6 @@ ale_miibus_writereg(device_t dev, int phy, int reg, int val)
 	int i;
 
 	sc = device_get_softc(dev);
-
-	if (phy != sc->ale_phyaddr)
-		return (0);
 
 	CSR_WRITE_4(sc, ALE_MDIO, MDIO_OP_EXECUTE | MDIO_OP_WRITE |
 	    (val & MDIO_DATA_MASK) << MDIO_DATA_SHIFT |
@@ -605,9 +598,11 @@ ale_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(dev, &sc->ale_miibus, ale_mediachange,
-	    ale_mediastatus)) != 0) {
-		device_printf(dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc->ale_miibus, ifp, ale_mediachange,
+	    ale_mediastatus, BMSR_DEFCAPMASK, sc->ale_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1677,6 +1672,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
 			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 			m = m_pullup(m, poff + (tcp->th_off << 2));
 			if (m == NULL) {
@@ -2287,8 +2283,7 @@ ale_int_task(void *arg, int pending)
 	sc = (struct ale_softc *)arg;
 
 	status = CSR_READ_4(sc, ALE_INTR_STATUS);
-	more = atomic_readandclear_int(&sc->ale_morework);
-	if (more != 0)
+	if (sc->ale_morework != 0)
 		status |= INTR_RX_PKT;
 	if ((status & ALE_INTRS) == 0)
 		goto done;
@@ -2301,7 +2296,7 @@ ale_int_task(void *arg, int pending)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		more = ale_rxeof(sc, sc->ale_process_limit);
 		if (more == EAGAIN)
-			atomic_set_int(&sc->ale_morework, 1);
+			sc->ale_morework = 1;
 		else if (more == EIO) {
 			ALE_LOCK(sc);
 			sc->ale_stats.reset_brk_seq++;
@@ -3005,7 +3000,7 @@ ale_init_rx_pages(struct ale_softc *sc)
 
 	ALE_LOCK_ASSERT(sc);
 
-	atomic_set_int(&sc->ale_morework, 0);
+	sc->ale_morework = 0;
 	sc->ale_cdata.ale_rx_seqno = 0;
 	sc->ale_cdata.ale_rx_curp = 0;
 

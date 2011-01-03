@@ -345,6 +345,7 @@ SCSI_NCR_MYADDR		opt_ncr.h
 ISP_TARGET_MODE		opt_isp.h
 ISP_FW_CRASH_DUMP	opt_isp.h
 ISP_DEFAULT_ROLES	opt_isp.h
+ISP_INTERNAL_TARGET	opt_isp.h
 
 # Options used only in dev/iscsi
 ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
@@ -486,6 +487,7 @@ NETGRAPH_MPPC_ENCRYPTION	opt_netgraph.h
 NETGRAPH_NAT		opt_netgraph.h
 NETGRAPH_NETFLOW	opt_netgraph.h
 NETGRAPH_ONE2MANY	opt_netgraph.h
+NETGRAPH_PATCH		opt_netgraph.h
 NETGRAPH_PIPE		opt_netgraph.h
 NETGRAPH_PPP		opt_netgraph.h
 NETGRAPH_PPPOE		opt_netgraph.h
@@ -585,6 +587,7 @@ VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
 MALLOC_PROFILE		opt_vm.h
+MALLOC_DEBUG_MAXZONES	opt_vm.h
 
 # The MemGuard replacement allocator used for tamper-after-free detection
 DEBUG_MEMGUARD		opt_vm.h
@@ -639,6 +642,7 @@ BUS_DEBUG		opt_bus.h
 
 # options for USB support
 USB_DEBUG		opt_usb.h
+USB_REQ_DEBUG		opt_usb.h
 USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
@@ -693,6 +697,7 @@ ED_SIC			opt_ed.h
 
 # bce driver
 BCE_DEBUG		opt_bce.h
+BCE_NVRAM_WRITE_SUPPORT	opt_bce.h
 
 SOCKBUF_DEBUG		opt_global.h
 
@@ -847,3 +852,7 @@ SND_PCM_64		opt_snd.h
 SND_OLDSTEREO		opt_snd.h
 
 X86BIOS
+
+# Flattened device tree options
+FDT		opt_platform.h
+FDT_DTB_STATIC	opt_platform.h

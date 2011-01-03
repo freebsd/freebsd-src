@@ -328,6 +328,9 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	size_t psize;
 	int rc;
 
+	if (!vdev->v_phys_read)
+		return (EIO);
+
 	if (bp) {
 		psize = BP_GET_PSIZE(bp);
 	} else {
@@ -373,6 +376,27 @@ vdev_mirror_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	return (rc);
 }
 
+static int
+vdev_replacing_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
+    off_t offset, size_t bytes)
+{
+	vdev_t *kid;
+
+	/*
+	 * Here we should have two kids:
+	 * First one which is the one we are replacing and we can trust
+	 * only this one to have valid data, but it might not be present.
+	 * Second one is that one we are replacing with. It is most likely
+	 * healthy, but we can't trust it has needed data, so we won't use it.
+	 */
+	kid = STAILQ_FIRST(&vdev->v_children);
+	if (kid == NULL)
+		return (EIO);
+	if (kid->v_state != VDEV_STATE_HEALTHY)
+		return (EIO);
+	return (kid->v_read(kid, bp, buf, offset, bytes));
+}
+
 static vdev_t *
 vdev_find(uint64_t guid)
 {
@@ -413,7 +437,7 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 	vdev_t *vdev, *kid;
 	const unsigned char *kids;
 	int nkids, i, is_new;
-	uint64_t is_offline, is_faulted, is_degraded, is_removed;
+	uint64_t is_offline, is_faulted, is_degraded, is_removed, isnt_present;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_GUID,
 			DATA_TYPE_UINT64, 0, &guid)
@@ -427,12 +451,13 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 
 	if (strcmp(type, VDEV_TYPE_MIRROR)
 	    && strcmp(type, VDEV_TYPE_DISK)
-	    && strcmp(type, VDEV_TYPE_RAIDZ)) {
+	    && strcmp(type, VDEV_TYPE_RAIDZ)
+	    && strcmp(type, VDEV_TYPE_REPLACING)) {
 		printf("ZFS: can only boot from disk, mirror or raidz vdevs\n");
 		return (EIO);
 	}
 
-	is_offline = is_removed = is_faulted = is_degraded = 0;
+	is_offline = is_removed = is_faulted = is_degraded = isnt_present = 0;
 
 	nvlist_find(nvlist, ZPOOL_CONFIG_OFFLINE, DATA_TYPE_UINT64, 0,
 			&is_offline);
@@ -442,6 +467,8 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			&is_faulted);
 	nvlist_find(nvlist, ZPOOL_CONFIG_DEGRADED, DATA_TYPE_UINT64, 0,
 			&is_degraded);
+	nvlist_find(nvlist, ZPOOL_CONFIG_NOT_PRESENT, DATA_TYPE_UINT64, 0,
+			&isnt_present);
 
 	vdev = vdev_find(guid);
 	if (!vdev) {
@@ -451,6 +478,8 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			vdev = vdev_create(guid, vdev_mirror_read);
 		else if (!strcmp(type, VDEV_TYPE_RAIDZ))
 			vdev = vdev_create(guid, vdev_raidz_read);
+		else if (!strcmp(type, VDEV_TYPE_REPLACING))
+			vdev = vdev_create(guid, vdev_replacing_read);
 		else
 			vdev = vdev_create(guid, vdev_disk_read);
 
@@ -467,12 +496,7 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			vdev->v_nparity = 0;
 		if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
 				DATA_TYPE_STRING, 0, &path) == 0) {
-			if (strlen(path) > 5
-			    && path[0] == '/'
-			    && path[1] == 'd'
-			    && path[2] == 'e'
-			    && path[3] == 'v'
-			    && path[4] == '/')
+			if (strncmp(path, "/dev/", 5) == 0)
 				path += 5;
 			vdev->v_name = strdup(path);
 		} else {
@@ -485,7 +509,16 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 				vdev->v_name = strdup(type);
 			}
 		}
+	} else {
+		is_new = 0;
+	}
 
+	if (is_new || is_newer) {
+		/*
+		 * This is either new vdev or we've already seen this vdev,
+		 * but from an older vdev label, so let's refresh its state
+		 * from the newer label.
+		 */
 		if (is_offline)
 			vdev->v_state = VDEV_STATE_OFFLINE;
 		else if (is_removed)
@@ -494,28 +527,10 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			vdev->v_state = VDEV_STATE_FAULTED;
 		else if (is_degraded)
 			vdev->v_state = VDEV_STATE_DEGRADED;
+		else if (isnt_present)
+			vdev->v_state = VDEV_STATE_CANT_OPEN;
 		else
 			vdev->v_state = VDEV_STATE_HEALTHY;
-	} else {
-		is_new = 0;
-
-		if (is_newer) {
-			/*
-			 * We've already seen this vdev, but from an older
-			 * vdev label, so let's refresh its state from the
-			 * newer label.
-			 */
-			if (is_offline)
-				vdev->v_state = VDEV_STATE_OFFLINE;
-			else if (is_removed)
-				vdev->v_state = VDEV_STATE_REMOVED;
-			else if (is_faulted)
-				vdev->v_state = VDEV_STATE_FAULTED;
-			else if (is_degraded)
-				vdev->v_state = VDEV_STATE_DEGRADED;
-			else
-				vdev->v_state = VDEV_STATE_HEALTHY;
-		}
 	}
 
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN,
@@ -662,7 +677,7 @@ pager_printf(const char *fmt, ...)
 
 #endif
 
-#define STATUS_FORMAT	"        %-16s %-10s\n"
+#define STATUS_FORMAT	"        %s %s\n"
 
 static void
 print_state(int indent, const char *name, vdev_state_t state)
@@ -751,6 +766,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	uint64_t val;
 	uint64_t guid;
 	uint64_t pool_txg, pool_guid;
+	uint64_t is_log;
 	const char *pool_name;
 	const unsigned char *vdevs;
 	int i, rc, is_newer;
@@ -826,6 +842,12 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		/*printf("ZFS: can't find pool details\n");*/
 		return (EIO);
 	}
+
+	is_log = 0;
+	(void) nvlist_find(nvlist, ZPOOL_CONFIG_IS_LOG, DATA_TYPE_UINT64, 0,
+	    &is_log);
+	if (is_log)
+		return (EIO);
 
 	/*
 	 * Create the pool if this is the first time we've seen it.
@@ -958,12 +980,17 @@ zio_read_gang(spa_t *spa, const blkptr_t *bp, const dva_t *dva, void *buf)
 			break;
 	if (!vdev || !vdev->v_read)
 		return (EIO);
-	if (vdev->v_read(vdev, bp, &zio_gb, offset, SPA_GANGBLOCKSIZE))
+	if (vdev->v_read(vdev, NULL, &zio_gb, offset, SPA_GANGBLOCKSIZE))
 		return (EIO);
 
 	for (i = 0; i < SPA_GBH_NBLKPTRS; i++) {
-		if (zio_read(spa, &zio_gb.zg_blkptr[i], buf))
+		blkptr_t *gbp = &zio_gb.zg_blkptr[i];
+
+		if (BP_IS_HOLE(gbp))
+			continue;
+		if (zio_read(spa, gbp, buf))
 			return (EIO);
+		buf = (char*)buf + BP_GET_PSIZE(gbp);
 	}
  
 	return (0);
@@ -994,9 +1021,8 @@ zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 			continue;
 
 		if (DVA_GET_GANG(dva)) {
-			printf("ZFS: gang block detected!\n");
 			if (zio_read_gang(spa, bp, dva, buf))
-				return (EIO); 
+				continue;
 		} else {
 			vdevid = DVA_GET_VDEV(dva);
 			offset = DVA_GET_OFFSET(dva);
@@ -1362,7 +1388,7 @@ fzap_list(spa_t *spa, const dnode_phys_t *dnode)
 			 */
 			value = fzap_leaf_value(&zl, zc);
 
-			printf("%-32s 0x%llx\n", name, value);
+			printf("%s 0x%llx\n", name, value);
 		}
 	}
 

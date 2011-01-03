@@ -88,6 +88,7 @@ pid_t	tcgetsid(int);
 int	tcsetsid(int, pid_t);
 
 void	cfmakeraw(struct termios *);
+void	cfmakesane(struct termios *);
 int	cfsetspeed(struct termios *, speed_t);
 #endif
 __END_DECLS

@@ -72,6 +72,7 @@ void
 powerpc_interrupt(struct trapframe *framep)
 {
 	struct thread *td;
+	struct trapframe *oldframe;
 	register_t ee;
 
 	td = curthread;
@@ -81,15 +82,18 @@ powerpc_interrupt(struct trapframe *framep)
 	switch (framep->exc) {
 	case EXC_EXI:
 		critical_enter();
-		PIC_DISPATCH(pic, framep);
+		PIC_DISPATCH(root_pic, framep);
 		critical_exit();
 		break;
 
 	case EXC_DECR:
 		critical_enter();
 		atomic_add_int(&td->td_intr_nesting_level, 1);
+		oldframe = td->td_intr_frame;
+		td->td_intr_frame = framep;
 		decr_intr(framep);
-		atomic_subtract_int(&td->td_intr_nesting_level, 1);	
+		td->td_intr_frame = oldframe;
+		atomic_subtract_int(&td->td_intr_nesting_level, 1);
 		critical_exit();
 		break;
 

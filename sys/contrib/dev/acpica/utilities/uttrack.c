@@ -436,6 +436,11 @@ AcpiUtTrackAllocation (
     ACPI_FUNCTION_TRACE_PTR (UtTrackAllocation, Allocation);
 
 
+    if (AcpiGbl_DisableMemTracking)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
     MemList = AcpiGbl_GlobalList;
     Status = AcpiUtAcquireMutex (ACPI_MTX_MEMORY);
     if (ACPI_FAILURE (Status))
@@ -517,6 +522,11 @@ AcpiUtRemoveAllocation (
 
     ACPI_FUNCTION_TRACE (UtRemoveAllocation);
 
+
+    if (AcpiGbl_DisableMemTracking)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
 
     MemList = AcpiGbl_GlobalList;
     if (NULL == MemList->ListHead)
@@ -650,6 +660,11 @@ AcpiUtDumpAllocations (
     ACPI_FUNCTION_TRACE (UtDumpAllocations);
 
 
+    if (AcpiGbl_DisableMemTracking)
+    {
+        return;
+    }
+
     /*
      * Walk the allocation list.
      */
@@ -668,7 +683,7 @@ AcpiUtDumpAllocations (
 
             if (Element->Size < sizeof (ACPI_COMMON_DESCRIPTOR))
             {
-                AcpiOsPrintf ("%p Length 0x%04X %9.9s-%d "
+                AcpiOsPrintf ("%p Length 0x%04X %9.9s-%u "
                     "[Not a Descriptor - too small]\n",
                     Descriptor, Element->Size, Element->Module,
                     Element->Line);
@@ -679,7 +694,7 @@ AcpiUtDumpAllocations (
 
                 if (ACPI_GET_DESCRIPTOR_TYPE (Descriptor) != ACPI_DESC_TYPE_CACHED)
                 {
-                    AcpiOsPrintf ("%p Length 0x%04X %9.9s-%d [%s] ",
+                    AcpiOsPrintf ("%p Length 0x%04X %9.9s-%u [%s] ",
                         Descriptor, Element->Size, Element->Module,
                         Element->Line, AcpiUtGetDescriptorName (Descriptor));
 
@@ -757,7 +772,7 @@ AcpiUtDumpAllocations (
     }
     else
     {
-        ACPI_ERROR ((AE_INFO, "%d(0x%X) Outstanding allocations",
+        ACPI_ERROR ((AE_INFO, "%u(0x%X) Outstanding allocations",
             NumOutstanding, NumOutstanding));
     }
 

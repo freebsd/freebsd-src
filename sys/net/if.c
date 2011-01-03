@@ -33,8 +33,6 @@
 #include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
-#include "opt_carp.h"
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -63,10 +61,6 @@
 #include <machine/stdarg.h>
 #include <vm/uma.h>
 
-#ifdef DDB
-#include <ddb/ddb.h>
-#endif
-
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_clone.h>
@@ -81,6 +75,7 @@
 /*XXX*/
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/ip_carp.h>
 #ifdef INET6
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
@@ -89,13 +84,13 @@
 #ifdef INET
 #include <netinet/if_ether.h>
 #endif
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
-#include <netinet/ip_carp.h>
-#endif
-#endif
 
 #include <security/mac/mac_framework.h>
+
+#ifdef COMPAT_FREEBSD32
+#include <sys/mount.h>
+#include <compat/freebsd32/freebsd32.h>
+#endif
 
 struct ifindex_entry {
 	struct  ifnet *ife_ifnet;
@@ -130,6 +125,22 @@ SX_SYSINIT(ifdescr_sx, &ifdescr_sx, "ifnet descr");
 void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
+/* These are external hooks for CARP. */
+void	(*carp_linkstate_p)(struct ifnet *ifp);
+#if defined(INET) || defined(INET6)
+struct ifnet *(*carp_forus_p)(struct ifnet *ifp, u_char *dhost);
+int	(*carp_output_p)(struct ifnet *ifp, struct mbuf *m,
+    struct sockaddr *sa, struct rtentry *rt);
+#endif
+#ifdef INET
+int (*carp_iamatch_p)(struct ifnet *, struct in_ifaddr *, struct in_addr *,
+    u_int8_t **);
+#endif
+#ifdef INET6
+struct ifaddr *(*carp_iamatch6_p)(struct ifnet *ifp, struct in6_addr *taddr6);
+caddr_t (*carp_macmatch6_p)(struct ifnet *ifp, struct mbuf *m,
+    const struct in6_addr *taddr);
+#endif
 
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 
@@ -175,7 +186,7 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
-static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
+VNET_DEFINE(struct ifindex_entry *, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
@@ -945,12 +956,21 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 */
 	IFNET_WLOCK();
 	ifindex_free_locked(ifp->if_index);
+	IFNET_WUNLOCK();
+
+	/*
+	 * Perform interface-specific reassignment tasks, if provided by
+	 * the driver.
+	 */
+	if (ifp->if_reassign != NULL)
+		ifp->if_reassign(ifp, new_vnet, NULL);
 
 	/*
 	 * Switch to the context of the target vnet.
 	 */
 	CURVNET_SET_QUIET(new_vnet);
 
+	IFNET_WLOCK();
 	if (ifindex_alloc_locked(&idx) != 0) {
 		IFNET_WUNLOCK();
 		panic("if_index overflow");
@@ -1607,7 +1627,7 @@ done:
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1639,7 +1659,8 @@ ifa_ifwithnet(struct sockaddr *addr)
 
 			if (ifa->ifa_addr->sa_family != af)
 next:				continue;
-			if (af == AF_INET && ifp->if_flags & IFF_POINTOPOINT) {
+			if (af == AF_INET && 
+			    ifp->if_flags & IFF_POINTOPOINT && !ignore_ptp) {
 				/*
 				 * This is a bit broken as it doesn't
 				 * take into account that the remote end may
@@ -1727,7 +1748,7 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 	u_int af = addr->sa_family;
 
 	if (af >= AF_MAX)
-		return (0);
+		return (NULL);
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != af)
@@ -1812,12 +1833,8 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	ifp->if_qflush(ifp);
 
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	if (ifp->if_carp)
-		carp_carpdev_state(ifp->if_carp);
-#endif
-#endif
+		(*carp_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 }
 
@@ -1838,12 +1855,8 @@ if_route(struct ifnet *ifp, int flag, int fam)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFUP, ifa->ifa_addr);
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	if (ifp->if_carp)
-		carp_carpdev_state(ifp->if_carp);
-#endif
-#endif
+		(*carp_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 #ifdef INET6
 	in6_if_up(ifp);
@@ -1886,12 +1899,8 @@ do_link_state_change(void *arg, int pending)
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
 	    IFP2AC(ifp)->ac_netgraph != NULL)
 		(*ng_ether_link_state_p)(ifp, link_state);
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	if (ifp->if_carp)
-		carp_carpdev_state(ifp->if_carp);
-#endif
-#endif
+		(*carp_linkstate_p)(ifp);
 	if (ifp->if_bridge) {
 		KASSERT(bstp_linkstate_p != NULL,("if_bridge bstp not loaded!"));
 		(*bstp_linkstate_p)(ifp, link_state);
@@ -2393,6 +2402,17 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	return (error);
 }
 
+#ifdef COMPAT_FREEBSD32
+struct ifconf32 {
+	int32_t	ifc_len;
+	union {
+		uint32_t	ifcu_buf;
+		uint32_t	ifcu_req;
+	} ifc_ifcu;
+};
+#define	SIOCGIFCONF32	_IOWR('i', 36, struct ifconf32)
+#endif
+
 /*
  * Interface ioctls.
  */
@@ -2407,10 +2427,21 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	switch (cmd) {
 	case SIOCGIFCONF:
 	case OSIOCGIFCONF:
-#ifdef __amd64__
-	case SIOCGIFCONF32:
-#endif
 		return (ifconf(cmd, data));
+
+#ifdef COMPAT_FREEBSD32
+	case SIOCGIFCONF32:
+		{
+			struct ifconf32 *ifc32;
+			struct ifconf ifc;
+
+			ifc32 = (struct ifconf32 *)data;
+			ifc.ifc_len = ifc32->ifc_len;
+			ifc.ifc_buf = PTRIN(ifc32->ifc_buf);
+
+			return (ifconf(SIOCGIFCONF, (void *)&ifc));
+		}
+#endif
 	}
 	ifr = (struct ifreq *)data;
 
@@ -2637,23 +2668,12 @@ static int
 ifconf(u_long cmd, caddr_t data)
 {
 	struct ifconf *ifc = (struct ifconf *)data;
-#ifdef __amd64__
-	struct ifconf32 *ifc32 = (struct ifconf32 *)data;
-	struct ifconf ifc_swab;
-#endif
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct ifreq ifr;
 	struct sbuf *sb;
 	int error, full = 0, valid_len, max_len;
 
-#ifdef __amd64__
-	if (cmd == SIOCGIFCONF32) {
-		ifc_swab.ifc_len = ifc32->ifc_len;
-		ifc_swab.ifc_buf = (caddr_t)(uintptr_t)ifc32->ifc_buf;
-		ifc = &ifc_swab;
-	}
-#endif
 	/* Limit initial buffer size to MAXPHYS to avoid DoS from userspace. */
 	max_len = MAXPHYS - 1;
 
@@ -2717,7 +2737,7 @@ again:
 				max_len += sa->sa_len;
 			}
 
-			if (!sbuf_overflowed(sb))
+			if (sbuf_error(sb) == 0)
 				valid_len = sbuf_len(sb);
 		}
 		IF_ADDR_UNLOCK(ifp);
@@ -2726,7 +2746,7 @@ again:
 			sbuf_bcat(sb, &ifr, sizeof(ifr));
 			max_len += sizeof(ifr);
 
-			if (!sbuf_overflowed(sb))
+			if (sbuf_error(sb) == 0)
 				valid_len = sbuf_len(sb);
 		}
 	}
@@ -2743,10 +2763,6 @@ again:
 	}
 
 	ifc->ifc_len = valid_len;
-#ifdef __amd64__
-	if (cmd == SIOCGIFCONF32)
-		ifc32->ifc_len = valid_len;
-#endif
 	sbuf_finish(sb);
 	error = copyout(sbuf_data(sb), ifc->ifc_req, ifc->ifc_len);
 	sbuf_delete(sb);
@@ -3345,79 +3361,3 @@ if_deregister_com_alloc(u_char type)
 	if_com_alloc[type] = NULL;
 	if_com_free[type] = NULL;
 }
-
-#ifdef DDB
-static void
-if_show_ifnet(struct ifnet *ifp)
-{
-
-	if (ifp == NULL)
-		return;
-	db_printf("%s:\n", ifp->if_xname);
-#define	IF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, ifp->e);
-	IF_DB_PRINTF("%s", if_dname);
-	IF_DB_PRINTF("%d", if_dunit);
-	IF_DB_PRINTF("%s", if_description);
-	IF_DB_PRINTF("%u", if_index);
-	IF_DB_PRINTF("%u", if_refcount);
-	IF_DB_PRINTF("%d", if_index_reserved);
-	IF_DB_PRINTF("%p", if_softc);
-	IF_DB_PRINTF("%p", if_l2com);
-	IF_DB_PRINTF("%p", if_vnet);
-	IF_DB_PRINTF("%p", if_home_vnet);
-	IF_DB_PRINTF("%p", if_addr);
-	IF_DB_PRINTF("%p", if_llsoftc);
-	IF_DB_PRINTF("%p", if_label);
-	IF_DB_PRINTF("%u", if_pcount);
-	IF_DB_PRINTF("0x%08x", if_flags);
-	IF_DB_PRINTF("0x%08x", if_drv_flags);
-	IF_DB_PRINTF("0x%08x", if_capabilities);
-	IF_DB_PRINTF("0x%08x", if_capenable);
-	IF_DB_PRINTF("%p", if_snd.ifq_head);
-	IF_DB_PRINTF("%p", if_snd.ifq_tail);
-	IF_DB_PRINTF("%d", if_snd.ifq_len);
-	IF_DB_PRINTF("%d", if_snd.ifq_maxlen);
-	IF_DB_PRINTF("%d", if_snd.ifq_drops);
-	IF_DB_PRINTF("%p", if_snd.ifq_drv_head);
-	IF_DB_PRINTF("%p", if_snd.ifq_drv_tail);
-	IF_DB_PRINTF("%d", if_snd.ifq_drv_len);
-	IF_DB_PRINTF("%d", if_snd.ifq_drv_maxlen);
-	IF_DB_PRINTF("%d", if_snd.altq_type);
-	IF_DB_PRINTF("%x", if_snd.altq_flags);
-#undef IF_DB_PRINTF
-}
-
-DB_SHOW_COMMAND(ifnet, db_show_ifnet)
-{
-
-	if (!have_addr) {
-		db_printf("usage: show ifnet <struct ifnet *>\n");
-		return;
-	}
-
-	if_show_ifnet((struct ifnet *)addr);
-}
-
-DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
-{
-	VNET_ITERATOR_DECL(vnet_iter);
-	struct ifnet *ifp;
-	u_short idx;
-
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET_QUIET(vnet_iter);
-#ifdef VIMAGE
-		db_printf("vnet=%p\n", curvnet);
-#endif
-		for (idx = 1; idx <= V_if_index; idx++) {
-			ifp = V_ifindex_table[idx].ife_ifnet;
-			if (ifp == NULL)
-				continue;
-			db_printf( "%20s ifp=%p\n", ifp->if_xname, ifp);
-			if (db_pager_quit)
-				break;
-		}
-		CURVNET_RESTORE();
-	}
-}
-#endif

@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsnode.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfs_kdtrace.h>
-#include <nfsclient/nfs_lock.h>
+#include <nfs/nfs_lock.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
 
@@ -215,8 +215,6 @@ struct mtx 	nfs_iod_mtx;
 enum nfsiod_state nfs_iodwant[NFS_MAXASYNCDAEMON];
 struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int		 nfs_numasync = 0;
-vop_advlock_t	*nfs_advlock_p = nfs_dolock;
-vop_reclaim_t	*nfs_reclaim_p = NULL;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
 SYSCTL_DECL(_vfs_nfs);
@@ -521,31 +519,23 @@ nfs_open(struct vop_open_args *ap)
 	 */
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NMODIFIED) {
-		mtx_unlock(&np->n_mtx);			
+		mtx_unlock(&np->n_mtx);
 		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		if (error == EINTR || error == EIO)
 			return (error);
+		mtx_lock(&np->n_mtx);
 		np->n_attrstamp = 0;
 		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 		if (vp->v_type == VDIR)
 			np->n_direofoffset = 0;
+		mtx_unlock(&np->n_mtx);
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return (error);
 		mtx_lock(&np->n_mtx);
 		np->n_mtime = vattr.va_mtime;
-		mtx_unlock(&np->n_mtx);
 	} else {
-		struct thread *td = curthread;
-
-		if (np->n_ac_ts_syscalls != td->td_syscalls ||
-		    np->n_ac_ts_tid != td->td_tid || 
-		    td->td_proc == NULL ||
-		    np->n_ac_ts_pid != td->td_proc->p_pid) {
-			np->n_attrstamp = 0;
-			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-		}
-		mtx_unlock(&np->n_mtx);						
+		mtx_unlock(&np->n_mtx);
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return (error);
@@ -561,22 +551,22 @@ nfs_open(struct vop_open_args *ap)
 			mtx_lock(&np->n_mtx);
 			np->n_mtime = vattr.va_mtime;
 		}
-		mtx_unlock(&np->n_mtx);
 	}
 	/*
 	 * If the object has >= 1 O_DIRECT active opens, we disable caching.
 	 */
 	if (nfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
 		if (np->n_directio_opens == 0) {
+			mtx_unlock(&np->n_mtx);
 			error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error)
 				return (error);
 			mtx_lock(&np->n_mtx);
 			np->n_flag |= NNONCACHE;
-			mtx_unlock(&np->n_mtx);
 		}
 		np->n_directio_opens++;
 	}
+	mtx_unlock(&np->n_mtx);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }
@@ -924,7 +914,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct mount *mp = dvp->v_mount;
 	struct vattr vattr;
-	time_t dmtime;
+	struct timespec dmtime;
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
 	struct nfsmount *nmp;
@@ -932,7 +922,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct mbuf *mreq, *mrep, *md, *mb;
 	long len;
 	nfsfh_t *fhp;
-	struct nfsnode *np;
+	struct nfsnode *np, *newnp;
 	int error = 0, attrflag, fhsize, ltype;
 	int v3 = NFS_ISV3(dvp);
 	struct thread *td = cnp->cn_thread;
@@ -958,10 +948,27 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * change time of the file matches our cached copy.
 		 * Otherwise, we discard the cache entry and fallback
 		 * to doing a lookup RPC.
+		 *
+		 * To better handle stale file handles and attributes,
+		 * clear the attribute cache of this node if it is a
+		 * leaf component, part of an open() call, and not
+		 * locally modified before fetching the attributes.
+		 * This should allow stale file handles to be detected
+		 * here where we can fall back to a LOOKUP RPC to
+		 * recover rather than having nfs_open() detect the
+		 * stale file handle and failing open(2) with ESTALE.
 		 */
 		newvp = *vpp;
-		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
-		    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+		newnp = VTONFS(newvp);
+		if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+		    !(newnp->n_flag & NMODIFIED)) {
+			mtx_lock(&newnp->n_mtx);
+			newnp->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
+			mtx_unlock(&newnp->n_mtx);
+		}
+		if (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
+		    timespeccmp(&vattr.va_ctime, &newnp->n_ctime, ==)) {
 			nfsstats.lookupcache_hits++;
 			if (cnp->cn_nameiop != LOOKUP &&
 			    (flags & ISLASTCN))
@@ -988,13 +995,13 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if ((u_int)(ticks - np->n_dmtime_ticks) <
 		    (nmp->nm_negnametimeo * hz) &&
 		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
-		    vattr.va_mtime.tv_sec == np->n_dmtime) {
+		    timespeccmp(&vattr.va_mtime, &np->n_dmtime, ==)) {
 			nfsstats.lookupcache_hits++;
 			return (ENOENT);
 		}
 		cache_purge_negative(dvp);
 		mtx_lock(&np->n_mtx);
-		np->n_dmtime = 0;
+		timespecclear(&np->n_dmtime);
 		mtx_unlock(&np->n_mtx);
 	}
 
@@ -1009,7 +1016,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	 * the lookup RPC has been performed on the server but before
 	 * n_dmtime is set at the end of this function.
 	 */
-	dmtime = np->n_vattr.va_mtime.tv_sec;
+	dmtime = np->n_vattr.va_mtime;
 	error = 0;
 	newvp = NULLVP;
 	nfsstats.lookupcache_misses++;
@@ -1104,6 +1111,20 @@ nfs_lookup(struct vop_lookup_args *ap)
 			return (error);
 		}
 		newvp = NFSTOV(np);
+
+		/*
+		 * Flush the attribute cache when opening a leaf node
+		 * to ensure that fresh attributes are fetched in
+		 * nfs_open() if we are unable to fetch attributes
+		 * from the LOOKUP reply.
+		 */
+		if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+		    !(np->n_flag & NMODIFIED)) {
+			mtx_lock(&np->n_mtx);
+			np->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
+			mtx_unlock(&np->n_mtx);
+		}
 	}
 	if (v3) {
 		nfsm_postop_attr(newvp, attrflag);
@@ -1114,7 +1135,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		cnp->cn_flags |= SAVENAME;
 	if ((cnp->cn_flags & MAKEENTRY) &&
 	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN))) {
-		np->n_ctime = np->n_vattr.va_ctime.tv_sec;
+		np->n_ctime = np->n_vattr.va_ctime;
 		cache_enter(dvp, newvp, cnp);
 	}
 	*vpp = newvp;
@@ -1160,8 +1181,8 @@ nfsmout:
 			 * lookup.
 			 */
 			mtx_lock(&np->n_mtx);
-			if (np->n_dmtime <= dmtime) {
-				if (np->n_dmtime == 0) {
+			if (timespeccmp(&np->n_dmtime, &dmtime, <=)) {
+				if (!timespecisset(&np->n_dmtime)) {
 					np->n_dmtime = dmtime;
 					np->n_dmtime_ticks = ticks;
 				}
@@ -1331,10 +1352,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	int v3 = NFS_ISV3(vp), committed = NFSV3WRITE_FILESYNC;
 	int wsize;
 	
-#ifndef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1)
-		panic("nfs: writerpc iovcnt > 1");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	*must_commit = 0;
 	tsiz = uiop->uio_resid;
 	mtx_lock(&nmp->nm_mtx);
@@ -1691,12 +1709,8 @@ nfs_remove(struct vop_remove_args *ap)
 	int error = 0;
 	struct vattr vattr;
 
-#ifndef DIAGNOSTIC
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("nfs_remove: no name");
-	if (vrefcnt(vp) < 1)
-		panic("nfs_remove: bad v_usecount");
-#endif
+	KASSERT((cnp->cn_flags & HASBUF) != 0, ("nfs_remove: no name"));
+	KASSERT(vrefcnt(vp) > 0, ("nfs_remove: bad v_usecount"));
 	if (vp->v_type == VDIR)
 		error = EPERM;
 	else if (vrefcnt(vp) == 1 || (np->n_sillyrename &&
@@ -1728,7 +1742,9 @@ nfs_remove(struct vop_remove_args *ap)
 			error = 0;
 	} else if (!np->n_sillyrename)
 		error = nfs_sillyrename(dvp, vp, cnp);
+	mtx_lock(&np->n_mtx);
 	np->n_attrstamp = 0;
+	mtx_unlock(&np->n_mtx);
 	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 	return (error);
 }
@@ -1797,11 +1813,8 @@ nfs_rename(struct vop_rename_args *ap)
 	struct componentname *fcnp = ap->a_fcnp;
 	int error;
 
-#ifndef DIAGNOSTIC
-	if ((tcnp->cn_flags & HASBUF) == 0 ||
-	    (fcnp->cn_flags & HASBUF) == 0)
-		panic("nfs_rename: no name");
-#endif
+	KASSERT((tcnp->cn_flags & HASBUF) != 0 &&
+	    (fcnp->cn_flags & HASBUF) != 0, ("nfs_rename: no name"));
 	/* Check for cross-device rename */
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
@@ -2260,11 +2273,10 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	int attrflag;
 	int v3 = NFS_ISV3(vp);
 
-#ifndef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1 || (uiop->uio_offset & (DIRBLKSIZ - 1)) ||
-		(uiop->uio_resid & (DIRBLKSIZ - 1)))
-		panic("nfs readdirrpc bad uio");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1 &&
+	    (uiop->uio_offset & (DIRBLKSIZ - 1)) == 0 &&
+	    (uiop->uio_resid & (DIRBLKSIZ - 1)) == 0,
+	    ("nfs readdirrpc bad uio"));
 
 	/*
 	 * If there is no cookie, assume directory was stale.
@@ -2465,11 +2477,10 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 #ifndef nolint
 	dp = NULL;
 #endif
-#ifndef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1 || (uiop->uio_offset & (DIRBLKSIZ - 1)) ||
-		(uiop->uio_resid & (DIRBLKSIZ - 1)))
-		panic("nfs readdirplusrpc bad uio");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1 &&
+	    (uiop->uio_offset & (DIRBLKSIZ - 1)) == 0 &&
+	    (uiop->uio_resid & (DIRBLKSIZ - 1)) == 0,
+	    ("nfs readdirplusrpc bad uio"));
 	ndp->ni_dvp = vp;
 	newvp = NULLVP;
 
@@ -2644,8 +2655,11 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				dp->d_type =
 				    IFTODT(VTTOIF(np->n_vattr.va_type));
 				ndp->ni_vp = newvp;
-				/* Update n_ctime, so subsequent lookup doesn't purge entry */
-				np->n_ctime = np->n_vattr.va_ctime.tv_sec;
+				/*
+				 * Update n_ctime so subsequent lookup
+				 * doesn't purge entry.
+				 */
+				np->n_ctime = np->n_vattr.va_ctime;
 			        cache_enter(ndp->ni_dvp, ndp->ni_vp, cnp);
 			    }
 			} else {
@@ -2735,10 +2749,7 @@ nfs_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 
 	cache_purge(dvp);
 	np = VTONFS(vp);
-#ifndef DIAGNOSTIC
-	if (vp->v_type == VDIR)
-		panic("nfs: sillyrename dir");
-#endif
+	KASSERT(vp->v_type != VDIR, ("nfs: sillyrename dir"));
 	sp = malloc(sizeof (struct sillyrename),
 		M_NFSREQ, M_WAITOK);
 	sp->s_cred = crhold(cnp->cn_cred);

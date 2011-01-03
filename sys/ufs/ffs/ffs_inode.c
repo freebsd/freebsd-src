@@ -180,6 +180,8 @@ ffs_truncate(vp, length, flags, cred, td)
 	 */
 	if ((flags & (IO_EXT | IO_NORMAL)) == 0)
 		flags |= IO_NORMAL;
+	if (!DOINGSOFTDEP(vp) && !DOINGASYNC(vp))
+		flags |= IO_SYNC;
 	/*
 	 * If we are truncating the extended-attributes, and cannot
 	 * do it with soft updates, then do it slowly here. If we are
@@ -310,10 +312,6 @@ ffs_truncate(vp, length, flags, cred, td)
 			 */
 			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
 				goto out;
-			UFS_LOCK(ump);
-			if (ip->i_flag & IN_SPACECOUNTED)
-				fs->fs_pendingblocks -= datablocks;
-			UFS_UNLOCK(ump);
 			/*
 			 * We have to journal the truncation before we change
 			 * any blocks so we don't leave the file partially
@@ -584,9 +582,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 * block to be kept.  -1 indicates the entire
 	 * block so we need not calculate the index.
 	 */
-	factor = 1;
-	for (i = SINGLE; i < level; i++)
-		factor *= NINDIR(fs);
+	factor = lbn_offset(fs, level);
 	last = lastbn;
 	if (lastbn > 0)
 		last /= factor;

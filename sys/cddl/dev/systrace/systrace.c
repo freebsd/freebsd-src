@@ -77,7 +77,6 @@ extern struct sysent linux_sysent[];
  */
 #include <sys/syscall.h>
 #include <kern/systrace_args.c>
-extern const char	*syscallnames[];
 #define	DEVNAME		"dtrace/systrace"
 #define	PROVNAME	"syscall"
 #define	MAXSYSCALL	SYS_MAXSYSCALL
@@ -154,22 +153,24 @@ static dtrace_provider_id_t	systrace_id;
  *       compat syscall from something like Linux.
  */
 static void
-systrace_probe(u_int32_t id, int sysnum, struct sysent *sysent, void *params)
+systrace_probe(u_int32_t id, int sysnum, struct sysent *sysent, void *params,
+    int ret)
 {
 	int		n_args	= 0;
 	u_int64_t	uargs[8];
 
+	memset(uargs, 0, sizeof(uargs));
 	/*
 	 * Check if this syscall has an argument conversion function
 	 * registered.
 	 */
-	if (sysent->sy_systrace_args_func != NULL)
+	if (params && sysent->sy_systrace_args_func != NULL) {
 		/*
 		 * Convert the syscall parameters using the registered
 		 * function.
 		 */
 		(*sysent->sy_systrace_args_func)(sysnum, params, uargs, &n_args);
-	else
+	} else if (params) {
 		/*
 		 * Use the built-in system call argument conversion
 		 * function to translate the syscall structure fields
@@ -177,6 +178,13 @@ systrace_probe(u_int32_t id, int sysnum, struct sysent *sysent, void *params)
 		 * expects.
 		 */
 		systrace_args(sysnum, params, uargs, &n_args);
+	} else {
+		/*
+		 * Since params is NULL, this is a 'return' probe.
+		 * Set arg0 and arg1 as the return value of this syscall.
+		 */
+		uargs[0] = uargs[1] = ret;
+	}
 
 	/* Process the probe using the converted argments. */
 	dtrace_probe(id, uargs[0], uargs[1], uargs[2], uargs[3], uargs[4]);

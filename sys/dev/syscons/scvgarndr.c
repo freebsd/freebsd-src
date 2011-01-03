@@ -171,39 +171,42 @@ static u_short mouse_or_mask[16] = {
 #endif
 
 #ifdef SC_PIXEL_MODE
-#define	VIDEO_MEMORY_POS(scp, pos, x) 					\
-	scp->sc->adp->va_window +					\
-	x * scp->xoff +							\
-	scp->yoff * scp->font_size * scp->sc->adp->va_line_width +	\
-	x * (pos % scp->xsize) +					\
-	scp->font_size * scp->sc->adp->va_line_width * (pos / scp->xsize)
+#define	GET_PIXEL(scp, pos, x, w)					\
+({									\
+	(scp)->sc->adp->va_window +					\
+	    (x) * (scp)->xoff +						\
+	    (scp)->yoff * (scp)->font_size * (w) +			\
+	    (x) * ((pos) % (scp)->xsize) +				\
+	    (scp)->font_size * (w) * ((pos) / (scp)->xsize);		\
+})
 
-#define	vga_drawpxl(pos, color)						\
-	switch (scp->sc->adp->va_info.vi_depth) {			\
-		case 32:						\
-			writel(pos, vga_palette32[color]);		\
-			break;						\
-		case 24:						\
-			if (((pos) & 1) == 0) {				\
-				writew(pos, vga_palette32[color]);	\
-				writeb(pos + 2, vga_palette32[color] >> 16);\
-			} else {					\
-				writeb(pos, vga_palette32[color]);	\
-				writew(pos + 1, vga_palette32[color] >> 8);\
-			}						\
-			break;						\
-		case 16:						\
-			if (scp->sc->adp->va_info.vi_pixel_fsizes[1] == 5)\
-				writew(pos, vga_palette15[color]);	\
-			else						\
-				writew(pos, vga_palette16[color]);	\
-			break;						\
-		case 15:						\
-			writew(pos, vga_palette15[color]);		\
-			break;						\
-		case 8:							\
-			writeb(pos, (uint8_t)color);			\
-		}
+#define	DRAW_PIXEL(scp, pos, color) do {				\
+	switch ((scp)->sc->adp->va_info.vi_depth) {			\
+	case 32:							\
+		writel((pos), vga_palette32[color]);			\
+		break;							\
+	case 24:							\
+		if (((pos) & 1) == 0) {					\
+			writew((pos), vga_palette32[color]);		\
+			writeb((pos) + 2, vga_palette32[color] >> 16);	\
+		} else {						\
+			writeb((pos), vga_palette32[color]);		\
+			writew((pos) + 1, vga_palette32[color] >> 8);	\
+		}							\
+		break;							\
+	case 16:							\
+		if ((scp)->sc->adp->va_info.vi_pixel_fsizes[1] == 5)	\
+			writew((pos), vga_palette15[color]);		\
+		else							\
+			writew((pos), vga_palette16[color]);		\
+		break;							\
+	case 15:							\
+		writew((pos), vga_palette15[color]);			\
+		break;							\
+	case 8:								\
+		writeb((pos), (uint8_t)(color));			\
+	}								\
+} while (0)
 	
 static uint32_t vga_palette32[16] = {
 	0x000000, 0x0000ad, 0x00ad00, 0x00adad,
@@ -589,7 +592,7 @@ vga_pxlborder_direct(scr_stat *scp, int color)
 		e = s + line_width * scp->yoff * scp->font_size;
 
 		for (f = s; f < e; f += pixel_size)
-			vga_drawpxl(f, color);
+			DRAW_PIXEL(scp, f, color);
 	}
 
 	y = (scp->yoff + scp->ysize) * scp->font_size;
@@ -599,7 +602,7 @@ vga_pxlborder_direct(scr_stat *scp, int color)
 		e = s + line_width * (scp->ypixel - y);
 
 		for (f = s; f < e; f += pixel_size)
-			vga_drawpxl(f, color);
+			DRAW_PIXEL(scp, f, color);
 	}
 
 	y = scp->yoff * scp->font_size;
@@ -611,7 +614,7 @@ vga_pxlborder_direct(scr_stat *scp, int color)
 			e = s + scp->xoff * 8 * pixel_size;
 
 			for (f = s; f < e; f += pixel_size)
-				vga_drawpxl(f, color);
+				DRAW_PIXEL(scp, f, color);
 		}
 
 		if (x > 0) {
@@ -621,7 +624,7 @@ vga_pxlborder_direct(scr_stat *scp, int color)
 			e = s + x * 8 * pixel_size;
 
 			for (f = s; f < e; f += pixel_size)
-				vga_drawpxl(f, color);
+				DRAW_PIXEL(scp, f, color);
 		}
 	}
 }
@@ -677,7 +680,7 @@ vga_egadraw(scr_stat *scp, int from, int count, int flip)
 
 	line_width = scp->sc->adp->va_line_width;
 
-	d = VIDEO_MEMORY_POS(scp, from, 1);
+	d = GET_PIXEL(scp, from, 1, line_width);
 
 	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */
@@ -713,8 +716,7 @@ vga_egadraw(scr_stat *scp, int from, int count, int flip)
 		}
 		++d;
 		if ((i % scp->xsize) == scp->xsize - 1)
-			d += scp->xoff*2 
-				 + (scp->font_size - 1)*line_width;
+			d += scp->font_size * line_width - scp->xsize;
 	}
 	outw(GDCIDX, 0x0000);		/* set/reset */
 	outw(GDCIDX, 0x0001);		/* set/reset enable */
@@ -724,7 +726,7 @@ vga_egadraw(scr_stat *scp, int from, int count, int flip)
 static void
 vga_vgadraw_direct(scr_stat *scp, int from, int count, int flip)
 {
-	vm_offset_t d = 0;
+	vm_offset_t d;
 	vm_offset_t e;
 	u_char *f;
 	u_short col1, col2, color;
@@ -735,7 +737,7 @@ vga_vgadraw_direct(scr_stat *scp, int from, int count, int flip)
 	line_width = scp->sc->adp->va_line_width;
 	pixel_size = scp->sc->adp->va_info.vi_pixel_size;
 
-	d = VIDEO_MEMORY_POS(scp, from, 8 * pixel_size);
+	d = GET_PIXEL(scp, from, 8 * pixel_size, line_width);
 
 	if (from + count > scp->xsize * scp->ysize)
 		count = scp->xsize * scp->ysize - from;
@@ -757,7 +759,7 @@ vga_vgadraw_direct(scr_stat *scp, int from, int count, int flip)
 		for (j = 0; j < scp->font_size; ++j, ++f) {
 			for (k = 0; k < 8; ++k) {
 				color = *f & (1 << (7 - k)) ? col1 : col2;
-				vga_drawpxl(e + pixel_size * k, color);
+				DRAW_PIXEL(scp, e + pixel_size * k, color);
 			}
 
 			e += line_width;
@@ -766,8 +768,8 @@ vga_vgadraw_direct(scr_stat *scp, int from, int count, int flip)
 		d += 8 * pixel_size;
 
 		if ((i % scp->xsize) == scp->xsize - 1)
-			d += scp->xoff * 16 * pixel_size +
-			     (scp->font_size - 1) * line_width;
+			d += scp->font_size * line_width -
+			    scp->xsize * 8 * pixel_size;
 	}
 }
 
@@ -784,9 +786,9 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 	int a;
 	u_char c;
 
-	d = VIDEO_MEMORY_POS(scp, from, 1);
-
 	line_width = scp->sc->adp->va_line_width;
+
+	d = GET_PIXEL(scp, from, 1, line_width);
 
 	outw(GDCIDX, 0x0305);		/* read mode 0, write mode 3 */
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */
@@ -823,8 +825,7 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 		}
 		++d;
 		if ((i % scp->xsize) == scp->xsize - 1)
-			d += scp->xoff*2 
-				 + (scp->font_size - 1)*line_width;
+			d += scp->font_size * line_width - scp->xsize;
 	}
 	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0000);		/* set/reset */
@@ -846,7 +847,7 @@ vga_pxlcursor_shape(scr_stat *scp, int base, int height, int blink)
 static void 
 draw_pxlcursor_direct(scr_stat *scp, int at, int on, int flip)
 {
-	vm_offset_t d = 0;
+	vm_offset_t d;
 	u_char *f;
 	int line_width, pixel_size;
 	int height;
@@ -857,7 +858,7 @@ draw_pxlcursor_direct(scr_stat *scp, int at, int on, int flip)
 	line_width = scp->sc->adp->va_line_width;
 	pixel_size = scp->sc->adp->va_info.vi_pixel_size;
 
-	d = VIDEO_MEMORY_POS(scp, at, 8 * pixel_size) +
+	d = GET_PIXEL(scp, at, 8 * pixel_size, line_width) +
 	    (scp->font_size - scp->curs_attr.base - 1) * line_width;
 
 	a = sc_vtb_geta(&scp->vtb, at);
@@ -878,7 +879,7 @@ draw_pxlcursor_direct(scr_stat *scp, int at, int on, int flip)
 	for (i = 0; i < height; ++i, --f) {
 		for (j = 0; j < 8; ++j) {
 			color = *f & (1 << (7 - j)) ? col1 : col2;
-			vga_drawpxl(d + pixel_size * j, color);
+			DRAW_PIXEL(scp, d + pixel_size * j, color);
 		}
 
 		d -= line_width;
@@ -899,7 +900,7 @@ draw_pxlcursor_planar(scr_stat *scp, int at, int on, int flip)
 
 	line_width = scp->sc->adp->va_line_width;
 
-	d = VIDEO_MEMORY_POS(scp, at, 1) +
+	d = GET_PIXEL(scp, at, 1, line_width) +
 	    (scp->font_size - scp->curs_attr.base - 1) * line_width;
 
 	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */

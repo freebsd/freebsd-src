@@ -1013,7 +1013,7 @@ match_bss(struct ieee80211vap *vap,
 		 */
 		if (se->se_capinfo & (IEEE80211_CAPINFO_IBSS|IEEE80211_CAPINFO_ESS))
 			fail |= MATCH_CAPINFO;
-		else if (se->se_meshid == NULL)
+		else if (se->se_meshid[0] != IEEE80211_ELEMID_MESHID)
 			fail |= MATCH_MESH_NOID;
 		else if (ms->ms_idlen != 0 &&
 		    match_id(se->se_meshid, ms->ms_id, ms->ms_idlen))
@@ -1361,7 +1361,7 @@ sta_age(struct ieee80211_scan_state *ss)
 	KASSERT(vap->iv_opmode == IEEE80211_M_STA,
 		("wrong mode %u", vap->iv_opmode));
 	if (vap->iv_roaming == IEEE80211_ROAMING_AUTO &&
-	    (vap->iv_ic->ic_flags & IEEE80211_F_BGSCAN) &&
+	    (vap->iv_flags & IEEE80211_F_BGSCAN) &&
 	    vap->iv_state >= IEEE80211_S_RUN)
 		/* XXX vap is implicit */
 		sta_roam_check(ss, vap);

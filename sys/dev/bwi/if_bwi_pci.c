@@ -91,7 +91,8 @@ static const struct bwi_dev {
 	{ PCI_VENDOR_BROADCOM, 0x4324,"Broadcom BCM4309 802.11a/b/g Wireless Lan" },
 	{ PCI_VENDOR_BROADCOM, 0x4318,"Broadcom BCM4318 802.11b/g Wireless Lan" },
 	{ PCI_VENDOR_BROADCOM, 0x4319,"Broadcom BCM4318 802.11a/b/g Wireless Lan" },
-	{ PCI_VENDOR_BROADCOM, 0x431a,"Broadcom BCM4318 802.11a Wireless Lan" }
+	{ PCI_VENDOR_BROADCOM, 0x431a,"Broadcom BCM4318 802.11a Wireless Lan" },
+	{ 0, 0, NULL }
 };
 
 static int

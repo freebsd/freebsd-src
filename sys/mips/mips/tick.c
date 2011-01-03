@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/power.h>
 #include <sys/smp.h>
 #include <sys/time.h>
+#include <sys/timeet.h>
 #include <sys/timetc.h>
 
 #include <machine/hwfunc.h>
@@ -56,21 +57,22 @@ uint64_t counter_freq;
 
 struct timecounter *platform_timecounter;
 
-static uint64_t cycles_per_tick;
-static uint64_t cycles_per_usec;
-static uint64_t cycles_per_hz, cycles_per_stathz, cycles_per_profhz;
+static DPCPU_DEFINE(uint32_t, cycles_per_tick);
+static uint32_t cycles_per_usec;
 
-static u_int32_t counter_upper = 0;
-static u_int32_t counter_lower_last = 0;
+static DPCPU_DEFINE(volatile uint32_t, counter_upper);
+static DPCPU_DEFINE(volatile uint32_t, counter_lower_last);
+static DPCPU_DEFINE(uint32_t, compare_ticks);
+static DPCPU_DEFINE(uint32_t, lost_ticks);
 
-struct clk_ticks {
-	u_long hard_ticks;
-	u_long stat_ticks;
-	u_long prof_ticks;
-	uint32_t compare_ticks;
-} __aligned(CACHE_LINE_SIZE);
-
-static struct clk_ticks pcpu_ticks[MAXCPU];
+struct clock_softc {
+	int intr_rid;
+	struct resource *intr_res;
+	void *intr_handler;
+	struct timecounter tc;
+	struct eventtimer et;
+};
+static struct clock_softc *softc;
 
 /*
  * Device methods
@@ -79,15 +81,6 @@ static int clock_probe(device_t);
 static void clock_identify(driver_t *, device_t);
 static int clock_attach(device_t);
 static unsigned counter_get_timecount(struct timecounter *tc);
-
-static struct timecounter counter_timecounter = {
-	counter_get_timecount,	/* get_timecount */
-	0,			/* no poll_pps */
-	0xffffffffu,		/* counter_mask */
-	0,			/* frequency */
-	"MIPS32",		/* name */
-	800,			/* quality (adjusted in code) */
-};
 
 void 
 mips_timer_early_init(uint64_t clock_hz)
@@ -101,8 +94,6 @@ void
 platform_initclocks(void)
 {
 
-	tc_init(&counter_timecounter);
-
 	if (platform_timecounter != NULL)
 		tc_init(platform_timecounter);
 }
@@ -112,30 +103,41 @@ tick_ticker(void)
 {
 	uint64_t ret;
 	uint32_t ticktock;
+	uint32_t t_lower_last, t_upper;
 
 	/*
-	 * XXX: MIPS64 platforms can read 64-bits of counter directly.
-	 * Also: the tc code is supposed to cope with things wrapping
-	 * from the time counter, so I'm not sure why all these hoops
-	 * are even necessary.
+	 * Disable preemption because we are working with cpu specific data.
 	 */
-	ticktock = mips_rd_count();
 	critical_enter();
-	if (ticktock < counter_lower_last)
-		counter_upper++;
-	counter_lower_last = ticktock;
+
+	/*
+	 * Note that even though preemption is disabled, interrupts are
+	 * still enabled. In particular there is a race with clock_intr()
+	 * reading the values of 'counter_upper' and 'counter_lower_last'.
+	 *
+	 * XXX this depends on clock_intr() being executed periodically
+	 * so that 'counter_upper' and 'counter_lower_last' are not stale.
+	 */
+	do {
+		t_upper = DPCPU_GET(counter_upper);
+		t_lower_last = DPCPU_GET(counter_lower_last);
+	} while (t_upper != DPCPU_GET(counter_upper));
+
+	ticktock = mips_rd_count();
+
 	critical_exit();
 
-	ret = ((uint64_t) counter_upper << 32) | counter_lower_last;
+	/* COUNT register wrapped around */
+	if (ticktock < t_lower_last)
+		t_upper++;
+
+	ret = ((uint64_t)t_upper << 32) | ticktock;
 	return (ret);
 }
 
 void
 mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 {
-
-	stathz = hz;
-	profhz = hz;
 
 	/*
 	 * XXX: Do not use printf here: uart code 8250 may use DELAY so this
@@ -150,22 +152,7 @@ mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 	if (double_count != 0)
 		counter_freq /= 2;
 
-	cycles_per_tick = counter_freq / 1000;
-	cycles_per_hz = counter_freq / hz;
-	cycles_per_stathz = counter_freq / stathz;
-	cycles_per_profhz = counter_freq / profhz;
 	cycles_per_usec = counter_freq / (1 * 1000 * 1000);
-	
-	counter_timecounter.tc_frequency = counter_freq;
-	printf("hz=%d cyl_per_tick:%jd cyl_per_usec:%jd freq:%jd "
-	       "cyl_per_hz:%jd cyl_per_stathz:%jd cyl_per_profhz:%jd\n",
-	       hz,
-	       cycles_per_tick,
-	       cycles_per_usec,
-	       counter_freq,
-	       cycles_per_hz,
-	       cycles_per_stathz,
-	       cycles_per_profhz);
 	set_cputicker(tick_ticker, counter_freq, 1);
 }
 
@@ -175,13 +162,14 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 	int error;
 	uint64_t freq;
 
-	if (counter_timecounter.tc_frequency == 0)
+	if (softc == NULL)
 		return (EOPNOTSUPP);
 	freq = counter_freq;
 	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
 	if (error == 0 && req->newptr != NULL) {
 		counter_freq = freq;
-		counter_timecounter.tc_frequency = counter_freq;
+		softc->et.et_frequency = counter_freq;
+		softc->tc.tc_frequency = counter_freq;
 	}
 	return (error);
 }
@@ -195,19 +183,6 @@ counter_get_timecount(struct timecounter *tc)
 {
 
 	return (mips_rd_count());
-}
-
-
-void
-cpu_startprofclock(void)
-{
-	/* nothing to do */
-}
-
-void
-cpu_stopprofclock(void)
-{
-	/* nothing to do */
 }
 
 /*
@@ -243,101 +218,97 @@ DELAY(int n)
 	}
 }
 
-#if 0 /* TARGET_OCTEON */
-int64_t wheel_run = 0;
+static int
+clock_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period)
+{
+	uint32_t fdiv, div, next;
 
-void octeon_led_run_wheel();
+	if (period != NULL) {
+		div = (et->et_frequency * (period->frac >> 32)) >> 32;
+		if (period->sec != 0)
+			div += et->et_frequency * period->sec;
+	} else
+		div = 0;
+	if (first != NULL) {
+		fdiv = (et->et_frequency * (first->frac >> 32)) >> 32;
+		if (first->sec != 0)
+			fdiv += et->et_frequency * first->sec;
+	} else 
+		fdiv = div;
+	DPCPU_SET(cycles_per_tick, div);
+	next = mips_rd_count() + fdiv;
+	DPCPU_SET(compare_ticks, next);
+	mips_wr_compare(next);
+	return (0);
+}
 
-#endif
+static int
+clock_stop(struct eventtimer *et)
+{
+
+	DPCPU_SET(cycles_per_tick, 0);
+	mips_wr_compare(0xffffffff);
+	return (0);
+}
+
 /*
  * Device section of file below
  */
 static int
 clock_intr(void *arg)
 {
-	struct clk_ticks *cpu_ticks;
-	struct trapframe *tf;
-	uint32_t count, compare, delta;
+	struct clock_softc *sc = (struct clock_softc *)arg;
+	uint32_t cycles_per_tick;
+	uint32_t count, compare_last, compare_next, lost_ticks;
 
-	cpu_ticks = &pcpu_ticks[PCPU_GET(cpuid)];
-
+	cycles_per_tick = DPCPU_GET(cycles_per_tick);
 	/*
 	 * Set next clock edge.
 	 */
 	count = mips_rd_count();
-	compare = cpu_ticks->compare_ticks;
-	cpu_ticks->compare_ticks = count + cycles_per_tick;
-	mips_wr_compare(cpu_ticks->compare_ticks);
-	critical_enter();
-	if (count < counter_lower_last) {
-		counter_upper++;
-		counter_lower_last = count;
-	}
-	/*
-	 * Magic.  Setting up with an arg of NULL means we get passed tf.
-	 */
-	tf = (struct trapframe *)arg;
+	compare_last = DPCPU_GET(compare_ticks);
+	if (cycles_per_tick > 0) {
+		compare_next = count + cycles_per_tick;
+		DPCPU_SET(compare_ticks, compare_next);
+		mips_wr_compare(compare_next);
+	} else	/* In one-shot mode timer should be stopped after the event. */
+		mips_wr_compare(0xffffffff);
 
-	delta = cycles_per_tick;
-
-	/*
-	 * Account for the "lost time" between when the timer interrupt fired
-	 * and when 'clock_intr' actually started executing.
-	 */
-	delta += count - compare;
-
-	/*
-	 * If the COUNT and COMPARE registers are no longer in sync then make
-	 * up some reasonable value for the 'delta'.
-	 *
-	 * This could happen, for e.g., after we resume normal operations after
-	 * exiting the debugger.
-	 */
-	if (delta > cycles_per_hz)
-		delta = cycles_per_hz;
-#ifdef KDTRACE_HOOKS
-	/*
-	 * If the DTrace hooks are configured and a callback function
-	 * has been registered, then call it to process the high speed
-	 * timers.
-	 */
-	int cpu = PCPU_GET(cpuid);
-	if (cyclic_clock_func[cpu] != NULL)
-		(*cyclic_clock_func[cpu])(tf);
-#endif
-	/* Fire hardclock at hz. */
-	cpu_ticks->hard_ticks += delta;
-	if (cpu_ticks->hard_ticks >= cycles_per_hz) {
-	        cpu_ticks->hard_ticks -= cycles_per_hz;
-		if (PCPU_GET(cpuid) == 0)
-			hardclock(TRAPF_USERMODE(tf), tf->pc);
-		else
-			hardclock_cpu(TRAPF_USERMODE(tf));
+	/* COUNT register wrapped around */
+	if (count < DPCPU_GET(counter_lower_last)) {
+		DPCPU_SET(counter_upper, DPCPU_GET(counter_upper) + 1);
 	}
+	DPCPU_SET(counter_lower_last, count);
 
-	/* Fire statclock at stathz. */
-	cpu_ticks->stat_ticks += delta;
-	if (cpu_ticks->stat_ticks >= cycles_per_stathz) {
-		cpu_ticks->stat_ticks -= cycles_per_stathz;
-		statclock(TRAPF_USERMODE(tf));
-	}
+	if (cycles_per_tick > 0) {
 
-	/* Fire profclock at profhz, but only when needed. */
-	cpu_ticks->prof_ticks += delta;
-	if (cpu_ticks->prof_ticks >= cycles_per_profhz) {
-		cpu_ticks->prof_ticks -= cycles_per_profhz;
-		if (profprocs != 0)
-			profclock(TRAPF_USERMODE(tf), tf->pc);
+		/*
+		 * Account for the "lost time" between when the timer interrupt
+		 * fired and when 'clock_intr' actually started executing.
+		 */
+		lost_ticks = DPCPU_GET(lost_ticks);
+		lost_ticks += count - compare_last;
+	
+		/*
+		 * If the COUNT and COMPARE registers are no longer in sync
+		 * then make up some reasonable value for the 'lost_ticks'.
+		 *
+		 * This could happen, for e.g., after we resume normal
+		 * operations after exiting the debugger.
+		 */
+		if (lost_ticks > 2 * cycles_per_tick)
+			lost_ticks = cycles_per_tick;
+
+		while (lost_ticks >= cycles_per_tick) {
+			if (sc->et.et_active)
+				sc->et.et_event_cb(&sc->et, sc->et.et_arg);
+			lost_ticks -= cycles_per_tick;
+		}
+		DPCPU_SET(lost_ticks, lost_ticks);
 	}
-	critical_exit();
-#if 0 /* TARGET_OCTEON */
-	/* Run the FreeBSD display once every hz ticks  */
-	wheel_run += cycles_per_tick;
-	if (wheel_run >= cycles_per_usec * 1000000ULL) {
-		wheel_run = 0;
-		octeon_led_run_wheel();
-	}
-#endif
+	if (sc->et.et_active)
+		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 	return (FILTER_HANDLED);
 }
 
@@ -362,25 +333,45 @@ clock_identify(driver_t * drv, device_t parent)
 static int
 clock_attach(device_t dev)
 {
-	struct resource *irq;
+	struct clock_softc *sc;
 	int error;
-	int rid;
 
-	rid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 5, 5, 1, RF_ACTIVE);
-	if (irq == NULL) {
+	softc = sc = device_get_softc(dev);
+	sc->intr_rid = 0;
+	sc->intr_res = bus_alloc_resource(dev,
+	    SYS_RES_IRQ, &sc->intr_rid, 5, 5, 1, RF_ACTIVE);
+	if (sc->intr_res == NULL) {
 		device_printf(dev, "failed to allocate irq\n");
 		return (ENXIO);
 	}
-	error = bus_setup_intr(dev, irq, INTR_TYPE_CLK, clock_intr, NULL,
-	    NULL, NULL);
-
+	error = bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
+	    clock_intr, NULL, sc, &sc->intr_handler);
 	if (error != 0) {
 		device_printf(dev, "bus_setup_intr returned %d\n", error);
 		return (error);
 	}
 
-	mips_wr_compare(mips_rd_count() + counter_freq / hz);
+	sc->tc.tc_get_timecount = counter_get_timecount;
+	sc->tc.tc_counter_mask = 0xffffffff;
+	sc->tc.tc_frequency = counter_freq;
+	sc->tc.tc_name = "MIPS32";
+	sc->tc.tc_quality = 800;
+	sc->tc.tc_priv = sc;
+	tc_init(&sc->tc);
+	sc->et.et_name = "MIPS32";
+	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
+	    ET_FLAGS_PERCPU;
+	sc->et.et_quality = 800;
+	sc->et.et_frequency = counter_freq;
+	sc->et.et_min_period.sec = 0;
+	sc->et.et_min_period.frac = 0x00004000LLU << 32; /* To be safe. */
+	sc->et.et_max_period.sec = 0xfffffffeU / sc->et.et_frequency;
+	sc->et.et_max_period.frac =
+	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
+	sc->et.et_start = clock_start;
+	sc->et.et_stop = clock_stop;
+	sc->et.et_priv = sc;
+	et_register(&sc->et);
 	return (0);
 }
 
@@ -396,7 +387,9 @@ static device_method_t clock_methods[] = {
 };
 
 static driver_t clock_driver = {
-	"clock", clock_methods, 32
+	"clock",
+	clock_methods,
+	sizeof(struct clock_softc),
 };
 
 static devclass_t clock_devclass;

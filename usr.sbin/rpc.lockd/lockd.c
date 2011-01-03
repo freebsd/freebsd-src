@@ -88,6 +88,7 @@ int nhosts = 0;
 int xcreated = 0;
 char **addrs;			/* actually (netid, uaddr) pairs */
 int naddrs;			/* count of how many (netid, uaddr) pairs */
+char localhost[] = "localhost";
 
 void 	create_service(struct netconfig *nconf);
 void 	lookup_addresses(struct netconfig *nconf);
@@ -626,11 +627,8 @@ lookup_addresses(struct netconfig *nconf)
 	struct sockaddr_in6 *sin6;
 	struct __rpc_sockinfo si;
 	struct netbuf servaddr;
-	SVCXPRT	*transp = NULL;
 	int aicode;
 	int nhostsbak;
-	int r;
-	int registered = 0;
 	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
 	char *uaddr;
 
@@ -789,7 +787,6 @@ init_nsm(void)
 	my_id id;
 	sm_stat stat;
 	char name[] = "NFS NLM";
-	char localhost[] = "localhost";
 
 	/*
 	 * !!!

@@ -313,4 +313,4 @@ static	devclass_t mwl_devclass;
 DRIVER_MODULE(mwl, pci, mwl_pci_driver, mwl_devclass, 0, 0);
 MODULE_VERSION(mwl, 1);
 MODULE_DEPEND(mwl, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(mwl, mwlfw_fw, 1, 1, 1);		/* firmware */
+MODULE_DEPEND(mwl, firmware, 1, 1, 1);

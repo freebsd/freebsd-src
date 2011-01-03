@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/smp.h>
 
-#include <machine/bootinfo.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hid.h>
@@ -45,8 +44,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/spr.h>
 #include <machine/vmparam.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <powerpc/mpc85xx/mpc85xx.h>
-#include <powerpc/mpc85xx/ocpbus.h>
 
 #include "platform_if.h"
 
@@ -67,6 +70,8 @@ static int bare_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int bare_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int bare_smp_start_cpu(platform_t, struct pcpu *cpu);
 
+static void e500_reset(platform_t);
+
 static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		bare_probe),
 	PLATFORMMETHOD(platform_mem_regions,	bare_mem_regions),
@@ -76,6 +81,8 @@ static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_smp_next_cpu,	bare_smp_next_cpu),
 	PLATFORMMETHOD(platform_smp_get_bsp,	bare_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	bare_smp_start_cpu),
+
+	PLATFORMMETHOD(platform_reset,		e500_reset),
 
 	{ 0, 0 }
 };
@@ -91,13 +98,31 @@ PLATFORM_DEF(bare_platform);
 static int
 bare_probe(platform_t plat)
 {
-	uint32_t ver;
+	uint32_t ver, sr;
+	int i, law_max, tgt;
 
 	ver = SVR_VER(mfspr(SPR_SVR));
 	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
 		maxcpu = 2;
 	else
 		maxcpu = 1;
+
+	/*
+	 * Clear local access windows. Skip DRAM entries, so we don't shoot
+	 * ourselves in the foot.
+	 */
+	law_max = law_getmax();
+	for (i = 0; i < law_max; i++) {
+		sr = ccsr_read4(OCP85XX_LAWSR(i));
+		if ((sr & 0x80000000) == 0)
+			continue;
+		tgt = (sr & 0x01f00000) >> 20;
+		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2 ||
+		    tgt == OCP85XX_TGTIF_RAM_INTL)
+			continue;
+
+		ccsr_write4(OCP85XX_LAWSR(i), sr & 0x7fffffff);
+	}
 
 	return (BUS_PROBE_GENERIC);
 }
@@ -109,24 +134,22 @@ void
 bare_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
     struct mem_region **avail, int *availsz)
 {
-	struct bi_mem_region *mr;
-	int i;
+	uint32_t memsize;
+	int i, rv;
 
-	/* Initialize memory regions table */
-	mr = bootinfo_mr();
-	for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++) {
-		if (i == MEM_REGIONS)
-			break;
-		if (mr->mem_base < 1048576) {
+	rv = fdt_get_mem_regions(avail_regions, availsz, &memsize);
+
+	if (rv != 0)
+		return;
+
+	for (i = 0; i < *availsz; i++) {
+		if (avail_regions[i].mr_start < 1048576) {
+			avail_regions[i].mr_size =
+			    avail_regions[i].mr_size -
+			    (1048576 - avail_regions[i].mr_start);
 			avail_regions[i].mr_start = 1048576;
-			avail_regions[i].mr_size = mr->mem_size -
-			    (1048576 - mr->mem_base);
-		} else {
-			avail_regions[i].mr_start = mr->mem_base;
-			avail_regions[i].mr_size = mr->mem_size;
 		}
 	}
-	*availsz = i;
 	*avail = avail_regions;
 
 	/* On the bare metal platform phys == avail memory */
@@ -138,12 +161,24 @@ static u_long
 bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
 	u_long ticks = -1;
+	phandle_t cpus, child;
+	pcell_t freq;
 
+	if ((cpus = OF_finddevice("/cpus")) == 0)
+		goto out;
+
+	if ((child = OF_child(cpus)) == 0)
+		goto out;
+
+	if (OF_getprop(child, "bus-frequency", (void *)&freq,
+	    sizeof(freq)) <= 0)
+		goto out;
 	/*
 	 * Time Base and Decrementer are updated every 8 CCB bus clocks.
 	 * HID0[SEL_TBCLK] = 0
 	 */
-	ticks = bootinfo->bi_bus_clk / 8;
+	ticks = freq / 8;
+out:
 	if (ticks <= 0)
 		panic("Unable to determine timebase frequency!");
 
@@ -229,3 +264,30 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	return (ENXIO);
 #endif
 }
+
+static void
+e500_reset(platform_t plat)
+{
+	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
+
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
+	    ver == SVR_MPC8548E || ver == SVR_MPC8548)
+		/* Systems with dedicated reset register */
+		ccsr_write4(OCP85XX_RSTCR, 2);
+	else {
+		/* Clear DBCR0, disables debug interrupts and events. */
+		mtspr(SPR_DBCR0, 0);
+		__asm __volatile("isync");
+
+		/* Enable Debug Interrupts in MSR. */
+		mtmsr(mfmsr() | PSL_DE);
+
+		/* Enable debug interrupts and issue reset. */
+		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM |
+		    DBCR0_RST_SYSTEM);
+	}
+
+	printf("Reset failed...\n");
+	while (1);
+}
+

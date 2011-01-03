@@ -80,14 +80,14 @@
  */
 #define	INTRCNT_COUNT	128
 
-/*
- * Assume that w alaways need nops to escape CP0 hazard
- * TODO: Make hazard delays configurable. Stuck with 5 cycles on the moment
- * For more info on CP0 hazards see Chapter 7 (p.99) of "MIPS32 Architecture 
- *    For Programmers Volume III: The MIPS32 Privileged Resource Architecture"
- */
-#define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
-#define	HAZARD_DELAY	nop;nop;nop;nop;nop;
+/* Pointer size and mask for n64 */
+#if defined(__mips_n64)
+#define	PTRSHIFT	3
+#define	PTRMASK		0xff8
+#else
+#define	PTRSHIFT	2
+#define	PTRMASK		0xffc
+#endif
 
 /*
  *----------------------------------------------------------------------------
@@ -106,7 +106,7 @@ VECTOR(MipsTLBMiss, unknown)
 	.set push
 	.set noat
 	j	MipsDoTLBMiss
-	MFC0	k0, COP_0_BAD_VADDR		# get the fault address
+	MFC0	k0, MIPS_COP_0_BAD_VADDR	# get the fault address
 	.set pop
 VECTOR_END(MipsTLBMiss)
 
@@ -126,27 +126,35 @@ VECTOR_END(MipsTLBMiss)
 	.set noat
 MipsDoTLBMiss:
 	bltz		k0, 1f				#02: k0<0 -> 1f (kernel fault)
-	PTR_SRL		k0, k0, SEGSHIFT - 2		#03: k0=seg offset (almost)
+	PTR_SRL		k0, k0, SEGSHIFT - PTRSHIFT	#03: k0=seg offset (almost)
 
 	GET_CPU_PCPU(k1)
 	PTR_L		k1, PC_SEGBASE(k1)
 	beqz		k1, 2f				#05: make sure segbase is not null
-	andi		k0, k0, 0xffc			#06: k0=seg offset (mask 0x3)
+	andi		k0, k0, PTRMASK			#06: k0=seg offset
 	PTR_ADDU	k1, k0, k1			#07: k1=seg entry address
 
 	PTR_L		k1, 0(k1)			#08: k1=seg entry
-	MFC0		k0, COP_0_BAD_VADDR		#09: k0=bad address (again)
+	MFC0		k0, MIPS_COP_0_BAD_VADDR	#09: k0=bad address (again)
 	beq		k1, zero, 2f			#0a: ==0 -- no page table
-	srl		k0, PAGE_SHIFT - 2		#0b: k0=VPN (aka va>>10)
+#ifdef __mips_n64
+	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=VPN
+	andi		k0, k0, PTRMASK			# k0=pde offset
+	PTR_ADDU	k1, k0, k1			# k1=pde entry address
+	PTR_L		k1, 0(k1)			# k1=pde entry
+	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
+	beq		k1, zero, 2f			# ==0 -- no page table
+#endif
+	PTR_SRL		k0, PAGE_SHIFT - 2		#0b: k0=VPN (aka va>>10)
 	andi		k0, k0, 0xff8			#0c: k0=page tab offset
 	PTR_ADDU	k1, k1, k0			#0d: k1=pte address
 	lw		k0, 0(k1)			#0e: k0=lo0 pte
 	lw		k1, 4(k1)			#0f: k1=lo0 pte
 	CLEAR_PTE_SWBITS(k0)
-	MTC0		k0, COP_0_TLB_LO0		#12: lo0 is loaded
+	MTC0		k0, MIPS_COP_0_TLB_LO0		#12: lo0 is loaded
 	COP0_SYNC
 	CLEAR_PTE_SWBITS(k1)
-	MTC0		k1, COP_0_TLB_LO1		#15: lo1 is loaded
+	MTC0		k1, MIPS_COP_0_TLB_LO1		#15: lo1 is loaded
 	COP0_SYNC
 	tlbwr						#1a: write to tlb
 	HAZARD_DELAY
@@ -167,14 +175,17 @@ VECTOR(MipsException, unknown)
  * Find out what mode we came from and jump to the proper handler.
  */
 	.set	noat
-	mfc0	k0, COP_0_STATUS_REG		# Get the status register
-	mfc0	k1, COP_0_CAUSE_REG		# Get the cause register value.
+	mfc0	k0, MIPS_COP_0_STATUS		# Get the status register
+	mfc0	k1, MIPS_COP_0_CAUSE		# Get the cause register value.
 	and	k0, k0, SR_KSU_USER		# test for user mode
 						# sneaky but the bits are
 						# with us........
 	sll	k0, k0, 3			# shift user bit for cause index
-	and	k1, k1, CR_EXC_CODE		# Mask out the cause bits.
+	and	k1, k1, MIPS3_CR_EXC_CODE	# Mask out the cause bits.
 	or	k1, k1, k0			# change index to user table
+#if defined(__mips_n64)
+	PTR_SLL	k1, k1, 1			# shift to get 8-byte offset
+#endif
 1:
 	PTR_LA	k0, _C_LABEL(machExceptionTable)  # get base of the jump table
 	PTR_ADDU k0, k0, k1			# Get the address of the
@@ -195,7 +206,7 @@ VECTOR_END(MipsException)
  */
 SlowFault:
 	.set	noat
-	mfc0	k0, COP_0_STATUS_REG
+	mfc0	k0, MIPS_COP_0_STATUS
 	nop
 	and	k0, k0, SR_KSU_USER
 	bne	k0, zero, _C_LABEL(MipsUserGenException)
@@ -223,21 +234,30 @@ SlowFault:
 #define	SAVE_REG(reg, offs, base) \
 	REG_S	reg, CALLFRAME_SIZ + (SZREG * offs) (base)
 
-#ifdef TARGET_OCTEON
+#if defined(CPU_CNMIPS)
 #define CLEAR_STATUS \
-	mfc0    a0, COP_0_STATUS_REG    ;\
+	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
 	or      a0, a0, a2	        ; \
 	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
-        mtc0    a0, COP_0_STATUS_REG    ; \
+        mtc0    a0, MIPS_COP_0_STATUS   ; \
+	ITLBNOPFIX
+#elif defined(CPU_RMI)
+#define CLEAR_STATUS \
+	mfc0    a0, MIPS_COP_0_STATUS   ;\
+	li      a2, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT) ; \
+	or      a0, a0, a2	        ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
+	and     a0, a0, a2              ; \
+        mtc0    a0, MIPS_COP_0_STATUS   ; \
 	ITLBNOPFIX
 #else
 #define CLEAR_STATUS \
-	mfc0    a0, COP_0_STATUS_REG    ;\
+	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
-	mtc0	a0, COP_0_STATUS_REG	; \
+	mtc0	a0, MIPS_COP_0_STATUS   ; \
 	ITLBNOPFIX
 #endif
 
@@ -281,10 +301,10 @@ SlowFault:
 	SAVE_REG(s8, S8, sp)	        ;\
 	mflo	v0			;\
 	mfhi	v1			;\
-	mfc0	a0, COP_0_STATUS_REG	;\
-	mfc0	a1, COP_0_CAUSE_REG	;\
-	MFC0	a2, COP_0_BAD_VADDR	;\
-	MFC0	a3, COP_0_EXC_PC	;\
+	mfc0	a0, MIPS_COP_0_STATUS	;\
+	mfc0	a1, MIPS_COP_0_CAUSE	;\
+	MFC0	a2, MIPS_COP_0_BAD_VADDR;\
+	MFC0	a3, MIPS_COP_0_EXC_PC	;\
 	SAVE_REG(v0, MULLO, sp)		;\
 	SAVE_REG(v1, MULHI, sp)		;\
 	SAVE_REG(a0, SR, sp)		;\
@@ -311,7 +331,7 @@ SlowFault:
 	RESTORE_REG(t1, MULHI, sp)	;\
 	mtlo	t0			;\
 	mthi	t1			;\
-	MTC0	v0, COP_0_EXC_PC	;\
+	MTC0	v0, MIPS_COP_0_EXC_PC	;\
 	.set noat		        ;\
 	RESTORE_REG(AT, AST, sp)	;\
 	RESTORE_REG(v0, V0, sp)		;\
@@ -342,7 +362,7 @@ SlowFault:
 	RESTORE_REG(gp, GP, sp)		;\
 	RESTORE_REG(ra, RA, sp)		;\
 	PTR_ADDU sp, sp, KERN_EXC_FRAME_SIZE;\
-	mtc0	k0, COP_0_STATUS_REG
+	mtc0	k0, MIPS_COP_0_STATUS
 
 
 /*
@@ -375,10 +395,10 @@ NNON_LEAF(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	 * intr filters if interrupts are enabled later
 	 * in trap handler
 	 */
-	mfc0	a0, COP_0_STATUS_REG
-	and	a0, a0, SR_INT_MASK
+	mfc0	a0, MIPS_COP_0_STATUS
+	and	a0, a0, MIPS_SR_INT_MASK
 	RESTORE_REG(a1, SR, sp)
-	and	a1, a1, ~SR_INT_MASK
+	and	a1, a1, ~MIPS_SR_INT_MASK
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
 	RESTORE_CPU			# v0 contains the return address.
@@ -431,22 +451,22 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	SAVE_U_PCB_REG(t2, T2, k1)
 	SAVE_U_PCB_REG(t3, T3, k1)
 	SAVE_U_PCB_REG(ta0, TA0, k1)
-	mfc0	a0, COP_0_STATUS_REG		# First arg is the status reg.
+	mfc0	a0, MIPS_COP_0_STATUS		# First arg is the status reg.
 	SAVE_U_PCB_REG(ta1, TA1, k1)
 	SAVE_U_PCB_REG(ta2, TA2, k1)
 	SAVE_U_PCB_REG(ta3, TA3, k1)
 	SAVE_U_PCB_REG(s0, S0, k1)
-	mfc0	a1, COP_0_CAUSE_REG		# Second arg is the cause reg.
+	mfc0	a1, MIPS_COP_0_CAUSE		# Second arg is the cause reg.
 	SAVE_U_PCB_REG(s1, S1, k1)
 	SAVE_U_PCB_REG(s2, S2, k1)
 	SAVE_U_PCB_REG(s3, S3, k1)
 	SAVE_U_PCB_REG(s4, S4, k1)
-	MFC0	a2, COP_0_BAD_VADDR		# Third arg is the fault addr
+	MFC0	a2, MIPS_COP_0_BAD_VADDR	# Third arg is the fault addr
 	SAVE_U_PCB_REG(s5, S5, k1)
 	SAVE_U_PCB_REG(s6, S6, k1)
 	SAVE_U_PCB_REG(s7, S7, k1)
 	SAVE_U_PCB_REG(t8, T8, k1)
-	MFC0	a3, COP_0_EXC_PC		# Fourth arg is the pc.
+	MFC0	a3, MIPS_COP_0_EXC_PC		# Fourth arg is the pc.
 	SAVE_U_PCB_REG(t9, T9, k1)
 	SAVE_U_PCB_REG(gp, GP, k1)
 	SAVE_U_PCB_REG(sp, SP, k1)
@@ -462,11 +482,13 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	REG_S	a3, CALLFRAME_RA(sp)	# for debugging
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 # Turn off fpu and enter kernel mode
-	and	t0, a0, ~(SR_COP_1_BIT | SR_EXL | SR_KSU_MASK | SR_INT_ENAB)
-#ifdef TARGET_OCTEON
-	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS32_SR_PX)
+	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS3_SR_KSU_MASK | MIPS_SR_INT_IE)
+#if defined(CPU_CNMIPS)
+	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
+#elif defined(CPU_RMI)	
+	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
 #endif	
-	mtc0	t0, COP_0_STATUS_REG
+	mtc0	t0, MIPS_COP_0_STATUS
 	PTR_ADDU a0, k1, U_PCB_REGS
 	ITLBNOPFIX
 
@@ -498,10 +520,10 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	 * Some of interrupts could be enabled by ithread
 	 * scheduled by ast()
 	 */
-	mfc0	a0, COP_0_STATUS_REG
-	and	a0, a0, SR_INT_MASK
+	mfc0	a0, MIPS_COP_0_STATUS
+	and	a0, a0, MIPS_SR_INT_MASK
 	RESTORE_U_PCB_REG(a1, SR, k1)
-	and	a1, a1, ~SR_INT_MASK
+	and	a1, a1, ~MIPS_SR_INT_MASK
 	or	a1, a1, a0
 	SAVE_U_PCB_REG(a1, SR, k1)
 
@@ -511,7 +533,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	mthi	t1
 	RESTORE_U_PCB_REG(a0, PC, k1)
 	RESTORE_U_PCB_REG(v0, V0, k1)
-        MTC0	a0, COP_0_EXC_PC	# set return address
+        MTC0	a0, MIPS_COP_0_EXC_PC	# set return address
 	RESTORE_U_PCB_REG(v1, V1, k1)
 	RESTORE_U_PCB_REG(a0, A0, k1)
 	RESTORE_U_PCB_REG(a1, A1, k1)
@@ -543,7 +565,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	.set noat
 	RESTORE_U_PCB_REG(AT, AST, k1)
 
-	mtc0	k0, COP_0_STATUS_REG	# still exception level
+	mtc0	k0, MIPS_COP_0_STATUS	# still exception level
 	ITLBNOPFIX
 	sync
 	eret
@@ -589,10 +611,10 @@ NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	 * intr filters if interrupts are enabled later
 	 * in trap handler
 	 */
-	mfc0	a0, COP_0_STATUS_REG
-	and	a0, a0, SR_INT_MASK
+	mfc0	a0, MIPS_COP_0_STATUS
+	and	a0, a0, MIPS_SR_INT_MASK
 	RESTORE_REG(a1, SR, sp)
-	and	a1, a1, ~SR_INT_MASK
+	and	a1, a1, ~MIPS_SR_INT_MASK
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
 	REG_L	v0, CALLFRAME_RA + KERN_REG_SIZE(sp)
@@ -666,9 +688,9 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 
 	mflo	v0			# get lo/hi late to avoid stall
 	mfhi	v1
-	mfc0	a0, COP_0_STATUS_REG
-	mfc0	a1, COP_0_CAUSE_REG
-	MFC0	a3, COP_0_EXC_PC
+	mfc0	a0, MIPS_COP_0_STATUS
+	mfc0	a1, MIPS_COP_0_CAUSE
+	MFC0	a3, MIPS_COP_0_EXC_PC
 	SAVE_U_PCB_REG(v0, MULLO, k1)
 	SAVE_U_PCB_REG(v1, MULHI, k1)
 	SAVE_U_PCB_REG(a0, SR, k1)
@@ -678,11 +700,13 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 
 # Turn off fpu, disable interrupts, set kernel mode kernel mode, clear exception level.
-	and	t0, a0, ~(SR_COP_1_BIT | SR_EXL | SR_INT_ENAB | SR_KSU_MASK)
-#ifdef TARGET_OCTEON
-	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS32_SR_PX)
+	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS3_SR_KSU_MASK)
+#ifdef CPU_CNMIPS
+	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
+#elif defined(CPU_RMI)	
+	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
 #endif	
-	mtc0	t0, COP_0_STATUS_REG
+	mtc0	t0, MIPS_COP_0_STATUS
 	ITLBNOPFIX
 	PTR_ADDU a0, k1, U_PCB_REGS
 /*
@@ -699,9 +723,9 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
  * If that processor is also doing AST processing with interrupts disabled
  * then we may deadlock.
  */
-	mfc0	a0, COP_0_STATUS_REG
-	or	a0, a0, SR_INT_ENAB
-	mtc0	a0, COP_0_STATUS_REG
+	mfc0	a0, MIPS_COP_0_STATUS
+	or	a0, a0, MIPS_SR_INT_IE
+	mtc0	a0, MIPS_COP_0_STATUS
 	ITLBNOPFIX
 
 /*
@@ -722,10 +746,10 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 	 * Some of interrupts could be disabled by
 	 * intr filters
 	 */
-	mfc0	a0, COP_0_STATUS_REG
-	and	a0, a0, SR_INT_MASK
+	mfc0	a0, MIPS_COP_0_STATUS
+	and	a0, a0, MIPS_SR_INT_MASK
 	RESTORE_U_PCB_REG(a1, SR, k1)
-	and	a1, a1, ~SR_INT_MASK
+	and	a1, a1, ~MIPS_SR_INT_MASK
 	or	a1, a1, a0
 	SAVE_U_PCB_REG(a1, SR, k1)
 
@@ -743,7 +767,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 	RESTORE_U_PCB_REG(t2, PC, k1)
 	mtlo	t0
 	mthi	t1
-	MTC0	t2, COP_0_EXC_PC	# set return address
+	MTC0	t2, MIPS_COP_0_EXC_PC	# set return address
 	RESTORE_U_PCB_REG(v0, V0, k1)
 	RESTORE_U_PCB_REG(v1, V1, k1)
 	RESTORE_U_PCB_REG(a0, A0, k1)
@@ -767,7 +791,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 	.set	noat
 	RESTORE_U_PCB_REG(AT, AST, k1)
 
-	mtc0	k0, COP_0_STATUS_REG	# SR with EXL set. 
+	mtc0	k0, MIPS_COP_0_STATUS	# SR with EXL set. 
 	ITLBNOPFIX
 	sync
 	eret
@@ -779,7 +803,7 @@ NLEAF(MipsTLBInvalidException)
 	.set noat
 	.set noreorder
 
-	MFC0		k0, COP_0_BAD_VADDR
+	MFC0		k0, MIPS_COP_0_BAD_VADDR
 	PTR_LI		k1, VM_MAXUSER_ADDRESS
 	sltu		k1, k0, k1
 	bnez		k1, 1f
@@ -798,9 +822,9 @@ NLEAF(MipsTLBInvalidException)
 	beqz		k1, 3f
 	nop
 
-	PTR_SRL		k0, SEGSHIFT - 2		# k0=seg offset (almost)
+	PTR_SRL		k0, SEGSHIFT - PTRSHIFT		# k0=seg offset (almost)
 	beq		k1, zero, MipsKernGenException	# ==0 -- no seg tab
-	andi		k0, k0, 0xffc			# k0=seg offset (mask 0x3)
+	andi		k0, k0, PTRMASK			# k0=seg offset
 	PTR_ADDU	k1, k0, k1			# k1=seg entry address
 	PTR_L		k1, 0(k1)			# k1=seg entry
 
@@ -808,7 +832,19 @@ NLEAF(MipsTLBInvalidException)
 	beqz		k1, 3f
 	nop
 
-	MFC0		k0, COP_0_BAD_VADDR		# k0=bad address (again)
+#ifdef __mips_n64
+	MFC0		k0, MIPS_COP_0_BAD_VADDR
+	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=pde offset (almost)
+	beq		k1, zero, MipsKernGenException	# ==0 -- no pde tab
+	andi		k0, k0, PTRMASK			# k0=pde offset
+	PTR_ADDU	k1, k0, k1			# k1=pde entry address
+	PTR_L		k1, 0(k1)			# k1=pde entry
+
+	/* Validate pde table pointer.  */
+	beqz		k1, 3f
+	nop
+#endif
+	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
 	PTR_SRL		k0, PAGE_SHIFT - 2		# k0=VPN
 	andi		k0, k0, 0xffc			# k0=page tab offset
 	PTR_ADDU	k1, k1, k0			# k1=pte address
@@ -827,10 +863,10 @@ NLEAF(MipsTLBInvalidException)
 	lw		k0, 0(k1)
 	lw		k1, 4(k1)
 	CLEAR_PTE_SWBITS(k0)
-	MTC0		k0, COP_0_TLB_LO0
+	MTC0		k0, MIPS_COP_0_TLB_LO0
 	COP0_SYNC
 	CLEAR_PTE_SWBITS(k1)
-	MTC0		k1, COP_0_TLB_LO1
+	MTC0		k1, MIPS_COP_0_TLB_LO1
 	COP0_SYNC
 
 	b		tlb_insert_entry
@@ -840,16 +876,16 @@ odd_page:
 	lw		k0, -4(k1)
 	lw		k1, 0(k1)
 	CLEAR_PTE_SWBITS(k0)
-	MTC0		k0, COP_0_TLB_LO0
+	MTC0		k0, MIPS_COP_0_TLB_LO0
 	COP0_SYNC
 	CLEAR_PTE_SWBITS(k1)
-	MTC0		k1, COP_0_TLB_LO1
+	MTC0		k1, MIPS_COP_0_TLB_LO1
 	COP0_SYNC
 
 tlb_insert_entry:
 	tlbp
 	HAZARD_DELAY
-	mfc0		k0, COP_0_TLB_INDEX
+	mfc0		k0, MIPS_COP_0_TLB_INDEX
 	bltz		k0, tlb_insert_random
 	nop
 	tlbwi
@@ -865,7 +901,7 @@ tlb_insert_random:
 	/*
 	 * Branch to the comprehensive exception processing.
 	 */
-	mfc0	k1, COP_0_STATUS_REG
+	mfc0	k1, MIPS_COP_0_STATUS
 	andi	k1, k1, SR_KSU_USER
 	bnez	k1, _C_LABEL(MipsUserGenException)
 	nop
@@ -955,29 +991,37 @@ END(MipsTLBInvalidException)
  */
 NLEAF(MipsTLBMissException)
 	.set	noat
-	MFC0		k0, COP_0_BAD_VADDR		# k0=bad address
+	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address
 	PTR_LI		k1, VM_MAX_KERNEL_ADDRESS	# check fault address against
 	sltu		k1, k1, k0			# upper bound of kernel_segmap
 	bnez		k1, MipsKernGenException	# out of bound
 	lui		k1, %hi(kernel_segmap)		# k1=hi of segbase
-	PTR_SRL		k0, SEGSHIFT - 2		# k0=seg offset (almost)
+	PTR_SRL		k0, SEGSHIFT - PTRSHIFT		# k0=seg offset (almost)
 	PTR_L		k1, %lo(kernel_segmap)(k1)	# k1=segment tab base
 	beq		k1, zero, MipsKernGenException	# ==0 -- no seg tab
-	andi		k0, k0, 0xffc			# k0=seg offset (mask 0x3)
+	andi		k0, k0, PTRMASK			# k0=seg offset
 	PTR_ADDU	k1, k0, k1			# k1=seg entry address
 	PTR_L		k1, 0(k1)			# k1=seg entry
-	MFC0		k0, COP_0_BAD_VADDR		# k0=bad address (again)
+	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
 	beq		k1, zero, MipsKernGenException	# ==0 -- no page table
+#ifdef __mips_n64
+	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=VPN
+	andi		k0, k0, PTRMASK			# k0=pde offset
+	PTR_ADDU	k1, k0, k1			# k1=pde entry address
+	PTR_L		k1, 0(k1)			# k1=pde entry
+	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
+  	beq		k1, zero, MipsKernGenException	# ==0 -- no page table
+#endif
 	PTR_SRL		k0, PAGE_SHIFT - 2		# k0=VPN
 	andi		k0, k0, 0xff8			# k0=page tab offset
 	PTR_ADDU	k1, k1, k0			# k1=pte address
 	lw		k0, 0(k1)			# k0=lo0 pte
 	lw		k1, 4(k1)			# k1=lo1 pte
 	CLEAR_PTE_SWBITS(k0)
-	MTC0		k0, COP_0_TLB_LO0		# lo0 is loaded
+	MTC0		k0, MIPS_COP_0_TLB_LO0		# lo0 is loaded
 	COP0_SYNC
 	CLEAR_PTE_SWBITS(k1)
-	MTC0		k1, COP_0_TLB_LO1		# lo1 is loaded
+	MTC0		k1, MIPS_COP_0_TLB_LO1		# lo1 is loaded
 	COP0_SYNC
 	tlbwr					# write to tlb
 	HAZARD_DELAY
@@ -1006,15 +1050,15 @@ END(MipsTLBMissException)
  */
 NON_LEAF(MipsFPTrap, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
-	mfc0	t0, COP_0_STATUS_REG
+	mfc0	t0, MIPS_COP_0_STATUS
 	REG_S	ra, CALLFRAME_RA(sp)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 
-	or	t1, t0, SR_COP_1_BIT
-	mtc0	t1, COP_0_STATUS_REG
+	or	t1, t0, MIPS_SR_COP_1_BIT
+	mtc0	t1, MIPS_COP_0_STATUS
 	ITLBNOPFIX
-	cfc1	t1, FPC_CSR			# stall til FP done
-	cfc1	t1, FPC_CSR			# now get status
+	cfc1	t1, MIPS_FPU_CSR		# stall til FP done
+	cfc1	t1, MIPS_FPU_CSR		# now get status
 	nop
 	sll	t2, t1, (31 - 17)		# unimplemented operation?
 	bgez	t2, 3f				# no, normal trap
@@ -1062,8 +1106,8 @@ NON_LEAF(MipsFPTrap, CALLFRAME_SIZ, ra)
  * Check to see if the instruction to be emulated is a floating-point
  * instruction.
  */
-	srl	a3, a0, OPCODE_SHIFT
-	beq	a3, OPCODE_C1, 4f		# this should never fail
+	srl	a3, a0, MIPS_OPCODE_SHIFT
+	beq	a3, MIPS_OPCODE_C1, 4f		# this should never fail
 	nop
 /*
  * Send a floating point exception signal to the current process.
@@ -1071,8 +1115,8 @@ NON_LEAF(MipsFPTrap, CALLFRAME_SIZ, ra)
 3:
 	GET_CPU_PCPU(a0)
 	PTR_L	a0, PC_CURTHREAD(a0)		# get current thread
-	cfc1	a2, FPC_CSR			# code = FP execptions
-	ctc1	zero, FPC_CSR			# Clear exceptions
+	cfc1	a2, MIPS_FPU_CSR		# code = FP execptions
+	ctc1	zero, MIPS_FPU_CSR		# Clear exceptions
 	PTR_LA	t3, _C_LABEL(trapsignal)
 	jalr	t3
 	li	a1, SIGFPE
@@ -1091,10 +1135,10 @@ NON_LEAF(MipsFPTrap, CALLFRAME_SIZ, ra)
  * Turn off the floating point coprocessor and return.
  */
 FPReturn:
-	mfc0	t0, COP_0_STATUS_REG
+	mfc0	t0, MIPS_COP_0_STATUS
 	PTR_L	ra, CALLFRAME_RA(sp)
-	and	t0, t0, ~SR_COP_1_BIT
-	mtc0	t0, COP_0_STATUS_REG
+	and	t0, t0, ~MIPS_SR_COP_1_BIT
+	mtc0	t0, MIPS_COP_0_STATUS
 	ITLBNOPFIX
 	j	ra
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
@@ -1123,7 +1167,7 @@ eintrcnt:
 	.text
 VECTOR(MipsCache, unknown)
 	PTR_LA	k0, _C_LABEL(MipsCacheException)
-	li	k1, MIPS_PHYS_MASK
+	li	k1, MIPS_KSEG0_PHYS_MASK
 	and	k0, k1
 	PTR_LI	k1, MIPS_KSEG1_START
 	or	k0, k1
@@ -1143,15 +1187,15 @@ NESTED_NOPROFILE(MipsCacheException, KERN_EXC_FRAME_SIZE, ra)
 	.mask	0x80000000, -4
 	PTR_LA	k0, _C_LABEL(panic)		# return to panic
 	PTR_LA	a0, 9f				# panicstr
-	MFC0	a1, COP_0_ERROR_PC
-	mfc0	a2, COP_0_CACHE_ERR		# 3rd arg cache error
+	MFC0	a1, MIPS_COP_0_ERROR_PC
+	mfc0	a2, MIPS_COP_0_CACHE_ERR	# 3rd arg cache error
 
-	MTC0	k0, COP_0_ERROR_PC		# set return address
+	MTC0	k0, MIPS_COP_0_ERROR_PC		# set return address
 
-	mfc0	k0, COP_0_STATUS_REG		# restore status
-	li	k1, SR_DIAG_DE			# ignore further errors
+	mfc0	k0, MIPS_COP_0_STATUS		# restore status
+	li	k1, MIPS_SR_DIAG_PE		# ignore further errors
 	or	k0, k1
-	mtc0	k0, COP_0_STATUS_REG		# restore status
+	mtc0	k0, MIPS_COP_0_STATUS		# restore status
 	COP0_SYNC
 
 	eret

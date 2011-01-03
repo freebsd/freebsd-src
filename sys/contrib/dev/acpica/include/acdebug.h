@@ -117,7 +117,7 @@
 #define __ACDEBUG_H__
 
 
-#define ACPI_DEBUG_BUFFER_SIZE  4196
+#define ACPI_DEBUG_BUFFER_SIZE  0x4000      /* 16K buffer for return objects */
 
 typedef struct CommandInfo
 {
@@ -227,6 +227,11 @@ ACPI_STATUS
 AcpiDbDisplayObjects (
     char                    *ObjTypeArg,
     char                    *DisplayCountArg);
+
+void
+AcpiDbDisplayInterfaces (
+    char                    *ActionArg,
+    char                    *InterfaceNameArg);
 
 ACPI_STATUS
 AcpiDbFindNameInNamespace (

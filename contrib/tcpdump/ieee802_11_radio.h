@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp $ */
+/* NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp  */
 /* $Header: /tcpdump/master/tcpdump/ieee802_11_radio.h,v 1.3 2007-08-29 02:31:44 mcr Exp $ */
 
 /*-
@@ -33,11 +33,11 @@
 #ifndef _NET_IF_IEEE80211RADIOTAP_H_
 #define _NET_IF_IEEE80211RADIOTAP_H_
 
-/* A generic radio capture format is desirable. There is one for
- * Linux, but it is neither rigidly defined (there were not even
- * units given for some fields) nor easily extensible.
+/* A generic radio capture format is desirable. It must be
+ * rigidly defined (e.g., units for fields should be given),
+ * and easily extensible.
  *
- * I suggest the following extensible radio capture format. It is
+ * The following is an extensible radio capture format. It is
  * based on a bitmap indicating which fields are present.
  *
  * I am trying to describe precisely what the application programmer
@@ -47,11 +47,6 @@
  * function of...") that I cannot set false expectations for lawyerly
  * readers.
  */
-#if defined(__KERNEL__) || defined(_KERNEL)
-#ifndef DLT_IEEE802_11_RADIO
-#define	DLT_IEEE802_11_RADIO	127	/* 802.11 plus WLAN header */
-#endif
-#endif /* defined(__KERNEL__) || defined(_KERNEL) */
 
 /*
  * The radio capture header precedes the 802.11 header.
@@ -77,7 +72,7 @@ struct ieee80211_radiotap_header {
 					 * Additional extensions are made
 					 * by setting bit 31.
 					 */
-} __attribute__((__packed__));
+};
 
 /* Name                                 Data type       Units
  * ----                                 ---------       -----
@@ -173,10 +168,6 @@ struct ieee80211_radiotap_header {
  *	finally the maximum regulatory transmit power cap in .5 dBm
  *	units.  This property supersedes IEEE80211_RADIOTAP_CHANNEL
  *	and only one of the two should be present.
- *
- * IEEE80211_RADIOTAP_FCS           	u_int32_t       data
- *
- *	FCS from frame in network byte order.
  */
 enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_TSFT = 0,
@@ -193,12 +184,12 @@ enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_ANTENNA = 11,
 	IEEE80211_RADIOTAP_DB_ANTSIGNAL = 12,
 	IEEE80211_RADIOTAP_DB_ANTNOISE = 13,
+	/* NB: gap for netbsd definitions */
 	IEEE80211_RADIOTAP_XCHANNEL = 18,
 	IEEE80211_RADIOTAP_EXT = 31
 };
 
-#ifndef _KERNEL
-/* Channel flags; some are used only with XCHANNEL */
+/* channel attributes */
 #define	IEEE80211_CHAN_TURBO	0x00010	/* Turbo channel */
 #define	IEEE80211_CHAN_CCK	0x00020	/* CCK channel */
 #define	IEEE80211_CHAN_OFDM	0x00040	/* OFDM channel */
@@ -214,7 +205,6 @@ enum ieee80211_radiotap_type {
 #define	IEEE80211_CHAN_HT20	0x10000	/* HT 20 channel */
 #define	IEEE80211_CHAN_HT40U	0x20000	/* HT 40 channel w/ ext above */
 #define	IEEE80211_CHAN_HT40D	0x40000	/* HT 40 channel w/ ext below */
-#endif /* !_KERNEL */
 
 /* For IEEE80211_RADIOTAP_FLAGS */
 #define	IEEE80211_RADIOTAP_F_CFP	0x01	/* sent/received
@@ -236,5 +226,6 @@ enum ieee80211_radiotap_type {
 						 * (to 32-bit boundary)
 						 */
 #define	IEEE80211_RADIOTAP_F_BADFCS	0x40	/* does not pass FCS check */
+#define	IEEE80211_RADIOTAP_F_SHORTGI	0x80	/* HT short GI */
 
 #endif /* _NET_IF_IEEE80211RADIOTAP_H_ */

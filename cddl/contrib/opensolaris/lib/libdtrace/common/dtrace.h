@@ -34,6 +34,9 @@
 #include <stdio.h>
 #include <gelf.h>
 #include <libproc.h>
+#if !defined(sun)
+#include <rtld_db.h>
+#endif
 
 #ifdef	__cplusplus
 extern "C" {

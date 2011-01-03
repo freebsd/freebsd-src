@@ -121,8 +121,6 @@ SET_DECLARE(linux_device_handler_set, struct linux_device_handler);
 static int	elf_linux_fixup(register_t **stack_base,
 		    struct image_params *iparams);
 static register_t *linux_copyout_strings(struct image_params *imgp);
-static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
-		    caddr_t *params);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, 
 				   struct image_params *imgp, u_long stack);
@@ -424,7 +422,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -547,7 +545,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -645,7 +643,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	regs->tf_rflags = eflags;
 	regs->tf_rsp    = frame.sf_sc.sc_esp_at_signal;
 	regs->tf_ss     = frame.sf_sc.sc_ss;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 
 	return (EJUSTRETURN);
 }
@@ -744,7 +742,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	regs->tf_rflags = eflags;
 	regs->tf_rsp    = context->sc_esp_at_signal;
 	regs->tf_ss     = context->sc_ss;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 
 	/*
 	 * call sigaltstack & ignore results..
@@ -764,19 +762,33 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	return (EJUSTRETURN);
 }
 
-/*
- * MPSAFE
- */
-static void
-linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
+static int
+linux32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
-	args[0] = tf->tf_rbx;
-	args[1] = tf->tf_rcx;
-	args[2] = tf->tf_rdx;
-	args[3] = tf->tf_rsi;
-	args[4] = tf->tf_rdi;
-	args[5] = tf->tf_rbp;	/* Unconfirmed */
-	*params = NULL;		/* no copyin */
+	struct proc *p;
+	struct trapframe *frame;
+
+	p = td->td_proc;
+	frame = td->td_frame;
+
+	sa->args[0] = frame->tf_rbx;
+	sa->args[1] = frame->tf_rcx;
+	sa->args[2] = frame->tf_rdx;
+	sa->args[3] = frame->tf_rsi;
+	sa->args[4] = frame->tf_rdi;
+	sa->args[5] = frame->tf_rbp;	/* Unconfirmed */
+	sa->code = frame->tf_rax;
+
+	if (sa->code >= p->p_sysent->sv_size)
+		sa->callp = &p->p_sysent->sv_table[0];
+	else
+		sa->callp = &p->p_sysent->sv_table[sa->code];
+	sa->narg = sa->callp->sy_narg;
+
+	td->td_retval[0] = 0;
+	td->td_retval[1] = frame->tf_rdx;
+
+	return (0);
 }
 
 /*
@@ -792,7 +804,7 @@ exec_linux_imgact_try(struct image_params *imgp)
 {
 	const char *head = (const char *)imgp->image_header;
 	char *rpath;
-	int error = -1, len;
+	int error = -1;
 
 	/*
 	* The interpreter for shell scripts run from a linux binary needs
@@ -809,18 +821,12 @@ exec_linux_imgact_try(struct image_params *imgp)
 			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
 			    imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0,
 			    AT_FDCWD);
-			if (rpath != NULL) {
-				len = strlen(rpath) + 1;
-
-				if (len <= MAXSHELLCMDLEN) {
-					memcpy(imgp->interpreter_name, rpath,
-					    len);
-				}
-				free(rpath, M_TEMP);
-			}
+			if (rpath != NULL)
+				imgp->args->fname_buf =
+				    imgp->interpreter_name = rpath;
 		}
 	}
-	return(error);
+	return (error);
 }
 
 /*
@@ -859,13 +865,12 @@ exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	regs->tf_flags = TF_HASSEGS;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = imgp->ps_strings;
-	td->td_pcb->pcb_full_iret = 1;
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
 	fpstate_drop(td);
 
-	/* Return via doreti so that we can change to a different %cs */
-	pcb->pcb_flags |= PCB_FULLCTX | PCB_32BIT;
-	pcb->pcb_flags &= ~PCB_GS32BIT;
+	/* Do full restore on return so that we can change to a different %cs */
+	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
+	clear_pcb_flags(pcb, PCB_GS32BIT);
 	td->td_retval[1] = 0;
 }
 
@@ -1039,7 +1044,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= linux_sigcode,
 	.sv_szsigcode	= &linux_szsigcode,
-	.sv_prepsyscall	= linux_prepsyscall,
+	.sv_prepsyscall	= NULL,
 	.sv_name	= "Linux ELF32",
 	.sv_coredump	= elf32_coredump,
 	.sv_imgact_try	= exec_linux_imgact_try,
@@ -1054,7 +1059,10 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_setregs	= exec_linux_setregs,
 	.sv_fixlimit	= linux32_fixlimit,
 	.sv_maxssiz	= &linux32_maxssiz,
-	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32
+	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = linux32_fetch_syscall_args,
+	.sv_syscallnames = NULL,
 };
 
 static char GNU_ABI_VENDOR[] = "GNU";
@@ -1201,4 +1209,4 @@ static moduledata_t linux_elf_mod = {
 	0
 };
 
-DECLARE_MODULE(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+DECLARE_MODULE_TIED(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);

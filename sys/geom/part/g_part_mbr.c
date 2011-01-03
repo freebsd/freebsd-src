@@ -127,6 +127,11 @@ mbr_parse_type(const char *type, u_char *dp_typ)
 		*dp_typ = DOSPTYP_386BSD;
 		return (0);
 	}
+	alias = g_part_alias_name(G_PART_ALIAS_MS_NTFS);
+	if (!strcasecmp(type, alias)) {
+		*dp_typ = DOSPTYP_NTFS;
+		return (0);
+	}
 	return (EINVAL);
 }
 
@@ -199,8 +204,8 @@ g_part_mbr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	if (baseentry->gpe_deleted)
 		bzero(&entry->ent, sizeof(entry->ent));
 
-	KASSERT(baseentry->gpe_start <= start, (__func__));
-	KASSERT(baseentry->gpe_end >= start + size - 1, (__func__));
+	KASSERT(baseentry->gpe_start <= start, ("%s", __func__));
+	KASSERT(baseentry->gpe_end >= start + size - 1, ("%s", __func__));
 	baseentry->gpe_start = start;
 	baseentry->gpe_end = start + size - 1;
 	entry->ent.dp_start = start;
@@ -444,12 +449,6 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 				basetable->gpt_heads = heads;
 			}
 		}
-		if ((ent.dp_start % basetable->gpt_sectors) != 0)
-			printf("GEOM: %s: partition %d does not start on a "
-			    "track boundary.\n", pp->name, index + 1);
-		if ((ent.dp_size % basetable->gpt_sectors) != 0)
-			printf("GEOM: %s: partition %d does not end on a "
-			    "track boundary.\n", pp->name, index + 1);
 
 		entry = (struct g_part_mbr_entry *)g_part_new_entry(basetable,
 		    index + 1, ent.dp_start, ent.dp_start + ent.dp_size - 1);
@@ -460,6 +459,7 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	basetable->gpt_first = basetable->gpt_sectors;
 	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
 
+	g_free(buf);
 	return (0);
 }
 
@@ -509,9 +509,14 @@ g_part_mbr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	entry = (struct g_part_mbr_entry *)baseentry;
 	type = entry->ent.dp_typ;
-	if (type == DOSPTYP_386BSD)
+	switch (type) {
+	case DOSPTYP_386BSD:
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
-	snprintf(buf, bufsz, "!%d", type);
+	case DOSPTYP_NTFS:
+		return (g_part_alias_name(G_PART_ALIAS_MS_NTFS));
+	default:
+		snprintf(buf, bufsz, "!%d", type);
+	}
 	return (buf);
 }
 

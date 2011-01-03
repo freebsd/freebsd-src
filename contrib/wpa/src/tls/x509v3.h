@@ -21,14 +21,34 @@ struct x509_algorithm_identifier {
 	struct asn1_oid oid;
 };
 
+struct x509_name_attr {
+	enum x509_name_attr_type {
+		X509_NAME_ATTR_NOT_USED,
+		X509_NAME_ATTR_DC,
+		X509_NAME_ATTR_CN,
+		X509_NAME_ATTR_C,
+		X509_NAME_ATTR_L,
+		X509_NAME_ATTR_ST,
+		X509_NAME_ATTR_O,
+		X509_NAME_ATTR_OU
+	} type;
+	char *value;
+};
+
+#define X509_MAX_NAME_ATTRIBUTES 20
+
 struct x509_name {
-	char *cn; /* commonName */
-	char *c; /* countryName */
-	char *l; /* localityName */
-	char *st; /* stateOrProvinceName */
-	char *o; /* organizationName */
-	char *ou; /* organizationalUnitName */
+	struct x509_name_attr attr[X509_MAX_NAME_ATTRIBUTES];
+	size_t num_attr;
 	char *email; /* emailAddress */
+
+	/* from alternative name extension */
+	char *alt_email; /* rfc822Name */
+	char *dns; /* dNSName */
+	char *uri; /* uniformResourceIdentifier */
+	u8 *ip; /* iPAddress */
+	size_t ip_len; /* IPv4: 4, IPv6: 16 */
+	struct asn1_oid rid; /* registeredID */
 };
 
 struct x509_certificate {
@@ -52,6 +72,8 @@ struct x509_certificate {
 #define X509_EXT_BASIC_CONSTRAINTS		(1 << 0)
 #define X509_EXT_PATH_LEN_CONSTRAINT		(1 << 1)
 #define X509_EXT_KEY_USAGE			(1 << 2)
+#define X509_EXT_SUBJECT_ALT_NAME		(1 << 3)
+#define X509_EXT_ISSUER_ALT_NAME		(1 << 4)
 
 	/* BasicConstraints */
 	int ca; /* cA */
@@ -89,8 +111,6 @@ enum {
 	X509_VALIDATE_UNKNOWN_CA
 };
 
-#ifdef CONFIG_INTERNAL_X509
-
 void x509_certificate_free(struct x509_certificate *cert);
 struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len);
 void x509_name_string(struct x509_name *name, char *buf, size_t len);
@@ -105,50 +125,5 @@ struct x509_certificate *
 x509_certificate_get_subject(struct x509_certificate *chain,
 			     struct x509_name *name);
 int x509_certificate_self_signed(struct x509_certificate *cert);
-
-#else /* CONFIG_INTERNAL_X509 */
-
-static inline void x509_certificate_free(struct x509_certificate *cert)
-{
-}
-
-static inline struct x509_certificate *
-x509_certificate_parse(const u8 *buf, size_t len)
-{
-	return NULL;
-}
-
-static inline void x509_name_string(struct x509_name *name, char *buf,
-				    size_t len)
-{
-	if (len)
-		buf[0] = '\0';
-}
-
-static inline void x509_certificate_chain_free(struct x509_certificate *cert)
-{
-}
-
-static inline int
-x509_certificate_chain_validate(struct x509_certificate *trusted,
-				struct x509_certificate *chain,
-				int *reason)
-{
-	return -1;
-}
-
-static inline struct x509_certificate *
-x509_certificate_get_subject(struct x509_certificate *chain,
-			     struct x509_name *name)
-{
-	return NULL;
-}
-
-static inline int x509_certificate_self_signed(struct x509_certificate *cert)
-{
-	return -1;
-}
-
-#endif /* CONFIG_INTERNAL_X509 */
 
 #endif /* X509V3_H */

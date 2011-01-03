@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 int
 acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 {
-	int	error;
 
 	if (acl == NULL || path_p == NULL) {
 		errno = EINVAL;
@@ -64,13 +63,8 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 		errno = EINVAL;
 		return (-1);
 	}
-	if (_posix1e_acl(acl, type)) {
-		error = _posix1e_acl_sort(acl);
-		if (error) {
-			errno = error;
-			return (-1);
-		}
-	}
+	if (_posix1e_acl(acl, type))
+		_posix1e_acl_sort(acl);
 
 	acl->ats_cur_entry = 0;
 
@@ -80,7 +74,6 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 int
 acl_set_link_np(const char *path_p, acl_type_t type, acl_t acl)
 {
-	int	error;
 
 	if (acl == NULL || path_p == NULL) {
 		errno = EINVAL;
@@ -91,13 +84,8 @@ acl_set_link_np(const char *path_p, acl_type_t type, acl_t acl)
 		errno = EINVAL;
 		return (-1);
 	}
-	if (_posix1e_acl(acl, type)) {
-		error = _posix1e_acl_sort(acl);
-		if (error) {
-			errno = error;
-			return (-1);
-		}
-	}
+	if (_posix1e_acl(acl, type))
+		_posix1e_acl_sort(acl);
 
 	acl->ats_cur_entry = 0;
 
@@ -117,7 +105,6 @@ acl_set_fd(int fd, acl_t acl)
 int
 acl_set_fd_np(int fd, acl_t acl, acl_type_t type)
 {
-	int	error;
 
 	if (acl == NULL) {
 		errno = EINVAL;
@@ -128,13 +115,8 @@ acl_set_fd_np(int fd, acl_t acl, acl_type_t type)
 		errno = EINVAL;
 		return (-1);
 	}
-	if (_posix1e_acl(acl, type)) {
-		error = _posix1e_acl_sort(acl);
-		if (error) {
-			errno = error;
-			return (-1);
-		}
-	}
+	if (_posix1e_acl(acl, type))
+		_posix1e_acl_sort(acl);
 
 	acl->ats_cur_entry = 0;
 

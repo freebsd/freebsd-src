@@ -22,6 +22,7 @@
 #define DEFAULT_AP_SCAN 1
 #endif /* CONFIG_NO_SCAN_PROCESSING */
 #define DEFAULT_FAST_REAUTH 1
+#define DEFAULT_BSS_MAX_COUNT 200
 
 #include "config_ssid.h"
 
@@ -169,7 +170,6 @@ struct wpa_config {
 	 */
 	int fast_reauth;
 
-#ifdef EAP_TLS_OPENSSL
 	/**
 	 * opensc_engine_path - Path to the OpenSSL engine for opensc
 	 *
@@ -194,7 +194,6 @@ struct wpa_config {
 	 * module is not loaded.
 	 */
 	char *pkcs11_module_path;
-#endif /* EAP_TLS_OPENSSL */
 
 	/**
 	 * driver_param - Driver interface parameters
@@ -300,6 +299,16 @@ struct wpa_config {
 	char *device_type;
 
 	/**
+	 * config_methods - Config Methods
+	 *
+	 * This is a space-separated list of supported WPS configuration
+	 * methods. For example, "label display push_button keypad".
+	 * Available methods: usba ethernet label display ext_nfc_token
+	 * int_nfc_token nfc_interface push_button keypad.
+	 */
+	char *config_methods;
+
+	/**
 	 * os_version - OS Version (WPS)
 	 * 4-octet operating system version number
 	 */
@@ -323,6 +332,19 @@ struct wpa_config {
 	 *	ctrl_iface to external program(s)
 	 */
 	int wps_cred_processing;
+
+	/**
+	 * bss_max_count - Maximum number of BSS entries to keep in memory
+	 */
+	unsigned int bss_max_count;
+
+	/**
+	 * filter_ssids - SSID-based scan result filtering
+	 *
+	 *   0 = do not filter scan results
+	 *   1 = only include configured SSIDs in scan results/BSS table
+	 */
+	int filter_ssids;
 };
 
 
@@ -336,11 +358,13 @@ int wpa_config_remove_network(struct wpa_config *config, int id);
 void wpa_config_set_network_defaults(struct wpa_ssid *ssid);
 int wpa_config_set(struct wpa_ssid *ssid, const char *var, const char *value,
 		   int line);
+char ** wpa_config_get_all(struct wpa_ssid *ssid, int get_keys);
 char * wpa_config_get(struct wpa_ssid *ssid, const char *var);
 char * wpa_config_get_no_key(struct wpa_ssid *ssid, const char *var);
 void wpa_config_update_psk(struct wpa_ssid *ssid);
 int wpa_config_add_prio_network(struct wpa_config *config,
 				struct wpa_ssid *ssid);
+int wpa_config_update_prio_list(struct wpa_config *config);
 const struct wpa_config_blob * wpa_config_get_blob(struct wpa_config *config,
 						   const char *name);
 void wpa_config_set_blob(struct wpa_config *config,

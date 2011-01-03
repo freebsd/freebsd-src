@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2010
+.Dd November 24, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1151,9 +1151,10 @@ To create a vlan device named
 .Li em0.101
 on
 .Li em0
-with the vlan tag 101:
+with the vlan tag 101 and the optional the IPv4 address 192.0.2.1/24:
 .Bd -literal
 vlans_em0="101"
+ifconfig_em0_101="inet 192.0.2.1/24"
 .Ed
 .Pp
 To create a vlan device named
@@ -1260,105 +1261,95 @@ It is also possible to rename an interface by doing:
 ifconfig_ed0_name="net0"
 ifconfig_net0="inet 192.0.2.1 netmask 0xffffff00"
 .Ed
-.\" Remove in FreeBSD 10.x
 .It Va ipv6_enable
 .Pq Vt bool
-.Pp
-This option is deprecated.
-.Pp
 If the variable is
-.Dq Li YES
-it has no effect.
-To configure IPv6 for an interface see
-.Va ipv6_network_interfaces
-below.
+.Dq Li YES ,
+.Dq Li inet6 accept_rtadv
+is added to all of
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+and the
+.Va ipv6_activate_all_interfaces
+is defined as
+.Dq Li YES .
 .Pp
-If the variable is
-.Dq Li NO
-then other than
-.Dq Li lo0
-IPv6 will be disabled for each interface,
-however the same effect can be achieved by
-not configuring the interface.
-.It Va ipv6_network_interfaces
-.Pq Vt str
-This is the IPv6 equivalent of
-.Va network_interfaces .
-Normally configuration of this variable is not needed,
-the value should be left as
-.Dq Li AUTO .
-.Pp
-If
-.Dq Li INET6
-is configured in the kernel configuration for the
-.Dq Li lo0
-interface will always be performed.
-It is not necessary to list it in
-.Va ipv6_network_interfaces .
-.Pp
-Example configuration to accept Router Advertisements (RA) for the
-.Dq Li ed0
-interface:
-.Bd -literal
-ifconfig_ed0_ipv6="RTADV"
-.Ed
-.Pp
-To configure only a link-local address on the
-.Dq Li ed0
-interface:
-.Bd -literal
-ifconfig_ed0_ipv6="inet6 auto_linklocal"
-.Ed
-.Pp
-To disable RA the
-.Dq Li NORTADV
-option is available, although not required if manual
-configuration is performed as described below.
-.Pp
-An IPv6 interface can be configured manually with
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 .
-For example:
-.Bd -literal
-ifconfig_ed0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
-.Ed
-.Pp
-Manual configuration of an IPv6 address will also
-require configuration of the
-.Va ipv6_defaultrouter
-option.
-.Pp
-Aliases should be set by
-.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
-with the
-.Dq Li inet6
-keyword.
-For example:
-.Pp
-.Bd -literal
-ifconfig_ed0_alias0="inet6 2001:db8:2::1 prefixlen 64"
-.Ed
-.Pp
+This variable is deprecated.  Use
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+and
+.Va ipv6_activate_all_interfaces
+if necessary.
 .It Va ipv6_prefer
 .Pq Vt bool
 If the variable is
 .Dq Li YES ,
-the default policy of the source address selection set by
+the default address selection policy table set by
 .Xr ip6addrctl 8
 will be IPv6-preferred.
 .Pp
 If the variable is
 .Dq Li NO ,
-the default policy of the source address selection set by
+the default address selection policy table set by
 .Xr ip6addrctl 8
 will be IPv4-preferred.
 .Pp
+This variable is deprecated.  Use
+.Va ip6addrctl_policy
+instead.
+.It Va ipv6_activate_all_interfaces
+If the variable is
+.Dq Li NO ,
+all of interfaces which do not have the corrsponding
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+variable will be marked as
+.Dq Li IFDISABLED
+for security reason.  This means only IPv6 functionality on that interface
+is completely disabled.  For more details of
+.Dq Li IFDISABLED
+flag and keywords
+.Dq Li inet6 ifdisabled ,
+see
+.Xr ifconfig 8 .
+.Pp
+Default is
+.Dq Li NO .
 .It Va ipv6_privacy
 .Pq Vt bool
 If the variable is
 .Dq Li YES
 privacy addresses will be generated for each IPv6
 interface as described in RFC 4193.
+.It Va ipv6_network_interfaces
+.Pq Vt str
+This is the IPv6 equivalent of
+.Va network_interfaces .
+Normally manual configuration of this variable is not needed.
 .Pp
+.It Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+.Pq Vt str
+IPv6 functionality on an interface should be configured by
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 ,
+instead of setting ifconfig parameters in
+.Va ifconfig_ Ns Aq Ar interface .
+Aliases should be set by
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
+with
+.Dq Li inet6
+keyword.  For example:
+.Bd -literal
+ifconfig_ed0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
+ifconfig_ed0_alias0="inet6 2001:db8:2::1 prefixlen 64"
+.Ed
+.Pp
+Interfaces that have an
+.Dq Li inet6 accept_rtadv
+keyword in
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+setting will be automatically configured by
+.Xr rtsol 8 .
+Note that this automatic configuration is disabled if the
+.Va ipv6_gateway_enable
+is set to
+.Dq Li YES .
 .It Va ipv6_prefix_ Ns Aq Ar interface
 .Pq Vt str
 If one or more prefixes are defined in
@@ -1373,22 +1364,52 @@ this is the default output interface for scoped addresses.
 This works only with ipv6_gateway_enable="NO".
 .It Va ip6addrctl_enable
 .Pq Vt bool
-If set to
-.Dq Li YES ,
-install default address selection policy table
+This variable is to enable configuring default address selection policy table
 .Pq RFC 3484 .
-If a file
-.Pa /etc/ip6addrctl.conf
-is found the
+The table can be specified in another variable
+.Va ip6addrctl_policy .
+For
+.Va ip6addrctl_policy
+the following keywords can be specified:
+.Dq Li ipv4_prefer ,
+.Dq Li ipv6_prefer ,
+or
+.Dq Li AUTO .
+.Pp
+If
+.Dq Li ipv4_prefer
+or
+.Dq Li ipv6_prefer
+is specified,
 .Xr ip6addrctl 8
-reads and installs it.
-If not, a pre-defined policy table will be installed.
-There are two pre-defined ones; IPv4-preferred and IPv6-preferred.
-If set
-.Va ipv6_prefer
-variable to
+installs a pre-defined policy table described in Section 2.1
+.Pq IPv6-preferred
+or 10.3
+.Pq IPv4-preferred
+of RFC 3484.
+.Pp
+If
+.Dq Li AUTO
+is specified, it attempts to read a file
+.Pa /etc/ip6addrctl.conf
+first.  If this file is found,
+.Xr ip6addrctl 8
+reads and installs it.  If not found, a policy is automatically set
+according to
+.Va ipv6_activate_all_interfaces
+variable; if the variable is set to
 .Dq Li YES
-the IPv6-preferred one is used. Default is IPv4-preferred.
+the IPv6-preferred one is used.  Otherwise IPv4-preferred.
+.Pp
+The default value of
+.Va ip6addrctl_enable
+and
+.Va ip6addrctl_policy
+are
+.Dq Li YES
+and
+.Dq Li AUTO ,
+respectively.
 .It Va cloned_interfaces
 .Pq Vt str
 Set to the list of clonable network interfaces to create on this host.
@@ -1554,6 +1575,17 @@ If set to
 .Pa /etc/rc.d/zfs
 will attempt to automatically mount ZFS file systems and initialize ZFS volumes
 (ZVOLs).
+.It Va gptboot_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+.Pa /etc/rc.d/gptboot
+will log if the system successfully (or not) booted from a GPT partition,
+which had the
+.Ar bootonce
+attribute set using
+.Xr gpart 8
+utility.
 .It Va gbde_autoattach_all
 .Pq Vt bool
 If set to
@@ -3502,7 +3534,8 @@ A space separated list of names for jails.
 This is purely a configuration aid to help identify and
 configure multiple jails.
 The names specified in this list will be used to
-identify settings common to an instance of a jail.
+identify settings common to an instance of a jail,
+and should contain alphanumeric characters only.
 Assuming that the jail in question was named
 .Li vjail ,
 you would have the following dependent variables:
@@ -4060,65 +4093,6 @@ one could set the following:
 .Bd -literal
 mdconfig_md0_cmd="tar xfzC /var/file.tgz \e${_mp}"
 .Ed
-.It Va ramdisk_units
-.Pq Vt str
-A list of one or more ramdisk units to configure with
-.Xr mdconfig 8
-and
-.Xr newfs 8
-in time to be mounted from
-.Xr fstab 5 .
-Each listed unit
-.Ar X
-must specify at least a
-.Ar type
-in a
-.Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
-variable.
-Note that this way to configure ramdisks has been deprecated
-in favor of new
-.Va mdconfig_md*
-variables (see above).
-.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
-.Pq Vt str
-Arguments to
-.Xr mdconfig 8
-for ramdisk
-.Ar X .
-At minimum a
-.Fl t Ar type
-must be specified, where
-.Ar type
-must be one of
-.Cm malloc
-or
-.Cm swap .
-.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _newfs
-.Pq Vt str
-Optional arguments passed to
-.Xr newfs 8
-to initialize ramdisk
-.Ar X .
-.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _owner
-.Pq Vt str
-An ownership specification passed to
-.Xr chown 8
-after the specified ramdisk unit
-.Ar X
-has been mounted.
-Both the
-.Xr md 4
-device and the mount point will be changed.
-.It Va ramdisk_ Ns Ao Ar X Ac Ns Va _perms
-.Pq Vt str
-A mode string passed to
-.Xr chmod 1
-after the specified ramdisk unit
-.Ar X
-has been mounted.
-Both the
-.Xr md 4
-device and the mount point will be changed.
 .It Va autobridge_interfaces
 .Pq Vt str
 Set to the list of bridge interfaces that will have newly arriving interfaces
@@ -4232,14 +4206,14 @@ Must set properly if multiple profiles used in the same time.
 .Pq Vt bool
 Tells
 .Xr rfcomm_pppd 8
-if it should register Serial Port service on the speficied RFCOMM channel.
+if it should register Serial Port service on the specified RFCOMM channel.
 Default
 .Dq Li NO .
 .It Va rfcomm_pppd_server_ Ns Ao Ar profile Ac Ns _register_dun
 .Pq Vt bool
 Tells
 .Xr rfcomm_pppd 8
-if it should register Dial-Up Networking service on the speficied
+if it should register Dial-Up Networking service on the specified
 RFCOMM channel.
 Default
 .Dq Li NO .
@@ -4256,12 +4230,12 @@ variables.
 .It Va ubthidhci_busnum
 Bus number where the USB Bluetooth controller is located.
 Check the output of
-.Xr usbconfig 1
+.Xr usbconfig 8
 on your system to find this information.
 .It Va ubthidhci_addr
 Bus address of the USB Bluetooth controller.
 Check the output of
-.Xr usbconfig 1
+.Xr usbconfig 8
 on your system to find this information.
 .El
 .Sh FILES
@@ -4278,7 +4252,6 @@ on your system to find this information.
 .Xr kbdcontrol 1 ,
 .Xr makewhatis 1 ,
 .Xr sh 1 ,
-.Xr usbconfig 1 ,
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
 .Xr bridge 4 ,
@@ -4354,6 +4327,7 @@ on your system to find this information.
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr timed 8 ,
+.Xr usbconfig 8 ,
 .Xr wlandebug 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,

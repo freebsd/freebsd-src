@@ -100,18 +100,34 @@ done:
  * This function is called by the timer functions
  * such as arptimer() and nd6_llinfo_timer(), and
  * the caller does the locking.
+ *
+ * Returns the number of held packets, if any, that were dropped.
  */
-void
+size_t
 llentry_free(struct llentry *lle)
 {
-	
+	size_t pkts_dropped;
+	struct mbuf *next;
+
+	pkts_dropped = 0;
 	LLE_WLOCK_ASSERT(lle);
 	LIST_REMOVE(lle, lle_next);
 
-	if (lle->la_hold != NULL)
+	while ((lle->la_numheld > 0) && (lle->la_hold != NULL)) {
+		next = lle->la_hold->m_nextpkt;
 		m_freem(lle->la_hold);
+		lle->la_hold = next;
+		lle->la_numheld--;
+		pkts_dropped++;
+	}
+
+	KASSERT(lle->la_numheld == 0, 
+		("%s: la_numheld %d > 0, pkts_droped %zd", __func__, 
+		 lle->la_numheld, pkts_dropped));
 
 	LLE_FREE_LOCKED(lle);
+
+	return (pkts_dropped);
 }
 
 /*
@@ -183,6 +199,7 @@ lltable_free(struct lltable *llt)
 	free(llt, M_LLTABLE);
 }
 
+#if 0
 void
 lltable_drain(int af)
 {
@@ -197,15 +214,18 @@ lltable_drain(int af)
 
 		for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
 			LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
+				LLE_WLOCK(lle);
 				if (lle->la_hold) {
 					m_freem(lle->la_hold);
 					lle->la_hold = NULL;
 				}
+				LLE_WUNLOCK(lle);
 			}
 		}
 	}
 	LLTABLE_RUNLOCK();
 }
+#endif
 
 void
 lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask)
@@ -234,8 +254,6 @@ lltable_init(struct ifnet *ifp, int af)
 	register int i;
 
 	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK);
-	if (llt == NULL)
-		return (NULL);
 
 	llt->llt_af = af;
 	llt->llt_ifp = ifp;
@@ -323,7 +341,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	LLTABLE_RUNLOCK();
 	KASSERT(llt != NULL, ("Yep, ugly hacks are bad\n"));
 
-	if (flags && LLE_CREATE)
+	if (flags & LLE_CREATE)
 		flags |= LLE_EXCLUSIVE;
 	
 	IF_AFDATA_LOCK(ifp);
@@ -337,6 +355,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			 * LLE_DELETED flag, and reset the expiration timer
 			 */
 			bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
+			lle->la_flags |= (flags & (LLE_PUB | LLE_PROXY));
 			lle->la_flags |= LLE_VALID;
 			lle->la_flags &= ~LLE_DELETED;
 #ifdef INET6
@@ -409,6 +428,7 @@ llatbl_lle_show(struct llentry_sa *la)
 	db_printf(" lle_tbl=%p\n", lle->lle_tbl);
 	db_printf(" lle_head=%p\n", lle->lle_head);
 	db_printf(" la_hold=%p\n", lle->la_hold);
+	db_printf(" la_numheld=%d\n", lle->la_numheld);
 	db_printf(" la_expire=%ju\n", (uintmax_t)lle->la_expire);
 	db_printf(" la_flags=0x%04x\n", lle->la_flags);
 	db_printf(" la_asked=%u\n", lle->la_asked);

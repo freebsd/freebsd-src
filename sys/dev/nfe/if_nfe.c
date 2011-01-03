@@ -77,11 +77,12 @@ static int  nfe_detach(device_t);
 static int  nfe_suspend(device_t);
 static int  nfe_resume(device_t);
 static int nfe_shutdown(device_t);
+static int  nfe_can_use_msix(struct nfe_softc *);
 static void nfe_power(struct nfe_softc *);
 static int  nfe_miibus_readreg(device_t, int, int);
 static int  nfe_miibus_writereg(device_t, int, int, int);
 static void nfe_miibus_statchg(device_t);
-static void nfe_link_task(void *, int);
+static void nfe_mac_config(struct nfe_softc *, struct mii_data *);
 static void nfe_set_intr(struct nfe_softc *);
 static __inline void nfe_enable_intr(struct nfe_softc *);
 static __inline void nfe_disable_intr(struct nfe_softc *);
@@ -125,6 +126,8 @@ static int sysctl_hw_nfe_proc_limit(SYSCTL_HANDLER_ARGS);
 static void nfe_sysctl_node(struct nfe_softc *);
 static void nfe_stats_clear(struct nfe_softc *);
 static void nfe_stats_update(struct nfe_softc *);
+static void nfe_set_linkspeed(struct nfe_softc *);
+static void nfe_set_wol(struct nfe_softc *);
 
 #ifdef NFE_DEBUG
 static int nfedebug = 0;
@@ -348,7 +351,6 @@ nfe_attach(device_t dev)
 	mtx_init(&sc->nfe_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->nfe_stat_ch, &sc->nfe_mtx, 0);
-	TASK_INIT(&sc->nfe_link_task, 0, nfe_link_task, sc);
 
 	pci_enable_busmaster(dev);
 
@@ -380,6 +382,13 @@ nfe_attach(device_t dev)
 			device_printf(sc->nfe_dev,
 			    "warning, negotiated width of link(x%d) != "
 			    "max. width of link(x%d)\n", width, v);
+	}
+
+	if (nfe_can_use_msix(sc) == 0) {
+		device_printf(sc->nfe_dev,
+		    "MSI/MSI-X capability black-listed, will use INTx\n"); 
+		msix_disable = 1;
+		msi_disable = 1;
 	}
 
 	/* Allocate interrupt */
@@ -584,8 +593,12 @@ nfe_attach(device_t dev)
 	if ((sc->nfe_flags & NFE_HW_VLAN) != 0) {
 		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
 		if ((ifp->if_capabilities & IFCAP_HWCSUM) != 0)
-			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
+			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM |
+			    IFCAP_VLAN_HWTSO;
 	}
+
+	if (pci_find_extcap(dev, PCIY_PMG, &reg) == 0)
+		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -600,10 +613,11 @@ nfe_attach(device_t dev)
 #endif
 
 	/* Do MII setup */
-	if (mii_phy_probe(dev, &sc->nfe_miibus, nfe_ifmedia_upd,
-	    nfe_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->nfe_miibus, ifp, nfe_ifmedia_upd,
+	    nfe_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    MIIF_DOPAUSE);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 	ether_ifattach(ifp, sc->eaddr);
@@ -666,7 +680,6 @@ nfe_detach(device_t dev)
 		NFE_UNLOCK(sc);
 		callout_drain(&sc->nfe_stat_ch);
 		taskqueue_drain(taskqueue_fast, &sc->nfe_tx_task);
-		taskqueue_drain(taskqueue_swi, &sc->nfe_link_task);
 		ether_ifdetach(ifp);
 	}
 
@@ -752,6 +765,7 @@ nfe_suspend(device_t dev)
 
 	NFE_LOCK(sc);
 	nfe_stop(sc->nfe_ifp);
+	nfe_set_wol(sc);
 	sc->nfe_suspended = 1;
 	NFE_UNLOCK(sc);
 
@@ -768,6 +782,7 @@ nfe_resume(device_t dev)
 	sc = device_get_softc(dev);
 
 	NFE_LOCK(sc);
+	nfe_power(sc);
 	ifp = sc->nfe_ifp;
 	if (ifp->if_flags & IFF_UP)
 		nfe_init_locked(sc);
@@ -775,6 +790,48 @@ nfe_resume(device_t dev)
 	NFE_UNLOCK(sc);
 
 	return (0);
+}
+
+
+static int
+nfe_can_use_msix(struct nfe_softc *sc)
+{
+	static struct msix_blacklist {
+		char	*maker;
+		char	*product;
+	} msix_blacklists[] = {
+		{ "ASUSTeK Computer INC.", "P5N32-SLI PREMIUM" }
+	};
+
+	struct msix_blacklist *mblp;
+	char *maker, *product;
+	int count, n, use_msix;
+
+	/*
+	 * Search base board manufacturer and product name table
+	 * to see this system has a known MSI/MSI-X issue.
+	 */
+	maker = getenv("smbios.planar.maker");
+	product = getenv("smbios.planar.product");
+	use_msix = 1;
+	if (maker != NULL && product != NULL) {
+		count = sizeof(msix_blacklists) / sizeof(msix_blacklists[0]);
+		mblp = msix_blacklists;
+		for (n = 0; n < count; n++) {
+			if (strcmp(maker, mblp->maker) == 0 &&
+			    strcmp(product, mblp->product) == 0) {
+				use_msix = 0;
+				break;
+			}
+			mblp++;
+		}
+	}
+	if (maker != NULL)
+		freeenv(maker);
+	if (product != NULL)
+		freeenv(product);
+
+	return (use_msix);
 }
 
 
@@ -806,37 +863,51 @@ static void
 nfe_miibus_statchg(device_t dev)
 {
 	struct nfe_softc *sc;
+	struct mii_data *mii;
+	struct ifnet *ifp;
+	uint32_t rxctl, txctl;
 
 	sc = device_get_softc(dev);
-	taskqueue_enqueue(taskqueue_swi, &sc->nfe_link_task);
+
+	mii = device_get_softc(sc->nfe_miibus);
+	ifp = sc->nfe_ifp;
+
+	sc->nfe_link = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+		case IFM_1000_T:
+			sc->nfe_link = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	nfe_mac_config(sc, mii);
+	txctl = NFE_READ(sc, NFE_TX_CTL);
+	rxctl = NFE_READ(sc, NFE_RX_CTL);
+	if (sc->nfe_link != 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		txctl |= NFE_TX_START;
+		rxctl |= NFE_RX_START;
+	} else {
+		txctl &= ~NFE_TX_START;
+		rxctl &= ~NFE_RX_START;
+	}
+	NFE_WRITE(sc, NFE_TX_CTL, txctl);
+	NFE_WRITE(sc, NFE_RX_CTL, rxctl);
 }
 
 
 static void
-nfe_link_task(void *arg, int pending)
+nfe_mac_config(struct nfe_softc *sc, struct mii_data *mii)
 {
-	struct nfe_softc *sc;
-	struct mii_data *mii;
-	struct ifnet *ifp;
-	uint32_t phy, seed, misc = NFE_MISC1_MAGIC, link = NFE_MEDIA_SET;
-	uint32_t gmask, rxctl, txctl, val;
+	uint32_t link, misc, phy, seed;
+	uint32_t val;
 
-	sc = (struct nfe_softc *)arg;
-
-	NFE_LOCK(sc);
-
-	mii = device_get_softc(sc->nfe_miibus);
-	ifp = sc->nfe_ifp;
-	if (mii == NULL || ifp == NULL) {
-		NFE_UNLOCK(sc);
-		return;
-	}
-
-	if (mii->mii_media_status & IFM_ACTIVE) {
-		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc->nfe_link = 1;
-	} else
-		sc->nfe_link = 0;
+	NFE_LOCK_ASSERT(sc);
 
 	phy = NFE_READ(sc, NFE_PHY_IFACE);
 	phy &= ~(NFE_PHY_HDX | NFE_PHY_100TX | NFE_PHY_1000T);
@@ -844,7 +915,10 @@ nfe_link_task(void *arg, int pending)
 	seed = NFE_READ(sc, NFE_RNDSEED);
 	seed &= ~NFE_SEED_MASK;
 
-	if (((mii->mii_media_active & IFM_GMASK) & IFM_FDX) == 0) {
+	misc = NFE_MISC1_MAGIC;
+	link = NFE_MEDIA_SET;
+
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) == 0) {
 		phy  |= NFE_PHY_HDX;	/* half-duplex */
 		misc |= NFE_MISC1_HDX;
 	}
@@ -881,18 +955,19 @@ nfe_link_task(void *arg, int pending)
 	NFE_WRITE(sc, NFE_MISC1, misc);
 	NFE_WRITE(sc, NFE_LINKSPEED, link);
 
-	gmask = mii->mii_media_active & IFM_GMASK;
-	if ((gmask & IFM_FDX) != 0) {
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		/* It seems all hardwares supports Rx pause frames. */
 		val = NFE_READ(sc, NFE_RXFILTER);
-		if ((gmask & IFM_FLAG0) != 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		    IFM_ETH_RXPAUSE) != 0)
 			val |= NFE_PFF_RX_PAUSE;
 		else
 			val &= ~NFE_PFF_RX_PAUSE;
 		NFE_WRITE(sc, NFE_RXFILTER, val);
 		if ((sc->nfe_flags & NFE_TX_FLOW_CTRL) != 0) {
 			val = NFE_READ(sc, NFE_MISC1);
-			if ((gmask & IFM_FLAG1) != 0) {
+			if ((IFM_OPTIONS(mii->mii_media_active) &
+			    IFM_ETH_TXPAUSE) != 0) {
 				NFE_WRITE(sc, NFE_TX_PAUSE_FRAME,
 				    NFE_TX_PAUSE_FRAME_ENABLE);
 				val |= NFE_MISC1_TX_PAUSE;
@@ -916,20 +991,6 @@ nfe_link_task(void *arg, int pending)
 			NFE_WRITE(sc, NFE_MISC1, val);
 		}
 	}
-
-	txctl = NFE_READ(sc, NFE_TX_CTL);
-	rxctl = NFE_READ(sc, NFE_RX_CTL);
-	if (sc->nfe_link != 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-		txctl |= NFE_TX_START;
-		rxctl |= NFE_RX_START;
-	} else {
-		txctl &= ~NFE_TX_START;
-		rxctl &= ~NFE_RX_START;
-	}
-	NFE_WRITE(sc, NFE_TX_CTL, txctl);
-	NFE_WRITE(sc, NFE_RX_CTL, rxctl);
-
-	NFE_UNLOCK(sc);
 }
 
 
@@ -1714,19 +1775,38 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 		}
 #endif /* DEVICE_POLLING */
-		if ((sc->nfe_flags & NFE_HW_CSUM) != 0 &&
-		    (mask & IFCAP_HWCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0 &&
-			    (IFCAP_TXCSUM & ifp->if_capabilities) != 0)
+		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
+			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
 				ifp->if_hwassist |= NFE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~NFE_CSUM_FEATURES;
+		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 			init++;
 		}
-		if ((sc->nfe_flags & NFE_HW_VLAN) != 0 &&
-		    (mask & IFCAP_VLAN_HWTAGGING) != 0) {
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
+			ifp->if_capenable ^= IFCAP_TSO4;
+			if ((IFCAP_TSO4 & ifp->if_capenable) != 0)
+				ifp->if_hwassist |= CSUM_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_TSO;
+		}
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
 			init++;
 		}
 		/*
@@ -1736,28 +1816,17 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * VLAN stripping. So when we know Rx checksum offload is
 		 * disabled turn entire hardware VLAN assist off.
 		 */
-		if ((sc->nfe_flags & (NFE_HW_CSUM | NFE_HW_VLAN)) ==
-		    (NFE_HW_CSUM | NFE_HW_VLAN)) {
-			if ((ifp->if_capenable & IFCAP_RXCSUM) == 0)
-				ifp->if_capenable &= ~IFCAP_VLAN_HWTAGGING;
+		if ((ifp->if_capenable & IFCAP_RXCSUM) == 0) {
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
+				init++;
+			ifp->if_capenable &= ~(IFCAP_VLAN_HWTAGGING |
+			    IFCAP_VLAN_HWTSO);
 		}
-
-		if ((sc->nfe_flags & NFE_HW_CSUM) != 0 &&
-		    (mask & IFCAP_TSO4) != 0) {
-			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((IFCAP_TSO4 & ifp->if_capenable) != 0 &&
-			    (IFCAP_TSO4 & ifp->if_capabilities) != 0)
-				ifp->if_hwassist |= CSUM_TSO;
-			else
-				ifp->if_hwassist &= ~CSUM_TSO;
-		}
-
 		if (init > 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			nfe_init(sc);
 		}
-		if ((sc->nfe_flags & NFE_HW_VLAN) != 0)
-			VLAN_CAPABILITIES(ifp);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
@@ -2746,7 +2815,8 @@ nfe_init_locked(void *xsc)
 	NFE_WRITE(sc, NFE_STATUS, sc->mii_phyaddr << 24 | NFE_STATUS_MAGIC);
 
 	NFE_WRITE(sc, NFE_SETUP_R4, NFE_R4_MAGIC);
-	NFE_WRITE(sc, NFE_WOL_CTL, NFE_WOL_MAGIC);
+	/* Disable WOL. */
+	NFE_WRITE(sc, NFE_WOL_CTL, 0);
 
 	sc->rxtxctl &= ~NFE_RXTX_BIT2;
 	NFE_WRITE(sc, NFE_RXTX_CTL, sc->rxtxctl);
@@ -2917,18 +2987,8 @@ nfe_tick(void *xsc)
 static int
 nfe_shutdown(device_t dev)
 {
-	struct nfe_softc *sc;
-	struct ifnet *ifp;
 
-	sc = device_get_softc(dev);
-
-	NFE_LOCK(sc);
-	ifp = sc->nfe_ifp;
-	nfe_stop(ifp);
-	/* nfe_reset(sc); */
-	NFE_UNLOCK(sc);
-
-	return (0);
+	return (nfe_suspend(dev));
 }
 
 
@@ -3211,4 +3271,116 @@ nfe_stats_update(struct nfe_softc *sc)
 		stats->tx_multicast += NFE_READ(sc, NFE_TX_MULTICAST);
 		stats->rx_broadcast += NFE_READ(sc, NFE_TX_BROADCAST);
 	}
+}
+
+
+static void
+nfe_set_linkspeed(struct nfe_softc *sc)
+{
+	struct mii_softc *miisc;
+	struct mii_data *mii;
+	int aneg, i, phyno;
+
+	NFE_LOCK_ASSERT(sc);
+
+	mii = device_get_softc(sc->nfe_miibus);
+	mii_pollstat(mii);
+	aneg = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch IFM_SUBTYPE(mii->mii_media_active) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			return;
+		case IFM_1000_T:
+			aneg++;
+			break;
+		default:
+			break;
+		}
+	}
+	phyno = 0;
+	if (mii->mii_instance) {
+		miisc = LIST_FIRST(&mii->mii_phys);
+		phyno = miisc->mii_phy;
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+			mii_phy_reset(miisc);
+	} else
+		return;
+	nfe_miibus_writereg(sc->nfe_dev, phyno, MII_100T2CR, 0);
+	nfe_miibus_writereg(sc->nfe_dev, phyno,
+	    MII_ANAR, ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10 | ANAR_CSMA);
+	nfe_miibus_writereg(sc->nfe_dev, phyno,
+	    MII_BMCR, BMCR_RESET | BMCR_AUTOEN | BMCR_STARTNEG);
+	DELAY(1000);
+	if (aneg != 0) {
+		/*
+		 * Poll link state until nfe(4) get a 10/100Mbps link.
+		 */
+		for (i = 0; i < MII_ANEGTICKS_GIGE; i++) {
+			mii_pollstat(mii);
+			if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID))
+			    == (IFM_ACTIVE | IFM_AVALID)) {
+				switch (IFM_SUBTYPE(mii->mii_media_active)) {
+				case IFM_10_T:
+				case IFM_100_TX:
+					nfe_mac_config(sc, mii);
+					return;
+				default:
+					break;
+				}
+			}
+			NFE_UNLOCK(sc);
+			pause("nfelnk", hz);
+			NFE_LOCK(sc);
+		}
+		if (i == MII_ANEGTICKS_GIGE)
+			device_printf(sc->nfe_dev,
+			    "establishing a link failed, WOL may not work!");
+	}
+	/*
+	 * No link, force MAC to have 100Mbps, full-duplex link.
+	 * This is the last resort and may/may not work.
+	 */
+	mii->mii_media_status = IFM_AVALID | IFM_ACTIVE;
+	mii->mii_media_active = IFM_ETHER | IFM_100_TX | IFM_FDX;
+	nfe_mac_config(sc, mii);
+}
+
+
+static void
+nfe_set_wol(struct nfe_softc *sc)
+{
+	struct ifnet *ifp;
+	uint32_t wolctl;
+	int pmc;
+	uint16_t pmstat;
+
+	NFE_LOCK_ASSERT(sc);
+
+	if (pci_find_extcap(sc->nfe_dev, PCIY_PMG, &pmc) != 0)
+		return;
+	ifp = sc->nfe_ifp;
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		wolctl = NFE_WOL_MAGIC;
+	else
+		wolctl = 0;
+	NFE_WRITE(sc, NFE_WOL_CTL, wolctl);
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0) {
+		nfe_set_linkspeed(sc);
+		if ((sc->nfe_flags & NFE_PWR_MGMT) != 0)
+			NFE_WRITE(sc, NFE_PWR2_CTL,
+			    NFE_READ(sc, NFE_PWR2_CTL) & ~NFE_PWR2_GATE_CLOCKS);
+		/* Enable RX. */
+		NFE_WRITE(sc, NFE_RX_RING_ADDR_HI, 0);
+		NFE_WRITE(sc, NFE_RX_RING_ADDR_LO, 0);
+		NFE_WRITE(sc, NFE_RX_CTL, NFE_READ(sc, NFE_RX_CTL) |
+		    NFE_RX_START);
+	}
+	/* Request PME if WOL is requested. */
+	pmstat = pci_read_config(sc->nfe_dev, pmc + PCIR_POWER_STATUS, 2);
+	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+	pci_write_config(sc->nfe_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
 }

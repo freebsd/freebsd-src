@@ -154,7 +154,9 @@ struct pmap kernel_pmap_store;
 /*
  * Allocate physical memory for use in pmap_bootstrap.
  */
-static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size);
+static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size, uint32_t colors);
+
+static void pmap_bootstrap_set_tte(struct tte *tp, u_long vpn, u_long data);
 
 /*
  * Map the given physical page at the specified virtual address in the
@@ -166,12 +168,26 @@ static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size);
 static void pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, boolean_t wired);
 
-extern int tl1_immu_miss_patch_1[];
-extern int tl1_immu_miss_patch_2[];
-extern int tl1_dmmu_miss_patch_1[];
-extern int tl1_dmmu_miss_patch_2[];
-extern int tl1_dmmu_prot_patch_1[];
-extern int tl1_dmmu_prot_patch_2[];
+extern int tl1_dmmu_miss_direct_patch_tsb_phys_1[];
+extern int tl1_dmmu_miss_direct_patch_tsb_phys_end_1[];
+extern int tl1_dmmu_miss_patch_asi_1[];
+extern int tl1_dmmu_miss_patch_quad_ldd_1[];
+extern int tl1_dmmu_miss_patch_tsb_1[];
+extern int tl1_dmmu_miss_patch_tsb_2[];
+extern int tl1_dmmu_miss_patch_tsb_mask_1[];
+extern int tl1_dmmu_miss_patch_tsb_mask_2[];
+extern int tl1_dmmu_prot_patch_asi_1[];
+extern int tl1_dmmu_prot_patch_quad_ldd_1[];
+extern int tl1_dmmu_prot_patch_tsb_1[];
+extern int tl1_dmmu_prot_patch_tsb_2[];
+extern int tl1_dmmu_prot_patch_tsb_mask_1[];
+extern int tl1_dmmu_prot_patch_tsb_mask_2[];
+extern int tl1_immu_miss_patch_asi_1[];
+extern int tl1_immu_miss_patch_quad_ldd_1[];
+extern int tl1_immu_miss_patch_tsb_1[];
+extern int tl1_immu_miss_patch_tsb_2[];
+extern int tl1_immu_miss_patch_tsb_mask_1[];
+extern int tl1_immu_miss_patch_tsb_mask_2[];
 
 /*
  * If user pmap is processed with pmap_remove and with pmap_remove and the
@@ -302,12 +318,23 @@ pmap_bootstrap(u_int cpu_impl)
 	vm_size_t physsz;
 	vm_size_t virtsz;
 	u_long data;
+	u_long vpn;
 	phandle_t pmem;
 	phandle_t vmem;
 	u_int dtlb_slots_avail;
 	int i;
 	int j;
 	int sz;
+	uint32_t asi;
+	uint32_t colors;
+	uint32_t ldd;
+
+	/*
+	 * Set the kernel context.
+	 */
+	pmap_set_kctx();
+
+	colors = dcache_color_ignore != 0 ? 1 : DCACHE_COLORS;
 
 	/*
 	 * Find out what physical memory is available from the PROM and
@@ -352,83 +379,148 @@ pmap_bootstrap(u_int cpu_impl)
 	/*
 	 * Calculate the size of kernel virtual memory, and the size and mask
 	 * for the kernel TSB based on the phsyical memory size but limited
-	 * by the amount of dTLB slots available for locked entries (given
-	 * that for spitfire-class CPUs all of the dt64 slots can hold locked
-	 * entries but there is no large dTLB for unlocked ones, we don't use
-	 * more than half of it for locked entries).
+	 * by the amount of dTLB slots available for locked entries if we have
+	 * to lock the TSB in the TLB (given that for spitfire-class CPUs all
+	 * of the dt64 slots can hold locked entries but there is no large
+	 * dTLB for unlocked ones, we don't use more than half of it for the
+	 * TSB).
+	 * Note that for reasons unknown OpenSolaris doesn't take advantage of
+	 * ASI_ATOMIC_QUAD_LDD_PHYS on UltraSPARC-III.  However, given that no
+	 * public documentation is available for these, the latter just might
+	 * not support it, yet.
 	 */
-	dtlb_slots_avail = 0;
-	for (i = 0; i < dtlb_slots; i++) {
-		data = dtlb_get_data(i);
-		if ((data & (TD_V | TD_L)) != (TD_V | TD_L))
-			dtlb_slots_avail++;
-	}
-#ifdef SMP
-	dtlb_slots_avail -= PCPU_PAGES;
-#endif
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
-	    cpu_impl < CPU_IMPL_ULTRASPARCIII)
-		dtlb_slots_avail /= 2;
 	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
-	virtsz = MIN(virtsz,
-	    (dtlb_slots_avail * PAGE_SIZE_4M) << (PAGE_SHIFT - TTE_SHIFT));
+	if (cpu_impl >= CPU_IMPL_ULTRASPARCIIIp)
+		tsb_kernel_ldd_phys = 1;
+	else {
+		dtlb_slots_avail = 0;
+		for (i = 0; i < dtlb_slots; i++) {
+			data = dtlb_get_data(i);
+			if ((data & (TD_V | TD_L)) != (TD_V | TD_L))
+				dtlb_slots_avail++;
+		}
+#ifdef SMP
+		dtlb_slots_avail -= PCPU_PAGES;
+#endif
+		if (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
+		    cpu_impl < CPU_IMPL_ULTRASPARCIII)
+			dtlb_slots_avail /= 2;
+		virtsz = MIN(virtsz, (dtlb_slots_avail * PAGE_SIZE_4M) <<
+		    (PAGE_SHIFT - TTE_SHIFT));
+	}
 	vm_max_kernel_address = VM_MIN_KERNEL_ADDRESS + virtsz;
 	tsb_kernel_size = virtsz >> (PAGE_SHIFT - TTE_SHIFT);
 	tsb_kernel_mask = (tsb_kernel_size >> TTE_SHIFT) - 1;
 
 	/*
-	 * Allocate the kernel TSB and lock it in the TLB.
+	 * Allocate the kernel TSB and lock it in the TLB if necessary.
 	 */
-	pa = pmap_bootstrap_alloc(tsb_kernel_size);
+	pa = pmap_bootstrap_alloc(tsb_kernel_size, colors);
 	if (pa & PAGE_MASK_4M)
-		panic("pmap_bootstrap: tsb unaligned\n");
+		panic("pmap_bootstrap: TSB unaligned\n");
 	tsb_kernel_phys = pa;
-	tsb_kernel = (struct tte *)(VM_MIN_KERNEL_ADDRESS - tsb_kernel_size);
-	pmap_map_tsb();
-	bzero(tsb_kernel, tsb_kernel_size);
+	if (tsb_kernel_ldd_phys == 0) {
+		tsb_kernel =
+		    (struct tte *)(VM_MIN_KERNEL_ADDRESS - tsb_kernel_size);
+		pmap_map_tsb();
+		bzero(tsb_kernel, tsb_kernel_size);
+	} else {
+		tsb_kernel =
+		    (struct tte *)TLB_PHYS_TO_DIRECT(tsb_kernel_phys);
+		aszero(ASI_PHYS_USE_EC, tsb_kernel_phys, tsb_kernel_size);
+	}
 
 	/*
 	 * Allocate and map the dynamic per-CPU area for the BSP.
 	 */
-	pa = pmap_bootstrap_alloc(DPCPU_SIZE);
+	pa = pmap_bootstrap_alloc(DPCPU_SIZE, colors);
 	dpcpu0 = (void *)TLB_PHYS_TO_DIRECT(pa);
 
 	/*
 	 * Allocate and map the message buffer.
 	 */
-	pa = pmap_bootstrap_alloc(MSGBUF_SIZE);
+	pa = pmap_bootstrap_alloc(MSGBUF_SIZE, colors);
 	msgbufp = (struct msgbuf *)TLB_PHYS_TO_DIRECT(pa);
 
 	/*
-	 * Patch the virtual address and the tsb mask into the trap table.
+	 * Patch the TSB addresses and mask as well as the ASIs used to load
+	 * it into the trap table.
 	 */
 
-#define	SETHI(rd, imm22) \
-	(EIF_OP(IOP_FORM2) | EIF_F2_RD(rd) | EIF_F2_OP2(INS0_SETHI) | \
+#define	LDDA_R_I_R(rd, imm_asi, rs1, rs2)				\
+	(EIF_OP(IOP_LDST) | EIF_F3_RD(rd) | EIF_F3_OP3(INS3_LDDA) |	\
+	    EIF_F3_RS1(rs1) | EIF_F3_I(0) | EIF_F3_IMM_ASI(imm_asi) |	\
+	    EIF_F3_RS2(rs2))
+#define	OR_R_I_R(rd, imm13, rs1)					\
+	(EIF_OP(IOP_MISC) | EIF_F3_RD(rd) | EIF_F3_OP3(INS2_OR) |	\
+	    EIF_F3_RS1(rs1) | EIF_F3_I(1) | EIF_IMM(imm13, 13))
+#define	SETHI(rd, imm22)						\
+	(EIF_OP(IOP_FORM2) | EIF_F2_RD(rd) | EIF_F2_OP2(INS0_SETHI) |	\
 	    EIF_IMM((imm22) >> 10, 22))
-#define	OR_R_I_R(rd, imm13, rs1) \
-	(EIF_OP(IOP_MISC) | EIF_F3_RD(rd) | EIF_F3_OP3(INS2_OR) | \
+#define	WR_R_I(rd, imm13, rs1)						\
+	(EIF_OP(IOP_MISC) | EIF_F3_RD(rd) | EIF_F3_OP3(INS2_WR) |	\
 	    EIF_F3_RS1(rs1) | EIF_F3_I(1) | EIF_IMM(imm13, 13))
 
-#define	PATCH(addr) do { \
-	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) || \
-	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0, IF_F3_RS1(addr[1])) || \
-	    addr[2] != SETHI(IF_F2_RD(addr[2]), 0x0)) \
-		panic("pmap_boostrap: patched instructions have changed"); \
-	addr[0] |= EIF_IMM((tsb_kernel_mask) >> 10, 22); \
-	addr[1] |= EIF_IMM(tsb_kernel_mask, 10); \
-	addr[2] |= EIF_IMM(((vm_offset_t)tsb_kernel) >> 10, 22); \
-	flush(addr); \
-	flush(addr + 1); \
-	flush(addr + 2); \
+#define	PATCH_ASI(addr, asi) do {					\
+	if (addr[0] != WR_R_I(IF_F3_RD(addr[0]), 0x0,			\
+	    IF_F3_RS1(addr[0])))					\
+		panic("%s: patched instructions have changed",		\
+		    __func__);						\
+	addr[0] |= EIF_IMM((asi), 13);					\
+	flush(addr);							\
 } while (0)
 
-	PATCH(tl1_immu_miss_patch_1);
-	PATCH(tl1_immu_miss_patch_2);
-	PATCH(tl1_dmmu_miss_patch_1);
-	PATCH(tl1_dmmu_miss_patch_2);
-	PATCH(tl1_dmmu_prot_patch_1);
-	PATCH(tl1_dmmu_prot_patch_2);
+#define	PATCH_LDD(addr, asi) do {					\
+	if (addr[0] != LDDA_R_I_R(IF_F3_RD(addr[0]), 0x0,		\
+	    IF_F3_RS1(addr[0]), IF_F3_RS2(addr[0])))			\
+		panic("%s: patched instructions have changed",		\
+		    __func__);						\
+	addr[0] |= EIF_F3_IMM_ASI(asi);					\
+	flush(addr);							\
+} while (0)
+
+#define	PATCH_TSB(addr, val) do {					\
+	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) ||			\
+	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0,			\
+	    IF_F3_RS1(addr[1])))					\
+		panic("%s: patched instructions have changed",		\
+		    __func__);						\
+	addr[0] |= EIF_IMM((val) >> 10, 22);				\
+	addr[1] |= EIF_IMM((val), 10);					\
+	flush(addr);							\
+	flush(addr + 1);						\
+} while (0)
+
+	if (tsb_kernel_ldd_phys == 0) {
+		asi = ASI_N;
+		ldd = ASI_NUCLEUS_QUAD_LDD;
+		off = (vm_offset_t)tsb_kernel;
+	} else {
+		asi = ASI_PHYS_USE_EC;
+		ldd = ASI_ATOMIC_QUAD_LDD_PHYS;
+		off = (vm_offset_t)tsb_kernel_phys;
+	}
+	PATCH_TSB(tl1_dmmu_miss_direct_patch_tsb_phys_1, tsb_kernel_phys);
+	PATCH_TSB(tl1_dmmu_miss_direct_patch_tsb_phys_end_1,
+	    tsb_kernel_phys + tsb_kernel_size - 1);
+	PATCH_ASI(tl1_dmmu_miss_patch_asi_1, asi);
+	PATCH_LDD(tl1_dmmu_miss_patch_quad_ldd_1, ldd);
+	PATCH_TSB(tl1_dmmu_miss_patch_tsb_1, off);
+	PATCH_TSB(tl1_dmmu_miss_patch_tsb_2, off);
+	PATCH_TSB(tl1_dmmu_miss_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB(tl1_dmmu_miss_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_ASI(tl1_dmmu_prot_patch_asi_1, asi);
+	PATCH_LDD(tl1_dmmu_prot_patch_quad_ldd_1, ldd);
+	PATCH_TSB(tl1_dmmu_prot_patch_tsb_1, off);
+	PATCH_TSB(tl1_dmmu_prot_patch_tsb_2, off);
+	PATCH_TSB(tl1_dmmu_prot_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB(tl1_dmmu_prot_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_ASI(tl1_immu_miss_patch_asi_1, asi);
+	PATCH_LDD(tl1_immu_miss_patch_quad_ldd_1, ldd);
+	PATCH_TSB(tl1_immu_miss_patch_tsb_1, off);
+	PATCH_TSB(tl1_immu_miss_patch_tsb_2, off);
+	PATCH_TSB(tl1_immu_miss_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB(tl1_immu_miss_patch_tsb_mask_2, tsb_kernel_mask);
 
 	/*
 	 * Enter fake 8k pages for the 4MB kernel pages, so that
@@ -439,9 +531,10 @@ pmap_bootstrap(u_int cpu_impl)
 		va = kernel_tlbs[i].te_va;
 		for (off = 0; off < PAGE_SIZE_4M; off += PAGE_SIZE) {
 			tp = tsb_kvtotte(va + off);
-			tp->tte_vpn = TV_VPN(va + off, TS_8K);
-			tp->tte_data = TD_V | TD_8K | TD_PA(pa + off) |
-			    TD_REF | TD_SW | TD_CP | TD_CV | TD_P | TD_W;
+			vpn = TV_VPN(va + off, TS_8K);
+			data = TD_V | TD_8K | TD_PA(pa + off) | TD_REF |
+			    TD_SW | TD_CP | TD_CV | TD_P | TD_W;
+			pmap_bootstrap_set_tte(tp, vpn, data);
 		}
 	}
 
@@ -458,33 +551,34 @@ pmap_bootstrap(u_int cpu_impl)
 	 * Allocate kva space for temporary mappings.
 	 */
 	pmap_idle_map = virtual_avail;
-	virtual_avail += PAGE_SIZE * DCACHE_COLORS;
+	virtual_avail += PAGE_SIZE * colors;
 	pmap_temp_map_1 = virtual_avail;
-	virtual_avail += PAGE_SIZE * DCACHE_COLORS;
+	virtual_avail += PAGE_SIZE * colors;
 	pmap_temp_map_2 = virtual_avail;
-	virtual_avail += PAGE_SIZE * DCACHE_COLORS;
+	virtual_avail += PAGE_SIZE * colors;
 
 	/*
 	 * Allocate a kernel stack with guard page for thread0 and map it
 	 * into the kernel TSB.  We must ensure that the virtual address is
-	 * coloured properly, since we're allocating from phys_avail so the
-	 * memory won't have an associated vm_page_t.
+	 * colored properly for corresponding CPUs, since we're allocating
+	 * from phys_avail so the memory won't have an associated vm_page_t.
 	 */
-	pa = pmap_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE);
+	pa = pmap_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE, colors);
 	kstack0_phys = pa;
-	virtual_avail += roundup(KSTACK_GUARD_PAGES, DCACHE_COLORS) *
-	    PAGE_SIZE;
+	virtual_avail += roundup(KSTACK_GUARD_PAGES, colors) * PAGE_SIZE;
 	kstack0 = virtual_avail;
-	virtual_avail += roundup(KSTACK_PAGES, DCACHE_COLORS) * PAGE_SIZE;
-	KASSERT(DCACHE_COLOR(kstack0) == DCACHE_COLOR(kstack0_phys),
-	    ("pmap_bootstrap: kstack0 miscoloured"));
+	virtual_avail += roundup(KSTACK_PAGES, colors) * PAGE_SIZE;
+	if (dcache_color_ignore == 0)
+		KASSERT(DCACHE_COLOR(kstack0) == DCACHE_COLOR(kstack0_phys),
+		    ("pmap_bootstrap: kstack0 miscolored"));
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pa = kstack0_phys + i * PAGE_SIZE;
 		va = kstack0 + i * PAGE_SIZE;
 		tp = tsb_kvtotte(va);
-		tp->tte_vpn = TV_VPN(va, TS_8K);
-		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW |
-		    TD_CP | TD_CV | TD_P | TD_W;
+		vpn = TV_VPN(va, TS_8K);
+		data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW | TD_CP |
+		    TD_CV | TD_P | TD_W;
+		pmap_bootstrap_set_tte(tp, vpn, data);
 	}
 
 	/*
@@ -524,9 +618,8 @@ pmap_bootstrap(u_int cpu_impl)
 		    off += PAGE_SIZE) {
 			va = translations[i].om_start + off;
 			tp = tsb_kvtotte(va);
-			tp->tte_vpn = TV_VPN(va, TS_8K);
-			tp->tte_data =
-			    ((translations[i].om_tte &
+			vpn = TV_VPN(va, TS_8K);
+			data = ((translations[i].om_tte &
 			    ~((TD_SOFT2_MASK << TD_SOFT2_SHIFT) |
 			    (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
 			    cpu_impl < CPU_IMPL_ULTRASPARCIII ?
@@ -534,6 +627,7 @@ pmap_bootstrap(u_int cpu_impl)
 			    (TD_RSVD_CH_MASK << TD_RSVD_CH_SHIFT)) |
 			    (TD_SOFT_MASK << TD_SOFT_SHIFT))) | TD_EXEC) +
 			    off;
+			pmap_bootstrap_set_tte(tp, vpn, data);
 		}
 	}
 
@@ -568,20 +662,17 @@ pmap_bootstrap(u_int cpu_impl)
 	tlb_flush_nonlocked();
 }
 
+/*
+ * Map the 4MB kernel TSB pages.
+ */
 void
 pmap_map_tsb(void)
 {
 	vm_offset_t va;
 	vm_paddr_t pa;
 	u_long data;
-	register_t s;
 	int i;
 
-	s = intr_disable();
-
-	/*
-	 * Map the 4MB TSB pages.
-	 */
 	for (i = 0; i < tsb_kernel_size; i += PAGE_SIZE_4M) {
 		va = (vm_offset_t)tsb_kernel + i;
 		pa = tsb_kernel_phys + i;
@@ -591,16 +682,19 @@ pmap_map_tsb(void)
 		    TLB_TAR_CTX(TLB_CTX_KERNEL));
 		stxa_sync(0, ASI_DTLB_DATA_IN_REG, data);
 	}
+}
 
-	/*
-	 * Set the secondary context to be the kernel context (needed for
-	 * FP block operations in the kernel).
-	 */
+/*
+ * Set the secondary context to be the kernel context (needed for FP block
+ * operations in the kernel).
+ */
+void
+pmap_set_kctx(void)
+{
+
 	stxa(AA_DMMU_SCXR, ASI_DMMU, (ldxa(AA_DMMU_SCXR, ASI_DMMU) &
 	    TLB_CXR_PGSZ_MASK) | TLB_CTX_KERNEL);
 	flush(KERNBASE);
-
-	intr_restore(s);
 }
 
 /*
@@ -609,12 +703,12 @@ pmap_map_tsb(void)
  * calculated.
  */
 static vm_paddr_t
-pmap_bootstrap_alloc(vm_size_t size)
+pmap_bootstrap_alloc(vm_size_t size, uint32_t colors)
 {
 	vm_paddr_t pa;
 	int i;
 
-	size = roundup(size, PAGE_SIZE * DCACHE_COLORS);
+	size = roundup(size, PAGE_SIZE * colors);
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		if (phys_avail[i + 1] - phys_avail[i] < size)
 			continue;
@@ -623,6 +717,27 @@ pmap_bootstrap_alloc(vm_size_t size)
 		return (pa);
 	}
 	panic("pmap_bootstrap_alloc");
+}
+
+/*
+ * Set a TTE.  This function is intended as a helper when tsb_kernel is
+ * direct-mapped but we haven't taken over the trap table, yet, as it's the
+ * case when we are taking advantage of ASI_ATOMIC_QUAD_LDD_PHYS to access
+ * the kernel TSB.
+ */
+void
+pmap_bootstrap_set_tte(struct tte *tp, u_long vpn, u_long data)
+{
+
+	if (tsb_kernel_ldd_phys == 0) {
+		tp->tte_vpn = vpn;
+		tp->tte_data = data;
+	} else {
+		stxa((vm_paddr_t)tp + offsetof(struct tte, tte_vpn),
+		    ASI_PHYS_USE_EC, vpn);
+		stxa((vm_paddr_t)tp + offsetof(struct tte, tte_data),
+		    ASI_PHYS_USE_EC, data);
+	}
 }
 
 /*
@@ -755,6 +870,9 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	    ("pmap_cache_enter: fake page"));
 	PMAP_STATS_INC(pmap_ncache_enter);
 
+	if (dcache_color_ignore != 0)
+		return (1);
+
 	/*
 	 * Find the color for this virtual address and note the added mapping.
 	 */
@@ -827,10 +945,14 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 	    m->md.colors[DCACHE_COLOR(va)]);
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_cache_remove: fake page"));
+	PMAP_STATS_INC(pmap_ncache_remove);
+
+	if (dcache_color_ignore != 0)
+		return;
+
 	KASSERT(m->md.colors[DCACHE_COLOR(va)] > 0,
 	    ("pmap_cache_remove: no mappings %d <= 0",
 	    m->md.colors[DCACHE_COLOR(va)]));
-	PMAP_STATS_INC(pmap_ncache_remove);
 
 	/*
 	 * Find the color for this virtual address and note the removal of
@@ -899,8 +1021,8 @@ pmap_kenter(vm_offset_t va, vm_page_t m)
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, VM_PAGE_TO_PHYS(m), tp, tp->tte_data);
 	if (DCACHE_COLOR(VM_PAGE_TO_PHYS(m)) != DCACHE_COLOR(va)) {
-		CTR5(KTR_CT2,
-	"pmap_kenter: off colour va=%#lx pa=%#lx o=%p ot=%d pi=%#lx",
+		CTR5(KTR_SPARE2,
+	"pmap_kenter: off color va=%#lx pa=%#lx o=%p ot=%d pi=%#lx",
 		    va, VM_PAGE_TO_PHYS(m), m->object,
 		    m->object ? m->object->type : -1,
 		    m->pindex);
@@ -1055,7 +1177,7 @@ pmap_pinit0(pmap_t pm)
 
 	PMAP_LOCK_INIT(pm);
 	for (i = 0; i < MAXCPU; i++)
-		pm->pm_context[i] = 0;
+		pm->pm_context[i] = TLB_CTX_KERNEL;
 	pm->pm_active = 0;
 	pm->pm_tsb = NULL;
 	pm->pm_tsb_obj = NULL;
@@ -1093,6 +1215,12 @@ pmap_pinit(pmap_t pm)
 	if (pm->pm_tsb_obj == NULL)
 		pm->pm_tsb_obj = vm_object_allocate(OBJT_PHYS, TSB_PAGES);
 
+	mtx_lock_spin(&sched_lock);
+	for (i = 0; i < MAXCPU; i++)
+		pm->pm_context[i] = -1;
+	pm->pm_active = 0;
+	mtx_unlock_spin(&sched_lock);
+
 	VM_OBJECT_LOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++) {
 		m = vm_page_grab(pm->pm_tsb_obj, i, VM_ALLOC_NOBUSY |
@@ -1104,9 +1232,6 @@ pmap_pinit(pmap_t pm)
 	VM_OBJECT_UNLOCK(pm->pm_tsb_obj);
 	pmap_qenter((vm_offset_t)pm->pm_tsb, ma, TSB_PAGES);
 
-	for (i = 0; i < MAXCPU; i++)
-		pm->pm_context[i] = -1;
-	pm->pm_active = 0;
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 	return (1);
 }
@@ -1240,7 +1365,7 @@ pmap_remove_all(vm_page_t m)
 	struct tte *tp;
 	vm_offset_t va;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 	for (tp = TAILQ_FIRST(&m->md.tte_list); tp != NULL; tp = tpn) {
 		tpn = TAILQ_NEXT(tp, tte_link);
 		if ((tp->tte_data & TD_PV) == 0)
@@ -1263,6 +1388,7 @@ pmap_remove_all(vm_page_t m)
 		PMAP_UNLOCK(pm);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_unlock_queues();
 }
 
 int
@@ -1350,6 +1476,9 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	    (m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	    ("pmap_enter_locked: page %p is not busy", m));
 	PMAP_STATS_INC(pmap_nenter);
 	pa = VM_PAGE_TO_PHYS(m);
 
@@ -1406,7 +1535,8 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			tp->tte_data |= TD_SW;
 			if (wired)
 				tp->tte_data |= TD_W;
-			vm_page_flag_set(m, PG_WRITEABLE);
+			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+				vm_page_flag_set(m, PG_WRITEABLE);
 		} else if ((data & TD_W) != 0)
 			vm_page_dirty(m);
 
@@ -1426,7 +1556,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	} else {
 		/*
 		 * If there is an existing mapping, but its for a different
-		 * phsyical address, delete the old mapping.
+		 * physical address, delete the old mapping.
 		 */
 		if (tp != NULL) {
 			CTR0(KTR_PMAP, "pmap_enter_locked: replace");
@@ -1446,7 +1576,8 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			data |= TD_P;
 		if ((prot & VM_PROT_WRITE) != 0) {
 			data |= TD_SW;
-			vm_page_flag_set(m, PG_WRITEABLE);
+			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+				vm_page_flag_set(m, PG_WRITEABLE);
 		}
 		if (prot & VM_PROT_EXECUTE) {
 			data |= TD_EXEC;
@@ -1489,12 +1620,14 @@ pmap_enter_object(pmap_t pm, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
+	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pm, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
 }
 
@@ -1502,9 +1635,11 @@ void
 pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
 
+	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	pmap_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
 	    FALSE);
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
 }
 
@@ -1604,13 +1739,13 @@ pmap_zero_page(vm_page_t m)
 	    ("pmap_zero_page: fake page"));
 	PMAP_STATS_INC(pmap_nzero_page);
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1) {
-		PMAP_STATS_INC(pmap_nzero_page_nc);
-		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
-	} else if (m->md.color == DCACHE_COLOR(pa)) {
+	if (dcache_color_ignore != 0 || m->md.color == DCACHE_COLOR(pa)) {
 		PMAP_STATS_INC(pmap_nzero_page_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
 		cpu_block_zero((void *)va, PAGE_SIZE);
+	} else if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_nzero_page_nc);
+		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_oc);
 		PMAP_LOCK(kernel_pmap);
@@ -1636,13 +1771,13 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	KASSERT(off + size <= PAGE_SIZE, ("pmap_zero_page_area: bad off/size"));
 	PMAP_STATS_INC(pmap_nzero_page_area);
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1) {
-		PMAP_STATS_INC(pmap_nzero_page_area_nc);
-		aszero(ASI_PHYS_USE_EC, pa + off, size);
-	} else if (m->md.color == DCACHE_COLOR(pa)) {
+	if (dcache_color_ignore != 0 || m->md.color == DCACHE_COLOR(pa)) {
 		PMAP_STATS_INC(pmap_nzero_page_area_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
 		bzero((void *)(va + off), size);
+	} else if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_nzero_page_area_nc);
+		aszero(ASI_PHYS_USE_EC, pa + off, size);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_area_oc);
 		PMAP_LOCK(kernel_pmap);
@@ -1667,13 +1802,13 @@ pmap_zero_page_idle(vm_page_t m)
 	    ("pmap_zero_page_idle: fake page"));
 	PMAP_STATS_INC(pmap_nzero_page_idle);
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1) {
-		PMAP_STATS_INC(pmap_nzero_page_idle_nc);
-		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
-	} else if (m->md.color == DCACHE_COLOR(pa)) {
+	if (dcache_color_ignore != 0 || m->md.color == DCACHE_COLOR(pa)) {
 		PMAP_STATS_INC(pmap_nzero_page_idle_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
 		cpu_block_zero((void *)va, PAGE_SIZE);
+	} else if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_nzero_page_idle_nc);
+		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_idle_oc);
 		va = pmap_idle_map + (m->md.color * PAGE_SIZE);
@@ -1701,15 +1836,16 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	PMAP_STATS_INC(pmap_ncopy_page);
 	pdst = VM_PAGE_TO_PHYS(mdst);
 	psrc = VM_PAGE_TO_PHYS(msrc);
-	if (msrc->md.color == -1 && mdst->md.color == -1) {
-		PMAP_STATS_INC(pmap_ncopy_page_nc);
-		ascopy(ASI_PHYS_USE_EC, psrc, pdst, PAGE_SIZE);
-	} else if (msrc->md.color == DCACHE_COLOR(psrc) &&
-	    mdst->md.color == DCACHE_COLOR(pdst)) {
+	if (dcache_color_ignore != 0 ||
+	    (msrc->md.color == DCACHE_COLOR(psrc) &&
+	    mdst->md.color == DCACHE_COLOR(pdst))) {
 		PMAP_STATS_INC(pmap_ncopy_page_c);
 		vdst = TLB_PHYS_TO_DIRECT(pdst);
 		vsrc = TLB_PHYS_TO_DIRECT(psrc);
 		cpu_block_copy((void *)vsrc, (void *)vdst, PAGE_SIZE);
+	} else if (msrc->md.color == -1 && mdst->md.color == -1) {
+		PMAP_STATS_INC(pmap_ncopy_page_nc);
+		ascopy(ASI_PHYS_USE_EC, psrc, pdst, PAGE_SIZE);
 	} else if (msrc->md.color == -1) {
 		if (mdst->md.color == DCACHE_COLOR(pdst)) {
 			PMAP_STATS_INC(pmap_ncopy_page_dc);
@@ -1780,20 +1916,25 @@ pmap_page_exists_quick(pmap_t pm, vm_page_t m)
 {
 	struct tte *tp;
 	int loops;
+	boolean_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_page_exists_quick: page %p is not managed", m));
 	loops = 0;
+	rv = FALSE;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
-		if (TTE_GET_PMAP(tp) == pm)
-			return (TRUE);
+		if (TTE_GET_PMAP(tp) == pm) {
+			rv = TRUE;
+			break;
+		}
 		if (++loops >= 16)
 			break;
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -1809,10 +1950,11 @@ pmap_page_wired_mappings(vm_page_t m)
 	count = 0;
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		return (count);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link)
 		if ((tp->tte_data & (TD_PV | TD_WIRED)) == (TD_PV | TD_WIRED))
 			count++;
+	vm_page_unlock_queues();
 	return (count);
 }
 
@@ -1868,10 +2010,10 @@ pmap_ts_referenced(vm_page_t m)
 	u_long data;
 	int count;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (0);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_ts_referenced: page %p is not managed", m));
 	count = 0;
+	vm_page_lock_queues();
 	if ((tp = TAILQ_FIRST(&m->md.tte_list)) != NULL) {
 		tpf = tp;
 		do {
@@ -1885,6 +2027,7 @@ pmap_ts_referenced(vm_page_t m)
 				break;
 		} while ((tp = tpn) != NULL && tp != tpf);
 	}
+	vm_page_unlock_queues();
 	return (count);
 }
 
@@ -1892,17 +2035,32 @@ boolean_t
 pmap_is_modified(vm_page_t m)
 {
 	struct tte *tp;
+	boolean_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_is_modified: page %p is not managed", m));
+	rv = FALSE;
+
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no TTEs can have TD_W set.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
+	    (m->flags & PG_WRITEABLE) == 0)
+		return (rv);
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
-		if ((tp->tte_data & TD_W) != 0)
-			return (TRUE);
+		if ((tp->tte_data & TD_W) != 0) {
+			rv = TRUE;
+			break;
+		}
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -1914,8 +2072,12 @@ pmap_is_modified(vm_page_t m)
 boolean_t
 pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
+	boolean_t rv;
 
-	return (FALSE);
+	PMAP_LOCK(pmap);
+	rv = tsb_tte_lookup(pmap, addr) == NULL;
+	PMAP_UNLOCK(pmap);
+	return (rv);
 }
 
 /*
@@ -1926,17 +2088,22 @@ boolean_t
 pmap_is_referenced(vm_page_t m)
 {
 	struct tte *tp;
+	boolean_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_is_referenced: page %p is not managed", m));
+	rv = FALSE;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
-		if ((tp->tte_data & TD_REF) != 0)
-			return (TRUE);
+		if ((tp->tte_data & TD_REF) != 0) {
+			rv = TRUE;
+			break;
+		}
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 void
@@ -1945,9 +2112,20 @@ pmap_clear_modify(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_clear_modify: page %p is not managed", m));
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) == 0,
+	    ("pmap_clear_modify: page %p is busy", m));
+
+	/*
+	 * If the page is not PG_WRITEABLE, then no TTEs can have TD_W set.
+	 * If the object containing the page is locked and the page is not
+	 * VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 */
+	if ((m->flags & PG_WRITEABLE) == 0)
 		return;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
@@ -1955,6 +2133,7 @@ pmap_clear_modify(vm_page_t m)
 		if ((data & TD_W) != 0)
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
+	vm_page_unlock_queues();
 }
 
 void
@@ -1963,9 +2142,9 @@ pmap_clear_reference(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return;
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_clear_reference: page %p is not managed", m));
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
@@ -1973,6 +2152,7 @@ pmap_clear_reference(vm_page_t m)
 		if ((data & TD_REF) != 0)
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
+	vm_page_unlock_queues();
 }
 
 void
@@ -1981,10 +2161,19 @@ pmap_remove_write(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_write: page %p is not managed", m));
+
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no page table entries need updating.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->flags & PG_WRITEABLE) == 0)
 		return;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
@@ -1995,10 +2184,11 @@ pmap_remove_write(vm_page_t m)
 		}
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_unlock_queues();
 }
 
 int
-pmap_mincore(pmap_t pm, vm_offset_t addr)
+pmap_mincore(pmap_t pm, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
 
 	/* TODO; */

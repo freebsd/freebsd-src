@@ -100,9 +100,11 @@ struct	vmspace vmspace0;
 struct	proc *initproc;
 
 int	boothowto = 0;		/* initialized so that it can be patched */
-SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0,
+	"Boot control flags, passed from loader");
 int	bootverbose;
-SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
+	"Control the output of verbose kernel messages");
 
 /*
  * This ensures that there is at least one entry so that the sysinit_set
@@ -177,6 +179,9 @@ mi_startup(void)
 	int last;
 	int verbose;
 #endif
+
+	if (boothowto & RB_VERBOSE)
+		bootverbose++;
 
 	if (sysinit == NULL) {
 		sysinit = SET_BEGIN(sysinit_set);
@@ -325,14 +330,20 @@ SYSINIT(diagwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 2,
     print_caddr_t, diag_warn);
 #endif
 
-static void
-set_boot_verbose(void *data __unused)
+static int
+null_fetch_syscall_args(struct thread *td __unused,
+    struct syscall_args *sa __unused)
 {
 
-	if (boothowto & RB_VERBOSE)
-		bootverbose++;
+	panic("null_fetch_syscall_args");
 }
-SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL);
+
+static void
+null_set_syscall_retval(struct thread *td __unused, int error __unused)
+{
+
+	panic("null_set_syscall_retval");
+}
 
 struct sysentvec null_sysvec = {
 	.sv_size	= 0,
@@ -361,7 +372,11 @@ struct sysentvec null_sysvec = {
 	.sv_copyout_strings	= NULL,
 	.sv_setregs	= NULL,
 	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL
+	.sv_maxssiz	= NULL,
+	.sv_flags	= 0,
+	.sv_set_syscall_retval = null_set_syscall_retval,
+	.sv_fetch_syscall_args = null_fetch_syscall_args,
+	.sv_syscallnames = NULL,
 };
 
 /*
@@ -440,10 +455,12 @@ proc0_init(void *dummy __unused)
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
 	td->td_tid = PID_MAX + 1;
+	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
 	td->td_state = TDS_RUNNING;
 	td->td_pri_class = PRI_TIMESHARE;
 	td->td_user_pri = PUSER;
 	td->td_base_user_pri = PUSER;
+	td->td_lend_user_pri = PRI_MAX;
 	td->td_priority = PVM;
 	td->td_base_pri = PUSER;
 	td->td_oncpu = 0;
@@ -520,10 +537,9 @@ proc0_init(void *dummy __unused)
 	vm_map_init(&vmspace0.vm_map, vmspace_pmap(&vmspace0),
 	    p->p_sysent->sv_minuser, p->p_sysent->sv_maxuser);
 
-	/*-
-	 * call the init and ctor for the new thread and proc
-	 * we wait to do this until all other structures
-	 * are fairly sane.
+	/*
+	 * Call the init and ctor for the new thread and proc.  We wait
+	 * to do this until all other structures are fairly sane.
 	 */
 	EVENTHANDLER_INVOKE(process_init, p);
 	EVENTHANDLER_INVOKE(thread_init, td);
@@ -629,7 +645,8 @@ SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
 #endif
 static int init_shutdown_timeout = INIT_SHUTDOWN_TIMEOUT;
 SYSCTL_INT(_kern, OID_AUTO, init_shutdown_timeout,
-	CTLFLAG_RW, &init_shutdown_timeout, 0, "");
+	CTLFLAG_RW, &init_shutdown_timeout, 0, "Shutdown timeout of init(8). "
+	"Unused within kernel, but used to control init(8)");
 
 /*
  * Start the initial user process; try exec'ing each pathname in init_path.

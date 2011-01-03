@@ -57,7 +57,7 @@ usage(void)
 	fprintf(stderr,
 "usage: mdconfig -a -t type [-n] [-o [no]option] ... [-f file]\n"
 "                [-s size] [-S sectorsize] [-u unit]\n"
-"                [-x sectors/track] [-y heads/cyl]\n"
+"                [-x sectors/track] [-y heads/cylinder]\n"
 "       mdconfig -d -u unit [-o [no]force]\n"
 "       mdconfig -l [-v] [-n] [-u unit]\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");

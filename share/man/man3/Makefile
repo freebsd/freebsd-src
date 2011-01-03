@@ -251,7 +251,11 @@ PTHREAD_MLINKS+=pthread_barrierattr.3 pthread_barrierattr_destroy.3 \
 PTHREAD_MLINKS+=pthread_barrier_destroy.3 pthread_barrier_init.3 \
 		pthread_barrier_destroy.3 pthread_barrier_wait.3
 PTHREAD_MLINKS+=pthread_condattr.3 pthread_condattr_destroy.3 \
-		pthread_condattr.3 pthread_condattr_init.3
+		pthread_condattr.3 pthread_condattr_init.3 \
+		pthread_condattr.3 pthread_condattr_getclock.3 \
+		pthread_condattr.3 pthread_condattr_setclock.3 \
+		pthread_condattr.3 pthread_condattr_getpshared.3 \
+		pthread_condattr.3 pthread_condattr_setpshared.3
 PTHREAD_MLINKS+=pthread_getconcurrency.3 pthread_setconcurrency.3
 PTHREAD_MLINKS+=pthread_multi_np.3 pthread_single_np.3
 PTHREAD_MLINKS+=pthread_mutexattr.3 pthread_mutexattr_destroy.3 \
@@ -273,6 +277,7 @@ PTHREAD_MLINKS+=pthread_spin_init.3 pthread_spin_destroy.3 \
 PTHREAD_MLINKS+=pthread_switch_add_np.3 pthread_switch_delete_np.3
 PTHREAD_MLINKS+=pthread_testcancel.3 pthread_setcancelstate.3 \
 		pthread_testcancel.3 pthread_setcanceltype.3
+PTHREAD_MLINKS+=pthread_join.3 pthread_timedjoin_np.3
 .endif
 
 .include <bsd.prog.mk>

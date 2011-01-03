@@ -193,7 +193,7 @@ static const long reloc_target_bitmask[] = {
 	__asm __volatile("flush %0 + %1" : : "r" (va), "I" (offs));
 
 static int reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela,
-			       SymCache *cache);
+    SymCache *cache, RtldLockState *lockstate);
 static void install_plt(Elf_Word *pltgot, Elf_Addr proc);
 
 extern char _rtld_bind_start_0[];
@@ -206,13 +206,13 @@ do_copy_relocations(Obj_Entry *dstobj)
 	const Elf_Rela *rela;
 	const Elf_Sym *dstsym;
 	const Elf_Sym *srcsym;
-	const Ver_Entry *ve;
 	void *dstaddr;
 	const void *srcaddr;
-	Obj_Entry *srcobj;
-	unsigned long hash;
+	const Obj_Entry *srcobj, *defobj;
+	SymLook req;
 	const char *name;
 	size_t size;
+	int res;
 
 	assert(dstobj->mainprog);   /* COPY relocations are invalid elsewhere */
 
@@ -222,16 +222,20 @@ do_copy_relocations(Obj_Entry *dstobj)
 			dstaddr = (void *)(dstobj->relocbase + rela->r_offset);
 			dstsym = dstobj->symtab + ELF_R_SYM(rela->r_info);
 			name = dstobj->strtab + dstsym->st_name;
-			hash = elf_hash(name);
 			size = dstsym->st_size;
-			ve = fetch_ventry(dstobj, ELF_R_SYM(rela->r_info));
+			symlook_init(&req, name);
+			req.ventry = fetch_ventry(dstobj,
+			    ELF_R_SYM(rela->r_info));
 
 			for (srcobj = dstobj->next; srcobj != NULL;
-			    srcobj = srcobj->next)
-				if ((srcsym = symlook_obj(name, hash, srcobj,
-				    ve, 0)) != NULL)
+			     srcobj = srcobj->next) {
+				res = symlook_obj(&req, srcobj);
+				if (res == 0) {
+					srcsym = req.sym_out;
+					defobj = req.defobj_out;
 					break;
-
+				}
+			}
 			if (srcobj == NULL) {
 				_rtld_error("Undefined symbol \"%s\""
 					    "referenced from COPY relocation"
@@ -239,7 +243,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 				return (-1);
 			}
 
-			srcaddr = (const void *)(srcobj->relocbase +
+			srcaddr = (const void *)(defobj->relocbase +
 			    srcsym->st_value);
 			memcpy(dstaddr, srcaddr, size);
 		}
@@ -249,12 +253,11 @@ do_copy_relocations(Obj_Entry *dstobj)
 }
 
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 {
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 	SymCache *cache;
-	int bytes = obj->nchains * sizeof(SymCache);
 	int r = -1;
 
 	/*
@@ -262,27 +265,26 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
 	if (obj != obj_rtld) {
-		cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON,
-		    -1, 0);
-		if (cache == MAP_FAILED)
-			cache = NULL;
+		cache = calloc(obj->nchains, sizeof(SymCache));
+		/* No need to check for NULL here */
 	} else
 		cache = NULL;
 
 	relalim = (const Elf_Rela *)((caddr_t)obj->rela + obj->relasize);
 	for (rela = obj->rela; rela < relalim; rela++) {
-		if (reloc_nonplt_object(obj, rela, cache) < 0)
+		if (reloc_nonplt_object(obj, rela, cache, lockstate) < 0)
 			goto done;
 	}
 	r = 0;
 done:
-	if (cache)
-		munmap(cache, bytes);
+	if (cache != NULL)
+		free(cache);
 	return (r);
 }
 
 static int
-reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache)
+reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
+    RtldLockState *lockstate)
 {
 	const Obj_Entry *defobj;
 	const Elf_Sym *def;
@@ -336,7 +338,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache)
 
 		/* Find the symbol */
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    false, cache);
+		    false, cache, lockstate);
 		if (def == NULL)
 			return (-1);
 
@@ -419,7 +421,7 @@ reloc_plt(Obj_Entry *obj)
 		assert(ELF64_R_TYPE_ID(rela->r_info) == R_SPARC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    true, NULL);
+		    true, NULL, lockstate);
 		value = (Elf_Addr)(defobj->relocbase + def->st_value);
 		*where = value;
 	}
@@ -449,7 +451,7 @@ reloc_plt(Obj_Entry *obj)
 #define LOVAL(v)	((v) & 0x000003ff)
 
 int
-reloc_jmpslots(Obj_Entry *obj)
+reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 {
 	const Obj_Entry *defobj;
 	const Elf_Rela *relalim;
@@ -463,7 +465,7 @@ reloc_jmpslots(Obj_Entry *obj)
 		assert(ELF64_R_TYPE_ID(rela->r_info) == R_SPARC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    true, NULL);
+		    true, NULL, lockstate);
 		if (def == NULL)
 			return -1;
 		target = (Elf_Addr)(defobj->relocbase + def->st_value);

@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.106 2010/03/07 11:57:13 dtucker Exp $ */
+/* $OpenBSD: monitor.c,v 1.108 2010/07/13 23:13:16 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -518,7 +518,7 @@ monitor_allowed_key(u_char *blob, u_int bloblen)
 {
 	/* make sure key is allowed */
 	if (key_blob == NULL || key_bloblen != bloblen ||
-	    memcmp(key_blob, blob, key_bloblen))
+	    timingsafe_bcmp(key_blob, blob, key_bloblen))
 		return (0);
 	return (1);
 }
@@ -922,8 +922,8 @@ mm_answer_pam_init_ctx(int sock, Buffer *m)
 int
 mm_answer_pam_query(int sock, Buffer *m)
 {
-	char *name, *info, **prompts;
-	u_int i, num, *echo_on;
+	char *name = NULL, *info = NULL, **prompts = NULL;
+	u_int i, num = 0, *echo_on = 0;
 	int ret;
 
 	debug3("%s", __func__);
@@ -1103,14 +1103,14 @@ monitor_valid_userblob(u_char *data, u_int datalen)
 		len = buffer_len(&b);
 		if ((session_id2 == NULL) ||
 		    (len < session_id2_len) ||
-		    (memcmp(p, session_id2, session_id2_len) != 0))
+		    (timingsafe_bcmp(p, session_id2, session_id2_len) != 0))
 			fail++;
 		buffer_consume(&b, session_id2_len);
 	} else {
 		p = buffer_get_string(&b, &len);
 		if ((session_id2 == NULL) ||
 		    (len != session_id2_len) ||
-		    (memcmp(p, session_id2, session_id2_len) != 0))
+		    (timingsafe_bcmp(p, session_id2, session_id2_len) != 0))
 			fail++;
 		xfree(p);
 	}
@@ -1158,7 +1158,7 @@ monitor_valid_hostbasedblob(u_char *data, u_int datalen, char *cuser,
 	p = buffer_get_string(&b, &len);
 	if ((session_id2 == NULL) ||
 	    (len != session_id2_len) ||
-	    (memcmp(p, session_id2, session_id2_len) != 0))
+	    (timingsafe_bcmp(p, session_id2, session_id2_len) != 0))
 		fail++;
 	xfree(p);
 
@@ -1682,9 +1682,9 @@ mm_get_kex(Buffer *m)
 
 	kex = xcalloc(1, sizeof(*kex));
 	kex->session_id = buffer_get_string(m, &kex->session_id_len);
-	if ((session_id2 == NULL) ||
-	    (kex->session_id_len != session_id2_len) ||
-	    (memcmp(kex->session_id, session_id2, session_id2_len) != 0))
+	if (session_id2 == NULL ||
+	    kex->session_id_len != session_id2_len ||
+	    timingsafe_bcmp(kex->session_id, session_id2, session_id2_len) != 0)
 		fatal("mm_get_get: internal error: bad session id");
 	kex->we_need = buffer_get_int(m);
 	kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;

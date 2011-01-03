@@ -115,7 +115,11 @@ void	stopguprof __P((struct gmonparam *p));
 
 #define	FUNCTION_ALIGNMENT	4
 
-typedef unsigned int	uintfptr_t;
+#ifdef __mips_n64
+typedef u_long	uintfptr_t;
+#else
+typedef u_int	uintfptr_t;
+#endif
 
 #endif /* _KERNEL */
 
@@ -123,7 +127,11 @@ typedef unsigned int	uintfptr_t;
  * An unsigned integral type that can hold non-negative difference between
  * function pointers.
  */
+#ifdef __mips_n64
+typedef u_long	fptrdiff_t;
+#else
 typedef u_int	fptrdiff_t;
+#endif
 
 #ifdef _KERNEL
 

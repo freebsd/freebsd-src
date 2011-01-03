@@ -1,4 +1,4 @@
-/*	$NetBSD: makefs.c,v 1.20 2004/06/20 22:20:18 jmc Exp $	*/
+/*	$NetBSD: makefs.c,v 1.26 2006/10/22 21:11:56 christos Exp $	*/
 
 /*
  * Copyright (c) 2001-2003 Wasabi Systems, Inc.
@@ -55,14 +55,18 @@ __FBSDID("$FreeBSD$");
  */
 typedef struct {
 	const char	*type;
+	void		(*prepare_options)(fsinfo_t *);
 	int		(*parse_options)(const char *, fsinfo_t *);
+	void		(*cleanup_options)(fsinfo_t *);
 	void		(*make_fs)(const char *, const char *, fsnode *,
 				fsinfo_t *);
 } fstype_t;
 
 static fstype_t fstypes[] = {
-	{ "ffs",	ffs_parse_opts,		ffs_makefs },
-	{ NULL	},
+	{ "ffs", ffs_prep_opts,	ffs_parse_opts,	ffs_cleanup_opts, ffs_makefs },
+	{ "cd9660", cd9660_prep_opts, cd9660_parse_opts, cd9660_cleanup_opts,
+	  cd9660_makefs},
+	{ .type = NULL	},
 };
 
 u_int		debug;
@@ -92,17 +96,9 @@ main(int argc, char *argv[])
 	(void)memset(&fsoptions, 0, sizeof(fsoptions));
 	fsoptions.fd = -1;
 	fsoptions.sectorsize = -1;
-	fsoptions.bsize= -1;
-	fsoptions.fsize= -1;
-	fsoptions.cpg= -1;
-	fsoptions.density= -1;
-	fsoptions.minfree= -1;
-	fsoptions.optimization= -1;
-	fsoptions.maxcontig= -1;
-	fsoptions.maxbpg= -1;
-	fsoptions.avgfilesize= -1;
-	fsoptions.avgfpdir= -1;
-	fsoptions.version = 1;
+
+	if (fstype->prepare_options)
+		fstype->prepare_options(&fsoptions);
 
 	specfile = NULL;
 	if (gettimeofday(&start, NULL) == -1)
@@ -148,8 +144,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'd':
-			debug =
-			    (int)strsuftoll("debug mask", optarg, 0, UINT_MAX);
+			debug = strtoll(optarg, NULL, 0);
 			break;
 
 		case 'f':
@@ -212,8 +207,13 @@ main(int argc, char *argv[])
 			break;
 
 		case 't':
+			/* Check current one and cleanup if necessary. */
+			if (fstype->cleanup_options)
+				fstype->cleanup_options(&fsoptions);
+			fsoptions.fs_specific = NULL;
 			if ((fstype = get_fstype(optarg)) == NULL)
 				errx(1, "Unknown fs type `%s'.", optarg);
+			fstype->prepare_options(&fsoptions);
 			break;
 
 		case 'x':
@@ -250,7 +250,7 @@ main(int argc, char *argv[])
 
 	if (specfile) {		/* apply a specfile */
 		TIMER_START(start);
-		apply_specfile(specfile, argv[1], root);
+		apply_specfile(specfile, argv[1], root, fsoptions.onlyspec);
 		TIMER_RESULTS(start, "apply_specfile");
 	}
 
@@ -264,6 +264,8 @@ main(int argc, char *argv[])
 	TIMER_START(start);
 	fstype->make_fs(argv[0], argv[1], root, &fsoptions);
 	TIMER_RESULTS(start, "make_fs");
+
+	free_fsnodes(root);
 
 	exit(0);
 	/* NOTREACHED */

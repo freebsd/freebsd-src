@@ -245,107 +245,60 @@ ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
     const HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
     const struct ar5416eeprom_4k *eep = &ee->ee_base;
     const MODAL_EEP4K_HEADER *pModal;
-    int			i, regChainOffset;
-    uint8_t		txRxAttenLocal;    /* workaround for eeprom versions <= 14.2 */
+    uint8_t	txRxAttenLocal = 23;
 
     HALASSERT(AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER14_1);
     pModal = &eep->modalHeader;
 
-    /* NB: workaround for eeprom versions <= 14.2 */
-    txRxAttenLocal = 23;
-
     OS_REG_WRITE(ah, AR_PHY_SWITCH_COM, pModal->antCtrlCommon);
-    for (i = 0; i < AR5416_4K_MAX_CHAINS; i++) { 
-	   if (AR_SREV_MERLIN(ah)) {
-		if (i >= 2) break;
-	   }
-       	   if (AR_SREV_OWL_20_OR_LATER(ah) &&
-            (AH5416(ah)->ah_rx_chainmask == 0x5 ||
-	     AH5416(ah)->ah_tx_chainmask == 0x5) && i != 0) {
-            /* Regs are swapped from chain 2 to 1 for 5416 2_0 with 
-             * only chains 0 and 2 populated 
-             */
-            regChainOffset = (i == 1) ? 0x2000 : 0x1000;
-        } else {
-            regChainOffset = i * 0x1000;
-        }
-
-        OS_REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0 + regChainOffset, pModal->antCtrlChain[i]);
-        OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4 + regChainOffset, 
-        	(OS_REG_READ(ah, AR_PHY_TIMING_CTRL4 + regChainOffset) &
+    OS_REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0, pModal->antCtrlChain[0]);
+    OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4,
+        	(OS_REG_READ(ah, AR_PHY_TIMING_CTRL4) &
         	~(AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF | AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF)) |
-        	SM(pModal->iqCalICh[i], AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF) |
-        	SM(pModal->iqCalQCh[i], AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF));
+        	SM(pModal->iqCalICh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF) |
+        	SM(pModal->iqCalQCh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF));
 
-        /*
-         * Large signal upgrade.
-	 * XXX update
-         */
-
-        if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah)) {
-            OS_REG_WRITE(ah, AR_PHY_RXGAIN + regChainOffset, 
-		(OS_REG_READ(ah, AR_PHY_RXGAIN + regChainOffset) & ~AR_PHY_RXGAIN_TXRX_ATTEN) |
-			SM(IS_EEP_MINOR_V3(ah)  ? pModal->txRxAttenCh[i] : txRxAttenLocal,
-				AR_PHY_RXGAIN_TXRX_ATTEN));
-
-            OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + regChainOffset, 
-	    	(OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) & ~AR_PHY_GAIN_2GHZ_RXTX_MARGIN) |
-			SM(pModal->rxTxMarginCh[i], AR_PHY_GAIN_2GHZ_RXTX_MARGIN));
-        }
-    }
-
-    OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH, pModal->switchSettling);
-    OS_REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ, AR_PHY_DESIRED_SZ_ADC, pModal->adcDesiredSize);
-    OS_REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ, AR_PHY_DESIRED_SZ_PGA, pModal->pgaDesiredSize);
-    OS_REG_WRITE(ah, AR_PHY_RF_CTL4,
-        SM(pModal->txEndToXpaOff, AR_PHY_RF_CTL4_TX_END_XPAA_OFF)
-        | SM(pModal->txEndToXpaOff, AR_PHY_RF_CTL4_TX_END_XPAB_OFF)
-        | SM(pModal->txFrameToXpaOn, AR_PHY_RF_CTL4_FRAME_XPAA_ON)
-        | SM(pModal->txFrameToXpaOn, AR_PHY_RF_CTL4_FRAME_XPAB_ON));
-
-    OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL3, AR_PHY_TX_END_TO_A2_RX_ON, pModal->txEndToRxOn);
-
-     OS_REG_RMW_FIELD(ah, AR_PHY_CCA, AR9280_PHY_CCA_THRESH62,
-	    pModal->thresh62);
-     OS_REG_RMW_FIELD(ah, AR_PHY_EXT_CCA0, AR_PHY_EXT_CCA0_THRESH62,
-	    pModal->thresh62);
-    
-    /* Minor Version Specific application */
-    if (IS_EEP_MINOR_V2(ah)) {
-        OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL2,  AR_PHY_TX_FRAME_TO_DATA_START, pModal->txFrameToDataStart);
-        OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL2,  AR_PHY_TX_FRAME_TO_PA_ON, pModal->txFrameToPaOn);    
-    }	
-    
     if (IS_EEP_MINOR_V3(ah)) {
 	if (IEEE80211_IS_CHAN_HT40(chan)) {
 		/* Overwrite switch settling with HT40 value */
-		OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH, pModal->swSettleHt40);
+		OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH,
+		    pModal->swSettleHt40);
 	}
-	
-        if ((AR_SREV_OWL_20_OR_LATER(ah)) &&
-            (  AH5416(ah)->ah_rx_chainmask == 0x5 || AH5416(ah)->ah_tx_chainmask == 0x5)){
-            /* Reg Offsets are swapped for logical mapping */
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x1000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x1000) & ~AR_PHY_GAIN_2GHZ_BSW_MARGIN) |
-			SM(pModal->bswMargin[2], AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x1000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x1000) & ~AR_PHY_GAIN_2GHZ_BSW_ATTEN) |
-			SM(pModal->bswAtten[2], AR_PHY_GAIN_2GHZ_BSW_ATTEN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x2000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x2000) & ~AR_PHY_GAIN_2GHZ_BSW_MARGIN) |
-			SM(pModal->bswMargin[1], AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x2000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x2000) & ~AR_PHY_GAIN_2GHZ_BSW_ATTEN) |
-			SM(pModal->bswAtten[1], AR_PHY_GAIN_2GHZ_BSW_ATTEN));
-        } else {
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x1000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x1000) & ~AR_PHY_GAIN_2GHZ_BSW_MARGIN) |
-			SM(pModal->bswMargin[1], AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x1000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x1000) & ~AR_PHY_GAIN_2GHZ_BSW_ATTEN) |
-			SM(pModal->bswAtten[1], AR_PHY_GAIN_2GHZ_BSW_ATTEN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x2000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x2000) & ~AR_PHY_GAIN_2GHZ_BSW_MARGIN) |
-			SM(pModal->bswMargin[2],AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x2000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x2000) & ~AR_PHY_GAIN_2GHZ_BSW_ATTEN) |
-			SM(pModal->bswAtten[2], AR_PHY_GAIN_2GHZ_BSW_ATTEN));
-        }
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_BSW_MARGIN, pModal->bswMargin[0]);
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_BSW_ATTEN, pModal->bswAtten[0]);
+	txRxAttenLocal = pModal->txRxAttenCh[0];
+
+        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN,
+	    pModal->bswMargin[0]);
+        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN1_DB,
+	    pModal->bswAtten[0]);
+	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN,
+	    pModal->xatten2Margin[0]);
+	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN2_DB,
+	    pModal->xatten2Db[0]);
+
+	/* block 1 has the same values as block 0 */	
+        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+	    AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN, pModal->bswMargin[0]);
+        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+	    AR_PHY_GAIN_2GHZ_XATTEN1_DB, pModal->bswAtten[0]);
+	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+	    AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN, pModal->xatten2Margin[0]);
+	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+	    AR_PHY_GAIN_2GHZ_XATTEN2_DB, pModal->xatten2Db[0]);
+
     }
+    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
+        AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
+    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
+        AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+
+    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
+        AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
+    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
+        AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+
+    if (AR_SREV_KITE_11(ah))
+	    OS_REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
+
     return AH_TRUE;
 }
 
@@ -634,7 +587,7 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     OS_REG_WRITE(ah, AR_PHY_TPCRG1, (OS_REG_READ(ah, AR_PHY_TPCRG1) & 
     	~(AR_PHY_TPCRG1_NUM_PD_GAIN | AR_PHY_TPCRG1_PD_GAIN_1 | AR_PHY_TPCRG1_PD_GAIN_2 | AR_PHY_TPCRG1_PD_GAIN_3)) | 
 	SM(numXpdGain - 1, AR_PHY_TPCRG1_NUM_PD_GAIN) | SM(xpdGainValues[0], AR_PHY_TPCRG1_PD_GAIN_1 ) |
-	SM(xpdGainValues[1], AR_PHY_TPCRG1_PD_GAIN_2) | SM(xpdGainValues[2],  AR_PHY_TPCRG1_PD_GAIN_3));
+	SM(xpdGainValues[1], AR_PHY_TPCRG1_PD_GAIN_2) | SM(0, AR_PHY_TPCRG1_PD_GAIN_3));
 
     for (i = 0; i < AR5416_MAX_CHAINS; i++) {
 
@@ -839,7 +792,7 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
          * for last gain, pdGainBoundary == Pmax_t2, so will
          * have to extrapolate
          */
-        if (tgtIndex > maxIndex) {  /* need to extrapolate above */
+        if (tgtIndex >= maxIndex) {  /* need to extrapolate above */
             while ((ss <= tgtIndex) && (k < (AR5416_NUM_PDADC_VALUES - 1))) {
                 tmpVal = (int16_t)((vpdTableI[i][sizeCurrVpdTable - 1] +
                           (ss - maxIndex +1) * vpdStep));

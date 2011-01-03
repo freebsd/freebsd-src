@@ -256,7 +256,7 @@ find_unbound_irq(void)
 }
 
 static int
-bind_caller_port_to_irq(unsigned int caller_port)
+bind_caller_port_to_irq(unsigned int caller_port, int * port)
 {
         int irq;
 
@@ -271,7 +271,7 @@ bind_caller_port_to_irq(unsigned int caller_port)
         }
 
         irq_bindcount[irq]++;
-	unmask_evtchn(caller_port);
+	*port = caller_port;
 
  out:
         mtx_unlock_spin(&irq_mapping_update_lock);
@@ -279,7 +279,7 @@ bind_caller_port_to_irq(unsigned int caller_port)
 }
 
 static int
-bind_local_port_to_irq(unsigned int local_port)
+bind_local_port_to_irq(unsigned int local_port, int * port)
 {
         int irq;
 
@@ -298,7 +298,7 @@ bind_local_port_to_irq(unsigned int local_port)
         evtchn_to_irq[local_port] = irq;
         irq_info[irq] = mk_irq_info(IRQT_LOCAL_PORT, 0, local_port);
         irq_bindcount[irq]++;
-	unmask_evtchn(local_port);
+	*port = local_port;
 
  out:
         mtx_unlock_spin(&irq_mapping_update_lock);
@@ -306,7 +306,7 @@ bind_local_port_to_irq(unsigned int local_port)
 }
 
 static int
-bind_listening_port_to_irq(unsigned int remote_domain)
+bind_listening_port_to_irq(unsigned int remote_domain, int * port)
 {
         struct evtchn_alloc_unbound alloc_unbound;
         int err;
@@ -317,12 +317,12 @@ bind_listening_port_to_irq(unsigned int remote_domain)
         err = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
                                           &alloc_unbound);
 
-        return err ? : bind_local_port_to_irq(alloc_unbound.port);
+        return err ? : bind_local_port_to_irq(alloc_unbound.port, port);
 }
 
 static int
 bind_interdomain_evtchn_to_irq(unsigned int remote_domain,
-    unsigned int remote_port)
+    unsigned int remote_port, int * port)
 {
         struct evtchn_bind_interdomain bind_interdomain;
         int err;
@@ -333,11 +333,11 @@ bind_interdomain_evtchn_to_irq(unsigned int remote_domain,
         err = HYPERVISOR_event_channel_op(EVTCHNOP_bind_interdomain,
                                           &bind_interdomain);
 
-        return err ? : bind_local_port_to_irq(bind_interdomain.local_port);
+        return err ? : bind_local_port_to_irq(bind_interdomain.local_port, port);
 }
 
 static int 
-bind_virq_to_irq(unsigned int virq, unsigned int cpu)
+bind_virq_to_irq(unsigned int virq, unsigned int cpu, int * port)
 {
 	struct evtchn_bind_virq bind_virq;
 	int evtchn = 0, irq;
@@ -363,7 +363,7 @@ bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 	}
 
 	irq_bindcount[irq]++;
-	unmask_evtchn(evtchn);
+	*port = evtchn;
 out:
 	mtx_unlock_spin(&irq_mapping_update_lock);
 
@@ -371,10 +371,8 @@ out:
 }
 
 
-extern int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu);
-
-int 
-bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
+static int 
+bind_ipi_to_irq(unsigned int ipi, unsigned int cpu, int * port)
 {
 	struct evtchn_bind_ipi bind_ipi;
 	int irq;
@@ -398,7 +396,7 @@ bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
 	irq_bindcount[irq]++;
-	unmask_evtchn(evtchn);
+	*port = evtchn;
 out:
 	
 	mtx_unlock_spin(&irq_mapping_update_lock);
@@ -449,9 +447,10 @@ bind_caller_port_to_irqhandler(unsigned int caller_port,
     unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
+	int port = -1;
 	int error;
 
-	irq = bind_caller_port_to_irq(caller_port);
+	irq = bind_caller_port_to_irq(caller_port, &port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
 	error = intr_add_handler(devname, irq, NULL, handler, arg, irqflags,
 	    &xp->xp_pins[irq].xp_cookie);
@@ -460,6 +459,8 @@ bind_caller_port_to_irqhandler(unsigned int caller_port,
 		unbind_from_irq(irq);
 		return (error);
 	}
+	if (port != -1)
+		unmask_evtchn(port);
 
 	if (irqp)
 		*irqp = irq;
@@ -473,9 +474,10 @@ bind_listening_port_to_irqhandler(unsigned int remote_domain,
     unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
+	int port = -1;
 	int error;
 
-	irq = bind_listening_port_to_irq(remote_domain);
+	irq = bind_listening_port_to_irq(remote_domain, &port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
 	error = intr_add_handler(devname, irq, NULL, handler, arg, irqflags,
 	    &xp->xp_pins[irq].xp_cookie);
@@ -483,6 +485,8 @@ bind_listening_port_to_irqhandler(unsigned int remote_domain,
 		unbind_from_irq(irq);
 		return (error);
 	}
+	if (port != -1)
+		unmask_evtchn(port);
 	if (irqp)
 		*irqp = irq;
 	
@@ -492,20 +496,23 @@ bind_listening_port_to_irqhandler(unsigned int remote_domain,
 int 
 bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
     unsigned int remote_port, const char *devname,
-    driver_filter_t filter, driver_intr_t handler,
-    unsigned long irqflags, unsigned int *irqp)
+    driver_intr_t handler, void *arg, unsigned long irqflags,
+    unsigned int *irqp)
 {
 	unsigned int irq;
+	int port = -1;
 	int error;
 
-	irq = bind_interdomain_evtchn_to_irq(remote_domain, remote_port);
+	irq = bind_interdomain_evtchn_to_irq(remote_domain, remote_port, &port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, filter, handler, NULL,
+	error = intr_add_handler(devname, irq, NULL, handler, arg,
 	    irqflags, &xp->xp_pins[irq].xp_cookie);
 	if (error) {
 		unbind_from_irq(irq);
 		return (error);
 	}
+	if (port != -1)
+		unmask_evtchn(port);
 
 	if (irqp)
 		*irqp = irq;
@@ -518,9 +525,10 @@ bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
     void *arg, unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
+	int port = -1;
 	int error;
 
-	irq = bind_virq_to_irq(virq, cpu);
+	irq = bind_virq_to_irq(virq, cpu, &port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
 	error = intr_add_handler(devname, irq, filter, handler,
 	    arg, irqflags, &xp->xp_pins[irq].xp_cookie);
@@ -528,6 +536,8 @@ bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 		unbind_from_irq(irq);
 		return (error);
 	}
+	if (port != -1)
+		unmask_evtchn(port);
 
 	if (irqp)
 		*irqp = irq;
@@ -540,9 +550,10 @@ bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
     unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
+	int port = -1;
 	int error;
 	
-	irq = bind_ipi_to_irq(ipi, cpu);
+	irq = bind_ipi_to_irq(ipi, cpu, &port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
 	error = intr_add_handler(devname, irq, filter, NULL,
 	    NULL, irqflags, &xp->xp_pins[irq].xp_cookie);
@@ -550,6 +561,8 @@ bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
 		unbind_from_irq(irq);
 		return (error);
 	}
+	if (port != -1)
+		unmask_evtchn(port);
 
 	if (irqp)
 		*irqp = irq;
@@ -615,6 +628,7 @@ static void     xenpic_dynirq_enable_source(struct intsrc *isrc);
 static void     xenpic_dynirq_disable_source(struct intsrc *isrc, int); 
 static void     xenpic_dynirq_eoi_source(struct intsrc *isrc); 
 static void     xenpic_dynirq_enable_intr(struct intsrc *isrc); 
+static void     xenpic_dynirq_disable_intr(struct intsrc *isrc); 
 
 static void     xenpic_pirq_enable_source(struct intsrc *isrc); 
 static void     xenpic_pirq_disable_source(struct intsrc *isrc, int); 
@@ -634,6 +648,7 @@ struct pic xenpic_dynirq_template  =  {
 	.pic_disable_source	=	xenpic_dynirq_disable_source,
 	.pic_eoi_source		=	xenpic_dynirq_eoi_source, 
 	.pic_enable_intr	=	xenpic_dynirq_enable_intr, 
+	.pic_disable_intr	=	xenpic_dynirq_disable_intr,
 	.pic_vector		=	xenpic_vector, 
 	.pic_source_pending	=	xenpic_source_pending,
 	.pic_suspend		=	xenpic_suspend, 
@@ -699,6 +714,20 @@ xenpic_dynirq_enable_intr(struct intsrc *isrc)
 	xp->xp_masked = 0;
 	irq = xenpic_vector(isrc);
 	unmask_evtchn(evtchn_from_irq(irq));
+	mtx_unlock_spin(&irq_mapping_update_lock);
+}
+
+static void 
+xenpic_dynirq_disable_intr(struct intsrc *isrc)
+{
+	unsigned int irq;
+	struct xenpic_intsrc *xp;
+	
+	xp = (struct xenpic_intsrc *)isrc;	
+	mtx_lock_spin(&irq_mapping_update_lock);
+	irq = xenpic_vector(isrc);
+	mask_evtchn(evtchn_from_irq(irq));
+	xp->xp_masked = 1;
 	mtx_unlock_spin(&irq_mapping_update_lock);
 }
 

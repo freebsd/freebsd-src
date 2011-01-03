@@ -87,10 +87,6 @@ __FBSDID("$FreeBSD$");
 /* #define SCTP_AUDITING_ENABLED 1 used for debug/auditing */
 #define SCTP_AUDIT_SIZE 256
 
-/* temporary disabled since it does not work with VNET. */
-#if 0
-#define SCTP_USE_THREAD_BASED_ITERATOR 1
-#endif
 
 #define SCTP_KTRHEAD_NAME "sctp_iterator"
 #define SCTP_KTHREAD_PAGES 0
@@ -326,7 +322,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_VERSION_NUMBER	0x3
 
 #define MAX_TSN	0xffffffff
-#define MAX_SEQ	0xffff
 
 /* how many executions every N tick's */
 #define SCTP_ITERATOR_MAX_AT_ONCE 20
@@ -361,14 +356,6 @@ __FBSDID("$FreeBSD$");
 						 * hit this value) */
 #define SCTP_DATAGRAM_RESEND		4
 #define SCTP_DATAGRAM_ACKED		10010
-/* EY
- * If a tsn is nr-gapped, its first tagged as NR_MARKED and then NR_ACKED
- * When yet another nr-sack is received, if a particular TSN's sent tag
- * is observed to be NR_ACKED after gap-ack info is processed, this implies
- * that particular TSN is reneged
-*/
-#define SCTP_DATAGRAM_NR_ACKED 		10020
-#define SCTP_DATAGRAM_NR_MARKED		20005
 #define SCTP_DATAGRAM_MARKED		20010
 #define SCTP_FORWARD_TSN_SKIP		30010
 
@@ -498,6 +485,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_STATE_ABOUT_TO_BE_FREED    0x0200
 #define SCTP_STATE_PARTIAL_MSG_LEFT     0x0400
 #define SCTP_STATE_WAS_ABORTED          0x0800
+#define SCTP_STATE_IN_ACCEPT_QUEUE      0x1000
 #define SCTP_STATE_MASK			0x007f
 
 #define SCTP_GET_STATE(asoc)	((asoc)->state & SCTP_STATE_MASK)
@@ -579,7 +567,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_TIMER_TYPE_EVENTWAKE	13
 #define SCTP_TIMER_TYPE_STRRESET        14
 #define SCTP_TIMER_TYPE_INPKILL         15
-#define SCTP_TIMER_TYPE_ITERATOR        16
 #define SCTP_TIMER_TYPE_EARLYFR         17
 #define SCTP_TIMER_TYPE_ASOCKILL        18
 #define SCTP_TIMER_TYPE_ADDR_WQ         19
@@ -906,7 +893,7 @@ __FBSDID("$FreeBSD$");
 /* third argument */
 #define SCTP_CALLED_DIRECTLY_NOCMPSET     0
 #define SCTP_CALLED_AFTER_CMPSET_OFCLOSE  1
-
+#define SCTP_CALLED_FROM_INPKILL_TIMER    2
 /* second argument */
 #define SCTP_FREE_SHOULD_USE_ABORT          1
 #define SCTP_FREE_SHOULD_USE_GRACEFUL_CLOSE 0
@@ -918,10 +905,13 @@ __FBSDID("$FreeBSD$");
 #define SCTP_MAX_DATA_BUNDLING		256
 
 /* modular comparison */
-/* True if a > b (mod = M) */
-#define compare_with_wrap(a, b, M) (((a > b) && ((a - b) < ((M >> 1) + 1))) || \
-              ((b > a) && ((b - a) > ((M >> 1) + 1))))
-
+/* See RFC 1982 for details. */
+#define SCTP_SSN_GT(a, b) (((a < b) && ((b - a) > (1<<15))) || \
+                           ((a > b) && ((a - b) < (1<<15))))
+#define SCTP_SSN_GE(a, b) (SCTP_SSN_GT(a, b) || (a == b))
+#define SCTP_TSN_GT(a, b) (((a < b) && ((b - a) > (1<<31))) || \
+                           ((a > b) && ((a - b) < (1<<31))))
+#define SCTP_TSN_GE(a, b) (SCTP_TSN_GT(a, b) || (a == b))
 
 /* Mapping array manipulation routines */
 #define SCTP_IS_TSN_PRESENT(arry, gap) ((arry[(gap >> 3)] >> (gap & 0x07)) & 0x01)
@@ -959,6 +949,9 @@ __FBSDID("$FreeBSD$");
  * Number of seconds of time wait for a vtag.
  */
 #define SCTP_TIME_WAIT 60
+
+#define SCTP_SEND_BUFFER_SPLITTING 0x00000001
+#define SCTP_RECV_BUFFER_SPLITTING 0x00000002
 
 /* The system retains a cache of free chunks such to
  * cut down on calls the memory allocation system. There

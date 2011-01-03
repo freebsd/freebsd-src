@@ -279,6 +279,18 @@ WITH_IDEA=
 .endif
 
 #
+# Default behaviour of MK_CLANG depends on the architecture.
+#
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
+    ${MACHINE_ARCH} == "powerpc"
+_clang_yes=CLANG
+_clang_no=
+.else
+_clang_yes=
+_clang_no=CLANG
+.endif
+
+#
 # MK_* options which default to "yes".
 #
 .for var in \
@@ -305,6 +317,7 @@ WITH_IDEA=
     BZIP2 \
     CALENDAR \
     CDDL \
+    ${_clang_yes} \
     CPP \
     CRYPT \
     CTM \
@@ -313,6 +326,7 @@ WITH_IDEA=
     DICT \
     DYNAMICROOT \
     EXAMPLES \
+    FDT \
     FLOPPY \
     FORTH \
     FP_LIBC \
@@ -321,7 +335,6 @@ WITH_IDEA=
     GCOV \
     GDB \
     GNU \
-    GNU_GREP \
     GPIB \
     GROFF \
     HTML \
@@ -407,6 +420,9 @@ MK_${var}:=	yes
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    BSD_GREP \
+    ${_clang_no} \
+    GPIO \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
@@ -486,6 +502,7 @@ MK_GROFF:=	no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"
+MK_CLANG:=	no
 MK_GDB:=	no
 .endif
 
@@ -524,7 +541,8 @@ MK_${var}_SUPPORT:= yes
 # MK_* options whose default value depends on another option.
 #
 .for vv in \
-    GSSAPI/KERBEROS
+    GSSAPI/KERBEROS \
+    MAN_UTILS/MAN
 .if defined(WITH_${vv:H}) && defined(WITHOUT_${vv:H})
 .error WITH_${vv:H} and WITHOUT_${vv:H} can't both be set.
 .endif

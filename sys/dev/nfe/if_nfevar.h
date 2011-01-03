@@ -140,7 +140,6 @@ struct nfe_softc {
 	struct taskqueue	*nfe_tq;
 	struct task		nfe_int_task;
 	struct task		nfe_tx_task;
-	struct task		nfe_link_task;
 	int			nfe_link;
 	int			nfe_suspended;
 	int			nfe_framesize;

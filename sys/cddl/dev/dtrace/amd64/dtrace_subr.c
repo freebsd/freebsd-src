@@ -115,26 +115,13 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 {
 	cpumask_t cpus;
 
-	critical_enter();
-
 	if (cpu == DTRACE_CPUALL)
 		cpus = all_cpus;
 	else
-		cpus = (cpumask_t) (1 << cpu);
+		cpus = (cpumask_t)1 << cpu;
 
-	/* If the current CPU is in the set, call the function directly: */
-	if ((cpus & (1 << curcpu)) != 0) {
-		(*func)(arg);
-
-		/* Mask the current CPU from the set */
-		cpus &= ~(1 << curcpu);
-	}
-
-	/* If there are any CPUs in the set, cross-call to those CPUs */
-	if (cpus != 0)
-		smp_rendezvous_cpus(cpus, NULL, func, smp_no_rendevous_barrier, arg);
-
-	critical_exit();
+	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
+	    smp_no_rendevous_barrier, arg);
 }
 
 static void
@@ -405,6 +392,7 @@ dtrace_gethrtime_init_cpu(void *arg)
 static void
 dtrace_gethrtime_init(void *arg)
 {
+	struct pcpu *pc;
 	uint64_t tsc_f;
 	cpumask_t map;
 	int i;
@@ -437,18 +425,14 @@ dtrace_gethrtime_init(void *arg)
 	nsec_scale = ((uint64_t)NANOSEC << SCALE_SHIFT) / tsc_f;
 
 	/* The current CPU is the reference one. */
+	sched_pin();
 	tsc_skew[curcpu] = 0;
-
-	for (i = 0; i <= mp_maxid; i++) {
+	CPU_FOREACH(i) {
 		if (i == curcpu)
 			continue;
 
-		if (pcpu_find(i) == NULL)
-			continue;
-
-		map = 0;
-		map |= (1 << curcpu);
-		map |= (1 << i);
+		pc = pcpu_find(i);
+		map = PCPU_GET(cpumask) | pc->pc_cpumask;
 
 		smp_rendezvous_cpus(map, dtrace_gethrtime_init_sync,
 		    dtrace_gethrtime_init_cpu,
@@ -456,6 +440,7 @@ dtrace_gethrtime_init(void *arg)
 
 		tsc_skew[i] = tgt_cpu_tsc - hst_cpu_tsc;
 	}
+	sched_unpin();
 }
 
 SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init, NULL);

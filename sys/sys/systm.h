@@ -46,7 +46,7 @@
 #include <sys/stdint.h>		/* for people using printf mainly */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
-extern int rebooting;		/* boot() has been called. */
+extern int rebooting;		/* kern_reboot() has been called. */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
@@ -140,6 +140,7 @@ struct tty;
 struct ucred;
 struct uio;
 struct _jmp_buf;
+struct trapframe;
 
 int	setjmp(struct _jmp_buf *);
 void	longjmp(struct _jmp_buf *, int) __dead2;
@@ -236,15 +237,22 @@ void	realitexpire(void *);
 int	sysbeep(int hertz, int period);
 
 void	hardclock(int usermode, uintfptr_t pc);
+void	hardclock_anycpu(int cnt, int usermode);
 void	hardclock_cpu(int usermode);
+void	hardclock_sync(int cpu);
 void	softclock(void *);
 void	statclock(int usermode);
 void	profclock(int usermode, uintfptr_t pc);
+
+int	hardclockintr(void);
 
 void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);
 void	cpu_startprofclock(void);
 void	cpu_stopprofclock(void);
+void	cpu_idleclock(void);
+void	cpu_activeclock(void);
+extern int	cpu_disable_deep_sleep;
 
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
@@ -278,9 +286,12 @@ void	adjust_timeout_calltodo(struct timeval *time_change);
 /* Initialize the world */
 void	consinit(void);
 void	cpu_initclocks(void);
+void	cpu_initclocks_bsp(void);
+void	cpu_initclocks_ap(void);
 void	usrinfoinit(void);
 
 /* Finalize the world */
+void	kern_reboot(int) __dead2;
 void	shutdown_nice(int);
 
 /* Timeouts */
@@ -359,6 +370,7 @@ void delete_unrhdr(struct unrhdr *uh);
 void clean_unrhdr(struct unrhdr *uh);
 void clean_unrhdrl(struct unrhdr *uh);
 int alloc_unr(struct unrhdr *uh);
+int alloc_unr_specific(struct unrhdr *uh, u_int item);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 

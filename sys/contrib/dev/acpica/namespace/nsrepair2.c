@@ -153,7 +153,17 @@ AcpiNsRepair_ALR (
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 static ACPI_STATUS
+AcpiNsRepair_CID (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
+
+static ACPI_STATUS
 AcpiNsRepair_FDE (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
+
+static ACPI_STATUS
+AcpiNsRepair_HID (
     ACPI_PREDEFINED_DATA    *Data,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
@@ -196,16 +206,27 @@ AcpiNsSortList (
  * As necessary:
  *
  * _ALR: Sort the list ascending by AmbientIlluminance
+ * _CID: Strings: uppercase all, remove any leading asterisk
  * _FDE: Convert Buffer of BYTEs to a Buffer of DWORDs
  * _GTM: Convert Buffer of BYTEs to a Buffer of DWORDs
+ * _HID: Strings: uppercase all, remove any leading asterisk
  * _PSS: Sort the list descending by Power
  * _TSS: Sort the list descending by Power
+ *
+ * Names that must be packages, but cannot be sorted:
+ *
+ * _BCL: Values are tied to the Package index where they appear, and cannot
+ * be moved or sorted. These index values are used for _BQC and _BCM.
+ * However, we can fix the case where a buffer is returned, by converting
+ * it to a Package of integers.
  */
 static const ACPI_REPAIR_INFO       AcpiNsRepairableNames[] =
 {
     {"_ALR", AcpiNsRepair_ALR},
+    {"_CID", AcpiNsRepair_CID},
     {"_FDE", AcpiNsRepair_FDE},
     {"_GTM", AcpiNsRepair_FDE},     /* _GTM has same repair as _FDE */
+    {"_HID", AcpiNsRepair_HID},
     {"_PSS", AcpiNsRepair_PSS},
     {"_TSS", AcpiNsRepair_TSS},
     {{0,0,0,0}, NULL}               /* Table terminator */
@@ -414,6 +435,172 @@ AcpiNsRepair_FDE (
     *ReturnObjectPtr = BufferObject;
 
     Data->Flags |= ACPI_OBJECT_REPAIRED;
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiNsRepair_CID
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              ReturnObjectPtr     - Pointer to the object returned from the
+ *                                    evaluation of a method or object
+ *
+ * RETURN:      Status. AE_OK if object is OK or was repaired successfully
+ *
+ * DESCRIPTION: Repair for the _CID object. If a string, ensure that all
+ *              letters are uppercase and that there is no leading asterisk.
+ *              If a Package, ensure same for all string elements.
+ *
+ *****************************************************************************/
+
+static ACPI_STATUS
+AcpiNsRepair_CID (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
+{
+    ACPI_STATUS             Status;
+    ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
+    ACPI_OPERAND_OBJECT     **ElementPtr;
+    ACPI_OPERAND_OBJECT     *OriginalElement;
+    UINT16                  OriginalRefCount;
+    UINT32                  i;
+
+
+    /* Check for _CID as a simple string */
+
+    if (ReturnObject->Common.Type == ACPI_TYPE_STRING)
+    {
+        Status = AcpiNsRepair_HID (Data, ReturnObjectPtr);
+        return (Status);
+    }
+
+    /* Exit if not a Package */
+
+    if (ReturnObject->Common.Type != ACPI_TYPE_PACKAGE)
+    {
+        return (AE_OK);
+    }
+
+    /* Examine each element of the _CID package */
+
+    ElementPtr = ReturnObject->Package.Elements;
+    for (i = 0; i < ReturnObject->Package.Count; i++)
+    {
+        OriginalElement = *ElementPtr;
+        OriginalRefCount = OriginalElement->Common.ReferenceCount;
+
+        Status = AcpiNsRepair_HID (Data, ElementPtr);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        /* Take care with reference counts */
+
+        if (OriginalElement != *ElementPtr)
+        {
+            /* Element was replaced */
+
+            (*ElementPtr)->Common.ReferenceCount =
+                OriginalRefCount;
+
+            AcpiUtRemoveReference (OriginalElement);
+        }
+
+        ElementPtr++;
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiNsRepair_HID
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              ReturnObjectPtr     - Pointer to the object returned from the
+ *                                    evaluation of a method or object
+ *
+ * RETURN:      Status. AE_OK if object is OK or was repaired successfully
+ *
+ * DESCRIPTION: Repair for the _HID object. If a string, ensure that all
+ *              letters are uppercase and that there is no leading asterisk.
+ *
+ *****************************************************************************/
+
+static ACPI_STATUS
+AcpiNsRepair_HID (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
+{
+    ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
+    ACPI_OPERAND_OBJECT     *NewString;
+    char                    *Source;
+    char                    *Dest;
+
+
+    ACPI_FUNCTION_NAME (NsRepair_HID);
+
+
+    /* We only care about string _HID objects (not integers) */
+
+    if (ReturnObject->Common.Type != ACPI_TYPE_STRING)
+    {
+        return (AE_OK);
+    }
+
+    if (ReturnObject->String.Length == 0)
+    {
+        ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+            "Invalid zero-length _HID or _CID string"));
+
+        /* Return AE_OK anyway, let driver handle it */
+
+        Data->Flags |= ACPI_OBJECT_REPAIRED;
+        return (AE_OK);
+    }
+
+    /* It is simplest to always create a new string object */
+
+    NewString = AcpiUtCreateStringObject (ReturnObject->String.Length);
+    if (!NewString)
+    {
+        return (AE_NO_MEMORY);
+    }
+
+    /*
+     * Remove a leading asterisk if present. For some unknown reason, there
+     * are many machines in the field that contains IDs like this.
+     *
+     * Examples: "*PNP0C03", "*ACPI0003"
+     */
+    Source = ReturnObject->String.Pointer;
+    if (*Source == '*')
+    {
+        Source++;
+        NewString->String.Length--;
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
+            "%s: Removed invalid leading asterisk\n", Data->Pathname));
+    }
+
+    /*
+     * Copy and uppercase the string. From the ACPI specification:
+     *
+     * A valid PNP ID must be of the form "AAA####" where A is an uppercase
+     * letter and # is a hex digit. A valid ACPI ID must be of the form
+     * "ACPI####" where # is a hex digit.
+     */
+    for (Dest = NewString->String.Pointer; *Source; Dest++, Source++)
+    {
+        *Dest = (char) ACPI_TOUPPER (*Source);
+    }
+
+    AcpiUtRemoveReference (ReturnObject);
+    *ReturnObjectPtr = NewString;
     return (AE_OK);
 }
 

@@ -54,8 +54,8 @@
 				    l_int mode); }
 9	AUE_LINK	STD	{ int linux_link(char *path, char *to); }
 10	AUE_UNLINK	STD	{ int linux_unlink(char *path); }
-11	AUE_EXECVE	STD	{ int linux_execve(char *path, char **argp, \
-				    char **envp); }
+11	AUE_EXECVE	STD	{ int linux_execve(char *path, u_int32_t *argp, \
+				    u_int32_t *envp); }
 12	AUE_CHDIR	STD	{ int linux_chdir(char *path); }
 13	AUE_NULL	STD	{ int linux_time(l_time_t *tm); }
 14	AUE_MKNOD	STD	{ int linux_mknod(char *path, l_int mode, \
@@ -416,7 +416,7 @@
 245	AUE_NULL	UNIMPL	linux_io_setup
 246	AUE_NULL	UNIMPL	linux_io_destroy
 247	AUE_NULL	UNIMPL	linux_io_getevents
-248	AUE_NULL	UNIMPL	inux_io_submit
+248	AUE_NULL	UNIMPL	linux_io_submit
 249	AUE_NULL	UNIMPL	linux_io_cancel
 250	AUE_NULL	STD	{ int linux_fadvise64(void); }
 251	AUE_NULL	UNIMPL

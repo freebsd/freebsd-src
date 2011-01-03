@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm snmp_bridge
-.Nd "bridge module for snmpd.
+.Nd "bridge module for snmpd"
 .Sh LIBRARY
 .Pq begemotSnmpdModulePath."bridge" = "/usr/lib/snmp_bridge.so"
 .Sh DESCRIPTION
@@ -46,7 +46,7 @@ MIB also defines additional objects which make the functionality of
 similar to
 .Xr ifconfig 8
 for configuring bridge interfaces.
-Therefore one should consider adding write comminities or loading the
+Therefore one should consider adding write communities or loading the
 .Nm
 module on systems where security is crucial.
 .Sh IMPLEMENTATION NOTES
@@ -66,7 +66,7 @@ index and set the status of the interface to "active/up".
 will attempt to destroy the bridge interface.
 .El
 .It Va begemotBridgeBaseSpanEnabled
-A SNMP SET operation on this object is only successfull if the corresponding
+A SNMP SET operation on this object is only successful if the corresponding
 port has not been added as member of the bridge interface on the system.
 .It Va begemotBridgeBasePortStatus
 SNMP SET operations with the following values are allowed:

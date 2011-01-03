@@ -5178,7 +5178,7 @@ dwarf_decode_line_header (unsigned int offset, bfd *abfd,
   line_ptr = dwarf_line_buffer + offset;
 
   /* read in the header */
-  lh->total_length = read_initial_length (abfd, line_ptr, NULL, &bytes_read);
+  lh->total_length = read_initial_length (abfd, line_ptr, &cu->header, &bytes_read);
   line_ptr += bytes_read;
   if (line_ptr + lh->total_length > dwarf_line_buffer + dwarf_line_size)
     {

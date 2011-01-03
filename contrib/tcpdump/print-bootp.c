@@ -24,7 +24,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-bootp.c,v 1.88 2007-09-20 15:04:45 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-bootp.c,v 1.89 2008-04-22 09:45:08 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -587,8 +587,6 @@ rfc1048_print(register const u_char *bp)
 				if (len < 1)  {
 					printf("ERROR: option %u len %u < 1 bytes",
 					    TAG_NETBIOS_NODE, len);
-					bp += len;
-					len = 0;
 					break;
 				}
 				tag = *bp++;
@@ -601,8 +599,6 @@ rfc1048_print(register const u_char *bp)
 				if (len < 1)  {
 					printf("ERROR: option %u len %u < 1 bytes",
 					    TAG_OPT_OVERLOAD, len);
-					bp += len;
-					len = 0;
 					break;
 				}
 				tag = *bp++;
@@ -642,8 +638,6 @@ rfc1048_print(register const u_char *bp)
 				if (len < 1)  {
 					printf("ERROR: option %u len %u < 1 bytes",
 					    TAG_CLIENT_ID, len);
-					bp += len;
-					len = 0;
 					break;
 				}
 				type = *bp++;

@@ -2181,7 +2181,6 @@ HouseKeeping(struct libalias *la)
 	int i, n;
 #ifndef	_KERNEL
 	struct timeval tv;
-	struct timezone tz;
 #endif
 
 	LIBALIAS_LOCK_ASSERT(la);
@@ -2193,7 +2192,7 @@ HouseKeeping(struct libalias *la)
 #ifdef	_KERNEL
 	la->timeStamp = time_uptime;
 #else
-	gettimeofday(&tv, &tz);
+	gettimeofday(&tv, NULL);
 	la->timeStamp = tv.tv_sec;
 #endif
 
@@ -2488,7 +2487,6 @@ LibAliasInit(struct libalias *la)
 	int i;
 #ifndef	_KERNEL
 	struct timeval tv;
-	struct timezone tz;
 #endif
 
 	if (la == NULL) {
@@ -2506,7 +2504,7 @@ LibAliasInit(struct libalias *la)
 		la->timeStamp = time_uptime;
 		la->lastCleanupTime = time_uptime;
 #else
-		gettimeofday(&tv, &tz);
+		gettimeofday(&tv, NULL);
 		la->timeStamp = tv.tv_sec;
 		la->lastCleanupTime = tv.tv_sec;
 #endif

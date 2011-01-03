@@ -95,7 +95,8 @@ struct lpteg {
 /* High quadword: */
 #define LPTE_VSID_SHIFT		12
 #define LPTE_API		0x0000000000000F80ULL
-#define LPTE_LOCKED		0x0000000000000008ULL
+#define LPTE_LOCKED		0x0000000000000040ULL
+#define LPTE_WIRED		0x0000000000000008ULL
 #define LPTE_BIG		0x0000000000000004ULL	/* 4kb/16Mb page */
 #define LPTE_HID		0x0000000000000002ULL
 #define LPTE_VALID		0x0000000000000001ULL
@@ -129,11 +130,11 @@ typedef	struct lpte lpte_t;
  * Extract bits from address
  */
 #define	ADDR_SR_SHFT	28
-#define	ADDR_PIDX	0x0ffff000
+#define	ADDR_PIDX	0x0ffff000UL
 #define	ADDR_PIDX_SHFT	12
 #define	ADDR_API_SHFT	22
 #define	ADDR_API_SHFT64	16
-#define	ADDR_POFF	0x00000fff
+#define	ADDR_POFF	0x00000fffUL
 
 /*
  * Bits in DSISR:
@@ -190,7 +191,7 @@ extern u_int dsisr(void);
  */
 #define PTBL_SHIFT	PAGE_SHIFT
 #define PTBL_SIZE	PAGE_SIZE		/* va range mapped by ptbl entry */
-#define PTBL_MASK	((PDIR_SIZE - 1) & ~PAGE_MASK)
+#define PTBL_MASK	((PDIR_SIZE - 1) & ~((1 << PAGE_SHIFT) - 1))
 #define PTBL_NENTRIES	1024			/* number of pages mapped by ptbl */
 
 /* Returns ptbl entry number for given va */

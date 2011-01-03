@@ -65,11 +65,16 @@ struct timecounter {
 };
 
 extern struct timecounter *timecounter;
+extern int tc_min_ticktock_freq; /*
+				  * Minimal tc_ticktock() call frequency,
+				  * required to handle counter wraps.
+				  */
 
 u_int64_t tc_getfrequency(void);
 void	tc_init(struct timecounter *tc);
 void	tc_setclock(struct timespec *ts);
-void	tc_ticktock(void);
+void	tc_ticktock(int cnt);
+void	cpu_tick_calibration(void);
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_kern_timecounter);

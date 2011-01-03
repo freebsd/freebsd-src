@@ -146,10 +146,6 @@ print_mask(struct ipfw_flow_id *id)
 		    id->proto,
 		    id->src_ip, id->src_port,
 		    id->dst_ip, id->dst_port);
-
-		printf("BKT Prot ___Source IP/port____ "
-		    "____Dest. IP/port____ "
-		    "Tot_pkt/bytes Pkt/Byte Drp\n");
 	} else {
 		char buf[255];
 		printf("\n        mask: %sproto: 0x%02x, flow_id: 0x%08x,  ",
@@ -159,22 +155,35 @@ print_mask(struct ipfw_flow_id *id)
 		printf("%s/0x%04x -> ", buf, id->src_port);
 		inet_ntop(AF_INET6, &(id->dst_ip6), buf, sizeof(buf));
 		printf("%s/0x%04x\n", buf, id->dst_port);
-
-		printf("BKT ___Prot___ _flow-id_ "
-		    "______________Source IPv6/port_______________ "
-		    "_______________Dest. IPv6/port_______________ "
-		    "Tot_pkt/bytes Pkt/Byte Drp\n");
 	}
 }
 
 static void
-list_flow(struct dn_flow *ni)
+print_header(struct ipfw_flow_id *id)
+{
+	if (!IS_IP6_FLOW_ID(id))
+		printf("BKT Prot ___Source IP/port____ "
+		    "____Dest. IP/port____ "
+		    "Tot_pkt/bytes Pkt/Byte Drp\n");
+	else
+		printf("BKT ___Prot___ _flow-id_ "
+		    "______________Source IPv6/port_______________ "
+		    "_______________Dest. IPv6/port_______________ "
+		    "Tot_pkt/bytes Pkt/Byte Drp\n");
+}
+
+static void
+list_flow(struct dn_flow *ni, int *print)
 {
 	char buff[255];
-	struct protoent *pe;
+	struct protoent *pe = NULL;
 	struct in_addr ina;
 	struct ipfw_flow_id *id = &ni->fid;
 
+	if (*print) {
+		print_header(&ni->fid);
+		*print = 0;
+	}
 	pe = getprotobynumber(id->proto);
 		/* XXX: Should check for IPv4 flows */
 	printf("%3u%c", (ni->oid.id) & 0xff,
@@ -290,6 +299,7 @@ static void
 list_pipes(struct dn_id *oid, struct dn_id *end)
 {
     char buf[160];	/* pending buffer */
+    int toPrint = 1;	/* print header */
 
     buf[0] = '\0';
     for (; oid != end; oid = O_NEXT(oid, oid->len)) {
@@ -333,7 +343,7 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 	    break;
 
 	case DN_FLOW:
-	    list_flow((struct dn_flow *)oid);
+	    list_flow((struct dn_flow *)oid, &toPrint);
 	    break;
 
 	case DN_LINK: {
@@ -1120,7 +1130,7 @@ end_mask:
 			NEED(p, "burst");
 			NEED1("burst needs argument\n");
 			errno = 0;
-			if (expand_number(av[0], (int64_t *)&p->burst) < 0)
+			if (expand_number(av[0], &p->burst) < 0)
 				if (errno != ERANGE)
 					errx(EX_DATAERR,
 					    "burst: invalid argument");

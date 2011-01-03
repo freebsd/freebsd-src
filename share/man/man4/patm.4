@@ -154,6 +154,12 @@ patm1: 128K x 32 SRAM; 4096 connections
 .Xr natm 4 ,
 .Xr natmip 4 ,
 .Xr utopia 4
+.Sh ACKNOWLEDGEMENTS
+Thanks to Christian Bucari from ProSum for lending two of these cards to enable
+the development of this driver.
+Thanks also for answering my questions.
+.Sh AUTHORS
+.An Harti Brandt Aq harti@FreeBSD.org
 .Sh CAVEATS
 The card fails to generate an interrupt if a cell is received in AAL0 mode
 that has the MSB of the PTI field cleared.
@@ -184,9 +190,3 @@ uses idle cells for spacing and the PHY counts these cells.
 While there is a configuration option for the chip to switch of these cells
 and, according to the documentation, this should not influence cell spacing,
 it does, so the driver lets the chip generate idle cells.
-.Sh ACKNOWLEDGEMENTS
-Thanks to Christian Bucari from ProSum for lending two of these cards to enable
-the development of this driver.
-Thanks also for answering my questions.
-.Sh AUTHORS
-.An Harti Brandt Aq harti@FreeBSD.org

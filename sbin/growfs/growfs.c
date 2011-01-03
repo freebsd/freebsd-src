@@ -371,16 +371,16 @@ static void
 initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("initcg")
-	static void *iobuf;
+	static caddr_t iobuf;
 	long blkno, start;
 	ufs2_daddr_t i, cbase, dmax;
 	struct ufs1_dinode *dp1;
 	struct csum *cs;
 	uint d, dupper, dlower;
 
-	if (iobuf == NULL && (iobuf = malloc(sblock.fs_bsize)) == NULL) {
+	if (iobuf == NULL && (iobuf = malloc(sblock.fs_bsize * 3)) == NULL)
 		errx(37, "panic: cannot allocate I/O buffer");
-	}
+
 	/*
 	 * Determine block bounds for cylinder group.
 	 * Allow space for super block summary information in first
@@ -396,17 +396,12 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		dupper += howmany(sblock.fs_cssize, sblock.fs_fsize);
 	cs = &fscs[cylno];
 	memset(&acg, 0, sblock.fs_cgsize);
-	/*
-	 * Note that we do not set cg_initediblk at all.
-	 * In this extension of a previous filesystem
-	 * we have no inodes initialized for the cylinder
-	 * group at all. The first access to that cylinder
-	 * group will do the correct initialization.
-	 */
 	acg.cg_time = utime;
 	acg.cg_magic = CG_MAGIC;
 	acg.cg_cgx = cylno;
 	acg.cg_niblk = sblock.fs_ipg;
+	acg.cg_initediblk = sblock.fs_ipg < 2 * INOPB(&sblock) ?
+	    sblock.fs_ipg : 2 * INOPB(&sblock);
 	acg.cg_ndblk = dmax - cbase;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
@@ -419,6 +414,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		acg.cg_time = 0;
 		acg.cg_old_niblk = acg.cg_niblk;
 		acg.cg_niblk = 0;
+		acg.cg_initediblk = 0;
 		acg.cg_old_btotoff = start;
 		acg.cg_old_boff = acg.cg_old_btotoff +
 		    sblock.fs_old_cpg * sizeof(int32_t);
@@ -456,7 +452,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		bzero(iobuf, sblock.fs_bsize);
 		for (i = 0; i < sblock.fs_ipg / INOPF(&sblock);
 		     i += sblock.fs_frag) {
-			dp1 = (struct ufs1_dinode *)iobuf;
+			dp1 = (struct ufs1_dinode *)(void *)iobuf;
 #ifdef FSIRAND
 			for (j = 0; j < INOPB(&sblock); j++) {
 				dp1->di_gen = random();
@@ -538,11 +534,14 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 	sblock.fs_cstotal.cs_nbfree += acg.cg_cs.cs_nbfree;
 	sblock.fs_cstotal.cs_nifree += acg.cg_cs.cs_nifree;
 	*cs = acg.cg_cs;
+
+	memcpy(iobuf, &acg, sblock.fs_cgsize);
+	memset(iobuf + sblock.fs_cgsize, '\0',
+	    sblock.fs_bsize * 3 - sblock.fs_cgsize);
+
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
-		sblock.fs_bsize, (char *)&acg, fso, Nflag);
-	DBG_DUMP_CG(&sblock,
-	    "new cg",
-	    &acg);
+	    sblock.fs_bsize * 3, iobuf, fso, Nflag);
+	DBG_DUMP_CG(&sblock, "new cg", &acg);
 
 	DBG_LEAVE;
 	return;

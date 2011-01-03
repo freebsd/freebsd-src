@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.120 2010/03/04 23:17:25 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.125 2010/06/30 07:28:34 jmc Exp $
 .\" $FreeBSD$
-.Dd March 4 2010
+.Dd June 30, 2010
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -156,6 +156,10 @@ for more information on patterns.
 .It Cm AuthorizedKeysFile
 Specifies the file that contains the public keys that can be used
 for user authentication.
+The format is described in the
+.Sx AUTHORIZED_KEYS FILE FORMAT
+section of
+.Xr sshd 8 .
 .Cm AuthorizedKeysFile
 may contain tokens of the form %T which are substituted during connection
 setup.
@@ -168,6 +172,47 @@ is taken to be an absolute path or one relative to the user's home
 directory.
 The default is
 .Dq .ssh/authorized_keys .
+.It Cm AuthorizedPrincipalsFile
+Specifies a file that lists principal names that are accepted for
+certificate authentication.
+When using certificates signed by a key listed in
+.Cm TrustedUserCAKeys ,
+this file lists names, one of which must appear in the certificate for it
+to be accepted for authentication.
+Names are listed one per line preceded by key options (as described
+in
+.Sx AUTHORIZED_KEYS FILE FORMAT
+in
+.Xr sshd 8 ) .
+Empty lines and comments starting with
+.Ql #
+are ignored.
+.Pp
+.Cm AuthorizedPrincipalsFile
+may contain tokens of the form %T which are substituted during connection
+setup.
+The following tokens are defined: %% is replaced by a literal '%',
+%h is replaced by the home directory of the user being authenticated, and
+%u is replaced by the username of that user.
+After expansion,
+.Cm AuthorizedPrincipalsFile
+is taken to be an absolute path or one relative to the user's home
+directory.
+.Pp
+The default is not to use a principals file \(en in this case, the username
+of the user must appear in a certificate's principals list for it to be
+accepted.
+Note that
+.Cm AuthorizedPrincipalsFile
+is only used when authentication proceeds using a CA listed in
+.Cm TrustedUserCAKeys
+and is not consulted for certification authorities trusted via
+.Pa ~/.ssh/authorized_keys ,
+though the
+.Cm principals=
+key option offers a similar facility (see
+.Xr sshd 8
+for details).
 .It Cm Banner
 The contents of the specified file are sent to the remote user before
 authentication is allowed.
@@ -609,12 +654,15 @@ keyword.
 Available keywords are
 .Cm AllowAgentForwarding ,
 .Cm AllowTcpForwarding ,
+.Cm AuthorizedKeysFile ,
+.Cm AuthorizedPrincipalsFile ,
 .Cm Banner ,
 .Cm ChrootDirectory ,
 .Cm ForceCommand ,
 .Cm GatewayPorts ,
 .Cm GSSAPIAuthentication ,
 .Cm HostbasedAuthentication ,
+.Cm HostbasedUsesNameFromPacketOnly ,
 .Cm KbdInteractiveAuthentication ,
 .Cm KerberosAuthentication ,
 .Cm MaxAuthTries ,
@@ -623,6 +671,7 @@ Available keywords are
 .Cm PermitEmptyPasswords ,
 .Cm PermitOpen ,
 .Cm PermitRootLogin ,
+.Cm PermitTunnel ,
 .Cm PubkeyAuthentication ,
 .Cm RhostsRSAAuthentication ,
 .Cm RSAAuthentication ,
@@ -988,7 +1037,7 @@ The default is
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20100428 .
+.Dq FreeBSD-20101111 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's

@@ -44,7 +44,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/timetc.h>
 #include <machine/bus.h>
+#include <machine/fdt.h>
 #include <machine/intr.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/mv/mvvar.h>
 #include <arm/mv/mvreg.h>
@@ -100,11 +105,29 @@ static driver_t mv_gpio_driver = {
 
 static devclass_t mv_gpio_devclass;
 
-DRIVER_MODULE(gpio, mbus, mv_gpio_driver, mv_gpio_devclass, 0, 0);
+DRIVER_MODULE(gpio, simplebus, mv_gpio_driver, mv_gpio_devclass, 0, 0);
+
+typedef int (*gpios_phandler_t)(phandle_t, pcell_t *, int);
+
+struct gpio_ctrl_entry {
+	const char		*compat;
+	gpios_phandler_t	handler;
+};
+
+int mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len);
+int gpio_get_config_from_dt(void);
+
+struct gpio_ctrl_entry gpio_controllers[] = {
+	{ "mrvl,gpio", &mv_handle_gpios_prop },
+	{ NULL, NULL }
+};
 
 static int
 mv_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_is_compatible(dev, "mrvl,gpio"))
+		return (ENXIO);
 
 	device_set_desc(dev, "Marvell Integrated GPIO Controller");
 	return (0);
@@ -119,8 +142,9 @@ mv_gpio_attach(device_t dev)
 
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
 
-	if (mv_gpio_softc != NULL)
+	if (sc == NULL)
 		return (ENXIO);
+
 	mv_gpio_softc = sc;
 
 	/* Get chip id and revision */
@@ -178,18 +202,9 @@ mv_gpio_attach(device_t dev)
 		}
 	}
 
-	/* Setup GPIO lines */
-	for (i = 0; mv_gpio_config[i].gc_gpio >= 0; i++) {
-		mv_gpio_configure(mv_gpio_config[i].gc_gpio,
-		    mv_gpio_config[i].gc_flags, ~0u);
-
-		if (mv_gpio_config[i].gc_output < 0)
-			mv_gpio_out_en(mv_gpio_config[i].gc_gpio, 0);
-		else
-			mv_gpio_out(mv_gpio_config[i].gc_gpio,
-			    mv_gpio_config[i].gc_output, 1);
-	}
-
+	/*
+	 * GPIO lines setup is already done at this stage (see mv_machdep.c).
+	 */
 	return (0);
 }
 
@@ -268,7 +283,7 @@ mv_gpio_intr_mask(int pin)
 	if (pin >= mv_gpio_softc->pin_num)
 		return;
 
-	if (gpio_setup[pin] & MV_GPIO_EDGE)
+	if (gpio_setup[pin] & MV_GPIO_IN_IRQ_EDGE)
 		mv_gpio_edge(pin, 0);
 	else
 		mv_gpio_level(pin, 0);
@@ -281,7 +296,7 @@ mv_gpio_intr_unmask(int pin)
 	if (pin >= mv_gpio_softc->pin_num)
 		return;
 
-	if (gpio_setup[pin] & MV_GPIO_EDGE)
+	if (gpio_setup[pin] & MV_GPIO_IN_IRQ_EDGE)
 		mv_gpio_edge(pin, 1);
 	else
 		mv_gpio_level(pin, 1);
@@ -299,24 +314,23 @@ mv_gpio_intr_handler(int pin)
 	intr_event_handle(event, NULL);
 }
 
-int
-mv_gpio_configure(uint32_t pin, uint32_t flags, uint32_t mask)
+static int
+mv_gpio_configure(uint32_t pin, uint32_t flags)
 {
 
 	if (pin >= mv_gpio_softc->pin_num)
 		return (EINVAL);
 
-	if (mask & MV_GPIO_BLINK)
-		mv_gpio_blink(pin, flags & MV_GPIO_BLINK);
-	if (mask & MV_GPIO_POLAR_LOW)
-		mv_gpio_polarity(pin, flags & MV_GPIO_POLAR_LOW);
-	if (mask & MV_GPIO_EDGE)
-		mv_gpio_edge(pin, flags & MV_GPIO_EDGE);
-	if (mask & MV_GPIO_LEVEL)
-		mv_gpio_level(pin, flags & MV_GPIO_LEVEL);
+	if (flags & MV_GPIO_OUT_BLINK)
+		mv_gpio_blink(pin, 1);
+	if (flags & MV_GPIO_IN_POL_LOW)
+		mv_gpio_polarity(pin, 1);
+	if (flags & MV_GPIO_IN_IRQ_EDGE)
+		mv_gpio_edge(pin, 1);
+	if (flags & MV_GPIO_IN_IRQ_LEVEL)
+		mv_gpio_level(pin, 1);
 
-	gpio_setup[pin] &= ~(mask);
-	gpio_setup[pin] |= (flags & mask);
+	gpio_setup[pin] = flags;
 
 	return (0);
 }
@@ -526,4 +540,143 @@ mv_gpio_value_set(uint32_t pin, uint8_t val)
 		mv_gpio_reg_set(reg, pin);
 	else
 		mv_gpio_reg_clear(reg, pin);
+}
+
+int
+mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len)
+{
+	pcell_t gpio_cells, pincnt;
+	int inc, t, tuples, tuple_size;
+	int dir, flags, pin;
+	u_long gpio_ctrl, size;
+	struct mv_gpio_softc sc;
+
+	pincnt = 0;
+	if (OF_getproplen(ctrl, "gpio-controller") <= 0)
+		/* Node is not a GPIO controller. */
+		return (ENXIO);
+
+	if (OF_getprop(ctrl, "#gpio-cells", &gpio_cells, sizeof(pcell_t)) < 0)
+		return (ENXIO);
+
+	gpio_cells = fdt32_to_cpu(gpio_cells);
+	if (gpio_cells != 3)
+		return (ENXIO);
+
+	tuple_size = gpio_cells * sizeof(pcell_t) + sizeof(phandle_t);
+	tuples = len / tuple_size;
+
+	if (fdt_regsize(ctrl, &gpio_ctrl, &size))
+		return (ENXIO);
+	/*
+	 * Since to set up GPIO we use the same functions as GPIO driver, and
+	 * mv_gpio_softc is NULL at this early stage, we need to create a fake
+	 * softc and set mv_gpio_softc pointer to that newly created object.
+	 * After successful GPIO setup, the [shared] pointer will be set back
+	 * to NULL.
+	 */
+	mv_gpio_softc = &sc;
+
+	sc.bst = fdtbus_bs_tag;
+	gpio_ctrl += fdt_immr_va;
+
+	if (bus_space_map(sc.bst, gpio_ctrl, size, 0, &sc.bsh) != 0)
+		return (ENXIO);
+
+	if (OF_getprop(ctrl, "pin-count", &pincnt, sizeof(pcell_t)) < 0)
+		return (ENXIO);
+	sc.pin_num = fdt32_to_cpu(pincnt);
+
+	/*
+	 * Skip controller reference, since controller's phandle is given
+	 * explicitly (in a function argument).
+	 */
+	inc = sizeof(ihandle_t) / sizeof(pcell_t);
+	gpios += inc;
+
+	for (t = 0; t < tuples; t++) {
+		pin = fdt32_to_cpu(gpios[0]);
+		dir = fdt32_to_cpu(gpios[1]);
+		flags = fdt32_to_cpu(gpios[2]);
+
+		mv_gpio_configure(pin, flags);
+
+		if (dir == 1)
+			/* Input. */
+			mv_gpio_out_en(pin, 0);
+		else {
+			/* Output. */
+			if (flags & MV_GPIO_OUT_OPEN_DRAIN)
+				mv_gpio_out(pin, 0, 1);
+
+			if (flags & MV_GPIO_OUT_OPEN_SRC)
+				mv_gpio_out(pin, 1, 1);
+		}
+		gpios += gpio_cells + inc;
+	}
+
+	/* Reset pointer. */
+	mv_gpio_softc = NULL;
+	return (0);
+}
+
+#define MAX_PINS_PER_NODE	5
+#define GPIOS_PROP_CELLS	4
+int
+platform_gpio_init(void)
+{
+	phandle_t child, parent, root, ctrl;
+	ihandle_t ctrl_ihandle;
+	pcell_t gpios[MAX_PINS_PER_NODE * GPIOS_PROP_CELLS];
+	struct gpio_ctrl_entry *e;
+	int len, rv;
+
+	root = OF_finddevice("/");
+	len = 0;
+	parent = root;
+
+	/* Traverse through entire tree to find nodes with 'gpios' prop */
+	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
+
+		/* Find a 'leaf'. Start the search from this node. */
+		while (OF_child(child)) {
+			parent = child;
+			child = OF_child(child);
+		}
+		if ((len = OF_getproplen(child, "gpios")) > 0) {
+
+			if (len > sizeof(gpios))
+				return (ENXIO);
+
+			/* Get 'gpios' property. */
+			OF_getprop(child, "gpios", &gpios, len);
+
+			e = (struct gpio_ctrl_entry *)&gpio_controllers;
+
+			/* Find and call a handler. */
+			for (; e->compat; e++) {
+				/*
+				 * First cell of 'gpios' property should
+				 * contain a ref. to a node defining GPIO
+				 * controller.
+				 */
+				ctrl_ihandle = (ihandle_t)gpios[0];
+				ctrl_ihandle = fdt32_to_cpu(ctrl_ihandle);
+				ctrl = OF_instance_to_package(ctrl_ihandle);
+
+				if (fdt_is_compatible(ctrl, e->compat))
+					/* Call a handler. */
+					if ((rv = e->handler(ctrl,
+					    (pcell_t *)&gpios, len)))
+						return (rv);
+			}
+		}
+
+		if (OF_peer(child) == 0) {
+			/* No more siblings. */
+			child = parent;
+			parent = OF_parent(child);
+		}
+	}
+	return (0);
 }

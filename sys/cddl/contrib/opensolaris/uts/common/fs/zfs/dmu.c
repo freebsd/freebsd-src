@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -82,6 +82,8 @@ const dmu_object_type_info_t dmu_ot[DMU_OT_NUMTYPES] = {
 	{	byteswap_uint64_array,	TRUE,	"FUID table size"	},
 	{	zap_byteswap,		TRUE,	"DSL dataset next clones"},
 	{	zap_byteswap,		TRUE,	"scrub work queue"	},
+	{	zap_byteswap,		TRUE,	"ZFS user/group used"	},
+	{	zap_byteswap,		TRUE,	"ZFS user/group quota"	},
 };
 
 int
@@ -177,22 +179,22 @@ dmu_bonus_hold(objset_t *os, uint64_t object, void *tag, dmu_buf_t **dbp)
  * whose dnodes are in the same block.
  */
 static int
-dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset,
-    uint64_t length, int read, void *tag, int *numbufsp, dmu_buf_t ***dbpp)
+dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
+    int read, void *tag, int *numbufsp, dmu_buf_t ***dbpp, uint32_t flags)
 {
 	dsl_pool_t *dp = NULL;
 	dmu_buf_t **dbp;
 	uint64_t blkid, nblks, i;
-	uint32_t flags;
+	uint32_t dbuf_flags;
 	int err;
 	zio_t *zio;
 	hrtime_t start;
 
 	ASSERT(length <= DMU_MAX_ACCESS);
 
-	flags = DB_RF_CANFAIL | DB_RF_NEVERWAIT;
-	if (length > zfetch_array_rd_sz)
-		flags |= DB_RF_NOPREFETCH;
+	dbuf_flags = DB_RF_CANFAIL | DB_RF_NEVERWAIT | DB_RF_HAVESTRUCT;
+	if (flags & DMU_READ_NO_PREFETCH || length > zfetch_array_rd_sz)
+		dbuf_flags |= DB_RF_NOPREFETCH;
 
 	rw_enter(&dn->dn_struct_rwlock, RW_READER);
 	if (dn->dn_datablkshift) {
@@ -207,6 +209,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset,
 			    os_dsl_dataset->ds_object,
 			    (longlong_t)dn->dn_object, dn->dn_datablksz,
 			    (longlong_t)offset, (longlong_t)length);
+			rw_exit(&dn->dn_struct_rwlock);
 			return (EIO);
 		}
 		nblks = 1;
@@ -229,9 +232,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset,
 		}
 		/* initiate async i/o */
 		if (read) {
-			rw_exit(&dn->dn_struct_rwlock);
-			(void) dbuf_read(db, zio, flags);
-			rw_enter(&dn->dn_struct_rwlock, RW_READER);
+			(void) dbuf_read(db, zio, dbuf_flags);
 		}
 		dbp[i] = &db->db;
 	}
@@ -282,7 +283,7 @@ dmu_buf_hold_array(objset_t *os, uint64_t object, uint64_t offset,
 		return (err);
 
 	err = dmu_buf_hold_array_by_dnode(dn, offset, length, read, tag,
-	    numbufsp, dbpp);
+	    numbufsp, dbpp, DMU_READ_PREFETCH);
 
 	dnode_rele(dn, FTAG);
 
@@ -297,7 +298,7 @@ dmu_buf_hold_array_by_bonus(dmu_buf_t *db, uint64_t offset,
 	int err;
 
 	err = dmu_buf_hold_array_by_dnode(dn, offset, length, read, tag,
-	    numbufsp, dbpp);
+	    numbufsp, dbpp, DMU_READ_PREFETCH);
 
 	return (err);
 }
@@ -371,56 +372,51 @@ dmu_prefetch(objset_t *os, uint64_t object, uint64_t offset, uint64_t len)
 	dnode_rele(dn, FTAG);
 }
 
+/*
+ * Get the next "chunk" of file data to free.  We traverse the file from
+ * the end so that the file gets shorter over time (if we crashes in the
+ * middle, this will leave us in a better state).  We find allocated file
+ * data by simply searching the allocated level 1 indirects.
+ */
 static int
-get_next_chunk(dnode_t *dn, uint64_t *offset, uint64_t limit)
+get_next_chunk(dnode_t *dn, uint64_t *start, uint64_t limit)
 {
-	uint64_t len = *offset - limit;
-	uint64_t chunk_len = dn->dn_datablksz * DMU_MAX_DELETEBLKCNT;
-	uint64_t subchunk =
+	uint64_t len = *start - limit;
+	uint64_t blkcnt = 0;
+	uint64_t maxblks = DMU_MAX_ACCESS / (1ULL << (dn->dn_indblkshift + 1));
+	uint64_t iblkrange =
 	    dn->dn_datablksz * EPB(dn->dn_indblkshift, SPA_BLKPTRSHIFT);
 
-	ASSERT(limit <= *offset);
+	ASSERT(limit <= *start);
 
-	if (len <= chunk_len) {
-		*offset = limit;
+	if (len <= iblkrange * maxblks) {
+		*start = limit;
 		return (0);
 	}
+	ASSERT(ISP2(iblkrange));
 
-	ASSERT(ISP2(subchunk));
-
-	while (*offset > limit) {
-		uint64_t initial_offset = P2ROUNDUP(*offset, subchunk);
-		uint64_t delta;
+	while (*start > limit && blkcnt < maxblks) {
 		int err;
 
-		/* skip over allocated data */
+		/* find next allocated L1 indirect */
 		err = dnode_next_offset(dn,
-		    DNODE_FIND_HOLE|DNODE_FIND_BACKWARDS, offset, 1, 1, 0);
-		if (err == ESRCH)
-			*offset = limit;
-		else if (err)
-			return (err);
+		    DNODE_FIND_BACKWARDS, start, 2, 1, 0);
 
-		ASSERT3U(*offset, <=, initial_offset);
-		*offset = P2ALIGN(*offset, subchunk);
-		delta = initial_offset - *offset;
-		if (delta >= chunk_len) {
-			*offset += delta - chunk_len;
+		/* if there are no more, then we are done */
+		if (err == ESRCH) {
+			*start = limit;
 			return (0);
-		}
-		chunk_len -= delta;
-
-		/* skip over unallocated data */
-		err = dnode_next_offset(dn,
-		    DNODE_FIND_BACKWARDS, offset, 1, 1, 0);
-		if (err == ESRCH)
-			*offset = limit;
-		else if (err)
+		} else if (err) {
 			return (err);
+		}
+		blkcnt += 1;
 
-		if (*offset < limit)
-			*offset = limit;
-		ASSERT3U(*offset, <, initial_offset);
+		/* reset offset to end of "next" block back */
+		*start = P2ALIGN(*start, iblkrange);
+		if (*start <= limit)
+			*start = limit;
+		else
+			*start -= 1;
 	}
 	return (0);
 }
@@ -439,7 +435,8 @@ dmu_free_long_range_impl(objset_t *os, dnode_t *dn, uint64_t offset,
 	object_size = align == 1 ? dn->dn_datablksz :
 	    (dn->dn_maxblkid + 1) << dn->dn_datablkshift;
 
-	if (trunc || (end = offset + length) > object_size)
+	end = offset + length;
+	if (trunc || end > object_size)
 		end = object_size;
 	if (end <= offset)
 		return (0);
@@ -447,6 +444,7 @@ dmu_free_long_range_impl(objset_t *os, dnode_t *dn, uint64_t offset,
 
 	while (length) {
 		start = end;
+		/* assert(offset <= start) */
 		err = get_next_chunk(dn, &start, offset);
 		if (err)
 			return (err);
@@ -537,11 +535,11 @@ dmu_free_range(objset_t *os, uint64_t object, uint64_t offset,
 
 int
 dmu_read(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
-    void *buf)
+    void *buf, uint32_t flags)
 {
 	dnode_t *dn;
 	dmu_buf_t **dbp;
-	int numbufs, i, err;
+	int numbufs, err;
 
 	err = dnode_hold(os->os, object, FTAG, &dn);
 	if (err)
@@ -552,7 +550,7 @@ dmu_read(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	 * block.  If we ever do the tail block optimization, we will need to
 	 * handle that here as well.
 	 */
-	if (dn->dn_datablkshift == 0) {
+	if (dn->dn_maxblkid == 0) {
 		int newsz = offset > dn->dn_datablksz ? 0 :
 		    MIN(size, dn->dn_datablksz - offset);
 		bzero((char *)buf + newsz, size - newsz);
@@ -561,13 +559,14 @@ dmu_read(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 
 	while (size > 0) {
 		uint64_t mylen = MIN(size, DMU_MAX_ACCESS / 2);
+		int i;
 
 		/*
 		 * NB: we could do this block-at-a-time, but it's nice
 		 * to be reading in parallel.
 		 */
 		err = dmu_buf_hold_array_by_dnode(dn, offset, mylen,
-		    TRUE, FTAG, &numbufs, &dbp);
+		    TRUE, FTAG, &numbufs, &dbp, flags);
 		if (err)
 			break;
 
@@ -776,9 +775,6 @@ dmu_write_pages(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 		if (tocpy == db->db_size)
 			dmu_buf_fill_done(db, tx);
 
-		if (err)
-			break;
-
 		offset += tocpy;
 		size -= tocpy;
 	}
@@ -787,6 +783,58 @@ dmu_write_pages(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 }
 #endif	/* !__FreeBSD__ */
 #endif	/* _KERNEL */
+
+/*
+ * Allocate a loaned anonymous arc buffer.
+ */
+arc_buf_t *
+dmu_request_arcbuf(dmu_buf_t *handle, int size)
+{
+	dnode_t *dn = ((dmu_buf_impl_t *)handle)->db_dnode;
+
+	return (arc_loan_buf(dn->dn_objset->os_spa, size));
+}
+
+/*
+ * Free a loaned arc buffer.
+ */
+void
+dmu_return_arcbuf(arc_buf_t *buf)
+{
+	arc_return_buf(buf, FTAG);
+	VERIFY(arc_buf_remove_ref(buf, FTAG) == 1);
+}
+
+/*
+ * When possible directly assign passed loaned arc buffer to a dbuf.
+ * If this is not possible copy the contents of passed arc buf via
+ * dmu_write().
+ */
+void
+dmu_assign_arcbuf(dmu_buf_t *handle, uint64_t offset, arc_buf_t *buf,
+    dmu_tx_t *tx)
+{
+	dnode_t *dn = ((dmu_buf_impl_t *)handle)->db_dnode;
+	dmu_buf_impl_t *db;
+	uint32_t blksz = (uint32_t)arc_buf_size(buf);
+	uint64_t blkid;
+
+	rw_enter(&dn->dn_struct_rwlock, RW_READER);
+	blkid = dbuf_whichblock(dn, offset);
+	VERIFY((db = dbuf_hold(dn, blkid, FTAG)) != NULL);
+	rw_exit(&dn->dn_struct_rwlock);
+
+	if (offset == db->db.db_offset && blksz == db->db.db_size) {
+		dbuf_assign_arcbuf(db, buf, tx);
+		dbuf_rele(db, FTAG);
+	} else {
+		dbuf_rele(db, FTAG);
+		ASSERT(dn->dn_objset->os.os == dn->dn_objset);
+		dmu_write(&dn->dn_objset->os, dn->dn_object, offset, blksz,
+		    buf->b_data, tx);
+		dmu_return_arcbuf(buf);
+	}
+}
 
 typedef struct {
 	dbuf_dirty_record_t	*dr;
@@ -799,14 +847,20 @@ static void
 dmu_sync_ready(zio_t *zio, arc_buf_t *buf, void *varg)
 {
 	blkptr_t *bp = zio->io_bp;
+	dmu_sync_arg_t *in = varg;
+	dbuf_dirty_record_t *dr = in->dr;
+	dmu_buf_impl_t *db = dr->dr_dbuf;
 
 	if (!BP_IS_HOLE(bp)) {
-		dmu_sync_arg_t *in = varg;
-		dbuf_dirty_record_t *dr = in->dr;
-		dmu_buf_impl_t *db = dr->dr_dbuf;
 		ASSERT(BP_GET_TYPE(bp) == db->db_dnode->dn_type);
 		ASSERT(BP_GET_LEVEL(bp) == 0);
 		bp->blk_fill = 1;
+	} else {
+		/*
+		 * dmu_sync() can compress a block of zeros to a null blkptr
+		 * but the block size still needs to be passed through to replay
+		 */
+		BP_SET_LSIZE(bp, db->db.db_size);
 	}
 }
 
@@ -822,6 +876,8 @@ dmu_sync_done(zio_t *zio, arc_buf_t *buf, void *varg)
 	mutex_enter(&db->db_mtx);
 	ASSERT(dr->dt.dl.dr_override_state == DR_IN_DMU_SYNC);
 	dr->dt.dl.dr_overridden_by = *zio->io_bp; /* structure assignment */
+	if (BP_IS_HOLE(&dr->dt.dl.dr_overridden_by))
+		BP_ZERO(&dr->dt.dl.dr_overridden_by);
 	dr->dt.dl.dr_override_state = DR_OVERRIDDEN;
 	cv_broadcast(&db->db_changed);
 	mutex_exit(&db->db_mtx);
@@ -1192,6 +1248,7 @@ dmu_init(void)
 {
 	dbuf_init();
 	dnode_init();
+	zfetch_init();
 	arc_init();
 	l2arc_init();
 }
@@ -1200,6 +1257,7 @@ void
 dmu_fini(void)
 {
 	arc_fini();
+	zfetch_fini();
 	dnode_fini();
 	dbuf_fini();
 	l2arc_fini();

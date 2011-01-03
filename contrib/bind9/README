@@ -42,6 +42,12 @@ BIND 9
 		Stichting NLnet - NLnet Foundation
 		Nominum, Inc.
 
+BIND 9.6-ESV (Extended Support Version)
+
+	BIND 9.6-ESV will be supported until March 31, 2013, at
+	which time you will need to upgrade to the current release
+	of BIND.
+
 BIND 9.6.2
 
 	BIND 9.6.2 is a maintenance release, fixing bugs in 9.6.1.

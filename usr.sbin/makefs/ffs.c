@@ -1,4 +1,4 @@
-/*	$NetBSD: ffs.c,v 1.30 2004/06/24 22:30:13 lukem Exp $	*/
+/*	$NetBSD: ffs.c,v 1.44 2009/04/28 22:49:26 joerg Exp $	*/
 
 /*
  * Copyright (c) 2001 Wasabi Systems, Inc.
@@ -76,16 +76,23 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "makefs.h"
+#include "ffs.h"
+
+#if HAVE_STRUCT_STATVFS_F_IOSIZE && HAVE_FSTATVFS
+#include <sys/statvfs.h>
+#endif
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
+
 
 #include "ffs/ufs_bswap.h"
 #include "ffs/ufs_inode.h"
@@ -94,7 +101,7 @@ __FBSDID("$FreeBSD$");
 
 #undef DIP
 #define DIP(dp, field) \
-	((fsopts->version == 1) ? \
+	((ffs_opts->version == 1) ? \
 	(dp)->ffs1_din.di_##field : (dp)->ffs2_din.di_##field)
 
 /*
@@ -139,39 +146,71 @@ int	sectorsize;		/* XXX: for buf.c::getblk() */
 
 	/* publically visible functions */
 
+void
+ffs_prep_opts(fsinfo_t *fsopts)
+{
+	ffs_opt_t *ffs_opts;
+
+	if ((ffs_opts = calloc(1, sizeof(ffs_opt_t))) == NULL)
+		err(1, "Allocating memory for ffs_options");
+
+	fsopts->fs_specific = ffs_opts;
+
+	ffs_opts->bsize= -1;
+	ffs_opts->fsize= -1;
+	ffs_opts->cpg= -1;
+	ffs_opts->density= -1;
+	ffs_opts->minfree= -1;
+	ffs_opts->optimization= -1;
+	ffs_opts->maxcontig= -1;
+	ffs_opts->maxbpg= -1;
+	ffs_opts->avgfilesize= -1;
+	ffs_opts->avgfpdir= -1;
+	ffs_opts->version = 1;
+}
+
+void
+ffs_cleanup_opts(fsinfo_t *fsopts)
+{
+	if (fsopts->fs_specific)
+		free(fsopts->fs_specific);
+}
+
 int
 ffs_parse_opts(const char *option, fsinfo_t *fsopts)
 {
+	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
+
 	option_t ffs_options[] = {
-		{ "bsize",	&fsopts->bsize,		1,	INT_MAX,
+		{ "bsize",	&ffs_opts->bsize,	1,	INT_MAX,
 					"block size" },
-		{ "fsize",	&fsopts->fsize,		1,	INT_MAX,
+		{ "fsize",	&ffs_opts->fsize,	1,	INT_MAX,
 					"fragment size" },
-		{ "density",	&fsopts->density,	1,	INT_MAX,
+		{ "density",	&ffs_opts->density,	1,	INT_MAX,
 					"bytes per inode" },
-		{ "minfree",	&fsopts->minfree,	0,	99,
+		{ "minfree",	&ffs_opts->minfree,	0,	99,
 					"minfree" },
-		{ "maxbpf",	&fsopts->maxbpg,	1,	INT_MAX,
+		{ "maxbpf",	&ffs_opts->maxbpg,	1,	INT_MAX,
 					"max blocks per file in a cg" },
-		{ "avgfilesize", &fsopts->avgfilesize,	1,	INT_MAX,
+		{ "avgfilesize", &ffs_opts->avgfilesize,1,	INT_MAX,
 					"expected average file size" },
-		{ "avgfpdir",	&fsopts->avgfpdir,	1,	INT_MAX,
+		{ "avgfpdir",	&ffs_opts->avgfpdir,	1,	INT_MAX,
 					"expected # of files per directory" },
-		{ "extent",	&fsopts->maxbsize,	1,	INT_MAX,
+		{ "extent",	&ffs_opts->maxbsize,	1,	INT_MAX,
 					"maximum # extent size" },
-		{ "maxbpcg",	&fsopts->maxblkspercg,	1,	INT_MAX,
+		{ "maxbpcg",	&ffs_opts->maxblkspercg,1,	INT_MAX,
 					"max # of blocks per group" },
-		{ "version",	&fsopts->version,	1,	2,
+		{ "version",	&ffs_opts->version,	1,	2,
 					"UFS version" },
-		{ NULL }
+		{ .name = NULL }
 	};
 
 	char	*var, *val;
 	int	rv;
 
-	(void)&ffs_options;
 	assert(option != NULL);
 	assert(fsopts != NULL);
+	assert(ffs_opts != NULL);
 
 	if (debug & DEBUG_FS_PARSE_OPTS)
 		printf("ffs_parse_opts: got `%s'\n", option);
@@ -188,9 +227,9 @@ ffs_parse_opts(const char *option, fsinfo_t *fsopts)
 
 	if (strcmp(var, "optimization") == 0) {
 		if (strcmp(val, "time") == 0) {
-			fsopts->optimization = FS_OPTTIME;
+			ffs_opts->optimization = FS_OPTTIME;
 		} else if (strcmp(val, "space") == 0) {
-			fsopts->optimization = FS_OPTSPACE;
+			ffs_opts->optimization = FS_OPTSPACE;
 		} else {
 			warnx("Invalid optimization `%s'", val);
 			goto leave_ffs_parse_opts;
@@ -277,11 +316,12 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 #if notyet
 	int32_t	spc, nspf, ncyl, fssize;
 #endif
-	off_t size;
+	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	assert(dir != NULL);
 	assert(root != NULL);
 	assert(fsopts != NULL);
+	assert(ffs_opts != NULL);
 
 	if (debug & DEBUG_FS_VALIDATE) {
 		printf("ffs_validate: before defaults set:\n");
@@ -291,31 +331,31 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		/* set FFS defaults */
 	if (fsopts->sectorsize == -1)
 		fsopts->sectorsize = DFL_SECSIZE;
-	if (fsopts->fsize == -1)
-		fsopts->fsize = MAX(DFL_FRAGSIZE, fsopts->sectorsize);
-	if (fsopts->bsize == -1)
-		fsopts->bsize = MIN(DFL_BLKSIZE, 8 * fsopts->fsize);
-	if (fsopts->cpg == -1)
-		fsopts->cpg = DFL_CYLSPERGROUP;
+	if (ffs_opts->fsize == -1)
+		ffs_opts->fsize = MAX(DFL_FRAGSIZE, fsopts->sectorsize);
+	if (ffs_opts->bsize == -1)
+		ffs_opts->bsize = MIN(DFL_BLKSIZE, 8 * ffs_opts->fsize);
+	if (ffs_opts->cpg == -1)
+		ffs_opts->cpg = DFL_CYLSPERGROUP;
 	else
-		fsopts->cpgflg = 1;
+		ffs_opts->cpgflg = 1;
 				/* fsopts->density is set below */
-	if (fsopts->nsectors == -1)
-		fsopts->nsectors = DFL_NSECTORS;
-	if (fsopts->minfree == -1)
-		fsopts->minfree = MINFREE;
-	if (fsopts->optimization == -1)
-		fsopts->optimization = DEFAULTOPT;
-	if (fsopts->maxcontig == -1)
-		fsopts->maxcontig =
-		    MAX(1, MIN(MAXPHYS, FFS_MAXBSIZE) / fsopts->bsize);
+	if (ffs_opts->nsectors == -1)
+		ffs_opts->nsectors = DFL_NSECTORS;
+	if (ffs_opts->minfree == -1)
+		ffs_opts->minfree = MINFREE;
+	if (ffs_opts->optimization == -1)
+		ffs_opts->optimization = DEFAULTOPT;
+	if (ffs_opts->maxcontig == -1)
+		ffs_opts->maxcontig =
+		    MAX(1, MIN(MAXPHYS, FFS_MAXBSIZE) / ffs_opts->bsize);
 	/* XXX ondisk32 */
-	if (fsopts->maxbpg == -1)
-		fsopts->maxbpg = fsopts->bsize / sizeof(int32_t);
-	if (fsopts->avgfilesize == -1)
-		fsopts->avgfilesize = AVFILESIZ;
-	if (fsopts->avgfpdir == -1)
-		fsopts->avgfpdir = AFPDIR;
+	if (ffs_opts->maxbpg == -1)
+		ffs_opts->maxbpg = ffs_opts->bsize / sizeof(int32_t);
+	if (ffs_opts->avgfilesize == -1)
+		ffs_opts->avgfilesize = AVFILESIZ;
+	if (ffs_opts->avgfpdir == -1)
+		ffs_opts->avgfpdir = AFPDIR;
 
 		/* calculate size of tree */
 	ffs_size_dir(root, fsopts);
@@ -343,17 +383,19 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 	 */
 	fsopts->size += (SBLOCK_UFS1 + SBLOCKSIZE) * ncg;
 		/* add space needed to store inodes, x3 for blockmaps, etc */
-	if (fsopts->version == 1)
+	if (ffs_opts->version == 1)
 		fsopts->size += ncg * DINODE1_SIZE *
-		    roundup(fsopts->inodes / ncg, fsopts->bsize / DINODE1_SIZE);
+		    roundup(fsopts->inodes / ncg, 
+			ffs_opts->bsize / DINODE1_SIZE);
 	else
 		fsopts->size += ncg * DINODE2_SIZE *
-		    roundup(fsopts->inodes / ncg, fsopts->bsize / DINODE2_SIZE);
+		    roundup(fsopts->inodes / ncg, 
+			ffs_opts->bsize / DINODE2_SIZE);
 
 		/* add minfree */
-	if (fsopts->minfree > 0)
+	if (ffs_opts->minfree > 0)
 		fsopts->size =
-		    fsopts->size * (100 + fsopts->minfree) / 100;
+		    fsopts->size * (100 + ffs_opts->minfree) / 100;
 	/*
 	 * XXX	any other fs slop to add, such as csum's, bitmaps, etc ??
 	 */
@@ -362,24 +404,11 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		fsopts->size = fsopts->minsize;
 
 		/* round up to the next block */
-	size = roundup(fsopts->size, fsopts->bsize);
-
-		/* now check calculated sizes vs requested sizes */
-	if (fsopts->maxsize > 0 && size > fsopts->maxsize) {
-		if (debug & DEBUG_FS_VALIDATE) {
-			printf("%s: `%s' size of %lld is larger than the "
-			    "maxsize of %lld; rounding down to %lld.",
-			    __func__, dir, (long long)size,
-			    (long long)fsopts->maxsize,
-			    (long long) rounddown(fsopts->size, fsopts->bsize));
-		}
-		size = rounddown(fsopts->size, fsopts->bsize);
-	}
-	fsopts->size = size;
+	fsopts->size = roundup(fsopts->size, ffs_opts->bsize);
 
 		/* calculate density if necessary */
-	if (fsopts->density == -1)
-		fsopts->density = fsopts->size / fsopts->inodes + 1;
+	if (ffs_opts->density == -1)
+		ffs_opts->density = fsopts->size / fsopts->inodes + 1;
 
 	if (debug & DEBUG_FS_VALIDATE) {
 		printf("ffs_validate: after defaults set:\n");
@@ -388,12 +417,20 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		    dir, (long long)fsopts->size, (long long)fsopts->inodes);
 	}
 	sectorsize = fsopts->sectorsize;	/* XXX - see earlier */
+
+		/* now check calculated sizes vs requested sizes */
+	if (fsopts->maxsize > 0 && fsopts->size > fsopts->maxsize) {
+		errx(1, "`%s' size of %lld is larger than the maxsize of %lld.",
+		    dir, (long long)fsopts->size, (long long)fsopts->maxsize);
+	}
 }
 
 
 static void
 ffs_dump_fsinfo(fsinfo_t *f)
 {
+
+	ffs_opt_t	*fs = f->fs_specific;
 
 	printf("fsopts at %p\n", f);
 
@@ -409,20 +446,20 @@ ffs_dump_fsinfo(fsinfo_t *f)
 	printf("\tneedswap %d, sectorsize %d\n", f->needswap, f->sectorsize);
 
 	printf("\tbsize %d, fsize %d, cpg %d, density %d\n",
-	    f->bsize, f->fsize, f->cpg, f->density);
+	    fs->bsize, fs->fsize, fs->cpg, fs->density);
 	printf("\tnsectors %d, rpm %d, minfree %d\n",
-	    f->nsectors, f->rpm, f->minfree);
+	    fs->nsectors, fs->rpm, fs->minfree);
 	printf("\tmaxcontig %d, maxbpg %d\n",
-	    f->maxcontig, f->maxbpg);
+	    fs->maxcontig, fs->maxbpg);
 	printf("\toptimization %s\n",
-	    f->optimization == FS_OPTSPACE ? "space" : "time");
+	    fs->optimization == FS_OPTSPACE ? "space" : "time");
 }
 
 
 static int
 ffs_create_image(const char *image, fsinfo_t *fsopts)
 {
-#if HAVE_STRUCT_STATVFS_F_IOSIZE
+#if HAVE_STRUCT_STATVFS_F_IOSIZE && HAVE_FSTATVFS
 	struct statvfs	sfs;
 #endif
 	struct fs	*fs;
@@ -434,18 +471,18 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 	assert (fsopts != NULL);
 
 		/* create image */
-	if ((fsopts->fd = open(image, O_RDWR | O_CREAT | O_TRUNC, 0777))
+	if ((fsopts->fd = open(image, O_RDWR | O_CREAT | O_TRUNC, 0666))
 	    == -1) {
 		warn("Can't open `%s' for writing", image);
 		return (-1);
 	}
 
 		/* zero image */
-#if HAVE_STRUCT_STATVFS_F_IOSIZE
+#if HAVE_STRUCT_STATVFS_F_IOSIZE && HAVE_FSTATVFS
 	if (fstatvfs(fsopts->fd, &sfs) == -1) {
 #endif
 		bufsize = 8192;
-#if HAVE_STRUCT_STATVFS_F_IOSIZE
+#if HAVE_STRUCT_STATVFS_F_IOSIZE && HAVE_FSTATVFS
 		warn("can't fstatvfs `%s', using default %d byte chunk",
 		    image, bufsize);
 	} else
@@ -465,10 +502,12 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 		if (i == -1) {
 			warn("zeroing image, %lld bytes to go",
 			    (long long)bufrem);
+			free(buf);
 			return (-1);
 		}
 		bufrem -= i;
 	}
+	free(buf);
 
 		/* make the file system */
 	if (debug & DEBUG_FS_CREATE_IMAGE)
@@ -492,7 +531,7 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 		warnx(
 		"Image file `%s' has %lld free inodes; %lld are required.",
 		    image,
-		    (long long)fs->fs_cstotal.cs_nifree + ROOTINO,
+		    (long long)(fs->fs_cstotal.cs_nifree + ROOTINO),
 		    (long long)fsopts->inodes);
 		return (-1);
 	}
@@ -506,9 +545,11 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 	struct direct	tmpdir;
 	fsnode *	node;
 	int		curdirsize, this;
+	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	/* node may be NULL (empty directory) */
 	assert(fsopts != NULL);
+	assert(ffs_opts != NULL);
 
 	if (debug & DEBUG_FS_SIZE_DIR)
 		printf("ffs_size_dir: entry: bytes %lld inodes %lld\n",
@@ -516,7 +557,7 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 
 #define	ADDDIRENT(e) do {						\
 	tmpdir.d_namlen = strlen((e));					\
-	this = DIRSIZ_SWAP(0, &tmpdir, 0);				\
+	this = DIRSIZ_SWAP(0, &tmpdir, 0);					\
 	if (debug & DEBUG_FS_SIZE_DIR_ADD_DIRENT)			\
 		printf("ADDDIRENT: was: %s (%d) this %d cur %d\n",	\
 		    e, tmpdir.d_namlen, this, curdirsize);		\
@@ -533,14 +574,12 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 	 *	by indirect blocks, etc.
 	 */
 #define	ADDSIZE(x) do {							\
-	fsopts->size += roundup((x), fsopts->fsize);			\
+	fsopts->size += roundup((x), ffs_opts->fsize);			\
 } while (0);
 
 	curdirsize = 0;
 	for (node = root; node != NULL; node = node->next) {
 		ADDDIRENT(node->name);
-		if (FSNODE_EXCLUDE_P(fsopts, node))
-			continue;
 		if (node == root) {			/* we're at "." */
 			assert(strcmp(node->name, ".") == 0);
 			ADDDIRENT("..");
@@ -558,7 +597,7 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 				int	slen;
 
 				slen = strlen(node->symlink) + 1;
-				if (slen >= (fsopts->version == 1 ?
+				if (slen >= (ffs_opts->version == 1 ?
 						MAXSYMLINKLEN_UFS1 :
 						MAXSYMLINKLEN_UFS2))
 					ADDSIZE(slen);
@@ -682,10 +721,12 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 	union dinode	din;
 	void		*membuf;
 	char		path[MAXPATHLEN + 1];
+	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	assert(dir != NULL);
 	assert(root != NULL);
 	assert(fsopts != NULL);
+	assert(ffs_opts != NULL);
 
 	(void)memset(&dirbuf, 0, sizeof(dirbuf));
 
@@ -696,8 +737,6 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		 * pass 1: allocate inode numbers, build directory `file'
 		 */
 	for (cur = root; cur != NULL; cur = cur->next) {
-		if (FSNODE_EXCLUDE_P(fsopts, cur))
-			continue;
 		if ((cur->inode->flags & FI_ALLOCATED) == 0) {
 			cur->inode->flags |= FI_ALLOCATED;
 			if (cur == root && cur->parent != NULL)
@@ -732,8 +771,6 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 	if (debug & DEBUG_FS_POPULATE)
 		printf("ffs_populate_dir: PASS 2  dir %s\n", dir);
 	for (cur = root; cur != NULL; cur = cur->next) {
-		if (FSNODE_EXCLUDE_P(fsopts, cur))
-			continue;
 		if (cur->inode->flags & FI_WRITTEN)
 			continue;		/* skip hard-linked entries */
 		cur->inode->flags |= FI_WRITTEN;
@@ -746,7 +783,7 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 			continue;		/* child creates own inode */
 
 				/* build on-disk inode */
-		if (fsopts->version == 1)
+		if (ffs_opts->version == 1)
 			membuf = ffs_build_dinode1(&din.ffs1_din, &dirbuf, cur,
 			    root, fsopts);
 		else
@@ -777,8 +814,6 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 	if (debug & DEBUG_FS_POPULATE)
 		printf("ffs_populate_dir: PASS 3  dir %s\n", dir);
 	for (cur = root; cur != NULL; cur = cur->next) {
-		if (FSNODE_EXCLUDE_P(fsopts, cur))
-			continue;
 		if (cur->child == NULL)
 			continue;
 		if (snprintf(path, sizeof(path), "%s/%s", dir, cur->name)
@@ -804,16 +839,20 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	int 	isfile, ffd;
 	char	*fbuf, *p;
 	off_t	bufleft, chunk, offset;
+	ssize_t nread;
 	struct inode	in;
 	struct buf *	bp;
+	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	assert (din != NULL);
 	assert (buf != NULL);
 	assert (fsopts != NULL);
+	assert (ffs_opts != NULL);
 
 	isfile = S_ISREG(DIP(din, mode));
 	fbuf = NULL;
 	ffd = -1;
+	p = NULL;
 
 	in.i_fs = (struct fs *)fsopts->superblock;
 
@@ -830,7 +869,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 
 	in.i_number = ino;
 	in.i_size = DIP(din, size);
-	if (fsopts->version == 1)
+	if (ffs_opts->version == 1)
 		memcpy(&in.i_din.ffs1_din, &din->ffs1_din,
 		    sizeof(in.i_din.ffs1_din));
 	else
@@ -842,7 +881,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 		goto write_inode_and_leave;		/* mmm, cheating */
 
 	if (isfile) {
-		if ((fbuf = malloc(fsopts->bsize)) == NULL)
+		if ((fbuf = malloc(ffs_opts->bsize)) == NULL)
 			err(1, "Allocating memory for write buffer");
 		if ((ffd = open((char *)buf, O_RDONLY, 0444)) == -1) {
 			warn("Can't open `%s' for reading", (char *)buf);
@@ -854,13 +893,20 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 
 	chunk = 0;
 	for (bufleft = DIP(din, size); bufleft > 0; bufleft -= chunk) {
-		chunk = MIN(bufleft, fsopts->bsize);
-		if (isfile) {
-			if (read(ffd, fbuf, chunk) != chunk)
-				err(1, "Reading `%s', %lld bytes to go",
-				    (char *)buf, (long long)bufleft);
+		chunk = MIN(bufleft, ffs_opts->bsize);
+		if (!isfile)
+			;
+		else if ((nread = read(ffd, fbuf, chunk)) == -1)
+			err(EXIT_FAILURE, "Reading `%s', %lld bytes to go",
+			    (char *)buf, (long long)bufleft);
+		else if (nread != chunk)
+			errx(EXIT_FAILURE, "Reading `%s', %lld bytes to go, "
+			    "read %zd bytes, expected %ju bytes, does "
+			    "metalog size= attribute mismatch source size?",
+			    (char *)buf, (long long)bufleft, nread,
+			    (uintmax_t)chunk);
+		else
 			p = fbuf;
-		}
 		offset = DIP(din, size) - bufleft;
 		if (debug & DEBUG_FS_WRITE_FILE_BLOCK)
 			printf(
@@ -932,7 +978,7 @@ ffs_make_dirbuf(dirbuf_t *dbuf, const char *name, fsnode *node, int needswap)
 {
 	struct direct	de, *dp;
 	uint16_t	llen, reclen;
-	char		*newbuf;
+	u_char		*newbuf;
 
 	assert (dbuf != NULL);
 	assert (name != NULL);
@@ -969,7 +1015,7 @@ ffs_make_dirbuf(dirbuf_t *dbuf, const char *name, fsnode *node, int needswap)
 		dbuf->size += DIRBLKSIZ;
 		memset(dbuf->buf + dbuf->size - DIRBLKSIZ, 0, DIRBLKSIZ);
 		dbuf->cur = dbuf->size - DIRBLKSIZ;
-	} else {				/* shrink end of previous */
+	} else if (dp) {			/* shrink end of previous */
 		dp->d_reclen = ufs_rw16(llen,needswap);
 		dbuf->cur += llen;
 	}
@@ -993,10 +1039,12 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	daddr_t		d;
 	char		sbbuf[FFS_MAXBSIZE];
 	int32_t		initediblk;
+	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	assert (dp != NULL);
 	assert (ino > 0);
 	assert (fsopts != NULL);
+	assert (ffs_opts != NULL);
 
 	fs = (struct fs *)fsopts->superblock;
 	cg = ino_to_cg(fs, ino);
@@ -1041,7 +1089,7 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	 * Initialize inode blocks on the fly for UFS2.
 	 */
 	initediblk = ufs_rw32(cgp->cg_initediblk, fsopts->needswap);
-	if (fsopts->version == 2 && cgino + INOPB(fs) > initediblk &&
+	if (ffs_opts->version == 2 && cgino + INOPB(fs) > initediblk &&
 	    initediblk < ufs_rw32(cgp->cg_niblk, fsopts->needswap)) {
 		memset(buf, 0, fs->fs_bsize);
 		dip = (struct ufs2_dinode *)buf;
@@ -1065,14 +1113,14 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	d = fsbtodb(fs, ino_to_fsba(fs, ino));
 	ffs_rdfs(d, fs->fs_bsize, buf, fsopts);
 	if (fsopts->needswap) {
-		if (fsopts->version == 1)
+		if (ffs_opts->version == 1)
 			ffs_dinode1_swap(&dp->ffs1_din,
 			    &dp1[ino_to_fsbo(fs, ino)]);
 		else
 			ffs_dinode2_swap(&dp->ffs2_din,
 			    &dp2[ino_to_fsbo(fs, ino)]);
 	} else {
-		if (fsopts->version == 1)
+		if (ffs_opts->version == 1)
 			dp1[ino_to_fsbo(fs, ino)] = dp->ffs1_din;
 		else
 			dp2[ino_to_fsbo(fs, ino)] = dp->ffs2_din;

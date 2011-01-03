@@ -43,7 +43,7 @@ INTERFACE ofw;
  * @param _cookie	A handle to the client interface, generally the OF
  *			callback routine.
  */
-METHOD void init {
+METHOD int init {
 	ofw_t		_ofw;
 	void		*_cookie;
 };
@@ -229,7 +229,7 @@ METHOD int call_method {
 	int		_nargs;
 	int		_nreturns;
 
-	unsigned long	*_args_and_returns;
+	cell_t		*_args_and_returns;
 };
 
 /**
@@ -244,7 +244,7 @@ METHOD int interpret {
 	ofw_t		_ofw;
 	const char	*_cmd;
 	int		_nreturns;
-	unsigned long	*_returns;
+	cell_t		*_returns;
 };
 
 # Device I/O Functions (optional)

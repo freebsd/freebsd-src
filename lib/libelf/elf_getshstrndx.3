@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2006
+.Dd August 5, 2009
 .Dt ELF_GETSHSTRNDX 3
 .Os
 .Sh NAME
@@ -46,6 +46,12 @@ names from descriptor
 .Ar elf
 and stores it into the location pointed to by argument
 .Ar ndxptr .
+Function
+.Fn elf_getshstrndx
+is deprecated.
+Please use
+.Xr elf_getshdrstrndx 3
+instead.
 .Pp
 Function
 .Fn elf_setshstrndx
@@ -82,6 +88,7 @@ contained a value in the reserved range of section indices.
 .Xr elf32_getehdr 3 ,
 .Xr elf64_getehdr 3 ,
 .Xr elf_getident 3 ,
-.Xr elf_getshnum 3 ,
+.Xr elf_getphdrnum 3 ,
+.Xr elf_getshdrnum 3 ,
 .Xr gelf 3 ,
 .Xr gelf_getehdr 3

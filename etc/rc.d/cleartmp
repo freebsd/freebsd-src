@@ -36,7 +36,10 @@ cleartmp_start()
 		#   it can prevent foot-shooting in future.
 		# + /tmp/lost+found is preserved, but its contents are removed.
 		# + lost+found and quota.* in subdirectories are removed.
+		# + .sujournal and .snap are preserved.
 		find -x ${tmp}/. ! -name . \
+		    ! \( -name .sujournal -type f -user root \) \
+		    ! \( -name .snap -type d -user root \) \
 		    ! \( -name lost+found -type d -user root \) \
 		    ! \( \( -name quota.user -or -name quota.group \) \
 			-type f -user root \) \

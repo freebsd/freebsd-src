@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/sc_machdep.h>
+#include <machine/vm.h>
 
 #include <sys/rman.h>
 
@@ -216,7 +217,7 @@ ofwfb_configure(int flags)
         phandle_t chosen;
         ihandle_t stdout;
 	phandle_t node;
-	bus_addr_t fb_phys;
+	uint32_t fb_phys;
 	int depth;
 	int disable;
 	int len;
@@ -280,7 +281,7 @@ ofwfb_configure(int flags)
 	OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
 
 	bus_space_map(&bs_be_tag, fb_phys, sc->sc_height * sc->sc_stride,
-	    0, &sc->sc_addr);
+	    BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
 
 	/*
 	 * Get the PCI addresses of the adapter. The node may be the
@@ -632,8 +633,25 @@ ofwfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 	sc = (struct ofwfb_softc *)adp;
 
-	if (sc->sc_num_pciaddrs == 0)
-		return (ENOMEM);
+	/*
+	 * Make sure the requested address lies within the PCI device's
+	 * assigned addrs
+	 */
+	for (i = 0; i < sc->sc_num_pciaddrs; i++)
+	  if (offset >= sc->sc_pciaddrs[i].phys_lo &&
+	    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo))
+		{
+			/*
+			 * If this is a prefetchable BAR, we can (and should)
+			 * enable write-combining.
+			 */
+			if (sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_PREFETCHABLE)
+				*memattr = VM_MEMATTR_WRITE_COMBINING;
+
+			*paddr = offset;
+			return (0);
+		}
 
 	/*
 	 * Hack for Radeon...
@@ -644,16 +662,6 @@ ofwfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 	}
 
 	/*
-	 * Make sure the requested address lies within the PCI device's assigned addrs
-	 */
-	for (i = 0; i < sc->sc_num_pciaddrs; i++)
-		if (offset >= sc->sc_pciaddrs[i].phys_lo &&
-		    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo)) {
-			*paddr = offset;
-			return (0);
-		}
-
-	/*
 	 * This might be a legacy VGA mem request: if so, just point it at the
 	 * framebuffer, since it shouldn't be touched
 	 */
@@ -661,6 +669,12 @@ ofwfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 		*paddr = sc->sc_addr + offset;
 		return (0);
 	}
+
+	/*
+	 * Error if we didn't have a better idea.
+	 */
+	if (sc->sc_num_pciaddrs == 0)
+		return (ENOMEM);
 
 	return (EINVAL);
 }
@@ -748,7 +762,7 @@ ofwfb_putc8(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
         row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
         col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
 	p = sc->sc_font + c*sc->sc_font_height;
-	addr = (u_int32_t *)((int)sc->sc_addr
+	addr = (u_int32_t *)((uintptr_t)sc->sc_addr
 		+ (row + sc->sc_ymargin)*sc->sc_stride
 		+ col + sc->sc_xmargin);
 
@@ -856,16 +870,11 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 {
 	struct ofwfb_softc *sc;
 	int i, j, k;
-	uint32_t *addr;
+	uint8_t *addr;
 	u_char fg, bg;
-	union {
-		uint32_t l[2];
-		uint8_t  c[8];
-	} ch;
-
 
 	sc = (struct ofwfb_softc *)adp;
-	addr = (u_int32_t *)((int)sc->sc_addr
+	addr = (u_int8_t *)((uintptr_t)sc->sc_addr
 		+ (y + sc->sc_ymargin)*sc->sc_stride
 		+ x + sc->sc_xmargin);
 
@@ -873,12 +882,6 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 	bg = ofwfb_background(SC_NORM_ATTR);
 
 	for (i = 0; i < size && i+y < sc->sc_height - 2*sc->sc_ymargin; i++) {
-		/*
-		 * Use the current values for the line
-		 */
-		ch.l[0] = addr[0];
-		ch.l[1] = addr[1];
-
 		/*
 		 * Calculate 2 x 4-chars at a time, and then
 		 * write these out.
@@ -888,12 +891,10 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 				continue;
 
 			if (pixel_image[i] & (1 << k))
-				ch.c[j] = (ch.c[j] == fg) ? bg : fg;
+				addr[j] = (addr[j] == fg) ? bg : fg;
 		}
 
-		addr[0] = ch.l[0];
-		addr[1] = ch.l[1];
-		addr += (sc->sc_stride / sizeof(u_int32_t));
+		addr += (sc->sc_stride / sizeof(u_int8_t));
 	}
 
 	return (0);

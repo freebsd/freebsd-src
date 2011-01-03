@@ -249,8 +249,6 @@ vr_miibus_readreg(device_t dev, int phy, int reg)
 	int			i;
 
 	sc = device_get_softc(dev);
-	if (sc->vr_phyaddr != phy)
-		return (0);
 
 	/* Set the register address. */
 	CSR_WRITE_1(sc, VR_MIIADDR, reg);
@@ -274,8 +272,6 @@ vr_miibus_writereg(device_t dev, int phy, int reg, int data)
 	int			i;
 
 	sc = device_get_softc(dev);
-	if (sc->vr_phyaddr != phy)
-		return (0);
 
 	/* Set the register address and data to write. */
 	CSR_WRITE_1(sc, VR_MIIADDR, reg);
@@ -613,7 +609,7 @@ vr_attach(device_t dev)
 	struct vr_type		*t;
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	int			error, rid;
-	int			i, pmc;
+	int			i, phy, pmc;
 
 	sc = device_get_softc(dev);
 	sc->vr_dev = dev;
@@ -780,17 +776,15 @@ vr_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Save PHY address. */
-	if (sc->vr_revid >= REV_ID_VT6105_A0)
-		sc->vr_phyaddr = 1;
-	else
-		sc->vr_phyaddr = CSR_READ_1(sc, VR_PHYADDR) & VR_PHYADDR_MASK;
-
 	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->vr_miibus,
-	    vr_ifmedia_upd, vr_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	if (sc->vr_revid >= REV_ID_VT6105_A0)
+		phy = 1;
+	else
+		phy = CSR_READ_1(sc, VR_PHYADDR) & VR_PHYADDR_MASK;
+	error = mii_attach(dev, &sc->vr_miibus, ifp, vr_ifmedia_upd,
+	    vr_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1558,8 +1552,7 @@ vr_tick(void *xsc)
 	if ((sc->vr_flags & VR_F_RESTART) != 0) {
 		device_printf(sc->vr_dev, "restarting\n");
 		sc->vr_stat.num_restart++;
-		vr_stop(sc);
-		vr_reset(sc);
+		sc->vr_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vr_init_locked(sc);
 		sc->vr_flags &= ~VR_F_RESTART;
 	}
@@ -2016,6 +2009,9 @@ vr_init_locked(struct vr_softc *sc)
 	ifp = sc->vr_ifp;
 	mii = device_get_softc(sc->vr_miibus);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	/* Cancel pending I/O and free all RX/TX buffers. */
 	vr_stop(sc);
 	vr_reset(sc);
@@ -2287,6 +2283,7 @@ vr_watchdog(struct vr_softc *sc)
 			if_printf(sc->vr_ifp, "watchdog timeout "
 			   "(missed link)\n");
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vr_init_locked(sc);
 		return;
 	}
@@ -2294,8 +2291,7 @@ vr_watchdog(struct vr_softc *sc)
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
 
-	vr_stop(sc);
-	vr_reset(sc);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	vr_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2009
+.Dd October 14, 2010
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -177,7 +177,7 @@ USB access library (libusb -lusb)
 .Ft int
 .Fn libusb20_be_set_template "struct libusb20_backend *pbe" "int temp"
 .Ft int
-.Fn libusb20_be_get_dev_quirk "struct libusb20_backend *pber", "uint16_t index" "struct libusb20_quirk *pq"
+.Fn libusb20_be_get_dev_quirk "struct libusb20_backend *pber" "uint16_t index" "struct libusb20_quirk *pq"
 .Ft int
 .Fn libusb20_be_get_quirk_name "struct libusb20_backend *pbe" "uint16_t index" "struct libusb20_quirk *pq"
 .Ft int
@@ -524,7 +524,7 @@ returns a zero terminated string describing the backend used.
 .Pp
 .
 .Fn libusb20_dev_get_info
-retrives the BSD specific usb_device_info structure into the memory location given by 
+retrieves the BSD specific usb_device_info structure into the memory location given by 
 .Fa pinfo .
 The USB device given by
 .Fa pdev

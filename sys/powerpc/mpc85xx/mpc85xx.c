@@ -29,6 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -37,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/spr.h>
 
-#include <powerpc/mpc85xx/ocpbus.h>
 #include <powerpc/mpc85xx/mpc85xx.h>
 
 /*
@@ -129,28 +131,36 @@ law_disable(int trgt, u_long addr, u_long size)
 	return (ENOENT);
 }
 
-void
-cpu_reset(void)
+int
+law_pci_target(struct resource *res, int *trgt_mem, int *trgt_io)
 {
-	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
+	u_long start;
+	uint32_t ver;
+	int trgt, rv;
 
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
-	    ver == SVR_MPC8548E || ver == SVR_MPC8548)
-		/* Systems with dedicated reset register */
-		ccsr_write4(OCP85XX_RSTCR, 2);
-	else {
-		/* Clear DBCR0, disables debug interrupts and events. */
-		mtspr(SPR_DBCR0, 0);
-		__asm __volatile("isync");
+	ver = SVR_VER(mfspr(SPR_SVR));
 
-		/* Enable Debug Interrupts in MSR. */
-		mtmsr(mfmsr() | PSL_DE);
+	start = rman_get_start(res) & 0xf000;
 
-		/* Enable debug interrupts and issue reset. */
-		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM |
-		    DBCR0_RST_SYSTEM);
+	rv = 0;
+	trgt = -1;
+	switch (start) {
+	case 0x8000:
+		trgt = 0;
+		break;
+	case 0x9000:
+		trgt = 1;
+		break;
+	case 0xa000:
+		if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
+			trgt = 2;
+		else
+			rv = EINVAL;
+		break;
+	default:
+		rv = ENXIO;
 	}
-
-	printf("Reset failed...\n");
-	while (1);
+	*trgt_mem = *trgt_io = trgt;
+	return (rv);
 }
+

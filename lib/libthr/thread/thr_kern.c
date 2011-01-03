@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <sys/signalvar.h>
 #include <sys/rtprio.h>
+#include <sys/mman.h>
 #include <pthread.h>
 
 #include "thr_private.h"
@@ -40,6 +41,10 @@
 #else
 #define DBG_MSG(x...)
 #endif
+
+static struct umutex	addr_lock;
+static struct wake_addr *wake_addr_head;
+static struct wake_addr default_wake_addr;
 
 /*
  * This is called when the first thread (other than the initial
@@ -58,38 +63,6 @@ _thr_setthreaded(int threaded)
 		_thr_rtld_fini();
 	}
 	return (0);
-}
-
-void
-_thr_signal_block(struct pthread *curthread)
-{
-	sigset_t set;
-	
-	if (curthread->sigblock > 0) {
-		curthread->sigblock++;
-		return;
-	}
-	SIGFILLSET(set);
-	SIGDELSET(set, SIGBUS);
-	SIGDELSET(set, SIGILL);
-	SIGDELSET(set, SIGFPE);
-	SIGDELSET(set, SIGSEGV);
-	SIGDELSET(set, SIGTRAP);
-	__sys_sigprocmask(SIG_BLOCK, &set, &curthread->sigmask);
-	curthread->sigblock++;
-}
-
-void
-_thr_signal_unblock(struct pthread *curthread)
-{
-	if (--curthread->sigblock == 0)
-		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
-}
-
-int
-_thr_send_sig(struct pthread *thread, int sig)
-{
-	return thr_kill(thread->tid, sig);
 }
 
 void
@@ -161,4 +134,91 @@ _thr_setscheduler(lwpid_t lwpid, int policy, const struct sched_param *param)
 
 	_schedparam_to_rtp(policy, param, &rtp);
 	return (rtprio_thread(RTP_SET, lwpid, &rtp));
+}
+
+void
+_thr_wake_addr_init(void)
+{
+	_thr_umutex_init(&addr_lock);
+	wake_addr_head = NULL;
+}
+
+/*
+ * Allocate wake-address, the memory area is never freed after
+ * allocated, this becauses threads may be referencing it.
+ */
+struct wake_addr *
+_thr_alloc_wake_addr(void)
+{
+	struct pthread *curthread;
+	struct wake_addr *p;
+
+	if (_thr_initial == NULL) {
+		return &default_wake_addr;
+	}
+
+	curthread = _get_curthread();
+
+	THR_LOCK_ACQUIRE(curthread, &addr_lock);
+	if (wake_addr_head == NULL) {
+		unsigned i;
+		unsigned pagesize = getpagesize();
+		struct wake_addr *pp = (struct wake_addr *)
+			mmap(NULL, getpagesize(), PROT_READ|PROT_WRITE,
+			MAP_ANON|MAP_PRIVATE, -1, 0);
+		for (i = 1; i < pagesize/sizeof(struct wake_addr); ++i)
+			pp[i].link = &pp[i+1];
+		pp[i-1].link = NULL;	
+		wake_addr_head = &pp[1];
+		p = &pp[0];
+	} else {
+		p = wake_addr_head;
+		wake_addr_head = p->link;
+	}
+	THR_LOCK_RELEASE(curthread, &addr_lock);
+	p->value = 0;
+	return (p);
+}
+
+void
+_thr_release_wake_addr(struct wake_addr *wa)
+{
+	struct pthread *curthread = _get_curthread();
+
+	if (wa == &default_wake_addr)
+		return;
+	THR_LOCK_ACQUIRE(curthread, &addr_lock);
+	wa->link = wake_addr_head;
+	wake_addr_head = wa;
+	THR_LOCK_RELEASE(curthread, &addr_lock);
+}
+
+/* Sleep on thread wakeup address */
+int
+_thr_sleep(struct pthread *curthread, int clockid,
+	const struct timespec *abstime)
+{
+
+	curthread->will_sleep = 0;
+	if (curthread->nwaiter_defer > 0) {
+		_thr_wake_all(curthread->defer_waiters,
+			curthread->nwaiter_defer);
+		curthread->nwaiter_defer = 0;
+	}
+
+	if (curthread->wake_addr->value != 0)
+		return (0);
+
+	return _thr_umtx_timedwait_uint(&curthread->wake_addr->value, 0,
+                 clockid, abstime, 0);
+}
+
+void
+_thr_wake_all(unsigned int *waddrs[], int count)
+{
+	int i;
+
+	for (i = 0; i < count; ++i)
+		*waddrs[i] = 1;
+	_umtx_op(waddrs, UMTX_OP_NWAKE_PRIVATE, count, NULL, NULL);
 }

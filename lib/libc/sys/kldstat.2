@@ -56,7 +56,6 @@ struct kld_file_stat {
 	char        pathname[MAXPATHLEN];
 };
 .Ed
-.Pp
 .Bl -tag -width XXXaddress
 .It version
 This field is set to the size of the structure mentioned above by the code
@@ -129,6 +128,6 @@ The
 interface first appeared in
 .Fx 3.0 .
 .Sh BUGS
-The pathname many not be accurate if the file system mounts have
+The pathname may not be accurate if the file system mounts have
 changed since the module was loaded, or if this function is called
 within a chrooted environment.

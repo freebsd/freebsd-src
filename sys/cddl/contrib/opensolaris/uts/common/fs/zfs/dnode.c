@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -53,10 +53,11 @@ dnode_cons(void *arg, void *unused, int kmflag)
 	dnode_t *dn = arg;
 	bzero(dn, sizeof (dnode_t));
 
-	cv_init(&dn->dn_notxholds, NULL, CV_DEFAULT, NULL);
 	rw_init(&dn->dn_struct_rwlock, NULL, RW_DEFAULT, NULL);
 	mutex_init(&dn->dn_mtx, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&dn->dn_dbufs_mtx, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&dn->dn_notxholds, NULL, CV_DEFAULT, NULL);
+
 	refcount_create(&dn->dn_holds);
 	refcount_create(&dn->dn_tx_holds);
 
@@ -82,10 +83,10 @@ dnode_dest(void *arg, void *unused)
 	int i;
 	dnode_t *dn = arg;
 
-	cv_destroy(&dn->dn_notxholds);
 	rw_destroy(&dn->dn_struct_rwlock);
 	mutex_destroy(&dn->dn_mtx);
 	mutex_destroy(&dn->dn_dbufs_mtx);
+	cv_destroy(&dn->dn_notxholds);
 	refcount_destroy(&dn->dn_holds);
 	refcount_destroy(&dn->dn_tx_holds);
 
@@ -155,7 +156,7 @@ dnode_verify(dnode_t *dn)
 	}
 	if (dn->dn_phys->dn_type != DMU_OT_NONE)
 		ASSERT3U(dn->dn_phys->dn_nlevels, <=, dn->dn_nlevels);
-	ASSERT(dn->dn_object == DMU_META_DNODE_OBJECT || dn->dn_dbuf != NULL);
+	ASSERT(DMU_OBJECT_IS_SPECIAL(dn->dn_object) || dn->dn_dbuf != NULL);
 	if (dn->dn_dbuf != NULL) {
 		ASSERT3P(dn->dn_phys, ==,
 		    (dnode_phys_t *)dn->dn_dbuf->db.db_data +
@@ -300,7 +301,7 @@ dnode_create(objset_impl_t *os, dnode_phys_t *dnp, dmu_buf_impl_t *db,
 	list_insert_head(&os->os_dnodes, dn);
 	mutex_exit(&os->os_lock);
 
-	arc_space_consume(sizeof (dnode_t));
+	arc_space_consume(sizeof (dnode_t), ARC_SPACE_OTHER);
 	return (dn);
 }
 
@@ -319,6 +320,7 @@ dnode_destroy(dnode_t *dn)
 	}
 	ASSERT(NULL == list_head(&dn->dn_dbufs));
 #endif
+	ASSERT(dn->dn_oldphys == NULL);
 
 	mutex_enter(&os->os_lock);
 	list_remove(&os->os_dnodes, dn);
@@ -335,7 +337,7 @@ dnode_destroy(dnode_t *dn)
 		dn->dn_bonus = NULL;
 	}
 	kmem_cache_free(dnode_cache, dn);
-	arc_space_return(sizeof (dnode_t));
+	arc_space_return(sizeof (dnode_t), ARC_SPACE_OTHER);
 }
 
 void
@@ -549,6 +551,22 @@ dnode_hold_impl(objset_impl_t *os, uint64_t object, int flag,
 	 */
 	ASSERT(spa_config_held(os->os_spa, SCL_ALL, RW_WRITER) == 0);
 
+	if (object == DMU_USERUSED_OBJECT || object == DMU_GROUPUSED_OBJECT) {
+		dn = (object == DMU_USERUSED_OBJECT) ?
+		    os->os_userused_dnode : os->os_groupused_dnode;
+		if (dn == NULL)
+			return (ENOENT);
+		type = dn->dn_type;
+		if ((flag & DNODE_MUST_BE_ALLOCATED) && type == DMU_OT_NONE)
+			return (ENOENT);
+		if ((flag & DNODE_MUST_BE_FREE) && type != DMU_OT_NONE)
+			return (EEXIST);
+		DNODE_VERIFY(dn);
+		(void) refcount_add(&dn->dn_holds, tag);
+		*dnp = dn;
+		return (0);
+	}
+
 	if (object == 0 || object >= DN_MAX_OBJECT)
 		return (EINVAL);
 
@@ -607,7 +625,8 @@ dnode_hold_impl(objset_impl_t *os, uint64_t object, int flag,
 	type = dn->dn_type;
 	if (dn->dn_free_txg ||
 	    ((flag & DNODE_MUST_BE_ALLOCATED) && type == DMU_OT_NONE) ||
-	    ((flag & DNODE_MUST_BE_FREE) && type != DMU_OT_NONE)) {
+	    ((flag & DNODE_MUST_BE_FREE) &&
+	    (type != DMU_OT_NONE || dn->dn_oldphys))) {
 		mutex_exit(&dn->dn_mtx);
 		dbuf_rele(db, FTAG);
 		return (type == DMU_OT_NONE ? ENOENT : EEXIST);
@@ -672,8 +691,10 @@ dnode_setdirty(dnode_t *dn, dmu_tx_t *tx)
 	objset_impl_t *os = dn->dn_objset;
 	uint64_t txg = tx->tx_txg;
 
-	if (dn->dn_object == DMU_META_DNODE_OBJECT)
+	if (DMU_OBJECT_IS_SPECIAL(dn->dn_object)) {
+		dsl_dataset_dirty(os->os_dsl_dataset, tx);
 		return;
+	}
 
 	DNODE_VERIFY(dn);
 
@@ -1238,6 +1259,22 @@ dnode_willuse_space(dnode_t *dn, int64_t space, dmu_tx_t *tx)
 	dmu_tx_willuse_space(tx, space);
 }
 
+/*
+ * This function scans a block at the indicated "level" looking for
+ * a hole or data (depending on 'flags').  If level > 0, then we are
+ * scanning an indirect block looking at its pointers.  If level == 0,
+ * then we are looking at a block of dnodes.  If we don't find what we
+ * are looking for in the block, we return ESRCH.  Otherwise, return
+ * with *offset pointing to the beginning (if searching forwards) or
+ * end (if searching backwards) of the range covered by the block
+ * pointer we matched on (or dnode).
+ *
+ * The basic search algorithm used below by dnode_next_offset() is to
+ * use this function to search up the block tree (widen the search) until
+ * we find something (i.e., we don't return ESRCH) and then search back
+ * down the tree (narrow the search) until we reach our original search
+ * level.
+ */
 static int
 dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 	int lvl, uint64_t blkfill, uint64_t txg)
@@ -1253,7 +1290,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 	dprintf("probing object %llu offset %llx level %d of %u\n",
 	    dn->dn_object, *offset, lvl, dn->dn_phys->dn_nlevels);
 
-	hole = flags & DNODE_FIND_HOLE;
+	hole = ((flags & DNODE_FIND_HOLE) != 0);
 	inc = (flags & DNODE_FIND_BACKWARDS) ? -1 : 1;
 	ASSERT(txg == 0 || !hole);
 
@@ -1300,16 +1337,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 
 		for (i = (*offset >> span) & (blkfill - 1);
 		    i >= 0 && i < blkfill; i += inc) {
-			boolean_t newcontents = B_TRUE;
-			if (txg) {
-				int j;
-				newcontents = B_FALSE;
-				for (j = 0; j < dnp[i].dn_nblkptr; j++) {
-					if (dnp[i].dn_blkptr[j].blk_birth > txg)
-						newcontents = B_TRUE;
-				}
-			}
-			if (!dnp[i].dn_type == hole && newcontents)
+			if ((dnp[i].dn_type == DMU_OT_NONE) == hole)
 				break;
 			*offset += (1ULL << span) * inc;
 		}
@@ -1317,6 +1345,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 			error = ESRCH;
 	} else {
 		blkptr_t *bp = data;
+		uint64_t start = *offset;
 		span = (lvl - 1) * epbs + dn->dn_datablkshift;
 		minfill = 0;
 		maxfill = blkfill << ((lvl - 1) * epbs);
@@ -1326,18 +1355,25 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 		else
 			minfill++;
 
-		for (i = (*offset >> span) & ((1ULL << epbs) - 1);
+		*offset = *offset >> span;
+		for (i = BF64_GET(*offset, 0, epbs);
 		    i >= 0 && i < epb; i += inc) {
 			if (bp[i].blk_fill >= minfill &&
 			    bp[i].blk_fill <= maxfill &&
 			    (hole || bp[i].blk_birth > txg))
 				break;
-			if (inc < 0 && *offset < (1ULL << span))
-				*offset = 0;
-			else
-				*offset += (1ULL << span) * inc;
+			if (inc > 0 || *offset > 0)
+				*offset += inc;
 		}
-		if (i < 0 || i == epb)
+		*offset = *offset << span;
+		if (inc < 0) {
+			/* traversing backwards; position offset at the end */
+			ASSERT3U(*offset, <=, start);
+			*offset = MIN(*offset + (1ULL << span) - 1, start);
+		} else if (*offset < start) {
+			*offset = start;
+		}
+		if (i < 0 || i >= epb)
 			error = ESRCH;
 	}
 

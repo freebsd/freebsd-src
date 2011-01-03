@@ -1,4 +1,4 @@
-.\" Copyright (c) 2008-2009 Stacey Son <sson@freebsd.org> 
+.\" Copyright (c) 2008-2009 Stacey Son <sson@FreeBSD.org>
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@ The STRTAB section contains the symbol name strings from the kernel and any
 loaded modules that the symbol table entries reference.
 .El
 .Pp
-Elf formated symbol table data read from the
+Elf formatted symbol table data read from the
 .Pa /dev/ksyms
 file represents the state of the kernel at the time when the device is opened.
 Since
@@ -130,6 +130,12 @@ driver first appeared in
 .Fx 8.0
 to support 
 .Xr lockstat 1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Stacey Son
+.Aq sson@FreeBSD.org .
 .Sh BUGS
 Because files can be dynamically linked into the kernel at any time the symbol 
 information can vary.  When you open the
@@ -150,9 +156,3 @@ can be used to get the memory address where the symbol table is stored to
 save kernel memory. 
 .Xr mmap 2
 may also be used but it will map it to another address. 
-.Sh AUTHORS
-The 
-.Nm
-driver was written by 
-.An Stacey Son
-.Aq sson@freebsd.org .

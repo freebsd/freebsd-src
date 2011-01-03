@@ -115,6 +115,8 @@ static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, struct vnode **,
 		    struct ucred *cred, int);
+static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
+		    struct sockaddr_storage *, int *, off_t *);
 static vfs_mount_t nfs_mount;
 static vfs_cmount_t nfs_cmount;
 static vfs_unmount_t nfs_unmount;
@@ -148,6 +150,7 @@ MODULE_DEPEND(nfs, krpc, 1, 1, 1);
 MODULE_DEPEND(nfs, kgssapi, 1, 1, 1);
 #endif
 MODULE_DEPEND(nfs, nfs_common, 1, 1, 1);
+MODULE_DEPEND(nfs, nfslock, 1, 1, 1);
 
 static struct nfs_rpcops nfs_rpcops = {
 	nfs_readrpc,
@@ -776,10 +779,10 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "noatime", "noexec", "suiddir", "nosuid", "nosymfollow", "union",
     "noclusterr", "noclusterw", "multilabel", "acls", "force", "update",
     "async", "dumbtimer", "noconn", "nolockd", "intr", "rdirplus", "resvport",
-    "readdirsize", "soft", "hard", "mntudp", "tcp", "udp", "wsize", "rsize",
-    "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", 
-    "deadthresh", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
-    "maxgroups", "principal", "negnametimeo",
+    "readahead", "readdirsize", "soft", "hard", "mntudp", "tcp", "udp",
+    "wsize", "rsize", "retrans", "acregmin", "acregmax", "acdirmin",
+    "acdirmax", "deadthresh", "hostname", "timeout", "addr", "fh", "nfsv3",
+    "sec", "maxgroups", "principal", "negnametimeo",
     NULL };
 
 /*
@@ -1074,6 +1077,11 @@ nfs_mount(struct mount *mp)
 		error = EINVAL;
 		goto out;
 	}
+	if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX) {
+		vfs_mount_error(mp, "Bad file handle");
+		error = EINVAL;
+		goto out;
+	}
 
 	if (mp->mnt_flag & MNT_UPDATE) {
 		struct nfsmount *nmp = VFSTONFS(mp);
@@ -1196,6 +1204,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		bzero((caddr_t)nmp, sizeof (struct nfsmount));
 		TAILQ_INIT(&nmp->nm_bufq);
 		mp->mnt_data = nmp;
+		nmp->nm_getinfo = nfs_getnlminfo;
 	}
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
@@ -1484,3 +1493,27 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
 	}
 	return (0);
 }
+
+/*
+ * Extract the information needed by the nlm from the nfs vnode.
+ */
+static void
+nfs_getnlminfo(struct vnode *vp, uint8_t *fhp, size_t *fhlenp,
+    struct sockaddr_storage *sp, int *is_v3p, off_t *sizep)
+{
+	struct nfsmount *nmp;
+	struct nfsnode *np = VTONFS(vp);
+
+	nmp = VFSTONFS(vp->v_mount);
+	if (fhlenp != NULL)
+		*fhlenp = (size_t)np->n_fhsize;
+	if (fhp != NULL)
+		bcopy(np->n_fhp, fhp, np->n_fhsize);
+	if (sp != NULL)
+		bcopy(nmp->nm_nam, sp, min(nmp->nm_nam->sa_len, sizeof(*sp)));
+	if (is_v3p != NULL)
+		*is_v3p = NFS_ISV3(vp);
+	if (sizep != NULL)
+		*sizep = np->n_size;
+}
+

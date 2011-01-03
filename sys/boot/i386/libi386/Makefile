@@ -53,7 +53,7 @@ CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
 # the location of libstand
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 CLEANFILES+=	machine
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
@@ -61,6 +61,6 @@ machine:
 
 .include <bsd.lib.mk>
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine
 .endif

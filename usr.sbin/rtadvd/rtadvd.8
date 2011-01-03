@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 1998
+.Dd December 22, 2010
 .Dt RTADVD 8
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@
 .Nm
 .Op Fl dDfMRs
 .Op Fl c Ar configfile
+.Op Fl F Ar dumpfile
+.Op Fl p Ar pidfile
 .Ar interface ...
 .Sh DESCRIPTION
 .Nm
@@ -126,6 +128,13 @@ Even more debugging information is printed.
 .It Fl f
 Foreground mode (useful when debugging).
 Log messages will be dumped to stderr when this option is specified.
+.It Fl F
+Specify an alternative file in which to dump internal states when
+.Nm
+receives signal
+.Dv SIGUSR1 .
+The default is
+.Pa /var/run/rtadvd.dump .
 .It Fl M
 Specify an interface to join the all-routers site-local multicast group.
 By default,
@@ -135,6 +144,10 @@ line.
 This option has meaning only with the
 .Fl R
 option, which enables routing renumbering protocol support.
+.It Fl p
+Specify an alternative file in which to store the process ID.
+The default is
+.Pa /var/run/rtadvd.pid.
 .It Fl R
 Accept router renumbering requests.
 If you enable it, certain IPsec setup is suggested for security reasons.
@@ -150,7 +163,9 @@ Upon receipt of signal
 .Dv SIGUSR1 ,
 .Nm
 will dump the current internal state into
-.Pa /var/run/rtadvd.dump .
+.Pa /var/run/rtadvd.dump
+or the file specified with option
+.Fl F .
 .Pp
 Use
 .Dv SIGTERM
@@ -162,20 +177,19 @@ In this case,
 will transmit router advertisement with router lifetime 0
 to all the interfaces
 .Pq in accordance with RFC2461 6.2.5 .
-.Sh EXIT STATUS
-.Ex -std
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /etc/rtadvd.conf
 The default configuration file.
 .It Pa /var/run/rtadvd.pid
-contains the pid of the currently running
-.Nm .
+The default process ID file.
 .It Pa /var/run/rtadvd.dump
-The file in which
+The default file in which
 .Nm
 dumps its internal state.
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh SEE ALSO
 .Xr rtadvd.conf 5 ,
 .Xr rtsol 8

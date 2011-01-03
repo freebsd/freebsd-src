@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 SUBDIR= \
+	ath3kfw \
 	bcmfw \
 	bt3cfw \
 	bthidcontrol \

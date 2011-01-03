@@ -70,11 +70,11 @@ fi
 grep "D_MACRO_UNUSED" /var/tmp/err.$$.txt >/dev/null 2>&1
 if [ $? -ne 0 ]; then
 	print -u2 "Expected error D_MACRO_UNUSED not returned"
-	/usr/bin/rm -f /var/tmp/err.$$.txt
+	/bin/rm -f /var/tmp/err.$$.txt
 	exit 1
 fi
 
-/usr/bin/rm -f $dfilename
-/usr/bin/rm -f /var/tmp/err.$$.txt
+/bin/rm -f $dfilename
+/bin/rm -f /var/tmp/err.$$.txt
 
 exit 0

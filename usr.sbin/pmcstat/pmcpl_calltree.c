@@ -354,6 +354,7 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
     struct pmcpl_ct_sample *rsamples, int x, int *y)
 {
 	int i, terminal;
+	struct pmcpl_ct_arc *arc;
 
 	if (ct->pct_flags & PMCPL_PCT_TAG)
 		return 0;
@@ -372,12 +373,17 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 	 * for at least one arc for that PMC.
 	 */
 	terminal = 1;
-	for (i = 0; i < ct->pct_narc; i++)
+	for (i = 0; i < ct->pct_narc; i++) {
+		arc = &ct->pct_arc[i];
 		if (PMCPL_CT_SAMPLE(pmcin,
-		    &ct->pct_arc[i].pcta_samples) != 0) {
+		    &arc->pcta_samples) != 0 &&
+		    PMCPL_CT_SAMPLEP(pmcin,
+		    &arc->pcta_samples) > pmcstat_threshold &&
+		    (arc->pcta_child->pct_flags & PMCPL_PCT_TAG) == 0) {
 			terminal = 0;
 			break;
 		}
+	}
 
 	if (ct->pct_narc == 0 || terminal) {
 		pmcpl_ct_topscreen[x+1][*y] = NULL;
@@ -609,6 +615,8 @@ pmcpl_ct_node_hash_lookup_pc(struct pmcpl_ct_node *parent,
 	 */
 	if ((sym = pmcstat_symbol_search(image, pc)) != NULL)
 		pc = sym->ps_start;
+	else
+		pmcstat_stats.ps_samples_unknown_function++;
 
 	for (hash = i = 0; i < (int)sizeof(uintfptr_t); i++)
 		hash += (pc >> i) & 0xFF;
@@ -896,10 +904,12 @@ pmcpl_ct_node_printchild(struct pmcpl_ct_node *ct)
 			/* Call address, line, sample. */
 			addr = ct->pct_image->pi_vaddr + ct->pct_func;
 			line = 0;
-			pmcstat_image_addr2line(ct->pct_image, addr, sourcefile,
+			if (pmcstat_image_addr2line(ct->pct_image, addr, sourcefile,
 			    sizeof(sourcefile), &line,
-			    funcname, sizeof(funcname));
-			fprintf(args.pa_graphfile, "%p %u", (void *)addr, line);
+			    funcname, sizeof(funcname)))
+				fprintf(args.pa_graphfile, "%p %u", (void *)addr, line);
+			else
+				fprintf(args.pa_graphfile, "* *");
 		}
 		else
 			fprintf(args.pa_graphfile, "* *");

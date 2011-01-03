@@ -60,6 +60,8 @@ static void ahci_intr(void *data);
 static void ahci_intr_one(void *data);
 static int ahci_suspend(device_t dev);
 static int ahci_resume(device_t dev);
+static int ahci_ch_init(device_t dev);
+static int ahci_ch_deinit(device_t dev);
 static int ahci_ch_suspend(device_t dev);
 static int ahci_ch_resume(device_t dev);
 static void ahci_ch_pm(void *arg);
@@ -149,14 +151,16 @@ static struct {
 	{0x3a058086, 0x00, "Intel ICH10",	0},
 	{0x3a228086, 0x00, "Intel ICH10",	0},
 	{0x3a258086, 0x00, "Intel ICH10",	0},
-	{0x3b228086, 0x00, "Intel PCH",		0},
-	{0x3b238086, 0x00, "Intel PCH",		0},
-	{0x3b248086, 0x00, "Intel PCH",		0},
-	{0x3b258086, 0x00, "Intel PCH",		0},
-	{0x3b298086, 0x00, "Intel PCH",		0},
-	{0x3b2b8086, 0x00, "Intel PCH",		0},
-	{0x3b2c8086, 0x00, "Intel PCH",		0},
-	{0x3b2f8086, 0x00, "Intel PCH",		0},
+	{0x3b228086, 0x00, "Intel 5 Series/3400 Series",	0},
+	{0x3b238086, 0x00, "Intel 5 Series/3400 Series",	0},
+	{0x3b258086, 0x00, "Intel 5 Series/3400 Series",	0},
+	{0x3b298086, 0x00, "Intel 5 Series/3400 Series",	0},
+	{0x3b2c8086, 0x00, "Intel 5 Series/3400 Series",	0},
+	{0x3b2f8086, 0x00, "Intel 5 Series/3400 Series",	0},
+	{0x1c028086, 0x00, "Intel Cougar Point",	0},
+	{0x1c038086, 0x00, "Intel Cougar Point",	0},
+	{0x1c048086, 0x00, "Intel Cougar Point",	0},
+	{0x1c058086, 0x00, "Intel Cougar Point",	0},
 	{0x2361197b, 0x00, "JMicron JMB361",	AHCI_Q_NOFORCE},
 	{0x2363197b, 0x00, "JMicron JMB363",	AHCI_Q_NOFORCE},
 	{0x2365197b, 0x00, "JMicron JMB365",	AHCI_Q_NOFORCE},
@@ -168,6 +172,10 @@ static struct {
 	{0x614511ab, 0x00, "Marvell 88SX6145",	AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
 	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES},
 	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2|AHCI_Q_NOBSYRES},
+	{0x06201103, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
+	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
+	{0x06221103, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
+	{0x06221b4b, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
 	{0x044c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
@@ -237,8 +245,8 @@ static struct {
 	{0x0d8d10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x0d8e10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x0d8f10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
-	{0x33491106, 0x00, "VIA VT8251",	0},
-	{0x62871106, 0x00, "VIA VT8251",	0},
+	{0x33491106, 0x00, "VIA VT8251",	AHCI_Q_NOPMP|AHCI_Q_NONCQ},
+	{0x62871106, 0x00, "VIA VT8251",	AHCI_Q_NOPMP|AHCI_Q_NONCQ},
 	{0x11841039, 0x00, "SiS 966",		0},
 	{0x11851039, 0x00, "SiS 968",		0},
 	{0x01861039, 0x00, "SiS 968",		0},
@@ -328,6 +336,8 @@ ahci_attach(device_t dev)
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
 	/* Setup our own memory management for channels. */
+	ctlr->sc_iomem.rm_start = rman_get_start(ctlr->r_mem);
+	ctlr->sc_iomem.rm_end = rman_get_end(ctlr->r_mem);
 	ctlr->sc_iomem.rm_type = RMAN_ARRAY;
 	ctlr->sc_iomem.rm_descr = "I/O memory addresses";
 	if ((error = rman_init(&ctlr->sc_iomem)) != 0) {
@@ -776,6 +786,16 @@ ahci_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
+static int
+ahci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 devclass_t ahci_devclass;
 static device_method_t ahci_methods[] = {
 	DEVMETHOD(device_probe,     ahci_probe),
@@ -788,6 +808,7 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	{ 0, 0 }
 };
 static driver_t ahci_driver = {
@@ -807,6 +828,7 @@ static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	{ 0, 0 }
 };
 static driver_t ahci_ata_driver = {
@@ -840,7 +862,7 @@ ahci_ch_attach(device_t dev)
 	ch->caps = ctlr->caps;
 	ch->caps2 = ctlr->caps2;
 	ch->quirks = ctlr->quirks;
-	ch->numslots = ((ch->caps & AHCI_CAP_NCS) >> AHCI_CAP_NCS_SHIFT) + 1,
+	ch->numslots = ((ch->caps & AHCI_CAP_NCS) >> AHCI_CAP_NCS_SHIFT) + 1;
 	mtx_init(&ch->mtx, "AHCI channel lock", NULL, MTX_DEF);
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
@@ -877,14 +899,14 @@ ahci_ch_attach(device_t dev)
 		return (ENXIO);
 	ahci_dmainit(dev);
 	ahci_slotsalloc(dev);
-	ahci_ch_resume(dev);
+	ahci_ch_init(dev);
 	mtx_lock(&ch->mtx);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &rid, RF_SHAREABLE | RF_ACTIVE))) {
-		bus_release_resource(dev, SYS_RES_MEMORY, ch->unit, ch->r_mem);
 		device_printf(dev, "Unable to map interrupt\n");
-		return (ENXIO);
+		error = ENXIO;
+		goto err0;
 	}
 	if ((bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS, NULL,
 	    ahci_ch_intr_locked, dev, &ch->ih))) {
@@ -918,9 +940,10 @@ ahci_ch_attach(device_t dev)
 	    (ch->caps & AHCI_CAP_SNCQ) ? ch->numslots : 0,
 	    devq);
 	if (ch->sim == NULL) {
+		cam_simq_free(devq);
 		device_printf(dev, "unable to allocate sim\n");
 		error = ENOMEM;
-		goto err2;
+		goto err1;
 	}
 	if (xpt_bus_register(ch->sim, dev, 0) != CAM_SUCCESS) {
 		device_printf(dev, "unable to register xpt bus\n");
@@ -947,8 +970,10 @@ err2:
 	cam_sim_free(ch->sim, /*free_devq*/TRUE);
 err1:
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
+err0:
 	bus_release_resource(dev, SYS_RES_MEMORY, ch->unit, ch->r_mem);
 	mtx_unlock(&ch->mtx);
+	mtx_destroy(&ch->mtx);
 	return (error);
 }
 
@@ -969,7 +994,7 @@ ahci_ch_detach(device_t dev)
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
-	ahci_ch_suspend(dev);
+	ahci_ch_deinit(dev);
 	ahci_slotsfree(dev);
 	ahci_dmafini(dev);
 
@@ -979,28 +1004,7 @@ ahci_ch_detach(device_t dev)
 }
 
 static int
-ahci_ch_suspend(device_t dev)
-{
-	struct ahci_channel *ch = device_get_softc(dev);
-
-	/* Disable port interrupts. */
-	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
-	/* Reset command register. */
-	ahci_stop(dev);
-	ahci_stop_fr(dev);
-	ATA_OUTL(ch->r_mem, AHCI_P_CMD, 0);
-	/* Allow everything, including partial and slumber modes. */
-	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, 0);
-	/* Request slumber mode transition and give some time to get there. */
-	ATA_OUTL(ch->r_mem, AHCI_P_CMD, AHCI_P_CMD_SLUMBER);
-	DELAY(100);
-	/* Disable PHY. */
-	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
-	return (0);
-}
-
-static int
-ahci_ch_resume(device_t dev)
+ahci_ch_init(device_t dev)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 	uint64_t work;
@@ -1021,6 +1025,54 @@ ahci_ch_resume(device_t dev)
 	     ((ch->pm_level > 2) ? AHCI_P_CMD_ASP : 0 )));
 	ahci_start_fr(dev);
 	ahci_start(dev, 1);
+	return (0);
+}
+
+static int
+ahci_ch_deinit(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	/* Disable port interrupts. */
+	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
+	/* Reset command register. */
+	ahci_stop(dev);
+	ahci_stop_fr(dev);
+	ATA_OUTL(ch->r_mem, AHCI_P_CMD, 0);
+	/* Allow everything, including partial and slumber modes. */
+	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, 0);
+	/* Request slumber mode transition and give some time to get there. */
+	ATA_OUTL(ch->r_mem, AHCI_P_CMD, AHCI_P_CMD_SLUMBER);
+	DELAY(100);
+	/* Disable PHY. */
+	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
+	return (0);
+}
+
+static int
+ahci_ch_suspend(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	xpt_freeze_simq(ch->sim, 1);
+	while (ch->oslots)
+		msleep(ch, &ch->mtx, PRIBIO, "ahcisusp", hz/100);
+	ahci_ch_deinit(dev);
+	mtx_unlock(&ch->mtx);
+	return (0);
+}
+
+static int
+ahci_ch_resume(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	ahci_ch_init(dev);
+	ahci_reset(dev);
+	xpt_release_simq(ch->sim, TRUE);
+	mtx_unlock(&ch->mtx);
 	return (0);
 }
 
@@ -1577,12 +1629,13 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	/* Setup the command list entry */
 	clp = (struct ahci_cmd_list *)
 	    (ch->dma.work + AHCI_CL_OFFSET + (AHCI_CL_SIZE * slot->slot));
-	clp->prd_length = slot->dma.nsegs;
-	clp->cmd_flags = (ccb->ccb_h.flags & CAM_DIR_OUT ? AHCI_CMD_WRITE : 0) |
-		     (ccb->ccb_h.func_code == XPT_SCSI_IO ?
-		      (AHCI_CMD_ATAPI | AHCI_CMD_PREFETCH) : 0) |
-		     (fis_size / sizeof(u_int32_t)) |
-		     (port << 12);
+	clp->cmd_flags = htole16(
+		    (ccb->ccb_h.flags & CAM_DIR_OUT ? AHCI_CMD_WRITE : 0) |
+		    (ccb->ccb_h.func_code == XPT_SCSI_IO ?
+		     (AHCI_CMD_ATAPI | AHCI_CMD_PREFETCH) : 0) |
+		    (fis_size / sizeof(u_int32_t)) |
+		    (port << 12));
+	clp->prd_length = htole16(slot->dma.nsegs);
 	/* Special handling for Soft Reset command. */
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL)) {
@@ -1602,7 +1655,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	clp->cmd_table_phys = htole64(ch->dma.work_bus + AHCI_CT_OFFSET +
 				  (AHCI_CT_SIZE * slot->slot));
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
-	    BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(ch->dma.rfis_tag, ch->dma.rfis_map,
 	    BUS_DMASYNC_PREREAD);
 	/* Set ACTIVE bit for NCQ commands. */
@@ -1807,9 +1860,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	device_t dev = slot->dev;
 	struct ahci_channel *ch = device_get_softc(dev);
 	union ccb *ccb = slot->ccb;
+	struct ahci_cmd_list *clp;
+	int lastto;
 
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
-	    BUS_DMASYNC_POSTWRITE);
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	clp = (struct ahci_cmd_list *)
+	    (ch->dma.work + AHCI_CL_OFFSET + (AHCI_CL_SIZE * slot->slot));
 	/* Read result registers to the result struct
 	 * May be incorrect if several commands finished same time,
 	 * so read only when sure or have to.
@@ -1844,6 +1901,16 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 			res->sector_count_exp = fis[13];
 		} else
 			bzero(res, sizeof(*res));
+		if ((ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) == 0 &&
+		    (ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+			ccb->ataio.resid =
+			    ccb->ataio.dxfer_len - le32toh(clp->bytecount);
+		}
+	} else {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+			ccb->csio.resid =
+			    ccb->csio.dxfer_len - le32toh(clp->bytecount);
+		}
 	}
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		bus_dmamap_sync(ch->dma.data_tag, slot->dma.data_map,
@@ -1908,11 +1975,6 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	ch->oslots &= ~(1 << slot->slot);
 	ch->rslots &= ~(1 << slot->slot);
 	ch->aslots &= ~(1 << slot->slot);
-	if (et != AHCI_ERR_TIMEOUT) {
-		if (ch->toslots == (1 << slot->slot))
-			xpt_release_simq(ch->sim, TRUE);
-		ch->toslots &= ~(1 << slot->slot);
-	}
 	slot->state = AHCI_SLOT_EMPTY;
 	slot->ccb = NULL;
 	/* Update channel stats. */
@@ -1922,6 +1984,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA)) {
 		ch->numtslots--;
 		ch->numtslotspd[ccb->ccb_h.target_id]--;
+	}
+	/* Cancel timeout state if request completed normally. */
+	if (et != AHCI_ERR_TIMEOUT) {
+		lastto = (ch->toslots == (1 << slot->slot));
+		ch->toslots &= ~(1 << slot->slot);
+		if (lastto)
+			xpt_release_simq(ch->sim, TRUE);
 	}
 	/* If it was first request of reset sequence and there is no error,
 	 * proceed to second request. */
@@ -2002,6 +2071,7 @@ ahci_issue_read_log(device_t dev)
 	ataio = &ccb->ataio;
 	ataio->data_ptr = malloc(512, M_AHCI, M_NOWAIT);
 	if (ataio->data_ptr == NULL) {
+		xpt_free_ccb(ccb);
 		device_printf(dev, "Unable allocate memory for READ LOG command");
 		return; /* XXX */
 	}
@@ -2413,7 +2483,7 @@ ahci_check_ids(device_t dev, union ccb *ccb)
 static void
 ahciaction(struct cam_sim *sim, union ccb *ccb)
 {
-	device_t dev;
+	device_t dev, parent;
 	struct ahci_channel *ch;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("ahciaction func_code=%x\n",
@@ -2553,6 +2623,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
+		parent = device_get_parent(dev);
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE;
 		if (ch->caps & AHCI_CAP_SNCQ)
@@ -2580,8 +2651,12 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->maxio = MAXPHYS;
 		/* ATI SB600 can't handle 256 sectors with FPDMA (NCQ). */
-		if (pci_get_devid(device_get_parent(dev)) == 0x43801002)
+		if (pci_get_devid(parent) == 0x43801002)
 			cpi->maxio = min(cpi->maxio, 128 * 512);
+		cpi->hba_vendor = pci_get_vendor(parent);
+		cpi->hba_device = pci_get_device(parent);
+		cpi->hba_subvendor = pci_get_subvendor(parent);
+		cpi->hba_subdevice = pci_get_subdevice(parent);
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}

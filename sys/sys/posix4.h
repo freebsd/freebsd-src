@@ -64,6 +64,7 @@ int p31b_proc(struct proc *, pid_t, struct proc **);
 void p31b_setcfg(int, int);
 int p31b_getcfg(int);
 int p31b_iscfg(int);
+void p31b_unsetcfg(int);
 
 #ifdef _KPOSIX_PRIORITY_SCHEDULING
 

@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 static struct {
 	bus_addr_t addr;
 	bus_size_t size;
+	int flags;
 } earlyboot_mappings[MAX_EARLYBOOT_MAPPINGS];
 static int earlyboot_map_idx = 0;
 
@@ -72,9 +73,11 @@ __ppc_ba(bus_space_handle_t bsh, bus_size_t ofs)
 }
 
 static int
-bs_gen_map(bus_addr_t addr, bus_size_t size __unused, int flags __unused,
+bs_gen_map(bus_addr_t addr, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
+	vm_memattr_t ma;
+
 	/*
 	 * Record what we did if we haven't enabled the MMU yet. We
 	 * will need to remap it as soon as the MMU comes up.
@@ -84,10 +87,20 @@ bs_gen_map(bus_addr_t addr, bus_size_t size __unused, int flags __unused,
 		    ("%s: too many early boot mapping requests", __func__));
 		earlyboot_mappings[earlyboot_map_idx].addr = addr;
 		earlyboot_mappings[earlyboot_map_idx].size = size;
+		earlyboot_mappings[earlyboot_map_idx].flags = flags;
 		earlyboot_map_idx++;
 		*bshp = addr;
 	} else {
-		*bshp = (bus_space_handle_t)pmap_mapdev(addr,size);
+		ma = VM_MEMATTR_DEFAULT;
+		switch (flags) {
+			case BUS_SPACE_MAP_CACHEABLE:
+				ma = VM_MEMATTR_CACHEABLE;
+				break;
+			case BUS_SPACE_MAP_PREFETCHABLE:
+				ma = VM_MEMATTR_PREFETCHABLE;
+				break;
+		}
+		*bshp = (bus_space_handle_t)pmap_mapdev_attr(addr, size, ma);
 	}
 
 	return (0);
@@ -98,16 +111,27 @@ bs_remap_earlyboot(void)
 {
 	int i;
 	vm_offset_t pa, spa;
-
-	if (hw_direct_map)
-		return;
+	vm_memattr_t ma;
 
 	for (i = 0; i < earlyboot_map_idx; i++) {
 		spa = earlyboot_mappings[i].addr;
+		if (pmap_dev_direct_mapped(spa, earlyboot_mappings[i].size)
+		    == 0)
+			continue;
+
+		ma = VM_MEMATTR_DEFAULT;
+		switch (earlyboot_mappings[i].flags) {
+			case BUS_SPACE_MAP_CACHEABLE:
+				ma = VM_MEMATTR_CACHEABLE;
+				break;
+			case BUS_SPACE_MAP_PREFETCHABLE:
+				ma = VM_MEMATTR_PREFETCHABLE;
+				break;
+		}
 
 		pa = trunc_page(spa);
 		while (pa < spa + earlyboot_mappings[i].size) {
-			pmap_kenter(pa,pa);
+			pmap_kenter_attr(pa, pa, ma);
 			pa += PAGE_SIZE;
 		}
 	}

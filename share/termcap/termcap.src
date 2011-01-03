@@ -4631,6 +4631,9 @@ rxvt-unicode|rxvt-unicode terminal (X Window System):\
 rxvt|rxvt terminal emulator (X Window System):\
 	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:tc=rxvt-mono:
 
+rxvt-256color|rxvt terminal emulator with 256 colors:\
+	:Co#256:AF=\E[38;5;%dm:AB=\E[48;5;%dm:tc=rxvt-unicode:
+
 # Termcap entry for Eterm, taken from the sources of Eterm-0.9.2
 Eterm|Eterm Terminal Emulator (X11 Window System):\
 	:am:bw:eo:km:mi:ms:xn:xo:\

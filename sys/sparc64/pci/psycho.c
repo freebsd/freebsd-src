@@ -159,7 +159,8 @@ static devclass_t psycho_devclass;
 
 DEFINE_CLASS_0(pcib, psycho_driver, psycho_methods,
     sizeof(struct psycho_softc));
-DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0);
+EARLY_DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 static SLIST_HEAD(, psycho_softc) psycho_softcs =
     SLIST_HEAD_INITIALIZER(psycho_softcs);
@@ -1046,7 +1047,7 @@ psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 	pintr = pin;
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
 	    &reg, sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    maskbuf))
+	    NULL, maskbuf))
 		return (mintr);
 	/*
 	 * If this is outside of the range for an intpin, it's likely a full

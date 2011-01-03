@@ -48,6 +48,7 @@ struct sockaddr;
 struct stat;
 struct kevent;
 struct kevent_copyops;
+struct ksiginfo;
 struct sendfile_args;
 struct thr_param;
 
@@ -192,7 +193,11 @@ int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
 int	kern_sigaction(struct thread *td, int sig, struct sigaction *act,
 	    struct sigaction *oact, int flags);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
+int	kern_sigprocmask(struct thread *td, int how,
+	    sigset_t *set, sigset_t *oset, int flags);
 int	kern_sigsuspend(struct thread *td, sigset_t mask);
+int	kern_sigtimedwait(struct thread *td, sigset_t waitset,
+	    struct ksiginfo *ksi, struct timespec *timeout);
 int	kern_stat(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct stat *sbp);
 int	kern_statat(struct thread *td, int flag, int fd, char *path,

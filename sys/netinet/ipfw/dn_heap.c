@@ -514,9 +514,12 @@ dn_ht_scan(struct dn_ht *ht, int (*fn)(void *, void *), void *arg)
 }
 
 /*
- * Similar to dn_ht_scan(), except thah the scan is performed only
+ * Similar to dn_ht_scan(), except that the scan is performed only
  * in the bucket 'bucket'. The function returns a correct bucket number if
- * the original is invalid
+ * the original is invalid.
+ * If the callback returns DNHT_SCAN_END, the function move the ht->ht[i]
+ * pointer to the last entry processed. Moreover, the bucket number passed
+ * by caller is decremented, because usually the caller increment it.
  */
 int
 dn_ht_scan_bucket(struct dn_ht *ht, int *bucket, int (*fn)(void *, void *),
@@ -547,4 +550,3 @@ dn_ht_scan_bucket(struct dn_ht *ht, int *bucket, int (*fn)(void *, void *),
 	}
 	return found;
 }
-

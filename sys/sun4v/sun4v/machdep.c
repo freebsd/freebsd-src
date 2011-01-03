@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
@@ -268,9 +269,10 @@ spinlock_enter(void)
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
 		pil = intr_disable();
+		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_pil = pil;
-	}
-	td->td_md.md_spinlock_count++;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -278,14 +280,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t pil;
 
 	td = curthread;
 	critical_exit();
+	pil = td->td_md.md_saved_pil;
 	td->td_md.md_spinlock_count--;
-	if (td->td_md.md_spinlock_count == 0) {
-		intr_restore(td->td_md.md_saved_pil);
-	}
-
+	if (td->td_md.md_spinlock_count == 0)
+		intr_restore(pil);
 }
 
 unsigned

@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -123,8 +123,7 @@ struct vdev {
 	vdev_t		*vdev_parent;	/* parent vdev			*/
 	vdev_t		**vdev_child;	/* array of children		*/
 	uint64_t	vdev_children;	/* number of children		*/
-	space_map_t	vdev_dtl_map;	/* dirty time log in-core state	*/
-	space_map_t	vdev_dtl_scrub;	/* DTL for scrub repair writes	*/
+	space_map_t	vdev_dtl[DTL_TYPES]; /* in-core dirty time logs	*/
 	vdev_stat_t	vdev_stat;	/* virtual device statistics	*/
 
 	/*
@@ -149,7 +148,7 @@ struct vdev {
 	 * Leaf vdev state.
 	 */
 	uint64_t	vdev_psize;	/* physical device capacity	*/
-	space_map_obj_t	vdev_dtl;	/* dirty time log on-disk state	*/
+	space_map_obj_t	vdev_dtl_smo;	/* dirty time log space map obj	*/
 	txg_node_t	vdev_dtl_node;	/* per-txg dirty DTL linkage	*/
 	uint64_t	vdev_wholedisk;	/* true if this is a whole disk */
 	uint64_t	vdev_offline;	/* persistent offline state	*/
@@ -160,6 +159,7 @@ struct vdev {
 	char		*vdev_path;	/* vdev path (if any)		*/
 	char		*vdev_devid;	/* vdev devid (if any)		*/
 	char		*vdev_physpath;	/* vdev device path (if any)	*/
+	char		*vdev_fru;	/* physical FRU location	*/
 	uint64_t	vdev_not_present; /* not present during import	*/
 	uint64_t	vdev_unspare;	/* unspare when resilvering done */
 	hrtime_t	vdev_last_try;	/* last reopen time		*/
@@ -189,8 +189,9 @@ struct vdev {
 	kmutex_t	vdev_probe_lock; /* protects vdev_probe_zio	*/
 };
 
-#define	VDEV_SKIP_SIZE		(8 << 10)
-#define	VDEV_BOOT_HEADER_SIZE	(8 << 10)
+#define	VDEV_PAD_SIZE		(8 << 10)
+/* 2 padding areas (vl_pad1 and vl_pad2) to skip */
+#define	VDEV_SKIP_SIZE		VDEV_PAD_SIZE * 2
 #define	VDEV_PHYS_SIZE		(112 << 10)
 #define	VDEV_UBERBLOCK_RING	(128 << 10)
 
@@ -202,26 +203,14 @@ struct vdev {
 	offsetof(vdev_label_t, vl_uberblock[(n) << VDEV_UBERBLOCK_SHIFT(vd)])
 #define	VDEV_UBERBLOCK_SIZE(vd)		(1ULL << VDEV_UBERBLOCK_SHIFT(vd))
 
-/* ZFS boot block */
-#define	VDEV_BOOT_MAGIC		0x2f5b007b10cULL
-#define	VDEV_BOOT_VERSION	1		/* version number	*/
-
-typedef struct vdev_boot_header {
-	uint64_t	vb_magic;		/* VDEV_BOOT_MAGIC	*/
-	uint64_t	vb_version;		/* VDEV_BOOT_VERSION	*/
-	uint64_t	vb_offset;		/* start offset	(bytes) */
-	uint64_t	vb_size;		/* size (bytes)		*/
-	char		vb_pad[VDEV_BOOT_HEADER_SIZE - 4 * sizeof (uint64_t)];
-} vdev_boot_header_t;
-
 typedef struct vdev_phys {
 	char		vp_nvlist[VDEV_PHYS_SIZE - sizeof (zio_block_tail_t)];
 	zio_block_tail_t vp_zbt;
 } vdev_phys_t;
 
 typedef struct vdev_label {
-	char		vl_pad[VDEV_SKIP_SIZE];			/*   8K	*/
-	vdev_boot_header_t vl_boot_header;			/*   8K	*/
+	char		vl_pad1[VDEV_PAD_SIZE];			/*  8K */
+	char		vl_pad2[VDEV_PAD_SIZE];			/*  8K */
 	vdev_phys_t	vl_vdev_phys;				/* 112K	*/
 	char		vl_uberblock[VDEV_UBERBLOCK_RING];	/* 128K	*/
 } vdev_label_t;							/* 256K total */
@@ -270,6 +259,7 @@ extern void vdev_remove_parent(vdev_t *cvd);
 /*
  * vdev sync load and sync
  */
+extern void vdev_load_log_state(vdev_t *vd, nvlist_t *nv);
 extern void vdev_load(vdev_t *vd);
 extern void vdev_sync(vdev_t *vd, uint64_t txg);
 extern void vdev_sync_done(vdev_t *vd, uint64_t txg);

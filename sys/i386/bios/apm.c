@@ -1389,6 +1389,23 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			return (EPERM);
 		/* XXX compatibility with the old interface */
 		args = (struct apm_bios_arg *)addr;
+#ifdef PC98
+		if (((args->eax >> 8) & 0xff) == 0x53) {
+			sc->bios.r.eax = args->eax & ~0xffff;
+			sc->bios.r.eax |= APM_BIOS << 8;
+			switch (args->eax & 0xff) {
+			case 0x0a:
+				sc->bios.r.eax |= APM_GETPWSTATUS;
+				break;
+			case 0x0e:
+				sc->bios.r.eax |= APM_DRVVERSION;
+				break;
+			default:
+				sc->bios.r.eax |= args->eax & 0xff;
+				break;
+			}
+		} else
+#endif
 		sc->bios.r.eax = args->eax;
 		sc->bios.r.ebx = args->ebx;
 		sc->bios.r.ecx = args->ecx;

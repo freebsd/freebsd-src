@@ -46,12 +46,17 @@
 #define	KERNEL_SR	13
 #define	KERNEL2_SR	14
 #define	KERNEL3_SR	15
-#define	KERNEL_VSIDBITS	0xfffff
+#define	KERNEL_VSIDBITS	0xfffffUL
 #define	KERNEL_SEGMENT	(0xfffff0 + KERNEL_SR)
 #define	KERNEL2_SEGMENT	(0xfffff0 + KERNEL2_SR)
 #define	EMPTY_SEGMENT	0xfffff0
-#define	USER_ADDR	((void *)(USER_SR << ADDR_SR_SHFT))
-#define	SEGMENT_LENGTH	0x10000000
-#define	SEGMENT_MASK	0xf0000000
+#ifdef __powerpc64__
+#define	USER_ADDR	0xcffffffff0000000UL
+#else
+#define	USER_ADDR	((uintptr_t)USER_SR << ADDR_SR_SHFT)
+#endif
+#define	SEGMENT_LENGTH	0x10000000UL
+#define	SEGMENT_INVMASK	0x0fffffffUL
+#define	SEGMENT_MASK	~SEGMENT_INVMASK
 
 #endif /* !_MACHINE_SR_H_ */

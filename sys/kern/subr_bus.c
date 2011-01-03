@@ -120,18 +120,17 @@ struct device {
 	char*		desc;		/**< driver specific description */
 	int		busy;		/**< count of calls to device_busy() */
 	device_state_t	state;		/**< current device state  */
-	u_int32_t	devflags;	/**< api level flags for device_get_flags() */
-	u_short		flags;		/**< internal device flags  */
-#define	DF_ENABLED	1		/* device should be probed/attached */
-#define	DF_FIXEDCLASS	2		/* devclass specified at create time */
-#define	DF_WILDCARD	4		/* unit was originally wildcard */
-#define	DF_DESCMALLOCED	8		/* description was malloced */
-#define	DF_QUIET	16		/* don't print verbose attach message */
-#define	DF_DONENOMATCH	32		/* don't execute DEVICE_NOMATCH again */
-#define	DF_EXTERNALSOFTC 64		/* softc not allocated by us */
-#define	DF_REBID	128		/* Can rebid after attach */
-	u_char	order;			/**< order from device_add_child_ordered() */
-	u_char	pad;
+	uint32_t	devflags;	/**< api level flags for device_get_flags() */
+	u_int		flags;		/**< internal device flags  */
+#define	DF_ENABLED	0x01		/* device should be probed/attached */
+#define	DF_FIXEDCLASS	0x02		/* devclass specified at create time */
+#define	DF_WILDCARD	0x04		/* unit was originally wildcard */
+#define	DF_DESCMALLOCED	0x08		/* description was malloced */
+#define	DF_QUIET	0x10		/* don't print verbose attach message */
+#define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
+#define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
+#define	DF_REBID	0x80		/* Can rebid after attach */
+	u_int	order;			/**< order from device_add_child_ordered() */
 	void	*ivars;			/**< instance variables  */
 	void	*softc;			/**< current driver's variables  */
 
@@ -539,7 +538,7 @@ devctl_process_running(void)
  * that @p data is allocated using the M_BUS malloc type.
  */
 void
-devctl_queue_data(char *data)
+devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
 	struct proc *p;
@@ -548,7 +547,7 @@ devctl_queue_data(char *data)
 		goto out;
 	if (devctl_queue_length == 0)
 		goto out;
-	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
+	n1 = malloc(sizeof(*n1), M_BUS, flags);
 	if (n1 == NULL)
 		goto out;
 	n1->dei_data = data;
@@ -588,12 +587,19 @@ out:
 	return;
 }
 
+void
+devctl_queue_data(char *data)
+{
+
+	devctl_queue_data_f(data, M_NOWAIT);
+}
+
 /**
  * @brief Send a 'notification' to userland, using standard ways
  */
 void
-devctl_notify(const char *system, const char *subsystem, const char *type,
-    const char *data)
+devctl_notify_f(const char *system, const char *subsystem, const char *type,
+    const char *data, int flags)
 {
 	int len = 0;
 	char *msg;
@@ -611,7 +617,7 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 	if (data != NULL)
 		len += strlen(data);
 	len += 3;	/* '!', '\n', and NUL */
-	msg = malloc(len, M_BUS, M_NOWAIT);
+	msg = malloc(len, M_BUS, flags);
 	if (msg == NULL)
 		return;		/* Drop it on the floor */
 	if (data != NULL)
@@ -620,7 +626,15 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 	else
 		snprintf(msg, len, "!system=%s subsystem=%s type=%s\n",
 		    system, subsystem, type);
-	devctl_queue_data(msg);
+	devctl_queue_data_f(msg, flags);
+}
+
+void
+devctl_notify(const char *system, const char *subsystem, const char *type,
+    const char *data)
+{
+
+	devctl_notify_f(system, subsystem, type, data, M_NOWAIT);
 }
 
 /*
@@ -694,25 +708,7 @@ bad:
 static void
 devadded(device_t dev)
 {
-	char *pnp = NULL;
-	char *tmp = NULL;
-
-	pnp = malloc(1024, M_BUS, M_NOWAIT);
-	if (pnp == NULL)
-		goto fail;
-	tmp = malloc(1024, M_BUS, M_NOWAIT);
-	if (tmp == NULL)
-		goto fail;
-	*pnp = '\0';
-	bus_child_pnpinfo_str(dev, pnp, 1024);
-	snprintf(tmp, 1024, "%s %s", device_get_nameunit(dev), pnp);
-	devaddq("+", tmp, dev);
-fail:
-	if (pnp != NULL)
-		free(pnp, M_BUS);
-	if (tmp != NULL)
-		free(tmp, M_BUS);
-	return;
+	devaddq("+", device_get_nameunit(dev), dev);
 }
 
 /*
@@ -722,25 +718,7 @@ fail:
 static void
 devremoved(device_t dev)
 {
-	char *pnp = NULL;
-	char *tmp = NULL;
-
-	pnp = malloc(1024, M_BUS, M_NOWAIT);
-	if (pnp == NULL)
-		goto fail;
-	tmp = malloc(1024, M_BUS, M_NOWAIT);
-	if (tmp == NULL)
-		goto fail;
-	*pnp = '\0';
-	bus_child_pnpinfo_str(dev, pnp, 1024);
-	snprintf(tmp, 1024, "%s %s", device_get_nameunit(dev), pnp);
-	devaddq("-", tmp, dev);
-fail:
-	if (pnp != NULL)
-		free(pnp, M_BUS);
-	if (tmp != NULL)
-		free(tmp, M_BUS);
-	return;
+	devaddq("-", device_get_nameunit(dev), dev);
 }
 
 /*
@@ -1166,6 +1144,9 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 				if ((error = device_detach(dev)) != 0)
 					return (error);
 				device_set_driver(dev, NULL);
+				BUS_PROBE_NOMATCH(dev->parent, dev);
+				devnomatch(dev);
+				dev->flags |= DF_DONENOMATCH;
 			}
 		}
 	}
@@ -1772,12 +1753,12 @@ device_add_child(device_t dev, const char *name, int unit)
  * @returns		the new device
  */
 device_t
-device_add_child_ordered(device_t dev, int order, const char *name, int unit)
+device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	device_t place;
 
-	PDEBUG(("%s at %s with order %d as unit %d",
+	PDEBUG(("%s at %s with order %u as unit %d",
 	    name, DEVICENAME(dev), order, unit));
 
 	child = make_device(dev, name, unit);
@@ -2189,7 +2170,7 @@ device_get_desc(device_t dev)
 /**
  * @brief Return the device's flags
  */
-u_int32_t
+uint32_t
 device_get_flags(device_t dev)
 {
 	return (dev->devflags);
@@ -2297,7 +2278,7 @@ device_set_desc_copy(device_t dev, const char* desc)
  * @brief Set the device's flags
  */
 void
-device_set_flags(device_t dev, u_int32_t flags)
+device_set_flags(device_t dev, uint32_t flags)
 {
 	dev->devflags = flags;
 }
@@ -2660,6 +2641,7 @@ device_attach(device_t dev)
 	}
 	device_sysctl_update(dev);
 	dev->state = DS_ATTACHED;
+	dev->flags &= ~DF_DONENOMATCH;
 	devadded(dev);
 	return (0);
 }
@@ -2913,6 +2895,30 @@ resource_list_busy(struct resource_list *rl, int type, int rid)
 		return (0);
 	}
 	return (1);
+}
+
+/**
+ * @brief Determine if a resource entry is reserved.
+ *
+ * Returns true if a resource entry is reserved meaning that it has an
+ * associated "reserved" resource.  The resource can either be
+ * allocated or unallocated.
+ *
+ * @param rl		the resource list to search
+ * @param type		the resource entry type (e.g. SYS_RES_MEMORY)
+ * @param rid		the resource identifier
+ *
+ * @returns Non-zero if the entry is reserved, zero otherwise.
+ */
+int
+resource_list_reserved(struct resource_list *rl, int type, int rid)
+{
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(rl, type, rid);
+	if (rle != NULL && rle->flags & RLE_RESERVED)
+		return (1);
+	return (0);
 }
 
 /**
@@ -3266,7 +3272,7 @@ resource_list_purge(struct resource_list *rl)
 }
 
 device_t
-bus_generic_add_child(device_t dev, int order, const char *name, int unit)
+bus_generic_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 
 	return (device_add_child_ordered(dev, order, name, unit));
@@ -3297,7 +3303,7 @@ bus_generic_probe(device_t dev)
 		 * on early-pass busses during BUS_NEW_PASS().
 		 */
 		if (dl->pass > bus_current_pass)
-				continue;
+			continue;
 		DEVICE_IDENTIFY(dl->driver, dev);
 	}
 
@@ -3980,15 +3986,6 @@ bus_setup_intr(device_t dev, struct resource *r, int flags,
 		return (error);
 	if (handler != NULL && !(flags & INTR_MPSAFE))
 		device_printf(dev, "[GIANT-LOCKED]\n");
-	if (bootverbose && (flags & INTR_MPSAFE))
-		device_printf(dev, "[MPSAFE]\n");
-	if (filter != NULL) {
-		if (handler == NULL)
-			device_printf(dev, "[FILTER]\n");
-		else 
-			device_printf(dev, "[FILTER+ITHREAD]\n");
-	} else 
-		device_printf(dev, "[ITHREAD]\n");
 	return (0);
 }
 

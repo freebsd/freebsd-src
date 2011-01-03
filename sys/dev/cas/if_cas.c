@@ -176,7 +176,7 @@ MODULE_DEPEND(cas, miibus, 1, 1, 1);
 
 #ifdef CAS_DEBUG
 #include <sys/ktr.h>
-#define	KTR_CAS		KTR_CT2
+#define	KTR_CAS		KTR_SPARE2
 #endif
 
 static int
@@ -344,13 +344,9 @@ cas_attach(struct cas_softc *sc)
 				    BUS_SPACE_BARRIER_READ |
 				    BUS_SPACE_BARRIER_WRITE);
 			}
-			switch (sc->sc_variant) {
-			default:
-				sc->sc_phyad = -1;
-				break;
-			}
-			error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-			    cas_mediachange, cas_mediastatus);
+			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
+			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
+			    MII_PHY_ANY, MII_OFFSET_ANY, MIIF_DOPAUSE);
 		}
 		/*
 		 * Fall back on an internal PHY if no external PHY was found.
@@ -368,13 +364,9 @@ cas_attach(struct cas_softc *sc)
 				    BUS_SPACE_BARRIER_READ |
 				    BUS_SPACE_BARRIER_WRITE);
 			}
-			switch (sc->sc_variant) {
-			default:
-				sc->sc_phyad = -1;
-				break;
-			}
-			error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-			    cas_mediachange, cas_mediastatus);
+			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
+			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
+			    MII_PHY_ANY, MII_OFFSET_ANY, MIIF_DOPAUSE);
 		}
 	} else {
 		/*
@@ -394,12 +386,12 @@ cas_attach(struct cas_softc *sc)
 		CAS_WRITE_4(sc, CAS_PCS_CONF, CAS_PCS_CONF_EN);
 		CAS_BARRIER(sc, CAS_PCS_CONF, 4,
 		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-		sc->sc_phyad = CAS_PHYAD_EXTERNAL;
-		error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-		    cas_mediachange, cas_mediastatus);
+		error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
+		    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
+		    CAS_PHYAD_EXTERNAL, MII_OFFSET_ANY, MIIF_DOPAUSE);
 	}
 	if (error != 0) {
-		device_printf(sc->sc_dev, "PHY probe failed: %d\n", error);
+		device_printf(sc->sc_dev, "attaching PHYs failed\n");
 		goto fail_rxmap;
 	}
 	sc->sc_mii = device_get_softc(sc->sc_miibus);
@@ -1101,8 +1093,7 @@ cas_init_locked(struct cas_softc *sc)
 
 	/* Set the PAUSE thresholds.  We use the maximum OFF threshold. */
 	CAS_WRITE_4(sc, CAS_RX_PTHRS,
-	    ((111 * 64) << CAS_RX_PTHRS_XOFF_SHFT) |
-	    ((15 * 64) << CAS_RX_PTHRS_XON_SHFT));
+	    (111 << CAS_RX_PTHRS_XOFF_SHFT) | (15 << CAS_RX_PTHRS_XON_SHFT));
 
 	/* RX blanking */
 	CAS_WRITE_4(sc, CAS_RX_BLANK,
@@ -1347,7 +1338,7 @@ cas_init_regs(struct cas_softc *sc)
 		CAS_WRITE_4(sc, CAS_MAC_PREAMBLE_LEN, 0x7);
 		CAS_WRITE_4(sc, CAS_MAC_JAM_SIZE, 0x4);
 		CAS_WRITE_4(sc, CAS_MAC_ATTEMPT_LIMIT, 0x10);
-		CAS_WRITE_4(sc, CAS_MAC_CTRL_TYPE, 0x8088);
+		CAS_WRITE_4(sc, CAS_MAC_CTRL_TYPE, 0x8808);
 
 		/* random number seed */
 		CAS_WRITE_4(sc, CAS_MAC_RANDOM_SEED,
@@ -1580,11 +1571,11 @@ cas_tint(struct cas_softc *sc)
 	}
 
 #ifdef CAS_DEBUG
-	CTR4(KTR_CAS, "%s: CAS_TX_STATE_MACHINE %x CAS_TX_DESC_BASE %llx "
+	CTR5(KTR_CAS, "%s: CAS_TX_SM1 %x CAS_TX_SM2 %x CAS_TX_DESC_BASE %llx "
 	    "CAS_TX_COMP3 %x",
-	    __func__, CAS_READ_4(sc, CAS_TX_STATE_MACHINE),
-	    ((long long)CAS_READ_4(sc, CAS_TX_DESC_BASE_HI3) << 32) |
-	    CAS_READ_4(sc, CAS_TX_DESC_BASE_LO3),
+	    __func__, CAS_READ_4(sc, CAS_TX_SM1), CAS_READ_4(sc, CAS_TX_SM2),
+	    ((long long)CAS_READ_4(sc, CAS_TX_DESC3_BASE_HI) << 32) |
+	    CAS_READ_4(sc, CAS_TX_DESC3_BASE_LO),
 	    CAS_READ_4(sc, CAS_TX_COMP3));
 #endif
 
@@ -1646,7 +1637,7 @@ cas_rint(struct cas_softc *sc)
 	rxhead = CAS_READ_4(sc, CAS_RX_COMP_HEAD);
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS, "%s: sc->sc_rxcptr %d, sc->sc_rxdptr %d, head %d",
-	    __func__, sc->rxcptr, sc->sc_rxdptr, rxhead);
+	    __func__, sc->sc_rxcptr, sc->sc_rxdptr, rxhead);
 #endif
 	skip = 0;
 	CAS_CDSYNC(sc, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -1787,6 +1778,7 @@ cas_rint(struct cas_softc *sc)
 				}
 			}
 			idx2 = 0;
+			m2 = NULL;
 			rxds2 = NULL;
 			if ((word1 & CAS_RC1_SPLIT_PKT) != 0) {
 				KASSERT((word1 & CAS_RC1_RELEASE_NEXT) != 0,
@@ -1799,32 +1791,39 @@ cas_rint(struct cas_softc *sc)
 				    __func__, idx2);
 #endif
 				rxds2 = &sc->sc_rxdsoft[idx2];
-				MGET(m2, M_DONTWAIT, MT_DATA);
-				if (m2 != NULL) {
-					refcount_acquire(
-					    &rxds2->rxds_refcount);
-					m2->m_len = len - m->m_len;
-					bus_dmamap_sync(sc->sc_rdmatag,
-					    rxds2->rxds_dmamap,
-					    BUS_DMASYNC_POSTREAD);
+				if (m != NULL) {
+					MGET(m2, M_DONTWAIT, MT_DATA);
+					if (m2 != NULL) {
+						refcount_acquire(
+						    &rxds2->rxds_refcount);
+						m2->m_len = len - m->m_len;
+						bus_dmamap_sync(
+						    sc->sc_rdmatag,
+						    rxds2->rxds_dmamap,
+						    BUS_DMASYNC_POSTREAD);
 #if __FreeBSD_version < 800016
-					MEXTADD(m2, (caddr_t)rxds2->rxds_buf,
-					    m2->m_len, cas_free, rxds2,
-					    M_RDONLY, EXT_NET_DRV);
+						MEXTADD(m2,
+						    (caddr_t)rxds2->rxds_buf,
+						    m2->m_len, cas_free,
+						    rxds2, M_RDONLY,
+						    EXT_NET_DRV);
 #else
-					MEXTADD(m2, (caddr_t)rxds2->rxds_buf,
-					    m2->m_len, cas_free,
-					    sc, (void *)(uintptr_t)idx2,
-					    M_RDONLY, EXT_NET_DRV);
+						MEXTADD(m2,
+						    (caddr_t)rxds2->rxds_buf,
+						    m2->m_len, cas_free, sc,
+						    (void *)(uintptr_t)idx2,
+						    M_RDONLY, EXT_NET_DRV);
 #endif
-					if ((m2->m_flags & M_EXT) == 0) {
-						m_freem(m2);
-						m2 = NULL;
+						if ((m2->m_flags & M_EXT) ==
+						    0) {
+							m_freem(m2);
+							m2 = NULL;
+						}
 					}
 				}
 				if (m2 != NULL)
 					m->m_next = m2;
-				else {
+				else if (m != NULL) {
 					m_freem(m);
 					m = NULL;
 				}
@@ -1865,7 +1864,7 @@ cas_rint(struct cas_softc *sc)
 
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS, "%s: done sc->sc_rxcptr %d, sc->sc_rxdptr %d, head %d",
-	    __func__, sc->rxcptr, sc->sc_rxdptr,
+	    __func__, sc->sc_rxcptr, sc->sc_rxdptr,
 	    CAS_READ_4(sc, CAS_RX_COMP_HEAD));
 #endif
 }
@@ -1988,7 +1987,7 @@ cas_intr_task(void *arg, int pending __unused)
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS, "%s: %s: cplt %x, status %x",
 	    device_get_name(sc->sc_dev), __func__,
-	    (status >> CAS_STATUS_TX_COMP3_SHIFT), (u_int)status);
+	    (status >> CAS_STATUS_TX_COMP3_SHFT), (u_int)status);
 
 	/*
 	 * PCS interrupts must be cleared, otherwise no traffic is passed!
@@ -2100,15 +2099,15 @@ cas_watchdog(struct cas_softc *sc)
 
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS,
-	    "%s: CAS_RX_CONFIG %x CAS_MAC_RX_STATUS %x CAS_MAC_RX_CONFIG %x",
-	    __func__, CAS_READ_4(sc, CAS_RX_CONFIG),
+	    "%s: CAS_RX_CONF %x CAS_MAC_RX_STATUS %x CAS_MAC_RX_CONF %x",
+	    __func__, CAS_READ_4(sc, CAS_RX_CONF),
 	    CAS_READ_4(sc, CAS_MAC_RX_STATUS),
-	    CAS_READ_4(sc, CAS_MAC_RX_CONFIG));
+	    CAS_READ_4(sc, CAS_MAC_RX_CONF));
 	CTR4(KTR_CAS,
-	    "%s: CAS_TX_CONFIG %x CAS_MAC_TX_STATUS %x CAS_MAC_TX_CONFIG %x",
-	    __func__, CAS_READ_4(sc, CAS_TX_CONFIG),
+	    "%s: CAS_TX_CONF %x CAS_MAC_TX_STATUS %x CAS_MAC_TX_CONF %x",
+	    __func__, CAS_READ_4(sc, CAS_TX_CONF),
 	    CAS_READ_4(sc, CAS_MAC_TX_STATUS),
-	    CAS_READ_4(sc, CAS_MAC_TX_CONFIG));
+	    CAS_READ_4(sc, CAS_MAC_TX_CONF));
 #endif
 
 	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0)
@@ -2164,9 +2163,6 @@ cas_mii_readreg(device_t dev, int phy, int reg)
 #endif
 
 	sc = device_get_softc(dev);
-	if (sc->sc_phyad != -1 && phy != sc->sc_phyad)
-		return (0);
-
 	if ((sc->sc_flags & CAS_SERDES) != 0) {
 		switch (reg) {
 		case MII_BMCR:
@@ -2225,9 +2221,6 @@ cas_mii_writereg(device_t dev, int phy, int reg, int val)
 #endif
 
 	sc = device_get_softc(dev);
-	if (sc->sc_phyad != -1 && phy != sc->sc_phyad)
-		return (0);
-
 	if ((sc->sc_flags & CAS_SERDES) != 0) {
 		switch (reg) {
 		case MII_BMSR:
@@ -2310,8 +2303,7 @@ cas_mii_statchg(device_t dev)
 
 #ifdef CAS_DEBUG
 	if ((ifp->if_flags & IFF_DEBUG) != 0)
-		device_printf(sc->sc_dev, "%s: status change: PHY = %d\n",
-		    __func__, sc->sc_phyad);
+		device_printf(sc->sc_dev, "%s: status changen", __func__);
 #endif
 
 	if ((sc->sc_mii->mii_media_status & IFM_ACTIVE) != 0 &&
@@ -2363,14 +2355,12 @@ cas_mii_statchg(device_t dev)
 
 	v = CAS_READ_4(sc, CAS_MAC_CTRL_CONF) &
 	    ~(CAS_MAC_CTRL_CONF_TXP | CAS_MAC_CTRL_CONF_RXP);
-#ifdef notyet
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) &
 	    IFM_ETH_RXPAUSE) != 0)
 		v |= CAS_MAC_CTRL_CONF_RXP;
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) &
 	    IFM_ETH_TXPAUSE) != 0)
 		v |= CAS_MAC_CTRL_CONF_TXP;
-#endif
 	CAS_WRITE_4(sc, CAS_MAC_CTRL_CONF, v);
 
 	/*

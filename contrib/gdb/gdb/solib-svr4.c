@@ -94,6 +94,7 @@ static char *solib_break_names[] =
      into the data section (thus skipping the descriptor's symbol),
      and eventually try this one, giving us the real entry point
      address.  */
+  ".r_debug_state",
   "._dl_debug_state",
 
   NULL

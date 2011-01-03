@@ -24,8 +24,8 @@
 .\" $FreeBSD$
 .\"
 .Dd December 23, 2009
-.Os
 .Dt PMC.XSCALE 3
+.Os
 .Sh NAME
 .Nm pmc.xscale
 .Nd measurement events for
@@ -107,7 +107,7 @@ Multiplier stalled the instruction pipeline.
 .It Li DATA_CACHE_STALLED
 Data cache stalled the instruction pipeline.
 .It Li L2_CACHE_REQ
-L2 cache request, not inclusing cache operations.
+L2 cache request, not including cache operations.
 .It Li L2_CACHE_MISS
 L2 cache miss, not including cache operations.
 .It Li ADDRESS_BUS_TRANS
@@ -135,8 +135,6 @@ and the underlying hardware events used.
 .Xr pmc_cpuinfo 3 ,
 .Xr pmclog 3 ,
 .Xr hwpmc 4
-.Sh CAVEATS
-The Intel XScale code does not yet support sampling.
 .Sh HISTORY
 The
 .Nm pmc
@@ -154,3 +152,5 @@ library was written by
 Intel XScale support was added by
 .An "Rui Paulo"
 .Aq rpaulo@FreeBSD.org .
+.Sh CAVEATS
+The Intel XScale code does not yet support sampling.

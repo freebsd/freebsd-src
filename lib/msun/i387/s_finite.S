@@ -34,8 +34,7 @@
  */
 
 #include <machine/asm.h>
-
-RCSID("$FreeBSD$")
+__FBSDID("$FreeBSD$")
 
 ENTRY(finite)
 	movl	8(%esp),%eax

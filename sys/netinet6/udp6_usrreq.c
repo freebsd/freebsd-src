@@ -1079,7 +1079,9 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 	mac_inpcb_create_mbuf(inp, m);
 #endif
 	error = udp6_output(inp, m, addr, control, td);
+#ifdef INET
 out:
+#endif	
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_udbinfo);
 	return (error);

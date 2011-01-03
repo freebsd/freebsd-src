@@ -198,7 +198,7 @@ ifconfig wlan0 create wlandev ath0 wlanmode tdma \e
 The Atheros Hardware Access Layer was unable to configure the hardware
 as requested.
 The status code is explained in the HAL include file
-.Pa sys/contrib/dev/ath/ah.h .
+.Pa sys/dev/ath/ath_hal/ah.h .
 .It "ath%d: failed to allocate descriptors: %d"
 The driver was unable to allocate contiguous memory for the transmit
 and receive descriptors.
@@ -227,7 +227,7 @@ The driver will reset the hardware and continue.
 The Atheros Hardware Access Layer was unable to reset the hardware
 as requested.
 The status code is explained in the HAL include file
-.Pa sys/contrib/dev/ath/ah.h .
+.Pa sys/dev/ath/ath_hal/ah.h .
 This should not happen.
 .It "ath%d: unable to start recv logic"
 The driver was unable to restart frame reception.

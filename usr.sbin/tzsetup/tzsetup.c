@@ -204,7 +204,7 @@ read_iso3166_table(void)
 
 	fp = fopen(path_iso3166, "r");
 	if (!fp)
-		err(1, path_iso3166);
+		err(1, "%s", path_iso3166);
 	lineno = 0;
 
 	while ((s = fgetln(fp, &len)) != 0) {
@@ -343,7 +343,7 @@ read_zones(void)
 
 	fp = fopen(path_zonetab, "r");
 	if (!fp)
-		err(1, path_zonetab);
+		err(1, "%s", path_zonetab);
 	lineno = 0;
 
 	while ((line = fgetln(fp, &len)) != 0) {
@@ -358,7 +358,7 @@ read_zones(void)
 		if (strlen(tlc) != 2)
 			errx(1, "%s:%d: invalid country code `%s'",
 			    path_zonetab, lineno, tlc);
-		coord = strsep(&line, "\t");
+		coord = strsep(&line, "\t");	 /* Unused */
 		file = strsep(&line, "\t");
 		p = strchr(file, '/');
 		if (p == 0)
@@ -564,7 +564,8 @@ install_zoneinfo_file(const char *zoneinfo_file)
 			}
 
 			while ((len = read(fd1, buf, sizeof(buf))) > 0)
-				len = write(fd2, buf, len);
+				if ((len = write(fd2, buf, len)) < 0)
+					break;
 
 			if (len == -1) {
 				snprintf(title, sizeof(title), "Error");
@@ -820,16 +821,16 @@ main(int argc, char **argv)
 		    "or you don't know, please choose NO here!");
 		if (!DIALOG_UTC(title, prompt, 7, 72)) {
 			if (reallydoit)
-				unlink(_PATH_WALL_CMOS_CLOCK);
+				unlink(path_wall_cmos_clock);
 		} else {
 			if (reallydoit) {
-				fd = open(_PATH_WALL_CMOS_CLOCK,
+				fd = open(path_wall_cmos_clock,
 				    O_WRONLY | O_CREAT | O_TRUNC,
 				    S_IRUSR | S_IRGRP | S_IROTH);
 				if (fd < 0) {
 					end_dialog();
 					err(1, "create %s",
-					    _PATH_WALL_CMOS_CLOCK);
+					    path_wall_cmos_clock);
 				}
 				close(fd);
 			}

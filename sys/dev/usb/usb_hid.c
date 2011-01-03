@@ -646,8 +646,9 @@ hid_locate(const void *desc, usb_size_t size, uint32_t u, enum hid_kind k,
 /*------------------------------------------------------------------------*
  *	hid_get_data
  *------------------------------------------------------------------------*/
-uint32_t
-hid_get_data(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
+static uint32_t
+hid_get_data_sub(const uint8_t *buf, usb_size_t len, struct hid_location *loc,
+    int is_signed)
 {
 	uint32_t hpos = loc->pos;
 	uint32_t hsize = loc->size;
@@ -676,14 +677,29 @@ hid_get_data(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
 
 	/* Correctly shift down data */
 	data = (data >> (hpos % 8));
+	n = 32 - hsize;
 
 	/* Mask and sign extend in one */
-	n = 32 - hsize;
-	data = ((int32_t)data << n) >> n;
+	if (is_signed != 0)
+		data = (int32_t)((int32_t)data << n) >> n;
+	else
+		data = (uint32_t)((uint32_t)data << n) >> n;
 
 	DPRINTFN(11, "hid_get_data: loc %d/%d = %lu\n",
 	    loc->pos, loc->size, (long)data);
 	return (data);
+}
+
+int32_t
+hid_get_data(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
+{
+	return (hid_get_data_sub(buf, len, loc, 1));
+}
+
+uint32_t
+hid_get_data_unsigned(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
+{
+        return (hid_get_data_sub(buf, len, loc, 0));
 }
 
 /*------------------------------------------------------------------------*

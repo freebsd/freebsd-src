@@ -39,15 +39,15 @@ static char rcsid[] = "$FreeBSD$";
 int
 ftime(struct timeb *tbp)
 {
-        struct timezone tz;
-        struct timeval t;
+	struct timezone tz;
+	struct timeval t;
 
-        if (gettimeofday(&t, &tz) < 0)
-                return (-1);
-        tbp->millitm = t.tv_usec / 1000;
-        tbp->time = t.tv_sec;
-        tbp->timezone = tz.tz_minuteswest;
-        tbp->dstflag = tz.tz_dsttime;
+	if (gettimeofday(&t, &tz) < 0)
+		return (-1);
+	tbp->millitm = t.tv_usec / 1000;
+	tbp->time = t.tv_sec;
+	tbp->timezone = tz.tz_minuteswest;
+	tbp->dstflag = tz.tz_dsttime;
 
 	return (0);
 }

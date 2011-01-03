@@ -125,15 +125,21 @@
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
 #define	NUPDE		(NUPDPE*NPDEPG)	/* number of userland PD entries */
 
-#define	NDMPML4E	1		/* number of dmap PML4 slots */
+/*
+ * NDMPML4E is the number of PML4 entries that are used to implement the
+ * direct map.  It must be a power of two.
+ */
+#define	NDMPML4E	2
 
 /*
- * The *PDI values control the layout of virtual memory
+ * The *PDI values control the layout of virtual memory.  The starting address
+ * of the direct map, which is controlled by DMPML4I, must be a multiple of
+ * its size.  (See the PHYS_TO_DMAP() and DMAP_TO_PHYS() macros.)
  */
 #define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
 
 #define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
-#define	DMPML4I		(KPML4I-1)	/* Next 512GB down for direct map */
+#define	DMPML4I		rounddown(KPML4I - NDMPML4E, NDMPML4E) /* Below KVM */
 
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
@@ -244,7 +250,7 @@ struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
-	u_int			pm_active;	/* active on cpus */
+	cpumask_t		pm_active;	/* active on cpus */
 	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
 	u_int			pm_retries;
 	/* spare u_int here due to padding */
@@ -307,6 +313,7 @@ extern vm_offset_t virtual_end;
 
 void	pmap_bootstrap(vm_paddr_t *);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
+void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate);
 void	pmap_init_pat(void);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temporary(vm_paddr_t pa, int i);

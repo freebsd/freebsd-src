@@ -456,6 +456,11 @@ openssl pkcs12 -in example.pfx -out user.pem -clcerts
 # convert CA certificate (if included in PFX file) to PEM format
 openssl pkcs12 -in example.pfx -out ca.pem -cacerts -nokeys
 .Ed
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/examples/etc/wpa_supplicant.conf" -compact
+.It Pa /etc/wpa_supplicant.conf
+.It Pa /usr/share/examples/etc/wpa_supplicant.conf
+.El
 .Sh EXAMPLES
 WPA-Personal (PSK) as a home network and WPA-Enterprise with EAP-TLS
 as a work network:
@@ -538,11 +543,6 @@ network={
         wep_key0=42FEEDDEAFBABEDEAFBEEFAA55
 }
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /usr/share/examples/etc/wpa_supplicant.conf" -compact
-.It Pa /etc/wpa_supplicant.conf
-.It Pa /usr/share/examples/etc/wpa_supplicant.conf
-.El
 .Sh SEE ALSO
 .Xr wpa_cli 8 ,
 .Xr wpa_passphrase 8 ,

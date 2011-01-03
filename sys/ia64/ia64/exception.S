@@ -170,6 +170,27 @@ ENTRY_NOPROFILE(exception_save, 0)
 	 *	r30,r31=trapframe pointers
 	 *	p14,p15=memory stack switch
 	 */
+
+	/* PTC.G enter non-exclusive */
+	mov	r24 = ar.ccv
+	movl	r25 = pmap_ptc_g_sem
+	;;
+.ptc_g_0:
+	ld8.acq	r26 = [r25]
+	;;
+	tbit.nz	p12, p0 = r26, 63
+(p12)	br.cond.spnt.few .ptc_g_0
+	;;
+	mov	ar.ccv = r26
+	adds	r27 = 1, r26
+	;;
+	cmpxchg8.rel	r27 = [r25], r27, ar.ccv
+	;;
+	cmp.ne	p12, p0 = r26, r27
+(p12)	br.cond.spnt.few .ptc_g_0
+	;;
+	mov	ar.ccv = r24
+
 exception_save_restart:
 {	.mmi
 	st8		[r30]=r19,16		// length
@@ -407,6 +428,23 @@ exception_save_restart:
 	movl		gp=__gp
 	;;
 }
+
+	/* PTC.G leave non-exclusive */
+	srlz.d
+	movl	r25 = pmap_ptc_g_sem
+	;;
+.ptc_g_1:
+	ld8.acq r26 = [r25]
+	;;
+	mov	ar.ccv = r26
+	adds	r27 = -1, r26
+	;;
+	cmpxchg8.rel	r27 = [r25], r27, ar.ccv
+	;;
+	cmp.ne	p12, p0 = r26, r27
+(p12)	br.cond.spnt.few .ptc_g_1
+	;;
+
 {	.mib
 	srlz.d
 	nop		0

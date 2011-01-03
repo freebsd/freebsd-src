@@ -28,12 +28,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/systm.h>
+#include <machine/atomic.h>
 
 /*
  * Acts like "nosys" but can be identified in sysent for dynamic call
@@ -55,6 +58,51 @@ lkmressys(struct thread *td, struct nosys_args *args)
 	return (nosys(td, args));
 }
 
+static void
+syscall_thread_drain(struct sysent *se)
+{
+	u_int32_t cnt, oldcnt;
+
+	do {
+		oldcnt = se->sy_thrcnt;
+		KASSERT((oldcnt & SY_THR_STATIC) == 0,
+		    ("drain on static syscall"));
+		cnt = oldcnt | SY_THR_DRAINING;
+	} while (atomic_cmpset_acq_32(&se->sy_thrcnt, oldcnt, cnt) == 0);
+	while (atomic_cmpset_32(&se->sy_thrcnt, SY_THR_DRAINING,
+	    SY_THR_ABSENT) == 0)
+		pause("scdrn", hz/2);
+}
+
+int
+syscall_thread_enter(struct thread *td, struct sysent *se)
+{
+	u_int32_t cnt, oldcnt;
+
+	do {
+		oldcnt = se->sy_thrcnt;
+		if ((oldcnt & SY_THR_STATIC) != 0)
+			return (0);
+		if ((oldcnt & (SY_THR_DRAINING | SY_THR_ABSENT)) != 0)
+			return (ENOSYS);
+		cnt = oldcnt + SY_THR_INCR;
+	} while (atomic_cmpset_acq_32(&se->sy_thrcnt, oldcnt, cnt) == 0);
+	return (0);
+}
+
+void
+syscall_thread_exit(struct thread *td, struct sysent *se)
+{
+	u_int32_t cnt, oldcnt;
+
+	do {
+		oldcnt = se->sy_thrcnt;
+		if ((oldcnt & SY_THR_STATIC) != 0)
+			return;
+		cnt = oldcnt - SY_THR_INCR;
+	} while (atomic_cmpset_rel_32(&se->sy_thrcnt, oldcnt, cnt) == 0);
+}
+
 int
 syscall_register(int *offset, struct sysent *new_sysent,
     struct sysent *old_sysent)
@@ -74,8 +122,12 @@ syscall_register(int *offset, struct sysent *new_sysent,
 	    sysent[*offset].sy_call != (sy_call_t *)lkmressys)
 		return (EEXIST);
 
+	KASSERT(sysent[*offset].sy_thrcnt == SY_THR_ABSENT,
+	    ("dynamic syscall is not protected"));
 	*old_sysent = sysent[*offset];
+	new_sysent->sy_thrcnt = SY_THR_ABSENT;
 	sysent[*offset] = *new_sysent;
+	atomic_store_rel_32(&sysent[*offset].sy_thrcnt, 0);
 	return (0);
 }
 
@@ -83,8 +135,10 @@ int
 syscall_deregister(int *offset, struct sysent *old_sysent)
 {
 
-	if (*offset)
+	if (*offset) {
+		syscall_thread_drain(&sysent[*offset]);
 		sysent[*offset] = *old_sysent;
+	}
 	return (0);
 }
 
@@ -127,13 +181,12 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 		error = syscall_deregister(data->offset, &data->old_sysent);
 		return (error);
 	default:
-		return EOPNOTSUPP;
+		if (data->chainevh)
+			return (data->chainevh(mod, what, data->chainarg));
+		return (EOPNOTSUPP);
 	}
 
-	if (data->chainevh)
-		return (data->chainevh(mod, what, data->chainarg));
-	else
-		return (0);
+	/* NOTREACHED */
 }
 
 int

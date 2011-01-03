@@ -458,7 +458,7 @@ intr_next_cpu(void)
 
 	/* Leave all interrupts on the BSP during boot. */
 	if (!assign_cpu)
-		return (cpu_apic_ids[0]);
+		return (PCPU_GET(apic_id));
 
 	mtx_lock_spin(&icu_lock);
 	apic_id = cpu_apic_ids[current_cpu];
@@ -529,7 +529,7 @@ intr_shuffle_irqs(void *arg __unused)
 			 */
 			if (isrc->is_event->ie_cpu != NOCPU)
 				(void)isrc->is_pic->pic_assign_cpu(isrc,
-				    isrc->is_event->ie_cpu);
+				    cpu_apic_ids[isrc->is_event->ie_cpu]);
 			else if (isrc->is_pic->pic_assign_cpu(isrc,
 				cpu_apic_ids[current_cpu]) == 0)
 				(void)intr_next_cpu();

@@ -640,7 +640,7 @@ main(int argc, char **argv)
 			opt->bus = unit;
 			opt->addr = addr;
 			opt->got_bus = 1;
-;			opt->got_addr = 1;
+			opt->got_addr = 1;
 			n++;
 			break;
 

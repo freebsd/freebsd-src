@@ -126,8 +126,16 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
-	dev = make_dev(&g_dev_cdevsw, 0,
-	    UID_ROOT, GID_OPERATOR, 0640, gp->name);
+	error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &dev,
+	    &g_dev_cdevsw, NULL, UID_ROOT, GID_OPERATOR, 0640, "%s", gp->name);
+	if (error != 0) {
+		printf("%s: make_dev_p() failed (gp->name=%s, error=%d)\n",
+		    __func__, gp->name, error);
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		g_destroy_geom(gp);
+		return (NULL);
+	}
 	if (pp->flags & G_PF_CANDELETE)
 		dev->si_flags |= SI_CANDELETE;
 	dev->si_iosize_max = MAXPHYS;

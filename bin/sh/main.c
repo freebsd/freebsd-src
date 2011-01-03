@@ -77,8 +77,8 @@ int rootpid;
 int rootshell;
 struct jmploc main_handler;
 
-STATIC void read_profile(const char *);
-STATIC char *find_dot_file(char *);
+static void read_profile(const char *);
+static char *find_dot_file(char *);
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -128,10 +128,8 @@ main(int argc, char *argv[])
 			    exitshell(exitstatus);
 		}
 		reset();
-		if (exception == EXINT) {
-			out2c('\n');
-			flushout(&errout);
-		}
+		if (exception == EXINT)
+			out2fmt_flush("\n");
 		popstackmark(&smark);
 		FORCEINTON;				/* enable interrupts */
 		if (state == 1)
@@ -232,8 +230,9 @@ cmdloop(int top)
 		}
 		popstackmark(&smark);
 		setstackmark(&smark);
-		if (evalskip == SKIPFILE) {
-			evalskip = 0;
+		if (evalskip != 0) {
+			if (evalskip == SKIPFILE)
+				evalskip = 0;
 			break;
 		}
 	}
@@ -246,7 +245,7 @@ cmdloop(int top)
  * Read /etc/profile or .profile.  Return on error.
  */
 
-STATIC void
+static void
 read_profile(const char *name)
 {
 	int fd;
@@ -290,7 +289,7 @@ readcmdfile(const char *name)
  */
 
 
-STATIC char *
+static char *
 find_dot_file(char *basename)
 {
 	static char localname[FILENAME_MAX+1];
@@ -314,14 +313,20 @@ find_dot_file(char *basename)
 int
 dotcmd(int argc, char **argv)
 {
-	char *fullname;
+	char *filename, *fullname;
 
 	if (argc < 2)
 		error("missing filename");
 
 	exitstatus = 0;
 
-	fullname = find_dot_file(argv[1]);
+	/*
+	 * Because we have historically not supported any options,
+	 * only treat "--" specially.
+	 */
+	filename = argc > 2 && strcmp(argv[1], "--") == 0 ? argv[2] : argv[1];
+
+	fullname = find_dot_file(filename);
 	setinputfile(fullname, 1);
 	commandname = fullname;
 	cmdloop(0);

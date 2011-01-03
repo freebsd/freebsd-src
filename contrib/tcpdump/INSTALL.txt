@@ -1,4 +1,4 @@
-@(#) $Header: /tcpdump/master/tcpdump/INSTALL.txt,v 1.1.2.1 2008-02-06 10:49:22 guy Exp $ (LBL)
+@(#) $Header: /tcpdump/master/tcpdump/INSTALL.txt,v 1.2 2008-02-06 10:47:53 guy Exp $ (LBL)
 
 If you have not built libpcap, and your system does not have libpcap
 installed, install libpcap first.  Your system might provide a version
@@ -221,6 +221,7 @@ print-tftp.c	- Trivial File Transfer Protocol printer routines
 print-timed.c	- BSD time daemon protocol printer routines
 print-token.c	- Token Ring printer routines
 print-udp.c	- UDP printer routines
+print-usb.c	- USB printer routines
 print-vjc.c	- PPP Van Jacobson compression (RFC1144) printer routines
 print-vrrp.c	- Virtual Router Redundancy Protocol
 print-wb.c	- White Board printer routines

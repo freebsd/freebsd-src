@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+.if defined(TARGET_ABI) && ${TARGET_ABI} == "n64"
+MK_RESCUE=no
+.endif

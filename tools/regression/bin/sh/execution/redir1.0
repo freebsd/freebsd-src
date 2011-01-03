@@ -1,5 +1,5 @@
 # $FreeBSD$
-trap ': $((brokenpipe+=1))' pipe
+trap ': $((brokenpipe+=1))' PIPE
 
 P=${TMPDIR:-/tmp}
 cd $P
@@ -17,7 +17,7 @@ if [ $brokenpipe -ne 0 ]; then
 	rc=3
 fi
 wait
-echo dummy >&4
+echo dummy >&4 2>/dev/null
 if [ $brokenpipe -eq 1 ]; then
 	: ${rc:=0}
 fi

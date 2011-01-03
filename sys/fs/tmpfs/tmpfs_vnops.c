@@ -109,14 +109,19 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		error = 0;
 	} else {
 		de = tmpfs_dir_lookup(dnode, NULL, cnp);
-		if (de == NULL) {
+		if (de != NULL && de->td_node == NULL)
+			cnp->cn_flags |= ISWHITEOUT;
+		if (de == NULL || de->td_node == NULL) {
 			/* The entry was not found in the directory.
 			 * This is OK if we are creating or renaming an
 			 * entry and are working on the last component of
 			 * the path name. */
 			if ((cnp->cn_flags & ISLASTCN) &&
 			    (cnp->cn_nameiop == CREATE || \
-			    cnp->cn_nameiop == RENAME)) {
+			    cnp->cn_nameiop == RENAME ||
+			    (cnp->cn_nameiop == DELETE &&
+			    cnp->cn_flags & DOWHITEOUT &&
+			    cnp->cn_flags & ISWHITEOUT))) {
 				error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred,
 				    cnp->cn_thread);
 				if (error != 0)
@@ -533,6 +538,8 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		return	(error);
 	} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+		KASSERT(offset == 0,
+		    ("unexpected offset in tmpfs_mappedread for sendfile"));
 		if ((m->oflags & VPO_BUSY) != 0) {
 			/*
 			 * Reference the page before unlocking and sleeping so
@@ -548,15 +555,18 @@ lookupvpg:
 		sched_pin();
 		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
 		ma = (char *)sf_buf_kva(sf);
-		error = tmpfs_nocacheread_buf(tobj, idx, offset, tlen,
-		    ma + offset);
+		error = tmpfs_nocacheread_buf(tobj, idx, 0, tlen, ma);
 		if (error == 0) {
+			if (tlen != PAGE_SIZE)
+				bzero(ma + tlen, PAGE_SIZE - tlen);
 			uio->uio_offset += tlen;
 			uio->uio_resid -= tlen;
 		}
 		sf_buf_free(sf);
 		sched_unpin();
 		VM_OBJECT_LOCK(vobj);
+		if (error == 0)
+			m->valid = VM_PAGE_BITS_ALL;
 		vm_page_wakeup(m);
 		VM_OBJECT_UNLOCK(vobj);
 		return	(error);
@@ -653,9 +663,7 @@ lookupvpg:
 			goto lookupvpg;
 		}
 		vm_page_busy(vpg);
-		vm_page_lock_queues();
 		vm_page_undirty(vpg);
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
@@ -690,15 +698,13 @@ nocache:
 out:
 	if (vobj != NULL)
 		VM_OBJECT_LOCK(vobj);
-	vm_page_lock(tpg);
-	vm_page_lock_queues();
 	if (error == 0) {
 		KASSERT(tpg->valid == VM_PAGE_BITS_ALL,
 		    ("parts of tpg invalid"));
 		vm_page_dirty(tpg);
 	}
+	vm_page_lock(tpg);
 	vm_page_unwire(tpg, TRUE);
-	vm_page_unlock_queues();
 	vm_page_unlock(tpg);
 	vm_page_wakeup(tpg);
 	if (vpg != NULL)
@@ -838,6 +844,8 @@ tmpfs_remove(struct vop_remove_args *v)
 	/* Remove the entry from the directory; as it is a file, we do not
 	 * have to change the number of hard links of the directory. */
 	tmpfs_dir_detach(dvp, de);
+	if (v->a_cnp->cn_flags & DOWHITEOUT)
+		tmpfs_dir_whiteout_add(dvp, v->a_cnp);
 
 	/* Free the directory entry we just deleted.  Note that the node
 	 * referred by it will not be removed until the vnode is really
@@ -908,6 +916,8 @@ tmpfs_link(struct vop_link_args *v)
 		goto out;
 
 	/* Insert the new directory entry into the appropriate directory. */
+	if (cnp->cn_flags & ISWHITEOUT)
+		tmpfs_dir_whiteout_remove(dvp, cnp);
 	tmpfs_dir_attach(dvp, de);
 
 	/* vp link count has changed, so update node times. */
@@ -976,10 +986,14 @@ tmpfs_rename(struct vop_rename_args *v)
 	fnode = VP_TO_TMPFS_NODE(fvp);
 	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
 
-	/* Avoid manipulating '.' and '..' entries. */
+	/* Entry can disappear before we lock fdvp,
+	 * also avoid manipulating '.' and '..' entries. */
 	if (de == NULL) {
-		MPASS(fvp->v_type == VDIR);
-		error = EINVAL;
+		if ((fcnp->cn_flags & ISDOTDOT) != 0 ||
+		    (fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.'))
+			error = EINVAL;
+		else
+			error = ENOENT;
 		goto out_locked;
 	}
 	MPASS(de->td_node == fnode);
@@ -1103,6 +1117,10 @@ tmpfs_rename(struct vop_rename_args *v)
 		/* Do the move: just remove the entry from the source directory
 		 * and insert it into the target one. */
 		tmpfs_dir_detach(fdvp, de);
+		if (fcnp->cn_flags & DOWHITEOUT)
+			tmpfs_dir_whiteout_add(fdvp, fcnp);
+		if (tcnp->cn_flags & ISWHITEOUT)
+			tmpfs_dir_whiteout_remove(tdvp, tcnp);
 		tmpfs_dir_attach(tdvp, de);
 	}
 
@@ -1227,6 +1245,8 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 
 	/* Detach the directory entry from the directory (dnode). */
 	tmpfs_dir_detach(dvp, de);
+	if (v->a_cnp->cn_flags & DOWHITEOUT)
+		tmpfs_dir_whiteout_add(dvp, v->a_cnp);
 
 	/* No vnode should be allocated for this entry from this point */
 	TMPFS_NODE_LOCK(node);
@@ -1545,6 +1565,29 @@ tmpfs_vptofh(struct vop_vptofh_args *ap)
 	return (0);
 }
 
+static int
+tmpfs_whiteout(struct vop_whiteout_args *ap)
+{
+	struct vnode *dvp = ap->a_dvp;
+	struct componentname *cnp = ap->a_cnp;
+	struct tmpfs_dirent *de;
+
+	switch (ap->a_flags) {
+	case LOOKUP:
+		return (0);
+	case CREATE:
+		de = tmpfs_dir_lookup(VP_TO_TMPFS_DIR(dvp), NULL, cnp);
+		if (de != NULL)
+			return (de->td_node == NULL ? 0 : EEXIST);
+		return (tmpfs_dir_whiteout_add(dvp, cnp));
+	case DELETE:
+		tmpfs_dir_whiteout_remove(dvp, cnp);
+		return (0);
+	default:
+		panic("tmpfs_whiteout: unknown op");
+	}
+}
+
 /* --------------------------------------------------------------------- */
 
 /*
@@ -1577,6 +1620,7 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_print =			tmpfs_print,
 	.vop_pathconf =			tmpfs_pathconf,
 	.vop_vptofh =			tmpfs_vptofh,
+	.vop_whiteout =			tmpfs_whiteout,
 	.vop_bmap =			VOP_EOPNOTSUPP,
 };
 

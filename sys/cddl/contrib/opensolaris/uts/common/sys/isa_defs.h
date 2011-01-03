@@ -403,6 +403,25 @@ extern "C" {
 #define	_INT_ALIGNMENT			4
 #define	_FLOAT_ALIGNMENT		4
 #define	_FLOAT_COMPLEX_ALIGNMENT	4
+#if defined(__mips_n64)
+#define	_LONG_ALIGNMENT			8
+#define	_LONG_LONG_ALIGNMENT		8
+#define	_DOUBLE_ALIGNMENT		8
+#define	_DOUBLE_COMPLEX_ALIGNMENT	8
+#define	_LONG_DOUBLE_ALIGNMENT		8
+#define	_LONG_DOUBLE_COMPLEX_ALIGNMENT	8
+#define	_POINTER_ALIGNMENT		8
+#define	_MAX_ALIGNMENT			8
+#define	_ALIGNMENT_REQUIRED		0
+
+#define	_LONG_LONG_ALIGNMENT_32		_INT_ALIGNMENT
+/*
+ * Define the appropriate "implementation choices".
+ */
+#if !defined(_LP64)
+#define	_LP64
+#endif
+#else
 #define	_LONG_ALIGNMENT			4
 #define	_LONG_LONG_ALIGNMENT		4
 #define	_DOUBLE_ALIGNMENT		4
@@ -421,6 +440,7 @@ extern "C" {
 #define	_ILP32
 #if !defined(_I32LPx) && defined(_KERNEL)
 #define	_I32LPx
+#endif
 #endif
 #define	_SUNOS_VTOC_16
 #define	_DMA_USES_PHYSADDR

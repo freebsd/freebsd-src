@@ -1178,7 +1178,7 @@ static void hpt_final_init(void *dummy)
 	}	
 
 	make_dev(&hpt_cdevsw, DRIVER_MINOR, UID_ROOT, GID_OPERATOR,
-	    S_IRUSR | S_IWUSR, driver_name);
+	    S_IRUSR | S_IWUSR, "%s", driver_name);
 }
 
 #if defined(KLD_MODULE) && (__FreeBSD_version >= 503000)

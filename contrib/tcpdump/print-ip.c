@@ -510,7 +510,8 @@ again:
 		break;
 
 	case IPPROTO_PIM:
-		pim_print(ipds->cp,  ipds->len);
+		pim_print(ipds->cp,  ipds->len,
+			  in_cksum((const u_short*)ipds->cp, ipds->len, 0));
 		break;
 
 	case IPPROTO_VRRP:
@@ -659,7 +660,7 @@ ip_print(netdissect_options *ndo,
                 printf(")");
             }
 
-	    if ((u_char *)ipds->ip + hlen <= snapend) {
+	    if (!Kflag && (u_char *)ipds->ip + hlen <= snapend) {
 	        sum = in_cksum((const u_short *)ipds->ip, hlen, 0);
 		if (sum != 0) {
 		    ip_sum = EXTRACT_16BITS(&ipds->ip->ip_sum);

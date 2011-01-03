@@ -179,6 +179,9 @@
 #define IXGBE_RX_HDR			128
 #define IXGBE_VFTA_SIZE			128
 #define IXGBE_BR_SIZE			4096
+#define IXGBE_QUEUE_IDLE		0
+#define IXGBE_QUEUE_WORKING		1
+#define IXGBE_QUEUE_HUNG		2
 
 /* Offload bits in mbuf flag */
 #if __FreeBSD_version >= 800000
@@ -204,11 +207,6 @@
 #define IXGBE_AVE_LATENCY	400
 #define IXGBE_BULK_LATENCY	1200
 #define IXGBE_LINK_ITR		2000
-
-/* Header split args for get_bug */
-#define IXGBE_CLEAN_HDR		1
-#define IXGBE_CLEAN_PKT		2
-#define IXGBE_CLEAN_ALL		3
 
 /*
  *****************************************************************************
@@ -238,7 +236,8 @@ struct ixgbe_rx_buf {
 	struct mbuf	*m_head;
 	struct mbuf	*m_pack;
 	struct mbuf	*fmp;
-	bus_dmamap_t	map;
+	bus_dmamap_t	hmap;
+	bus_dmamap_t	pmap;
 };
 
 /*
@@ -279,7 +278,7 @@ struct tx_ring {
         struct adapter		*adapter;
 	struct mtx		tx_mtx;
 	u32			me;
-	bool			watchdog_check;
+	int			queue_status;
 	int			watchdog_time;
 	union ixgbe_adv_tx_desc	*tx_base;
 	struct ixgbe_dma_alloc	txdma;
@@ -323,8 +322,8 @@ struct rx_ring {
         u32 			next_to_check;
 	char			mtx_name[16];
 	struct ixgbe_rx_buf	*rx_buffers;
-	bus_dma_tag_t		rxtag;
-	bus_dmamap_t		spare_map;
+	bus_dma_tag_t		htag;
+	bus_dma_tag_t		ptag;
 
 	u32			bytes; /* Used for AIM calc */
 	u32			packets;
@@ -373,8 +372,17 @@ struct adapter {
 	u16			num_vlans;
 	u16			num_queues;
 
-	/* Info about the board itself */
+	/*
+	** Shadow VFTA table, this is needed because
+	** the real vlan filter table gets cleared during
+	** a soft reset and the driver needs to be able
+	** to repopulate it.
+	*/
+	u32			shadow_vfta[IXGBE_VFTA_SIZE];
+
+	/* Info about the interface */
 	u32			optics;
+	int			advertise;  /* link speeds */
 	bool			link_active;
 	u16			max_frame_size;
 	u32			link_speed;
@@ -418,6 +426,9 @@ struct adapter {
 	int			num_rx_desc;
 	u64			que_mask;
 	u32			rx_process_limit;
+
+	/* Multicast array memory */
+	u8			*mta;
 
 	/* Misc stats maintained by the driver */
 	unsigned long   	dropped_pkts;
@@ -471,5 +482,18 @@ ixgbe_is_sfp(struct ixgbe_hw *hw)
 		return FALSE;
 	}
 }
+
+/* Workaround to make 8.0 buildable */
+#if __FreeBSD_version < 800504
+static __inline int
+drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+        if (ALTQ_IS_ENABLED(&ifp->if_snd))
+                return (1);
+#endif
+        return (!buf_ring_empty(br));
+}
+#endif
 
 #endif /* _IXGBE_H_ */

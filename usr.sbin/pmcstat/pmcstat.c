@@ -169,8 +169,7 @@ pmcstat_cleanup(void)
 		args.pa_logparser = NULL;
 	}
 
-	if (args.pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE))
-		pmcstat_shutdown_logging();
+	pmcstat_shutdown_logging();
 }
 
 void
@@ -292,7 +291,8 @@ pmcstat_find_targets(const char *spec)
 		    0, &nproc)) == NULL)
 			err(EX_OSERR, "ERROR: Cannot get process list: %s",
 			    kvm_geterr(pmcstat_kvm));
-	}
+	} else
+		nproc = 0;
 
 	if ((rv = regcomp(&reg, spec, REG_EXTENDED|REG_NOSUB)) != 0) {
 		regerror(rv, &reg, errbuf, sizeof(errbuf));
@@ -558,7 +558,7 @@ main(int argc, char **argv)
 	int do_print;
 	size_t dummy;
 	int graphdepth;
-	int pipefd[2];
+	int pipefd[2], rfd;
 	int use_cumulative_counts;
 	short cf, cb;
 	uint32_t cpumask;
@@ -641,6 +641,7 @@ main(int argc, char **argv)
 			else
 				cpumask = pmcstat_get_cpumask(optarg);
 
+			args.pa_flags	 |= FLAGS_HAS_CPUMASK;
 			args.pa_required |= FLAG_HAS_SYSTEM_PMCS;
 			break;
 
@@ -884,6 +885,13 @@ main(int argc, char **argv)
 	args.pa_argc = (argc -= optind);
 	args.pa_argv = (argv += optind);
 
+	/* If we read from logfile and no specified CPU mask use
+	 * the maximum CPU count.
+	 */
+	if ((args.pa_flags & FLAG_READ_LOGFILE) &&
+	    (args.pa_flags & FLAGS_HAS_CPUMASK) == 0)
+		cpumask = 0xffffffff;
+
 	args.pa_cpumask = cpumask; /* For selecting CPUs using -R. */
 
 	if (argc)	/* command line present */
@@ -1000,11 +1008,6 @@ main(int argc, char **argv)
 	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
 	    errx(EX_USAGE, "ERROR: option -M is only used with -g/-R.");
 
-	/* -T is incompatible with -R (replay logfile is a TODO) */
-	if ((args.pa_flags & FLAG_DO_TOP) &&
-	    (args.pa_flags & FLAG_READ_LOGFILE))
-		errx(EX_USAGE, "ERROR: option -T is incompatible with -R.");
-
 	/*
 	 * Disallow textual output of sampling PMCs if counting PMCs
 	 * have also been asked for, mostly because the combined output
@@ -1065,7 +1068,22 @@ main(int argc, char **argv)
 			    graphfilename);
 	}
 
-	/* if we've been asked to process a log file, do that and exit */
+	/* if we've been asked to process a log file, skip init */
+	if ((args.pa_flags & FLAG_READ_LOGFILE) == 0) {
+		if (pmc_init() < 0)
+			err(EX_UNAVAILABLE,
+			    "ERROR: Initialization of the pmc(3) library failed");
+
+		if ((npmc = pmc_npmc(0)) < 0) /* assume all CPUs are identical */
+			err(EX_OSERR, "ERROR: Cannot determine the number of PMCs "
+			    "on CPU %d", 0);
+	}
+
+	/* Allocate a kqueue */
+	if ((pmcstat_kq = kqueue()) < 0)
+		err(EX_OSERR, "ERROR: Cannot allocate kqueue");
+
+	/* Setup the logfile as the source. */
 	if (args.pa_flags & FLAG_READ_LOGFILE) {
 		/*
 		 * Print the log in textual form if we haven't been
@@ -1075,28 +1093,17 @@ main(int argc, char **argv)
 			args.pa_flags |= FLAG_DO_PRINT;
 
 		pmcstat_initialize_logging();
-		args.pa_logfd = pmcstat_open_log(args.pa_inputpath,
+		rfd = pmcstat_open_log(args.pa_inputpath,
 		    PMCSTAT_OPEN_FOR_READ);
-		if ((args.pa_logparser = pmclog_open(args.pa_logfd)) == NULL)
+		if ((args.pa_logparser = pmclog_open(rfd)) == NULL)
 			err(EX_OSERR, "ERROR: Cannot create parser");
-		pmcstat_process_log();
-		pmcstat_shutdown_logging();
-		exit(EX_OK);
+		if (fcntl(rfd, F_SETFL, O_NONBLOCK) < 0)
+			err(EX_OSERR, "ERROR: fcntl(2) failed");
+		EV_SET(&kev, rfd, EVFILT_READ, EV_ADD,
+		    0, 0, NULL);
+		if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
+			err(EX_OSERR, "ERROR: Cannot register kevent");
 	}
-
-	/* otherwise, we've been asked to collect data */
-	if (pmc_init() < 0)
-		err(EX_UNAVAILABLE,
-		    "ERROR: Initialization of the pmc(3) library failed");
-
-	if ((npmc = pmc_npmc(0)) < 0) /* assume all CPUs are identical */
-		err(EX_OSERR, "ERROR: Cannot determine the number of PMCs "
-		    "on CPU %d", 0);
-
-	/* Allocate a kqueue */
-	if ((pmcstat_kq = kqueue()) < 0)
-		err(EX_OSERR, "ERROR: Cannot allocate kqueue");
-
 	/*
 	 * Configure the specified log file or setup a default log
 	 * consumer via a pipe.
@@ -1139,6 +1146,7 @@ main(int argc, char **argv)
 	    (args.pa_flags & FLAG_HAS_OUTPUT_LOGFILE);
 
 	/*
+	if (args.pa_flags & FLAG_READ_LOGFILE) {
 	 * Allocate PMCs.
 	 */
 
@@ -1271,10 +1279,8 @@ main(int argc, char **argv)
 	if (args.pa_flags & FLAG_HAS_COMMANDLINE)
 		pmcstat_start_process();
 
-	/* initialize logging if printing the configured log */
-	if ((args.pa_flags & (FLAG_DO_PRINT | FLAG_DO_TOP)) &&
-	    (args.pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE)))
-		pmcstat_initialize_logging();
+	/* initialize logging */
+	pmcstat_initialize_logging();
 
 	/* Handle SIGINT using the kqueue loop */
 	sa.sa_handler = SIG_IGN;
@@ -1337,16 +1343,13 @@ main(int argc, char **argv)
 
 		switch (kev.filter) {
 		case EVFILT_PROC:  /* target has exited */
-			if (args.pa_flags & (FLAG_HAS_OUTPUT_LOGFILE |
-				FLAG_HAS_PIPE))
-				runstate = pmcstat_close_log();
-			else
-				runstate = PMCSTAT_FINISHED;
+			runstate = pmcstat_close_log();
 			do_print = 1;
 			break;
 
 		case EVFILT_READ:  /* log file data is present */
-			if (kev.ident == (unsigned)fileno(stdin)) {
+			if (kev.ident == (unsigned)fileno(stdin) &&
+			    (args.pa_flags & FLAG_DO_TOP)) {
 				if (pmcstat_keypress_log())
 					runstate = pmcstat_close_log();
 			} else
@@ -1369,15 +1372,8 @@ main(int argc, char **argv)
 				 * of its targets, or if logfile
 				 * writes encounter an error.
 				 */
-				if (args.pa_flags & (FLAG_HAS_OUTPUT_LOGFILE |
-				    FLAG_HAS_PIPE)) {
-					runstate = pmcstat_close_log();
-					if (args.pa_flags &
-					    (FLAG_DO_PRINT|FLAG_DO_ANALYSIS))
-						pmcstat_process_log();
-				}
+				runstate = pmcstat_close_log();
 				do_print = 1; /* print PMCs at exit */
-				runstate = PMCSTAT_FINISHED;
 			} else if (kev.ident == SIGINT) {
 				/* Kill the child process if we started it */
 				if (args.pa_flags & FLAG_HAS_COMMANDLINE)
@@ -1385,7 +1381,7 @@ main(int argc, char **argv)
 				/* Close the pipe to self, if present. */
 				if (args.pa_flags & FLAG_HAS_PIPE)
 					(void) close(pipefd[READPIPEFD]);
-				runstate = PMCSTAT_FINISHED;
+				runstate = pmcstat_close_log();
 			} else if (kev.ident == SIGWINCH) {
 				if (ioctl(fileno(args.pa_printfile),
 					TIOCGWINSZ, &ws) < 0)

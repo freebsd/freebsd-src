@@ -187,8 +187,8 @@ static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
     int (*func)(struct ifnet *, int));
 static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
-static	int vlan_unconfig(struct ifnet *ifp);
-static	int vlan_unconfig_locked(struct ifnet *ifp);
+static	void vlan_unconfig(struct ifnet *ifp);
+static	void vlan_unconfig_locked(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
 static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
@@ -205,6 +205,11 @@ static  void vlan_iflladdr(void *arg, struct ifnet *ifp);
 
 static	struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL,
     IF_MAXUNIT, NULL, vlan_clone_match, vlan_clone_create, vlan_clone_destroy);
+
+#ifdef VIMAGE
+static VNET_DEFINE(struct if_clone, vlan_cloner);
+#define	V_vlan_cloner	VNET(vlan_cloner)
+#endif
 
 #ifndef VLAN_ARRAY
 #define HASH(n, m)	((((n) >> 8) ^ ((n) >> 4) ^ (n)) & (m))
@@ -588,7 +593,9 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_input_p = vlan_input;
 		vlan_link_state_p = vlan_link_state;
 		vlan_trunk_cap_p = vlan_trunk_capabilities;
+#ifndef VIMAGE
 		if_clone_attach(&vlan_cloner);
+#endif
 		if (bootverbose)
 			printf("vlan: initialized, using "
 #ifdef VLAN_ARRAY
@@ -600,7 +607,9 @@ vlan_modevent(module_t mod, int type, void *data)
 			       "\n");
 		break;
 	case MOD_UNLOAD:
+#ifndef VIMAGE
 		if_clone_detach(&vlan_cloner);
+#endif
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_tag);
 		EVENTHANDLER_DEREGISTER(iflladdr_event, iflladdr_tag);
 		vlan_input_p = NULL;
@@ -624,6 +633,27 @@ static moduledata_t vlan_mod = {
 
 DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_vlan, 3);
+
+#ifdef VIMAGE
+static void
+vnet_vlan_init(const void *unused __unused)
+{
+
+	V_vlan_cloner = vlan_cloner;
+	if_clone_attach(&V_vlan_cloner);
+}
+VNET_SYSINIT(vnet_vlan_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_vlan_init, NULL);
+
+static void
+vnet_vlan_uninit(const void *unused __unused)
+{
+
+	if_clone_detach(&V_vlan_cloner);
+}
+VNET_SYSUNINIT(vnet_vlan_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST,
+    vnet_vlan_uninit, NULL);
+#endif
 
 static struct ifnet *
 vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
@@ -688,6 +718,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	struct ifvlan *ifv;
 	struct ifnet *ifp;
 	struct ifnet *p;
+	struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
 	struct vlanreq vlr;
 	static const u_char eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
@@ -786,6 +818,9 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_baudrate = 0;
 	ifp->if_type = IFT_L2VLAN;
 	ifp->if_hdrlen = ETHER_VLAN_ENCAP_LEN;
+	ifa = ifp->if_addr;
+	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+	sdl->sdl_type = IFT_L2VLAN;
 
 	if (ethertag) {
 		error = vlan_config(ifv, p, tag);
@@ -1128,25 +1163,22 @@ done:
 	return (error);
 }
 
-static int
+static void
 vlan_unconfig(struct ifnet *ifp)
 {
-	int ret;
 
 	VLAN_LOCK();
-	ret = vlan_unconfig_locked(ifp);
+	vlan_unconfig_locked(ifp);
 	VLAN_UNLOCK();
-	return (ret);
 }
 
-static int
+static void
 vlan_unconfig_locked(struct ifnet *ifp)
 {
 	struct ifvlantrunk *trunk;
 	struct vlan_mc_entry *mc;
 	struct ifvlan *ifv;
 	struct ifnet  *parent;
-	int error;
 
 	VLAN_LOCK_ASSERT();
 
@@ -1175,9 +1207,15 @@ vlan_unconfig_locked(struct ifnet *ifp)
 		while ((mc = SLIST_FIRST(&ifv->vlan_mc_listhead)) != NULL) {
 			bcopy((char *)&mc->mc_addr, LLADDR(&sdl),
 			    ETHER_ADDR_LEN);
-			error = if_delmulti(parent, (struct sockaddr *)&sdl);
-			if (error)
-				return (error);
+
+			/*
+			 * This may fail if the parent interface is
+			 * being detached.  Regardless, we should do a
+			 * best effort to free this interface as much
+			 * as possible as all callers expect vlan
+			 * destruction to succeed.
+			 */
+			(void)if_delmulti(parent, (struct sockaddr *)&sdl);
 			SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
 			free(mc, M_VLAN);
 		}
@@ -1223,8 +1261,6 @@ vlan_unconfig_locked(struct ifnet *ifp)
 	 */
 	if (parent != NULL)
 		EVENTHANDLER_INVOKE(vlan_unconfig, parent, ifv->ifv_tag);
-
-	return (0);
 }
 
 /* Handle a reference counted flag that should be set on the parent as well */
@@ -1426,6 +1462,12 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSETVLAN:
+#ifdef VIMAGE
+		if (ifp->if_vnet != ifp->if_home_vnet) {
+			error = EPERM;
+			break;
+		}
+#endif
 		error = copyin(ifr->ifr_data, &vlr, sizeof(vlr));
 		if (error)
 			break;
@@ -1455,6 +1497,12 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCGETVLAN:
+#ifdef VIMAGE
+		if (ifp->if_vnet != ifp->if_home_vnet) {
+			error = EPERM;
+			break;
+		}
+#endif
 		bzero(&vlr, sizeof(vlr));
 		VLAN_LOCK();
 		if (TRUNK(ifv) != NULL) {

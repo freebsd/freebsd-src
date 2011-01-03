@@ -1,0 +1,37 @@
+//===-- CheckerVisitor.def - Metadata for CheckerVisitor ----------------*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines the AST nodes accepted by the CheckerVisitor class.
+//
+//===---------------------------------------------------------------------===//
+
+#ifndef PREVISIT
+#define PREVISIT(NODE, FALLBACK)
+#endif
+
+#ifndef POSTVISIT
+#define POSTVISIT(NODE, FALLBACK)
+#endif
+
+PREVISIT(ArraySubscriptExpr, Stmt)
+PREVISIT(BinaryOperator, Stmt)
+PREVISIT(CallExpr, Stmt)
+PREVISIT(CXXOperatorCallExpr, CallExpr)
+PREVISIT(DeclStmt, Stmt)
+PREVISIT(ObjCMessageExpr, Stmt)
+PREVISIT(ReturnStmt, Stmt)
+
+POSTVISIT(BlockExpr, Stmt)
+POSTVISIT(BinaryOperator, Stmt)
+POSTVISIT(CallExpr, Stmt)
+POSTVISIT(CXXOperatorCallExpr, CallExpr)
+POSTVISIT(ObjCMessageExpr, Stmt)
+
+#undef PREVISIT
+#undef POSTVISIT

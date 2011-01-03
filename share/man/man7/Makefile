@@ -7,8 +7,10 @@ MAN=	adding_user.7 \
 	bsd.snmpmod.mk.7 \
 	build.7 \
 	clocks.7 \
+	c99.7 \
 	development.7 \
 	environ.7 \
+	eventtimers.7 \
 	ffs.7 \
 	firewall.7 \
 	hier.7 \
@@ -27,5 +29,9 @@ MAN=	adding_user.7 \
 
 MLINKS=	intro.7 miscellaneous.7
 MLINKS+= security.7 securelevel.7
+MLINKS+= c99.7 c.7
+MLINKS+= c99.7 c78.7
+MLINKS+= c99.7 c89.7
+MLINKS+= c99.7 c90.7
 
 .include <bsd.prog.mk>

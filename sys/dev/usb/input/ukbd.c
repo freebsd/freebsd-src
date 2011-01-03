@@ -720,7 +720,7 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	default:			/* Error */
-		DPRINTFN(0, "error=%s\n", usbd_errstr(error));
+		DPRINTFN(1, "error=%s\n", usbd_errstr(error));
 		break;
 	}
 }
@@ -1887,3 +1887,4 @@ static driver_t ukbd_driver = {
 
 DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, ukbd_driver_load, 0);
 MODULE_DEPEND(ukbd, usb, 1, 1, 1);
+MODULE_VERSION(ukbd, 1);

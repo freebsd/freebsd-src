@@ -82,3 +82,7 @@ device		iicbus
 # SATA
 device		ata
 device		atadisk
+
+# Flattened Device Tree
+options 	FDT
+makeoptions	FDT_DTS_FILE=db88f6281.dts

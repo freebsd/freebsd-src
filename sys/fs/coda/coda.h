@@ -41,7 +41,9 @@
 #ifndef _CODA_HEADER_
 #define _CODA_HEADER_
 
+#ifdef _KERNEL
 #include "opt_coda.h"	/* for CODA_COMPAT_5 option */
+#endif
 
 /* Avoid CODA_COMPAT_5 redefinition in coda5 module */
 #if defined (CODA5_MODULE) && !defined(CODA_COMPAT_5)
@@ -782,8 +784,8 @@ union coda_downcalls {
 #define PIOCPARM_MASK 0x0000ffff
 struct ViceIoctl {
         caddr_t in, out;        /* Data to be transferred in, or out */
-        short in_size;          /* Size of input buffer <= 2K */
-        short out_size;         /* Maximum size of output buffer, <= 2K */
+        unsigned short in_size;	/* Size of input buffer <= 8K */
+        unsigned short out_size; /* Maximum size of output buffer, <= 8K */
 };
 
 #if defined(__CYGWIN32__) || defined(DJGPP)

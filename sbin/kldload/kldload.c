@@ -129,7 +129,7 @@ path_check(const char *kldname, int quiet)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: kldload [-v] file ...\n");
+	fprintf(stderr, "usage: kldload [-qv] file ...\n");
 	exit(1);
 }
 

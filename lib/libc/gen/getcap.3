@@ -305,15 +305,21 @@ giving four names that can be used to access the record.
 .Pp
 The remaining non-empty capabilities describe a set of (name, value)
 bindings, consisting of a names optionally followed by a typed value:
-.Bl -column "nameTvalue"
-.It name Ta "typeless [boolean] capability"
+.Pp
+.Bl -tag -width "nameTvalue" -compact
+.It name
+typeless [boolean] capability
 .Em name No "is present [true]"
-.It name Ns Em \&T Ns value Ta capability
+.It name Ns Em \&T Ns value
+capability
 .Pq Em name , \&T
 has value
 .Em value
-.It name@ Ta "no capability" Em name No exists
-.It name Ns Em T Ns \&@ Ta capability
+.It name@
+no capability
+.Em name No exists
+.It name Ns Em T Ns \&@
+capability
 .Pq Em name , T
 does not exist
 .El
@@ -409,7 +415,6 @@ type `^') and any other value bindings are hidden.
 The capability abc
 also has two values bound but only a value of type `$' is prevented from
 being defined in the capability record more.
-.Pp
 .Bd -unfilled -offset indent
 file1:
  	new\||\|new_record\||\|a modification of "old":\e
@@ -436,28 +441,24 @@ Two types are predefined by
 .Fn cgetnum
 and
 .Fn cgetstr :
-.Bl -column "nameXnumber"
-.Sm off
-.It Em name No \&# Em number Ta numeric
-.Sm on
-capability
+.Pp
+.Bl -tag -width "nameXnumber" -compact
+.It Em name Ns \&# Ns Em number
+numeric capability
 .Em name
 has value
 .Em number
-.Sm off
-.It Em name No = Em string Ta "string capability"
-.Sm on
+.It Em name Ns = Ns Em string
+string capability
 .Em name
 has value
 .Em string
-.Sm off
-.It Em name No \&#@ Ta "the numeric capability"
-.Sm on
+.It Em name Ns \&#@
+the numeric capability
 .Em name
 does not exist
-.Sm off
-.It Em name No \&=@ Ta "the string capability"
-.Sm on
+.It Em name Ns \&=@
+the string capability
 .Em name
 does not exist
 .El

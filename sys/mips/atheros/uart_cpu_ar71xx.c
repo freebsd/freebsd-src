@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
 
 bus_space_tag_t uart_bus_space_io;

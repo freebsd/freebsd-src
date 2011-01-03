@@ -96,7 +96,8 @@ static const char *const pil_names[] = {
 	"ast",		/* PIL_AST */
 	"stop",		/* PIL_STOP */
 	"preempt",	/* PIL_PREEMPT */
-	"stray", "stray", "stray", "stray", "stray",
+	"hardclock",	/* PIL_HARDCLOCK */
+	"stray", "stray", "stray", "stray",
 	"filter",	/* PIL_FILTER */
 	"fast",		/* PIL_FAST */
 	"tick",		/* PIL_TICK */

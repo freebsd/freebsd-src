@@ -3813,6 +3813,7 @@ scb {
 	SCB_RESIDUAL_SGPTR {
 		size	4
 		field	SG_ADDR_MASK		0xf8	/* In the last byte */
+		field   SG_ADDR_BIT		0x04
 		field	SG_OVERRUN_RESID	0x02	/* In the first byte */
 		field	SG_LIST_NULL		0x01	/* In the first byte */
 	}

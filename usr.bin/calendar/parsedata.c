@@ -80,16 +80,16 @@ static char *floattotime(double f);
  * ModifierIndex	::=	'Second' | 'Third' | 'Fourth' | 'Fifth' |
  *				'First' | 'Last'
  * 
- * SpecialDay		::=	'Easter' | 'Pashka' | 'ChineseNewYear'
+ * SpecialDay		::=	'Easter' | 'Paskha' | 'ChineseNewYear'
  *
  */
 static int
 determinestyle(char *date, int *flags,
     char *month, int *imonth, char *dayofmonth, int *idayofmonth,
     char *dayofweek, int *idayofweek, char *modifieroffset,
-    char *modifierindex, char *specialday)
+    char *modifierindex, char *specialday, char *year, int *iyear)
 {
-	char *p, *p1, *p2;
+	char *p, *p1, *p2, *py;
 	const char *dow, *pmonth;
 	char pold;
 	size_t len, offset;
@@ -97,6 +97,8 @@ determinestyle(char *date, int *flags,
 	*flags = F_NONE;
 	*month = '\0';
 	*imonth = 0;
+	*year = '\0';
+	*iyear = 0;
 	*dayofmonth = '\0';
 	*idayofmonth = 0;
 	*dayofweek = '\0';
@@ -190,6 +192,22 @@ determinestyle(char *date, int *flags,
 	p1 = date;
 	p2 = p + 1;
 	/* Now p2 points to the next field and p1 to the first field */
+
+	if ((py = strchr(p2, '/')) != NULL) {
+		/* We have a year in the string. Now this is getting tricky */
+		strcpy(year, p1);
+		*iyear = (int)strtol(year, NULL, 10);
+		p1 = p2;
+		p2 = py + 1;
+		*py = 0;
+		*flags |= F_YEAR;
+	}
+
+	/*
+	printf("p1: %s\n", p1);
+	printf("p2: %s\n", p2);
+	printf("year: %s\n", year);
+	*/
 
 	/* Check if there is a month-string in the date */
 	if ((checkmonth(p1, &len, &offset, &pmonth) != 0)
@@ -323,7 +341,8 @@ remember(int *rememberindex, int *y, int *m, int *d, char **ed, int yy, int mm,
 static void
 debug_determinestyle(int dateonly, char *date, int flags, char *month,
     int imonth, char *dayofmonth, int idayofmonth, char *dayofweek,
-    int idayofweek, char *modifieroffset, char *modifierindex, char *specialday)
+    int idayofweek, char *modifieroffset, char *modifierindex, char *specialday,
+    char *year, int iyear)
 {
 
 	if (dateonly != 0) {
@@ -336,6 +355,8 @@ debug_determinestyle(int dateonly, char *date, int flags, char *month,
 		printf("modifieroffset: |%s|\n", modifieroffset);
 	if (modifierindex[0] != '\0')
 		printf("modifierindex: |%s|\n", modifierindex);
+	if (year[0] != '\0')
+		printf("year: |%s| (%d)\n", year, iyear);
 	if (month[0] != '\0')
 		printf("month: |%s| (%d)\n", month, imonth);
 	if (dayofmonth[0] != '\0')
@@ -371,8 +392,10 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
     char **edp)
 {
 	char month[100], dayofmonth[100], dayofweek[100], modifieroffset[100];
+	char syear[100];
 	char modifierindex[100], specialday[100];
-	int idayofweek = -1, imonth = -1, idayofmonth = -1, year, remindex;
+	int idayofweek = -1, imonth = -1, idayofmonth = -1, iyear = -1;
+	int year, remindex;
 	int d, m, dow, rm, rd, offset;
 	char *ed;
 	int retvalsign = 1;
@@ -394,10 +417,10 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 	if (debug)
 		debug_determinestyle(1, date, *flags, month, imonth,
 		    dayofmonth, idayofmonth, dayofweek, idayofweek,
-		    modifieroffset, modifierindex, specialday);
+		    modifieroffset, modifierindex, specialday, syear, iyear);
 	if (determinestyle(date, flags, month, &imonth, dayofmonth,
 	    &idayofmonth, dayofweek, &idayofweek, modifieroffset,
-	    modifierindex, specialday) == 0) {
+	    modifierindex, specialday, syear, &iyear) == 0) {
 		if (debug)
 			printf("Failed!\n");
 		return (0);
@@ -406,10 +429,18 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 	if (debug)
 		debug_determinestyle(0, date, *flags, month, imonth,
 		    dayofmonth, idayofmonth, dayofweek, idayofweek,
-		    modifieroffset, modifierindex, specialday);
+		    modifieroffset, modifierindex, specialday, syear, iyear);
 
 	remindex = 0;
 	for (year = year1; year <= year2; year++) {
+
+		int lflags = *flags;
+		/* If the year is specified, only do it if it is this year! */
+		if ((lflags & F_YEAR) != 0)
+			if (iyear != year)
+				continue;
+		lflags &= ~F_YEAR;
+
 		/* Get important dates for this year */
 		yearinfo = years;
 		while (yearinfo != NULL) {
@@ -452,7 +483,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* Same day every year */
-		if (*flags == (F_MONTH | F_DAYOFMONTH)) {
+		if (lflags == (F_MONTH | F_DAYOFMONTH)) {
 			if (!remember_ymd(year, imonth, idayofmonth))
 				continue;
 			remember(&remindex, yearp, monthp, dayp, edp,
@@ -461,7 +492,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* XXX Same day every year, but variable */
-		if (*flags == (F_MONTH | F_DAYOFMONTH | F_VARIABLE)) {
+		if (lflags == (F_MONTH | F_DAYOFMONTH | F_VARIABLE)) {
 			if (!remember_ymd(year, imonth, idayofmonth))
 				continue;
 			remember(&remindex, yearp, monthp, dayp, edp,
@@ -470,7 +501,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* Same day every month */
-		if (*flags == (F_ALLMONTH | F_DAYOFMONTH)) {
+		if (lflags == (F_ALLMONTH | F_DAYOFMONTH)) {
 			for (m = 1; m <= 12; m++) {
 				if (!remember_ymd(year, m, idayofmonth))
 					continue;
@@ -481,7 +512,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* Every day of a month */
-		if (*flags == (F_ALLDAY | F_MONTH)) {
+		if (lflags == (F_ALLDAY | F_MONTH)) {
 			for (d = 1; d <= yearinfo->mondays[imonth]; d++) {
 				if (!remember_ymd(year, imonth, d))
 					continue;
@@ -492,7 +523,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* One day of every month */
-		if (*flags == (F_ALLMONTH | F_DAYOFWEEK)) {
+		if (lflags == (F_ALLMONTH | F_DAYOFWEEK)) {
 			for (m = 1; m <= 12; m++) {
 				if (!remember_ymd(year, m, idayofmonth))
 					continue;
@@ -503,7 +534,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* Every dayofweek of the year */
-		if (*flags == (F_DAYOFWEEK | F_VARIABLE)) {
+		if (lflags == (F_DAYOFWEEK | F_VARIABLE)) {
 			dow = first_dayofweek_of_year(year);
 			d = (idayofweek - dow + 8) % 7;
 			while (d <= 366) {
@@ -517,7 +548,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* A certain dayofweek of a month */
-		if (*flags ==
+		if (lflags ==
 		    (F_MONTH | F_DAYOFWEEK | F_MODIFIERINDEX | F_VARIABLE)) {
 			offset = indextooffset(modifierindex);
 			dow = first_dayofweek_of_month(year, imonth);
@@ -553,7 +584,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* Every dayofweek of the month */
-		if (*flags == (F_DAYOFWEEK | F_MONTH | F_VARIABLE)) {
+		if (lflags == (F_DAYOFWEEK | F_MONTH | F_VARIABLE)) {
 			dow = first_dayofweek_of_month(year, imonth);
 			d = (idayofweek - dow + 8) % 7;
 			while (d <= yearinfo->mondays[imonth]) {
@@ -567,10 +598,10 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* Easter */
-		if ((*flags & ~F_MODIFIEROFFSET) ==
+		if ((lflags & ~F_MODIFIEROFFSET) ==
 		    (F_SPECIALDAY | F_VARIABLE | F_EASTER)) {
 			offset = 0;
-			if ((*flags & F_MODIFIEROFFSET) != 0)
+			if ((lflags & F_MODIFIEROFFSET) != 0)
 				offset = parseoffset(modifieroffset);
 			if (remember_yd(year, yearinfo->ieaster + offset,
 			    &rm, &rd))
@@ -580,10 +611,10 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* Paskha */
-		if ((*flags & ~F_MODIFIEROFFSET) ==
+		if ((lflags & ~F_MODIFIEROFFSET) ==
 		    (F_SPECIALDAY | F_VARIABLE | F_PASKHA)) {
 			offset = 0;
-			if ((*flags & F_MODIFIEROFFSET) != 0)
+			if ((lflags & F_MODIFIEROFFSET) != 0)
 				offset = parseoffset(modifieroffset);
 			if (remember_yd(year, yearinfo->ipaskha + offset,
 			    &rm, &rd))
@@ -593,10 +624,10 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* Chinese New Year */
-		if ((*flags & ~F_MODIFIEROFFSET) ==
+		if ((lflags & ~F_MODIFIEROFFSET) ==
 		    (F_SPECIALDAY | F_VARIABLE | F_CNY)) {
 			offset = 0;
-			if ((*flags & F_MODIFIEROFFSET) != 0)
+			if ((lflags & F_MODIFIEROFFSET) != 0)
 				offset = parseoffset(modifieroffset);
 			if (remember_yd(year, yearinfo->firstcnyday + offset,
 			    &rm, &rd))
@@ -606,12 +637,12 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* FullMoon */
-		if ((*flags & ~F_MODIFIEROFFSET) ==
+		if ((lflags & ~F_MODIFIEROFFSET) ==
 		    (F_SPECIALDAY | F_VARIABLE | F_FULLMOON)) {
 			int i;
 
 			offset = 0;
-			if ((*flags & F_MODIFIEROFFSET) != 0)
+			if ((lflags & F_MODIFIEROFFSET) != 0)
 				offset = parseoffset(modifieroffset);
 			for (i = 0; yearinfo->ffullmoon[i] > 0; i++) {
 				if (remember_yd(year,
@@ -628,12 +659,12 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* NewMoon */
-		if ((*flags & ~F_MODIFIEROFFSET) ==
+		if ((lflags & ~F_MODIFIEROFFSET) ==
 		    (F_SPECIALDAY | F_VARIABLE | F_NEWMOON)) {
 			int i;
 
 			offset = 0;
-			if ((*flags & F_MODIFIEROFFSET) != 0)
+			if ((lflags & F_MODIFIEROFFSET) != 0)
 				offset = parseoffset(modifieroffset);
 			for (i = 0; yearinfo->ffullmoon[i] > 0; i++) {
 				if (remember_yd(year,
@@ -649,10 +680,10 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* (Mar|Sep)Equinox */
-		if ((*flags & ~F_MODIFIEROFFSET) ==
+		if ((lflags & ~F_MODIFIEROFFSET) ==
 		    (F_SPECIALDAY | F_VARIABLE | F_MAREQUINOX)) {
 			offset = 0;
-			if ((*flags & F_MODIFIEROFFSET) != 0)
+			if ((lflags & F_MODIFIEROFFSET) != 0)
 				offset = parseoffset(modifieroffset);
 			if (remember_yd(year, yearinfo->equinoxdays[0] + offset,
 			    &rm, &rd)) {
@@ -662,10 +693,10 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 			}
 			continue;
 		}
-		if ((*flags & ~F_MODIFIEROFFSET) ==
+		if ((lflags & ~F_MODIFIEROFFSET) ==
 		    (F_SPECIALDAY | F_VARIABLE | F_SEPEQUINOX)) {
 			offset = 0;
-			if ((*flags & F_MODIFIEROFFSET) != 0)
+			if ((lflags & F_MODIFIEROFFSET) != 0)
 				offset = parseoffset(modifieroffset);
 			if (remember_yd(year, yearinfo->equinoxdays[1] + offset,
 			    &rm, &rd)) {
@@ -677,10 +708,10 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		/* (Jun|Dec)Solstice */
-		if ((*flags & ~F_MODIFIEROFFSET) ==
+		if ((lflags & ~F_MODIFIEROFFSET) ==
 		    (F_SPECIALDAY | F_VARIABLE | F_JUNSOLSTICE)) {
 			offset = 0;
-			if ((*flags & F_MODIFIEROFFSET) != 0)
+			if ((lflags & F_MODIFIEROFFSET) != 0)
 				offset = parseoffset(modifieroffset);
 			if (remember_yd(year,
 			    yearinfo->solsticedays[0] + offset, &rm, &rd)) {
@@ -690,10 +721,10 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 			}
 			continue;
 		}
-		if ((*flags & ~F_MODIFIEROFFSET) ==
+		if ((lflags & ~F_MODIFIEROFFSET) ==
 		    (F_SPECIALDAY | F_VARIABLE | F_DECSOLSTICE)) {
 			offset = 0;
-			if ((*flags & F_MODIFIEROFFSET) != 0)
+			if ((lflags & F_MODIFIEROFFSET) != 0)
 				offset = parseoffset(modifieroffset);
 			if (remember_yd(year,
 			    yearinfo->solsticedays[1] + offset, &rm, &rd)) {
@@ -705,9 +736,9 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 		}
 
 		printf("Unprocessed:\n");
-		debug_determinestyle(2, date, *flags, month, imonth,
+		debug_determinestyle(2, date, lflags, month, imonth,
 		    dayofmonth, idayofmonth, dayofweek, idayofweek,
-		    modifieroffset, modifierindex, specialday);
+		    modifieroffset, modifierindex, specialday, syear, iyear);
 		retvalsign = -1;
 	}
 
@@ -723,6 +754,8 @@ showflags(int flags)
 	static char s[1000];
 	s[0] = '\0';
 
+	if ((flags & F_YEAR) != 0)
+		strcat(s, "year ");
 	if ((flags & F_MONTH) != 0)
 		strcat(s, "month ");
 	if ((flags & F_DAYOFWEEK) != 0)
@@ -938,7 +971,7 @@ floattoday(int year, double f)
 	int *cumdays = cumdaytab[isleap(year)];
 
 	for (i = 0; 1 + cumdays[i] < f; i++)
-		;;
+		;
 	m = --i;
 	d = floor(f - 1 - cumdays[i]);
 	f -= floor(f);

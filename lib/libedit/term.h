@@ -79,7 +79,8 @@ typedef struct {
 #define	A_K_RT		3
 #define	A_K_HO		4
 #define	A_K_EN		5
-#define	A_K_NKEYS	6
+#define	A_K_DE		6
+#define	A_K_NKEYS	7
 
 protected void	term_move_to_line(EditLine *, int);
 protected void	term_move_to_char(EditLine *, int);

@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/vnet.h>
 
+#include <dev/usb/usb_ioctl.h>
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -123,7 +125,7 @@ static struct linux_ioctl_handler sg_handler =
 static struct linux_ioctl_handler video_handler =
 { linux_ioctl_v4l, LINUX_IOCTL_VIDEO_MIN, LINUX_IOCTL_VIDEO_MAX };
 static struct linux_ioctl_handler fbsd_usb =
-{ linux_ioctl_fbsd_usb, LINUX_FBSD_USB_MIN, LINUX_FBSD_USB_MAX };
+{ linux_ioctl_fbsd_usb, FBSD_LUSB_MIN, FBSD_LUSB_MAX };
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, vfat_handler);
@@ -1747,7 +1749,7 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 			strncpy(info.id, "OSS", sizeof(info.id) - 1);
 			strncpy(info.name, "FreeBSD OSS Mixer", sizeof(info.name) - 1);
 			copyout(&info, (void *)args->arg, sizeof(info));
-			break;
+			return (0);
 		}
 		case 0x0030: {	/* SOUND_OLD_MIXER_INFO */
 			struct linux_old_mixer_info info;
@@ -1755,7 +1757,7 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 			strncpy(info.id, "OSS", sizeof(info.id) - 1);
 			strncpy(info.name, "FreeBSD OSS Mixer", sizeof(info.name) - 1);
 			copyout(&info, (void *)args->arg, sizeof(info));
-			break;
+			return (0);
 		}
 		default:
 			return (ENOIOCTL);
@@ -1770,6 +1772,10 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 
 	case LINUX_SOUND_MIXER_READ_STEREODEVS:
 		args->cmd = SOUND_MIXER_READ_STEREODEVS;
+		return (ioctl(td, (struct ioctl_args *)args));
+
+	case LINUX_SOUND_MIXER_READ_CAPS:
+		args->cmd = SOUND_MIXER_READ_CAPS;
 		return (ioctl(td, (struct ioctl_args *)args));
 
 	case LINUX_SOUND_MIXER_READ_RECMASK:
@@ -2218,7 +2224,7 @@ again:
 				addrs++;
 			}
 
-			if (!sbuf_overflowed(sb))
+			if (sbuf_error(sb) == 0)
 				valid_len = sbuf_len(sb);
 		}
 		if (addrs == 0) {
@@ -2226,7 +2232,7 @@ again:
 			sbuf_bcat(sb, &ifr, sizeof(ifr));
 			max_len += sizeof(ifr);
 
-			if (!sbuf_overflowed(sb))
+			if (sbuf_error(sb) == 0)
 				valid_len = sbuf_len(sb);
 		}
 	}
@@ -2983,21 +2989,119 @@ linux_ioctl_special(struct thread *td, struct linux_ioctl_args *args)
 }
 
 /*
- * Support for mounting our devfs under /compat/linux/dev and using
- * our libusb(3) compiled on Linux to access it from within Linuxolator
- * environment.
+ * Support for emulators/linux-libusb. This port uses FBSD_LUSB* macros
+ * instead of USB* ones. This lets us to provide correct values for cmd.
+ * 0xffffffe0 -- 0xffffffff range seemed to be the least collision-prone.
  */
 static int
 linux_ioctl_fbsd_usb(struct thread *td, struct linux_ioctl_args *args)
 {
+	int error;
 
-	/*
-	 * Because on GNU/Linux we build our libusb(3) with our header
-	 * files and ioccom.h macros, ioctl() will contain our native
-	 * command value. This means that we can basically redirect this
-	 * call further.
-	 */
-	return (ioctl(td, (struct ioctl_args *)args));
+	error = 0;
+	switch (args->cmd) {
+	case FBSD_LUSB_DEVICEENUMERATE:
+		args->cmd = USB_DEVICEENUMERATE;
+		break;
+	case FBSD_LUSB_DEV_QUIRK_ADD:
+		args->cmd = USB_DEV_QUIRK_ADD;
+		break;
+	case FBSD_LUSB_DEV_QUIRK_GET:
+		args->cmd = USB_DEV_QUIRK_GET;
+		break;
+	case FBSD_LUSB_DEV_QUIRK_REMOVE:
+		args->cmd = USB_DEV_QUIRK_REMOVE;
+		break;
+	case FBSD_LUSB_DO_REQUEST:
+		args->cmd = USB_DO_REQUEST;
+		break;
+	case FBSD_LUSB_FS_CLEAR_STALL_SYNC:
+		args->cmd = USB_FS_CLEAR_STALL_SYNC;
+		break;
+	case FBSD_LUSB_FS_CLOSE:
+		args->cmd = USB_FS_CLOSE;
+		break;
+	case FBSD_LUSB_FS_COMPLETE:
+		args->cmd = USB_FS_COMPLETE;
+		break;
+	case FBSD_LUSB_FS_INIT:
+		args->cmd = USB_FS_INIT;
+		break;
+	case FBSD_LUSB_FS_OPEN:
+		args->cmd = USB_FS_OPEN;
+		break;
+	case FBSD_LUSB_FS_START:
+		args->cmd = USB_FS_START;
+		break;
+	case FBSD_LUSB_FS_STOP:
+		args->cmd = USB_FS_STOP;
+		break;
+	case FBSD_LUSB_FS_UNINIT:
+		args->cmd = USB_FS_UNINIT;
+		break;
+	case FBSD_LUSB_GET_CONFIG:
+		args->cmd = USB_GET_CONFIG;
+		break;
+	case FBSD_LUSB_GET_DEVICEINFO:
+		args->cmd = USB_GET_DEVICEINFO;
+		break;
+	case FBSD_LUSB_GET_DEVICE_DESC:
+		args->cmd = USB_GET_DEVICE_DESC;
+		break;
+	case FBSD_LUSB_GET_FULL_DESC:
+		args->cmd = USB_GET_FULL_DESC;
+		break;
+	case FBSD_LUSB_GET_IFACE_DRIVER:
+		args->cmd = USB_GET_IFACE_DRIVER;
+		break;
+	case FBSD_LUSB_GET_PLUGTIME:
+		args->cmd = USB_GET_PLUGTIME;
+		break;
+	case FBSD_LUSB_GET_POWER_MODE:
+		args->cmd = USB_GET_POWER_MODE;
+		break;
+	case FBSD_LUSB_GET_REPORT_DESC:
+		args->cmd = USB_GET_REPORT_DESC;
+		break;
+	case FBSD_LUSB_GET_REPORT_ID:
+		args->cmd = USB_GET_REPORT_ID;
+		break;
+	case FBSD_LUSB_GET_TEMPLATE:
+		args->cmd = USB_GET_TEMPLATE;
+		break;
+	case FBSD_LUSB_IFACE_DRIVER_ACTIVE:
+		args->cmd = USB_IFACE_DRIVER_ACTIVE;
+		break;
+	case FBSD_LUSB_IFACE_DRIVER_DETACH:
+		args->cmd = USB_IFACE_DRIVER_DETACH;
+		break;
+	case FBSD_LUSB_QUIRK_NAME_GET:
+		args->cmd = USB_QUIRK_NAME_GET;
+		break;
+	case FBSD_LUSB_READ_DIR:
+		args->cmd = USB_READ_DIR;
+		break;
+	case FBSD_LUSB_SET_ALTINTERFACE:
+		args->cmd = USB_SET_ALTINTERFACE;
+		break;
+	case FBSD_LUSB_SET_CONFIG:
+		args->cmd = USB_SET_CONFIG;
+		break;
+	case FBSD_LUSB_SET_IMMED:
+		args->cmd = USB_SET_IMMED;
+		break;
+	case FBSD_LUSB_SET_POWER_MODE:
+		args->cmd = USB_SET_POWER_MODE;
+		break;
+	case FBSD_LUSB_SET_TEMPLATE:
+		args->cmd = USB_SET_TEMPLATE;
+		break;
+	default:
+		error = ENOIOCTL;
+	}
+	if (error != ENOIOCTL)
+		error = ioctl(td, (struct ioctl_args *)args);
+	return (error);
 }
 
 /*

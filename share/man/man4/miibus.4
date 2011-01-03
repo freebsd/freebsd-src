@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2010
+.Dd December 30, 2010
 .Dt MIIBUS 4
 .Os
 .Sh NAME
@@ -45,6 +45,8 @@ The following network device drivers use the
 interface:
 .Pp
 .Bl -tag -compact -width ".Xr fxp 4"
+.It Xr ae 4
+Attansic/Atheros L2 Fast Ethernet
 .It Xr age 4
 Attansic/Atheros L1 Gigabit Ethernet
 .It Xr alc 4
@@ -117,6 +119,8 @@ Davicom DM9601 USB Ethernet
 VIA VT612x PCI Gigabit Ethernet
 .It Xr vr 4
 VIA Rhine, Rhine II
+.It Xr vte 4
+DM&P Vortex86 RDC R6040 Fast Ethernet
 .It Xr wb 4
 Winbond W89C840F
 .It Xr xl 4
@@ -132,6 +136,7 @@ and
 .Nx ,
 but as a result are not well behaved newbus device drivers.
 .Sh SEE ALSO
+.Xr ae 4 ,
 .Xr age 4 ,
 .Xr alc 4 ,
 .Xr ale 4 ,
@@ -170,6 +175,7 @@ but as a result are not well behaved newbus device drivers.
 .Xr udav 4 ,
 .Xr vge 4 ,
 .Xr vr 4 ,
+.Xr vte 4 ,
 .Xr wb 4 ,
 .Xr xl 4
 .Sh STANDARDS

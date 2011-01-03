@@ -198,6 +198,24 @@ draw:
     wnoutrefresh(dialog);
     wmove(list, choice, check_x+1);
     wrefresh(list);
+
+    /*
+     *	XXX Black magic voodoo that allows printing to the checklist
+     *	window. For some reason, if this "refresh" code is not in
+     *	place, printing to the window from the selected callback
+     *	prints "behind" the checklist window. There is probably a
+     *	better way to do this.
+     */
+    draw_box(dialog, box_y, box_x, list_height + 2, list_width + 2, menubox_border_attr, menubox_attr);
+
+    for (i = 0; i < max_choice; i++)
+	print_item(list, items[i * 3], items[i * 3 + 1], status[i], i, i == choice, DREF(ditems, i), list_width, item_x, check_x);
+    print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
+
+    wmove(list, choice, check_x+1);
+    wnoutrefresh(dialog);
+    wrefresh(list);
+    /* XXX Black magic XXX */
     
     while (key != ESC) {
 	key = wgetch(dialog);

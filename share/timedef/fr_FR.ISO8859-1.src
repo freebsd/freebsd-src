@@ -35,23 +35,23 @@ décembre
 #
 # Short weekday names
 #
-Dim
-Lun
-Mar
-Mer
-Jeu
-Ven
-Sam
+dim
+lun
+mar
+mer
+jeu
+ven
+sam
 #
 # Long weekday names
 #
-Dimanche
-Lundi
-Mardi
-Mercredi
-Jeudi
-Vendredi
-Samedi
+dimanche
+lundi
+mardi
+mercredi
+jeudi
+vendredi
+samedi
 #
 # X_fmt
 #

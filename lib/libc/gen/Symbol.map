@@ -358,6 +358,7 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	basename_r;
+	cfmakesane;
 	endutxent;
 	getpagesizes;
 	getutxent;
@@ -403,6 +404,8 @@ FBSDprivate_1.0 {
 	_pthread_attr_setstackaddr;
 	_pthread_attr_setstacksize;
 	_pthread_cancel;
+	_pthread_cancel_enter;
+	_pthread_cancel_leave;
 	_pthread_cleanup_pop;
 	_pthread_cleanup_push;
 	_pthread_cond_broadcast;
@@ -446,10 +449,12 @@ FBSDprivate_1.0 {
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
+	_rtld_addr_phdr;
 	_rtld_atfork_pre;
 	_rtld_atfork_post;
 	_rtld_error;		/* for private use */
 	_rtld_thread_init;	/* for private use */
+	__elf_phdr_match_addr;
 	_err;
 	_warn;
 	__fmtcheck;
@@ -492,4 +497,6 @@ FBSDprivate_1.0 {
 	_libc_sem_timedwait_compat;
 	_libc_sem_post_compat;
 	_libc_sem_getvalue_compat;
+
+	__elf_aux_vector;
 };

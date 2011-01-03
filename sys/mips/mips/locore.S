@@ -85,10 +85,10 @@ GLOBAL(fenvp)
 GLOBAL(btext)
 ASM_ENTRY(_start)
 VECTOR(_locore, unknown)
-	/* UNSAFE TO USE a0..a3, since some bootloaders pass that to us */
-	mtc0	zero, COP_0_CAUSE_REG	# Clear soft interrupts
+	/* UNSAFE TO USE a0..a3, need to preserve the args from boot loader */
+	mtc0	zero, MIPS_COP_0_CAUSE	# Clear soft interrupts
 	
-#if defined(TARGET_OCTEON)
+#if defined(CPU_CNMIPS)
 	/*
 	 * t1: Bits to set explicitly:
 	 *	Enable FPU
@@ -99,9 +99,9 @@ VECTOR(_locore, unknown)
 
 	/* Reset these bits */
         li	t0, ~(MIPS_SR_DE | MIPS_SR_SOFT_RESET | MIPS_SR_ERL | MIPS_SR_EXL | MIPS_SR_INT_IE)
-#elif defined (CPU_XLR)
+#elif defined (CPU_RMI)
 	/* Set these bits */
-        li	t1, (MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT | MIPS_SR_KX)
+        li	t1, (MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT | MIPS_SR_KX | MIPS_SR_UX)
 
 	/* Reset these bits */
         li	t0, ~(MIPS_SR_BEV | MIPS_SR_SOFT_RESET | MIPS_SR_INT_IE)
@@ -117,41 +117,25 @@ VECTOR(_locore, unknown)
 	 *	Enable FPU
 	 */
 	li	t1, MIPS_SR_COP_1_BIT
+#ifdef __mips_n64
+	or	t1, MIPS_SR_KX | MIPS_SR_UX
+#endif
 #endif
 	/*
 	 * Read coprocessor 0 status register, clear bits not
 	 * preserved (namely, clearing interrupt bits), and set
 	 * bits we want to explicitly set.
 	 */
-	mfc0	t2, COP_0_STATUS_REG
+	mfc0	t2, MIPS_COP_0_STATUS
 	and	t2, t0
 	or	t2, t1
-	mtc0	t2, COP_0_STATUS_REG
+	mtc0	t2, MIPS_COP_0_STATUS
 	COP0_SYNC
 
 	/* Make sure KSEG0 is cached */
-	li	t0, CFG_K0_CACHED
+	li	t0, MIPS_CCA_CACHED
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
-
-	/* Read and store the PrID FPU ID for CPU identification, if any. */
-	mfc0	t2, COP_0_STATUS_REG
-	mfc0	t0, MIPS_COP_0_PRID
-#ifdef CPU_HAVEFPU
-	and	t2, MIPS_SR_COP_1_BIT
-	beqz	t2, 1f
-	move	t1, zero
-	cfc1	t1, MIPS_FPU_ID
-1:
-#else
-	/*
-	 * This platform has no FPU, and attempting to detect one
-	 * using the official method causes an exception.
-	 */
-	move	t1, zero
-#endif
-	sw	t0, _C_LABEL(cpu_id)
-	sw	t1, _C_LABEL(fpu_id)
 
 	/*xxximp
 	 * now that we pass a0...a3 to the platform_init routine, do we need
@@ -162,7 +146,7 @@ VECTOR(_locore, unknown)
 	sw	a2, _C_LABEL(fenvp)
 #endif
 
-#if defined(TARGET_OCTEON) && defined(SMP)
+#if defined(CPU_CNMIPS) && defined(SMP)
 	.set push
 	.set mips32r2
 	rdhwr	t2, $0
@@ -177,11 +161,11 @@ VECTOR(_locore, unknown)
 	/*
 	 * Initialize stack and call machine startup.
 	 */
-	PTR_LA	sp, _C_LABEL(pcpu_space)
-	addiu	sp, (PAGE_SIZE * 2) - CALLFRAME_SIZ
+	PTR_LA		sp, _C_LABEL(pcpu_space)
+	PTR_ADDU	sp, (PAGE_SIZE * 2) - CALLFRAME_SIZ
 
-	sw	zero, CALLFRAME_SIZ - 4(sp)	# Zero out old ra for debugger
-	sw	zero, CALLFRAME_SIZ - 8(sp)	# Zero out old fp for debugger
+	REG_S	zero, CALLFRAME_RA(sp)	# Zero out old ra for debugger
+	REG_S	zero, CALLFRAME_SP(sp)	# Zero out old fp for debugger
 
 	PTR_LA	gp, _C_LABEL(_gp)
 

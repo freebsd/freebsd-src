@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2008-2009 Robert N. M. Watson
+ * Copyright (c) 2010 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * This software was developed by Robert N. M. Watson under contract
+ * to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -224,17 +228,19 @@ tcpp_client_worker(int workernum)
 	int ncpus;
 	size_t len;
 
-	len = sizeof(ncpus);
-	if (sysctlbyname(SYSCTLNAME_CPUS, &ncpus, &len, NULL, 0) < 0)
-		err(-1, "sysctlbyname: %s", SYSCTLNAME_CPUS);
-	if (len != sizeof(ncpus))
-		errx(-1, "sysctlbyname: %s: len %jd", SYSCTLNAME_CPUS,
-		    (intmax_t)len);
+	if (Pflag) {
+		len = sizeof(ncpus);
+		if (sysctlbyname(SYSCTLNAME_CPUS, &ncpus, &len, NULL, 0) < 0)
+			err(-1, "sysctlbyname: %s", SYSCTLNAME_CPUS);
+		if (len != sizeof(ncpus))
+			errx(-1, "sysctlbyname: %s: len %jd", SYSCTLNAME_CPUS,
+			    (intmax_t)len);
 
-	CPU_ZERO(&mask);
-	CPU_SET(workernum % ncpus, &mask);
-	if (sched_setaffinity(0, CPU_SETSIZE, &mask) < 0)
-		err(-1, "sched_setaffinity");
+		CPU_ZERO(&mask);
+		CPU_SET(workernum % ncpus, &mask);
+		if (sched_setaffinity(0, CPU_SETSIZE, &mask) < 0)
+			err(-1, "sched_setaffinity");
+	}
 #endif
 	setproctitle("tcpp_client %d", workernum);
 
@@ -335,33 +341,37 @@ tcpp_client(void)
 	if (failed)
 		errx(-1, "Too many errors");
 
-	printf("%jd bytes transferred in %jd.%09jd seconds\n", 
-	    (bflag * tflag * pflag), (intmax_t)ts_finish.tv_sec,
+	if (hflag)
+		printf("bytes,seconds,conn/s,Gb/s,user%%,nice%%,sys%%,"
+		    "intr%%,idle%%\n");
+
+	/*
+	 * Configuration parameters.
+	 */
+	printf("%jd,", bflag * tflag * pflag);
+	printf("%jd.%09jd,", (intmax_t)ts_finish.tv_sec,
 	    (intmax_t)(ts_finish.tv_nsec));
 
-	if (Tflag)
-		printf("%d procs ", pflag);
-	if (Cflag) {
-		printf("%f cps%s", (double)(pflag * tflag)/
-		    (ts_finish.tv_sec + ts_finish.tv_nsec * 1e-9),
-		    Tflag ? " " : "\n");
-	} else {
-		printf("%f Gbps%s", (double)(bflag * tflag * pflag * 8) /
-		    (ts_finish.tv_sec + ts_finish.tv_nsec * 1e-9) * 1e-9,
-		    Tflag ? " " : "\n");
+	/*
+	 * Effective transmit rates.
+	 */
+	printf("%f,", (double)(pflag * tflag)/
+	    (ts_finish.tv_sec + ts_finish.tv_nsec * 1e-9));
+	printf("%f,", (double)(bflag * tflag * pflag * 8) /
+	    (ts_finish.tv_sec + ts_finish.tv_nsec * 1e-9) * 1e-9);
+
+	/*
+	 * CPU time (est).
+	 */
+	ticks = 0;
+	for (i = 0; i < CPUSTATES; i++) {
+		cp_time_finish[i] -= cp_time_start[i];
+		ticks += cp_time_finish[i];
 	}
-	if (Tflag) {
-		ticks = 0;
-		for (i = 0; i < CPUSTATES; i++) {
-			cp_time_finish[i] -= cp_time_start[i];
-			ticks += cp_time_finish[i];
-		}
-		printf("user%% %lu nice%% %lu sys%% %lu intr%% %lu "
-		    "idle%% %lu\n",
-		    (100 * cp_time_finish[CP_USER]) / ticks,
-		    (100 * cp_time_finish[CP_NICE]) / ticks,
-		    (100 * cp_time_finish[CP_SYS]) / ticks,
-		    (100 * cp_time_finish[CP_INTR]) / ticks,
-		    (100 * cp_time_finish[CP_IDLE]) / ticks);
-	}
+	printf("%0.02f,", (float)(100 * cp_time_finish[CP_USER]) / ticks);
+	printf("%0.02f,", (float)(100 * cp_time_finish[CP_NICE]) / ticks);
+	printf("%0.02f,", (float)(100 * cp_time_finish[CP_SYS]) / ticks);
+	printf("%0.02f,", (float)(100 * cp_time_finish[CP_INTR]) / ticks);
+	printf("%0.02f", (float)(100 * cp_time_finish[CP_IDLE]) / ticks);
+	printf("\n");
 }

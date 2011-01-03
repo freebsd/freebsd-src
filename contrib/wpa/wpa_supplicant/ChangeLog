@@ -1,10 +1,151 @@
 ChangeLog for wpa_supplicant
 
-2009-02-15 - v0.6.8
+2010-09-07 - v0.7.3
+	* fixed fallback from failed PMKSA caching into full EAP authentication
+	  [Bug 355]
+	* fixed issue with early D-Bus signals during initialization
+	* fixed X.509 name handling in internal TLS
+	* fixed WPS ER to use corrent Enrollee MAC Address in Credential
+	* fixed scanning routines ot improve AP selection for WPS
+	* added WPS workaround for open networks
+	* fixed WPS Diffie-Hellman derivation to use correct public key length
+	* fixed wpa_supplicant AP mode operations to ignore Supplicant and
+	  scan result events
+	* improved SME operations with nl80211
+	* fixed WPS ER event_id handling in some cases
+	* fixed some issues with bgscan simple to avoid unnecessary scans
+	* fixed issue with l2_packet_ndis overlapped writes corrupting stack
+	  [Bug 328]
+	* updated WinPcap to the latest stable version 4.1.2 in Windows
+	  installer
+
+2010-04-18 - v0.7.2
+	* nl80211: fixed number of issues with roaming
+	* avoid unnecessary roaming if multiple APs with similar signal
+	  strength are present in scan results
+	* add TLS client events and server probing to ease design of
+	  automatic detection of EAP parameters
+	* add option for server certificate matching (SHA256 hash of the
+	  certificate) instead of trusted CA certificate configuration
+	* bsd: Cleaned up driver wrapper and added various low-level
+	  configuration options
+	* wpa_gui-qt4: do not show too frequent WPS AP available events as
+	  tray messages
+	* TNC: fixed issues with fragmentation
+	* EAP-TNC: add Flags field into fragment acknowledgement (needed to
+	  interoperate with other implementations; may potentially breaks
+	  compatibility with older wpa_supplicant/hostapd versions)
+	* wpa_cli: added option for using a separate process to receive event
+	  messages to reduce latency in showing these
+	  (CFLAGS += -DCONFIG_WPA_CLI_FORK=y in .config to enable this)
+	* maximum BSS table size can now be configured (bss_max_count)
+	* BSSes to be included in the BSS table can be filtered based on
+	  configured SSIDs to save memory (filter_ssids)
+	* fix number of issues with IEEE 802.11r/FT; this version is not
+	  backwards compatible with old versions
+	* nl80211: add support for IEEE 802.11r/FT protocol (both over-the-air
+	  and over-the-DS)
+	* add freq_list network configuration parameter to allow the AP
+	  selection to filter out entries based on the operating channel
+	* add signal strength change events for bgscan; this allows more
+	  dynamic changes to background scanning interval based on changes in
+	  the signal strength with the current AP; this improves roaming within
+	  ESS quite a bit, e.g., with bgscan="simple:30:-45:300" in the network
+	  configuration block to request background scans less frequently when
+	  signal strength remains good and to automatically trigger background
+	  scans whenever signal strength drops noticeably
+	  (this is currently only available with nl80211)
+	* add BSSID and reason code (if available) to disconnect event messages
+	* wpa_gui-qt4: more complete support for translating the GUI with
+	  linguist and add German translation
+	* fix DH padding with internal crypto code (mainly, for WPS)
+	* do not trigger initial scan automatically anymore if there are no
+	  enabled networks
+
+2010-01-16 - v0.7.1
+	* cleaned up driver wrapper API (struct wpa_driver_ops); the new API
+	  is not fully backwards compatible, so out-of-tree driver wrappers
+	  will need modifications
+	* cleaned up various module interfaces
+	* merge hostapd and wpa_supplicant developers' documentation into a
+	  single document
+	* nl80211: use explicit deauthentication to clear cfg80211 state to
+	  avoid issues when roaming between APs
+	* dbus: major design changes in the new D-Bus API
+	  (fi.w1.wpa_supplicant1)
+	* nl80211: added support for IBSS networks
+	* added internal debugging mechanism with backtrace support and memory
+	  allocation/freeing validation, etc. tests (CONFIG_WPA_TRACE=y)
+	* added WPS ER unsubscription command to more cleanly unregister from
+	  receiving UPnP events when ER is terminated
+	* cleaned up AP mode operations to avoid need for virtual driver_ops
+	  wrapper
+	* added BSS table to maintain more complete scan result information
+	  over multiple scans (that may include only partial results)
+	* wpa_gui-qt4: update Peers dialog information more dynamically while
+	  the dialog is kept open
+	* fixed PKCS#12 use with OpenSSL 1.0.0
+	* driver_wext: Added cfg80211-specific optimization to avoid some
+	  unnecessary scans and to speed up association
+
+2009-11-21 - v0.7.0
 	* increased wpa_cli ping interval to 5 seconds and made this
 	  configurable with a new command line options (-G<seconds>)
 	* fixed scan buffer processing with WEXT to handle up to 65535
 	  byte result buffer (previously, limited to 32768 bytes)
+	* allow multiple driver wrappers to be specified on command line
+	  (e.g., -Dnl80211,wext); the first one that is able to initialize the
+	  interface will be used
+	* added support for multiple SSIDs per scan request to optimize
+	  scan_ssid=1 operations in ap_scan=1 mode (i.e., search for hidden
+	  SSIDs); this requires driver support and can currently be used only
+	  with nl80211
+	* added support for WPS USBA out-of-band mechanism with USB Flash
+	  Drives (UFD) (CONFIG_WPS_UFD=y)
+	* driver_ndis: add PAE group address to the multicast address list to
+	  fix wired IEEE 802.1X authentication
+	* fixed IEEE 802.11r key derivation function to match with the standard
+	  (note: this breaks interoperability with previous version) [Bug 303]
+	* added better support for drivers that allow separate authentication
+	  and association commands (e.g., mac80211-based Linux drivers with
+	  nl80211; SME in wpa_supplicant); this allows over-the-air FT protocol
+	  to be used (IEEE 802.11r)
+	* fixed SHA-256 based key derivation function to match with the
+	  standard when using CCMP (for IEEE 802.11r and IEEE 802.11w)
+	  (note: this breaks interoperability with previous version) [Bug 307]
+	* use shared driver wrapper files with hostapd
+	* added AP mode functionality (CONFIG_AP=y) with mode=2 in the network
+	  block; this can be used for open and WPA2-Personal networks
+	  (optionally, with WPS); this links in parts of hostapd functionality
+	  into wpa_supplicant
+	* wpa_gui-qt4: added new Peers dialog to show information about peers
+	  (other devices, including APs and stations, etc. in the neighborhood)
+	* added support for WPS External Registrar functionality (configure APs
+	  and enroll new devices); can be used with wpa_gui-qt4 Peers dialog
+	  and wpa_cli commands wps_er_start, wps_er_stop, wps_er_pin,
+	  wps_er_pbc, wps_er_learn
+	  (this can also be used with a new 'none' driver wrapper if no
+	  wireless device or IEEE 802.1X on wired is needed)
+	* driver_nl80211: multiple updates to provide support for new Linux
+	  nl80211/mac80211 functionality
+	* updated management frame protection to use IEEE Std 802.11w-2009
+	* fixed number of small WPS issues and added workarounds to
+	  interoperate with common deployed broken implementations
+	* added support for NFC out-of-band mechanism with WPS
+	* driver_ndis: fixed wired IEEE 802.1X authentication with PAE group
+	  address frames
+	* added preliminary support for IEEE 802.11r RIC processing
+	* added support for specifying subset of enabled frequencies to scan
+	  (scan_freq option in the network configuration block); this can speed
+	  up scanning process considerably if it is known that only a small
+	  subset of channels is actually used in the network (this is currently
+	  supported only with -Dnl80211)
+	* added a workaround for race condition between receiving the
+	  association event and the following EAPOL-Key
+	* added background scan and roaming infrastructure to allow
+	  network-specific optimizations to be used to improve roaming within
+	  an ESS (same SSID)
+	* added new DBus interface (fi.w1.wpa_supplicant1)
 
 2009-01-06 - v0.6.7
 	* added support for Wi-Fi Protected Setup (WPS)

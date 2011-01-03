@@ -106,6 +106,8 @@ struct port_info {
 	int		link_fault;
 
 	uint8_t		hw_addr[ETHER_ADDR_LEN];
+	struct callout	link_check_ch;
+	struct task	link_check_task;
 	struct task	timer_reclaim_task;
 	struct cdev     *port_cdev;
 
@@ -350,7 +352,6 @@ struct adapter {
 	struct filter_info      *filters;
 	
 	/* Tasks */
-	struct task		ext_intr_task;
 	struct task		slow_intr_task;
 	struct task		tick_task;
 	struct taskqueue	*tq;
@@ -388,6 +389,8 @@ struct adapter {
 	char                    reglockbuf[ADAPTER_LOCK_NAME_LEN];
 	char                    mdiolockbuf[ADAPTER_LOCK_NAME_LEN];
 	char                    elmerlockbuf[ADAPTER_LOCK_NAME_LEN];
+
+	int			timestamp;
 };
 
 struct t3_rx_mode {
@@ -493,12 +496,12 @@ adap2pinfo(struct adapter *adap, int idx)
 int t3_os_find_pci_capability(adapter_t *adapter, int cap);
 int t3_os_pci_save_state(struct adapter *adapter);
 int t3_os_pci_restore_state(struct adapter *adapter);
+void t3_os_link_intr(struct port_info *);
 void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc, int mac_was_reset);
 void t3_os_phymod_changed(struct adapter *adap, int port_id);
 void t3_sge_err_intr_handler(adapter_t *adapter);
 int t3_offload_tx(struct t3cdev *, struct mbuf *);
-void t3_os_ext_intr_handler(adapter_t *adapter);
 void t3_os_set_hw_addr(adapter_t *adapter, int port_idx, u8 hw_addr[]);
 int t3_mgmt_tx(adapter_t *adap, struct mbuf *m);
 
@@ -526,10 +529,6 @@ void t3_add_configured_sysctls(adapter_t *sc);
 int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
     unsigned char *data);
 void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p);
-
-#define CXGB_TICKS(a) ((a)->params.linkpoll_period ? \
-    (hz * (a)->params.linkpoll_period) / 10 : \
-    (a)->params.stats_update_period * hz)
 
 /*
  * XXX figure out how we can return this to being private to sge

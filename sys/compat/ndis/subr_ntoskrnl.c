@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <sys/callout.h>
-#if __FreeBSD_version > 502113
 #include <sys/kdb.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/condvar.h>
@@ -70,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_extern.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -122,12 +121,14 @@ typedef struct callout_entry callout_entry;
 
 static struct list_entry ntoskrnl_calllist;
 static struct mtx ntoskrnl_calllock;
+struct kuser_shared_data kuser_shared_data;
 
 static struct list_entry ntoskrnl_intlist;
 static kspin_lock ntoskrnl_intlock;
 
 static uint8_t RtlEqualUnicodeString(unicode_string *,
 	unicode_string *, uint8_t);
+static void RtlCopyString(ansi_string *, const ansi_string *);
 static void RtlCopyUnicodeString(unicode_string *,
 	unicode_string *);
 static irp *IoBuildSynchronousFsdRequest(uint32_t, device_object *,
@@ -180,7 +181,9 @@ static uint64_t _aullrem(uint64_t, uint64_t);
 static uint64_t _aullshr(uint64_t, uint8_t);
 static uint64_t _aullshl(uint64_t, uint8_t);
 static slist_entry *ntoskrnl_pushsl(slist_header *, slist_entry *);
+static void InitializeSListHead(slist_header *);
 static slist_entry *ntoskrnl_popsl(slist_header *);
+static void ExFreePoolWithTag(void *, uint32_t);
 static void ExInitializePagedLookasideList(paged_lookaside_list *,
 	lookaside_alloc_func *, lookaside_free_func *,
 	uint32_t, size_t, uint32_t, uint16_t);
@@ -199,9 +202,10 @@ static uint32_t InterlockedDecrement(volatile uint32_t *);
 static void ExInterlockedAddLargeStatistic(uint64_t *, uint32_t);
 static void *MmAllocateContiguousMemory(uint32_t, uint64_t);
 static void *MmAllocateContiguousMemorySpecifyCache(uint32_t,
-	uint64_t, uint64_t, uint64_t, uint32_t);
+	uint64_t, uint64_t, uint64_t, enum nt_caching_type);
 static void MmFreeContiguousMemory(void *);
-static void MmFreeContiguousMemorySpecifyCache(void *, uint32_t, uint32_t);
+static void MmFreeContiguousMemorySpecifyCache(void *, uint32_t,
+	enum nt_caching_type);
 static uint32_t MmSizeOfMdl(void *, size_t);
 static void *MmMapLockedPages(mdl *, uint8_t);
 static void *MmMapLockedPagesSpecifyCache(mdl *,
@@ -209,6 +213,10 @@ static void *MmMapLockedPagesSpecifyCache(mdl *,
 static void MmUnmapLockedPages(void *, mdl *);
 static device_t ntoskrnl_finddev(device_t, uint64_t, struct resource **);
 static void RtlZeroMemory(void *, size_t);
+static void RtlSecureZeroMemory(void *, size_t);
+static void RtlFillMemory(void *, size_t, uint8_t);
+static void RtlMoveMemory(void *, const void *, size_t);
+static ndis_status RtlCharToInteger(const char *, uint32_t, uint32_t *);
 static void RtlCopyMemory(void *, const void *, size_t);
 static size_t RtlCompareMemory(const void *, const void *, size_t);
 static ndis_status RtlUnicodeStringToInteger(unicode_string *,
@@ -220,6 +228,8 @@ static void srand(unsigned int);
 static void KeQuerySystemTime(uint64_t *);
 static uint32_t KeTickCount(void);
 static uint8_t IoIsWdmVersionAvailable(uint8_t, uint8_t);
+static int32_t IoOpenDeviceRegistryKey(struct device_object *, uint32_t,
+    uint32_t, void **);
 static void ntoskrnl_thrfunc(void *);
 static ndis_status PsCreateSystemThread(ndis_handle *,
 	uint32_t, void *, ndis_handle, void *, void *, void *);
@@ -274,7 +284,6 @@ ntoskrnl_libinit()
 	kdpc_queue		*kq;
 	callout_entry		*e;
 	int			i;
-	char			name[64];
 
 	mtx_init(&ntoskrnl_dispatchlock,
 	    "ntoskrnl dispatch lock", MTX_NDIS_LOCK, MTX_DEF|MTX_RECURSE);
@@ -321,9 +330,8 @@ ntoskrnl_libinit()
 #endif
 		kq = kq_queues + i;
 		kq->kq_cpu = i;
-		sprintf(name, "Windows DPC %d", i);
 		error = kproc_create(ntoskrnl_dpc_thread, kq, &p,
-		    RFHIGHPID, NDIS_KSTACK_PAGES, name);
+		    RFHIGHPID, NDIS_KSTACK_PAGES, "Windows DPC %d", i);
 		if (error)
 			panic("failed to launch DPC thread");
 	}
@@ -334,9 +342,8 @@ ntoskrnl_libinit()
 
 	for (i = 0; i < WORKITEM_THREADS; i++) {
 		kq = wq_queues + i;
-		sprintf(name, "Windows Workitem %d", i);
 		error = kproc_create(ntoskrnl_workitem_thread, kq, &p,
-		    RFHIGHPID, NDIS_KSTACK_PAGES, name);
+		    RFHIGHPID, NDIS_KSTACK_PAGES, "Windows Workitem %d", i);
 		if (error)
 			panic("failed to launch workitem thread");
 	}
@@ -540,6 +547,20 @@ RtlEqualUnicodeString(unicode_string *str1, unicode_string *str2,
 }
 
 static void
+RtlCopyString(dst, src)
+	ansi_string		*dst;
+	const ansi_string	*src;
+{
+	if (src != NULL && src->as_buf != NULL && dst->as_buf != NULL) {
+		dst->as_len = min(src->as_len, dst->as_maxlen);
+		memcpy(dst->as_buf, src->as_buf, dst->as_len);
+		if (dst->as_len < dst->as_maxlen)
+			dst->as_buf[dst->as_len] = 0;
+	} else
+		dst->as_len = 0;
+}
+
+static void
 RtlCopyUnicodeString(dest, src)
 	unicode_string		*dest;
 	unicode_string		*src;
@@ -650,6 +671,14 @@ ExAllocatePoolWithTag(pooltype, len, tag)
 		return (NULL);
 
 	return (buf);
+}
+
+static void
+ExFreePoolWithTag(buf, tag)
+	void		*buf;
+	uint32_t	tag;
+{
+	ExFreePool(buf);
 }
 
 void
@@ -2058,6 +2087,13 @@ ntoskrnl_pushsl(head, entry)
 	return (oldhead);
 }
 
+static void
+InitializeSListHead(head)
+	slist_header		*head;
+{
+	memset(head, 0, sizeof(*head));
+}
+
 static slist_entry *
 ntoskrnl_popsl(head)
 	slist_header		*head;
@@ -2429,14 +2465,34 @@ MmAllocateContiguousMemorySpecifyCache(size, lowest, highest,
 	uint64_t		lowest;
 	uint64_t		highest;
 	uint64_t		boundary;
-	uint32_t		cachetype;
+	enum nt_caching_type	cachetype;
 {
-	void *addr;
-	size_t pagelength = roundup(size, PAGE_SIZE);
+	vm_memattr_t		memattr;
+	void			*ret;
 
-	addr = ExAllocatePoolWithTag(NonPagedPool, pagelength, 0);
+	switch (cachetype) {
+	case MmNonCached:
+		memattr = VM_MEMATTR_UNCACHEABLE;
+		break;
+	case MmWriteCombined:
+		memattr = VM_MEMATTR_WRITE_COMBINING;
+		break;
+	case MmNonCachedUnordered:
+		memattr = VM_MEMATTR_UNCACHEABLE;
+		break;
+	case MmCached:
+	case MmHardwareCoherentCached:
+	case MmUSWCCached:
+	default:
+		memattr = VM_MEMATTR_DEFAULT;
+		break;
+	}
 
-	return (addr);
+	ret = (void *)kmem_alloc_contig(kernel_map, size, M_ZERO | M_NOWAIT,
+	    lowest, highest, PAGE_SIZE, boundary, memattr);
+	if (ret != NULL)
+		malloc_type_allocated(M_DEVBUF, round_page(size));
+	return (ret);
 }
 
 static void
@@ -2450,9 +2506,9 @@ static void
 MmFreeContiguousMemorySpecifyCache(base, size, cachetype)
 	void			*base;
 	uint32_t		size;
-	uint32_t		cachetype;
+	enum nt_caching_type	cachetype;
 {
-	ExFreePool(base);
+	contigfree(base, size, M_DEVBUF);
 }
 
 static uint32_t
@@ -2526,6 +2582,23 @@ MmUnmapLockedPages(vaddr, buf)
  * You'd think the virtual memory subsystem would help us out
  * here, but it doesn't.
  */
+
+static uint64_t
+MmGetPhysicalAddress(void *base)
+{
+	return (pmap_extract(kernel_map->pmap, (vm_offset_t)base));
+}
+
+void *
+MmGetSystemRoutineAddress(ustr)
+	unicode_string		*ustr;
+{
+	ansi_string		astr;
+
+	if (RtlUnicodeStringToAnsiString(&astr, ustr, TRUE))
+		return (NULL);
+	return (ndis_get_routine_address(ntoskrnl_functbl, astr.as_buf));
+}
 
 uint8_t
 MmIsAddressValid(vaddr)
@@ -2605,11 +2678,7 @@ ntoskrnl_finddev(dev, paddr, res)
 
 	rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
 	if (rl != NULL) {
-#if __FreeBSD_version < 600022
-		SLIST_FOREACH(rle, rl, link) {
-#else
 		STAILQ_FOREACH(rle, rl, link) {
-#endif
 			r = rle->res;
 
 			if (r == NULL)
@@ -2701,11 +2770,61 @@ ntoskrnl_workitem_thread(arg)
 		KeReleaseSpinLock(&kq->kq_lock, irql);
 	}
 
-#if __FreeBSD_version < 502113
-	mtx_lock(&Giant);
-#endif
 	kproc_exit(0);
 	return; /* notreached */
+}
+
+static ndis_status
+RtlCharToInteger(src, base, val)
+	const char		*src;
+	uint32_t		base;
+	uint32_t		*val;
+{
+	int negative = 0;
+	uint32_t res;
+
+	if (!src || !val)
+		return (STATUS_ACCESS_VIOLATION);
+	while (*src != '\0' && *src <= ' ')
+		src++;
+	if (*src == '+')
+		src++;
+	else if (*src == '-') {
+		src++;
+		negative = 1;
+	}
+	if (base == 0) {
+		base = 10;
+		if (*src == '0') {
+			src++;
+			if (*src == 'b') {
+				base = 2;
+				src++;
+			} else if (*src == 'o') {
+				base = 8;
+				src++;
+			} else if (*src == 'x') {
+				base = 16;
+				src++;
+			}
+		}
+	} else if (!(base == 2 || base == 8 || base == 10 || base == 16))
+		return (STATUS_INVALID_PARAMETER);
+
+	for (res = 0; *src; src++) {
+		int v;
+		if (isdigit(*src))
+			v = *src - '0';
+		else if (isxdigit(*src))
+			v = tolower(*src) - 'a' + 10;
+		else
+			v = base;
+		if (v >= base)
+			return (STATUS_INVALID_PARAMETER);
+		res = res * base + v;
+	}
+	*val = negative ? -res : res;
+	return (STATUS_SUCCESS);
 }
 
 static void
@@ -2888,6 +3007,32 @@ RtlZeroMemory(dst, len)
 }
 
 static void
+RtlSecureZeroMemory(dst, len)
+	void			*dst;
+	size_t			len;
+{
+	memset(dst, 0, len);
+}
+
+static void
+RtlFillMemory(dst, len, c)
+	void			*dst;
+	size_t			len;
+	uint8_t			c;
+{
+	memset(dst, c, len);
+}
+
+static void
+RtlMoveMemory(dst, src, len)
+	void			*dst;
+	const void		*src;
+	size_t			len;
+{
+	memmove(dst, src, len);
+}
+
+static void
 RtlCopyMemory(dst, src, len)
 	void			*dst;
 	const void		*src;
@@ -2902,17 +3047,14 @@ RtlCompareMemory(s1, s2, len)
 	const void		*s2;
 	size_t			len;
 {
-	size_t			i, total = 0;
+	size_t			i;
 	uint8_t			*m1, *m2;
 
 	m1 = __DECONST(char *, s1);
 	m2 = __DECONST(char *, s2);
 
-	for (i = 0; i < len; i++) {
-		if (m1[i] == m2[i])
-			total++;
-	}
-	return (total);
+	for (i = 0; i < len && m1[i] == m2[i]; i++);
+	return (i);
 }
 
 void
@@ -3068,6 +3210,13 @@ IoIsWdmVersionAvailable(uint8_t major, uint8_t minor)
 	if (major == WDM_MAJOR && minor == WDM_MINOR_WINXP)
 		return (TRUE);
 	return (FALSE);
+}
+
+static int32_t
+IoOpenDeviceRegistryKey(struct device_object *devobj, uint32_t type,
+    uint32_t mask, void **key)
+{
+	return (NDIS_STATUS_INVALID_DEVICE_REQUEST);
 }
 
 static ndis_status
@@ -3382,7 +3531,6 @@ PsCreateSystemThread(handle, reqaccess, objattrs, phandle,
 	void			*thrctx;
 {
 	int			error;
-	char			tname[128];
 	thread_context		*tc;
 	struct proc		*p;
 
@@ -3393,9 +3541,8 @@ PsCreateSystemThread(handle, reqaccess, objattrs, phandle,
 	tc->tc_thrctx = thrctx;
 	tc->tc_thrfunc = thrfunc;
 
-	sprintf(tname, "windows kthread %d", ntoskrnl_kth);
 	error = kproc_create(ntoskrnl_thrfunc, tc, &p,
-	    RFHIGHPID, NDIS_KSTACK_PAGES, tname);
+	    RFHIGHPID, NDIS_KSTACK_PAGES, "Windows Kthread %d", ntoskrnl_kth);
 
 	if (error) {
 		free(tc, M_TEMP);
@@ -3434,9 +3581,6 @@ PsTerminateSystemThread(status)
 
 	ntoskrnl_kth--;
 
-#if __FreeBSD_version < 502113
-	mtx_lock(&Giant);
-#endif
 	kproc_exit(0);
 	return (0);	/* notreached */
 }
@@ -3458,11 +3602,7 @@ static void
 DbgBreakPoint(void)
 {
 
-#if __FreeBSD_version < 502113
-	Debugger("DbgBreakPoint(): breakpoint");
-#else
 	kdb_enter(KDB_WHY_NDIS, "DbgBreakPoint(): breakpoint");
-#endif
 }
 
 static void
@@ -3702,14 +3842,9 @@ ntoskrnl_dpc_thread(arg)
 
 	thread_lock(curthread);
 #ifdef NTOSKRNL_MULTIPLE_DPCS
-#if __FreeBSD_version >= 502102
 	sched_bind(curthread, kq->kq_cpu);
 #endif
-#endif
 	sched_prio(curthread, PRI_MIN_KERN);
-#if __FreeBSD_version < 600000
-	curthread->td_base_pri = PRI_MIN_KERN;
-#endif
 	thread_unlock(curthread);
 
 	while (1) {
@@ -3742,9 +3877,6 @@ ntoskrnl_dpc_thread(arg)
 		KeSetEvent(&kq->kq_done, IO_NO_INCREMENT, FALSE);
 	}
 
-#if __FreeBSD_version < 502113
-	mtx_lock(&Giant);
-#endif
 	kproc_exit(0);
 	return; /* notreached */
 }
@@ -4124,7 +4256,12 @@ dummy()
 
 image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(RtlZeroMemory, 2),
+	IMPORT_SFUNC(RtlSecureZeroMemory, 2),
+	IMPORT_SFUNC(RtlFillMemory, 3),
+	IMPORT_SFUNC(RtlMoveMemory, 3),
+	IMPORT_SFUNC(RtlCharToInteger, 3),
 	IMPORT_SFUNC(RtlCopyMemory, 3),
+	IMPORT_SFUNC(RtlCopyString, 2),
 	IMPORT_SFUNC(RtlCompareMemory, 3),
 	IMPORT_SFUNC(RtlEqualUnicodeString, 3),
 	IMPORT_SFUNC(RtlCopyUnicodeString, 2),
@@ -4211,6 +4348,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(ExInitializeNPagedLookasideList, 7),
 	IMPORT_SFUNC(ExDeleteNPagedLookasideList, 1),
 	IMPORT_FFUNC(InterlockedPopEntrySList, 1),
+	IMPORT_FFUNC(InitializeSListHead, 1),
 	IMPORT_FFUNC(InterlockedPushEntrySList, 2),
 	IMPORT_SFUNC(ExQueryDepthSList, 1),
 	IMPORT_FFUNC_MAP(ExpInterlockedPopEntrySList,
@@ -4220,6 +4358,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FFUNC(ExInterlockedPopEntrySList, 2),
 	IMPORT_FFUNC(ExInterlockedPushEntrySList, 3),
 	IMPORT_SFUNC(ExAllocatePoolWithTag, 3),
+	IMPORT_SFUNC(ExFreePoolWithTag, 2),
 	IMPORT_SFUNC(ExFreePool, 1),
 #ifdef __i386__
 	IMPORT_FFUNC(KefAcquireSpinLockAtDpcLevel, 1),
@@ -4244,21 +4383,23 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FFUNC(ExInterlockedAddLargeStatistic, 2),
 	IMPORT_SFUNC(IoAllocateMdl, 5),
 	IMPORT_SFUNC(IoFreeMdl, 1),
-	IMPORT_SFUNC(MmAllocateContiguousMemory, 2),
-	IMPORT_SFUNC(MmAllocateContiguousMemorySpecifyCache, 5),
+	IMPORT_SFUNC(MmAllocateContiguousMemory, 2 + 1),
+	IMPORT_SFUNC(MmAllocateContiguousMemorySpecifyCache, 5 + 3),
 	IMPORT_SFUNC(MmFreeContiguousMemory, 1),
 	IMPORT_SFUNC(MmFreeContiguousMemorySpecifyCache, 3),
-	IMPORT_SFUNC_MAP(MmGetPhysicalAddress, pmap_kextract, 1),
 	IMPORT_SFUNC(MmSizeOfMdl, 1),
 	IMPORT_SFUNC(MmMapLockedPages, 2),
 	IMPORT_SFUNC(MmMapLockedPagesSpecifyCache, 6),
 	IMPORT_SFUNC(MmUnmapLockedPages, 2),
 	IMPORT_SFUNC(MmBuildMdlForNonPagedPool, 1),
+	IMPORT_SFUNC(MmGetPhysicalAddress, 1),
+	IMPORT_SFUNC(MmGetSystemRoutineAddress, 1),
 	IMPORT_SFUNC(MmIsAddressValid, 1),
 	IMPORT_SFUNC(MmMapIoSpace, 3 + 1),
 	IMPORT_SFUNC(MmUnmapIoSpace, 2),
 	IMPORT_SFUNC(KeInitializeSpinLock, 1),
 	IMPORT_SFUNC(IoIsWdmVersionAvailable, 2),
+	IMPORT_SFUNC(IoOpenDeviceRegistryKey, 4),
 	IMPORT_SFUNC(IoGetDeviceObjectPointer, 4),
 	IMPORT_SFUNC(IoGetDeviceProperty, 5),
 	IMPORT_SFUNC(IoAllocateWorkItem, 1),

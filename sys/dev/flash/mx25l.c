@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/flash/mx25lreg.h>
 
+#define	FL_NONE			0x00
+#define	FL_ERASE_4K		0x01
+#define	FL_ERASE_32K		0x02
+
 struct mx25l_flash_ident
 {
 	const char	*name;
@@ -52,6 +56,7 @@ struct mx25l_flash_ident
 	uint16_t	device_id;
 	unsigned int	sectorsize;
 	unsigned int	sectorcount;
+	unsigned int	flags;
 };
 
 struct mx25l_softc 
@@ -64,6 +69,7 @@ struct mx25l_softc
 	struct disk	*sc_disk;
 	struct proc	*sc_p;
 	struct bio_queue_head sc_bio_queue;
+	unsigned int	sc_flags;
 };
 
 #define M25PXX_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
@@ -83,10 +89,11 @@ static void mx25l_strategy(struct bio *bp);
 static void mx25l_task(void *arg);
 
 struct mx25l_flash_ident flash_devices[] = {
-	{ "mx25ll32",  0xc2, 0x2016, 64 * 1024,  64 },
-	{ "mx25ll64",  0xc2, 0x2017, 64 * 1024, 128 },
-	{ "mx25ll128", 0xc2, 0x2018, 64 * 1024, 256 },
-	{ "s25fl128",  0x01, 0x2018, 64 * 1024, 256 },
+	{ "mx25ll32",  0xc2, 0x2016, 64 * 1024,  64, FL_NONE },
+	{ "mx25ll64",  0xc2, 0x2017, 64 * 1024, 128, FL_NONE },
+	{ "mx25ll128", 0xc2, 0x2018, 64 * 1024, 256, FL_ERASE_4K | FL_ERASE_32K },
+	{ "s25fl128",  0x01, 0x2018, 64 * 1024, 256, FL_NONE },
+	{ "s25sl064a", 0x01, 0x0216, 64 * 1024, 128, FL_NONE },
 };
 
 static uint8_t
@@ -178,7 +185,7 @@ mx25l_set_writable(device_t dev, int writable)
 }
 
 static void
-mx25l_erase_sector(device_t dev, off_t sector)
+mx25l_erase_cmd(device_t dev, off_t sector, uint8_t ecmd)
 {
 	uint8_t txBuf[4], rxBuf[4];
 	struct spi_command cmd;
@@ -191,7 +198,7 @@ mx25l_erase_sector(device_t dev, off_t sector)
 	memset(txBuf, 0, sizeof(txBuf));
 	memset(rxBuf, 0, sizeof(rxBuf));
 
-	txBuf[0] = CMD_SECTOR_ERASE;
+	txBuf[0] = ecmd;
 	cmd.tx_cmd = txBuf;
 	cmd.rx_cmd = rxBuf;
 	cmd.rx_cmd_sz = 4;
@@ -252,7 +259,7 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 		 * If we crossed sector boundary - erase next sector
 		 */
 		if (((offset + bytes_writen) % sc->sc_sectorsize) == 0)
-			mx25l_erase_sector(dev, offset + bytes_writen);
+			mx25l_erase_cmd(dev, offset + bytes_writen, CMD_SECTOR_ERASE);
 
 		txBuf[0] = CMD_PAGE_PROGRAM;
 		txBuf[1] = ((write_offset >> 16) & 0xff);
@@ -303,11 +310,11 @@ mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
 	 * Sanity checks
 	 */
 	KASSERT(count % sc->sc_sectorsize == 0,
-	    ("count for BIO_WRITE is not sector size (%d bytes) aligned",
+	    ("count for BIO_READ is not sector size (%d bytes) aligned",
 		sc->sc_sectorsize));
 
 	KASSERT(offset % sc->sc_sectorsize == 0,
-	    ("offset for BIO_WRITE is not sector size (%d bytes) aligned",
+	    ("offset for BIO_READ is not sector size (%d bytes) aligned",
 		sc->sc_sectorsize));
 
 	txBuf[0] = CMD_FAST_READ;
@@ -369,6 +376,7 @@ mx25l_attach(device_t dev)
 	sc->sc_disk->d_dump = NULL;		/* NB: no dumps */
 	/* Sectorsize for erase operations */
 	sc->sc_sectorsize =  ident->sectorsize;
+	sc->sc_flags = ident->flags;
 
         /* NB: use stripesize to hold the erase/region size for RedBoot */
 	sc->sc_disk->d_stripesize = ident->sectorsize;

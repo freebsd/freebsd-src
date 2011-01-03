@@ -85,26 +85,19 @@ In some of these devices a mass storage device supported by the
 .Xr umass 4
 driver is present which contains Windows and Mac OS X drivers.
 The device starts up in disk mode (TruInstall, ZeroCD, etc.) and requires
-additional commands to switch it to modem mode.
+additional commands to switch it to modem mode. If your device is not
+switching automatically, please try to add quirks. See
+.Xr usbconfig 5
+and
+.Xr usb_quirk 4 .
 .Pp
-The
-.Xr u3gstub 4
-device will attach temporarily to a 3G device with a mass storage device and
-force it to switch to modem mode,
-The attach and detach of
-.Xr u3gstub
-and any driver disk device present on the 3G device is is hidden, unless the
-machine was booted in verbose mode (see
-.Xr boot 8 ) .
-To temporarily unhide the device, set
-.Va debug.bootverbose
-to 1 using
-.Xr sysctl 8
-and replug the device.
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
-.Xr usb 4
+.XR u3g 4 ,
+.Xr usb 4 ,
+.Xr usb_quirk 4 ,
+.Xr usbconfig 5
 .Sh HISTORY
 The
 .Nm
@@ -121,5 +114,5 @@ The
 driver was written by
 .An Andrea Guzzo Aq aguzzo@anywi.com
 and
-.An Nick Hibma Aq n_hibma@freebsd.org .
+.An Nick Hibma Aq n_hibma@FreeBSD.org .
 Hardware for testing was provided by AnyWi Technologies, Leiden, NL.

@@ -537,7 +537,7 @@ AcpiDmFindOrphanDescending (
             }
 
             ArgCount = AcpiDmInspectPossibleArgs (3, 1, NextOp);
-            AcpiOsPrintf ("/* A-CHILDREN: %d Actual %d */\n", ArgCount, AcpiDmCountChildren (Op));
+            AcpiOsPrintf ("/* A-CHILDREN: %u Actual %u */\n", ArgCount, AcpiDmCountChildren (Op));
 
             if (ArgCount < 1)
             {
@@ -792,6 +792,7 @@ AcpiDmXrefDescendingOp (
     ACPI_PARSE_OBJECT       *NextOp;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_OPERAND_OBJECT     *Object;
+    UINT32                  ParamCount = 0;
 
 
     WalkState = Info->WalkState;
@@ -880,18 +881,13 @@ AcpiDmXrefDescendingOp (
         if (Object)
         {
             ObjectType2 = Object->Common.Type;
+            if (ObjectType2 == ACPI_TYPE_METHOD)
+            {
+                ParamCount = Object->Method.ParamCount;
+            }
         }
 
-        if (ObjectType2 == ACPI_TYPE_METHOD)
-        {
-            AcpiDmAddToExternalList (Op, Path, ACPI_TYPE_METHOD,
-                Object->Method.ParamCount);
-        }
-        else
-        {
-            AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType2, 0);
-        }
-
+        AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType2, ParamCount);
         Op->Common.Node = Node;
     }
     else

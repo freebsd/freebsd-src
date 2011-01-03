@@ -13,10 +13,476 @@
 #define _calendar_judaic_
 
 /*
- * Jewish calendar for the CE year 2007
- * 11 Tevet 5767 - 22 tevet 5768
+ * The calendar below has been obtained from the port deskutils/hebcal
+ * for the year of 2010 to 2015 and for the city of New York.
  */
 
+2010/Jan/16*	Rosh Chodesh Sh'vat
+2010/Jan/30*	Tu B'Shvat
+2010/Feb/13*	Shabbat Shekalim
+2010/Feb/14*	Rosh Chodesh Adar
+2010/Feb/15*	Rosh Chodesh Adar
+2010/Feb/25*	Ta'anit Esther
+2010/Feb/27*	Shabbat Zachor
+2010/Feb/28*	Purim
+2010/Mar/1*	Shushan Purim
+2010/Mar/6*	Shabbat Parah
+2010/Mar/13*	Shabbat HaChodesh
+2010/Mar/16*	Rosh Chodesh Nisan
+2010/Mar/27*	Shabbat HaGadol
+2010/Mar/29*	Ta'anit Bechorot
+2010/Mar/29*	Erev Pesach
+2010/Mar/30*	Pesach I
+2010/Mar/31*	Pesach II
+2010/Apr/1*	Pesach III (CH''M)
+2010/Apr/2*	Pesach IV (CH''M)
+2010/Apr/3*	Pesach V (CH''M)
+2010/Apr/4*	Pesach VI (CH''M)
+2010/Apr/5*	Pesach VII
+2010/Apr/6*	Pesach VIII
+2010/Apr/11*	Yom HaShoah
+2010/Apr/14*	Rosh Chodesh Iyyar
+2010/Apr/15*	Rosh Chodesh Iyyar
+2010/Apr/19*	Yom HaZikaron
+2010/Apr/20*	Yom HaAtzma'ut
+2010/May/2*	Lag B'Omer
+2010/May/Dec*	Yom Yerushalayim
+2010/May/14*	Rosh Chodesh Sivan
+2010/May/18*	Erev Shavuot
+2010/May/19*	Shavuot I
+2010/May/20*	Shavuot II
+2010/Jun/Dec*	Rosh Chodesh Tamuz
+2010/Jun/13*	Rosh Chodesh Tamuz
+2010/Jun/29*	Tzom Tammuz
+2010/Jul/Dec*	Rosh Chodesh Av
+2010/Jul/17*	Shabbat Hazon
+2010/Jul/20*	Tish'a B'Av
+2010/Jul/24*	Shabbat Nachamu
+2010/Aug/Oct*	Rosh Chodesh Elul
+2010/Aug/11*	Rosh Chodesh Elul
+2010/Sep/8*	Erev Rosh Hashana
+2010/Sep/9*	Rosh Hashana 5771
+2010/Sep/Oct*	Rosh Hashana II
+2010/Sep/11*	Shabbat Shuva
+2010/Sep/Dec*	Tzom Gedaliah
+2010/Sep/17*	Erev Yom Kippur
+2010/Sep/18*	Yom Kippur
+2010/Sep/22*	Erev Sukkot
+2010/Sep/23*	Sukkot I
+2010/Sep/24*	Sukkot II
+2010/Sep/25*	Sukkot III (CH''M)
+2010/Sep/26*	Sukkot IV (CH''M)
+2010/Sep/27*	Sukkot V (CH''M)
+2010/Sep/28*	Sukkot VI (CH''M)
+2010/Sep/29*	Sukkot VII (Hoshana Raba)
+2010/Sep/30*	Shmini Atzeret
+2010/Oct/1*	Simchat Torah
+2010/Oct/8*	Rosh Chodesh Cheshvan
+2010/Oct/9*	Rosh Chodesh Cheshvan
+2010/Nov/7*	Rosh Chodesh Kislev
+2010/Nov/8*	Rosh Chodesh Kislev
+2010/Dec/1*	Chanukah: 1 Candle
+2010/Dec/2*	Chanukah: 2 Candles
+2010/Dec/3*	Chanukah: 3 Candles
+2010/Dec/4*	Chanukah: 4 Candles
+2010/Dec/5*	Chanukah: 5 Candles
+2010/Dec/6*	Chanukah: 6 Candles
+2010/Dec/7*	Rosh Chodesh Tevet
+2010/Dec/7*	Chanukah: 7 Candles
+2010/Dec/8*	Rosh Chodesh Tevet
+2010/Dec/8*	Chanukah: 8 Candles
+2010/Dec/9*	Chanukah: 8th Day
+2010/Dec/16*	Asara B'Tevet
+2011/1/6*	Rosh Chodesh Sh'vat
+2011/1/20*	Tu B'Shvat
+2011/2/4*	Rosh Chodesh Adar I
+2011/2/5*	Rosh Chodesh Adar I
+2011/2/18*	Purim Katan
+2011/3/5*	Shabbat Shekalim
+2011/3/6*	Rosh Chodesh Adar II
+2011/3/7*	Rosh Chodesh Adar II
+2011/3/17*	Ta'anit Esther
+2011/3/19*	Shabbat Zachor
+2011/3/20*	Purim
+2011/3/21*	Shushan Purim
+2011/3/26*	Shabbat Parah
+2011/4/2*	Shabbat HaChodesh
+2011/4/5*	Rosh Chodesh Nisan
+2011/4/16*	Shabbat HaGadol
+2011/4/18*	Ta'anit Bechorot
+2011/4/18*	Erev Pesach
+2011/4/19*	Pesach I
+2011/4/20*	Pesach II
+2011/4/21*	Pesach III (CH''M)
+2011/4/22*	Pesach IV (CH''M)
+2011/4/23*	Pesach V (CH''M)
+2011/4/24*	Pesach VI (CH''M)
+2011/4/25*	Pesach VII
+2011/4/26*	Pesach VIII
+2011/5/1*	Yom HaShoah
+2011/5/4*	Rosh Chodesh Iyyar
+2011/5/5*	Rosh Chodesh Iyyar
+2011/5/9*	Yom HaZikaron
+2011/5/10*	Yom HaAtzma'ut
+2011/5/22*	Lag B'Omer
+2011/6/1*	Yom Yerushalayim
+2011/6/3*	Rosh Chodesh Sivan
+2011/6/7*	Erev Shavuot
+2011/6/8*	Shavuot I
+2011/6/9*	Shavuot II
+2011/7/2*	Rosh Chodesh Tamuz
+2011/7/3*	Rosh Chodesh Tamuz
+2011/7/19*	Tzom Tammuz
+2011/8/1*	Rosh Chodesh Av
+2011/8/6*	Shabbat Hazon
+2011/8/9*	Tish'a B'Av
+2011/8/13*	Shabbat Nachamu
+2011/8/30*	Rosh Chodesh Elul
+2011/8/31*	Rosh Chodesh Elul
+2011/9/28*	Erev Rosh Hashana
+2011/9/29*	Rosh Hashana 5772
+2011/9/30*	Rosh Hashana II
+2011/10/1*	Shabbat Shuva
+2011/10/2*	Tzom Gedaliah
+2011/10/7*	Erev Yom Kippur
+2011/10/8*	Yom Kippur
+2011/10/12*	Erev Sukkot
+2011/10/13*	Sukkot I
+2011/10/14*	Sukkot II
+2011/10/15*	Sukkot III (CH''M)
+2011/10/16*	Sukkot IV (CH''M)
+2011/10/17*	Sukkot V (CH''M)
+2011/10/18*	Sukkot VI (CH''M)
+2011/10/19*	Sukkot VII (Hoshana Raba)
+2011/10/20*	Shmini Atzeret
+2011/10/21*	Simchat Torah
+2011/10/28*	Rosh Chodesh Cheshvan
+2011/10/29*	Rosh Chodesh Cheshvan
+2011/11/27*	Rosh Chodesh Kislev
+2011/12/20*	Chanukah: 1 Candle
+2011/12/21*	Chanukah: 2 Candles
+2011/12/22*	Chanukah: 3 Candles
+2011/12/23*	Chanukah: 4 Candles
+2011/12/24*	Chanukah: 5 Candles
+2011/12/25*	Chanukah: 6 Candles
+2011/12/26*	Rosh Chodesh Tevet
+2011/12/26*	Chanukah: 7 Candles
+2011/12/27*	Rosh Chodesh Tevet
+2011/12/27*	Chanukah: 8 Candles
+2011/12/28*	Chanukah: 8th Day
+2012/1/5*	Asara B'Tevet
+2012/1/25*	Rosh Chodesh Sh'vat
+2012/2/8*	Tu B'Shvat
+2012/2/18*	Shabbat Shekalim
+2012/2/23*	Rosh Chodesh Adar
+2012/2/24*	Rosh Chodesh Adar
+2012/3/3*	Shabbat Zachor
+2012/3/7*	Ta'anit Esther
+2012/3/8*	Purim
+2012/3/9*	Shushan Purim
+2012/3/17*	Shabbat Parah
+2012/3/24*	Rosh Chodesh Nisan
+2012/3/24*	Shabbat HaChodesh
+2012/3/31*	Shabbat HaGadol
+2012/4/5*	Ta'anit Bechorot
+2012/4/6*	Erev Pesach
+2012/4/7*	Pesach I
+2012/4/8*	Pesach II
+2012/4/9*	Pesach III (CH''M)
+2012/4/10*	Pesach IV (CH''M)
+2012/4/11*	Pesach V (CH''M)
+2012/4/12*	Pesach VI (CH''M)
+2012/4/13*	Pesach VII
+2012/4/14*	Pesach VIII
+2012/4/19*	Yom HaShoah
+2012/4/22*	Rosh Chodesh Iyyar
+2012/4/23*	Rosh Chodesh Iyyar
+2012/4/25*	Yom HaZikaron
+2012/4/26*	Yom HaAtzma'ut
+2012/5/10*	Lag B'Omer
+2012/5/20*	Yom Yerushalayim
+2012/5/22*	Rosh Chodesh Sivan
+2012/5/26*	Erev Shavuot
+2012/5/27*	Shavuot I
+2012/5/28*	Shavuot II
+2012/6/20*	Rosh Chodesh Tamuz
+2012/6/21*	Rosh Chodesh Tamuz
+2012/7/8*	Tzom Tammuz
+2012/7/20*	Rosh Chodesh Av
+2012/7/28*	Shabbat Hazon
+2012/7/29*	Tish'a B'Av
+2012/8/4*	Shabbat Nachamu
+2012/8/18*	Rosh Chodesh Elul
+2012/8/19*	Rosh Chodesh Elul
+2012/9/16*	Erev Rosh Hashana
+2012/9/17*	Rosh Hashana 5773
+2012/9/18*	Rosh Hashana II
+2012/9/19*	Tzom Gedaliah
+2012/9/22*	Shabbat Shuva
+2012/9/25*	Erev Yom Kippur
+2012/9/26*	Yom Kippur
+2012/9/30*	Erev Sukkot
+2012/10/1*	Sukkot I
+2012/10/2*	Sukkot II
+2012/10/3*	Sukkot III (CH''M)
+2012/10/4*	Sukkot IV (CH''M)
+2012/10/5*	Sukkot V (CH''M)
+2012/10/6*	Sukkot VI (CH''M)
+2012/10/7*	Sukkot VII (Hoshana Raba)
+2012/10/8*	Shmini Atzeret
+2012/10/9*	Simchat Torah
+2012/10/16*	Rosh Chodesh Cheshvan
+2012/10/17*	Rosh Chodesh Cheshvan
+2012/11/15*	Rosh Chodesh Kislev
+2012/12/8*	Chanukah: 1 Candle
+2012/12/9*	Chanukah: 2 Candles
+2012/12/10*	Chanukah: 3 Candles
+2012/12/11*	Chanukah: 4 Candles
+2012/12/12*	Chanukah: 5 Candles
+2012/12/13*	Chanukah: 6 Candles
+2012/12/14*	Rosh Chodesh Tevet
+2012/12/14*	Chanukah: 7 Candles
+2012/12/15*	Chanukah: 8 Candles
+2012/12/16*	Chanukah: 8th Day
+2012/12/23*	Asara B'Tevet
+2013/1/12*	Rosh Chodesh Sh'vat
+2013/1/26*	Tu B'Shvat
+2013/2/9*	Shabbat Shekalim
+2013/2/10*	Rosh Chodesh Adar
+2013/2/11*	Rosh Chodesh Adar
+2013/2/21*	Ta'anit Esther
+2013/2/23*	Shabbat Zachor
+2013/2/24*	Purim
+2013/2/25*	Shushan Purim
+2013/3/2*	Shabbat Parah
+2013/3/9*	Shabbat HaChodesh
+2013/3/12*	Rosh Chodesh Nisan
+2013/3/23*	Shabbat HaGadol
+2013/3/25*	Ta'anit Bechorot
+2013/3/25*	Erev Pesach
+2013/3/26*	Pesach I
+2013/3/27*	Pesach II
+2013/3/28*	Pesach III (CH''M)
+2013/3/29*	Pesach IV (CH''M)
+2013/3/30*	Pesach V (CH''M)
+2013/3/31*	Pesach VI (CH''M)
+2013/4/1*	Pesach VII
+2013/4/2*	Pesach VIII
+2013/4/7*	Yom HaShoah
+2013/4/10*	Rosh Chodesh Iyyar
+2013/4/11*	Rosh Chodesh Iyyar
+2013/4/15*	Yom HaZikaron
+2013/4/16*	Yom HaAtzma'ut
+2013/4/28*	Lag B'Omer
+2013/5/8*	Yom Yerushalayim
+2013/5/10*	Rosh Chodesh Sivan
+2013/5/14*	Erev Shavuot
+2013/5/15*	Shavuot I
+2013/5/16*	Shavuot II
+2013/6/8*	Rosh Chodesh Tamuz
+2013/6/9*	Rosh Chodesh Tamuz
+2013/6/25*	Tzom Tammuz
+2013/7/8*	Rosh Chodesh Av
+2013/7/13*	Shabbat Hazon
+2013/7/16*	Tish'a B'Av
+2013/7/20*	Shabbat Nachamu
+2013/8/6*	Rosh Chodesh Elul
+2013/8/7*	Rosh Chodesh Elul
+2013/9/4*	Erev Rosh Hashana
+2013/9/5*	Rosh Hashana 5774
+2013/9/6*	Rosh Hashana II
+2013/9/7*	Shabbat Shuva
+2013/9/8*	Tzom Gedaliah
+2013/9/13*	Erev Yom Kippur
+2013/9/14*	Yom Kippur
+2013/9/18*	Erev Sukkot
+2013/9/19*	Sukkot I
+2013/9/20*	Sukkot II
+2013/9/21*	Sukkot III (CH''M)
+2013/9/22*	Sukkot IV (CH''M)
+2013/9/23*	Sukkot V (CH''M)
+2013/9/24*	Sukkot VI (CH''M)
+2013/9/25*	Sukkot VII (Hoshana Raba)
+2013/9/26*	Shmini Atzeret
+2013/9/27*	Simchat Torah
+2013/10/4*	Rosh Chodesh Cheshvan
+2013/10/5*	Rosh Chodesh Cheshvan
+2013/11/3*	Rosh Chodesh Kislev
+2013/11/4*	Rosh Chodesh Kislev
+2013/11/27*	Chanukah: 1 Candle
+2013/11/28*	Chanukah: 2 Candles
+2013/11/29*	Chanukah: 3 Candles
+2013/11/30*	Chanukah: 4 Candles
+2013/12/1*	Chanukah: 5 Candles
+2013/12/2*	Chanukah: 6 Candles
+2013/12/3*	Rosh Chodesh Tevet
+2013/12/3*	Chanukah: 7 Candles
+2013/12/4*	Rosh Chodesh Tevet
+2013/12/4*	Chanukah: 8 Candles
+2013/12/5*	Chanukah: 8th Day
+2013/12/12*	Asara B'Tevet
+2014/1/2*	Rosh Chodesh Sh'vat
+2014/1/16*	Tu B'Shvat
+2014/1/31*	Rosh Chodesh Adar I
+2014/2/1*	Rosh Chodesh Adar I
+2014/2/14*	Purim Katan
+2014/3/1*	Shabbat Shekalim
+2014/3/2*	Rosh Chodesh Adar II
+2014/3/3*	Rosh Chodesh Adar II
+2014/3/13*	Ta'anit Esther
+2014/3/15*	Shabbat Zachor
+2014/3/16*	Purim
+2014/3/17*	Shushan Purim
+2014/3/22*	Shabbat Parah
+2014/3/29*	Shabbat HaChodesh
+2014/4/1*	Rosh Chodesh Nisan
+2014/4/12*	Shabbat HaGadol
+2014/4/14*	Ta'anit Bechorot
+2014/4/14*	Erev Pesach
+2014/4/15*	Pesach I
+2014/4/16*	Pesach II
+2014/4/17*	Pesach III (CH''M)
+2014/4/18*	Pesach IV (CH''M)
+2014/4/19*	Pesach V (CH''M)
+2014/4/20*	Pesach VI (CH''M)
+2014/4/21*	Pesach VII
+2014/4/22*	Pesach VIII
+2014/4/27*	Yom HaShoah
+2014/4/30*	Rosh Chodesh Iyyar
+2014/5/1*	Rosh Chodesh Iyyar
+2014/5/5*	Yom HaZikaron
+2014/5/6*	Yom HaAtzma'ut
+2014/5/18*	Lag B'Omer
+2014/5/28*	Yom Yerushalayim
+2014/5/30*	Rosh Chodesh Sivan
+2014/6/3*	Erev Shavuot
+2014/6/4*	Shavuot I
+2014/6/5*	Shavuot II
+2014/6/28*	Rosh Chodesh Tamuz
+2014/6/29*	Rosh Chodesh Tamuz
+2014/7/15*	Tzom Tammuz
+2014/7/28*	Rosh Chodesh Av
+2014/8/2*	Shabbat Hazon
+2014/8/5*	Tish'a B'Av
+2014/8/9*	Shabbat Nachamu
+2014/8/26*	Rosh Chodesh Elul
+2014/8/27*	Rosh Chodesh Elul
+2014/9/24*	Erev Rosh Hashana
+2014/9/25*	Rosh Hashana 5775
+2014/9/26*	Rosh Hashana II
+2014/9/27*	Shabbat Shuva
+2014/9/28*	Tzom Gedaliah
+2014/10/3*	Erev Yom Kippur
+2014/10/4*	Yom Kippur
+2014/10/8*	Erev Sukkot
+2014/10/9*	Sukkot I
+2014/10/10*	Sukkot II
+2014/10/11*	Sukkot III (CH''M)
+2014/10/12*	Sukkot IV (CH''M)
+2014/10/13*	Sukkot V (CH''M)
+2014/10/14*	Sukkot VI (CH''M)
+2014/10/15*	Sukkot VII (Hoshana Raba)
+2014/10/16*	Shmini Atzeret
+2014/10/17*	Simchat Torah
+2014/10/24*	Rosh Chodesh Cheshvan
+2014/10/25*	Rosh Chodesh Cheshvan
+2014/11/23*	Rosh Chodesh Kislev
+2014/12/16*	Chanukah: 1 Candle
+2014/12/17*	Chanukah: 2 Candles
+2014/12/18*	Chanukah: 3 Candles
+2014/12/19*	Chanukah: 4 Candles
+2014/12/20*	Chanukah: 5 Candles
+2014/12/21*	Chanukah: 6 Candles
+2014/12/22*	Rosh Chodesh Tevet
+2014/12/22*	Chanukah: 7 Candles
+2014/12/23*	Rosh Chodesh Tevet
+2014/12/23*	Chanukah: 8 Candles
+2014/12/24*	Chanukah: 8th Day
+2015/1/1*	Asara B'Tevet
+2015/1/21*	Rosh Chodesh Sh'vat
+2015/2/4*	Tu B'Shvat
+2015/2/14*	Shabbat Shekalim
+2015/2/19*	Rosh Chodesh Adar
+2015/2/20*	Rosh Chodesh Adar
+2015/2/28*	Shabbat Zachor
+2015/3/4*	Ta'anit Esther
+2015/3/5*	Purim
+2015/3/6*	Shushan Purim
+2015/3/14*	Shabbat Parah
+2015/3/21*	Rosh Chodesh Nisan
+2015/3/21*	Shabbat HaChodesh
+2015/3/28*	Shabbat HaGadol
+2015/4/2*	Ta'anit Bechorot
+2015/4/3*	Erev Pesach
+2015/4/4*	Pesach I
+2015/4/5*	Pesach II
+2015/4/6*	Pesach III (CH''M)
+2015/4/7*	Pesach IV (CH''M)
+2015/4/8*	Pesach V (CH''M)
+2015/4/9*	Pesach VI (CH''M)
+2015/4/10*	Pesach VII
+2015/4/11*	Pesach VIII
+2015/4/16*	Yom HaShoah
+2015/4/19*	Rosh Chodesh Iyyar
+2015/4/20*	Rosh Chodesh Iyyar
+2015/4/22*	Yom HaZikaron
+2015/4/23*	Yom HaAtzma'ut
+2015/5/7*	Lag B'Omer
+2015/5/17*	Yom Yerushalayim
+2015/5/19*	Rosh Chodesh Sivan
+2015/5/23*	Erev Shavuot
+2015/5/24*	Shavuot I
+2015/5/25*	Shavuot II
+2015/6/17*	Rosh Chodesh Tamuz
+2015/6/18*	Rosh Chodesh Tamuz
+2015/7/5*	Tzom Tammuz
+2015/7/17*	Rosh Chodesh Av
+2015/7/25*	Shabbat Hazon
+2015/7/26*	Tish'a B'Av
+2015/8/1*	Shabbat Nachamu
+2015/8/15*	Rosh Chodesh Elul
+2015/8/16*	Rosh Chodesh Elul
+2015/9/13*	Erev Rosh Hashana
+2015/9/14*	Rosh Hashana 5776
+2015/9/15*	Rosh Hashana II
+2015/9/16*	Tzom Gedaliah
+2015/9/19*	Shabbat Shuva
+2015/9/22*	Erev Yom Kippur
+2015/9/23*	Yom Kippur
+2015/9/27*	Erev Sukkot
+2015/9/28*	Sukkot I
+2015/9/29*	Sukkot II
+2015/9/30*	Sukkot III (CH''M)
+2015/10/1*	Sukkot IV (CH''M)
+2015/10/2*	Sukkot V (CH''M)
+2015/10/3*	Sukkot VI (CH''M)
+2015/10/4*	Sukkot VII (Hoshana Raba)
+2015/10/5*	Shmini Atzeret
+2015/10/6*	Simchat Torah
+2015/10/13*	Rosh Chodesh Cheshvan
+2015/10/14*	Rosh Chodesh Cheshvan
+2015/11/12*	Rosh Chodesh Kislev
+2015/11/13*	Rosh Chodesh Kislev
+2015/12/6*	Chanukah: 1 Candle
+2015/12/7*	Chanukah: 2 Candles
+2015/12/8*	Chanukah: 3 Candles
+2015/12/9*	Chanukah: 4 Candles
+2015/12/10*	Chanukah: 5 Candles
+2015/12/11*	Chanukah: 6 Candles
+2015/12/12*	Rosh Chodesh Tevet
+2015/12/12*	Chanukah: 7 Candles
+2015/12/13*	Rosh Chodesh Tevet
+2015/12/13*	Chanukah: 8 Candles
+2015/12/14*	Chanukah: 8th Day
+2015/12/22*	Asara B'Tevet
+
+/*
+ * The calendar data below was for 2007, so it is commented out.
+ */
+
+/*
+ * Jewish calendar for the CE year 2007
+ * 11 Tevet 5767 - 22 tevet 5768
 
 01/06*	Parshas Vayechi
 01/13*	Parshas Shemos
@@ -223,5 +689,6 @@
 12/22*	Parshas Vayechi
 12/29*	Parshas Shemos
 
+*/
 
 #endif /* !_calendar_judaic_ */

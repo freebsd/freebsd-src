@@ -103,29 +103,37 @@ struct tcphdr {
 
 
 /*
- * Default maximum segment size for TCP.
- * With an IP MTU of 576, this is 536,
- * but 512 is probably more convenient.
- * This should be defined as MIN(512, IP_MSS - sizeof (struct tcpiphdr)).
+ * The default maximum segment size (MSS) to be used for new TCP connections
+ * when path MTU discovery is not enabled.
+ *
+ * RFC879 derives the default MSS from the largest datagram size hosts are
+ * minimally required to handle directly or through IP reassembly minus the
+ * size of the IP and TCP header.  With IPv6 the minimum MTU is specified
+ * in RFC2460.
+ *
+ * For IPv4 the MSS is 576 - sizeof(struct tcpiphdr)
+ * For IPv6 the MSS is IPV6_MMTU - sizeof(struct ip6_hdr) - sizeof(struct tcphdr)
+ *
+ * We use explicit numerical definition here to avoid header pollution.
  */
-#define	TCP_MSS	512
-/*
- * TCP_MINMSS is defined to be 216 which is fine for the smallest
- * link MTU (256 bytes, AX.25 packet radio) in the Internet.
- * However it is very unlikely to come across such low MTU interfaces
- * these days (anno dato 2003).
- * See tcp_subr.c tcp_minmss SYSCTL declaration for more comments.
- * Setting this to "0" disables the minmss check.
- */
-#define	TCP_MINMSS 216
+#define	TCP_MSS		536
+#define	TCP6_MSS	1220
 
 /*
- * Default maximum segment size for TCP6.
- * With an IP6 MSS of 1280, this is 1220,
- * but 1024 is probably more convenient. (xxx kazu in doubt)
- * This should be defined as MIN(1024, IP6_MSS - sizeof (struct tcpip6hdr))
+ * Limit the lowest MSS we accept for path MTU discovery and the TCP SYN MSS
+ * option.  Allowing low values of MSS can consume significant resources and
+ * be used to mount a resource exhaustion attack.
+ * Connections requesting lower MSS values will be rounded up to this value
+ * and the IP_DF flag will be cleared to allow fragmentation along the path.
+ *
+ * See tcp_subr.c tcp_minmss SYSCTL declaration for more comments.  Setting
+ * it to "0" disables the minmss check.
+ *
+ * The default value is fine for TCP across the Internet's smallest official
+ * link MTU (256 bytes for AX.25 packet radio).  However, a connection is very
+ * unlikely to come across such low MTU interfaces these days (anno domini 2003).
  */
-#define	TCP6_MSS	1024
+#define	TCP_MINMSS 216
 
 #define	TCP_MAXWIN	65535	/* largest value for (unscaled) window */
 #define	TTCP_CLIENT_SND_WND	4096	/* dflt send window for T/TCP client */
@@ -213,13 +221,16 @@ struct tcp_info {
 
 	/* FreeBSD extensions to tcp_info. */
 	u_int32_t	tcpi_snd_wnd;		/* Advertised send window. */
-	u_int32_t	tcpi_snd_bwnd;		/* Bandwidth send window. */
+	u_int32_t	tcpi_snd_bwnd;		/* No longer used. */
 	u_int32_t	tcpi_snd_nxt;		/* Next egress seqno */
 	u_int32_t	tcpi_rcv_nxt;		/* Next ingress seqno */
 	u_int32_t	tcpi_toe_tid;		/* HWTID for TOE endpoints */
+	u_int32_t	tcpi_snd_rexmitpack;	/* Retransmitted packets */
+	u_int32_t	tcpi_rcv_ooopack;	/* Out-of-order packets */
+	u_int32_t	tcpi_snd_zerowin;	/* Zero-sized windows sent */
 	
 	/* Padding to grow without breaking ABI. */
-	u_int32_t	__tcpi_pad[29];		/* Padding. */
+	u_int32_t	__tcpi_pad[26];		/* Padding. */
 };
 #endif
 

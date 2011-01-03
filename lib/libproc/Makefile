@@ -2,9 +2,11 @@
 
 LIB=	proc
 
-SRCS=				\
+SRCS=	proc_bkpt.c		\
 	proc_create.c		\
+	proc_regs.c		\
 	proc_sym.c		\
+	proc_rtld.c		\
 	proc_util.c
 
 INCS=	libproc.h

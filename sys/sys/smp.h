@@ -16,8 +16,6 @@
 
 #ifndef LOCORE
 
-#ifdef SMP
-
 /*
  * Topology of a NUMA or HTT system.
  *
@@ -41,6 +39,8 @@ struct cpu_group {
 	int8_t		cg_flags;	/* Traversal modifiers. */
 };
 
+typedef struct cpu_group *cpu_group_t;
+
 /*
  * Defines common resources for CPUs in the group.  The highest level
  * resource should be used when multiple are shared.
@@ -60,6 +60,7 @@ struct cpu_group {
 /*
  * Convenience routines for building topologies.
  */
+#ifdef SMP
 struct cpu_group *smp_topo(void);
 struct cpu_group *smp_topo_none(void);
 struct cpu_group *smp_topo_1level(int l1share, int l1count, int l1flags);
@@ -90,6 +91,44 @@ extern cpumask_t all_cpus;
  * (per-CPU) structures.
  */
 #define	CPU_ABSENT(x_cpu)	((all_cpus & (1 << (x_cpu))) == 0)
+
+/*
+ * Macros to iterate over non-absent CPUs.  CPU_FOREACH() takes an
+ * integer iterator and iterates over the available set of CPUs.
+ * CPU_FIRST() returns the id of the first non-absent CPU.  CPU_NEXT()
+ * returns the id of the next non-absent CPU.  It will wrap back to
+ * CPU_FIRST() once the end of the list is reached.  The iterators are
+ * currently implemented via inline functions.
+ */
+#define	CPU_FOREACH(i)							\
+	for ((i) = 0; (i) <= mp_maxid; (i)++)				\
+		if (!CPU_ABSENT((i)))
+
+static __inline int
+cpu_first(void)
+{
+	int i;
+
+	for (i = 0;; i++)
+		if (!CPU_ABSENT(i))
+			return (i);
+}
+
+static __inline int
+cpu_next(int i)
+{
+
+	for (;;) {
+		i++;
+		if (i > mp_maxid)
+			i = 0;
+		if (!CPU_ABSENT(i))
+			return (i);
+	}
+}
+
+#define	CPU_FIRST()	cpu_first()
+#define	CPU_NEXT(i)	cpu_next((i))
 
 #ifdef SMP
 /*

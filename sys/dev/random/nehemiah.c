@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/systm.h>
 
+#include <machine/pcb.h>
+
 #include <dev/random/randomdev.h>
 
 #define RANDOM_BLOCK_SIZE	256
@@ -81,6 +83,8 @@ static uint8_t in[RANDOM_BLOCK_SIZE+7]	__aligned(16);
 static uint8_t out[RANDOM_BLOCK_SIZE+7]	__aligned(16);
 
 static union VIA_ACE_CW acw		__aligned(16);
+
+static struct fpu_kern_ctx fpu_ctx_save;
 
 static struct mtx random_nehemiah_mtx;
 
@@ -142,11 +146,16 @@ random_nehemiah_deinit(void)
 static int
 random_nehemiah_read(void *buf, int c)
 {
-	int i;
+	int i, error;
 	size_t count, ret;
 	uint8_t *p;
 
 	mtx_lock(&random_nehemiah_mtx);
+	error = fpu_kern_enter(curthread, &fpu_ctx_save, FPU_KERN_NORMAL);
+	if (error != 0) {
+		mtx_unlock(&random_nehemiah_mtx);
+		return (0);
+	}
 
 	/* Get a random AES key */
 	count = 0;
@@ -187,6 +196,7 @@ random_nehemiah_read(void *buf, int c)
 	c = MIN(RANDOM_BLOCK_SIZE, c);
 	memcpy(buf, out, (size_t)c);
 
+	fpu_kern_leave(curthread, &fpu_ctx_save);
 	mtx_unlock(&random_nehemiah_mtx);
 	return (c);
 }

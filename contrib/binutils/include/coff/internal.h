@@ -1,7 +1,8 @@
 /* Internal format of COFF object file data structures, for GNU BFD.
    This file is part of BFD, the Binary File Descriptor library.
    
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004. 2005, 2006, 2007, 2009
+   Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +16,7 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef GNU_COFF_INTERNAL_H
 #define GNU_COFF_INTERNAL_H 1
@@ -57,9 +58,18 @@ struct internal_extra_pe_filehdr
   bfd_vma  nt_signature;   	/* required NT signature, 0x4550 */ 
 };
 
+#define GO32_STUBSIZE 2048
+
 struct internal_filehdr
 {
   struct internal_extra_pe_filehdr pe;
+
+  /* coff-stgo32 EXE stub header before BFD tdata has been allocated.
+     Its data is kept in INTERNAL_FILEHDR.GO32STUB afterwards.
+     
+     F_GO32STUB is set iff go32stub contains a valid data.  Artifical headers
+     created in BFD have no pre-set go32stub.  */
+  char go32stub[GO32_STUBSIZE];
 
   /* Standard coff internal info.  */
   unsigned short f_magic;	/* magic number			*/
@@ -83,7 +93,8 @@ struct internal_filehdr
  	F_AR32W		file is 32-bit big-endian
  	F_DYNLOAD	rs/6000 aix: dynamically loadable w/imports & exports
  	F_SHROBJ	rs/6000 aix: file is a shared object
-        F_DLL           PE format DLL.  */
+	F_DLL           PE format DLL
+	F_GO32STUB      Field go32stub contains valid data.  */
 
 #define	F_RELFLG	(0x0001)
 #define	F_EXEC		(0x0002)
@@ -95,6 +106,7 @@ struct internal_filehdr
 #define	F_DYNLOAD	(0x1000)
 #define	F_SHROBJ	(0x2000)
 #define F_DLL           (0x2000)
+#define F_GO32STUB      (0x4000)
 
 /* Extra structure which is used in the optional header.  */
 typedef struct _IMAGE_DATA_DIRECTORY 
@@ -102,6 +114,22 @@ typedef struct _IMAGE_DATA_DIRECTORY
   bfd_vma VirtualAddress;
   long    Size;
 }  IMAGE_DATA_DIRECTORY;
+#define PE_EXPORT_TABLE			0
+#define PE_IMPORT_TABLE			1
+#define PE_RESOURCE_TABLE		2
+#define PE_EXCEPTION_TABLE		3
+#define PE_CERTIFICATE_TABLE		4
+#define PE_BASE_RELOCATION_TABLE	5
+#define PE_DEBUG_DATA			6
+#define PE_ARCHITECTURE			7
+#define PE_GLOBAL_PTR			8
+#define PE_TLS_TABLE			9
+#define PE_LOAD_CONFIG_TABLE		10
+#define PE_BOUND_IMPORT_TABLE		11
+#define PE_IMPORT_ADDRESS_TABLE		12
+#define PE_DELAY_IMPORT_DESCRIPTOR	13
+#define PE_CLR_RUNTIME_HEADER		14
+/* DataDirectory[15] is currently reserved, so no define. */
 #define IMAGE_NUMBEROF_DIRECTORY_ENTRIES  16
 
 /* Default image base for NT.  */
@@ -121,6 +149,28 @@ typedef struct _IMAGE_DATA_DIRECTORY
 
 struct internal_extra_pe_aouthdr 
 {
+  /* FIXME: The following entries are in AOUTHDR.  But they aren't
+     available internally in bfd.  We add them here so that objdump
+     can dump them.  */
+  /* The state of the image file  */
+  short Magic;
+  /* Linker major version number */
+  char MajorLinkerVersion;
+  /* Linker minor version number  */
+  char MinorLinkerVersion;	
+  /* Total size of all code sections  */
+  long SizeOfCode;
+  /* Total size of all initialized data sections  */
+  long SizeOfInitializedData;
+  /* Total size of all uninitialized data sections  */
+  long SizeOfUninitializedData;
+  /* Address of entry point relative to image base.  */
+  bfd_vma AddressOfEntryPoint;
+  /* Address of the first code section relative to image base.  */
+  bfd_vma BaseOfCode;
+  /* Address of the first data section relative to image base.  */
+  bfd_vma BaseOfData;
+ 
   /* PE stuff  */
   bfd_vma ImageBase;		/* address of specific location in memory that
 				   file is located, NT default 0x10000 */
@@ -146,7 +196,7 @@ struct internal_extra_pe_aouthdr
      3 - WINDOWS_CUI runs in Windows char sub. (console app)
      5 - OS2_CUI runs in OS/2 character subsystem
      7 - POSIX_CUI runs in Posix character subsystem */
-  short   DllCharacteristics;	/* flags for DLL init, use 0 */
+  unsigned short DllCharacteristics; /* flags for DLL init  */
   bfd_vma SizeOfStackReserve;	/* amount of memory to reserve  */
   bfd_vma SizeOfStackCommit;	/* amount of memory initially committed for 
 				   initial thread's stack, default is 0x1000 */
@@ -234,12 +284,7 @@ struct internal_aouthdr
 #define C_LINE		104	/* line # reformatted as symbol table entry */
 #define C_ALIAS	 	105	/* duplicate tag		*/
 #define C_HIDDEN	106	/* ext symbol in dmert public lib */
-
-#if defined _AIX52 || defined AIX_WEAK_SUPPORT
-#define C_WEAKEXT	111	/* weak symbol -- AIX standard.  */
-#else
 #define C_WEAKEXT	127	/* weak symbol -- GNU extension.  */
-#endif
 
 /* New storage classes for TI COFF */
 #define C_UEXT		19	/* Tentative external definition */
@@ -272,6 +317,12 @@ struct internal_aouthdr
 #define C_HIDEXT        107	/* Un-named external symbol */
 #define C_BINCL         108	/* Marks beginning of include file */
 #define C_EINCL         109	/* Marks ending of include file */
+#define C_AIX_WEAKEXT   111	/* AIX definition of C_WEAKEXT.  */
+
+#if defined _AIX52 || defined AIX_WEAK_SUPPORT
+#undef C_WEAKEXT
+#define C_WEAKEXT       C_AIX_WEAKEXT
+#endif
 
  /* storage classes for stab symbols for RS/6000 */
 #define C_GSYM          (0x80)
@@ -296,6 +347,10 @@ struct internal_aouthdr
 #define C_THUMBLABEL    (128 + C_LABEL)		/* 134 */
 #define C_THUMBEXTFUNC  (C_THUMBEXT  + 20)	/* 150 */
 #define C_THUMBSTATFUNC (C_THUMBSTAT + 20)	/* 151 */
+
+/* True if XCOFF symbols of class CLASS have auxillary csect information.  */
+#define CSECT_SYM_P(CLASS) \
+  ((CLASS) == C_EXT || (CLASS) == C_AIX_WEAKEXT || (CLASS) == C_HIDEXT)
 
 /********************** SECTION HEADER **********************/
 
@@ -377,15 +432,15 @@ struct internal_syment
 {
   union
   {
-    char _n_name[SYMNMLEN];	/* old COFF version	*/
+    char _n_name[SYMNMLEN];	/* old COFF version		*/
     struct
     {
-      long _n_zeroes;		/* new == 0		*/
-      long _n_offset;		/* offset into string table */
+      long _n_zeroes;		/* new == 0			*/
+      long _n_offset;		/* offset into string table	*/
     }      _n_n;
     char *_n_nptr[2];		/* allows for overlaying	*/
   }     _n;
-  bfd_vma n_value;			/* value of symbol		*/
+  bfd_vma n_value;		/* value of symbol		*/
   short n_scnum;		/* section number		*/
   unsigned short n_flags;	/* copy of flags from filhdr	*/
   unsigned short n_type;	/* type and derived type	*/
@@ -603,10 +658,30 @@ struct internal_reloc
   unsigned long r_offset;	/* Used by Alpha ECOFF, SPARC, others */
 };
 
+/* X86-64 relocations.  */
+#define R_AMD64_ABS 		 0 /* Reference is absolute, no relocation is necessary.  */
+#define R_AMD64_DIR64		 1 /* 64-bit address (VA).  */
+#define R_AMD64_DIR32		 2 /* 32-bit address (VA) R_DIR32.  */
+#define R_AMD64_IMAGEBASE	 3 /* 32-bit absolute ref w/o base R_IMAGEBASE.  */
+#define R_AMD64_PCRLONG		 4 /* 32-bit relative address from byte following reloc R_PCRLONG.  */
+#define R_AMD64_PCRLONG_1	 5 /* 32-bit relative address from byte distance 1 from reloc.  */
+#define R_AMD64_PCRLONG_2	 6 /* 32-bit relative address from byte distance 2 from reloc.  */
+#define R_AMD64_PCRLONG_3	 7 /* 32-bit relative address from byte distance 3 from reloc.  */
+#define R_AMD64_PCRLONG_4	 8 /* 32-bit relative address from byte distance 4 from reloc.  */
+#define R_AMD64_PCRLONG_5	 9 /* 32-bit relative address from byte distance 5 from reloc.  */
+#define R_AMD64_SECTION		10 /* Section index.  */
+#define R_AMD64_SECREL		11 /* 32 bit offset from base of section containing target R_SECREL.  */
+#define R_AMD64_SECREL7		12 /* 7 bit unsigned offset from base of section containing target.  */
+#define R_AMD64_TOKEN		13 /* 32 bit metadata token.  */
+#define R_AMD64_PCRQUAD		14 /* Pseude PC64 relocation - Note: not specified by MS/AMD but need for gas pc-relative 64bit wide relocation generated by ELF.  */
+
+/* i386 Relocations.  */
+
 #define R_DIR16 	 1
 #define R_REL24          5
 #define R_DIR32 	 6
 #define R_IMAGEBASE	 7
+#define R_SECREL32	11
 #define R_RELBYTE	15
 #define R_RELWORD	16
 #define R_RELLONG	17
@@ -712,6 +787,11 @@ struct internal_reloc
 #define R_SEG     0x10		/* set if in segmented mode */
 #define R_IMM4H   0x24		/* high nibble */
 #define R_DISP7   0x25          /* djnz displacement */
+
+/* Z80 modes */
+#define R_OFF8    0x32		/* 8 bit signed abs, for (i[xy]+d) */
+#define R_IMM24   0x33          /* 24 bit abs */
+/* R_JR, R_IMM8, R_IMM16, R_IMM32 - as for Z8k */
 
 /* H8500 modes */
 

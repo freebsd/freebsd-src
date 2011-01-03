@@ -226,26 +226,24 @@ fequinoxsolstice(int year, double UTCoffset, double *equinoxdays, double *solsti
 	 * It happens when the returned value "dec" goes from
 	 * [350 ... 360> -> [0 ... 10]
 	 */
-	found = 0;
-	prevdec = 350;
 	for (d = 18; d < 31; d++) {
-//		printf("Comparing day %d to %d.\n", d, d+1);
+		/* printf("Comparing day %d to %d.\n", d, d+1); */
 		sunpos(year, 3, d, UTCoffset, 0, 0, 0, 0.0, 0.0, &L, &decleft);
 		sunpos(year, 3, d + 1, UTCoffset, 0, 0, 0, 0.0, 0.0,
 		    &L, &decright);
-//		printf("Found %g and %g.\n", decleft, decright);
+		/* printf("Found %g and %g.\n", decleft, decright); */
 		if (SIGN(decleft) == SIGN(decright))
 			continue;
 
 		dial = SECSPERDAY;
 		s = SECSPERDAY / 2;
 		while (s > 0) {
-//			printf("Obtaining %d (%02d:%02d)\n",
-//			    dial, SHOUR(dial), SMIN(dial));
+			/* printf("Obtaining %d (%02d:%02d)\n",
+			    dial, SHOUR(dial), SMIN(dial)); */
 			sunpos(year, 3, d, UTCoffset,
 			    SHOUR(dial), SMIN(dial), SSEC(dial),
 			    0.0, 0.0, &L, &decmiddle);
-//			printf("Found %g\n", decmiddle);
+			/* printf("Found %g\n", decmiddle); */
 			if (SIGN(decleft) == SIGN(decmiddle)) {
 				decleft = decmiddle;
 				dial += s;
@@ -253,7 +251,9 @@ fequinoxsolstice(int year, double UTCoffset, double *equinoxdays, double *solsti
 				decright = decmiddle;
 				dial -= s;
 			}
-//			printf("New boundaries: %g - %g\n", decleft, decright);
+			/*
+			 printf("New boundaries: %g - %g\n", decleft, decright);
+			*/
 
 			s /= 2;
 		}
@@ -265,26 +265,24 @@ fequinoxsolstice(int year, double UTCoffset, double *equinoxdays, double *solsti
 	 * It happens when the returned value "dec" goes from
 	 * [10 ... 0] -> <360 ... 350]
 	 */
-	found = 0;
-	prevdec = 10;
 	for (d = 18; d < 31; d++) {
-//		printf("Comparing day %d to %d.\n", d, d+1);
+		/* printf("Comparing day %d to %d.\n", d, d+1); */
 		sunpos(year, 9, d, UTCoffset, 0, 0, 0, 0.0, 0.0, &L, &decleft);
 		sunpos(year, 9, d + 1, UTCoffset, 0, 0, 0, 0.0, 0.0,
 		    &L, &decright);
-//		printf("Found %g and %g.\n", decleft, decright);
+		/* printf("Found %g and %g.\n", decleft, decright); */
 		if (SIGN(decleft) == SIGN(decright))
 			continue;
 
 		dial = SECSPERDAY;
 		s = SECSPERDAY / 2;
 		while (s > 0) {
-//			printf("Obtaining %d (%02d:%02d)\n",
-//			    dial, SHOUR(dial), SMIN(dial));
+			/* printf("Obtaining %d (%02d:%02d)\n",
+			    dial, SHOUR(dial), SMIN(dial)); */
 			sunpos(year, 9, d, UTCoffset,
 			    SHOUR(dial), SMIN(dial), SSEC(dial),
 			    0.0, 0.0, &L, &decmiddle);
-//			printf("Found %g\n", decmiddle);
+			/* printf("Found %g\n", decmiddle); */
 			if (SIGN(decleft) == SIGN(decmiddle)) {
 				decleft = decmiddle;
 				dial += s;
@@ -292,7 +290,9 @@ fequinoxsolstice(int year, double UTCoffset, double *equinoxdays, double *solsti
 				decright = decmiddle;
 				dial -= s;
 			}
-//			printf("New boundaries: %g - %g\n", decleft, decright);
+			/*
+			printf("New boundaries: %g - %g\n", decleft, decright);
+			*/
 
 			s /= 2;
 		}

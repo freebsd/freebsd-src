@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -55,9 +51,7 @@ __FBSDID("$FreeBSD$");
  * name and return it.
  */
 struct name *
-nalloc(str, ntype)
-	char str[];
-	int ntype;
+nalloc(char str[], int ntype)
 {
 	struct name *np;
 
@@ -73,8 +67,7 @@ nalloc(str, ntype)
  * Find the tail of a list and return it.
  */
 struct name *
-tailof(name)
-	struct name *name;
+tailof(struct name *name)
 {
 	struct name *np;
 
@@ -92,9 +85,7 @@ tailof(name)
  * Return the list or NULL if none found.
  */
 struct name *
-extract(line, ntype)
-	char line[];
-	int ntype;
+extract(char line[], int ntype)
 {
 	char *cp, *nbuf;
 	struct name *top, *np, *t;
@@ -123,9 +114,7 @@ extract(line, ntype)
  * Turn a list of names into a string of the same names.
  */
 char *
-detract(np, ntype)
-	struct name *np;
-	int ntype;
+detract(struct name *np, int ntype)
 {
 	int s, comma;
 	char *cp, *top;
@@ -169,8 +158,7 @@ detract(np, ntype)
  * Throw away things between ()'s, and take anything between <>.
  */
 char *
-yankword(ap, wbuf)
-	char *ap, wbuf[];
+yankword(char *ap, char wbuf[])
 {
 	char *cp, *cp2;
 
@@ -215,8 +203,7 @@ yankword(ap, wbuf)
  * and look for words before metacharacters %, @, !.
  */
 char *
-yanklogin(ap, wbuf)
-	char *ap, wbuf[];
+yanklogin(char *ap, char wbuf[])
 {
 	char *cp, *cp2, *cp_temp;
 	int n;
@@ -291,10 +278,7 @@ yanklogin(ap, wbuf)
  * program and removed.
  */
 struct name *
-outof(names, fo, hp)
-	struct name *names;
-	FILE *fo;
-	struct header *hp;
+outof(struct name *names, FILE *fo, struct header *hp)
 {
 	int c, ispipe;
 	struct name *np, *top;
@@ -444,8 +428,7 @@ cant:
  * be a filename.  We cheat with .'s to allow path names like ./...
  */
 int
-isfileaddr(name)
-	char *name;
+isfileaddr(char *name)
 {
 	char *cp;
 
@@ -468,8 +451,7 @@ isfileaddr(name)
  */
 
 struct name *
-usermap(names)
-	struct name *names;
+usermap(struct name *names)
 {
 	struct name *new, *np, *cp;
 	struct grouphead *gh;
@@ -503,10 +485,7 @@ usermap(names)
  */
 
 struct name *
-gexpand(nlist, gh, metoo, ntype)
-	struct name *nlist;
-	struct grouphead *gh;
-	int metoo, ntype;
+gexpand(struct name *nlist, struct grouphead *gh, int metoo, int ntype)
 {
 	struct group *gp;
 	struct grouphead *ngh;
@@ -550,8 +529,7 @@ skip:
  * Concatenate the two passed name lists, return the result.
  */
 struct name *
-cat(n1, n2)
-	struct name *n1, *n2;
+cat(struct name *n1, struct name *n2)
 {
 	struct name *tail;
 
@@ -570,8 +548,7 @@ cat(n1, n2)
  * Return an error if the name list won't fit.
  */
 char **
-unpack(np)
-	struct name *np;
+unpack(struct name *np)
 {
 	char **ap, **top;
 	struct name *n;
@@ -615,8 +592,7 @@ unpack(np)
  * Return the head of the new list.
  */
 struct name *
-elide(names)
-	struct name *names;
+elide(struct name *names)
 {
 	struct name *np, *t, *new;
 	struct name *x;
@@ -714,8 +690,7 @@ elide(names)
  * the list.
  */
 struct name *
-put(list, node)
-	struct name *list, *node;
+put(struct name *list, struct name *node)
 {
 	node->n_flink = list;
 	node->n_blink = NULL;
@@ -729,8 +704,7 @@ put(list, node)
  * a name list and return it.
  */
 int
-count(np)
-	struct name *np;
+count(struct name *np)
 {
 	int c;
 
@@ -744,9 +718,7 @@ count(np)
  * Delete the given name from a namelist.
  */
 struct name *
-delname(np, name)
-	struct name *np;
-	char name[];
+delname(struct name *np, char name[])
 {
 	struct name *p;
 
@@ -776,8 +748,7 @@ delname(np, name)
 
 /*
 void
-prettyprint(name)
-	struct name *name;
+prettyprint(struct name *name)
 {
 	struct name *np;
 

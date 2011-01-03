@@ -1,4 +1,5 @@
 .\" Copyright (c) 2010 The FreeBSD Foundation
+.\" Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -27,14 +28,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2010
+.Dd August 30, 2010
 .Dt HAST.CONF 5
 .Os
 .Sh NAME
 .Nm hast.conf
 .Nd configuration file for the
 .Xr hastd 8
-deamon and the
+daemon and the
 .Xr hastctl 8
 utility.
 .Sh DESCRIPTION
@@ -59,6 +60,7 @@ control <addr>
 listen <addr>
 replication <mode>
 timeout <seconds>
+exec <path>
 
 on <node> {
 	# Node section
@@ -78,6 +80,7 @@ resource <name> {
 	name <name>
 	local <path>
 	timeout <seconds>
+	exec <path>
 
 	on <node> {
 		# Resource-node section
@@ -169,14 +172,16 @@ The only situation where some small amount of data could be lost is when
 the data is stored on primary node and sent to the secondary.
 Secondary node then acknowledges data receipt and primary reports
 success to an application.
-However, it may happen that the seconderay goes down before the received
+However, it may happen that the secondary goes down before the received
 data is really stored locally.
 Before secondary node returns, primary node dies entirely.
 When the secondary node comes back to life it becomes the new primary.
 Unfortunately some small amount of data which was confirmed to be stored
 to the application was lost.
-The risk of such a situation is very small, which is the reason for this
-mode to be the default.
+The risk of such a situation is very small.
+The
+.Ic memsync
+replication mode is currently not implemented.
 .It Ic fullsync
 .Pp
 Mark the write operation as completed when local as well as remote
@@ -184,7 +189,7 @@ write completes.
 This is the safest and the slowest replication mode.
 The
 .Ic fullsync
-replication mode is currently not implemented.
+replication mode is the default.
 .It Ic async
 .Pp
 The write operation is reported as complete right after the local write
@@ -201,6 +206,76 @@ replication mode is currently not implemented.
 Connection timeout in seconds.
 The default value is
 .Va 5 .
+.It Ic exec Aq path
+.Pp
+Execute the given program on various HAST events.
+Below is the list of currently implemented events and arguments the given
+program is executed with:
+.Bl -tag -width ".Ic xxxx"
+.It Ic "<path> role <resource> <oldrole> <newrole>"
+.Pp
+Executed on both primary and secondary nodes when resource role is changed.
+.Pp
+.It Ic "<path> connect <resource>"
+.Pp
+Executed on both primary and secondary nodes when connection for the given
+resource between the nodes is established.
+.Pp
+.It Ic "<path> disconnect <resource>"
+.Pp
+Executed on both primary and secondary nodes when connection for the given
+resource between the nodes is lost.
+.Pp
+.It Ic "<path> syncstart <resource>"
+.Pp
+Executed on primary node when synchronization process of secondary node is
+started.
+.Pp
+.It Ic "<path> syncdone <resource>"
+.Pp
+Executed on primary node when synchronization process of secondary node is
+completed successfully.
+.Pp
+.It Ic "<path> syncintr <resource>"
+.Pp
+Executed on primary node when synchronization process of secondary node is
+interrupted, most likely due to secondary node outage or connection failure
+between the nodes.
+.Pp
+.It Ic "<path> split-brain <resource>"
+.Pp
+Executed on both primary and secondary nodes when split-brain condition is
+detected.
+.Pp
+.El
+The
+.Aq path
+argument should contain full path to executable program.
+If the given program exits with code different than
+.Va 0 ,
+.Nm hastd
+will log it as an error.
+.Pp
+The
+.Aq resource
+argument is resource name from the configuration file.
+.Pp
+The
+.Aq oldrole
+argument is previous resource role (before the change).
+It can be one of:
+.Ar init ,
+.Ar secondary ,
+.Ar primary .
+.Pp
+The
+.Aq newrole
+argument is current resource role (after the change).
+It can be one of:
+.Ar init ,
+.Ar secondary ,
+.Ar primary .
+.Pp
 .It Ic name Aq name
 .Pp
 GEOM provider name that will appear as
@@ -223,6 +298,24 @@ When operating as a primary node this address will be used to connect to
 the secondary node.
 When operating as a secondary node only connections from this address
 will be accepted.
+.Pp
+A special value of
+.Va none
+can be used when the remote address is not yet known (eg. the other node is not
+set up yet).
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/hastctl" -compact
+.It Pa /etc/hast.conf
+The default
+.Nm
+configuration file.
+.It Pa /var/run/hastctl
+Control socket used by the
+.Xr hastctl 8
+control utility to communicate with the
+.Xr hastd 8
+daemon.
 .El
 .Sh EXAMPLES
 The example configuration file can look as follows:
@@ -248,19 +341,6 @@ resource tank {
 	}
 }
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /var/run/hastctl" -compact
-.It Pa /etc/hast.conf
-The default
-.Nm
-configuration file.
-.It Pa /var/run/hastctl
-Control socket used by the
-.Xr hastctl 8
-control utility to communicate with the
-.Xr hastd 8
-daemon.
-.El
 .Sh SEE ALSO
 .Xr gethostname 3 ,
 .Xr geom 4 ,

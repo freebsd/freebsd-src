@@ -49,7 +49,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -66,7 +66,7 @@
 #define	P2ROUNDUP(x, align)		(-(-(x) & -(align)))
 #define	P2END(x, align)			(-(~(x) & -(align)))
 #define	P2PHASEUP(x, align, phase)	((phase) - (((phase) - (x)) & -(align)))
-#define	P2CROSS(x, y, align)		(((x) ^ (y)) > (align) - 1)
+#define	P2BOUNDARY(off, len, align)	(((off) ^ ((off) + (len) - 1)) > (align) - 1)
 
 /*
  * General-purpose 32-bit and 64-bit bitfield encodings.
@@ -317,8 +317,9 @@ typedef struct zio_block_tail {
 	zio_cksum_t	zbt_cksum;	/* 256-bit checksum		*/
 } zio_block_tail_t;
 
-#define	VDEV_SKIP_SIZE		(8 << 10)
-#define	VDEV_BOOT_HEADER_SIZE	(8 << 10)
+#define	VDEV_PAD_SIZE		(8 << 10)
+/* 2 padding areas (vl_pad1 and vl_pad2) to skip */
+#define	VDEV_SKIP_SIZE		VDEV_PAD_SIZE * 2
 #define	VDEV_PHYS_SIZE		(112 << 10)
 #define	VDEV_UBERBLOCK_RING	(128 << 10)
 
@@ -330,26 +331,14 @@ typedef struct zio_block_tail {
 	offsetof(vdev_label_t, vl_uberblock[(n) << VDEV_UBERBLOCK_SHIFT(vd)])
 #define	VDEV_UBERBLOCK_SIZE(vd)		(1ULL << VDEV_UBERBLOCK_SHIFT(vd))
 
-/* ZFS boot block */
-#define	VDEV_BOOT_MAGIC		0x2f5b007b10cULL
-#define	VDEV_BOOT_VERSION	1		/* version number	*/
-
-typedef struct vdev_boot_header {
-	uint64_t	vb_magic;		/* VDEV_BOOT_MAGIC	*/
-	uint64_t	vb_version;		/* VDEV_BOOT_VERSION	*/
-	uint64_t	vb_offset;		/* start offset	(bytes) */
-	uint64_t	vb_size;		/* size (bytes)		*/
-	char		vb_pad[VDEV_BOOT_HEADER_SIZE - 4 * sizeof (uint64_t)];
-} vdev_boot_header_t;
-
 typedef struct vdev_phys {
 	char		vp_nvlist[VDEV_PHYS_SIZE - sizeof (zio_block_tail_t)];
 	zio_block_tail_t vp_zbt;
 } vdev_phys_t;
 
 typedef struct vdev_label {
-	char		vl_pad[VDEV_SKIP_SIZE];			/*   8K	*/
-	vdev_boot_header_t vl_boot_header;			/*   8K	*/
+	char		vl_pad1[VDEV_PAD_SIZE];			/*  8K  */
+	char		vl_pad2[VDEV_PAD_SIZE];			/*  8K  */
 	vdev_phys_t	vl_vdev_phys;				/* 112K	*/
 	char		vl_uberblock[VDEV_UBERBLOCK_RING];	/* 128K	*/
 } vdev_label_t;							/* 256K total */
@@ -480,13 +469,14 @@ typedef enum {
 #define	SPA_VERSION_12			12ULL
 #define	SPA_VERSION_13			13ULL
 #define	SPA_VERSION_14			14ULL
+#define	SPA_VERSION_15			15ULL
 /*
  * When bumping up SPA_VERSION, make sure GRUB ZFS understand the on-disk
  * format change. Go to usr/src/grub/grub-0.95/stage2/{zfs-include/, fsys_zfs*},
  * and do the appropriate changes.
  */
-#define	SPA_VERSION			SPA_VERSION_14
-#define	SPA_VERSION_STRING		"14"
+#define	SPA_VERSION			SPA_VERSION_15
+#define	SPA_VERSION_STRING		"15"
 
 /*
  * Symbolic names for the changes that caused a SPA_VERSION switch.
@@ -522,6 +512,7 @@ typedef enum {
 #define	SPA_VERSION_SNAP_PROPS		SPA_VERSION_12
 #define	SPA_VERSION_USED_BREAKDOWN	SPA_VERSION_13
 #define	SPA_VERSION_PASSTHROUGH_X	SPA_VERSION_14
+#define SPA_VERSION_USERSPACE		SPA_VERSION_15
 
 /*
  * The following are configuration names used in the nvlist describing a pool's
@@ -555,6 +546,7 @@ typedef enum {
 #define	ZPOOL_CONFIG_NPARITY		"nparity"
 #define	ZPOOL_CONFIG_HOSTID		"hostid"
 #define	ZPOOL_CONFIG_HOSTNAME		"hostname"
+#define	ZPOOL_CONFIG_IS_LOG		"is_log"
 #define	ZPOOL_CONFIG_TIMESTAMP		"timestamp" /* not stored on disk */
 
 /*
@@ -799,8 +791,11 @@ typedef struct objset_phys {
 	dnode_phys_t os_meta_dnode;
 	zil_header_t os_zil_header;
 	uint64_t os_type;
-	char os_pad[1024 - sizeof (dnode_phys_t) - sizeof (zil_header_t) -
-	    sizeof (uint64_t)];
+	uint64_t os_flags;
+	char os_pad[2048 - sizeof (dnode_phys_t)*3 -
+	    sizeof (zil_header_t) - sizeof (uint64_t)*2];
+	dnode_phys_t os_userused_dnode;
+	dnode_phys_t os_groupused_dnode;
 } objset_phys_t;
 
 typedef struct dsl_dir_phys {

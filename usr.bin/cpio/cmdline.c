@@ -46,11 +46,12 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "cpio.h"
+#include "err.h"
 
 /*
  * Short options for cpio.  Please keep this sorted.
  */
-static const char *short_options = "0AaBC:F:O:cdE:f:H:hijLlmnopR:rtuvVW:yZz";
+static const char *short_options = "0AaBC:cdE:F:f:H:hI:iJjLlmnO:opR:rtuvW:yZz";
 
 /*
  * Long options for cpio.  Please keep this sorted.
@@ -61,7 +62,6 @@ static const struct option {
 	int equivalent;	/* Equivalent short option. */
 } cpio_longopts[] = {
 	{ "create",			0, 'o' },
-	{ "dot",			0, 'V' },
 	{ "extract",			0, 'i' },
 	{ "file",			1, 'F' },
 	{ "format",             	1, 'H' },
@@ -69,6 +69,7 @@ static const struct option {
 	{ "insecure",			0, OPTION_INSECURE },
 	{ "link",			0, 'l' },
 	{ "list",			0, 't' },
+	{ "lzma",			0, OPTION_LZMA },
 	{ "make-directories",		0, 'd' },
 	{ "no-preserve-owner",		0, OPTION_NO_PRESERVE_OWNER },
 	{ "null",			0, '0' },
@@ -76,10 +77,12 @@ static const struct option {
 	{ "owner",			1, 'R' },
 	{ "pass-through",		0, 'p' },
 	{ "preserve-modification-time", 0, 'm' },
+	{ "preserve-owner",		0, OPTION_PRESERVE_OWNER },
 	{ "quiet",			0, OPTION_QUIET },
 	{ "unconditional",		0, 'u' },
 	{ "verbose",			0, 'v' },
 	{ "version",			0, OPTION_VERSION },
+	{ "xz",				0, 'J' },
 	{ NULL, 0, 0 }
 };
 
@@ -172,7 +175,7 @@ cpio_getopt(struct cpio *cpio)
 				/* Otherwise, pick up the next word. */
 				opt_word = *cpio->argv;
 				if (opt_word == NULL) {
-					cpio_warnc(0,
+					warnc(0,
 					    "Option -%c requires an argument",
 					    opt);
 					return ('?');
@@ -223,13 +226,13 @@ cpio_getopt(struct cpio *cpio)
 
 		/* Fail if there wasn't a unique match. */
 		if (match == NULL) {
-			cpio_warnc(0,
+			warnc(0,
 			    "Option %s%s is not supported",
 			    long_prefix, opt_word);
 			return ('?');
 		}
 		if (match2 != NULL) {
-			cpio_warnc(0,
+			warnc(0,
 			    "Ambiguous option %s%s (matches --%s and --%s)",
 			    long_prefix, opt_word, match->name, match2->name);
 			return ('?');
@@ -241,7 +244,7 @@ cpio_getopt(struct cpio *cpio)
 			if (cpio->optarg == NULL) {
 				cpio->optarg = *cpio->argv;
 				if (cpio->optarg == NULL) {
-					cpio_warnc(0,
+					warnc(0,
 					    "Option %s%s requires an argument",
 					    long_prefix, match->name);
 					return ('?');
@@ -252,7 +255,7 @@ cpio_getopt(struct cpio *cpio)
 		} else {
 			/* Argument forbidden: fail if there is one. */
 			if (cpio->optarg != NULL) {
-				cpio_warnc(0,
+				warnc(0,
 				    "Option %s%s does not allow an argument",
 				    long_prefix, match->name);
 				return ('?');
@@ -282,18 +285,23 @@ cpio_getopt(struct cpio *cpio)
  * A period can be used instead of the colon.
  *
  * Sets uid/gid return as appropriate, -1 indicates uid/gid not specified.
+ * TODO: If the spec uses uname/gname, then return those to the caller
+ * as well.  If the spec provides uid/gid, just return names as NULL.
+ *
+ * Returns NULL if no error, otherwise returns error string for display.
  *
  */
-int
+const char *
 owner_parse(const char *spec, int *uid, int *gid)
 {
+	static char errbuff[128];
 	const char *u, *ue, *g;
 
 	*uid = -1;
 	*gid = -1;
 
 	if (spec[0] == '\0')
-		return (1);
+		return ("Invalid empty user/group spec");
 
 	/*
 	 * Split spec into [user][:.][group]
@@ -321,10 +329,8 @@ owner_parse(const char *spec, int *uid, int *gid)
 		struct passwd *pwent;
 
 		user = (char *)malloc(ue - u + 1);
-		if (user == NULL) {
-			cpio_warnc(errno, "Couldn't allocate memory");
-			return (1);
-		}
+		if (user == NULL)
+			return ("Couldn't allocate memory");
 		memcpy(user, u, ue - u);
 		user[ue - u] = '\0';
 		if ((pwent = getpwnam(user)) != NULL) {
@@ -336,9 +342,10 @@ owner_parse(const char *spec, int *uid, int *gid)
 			errno = 0;
 			*uid = strtoul(user, &end, 10);
 			if (errno || *end != '\0') {
-				cpio_warnc(errno,
+				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup user ``%s''", user);
-				return (1);
+				errbuff[sizeof(errbuff) - 1] = '\0';
+				return (errbuff);
 			}
 		}
 		free(user);
@@ -353,11 +360,12 @@ owner_parse(const char *spec, int *uid, int *gid)
 			errno = 0;
 			*gid = strtoul(g, &end, 10);
 			if (errno || *end != '\0') {
-				cpio_warnc(errno,
+				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup group ``%s''", g);
-				return (1);
+				errbuff[sizeof(errbuff) - 1] = '\0';
+				return (errbuff);
 			}
 		}
 	}
-	return (0);
+	return (NULL);
 }

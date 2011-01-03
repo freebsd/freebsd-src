@@ -31,6 +31,8 @@ THIS SOFTWARE.
 
 /* $FreeBSD$ */
 
+#include <ctype.h>
+
 #include "gdtoaimp.h"
 
  static void

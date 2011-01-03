@@ -67,7 +67,7 @@ static struct rman irq_rman, port_rman, mem_rman;
 static	int mainbus_probe(device_t);
 static	int mainbus_attach(device_t);
 static	int mainbus_print_child(device_t, device_t);
-static	device_t mainbus_add_child(device_t bus, int order, const char *name,
+static	device_t mainbus_add_child(device_t bus, u_int order, const char *name,
 	    int unit);
 static	struct resource *mainbus_alloc_resource(device_t, device_t, int, int *,
 	    u_long, u_long, u_long, u_int);
@@ -178,7 +178,7 @@ mainbus_print_child(device_t bus, device_t child)
 }
 
 static device_t
-mainbus_add_child(device_t bus, int order, const char *name, int unit)
+mainbus_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	return device_add_child_ordered(bus, order, name, unit);
 }
@@ -251,7 +251,7 @@ mainbus_activate_resource(device_t bus, device_t child, int type, int rid,
 	/*
 	 * If this is a memory resource, map it into the kernel.
 	 */
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
          uint64_t temp;
 #endif  
 	if (rman_get_bustag(r) == MIPS_BUS_SPACE_MEM) {
@@ -267,7 +267,7 @@ mainbus_activate_resource(device_t bus, device_t child, int type, int rid,
 			    + poffs;
 		}
 		rman_set_virtual(r, vaddr);
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 		temp = 0x0000000000000000;
 		temp |= (uint32_t)vaddr;
 		rman_set_bushandle(r, (bus_space_handle_t) temp);

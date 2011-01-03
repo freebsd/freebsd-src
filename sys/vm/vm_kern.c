@@ -301,11 +301,8 @@ kmem_malloc(map, size, flags)
 	vm_size_t size;
 	int flags;
 {
-	vm_offset_t offset, i;
-	vm_map_entry_t entry;
 	vm_offset_t addr;
-	vm_page_t m;
-	int pflags;
+	int i, rv;
 
 	size = round_page(size);
 	addr = vm_map_min(map);
@@ -338,6 +335,26 @@ kmem_malloc(map, size, flags)
 			return (0);
 		}
 	}
+
+	rv = kmem_back(map, addr, size, flags);
+	vm_map_unlock(map);
+	return (rv == KERN_SUCCESS ? addr : 0);
+}
+
+/*
+ *	kmem_back:
+ *
+ *	Allocate physical pages for the specified virtual address range.
+ */
+int
+kmem_back(vm_map_t map, vm_offset_t addr, vm_size_t size, int flags)
+{
+	vm_offset_t offset, i;
+	vm_map_entry_t entry;
+	vm_page_t m;
+	int pflags;
+
+	KASSERT(vm_map_locked(map), ("kmem_back: map %p is not locked", map));
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	vm_object_reference(kmem_object);
 	vm_map_insert(map, kmem_object, offset, addr, addr + size,
@@ -385,8 +402,7 @@ retry:
 			}
 			VM_OBJECT_UNLOCK(kmem_object);
 			vm_map_delete(map, addr, addr + size);
-			vm_map_unlock(map);
-			return (0);
+			return (KERN_NO_SPACE);
 		}
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
@@ -429,9 +445,8 @@ retry:
 		vm_page_wakeup(m);
 	}
 	VM_OBJECT_UNLOCK(kmem_object);
-	vm_map_unlock(map);
 
-	return (addr);
+	return (KERN_SUCCESS);
 }
 
 /*

@@ -61,7 +61,7 @@ typedef	unsigned long	bitmap;
  * bitmaps ops are critical. Some linux versions have __fls
  * and the bitmap ops. Some machines have ffs
  */
-#if defined(_WIN32)
+#if defined(_WIN32) || (defined(__MIPSEL__) && defined(LINUX_24))
 int fls(unsigned int n)
 {
 	int i = 0;
@@ -71,7 +71,7 @@ int fls(unsigned int n)
 }
 #endif
 
-#if !defined(_KERNEL) || defined( __FreeBSD__ ) || defined(_WIN32)
+#if !defined(_KERNEL) || defined( __FreeBSD__ ) || defined(_WIN32) || (defined(__MIPSEL__) && defined(LINUX_24))
 static inline unsigned long __fls(unsigned long word)
 {
 	return fls(word) - 1;
@@ -107,7 +107,7 @@ void __clear_bit(int ix, bitmap *p)
 #endif /* !__linux__ */
 
 #ifdef __MIPSEL__
-#define __clear_bit(ix, pData) (*pData) &= ~(1<<(ix))
+#define __clear_bit(ix, pData)	(*pData) &= ~(1<<(ix))
 #endif
 
 /*-------------------------------------------*/

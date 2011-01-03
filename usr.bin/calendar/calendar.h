@@ -80,6 +80,7 @@ extern int EastLongitude;
 #define	F_SEPEQUINOX		0x08000
 #define	F_JUNSOLSTICE		0x10000
 #define	F_DECSOLSTICE		0x20000
+#define	F_YEAR			0x40000
 
 #define	STRING_EASTER		"Easter"
 #define	STRING_PASKHA		"Paskha"
@@ -166,7 +167,7 @@ void	cal(void);
 void	closecal(FILE *);
 FILE	*opencal(void);
 
-/* ostern.c / pashka.c */
+/* ostern.c / paskha.c */
 int	paskha(int);
 int	easter(int);
 

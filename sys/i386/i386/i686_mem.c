@@ -301,20 +301,21 @@ i686_mrstoreone(void *arg)
 	struct mem_range_desc *mrd;
 	u_int64_t omsrv, msrv;
 	int i, j, msr;
-	u_int cr4save;
+	u_long cr0, cr4;
 
 	mrd = sc->mr_desc;
 
 	/* Disable PGE. */
-	cr4save = rcr4();
-	if (cr4save & CR4_PGE)
-		load_cr4(cr4save & ~CR4_PGE);
+	cr4 = rcr4();
+	load_cr4(cr4 & ~CR4_PGE);
 
 	/* Disable caches (CD = 1, NW = 0). */
-	load_cr0((rcr0() & ~CR0_NW) | CR0_CD);
+	cr0 = rcr0();
+	load_cr0((cr0 & ~CR0_NW) | CR0_CD);
 
 	/* Flushes caches and TLBs. */
 	wbinvd();
+	invltlb();
 
 	/* Disable MTRRs (E = 0). */
 	wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) & ~MTRR_DEF_ENABLE);
@@ -382,17 +383,16 @@ i686_mrstoreone(void *arg)
 		wrmsr(msr + 1, msrv);
 	}
 
-	/* Flush caches, TLBs. */
+	/* Flush caches and TLBs. */
 	wbinvd();
+	invltlb();
 
 	/* Enable MTRRs. */
 	wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) | MTRR_DEF_ENABLE);
 
-	/* Enable caches (CD = 0, NW = 0). */
-	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));
-
-	/* Restore PGE. */
-	load_cr4(cr4save);
+	/* Restore caches and PGE. */
+	load_cr0(cr0);
+	load_cr4(cr4);
 }
 
 /*

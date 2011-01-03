@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -101,7 +101,7 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 	char buf[1024];
 	struct sbuf sb;
 	struct timespec ts;
-	int state;
+	int error;
 
 	/*
 	 * If we are doing a spa_tryimport(), ignore errors.
@@ -135,15 +135,39 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 			return;
 
 		/*
-		 * If the vdev has already been marked as failing due to a
-		 * failed probe, then ignore any subsequent I/O errors, as the
-		 * DE will automatically fault the vdev on the first such
-		 * failure.
+		 * If this I/O is not a retry I/O, don't post an ereport.
+		 * Otherwise, we risk making bad diagnoses based on B_FAILFAST
+		 * I/Os.
 		 */
-		if (vd != NULL &&
-		    (!vdev_readable(vd) || !vdev_writeable(vd)) &&
-		    strcmp(subclass, FM_EREPORT_ZFS_PROBE_FAILURE) != 0)
+		if (zio->io_error == EIO &&
+		    !(zio->io_flags & ZIO_FLAG_IO_RETRY))
 			return;
+
+		if (vd != NULL) {
+			/*
+			 * If the vdev has already been marked as failing due
+			 * to a failed probe, then ignore any subsequent I/O
+			 * errors, as the DE will automatically fault the vdev
+			 * on the first such failure.  This also catches cases
+			 * where vdev_remove_wanted is set and the device has
+			 * not yet been asynchronously placed into the REMOVED
+			 * state.
+			 */
+			if (zio->io_vd == vd &&
+			    !vdev_accessible(vd, zio) &&
+			    strcmp(subclass, FM_EREPORT_ZFS_PROBE_FAILURE) != 0)
+				return;
+
+			/*
+			 * Ignore checksum errors for reads from DTL regions of
+			 * leaf vdevs.
+			 */
+			if (zio->io_type == ZIO_TYPE_READ &&
+			    zio->io_error == ECKSUM &&
+			    vd->vdev_ops->vdev_op_leaf &&
+			    vdev_dtl_contains(vd, DTL_MISSING, zio->io_txg, 1))
+				return;
+		}
 	}
 	nanotime(&ts);
 
@@ -197,20 +221,13 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 	 */
 
 	/*
-	 * If we are importing a faulted pool, then we treat it like an open,
-	 * not an import.  Otherwise, the DE will ignore all faults during
-	 * import, since the default behavior is to mark the devices as
-	 * persistently unavailable, not leave them in the faulted state.
-	 */
-	state = spa->spa_import_faulted ? SPA_LOAD_OPEN : spa->spa_load_state;
-
-	/*
 	 * Generic payload members common to all ereports.
 	 */
 	sbuf_printf(&sb, " %s=%s", FM_EREPORT_PAYLOAD_ZFS_POOL, spa_name(spa));
 	sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_POOL_GUID,
 	    spa_guid(spa));
-	sbuf_printf(&sb, " %s=%d", FM_EREPORT_PAYLOAD_ZFS_POOL_CONTEXT, state);
+	sbuf_printf(&sb, " %s=%d", FM_EREPORT_PAYLOAD_ZFS_POOL_CONTEXT,
+	    spa->spa_load_state);
 
 	if (spa != NULL) {
 		sbuf_printf(&sb, " %s=%s", FM_EREPORT_PAYLOAD_ZFS_POOL_FAILMODE,
@@ -227,12 +244,15 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 		    vd->vdev_guid);
 		sbuf_printf(&sb, " %s=%s", FM_EREPORT_PAYLOAD_ZFS_VDEV_TYPE,
 		    vd->vdev_ops->vdev_op_type);
-		if (vd->vdev_path)
+		if (vd->vdev_path != NULL)
 			sbuf_printf(&sb, " %s=%s",
 			    FM_EREPORT_PAYLOAD_ZFS_VDEV_PATH, vd->vdev_path);
-		if (vd->vdev_devid)
+		if (vd->vdev_devid != NULL)
 			sbuf_printf(&sb, " %s=%s",
 			    FM_EREPORT_PAYLOAD_ZFS_VDEV_DEVID, vd->vdev_devid);
+		if (vd->vdev_fru != NULL)
+			sbuf_printf(&sb, " %s=%s",
+			    FM_EREPORT_PAYLOAD_ZFS_VDEV_FRU, vd->vdev_fru);
 
 		if (pvd != NULL) {
 			sbuf_printf(&sb, " %s=%ju",
@@ -305,9 +325,9 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 	}
 	mutex_exit(&spa->spa_errlist_lock);
 
-	sbuf_finish(&sb);
+	error = sbuf_finish(&sb);
 	devctl_notify("ZFS", spa->spa_name, subclass, sbuf_data(&sb));
-	if (sbuf_overflowed(&sb))
+	if (error != 0)
 		printf("ZFS WARNING: sbuf overflowed\n");
 	sbuf_delete(&sb);
 #endif
@@ -321,6 +341,7 @@ zfs_post_common(spa_t *spa, vdev_t *vd, const char *name)
 	char class[64];
 	struct sbuf sb;
 	struct timespec ts;
+	int error;
 
 	nanotime(&ts);
 
@@ -329,17 +350,17 @@ zfs_post_common(spa_t *spa, vdev_t *vd, const char *name)
 
 	snprintf(class, sizeof(class), "%s.%s.%s", FM_RSRC_RESOURCE,
 	    ZFS_ERROR_CLASS, name);
-	sbuf_printf(&sb, " %s=%hhu", FM_VERSION, FM_RSRC_VERSION);
+	sbuf_printf(&sb, " %s=%d", FM_VERSION, FM_RSRC_VERSION);
 	sbuf_printf(&sb, " %s=%s", FM_CLASS, class);
 	sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_POOL_GUID,
 	    spa_guid(spa));
 	if (vd)
 		sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_VDEV_GUID,
 		    vd->vdev_guid);
-	sbuf_finish(&sb);
+	error = sbuf_finish(&sb);
 	ZFS_LOG(1, "%s", sbuf_data(&sb));
 	devctl_notify("ZFS", spa->spa_name, class, sbuf_data(&sb));
-	if (sbuf_overflowed(&sb))
+	if (error != 0)
 		printf("ZFS WARNING: sbuf overflowed\n");
 	sbuf_delete(&sb);
 #endif

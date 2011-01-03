@@ -72,12 +72,12 @@ static char	ipv6addr[INET6_ADDRSTRLEN];
 static Layout layout[] = {
 #define LAYOUT_HOSTNAME		0
     { 1, 2, 25, HOSTNAME_FIELD_LEN - 1,
-      "Host:", "Your fully-qualified hostname, e.g. foo.bar.com",
+      "Host:", "Your fully-qualified hostname, e.g. foo.example.com",
       hostname, STRINGOBJ, NULL },
 #define LAYOUT_DOMAINNAME	1
     { 1, 35, 20, HOSTNAME_FIELD_LEN - 1,
       "Domain:",
-      "The name of the domain that your machine is in, e.g. bar.com",
+      "The name of the domain that your machine is in, e.g. example.com",
       domainname, STRINGOBJ, NULL },
 #define LAYOUT_GATEWAY		2
     { 5, 2, 18, IPADDR_FIELD_LEN - 1,
@@ -649,7 +649,6 @@ tcpDeviceScan(void)
 	int s;
 	struct ifmediareq ifmr;
 	struct ifaddrs *ifap, *ifa;
-	struct if_data *ifd;
 	char *network_dev;
 
 	if ((s = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0)
@@ -731,6 +730,9 @@ tcpDeviceSelect(void)
 
 	return (NULL);
     }
+
+    devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
+    cnt = deviceCount(devs); 
 
     if ((!RunningAsInit) && (variable_check("NETWORK_CONFIGURED=NO") != TRUE)) {
 	if (!msgYesNo("Running multi-user, assume that the network is already configured?"))

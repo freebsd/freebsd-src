@@ -303,7 +303,14 @@ sgregister(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&sg_cdevsw, periph->unit_number,
 			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 			      periph->periph_name, periph->unit_number);
-	(void)make_dev_alias(softc->dev, "sg%c", 'a' + periph->unit_number);
+	if (periph->unit_number < 26) {
+		(void)make_dev_alias(softc->dev, "sg%c",
+		    periph->unit_number + 'a');
+	} else {
+		(void)make_dev_alias(softc->dev, "sg%c%c",
+		    ((periph->unit_number / 26) - 1) + 'a',
+		    (periph->unit_number % 26) + 'a');
+	}
 	cam_periph_lock(periph);
 	softc->dev->si_drv1 = periph;
 

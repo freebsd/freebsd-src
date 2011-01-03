@@ -559,9 +559,12 @@ solisten_proto(struct socket *so, int backlog)
 }
 
 /*
- * Attempt to free a socket.  This should really be sotryfree().
+ * Evaluate the reference count and named references on a socket; if no
+ * references remain, free it.  This should be called whenever a reference is
+ * released, such as in sorele(), but also when named reference flags are
+ * cleared in socket or protocol code.
  *
- * sofree() will succeed if:
+ * sofree() will free the socket if:
  *
  * - There are no outstanding file descriptor references or related consumers
  *   (so_count == 0).
@@ -574,9 +577,6 @@ solisten_proto(struct socket *so, int backlog)
  * - The socket is not in a completed connection queue, so a process has been
  *   notified that it is present.  If it is removed, the user process may
  *   block in accept() despite select() saying the socket was ready.
- *
- * Otherwise, it will quietly abort so that a future call to sofree(), when
- * conditions are right, can succeed.
  */
 void
 sofree(struct socket *so)
@@ -665,8 +665,11 @@ soclose(struct socket *so)
 	if (so->so_state & SS_ISCONNECTED) {
 		if ((so->so_state & SS_ISDISCONNECTING) == 0) {
 			error = sodisconnect(so);
-			if (error)
+			if (error) {
+				if (error == ENOTCONN)
+					error = 0;
 				goto drop;
+			}
 		}
 		if (so->so_options & SO_LINGER) {
 			if ((so->so_state & SS_ISDISCONNECTING) &&
@@ -2233,7 +2236,12 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			m_freem(m);
 			return (error);
 		}
-		m = m_free(m);
+		if (len == m->m_len)
+			m = m_free(m);
+		else {
+			m->m_data += len;
+			m->m_len -= len;
+		}
 	}
 	if (m != NULL)
 		flags |= MSG_TRUNC;
@@ -2378,6 +2386,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 	struct	linger l;
 	struct	timeval tv;
 	u_long  val;
+	uint32_t val32;
 #ifdef MAC
 	struct mac extmac;
 #endif
@@ -2453,6 +2462,15 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				so->so_fibnum = 0;
 			}
 			break;
+
+		case SO_USER_COOKIE:
+			error = sooptcopyin(sopt, &val32, sizeof val32,
+					    sizeof val32);
+			if (error)
+				goto bad;
+			so->so_user_cookie = val32;
+			break;
+
 		case SO_SNDBUF:
 		case SO_RCVBUF:
 		case SO_SNDLOWAT:

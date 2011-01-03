@@ -31,10 +31,11 @@
 #define	_MACHINE_PCPU_H_
 
 #include <machine/cpufunc.h>
+#include <machine/slb.h>
 #include <machine/tlb.h>
 
 struct pmap;
-#define	CPUSAVE_LEN	8
+#define	CPUSAVE_LEN	9
 
 #define	PCPU_MD_COMMON_FIELDS						\
 	int		pc_inside_intr;					\
@@ -50,7 +51,17 @@ struct pmap;
 	register_t	pc_disisave[CPUSAVE_LEN];			\
 	register_t	pc_dbsave[CPUSAVE_LEN];
 
-#define PCPU_MD_AIM_FIELDS
+#define PCPU_MD_AIM32_FIELDS
+
+#define PCPU_MD_AIM64_FIELDS						\
+	struct slb	pc_slb[64];					\
+	struct slb	**pc_userslb;
+
+#ifdef __powerpc64__
+#define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS
+#else
+#define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM32_FIELDS
+#endif
 
 #define	BOOKE_CRITSAVE_LEN	(CPUSAVE_LEN + 2)
 #define	BOOKE_TLB_MAXNEST	3
@@ -66,16 +77,17 @@ struct pmap;
 	int		pc_tid_next;
 
 /* Definitions for register offsets within the exception tmp save areas */
-#define	CPUSAVE_R28	0		/* where r28 gets saved */
-#define	CPUSAVE_R29	1		/* where r29 gets saved */
-#define	CPUSAVE_R30	2		/* where r30 gets saved */
-#define	CPUSAVE_R31	3		/* where r31 gets saved */
-#define	CPUSAVE_AIM_DAR		4	/* where SPR_DAR gets saved */
-#define	CPUSAVE_AIM_DSISR	5	/* where SPR_DSISR gets saved */
-#define	CPUSAVE_BOOKE_DEAR	4	/* where SPR_DEAR gets saved */
-#define	CPUSAVE_BOOKE_ESR	5	/* where SPR_ESR gets saved */
-#define	CPUSAVE_SRR0	6		/* where SRR0 gets saved */
-#define	CPUSAVE_SRR1	7		/* where SRR1 gets saved */
+#define	CPUSAVE_R27	0		/* where r27 gets saved */
+#define	CPUSAVE_R28	1		/* where r28 gets saved */
+#define	CPUSAVE_R29	2		/* where r29 gets saved */
+#define	CPUSAVE_R30	3		/* where r30 gets saved */
+#define	CPUSAVE_R31	4		/* where r31 gets saved */
+#define	CPUSAVE_AIM_DAR		5	/* where SPR_DAR gets saved */
+#define	CPUSAVE_AIM_DSISR	6	/* where SPR_DSISR gets saved */
+#define	CPUSAVE_BOOKE_DEAR	5	/* where SPR_DEAR gets saved */
+#define	CPUSAVE_BOOKE_ESR	6	/* where SPR_ESR gets saved */
+#define	CPUSAVE_SRR0	7		/* where SRR0 gets saved */
+#define	CPUSAVE_SRR1	8		/* where SRR1 gets saved */
 
 /* Book-E TLBSAVE is more elaborate */
 #define TLBSAVE_BOOKE_LR	0

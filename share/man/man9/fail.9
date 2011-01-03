@@ -108,7 +108,6 @@ tree (referenced in code by
 .Sy DEBUG_FP ) .
 .Pp
 The sysctl variable may be set using the following grammar:
-.Pp
 .Bd -literal
   <fail_point> ::
       <term> ( "->" <term> )*
@@ -183,6 +182,10 @@ Return 5 for 1 in 1000 executions, but only 5 times total.
 .It Sy sysctl debug.fail_point.foobar="1%*sleep(50)"
 1/100th of the time, sleep 50ms.
 .El
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Zach Loafman Aq zml@FreeBSD.org .
 .Sh CAVEATS
 It is easy to shoot yourself in the foot by setting fail points too
 aggressively or setting too many in combination.
@@ -197,7 +200,3 @@ Currently,
 .Fn fail_point_eval
 does not verify whether the context is appropriate for calling
 .Fn msleep .
-.Sh AUTHORS
-.An -nosplit
-This manual page was written by
-.An Zach Loafman Aq zml@FreeBSD.org .

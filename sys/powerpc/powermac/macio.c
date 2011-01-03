@@ -37,15 +37,16 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 
-#include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
+#include <machine/bus.h>
+#include <machine/intr_machdep.h>
+#include <machine/pmap.h>
 #include <machine/resource.h>
+#include <machine/vmparam.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -186,6 +187,7 @@ macio_get_quirks(const char *name)
 static void
 macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 {
+	phandle_t iparent;
 	int	*intr;
 	int	i, nintr;
 	int 	icells;
@@ -211,11 +213,17 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 	if (intr[0] == -1)
 		return;
 
+	if (OF_getprop(devnode, "interrupt-parent", &iparent, sizeof(iparent))
+	    <= 0)
+		panic("Interrupt but no interrupt parent!\n");
+
 	for (i = 0; i < nintr; i+=icells) {
 		resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
-		    dinfo->mdi_ninterrupts, intr[i], intr[i], 1);
+		    dinfo->mdi_ninterrupts, INTR_VEC(iparent, intr[i]),
+		    INTR_VEC(iparent, intr[i]), 1);
 
-		dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] = intr[i];
+		dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] =
+		    INTR_VEC(iparent, intr[i]);
 		dinfo->mdi_ninterrupts++;
 	}
 }

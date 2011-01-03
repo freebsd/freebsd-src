@@ -114,6 +114,7 @@ static int
 update_cache_policy(int fd, struct mfi_ld_props *props, uint8_t new_policy,
     uint8_t mask)
 {
+	int error;
 	uint8_t changes, policy;
 
 	policy = (props->default_cache_policy & ~mask) | new_policy;
@@ -140,8 +141,9 @@ update_cache_policy(int fd, struct mfi_ld_props *props, uint8_t new_policy,
 
 	props->default_cache_policy = policy;
 	if (mfi_ld_set_props(fd, props) < 0) {
+		error = errno;
 		warn("Failed to set volume properties");
-		return (errno);
+		return (error);
 	}
 	return (0);
 }
@@ -160,18 +162,21 @@ volume_cache(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_lookup_volume(fd, av[1], &target_id) < 0) {
+		error = errno;
 		warn("Invalid volume: %s", av[1]);
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_ld_get_props(fd, target_id, &props) < 0) {
+		error = errno;
 		warn("Failed to fetch volume properties");
-		return (errno);
+		return (error);
 	}
 
 	if (ac == 2) {
@@ -298,8 +303,8 @@ volume_cache(int ac, char **av)
 				}
 				props.disk_cache_policy = policy;
 				if (mfi_ld_set_props(fd, &props) < 0) {
-					warn("Failed to set volume properties");
 					error = errno;
+					warn("Failed to set volume properties");
 				}
 			}
 		} else {
@@ -317,7 +322,7 @@ static int
 volume_name(int ac, char **av)
 {
 	struct mfi_ld_props props;
-	int fd;
+	int error, fd;
 	uint8_t target_id;
 
 	if (ac != 3) {
@@ -332,18 +337,21 @@ volume_name(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_lookup_volume(fd, av[1], &target_id) < 0) {
+		error = errno;
 		warn("Invalid volume: %s", av[1]);
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_ld_get_props(fd, target_id, &props) < 0) {
+		error = errno;
 		warn("Failed to fetch volume properties");
-		return (errno);
+		return (error);
 	}
 
 	printf("mfi%u volume %s name changed from \"%s\" to \"%s\"\n", mfi_unit,
@@ -351,8 +359,9 @@ volume_name(int ac, char **av)
 	bzero(props.name, sizeof(props.name));
 	strcpy(props.name, av[2]);
 	if (mfi_ld_set_props(fd, &props) < 0) {
+		error = errno;
 		warn("Failed to set volume properties");
-		return (errno);
+		return (error);
 	}
 
 	close(fd);
@@ -365,7 +374,7 @@ static int
 volume_progress(int ac, char **av)
 {
 	struct mfi_ld_info info;
-	int fd;
+	int error, fd;
 	uint8_t target_id;
 
 	if (ac != 2) {
@@ -376,20 +385,23 @@ volume_progress(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_lookup_volume(fd, av[1], &target_id) < 0) {
+		error = errno;
 		warn("Invalid volume: %s", av[1]);
-		return (errno);
+		return (error);
 	}
 
 	/* Get the info for this drive. */
 	if (mfi_ld_get_info(fd, target_id, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to fetch info for volume %s",
 		    mfi_volume_name(fd, target_id));
-		return (errno);
+		return (error);
 	}
 
 	/* Display any of the active events. */

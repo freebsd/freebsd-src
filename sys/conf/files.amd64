@@ -67,35 +67,40 @@ hptrr_lib.o			optional	hptrr			\
 	compile-with	"uudecode < $S/dev/hptrr/amd64-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
 #
-amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
 amd64/acpica/acpi_switch.S	optional	acpi
-acpi_wakecode.h			optional acpi		\
-	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
-	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
+acpi_wakecode.o			optional	acpi			\
+	dependency	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
+	compile-with	"${NORMAL_S}"					\
 	no-obj no-implicit-rule before-depend				\
-	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
-#
-acpi_wakedata.h			optional acpi		\
-	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
-	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
-	no-obj no-implicit-rule before-depend				\
-	clean		"acpi_wakedata.h acpi_wakecode.o acpi_wakecode.bin"
+	clean		"acpi_wakecode.o"
+acpi_wakecode.bin		optional	acpi			\
+	dependency	"acpi_wakecode.o"				\
+	compile-with	"objcopy -S -O binary acpi_wakecode.o ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakecode.bin"
+acpi_wakecode.h			optional	acpi			\
+	dependency	"acpi_wakecode.bin"				\
+	compile-with	"file2c -sx 'static char wakecode[] = {' '};' < acpi_wakecode.bin > ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakecode.h"
+acpi_wakedata.h			optional	acpi			\
+	dependency	"acpi_wakecode.o"				\
+	compile-with	'${NM} -n --defined-only acpi_wakecode.o | while read offset dummy what; do echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}' \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakedata.h"
 #
 amd64/acpica/acpi_wakeup.c	optional	acpi
-amd64/acpica/madt.c		optional	acpi
 amd64/amd64/amd64_mem.c		optional	mem
 #amd64/amd64/apic_vector.S	standard
 amd64/amd64/atomic.c		standard
 amd64/amd64/autoconf.c		standard
 amd64/amd64/bios.c		standard
 amd64/amd64/bpf_jit_machdep.c	optional	bpf_jitter
-amd64/amd64/busdma_machdep.c	standard
 amd64/amd64/cpu_switch.S	standard
 amd64/amd64/db_disasm.c		optional	ddb
 amd64/amd64/db_interface.c	optional	ddb
 amd64/amd64/db_trace.c		optional	ddb
-amd64/amd64/dump_machdep.c	standard
 amd64/amd64/elf_machdep.c	standard
 amd64/amd64/exception.S		standard
 amd64/amd64/fpu.c		standard
@@ -105,21 +110,14 @@ amd64/amd64/in_cksum.c		optional	inet
 amd64/amd64/initcpu.c		standard
 amd64/amd64/intr_machdep.c	standard
 amd64/amd64/io.c		optional	io
-amd64/amd64/io_apic.c		standard
 amd64/amd64/legacy.c		standard
-amd64/amd64/local_apic.c	standard
 amd64/amd64/locore.S		standard	no-obj
 amd64/amd64/machdep.c		standard
-amd64/amd64/mca.c		standard
 amd64/amd64/mem.c		optional	mem
 amd64/amd64/minidump_machdep.c	standard
 amd64/amd64/mp_machdep.c	optional	smp
 amd64/amd64/mp_watchdog.c	optional	mp_watchdog smp
 amd64/amd64/mpboot.S		optional	smp
-amd64/amd64/mptable.c		optional	mptable
-amd64/amd64/mptable_pci.c	optional	mptable pci
-amd64/amd64/msi.c		optional	pci
-amd64/amd64/nexus.c		standard
 amd64/amd64/pmap.c		standard
 amd64/amd64/prof_machdep.c	optional	profiling-routine
 amd64/amd64/sigtramp.S		standard
@@ -127,12 +125,15 @@ amd64/amd64/stack_machdep.c	optional	ddb | stack
 amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
 amd64/amd64/trap.c		standard
-amd64/amd64/tsc.c		standard
 amd64/amd64/uio_machdep.c	standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
 amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
+crypto/aesni/aesencdec_amd64.S	optional aesni
+crypto/aesni/aeskeys_amd64.S	optional aesni
+crypto/aesni/aesni.c		optional aesni
+crypto/aesni/aesni_wrap.c	optional aesni
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 crypto/via/padlock.c		optional	padlock
@@ -220,10 +221,14 @@ dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvesactl.c		optional	sc vga vesa
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
+dev/tpm/tpm.c			optional	tpm
+dev/tpm/tpm_acpi.c		optional	tpm acpi
+dev/tpm/tpm_isa.c		optional	tpm isa
 dev/uart/uart_cpu_amd64.c	optional	uart
 dev/wpi/if_wpi.c		optional	wpi
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
+kern/kern_clocksource.c		standard
 kern/link_elf_obj.c		standard
 #
 # IA32 binary support
@@ -292,6 +297,10 @@ contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
+x86/acpica/OsdEnvironment.c	optional	acpi
+x86/acpica/acpi_apm.c		optional	acpi
+x86/acpica/madt.c		optional	acpi
+x86/acpica/srat.c		optional	acpi
 x86/bios/smbios.c		optional	smbios
 x86/bios/vpd.c			optional	vpd
 x86/cpufreq/powernow.c		optional	cpufreq
@@ -306,3 +315,14 @@ x86/isa/isa.c			standard
 x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
+x86/pci/qpi.c			standard
+x86/x86/busdma_machdep.c	standard
+x86/x86/dump_machdep.c		standard
+x86/x86/io_apic.c		standard
+x86/x86/local_apic.c		standard
+x86/x86/mca.c			standard
+x86/x86/mptable.c		optional	mptable
+x86/x86/mptable_pci.c		optional	mptable pci
+x86/x86/msi.c			optional	pci
+x86/x86/nexus.c			standard
+x86/x86/tsc.c			standard

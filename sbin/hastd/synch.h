@@ -33,7 +33,9 @@
 #define	_SYNCH_H_
 
 #include <assert.h>
+#include <errno.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include <stdbool.h>
 #include <time.h>
 
@@ -43,6 +45,14 @@ mtx_init(pthread_mutex_t *lock)
 	int error;
 
 	error = pthread_mutex_init(lock, NULL);
+	assert(error == 0);
+}
+static __inline void
+mtx_destroy(pthread_mutex_t *lock)
+{
+	int error;
+
+	error = pthread_mutex_destroy(lock);
 	assert(error == 0);
 }
 static __inline void
@@ -70,6 +80,12 @@ mtx_unlock(pthread_mutex_t *lock)
 	error = pthread_mutex_unlock(lock);
 	assert(error == 0);
 }
+static __inline bool
+mtx_owned(pthread_mutex_t *lock)
+{
+
+	return (pthread_mutex_isowned_np(lock) != 0);
+}
 
 static __inline void
 rw_init(pthread_rwlock_t *lock)
@@ -77,6 +93,14 @@ rw_init(pthread_rwlock_t *lock)
 	int error;
 
 	error = pthread_rwlock_init(lock, NULL);
+	assert(error == 0);
+}
+static __inline void
+rw_destroy(pthread_rwlock_t *lock)
+{
+	int error;
+
+	error = pthread_rwlock_destroy(lock);
 	assert(error == 0);
 }
 static __inline void
@@ -115,6 +139,8 @@ cv_init(pthread_cond_t *cv)
 	error = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
 	assert(error == 0);
 	error = pthread_cond_init(cv, &attr);
+	assert(error == 0);
+	error = pthread_condattr_destroy(&attr);
 	assert(error == 0);
 }
 static __inline void

@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -62,7 +58,7 @@ static unsigned *EFF;
 
 
 static void
-set_EFF()
+set_EFF(void)
 {
     unsigned *row;
     int symbol;
@@ -99,7 +95,7 @@ set_EFF()
 
 
 void
-set_first_derives()
+set_first_derives(void)
 {
     unsigned *rrow;
     unsigned *vrow;
@@ -149,14 +145,12 @@ set_first_derives()
     print_first_derives();
 #endif
 
-    FREE(EFF);
+    free(EFF);
 }
 
 
 void
-closure(nucleus, n)
-short *nucleus;
-int n;
+closure(short *nucleus, int n)
 {
     int ruleno;
     unsigned word;
@@ -224,19 +218,18 @@ int n;
 
 
 void
-finalize_closure()
+finalize_closure(void)
 {
-  FREE(itemset);
-  FREE(ruleset);
-  FREE(first_derives + ntokens * WORDSIZE(nrules));
+  free(itemset);
+  free(ruleset);
+  free(first_derives + ntokens * WORDSIZE(nrules));
 }
 
 
 #ifdef	DEBUG
 
 static void
-print_closure(n)
-int n;
+print_closure(int n)
 {
   short *isp;
 
@@ -247,7 +240,7 @@ int n;
 
 
 static void
-print_EFF()
+print_EFF(void)
 {
     int i, j;
     unsigned *rowp;
@@ -279,7 +272,7 @@ print_EFF()
 
 
 static void
-print_first_derives()
+print_first_derives(void)
 {
     int i;
     int j;

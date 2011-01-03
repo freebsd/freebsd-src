@@ -1,4 +1,422 @@
 ----------------------------------------
+09 December 2010. Summary of changes for version 20101209:
+
+This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+Completed the major overhaul of the GPE support code that was begun in July 
+2010. Major features include: removal of _PRW execution in ACPICA (host 
+executes _PRWs anyway), cleanup of "wake" GPE interfaces and processing, 
+changes to existing interfaces, simplification of GPE handler operation, and 
+a handful of new interfaces:
+
+    AcpiUpdateAllGpes
+    AcpiFinishGpe
+    AcpiSetupGpeForWake
+    AcpiSetGpeWakeMask
+    One new file, evxfgpe.c to consolidate all external GPE interfaces.
+
+See the ACPICA Programmer Reference for full details and programming 
+information. See the new section 4.4 "General Purpose Event (GPE) Support" 
+for a full overview, and section 8.7 "ACPI General Purpose Event Management" 
+for programming details. ACPICA BZ 858,870,877. Matthew Garrett, Lin Ming, 
+Bob Moore, Rafael Wysocki.
+
+Implemented a new GPE feature for Windows compatibility, the "Implicit Wake 
+GPE Notify". This feature will automatically issue a Notify(2) on a device 
+when a Wake GPE is received if there is no corresponding GPE method or 
+handler. ACPICA BZ 870.
+
+Fixed a problem with the Scope() operator during table parse and load phase. 
+During load phase (table load or method execution), the scope operator should 
+not enter the target into the namespace. Instead, it should open a new scope 
+at the target location. Linux BZ 19462, ACPICA BZ 882.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  89.8K Code, 18.9K Data, 108.7K Total
+    Debug Version:     166.6K Code, 52.1K Data, 218.7K Total
+  Current Release:
+    Non-Debug Version:  89.9K Code, 19.0K Data, 108.9K Total
+    Debug Version:     166.3K Code, 52.1K Data, 218.4K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Relax the alphanumeric restriction on _CID strings. These strings are 
+"bus-specific" per the ACPI specification, and therefore any characters are 
+acceptable. The only checks that can be performed are for a null string and 
+perhaps for a leading asterisk. ACPICA BZ 886.
+
+iASL: Fixed a problem where a syntax error that caused a premature EOF 
+condition on the source file emitted a very confusing error message. The 
+premature EOF is now detected correctly. ACPICA BZ 891.
+
+Disassembler: Decode the AccessSize within a Generic Address Structure (byte 
+access, word access, etc.) Note, this field does not allow arbitrary bit 
+access, the size is encoded as 1=byte, 2=word, 3=dword, and 4=qword.
+
+New: AcpiNames utility - Example namespace dump utility. Shows an example of 
+ACPICA configuration for a minimal namespace dump utility. Uses table and 
+namespace managers, but no AML interpreter. Does not add any functionality 
+over AcpiExec, it is a subset of AcpiExec. The purpose is to show how to 
+partition and configure ACPICA. ACPICA BZ 883.
+
+AML Debugger: Increased the debugger buffer size for method return objects. 
+Was 4K, increased to 16K. Also enhanced error messages for debugger method 
+execution, including the buffer overflow case.
+
+----------------------------------------
+13 October 2010. Summary of changes for version 20101013:
+
+This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+Added support to clear the PCIEXP_WAKE event. When clearing ACPI events, now 
+clear the PCIEXP_WAKE_STS bit in the ACPI PM1 Status Register, via 
+HwClearAcpiStatus. Original change from Colin King. ACPICA BZ 880.
+
+Changed the type of the predefined namespace object _TZ from ThermalZone to 
+Device. This was found to be confusing to the host software that processes 
+the various thermal zones, since _TZ is not really a ThermalZone. However, a 
+Notify() can still be performed on it. ACPICA BZ 876. Suggestion from Rui 
+Zhang.
+
+Added Windows Vista SP2 to the list of supported _OSI strings. The actual 
+string is "Windows 2006 SP2".
+
+Eliminated duplicate code in AcpiUtExecute* functions. Now that the nsrepair 
+code automatically repairs _HID-related strings, this type of code is no 
+longer needed in Execute_HID, Execute_CID, and Execute_UID. ACPICA BZ 878.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  89.9K Code, 19.0K Data, 108.9K Total
+    Debug Version:     166.3K Code, 52.1K Data, 218.4K Total
+  Current Release:
+    Non-Debug Version:  89.9K Code, 19.0K Data, 108.9K Total
+    Debug Version:     166.3K Code, 52.1K Data, 218.4K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented additional compile-time validation for _HID strings. The 
+non-hex prefix (such as "PNP" or "ACPI") must be uppercase, and the length of 
+the string must be exactly seven or eight characters. For both _HID and _CID 
+strings, all characters must be alphanumeric. ACPICA BZ 874.
+
+iASL: Allow certain "null" resource descriptors. Some BIOS code creates 
+descriptors that are mostly or all zeros, with the expectation that they will 
+be filled in at runtime. iASL now allows this as long as there is a "resource 
+tag" (name) associated with the descriptor, which gives the ASL a handle 
+needed to modify the descriptor. ACPICA BZ 873.
+
+Added single-thread support to the generic Unix application OSL. Primarily 
+for iASL support, this change removes the use of semaphores in the single-
+threaded ACPICA tools/applications - increasing performance. The 
+_MULTI_THREADED option was replaced by the (reverse) ACPI_SINGLE_THREADED 
+option. ACPICA BZ 879.
+
+AcpiExec: several fixes for the 64-bit version. Adds XSDT support and support 
+for 64-bit DSDT/FACS addresses in the FADT. Lin Ming.
+
+iASL: Moved all compiler messages to a new file, aslmessages.h.
+
+----------------------------------------
+15 September 2010. Summary of changes for version 20100915:
+
+This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+Removed the AcpiOsDerivePciId OSL interface. The various host implementations 
+of this function were not OS-dependent and are now obsolete and can be 
+removed from all host OSLs. This function has been replaced by 
+AcpiHwDerivePciId, which is now part of the ACPICA core code. 
+AcpiHwDerivePciId has been implemented without recursion. Adds one new 
+module, hwpci.c. ACPICA BZ 857.
+
+Implemented a dynamic repair for _HID and _CID strings. The following 
+problems are now repaired at runtime: 1) Remove a leading asterisk in the 
+string, and 2) the entire string is uppercased. Both repairs are in 
+accordance with the ACPI specification and will simplify host driver code. 
+ACPICA BZ 871.
+
+The ACPI_THREAD_ID type is no longer configurable, internally it is now 
+always UINT64. This simplifies the ACPICA code, especially any printf output. 
+UINT64 is the only common data type for all thread_id types across all 
+operating systems. It is now up to the host OSL to cast the native thread_id 
+type to UINT64 before returning the value to ACPICA (via AcpiOsGetThreadId). 
+Lin Ming, Bob Moore.
+
+Added the ACPI_INLINE type to enhance the ACPICA configuration. The "inline" 
+keyword is not standard across compilers, and this type allows inline to be 
+configured on a per-compiler basis. Lin Ming.
+
+Made the system global AcpiGbl_SystemAwakeAndRunning publically available. 
+Added an extern for this boolean in acpixf.h. Some hosts utilize this value 
+during suspend/restore operations. ACPICA BZ 869.
+
+All code that implements error/warning messages with the "ACPI:" prefix has 
+been moved to a new module, utxferror.c.
+
+The UINT64_OVERLAY was moved to utmath.c, which is the only module where it 
+is used. ACPICA BZ 829. Lin Ming, Bob Moore.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  89.1K Code, 19.0K Data, 108.1K Total
+    Debug Version:     165.1K Code, 51.9K Data, 217.0K Total
+  Current Release:
+    Non-Debug Version:  89.9K Code, 19.0K Data, 108.9K Total
+    Debug Version:     166.3K Code, 52.1K Data, 218.4K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Disassembler: Write ACPI errors to stderr instead of the output file. 
+This keeps the output files free of random error messages that may originate 
+from within the namespace/interpreter code. Used this opportunity to merge 
+all ACPI:-style messages into a single new module, utxferror.c. ACPICA BZ 
+866. Lin Ming, Bob Moore.
+
+Tools: update some printfs for ansi warnings on size_t. Handle width change 
+of size_t on 32-bit versus 64-bit generations. Lin Ming.
+
+----------------------------------------
+06 August 2010. Summary of changes for version 20100806:
+
+1) ACPI CA Core Subsystem:
+
+Designed and implemented a new host interface to the _OSI support code. This 
+will allow the host to dynamically add or remove multiple _OSI strings, as 
+well as install an optional handler that is called for each _OSI invocation. 
+Also added a new AML debugger command, 'osi' to display and modify the global 
+_OSI string table, and test support in the AcpiExec utility. See the ACPICA 
+reference manual for full details. Lin Ming, Bob Moore. ACPICA BZ 836.
+New Functions:
+    AcpiInstallInterface - Add an _OSI string.
+    AcpiRemoveInterface - Delete an _OSI string.
+    AcpiInstallInterfaceHandler - Install optional _OSI handler.
+Obsolete Functions:
+    AcpiOsValidateInterface - no longer used.
+New Files:
+    source/components/utilities/utosi.c
+
+Re-introduced the support to enable multi-byte transfers for Embedded 
+Controller (EC) operation regions. A reported problem was found to be a bug 
+in the host OS, not in the multi-byte support. Previously, the maximum data 
+size passed to the EC operation region handler was a single byte. There are 
+often EC Fields larger than one byte that need to be transferred, and it is 
+useful for the EC driver to lock these as a single transaction. This change 
+enables single transfers larger than 8 bits. This effectively changes the 
+access to the EC space from ByteAcc to AnyAcc, and will probably require 
+changes to the host OS Embedded Controller driver to enable 16/32/64/256-bit 
+transfers in addition to 8-bit transfers. Alexey Starikovskiy, Lin Ming.
+
+Fixed a problem with the prototype for AcpiOsReadPciConfiguration. The 
+prototype in acpiosxf.h had the output value pointer as a (void *).
+It should be a (UINT64 *). This may affect some host OSL code.
+
+Fixed a couple problems with the recently modified Linux makefiles for iASL 
+and AcpiExec. These new makefiles place the generated object files in the 
+local directory so that there can be no collisions between the files that are 
+shared between them that are compiled with different options.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  88.3K Code, 18.8K Data, 107.1K Total
+    Debug Version:     164.0K Code, 51.5K Data, 215.5K Total
+  Current Release:
+    Non-Debug Version:  89.1K Code, 19.0K Data, 108.1K Total
+    Debug Version:     165.1K Code, 51.9K Data, 217.0K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Disassembler: Added a new option (-da, "disassemble all") to load the 
+namespace from and disassemble an entire group of AML files. Useful for 
+loading all of the AML tables for a given machine (DSDT, SSDT1...SSDTn) and 
+disassembling with one simple command. ACPICA BZ 865. Lin Ming.
+
+iASL: Allow multiple invocations of -e option. This change allows multiple 
+uses of -e on the command line: "-e ssdt1.dat -e ssdt2.dat". ACPICA BZ 834. 
+Lin Ming.
+
+----------------------------------------
+02 July 2010. Summary of changes for version 20100702:
+
+1) ACPI CA Core Subsystem:
+
+Implemented several updates to the recently added GPE reference count 
+support. The model for "wake" GPEs is changing to give the host OS complete 
+control of these GPEs. Eventually, the ACPICA core will not execute any _PRW 
+methods, since the host already must execute them. Also, additional changes 
+were made to help ensure that the reference counts are kept in proper 
+synchronization with reality. Rafael J. Wysocki.
+
+1) Ensure that GPEs are not enabled twice during initialization.
+2) Ensure that GPE enable masks stay in sync with the reference count.
+3) Do not inadvertently enable GPEs when writing GPE registers.
+4) Remove the internal wake reference counter and add new AcpiGpeWakeup 
+interface. This interface will set or clear individual GPEs for wakeup.
+5) Remove GpeType argument from AcpiEnable and AcpiDisable. These interfaces 
+are now used for "runtime" GPEs only.
+
+Changed the behavior of the GPE install/remove handler interfaces. The GPE is 
+no longer disabled during this process, as it was found to cause problems on 
+some machines. Rafael J. Wysocki.
+
+Reverted a change introduced in version 20100528 to enable Embedded 
+Controller multi-byte transfers. This change was found to cause problems with 
+Index Fields and possibly Bank Fields. It will be reintroduced when these 
+problems have been resolved.
+
+Fixed a problem with references to Alias objects within Package Objects. A 
+reference to an Alias within the definition of a Package was not always 
+resolved properly. Aliases to objects like Processors, Thermal zones, etc. 
+were resolved to the actual object instead of a reference to the object as it 
+should be. Package objects are only allowed to contain integer, string, 
+buffer, package, and reference objects. Redhat bugzilla 608648.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  88.3K Code, 18.8K Data, 107.1K Total
+    Debug Version:     164.1K Code, 51.5K Data, 215.6K Total
+  Current Release:
+    Non-Debug Version:  88.3K Code, 18.8K Data, 107.1K Total
+    Debug Version:     164.0K Code, 51.5K Data, 215.5K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented a new compiler subsystem to allow definition and 
+compilation of the non-AML ACPI tables such as FADT, MADT, SRAT, etc. These 
+are called "ACPI Data Tables", and the new compiler is the "Data Table 
+Compiler". This compiler is intended to simplify the existing error-prone 
+process of creating these tables for the BIOS, as well as allowing the 
+disassembly, modification, recompilation, and override of existing ACPI data 
+tables. See the iASL User Guide for detailed information.
+
+iASL: Implemented a new Template Generator option in support of the new Data 
+Table Compiler. This option will create examples of all known ACPI tables 
+that can be used as the basis for table development. See the iASL 
+documentation and the -T option.
+
+Disassembler and headers: Added support for the WDDT ACPI table (Watchdog 
+Descriptor Table).
+
+Updated the Linux makefiles for iASL and AcpiExec to place the generated 
+object files in the local directory so that there can be no collisions 
+between the shared files between them that are generated with different 
+options.
+
+Added support for Mac OS X in the Unix OSL used for iASL and AcpiExec. Use 
+the #define __APPLE__ to enable this support.
+
+----------------------------------------
+28 May 2010. Summary of changes for version 20100528:
+
+Note: The ACPI 4.0a specification was released on April 5, 2010 and is 
+available at www.acpi.info. This is primarily an errata release.
+
+1) ACPI CA Core Subsystem:
+
+Undefined ACPI tables: We are looking for the definitions for the following 
+ACPI tables that have been seen in the field: ATKG, IEIT, GSCI.
+
+Implemented support to enable multi-byte transfers for Embedded Controller 
+(EC) operation regions. Previously, the maximum data size passed to the EC 
+operation region handler was a single byte. There are often EC Fields larger 
+than one byte that need to be transferred, and it is useful for the EC driver 
+to lock these as a single transaction. This change enables single transfers 
+larger than 8 bits. This effectively changes the access to the EC space from 
+ByteAcc to AnyAcc, and will probably require changes to the host OS Embedded 
+Controller driver to enable 16/32/64/256-bit transfers in addition to 8-bit 
+transfers. Alexey Starikovskiy, Lin Ming
+
+Implemented a performance enhancement for namespace search and access. This 
+change enhances the performance of namespace searches and walks by adding a 
+backpointer to the parent in each namespace node. On large namespaces, this 
+change can improve overall ACPI performance by up to 9X. Adding a pointer to 
+each namespace node increases the overall size of the internal namespace by 
+about 5%, since each namespace entry usually consists of both a namespace 
+node and an ACPI operand object. However, this is the first growth of the 
+namespace in ten years. ACPICA bugzilla 817. Alexey Starikovskiy.
+
+Implemented a performance optimization that reduces the number of namespace 
+walks. On control method exit, only walk the namespace if the method is known 
+to have created namespace objects outside of its local scope. Previously, the 
+entire namespace was traversed on each control method exit. This change can 
+improve overall ACPI performance by up to 3X. Alexey Starikovskiy, Bob Moore.
+
+Added support to truncate I/O addresses to 16 bits for Windows compatibility. 
+Some ASL code has been seen in the field that inadvertently has bits set 
+above bit 15. This feature is optional and is enabled if the BIOS requests 
+any Windows OSI strings. It can also be enabled by the host OS. Matthew 
+Garrett, Bob Moore.
+
+Added support to limit the maximum time for the ASL Sleep() operator. To 
+prevent accidental deep sleeps, limit the maximum time that Sleep() will 
+actually sleep. Configurable, the default maximum is two seconds. ACPICA 
+bugzilla 854.
+
+Added run-time validation support for the _WDG and_WED Microsoft predefined 
+methods. These objects are defined by "Windows Instrumentation", and are not 
+part of the ACPI spec. ACPICA BZ 860.
+
+Expanded all statistic counters used during namespace and device 
+initialization from 16 to 32 bits in order to support very large namespaces.
+
+Replaced all instances of %d in printf format specifiers with %u since nearly 
+all integers in ACPICA are unsigned.
+
+Fixed the exception namestring for AE_WAKE_ONLY_GPE. Was incorrectly returned 
+as AE_NO_HANDLER.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  88.4K Code, 18.8K Data, 107.2K Total
+    Debug Version:     164.2K Code, 51.5K Data, 215.7K Total
+  Current Release:
+    Non-Debug Version:  88.3K Code, 18.8K Data, 107.1K Total
+    Debug Version:     164.1K Code, 51.5K Data, 215.6K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Added compiler support for the _WDG and_WED Microsoft predefined 
+methods. These objects are defined by "Windows Instrumentation", and are not 
+part of the ACPI spec. ACPICA BZ 860.
+
+AcpiExec: added option to disable the memory tracking mechanism. The -dt 
+option will disable the tracking mechanism, which improves performance 
+considerably.
+
+AcpiExec: Restructured the command line options into -d (disable) and -e 
+(enable) options.
+
+----------------------------------------
 28 April 2010. Summary of changes for version 20100428:
 
 1) ACPI CA Core Subsystem:

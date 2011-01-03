@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,6 +60,9 @@ zfs_uiomove(void *cp, size_t n, enum uio_rw dir, uio_t *uio)
 	return (uiomove(cp, (int)n, uio));
 }
 #define	uiomove(cp, n, dir, uio)	zfs_uiomove((cp), (n), (dir), (uio))
+
+int uiocopy(void *p, size_t n, enum uio_rw rw, struct uio *uio, size_t *cbytes);
+void uioskip(uio_t *uiop, size_t n);
 #endif	/* BUILDING_ZFS */
 
 #endif	/* !_OPENSOLARIS_SYS_UIO_H_ */

@@ -89,7 +89,8 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	obj objlink regress rerelease showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
-	build32 distribute32 install32 xdev xdev-build xdev-install
+	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
+
 TGTS+=	${SUBDIR_TARGETS}
 
 BITGTS=	files includes
@@ -270,7 +271,7 @@ make: .PHONY
 
 tinderbox:
 	cd ${.CURDIR} && \
-		DOING_TINDERBOX=YES ${MAKE} ${JFLAG} universe
+		DOING_TINDERBOX=YES ${MAKE} JFLAG=${JFLAG} universe
 
 #
 # universe
@@ -281,6 +282,14 @@ tinderbox:
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
+TARGET_ARCHES_arm?=	arm armeb
+TARGET_ARCHES_mips?=	mipsel mipseb
+TARGET_ARCHES_powerpc?=	powerpc powerpc64
+TARGET_ARCHES_pc98?=	i386
+TARGET_ARCHES_sun4v?=	sparc64
+.for target in ${TARGETS}
+TARGET_ARCHES_${target}?= ${target}
+.endfor
 
 .if defined(DOING_TINDERBOX)
 FAILFILE=tinderbox.failed
@@ -300,16 +309,24 @@ universe_prologue:
 .for target in ${TARGETS}
 universe: universe_${target}
 .ORDER: universe_prologue universe_${target} universe_epilogue
-universe_${target}:
-.if !defined(MAKE_JUST_KERNELS)
+universe_${target}: universe_${target}_prologue
+universe_${target}_prologue:
 	@echo ">> ${target} started on `LC_ALL=C date`"
+.if !defined(MAKE_JUST_KERNELS)
+.for target_arch in ${TARGET_ARCHES_${target}}
+universe_${target}: universe_${target}_${target_arch}
+universe_${target}_${target_arch}: universe_${target}_prologue
+	@echo ">> ${target}.${target_arch} buildworld started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
 	    ${MAKE} ${JFLAG} buildworld \
 	    TARGET=${target} \
-	    > _.${target}.buildworld 2>&1 || \
-	    (echo "${target} world failed," \
-	    "check _.${target}.buildworld for details" | ${MAKEFAIL}))
-	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
+	    TARGET_ARCH=${target_arch} \
+	    > _.${target}.${target_arch}.buildworld 2>&1 || \
+	    (echo "${target}.${target_arch} world failed," \
+	    "check _.${target}.${target_arch}.buildworld for details" | \
+	    ${MAKEFAIL}))
+	@echo ">> ${target}.${target_arch} buildworld completed on `LC_ALL=C date`"
+.endfor
 .endif
 .if !defined(MAKE_JUST_WORLDS)
 .if exists(${.CURDIR}/sys/${target}/conf/NOTES)
@@ -332,9 +349,15 @@ KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
 		! -name DEFAULTS ! -name NOTES
 universe_kernconfs:
 .for kernel in ${KERNCONFS}
+TARGET_ARCH_${kernel}!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
+	config -m ${.CURDIR}/sys/${TARGET}/conf/${kernel} 2> /dev/null | \
+	cut -f 2
+universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
+universe_kernconf_${TARGET}_${kernel}:
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
 	    ${MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
+	    TARGET_ARCH=${TARGET_ARCH_${kernel}} \
 	    KERNCONF=${kernel} \
 	    > _.${TARGET}.${kernel} 2>&1 || \
 	    (echo "${TARGET} ${kernel} kernel failed," \

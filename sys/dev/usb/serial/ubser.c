@@ -104,7 +104,6 @@ __FBSDID("$FreeBSD$");
 #define	USB_DEBUG_VAR ubser_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_device.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -215,6 +214,7 @@ static driver_t ubser_driver = {
 DRIVER_MODULE(ubser, uhub, ubser_driver, ubser_devclass, NULL, 0);
 MODULE_DEPEND(ubser, ucom, 1, 1, 1);
 MODULE_DEPEND(ubser, usb, 1, 1, 1);
+MODULE_VERSION(ubser, 1);
 
 static int
 ubser_probe(device_t dev)
@@ -225,7 +225,7 @@ ubser_probe(device_t dev)
 		return (ENXIO);
 	}
 	/* check if this is a BWCT vendor specific ubser interface */
-	if ((strcmp(uaa->device->manufacturer, "BWCT") == 0) &&
+	if ((strcmp(usb_get_manufacturer(uaa->device), "BWCT") == 0) &&
 	    (uaa->info.bInterfaceClass == 0xff) &&
 	    (uaa->info.bInterfaceSubClass == 0x00))
 		return (0);
@@ -296,6 +296,7 @@ ubser_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
 
 	mtx_lock(&sc->sc_mtx);
 	usbd_xfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_WR]);
@@ -317,7 +318,7 @@ ubser_detach(device_t dev)
 
 	DPRINTF("\n");
 
-	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom, sc->sc_numser);
+	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UBSER_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 

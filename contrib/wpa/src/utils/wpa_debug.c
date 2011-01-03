@@ -18,6 +18,8 @@
 
 #ifdef CONFIG_DEBUG_SYSLOG
 #include <syslog.h>
+
+static int wpa_debug_syslog = 0;
 #endif /* CONFIG_DEBUG_SYSLOG */
 
 
@@ -27,7 +29,6 @@ static FILE *out_file = NULL;
 int wpa_debug_level = MSG_INFO;
 int wpa_debug_show_keys = 0;
 int wpa_debug_timestamp = 0;
-int wpa_debug_syslog = 0;
 
 
 #ifndef CONFIG_NO_STDOUT_DEBUG
@@ -49,23 +50,22 @@ void wpa_debug_print_timestamp(void)
 	printf("%ld.%06u: ", (long) tv.sec, (unsigned int) tv.usec);
 }
 
+
+#ifdef CONFIG_DEBUG_SYSLOG
 void wpa_debug_open_syslog(void)
 {
-#ifdef CONFIG_DEBUG_SYSLOG
 	openlog("wpa_supplicant", LOG_PID | LOG_NDELAY, LOG_DAEMON);
 	wpa_debug_syslog++;
-#endif
 }
+
 
 void wpa_debug_close_syslog(void)
 {
-#ifdef CONFIG_DEBUG_SYSLOG
 	if (wpa_debug_syslog)
 		closelog();
-#endif
 }
 
-#ifdef CONFIG_DEBUG_SYSLOG
+
 static int syslog_priority(int level)
 {
 	switch (level) {
@@ -95,7 +95,7 @@ static int syslog_priority(int level)
  *
  * Note: New line '\n' is added to the end of the text when printing to stdout.
  */
-void wpa_printf(int level, char *fmt, ...)
+void wpa_printf(int level, const char *fmt, ...)
 {
 	va_list ap;
 
@@ -314,7 +314,7 @@ void wpa_msg_register_cb(wpa_msg_cb_func func)
 }
 
 
-void wpa_msg(void *ctx, int level, char *fmt, ...)
+void wpa_msg(void *ctx, int level, const char *fmt, ...)
 {
 	va_list ap;
 	char *buf;
@@ -333,6 +333,30 @@ void wpa_msg(void *ctx, int level, char *fmt, ...)
 	wpa_printf(level, "%s", buf);
 	if (wpa_msg_cb)
 		wpa_msg_cb(ctx, level, buf, len);
+	os_free(buf);
+}
+
+
+void wpa_msg_ctrl(void *ctx, int level, const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	const int buflen = 2048;
+	int len;
+
+	if (!wpa_msg_cb)
+		return;
+
+	buf = os_malloc(buflen);
+	if (buf == NULL) {
+		wpa_printf(MSG_ERROR, "wpa_msg_ctrl: Failed to allocate "
+			   "message buffer");
+		return;
+	}
+	va_start(ap, fmt);
+	len = vsnprintf(buf, buflen, fmt, ap);
+	va_end(ap);
+	wpa_msg_cb(ctx, level, buf, len);
 	os_free(buf);
 }
 #endif /* CONFIG_NO_WPA_MSG */
@@ -366,6 +390,9 @@ void hostapd_logger(void *ctx, const u8 *addr, unsigned int module, int level,
 	va_end(ap);
 	if (hostapd_logger_cb)
 		hostapd_logger_cb(ctx, addr, module, level, buf, len);
+	else if (addr)
+		wpa_printf(MSG_DEBUG, "hostapd_logger: STA " MACSTR " - %s",
+			   MAC2STR(addr), buf);
 	else
 		wpa_printf(MSG_DEBUG, "hostapd_logger: %s", buf);
 	os_free(buf);

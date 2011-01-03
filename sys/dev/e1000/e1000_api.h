@@ -55,6 +55,7 @@ s32  e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device);
 s32  e1000_init_mac_params(struct e1000_hw *hw);
 s32  e1000_init_nvm_params(struct e1000_hw *hw);
 s32  e1000_init_phy_params(struct e1000_hw *hw);
+s32  e1000_init_mbx_params(struct e1000_hw *hw);
 s32  e1000_get_bus_info(struct e1000_hw *hw);
 void e1000_clear_vfta(struct e1000_hw *hw);
 void e1000_write_vfta(struct e1000_hw *hw, u32 offset, u32 value);
@@ -96,6 +97,9 @@ void e1000_power_up_phy(struct e1000_hw *hw);
 void e1000_power_down_phy(struct e1000_hw *hw);
 s32  e1000_read_mac_addr(struct e1000_hw *hw);
 s32  e1000_read_pba_num(struct e1000_hw *hw, u32 *part_num);
+s32  e1000_read_pba_string(struct e1000_hw *hw, u8 *pba_num, 
+                           u32 pba_num_size);
+s32  e1000_read_pba_length(struct e1000_hw *hw, u32 *pba_num_size);
 void e1000_reload_nvm(struct e1000_hw *hw);
 s32  e1000_update_nvm_checksum(struct e1000_hw *hw);
 s32  e1000_validate_nvm_checksum(struct e1000_hw *hw);

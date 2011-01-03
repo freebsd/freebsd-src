@@ -13,7 +13,106 @@
 #
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
+# Before you commit changes to this file please check if any entries in
+# tools/build/mk/OptionalObsoleteFiles.inc can be removed. The following
+# command tells which files are listed more than once regardless of some
+# architecture specific conditionals, so you can not blindly trust the
+# output:
+# ( grep '+=' /usr/src/ObsoleteFiles.inc | sort -u ; \
+# grep '+=' /usr/src/tools/build/mk/OptionalObsoleteFiles.inc | sort -u) | \
+# sort | uniq -d
+#
+# To find regular duplicates not dependant on optional components, you can
+# also use something that will not give you false positives, e.g.:
+# for t in `make -V TARGETS universe`; do
+#   __MAKE_CONF=/dev/null make -f Makefile.inc1 TARGET=$t \
+#   -V OLD_FILES -V OLD_LIBS -V OLD_DIRS check-old | \
+#   xargs -n1 | sort | uniq -d;
+# done
+#
+# For optional components, you can use the following to see if some entries
+# in OptionalObsoleteFiles.inc have been obsoleted by ObsoleteFiles.inc
+# for o in tools/build/options/WITH*; do
+#   __MAKE_CONF=/dev/null make -f Makefile.inc1 -D${o##*/} \
+#   -V OLD_FILES -V OLD_LIBS -V OLD_DIRS check-old | \
+#   xargs -n1 | sort | uniq -d;
+# done
 
+# 20101114: Remove long-obsolete MAKEDEV.8
+OLD_FILES+=usr/share/man/man8/MAKEDEV.8.gz
+# 20101112: vgonel(9) has gone to private API a while ago
+OLD_FILES+=usr/share/man/man9/vgonel.9.gz
+# 20101112: removed gasp.info
+OLD_FILES+=usr/share/info/gasp.info.gz
+# 20101109: headers moved from machine/ to x86/
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/mptable.h
+.endif
+# 20101101: headers moved from machine/ to x86/
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/apicreg.h
+OLD_FILES+=usr/include/machine/mca.h
+.endif
+# 20101020: catch up with vm_page_sleep_if_busy rename
+OLD_FILES+=usr/share/man/man9/vm_page_sleep_busy.9.gz
+# 20101011: removed subblock.h from liblzma
+OLD_FILES+=usr/include/lzma/subblock.h
+# 20101002: removed manpath.config
+OLD_FILES+=etc/manpath.config
+OLD_FILES+=usr/share/examples/etc/manpath.config
+# 20100910: renamed sbuf_overflowed to sbuf_error
+OLD_FILES+=usr/share/man/man9/sbuf_overflowed.9.gz
+# 20100815: retired last traces of chooseproc(9)
+OLD_FILES+=usr/share/man/man9/chooseproc.9.gz
+# 20100806: removal of unused libcompat routines
+OLD_FILES+=usr/share/man/man3/ascftime.3.gz
+OLD_FILES+=usr/share/man/man3/cfree.3.gz
+OLD_FILES+=usr/share/man/man3/cftime.3.gz
+OLD_FILES+=usr/share/man/man3/getpw.3.gz
+# 20100801: tzdata2010k import
+OLD_FILES+=usr/share/zoneinfo/Pacific/Ponape
+OLD_FILES+=usr/share/zoneinfo/Pacific/Truk
+# 20100725: acpi_aiboost(4) removal.
+OLD_FILES+=usr/share/man/man4/acpi_aiboost.4.gz
+# 20100724: nfsclient/nfs_lock.h moved to nfs/nfs_lock.h
+OLD_FILES+=usr/include/nfsclient/nfs_lock.h
+# 20100720: new clang import which bumps version from 2.0 to 2.8
+OLD_FILES+=usr/include/clang/2.0/emmintrin.h
+OLD_FILES+=usr/include/clang/2.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.0/mmintrin.h
+OLD_FILES+=usr/include/clang/2.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/xmmintrin.h
+OLD_DIRS+=usr/include/clang/2.0
+# 20100706: removed pc-sysinstall's detect-vmware.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-vmware.sh
+# 20100701: [powerpc] removed <machine/intr.h>
+.if ${TARGET_ARCH} == "powerpc"
+OLD_FILES+=usr/include/machine/intr.h
+.endif
+# 20100514: library version bump for versioned symbols for liblzma
+OLD_LIBS+=usr/lib/liblzma.so.0
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/liblzma.so.0
+.endif
+# 20100511: move GCC-specific headers to /usr/include/gcc
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/emmintrin.h
+OLD_FILES+=usr/include/mm_malloc.h
+OLD_FILES+=usr/include/pmmintrin.h
+OLD_FILES+=usr/include/xmmintrin.h
+.endif
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "arm"
+OLD_FILES+=usr/include/mmintrin.h
+.endif
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=usr/include/ia64intrin.h
+.endif
+.if ${TARGET_ARCH} == "powerpc"
+OLD_FILES+=usr/include/altivec.h
+OLD_FILES+=usr/include/ppc-asm.h
+OLD_FILES+=usr/include/spe.h
+.endif
 # 20100416: [mips] removed <machine/psl.h>
 .if ${TARGET_ARCH} == "mips"
 OLD_FILES+=usr/include/machine/psl.h
@@ -185,6 +284,8 @@ OLD_FILES+=usr/share/man/man9/ieee80211_watchdog.9.gz
 OLD_FILES+=usr/share/man/man9/ieee80211_wep_crypt.9.gz
 # 20090801: vimage.h removed in favour of vnet.h
 OLD_FILES+=usr/include/sys/vimage.h
+# 20101208: libbsnmp was moved to usr/lib
+OLD_LIBS+=lib/libbsnmp.so.5
 # 20090719: library version bump for 8.0
 OLD_LIBS+=lib/libalias.so.6
 OLD_LIBS+=lib/libavl.so.1
@@ -1076,12 +1177,6 @@ OLD_FILES+=usr/include/machine/i4b_rbch_ioctl.h
 OLD_FILES+=usr/include/machine/i4b_tel_ioctl.h
 OLD_FILES+=usr/include/machine/i4b_trace.h
 .endif
-# 20070704: I4B 'modules' temporary disconnected (removed 20080525)
-.if ${TARGET_ARCH} == "i386"
-OLD_FILES+=usr/share/man/man4/i4bing.4.gz
-OLD_FILES+=usr/share/man/man4/i4bipr.4.gz
-OLD_FILES+=usr/share/man/man4/i4bisppp.4.gz
-.endif
 # 20070703: pf 4.1 import
 OLD_FILES+=usr/libexec/ftp-proxy
 # 20070701: KAME IPSec removal
@@ -1260,12 +1355,8 @@ OLD_LIBS+=usr/lib/libusbhid.so.2
 OLD_LIBS+=usr/lib/libvgl.so.4
 OLD_LIBS+=usr/lib/libwrap.so.4
 OLD_LIBS+=usr/lib/libypclnt.so.2
-OLD_LIBS+=usr/lib/snmp_atm.so.3
 OLD_LIBS+=usr/lib/snmp_bridge.so.3
 OLD_LIBS+=usr/lib/snmp_hostres.so.3
-OLD_LIBS+=usr/lib/snmp_mibII.so.3
-OLD_LIBS+=usr/lib/snmp_netgraph.so.3
-OLD_LIBS+=usr/lib/snmp_pf.so.3
 .if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libatm.so.4
 OLD_LIBS+=usr/lib32/libbegemot.so.2
@@ -1561,7 +1652,7 @@ OLD_DIRS+=usr/include/c++/3.4
 OLD_FILES+=usr/sbin/zfs
 OLD_FILES+=usr/sbin/zpool
 # 20070423: rc.bluetooth (examples) removed
-OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth 
+OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth
 # 20070421: worm.4 removed
 OLD_FILES+=usr/share/man/man4/worm.4.gz
 # 20070417: trunk(4) renamed to lagg(4)
@@ -4469,7 +4560,6 @@ OLD_FILES+=usr/games/worm
 OLD_FILES+=usr/games/worms
 OLD_FILES+=usr/games/wump
 OLD_FILES+=sbin/mount_reiserfs
-OLD_FILES+=usr/include/c++/3.4/ext/demangle.h
 OLD_FILES+=usr/include/cam/cam_extend.h
 OLD_FILES+=usr/include/dev/wi/wi_hostap.h
 OLD_FILES+=usr/include/disktab.h
@@ -4732,7 +4822,6 @@ OLD_FILES+=usr/include/posix4/posix4.h
 OLD_FILES+=usr/include/posix4/sched.h
 OLD_FILES+=usr/include/posix4/semaphore.h
 OLD_DIRS+=usr/include/posix4
-OLD_FILES+=usr/include/rune.h
 OLD_FILES+=usr/include/security/_pam_compat.h
 OLD_FILES+=usr/include/security/_pam_macros.h
 OLD_FILES+=usr/include/security/_pam_types.h
@@ -4878,42 +4967,19 @@ OLD_FILES+=usr/share/doc/ntp/release.htm
 OLD_FILES+=usr/share/doc/ntp/tickadj.htm
 OLD_FILES+=usr/share/doc/papers/nqnfs.ascii.gz
 OLD_FILES+=usr/share/doc/papers/px.ascii.gz
-OLD_FILES+=usr/share/man/man3/mbrune.3.gz
-OLD_FILES+=usr/share/man/man3/rune.3.gz
-OLD_FILES+=usr/share/man/man3/mac_is_present_np.3.gz
-OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_copy_ccache.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_compat_des3_mic.3.gz
-OLD_FILES+=usr/share/man/man3/exp10f.3.gz
 OLD_FILES+=usr/share/man/man3/exp10.3.gz
-OLD_FILES+=usr/share/man/man3/mbrrune.3.gz
-OLD_FILES+=usr/share/man/man3/mbmb.3.gz
-OLD_FILES+=usr/share/man/man3/sputrune.3.gz
-OLD_FILES+=usr/share/man/man3/sgetrune.3.gz
-OLD_FILES+=usr/share/man/man3/setrunelocale.3.gz
-OLD_FILES+=usr/share/man/man3/setinvalidrune.3.gz
-OLD_FILES+=usr/share/man/man3/mbrune.3.gz
-OLD_FILES+=usr/share/man/man3/rune.3.gz
-OLD_FILES+=usr/share/man/man3/mac_is_present_np.3.gz
-OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_copy_ccache.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_compat_des3_mic.3.gz
 OLD_FILES+=usr/share/man/man3/exp10f.3.gz
-OLD_FILES+=usr/share/man/man3/exp10.3.gz
-OLD_FILES+=usr/share/man/man3/mbrrune.3.gz
+OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
+OLD_FILES+=usr/share/man/man3/gss_krb5_compat_des3_mic.3.gz
+OLD_FILES+=usr/share/man/man3/gss_krb5_copy_ccache.3.gz
+OLD_FILES+=usr/share/man/man3/mac_is_present_np.3.gz
 OLD_FILES+=usr/share/man/man3/mbmb.3.gz
-OLD_FILES+=usr/share/man/man3/sputrune.3.gz
-OLD_FILES+=usr/share/man/man3/sgetrune.3.gz
 OLD_FILES+=usr/share/man/man3/setrunelocale.3.gz
-OLD_FILES+=usr/share/man/man3/setinvalidrune.3.gz
-OLD_FILES+=usr/share/man/man3/fungetrune.3.gz
-OLD_FILES+=usr/share/man/man3/fputrune.3.gz
-OLD_FILES+=usr/share/man/man3/fgetrune.3.gz
 OLD_FILES+=usr/share/man/man5/usbd.conf.5.gz
 .if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
 OLD_FILES+=usr/share/man/man8/boot_i386.8.gz
 .endif
-.if ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "sparc64"
+.if ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "powerpc64" && ${TARGET_ARCH} != "sparc64"
 OLD_FILES+=usr/share/man/man8/ofwdump.8.gz
 .endif
 OLD_FILES+=usr/share/man/man8/mount_reiserfs.8.gz
@@ -5006,14 +5072,10 @@ OLD_LIBS+=lib/libgpib.so.1
 # 20060413: libpcap.so.4 moved to /lib/
 OLD_LIBS+=usr/lib/libpcap.so.4
 # 20060412: libpthread.so.2 moved to /lib/
-.if ${TARGET_ARCH} != "sparc64"
 OLD_LIBS+=usr/lib/libpthread.so.2
-.else
-OLD_LIBS+=usr/lib/libthr.so.2
-.endif
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
-# 20051027: libc_r discontinued
+# 20051027: libc_r discontinued (removed 20101113)
 OLD_LIBS+=usr/lib/libc_r.a
 OLD_LIBS+=usr/lib/libc_r.so
 OLD_LIBS+=usr/lib/libc_r.so.7
@@ -5129,8 +5191,6 @@ OLD_LIBS+=usr/lib/snmp_atm.so.3
 OLD_LIBS+=usr/lib/snmp_mibII.so.3
 OLD_LIBS+=usr/lib/snmp_netgraph.so.3
 OLD_LIBS+=usr/lib/snmp_pf.so.3
-# 20050603: network related ABI change on 64bit systems
-OLD_LIBS+=usr/lib/libpcap.so.3
 # 200505XX: ?
 OLD_LIBS+=usr/lib/snmp_atm.so.2
 OLD_LIBS+=usr/lib/snmp_mibII.so.2
@@ -5151,10 +5211,6 @@ OLD_LIBS+=usr/lib/libpcap.so.2
 OLD_LIBS+=usr/lib/libisc.so.1
 # 200408XX
 OLD_LIBS+=usr/lib/snmp_netgraph.so.1
-.if ${TARGET_ARCH} != "sparc64"
-# 20040130: libkse renamed to libpthread
-OLD_LIBS+=usr/lib/libkse.so.1
-.endif
 # 200404XX
 OLD_LIBS+=usr/lib/libsnmp.so.1
 OLD_LIBS+=usr/lib/snmp_mibII.so.1

@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IEEE80211_SUPPORT_SUPERG
 #include <net80211/ieee80211_superg.h>
 #endif
+#include <net80211/ieee80211_ratectl.h>
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
@@ -584,7 +585,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		}
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 		ni->ni_noise = nf;
-		if (HAS_SEQ(type)) {
+		if (HAS_SEQ(type) && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 			uint8_t tid = ieee80211_gettid(wh);
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
@@ -1596,6 +1597,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			     IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
 			ieee80211_setup_basic_htrates(ni, htinfo);
 			ieee80211_node_setuptxparms(ni);
+			ieee80211_ratectl_node_init(ni);
 		} else {
 #ifdef IEEE80211_SUPPORT_SUPERG
 			if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_ATH))

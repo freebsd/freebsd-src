@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
+#include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 #include <machine/bus.h>
@@ -48,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
-#define MV_TIMER_TICK	(get_tclk() / hz)
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #define INITIAL_TIMECOUNTER	(0xffffffff)
 #define MAX_WATCHDOG_TICKS	(0xffffffff)
 
@@ -57,6 +60,7 @@ struct mv_timer_softc {
 	bus_space_tag_t		timer_bst;
 	bus_space_handle_t	timer_bsh;
 	struct mtx		timer_mtx;
+	struct eventtimer	et;
 };
 
 static struct resource_spec mv_timer_spec[] = {
@@ -82,12 +86,14 @@ static void	mv_set_timer_rel(uint32_t, uint32_t);
 static void	mv_watchdog_enable(void);
 static void	mv_watchdog_disable(void);
 static void	mv_watchdog_event(void *, unsigned int, int *);
-static void	mv_setup_timer(void);
-static void	mv_setup_timercount(void);
+static int	mv_timer_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period);
+static int	mv_timer_stop(struct eventtimer *et);
+static void	mv_setup_timers(void);
 
 static struct timecounter mv_timer_timecounter = {
 	.tc_get_timecount = mv_timer_get_timecount,
-	.tc_name = "CPU Timer",
+	.tc_name = "CPUTimer1",
 	.tc_frequency = 0,	/* This is assigned on the fly in the init sequence */
 	.tc_counter_mask = ~0u,
 	.tc_quality = 1000,
@@ -96,6 +102,9 @@ static struct timecounter mv_timer_timecounter = {
 static int
 mv_timer_probe(device_t dev)
 {
+
+	if (!ofw_bus_is_compatible(dev, "mrvl,timer"))
+		return (ENXIO);
 
 	device_set_desc(dev, "Marvell CPU Timer");
 	return (0);
@@ -107,6 +116,7 @@ mv_timer_attach(device_t dev)
 	int	error;
 	void	*ihl;
 	struct	mv_timer_softc *sc;
+	uint32_t irq_cause, irq_mask;
 
 	if (timer_softc != NULL)
 		return (ENXIO);
@@ -128,14 +138,36 @@ mv_timer_attach(device_t dev)
 	EVENTHANDLER_REGISTER(watchdog_list, mv_watchdog_event, sc, 0);
 
 	if (bus_setup_intr(dev, sc->timer_res[1], INTR_TYPE_CLK,
-	    mv_hardclock, NULL, NULL, &ihl) != 0) {
+	    mv_hardclock, NULL, sc, &ihl) != 0) {
 		bus_release_resources(dev, mv_timer_spec, sc->timer_res);
-		device_printf(dev, "could not setup hardclock interrupt\n");
+		device_printf(dev, "Could not setup interrupt.\n");
 		return (ENXIO);
 	}
 
-	mv_setup_timercount();
-	timers_initialized = 1;
+	mv_setup_timers();
+	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
+	irq_cause &= ~(IRQ_TIMER0);
+	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
+	irq_mask |= IRQ_TIMER0_MASK;
+	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
+
+	sc->et.et_name = "CPUTimer0";
+	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT;
+	sc->et.et_quality = 1000;
+	sc->et.et_frequency = get_tclk();
+	sc->et.et_min_period.sec = 0;
+	sc->et.et_min_period.frac =
+	    ((0x00000002LLU << 32) / sc->et.et_frequency) << 32;
+	sc->et.et_max_period.sec = 0xfffffff0U / sc->et.et_frequency;
+	sc->et.et_max_period.frac =
+	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
+	sc->et.et_start = mv_timer_start;
+	sc->et.et_stop = mv_timer_stop;
+	sc->et.et_priv = sc;
+	et_register(&sc->et);
+	mv_timer_timecounter.tc_frequency = get_tclk();
+	tc_init(&mv_timer_timecounter);
 
 	return (0);
 }
@@ -143,15 +175,16 @@ mv_timer_attach(device_t dev)
 static int
 mv_hardclock(void *arg)
 {
+	struct	mv_timer_softc *sc;
 	uint32_t irq_cause;
-	struct	trapframe *frame;
-
-	frame = (struct trapframe *)arg;
-	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
 	irq_cause &= ~(IRQ_TIMER0);
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+
+	sc = (struct mv_timer_softc *)arg;
+	if (sc->et.et_active)
+		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
 	return (FILTER_HANDLED);
 }
@@ -171,7 +204,7 @@ static driver_t mv_timer_driver = {
 
 static devclass_t mv_timer_devclass;
 
-DRIVER_MODULE(timer, mbus, mv_timer_driver, mv_timer_devclass, 0, 0);
+DRIVER_MODULE(timer, simplebus, mv_timer_driver, mv_timer_devclass, 0, 0);
 
 static unsigned
 mv_timer_get_timecount(struct timecounter *tc)
@@ -183,32 +216,8 @@ mv_timer_get_timecount(struct timecounter *tc)
 void
 cpu_initclocks(void)
 {
-	uint32_t irq_cause, irq_mask;
 
-	mv_setup_timer();
-
-	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= ~(IRQ_TIMER0);
-	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
-
-	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
-	irq_mask |= IRQ_TIMER0_MASK;
-	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
-
-	mv_timer_timecounter.tc_frequency = get_tclk();
-	tc_init(&mv_timer_timecounter);
-}
-
-void
-cpu_startprofclock(void)
-{
-
-}
-
-void
-cpu_stopprofclock(void)
-{
-
+	cpu_initclocks_bsp();
 }
 
 void
@@ -356,26 +365,62 @@ mv_watchdog_event(void *arg, unsigned int cmd, int *error)
 	mtx_unlock(&timer_softc->timer_mtx);
 }
 
-static void
-mv_setup_timer(void)
+static int
+mv_timer_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period)
+{
+	struct	mv_timer_softc *sc;
+	uint32_t val, val1;
+
+	/* Calculate dividers. */
+	sc = (struct mv_timer_softc *)et->et_priv;
+	if (period != NULL) {
+		val = (sc->et.et_frequency * (period->frac >> 32)) >> 32;
+		if (period->sec != 0)
+			val += sc->et.et_frequency * period->sec;
+	} else
+		val = 0;
+	if (first != NULL) {
+		val1 = (sc->et.et_frequency * (first->frac >> 32)) >> 32;
+		if (first->sec != 0)
+			val1 += sc->et.et_frequency * first->sec;
+	} else
+		val1 = val;
+
+	/* Apply configuration. */
+	mv_set_timer_rel(0, val);
+	mv_set_timer(0, val1);
+	val = mv_get_timer_control();
+	val |= CPU_TIMER0_EN;
+	if (period != NULL)
+		val |= CPU_TIMER0_AUTO;
+	else
+		val &= ~CPU_TIMER0_AUTO;
+	mv_set_timer_control(val);
+	return (0);
+}
+
+static int
+mv_timer_stop(struct eventtimer *et)
 {
 	uint32_t val;
 
-	mv_set_timer_rel(0, MV_TIMER_TICK);
-	mv_set_timer(0, MV_TIMER_TICK);
 	val = mv_get_timer_control();
-	val |= CPU_TIMER0_EN | CPU_TIMER0_AUTO;
+	val &= ~(CPU_TIMER0_EN | CPU_TIMER0_AUTO);
 	mv_set_timer_control(val);
+	return (0);
 }
 
 static void
-mv_setup_timercount(void)
+mv_setup_timers(void)
 {
 	uint32_t val;
 
 	mv_set_timer_rel(1, INITIAL_TIMECOUNTER);
 	mv_set_timer(1, INITIAL_TIMECOUNTER);
 	val = mv_get_timer_control();
+	val &= ~(CPU_TIMER0_EN | CPU_TIMER0_AUTO);
 	val |= CPU_TIMER1_EN | CPU_TIMER1_AUTO;
 	mv_set_timer_control(val);
+	timers_initialized = 1;
 }

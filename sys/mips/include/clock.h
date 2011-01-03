@@ -17,7 +17,7 @@
 
 extern int cpu_clock;
 
-extern uint32_t clockintr(uint32_t, struct clockframe *);
+extern uint32_t clockintr(uint32_t, struct trapframe *);
 
 #define wall_cmos_clock 0
 #define adjkerntz 0

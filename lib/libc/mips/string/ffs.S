@@ -1,4 +1,4 @@
-/*	$NetBSD: ffs.S,v 1.1 2005/12/20 19:28:49 christos Exp $	*/
+/*	$NetBSD: ffs.S,v 1.2 2009/12/14 00:39:00 matt Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 	ASMSTR("from: @(#)ffs.s	8.1 (Berkeley) 6/4/93")
-	ASMSTR("$NetBSD: ffs.S,v 1.1 2005/12/20 19:28:49 christos Exp $")
+	ASMSTR("$NetBSD: ffs.S,v 1.2 2009/12/14 00:39:00 matt Exp $")
 #endif /* LIBC_SCCS and not lint */
 
 #ifdef __ABICALLS__

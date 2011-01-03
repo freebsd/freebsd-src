@@ -15,11 +15,11 @@
 #include "includes.h"
 
 #include "common.h"
-#include "md5.h"
-#include "sha1.h"
-#include "sha256.h"
-#include "aes_wrap.h"
-#include "crypto.h"
+#include "crypto/md5.h"
+#include "crypto/sha1.h"
+#include "crypto/sha256.h"
+#include "crypto/aes_wrap.h"
+#include "crypto/crypto.h"
 #include "ieee802_11_defs.h"
 #include "defs.h"
 #include "wpa_common.h"
@@ -50,16 +50,16 @@ int wpa_eapol_key_mic(const u8 *key, int ver, const u8 *buf, size_t len,
 
 	switch (ver) {
 	case WPA_KEY_INFO_TYPE_HMAC_MD5_RC4:
-		hmac_md5(key, 16, buf, len, mic);
-		break;
+		return hmac_md5(key, 16, buf, len, mic);
 	case WPA_KEY_INFO_TYPE_HMAC_SHA1_AES:
-		hmac_sha1(key, 16, buf, len, hash);
+		if (hmac_sha1(key, 16, buf, len, hash))
+			return -1;
 		os_memcpy(mic, hash, MD5_MAC_LEN);
 		break;
-#ifdef CONFIG_IEEE80211R
+#if defined(CONFIG_IEEE80211R) || defined(CONFIG_IEEE80211W)
 	case WPA_KEY_INFO_TYPE_AES_128_CMAC:
 		return omac1_aes_128(key, buf, len, mic);
-#endif /* CONFIG_IEEE80211R */
+#endif /* CONFIG_IEEE80211R || CONFIG_IEEE80211W */
 	default:
 		return -1;
 	}
@@ -567,4 +567,221 @@ void wpa_pmk_r1_to_ptk(const u8 *pmk_r1, const u8 *snonce, const u8 *anonce,
 	os_memcpy(ptk_name, hash, WPA_PMK_NAME_LEN);
 }
 
+#endif /* CONFIG_IEEE80211R */
+
+
+/**
+ * rsn_pmkid - Calculate PMK identifier
+ * @pmk: Pairwise master key
+ * @pmk_len: Length of pmk in bytes
+ * @aa: Authenticator address
+ * @spa: Supplicant address
+ * @pmkid: Buffer for PMKID
+ * @use_sha256: Whether to use SHA256-based KDF
+ *
+ * IEEE Std 802.11i-2004 - 8.5.1.2 Pairwise key hierarchy
+ * PMKID = HMAC-SHA1-128(PMK, "PMK Name" || AA || SPA)
+ */
+void rsn_pmkid(const u8 *pmk, size_t pmk_len, const u8 *aa, const u8 *spa,
+	       u8 *pmkid, int use_sha256)
+{
+	char *title = "PMK Name";
+	const u8 *addr[3];
+	const size_t len[3] = { 8, ETH_ALEN, ETH_ALEN };
+	unsigned char hash[SHA256_MAC_LEN];
+
+	addr[0] = (u8 *) title;
+	addr[1] = aa;
+	addr[2] = spa;
+
+#ifdef CONFIG_IEEE80211W
+	if (use_sha256)
+		hmac_sha256_vector(pmk, pmk_len, 3, addr, len, hash);
+	else
+#endif /* CONFIG_IEEE80211W */
+		hmac_sha1_vector(pmk, pmk_len, 3, addr, len, hash);
+	os_memcpy(pmkid, hash, PMKID_LEN);
+}
+
+
+/**
+ * wpa_cipher_txt - Convert cipher suite to a text string
+ * @cipher: Cipher suite (WPA_CIPHER_* enum)
+ * Returns: Pointer to a text string of the cipher suite name
+ */
+const char * wpa_cipher_txt(int cipher)
+{
+	switch (cipher) {
+	case WPA_CIPHER_NONE:
+		return "NONE";
+	case WPA_CIPHER_WEP40:
+		return "WEP-40";
+	case WPA_CIPHER_WEP104:
+		return "WEP-104";
+	case WPA_CIPHER_TKIP:
+		return "TKIP";
+	case WPA_CIPHER_CCMP:
+		return "CCMP";
+	case WPA_CIPHER_CCMP | WPA_CIPHER_TKIP:
+		return "CCMP+TKIP";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+
+/**
+ * wpa_key_mgmt_txt - Convert key management suite to a text string
+ * @key_mgmt: Key management suite (WPA_KEY_MGMT_* enum)
+ * @proto: WPA/WPA2 version (WPA_PROTO_*)
+ * Returns: Pointer to a text string of the key management suite name
+ */
+const char * wpa_key_mgmt_txt(int key_mgmt, int proto)
+{
+	switch (key_mgmt) {
+	case WPA_KEY_MGMT_IEEE8021X:
+		if (proto == (WPA_PROTO_RSN | WPA_PROTO_WPA))
+			return "WPA2+WPA/IEEE 802.1X/EAP";
+		return proto == WPA_PROTO_RSN ?
+			"WPA2/IEEE 802.1X/EAP" : "WPA/IEEE 802.1X/EAP";
+	case WPA_KEY_MGMT_PSK:
+		if (proto == (WPA_PROTO_RSN | WPA_PROTO_WPA))
+			return "WPA2-PSK+WPA-PSK";
+		return proto == WPA_PROTO_RSN ?
+			"WPA2-PSK" : "WPA-PSK";
+	case WPA_KEY_MGMT_NONE:
+		return "NONE";
+	case WPA_KEY_MGMT_IEEE8021X_NO_WPA:
+		return "IEEE 802.1X (no WPA)";
+#ifdef CONFIG_IEEE80211R
+	case WPA_KEY_MGMT_FT_IEEE8021X:
+		return "FT-EAP";
+	case WPA_KEY_MGMT_FT_PSK:
+		return "FT-PSK";
+#endif /* CONFIG_IEEE80211R */
+#ifdef CONFIG_IEEE80211W
+	case WPA_KEY_MGMT_IEEE8021X_SHA256:
+		return "WPA2-EAP-SHA256";
+	case WPA_KEY_MGMT_PSK_SHA256:
+		return "WPA2-PSK-SHA256";
+#endif /* CONFIG_IEEE80211W */
+	default:
+		return "UNKNOWN";
+	}
+}
+
+
+int wpa_compare_rsn_ie(int ft_initial_assoc,
+		       const u8 *ie1, size_t ie1len,
+		       const u8 *ie2, size_t ie2len)
+{
+	if (ie1 == NULL || ie2 == NULL)
+		return -1;
+
+	if (ie1len == ie2len && os_memcmp(ie1, ie2, ie1len) == 0)
+		return 0; /* identical IEs */
+
+#ifdef CONFIG_IEEE80211R
+	if (ft_initial_assoc) {
+		struct wpa_ie_data ie1d, ie2d;
+		/*
+		 * The PMKID-List in RSN IE is different between Beacon/Probe
+		 * Response/(Re)Association Request frames and EAPOL-Key
+		 * messages in FT initial mobility domain association. Allow
+		 * for this, but verify that other parts of the RSN IEs are
+		 * identical.
+		 */
+		if (wpa_parse_wpa_ie_rsn(ie1, ie1len, &ie1d) < 0 ||
+		    wpa_parse_wpa_ie_rsn(ie2, ie2len, &ie2d) < 0)
+			return -1;
+		if (ie1d.proto == ie2d.proto &&
+		    ie1d.pairwise_cipher == ie2d.pairwise_cipher &&
+		    ie1d.group_cipher == ie2d.group_cipher &&
+		    ie1d.key_mgmt == ie2d.key_mgmt &&
+		    ie1d.capabilities == ie2d.capabilities &&
+		    ie1d.mgmt_group_cipher == ie2d.mgmt_group_cipher)
+			return 0;
+	}
+#endif /* CONFIG_IEEE80211R */
+
+	return -1;
+}
+
+
+#ifdef CONFIG_IEEE80211R
+int wpa_insert_pmkid(u8 *ies, size_t ies_len, const u8 *pmkid)
+{
+	u8 *start, *end, *rpos, *rend;
+	int added = 0;
+
+	start = ies;
+	end = ies + ies_len;
+
+	while (start < end) {
+		if (*start == WLAN_EID_RSN)
+			break;
+		start += 2 + start[1];
+	}
+	if (start >= end) {
+		wpa_printf(MSG_ERROR, "FT: Could not find RSN IE in "
+			   "IEs data");
+		return -1;
+	}
+	wpa_hexdump(MSG_DEBUG, "FT: RSN IE before modification",
+		    start, 2 + start[1]);
+
+	/* Find start of PMKID-Count */
+	rpos = start + 2;
+	rend = rpos + start[1];
+
+	/* Skip Version and Group Data Cipher Suite */
+	rpos += 2 + 4;
+	/* Skip Pairwise Cipher Suite Count and List */
+	rpos += 2 + WPA_GET_LE16(rpos) * RSN_SELECTOR_LEN;
+	/* Skip AKM Suite Count and List */
+	rpos += 2 + WPA_GET_LE16(rpos) * RSN_SELECTOR_LEN;
+
+	if (rpos == rend) {
+		/* Add RSN Capabilities */
+		os_memmove(rpos + 2, rpos, end - rpos);
+		*rpos++ = 0;
+		*rpos++ = 0;
+	} else {
+		/* Skip RSN Capabilities */
+		rpos += 2;
+		if (rpos > rend) {
+			wpa_printf(MSG_ERROR, "FT: Could not parse RSN IE in "
+				   "IEs data");
+			return -1;
+		}
+	}
+
+	if (rpos == rend) {
+		/* No PMKID-Count field included; add it */
+		os_memmove(rpos + 2 + PMKID_LEN, rpos, end - rpos);
+		WPA_PUT_LE16(rpos, 1);
+		rpos += 2;
+		os_memcpy(rpos, pmkid, PMKID_LEN);
+		added += 2 + PMKID_LEN;
+		start[1] += 2 + PMKID_LEN;
+	} else {
+		/* PMKID-Count was included; use it */
+		if (WPA_GET_LE16(rpos) != 0) {
+			wpa_printf(MSG_ERROR, "FT: Unexpected PMKID "
+				   "in RSN IE in EAPOL-Key data");
+			return -1;
+		}
+		WPA_PUT_LE16(rpos, 1);
+		rpos += 2;
+		os_memmove(rpos + PMKID_LEN, rpos, end - rpos);
+		os_memcpy(rpos, pmkid, PMKID_LEN);
+		added += PMKID_LEN;
+		start[1] += PMKID_LEN;
+	}
+
+	wpa_hexdump(MSG_DEBUG, "FT: RSN IE after modification "
+		    "(PMKID inserted)", start, 2 + start[1]);
+
+	return added;
+}
 #endif /* CONFIG_IEEE80211R */

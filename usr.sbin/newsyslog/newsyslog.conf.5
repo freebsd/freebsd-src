@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd November 27, 2006
+.Dd July 23, 2010
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -69,13 +69,18 @@ is treated as an ordinary character.
 The fields of the configuration file are as follows:
 .Bl -tag -width indent
 .It Ar logfile_name
-Name of the system log file to be archived, or the literal string
-.Dq Aq Li default .
+Name of the system log file to be archived,
+or one of the literal strings
+.Dq Aq Li default ,
+or
+.Dq Aq Li include .
 The special default entry will only be used if a log file
 name is given as a command line argument to
 .Xr newsyslog 8 ,
 and if that log file name is not matched by any other
 line in the configuration file.
+The include entry is used to include other configuration
+files and supports globbing.
 .It Ar owner : Ns Ar group
 This optional field specifies the owner and group for the archive file.
 The
@@ -315,14 +320,17 @@ process ID or to find a group process ID if the
 flag was specified.
 If this field is present, a
 .Ar signal_number
-is sent the process ID contained in this file.
-If this field is not present, then a
+is sent to the process ID contained in this file.
+If this field is not present and the
+.Cm N
+flag has not been specified, then a
 .Dv SIGHUP
 signal will be sent to
-.Xr syslogd 8 ,
-unless the
-.Cm N
-flag has been specified.
+.Xr syslogd 8
+or to the process id found in the file specified by
+.Xr newsyslog 8 Ns 's
+.Fl S
+switch.
 This field must start with
 .Ql /
 in order to be recognized properly.

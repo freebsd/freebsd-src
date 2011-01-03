@@ -1,9 +1,16 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/support ${.CURDIR}/../libc/gen ${.CURDIR}/../libc/string
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys
 
+# libc must search machine_arch, then machine_cpuarch, but libthr has all its
+# code implemented in machine_cpuarch.  Cope.
+.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/sys)
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys
 CFLAGS+= -I${.CURDIR}/../libc/${MACHINE_ARCH}
+.else
+.PATH: ${.CURDIR}/../libc/${MACHINE_CPUARCH}/sys
+CFLAGS+= -I${.CURDIR}/../libc/${MACHINE_CPUARCH}
+.endif
 
 SYSCALLS= thr_new
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.220 2010/03/04 10:36:03 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.224 2010/04/16 21:14:27 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -102,8 +102,8 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 	 * (e.g. Solaris)
 	 */
 	xasprintf(&tmp, "exec %s", proxy_command);
-	command_string = percent_expand(tmp, "h", host,
-	    "p", strport, (char *)NULL);
+	command_string = percent_expand(tmp, "h", host, "p", strport,
+	    "r", options.user, (char *)NULL);
 	xfree(tmp);
 
 	/* Create pipes for communicating with the proxy. */
@@ -587,9 +587,9 @@ check_host_cert(const char *host, const Key *host_key)
 		error("%s", reason);
 		return 0;
 	}
-	if (buffer_len(&host_key->cert->constraints) != 0) {
-		error("Certificate for %s contains unsupported constraint(s)",
-		    host);
+	if (buffer_len(&host_key->cert->critical) != 0) {
+		error("Certificate for %s contains unsupported "
+		    "critical options(s)", host);
 		return 0;
 	}
 	return 1;
@@ -740,7 +740,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		debug("Host '%.200s' is known and matches the %s host %s.",
 		    host, type, want_cert ? "certificate" : "key");
 		debug("Found %s in %s:%d",
-		    want_cert ? "certificate" : "key", host_file, host_line);
+		    want_cert ? "CA key" : "key", host_file, host_line);
 		if (want_cert && !check_host_cert(hostname, host_key))
 			goto fail;
 		if (options.check_host_ip && ip_status == HOST_NEW) {

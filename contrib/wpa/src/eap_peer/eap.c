@@ -1,6 +1,6 @@
 /*
  * EAP peer state machines (RFC 4137)
- * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2010, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,14 +24,14 @@
 #include "includes.h"
 
 #include "common.h"
+#include "pcsc_funcs.h"
+#include "state_machine.h"
+#include "crypto/crypto.h"
+#include "crypto/tls.h"
+#include "common/wpa_ctrl.h"
+#include "eap_common/eap_wsc_common.h"
 #include "eap_i.h"
 #include "eap_config.h"
-#include "tls.h"
-#include "crypto.h"
-#include "pcsc_funcs.h"
-#include "wpa_ctrl.h"
-#include "state_machine.h"
-#include "eap_common/eap_wsc_common.h"
 
 #define STATE_MACHINE_DATA struct eap_sm
 #define STATE_MACHINE_DEBUG_PREFIX "EAP"
@@ -228,8 +228,14 @@ SM_STATE(EAP, GET_METHOD)
 	if (!eap_sm_allowMethod(sm, sm->reqVendor, method)) {
 		wpa_printf(MSG_DEBUG, "EAP: vendor %u method %u not allowed",
 			   sm->reqVendor, method);
+		wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_PROPOSED_METHOD
+			"vendor=%u method=%u -> NAK",
+			sm->reqVendor, method);
 		goto nak;
 	}
+
+	wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_PROPOSED_METHOD
+		"vendor=%u method=%u", sm->reqVendor, method);
 
 	/*
 	 * RFC 4137 does not define specific operation for fast
@@ -1154,6 +1160,60 @@ static void eap_sm_parseEapReq(struct eap_sm *sm, const struct wpabuf *req)
 }
 
 
+static void eap_peer_sm_tls_event(void *ctx, enum tls_event ev,
+				  union tls_event_data *data)
+{
+	struct eap_sm *sm = ctx;
+	char *hash_hex = NULL;
+	char *cert_hex = NULL;
+
+	switch (ev) {
+	case TLS_CERT_CHAIN_FAILURE:
+		wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_TLS_CERT_ERROR
+			"reason=%d depth=%d subject='%s' err='%s'",
+			data->cert_fail.reason,
+			data->cert_fail.depth,
+			data->cert_fail.subject,
+			data->cert_fail.reason_txt);
+		break;
+	case TLS_PEER_CERTIFICATE:
+		if (data->peer_cert.hash) {
+			size_t len = data->peer_cert.hash_len * 2 + 1;
+			hash_hex = os_malloc(len);
+			if (hash_hex) {
+				wpa_snprintf_hex(hash_hex, len,
+						 data->peer_cert.hash,
+						 data->peer_cert.hash_len);
+			}
+		}
+		wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_PEER_CERT
+			"depth=%d subject='%s'%s%s",
+			data->peer_cert.depth, data->peer_cert.subject,
+			hash_hex ? " hash=" : "", hash_hex ? hash_hex : "");
+
+		if (data->peer_cert.cert) {
+			size_t len = wpabuf_len(data->peer_cert.cert) * 2 + 1;
+			cert_hex = os_malloc(len);
+			if (cert_hex == NULL)
+				break;
+			wpa_snprintf_hex(cert_hex, len,
+					 wpabuf_head(data->peer_cert.cert),
+					 wpabuf_len(data->peer_cert.cert));
+			wpa_msg_ctrl(sm->msg_ctx, MSG_INFO,
+				     WPA_EVENT_EAP_PEER_CERT
+				     "depth=%d subject='%s' cert=%s",
+				     data->peer_cert.depth,
+				     data->peer_cert.subject,
+				     cert_hex);
+		}
+		break;
+	}
+
+	os_free(hash_hex);
+	os_free(cert_hex);
+}
+
+
 /**
  * eap_peer_sm_init - Allocate and initialize EAP peer state machine
  * @eapol_ctx: Context data to be used with eapol_cb calls
@@ -1188,6 +1248,11 @@ struct eap_sm * eap_peer_sm_init(void *eapol_ctx,
 	tlsconf.opensc_engine_path = conf->opensc_engine_path;
 	tlsconf.pkcs11_engine_path = conf->pkcs11_engine_path;
 	tlsconf.pkcs11_module_path = conf->pkcs11_module_path;
+#ifdef CONFIG_FIPS
+	tlsconf.fips_mode = 1;
+#endif /* CONFIG_FIPS */
+	tlsconf.event_cb = eap_peer_sm_tls_event;
+	tlsconf.cb_ctx = sm;
 	sm->ssl_ctx = tls_init(&tlsconf);
 	if (sm->ssl_ctx == NULL) {
 		wpa_printf(MSG_WARNING, "SSL: Failed to initialize TLS "

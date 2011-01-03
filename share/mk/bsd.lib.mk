@@ -58,14 +58,14 @@ STRIP?=	-s
 .SUFFIXES: .out .o .po .So .S .asm .s .c .cc .cpp .cxx .m .C .f .y .l .ln
 
 .if !defined(PICFLAG)
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 PICFLAG=-fPIC
 .else
 PICFLAG=-fpic
 .endif
 .endif
 
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 PO_FLAG=-p
 .else
 PO_FLAG=-pg
@@ -73,11 +73,15 @@ PO_FLAG=-pg
 
 .c.po:
 	${CC} ${PO_FLAG} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .c.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -87,40 +91,58 @@ PO_FLAG=-pg
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .m.po:
 	${OBJC} ${OBJCFLAGS} -pg -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .m.So:
 	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .s.po .s.So:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .asm.po:
 	${CC} -x assembler-with-cpp -DPROF ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .asm.So:
 	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .S.po:
 	${CC} -DPROF ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .S.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 all: objwarn
 
@@ -176,7 +198,11 @@ SOBJS+=		${OBJS:.o=.So}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
+.if target(beforelinking)
+${SHLIB_NAME}: ${SOBJS} beforelinking
+.else
 ${SHLIB_NAME}: ${SOBJS}
+.endif
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${.TARGET} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
@@ -191,7 +217,9 @@ ${SHLIB_NAME}: ${SOBJS}
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
-	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
+	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS} && \
+		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS})
 .endif
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"

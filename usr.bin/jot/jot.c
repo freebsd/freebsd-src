@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -77,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	is_default(s)	(*(s) == 0 || strcmp((s), "-") == 0)
 
 static bool	boring;
-static int	prec;
+static int	prec = -1;
 static bool	longdata;
 static bool	intdata;
 static bool	chardata;
@@ -128,7 +124,7 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			prec = atoi(optarg);
-			if (prec <= 0)
+			if (prec < 0)
 				errx(1, "bad precision value");
 			have_format = true;
 			break;
@@ -159,7 +155,7 @@ main(int argc, char **argv)
 			if (!sscanf(argv[2], "%lf", &ender))
 				ender = argv[2][strlen(argv[2])-1];
 			mask |= HAVE_ENDER;
-			if (!prec)
+			if (prec < 0)
 				n = getprec(argv[2]);
 		}
 		/* FALLTHROUGH */
@@ -168,7 +164,7 @@ main(int argc, char **argv)
 			if (!sscanf(argv[1], "%lf", &begin))
 				begin = argv[1][strlen(argv[1])-1];
 			mask |= HAVE_BEGIN;
-			if (!prec)
+			if (prec < 0)
 				prec = getprec(argv[1]);
 			if (n > prec)		/* maximum precision */
 				prec = n;
@@ -188,6 +184,10 @@ main(int argc, char **argv)
 		    argv[4]);
 	}
 	getformat();
+
+	if (prec == -1)
+		prec = 0;
+
 	while (mask)	/* 4 bit mask has 1's where last 4 args were given */
 		switch (mask) {	/* fill in the 0's by default or computation */
 		case HAVE_STEP:
@@ -284,13 +284,16 @@ main(int argc, char **argv)
 		if (!have_format && prec == 0 &&
 		    begin >= 0 && begin < divisor &&
 		    ender >= 0 && ender < divisor) {
-			ender += 1;
+			if (begin <= ender)
+				ender += 1;
+			else
+				begin += 1;
 			nosign = true;
 			intdata = true;
 			(void)strlcpy(format,
 			    chardata ? "%c" : "%u", sizeof(format));
 		}
-		x = (ender - begin) * (ender > begin ? 1 : -1);
+		x = ender - begin;
 		for (i = 1; i <= reps || infinity; i++) {
 			if (use_random)
 				y = random() / divisor;

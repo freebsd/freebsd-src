@@ -238,12 +238,12 @@ futex_get(uint32_t *uaddr, struct waiting_proc **wp, struct futex **f,
 }
 
 static int
-futex_sleep(struct futex *f, struct waiting_proc *wp, unsigned long timeout)
+futex_sleep(struct futex *f, struct waiting_proc *wp, int timeout)
 {
 	int error;
 
 	FUTEX_ASSERT_LOCKED(f);
-	LINUX_CTR4(sys_futex, "futex_sleep enter uaddr %p wp %p timo %ld ref %d",
+	LINUX_CTR4(sys_futex, "futex_sleep enter uaddr %p wp %p timo %d ref %d",
 	    f->f_uaddr, wp, timeout, f->f_refcount);
 	error = sx_sleep(wp, &f->f_lck, PCATCH, "futex", timeout);
 	if (wp->wp_flags & FUTEX_WP_REQUEUED) {
@@ -327,8 +327,8 @@ futex_requeue(struct futex *f, int n, struct futex *f2, int n2)
 static int
 futex_wait(struct futex *f, struct waiting_proc *wp, struct l_timespec *ts)
 {
-	struct l_timespec timeout = {0, 0};
-	struct timeval tv = {0, 0};
+	struct l_timespec timeout;
+	struct timeval tv;
 	int timeout_hz;
 	int error;
 
@@ -336,25 +336,13 @@ futex_wait(struct futex *f, struct waiting_proc *wp, struct l_timespec *ts)
 		error = copyin(ts, &timeout, sizeof(timeout));
 		if (error)
 			return (error);
-	}
-
-	tv.tv_usec = timeout.tv_sec * 1000000 + timeout.tv_nsec / 1000;
-	timeout_hz = tvtohz(&tv);
-
-	if (timeout.tv_sec == 0 && timeout.tv_nsec == 0)
+		TIMESPEC_TO_TIMEVAL(&tv, &timeout);
+		error = itimerfix(&tv);
+		if (error)
+			return (error);
+		timeout_hz = tvtohz(&tv);
+	} else
 		timeout_hz = 0;
-
-	/*
-	 * If the user process requests a non null timeout,
-	 * make sure we do not turn it into an infinite
-	 * timeout because timeout_hz gets null.
-	 *
-	 * We use a minimal timeout of 1/hz. Maybe it would
-	 * make sense to just return ETIMEDOUT without sleeping.
-	 */
-	if (((timeout.tv_sec != 0) || (timeout.tv_nsec != 0)) &&
-	    (timeout_hz == 0))
-		timeout_hz = 1;
 
 	error = futex_sleep(f, wp, timeout_hz);
 	if (error == EWOULDBLOCK)
@@ -428,10 +416,10 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 int
 linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 {
-	int op_ret, val, ret, nrwake;
+	int clockrt, nrwake, op_ret, ret, val;
 	struct linux_emuldata *em;
 	struct waiting_proc *wp;
-	struct futex *f, *f2;
+	struct futex *f, *f2 = NULL;
 	int error = 0;
 
 	/*
@@ -441,7 +429,19 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	 * in most cases (ie. when futexes are not shared on file descriptor
 	 * or between different processes.).
 	 */
-	args->op = (args->op & ~LINUX_FUTEX_PRIVATE_FLAG);
+	args->op = args->op & ~LINUX_FUTEX_PRIVATE_FLAG;
+
+	/*
+	 * Currently support for switching between CLOCK_MONOTONIC and
+	 * CLOCK_REALTIME is not present. However Linux forbids the use of
+	 * FUTEX_CLOCK_REALTIME with any op except FUTEX_WAIT_BITSET and
+	 * FUTEX_WAIT_REQUEUE_PI.
+	 */
+	clockrt = args->op & LINUX_FUTEX_CLOCK_REALTIME;
+	args->op = args->op & ~LINUX_FUTEX_CLOCK_REALTIME;
+	if (clockrt && args->op != LINUX_FUTEX_WAIT_BITSET &&
+		args->op != LINUX_FUTEX_WAIT_REQUEUE_PI)
+		return (ENOSYS);
 
 	switch (args->op) {
 	case LINUX_FUTEX_WAIT:
@@ -624,14 +624,23 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 	case LINUX_FUTEX_LOCK_PI:
 		/* not yet implemented */
+		linux_msg(td,
+			  "linux_sys_futex: "
+			  "op LINUX_FUTEX_LOCK_PI not implemented\n");
 		return (ENOSYS);
 
 	case LINUX_FUTEX_UNLOCK_PI:
 		/* not yet implemented */
+		linux_msg(td,
+			  "linux_sys_futex: "
+			  "op LINUX_FUTEX_UNLOCK_PI not implemented\n");
 		return (ENOSYS);
 
 	case LINUX_FUTEX_TRYLOCK_PI:
 		/* not yet implemented */
+		linux_msg(td,
+			  "linux_sys_futex: "
+			  "op LINUX_FUTEX_TRYLOCK_PI not implemented\n");
 		return (ENOSYS);
 
 	case LINUX_FUTEX_REQUEUE:
@@ -644,15 +653,30 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		 */
 		em = em_find(td->td_proc, EMUL_DONTLOCK);
 		if (em->used_requeue == 0) {
-			printf("linux(%s (%d)) sys_futex: "
-			"unsupported futex_requeue op\n",
-			td->td_proc->p_comm, td->td_proc->p_pid);
-				em->used_requeue = 1;
+			linux_msg(td,
+				  "linux_sys_futex: "
+				  "unsupported futex_requeue op\n");
+			em->used_requeue = 1;
 		}
 		return (EINVAL);
 
+	case LINUX_FUTEX_WAIT_BITSET:
+		/* not yet implemented */
+		linux_msg(td,
+			  "linux_sys_futex: "
+			  "op FUTEX_WAIT_BITSET not implemented\n");
+		return (ENOSYS);
+
+	case LINUX_FUTEX_WAIT_REQUEUE_PI:
+		/* not yet implemented */
+		linux_msg(td,
+			  "linux_sys_futex: "
+			  "op FUTEX_WAIT_REQUEUE_PI not implemented\n");
+		return (ENOSYS);
+
 	default:
-		printf("linux_sys_futex: unknown op %d\n", args->op);
+		linux_msg(td,
+			  "linux_sys_futex: unknown op %d\n", args->op);
 		return (ENOSYS);
 	}
 
@@ -677,7 +701,7 @@ linux_set_robust_list(struct thread *td, struct linux_set_robust_list_args *args
 	em->robust_futexes = args->head;
 	EMUL_UNLOCK(&emul_lock);
 
-	return (0);	
+	return (0);
 }
 
 int
@@ -695,7 +719,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 
 	if (!args->pid) {
 		em = em_find(td->td_proc, EMUL_DONTLOCK);
-		head = em->robust_futexes;		
+		head = em->robust_futexes;
 	} else {
 		struct proc *p;
 
@@ -705,14 +729,14 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 
 		em = em_find(p, EMUL_DONTLOCK);
 		/* XXX: ptrace? */
-		if (priv_check(td, PRIV_CRED_SETUID) || 
+		if (priv_check(td, PRIV_CRED_SETUID) ||
 		    priv_check(td, PRIV_CRED_SETEUID) ||
 		    p_candebug(td, p)) {
 			PROC_UNLOCK(p);
 			return (EPERM);
 		}
 		head = em->robust_futexes;
-		
+
 		PROC_UNLOCK(p);
 	}
 

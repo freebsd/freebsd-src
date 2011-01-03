@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
+#include <sys/reboot.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
 
@@ -57,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_sim.h>
 
 #include <cam/ata/ata_all.h>
+
+#include <machine/md_var.h>	/* geometry translation */
 
 #ifdef _KERNEL
 
@@ -77,7 +80,8 @@ typedef enum {
 	ADA_FLAG_CAN_TRIM	= 0x080,
 	ADA_FLAG_OPEN		= 0x100,
 	ADA_FLAG_SCTX_INIT	= 0x200,
-	ADA_FLAG_CAN_CFA        = 0x400
+	ADA_FLAG_CAN_CFA        = 0x400,
+	ADA_FLAG_CAN_POWERMGT   = 0x800
 } ada_flags;
 
 typedef enum {
@@ -178,10 +182,22 @@ static void		adashutdown(void *arg, int howto);
 #define	ADA_DEFAULT_SEND_ORDERED	1
 #endif
 
+#ifndef	ADA_DEFAULT_SPINDOWN_SHUTDOWN
+#define	ADA_DEFAULT_SPINDOWN_SHUTDOWN	1
+#endif
+
+/*
+ * Most platforms map firmware geometry to actual, but some don't.  If
+ * not overridden, default to nothing.
+ */
+#ifndef ata_disk_firmware_geom_adjust
+#define	ata_disk_firmware_geom_adjust(disk)
+#endif
 
 static int ada_retry_count = ADA_DEFAULT_RETRY;
 static int ada_default_timeout = ADA_DEFAULT_TIMEOUT;
 static int ada_send_ordered = ADA_DEFAULT_SEND_ORDERED;
+static int ada_spindown_shutdown = ADA_DEFAULT_SPINDOWN_SHUTDOWN;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -194,6 +210,9 @@ TUNABLE_INT("kern.cam.ada.default_timeout", &ada_default_timeout);
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, ada_send_ordered, CTLFLAG_RW,
            &ada_send_ordered, 0, "Send Ordered Tags");
 TUNABLE_INT("kern.cam.ada.ada_send_ordered", &ada_send_ordered);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_shutdown, CTLFLAG_RW,
+           &ada_spindown_shutdown, 0, "Spin down upon shutdown");
+TUNABLE_INT("kern.cam.ada.spindown_shutdown", &ada_spindown_shutdown);
 
 /*
  * ADA_ORDEREDTAG_INTERVAL determines how often, relative
@@ -656,6 +675,8 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->flags |= ADA_FLAG_CAN_48BIT;
 	if (cgd->ident_data.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 		softc->flags |= ADA_FLAG_CAN_FLUSHCACHE;
+	if (cgd->ident_data.support.command1 & ATA_SUPPORT_POWERMGT)
+		softc->flags |= ADA_FLAG_CAN_POWERMGT;
 	if (cgd->ident_data.satacapabilities & ATA_SUPPORT_NCQ &&
 	    cgd->inq_flags & SID_CmdQue)
 		softc->flags |= ADA_FLAG_CAN_NCQ;
@@ -725,6 +746,10 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
 	strlcpy(softc->disk->d_ident, cgd->serial_num,
 	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
+	softc->disk->d_hba_vendor = cpi.hba_vendor;
+	softc->disk->d_hba_device = cpi.hba_device;
+	softc->disk->d_hba_subvendor = cpi.hba_subvendor;
+	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 
 	softc->disk->d_sectorsize = softc->params.secsize;
 	softc->disk->d_mediasize = (off_t)softc->params.sectors *
@@ -737,9 +762,9 @@ adaregister(struct cam_periph *periph, void *arg)
 		    ata_logical_sector_offset(&cgd->ident_data)) %
 		    softc->disk->d_stripesize;
 	}
-	/* XXX: these are not actually "firmware" values, so they may be wrong */
 	softc->disk->d_fwsectors = softc->params.secs_per_track;
 	softc->disk->d_fwheads = softc->params.heads;
+	ata_disk_firmware_geom_adjust(softc->disk);
 
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
@@ -861,7 +886,8 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		}
 		bioq_remove(&softc->bio_queue, bp);
 
-		if ((softc->flags & ADA_FLAG_NEED_OTAG) != 0) {
+		if ((bp->bio_flags & BIO_ORDERED) != 0
+		 || (softc->flags & ADA_FLAG_NEED_OTAG) != 0) {
 			softc->flags &= ~ADA_FLAG_NEED_OTAG;
 			softc->ordered_tag_count++;
 			tag_code = 0;
@@ -1204,6 +1230,56 @@ adashutdown(void * arg, int howto)
 
 		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 			xpt_print(periph->path, "Synchronize cache failed\n");
+
+		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(ccb.ccb_h.path,
+					 /*relsim_flags*/0,
+					 /*reduction*/0,
+					 /*timeout*/0,
+					 /*getcount_only*/0);
+		cam_periph_unlock(periph);
+	}
+
+	if (ada_spindown_shutdown == 0 ||
+	    (howto & (RB_HALT | RB_POWEROFF)) == 0)
+		return;
+
+	TAILQ_FOREACH(periph, &adadriver.units, unit_links) {
+		union ccb ccb;
+
+		/* If we paniced with lock held - not recurse here. */
+		if (cam_periph_owned(periph))
+			continue;
+		cam_periph_lock(periph);
+		softc = (struct ada_softc *)periph->softc;
+		/*
+		 * We only spin-down the drive if it is capable of it..
+		 */
+		if ((softc->flags & ADA_FLAG_CAN_POWERMGT) == 0) {
+			cam_periph_unlock(periph);
+			continue;
+		}
+
+		if (bootverbose)
+			xpt_print(periph->path, "spin-down\n");
+
+		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+
+		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
+		cam_fill_ataio(&ccb.ataio,
+				    1,
+				    adadone,
+				    CAM_DIR_NONE,
+				    0,
+				    NULL,
+				    0,
+				    ada_default_timeout*1000);
+
+		ata_28bit_cmd(&ccb.ataio, ATA_STANDBY_IMMEDIATE, 0, 0, 0);
+		xpt_polled_action(&ccb);
+
+		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+			xpt_print(periph->path, "Spin-down disk failed\n");
 
 		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
 			cam_release_devq(ccb.ccb_h.path,

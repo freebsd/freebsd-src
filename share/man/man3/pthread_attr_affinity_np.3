@@ -94,8 +94,6 @@ to indicate the error.
 .Sh ERRORS
 The
 .Fn pthread_attr_getaffinity_np
-and
-.Fn pthread_attr_setaffinity_np
 functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -103,6 +101,10 @@ The
 .Fa pattr
 or the attribute specified by it is
 .Dv NULL .
+.It Bq Er ERANGE
+The
+.Fa cpusetsize
+is too small.
 .El
 .Pp
 The
@@ -114,6 +116,14 @@ The
 .Fa pattr
 or the attribute specified by it is
 .Dv NULL .
+.It Bq Er EINVAL
+The
+.Fa cpusetp
+specified a CPU that was outside the set supported by the kernel. 
+.It Bq Er ERANGE
+The
+.Fa cpusetsize
+is too small.
 .It Bq Er ENOMEM
 Insufficient memory exists to store the cpuset mask.
 .El

@@ -26,9 +26,13 @@
 #define	IPI_AST			0x0004
 #define	IPI_STOP		0x0008
 #define	IPI_STOP_HARD		0x0008
+#define	IPI_PREEMPT		0x0010
+#define	IPI_HARDCLOCK		0x0020
 
 #ifndef LOCORE
 
+void	ipi_all_but_self(int ipi);
+void	ipi_cpu(int cpu, u_int ipi);
 void	ipi_selected(cpumask_t cpus, int ipi);
 void	smp_init_secondary(u_int32_t cpuid);
 void	mpentry(void);

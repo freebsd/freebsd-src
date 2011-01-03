@@ -29,22 +29,36 @@
 #define	_MACHINE_INTR_MACHDEP_H_
 
 #define	INTR_VECTORS	256
+#define	MAX_PICS	5
 
-extern device_t pic;
-extern device_t pic8259;
+#define	IGN_SHIFT	8
+#define	INTR_INTLINE(irq) (irq & ((1 << IGN_SHIFT) - 1))
+#define	INTR_IGN(irq)	(irq >> IGN_SHIFT)
+
+#define	INTR_VEC(pic_id, irq) ((powerpc_ign_lookup(pic_id) << IGN_SHIFT) | (irq))
+
+/*
+ * Default base address for MSI messages on PowerPC
+ */
+#define	MSI_INTEL_ADDR_BASE		0xfee00000
+
+extern device_t root_pic;
 
 struct trapframe;
 
 driver_filter_t powerpc_ipi_handler;
 
+void	intrcnt_add(const char *name, u_long **countp);
+
 void	powerpc_register_pic(device_t, u_int);
-void	powerpc_register_8259(device_t);
+int	powerpc_ign_lookup(uint32_t pic_id);
 
 void	powerpc_dispatch_intr(u_int, struct trapframe *);
 int	powerpc_enable_intr(void);
-int	powerpc_setup_intr(const char *, u_int, driver_filter_t,
-    driver_intr_t, void *, enum intr_type, void **);
+int	powerpc_setup_intr(const char *, u_int, driver_filter_t, driver_intr_t,
+	    void *, enum intr_type, void **);
 int	powerpc_teardown_intr(void *);
+int	powerpc_bind_intr(u_int irq, u_char cpu);
 int	powerpc_config_intr(int, enum intr_trigger, enum intr_polarity);
 
 #endif /* _MACHINE_INTR_MACHDEP_H_ */

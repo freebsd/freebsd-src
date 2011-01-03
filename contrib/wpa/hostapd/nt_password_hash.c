@@ -15,7 +15,7 @@
 #include "includes.h"
 
 #include "common.h"
-#include "ms_funcs.h"
+#include "crypto/ms_funcs.h"
 
 
 int main(int argc, char *argv[])
@@ -43,7 +43,8 @@ int main(int argc, char *argv[])
 		password = buf;
 	}
 
-	nt_password_hash((u8 *) password, strlen(password), password_hash);
+	if (nt_password_hash((u8 *) password, strlen(password), password_hash))
+		return -1;
 	for (i = 0; i < sizeof(password_hash); i++)
 		printf("%02x", password_hash[i]);
 	printf("\n");

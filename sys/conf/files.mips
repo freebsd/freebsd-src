@@ -22,7 +22,6 @@
 mips/mips/machdep.c		standard
 mips/mips/mp_machdep.c		optional smp
 mips/mips/mpboot.S		optional smp
-mips/mips/psraccess.S		standard
 # ----------------------------------------------------------------------
 # Phase 3
 # ----------------------------------------------------------------------
@@ -44,7 +43,7 @@ mips/mips/vm_machdep.c		standard
 mips/mips/fp.S			standard
 mips/mips/pm_machdep.c		standard
 mips/mips/swtch.S		standard
-mips/mips/tlb.S			standard
+mips/mips/tlb.c			standard
 
 mips/mips/bus_space_generic.c 	standard
 mips/mips/busdma_machdep.c 	standard
@@ -56,6 +55,7 @@ mips/mips/db_trace.c		optional	ddb
 mips/mips/dump_machdep.c	standard
 mips/mips/in_cksum.c		optional	inet
 mips/mips/locore.S		standard	no-obj
+mips/mips/minidump_machdep.c	standard
 mips/mips/mem.c			optional	mem
 mips/mips/nexus.c		standard
 mips/mips/stack_machdep.c	optional	ddb | stack
@@ -63,6 +63,7 @@ mips/mips/support.S		standard
 mips/mips/sys_machdep.c		standard
 mips/mips/swtch.S		standard
 mips/mips/uio_machdep.c		standard
+mips/mips/uma_machdep.c		standard
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 geom/geom_bsd.c			optional	geom_bsd
@@ -88,6 +89,7 @@ libkern/umoddi3.c		optional	isa_mips32
 #libkern/mips/strcmp.S		standard
 #libkern/mips/strncmp.S		standard
 
+kern/kern_clocksource.c		standard
 kern/link_elf_obj.c		standard
 
 dev/cfe/cfe_api.c		optional	cfe

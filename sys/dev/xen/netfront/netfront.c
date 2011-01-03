@@ -89,9 +89,7 @@ __FBSDID("$FreeBSD$");
 
 #include "xenbus_if.h"
 
-#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
-
-#define GRANT_INVALID_REF	0
+#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP | CSUM_TSO)
 
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
@@ -124,7 +122,16 @@ static const int MODPARM_rx_copy = 1;
 static const int MODPARM_rx_flip = 0;
 #endif
 
-#define MAX_SKB_FRAGS	(65536/PAGE_SIZE + 2)
+/**
+ * \brief The maximum allowed data fragments in a single transmit
+ *        request.
+ *
+ * This limit is imposed by the backend driver.  We assume here that
+ * we are dealing with a Linux driver domain and have set our limit
+ * to mirror the Linux MAX_SKB_FRAGS constant.
+ */
+#define	MAX_TX_REQ_FRAGS (65536 / PAGE_SIZE + 2)
+
 #define RX_COPY_THRESHOLD 256
 
 #define net_ratelimit() 0
@@ -140,6 +147,9 @@ static void xn_tick_locked(struct netfront_info *);
 static void xn_tick(void *);
 
 static void xn_intr(void *);
+static inline int xn_count_frags(struct mbuf *m);
+static int  xn_assemble_tx_request(struct netfront_info *sc,
+				   struct mbuf *m_head);
 static void xn_start_locked(struct ifnet *);
 static void xn_start(struct ifnet *);
 static int  xn_ioctl(struct ifnet *, u_long, caddr_t);
@@ -174,8 +184,8 @@ static void xn_free_rx_ring(struct netfront_info *);
 static void xn_free_tx_ring(struct netfront_info *);
 
 static int xennet_get_responses(struct netfront_info *np,
-	struct netfront_rx_info *rinfo, RING_IDX rp, struct mbuf **list,
-	int *pages_flipped_p);
+	struct netfront_rx_info *rinfo, RING_IDX rp, RING_IDX *cons,
+	struct mbuf **list, int *pages_flipped_p);
 
 #define virt_to_mfn(x) (vtomach(x) >> PAGE_SHIFT)
 
@@ -187,11 +197,12 @@ static int xennet_get_responses(struct netfront_info *np,
  * not the other way around.  The size must track the free index arrays.
  */
 struct xn_chain_data {
-		struct mbuf		*xn_tx_chain[NET_TX_RING_SIZE+1];
-		int			xn_tx_chain_cnt;
-		struct mbuf		*xn_rx_chain[NET_RX_RING_SIZE+1];
+	struct mbuf    *xn_tx_chain[NET_TX_RING_SIZE+1];
+	int		xn_tx_chain_cnt;
+	struct mbuf    *xn_rx_chain[NET_RX_RING_SIZE+1];
 };
 
+#define NUM_ELEMENTS(x) (sizeof(x)/sizeof(*x))
 
 struct net_device_stats
 {
@@ -255,17 +266,11 @@ struct netfront_info {
 	int rx_max_target;
 	int rx_target;
 
-	/*
-	 * {tx,rx}_skbs store outstanding skbuffs. The first entry in each
-	 * array is an index into a chain of free entries.
-	 */
-
 	grant_ref_t gref_tx_head;
 	grant_ref_t grant_tx_ref[NET_TX_RING_SIZE + 1]; 
 	grant_ref_t gref_rx_head;
 	grant_ref_t grant_rx_ref[NET_TX_RING_SIZE + 1]; 
 
-#define TX_MAX_TARGET min(NET_RX_RING_SIZE, 256)
 	device_t		xbdev;
 	int			tx_ring_ref;
 	int			rx_ring_ref;
@@ -288,7 +293,7 @@ struct netfront_info {
 #define XN_LOCK_INIT(_sc, _name) \
         mtx_init(&(_sc)->tx_lock, #_name"_tx", "network transmit lock", MTX_DEF); \
         mtx_init(&(_sc)->rx_lock, #_name"_rx", "network receive lock", MTX_DEF);  \
-    mtx_init(&(_sc)->sc_lock, #_name"_sc", "netfront softc lock", MTX_DEF)
+        mtx_init(&(_sc)->sc_lock, #_name"_sc", "netfront softc lock", MTX_DEF)
 
 #define XN_RX_LOCK(_sc)           mtx_lock(&(_sc)->rx_lock)
 #define XN_RX_UNLOCK(_sc)         mtx_unlock(&(_sc)->rx_lock)
@@ -324,18 +329,22 @@ struct netfront_rx_info {
  */
 
 static inline void
-add_id_to_freelist(struct mbuf **list, unsigned short id)
+add_id_to_freelist(struct mbuf **list, uintptr_t id)
 {
-	KASSERT(id != 0, ("add_id_to_freelist: the head item (0) must always be free."));
+	KASSERT(id != 0,
+		("%s: the head item (0) must always be free.", __func__));
 	list[id] = list[0];
-	list[0]  = (void *)(u_long)id;
+	list[0]  = (struct mbuf *)id;
 }
 
 static inline unsigned short
 get_id_from_freelist(struct mbuf **list)
 {
-	u_int id = (u_int)(u_long)list[0];
-	KASSERT(id != 0, ("get_id_from_freelist: the head item (0) must always remain free."));
+	uintptr_t id;
+
+	id = (uintptr_t)list[0];
+	KASSERT(id != 0,
+		("%s: the head item (0) must always remain free.", __func__));
 	list[0] = list[id];
 	return (id);
 }
@@ -347,8 +356,7 @@ xennet_rxidx(RING_IDX idx)
 }
 
 static inline struct mbuf *
-xennet_get_rx_mbuf(struct netfront_info *np,
-						RING_IDX ri)
+xennet_get_rx_mbuf(struct netfront_info *np, RING_IDX ri)
 {
 	int i = xennet_rxidx(ri);
 	struct mbuf *m;
@@ -363,7 +371,8 @@ xennet_get_rx_ref(struct netfront_info *np, RING_IDX ri)
 {
 	int i = xennet_rxidx(ri);
 	grant_ref_t ref = np->grant_rx_ref[i];
-	np->grant_rx_ref[i] = GRANT_INVALID_REF;
+	KASSERT(ref != GRANT_REF_INVALID, ("Invalid grant reference!\n"));
+	np->grant_rx_ref[i] = GRANT_REF_INVALID;
 	return ref;
 }
 
@@ -394,7 +403,7 @@ xen_net_read_mac(device_t dev, uint8_t mac[])
 	int error, i;
 	char *s, *e, *macstr;
 
-	error = xenbus_read(XBT_NIL, xenbus_get_node(dev), "mac", NULL,
+	error = xs_read(XST_NIL, xenbus_get_node(dev), "mac", NULL,
 	    (void **) &macstr);
 	if (error)
 		return (error);
@@ -403,12 +412,12 @@ xen_net_read_mac(device_t dev, uint8_t mac[])
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		mac[i] = strtoul(s, &e, 16);
 		if (s == e || (e[0] != ':' && e[0] != 0)) {
-			free(macstr, M_DEVBUF);
+			free(macstr, M_XENBUS);
 			return (ENOENT);
 		}
 		s = &e[1];
 	}
-	free(macstr, M_DEVBUF);
+	free(macstr, M_XENBUS);
 	return (0);
 }
 
@@ -473,7 +482,7 @@ static int
 talk_to_backend(device_t dev, struct netfront_info *info)
 {
 	const char *message;
-	struct xenbus_transaction xbt;
+	struct xs_transaction xst;
 	const char *node = xenbus_get_node(dev);
 	int err;
 
@@ -489,54 +498,54 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		goto out;
 	
  again:
-	err = xenbus_transaction_start(&xbt);
+	err = xs_transaction_start(&xst);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "starting transaction");
 		goto destroy_ring;
 	}
-	err = xenbus_printf(xbt, node, "tx-ring-ref","%u",
-			    info->tx_ring_ref);
+	err = xs_printf(xst, node, "tx-ring-ref","%u",
+			info->tx_ring_ref);
 	if (err) {
 		message = "writing tx ring-ref";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "rx-ring-ref","%u",
-			    info->rx_ring_ref);
+	err = xs_printf(xst, node, "rx-ring-ref","%u",
+			info->rx_ring_ref);
 	if (err) {
 		message = "writing rx ring-ref";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node,
-		"event-channel", "%u", irq_to_evtchn_port(info->irq));
+	err = xs_printf(xst, node,
+			"event-channel", "%u", irq_to_evtchn_port(info->irq));
 	if (err) {
 		message = "writing event-channel";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "request-rx-copy", "%u",
-			    info->copying_receiver);
+	err = xs_printf(xst, node, "request-rx-copy", "%u",
+			info->copying_receiver);
 	if (err) {
 		message = "writing request-rx-copy";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "feature-rx-notify", "%d", 1);
+	err = xs_printf(xst, node, "feature-rx-notify", "%d", 1);
 	if (err) {
 		message = "writing feature-rx-notify";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "feature-sg", "%d", 1);
+	err = xs_printf(xst, node, "feature-sg", "%d", 1);
 	if (err) {
 		message = "writing feature-sg";
 		goto abort_transaction;
 	}
 #if __FreeBSD_version >= 700000
-	err = xenbus_printf(xbt, node, "feature-gso-tcpv4", "%d", 1);
+	err = xs_printf(xst, node, "feature-gso-tcpv4", "%d", 1);
 	if (err) {
 		message = "writing feature-gso-tcpv4";
 		goto abort_transaction;
 	}
 #endif
 
-	err = xenbus_transaction_end(xbt, 0);
+	err = xs_transaction_end(xst, 0);
 	if (err) {
 		if (err == EAGAIN)
 			goto again;
@@ -547,7 +556,7 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 	return 0;
 	
  abort_transaction:
-	xenbus_transaction_end(xbt, 1);
+	xs_transaction_end(xst, 1);
 	xenbus_dev_fatal(dev, err, "%s", message);
  destroy_ring:
 	netif_free(info);
@@ -566,8 +575,8 @@ setup_device(device_t dev, struct netfront_info *info)
 	
 	ifp = info->xn_ifp;
 
-	info->tx_ring_ref = GRANT_INVALID_REF;
-	info->rx_ring_ref = GRANT_INVALID_REF;
+	info->tx_ring_ref = GRANT_REF_INVALID;
+	info->rx_ring_ref = GRANT_REF_INVALID;
 	info->rx.sring = NULL;
 	info->tx.sring = NULL;
 	info->irq = 0;
@@ -674,9 +683,9 @@ xn_free_rx_ring(struct netfront_info *sc)
 	int i;
 	
 	for (i = 0; i < NET_RX_RING_SIZE; i++) {
-		if (sc->xn_cdata.xn_rx_chain[i] != NULL) {
-			m_freem(sc->xn_cdata.xn_rx_chain[i]);
-			sc->xn_cdata.xn_rx_chain[i] = NULL;
+		if (sc->xn_cdata.rx_mbufs[i] != NULL) {
+			m_freem(sc->rx_mbufs[i]);
+			sc->rx_mbufs[i] = NULL;
 		}
 	}
 	
@@ -693,8 +702,8 @@ xn_free_tx_ring(struct netfront_info *sc)
 	int i;
 	
 	for (i = 0; i < NET_TX_RING_SIZE; i++) {
-		if (sc->xn_cdata.xn_tx_chain[i] != NULL) {
-			m_freem(sc->xn_cdata.xn_tx_chain[i]);
+		if (sc->tx_mbufs[i] != NULL) {
+			m_freem(sc->tx_mbufs[i]);
 			sc->xn_cdata.xn_tx_chain[i] = NULL;
 		}
 	}
@@ -703,39 +712,36 @@ xn_free_tx_ring(struct netfront_info *sc)
 #endif
 }
 
-/*
- * Do some brief math on the number of descriptors available to
- * determine how many slots are available.
+/**
+ * \brief Verify that there is sufficient space in the Tx ring
+ *        buffer for a maximally sized request to be enqueued.
  *
- * Firstly - wouldn't something with RING_FREE_REQUESTS() be more applicable?
- * Secondly - MAX_SKB_FRAGS is a Linux construct which may not apply here.
- * Thirdly - it isn't used here anyway; the magic constant '24' is possibly
- *   wrong?
- * The "2" is presumably to ensure there are also enough slots available for
- * the ring entries used for "options" (eg, the TSO entry before a packet
- * is queued); I'm not sure why its 2 and not 1. Perhaps to make sure there's
- * a "free" node in the tx mbuf list (node 0) to represent the freelist?
- *
- * This only figures out whether any xenbus ring descriptors are available;
- * it doesn't at all reflect how many tx mbuf ring descriptors are also
- * available.
+ * A transmit request requires a transmit descriptor for each packet
+ * fragment, plus up to 2 entries for "options" (e.g. TSO).
  */
 static inline int
-netfront_tx_slot_available(struct netfront_info *np)
+xn_tx_slot_available(struct netfront_info *np)
 {
-	return ((np->tx.req_prod_pvt - np->tx.rsp_cons) <
-		(TX_MAX_TARGET - /* MAX_SKB_FRAGS */ 24 - 2));
+	return (RING_FREE_REQUESTS(&np->tx) > (MAX_TX_REQ_FRAGS + 2));
 }
+
 static void
 netif_release_tx_bufs(struct netfront_info *np)
 {
-	struct mbuf *m;
 	int i;
 
 	for (i = 1; i <= NET_TX_RING_SIZE; i++) {
-		m = np->xn_cdata.xn_tx_chain[i];
+		struct mbuf *m;
 
-		if (((u_long)m) < KERNBASE)
+		m = np->tx_mbufs[i];
+
+		/*
+		 * We assume that no kernel addresses are
+		 * less than NET_TX_RING_SIZE.  Any entry
+		 * in the table that is below this number
+		 * must be an index from free-list tracking.
+		 */
+		if (((uintptr_t)m) <= NET_TX_RING_SIZE)
 			continue;
 		gnttab_grant_foreign_access_ref(np->grant_tx_ref[i],
 		    xenbus_get_otherend_id(np->xbdev),
@@ -743,7 +749,7 @@ netif_release_tx_bufs(struct netfront_info *np)
 		    GNTMAP_readonly);
 		gnttab_release_grant_reference(&np->gref_tx_head,
 		    np->grant_tx_ref[i]);
-		np->grant_tx_ref[i] = GRANT_INVALID_REF;
+		np->grant_tx_ref[i] = GRANT_REF_INVALID;
 		add_id_to_freelist(np->tx_mbufs, i);
 		np->xn_cdata.xn_tx_chain_cnt--;
 		if (np->xn_cdata.xn_tx_chain_cnt < 0) {
@@ -774,19 +780,25 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 		return;
 	
 	/*
-	 * Allocate skbuffs greedily, even though we batch updates to the
+	 * Allocate mbufs greedily, even though we batch updates to the
 	 * receive ring. This creates a less bursty demand on the memory
-	 * allocator, so should reduce the chance of failed allocation
+	 * allocator, and so should reduce the chance of failed allocation
 	 * requests both for ourself and for other kernel subsystems.
+	 *
+	 * Here we attempt to maintain rx_target buffers in flight, counting
+	 * buffers that we have yet to process in the receive ring.
 	 */
 	batch_target = sc->rx_target - (req_prod - sc->rx.rsp_cons);
 	for (i = mbufq_len(&sc->xn_rx_batch); i < batch_target; i++) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) 
+		if (m_new == NULL) {
+			printf("%s: MGETHDR failed\n", __func__);
 			goto no_mbuf;
+		}
 
 		m_cljget(m_new, M_DONTWAIT, MJUMPAGESIZE);
 		if ((m_new->m_flags & M_EXT) == 0) {
+			printf("%s: m_cljget failed\n", __func__);
 			m_freem(m_new);
 
 no_mbuf:
@@ -803,16 +815,29 @@ no_mbuf:
 		mbufq_tail(&sc->xn_rx_batch, m_new);
 	}
 	
-	/* Is the batch large enough to be worthwhile? */
+	/*
+	 * If we've allocated at least half of our target number of entries,
+	 * submit them to the backend - we have enough to make the overhead
+	 * of submission worthwhile.  Otherwise wait for more mbufs and
+	 * request entries to become available.
+	 */
 	if (i < (sc->rx_target/2)) {
 		if (req_prod >sc->rx.sring->req_prod)
 			goto push;
 		return;
 	}
-	/* Adjust floating fill target if we risked running out of buffers. */
-	if ( ((req_prod - sc->rx.sring->rsp_prod) < (sc->rx_target / 4)) &&
-	     ((sc->rx_target *= 2) > sc->rx_max_target) )
-		sc->rx_target = sc->rx_max_target;
+
+	/*
+	 * Double floating fill target if we risked having the backend
+	 * run out of empty buffers for receive traffic.  We define "running
+	 * low" as having less than a fourth of our target buffers free
+	 * at the time we refilled the queue. 
+	 */
+	if ((req_prod - sc->rx.sring->rsp_prod) < (sc->rx_target / 4)) {
+		sc->rx_target *= 2;
+		if (sc->rx_target > sc->rx_max_target)
+			sc->rx_target = sc->rx_max_target;
+	}
 
 refill:
 	for (nr_flips = i = 0; ; i++) {
@@ -824,12 +849,12 @@ refill:
 
 		id = xennet_rxidx(req_prod + i);
 
-		KASSERT(sc->xn_cdata.xn_rx_chain[id] == NULL,
-		    ("non-NULL xm_rx_chain"));
-		sc->xn_cdata.xn_rx_chain[id] = m_new;
+		KASSERT(sc->rx_mbufs[id] == NULL, ("non-NULL xm_rx_chain"));
+		sc->rx_mbufs[id] = m_new;
 
 		ref = gnttab_claim_grant_reference(&sc->gref_rx_head);
-		KASSERT((short)ref >= 0, ("negative ref"));
+		KASSERT(ref != GNTTAB_LIST_END,
+			("reserved grant references exhuasted"));
 		sc->grant_rx_ref[id] = ref;
 
 		vaddr = mtod(m_new, vm_offset_t);
@@ -950,14 +975,13 @@ xn_rxeof(struct netfront_info *np)
 			memset(extras, 0, sizeof(rinfo.extras));
 
 			m = NULL;
-			err = xennet_get_responses(np, &rinfo, rp, &m,
+			err = xennet_get_responses(np, &rinfo, rp, &i, &m,
 			    &pages_flipped);
 
 			if (unlikely(err)) {
 				if (m)
 					mbufq_tail(&errq, m);
 				np->stats.rx_errors++;
-				i = np->rx.rsp_cons;
 				continue;
 			}
 
@@ -979,7 +1003,7 @@ xn_rxeof(struct netfront_info *np)
 			np->stats.rx_bytes += m->m_pkthdr.len;
 
 			mbufq_tail(&rxq, m);
-			np->rx.rsp_cons = ++i;
+			np->rx.rsp_cons = i;
 		}
 
 		if (pages_flipped) {
@@ -1084,9 +1108,16 @@ xn_txeof(struct netfront_info *np)
 			if (txr->status == NETIF_RSP_NULL)
 				continue;
 
+			if (txr->status != NETIF_RSP_OKAY) {
+				printf("%s: WARNING: response is %d!\n",
+				       __func__, txr->status);
+			}
 			id = txr->id;
-			m = np->xn_cdata.xn_tx_chain[id]; 
+			m = np->tx_mbufs[id]; 
 			KASSERT(m != NULL, ("mbuf not found in xn_tx_chain"));
+			KASSERT((uintptr_t)m > NET_TX_RING_SIZE,
+				("mbuf already on the free list, but we're "
+				"trying to free it again!"));
 			M_ASSERTVALID(m);
 			
 			/*
@@ -1097,23 +1128,18 @@ xn_txeof(struct netfront_info *np)
 				ifp->if_opackets++;
 			if (unlikely(gnttab_query_foreign_access(
 			    np->grant_tx_ref[id]) != 0)) {
-				WPRINTK("network_tx_buf_gc: warning "
-				    "-- grant still in use by backend "
-				    "domain.\n");
-				goto out; 
+				panic("grant id %u still in use by the backend",
+				      id);
 			}
 			gnttab_end_foreign_access_ref(
 				np->grant_tx_ref[id]);
 			gnttab_release_grant_reference(
 				&np->gref_tx_head, np->grant_tx_ref[id]);
-			np->grant_tx_ref[id] = GRANT_INVALID_REF;
+			np->grant_tx_ref[id] = GRANT_REF_INVALID;
 			
-			np->xn_cdata.xn_tx_chain[id] = NULL;
-			add_id_to_freelist(np->xn_cdata.xn_tx_chain, id);
+			np->tx_mbufs[id] = NULL;
+			add_id_to_freelist(np->tx_mbufs, id);
 			np->xn_cdata.xn_tx_chain_cnt--;
-			if (np->xn_cdata.xn_tx_chain_cnt < 0) {
-				panic("netif_release_tx_bufs: tx_chain_cnt must be >= 0");
-			}
 			m_free(m);
 			/* Only mark the queue active if we've freed up at least one slot to try */
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1135,7 +1161,6 @@ xn_txeof(struct netfront_info *np)
 		mb();
 	} while (prod != np->tx.sring->rsp_prod);
 	
- out: 
 	if (np->tx_full &&
 	    ((np->tx.sring->req_prod - prod) < NET_TX_RING_SIZE)) {
 		np->tx_full = 0;
@@ -1159,7 +1184,7 @@ xn_intr(void *xsc)
 	    ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 #endif
-	if (np->tx.rsp_cons != np->tx.sring->rsp_prod) {
+	if (RING_HAS_UNCONSUMED_RESPONSES(&np->tx)) {
 		XN_TX_LOCK(np);
 		xn_txeof(np);
 		XN_TX_UNLOCK(np);			
@@ -1191,10 +1216,9 @@ xennet_move_rx_slot(struct netfront_info *np, struct mbuf *m,
 
 static int
 xennet_get_extras(struct netfront_info *np,
-    struct netif_extra_info *extras, RING_IDX rp)
+    struct netif_extra_info *extras, RING_IDX rp, RING_IDX *cons)
 {
 	struct netif_extra_info *extra;
-	RING_IDX cons = np->rx.rsp_cons;
 
 	int err = 0;
 
@@ -1202,17 +1226,17 @@ xennet_get_extras(struct netfront_info *np,
 		struct mbuf *m;
 		grant_ref_t ref;
 
-		if (unlikely(cons + 1 == rp)) {
+		if (unlikely(*cons + 1 == rp)) {
 #if 0			
 			if (net_ratelimit())
 				WPRINTK("Missing extra info\n");
 #endif			
-			err = -EINVAL;
+			err = EINVAL;
 			break;
 		}
 
 		extra = (struct netif_extra_info *)
-		RING_GET_RESPONSE(&np->rx, ++cons);
+		RING_GET_RESPONSE(&np->rx, ++(*cons));
 
 		if (unlikely(!extra->type ||
 			extra->type >= XEN_NETIF_EXTRA_TYPE_MAX)) {
@@ -1221,23 +1245,22 @@ xennet_get_extras(struct netfront_info *np,
 				WPRINTK("Invalid extra type: %d\n",
 					extra->type);
 #endif			
-			err = -EINVAL;
+			err = EINVAL;
 		} else {
 			memcpy(&extras[extra->type - 1], extra, sizeof(*extra));
 		}
 
-		m = xennet_get_rx_mbuf(np, cons);
-		ref = xennet_get_rx_ref(np, cons);
+		m = xennet_get_rx_mbuf(np, *cons);
+		ref = xennet_get_rx_ref(np, *cons);
 		xennet_move_rx_slot(np, m, ref);
 	} while (extra->flags & XEN_NETIF_EXTRA_FLAG_MORE);
 
-	np->rx.rsp_cons = cons;
 	return err;
 }
 
 static int
 xennet_get_responses(struct netfront_info *np,
-	struct netfront_rx_info *rinfo, RING_IDX rp,
+	struct netfront_rx_info *rinfo, RING_IDX rp, RING_IDX *cons,
 	struct mbuf  **list,
 	int *pages_flipped_p)
 {
@@ -1246,26 +1269,25 @@ xennet_get_responses(struct netfront_info *np,
 	struct multicall_entry *mcl;
 	struct netif_rx_response *rx = &rinfo->rx;
 	struct netif_extra_info *extras = rinfo->extras;
-	RING_IDX cons = np->rx.rsp_cons;
 	struct mbuf *m, *m0, *m_prev;
-	grant_ref_t ref = xennet_get_rx_ref(np, cons);
-	int max = 5 /* MAX_SKB_FRAGS + (rx->status <= RX_COPY_THRESHOLD) */;
+	grant_ref_t ref = xennet_get_rx_ref(np, *cons);
+	RING_IDX ref_cons = *cons;
+	int max = 5 /* MAX_TX_REQ_FRAGS + (rx->status <= RX_COPY_THRESHOLD) */;
 	int frags = 1;
 	int err = 0;
 	u_long ret;
 
-	m0 = m = m_prev = xennet_get_rx_mbuf(np, cons);
+	m0 = m = m_prev = xennet_get_rx_mbuf(np, *cons);
 
 	
 	if (rx->flags & NETRXF_extra_info) {
-		err = xennet_get_extras(np, extras, rp);
-		cons = np->rx.rsp_cons;
+		err = xennet_get_extras(np, extras, rp, cons);
 	}
 
 
 	if (m0 != NULL) {
-			m0->m_pkthdr.len = 0;
-			m0->m_next = NULL;
+		m0->m_pkthdr.len = 0;
+		m0->m_next = NULL;
 	}
 	
 	for (;;) {
@@ -1277,14 +1299,18 @@ xennet_get_responses(struct netfront_info *np,
 #endif
 		if (unlikely(rx->status < 0 ||
 			rx->offset + rx->status > PAGE_SIZE)) {
+
 #if 0						
 			if (net_ratelimit())
 				WPRINTK("rx->offset: %x, size: %u\n",
 					rx->offset, rx->status);
 #endif						
 			xennet_move_rx_slot(np, m, ref);
-			err = -EINVAL;
-			goto next;
+			if (m0 == m)
+				m0 = NULL;
+			m = NULL;
+			err = EINVAL;
+			goto next_skip_queue;
 		}
 		
 		/*
@@ -1292,12 +1318,14 @@ xennet_get_responses(struct netfront_info *np,
 		 * the backend driver. In future this should flag the bad
 		 * situation to the system controller to reboot the backed.
 		 */
-		if (ref == GRANT_INVALID_REF) {
+		if (ref == GRANT_REF_INVALID) {
+
 #if 0 				
 			if (net_ratelimit())
 				WPRINTK("Bad rx response id %d.\n", rx->id);
 #endif			
-			err = -EINVAL;
+			printf("%s: Bad rx response id %d.\n", __func__,rx->id);
+			err = EINVAL;
 			goto next;
 		}
 
@@ -1306,12 +1334,10 @@ xennet_get_responses(struct netfront_info *np,
 			 * headroom, ...
 			 */
 			if (!(mfn = gnttab_end_foreign_transfer_ref(ref))) {
-				if (net_ratelimit())
-					WPRINTK("Unfulfilled rx req "
-						"(id=%d, st=%d).\n",
-						rx->id, rx->status);
+				WPRINTK("Unfulfilled rx req (id=%d, st=%d).\n",
+					rx->id, rx->status);
 				xennet_move_rx_slot(np, m, ref);
-				err = -ENOMEM;
+				err = ENOMEM;
 				goto next;
 			}
 
@@ -1349,23 +1375,43 @@ next:
 		m->m_data += rx->offset;
 		m0->m_pkthdr.len += rx->status;
 		
+next_skip_queue:
 		if (!(rx->flags & NETRXF_more_data))
 			break;
 
-		if (cons + frags == rp) {
+		if (*cons + frags == rp) {
 			if (net_ratelimit())
 				WPRINTK("Need more frags\n");
-			err = -ENOENT;
-				break;
+			err = ENOENT;
+			printf("%s: cons %u frags %u rp %u, not enough frags\n",
+			       __func__, *cons, frags, rp);
+			break;
 		}
+		/*
+		 * Note that m can be NULL, if rx->status < 0 or if
+		 * rx->offset + rx->status > PAGE_SIZE above.  
+		 */
 		m_prev = m;
 		
-		rx = RING_GET_RESPONSE(&np->rx, cons + frags);
-		m = xennet_get_rx_mbuf(np, cons + frags);
+		rx = RING_GET_RESPONSE(&np->rx, *cons + frags);
+		m = xennet_get_rx_mbuf(np, *cons + frags);
 
-		m_prev->m_next = m;
+		/*
+		 * m_prev == NULL can happen if rx->status < 0 or if
+		 * rx->offset + * rx->status > PAGE_SIZE above.  
+		 */
+		if (m_prev != NULL)
+			m_prev->m_next = m;
+
+		/*
+		 * m0 can be NULL if rx->status < 0 or if * rx->offset +
+		 * rx->status > PAGE_SIZE above.  
+		 */
+		if (m0 == NULL)
+			m0 = m;
 		m->m_next = NULL;
-		ref = xennet_get_rx_ref(np, cons + frags);
+		ref = xennet_get_rx_ref(np, *cons + frags);
+		ref_cons = *cons + frags;
 		frags++;
 	}
 	*list = m0;
@@ -1373,11 +1419,12 @@ next:
 	if (unlikely(frags > max)) {
 		if (net_ratelimit())
 			WPRINTK("Too many frags\n");
-		err = -E2BIG;
+		printf("%s: too many frags %d > max %d\n", __func__, frags,
+		       max);
+		err = E2BIG;
 	}
 
-	if (unlikely(err))
-		np->rx.rsp_cons = cons + frags;
+	*cons += frags;
 
 	*pages_flipped_p = pages_flipped;
 
@@ -1406,199 +1453,224 @@ xn_tick(void *xsc)
 	XN_RX_UNLOCK(sc);
      
 }
+
+/**
+ * \brief Count the number of fragments in an mbuf chain.
+ *
+ * Surprisingly, there isn't an M* macro for this.
+ */
+static inline int
+xn_count_frags(struct mbuf *m)
+{
+	int nfrags;
+
+	for (nfrags = 0; m != NULL; m = m->m_next)
+		nfrags++;
+
+	return (nfrags);
+}
+
+/**
+ * Given an mbuf chain, make sure we have enough room and then push
+ * it onto the transmit ring.
+ */
+static int
+xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
+{
+	struct ifnet *ifp;
+	struct mbuf *m;
+	u_int nfrags;
+	netif_extra_info_t *extra;
+	int otherend_id;
+
+	ifp = sc->xn_ifp;
+
+	/**
+	 * Defragment the mbuf if necessary.
+	 */
+	nfrags = xn_count_frags(m_head);
+
+	/*
+	 * Check to see whether this request is longer than netback
+	 * can handle, and try to defrag it.
+	 */
+	/**
+	 * It is a bit lame, but the netback driver in Linux can't
+	 * deal with nfrags > MAX_TX_REQ_FRAGS, which is a quirk of
+	 * the Linux network stack.
+	 */
+	if (nfrags > MAX_TX_REQ_FRAGS) {
+		m = m_defrag(m_head, M_DONTWAIT);
+		if (!m) {
+			/*
+			 * Defrag failed, so free the mbuf and
+			 * therefore drop the packet.
+			 */
+			m_freem(m_head);
+			return (EMSGSIZE);
+		}
+		m_head = m;
+	}
+
+	/* Determine how many fragments now exist */
+	nfrags = xn_count_frags(m_head);
+
+	/*
+	 * Check to see whether the defragmented packet has too many
+	 * segments for the Linux netback driver.
+	 */
+	/**
+	 * The FreeBSD TCP stack, with TSO enabled, can produce a chain
+	 * of mbufs longer than Linux can handle.  Make sure we don't
+	 * pass a too-long chain over to the other side by dropping the
+	 * packet.  It doesn't look like there is currently a way to
+	 * tell the TCP stack to generate a shorter chain of packets.
+	 */
+	if (nfrags > MAX_TX_REQ_FRAGS) {
+#ifdef DEBUG
+		printf("%s: nfrags %d > MAX_TX_REQ_FRAGS %d, netback "
+		       "won't be able to handle it, dropping\n",
+		       __func__, nfrags, MAX_TX_REQ_FRAGS);
+#endif
+		m_freem(m_head);
+		return (EMSGSIZE);
+	}
+
+	/*
+	 * This check should be redundant.  We've already verified that we
+	 * have enough slots in the ring to handle a packet of maximum
+	 * size, and that our packet is less than the maximum size.  Keep
+	 * it in here as an assert for now just to make certain that
+	 * xn_tx_chain_cnt is accurate.
+	 */
+	KASSERT((sc->xn_cdata.xn_tx_chain_cnt + nfrags) <= NET_TX_RING_SIZE,
+		("%s: xn_tx_chain_cnt (%d) + nfrags (%d) > NET_TX_RING_SIZE "
+		 "(%d)!", __func__, (int) sc->xn_cdata.xn_tx_chain_cnt,
+                    (int) nfrags, (int) NET_TX_RING_SIZE));
+
+	/*
+	 * Start packing the mbufs in this chain into
+	 * the fragment pointers. Stop when we run out
+	 * of fragments or hit the end of the mbuf chain.
+	 */
+	m = m_head;
+	extra = NULL;
+	otherend_id = xenbus_get_otherend_id(sc->xbdev);
+	for (m = m_head; m; m = m->m_next) {
+		netif_tx_request_t *tx;
+		uintptr_t id;
+		grant_ref_t ref;
+		u_long mfn; /* XXX Wrong type? */
+
+		tx = RING_GET_REQUEST(&sc->tx, sc->tx.req_prod_pvt);
+		id = get_id_from_freelist(sc->tx_mbufs);
+		if (id == 0)
+			panic("xn_start_locked: was allocated the freelist head!\n");
+		sc->xn_cdata.xn_tx_chain_cnt++;
+		if (sc->xn_cdata.xn_tx_chain_cnt > NET_TX_RING_SIZE)
+			panic("xn_start_locked: tx_chain_cnt must be <= NET_TX_RING_SIZE\n");
+		sc->tx_mbufs[id] = m;
+		tx->id = id;
+		ref = gnttab_claim_grant_reference(&sc->gref_tx_head);
+		KASSERT((short)ref >= 0, ("Negative ref"));
+		mfn = virt_to_mfn(mtod(m, vm_offset_t));
+		gnttab_grant_foreign_access_ref(ref, otherend_id,
+		    mfn, GNTMAP_readonly);
+		tx->gref = sc->grant_tx_ref[id] = ref;
+		tx->offset = mtod(m, vm_offset_t) & (PAGE_SIZE - 1);
+		tx->flags = 0;
+		if (m == m_head) {
+			/*
+			 * The first fragment has the entire packet
+			 * size, subsequent fragments have just the
+			 * fragment size. The backend works out the
+			 * true size of the first fragment by
+			 * subtracting the sizes of the other
+			 * fragments.
+			 */
+			tx->size = m->m_pkthdr.len;
+
+			/*
+			 * The first fragment contains the checksum flags
+			 * and is optionally followed by extra data for
+			 * TSO etc.
+			 */
+			/**
+			 * CSUM_TSO requires checksum offloading.
+			 * Some versions of FreeBSD fail to
+			 * set CSUM_TCP in the CSUM_TSO case,
+			 * so we have to test for CSUM_TSO
+			 * explicitly.
+			 */
+			if (m->m_pkthdr.csum_flags
+			    & (CSUM_DELAY_DATA | CSUM_TSO)) {
+				tx->flags |= (NETTXF_csum_blank
+				    | NETTXF_data_validated);
+			}
+#if __FreeBSD_version >= 700000
+			if (m->m_pkthdr.csum_flags & CSUM_TSO) {
+				struct netif_extra_info *gso =
+					(struct netif_extra_info *)
+					RING_GET_REQUEST(&sc->tx,
+							 ++sc->tx.req_prod_pvt);
+
+				tx->flags |= NETTXF_extra_info;
+
+				gso->u.gso.size = m->m_pkthdr.tso_segsz;
+				gso->u.gso.type =
+					XEN_NETIF_GSO_TYPE_TCPV4;
+				gso->u.gso.pad = 0;
+				gso->u.gso.features = 0;
+
+				gso->type = XEN_NETIF_EXTRA_TYPE_GSO;
+				gso->flags = 0;
+			}
+#endif
+		} else {
+			tx->size = m->m_len;
+		}
+		if (m->m_next)
+			tx->flags |= NETTXF_more_data;
+
+		sc->tx.req_prod_pvt++;
+	}
+	BPF_MTAP(ifp, m_head);
+
+	sc->stats.tx_bytes += m_head->m_pkthdr.len;
+	sc->stats.tx_packets++;
+
+	return (0);
+}
+
 static void
 xn_start_locked(struct ifnet *ifp) 
 {
-	int otherend_id;
-	unsigned short id;
-	struct mbuf *m_head, *m;
 	struct netfront_info *sc;
-	netif_tx_request_t *tx;
-	netif_extra_info_t *extra;
-	RING_IDX i;
-	grant_ref_t ref;
-	u_long mfn, tx_bytes;
-	int notify, nfrags;
+	struct mbuf *m_head;
+	int notify;
 
 	sc = ifp->if_softc;
-	otherend_id = xenbus_get_otherend_id(sc->xbdev);
-	tx_bytes = 0;
 
 	if (!netfront_carrier_ok(sc))
 		return;
-	
-	for (i = sc->tx.req_prod_pvt; TRUE; i++) {
+
+	/*
+	 * While we have enough transmit slots available for at least one
+	 * maximum-sized packet, pull mbufs off the queue and put them on
+	 * the transmit ring.
+	 */
+	while (xn_tx_slot_available(sc)) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
-		if (m_head == NULL) 
+		if (m_head == NULL)
 			break;
-		
-		/*
-		 * netfront_tx_slot_available() tries to do some math to
-		 * ensure that there'll be enough xenbus ring slots available
-		 * for the maximum number of packet fragments (and a couple more
-		 * for what I guess are TSO and other ring entry items.)
-		 */
-		if (!netfront_tx_slot_available(sc)) {
-			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+
+		if (xn_assemble_tx_request(sc, m_head) != 0)
 			break;
-		}
-
-		/*
-		 * Defragment the mbuf if necessary.
-		 */
-		for (m = m_head, nfrags = 0; m; m = m->m_next)
-			nfrags++;
-		if (nfrags > MAX_SKB_FRAGS) {
-			m = m_defrag(m_head, M_DONTWAIT);
-			if (!m) {
-				m_freem(m_head);
-				break;
-			}
-			m_head = m;
-		}
-
-		/* Determine how many fragments now exist */
-		for (m = m_head, nfrags = 0; m; m = m->m_next)
-			nfrags++;
-
-		/*
-		 * Don't attempt to queue this packet if there aren't
-		 * enough free entries in the chain.
-		 *
-		 * There isn't a 1:1 correspondance between the mbuf TX ring
-		 * and the xenbus TX ring.
-		 * xn_txeof() may need to be called to free up some slots.
-		 *
-		 * It is quite possible that this can be later eliminated if
-		 * it turns out that partial * packets can be pushed into
-		 * the ringbuffer, with fragments pushed in when further slots
-		 * free up.
-		 *
-		 * It is also quite possible that the driver will lock up
-		 * if the TX queue fills up with no RX traffic, and
-		 * the mbuf ring is exhausted. The queue may need
-		 * a swift kick to continue.
-		 */
-
-		/*
-		 * It is not +1 like the allocation because we need to keep
-		 * slot [0] free for the freelist head
-		 */
-		if (sc->xn_cdata.xn_tx_chain_cnt + nfrags >= NET_TX_RING_SIZE) {
-			WPRINTK("xn_start_locked: xn_tx_chain_cnt (%d) + nfrags %d >= NET_TX_RING_SIZE (%d); must be full!\n",
-			    (int) sc->xn_cdata.xn_tx_chain_cnt,
-			    (int) nfrags, (int) NET_TX_RING_SIZE);
-			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
-
-		/*
-		 * Make sure there's actually space available in the
-		 * Xen TX ring for this. Overcompensate for the possibility
-		 * of having a TCP offload fragment just in case for now
-		 * (the +1) rather than adding logic to accurately calculate
-		 * the required size.
-		 */
-		if (RING_FREE_REQUESTS(&sc->tx) < (nfrags + 1)) {
-			WPRINTK("xn_start_locked: free ring slots (%d) < (nfrags + 1) (%d); must be full!\n",
-			    (int) RING_FREE_REQUESTS(&sc->tx),
-			    (int) (nfrags + 1));
-			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
-
-		/*
-		 * Start packing the mbufs in this chain into
-		 * the fragment pointers. Stop when we run out
-		 * of fragments or hit the end of the mbuf chain.
-		 */
-		m = m_head;
-		extra = NULL;
-		for (m = m_head; m; m = m->m_next) {
-			tx = RING_GET_REQUEST(&sc->tx, i);
-			id = get_id_from_freelist(sc->xn_cdata.xn_tx_chain);
-			if (id == 0)
-				panic("xn_start_locked: was allocated the freelist head!\n");
-			sc->xn_cdata.xn_tx_chain_cnt++;
-			if (sc->xn_cdata.xn_tx_chain_cnt >= NET_TX_RING_SIZE+1)
-				panic("xn_start_locked: tx_chain_cnt must be < NET_TX_RING_SIZE+1\n");
-			sc->xn_cdata.xn_tx_chain[id] = m;
-			tx->id = id;
-			ref = gnttab_claim_grant_reference(&sc->gref_tx_head);
-			KASSERT((short)ref >= 0, ("Negative ref"));
-			mfn = virt_to_mfn(mtod(m, vm_offset_t));
-			gnttab_grant_foreign_access_ref(ref, otherend_id,
-			    mfn, GNTMAP_readonly);
-			tx->gref = sc->grant_tx_ref[id] = ref;
-			tx->offset = mtod(m, vm_offset_t) & (PAGE_SIZE - 1);
-			tx->flags = 0;
-			if (m == m_head) {
-				/*
-				 * The first fragment has the entire packet
-				 * size, subsequent fragments have just the
-				 * fragment size. The backend works out the
-				 * true size of the first fragment by
-				 * subtracting the sizes of the other
-				 * fragments.
-				 */
-				tx->size = m->m_pkthdr.len;
-
-				/*
-				 * The first fragment contains the
-				 * checksum flags and is optionally
-				 * followed by extra data for TSO etc.
-				 */
-				if (m->m_pkthdr.csum_flags
-				    & CSUM_DELAY_DATA) {
-					tx->flags |= (NETTXF_csum_blank
-					    | NETTXF_data_validated);
-				}
-#if __FreeBSD_version >= 700000
-				if (m->m_pkthdr.csum_flags & CSUM_TSO) {
-					struct netif_extra_info *gso =
-						(struct netif_extra_info *)
-						RING_GET_REQUEST(&sc->tx, ++i);
-
-					if (extra)
-						extra->flags |= XEN_NETIF_EXTRA_FLAG_MORE;
-					else
-						tx->flags |= NETTXF_extra_info;
-
-					gso->u.gso.size = m->m_pkthdr.tso_segsz;
-					gso->u.gso.type =
-						XEN_NETIF_GSO_TYPE_TCPV4;
-					gso->u.gso.pad = 0;
-					gso->u.gso.features = 0;
-
-					gso->type = XEN_NETIF_EXTRA_TYPE_GSO;
-					gso->flags = 0;
-					extra = gso;
-				}
-#endif
-			} else {
-				tx->size = m->m_len;
-			}
-			if (m->m_next) {
-				tx->flags |= NETTXF_more_data;
-				i++;
-			}
-		}
-
-		BPF_MTAP(ifp, m_head);
-
-		sc->stats.tx_bytes += m_head->m_pkthdr.len;
-		sc->stats.tx_packets++;
 	}
 
-	sc->tx.req_prod_pvt = i;
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&sc->tx, notify);
 	if (notify)
 		notify_remote_via_irq(sc->irq);
-
-	xn_txeof(sc);
 
 	if (RING_FULL(&sc->tx)) {
 		sc->tx_full = 1;
@@ -1606,9 +1678,8 @@ xn_start_locked(struct ifnet *ifp)
 		netif_stop_queue(dev);
 #endif
 	}
+}
 
-	return;
-}    
 
 static void
 xn_start(struct ifnet *ifp)
@@ -1816,11 +1887,11 @@ network_connect(struct netfront_info *np)
 	netif_rx_request_t *req;
 	u_int feature_rx_copy, feature_rx_flip;
 
-	error = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
+	error = xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
 	    "feature-rx-copy", NULL, "%u", &feature_rx_copy);
 	if (error)
 		feature_rx_copy = 0;
-	error = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
+	error = xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
 	    "feature-rx-flip", NULL, "%u", &feature_rx_flip);
 	if (error)
 		feature_rx_flip = 1;
@@ -1851,6 +1922,7 @@ network_connect(struct netfront_info *np)
 
 		m = np->rx_mbufs[requeue_idx] = xennet_get_rx_mbuf(np, i);
 		ref = np->grant_rx_ref[requeue_idx] = xennet_get_rx_ref(np, i);
+
 		req = RING_GET_REQUEST(&np->rx, requeue_idx);
 		pfn = vtophys(mtod(m, vm_offset_t)) >> PAGE_SHIFT;
 
@@ -1933,22 +2005,25 @@ create_netdev(device_t dev)
 	/* Initialise {tx,rx}_skbs to be a free chain containing every entry. */
 	for (i = 0; i <= NET_TX_RING_SIZE; i++) {
 		np->tx_mbufs[i] = (void *) ((u_long) i+1);
-		np->grant_tx_ref[i] = GRANT_INVALID_REF;	
+		np->grant_tx_ref[i] = GRANT_REF_INVALID;	
 	}
+	np->tx_mbufs[NET_TX_RING_SIZE] = (void *)0;
+
 	for (i = 0; i <= NET_RX_RING_SIZE; i++) {
+
 		np->rx_mbufs[i] = NULL;
-		np->grant_rx_ref[i] = GRANT_INVALID_REF;
+		np->grant_rx_ref[i] = GRANT_REF_INVALID;
 	}
 	/* A grant for every tx ring slot */
-	if (gnttab_alloc_grant_references(TX_MAX_TARGET,
-					  &np->gref_tx_head) < 0) {
+	if (gnttab_alloc_grant_references(NET_TX_RING_SIZE,
+					  &np->gref_tx_head) != 0) {
 		IPRINTK("#### netfront can't alloc tx grant refs\n");
 		err = ENOMEM;
 		goto exit;
 	}
 	/* A grant for every rx ring slot */
 	if (gnttab_alloc_grant_references(RX_MAX_TARGET,
-					  &np->gref_rx_head) < 0) {
+					  &np->gref_rx_head) != 0) {
 		WPRINTK("#### netfront can't alloc rx grant refs\n");
 		gnttab_free_grant_references(np->gref_tx_head);
 		err = ENOMEM;
@@ -1980,6 +2055,7 @@ create_netdev(device_t dev)
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
 #if __FreeBSD_version >= 700000
+	ifp->if_capabilities |= IFCAP_TSO4;
 	if (xn_enable_lro) {
 		int err = tcp_lro_init(&np->xn_lro);
 		if (err) {
@@ -2058,8 +2134,8 @@ netif_disconnect_backend(struct netfront_info *info)
 
 	end_access(info->tx_ring_ref, info->tx.sring);
 	end_access(info->rx_ring_ref, info->rx.sring);
-	info->tx_ring_ref = GRANT_INVALID_REF;
-	info->rx_ring_ref = GRANT_INVALID_REF;
+	info->tx_ring_ref = GRANT_REF_INVALID;
+	info->rx_ring_ref = GRANT_REF_INVALID;
 	info->tx.sring = NULL;
 	info->rx.sring = NULL;
 
@@ -2073,7 +2149,7 @@ netif_disconnect_backend(struct netfront_info *info)
 static void
 end_access(int ref, void *page)
 {
-	if (ref != GRANT_INVALID_REF)
+	if (ref != GRANT_REF_INVALID)
 		gnttab_end_foreign_access(ref, page);
 }
 
@@ -2101,7 +2177,7 @@ static device_method_t netfront_methods[] = {
 	DEVMETHOD(device_resume,        netfront_resume), 
  
 	/* Xenbus interface */
-	DEVMETHOD(xenbus_backend_changed, netfront_backend_changed),
+	DEVMETHOD(xenbus_otherend_changed, netfront_backend_changed),
 
 	{ 0, 0 } 
 }; 
@@ -2113,4 +2189,4 @@ static driver_t netfront_driver = {
 }; 
 devclass_t netfront_devclass; 
  
-DRIVER_MODULE(xe, xenbus, netfront_driver, netfront_devclass, 0, 0); 
+DRIVER_MODULE(xe, xenbusb_front, netfront_driver, netfront_devclass, 0, 0); 

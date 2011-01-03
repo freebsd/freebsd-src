@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_msgbuf.h"
 #include "opt_perfmon.h"
 #include "opt_sched.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -81,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -110,7 +112,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/intr_machdep.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pc/bios.h>
@@ -285,7 +287,6 @@ cpu_startup(dummy)
 	vm_pager_bufferinit();
 
 	cpu_setregs();
-	mca_init();
 }
 
 /*
@@ -302,6 +303,7 @@ void
 sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct sigframe sf, *sfp;
+	struct pcb *pcb;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
@@ -311,6 +313,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	int oonstack;
 
 	td = curthread;
+	pcb = td->td_pcb;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sig = ksi->ksi_signo;
@@ -330,8 +333,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
-	sf.sf_uc.uc_mcontext.mc_fsbase = td->td_pcb->pcb_fsbase;
-	sf.sf_uc.uc_mcontext.mc_gsbase = td->td_pcb->pcb_gsbase;
+	sf.sf_uc.uc_mcontext.mc_fsbase = pcb->pcb_fsbase;
+	sf.sf_uc.uc_mcontext.mc_gsbase = pcb->pcb_gsbase;
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -391,7 +394,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -415,12 +418,16 @@ sigreturn(td, uap)
 	} */ *uap;
 {
 	ucontext_t uc;
-	struct proc *p = td->td_proc;
+	struct pcb *pcb;
+	struct proc *p;
 	struct trapframe *regs;
 	ucontext_t *ucp;
 	long rflags;
 	int cs, error, ret;
 	ksiginfo_t ksi;
+
+	pcb = td->td_pcb;
+	p = td->td_proc;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0) {
@@ -480,8 +487,8 @@ sigreturn(td, uap)
 		return (ret);
 	}
 	bcopy(&ucp->uc_mcontext.mc_rdi, regs, sizeof(*regs));
-	td->td_pcb->pcb_fsbase = ucp->uc_mcontext.mc_fsbase;
-	td->td_pcb->pcb_gsbase = ucp->uc_mcontext.mc_gsbase;
+	pcb->pcb_fsbase = ucp->uc_mcontext.mc_fsbase;
+	pcb->pcb_gsbase = ucp->uc_mcontext.mc_gsbase;
 
 #if defined(COMPAT_43)
 	if (ucp->uc_mcontext.mc_onstack & 1)
@@ -491,8 +498,7 @@ sigreturn(td, uap)
 #endif
 
 	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (EJUSTRETURN);
 }
 
@@ -537,6 +543,10 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
 
+	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
+	if (tsc_is_invariant)
+		return (EOPNOTSUPP);
+
 	/* If we're booting, trust the rate calibrated moments ago. */
 	if (cold) {
 		*rate = tsc_freq;
@@ -563,13 +573,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	thread_unlock(curthread);
 #endif
 
-	/*
-	 * Calculate the difference in readings, convert to Mhz, and
-	 * subtract 0.5% of the total.  Empirical testing has shown that
-	 * overhead in DELAY() works out to approximately this value.
-	 */
-	tsc2 -= tsc1;
-	*rate = tsc2 * 1000 - tsc2 * 5;
+	*rate = (tsc2 - tsc1) * 1000;
 	return (0);
 }
 
@@ -584,59 +588,89 @@ cpu_halt(void)
 }
 
 void (*cpu_idle_hook)(void) = NULL;	/* ACPI idle hook. */
+static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
+static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
+TUNABLE_INT("machdep.idle_mwait", &idle_mwait);
+SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
+    0, "Use MONITOR/MWAIT for short idle");
 
-static void
-cpu_idle_hlt(int busy)
-{
-	/*
-	 * we must absolutely guarentee that hlt is the next instruction
-	 * after sti or we introduce a timing window.
-	 */
-	disable_intr();
-  	if (sched_runnable())
-		enable_intr();
-	else
-		__asm __volatile("sti; hlt");
-}
+#define	STATE_RUNNING	0x0
+#define	STATE_MWAIT	0x1
+#define	STATE_SLEEPING	0x2
 
 static void
 cpu_idle_acpi(int busy)
 {
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_SLEEPING;
 	disable_intr();
-  	if (sched_runnable())
+	if (sched_runnable())
 		enable_intr();
 	else if (cpu_idle_hook)
 		cpu_idle_hook();
 	else
 		__asm __volatile("sti; hlt");
+	*state = STATE_RUNNING;
 }
 
-static int cpu_ident_amdc1e = 0;
-
-static int
-cpu_probe_amdc1e(void)
+static void
+cpu_idle_hlt(int busy)
 {
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_SLEEPING;
+	/*
+	 * We must absolutely guarentee that hlt is the next instruction
+	 * after sti or we introduce a timing window.
+	 */
+	disable_intr();
+	if (sched_runnable())
+		enable_intr();
+	else
+		__asm __volatile("sti; hlt");
+	*state = STATE_RUNNING;
+}
+
+/*
+ * MWAIT cpu power states.  Lower 4 bits are sub-states.
+ */
+#define	MWAIT_C0	0xf0
+#define	MWAIT_C1	0x00
+#define	MWAIT_C2	0x10
+#define	MWAIT_C3	0x20
+#define	MWAIT_C4	0x30
+
+static void
+cpu_idle_mwait(int busy)
+{
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_MWAIT;
+	if (!sched_runnable()) {
+		cpu_monitor(state, 0, 0);
+		if (*state == STATE_MWAIT)
+			cpu_mwait(0, MWAIT_C1);
+	}
+	*state = STATE_RUNNING;
+}
+
+static void
+cpu_idle_spin(int busy)
+{
+	int *state;
 	int i;
 
-	/*
-	 * Forget it, if we're not using local APIC timer.
-	 */
-	if (resource_disabled("apic", 0) ||
-	    (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0))
-		return (0);
-
-	/*
-	 * Detect the presence of C1E capability mostly on latest
-	 * dual-cores (or future) k8 family.
-	 */
-	if (cpu_vendor_id == CPU_VENDOR_AMD &&
-	    (cpu_id & 0x00000f00) == 0x00000f00 &&
-	    (cpu_id & 0x0fff0000) >=  0x00040000) {
-		cpu_ident_amdc1e = 1;
-		return (1);
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_RUNNING;
+	for (i = 0; i < 1000; i++) {
+		if (sched_runnable())
+			return;
+		cpu_spinwait();
 	}
-
-	return (0);
 }
 
 /*
@@ -654,30 +688,18 @@ cpu_probe_amdc1e(void)
 #define	AMDK8_CMPHALT		(AMDK8_SMIONCMPHALT | AMDK8_C1EONCMPHALT)
 
 static void
-cpu_idle_amdc1e(int busy)
+cpu_probe_amdc1e(void)
 {
 
-	disable_intr();
-	if (sched_runnable())
-		enable_intr();
-	else {
-		uint64_t msr;
-
-		msr = rdmsr(MSR_AMDK8_IPM);
-		if (msr & AMDK8_CMPHALT)
-			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
-
-		if (cpu_idle_hook)
-			cpu_idle_hook();
-		else
-			__asm __volatile("sti; hlt");
+	/*
+	 * Detect the presence of C1E capability mostly on latest
+	 * dual-cores (or future) k8 family.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    (cpu_id & 0x00000f00) == 0x00000f00 &&
+	    (cpu_id & 0x0fff0000) >=  0x00040000) {
+		cpu_ident_amdc1e = 1;
 	}
-}
-
-static void
-cpu_idle_spin(int busy)
-{
-	return;
 }
 
 void (*cpu_idle_fn)(int) = cpu_idle_acpi;
@@ -685,79 +707,64 @@ void (*cpu_idle_fn)(int) = cpu_idle_acpi;
 void
 cpu_idle(int busy)
 {
+	uint64_t msr;
+
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
 #ifdef SMP
 	if (mp_grab_cpu_hlt())
 		return;
 #endif
-	cpu_idle_fn(busy);
-}
-
-/*
- * mwait cpu power states.  Lower 4 bits are sub-states.
- */
-#define	MWAIT_C0	0xf0
-#define	MWAIT_C1	0x00
-#define	MWAIT_C2	0x10
-#define	MWAIT_C3	0x20
-#define	MWAIT_C4	0x30
-
-#define	MWAIT_DISABLED	0x0
-#define	MWAIT_WOKEN	0x1
-#define	MWAIT_WAITING	0x2
-
-static void
-cpu_idle_mwait(int busy)
-{
-	int *mwait;
-
-	mwait = (int *)PCPU_PTR(monitorbuf);
-	*mwait = MWAIT_WAITING;
-	if (sched_runnable())
-		return;
-	cpu_monitor(mwait, 0, 0);
-	if (*mwait == MWAIT_WAITING)
-		cpu_mwait(0, MWAIT_C1);
-}
-
-static void
-cpu_idle_mwait_hlt(int busy)
-{
-	int *mwait;
-
-	mwait = (int *)PCPU_PTR(monitorbuf);
-	if (busy == 0) {
-		*mwait = MWAIT_DISABLED;
-		cpu_idle_hlt(busy);
-		return;
+	/* If we are busy - try to use fast methods. */
+	if (busy) {
+		if ((cpu_feature2 & CPUID2_MON) && idle_mwait) {
+			cpu_idle_mwait(busy);
+			goto out;
+		}
 	}
-	*mwait = MWAIT_WAITING;
-	if (sched_runnable())
-		return;
-	cpu_monitor(mwait, 0, 0);
-	if (*mwait == MWAIT_WAITING)
-		cpu_mwait(0, MWAIT_C1);
+
+	/* If we have time - switch timers into idle mode. */
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+
+	/* Apply AMD APIC timer C1E workaround. */
+	if (cpu_ident_amdc1e && cpu_disable_deep_sleep) {
+		msr = rdmsr(MSR_AMDK8_IPM);
+		if (msr & AMDK8_CMPHALT)
+			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
+	}
+
+	/* Call main idle method. */
+	cpu_idle_fn(busy);
+
+	/* Switch timers mack into active mode. */
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
+out:
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
 }
 
 int
 cpu_idle_wakeup(int cpu)
 {
 	struct pcpu *pcpu;
-	int *mwait;
+	int *state;
 
-	if (cpu_idle_fn == cpu_idle_spin)
-		return (1);
-	if (cpu_idle_fn != cpu_idle_mwait && cpu_idle_fn != cpu_idle_mwait_hlt)
-		return (0);
 	pcpu = pcpu_find(cpu);
-	mwait = (int *)pcpu->pc_monitorbuf;
+	state = (int *)pcpu->pc_monitorbuf;
 	/*
 	 * This doesn't need to be atomic since missing the race will
 	 * simply result in unnecessary IPIs.
 	 */
-	if (cpu_idle_fn == cpu_idle_mwait_hlt && *mwait == MWAIT_DISABLED)
+	if (*state == STATE_SLEEPING)
 		return (0);
-	*mwait = MWAIT_WOKEN;
-
+	if (*state == STATE_MWAIT)
+		*state = STATE_RUNNING;
 	return (1);
 }
 
@@ -770,8 +777,6 @@ struct {
 } idle_tbl[] = {
 	{ cpu_idle_spin, "spin" },
 	{ cpu_idle_mwait, "mwait" },
-	{ cpu_idle_mwait_hlt, "mwait_hlt" },
-	{ cpu_idle_amdc1e, "amdc1e" },
 	{ cpu_idle_hlt, "hlt" },
 	{ cpu_idle_acpi, "acpi" },
 	{ NULL, NULL }
@@ -790,15 +795,19 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
 			continue;
-		if (strcmp(idle_tbl[i].id_name, "amdc1e") == 0 &&
-		    cpu_ident_amdc1e == 0)
+		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
+		    cpu_idle_hook == NULL)
 			continue;
-		p += sprintf(p, "%s, ", idle_tbl[i].id_name);
+		p += sprintf(p, "%s%s", p != avail ? ", " : "",
+		    idle_tbl[i].id_name);
 	}
 	error = sysctl_handle_string(oidp, avail, 0, req);
 	free(avail, M_TEMP);
 	return (error);
 }
+
+SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, idle_sysctl_available, "A", "list of available idle functions");
 
 static int
 idle_sysctl(SYSCTL_HANDLER_ARGS)
@@ -823,8 +832,8 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
 			continue;
-		if (strcmp(idle_tbl[i].id_name, "amdc1e") == 0 &&
-		    cpu_ident_amdc1e == 0)
+		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
+		    cpu_idle_hook == NULL)
 			continue;
 		if (strcmp(idle_tbl[i].id_name, buf))
 			continue;
@@ -833,9 +842,6 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	return (EINVAL);
 }
-
-SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, idle_sysctl_available, "A", "list of available idle functions");
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
@@ -857,9 +863,9 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
-	pcb->pcb_flags &= ~(PCB_32BIT | PCB_GS32BIT);
+	clear_pcb_flags(pcb, PCB_32BIT | PCB_GS32BIT);
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
-	pcb->pcb_full_iret = 1;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = imgp->entry_addr;
@@ -873,6 +879,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
+	td->td_retval[1] = 0;
 
 	/*
 	 * Reset the hardware debug registers if they were in use.
@@ -893,7 +900,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 			 */
 			reset_dbregs();
 		}
-		pcb->pcb_flags &= ~PCB_DBREGS;
+		clear_pcb_flags(pcb, PCB_DBREGS);
 	}
 
 	/*
@@ -1089,6 +1096,9 @@ extern inthand_t
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
+#ifdef KDTRACE_HOOKS
+	IDTVEC(dtrace_ret),
+#endif
 	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
 #ifdef DDB
@@ -1617,6 +1627,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	setidt(IDT_AC, &IDTVEC(align), SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IDT_MC, &IDTVEC(mchk),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IDT_XF, &IDTVEC(xmm), SDT_SYSIGT, SEL_KPL, 0);
+#ifdef KDTRACE_HOOKS
+	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYSIGT, SEL_UPL, 0);
+#endif
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (long) idt;
@@ -1736,8 +1749,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	}
 #endif
 
-	if (cpu_probe_amdc1e())
-		cpu_idle_fn = cpu_idle_amdc1e;
+	cpu_probe_amdc1e();
 
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);
@@ -1754,11 +1766,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t flags;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_flags = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		flags = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_flags = flags;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -1766,12 +1782,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t flags;
 
 	td = curthread;
 	critical_exit();
+	flags = td->td_md.md_saved_flags;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_flags);
+		intr_restore(flags);
 }
 
 /*
@@ -1792,7 +1810,7 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 	pcb->pcb_rbp = tf->tf_rbp;
 	pcb->pcb_rbx = tf->tf_rbx;
 	pcb->pcb_rip = tf->tf_rip;
-	pcb->pcb_rsp = (ISPL(tf->tf_cs)) ? tf->tf_rsp : (long)(tf + 1) - 8;
+	pcb->pcb_rsp = tf->tf_rsp;
 }
 
 int
@@ -1892,8 +1910,8 @@ set_regs(struct thread *td, struct reg *regs)
 		tp->tf_fs = regs->r_fs;
 		tp->tf_gs = regs->r_gs;
 		tp->tf_flags = TF_HASSEGS;
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	}
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	return (0);
 }
 
@@ -1961,7 +1979,10 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	fill_fpregs_xmm(&td->td_pcb->pcb_save, fpregs);
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	    ("not suspended thread %p", td));
+	fpugetregs(td);
+	fill_fpregs_xmm(&td->td_pcb->pcb_user_save, fpregs);
 	return (0);
 }
 
@@ -1970,7 +1991,8 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_save);
+	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_user_save);
+	fpuuserinited(td);
 	return (0);
 }
 
@@ -1980,8 +2002,10 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 int
 get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 {
+	struct pcb *pcb;
 	struct trapframe *tp;
 
+	pcb = td->td_pcb;
 	tp = td->td_frame;
 	PROC_LOCK(curthread->td_proc);
 	mcp->mc_onstack = sigonstack(tp->tf_rsp);
@@ -2019,8 +2043,8 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_flags = tp->tf_flags;
 	mcp->mc_len = sizeof(*mcp);
 	get_fpcontext(td, mcp);
-	mcp->mc_fsbase = td->td_pcb->pcb_fsbase;
-	mcp->mc_gsbase = td->td_pcb->pcb_gsbase;
+	mcp->mc_fsbase = pcb->pcb_fsbase;
+	mcp->mc_gsbase = pcb->pcb_gsbase;
 	return (0);
 }
 
@@ -2033,10 +2057,12 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 int
 set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
+	struct pcb *pcb;
 	struct trapframe *tp;
 	long rflags;
 	int ret;
 
+	pcb = td->td_pcb;
 	tp = td->td_frame;
 	if (mcp->mc_len != sizeof(*mcp) ||
 	    (mcp->mc_flags & ~_MC_FLAG_MASK) != 0)
@@ -2073,11 +2099,10 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		tp->tf_gs = mcp->mc_gs;
 	}
 	if (mcp->mc_flags & _MC_HASBASES) {
-		td->td_pcb->pcb_fsbase = mcp->mc_fsbase;
-		td->td_pcb->pcb_gsbase = mcp->mc_gsbase;
+		pcb->pcb_fsbase = mcp->mc_fsbase;
+		pcb->pcb_gsbase = mcp->mc_gsbase;
 	}
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
 }
 
@@ -2085,7 +2110,9 @@ static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
 
-	mcp->mc_ownedfp = fpugetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+	mcp->mc_ownedfp = fpugetregs(td);
+	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
 }
 
@@ -2103,11 +2130,6 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		/*
-		 * XXX we violate the dubious requirement that fpusetregs()
-		 * be called with interrupts disabled.
-		 * XXX obsolete on trap-16 systems?
-		 */
 		fpstate = (struct savefpu *)&mcp->mc_fpstate;
 		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
 		fpusetregs(td, fpstate);
@@ -2119,23 +2141,24 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 void
 fpstate_drop(struct thread *td)
 {
-	register_t s;
 
-	s = intr_disable();
+	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
+	critical_enter();
 	if (PCPU_GET(fpcurthread) == td)
 		fpudrop();
 	/*
 	 * XXX force a full drop of the fpu.  The above only drops it if we
 	 * owned it.
 	 *
-	 * XXX I don't much like fpugetregs()'s semantics of doing a full
+	 * XXX I don't much like fpugetuserregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
 	 * We only need to drop to !PCB_INITDONE in sendsig().  But
-	 * sendsig() is the only caller of fpugetregs()... perhaps we just
+	 * sendsig() is the only caller of fpugetuserregs()... perhaps we just
 	 * have too many layers.
 	 */
-	curthread->td_pcb->pcb_flags &= ~PCB_FPUINITDONE;
-	intr_restore(s);
+	clear_pcb_flags(curthread->td_pcb,
+	    PCB_FPUINITDONE | PCB_USERFPUINITDONE);
+	critical_exit();
 }
 
 int
@@ -2248,7 +2271,7 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		pcb->pcb_dr6 = dbregs->dr[6];
 		pcb->pcb_dr7 = dbregs->dr[7];
 
-		pcb->pcb_flags |= PCB_DBREGS;
+		set_pcb_flags(pcb, PCB_DBREGS);
 	}
 
 	return (0);

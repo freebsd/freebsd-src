@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2008
+.Dd September 5, 2010
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -589,6 +589,12 @@ header file.
 Show brief information about the TTY subsystem.
 .\"
 .Pp
+.It Ic show Cm cdev
+Without argument, show the list of all created cdev's, consisting of devfs
+node name and struct cdev address.
+When address of cdev is supplied, show some internal devfs state of the cdev.
+.\"
+.Pp
 .It Ic show Cm conifhk
 Lists hooks currently waiting for completion in
 run_interrupt_driven_config_hooks().
@@ -796,7 +802,6 @@ Displays short info about all currently mounted file systems.
 .Pp
 .It Ic show Cm mount Ar addr
 Displays details about the given mount point.
-.Pp
 .\"
 .Pp
 .It Ic show Cm object Ns Oo Li / Ns Cm f Oc Ar addr
@@ -964,7 +969,7 @@ is printed.
 Show all threads within the system.
 Output format is as follows:
 .Pp
-.Bl -tag -width "PPID" -compact -offset indent -width "Second column"
+.Bl -tag -compact -offset indent -width "Second column"
 .It Ic First column
 Thread identifier (TID)
 .It Ic Second column
@@ -1092,9 +1097,13 @@ for a list of signals.
 Note that the arguments are reversed relative to
 .Xr kill 2 .
 .Pp
-.It Ic reboot
-.It Ic reset
+.It Ic reboot Op Ar seconds
+.It Ic reset Op Ar seconds
 Hard reset the system.
+If the optional argument
+.Ar seconds
+is given, the debugger will wait for this long, at most a week,
+before rebooting.
 .Pp
 .It Ic help
 Print a short summary of the available commands and command

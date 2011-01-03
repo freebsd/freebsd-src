@@ -284,10 +284,12 @@ elf_getstatus(pid_t pid, prpsinfo_t *psinfo)
 static void
 elf_puthdr(pid_t pid, vm_map_entry_t map, void *dst, size_t *off, int numsegs)
 {
+	struct ptrace_lwpinfo lwpinfo;
 	struct {
 		prstatus_t status;
 		prfpregset_t fpregset;
 		prpsinfo_t psinfo;
+		thrmisc_t thrmisc;
 	} *tempdata;
 	size_t ehoff;
 	size_t phoff;
@@ -300,6 +302,7 @@ elf_puthdr(pid_t pid, vm_map_entry_t map, void *dst, size_t *off, int numsegs)
 	prstatus_t *status;
 	prfpregset_t *fpregset;
 	prpsinfo_t *psinfo;
+	thrmisc_t *thrmisc;
 
 	ehoff = *off;
 	*off += sizeof(Elf_Ehdr);
@@ -315,11 +318,13 @@ elf_puthdr(pid_t pid, vm_map_entry_t map, void *dst, size_t *off, int numsegs)
 		status = &tempdata->status;
 		fpregset = &tempdata->fpregset;
 		psinfo = &tempdata->psinfo;
+		thrmisc = &tempdata->thrmisc;
 	} else {
 		tempdata = NULL;
 		status = NULL;
 		fpregset = NULL;
 		psinfo = NULL;
+		thrmisc = NULL;
 	}
 
 	errno = 0;
@@ -356,11 +361,17 @@ elf_puthdr(pid_t pid, vm_map_entry_t map, void *dst, size_t *off, int numsegs)
 
 			ptrace(PT_GETREGS, tids[i], (void *)&status->pr_reg, 0);
 			ptrace(PT_GETFPREGS, tids[i], (void *)fpregset, 0);
+			ptrace(PT_LWPINFO, tids[i], (void *)&lwpinfo,
+			    sizeof(lwpinfo));
+			memset(&thrmisc->_pad, 0, sizeof(thrmisc->_pad));
+			strcpy(thrmisc->pr_tname, lwpinfo.pl_tdname);
 		}
 		elf_putnote(dst, off, "FreeBSD", NT_PRSTATUS, status,
 		    sizeof *status);
 		elf_putnote(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
 		    sizeof *fpregset);
+		elf_putnote(dst, off, "FreeBSD", NT_THRMISC, thrmisc,
+		    sizeof *thrmisc);
 	}
 
 	notesz = *off - noteoff;
@@ -488,12 +499,17 @@ readmap(pid_t pid)
 		kve = &vmentl[i];
 
 		/*
-		 * Ignore segments of the wrong kind and ones which are not
-		 * readable and writable.
+		 * Ignore 'malformed' segments or ones representing memory
+		 * mapping with MAP_NOCORE on.
+		 * If the 'full' support is disabled, just dump the most
+		 * meaningful data segments.
 		 */
-		if ((kve->kve_protection & KVME_PROT_WRITE) == 0 ||
-		    (kve->kve_protection & KVME_PROT_READ) == 0 ||
-		    (kve->kve_type != KVME_TYPE_DEFAULT &&
+		if ((kve->kve_protection & KVME_PROT_READ) == 0 ||
+		    (kve->kve_flags & KVME_FLAG_NOCOREDUMP) != 0 ||
+		    kve->kve_type == KVME_TYPE_DEAD ||
+		    kve->kve_type == KVME_TYPE_UNKNOWN ||
+		    ((pflags & PFLAGS_FULL) == 0 &&
+		    kve->kve_type != KVME_TYPE_DEFAULT &&
 		    kve->kve_type != KVME_TYPE_VNODE &&
 		    kve->kve_type != KVME_TYPE_SWAP))
 			continue;

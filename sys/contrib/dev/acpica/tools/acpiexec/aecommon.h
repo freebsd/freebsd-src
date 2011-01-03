@@ -139,6 +139,18 @@ extern FILE                 *AcpiGbl_DebugFile;
 extern BOOLEAN              AcpiGbl_IgnoreErrors;
 extern UINT8                AcpiGbl_RegionFillValue;
 
+/* Check for unexpected exceptions */
+
+#define AE_CHECK_STATUS(Name, Status, Expected) \
+    if (Status != Expected) \
+    { \
+        AcpiOsPrintf ("Unexpected %s from %s (%s-%d)\n", \
+            AcpiFormatException (Status), #Name, _AcpiModuleName, __LINE__); \
+    }
+
+/* Check for unexpected non-AE_OK errors */
+
+#define AE_CHECK_OK(Name, Status)   AE_CHECK_STATUS (Name, Status, AE_OK);
 
 typedef struct ae_table_desc
 {
@@ -173,7 +185,7 @@ typedef struct ae_debug_regions
 #define OSD_PRINT(lvl,fp)               TEST_OUTPUT_LEVEL(lvl) {\
                                             AcpiOsPrintf PARAM_LIST(fp);}
 
-void __cdecl
+void ACPI_SYSTEM_XFACE
 AeCtrlCHandler (
     int                     Sig);
 
@@ -238,6 +250,15 @@ AeRegionHandler (
 
 UINT32
 AeGpeHandler (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    void                    *Context);
+
+void
+AeGlobalEventHandler (
+    UINT32                  Type,
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  EventNumber,
     void                    *Context);
 
 #endif /* _AECOMMON */

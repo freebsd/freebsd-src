@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+XZ_5.0 {
+};
+
+
+XZprivate_1.0 {
+} XZ_5.0;
+

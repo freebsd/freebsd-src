@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -562,7 +558,7 @@ sidewaysintpr(int interval1, u_long off)
 			interesting = ip;
 			interesting_off = off;
 		}
-		snprintf(ip->ift_name, sizeof(ip->ift_name), "(%s)", name);;
+		snprintf(ip->ift_name, sizeof(ip->ift_name), "(%s)", name);
 		if ((ipn = malloc(sizeof(struct iftot))) == NULL) {
 			printf("malloc failed\n");
 			exit(1);
@@ -627,6 +623,7 @@ loop:
 		}
 		ip->ift_ip = ifnet.if_ipackets;
 		ip->ift_ie = ifnet.if_ierrors;
+		ip->ift_id = ifnet.if_iqdrops;
 		ip->ift_ib = ifnet.if_ibytes;
 		ip->ift_op = ifnet.if_opackets;
 		ip->ift_oe = ifnet.if_oerrors;

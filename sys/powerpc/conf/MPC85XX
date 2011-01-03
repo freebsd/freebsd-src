@@ -7,6 +7,8 @@
 cpu		E500
 ident		MPC85XX
 
+machine		powerpc	powerpc
+
 makeoptions	DEBUG="-Wa,-me500 -g"
 makeoptions	NO_MODULES=yes
 
@@ -24,8 +26,10 @@ options 	COMPAT_43
 options 	DDB
 #options 	DEADLKRES
 options 	DEVICE_POLLING
-options 	HZ=1000
 #options 	DIAGNOSTIC
+options 	FDT
+makeoptions	FDT_DTS_FILE=mpc8572ds.dts
+#makeoptions	FDT_DTS_FILE=mpc8555cds.dts
 options 	FFS
 options 	GDB
 options 	GEOM_PART_GPT
@@ -64,7 +68,7 @@ device		ether
 device		fxp
 device		iic
 device		iicbus
-device		isa
+#device		isa
 device		loop
 device		md
 device		miibus

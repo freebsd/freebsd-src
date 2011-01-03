@@ -107,6 +107,8 @@ gelf_update_shdr(Elf_Scn *scn, GElf_Shdr *s)
 		return (0);
 	}
 
+	(void) elf_flagscn(scn, ELF_C_SET, ELF_F_DIRTY);
+
 	if (ec == ELFCLASS64) {
 		scn->s_shdr.s_shdr64 = *s;
 		return (1);
@@ -124,8 +126,6 @@ gelf_update_shdr(Elf_Scn *scn, GElf_Shdr *s)
 	sh32->sh_info	 =  s->sh_info;
 	LIBELF_COPY_U32(sh32, s, sh_addralign);
 	LIBELF_COPY_U32(sh32, s, sh_entsize);
-
-	(void) elf_flagscn(scn, ELF_C_SET, ELF_F_DIRTY);
 
 	return (1);
 }

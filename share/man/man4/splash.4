@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2010
+.Dd November 29, 2010
 .Dt SPLASH 4
 .Os
 .Sh NAME
@@ -114,7 +114,10 @@ The screen will gradually fade away.
 .It Pa fire_saver.ko
 A fire which becomes higher as load increases.
 .It Pa green_saver.ko
-If the monitor supports power saving mode, it will be turned off.
+The screen will be blanked, similar to
+.Pa blank_saver.ko .
+If the monitor and the video card's BIOS support it
+the screen will also be powered off.
 .It Pa logo_saver.ko
 Animated graphical
 .Fx
@@ -221,10 +224,6 @@ necessary to load the VESA module.
 Just load the bitmap file and the splash decoder module as in the
 first example above.
 .\".Sh DIAGNOSTICS
-.Sh CAVEATS
-Both the splash screen and the screen saver work with
-.Xr syscons 4
-only.
 .Sh SEE ALSO
 .Xr vidcontrol 1 ,
 .Xr syscons 4 ,
@@ -257,6 +256,10 @@ module was written by
 based on the
 .Pa splash_bmp
 code.
+.Sh CAVEATS
+Both the splash screen and the screen saver work with
+.Xr syscons 4
+only.
 .Sh BUGS
 If you load a screen saver while another screen saver has already
 been loaded, the first screen saver will not be automatically unloaded

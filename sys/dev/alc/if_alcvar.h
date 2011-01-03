@@ -68,13 +68,8 @@
 #define	ALC_PROC_MAX		(ALC_RX_RING_CNT - 1)
 #define	ALC_PROC_DEFAULT	(ALC_RX_RING_CNT / 4)
 
-#define	ALC_JUMBO_FRAMELEN	(9 * 1024)
-#define	ALC_JUMBO_MTU		\
-	(ALC_JUMBO_FRAMELEN - sizeof(struct ether_vlan_header) - ETHER_CRC_LEN)
-#define	ALC_MAX_FRAMELEN	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN)
-
 /*
- * The number of bits reserved for MSS in AR8121/AR8132 controllers
+ * The number of bits reserved for MSS in AR813x/AR815x controllers
  * are 13 bits. This limits the maximum interface MTU size in TSO
  * case(8191 + sizeof(struct ip) + sizeof(struct tcphdr)) as upper
  * stack should not generate TCP segments with MSS greater than the
@@ -192,6 +187,13 @@ struct alc_hw_stats {
 	uint64_t tx_mcast_bytes;
 };
 
+struct alc_ident {
+	uint16_t	vendorid;
+	uint16_t	deviceid;
+	uint32_t	max_framelen;
+	const char	*name;
+};
+
 /*
  * Software state per device.
  */
@@ -204,6 +206,7 @@ struct alc_softc {
 	struct resource		*alc_irq[ALC_MSI_MESSAGES];
 	struct resource_spec	*alc_irq_spec;
 	void			*alc_intrhand[ALC_MSI_MESSAGES];
+	struct alc_ident	*alc_ident;
 	int			alc_rev;
 	int			alc_chip_rev;
 	int			alc_phyaddr;
@@ -211,16 +214,22 @@ struct alc_softc {
 	uint32_t		alc_dma_rd_burst;
 	uint32_t		alc_dma_wr_burst;
 	uint32_t		alc_rcb;
+	int			alc_expcap;
+	int			alc_pmcap;
 	int			alc_flags;
 #define	ALC_FLAG_PCIE		0x0001
 #define	ALC_FLAG_PCIX		0x0002
 #define	ALC_FLAG_MSI		0x0004
 #define	ALC_FLAG_MSIX		0x0008
+#define	ALC_FLAG_PM		0x0010
 #define	ALC_FLAG_FASTETHER	0x0020
 #define	ALC_FLAG_JUMBO		0x0040
 #define	ALC_FLAG_ASPM_MON	0x0080
 #define	ALC_FLAG_CMB_BUG	0x0100
 #define	ALC_FLAG_SMB_BUG	0x0200
+#define	ALC_FLAG_L0S		0x0400
+#define	ALC_FLAG_L1S		0x0800
+#define	ALC_FLAG_APS		0x1000
 #define	ALC_FLAG_DETACH		0x4000
 #define	ALC_FLAG_LINK		0x8000
 

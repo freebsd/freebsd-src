@@ -219,13 +219,16 @@ agp_generic_attach(device_t dev)
 	 * Find and map the aperture, RF_SHAREABLE for DRM but not RF_ACTIVE
 	 * because the kernel doesn't need to map it.
 	 */
-	if (sc->as_aperture_rid == 0)
-		sc->as_aperture_rid = AGP_APBASE;
 
-	sc->as_aperture = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->as_aperture_rid, RF_SHAREABLE);
-	if (!sc->as_aperture)
-		return ENOMEM;
+	if (sc->as_aperture_rid != -1) {
+		if (sc->as_aperture_rid == 0)
+			sc->as_aperture_rid = AGP_APBASE;
+
+		sc->as_aperture = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &sc->as_aperture_rid, RF_SHAREABLE);
+		if (!sc->as_aperture)
+			return ENOMEM;
+	}
 
 	/*
 	 * Work out an upper bound for agp memory allocation. This
@@ -272,8 +275,9 @@ agp_free_res(device_t dev)
 {
 	struct agp_softc *sc = device_get_softc(dev);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->as_aperture_rid,
-	    sc->as_aperture);
+	if (sc->as_aperture != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->as_aperture_rid,
+		    sc->as_aperture);
 	mtx_destroy(&sc->as_lock);
 	agp_flush_cache();
 }
@@ -537,8 +541,8 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 
 	/*
 	 * Allocate the pages early, before acquiring the lock,
-	 * because vm_page_grab() used with VM_ALLOC_RETRY may
-	 * block and we can't hold a mutex while blocking.
+	 * because vm_page_grab() may sleep and we can't hold a mutex
+	 * while sleeping.
 	 */
 	VM_OBJECT_LOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
@@ -729,7 +733,10 @@ agp_info_user(device_t dev, agp_info *info)
 	info->bridge_id = pci_get_devid(dev);
 	info->agp_mode = 
 	    pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
-	info->aper_base = rman_get_start(sc->as_aperture);
+	if (sc->as_aperture)
+		info->aper_base = rman_get_start(sc->as_aperture);
+	else
+		info->aper_base = 0;
 	info->aper_size = AGP_GET_APERTURE(dev) >> 20;
 	info->pg_total = info->pg_system = sc->as_maxmem >> AGP_PAGE_SHIFT;
 	info->pg_used = sc->as_allocated >> AGP_PAGE_SHIFT;
@@ -876,6 +883,8 @@ agp_mmap(struct cdev *kdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 	if (offset > AGP_GET_APERTURE(dev))
 		return -1;
+	if (sc->as_aperture == NULL)
+		return -1;
 	*paddr = rman_get_start(sc->as_aperture) + offset;
 	return 0;
 }
@@ -917,8 +926,11 @@ agp_get_info(device_t dev, struct agp_info *info)
 
 	info->ai_mode =
 		pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
-	info->ai_aperture_base = rman_get_start(sc->as_aperture);
-	info->ai_aperture_size = rman_get_size(sc->as_aperture);
+	if (sc->as_aperture != NULL)
+		info->ai_aperture_base = rman_get_start(sc->as_aperture);
+	else
+		info->ai_aperture_base = 0;
+	info->ai_aperture_size = AGP_GET_APERTURE(dev);
 	info->ai_memory_allowed = sc->as_maxmem;
 	info->ai_memory_used = sc->as_allocated;
 }

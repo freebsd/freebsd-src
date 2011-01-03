@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2008
+.Dd August 7, 2010
 .Dt MBUF 9
 .Os
 .\"
@@ -171,7 +171,6 @@ is a constant defined in
 The
 .Vt mbuf
 header includes:
-.Pp
 .Bl -tag -width "m_nextpkt" -offset indent
 .It Va m_next
 .Pq Vt struct mbuf *
@@ -211,7 +210,7 @@ flag bits are defined as follows:
 #define	M_EOR		0x0004	/* end of record */
 #define	M_RDONLY	0x0008	/* associated data marked read-only */
 #define	M_PROTO1	0x0010	/* protocol-specific */
-#define	M_PROTO2	0x0020 	/* protocol-specific */
+#define	M_PROTO2	0x0020	/* protocol-specific */
 #define	M_PROTO3	0x0040	/* protocol-specific */
 #define	M_PROTO4	0x0080	/* protocol-specific */
 #define	M_PROTO5	0x0100	/* protocol-specific */
@@ -236,6 +235,22 @@ types are defined as follows:
 #define	MT_SONAME	8	/* socket name */
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data */
+.Ed
+.Pp
+The available external buffer types are defined as follows:
+.Bd -literal
+/* external buffer types */
+#define EXT_CLUSTER	1	/* mbuf cluster */
+#define EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
+#define EXT_JUMBOP	3	/* jumbo cluster 4096 bytes */
+#define EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
+#define EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
+#define EXT_PACKET	6	/* mbuf+cluster from packet zone */
+#define EXT_MBUF	7	/* external mbuf reference (M_IOVEC) */
+#define EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
+#define EXT_MOD_TYPE	200	/* custom module's ext_buf type */
+#define EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
+#define EXT_EXTREF	400	/* has externally maintained ref_cnt ptr */
 .Ed
 .Pp
 If the
@@ -383,6 +398,43 @@ and internal data.
 See
 .Fn MGET
 for details.
+.It Fn MEXTADD mbuf buf size free opt_arg1 opt_arg2 flags type
+Associate externally managed data with
+.Fa mbuf .
+Any internal data contained in the mbuf will be discarded, and the
+.Dv M_EXT flag will be set.
+The
+.Fa buf
+and
+.Fa size
+arguments are the address and length, respectively, of the data.
+The
+.Fa free
+argument points to a function which will be called to free the data
+when the mbuf is freed; it is only used if
+.Fa type
+is
+.Dv EXT_EXTREF .
+The
+.Fa opt_arg1
+and
+.Fa opt_arg2
+arguments will be passed unmodified to
+.Fa free .
+The
+.Fa flags
+argument specifies additional
+.Vt mbuf
+flags; it is not necessary to specify
+.Dv M_EXT .
+Finally, the
+.Fa type
+argument specifies the type of external data, which controls how it
+will be disposed of when the
+.Vt mbuf
+is freed.
+In most cases, the correct value is
+.Dv EXT_EXTREF .
 .It Fn MCLGET mbuf how
 Allocate and attach an
 .Vt mbuf cluster

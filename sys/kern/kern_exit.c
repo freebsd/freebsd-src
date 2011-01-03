@@ -90,7 +90,7 @@ dtrace_execexit_func_t	dtrace_fasttrap_exit;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , exit);
+SDT_PROBE_DEFINE(proc, kernel, , exit, exit);
 SDT_PROBE_ARGTYPE(proc, kernel, , exit, 0, "int");
 
 /* Required to be non-static for SysVR4 emulator */
@@ -121,10 +121,6 @@ exit1(struct thread *td, int rv)
 	struct proc *p, *nq, *q;
 	struct vnode *vtmp;
 	struct vnode *ttyvp = NULL;
-#ifdef KTRACE
-	struct vnode *tracevp;
-	struct ucred *tracecred;
-#endif
 	struct plimit *plim;
 	int locked;
 
@@ -204,6 +200,7 @@ exit1(struct thread *td, int rv)
 	while (p->p_lock > 0)
 		msleep(&p->p_lock, &p->p_mtx, PWAIT, "exithold", 0);
 
+	p->p_xstat = rv;	/* Let event handler change exit status */
 	PROC_UNLOCK(p);
 	/* Drain the limit callout while we don't have the proc locked */
 	callout_drain(&p->p_limco);
@@ -246,6 +243,7 @@ exit1(struct thread *td, int rv)
 	 * P_PPWAIT is set; we will wakeup the parent below.
 	 */
 	PROC_LOCK(p);
+	rv = p->p_xstat;	/* Event handler could change exit status */
 	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 
@@ -356,33 +354,7 @@ exit1(struct thread *td, int rv)
 	if (ttyvp != NULL)
 		vrele(ttyvp);
 #ifdef KTRACE
-	/*
-	 * Disable tracing, then drain any pending records and release
-	 * the trace file.
-	 */
-	if (p->p_traceflag != 0) {
-		PROC_LOCK(p);
-		mtx_lock(&ktrace_mtx);
-		p->p_traceflag = 0;
-		mtx_unlock(&ktrace_mtx);
-		PROC_UNLOCK(p);
-		ktrprocexit(td);
-		PROC_LOCK(p);
-		mtx_lock(&ktrace_mtx);
-		tracevp = p->p_tracevp;
-		p->p_tracevp = NULL;
-		tracecred = p->p_tracecred;
-		p->p_tracecred = NULL;
-		mtx_unlock(&ktrace_mtx);
-		PROC_UNLOCK(p);
-		if (tracevp != NULL) {
-			locked = VFS_LOCK_GIANT(tracevp->v_mount);
-			vrele(tracevp);
-			VFS_UNLOCK_GIANT(locked);
-		}
-		if (tracecred != NULL)
-			crfree(tracecred);
-	}
+	ktrprocexit(td);
 #endif
 	/*
 	 * Release reference to text vnode
@@ -402,6 +374,8 @@ exit1(struct thread *td, int rv)
 	p->p_limit = NULL;
 	PROC_UNLOCK(p);
 	lim_free(plim);
+
+	tidhash_remove(td);
 
 	/*
 	 * Remove proc from allproc queue and pidhash chain.
@@ -452,7 +426,6 @@ exit1(struct thread *td, int rv)
 
 	/* Save exit status. */
 	PROC_LOCK(p);
-	p->p_xstat = rv;
 	p->p_xthread = td;
 
 	/* Tell the prison that we are gone. */
@@ -732,7 +705,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 		p->p_oppid = 0;
 		proc_reparent(p, t);
 		PROC_UNLOCK(p);
-		tdsignal(t, NULL, SIGCHLD, p->p_ksi);
+		pksignal(t, SIGCHLD, p->p_ksi);
 		wakeup(t);
 		cv_broadcast(&p->p_pwait);
 		PROC_UNLOCK(t);

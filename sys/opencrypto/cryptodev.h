@@ -123,7 +123,8 @@
 #define	CRYPTO_SHA2_384_HMAC	19
 #define	CRYPTO_SHA2_512_HMAC	20
 #define CRYPTO_CAMELLIA_CBC	21
-#define	CRYPTO_ALGORITHM_MAX	21 /* Keep updated - see below */
+#define	CRYPTO_AES_XTS		22
+#define	CRYPTO_ALGORITHM_MAX	22 /* Keep updated - see below */
 
 /* Algorithm flags */
 #define	CRYPTO_ALG_FLAG_SUPPORTED	0x01 /* Algorithm is supported */

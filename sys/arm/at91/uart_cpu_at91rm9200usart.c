@@ -64,7 +64,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	struct uart_class *class;
 
 	class = &at91_usart_class;
-	if (class->uc_rclk == 0)
+	if (class->uc_rclk == 0 && at91_master_clock != 0)
 		class->uc_rclk = at91_master_clock;
 	di->ops = uart_getops(class);
 	di->bas.chan = 0;
@@ -77,7 +77,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.bsh = AT91RM92_BASE + AT91RM92_USART0_BASE;
 	di->baudrate = 38400;
 #else
-	di->bas.bsh = AT91RM92_BASE + AT91RM92_SYS_BASE + DBGU;
+	di->bas.bsh = AT91RM92_BASE + AT91RM92_DBGU_BASE;
 	di->baudrate = 115200;
 #endif
 	di->bas.regshft = 0;

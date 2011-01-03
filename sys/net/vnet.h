@@ -95,7 +95,9 @@ struct vnet {
  * Location of the kernel's 'set_vnet' linker set.
  */
 extern uintptr_t	*__start_set_vnet;
+__GLOBL(__start_set_vnet);
 extern uintptr_t	*__stop_set_vnet;
+__GLOBL(__stop_set_vnet);
 
 #define	VNET_START	(uintptr_t)&__start_set_vnet
 #define	VNET_STOP	(uintptr_t)&__stop_set_vnet
@@ -191,15 +193,6 @@ extern struct sx vnet_sxlock;
  * Virtual network stack memory allocator, which allows global variables to
  * be automatically instantiated for each network stack instance.
  */
-__asm__(
-#if defined(__arm__)
-	".section " VNET_SETNAME ", \"aw\", %progbits\n"
-#else
-	".section " VNET_SETNAME ", \"aw\", @progbits\n"
-#endif
-	"\t.p2align " __XSTRING(CACHE_LINE_SHIFT) "\n"
-	"\t.previous");
-
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
 #define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section(VNET_SETNAME) __used
@@ -245,6 +238,11 @@ int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
 	    fmt, descr)							\
 	SYSCTL_OID(parent, nbr, name, CTLFLAG_VNET|(access), ptr, arg, 	\
 	    handler, fmt, descr)
+#define	SYSCTL_VNET_OPAQUE(parent, nbr, name, access, ptr, len, fmt,    \
+	    descr)							\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr, len, 		\
+	    vnet_sysctl_handle_opaque, fmt, descr)
 #define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_STRING|CTLFLAG_VNET|(access),			\
@@ -398,6 +396,9 @@ do {									\
 	    fmt, descr)							\
 	SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt,	\
 	    descr)
+#define	SYSCTL_VNET_OPAQUE(parent, nbr, name, access, ptr, len, fmt,    \
+	    descr)							\
+	SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr)
 #define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
 	SYSCTL_STRING(parent, nbr, name, access, arg, len, descr)
 #define	SYSCTL_VNET_STRUCT(parent, nbr, name, access, ptr, type, descr)	\

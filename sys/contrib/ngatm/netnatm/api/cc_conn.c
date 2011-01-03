@@ -977,25 +977,25 @@ cc_conn_sig_handle(struct ccconn *conn, enum conn_sig sig,
 		/*
 		 * attributes
 		 */
-		if (conn->dirty_attr && CCDIRTY_AAL)
+		if (conn->dirty_attr & CCDIRTY_AAL)
 			resp->connect.aal = conn->aal;
-		if (conn->dirty_attr && CCDIRTY_BLLI)
+		if (conn->dirty_attr & CCDIRTY_BLLI)
 			resp->connect.blli =
 			    conn->blli[conn->blli_selector - 1];
-		if (conn->dirty_attr && CCDIRTY_CONNID)
+		if (conn->dirty_attr & CCDIRTY_CONNID)
 			resp->connect.connid = conn->connid;
 		/* XXX NOTIFY */
-		if (conn->dirty_attr && CCDIRTY_EETD)
+		if (conn->dirty_attr & CCDIRTY_EETD)
 			resp->connect.eetd = conn->eetd;
 		/* XXX GIT */
 		/* XXX UU */
-		if (conn->dirty_attr && CCDIRTY_TRAFFIC)
+		if (conn->dirty_attr & CCDIRTY_TRAFFIC)
 			resp->connect.traffic = conn->traffic;
-		if (conn->dirty_attr && CCDIRTY_EXQOS)
+		if (conn->dirty_attr & CCDIRTY_EXQOS)
 			resp->connect.exqos = conn->exqos;
-		if (conn->dirty_attr && CCDIRTY_ABRSETUP)
+		if (conn->dirty_attr & CCDIRTY_ABRSETUP)
 			resp->connect.abrsetup = conn->abrsetup;
-		if (conn->dirty_attr && CCDIRTY_ABRADD)
+		if (conn->dirty_attr & CCDIRTY_ABRADD)
 			resp->connect.abradd = conn->abradd;
 
 		/*

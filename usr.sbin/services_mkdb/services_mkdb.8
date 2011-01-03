@@ -34,20 +34,23 @@
 .Os
 .Sh NAME
 .Nm services_mkdb
-.Nd generate the services databases
+.Nd generate the services database
 .Sh SYNOPSIS
 .Nm
 .Op Fl q
 .Op Fl o Ar database
-.Op file
+.Op Ar file
 .Nm
 .Fl u
-.Op file
+.Op Ar file
 .Sh DESCRIPTION
+The
 .Nm
+utility
 creates a
 .Xr db 3
-database for the specified file.
+database for the specified
+.Ar file .
 If no file is specified, then
 .Pa /etc/services
 is used.
@@ -68,11 +71,8 @@ Print the services file to stdout, omitting duplicate entries and comments.
 .Pp
 The databases are used by the C library services routines (see
 .Xr getservent 3 ) .
-.Pp
-.Nm
-exits zero on success, non-zero on failure.
 .Sh FILES
-.Bl -tag -width 24n -compact
+.Bl -tag -width ".Pa /var/db/services.db.tmp" -compact
 .It Pa /var/db/services.db
 The current services database.
 .It Pa /var/db/services.db.tmp
@@ -80,6 +80,8 @@ A temporary file.
 .It Pa /etc/services
 The current services file.
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh SEE ALSO
 .Xr db 3 ,
 .Xr getservent 3 ,

@@ -37,6 +37,9 @@
 	  __asm __volatile("mfspr %0,%1" : "=r"(val) : "K"(reg));	\
 	  val; } )
 
+
+#ifndef __powerpc64__
+
 /* The following routines allow manipulation of the full 64-bit width 
  * of SPRs on 64 bit CPUs in bridge mode */
 
@@ -73,6 +76,8 @@
 		isync;" 						\
 	    : "=r"(scratch), "=r"(val) : "K"(reg), "r"(32), "r"(1));	\
 	    val; } )
+
+#endif
 
 #endif /* _LOCORE */
 
@@ -143,13 +148,26 @@
 #define	  IBM401E2		  0x0025
 #define	  IBM401F2		  0x0026
 #define	  IBM401G2		  0x0027
+#define	  IBMRS64II		  0x0033
+#define	  IBMRS64III		  0x0034
+#define	  IBMPOWER4		  0x0035
+#define	  IBMRS64III_2		  0x0036
+#define	  IBMRS64IV		  0x0037
+#define	  IBMPOWER4PLUS		  0x0038
 #define	  IBM970		  0x0039
+#define	  IBMPOWER5		  0x003a
+#define	  IBMPOWER5PLUS		  0x003b
 #define	  IBM970FX		  0x003c
-#define	  IBMPOWER3		  0x0041
+#define	  IBMPOWER6		  0x003e
+#define	  IBMPOWER7		  0x003f
+#define	  IBMPOWER3		  0x0040
+#define	  IBMPOWER3PLUS		  0x0041
 #define	  IBM970MP		  0x0044
 #define	  IBM970GX		  0x0045
 #define	  MPC860		  0x0050
+#define	  IBMCELLBE		  0x0070
 #define	  MPC8240		  0x0081
+#define	  PA6T			  0x0090
 #define	  IBM405GP		  0x4011
 #define	  IBM405L		  0x4161
 #define	  IBM750FX		  0x7000
@@ -402,6 +420,10 @@
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
 #define	SPR_HID4		0x3f4	/* ..8 Hardware Implementation Register 4 */
 #define	SPR_HID5		0x3f6	/* ..8 Hardware Implementation Register 5 */
+#define	SPR_HID6		0x3f9	/* ..8 Hardware Implementation Register 6 */
+
+#define	SPR_CELL_TSRL		0x380	/* ... Cell BE Thread Status Register */
+#define	SPR_CELL_TSCR		0x399	/* ... Cell BE Thread Switch Register */
 
 #if defined(AIM)
 #define	SPR_DBSR		0x3f0	/* 4.. Debug Status Register */

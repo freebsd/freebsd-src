@@ -157,6 +157,24 @@ struct stat32 {
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
 };
 
+struct ostat32 {
+	__uint16_t st_dev;
+	ino_t	st_ino;
+	mode_t	st_mode;
+	nlink_t	st_nlink;
+	__uint16_t st_uid;
+	__uint16_t st_gid;
+	__uint16_t st_rdev;
+	__int32_t st_size;
+	struct timespec32 st_atim;
+	struct timespec32 st_mtim;
+	struct timespec32 st_ctim;
+	__int32_t st_blksize;
+	__int32_t st_blocks;
+	u_int32_t st_flags;
+	__uint32_t st_gen;
+};
+
 struct jail32_v0 {
 	u_int32_t	version;
 	uint32_t	path;
@@ -220,6 +238,11 @@ struct prpsinfo32 {
         u_int   pr_psinfosz;
         char    pr_fname[PRFNAMESZ+1];
         char    pr_psargs[PRARGSZ+1];
+};
+
+struct thrmisc32 {
+        char    pr_tname[MAXCOMLEN+1];
+        u_int   _pad;
 };
 
 struct mq_attr32 {
@@ -305,6 +328,7 @@ struct kinfo_proc32 {
 	uint32_t ki_pcb;
 	uint32_t ki_kstack;
 	uint32_t ki_udata;
+	uint32_t ki_tdaddr;
 	uint32_t ki_spareptrs[KI_NSPARE_PTR];	/* spare room for growth */
 	int	ki_sparelongs[KI_NSPARE_LONG];
 	int	ki_sflag;

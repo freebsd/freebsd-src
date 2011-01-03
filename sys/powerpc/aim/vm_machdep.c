@@ -81,7 +81,6 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/sf_buf.h>
-#include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
@@ -131,6 +130,10 @@ static u_int sf_buf_alloc_want;
  */
 static struct mtx sf_buf_lock;
 
+#ifdef __powerpc64__
+extern uintptr_t tocbase;
+#endif
+
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -147,7 +150,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	KASSERT(td1 == curthread || td1 == &thread0,
 	    ("cpu_fork: p1 not curproc and not proc0"));
-	CTR3(KTR_PROC, "cpu_fork: called td1=%08x p2=%08x flags=%x", (u_int)td1, (u_int)p2, flags);
+	CTR3(KTR_PROC, "cpu_fork: called td1=%p p2=%p flags=%x",
+	    td1, p2, flags);
 
 	if ((flags & RFPROC) == 0)
 		return;
@@ -155,7 +159,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	p1 = td1->td_proc;
 
 	pcb = (struct pcb *)((td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fU);
+	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fUL);
 	td2->td_pcb = pcb;
 
 	/* Copy the pcb */
@@ -178,13 +182,21 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	cf = (struct callframe *)tf - 1;
 	memset(cf, 0, sizeof(struct callframe));
+	#ifdef __powerpc64__
+	cf->cf_toc = tocbase;
+	#endif
 	cf->cf_func = (register_t)fork_return;
 	cf->cf_arg0 = (register_t)td2;
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb->pcb_sp = (register_t)cf;
+	#ifdef __powerpc64__
+	pcb->pcb_lr = ((register_t *)fork_trampoline)[0];
+	pcb->pcb_toc = ((register_t *)fork_trampoline)[1];
+	#else
 	pcb->pcb_lr = (register_t)fork_trampoline;
-	pcb->pcb_cpu.aim.usr = kernel_pmap->pm_sr[USER_SR];
+	#endif
+	pcb->pcb_cpu.aim.usr_vsid = 0;
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
@@ -209,8 +221,8 @@ cpu_set_fork_handler(td, func, arg)
 {
 	struct	callframe *cf;
 
-	CTR4(KTR_PROC, "%s called with td=%08x func=%08x arg=%08x",
-	    __func__, (u_int)td, (u_int)func, (u_int)arg);
+	CTR4(KTR_PROC, "%s called with td=%p func=%p arg=%p",
+	    __func__, td, func, arg);
 
 	cf = (struct callframe *)td->td_pcb->pcb_sp;
 
@@ -222,15 +234,6 @@ void
 cpu_exit(td)
 	register struct thread *td;
 {
-}
-
-/*
- * Reset back to firmware.
- */
-void
-cpu_reset()
-{
-	OF_reboot();
 }
 
 /*
@@ -358,10 +361,9 @@ sf_buf_free(struct sf_buf *sf)
 void
 swi_vm(void *dummy)
 {
-#if 0 /* XXX: Don't have busdma stuff yet */
+
 	if (busdma_swi_pending != 0)
 		busdma_swi();
-#endif
 }
 
 /*
@@ -385,33 +387,10 @@ is_physical_memory(addr)
 }
 
 /*
- * Threading functions
+ * CPU threading functions related to the VM layer. These could be used
+ * to map the SLB bits required for the kernel stack instead of forcing a
+ * fixed-size KVA.
  */
-void
-cpu_thread_exit(struct thread *td)
-{
-}
-
-void
-cpu_thread_clean(struct thread *td)
-{
-}
-
-void
-cpu_thread_alloc(struct thread *td)
-{
-	struct pcb *pcb;
-
-	pcb = (struct pcb *)((td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
-	    sizeof(struct pcb)) & ~0x2fU);
-	td->td_pcb = pcb;
-	td->td_frame = (struct trapframe *)pcb - 1;
-}
-
-void
-cpu_thread_free(struct thread *td)
-{
-}
 
 void
 cpu_thread_swapin(struct thread *td)
@@ -423,121 +402,3 @@ cpu_thread_swapout(struct thread *td)
 {
 }
 
-void
-cpu_set_syscall_retval(struct thread *td, int error)
-{
-	struct proc *p;
-	struct trapframe *tf;
-	int fixup;
-
-	if (error == EJUSTRETURN)
-		return;
-
-	p = td->td_proc;
-	tf = td->td_frame;
-
-	if (tf->fixreg[0] == SYS___syscall) {
-		int code = tf->fixreg[FIRSTARG + 1];
-		if (p->p_sysent->sv_mask)
-			code &= p->p_sysent->sv_mask;
-		fixup = (code != SYS_freebsd6_lseek && code != SYS_lseek) ?
-		    1 : 0;
-	} else
-		fixup = 0;
-
-	switch (error) {
-	case 0:
-		if (fixup) {
-			/*
-			 * 64-bit return, 32-bit syscall. Fixup byte order
-			 */
-			tf->fixreg[FIRSTARG] = 0;
-			tf->fixreg[FIRSTARG + 1] = td->td_retval[0];
-		} else {
-			tf->fixreg[FIRSTARG] = td->td_retval[0];
-			tf->fixreg[FIRSTARG + 1] = td->td_retval[1];
-		}
-		tf->cr &= ~0x10000000;		/* XXX: Magic number */
-		break;
-	case ERESTART:
-		/*
-		 * Set user's pc back to redo the system call.
-		 */
-		tf->srr0 -= 4;
-		break;
-	default:
-		if (p->p_sysent->sv_errsize) {
-			error = (error < p->p_sysent->sv_errsize) ?
-			    p->p_sysent->sv_errtbl[error] : -1;
-		}
-		tf->fixreg[FIRSTARG] = error;
-		tf->cr |= 0x10000000;		/* XXX: Magic number */
-		break;
-	}
-}
-
-void
-cpu_set_upcall(struct thread *td, struct thread *td0)
-{
-	struct pcb *pcb2;
-	struct trapframe *tf;
-	struct callframe *cf;
-
-	pcb2 = td->td_pcb;
-
-	/* Copy the upcall pcb */
-	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-
-	/* Create a stack for the new thread */
-	tf = td->td_frame;
-	bcopy(td0->td_frame, tf, sizeof(struct trapframe));
-	tf->fixreg[FIRSTARG] = 0;
-	tf->fixreg[FIRSTARG + 1] = 0;
-	tf->cr &= ~0x10000000;
-
-	/* Set registers for trampoline to user mode. */
-	cf = (struct callframe *)tf - 1;
-	memset(cf, 0, sizeof(struct callframe));
-	cf->cf_func = (register_t)fork_return;
-	cf->cf_arg0 = (register_t)td;
-	cf->cf_arg1 = (register_t)tf;
-
-	pcb2->pcb_sp = (register_t)cf;
-	pcb2->pcb_lr = (register_t)fork_trampoline;
-	pcb2->pcb_cpu.aim.usr = kernel_pmap->pm_sr[USER_SR];
-
-	/* Setup to release spin count in fork_exit(). */
-	td->td_md.md_spinlock_count = 1;
-	td->td_md.md_saved_msr = PSL_KERNSET;
-}
-
-void
-cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
-	stack_t *stack)
-{
-	struct trapframe *tf;
-	uint32_t sp;
-
-	tf = td->td_frame;
-	/* align stack and alloc space for frame ptr and saved LR */
-	sp = ((uint32_t)stack->ss_sp + stack->ss_size - sizeof(uint64_t)) &
-	    ~0x1f;
-	bzero(tf, sizeof(struct trapframe));
-
-	tf->fixreg[1] = (register_t)sp;
-	tf->fixreg[3] = (register_t)arg;
-	tf->srr0 = (register_t)entry;
-	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
-	td->td_pcb->pcb_flags = 0;
-
-	td->td_retval[0] = (register_t)entry;
-	td->td_retval[1] = 0;
-}
-
-int
-cpu_set_user_tls(struct thread *td, void *tls_base)
-{
-
-	td->td_frame->fixreg[2] = (register_t)tls_base + 0x7008;
-	return (0);
-}

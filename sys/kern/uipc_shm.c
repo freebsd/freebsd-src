@@ -271,7 +271,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			swap_pager_freespace(object, nobjsize, delta);
 
 		/* Free the swap accounted for shm */
-		swap_release_by_uid(delta, object->uip);
+		swap_release_by_cred(delta, object->cred);
 		object->charge -= delta;
 
 		/*
@@ -304,9 +304,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			 */
 			base = roundup2(base, DEV_BSIZE);
 
-			vm_page_lock_queues();
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-			vm_page_unlock_queues();
 		} else if ((length & PAGE_MASK) &&
 		    __predict_false(object->cache != NULL)) {
 			vm_page_cache_free(object, OFF_TO_IDX(length),
@@ -316,7 +314,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 
 		/* Attempt to reserve the swap */
 		delta = ptoa(nobjsize - object->size);
-		if (!swap_reserve_by_uid(delta, object->uip)) {
+		if (!swap_reserve_by_cred(delta, object->cred)) {
 			VM_OBJECT_UNLOCK(object);
 			return (ENOMEM);
 		}

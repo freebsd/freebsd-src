@@ -126,24 +126,29 @@ nsgphy_attach(device_t dev)
 		device_printf(dev, "<rev. %d>\n", MII_REV(ma->mii_id2));
 	device_printf(dev, " ");
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
+	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_flags = miibus_get_flags(dev);
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = nsgphy_service;
 	sc->mii_pdata = mii;
 
-	mii->mii_instance++;
+	sc->mii_flags |= MIIF_NOMANPAUSE;
 
 	mii_phy_reset(sc);
 
 	/*
-	 * NB: the PHY has the 10baseT BMSR bits hard-wired to 0,
-	 * even though it supports 10baseT.
+	 * NB: the PHY has the 10BASE-T BMSR bits hard-wired to 0,
+	 * even though it supports 10BASE-T.
 	 */
 	sc->mii_capabilities = (PHY_READ(sc, MII_BMSR) |
-	    (BMSR_10TFDX | BMSR_10THDX)) & ma->mii_capmask;
+	    BMSR_10TFDX | BMSR_10THDX) & ma->mii_capmask;
+	/*
+	 * Note that as documented manual 1000BASE-T modes of DP83865 only
+	 * work together with other National Semiconductor PHYs.
+	 */
 	if (sc->mii_capabilities & BMSR_EXTSTAT)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 
@@ -157,29 +162,12 @@ nsgphy_attach(device_t dev)
 static int
 nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -190,12 +178,6 @@ nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;
@@ -270,7 +252,8 @@ nsgphy_status(struct mii_softc *sc)
 		}
 
 		if (physup & PHY_SUP_DUPLEX)
-			mii->mii_media_active |= IFM_FDX;
+			mii->mii_media_active |=
+			    IFM_FDX | mii_phy_flowstatus(sc);
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else

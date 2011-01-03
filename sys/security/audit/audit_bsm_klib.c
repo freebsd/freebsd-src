@@ -548,7 +548,7 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 	 * the supplied buffer being overflowed.  Check to see if this is the
 	 * case.
 	 */
-	if (sbuf_overflowed(&sbf) != 0) {
+	if (sbuf_error(&sbf) != 0) {
 		cpath[0] = '\0';
 		return;
 	}

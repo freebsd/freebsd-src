@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 1996
+.Dd September 18, 2010
 .Dt DEVFS 5
 .Os
 .Sh NAME
@@ -69,6 +69,27 @@ The
 .Xr mknod 8
 tool can be used to recover deleted device entries under
 .Nm .
+.Pp
+The
+.Xr fdescfs 5
+filesystem is an alternate means for populating
+.Pa /dev/fd .
+The character devices that both
+.Nm
+and
+.Xr fdescfs 5
+present in
+.Pa /dev/fd
+correspond to the open file descriptors of the process
+accessing the directory.
+.Nm
+only creates files for the standard file descriptors
+.Pa 0 ,
+.Pa 1
+and
+.Pa 2 .
+.Xr fdescfs 5
+creates files for all open descriptors.
 .Sh FILES
 .Bl -tag -width /dev/XXXX -compact
 .It Pa /dev
@@ -80,17 +101,22 @@ mount point.
 To mount a
 .Nm
 volume located on
-.Pa /dev :
+.Pa /mychroot/dev :
 .Pp
-.Dl "mount -t devfs devfs /dev"
+.Dl "mount -t devfs devfs /mychroot/dev"
 .Sh SEE ALSO
 .Xr devfs 8 ,
+.Xr fdescfs 5 ,
 .Xr mount 8
 .Sh HISTORY
 The
 .Nm
 file system first appeared in
 .Fx 2.0 .
+It became the preferred method for accessing devices in
+.Fx 5.0
+and the only method in
+.Fx 6.0 .
 The
 .Nm
 manual page first appeared in

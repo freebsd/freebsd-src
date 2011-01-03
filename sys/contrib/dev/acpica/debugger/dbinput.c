@@ -194,6 +194,7 @@ enum AcpiExDebuggerCommands
     CMD_NOTIFY,
     CMD_OBJECT,
     CMD_OPEN,
+    CMD_OSI,
     CMD_OWNER,
     CMD_PREDEFINED,
     CMD_PREFIX,
@@ -260,6 +261,7 @@ static const COMMAND_INFO       AcpiGbl_DbCommands[] =
     {"NOTIFY",       2},
     {"OBJECT",       1},
     {"OPEN",         1},
+    {"OSI",          0},
     {"OWNER",        1},
     {"PREDEFINED",   0},
     {"PREFIX",       0},
@@ -333,6 +335,7 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("History                             Display command history buffer\n");
         AcpiOsPrintf ("Level [<DebugLevel>] [console]      Get/Set debug level for file or console\n");
         AcpiOsPrintf ("Locks                               Current status of internal mutexes\n");
+        AcpiOsPrintf ("Osi [Install|Remove <name>]         Display or modify global _OSI list\n");
         AcpiOsPrintf ("Quit or Exit                        Exit this command\n");
         AcpiOsPrintf ("Stats [Allocations|Memory|Misc\n");
         AcpiOsPrintf ("      |Objects|Sizes|Stack|Tables]  Display namespace and memory statistics\n");
@@ -455,13 +458,30 @@ AcpiDbGetNextToken (
         }
     }
 
-    Start = String;
-
-    /* Find end of token */
-
-    while (*String && (*String != ' '))
+    if (*String == '"')
     {
+        /* This is a quoted string, scan until closing quote */
+
         String++;
+        Start = String;
+
+        /* Find end of token */
+
+        while (*String && (*String != '"'))
+        {
+            String++;
+        }
+    }
+    else
+    {
+        Start = String;
+
+        /* Find end of token */
+
+        while (*String && (*String != ' '))
+        {
+            String++;
+        }
     }
 
     if (!(*String))
@@ -613,7 +633,7 @@ AcpiDbCommandDispatch (
 
     if (ParamCount < AcpiGbl_DbCommands[CommandIndex].MinArgs)
     {
-        AcpiOsPrintf ("%d parameters entered, [%s] requires %d parameters\n",
+        AcpiOsPrintf ("%u parameters entered, [%s] requires %u parameters\n",
             ParamCount, AcpiGbl_DbCommands[CommandIndex].Name,
             AcpiGbl_DbCommands[CommandIndex].MinArgs);
 
@@ -818,6 +838,10 @@ AcpiDbCommandDispatch (
 
     case CMD_OPEN:
         AcpiDbOpenDebugFile (AcpiGbl_DbArgs[1]);
+        break;
+
+    case CMD_OSI:
+        AcpiDbDisplayInterfaces (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
     case CMD_OWNER:

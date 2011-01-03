@@ -21,11 +21,14 @@
 cpu		AIM
 ident		GENERIC
 
+machine		powerpc	powerpc
+
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platform support
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
+options		MAMBO			#IBM Mambo Full System Simulator
 
 options 	SCHED_ULE		#ULE scheduler
 options 	INET			#InterNETworking
@@ -57,7 +60,6 @@ options 	STACK			#stack(9) support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
-options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
@@ -72,6 +74,7 @@ options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # To make an SMP kernel, the next line is needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
@@ -81,6 +84,7 @@ device		cpufreq
 
 # Standard busses
 device		pci
+device		agp
 
 # ATA and ATAPI devices
 device		ata
@@ -170,6 +174,9 @@ device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
 
 # Misc
+device		ds1775		# PowerMac7,2 temperature sensor
+device		fcu		# Apple Fan Control Unit
+device		max6690		# PowerMac7,2 temperature sensor
 device		powermac_nvram	# Open Firmware configuration NVRAM
 device		smu		# Apple System Management Unit
 

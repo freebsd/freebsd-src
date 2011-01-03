@@ -711,7 +711,7 @@ good:
 	sbuf_printf(sb, "Unsupported Asus laptop: %s\n", Obj->String.Pointer);
 	sbuf_finish(sb);
 
-	device_printf(dev, sbuf_data(sb));
+	device_printf(dev, "%s", sbuf_data(sb));
 
 	sbuf_delete(sb);
 	AcpiOsFree(Buf.Pointer);

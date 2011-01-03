@@ -130,6 +130,7 @@ struct da_softc {
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 	struct callout		sendordered_c;
+	uint64_t wwpn;
 };
 
 struct da_quirk_entry {
@@ -997,11 +998,6 @@ dacleanup(struct cam_periph *periph)
 		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
 
-	/*
-	 * Nullify our periph pointer here to try and catch
-	 * race conditions in callbacks/downcalls.
-	 */
-	softc->disk->d_drv1 = NULL;
 	disk_destroy(softc->disk);
 	callout_drain(&softc->sendordered_c);
 	free(softc, M_DEVBUF);
@@ -1078,10 +1074,16 @@ dasysctlinit(void *context, int pending)
 	struct cam_periph *periph;
 	struct da_softc *softc;
 	char tmpstr[80], tmpstr2[80];
+	struct ccb_trans_settings cts;
 
 	periph = (struct cam_periph *)context;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	/*
+	 * periph was held for us when this task was enqueued
+	 */
+	if (periph->flags & CAM_PERIPH_INVALID) {
+		cam_periph_release(periph);
 		return;
+	}
 
 	softc = (struct da_softc *)periph->softc;
 	snprintf(tmpstr, sizeof(tmpstr), "CAM DA unit %d", periph->unit_number);
@@ -1099,14 +1101,38 @@ dasysctlinit(void *context, int pending)
 	}
 
 	/*
-	 * Now register the sysctl handler, so the user can the value on
+	 * Now register the sysctl handler, so the user can change the value on
 	 * the fly.
 	 */
-	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
 
+	/*
+	 * Add some addressing info.
+	 */
+	memset(&cts, 0, sizeof (cts));
+	xpt_setup_ccb(&cts.ccb_h, periph->path, /*priority*/1);
+	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+	cam_periph_lock(periph);
+	xpt_action((union ccb *)&cts);
+	cam_periph_unlock(periph);
+	if (cts.ccb_h.status != CAM_REQ_CMP) {
+		cam_periph_release(periph);
+		return;
+	}
+	if (cts.protocol == PROTO_SCSI && cts.transport == XPORT_FC) {
+		struct ccb_trans_settings_fc *fc = &cts.xport_specific.fc;
+		if (fc->valid & CTS_FC_VALID_WWPN) {
+			softc->wwpn = fc->wwpn;
+			SYSCTL_ADD_XLONG(&softc->sysctl_ctx,
+			    SYSCTL_CHILDREN(softc->sysctl_tree),
+			    OID_AUTO, "wwpn", CTLTYPE_QUAD | CTLFLAG_RD,
+			    &softc->wwpn, "World Wide Port Name");
+		}
+	}
 	cam_periph_release(periph);
 }
 
@@ -1237,6 +1263,33 @@ daregister(struct cam_periph *periph, void *arg)
 	 * Register this media as a disk
 	 */
 
+	/*
+	 * Add async callbacks for bus reset and
+	 * bus device reset calls.  I don't bother
+	 * checking if this fails as, in most cases,
+	 * the system will function just fine without
+	 * them and the only alternative would be to
+	 * not attach the device on failure.
+	 */
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
+			   daasync, periph, periph->path);
+
+	/*
+	 * Take an exclusive refcount on the periph while dastart is called
+	 * to finish the probe.  The reference will be dropped in dadone at
+	 * the end of probe.
+	 */
+	(void)cam_periph_hold(periph, PRIBIO);
+
+	/*
+	 * Schedule a periodic event to occasionally send an
+	 * ordered tag to a device.
+	 */
+	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
+	callout_reset(&softc->sendordered_c,
+	    (DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL,
+	    dasendorderedtag, softc);
+
 	mtx_unlock(periph->sim->mtx);
 	softc->disk = disk_alloc();
 	softc->disk->d_open = daopen;
@@ -1257,36 +1310,14 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 	strlcpy(softc->disk->d_ident, cgd->serial_num,
 	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
+	softc->disk->d_hba_vendor = cpi.hba_vendor;
+	softc->disk->d_hba_device = cpi.hba_device;
+	softc->disk->d_hba_subvendor = cpi.hba_subvendor;
+	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
 
-	/*
-	 * Add async callbacks for bus reset and
-	 * bus device reset calls.  I don't bother
-	 * checking if this fails as, in most cases,
-	 * the system will function just fine without
-	 * them and the only alternative would be to
-	 * not attach the device on failure.
-	 */
-	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
-			   daasync, periph, periph->path);
-
-	/*
-	 * Take an exclusive refcount on the periph while dastart is called
-	 * to finish the probe.  The reference will be dropped in dadone at
-	 * the end of probe.
-	 */
-	(void)cam_periph_hold(periph, PRIBIO);
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
-
-	/*
-	 * Schedule a periodic event to occasionally send an
-	 * ordered tag to a device.
-	 */
-	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
-	callout_reset(&softc->sendordered_c,
-	    (DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL,
-	    dasendorderedtag, softc);
 
 	return(CAM_REQ_CMP);
 }
@@ -1323,7 +1354,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 			bioq_remove(&softc->bio_queue, bp);
 
-			if ((softc->flags & DA_FLAG_NEED_OTAG) != 0) {
+			if ((bp->bio_flags & BIO_ORDERED) != 0
+			 || (softc->flags & DA_FLAG_NEED_OTAG) != 0) {
 				softc->flags &= ~DA_FLAG_NEED_OTAG;
 				softc->ordered_tag_count++;
 				tag_code = MSG_ORDERED_Q_TAG;
@@ -1337,7 +1369,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 						/*retries*/da_retry_count,
 						/*cbfcnp*/dadone,
 						/*tag_action*/tag_code,
-						/*read_op*/bp->bio_cmd == BIO_READ,
+						/*read_op*/bp->bio_cmd
+							== BIO_READ,
 						/*byte2*/0,
 						softc->minimum_cmd_size,
 						/*lba*/bp->bio_pblkno,
@@ -1346,17 +1379,24 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 						/*data_ptr*/ bp->bio_data,
 						/*dxfer_len*/ bp->bio_bcount,
 						/*sense_len*/SSD_FULL_SIZE,
-						/*timeout*/da_default_timeout*1000);
+						da_default_timeout * 1000);
 				break;
 			case BIO_FLUSH:
+				/*
+				 * BIO_FLUSH doesn't currently communicate
+				 * range data, so we synchronize the cache
+				 * over the whole disk.  We also force
+				 * ordered tag semantics the flush applies
+				 * to all previously queued I/O.
+				 */
 				scsi_synchronize_cache(&start_ccb->csio,
 						       /*retries*/1,
 						       /*cbfcnp*/dadone,
-						       MSG_SIMPLE_Q_TAG,
-						       /*begin_lba*/0,/* Cover the whole disk */
+						       MSG_ORDERED_Q_TAG,
+						       /*begin_lba*/0,
 						       /*lb_count*/0,
 						       SSD_FULL_SIZE,
-						       /*timeout*/da_default_timeout*1000);
+						       da_default_timeout*1000);
 				break;
 			}
 			start_ccb->ccb_h.ccb_state = DA_CCB_BUFFER_IO;
@@ -1627,7 +1667,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * give them an 'illegal' value we'll avoid that
 			 * here.
 			 */
-			if (block_size >= MAXPHYS || block_size == 0) {
+			if (block_size == 0 && maxsector == 0) {
+				snprintf(announce_buf, sizeof(announce_buf),
+				        "0MB (no media?)");
+			} else if (block_size >= MAXPHYS || block_size == 0) {
 				xpt_print(periph->path,
 				    "unsupportable block size %ju\n",
 				    (uintmax_t) block_size);
@@ -1747,6 +1790,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Create our sysctl variables, now that we know
 			 * we have successfully attached.
 			 */
+			(void) cam_periph_acquire(periph);	/* increase the refcount */
 			taskqueue_enqueue(taskqueue_thread,&softc->sysctl_task);
 		}
 		softc->state = DA_STATE_NORMAL;	

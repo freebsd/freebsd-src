@@ -17,22 +17,25 @@ SRCS+=	u8_textprep.c
 
 .PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
 SRCS+=	opensolaris_acl.c
-SRCS+=	opensolaris_kmem.c
 SRCS+=	opensolaris_kobj.c
 SRCS+=	opensolaris_kstat.c
 SRCS+=	opensolaris_lookup.c
 SRCS+=	opensolaris_policy.c
 SRCS+=	opensolaris_string.c
 SRCS+=	opensolaris_taskq.c
+SRCS+=	opensolaris_uio.c
 SRCS+=	opensolaris_vfs.c
 SRCS+=	opensolaris_zone.c
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64"
-.PATH:	${SUNW}/common/atomic/${MACHINE_ARCH}
-SRCS+=	opensolaris_atomic.S
+_A=${.CURDIR}/../../cddl/contrib/opensolaris/common/atomic
+.if exists(${_A}/${MACHINE_CPUARCH}/opensolaris_atomic.S)
+.PATH:	${_A}/${MACHINE_CPUARCH}
+SRCS+=		opensolaris_atomic.S
+.elif exists(${_A}/${MACHINE_ARCH}/opensolaris_atomic.S)
+.PATH:	${_A}/${MACHINE_ARCH}
+SRCS+=		opensolaris_atomic.S
 .else
-.PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
-SRCS+=	opensolaris_atomic.c
+SRCS+=		opensolaris_atomic.c
 .endif
 
 .PATH:	${SUNW}/uts/common/fs
@@ -62,9 +65,6 @@ SRCS+=	zutil.c
 ZFS_SRCS=	${ZFS_OBJS:C/.o$/.c/}
 SRCS+=	${ZFS_SRCS}
 SRCS+=	vdev_geom.c
-
-# Use UMA for ZIO allocation.
-CFLAGS+=-DZIO_USE_UMA
 
 # Use FreeBSD's namecache.
 CFLAGS+=-DFREEBSD_NAMECACHE

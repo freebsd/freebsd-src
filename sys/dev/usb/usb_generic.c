@@ -109,7 +109,7 @@ static int	usb_gen_fill_deviceinfo(struct usb_fifo *,
 static int	ugen_re_enumerate(struct usb_fifo *);
 static int	ugen_iface_ioctl(struct usb_fifo *, u_long, void *, int);
 static uint8_t	ugen_fs_get_complete(struct usb_fifo *, uint8_t *);
-static int ugen_fs_uninit(struct usb_fifo *f);
+static int	ugen_fs_uninit(struct usb_fifo *f);
 
 /* structures */
 
@@ -825,9 +825,9 @@ usb_gen_fill_deviceinfo(struct usb_fifo *f, struct usb_device_info *di)
 	di->udi_bus = device_get_unit(udev->bus->bdev);
 	di->udi_addr = udev->address;
 	di->udi_index = udev->device_index;
-	strlcpy(di->udi_serial, udev->serial, sizeof(di->udi_serial));
-	strlcpy(di->udi_vendor, udev->manufacturer, sizeof(di->udi_vendor));
-	strlcpy(di->udi_product, udev->product, sizeof(di->udi_product));
+	strlcpy(di->udi_serial, usb_get_serial(udev), sizeof(di->udi_serial));
+	strlcpy(di->udi_vendor, usb_get_manufacturer(udev), sizeof(di->udi_vendor));
+	strlcpy(di->udi_product, usb_get_product(udev), sizeof(di->udi_product));
 	usb_printbcd(di->udi_release, sizeof(di->udi_release),
 	    UGETW(udev->ddesc.bcdDevice));
 	di->udi_vendorNo = UGETW(udev->ddesc.idVendor);
@@ -951,23 +951,19 @@ ugen_re_enumerate(struct usb_fifo *f)
 	if (error) {
 		return (error);
 	}
-	/* get the device unconfigured */
-	error = ugen_set_config(f, USB_UNCONFIG_INDEX);
-	if (error) {
-		return (error);
+	if (udev->flags.usb_mode != USB_MODE_HOST) {
+		/* not possible in device side mode */
+		return (ENOTTY);
 	}
-	/* do a bus-reset */
-	mtx_lock(f->priv_mtx);
-	error = usbd_req_re_enumerate(udev, f->priv_mtx);
-	mtx_unlock(f->priv_mtx);
-
-	if (error) {
-		return (ENXIO);
+	/* make sure all FIFO's are gone */
+	/* else there can be a deadlock */
+	if (ugen_fs_uninit(f)) {
+		/* ignore any errors */
+		DPRINTFN(6, "no FIFOs\n");
 	}
-	/* restore configuration to index 0 */
-	error = ugen_set_config(f, 0);
-	if (error) {
-		return (error);
+	if (udev->re_enumerate_wait == 0) {
+		udev->re_enumerate_wait = 1;
+		usb_needs_explore(udev->bus, 0);
 	}
 	return (0);
 }
@@ -1735,14 +1731,34 @@ ugen_set_power_mode(struct usb_fifo *f, int mode)
 		break;
 
 	case USB_POWER_MODE_RESUME:
-		err = usbd_req_clear_port_feature(udev->parent_hub,
-		    NULL, udev->port_no, UHF_PORT_SUSPEND);
+#if USB_HAVE_POWERD
+		/* let USB-powerd handle resume */
+		USB_BUS_LOCK(udev->bus);
+		udev->pwr_save.write_refs++;
+		udev->pwr_save.last_xfer_time = ticks;
+		USB_BUS_UNLOCK(udev->bus);
+
+		/* set new power mode */
+		usbd_set_power_mode(udev, USB_POWER_MODE_SAVE);
+
+		/* wait for resume to complete */
+		usb_pause_mtx(NULL, hz / 4);
+
+		/* clear write reference */
+		USB_BUS_LOCK(udev->bus);
+		udev->pwr_save.write_refs--;
+		USB_BUS_UNLOCK(udev->bus);
+#endif
 		mode = USB_POWER_MODE_SAVE;
 		break;
 
 	case USB_POWER_MODE_SUSPEND:
-		err = usbd_req_set_port_feature(udev->parent_hub,
-		    NULL, udev->port_no, UHF_PORT_SUSPEND);
+#if USB_HAVE_POWERD
+		/* let USB-powerd handle suspend */
+		USB_BUS_LOCK(udev->bus);
+		udev->pwr_save.last_xfer_time = ticks - (256 * hz);
+		USB_BUS_UNLOCK(udev->bus);
+#endif
 		mode = USB_POWER_MODE_SAVE;
 		break;
 
@@ -1755,9 +1771,11 @@ ugen_set_power_mode(struct usb_fifo *f, int mode)
 
 	/* if we are powered off we need to re-enumerate first */
 	if (old_mode == USB_POWER_MODE_OFF) {
-		err = ugen_re_enumerate(f);
-		if (err)
-			return (err);
+		if (udev->flags.usb_mode == USB_MODE_HOST) {
+			if (udev->re_enumerate_wait == 0)
+				udev->re_enumerate_wait = 1;
+		}
+		/* set power mode will wake up the explore thread */
 	}
 
 	/* set new power mode */
@@ -1771,10 +1789,9 @@ ugen_get_power_mode(struct usb_fifo *f)
 {
 	struct usb_device *udev = f->udev;
 
-	if ((udev == NULL) ||
-	    (udev->parent_hub == NULL)) {
+	if (udev == NULL)
 		return (USB_POWER_MODE_ON);
-	}
+
 	return (udev->power_mode);
 }
 

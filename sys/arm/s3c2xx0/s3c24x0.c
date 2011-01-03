@@ -80,25 +80,29 @@ static struct {
 		u_long count;
 	} res[2];
 } s3c24x0_children[] = {
+	{ "rtc", 0, -1, {
+		{ SYS_RES_IOPORT, S3C24X0_RTC_PA_BASE, S3C24X0_RTC_SIZE },
+		{ 0 },
+	} },
 	{ "timer", 0, -1, { { 0 }, } },
 	{ "uart", 1, 0, {
 		{ SYS_RES_IRQ, S3C24X0_INT_UART0, 1 },
-		{ SYS_RES_IOPORT, S3C24X0_UART_BASE(0),
+		{ SYS_RES_IOPORT, S3C24X0_UART_PA_BASE(0),
 		  S3C24X0_UART_BASE(1) - S3C24X0_UART_BASE(0) },
 	} },
 	{ "uart", 1, 1, {
 		{ SYS_RES_IRQ, S3C24X0_INT_UART1, 1 },
-		{ SYS_RES_IOPORT, S3C24X0_UART_BASE(1),
+		{ SYS_RES_IOPORT, S3C24X0_UART_PA_BASE(1),
 		  S3C24X0_UART_BASE(2) - S3C24X0_UART_BASE(1) },
 	} },
 	{ "uart", 1, 2, {
 		{ SYS_RES_IRQ, S3C24X0_INT_UART2, 1 },
-		{ SYS_RES_IOPORT, S3C24X0_UART_BASE(2),
+		{ SYS_RES_IOPORT, S3C24X0_UART_PA_BASE(2),
 		  S3C24X0_UART_BASE(3) - S3C24X0_UART_BASE(2) },
 	} },
 	{ "ohci", 0, -1, {
 		{ SYS_RES_IRQ, S3C24X0_INT_USBH, 0 },
-		{ SYS_RES_IOPORT, S3C24X0_USBHC_BASE, S3C24X0_USBHC_SIZE },
+		{ SYS_RES_IOPORT, S3C24X0_USBHC_PA_BASE, S3C24X0_USBHC_SIZE },
 	} },
 	{ NULL },
 };
@@ -114,6 +118,8 @@ static int	s3c24x0_setup_intr(device_t, device_t, struct resource *, int,
         driver_filter_t *, driver_intr_t *, void *, void **);
 static int	s3c24x0_teardown_intr(device_t, device_t, struct resource *,
 	void *);
+static int	s3c24x0_config_intr(device_t, int, enum intr_trigger,
+	enum intr_polarity);
 static struct resource *s3c24x0_alloc_resource(device_t, device_t, int, int *,
         u_long, u_long, u_long, u_int);
 static int s3c24x0_activate_resource(device_t, device_t, int, int,
@@ -130,6 +136,7 @@ static device_method_t s3c24x0_methods[] = {
 	DEVMETHOD(device_identify, s3c24x0_identify),
 	DEVMETHOD(bus_setup_intr, s3c24x0_setup_intr),
 	DEVMETHOD(bus_teardown_intr, s3c24x0_teardown_intr),
+	DEVMETHOD(bus_config_intr, s3c24x0_config_intr),
 	DEVMETHOD(bus_alloc_resource, s3c24x0_alloc_resource),
 	DEVMETHOD(bus_activate_resource, s3c24x0_activate_resource),
 	DEVMETHOD(bus_release_resource,	s3c24x0_release_resource),
@@ -172,6 +179,30 @@ s3c24x0_add_child(device_t bus, int prio, const char *name, int unit)
 	return (child);
 }
 
+static void
+s3c24x0_enable_ext_intr(unsigned int irq)
+{
+	uint32_t reg, value;
+	int offset;
+
+	if (irq <= 7) {
+		reg = GPIO_PFCON;
+		offset = irq * 2;
+	} else if (irq <= 23) {
+		reg = GPIO_PGCON;
+		offset = (irq - 8) * 2;
+	} else
+		return;
+
+	/* Make the pin an interrupt source */
+	value = bus_space_read_4(s3c2xx0_softc->sc_iot,
+	    s3c2xx0_softc->sc_gpio_ioh, reg);
+	value &= ~(3 << offset);
+	value |= 2 << offset;
+	bus_space_write_4(s3c2xx0_softc->sc_iot, s3c2xx0_softc->sc_gpio_ioh,
+	    reg, value);
+}
+
 static int
 s3c24x0_setup_intr(device_t dev, device_t child,
         struct resource *ires,  int flags, driver_filter_t *filt,
@@ -185,6 +216,10 @@ s3c24x0_setup_intr(device_t dev, device_t child,
 		return (error);
 
 	for (irq = rman_get_start(ires); irq <= rman_get_end(ires); irq++) {
+		if (irq >= S3C24X0_EXTIRQ_MIN && irq <= S3C24X0_EXTIRQ_MAX) {
+			/* Enable the external interrupt pin */
+			s3c24x0_enable_ext_intr(irq - S3C24X0_EXTIRQ_MIN);
+		}
 		arm_unmask_irq(irq);
 	}
 	return (0);
@@ -196,6 +231,59 @@ s3c24x0_teardown_intr(device_t dev, device_t child, struct resource *res,
 {
 	return (BUS_TEARDOWN_INTR(device_get_parent(dev), child, res, cookie));
 }
+
+static int
+s3c24x0_config_intr(device_t dev, int irq, enum intr_trigger trig,
+	enum intr_polarity pol)
+{
+	uint32_t mask, reg, value;
+	int offset;
+
+	/* Only external interrupts can be configured */
+	if (irq < S3C24X0_EXTIRQ_MIN || irq > S3C24X0_EXTIRQ_MAX)
+		return (EINVAL);
+
+	/* There is no standard trigger or polarity for the bus */
+	if (trig == INTR_TRIGGER_CONFORM || pol == INTR_POLARITY_CONFORM)
+		return (EINVAL);
+
+	irq -= S3C24X0_EXTIRQ_MIN;
+
+	/* Get the bits to set */
+	mask = 0;
+	if (pol == INTR_POLARITY_LOW) {
+		mask = 2;
+	} else if (pol == INTR_POLARITY_HIGH) {
+		mask = 4;
+	}
+	if (trig == INTR_TRIGGER_LEVEL) {
+		mask >>= 2;
+	}
+
+	/* Get the register to set */
+	if (irq <= 7) {
+		reg = GPIO_EXTINT(0);
+		offset = irq * 4;
+	} else if (irq <= 15) {
+		reg = GPIO_EXTINT(1);
+		offset = (irq - 8) * 4;
+	} else if (irq <= 23) {
+		reg = GPIO_EXTINT(2);
+		offset = (irq - 16) * 4;
+	} else {
+		return (EINVAL);
+	}
+
+	/* Set the new signaling method */
+	value = bus_space_read_4(s3c2xx0_softc->sc_iot,
+	    s3c2xx0_softc->sc_gpio_ioh, reg);
+	value &= ~(7 << offset);
+	value |= mask << offset;
+	bus_space_write_4(s3c2xx0_softc->sc_iot,
+	    s3c2xx0_softc->sc_gpio_ioh, reg, value);
+
+	return (0);
+} 
 
 static struct resource *
 s3c24x0_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -257,8 +345,18 @@ s3c24x0_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		res = rman_reserve_resource(
 		    &s3c2xx0_softc->s3c2xx0_mem_rman,
 		    start, end, count, flags, child);
+		if (res == NULL)
+			panic("Unable to map address space %#lX-%#lX", start,
+			    end);
+
 		rman_set_bustag(res, &s3c2xx0_bs_tag);
 		rman_set_bushandle(res, start);
+		if (flags & RF_ACTIVE) {
+			if (bus_activate_resource(child, type, *rid, res)) {
+				rman_release_resource(res);
+				return (NULL);
+			}
+		} 
 		break;
 	}
 
@@ -279,6 +377,16 @@ static int
 s3c24x0_activate_resource(device_t bus, device_t child, int type, int rid,
         struct resource *r)
 {
+	bus_space_handle_t p;
+	int error;
+
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		error = bus_space_map(rman_get_bustag(r),
+		    rman_get_bushandle(r), rman_get_size(r), 0, &p);
+		if (error)
+			return (error);
+		rman_set_bushandle(r, p);
+	}
 	return (rman_activate_resource(r));
 }
 
@@ -332,40 +440,50 @@ s3c24x0_attach(device_t dev)
 	bus_space_tag_t iot;
 	device_t child;
 	unsigned int i, j;
+	u_long irqmax;
 
 	s3c2xx0_softc = &(sc->sc_sx);
 	sc->sc_sx.sc_iot = iot = &s3c2xx0_bs_tag;
+	s3c2xx0_softc->s3c2xx0_irq_rman.rm_type = RMAN_ARRAY;
+	s3c2xx0_softc->s3c2xx0_irq_rman.rm_descr = "S3C24X0 IRQs";
+	s3c2xx0_softc->s3c2xx0_mem_rman.rm_type = RMAN_ARRAY;
+	s3c2xx0_softc->s3c2xx0_mem_rman.rm_descr = "S3C24X0 Device Registers";
+	/* Manage the registor memory space */
+	if ((rman_init(&s3c2xx0_softc->s3c2xx0_mem_rman) != 0) ||
+	    (rman_manage_region(&s3c2xx0_softc->s3c2xx0_mem_rman,
+	      S3C24X0_DEV_VA_OFFSET,
+	      S3C24X0_DEV_VA_OFFSET + S3C24X0_DEV_VA_SIZE) != 0) ||
+	    (rman_manage_region(&s3c2xx0_softc->s3c2xx0_mem_rman,
+	      S3C24X0_DEV_START, S3C24X0_DEV_STOP) != 0))
+		panic("s3c24x0_attach: failed to set up register rman");
 
-	if (bus_space_map(iot,
-		S3C24X0_INTCTL_PA_BASE, S3C24X0_INTCTL_SIZE,
-		BUS_SPACE_MAP_LINEAR, &sc->sc_sx.sc_intctl_ioh))
-		panic("Cannot map the interrupt controller");
-
-	/* Map the GPIO registers */
-	if (bus_space_map(iot, S3C24X0_GPIO_PA_BASE, S3C2410_GPIO_SIZE,
-		0, &sc->sc_sx.sc_gpio_ioh))
-		panic("Cannot map the GPIO");
-	/* Clock manager */
-	if (bus_space_map(iot, S3C24X0_CLKMAN_PA_BASE,
-		S3C24X0_CLKMAN_SIZE, 0, &sc->sc_sx.sc_clkman_ioh))
-		panic("cannot map the clock");
-
-	if (bus_space_map(iot, S3C24X0_TIMER_PA_BASE,
-		S3C24X0_TIMER_SIZE, 0, &sc->sc_timer_ioh))
-		panic("cannot map the TIMER");
-
-	if (bus_space_map(iot, S3C24X0_USBHC_PA_BASE,
-		S3C24X0_USBHC_SIZE, 0, &sc->sc_sx.sc_ohci_ioh))
-		panic("cannot map the USB Host");
-
-	if (bus_space_map(iot, S3C24X0_WDT_PA_BASE,
-		S3C24X0_WDT_SIZE, 0, &sc->sc_sx.sc_wdt_ioh))
-		panic("cannot map the watchdog timer");
+	/* These are needed for things without a proper device to attach to */
+	sc->sc_sx.sc_intctl_ioh = S3C24X0_INTCTL_BASE;
+	sc->sc_sx.sc_gpio_ioh = S3C24X0_GPIO_BASE;
+	sc->sc_sx.sc_clkman_ioh = S3C24X0_CLKMAN_BASE;
+	sc->sc_sx.sc_wdt_ioh = S3C24X0_WDT_BASE;
+	sc->sc_timer_ioh = S3C24X0_TIMER_BASE;
 
 	/*
 	 * Identify the CPU
 	 */
 	s3c24x0_identify_cpu(dev);
+
+	/*
+	 * Manage the interrupt space.
+	 * We need to put this after s3c24x0_identify_cpu as the avaliable
+	 * interrupts change depending on which CPU we have.
+	 */
+	if (sc->sc_sx.sc_cpu == CPU_S3C2410)
+		irqmax = S3C2410_SUBIRQ_MAX;
+	else
+		irqmax = S3C2440_SUBIRQ_MAX;
+	if (rman_init(&s3c2xx0_softc->s3c2xx0_irq_rman) != 0 ||
+	    rman_manage_region(&s3c2xx0_softc->s3c2xx0_irq_rman, 0,
+	    irqmax) != 0 ||
+	    rman_manage_region(&s3c2xx0_softc->s3c2xx0_irq_rman,
+	    S3C24X0_EXTIRQ_MIN, S3C24X0_EXTIRQ_MAX))
+		panic("s3c24x0_attach: failed to set up IRQ rman");
 
 	/* calculate current clock frequency */
 	s3c24x0_clock_freq(&sc->sc_sx);
@@ -376,20 +494,6 @@ s3c24x0_attach(device_t dev)
 	/*
 	 * Attach children devices
 	 */
-	s3c2xx0_softc->s3c2xx0_irq_rman.rm_type = RMAN_ARRAY;
-	s3c2xx0_softc->s3c2xx0_irq_rman.rm_descr = "S3C24X0 IRQs";
-	s3c2xx0_softc->s3c2xx0_mem_rman.rm_type = RMAN_ARRAY;
-	s3c2xx0_softc->s3c2xx0_mem_rman.rm_descr = "S3C24X0 Memory";
-	if (rman_init(&s3c2xx0_softc->s3c2xx0_irq_rman) != 0 ||
-	    rman_manage_region(&s3c2xx0_softc->s3c2xx0_irq_rman, 0,
-	    S3C2410_SUBIRQ_MAX) != 0)
-		panic("s3c24x0_attach: failed to set up IRQ rman");
-	/* Manage the registor memory space */
-	if ((rman_init(&s3c2xx0_softc->s3c2xx0_mem_rman) != 0) ||
-	    (rman_manage_region(&s3c2xx0_softc->s3c2xx0_mem_rman,
-	      S3C24X0_DEV_VA_OFFSET,
-	      S3C24X0_DEV_VA_OFFSET + S3C24X0_DEV_VA_SIZE) != 0))
-		panic("s3c24x0_attach: failed to set up register rman");
 
 	for (i = 0; s3c24x0_children[i].name != NULL; i++) {
 		child = s3c24x0_add_child(dev, s3c24x0_children[i].prio,
@@ -600,6 +704,33 @@ arm_get_next_irq(int last __unused)
 				return (irq);
 
 			return (S3C24X0_SUBIRQ_MIN + subirq);
+
+		case S3C24X0_INT_0:
+		case S3C24X0_INT_1:
+		case S3C24X0_INT_2:
+		case S3C24X0_INT_3:
+			/* There is a 1:1 mapping to the IRQ we are handling */
+			return S3C24X0_INT_EXT(irq);
+
+		case S3C24X0_INT_4_7:
+		case S3C24X0_INT_8_23:
+			/* Find the external interrupt being called */
+			subirq = 0x7fffff;
+			subirq &= bus_space_read_4(&s3c2xx0_bs_tag,
+			    s3c2xx0_softc->sc_gpio_ioh, GPIO_EINTPEND);
+			subirq &= ~bus_space_read_4(&s3c2xx0_bs_tag,
+			    s3c2xx0_softc->sc_gpio_ioh, GPIO_EINTMASK);
+			if (subirq == 0)
+				return (irq);
+
+			subirq = ffs(subirq) - 1;
+
+			/* Clear the external irq pending bit */
+			bus_space_write_4(&s3c2xx0_bs_tag,
+			    s3c2xx0_softc->sc_gpio_ioh, GPIO_EINTPEND,
+			    (1 << subirq));
+
+			return S3C24X0_INT_EXT(subirq);
 		}
 
 		return (irq);
@@ -612,18 +743,28 @@ arm_mask_irq(uintptr_t irq)
 {
 	u_int32_t mask;
 
+	if (irq >= S3C24X0_INT_EXT(0) && irq <= S3C24X0_INT_EXT(3)) {
+		/* External interrupt 0..3 are directly mapped to irq 0..3 */
+		irq -= S3C24X0_EXTIRQ_MIN;
+	}
 	if (irq < S3C24X0_SUBIRQ_MIN) {
 		mask = bus_space_read_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTMSK);
 		mask |= (1 << irq);
 		bus_space_write_4(&s3c2xx0_bs_tag, 
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTMSK, mask);
-	} else {
+	} else if (irq < S3C24X0_EXTIRQ_MIN) {
 		mask = bus_space_read_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTSUBMSK);
 		mask |= (1 << (irq - S3C24X0_SUBIRQ_MIN));
 		bus_space_write_4(&s3c2xx0_bs_tag, 
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTSUBMSK, mask);
+	} else {
+		mask = bus_space_read_4(&s3c2xx0_bs_tag,
+		    s3c2xx0_softc->sc_gpio_ioh, GPIO_EINTMASK);
+		mask |= (1 << (irq - S3C24X0_EXTIRQ_MIN));
+		bus_space_write_4(&s3c2xx0_bs_tag, 
+		    s3c2xx0_softc->sc_intctl_ioh, GPIO_EINTMASK, mask);
 	}
 }
 
@@ -632,17 +773,27 @@ arm_unmask_irq(uintptr_t irq)
 {
 	u_int32_t mask;
 
+	if (irq >= S3C24X0_INT_EXT(0) && irq <= S3C24X0_INT_EXT(3)) {
+		/* External interrupt 0..3 are directly mapped to irq 0..3 */
+		irq -= S3C24X0_EXTIRQ_MIN;
+	}
 	if (irq < S3C24X0_SUBIRQ_MIN) {
 		mask = bus_space_read_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTMSK);
 		mask &= ~(1 << irq);
 		bus_space_write_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTMSK, mask);
-	} else {
+	} else if (irq < S3C24X0_EXTIRQ_MIN) {
 		mask = bus_space_read_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTSUBMSK);
 		mask &= ~(1 << (irq - S3C24X0_SUBIRQ_MIN));
 		bus_space_write_4(&s3c2xx0_bs_tag, 
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTSUBMSK, mask);
+	} else {
+		mask = bus_space_read_4(&s3c2xx0_bs_tag,
+		    s3c2xx0_softc->sc_gpio_ioh, GPIO_EINTMASK);
+		mask &= ~(1 << (irq - S3C24X0_EXTIRQ_MIN));
+		bus_space_write_4(&s3c2xx0_bs_tag, 
+		    s3c2xx0_softc->sc_intctl_ioh, GPIO_EINTMASK, mask);
 	}
 }

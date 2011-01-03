@@ -130,16 +130,19 @@ cdp_print(const u_char *pptr, u_int length, u_int caplen)
 
                     case 0x01: /* Device-ID */
                         if (!vflag)
-                            printf(", Device-ID '%.*s'", len, tptr);
-                        else
-                            printf("'%.*s'", len, tptr);
+                            printf(", Device-ID ");
+                        printf("'");
+                        fn_printn(tptr, len, NULL);
+                        printf("'");
 			break;
                     case 0x02: /* Address */
                         if (cdp_print_addr(tptr, len) < 0)
                             goto trunc;
 			break;
                     case 0x03: /* Port-ID */
-			printf("'%.*s'", len, tptr);
+                        printf("'");
+                        fn_printn(tptr, len, NULL);
+                        printf("'");
 			break;
                     case 0x04: /* Capabilities */
 			printf("(0x%08x): %s",
@@ -156,7 +159,9 @@ cdp_print(const u_char *pptr, u_int length, u_int caplen)
                         }
 			break;
                     case 0x06: /* Platform */
-			printf("'%.*s'", len, tptr);
+                        printf("'");
+                        fn_printn(tptr, len, NULL);
+                        printf("'");
 			break;
                     case 0x07: /* Prefixes */
 			if (cdp_print_prefixes(tptr, len) < 0)
@@ -165,7 +170,9 @@ cdp_print(const u_char *pptr, u_int length, u_int caplen)
                     case 0x08: /* Protocol Hello Option - not documented */
 			break;
                     case 0x09: /* VTP Mgmt Domain  - not documented */
-			printf("'%.*s'", len,tptr);
+                        printf("'");
+                        fn_printn(tptr, len, NULL);
+                        printf("'");
 			break;
                     case 0x0a: /* Native VLAN ID - not documented */
 			printf("%d",EXTRACT_16BITS(tptr));
@@ -195,14 +202,20 @@ cdp_print(const u_char *pptr, u_int length, u_int caplen)
 			printf("0x%02x", *(tptr));
 			break;
                     case 0x14: /* System Name - not documented */
-			printf("'%.*s'", len, tptr);
+                        printf("'");
+                        fn_printn(tptr, len, NULL);
+                        printf("'");
 			break;
                     case 0x16: /* System Object ID - not documented */
 			if (cdp_print_addr(tptr, len) < 0)
 				goto trunc;
 			break;
                     case 0x17: /* Physical Location - not documented */
-			printf("0x%02x/%.*s", *(tptr), len - 1, tptr + 1 );
+			printf("0x%02x", *(tptr));
+			if (len > 1) {
+				printf("/");
+	                        fn_printn(tptr + 1, len - 1, NULL);
+	                }
 			break;
                     default:
                         print_unknown_data(tptr,"\n\t  ",len);

@@ -8,6 +8,9 @@
 #####################################################################
 # CPU OPTIONS
 
+# You must specify a machine directive to choose powerpc or powerpc64
+#machine		powerpc powerpc[64]
+
 #
 # You must specify at least one CPU (the one you intend to run on).
 cpu		AIM
@@ -18,6 +21,7 @@ options 	FPU_EMU
 #options 	MPC85XX
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
+options		MAMBO			#IBM Mambo Full System Simulator
 
 options 	SC_OFWFB		# OFW frame buffer
 
@@ -26,12 +30,16 @@ device		cpufreq
 
 # Standard busses
 device		pci
+device		agp
 
 device		bm		# Apple BMAC (Big Mac Ethernet)
 device		kiic		# Apple Keywest I2C Controller
 device		ofwd		# Open Firmware disks
 device		adb		# Apple Desktop Bus
 device		cuda		# VIA-CUDA ADB interface
+device		ds1775		# PowerMac7,2 temperature sensor
+device		fcu		# Apple Fan Control Unit
+device		max6690		# PowerMac7,2 temperature sensor
 device		pmu		# Apple Power Management Unit
 device		smu		# Apple System Management Unit
 device		snd_ai2s	# Apple I2S Audio
@@ -41,6 +49,7 @@ device		snd_davbus	# Apple Davbus Audio
 #####################################################################
 # Devices we don't want to deal with
 
+nodevice	bktr
 nodevice	fdc
 nodevice	ppc
 nodevice	splash

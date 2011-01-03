@@ -26,6 +26,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
  	.file	"crtn.S"
 
 	.section .init,"ax",@progbits
@@ -37,6 +40,3 @@
 	.align	4
 	ret
 	 restore
-
-	.section .rodata
-.ascii "$FreeBSD$\0"

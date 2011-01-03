@@ -1495,6 +1495,7 @@ mips_mdebug_frame_cache (struct frame_info *next_frame, void **this_cache)
   int kernel_trap;
   /* What registers have been saved?  Bitmasks.  */
   unsigned long gen_mask, float_mask;
+  long reg_offset;
 
   if ((*this_cache) != NULL)
     return (*this_cache);
@@ -1513,6 +1514,8 @@ mips_mdebug_frame_cache (struct frame_info *next_frame, void **this_cache)
   /* Extract the frame's base.  */
   cache->base = (frame_unwind_register_signed (next_frame, NUM_REGS + PROC_FRAME_REG (proc_desc))
 		 + PROC_FRAME_OFFSET (proc_desc) - PROC_FRAME_ADJUST (proc_desc));
+  /* Save registers offset from scratching by following find_proc_desc call */
+  reg_offset = PROC_REG_OFFSET (proc_desc);
 
   kernel_trap = PROC_REG_MASK (proc_desc) & 1;
   gen_mask = kernel_trap ? 0xFFFFFFFF : PROC_REG_MASK (proc_desc);
@@ -1567,8 +1570,7 @@ mips_mdebug_frame_cache (struct frame_info *next_frame, void **this_cache)
   /* Fill in the offsets for the registers which gen_mask says were
      saved.  */
   {
-    CORE_ADDR reg_position = (cache->base
-			      + PROC_REG_OFFSET (proc_desc));
+    CORE_ADDR reg_position = (cache->base + reg_offset);
     int ireg;
     for (ireg = MIPS_NUMREGS - 1; gen_mask; --ireg, gen_mask <<= 1)
       if (gen_mask & 0x80000000)
@@ -2162,15 +2164,18 @@ restart:
 	{
 	  PROC_REG_MASK (&temp_proc_desc) |= 1 << reg;
 	  set_reg_offset (temp_saved_regs, reg, sp + low_word);
+          /* Do we have registers offset yet? */
+          if (!PROC_REG_OFFSET (&temp_proc_desc))
+            PROC_REG_OFFSET (&temp_proc_desc) = low_word - PROC_FRAME_OFFSET (&temp_proc_desc);
 	}
       else if ((high_word & 0xFFE0) == 0xffa0)	/* sd reg,offset($sp) */
 	{
-	  /* Irix 6.2 N32 ABI uses sd instructions for saving $gp and $ra,
-	     but the register size used is only 32 bits. Make the address
-	     for the saved register point to the lower 32 bits.  */
 	  PROC_REG_MASK (&temp_proc_desc) |= 1 << reg;
 	  set_reg_offset (temp_saved_regs, reg,
-			  sp + low_word + 8 - mips_regsize (current_gdbarch));
+			  sp + low_word);
+          /* Do we have registers offset yet? */
+          if (!PROC_REG_OFFSET (&temp_proc_desc))
+            PROC_REG_OFFSET (&temp_proc_desc) = low_word - PROC_FRAME_OFFSET (&temp_proc_desc);
 	}
       else if (high_word == 0x27be)	/* addiu $30,$sp,size */
 	{

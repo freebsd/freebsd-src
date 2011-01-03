@@ -110,11 +110,11 @@ getline(FILE *fd, const char *skip)
  *
  * Recognized keywords:
  *
- *	ro, maproot, mapall, mask, network, alldirs, public, webnfs, index, quiet
+ *	ro, maproot, mapall, mask, network, sec, alldirs, public, webnfs, index, quiet
  *
  */
 static const char *known_opts[] = { "ro", "maproot", "mapall", "mask",
-    "network", "alldirs", "public", "webnfs", "index", "quiet", NULL };
+    "network", "sec", "alldirs", "public", "webnfs", "index", "quiet", NULL };
 static char *
 translate_opts(const char *shareopts)
 {

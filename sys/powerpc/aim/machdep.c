@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -104,7 +105,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/altivec.h>
+#ifndef __powerpc64__
 #include <machine/bat.h>
+#endif
 #include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/fpu.h>
@@ -129,7 +132,11 @@ extern vm_offset_t ksym_start, ksym_end;
 #endif
 
 int cold = 1;
+#ifdef __powerpc64__
+int cacheline_size = 128;
+#else
 int cacheline_size = 32;
+#endif
 int hw_direct_map = 1;
 
 struct pcpu __pcpu[MAXCPU];
@@ -145,37 +152,18 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
-u_int		powerpc_init(u_int, u_int, u_int, void *);
-
-int		save_ofw_mapping(void);
-int		restore_ofw_mapping(void);
-
-void		install_extint(void (*)(void));
+uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *);
 
 int             setfault(faultbuf);             /* defined in locore.S */
-
-static int	grab_mcontext(struct thread *, mcontext_t *, int);
-
-void		asm_panic(char *);
 
 long		Maxmem = 0;
 long		realmem = 0;
 
-struct pmap	ofw_pmap;
-extern int	ofmsr;
-
+#ifndef __powerpc64__
 struct bat	battable[16];
+#endif
 
 struct kva_md_info kmi;
-
-static void
-powerpc_ofw_shutdown(void *junk, int howto)
-{
-	if (howto & RB_HALT) {
-		OF_halt();
-	}
-	OF_reboot();
-}
 
 static void
 cpu_startup(void *dummy)
@@ -211,9 +199,14 @@ cpu_startup(void *dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			int size1 = phys_avail[indx + 1] - phys_avail[indx];
+			vm_offset_t size1 =
+			    phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08x - 0x%08x, %d bytes (%d pages)\n",
+			#ifdef __powerpc64__
+			printf("0x%16lx - 0x%16lx, %ld bytes (%ld pages)\n",
+			#else
+			printf("0x%08x - 0x%08x, %d bytes (%ld pages)\n",
+			#endif
 			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
 			    size1 / PAGE_SIZE);
 		}
@@ -229,28 +222,34 @@ cpu_startup(void *dummy)
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-
-	EVENTHANDLER_REGISTER(shutdown_final, powerpc_ofw_shutdown, 0,
-	    SHUTDOWN_PRI_LAST);
 }
 
 extern char	kernel_text[], _end[];
 
+#ifndef __powerpc64__
+/* Bits for running on 64-bit systems in 32-bit mode. */
 extern void	*testppc64, *testppc64size;
 extern void	*restorebridge, *restorebridgesize;
 extern void	*rfid_patch, *rfi_patch1, *rfi_patch2;
+extern void	*trapcode64;
+#endif
+
 #ifdef SMP
 extern void	*rstcode, *rstsize;
 #endif
-extern void	*trapcode, *trapcode64, *trapsize;
+extern void	*trapcode, *trapsize;
 extern void	*alitrap, *alisize;
 extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
 extern void     *extint, *extsize;
 extern void	*dblow, *dbsize;
+extern void	*imisstrap, *imisssize;
+extern void	*dlmisstrap, *dlmisssize;
+extern void	*dsmisstrap, *dsmisssize;
 
-u_int
-powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
+uintptr_t
+powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
+    vm_offset_t basekernel, void *mdp)
 {
 	struct		pcpu *pc;
 	vm_offset_t	end;
@@ -258,13 +257,17 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	size_t		trap_offset;
 	void		*kmdp;
         char		*env;
-	uint32_t	msr, scratch;
+	register_t	msr, scratch;
 	uint8_t		*cache_check;
+	int		cacheline_warn;
+	#ifndef __powerpc64__
 	int		ppc64;
+	#endif
 
 	end = 0;
 	kmdp = NULL;
 	trap_offset = 0;
+	cacheline_warn = 0;
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be done
@@ -347,9 +350,9 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 		case IBM970FX:
 		case IBM970MP:
 		case IBM970GX:
-			scratch = mfspr64upper(SPR_HID5,msr);
+			scratch = mfspr(SPR_HID5);
 			scratch &= ~HID5_970_DCBZ_SIZE_HI;
-			mtspr64(SPR_HID5, scratch, mfspr(SPR_HID5), msr);
+			mtspr(SPR_HID5, scratch);
 			break;
 	}
 
@@ -360,7 +363,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 
 	/*
 	 * Disable translation in case the vector area hasn't been
-	 * mapped (G5).
+	 * mapped (G5). Note that no OFW calls can be made until
+	 * translation is re-enabled.
 	 */
 
 	msr = mfmsr();
@@ -387,10 +391,11 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 
 	/* Work around psim bug */
 	if (cacheline_size == 0) {
-		printf("WARNING: cacheline size undetermined, setting to 32\n");
+		cacheline_warn = 1;
 		cacheline_size = 32;
 	}
 
+	#ifndef __powerpc64__
 	/*
 	 * Figure out whether we need to use the 64 bit PMAP. This works by
 	 * executing an instruction that is only legal on 64-bit PPC (mtmsrd),
@@ -450,6 +455,11 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 		generictrap = &trapcode;
 	}
 
+	#else /* powerpc64 */
+	cpu_features |= PPC_FEATURE_64;
+	generictrap = &trapcode;
+	#endif
+
 #ifdef SMP
 	bcopy(&rstcode, (void *)(EXC_RST + trap_offset),  (size_t)&rstsize);
 #else
@@ -467,17 +477,27 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	bcopy(generictrap, (void *)EXC_TRC,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_BPT,  (size_t)&trapsize);
 #endif
-	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsisize);
 	bcopy(&alitrap,  (void *)(EXC_ALI + trap_offset),  (size_t)&alisize);
+	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsisize);
 	bcopy(generictrap, (void *)EXC_ISI,  (size_t)&trapsize);
+	#ifdef __powerpc64__
+	bcopy(generictrap, (void *)EXC_DSE,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_ISE,  (size_t)&trapsize);
+	#endif
 	bcopy(generictrap, (void *)EXC_EXI,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_FPU,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_DECR, (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_SC,   (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_FPA,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VEC,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_VECAST, (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_THRM, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_VECAST_G4, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_VECAST_G5, (size_t)&trapsize);
+	#ifndef __powerpc64__
+	/* G2-specific TLB miss helper handlers */
+	bcopy(&imisstrap, (void *)EXC_IMISS,  (size_t)&imisssize);
+	bcopy(&dlmisstrap, (void *)EXC_DLMISS,  (size_t)&dlmisssize);
+	bcopy(&dsmisstrap, (void *)EXC_DSMISS,  (size_t)&dsmisssize);
+	#endif
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*
@@ -486,6 +506,11 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	mtmsr(msr);
 	isync();
 	
+	/* Warn if cachline size was not determined */
+	if (cacheline_warn == 1) {
+		printf("WARNING: cacheline size undetermined, setting to 32\n");
+	}
+
 	/*
 	 * Choose a platform module so we can get the physical memory map.
 	 */
@@ -525,7 +550,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 */
 	thread0.td_pcb = (struct pcb *)
 	    ((thread0.td_kstack + thread0.td_kstack_pages * PAGE_SIZE -
-	    sizeof(struct pcb)) & ~15);
+	    sizeof(struct pcb)) & ~15UL);
 	bzero((void *)thread0.td_pcb, sizeof(struct pcb));
 	pc->pc_curpcb = thread0.td_pcb;
 
@@ -538,7 +563,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 		    "Boot flags requested debugger");
 #endif
 
-	return (((uintptr_t)thread0.td_pcb - 16) & ~15);
+	return (((uintptr_t)thread0.td_pcb -
+	    (sizeof(struct callframe) - 3*sizeof(register_t))) & ~15UL);
 }
 
 void
@@ -579,295 +605,6 @@ bzero(void *buf, size_t len)
 }
 
 void
-sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
-{
-	struct trapframe *tf;
-	struct sigframe *sfp;
-	struct sigacts *psp;
-	struct sigframe sf;
-	struct thread *td;
-	struct proc *p;
-	int oonstack, rndfsize;
-	int sig;
-	int code;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	sig = ksi->ksi_signo;
-	code = ksi->ksi_code;
-	psp = p->p_sigacts;
-	mtx_assert(&psp->ps_mtx, MA_OWNED);
-	tf = td->td_frame;
-	oonstack = sigonstack(tf->fixreg[1]);
-
-	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
-
-	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
-	     catcher, sig);
-
-	/*
-	 * Save user context
-	 */
-	memset(&sf, 0, sizeof(sf));
-	grab_mcontext(td, &sf.sf_uc.uc_mcontext, 0);
-	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack = td->td_sigstk;
-	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
-	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
-
-	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-
-	/*
-	 * Allocate and validate space for the signal handler context.
-	 */
-	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)(td->td_sigstk.ss_sp +
-		   td->td_sigstk.ss_size - rndfsize);
-	} else {
-		sfp = (struct sigframe *)(tf->fixreg[1] - rndfsize);
-	}
-
-	/*
-	 * Translate the signal if appropriate (Linux emu ?)
-	 */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-
-	/*
-	 * Save the floating-point state, if necessary, then copy it.
-	 */
-	/* XXX */
-
-	/*
-	 * Set up the registers to return to sigcode.
-	 *
-	 *   r1/sp - sigframe ptr
-	 *   lr    - sig function, dispatched to by blrl in trampoline
-	 *   r3    - sig number
-	 *   r4    - SIGINFO ? &siginfo : exception code
-	 *   r5    - user context
-	 *   srr0  - trampoline function addr
-	 */
-	tf->lr = (register_t)catcher;
-	tf->fixreg[1] = (register_t)sfp;
-	tf->fixreg[FIRSTARG] = sig;
-	tf->fixreg[FIRSTARG+2] = (register_t)&sfp->sf_uc;
-	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
-		/*
-		 * Signal handler installed with SA_SIGINFO.
-		 */
-		tf->fixreg[FIRSTARG+1] = (register_t)&sfp->sf_si;
-
-		/*
-		 * Fill siginfo structure.
-		 */
-		sf.sf_si = ksi->ksi_info;
-		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_addr = (void *)((tf->exc == EXC_DSI) ? 
-		    tf->cpu.aim.dar : tf->srr0);
-	} else {
-		/* Old FreeBSD-style arguments. */
-		tf->fixreg[FIRSTARG+1] = code;
-		tf->fixreg[FIRSTARG+3] = (tf->exc == EXC_DSI) ? 
-		    tf->cpu.aim.dar : tf->srr0;
-	}
-	mtx_unlock(&psp->ps_mtx);
-	PROC_UNLOCK(p);
-
-	tf->srr0 = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
-
-	/*
-	 * copy the frame out to userland.
-	 */
-	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
-		/*
-		 * Process has trashed its stack. Kill it.
-		 */
-		CTR2(KTR_SIG, "sendsig: sigexit td=%p sfp=%p", td, sfp);
-		PROC_LOCK(p);
-		sigexit(td, SIGILL);
-	}
-
-	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td,
-	     tf->srr0, tf->fixreg[1]);
-
-	PROC_LOCK(p);
-	mtx_lock(&psp->ps_mtx);
-}
-
-int
-sigreturn(struct thread *td, struct sigreturn_args *uap)
-{
-	ucontext_t uc;
-	int error;
-
-	CTR2(KTR_SIG, "sigreturn: td=%p ucp=%p", td, uap->sigcntxp);
-
-	if (copyin(uap->sigcntxp, &uc, sizeof(uc)) != 0) {
-		CTR1(KTR_SIG, "sigreturn: efault td=%p", td);
-		return (EFAULT);
-	}
-
-	error = set_mcontext(td, &uc.uc_mcontext);
-	if (error != 0)
-		return (error);
-
-	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
-
-	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
-	     td, uc.uc_mcontext.mc_srr0, uc.uc_mcontext.mc_gpr[1]);
-
-	return (EJUSTRETURN);
-}
-
-#ifdef COMPAT_FREEBSD4
-int
-freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
-{
-
-	return sigreturn(td, (struct sigreturn_args *)uap);
-}
-#endif
-
-/*
- * Construct a PCB from a trapframe. This is called from kdb_trap() where
- * we want to start a backtrace from the function that caused us to enter
- * the debugger. We have the context in the trapframe, but base the trace
- * on the PCB. The PCB doesn't have to be perfect, as long as it contains
- * enough for a backtrace.
- */
-void
-makectx(struct trapframe *tf, struct pcb *pcb)
-{
-
-	pcb->pcb_lr = tf->srr0;
-	pcb->pcb_sp = tf->fixreg[1];
-}
-
-/*
- * get_mcontext/sendsig helper routine that doesn't touch the
- * proc lock
- */
-static int
-grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
-{
-	struct pcb *pcb;
-
-	pcb = td->td_pcb;
-
-	memset(mcp, 0, sizeof(mcontext_t));
-
-	mcp->mc_vers = _MC_VERSION;
-	mcp->mc_flags = 0;
-	memcpy(&mcp->mc_frame, td->td_frame, sizeof(struct trapframe));
-	if (flags & GET_MC_CLEAR_RET) {
-		mcp->mc_gpr[3] = 0;
-		mcp->mc_gpr[4] = 0;
-	}
-
-	/*
-	 * This assumes that floating-point context is *not* lazy,
-	 * so if the thread has used FP there would have been a
-	 * FP-unavailable exception that would have set things up
-	 * correctly.
-	 */
-	if (pcb->pcb_flags & PCB_FPU) {
-		KASSERT(td == curthread,
-			("get_mcontext: fp save not curthread"));
-		critical_enter();
-		save_fpu(td);
-		critical_exit();
-		mcp->mc_flags |= _MC_FP_VALID;
-		memcpy(&mcp->mc_fpscr, &pcb->pcb_fpu.fpscr, sizeof(double));
-		memcpy(mcp->mc_fpreg, pcb->pcb_fpu.fpr, 32*sizeof(double));
-	}
-
-	/*
-	 * Repeat for Altivec context
-	 */
-
-	if (pcb->pcb_flags & PCB_VEC) {
-		KASSERT(td == curthread,
-			("get_mcontext: fp save not curthread"));
-		critical_enter();
-		save_vec(td);
-		critical_exit();
-		mcp->mc_flags |= _MC_AV_VALID;
-		mcp->mc_vscr  = pcb->pcb_vec.vscr;
-		mcp->mc_vrsave =  pcb->pcb_vec.vrsave;
-		memcpy(mcp->mc_avec, pcb->pcb_vec.vr, sizeof(mcp->mc_avec));
-	}
-
-	mcp->mc_len = sizeof(*mcp);
-
-	return (0);
-}
-
-int
-get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
-{
-	int error;
-
-	error = grab_mcontext(td, mcp, flags);
-	if (error == 0) {
-		PROC_LOCK(curthread->td_proc);
-		mcp->mc_onstack = sigonstack(td->td_frame->fixreg[1]);
-		PROC_UNLOCK(curthread->td_proc);
-	}
-
-	return (error);
-}
-
-int
-set_mcontext(struct thread *td, const mcontext_t *mcp)
-{
-	struct pcb *pcb;
-	struct trapframe *tf;
-
-	pcb = td->td_pcb;
-	tf = td->td_frame;
-
-	if (mcp->mc_vers != _MC_VERSION ||
-	    mcp->mc_len != sizeof(*mcp))
-		return (EINVAL);
-
-	/*
-	 * Don't let the user set privileged MSR bits
-	 */
-	if ((mcp->mc_srr1 & PSL_USERSTATIC) != (tf->srr1 & PSL_USERSTATIC)) {
-		return (EINVAL);
-	}
-
-	memcpy(tf, mcp->mc_frame, sizeof(mcp->mc_frame));
-
-	if (mcp->mc_flags & _MC_FP_VALID) {
-		if ((pcb->pcb_flags & PCB_FPU) != PCB_FPU) {
-			critical_enter();
-			enable_fpu(td);
-			critical_exit();
-		}
-		memcpy(&pcb->pcb_fpu.fpscr, &mcp->mc_fpscr, sizeof(double));
-		memcpy(pcb->pcb_fpu.fpr, mcp->mc_fpreg, 32*sizeof(double));
-	}
-
-	if (mcp->mc_flags & _MC_AV_VALID) {
-		if ((pcb->pcb_flags & PCB_VEC) != PCB_VEC) {
-			critical_enter();
-			enable_vec(td);
-			critical_exit();
-		}
-		pcb->pcb_vec.vscr = mcp->mc_vscr;
-		pcb->pcb_vec.vrsave = mcp->mc_vrsave;
-		memcpy(pcb->pcb_vec.vr, mcp->mc_avec, sizeof(mcp->mc_avec));
-	}
-
-
-	return (0);
-}
-
-void
 cpu_boot(int howto)
 {
 }
@@ -887,8 +624,7 @@ cpu_initclocks(void)
 {
 
 	decr_tc_init();
-	stathz = hz;
-	profhz = hz;
+	cpu_initclocks_bsp();
 }
 
 /*
@@ -899,169 +635,6 @@ cpu_halt(void)
 {
 
 	OF_exit();
-}
-
-void
-cpu_idle(int busy)
-{
-	uint32_t msr;
-	uint16_t vers;
-
-	msr = mfmsr();
-	vers = mfpvr() >> 16;
-
-#ifdef INVARIANTS
-	if ((msr & PSL_EE) != PSL_EE) {
-		struct thread *td = curthread;
-		printf("td msr %x\n", td->td_md.md_saved_msr);
-		panic("ints disabled in idleproc!");
-	}
-#endif
-	if (powerpc_pow_enabled) {
-		switch (vers) {
-		case IBM970:
-		case IBM970FX:
-		case IBM970MP:
-		case MPC7447A:
-		case MPC7448:
-		case MPC7450:
-		case MPC7455:
-		case MPC7457:
-			__asm __volatile("\
-			    dssall; sync; mtmsr %0; isync"
-			    :: "r"(msr | PSL_POW));
-			break;
-		default:
-			powerpc_sync();
-			mtmsr(msr | PSL_POW);
-			isync();
-			break;
-		}
-	}
-}
-
-int
-cpu_idle_wakeup(int cpu)
-{
-
-	return (0);
-}
-
-/*
- * Set set up registers on exec.
- */
-void
-exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
-{
-	struct trapframe	*tf;
-	struct ps_strings	arginfo;
-
-	tf = trapframe(td);
-	bzero(tf, sizeof *tf);
-	tf->fixreg[1] = -roundup(-stack + 8, 16);
-
-	/*
-	 * XXX Machine-independent code has already copied arguments and
-	 * XXX environment to userland.  Get them back here.
-	 */
-	(void)copyin((char *)PS_STRINGS, &arginfo, sizeof(arginfo));
-
-	/*
-	 * Set up arguments for _start():
-	 *	_start(argc, argv, envp, obj, cleanup, ps_strings);
-	 *
-	 * Notes:
-	 *	- obj and cleanup are the auxilliary and termination
-	 *	  vectors.  They are fixed up by ld.elf_so.
-	 *	- ps_strings is a NetBSD extention, and will be
-	 * 	  ignored by executables which are strictly
-	 *	  compliant with the SVR4 ABI.
-	 *
-	 * XXX We have to set both regs and retval here due to different
-	 * XXX calling convention in trap.c and init_main.c.
-	 */
-        /*
-         * XXX PG: these get overwritten in the syscall return code.
-         * execve() should return EJUSTRETURN, like it does on NetBSD.
-         * Emulate by setting the syscall return value cells. The
-         * registers still have to be set for init's fork trampoline.
-         */
-        td->td_retval[0] = arginfo.ps_nargvstr;
-        td->td_retval[1] = (register_t)arginfo.ps_argvstr;
-	tf->fixreg[3] = arginfo.ps_nargvstr;
-	tf->fixreg[4] = (register_t)arginfo.ps_argvstr;
-	tf->fixreg[5] = (register_t)arginfo.ps_envstr;
-	tf->fixreg[6] = 0;			/* auxillary vector */
-	tf->fixreg[7] = 0;			/* termination vector */
-	tf->fixreg[8] = (register_t)PS_STRINGS;	/* NetBSD extension */
-
-	tf->srr0 = imgp->entry_addr;
-	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
-	td->td_pcb->pcb_flags = 0;
-}
-
-int
-fill_regs(struct thread *td, struct reg *regs)
-{
-	struct trapframe *tf;
-
-	tf = td->td_frame;
-	memcpy(regs, tf, sizeof(struct reg));
-
-	return (0);
-}
-
-int
-fill_dbregs(struct thread *td, struct dbreg *dbregs)
-{
-	/* No debug registers on PowerPC */
-	return (ENOSYS);
-}
-
-int
-fill_fpregs(struct thread *td, struct fpreg *fpregs)
-{
-	struct pcb *pcb;
-
-	pcb = td->td_pcb;
-
-	if ((pcb->pcb_flags & PCB_FPU) == 0)
-		memset(fpregs, 0, sizeof(struct fpreg));
-	else
-		memcpy(fpregs, &pcb->pcb_fpu, sizeof(struct fpreg));
-
-	return (0);
-}
-
-int
-set_regs(struct thread *td, struct reg *regs)
-{
-	struct trapframe *tf;
-
-	tf = td->td_frame;
-	memcpy(tf, regs, sizeof(struct reg));
-	
-	return (0);
-}
-
-int
-set_dbregs(struct thread *td, struct dbreg *dbregs)
-{
-	/* No debug registers on PowerPC */
-	return (ENOSYS);
-}
-
-int
-set_fpregs(struct thread *td, struct fpreg *fpregs)
-{
-	struct pcb *pcb;
-
-	pcb = td->td_pcb;
-	if ((pcb->pcb_flags & PCB_FPU) == 0)
-		enable_fpu(td);
-	memcpy(&pcb->pcb_fpu, fpregs, sizeof(struct fpreg));
-
-	return (0);
 }
 
 int
@@ -1117,18 +690,25 @@ kdb_cpu_set_singlestep(void)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
-
+#ifdef __powerpc64__
+/* Copy the SLB contents from the current CPU */
+memcpy(pcpu->pc_slb, PCPU_GET(slb), sizeof(pcpu->pc_slb));
+#endif
 }
 
 void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t msr;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_msr = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		msr = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_msr = msr;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -1136,12 +716,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t msr;
 
 	td = curthread;
 	critical_exit();
+	msr = td->td_md.md_saved_msr;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_msr);
+		intr_restore(msr);
 }
 
 /*
@@ -1174,12 +756,6 @@ kcopy(const void *src, void *dst, size_t len)
 	return (0);
 }
 
-void
-asm_panic(char *pstr)
-{
-	panic(pstr);
-}
-
 int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
 
 int
@@ -1200,3 +776,13 @@ db_trap_glue(struct trapframe *frame)
 
 	return (0);
 }
+
+#ifndef __powerpc64__
+
+uint64_t
+va_to_vsid(pmap_t pm, vm_offset_t va)
+{
+	return ((pm->pm_sr[(uintptr_t)va >> ADDR_SR_SHFT]) & SR_VSID_MASK);
+}
+
+#endif

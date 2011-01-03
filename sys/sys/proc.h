@@ -205,6 +205,7 @@ struct thread {
 	TAILQ_ENTRY(thread) td_runq;	/* (t) Run queue. */
 	TAILQ_ENTRY(thread) td_slpq;	/* (t) Sleep queue. */
 	TAILQ_ENTRY(thread) td_lockq;	/* (t) Lock queue. */
+	LIST_ENTRY(thread) td_hash;	/* (d) Hash chain. */
 	struct cpuset	*td_cpuset;	/* (t) CPU affinity mask. */
 	struct seltd	*td_sel;	/* Select queue/channel. */
 	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
@@ -213,6 +214,7 @@ struct thread {
 	lwpid_t		td_tid;		/* (b) Thread ID. */
 	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
 #define	td_siglist	td_sigqueue.sq_signals
+	u_char		td_lend_user_pri; /* (t) Lend user pri. */
 
 /* Cleared during fork1() */
 #define	td_startzero td_flags
@@ -259,9 +261,11 @@ struct thread {
 	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
 	struct file	*td_fpop;	/* (k) file referencing cdev under op */
 	int		td_dbgflags;	/* (c) Userland debugger flags */
+	struct ksiginfo td_dbgksi;	/* (c) ksi reflected to debugger. */
 	int		td_ng_outbound;	/* (k) Thread entered ng from above. */
 	struct osd	td_osd;		/* (k) Object specific data. */
-#define	td_endzero td_base_pri
+	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
+#define	td_endzero td_rqindex
 
 /* Copied during fork1() or thread_sched_upcall(). */
 #define	td_startcopy td_endzero
@@ -295,12 +299,12 @@ struct thread {
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
-	int		td_syscalls;	/* per-thread syscall count (used by NFS :)) */
 	struct lpohead	td_lprof[2];	/* (a) lock profiling objects. */
 	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
 	int		td_errno;	/* Error returned by last syscall. */
 	struct vnet	*td_vnet;	/* (k) Effective vnet. */
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
+	struct trapframe *td_intr_frame;/* (k) Frame of the current irq */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -324,6 +328,9 @@ do {									\
 #define	THREAD_LOCKPTR_ASSERT(td, lock)
 #endif
 
+#define	CRITICAL_ASSERT(td)						\
+    KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
+
 /*
  * Flags kept in td_flags:
  * To change these you MUST have the scheduler lock.
@@ -337,7 +344,7 @@ do {									\
 #define	TDF_CANSWAP	0x00000040 /* Thread can be swapped. */
 #define	TDF_SLEEPABORT	0x00000080 /* sleepq_abort was called. */
 #define	TDF_KTH_SUSP	0x00000100 /* kthread is suspended */
-#define	TDF_UBORROWING	0x00000200 /* Thread is borrowing user pri. */
+#define	TDF_UNUSED09	0x00000200 /* --available-- */
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
@@ -347,7 +354,7 @@ do {									\
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x00020000 /* Thread may need signal delivery. */
 #define	TDF_NOLOAD	0x00040000 /* Ignore during load avg calculations. */
-#define	TDF_UNUSED19	0x00080000 /* Thread is sleeping on a umtx. */
+#define	TDF_UNUSED19	0x00080000 /* --available-- */
 #define	TDF_THRWAKEUP	0x00100000 /* Libthr thread must not suspend itself. */
 #define	TDF_UNUSED21	0x00200000 /* --available-- */
 #define	TDF_SWAPINREQ	0x00400000 /* Swapin request due to wakeup. */
@@ -364,6 +371,9 @@ do {									\
 #define	TDB_SUSPEND	0x00000001 /* Thread is suspended by debugger */
 #define	TDB_XSIG	0x00000002 /* Thread is exchanging signal under trace */
 #define	TDB_USERWR	0x00000004 /* Debugger modified memory or registers */
+#define	TDB_SCE		0x00000008 /* Thread performs syscall enter */
+#define	TDB_SCX		0x00000010 /* Thread performs syscall exit */
+#define	TDB_EXEC	0x00000020 /* TDB_SCX from exec(2) family */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -758,6 +768,10 @@ MALLOC_DECLARE(M_ZOMBIE);
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
 extern u_long pidhash;
+#define	TIDHASH(tid)	(&tidhashtbl[(tid) & tidhash])
+extern LIST_HEAD(tidhashhead, thread) *tidhashtbl;
+extern u_long tidhash;
+extern struct rwlock tidhash_lock;
 
 #define	PGRPHASH(pgid)	(&pgrphashtbl[(pgid) & pgrphash])
 extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
@@ -829,7 +843,10 @@ void	setsugid(struct proc *p);
 int	sigonstack(size_t sp);
 void	sleepinit(void);
 void	stopevent(struct proc *, u_int, u_int);
+struct	thread *tdfind(lwpid_t, pid_t);
 void	threadinit(void);
+void	tidhash_add(struct thread *);
+void	tidhash_remove(struct thread *);
 void	cpu_idle(int);
 int	cpu_idle_wakeup(int);
 extern	void (*cpu_idle_hook)(void);	/* Hook to machdep CPU idler. */
@@ -837,9 +854,14 @@ void	cpu_switch(struct thread *, struct thread *, struct mtx *);
 void	cpu_throw(struct thread *, struct thread *) __dead2;
 void	unsleep(struct thread *);
 void	userret(struct thread *, struct trapframe *);
+struct syscall_args;
+int	syscallenter(struct thread *, struct syscall_args *);
+void	syscallret(struct thread *, int, struct syscall_args *);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int) __dead2;
+struct syscall_args;
+int	cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
 void	cpu_set_syscall_retval(struct thread *, int);

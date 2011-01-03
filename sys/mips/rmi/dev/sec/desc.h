@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  * RMI_BSD */
 #ifndef _DESC_H_
 #define _DESC_H_
@@ -2320,7 +2321,7 @@ typedef struct OperationDescriptor_s {
 	uint32_t flags;
 	uint32_t cpu;
 	uint32_t seq_num;
-	uint64_t reserved;
+	uint64_t vaddr;
 }                     OperationDescriptor_t, *OperationDescriptor_pt;
 
 

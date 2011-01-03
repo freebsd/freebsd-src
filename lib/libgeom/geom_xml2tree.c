@@ -339,21 +339,27 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 	memset(gmp, 0, sizeof *gmp);
 	LIST_INIT(&gmp->lg_class);
 	parser = XML_ParserCreate(NULL);
-	mt = calloc(1, sizeof *mt);
-	if (mt == NULL)
+	if (parser == NULL)
 		return (ENOMEM);
+	mt = calloc(1, sizeof *mt);
+	if (mt == NULL) {
+		XML_ParserFree(parser);
+		return (ENOMEM);
+	}
 	mt->mesh = gmp;
 	XML_SetUserData(parser, mt);
 	XML_SetElementHandler(parser, StartElement, EndElement);
 	XML_SetCharacterDataHandler(parser, CharData);
 	i = XML_Parse(parser, p, strlen(p), 1);
-	if (i != 1)
-		return (-1);
 	XML_ParserFree(parser);
+	if (i != 1) {
+		free(mt);
+		return (-1);
+	}
 	gmp->lg_ident = calloc(sizeof *gmp->lg_ident, mt->nident + 1);
+	free(mt);
 	if (gmp->lg_ident == NULL)
 		return (ENOMEM);
-	free(mt);
 	i = 0;
 	/* Collect all identifiers */
 	LIST_FOREACH(cl, &gmp->lg_class, lg_class) {

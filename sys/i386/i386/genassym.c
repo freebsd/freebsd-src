@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>
 #ifdef DEV_APIC
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #endif
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -137,6 +137,7 @@ ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
 ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
 ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
+ASSYM(PCB_USERFPU, offsetof(struct pcb, pcb_user_save));
 ASSYM(PCB_PSL, offsetof(struct pcb, pcb_psl));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));

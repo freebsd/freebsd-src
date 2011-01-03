@@ -68,16 +68,6 @@ struct nfsdmap {
 #define	ndm_cookies	ndm_un1.ndmu3_cookies
 #define	ndm4_cookies	ndm_un1.ndmu4_cookies
 
-#define	n_ac_ts_tid		n_ac_ts.nfs_ac_ts_tid
-#define	n_ac_ts_pid		n_ac_ts.nfs_ac_ts_pid
-#define	n_ac_ts_syscalls	n_ac_ts.nfs_ac_ts_syscalls
-
-struct nfs_attrcache_timestamp {
-	lwpid_t		nfs_ac_ts_tid;
-	pid_t		nfs_ac_ts_pid;
-	unsigned long	nfs_ac_ts_syscalls;	
-};
-
 struct nfs_accesscache {
 	u_int32_t		mode;	/* ACCESS mode cache */
 	uid_t			uid;	/* credentials having mode */
@@ -106,10 +96,9 @@ struct nfsnode {
 	time_t			n_attrstamp;	/* Attr. cache timestamp */
 	struct nfs_accesscache	n_accesscache[NFS_ACCESSCACHESIZE];
 	struct timespec		n_mtime;	/* Prev modify time. */
-	time_t			n_ctime;	/* Prev create time. */
-	time_t			n_dmtime;	/* Prev dir modify time. */
+	struct timespec		n_ctime;	/* Prev create time. */
+	struct timespec		n_dmtime;	/* Prev dir modify time. */
 	int			n_dmtime_ticks;	/* Tick of -ve cache entry */
-	time_t			n_expiry;	/* Lease expiry time */
 	struct nfsfh		*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
 	struct vnode		*n_dvp;		/* parent vnode */
@@ -132,7 +121,6 @@ struct nfsnode {
 	u_int32_t		n_flag;		/* Flag for locking.. */
 	int			n_directio_opens;
 	int                     n_directio_asyncwr;
-	struct nfs_attrcache_timestamp n_ac_ts;
 	u_int64_t		 n_change;	/* old Change attribute */
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
 };

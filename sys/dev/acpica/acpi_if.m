@@ -123,8 +123,7 @@ METHOD ACPI_STATUS evaluate_object {
 #
 # int *dstate:  if successful, contains the highest valid sleep state
 #
-# Returns:  0 on success, ESRCH if device has no special state, or
-#   some other error value.
+# Returns:  0 on success or some other error value.
 #
 METHOD int pwr_for_sleep {
 	device_t	bus;

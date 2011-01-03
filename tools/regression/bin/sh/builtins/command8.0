@@ -22,7 +22,7 @@ set -e
 set -- ${SPECIAL}
 for cmd in "$@"
 do
-	sh -c "v=:; while \$v; do v=false; command ${cmd}; done" >/dev/null
+	${SH} -c "v=:; while \$v; do v=false; command ${cmd}; done" >/dev/null
 done
 
 while :; do

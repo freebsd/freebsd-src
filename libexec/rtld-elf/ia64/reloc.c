@@ -151,7 +151,7 @@ free_fptrs(Obj_Entry *obj, bool mapped)
 /* Relocate a non-PLT object with addend. */
 static int
 reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
-		  SymCache *cache)
+    SymCache *cache, RtldLockState *lockstate)
 {
 	struct fptr **fptrs;
 	Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rela->r_offset);
@@ -172,7 +172,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		Elf_Addr target;
 
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-				  false, cache);
+		    false, cache, lockstate);
 		if (def == NULL)
 			return -1;
 
@@ -195,9 +195,22 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		int sym_index;
 
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-				  false, cache);
-		if (def == NULL)
-			return -1;
+		    true, cache, lockstate);
+		if (def == NULL) {
+			/*
+			 * XXX r_debug_state is problematic and find_symdef()
+			 * returns NULL for it. This probably has something to
+			 * do with symbol versioning (r_debug_state is in the
+			 * symbol map). If we return -1 in that case we abort
+			 * relocating rtld, which typically is fatal. So, for
+			 * now just skip the symbol when we're relocating
+			 * rtld. We don't care about r_debug_state unless we
+			 * are being debugged.
+			 */
+			if (obj != obj_rtld)
+				return -1;
+			break;
+		}
 
 		if (def->st_shndx != SHN_UNDEF) {
 			target = (Elf_Addr)(defobj->relocbase + def->st_value);
@@ -241,7 +254,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		Elf_Addr target, gp;
 
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-				  false, cache);
+		    false, cache, lockstate);
 		if (def == NULL)
 			return -1;
 
@@ -264,7 +277,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		const Obj_Entry *defobj;
 
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-				  false, cache);
+		    false, cache, lockstate);
 		if (def == NULL)
 			return -1;
 
@@ -277,7 +290,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		const Obj_Entry *defobj;
 
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-				  false, cache);
+		    false, cache, lockstate);
 		if (def == NULL)
 			return -1;
 
@@ -290,7 +303,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		const Obj_Entry *defobj;
 
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-				  false, cache);
+		    false, cache, lockstate);
 		if (def == NULL)
 			return -1;
 
@@ -329,7 +342,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 
 /* Process the non-PLT relocations. */
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 {
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
@@ -355,14 +368,15 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		locrela.r_info = rel->r_info;
 		locrela.r_offset = rel->r_offset;
 		locrela.r_addend = 0;
-		if (reloc_non_plt_obj(obj_rtld, obj, &locrela, cache))
+		if (reloc_non_plt_obj(obj_rtld, obj, &locrela, cache,
+		    lockstate))
 			goto done;
 	}
 
 	/* Perform relocations with addend if there are any: */
 	relalim = (const Elf_Rela *) ((caddr_t) obj->rela + obj->relasize);
 	for (rela = obj->rela;  obj->rela != NULL && rela < relalim;  rela++) {
-		if (reloc_non_plt_obj(obj_rtld, obj, rela, cache))
+		if (reloc_non_plt_obj(obj_rtld, obj, rela, cache, lockstate))
 			goto done;
 	}
 
@@ -423,7 +437,7 @@ reloc_plt(Obj_Entry *obj)
 
 /* Relocate the jump slots in an object. */
 int
-reloc_jmpslots(Obj_Entry *obj)
+reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 {
 	if (obj->jmpslots_done)
 		return 0;
@@ -442,7 +456,7 @@ reloc_jmpslots(Obj_Entry *obj)
 			assert(ELF_R_TYPE(rel->r_info) == R_IA_64_IPLTLSB);
 			where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 			def = find_symdef(ELF_R_SYM(rel->r_info), obj,
-					  &defobj, true, NULL);
+			    &defobj, true, NULL, lockstate);
 			if (def == NULL)
 				return -1;
 			reloc_jmpslot(where,
@@ -463,7 +477,7 @@ reloc_jmpslots(Obj_Entry *obj)
 
 			where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 			def = find_symdef(ELF_R_SYM(rela->r_info), obj,
-					  &defobj, true, NULL);
+			    &defobj, true, NULL, lockstate);
 			if (def == NULL)
 				return -1;
 			reloc_jmpslot(where,

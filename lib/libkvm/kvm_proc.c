@@ -323,7 +323,12 @@ nopgrp:
 		(void)kvm_read(kd, (u_long)proc.p_vmspace,
 		    (char *)&vmspace, sizeof(vmspace));
 		kp->ki_size = vmspace.vm_map.size;
-		kp->ki_rssize = vmspace.vm_swrss; /* XXX */
+		/*
+		 * Approximate the kernel's method of calculating
+		 * this field.
+		 */
+#define		pmap_resident_count(pm) ((pm)->pm_stats.resident_count)
+		kp->ki_rssize = pmap_resident_count(&vmspace.vm_pmap); 
 		kp->ki_swrss = vmspace.vm_swrss;
 		kp->ki_tsize = vmspace.vm_tsize;
 		kp->ki_dsize = vmspace.vm_dsize;

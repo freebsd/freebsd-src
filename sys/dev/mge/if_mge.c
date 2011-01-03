@@ -69,9 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#ifndef MII_ADDR_BASE
-#define MII_ADDR_BASE 8
-#endif
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/mge/if_mgevar.h>
 #include <arm/mv/mvreg.h>
@@ -164,7 +164,7 @@ static driver_t mge_driver = {
 
 static devclass_t mge_devclass;
 
-DRIVER_MODULE(mge, mbus, mge_driver, mge_devclass, 0, 0);
+DRIVER_MODULE(mge, simplebus, mge_driver, mge_devclass, 0, 0);
 DRIVER_MODULE(miibus, mge, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(mge, ether, 1, 1, 1);
 MODULE_DEPEND(mge, miibus, 1, 1, 1);
@@ -194,10 +194,30 @@ static void
 mge_get_mac_address(struct mge_softc *sc, uint8_t *addr)
 {
 	uint32_t mac_l, mac_h;
+	uint8_t lmac[6];
+	int i, valid;
 
-	/* XXX use currently programmed MAC address; eventually this info will
-	 * be provided by the loader */
+	/*
+	 * Retrieve hw address from the device tree.
+	 */
+	i = OF_getprop(sc->node, "local-mac-address", (void *)lmac, 6);
+	if (i == 6) {
+		valid = 0;
+		for (i = 0; i < 6; i++)
+			if (lmac[i] != 0) {
+				valid = 1;
+				break;
+			}
 
+		if (valid) {
+			bcopy(lmac, addr, 6);
+			return;
+		}
+	}
+
+	/*
+	 * Fall back -- use the currently programmed address.
+	 */
 	mac_l = MGE_READ(sc, MGE_MAC_ADDR_L);
 	mac_h = MGE_READ(sc, MGE_MAC_ADDR_H);
 
@@ -609,16 +629,21 @@ mge_attach(device_t dev)
 	struct mii_softc *miisc;
 	struct ifnet *ifp;
 	uint8_t hwaddr[ETHER_ADDR_LEN];
-	int i, error ;
+	int i, error, phy;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->node = ofw_bus_get_node(dev);
 
 	if (device_get_unit(dev) == 0)
 		sc_mge0 = sc;
 
 	/* Set chip version-dependent parameters */
 	mge_ver_params(sc);
+
+	/* Get phy address from fdt */
+	if (fdt_get_phyaddr(sc->node, &phy) != 0)
+		return (ENXIO);
 
 	/* Initialize mutexes */
 	mtx_init(&sc->transmit_lock, device_get_nameunit(dev), "mge TX lock", MTX_DEF);
@@ -681,10 +706,11 @@ mge_attach(device_t dev)
 	ether_ifattach(ifp, hwaddr);
 	callout_init(&sc->wd_callout, 0);
 
-	/* Probe PHY(s) */
-	error = mii_phy_probe(dev, &sc->miibus, mge_ifmedia_upd, mge_ifmedia_sts);
+	/* Attach PHY(s) */
+	error = mii_attach(dev, &sc->miibus, ifp, mge_ifmedia_upd,
+	    mge_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
 	if (error) {
-		device_printf(dev, "MII failed to find PHY\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		mge_detach(dev);
 		return (error);
 	}
@@ -1263,20 +1289,10 @@ mge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static int
 mge_miibus_readreg(device_t dev, int phy, int reg)
 {
+	struct mge_softc *sc;
 	uint32_t retries;
 
-	/*
-	 * We assume static PHY address <=> device unit mapping:
-	 * PHY Address = MII_ADDR_BASE + devce unit.
-	 * This is true for most Marvell boards.
-	 * 
-	 * Code below grants proper PHY detection on each device
-	 * unit.
-	 */
-
-	
-	if ((MII_ADDR_BASE + device_get_unit(dev)) != phy)
-		return (0);
+	sc = device_get_softc(dev);
 
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_READ | (reg << 21) | (phy << 16)));
@@ -1294,10 +1310,10 @@ mge_miibus_readreg(device_t dev, int phy, int reg)
 static int
 mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
+	struct mge_softc *sc;
 	uint32_t retries;
 
-	if ((MII_ADDR_BASE + device_get_unit(dev)) != phy)
-		return (0);
+	sc = device_get_softc(dev);
 
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_WRITE | (reg << 21) | (phy << 16) | (value & 0xffff)));
@@ -1314,6 +1330,9 @@ mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 static int
 mge_probe(device_t dev)
 {
+
+	if (!ofw_bus_is_compatible(dev, "mrvl,ge"))
+		return (ENXIO);
 
 	device_set_desc(dev, "Marvell Gigabit Ethernet controller");
 	return (BUS_PROBE_DEFAULT);

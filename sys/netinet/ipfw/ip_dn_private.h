@@ -49,10 +49,6 @@
 
 MALLOC_DECLARE(M_DUMMYNET);
 
-#ifndef FREE_PKT
-#define	FREE_PKT(m)	m_freem(m)
-#endif
-
 #ifndef __linux__
 #define div64(a, b)  ((int64_t)(a) / (int64_t)(b))
 #endif
@@ -351,13 +347,14 @@ enum {
 	DN_DETACH	= 0x0010,
 	DN_ACTIVE	= 0x0020, /* object is in evheap */
 	DN_F_DLINE	= 0x0040, /* object is a delay line */
-	DN_F_SCHI	= 0x00C0, /* object is a sched.instance */
+	DN_DEL_SAFE	= 0x0080, /* delete a queue only if no longer needed
+				   * by scheduler */
 	DN_QHT_IS_Q	= 0x0100, /* in flowset, qht is a single queue */
 };
 
 extern struct dn_parms dn_cfg;
 //VNET_DECLARE(struct dn_parms, _base_dn_cfg);
-//#define dn_cfg              VNET(_base_dn_cfg)
+//#define dn_cfg	VNET(_base_dn_cfg)
 
 int dummynet_io(struct mbuf **, int , struct ip_fw_args *);
 void dummynet_task(void *context, int pending);

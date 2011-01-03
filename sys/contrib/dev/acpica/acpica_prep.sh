@@ -22,8 +22,8 @@ fulldirs="common compiler debugger disassembler dispatcher events	\
 stripdirs="acpisrc acpixtract examples generate os_specific tests"
 stripfiles="Makefile README acintel.h aclinux.h acmsvc.h acnetbsd.h	\
 	acos2.h accygwin.h acefi.h acwin.h acwin64.h aeexec.c		\
-	aehandlers.c aemain.c aetables.c osunixdir.c readme.txt		\
-	utclib.c"
+	aehandlers.c aemain.c aetables.c aetables.h osunixdir.c		\
+	readme.txt utclib.c"
 
 # include files to canonify
 src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
@@ -33,7 +33,8 @@ src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
 	acresrc.h acrestyp.h acstruct.h actables.h actbl.h actbl1.h	\
 	actbl2.h actypes.h acutils.h amlcode.h amlresrc.h		\
 	platform/acenv.h platform/acfreebsd.h platform/acgcc.h"
-comp_headers="aslcompiler.h asldefine.h aslglobal.h asltypes.h"
+comp_headers="aslcompiler.h asldefine.h aslglobal.h aslmessages.h	\
+	asltypes.h dtcompiler.h dttemplate.h"
 platform_headers="acfreebsd.h acgcc.h"
 
 # pre-clean
@@ -49,7 +50,7 @@ tar -x -z -f ${src} -C ${wrk}
 # strip files
 echo strip
 for i in ${stripdirs}; do
-	find ${wrk} -name ${i} -type d | xargs rm -r
+	find ${wrk} -name ${i} -type d -print | xargs rm -r
 done
 for i in ${stripfiles}; do
 	find ${wrk} -name ${i} -type f -delete
@@ -58,22 +59,22 @@ done
 # copy files
 echo copying full dirs
 for i in ${fulldirs}; do
-	find ${wrk} -name ${i} -type d | xargs -J % mv % ${dst}
+	find ${wrk} -name ${i} -type d -print | xargs -J % mv % ${dst}
 done
 echo copying remaining files
-find ${wrk} -type f | xargs -J % mv % ${dst}
+find ${wrk} -type f -print | xargs -J % mv % ${dst}
 
 # canonify include paths
 for H in ${src_headers}; do
-	find ${dst} -name "*.[chy]" -type f |	\
+	find ${dst} -name "*.[chy]" -type f -print |	\
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/include/$H\>|g"
 done
 for H in ${comp_headers}; do
-	find ${dst}/compiler -name "*.[chly]" -type f |	\
+	find ${dst}/common ${dst}/compiler -name "*.[chly]" -type f |	\
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/compiler/$H\>|g"
 done
 for H in ${platform_headers}; do
-	find ${dst}/include/platform -name "*.h" -type f |	\
+	find ${dst}/include/platform -name "*.h" -type f -print |	\
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/include/platform/$H\>|g"
 done
 

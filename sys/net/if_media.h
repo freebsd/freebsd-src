@@ -155,6 +155,8 @@ uint64_t	ifmedia_baudrate(int);
 /* note 31 is the max! */
 
 #define	IFM_ETH_MASTER	0x00000100	/* master mode (1000baseT) */
+#define	IFM_ETH_RXPAUSE	0x00000200	/* receive PAUSE frames */
+#define	IFM_ETH_TXPAUSE	0x00000400	/* transmit PAUSE frames */
 
 /*
  * Token ring
@@ -262,6 +264,7 @@ uint64_t	ifmedia_baudrate(int);
  */
 #define	IFM_FDX		0x00100000	/* Force full duplex */
 #define	IFM_HDX		0x00200000	/* Force half duplex */
+#define	IFM_FLOW	0x00400000	/* enable hardware flow control */
 #define	IFM_FLAG0	0x01000000	/* Driver defined flag */
 #define	IFM_FLAG1	0x02000000	/* Driver defined flag */
 #define	IFM_FLAG2	0x04000000	/* Driver defined flag */
@@ -278,6 +281,9 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_MMASK	0x00070000	/* Mode */
 #define	IFM_MSHIFT	16		/* Mode shift */
 #define	IFM_GMASK	0x0ff00000	/* Global options */
+
+/* Ethernet flow control mask */
+#define	IFM_ETH_FMASK	(IFM_FLOW | IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE)
 
 /*
  * Status bits
@@ -388,6 +394,9 @@ struct ifmedia_description {
 }
 
 #define	IFM_SUBTYPE_ETHERNET_OPTION_DESCRIPTIONS {			\
+	{ IFM_ETH_MASTER,	"master" },				\
+	{ IFM_ETH_RXPAUSE,	"rxpause" },				\
+	{ IFM_ETH_TXPAUSE,	"txpause" },				\
 	{ 0, NULL },							\
 }
 
@@ -583,6 +592,7 @@ struct ifmedia_description {
 #define	IFM_SHARED_OPTION_DESCRIPTIONS {				\
 	{ IFM_FDX,	"full-duplex" },				\
 	{ IFM_HDX,	"half-duplex" },				\
+	{ IFM_FLOW,	"flowcontrol" },				\
 	{ IFM_FLAG0,	"flag0" },					\
 	{ IFM_FLAG1,	"flag1" },					\
 	{ IFM_FLAG2,	"flag2" },					\

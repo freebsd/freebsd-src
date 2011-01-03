@@ -39,8 +39,7 @@
 #include <sys/signal.h>
 
 /*
- * Kernel signal definitions and data structures,
- * not exported to user programs.
+ * Kernel signal definitions and data structures.
  */
 
 /*
@@ -60,7 +59,7 @@ struct sigacts {
 	sigset_t ps_siginfo;		/* Signals that want SA_SIGINFO args. */
 	sigset_t ps_sigignore;		/* Signals being ignored. */
 	sigset_t ps_sigcatch;		/* Signals being caught by user. */
-	sigset_t ps_freebsd4;		/* signals using freebsd4 ucontext. */
+	sigset_t ps_freebsd4;		/* Signals using freebsd4 ucontext. */
 	sigset_t ps_osigset;		/* Signals using <= 3.x osigset_t. */
 	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp. XXX */
 	int	ps_flag;
@@ -72,10 +71,9 @@ struct sigacts {
 #define	PS_NOCLDSTOP	0x0002	/* No SIGCHLD when children stop. */
 #define	PS_CLDSIGIGN	0x0004	/* The SIGCHLD handler is SIG_IGN. */
 
-#if defined(_KERNEL) && defined(COMPAT_43)
-/*
- * Compatibility.
- */
+#ifdef _KERNEL
+
+#ifdef COMPAT_43
 typedef struct {
 	struct osigcontext si_sc;
 	int		si_signo;
@@ -93,7 +91,7 @@ struct osigaction {
 };
 
 typedef void __osiginfohandler_t(int, osiginfo_t *, void *);
-#endif /* _KERNEL && COMPAT_43 */
+#endif /* COMPAT_43 */
 
 /* additional signal action values, used only temporarily/internally */
 #define	SIG_CATCH	((__sighandler_t *)2)
@@ -102,78 +100,80 @@ typedef void __osiginfohandler_t(int, osiginfo_t *, void *);
 /*
  * get signal action for process and signal; currently only for current process
  */
-#define SIGACTION(p, sig)	(p->p_sigacts->ps_sigact[_SIG_IDX(sig)])
+#define	SIGACTION(p, sig)	(p->p_sigacts->ps_sigact[_SIG_IDX(sig)])
+
+#endif /* _KERNEL */
 
 /*
- * sigset_t manipulation macros
+ * sigset_t manipulation macros.
  */
-#define SIGADDSET(set, signo)						\
+#define	SIGADDSET(set, signo)						\
 	((set).__bits[_SIG_WORD(signo)] |= _SIG_BIT(signo))
 
-#define SIGDELSET(set, signo)						\
+#define	SIGDELSET(set, signo)						\
 	((set).__bits[_SIG_WORD(signo)] &= ~_SIG_BIT(signo))
 
-#define SIGEMPTYSET(set)						\
+#define	SIGEMPTYSET(set)						\
 	do {								\
 		int __i;						\
 		for (__i = 0; __i < _SIG_WORDS; __i++)			\
 			(set).__bits[__i] = 0;				\
 	} while (0)
 
-#define SIGFILLSET(set)							\
+#define	SIGFILLSET(set)							\
 	do {								\
 		int __i;						\
 		for (__i = 0; __i < _SIG_WORDS; __i++)			\
 			(set).__bits[__i] = ~0U;			\
 	} while (0)
 
-#define SIGISMEMBER(set, signo)						\
+#define	SIGISMEMBER(set, signo)						\
 	((set).__bits[_SIG_WORD(signo)] & _SIG_BIT(signo))
 
-#define SIGISEMPTY(set)		(__sigisempty(&(set)))
-#define SIGNOTEMPTY(set)	(!__sigisempty(&(set)))
+#define	SIGISEMPTY(set)		(__sigisempty(&(set)))
+#define	SIGNOTEMPTY(set)	(!__sigisempty(&(set)))
 
-#define SIGSETEQ(set1, set2)	(__sigseteq(&(set1), &(set2)))
-#define SIGSETNEQ(set1, set2)	(!__sigseteq(&(set1), &(set2)))
+#define	SIGSETEQ(set1, set2)	(__sigseteq(&(set1), &(set2)))
+#define	SIGSETNEQ(set1, set2)	(!__sigseteq(&(set1), &(set2)))
 
-#define SIGSETOR(set1, set2)						\
+#define	SIGSETOR(set1, set2)						\
 	do {								\
 		int __i;						\
 		for (__i = 0; __i < _SIG_WORDS; __i++)			\
 			(set1).__bits[__i] |= (set2).__bits[__i];	\
 	} while (0)
 
-#define SIGSETAND(set1, set2)						\
+#define	SIGSETAND(set1, set2)						\
 	do {								\
 		int __i;						\
 		for (__i = 0; __i < _SIG_WORDS; __i++)			\
 			(set1).__bits[__i] &= (set2).__bits[__i];	\
 	} while (0)
 
-#define SIGSETNAND(set1, set2)						\
+#define	SIGSETNAND(set1, set2)						\
 	do {								\
 		int __i;						\
 		for (__i = 0; __i < _SIG_WORDS; __i++)			\
 			(set1).__bits[__i] &= ~(set2).__bits[__i];	\
 	} while (0)
 
-#define SIGSETLO(set1, set2)	((set1).__bits[0] = (set2).__bits[0])
-#define SIGSETOLD(set, oset)	((set).__bits[0] = (oset))
+#define	SIGSETLO(set1, set2)	((set1).__bits[0] = (set2).__bits[0])
+#define	SIGSETOLD(set, oset)	((set).__bits[0] = (oset))
 
-#define SIG_CANTMASK(set)						\
+#define	SIG_CANTMASK(set)						\
 	SIGDELSET(set, SIGKILL), SIGDELSET(set, SIGSTOP)
 
-#define SIG_STOPSIGMASK(set)						\
+#define	SIG_STOPSIGMASK(set)						\
 	SIGDELSET(set, SIGSTOP), SIGDELSET(set, SIGTSTP),		\
 	SIGDELSET(set, SIGTTIN), SIGDELSET(set, SIGTTOU)
 
-#define SIG_CONTSIGMASK(set)						\
+#define	SIG_CONTSIGMASK(set)						\
 	SIGDELSET(set, SIGCONT)
 
-#define sigcantmask	(sigmask(SIGKILL) | sigmask(SIGSTOP))
+#define	sigcantmask	(sigmask(SIGKILL) | sigmask(SIGSTOP))
 
-#define SIG2OSIG(sig, osig)	(osig = (sig).__bits[0])
-#define OSIG2SIG(osig, sig)	SIGEMPTYSET(sig); (sig).__bits[0] = osig
+#define	SIG2OSIG(sig, osig)	(osig = (sig).__bits[0])
+#define	OSIG2SIG(osig, sig)	SIGEMPTYSET(sig); (sig).__bits[0] = osig
 
 static __inline int
 __sigisempty(sigset_t *set)
@@ -215,24 +215,24 @@ typedef struct ksiginfo {
 	struct sigqueue		*ksi_sigq;
 } ksiginfo_t;
 
-#define ksi_signo	ksi_info.si_signo
-#define ksi_errno	ksi_info.si_errno
-#define ksi_code	ksi_info.si_code
-#define ksi_pid		ksi_info.si_pid
-#define ksi_uid		ksi_info.si_uid
-#define ksi_status      ksi_info.si_status
-#define ksi_addr        ksi_info.si_addr
-#define ksi_value	ksi_info.si_value
-#define ksi_band	ksi_info.si_band
-#define ksi_trapno	ksi_info.si_trapno
-#define ksi_overrun	ksi_info.si_overrun
-#define ksi_timerid	ksi_info.si_timerid
-#define ksi_mqd		ksi_info.si_mqd
+#define	ksi_signo	ksi_info.si_signo
+#define	ksi_errno	ksi_info.si_errno
+#define	ksi_code	ksi_info.si_code
+#define	ksi_pid		ksi_info.si_pid
+#define	ksi_uid		ksi_info.si_uid
+#define	ksi_status      ksi_info.si_status
+#define	ksi_addr        ksi_info.si_addr
+#define	ksi_value	ksi_info.si_value
+#define	ksi_band	ksi_info.si_band
+#define	ksi_trapno	ksi_info.si_trapno
+#define	ksi_overrun	ksi_info.si_overrun
+#define	ksi_timerid	ksi_info.si_timerid
+#define	ksi_mqd		ksi_info.si_mqd
 
 /* bits for ksi_flags */
-#define KSI_TRAP	0x01	/* Generated by trap. */
+#define	KSI_TRAP	0x01	/* Generated by trap. */
 #define	KSI_EXT		0x02	/* Externally managed ksi. */
-#define KSI_INS		0x04	/* Directly insert ksi, not the copy */
+#define	KSI_INS		0x04	/* Directly insert ksi, not the copy */
 #define	KSI_SIGQ	0x08	/* Generated by sigqueue, might ret EGAIN. */
 #define	KSI_HEAD	0x10	/* Insert into head, not tail. */
 #define	KSI_COPYMASK	(KSI_TRAP|KSI_SIGQ)
@@ -275,12 +275,12 @@ sigsetmasked(sigset_t *set, sigset_t *mask)
 	return (1);
 }
 
-#define ksiginfo_init(ksi)			\
+#define	ksiginfo_init(ksi)			\
 do {						\
 	bzero(ksi, sizeof(ksiginfo_t));		\
 } while(0)
 
-#define ksiginfo_init_trap(ksi)			\
+#define	ksiginfo_init_trap(ksi)			\
 do {						\
 	ksiginfo_t *kp = ksi;			\
 	bzero(kp, sizeof(ksiginfo_t));		\
@@ -294,77 +294,73 @@ ksiginfo_copy(ksiginfo_t *src, ksiginfo_t *dst)
 	(dst)->ksi_flags = (src->ksi_flags & KSI_COPYMASK);
 }
 
+static __inline void
+ksiginfo_set_sigev(ksiginfo_t *dst, struct sigevent *sigev)
+{
+	dst->ksi_signo = sigev->sigev_signo;
+	dst->ksi_value = sigev->sigev_value;
+}
+
 struct pgrp;
-struct thread;
 struct proc;
 struct sigio;
-struct mtx;
-
-extern int sugid_coredump;	/* Sysctl variable kern.sugid_coredump */
-extern struct mtx	sigio_lock;
-extern int kern_logsigexit;	/* Sysctl variable kern.logsigexit */
+struct thread;
 
 /*
  * Lock the pointers for a sigio object in the underlying objects of
  * a file descriptor.
  */
-#define SIGIO_LOCK()	mtx_lock(&sigio_lock)
-#define SIGIO_TRYLOCK()	mtx_trylock(&sigio_lock)
-#define SIGIO_UNLOCK()	mtx_unlock(&sigio_lock)
-#define SIGIO_LOCKED()	mtx_owned(&sigio_lock)
-#define SIGIO_ASSERT(type)	mtx_assert(&sigio_lock, type)
+#define	SIGIO_LOCK()	mtx_lock(&sigio_lock)
+#define	SIGIO_TRYLOCK()	mtx_trylock(&sigio_lock)
+#define	SIGIO_UNLOCK()	mtx_unlock(&sigio_lock)
+#define	SIGIO_LOCKED()	mtx_owned(&sigio_lock)
+#define	SIGIO_ASSERT(type)	mtx_assert(&sigio_lock, type)
 
-/* stop_allowed parameter for cursig */
+extern struct mtx	sigio_lock;
+
+/* Values for stop_allowed parameter for cursig(). */
 #define	SIG_STOP_ALLOWED	100
 #define	SIG_STOP_NOT_ALLOWED	101
 
-/* flags for kern_sigprocmask */
+/* Flags for kern_sigprocmask(). */
 #define	SIGPROCMASK_OLD		0x0001
 #define	SIGPROCMASK_PROC_LOCKED	0x0002
 #define	SIGPROCMASK_PS_LOCKED	0x0004
 
-/*
- * Machine-independent functions:
- */
 int	cursig(struct thread *td, int stop_allowed);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
 void	killproc(struct proc *p, char *why);
-void	pksignal(struct proc *p, int sig, ksiginfo_t *ksi);
-void	pgsigio(struct sigio **, int signum, int checkctty);
+ksiginfo_t * ksiginfo_alloc(int wait);
+void	ksiginfo_free(ksiginfo_t *ksi);
+int	pksignal(struct proc *p, int sig, ksiginfo_t *ksi);
+void	pgsigio(struct sigio **sigiop, int sig, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi);
 int	postsig(int sig);
 void	psignal(struct proc *p, int sig);
-int	psignal_event(struct proc *p, struct sigevent *, ksiginfo_t *);
+int	ptracestop(struct thread *td, int sig);
+void	sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *retmask);
 struct sigacts *sigacts_alloc(void);
 void	sigacts_copy(struct sigacts *dest, struct sigacts *src);
 void	sigacts_free(struct sigacts *ps);
 struct sigacts *sigacts_hold(struct sigacts *ps);
 int	sigacts_shared(struct sigacts *ps);
-void	sigexit(struct thread *td, int signum) __dead2;
+void	sigexit(struct thread *td, int sig) __dead2;
+int	sigev_findtd(struct proc *p, struct sigevent *sigev, struct thread **);
 int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
-void	tdsigcleanup(struct thread *td);
-int	tdsignal(struct proc *p, struct thread *td, int sig,
-	    ksiginfo_t *ksi);
-void	trapsignal(struct thread *td, ksiginfo_t *);
-int	ptracestop(struct thread *td, int sig);
-ksiginfo_t * ksiginfo_alloc(int);
-void	ksiginfo_free(ksiginfo_t *);
-void	sigqueue_init(struct sigqueue *queue, struct proc *p);
-void	sigqueue_flush(struct sigqueue *queue);
-void	sigqueue_delete_proc(struct proc *p, int sig);
 void	sigqueue_delete(struct sigqueue *queue, int sig);
+void	sigqueue_delete_proc(struct proc *p, int sig);
+void	sigqueue_flush(struct sigqueue *queue);
+void	sigqueue_init(struct sigqueue *queue, struct proc *p);
 void	sigqueue_take(ksiginfo_t *ksi);
-int	kern_sigtimedwait(struct thread *, sigset_t,
-	    ksiginfo_t *, struct timespec *);
-int	kern_sigprocmask(struct thread *td, int how,
-	    sigset_t *set, sigset_t *oset, int flags);
-/*
- * Machine-dependent functions:
- */
-void	sendsig(sig_t, ksiginfo_t *, sigset_t *retmask);
+void	tdksignal(struct thread *td, int sig, ksiginfo_t *ksi);
+int	tdsendsignal(struct proc *p, struct thread *td, int sig,
+	   ksiginfo_t *ksi);
+void	tdsigcleanup(struct thread *td);
+void	tdsignal(struct thread *td, int sig);
+void	trapsignal(struct thread *td, ksiginfo_t *ksi);
 
 #endif /* _KERNEL */
 

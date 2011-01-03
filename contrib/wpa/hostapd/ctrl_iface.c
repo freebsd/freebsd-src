@@ -1,6 +1,6 @@
 /*
  * hostapd / UNIX domain socket -based control interface
- * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,24 +12,29 @@
  * See README and COPYING for more details.
  */
 
-#include "includes.h"
+#include "utils/includes.h"
 
 #ifndef CONFIG_NATIVE_WINDOWS
 
 #include <sys/un.h>
 #include <sys/stat.h>
+#include <stddef.h>
 
-#include "hostapd.h"
-#include "eloop.h"
-#include "config.h"
-#include "ieee802_1x.h"
-#include "wpa.h"
+#include "utils/common.h"
+#include "utils/eloop.h"
+#include "common/ieee802_11_defs.h"
+#include "drivers/driver.h"
 #include "radius/radius_client.h"
-#include "ieee802_11.h"
+#include "ap/hostapd.h"
+#include "ap/ap_config.h"
+#include "ap/ieee802_1x.h"
+#include "ap/wpa_auth.h"
+#include "ap/ieee802_11.h"
+#include "ap/sta_info.h"
+#include "ap/accounting.h"
+#include "ap/wps_hostapd.h"
+#include "ap/ctrl_iface_ap.h"
 #include "ctrl_iface.h"
-#include "sta_info.h"
-#include "accounting.h"
-#include "wps_hostapd.h"
 
 
 struct wpa_ctrl_dst {
@@ -60,7 +65,8 @@ static int hostapd_ctrl_iface_attach(struct hostapd_data *hapd,
 	dst->next = hapd->ctrl_dst;
 	hapd->ctrl_dst = dst;
 	wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor attached",
-		    (u8 *) from->sun_path, fromlen);
+		    (u8 *) from->sun_path,
+		    fromlen - offsetof(struct sockaddr_un, sun_path));
 	return 0;
 }
 
@@ -74,15 +80,18 @@ static int hostapd_ctrl_iface_detach(struct hostapd_data *hapd,
 	dst = hapd->ctrl_dst;
 	while (dst) {
 		if (fromlen == dst->addrlen &&
-		    os_memcmp(from->sun_path, dst->addr.sun_path, fromlen) ==
-		    0) {
+		    os_memcmp(from->sun_path, dst->addr.sun_path,
+			      fromlen - offsetof(struct sockaddr_un, sun_path))
+		    == 0) {
 			if (prev == NULL)
 				hapd->ctrl_dst = dst->next;
 			else
 				prev->next = dst->next;
 			os_free(dst);
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor detached",
-				    (u8 *) from->sun_path, fromlen);
+				    (u8 *) from->sun_path,
+				    fromlen -
+				    offsetof(struct sockaddr_un, sun_path));
 			return 0;
 		}
 		prev = dst;
@@ -104,10 +113,12 @@ static int hostapd_ctrl_iface_level(struct hostapd_data *hapd,
 	dst = hapd->ctrl_dst;
 	while (dst) {
 		if (fromlen == dst->addrlen &&
-		    os_memcmp(from->sun_path, dst->addr.sun_path, fromlen) ==
-		    0) {
+		    os_memcmp(from->sun_path, dst->addr.sun_path,
+			      fromlen - offsetof(struct sockaddr_un, sun_path))
+		    == 0) {
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE changed monitor "
-				    "level", (u8 *) from->sun_path, fromlen);
+				    "level", (u8 *) from->sun_path, fromlen -
+				    offsetof(struct sockaddr_un, sun_path));
 			dst->debug_level = atoi(level);
 			return 0;
 		}
@@ -115,84 +126,6 @@ static int hostapd_ctrl_iface_level(struct hostapd_data *hapd,
 	}
 
 	return -1;
-}
-
-
-static int hostapd_ctrl_iface_sta_mib(struct hostapd_data *hapd,
-				      struct sta_info *sta,
-				      char *buf, size_t buflen)
-{
-	int len, res, ret;
-
-	if (sta == NULL) {
-		ret = os_snprintf(buf, buflen, "FAIL\n");
-		if (ret < 0 || (size_t) ret >= buflen)
-			return 0;
-		return ret;
-	}
-
-	len = 0;
-	ret = os_snprintf(buf + len, buflen - len, MACSTR "\n",
-			  MAC2STR(sta->addr));
-	if (ret < 0 || (size_t) ret >= buflen - len)
-		return len;
-	len += ret;
-
-	res = ieee802_11_get_mib_sta(hapd, sta, buf + len, buflen - len);
-	if (res >= 0)
-		len += res;
-	res = wpa_get_mib_sta(sta->wpa_sm, buf + len, buflen - len);
-	if (res >= 0)
-		len += res;
-	res = ieee802_1x_get_mib_sta(hapd, sta, buf + len, buflen - len);
-	if (res >= 0)
-		len += res;
-
-	return len;
-}
-
-
-static int hostapd_ctrl_iface_sta_first(struct hostapd_data *hapd,
-					char *buf, size_t buflen)
-{
-	return hostapd_ctrl_iface_sta_mib(hapd, hapd->sta_list, buf, buflen);
-}
-
-
-static int hostapd_ctrl_iface_sta(struct hostapd_data *hapd,
-				  const char *txtaddr,
-				  char *buf, size_t buflen)
-{
-	u8 addr[ETH_ALEN];
-	int ret;
-
-	if (hwaddr_aton(txtaddr, addr)) {
-		ret = os_snprintf(buf, buflen, "FAIL\n");
-		if (ret < 0 || (size_t) ret >= buflen)
-			return 0;
-		return ret;
-	}
-	return hostapd_ctrl_iface_sta_mib(hapd, ap_get_sta(hapd, addr),
-					  buf, buflen);
-}
-
-
-static int hostapd_ctrl_iface_sta_next(struct hostapd_data *hapd,
-				       const char *txtaddr,
-				       char *buf, size_t buflen)
-{
-	u8 addr[ETH_ALEN];
-	struct sta_info *sta;
-	int ret;
-
-	if (hwaddr_aton(txtaddr, addr) ||
-	    (sta = ap_get_sta(hapd, addr)) == NULL) {
-		ret = os_snprintf(buf, buflen, "FAIL\n");
-		if (ret < 0 || (size_t) ret >= buflen)
-			return 0;
-		return ret;
-	}		
-	return hostapd_ctrl_iface_sta_mib(hapd, sta->next, buf, buflen);
 }
 
 
@@ -222,7 +155,100 @@ static int hostapd_ctrl_iface_new_sta(struct hostapd_data *hapd,
 }
 
 
+static int hostapd_ctrl_iface_deauthenticate(struct hostapd_data *hapd,
+					     const char *txtaddr)
+{
+	u8 addr[ETH_ALEN];
+	struct sta_info *sta;
+	const char *pos;
+
+	wpa_printf(MSG_DEBUG, "CTRL_IFACE DEAUTHENTICATE %s", txtaddr);
+
+	if (hwaddr_aton(txtaddr, addr))
+		return -1;
+
+	pos = os_strstr(txtaddr, " test=");
+	if (pos) {
+		struct ieee80211_mgmt mgmt;
+		int encrypt;
+		if (hapd->driver->send_frame == NULL)
+			return -1;
+		pos += 6;
+		encrypt = atoi(pos);
+		os_memset(&mgmt, 0, sizeof(mgmt));
+		mgmt.frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
+						  WLAN_FC_STYPE_DEAUTH);
+		os_memcpy(mgmt.da, addr, ETH_ALEN);
+		os_memcpy(mgmt.sa, hapd->own_addr, ETH_ALEN);
+		os_memcpy(mgmt.bssid, hapd->own_addr, ETH_ALEN);
+		mgmt.u.deauth.reason_code =
+			host_to_le16(WLAN_REASON_PREV_AUTH_NOT_VALID);
+		if (hapd->driver->send_frame(hapd->drv_priv, (u8 *) &mgmt,
+					     IEEE80211_HDRLEN +
+					     sizeof(mgmt.u.deauth),
+					     encrypt) < 0)
+			return -1;
+		return 0;
+	}
+
+	hapd->drv.sta_deauth(hapd, addr, WLAN_REASON_PREV_AUTH_NOT_VALID);
+	sta = ap_get_sta(hapd, addr);
+	if (sta)
+		ap_sta_deauthenticate(hapd, sta,
+				      WLAN_REASON_PREV_AUTH_NOT_VALID);
+
+	return 0;
+}
+
+
+static int hostapd_ctrl_iface_disassociate(struct hostapd_data *hapd,
+					   const char *txtaddr)
+{
+	u8 addr[ETH_ALEN];
+	struct sta_info *sta;
+	const char *pos;
+
+	wpa_printf(MSG_DEBUG, "CTRL_IFACE DISASSOCIATE %s", txtaddr);
+
+	if (hwaddr_aton(txtaddr, addr))
+		return -1;
+
+	pos = os_strstr(txtaddr, " test=");
+	if (pos) {
+		struct ieee80211_mgmt mgmt;
+		int encrypt;
+		if (hapd->driver->send_frame == NULL)
+			return -1;
+		pos += 6;
+		encrypt = atoi(pos);
+		os_memset(&mgmt, 0, sizeof(mgmt));
+		mgmt.frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
+						  WLAN_FC_STYPE_DISASSOC);
+		os_memcpy(mgmt.da, addr, ETH_ALEN);
+		os_memcpy(mgmt.sa, hapd->own_addr, ETH_ALEN);
+		os_memcpy(mgmt.bssid, hapd->own_addr, ETH_ALEN);
+		mgmt.u.disassoc.reason_code =
+			host_to_le16(WLAN_REASON_PREV_AUTH_NOT_VALID);
+		if (hapd->driver->send_frame(hapd->drv_priv, (u8 *) &mgmt,
+					     IEEE80211_HDRLEN +
+					     sizeof(mgmt.u.deauth),
+					     encrypt) < 0)
+			return -1;
+		return 0;
+	}
+
+	hapd->drv.sta_disassoc(hapd, addr, WLAN_REASON_PREV_AUTH_NOT_VALID);
+	sta = ap_get_sta(hapd, addr);
+	if (sta)
+		ap_sta_disassociate(hapd, sta,
+				    WLAN_REASON_PREV_AUTH_NOT_VALID);
+
+	return 0;
+}
+
+
 #ifdef CONFIG_IEEE80211W
+#ifdef NEED_AP_MLME
 static int hostapd_ctrl_iface_sa_query(struct hostapd_data *hapd,
 				       const char *txtaddr)
 {
@@ -231,14 +257,15 @@ static int hostapd_ctrl_iface_sa_query(struct hostapd_data *hapd,
 
 	wpa_printf(MSG_DEBUG, "CTRL_IFACE SA_QUERY %s", txtaddr);
 
-	if (hwaddr_aton(txtaddr, addr))
+	if (hwaddr_aton(txtaddr, addr) ||
+	    os_get_random(trans_id, WLAN_SA_QUERY_TR_ID_LEN) < 0)
 		return -1;
 
-	os_get_random(trans_id, WLAN_SA_QUERY_TR_ID_LEN);
 	ieee802_11_send_sa_query_req(hapd, addr, trans_id);
 
 	return 0;
 }
+#endif /* NEED_AP_MLME */
 #endif /* CONFIG_IEEE80211W */
 
 
@@ -246,10 +273,98 @@ static int hostapd_ctrl_iface_sa_query(struct hostapd_data *hapd,
 static int hostapd_ctrl_iface_wps_pin(struct hostapd_data *hapd, char *txt)
 {
 	char *pin = os_strchr(txt, ' ');
+	char *timeout_txt;
+	int timeout;
+
 	if (pin == NULL)
 		return -1;
 	*pin++ = '\0';
-	return hostapd_wps_add_pin(hapd, txt, pin);
+
+	timeout_txt = os_strchr(pin, ' ');
+	if (timeout_txt) {
+		*timeout_txt++ = '\0';
+		timeout = atoi(timeout_txt);
+	} else
+		timeout = 0;
+
+	return hostapd_wps_add_pin(hapd, txt, pin, timeout);
+}
+
+
+#ifdef CONFIG_WPS_OOB
+static int hostapd_ctrl_iface_wps_oob(struct hostapd_data *hapd, char *txt)
+{
+	char *path, *method, *name;
+
+	path = os_strchr(txt, ' ');
+	if (path == NULL)
+		return -1;
+	*path++ = '\0';
+
+	method = os_strchr(path, ' ');
+	if (method == NULL)
+		return -1;
+	*method++ = '\0';
+
+	name = os_strchr(method, ' ');
+	if (name != NULL)
+		*name++ = '\0';
+
+	return hostapd_wps_start_oob(hapd, txt, path, method, name);
+}
+#endif /* CONFIG_WPS_OOB */
+
+
+static int hostapd_ctrl_iface_wps_ap_pin(struct hostapd_data *hapd, char *txt,
+					 char *buf, size_t buflen)
+{
+	int timeout = 300;
+	char *pos;
+	const char *pin_txt;
+
+	pos = os_strchr(txt, ' ');
+	if (pos)
+		*pos++ = '\0';
+
+	if (os_strcmp(txt, "disable") == 0) {
+		hostapd_wps_ap_pin_disable(hapd);
+		return os_snprintf(buf, buflen, "OK\n");
+	}
+
+	if (os_strcmp(txt, "random") == 0) {
+		if (pos)
+			timeout = atoi(pos);
+		pin_txt = hostapd_wps_ap_pin_random(hapd, timeout);
+		if (pin_txt == NULL)
+			return -1;
+		return os_snprintf(buf, buflen, "%s", pin_txt);
+	}
+
+	if (os_strcmp(txt, "get") == 0) {
+		pin_txt = hostapd_wps_ap_pin_get(hapd);
+		if (pin_txt == NULL)
+			return -1;
+		return os_snprintf(buf, buflen, "%s", pin_txt);
+	}
+
+	if (os_strcmp(txt, "set") == 0) {
+		char *pin;
+		if (pos == NULL)
+			return -1;
+		pin = pos;
+		pos = os_strchr(pos, ' ');
+		if (pos) {
+			*pos++ = '\0';
+			timeout = atoi(pos);
+		}
+		if (os_strlen(pin) > buflen)
+			return -1;
+		if (hostapd_wps_ap_pin_set(hapd, pin, timeout) < 0)
+			return -1;
+		return os_snprintf(buf, buflen, "%s", pin);
+	}
+
+	return -1;
 }
 #endif /* CONFIG_WPS */
 
@@ -306,6 +421,7 @@ static void hostapd_ctrl_iface_receive(int sock, void *eloop_ctx,
 			else
 				reply_len += res;
 		}
+#ifndef CONFIG_NO_RADIUS
 		if (reply_len >= 0) {
 			res = radius_client_get_mib(hapd->radius,
 						    reply + reply_len,
@@ -315,6 +431,7 @@ static void hostapd_ctrl_iface_receive(int sock, void *eloop_ctx,
 			else
 				reply_len += res;
 		}
+#endif /* CONFIG_NO_RADIUS */
 	} else if (os_strcmp(buf, "STA-FIRST") == 0) {
 		reply_len = hostapd_ctrl_iface_sta_first(hapd, reply,
 							 reply_size);
@@ -337,10 +454,18 @@ static void hostapd_ctrl_iface_receive(int sock, void *eloop_ctx,
 	} else if (os_strncmp(buf, "NEW_STA ", 8) == 0) {
 		if (hostapd_ctrl_iface_new_sta(hapd, buf + 8))
 			reply_len = -1;
+	} else if (os_strncmp(buf, "DEAUTHENTICATE ", 15) == 0) {
+		if (hostapd_ctrl_iface_deauthenticate(hapd, buf + 15))
+			reply_len = -1;
+	} else if (os_strncmp(buf, "DISASSOCIATE ", 13) == 0) {
+		if (hostapd_ctrl_iface_disassociate(hapd, buf + 13))
+			reply_len = -1;
 #ifdef CONFIG_IEEE80211W
+#ifdef NEED_AP_MLME
 	} else if (os_strncmp(buf, "SA_QUERY ", 9) == 0) {
 		if (hostapd_ctrl_iface_sa_query(hapd, buf + 9))
 			reply_len = -1;
+#endif /* NEED_AP_MLME */
 #endif /* CONFIG_IEEE80211W */
 #ifdef CONFIG_WPS
 	} else if (os_strncmp(buf, "WPS_PIN ", 8) == 0) {
@@ -349,6 +474,14 @@ static void hostapd_ctrl_iface_receive(int sock, void *eloop_ctx,
 	} else if (os_strcmp(buf, "WPS_PBC") == 0) {
 		if (hostapd_wps_button_pushed(hapd))
 			reply_len = -1;
+#ifdef CONFIG_WPS_OOB
+	} else if (os_strncmp(buf, "WPS_OOB ", 8) == 0) {
+		if (hostapd_ctrl_iface_wps_oob(hapd, buf + 8))
+			reply_len = -1;
+#endif /* CONFIG_WPS_OOB */
+	} else if (os_strncmp(buf, "WPS_AP_PIN ", 11) == 0) {
+		reply_len = hostapd_ctrl_iface_wps_ap_pin(hapd, buf + 11,
+							  reply, reply_size);
 #endif /* CONFIG_WPS */
 	} else {
 		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
@@ -434,14 +567,44 @@ int hostapd_ctrl_iface_init(struct hostapd_data *hapd)
 	}
 
 	os_memset(&addr, 0, sizeof(addr));
+#ifdef __FreeBSD__
+	addr.sun_len = sizeof(addr);
+#endif /* __FreeBSD__ */
 	addr.sun_family = AF_UNIX;
 	fname = hostapd_ctrl_iface_path(hapd);
 	if (fname == NULL)
 		goto fail;
 	os_strlcpy(addr.sun_path, fname, sizeof(addr.sun_path));
 	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("bind(PF_UNIX)");
-		goto fail;
+		wpa_printf(MSG_DEBUG, "ctrl_iface bind(PF_UNIX) failed: %s",
+			   strerror(errno));
+		if (connect(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+			wpa_printf(MSG_DEBUG, "ctrl_iface exists, but does not"
+				   " allow connections - assuming it was left"
+				   "over from forced program termination");
+			if (unlink(fname) < 0) {
+				perror("unlink[ctrl_iface]");
+				wpa_printf(MSG_ERROR, "Could not unlink "
+					   "existing ctrl_iface socket '%s'",
+					   fname);
+				goto fail;
+			}
+			if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) <
+			    0) {
+				perror("bind(PF_UNIX)");
+				goto fail;
+			}
+			wpa_printf(MSG_DEBUG, "Successfully replaced leftover "
+				   "ctrl_iface socket '%s'", fname);
+		} else {
+			wpa_printf(MSG_INFO, "ctrl_iface exists and seems to "
+				   "be in use - cannot override it");
+			wpa_printf(MSG_INFO, "Delete '%s' manually if it is "
+				   "not used anymore", fname);
+			os_free(fname);
+			fname = NULL;
+			goto fail;
+		}
 	}
 
 	if (hapd->conf->ctrl_interface_gid_set &&
@@ -459,6 +622,7 @@ int hostapd_ctrl_iface_init(struct hostapd_data *hapd)
 	hapd->ctrl_sock = s;
 	eloop_register_read_sock(s, hostapd_ctrl_iface_receive, hapd,
 				 NULL);
+	hapd->msg_ctx = hapd;
 	wpa_msg_register_cb(hostapd_ctrl_iface_msg_cb);
 
 	return 0;
@@ -536,15 +700,17 @@ static void hostapd_ctrl_iface_send(struct hostapd_data *hapd, int level,
 		next = dst->next;
 		if (level >= dst->debug_level) {
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor send",
-				    (u8 *) dst->addr.sun_path, dst->addrlen);
+				    (u8 *) dst->addr.sun_path, dst->addrlen -
+				    offsetof(struct sockaddr_un, sun_path));
 			msg.msg_name = &dst->addr;
 			msg.msg_namelen = dst->addrlen;
 			if (sendmsg(hapd->ctrl_sock, &msg, 0) < 0) {
-				fprintf(stderr, "CTRL_IFACE monitor[%d]: ",
-					idx);
-				perror("sendmsg");
+				int _errno = errno;
+				wpa_printf(MSG_INFO, "CTRL_IFACE monitor[%d]: "
+					   "%d - %s",
+					   idx, errno, strerror(errno));
 				dst->errors++;
-				if (dst->errors > 10) {
+				if (dst->errors > 10 || _errno == ENOENT) {
 					hostapd_ctrl_iface_detach(
 						hapd, &dst->addr,
 						dst->addrlen);

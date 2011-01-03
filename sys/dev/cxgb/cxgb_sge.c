@@ -910,6 +910,8 @@ sge_slow_intr_handler(void *arg, int ncount)
 	adapter_t *sc = arg;
 
 	t3_slow_intr_handler(sc);
+	t3_write_reg(sc, A_PL_INT_ENABLE0, sc->slow_intr_mask);
+	(void) t3_read_reg(sc, A_PL_INT_ENABLE0);
 }
 
 /**
@@ -2961,6 +2963,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
 	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
 	int ngathered = 0;
+	struct t3_mbuf_hdr *mh = &rspq->rspq_mh;
 #ifdef DEBUG	
 	static int last_holdoff = 0;
 	if (cxgb_debug && rspq->holdoff_tmr != last_holdoff) {
@@ -2984,9 +2987,9 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			if (cxgb_debug)
 				printf("async notification\n");
 
-			if (rspq->rspq_mh.mh_head == NULL) {
-				rspq->rspq_mh.mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
-				m = rspq->rspq_mh.mh_head;
+			if (mh->mh_head == NULL) {
+				mh->mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
+				m = mh->mh_head;
 			} else {
 				m = m_gethdr(M_DONTWAIT, MT_DATA);
 			}
@@ -3005,27 +3008,28 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 			DPRINTF("IMM DATA VALID opcode=0x%x rspq->cidx=%d\n",
 			    r->rss_hdr.opcode, rspq->cidx);
-			if (rspq->rspq_mh.mh_head == NULL)
-				rspq->rspq_mh.mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
+			if (mh->mh_head == NULL)
+				mh->mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
                         else 
 				m = m_gethdr(M_DONTWAIT, MT_DATA);
 
-			if (rspq->rspq_mh.mh_head == NULL &&  m == NULL) {	
+			if (mh->mh_head == NULL &&  m == NULL) {	
 		no_mem:
 				rspq->next_holdoff = NOMEM_INTR_DELAY;
 				budget_left--;
 				break;
 			}
-			get_imm_packet(adap, r, rspq->rspq_mh.mh_head);
+			get_imm_packet(adap, r, mh->mh_head);
 			eop = 1;
 			rspq->imm_data++;
 		} else if (r->len_cq) {
 			int drop_thresh = eth ? SGE_RX_DROP_THRES : 0;
 			
-			eop = get_packet(adap, drop_thresh, qs, &rspq->rspq_mh, r);
+			eop = get_packet(adap, drop_thresh, qs, mh, r);
 			if (eop) {
-				rspq->rspq_mh.mh_head->m_flags |= M_FLOWID;
-				rspq->rspq_mh.mh_head->m_pkthdr.flowid = rss_hash;
+				if (r->rss_hdr.hash_type && !adap->timestamp)
+					mh->mh_head->m_flags |= M_FLOWID;
+				mh->mh_head->m_pkthdr.flowid = rss_hash;
 			}
 			
 			ethpad = 2;
@@ -3050,20 +3054,20 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			rspq->credits = 0;
 		}
 		if (!eth && eop) {
-			rspq->rspq_mh.mh_head->m_pkthdr.csum_data = rss_csum;
+			mh->mh_head->m_pkthdr.csum_data = rss_csum;
 			/*
 			 * XXX size mismatch
 			 */
-			m_set_priority(rspq->rspq_mh.mh_head, rss_hash);
+			m_set_priority(mh->mh_head, rss_hash);
 
 			
 			ngathered = rx_offload(&adap->tdev, rspq,
-			    rspq->rspq_mh.mh_head, offload_mbufs, ngathered);
-			rspq->rspq_mh.mh_head = NULL;
+			    mh->mh_head, offload_mbufs, ngathered);
+			mh->mh_head = NULL;
 			DPRINTF("received offload packet\n");
 			
 		} else if (eth && eop) {
-			struct mbuf *m = rspq->rspq_mh.mh_head;
+			struct mbuf *m = mh->mh_head;
 
 			t3_rx_eth(adap, rspq, m, ethpad);
 
@@ -3092,7 +3096,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 				struct ifnet *ifp = m->m_pkthdr.rcvif;
 				(*ifp->if_input)(ifp, m);
 			}
-			rspq->rspq_mh.mh_head = NULL;
+			mh->mh_head = NULL;
 
 		}
 		__refill_fl_lt(adap, &qs->fl[0], 32);
@@ -3166,8 +3170,11 @@ t3b_intr(void *data)
 	if (!map) 
 		return;
 
-	if (__predict_false(map & F_ERRINTR))
+	if (__predict_false(map & F_ERRINTR)) {
+		t3_write_reg(adap, A_PL_INT_ENABLE0, 0);
+		(void) t3_read_reg(adap, A_PL_INT_ENABLE0);
 		taskqueue_enqueue(adap->tq, &adap->slow_intr_task);
+	}
 
 	mtx_lock(&q0->lock);
 	for_each_port(adap, i)
@@ -3195,8 +3202,11 @@ t3_intr_msi(void *data)
 	    if (process_responses_gts(adap, &adap->sge.qs[i].rspq)) 
 		    new_packets = 1;
 	mtx_unlock(&q0->lock);
-	if (new_packets == 0)
+	if (new_packets == 0) {
+		t3_write_reg(adap, A_PL_INT_ENABLE0, 0);
+		(void) t3_read_reg(adap, A_PL_INT_ENABLE0);
 		taskqueue_enqueue(adap->tq, &adap->slow_intr_task);
+	}
 }
 
 void
@@ -3217,7 +3227,6 @@ t3_dump_rspq(SYSCTL_HANDLER_ARGS)
 	struct sge_rspq *rspq;
 	struct sge_qset *qs;
 	int i, err, dump_end, idx;
-	static int multiplier = 1;
 	struct sbuf *sb;
 	struct rsp_desc *rspd;
 	uint32_t data[4];
@@ -3242,8 +3251,8 @@ t3_dump_rspq(SYSCTL_HANDLER_ARGS)
 	err = t3_sge_read_rspq(qs->port->adapter, rspq->cntxt_id, data);
 	if (err)
 		return (err);
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, QDUMP_SBUF_SIZE, req);
 
 	sbuf_printf(sb, " \n index=%u size=%u MSI-X/RspQ=%u intr enable=%u intr armed=%u\n",
 	    (data[0] & 0xffff), data[0] >> 16, ((data[2] >> 20) & 0x3f),
@@ -3266,13 +3275,11 @@ retry_sbufops:
 		    rspd->rss_hdr.rss_hash_val, be32toh(rspd->flags),
 		    be32toh(rspd->len_cq), rspd->intr_gen);
 	}
-	if (sbuf_overflowed(sb)) {
-		sbuf_delete(sb);
-		multiplier++;
-		goto retry_sbufops;
-	}
-	sbuf_finish(sb);
-	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+
+	err = sbuf_finish(sb);
+	/* Output a trailing NUL. */
+	if (err == 0)
+		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }	
@@ -3283,7 +3290,6 @@ t3_dump_txq_eth(SYSCTL_HANDLER_ARGS)
 	struct sge_txq *txq;
 	struct sge_qset *qs;
 	int i, j, err, dump_end;
-	static int multiplier = 1;
 	struct sbuf *sb;
 	struct tx_desc *txd;
 	uint32_t *WR, wr_hi, wr_lo, gen;
@@ -3311,9 +3317,7 @@ t3_dump_txq_eth(SYSCTL_HANDLER_ARGS)
 	if (err)
 		return (err);
 	
-	    
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+	sb = sbuf_new_for_sysctl(NULL, NULL, QDUMP_SBUF_SIZE, req);
 
 	sbuf_printf(sb, " \n credits=%u GTS=%u index=%u size=%u rspq#=%u cmdq#=%u\n",
 	    (data[0] & 0x7fff), ((data[0] >> 15) & 1), (data[0] >> 16), 
@@ -3340,13 +3344,10 @@ retry_sbufops:
 			    WR[j], WR[j + 1], WR[j + 2], WR[j + 3]);
 
 	}
-	if (sbuf_overflowed(sb)) {
-		sbuf_delete(sb);
-		multiplier++;
-		goto retry_sbufops;
-	}
-	sbuf_finish(sb);
-	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	err = sbuf_finish(sb);
+	/* Output a trailing NUL. */
+	if (err == 0)
+		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }
@@ -3357,7 +3358,6 @@ t3_dump_txq_ctrl(SYSCTL_HANDLER_ARGS)
 	struct sge_txq *txq;
 	struct sge_qset *qs;
 	int i, j, err, dump_end;
-	static int multiplier = 1;
 	struct sbuf *sb;
 	struct tx_desc *txd;
 	uint32_t *WR, wr_hi, wr_lo, gen;
@@ -3381,8 +3381,7 @@ t3_dump_txq_ctrl(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+	sb = sbuf_new_for_sysctl(NULL, NULL, QDUMP_SBUF_SIZE, req);
 	sbuf_printf(sb, " qid=%d start=%d -> end=%d\n", qs->idx,
 	    txq->txq_dump_start,
 	    (txq->txq_dump_start + txq->txq_dump_count) & 255);
@@ -3402,13 +3401,10 @@ retry_sbufops:
 			    WR[j], WR[j + 1], WR[j + 2], WR[j + 3]);
 
 	}
-	if (sbuf_overflowed(sb)) {
-		sbuf_delete(sb);
-		multiplier++;
-		goto retry_sbufops;
-	}
-	sbuf_finish(sb);
-	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	err = sbuf_finish(sb);
+	/* Output a trailing NUL. */
+	if (err == 0)
+		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }
@@ -3459,6 +3455,29 @@ t3_set_coalesce_usecs(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+t3_pkt_timestamp(SYSCTL_HANDLER_ARGS)
+{
+	adapter_t *sc = arg1;
+	int rc, timestamp;
+
+	if ((sc->flags & FULL_INIT_DONE) == 0)
+		return (ENXIO);
+
+	timestamp = sc->timestamp;
+	rc = sysctl_handle_int(oidp, &timestamp, arg2, req);
+
+	if (rc != 0)
+		return (rc);
+
+	if (timestamp != sc->timestamp) {
+		t3_set_reg_field(sc, A_TP_PC_CONFIG2, F_ENABLERXPKTTMSTPRSS,
+		    timestamp ? F_ENABLERXPKTTMSTPRSS : 0);
+		sc->timestamp = timestamp;
+	}
+
+	return (0);
+}
 
 void
 t3_add_attach_sysctls(adapter_t *sc)
@@ -3493,6 +3512,10 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    "txq_overrun",
 	    CTLFLAG_RD, &txq_fills,
 	    0, "#times txq overrun");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "core_clock",
+	    CTLFLAG_RD, &sc->params.vpd.cclk,
+	    0, "core clock frequency (in KHz)");
 }
 
 
@@ -3536,6 +3559,12 @@ t3_add_configured_sysctls(adapter_t *sc)
 	    CTLTYPE_INT|CTLFLAG_RW, sc,
 	    0, t3_set_coalesce_usecs,
 	    "I", "interrupt coalescing timer (us)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	    "pkt_timestamp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc,
+	    0, t3_pkt_timestamp,
+	    "I", "provide packet timestamp instead of connection hash");
 
 	for (i = 0; i < sc->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];

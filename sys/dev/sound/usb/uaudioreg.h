@@ -47,6 +47,11 @@
 #define	UDESCSUB_AC_PROCESSING	7
 #define	UDESCSUB_AC_EXTENSION	8
 
+/* These macros check if the endpoint descriptor has additional fields */
+#define	UEP_MINSIZE	7
+#define	UEP_HAS_REFRESH(ep)	((ep)->bLength >= 8)
+#define	UEP_HAS_SYNCADDR(ep)	((ep)->bLength >= 9)
+
 /* The first fields are identical to struct usb_endpoint_descriptor */
 typedef struct {
 	uByte	bLength;

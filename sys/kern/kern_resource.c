@@ -76,7 +76,7 @@ static void	calcru1(struct proc *p, struct rusage_ext *ruxp,
 		    struct timeval *up, struct timeval *sp);
 static int	donice(struct thread *td, struct proc *chgp, int n);
 static struct uidinfo *uilookup(uid_t uid);
-static void	ruxagg(struct proc *p, struct thread *td);
+static void	ruxagg_locked(struct rusage_ext *rux, struct thread *td);
 
 /*
  * Resource controls and accounting.
@@ -295,25 +295,23 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 	else
 		cierror = 0;
 
-	/*
-	 * Though lwpid is unique, only current process is supported
-	 * since there is no efficient way to look up a LWP yet.
-	 */
-	p = td->td_proc;
-	PROC_LOCK(p);
+	if (uap->lwpid == 0 || uap->lwpid == td->td_tid) {
+		p = td->td_proc;
+		td1 = td;
+		PROC_LOCK(p);
+	} else {
+		/* Only look up thread in current process */
+		td1 = tdfind(uap->lwpid, curproc->p_pid);
+		if (td1 == NULL)
+			return (ESRCH);
+		p = td1->td_proc;
+	}
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
 		if ((error = p_cansee(td, p)))
 			break;
-		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
-			td1 = td;
-		else
-			td1 = thread_find(p, uap->lwpid);
-		if (td1 != NULL)
-			pri_to_rtp(td1, &rtp);
-		else
-			error = ESRCH;
+		pri_to_rtp(td1, &rtp);
 		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
@@ -337,15 +335,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			if (error)
 				break;
 		}
-
-		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
-			td1 = td;
-		else
-			td1 = thread_find(p, uap->lwpid);
-		if (td1 != NULL)
-			error = rtp_to_pri(&rtp, td1);
-		else
-			error = ESRCH;
+		error = rtp_to_pri(&rtp, td1);
 		break;
 	default:
 		error = EINVAL;
@@ -472,37 +462,37 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	u_char	newpri;
 	u_char	oldpri;
 
-	thread_lock(td);
 	switch (RTP_PRIO_BASE(rtp->type)) {
 	case RTP_PRIO_REALTIME:
-		if (rtp->prio > RTP_PRIO_MAX) {
-			thread_unlock(td);
+		if (rtp->prio > RTP_PRIO_MAX)
 			return (EINVAL);
-		}
 		newpri = PRI_MIN_REALTIME + rtp->prio;
 		break;
 	case RTP_PRIO_NORMAL:
-		if (rtp->prio >  (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE)) {
-			thread_unlock(td);
+		if (rtp->prio > (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE))
 			return (EINVAL);
-		}
 		newpri = PRI_MIN_TIMESHARE + rtp->prio;
 		break;
 	case RTP_PRIO_IDLE:
+		if (rtp->prio > RTP_PRIO_MAX)
+			return (EINVAL);
 		newpri = PRI_MIN_IDLE + rtp->prio;
 		break;
 	default:
-		thread_unlock(td);
 		return (EINVAL);
 	}
+
+	thread_lock(td);
 	sched_class(td, rtp->type);	/* XXX fix */
 	oldpri = td->td_user_pri;
 	sched_user_prio(td, newpri);
 	if (curthread == td)
 		sched_prio(curthread, td->td_user_pri); /* XXX dubious */
 	if (TD_ON_UPILOCK(td) && oldpri != newpri) {
+		critical_enter();
 		thread_unlock(td);
 		umtx_pi_adjust(td, oldpri);
+		critical_exit();
 	} else
 		thread_unlock(td);
 	return (0);
@@ -709,8 +699,8 @@ kern_setrlimit(td, which, limp)
 		if (limp->rlim_max > maxssiz)
 			limp->rlim_max = maxssiz;
 		oldssiz = *alimp;
-		if (td->td_proc->p_sysent->sv_fixlimit != NULL)
-			td->td_proc->p_sysent->sv_fixlimit(&oldssiz,
+		if (p->p_sysent->sv_fixlimit != NULL)
+			p->p_sysent->sv_fixlimit(&oldssiz,
 			    RLIMIT_STACK);
 		break;
 
@@ -732,8 +722,8 @@ kern_setrlimit(td, which, limp)
 			limp->rlim_max = 1;
 		break;
 	}
-	if (td->td_proc->p_sysent->sv_fixlimit != NULL)
-		td->td_proc->p_sysent->sv_fixlimit(limp, which);
+	if (p->p_sysent->sv_fixlimit != NULL)
+		p->p_sysent->sv_fixlimit(limp, which);
 	*alimp = *limp;
 	p->p_limit = newlim;
 	PROC_UNLOCK(p);
@@ -851,7 +841,7 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
     struct timeval *sp)
 {
 	/* {user, system, interrupt, total} {ticks, usec}: */
-	u_int64_t ut, uu, st, su, it, tt, tu;
+	uint64_t ut, uu, st, su, it, tt, tu;
 
 	ut = ruxp->rux_uticks;
 	st = ruxp->rux_sticks;
@@ -1010,7 +1000,7 @@ ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
 /*
  * Aggregate tick counts into the proc's rusage_ext.
  */
-void
+static void
 ruxagg_locked(struct rusage_ext *rux, struct thread *td)
 {
 
@@ -1022,7 +1012,7 @@ ruxagg_locked(struct rusage_ext *rux, struct thread *td)
 	rux->rux_iticks += td->td_iticks;
 }
 
-static void
+void
 ruxagg(struct proc *p, struct thread *td)
 {
 
@@ -1169,11 +1159,6 @@ lim_rlimit(struct proc *p, int which, struct rlimit *rlp)
 		p->p_sysent->sv_fixlimit(rlp, which);
 }
 
-/*
- * Find the uidinfo structure for a uid.  This structure is used to
- * track the total resource consumption (process count, socket buffer
- * size, etc.) for the uid and impose limits.
- */
 void
 uihashinit()
 {

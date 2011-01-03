@@ -19,12 +19,18 @@ WARNS?=	3
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
-CFLAGS+=-I${.CURDIR}/arch/${MACHINE_ARCH}/include
+CFLAGS+=-I${.CURDIR}/arch/${MACHINE_CPUARCH}/include
 CFLAGS+=-I${.CURDIR}/sys
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
-CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
+CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_CPUARCH}
 CFLAGS+=-I${.CURDIR}/../libthread_db
 CFLAGS+=-Winline
+
+.ifndef NO_THREAD_UNWIND_STACK
+CFLAGS+=-fexceptions
+CFLAGS+=-D_PTHREAD_FORCED_UNWIND
+.endif
+
 LDFLAGS+=-Wl,-znodelete
 
 VERSION_DEF=${.CURDIR}/../libc/Versions.def
@@ -38,7 +44,9 @@ CFLAGS+=-D_PTHREADS_INVARIANTS
 
 PRECIOUSLIB=
 
-.include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
+.PATH: ${.CURDIR}/arch/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}
+
+.include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 

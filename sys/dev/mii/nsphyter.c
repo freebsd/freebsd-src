@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -48,11 +41,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Manuel Bouyer.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -142,36 +130,33 @@ nsphyter_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
-	const char *nic;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
+	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_flags = miibus_get_flags(dev);
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = nsphyter_service;
 	sc->mii_pdata = mii;
 
-	mii->mii_instance++;
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
+#if 1
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
-	nic = device_get_name(device_get_parent(sc->mii_dev));
 	/*
-	 * In order for MII loopback to work Am79C971 and greater PCnet
-	 * chips additionally need to be placed into external loopback
-	 * mode which pcn(4) doesn't do so far.
+	 * XXX IFM_LOOP should be handled by mii_phy_add_media() based
+	 * on MIIF_NOLOOP.
 	 */
-	if (strcmp(nic, "pcn") != 0)
-#if 1
+	if ((sc->mii_flags & MIIF_NOLOOP) == 0)
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
 		    sc->mii_inst), MII_MEDIA_100_TX);
-#else
-	if (strcmp(nic, "pcn") == 0)
-		sc->mii_flags |= MIIF_NOLOOP;
+
 #endif
 
 	nsphyter_reset(sc);
@@ -181,8 +166,6 @@ nsphyter_attach(device_t dev)
 	mii_phy_add_media(sc);
 	printf("\n");
 
-#undef ADD
-
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
 }
@@ -190,29 +173,12 @@ nsphyter_attach(device_t dev)
 static int
 nsphyter_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -223,11 +189,6 @@ nsphyter_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;
@@ -283,12 +244,8 @@ nsphyter_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_100_TX;
 		if ((physts & PHYSTS_DUPLEX) != 0)
-#ifdef notyet
 			mii->mii_media_active |=
 			    IFM_FDX | mii_phy_flowstatus(sc);
-#else
-			mii->mii_media_active |= IFM_FDX;
-#endif
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else

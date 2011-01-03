@@ -76,7 +76,8 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
-static int	pollout(struct pollfd *, struct pollfd *, u_int);
+static int	pollout(struct thread *, struct pollfd *, struct pollfd *,
+		    u_int);
 static int	pollscan(struct thread *, struct pollfd *, u_int);
 static int	pollrescan(struct thread *);
 static int	selscan(struct thread *, fd_mask **, fd_mask **, int);
@@ -532,7 +533,7 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 		/* Socket layer is responsible for issuing SIGPIPE. */
 		if (fp->f_type != DTYPE_SOCKET && error == EPIPE) {
 			PROC_LOCK(td->td_proc);
-			psignal(td->td_proc, SIGPIPE);
+			tdsignal(td, SIGPIPE);
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
@@ -996,7 +997,7 @@ done:
 static int select_flags[3] = {
     POLLRDNORM | POLLHUP | POLLERR,
     POLLWRNORM | POLLHUP | POLLERR,
-    POLLRDBAND | POLLHUP | POLLERR
+    POLLRDBAND | POLLERR
 };
 
 /*
@@ -1207,7 +1208,7 @@ done:
 	if (error == EWOULDBLOCK)
 		error = 0;
 	if (error == 0) {
-		error = pollout(bits, uap->fds, nfds);
+		error = pollout(td, bits, uap->fds, nfds);
 		if (error)
 			goto out;
 	}
@@ -1262,22 +1263,27 @@ pollrescan(struct thread *td)
 
 
 static int
-pollout(fds, ufds, nfd)
+pollout(td, fds, ufds, nfd)
+	struct thread *td;
 	struct pollfd *fds;
 	struct pollfd *ufds;
 	u_int nfd;
 {
 	int error = 0;
 	u_int i = 0;
+	u_int n = 0;
 
 	for (i = 0; i < nfd; i++) {
 		error = copyout(&fds->revents, &ufds->revents,
 		    sizeof(ufds->revents));
 		if (error)
 			return (error);
+		if (fds->revents != 0)
+			n++;
 		fds++;
 		ufds++;
 	}
+	td->td_retval[0] = n;
 	return (0);
 }
 

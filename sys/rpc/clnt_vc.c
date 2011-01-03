@@ -288,13 +288,19 @@ clnt_vc_create(
 	 * Create a client handle which uses xdrrec for serialization
 	 * and authnone for authentication.
 	 */
+	sendsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)sendsz);
+	recvsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)recvsz);
+	error = soreserve(ct->ct_socket, sendsz, recvsz);
+	if (error != 0) {
+		if (ct->ct_closeit) {
+			soclose(ct->ct_socket);
+		}
+		goto err;
+	}
 	cl->cl_refs = 1;
 	cl->cl_ops = &clnt_vc_ops;
 	cl->cl_private = ct;
 	cl->cl_auth = authnone_create();
-	sendsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)sendsz);
-	recvsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)recvsz);
-	soreserve(ct->ct_socket, sendsz, recvsz);
 
 	SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
 	soupcall_set(ct->ct_socket, SO_RCV, clnt_vc_soupcall, ct);

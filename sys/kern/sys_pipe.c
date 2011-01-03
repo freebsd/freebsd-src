@@ -747,10 +747,8 @@ pipe_build_write_buffer(wpipe, uio)
 	struct pipe *wpipe;
 	struct uio *uio;
 {
-	pmap_t pmap;
 	u_int size;
-	int i, j;
-	vm_offset_t addr, endaddr;
+	int i;
 
 	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
 	KASSERT(wpipe->pipe_state & PIPE_DIRECTW,
@@ -760,32 +758,10 @@ pipe_build_write_buffer(wpipe, uio)
 	if (size > wpipe->pipe_buffer.size)
 		size = wpipe->pipe_buffer.size;
 
-	pmap = vmspace_pmap(curproc->p_vmspace);
-	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
-	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
-	if (endaddr < addr)
+	if ((i = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
+	    (vm_offset_t)uio->uio_iov->iov_base, size, VM_PROT_READ,
+	    wpipe->pipe_map.ms, PIPENPAGES)) < 0)
 		return (EFAULT);
-	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
-		/*
-		 * vm_fault_quick() can sleep.  Consequently,
-		 * vm_page_lock_queue() and vm_page_unlock_queue()
-		 * should not be performed outside of this loop.
-		 */
-	race:
-		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0) {
-			
-			for (j = 0; j < i; j++) {
-				vm_page_lock(wpipe->pipe_map.ms[j]);
-				vm_page_unhold(wpipe->pipe_map.ms[j]);
-				vm_page_unlock(wpipe->pipe_map.ms[j]);
-			}
-			return (EFAULT);
-		}
-		wpipe->pipe_map.ms[i] = pmap_extract_and_hold(pmap, addr,
-		    VM_PROT_READ);
-		if (wpipe->pipe_map.ms[i] == NULL)
-			goto race;
-	}
 
 /*
  * set up the control block
@@ -815,14 +791,9 @@ static void
 pipe_destroy_write_buffer(wpipe)
 	struct pipe *wpipe;
 {
-	int i;
 
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
-	for (i = 0; i < wpipe->pipe_map.npages; i++) {
-		vm_page_lock(wpipe->pipe_map.ms[i]);
-		vm_page_unhold(wpipe->pipe_map.ms[i]);
-		vm_page_unlock(wpipe->pipe_map.ms[i]);
-	}
+	vm_page_unhold_pages(wpipe->pipe_map.ms, wpipe->pipe_map.npages);
 	wpipe->pipe_map.npages = 0;
 }
 

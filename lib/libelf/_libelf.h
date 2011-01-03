@@ -165,17 +165,22 @@ Elf_Scn	*_libelf_allocate_scn(Elf *_e, size_t _ndx);
 Elf_Arhdr *_libelf_ar_gethdr(Elf *_e);
 Elf	*_libelf_ar_open(Elf *_e);
 Elf	*_libelf_ar_open_member(int _fd, Elf_Cmd _c, Elf *_ar);
+int	_libelf_ar_get_member(char *_s, size_t _sz, int _base, size_t *_ret);
+char	*_libelf_ar_get_string(const char *_buf, size_t _sz, int _rawname);
+char	*_libelf_ar_get_name(char *_buf, size_t _sz, Elf *_e);
+int	_libelf_ar_get_number(char *_buf, size_t _sz, int _base, size_t *_ret);
 Elf_Arsym *_libelf_ar_process_symtab(Elf *_ar, size_t *_dst);
 unsigned long _libelf_checksum(Elf *_e, int _elfclass);
 void	*_libelf_ehdr(Elf *_e, int _elfclass, int _allocate);
 int	_libelf_falign(Elf_Type _t, int _elfclass);
 size_t	_libelf_fsize(Elf_Type _t, int _elfclass, unsigned int _version,
     size_t count);
-void	(*_libelf_get_translator(Elf_Type _t, int _direction, int _elfclass))
-	    (char *_dst, char *_src, size_t _cnt, int _byteswap);
+int	(*_libelf_get_translator(Elf_Type _t, int _direction, int _elfclass))
+	    (char *_dst, size_t dsz, char *_src, size_t _cnt, int _byteswap);
 void	*_libelf_getphdr(Elf *_e, int _elfclass);
 void	*_libelf_getshdr(Elf_Scn *_scn, int _elfclass);
 void	_libelf_init_elf(Elf *_e, Elf_Kind _kind);
+int	_libelf_load_scn(Elf *e, void *ehdr);
 int	_libelf_malign(Elf_Type _t, int _elfclass);
 size_t	_libelf_msize(Elf_Type _t, int _elfclass, unsigned int _version);
 void	*_libelf_newphdr(Elf *_e, int _elfclass, size_t _count);

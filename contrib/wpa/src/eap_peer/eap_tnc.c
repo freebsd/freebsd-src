@@ -73,12 +73,13 @@ static struct wpabuf * eap_tnc_build_frag_ack(u8 id, u8 code)
 {
 	struct wpabuf *msg;
 
-	msg = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TNC, 0, code, id);
+	msg = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TNC, 1, code, id);
 	if (msg == NULL) {
 		wpa_printf(MSG_ERROR, "EAP-TNC: Failed to allocate memory "
 			   "for fragment ack");
 		return NULL;
 	}
+	wpabuf_put_u8(msg, EAP_TNC_VERSION); /* Flags */
 
 	wpa_printf(MSG_DEBUG, "EAP-TNC: Send fragment ack");
 
@@ -262,7 +263,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 		   "Message Length %u", flags, message_length);
 
 	if (data->state == WAIT_FRAG_ACK) {
-		if (len != 0) {
+		if (len > 1) {
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Unexpected payload in "
 				   "WAIT_FRAG_ACK state");
 			ret->ignore = TRUE;
@@ -295,7 +296,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Server did not use "
 				   "start flag in the first message");
 			ret->ignore = TRUE;
-			return NULL;
+			goto fail;
 		}
 
 		tncc_init_connection(data->tncc);
@@ -308,7 +309,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Server used start "
 				   "flag again");
 			ret->ignore = TRUE;
-			return NULL;
+			goto fail;
 		}
 
 		res = tncc_process_if_tnccs(data->tncc,
@@ -317,7 +318,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 		switch (res) {
 		case TNCCS_PROCESS_ERROR:
 			ret->ignore = TRUE;
-			return NULL;
+			goto fail;
 		case TNCCS_PROCESS_OK_NO_RECOMMENDATION:
 		case TNCCS_RECOMMENDATION_ERROR:
 			wpa_printf(MSG_DEBUG, "EAP-TNC: No "
@@ -404,6 +405,11 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 	data->out_buf = resp;
 	data->state = PROC_MSG;
 	return eap_tnc_build_msg(data, ret, id);
+
+fail:
+	if (data->in_buf == &tmpbuf)
+		data->in_buf = NULL;
+	return NULL;
 }
 
 

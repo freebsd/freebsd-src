@@ -344,7 +344,7 @@ isp_print_qentry(ispsoftc_t *isp, const char *msg, int idx, void *arg)
 		for (j = 0; j < (QENTRY_LEN >> 2); j++) {
 			ISP_SNPRINTF(buf, TBA, "%s %02x", buf, ptr[amt++] & 0xff);
 		}
-		isp_prt(isp, ISP_LOGALL, buf);
+		isp_prt(isp, ISP_LOGALL, "%s", buf);
 	}
 }
 
@@ -1338,7 +1338,7 @@ isp_put_vp_ctrl_info(ispsoftc_t *isp, vp_ctrl_info_t *src, vp_ctrl_info_t *dst)
 		ISP_IOXPUT_16(isp, src->vp_ctrl_idmap[i], &dst->vp_ctrl_idmap[i]);
 	}
 	for (i = 0; i < ASIZE(src->vp_ctrl_reserved); i++) {
-		ISP_IOXPUT_8(isp, src->vp_ctrl_idmap[i], &dst->vp_ctrl_idmap[i]);
+		ISP_IOXPUT_8(isp, src->vp_ctrl_reserved[i], &dst->vp_ctrl_reserved[i]);
 	}
 }
 

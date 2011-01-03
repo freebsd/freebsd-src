@@ -3,8 +3,6 @@
 #
 # $FreeBSD$
 
-machine		powerpc
-
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices
 

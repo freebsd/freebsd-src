@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.335 2010/02/26 20:29:54 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.346 2010/08/12 21:49:44 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -80,6 +80,7 @@ __RCSID("$FreeBSD$");
 #include "ssh.h"
 #include "ssh1.h"
 #include "ssh2.h"
+#include "canohost.h"
 #include "compat.h"
 #include "cipher.h"
 #include "packet.h"
@@ -126,6 +127,15 @@ int no_shell_flag = 0;
  * on the command line.
  */
 int stdin_null_flag = 0;
+
+/*
+ * Flag indicating that the current process should be backgrounded and
+ * a new slave launched in the foreground for ControlPersist.
+ */
+int need_controlpersist_detach = 0;
+
+/* Copies of flags for ControlPersist foreground slave */
+int ostdin_null_flag, ono_shell_flag, ono_tty_flag, otty_flag;
 
 /*
  * Flag indicating that ssh should fork after authentication.  This is useful
@@ -229,6 +239,12 @@ main(int ac, char **av)
 	init_rng();
 
 	/*
+	 * Discard other fds that are hanging around. These can cause problem
+	 * with backgrounded ssh processes started by ControlPersist.
+	 */
+	closefrom(STDERR_FILENO + 1);
+
+	/*
 	 * Save the original real uid.  It will be needed later (uid-swapping
 	 * may clobber the real uid).
 	 */
@@ -328,6 +344,8 @@ main(int ac, char **av)
 				fatal("Multiplexing command already specified");
 			if (strcmp(optarg, "check") == 0)
 				muxclient_command = SSHMUX_COMMAND_ALIVE_CHECK;
+			else if (strcmp(optarg, "forward") == 0)
+				muxclient_command = SSHMUX_COMMAND_FORWARD;
 			else if (strcmp(optarg, "exit") == 0)
 				muxclient_command = SSHMUX_COMMAND_TERMINATE;
 			else
@@ -621,7 +639,7 @@ main(int ac, char **av)
 		tty_flag = 1;
 
 	/* Force no tty */
-	if (no_tty_flag)
+	if (no_tty_flag || muxclient_command != 0)
 		tty_flag = 0;
 	/* Do not allocate a tty if stdin is not a tty. */
 	if ((!isatty(fileno(stdin)) || stdin_null_flag) && !force_tty_flag) {
@@ -677,6 +695,11 @@ main(int ac, char **av)
 		options.port = sp ? ntohs(sp->s_port) : SSH_DEFAULT_PORT;
 	}
 
+	if (options.hostname != NULL) {
+		host = percent_expand(options.hostname,
+		    "h", host, (char *)NULL);
+	}
+
 	if (options.local_command != NULL) {
 		char thishost[NI_MAXHOST];
 
@@ -686,15 +709,11 @@ main(int ac, char **av)
 		debug3("expanding LocalCommand: %s", options.local_command);
 		cp = options.local_command;
 		options.local_command = percent_expand(cp, "d", pw->pw_dir,
-		    "h", options.hostname? options.hostname : host,
-                    "l", thishost, "n", host, "r", options.user, "p", buf,
-                    "u", pw->pw_name, (char *)NULL);
+		    "h", host, "l", thishost, "n", host, "r", options.user,
+		    "p", buf, "u", pw->pw_name, (char *)NULL);
 		debug3("expanded LocalCommand: %s", options.local_command);
 		xfree(cp);
 	}
-
-	if (options.hostname != NULL)
-		host = options.hostname;
 
 	/* Find canonic host name. */
 	if (strchr(host, '.') == 0) {
@@ -779,26 +798,34 @@ main(int ac, char **av)
 	sensitive_data.external_keysign = 0;
 	if (options.rhosts_rsa_authentication ||
 	    options.hostbased_authentication) {
-		sensitive_data.nkeys = 3;
+		sensitive_data.nkeys = 5;
 		sensitive_data.keys = xcalloc(sensitive_data.nkeys,
 		    sizeof(Key));
 
 		PRIV_START;
 		sensitive_data.keys[0] = key_load_private_type(KEY_RSA1,
 		    _PATH_HOST_KEY_FILE, "", NULL, NULL);
-		sensitive_data.keys[1] = key_load_private_type(KEY_DSA,
+		sensitive_data.keys[1] = key_load_private_cert(KEY_DSA,
+		    _PATH_HOST_DSA_KEY_FILE, "", NULL);
+		sensitive_data.keys[2] = key_load_private_cert(KEY_RSA,
+		    _PATH_HOST_RSA_KEY_FILE, "", NULL);
+		sensitive_data.keys[3] = key_load_private_type(KEY_DSA,
 		    _PATH_HOST_DSA_KEY_FILE, "", NULL, NULL);
-		sensitive_data.keys[2] = key_load_private_type(KEY_RSA,
+		sensitive_data.keys[4] = key_load_private_type(KEY_RSA,
 		    _PATH_HOST_RSA_KEY_FILE, "", NULL, NULL);
 		PRIV_END;
 
 		if (options.hostbased_authentication == 1 &&
 		    sensitive_data.keys[0] == NULL &&
-		    sensitive_data.keys[1] == NULL &&
-		    sensitive_data.keys[2] == NULL) {
-			sensitive_data.keys[1] = key_load_public(
+		    sensitive_data.keys[3] == NULL &&
+		    sensitive_data.keys[4] == NULL) {
+			sensitive_data.keys[1] = key_load_cert(
+			    _PATH_HOST_DSA_KEY_FILE);
+			sensitive_data.keys[2] = key_load_cert(
+			    _PATH_HOST_RSA_KEY_FILE);
+			sensitive_data.keys[3] = key_load_public(
 			    _PATH_HOST_DSA_KEY_FILE, NULL);
-			sensitive_data.keys[2] = key_load_public(
+			sensitive_data.keys[4] = key_load_public(
 			    _PATH_HOST_RSA_KEY_FILE, NULL);
 			sensitive_data.external_keysign = 1;
 		}
@@ -845,6 +872,13 @@ main(int ac, char **av)
 	ssh_login(&sensitive_data, host, (struct sockaddr *)&hostaddr,
 	    pw, timeout_ms);
 
+	if (packet_connection_is_on_socket()) {
+		verbose("Authenticated to %s ([%s]:%d).", host,
+		    get_remote_ipaddr(), get_remote_port());
+	} else {
+		verbose("Authenticated to %s (via proxy).", host);
+	}
+
 	/* We no longer need the private host keys.  Clear them now. */
 	if (sensitive_data.nkeys != 0) {
 		for (i = 0; i < sensitive_data.nkeys; i++) {
@@ -884,6 +918,61 @@ main(int ac, char **av)
 	return exit_status;
 }
 
+static void
+control_persist_detach(void)
+{
+	pid_t pid;
+	int devnull;
+
+	debug("%s: backgrounding master process", __func__);
+
+ 	/*
+ 	 * master (current process) into the background, and make the
+ 	 * foreground process a client of the backgrounded master.
+ 	 */
+	switch ((pid = fork())) {
+	case -1:
+		fatal("%s: fork: %s", __func__, strerror(errno));
+	case 0:
+		/* Child: master process continues mainloop */
+ 		break;
+ 	default:
+		/* Parent: set up mux slave to connect to backgrounded master */
+		debug2("%s: background process is %ld", __func__, (long)pid);
+		stdin_null_flag = ostdin_null_flag;
+		no_shell_flag = ono_shell_flag;
+		no_tty_flag = ono_tty_flag;
+		tty_flag = otty_flag;
+ 		close(muxserver_sock);
+ 		muxserver_sock = -1;
+ 		muxclient(options.control_path);
+		/* muxclient() doesn't return on success. */
+ 		fatal("Failed to connect to new control master");
+ 	}
+	if ((devnull = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+		error("%s: open(\"/dev/null\"): %s", __func__,
+		    strerror(errno));
+	} else {
+		if (dup2(devnull, STDIN_FILENO) == -1 ||
+		    dup2(devnull, STDOUT_FILENO) == -1)
+			error("%s: dup2: %s", __func__, strerror(errno));
+		if (devnull > STDERR_FILENO)
+			close(devnull);
+	}
+}
+
+/* Do fork() after authentication. Used by "ssh -f" */
+static void
+fork_postauth(void)
+{
+	if (need_controlpersist_detach)
+		control_persist_detach();
+	debug("forking to background");
+	fork_after_authentication_flag = 0;
+	if (daemon(1, 1) < 0)
+		fatal("daemon() failed: %.200s", strerror(errno));
+}
+
 /* Callback for remote forward global requests */
 static void
 ssh_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
@@ -895,9 +984,10 @@ ssh_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
 	    type == SSH2_MSG_REQUEST_SUCCESS ? "success" : "failure",
 	    rfwd->listen_port, rfwd->connect_host, rfwd->connect_port);
 	if (type == SSH2_MSG_REQUEST_SUCCESS && rfwd->listen_port == 0) {
+		rfwd->allocated_port = packet_get_int();
 		logit("Allocated port %u for remote forward to %s:%d",
-			packet_get_int(),
-			rfwd->connect_host, rfwd->connect_port);
+		    rfwd->allocated_port,
+		    rfwd->connect_host, rfwd->connect_port);
 	}
 	
 	if (type == SSH2_MSG_REQUEST_FAILURE) {
@@ -910,12 +1000,8 @@ ssh_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
 	}
 	if (++remote_forward_confirms_received == options.num_remote_forwards) {
 		debug("All remote forwarding requests processed");
-		if (fork_after_authentication_flag) {
-			fork_after_authentication_flag = 0;
-			if (daemon(1, 1) < 0)
-				fatal("daemon() failed: %.200s",
-				    strerror(errno));
-		}
+		if (fork_after_authentication_flag)
+			fork_postauth();
 	}
 }
 
@@ -1111,7 +1197,9 @@ ssh_session(void)
 		char *proto, *data;
 		/* Get reasonable local authentication information. */
 		client_x11_get_proto(display, options.xauth_location,
-		    options.forward_x11_trusted, &proto, &data);
+		    options.forward_x11_trusted, 
+		    options.forward_x11_timeout,
+		    &proto, &data);
 		/* Request forwarding with authentication spoofing. */
 		debug("Requesting X11 forwarding with authentication "
 		    "spoofing.");
@@ -1157,12 +1245,13 @@ ssh_session(void)
 	 * If requested and we are not interested in replies to remote
 	 * forwarding requests, then let ssh continue in the background.
 	 */
-	if (fork_after_authentication_flag &&
-	    (!options.exit_on_forward_failure ||
-	    options.num_remote_forwards == 0)) {
-		fork_after_authentication_flag = 0;
-		if (daemon(1, 1) < 0)
-			fatal("daemon() failed: %.200s", strerror(errno));
+	if (fork_after_authentication_flag) {
+		if (options.exit_on_forward_failure &&
+		    options.num_remote_forwards > 0) {
+			debug("deferring postauth fork until remote forward "
+			    "confirmation received");
+		} else
+			fork_postauth();
 	}
 
 	/*
@@ -1193,18 +1282,22 @@ ssh_session(void)
 
 /* request pty/x11/agent/tcpfwd/shell for channel */
 static void
-ssh_session2_setup(int id, void *arg)
+ssh_session2_setup(int id, int success, void *arg)
 {
 	extern char **environ;
 	const char *display;
 	int interactive = tty_flag;
+
+	if (!success)
+		return; /* No need for error message, channels code sens one */
 
 	display = getenv("DISPLAY");
 	if (options.forward_x11 && display != NULL) {
 		char *proto, *data;
 		/* Get reasonable local authentication information. */
 		client_x11_get_proto(display, options.xauth_location,
-		    options.forward_x11_trusted, &proto, &data);
+		    options.forward_x11_trusted,
+		    options.forward_x11_timeout, &proto, &data);
 		/* Request forwarding with authentication spoofing. */
 		debug("Requesting X11 forwarding with authentication "
 		    "spoofing.");
@@ -1281,6 +1374,31 @@ ssh_session2(void)
 	/* XXX should be pre-session */
 	ssh_init_forwarding();
 
+	/* Start listening for multiplex clients */
+	muxserver_listen();
+
+ 	/*
+	 * If we are in control persist mode, then prepare to background
+	 * ourselves and have a foreground client attach as a control
+	 * slave. NB. we must save copies of the flags that we override for
+	 * the backgrounding, since we defer attachment of the slave until
+	 * after the connection is fully established (in particular,
+	 * async rfwd replies have been received for ExitOnForwardFailure).
+	 */
+ 	if (options.control_persist && muxserver_sock != -1) {
+		ostdin_null_flag = stdin_null_flag;
+		ono_shell_flag = no_shell_flag;
+		ono_tty_flag = no_tty_flag;
+		otty_flag = tty_flag;
+ 		stdin_null_flag = 1;
+ 		no_shell_flag = 1;
+ 		no_tty_flag = 1;
+ 		tty_flag = 0;
+		if (!fork_after_authentication_flag)
+			need_controlpersist_detach = 1;
+		fork_after_authentication_flag = 1;
+ 	}
+
 	if (!no_shell_flag || (datafellows & SSH_BUG_DUMMYCHAN))
 		id = ssh_session2_open();
 
@@ -1299,14 +1417,17 @@ ssh_session2(void)
 	    options.permit_local_command)
 		ssh_local_cmd(options.local_command);
 
-	/* Start listening for multiplex clients */
-	muxserver_listen();
-
-	/* If requested, let ssh continue in the background. */
+	/*
+	 * If requested and we are not interested in replies to remote
+	 * forwarding requests, then let ssh continue in the background.
+	 */
 	if (fork_after_authentication_flag) {
-		fork_after_authentication_flag = 0;
-		if (daemon(1, 1) < 0)
-			fatal("daemon() failed: %.200s", strerror(errno));
+		if (options.exit_on_forward_failure &&
+		    options.num_remote_forwards > 0) {
+			debug("deferring postauth fork until remote forward "
+			    "confirmation received");
+		} else
+			fork_postauth();
 	}
 
 	if (options.use_roaming)

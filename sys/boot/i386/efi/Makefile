@@ -42,7 +42,7 @@ ${PROG}:	${LDSCRIPT}
 
 CLEANFILES=	vers.c loader.efi
 
-NEWVERSWHAT=	"EFI loader" ${MACHINE_ARCH}
+NEWVERSWHAT=	"EFI loader" x86
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}

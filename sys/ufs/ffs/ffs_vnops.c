@@ -1036,9 +1036,6 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	fs = ip->i_fs;
 	dp = ip->i_din2;
 
-	KASSERT(!(ip->i_flag & IN_SPACECOUNTED), ("inode %u: inode is dead",
-	    ip->i_number));
-
 #ifdef INVARIANTS
 	if (uio->uio_rw != UIO_WRITE || fs->fs_magic != FS_UFS2_MAGIC)
 		panic("ffs_extwrite: mode");

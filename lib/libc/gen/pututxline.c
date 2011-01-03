@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -53,6 +54,7 @@ futx_open(const char *file)
 	/* Safety check: never use broken files. */
 	if (_fstat(fd, &sb) != -1 && sb.st_size % sizeof(struct futx) != 0) {
 		_close(fd);
+		errno = EINVAL;
 		return (NULL);
 	}
 	
@@ -65,7 +67,7 @@ futx_open(const char *file)
 	return (fp);
 }
 
-static void
+static int
 utx_active_add(const struct futx *fu)
 {
 	FILE *fp;
@@ -78,7 +80,7 @@ utx_active_add(const struct futx *fu)
 	 */
 	fp = futx_open(_PATH_UTX_ACTIVE);
 	if (fp == NULL)
-		return;
+		return (1);
 	while (fread(&fe, sizeof fe, 1, fp) == 1) {
 		switch (fe.fu_type) {
 		case USER_PROCESS:
@@ -110,6 +112,7 @@ utx_active_add(const struct futx *fu)
 exact:
 	fwrite(fu, sizeof *fu, 1, fp);
 	fclose(fp);
+	return (0);
 }
 
 static int
@@ -123,7 +126,7 @@ utx_active_remove(struct futx *fu)
 	 */
 	fp = futx_open(_PATH_UTX_ACTIVE);
 	if (fp == NULL)
-		return (0);
+		return (1);
 	while (fread(&fe, sizeof fe, 1, fp) == 1) {
 		switch (fe.fu_type) {
 		case USER_PROCESS:
@@ -141,6 +144,7 @@ utx_active_remove(struct futx *fu)
 	}
 
 	fclose(fp);
+	errno = ESRCH;
 	return (1);
 }
 
@@ -151,7 +155,7 @@ utx_active_purge(void)
 	truncate(_PATH_UTX_ACTIVE, 0);
 }
 
-static void
+static int
 utx_lastlogin_add(const struct futx *fu)
 {
 	FILE *fp;
@@ -164,7 +168,7 @@ utx_lastlogin_add(const struct futx *fu)
 	 */
 	fp = futx_open(_PATH_UTX_LASTLOGIN);
 	if (fp == NULL)
-		return;
+		return (1);
 	while (fread(&fe, sizeof fe, 1, fp) == 1) {
 		if (strncmp(fu->fu_user, fe.fu_user, sizeof fe.fu_user) != 0)
 			continue;
@@ -175,6 +179,7 @@ utx_lastlogin_add(const struct futx *fu)
 	}
 	fwrite(fu, sizeof *fu, 1, fp);
 	fclose(fp);
+	return (0);
 }
 
 static void
@@ -197,7 +202,7 @@ utx_lastlogin_upgrade(void)
 	_close(fd);
 }
 
-static void
+static int
 utx_log_add(const struct futx *fu)
 {
 	int fd;
@@ -219,15 +224,17 @@ utx_log_add(const struct futx *fu)
 
 	fd = _open(_PATH_UTX_LOG, O_CREAT|O_WRONLY|O_APPEND, 0644);
 	if (fd < 0)
-		return;
+		return (1);
 	_writev(fd, vec, 2);
 	_close(fd);
+	return (0);
 }
 
 struct utmpx *
 pututxline(const struct utmpx *utmpx)
 {
 	struct futx fu;
+	int bad = 0;
 
 	utx_to_futx(utmpx, &fu);
 	
@@ -241,16 +248,21 @@ pututxline(const struct utmpx *utmpx)
 	case NEW_TIME:
 		break;
 	case USER_PROCESS:
-		utx_active_add(&fu);
-		utx_lastlogin_add(&fu);
+		bad |= utx_active_add(&fu);
+		bad |= utx_lastlogin_add(&fu);
 		break;
 #if 0 /* XXX: Are these records of any use to us? */
 	case INIT_PROCESS:
 	case LOGIN_PROCESS:
-		utx_active_add(&fu);
+		bad |= utx_active_add(&fu);
 		break;
 #endif
 	case DEAD_PROCESS:
+		/*
+		 * In case writing a logout entry fails, never attempt
+		 * to write it to utx.log.  The logout entry's ut_id
+		 * might be invalid.
+		 */
 		if (utx_active_remove(&fu) != 0)
 			return (NULL);
 		break;
@@ -258,6 +270,6 @@ pututxline(const struct utmpx *utmpx)
 		return (NULL);
 	}
 
-	utx_log_add(&fu);
-	return (futx_to_utx(&fu));
+	bad |= utx_log_add(&fu);
+	return (bad ? NULL : futx_to_utx(&fu));
 }

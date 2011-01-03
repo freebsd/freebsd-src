@@ -39,12 +39,11 @@ Elf_Data *
 elf_getdata(Elf_Scn *s, Elf_Data *d)
 {
 	Elf *e;
-	char *dst;
 	size_t fsz, msz, count;
 	int elfclass, elftype;
 	unsigned int sh_type;
 	uint64_t sh_align, sh_offset, sh_size;
-	void (*xlate)(char *_d, char *_s, size_t _c, int _swap);
+	int (*xlate)(char *_d, size_t _dsz, char *_s, size_t _c, int _swap);
 
 	if (s == NULL || (e = s->s_elf) == NULL || e->e_kind != ELF_K_ELF ||
 	    (d != NULL && s != d->d_scn)) {
@@ -79,19 +78,21 @@ elf_getdata(Elf_Scn *s, Elf_Data *d)
 		sh_align  = s->s_shdr.s_shdr64.sh_addralign;
 	}
 
+	if (sh_type == SHT_NULL)
+		return (NULL);
+
 	if ((elftype = _libelf_xlate_shtype(sh_type)) < ELF_T_FIRST ||
-	    elftype > ELF_T_LAST ||
-	    sh_offset + sh_size > (uint64_t) e->e_rawsize) {
+	    elftype > ELF_T_LAST || (sh_type != SHT_NOBITS &&
+	    sh_offset + sh_size > (uint64_t) e->e_rawsize)) {
 		LIBELF_SET_ERROR(SECTION, 0);
 		return (NULL);
 	}
 
-	if ((fsz = (elfclass == ELFCLASS32 ? elf32_fsize : elf64_fsize)(elftype,
-		 (size_t) 1, e->e_version)) == 0) {
+	if ((fsz = (elfclass == ELFCLASS32 ? elf32_fsize : elf64_fsize)
+            (elftype, (size_t) 1, e->e_version)) == 0) {
 		LIBELF_SET_ERROR(UNIMPL, 0);
 		return (NULL);
 	}
-
 
 	if (sh_size % fsz) {
 		LIBELF_SET_ERROR(SECTION, 0);
@@ -104,27 +105,36 @@ elf_getdata(Elf_Scn *s, Elf_Data *d)
 
 	assert(msz > 0);
 
-	if ((dst = malloc(msz*count)) == NULL) {
-		LIBELF_SET_ERROR(RESOURCE, 0);
-		return (NULL);
-	}
-
 	if ((d = _libelf_allocate_data(s)) == NULL)
 		return (NULL);
 
-	d->d_buf     = dst;
+	d->d_buf     = NULL;
 	d->d_off     = 0;
 	d->d_align   = sh_align;
 	d->d_size    = msz * count;
 	d->d_type    = elftype;
 	d->d_version = e->e_version;
 
+	if (sh_type == SHT_NOBITS)
+		return (d);
+
+	if ((d->d_buf = malloc(msz*count)) == NULL) {
+		(void) _libelf_release_data(d);
+		LIBELF_SET_ERROR(RESOURCE, 0);
+		return (NULL);
+	}
+
 	d->d_flags  |= LIBELF_F_MALLOCED;
-	STAILQ_INSERT_TAIL(&s->s_data, d, d_next);
 
 	xlate = _libelf_get_translator(elftype, ELF_TOMEMORY, elfclass);
-	(*xlate)(d->d_buf, e->e_rawfile + sh_offset, count, e->e_byteorder !=
-	    LIBELF_PRIVATE(byteorder));
+	if (!(*xlate)(d->d_buf, d->d_size, e->e_rawfile + sh_offset, count,
+	    e->e_byteorder != LIBELF_PRIVATE(byteorder))) {
+		_libelf_release_data(d);
+		LIBELF_SET_ERROR(DATA, 0);
+		return (NULL);
+	}
+
+	STAILQ_INSERT_TAIL(&s->s_data, d, d_next);
 
 	return (d);
 }
@@ -149,14 +159,10 @@ elf_newdata(Elf_Scn *s)
 		if (elf_getdata(s, NULL) == NULL)
 			return (NULL);
 
-	if ((d = malloc(sizeof(Elf_Data))) == NULL) {
-		LIBELF_SET_ERROR(RESOURCE, errno);
+	if ((d = _libelf_allocate_data(s)) == NULL)
 		return (NULL);
-	}
 
 	STAILQ_INSERT_TAIL(&s->s_data, d, d_next);
-	d->d_flags = 0;
-	d->d_scn = s;
 
 	d->d_align = 1;
 	d->d_buf = NULL;
@@ -180,6 +186,7 @@ elf_rawdata(Elf_Scn *s, Elf_Data *d)
 {
 	Elf *e;
 	int elf_class;
+	uint32_t sh_type;
 	uint64_t sh_align, sh_offset, sh_size;
 
 	if (s == NULL || (e = s->s_elf) == NULL ||
@@ -199,19 +206,24 @@ elf_rawdata(Elf_Scn *s, Elf_Data *d)
 	assert(elf_class == ELFCLASS32 || elf_class == ELFCLASS64);
 
 	if (elf_class == ELFCLASS32) {
+		sh_type   = s->s_shdr.s_shdr32.sh_type;
 		sh_offset = (uint64_t) s->s_shdr.s_shdr32.sh_offset;
 		sh_size   = (uint64_t) s->s_shdr.s_shdr32.sh_size;
 		sh_align  = (uint64_t) s->s_shdr.s_shdr32.sh_addralign;
 	} else {
+		sh_type   = s->s_shdr.s_shdr64.sh_type;
 		sh_offset = s->s_shdr.s_shdr64.sh_offset;
 		sh_size   = s->s_shdr.s_shdr64.sh_size;
 		sh_align  = s->s_shdr.s_shdr64.sh_addralign;
 	}
 
+	if (sh_type == SHT_NULL)
+		return (NULL);
+
 	if ((d = _libelf_allocate_data(s)) == NULL)
 		return (NULL);
 
-	d->d_buf     = e->e_rawfile + sh_offset;
+	d->d_buf     = sh_type == SHT_NOBITS ? NULL : e->e_rawfile + sh_offset;
 	d->d_off     = 0;
 	d->d_align   = sh_align;
 	d->d_size    = sh_size;

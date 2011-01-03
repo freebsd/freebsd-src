@@ -55,8 +55,6 @@ _start=quietstart
 /etc/rc.d/dhclient ${_start}
 /etc/rc.d/ppp ${_start}
 /etc/rc.d/ipfw ${_start}
-/etc/rc.d/ip6fw ${_start}
-/etc/rc.d/network_ipv6 ${_start}
 /etc/rc.d/routing ${_start}
 /etc/rc.d/mroute6d ${_start}
 /etc/rc.d/route6d ${_start}

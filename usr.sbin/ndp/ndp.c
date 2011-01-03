@@ -437,6 +437,7 @@ set(argc, argv)
 			switch (sdl->sdl_type) {
 			case IFT_ETHER: case IFT_FDDI: case IFT_ISO88023:
 			case IFT_ISO88024: case IFT_ISO88025:
+			case IFT_L2VLAN: case IFT_BRIDGE:
 				goto overwrite;
 			}
 		}

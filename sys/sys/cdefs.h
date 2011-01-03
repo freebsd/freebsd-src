@@ -305,6 +305,14 @@
 #define __predict_false(exp)    (exp)
 #endif
 
+#if __GNUC_PREREQ__(4, 2)
+#define	__hidden	__attribute__((__visibility__("hidden")))
+#define	__exported	__attribute__((__visibility__("default")))
+#else
+#define	__hidden
+#define	__exported
+#endif
+
 /*
  * We define this here since <stddef.h>, <sys/queue.h>, and <sys/types.h>
  * require it.
@@ -356,7 +364,18 @@
 	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)))
 #endif
 #ifdef __STDC__
+#ifdef __powerpc64__
 #define	__weak_reference(sym,alias)	\
+	__asm__(".weak " #alias);	\
+	__asm__(".equ "  #alias ", " #sym); \
+	__asm__(".weak ." #alias);	\
+	__asm__(".equ ."  #alias ", ." #sym)
+#else
+#define	__weak_reference(sym,alias)	\
+	__asm__(".weak " #alias);	\
+	__asm__(".equ "  #alias ", " #sym)
+#endif
+#define	__weak_reference_data(sym,alias)\
 	__asm__(".weak " #alias);	\
 	__asm__(".equ "  #alias ", " #sym)
 #define	__warn_references(sym,msg)	\
@@ -381,6 +400,9 @@
 	__asm__(".symver impl, sym@@verid")
 #endif	/* __STDC__ */
 #endif	/* __GNUC__ || __INTEL_COMPILER */
+
+#define	__GLOBL1(sym)	__asm__(".globl " #sym)
+#define	__GLOBL(sym)	__GLOBL1(sym)
 
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")
