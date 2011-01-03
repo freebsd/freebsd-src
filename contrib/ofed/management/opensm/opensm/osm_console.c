@@ -324,16 +324,31 @@ static char *sa_state_str(osm_sa_state_t state)
 
 static void print_status(osm_opensm_t * p_osm, FILE * out)
 {
+	cl_list_item_t *item;
+
 	if (out) {
 		cl_plock_acquire(&p_osm->lock);
-		fprintf(out, "   OpenSM Version: %s\n", p_osm->osm_version);
-		fprintf(out, "   SM State      : %s\n",
+		fprintf(out, "   OpenSM Version       : %s\n", p_osm->osm_version);
+		fprintf(out, "   SM State             : %s\n",
 			sm_state_str(p_osm->subn.sm_state));
-		fprintf(out, "   SA State      : %s\n",
+		fprintf(out, "   SA State             : %s\n",
 			sa_state_str(p_osm->sa.state));
-		fprintf(out, "   Routing Engine: %s\n",
+		fprintf(out, "   Routing Engine       : %s\n",
 			osm_routing_engine_type_str(p_osm->
 						    routing_engine_used));
+
+		fprintf(out, "   Loaded event plugins :");
+		if (cl_qlist_head(&p_osm->plugin_list) ==
+			cl_qlist_end(&p_osm->plugin_list)) {
+			fprintf(out, " <none>");
+		}
+		for (item = cl_qlist_head(&p_osm->plugin_list);
+		     item != cl_qlist_end(&p_osm->plugin_list);
+		     item = cl_qlist_next(item))
+			fprintf(out, " %s",
+				((osm_epi_plugin_t *)item)->plugin_name);
+		fprintf(out, "\n");
+
 #ifdef ENABLE_OSM_PERF_MGR
 		fprintf(out, "\n   PerfMgr state/sweep state : %s/%s\n",
 			osm_perfmgr_get_state_str(&(p_osm->perfmgr)),
@@ -1128,24 +1143,16 @@ static void perfmgr_parse(char **p_last, osm_opensm_t * p_osm, FILE * out)
 			fprintf(out, "\"%s\" option not found\n", p_cmd);
 		}
 	} else {
-		cl_list_item_t *item;
 		fprintf(out, "Performance Manager status:\n"
 			"state                   : %s\n"
 			"sweep state             : %s\n"
 			"sweep time              : %us\n"
-			"outstanding queries/max : %d/%u\n"
-			"loaded event plugin     :",
+			"outstanding queries/max : %d/%u\n",
 			osm_perfmgr_get_state_str(&(p_osm->perfmgr)),
 			osm_perfmgr_get_sweep_state_str(&(p_osm->perfmgr)),
 			osm_perfmgr_get_sweep_time_s(&(p_osm->perfmgr)),
 			p_osm->perfmgr.outstanding_queries,
 			p_osm->perfmgr.max_outstanding_queries);
-		for (item = cl_qlist_head(&p_osm->plugin_list);
-		     item != cl_qlist_end(&p_osm->plugin_list);
-		     item = cl_qlist_next(item))
-			fprintf(out, " %s",
-				((osm_epi_plugin_t *)item)->plugin_name);
-		fprintf(out, "\n");
 	}
 }
 #endif				/* ENABLE_OSM_PERF_MGR */

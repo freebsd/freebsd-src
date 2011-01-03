@@ -93,7 +93,6 @@ opensminclude_HEADERS = \
 	$(srcdir)/../include/opensm/osm_perfmgr.h \
 	$(srcdir)/../include/opensm/osm_perfmgr_db.h \
 	$(srcdir)/../include/opensm/osm_pkey.h \
-	$(srcdir)/../include/opensm/osm_pkey_mgr.h \
 	$(srcdir)/../include/opensm/osm_port.h \
 	$(srcdir)/../include/opensm/osm_port_profile.h \
 	$(srcdir)/../include/opensm/osm_prefix_route.h \

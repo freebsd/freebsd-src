@@ -425,44 +425,6 @@ Exit:
 /**********************************************************************
  **********************************************************************/
 boolean_t
-osm_lid_share_pkey(IN osm_log_t * p_log,
-		   IN const osm_subn_t * const p_subn,
-		   IN const ib_net16_t lid1,
-		   IN const uint8_t port_num1,
-		   IN const ib_net16_t lid2, IN const uint8_t port_num2)
-{
-
-	osm_physp_t *p_physp1, *p_physp2;
-	osm_port_t *p_port1, *p_port2;
-	osm_node_t *p_node1, *p_node2;
-	const cl_ptr_vector_t *const p_port_lid_tbl = &(p_subn->port_lid_tbl);
-
-	OSM_LOG_ENTER(p_log);
-
-	p_port1 = cl_ptr_vector_get(p_port_lid_tbl, lid1);
-	p_port2 = cl_ptr_vector_get(p_port_lid_tbl, lid2);
-
-	p_node1 = p_port1->p_node;
-	p_node2 = p_port2->p_node;
-
-	if (osm_node_get_type(p_node1) == IB_NODE_TYPE_SWITCH) {
-		p_physp1 = osm_node_get_physp_ptr(p_node1, port_num1);
-	} else {
-		p_physp1 = p_port1->p_physp;
-	}
-
-	if (osm_node_get_type(p_node2) == IB_NODE_TYPE_SWITCH) {
-		p_physp2 = osm_node_get_physp_ptr(p_node2, port_num2);
-	} else {
-		p_physp2 = p_port2->p_physp;
-	}
-
-	return (osm_physp_share_pkey(p_log, p_physp1, p_physp2));
-}
-
-/**********************************************************************
- **********************************************************************/
-boolean_t
 osm_physp_has_pkey(IN osm_log_t * p_log,
 		   IN const ib_net16_t pkey,
 		   IN const osm_physp_t * const p_physp)

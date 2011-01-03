@@ -49,7 +49,6 @@
 #include <complib/cl_debug.h>
 #include <opensm/osm_node.h>
 #include <opensm/osm_switch.h>
-#include <opensm/osm_pkey_mgr.h>
 #include <opensm/osm_partition.h>
 #include <opensm/osm_opensm.h>
 

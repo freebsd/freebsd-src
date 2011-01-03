@@ -194,7 +194,7 @@ main(int argc, char **argv)
 	int timeout = 0, udebug = 0, server = 0, flood = 0;
 	int oui = IB_OPENIB_OUI;
 	uint64_t rtt;
-	uint count = ~0;
+	unsigned count = ~0;
 	extern int ibdebug;
 	char *err;
 	char *ca = 0;

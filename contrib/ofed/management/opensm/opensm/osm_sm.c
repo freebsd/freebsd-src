@@ -535,36 +535,20 @@ osm_sm_mcgrp_join(IN osm_sm_t * const p_sm,
 	 * If this multicast group does not already exist, create it.
 	 */
 	p_mgrp = osm_get_mgrp_by_mlid(p_sm->p_subn, mlid);
-	if (!p_mgrp) {
-		OSM_LOG(p_sm->p_log, OSM_LOG_VERBOSE,
-			"Creating group, MLID 0x%X\n", cl_ntoh16(mlid));
-
-		p_mgrp = osm_mgrp_new(mlid);
-		if (p_mgrp == NULL) {
-			CL_PLOCK_RELEASE(p_sm->p_lock);
-			OSM_LOG(p_sm->p_log, OSM_LOG_ERROR, "ERR 2E06: "
-				"Unable to allocate multicast group object\n");
-			status = IB_INSUFFICIENT_MEMORY;
-			goto Exit;
-		}
-
-		p_sm->p_subn->mgroups[cl_ntoh16(mlid) - IB_LID_MCAST_START_HO] = p_mgrp;
-	} else {
+	if (!p_mgrp || !osm_mgrp_is_guid(p_mgrp, port_guid)) {
 		/*
-		 * The group already exists.  If the port is not a
+		 * The group removed or the port is not a
 		 * member of the group, then fail immediately.
 		 * This can happen since the spinlock is released briefly
 		 * before the SA calls this function.
 		 */
-		if (!osm_mgrp_is_guid(p_mgrp, port_guid)) {
-			CL_PLOCK_RELEASE(p_sm->p_lock);
-			OSM_LOG(p_sm->p_log, OSM_LOG_ERROR, "ERR 2E12: "
-				"Port 0x%016" PRIx64
-				" not in mcast group 0x%X\n",
-				cl_ntoh64(port_guid), cl_ntoh16(mlid));
-			status = IB_NOT_FOUND;
-			goto Exit;
-		}
+		CL_PLOCK_RELEASE(p_sm->p_lock);
+		OSM_LOG(p_sm->p_log, OSM_LOG_ERROR, "ERR 2E12: "
+			"MC group with mlid 0x%x doesn't exist or "
+			"port 0x%016" PRIx64 " is not in the group.\n",
+			cl_ntoh16(mlid), cl_ntoh64(port_guid));
+		status = IB_NOT_FOUND;
+		goto Exit;
 	}
 
 	/*
