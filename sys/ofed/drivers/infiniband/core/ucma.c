@@ -1255,7 +1255,7 @@ static int ucma_open(struct inode *inode, struct file *filp)
 {
 	struct ucma_file *file;
 
-	file = kzalloc(sizeof *file, GFP_KERNEL);
+	file = kmalloc(sizeof *file, GFP_KERNEL);
 	if (!file)
 		return -ENOMEM;
 

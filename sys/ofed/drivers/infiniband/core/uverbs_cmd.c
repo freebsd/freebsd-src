@@ -498,7 +498,7 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 		   (unsigned long) cmd.response + sizeof resp,
 		   in_len - sizeof cmd, out_len - sizeof resp);
 
-	uobj = kzalloc(sizeof *uobj, GFP_KERNEL);
+	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
 	if (!uobj)
 		return -ENOMEM;
 
@@ -619,7 +619,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	    !(cmd.access_flags & IB_ACCESS_LOCAL_WRITE))
 		return -EINVAL;
 
-	uobj = kzalloc(sizeof *uobj, GFP_KERNEL);
+	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
 	if (!uobj)
 		return -ENOMEM;
 
@@ -779,7 +779,7 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 	if (cmd.comp_vector >= file->device->num_comp_vectors)
 		return -EINVAL;
 
-	obj = kzalloc(sizeof *obj, GFP_KERNEL);
+	obj = kmalloc(sizeof *obj, GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
@@ -1057,7 +1057,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 		   (unsigned long) cmd.response + sizeof resp,
 		   in_len - sizeof cmd, out_len - sizeof resp);
 
-	obj = kzalloc(sizeof *obj, GFP_KERNEL);
+	obj = kmalloc(sizeof *obj, GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
@@ -1784,7 +1784,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	uobj = kzalloc(sizeof *uobj, GFP_KERNEL);
+	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
 	if (!uobj)
 		return -ENOMEM;
 
@@ -2031,7 +2031,7 @@ ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
 		   (unsigned long) cmd.response + sizeof resp,
 		   in_len - sizeof cmd, out_len - sizeof resp);
 
-	obj = kzalloc(sizeof *obj, GFP_KERNEL);
+	obj = kmalloc(sizeof *obj, GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
@@ -2137,7 +2137,7 @@ ssize_t ib_uverbs_create_xrc_srq(struct ib_uverbs_file *file,
 		   (unsigned long) cmd.response + sizeof resp,
 		   in_len - sizeof cmd, out_len - sizeof resp);
 
-	obj = kzalloc(sizeof *obj, GFP_KERNEL);
+	obj = kmalloc(sizeof *obj, GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
@@ -2507,7 +2507,7 @@ ssize_t ib_uverbs_open_xrc_domain(struct ib_uverbs_file *file,
 		}
 	}
 
-	xrcd_uobj = kzalloc(sizeof *xrcd_uobj, GFP_KERNEL);
+	xrcd_uobj = kmalloc(sizeof *xrcd_uobj, GFP_KERNEL);
 	if (!xrcd_uobj) {
 		ret = -ENOMEM;
 		goto err_table_mutex_unlock;

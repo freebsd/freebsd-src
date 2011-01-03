@@ -172,10 +172,8 @@ int mthca_create_ah(struct mthca_dev *dev,
 		index = mthca_alloc(&dev->av_table.alloc);
 
 		/* fall back to allocate in host memory */
-		if (index == -1) {
-			printf("av_table alloc fail\n");
+		if (index == -1)
 			goto on_hca_fail;
-		}
 
 		av = kmalloc(sizeof *av, GFP_ATOMIC);
 		if (!av)

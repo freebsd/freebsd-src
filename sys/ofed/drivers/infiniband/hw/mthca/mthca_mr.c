@@ -893,10 +893,9 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 		addr = pci_resource_start(dev->pdev, 4) +
 			((pci_resource_len(dev->pdev, 4) - 1) &
 			 dev->mr_table.mpt_base);
-		dev->mr_table.tavor_fmr.mpt_size =
-			mpts * sizeof(struct mthca_mpt_entry);
+
 		dev->mr_table.tavor_fmr.mpt_base =
-			ioremap(addr, dev->mr_table.tavor_fmr.mpt_size);
+			ioremap(addr, mpts * sizeof(struct mthca_mpt_entry));
 
 		if (!dev->mr_table.tavor_fmr.mpt_base) {
 			mthca_warn(dev, "MPT ioremap for FMR failed.\n");
@@ -907,10 +906,9 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 		addr = pci_resource_start(dev->pdev, 4) +
 			((pci_resource_len(dev->pdev, 4) - 1) &
 			 dev->mr_table.mtt_base);
-		dev->mr_table.tavor_fmr.mtt_size =
-			mtts * dev->limits.mtt_seg_size;
+
 		dev->mr_table.tavor_fmr.mtt_base =
-			ioremap(addr, dev->mr_table.tavor_fmr.mtt_size);
+			ioremap(addr, mtts * dev->limits.mtt_seg_size);
 		if (!dev->mr_table.tavor_fmr.mtt_base) {
 			mthca_warn(dev, "MTT ioremap for FMR failed.\n");
 			err = -ENOMEM;

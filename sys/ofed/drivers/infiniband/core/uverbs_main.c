@@ -541,7 +541,7 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	struct file *filp;
 	int ret;
 
-	ev_file = kzalloc(sizeof *ev_file, GFP_KERNEL);
+	ev_file = kmalloc(sizeof *ev_file, GFP_KERNEL);
 	if (!ev_file)
 		return ERR_PTR(-ENOMEM);
 
@@ -685,7 +685,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 		goto err;
 	}
 
-	file = kzalloc(sizeof *file, GFP_KERNEL);
+	file = kmalloc(sizeof *file, GFP_KERNEL);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err_module;

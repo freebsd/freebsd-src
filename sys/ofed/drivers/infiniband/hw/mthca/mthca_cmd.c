@@ -720,8 +720,7 @@ static void mthca_setup_cmd_doorbells(struct mthca_dev *dev, u64 base)
 
 	addr = pci_resource_start(dev->pdev, 2) +
 		((pci_resource_len(dev->pdev, 2) - 1) & base);
-	dev->cmd.dbell_size = max_off + sizeof(u32);
-	dev->cmd.dbell_map = ioremap(addr, dev->cmd.dbell_size);
+	dev->cmd.dbell_map = ioremap(addr, max_off + sizeof(u32));
 	if (!dev->cmd.dbell_map)
 		return;
 

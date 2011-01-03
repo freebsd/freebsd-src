@@ -1611,7 +1611,6 @@ static int __init mlx4_init(void)
 {
 	int ret;
 
-	printk("mlx4 init\n");
 	mutex_init(&drv_mutex);
 
 	if (mlx4_verify_params())

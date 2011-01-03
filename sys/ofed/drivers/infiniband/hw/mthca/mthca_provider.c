@@ -555,7 +555,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	{
 		struct mthca_ucontext *context;
 
-		qp = kzalloc(sizeof *qp, GFP_KERNEL);
+		qp = kmalloc(sizeof *qp, GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
@@ -621,7 +621,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 		if (pd->uobject)
 			return ERR_PTR(-EINVAL);
 
-		qp = kzalloc(sizeof (struct mthca_sqp), GFP_KERNEL);
+		qp = kmalloc(sizeof (struct mthca_sqp), GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
@@ -701,7 +701,7 @@ static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries,
 			goto err_unmap_set;
 	}
 
-	cq = kzalloc(sizeof *cq, GFP_KERNEL);
+	cq = kmalloc(sizeof *cq, GFP_KERNEL);
 	if (!cq) {
 		err = -ENOMEM;
 		goto err_unmap_arm;

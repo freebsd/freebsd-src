@@ -669,7 +669,7 @@ static void inform_add_one(struct ib_device *device)
 	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
 		return;
 
-	dev = kzalloc(sizeof *dev + device->phys_port_cnt * sizeof *port,
+	dev = kmalloc(sizeof *dev + device->phys_port_cnt * sizeof *port,
 		      GFP_KERNEL);
 	if (!dev)
 		return;
