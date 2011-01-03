@@ -25,18 +25,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#ifndef _INFINIBAND_BYTESWAP_H_
+#define	_INFINIBAND_BYTESWAP_H_
 /*
  * This file is included for compatibility with the userland libraries
  * accompanying the infiniband stack.
  */
-
-#ifndef _OFED_INCLUDE_ENDIAN_H_
-#define	_OFED_INCLUDE_ENDIAN_H_
-
 #include <sys/types.h>
 #include <sys/endian.h>
-#define	__LITTLE_ENDIAN	_LITTLE_ENDIAN
-#define	__BIG_ENDIAN	_BIG_ENDIAN
-#define __BYTE_ORDER    _BYTE_ORDER
 
-#endif /* _OFED_INCLUDE_ENDIAN_H_ */
+#define bswap_16        bswap16
+#define bswap_32        bswap32
+#define bswap_64        bswap64
+
+#endif	/* _INFINIBAND_BYTESWAP_H_ */

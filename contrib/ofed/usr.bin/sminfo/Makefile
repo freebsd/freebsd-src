@@ -6,7 +6,7 @@
 PROG=   sminfo
 SRCS=   sminfo.c ibdiag_common.c
 LDADD=	-libumad -libcommon -libmad
-CFLAGS+= -I${DIAGPATH}/include -I${OFEDSYS}/include
+CFLAGS+= -I${DIAGPATH}/include
 MAN=	sminfo.8
 
 WARNS?= 1

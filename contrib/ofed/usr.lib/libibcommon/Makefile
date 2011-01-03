@@ -4,9 +4,8 @@ SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
 
-IBCOMMONDIR= 	../../management/libibcommon
+IBCOMMONDIR= 	${.CURDIR}/../../management/libibcommon
 IBSRCDIR=	${IBCOMMONDIR}/src
-OFEDSYS= 	../../../../sys/ofed
 
 .PATH: ${IBSRCDIR}
 
@@ -16,7 +15,7 @@ NO_PROFILE=
 
 SRCS=	sysfs.c util.c hash.c stack.c time.c
 
-CFLAGS+= -I${.CURDIR} -I${IBSRCDIR} -I${OFEDSYS}/include -I/usr/include/infiniband
+CFLAGS+= -I${.CURDIR} -I${IBSRCDIR} -I/usr/include/infiniband
 
 VERSION_MAP= ${IBSRCDIR}/libibcommon.map
 

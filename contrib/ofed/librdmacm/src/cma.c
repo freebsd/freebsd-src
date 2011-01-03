@@ -46,8 +46,8 @@
 #include <poll.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <endian.h>
-#include <byteswap.h>
+#include <infiniband/endian.h>
+#include <infiniband/byteswap.h>
 #include <stddef.h>
 
 #include <infiniband/driver.h>

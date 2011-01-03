@@ -4,7 +4,7 @@ SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
 
-RDMACMDIR= 	../../librdmacm
+RDMACMDIR= 	${.CURDIR}/../../librdmacm
 RDMASRCDIR=	${RDMACMDIR}/src
 RDMAMANDIR=	${RDMACMDIR}/man
 
@@ -14,7 +14,7 @@ LIB=		rdmacm
 SHLIB_MAJOR=	1
 NO_PROFILE=
 
-SRCS= cma.c
+SRCS=	cma.c
 
 MAN=	rdma_get_devices.3 mckey.1 rdma_get_dst_port.3 rdma_accept.3
 MAN+=	rdma_get_local_addr.3 rdma_ack_cm_event.3 rdma_get_peer_addr.3
@@ -27,7 +27,6 @@ MAN+=	rdma_resolve_route.3 rdma_disconnect.3 rdma_set_option.3
 MAN+=	rdma_event_str.3 rping.1 rdma_free_devices.3 ucmatose.1
 MAN+=	rdma_get_cm_event.3 udaddy.1
 
-CFLAGS+=	-I../../../../sys/ofed/include
 
 VERSION_MAP= ${RDMASRCDIR}/librdmacm.map
 

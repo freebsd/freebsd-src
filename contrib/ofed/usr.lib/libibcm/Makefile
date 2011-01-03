@@ -4,7 +4,7 @@ SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
 
-IBCMDIR= 	../../libibcm
+IBCMDIR= 	${.CURDIR}/../../libibcm
 IBSRCDIR=	${IBCMDIR}/src
 
 .PATH: ${IBSRCDIR}

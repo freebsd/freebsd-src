@@ -4,10 +4,9 @@ SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
 
-MLX4DIR=	../../libmlx4
-IBVERBSDIR=	../../libibverbs
+MLX4DIR=	${.CURDIR}/../../libmlx4
+IBVERBSDIR=	${.CURDIR}/../../libibverbs
 MLXSRCDIR=	${MLX4DIR}/src
-OFEDSYS=	../../../../sys/ofed
 
 .PATH: ${MLXSRCDIR}
 
@@ -19,7 +18,6 @@ SRCS=	buf.c cq.c dbrec.c mlx4.c qp.c srq.c verbs.c
 
 CFLAGS+= -DHAVE_CONFIG_H 
 CFLAGS+= -I${.CURDIR} -I${MLXSRCDIR} -I${IBVERBSDIR}/include
-CFLAGS+= -I${OFEDSYS}/include
 
 VERSION_MAP= ${MLXSRCDIR}/mlx4.map
 

@@ -6,7 +6,7 @@
 PROG=   ibnetdiscover
 SRCS=   ibnetdiscover.c grouping.c ibdiag_common.c
 LDADD=	-libumad -libcommon -libmad -losmcomp
-CFLAGS+= -I${DIAGPATH}/include -I${OFEDSYS}/include -I/usr/include/infiniband
+CFLAGS+= -I${DIAGPATH}/include -I/usr/include/infiniband
 CFLAGS+= -pthread
 MAN=	ibnetdiscover.8
 

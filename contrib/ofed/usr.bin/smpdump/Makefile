@@ -6,7 +6,7 @@
 PROG=   smpdump
 SRCS=   smpdump.c
 LDADD=	-libumad -libcommon -libmad
-CFLAGS+= -I${DIAGPATH}/include -I${OFEDSYS}/include
+CFLAGS+= -I${DIAGPATH}/include -I/usr/include/infiniband
 MAN=	smpdump.8
 
 WARNS?= 1

@@ -4,8 +4,7 @@ SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
 
-COMPLIBDIR= 	../../management/opensm/complib
-OFEDSYS= 	../../../../sys/ofed
+COMPLIBDIR= 	${.CURDIR}/../../management/opensm/complib
 
 .PATH: ${COMPLIBDIR}
 
@@ -18,7 +17,7 @@ SRCS+=	cl_log.c cl_map.c cl_pool.c cl_ptr_vector.c cl_spinlock.c
 SRCS+=	cl_statustext.c cl_thread.c cl_threadpool.c cl_timer.c cl_vector.c
 SRCS+=	ib_statustext.c cl_nodenamemap.c
 
-CFLAGS+= -I${.CURDIR} -I/usr/include/infiniband -I${OFEDSYS}/include
+CFLAGS+= -I${.CURDIR} -I/usr/include/infiniband
 
 VERSION_MAP= ${COMPLIBDIR}/libosmcomp.map
 

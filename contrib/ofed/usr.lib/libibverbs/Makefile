@@ -4,10 +4,9 @@ SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
 
-IBVERBSDIR= 	../../libibverbs
+IBVERBSDIR= 	${.CURDIR}/../../libibverbs
 IBSRCDIR=	${IBVERBSDIR}/src
 IBMANDIR=	${IBVERBSDIR}/man
-OFEDSYS= 	../../../../sys/ofed
 
 .PATH: ${IBSRCDIR} ${IBMANDIR}
 
@@ -34,7 +33,7 @@ MAN=	ibv_alloc_pd.3 ibv_asyncwatch.1 ibv_attach_mcast.3 ibv_create_ah.3 \
 
 
 CFLAGS+= -DHAVE_CONFIG_H -DIBV_CONFIG_DIR=\"/etc/ibverbs/\"
-CFLAGS+= -I${.CURDIR} -I${IBSRCDIR} -I${IBVERBSDIR}/include -I${OFEDSYS}/include
+CFLAGS+= -I${.CURDIR} -I${IBSRCDIR} -I${IBVERBSDIR}/include 
 
 VERSION_MAP= ${IBSRCDIR}/libibverbs.map
 

@@ -6,7 +6,7 @@
 PROG=   ibsysstat
 SRCS=   ibsysstat.c ibdiag_common.c
 LDADD=	-libumad -libcommon -libmad
-CFLAGS+= -I${DIAGPATH}/include -I${OFEDSYS}/include
+CFLAGS+= -I${DIAGPATH}/include
 MAN=	ibsysstat.8
 
 WARNS?= 1

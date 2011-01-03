@@ -2,7 +2,7 @@
 
 .include "../Makefile.inc"
 
-OPENSM	= ../../management/opensm
+OPENSM	= ${.CURDIR}/../../management/opensm
 .PATH: ${OPENSM}/opensm ${OPENSM}/man
 
 PROG=   opensm
@@ -30,7 +30,7 @@ SRCS+=	osm_dump.c osm_ucast_cache.c osm_qos_parser_y.y osm_qos_parser_l.l
 SRCS+=	osm_qos_policy.c
 
 LDADD=	-lopensm -losmvendor -losmcomp -libmad -libumad -libcommon
-CFLAGS+= -I${OFEDSYS}/include -I/usr/include/infiniband
+CFLAGS+= -I/usr/include/infiniband
 CFLAGS+= -pthread
 CFLAGS+= -DVENDOR_RMPP_SUPPORT -DDUAL_SIDED_RMPP
 

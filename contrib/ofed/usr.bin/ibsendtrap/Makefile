@@ -6,7 +6,7 @@
 PROG=   ibsendtrap
 SRCS=   ibsendtrap.c ibdiag_common.c
 LDADD=	-libumad -libcommon -libmad
-CFLAGS+= -I${DIAGPATH}/include -I${OFEDSYS}/include -I/usr/include/infiniband
+CFLAGS+= -I${DIAGPATH}/include -I/usr/include/infiniband
 NO_MAN=	true
 
 WARNS?= 1

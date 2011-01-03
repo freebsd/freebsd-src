@@ -4,7 +4,7 @@ SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
 
-SDPDIR=	../../libsdp/src
+SDPDIR=	${.CURDIR}/../../libsdp/src
 
 .PATH: ${SDPDIR}
 

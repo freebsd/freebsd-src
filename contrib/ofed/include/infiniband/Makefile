@@ -1,28 +1,28 @@
 .include <bsd.own.mk>
 
 INCS=
-IBINCS=		types.h byteorder.h
+IBINCS=		byteorder.h byteswap.h endian.h types.h
 IBINCSDIR=	${INCLUDEDIR}/infiniband
 
-IBVERBS=	../../libibverbs/include/infiniband
+IBVERBS=	${.CURDIR}/../../libibverbs/include/infiniband
 VERBINCS=	${IBVERBS}/arch.h ${IBVERBS}/driver.h ${IBVERBS}/kern-abi.h
 VERBINCS+=	${IBVERBS}/marshall.h ${IBVERBS}/opcode.h
 VERBINCS+=	${IBVERBS}/sa-kern-abi.h ${IBVERBS}/sa.h ${IBVERBS}/verbs.h
 VERBINCSDIR=	${INCLUDEDIR}/infiniband
 
-IBCOMMON=	../../management/libibcommon/include/infiniband
+IBCOMMON=	${.CURDIR}/../../management/libibcommon/include/infiniband
 COMMONINCS=	${IBCOMMON}/common.h
 COMMONINCSDIR=	${INCLUDEDIR}/infiniband
 
-IBMAD=		../../management/libibmad/include/infiniband
+IBMAD=		${.CURDIR}/../../management/libibmad/include/infiniband
 MADINCS=	${IBMAD}/mad.h
 MADINCSDIR=	${INCLUDEDIR}/infiniband
 
-IBUMAD=		../../management/libibumad/include/infiniband
+IBUMAD=		${.CURDIR}/../../management/libibumad/include/infiniband
 UMADINCS=	${IBUMAD}/umad.h
 UMADINCSDIR=	${INCLUDEDIR}/infiniband
 
-COMPLIB=	../../management/opensm/include/complib
+COMPLIB=	${.CURDIR}/../../management/opensm/include/complib
 COMPLIBINCS=	${COMPLIB}/cl_atomic.h ${COMPLIB}/cl_atomic_osd.h
 COMPLIBINCS+= 	${COMPLIB}/cl_byteswap.h ${COMPLIB}/cl_byteswap_osd.h
 COMPLIBINCS+= 	${COMPLIB}/cl_comppool.h ${COMPLIB}/cl_debug.h
@@ -43,11 +43,11 @@ COMPLIBINCS+=	${COMPLIB}/cl_timer_osd.h ${COMPLIB}/cl_types.h
 COMPLIBINCS+=	${COMPLIB}/cl_types_osd.h ${COMPLIB}/cl_vector.h
 COMPLIBINCSDIR=	${INCLUDEDIR}/infiniband/complib
 
-IBADIR=		../../management/opensm/include/iba
+IBADIR=		${.CURDIR}/../../management/opensm/include/iba
 IBAINCS=	${IBADIR}/ib_cm_types.h ${IBADIR}/ib_types.h
 IBAINCSDIR=	${INCLUDEDIR}/infiniband/iba
 
-OPENSM=		../../management/opensm/include/opensm
+OPENSM=		${.CURDIR}/../../management/opensm/include/opensm
 
 OPENSMINCS=	${OPENSM}/osm_attrib_req.h ${OPENSM}/osm_base.h
 OPENSMINCS+=	${OPENSM}/osm_config.h ${OPENSM}/osm_console.h
@@ -75,7 +75,7 @@ OPENSMINCS+=	${OPENSM}/osm_ucast_mgr.h ${OPENSM}/osm_version.h
 OPENSMINCS+=	${OPENSM}/osm_vl15intf.h ${OPENSM}/st.h
 OPENSMINCSDIR=	${INCLUDEDIR}/infiniband/opensm
 
-VENDOR=		../../management/opensm/include/vendor
+VENDOR=		${.CURDIR}/../../management/opensm/include/vendor
 VENDORINCS=	${VENDOR}/osm_mtl_bind.h ${VENDOR}/osm_pkt_randomizer.h
 VENDORINCS+=	${VENDOR}/osm_ts_useraccess.h ${VENDOR}/osm_umadt.h
 VENDORINCS+=	${VENDOR}/osm_vendor.h ${VENDOR}/osm_vendor_al.h
@@ -97,7 +97,7 @@ VENDORINCS+=	${VENDOR}/osm_vendor_test.h ${VENDOR}/osm_vendor_ts.h
 VENDORINCS+=	${VENDOR}/osm_vendor_umadt.h
 VENDORINCSDIR=	${INCLUDEDIR}/infiniband/vendor
 
-IBCM=		../../libibcm/include/infiniband
+IBCM=		${.CURDIR}/../../libibcm/include/infiniband
 IBCMINCS=	${IBCM}/cm.h ${IBCM}/cm_abi.h
 IBCMINCSDIR=	${INCLUDEDIR}/infiniband
 

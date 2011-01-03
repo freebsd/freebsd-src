@@ -38,7 +38,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <stdint.h>
-#include <byteswap.h>
+#include <infiniband/byteswap.h>
 
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {
@@ -80,10 +80,12 @@ static inline uint64_t htonll(uint64_t x) {
 
 /* Misc. macros: */
 /** align value \a l to \a size (ceil) */
+#ifndef ALIGN
 #define ALIGN(l, size) (((l) + ((size) - 1)) / (size) * (size))
 
 /** align value \a l to \a sizeof 32 bit int (ceil) */
 #define ALIGN32(l) (ALIGN((l), sizeof(uint32)))
+#endif
 
 /** printf style debugging MACRO, conmmon header includes name of function */
 #define IBWARN(fmt, args...)	ibwarn(__FUNCTION__, fmt, ## args)

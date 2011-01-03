@@ -34,8 +34,8 @@
 #define INFINIBAND_ARCH_H
 
 #include <stdint.h>
-#include <endian.h>
-#include <byteswap.h>
+#include <infiniband/endian.h>
+#include <infiniband/byteswap.h>
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 static inline uint64_t htonll(uint64_t x) { return bswap_64(x); }
