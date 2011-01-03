@@ -100,6 +100,7 @@ struct	nfsmount {
 #define	nm_retry	nm_com.nmcom_retry
 #define	nm_hostname	nm_com.nmcom_hostname
 #define	nm_getinfo	nm_com.nmcom_getinfo
+#define	nm_vinvalbuf	nm_com.nmcom_vinvalbuf
 
 #if defined(_KERNEL)
 /*
