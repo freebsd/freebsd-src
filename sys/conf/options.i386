@@ -118,3 +118,4 @@ BPF_JITTER		opt_bpf.h
 
 NATIVE			opt_global.h
 XEN			opt_global.h
+XENHVM			opt_global.h

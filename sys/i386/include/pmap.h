@@ -208,7 +208,7 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
  */
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
-#ifdef XEN
+#if defined(XEN)
 #include <sys/param.h>
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
@@ -315,7 +315,9 @@ pmap_kextract(vm_offset_t va)
 	}
 	return (pa);
 }
+#endif
 
+#if !defined(XEN)
 #define PT_UPDATES_FLUSH()
 #endif
 
