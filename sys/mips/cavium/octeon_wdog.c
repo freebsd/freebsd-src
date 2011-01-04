@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
+ * Copyright (c) 2010-2011, Juli Mallett <jmallett@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,93 +49,98 @@ __FBSDID("$FreeBSD$");
 #define	DEFAULT_TIMER_VAL	65535
 
 struct octeon_wdog_softc {
-	device_t dev;
-	/* XXX: replace with repscive CVMX_ constant */
-	struct resource *irq_res[16];
-	void *intr_hdl[16];
-	int armed;
-	int debug;
+	device_t sc_dev;
+	struct octeon_wdog_core_softc {
+		int csc_core;
+		struct resource *csc_intr;
+		void *csc_intr_cookie;
+	} sc_cores[MAXCPU];
+	int sc_armed;
+	int sc_debug;
 };
 
 extern void octeon_wdog_nmi_handler(void);
 void octeon_wdog_nmi(void);
 
-static void octeon_watchdog_arm_core(int core, unsigned long timer_val);
-static void octeon_watchdog_disarm_core(int core);
-static int octeon_wdog_attach(device_t dev);
-static void octeon_wdog_identify(driver_t *drv, device_t parent);
-static int octeon_wdog_intr(void *);;
-static int octeon_wdog_probe(device_t dev);
-static void octeon_wdog_setup(struct octeon_wdog_softc *sc, int cpu);
-static void octeon_wdog_sysctl(device_t dev);
-static void octeon_wdog_watchdog_fn(void *private, u_int cmd, int *error);
+static void octeon_watchdog_arm_core(int);
+static void octeon_watchdog_disarm_core(int);
+static int octeon_wdog_attach(device_t);
+static void octeon_wdog_identify(driver_t *, device_t);
+static int octeon_wdog_intr(void *);
+static int octeon_wdog_probe(device_t);
+static void octeon_wdog_setup(struct octeon_wdog_softc *, int);
+static void octeon_wdog_sysctl(device_t);
+static void octeon_wdog_watchdog_fn(void *, u_int, int *);
 
 void
-octeon_wdog_nmi()
+octeon_wdog_nmi(void)
 {
+	int core;
 
-	/* XXX: Add something useful here */
-	printf("NMI detected\n");
+	core = cvmx_get_core_num();
 
-	/* 
-	 * This is the end 
-	 * Beautiful friend 
+	printf("cpu%u: NMI detected\n", core);
+	printf("cpu%u: Exception PC: %p\n", core, (void *)mips_rd_excpc());
+	printf("cpu%u: status %#x cause %#x\n", core, mips_rd_status(), mips_rd_cause());
+
+	/*
+	 * This is the end
+	 * Beautiful friend
 	 *
 	 * Just wait for Soft Reset to come and take us
 	 */
 	for (;;)
-		;
+		continue;
 }
 
-static void 
-octeon_watchdog_arm_core(int core, unsigned long timer_val)
+static void
+octeon_watchdog_arm_core(int core)
 {
 	cvmx_ciu_wdogx_t ciu_wdog;
 
 	/* Poke it! */
 	cvmx_write_csr(CVMX_CIU_PP_POKEX(core), 1);
 
+	/*
+	 * XXX
+	 * Perhaps if KDB is enabled, we should use mode=2 and drop into the
+	 * debugger on NMI?
+	 *
+	 * XXX
+	 * Timer should be calculated based on CPU frquency
+	 */
 	ciu_wdog.u64 = 0;
-	ciu_wdog.s.len = timer_val;
+	ciu_wdog.s.len = DEFAULT_TIMER_VAL;
 	ciu_wdog.s.mode = 3;
 	cvmx_write_csr(CVMX_CIU_WDOGX(core), ciu_wdog.u64);
 }
 
-static void 
+static void
 octeon_watchdog_disarm_core(int core)
 {
 
 	cvmx_write_csr(CVMX_CIU_WDOGX(core), 0);
 }
 
-
-
 static void
 octeon_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 {
 	struct octeon_wdog_softc *sc = private;
-	uint64_t timer_val = 0;
+	int core;
 
 	cmd &= WD_INTERVAL;
-	if (sc->debug)
-		device_printf(sc->dev, "octeon_wdog_watchdog_fn: cmd: %x\n", cmd);
+	if (sc->sc_debug)
+		device_printf(sc->sc_dev, "%s: cmd: %x\n", __func__, cmd);
 	if (cmd > 0) {
-		if (sc->debug)
-			device_printf(sc->dev, "octeon_wdog_watchdog_fn: programming timer: %jx\n", (uintmax_t) timer_val);
-		/* 
-		 * XXX: This should be done for every core and with value 
-		 * calculated based on CPU frquency
-		 */
-		octeon_watchdog_arm_core(cvmx_get_core_num(), DEFAULT_TIMER_VAL);
-		sc->armed = 1;
+		CPU_FOREACH(core)
+			octeon_watchdog_arm_core(core);
+		sc->sc_armed = 1;
 		*error = 0;
 	} else {
-		if (sc->debug)
-			device_printf(sc->dev, "octeon_wdog_watchdog_fn: disarming\n");
-		if (sc->armed) {
-			sc->armed = 0;
-		 	/* XXX: This should be done for every core */
-			octeon_watchdog_disarm_core(cvmx_get_core_num());
+		if (sc->sc_armed) {
+			CPU_FOREACH(core)
+				octeon_watchdog_disarm_core(core);
+			sc->sc_armed = 0;
 		}
 	}
 }
@@ -144,54 +150,64 @@ octeon_wdog_sysctl(device_t dev)
 {
 	struct octeon_wdog_softc *sc = device_get_softc(dev);
 
-        struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->dev);
-        struct sysctl_oid *tree = device_get_sysctl_tree(sc->dev);
+        struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+        struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 
         SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "debug", CTLFLAG_RW, &sc->debug, 0,
+                "debug", CTLFLAG_RW, &sc->sc_debug, 0,
                 "enable watchdog debugging");
         SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "armed", CTLFLAG_RD, &sc->armed, 0,
+                "armed", CTLFLAG_RD, &sc->sc_armed, 0,
                 "whether the watchdog is armed");
 }
 
 static void
-octeon_wdog_setup(struct octeon_wdog_softc *sc, int cpu)
+octeon_wdog_setup(struct octeon_wdog_softc *sc, int core)
 {
-	int core, rid, err;
+	struct octeon_wdog_core_softc *csc;
+	int rid, error;
 
-	/* XXX: map cpu id to core here ? */
-	core = cvmx_get_core_num();
+	csc = &sc->sc_cores[core];
+
+	csc->csc_core = core;
 
 	/* Interrupt part */
 	rid = 0;
-	sc->irq_res[core] =
-		bus_alloc_resource(sc->dev, SYS_RES_IRQ, &rid,
-			CVMX_IRQ_WDOG0+core, 
-			CVMX_IRQ_WDOG0+core, 1, RF_ACTIVE);
-	if (!(sc->irq_res[core]))
-		goto error;
+	csc->csc_intr = bus_alloc_resource(sc->sc_dev, SYS_RES_IRQ, &rid,
+	    CVMX_IRQ_WDOG0 + core, CVMX_IRQ_WDOG0 + core, 1, RF_ACTIVE);
+	if (csc->csc_intr == NULL)
+		panic("%s: bus_alloc_resource for core %u failed",
+		    __func__, core);
 
-	err = bus_setup_intr(sc->dev, sc->irq_res[core], INTR_TYPE_MISC,
-	    octeon_wdog_intr, NULL, sc, &sc->intr_hdl[core]);
-	if (err)
-		goto error;
+	error = bus_setup_intr(sc->sc_dev, csc->csc_intr, INTR_TYPE_MISC,
+	    octeon_wdog_intr, NULL, csc, &csc->csc_intr_cookie);
+	if (error != 0)
+		panic("%s: bus_setup_intr for core %u: %d", __func__, core,
+		    error);
 
-	/* XXX: pin interrupt handler to the respective core */
+	bus_bind_intr(sc->sc_dev, csc->csc_intr, core);
+	bus_describe_intr(sc->sc_dev, csc->csc_intr, csc->csc_intr_cookie,
+	    "cpu%u", core);
 
-	/* Disarm by default */
-	octeon_watchdog_disarm_core(core);
-
-	return;
-
-error:
-	panic("failed to setup watchdog interrupt for core %d", core);
+	if (sc->sc_armed) {
+		/* Armed by default.  */
+		octeon_watchdog_arm_core(core);
+	} else {
+		/* Disarmed by default.  */
+		octeon_watchdog_disarm_core(core);
+	}
 }
 
-
 static int
-octeon_wdog_intr(void *sc)
+octeon_wdog_intr(void *arg)
 {
+	struct octeon_wdog_core_softc *csc = arg;
+
+	KASSERT(csc->csc_core == cvmx_get_core_num(),
+	    ("got watchdog interrupt for core %u on core %u.",
+	     csc->csc_core, cvmx_get_core_num()));
+
+	(void)csc;
 
 	/* Poke it! */
 	cvmx_write_csr(CVMX_CIU_PP_POKEX(cvmx_get_core_num()), 1);
@@ -211,14 +227,14 @@ static int
 octeon_wdog_attach(device_t dev)
 {
 	struct octeon_wdog_softc *sc = device_get_softc(dev);
-	int i;
 	uint64_t *nmi_handler = (uint64_t*)octeon_wdog_nmi_handler;
-	
-	/* Initialise */
-	sc->armed = 0;
-	sc->debug = 0;
+	int core, i;
 
-	sc->dev = dev;
+	/* Initialise */
+	sc->sc_armed = 0; /* XXX Ought to be a tunable / config option.  */
+	sc->sc_debug = 0;
+
+	sc->sc_dev = dev;
 	EVENTHANDLER_REGISTER(watchdog_list, octeon_wdog_watchdog_fn, sc, 0);
 	octeon_wdog_sysctl(dev);
 
@@ -229,8 +245,8 @@ octeon_wdog_attach(device_t dev)
 
 	cvmx_write_csr(CVMX_MIO_BOOT_LOC_CFGX(0), 0x81fc0000);
 
-	/* XXX: This should be done for every core */
-	octeon_wdog_setup(sc, cvmx_get_core_num());
+	CPU_FOREACH(core)
+		octeon_wdog_setup(sc, core);
 	return (0);
 }
 

@@ -108,6 +108,11 @@ mips_write_membar(void)
 }
 
 #ifdef _KERNEL
+/*
+ * XXX
+ * It would be nice to add variants that read/write register_t, to avoid some
+ * ABI checks.
+ */
 #if defined(__mips_n32) || defined(__mips_n64)
 #define	MIPS_RDRW64_COP0(n,r)					\
 static __inline uint64_t					\
@@ -132,6 +137,7 @@ mips_wr_ ## n (uint64_t a0)					\
 } struct __hack
 
 #if defined(__mips_n64)
+MIPS_RDRW64_COP0(excpc, MIPS_COP_0_EXC_PC);
 MIPS_RDRW64_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
 MIPS_RDRW64_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
 MIPS_RDRW64_COP0(entryhi, MIPS_COP_0_TLB_HI);
@@ -208,6 +214,9 @@ MIPS_RDRW32_COP0(count, MIPS_COP_0_COUNT);
 MIPS_RDRW32_COP0(index, MIPS_COP_0_TLB_INDEX);
 MIPS_RDRW32_COP0(wired, MIPS_COP_0_TLB_WIRED);
 MIPS_RDRW32_COP0(cause, MIPS_COP_0_CAUSE);
+#if !defined(__mips_n64)
+MIPS_RDWR32_COP0(excpc, MIPS_COP_0_EXC_PC);
+#endif
 MIPS_RDRW32_COP0(status, MIPS_COP_0_STATUS);
 
 /* XXX: Some of these registers are specific to MIPS32. */
