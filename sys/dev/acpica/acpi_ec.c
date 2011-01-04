@@ -685,10 +685,12 @@ EcGpeQueryHandler(void *Context)
 	device_printf(sc->ec_dev, "evaluation of query method %s failed: %s\n",
 	    qxx, AcpiFormatException(Status));
     }
+
+    /* Reenable runtime GPE if its execution was deferred. */
     if (sci_enqueued) {
 	Status = AcpiFinishGpe(sc->ec_gpehandle, sc->ec_gpebit);
 	if (ACPI_FAILURE(Status))
-	    device_printf(sc->ec_dev, "clearing GPE failed: %s\n",
+	    device_printf(sc->ec_dev, "reenabling runtime GPE failed: %s\n",
 		AcpiFormatException(Status));
     }
 }
