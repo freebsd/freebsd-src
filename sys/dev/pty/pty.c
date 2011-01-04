@@ -142,7 +142,8 @@ pty_modevent(module_t mod, int type, void *data)
         switch(type) {
         case MOD_LOAD: 
 		EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
-		make_dev(&ptmx_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "ptmx");
+		make_dev_credf(MAKEDEV_ETERNAL_KLD, &ptmx_cdevsw, 0, NULL,
+		    UID_ROOT, GID_WHEEL, 0666, "ptmx");
 		break;
 	case MOD_SHUTDOWN:
 		break;
