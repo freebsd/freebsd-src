@@ -49,7 +49,7 @@ depending on the options for the information presented.
 .It Xo
 .Bk -words
 .Nm
-.Op Fl AaLnSWx
+.Op Fl AaLnSTWx
 .Op Fl f Ar protocol_family | Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -88,6 +88,10 @@ but show ports symbolically.
 If
 .Fl x
 is present display full socket buffer statistics for each internet socket.
+When
+.Fl T
+is present, display information from the TCP control block, including
+retransmits, out-of-order packets received, and zero-sized windows advertised.
 .It Xo
 .Bk -words
 .Nm
