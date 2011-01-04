@@ -133,9 +133,9 @@ parseint(const char *str, const char *errname)
 	errno = 0;
 	res = strtol(str, &endp, 10);
 	if (errno != 0 || endp == str || *endp != '\0')
-		err(1, "%s must be a number", errname);
+		errx(1, "%s must be a number", errname);
 	if (res >= INT_MAX)
-		err(1, "Integer overflow parsing %s", errname);
+		errx(1, "Integer overflow parsing %s", errname);
 	return (res);
 }
 
