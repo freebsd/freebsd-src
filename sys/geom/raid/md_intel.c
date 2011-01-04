@@ -608,14 +608,14 @@ g_raid_md_create_intel(struct g_raid_md_object *md, struct g_class *mp,
  * ataraid(7) code always uses the last 16 characters of the label to
  * store into the Intel meta format.  Generalize this to N characters
  * since that's easy.  Labels can be up to 20 characters for SATA drives
- * and up 251 characters for SAS drives.  Allocate a little extra to be
- * safe.
+ * and up 251 characters for SAS drives.  Since intel controllers don't
+ * support SAS drives, just stick with the SATA limits for stack friendliness.
  */
 
 static int
 g_raid_md_get_label(struct g_consumer *cp, char *serial, int serlen)
 {
-	char serial_buffer[256];
+	char serial_buffer[24];
 	int len, error;
 	
 	len = sizeof(serial_buffer);
