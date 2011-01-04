@@ -522,7 +522,6 @@ static struct ib_ucontext *mlx4_ib_alloc_ucontext(struct ib_device *ibdev,
 
 	resp.qp_tab_size      = dev->dev->caps.num_qps;
 
-#ifdef __linux__
 	if (mlx4_wc_enabled()) {
 		resp.bf_reg_size      = dev->dev->caps.bf_reg_size;
 		resp.bf_regs_per_page = dev->dev->caps.bf_regs_per_page;
@@ -530,10 +529,6 @@ static struct ib_ucontext *mlx4_ib_alloc_ucontext(struct ib_device *ibdev,
 		resp.bf_reg_size      = 0;
 		resp.bf_regs_per_page = 0;
 	}
-#else
-	resp.bf_reg_size      = 0;
-	resp.bf_regs_per_page = 0;
-#endif
 
 	context = kzalloc(sizeof *context, GFP_KERNEL);
 	if (!context)

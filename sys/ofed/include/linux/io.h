@@ -29,6 +29,8 @@
 #ifndef	_LINUX_IO_H_
 #define	_LINUX_IO_H_
 
+#include <machine/vm.h>
+
 static inline uint32_t
 __raw_readl(const volatile void *addr)
 {
@@ -86,7 +88,12 @@ writew(uint16_t b, void *addr)
         *(volatile uint16_t *)addr = b;
 }
 
-void *ioremap(vm_paddr_t phys_addr, unsigned long size);
+void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
+#define	ioremap_nocache(addr, size)					\
+    _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHED)
+#define	ioremap_wc(addr, size)						\
+    _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_COMBINING)
+#define	ioremap	ioremap_nocache
 void iounmap(void *addr);
 
 #define	memset_io(a, b, c)	memset((a), (b), (c))

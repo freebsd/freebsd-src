@@ -46,8 +46,8 @@
 
 #include <vm/vm.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_pageout.h>
-
 
 #include "uverbs.h"
 
@@ -112,6 +112,7 @@ static void dma_unmap_sg_ia64(struct ib_device *ibdev,
 
 static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int dirty)
 {
+#ifdef __linux__
 	struct ib_umem_chunk *chunk, *tmp;
 	int i;
 
@@ -119,17 +120,40 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 		ib_dma_unmap_sg_attrs(dev, chunk->page_list,
 				      chunk->nents, DMA_BIDIRECTIONAL, &chunk->attrs);
 		for (i = 0; i < chunk->nents; ++i) {
-#ifdef __linux__
-			/* XXX I need to set the proper page flags here too. */
 			struct page *page = sg_page(&chunk->page_list[i]);
 			if (umem->writable && dirty)
 				set_page_dirty_lock(page);
 			put_page(page);
-#endif
 		}
-
 		kfree(chunk);
 	}
+#else
+	struct ib_umem_chunk *chunk, *tmp;
+	vm_object_t object;
+	int i;
+
+	object = NULL;
+	list_for_each_entry_safe(chunk, tmp, &umem->chunk_list, list) {
+		ib_dma_unmap_sg_attrs(dev, chunk->page_list,
+				      chunk->nents, DMA_BIDIRECTIONAL, &chunk->attrs);
+		for (i = 0; i < chunk->nents; ++i) {
+			struct page *page = sg_page(&chunk->page_list[i]);
+			if (umem->writable && dirty) {
+				if (object && object != page->object)
+					VM_OBJECT_UNLOCK(object);
+				if (object != page->object) {
+					object = page->object;
+					VM_OBJECT_LOCK(object);
+				}
+				vm_page_dirty(page);
+			}
+		}
+		kfree(chunk);
+	}
+	if (object)
+		VM_OBJECT_UNLOCK(object);
+
+#endif
 }
 
 /**
@@ -469,7 +493,6 @@ void ib_umem_release(struct ib_umem *umem)
 	int error;
 
 	__ib_umem_release(umem->context->device, umem, 1);
-
 	if (umem->context->closing) {
 		kfree(umem);
 		return;

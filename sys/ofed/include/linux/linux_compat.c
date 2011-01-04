@@ -436,6 +436,8 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 			    PAGE_SIZE, nprot, *offset, curthread->td_ucred);
 		        if (*object == NULL)
                			 return (EINVAL);
+			if (vma.vm_page_prot != VM_MEMATTR_DEFAULT)
+				pmap_page_set_memattr(m, vma.vm_page_prot);
 		}
 	} else
 		error = ENODEV;
@@ -578,12 +580,12 @@ static struct iomaphd iomaphead[IOMAP_HASH_SIZE];
 static struct mtx iomaplock;
 
 void *
-ioremap(vm_paddr_t phys_addr, unsigned long size)
+_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr)
 {
 	struct iomap *iomap;
 	void *addr;
 
-	addr = pmap_mapdev(phys_addr, size);
+	addr = pmap_mapdev_attr(phys_addr, size, attr);
 	if (addr == NULL)
 		return (NULL);
 	iomap = kmalloc(sizeof(*iomap), GFP_KERNEL);

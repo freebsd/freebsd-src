@@ -37,11 +37,8 @@ struct io_mapping;
 static inline struct io_mapping *
 io_mapping_create_wc(resource_size_t base, unsigned long size)
 {
-	struct io_mapping *map;
 
-	map = ioremap(base, size);
-	/* XXX Set write combine. */
-	return (map);
+	return ioremap_wc(base, size);
 }
 
 static inline void

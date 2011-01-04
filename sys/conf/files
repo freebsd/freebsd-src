@@ -2893,9 +2893,9 @@ ofed/drivers/infiniband/hw/mlx4/qp.c		optional mlx4		\
 ofed/drivers/infiniband/hw/mlx4/srq.c		optional mlx4		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
-#ofed/drivers/infiniband/hw/mlx4/wc.c		optional mlx4		\
-#	no-depend obj-prefix "mlx4ib_"					\
-#	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/wc.c		optional mlx4		\
+	no-depend obj-prefix "mlx4ib_"					\
+	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/net/mlx4/alloc.c			optional mlx4		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
