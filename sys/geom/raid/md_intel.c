@@ -603,6 +603,33 @@ g_raid_md_create_intel(struct g_raid_md_object *md, struct g_class *mp,
 	return (G_RAID_MD_TASTE_NEW);
 }
 
+/*
+ * Return the last N characters of the serial label.  The Linux and
+ * ataraid(7) code always uses the last 16 characters of the label to
+ * store into the Intel meta format.  Generalize this to N characters
+ * since that's easy.  Labels can be up to 20 characters for SATA drives
+ * and up 251 characters for SAS drives.  Allocate a little extra to be
+ * safe.
+ */
+
+static int
+g_raid_md_get_label(struct g_consumer *cp, char *serial, int serlen)
+{
+	char serial_buffer[256];
+	int len, error;
+	
+	len = sizeof(serial_buffer);
+	error = g_io_getattr("GEOM::ident", cp, &len, serial_buffer);
+	if (error != 0)
+		return (error);
+	if (len > serlen)
+		len -= serlen;
+	else
+		len = 0;
+	strncpy(serial, serial_buffer + len, serlen);
+	return (0);
+}
+
 static int
 g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
                               struct g_consumer *cp, struct g_geom **gp)
@@ -615,7 +642,7 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	struct intel_raid_conf *meta;
 	struct g_raid_md_intel_perdisk *pd;
 	struct g_geom *geom;
-	int error, serial_len, disk_pos, result;
+	int error, disk_pos, result;
 	char serial[INTEL_SERIAL_LEN];
 	char name[16];
 
@@ -628,8 +655,7 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	if (g_access(cp, 1, 0, 0) != 0)
 		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
-	serial_len = sizeof(serial);
-	error = g_io_getattr("GEOM::ident", cp, &serial_len, serial);
+	error = g_raid_md_get_label(cp, serial, sizeof(serial));
 	if (error != 0) {
 		G_RAID_DEBUG(1, "Cannot get serial number from %s (error=%d).",
 		    pp->name, error);
@@ -643,7 +669,7 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Check this disk position in obtained metadata. */
 	for (disk_pos = 0; disk_pos < meta->total_disks; disk_pos++) {
-		if (strncmp(meta->disk[disk_pos].serial, serial, serial_len)) {
+		if (strncmp(meta->disk[disk_pos].serial, serial, sizeof(serial))) {
 			G_RAID_DEBUG(1, "Intel serial mismatch '%s' '%s'",
 			    meta->disk[disk_pos].serial, serial);
 			continue;
@@ -767,7 +793,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 	const char *verb, *volname, *levelname, *diskname;
 	int *nargs;
 	uint64_t size, sectorsize;
-	int numdisks, i, level, qual, serial_len;
+	int numdisks, i, level, qual;
 	int error;
 
 	sc = md->mdo_softc;
@@ -862,9 +888,8 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 
 			g_topology_unlock();
 
-			serial_len = sizeof(meta->disk[i].serial);
-			error = g_io_getattr("GEOM::ident", cp,
-			    &serial_len, &meta->disk[i].serial[0]);
+			error = g_raid_md_get_label(cp,
+			    &meta->disk[i].serial[0], INTEL_SERIAL_LEN);
 			if (error != 0) {
 				gctl_error(req,
 				    "Can't get serial for provider '%s'.",
