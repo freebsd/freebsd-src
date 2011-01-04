@@ -329,7 +329,6 @@ kthread_exit(void)
 		PROC_UNLOCK(p);
 		rw_wunlock(&tidhash_lock);
 		kproc_exit(0);
-		/* NOTREACHED */
 	}
 	LIST_REMOVE(curthread, td_hash);
 	rw_wunlock(&tidhash_lock);
