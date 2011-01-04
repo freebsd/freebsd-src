@@ -876,8 +876,8 @@ static	struct jfreeblk *newjfreeblk(struct freeblks *, ufs_lbn_t,
 	    ufs2_daddr_t, int);
 static	struct jfreefrag *newjfreefrag(struct freefrag *, struct inode *,
 	    ufs2_daddr_t, long, ufs_lbn_t);
-static	struct freework *newfreework(struct freeblks *, struct freework *, 
-	    ufs_lbn_t, ufs2_daddr_t, int, int);
+static	struct freework *newfreework(struct ufsmount *, struct freeblks *,
+	    struct freework *, ufs_lbn_t, ufs2_daddr_t, int, int);
 static	void jwait(struct worklist *wk);
 static	struct inodedep *inodedep_lookup_ip(struct inode *);
 static	int bmsafemap_rollbacks(struct bmsafemap *);
@@ -3367,7 +3367,8 @@ free_freedep(freedep)
  * is visible outside of softdep_setup_freeblocks().
  */
 static struct freework *
-newfreework(freeblks, parent, lbn, nb, frags, journal)
+newfreework(ump, freeblks, parent, lbn, nb, frags, journal)
+	struct ufsmount *ump;
 	struct freeblks *freeblks;
 	struct freework *parent;
 	ufs_lbn_t lbn;
@@ -3384,7 +3385,8 @@ newfreework(freeblks, parent, lbn, nb, frags, journal)
 	freework->fw_lbn = lbn;
 	freework->fw_blkno = nb;
 	freework->fw_frags = frags;
-	freework->fw_ref = 0;
+	freework->fw_ref = ((UFSTOVFS(ump)->mnt_kern_flag & MNTK_SUJ) == 0 ||
+	    lbn >= -NXADDR) ? 0 : NINDIR(ump->um_fs) + 1;
 	freework->fw_off = 0;
 	LIST_INIT(&freework->fw_jwork);
 
@@ -5199,15 +5201,16 @@ softdep_setup_freeblocks(ip, length, flags)
 				continue;
 			frags = sblksize(fs, oldsize, i);
 			frags = numfrags(fs, frags);
-			newfreework(freeblks, NULL, i, blkno, frags, needj);
+			newfreework(ip->i_ump, freeblks, NULL, i, blkno, frags,
+			    needj);
 		}
 		for (i = 0, tmpval = NINDIR(fs), lbn = NDADDR; i < NIADDR;
 		    i++, tmpval *= NINDIR(fs)) {
 			blkno = DIP(ip, i_ib[i]);
 			DIP_SET(ip, i_ib[i], 0);
-			if (blkno) 
-				newfreework(freeblks, NULL, -lbn - i, blkno,
-				    fs->fs_frag, needj);
+			if (blkno)
+				newfreework(ip->i_ump, freeblks, NULL, -lbn - i,
+				    blkno, fs->fs_frag, needj);
 			lbn += tmpval;
 		}
 		UFS_LOCK(ip->i_ump);
@@ -5225,8 +5228,8 @@ softdep_setup_freeblocks(ip, length, flags)
 				continue;
 			frags = sblksize(fs, oldextsize, i);
 			frags = numfrags(fs, frags);
-			newfreework(freeblks, NULL, -1 - i, blkno, frags,
-			    needj);
+			newfreework(ip->i_ump, freeblks, NULL, -1 - i, blkno,
+			    frags, needj);
 		}
 	}
 	if (LIST_EMPTY(&freeblks->fb_jfreeblkhd))
@@ -6141,9 +6144,6 @@ indir_trunc(freework, dbn, lbn)
 		bap2 = (ufs2_daddr_t *)bp->b_data;
 	}
 
-	if (needj)
-		freework->fw_ref += NINDIR(fs) + 1;
-
 	/*
 	 * Reclaim indirect blocks which never made it to disk.
 	 */
@@ -6178,7 +6178,7 @@ indir_trunc(freework, dbn, lbn)
 			ufs_lbn_t nlbn;
 
 			nlbn = (lbn + 1) - (i * lbnadd);
-			nfreework = newfreework(freeblks, freework,
+			nfreework = newfreework(ump, freeblks, freework,
 			    nlbn, nb, fs->fs_frag, 0);
 			WORKLIST_INSERT_UNLOCKED(&nfreework->fw_jwork, wk);
 			freedeps++;
@@ -6225,7 +6225,7 @@ indir_trunc(freework, dbn, lbn)
 
 			nlbn = (lbn + 1) - (i * lbnadd);
 			if (needj != 0) {
-				nfreework = newfreework(freeblks, freework,
+				nfreework = newfreework(ump, freeblks, freework,
 				    nlbn, nb, fs->fs_frag, 0);
 				freedeps++;
 			}
