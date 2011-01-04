@@ -2153,7 +2153,7 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 				}
 			}
 			ENDXFER;
-			reply(226, msg);
+			reply(226, "%s", msg);
 			return (0);
 		}
 
