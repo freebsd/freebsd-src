@@ -246,11 +246,6 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 			error = _thr_sleep(curthread, cvp->__clock_id, abstime);
 		}
 
-		if (curthread->wchan == NULL) {
-			error = 0;
-			goto out;
-		}
-
 		_sleepq_lock(cvp);
 		if (curthread->wchan == NULL) {
 			error = 0;
@@ -274,7 +269,6 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 		}
 	}
 	_sleepq_unlock(cvp);
-out:
 	curthread->mutex_obj = NULL;
 	_mutex_cv_lock(mp, recurse);
 	return (error);
