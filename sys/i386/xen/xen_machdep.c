@@ -253,8 +253,7 @@ _xen_flush_queue(void)
 
 #ifdef INVARIANTS
 	if (__predict_true(gdtset))
-		KASSERT(curthread->td_critnest > 0,
-		    ("xen queue flush should be in a critical section"));
+		CRITICAL_ASSERT(curthread);
 #endif
 
 	XPQ_IDX = 0;
