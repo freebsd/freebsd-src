@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ada.h"
+
 #include <sys/param.h>
 
 #ifdef _KERNEL
@@ -125,11 +127,19 @@ struct ada_softc {
 	int	 outstanding_cmds;
 	int	 trim_max_ranges;
 	int	 trim_running;
+#ifdef ADA_TEST_FAILURE
+	int      force_read_error;
+	int      force_write_error;
+	int      periodic_read_error;
+        int      periodic_read_count;
+#endif
 	struct	 disk_params params;
 	struct	 disk *disk;
 	struct task		sysctl_task;
+#ifdef ADA_TEST_FAILURE
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
+#endif
 	struct callout		sendordered_c;
 	struct trim_request	trim_req;
 };
@@ -156,7 +166,12 @@ static	dumper_t	adadump;
 static	periph_init_t	adainit;
 static	void		adaasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
+#ifdef ADA_TEST_FAILURE
 static	void		adasysctlinit(void *context, int pending);
+static	int		adaforcereaderrsysctl(SYSCTL_HANDLER_ARGS);
+static	int		adaforcewriteerrsysctl(SYSCTL_HANDLER_ARGS);
+static	int		adaperiodicreaderrsysctl(SYSCTL_HANDLER_ARGS);
+#endif
 static	periph_ctor_t	adaregister;
 static	periph_dtor_t	adacleanup;
 static	periph_start_t	adastart;
@@ -549,6 +564,7 @@ adacleanup(struct cam_periph *periph)
 	xpt_print(periph->path, "removing device entry\n");
 	cam_periph_unlock(periph);
 
+#ifdef ADA_TEST_FAILURE
 	/*
 	 * If we can't free the sysctl tree, oh well...
 	 */
@@ -556,6 +572,7 @@ adacleanup(struct cam_periph *periph)
 	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
 		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
+#endif
 
 	disk_destroy(softc->disk);
 	callout_drain(&softc->sendordered_c);
@@ -606,6 +623,7 @@ adaasync(void *callback_arg, u_int32_t code,
 	}
 }
 
+#ifdef ADA_TEST_FAILURE
 static void
 adasysctlinit(void *context, int pending)
 {
@@ -632,8 +650,65 @@ adasysctlinit(void *context, int pending)
 		return;
 	}
 
+	/*
+	 * Add a 'door bell' sysctl which allows one to set it from userland
+	 * and cause something bad to happen.  For the moment, we only allow
+	 * whacking the next read or write.
+	 */
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "force_read_error", CTLTYPE_INT | CTLFLAG_RW,
+		&softc->force_read_error, 0, adaforcereaderrsysctl, "I",
+		"Force a read error for the next N reads.");
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "force_write_error", CTLTYPE_INT | CTLFLAG_RW,
+		&softc->force_write_error, 0, adaforcewriteerrsysctl, "I",
+		"Force a write error for the next N writes.");
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "periodic_read_error", CTLTYPE_INT | CTLFLAG_RW,
+		&softc->periodic_read_error, 0, adaperiodicreaderrsysctl, "I",
+		"Force a read error every N reads (don't set too low).");
 	cam_periph_release(periph);
 }
+
+static int
+adaforcereaderrsysctl(SYSCTL_HANDLER_ARGS)
+{
+	int error, value;
+
+	value = *(int *)arg1;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	*(int *)arg1 = value;
+	return (0);
+}
+
+static int
+adaforcewriteerrsysctl(SYSCTL_HANDLER_ARGS)
+{
+	int error, value;
+
+	value = *(int *)arg1;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	*(int *)arg1 = value;
+	return (0);
+}
+
+static int
+adaperiodicreaderrsysctl(SYSCTL_HANDLER_ARGS)
+{
+	int error, value;
+
+	value = *(int *)arg1;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	*(int *)arg1 = value;
+	return (0);
+}
+#endif
 
 static cam_status
 adaregister(struct cam_periph *periph, void *arg)
@@ -712,7 +787,9 @@ adaregister(struct cam_periph *periph, void *arg)
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
+#ifdef ADA_TEST_FAILURE
 	TASK_INIT(&softc->sysctl_task, 0, adasysctlinit, periph);
+#endif
 
 	/*
 	 * Register this media as a disk
@@ -778,6 +855,12 @@ adaregister(struct cam_periph *periph, void *arg)
 		dp->secsize, dp->heads,
 		dp->secs_per_track, dp->cylinders);
 	xpt_announce_periph(periph, announce_buf);
+	/*
+	 * Create our sysctl variables, now that we know
+	 * we have successfully attached.
+	 * XXX: da code does a cam_periph_acquire(periph) here -- why?.
+	 */
+	taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
 	/*
 	 * Add async callbacks for bus reset and
 	 * bus device reset calls.  I don't bother
@@ -900,7 +983,45 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		{
 			uint64_t lba = bp->bio_pblkno;
 			uint16_t count = bp->bio_bcount / softc->params.secsize;
+#ifdef ADA_TEST_FAILURE
+			int fail = 0;
 
+			/*
+			 * Support the failure ioctls.  If the command is a
+			 * read, and there are pending forced read errors, or
+			 * if a write and pending write errors, then fail this
+			 * operation with EIO.  This is useful for testing
+			 * purposes.  Also, support having every Nth read fail.
+			 *
+			 * This is a rather blunt tool.
+			 */
+			if (bp->bio_cmd == BIO_READ) {
+				if (softc->force_read_error) {
+					softc->force_read_error--;
+					fail = 1;
+				}
+				if (softc->periodic_read_error > 0) {
+					if (++softc->periodic_read_count >=
+					    softc->periodic_read_error) {
+						softc->periodic_read_count = 0;
+						fail = 1;
+					}
+				}
+			} else {
+				if (softc->force_write_error) {
+					softc->force_write_error--;
+					fail = 1;
+				}
+			}
+			if (fail) {
+				bp->bio_error = EIO;
+				bp->bio_flags |= BIO_ERROR;
+				biodone(bp);
+				xpt_release_ccb(start_ccb);
+				adaschedule(periph);
+				return;
+			}
+#endif
 			cam_fill_ataio(ataio,
 			    ada_retry_count,
 			    adadone,
