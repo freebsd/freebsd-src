@@ -2482,8 +2482,11 @@ bge_dma_alloc(struct bge_softc *sc)
 	 * restriction and limit DMA address space to 32bit.  It's not
 	 * clear whether there is another hardware issue here.
 	 */
+	lowaddr = BUS_SPACE_MAXADDR;
+	if ((sc->bge_flags & BGE_FLAG_40BIT_BUG) != 0)
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev),
-	    1, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
+	    1, 0, lowaddr, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
 	    0, NULL, NULL, &sc->bge_cdata.bge_buffer_tag);
 	if (error != 0) {
