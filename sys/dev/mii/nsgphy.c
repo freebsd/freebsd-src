@@ -140,11 +140,15 @@ nsgphy_attach(device_t dev)
 	mii_phy_reset(sc);
 
 	/*
-	 * NB: the PHY has the 10baseT BMSR bits hard-wired to 0,
-	 * even though it supports 10baseT.
+	 * NB: the PHY has the 10BASE-T BMSR bits hard-wired to 0,
+	 * even though it supports 10BASE-T.
 	 */
 	sc->mii_capabilities = (PHY_READ(sc, MII_BMSR) |
-	    (BMSR_10TFDX | BMSR_10THDX)) & ma->mii_capmask;
+	    BMSR_10TFDX | BMSR_10THDX) & ma->mii_capmask;
+	/*
+	 * Note that as documented manual 1000BASE-T modes of DP83865 only
+	 * work together with other National Semiconductor PHYs.
+	 */
 	if (sc->mii_capabilities & BMSR_EXTSTAT)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 
