@@ -66,7 +66,7 @@ INLINE_LIMIT?=	15000
 #
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-mcmodel=kernel -mno-red-zone \
-		-mfpmath=387 -mno-sse -mno-sse2 -mno-sse3 -mno-mmx -mno-3dnow \
+		-mfpmath=387 -mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
 		-msoft-float -fno-asynchronous-unwind-tables
 INLINE_LIMIT?=	8000
 .endif
