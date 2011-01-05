@@ -5365,9 +5365,7 @@ ppc64_elf_gc_sweep_hook (bfd *abfd, struct bfd_link_info *info,
 	      for (ent = h->plt.plist; ent != NULL; ent = ent->next)
 		if (ent->addend == rel->r_addend)
 		  break;
-	      if (ent == NULL)
-		abort ();
-	      if (ent->plt.refcount > 0)
+	      if (ent != NULL && ent->plt.refcount > 0)
 		ent->plt.refcount -= 1;
 	    }
 	  break;
