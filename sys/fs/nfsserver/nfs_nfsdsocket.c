@@ -498,7 +498,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 	u_char tag[NFSV4_SMALLSTR + 1], *tagstr;
 	vnode_t vp, nvp, savevp;
 	struct nfsrvfh fh;
-	mount_t mp, savemp;
+	mount_t mp, savemp, temp_mp = NULL;
 	struct ucred *credanon;
 	struct nfsexstuff nes, vpnes, savevpnes;
 	static u_int64_t compref = 0;
@@ -837,7 +837,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			}
 			VREF(vp);
 			if (nfsv4_opflag[op].modifyfs)
-				NFS_STARTWRITE(NULL, &mp);
+				vn_start_write(vp, &temp_mp, V_WAIT);
 			error = (*(nfsrv4_ops1[op]))(nd, isdgram, vp,
 			    &nvp, (fhandle_t *)fh.nfsrvfh_data, p, &vpnes);
 			if (!error && !nd->nd_repstat) {
@@ -871,7 +871,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				    vrele(nvp);
 			}
 			if (nfsv4_opflag[op].modifyfs)
-				NFS_ENDWRITE(mp);
+				vn_finished_write(temp_mp);
 		    } else if (nfsv4_opflag[op].retfh == 2) {
 			if (vp == NULL || savevp == NULL) {
 				nd->nd_repstat = NFSERR_NOFILEHANDLE;
@@ -881,7 +881,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				break;
 			}
 			if (nfsv4_opflag[op].modifyfs)
-				NFS_STARTWRITE(NULL, &mp);
+				vn_start_write(savevp, &temp_mp, V_WAIT);
 			if (vn_lock(savevp, LK_EXCLUSIVE) == 0) {
 				VREF(vp);
 				VREF(savevp);
@@ -890,14 +890,15 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			} else
 				nd->nd_repstat = NFSERR_PERM;
 			if (nfsv4_opflag[op].modifyfs)
-				NFS_ENDWRITE(mp);
+				vn_finished_write(temp_mp);
 		    } else {
 			if (nfsv4_opflag[op].retfh != 0)
 				panic("nfsrvd_compound");
 			if (nfsv4_opflag[op].needscfh) {
 				if (vp != NULL) {
 					if (nfsv4_opflag[op].modifyfs)
-						NFS_STARTWRITE(NULL, &mp);
+						vn_start_write(vp, &temp_mp,
+						    V_WAIT);
 					if (vn_lock(vp, nfsv4_opflag[op].lktype)
 					    == 0)
 						VREF(vp);
@@ -921,7 +922,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					error = (*(nfsrv4_ops0[op]))(nd,
 					    isdgram, vp, p, &vpnes);
 				if (nfsv4_opflag[op].modifyfs)
-					NFS_ENDWRITE(mp);
+					vn_finished_write(temp_mp);
 			} else {
 				error = (*(nfsrv4_ops0[op]))(nd, isdgram,
 				    NULL, p, &vpnes);
