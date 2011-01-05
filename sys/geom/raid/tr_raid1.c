@@ -164,24 +164,34 @@ g_raid_tr_stop_raid1(struct g_raid_tr_object *tr)
 	return (0);
 }
 
+/*
+ * Select the disk to do the reads to.  For now, we just pick the
+ * first one in the list that's active always.  This ensures we favor
+ * one disk on boot, and have more deterministic recovery from the
+ * weird edge cases of power failure.  In the future, we can imagine
+ * policies that go for the least loaded disk to improve performance,
+ * or we need to limit reads to a disk during some kind of error
+ * recovery with that disk.
+ */
+static struct g_raid_subdisk *
+g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol)
+{
+	int i;
+
+	for (i = 0; i < vol->v_disks_count; i++)
+		if (vol->v_subdisks[i].sd_state == G_RAID_SUBDISK_S_ACTIVE)
+			return (&vol->v_subdisks[i]);
+	return (NULL);
+}
+
 static void
 g_raid_tr_iostart_raid1_read(struct g_raid_tr_object *tr, struct bio *bp)
 {
-	struct g_raid_softc *sc;
-	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
 	struct bio *cbp;
-	int i;
 
-	vol = tr->tro_volume;
-	sc = vol->v_softc;
-	sd = NULL;
-	for (i = 0; i < vol->v_disks_count; i++) {
-		if (vol->v_subdisks[i].sd_state != G_RAID_SUBDISK_S_ACTIVE)
-			continue;
-		sd = &vol->v_subdisks[i];
-	}
-	KASSERT(sd != NULL, ("No active disks in volume %s.", vol->v_name));
+	sd = g_raid_tr_raid1_select_read_disk(tr->tro_volume);
+	KASSERT(sd != NULL, ("No active disks in volume %s.", tr->tro_volume->v_name));
 
 	cbp = g_clone_bio(bp);
 	if (cbp == NULL) {
@@ -283,6 +293,53 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 
 	pbp = bp->bio_parent;
 	pbp->bio_inbed++;
+	if ((pbp->bio_flags & BIO_ERROR) && pbp->bio_cmd == BIO_READ &&
+	    pbp->bio_children == 1) {
+		struct bio *cbp;
+		struct g_raid_subdisk *nsd;
+		struct g_raid_volume *vol;
+		int i;
+
+		/*
+		 * Retry the error on the other disk drive, if available,
+		 * before erroring out the read.  Do we need to mark the
+		 * 'sd' disk as degraded somehow?
+		 */
+		vol = tr->tro_volume;
+		sd->sd_read_errs++;
+		/*
+		 * XXX Check threshold of sd_read_errs here to declare 
+		 * this subdisk bad?
+		 */
+		for (nsd = NULL, i = 0; i < vol->v_disks_count; i++) {
+			nsd = &vol->v_subdisks[i];
+			if (sd == nsd)
+				continue;
+			if (nsd->sd_state != G_RAID_SUBDISK_S_ACTIVE)
+				continue;
+			cbp = g_clone_bio(pbp);
+			if (cbp == NULL)
+				break;
+			g_raid_subdisk_iostart(nsd, cbp);
+			return;
+		}
+		/*
+		 * something happened, so we can't retry.  Return the
+		 * original error by falling through.
+		 */
+	}
+	/*
+	 * If it was a read, and bio_children is 2, then we just
+	 * recovered the data from the second drive.  We should try to
+	 * write that data to the first drive if sector remapping is
+	 * enabled.  A write should put the data in a new place on the
+	 * disk, remapping the bad sector.  Do we need to do that by
+	 * queueing a request to the main worker thread?  It doesn't
+	 * affect the return code of this current read, and can be
+	 * done at our liesure.
+	 *
+	 * XXX TODO
+	 */
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
 		g_raid_iodone(pbp, bp->bio_error);

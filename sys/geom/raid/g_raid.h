@@ -137,6 +137,7 @@ struct g_raid_subdisk {
 	off_t			 sd_size;	/* Size on the disk. */
 	u_int			 sd_pos;	/* Position in volume. */
 	u_int			 sd_state;	/* Subdisk state. */
+	int			 sd_read_errs;  /* Count of the read errors */
 	LIST_ENTRY(g_raid_subdisk)	 sd_next; /* Next subdisk on disk. */
 };
 
