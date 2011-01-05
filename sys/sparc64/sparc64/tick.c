@@ -222,7 +222,7 @@ tick_hardclock(struct trapframe *tf)
 	adj = PCPU_GET(tickadj);
 	s = intr_disable();
 	tick = rd(tick);
-	wr(tick_cmpr, tick + tick_increment - adj, 0);
+	wrtickcmpr(tick + tick_increment - adj, 0);
 	intr_restore(s);
 	tick_hardclock_common(tf, tick, adj);
 	critical_exit();
@@ -238,7 +238,7 @@ tick_hardclock_bbwar(struct trapframe *tf)
 	adj = PCPU_GET(tickadj);
 	s = intr_disable();
 	tick = rd(tick);
-	wrtickcmpr(tick + tick_increment - adj, 0);
+	wrtickcmpr_bbwar(tick + tick_increment - adj, 0);
 	intr_restore(s);
 	tick_hardclock_common(tf, tick, adj);
 	critical_exit();
