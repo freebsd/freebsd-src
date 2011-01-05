@@ -157,6 +157,7 @@ struct g_raid_md_intel_object {
 	struct callout		 mdio_start_co;	/* STARTING state timer. */
 	int			 mdio_disks_present;
 	int			 mdio_started;
+	struct root_hold_token	*mdio_rootmount; /* Root mount delay token. */
 };
 
 static g_raid_md_create_t g_raid_md_create_intel;
@@ -486,6 +487,7 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_intel_object *)md;
 	meta = mdi->mdio_meta;
+
 	/* Create volumes */
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
@@ -510,9 +512,14 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 		vol->v_sectorsize = 512; //ZZZ
 		g_raid_start_volume(vol);
 	}
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH(disk, &sc->sc_disks, d_next)
 		g_raid_md_intel_start_disk(disk);
-	}
+
+	mdi->mdio_started = 1;
+	callout_stop(&mdi->mdio_start_co);
+	G_RAID_DEBUG(1, "root_mount_rel %p", mdi->mdio_rootmount);
+	root_mount_rel(mdi->mdio_rootmount);
+	mdi->mdio_rootmount = NULL;
 }
 
 static void
@@ -553,11 +560,8 @@ g_raid_md_intel_new_disk(struct g_raid_disk *disk)
 	if (mdi->mdio_started) {
 		g_raid_md_intel_start_disk(disk);
 	} else {
-		if (mdi->mdio_disks_present == meta->total_disks) {
-			mdi->mdio_started = 1;
-			callout_stop(&mdi->mdio_start_co);
+		if (mdi->mdio_disks_present == meta->total_disks)
 			g_raid_md_intel_start(sc);
-		}
 	}
 }
 
@@ -574,7 +578,6 @@ g_raid_intel_go(void *arg)
 	sx_xlock(&sc->sc_lock);
 	if (!mdi->mdio_started) {
 		G_RAID_DEBUG(0, "Force node %s start due to timeout.", sc->sc_name);
-		mdi->mdio_started = 1;
 		g_raid_md_intel_start(sc);
 	}
 	sx_xunlock(&sc->sc_lock);
@@ -695,6 +698,8 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		callout_init(&mdi->mdio_start_co, 1);
 		callout_reset(&mdi->mdio_start_co, g_raid_start_timeout * hz,
 		    g_raid_intel_go, sc);
+		mdi->mdio_rootmount = root_mount_hold("GRAID-Intel");
+		G_RAID_DEBUG(1, "root_mount_hold %p", mdi->mdio_rootmount);
 	}
 
 	rcp = g_new_consumer(geom);
@@ -920,7 +925,6 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			pd->pd_meta = intel_meta_copy(meta);
 			intel_meta_write(disk->d_consumer, meta);
 		}
-		mdi->mdio_started = 1;
 		g_raid_md_intel_start(sc);
 		return (0);
 	}
@@ -960,6 +964,9 @@ g_raid_md_free_intel(struct g_raid_md_object *md)
 	if (!mdi->mdio_started) {
 		mdi->mdio_started = 0;
 		callout_stop(&mdi->mdio_start_co);
+		G_RAID_DEBUG(1, "root_mount_rel %p", mdi->mdio_rootmount);
+		root_mount_rel(mdi->mdio_rootmount);
+		mdi->mdio_rootmount = NULL;
 	}
 	if (mdi->mdio_meta != NULL) {
 		free(mdi->mdio_meta, M_MD_INTEL);
