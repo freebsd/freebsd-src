@@ -11,8 +11,6 @@ CFLAGS+=	-ffreestanding
 CFLAGS+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
 .endif
-.if ${MACHINE_CPUARCH} == "i386"
-.endif
 .if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float
 .endif
