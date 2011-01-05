@@ -177,7 +177,6 @@ struct tcpcb {
 	u_long	snd_cwnd_prev;		/* cwnd prior to retransmit */
 	u_long	snd_ssthresh_prev;	/* ssthresh prior to retransmit */
 	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
-	int	t_sndzerowin;		/* zero-window updates sent */
 	u_int	t_badrxtwin;		/* window for retransmit recovery */
 	u_char	snd_limited;		/* segments limited transmitted */
 /* SACK related state */
@@ -194,14 +193,15 @@ struct tcpcb {
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
 	struct toe_usrreqs *t_tu;	/* offload operations vector */
-	int	t_sndrexmitpack;	/* retransmit packets sent */
-	int	t_rcvoopack;		/* out-of-order packets received */
 	void	*t_toe;			/* TOE pcb pointer */
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
 
-	int	t_ispare;		/* explicit pad for 64bit alignment */
+	int	t_sndzerowin;	/* zero-window updates sent */
+	uint64_t	t_sndrexmitpack;/* retransmit packets sent */
+	uint64_t	t_rcvoopack;	/* out-of-order packets received */
+
 	void	*t_pspare2[6];		/* 2 CC / 4 TBD */
-	uint64_t _pad[12];		/* 7 UTO, 5 TBD (1-2 CC/RTT?) */
+	uint64_t _pad[10];		/* 7 UTO, 3 TBD (1-2 CC/RTT?) */
 };
 
 /*
