@@ -459,8 +459,10 @@ protopr(u_long off, const char *name, int af1, int proto)
 			printf("%-14.14s ", buf1);
 		} else if (Tflag) {
 			if (istcp)
-				printf("%6u %6u %6u ", tp->t_sndrexmitpack,
-				       tp->t_rcvoopack, tp->t_sndzerowin);
+				printf("%6ju %6ju %6u ", 
+				       (uintmax_t)tp->t_sndrexmitpack,
+				       (uintmax_t)tp->t_rcvoopack, 
+				       tp->t_sndzerowin);
 		} else {
 			printf("%6u %6u ", so->so_rcv.sb_cc, so->so_snd.sb_cc);
 		}
