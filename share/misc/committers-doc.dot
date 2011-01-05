@@ -57,6 +57,8 @@ danger [label="Daniel Gerzo\ndanger@FreeBSD.org\n2006/08/20"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
 ganbold [label="Ganbold Tsagaankhuu\nganbold@FreeBSD.org\n2008/02/26"]
+gjb [label="Glen Barber\ngjb@FreeBSD.org\n2010/09/01"]
+
 jkois [label="Johann Kois\njkois@FreeBSD.org\n2004/11/11"]
 joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
 keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
@@ -111,6 +113,7 @@ keramida -> danger
 keramida -> gabor
 keramida -> ganbold
 keramida -> garys
+keramida -> gjb
 keramida -> pav
 
 marck -> bvs
