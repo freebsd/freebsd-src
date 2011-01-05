@@ -22,10 +22,7 @@ CFLAGS+= -I${.CURDIR}
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-mpreferred-stack-boundary=2
-CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
-.endif
-.if ${MACHINE_CPUARCH} == "i386"
-CFLAGS+=	-mno-sse3
+CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
 .endif
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-Os

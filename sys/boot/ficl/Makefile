@@ -9,10 +9,9 @@ CLEANFILES=	softcore.c testmain testmain.o
 CFLAGS+=	-ffreestanding
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-mpreferred-stack-boundary=2
-CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
+CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
 .endif
 .if ${MACHINE_CPUARCH} == "i386"
-CFLAGS+=	-mno-sse3
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float
