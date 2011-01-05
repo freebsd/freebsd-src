@@ -2971,7 +2971,7 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		}
 		if (tgt_req) {
 			mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, tgt_req);
-			union ccb *ccb = tgt->ccb;
+			union ccb *ccb;
 			uint32_t ct_id;
 
 			/*
