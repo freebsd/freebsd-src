@@ -174,11 +174,13 @@ int fasword32(u_long asi, void *addr, uint32_t *val);
 } while (0)
 
 /*
- * Trick GAS/GCC into compiling access to STICK/STICK_COMPARE independently
+ * Trick GAS/GCC into compiling access to TICK/(S)TICK_COMPARE independently
  * of the selected instruction set.
  */
+#define	rdtickcmpr()		rd(asr23)
 #define	rdstick()		rd(asr24)
 #define	rdstickcmpr()		rd(asr25)
+#define	wrtickcmpr(val, xor)	wr(asr23, (val), (xor))
 #define	wrstick(val, xor)	wr(asr24, (val), (xor))
 #define	wrstickcmpr(val, xor)	wr(asr25, (val), (xor))
 
@@ -191,7 +193,7 @@ int fasword32(u_long asi, void *addr, uint32_t *val);
  * aligned to a quadword boundary in order to ensure that I$ misses won't
  * split them up.
  */
-#define	wrtickcmpr(val, xor) ({						\
+#define	wrtickcmpr_bbwar(val, xor) ({					\
 	__asm __volatile(						\
 	"	ba,pt	%%xcc, 1f ;		"			\
 	"	 nop	 ;			"			\
