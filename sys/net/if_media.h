@@ -36,7 +36,7 @@
  */
 
 #ifndef _NET_IF_MEDIA_H_
-#define _NET_IF_MEDIA_H_
+#define	_NET_IF_MEDIA_H_
 
 /*
  * Prototypes and definitions for BSD/OS-compatible network interface
@@ -144,13 +144,12 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_10G_LR	18		/* 10GBase-LR 1310nm Single-mode */
 #define	IFM_10G_SR	19		/* 10GBase-SR 850nm Multi-mode */
 #define	IFM_10G_CX4	20		/* 10GBase CX4 copper */
-#define IFM_2500_SX	21		/* 2500BaseSX - multi-mode fiber */
-#define IFM_10G_TWINAX	22		/* 10GBase Twinax copper */
-#define IFM_10G_TWINAX_LONG	23	/* 10GBase Twinax Long copper */
-#define IFM_10G_LRM	24		/* 10GBase-LRM 850nm Multi-mode */
-#define IFM_UNKNOWN	25		/* media types not defined yet */
-#define IFM_10G_T	26		/* 10GBase-T - RJ45 */
-
+#define	IFM_2500_SX	21		/* 2500BaseSX - multi-mode fiber */
+#define	IFM_10G_TWINAX	22		/* 10GBase Twinax copper */
+#define	IFM_10G_TWINAX_LONG	23	/* 10GBase Twinax Long copper */
+#define	IFM_10G_LRM	24		/* 10GBase-LRM 850nm Multi-mode */
+#define	IFM_UNKNOWN	25		/* media types not defined yet */
+#define	IFM_10G_T	26		/* 10GBase-T - RJ45 */
 
 /* note 31 is the max! */
 
@@ -232,20 +231,20 @@ uint64_t	ifmedia_baudrate(int);
 /*
  * ATM
  */
-#define IFM_ATM	0x000000a0
-#define IFM_ATM_UNKNOWN		3
-#define IFM_ATM_UTP_25		4
-#define IFM_ATM_TAXI_100	5
-#define IFM_ATM_TAXI_140	6
-#define IFM_ATM_MM_155		7
-#define IFM_ATM_SM_155		8
-#define IFM_ATM_UTP_155		9
-#define IFM_ATM_MM_622		10
-#define IFM_ATM_SM_622		11
+#define	IFM_ATM	0x000000a0
+#define	IFM_ATM_UNKNOWN		3
+#define	IFM_ATM_UTP_25		4
+#define	IFM_ATM_TAXI_100	5
+#define	IFM_ATM_TAXI_140	6
+#define	IFM_ATM_MM_155		7
+#define	IFM_ATM_SM_155		8
+#define	IFM_ATM_UTP_155		9
+#define	IFM_ATM_MM_622		10
+#define	IFM_ATM_SM_622		11
 #define	IFM_ATM_VIRTUAL		12
-#define IFM_ATM_SDH		0x00000100	/* SDH instead of SONET */
-#define IFM_ATM_NOSCRAMB	0x00000200	/* no scrambling */
-#define IFM_ATM_UNASSIGNED	0x00000400	/* unassigned cells */
+#define	IFM_ATM_SDH		0x00000100	/* SDH instead of SONET */
+#define	IFM_ATM_NOSCRAMB	0x00000200	/* no scrambling */
+#define	IFM_ATM_UNASSIGNED	0x00000400	/* unassigned cells */
 
 /*
  * CARP Common Address Redundancy Protocol
@@ -295,22 +294,22 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_STATUS_VALID	IFM_AVALID
 
 /* List of "status valid" bits, for ifconfig(8). */
-#define IFM_STATUS_VALID_LIST {						\
-        IFM_AVALID,							\
-        0								\
+#define	IFM_STATUS_VALID_LIST {						\
+	IFM_AVALID,							\
+	0								\
 }
 
 /*
  * Macros to extract various bits of information from the media word.
  */
-#define	IFM_TYPE(x)         ((x) & IFM_NMASK)
-#define	IFM_SUBTYPE(x)      ((x) & IFM_TMASK)
-#define	IFM_TYPE_OPTIONS(x) ((x) & IFM_OMASK)
-#define	IFM_INST(x)         (((x) & IFM_IMASK) >> IFM_ISHIFT)
-#define	IFM_OPTIONS(x)	((x) & (IFM_OMASK|IFM_GMASK))
-#define	IFM_MODE(x)	    ((x) & IFM_MMASK)
+#define	IFM_TYPE(x)		((x) & IFM_NMASK)
+#define	IFM_SUBTYPE(x)		((x) & IFM_TMASK)
+#define	IFM_TYPE_OPTIONS(x)	((x) & IFM_OMASK)
+#define	IFM_INST(x)		(((x) & IFM_IMASK) >> IFM_ISHIFT)
+#define	IFM_OPTIONS(x)		((x) & (IFM_OMASK | IFM_GMASK))
+#define	IFM_MODE(x)		((x) & IFM_MMASK)
 
-#define	IFM_INST_MAX	IFM_INST(IFM_IMASK)
+#define	IFM_INST_MAX		IFM_INST(IFM_IMASK)
 
 /*
  * Macro to create a media word.
@@ -541,7 +540,7 @@ struct ifmedia_description {
 	{ 0, NULL },							\
 }
 
-# define IFM_SUBTYPE_ATM_DESCRIPTIONS {					\
+#define	IFM_SUBTYPE_ATM_DESCRIPTIONS {					\
 	{ IFM_ATM_UNKNOWN,	"Unknown" },				\
 	{ IFM_ATM_UTP_25,	"UTP/25.6MBit" },			\
 	{ IFM_ATM_TAXI_100,	"Taxi/100MBit" },			\
@@ -555,7 +554,7 @@ struct ifmedia_description {
 	{ 0, NULL },							\
 }
 
-# define IFM_SUBTYPE_ATM_ALIASES {					\
+#define	IFM_SUBTYPE_ATM_ALIASES {					\
 	{ IFM_ATM_UNKNOWN,	"UNKNOWN" },				\
 	{ IFM_ATM_UTP_25,	"UTP-25" },				\
 	{ IFM_ATM_TAXI_100,	"TAXI-100" },				\
@@ -575,7 +574,6 @@ struct ifmedia_description {
 	{ IFM_ATM_UNASSIGNED, "Unassigned" },				\
 	{ 0, NULL },							\
 }
-
 
 #define	IFM_SUBTYPE_SHARED_DESCRIPTIONS {				\
 	{ IFM_AUTO,	"autoselect" },					\
@@ -608,7 +606,7 @@ struct ifmedia_baudrate {
 	uint64_t	ifmb_baudrate;		/* corresponding baudrate */
 };
 
-#define IFM_BAUDRATE_DESCRIPTIONS {					\
+#define	IFM_BAUDRATE_DESCRIPTIONS {					\
 	{ IFM_ETHER | IFM_10_T,		IF_Mbps(10) },			\
 	{ IFM_ETHER | IFM_10_2,		IF_Mbps(10) },			\
 	{ IFM_ETHER | IFM_10_5,		IF_Mbps(10) },			\
@@ -672,10 +670,10 @@ struct ifmedia_status_description {
 	const char *ifms_string[2];
 };
 
-#define IFM_STATUS_DESC(ifms, bit)					\
+#define	IFM_STATUS_DESC(ifms, bit)					\
 	(ifms)->ifms_string[((ifms)->ifms_bit & (bit)) ? 1 : 0]
 
-#define IFM_STATUS_DESCRIPTIONS {					\
+#define	IFM_STATUS_DESCRIPTIONS {					\
 	{ IFM_ETHER,		IFM_AVALID,	IFM_ACTIVE,		\
 	    { "no carrier", "active" } },				\
 	{ IFM_FDDI,		IFM_AVALID,	IFM_ACTIVE,		\
