@@ -121,15 +121,11 @@ static const struct cpu_devs at91_devs[] =
 	DEVICE("at91_ssc",   SSC2,   2),
 	DEVICE("spi",        SPI,    0),
 
-#ifndef SKYEYE_WORKAROUNDS
 	DEVICE("uart",       DBGU,   0),
 	DEVICE("uart",       USART0, 1),
 	DEVICE("uart",       USART1, 2),
 	DEVICE("uart",       USART2, 3),
 	DEVICE("uart",       USART3, 4),
-#else
-	DEVICE("uart",       USART0, 0),
-#endif
 	DEVICE("at91_aic",   AIC,    0),
 	DEVICE("at91_mc",    MC,     0),
 	DEVICE("at91_tc",    TC0,    0),
