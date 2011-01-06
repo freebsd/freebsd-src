@@ -470,7 +470,7 @@ xen_smp_intr_init(unsigned int cpu)
 				    cpu,
 				    resched_name[cpu],
 				    smp_reschedule_interrupt,
-	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &irq);
+	    INTR_TYPE_TTY, &irq);
 
 	printf("[XEN] IPI cpu=%d irq=%d vector=RESCHEDULE_VECTOR (%d)\n",
 	    cpu, irq, RESCHEDULE_VECTOR);
@@ -482,7 +482,7 @@ xen_smp_intr_init(unsigned int cpu)
 				    cpu,
 				    callfunc_name[cpu],
 				    smp_call_function_interrupt,
-	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &irq);
+	    INTR_TYPE_TTY, &irq);
 	if (rc < 0)
 		goto fail;
 	per_cpu(callfunc_irq, cpu) = irq;
