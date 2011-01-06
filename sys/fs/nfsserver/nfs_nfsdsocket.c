@@ -386,7 +386,6 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 				lktype = LK_SHARED;
 			else
 				lktype = LK_EXCLUSIVE;
-			nes.nes_vfslocked = 0;
 			if (nd->nd_flag & ND_PUBLOOKUP)
 				nfsd_fhtovp(nd, &nfs_pubfh, lktype, &vp, &nes,
 				    &mp, nfs_writerpc[nd->nd_procnum], p);
@@ -415,12 +414,8 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 	if (nd->nd_repstat && (nd->nd_flag & ND_NFSV2)) {
 		*nd->nd_errp = nfsd_errmap(nd);
 		NFSINCRGLOBAL(newnfsstats.srvrpccnt[nfsv3to4op[nd->nd_procnum]]);
-		if (mp != NULL) {
-			if (nfs_writerpc[nd->nd_procnum])
-				NFS_ENDWRITE(mp);
-			if (nes.nes_vfslocked)
-				nfsvno_unlockvfs(mp);
-		}
+		if (mp != NULL && nfs_writerpc[nd->nd_procnum] != 0)
+			vn_finished_write(mp);
 		return;
 	}
 
@@ -445,12 +440,8 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 			error = (*(nfsrv3_procs0[nd->nd_procnum]))(nd, isdgram,
 			    vp, p, &nes);
 		}
-		if (mp) {
-			if (nfs_writerpc[nd->nd_procnum])
-				NFS_ENDWRITE(mp);
-			if (nes.nes_vfslocked)
-				nfsvno_unlockvfs(mp);
-		}
+		if (mp != NULL && nfs_writerpc[nd->nd_procnum] != 0)
+			vn_finished_write(mp);
 		NFSINCRGLOBAL(newnfsstats.srvrpccnt[nfsv3to4op[nd->nd_procnum]]);
 	}
 	if (error) {
@@ -498,9 +489,10 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 	u_char tag[NFSV4_SMALLSTR + 1], *tagstr;
 	vnode_t vp, nvp, savevp;
 	struct nfsrvfh fh;
-	mount_t mp, savemp, temp_mp = NULL;
+	mount_t new_mp, temp_mp = NULL;
 	struct ucred *credanon;
 	struct nfsexstuff nes, vpnes, savevpnes;
+	fsid_t cur_fsid, save_fsid;
 	static u_int64_t compref = 0;
 
 	NFSVNO_EXINIT(&vpnes);
@@ -597,8 +589,8 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 	}
 
 	savevp = vp = NULL;
-	savevpnes.nes_vfslocked = vpnes.nes_vfslocked = 0;
-	savemp = mp = NULL;
+	save_fsid.val[0] = save_fsid.val[1] = 0;
+	cur_fsid.val[0] = cur_fsid.val[1] = 0;
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	taglen = fxdr_unsigned(int, *tl);
 	if (taglen < 0) {
@@ -704,46 +696,44 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			error = nfsrv_mtofh(nd, &fh);
 			if (error)
 				goto nfsmout;
-			if (!nd->nd_repstat) {
-				nes.nes_vfslocked = vpnes.nes_vfslocked;
-				nfsd_fhtovp(nd, &fh, LK_SHARED, &nvp, &nes, &mp,
-				    0, p);
-			}
+			if (!nd->nd_repstat)
+				nfsd_fhtovp(nd, &fh, LK_SHARED, &nvp, &nes,
+				    NULL, 0, p);
 			/* For now, allow this for non-export FHs */
 			if (!nd->nd_repstat) {
 				if (vp)
 					vrele(vp);
 				vp = nvp;
-				NFSVOPUNLOCK(vp, 0, p);
+				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
+				VOP_UNLOCK(vp, 0);
 				vpnes = nes;
 			}
 			break;
 		case NFSV4OP_PUTPUBFH:
-			if (nfs_pubfhset) {
-			    nes.nes_vfslocked = vpnes.nes_vfslocked;
+			if (nfs_pubfhset)
 			    nfsd_fhtovp(nd, &nfs_pubfh, LK_SHARED, &nvp,
-				&nes, &mp, 0, p);
-			} else {
+				&nes, NULL, 0, p);
+			else
 			    nd->nd_repstat = NFSERR_NOFILEHANDLE;
-			}
 			if (!nd->nd_repstat) {
 				if (vp)
 					vrele(vp);
 				vp = nvp;
-				NFSVOPUNLOCK(vp, 0, p);
+				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
+				VOP_UNLOCK(vp, 0);
 				vpnes = nes;
 			}
 			break;
 		case NFSV4OP_PUTROOTFH:
 			if (nfs_rootfhset) {
-				nes.nes_vfslocked = vpnes.nes_vfslocked;
 				nfsd_fhtovp(nd, &nfs_rootfh, LK_SHARED, &nvp,
-				    &nes, &mp, 0, p);
+				    &nes, NULL, 0, p);
 				if (!nd->nd_repstat) {
 					if (vp)
 						vrele(vp);
 					vp = nvp;
-					NFSVOPUNLOCK(vp, 0, p);
+					cur_fsid = vp->v_mount->mnt_stat.f_fsid;
+					VOP_UNLOCK(vp, 0);
 					vpnes = nes;
 				}
 			} else
@@ -759,7 +749,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 					VREF(vp);
 					savevp = vp;
 					savevpnes = vpnes;
-					savemp = mp;
+					save_fsid = cur_fsid;
 				}
 			} else {
 				nd->nd_repstat = NFSERR_NOFILEHANDLE;
@@ -771,23 +761,10 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				/* If vp == savevp, a no-op */
 				if (vp != savevp) {
 					VREF(savevp);
-					if (mp == NULL || savemp == NULL)
-						panic("nfscmpmp");
-					if (!savevpnes.nes_vfslocked &&
-					    vpnes.nes_vfslocked) {
-						if (mp == savemp)
-							panic("nfscmp2");
-						nfsvno_unlockvfs(mp);
-					} else if (savevpnes.nes_vfslocked &&
-					    !vpnes.nes_vfslocked) {
-						if (mp == savemp)
-							panic("nfscmp3");
-						savevpnes.nes_vfslocked = nfsvno_lockvfs(savemp);
-					}
 					vrele(vp);
 					vp = savevp;
 					vpnes = savevpnes;
-					mp = savemp;
+					cur_fsid = save_fsid;
 				}
 			} else {
 				nd->nd_repstat = NFSERR_RESTOREFH;
@@ -841,11 +818,14 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			error = (*(nfsrv4_ops1[op]))(nd, isdgram, vp,
 			    &nvp, (fhandle_t *)fh.nfsrvfh_data, p, &vpnes);
 			if (!error && !nd->nd_repstat) {
-			    if (vfs_statfs(mp)->f_fsid.val[0] !=
-				vfs_statfs(vnode_mount(nvp))->f_fsid.val[0] ||
-				vfs_statfs(mp)->f_fsid.val[1] !=
-				vfs_statfs(vnode_mount(nvp))->f_fsid.val[1]) {
-				    nd->nd_repstat = nfsvno_checkexp(vnode_mount(nvp),
+			    if (op == NFSV4OP_LOOKUP || op == NFSV4OP_LOOKUPP) {
+				new_mp = nvp->v_mount;
+				if (cur_fsid.val[0] !=
+				    new_mp->mnt_stat.f_fsid.val[0] ||
+				    cur_fsid.val[1] !=
+				    new_mp->mnt_stat.f_fsid.val[1]) {
+				    /* crossed a server mount point */
+				    nd->nd_repstat = nfsvno_checkexp(new_mp,
 					nd->nd_nam, &nes, &credanon);
 				    if (!nd->nd_repstat)
 					nd->nd_repstat = nfsd_excred(nd,
@@ -853,17 +833,13 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 				    if (credanon != NULL)
 					crfree(credanon);
 				    if (!nd->nd_repstat) {
-					if (vpnes.nes_vfslocked)
-					    nfsvno_unlockvfs(mp);
-					mp = vnode_mount(nvp);
 					vpnes = nes;
-					vpnes.nes_vfslocked =
-					    nfsvno_lockvfs(mp);
+					cur_fsid = new_mp->mnt_stat.f_fsid;
 				    }
+				}
+				/* Lookup ops return a locked vnode */
+				VOP_UNLOCK(nvp, 0);
 			    }
-			    if (op == NFSV4OP_LOOKUP || op == NFSV4OP_LOOKUPP)
-				    /* Lookup ops return a locked vnode */
-				    VOP_UNLOCK(nvp, 0);
 			    if (!nd->nd_repstat) {
 				    vrele(vp);
 				    vp = nvp;
@@ -876,7 +852,8 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			if (vp == NULL || savevp == NULL) {
 				nd->nd_repstat = NFSERR_NOFILEHANDLE;
 				break;
-			} else if (mp != savemp) {
+			} else if (cur_fsid.val[0] != save_fsid.val[0] ||
+			    cur_fsid.val[1] != save_fsid.val[1]) {
 				nd->nd_repstat = NFSERR_XDEV;
 				break;
 			}
@@ -960,8 +937,6 @@ nfsmout:
 	} else {
 		*retopsp = txdr_unsigned(retops);
 	}
-	if (mp && vpnes.nes_vfslocked)
-		nfsvno_unlockvfs(mp);
 	if (vp)
 		vrele(vp);
 	if (savevp)
