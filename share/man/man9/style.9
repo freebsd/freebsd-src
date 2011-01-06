@@ -470,9 +470,6 @@ statement that cascade should have a
 .Li FALLTHROUGH
 comment.
 Numerical arguments should be checked for accuracy.
-Code that cannot be reached should have a
-.Li NOTREACHED
-comment.
 .Bd -literal
 	while ((ch = getopt(argc, argv, "abNn:")) != -1)
 		switch (ch) {		/* Indent the switch. */
@@ -496,7 +493,6 @@ comment.
 		case '?':
 		default:
 			usage();
-			/* NOTREACHED */
 		}
 	argc -= optind;
 	argv += optind;
