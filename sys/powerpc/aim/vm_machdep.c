@@ -143,7 +143,6 @@ extern uintptr_t tocbase;
 void
 cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
-	struct	proc *p1;
 	struct	trapframe *tf;
 	struct	callframe *cf;
 	struct	pcb *pcb;
@@ -155,8 +154,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	if ((flags & RFPROC) == 0)
 		return;
-
-	p1 = td1->td_proc;
 
 	pcb = (struct pcb *)((td2->td_kstack +
 	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fUL);
