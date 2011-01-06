@@ -2437,6 +2437,9 @@ do_next:
 #else
 	phys_avail[0] = physfree;
 	phys_avail[1] = xen_start_info->nr_pages*PAGE_SIZE;
+	dump_avail[0] = 0;	
+	dump_avail[1] = xen_start_info->nr_pages*PAGE_SIZE;
+	
 #endif
 	
 	/*
