@@ -1841,7 +1841,7 @@ rge_attach(device_t dev)
 	 */
 	sc->rge_irq.__r_i = (struct resource_i *)(intptr_t)sc->irq;
 
-	ret = bus_setup_intr(dev, &sc->rge_irq, INTR_FAST | INTR_TYPE_NET | INTR_MPSAFE,
+	ret = bus_setup_intr(dev, &sc->rge_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, rge_intr, sc, &sc->rge_intrhand);
 
 	if (ret) {
