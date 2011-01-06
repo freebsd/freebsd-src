@@ -305,12 +305,10 @@ pcr_set(device_t dev, const struct cf_setting *set)
 static int
 pcr_get(device_t dev, struct cf_setting *set)
 {
-	struct pcr_softc *sc;
 	uint64_t psr;
 
 	if (set == NULL)
 		return (EINVAL);
-	sc = device_get_softc(dev);
 
 	memset(set, CPUFREQ_VAL_UNKNOWN, sizeof(*set));
 
