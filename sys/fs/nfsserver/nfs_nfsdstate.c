@@ -4092,14 +4092,14 @@ nfsrv_updatestable(NFSPROC_T *p)
 	NFSVNO_ATTRINIT(&nva);
 	NFSVNO_SETATTRVAL(&nva, size, 0);
 	vp = NFSFPVNODE(sf->nsf_fp);
-	NFS_STARTWRITE(vp, &mp);
+	vn_start_write(vp, &mp, V_WAIT);
 	if (vn_lock(vp, LK_EXCLUSIVE) == 0) {
 		error = nfsvno_setattr(vp, &nva, NFSFPCRED(sf->nsf_fp), p,
 		    NULL);
 		VOP_UNLOCK(vp, 0);
 	} else
 		error = EPERM;
-	NFS_ENDWRITE(mp);
+	vn_finished_write(mp);
 	if (!error)
 	    error = NFSD_RDWR(UIO_WRITE, vp,
 		(caddr_t)&sf->nsf_rec, sizeof (struct nfsf_rec), (off_t)0,
