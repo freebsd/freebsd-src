@@ -759,6 +759,7 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 	childtd->td_estcpu = td->td_estcpu;
 	childtd->td_lock = &sched_lock;
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
+	childtd->td_priority = childtd->td_base_pri;
 	ts = childtd->td_sched;
 	bzero(ts, sizeof(*ts));
 	ts->ts_flags |= (td->td_sched->ts_flags & TSF_AFFINITY);
