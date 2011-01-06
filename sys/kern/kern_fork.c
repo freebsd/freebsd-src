@@ -360,12 +360,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
-	/*
-	 * Allow the scheduler to initialize the child.
-	 */
-	thread_lock(td);
-	sched_fork(td, td2);
-	thread_unlock(td);
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
@@ -455,6 +449,13 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	td2->td_vnet = NULL;
 	td2->td_vnet_lpush = NULL;
 #endif
+
+	/*
+	 * Allow the scheduler to initialize the child.
+	 */
+	thread_lock(td);
+	sched_fork(td, td2);
+	thread_unlock(td);
 
 	/*
 	 * Duplicate sub-structures as needed.
