@@ -165,12 +165,10 @@ dfs_settings(device_t dev, struct cf_setting *sets, int *count)
 static int
 dfs_set(device_t dev, const struct cf_setting *set)
 {
-	struct dfs_softc *sc;
 	register_t hid1;
 	
 	if (set == NULL)
 		return (EINVAL);
-	sc = device_get_softc(dev);
 
 	hid1 = mfspr(SPR_HID1);
 	hid1 &= ~(HID1_DFS2 | HID1_DFS4);
