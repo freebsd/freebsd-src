@@ -66,8 +66,8 @@ ldconfig_start()
 		i386)
 			# Default the a.out ldconfig path.
 			: ${ldconfig_paths_aout=${ldconfig_paths}}
-			_LDC=/usr/lib/aout
-			for i in ${ldconfig_paths_aout} /etc/ld.so.conf; do
+			_LDC=""
+			for i in /usr/lib/aout ${ldconfig_paths_aout} /etc/ld.so.conf; do
 				if [ -r "${i}" ]; then
 					_LDC="${_LDC} ${i}"
 				fi
