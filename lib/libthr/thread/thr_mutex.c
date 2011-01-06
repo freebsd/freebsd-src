@@ -492,11 +492,10 @@ int
 _mutex_cv_attach(struct pthread_mutex *m, int count)
 {
 	struct pthread *curthread = _get_curthread();
-	int     error;
 
 	ENQUEUE_MUTEX(curthread, m);
 	m->m_count = count;
-        return (error);
+	return (0);
 }
 
 int
