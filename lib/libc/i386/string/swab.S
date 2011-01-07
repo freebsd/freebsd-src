@@ -98,3 +98,5 @@ L4:	popl	%edi
 	popl	%esi
 	ret
 END(swab)
+
+	.section .note.GNU-stack,"",%progbits

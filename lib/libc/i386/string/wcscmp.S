@@ -78,3 +78,5 @@ no0:	subl	(%esi),%eax
 	popl	%edi
 	ret
 END(wcscmp)
+
+	.section .note.GNU-stack,"",%progbits

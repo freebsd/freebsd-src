@@ -50,3 +50,5 @@ ENTRY(_ctx_start)
 	call	PIC_PLT(abort)		/* fubar */
 	ret
 END(_ctx_start)
+
+	.section .note.GNU-stack,"",%progbits

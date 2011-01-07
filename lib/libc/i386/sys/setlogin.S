@@ -53,3 +53,5 @@ SYSCALL(setlogin)
 #endif
 	ret				/* setlogin(name) */
 END(__sys_setlogin)
+
+	.section .note.GNU-stack,"",%progbits
