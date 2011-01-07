@@ -22,12 +22,6 @@ CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
 #CFLAGS+=	-DWANT_COMPILER_INVARIANTS
 CSTD?=	gnu89
 
-# If building 64-bit longs for the i386, "_LARGE_LONG" should also be defined
-# to get the proper sizes in limits.h
-.if defined(LONG_TYPE_SIZE)
-CFLAGS+=	-DLONG_TYPE_SIZE=${LONG_TYPE_SIZE}
-.endif
-
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 CFLAGS+=	-DCROSS_COMPILE
 .endif
