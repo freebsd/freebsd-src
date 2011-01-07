@@ -266,7 +266,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 			th->th_seq += i;
 		}
 	}
- 	tp->t_rcvoopack++;
+	tp->t_rcvoopack++;
 	TCPSTAT_INC(tcps_rcvoopack);
 	TCPSTAT_ADD(tcps_rcvoobyte, *tlenp);
 
