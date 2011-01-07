@@ -54,3 +54,5 @@ ENTRY(exect)
 	jmp	HIDENAME(cerror)
 #endif
 END(exect)
+
+	.section .note.GNU-stack,"",%progbits
