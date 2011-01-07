@@ -202,6 +202,11 @@ __FBSDID("$FreeBSD$");
 
 #define pmap_pte_set_prot(pte, v) ((*(int *)pte &= ~PG_PROT), (*(int *)pte |= (v)))
 
+#define HAMFISTED_LOCKING
+#ifdef HAMFISTED_LOCKING
+static struct mtx createdelete_lock;
+#endif
+
 struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
@@ -501,6 +506,10 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 
 	/* Turn on PG_G on kernel page(s) */
 	pmap_set_pg();
+#endif
+
+#ifdef HAMFISTED_LOCKING
+	mtx_init(&createdelete_lock, "pmap create/delete", NULL, MTX_DEF);
 #endif
 }
 
@@ -1510,6 +1519,10 @@ pmap_pinit(pmap_t pmap)
 	static int color;
 	int i;
 
+#ifdef HAMFISTED_LOCKING
+	mtx_lock(&createdelete_lock);
+#endif
+
 	PMAP_LOCK_INIT(pmap);
 
 	/*
@@ -1521,6 +1534,9 @@ pmap_pinit(pmap_t pmap)
 		    NBPTD);
 		if (pmap->pm_pdir == NULL) {
 			PMAP_LOCK_DESTROY(pmap);
+#ifdef HAMFISTED_LOCKING
+			mtx_unlock(&createdelete_lock);
+#endif
 			return (0);
 		}
 #if defined(XEN) && defined(PAE)	
@@ -1606,6 +1622,9 @@ pmap_pinit(pmap_t pmap)
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 
+#ifdef HAMFISTED_LOCKING
+	mtx_unlock(&createdelete_lock);
+#endif
 	return (1);
 }
 
@@ -1841,6 +1860,10 @@ pmap_release(pmap_t pmap)
 	    pmap->pm_stats.resident_count));
 	PT_UPDATES_FLUSH();
 
+#ifdef HAMFISTED_LOCKING
+	mtx_lock(&createdelete_lock);
+#endif
+
 	pmap_lazyfix(pmap);
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
@@ -1876,6 +1899,10 @@ pmap_release(pmap_t pmap)
 	pmap_qremove((vm_offset_t)pmap->pm_pdpt, 1);
 #endif
 	PMAP_LOCK_DESTROY(pmap);
+
+#ifdef HAMFISTED_LOCKING
+	mtx_unlock(&createdelete_lock);
+#endif
 }
 
 static int
@@ -3242,6 +3269,10 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	CTR5(KTR_PMAP, "pmap_copy:  dst_pmap=%p src_pmap=%p dst_addr=0x%x len=%d src_addr=0x%x",
 	    dst_pmap, src_pmap, dst_addr, len, src_addr);
 	
+#ifdef HAMFISTED_LOCKING
+	mtx_lock(&createdelete_lock);
+#endif
+
 	vm_page_lock_queues();
 	if (dst_pmap < src_pmap) {
 		PMAP_LOCK(dst_pmap);
@@ -3331,6 +3362,10 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
+
+#ifdef HAMFISTED_LOCKING
+	mtx_unlock(&createdelete_lock);
+#endif
 }	
 
 static __inline void
