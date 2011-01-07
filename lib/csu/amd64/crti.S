@@ -39,3 +39,5 @@ _init:
 	.type	_fini,@function
 _fini:
 	subq	$8,%rsp
+
+	.section .note.GNU-stack,"",%progbits
