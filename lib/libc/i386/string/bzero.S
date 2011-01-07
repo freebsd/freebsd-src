@@ -80,3 +80,5 @@ L1:	rep
 	popl	%edi
 	ret
 END(bzero)
+
+	.section .note.GNU-stack,"",%progbits

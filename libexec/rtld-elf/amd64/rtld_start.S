@@ -112,3 +112,5 @@ _rtld_bind_start:
 	popfq				# Restore rflags
 	leaq	16(%rsp),%rsp		# Discard spare, obj, do not change rflags
 	ret				# "Return" to target address
+
+	.section .note.GNU-stack,"",%progbits

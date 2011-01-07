@@ -26,7 +26,6 @@ CFLAGS=	-DBOOTPROG=\"gptboot\" \
 	-fno-unit-at-a-time \
 	-mno-align-long-strings \
 	-mrtd \
-	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
 	-DGPT \
 	-D${GPTBOOT_UFS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \

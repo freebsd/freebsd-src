@@ -266,7 +266,11 @@ ofw_real_map(const void *buf, size_t len)
 		return 0;
 	}
 
-	memcpy(of_bounce_virt + of_bounce_offset, buf, len);
+	if (buf != NULL)
+		memcpy(of_bounce_virt + of_bounce_offset, buf, len);
+	else
+		return (0);
+
 	phys = of_bounce_phys + of_bounce_offset;
 
 	of_bounce_offset += len;
@@ -280,6 +284,9 @@ ofw_real_unmap(cell_t physaddr, void *buf, size_t len)
 	mtx_assert(&of_bounce_mtx, MA_OWNED);
 
 	if (of_bounce_virt == NULL)
+		return;
+
+	if (physaddr == 0)
 		return;
 
 	memcpy(buf,of_bounce_virt + (physaddr - of_bounce_phys),len);
@@ -546,11 +553,10 @@ ofw_real_nextprop(ofw_t ofw, phandle_t package, const char *previous,
 	ofw_real_start();
 
 	args.package = package;
-	args.previous = ofw_real_map(previous, strlen(previous) + 1);
+	args.previous = ofw_real_map(previous, (previous != NULL) ? (strlen(previous) + 1) : 0);
 	args.buf = ofw_real_map(buf, size);
 	argsptr = ofw_real_map(&args, sizeof(args));
-	if (args.previous == 0 || args.buf == 0 ||
-	    openfirmware((void *)argsptr) == -1) {
+	if (args.buf == 0 || openfirmware((void *)argsptr) == -1) {
 		ofw_real_stop();
 		return (-1);
 	}

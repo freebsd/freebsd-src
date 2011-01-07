@@ -38,3 +38,5 @@ ENTRY(ldiv)
         idiv    %ecx
         ret
 END(ldiv)
+
+	.section .note.GNU-stack,"",%progbits

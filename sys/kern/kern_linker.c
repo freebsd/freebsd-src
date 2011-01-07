@@ -1584,6 +1584,12 @@ restart:
 				modname = mp->md_cval;
 				verinfo = mp->md_data;
 				mod = modlist_lookup2(modname, verinfo);
+				if (mod == NULL) {
+					printf("KLD file %s - cannot find "
+					    "dependency \"%s\"\n",
+					    lf->filename, modname);
+					goto fail;
+				}
 				/* Don't count self-dependencies */
 				if (lf == mod->container)
 					continue;
@@ -1600,11 +1606,9 @@ restart:
 		 */
 		error = LINKER_LINK_PRELOAD_FINISH(lf);
 		if (error) {
-			TAILQ_REMOVE(&depended_files, lf, loaded);
 			printf("KLD file %s - could not finalize loading\n",
 			    lf->filename);
-			linker_file_unload(lf, LINKER_UNLOAD_FORCE);
-			continue;
+			goto fail;
 		}
 		linker_file_register_modules(lf);
 		if (linker_file_lookup_set(lf, "sysinit_set", &si_start,
@@ -1612,6 +1616,10 @@ restart:
 			sysinit_add(si_start, si_stop);
 		linker_file_register_sysctls(lf);
 		lf->flags |= LINKER_FILE_LINKED;
+		continue;
+fail:
+		TAILQ_REMOVE(&depended_files, lf, loaded);
+		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 	}
 	/* woohoo! we made it! */
 }

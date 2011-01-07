@@ -671,6 +671,7 @@ safe_builtin(int idx, int argc, char **argv)
 
 /*
  * Execute a simple command.
+ * Note: This may or may not return if (flags & EV_EXIT).
  */
 
 static void
@@ -707,6 +708,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	arglist.lastp = &arglist.list;
 	varlist.lastp = &varlist.list;
 	varflag = 1;
+	jp = NULL;
 	do_clearcmdentry = 0;
 	oexitstatus = exitstatus;
 	exitstatus = 0;
@@ -965,7 +967,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			evalskip = 0;
 			skipcount = 0;
 		}
-		if (flags & EV_EXIT)
+		if (jp)
 			exitshell(exitstatus);
 	} else if (cmdentry.cmdtype == CMDBUILTIN) {
 #ifdef DEBUG
@@ -997,8 +999,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		 */
 		if (argc == 0 && !(flags & EV_BACKCMD))
 			cmdentry.special = 1;
-		if (cmdentry.special)
-			listsetvar(cmdenviron);
+		listsetvar(cmdenviron, cmdentry.special ? 0 : VNOSET);
 		if (argc > 0)
 			bltinsetlocale();
 		commandname = argv[0];
@@ -1014,13 +1015,12 @@ cmddone:
 		out1 = &output;
 		out2 = &errout;
 		freestdout();
+		handler = savehandler;
 		if (e != EXSHELLPROC) {
 			commandname = savecmdname;
-			if (flags & EV_EXIT) {
+			if (jp)
 				exitshell(exitstatus);
-			}
 		}
-		handler = savehandler;
 		if (flags == EV_BACKCMD) {
 			backcmd->buf = memout.buf;
 			backcmd->nleft = memout.nextc - memout.buf;

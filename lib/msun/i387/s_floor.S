@@ -56,3 +56,5 @@ ENTRY(floor)
 	leave
 	ret
 END(floor)
+
+	.section .note.GNU-stack,"",%progbits

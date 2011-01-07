@@ -25,15 +25,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+
 #include <assert.h>
 #include <float.h>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <strings.h>
-
-#include <sys/time.h>
-#include <sys/types.h>
+#include <syslog.h>
+#include <time.h>
 
 #define KASSERT(val, msg) assert(val)
 

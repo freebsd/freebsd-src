@@ -39,3 +39,5 @@ _init:
 	.type	_fini,@function
 _fini:
 	sub	$12,%esp	/* re-align stack pointer */
+
+	.section .note.GNU-stack,"",%progbits
