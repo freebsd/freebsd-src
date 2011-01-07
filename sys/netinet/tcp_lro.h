@@ -41,7 +41,7 @@ struct lro_entry;
 struct lro_entry
 {
 	SLIST_ENTRY(lro_entry) next;
-	struct mbuf  	*m_head;
+	struct mbuf	*m_head;
 	struct mbuf	*m_tail;
 	int		timestamp;
 	struct ip	*ip;
