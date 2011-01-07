@@ -100,18 +100,24 @@ static struct nfsheur {
  */
 int
 nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
-    struct thread *p)
+    struct thread *p, int vpislocked)
 {
 	int error, lockedit = 0;
 
-	/* Since FreeBSD insists the vnode be locked... */
-	if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
-		lockedit = 1;
-		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	if (vpislocked == 0) {
+		/*
+		 * When vpislocked == 0, the vnode is either exclusively
+		 * locked by this thread or not locked by this thread.
+		 * As such, shared lock it, if not exclusively locked.
+		 */
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+			lockedit = 1;
+			vn_lock(vp, LK_SHARED | LK_RETRY);
+		}
 	}
 	error = VOP_GETATTR(vp, &nvap->na_vattr, cred);
-	if (lockedit)
-		NFSVOPUNLOCK(vp, 0, p);
+	if (lockedit != 0)
+		VOP_UNLOCK(vp, 0);
 	return (error);
 }
 
@@ -1375,7 +1381,7 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 	VATTR_NULL(&va);
 	getnanotime(&va.va_mtime);
 	(void) VOP_SETATTR(vp, &va, cred);
-	(void) nfsvno_getattr(vp, nvap, cred, p);
+	(void) nfsvno_getattr(vp, nvap, cred, p, 1);
 }
 
 /*
@@ -1456,7 +1462,7 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	fullsiz = siz;
 	if (nd->nd_flag & ND_NFSV3) {
 		nd->nd_repstat = getret = nfsvno_getattr(vp, &at, nd->nd_cred,
-		    p);
+		    p, 1);
 #if 0
 		/*
 		 * va_filerev is not sufficient as a cookie verifier,
@@ -1512,7 +1518,7 @@ again:
 	if (!cookies && !nd->nd_repstat)
 		nd->nd_repstat = NFSERR_PERM;
 	if (nd->nd_flag & ND_NFSV3) {
-		getret = nfsvno_getattr(vp, &at, nd->nd_cred, p);
+		getret = nfsvno_getattr(vp, &at, nd->nd_cred, p, 1);
 		if (!nd->nd_repstat)
 			nd->nd_repstat = getret;
 	}
@@ -1723,7 +1729,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 		NFSZERO_ATTRBIT(&attrbits);
 	}
 	fullsiz = siz;
-	nd->nd_repstat = getret = nfsvno_getattr(vp, &at, nd->nd_cred, p);
+	nd->nd_repstat = getret = nfsvno_getattr(vp, &at, nd->nd_cred, p, 1);
 	if (!nd->nd_repstat) {
 	    if (off && verf != at.na_filerev) {
 		/*
@@ -1782,7 +1788,7 @@ again:
 	if (io.uio_resid)
 		siz -= io.uio_resid;
 
-	getret = nfsvno_getattr(vp, &at, nd->nd_cred, p);
+	getret = nfsvno_getattr(vp, &at, nd->nd_cred, p, 1);
 
 	if (!cookies && !nd->nd_repstat)
 		nd->nd_repstat = NFSERR_PERM;
@@ -1958,7 +1964,7 @@ again:
 					r = nfsvno_getfh(nvp, &nfh, p);
 					if (!r)
 					    r = nfsvno_getattr(nvp, nvap,
-						nd->nd_cred, p);
+						nd->nd_cred, p, 1);
 				    }
 				} else {
 				    nvp = NULL;
