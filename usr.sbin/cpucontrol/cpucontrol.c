@@ -246,19 +246,19 @@ do_msr(const char *cmdarg, const char *dev)
 	switch (op) {
 	case OP_READ:
 		command = CPUCTL_RDMSR;
-		command_name = "CPUCTL_RDMSR";
+		command_name = "RDMSR";
 		break;
 	case OP_WRITE:
 		command = CPUCTL_WRMSR;
-		command_name = "CPUCTL_WRMSR";
+		command_name = "WRMSR";
 		break;
 	case OP_OR:
 		command = CPUCTL_MSRSBIT;
-		command_name = "CPUCTL_MSRSBIT";
+		command_name = "MSRSBIT";
 		break;
 	case OP_AND:
 		command = CPUCTL_MSRCBIT;
-		command_name = "CPUCTL_MSRCBIT";
+		command_name = "MSRCBIT";
 		break;
 	default:
 		abort();
@@ -271,7 +271,7 @@ do_msr(const char *cmdarg, const char *dev)
 	}
 	error = ioctl(fd, command, &args);
 	if (error < 0) {
-		WARN(0, "ioctl(%s, %s (%lu))", dev, command_name, command);
+		WARN(0, "ioctl(%s, CPUCTL_%s (%lu))", dev, command_name, command);
 		close(fd);
 		return (1);
 	}
