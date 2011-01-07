@@ -36,21 +36,18 @@ CFLAGS+=	-DCROSS_COMPILE
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=MASK_BIG_END
 .endif
 
-
 .if ${TARGET_CPUARCH} == "mips"
-.if ${TARGET_ARCH} == "mipsel"
+.if ${TARGET_ARCH:Mmips*el} != ""
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=0
 .endif
 
-.if defined(TARGET_ABI) && ${TARGET_ABI} != "o32"
-.if ${TARGET_ABI} == "n32"
-MIPS_ABI_DEFAULT=ABI_N32
-.elif ${TARGET_ABI} == "n64"
+.if ${TARGET_ARCH:Mmips64*} != ""
 MIPS_ABI_DEFAULT=ABI_64
+.elif ${TARGET_ARCH:Mmipsn32*} != ""
+MIPS_ABI_DEFAULT=ABI_N32
+.else
+MIPS_ABI_DEFAULT=ABI_32
 .endif
-.endif
-
-MIPS_ABI_DEFAULT?=ABI_32
 CFLAGS += -DMIPS_ABI_DEFAULT=${MIPS_ABI_DEFAULT}
 
 # If we are compiling for the O32 ABI, we need to default to MIPS-III rather
