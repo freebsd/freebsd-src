@@ -384,7 +384,8 @@ newdev(char *name)
 	struct device *np;
 
 	if (finddev(&dtab, name)) {
-		printf("WARNING: duplicate device `%s' encountered.\n", name);
+		fprintf(stderr,
+		    "WARNING: duplicate device `%s' encountered.\n", name);
 		return;
 	}
 
@@ -444,7 +445,8 @@ newopt(struct opt_head *list, char *name, char *value, int append)
 
 	op2 = findopt(list, name);
 	if (op2 != NULL && !append) {
-		printf("WARNING: duplicate option `%s' encountered.\n", name);
+		fprintf(stderr,
+		    "WARNING: duplicate option `%s' encountered.\n", name);
 		return;
 	}
 
