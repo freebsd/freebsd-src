@@ -95,3 +95,5 @@ END(memmove)
 END(bcopy)
 #endif
 #endif
+
+	.section .note.GNU-stack,"",%progbits

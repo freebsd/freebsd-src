@@ -16,3 +16,5 @@ ENTRY(div)
 	orq	%rdx,%rax
 	ret
 END(div)
+
+	.section .note.GNU-stack,"",%progbits
