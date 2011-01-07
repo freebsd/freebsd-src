@@ -34,10 +34,6 @@
 #ifndef _MACHINE__LIMITS_H_
 #define	_MACHINE__LIMITS_H_
 
-#if _MIPS_SZLONG == 64
-#define	_LARGE_LONG
-#endif
-
 /*
  * According to ANSI (section 2.2.4.2), the values below must be usable by
  * #if preprocessing directives.  Additionally, the expression must have the
@@ -64,15 +60,16 @@
 #define	__INT_MAX	0x7fffffff	/* max value for an int */
 #define	__INT_MIN	(-0x7fffffff - 1)	/* min value for an int */
 
-/* Bad hack for gcc configured to give 64-bit longs. */
-#ifdef _LARGE_LONG
+#ifdef __LP64__
 #define	__ULONG_MAX	0xffffffffffffffffUL
 #define	__LONG_MAX	0x7fffffffffffffffL
 #define	__LONG_MIN	(-0x7fffffffffffffffL - 1)
+#define	__LONG_BIT	64
 #else
 #define	__ULONG_MAX	0xffffffffUL	/* max value for an unsigned long */
 #define	__LONG_MAX	0x7fffffffL	/* max value for a long */
 #define	__LONG_MIN	(-0x7fffffffL - 1)	/* min value for a long */
+#define	__LONG_BIT	32
 #endif
 
 			/* max value for an unsigned long long */
@@ -92,11 +89,6 @@
 #define	__QUAD_MAX	__LLONG_MAX	/* max value for a quad_t */
 #define	__QUAD_MIN	__LLONG_MIN	/* min value for a quad_t */
 
-#ifdef _LARGE_LONG
-#define	__LONG_BIT	64
-#else
-#define	__LONG_BIT	32
-#endif
 #define	__WORD_BIT	32
 
 #define __MINSIGSTKSZ     (512 * 4)
