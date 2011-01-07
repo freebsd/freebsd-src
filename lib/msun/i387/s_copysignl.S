@@ -16,3 +16,5 @@ ENTRY(copysignl)
 	fldt	4(%esp)
 	ret
 END(copysignl)
+
+	.section .note.GNU-stack,"",%progbits
