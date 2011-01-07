@@ -175,7 +175,11 @@
 #define VFTA_SIZE			128
 
 /* Offload bits in mbuf flag */
+#if __FreeBSD_version >= 800000
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
+#else
+#define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP)
+#endif
 
 /*
  *****************************************************************************
