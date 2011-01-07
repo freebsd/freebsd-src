@@ -49,3 +49,5 @@ _start:
 	int3
 	.cfi_endproc
 	.size	_start, . - _start
+
+	.section .note.GNU-stack,"",%progbits
