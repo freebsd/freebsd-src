@@ -46,3 +46,5 @@ ENTRY(remainder)
 	fstp	%st(1)
 	ret
 END(remainder)
+
+	.section .note.GNU-stack,"",%progbits
