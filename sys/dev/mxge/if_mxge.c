@@ -4647,9 +4647,8 @@ mxge_attach(device_t dev)
 	mxge_fetch_tunables(sc);
 
 	TASK_INIT(&sc->watchdog_task, 1, mxge_watchdog_task, sc);
-	sc->tq = taskqueue_create_fast("mxge_taskq", M_WAITOK,
-				       taskqueue_thread_enqueue,
-				       &sc->tq);
+	sc->tq = taskqueue_create("mxge_taskq", M_WAITOK,
+				  taskqueue_thread_enqueue, &sc->tq);
 	if (sc->tq == NULL) {
 		err = ENOMEM;
 		goto abort_with_nothing;
