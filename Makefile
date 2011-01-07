@@ -283,7 +283,7 @@ tinderbox:
 .if make(universe) || make(universe_kernels) || make(tinderbox)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
 TARGET_ARCHES_arm?=	arm armeb
-TARGET_ARCHES_mips?=	mipsel mipseb
+TARGET_ARCHES_mips?=	mipsel mipseb mips64el mips64eb
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
 TARGET_ARCHES_sun4v?=	sparc64

@@ -1,19 +1,18 @@
 # $FreeBSD$
 
-.if ${TARGET_ARCH} == "mipsel"
+.if ${TARGET_ARCH:Mmips*el} != ""
 _EMULATION_ENDIAN=little
 .else
 _EMULATION_ENDIAN=big
 .endif
 
-.if defined(TARGET_ABI) && ${TARGET_ABI} != "o32"
-.if ${TARGET_ABI} == "n32"
-DEFAULT_VECTOR=	bfd_elf32_ntrad${_EMULATION_ENDIAN}mips_vec
-.elif ${TARGET_ABI} == "n64"
+.if ${TARGET_ARCH:Mmips64*} != ""
 DEFAULT_VECTOR=	bfd_elf64_trad${_EMULATION_ENDIAN}mips_vec
+.elif ${TARGET_ARCH:Mmipsn32*} != ""
+DEFAULT_VECTOR=	bfd_elf32_ntrad${_EMULATION_ENDIAN}mips_vec
+.else
+DEFAULT_VECTOR=bfd_elf32_trad${_EMULATION_ENDIAN}mips_vec
 .endif
-.endif
-DEFAULT_VECTOR?=bfd_elf32_trad${_EMULATION_ENDIAN}mips_vec
 
 SRCS+=	coff-mips.c \
 	cpu-mips.c \
