@@ -5129,13 +5129,13 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 			CTLFLAG_RD, &stats->lxontxc,
 			"Link XON Transmitted");
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xon_rcvd",
-			CTLFLAG_RD, &stats->lxontxc,
+			CTLFLAG_RD, &stats->lxonrxc,
 			"Link XON Received");
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xoff_txd",
 			CTLFLAG_RD, &stats->lxofftxc,
 			"Link XOFF Transmitted");
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xoff_rcvd",
-			CTLFLAG_RD, &stats->lxofftxc,
+			CTLFLAG_RD, &stats->lxoffrxc,
 			"Link XOFF Received");
 
 	/* Packet Reception Stats */
