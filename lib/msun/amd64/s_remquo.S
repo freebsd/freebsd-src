@@ -64,3 +64,5 @@ ENTRY(remquo)
 	movsd	-8(%rsp),%xmm0
 	ret
 END(remquo)
+
+	.section .note.GNU-stack,"",%progbits
