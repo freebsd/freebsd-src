@@ -146,7 +146,7 @@ int		 udp_newudpcb(struct inpcb *);
 void		 udp_discardcb(struct udpcb *);
 
 void		 udp_ctlinput(int, struct sockaddr *, void *);
-int	 	 udp_ctloutput(struct socket *, struct sockopt *);
+int		 udp_ctloutput(struct socket *, struct sockopt *);
 void		 udp_init(void);
 #ifdef VIMAGE
 void		 udp_destroy(void);
