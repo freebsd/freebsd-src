@@ -58,9 +58,9 @@
 
 struct smbioc_ossn {
 	int		ioc_opt;
-	int		ioc_svlen;	/* size of ioc_server address */
+	uint32_t	ioc_svlen;	/* size of ioc_server address */
 	struct sockaddr*ioc_server;
-	int		ioc_lolen;	/* size of ioc_local address */
+	uint32_t	ioc_lolen;	/* size of ioc_local address */
 	struct sockaddr*ioc_local;
 	char		ioc_srvname[SMB_MAXSRVNAMELEN + 1];
 	int		ioc_timeout;
