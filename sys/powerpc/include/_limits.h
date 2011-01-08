@@ -73,7 +73,7 @@
 #define	__LLONG_MAX	0x7fffffffffffffffLL	/* max value for a long long */
 #define	__LLONG_MIN	(-0x7fffffffffffffffLL - 1)  /* min for a long long */
 
-#ifdef __powerpc64__
+#ifdef __LP64__
 #define	__SSIZE_MAX	__LONG_MAX	/* max value for a ssize_t */
 #define	__SIZE_T_MAX	__ULONG_MAX	/* max value for a size_t */
 #else

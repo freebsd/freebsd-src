@@ -37,7 +37,7 @@
  * Macros for format specifiers.
  */
 
-#ifdef __powerpc64__
+#ifdef __LP64__
 #define PRI64		"l"
 #define PRIreg		"l"
 #else
