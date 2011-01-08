@@ -183,7 +183,7 @@ struct ipoib_mcast {
 
 	struct ifqueue pkt_queue;
 
-	struct ifnet *dev;
+	struct ipoib_dev_priv *priv;
 };
 
 struct ipoib_rx_buf {
@@ -246,7 +246,7 @@ struct ipoib_cm_rx {
 	struct ib_qp	       *qp;
 	struct ipoib_cm_rx_buf *rx_ring;
 	struct list_head	list;
-	struct ifnet      *dev;
+	struct ipoib_dev_priv	*priv;
 	unsigned long		jiffies;
 	enum ipoib_cm_state	state;
 	int			recv_count;
@@ -256,7 +256,7 @@ struct ipoib_cm_tx {
 	struct ib_cm_id	    *id;
 	struct ib_qp	    *qp;
 	struct list_head     list;
-	struct ifnet   *dev;
+	struct ipoib_dev_priv *priv;
 	struct ipoib_path   *path;
 	struct ipoib_cm_tx_buf *tx_ring;
 	unsigned	     tx_head;
@@ -388,7 +388,7 @@ struct ipoib_dev_priv {
 };
 
 struct ipoib_ah {
-	struct ifnet *dev;
+	struct ipoib_dev_priv *priv;
 	struct ib_ah	  *ah;
 	struct list_head   list;
 	struct kref	   ref;
@@ -396,7 +396,7 @@ struct ipoib_ah {
 };
 
 struct ipoib_path {
-	struct ifnet         *dev;
+	struct ipoib_dev_priv *priv;
 	struct rb_node	      rb_node;
 	struct list_head      list;
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
@@ -426,7 +426,7 @@ extern struct workqueue_struct *ipoib_workqueue;
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr);
 void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr);
 
-struct ipoib_ah *ipoib_create_ah(struct ifnet *dev,
+struct ipoib_ah *ipoib_create_ah(struct ipoib_dev_priv *,
 				 struct ib_pd *pd, struct ib_ah_attr *attr);
 void ipoib_free_ah(struct kref *kref);
 static inline void ipoib_put_ah(struct ipoib_ah *ah)
@@ -434,50 +434,51 @@ static inline void ipoib_put_ah(struct ipoib_ah *ah)
 	kref_put(&ah->ref, ipoib_free_ah);
 }
 
-int ipoib_open(struct ifnet *dev);
-int ipoib_add_pkey_attr(struct ifnet *dev);
-int ipoib_add_umcast_attr(struct ifnet *dev);
+int ipoib_open(struct ipoib_dev_priv *priv);
+int ipoib_add_pkey_attr(struct ipoib_dev_priv *priv);
+int ipoib_add_umcast_attr(struct ipoib_dev_priv *priv);
 
 void ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto);
 
-void ipoib_send(struct ifnet *dev, struct mbuf *mb,
+void ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		struct ipoib_ah *address, u32 qpn);
 void ipoib_reap_ah(struct work_struct *work);
 
-void ipoib_mark_paths_invalid(struct ifnet *dev);
-void ipoib_flush_paths(struct ifnet *dev);
+void ipoib_mark_paths_invalid(struct ipoib_dev_priv *priv);
+void ipoib_flush_paths(struct ipoib_dev_priv *priv);
 struct ipoib_dev_priv *ipoib_intf_alloc(const char *format);
 
-int ipoib_ib_dev_init(struct ifnet *dev, struct ib_device *ca, int port);
+int ipoib_ib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca,
+    int port);
 void ipoib_ib_dev_flush_light(struct work_struct *work);
 void ipoib_ib_dev_flush_normal(struct work_struct *work);
 void ipoib_ib_dev_flush_heavy(struct work_struct *work);
 void ipoib_pkey_event(struct work_struct *work);
-void ipoib_ib_dev_cleanup(struct ifnet *dev);
+void ipoib_ib_dev_cleanup(struct ipoib_dev_priv *priv);
 
-int ipoib_ib_dev_open(struct ifnet *dev);
-int ipoib_ib_dev_up(struct ifnet *dev);
-int ipoib_ib_dev_down(struct ifnet *dev, int flush);
-int ipoib_ib_dev_stop(struct ifnet *dev, int flush);
+int ipoib_ib_dev_open(struct ipoib_dev_priv *priv);
+int ipoib_ib_dev_up(struct ipoib_dev_priv *priv);
+int ipoib_ib_dev_down(struct ipoib_dev_priv *priv, int flush);
+int ipoib_ib_dev_stop(struct ipoib_dev_priv *priv, int flush);
 
-int ipoib_dev_init(struct ifnet *dev, struct ib_device *ca, int port);
-void ipoib_dev_cleanup(struct ifnet *dev);
+int ipoib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca, int port);
+void ipoib_dev_cleanup(struct ipoib_dev_priv *priv);
 
 void ipoib_mcast_join_task(struct work_struct *work);
 void ipoib_mcast_carrier_on_task(struct work_struct *work);
-void ipoib_mcast_send(struct ifnet *dev, void *mgid, struct mbuf *mb);
+void ipoib_mcast_send(struct ipoib_dev_priv *priv, void *mgid, struct mbuf *mb);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
 void ipoib_mcast_restart(struct ipoib_dev_priv *);
-int ipoib_mcast_start_thread(struct ifnet *dev);
-int ipoib_mcast_stop_thread(struct ifnet *dev, int flush);
+int ipoib_mcast_start_thread(struct ipoib_dev_priv *priv);
+int ipoib_mcast_stop_thread(struct ipoib_dev_priv *priv, int flush);
 
-void ipoib_mcast_dev_down(struct ifnet *dev);
-void ipoib_mcast_dev_flush(struct ifnet *dev);
+void ipoib_mcast_dev_down(struct ipoib_dev_priv *priv);
+void ipoib_mcast_dev_flush(struct ipoib_dev_priv *priv);
 
-void ipoib_path_free(struct ifnet *dev, struct ipoib_path *path);
+void ipoib_path_free(struct ipoib_dev_priv *priv, struct ipoib_path *path);
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
-struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct ifnet *dev);
+struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct ipoib_dev_priv *priv);
 int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter);
 void ipoib_mcast_iter_read(struct ipoib_mcast_iter *iter,
 				  union ib_gid *gid,
@@ -486,28 +487,25 @@ void ipoib_mcast_iter_read(struct ipoib_mcast_iter *iter,
 				  unsigned int *complete,
 				  unsigned int *send_only);
 
-struct ipoib_path_iter *ipoib_path_iter_init(struct ifnet *dev);
+struct ipoib_path_iter *ipoib_path_iter_init(struct ipoib_dev_priv *priv);
 int ipoib_path_iter_next(struct ipoib_path_iter *iter);
 void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 			  struct ipoib_path *path);
 #endif
 
-int ipoib_mcast_attach(struct ifnet *dev, u16 mlid,
+int ipoib_mcast_attach(struct ipoib_dev_priv *priv, u16 mlid,
 		       union ib_gid *mgid, int set_qkey);
 
-int ipoib_init_qp(struct ifnet *dev);
-int ipoib_transport_dev_init(struct ifnet *dev, struct ib_device *ca);
-void ipoib_transport_dev_cleanup(struct ifnet *dev);
+int ipoib_init_qp(struct ipoib_dev_priv *priv);
+int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca);
+void ipoib_transport_dev_cleanup(struct ipoib_dev_priv *priv);
 
 void ipoib_event(struct ib_event_handler *handler,
 		 struct ib_event *record);
 
-int ipoib_vlan_add(struct ifnet *pdev, unsigned short pkey);
-int ipoib_vlan_delete(struct ifnet *pdev, unsigned short pkey);
-
 void ipoib_pkey_poll(struct work_struct *work);
-int ipoib_pkey_dev_delay_open(struct ifnet *dev);
-void ipoib_drain_cq(struct ifnet *dev);
+int ipoib_pkey_dev_delay_open(struct ipoib_dev_priv *priv);
+void ipoib_drain_cq(struct ipoib_dev_priv *priv);
 
 void ipoib_set_ethtool_ops(struct ifnet *dev);
 int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
@@ -522,16 +520,14 @@ int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
 
 extern int ipoib_max_conn_qp;
 
-static inline int ipoib_cm_admin_enabled(struct ifnet *dev)
+static inline int ipoib_cm_admin_enabled(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
-	return IPOIB_CM_SUPPORTED(IF_LLADDR(dev)) &&
+	return IPOIB_CM_SUPPORTED(IF_LLADDR(priv->dev)) &&
 		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
 
-static inline int ipoib_cm_enabled(struct ifnet *dev, uint8_t *hwaddr)
+static inline int ipoib_cm_enabled(struct ipoib_dev_priv *priv, uint8_t *hwaddr)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	return IPOIB_CM_SUPPORTED(hwaddr) &&
 		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
@@ -552,41 +548,40 @@ static inline void ipoib_cm_set(struct ipoib_path *path, struct ipoib_cm_tx *tx)
 	path->cm = tx;
 }
 
-static inline int ipoib_cm_has_srq(struct ifnet *dev)
+static inline int ipoib_cm_has_srq(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	return !!priv->cm.srq;
 }
 
-static inline unsigned int ipoib_cm_max_mtu(struct ifnet *dev)
+static inline unsigned int ipoib_cm_max_mtu(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	return priv->cm.max_cm_mtu;
 }
 
-void ipoib_cm_send(struct ifnet *dev, struct mbuf *mb, struct ipoib_cm_tx *tx);
-int ipoib_cm_dev_open(struct ifnet *dev);
-void ipoib_cm_dev_stop(struct ifnet *dev);
-int ipoib_cm_dev_init(struct ifnet *dev);
-int ipoib_cm_add_mode_attr(struct ifnet *dev);
-void ipoib_cm_dev_cleanup(struct ifnet *dev);
-struct ipoib_cm_tx *ipoib_cm_create_tx(struct ifnet *dev, struct ipoib_path *path);
+void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm_tx *tx);
+int ipoib_cm_dev_open(struct ipoib_dev_priv *priv);
+void ipoib_cm_dev_stop(struct ipoib_dev_priv *priv);
+int ipoib_cm_dev_init(struct ipoib_dev_priv *priv);
+int ipoib_cm_add_mode_attr(struct ipoib_dev_priv *priv);
+void ipoib_cm_dev_cleanup(struct ipoib_dev_priv *priv);
+struct ipoib_cm_tx *ipoib_cm_create_tx(struct ipoib_dev_priv *priv,
+    struct ipoib_path *path);
 void ipoib_cm_destroy_tx(struct ipoib_cm_tx *tx);
-void ipoib_cm_mb_too_long(struct ifnet *dev, struct mbuf *mb,
+void ipoib_cm_mb_too_long(struct ipoib_dev_priv *priv, struct mbuf *mb,
 			   unsigned int mtu);
-void ipoib_cm_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc);
-void ipoib_cm_handle_tx_wc(struct ifnet *dev, struct ib_wc *wc);
+void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc);
+void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc);
 #else
 
 struct ipoib_cm_tx;
 
 #define ipoib_max_conn_qp 0
 
-static inline int ipoib_cm_admin_enabled(struct ifnet *dev)
+static inline int ipoib_cm_admin_enabled(struct ipoib_dev_priv *priv)
 {
 	return 0;
 }
-static inline int ipoib_cm_enabled(struct ifnet *dev, uint8_t *hwaddr)
+static inline int ipoib_cm_enabled(struct ipoib_dev_priv *priv, uint8_t *hwaddr)
 
 {
 	return 0;
@@ -607,48 +602,48 @@ static inline void ipoib_cm_set(struct ipoib_path *path, struct ipoib_cm_tx *tx)
 {
 }
 
-static inline int ipoib_cm_has_srq(struct ifnet *dev)
+static inline int ipoib_cm_has_srq(struct ipoib_dev_priv *priv)
 {
 	return 0;
 }
 
-static inline unsigned int ipoib_cm_max_mtu(struct ifnet *dev)
+static inline unsigned int ipoib_cm_max_mtu(struct ipoib_dev_priv *priv)
 {
 	return 0;
 }
 
 static inline
-void ipoib_cm_send(struct ifnet *dev, struct mbuf *mb, struct ipoib_cm_tx *tx)
+void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm_tx *tx)
 {
 	return;
 }
 
 static inline
-int ipoib_cm_dev_open(struct ifnet *dev)
+int ipoib_cm_dev_open(struct ipoib_dev_priv *priv)
 {
 	return 0;
 }
 
 static inline
-void ipoib_cm_dev_stop(struct ifnet *dev)
+void ipoib_cm_dev_stop(struct ipoib_dev_priv *priv)
 {
 	return;
 }
 
 static inline
-int ipoib_cm_dev_init(struct ifnet *dev)
+int ipoib_cm_dev_init(struct ipoib_dev_priv *priv)
 {
 	return -ENOSYS;
 }
 
 static inline
-void ipoib_cm_dev_cleanup(struct ifnet *dev)
+void ipoib_cm_dev_cleanup(struct ipoib_dev_priv *priv)
 {
 	return;
 }
 
 static inline
-struct ipoib_cm_tx *ipoib_cm_create_tx(struct ifnet *dev, struct ipoib_path *path)
+struct ipoib_cm_tx *ipoib_cm_create_tx(struct ipoib_dev_priv *priv, struct ipoib_path *path)
 {
 	return NULL;
 }
@@ -660,34 +655,34 @@ void ipoib_cm_destroy_tx(struct ipoib_cm_tx *tx)
 }
 
 static inline
-int ipoib_cm_add_mode_attr(struct ifnet *dev)
+int ipoib_cm_add_mode_attr(struct ipoib_dev_priv *priv)
 {
 	return 0;
 }
 
-static inline void ipoib_cm_mb_too_long(struct ifnet *dev, struct mbuf *mb,
+static inline void ipoib_cm_mb_too_long(struct ipoib_dev_priv *priv, struct mbuf *mb,
 					 unsigned int mtu)
 {
 	m_freem(mb);
 }
 
-static inline void ipoib_cm_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc)
+static inline void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 {
 }
 
-static inline void ipoib_cm_handle_tx_wc(struct ifnet *dev, struct ib_wc *wc)
+static inline void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 {
 }
 #endif
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
-void ipoib_create_debug_files(struct ifnet *dev);
-void ipoib_delete_debug_files(struct ifnet *dev);
+void ipoib_create_debug_files(struct ipoib_dev_priv *priv);
+void ipoib_delete_debug_files(struct ipoib_dev_priv *priv);
 int ipoib_register_debugfs(void);
 void ipoib_unregister_debugfs(void);
 #else
-static inline void ipoib_create_debug_files(struct ifnet *dev) { }
-static inline void ipoib_delete_debug_files(struct ifnet *dev) { }
+static inline void ipoib_create_debug_files(struct ipoib_dev_priv *priv) { }
+static inline void ipoib_delete_debug_files(struct ipoib_dev_priv *priv) { }
 static inline int ipoib_register_debugfs(void) { return 0; }
 static inline void ipoib_unregister_debugfs(void) { }
 #endif

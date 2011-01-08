@@ -52,7 +52,7 @@ MODULE_PARM_DESC(data_debug_level,
 
 static DEFINE_MUTEX(pkey_mutex);
 
-struct ipoib_ah *ipoib_create_ah(struct ifnet *dev,
+struct ipoib_ah *ipoib_create_ah(struct ipoib_dev_priv *priv,
 				 struct ib_pd *pd, struct ib_ah_attr *attr)
 {
 	struct ipoib_ah *ah;
@@ -61,7 +61,7 @@ struct ipoib_ah *ipoib_create_ah(struct ifnet *dev,
 	if (!ah)
 		return NULL;
 
-	ah->dev       = dev;
+	ah->priv      = priv;
 	ah->last_send = 0;
 	kref_init(&ah->ref);
 
@@ -70,7 +70,7 @@ struct ipoib_ah *ipoib_create_ah(struct ifnet *dev,
 		kfree(ah);
 		ah = NULL;
 	} else
-		ipoib_dbg(dev->if_softc, "Created ah %p\n", ah->ah);
+		ipoib_dbg(priv, "Created ah %p\n", ah->ah);
 
 	return ah;
 }
@@ -78,7 +78,7 @@ struct ipoib_ah *ipoib_create_ah(struct ifnet *dev,
 void ipoib_free_ah(struct kref *kref)
 {
 	struct ipoib_ah *ah = container_of(kref, struct ipoib_ah, ref);
-	struct ipoib_dev_priv *priv = ah->dev->if_softc;
+	struct ipoib_dev_priv *priv = ah->priv;
 
 	unsigned long flags;
 
@@ -104,9 +104,8 @@ static void ipoib_ud_mb_put_frags(struct ipoib_dev_priv *priv,
 	mb->m_len = length;
 }
 
-static int ipoib_ib_post_receive(struct ifnet *dev, int id)
+static int ipoib_ib_post_receive(struct ipoib_dev_priv *priv, int id)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ib_recv_wr *bad_wr;
 	int ret;
 
@@ -124,9 +123,8 @@ static int ipoib_ib_post_receive(struct ifnet *dev, int id)
 	return ret;
 }
 
-static struct mbuf *ipoib_alloc_rx_mb(struct ifnet *dev, int id)
+static struct mbuf *ipoib_alloc_rx_mb(struct ipoib_dev_priv *priv, int id)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct mbuf *mb;
 	int buf_size;
 	u64 *mapping;
@@ -162,17 +160,16 @@ error:
 	return NULL;
 }
 
-static int ipoib_ib_post_receives(struct ifnet *dev)
+static int ipoib_ib_post_receives(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	int i;
 
 	for (i = 0; i < ipoib_recvq_size; ++i) {
-		if (!ipoib_alloc_rx_mb(dev, i)) {
+		if (!ipoib_alloc_rx_mb(priv, i)) {
 			ipoib_warn(priv, "failed to allocate receive buffer %d\n", i);
 			return -ENOMEM;
 		}
-		if (ipoib_ib_post_receive(dev, i)) {
+		if (ipoib_ib_post_receive(priv, i)) {
 			ipoib_warn(priv, "ipoib_ib_post_receive failed for buf %d\n", i);
 			return -EIO;
 		}
@@ -182,10 +179,10 @@ static int ipoib_ib_post_receives(struct ifnet *dev)
 }
 
 static void
-ipoib_ib_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc)
+ipoib_ib_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_RECV;
+	struct ifnet *dev = priv->dev;
 	struct ipoib_header *eh;
 	struct mbuf *mb;
 	u64 mapping[IPOIB_UD_RX_SG];
@@ -226,7 +223,7 @@ ipoib_ib_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc)
 	 * If we can't allocate a new RX buffer, dump
 	 * this packet and reuse the old buffer.
 	 */
-	if (unlikely(!ipoib_alloc_rx_mb(dev, wr_id))) {
+	if (unlikely(!ipoib_alloc_rx_mb(priv, wr_id))) {
 		dev->if_iqdrops++;
 		goto repost;
 	}
@@ -247,10 +244,12 @@ ipoib_ib_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc)
 	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->csum_ok))
 		mb->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
 
+	spin_unlock(&priv->lock);
 	dev->if_input(dev, mb);
+	spin_lock(&priv->lock);
 
 repost:
-	if (unlikely(ipoib_ib_post_receive(dev, wr_id)))
+	if (unlikely(ipoib_ib_post_receive(priv, wr_id)))
 		ipoib_warn(priv, "ipoib_ib_post_receive failed "
 			   "for buf %d\n", wr_id);
 }
@@ -306,9 +305,9 @@ static void ipoib_dma_unmap_tx(struct ib_device *ca,
 		ib_dma_unmap_single(ca, mapping[i], m->m_len, DMA_TO_DEVICE);
 }
 
-static void ipoib_ib_handle_tx_wc(struct ifnet *dev, struct ib_wc *wc)
+static void ipoib_ib_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ifnet *dev = priv->dev;
 	unsigned int wr_id = wc->wr_id;
 	struct ipoib_tx_buf *tx_req;
 
@@ -349,15 +348,14 @@ static int poll_tx(struct ipoib_dev_priv *priv)
 
 	n = ib_poll_cq(priv->send_cq, MAX_SEND_CQE, priv->send_wc);
 	for (i = 0; i < n; ++i)
-		ipoib_ib_handle_tx_wc(priv->dev, priv->send_wc + i);
+		ipoib_ib_handle_tx_wc(priv, priv->send_wc + i);
 
 	return n == MAX_SEND_CQE;
 }
 
 static void
-ipoib_poll(struct ifnet *dev)
+ipoib_poll(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	int n, i;
 
 poll_more:
@@ -369,11 +367,11 @@ poll_more:
 
 			if (wc->wr_id & IPOIB_OP_RECV) {
 				if (wc->wr_id & IPOIB_OP_CM)
-					ipoib_cm_handle_rx_wc(dev, wc);
+					ipoib_cm_handle_rx_wc(priv, wc);
 				else
-					ipoib_ib_handle_rx_wc(dev, wc);
+					ipoib_ib_handle_rx_wc(priv, wc);
 			} else
-				ipoib_cm_handle_tx_wc(priv->dev, wc);
+				ipoib_cm_handle_tx_wc(priv, wc);
 		}
 
 		if (n != IPOIB_NUM_WC)
@@ -387,17 +385,16 @@ poll_more:
 
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 {
-	struct ifnet *dev = dev_ptr;
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ipoib_dev_priv *priv = dev_ptr;
 
 	spin_lock(&priv->lock);
-	ipoib_poll(dev);
+	ipoib_poll(priv);
 	spin_unlock(&priv->lock);
 }
 
-static void drain_tx_cq(struct ifnet *dev)
+static void drain_tx_cq(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ifnet *dev = priv->dev;
 
 	spin_lock(&priv->lock);
 	while (poll_tx(priv))
@@ -411,7 +408,7 @@ static void drain_tx_cq(struct ifnet *dev)
 
 void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr)
 {
-	struct ipoib_dev_priv *priv = ((struct ifnet *)dev_ptr)->if_softc;
+	struct ipoib_dev_priv *priv = dev_ptr;
 
 	mod_timer(&priv->poll_timer, jiffies);
 }
@@ -449,10 +446,10 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 }
 
 void
-ipoib_send(struct ifnet *dev, struct mbuf *mb,
+ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
     struct ipoib_ah *address, u32 qpn)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ifnet *dev = priv->dev;
 	struct ipoib_tx_buf *tx_req;
 	int hlen;
 	void *phead;
@@ -473,7 +470,7 @@ ipoib_send(struct ifnet *dev, struct mbuf *mb,
 			ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
 				   mb->m_pkthdr.len, priv->mcast_mtu + IPOIB_ENCAP_LEN);
 			++dev->if_oerrors;
-			ipoib_cm_mb_too_long(dev, mb, priv->mcast_mtu);
+			ipoib_cm_mb_too_long(priv, mb, priv->mcast_mtu);
 			return;
 		}
 		phead = NULL;
@@ -532,9 +529,8 @@ ipoib_send(struct ifnet *dev, struct mbuf *mb,
 			; /* nothing */
 }
 
-static void __ipoib_reap_ah(struct ifnet *dev)
+static void __ipoib_reap_ah(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_ah *ah, *tah;
 	LIST_HEAD(remove_list);
 	unsigned long flags;
@@ -555,24 +551,22 @@ void ipoib_reap_ah(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv =
 		container_of(work, struct ipoib_dev_priv, ah_reap_task.work);
-	struct ifnet *dev = priv->dev;
 
-	__ipoib_reap_ah(dev);
+	__ipoib_reap_ah(priv);
 
 	if (!test_bit(IPOIB_STOP_REAPER, &priv->flags))
 		queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
 				   HZ);
 }
 
-static void ipoib_ah_dev_cleanup(struct ifnet *dev)
+static void ipoib_ah_dev_cleanup(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	unsigned long begin;
 
 	begin = jiffies;
 
 	while (!list_empty(&priv->dead_ahs)) {
-		__ipoib_reap_ah(dev);
+		__ipoib_reap_ah(priv);
 
 		if (time_after(jiffies, begin + HZ)) {
 			ipoib_warn(priv, "timing out; will leak address handles\n");
@@ -585,12 +579,11 @@ static void ipoib_ah_dev_cleanup(struct ifnet *dev)
 
 static void ipoib_ib_tx_timer_func(unsigned long ctx)
 {
-	drain_tx_cq((struct ifnet *)ctx);
+	drain_tx_cq((struct ipoib_dev_priv *)ctx);
 }
 
-int ipoib_ib_dev_open(struct ifnet *dev)
+int ipoib_ib_dev_open(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	int ret;
 
 	if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &priv->pkey_index)) {
@@ -600,23 +593,23 @@ int ipoib_ib_dev_open(struct ifnet *dev)
 	}
 	set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 
-	ret = ipoib_init_qp(dev);
+	ret = ipoib_init_qp(priv);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_init_qp returned %d\n", ret);
 		return -1;
 	}
 
-	ret = ipoib_ib_post_receives(dev);
+	ret = ipoib_ib_post_receives(priv);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_ib_post_receives returned %d\n", ret);
-		ipoib_ib_dev_stop(dev, 1);
+		ipoib_ib_dev_stop(priv, 1);
 		return -1;
 	}
 
-	ret = ipoib_cm_dev_open(dev);
+	ret = ipoib_cm_dev_open(priv);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_cm_dev_open returned %d\n", ret);
-		ipoib_ib_dev_stop(dev, 1);
+		ipoib_ib_dev_stop(priv, 1);
 		return -1;
 	}
 
@@ -626,9 +619,8 @@ int ipoib_ib_dev_open(struct ifnet *dev)
 	return 0;
 }
 
-static void ipoib_pkey_dev_check_presence(struct ifnet *dev)
+static void ipoib_pkey_dev_check_presence(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	u16 pkey_index = 0;
 
 	if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &pkey_index))
@@ -637,11 +629,10 @@ static void ipoib_pkey_dev_check_presence(struct ifnet *dev)
 		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 }
 
-int ipoib_ib_dev_up(struct ifnet *dev)
+int ipoib_ib_dev_up(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 
-	ipoib_pkey_dev_check_presence(dev);
+	ipoib_pkey_dev_check_presence(priv);
 
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
 		ipoib_dbg(priv, "PKEY is not assigned.\n");
@@ -650,17 +641,16 @@ int ipoib_ib_dev_up(struct ifnet *dev)
 
 	set_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
 
-	return ipoib_mcast_start_thread(dev);
+	return ipoib_mcast_start_thread(priv);
 }
 
-int ipoib_ib_dev_down(struct ifnet *dev, int flush)
+int ipoib_ib_dev_down(struct ipoib_dev_priv *priv, int flush)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	ipoib_dbg(priv, "downing ib_dev\n");
 
 	clear_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
-	if_link_state_change(dev, LINK_STATE_DOWN);
+	if_link_state_change(priv->dev, LINK_STATE_DOWN);
 
 	/* Shutdown the P_Key thread if still active */
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
@@ -672,17 +662,16 @@ int ipoib_ib_dev_down(struct ifnet *dev, int flush)
 			flush_workqueue(ipoib_workqueue);
 	}
 
-	ipoib_mcast_stop_thread(dev, flush);
-	ipoib_mcast_dev_flush(dev);
+	ipoib_mcast_stop_thread(priv, flush);
+	ipoib_mcast_dev_flush(priv);
 
-	ipoib_flush_paths(dev);
+	ipoib_flush_paths(priv);
 
 	return 0;
 }
 
-static int recvs_pending(struct ifnet *dev)
+static int recvs_pending(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	int pending = 0;
 	int i;
 
@@ -693,9 +682,8 @@ static int recvs_pending(struct ifnet *dev)
 	return pending;
 }
 
-void ipoib_drain_cq(struct ifnet *dev)
+void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	int i, n;
 
 	spin_lock(&priv->lock);
@@ -712,11 +700,11 @@ void ipoib_drain_cq(struct ifnet *dev)
 
 			if (priv->ibwc[i].wr_id & IPOIB_OP_RECV) {
 				if (priv->ibwc[i].wr_id & IPOIB_OP_CM)
-					ipoib_cm_handle_rx_wc(dev, priv->ibwc + i);
+					ipoib_cm_handle_rx_wc(priv, priv->ibwc + i);
 				else
-					ipoib_ib_handle_rx_wc(dev, priv->ibwc + i);
+					ipoib_ib_handle_rx_wc(priv, priv->ibwc + i);
 			} else
-				ipoib_cm_handle_tx_wc(dev, priv->ibwc + i);
+				ipoib_cm_handle_tx_wc(priv, priv->ibwc + i);
 		}
 	} while (n == IPOIB_NUM_WC);
 
@@ -726,15 +714,14 @@ void ipoib_drain_cq(struct ifnet *dev)
 	spin_unlock(&priv->lock);
 }
 
-int ipoib_ib_dev_stop(struct ifnet *dev, int flush)
+int ipoib_ib_dev_stop(struct ipoib_dev_priv *priv, int flush)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ib_qp_attr qp_attr;
 	unsigned long begin;
 	struct ipoib_tx_buf *tx_req;
 	int i;
 
-	ipoib_cm_dev_stop(dev);
+	ipoib_cm_dev_stop(priv);
 
 	/*
 	 * Move our QP to the error state and then reinitialize in
@@ -747,10 +734,10 @@ int ipoib_ib_dev_stop(struct ifnet *dev, int flush)
 	/* Wait for all sends and receives to complete */
 	begin = jiffies;
 
-	while (priv->tx_head != priv->tx_tail || recvs_pending(dev)) {
+	while (priv->tx_head != priv->tx_tail || recvs_pending(priv)) {
 		if (time_after(jiffies, begin + 5 * HZ)) {
 			ipoib_warn(priv, "timing out; %d sends %d receives not completed\n",
-				   priv->tx_head - priv->tx_tail, recvs_pending(dev));
+				   priv->tx_head - priv->tx_tail, recvs_pending(priv));
 
 			/*
 			 * assume the HW is wedged and just free up
@@ -780,7 +767,7 @@ int ipoib_ib_dev_stop(struct ifnet *dev, int flush)
 			goto timeout;
 		}
 
-		ipoib_drain_cq(dev);
+		ipoib_drain_cq(priv);
 
 		msleep(1);
 	}
@@ -799,32 +786,32 @@ timeout:
 	if (flush)
 		flush_workqueue(ipoib_workqueue);
 
-	ipoib_ah_dev_cleanup(dev);
+	ipoib_ah_dev_cleanup(priv);
 
 	ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
 
 	return 0;
 }
 
-int ipoib_ib_dev_init(struct ifnet *dev, struct ib_device *ca, int port)
+int ipoib_ib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca, int port)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ifnet *dev = priv->dev;
 
 	priv->ca = ca;
 	priv->port = port;
 	priv->qp = NULL;
 
-	if (ipoib_transport_dev_init(dev, ca)) {
+	if (ipoib_transport_dev_init(priv, ca)) {
 		printk(KERN_WARNING "%s: ipoib_transport_dev_init failed\n", ca->name);
 		return -ENODEV;
 	}
 
 	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
-		    (unsigned long) dev);
+		    (unsigned long) priv);
 
 	if (dev->if_flags & IFF_UP) {
-		if (ipoib_ib_dev_open(dev)) {
-			ipoib_transport_dev_cleanup(dev);
+		if (ipoib_ib_dev_open(priv)) {
+			ipoib_transport_dev_cleanup(priv);
 			return -ENODEV;
 		}
 	}
@@ -836,7 +823,6 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 				enum ipoib_flush_level level)
 {
 	struct ipoib_dev_priv *cpriv;
-	struct ifnet *dev = priv->dev;
 	u16 new_index;
 
 	mutex_lock(&priv->vlan_mutex);
@@ -863,9 +849,9 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 	if (level == IPOIB_FLUSH_HEAVY) {
 		if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &new_index)) {
 			clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
-			ipoib_ib_dev_down(dev, 0);
-			ipoib_ib_dev_stop(dev, 0);
-			if (ipoib_pkey_dev_delay_open(dev))
+			ipoib_ib_dev_down(priv, 0);
+			ipoib_ib_dev_stop(priv, 0);
+			if (ipoib_pkey_dev_delay_open(priv))
 				return;
 		}
 
@@ -879,16 +865,16 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 	}
 
 	if (level == IPOIB_FLUSH_LIGHT) {
-		ipoib_mark_paths_invalid(dev);
-		ipoib_mcast_dev_flush(dev);
+		ipoib_mark_paths_invalid(priv);
+		ipoib_mcast_dev_flush(priv);
 	}
 
 	if (level >= IPOIB_FLUSH_NORMAL)
-		ipoib_ib_dev_down(dev, 0);
+		ipoib_ib_dev_down(priv, 0);
 
 	if (level == IPOIB_FLUSH_HEAVY) {
-		ipoib_ib_dev_stop(dev, 0);
-		ipoib_ib_dev_open(dev);
+		ipoib_ib_dev_stop(priv, 0);
+		ipoib_ib_dev_open(priv);
 	}
 
 	/*
@@ -897,7 +883,7 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 	 */
 	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)) {
 		if (level >= IPOIB_FLUSH_NORMAL)
-			ipoib_ib_dev_up(dev);
+			ipoib_ib_dev_up(priv);
 		ipoib_mcast_restart_task(&priv->restart_task);
 	}
 }
@@ -926,17 +912,16 @@ void ipoib_ib_dev_flush_heavy(struct work_struct *work)
 	__ipoib_ib_dev_flush(priv, IPOIB_FLUSH_HEAVY);
 }
 
-void ipoib_ib_dev_cleanup(struct ifnet *dev)
+void ipoib_ib_dev_cleanup(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	ipoib_dbg(priv, "cleaning up ib_dev\n");
 
-	ipoib_mcast_stop_thread(dev, 1);
-	ipoib_mcast_dev_flush(dev);
+	ipoib_mcast_stop_thread(priv, 1);
+	ipoib_mcast_dev_flush(priv);
 
-	ipoib_ah_dev_cleanup(dev);
-	ipoib_transport_dev_cleanup(dev);
+	ipoib_ah_dev_cleanup(priv);
+	ipoib_transport_dev_cleanup(priv);
 }
 
 /*
@@ -953,12 +938,11 @@ void ipoib_pkey_poll(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv =
 		container_of(work, struct ipoib_dev_priv, pkey_poll_task.work);
-	struct ifnet *dev = priv->dev;
 
-	ipoib_pkey_dev_check_presence(dev);
+	ipoib_pkey_dev_check_presence(priv);
 
 	if (test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags))
-		ipoib_open(dev);
+		ipoib_open(priv);
 	else {
 		mutex_lock(&pkey_mutex);
 		if (!test_bit(IPOIB_PKEY_STOP, &priv->flags))
@@ -969,13 +953,12 @@ void ipoib_pkey_poll(struct work_struct *work)
 	}
 }
 
-int ipoib_pkey_dev_delay_open(struct ifnet *dev)
+int ipoib_pkey_dev_delay_open(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	/* Look for the interface pkey value in the IB Port P_Key table and */
 	/* set the interface pkey assigment flag                            */
-	ipoib_pkey_dev_check_presence(dev);
+	ipoib_pkey_dev_check_presence(priv);
 
 	/* P_Key value not assigned yet - start polling */
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {

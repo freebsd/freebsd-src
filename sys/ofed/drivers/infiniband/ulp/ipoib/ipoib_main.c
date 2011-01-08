@@ -69,7 +69,7 @@ MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 #endif
 
 struct ipoib_path_iter {
-	struct ifnet *dev;
+	struct ipoib_dev_priv *priv;
 	struct ipoib_path  path;
 };
 
@@ -98,21 +98,21 @@ static struct ib_client ipoib_client = {
 };
 
 int
-ipoib_open(struct ifnet *dev)
+ipoib_open(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ifnet *dev = priv->dev;
 
 	ipoib_dbg(priv, "bringing up interface\n");
 
 	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
-	if (ipoib_pkey_dev_delay_open(dev))
+	if (ipoib_pkey_dev_delay_open(priv))
 		return 0;
 
-	if (ipoib_ib_dev_open(dev))
+	if (ipoib_ib_dev_open(priv))
 		goto err_disable;
 
-	if (ipoib_ib_dev_up(dev))
+	if (ipoib_ib_dev_up(priv))
 		goto err_stop;
 
 #if 0 /* XXX */
@@ -139,7 +139,7 @@ ipoib_open(struct ifnet *dev)
 	return 0;
 
 err_stop:
-	ipoib_ib_dev_stop(dev, 1);
+	ipoib_ib_dev_stop(priv, 1);
 
 err_disable:
 	clear_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
@@ -156,15 +156,15 @@ ipoib_init(void *arg)
 	priv = arg;
 	dev = priv->dev;
 	if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		ipoib_open(dev);
+		ipoib_open(priv);
 	queue_work(ipoib_workqueue, &priv->flush_light);
 }
 
 
 static int
-ipoib_stop(struct ifnet *dev)
+ipoib_stop(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ifnet *dev = priv->dev;
 
 	ipoib_dbg(priv, "stopping interface\n");
 
@@ -172,8 +172,8 @@ ipoib_stop(struct ifnet *dev)
 
 	dev->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
-	ipoib_ib_dev_down(dev, 0);
-	ipoib_ib_dev_stop(dev, 0);
+	ipoib_ib_dev_down(priv, 0);
+	ipoib_ib_dev_stop(priv, 0);
 
 #if 0 /* XXX */
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
@@ -198,13 +198,13 @@ ipoib_stop(struct ifnet *dev)
 }
 
 static int
-ipoib_change_mtu(struct ifnet *dev, int new_mtu)
+ipoib_change_mtu(struct ipoib_dev_priv *priv, int new_mtu)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ifnet *dev = priv->dev;
 
 	/* dev->if_mtu > 2K ==> connected mode */
-	if (ipoib_cm_admin_enabled(dev)) {
-		if (new_mtu > ipoib_cm_max_mtu(dev))
+	if (ipoib_cm_admin_enabled(priv)) {
+		if (new_mtu > ipoib_cm_max_mtu(priv))
 			return -EINVAL;
 
 		if (new_mtu > priv->mcast_mtu)
@@ -235,14 +235,21 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0;
 
+	/*
+	 * We may be called if if_vlan.c doesn't handle something however,
+	 * if_softc is not our softc in this case.
+	 */
+	if (ifp->if_type != IFT_INFINIBAND)
+		return (EINVAL);
+
 	switch (command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-				error = -ipoib_open(ifp);
+				error = -ipoib_open(priv);
 		} else
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				ipoib_stop(ifp);
+				ipoib_stop(priv);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -279,7 +286,7 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		/*
 		 * Set the interface MTU.
 		 */
-		error = -ipoib_change_mtu(ifp, ifr->ifr_mtu);
+		error = -ipoib_change_mtu(priv, ifr->ifr_mtu);
 		break;
 	default:
 		error = EINVAL;
@@ -290,9 +297,8 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 
 static struct ipoib_path *
-__path_find(struct ifnet *dev, void *gid)
+__path_find(struct ipoib_dev_priv *priv, void *gid)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct rb_node *n = priv->path_tree.rb_node;
 	struct ipoib_path *path;
 	int ret;
@@ -315,9 +321,8 @@ __path_find(struct ifnet *dev, void *gid)
 }
 
 static int
-__path_add(struct ifnet *dev, struct ipoib_path *path)
+__path_add(struct ipoib_dev_priv *priv, struct ipoib_path *path)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct rb_node **n = &priv->path_tree.rb_node;
 	struct rb_node *pn = NULL;
 	struct ipoib_path *tpath;
@@ -346,7 +351,7 @@ __path_add(struct ifnet *dev, struct ipoib_path *path)
 }
 
 void
-ipoib_path_free(struct ifnet *dev, struct ipoib_path *path)
+ipoib_path_free(struct ipoib_dev_priv *priv, struct ipoib_path *path)
 {
 
 	_IF_DRAIN(&path->queue);
@@ -362,7 +367,7 @@ ipoib_path_free(struct ifnet *dev, struct ipoib_path *path)
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 
 struct ipoib_path_iter *
-ipoib_path_iter_init(struct ifnet *dev)
+ipoib_path_iter_init(struct ipoib_dev_priv *priv)
 {
 	struct ipoib_path_iter *iter;
 
@@ -370,7 +375,7 @@ ipoib_path_iter_init(struct ifnet *dev)
 	if (!iter)
 		return NULL;
 
-	iter->dev = dev;
+	iter->priv = priv;
 	memset(iter->path.pathrec.dgid.raw, 0, 16);
 
 	if (ipoib_path_iter_next(iter)) {
@@ -384,7 +389,7 @@ ipoib_path_iter_init(struct ifnet *dev)
 int
 ipoib_path_iter_next(struct ipoib_path_iter *iter)
 {
-	struct ipoib_dev_priv *priv = iter->dev->if_softc;
+	struct ipoib_dev_priv *priv = iter->priv;
 	struct rb_node *n;
 	struct ipoib_path *path;
 	int ret = 1;
@@ -420,9 +425,8 @@ ipoib_path_iter_read(struct ipoib_path_iter *iter, struct ipoib_path *path)
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */
 
 void
-ipoib_mark_paths_invalid(struct ifnet *dev)
+ipoib_mark_paths_invalid(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path, *tp;
 
 	spin_lock_irq(&priv->lock);
@@ -438,9 +442,8 @@ ipoib_mark_paths_invalid(struct ifnet *dev)
 }
 
 void
-ipoib_flush_paths(struct ifnet *dev)
+ipoib_flush_paths(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path, *tp;
 	LIST_HEAD(remove_list);
 	unsigned long flags;
@@ -457,7 +460,7 @@ ipoib_flush_paths(struct ifnet *dev)
 			ib_sa_cancel_query(path->query_id, path->query);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		wait_for_completion(&path->done);
-		ipoib_path_free(dev, path);
+		ipoib_path_free(priv, path);
 		spin_lock_irqsave(&priv->lock, flags);
 	}
 
@@ -468,8 +471,8 @@ static void
 path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 {
 	struct ipoib_path *path = path_ptr;
-	struct ifnet *dev = path->dev;
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ipoib_dev_priv *priv = path->priv;
+	struct ifnet *dev = priv->dev;
 	struct ipoib_ah *ah = NULL;
 	struct ipoib_ah *old_ah = NULL;
 	struct ifqueue mbqueue;
@@ -489,7 +492,7 @@ path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 		struct ib_ah_attr av;
 
 		if (!ib_init_ah_from_path(priv->ca, priv->port, pathrec, &av))
-			ah = ipoib_create_ah(dev, priv->pd, &av);
+			ah = ipoib_create_ah(priv, priv->pd, &av);
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -511,8 +514,8 @@ path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 		}
 
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
-		if (ipoib_cm_enabled(dev, path->hwaddr) && !ipoib_cm_get(path))
-			ipoib_cm_set(path, ipoib_cm_create_tx(dev, path));
+		if (ipoib_cm_enabled(priv, path->hwaddr) && !ipoib_cm_get(path))
+			ipoib_cm_set(path, ipoib_cm_create_tx(priv, path));
 #endif
 
 		path->valid = 1;
@@ -538,9 +541,8 @@ path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 }
 
 static struct ipoib_path *
-path_rec_create(struct ifnet *dev, uint8_t *hwaddr)
+path_rec_create(struct ipoib_dev_priv *priv, uint8_t *hwaddr)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path;
 
 	if (!priv->broadcast)
@@ -550,7 +552,7 @@ path_rec_create(struct ifnet *dev, uint8_t *hwaddr)
 	if (!path)
 		return NULL;
 
-	path->dev = dev;
+	path->priv = priv;
 
 	bzero(&path->queue, sizeof(path->queue));
 
@@ -567,9 +569,10 @@ path_rec_create(struct ifnet *dev, uint8_t *hwaddr)
 }
 
 static int
-path_rec_start(struct ifnet *dev, struct ipoib_path *path)
+path_rec_start(struct ipoib_dev_priv *priv, struct ipoib_path *path)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ifnet *dev = priv->dev;
+
 	ib_sa_comp_mask comp_mask = IB_SA_PATH_REC_MTU_SELECTOR | IB_SA_PATH_REC_MTU;
 	struct ib_sa_path_rec p_rec;
 
@@ -624,30 +627,29 @@ path_rec_start(struct ifnet *dev, struct ipoib_path *path)
 }
 
 static void
-ipoib_unicast_send(struct mbuf *mb, struct ifnet *dev, struct ipoib_header *eh)
+ipoib_unicast_send(struct mbuf *mb, struct ipoib_dev_priv *priv, struct ipoib_header *eh)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path;
 
-	path = __path_find(dev, eh->hwaddr + 4);
+	path = __path_find(priv, eh->hwaddr + 4);
 	if (!path || !path->valid) {
 		int new_path = 0;
 
 		if (!path) {
-			path = path_rec_create(dev, eh->hwaddr);
+			path = path_rec_create(priv, eh->hwaddr);
 			new_path = 1;
 		}
 		if (path) {
 			_IF_ENQUEUE(&path->queue, mb);
-			if (!path->query && path_rec_start(dev, path)) {
+			if (!path->query && path_rec_start(priv, path)) {
 				spin_unlock_irqrestore(&priv->lock, flags);
 				if (new_path)
-					ipoib_path_free(dev, path);
+					ipoib_path_free(priv, path);
 				return;
 			} else
-				__path_add(dev, path);
+				__path_add(priv, path);
 		} else {
-			++dev->if_oerrors;
+			++priv->dev->if_oerrors;
 			m_freem(mb);
 		}
 
@@ -655,34 +657,32 @@ ipoib_unicast_send(struct mbuf *mb, struct ifnet *dev, struct ipoib_header *eh)
 	}
 
 	if (ipoib_cm_get(path) && ipoib_cm_up(path)) {
-		ipoib_cm_send(dev, mb, ipoib_cm_get(path));
+		ipoib_cm_send(priv, mb, ipoib_cm_get(path));
 	} else if (path->ah) {
-		ipoib_send(dev, mb, path->ah, IPOIB_QPN(eh->hwaddr));
-	} else if ((path->query || !path_rec_start(dev, path)) &&
+		ipoib_send(priv, mb, path->ah, IPOIB_QPN(eh->hwaddr));
+	} else if ((path->query || !path_rec_start(priv, path)) &&
 		    path->queue.ifq_len < IPOIB_MAX_PATH_REC_QUEUE) {
 		_IF_ENQUEUE(&path->queue, mb);
 	} else {
-		++dev->if_oerrors;
+		++priv->dev->if_oerrors;
 		m_freem(mb);
 	}
 }
 
 static int
-ipoib_send_one(struct ifnet *dev, struct mbuf *mb)
+ipoib_send_one(struct ipoib_dev_priv *priv, struct mbuf *mb)
 {
-	struct ipoib_dev_priv *priv;
 	struct ipoib_header *eh;
 
 	eh = mtod(mb, struct ipoib_header *);
 	if (IPOIB_IS_MULTICAST(eh->hwaddr)) {
-		priv = dev->if_softc;
 		/* Add in the P_Key for multicast*/
 		eh->hwaddr[8] = (priv->pkey >> 8) & 0xff;
 		eh->hwaddr[9] = priv->pkey & 0xff;
 
-		ipoib_mcast_send(dev, eh->hwaddr + 4, mb);
+		ipoib_mcast_send(priv, eh->hwaddr + 4, mb);
 	} else
-		ipoib_unicast_send(mb, dev, eh);
+		ipoib_unicast_send(mb, priv, eh);
 
 	return 0;
 }
@@ -706,15 +706,14 @@ ipoib_start(struct ifnet *dev)
 			break;
 
 		BPF_MTAP(dev, mb);
-		ipoib_send_one(dev, mb);
+		ipoib_send_one(priv, mb);
 	}
 	spin_unlock(&priv->lock);
 }
 
 int
-ipoib_dev_init(struct ifnet *dev, struct ib_device *ca, int port)
+ipoib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca, int port)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	/* Allocate RX/TX "rings" to hold queued mbs */
 	priv->rx_ring =	kzalloc(ipoib_recvq_size * sizeof *priv->rx_ring,
@@ -735,7 +734,7 @@ ipoib_dev_init(struct ifnet *dev, struct ib_device *ca, int port)
 
 	/* priv->tx_head, tx_tail & tx_outstanding are already 0 */
 
-	if (ipoib_ib_dev_init(dev, ca, port))
+	if (ipoib_ib_dev_init(priv, ca, port))
 		goto out_tx_ring_cleanup;
 
 	return 0;
@@ -762,17 +761,17 @@ ipoib_detach(struct ifnet *dev)
 }
 
 void
-ipoib_dev_cleanup(struct ifnet *dev)
+ipoib_dev_cleanup(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc, *cpriv, *tcpriv;
+	struct ipoib_dev_priv *cpriv, *tcpriv;
 
 	/* Delete any child interfaces first */
 	list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
-		ipoib_dev_cleanup(cpriv->dev);
+		ipoib_dev_cleanup(cpriv);
 		ipoib_detach(cpriv->dev);
 	}
 
-	ipoib_ib_dev_cleanup(dev);
+	ipoib_ib_dev_cleanup(priv);
 
 	kfree(priv->rx_ring);
 	kfree(priv->tx_ring);
@@ -911,13 +910,16 @@ ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
 		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
 		priv->dev->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
-		priv->dev->if_capabilities = IFCAP_HWCSUM;
+		priv->dev->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	}
 
 #if 0
 	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
 		priv->dev->if_capabilities |= IFCAP_TSO4 | CSUM_TSO;
 #endif
+	priv->dev->if_capabilities |=
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_LINKSTATE;
+	priv->dev->if_capenable = priv->dev->if_capabilities;
 
 	return 0;
 }
@@ -973,7 +975,7 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 	}
 	memcpy(IF_LLADDR(priv->dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));
 
-	result = ipoib_dev_init(priv->dev, hca, port);
+	result = ipoib_dev_init(priv, hca, port);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: failed to initialize port %d (ret = %d)\n",
 		       hca->name, port, result);
@@ -994,7 +996,7 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 	return priv->dev;
 
 event_failed:
-	ipoib_dev_cleanup(priv->dev);
+	ipoib_dev_cleanup(priv);
 
 device_init_failed:
 	ipoib_detach(priv->dev);
@@ -1062,7 +1064,7 @@ ipoib_remove_one(struct ib_device *device)
 
 		flush_workqueue(ipoib_workqueue);
 
-		ipoib_dev_cleanup(priv->dev);
+		ipoib_dev_cleanup(priv);
 		ipoib_detach(priv->dev);
 	}
 
@@ -1249,7 +1251,6 @@ bad:
 void
 ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
 {
-	struct ipoib_dev_priv *priv = ifp->if_softc;
 	int isr;
 
 #ifdef MAC
@@ -1297,9 +1298,7 @@ ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
 	default:
 		goto discard;
 	}
-	spin_unlock(&priv->lock);
 	netisr_dispatch(isr, m);
-	spin_lock(&priv->lock);
 	return;
 
 discard:

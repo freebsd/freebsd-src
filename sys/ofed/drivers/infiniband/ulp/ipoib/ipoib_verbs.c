@@ -34,9 +34,8 @@
 #include "ipoib.h"
 #include <linux/ethtool.h>
 
-int ipoib_mcast_attach(struct ifnet *dev, u16 mlid, union ib_gid *mgid, int set_qkey)
+int ipoib_mcast_attach(struct ipoib_dev_priv *priv, u16 mlid, union ib_gid *mgid, int set_qkey)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ib_qp_attr *qp_attr = NULL;
 	int ret;
 	u16 pkey_index;
@@ -73,9 +72,8 @@ out:
 	return ret;
 }
 
-int ipoib_init_qp(struct ifnet *dev)
+int ipoib_init_qp(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	int ret;
 	struct ib_qp_attr qp_attr;
 	int attr_mask;
@@ -127,9 +125,8 @@ out_fail:
 	return ret;
 }
 
-int ipoib_transport_dev_init(struct ifnet *dev, struct ib_device *ca)
+int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ib_qp_init_attr init_attr = {
 		.cap = {
 			.max_send_wr  = ipoib_sendq_size,
@@ -158,23 +155,23 @@ int ipoib_transport_dev_init(struct ifnet *dev, struct ib_device *ca)
 	}
 
 	size = ipoib_recvq_size + 1;
-	ret = ipoib_cm_dev_init(dev);
+	ret = ipoib_cm_dev_init(priv);
 	if (!ret) {
 		size += ipoib_sendq_size;
-		if (ipoib_cm_has_srq(dev))
+		if (ipoib_cm_has_srq(priv))
 			size += ipoib_recvq_size + 1; /* 1 extra for rx_drain_qp */
 		else
 			size += ipoib_recvq_size * ipoib_max_conn_qp;
 	}
 
-	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev, size, 0);
+	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, priv, size, 0);
 	if (IS_ERR(priv->recv_cq)) {
 		printk(KERN_WARNING "%s: failed to create receive CQ\n", ca->name);
 		goto out_free_mr;
 	}
 
 	priv->send_cq = ib_create_cq(priv->ca, ipoib_send_comp_handler, NULL,
-				     dev, ipoib_sendq_size, 0);
+				     priv, ipoib_sendq_size, 0);
 	if (IS_ERR(priv->send_cq)) {
 		printk(KERN_WARNING "%s: failed to create send CQ\n", ca->name);
 		goto out_free_recv_cq;
@@ -247,16 +244,15 @@ out_free_recv_cq:
 
 out_free_mr:
 	ib_dereg_mr(priv->mr);
-	ipoib_cm_dev_cleanup(dev);
+	ipoib_cm_dev_cleanup(priv);
 
 out_free_pd:
 	ib_dealloc_pd(priv->pd);
 	return -ENODEV;
 }
 
-void ipoib_transport_dev_cleanup(struct ifnet *dev)
+void ipoib_transport_dev_cleanup(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	if (priv->qp) {
 		if (ib_destroy_qp(priv->qp))
@@ -272,7 +268,7 @@ void ipoib_transport_dev_cleanup(struct ifnet *dev)
 	if (ib_destroy_cq(priv->recv_cq))
 		ipoib_warn(priv, "ib_cq_destroy (recv) failed\n");
 
-	ipoib_cm_dev_cleanup(dev);
+	ipoib_cm_dev_cleanup(priv);
 
 	if (ib_dereg_mr(priv->mr))
 		ipoib_warn(priv, "ib_dereg_mr failed\n");
