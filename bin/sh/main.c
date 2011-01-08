@@ -341,10 +341,7 @@ exitcmd(int argc, char **argv)
 	if (stoppedjobs())
 		return 0;
 	if (argc > 1)
-		exitstatus = number(argv[1]);
+		exitshell(number(argv[1]));
 	else
-		exitstatus = oexitstatus;
-	exitshell(exitstatus);
-	/*NOTREACHED*/
-	return 0;
+		exitshell_savedstatus();
 }

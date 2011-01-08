@@ -46,3 +46,4 @@ void onsig(int);
 void dotrap(void);
 void setinteractive(int);
 void exitshell(int) __dead2;
+void exitshell_savedstatus(void) __dead2;
