@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2008
+.Dd January 7, 2010
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -470,9 +470,9 @@ statement that cascade should have a
 .Li FALLTHROUGH
 comment.
 Numerical arguments should be checked for accuracy.
-Code that cannot be reached should have a
+Code which is unreachable for non-obvious reasons may be marked /*
 .Li NOTREACHED
-comment.
+*/.
 .Bd -literal
 	while ((ch = getopt(argc, argv, "abNn:")) != -1)
 		switch (ch) {		/* Indent the switch. */
@@ -496,7 +496,6 @@ comment.
 		case '?':
 		default:
 			usage();
-			/* NOTREACHED */
 		}
 	argc -= optind;
 	argv += optind;

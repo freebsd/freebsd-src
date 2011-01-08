@@ -116,7 +116,10 @@ static int	acpi_read_ivar(device_t dev, device_t child, int index,
 static int	acpi_write_ivar(device_t dev, device_t child, int index,
 			uintptr_t value);
 static struct resource_list *acpi_get_rlist(device_t dev, device_t child);
+static void	acpi_reserve_resources(device_t dev);
 static int	acpi_sysres_alloc(device_t dev);
+static int	acpi_set_resource(device_t dev, device_t child, int type,
+			int rid, u_long start, u_long count);
 static struct resource *acpi_alloc_resource(device_t bus, device_t child,
 			int type, int *rid, u_long start, u_long end,
 			u_long count, u_int flags);
@@ -187,7 +190,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_read_ivar,		acpi_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_write_ivar),
     DEVMETHOD(bus_get_resource_list,	acpi_get_rlist),
-    DEVMETHOD(bus_set_resource,		bus_generic_rl_set_resource),
+    DEVMETHOD(bus_set_resource,		acpi_set_resource),
     DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
     DEVMETHOD(bus_alloc_resource,	acpi_alloc_resource),
     DEVMETHOD(bus_release_resource,	acpi_release_resource),
@@ -1109,73 +1112,152 @@ acpi_sysres_alloc(device_t dev)
     return (0);
 }
 
+static char *pcilink_ids[] = { "PNP0C0F", NULL };
+static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
+
+/*
+ * Reserve declared resources for devices found during attach once system
+ * resources have been allocated.
+ */
+static void
+acpi_reserve_resources(device_t dev)
+{
+    struct resource_list_entry *rle;
+    struct resource_list *rl;
+    struct acpi_device *ad;
+    struct acpi_softc *sc;
+    device_t *children;
+    int child_count, i;
+
+    sc = device_get_softc(dev);
+    if (device_get_children(dev, &children, &child_count) != 0)
+	return;
+    for (i = 0; i < child_count; i++) {
+	ad = device_get_ivars(children[i]);
+	rl = &ad->ad_rl;
+
+	/* Don't reserve system resources. */
+	if (ACPI_ID_PROBE(dev, children[i], sysres_ids) != NULL)
+	    continue;
+
+	STAILQ_FOREACH(rle, rl, link) {
+	    /*
+	     * Don't reserve IRQ resources.  There are many sticky things
+	     * to get right otherwise (e.g. IRQs for psm, atkbd, and HPET
+	     * when using legacy routing).
+	     */
+	    if (rle->type == SYS_RES_IRQ)
+		continue;
+
+	    /*
+	     * Don't reserve the resource if it is already allocated.
+	     * The acpi_ec(4) driver can allocate its resources early
+	     * if ECDT is present.
+	     */
+	    if (rle->res != NULL)
+		continue;
+
+	    /*
+	     * Try to reserve the resource from our parent.  If this
+	     * fails because the resource is a system resource, just
+	     * let it be.  The resource range is already reserved so
+	     * that other devices will not use it.  If the driver
+	     * needs to allocate the resource, then
+	     * acpi_alloc_resource() will sub-alloc from the system
+	     * resource.
+	     */
+	    resource_list_reserve(rl, dev, children[i], rle->type, &rle->rid,
+		rle->start, rle->end, rle->count, 0);
+	}
+    }
+    free(children, M_TEMP);
+    sc->acpi_resources_reserved = 1;
+}
+
+static int
+acpi_set_resource(device_t dev, device_t child, int type, int rid,
+    u_long start, u_long count)
+{
+    struct acpi_softc *sc = device_get_softc(dev);
+    struct acpi_device *ad = device_get_ivars(child);
+    struct resource_list *rl = &ad->ad_rl;
+    u_long end;
+    
+    /* Ignore IRQ resources for PCI link devices. */
+    if (type == SYS_RES_IRQ && ACPI_ID_PROBE(dev, child, pcilink_ids) != NULL)
+	return (0);
+
+    /* If the resource is already allocated, fail. */
+    if (resource_list_busy(rl, type, rid))
+	return (EBUSY);
+
+    /* If the resource is already reserved, release it. */
+    if (resource_list_reserved(rl, type, rid))
+	resource_list_unreserve(rl, dev, child, type, rid);
+
+    /* Add the resource. */
+    end = (start + count - 1);
+    resource_list_add(rl, type, rid, start, end, count);
+
+    /* Don't reserve resources until the system resources are allocated. */
+    if (!sc->acpi_resources_reserved)
+	return (0);
+
+    /* Don't reserve system resources. */
+    if (ACPI_ID_PROBE(dev, child, sysres_ids) != NULL)
+	return (0);
+
+    /*
+     * Don't reserve IRQ resources.  There are many sticky things to
+     * get right otherwise (e.g. IRQs for psm, atkbd, and HPET when
+     * using legacy routing).
+     */
+    if (type == SYS_RES_IRQ)
+	return (0);
+
+    /*
+     * Reserve the resource.
+     *
+     * XXX: Ignores failure for now.  Failure here is probably a
+     * BIOS/firmware bug?
+     */
+    resource_list_reserve(rl, dev, child, type, &rid, start, end, count, 0);
+    return (0);
+}
+
 static struct resource *
 acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
     ACPI_RESOURCE ares;
-    struct acpi_device *ad = device_get_ivars(child);
-    struct resource_list *rl = &ad->ad_rl;
+    struct acpi_device *ad;
     struct resource_list_entry *rle;
+    struct resource_list *rl;
     struct resource *res;
     struct rman *rm;
-
-    res = NULL;
-
-    /* We only handle memory and IO resources through rman. */
-    switch (type) {
-    case SYS_RES_IOPORT:
-	rm = &acpi_rman_io;
-	break;
-    case SYS_RES_MEMORY:
-	rm = &acpi_rman_mem;
-	break;
-    default:
-	rm = NULL;
-    }
-	    
-    ACPI_SERIAL_BEGIN(acpi);
+    int isdefault = (start == 0UL && end == ~0UL);
 
     /*
-     * If this is an allocation of the "default" range for a given RID, and
-     * we know what the resources for this device are (i.e., they're on the
-     * child's resource list), use those start/end values.
+     * First attempt at allocating the resource.  For direct children,
+     * use resource_list_alloc() to handle reserved resources.  For
+     * other dveices, pass the request up to our parent.
      */
-    if (bus == device_get_parent(child) && start == 0UL && end == ~0UL) {
-	rle = resource_list_find(rl, type, *rid);
-	if (rle == NULL)
-	    goto out;
-	start = rle->start;
-	end = rle->end;
-	count = rle->count;
-    }
+    if (bus == device_get_parent(child)) {
+	ad = device_get_ivars(child);
+	rl = &ad->ad_rl;
 
-    /*
-     * If this is an allocation of a specific range, see if we can satisfy
-     * the request from our system resource regions.  If we can't, pass the
-     * request up to the parent.
-     */
-    if (start + count - 1 == end && rm != NULL)
-	res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
-	    child);
-    if (res == NULL) {
-	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
-	    start, end, count, flags);
-    } else {
-	rman_set_rid(res, *rid);
-
-	/* If requested, activate the resource using the parent's method. */
-	if (flags & RF_ACTIVE)
-	    if (bus_activate_resource(child, type, *rid, res) != 0) {
-		rman_release_resource(res);
-		res = NULL;
-		goto out;
-	    }
-    }
-
-    if (res != NULL && device_get_parent(child) == bus)
-	switch (type) {
-	case SYS_RES_IRQ:
+	/*
+	 * Simulate the behavior of the ISA bus for direct children
+	 * devices.  That is, if a non-default range is specified for
+	 * a resource that doesn't exist, use bus_set_resource() to
+	 * add the resource before allocating it.  Note that these
+	 * resources will not be reserved.
+	 */
+	if (!isdefault && resource_list_find(rl, type, *rid) == NULL)
+		resource_list_add(rl, type, *rid, start, end, count);
+	res = resource_list_alloc(rl, bus, child, type, rid, start, end, count,
+	    flags);
+	if (res != NULL && type == SYS_RES_IRQ) {
 	    /*
 	     * Since bus_config_intr() takes immediate effect, we cannot
 	     * configure the interrupt associated with a device when we
@@ -1186,11 +1268,59 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	     */
 	    if (ACPI_SUCCESS(acpi_lookup_irq_resource(child, *rid, res, &ares)))
 		acpi_config_intr(child, &ares);
-	    break;
 	}
 
-out:
-    ACPI_SERIAL_END(acpi);
+	/*
+	 * If this is an allocation of the "default" range for a given
+	 * RID, fetch the exact bounds for this resource from the
+	 * resource list entry to try to allocate the range from the
+	 * system resource regions.
+	 */
+	if (res == NULL && isdefault) {
+	    rle = resource_list_find(rl, type, *rid);
+	    if (rle != NULL) {
+		start = rle->start;
+		end = rle->end;
+		count = rle->count;
+	    }
+	}
+    } else
+	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
+	    start, end, count, flags);
+    if (res != NULL || start + count - 1 != end)
+	return (res);
+
+    /*
+     * If the first attempt failed and this is an allocation of a
+     * specific range, try to satisfy the request via a suballocation
+     * from our system resource regions.  Note that we only handle
+     * memory and I/O port system resources.
+     */
+    switch (type) {
+    case SYS_RES_IOPORT:
+	rm = &acpi_rman_io;
+	break;
+    case SYS_RES_MEMORY:
+	rm = &acpi_rman_mem;
+	break;
+    default:
+	return (NULL);
+    }
+
+    res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
+	child);
+    if (res == NULL)
+	return (NULL);
+
+    rman_set_rid(res, *rid);
+
+    /* If requested, activate the resource using the parent's method. */
+    if (flags & RF_ACTIVE)
+	if (bus_activate_resource(child, type, *rid, res) != 0) {
+	    rman_release_resource(res);
+	    return (NULL);
+	}
+
     return (res);
 }
 
@@ -1213,26 +1343,20 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid,
 	rm = NULL;
     }
 
-    ACPI_SERIAL_BEGIN(acpi);
-
     /*
      * If this resource belongs to one of our internal managers,
-     * deactivate it and release it to the local pool.  If it doesn't,
-     * pass this request up to the parent.
+     * deactivate it and release it to the local pool.
      */
     if (rm != NULL && rman_is_region_manager(r, rm)) {
 	if (rman_get_flags(r) & RF_ACTIVE) {
 	    ret = bus_deactivate_resource(child, type, rid, r);
 	    if (ret != 0)
-		goto out;
+		return (ret);
 	}
-	ret = rman_release_resource(r);
-    } else
-	ret = BUS_RELEASE_RESOURCE(device_get_parent(bus), child, type, rid, r);
+	return (rman_release_resource(r));
+    }
 
-out:
-    ACPI_SERIAL_END(acpi);
-    return (ret);
+    return (bus_generic_rl_release_resource(bus, child, type, rid, r));
 }
 
 static void
@@ -1241,6 +1365,12 @@ acpi_delete_resource(device_t bus, device_t child, int type, int rid)
     struct resource_list *rl;
 
     rl = acpi_get_rlist(bus, child);
+    if (resource_list_busy(rl, type, rid)) {
+	device_printf(bus, "delete_resource: Resource still owned by child"
+	    " (type=%d, rid=%d)\n", type, rid);
+	return;
+    }
+    resource_list_unreserve(rl, bus, child, type, rid);
     resource_list_delete(rl, type, rid);
 }
 
@@ -1628,6 +1758,9 @@ acpi_probe_children(device_t bus)
 
     /* Pre-allocate resources for our rman from any sysresource devices. */
     acpi_sysres_alloc(bus);
+
+    /* Reserve resources already allocated to children. */
+    acpi_reserve_resources(bus);
 
     /* Create any static children by calling device identify methods. */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "device identify routines\n"));

@@ -80,7 +80,7 @@ static char *floattotime(double f);
  * ModifierIndex	::=	'Second' | 'Third' | 'Fourth' | 'Fifth' |
  *				'First' | 'Last'
  * 
- * SpecialDay		::=	'Easter' | 'Pashka' | 'ChineseNewYear'
+ * SpecialDay		::=	'Easter' | 'Paskha' | 'ChineseNewYear'
  *
  */
 static int

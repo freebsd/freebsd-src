@@ -26,6 +26,7 @@
 # delete-old-dirs     - Delete obsolete directories.
 # delete-old-files    - Delete obsolete files.
 # delete-old-libs     - Delete obsolete libraries.
+# targets             - Print a list of supported TARGET/TARGET_ARCH pairs.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -280,15 +281,23 @@ tinderbox:
 # with a reasonable chance of success, regardless of how old your
 # existing system is.
 #
-.if make(universe) || make(universe_kernels) || make(tinderbox)
+.if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
 TARGET_ARCHES_arm?=	arm armeb
-TARGET_ARCHES_mips?=	mipsel mipseb
+TARGET_ARCHES_mips?=	mipsel mipseb mips64el mips64eb
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
 TARGET_ARCHES_sun4v?=	sparc64
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
+.endfor
+
+targets:
+	@echo "Supported TARGET/TARGET_ARCH pairs"
+.for target in ${TARGETS}
+.for target_arch in ${TARGET_ARCHES_${target}}
+	@echo "    ${target}/${target_arch}"
+.endfor
 .endfor
 
 .if defined(DOING_TINDERBOX)
@@ -350,8 +359,11 @@ KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
 universe_kernconfs:
 .for kernel in ${KERNCONFS}
 TARGET_ARCH_${kernel}!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
-			config -m ${.CURDIR}/sys/${TARGET}/conf/${kernel} | \
-			cut -f 2
+	config -m ${.CURDIR}/sys/${TARGET}/conf/${kernel} 2> /dev/null | \
+	grep -v WARNING: | cut -f 2
+.if empty(TARGET_ARCH_${kernel})
+.error "Target architecture for ${TARGET}/conf/${kernel} unknown.  config(8) likely too old."
+.endif
 universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
 universe_kernconf_${TARGET}_${kernel}:
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \

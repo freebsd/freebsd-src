@@ -731,18 +731,18 @@ match:
 		if (la->la_hold != NULL) {
 			struct mbuf *m_hold, *m_hold_next;
 
+			m_hold = la->la_hold;
+			la->la_hold = NULL;
+			la->la_numheld = 0;
 			memcpy(&sa, L3_ADDR(la), sizeof(sa));
 			LLE_WUNLOCK(la);
-			for (m_hold = la->la_hold, la->la_hold = NULL;
-			     m_hold != NULL; m_hold = m_hold_next) {
+			for (; m_hold != NULL; m_hold = m_hold_next) {
 				m_hold_next = m_hold->m_nextpkt;
 				m_hold->m_nextpkt = NULL;
 				(*ifp->if_output)(ifp, m_hold, &sa, NULL);
 			}
 		} else
 			LLE_WUNLOCK(la);
-		la->la_hold = NULL;
-		la->la_numheld = 0;
 	} /* end of FIB loop */
 reply:
 	if (op != ARPOP_REQUEST)

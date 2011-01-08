@@ -2523,7 +2523,7 @@ vfs_setdirty_locked_object(struct buf *bp)
 	 * We qualify the scan for modified pages on whether the
 	 * object has been flushed yet.
 	 */
-	if (object->flags & (OBJ_MIGHTBEDIRTY|OBJ_CLEANING)) {
+	if ((object->flags & OBJ_MIGHTBEDIRTY) != 0) {
 		vm_offset_t boffset;
 		vm_offset_t eoffset;
 
@@ -3855,46 +3855,19 @@ vm_hold_free_pages(struct buf *bp, int newbsize)
 int
 vmapbuf(struct buf *bp)
 {
-	caddr_t addr, kva;
+	caddr_t kva;
 	vm_prot_t prot;
-	int pidx, i;
-	struct vm_page *m;
-	struct pmap *pmap = &curproc->p_vmspace->vm_pmap;
+	int pidx;
 
 	if (bp->b_bufsize < 0)
 		return (-1);
 	prot = VM_PROT_READ;
 	if (bp->b_iocmd == BIO_READ)
 		prot |= VM_PROT_WRITE;	/* Less backwards than it looks */
-	for (addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data), pidx = 0;
-	     addr < bp->b_data + bp->b_bufsize;
-	     addr += PAGE_SIZE, pidx++) {
-		/*
-		 * Do the vm_fault if needed; do the copy-on-write thing
-		 * when reading stuff off device into memory.
-		 *
-		 * NOTE! Must use pmap_extract() because addr may be in
-		 * the userland address space, and kextract is only guarenteed
-		 * to work for the kernland address space (see: sparc64 port).
-		 */
-retry:
-		if (vm_fault_quick(addr >= bp->b_data ? addr : bp->b_data,
-		    prot) < 0) {
-			for (i = 0; i < pidx; ++i) {
-				vm_page_lock(bp->b_pages[i]);
-				vm_page_unhold(bp->b_pages[i]);
-				vm_page_unlock(bp->b_pages[i]);
-				bp->b_pages[i] = NULL;
-			}
-			return(-1);
-		}
-		m = pmap_extract_and_hold(pmap, (vm_offset_t)addr, prot);
-		if (m == NULL)
-			goto retry;
-		bp->b_pages[pidx] = m;
-	}
-	if (pidx > btoc(MAXPHYS))
-		panic("vmapbuf: mapped more than MAXPHYS");
+	if ((pidx = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
+	    (vm_offset_t)bp->b_data, bp->b_bufsize, prot, bp->b_pages,
+	    btoc(MAXPHYS))) < 0)
+		return (-1);
 	pmap_qenter((vm_offset_t)bp->b_saveaddr, bp->b_pages, pidx);
 	
 	kva = bp->b_saveaddr;

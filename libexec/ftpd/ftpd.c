@@ -244,7 +244,7 @@ static void	 sigurg(int);
 static void	 maskurg(int);
 static void	 flagxfer(int);
 static int	 myoob(void);
-static int	 checkuser(char *, char *, int, char **);
+static int	 checkuser(char *, char *, int, char **, int *);
 static FILE	*dataconn(char *, off_t, char *);
 static void	 dolog(struct sockaddr *);
 static void	 end_login(void);
@@ -996,6 +996,7 @@ static char curname[MAXLOGNAME];	/* current USER name */
 void
 user(char *name)
 {
+	int ecode;
 	char *cp, *shell;
 
 	if (logged_in) {
@@ -1016,8 +1017,11 @@ user(char *name)
 	pw = sgetpwnam("ftp");
 #endif
 	if (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0) {
-		if (checkuser(_PATH_FTPUSERS, "ftp", 0, NULL) ||
-		    checkuser(_PATH_FTPUSERS, "anonymous", 0, NULL))
+		if (checkuser(_PATH_FTPUSERS, "ftp", 0, NULL, &ecode) ||
+		    (ecode != 0 && ecode != ENOENT))
+			reply(530, "User %s access denied.", name);
+		else if (checkuser(_PATH_FTPUSERS, "anonymous", 0, NULL, &ecode) ||
+		    (ecode != 0 && ecode != ENOENT))
 			reply(530, "User %s access denied.", name);
 		else if (pw != NULL) {
 			guest = 1;
@@ -1045,7 +1049,9 @@ user(char *name)
 				break;
 		endusershell();
 
-		if (cp == NULL || checkuser(_PATH_FTPUSERS, name, 1, NULL)) {
+		if (cp == NULL || 
+		    (checkuser(_PATH_FTPUSERS, name, 1, NULL, &ecode) ||
+		    (ecode != 0 && ecode != ENOENT))) {
 			reply(530, "User %s access denied.", name);
 			if (logging)
 				syslog(LOG_NOTICE,
@@ -1087,13 +1093,15 @@ user(char *name)
  * of the matching line in "residue" if not NULL.
  */
 static int
-checkuser(char *fname, char *name, int pwset, char **residue)
+checkuser(char *fname, char *name, int pwset, char **residue, int *ecode)
 {
 	FILE *fd;
 	int found = 0;
 	size_t len;
 	char *line, *mp, *p;
 
+	if (ecode != NULL)
+		*ecode = 0;
 	if ((fd = fopen(fname, "r")) != NULL) {
 		while (!found && (line = fgetln(fd, &len)) != NULL) {
 			/* skip comments */
@@ -1162,7 +1170,8 @@ nextline:
 				free(mp);
 		}
 		(void) fclose(fd);
-	}
+	} else if (ecode != NULL)
+		*ecode = errno;
 	return (found);
 }
 
@@ -1359,7 +1368,7 @@ auth_pam(struct passwd **ppw, const char *pass)
 void
 pass(char *passwd)
 {
-	int rval;
+	int rval, ecode;
 	FILE *fd;
 #ifdef	LOGIN_CAP
 	login_cap_t *lc = NULL;
@@ -1475,11 +1484,21 @@ skip:
 #endif
 
 	dochroot =
-		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1, &residue)
+		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1, &residue, &ecode)
 #ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
 		|| login_getcapbool(lc, "ftp-chroot", 0)
 #endif
 	;
+	/*
+	 * It is possible that checkuser() failed to open the chroot file.
+	 * If this is the case, report that logins are un-available, since we
+	 * have no way of checking whether or not the user should be chrooted.
+	 * We ignore ENOENT since it is not required that this file be present.
+	 */
+	if (ecode != 0 && ecode != ENOENT) {
+		reply(530, "Login not available right now.");
+		return;
+	}
 	chrootdir = NULL;
 
 	/* Disable wtmp logging when chrooting. */
@@ -2134,7 +2153,7 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 				}
 			}
 			ENDXFER;
-			reply(226, msg);
+			reply(226, "%s", msg);
 			return (0);
 		}
 
@@ -2331,6 +2350,10 @@ statfilecmd(char *filename)
 	code = lstat(filename, &st) == 0 && S_ISDIR(st.st_mode) ? 212 : 213;
 	(void)snprintf(line, sizeof(line), _PATH_LS " -lgA %s", filename);
 	fin = ftpd_popen(line, "r");
+	if (fin == NULL) {
+		perror_reply(551, filename);
+		return;
+	}
 	lreply(code, "Status of %s:", filename);
 	atstart = 1;
 	while ((c = getc(fin)) != EOF) {

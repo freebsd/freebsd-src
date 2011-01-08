@@ -1687,24 +1687,12 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	if (prio < td->td_lend_user_pri)
-		td->td_lend_user_pri = prio;
-	if (prio < td->td_user_pri)
-		td->td_user_pri = prio;
-}
-
-void
-sched_unlend_user_prio(struct thread *td, u_char prio)
-{
-	u_char base_pri;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	base_pri = td->td_base_user_pri;
 	td->td_lend_user_pri = prio;
-	if (prio > base_pri)
-		td->td_user_pri = base_pri;
-	else
-		td->td_user_pri = prio;
+	td->td_user_pri = min(prio, td->td_base_user_pri);
+	if (td->td_priority > td->td_user_pri)
+		sched_prio(td, td->td_user_pri);
+	else if (td->td_priority != td->td_user_pri)
+		td->td_flags |= TDF_NEEDRESCHED;
 }
 
 /*
@@ -1973,14 +1961,16 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	ts2->ts_cpu = ts->ts_cpu;
 	ts2->ts_flags = 0;
 	/*
-	 * Grab our parents cpu estimation information and priority.
+	 * Grab our parents cpu estimation information.
 	 */
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
 	ts2->ts_incrtick = ts->ts_incrtick;
 	ts2->ts_ftick = ts->ts_ftick;
-	child->td_user_pri = td->td_user_pri;
-	child->td_base_user_pri = td->td_base_user_pri;
+	/*
+	 * Do not inherit any borrowed priority from the parent.
+	 */
+	child->td_priority = child->td_base_pri;
 	/*
 	 * And update interactivity score.
 	 */

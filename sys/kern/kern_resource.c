@@ -489,8 +489,10 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	if (curthread == td)
 		sched_prio(curthread, td->td_user_pri); /* XXX dubious */
 	if (TD_ON_UPILOCK(td) && oldpri != newpri) {
+		critical_enter();
 		thread_unlock(td);
 		umtx_pi_adjust(td, oldpri);
+		critical_exit();
 	} else
 		thread_unlock(td);
 	return (0);

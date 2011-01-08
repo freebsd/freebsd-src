@@ -43,6 +43,7 @@
 #include "../mystring.h"
 #ifdef SHELL
 #include "../output.h"
+#define FILE struct output
 #undef stdout
 #define stdout out1
 #undef stderr
@@ -57,11 +58,8 @@
 #define fwrite(ptr, size, nmemb, file) outbin(ptr, (size) * (nmemb), file)
 #define fflush flushout
 #define INITARGS(argv)
-#define warnx(...) do {					\
-	out2fmt_flush("%s: ", commandname);		\
-	out2fmt_flush(__VA_ARGS__);			\
-	out2fmt_flush("\n");				\
-	} while (0)
+#define warnx warning
+#define warn(fmt, ...) warning(fmt ": %s", __VA_ARGS__, strerror(errno))
 #define errx(exitstatus, ...) error(__VA_ARGS__)
 
 #else
@@ -71,8 +69,11 @@
 #define INITARGS(argv)	if ((commandname = argv[0]) == NULL) {fputs("Argc is zero\n", stderr); exit(2);} else
 #endif
 
+#include <unistd.h>
+
 pointer stalloc(int);
 void error(const char *, ...) __printf0like(1, 2);
+pid_t getjobpgrp(char *);
 
 int echocmd(int, char **);
 int testcmd(int, char **);

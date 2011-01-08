@@ -128,9 +128,7 @@ Mutexes which do not context switch are
 mutexes.
 These should only be used to protect data shared with primary interrupt
 code.
-This includes
-.Dv INTR_FAST
-interrupt handlers and low level scheduling code.
+This includes interrupt filters and low level scheduling code.
 In all architectures both acquiring and releasing of a
 uncontested spin mutex is more expensive than the same operation
 on a non-spin mutex.

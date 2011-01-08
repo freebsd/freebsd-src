@@ -225,7 +225,7 @@ mv_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Marvell");
 
-	err = bus_setup_intr(self, irq_err, INTR_FAST | INTR_TYPE_BIO,
+	err = bus_setup_intr(self, irq_err, INTR_TYPE_BIO,
 	    err_intr, NULL, sc, &ih_err);
 	if (err) {
 		device_printf(self, "Could not setup error irq, %d\n", err);

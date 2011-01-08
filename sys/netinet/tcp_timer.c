@@ -486,15 +486,15 @@ tcp_timer_rexmt(void * xtp)
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
 		TCPSTAT_INC(tcps_timeoutdrop);
 		in_pcbref(inp);
- 		INP_INFO_RUNLOCK(&V_tcbinfo);
- 		INP_WUNLOCK(inp);
- 		INP_INFO_WLOCK(&V_tcbinfo);
- 		INP_WLOCK(inp);
- 		if (in_pcbrele(inp)) {
- 			INP_INFO_WUNLOCK(&V_tcbinfo);
- 			CURVNET_RESTORE();
- 			return;
- 		}
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_WUNLOCK(inp);
+		INP_INFO_WLOCK(&V_tcbinfo);
+		INP_WLOCK(inp);
+		if (in_pcbrele(inp)) {
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+			CURVNET_RESTORE();
+			return;
+		}
 		tp = tcp_drop(tp, tp->t_softerror ?
 			      tp->t_softerror : ETIMEDOUT);
 		headlocked = 1;
@@ -533,7 +533,7 @@ tcp_timer_rexmt(void * xtp)
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 	/*
-	 * Disable rfc1323 if we havn't got any response to
+	 * Disable rfc1323 if we haven't got any response to
 	 * our third SYN to work-around some broken terminal servers
 	 * (most of which have hopefully been retired) that have bad VJ
 	 * header compression code which trashes TCP segments containing

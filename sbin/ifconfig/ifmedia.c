@@ -421,6 +421,9 @@ static struct ifmedia_description ifm_subtype_shared_aliases[] =
 static struct ifmedia_description ifm_shared_option_descriptions[] =
     IFM_SHARED_OPTION_DESCRIPTIONS;
 
+static struct ifmedia_description ifm_shared_option_aliases[] =
+    IFM_SHARED_OPTION_ALIASES;
+
 struct ifmedia_type_to_subtype {
 	struct {
 		struct ifmedia_description *desc;
@@ -429,7 +432,7 @@ struct ifmedia_type_to_subtype {
 	struct {
 		struct ifmedia_description *desc;
 		int alias;
-	} options[3];
+	} options[4];
 	struct {
 		struct ifmedia_description *desc;
 		int alias;
@@ -448,6 +451,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_ethernet_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
@@ -465,6 +469,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_tokenring_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
@@ -482,6 +487,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_fddi_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
@@ -499,6 +505,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_ieee80211_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
@@ -518,6 +525,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_atm_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},

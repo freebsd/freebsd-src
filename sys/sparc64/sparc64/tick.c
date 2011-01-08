@@ -132,14 +132,14 @@ static void
 tick_wr_cmpr(uint64_t tick_cmpr)
 {
 
-	wr(tick_cmpr, tick_cmpr, 0);
+	wrtickcmpr(tick_cmpr, 0);
 }
 
 static void
 tick_wr_cmpr_bbwar(uint64_t tick_cmpr)
 {
 
-	wrtickcmpr(tick_cmpr, 0);
+	wrtickcmpr_bbwar(tick_cmpr, 0);
 }
 
 static uint64_t

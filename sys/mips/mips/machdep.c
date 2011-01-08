@@ -426,8 +426,10 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	pcpu->pc_next_asid = 1;
 	pcpu->pc_asid_generation = 1;
 #ifdef SMP
-	if ((vm_offset_t)pcpup >= VM_MIN_KERNEL_ADDRESS)
+	if ((vm_offset_t)pcpup >= VM_MIN_KERNEL_ADDRESS &&
+	    (vm_offset_t)pcpup <= VM_MAX_KERNEL_ADDRESS) {
 		mips_pcpu_tlb_init(pcpu);
+	}
 #endif
 }
 
@@ -483,10 +485,20 @@ spinlock_exit(void)
 void
 cpu_idle(int busy)
 {
-	if (mips_rd_status() & MIPS_SR_INT_IE)
-		__asm __volatile ("wait");
-	else
-		panic("ints disabled in idleproc!");
+	KASSERT((mips_rd_status() & MIPS_SR_INT_IE) != 0,
+		("interrupts disabled in idle process."));
+	KASSERT((mips_rd_status() & MIPS_INT_MASK) != 0,
+		("all interrupts masked in idle process."));
+
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+	__asm __volatile ("wait");
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
 }
 
 int

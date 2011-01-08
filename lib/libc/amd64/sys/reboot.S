@@ -55,3 +55,5 @@ ENTRY(__sys_reboot)
 	jmp	HIDENAME(cerror)
 #endif
 END(__sys_reboot)
+
+	.section .note.GNU-stack,"",%progbits

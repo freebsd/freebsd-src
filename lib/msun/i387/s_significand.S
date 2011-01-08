@@ -42,3 +42,5 @@ ENTRY(significand)
 	fstp	%st(1)
 	ret
 END(significand)
+
+	.section .note.GNU-stack,"",%progbits

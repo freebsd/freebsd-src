@@ -185,7 +185,7 @@ trapcmd(int argc, char **argv)
 	}
 	while (*argv) {
 		if ((signo = sigstring_to_signum(*argv)) == -1) {
-			out2fmt_flush("trap: bad signal %s\n", *argv);
+			warning("bad signal %s", *argv);
 			errors = 1;
 		}
 		INTOFF;

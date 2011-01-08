@@ -487,7 +487,7 @@ ixgbe_is_sfp(struct ixgbe_hw *hw)
 }
 
 /* Workaround to make 8.0 buildable */
-#if __FreeBSD_version < 800504
+#if __FreeBSD_version >= 800000 && __FreeBSD_version < 800504
 static __inline int
 drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
 {

@@ -59,14 +59,16 @@
 #define	__INT_MAX	0x7fffffff	/* max value for an int */
 #define	__INT_MIN	(-0x7fffffff - 1)	/* min value for an int */
 
-#if defined(_LARGE_LONG) || defined(__LP64__)
+#ifdef __LP64__
 #define	__ULONG_MAX	0xffffffffffffffffUL
 #define	__LONG_MAX	0x7fffffffffffffffL
 #define	__LONG_MIN	(-0x7fffffffffffffffL - 1)
+#define	__LONG_BIT	64
 #else
 #define	__ULONG_MAX	0xffffffffUL	/* max value for an unsigned long */
 #define	__LONG_MAX	0x7fffffffL	/* max value for a long */
 #define	__LONG_MIN	(-0x7fffffffL - 1)	/* min value for a long */
+#define	__LONG_BIT	32
 #endif
 
 #define	__ULLONG_MAX	0xffffffffffffffffULL
@@ -89,11 +91,6 @@
 #define	__QUAD_MAX	__LLONG_MAX	/* max value for a quad_t */
 #define	__QUAD_MIN	__LLONG_MIN	/* min value for a quad_t */
 
-#if defined(_LARGE_LONG) || defined(__LP64__)
-#define	__LONG_BIT	64
-#else
-#define	__LONG_BIT	32
-#endif
 #define	__WORD_BIT	32
 
 /* Minimum signal stack size. */
