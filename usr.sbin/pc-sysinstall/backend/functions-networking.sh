@@ -54,7 +54,7 @@ check_is_wifi()
   fi
 };
 
-# Function to get the first available wired nic, used for lagg0 setup
+# Function to get the first available wired nic, used for setup
 get_first_wired_nic()
 {
   rm ${TMPDIR}/.niclist >/dev/null 2>/dev/null
@@ -78,8 +78,9 @@ get_first_wired_nic()
   return
 };
 
-# Function which simply enables plain dhcp on all detected nics, not fancy lagg interface
-enable_plain_dhcp_all()
+
+# Function which simply enables plain dhcp on all detected nics
+enable_dhcp_all()
 {
   rm ${TMPDIR}/.niclist >/dev/null 2>/dev/null
   # start by getting a list of nics on this system
@@ -111,57 +112,11 @@ enable_plain_dhcp_all()
   fi
 };
 
-# Function which enables fancy lagg dhcp on specified wifi 
-enable_lagg_dhcp()
-{
-  WIFINIC="$1"
-  
-  # Get the first wired nic
-  get_first_wired_nic
-  WIRENIC=$VAL
-  LAGGPORT="laggport ${WIFINIC}"
 
-  echo "# Auto-Enabled NICs from pc-sysinstall" >>${FSMNT}/etc/rc.conf
-  if [ ! -z "$WIRENIC" ]
-  then
-    echo "ifconfig_${WIRENIC}=\"up\"" >> ${FSMNT}/etc/rc.conf
-    echo "ifconfig_${WIFINIC}=\"\`ifconfig ${WIRENIC} ether\`\"" >> ${FSMNT}/etc/rc.conf
-    echo "ifconfig_${WIFINIC}=\"ether \${ifconfig_${WIFINIC}##*ether }\"" >> ${FSMNT}/etc/rc.conf
-    LAGGPORT="laggport ${WIRENIC} ${LAGGPORT}"
-  fi
-  
-  echo "wlans_${WIFINIC}=\"wlan0\"" >> ${FSMNT}/etc/rc.conf
-  echo "cloned_interfaces=\"lagg0\"" >> ${FSMNT}/etc/rc.conf
-  echo "ifconfig_lagg0=\"laggproto failover ${LAGGPORT} DHCP\"" >> ${FSMNT}/etc/rc.conf
-
-};
-
-# Function which detects available nics, and runs them to DHCP on the
+# Function which detects available nics, and enables dhcp on them
 save_auto_dhcp()
 {
-  rm ${TMPDIR}/.niclist >/dev/null 2>/dev/null
-  # start by getting a list of nics on this system
-  ${QUERYDIR}/detect-nics.sh > ${TMPDIR}/.niclist
-  if [ -e "${TMPDIR}/.niclist" ]
-  then
-    while read line
-    do
-      NIC="`echo $line | cut -d ':' -f 1`"
-      DESC="`echo $line | cut -d ':' -f 2`"
-      check_is_wifi "${NIC}"
-      if [ "$?" = "0" ]
-      then
-        # We have a wifi device, lets do fancy lagg interface
-        enable_lagg_dhcp "${NIC}"
-        return
-      fi
- 
-    done < ${TMPDIR}/.niclist 
-  fi
-
-  # Got here, looks like no wifi, so lets simply enable plain-ole-dhcp
-  enable_plain_dhcp_all
-
+  enable_dhcp_all
 };
 
 
