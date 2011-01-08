@@ -279,7 +279,7 @@ int nfscl_request(struct nfsrv_descript *, vnode_t,
 void nfsm_stateidtom(struct nfsrv_descript *, nfsv4stateid_t *, int);
 
 /* nfs_nfsdsubs.c */
-void nfsd_fhtovp(struct nfsrv_descript *, struct nfsrvfh *,
+void nfsd_fhtovp(struct nfsrv_descript *, struct nfsrvfh *, int,
     vnode_t *, struct nfsexstuff *,
     mount_t *, int, NFSPROC_T *);
 int nfsd_excred(struct nfsrv_descript *, struct nfsexstuff *, struct ucred *);
@@ -566,7 +566,7 @@ int nfsv4_sattr(struct nfsrv_descript *, struct nfsvattr *, nfsattrbit_t *,
     NFSACL_T *, NFSPROC_T *);
 int nfsvno_checkexp(mount_t, NFSSOCKADDR_T, struct nfsexstuff *,
     struct ucred **);
-int nfsvno_fhtovp(mount_t, fhandle_t *, NFSSOCKADDR_T,
+int nfsvno_fhtovp(mount_t, fhandle_t *, NFSSOCKADDR_T, int,
     vnode_t *, struct nfsexstuff *, struct ucred **);
 int nfsvno_pathconf(vnode_t, int, register_t *, struct ucred *,
     NFSPROC_T *);
