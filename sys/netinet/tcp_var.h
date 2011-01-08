@@ -197,11 +197,12 @@ struct tcpcb {
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
 
 	int	t_sndzerowin;	/* zero-window updates sent */
-	uint64_t	t_sndrexmitpack;/* retransmit packets sent */
-	uint64_t	t_rcvoopack;	/* out-of-order packets received */
 
 	void	*t_pspare2[6];		/* 2 CC / 4 TBD */
 	uint64_t _pad[10];		/* 7 UTO, 3 TBD (1-2 CC/RTT?) */
+
+	uint64_t	t_sndrexmitpack;/* retransmit packets sent */
+	uint64_t	t_rcvoopack;	/* out-of-order packets received */
 };
 
 /*
