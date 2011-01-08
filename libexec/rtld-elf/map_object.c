@@ -83,6 +83,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Addr bss_vaddr;
     Elf_Addr bss_vlimit;
     caddr_t bss_addr;
+    Elf_Word stack_flags;
 
     hdr = get_elf_header(fd, path);
     if (hdr == NULL)
@@ -100,6 +101,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     phdyn = phinterp = phtls = NULL;
     phdr_vaddr = 0;
     segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
+    stack_flags = PF_X | PF_R | PF_W;
     while (phdr < phlimit) {
 	switch (phdr->p_type) {
 
@@ -127,6 +129,10 @@ map_object(int fd, const char *path, const struct stat *sb)
 
 	case PT_TLS:
 	    phtls = phdr;
+	    break;
+
+	case PT_GNU_STACK:
+	    stack_flags = phdr->p_flags;
 	    break;
 	}
 
@@ -261,6 +267,7 @@ map_object(int fd, const char *path, const struct stat *sb)
 	obj->tlsinitsize = phtls->p_filesz;
 	obj->tlsinit = mapbase + phtls->p_vaddr;
     }
+    obj->stack_flags = stack_flags;
     return obj;
 }
 
