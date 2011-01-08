@@ -831,9 +831,9 @@ vfs_mountroot_conf0(struct sbuf *sb)
 		sbuf_printf(sb, "%s\n", ROOTDEVNAME);
 #endif
 	if (boothowto & RB_CDROM) {
-		sbuf_printf(sb, "cd9660:cd0\n");
+		sbuf_printf(sb, "cd9660:/dev/cd0 ro\n");
 		sbuf_printf(sb, ".timeout 0\n");
-		sbuf_printf(sb, "cd9660:acd0\n");
+		sbuf_printf(sb, "cd9660:/dev/acd0 ro\n");
 		sbuf_printf(sb, ".timeout %d\n", root_mount_timeout);
 	}
 	s = getenv("vfs.root.mountfrom");
