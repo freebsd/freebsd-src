@@ -80,6 +80,9 @@ static volatile sig_atomic_t gotsig[NSIG];
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
 volatile sig_atomic_t gotwinch;
 
+static int exiting;		/* exitshell() has been called */
+static int exiting_exitstatus;	/* value passed to exitshell() */
+
 static int getsigaction(int, sig_t *);
 
 
@@ -478,10 +481,21 @@ setinteractive(int on)
 void
 exitshell(int status)
 {
+	TRACE(("exitshell(%d) pid=%d\n", status, getpid()));
+	exiting = 1;
+	exiting_exitstatus = status;
+	exitshell_savedstatus();
+}
+
+void
+exitshell_savedstatus(void)
+{
 	struct jmploc loc1, loc2;
 	char *p;
 
-	TRACE(("exitshell(%d) pid=%d\n", status, getpid()));
+	if (!exiting)
+		exiting_exitstatus = oexitstatus;
+	exitstatus = oexitstatus = exiting_exitstatus;
 	if (setjmp(loc1.loc)) {
 		goto l1;
 	}
@@ -498,5 +512,5 @@ l1:   handler = &loc2;			/* probably unnecessary */
 #if JOBS
 	setjobctl(0);
 #endif
-l2:   _exit(status);
+l2:   _exit(exiting_exitstatus);
 }
