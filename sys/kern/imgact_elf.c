@@ -92,6 +92,8 @@ static boolean_t __elfN(freebsd_trans_osrel)(const Elf_Note *note,
 static boolean_t kfreebsd_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static boolean_t __elfN(check_note)(struct image_params *imgp,
     Elf_Brandnote *checknote, int32_t *osrel);
+static vm_prot_t __elfN(trans_prot)(Elf_Word);
+static Elf_Word __elfN(untrans_prot)(vm_prot_t);
 
 SYSCTL_NODE(_kern, OID_AUTO, __CONCAT(elf, __ELF_WORD_SIZE), CTLFLAG_RW, 0,
     "");
@@ -644,14 +646,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	for (i = 0, numsegs = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type == PT_LOAD && phdr[i].p_memsz != 0) {
 			/* Loadable segment */
-			prot = 0;
-			if (phdr[i].p_flags & PF_X)
-  				prot |= VM_PROT_EXECUTE;
-			if (phdr[i].p_flags & PF_W)
-  				prot |= VM_PROT_WRITE;
-			if (phdr[i].p_flags & PF_R)
-  				prot |= VM_PROT_READ;
-
+			prot = __elfN(trans_prot)(phdr[i].p_flags);
 			if ((error = __elfN(load_section)(vmspace,
 			    imgp->object, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,
@@ -792,13 +787,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		case PT_LOAD:	/* Loadable segment */
 			if (phdr[i].p_memsz == 0)
 				break;
-			prot = 0;
-			if (phdr[i].p_flags & PF_X)
-  				prot |= VM_PROT_EXECUTE;
-			if (phdr[i].p_flags & PF_W)
-  				prot |= VM_PROT_WRITE;
-			if (phdr[i].p_flags & PF_R)
-  				prot |= VM_PROT_READ;
+			prot = __elfN(trans_prot)(phdr[i].p_flags);
 
 #if defined(__ia64__) && __ELF_WORD_SIZE == 32 && defined(IA32_ME_HARDER)
 			/*
@@ -1172,13 +1161,7 @@ cb_put_phdr(entry, closure)
 	phdr->p_paddr = 0;
 	phdr->p_filesz = phdr->p_memsz = entry->end - entry->start;
 	phdr->p_align = PAGE_SIZE;
-	phdr->p_flags = 0;
-	if (entry->protection & VM_PROT_READ)
-		phdr->p_flags |= PF_R;
-	if (entry->protection & VM_PROT_WRITE)
-		phdr->p_flags |= PF_W;
-	if (entry->protection & VM_PROT_EXECUTE)
-		phdr->p_flags |= PF_X;
+	phdr->p_flags = __elfN(untrans_prot)(entry->protection);
 
 	phc->offset += phdr->p_filesz;
 	phc->phdr++;
@@ -1633,3 +1616,33 @@ compress_core (gzFile file, char *inbuf, char *dest_buf, unsigned int len,
 	return (error);
 }
 #endif /* COMPRESS_USER_CORES */
+
+static vm_prot_t
+__elfN(trans_prot)(Elf_Word flags)
+{
+	vm_prot_t prot;
+
+	prot = 0;
+	if (flags & PF_X)
+		prot |= VM_PROT_EXECUTE;
+	if (flags & PF_W)
+		prot |= VM_PROT_WRITE;
+	if (flags & PF_R)
+		prot |= VM_PROT_READ;
+	return (prot);
+}
+
+static Elf_Word
+__elfN(untrans_prot)(vm_prot_t prot)
+{
+	Elf_Word flags;
+
+	flags = 0;
+	if (prot & VM_PROT_EXECUTE)
+		flags |= PF_X;
+	if (prot & VM_PROT_READ)
+		flags |= PF_R;
+	if (prot & VM_PROT_WRITE)
+		flags |= PF_W;
+	return (flags);
+}
