@@ -53,7 +53,7 @@ typedef	short			__int16_t;
 typedef	unsigned short		__uint16_t;
 typedef	int			__int32_t;
 typedef	unsigned int		__uint32_t;
-#ifdef __mips_n64
+#ifdef __LP64__
 typedef	long			__int64_t;
 typedef	unsigned long		__uint64_t;
 #else
@@ -74,17 +74,14 @@ typedef	unsigned long long	__uint64_t;
  */
 typedef	__int32_t	__clock_t;		/* clock()... */
 typedef	unsigned int	__cpumask_t;
-#ifdef __mips_n64
-typedef	__int64_t	__critical_t;
-#else
-typedef	__int32_t	__critical_t;
-#endif
 typedef	double		__double_t;
 typedef	double		__float_t;
-#ifdef __mips_n64
+#ifdef __LP64__
+typedef	__int64_t	__critical_t;
 typedef	__int64_t	__intfptr_t;
 typedef	__int64_t	__intptr_t;
 #else
+typedef	__int32_t	__critical_t;
 typedef	__int32_t	__intfptr_t;
 typedef	__int32_t	__intptr_t;
 #endif
@@ -97,14 +94,14 @@ typedef	__int8_t	__int_least8_t;
 typedef	__int16_t	__int_least16_t;
 typedef	__int32_t	__int_least32_t;
 typedef	__int64_t	__int_least64_t;
-#if defined(__mips_n64) || defined(__mips_n32)
+#if defined(__LP64__) || defined(__mips_n32)
 typedef	__int64_t	__register_t;
 typedef	__int64_t	f_register_t;
 #else
 typedef	__int32_t	__register_t;
 typedef	__int32_t	f_register_t;
 #endif
-#ifdef __mips_n64
+#ifdef __LP64__
 typedef	__int64_t	__ptrdiff_t;
 typedef	__int64_t	__segsz_t;
 typedef	__uint64_t	__size_t;
@@ -129,12 +126,12 @@ typedef	__uint8_t	__uint_least8_t;
 typedef	__uint16_t	__uint_least16_t;
 typedef	__uint32_t	__uint_least32_t;
 typedef	__uint64_t	__uint_least64_t;
-#if defined(__mips_n64) || defined(__mips_n32)
+#if defined(__LP64__) || defined(__mips_n32)
 typedef	__uint64_t	__u_register_t;
 #else
 typedef	__uint32_t	__u_register_t;
 #endif
-#if defined(__mips_n64)
+#ifdef __LP64__
 typedef	__uint64_t	__vm_offset_t;
 typedef	__uint64_t	__vm_paddr_t;
 typedef	__uint64_t	__vm_size_t;
