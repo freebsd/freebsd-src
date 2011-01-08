@@ -50,17 +50,16 @@
 #define	UINT16_C(c)		(c)
 #define	UINT32_C(c)		(c ## U)
 
-#ifdef __powerpc64__
+#ifdef __LP64__
 #define	INT64_C(c)		(c ## L)
 #define	UINT64_C(c)		(c ## UL)
-#define	INTMAX_C(c)		(c ## L)
-#define	UINTMAX_C(c)		(c ## UL)
 #else
 #define	INT64_C(c)		(c ## LL)
 #define	UINT64_C(c)		(c ## ULL)
-#define	INTMAX_C(c)		(c ## LL)
-#define	UINTMAX_C(c)		(c ## ULL)
 #endif
+
+#define	INTMAX_C(c)		INT64_C(c)
+#define	UINTMAX_C(c)		UINT64_C(c)
 
 #endif /* !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS) */
 
@@ -74,27 +73,19 @@
 #define	INT8_MIN	(-0x7f-1)
 #define	INT16_MIN	(-0x7fff-1)
 #define	INT32_MIN	(-0x7fffffff-1)
-#define	INT64_MIN	(-0x7fffffffffffffffLL-1)
+#define	INT64_MIN	(-INT64_C(0x7fffffffffffffff)-1)
 
 /* Maximum values of exact-width signed integer types. */
 #define	INT8_MAX	0x7f
 #define	INT16_MAX	0x7fff
 #define	INT32_MAX	0x7fffffff
-#ifdef __powerpc64__
-#define	INT64_MAX	0x7fffffffffffffffL
-#else
-#define	INT64_MAX	0x7fffffffffffffffLL
-#endif
+#define	INT64_MAX	INT64_C(0x7fffffffffffffff)
 
 /* Maximum values of exact-width unsigned integer types. */
 #define	UINT8_MAX	0xff
 #define	UINT16_MAX	0xffff
-#define	UINT32_MAX	0xffffffffU
-#ifdef __powerpc64__
-#define	UINT64_MAX	0xffffffffffffffffUL
-#else
-#define	UINT64_MAX	0xffffffffffffffffULL
-#endif
+#define	UINT32_MAX	0xffffffff
+#define	UINT64_MAX	UINT64_C(0xffffffffffffffff)
 
 /*
  * ISO/IEC 9899:1999
@@ -144,7 +135,7 @@
  * ISO/IEC 9899:1999
  * 7.18.2.4  Limits of integer types capable of holding object pointers
  */
-#ifdef __powerpc64__
+#ifdef __LP64__
 #define	INTPTR_MIN	INT64_MIN
 #define	INTPTR_MAX	INT64_MAX
 #define	UINTPTR_MAX	UINT64_MAX
@@ -166,7 +157,7 @@
  * ISO/IEC 9899:1999
  * 7.18.3  Limits of other integer types
  */
-#ifdef __powerpc64__
+#ifdef __LP64__
 /* Limits of ptrdiff_t. */
 #define	PTRDIFF_MIN	INT64_MIN	
 #define	PTRDIFF_MAX	INT64_MAX
