@@ -233,7 +233,6 @@ setup_fstab()
   then
     echo "procfs			/proc			procfs		rw		0	0" >> ${FSTAB}
     echo "linprocfs		/compat/linux/proc	linprocfs	rw		0	0" >> ${FSTAB}
-    echo "tmpfs				/tmp			tmpfs		rw,mode=1777	0	0" >> ${FSTAB}
   fi
 
   # If we have a dedicated /boot, run the post-install setup of it now
