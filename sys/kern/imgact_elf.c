@@ -115,6 +115,11 @@ static int elf_legacy_coredump = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
     &elf_legacy_coredump, 0, "");
 
+static int __elfN(nxstack) = 0;
+SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
+    nxstack, CTLFLAG_RW, &__elfN(nxstack), 0,
+    __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": enable non-executable stack");
+
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
 #define	trunc_page_ps(va, ps)	((va) & ~(ps - 1))
@@ -724,19 +729,24 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	n = 0;
 	baddr = 0;
 	for (i = 0; i < hdr->e_phnum; i++) {
-		if (phdr[i].p_type == PT_LOAD) {
+		switch (phdr[i].p_type) {
+		case PT_LOAD:
 			if (n == 0)
 				baddr = phdr[i].p_vaddr;
 			n++;
-			continue;
-		}
-		if (phdr[i].p_type == PT_INTERP) {
+			break;
+		case PT_INTERP:
 			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
 			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE)
 				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
-			continue;
+			break;
+		case PT_GNU_STACK:
+			if (__elfN(nxstack))
+				imgp->stack_prot =
+				    __elfN(trans_prot)(phdr[i].p_flags);
+			break;
 		}
 	}
 
@@ -972,6 +982,8 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 		AUXARGS_ENTRY(pos, AT_PAGESIZES, imgp->pagesizes);
 		AUXARGS_ENTRY(pos, AT_PAGESIZESLEN, imgp->pagesizeslen);
 	}
+	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->stack_prot != 0 ?
+	    imgp->stack_prot : imgp->sysent->sv_stackprot);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);
