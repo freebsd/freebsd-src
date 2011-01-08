@@ -93,6 +93,7 @@ __BEGIN_DECLS
 typedef int (*__dl_iterate_hdr_callback)(struct dl_phdr_info *, size_t, void *);
 extern int dl_iterate_phdr(__dl_iterate_hdr_callback, void *);
 int _rtld_addr_phdr(const void *, struct dl_phdr_info *);
+int _rtld_get_stack_prot(void);
 
 __END_DECLS
 
