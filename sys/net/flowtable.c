@@ -1816,6 +1816,9 @@ DB_SHOW_COMMAND(flowtables, db_show_flowtables)
 
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
+#ifdef VIMAGE
+		db_printf("vnet %p\n", vnet_iter);
+#endif
 		flowtable_show_vnet();
 		CURVNET_RESTORE();
 	}
