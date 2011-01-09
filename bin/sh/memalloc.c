@@ -277,16 +277,6 @@ growstackblock(int min)
 
 
 
-void
-grabstackblock(int len)
-{
-	len = ALIGN(len);
-	stacknxt += len;
-	stacknleft -= len;
-}
-
-
-
 /*
  * The following routines are somewhat easier to use that the above.
  * The user declares a variable of type STACKSTR, which may be declared
