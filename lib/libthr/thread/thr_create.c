@@ -32,6 +32,7 @@
 #include <sys/rtprio.h>
 #include <sys/signalvar.h>
 #include <errno.h>
+#include <link.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
@@ -58,6 +59,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	sigset_t set, oset;
 	cpuset_t *cpusetp = NULL;
 	int cpusetsize = 0;
+	int old_stack_prot;
 
 	_thr_check_init();
 
@@ -96,6 +98,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 	new_thread->tid = TID_TERMINATED;
 
+	old_stack_prot = _rtld_get_stack_prot();
 	if (create_stack(&new_thread->attr) != 0) {
 		/* Insufficient memory to create a stack: */
 		_thr_free(curthread, new_thread);
@@ -130,6 +133,14 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	/* Add the new thread. */
 	new_thread->refcount = 1;
 	_thr_link(curthread, new_thread);
+
+	/*
+	 * Handle the race between __pthread_map_stacks_exec and
+	 * thread linkage.
+	 */
+	if (old_stack_prot != _rtld_get_stack_prot())
+		_thr_stack_fix_protection(new_thread);
+
 	/* Return thread pointer eariler so that new thread can use it. */
 	(*thread) = new_thread;
 	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE) || cpusetp != NULL) {
