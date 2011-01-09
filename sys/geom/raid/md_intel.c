@@ -622,6 +622,7 @@ g_raid_md_get_label(struct g_consumer *cp, char *serial, int serlen)
 	error = g_io_getattr("GEOM::ident", cp, &len, serial_buffer);
 	if (error != 0)
 		return (error);
+	len = strlen(serial_buffer);
 	if (len > serlen)
 		len -= serlen;
 	else
