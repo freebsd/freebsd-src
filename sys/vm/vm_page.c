@@ -132,24 +132,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
-#if defined(__amd64__) || defined (__i386__) 
-extern struct sysctl_oid_list sysctl__vm_pmap_children;
-#else
-SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
-#endif
-
-static uint64_t pmap_tryrelock_calls;
-SYSCTL_QUAD(_vm_pmap, OID_AUTO, tryrelock_calls, CTLFLAG_RD,
-    &pmap_tryrelock_calls, 0, "Number of tryrelock calls");
-
-static int pmap_tryrelock_restart;
-SYSCTL_INT(_vm_pmap, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
-    &pmap_tryrelock_restart, 0, "Number of tryrelock restarts");
-
-static int pmap_tryrelock_race;
-SYSCTL_INT(_vm_pmap, OID_AUTO, tryrelock_race, CTLFLAG_RD,
-    &pmap_tryrelock_race, 0, "Number of tryrelock pmap race cases");
-
 /*
  *	Associated with page of user-allocatable memory is a
  *	page structure.
@@ -159,7 +141,7 @@ struct vpgqueues vm_page_queues[PQ_COUNT];
 struct vpglocks vm_page_queue_lock;
 struct vpglocks vm_page_queue_free_lock;
 
-struct vpglocks	pa_lock[PA_LOCK_COUNT] __aligned(CACHE_LINE_SIZE);
+struct vpglocks	pa_lock[PA_LOCK_COUNT];
 
 vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
@@ -170,6 +152,14 @@ static int boot_pages = UMA_BOOT_PAGES;
 TUNABLE_INT("vm.boot_pages", &boot_pages);
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
 	"number of pages allocated for bootstrapping the VM system");
+
+static int pa_tryrelock_race;
+SYSCTL_INT(_vm, OID_AUTO, tryrelock_race, CTLFLAG_RD,
+    &pa_tryrelock_race, 0, "Number of tryrelock race cases");
+
+static int pa_tryrelock_restart;
+SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
+    &pa_tryrelock_restart, 0, "Number of tryrelock restarts");
 
 static void vm_page_clear_dirty_mask(vm_page_t m, int pagebits);
 static void vm_page_queue_remove(int queue, vm_page_t m);
@@ -195,7 +185,6 @@ vm_page_pa_tryrelock(pmap_t pmap, vm_paddr_t pa, vm_paddr_t *locked)
 	uint32_t gen_count;
 
 	gen_count = pmap->pm_gen_count;
-	atomic_add_long((volatile long *)&pmap_tryrelock_calls, 1);
 	lockpa = *locked;
 	*locked = pa;
 	if (lockpa) {
@@ -207,13 +196,13 @@ vm_page_pa_tryrelock(pmap_t pmap, vm_paddr_t pa, vm_paddr_t *locked)
 	if (PA_TRYLOCK(pa))
 		return (0);
 	PMAP_UNLOCK(pmap);
-	atomic_add_int((volatile int *)&pmap_tryrelock_restart, 1);
+	atomic_add_int(&pa_tryrelock_restart, 1);
 	PA_LOCK(pa);
 	PMAP_LOCK(pmap);
 
 	if (pmap->pm_gen_count != gen_count + 1) {
 		pmap->pm_retries++;
-		atomic_add_int((volatile int *)&pmap_tryrelock_race, 1);
+		atomic_add_int(&pa_tryrelock_race, 1);
 		return (EAGAIN);
 	}
 	return (0);

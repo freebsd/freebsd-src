@@ -68,11 +68,7 @@ NOASM=
     ${LIBC_ARCH} != "ia64" && \
     ${LIBC_ARCH} != "powerpc64" && \
     ${LIBC_ARCH} != "sparc64" && \
-    ${LIBC_ARCH} != "mips"
-.include "${.CURDIR}/quad/Makefile.inc"
-.endif
-.if ${LIBC_ARCH} == "mips" && \
-    (!defined(TARGET_ABI) || ${TARGET_ABI} == "o32")
+    ${MACHINE_ARCH:Mmips64*} == ""
 .include "${.CURDIR}/quad/Makefile.inc"
 .endif
 .include "${.CURDIR}/regex/Makefile.inc"

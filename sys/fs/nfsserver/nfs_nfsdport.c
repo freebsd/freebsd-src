@@ -1685,6 +1685,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct iovec iv;
 	struct componentname cn;
 	int not_zfs;
+	struct mount *mp;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -1854,7 +1855,24 @@ again:
 		toff = off;
 		goto again;
 	}
+
+	/*
+	 * Busy the file system so that the mount point won't go away
+	 * and, as such, VFS_VGET() can be used safely.
+	 */
+	mp = vp->v_mount;
+	vfs_ref(mp);
 	VOP_UNLOCK(vp, 0);
+	nd->nd_repstat = vfs_busy(mp, 0);
+	vfs_rel(mp);
+	if (nd->nd_repstat != 0) {
+		vrele(vp);
+		free(cookies, M_TEMP);
+		free(rbuf, M_TEMP);
+		if (nd->nd_flag & ND_NFSV3)
+			nfsrv_postopattr(nd, getret, &at);
+		return (0);
+	}
 
 	/*
 	 * Save this position, in case there is an error before one entry
@@ -1914,9 +1932,8 @@ again:
 					    vp, dp->d_fileno);
 				if (refp == NULL) {
 					if (usevget)
-						r = VFS_VGET(vp->v_mount,
-						    dp->d_fileno, LK_SHARED,
-						    &nvp);
+						r = VFS_VGET(mp, dp->d_fileno,
+						    LK_SHARED, &nvp);
 					else
 						r = EOPNOTSUPP;
 					if (r == EOPNOTSUPP) {
@@ -2035,6 +2052,7 @@ again:
 		ncookies--;
 	}
 	vrele(vp);
+	vfs_unbusy(mp);
 
 	/*
 	 * If dirlen > cnt, we must strip off the last entry. If that

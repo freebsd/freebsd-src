@@ -45,8 +45,8 @@
 #define	UINT32_C(c)		(c ## U)
 #define	UINT64_C(c)		(c ## ULL)
 
-#define	INTMAX_C(c)		(c ## LL)
-#define	UINTMAX_C(c)		(c ## ULL)
+#define	INTMAX_C(c)		INT64_C(c)
+#define	UINTMAX_C(c)		UINT64_C(c)
 
 #endif /* !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS) */
 

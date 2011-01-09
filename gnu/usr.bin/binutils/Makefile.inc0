@@ -7,7 +7,7 @@
 VERSION=	"2.17.50 [FreeBSD] 2007-07-03"
 
 .if defined(TARGET_ARCH)
-TARGET_CPUARCH=${TARGET_ARCH:C/mipse[bl]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+TARGET_CPUARCH=${TARGET_ARCH:C/mips.*e[bl]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
 .else
 TARGET_CPUARCH=${MACHINE_CPUARCH}
 .endif
@@ -16,7 +16,7 @@ TARGET_VENDOR?=	unknown
 TARGET_OS?=	freebsd
 BINUTILS_ARCH=${TARGET_ARCH:C/amd64/x86_64/}
 TARGET_TUPLE?=	${BINUTILS_ARCH}-${TARGET_VENDOR}-${TARGET_OS}
-.if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH} == "mipseb"
+.if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH:Mmips*eb} != ""
 TARGET_BIG_ENDIAN=t
 .endif
 
@@ -30,8 +30,7 @@ SRCDIR=	${.CURDIR}/${RELSRC}
 
 .if ${TARGET_CPUARCH} == "arm" || ${TARGET_CPUARCH} == "i386" || \
 	${TARGET_ARCH} == "powerpc" || \
-	(${TARGET_CPUARCH} == "mips" && \
-		(!defined(TARGET_ABI) || ${TARGET_ABI} != "n64"))
+	${TARGET_ARCH} == "mipsel" || ${TARGET_ARCH} == "mipseb"
 CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=32
 .else
 CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=64

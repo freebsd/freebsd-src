@@ -8,7 +8,7 @@ WARNS?=		0
 # These assignments duplicate much of the functionality of
 # MACHINE_CPUARCH, but there's no easy way to export make functions...
 .if defined(TARGET_ARCH)
-TARGET_CPUARCH=	${TARGET_ARCH:C/mipse[bl]/mips/:C/armeb/arm/}
+TARGET_CPUARCH=	${TARGET_ARCH:C/mips.*e[bl]/mips/:C/armeb/arm/}
 .else
 TARGET_CPUARCH=	${MACHINE_CPUARCH}
 TARGET_ARCH=	${MACHINE_ARCH}

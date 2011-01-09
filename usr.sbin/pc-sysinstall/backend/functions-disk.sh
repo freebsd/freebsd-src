@@ -180,12 +180,7 @@ get_disk_partitions()
     return
   fi
 
-  gpart show ${1} | grep "MBR" >/dev/null 2>/dev/null
-  if [ "$?" = "0" ] ; then
-    type="MBR"
-  else
-    type="GPT"
-  fi
+  type=`gpart show ${1} | awk '/^=>/ { printf("%s",$5); }'`
 
   SLICES="`gpart show ${1} | grep -v ${1} | grep -v ' free ' |tr -s '\t' ' ' | cut -d ' ' -f 4 | sed '/^$/d'`"
   for i in ${SLICES}
