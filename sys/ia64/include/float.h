@@ -43,7 +43,7 @@ __END_DECLS
 #define FLT_ROUNDS	__flt_rounds()
 #if __ISO_C_VISIBLE >= 1999
 #define	FLT_EVAL_METHOD	0		/* no promotions */
-#define	DECIMAL_DIG	35		/* max precision in decimal digits */
+#define	DECIMAL_DIG	21		/* max precision in decimal digits */
 #endif
 
 #define FLT_MANT_DIG	24		/* p */
