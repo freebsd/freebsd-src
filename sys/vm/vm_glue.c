@@ -94,8 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 
-extern int maxslp;
-
 /*
  * System initialization
  *
@@ -770,7 +768,7 @@ loop:
 	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
-		tsleep(&proc0, PVM, "sched", maxslp * hz / 2);
+		tsleep(&proc0, PVM, "sched", MAXSLP * hz / 2);
 		goto loop;
 	}
 	PROC_LOCK(p);
@@ -819,12 +817,12 @@ SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold2, CTLFLAG_RW,
     &swap_idle_threshold2, 0, "Time before a process will be swapped out");
 
 /*
- * Swapout is driven by the pageout daemon.  Very simple, we find eligible
- * procs and swap out their stacks.  We try to always "swap" at least one
- * process in case we need the room for a swapin.
- * If any procs have been sleeping/stopped for at least maxslp seconds,
- * they are swapped.  Else, we swap the longest-sleeping or stopped process,
- * if any, otherwise the longest-resident process.
+ * First, if any processes have been sleeping or stopped for at least
+ * "swap_idle_threshold1" seconds, they are swapped out.  If, however,
+ * no such processes exist, then the longest-sleeping or stopped
+ * process is swapped out.  Finally, and only as a last resort, if
+ * there are no sleeping or stopped processes, the longest-resident
+ * process is swapped out.
  */
 void
 swapout_procs(action)
