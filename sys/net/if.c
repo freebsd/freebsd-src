@@ -1865,6 +1865,11 @@ if_route(struct ifnet *ifp, int flag, int fam)
 
 void	(*vlan_link_state_p)(struct ifnet *);	/* XXX: private from if_vlan */
 void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
+struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
+struct	ifnet *(*vlan_devat_p)(struct ifnet *, uint16_t);
+int	(*vlan_tag_p)(struct ifnet *, uint16_t *);
+int	(*vlan_setcookie_p)(struct ifnet *, void *);
+void	*(*vlan_cookie_p)(struct ifnet *);
 
 /*
  * Handle a change in the interface link state. To avoid LORs
