@@ -65,7 +65,11 @@ CFLAGS+=	-I${LIB_BIND_DIR}
 .endif
 
 # Use the right version of the atomic.h file from lib/isc
-ISC_ATOMIC_ARCH=${MACHINE_CPUARCH:S/i386/x86_32/:S/amd64/x86_32/}
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+ISC_ATOMIC_ARCH=	x86_32
+.else
+ISC_ATOMIC_ARCH=	${MACHINE_CPUARCH}
+.endif
 
 # Optional features
 .if ${MK_BIND_LARGE_FILE} == "yes"
