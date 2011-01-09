@@ -855,12 +855,14 @@ adaregister(struct cam_periph *periph, void *arg)
 		dp->secsize, dp->heads,
 		dp->secs_per_track, dp->cylinders);
 	xpt_announce_periph(periph, announce_buf);
+#ifdef ADA_TEST_FAILURE
 	/*
 	 * Create our sysctl variables, now that we know
 	 * we have successfully attached.
 	 * XXX: da code does a cam_periph_acquire(periph) here -- why?.
 	 */
 	taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
+#endif
 	/*
 	 * Add async callbacks for bus reset and
 	 * bus device reset calls.  I don't bother
