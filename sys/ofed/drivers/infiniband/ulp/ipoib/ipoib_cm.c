@@ -575,10 +575,11 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	dev->if_obytes += mb->m_pkthdr.len;
 
 	mb->m_pkthdr.rcvif = dev;
-	proto = ntohs(*mtod(mb, uint16_t *));
+	proto = *mtod(mb, uint16_t *);
 	m_adj(mb, IPOIB_ENCAP_LEN);
+	IPOIB_MTAP_PROTO(dev, mb, proto);
 	spin_unlock(&priv->lock);
-	ipoib_demux(dev, mb, proto);
+	ipoib_demux(dev, mb, ntohs(proto));
 	spin_lock(&priv->lock);
 
 repost:

@@ -421,8 +421,16 @@ struct ipoib_path {
 
 extern struct workqueue_struct *ipoib_workqueue;
 
-/* functions */
+#define IPOIB_MTAP_PROTO(_ifp, _m, _proto)			\
+do {								\
+	if (bpf_peers_present((_ifp)->if_bpf)) {		\
+		M_ASSERTVALID(_m);				\
+		ipoib_mtap_proto((_ifp), (_m), (_proto));	\
+	}							\
+} while (0)
 
+/* functions */
+void ipoib_mtap_proto(struct ifnet *ifp, struct mbuf *mb, uint16_t proto);
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr);
 void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr);
 

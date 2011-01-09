@@ -92,6 +92,45 @@ static int ipoib_output(struct ifnet *ifp, struct mbuf *m,
 static int ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
 static void ipoib_input(struct ifnet *ifp, struct mbuf *m);
 
+#define	IPOIB_MTAP(_ifp, _m)					\
+do {								\
+	if (bpf_peers_present((_ifp)->if_bpf)) {		\
+		M_ASSERTVALID(_m);				\
+		ipoib_mtap_mb((_ifp), (_m));			\
+	}							\
+} while (0)
+
+/*
+ * This is for clients that have an ipoib_header in the mbuf.
+ */
+static void
+ipoib_mtap_mb(struct ifnet *ifp, struct mbuf *mb)
+{
+	struct ipoib_header *ih;
+	struct ether_header eh;
+
+	ih = mtod(mb, struct ipoib_header *);
+	eh.ether_type = ih->proto;
+	bcopy(ih->hwaddr, &eh.ether_dhost, ETHER_ADDR_LEN);
+	bzero(&eh.ether_shost, ETHER_ADDR_LEN);
+	mb->m_data += sizeof(struct ipoib_header);
+	mb->m_len -= sizeof(struct ipoib_header);
+	bpf_mtap2(ifp->if_bpf, &eh, sizeof(eh), mb);
+	mb->m_data -= sizeof(struct ipoib_header);
+	mb->m_len += sizeof(struct ipoib_header);
+}
+
+void
+ipoib_mtap_proto(struct ifnet *ifp, struct mbuf *mb, uint16_t proto)
+{
+	struct ether_header eh;
+
+	eh.ether_type = proto;
+	bzero(&eh.ether_shost, ETHER_ADDR_LEN);
+	bzero(&eh.ether_dhost, ETHER_ADDR_LEN);
+	bpf_mtap2(ifp->if_bpf, &eh, sizeof(eh), mb);
+}
+
 static struct ib_client ipoib_client = {
 	.name   = "ipoib",
 	.add    = ipoib_add_one,
@@ -681,7 +720,7 @@ _ipoib_start(struct ifnet *dev, struct ipoib_dev_priv *priv)
 		IFQ_DRV_DEQUEUE(&dev->if_snd, mb);
 		if (mb == NULL)
 			break;
-		BPF_MTAP(dev, mb);
+		IPOIB_MTAP(dev, mb);
 		ipoib_send_one(priv, mb);
 	}
 	spin_unlock(&priv->lock);
@@ -884,7 +923,7 @@ ipoib_intf_alloc(const char *name)
 	sdl->sdl_alen = dev->if_addrlen;
 	priv->dev = dev;
 	if_link_state_change(dev, LINK_STATE_DOWN);
-	bpfattach(dev, DLT_EN10MB, IPOIB_HEADER_LEN);
+	bpfattach(dev, DLT_EN10MB, ETHER_HDR_LEN);
 
 	return dev->if_softc;
 }
@@ -1375,12 +1414,6 @@ ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
 	 */
 	mac_ifnet_create_mbuf(ifp, m);
 #endif
-
-	/*
-	 * Give bpf a chance at the packet.
-	 */
-	BPF_MTAP(ifp, m);
-
 	/* Allow monitor mode to claim this frame, after stats are updated. */
 	if (ifp->if_flags & IFF_MONITOR) {
 		if_printf(ifp, "discard frame at IFF_MONITOR\n");
@@ -1434,6 +1467,8 @@ ipoib_input(struct ifnet *ifp, struct mbuf *m)
 	}
 	CURVNET_SET_QUIET(ifp->if_vnet);
 
+	/* Let BPF have it before we strip the header. */
+	IPOIB_MTAP(ifp, m);
 	eh = mtod(m, struct ipoib_header *);
 	/*
 	 * Reset layer specific mbuf flags to avoid confusing upper layers.
