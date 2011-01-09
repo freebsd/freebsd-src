@@ -793,8 +793,9 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 	char arg[16];
 	const char *verb, *volname, *levelname, *diskname;
 	int *nargs;
-	uint64_t size, sectorsize;
-	int numdisks, i, level, qual;
+	uint64_t size, sectorsize, strip;
+	intmax_t *sizearg, *striparg;
+	int numdisks, i, len, level, qual;
 	int error;
 
 	sc = md->mdo_softc;
@@ -912,7 +913,36 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		/* Reserve some space for metadata. */
 		size -= (4096 + sectorsize - 1) / sectorsize + 1;
 
-		size &= ~127;	/* Assume stripe size 64K */
+		len = sizeof(*sizearg);
+		sizearg = gctl_get_param(req, "size", &len);
+		if (sizearg != NULL && len == sizeof(*sizearg)) {
+			if (*sizearg / sectorsize > size) {
+				gctl_error(req, "Size too big.");
+				return (-9);
+			}
+			size = *sizearg / sectorsize;
+		}
+
+		strip = 256;
+		len = sizeof(*striparg);
+		striparg = gctl_get_param(req, "strip", &len);
+		if (striparg != NULL && len == sizeof(*striparg)) {
+			if (*striparg < sectorsize) {
+				gctl_error(req, "Strip size too small.");
+				return (-10);
+			}
+			if (*striparg % sectorsize != 0) {
+				gctl_error(req, "Incorrect strip size.");
+				return (-11);
+			}
+			strip = *striparg / sectorsize;
+			if (strip >= 65536) {
+				gctl_error(req, "Strip size too big.");
+				return (-12);
+			}
+		}
+
+		size -= (size % strip);
 		mvol = intel_get_volume(meta, 0);
 		strlcpy(&mvol->name[0], volname, sizeof(mvol->name));
 		if (level == G_RAID_VOLUME_RL_RAID0)
@@ -924,8 +954,8 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		mmap = intel_get_map(mvol, 0);
 		mmap->offset = 0;
 		mmap->disk_sectors = size;
-		mmap->stripe_count = size / 128;
-		mmap->stripe_sectors = 128;
+		mmap->stripe_count = size / strip;
+		mmap->stripe_sectors = strip;
 		mmap->status = INTEL_S_READY;
 		if (level == G_RAID_VOLUME_RL_RAID0)
 			mmap->type = INTEL_T_RAID0;

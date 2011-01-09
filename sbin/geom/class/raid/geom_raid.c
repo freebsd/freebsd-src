@@ -51,8 +51,13 @@ uint32_t version = G_RAID_VERSION;
 //static void raid_main(struct gctl_req *req, unsigned flags);
 
 struct g_command class_commands[] = {
-	{ "label", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
-	    "format name level prov ..."
+	{ "label", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'S', "size", G_VAL_OPTIONAL, G_TYPE_NUMBER },
+		{ 's', "strip", G_VAL_OPTIONAL, G_TYPE_NUMBER },
+		G_OPT_SENTINEL
+	    },
+	    "[-S size] [-s stripsize] format name level prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
