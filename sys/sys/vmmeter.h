@@ -34,6 +34,12 @@
 #define _SYS_VMMETER_H_
 
 /*
+ * This value is used by ps(1) to change sleep state flag from 'S' to
+ * 'I' and by the sched process to set the alarm clock.
+ */
+#define	MAXSLP			20
+
+/*
  * System wide statistics counters.
  * Locking:
  *      a - locked by atomic operations
