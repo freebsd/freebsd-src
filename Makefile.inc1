@@ -65,7 +65,7 @@ SUBDIR+=secure
 SUBDIR+=share
 .endif
 SUBDIR+=sys usr.bin usr.sbin
-.if !defined(MK_OFED) || ${MK_OFED} != "no"
+.if ${MK_OFED} != "no"
 SUBDIR+=contrib/ofed
 .endif
 #
@@ -1180,7 +1180,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 _lib_libthr=	lib/libthr
 .endif
 
-.if !defined(MK_OFED) || ${MK_OFED} != "no"
+.if ${MK_OFED} != "no"
 _ofed_lib=	contrib/ofed/usr.lib/
 .endif
 

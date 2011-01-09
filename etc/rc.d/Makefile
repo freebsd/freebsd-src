@@ -42,6 +42,10 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ypset ypupdated ypxfrd \
 	zfs zvol
 
+.if ${MK_OFED} != "no"
+FILES+= opensm
+.endif
+
 .if ${MK_OPENSSH} != "no"
 FILES+=	sshd
 .endif

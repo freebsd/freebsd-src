@@ -368,6 +368,7 @@ _clang_no=CLANG
     NS_CACHING \
     NTP \
     OBJC \
+    OFED \
     OPENSSH \
     OPENSSL \
     PAM \
