@@ -49,22 +49,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
 
-static int ct_debug;
-static int adjkerntz;		/* local offset from UTC in seconds */
-static int wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
-
 int tz_minuteswest;
 int tz_dsttime;
 
 /*
- * This have traditionally been in machdep, but should probably be moved to
- * kern.
+ * The adjkerntz and wall_cmos_clock sysctls are in the "machdep" sysctl
+ * namespace because they were misplaced there originally.
  */
-SYSCTL_INT(_machdep, OID_AUTO, ct_debug,
-	CTLFLAG_RW, &ct_debug, 0, "Print ct debug if enabled.");
-SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock,
-    CTLFLAG_RW, &wall_cmos_clock, 0, "CMOS clock keeps wall time");
-
+static int adjkerntz;
 static int
 sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 {
@@ -74,10 +66,17 @@ sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 		resettodr();
 	return (error);
 }
-
 SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
     &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
     "Local offset from UTC in seconds");
+
+static int ct_debug;
+SYSCTL_INT(_debug, OID_AUTO, clocktime, CTLFLAG_RW,
+    &ct_debug, 0, "Enable printing of clocktime debugging");
+
+static int wall_cmos_clock;
+SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock, CTLFLAG_RW,
+    &wall_cmos_clock, 0, "Enables application of machdep.adjkerntz");
 
 /*--------------------------------------------------------------------*
  * Generic routines to convert between a POSIX date
