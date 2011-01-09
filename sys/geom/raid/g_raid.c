@@ -68,6 +68,10 @@ TUNABLE_INT("kern.geom.raid.disconnect_on_failure",
     &g_raid_disconnect_on_failure);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
     &g_raid_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
+static u_int g_raid_name_format = 0;
+TUNABLE_INT("kern.geom.raid.name_format", &g_raid_name_format);
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, name_format, CTLFLAG_RW,
+    &g_raid_name_format, 0, "Providers name format.");
 
 #define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
 	G_RAID_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));		\
@@ -943,12 +947,25 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 //	struct g_raid_disk *disk;
 	struct g_raid_softc *sc;
 	struct g_provider *pp;
+	char name[G_RAID_MAX_VOLUMENAME];
+	int i;
 
 	sc = vol->v_softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
 	g_topology_lock();
-	pp = g_new_providerf(sc->sc_geom, "raid/%s", vol->v_name);
+	/* Try to name provider with volume name. */
+	snprintf(name, sizeof(name), "raid/%s", vol->v_name);
+	if (g_raid_name_format == 0 || vol->v_name[0] == 0 ||
+	    g_provider_by_name(name) != NULL) {
+	    /* Otherwise find first free name. */
+	    for (i = 0; ; i++) {
+		snprintf(name, sizeof(name), "raid/r%d", i);
+		if (g_provider_by_name(name) == NULL)
+			break;
+	    }
+	}
+	pp = g_new_providerf(sc->sc_geom, "%s", name);
 	pp->private = vol;
 	pp->mediasize = vol->v_mediasize;
 	pp->sectorsize = vol->v_sectorsize;
@@ -1521,6 +1538,8 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		vol = pp->private;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
+		sbuf_printf(sb, "%s<VolumeName>%s</VolumeName>\n", indent,
+		    vol->v_name);
 		sbuf_printf(sb, "%s<RAIDLevel>%s</RAIDLevel>\n", indent,
 		    g_raid_volume_level2str(vol->v_raid_level,
 		    vol->v_raid_level_qualifier));
