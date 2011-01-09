@@ -154,8 +154,11 @@ static inline u16 rdma_vlan_dev_vlan_id(const struct net_device *dev)
 	return dev->priv_flags & IFF_802_1Q_VLAN ?
 		vlan_dev_vlan_id(dev) : 0xffff;
 #else
-	/* XXX vlan */
-	return 0xffff;
+	int tag;
+
+	if (VLAN_TAG(__DECONST(struct ifnet *, dev), &tag) != 0)
+		return 0xffff;
+	return tag;
 #endif
 }
 
@@ -302,7 +305,7 @@ static inline struct net_device *rdma_vlan_dev_real_dev(const struct net_device 
 	return dev->priv_flags & IFF_802_1Q_VLAN ?
 		vlan_dev_real_dev(dev) : 0;
 #else
-	return __DECONST(struct net_device *, dev);
+	return VLAN_TRUNKDEV(__DECONST(struct ifnet *, dev));
 #endif
 }
 

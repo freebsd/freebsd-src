@@ -46,6 +46,7 @@ static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
 #include <linux/vmalloc.h>
 
 #include <linux/if_arp.h>	/* For ARPHRD_xxx */
+#include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 
@@ -115,24 +116,16 @@ ipoib_open(struct ipoib_dev_priv *priv)
 	if (ipoib_ib_dev_up(priv))
 		goto err_stop;
 
-#if 0 /* XXX */
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring up any child interfaces too */
 		mutex_lock(&priv->vlan_mutex);
-		list_for_each_entry(cpriv, &priv->child_intfs, list) {
-			int flags;
-
-			flags = cpriv->dev->flags;
-			if (flags & IFF_UP)
-				continue;
-
-			dev_change_flags(cpriv->dev, flags | IFF_UP);
-		}
+		list_for_each_entry(cpriv, &priv->child_intfs, list)
+			if ((cpriv->dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
+				ipoib_open(cpriv);
 		mutex_unlock(&priv->vlan_mutex);
 	}
-#endif
 	dev->if_drv_flags |= IFF_DRV_RUNNING;
 	dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
@@ -175,24 +168,16 @@ ipoib_stop(struct ipoib_dev_priv *priv)
 	ipoib_ib_dev_down(priv, 0);
 	ipoib_ib_dev_stop(priv, 0);
 
-#if 0 /* XXX */
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring down any child interfaces too */
 		mutex_lock(&priv->vlan_mutex);
-		list_for_each_entry(cpriv, &priv->child_intfs, list) {
-			int flags;
-
-			flags = cpriv->dev->if_flags;
-			if (!(flags & IFF_UP))
-				continue;
-
-			dev_change_flags(cpriv->dev, flags & ~IFF_UP);
-		}
+		list_for_each_entry(cpriv, &priv->child_intfs, list)
+			if ((cpriv->dev->if_drv_flags & IFF_DRV_RUNNING) != 0)
+				ipoib_stop(cpriv);
 		mutex_unlock(&priv->vlan_mutex);
 	}
-#endif
 
 	return 0;
 }
@@ -234,13 +219,6 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0;
-
-	/*
-	 * We may be called if if_vlan.c doesn't handle something however,
-	 * if_softc is not our softc in this case.
-	 */
-	if (ifp->if_type != IFT_INFINIBAND)
-		return (EINVAL);
 
 	switch (command) {
 	case SIOCSIFFLAGS:
@@ -687,28 +665,50 @@ ipoib_send_one(struct ipoib_dev_priv *priv, struct mbuf *mb)
 	return 0;
 }
 
+
 static void
-ipoib_start(struct ifnet *dev)
+_ipoib_start(struct ifnet *dev, struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv;
 	struct mbuf *mb;
 
 	if ((dev->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
-	priv = dev->if_softc;
 	spin_lock(&priv->lock);
 	while (!IFQ_DRV_IS_EMPTY(&dev->if_snd) &&
 	    (dev->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 		IFQ_DRV_DEQUEUE(&dev->if_snd, mb);
 		if (mb == NULL)
 			break;
-
 		BPF_MTAP(dev, mb);
 		ipoib_send_one(priv, mb);
 	}
 	spin_unlock(&priv->lock);
+}
+
+static void
+ipoib_start(struct ifnet *dev)
+{
+	_ipoib_start(dev, dev->if_softc);
+}
+
+static void
+ipoib_vlan_start(struct ifnet *dev)
+{
+	struct ipoib_dev_priv *priv;
+	struct mbuf *mb;
+
+	priv = VLAN_COOKIE(dev);
+	if (priv != NULL)
+		return _ipoib_start(dev, priv);
+	while (!IFQ_DRV_IS_EMPTY(&dev->if_snd)) {
+		IFQ_DRV_DEQUEUE(&dev->if_snd, mb);
+		if (mb == NULL)
+			break;
+		m_freem(mb);
+		dev->if_oerrors++;
+	}
 }
 
 int
@@ -750,13 +750,18 @@ out:
 }
 
 static void
-ipoib_detach(struct ifnet *dev)
+ipoib_detach(struct ipoib_dev_priv *priv)
 {
-	struct ipoib_dev_priv *priv = dev->if_softc;
+	struct ifnet *dev;
 
-	bpfdetach(dev);
-	if_detach(dev);
-	if_free(dev);
+	dev = priv->dev;
+	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
+		bpfdetach(dev);
+		if_detach(dev);
+		if_free(dev);
+	} else
+		VLAN_SETCOOKIE(priv->dev, NULL);
+
 	free(priv, M_TEMP);
 }
 
@@ -768,7 +773,7 @@ ipoib_dev_cleanup(struct ipoib_dev_priv *priv)
 	/* Delete any child interfaces first */
 	list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
 		ipoib_dev_cleanup(cpriv);
-		ipoib_detach(cpriv->dev);
+		ipoib_detach(cpriv);
 	}
 
 	ipoib_ib_dev_cleanup(priv);
@@ -821,6 +826,31 @@ static int get_mb_hdr(struct mbuf *mb, void **iphdr,
 
 static volatile int ipoib_unit;
 
+static struct ipoib_dev_priv *
+ipoib_priv_alloc(void)
+{
+	struct ipoib_dev_priv *priv;
+
+	priv = malloc(sizeof(struct ipoib_dev_priv), M_TEMP, M_ZERO|M_WAITOK);
+	spin_lock_init(&priv->lock);
+	mutex_init(&priv->vlan_mutex);
+	INIT_LIST_HEAD(&priv->path_list);
+	INIT_LIST_HEAD(&priv->child_intfs);
+	INIT_LIST_HEAD(&priv->dead_ahs);
+	INIT_LIST_HEAD(&priv->multicast_list);
+	INIT_DELAYED_WORK(&priv->pkey_poll_task, ipoib_pkey_poll);
+	INIT_DELAYED_WORK(&priv->mcast_task,   ipoib_mcast_join_task);
+	INIT_WORK(&priv->carrier_on_task, ipoib_mcast_carrier_on_task);
+	INIT_WORK(&priv->flush_light,   ipoib_ib_dev_flush_light);
+	INIT_WORK(&priv->flush_normal,   ipoib_ib_dev_flush_normal);
+	INIT_WORK(&priv->flush_heavy,   ipoib_ib_dev_flush_heavy);
+	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task);
+	INIT_DELAYED_WORK(&priv->ah_reap_task, ipoib_reap_ah);
+	memcpy(priv->broadcastaddr, ipv4_bcast_addr, INFINIBAND_ALEN);
+
+	return (priv);
+}
+
 struct ipoib_dev_priv *
 ipoib_intf_alloc(const char *name)
 {
@@ -828,7 +858,7 @@ ipoib_intf_alloc(const char *name)
 	struct sockaddr_dl *sdl;
 	struct ifnet *dev;
 
-	priv = malloc(sizeof(struct ipoib_dev_priv), M_TEMP, M_ZERO|M_WAITOK);
+	priv = ipoib_priv_alloc();
 	dev = priv->dev = if_alloc(IFT_INFINIBAND);
 	if (!dev) {
 		free(priv, M_TEMP);
@@ -848,34 +878,13 @@ ipoib_intf_alloc(const char *name)
 	dev->if_resolvemulti = ipoib_resolvemulti;
 	dev->if_baudrate = IF_Gbps(10LL);
 	dev->if_broadcastaddr = priv->broadcastaddr;
-	memcpy(priv->broadcastaddr, ipv4_bcast_addr, INFINIBAND_ALEN);
 	dev->if_snd.ifq_maxlen = ipoib_sendq_size * 2;
 	sdl = (struct sockaddr_dl *)dev->if_addr->ifa_addr;
 	sdl->sdl_type = IFT_INFINIBAND;
 	sdl->sdl_alen = dev->if_addrlen;
 	priv->dev = dev;
 	if_link_state_change(dev, LINK_STATE_DOWN);
-
 	bpfattach(dev, DLT_EN10MB, IPOIB_HEADER_LEN);
-
-	spin_lock_init(&priv->lock);
-
-	mutex_init(&priv->vlan_mutex);
-
-	INIT_LIST_HEAD(&priv->path_list);
-	INIT_LIST_HEAD(&priv->child_intfs);
-	INIT_LIST_HEAD(&priv->dead_ahs);
-	INIT_LIST_HEAD(&priv->multicast_list);
-
-	INIT_DELAYED_WORK(&priv->pkey_poll_task, ipoib_pkey_poll);
-	INIT_DELAYED_WORK(&priv->mcast_task,   ipoib_mcast_join_task);
-	INIT_WORK(&priv->carrier_on_task, ipoib_mcast_carrier_on_task);
-	INIT_WORK(&priv->flush_light,   ipoib_ib_dev_flush_light);
-	INIT_WORK(&priv->flush_normal,   ipoib_ib_dev_flush_normal);
-	INIT_WORK(&priv->flush_heavy,   ipoib_ib_dev_flush_heavy);
-	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task);
-	INIT_DELAYED_WORK(&priv->ah_reap_task, ipoib_reap_ah);
-
 
 	return dev->if_softc;
 }
@@ -999,7 +1008,7 @@ event_failed:
 	ipoib_dev_cleanup(priv);
 
 device_init_failed:
-	ipoib_detach(priv->dev);
+	ipoib_detach(priv);
 
 alloc_mem_failed:
 	return ERR_PTR(result);
@@ -1065,11 +1074,109 @@ ipoib_remove_one(struct ib_device *device)
 		flush_workqueue(ipoib_workqueue);
 
 		ipoib_dev_cleanup(priv);
-		ipoib_detach(priv->dev);
+		ipoib_detach(priv);
 	}
 
 	kfree(dev_list);
 }
+
+static void
+ipoib_config_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
+{
+	struct ipoib_dev_priv *parent;
+	struct ipoib_dev_priv *priv;
+	struct ifnet *dev;
+	uint16_t pkey;
+	int error;
+
+	if (ifp->if_type != IFT_INFINIBAND)
+		return;
+	dev = VLAN_DEVAT(ifp, vtag);
+	if (dev == NULL)
+		return;
+	priv = NULL;
+	error = 0;
+	parent = ifp->if_softc;
+	/* We only support 15 bits of pkey. */
+	if (vtag & 0x8000)
+		return;
+	pkey = vtag | 0x8000;	/* Set full membership bit. */
+	if (pkey == parent->pkey)
+		return;
+	/* Check for dups */
+	mutex_lock(&parent->vlan_mutex);
+	list_for_each_entry(priv, &parent->child_intfs, list) {
+		if (priv->pkey == pkey) {
+			priv = NULL;
+			error = EBUSY;
+			goto out;
+		}
+	}
+	priv = ipoib_priv_alloc();
+	priv->dev = dev;
+	priv->max_ib_mtu = parent->max_ib_mtu;
+	priv->mcast_mtu = priv->admin_mtu = parent->dev->if_mtu;
+	set_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags);
+	error = ipoib_set_dev_features(priv, parent->ca);
+	if (error)
+		goto out;
+	priv->pkey = pkey;
+	priv->broadcastaddr[8] = pkey >> 8;
+	priv->broadcastaddr[9] = pkey & 0xff;
+	dev->if_broadcastaddr = priv->broadcastaddr;
+	error = ipoib_dev_init(priv, parent->ca, parent->port);
+	if (error)
+		goto out;
+	priv->parent = parent->dev;
+	list_add_tail(&priv->list, &parent->child_intfs);
+	VLAN_SETCOOKIE(dev, priv);
+	dev->if_start = ipoib_vlan_start;
+	dev->if_drv_flags &= ~IFF_DRV_RUNNING;
+	dev->if_hdrlen = IPOIB_HEADER_LEN;
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ipoib_open(priv);
+	mutex_unlock(&parent->vlan_mutex);
+	return;
+out:
+	mutex_unlock(&parent->vlan_mutex);
+	if (priv)
+		free(priv, M_TEMP);
+	if (error)
+		ipoib_warn(parent,
+		    "failed to initialize subinterface: device %s, port %d vtag 0x%X",
+		    parent->ca->name, parent->port, vtag);
+	return;
+}
+
+static void
+ipoib_unconfig_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
+{
+	struct ipoib_dev_priv *parent;
+	struct ipoib_dev_priv *priv;
+	struct ifnet *dev;
+	uint16_t pkey;
+
+	if (ifp->if_type != IFT_INFINIBAND)
+		return;
+
+	dev = VLAN_DEVAT(ifp, vtag);
+	if (dev)
+		VLAN_SETCOOKIE(dev, NULL);
+	pkey = vtag | 0x8000;
+	parent = ifp->if_softc;
+	mutex_lock(&parent->vlan_mutex);
+	list_for_each_entry(priv, &parent->child_intfs, list) {
+		if (priv->pkey == pkey) {
+			ipoib_dev_cleanup(priv);
+			list_del(&priv->list);
+			break;
+		}
+	}
+	mutex_unlock(&parent->vlan_mutex);
+}
+
+eventhandler_tag ipoib_vlan_attach;
+eventhandler_tag ipoib_vlan_detach;
 
 static int __init
 ipoib_init_module(void)
@@ -1087,6 +1194,11 @@ ipoib_init_module(void)
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	ipoib_max_conn_qp = min(ipoib_max_conn_qp, IPOIB_CM_MAX_CONN_QP);
 #endif
+
+	ipoib_vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
+		ipoib_config_vlan, NULL, EVENTHANDLER_PRI_FIRST);
+	ipoib_vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
+		ipoib_unconfig_vlan, NULL, EVENTHANDLER_PRI_FIRST);
 
 	/*
 	 * We create our own workqueue mainly because we want to be
@@ -1121,6 +1233,9 @@ err_fs:
 static void __exit
 ipoib_cleanup_module(void)
 {
+
+	EVENTHANDLER_DEREGISTER(vlan_config, ipoib_vlan_attach);
+	EVENTHANDLER_DEREGISTER(vlan_unconfig, ipoib_vlan_detach);
 	ib_unregister_client(&ipoib_client);
 	ib_sa_unregister_client(&ipoib_sa_client);
 	destroy_workqueue(ipoib_workqueue);

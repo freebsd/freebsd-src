@@ -1124,15 +1124,14 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 		goto out;
 	}
 
-	/* XXX vlan */
 #ifdef __linux__
 	read_lock(&dev_base_lock);
 	for_each_netdev(&init_net, tmp) {
-		if (ndev && (tmp == ndev || rdma_vlan_dev_real_dev(tmp) == ndev)) {
 #else
-		tmp = ndev;
-		if (ndev) {
+	IFNET_RLOCK();
+	TAILQ_FOREACH(tmp, &V_ifnet, if_link) {
 #endif
+		if (ndev && (tmp == ndev || rdma_vlan_dev_real_dev(tmp) == ndev)) {
 			gid.global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
 			vid = rdma_vlan_dev_vlan_id(tmp);
 			mlx4_addrconf_ifid_eui48(&gid.raw[8], vid, ndev);
@@ -1164,6 +1163,9 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 #ifdef __linux__
 	}
 	read_unlock(&dev_base_lock);
+#else
+	}
+	IFNET_RUNLOCK();
 #endif
 
 	for (i = 0; i < MLX4_MAX_EFF_VLANS + 1; ++i)
