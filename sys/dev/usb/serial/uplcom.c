@@ -258,6 +258,7 @@ static const struct usb_device_id uplcom_devs[] = {
 	UPLCOM_DEV(BELKIN, F5U257),		/* Belkin F5U257 */
 	UPLCOM_DEV(COREGA, CGUSBRS232R),	/* Corega CG-USBRS232R */
 	UPLCOM_DEV(EPSON, CRESSI_EDY),		/* Cressi Edy diving computer */
+	UPLCOM_DEV(EPSON, N2ITION3),		/* Zeagle N2iTion3 diving computer */
 	UPLCOM_DEV(ELECOM, UCSGT),		/* ELECOM UC-SGT */
 	UPLCOM_DEV(ELECOM, UCSGT0),		/* ELECOM UC-SGT */
 	UPLCOM_DEV(HAL, IMR001),		/* HAL Corporation Crossam2+USB */
