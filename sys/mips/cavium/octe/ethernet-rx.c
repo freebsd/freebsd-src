@@ -54,6 +54,8 @@ extern struct ifnet *cvm_oct_device[];
 static struct task cvm_oct_task;
 static struct taskqueue *cvm_oct_taskq;
 
+static int cvm_oct_rx_active;
+
 /**
  * Interrupt handler. The interrupt occurs whenever the POW
  * transitions from 0->1 packets in our group.
@@ -70,7 +72,13 @@ int cvm_oct_do_interrupt(void *dev_id)
 		cvmx_write_csr(CVMX_POW_WQ_INT, 1<<pow_receive_group);
 	else
 		cvmx_write_csr(CVMX_POW_WQ_INT, 0x10001<<pow_receive_group);
-	taskqueue_enqueue(cvm_oct_taskq, &cvm_oct_task);
+
+	/*
+	 * Schedule task if there isn't one running.
+	 */
+	if (atomic_cmpset_int(&cvm_oct_rx_active, 0, 1))
+		taskqueue_enqueue(cvm_oct_taskq, &cvm_oct_task);
+
 	return FILTER_HANDLED;
 }
 
@@ -351,6 +359,19 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 				      DONT_WRITEBACK(1));
 		} else
 			cvm_oct_free_work(work);
+	}
+
+	/*
+	 * If we hit our limit, schedule another task while we clean up.
+	 */
+	if (INTERRUPT_LIMIT != 0 && rx_count == MAX_RX_PACKETS) {
+		taskqueue_enqueue(cvm_oct_taskq, &cvm_oct_task);
+	} else {
+		/*
+		 * No more packets, all done.
+		 */
+		if (!atomic_cmpset_int(&cvm_oct_rx_active, 1, 0))
+			panic("%s: inconsistent rx active state.", __func__);
 	}
 
 	/* Restore the original POW group mask */
