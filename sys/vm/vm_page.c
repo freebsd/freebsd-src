@@ -141,7 +141,7 @@ struct vpgqueues vm_page_queues[PQ_COUNT];
 struct vpglocks vm_page_queue_lock;
 struct vpglocks vm_page_queue_free_lock;
 
-struct vpglocks	pa_lock[PA_LOCK_COUNT] __aligned(CACHE_LINE_SIZE);
+struct vpglocks	pa_lock[PA_LOCK_COUNT];
 
 vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
