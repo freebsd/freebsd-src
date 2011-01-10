@@ -333,9 +333,12 @@ octm_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	result = cvmx_mgmt_port_sendm(sc->sc_port, m);
 
-	if (result == CVMX_MGMT_PORT_SUCCESS)
+	if (result == CVMX_MGMT_PORT_SUCCESS) {
 		ETHER_BPF_MTAP(ifp, m);
-	else
+
+		ifp->if_opackets++;
+		ifp->if_obytes += m->m_pkthdr.len;
+	} else
 		ifp->if_oerrors++;
 
 	m_freem(m);
