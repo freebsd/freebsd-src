@@ -86,7 +86,7 @@ CLEAN+=	${LDSCRIPT_NAME} ${LDSCRIPT_NAME}.tramp.noheader \
 	${KERNEL_KO}.tramp.noheader ${KERNEL_KO}.tramp.bin
 
 ${LDSCRIPT_NAME}: $S/conf/${LDSCRIPT_NAME}
-	cat $S/conf/${LDSCRIPT_NAME}|sed s/KERNLOADADDR/${KERNLOADADDR}/g \
+	sed s/KERNLOADADDR/${KERNLOADADDR}/g $S/conf/${LDSCRIPT_NAME} \
 		> ${LDSCRIPT_NAME}
 %RULES
 
