@@ -243,7 +243,7 @@ export_all_zpools()
 delete_all_gpart()
 {
   echo_log "Deleting all gparts"
-  DISK="$1"
+  local DISK="$1"
 
   # Check for any swaps to stop
   for i in `gpart show ${DISK} 2>/dev/null | grep 'freebsd-swap' | tr -s ' ' | cut -d ' ' -f 4`
@@ -260,6 +260,13 @@ delete_all_gpart()
    fi
   done
 
+  # Destroy the disk geom
+  rc_nohalt "gpart destroy ${DISK}"
+
+  # Make sure we clear any hidden gpt tables
+  clear_backup_gpt_table "${DISK}"
+
+  # Wipe out front of disk
   rc_nohalt "dd if=/dev/zero of=/dev/${DISK} count=3000"
 
 };
@@ -553,6 +560,24 @@ stop_gjournal()
   fi
 } ;
 
+
+# Function to wipe the potential backup gpt table from a disk
+clear_backup_gpt_table()
+{
+  # Get the disk block size
+  local dSize="`gpart show $1 | grep $1 | tr -s ' ' | cut -d ' ' -f 3`"
+
+  # Make sure this is a valid number
+  is_num "${dSize}" >/dev/null 2>/dev/null
+  if [ "$?" != "0" ] ; then return ; fi
+
+  # Die backup label, DIE
+  echo_log "Clearing gpt backup table location on disk"
+  rc_nohalt "dd if=/dev/zero of=${1} bs=512 seek=${dSize}"
+
+} ;
+
+
 # Function which runs gpart and creates a single large GPT partition scheme
 init_gpt_full_disk()
 {
@@ -567,15 +592,11 @@ init_gpt_full_disk()
   # Remove any existing partitions
   delete_all_gpart "${_intDISK}"
 
-  #Erase any existing bootloader
-  echo_log "Cleaning up ${_intDISK}"
-  rc_halt "dd if=/dev/zero of=/dev/${_intDISK} count=2048"
-
   sleep 2
 
   echo_log "Running gpart on ${_intDISK}"
   rc_halt "gpart create -s GPT ${_intDISK}"
-  rc_halt "gpart add -b 34 -s 128 -t freebsd-boot ${_intDISK}"
+  rc_halt "gpart add -b 34 -s 64 -t freebsd-boot ${_intDISK}"
   
   echo_log "Stamping boot sector on ${_intDISK}"
   rc_halt "gpart bootcode -b /boot/pmbr ${_intDISK}"
@@ -588,7 +609,7 @@ init_mbr_full_disk()
   _intDISK=$1
   _intBOOT=$2
  
-  startblock="63"
+  startblock="2016"
 
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
@@ -598,10 +619,6 @@ init_mbr_full_disk()
 
   # Remove any existing partitions
   delete_all_gpart "${_intDISK}"
-
-  #Erase any existing bootloader
-  echo_log "Cleaning up ${_intDISK}"
-  rc_halt "dd if=/dev/zero of=/dev/${_intDISK} count=2048"
 
   sleep 2
 
