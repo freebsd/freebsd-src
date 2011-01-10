@@ -104,8 +104,7 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber,
 	KASSERT(sc != NULL && sc->acpi_dev != NULL,
 	    ("can't find ACPI device to register interrupt"));
 
-	if (InterruptNumber < 0 || InterruptNumber > 255 ||
-	    ServiceRoutine == NULL)
+	if (InterruptNumber > 255 || ServiceRoutine == NULL)
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 
 	ai = malloc(sizeof(*ai), M_ACPIINTR, M_WAITOK | M_ZERO);
@@ -181,8 +180,7 @@ AcpiOsRemoveInterruptHandler(UINT32 InterruptNumber,
 	KASSERT(sc != NULL && sc->acpi_dev != NULL,
 	    ("can't find ACPI device to deregister interrupt"));
 
-	if (InterruptNumber < 0 || InterruptNumber > 255 ||
-	    ServiceRoutine == NULL)
+	if (InterruptNumber > 255 || ServiceRoutine == NULL)
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	mtx_lock(&acpi_intr_lock);
 	SLIST_FOREACH(ai, &acpi_intr_list, ai_link)
