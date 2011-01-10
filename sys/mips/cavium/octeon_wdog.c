@@ -254,7 +254,7 @@ static void
 octeon_wdog_identify(driver_t *drv, device_t parent)
 {
 
-	BUS_ADD_CHILD(parent, 0, "octeon_wdog", 0);
+	BUS_ADD_CHILD(parent, 0, "owdog", 0);
 }
 
 static device_method_t octeon_wdog_methods[] = {
@@ -266,10 +266,10 @@ static device_method_t octeon_wdog_methods[] = {
 };
 
 static driver_t octeon_wdog_driver = {
-	"octeon_wdog",
+	"owdog",
 	octeon_wdog_methods,
 	sizeof(struct octeon_wdog_softc),
 };
 static devclass_t octeon_wdog_devclass;
 
-DRIVER_MODULE(octeon_wdog, ciu, octeon_wdog_driver, octeon_wdog_devclass, 0, 0);
+DRIVER_MODULE(owdog, ciu, octeon_wdog_driver, octeon_wdog_devclass, 0, 0);
