@@ -559,11 +559,8 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 				}
 				if (n < sizeof(uint32_t))
 					goto readmore;
-				if (cd->mpending->m_len < sizeof(uint32_t))
-					cd->mpending = m_pullup(cd->mpending,
-					    sizeof(uint32_t));
-				memcpy(&header, mtod(cd->mpending, uint32_t *),
-				    sizeof(header));
+				m_copydata(cd->mpending, 0, sizeof(header),
+				    (char *)&header);
 				header = ntohl(header);
 				cd->eor = (header & 0x80000000) != 0;
 				cd->resid = header & 0x7fffffff;
