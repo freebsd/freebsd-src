@@ -30,10 +30,10 @@ COPTFLAGS?=	-O
 _MINUS_O=	-O
 CTFFLAGS+=	-g
 . else
-_MINUS_O=	-O
+_MINUS_O=	-O2
 . endif
 . if ${MACHINE_CPUARCH} == "amd64"
-COPTFLAGS?=-O -frename-registers -pipe
+COPTFLAGS?=-O2 -frename-registers -pipe
 . else
 COPTFLAGS?=${_MINUS_O} -pipe
 . endif

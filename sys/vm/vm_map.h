@@ -346,7 +346,7 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define VM_MAP_WIRE_NOHOLES	0	/* region must not have holes */
 #define VM_MAP_WIRE_HOLESOK	2	/* region may have holes */
 
-#define	VM_MAP_WIRE_WRITE	4	/* Validate writable. */
+#define VM_MAP_WIRE_WRITE	4	/* Validate writable. */
 
 #ifdef _KERNEL
 boolean_t vm_map_check_protection (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t);
