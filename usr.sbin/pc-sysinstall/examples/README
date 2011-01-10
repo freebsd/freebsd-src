@@ -286,7 +286,11 @@ Options for setting up usernames and passwords on the installed system
 
 # rootPass=root
 
-Set the root password of the installed system to the specified string
+Set the root password of the installed system to the specified plaintext string
+
+# rootEncPass=<encryptedstring>
+
+Set the root password of the installed system to the specified encrypted string
 
 The below variables are used to setup a user on the installed system
 Be sure to call commitUser after after adding these values, and before
@@ -295,6 +299,8 @@ starting another user block
 # userName=kris
 # userComment=Kris Moore
 # userPass=mypass
+or
+# userEncPass=<encryptedstring>
 # userShell=/bin/csh
 # userHome=/home/kris
 # userGroups=wheel,operator
