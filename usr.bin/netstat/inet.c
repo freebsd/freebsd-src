@@ -85,11 +85,11 @@ __FBSDID("$FreeBSD$");
 char	*inetname(struct in_addr *);
 void	inetprint(struct in_addr *, int, const char *, int);
 #ifdef INET6
-static int udp_done, tcp_done;
+static int udp_done, tcp_done, sdp_done;
 #endif /* INET6 */
 
 static int
-pcblist_sysctl(int proto, char **bufp, int istcp)
+pcblist_sysctl(int proto, const char *name, char **bufp, int istcp)
 {
 	const char *mibvar;
 	char *buf;
@@ -109,7 +109,8 @@ pcblist_sysctl(int proto, char **bufp, int istcp)
 		mibvar = "net.inet.raw.pcblist";
 		break;
 	}
-
+	if (strncmp(name, "sdp", 3) == 0)
+		mibvar = "net.inet.sdp.pcblist";
 	len = 0;
 	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
 		if (errno != ENOENT)
@@ -315,10 +316,17 @@ protopr(u_long off, const char *name, int af1, int proto)
 	switch (proto) {
 	case IPPROTO_TCP:
 #ifdef INET6
-		if (tcp_done != 0)
-			return;
-		else
-			tcp_done = 1;
+		if (strncmp(name, "sdp", 3) != 0) {
+			if (tcp_done != 0)
+				return;
+			else
+				tcp_done = 1;
+		} else {
+			if (sdp_done != 0)
+				return;
+			else
+				sdp_done = 1;
+		}
 #endif
 		istcp = 1;
 		break;
@@ -332,7 +340,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 		break;
 	}
 	if (live) {
-		if (!pcblist_sysctl(proto, &buf, istcp))
+		if (!pcblist_sysctl(proto, name, &buf, istcp))
 			return;
 	} else {
 		if (!pcblist_kvm(off, &buf, istcp))
@@ -355,12 +363,18 @@ protopr(u_long off, const char *name, int af1, int proto)
 		}
 
 		/* Ignore sockets for protocols other than the desired one. */
-		if (so->xso_protocol != proto)
+		if (so->xso_protocol != proto) {
+			printf("%s proto %d, proto %d\n",
+			    name,  so->xso_protocol, proto);
 			continue;
+		}
 
 		/* Ignore PCBs which were freed during copyout. */
-		if (inp->inp_gencnt > oxig->xig_gen)
+		if (inp->inp_gencnt > oxig->xig_gen) {
+			printf("%s gencnt %jd, xig gen %jd\n",
+			    name, inp->inp_gencnt, oxig->xig_gen);
 			continue;
+		}
 
 		if ((af1 == AF_INET && (inp->inp_vflag & INP_IPV4) == 0)
 #ifdef INET6

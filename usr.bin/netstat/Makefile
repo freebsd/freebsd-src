@@ -18,6 +18,10 @@ SRCS+=	inet6.c
 CFLAGS+=-DINET6
 .endif
 
+.if ${MK_OFED} != "no"
+CFLAGS+=-DSDP
+.endif
+
 BINGRP=	kmem
 BINMODE=2555
 DPADD=	${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
