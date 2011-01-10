@@ -178,6 +178,9 @@ device		uart		# Generic UART driver
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		octe
 
+# Cavium Octeon management Ethernet.
+device		octm
+
 # Switch PHY support for the octe driver.  These currently present a VLAN per
 # physical port, but may eventually provide support for DSA or similar instead.
 #device		mv88e61xxphy	# Marvell 88E61XX
