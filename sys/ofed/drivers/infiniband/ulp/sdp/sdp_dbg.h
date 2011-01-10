@@ -10,7 +10,7 @@ do {								\
 	printk(level "%s:%d %p sdp_sock(%d:%d %d:%d): " format "\n",	\
 	       func, line, sk ? sdp_sk(sk) : NULL,		\
 	       curproc->p_pid, PCPU_GET(cpuid),			\
-	       (sk) && sdp_sk(sk) ? sdp_sk(sk)->lport : -1,	\
+	       (sk) && sdp_sk(sk) ? ntohs(sdp_sk(sk)->lport) : -1,	\
 	       (sk) && sdp_sk(sk) ? ntohs(sdp_sk(sk)->fport) : -1, ## arg);	\
 } while (0)
 #define sdp_printk(level, sk, format, arg...)                \

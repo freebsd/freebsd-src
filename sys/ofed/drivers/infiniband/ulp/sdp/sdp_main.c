@@ -97,6 +97,8 @@ MALLOC_DEFINE(M_SDP, "sdp", "Socket Direct Protocol");
 u_long	sdp_sendspace = 1024*32;
 u_long	sdp_recvspace = 1024*64;
 
+static int sdp_count;
+
 static int
 sdp_pcbbind(struct sdp_sock *ssk, struct sockaddr *nam, struct ucred *cred)
 {
@@ -132,7 +134,7 @@ sdp_pcbbind(struct sdp_sock *ssk, struct sockaddr *nam, struct ucred *cred)
 	} else {
 		sin = (struct sockaddr_in *)&ssk->id->route.addr.src_addr;
 		ssk->laddr = sin->sin_addr.s_addr;
-		ssk->lport = ntohs(sin->sin_port);
+		ssk->lport = sin->sin_port;
 	}
 	return (error);
 }
@@ -160,6 +162,7 @@ sdp_pcbfree(struct sdp_sock *ssk)
 	ssk->flags |= SDP_DESTROY;
 	SDP_WUNLOCK(ssk);
 	SDP_LIST_WLOCK();
+	sdp_count--;
 	LIST_REMOVE(ssk, list);
 	SDP_LIST_WUNLOCK();
 	crfree(ssk->cred);
@@ -384,6 +387,7 @@ sdp_attach(struct socket *so, int proto, struct thread *td)
 	ssk->state = TCPS_CLOSED;
 	SDP_LIST_WLOCK();
 	LIST_INSERT_HEAD(&sdp_list, ssk, list);
+	sdp_count++;
 	SDP_LIST_WUNLOCK();
 	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
 		so->so_linger = TCP_LINGERTIME;
@@ -498,7 +502,7 @@ sdp_start_connect(struct sdp_sock *ssk, struct sockaddr *nam, struct thread *td)
 	src.sin_family = AF_INET;
 	src.sin_len = sizeof(src);
 	bzero(&src.sin_zero, sizeof(src.sin_zero));
-	src.sin_port = htons(ssk->lport);
+	src.sin_port = ssk->lport;
 	src.sin_addr.s_addr = ssk->laddr;
 	soisconnecting(so);
 	SDP_WUNLOCK(ssk);
@@ -1692,6 +1696,111 @@ sdp_dev_rem(struct ib_device *device)
 
 struct ib_client sdp_client =
     { .name = "sdp", .add = sdp_dev_add, .remove = sdp_dev_rem };
+
+
+static int
+sdp_pcblist(SYSCTL_HANDLER_ARGS)
+{
+	int error, n, i;
+	struct sdp_sock *ssk;
+	struct xinpgen xig;
+
+	/*
+	 * The process of preparing the TCB list is too time-consuming and
+	 * resource-intensive to repeat twice on every request.
+	 */
+	if (req->oldptr == NULL) {
+		n = sdp_count;
+		n += imax(n / 8, 10);
+		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
+		return (0);
+	}
+
+	if (req->newptr != NULL)
+		return (EPERM);
+
+	/*
+	 * OK, now we're committed to doing something.
+	 */
+	SDP_LIST_RLOCK();
+	n = sdp_count;
+	SDP_LIST_RUNLOCK();
+
+	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
+		+ n * sizeof(struct xtcpcb));
+	if (error != 0)
+		return (error);
+
+	xig.xig_len = sizeof xig;
+	xig.xig_count = n;
+	xig.xig_gen = 0;
+	xig.xig_sogen = so_gencnt;
+	error = SYSCTL_OUT(req, &xig, sizeof xig);
+	if (error)
+		return (error);
+
+	SDP_LIST_RLOCK();
+	for (ssk = LIST_FIRST(&sdp_list), i = 0;
+	    ssk != NULL && i < n; ssk = LIST_NEXT(ssk, list)) {
+		struct xtcpcb xt;
+
+		SDP_RLOCK(ssk);
+		if (ssk->flags & SDP_TIMEWAIT) {
+			if (ssk->cred != NULL)
+				error = cr_cansee(req->td->td_ucred,
+				    ssk->cred);
+			else
+				error = EINVAL;	/* Skip this inp. */
+		} else if (ssk->socket)
+			error = cr_canseesocket(req->td->td_ucred,
+			    ssk->socket);
+		else
+			error = EINVAL;
+		if (error)
+			goto next;
+
+		bzero(&xt, sizeof(xt));
+		xt.xt_len = sizeof xt;
+		xt.xt_inp.inp_gencnt = 0;
+		xt.xt_inp.inp_vflag = INP_IPV4;
+		memcpy(&xt.xt_inp.inp_laddr, &ssk->laddr, sizeof(ssk->laddr));
+		xt.xt_inp.inp_lport = ssk->lport;
+		memcpy(&xt.xt_inp.inp_faddr, &ssk->faddr, sizeof(ssk->faddr));
+		xt.xt_inp.inp_fport = ssk->fport;
+		xt.xt_tp.t_state = ssk->state;
+		if (ssk->socket != NULL)
+			sotoxsocket(ssk->socket, &xt.xt_socket);
+		else
+			bzero(&xt.xt_socket, sizeof xt.xt_socket);
+		xt.xt_socket.xso_protocol = IPPROTO_TCP;
+		SDP_RUNLOCK(ssk);
+		error = SYSCTL_OUT(req, &xt, sizeof xt);
+		i++;
+		continue;
+next:
+		SDP_RUNLOCK(ssk);
+	}
+	if (!error) {
+		/*
+		 * Give the user an updated idea of our state.
+		 * If the generation differs from what we told
+		 * her before, she knows that something happened
+		 * while we were processing this request, and it
+		 * might be necessary to retry.
+		 */
+		xig.xig_gen = 0;
+		xig.xig_sogen = so_gencnt;
+		xig.xig_count = sdp_count;
+		error = SYSCTL_OUT(req, &xig, sizeof xig);
+	}
+	SDP_LIST_RUNLOCK();
+	return (error);
+}
+
+SYSCTL_NODE(_net_inet, -1,  sdp,    CTLFLAG_RW, 0,  "SDP");
+
+SYSCTL_PROC(_net_inet_sdp, TCPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
+    sdp_pcblist, "S,xtcpcb", "List of active SDP connections");
 
 static void
 sdp_zone_change(void *tag)

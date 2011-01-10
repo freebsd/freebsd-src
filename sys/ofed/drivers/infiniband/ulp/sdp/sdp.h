@@ -30,9 +30,11 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
+#include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_timer.h>
+#include <netinet/tcp_var.h>
 
 #include <linux/device.h>
 #include <linux/err.h>

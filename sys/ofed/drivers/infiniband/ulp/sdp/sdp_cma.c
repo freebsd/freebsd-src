@@ -136,6 +136,7 @@ static int
 sdp_connect_handler(struct socket *sk, struct rdma_cm_id *id,
     struct rdma_cm_event *event)
 {
+	struct sockaddr_in *src_addr;
 	struct sockaddr_in *dst_addr;
 	struct socket *child;
 	const struct sdp_hh *h;
@@ -164,8 +165,10 @@ sdp_connect_handler(struct socket *sk, struct rdma_cm_id *id,
 	ssk->socket = child;
 	ssk->cred = crhold(child->so_cred);
 	dst_addr = (struct sockaddr_in *)&id->route.addr.dst_addr;
+	src_addr = (struct sockaddr_in *)&id->route.addr.src_addr;
 	ssk->fport = dst_addr->sin_port;
 	ssk->faddr = dst_addr->sin_addr.s_addr;
+	ssk->lport = src_addr->sin_port;
 	ssk->max_bufs = ntohs(h->bsdh.bufs);
 	atomic_set(&ssk->tx_ring.credits, ssk->max_bufs);
 	ssk->min_bufs = tx_credits(ssk) / 4;
