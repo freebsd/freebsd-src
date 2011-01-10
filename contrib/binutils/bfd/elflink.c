@@ -3226,6 +3226,40 @@ elf_finalize_dynstr (bfd *output_bfd, struct bfd_link_info *info)
   return TRUE;
 }
 
+/* Return TRUE iff relocations for INPUT are compatible with OUTPUT.
+   The default is to only match when the INPUT and OUTPUT are exactly
+   the same target.  */
+
+bfd_boolean
+_bfd_elf_default_relocs_compatible (const bfd_target *input,
+				    const bfd_target *output)
+{
+  return input == output;
+}
+
+/* Return TRUE iff relocations for INPUT are compatible with OUTPUT.
+   This version is used when different targets for the same architecture
+   are virtually identical.  */
+
+bfd_boolean
+_bfd_elf_relocs_compatible (const bfd_target *input,
+			    const bfd_target *output)
+{
+  const struct elf_backend_data *obed, *ibed;
+
+  if (input == output)
+    return TRUE;
+
+  ibed = xvec_get_elf_backend_data (input);
+  obed = xvec_get_elf_backend_data (output);
+
+  if (ibed->arch != obed->arch)
+    return FALSE;
+
+  /* If both backends are using this function, deem them compatible.  */
+  return ibed->relocs_compatible == obed->relocs_compatible;
+}
+
 /* Add symbols from an ELF object file to the linker hash table.  */
 
 static bfd_boolean
@@ -4610,8 +4644,8 @@ elf_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
      different format.  It probably can't be done.  */
   if (! dynamic
       && is_elf_hash_table (htab)
-      && htab->root.creator == abfd->xvec
-      && bed->check_relocs != NULL)
+      && bed->check_relocs != NULL
+      && (*bed->relocs_compatible) (abfd->xvec, htab->root.creator))
     {
       asection *o;
 

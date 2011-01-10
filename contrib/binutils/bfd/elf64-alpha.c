@@ -5326,6 +5326,8 @@ static const struct elf_size_info alpha_elf_size_info =
 
 #define elf_backend_add_symbol_hook \
   elf64_alpha_add_symbol_hook
+#define elf_backend_relocs_compatible \
+  _bfd_elf_relocs_compatible
 #define elf_backend_check_relocs \
   elf64_alpha_check_relocs
 #define elf_backend_create_dynamic_sections \

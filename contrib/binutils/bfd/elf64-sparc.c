@@ -868,6 +868,8 @@ const struct elf_size_info elf64_sparc_size_info =
 
 #define elf_backend_create_dynamic_sections \
   _bfd_sparc_elf_create_dynamic_sections
+#define elf_backend_relocs_compatible \
+  _bfd_elf_relocs_compatible
 #define elf_backend_check_relocs \
   _bfd_sparc_elf_check_relocs
 #define elf_backend_adjust_dynamic_symbol \

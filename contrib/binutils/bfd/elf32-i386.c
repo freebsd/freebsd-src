@@ -3811,9 +3811,10 @@ elf_i386_hash_symbol (struct elf_link_hash_entry *h)
 #define bfd_elf32_bfd_is_local_label_name     elf_i386_is_local_label_name
 #define bfd_elf32_bfd_link_hash_table_create  elf_i386_link_hash_table_create
 #define bfd_elf32_bfd_reloc_type_lookup	      elf_i386_reloc_type_lookup
-#define bfd_elf32_bfd_reloc_name_lookup elf_i386_reloc_name_lookup
+#define bfd_elf32_bfd_reloc_name_lookup	      elf_i386_reloc_name_lookup
 
 #define elf_backend_adjust_dynamic_symbol     elf_i386_adjust_dynamic_symbol
+#define elf_backend_relocs_compatible	      _bfd_elf_relocs_compatible
 #define elf_backend_check_relocs	      elf_i386_check_relocs
 #define elf_backend_copy_indirect_symbol      elf_i386_copy_indirect_symbol
 #define elf_backend_create_dynamic_sections   elf_i386_create_dynamic_sections
@@ -3899,7 +3900,8 @@ elf_i386_vxworks_link_hash_table_create (bfd *abfd)
 }
 
 
-#undef	elf_backend_post_process_headers
+#undef elf_backend_relocs_compatible
+#undef elf_backend_post_process_headers
 #undef bfd_elf32_bfd_link_hash_table_create
 #define bfd_elf32_bfd_link_hash_table_create \
   elf_i386_vxworks_link_hash_table_create

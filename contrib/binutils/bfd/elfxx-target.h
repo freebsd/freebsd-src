@@ -376,6 +376,9 @@
 #ifndef elf_backend_omit_section_dynsym
 #define elf_backend_omit_section_dynsym _bfd_elf_link_omit_section_dynsym
 #endif
+#ifndef elf_backend_relocs_compatible
+#define elf_backend_relocs_compatible _bfd_elf_default_relocs_compatible
+#endif
 #ifndef elf_backend_check_relocs
 #define elf_backend_check_relocs	0
 #endif
@@ -634,6 +637,7 @@ static struct elf_backend_data elfNN_bed =
   elf_backend_link_output_symbol_hook,
   elf_backend_create_dynamic_sections,
   elf_backend_omit_section_dynsym,
+  elf_backend_relocs_compatible,
   elf_backend_check_relocs,
   elf_backend_check_directives,
   elf_backend_as_needed_cleanup,

@@ -140,7 +140,7 @@ case "${targ}" in
 #ifdef BFD64
   alpha*-*-freebsd* | alpha*-*-kfreebsd*-gnu)
     targ_defvec=bfd_elf64_alpha_freebsd_vec
-    targ_selvecs=ecoffalpha_little_vec
+    targ_selvecs="bfd_elf64_alpha_vec ecoffalpha_little_vec"
     want64=true
     # FreeBSD <= 4.0 supports only the old nonstandard way of ABI labelling.
     case "${targ}" in
@@ -188,7 +188,7 @@ case "${targ}" in
     ;;
   sparc64-*-freebsd* | sparc64-*-kfreebsd*-gnu)
     targ_defvec=bfd_elf64_sparc_freebsd_vec
-    targ_selvecs="bfd_elf32_sparc_vec sunos_big_vec"
+    targ_selvecs="bfd_elf64_sparc_vec bfd_elf32_sparc_vec sunos_big_vec"
     ;;
   sparc64-*-netbsd* | sparc64-*-openbsd*)
     targ_defvec=bfd_elf64_sparc_vec
@@ -539,7 +539,8 @@ case "${targ}" in
     ;;
   i[3-7]86-*-freebsd* | i[3-7]86-*-kfreebsd*-gnu)
     targ_defvec=bfd_elf32_i386_freebsd_vec
-    targ_selvecs=i386coff_vec
+    targ_selvecs="bfd_elf32_i386_vec bfd_efi_app_ia32_vec i386coff_vec"
+    targ64_selvecs="bfd_elf64_x86_64_freebsd_vec bfd_elf64_x86_64_vec bfd_efi_app_x86_64_vec"
     # FreeBSD <= 4.0 supports only the old nonstandard way of ABI labelling.
     case "${targ}" in
       i[3-7]86-*-freebsd3* | i[3-7]86-*-freebsd4 | i[3-7]86-*-freebsd4.0*)

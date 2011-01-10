@@ -3657,6 +3657,7 @@ static const struct bfd_elf_special_section
   elf64_x86_64_reloc_name_lookup
 
 #define elf_backend_adjust_dynamic_symbol   elf64_x86_64_adjust_dynamic_symbol
+#define elf_backend_relocs_compatible	    _bfd_elf_relocs_compatible
 #define elf_backend_check_relocs	    elf64_x86_64_check_relocs
 #define elf_backend_copy_indirect_symbol    elf64_x86_64_copy_indirect_symbol
 #define elf_backend_create_dynamic_sections elf64_x86_64_create_dynamic_sections
