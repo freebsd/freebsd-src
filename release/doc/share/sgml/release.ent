@@ -6,18 +6,18 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "8.1-RELEASE">
+<!ENTITY release.current "8.2-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "8.0-RELEASE">
+<!ENTITY release.prev "8.1-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "8.2-RELEASE">
+<!ENTITY release.next "8.3-RELEASE">
 
 <!-- The name of this branch. -->
-<!ENTITY release.branch "8-STABLE">
+<!ENTITY release.branch "8.2-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "ftp://ftp.FreeBSD.org/">
@@ -32,9 +32,9 @@
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
 <!ENTITY release.manpath.xorg          "7.5">
-<!ENTITY release.manpath.netbsd        "5.0.2">
+<!ENTITY release.manpath.netbsd        "5.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "8.1-RELEASE">
+<!ENTITY release.manpath.freebsd       "8.2-RELEASE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
