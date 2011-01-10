@@ -103,7 +103,7 @@ static void unload_filtees(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *, int);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(const char *, const Obj_Entry *, int);
-static void map_stacks_exec(void);
+static void map_stacks_exec(RtldLockState *);
 static Obj_Entry *obj_from_addr(const void *);
 static void objlist_call_fini(Objlist *, Obj_Entry *, RtldLockState *);
 static void objlist_call_init(Objlist *, RtldLockState *);
@@ -119,9 +119,10 @@ static int rtld_dirname(const char *, char *);
 static int rtld_dirname_abs(const char *, char *);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
-static const void **get_program_var_addr(const char *);
+static const void **get_program_var_addr(const char *, RtldLockState *);
 static void set_program_var(const char *, const void *);
 static int symlook_default(SymLook *, const Obj_Entry *refobj);
+static int symlook_global(SymLook *, DoneList *);
 static void symlook_init_from_req(SymLook *, const SymLook *);
 static int symlook_list(SymLook *, const Objlist *, DoneList *);
 static int symlook_needed(SymLook *, const Needed_Entry *, DoneList *);
@@ -528,7 +529,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     r_debug_state(NULL, &obj_main->linkmap); /* say hello to gdb! */
 
-    map_stacks_exec();
+    map_stacks_exec(NULL);
 
     wlock_acquire(rtld_bind_lock, &lockstate);
     objlist_call_init(&initlist, &lockstate);
@@ -2129,12 +2130,18 @@ dllockinit(void *context,
 void *
 dlopen(const char *name, int mode)
 {
+    RtldLockState lockstate;
     int lo_flags;
 
     LD_UTRACE(UTRACE_DLOPEN_START, NULL, NULL, 0, mode, name);
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
-    if (ld_tracing != NULL)
-	environ = (char **)*get_program_var_addr("environ");
+    if (ld_tracing != NULL) {
+	rlock_acquire(rtld_bind_lock, &lockstate);
+	if (setjmp(lockstate.env) != 0)
+	    lock_upgrade(rtld_bind_lock, &lockstate);
+	environ = (char **)*get_program_var_addr("environ", &lockstate);
+	lock_release(rtld_bind_lock, &lockstate);
+    }
     lo_flags = RTLD_LO_DLOPEN;
     if (mode & RTLD_NODELETE)
 	    lo_flags |= RTLD_LO_NODELETE;
@@ -2220,7 +2227,7 @@ dlopen_object(const char *name, Obj_Entry *refobj, int lo_flags, int mode)
 	name);
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
 
-    map_stacks_exec();
+    map_stacks_exec(&lockstate);
 
     /* Call the init functions. */
     objlist_call_init(&initlist, &lockstate);
@@ -2779,21 +2786,20 @@ r_debug_state(struct r_debug* rd, struct link_map *m)
 
 /*
  * Get address of the pointer variable in the main program.
+ * Prefer non-weak symbol over the weak one.
  */
 static const void **
-get_program_var_addr(const char *name)
+get_program_var_addr(const char *name, RtldLockState *lockstate)
 {
-    const Obj_Entry *obj;
     SymLook req;
+    DoneList donelist;
 
     symlook_init(&req, name);
-    for (obj = obj_main;  obj != NULL;  obj = obj->next) {
-	if (symlook_obj(&req, obj) == 0) {
-	    return ((const void **)(req.defobj_out->relocbase +
-	      req.sym_out->st_value));
-	}
-    }
-    return (NULL);
+    req.lockstate = lockstate;
+    donelist_init(&donelist);
+    if (symlook_global(&req, &donelist) != 0)
+	return (NULL);
+    return ((const void **)(req.defobj_out->relocbase + req.sym_out->st_value));
 }
 
 /*
@@ -2806,10 +2812,52 @@ set_program_var(const char *name, const void *value)
 {
     const void **addr;
 
-    if ((addr = get_program_var_addr(name)) != NULL) {
+    if ((addr = get_program_var_addr(name, NULL)) != NULL) {
 	dbg("\"%s\": *%p <-- %p", name, addr, value);
 	*addr = value;
     }
+}
+
+/*
+ * Search the global objects, including dependencies and main object,
+ * for the given symbol.
+ */
+static int
+symlook_global(SymLook *req, DoneList *donelist)
+{
+    SymLook req1;
+    const Objlist_Entry *elm;
+    int res;
+
+    symlook_init_from_req(&req1, req);
+
+    /* Search all objects loaded at program start up. */
+    if (req->defobj_out == NULL ||
+      ELF_ST_BIND(req->sym_out->st_info) == STB_WEAK) {
+	res = symlook_list(&req1, &list_main, donelist);
+	if (res == 0 && (req->defobj_out == NULL ||
+	  ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK)) {
+	    req->sym_out = req1.sym_out;
+	    req->defobj_out = req1.defobj_out;
+	    assert(req->defobj_out != NULL);
+	}
+    }
+
+    /* Search all DAGs whose roots are RTLD_GLOBAL objects. */
+    STAILQ_FOREACH(elm, &list_global, link) {
+	if (req->defobj_out != NULL &&
+	  ELF_ST_BIND(req->sym_out->st_info) != STB_WEAK)
+	    break;
+	res = symlook_list(&req1, &elm->obj->dagmembers, donelist);
+	if (res == 0 && (req->defobj_out == NULL ||
+	  ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK)) {
+	    req->sym_out = req1.sym_out;
+	    req->defobj_out = req1.defobj_out;
+	    assert(req->defobj_out != NULL);
+	}
+    }
+
+    return (req->sym_out != NULL ? 0 : ESRCH);
 }
 
 /*
@@ -2822,13 +2870,10 @@ static int
 symlook_default(SymLook *req, const Obj_Entry *refobj)
 {
     DoneList donelist;
-    const Elf_Sym *def;
-    const Obj_Entry *defobj;
     const Objlist_Entry *elm;
     SymLook req1;
     int res;
-    def = NULL;
-    defobj = NULL;
+
     donelist_init(&donelist);
     symlook_init_from_req(&req1, req);
 
@@ -2836,46 +2881,25 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
     if (refobj->symbolic && !donelist_check(&donelist, refobj)) {
 	res = symlook_obj(&req1, refobj);
 	if (res == 0) {
-	    def = req1.sym_out;
-	    defobj = req1.defobj_out;
-	    assert(defobj != NULL);
+	    req->sym_out = req1.sym_out;
+	    req->defobj_out = req1.defobj_out;
+	    assert(req->defobj_out != NULL);
 	}
     }
 
-    /* Search all objects loaded at program start up. */
-    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	res = symlook_list(&req1, &list_main, &donelist);
-	if (res == 0 &&
-	  (def == NULL || ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK)) {
-	    def = req1.sym_out;
-	    defobj = req1.defobj_out;
-	    assert(defobj != NULL);
-	}
-    }
-
-    /* Search all DAGs whose roots are RTLD_GLOBAL objects. */
-    STAILQ_FOREACH(elm, &list_global, link) {
-       if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
-           break;
-	res = symlook_list(&req1, &elm->obj->dagmembers, &donelist);
-	if (res == 0 &&
-	  (def == NULL || ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK)) {
-	    def = req1.sym_out;
-	    defobj = req1.defobj_out;
-	    assert(defobj != NULL);
-	}
-    }
+    symlook_global(req, &donelist);
 
     /* Search all dlopened DAGs containing the referencing object. */
     STAILQ_FOREACH(elm, &refobj->dldags, link) {
-	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
+	if (req->sym_out != NULL &&
+	  ELF_ST_BIND(req->sym_out->st_info) != STB_WEAK)
 	    break;
 	res = symlook_list(&req1, &elm->obj->dagmembers, &donelist);
-	if (res == 0 &&
-	  (def == NULL || ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK)) {
-	    def = req1.sym_out;
-	    defobj = req1.defobj_out;
-	    assert(defobj != NULL);
+	if (res == 0 && (req->sym_out == NULL ||
+	  ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK)) {
+	    req->sym_out = req1.sym_out;
+	    req->defobj_out = req1.defobj_out;
+	    assert(req->defobj_out != NULL);
 	}
     }
 
@@ -2884,22 +2908,17 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
      * symbol from there.  This is how the application links to
      * dynamic linker services such as dlopen.
      */
-    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+    if (req->sym_out == NULL ||
+      ELF_ST_BIND(req->sym_out->st_info) == STB_WEAK) {
 	res = symlook_obj(&req1, &obj_rtld);
 	if (res == 0) {
-	    def = req1.sym_out;
-	    defobj = req1.defobj_out;
-	    assert(defobj != NULL);
+	    req->sym_out = req1.sym_out;
+	    req->defobj_out = req1.defobj_out;
+	    assert(req->defobj_out != NULL);
 	}
     }
 
-    if (def != NULL) {
-	assert(defobj != NULL);
-	req->defobj_out = defobj;
-	req->sym_out = def;
-	return (0);
-    }
-    return (ESRCH);
+    return (req->sym_out != NULL ? 0 : ESRCH);
 }
 
 static int
@@ -3900,14 +3919,14 @@ _rtld_get_stack_prot(void)
 }
 
 static void
-map_stacks_exec(void)
+map_stacks_exec(RtldLockState *lockstate)
 {
 	void (*thr_map_stacks_exec)(void);
 
 	if ((max_stack_flags & PF_X) == 0 || (stack_prot & PROT_EXEC) != 0)
 		return;
 	thr_map_stacks_exec = (void (*)(void))(uintptr_t)
-	    get_program_var_addr("__pthread_map_stacks_exec");
+	    get_program_var_addr("__pthread_map_stacks_exec", lockstate);
 	if (thr_map_stacks_exec != NULL) {
 		stack_prot |= PROT_EXEC;
 		thr_map_stacks_exec();
