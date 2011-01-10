@@ -149,7 +149,7 @@ static struct td_sched td_sched0;
 #define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
 #define	SCHED_PRI_MIN		(PRI_MIN_TIMESHARE + SCHED_PRI_NHALF)
 #define	SCHED_PRI_MAX		(PRI_MAX_TIMESHARE - SCHED_PRI_NHALF)
-#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN)
+#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN + 1)
 #define	SCHED_PRI_TICKS(ts)						\
     (SCHED_TICK_HZ((ts)) /						\
     (roundup(SCHED_TICK_TOTAL((ts)), SCHED_PRI_RANGE) / SCHED_PRI_RANGE))
@@ -1406,8 +1406,8 @@ sched_priority(struct thread *td)
 	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
 		pri = PRI_MIN_REALTIME;
-		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)
-		    * score;
+		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME + 1) /
+		    sched_interact) * score;
 		KASSERT(pri >= PRI_MIN_REALTIME && pri <= PRI_MAX_REALTIME,
 		    ("sched_priority: invalid interactive priority %d score %d",
 		    pri, score));
