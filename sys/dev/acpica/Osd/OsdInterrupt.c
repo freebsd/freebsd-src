@@ -115,6 +115,7 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber,
 		    (InterruptNumber == InterruptOverride &&
 		    InterruptNumber != AcpiGbl_FADT.SciInterrupt)) {
 			mtx_unlock(&acpi_intr_lock);
+			free(ai, M_ACPIINTR);
 			return_ACPI_STATUS (AE_ALREADY_EXISTS);
 		}
 		if (ai->ai_rid <= ap->ai_rid)
