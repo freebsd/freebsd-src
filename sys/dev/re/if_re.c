@@ -3278,6 +3278,10 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	if (result == 1) {
 		sc = (struct rl_softc *)arg1;
 		RL_LOCK(sc);
+		if ((sc->rl_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+			RL_UNLOCK(sc);
+			goto done;
+		}
 		bus_dmamap_sync(sc->rl_ldata.rl_stag,
 		    sc->rl_ldata.rl_smap, BUS_DMASYNC_PREREAD);
 		CSR_WRITE_4(sc, RL_DUMPSTATS_HI,
@@ -3301,6 +3305,7 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 			    "DUMP statistics request timedout\n");
 			return (ETIMEDOUT);
 		}
+done:
 		stats = sc->rl_ldata.rl_stats;
 		printf("%s statistics:\n", device_get_nameunit(sc->rl_dev));
 		printf("Tx frames : %ju\n",
