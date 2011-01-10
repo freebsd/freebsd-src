@@ -154,7 +154,7 @@ static inline u16 rdma_vlan_dev_vlan_id(const struct net_device *dev)
 	return dev->priv_flags & IFF_802_1Q_VLAN ?
 		vlan_dev_vlan_id(dev) : 0xffff;
 #else
-	int tag;
+	uint16_t tag;
 
 	if (VLAN_TAG(__DECONST(struct ifnet *, dev), &tag) != 0)
 		return 0xffff;
