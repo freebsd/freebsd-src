@@ -511,9 +511,15 @@ octm_rx_intr(void *arg)
 			continue;
 		}
 
+		m_freem(m);
+
 		if (len == 0)
 			break;
 
 		sc->sc_ifp->if_ierrors++;
 	}
+
+	/* Acknowledge interrupts.  */
+	cvmx_write_csr(CVMX_MIXX_ISR(sc->sc_port), mixx_isr.u64);
+	cvmx_read_csr(CVMX_MIXX_ISR(sc->sc_port));
 }
