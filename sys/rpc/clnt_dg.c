@@ -1089,15 +1089,14 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 		/*
 		 * The XID is in the first uint32_t of the reply.
 		 */
-		if (m->m_len < sizeof(xid))
-			m = m_pullup(m, sizeof(xid));
-		if (!m)
+		if (m->m_len < sizeof(xid) && m_length(m, NULL) < sizeof(xid))
 			/*
 			 * Should never happen.
 			 */
 			continue;
 
-		xid = ntohl(*mtod(m, uint32_t *));
+		m_copydata(m, 0, sizeof(xid), (char *)&xid);
+		xid = ntohl(xid);
 
 		/*
 		 * Attempt to match this reply with a pending request.
