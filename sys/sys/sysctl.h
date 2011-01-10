@@ -115,6 +115,8 @@ struct ctlname {
 #define CTL_AUTO_START	0x100
 
 #ifdef _KERNEL
+#include <sys/linker_set.h>
+
 #define SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1, int arg2, \
 	struct sysctl_req *req
 
