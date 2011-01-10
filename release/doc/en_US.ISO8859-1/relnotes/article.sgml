@@ -20,16 +20,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2000</year>
-      <year>2001</year>
-      <year>2002</year>
-      <year>2003</year>
-      <year>2004</year>
-      <year>2005</year>
-      <year>2006</year>
-      <year>2007</year>
-      <year>2008</year>
-      <year>2009</year>
+      <year>2011</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -62,29 +53,6 @@
       It also provides some notes on upgrading
       from previous versions of &os;.</para>
 
-<![ %release.type.current [
-
-    <para>The &release.type; distribution to which these release notes
-      apply represents the latest point along the &release.branch; development
-      branch since &release.branch; was created.  Information regarding pre-built, binary
-      &release.type; distributions along this branch
-      can be found at <ulink url="&release.url;"></ulink>.</para>
-
-]]>
-
-<![ %release.type.snapshot [
-
-    <para>The &release.type; distribution to which these release notes
-      apply represents a point along the &release.branch; development
-      branch between &release.prev; and the future &release.next;.
-      Information regarding
-      pre-built, binary &release.type; distributions along this branch
-      can be found at <ulink url="&release.url;"></ulink>.</para>
-
-]]>
-
-<![ %release.type.release [
-
     <para>This distribution of &os; &release.current; is a
       &release.type; distribution.  It can be found at <ulink
       url="&release.url;"></ulink> or any of its mirrors.  More
@@ -93,8 +61,6 @@
       url="&url.books.handbook;/mirrors.html"><quote>Obtaining
       &os;</quote> appendix</ulink> to the <ulink
       url="&url.books.handbook;/">&os; Handbook</ulink>.</para>
-
-]]>
 
     <para>All users are encouraged to consult the release errata before
       installing &os;.  The errata document is updated with
@@ -124,7 +90,46 @@
     <sect2 id="security">
       <title>Security Advisories</title>
 
-      <para></para>
+      <para>Problems described in the following security advisories have
+	been fixed.  For more information, consult the individual
+	advisories available from
+	<ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="3">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="3*">
+	    <thead>
+	      <row>
+		<entry>Advisory</entry>
+		<entry>Date</entry>
+		<entry>Topic</entry>
+	      </row>
+	    </thead>
+
+	    <tbody>
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-10:08.bzip2.asc"
+			      >SA-10:08.bzip2</ulink></entry>
+		<entry>20&nbsp;September&nbsp;2010</entry>
+		<entry><para>Integer overflow in bzip2 decompression</para></entry>
+	      </row>
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-10:09.pseudofs.asc"
+			      >SA-10:09.pseudofs</ulink></entry>
+		<entry>10&nbsp;October&nbsp;2010</entry>
+		<entry><para>Spurious mutex unlock</para></entry>
+	      </row>
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-10:10.openssl.asc"
+			      >SA-10:10.openssl</ulink></entry>
+		<entry>29&nbsp;November&nbsp;2010</entry>
+		<entry><para>OpenSSL multiple vulnerabilities</para></entry>
+	      </row>
+	    </tbody>
+	</tgroup>
+      </informaltable>
     </sect2>
 
     <sect2 id="kernel">
@@ -213,7 +218,15 @@
     <sect2 id="releng">
       <title>Release Engineering and Integration</title>
 
-      <para></para>
+      <para>The supported version of
+	the <application>GNOME</application> desktop environment
+	(<filename role="package">x11/gnome2</filename>) has been
+	updated to 2.32.1.</para>
+
+      <para>The supported version of
+	the <application>KDE</application> desktop environment
+	(<filename role="package">x11/kde4</filename>) has been
+	updated to 4.5.5.</para>
     </sect2>
 
     <sect2 id="doc">
