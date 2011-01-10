@@ -1291,6 +1291,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	short ostate = 0;
 #endif
 	thflags = th->th_flags;
+	tp->sackhint.last_sack_ack = 0;
 
 	/*
 	 * If this is either a state-changing packet or current state isn't
