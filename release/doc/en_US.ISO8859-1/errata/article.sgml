@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "7.3-RELEASE">
+<!ENTITY release.bugfix "7.4-RELEASE">
 ]>
 
 <article>
@@ -40,7 +40,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2010</year>
+      <year>2011</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -71,18 +71,6 @@
       operation or usability.  An up-to-date version of this document
       should always be consulted before installing this version of
       &os;.</para>
-
-    <para>This errata document for &os;
-<![ %release.type.current [
-      &release.current;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
-      will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
   <sect1 id="intro">
@@ -167,42 +155,6 @@
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
-    <para>[20100402] The &os; 7.3-RELEASE Release Notes incorrectly
-      mentioned that a <option>-p</option> flag has been added to the
-      &man.ps.1; utility.  It should have been a <option>-d</option>
-      flag.  The correct entry is:</para>
-
-    <blockquote>
-      <para>The &man.ps.1; command now supports a new flag
-	<option>-d</option>.  This displays descendant info with the
-	output similar to Linux's <option>-H</option> (or
-	<option>-f</option>).</para>
-    </blockquote>
-
-    <para>[20100330] The <filename>libc</filename> of &os; 7.3-RELEASE
-      has the &man.fdopendir.3; function but
-      <filename>&lt;dirent.h&gt;</filename> header file does not
-      contain the function prototype.  This could cause programs
-      compiled on the system to crash on platforms such as
-      &os;/&arch.amd64;, where <literal>sizeof(void *)</literal> is
-      greater than <literal>sizeof(int)</literal>.  This problem has
-      been fixed in <ulink
-	url="http://svn.freebsd.org/changeset/base/205265">r205265
-	(RELENG_7)</ulink>.  An Errata Notice for 7.3-RELEASE is
-      planned.</para>
-
-    <para>[20100330] It turns out that the
-      <filename>zfsloader</filename> in 7.3-RELEASE, a new boot loader
-      similar to &man.loader.8; but it supports ZFS, does not work
-      properly.  This problem has been fixed in <ulink
-	url="http://svn.freebsd.org/changeset/base/205539">r205539
-	(RELENG_7)</ulink>.  An Errata Notice for 7.3-RELEASE is
-      planned.</para>
-
-    <para>[20100323] The &os; 7.3-RELEASE Release Notes incorrectly
-      mentioned that the &man.hwpmc.4; driver has been added though this
-      driver has already been added in 7.0-RELEASE.  The changes in
-      7.3-RELEASE are that &man.pmcannotate.8; utility and support for
-      Intel Core 2 and Core i7 have been added.</para>
+    <para></para>
   </sect1>
 </article>
