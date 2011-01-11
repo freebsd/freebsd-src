@@ -91,6 +91,18 @@ acpi_intr_handler(void *arg)
 	return (FILTER_STRAY);
 }
 
+static void
+acpi_intr_destroy(device_t dev, struct acpi_intr *ai)
+{
+
+	if (ai->ai_handle != NULL)
+		bus_teardown_intr(dev, ai->ai_irq, ai->ai_handle);
+	if (ai->ai_irq != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, ai->ai_rid, ai->ai_irq);
+	bus_delete_resource(dev, SYS_RES_IRQ, ai->ai_rid);
+	free(ai, M_ACPIINTR);
+}
+
 ACPI_STATUS
 AcpiOsInstallInterruptHandler(UINT32 InterruptNumber,
     ACPI_OSD_HANDLER ServiceRoutine, void *Context)
@@ -123,6 +135,8 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber,
 	ai->ai_number = InterruptNumber;
 	ai->ai_handler = ServiceRoutine;
 	ai->ai_context = Context;
+	SLIST_INSERT_HEAD(&acpi_intr_list, ai, ai_link);
+	mtx_unlock(&acpi_intr_lock);
 
 	/*
 	 * If the MADT contained an interrupt override directive for the SCI,
@@ -151,19 +165,13 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber,
 		device_printf(sc->acpi_dev, "could not set up interrupt\n");
 		goto error;
 	}
-	SLIST_INSERT_HEAD(&acpi_intr_list, ai, ai_link);
-	mtx_unlock(&acpi_intr_lock);
 	return_ACPI_STATUS (AE_OK);
 
 error:
+	mtx_lock(&acpi_intr_lock);
+	SLIST_REMOVE(&acpi_intr_list, ai, acpi_intr, ai_link);
 	mtx_unlock(&acpi_intr_lock);
-	if (ai->ai_handle != NULL)
-		bus_teardown_intr(sc->acpi_dev, ai->ai_irq, ai->ai_handle);
-	if (ai->ai_irq != NULL)
-		bus_release_resource(sc->acpi_dev, SYS_RES_IRQ, ai->ai_rid,
-		    ai->ai_irq);
-	bus_delete_resource(sc->acpi_dev, SYS_RES_IRQ, ai->ai_rid);
-	free(ai, M_ACPIINTR);
+	acpi_intr_destroy(sc->acpi_dev, ai);
 	return_ACPI_STATUS (AE_ALREADY_EXISTS);
 }
 
@@ -195,10 +203,7 @@ AcpiOsRemoveInterruptHandler(UINT32 InterruptNumber,
 	mtx_unlock(&acpi_intr_lock);
 	if (ai == NULL)
 		return_ACPI_STATUS (AE_NOT_EXIST);
-	bus_teardown_intr(sc->acpi_dev, ai->ai_irq, ai->ai_handle);
-	bus_release_resource(sc->acpi_dev, SYS_RES_IRQ, ai->ai_rid, ai->ai_irq);
-	bus_delete_resource(sc->acpi_dev, SYS_RES_IRQ, ai->ai_rid);
-	free(ai, M_ACPIINTR);
+	acpi_intr_destroy(sc->acpi_dev, ai);
 	return_ACPI_STATUS (AE_OK);
 }
 
