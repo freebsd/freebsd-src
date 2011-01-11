@@ -95,7 +95,6 @@ METHOD int event {
 # write() - metadata write method.
 METHOD int write {
 	struct g_raid_md_object *md;
-	struct g_raid_disk *disk;
 };
 
 # free_disk() - disk destructor.

@@ -51,7 +51,7 @@ static MALLOC_DEFINE(M_RAID, "raid_data", "GEOM_RAID Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW, 0, "GEOM_RAID stuff");
-u_int g_raid_debug = 1000;
+u_int g_raid_debug = 3;
 TUNABLE_INT("kern.geom.raid.debug", &g_raid_debug);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RW, &g_raid_debug, 0,
     "Debug level");
