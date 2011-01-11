@@ -300,12 +300,17 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 	pbp = bp->bio_parent;
 	if (bp->bio_error != 0 && bp->bio_cmd == BIO_READ &&
 	    pbp->bio_children == 1) {
+
 		/*
 		 * Retry the read error on the other disk drive, if
 		 * available, before erroring out the read.
 		 */
 		vol = tr->tro_volume;
 		sd->sd_read_errs++;
+		G_RAID_LOGREQ(3, bp,
+		    "Read failure, attempting recovery. %d total read errs",
+		    sd->sd_read_errs);
+
 		/*
 		 * XXX Check threshold of sd_read_errs here to declare 
 		 * this subdisk bad?
@@ -319,6 +324,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			cbp = g_clone_bio(pbp);
 			if (cbp == NULL)
 				break;
+			G_RAID_LOGREQ(3, cbp, "Retrying read");
 			g_raid_subdisk_iostart(nsd, cbp);
 			pbp->bio_inbed++;
 			return;
@@ -329,6 +335,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 *
 		 * XXX degrade/break the mirror?
 		 */
+		G_RAID_LOGREQ(3, bp, "Couldn't retry read, failing it");
 	}
 	pbp->bio_inbed++;
 	if (pbp->bio_cmd == BIO_READ && pbp->bio_children == 2) {
@@ -344,6 +351,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 *
 		 * XXX TODO
 		 */
+		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 	}
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
