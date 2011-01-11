@@ -291,21 +291,18 @@ static void
 g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
     struct g_raid_subdisk *sd, struct bio *bp)
 {
+	struct bio *cbp;
+	struct g_raid_subdisk *nsd;
+	struct g_raid_volume *vol;
 	struct bio *pbp;
+	int i;
 
 	pbp = bp->bio_parent;
-	pbp->bio_inbed++;
-	if ((pbp->bio_flags & BIO_ERROR) && pbp->bio_cmd == BIO_READ &&
+	if (bp->bio_error != 0 && bp->bio_cmd == BIO_READ &&
 	    pbp->bio_children == 1) {
-		struct bio *cbp;
-		struct g_raid_subdisk *nsd;
-		struct g_raid_volume *vol;
-		int i;
-
 		/*
-		 * Retry the error on the other disk drive, if available,
-		 * before erroring out the read.  Do we need to mark the
-		 * 'sd' disk as degraded somehow?
+		 * Retry the read error on the other disk drive, if
+		 * available, before erroring out the read.
 		 */
 		vol = tr->tro_volume;
 		sd->sd_read_errs++;
@@ -323,25 +320,31 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			if (cbp == NULL)
 				break;
 			g_raid_subdisk_iostart(nsd, cbp);
+			pbp->bio_inbed++;
 			return;
 		}
 		/*
 		 * something happened, so we can't retry.  Return the
 		 * original error by falling through.
+		 *
+		 * XXX degrade/break the mirror?
 		 */
 	}
-	/*
-	 * If it was a read, and bio_children is 2, then we just
-	 * recovered the data from the second drive.  We should try to
-	 * write that data to the first drive if sector remapping is
-	 * enabled.  A write should put the data in a new place on the
-	 * disk, remapping the bad sector.  Do we need to do that by
-	 * queueing a request to the main worker thread?  It doesn't
-	 * affect the return code of this current read, and can be
-	 * done at our liesure.
-	 *
-	 * XXX TODO
-	 */
+	pbp->bio_inbed++;
+	if (pbp->bio_cmd == BIO_READ && pbp->bio_children == 2) {
+		/*
+		 * If it was a read, and bio_children is 2, then we just
+		 * recovered the data from the second drive.  We should try to
+		 * write that data to the first drive if sector remapping is
+		 * enabled.  A write should put the data in a new place on the
+		 * disk, remapping the bad sector.  Do we need to do that by
+		 * queueing a request to the main worker thread?  It doesn't
+		 * affect the return code of this current read, and can be
+		 * done at our liesure.
+		 *
+		 * XXX TODO
+		 */
+	}
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
 		g_raid_iodone(pbp, bp->bio_error);
