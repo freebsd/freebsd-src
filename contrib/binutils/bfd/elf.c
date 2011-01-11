@@ -4403,7 +4403,12 @@ assign_file_positions_for_load_sections (bfd *abfd,
 
       no_contents = FALSE;
       off_adjust = 0;
-      if (p->p_type == PT_LOAD
+      if (p->p_type == PT_NOTE)
+	{
+	  for (i = 0; i < m->count; i++)
+	    elf_section_type (m->sections[i]) = SHT_NOTE;
+	}
+      else if (p->p_type == PT_LOAD
 	  && m->count > 0)
 	{
 	  bfd_size_type align;
