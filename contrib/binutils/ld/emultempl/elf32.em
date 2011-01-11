@@ -1540,8 +1540,7 @@ gld${EMULATION_NAME}_place_orphan (asection *s)
   if ((s->flags & SEC_ALLOC) == 0)
     ;
   else if ((s->flags & SEC_LOAD) != 0
-	   && ((iself && sh_type == SHT_NOTE)
-	       || (!iself && CONST_STRNEQ (secname, ".note"))))
+	   && CONST_STRNEQ (secname, ".note"))
     place = &hold[orphan_interp];
   else if ((s->flags & (SEC_LOAD | SEC_HAS_CONTENTS)) == 0)
     place = &hold[orphan_bss];
