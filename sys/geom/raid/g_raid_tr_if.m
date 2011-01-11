@@ -43,7 +43,7 @@ INTERFACE g_raid_tr;
 # Default implementations of methods.
 CODE {
 	static int
-	g_raid_tr_locked_default(struct g_raid_tr_object *tr)
+	g_raid_tr_locked_default(struct g_raid_tr_object *tr, void *argp)
 	{
 
 		return (0);
@@ -94,6 +94,7 @@ METHOD void iodone {
 # locked() - callback method for lock().
 METHOD int locked {
 	struct g_raid_tr_object *tr;
+	void *argp;
 } DEFAULT g_raid_tr_locked_default;
 
 # free() - destructor.

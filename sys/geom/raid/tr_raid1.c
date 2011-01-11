@@ -54,6 +54,7 @@ static g_raid_tr_start_t g_raid_tr_start_raid1;
 static g_raid_tr_stop_t g_raid_tr_stop_raid1;
 static g_raid_tr_iostart_t g_raid_tr_iostart_raid1;
 static g_raid_tr_iodone_t g_raid_tr_iodone_raid1;
+static g_raid_tr_locked_t g_raid_tr_locked_raid1;
 static g_raid_tr_free_t g_raid_tr_free_raid1;
 
 static kobj_method_t g_raid_tr_raid1_methods[] = {
@@ -63,6 +64,7 @@ static kobj_method_t g_raid_tr_raid1_methods[] = {
 	KOBJMETHOD(g_raid_tr_stop,	g_raid_tr_stop_raid1),
 	KOBJMETHOD(g_raid_tr_iostart,	g_raid_tr_iostart_raid1),
 	KOBJMETHOD(g_raid_tr_iodone,	g_raid_tr_iodone_raid1),
+	KOBJMETHOD(g_raid_tr_locked,	g_raid_tr_locked_raid1),
 	KOBJMETHOD(g_raid_tr_free,	g_raid_tr_free_raid1),
 	{ 0, 0 }
 };
@@ -344,6 +346,12 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		pbp->bio_completed = pbp->bio_length;
 		g_raid_iodone(pbp, bp->bio_error);
 	}
+}
+
+static int
+g_raid_tr_locked_raid1(struct g_raid_tr_object *tr, void *argp)
+{
+	return (0);
 }
 
 static int

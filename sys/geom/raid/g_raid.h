@@ -86,6 +86,15 @@ extern u_int g_raid_start_timeout;
 #define	G_RAID_BIO_FLAG_REGULAR	0x01
 #define	G_RAID_BIO_FLAG_SYNC		0x02
 
+#define G_RAID_LOCK_PENDING	0x1
+struct g_raid_lock {
+	off_t			 l_offset;
+	off_t			 l_length;
+	void			*l_callback_arg;
+	int			 l_flags;
+	LIST_ENTRY(g_raid_lock)	 l_next;
+};
+
 #define	G_RAID_EVENT_WAIT	0x01
 #define	G_RAID_EVENT_VOLUME	0x02
 #define	G_RAID_EVENT_SUBDISK	0x04
@@ -196,7 +205,8 @@ struct g_raid_volume {
 	off_t			 v_mediasize;	/* Volume media size.  */
 	struct bio_queue_head	 v_inflight;	/* In-flight write requests. */
 	struct bio_queue_head	 v_locked;	/* Blocked I/O requests. */
-	LIST_HEAD(, g_raid_lock)	 v_locks; /* List of locked regions. */
+	LIST_HEAD(, g_raid_lock) v_locks;	 /* List of locked regions. */
+	int			 v_pending_lock; /* writes to locked region */
 	int			 v_idle;	/* DIRTY flags removed. */
 	time_t			 v_last_write;	/* Time of the last write. */
 	u_int			 v_writes;	/* Number of active writes. */
@@ -311,6 +321,8 @@ u_int g_raid_nsubdisks(struct g_raid_volume *vol, int state);
 #define	G_RAID_DESTROY_HARD		2
 int g_raid_destroy(struct g_raid_softc *sc, int how);
 int g_raid_event_send(void *arg, int event, int flags);
+int g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp);
+int g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len);
 
 g_ctl_req_t g_raid_ctl;
 #endif	/* _KERNEL */

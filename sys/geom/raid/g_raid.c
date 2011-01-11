@@ -103,7 +103,6 @@ struct g_class g_raid_class = {
 	.fini = g_raid_fini
 };
 
-
 static void g_raid_destroy_provider(struct g_raid_volume *vol);
 static int g_raid_update_disk(struct g_raid_disk *disk, u_int state);
 static int g_raid_update_subdisk(struct g_raid_subdisk *subdisk, u_int state);
@@ -737,6 +736,46 @@ g_raid_start(struct bio *bp)
 	wakeup(sc);
 }
 
+static int
+g_raid_bio_overlaps(const struct bio *bp, off_t off, off_t len)
+{
+	/*
+	 * 5 cases:
+	 * (1) bp entirely below NO
+	 * (2) bp entirely above NO
+	 * (3) bp start below, but end in range YES
+	 * (4) bp entirely within YES
+	 * (5) bp starts within, ends above YES
+	 *
+	 * lock range 10-19 (offset 10 length 10)
+	 * (1) 1-5: first if kicks it out
+	 * (2) 30-35: second if kicks it out
+	 * (3) 5-15: passes both ifs
+	 * (4) 12-14: passes both ifs
+	 * (5) 19-20: passes both
+	 */
+
+	if (bp->bio_offset + bp->bio_length - 1 < off)
+		return (0);
+	if (bp->bio_offset < off + len - 1)
+		return (0);
+	return (1);
+}
+
+static int
+g_raid_is_in_locked_range(struct g_raid_volume *vol, const struct bio *bp)
+{
+	struct g_raid_lock *lp;
+
+	sx_assert(&vol->v_softc->sc_lock, SX_LOCKED);
+
+	LIST_FOREACH(lp, &vol->v_locks, l_next) {
+		if (g_raid_bio_overlaps(bp, lp->l_offset, lp->l_length))
+			return (1);
+	}
+	return (0);
+}
+
 static void
 g_raid_start_request(struct bio *bp)
 {
@@ -744,6 +783,7 @@ g_raid_start_request(struct bio *bp)
 	struct g_raid_volume *vol;
 
 	sc = bp->bio_to->geom->softc;
+	sx_assert(&sc->sc_lock, SX_LOCKED);
 	vol = bp->bio_to->private;
 	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE) {
 		if (vol->v_idle)
@@ -751,6 +791,16 @@ g_raid_start_request(struct bio *bp)
 		else
 			vol->v_last_write = time_uptime;
 	}
+	/*
+	 * Check to see if this item is in a locked range.  If so,
+	 * queue it to our locked queue and return.  We'll requeue
+	 * it when the range is unlocked.
+	 */
+	if (g_raid_is_in_locked_range(vol, bp)) {
+		bioq_insert_tail(&vol->v_locked, bp);
+		return;
+	}
+
 	/*
 	 * Put request onto inflight queue, so we can check if new
 	 * synchronization requests don't collide with it.
@@ -764,12 +814,98 @@ g_raid_iodone(struct bio *bp, int error)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
+	struct g_raid_lock *lp;
 
 	sc = bp->bio_to->geom->softc;
+	sx_assert(&sc->sc_lock, SX_LOCKED);
+
 	vol = bp->bio_to->private;
 	G_RAID_LOGREQ(3, bp, "Request done: %d.", error);
 	bioq_remove(&vol->v_inflight, bp);
+	if (bp->bio_cmd == BIO_WRITE && vol->v_pending_lock &&
+	    g_raid_is_in_locked_range(vol, bp)) {
+		/*
+		 * XXX this structure forces serialization of all
+		 * XXX pending requests before any are allowed through.
+		 */
+		G_RAID_LOGREQ(3, bp,
+		    "Write to locking zone complete: %d writes outstanding",
+		    vol->v_pending_lock);
+		if (--vol->v_pending_lock == 0) {
+			G_RAID_LOGREQ(3, bp,
+			    "Last write done, calling pending callbacks.");
+			LIST_FOREACH(lp, &vol->v_locks,l_next) {
+				if (lp->l_flags & G_RAID_LOCK_PENDING) {
+					G_RAID_TR_LOCKED(vol->v_tr,
+					    lp->l_callback_arg);
+					lp->l_flags &= ~G_RAID_LOCK_PENDING;
+				}
+			}
+		}
+	}
 	g_io_deliver(bp, error);
+}
+
+int
+g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_lock *lp;
+	struct bio *bp;
+	int pending;
+
+	sc = vol->v_softc;
+	lp = malloc(sizeof(*lp), M_RAID, M_WAITOK | M_ZERO);
+	LIST_INSERT_HEAD(&vol->v_locks, lp, l_next);
+	lp->l_flags |= G_RAID_LOCK_PENDING;
+	lp->l_offset = off;
+	lp->l_length = len;
+	lp->l_callback_arg = argp;
+
+	/* XXX lock in-flight queue? -- not done elsewhere, but should it be? */
+	pending = 0;
+	TAILQ_FOREACH(bp, &vol->v_inflight.queue, bio_queue) {
+		if (g_raid_bio_overlaps(bp, off, len))
+			pending++;
+	}	
+	/*
+	 * If there are any writes that are pending, we return EBUSY.  All
+	 * callers will have to wait until all pending writes clear.
+	 */
+	if (pending > 0) {
+		vol->v_pending_lock += pending;
+		return (EBUSY);
+	}
+	lp->l_flags &= ~G_RAID_LOCK_PENDING;
+	return (0);
+}
+
+int
+g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len)
+{
+	struct g_raid_lock *lp, *tmp;
+	struct g_raid_softc *sc;
+	struct bio *bp;
+
+	sc = vol->v_softc;
+	LIST_FOREACH_SAFE(lp, &vol->v_locks, l_next, tmp) {
+		if (lp->l_offset == off && lp->l_length == len) {
+			LIST_REMOVE(lp, l_next);
+			/* XXX
+			 * Right now we just put them all back on the queue
+			 * and hope for the best.  We hope this because any
+			 * locked ranges will go right back on this list
+			 * when the worker thread runs.
+			 */
+			mtx_lock(&sc->sc_queue_mtx);
+			while ((bp = bioq_takefirst(&sc->sc_queue)) != NULL)
+				bioq_disksort(&sc->sc_queue, bp);
+			mtx_unlock(&sc->sc_queue_mtx);
+			free(lp, M_RAID);
+			return (0);
+		}
+	}
+	return (EINVAL);
 }
 
 void
