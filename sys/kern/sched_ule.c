@@ -1388,7 +1388,7 @@ sched_priority(struct thread *td)
 	int score;
 	int pri;
 
-	if (td->td_pri_class != PRI_TIMESHARE)
+	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
 		return;
 	/*
 	 * If the score is interactive we place the thread in the realtime
@@ -2124,7 +2124,7 @@ sched_clock(struct thread *td)
 	ts = td->td_sched;
 	if (td->td_pri_class & PRI_FIFO_BIT)
 		return;
-	if (td->td_pri_class == PRI_TIMESHARE) {
+	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE) {
 		/*
 		 * We used a tick; charge it to the thread so
 		 * that we can compute our interactivity.
