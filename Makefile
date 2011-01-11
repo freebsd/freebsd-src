@@ -37,7 +37,7 @@
 # the mk files from the source tree which are supposed to DTRT.
 #
 # Most of the user-driven targets (as listed above) are implemented in
-# Makefile.inc1.  The exceptions are universe, tingerbox and targets.
+# Makefile.inc1.  The exceptions are universe, tinderbox and targets.
 #
 # If you want to build your system from source be sure that /usr/obj has
 # at least 800MB of diskspace available.
