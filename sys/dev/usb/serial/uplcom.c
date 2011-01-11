@@ -254,12 +254,12 @@ static const struct usb_device_id uplcom_devs[] = {
 	UPLCOM_DEV(ALCOR, AU9720),		/* Alcor AU9720 USB 2.0-RS232 */
 	UPLCOM_DEV(ANCHOR, SERIAL),		/* Anchor Serial adapter */
 	UPLCOM_DEV(ATEN, UC232A),		/* PLANEX USB-RS232 URS-03 */
-	UPLCOM_DEV(BELKIN, F5U257),		/* Belkin F5U257 */
+	UPLCOM_DEV(BELKIN, F5U257),		/* Belkin F5U257 USB to Serial */
 	UPLCOM_DEV(COREGA, CGUSBRS232R),	/* Corega CG-USBRS232R */
 	UPLCOM_DEV(EPSON, CRESSI_EDY),		/* Cressi Edy diving computer */
 	UPLCOM_DEV(EPSON, N2ITION3),		/* Zeagle N2iTion3 diving computer */
-	UPLCOM_DEV(ELECOM, UCSGT),		/* ELECOM UC-SGT */
-	UPLCOM_DEV(ELECOM, UCSGT0),		/* ELECOM UC-SGT */
+	UPLCOM_DEV(ELECOM, UCSGT),		/* ELECOM UC-SGT Serial Adapter */
+	UPLCOM_DEV(ELECOM, UCSGT0),		/* ELECOM UC-SGT Serial Adapter */
 	UPLCOM_DEV(HAL, IMR001),		/* HAL Corporation Crossam2+USB */
 	UPLCOM_DEV(HP, LD220),			/* HP LD220 POS Display */
 	UPLCOM_DEV(IODATA, USBRSAQ),		/* I/O DATA USB-RSAQ */
@@ -285,17 +285,17 @@ static const struct usb_device_id uplcom_devs[] = {
 	UPLCOM_DEV(PROLIFIC, RSAQ3),		/* I/O DATA USB-RSAQ3 */
 	UPLCOM_DEV(PROLIFIC, UIC_MSR206),	/* UIC MSR206 Card Reader */
 	UPLCOM_DEV(PROLIFIC2, PL2303),		/* Prolific adapter */
-	UPLCOM_DEV(RADIOSHACK, USBCABLE),
+	UPLCOM_DEV(RADIOSHACK, USBCABLE),	/* Radio Shack USB Adapter */
 	UPLCOM_DEV(RATOC, REXUSB60),		/* RATOC REX-USB60 */
 	UPLCOM_DEV(SAGEM, USBSERIAL),		/* Sagem USB-Serial Controller */
 	UPLCOM_DEV(SAMSUNG, I330),		/* Samsung I330 phone cradle */
 	UPLCOM_DEV(SANWA, KB_USB2),		/* Sanwa KB-USB2 Multimeter cable */
-	UPLCOM_DEV(SIEMENS3, EF81),		/* Seimens EF81 */
-	UPLCOM_DEV(SIEMENS3, SX1),		/* Seimens SX1 */
-	UPLCOM_DEV(SIEMENS3, X65),		/* Seimens X65 */
-	UPLCOM_DEV(SIEMENS3, X75),		/* Seimens X75 */
+	UPLCOM_DEV(SIEMENS3, EF81),		/* Siemens EF81 */
+	UPLCOM_DEV(SIEMENS3, SX1),		/* Siemens SX1 */
+	UPLCOM_DEV(SIEMENS3, X65),		/* Siemens X65 */
+	UPLCOM_DEV(SIEMENS3, X75),		/* Siemens X75 */
 	UPLCOM_DEV(SITECOM, SERIAL),		/* Sitecom USB to Serial */
-	UPLCOM_DEV(SMART, PL2303),		/* SMART Technologies */
+	UPLCOM_DEV(SMART, PL2303),		/* SMART Technologies USB to Serial */
 	UPLCOM_DEV(SONY, QN3),			/* Sony QN3 phone cable */
 	UPLCOM_DEV(SONYERICSSON, DATAPILOT),	/* Sony Ericsson Datapilot */
 	UPLCOM_DEV(SONYERICSSON, DCU10),	/* Sony Ericsson DCU-10 Cable */
@@ -305,7 +305,7 @@ static const struct usb_device_id uplcom_devs[] = {
 	UPLCOM_DEV(SYNTECH, CPT8001C),		/* Syntech CPT-8001C Barcode scanner */
 	UPLCOM_DEV(TDK, UHA6400),		/* TDK USB-PHS Adapter UHA6400 */
 	UPLCOM_DEV(TDK, UPA9664),		/* TDK USB-PHS Adapter UPA9664 */
-	UPLCOM_DEV(TRIPPLITE, U209),		/* Tripp-Lite U209-000-R */
+	UPLCOM_DEV(TRIPPLITE, U209),		/* Tripp-Lite U209-000-R USB to Serial */
 	UPLCOM_DEV(YCCABLE, PL2303),		/* YC Cable USB-Serial */
 };
 #undef UPLCOM_DEV
