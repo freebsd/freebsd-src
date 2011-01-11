@@ -380,11 +380,12 @@ hhook_head_is_virtualised(struct hhook_head *hhh)
 {
 	uint32_t ret;
 
-	if (hhh == NULL)
-		return (0);
+	ret = 0;
 
-	if (hhh->hhh_flags & HHH_ISINVNET)
-		ret = HHOOK_HEADISINVNET;
+	if (hhh != NULL) {
+		if (hhh->hhh_flags & HHH_ISINVNET)
+			ret = HHOOK_HEADISINVNET;
+	}
 
 	return (ret);
 }
