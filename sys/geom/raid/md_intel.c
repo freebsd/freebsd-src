@@ -629,7 +629,6 @@ g_raid_md_create_intel(struct g_raid_md_object *md, struct g_class *mp,
  * and up 251 characters for SAS drives.  Since intel controllers don't
  * support SAS drives, just stick with the SATA limits for stack friendliness.
  */
-
 static int
 g_raid_md_get_label(struct g_consumer *cp, char *serial, int serlen)
 {
