@@ -2133,7 +2133,7 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 				}
 			}
 			ENDXFER;
-			reply(226, msg);
+			reply(226, "%s", msg);
 			return (0);
 		}
 
@@ -2330,6 +2330,10 @@ statfilecmd(char *filename)
 	code = lstat(filename, &st) == 0 && S_ISDIR(st.st_mode) ? 212 : 213;
 	(void)snprintf(line, sizeof(line), _PATH_LS " -lgA %s", filename);
 	fin = ftpd_popen(line, "r");
+	if (fin == NULL) {
+		perror_reply(551, filename);
+		return;
+	}
 	lreply(code, "Status of %s:", filename);
 	atstart = 1;
 	while ((c = getc(fin)) != EOF) {
