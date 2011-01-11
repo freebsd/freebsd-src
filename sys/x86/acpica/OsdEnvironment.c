@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
