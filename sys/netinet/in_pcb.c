@@ -833,9 +833,10 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		}
 	}
 	if (laddr.s_addr == INADDR_ANY) {
+		error = in_pcbladdr(inp, &faddr, &laddr, cred);
 		/*
 		 * If the destination address is multicast and an outgoing
-		 * interface has been set as a multicast option, use the
+		 * interface has been set as a multicast option, prefer the
 		 * address of that interface as our source address.
 		 */
 		if (IN_MULTICAST(ntohl(faddr.s_addr)) &&
@@ -852,16 +853,16 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 						break;
 				if (ia == NULL) {
 					IN_IFADDR_RUNLOCK();
-					return (EADDRNOTAVAIL);
+					error = EADDRNOTAVAIL;
+				} else {
+					laddr = ia->ia_addr.sin_addr;
+					IN_IFADDR_RUNLOCK();
+					error = 0;
 				}
-				laddr = ia->ia_addr.sin_addr;
-				IN_IFADDR_RUNLOCK();
 			}
-		} else {
-			error = in_pcbladdr(inp, &faddr, &laddr, cred);
-			if (error) 
-				return (error);
 		}
+		if (error)
+			return (error);
 	}
 	oinp = in_pcblookup_hash(inp->inp_pcbinfo, faddr, fport, laddr, lport,
 	    0, NULL);
