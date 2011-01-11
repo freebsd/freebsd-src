@@ -76,6 +76,43 @@ MTX_SYSINIT(g_fp_mtx, &g_fp_mtx, "fail point mtx", MTX_DEF);
 #define FP_LOCK()	mtx_lock(&g_fp_mtx)
 #define FP_UNLOCK()	mtx_unlock(&g_fp_mtx)
 
+/**
+ * Failpoint types.
+ * Don't change these without changing fail_type_strings in fail.c.
+ * @ingroup failpoint_private
+ */
+enum fail_point_t {
+	FAIL_POINT_OFF,		/**< don't fail */
+	FAIL_POINT_PANIC,	/**< panic */
+	FAIL_POINT_RETURN,	/**< return an errorcode */
+	FAIL_POINT_BREAK,	/**< break into the debugger */
+	FAIL_POINT_PRINT,	/**< print a message */
+	FAIL_POINT_SLEEP,	/**< sleep for some msecs */
+	FAIL_POINT_INVALID,	/**< placeholder */
+};
+
+static const char *fail_type_strings[] = {
+	"off",
+	"panic",
+	"return",
+	"break",
+	"print",
+	"sleep",
+};
+
+/**
+ * Internal structure tracking a single term of a complete failpoint.
+ * @ingroup failpoint_private
+ */
+struct fail_point_entry {
+	enum fail_point_t fe_type;	/**< type of entry */
+	int		fe_arg;		/**< argument to type (e.g. return value) */
+	int		fe_prob;	/**< likelihood of firing in millionths */
+	int		fe_count;	/**< number of times to fire, 0 means always */
+
+	TAILQ_ENTRY(fail_point_entry) fe_entries; /**< next entry in fail point */
+};
+
 static inline void
 fail_point_sleep(struct fail_point *fp, struct fail_point_entry *ent,
     int msecs, enum fail_point_return_code *pret)
@@ -100,15 +137,6 @@ fail_point_sleep(struct fail_point *fp, struct fail_point_entry *ent,
 enum {
 	PROB_MAX = 1000000,	/* probability between zero and this number */
 	PROB_DIGITS = 6,        /* number of zero's in above number */
-};
-
-static const char *fail_type_strings[] = {
-	"off",
-	"panic",
-	"return",
-	"break",
-	"print",
-	"sleep",
 };
 
 static char *parse_fail_point(struct fail_point_entries *, char *);
