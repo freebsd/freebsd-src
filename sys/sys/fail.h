@@ -32,10 +32,9 @@
 #ifndef _SYS_FAIL_H_
 #define _SYS_FAIL_H_
 
-#include <sys/types.h>
-
-#include <sys/linker_set.h>
 #include <sys/param.h>
+#include <sys/cdefs.h>
+#include <sys/linker_set.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 
@@ -129,10 +128,8 @@ fail_point_eval(struct fail_point *fp, int *ret)
 __END_DECLS
 
 /* Declare a fail_point and its sysctl in a function. */
-#define _FAIL_POINT_NAME(name) _fail_point_##name
-#define _STRINGIFY_HELPER(x) #x
-#define _STRINGIFY(x) _STRINGIFY_HELPER(x)
-#define _FAIL_POINT_LOCATION() __FILE__ ":" _STRINGIFY(__LINE__)
+#define	_FAIL_POINT_NAME(name)	_fail_point_##name
+#define	_FAIL_POINT_LOCATION()	"(" __FILE__ ":" __XSTRING(__LINE__) ")"
 
 /**
  * Instantiate a failpoint which returns "value" from the function when triggered.
@@ -178,52 +175,42 @@ __END_DECLS
 /**
  * Instantiate a failpoint which runs arbitrary code when triggered.
  * @param parent     The parent sysctl under which to locate the sysctl
- * @param name       The name of the failpoint in the sysctl tree (and printouts)
+ * @param name       The name of the failpoint in the sysctl tree
+ *		     (and printouts)
  * @param code       The arbitrary code to run when triggered.  Can reference
- *                   "RETURN_VALUE" if desired to extract the specified user
- *                   return-value when triggered
+ *                   "RETURN_VALUE" if desired to extract the specified
+ *                   user return-value when triggered.  Note that this is
+ *                   implemented with a do-while loop so be careful of
+ *                   break and continue statements.
  */
 #define KFAIL_POINT_CODE(parent, name, code)				\
-	KFAIL_POINT_START(parent, name) {				\
+do {									\
+	int RETURN_VALUE;						\
+	static struct fail_point _FAIL_POINT_NAME(name) = {		\
+		#name,							\
+		_FAIL_POINT_LOCATION(),					\
+		TAILQ_HEAD_INITIALIZER(_FAIL_POINT_NAME(name).fp_entries), \
+		0,							\
+		NULL, NULL,						\
+	};								\
+	SYSCTL_OID(parent, OID_AUTO, name,				\
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,		\
+	    &_FAIL_POINT_NAME(name), 0, fail_point_sysctl,		\
+	    "A", "");							\
+									\
+	if (__predict_false(						\
+	    fail_point_eval(&_FAIL_POINT_NAME(name), &RETURN_VALUE))) {	\
+									\
 		code;							\
-	} FAIL_POINT_END
+									\
+	}								\
+} while (0)
+
 
 /**
  * @}
  * (end group failpoint)
  */
-
-/**
- * Internal macro to implement above #defines -- should not be used directly.
- * @ingroup failpoint_private
- */
-#define KFAIL_POINT_START(parent, name)					\
-	do {								\
-		int RETURN_VALUE;					\
-		static struct fail_point _FAIL_POINT_NAME(name) = {	\
-			#name,						\
-			_FAIL_POINT_LOCATION(),				\
-			TAILQ_HEAD_INITIALIZER(				\
-				_FAIL_POINT_NAME(name).fp_entries),	\
-			0,						\
-			NULL, NULL,					\
-		};							\
-		SYSCTL_OID(parent, OID_AUTO, name,			\
-			CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,	\
-			&_FAIL_POINT_NAME(name), 0, fail_point_sysctl,	\
-			"A", "");					\
-									\
-		if (__predict_false(					\
-		    fail_point_eval(&_FAIL_POINT_NAME(name),		\
-		    &RETURN_VALUE))) {
-
-/**
- * Internal macro to implement above #defines -- should not be used directly.
- * @ingroup failpoint_private
- */
-#define FAIL_POINT_END							\
-		}							\
-	} while (0)
 
 #ifdef _KERNEL
 int fail_point_sysctl(SYSCTL_HANDLER_ARGS);
