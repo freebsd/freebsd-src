@@ -321,7 +321,7 @@ check_deferred_signal(struct pthread *curthread)
 	if (__predict_true(curthread->deferred_siginfo.si_signo == 0))
 		return;
 	getcontext(&uc);
-	if (curthread->deferred_siginfo.si_signo == 0) {
+	if (curthread->deferred_siginfo.si_signo != 0) {
 		act = curthread->deferred_sigact;
 		uc.uc_sigmask = curthread->deferred_sigmask;
 		memcpy(&info, &curthread->deferred_siginfo, sizeof(siginfo_t));
