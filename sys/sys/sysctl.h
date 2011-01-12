@@ -242,7 +242,7 @@ SYSCTL_ALLOWED_TYPES(UINT, unsigned int *a; );
 SYSCTL_ALLOWED_TYPES(XINT, unsigned int *a; int *b; );
 SYSCTL_ALLOWED_TYPES(LONG, long *a; );
 SYSCTL_ALLOWED_TYPES(ULONG, unsigned long *a; );
-SYSCTL_ALLOWED_TYPES(XLONG, unsigned long *a; long b; );
+SYSCTL_ALLOWED_TYPES(XLONG, unsigned long *a; long *b; );
 SYSCTL_ALLOWED_TYPES(INT64, int64_t *a; long long *b; );
 SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 
