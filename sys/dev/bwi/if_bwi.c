@@ -537,11 +537,11 @@ bwi_attach(struct bwi_softc *sc)
 	/*
 	 * Add sysctl nodes
 	 */
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 		        SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		        "fw_version", CTLFLAG_RD, &sc->sc_fw_version, 0,
 		        "Firmware version");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 		        SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		        "led_idle", CTLFLAG_RW, &sc->sc_led_idle, 0,
 		        "# ticks before LED enters idle state");
