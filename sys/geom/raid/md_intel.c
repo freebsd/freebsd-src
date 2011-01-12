@@ -304,6 +304,19 @@ intel_meta_copy(struct intel_raid_conf *meta)
 	return (nmeta);
 }
 
+static int
+intel_meta_find_disk(struct intel_raid_conf *meta, char *serial)
+{
+	int pos;
+
+	for (pos = 0; pos < meta->total_disks; pos++) {
+		if (strncmp(meta->disk[pos].serial,
+		    serial, INTEL_SERIAL_LEN) == 0)
+			return (pos);
+	}
+	return (-1);
+}
+
 static struct intel_raid_conf *
 intel_meta_read(struct g_consumer *cp)
 {
@@ -413,19 +426,19 @@ intel_meta_write(struct g_consumer *cp, struct intel_raid_conf *meta)
 	return (error);
 }
 
-#if 0
 static struct g_raid_disk *
 g_raid_md_intel_get_disk(struct g_raid_softc *sc, int id)
 {
 	struct g_raid_disk	*disk;
+	struct g_raid_md_intel_perdisk *pd;
 
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-		if ((intptr_t)(disk->d_md_data) == id)
+		pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
+		if (pd->pd_disk_pos == id)
 			break;
 	}
 	return (disk);
 }
-#endif
 
 static struct g_raid_volume *
 g_raid_md_intel_get_volume(struct g_raid_softc *sc, int id)
@@ -443,51 +456,53 @@ static void
 g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 {
 	struct g_raid_softc *sc;
-	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
+	struct g_raid_disk *olddisk;
 	struct g_raid_md_object *md;
 	struct g_raid_md_intel_object *mdi;
-	struct g_raid_md_intel_perdisk *pd;
-	struct intel_raid_conf *meta, *pdmeta;
-	struct intel_raid_vol *mvol;
-	struct intel_raid_map *mmap;
-	int i, j;
+	struct g_raid_md_intel_perdisk *pd, *oldpd;
+	struct intel_raid_conf *meta;
+	int disk_pos;
 
 	sc = disk->d_softc;
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_intel_object *)md;
 	meta = mdi->mdio_meta;
 	pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
-	pdmeta = pd->pd_meta;
 
-	if (pdmeta->generation != meta->generation) {
+	/* Find disk position in metadata by it's serial. */
+	disk_pos = intel_meta_find_disk(meta, pd->pd_disk_meta.serial);
+	if (disk_pos < 0) {
+		G_RAID_DEBUG(1, "Unknown, probably stale disk");
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
 		return;
 	}
 
-	/* Update disk state. */
-	g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+	/* Find placeholder by position. */
+	olddisk = g_raid_md_intel_get_disk(sc, disk_pos);
+	if (olddisk == NULL)
+		panic("No disk at position %d!", disk_pos);
+	if (olddisk->d_state != G_RAID_DISK_S_OFFLINE) {
+		G_RAID_DEBUG(1, "More then one disk for pos %d", disk_pos);
+		return;
+	}
+	oldpd = (struct g_raid_md_intel_perdisk *)olddisk->d_md_data;
 
-	/* Create subdisks. */
-	for (i = 0; i < meta->total_volumes; i++) {
-		mvol = intel_get_volume(meta, i);
-		mmap = intel_get_map(mvol, 0);
-		for (j = 0; j < mmap->total_disks; j++) {
-			if ((mmap->disk_idx[j] & INTEL_DI_IDX) == pd->pd_disk_pos)
-				break;
-		}
-		if (j == mmap->total_disks)
-			continue;
-		vol = g_raid_md_intel_get_volume(sc, i);
-		sd = &vol->v_subdisks[j];
-		sd->sd_disk = disk;
-		sd->sd_offset = mmap->offset * 512; //ZZZ
-		sd->sd_size = mmap->disk_sectors;
-		LIST_INSERT_HEAD(&disk->d_subdisks, sd, sd_next);
+	/* Merge real disk and placeholder and destroy one of them. */
+	disk->d_consumer->private = olddisk;
+	olddisk->d_consumer = disk->d_consumer;
+	disk->d_consumer = NULL;
+	oldpd->pd_meta = pd->pd_meta;
+	pd->pd_meta = NULL;
+	g_raid_destroy_disk(disk);
+	disk = olddisk;
+
+	/* Welcome the "new" disk. */
+	g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+	LIST_FOREACH(sd, &disk->d_subdisks, sd_next) {
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 		    G_RAID_EVENT_SUBDISK);
 	}
-
 }
 
 static void
@@ -495,18 +510,20 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 {
 	struct g_raid_md_object *md;
 	struct g_raid_md_intel_object *mdi;
+	struct g_raid_md_intel_perdisk *pd;
 	struct intel_raid_conf *meta;
 	struct intel_raid_vol *mvol;
 	struct intel_raid_map *mmap;
 	struct g_raid_volume *vol;
-	struct g_raid_disk *disk;
-	int i;
+	struct g_raid_subdisk *sd;
+	struct g_raid_disk *disk, *tmpdisk;
+	int i, j, disk_pos;
 
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_intel_object *)md;
 	meta = mdi->mdio_meta;
 
-	/* Create volumes */
+	/* Create volumes and subdisks. */
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
 		mmap = intel_get_map(mvol, 0);
@@ -528,10 +545,43 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 		vol->v_disks_count = mmap->total_disks;
 		vol->v_mediasize = mvol->total_sectors * 512; //ZZZ
 		vol->v_sectorsize = 512; //ZZZ
+		for (j = 0; j < vol->v_disks_count; j++) {
+			sd = &vol->v_subdisks[j];
+			sd->sd_offset = mmap->offset * 512; //ZZZ
+			sd->sd_size = mmap->disk_sectors;
+		}
 		g_raid_start_volume(vol);
 	}
-	LIST_FOREACH(disk, &sc->sc_disks, d_next)
-		g_raid_md_intel_start_disk(disk);
+
+	/* Create disk placeholders to store data for later writing. */
+	for (disk_pos = 0; disk_pos < meta->total_disks; disk_pos++) {
+		pd = malloc(sizeof(*pd), M_MD_INTEL, M_WAITOK | M_ZERO);
+		pd->pd_disk_pos = disk_pos;
+		pd->pd_disk_meta = meta->disk[disk_pos];
+		disk = g_raid_create_disk(sc);
+		disk->d_md_data = (void *)pd;
+		g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+		for (i = 0; i < meta->total_volumes; i++) {
+			mvol = intel_get_volume(meta, i);
+			mmap = intel_get_map(mvol, 0);
+			for (j = 0; j < mmap->total_disks; j++) {
+				if ((mmap->disk_idx[j] & INTEL_DI_IDX) == disk_pos)
+					break;
+			}
+			if (j == mmap->total_disks)
+				continue;
+			vol = g_raid_md_intel_get_volume(sc, i);
+			sd = &vol->v_subdisks[j];
+			sd->sd_disk = disk;
+			LIST_INSERT_HEAD(&disk->d_subdisks, sd, sd_next);
+		}
+	}
+
+	/* Make existing disks take their places. */
+	LIST_FOREACH_SAFE(disk, &sc->sc_disks, d_next, tmpdisk) {
+		if (disk->d_state == G_RAID_DISK_S_NONE)
+			g_raid_md_intel_start_disk(disk);
+	}
 
 	mdi->mdio_started = 1;
 	callout_stop(&mdi->mdio_start_co);
@@ -546,7 +596,7 @@ g_raid_md_intel_new_disk(struct g_raid_disk *disk)
 	struct g_raid_softc *sc;
 	struct g_raid_md_object *md;
 	struct g_raid_md_intel_object *mdi;
-	struct intel_raid_conf *meta, *pdmeta;
+	struct intel_raid_conf *pdmeta;
 	struct g_raid_md_intel_perdisk *pd;
 
 	sc = disk->d_softc;
@@ -555,30 +605,27 @@ g_raid_md_intel_new_disk(struct g_raid_disk *disk)
 	pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
 	pdmeta = pd->pd_meta;
 
-	if (mdi->mdio_meta == NULL ||
-	    pdmeta->generation > mdi->mdio_meta->generation) {
-		if (mdi->mdio_started) {
-			G_RAID_DEBUG(1, "Newer disk, but already started");
-		} else {
+	if (mdi->mdio_started) {
+		g_raid_md_intel_start_disk(disk);
+	} else {
+		/* If we haven't started yet - check metadata freshness. */
+		if (mdi->mdio_meta == NULL ||
+		    pdmeta->generation > mdi->mdio_generation) {
 			G_RAID_DEBUG(1, "Newer disk");
 			if (mdi->mdio_meta != NULL)
 				free(mdi->mdio_meta, M_MD_INTEL);
 			mdi->mdio_meta = intel_meta_copy(pdmeta);
+			mdi->mdio_generation = mdi->mdio_meta->generation;
 			mdi->mdio_disks_present = 1;
+		} else if (pdmeta->generation == mdi->mdio_generation) {
+			mdi->mdio_disks_present++;
+			G_RAID_DEBUG(1, "Matching disk (%d up)",
+			    mdi->mdio_disks_present);
+		} else {
+			G_RAID_DEBUG(1, "Older disk");
 		}
-	} else if (pdmeta->generation == mdi->mdio_meta->generation) {
-		mdi->mdio_disks_present++;
-		G_RAID_DEBUG(1, "Matching disk (%d up)",
-		    mdi->mdio_disks_present);
-	} else {
-		G_RAID_DEBUG(1, "Stale disk");
-	}
-
-	meta = mdi->mdio_meta;
-	if (mdi->mdio_started) {
-		g_raid_md_intel_start_disk(disk);
-	} else {
-		if (mdi->mdio_disks_present == meta->total_disks)
+		/* If we collected all needed disks - start array. */
+		if (mdi->mdio_disks_present == mdi->mdio_meta->total_disks)
 			g_raid_md_intel_start(sc);
 	}
 }
@@ -611,6 +658,7 @@ g_raid_md_create_intel(struct g_raid_md_object *md, struct g_class *mp,
 
 	mdi = (struct g_raid_md_intel_object *)md;
 	mdi->mdio_config_id = arc4random();
+	mdi->mdio_generation = 0;
 	snprintf(name, sizeof(name), "Intel-%08x", mdi->mdio_config_id);
 	sc = g_raid_create_node(mp, name, md);
 	if (sc == NULL)
@@ -686,22 +734,16 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		return (G_RAID_MD_TASTE_FAIL);
 
 	/* Check this disk position in obtained metadata. */
-	for (disk_pos = 0; disk_pos < meta->total_disks; disk_pos++) {
-		if (strncmp(meta->disk[disk_pos].serial, serial, sizeof(serial))) {
-			G_RAID_DEBUG(1, "Intel serial mismatch '%s' '%s'",
-			    meta->disk[disk_pos].serial, serial);
-			continue;
-		}
-		if (meta->disk[disk_pos].sectors !=
-		    (pp->mediasize / pp->sectorsize)) {
-			G_RAID_DEBUG(1, "Intel size mismatch '%u' '%u'",
-			    meta->disk[disk_pos].sectors, (u_int)(pp->mediasize / pp->sectorsize));
-			continue;
-		}
-		break;
+	disk_pos = intel_meta_find_disk(meta, serial);
+	if (disk_pos < 0) {
+		G_RAID_DEBUG(1, "Intel serial '%s' not found", serial);
+		goto fail1;
 	}
-	if (disk_pos >= meta->total_disks) {
-		G_RAID_DEBUG(1, "Intel disk params check failed on %s", pp->name);
+	if (meta->disk[disk_pos].sectors !=
+	    (pp->mediasize / pp->sectorsize)) {
+		G_RAID_DEBUG(1, "Intel size mismatch %u != %u",
+		    meta->disk[disk_pos].sectors,
+		    (u_int)(pp->mediasize / pp->sectorsize));
 		goto fail1;
 	}
 
@@ -756,7 +798,7 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 
 	pd = malloc(sizeof(*pd), M_MD_INTEL, M_WAITOK | M_ZERO);
 	pd->pd_meta = meta;
-	pd->pd_disk_pos = disk_pos;
+	pd->pd_disk_pos = -1;
 	pd->pd_disk_meta = meta->disk[disk_pos];
 	disk = g_raid_create_disk(sc);
 	disk->d_md_data = (void *)pd;
@@ -782,13 +824,33 @@ g_raid_md_event_intel(struct g_raid_md_object *md,
     struct g_raid_disk *disk, u_int event)
 {
 	struct g_raid_softc *sc;
+	struct g_raid_subdisk *sd;
+	struct g_raid_md_intel_perdisk *pd;
 
 	sc = md->mdo_softc;
+	pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
 	switch (event) {
 	case G_RAID_DISK_E_DISCONNECTED:
-		g_raid_change_disk_state(disk, G_RAID_DISK_S_NONE);
-		g_raid_destroy_disk(disk);
-		if (g_raid_ndisks(sc, -1) == 0)
+		/* If disk was assigned, just update statuses. */
+		if (pd->pd_disk_pos >= 0) {
+			g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+			if (disk->d_consumer) {
+				g_topology_lock();
+				g_raid_kill_consumer(sc, disk->d_consumer);
+				g_topology_unlock();
+				disk->d_consumer = NULL;
+			}
+			LIST_FOREACH(sd, &disk->d_subdisks, sd_next) {
+				g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
+				    G_RAID_EVENT_SUBDISK);
+			}
+		} else {
+			/* Otherwise -- delete. */
+			g_raid_change_disk_state(disk, G_RAID_DISK_S_NONE);
+			g_raid_destroy_disk(disk);
+		}
+		if (g_raid_ndisks(sc, G_RAID_DISK_S_NONE) == 0 &&
+		    g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) == 0)
 			g_raid_destroy_node(sc, 0);
 		break;
 	}
@@ -846,8 +908,9 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			gctl_error(req, "Unsupported RAID level.");
 			return (-5);
 		}
+
+		/* Search for disks, connect them and probe. */
 		numdisks = *nargs - 3;
-		mdi->mdio_generation = 1;
 		error = 0;
 		size = 0xffffffffffffffffllu;
 		sectorsize = 0;
@@ -921,6 +984,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		/* Reserve some space for metadata. */
 		size -= ((4096 + sectorsize - 1) / sectorsize) * sectorsize;
 
+		/* Handle size argument. */
 		len = sizeof(*sizearg);
 		sizearg = gctl_get_param(req, "size", &len);
 		if (sizearg != NULL && len == sizeof(*sizearg)) {
@@ -931,6 +995,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			size = *sizearg;
 		}
 
+		/* Handle strip argument. */
 		strip = 131072;
 		len = sizeof(*striparg);
 		striparg = gctl_get_param(req, "strip", &len);
@@ -949,8 +1014,10 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			}
 			strip = *striparg;
 		}
-
 		size -= (size % strip);
+
+		/* We have all we need, create things: volume, ... */
+		mdi->mdio_started = 1;
 		vol = g_raid_create_volume(sc, volname);
 		vol->v_md_data = (void *)(intptr_t)0;
 		vol->v_raid_level = level;
@@ -966,6 +1033,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		vol->v_sectorsize = sectorsize;
 		g_raid_start_volume(vol);
 
+		/* , and subdisks. */
 		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 			pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
 			sd = &vol->v_subdisks[pd->pd_disk_pos];
@@ -977,6 +1045,8 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 			    G_RAID_EVENT_SUBDISK);
 		}
+
+		/* Write metadata based on created entities. */
 		g_raid_md_write_intel(md);
 		return (0);
 	}
@@ -1002,12 +1072,15 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 	sc = md->mdo_softc;
 	mdi = (struct g_raid_md_intel_object *)md;
 
+	/* Bump generation, as written metadata may differ from previous. */
+	mdi->mdio_generation++;
+
 	/* Count number of disks. */
 	numdisks = 0;
 	i = 0;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
-		if (pd->pd_disk_meta.flags & INTEL_F_ASSIGNED) {
+		if (pd->pd_disk_pos >= 0) {
 			numdisks++;
 			pd->pd_disk_pos = i++;
 		}
@@ -1017,8 +1090,6 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 	meta = malloc(INTEL_MAX_MD_SIZE(numdisks),
 	    M_MD_INTEL, M_WAITOK | M_ZERO);
 	memcpy(&meta->intel_id[0], INTEL_MAGIC, sizeof(INTEL_MAGIC));
-	memcpy(&meta->version[0], INTEL_VERSION_1200,
-	    sizeof(INTEL_VERSION_1200));
 	meta->config_size = INTEL_MAX_MD_SIZE(numdisks);
 	meta->config_id = mdi->mdio_config_id;
 	meta->generation = mdi->mdio_generation;
@@ -1037,6 +1108,9 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 	LIST_FOREACH(vol, &sc->sc_volumes, v_next) {
 		mvol = intel_get_volume(meta, vi);
 		mmap = intel_get_map(mvol, 0);
+
+		/* New metadata may have different volumes order. */
+		vol->v_md_data = (void *)(intptr_t)vi;
 
 		for (sdi = 0; sdi < vol->v_disks_count; sdi++) {
 			sd = &vol->v_subdisks[sdi];
