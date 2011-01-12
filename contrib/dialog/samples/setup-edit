@@ -1,0 +1,6 @@
+# $Id: setup-edit,v 1.1 2010/01/13 01:56:07 tom Exp $
+# vile:shmode
+
+input=`tempfile 2>/dev/null` || input=/tmp/input$$
+output=`tempfile 2>/dev/null` || output=/tmp/test$$
+trap "rm -f $input $output" 0 1 2 5 15
