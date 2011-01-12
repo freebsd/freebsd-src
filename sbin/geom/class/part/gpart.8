@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2010
+.Dd January 12, 2011
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -759,8 +759,8 @@ device.
 .Pp
 .Pa NOTE :
 The GEOM class PART can detect the same partition table on different GEOM 
-providers and some of them will marked as corrupt. Be careful when choising 
-a provider for recovering. If you did incorrect choise you can destroy 
+providers and some of them will marked as corrupt. Be careful when choosing 
+a provider for recovering. If you choose incorrectly you can destroy the
 metadata of another GEOM class, e.g. GEOM MIRROR or GEOM LABEL.
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
