@@ -372,6 +372,11 @@ hook_execv(const char *path, va_list ap)
 		descriptors();
 		PJDLOG_VERIFY(sigemptyset(&mask) == 0);
 		PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
+		/*
+		 * Dummy handler set for SIGCHLD in the parent should be
+		 * changed after fork(2) automatically to the default SIG_IGN,
+		 * so there is no need to do anything with it.
+		 */
 		execv(path, args);
 		pjdlog_errno(LOG_ERR, "Unable to execute %s", path);
 		exit(EX_SOFTWARE);
