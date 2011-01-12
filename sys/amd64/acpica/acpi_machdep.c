@@ -68,7 +68,7 @@ acpi_machdep_init(device_t dev)
 	if (intr_model != ACPI_INTR_PIC)
 		acpi_SetIntrModel(intr_model);
 
-	SYSCTL_ADD_UINT(&sc->acpi_sysctl_ctx,
+	SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->acpi_sysctl_tree), OID_AUTO,
 	    "reset_video", CTLFLAG_RW, &acpi_reset_video, 0,
 	    "Call the VESA reset BIOS vector on the resume path");

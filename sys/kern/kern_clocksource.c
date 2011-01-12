@@ -114,7 +114,7 @@ SYSCTL_INT(_kern_eventtimer, OID_AUTO, singlemul, CTLFLAG_RW, &singlemul,
 
 static u_int		idletick = 0;	/* Idle mode allowed. */
 TUNABLE_INT("kern.eventtimer.idletick", &idletick);
-SYSCTL_INT(_kern_eventtimer, OID_AUTO, idletick, CTLFLAG_RW, &idletick,
+SYSCTL_UINT(_kern_eventtimer, OID_AUTO, idletick, CTLFLAG_RW, &idletick,
     0, "Run periodic events when idle");
 
 static int		periodic = 0;	/* Periodic or one-shot mode. */

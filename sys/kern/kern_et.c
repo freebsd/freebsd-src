@@ -65,10 +65,10 @@ et_register(struct eventtimer *et)
 	et->et_sysctl = SYSCTL_ADD_NODE(NULL,
 	    SYSCTL_STATIC_CHILDREN(_kern_eventtimer_et), OID_AUTO, et->et_name,
 	    CTLFLAG_RW, 0, "event timer description");
-	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
+	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
 	    "flags", CTLFLAG_RD, &(et->et_flags), 0,
 	    "Event timer capabilities");
-	SYSCTL_ADD_QUAD(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
+	SYSCTL_ADD_UQUAD(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
 	    "frequency", CTLFLAG_RD, &(et->et_frequency),
 	    "Event timer base frequency");
 	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
