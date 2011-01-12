@@ -2913,6 +2913,10 @@ g_raid3_read_metadata(struct g_consumer *cp, struct g_raid3_metadata *md)
 		    cp->provider->name);
 		return (error);
 	}
+	if (md->md_sectorsize > MAXPHYS) {
+		G_RAID3_DEBUG(0, "The blocksize is too big.");
+		return (EINVAL);
+	}
 
 	return (0);
 }
