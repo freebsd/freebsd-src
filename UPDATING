@@ -23,6 +23,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20110112:
+	A SYSCTL_[ADD_]UQUAD was added for unsigned uint64_t pointers,
+	symmetric with the existing SYSCTL_[ADD_]QUAD.  Type checking
+	for scalar sysctls is defined but disabled.  Code that needs
+	UQUAD to pass the type checking that must compile on older
+	systems where the define is not present can check against
+	__FreeBSD_version >= 900030.
+
 	The system dialog(1) has been replaced with a new version previously
 	in ports as devel/cdialog. dialog(1) is mostly command-line compatible
 	with the previous version, but the libdialog associated with it has
