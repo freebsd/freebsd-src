@@ -40,7 +40,8 @@
 # Makefile.inc1.  The exceptions are universe, tinderbox and targets.
 #
 # If you want to build your system from source be sure that /usr/obj has
-# at least 800MB of diskspace available.
+# at least 1GB of diskspace available.  A complete 'universe' build requires
+# about 15GB of space.
 #
 # For individuals wanting to build from the sources currently on their
 # system, the simple instructions are:
