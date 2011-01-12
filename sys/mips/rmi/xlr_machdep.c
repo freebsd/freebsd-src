@@ -341,67 +341,63 @@ xlr_mem_init(void)
 	boot_map = (struct xlr_boot1_mem_map *)
 	    (unsigned long)xlr_boot1_info.psb_mem_map;
 	for (i = 0, j = 0; i < boot_map->num_entries; i++, j += 2) {
-		if (boot_map->physmem_map[i].type == BOOT1_MEM_RAM) {
-			if (j == 14) {
-				printf("*** ERROR *** memory map too large ***\n");
-				break;
-			}
-			if (j == 0) {
-				/* TODO FIXME  */
-				/* start after kernel end */
-				phys_avail[0] = (vm_paddr_t)
-				    MIPS_KSEG0_TO_PHYS(&_end) + 0x20000;
-				/* boot loader start */
-				/* HACK to Use bootloaders memory region */
-				/* TODO FIXME  */
-				if (boot_map->physmem_map[0].size == 0x0c000000) {
-					boot_map->physmem_map[0].size = 0x0ff00000;
-				}
-				phys_avail[1] = boot_map->physmem_map[0].addr +
-				    boot_map->physmem_map[0].size;
-				printf("First segment: addr:%p -> %p \n",
-				       (void *)phys_avail[0], 
-				       (void *)phys_avail[1]);
-
-				dump_avail[0] = phys_avail[0];
-				dump_avail[1] = phys_avail[1];
-
-			} else {
-/*
- * Can't use this code yet, because most of the fixed allocations happen from
- * the biggest physical area. If we have more than 512M memory the kernel will try
- * to map from the second are which is not in KSEG0 and not mapped
- */
-				phys_avail[j] = (vm_paddr_t)
-				    boot_map->physmem_map[i].addr;
-				phys_avail[j + 1] = phys_avail[j] +
-				    boot_map->physmem_map[i].size;
-				if (phys_avail[j + 1] < phys_avail[j] ) {
-					/* Houston we have an issue. Memory is
-					 * larger than possible. Its probably in
-					 * 64 bit > 4Gig and we are in 32 bit mode.
-					 */
-					phys_avail[j + 1] = 0xfffff000;
-					printf("boot map size was %jx\n",
-					    (intmax_t)boot_map->physmem_map[i].size);
-					boot_map->physmem_map[i].size = phys_avail[j + 1]
-					    - phys_avail[j];
-					printf("reduced to %jx\n", 
-					    (intmax_t)boot_map->physmem_map[i].size);
-				}
-				printf("Next segment : addr:%p -> %p \n",
-				       (void *)phys_avail[j], 
-				       (void *)phys_avail[j+1]);
-			}
-
-			dump_avail[j] = phys_avail[j];
-			dump_avail[j+1] = phys_avail[j+1];
-
-			physsz += boot_map->physmem_map[i].size;
+		if (boot_map->physmem_map[i].type != BOOT1_MEM_RAM)
+			continue;
+		if (j == 14) {
+			printf("*** ERROR *** memory map too large ***\n");
+			break;
 		}
+		if (j == 0) {
+			/* start after kernel end */
+			phys_avail[0] = (vm_paddr_t)
+			    MIPS_KSEG0_TO_PHYS(&_end) + 0x20000;
+			/* boot loader start */
+			/* HACK to Use bootloaders memory region */
+			if (boot_map->physmem_map[0].size == 0x0c000000) {
+				boot_map->physmem_map[0].size = 0x0ff00000;
+			}
+			phys_avail[1] = boot_map->physmem_map[0].addr +
+			    boot_map->physmem_map[0].size;
+			printf("First segment: addr:%p -> %p \n",
+			       (void *)phys_avail[0], 
+			       (void *)phys_avail[1]);
+
+			dump_avail[0] = phys_avail[0];
+			dump_avail[1] = phys_avail[1];
+		} else {
+			/*
+			 * In 32 bit physical address mode we cannot use 
+			 * mem > 0xffffffff
+			 */
+			if (boot_map->physmem_map[i].addr > 0xfffff000U) {
+				printf("Memory: start %#jx size %#jx ignored"
+				    "(>4GB)\n",
+				    (intmax_t)boot_map->physmem_map[i].addr,
+				    (intmax_t)boot_map->physmem_map[i].size);
+				continue;
+			}
+			if (boot_map->physmem_map[i].addr +
+			    boot_map->physmem_map[i].size > 0xfffff000U) {
+				boot_map->physmem_map[i].size = 0xfffff000U - 
+				    boot_map->physmem_map[i].addr;
+				printf("Memory: start %#jx limited to 4GB\n",
+				    (intmax_t)boot_map->physmem_map[i].addr);
+			}
+			phys_avail[j] = (vm_paddr_t)
+			    boot_map->physmem_map[i].addr;
+			phys_avail[j + 1] = phys_avail[j] +
+			    boot_map->physmem_map[i].size;
+			printf("Next segment : addr:%#jx -> %#jx\n",
+			       (uintmax_t)phys_avail[j], 
+			       (uintmax_t)phys_avail[j+1]);
+		}
+
+		dump_avail[j] = phys_avail[j];
+		dump_avail[j+1] = phys_avail[j+1];
+
+		physsz += boot_map->physmem_map[i].size;
 	}
 
-	/* FIXME XLR TODO */
 	phys_avail[j] = phys_avail[j + 1] = 0;
 	realmem = physmem = btoc(physsz);
 }
@@ -418,7 +414,6 @@ platform_start(__register_t a0 __unused,
 	void (*wakeup) (void *, void *, unsigned int);
 #endif
 
-	/* XXX FIXME the code below is not 64 bit clean */
 	/* Save boot loader and other stuff from scratch regs */
 	xlr_boot1_info = *(struct boot1_info *)(intptr_t)(int)read_c0_register32(MIPS_COP_0_OSSCRATCH, 0);
 	cpu_mask_info = read_c0_register64(MIPS_COP_0_OSSCRATCH, 1);
@@ -430,9 +425,6 @@ platform_start(__register_t a0 __unused,
 	 */
 	xlr_argv = (int32_t *)(intptr_t)(int)read_c0_register32(MIPS_COP_0_OSSCRATCH, 5);
 	xlr_envp = (int32_t *)(intptr_t)(int)read_c0_register32(MIPS_COP_0_OSSCRATCH, 6);
-
-	/* TODO: Verify the magic number here */
-	/* FIXMELATER: xlr_boot1_info.magic_number */
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
@@ -530,10 +522,6 @@ platform_identify(void)
 	    (int)xlr_boot1_info.board_minor_version, mips_rd_prid());
 }
 
-/*
- * XXX Maybe return the state of the watchdog in enter, and pass it to
- * exit?  Like spl().
- */
 void
 platform_trap_enter(void)
 {
@@ -591,10 +579,9 @@ platform_init_ap(int cpuid)
 	write_c0_eimr64(0ULL);
 	xlr_enable_irq(IRQ_IPI);
 	xlr_enable_irq(IRQ_TIMER);
-	if (xlr_thr_id() == 0) {
+	if (xlr_thr_id() == 0)
 		xlr_msgring_cpu_init(); 
-	 	xlr_enable_irq(IRQ_MSGRING);
-	}
+	 xlr_enable_irq(IRQ_MSGRING);
 
 	return;
 }
