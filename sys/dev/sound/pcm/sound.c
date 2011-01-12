@@ -1068,7 +1068,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	    CTLFLAG_RD, 0, "record channels node");
 	/* XXX: an user should be able to set this with a control tool, the
 	   sysadmin then needs min+max sysctls for this */
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
             OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),

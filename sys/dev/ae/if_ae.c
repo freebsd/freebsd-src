@@ -207,43 +207,6 @@ TUNABLE_INT("hw.ae.msi_disable", &msi_disable);
 #define	AE_TXD_VLAN(vtag) \
 	(((vtag) << 4) | (((vtag) >> 13) & 0x07) | (((vtag) >> 9) & 0x08))
 
-/*
- * ae statistics.
- */
-#define	STATS_ENTRY(node, desc, field) \
-    { node, desc, offsetof(struct ae_stats, field) }
-struct {
-	const char	*node;
-	const char	*desc;
-	intptr_t	offset;
-} ae_stats_tx[] = {
-	STATS_ENTRY("bcast", "broadcast frames", tx_bcast),
-	STATS_ENTRY("mcast", "multicast frames", tx_mcast),
-	STATS_ENTRY("pause", "PAUSE frames", tx_pause),
-	STATS_ENTRY("control", "control frames", tx_ctrl),
-	STATS_ENTRY("defers", "deferrals occuried", tx_defer),
-	STATS_ENTRY("exc_defers", "excessive deferrals occuried", tx_excdefer),
-	STATS_ENTRY("singlecols", "single collisions occuried", tx_singlecol),
-	STATS_ENTRY("multicols", "multiple collisions occuried", tx_multicol),
-	STATS_ENTRY("latecols", "late collisions occuried", tx_latecol),
-	STATS_ENTRY("aborts", "transmit aborts due collisions", tx_abortcol),
-	STATS_ENTRY("underruns", "Tx FIFO underruns", tx_underrun)
-}, ae_stats_rx[] = {
-	STATS_ENTRY("bcast", "broadcast frames", rx_bcast),
-	STATS_ENTRY("mcast", "multicast frames", rx_mcast),
-	STATS_ENTRY("pause", "PAUSE frames", rx_pause),
-	STATS_ENTRY("control", "control frames", rx_ctrl),
-	STATS_ENTRY("crc_errors", "frames with CRC errors", rx_crcerr),
-	STATS_ENTRY("code_errors", "frames with invalid opcode", rx_codeerr),
-	STATS_ENTRY("runt", "runt frames", rx_runt),
-	STATS_ENTRY("frag", "fragmented frames", rx_frag),
-	STATS_ENTRY("align_errors", "frames with alignment errors", rx_align),
-	STATS_ENTRY("truncated", "frames truncated due to Rx FIFO inderrun",
-	    rx_trunc)
-};
-#define	AE_STATS_RX_LEN	(sizeof(ae_stats_rx) / sizeof(*ae_stats_rx))
-#define	AE_STATS_TX_LEN	(sizeof(ae_stats_tx) / sizeof(*ae_stats_tx))
-
 static int
 ae_probe(device_t dev)
 {
@@ -433,13 +396,15 @@ fail:
 	return (error);
 }
 
+#define	AE_SYSCTL(stx, parent, name, desc, ptr)	\
+	SYSCTL_ADD_UINT(ctx, parent, OID_AUTO, name, CTLFLAG_RD, ptr, 0, desc)
+
 static void
 ae_init_tunables(ae_softc_t *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *root, *stats, *stats_rx, *stats_tx;
 	struct ae_stats *ae_stats;
-	unsigned int i;
 
 	KASSERT(sc != NULL, ("[ae, %d]: sc is NULL", __LINE__));
 	ae_stats = &sc->stats;
@@ -454,20 +419,54 @@ ae_init_tunables(ae_softc_t *sc)
 	 */
 	stats_rx = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(stats), OID_AUTO, "rx",
 	    CTLFLAG_RD, NULL, "Rx MAC statistics");
-	for (i = 0; i < AE_STATS_RX_LEN; i++)
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(stats_rx), OID_AUTO,
-		    ae_stats_rx[i].node, CTLFLAG_RD, (char *)ae_stats +
-		    ae_stats_rx[i].offset, 0, ae_stats_rx[i].desc);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "bcast",
+	    "broadcast frames", &ae_stats->rx_bcast);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "mcast",
+	    "multicast frames", &ae_stats->rx_mcast);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "pause",
+	    "PAUSE frames", &ae_stats->rx_pause);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "control",
+	    "control frames", &ae_stats->rx_ctrl);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "crc_errors",
+	    "frames with CRC errors", &ae_stats->rx_crcerr);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "code_errors",
+	    "frames with invalid opcode", &ae_stats->rx_codeerr);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "runt",
+	    "runt frames", &ae_stats->rx_runt);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "frag",
+	    "fragmented frames", &ae_stats->rx_frag);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "align_errors",
+	    "frames with alignment errors", &ae_stats->rx_align);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_rx), "truncated",
+	    "frames truncated due to Rx FIFO inderrun", &ae_stats->rx_trunc);
 
 	/*
 	 * Receiver statistcics.
 	 */
 	stats_tx = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(stats), OID_AUTO, "tx",
 	    CTLFLAG_RD, NULL, "Tx MAC statistics");
-	for (i = 0; i < AE_STATS_TX_LEN; i++)
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(stats_tx), OID_AUTO,
-		    ae_stats_tx[i].node, CTLFLAG_RD, (char *)ae_stats +
-		    ae_stats_tx[i].offset, 0, ae_stats_tx[i].desc);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "bcast",
+	    "broadcast frames", &ae_stats->tx_bcast);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "mcast",
+	    "multicast frames", &ae_stats->tx_mcast);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "pause",
+	    "PAUSE frames", &ae_stats->tx_pause);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "control",
+	    "control frames", &ae_stats->tx_ctrl);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "defers",
+	    "deferrals occuried", &ae_stats->tx_defer);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "exc_defers",
+	    "excessive deferrals occuried", &ae_stats->tx_excdefer);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "singlecols",
+	    "single collisions occuried", &ae_stats->tx_singlecol);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "multicols",
+	    "multiple collisions occuried", &ae_stats->tx_multicol);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "latecols",
+	    "late collisions occuried", &ae_stats->tx_latecol);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "aborts",
+	    "transmit aborts due collisions", &ae_stats->tx_abortcol);
+	AE_SYSCTL(ctx, SYSCTL_CHILDREN(stats_tx), "underruns",
+	    "Tx FIFO underruns", &ae_stats->tx_underrun);
 }
 
 static void
