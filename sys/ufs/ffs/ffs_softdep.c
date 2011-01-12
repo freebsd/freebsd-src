@@ -622,9 +622,9 @@ SYSCTL_NODE(_debug_softdep, OID_AUTO, current, CTLFLAG_RW, 0,
 
 #define	SOFTDEP_TYPE(type, str, long)					\
     static MALLOC_DEFINE(M_ ## type, #str, long);			\
-    SYSCTL_LONG(_debug_softdep_total, OID_AUTO, str, CTLFLAG_RD,	\
+    SYSCTL_ULONG(_debug_softdep_total, OID_AUTO, str, CTLFLAG_RD,	\
 	&dep_total[D_ ## type], 0, "");					\
-    SYSCTL_LONG(_debug_softdep_current, OID_AUTO, str, CTLFLAG_RD, 	\
+    SYSCTL_ULONG(_debug_softdep_current, OID_AUTO, str, CTLFLAG_RD, 	\
 	&dep_current[D_ ## type], 0, "");
 
 SOFTDEP_TYPE(PAGEDEP, pagedep, "File page dependencies"); 
