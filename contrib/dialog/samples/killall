@@ -1,0 +1,13 @@
+#! /bin/sh
+# $Id: killall,v 1.2 2004/09/17 19:56:18 tom Exp $
+# Linux has a program that does this correctly.
+for prog in $*
+do
+	pid=`ps -a |fgrep $prog |fgrep -v fgrep|sed -e 's/^[ ]*//' -e 's/ .*//' `
+	if test -n "$pid" ; then
+		echo killing pid=$pid, $prog
+		kill -1 $pid || \
+		kill -15 $pid || \
+		kill -9 $pid
+	fi
+done

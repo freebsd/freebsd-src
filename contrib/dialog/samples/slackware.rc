@@ -1,0 +1,124 @@
+# $Id: slackware.rc,v 1.6 2005/12/01 01:20:16 tom Exp $
+# Run-time configuration file for dialog, matches Slackware color scheme.
+#
+# Types of values:
+#
+# Number     -  <number>
+# String     -  "string"
+# Boolean    -  <ON|OFF>
+# Attribute  -  (foreground,background,highlight?)
+
+# Set aspect-ration.
+aspect = 0
+
+# Set separator (for multiple widgets output).
+separate_widget = ""
+
+# Set tab-length (for textbox tab-conversion).
+tab_len = 0
+
+# Make tab-traversal for checklist, etc., include the list.
+visit_items = OFF
+
+# Shadow dialog boxes? This also turns on color.
+use_shadow = ON
+
+# Turn color support ON or OFF
+use_colors = ON
+
+# Screen color
+screen_color = (WHITE,BLUE,OFF)
+
+# Shadow color
+shadow_color = (WHITE,BLACK,OFF)
+
+# Dialog box color
+dialog_color = (BLACK,CYAN,OFF)
+
+# Dialog box title color
+title_color = (YELLOW,CYAN,ON)
+
+# Dialog box border color
+border_color = (CYAN,CYAN,ON)
+
+# Active button color
+button_active_color = (WHITE,BLUE,ON)
+
+# Inactive button color
+button_inactive_color = (BLACK,CYAN,OFF)
+
+# Active button key color
+button_key_active_color = (WHITE,BLUE,ON)
+
+# Inactive button key color
+button_key_inactive_color = (RED,CYAN,OFF)
+
+# Active button label color
+button_label_active_color = (WHITE,BLUE,ON)
+
+# Inactive button label color
+button_label_inactive_color = (BLACK,CYAN,ON)
+
+# Input box color
+inputbox_color = (BLUE,WHITE,OFF)
+
+# Input box border color
+inputbox_border_color = (CYAN,CYAN,ON)
+
+# Search box color
+searchbox_color = (YELLOW,WHITE,ON)
+
+# Search box title color
+# FIXME
+searchbox_title_color = (WHITE,WHITE,ON)
+
+# Search box border color
+searchbox_border_color = (RED,WHITE,OFF)
+
+# File position indicator color
+position_indicator_color = (RED,CYAN,OFF)
+
+# Menu box color
+menubox_color = (BLACK,CYAN,OFF)
+
+# Menu box border color
+menubox_border_color = (CYAN,CYAN,ON)
+
+# Item color
+item_color = (BLACK,CYAN,OFF)
+
+# Selected item color
+item_selected_color = (WHITE,BLUE,OFF)
+
+# Tag color
+tag_color = (YELLOW,CYAN,ON)
+
+# Selected tag color
+tag_selected_color = (WHITE,BLUE,OFF)
+
+# Tag key color
+tag_key_color = (RED,CYAN,OFF)
+
+# Selected tag key color
+tag_key_selected_color = (RED,BLUE,ON)
+
+# Check box color
+check_color = (BLACK,CYAN,OFF)
+
+# Selected check box color
+check_selected_color = (WHITE,CYAN,ON)
+
+# Up arrow color
+uarrow_color = (GREEN,CYAN,ON)
+
+# Down arrow color
+darrow_color = (GREEN,CYAN,ON)
+
+# Item help-text color
+itemhelp_color = (WHITE,BLACK,OFF)
+
+# Active form text color
+form_active_text_color = (BLUE,WHITE,OFF)
+
+# Form text color
+form_text_color = (CYAN,BLUE,ON)

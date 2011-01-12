@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110112:
+	The system dialog(1) has been replaced with a new version previously
+	in ports as devel/cdialog. dialog(1) is mostly command-line compatible
+	with the previous version, but the libdialog associated with it has
+	a largely incompatible API. As such, the original version of libdialog
+	will be kept temporarily as libodialog, until its base system consumers
+	are replaced or updated. Bump __FreeBSD_version to 900030.
+
 20110103:
 	If you are trying to run make universe on a -stable system, and you get
 	the following warning:
