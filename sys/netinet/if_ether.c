@@ -536,7 +536,7 @@ in_arpinput(struct mbuf *m)
 	 * a protocol length not equal to an IPv4 address.
 	 */
 	if (ah->ar_pln != sizeof(struct in_addr)) {
-		log(LOG_ERR, "in_arp: requested protocol length != %ld\n",
+		log(LOG_ERR, "in_arp: requested protocol length != %zu\n",
 		    sizeof(struct in_addr));
 		return;
 	}
