@@ -73,7 +73,7 @@ static int kobj_next_id = 1;
 #define KOBJ_UNLOCK()	if (kobj_mutex_inited) mtx_unlock(&kobj_mtx);
 #define KOBJ_ASSERT(what) if (kobj_mutex_inited) mtx_assert(&kobj_mtx,what);
 
-SYSCTL_UINT(_kern, OID_AUTO, kobj_methodcount, CTLFLAG_RD,
+SYSCTL_INT(_kern, OID_AUTO, kobj_methodcount, CTLFLAG_RD,
 	   &kobj_next_id, 0, "");
 
 static void
