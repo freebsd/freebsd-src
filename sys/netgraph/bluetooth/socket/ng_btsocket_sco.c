@@ -109,19 +109,19 @@ static int					ng_btsocket_sco_curpps;
 SYSCTL_DECL(_net_bluetooth_sco_sockets);
 SYSCTL_NODE(_net_bluetooth_sco_sockets, OID_AUTO, seq, CTLFLAG_RW,
 	0, "Bluetooth SEQPACKET SCO sockets family");
-SYSCTL_INT(_net_bluetooth_sco_sockets_seq, OID_AUTO, debug_level,
+SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, debug_level,
 	CTLFLAG_RW,
 	&ng_btsocket_sco_debug_level, NG_BTSOCKET_WARN_LEVEL,
 	"Bluetooth SEQPACKET SCO sockets debug level");
-SYSCTL_INT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_len, 
+SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_len,
 	CTLFLAG_RD,
 	&ng_btsocket_sco_queue.len, 0,
 	"Bluetooth SEQPACKET SCO sockets input queue length");
-SYSCTL_INT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_maxlen, 
+SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_maxlen,
 	CTLFLAG_RD,
 	&ng_btsocket_sco_queue.maxlen, 0,
 	"Bluetooth SEQPACKET SCO sockets input queue max. length");
-SYSCTL_INT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_drops, 
+SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_drops,
 	CTLFLAG_RD,
 	&ng_btsocket_sco_queue.drops, 0,
 	"Bluetooth SEQPACKET SCO sockets input queue drops");
