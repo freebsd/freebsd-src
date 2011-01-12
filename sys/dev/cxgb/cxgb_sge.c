@@ -79,12 +79,12 @@ int	multiq_tx_enable = 1;
 extern struct sysctl_oid_list sysctl__hw_cxgb_children;
 int cxgb_txq_buf_ring_size = TX_ETH_Q_SIZE;
 TUNABLE_INT("hw.cxgb.txq_mr_size", &cxgb_txq_buf_ring_size);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, txq_mr_size, CTLFLAG_RDTUN, &cxgb_txq_buf_ring_size, 0,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, txq_mr_size, CTLFLAG_RDTUN, &cxgb_txq_buf_ring_size, 0,
     "size of per-queue mbuf ring");
 
 static int cxgb_tx_coalesce_force = 0;
 TUNABLE_INT("hw.cxgb.tx_coalesce_force", &cxgb_tx_coalesce_force);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, tx_coalesce_force, CTLFLAG_RW,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_force, CTLFLAG_RW,
     &cxgb_tx_coalesce_force, 0,
     "coalesce small packets into a single work request regardless of ring state");
 
@@ -100,17 +100,17 @@ SYSCTL_UINT(_hw_cxgb, OID_AUTO, tx_coalesce_force, CTLFLAG_RW,
 static int cxgb_tx_coalesce_enable_start = COALESCE_START_DEFAULT;
 TUNABLE_INT("hw.cxgb.tx_coalesce_enable_start",
     &cxgb_tx_coalesce_enable_start);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, tx_coalesce_enable_start, CTLFLAG_RW,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_enable_start, CTLFLAG_RW,
     &cxgb_tx_coalesce_enable_start, 0,
     "coalesce enable threshold");
 static int cxgb_tx_coalesce_enable_stop = COALESCE_STOP_DEFAULT;
 TUNABLE_INT("hw.cxgb.tx_coalesce_enable_stop", &cxgb_tx_coalesce_enable_stop);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, tx_coalesce_enable_stop, CTLFLAG_RW,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_enable_stop, CTLFLAG_RW,
     &cxgb_tx_coalesce_enable_stop, 0,
     "coalesce disable threshold");
 static int cxgb_tx_reclaim_threshold = TX_RECLAIM_DEFAULT;
 TUNABLE_INT("hw.cxgb.tx_reclaim_threshold", &cxgb_tx_reclaim_threshold);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, tx_reclaim_threshold, CTLFLAG_RW,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_reclaim_threshold, CTLFLAG_RW,
     &cxgb_tx_reclaim_threshold, 0,
     "tx cleaning minimum threshold");
 
@@ -3493,7 +3493,7 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    "firmware_version",
 	    CTLFLAG_RD, &sc->fw_version,
 	    0, "firmware version");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "hw_revision",
 	    CTLFLAG_RD, &sc->params.rev,
 	    0, "chip model");
@@ -3505,14 +3505,14 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    "enable_debug",
 	    CTLFLAG_RW, &cxgb_debug,
 	    0, "enable verbose debugging output");
-	SYSCTL_ADD_QUAD(ctx, children, OID_AUTO, "tunq_coalesce",
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tunq_coalesce",
 	    CTLFLAG_RD, &sc->tunq_coalesce,
 	    "#tunneled packets freed");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "txq_overrun",
 	    CTLFLAG_RD, &txq_fills,
 	    0, "#times txq overrun");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "core_clock",
 	    CTLFLAG_RD, &sc->params.vpd.cclk,
 	    0, "core clock frequency (in KHz)");
@@ -3576,7 +3576,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 		poid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, 
 		    pi->namebuf, CTLFLAG_RD, NULL, "port statistics");
 		poidlist = SYSCTL_CHILDREN(poid);
-		SYSCTL_ADD_INT(ctx, poidlist, OID_AUTO, 
+		SYSCTL_ADD_UINT(ctx, poidlist, OID_AUTO,
 		    "nqsets", CTLFLAG_RD, &pi->nqsets,
 		    0, "#queue sets");
 
@@ -3643,10 +3643,10 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->rspq,
 			    0, t3_dump_rspq, "A", "dump of the response queue");
 
-			SYSCTL_ADD_QUAD(ctx, txqpoidlist, OID_AUTO, "dropped",
+			SYSCTL_ADD_UQUAD(ctx, txqpoidlist, OID_AUTO, "dropped",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_mr->br_drops,
 			    "#tunneled packets dropped");
-			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.qlen,
 			    0, "#tunneled packets waiting to be sent");
 #if 0			
@@ -3657,7 +3657,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLFLAG_RD, (uint32_t *)(uintptr_t)&qs->txq[TXQ_ETH].txq_mr.br_cons,
 			    0, "#tunneled packets queue consumer index");
 #endif			
-			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "processed",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "processed",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].processed,
 			    0, "#tunneled packets processed by the card");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "cleaned",
@@ -3672,7 +3672,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "skipped",
 			    CTLFLAG_RD, &txq->txq_skipped,
 			    0, "#tunneled packet descriptors skipped");
-			SYSCTL_ADD_QUAD(ctx, txqpoidlist, OID_AUTO, "coalesced",
+			SYSCTL_ADD_UQUAD(ctx, txqpoidlist, OID_AUTO, "coalesced",
 			    CTLFLAG_RD, &txq->txq_coalesced,
 			    "#tunneled packets coalesced");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "enqueued",
