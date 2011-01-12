@@ -216,6 +216,55 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define SYSCTL_NODE_CHILDREN(parent, name) \
 	sysctl_##parent##_##name##_children
 
+/*
+ * These macros provide type safety for sysctls.  SYSCTL_ALLOWED_TYPES()
+ * defines a transparent union of the allowed types.  SYSCTL_ASSERT_TYPE()
+ * and SYSCTL_ADD_ASSERT_TYPE() use the transparent union to assert that
+ * the pointer matches the allowed types.
+ *
+ * The allow_0 member allows a literal 0 to be passed for ptr.
+ */
+#define	SYSCTL_ALLOWED_TYPES(type, decls)			\
+	union sysctl_##type {					\
+		long allow_0;					\
+		decls						\
+	} __attribute__((__transparent_union__));		\
+								\
+	static inline void *					\
+	__sysctl_assert_##type(union sysctl_##type ptr)		\
+	{							\
+		return (ptr.a);					\
+	}							\
+	struct __hack
+
+SYSCTL_ALLOWED_TYPES(INT, int *a; );
+SYSCTL_ALLOWED_TYPES(UINT, unsigned int *a; );
+SYSCTL_ALLOWED_TYPES(XINT, unsigned int *a; int *b; );
+SYSCTL_ALLOWED_TYPES(LONG, long *a; );
+SYSCTL_ALLOWED_TYPES(ULONG, unsigned long *a; );
+SYSCTL_ALLOWED_TYPES(XLONG, unsigned long *a; long b; );
+SYSCTL_ALLOWED_TYPES(INT64, int64_t *a; long long *b; );
+SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
+
+#ifdef notyet
+#define	SYSCTL_ADD_ASSERT_TYPE(type, ptr)	\
+	__sysctl_assert_ ## type (ptr)
+#define	SYSCTL_ASSERT_TYPE(type, ptr, parent, name)	\
+	_SYSCTL_ASSERT_TYPE(type, ptr, __LINE__, parent##_##name)
+#else
+#define	SYSCTL_ADD_ASSERT_TYPE(type, ptr)	ptr
+#define	SYSCTL_ASSERT_TYPE(type, ptr, parent, name)
+#endif
+#define	_SYSCTL_ASSERT_TYPE(t, p, l, id)		\
+	__SYSCTL_ASSERT_TYPE(t, p, l, id)
+#define	__SYSCTL_ASSERT_TYPE(type, ptr, line, id)			\
+	static inline void						\
+	sysctl_assert_##line##_##id(void)				\
+	{								\
+		(void)__sysctl_assert_##type(ptr);			\
+	}								\
+	struct __hack
+
 #ifndef NO_SYSCTL_DESCR
 #define __DESCR(d) d
 #else
@@ -252,65 +301,106 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	arg, len, sysctl_handle_string, "A", __DESCR(descr))
 
 /* Oid for an int.  If ptr is NULL, val is returned. */
-#define SYSCTL_INT(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|CTLFLAG_MPSAFE|(access), \
-		ptr, val, sysctl_handle_int, "I", descr)
+#define	SYSCTL_INT(parent, nbr, name, access, ptr, val, descr)		\
+	SYSCTL_ASSERT_TYPE(INT, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | (access),			\
+	    ptr, val, sysctl_handle_int, "I", descr)
 
-#define SYSCTL_ADD_INT(ctx, parent, nbr, name, access, ptr, val, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_INT|CTLFLAG_MPSAFE|(access),	    \
-	ptr, val, sysctl_handle_int, "I", __DESCR(descr))
+#define	SYSCTL_ADD_INT(ctx, parent, nbr, name, access, ptr, val, descr)	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(INT, ptr), val,			\
+	    sysctl_handle_int, "I", __DESCR(descr))
 
 /* Oid for an unsigned int.  If ptr is NULL, val is returned. */
-#define SYSCTL_UINT(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_UINT|CTLFLAG_MPSAFE|(access), \
-		ptr, val, sysctl_handle_int, "IU", descr)
+#define	SYSCTL_UINT(parent, nbr, name, access, ptr, val, descr)		\
+	SYSCTL_ASSERT_TYPE(UINT, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_UINT | CTLFLAG_MPSAFE | (access),			\
+	    ptr, val, sysctl_handle_int, "IU", descr)
 
-#define SYSCTL_ADD_UINT(ctx, parent, nbr, name, access, ptr, val, descr)    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_UINT|CTLFLAG_MPSAFE|(access),	    \
-	ptr, val, sysctl_handle_int, "IU", __DESCR(descr))
+#define	SYSCTL_ADD_UINT(ctx, parent, nbr, name, access, ptr, val, descr) \
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_UINT | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(UINT, ptr), val,			\
+	    sysctl_handle_int, "IU", __DESCR(descr))
 
-#define SYSCTL_XINT(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_UINT|CTLFLAG_MPSAFE|(access), \
-		ptr, val, sysctl_handle_int, "IX", descr)
+#define	SYSCTL_XINT(parent, nbr, name, access, ptr, val, descr)		\
+	SYSCTL_ASSERT_TYPE(XINT, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_UINT | CTLFLAG_MPSAFE | (access),			\
+	    ptr, val, sysctl_handle_int, "IX", descr)
 
-#define SYSCTL_ADD_XINT(ctx, parent, nbr, name, access, ptr, val, descr)    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_UINT|CTLFLAG_MPSAFE|(access),	    \
-	ptr, val, sysctl_handle_int, "IX", __DESCR(descr))
+#define	SYSCTL_ADD_XINT(ctx, parent, nbr, name, access, ptr, val, descr) \
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_UINT | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(XINT, ptr), val,			\
+	    sysctl_handle_int, "IX", __DESCR(descr))
 
 /* Oid for a long.  The pointer must be non NULL. */
-#define SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_LONG|CTLFLAG_MPSAFE|(access), \
-		ptr, val, sysctl_handle_long, "L", descr)
+#define	SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr)		\
+	SYSCTL_ASSERT_TYPE(LONG, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_LONG | CTLFLAG_MPSAFE | (access),			\
+	    ptr, val, sysctl_handle_long, "L", descr)
 
-#define SYSCTL_ADD_LONG(ctx, parent, nbr, name, access, ptr, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_LONG|CTLFLAG_MPSAFE|(access),	    \
-	ptr, 0, sysctl_handle_long, "L", __DESCR(descr))
+#define	SYSCTL_ADD_LONG(ctx, parent, nbr, name, access, ptr, descr)	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_LONG | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(LONG, ptr), 0,			\
+	    sysctl_handle_long,	"L", __DESCR(descr))
 
 /* Oid for an unsigned long.  The pointer must be non NULL. */
-#define SYSCTL_ULONG(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_ULONG|CTLFLAG_MPSAFE|(access), \
-		ptr, val, sysctl_handle_long, "LU", __DESCR(descr))
+#define	SYSCTL_ULONG(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_ASSERT_TYPE(ULONG, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_ULONG | CTLFLAG_MPSAFE | (access),			\
+	    ptr, val, sysctl_handle_long, "LU", descr)
 
-#define SYSCTL_ADD_ULONG(ctx, parent, nbr, name, access, ptr, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_ULONG|CTLFLAG_MPSAFE|(access),	    \
-	ptr, 0, sysctl_handle_long, "LU", __DESCR(descr))
+#define	SYSCTL_ADD_ULONG(ctx, parent, nbr, name, access, ptr, descr)	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_ULONG | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(ULONG, ptr), 0,			\
+	    sysctl_handle_long, "LU", __DESCR(descr))
 
-#define SYSCTL_XLONG(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_ULONG|CTLFLAG_MPSAFE|(access), \
-		ptr, val, sysctl_handle_long, "LX", __DESCR(descr))
+#define	SYSCTL_XLONG(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_ASSERT_TYPE(XLONG, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_ULONG | CTLFLAG_MPSAFE | (access),			\
+	    ptr, val, sysctl_handle_long, "LX", descr)
 
-#define SYSCTL_ADD_XLONG(ctx, parent, nbr, name, access, ptr, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_ULONG|CTLFLAG_MPSAFE|(access),	    \
-	ptr, 0, sysctl_handle_long, "LX", __DESCR(descr))
+#define	SYSCTL_ADD_XLONG(ctx, parent, nbr, name, access, ptr, descr)	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_ULONG | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(XLONG, ptr), 0,			\
+	    sysctl_handle_long, "LX", __DESCR(descr))
 
 /* Oid for a quad.  The pointer must be non NULL. */
-#define SYSCTL_QUAD(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_QUAD|CTLFLAG_MPSAFE|(access), \
-		ptr, val, sysctl_handle_quad, "Q", __DESCR(descr))
+#define	SYSCTL_QUAD(parent, nbr, name, access, ptr, val, descr)		\
+	SYSCTL_ASSERT_TYPE(INT64, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_QUAD | CTLFLAG_MPSAFE | (access),			\
+	    ptr, val, sysctl_handle_quad, "Q", descr)
 
-#define SYSCTL_ADD_QUAD(ctx, parent, nbr, name, access, ptr, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_QUAD|CTLFLAG_MPSAFE|(access),	    \
-	ptr, 0, sysctl_handle_quad, "Q", __DESCR(descr))
+#define	SYSCTL_ADD_QUAD(ctx, parent, nbr, name, access, ptr, descr)	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_QUAD | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(INT64, ptr), 0,			\
+	    sysctl_handle_quad,	"Q", __DESCR(descr))
+
+/* Oid for a quad.  The pointer must be non NULL. */
+#define	SYSCTL_UQUAD(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_ASSERT_TYPE(UINT64, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_QUAD | CTLFLAG_MPSAFE | (access),	\
+	    ptr, val, sysctl_handle_quad, "QU", descr)
+
+#define	SYSCTL_ADD_UQUAD(ctx, parent, nbr, name, access, ptr, descr)	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_QUAD | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(UINT64, ptr), 0,			\
+	    sysctl_handle_quad,	"QU", __DESCR(descr))
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
