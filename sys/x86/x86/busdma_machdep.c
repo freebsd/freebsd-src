@@ -100,7 +100,7 @@ struct bounce_zone {
 	int		total_bounced;
 	int		total_deferred;
 	int		map_count;
-	bus_size_t	alignment;
+	uint32_t	alignment;
 	bus_addr_t	lowaddr;
 	char		zoneid[8];
 	char		lowaddrid[20];
@@ -1060,9 +1060,9 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_STRING(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "lowaddr", CTLFLAG_RD, bz->lowaddrid, 0, "");
-	SYSCTL_ADD_UQUAD(busdma_sysctl_tree(bz),
+	SYSCTL_ADD_UINT(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "alignment", CTLFLAG_RD, &bz->alignment, "");
+	    "alignment", CTLFLAG_RD, &bz->alignment, 0, "");
 
 	return (0);
 }
