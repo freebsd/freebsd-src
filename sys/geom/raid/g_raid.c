@@ -827,6 +827,16 @@ g_raid_iodone(struct bio *bp, int error)
 		/*
 		 * XXX this structure forces serialization of all
 		 * XXX pending requests before any are allowed through.
+		 *
+		 * XXX Also, if there is a pending request that overlaps one
+		 * XXX locked area and another locked area comes along that also
+		 * XXX overlaps that area, we wind up double counting it, but
+		 * XXX not double uncounting it, so we hit deadlock.  Ouch.
+		 * Most likely, we should add pending counts to struct
+		 * g_raid_lock and recompute v_pending_lock in lock_range()
+		 * and here, which would eliminate the doubel counting.  Heck,
+		 * if we wanted to burn the cylces here, we could look at the
+		 * inflight queue and the v_locks and just recompute here.
 		 */
 		G_RAID_LOGREQ(3, bp,
 		    "Write to locking zone complete: %d writes outstanding",
@@ -896,9 +906,12 @@ g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len)
 			 * and hope for the best.  We hope this because any
 			 * locked ranges will go right back on this list
 			 * when the worker thread runs.
+			 * XXX
+			 * Also, see note above about deadlock and how it
+			 * doth sucketh...
 			 */
 			mtx_lock(&sc->sc_queue_mtx);
-			while ((bp = bioq_takefirst(&sc->sc_queue)) != NULL)
+			while ((bp = bioq_takefirst(&vol->v_locked)) != NULL)
 				bioq_disksort(&sc->sc_queue, bp);
 			mtx_unlock(&sc->sc_queue_mtx);
 			free(lp, M_RAID);
