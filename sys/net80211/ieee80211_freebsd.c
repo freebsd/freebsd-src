@@ -235,12 +235,12 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"%parent", CTLFLAG_RD, vap->iv_ic, 0,
 		ieee80211_sysctl_parent, "A", "parent device");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"driver_caps", CTLFLAG_RW, &vap->iv_caps, 0,
 		"driver capabilities");
 #ifdef IEEE80211_DEBUG
 	vap->iv_debug = ieee80211_debug;
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"debug", CTLFLAG_RW, &vap->iv_debug, 0,
 		"control debugging printfs");
 #endif
@@ -265,19 +265,19 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 		ieee80211_sysctl_inact, "I",
 		"station initial state timeout (sec)");
 	if (vap->iv_htcaps & IEEE80211_HTC_HT) {
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 			"ampdu_mintraffic_bk", CTLFLAG_RW,
 			&vap->iv_ampdu_mintraffic[WME_AC_BK], 0,
 			"BK traffic tx aggr threshold (pps)");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 			"ampdu_mintraffic_be", CTLFLAG_RW,
 			&vap->iv_ampdu_mintraffic[WME_AC_BE], 0,
 			"BE traffic tx aggr threshold (pps)");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 			"ampdu_mintraffic_vo", CTLFLAG_RW,
 			&vap->iv_ampdu_mintraffic[WME_AC_VO], 0,
 			"VO traffic tx aggr threshold (pps)");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 			"ampdu_mintraffic_vi", CTLFLAG_RW,
 			&vap->iv_ampdu_mintraffic[WME_AC_VI], 0,
 			"VI traffic tx aggr threshold (pps)");
