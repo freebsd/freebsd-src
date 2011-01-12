@@ -2706,7 +2706,7 @@ alc_int_task(void *arg, int pending)
 		}
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			alc_start_locked(ifp);
+			alc_start(ifp);
 	}
 
 	if (more == EAGAIN ||
