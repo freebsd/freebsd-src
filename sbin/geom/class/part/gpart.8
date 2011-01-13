@@ -422,8 +422,9 @@ about its use.
 .It Cm restore
 Restore the partition table from backup previously created by
 .Cm backup
-action and given from standard input. Only partition table
-may be restored. This action does not affect content of partitions.
+action and given from standard input.
+Only partition table may be restored.
+This action does not affect content of partitions.
 This mean that you should copy your data from backup after restoring
 partition table and write bootcode again if it is needed. 
 .Pp
@@ -703,20 +704,23 @@ action.
 .Sh RECOVERING
 The GEOM class PART supports recovering of partition tables only for GPT.
 The GUID partition table has a primary and secondary (backup) copy of
-metadata for redundance. They are stored in the begining and in the end
-of device respectively. Therefore it is acceptable to have some corruptions
-in the metadata that are not fatal to work with GPT. When kernel detects
-corrupt metadata it marks this table as corrupt and reports about corruption.
+metadata for redundance.
+They are stored in the begining and in the end of device respectively.
+Therefore it is acceptable to have some corruptions in the metadata that
+are not fatal to work with GPT.
+When kernel detects corrupt metadata it marks this table as corrupt and
+reports about corruption.
 Any changes in corrupt table are prohibited except
 .Cm destroy
 and
 .Cm recover . 
 .Pp
 In case when only first sector is corrupt kernel can not detect GPT even
-if partition table is not corrupt. You can write protective MBR with
+if partition table is not corrupt.
+You can write protective MBR with
 .Xr dd 1
-command to restore ability of GPT detection. The copy of protective MBR is
-usually located in the
+command to restore ability of GPT detection.
+The copy of protective MBR is usually located in the
 .Pa /boot/pmbr
 file.
 .Pp
@@ -743,25 +747,27 @@ and
 will report about corrupt table.
 .Pp
 In case when the size of device has changed (e.g. volume expansion) the 
-secondary GPT header will become located not in the last sector. This is 
-not a metadata corruption, but it is dangerous because any corruption of 
-the primary GPT will lead to lost of partition table. Kernel reports about 
-this problem with message:
+secondary GPT header will become located not in the last sector.
+This is not a metadata corruption, but it is dangerous because any
+corruption of the primary GPT will lead to lost of partition table.
+Kernel reports about this problem with message:
 .Bd -literal -offset indent
 GEOM: provider: the secondary GPT header is not in the last LBA.
 .Ed
 .Pp
 A corrupt table can be recovered with 
 .Cm gpart recover 
-command. This command does reconstruction of corrupt metadata using 
-known valid metadata. Also it can relocate secondary GPT to the end of 
-device.
+command.
+This command does reconstruction of corrupt metadata using 
+known valid metadata.
+Also it can relocate secondary GPT to the end of device.
 .Pp
 .Pa NOTE :
 The GEOM class PART can detect the same partition table on different GEOM 
-providers and some of them will be marked as corrupt. Be careful when choosing 
-a provider for recovering. If you choose incorrectly you can destroy the
-metadata of another GEOM class, e.g. GEOM MIRROR or GEOM LABEL.
+providers and some of them will be marked as corrupt.
+Be careful when choosing a provider for recovering.
+If you choose incorrectly you can destroy the metadata of another GEOM class,
+e.g. GEOM MIRROR or GEOM LABEL.
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
