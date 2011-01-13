@@ -138,10 +138,12 @@ mips_wr_ ## n (uint64_t a0)					\
 
 #if defined(__mips_n64)
 MIPS_RW64_COP0(excpc, MIPS_COP_0_EXC_PC);
-MIPS_RW64_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
-MIPS_RW64_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
 MIPS_RW64_COP0(entryhi, MIPS_COP_0_TLB_HI);
 MIPS_RW64_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
+#endif
+#if defined(__mips_n64) || defined(__mips_n32) /* PHYSADDR_64_BIT */
+MIPS_RW64_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
+MIPS_RW64_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
 #endif
 MIPS_RW64_COP0(xcontext, MIPS_COP_0_TLB_XCONTEXT);
 
@@ -221,10 +223,12 @@ MIPS_RW32_COP0(status, MIPS_COP_0_STATUS);
 
 /* XXX: Some of these registers are specific to MIPS32. */
 #if !defined(__mips_n64)
-MIPS_RW32_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
-MIPS_RW32_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
 MIPS_RW32_COP0(entryhi, MIPS_COP_0_TLB_HI);
 MIPS_RW32_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
+#endif
+#if !defined(__mips_n64) && !defined(__mips_n32) /* !PHYSADDR_64_BIT */
+MIPS_RW32_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
+MIPS_RW32_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
 #endif
 MIPS_RW32_COP0(prid, MIPS_COP_0_PRID);
 /* XXX 64-bit?  */

@@ -601,6 +601,7 @@ typedef	uint32_t	idmap_rid_t;
 #define	SYSCTL_UINT(...)
 #define	SYSCTL_ULONG(...)
 #define	SYSCTL_QUAD(...)
+#define	SYSCTL_UQUAD(...)
 #ifdef TUNABLE_INT
 #undef TUNABLE_INT
 #undef TUNABLE_ULONG

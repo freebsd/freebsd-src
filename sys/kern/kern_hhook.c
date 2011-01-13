@@ -156,8 +156,7 @@ hhook_add_hook(struct hhook_head *hhh, struct hookinfo *hki, uint32_t flags)
 	if (!error) {
 		STAILQ_INSERT_TAIL(&hhh->hhh_hooks, hhk, hhk_next);
 		hhh->hhh_nhooks++;
-	}
-	else
+	} else
 		free(hhk, M_HHOOK);
 
 	HHH_WUNLOCK(hhh);
@@ -332,7 +331,6 @@ hhook_head_deregister_lookup(int32_t hhook_type, int32_t hhook_id)
 	struct hhook_head *hhh;
 	int error;
 
-	error = 0;
 	hhh = hhook_head_get(hhook_type, hhook_id);
 	error = hhook_head_deregister(hhh);
 
@@ -356,13 +354,12 @@ hhook_head_get(int32_t hhook_type, int32_t hhook_id)
 	LIST_FOREACH(hhh, &V_hhook_head_list, hhh_next) {
 		if (hhh->hhh_type == hhook_type && hhh->hhh_id == hhook_id) {
 			refcount_acquire(&hhh->hhh_refcount);
-			HHHLIST_UNLOCK();
-			return (hhh);
+			break;
 		}
 	}
 	HHHLIST_UNLOCK();
 
-	return (NULL);
+	return (hhh);
 }
 
 void
@@ -383,11 +380,12 @@ hhook_head_is_virtualised(struct hhook_head *hhh)
 {
 	uint32_t ret;
 
-	if (hhh == NULL)
-		return (0);
+	ret = 0;
 
-	if (hhh->hhh_flags & HHH_ISINVNET)
-		ret = HHOOK_HEADISINVNET;
+	if (hhh != NULL) {
+		if (hhh->hhh_flags & HHH_ISINVNET)
+			ret = HHOOK_HEADISINVNET;
+	}
 
 	return (ret);
 }

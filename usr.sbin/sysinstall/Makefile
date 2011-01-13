@@ -18,12 +18,12 @@ CFLAGS+= -DUSE_GZIP=1
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
-CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
+CFLAGS+= -I${.CURDIR}/../../gnu/lib/libodialog -I.
 
 WARNS?=  2	
 
-DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
-LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
+DPADD=	${LIBODIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
+LDADD=	-lodialog -lncurses -lutil -ldisk -lftpio
 
 CLEANFILES=	makedevs.c rtermcap
 CLEANFILES+=	keymap.tmp keymap.h countries.tmp countries.h

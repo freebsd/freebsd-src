@@ -3044,6 +3044,20 @@ acpi_system_eventhandler_wakeup(void *arg, int state)
 /* 
  * ACPICA Event Handlers (FixedEvent, also called from button notify handler)
  */
+static void
+acpi_invoke_sleep_eventhandler(void *context)
+{
+
+    EVENTHANDLER_INVOKE(acpi_sleep_event, *(int *)context);
+}
+
+static void
+acpi_invoke_wake_eventhandler(void *context)
+{
+
+    EVENTHANDLER_INVOKE(acpi_wakeup_event, *(int *)context);
+}
+
 UINT32
 acpi_event_power_button_sleep(void *context)
 {
@@ -3051,8 +3065,9 @@ acpi_event_power_button_sleep(void *context)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_power_button_sx);
-
+    if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
+	acpi_invoke_sleep_eventhandler, &sc->acpi_power_button_sx)))
+	return_VALUE (ACPI_INTERRUPT_NOT_HANDLED);
     return_VALUE (ACPI_INTERRUPT_HANDLED);
 }
 
@@ -3063,8 +3078,9 @@ acpi_event_power_button_wake(void *context)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_power_button_sx);
-
+    if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
+	acpi_invoke_wake_eventhandler, &sc->acpi_power_button_sx)))
+	return_VALUE (ACPI_INTERRUPT_NOT_HANDLED);
     return_VALUE (ACPI_INTERRUPT_HANDLED);
 }
 
@@ -3075,8 +3091,9 @@ acpi_event_sleep_button_sleep(void *context)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_sleep_button_sx);
-
+    if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
+	acpi_invoke_sleep_eventhandler, &sc->acpi_sleep_button_sx)))
+	return_VALUE (ACPI_INTERRUPT_NOT_HANDLED);
     return_VALUE (ACPI_INTERRUPT_HANDLED);
 }
 
@@ -3087,8 +3104,9 @@ acpi_event_sleep_button_wake(void *context)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_sleep_button_sx);
-
+    if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
+	acpi_invoke_wake_eventhandler, &sc->acpi_sleep_button_sx)))
+	return_VALUE (ACPI_INTERRUPT_NOT_HANDLED);
     return_VALUE (ACPI_INTERRUPT_HANDLED);
 }
 

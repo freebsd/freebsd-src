@@ -191,37 +191,37 @@ static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
 SYSBEGIN(f2)
 
 SYSCTL_DECL(_net_inet_ip_fw);
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
     CTLFLAG_RW, &VNET_NAME(dyn_buckets), 0,
     "Number of dyn. buckets");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
     CTLFLAG_RD, &VNET_NAME(curr_dyn_buckets), 0,
     "Current Number of dyn. buckets");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_count,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_count,
     CTLFLAG_RD, &VNET_NAME(dyn_count), 0,
     "Number of dyn. rules");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_max,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_max,
     CTLFLAG_RW, &VNET_NAME(dyn_max), 0,
     "Max number of dyn. rules");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_ack_lifetime), 0,
     "Lifetime of dyn. rules for acks");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_syn_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_syn_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_syn_lifetime), 0,
     "Lifetime of dyn. rules for syn");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_fin_lifetime), 0,
     "Lifetime of dyn. rules for fin");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_rst_lifetime), 0,
     "Lifetime of dyn. rules for rst");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_udp_lifetime), 0,
     "Lifetime of dyn. rules for UDP");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_short_lifetime), 0,
     "Lifetime of dyn. rules for other situations");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
     CTLFLAG_RW, &VNET_NAME(dyn_keepalive), 0,
     "Enable keepalives for dyn. rules");
 

@@ -247,6 +247,9 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 
 		/* Pass it to any BPF listeners.  */
 		ETHER_BPF_MTAP(ifp, m);
+
+		ifp->if_opackets++;
+		ifp->if_obytes += m->m_pkthdr.len;
 	}
 
 	/* Free mbufs not in use by the hardware */

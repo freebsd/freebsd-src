@@ -371,19 +371,32 @@ setup_gjournal()
 # Function which sets the root password from the install config
 set_root_pw()
 {
+  # Get the plaintext string
   get_value_from_cfg_with_spaces rootPass
-  PW="${VAL}"
+  local PW="${VAL}"
+
+  # Get the encrypted string
+  get_value_from_cfg_with_spaces rootEncPass
+  local ENCPW="${VAL}"
 
   # If we don't have a root pass, return
-  if [ -z "${PW}" ]
-  then
-    return 0
-  fi
+  if [ -z "${PW}" -a -z "${ENCPW}" ] ; then return 0 ; fi
 
   echo_log "Setting root password"
-  echo "${PW}" > ${FSMNT}/.rootpw
-  run_chroot_cmd "cat /.rootpw | pw usermod root -h 0"
-  rc_halt "rm ${FSMNT}/.rootpw"
+
+  # Check if setting plaintext password
+  if [ ! -z "${PW}" ] ; then
+    echo "${PW}" > ${FSMNT}/.rootpw
+    run_chroot_cmd "cat /.rootpw | pw usermod root -h 0"
+    rc_halt "rm ${FSMNT}/.rootpw"
+  fi
+
+  # Check if setting encrypted password
+  if [ ! -z "${ENCPW}" ] ; then
+    echo "${ENCPW}" > ${FSMNT}/.rootpw
+    run_chroot_cmd "cat /.rootpw | pw usermod root -H 0"
+    rc_halt "rm ${FSMNT}/.rootpw"
+  fi
 
 };
 

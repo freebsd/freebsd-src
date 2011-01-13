@@ -5,6 +5,7 @@
 #
 # universe            - *Really* build *everything* (buildworld and
 #                       all kernels on all architectures).
+# tinderbox           - Same as universe, but stop on first failure.
 # buildworld          - Rebuild *everything*, including glue to help do
 #                       upgrades.
 # installworld        - Install everything built by "buildworld".
@@ -35,10 +36,12 @@
 # tree. This makefile executes a child make process, forcing it to use
 # the mk files from the source tree which are supposed to DTRT.
 #
-# The user-driven targets (as listed above) are implemented in Makefile.inc1.
+# Most of the user-driven targets (as listed above) are implemented in
+# Makefile.inc1.  The exceptions are universe, tinderbox and targets.
 #
 # If you want to build your system from source be sure that /usr/obj has
-# at least 800MB of diskspace available.
+# at least 1GB of diskspace available.  A complete 'universe' build requires
+# about 15GB of space.
 #
 # For individuals wanting to build from the sources currently on their
 # system, the simple instructions are:

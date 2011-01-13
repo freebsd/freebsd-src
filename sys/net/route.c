@@ -68,7 +68,7 @@
 #include <vm/uma.h>
 
 u_int rt_numfibs = RT_NUMFIBS;
-SYSCTL_INT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
+SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
 /*
  * Allow the boot code to allow LESS than RT_MAXFIBS to be used.
  * We can't do more because storage is statically allocated for now.
@@ -84,7 +84,7 @@ TUNABLE_INT("net.fibs", &rt_numfibs);
  * a more fine grained solution.. that will come.
  */
 u_int rt_add_addr_allfibs = 1;
-SYSCTL_INT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
+SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
     &rt_add_addr_allfibs, 0, "");
 TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 

@@ -511,12 +511,12 @@ void	kmod_tcpstat_inc(int statnum);
 #define	HHOOK_TCP_LAST			HHOOK_TCP_EST_OUT
 
 struct tcp_hhook_data {
-	struct tcpcb *tp;
-	struct tcphdr *th;
-	struct tcpopt *to;
-	long len;
-	int tso;
-	tcp_seq  curack;
+	struct tcpcb	*tp;
+	struct tcphdr	*th;
+	struct tcpopt	*to;
+	long		len;
+	int		tso;
+	tcp_seq		curack;
 };
 #endif
 
@@ -625,7 +625,7 @@ VNET_DECLARE(int, tcp_ecn_maxretries);
 #define	V_tcp_do_ecn		VNET(tcp_do_ecn)
 #define	V_tcp_ecn_maxretries	VNET(tcp_ecn_maxretries)
 
-VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
+VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST + 1]);
 #define	V_tcp_hhh		VNET(tcp_hhh)
 
 int	 tcp_addoptions(struct tcpopt *, u_char *);

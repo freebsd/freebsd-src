@@ -14211,13 +14211,13 @@ bwn_sysctl_node(struct bwn_softc *sc)
 		return;
 	stats = &mac->mac_stats;
 
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "linknoise", CTLFLAG_RW, &stats->rts, 0, "Noise level");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "rts", CTLFLAG_RW, &stats->rts, 0, "RTS");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "rtsfail", CTLFLAG_RW, &stats->rtsfail, 0, "RTS failed to send");
 

@@ -146,7 +146,6 @@
 #define DFLSSIZ         (2*1024*1024)
 #define MAXSSIZ         (8*1024*1024)
 #define SGROWSIZ        (128*1024)
-#define MAXSLP		20
 
 #ifdef ARM_USE_SMALL_ALLOC
 #define UMA_MD_SMALL_ALLOC

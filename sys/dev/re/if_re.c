@@ -1460,8 +1460,8 @@ re_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
 	ifp->if_start = re_start;
-	ifp->if_hwassist = RE_CSUM_FEATURES;
-	ifp->if_capabilities = IFCAP_HWCSUM;
+	ifp->if_hwassist = RE_CSUM_FEATURES | CSUM_TSO;
+	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
@@ -1470,16 +1470,6 @@ re_attach(device_t dev)
 
 	TASK_INIT(&sc->rl_txtask, 1, re_tx_task, ifp);
 	TASK_INIT(&sc->rl_inttask, 0, re_int_task, sc);
-
-	/*
-	 * XXX
-	 * Still have no idea how to make TSO work on 8168C, 8168CP,
-	 * 8111C and 8111CP.
-	 */
-	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
-		ifp->if_hwassist |= CSUM_TSO;
-		ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
-	}
 
 	/*
 	 * Call MI attach routine.
@@ -1495,12 +1485,14 @@ re_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 	/*
-	 * Don't enable TSO by default. Under certain
-	 * circumtances the controller generated corrupted
+	 * Don't enable TSO by default for old controllers. Under
+	 * certain circumtances the controller generated corrupted
 	 * packets in TSO size.
 	 */
-	ifp->if_hwassist &= ~CSUM_TSO;
-	ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
+	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
+		ifp->if_hwassist &= ~CSUM_TSO;
+		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
+	}
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -2413,11 +2405,17 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 	 */
 	vlanctl = 0;
 	csum_flags = 0;
-	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0)
-		csum_flags = RL_TDESC_CMD_LGSEND |
-		    ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
-		    RL_TDESC_CMD_MSSVAL_SHIFT);
-	else {
+	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		if ((sc->rl_flags & RL_FLAG_DESCV2) != 0) {
+			csum_flags |= RL_TDESC_CMD_LGSEND;
+			vlanctl |= ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
+			    RL_TDESC_CMD_MSSVALV2_SHIFT);
+		} else {
+			csum_flags |= RL_TDESC_CMD_LGSEND |
+			    ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
+			    RL_TDESC_CMD_MSSVAL_SHIFT);
+		}
+	} else {
 		/*
 		 * Unconditionally enable IP checksum if TCP or UDP
 		 * checksum is required. Otherwise, TCP/UDP checksum
@@ -2779,8 +2777,13 @@ re_init_locked(struct rl_softc *sc)
 	 * For 8169 gigE NICs, set the max allowed RX packet
 	 * size so we can receive jumbo frames.
 	 */
-	if (sc->rl_type == RL_8169)
-		CSR_WRITE_2(sc, RL_MAXRXPKTLEN, 16383);
+	if (sc->rl_type == RL_8169) {
+		if ((sc->rl_flags & (RL_FLAG_PCIE | RL_FLAG_NOJUMBO)) ==
+		    (RL_FLAG_PCIE | RL_FLAG_NOJUMBO))
+			CSR_WRITE_2(sc, RL_MAXRXPKTLEN, RE_RX_DESC_BUFLEN);
+		else
+			CSR_WRITE_2(sc, RL_MAXRXPKTLEN, 16383);
+	}
 
 	if (sc->rl_testmode)
 		return;
@@ -3280,6 +3283,10 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	if (result == 1) {
 		sc = (struct rl_softc *)arg1;
 		RL_LOCK(sc);
+		if ((sc->rl_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+			RL_UNLOCK(sc);
+			goto done;
+		}
 		bus_dmamap_sync(sc->rl_ldata.rl_stag,
 		    sc->rl_ldata.rl_smap, BUS_DMASYNC_PREREAD);
 		CSR_WRITE_4(sc, RL_DUMPSTATS_HI,
@@ -3303,6 +3310,7 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 			    "DUMP statistics request timedout\n");
 			return (ETIMEDOUT);
 		}
+done:
 		stats = sc->rl_ldata.rl_stats;
 		printf("%s statistics:\n", device_get_nameunit(sc->rl_dev));
 		printf("Tx frames : %ju\n",

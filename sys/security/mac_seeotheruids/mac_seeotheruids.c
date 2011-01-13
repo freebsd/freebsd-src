@@ -98,7 +98,7 @@ SYSCTL_INT(_security_mac_seeotheruids, OID_AUTO, specificgid_enabled,
     "with a specific gid as their real primary group id or group set");
 
 static gid_t	specificgid = 0;
-SYSCTL_INT(_security_mac_seeotheruids, OID_AUTO, specificgid, CTLFLAG_RW,
+SYSCTL_UINT(_security_mac_seeotheruids, OID_AUTO, specificgid, CTLFLAG_RW,
     &specificgid, 0, "Specific gid to be exempt from seeotheruids policy");
 
 static int

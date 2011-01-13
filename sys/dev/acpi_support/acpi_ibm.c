@@ -367,7 +367,7 @@ acpi_ibm_attach(device_t dev)
 	    IBM_NAME_EVENTS_MASK_GET, &sc->events_initialmask));
 
 	if (sc->events_mask_supported) {
-		SYSCTL_ADD_INT(sc->sysctl_ctx,
+		SYSCTL_ADD_UINT(sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    "initialmask", CTLFLAG_RD,
 		    &sc->events_initialmask, 0, "Initial eventmask");
@@ -377,7 +377,7 @@ acpi_ibm_attach(device_t dev)
 		    IBM_NAME_EVENTS_AVAILMASK, &sc->events_availmask)))
 			sc->events_availmask = 0xffffffff;
 
-		SYSCTL_ADD_INT(sc->sysctl_ctx,
+		SYSCTL_ADD_UINT(sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    "availmask", CTLFLAG_RD,
 		    &sc->events_availmask, 0, "Mask of supported events");

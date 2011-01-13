@@ -531,6 +531,21 @@ in_arpinput(struct mbuf *m)
 	}
 
 	ah = mtod(m, struct arphdr *);
+	/* 
+	 * ARP is only for IPv4 so we can reject packets with
+	 * a protocol length not equal to an IPv4 address.
+	 */
+	if (ah->ar_pln != sizeof(struct in_addr)) {
+		log(LOG_ERR, "in_arp: requested protocol length != %zu\n",
+		    sizeof(struct in_addr));
+		return;
+	}
+
+	if (ETHER_IS_MULTICAST(ar_sha(ah))) {
+		log(LOG_ERR, "in_arp: source hardware address is multicast.");
+		return;
+	}
+
 	op = ntohs(ah->ar_op);
 	(void)memcpy(&isaddr, ar_spa(ah), sizeof (isaddr));
 	(void)memcpy(&itaddr, ar_tpa(ah), sizeof (itaddr));
@@ -702,7 +717,7 @@ match:
 			    "arp from %*D: addr len: new %d, i/f %d (ignored)",
 			    ifp->if_addrlen, (u_char *) ar_sha(ah), ":",
 			    ah->ar_hln, ifp->if_addrlen);
-			goto reply;
+			goto drop;
 		}
 		(void)memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
 		la->la_flags |= LLE_VALID;

@@ -91,6 +91,7 @@
 #define	RESTORE_U_PCB_CONTEXT(reg, offs, base) \
 	REG_L	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
 
+
 /*
  * Setup for and return to user.
  */
@@ -284,8 +285,8 @@ blocked_loop:
 	PTR_LI	s0, MIPS_KSEG2_START		# If Uarea addr is below kseg2,
 #endif
 	bltu	v0, s0, sw2			# no need to insert in TLB.
-	lw	a1, TD_UPTE + 0(s7)		# a1 = u. pte #0
-	lw	a2, TD_UPTE + 4(s7)		# a2 = u. pte #1
+	PTE_L	a1, TD_UPTE + 0(s7)		# a1 = u. pte #0
+	PTE_L	a2, TD_UPTE + PTESIZE(s7)	# a2 = u. pte #1
 /*
  * Wiredown the USPACE of newproc in TLB entry#0.  Check whether target
  * USPACE is already in another place of TLB before that, and if so
@@ -306,8 +307,8 @@ blocked_loop:
 	sll	s0, PAGE_SHIFT + 1
 	addu	t1, s0
 	MTC0	t1, MIPS_COP_0_TLB_HI
-	mtc0	zero, MIPS_COP_0_TLB_LO0
-	mtc0	zero, MIPS_COP_0_TLB_LO1
+	PTE_MTC0	zero, MIPS_COP_0_TLB_LO0
+	PTE_MTC0	zero, MIPS_COP_0_TLB_LO1
 	HAZARD_DELAY
 	tlbwi
 	HAZARD_DELAY
@@ -317,9 +318,9 @@ entry0set:
 /* SMP!! - Works only for  unshared TLB case - i.e. no v-cpus */
 	mtc0	zero, MIPS_COP_0_TLB_INDEX		# TLB entry #0
 	HAZARD_DELAY
-	mtc0	a1, MIPS_COP_0_TLB_LO0		# upte[0]
+	PTE_MTC0	a1, MIPS_COP_0_TLB_LO0		# upte[0]
 	HAZARD_DELAY
-	mtc0	a2, MIPS_COP_0_TLB_LO1		# upte[1]
+	PTE_MTC0	a2, MIPS_COP_0_TLB_LO1		# upte[1]
 	HAZARD_DELAY
 	tlbwi					# set TLB entry #0
 	HAZARD_DELAY
