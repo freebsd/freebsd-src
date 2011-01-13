@@ -780,8 +780,6 @@ lapic_handle_intr(int vector, struct trapframe *frame)
 {
 	struct intsrc *isrc;
 
-	if (vector == -1)
-		panic("Couldn't get vector from ISR!");
 	isrc = intr_lookup_source(apic_idt_to_irq(PCPU_GET(apic_id),
 	    vector));
 	intr_execute_handlers(isrc, frame);
