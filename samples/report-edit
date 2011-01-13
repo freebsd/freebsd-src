@@ -1,0 +1,22 @@
+# $Id: report-edit,v 1.3 2010/01/13 09:59:43 tom Exp $
+# Report results from editing.
+# vile:shmode
+
+case $retval in
+  $DIALOG_OK)
+    diff -c $input $output
+    echo "OK"
+    ;;
+  $DIALOG_CANCEL)
+    echo "Cancel pressed";;
+  $DIALOG_HELP)
+    echo "Help pressed";;
+  $DIALOG_EXTRA)
+    echo "Extra pressed";;
+  $DIALOG_ITEM_HELP)
+    echo "Item-help button pressed.";;
+  $DIALOG_ERROR)
+    echo "ERROR!";;
+  $DIALOG_ESC)
+    echo "ESC pressed.";;
+esac
