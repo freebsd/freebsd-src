@@ -1127,9 +1127,9 @@ dasysctlinit(void *context, int pending)
 		struct ccb_trans_settings_fc *fc = &cts.xport_specific.fc;
 		if (fc->valid & CTS_FC_VALID_WWPN) {
 			softc->wwpn = fc->wwpn;
-			SYSCTL_ADD_XLONG(&softc->sysctl_ctx,
+			SYSCTL_ADD_X64(&softc->sysctl_ctx,
 			    SYSCTL_CHILDREN(softc->sysctl_tree),
-			    OID_AUTO, "wwpn", CTLTYPE_QUAD | CTLFLAG_RD,
+			    OID_AUTO, "wwpn", CTLFLAG_RD,
 			    &softc->wwpn, "World Wide Port Name");
 		}
 	}
