@@ -245,6 +245,8 @@ SYSCTL_ALLOWED_TYPES(ULONG, unsigned long *a; );
 SYSCTL_ALLOWED_TYPES(XLONG, unsigned long *a; long *b; );
 SYSCTL_ALLOWED_TYPES(INT64, int64_t *a; long long *b; );
 SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
+SYSCTL_ALLOWED_TYPES(XINT64, uint64_t *a; int64_t *b;
+    unsigned long long *c; long long *d; );
 
 #ifdef notyet
 #define	SYSCTL_ADD_ASSERT_TYPE(type, ptr)	\
@@ -389,7 +391,6 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 	    SYSCTL_ADD_ASSERT_TYPE(INT64, ptr), 0,			\
 	    sysctl_handle_quad,	"Q", __DESCR(descr))
 
-/* Oid for a quad.  The pointer must be non NULL. */
 #define	SYSCTL_UQUAD(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_ASSERT_TYPE(UINT64, ptr, parent, name);			\
 	SYSCTL_OID(parent, nbr, name,					\
@@ -401,6 +402,18 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 	    CTLTYPE_QUAD | CTLFLAG_MPSAFE | (access),			\
 	    SYSCTL_ADD_ASSERT_TYPE(UINT64, ptr), 0,			\
 	    sysctl_handle_quad,	"QU", __DESCR(descr))
+
+#define	SYSCTL_X64(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_ASSERT_TYPE(XINT64, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_QUAD | CTLFLAG_MPSAFE | (access),	\
+	    ptr, val, sysctl_handle_quad, "QX", descr)
+
+#define	SYSCTL_ADD_X64(ctx, parent, nbr, name, access, ptr, descr)	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_QUAD | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(XINT64, ptr), 0,			\
+	    sysctl_handle_quad,	"QX", __DESCR(descr))
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
