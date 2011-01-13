@@ -1663,15 +1663,19 @@ re_detach(device_t dev)
 	/* Destroy all the RX and TX buffer maps */
 
 	if (sc->rl_ldata.rl_tx_mtag) {
-		for (i = 0; i < sc->rl_ldata.rl_tx_desc_cnt; i++)
-			bus_dmamap_destroy(sc->rl_ldata.rl_tx_mtag,
-			    sc->rl_ldata.rl_tx_desc[i].tx_dmamap);
+		for (i = 0; i < sc->rl_ldata.rl_tx_desc_cnt; i++) {
+			if (sc->rl_ldata.rl_tx_desc[i].tx_dmamap)
+				bus_dmamap_destroy(sc->rl_ldata.rl_tx_mtag,
+				    sc->rl_ldata.rl_tx_desc[i].tx_dmamap);
+		}
 		bus_dma_tag_destroy(sc->rl_ldata.rl_tx_mtag);
 	}
 	if (sc->rl_ldata.rl_rx_mtag) {
-		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++)
-			bus_dmamap_destroy(sc->rl_ldata.rl_rx_mtag,
-			    sc->rl_ldata.rl_rx_desc[i].rx_dmamap);
+		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
+			if (sc->rl_ldata.rl_rx_desc[i].rx_dmamap)
+				bus_dmamap_destroy(sc->rl_ldata.rl_rx_mtag,
+				    sc->rl_ldata.rl_rx_desc[i].rx_dmamap);
+		}
 		if (sc->rl_ldata.rl_rx_sparemap)
 			bus_dmamap_destroy(sc->rl_ldata.rl_rx_mtag,
 			    sc->rl_ldata.rl_rx_sparemap);
