@@ -1258,11 +1258,6 @@ re_attach(device_t dev)
 		CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 	}
 
-	/* Reset the adapter. */
-	RL_LOCK(sc);
-	re_reset(sc);
-	RL_UNLOCK(sc);
-
 	hw_rev = re_hwrevs;
 	hwrev = CSR_READ_4(sc, RL_TXCFG);
 	switch (hwrev & 0x70000000) {
@@ -1365,6 +1360,11 @@ re_attach(device_t dev)
 	default:
 		break;
 	}
+
+	/* Reset the adapter. */
+	RL_LOCK(sc);
+	re_reset(sc);
+	RL_UNLOCK(sc);
 
 	/* Enable PME. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
