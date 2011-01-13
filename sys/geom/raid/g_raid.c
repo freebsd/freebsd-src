@@ -159,10 +159,6 @@ g_raid_subdisk_state2str(int state)
 		return ("STALE");
 	case G_RAID_SUBDISK_S_SYNCHRONIZING:
 		return ("SYNCHRONIZING");
-	case G_RAID_SUBDISK_S_DISCONNECTED:
-		return ("DISCONNECTED");
-	case G_RAID_SUBDISK_S_DESTROY:
-		return ("DESTROY");
 	default:
 		return ("INVALID");
 	}

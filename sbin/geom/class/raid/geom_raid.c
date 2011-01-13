@@ -59,6 +59,12 @@ struct g_command class_commands[] = {
 	    },
 	    "[-S size] [-s stripsize] format name level prov ..."
 	},
+	{ "insert", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] name prov"
+	},
+	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] name prov"
+	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },

@@ -426,6 +426,26 @@ intel_meta_write(struct g_consumer *cp, struct intel_raid_conf *meta)
 	return (error);
 }
 
+static int
+intel_meta_erase(struct g_consumer *cp)
+{
+	struct g_provider *pp;
+	char *buf;
+	int error;
+
+	pp = cp->provider;
+	buf = malloc(pp->sectorsize, M_MD_INTEL, M_WAITOK | M_ZERO);
+	error = g_write_data(cp,
+	    pp->mediasize - 2 * pp->sectorsize,
+	    buf, pp->sectorsize);
+	if (error != 0) {
+		G_RAID_DEBUG(1, "Cannot erase metadata on %s (error=%d).",
+		    pp->name, error);
+	}
+	free(buf, M_MD_INTEL);
+	return (error);
+}
+
 static struct g_raid_disk *
 g_raid_md_intel_get_disk(struct g_raid_softc *sc, int id)
 {
@@ -881,6 +901,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 	mdi = (struct g_raid_md_intel_object *)md;
 	verb = gctl_get_param(req, "verb", NULL);
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	error = 0;
 	if (strcmp(verb, "label") == 0) {
 
 		if (*nargs < 4) {
@@ -911,7 +932,6 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 
 		/* Search for disks, connect them and probe. */
 		numdisks = *nargs - 3;
-		error = 0;
 		size = 0xffffffffffffffffllu;
 		sectorsize = 0;
 		for (i = 0; i < numdisks; i++) {
@@ -1050,6 +1070,69 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		g_raid_md_write_intel(md);
 		return (0);
 	}
+	if (strcmp(verb, "remove") == 0) {
+		if (*nargs < 2) {
+			gctl_error(req, "Invalid number of arguments.");
+			return (-1);
+		}
+		for (i = 1; i < *nargs; i++) {
+			snprintf(arg, sizeof(arg), "arg%d", i);
+			diskname = gctl_get_asciiparam(req, arg);
+			if (diskname == NULL) {
+				gctl_error(req, "No disk name (%s).", arg);
+				error = -2;
+				break;
+			}
+			if (strncmp(diskname, "/dev/", 5) == 0)
+				diskname += 5;
+
+			LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+				if (disk->d_consumer != NULL && 
+				    disk->d_consumer->provider != NULL &&
+				    strcmp(disk->d_consumer->provider->name,
+				     diskname) == 0)
+					break;
+			}
+			if (disk == NULL) {
+				gctl_error(req, "Disk '%s' not found.",
+				    diskname);
+				error = -3;
+				break;
+			}
+			pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
+
+			/* Erase metadata on deleting disk. */
+			intel_meta_erase(disk->d_consumer);
+
+			/* If disk was assigned, just update statuses. */
+			if (pd->pd_disk_pos >= 0) {
+				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+				if (disk->d_consumer) {
+					g_topology_lock();
+					g_raid_kill_consumer(sc, disk->d_consumer);
+					g_topology_unlock();
+					disk->d_consumer = NULL;
+				}
+				LIST_FOREACH(sd, &disk->d_subdisks, sd_next) {
+					g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
+					    G_RAID_EVENT_SUBDISK);
+				}
+			} else {
+				/* Otherwise -- delete. */
+				g_raid_change_disk_state(disk, G_RAID_DISK_S_NONE);
+				g_raid_destroy_disk(disk);
+			}
+		}
+
+		/* Write updated metadata to remaining disks. */
+		g_raid_md_write_intel(md);
+
+		/* Check if anything left. */
+		if (g_raid_ndisks(sc, G_RAID_DISK_S_NONE) == 0 &&
+		    g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) == 0)
+			g_raid_destroy_node(sc, 0);
+		return (error);
+	}
 	return (-100);
 }
 
@@ -1067,7 +1150,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 	struct intel_raid_map *mmap;
 	off_t sectorsize = 512;
 	const char *version, *cv;
-	int i, vi, sdi, numdisks;
+	int vi, sdi, numdisks, len;
 
 	sc = md->mdo_softc;
 	mdi = (struct g_raid_md_intel_object *)md;
@@ -1077,12 +1160,25 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 
 	/* Count number of disks. */
 	numdisks = 0;
-	i = 0;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
-		if (pd->pd_disk_pos >= 0) {
-			numdisks++;
-			pd->pd_disk_pos = i++;
+		if (pd->pd_disk_pos < 0)
+			continue;
+		numdisks++;
+		if (disk->d_state == G_RAID_DISK_S_ACTIVE) {
+			pd->pd_disk_meta.flags |= INTEL_F_ASSIGNED;
+			pd->pd_disk_meta.flags |= INTEL_F_ONLINE;
+		} else if (disk->d_state == G_RAID_DISK_S_FAILED) {
+			pd->pd_disk_meta.flags &= ~INTEL_F_ASSIGNED;
+			pd->pd_disk_meta.flags |= INTEL_F_DOWN;
+		} else {
+			pd->pd_disk_meta.flags &= ~INTEL_F_ONLINE;
+			if (pd->pd_disk_meta.id != 0xffffffff) {
+				pd->pd_disk_meta.id = 0xffffffff;
+				len = strlen(pd->pd_disk_meta.serial);
+				len = min(len, INTEL_SERIAL_LEN - 3);
+				strcpy(pd->pd_disk_meta.serial + len, ":0");
+			}
 		}
 	}
 
@@ -1097,7 +1193,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 	meta->total_disks = numdisks;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
-		if ((pd->pd_disk_meta.flags & INTEL_F_ASSIGNED) == 0)
+		if (pd->pd_disk_pos < 0)
 			continue;
 		meta->disk[pd->pd_disk_pos] = pd->pd_disk_meta;
 	}
@@ -1170,13 +1266,18 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 			mmap->total_domains = vol->v_disks_count;
 		else
 			mmap->total_domains = 1;
-		mmap->failed_disk_num = ~0;
+		mmap->failed_disk_num = 0xff;
 		mmap->ddf = 1;
 		for (sdi = 0; sdi < vol->v_disks_count; sdi++) {
 			sd = &vol->v_subdisks[sdi];
 			pd = (struct g_raid_md_intel_perdisk *)
 			    sd->sd_disk->d_md_data;
 			mmap->disk_idx[sdi] = pd->pd_disk_pos;
+//			if (sd->sd_state == G_RAID_SUBDISK_S_NONE) {
+//				mmap->disk_idx[sdi] |= INTEL_DI_RBLD;
+//				if (mmap->failed_disk_num == 0xff)
+//					mmap->failed_disk_num = sdi;
+//			}
 		}
 		vi++;
 	}
@@ -1192,6 +1293,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 	mdi->mdio_meta = meta;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
+		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
+			continue;
 		if (pd->pd_meta != NULL) {
 			free(pd->pd_meta, M_MD_INTEL);
 			pd->pd_meta = NULL;
