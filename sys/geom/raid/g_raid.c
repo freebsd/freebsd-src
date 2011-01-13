@@ -667,7 +667,7 @@ g_raid_idle(struct g_raid_volume *vol, int acw)
 			continue;
 		G_RAID_DEBUG(1, "Disk %s (device %s) marked as clean.",
 		    g_raid_get_diskname(disk), sc->sc_name);
-		disk->d_flags &= ~G_RAID_DISK_FLAG_DIRTY;
+//		disk->d_flags &= ~G_RAID_DISK_FLAG_DIRTY;
 //		g_raid_update_metadata(disk);
 	}
 	return (0);
@@ -693,7 +693,7 @@ g_raid_unidle(struct g_raid_volume *vol)
 			continue;
 		G_RAID_DEBUG(1, "Disk %s (device %s) marked as dirty.",
 		    g_raid_get_diskname(disk), sc->sc_name);
-		disk->d_flags |= G_RAID_DISK_FLAG_DIRTY;
+//		disk->d_flags |= G_RAID_DISK_FLAG_DIRTY;
 //		g_raid_update_metadata(disk);
 	}
 }
@@ -1672,6 +1672,8 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
+	struct g_raid_subdisk *sd;
+	struct g_raid_disk *disk;
 	int s;
 
 	g_topology_assert();
@@ -1700,38 +1702,24 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sx_xunlock(&sc->sc_lock);
 		g_topology_lock();
 	} else if (cp != NULL) {
-		struct g_raid_disk *disk;
-
 		disk = cp->private;
 		if (disk == NULL)
 			return;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
-		sbuf_printf(sb, "%s<Flags>", indent);
-		if (disk->d_flags == 0)
-			sbuf_printf(sb, "NONE");
-		else {
-			int first = 1;
-
-#define	ADD_FLAG(flag, name)	do {					\
-	if ((disk->d_flags & (flag)) != 0) {				\
-		if (!first)						\
-			sbuf_printf(sb, ", ");				\
-		else							\
-			first = 0;					\
-		sbuf_printf(sb, name);					\
-	}								\
-} while (0)
-			ADD_FLAG(G_RAID_DISK_FLAG_DIRTY, "DIRTY");
-			ADD_FLAG(G_RAID_DISK_FLAG_INACTIVE, "INACTIVE");
-			ADD_FLAG(G_RAID_DISK_FLAG_SYNCHRONIZING,
-			    "SYNCHRONIZING");
-			ADD_FLAG(G_RAID_DISK_FLAG_FORCE_SYNC, "FORCE_SYNC");
-#undef	ADD_FLAG
-		}
-		sbuf_printf(sb, "</Flags>\n");
-		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
+		sbuf_printf(sb, "%s<State>%s", indent,
 		    g_raid_disk_state2str(disk->d_state));
+		if (!LIST_EMPTY(&disk->d_subdisks)) {
+			sbuf_printf(sb, " (");
+			LIST_FOREACH(sd, &disk->d_subdisks, sd_next) {
+				sbuf_printf(sb, "%s",
+				    g_raid_subdisk_state2str(sd->sd_state));
+				if (LIST_NEXT(sd, sd_next))
+					sbuf_printf(sb, ", ");
+			}
+			sbuf_printf(sb, ")");
+		}
+		sbuf_printf(sb, "</State>\n");
 		sx_xunlock(&sc->sc_lock);
 		g_topology_lock();
 	} else {
