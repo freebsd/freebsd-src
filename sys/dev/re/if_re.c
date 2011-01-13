@@ -2622,6 +2622,16 @@ re_init_locked(struct rl_softc *sc)
 	re_reset(sc);
 
 	/*
+	 * For C+ mode, initialize the RX descriptors and mbufs.
+	 */
+	if (re_rx_list_init(sc) != 0) {
+		device_printf(sc->rl_dev, "no memory for RX buffers\n");
+		re_stop(sc);
+		return;
+	}
+	re_tx_list_init(sc);
+
+	/*
 	 * Enable C+ RX and TX mode, as well as VLAN stripping and
 	 * RX checksum offload. We must configure the C+ register
 	 * before all others.
@@ -2671,12 +2681,6 @@ re_init_locked(struct rl_softc *sc)
 	CSR_WRITE_4(sc, RL_IDR4,
 	    htole32(*(u_int32_t *)(&eaddr.eaddr[4])));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
-
-	/*
-	 * For C+ mode, initialize the RX descriptors and mbufs.
-	 */
-	re_rx_list_init(sc);
-	re_tx_list_init(sc);
 
 	/*
 	 * Load the addresses of the RX and TX lists into the chip.
