@@ -50,7 +50,7 @@ TUNABLE_INT("vfs.zfs.txg.synctime", &zfs_txg_synctime);
 SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, synctime, CTLFLAG_RDTUN, &zfs_txg_synctime,
     0, "Target seconds to sync a txg");
 TUNABLE_QUAD("vfs.zfs.txg.write_limit_override", &zfs_write_limit_override);
-SYSCTL_QUAD(_vfs_zfs_txg, OID_AUTO, write_limit_override, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs_txg, OID_AUTO, write_limit_override, CTLFLAG_RW,
     &zfs_write_limit_override, 0,
     "Override maximum size of a txg to this size in bytes, "
     "value of 0 means don't override");
