@@ -66,28 +66,13 @@
 
 #include "assym.s"
 
-/*
- * Clear the software-managed bits in a PTE in register pr.
- */
-#define	CLEAR_PTE_SWBITS(pr)							\
-	sll		pr, 2 ;							\
-	srl		pr, 2			# keep bottom 30 bits
-
-	.set	noreorder			# Noreorder is default style!
+	.set	noreorder		# Noreorder is default style!
 
 /*
  * Reasonable limit
  */
 #define	INTRCNT_COUNT	128
 
-/* Pointer size and mask for n64 */
-#if defined(__mips_n64)
-#define	PTRSHIFT	3
-#define	PTRMASK		0xff8
-#else
-#define	PTRSHIFT	2
-#define	PTRMASK		0xffc
-#endif
 
 /*
  *----------------------------------------------------------------------------
@@ -131,7 +116,7 @@ MipsDoTLBMiss:
 	GET_CPU_PCPU(k1)
 	PTR_L		k1, PC_SEGBASE(k1)
 	beqz		k1, 2f				#05: make sure segbase is not null
-	andi		k0, k0, PTRMASK			#06: k0=seg offset
+	andi		k0, k0, PDEPTRMASK		#06: k0=seg offset
 	PTR_ADDU	k1, k0, k1			#07: k1=seg entry address
 
 	PTR_L		k1, 0(k1)			#08: k1=seg entry
@@ -139,22 +124,22 @@ MipsDoTLBMiss:
 	beq		k1, zero, 2f			#0a: ==0 -- no page table
 #ifdef __mips_n64
 	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=VPN
-	andi		k0, k0, PTRMASK			# k0=pde offset
+	andi		k0, k0, PDEPTRMASK		# k0=pde offset
 	PTR_ADDU	k1, k0, k1			# k1=pde entry address
 	PTR_L		k1, 0(k1)			# k1=pde entry
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
 	beq		k1, zero, 2f			# ==0 -- no page table
 #endif
-	PTR_SRL		k0, PAGE_SHIFT - 2		#0b: k0=VPN (aka va>>10)
-	andi		k0, k0, 0xff8			#0c: k0=page tab offset
+	PTR_SRL		k0, PAGE_SHIFT - PTESHIFT	#0b: k0=VPN (aka va>>10)
+	andi		k0, k0, PTE2MASK		#0c: k0=page tab offset
 	PTR_ADDU	k1, k1, k0			#0d: k1=pte address
-	lw		k0, 0(k1)			#0e: k0=lo0 pte
-	lw		k1, 4(k1)			#0f: k1=lo0 pte
+	PTE_L		k0, 0(k1)			#0e: k0=lo0 pte
+	PTE_L		k1, PTESIZE(k1)			#0f: k1=lo0 pte
 	CLEAR_PTE_SWBITS(k0)
-	MTC0		k0, MIPS_COP_0_TLB_LO0		#12: lo0 is loaded
+	PTE_MTC0	k0, MIPS_COP_0_TLB_LO0		#12: lo0 is loaded
 	COP0_SYNC
 	CLEAR_PTE_SWBITS(k1)
-	MTC0		k1, MIPS_COP_0_TLB_LO1		#15: lo1 is loaded
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1		#15: lo1 is loaded
 	COP0_SYNC
 	tlbwr						#1a: write to tlb
 	HAZARD_DELAY
@@ -824,7 +809,7 @@ NLEAF(MipsTLBInvalidException)
 
 	PTR_SRL		k0, SEGSHIFT - PTRSHIFT		# k0=seg offset (almost)
 	beq		k1, zero, MipsKernGenException	# ==0 -- no seg tab
-	andi		k0, k0, PTRMASK			# k0=seg offset
+	andi		k0, k0, PDEPTRMASK		#06: k0=seg offset
 	PTR_ADDU	k1, k0, k1			# k1=seg entry address
 	PTR_L		k1, 0(k1)			# k1=seg entry
 
@@ -836,7 +821,7 @@ NLEAF(MipsTLBInvalidException)
 	MFC0		k0, MIPS_COP_0_BAD_VADDR
 	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=pde offset (almost)
 	beq		k1, zero, MipsKernGenException	# ==0 -- no pde tab
-	andi		k0, k0, PTRMASK			# k0=pde offset
+	andi		k0, k0, PDEPTRMASK		# k0=pde offset
 	PTR_ADDU	k1, k0, k1			# k1=pde entry address
 	PTR_L		k1, 0(k1)			# k1=pde entry
 
@@ -845,10 +830,10 @@ NLEAF(MipsTLBInvalidException)
 	nop
 #endif
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
-	PTR_SRL		k0, PAGE_SHIFT - 2		# k0=VPN
-	andi		k0, k0, 0xffc			# k0=page tab offset
+	PTR_SRL		k0, PAGE_SHIFT - PTESHIFT	# k0=VPN
+	andi		k0, k0, PTEMASK			# k0=page tab offset
 	PTR_ADDU	k1, k1, k0			# k1=pte address
-	lw		k0, 0(k1)			# k0=this PTE
+	PTE_L		k0, 0(k1)			# k0=this PTE
 
 	/* Validate page table entry.  */
 	andi		k0, PTE_V
@@ -856,30 +841,30 @@ NLEAF(MipsTLBInvalidException)
 	nop
 
 	/* Check whether this is an even or odd entry.  */
-	andi		k0, k1, 4
+	andi		k0, k1, PTESIZE
 	bnez		k0, odd_page
 	nop
 
-	lw		k0, 0(k1)
-	lw		k1, 4(k1)
+	PTE_L		k0, 0(k1)
+	PTE_L		k1, PTESIZE(k1)
 	CLEAR_PTE_SWBITS(k0)
-	MTC0		k0, MIPS_COP_0_TLB_LO0
+	PTE_MTC0	k0, MIPS_COP_0_TLB_LO0
 	COP0_SYNC
 	CLEAR_PTE_SWBITS(k1)
-	MTC0		k1, MIPS_COP_0_TLB_LO1
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1
 	COP0_SYNC
 
 	b		tlb_insert_entry
 	nop
 
 odd_page:
-	lw		k0, -4(k1)
-	lw		k1, 0(k1)
+	PTE_L		k0, -PTESIZE(k1)
+	PTE_L		k1, 0(k1)
 	CLEAR_PTE_SWBITS(k0)
-	MTC0		k0, MIPS_COP_0_TLB_LO0
+	PTE_MTC0	k0, MIPS_COP_0_TLB_LO0
 	COP0_SYNC
 	CLEAR_PTE_SWBITS(k1)
-	MTC0		k1, MIPS_COP_0_TLB_LO1
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1
 	COP0_SYNC
 
 tlb_insert_entry:
@@ -999,29 +984,29 @@ NLEAF(MipsTLBMissException)
 	PTR_SRL		k0, SEGSHIFT - PTRSHIFT		# k0=seg offset (almost)
 	PTR_L		k1, %lo(kernel_segmap)(k1)	# k1=segment tab base
 	beq		k1, zero, MipsKernGenException	# ==0 -- no seg tab
-	andi		k0, k0, PTRMASK			# k0=seg offset
+	andi		k0, k0, PDEPTRMASK		#06: k0=seg offset
 	PTR_ADDU	k1, k0, k1			# k1=seg entry address
 	PTR_L		k1, 0(k1)			# k1=seg entry
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
 	beq		k1, zero, MipsKernGenException	# ==0 -- no page table
 #ifdef __mips_n64
 	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=VPN
-	andi		k0, k0, PTRMASK			# k0=pde offset
+	andi		k0, k0, PDEPTRMASK		# k0=pde offset
 	PTR_ADDU	k1, k0, k1			# k1=pde entry address
 	PTR_L		k1, 0(k1)			# k1=pde entry
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
   	beq		k1, zero, MipsKernGenException	# ==0 -- no page table
 #endif
-	PTR_SRL		k0, PAGE_SHIFT - 2		# k0=VPN
-	andi		k0, k0, 0xff8			# k0=page tab offset
+	PTR_SRL		k0, PAGE_SHIFT - PTESHIFT	# k0=VPN
+	andi		k0, k0, PTE2MASK		# k0=page tab offset
 	PTR_ADDU	k1, k1, k0			# k1=pte address
-	lw		k0, 0(k1)			# k0=lo0 pte
-	lw		k1, 4(k1)			# k1=lo1 pte
+	PTE_L		k0, 0(k1)			# k0=lo0 pte
+	PTE_L		k1, PTESIZE(k1)			# k1=lo1 pte
 	CLEAR_PTE_SWBITS(k0)
-	MTC0		k0, MIPS_COP_0_TLB_LO0		# lo0 is loaded
+	PTE_MTC0	k0, MIPS_COP_0_TLB_LO0		# lo0 is loaded
 	COP0_SYNC
 	CLEAR_PTE_SWBITS(k1)
-	MTC0		k1, MIPS_COP_0_TLB_LO1		# lo1 is loaded
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1		# lo1 is loaded
 	COP0_SYNC
 	tlbwr					# write to tlb
 	HAZARD_DELAY

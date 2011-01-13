@@ -205,8 +205,9 @@ cpu_startup(void *dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %lu (%luMB)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1048576);
+	printf("avail memory = %ju (%juMB)\n", 
+	    ptoa((uintmax_t)cnt.v_free_count),
+	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
 	cpu_init_interrupts();
 
 	/*

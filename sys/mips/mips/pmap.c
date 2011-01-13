@@ -3151,7 +3151,7 @@ pmap_asid_alloc(pmap)
 int
 page_is_managed(vm_paddr_t pa)
 {
-	vm_offset_t pgnum = mips_btop(pa);
+	vm_offset_t pgnum = atop(pa);
 
 	if (pgnum >= first_page) {
 		vm_page_t m;
