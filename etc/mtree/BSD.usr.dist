@@ -201,8 +201,6 @@
             ..
             cvsup
             ..
-            dialog
-            ..
             diskless
             ..
             drivers
@@ -250,8 +248,6 @@
                     test
                     ..
                 ..
-            ..
-            libdialog
             ..
             libvgl
             ..
