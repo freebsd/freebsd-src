@@ -46,7 +46,7 @@ struct intel_raid_map {
 	uint32_t	offset;
 	uint32_t	disk_sectors;
 	uint32_t	stripe_count;
-	uint16_t	stripe_sectors;
+	uint16_t	strip_sectors;
 	uint8_t		status;
 #define INTEL_S_READY           0x00
 #define INTEL_S_DISABLED        0x01
@@ -278,7 +278,7 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 			printf("  offset            %u\n", mmap->offset);
 			printf("  disk_sectors      %u\n", mmap->disk_sectors);
 			printf("  stripe_count      %u\n", mmap->stripe_count);
-			printf("  stripe_sectors    %u\n", mmap->stripe_sectors);
+			printf("  strip_sectors     %u\n", mmap->strip_sectors);
 			printf("  status            %u\n", mmap->status);
 			printf("  type              %u\n", mmap->type);
 			printf("  total_disks       %u\n", mmap->total_disks);
@@ -561,14 +561,14 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 		else
 			vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
-		vol->v_strip_size = mmap->stripe_sectors * 512; //ZZZ
+		vol->v_strip_size = (u_int)mmap->strip_sectors * 512; //ZZZ
 		vol->v_disks_count = mmap->total_disks;
-		vol->v_mediasize = mvol->total_sectors * 512; //ZZZ
+		vol->v_mediasize = (off_t)mvol->total_sectors * 512; //ZZZ
 		vol->v_sectorsize = 512; //ZZZ
 		for (j = 0; j < vol->v_disks_count; j++) {
 			sd = &vol->v_subdisks[j];
-			sd->sd_offset = mmap->offset * 512; //ZZZ
-			sd->sd_size = mmap->disk_sectors;
+			sd->sd_offset = (off_t)mmap->offset * 512; //ZZZ
+			sd->sd_size = (off_t)mmap->disk_sectors * 512; //ZZZ
 		}
 		g_raid_start_volume(vol);
 	}
@@ -1362,8 +1362,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 		mvol->total_sectors = vol->v_mediasize / sectorsize;
 		mmap->offset = sd->sd_offset / sectorsize;
 		mmap->disk_sectors = sd->sd_size / sectorsize;
-		mmap->stripe_count = sd->sd_size / vol->v_strip_size;
-		mmap->stripe_sectors = vol->v_strip_size / sectorsize;
+		mmap->strip_sectors = vol->v_strip_size / sectorsize;
 		mmap->status = INTEL_S_READY;
 		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID0)
 			mmap->type = INTEL_T_RAID0;
@@ -1379,6 +1378,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 			mmap->total_domains = vol->v_disks_count;
 		else
 			mmap->total_domains = 1;
+		mmap->stripe_count = sd->sd_size / vol->v_strip_size /
+		    mmap->total_domains;
 		mmap->failed_disk_num = 0xff;
 		mmap->ddf = 1;
 		for (sdi = 0; sdi < vol->v_disks_count; sdi++) {
