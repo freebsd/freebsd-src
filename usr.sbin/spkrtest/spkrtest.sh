@@ -53,7 +53,7 @@ fi
 
 /usr/bin/dialog --title "Speaker test" --checklist \
 	"Please select the melodies you wish to play (space for select)" \
-	-1 -1 10 \
+	0 0 0 \
 	reveille "Reveille" OFF \
 	contact "Contact theme from Close Encounters" OFF \
 	dance "Lord of the Dance (aka Simple Gifts)" OFF \
