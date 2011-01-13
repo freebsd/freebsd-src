@@ -365,6 +365,7 @@ xlr_mem_init(void)
 			dump_avail[0] = phys_avail[0];
 			dump_avail[1] = phys_avail[1];
 		} else {
+#if !defined(__mips_n64) && !defined(__mips_n32) /* !PHYSADDR_64_BIT */
 			/*
 			 * In 32 bit physical address mode we cannot use 
 			 * mem > 0xffffffff
@@ -383,6 +384,7 @@ xlr_mem_init(void)
 				printf("Memory: start %#jx limited to 4GB\n",
 				    (intmax_t)boot_map->physmem_map[i].addr);
 			}
+#endif /* !PHYSADDR_64_BIT */
 			phys_avail[j] = (vm_paddr_t)
 			    boot_map->physmem_map[i].addr;
 			phys_avail[j + 1] = phys_avail[j] +
