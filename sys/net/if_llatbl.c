@@ -122,7 +122,7 @@ llentry_free(struct llentry *lle)
 	}
 
 	KASSERT(lle->la_numheld == 0, 
-		("%s: la_numheld %d > 0, pkts_droped %ld", __func__, 
+		("%s: la_numheld %d > 0, pkts_droped %zd", __func__, 
 		 lle->la_numheld, pkts_dropped));
 
 	LLE_FREE_LOCKED(lle);
