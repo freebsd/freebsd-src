@@ -337,7 +337,7 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 		exit(1);
 	}
 	asprintf(&dialog, "/usr/bin/dialog --clear --title \"Keyboard Menu\" "
-			  "--menu \"%s\" -1 -1 10", menu);
+			  "--menu \"%s\" 0 0 0", menu);
 
 	ext = extract_name(dir);
 
