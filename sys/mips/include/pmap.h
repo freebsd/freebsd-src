@@ -138,8 +138,8 @@ typedef struct pv_entry {
  * regions.
  */
 #define	PHYS_AVAIL_ENTRIES	10
-extern vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
-extern vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+extern vm_paddr_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
+extern vm_paddr_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
 
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
@@ -151,10 +151,10 @@ extern vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 #define	pmap_page_set_memattr(m, ma)	(void)0
 
 void pmap_bootstrap(void);
-void *pmap_mapdev(vm_offset_t, vm_size_t);
+void *pmap_mapdev(vm_paddr_t, vm_size_t);
 void pmap_unmapdev(vm_offset_t, vm_size_t);
 vm_offset_t pmap_steal_memory(vm_size_t size);
-int page_is_managed(vm_offset_t pa);
+int page_is_managed(vm_paddr_t pa);
 void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr);
 void pmap_kremove(vm_offset_t va);
