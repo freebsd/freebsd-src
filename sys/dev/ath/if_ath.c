@@ -6648,17 +6648,17 @@ ath_sysctlattach(struct ath_softc *sc)
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
 		sc->sc_tdmadbaprep = 2;
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"dbaprep", CTLFLAG_RW, &sc->sc_tdmadbaprep, 0,
 			"TDMA DBA preparation time");
 		sc->sc_tdmaswbaprep = 10;
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"swbaprep", CTLFLAG_RW, &sc->sc_tdmaswbaprep, 0,
 			"TDMA SWBA preparation time");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"guardtime", CTLFLAG_RW, &sc->sc_tdmaguard, 0,
 			"TDMA slot guard time");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"superframe", CTLFLAG_RD, &sc->sc_tdmabintval, 0,
 			"TDMA calculated super frame");
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
