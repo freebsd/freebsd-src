@@ -1,5 +1,0 @@
-#XScale i81342 generic configuration
-#$FreeBSD$
-files		"../xscale/i8134x/files.i81342"
-include		"../xscale/std.xscale"
-cpu 		CPU_XSCALE_81342

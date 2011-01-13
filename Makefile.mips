@@ -1,5 +1,0 @@
-# $FreeBSD$
-
-.if ${MACHINE_ARCH} != "mipsel" && ${MACHINE_ARCH} != "mipseb"
-MK_RESCUE=no
-.endif

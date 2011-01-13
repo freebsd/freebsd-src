@@ -1,90 +1,61 @@
-This is the top level of the FreeBSD source directory.  This file
-was last revised on:
-$FreeBSD$
+-(1999-12-25)-------------------------------------------------------------------
+This version of dialog, formerly known as cdialog is based on the Debian
+package for dialog 0.9a (see CHANGES for recent modifications)
+- T.Dickey <dickey@invisible-island.net>
 
-For copyright information, please see the file COPYRIGHT in this
-directory (additional copyright information also exists for some
-sources in this tree - please see the specific source directories for
-more information).
+-(1996-01-15)-------------------------------------------------------------------
+I have uploaded cdialog-0.9a.tar.gz to sunsite. It should be moved
+to pub/Linux/utils/shell, I think.
 
-The Makefile in this directory supports a number of targets for
-building components (or all) of the FreeBSD source tree, the most
-commonly used one being ``world'', which rebuilds and installs
-everything in the FreeBSD system from the source tree except the
-kernel, the kernel-modules and the contents of /etc.  The ``world''
-target should only be used in cases where the source tree has not
-changed from the currently running version.  See:
-http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
-for more information, including setting make(1) variables.
+Starting point for cdialog v.0.9a was dialog-0.6c. Many new features
+like as Resolution-independence, Auto-sizing, Maximizing, more widget
+on the same screen (multi-widget), etc. were added. New widget are 
+tailbox and tailbox-in-background. Here are the options:
 
-The ``buildkernel'' and ``installkernel'' targets build and install
-the kernel and the modules (see below).  Please see the top of
-the Makefile in this directory for more information on the
-standard build targets and compile-time flags.
+   Usage: dialog <Common options> <Box options>
+          { --and-widget <Common options> <Box options> }
 
-Building a kernel is a somewhat more involved process, documentation
-for which can be found at:
-   http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
-And in the config(8) man page.
-Note: If you want to build and install the kernel with the
-``buildkernel'' and ``installkernel'' targets, you might need to build
-world before.  More information is available in the handbook.
+   Common options: <Global options>
+       [--backtitle <backtitle>] [--sleep <secs>] [--beep] [--beep-after]
+       [--clear] [--begin <y> <x>] [--aspect <ratio>] [--print-size]
+       [--print-maxsize] [--size-err] [--separate-output] [--cr-wrap]
+       [--tab-len <n>] [--tab-correct] [--print-version] [--no-kill]
+       [--title <title>]
 
-The sample kernel configuration files reside in the sys/<arch>/conf
-sub-directory (assuming that you've installed the kernel sources), the
-file named GENERIC being the one used to build your initial installation
-kernel.  The file NOTES contains entries and documentation for all possible
-devices, not just those commonly used.  It is the successor of the ancient
-LINT file, but in contrast to LINT, it is not buildable as a kernel but a
-pure reference and documentation file.
+   Global options: [--shadow] [--no-shadow] [--separate-widget "<str>"]
 
+At the moment, mouse support with libgpm can't be added because it
+does't implement the wtimeout() function of ncurses. Wtimeout() is
+needed to have more widgets (es.tailbox) cooperating on the same
+screen... I don't know if with newer versions of libgpm it's possible.
 
-Source Roadmap:
----------------
-bin		System/user commands.
+I have no more time to write docs for this new version...Is there
+anyone, that looking at the code, can do it??? Ouch! :-)
+Don't flame me!
 
-cddl		Various commands and libraries under the Common Development
-		and Distribution License.
+For the future, if any volunteer want, the way to evolve cdialog is to
+1) make a daemon for a better support of multi-tasking or implementing
+   multithreading.
+2) add an option that could permit to read commands (--options) from a
+   file, like as in a normal programming language, but maintaining 
+   compatiblity with older version of dialog.
 
-contrib		Packages contributed by 3rd parties.
+I no longer could maintain cdialog...
+Executable and library name of cdialog are the same of dialog, for
+compatiblity.
 
-crypto		Cryptography stuff (see crypto/README).
+I think that only one directive should be follow: don't use a resource
+like stdin, stdout when you'll write new options for cdialog; these 
+resources have to be shared from all widgets on the command line.
+Guage uses stdin :-/ so that can't be mixed for example with an inputbox,
+but it was made before of multi-widget. However this is not a big problem!
 
-etc		Template files for /etc.
+THERE ARE NO *KNOWN* BUGS. If anyone has much time and can find the way
+to add wtimeout() support to libgpm, also mouse could be supported.
 
-games		Amusements.
+Please use ncurses-1.9.4 or newer.
 
-gnu		Various commands and libraries under the GNU Public License.
-		Please see gnu/COPYING* for more information.
+|  __   |  demarco_p@abramo.it:~$ make Linux | more > UserFriendly;
+| /__)  |  /~~  _   _ _   _   /~\  _     /  .  _          |
+|/  ako | (___ (_) | ) ) (-' (__/ | )   /__ | | ) (_| ><  .  coordinator.
 
-include		System include files.
-
-kerberos5	Kerberos5 (Heimdal) package.
-
-lib		System libraries.
-
-libexec		System daemons.
-
-release		Release building Makefile & associated tools.
-
-rescue		Build system for statically linked /rescue utilities.
-
-sbin		System commands.
-
-secure		Cryptographic libraries and commands.
-
-share		Shared resources.
-
-sys		Kernel sources.
-
-tools		Utilities for regression testing and miscellaneous tasks.
-
-usr.bin		User commands.
-
-usr.sbin	System administration commands.
-
-
-For information on synchronizing your source tree with one or more of
-the FreeBSD Project's development branches, please see:
-
-  http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/synching.html

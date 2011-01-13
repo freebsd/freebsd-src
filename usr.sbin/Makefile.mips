@@ -1,6 +1,0 @@
-# $FreeBSD$
-
-SUBDIR:=	${SUBDIR:Nsysinstall}
-.if ${MACHINE_ARCH:Mmips64*} != ""
-SUBDIR:=	${SUBDIR:Nuathload}
-.endif

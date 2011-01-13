@@ -1,8 +1,0 @@
-IP 192.168.1.7.6700 > 192.168.1.7.34917: sctp[ForCES HP] (1) [DATA] (B)(E) [TSN: 3442086958] [SID: 0] [SSEQ 1] [PPID 0x0] 
-	ForCES Query 
-
-IP 192.168.1.7.34917 > 192.168.1.7.6700: sctp[ForCES HP] (1) [SACK] [cum ack 3442086958] [a_rwnd 56288] [#gap acks 0] [#dup tsns 0] 
-IP 192.168.1.7.34917 > 192.168.1.7.6700: sctp[ForCES HP] (1) [DATA] (B)(E) [TSN: 2574629157] [SID: 0] [SSEQ 1] [PPID 0x0] 
-	ForCES Query Response 
-
-IP 192.168.1.7.6700 > 192.168.1.7.34917: sctp[ForCES HP] (1) [SACK] [cum ack 2574629157] [a_rwnd 56296] [#gap acks 0] [#dup tsns 0] 

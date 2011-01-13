@@ -1,9 +1,0 @@
-# /*
-#  *    This product includes software developed by the University of
-#  *    California, Berkeley and its contributors."
-# */
-# $FreeBSD$
-# 
-files	"../cavium/files.octeon1"
-machine	mips mips64eb
-cpu		CPU_CNMIPS

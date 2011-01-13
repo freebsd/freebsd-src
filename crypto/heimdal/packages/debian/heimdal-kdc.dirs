@@ -1,5 +1,0 @@
-etc/default
-etc/heimdal-kdc
-etc/ldap/schema
-usr/lib/heimdal-servers
-var/lib/heimdal-kdc

@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Set to build some programs without optional
-.Nm libkvm
-support.

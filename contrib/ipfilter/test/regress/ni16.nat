@@ -1,1 +1,0 @@
-map pcn1 10.2.2.2/32 -> 0/32 proxy port 1723 pptp/tcp
