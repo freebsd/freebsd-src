@@ -523,7 +523,9 @@ trap_pfault(struct trapframe *frame, int user)
 	p = td->td_proc;
 	if (frame->exc == EXC_ISI) {
 		eva = frame->srr0;
-		ftype = VM_PROT_READ | VM_PROT_EXECUTE;
+		ftype = VM_PROT_EXECUTE;
+		if (frame->srr1 & SRR1_ISI_PFAULT)
+			ftype |= VM_PROT_READ;
 	} else {
 		eva = frame->cpu.aim.dar;
 		if (frame->cpu.aim.dsisr & DSISR_STORE)
