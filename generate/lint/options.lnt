@@ -80,3 +80,4 @@
 -e778   // Allow constant expressions to evaluate to zero
 -e662   // Allow "pointer overrun" for dynamic structures
 -e831
+-e784   // Allow "Nul character truncated from string" for lookup tables
