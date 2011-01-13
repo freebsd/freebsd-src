@@ -1397,8 +1397,10 @@ int g_raid_start_volume(struct g_raid_volume *vol)
 	if (class == NULL) {
 		G_RAID_DEBUG(1, "No transformation module found for %s.",
 		    vol->v_name);
-		g_raid_change_volume_state(vol, G_RAID_VOLUME_S_UNSUPPORTED);
 		vol->v_tr = NULL;
+		g_raid_change_volume_state(vol, G_RAID_VOLUME_S_UNSUPPORTED);
+		g_raid_event_send(vol, G_RAID_VOLUME_E_DOWN,
+		    G_RAID_EVENT_VOLUME);
 		return (-1);
 	}
 	vol->v_tr = obj;
