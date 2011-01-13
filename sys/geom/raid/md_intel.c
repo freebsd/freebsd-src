@@ -995,7 +995,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 				size = pp->mediasize;
 			if (sectorsize < pp->sectorsize)
 				sectorsize = pp->sectorsize;
-			pd->pd_disk_meta.id = 0xffffffff;
+			pd->pd_disk_meta.id = 0;
 			pd->pd_disk_meta.flags = INTEL_F_ASSIGNED | INTEL_F_ONLINE;
 		}
 		if (error != 0)
@@ -1131,6 +1131,119 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		if (g_raid_ndisks(sc, G_RAID_DISK_S_NONE) == 0 &&
 		    g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) == 0)
 			g_raid_destroy_node(sc, 0);
+		return (error);
+	}
+	if (strcmp(verb, "insert") == 0) {
+		if (*nargs < 2) {
+			gctl_error(req, "Invalid number of arguments.");
+			return (-1);
+		}
+		for (i = 1; i < *nargs; i++) {
+			/* Look for empty disk slot. */
+			LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+				pd = (struct g_raid_md_intel_perdisk *)
+				    disk->d_md_data;
+				if (pd->pd_disk_pos < 0)
+					continue;
+				if (disk->d_state == G_RAID_DISK_S_OFFLINE)
+					break;
+			}
+			if (disk == NULL) {
+				gctl_error(req, "No missing disks.");
+				error = -2;
+				break;
+			}
+
+			/* Get disk name. */
+			snprintf(arg, sizeof(arg), "arg%d", i);
+			diskname = gctl_get_asciiparam(req, arg);
+			if (diskname == NULL) {
+				gctl_error(req, "No disk name (%s).", arg);
+				error = -3;
+				break;
+			}
+			if (strncmp(diskname, "/dev/", 5) == 0)
+				diskname += 5;
+
+			/* Try to find provider with specified name. */
+			g_topology_lock();
+			pp = g_provider_by_name(diskname);
+			if (pp == NULL) {
+				gctl_error(req, "Provider '%s' not found.",
+				    diskname);
+				g_topology_unlock();
+				error = -4;
+				break;
+			}
+			cp = g_new_consumer(sc->sc_geom);
+			if (g_attach(cp, pp) != 0) {
+				gctl_error(req, "Can't attach provider '%s'.",
+				    diskname);
+				g_destroy_consumer(cp);
+				g_topology_unlock();
+				error = -5;
+				break;
+			}
+			if (g_access(cp, 1, 1, 1) != 0) {
+				gctl_error(req, "Can't open provider '%s'.",
+				    diskname);
+				g_detach(cp);
+				g_destroy_consumer(cp);
+				g_topology_unlock();
+				error = -6;
+				break;
+			}
+			g_topology_unlock();
+
+			/* Make sure disk is big enough. */
+			LIST_FOREACH(sd, &disk->d_subdisks, sd_next) {
+				if (sd->sd_offset + sd->sd_size + 4096 >
+				    pp->mediasize) {
+					gctl_error(req,
+					    "Disk '%s' too small.",
+					    diskname);
+					g_topology_lock();
+					g_raid_kill_consumer(sc, cp);
+					g_topology_unlock();
+					error = -7;
+					break;
+				}
+			}
+
+			/* Read disk metadata. */
+			error = g_raid_md_get_label(cp,
+			    &pd->pd_disk_meta.serial[0], INTEL_SERIAL_LEN);
+			if (error != 0) {
+				gctl_error(req,
+				    "Can't get serial for provider '%s'.",
+				    diskname);
+				g_topology_lock();
+				g_raid_kill_consumer(sc, cp);
+				g_topology_unlock();
+				error = -8;
+				break;
+			}
+
+			cp->private = disk;
+			disk->d_consumer = cp;
+			pd->pd_disk_meta.sectors = pp->mediasize / pp->sectorsize;
+			if (size > pp->mediasize)
+				size = pp->mediasize;
+			if (sectorsize < pp->sectorsize)
+				sectorsize = pp->sectorsize;
+			pd->pd_disk_meta.id = 0;
+			pd->pd_disk_meta.flags = INTEL_F_ASSIGNED | INTEL_F_ONLINE;
+
+			/* Welcome the "new" disk. */
+			g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+			LIST_FOREACH(sd, &disk->d_subdisks, sd_next) {
+				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
+				    G_RAID_EVENT_SUBDISK);
+			}
+		}
+
+		/* Write updated metadata to all disks. */
+		g_raid_md_write_intel(md);
 		return (error);
 	}
 	return (-100);
