@@ -136,8 +136,8 @@ char pcpu_space[MAXCPU][PAGE_SIZE * 2] \
 
 struct pcpu *pcpup = (struct pcpu *)pcpu_space;
 
-vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
-vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+vm_paddr_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
+vm_paddr_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
 vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 
 #ifdef UNIMPLEMENTED
@@ -509,12 +509,12 @@ cpu_idle_wakeup(int cpu)
 }
 
 int
-is_cacheable_mem(vm_offset_t addr)
+is_cacheable_mem(vm_paddr_t pa)
 {
 	int i;
 
 	for (i = 0; physmem_desc[i + 1] != 0; i += 2) {
-		if (addr >= physmem_desc[i] && addr < physmem_desc[i + 1])
+		if (pa >= physmem_desc[i] && pa < physmem_desc[i + 1])
 			return (1);
 	}
 
