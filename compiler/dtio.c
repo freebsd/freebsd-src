@@ -4,114 +4,42 @@
  *
  *****************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 #define __DTIO_C__
 
@@ -132,7 +60,7 @@ static void
 DtLinkField (
     DT_FIELD                *Field);
 
-static void
+static ACPI_STATUS
 DtParseLine (
     char                    *LineBuffer,
     UINT32                  Line,
@@ -148,6 +76,11 @@ DtWriteBinary (
     void                    *Context,
     void                    *ReturnValue);
 
+static void
+DtDumpBuffer (
+    UINT32                  FileId,
+    UINT8                   *Buffer,
+    UINT32                  Length);
 
 /* States for DtGetNextLine */
 
@@ -293,13 +226,13 @@ DtLinkField (
  *              Line                - Current line number in the source
  *              Offset              - Current byte offset of the line
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Parse one source line
  *
  *****************************************************************************/
 
-static void
+static ACPI_STATUS
 DtParseLine (
     char                    *LineBuffer,
     UINT32                  Line,
@@ -320,13 +253,20 @@ DtParseLine (
 
     if (!LineBuffer)
     {
-        return;
+        return (AE_OK);
+    }
+
+    /* All lines after "Raw Table Data" are ingored */
+
+    if (strstr (LineBuffer, ACPI_RAW_TABLE_DATA_HEADER))
+    {
+        return (AE_NOT_FOUND);
     }
 
     Colon = strchr (LineBuffer, ':');
-    if (!Colon || *(Colon - 1) != ' ')
+    if (!Colon)
     {
-        return;
+        return (AE_OK);
     }
 
     Start = LineBuffer;
@@ -351,7 +291,6 @@ DtParseLine (
 
             if (Start == Colon)
             {
-                MYDEBUG ("ERROR: right bracket reaches colon position\n");
                 break;
             }
 
@@ -422,6 +361,8 @@ DtParseLine (
 
         DtLinkField (Field);
     }
+
+    return (AE_OK);
 }
 
 
@@ -613,6 +554,7 @@ DT_FIELD *
 DtScanFile (
     FILE                    *Handle)
 {
+    ACPI_STATUS             Status;
     UINT32                  Offset;
 
 
@@ -634,7 +576,11 @@ DtScanFile (
         ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Line %2.2u/%4.4X - %s",
             Gbl_CurrentLineNumber, Offset, Gbl_CurrentLineBuffer));
 
-        DtParseLine (Gbl_CurrentLineBuffer, Gbl_CurrentLineNumber, Offset);
+        Status = DtParseLine (Gbl_CurrentLineBuffer, Gbl_CurrentLineNumber, Offset);
+        if (Status == AE_NOT_FOUND)
+        {
+            break;
+        }
     }
 
     return (Gbl_FieldList);
@@ -644,7 +590,6 @@ DtScanFile (
 /*
  * Output functions
  */
-
 
 /******************************************************************************
  *
@@ -695,4 +640,191 @@ DtOutputBinary (
 
     DtWalkTableTree (RootTable, DtWriteBinary, NULL, NULL);
     Gbl_TableLength = DtGetFileSize (Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+}
+
+
+/*
+ * Listing support
+ */
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtDumpBuffer
+ *
+ * PARAMETERS:  FileID              - Where to write buffer data
+ *              Buffer              - Buffer to dump
+ *              Length              - Buffer Length
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Another copy of DumpBuffer routine (unfortunately).
+ *
+ * TBD: merge dump buffer routines
+ *
+ *****************************************************************************/
+
+static void
+DtDumpBuffer (
+    UINT32                  FileId,
+    UINT8                   *Buffer,
+    UINT32                  Length)
+{
+    UINT32                  i;
+    UINT32                  j;
+    UINT8                   BufChar;
+
+
+    i = 0;
+    while (i < Length)
+    {
+        /* Print 16 hex chars */
+
+        FlPrintFile (FileId, "Output: [%.3d] ", Length);
+
+        for (j = 0; j < 16;)
+        {
+            if (i + j >= Length)
+            {
+                /* Dump fill spaces */
+
+                FlPrintFile (FileId, "   ");
+                j++;
+                continue;
+            }
+
+            FlPrintFile (FileId, "%02X ", Buffer[i+j]);
+            j++;
+        }
+
+        FlPrintFile (FileId, " ");
+        for (j = 0; j < 16; j++)
+        {
+            if (i + j >= Length)
+            {
+                FlPrintFile (FileId, "\n\n");
+                return;
+            }
+
+            BufChar = Buffer[(ACPI_SIZE) i + j];
+            if (ACPI_IS_PRINT (BufChar))
+            {
+                FlPrintFile (FileId, "%c", BufChar);
+            }
+            else
+            {
+                FlPrintFile (FileId, ".");
+            }
+        }
+
+        /* Done with that line. */
+
+        FlPrintFile (FileId, "\n");
+        i += 16;
+    }
+
+    FlPrintFile (FileId, "\n\n");
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtWriteFieldToListing
+ *
+ * PARAMETERS:  Buffer              - Contains the compiled data
+ *              Field               - Field node for the input line
+ *              Length              - Length of the output data
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Write one field to the listing file (if listing is enabled).
+ *
+ *****************************************************************************/
+
+void
+DtWriteFieldToListing (
+    UINT8                   *Buffer,
+    DT_FIELD                *Field,
+    UINT32                  Length)
+{
+    UINT8                   FileByte;
+
+
+    if (!Gbl_ListingFlag || !Field)
+    {
+        return;
+    }
+
+    /* Dump the original source line */
+
+    FlPrintFile (ASL_FILE_LISTING_OUTPUT, "Input:  ");
+    FlSeekFile (ASL_FILE_INPUT, Field->ByteOffset);
+
+    while (FlReadFile (ASL_FILE_INPUT, &FileByte, 1) == AE_OK)
+    {
+        FlWriteFile (ASL_FILE_LISTING_OUTPUT, &FileByte, 1);
+        if (FileByte == '\n')
+        {
+            break;
+        }
+    }
+
+    /* Dump the line as parsed and represented internally */
+
+    FlPrintFile (ASL_FILE_LISTING_OUTPUT, "Parsed: %*s : %s\n",
+        Field->Column-4, Field->Name, Field->Value);
+
+#if 0
+    /* TBD Dump the length and AML offset */
+
+    FlPrintFile (ASL_FILE_LISTING_OUTPUT,
+        "Output: Length %d(0x%X) Offset %d(0x%X)\n",
+        Field->Column-4, Field->Name, Field->Value);
+#endif
+
+    /* Dump the hex data that will be output for this field */
+
+    DtDumpBuffer (ASL_FILE_LISTING_OUTPUT, Buffer, Length);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtWriteTableToListing
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Write the entire compiled table to the listing file
+ *              in hex format
+ *
+ *****************************************************************************/
+
+void
+DtWriteTableToListing (
+    void)
+{
+    UINT8                   *Buffer;
+
+
+    if (!Gbl_ListingFlag)
+    {
+        return;
+    }
+
+    /* Read the entire table from the output file */
+
+    Buffer = UtLocalCalloc (Gbl_TableLength);
+    FlSeekFile (ASL_FILE_AML_OUTPUT, 0);
+    FlReadFile (ASL_FILE_AML_OUTPUT, Buffer, Gbl_TableLength);
+
+    /* Dump the raw table data */
+
+    AcpiOsRedirectOutput (Gbl_Files[ASL_FILE_LISTING_OUTPUT].Handle);
+
+    AcpiOsPrintf ("\n%s: Length %d (0x%X)\n\n",
+        ACPI_RAW_TABLE_DATA_HEADER, Gbl_TableLength, Gbl_TableLength);
+    AcpiUtDumpBuffer2 (Buffer, Gbl_TableLength, DB_BYTE_DISPLAY);
+
+    AcpiOsRedirectOutput (stdout);
 }
