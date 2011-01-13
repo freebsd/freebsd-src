@@ -477,6 +477,9 @@ struct xhci_softc {
 	uint8_t			sc_conf;
 	uint8_t			sc_hub_idata[2];
 
+	/* size of context */
+	uint8_t			sc_ctx_is_64_byte;
+
 	/* vendor string for root HUB */
 	char			sc_vendor[16];
 };
