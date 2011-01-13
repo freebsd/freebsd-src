@@ -100,7 +100,7 @@ struct bounce_zone {
 	int		total_bounced;
 	int		total_deferred;
 	int		map_count;
-	uint32_t	alignment;
+	bus_size_t	alignment;
 	bus_addr_t	lowaddr;
 	char		zoneid[8];
 	char		lowaddrid[20];
@@ -993,6 +993,13 @@ busdma_sysctl_tree_top(struct bounce_zone *bz)
 	return (bz->sysctl_tree_top);
 }
 
+#if defined(__amd64__) || defined(PAE)
+#define	SYSCTL_ADD_BUS_SIZE_T	SYSCTL_ADD_UQUAD
+#else
+#define	SYSCTL_ADD_BUS_SIZE_T(ctx, parent, nbr, name, flag, ptr, desc)	\
+	SYSCTL_ADD_UINT(ctx, parent, nbr, name, flag, ptr, 0, desc)
+#endif
+
 static int
 alloc_bounce_zone(bus_dma_tag_t dmat)
 {
@@ -1060,9 +1067,9 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_STRING(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "lowaddr", CTLFLAG_RD, bz->lowaddrid, 0, "");
-	SYSCTL_ADD_UINT(busdma_sysctl_tree(bz),
+	SYSCTL_ADD_BUS_SIZE_T(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "alignment", CTLFLAG_RD, &bz->alignment, 0, "");
+	    "alignment", CTLFLAG_RD, &bz->alignment, "");
 
 	return (0);
 }
