@@ -650,8 +650,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 
 			moea64_pvo_enter(mmup, kernel_pmap, moea64_upvo_zone,
 				    &moea64_pvo_kunmanaged, pa, pa,
-				    pte_lo, PVO_WIRED | PVO_LARGE |
-				    VM_PROT_EXECUTE);
+				    pte_lo, PVO_WIRED | PVO_LARGE);
 		  }
 		}
 		PMAP_UNLOCK(kernel_pmap);
@@ -1266,8 +1265,8 @@ moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	} else
 		pte_lo |= LPTE_BR;
 
-	if (prot & VM_PROT_EXECUTE)
-		pvo_flags |= VM_PROT_EXECUTE;
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		pte_lo |= LPTE_NOEXEC;
 
 	if (wired)
 		pvo_flags |= PVO_WIRED;
@@ -1692,8 +1691,7 @@ moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 
 	PMAP_LOCK(kernel_pmap);
 	error = moea64_pvo_enter(mmu, kernel_pmap, moea64_upvo_zone,
-	    &moea64_pvo_kunmanaged, va, pa, pte_lo, 
-	    PVO_WIRED | VM_PROT_EXECUTE);
+	    &moea64_pvo_kunmanaged, va, pa, pte_lo, PVO_WIRED);
 
 	if (error != 0 && error != ENOENT)
 		panic("moea64_kenter: failed to enter va %#zx pa %#zx: %d", va,
@@ -2191,8 +2189,8 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 	LIST_FOREACH(pvo, &moea64_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
 			if ((pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) == pa &&
-			    (pvo->pvo_pte.lpte.pte_lo & LPTE_PP) ==
-			    (pte_lo & LPTE_PP)) {
+			    (pvo->pvo_pte.lpte.pte_lo & (LPTE_NOEXEC | LPTE_PP))
+			    == (pte_lo & (LPTE_NOEXEC | LPTE_PP))) {
 			    	if (!(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID)) {
 					/* Re-insert if spilled */
 					i = MOEA64_PTE_INSERT(mmu, ptegidx,
@@ -2246,8 +2244,6 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 	LIST_INSERT_HEAD(&moea64_pvo_table[ptegidx], pvo, pvo_olink);
 	pvo->pvo_vaddr &= ~ADDR_POFF;
 
-	if (!(flags & VM_PROT_EXECUTE))
-		pte_lo |= LPTE_NOEXEC;
 	if (flags & PVO_WIRED)
 		pvo->pvo_vaddr |= PVO_WIRED;
 	if (pvo_head != &moea64_pvo_kunmanaged)
