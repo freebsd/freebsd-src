@@ -35,7 +35,7 @@
 #ifndef _MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_
 
-#define	USRSTACK	VM_MAXUSER_ADDRESS
+#define	USRSTACK	SHAREDPAGE
 
 #ifndef	MAXTSIZ
 #define	MAXTSIZ		(64*1024*1024)		/* max text size */
@@ -64,10 +64,12 @@
 #ifdef __powerpc64__
 #define	VM_MIN_ADDRESS		(0x0000000000000000UL)
 #define	VM_MAXUSER_ADDRESS	(0x7ffffffffffff000UL)
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
 #else
 #define	VM_MIN_ADDRESS		((vm_offset_t)0)
 #define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x7ffff000)
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #define	VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS
 #endif
 #else /* LOCORE */
@@ -77,8 +79,8 @@
 #endif
 #endif /* LOCORE */
 
-#define	FREEBSD32_USRSTACK	0x7ffff000
-
+#define	FREEBSD32_SHAREDPAGE	(0x7ffff000 - PAGE_SIZE)
+#define	FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE
 
 #ifdef AIM
 #define	KERNBASE		0x00100000UL	/* start of kernel virtual */
