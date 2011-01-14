@@ -57,4 +57,4 @@ ENTRY(HIDENAME(cerror))
 	li	%r4,-1
 	blr
 
-
+	.section .note.GNU-stack,"",%progbits
