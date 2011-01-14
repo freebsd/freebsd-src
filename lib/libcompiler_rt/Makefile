@@ -156,7 +156,8 @@ SYMLINKS+=libcompiler_rt_p.a ${LIBDIR}/libgcc_p.a
 . endif
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "powerpc"
 AFLAGS+=--noexecstack
 ACFLAGS+=-Wa,--noexecstack
 .endif
