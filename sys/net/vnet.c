@@ -80,6 +80,8 @@ __FBSDID("$FreeBSD$");
  *   stack instance.
  */
 
+FEATURE(vimage, "VIMAGE kernel virtualization");
+
 MALLOC_DEFINE(M_VNET, "vnet", "network stack control block");
 
 /*
