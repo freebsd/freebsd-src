@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2008
+.Dd January 14, 2011
 .Dt CPUSET 1
 .Os
 .Sh NAME
@@ -39,6 +39,11 @@
 .Nm
 .Op Fl l Ar cpu-list
 .Op Fl s Ar setid
+.Fl p Ar pid
+.Nm
+.Op Fl c
+.Op Fl l Ar cpu-list
+.Fl C
 .Fl p Ar pid
 .Nm
 .Op Fl cr
@@ -98,6 +103,8 @@ for the thread.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl l Ar cpu-list"
+.It Fl C
+Create a new cpuset and assign the target process to that set.
 .It Fl c
 The requested operation should reference the cpuset available via the
 target specifier.
@@ -117,6 +124,9 @@ Specifies a jail id as the target of the operation.
 Specifies a list of CPUs to apply to a target.
 Specification may include
 numbers separated by '-' for ranges and commas separating individual numbers.
+A special list of
+.Dq all
+may be specified in which case the list includes all CPUs from the root set.
 .It Fl p Ar pid
 Specifies a pid as the target of the operation.
 .It Fl s Ar setid
@@ -168,6 +178,11 @@ into the specified cpuset
 .Ar setid
 so it may be managed with other pids in that set:
 .Dl cpuset -s <setid> -p <pid>
+.Pp
+Create a new cpuset that is restricted to CPUs 0 and 2 and move
+.Ar pid
+into the new set:
+.Dl cpuset -C -c -l 0,2 -p <pid>
 .Sh SEE ALSO
 .Xr cpuset 2
 .Sh HISTORY
