@@ -59,3 +59,5 @@ _fini:
 	stdu 1,-48(1)
 	mflr 0
 	std 0,64(1)
+
+	.section .note.GNU-stack,"",%progbits

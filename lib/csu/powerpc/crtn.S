@@ -42,3 +42,5 @@ __FBSDID("$FreeBSD$");
 	lwz 31,-4(11)
 	mr 1,11
 	blr
+
+	.section .note.GNU-stack,"",%progbits
