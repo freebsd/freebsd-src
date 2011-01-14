@@ -536,8 +536,9 @@ axe_ax88178_init(struct axe_softc *sc)
 	}
 
 	if (bootverbose)
-		device_printf(sc->sc_ue.ue_dev, "EEPROM data : 0x%04x\n",
-		    eeprom);
+		device_printf(sc->sc_ue.ue_dev,
+		    "EEPROM data : 0x%04x, phymode : 0x%02x\n", eeprom,
+		    phymode);
 	/* Program GPIOs depending on PHY hardware. */
 	switch (phymode) {
 	case AXE_PHY_MODE_MARVELL:
@@ -554,6 +555,8 @@ axe_ax88178_init(struct axe_softc *sc)
 			    AXE_GPIO1_EN, hz / 32);
 		break;
 	case AXE_PHY_MODE_CICADA:
+	case AXE_PHY_MODE_CICADA_V2:
+	case AXE_PHY_MODE_CICADA_V2_ASIX:
 		if (gpio0 == 1)
 			AXE_GPIO_WRITE(AXE_GPIO_RELOAD_EEPROM | AXE_GPIO0 |
 			    AXE_GPIO0_EN, hz / 32);
@@ -668,6 +671,12 @@ axe_reset(struct axe_softc *sc)
 
 	/* Wait a little while for the chip to get its brains in order. */
 	uether_pause(&sc->sc_ue, hz / 100);
+
+	/* Reinitialize controller to achieve full reset. */
+	if (sc->sc_flags & AXE_FLAG_178)
+		axe_ax88178_init(sc);
+	else if (sc->sc_flags & AXE_FLAG_772)
+		axe_ax88772_init(sc);
 }
 
 static void
@@ -1016,8 +1025,13 @@ axe_init(struct usb_ether *ue)
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	/* Cancel pending I/O */
 	axe_stop(ue);
+
+	axe_reset(sc);
 
 	/* Set MAC address. */
 	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772))
@@ -1066,6 +1080,8 @@ axe_init(struct usb_ether *ue)
 	usbd_xfer_set_stall(sc->sc_xfer[AXE_BULK_DT_WR]);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	/* Switch to selected media. */
+	axe_ifmedia_upd(ifp);
 	axe_start(ue);
 }
 
@@ -1107,6 +1123,4 @@ axe_stop(struct usb_ether *ue)
 	 */
 	usbd_transfer_stop(sc->sc_xfer[AXE_BULK_DT_WR]);
 	usbd_transfer_stop(sc->sc_xfer[AXE_BULK_DT_RD]);
-
-	axe_reset(sc);
 }
