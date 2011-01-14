@@ -203,11 +203,21 @@ struct axe_softc {
 	int			sc_flags;
 #define	AXE_FLAG_LINK		0x0001
 #define	AXE_FLAG_772		0x1000	/* AX88772 */
-#define	AXE_FLAG_178		0x2000	/* AX88178 */
+#define	AXE_FLAG_772A		0x2000	/* AX88772A */
+#define	AXE_FLAG_772B		0x4000	/* AX88772B */
+#define	AXE_FLAG_178		0x8000	/* AX88178 */
 
 	uint8_t			sc_ipgs[3];
 	uint8_t			sc_phyaddrs[2];
+	int			sc_tx_bufsz;
 };
+
+#define	AXE_IS_178_FAMILY(sc)						  \
+	((sc)->sc_flags & (AXE_FLAG_772 | AXE_FLAG_772A | AXE_FLAG_772B | \
+	AXE_FLAG_178))
+
+#define	AXE_IS_772(sc)							  \
+	((sc)->sc_flags & (AXE_FLAG_772 | AXE_FLAG_772A | AXE_FLAG_772B))
 
 #define	AXE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	AXE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
