@@ -908,7 +908,7 @@ sched_sleep(struct thread *td, int pri)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_slptick = ticks;
 	td->td_sched->ts_slptime = 0;
-	if (pri)
+	if (pri != 0 && PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
 		sched_prio(td, pri);
 	if (TD_IS_SUSPENDED(td) || pri >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
