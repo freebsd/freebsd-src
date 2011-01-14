@@ -115,8 +115,8 @@ struct g_raid_disk {
 	uint64_t		 d_flags;	/* Additional flags. */
 	u_int			 d_load;	/* Disk average load. */
 	off_t			 d_last_offset;	/* Last head offset. */
-	LIST_HEAD(, g_raid_subdisk)	 d_subdisks; /* List of subdisks. */
-	LIST_ENTRY(g_raid_disk)	 d_next;	/* Next disk in the node. */
+	TAILQ_HEAD(, g_raid_subdisk)	 d_subdisks; /* List of subdisks. */
+	TAILQ_ENTRY(g_raid_disk)	 d_next;	/* Next disk in the node. */
 };
 
 #define G_RAID_SUBDISK_S_NONE		0x00
@@ -137,7 +137,7 @@ struct g_raid_subdisk {
 	u_int			 sd_pos;	/* Position in volume. */
 	u_int			 sd_state;	/* Subdisk state. */
 	int			 sd_read_errs;  /* Count of the read errors */
-	LIST_ENTRY(g_raid_subdisk)	 sd_next; /* Next subdisk on disk. */
+	TAILQ_ENTRY(g_raid_subdisk)	 sd_next; /* Next subdisk on disk. */
 };
 
 #define G_RAID_MAX_SUBDISKS	16
@@ -205,15 +205,15 @@ struct g_raid_volume {
 	int			 v_starting;	/* STARTING state timer armed */
 	int			 v_stopping;	/* Volume is stopping */
 	int			 v_provider_open; /* Number of opens. */
-	LIST_ENTRY(g_raid_volume)	 v_next; /* List of volumes entry. */
+	TAILQ_ENTRY(g_raid_volume)	 v_next; /* List of volumes entry. */
 };
 
 struct g_raid_softc {
 	struct g_raid_md_object	*sc_md;		/* Metadata object. */
 	struct g_geom		*sc_geom;	/* GEOM class instance. */
 	uint64_t		 sc_flags;	/* Additional flags. */
-	LIST_HEAD(, g_raid_volume)	 sc_volumes;	/* List of volumes. */
-	LIST_HEAD(, g_raid_disk)	 sc_disks;	/* List of disks. */
+	TAILQ_HEAD(, g_raid_volume)	 sc_volumes;	/* List of volumes. */
+	TAILQ_HEAD(, g_raid_disk)	 sc_disks;	/* List of disks. */
 	struct sx		 sc_lock;	/* Main node lock. */
 	struct proc		*sc_worker;	/* Worker process. */
 	struct mtx		 sc_queue_mtx;	/* Worker queues lock. */

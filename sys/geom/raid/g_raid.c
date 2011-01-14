@@ -455,7 +455,7 @@ g_raid_ndisks(struct g_raid_softc *sc, int state)
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
 	n = 0;
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == state || state == -1)
 			n++;
 	}
@@ -601,7 +601,7 @@ g_raid_bump_syncid(struct g_raid_softc *sc)
 	sc->sc_syncid++;
 	G_RAID_DEBUG(1, "Device %s: syncid bumped to %u.", sc->sc_name,
 	    sc->sc_syncid);
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_RAID_DISK_S_ACTIVE ||
 		    disk->d_state == G_RAID_DISK_S_SYNCHRONIZING) {
 //			g_raid_update_metadata(disk);
@@ -625,7 +625,7 @@ g_raid_bump_genid(struct g_raid_softc *sc)
 	sc->sc_genid++;
 	G_RAID_DEBUG(1, "Device %s: genid bumped to %u.", sc->sc_name,
 	    sc->sc_genid);
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_RAID_DISK_S_ACTIVE ||
 		    disk->d_state == G_RAID_DISK_S_SYNCHRONIZING) {
 			disk->d_genid = sc->sc_genid;
@@ -662,7 +662,7 @@ g_raid_idle(struct g_raid_volume *vol, int acw)
 	}
 	vol->v_idle = 1;
 // ZZZ
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
 			continue;
 		G_RAID_DEBUG(1, "Disk %s (device %s) marked as clean.",
@@ -688,7 +688,7 @@ g_raid_unidle(struct g_raid_volume *vol)
 	vol->v_idle = 0;
 	vol->v_last_write = time_uptime;
 //ZZZ
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
 			continue;
 		G_RAID_DEBUG(1, "Disk %s (device %s) marked as dirty.",
@@ -1120,7 +1120,7 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 	pp->stripesize = 0;
 	pp->stripeoffset = 0;
 #if 0
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_consumer && disk->d_consumer->provider &&
 		    disk->d_consumer->provider->stripesize > pp->stripesize) {
 			pp->stripesize = disk->d_consumer->provider->stripesize;
@@ -1312,8 +1312,8 @@ g_raid_create_node(struct g_class *mp,
 	sc->sc_md = md;
 	sc->sc_geom = gp;
 	sc->sc_flags = 0;
-	LIST_INIT(&sc->sc_volumes);
-	LIST_INIT(&sc->sc_disks);
+	TAILQ_INIT(&sc->sc_volumes);
+	TAILQ_INIT(&sc->sc_disks);
 	sx_init(&sc->sc_lock, "gmirror:lock");
 	mtx_init(&sc->sc_queue_mtx, "gmirror:queue", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->sc_events);
@@ -1361,7 +1361,7 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 	callout_reset(&vol->v_start_co, g_raid_start_timeout * hz,
 	    g_raid_go, vol);
 	vol->v_starting = 1;
-	LIST_INSERT_HEAD(&sc->sc_volumes, vol, v_next);
+	TAILQ_INSERT_TAIL(&sc->sc_volumes, vol, v_next);
 	return (vol);
 }
 
@@ -1374,8 +1374,8 @@ g_raid_create_disk(struct g_raid_softc *sc)
 	disk = malloc(sizeof(*disk), M_RAID, M_WAITOK | M_ZERO);
 	disk->d_softc = sc;
 	disk->d_state = G_RAID_DISK_S_NONE;
-	LIST_INIT(&disk->d_subdisks);
-	LIST_INSERT_HEAD(&sc->sc_disks, disk, d_next);
+	TAILQ_INIT(&disk->d_subdisks);
+	TAILQ_INSERT_TAIL(&sc->sc_disks, disk, d_next);
 	return (disk);
 }
 
@@ -1418,13 +1418,13 @@ g_raid_destroy_node(struct g_raid_softc *sc, int worker)
 	int error = 0;
 
 	sc->sc_stopping = 1;
-	LIST_FOREACH_SAFE(vol, &sc->sc_volumes, v_next, tmpv) {
+	TAILQ_FOREACH_SAFE(vol, &sc->sc_volumes, v_next, tmpv) {
 		if (g_raid_destroy_volume(vol))
 			error = EBUSY;
 	}
 	if (error)
 		return (error);
-	LIST_FOREACH_SAFE(disk, &sc->sc_disks, d_next, tmpd) {
+	TAILQ_FOREACH_SAFE(disk, &sc->sc_disks, d_next, tmpd) {
 		if (g_raid_destroy_disk(disk))
 			error = EBUSY;
 	}
@@ -1464,6 +1464,7 @@ int
 g_raid_destroy_volume(struct g_raid_volume *vol)
 {
 	struct g_raid_softc *sc;
+	struct g_raid_disk *disk;
 	int i;
 
 	sc = vol->v_softc;
@@ -1490,11 +1491,12 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 	if (vol->v_rootmount)
 		root_mount_rel(vol->v_rootmount);
 	callout_drain(&vol->v_start_co);
-	LIST_REMOVE(vol, v_next);
+	TAILQ_REMOVE(&sc->sc_volumes, vol, v_next);
 	for (i = 0; i < G_RAID_MAX_SUBDISKS; i++) {
-		if (vol->v_subdisks[i].sd_disk == NULL)
+		disk = vol->v_subdisks[i].sd_disk;
+		if (disk == NULL)
 			continue;
-		LIST_REMOVE(&vol->v_subdisks[i], sd_next);
+		TAILQ_REMOVE(&disk->d_subdisks, &vol->v_subdisks[i], sd_next);
 	}
 	G_RAID_DEBUG(2, "Volume %s destroyed.", vol->v_name);
 	free(vol, M_RAID);
@@ -1517,13 +1519,13 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 		g_topology_unlock();
 		disk->d_consumer = NULL;
 	}
-	LIST_FOREACH_SAFE(sd, &disk->d_subdisks, sd_next, tmp) {
+	TAILQ_FOREACH_SAFE(sd, &disk->d_subdisks, sd_next, tmp) {
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
 		    G_RAID_EVENT_SUBDISK);
-		LIST_REMOVE(sd, sd_next);
+		TAILQ_REMOVE(&disk->d_subdisks, sd, sd_next);
 		sd->sd_disk = NULL;
 	}
-	LIST_REMOVE(disk, d_next);
+	TAILQ_REMOVE(&sc->sc_disks, disk, d_next);
 	if (sc->sc_md)
 		G_RAID_MD_FREE_DISK(sc->sc_md, disk);
 	free(disk, M_RAID);
@@ -1543,7 +1545,7 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 
 	/* Count open volumes. */
 	opens = 0;
-	LIST_FOREACH(vol, &sc->sc_volumes, v_next) {
+	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 		if (vol->v_provider_open != 0)
 			opens++;
 	}
@@ -1714,12 +1716,12 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sx_xlock(&sc->sc_lock);
 		sbuf_printf(sb, "%s<State>%s", indent,
 		    g_raid_disk_state2str(disk->d_state));
-		if (!LIST_EMPTY(&disk->d_subdisks)) {
+		if (!TAILQ_EMPTY(&disk->d_subdisks)) {
 			sbuf_printf(sb, " (");
-			LIST_FOREACH(sd, &disk->d_subdisks, sd_next) {
+			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
 				sbuf_printf(sb, "%s",
 				    g_raid_subdisk_state2str(sd->sd_state));
-				if (LIST_NEXT(sd, sd_next))
+				if (TAILQ_NEXT(sd, sd_next))
 					sbuf_printf(sb, ", ");
 			}
 			sbuf_printf(sb, ")");
@@ -1734,9 +1736,9 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			sbuf_printf(sb, "%s<Metadata>%s</Metadata>\n", indent,
 			    sc->sc_md->mdo_class->name);
 		}
-		if (!LIST_EMPTY(&sc->sc_volumes)) {
+		if (!TAILQ_EMPTY(&sc->sc_volumes)) {
 			s = 0xff;
-			LIST_FOREACH(vol, &sc->sc_volumes, v_next) {
+			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 				if (vol->v_state < s)
 					s = vol->v_state;
 			}
