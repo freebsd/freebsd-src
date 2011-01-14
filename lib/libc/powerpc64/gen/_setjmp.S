@@ -114,3 +114,5 @@ ENTRY(_longjmp)
 	bnelr
 	li	%r3,1
 	blr
+
+	.section .note.GNU-stack,"",%progbits
