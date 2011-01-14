@@ -33,3 +33,5 @@ __FBSDID("$FreeBSD$");
 ENTRY(fabs)
 	fabs	%f1,%f1
 	blr
+
+	.section .note.GNU-stack,"",%progbits

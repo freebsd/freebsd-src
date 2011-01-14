@@ -54,4 +54,4 @@ HIDENAME(cerror):
 	li	%r4,-1
 	blr				/* return to callers caller */
 
-
+	.section .note.GNU-stack,"",%progbits
