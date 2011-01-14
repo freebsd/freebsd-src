@@ -67,10 +67,10 @@
  * Priorities range from 0 to 255, but differences of less then 4 (RQ_PPQ)
  * are insignificant.  Ranges are as follows:
  *
- * Interrupt threads:		0 - 63
- * Top half kernel threads:	64 - 127
- * Realtime user threads:	128 - 159
- * Time sharing user threads:	160 - 223
+ * Interrupt threads:		0 - 47
+ * Realtime user threads:	48 - 79
+ * Top half kernel threads:	80 - 119
+ * Time sharing user threads:	120 - 223
  * Idle user threads:		224 - 255
  *
  * XXX If/When the specific interrupt thread and top half thread ranges
@@ -81,7 +81,7 @@
 #define	PRI_MAX			(255)		/* Lowest priority. */
 
 #define	PRI_MIN_ITHD		(PRI_MIN)
-#define	PRI_MAX_ITHD		(PRI_MIN_KERN - 1)
+#define	PRI_MAX_ITHD		(PRI_MIN_REALTIME - 1)
 
 #define	PI_REALTIME		(PRI_MIN_ITHD + 0)
 #define	PI_AV			(PRI_MIN_ITHD + 4)
@@ -92,8 +92,11 @@
 #define	PI_SOFT			(PRI_MIN_ITHD + 24)
 #define	PI_SWI(x)		(PI_SOFT + (x) * RQ_PPQ)
 
-#define	PRI_MIN_KERN		(64)
-#define	PRI_MAX_KERN		(PRI_MIN_REALTIME - 1)
+#define	PRI_MIN_REALTIME	(48)
+#define	PRI_MAX_REALTIME	(PRI_MIN_KERN - 1)
+
+#define	PRI_MIN_KERN		(80)
+#define	PRI_MAX_KERN		(PRI_MIN_TIMESHARE - 1)
 
 #define	PSWP			(PRI_MIN_KERN + 0)
 #define	PVM			(PRI_MIN_KERN + 4)
@@ -106,10 +109,7 @@
 #define	PLOCK			(PRI_MIN_KERN + 32)
 #define	PPAUSE			(PRI_MIN_KERN + 36)
 
-#define	PRI_MIN_REALTIME	(128)
-#define	PRI_MAX_REALTIME	(PRI_MIN_TIMESHARE - 1)
-
-#define	PRI_MIN_TIMESHARE	(160)
+#define	PRI_MIN_TIMESHARE	(120)
 #define	PRI_MAX_TIMESHARE	(PRI_MIN_IDLE - 1)
 
 #define	PUSER			(PRI_MIN_TIMESHARE)
