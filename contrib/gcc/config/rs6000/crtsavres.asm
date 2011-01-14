@@ -305,3 +305,5 @@ FUNC_END(_restgpr_15_x)
 FUNC_END(_restgpr_14_x)
 
 #endif
+
+	.section .note.GNU-stack,"",%progbits
