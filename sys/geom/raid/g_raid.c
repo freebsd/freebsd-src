@@ -733,7 +733,7 @@ g_raid_start(struct bio *bp)
 }
 
 static int
-g_raid_bio_overlaps(const struct bio *bp, off_t off, off_t len)
+g_raid_bio_overlaps(const struct bio *bp, off_t lstart, off_t len)
 {
 	/*
 	 * 5 cases:
@@ -750,10 +750,13 @@ g_raid_bio_overlaps(const struct bio *bp, off_t off, off_t len)
 	 * (4) 12-14: passes both ifs
 	 * (5) 19-20: passes both
 	 */
+	off_t lend = lstart + len - 1;
+	off_t bstart = bp->bio_offset;
+	off_t bend = bp->bio_offset + bp->bio_length - 1;
 
-	if (bp->bio_offset + bp->bio_length - 1 < off)
+	if (bend < lstart)
 		return (0);
-	if (bp->bio_offset < off + len - 1)
+	if (lend < bstart)
 		return (0);
 	return (1);
 }
