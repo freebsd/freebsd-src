@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2008
+.Dd January 8, 2011
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -289,7 +289,9 @@ Amount of time, in milliseconds, that the connection must be idle
 before keepalive probes (if enabled) are sent.
 .It Va keepintvl
 The interval, in milliseconds, between keepalive probes sent to remote
-machines.
+machines, when no response is received on a
+.Va keepidle
+probe.
 After
 .Dv TCPTV_KEEPCNT
 (default 8) probes are sent, with no response, the connection is dropped.
