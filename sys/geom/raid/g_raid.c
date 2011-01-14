@@ -85,6 +85,9 @@ LIST_HEAD(, g_raid_md_class) g_raid_md_classes =
 LIST_HEAD(, g_raid_tr_class) g_raid_tr_classes =
     LIST_HEAD_INITIALIZER(g_raid_tr_classes);
 
+LIST_HEAD(, g_raid_volume) g_raid_volumes =
+    LIST_HEAD_INITIALIZER(g_raid_volumes);
+
 //static eventhandler_tag g_raid_pre_sync = NULL;
 
 static int g_raid_destroy_geom(struct gctl_req *req, struct g_class *mp,
@@ -1096,7 +1099,6 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 	struct g_raid_softc *sc;
 	struct g_provider *pp;
 	char name[G_RAID_MAX_VOLUMENAME];
-	int i;
 
 	sc = vol->v_softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
@@ -1106,12 +1108,8 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 	snprintf(name, sizeof(name), "raid/%s", vol->v_name);
 	if (g_raid_name_format == 0 || vol->v_name[0] == 0 ||
 	    g_provider_by_name(name) != NULL) {
-	    /* Otherwise find first free name. */
-	    for (i = 0; ; i++) {
-		snprintf(name, sizeof(name), "raid/r%d", i);
-		if (g_provider_by_name(name) == NULL)
-			break;
-	    }
+		/* Otherwise use sequential volume number. */
+		snprintf(name, sizeof(name), "raid/r%d", vol->v_global_id);
 	}
 	pp = g_new_providerf(sc->sc_geom, "%s", name);
 	pp->private = vol;
@@ -1337,7 +1335,7 @@ g_raid_create_node(struct g_class *mp,
 struct g_raid_volume *
 g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 {
-	struct g_raid_volume	*vol;
+	struct g_raid_volume	*vol, *vol1;
 	int i;
 
 	G_RAID_DEBUG(1, "Creating volume %s.", name);
@@ -1355,6 +1353,22 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 		vol->v_subdisks[i].sd_pos = i;
 		vol->v_subdisks[i].sd_state = G_RAID_DISK_S_NONE;
 	}
+
+	/* Find free ID for this volume. */
+	g_topology_lock();
+	for (i = 0; ; i++) {
+		LIST_FOREACH(vol1, &g_raid_volumes, v_global_next) {
+			if (vol1->v_global_id == i)
+				break;
+		}
+		if (vol1 == NULL)
+			break;
+	}
+	vol->v_global_id = i;
+	LIST_INSERT_HEAD(&g_raid_volumes, vol, v_global_next);
+	g_topology_unlock();
+
+	/* Delay root mounting. */
 	vol->v_rootmount = root_mount_hold("GRAID");
 	G_RAID_DEBUG(1, "root_mount_hold %p", vol->v_rootmount);
 	callout_init(&vol->v_start_co, 1);
@@ -1491,6 +1505,9 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 	if (vol->v_rootmount)
 		root_mount_rel(vol->v_rootmount);
 	callout_drain(&vol->v_start_co);
+	g_topology_lock();
+	LIST_REMOVE(vol, v_global_next);
+	g_topology_unlock();
 	TAILQ_REMOVE(&sc->sc_volumes, vol, v_next);
 	for (i = 0; i < G_RAID_MAX_SUBDISKS; i++) {
 		disk = vol->v_subdisks[i].sd_disk;

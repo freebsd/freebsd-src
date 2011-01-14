@@ -205,7 +205,9 @@ struct g_raid_volume {
 	int			 v_starting;	/* STARTING state timer armed */
 	int			 v_stopping;	/* Volume is stopping */
 	int			 v_provider_open; /* Number of opens. */
+	int			 v_global_id;	/* Global volume ID (rX). */
 	TAILQ_ENTRY(g_raid_volume)	 v_next; /* List of volumes entry. */
+	LIST_ENTRY(g_raid_volume)	 v_global_next; /* Global list entry. */
 };
 
 struct g_raid_softc {
