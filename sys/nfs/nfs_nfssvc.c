@@ -99,7 +99,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	else if ((uap->flag & (NFSSVC_NFSDNFSD | NFSSVC_NFSDADDSOCK |
 	    NFSSVC_PUBLICFH | NFSSVC_V4ROOTEXPORT | NFSSVC_NOPUBLICFH |
 	    NFSSVC_STABLERESTART | NFSSVC_ADMINREVOKE |
-	    NFSSVC_DUMPCLIENTS | NFSSVC_DUMPLOCKS)) &&
+	    NFSSVC_DUMPCLIENTS | NFSSVC_DUMPLOCKS | NFSSVC_BACKUPSTABLE)) &&
 	    nfsd_call_nfsd != NULL)
 		error = (*nfsd_call_nfsd)(td, uap);
 	if (error == EINTR || error == ERESTART)
