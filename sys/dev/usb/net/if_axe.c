@@ -142,11 +142,11 @@ static const struct usb_device_id axe_devs[] = {
 	AXE_DEV(ASIX, AX88172, 0),
 	AXE_DEV(ASIX, AX88178, AXE_FLAG_178),
 	AXE_DEV(ASIX, AX88772, AXE_FLAG_772),
-	AXE_DEV(ASIX, AX88772A, AXE_FLAG_772),
+	AXE_DEV(ASIX, AX88772A, AXE_FLAG_772A),
 	AXE_DEV(ATEN, UC210T, 0),
 	AXE_DEV(BELKIN, F5D5055, AXE_FLAG_178),
 	AXE_DEV(BILLIONTON, USB2AR, 0),
-	AXE_DEV(CISCOLINKSYS, USB200MV2, AXE_FLAG_772),
+	AXE_DEV(CISCOLINKSYS, USB200MV2, AXE_FLAG_772A),
 	AXE_DEV(COREGA, FETHER_USB2_TX, 0),
 	AXE_DEV(DLINK, DUBE100, 0),
 	AXE_DEV(DLINK, DUBE100B1, AXE_FLAG_772),
@@ -191,6 +191,7 @@ static void	axe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int	axe_cmd(struct axe_softc *, int, int, int, void *);
 static void	axe_ax88178_init(struct axe_softc *);
 static void	axe_ax88772_init(struct axe_softc *);
+static void	axe_ax88772a_init(struct axe_softc *);
 static int	axe_get_phyno(struct axe_softc *, int);
 
 static const struct usb_config axe_config[AXE_N_TRANSFER] = {
@@ -613,7 +614,6 @@ axe_ax88178_init(struct axe_softc *sc)
 
 	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
 }
-#undef	AXE_GPIO_WRITE
 
 static void
 axe_ax88772_init(struct axe_softc *sc)
@@ -657,6 +657,47 @@ axe_ax88772_init(struct axe_softc *sc)
 }
 
 static void
+axe_ax88772a_init(struct axe_softc *sc)
+{
+	struct usb_ether *ue;
+	uint16_t eeprom;
+
+	ue = &sc->sc_ue;
+	axe_cmd(sc, AXE_CMD_SROM_READ, 0, 0x0017, &eeprom);
+	eeprom = le16toh(eeprom);
+	/* Reload EEPROM. */
+	AXE_GPIO_WRITE(AXE_GPIO_RELOAD_EEPROM, hz / 32);
+	if (sc->sc_phyno == AXE_772_PHY_NO_EPHY) {
+		/* Manually select internal(embedded) PHY - MAC mode. */
+		axe_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, AXE_SW_PHY_SELECT_SS_ENB |
+		    AXE_SW_PHY_SELECT_EMBEDDED | AXE_SW_PHY_SELECT_SS_MII,
+		    NULL);
+		uether_pause(&sc->sc_ue, hz / 32);
+	} else {
+		/*
+		 * Manually select external PHY - MAC mode.
+		 * Reverse MII/RMII is for AX88772A PHY mode.
+		 */
+		axe_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, AXE_SW_PHY_SELECT_SS_ENB |
+		    AXE_SW_PHY_SELECT_EXT | AXE_SW_PHY_SELECT_SS_MII, NULL);
+		uether_pause(&sc->sc_ue, hz / 32);
+	}
+	/* Take PHY out of power down. */
+	axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, AXE_SW_RESET_IPPD |
+	    AXE_SW_RESET_IPRL, NULL);
+	uether_pause(&sc->sc_ue, hz / 4);
+	axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, AXE_SW_RESET_IPRL, NULL);
+	uether_pause(&sc->sc_ue, hz);
+	axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, AXE_SW_RESET_CLEAR, NULL);
+	uether_pause(&sc->sc_ue, hz / 32);
+	axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, AXE_SW_RESET_IPRL, NULL);
+	uether_pause(&sc->sc_ue, hz / 32);
+	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
+}
+
+#undef	AXE_GPIO_WRITE
+
+static void
 axe_reset(struct axe_softc *sc)
 {
 	struct usb_config_descriptor *cd;
@@ -677,6 +718,8 @@ axe_reset(struct axe_softc *sc)
 		axe_ax88178_init(sc);
 	else if (sc->sc_flags & AXE_FLAG_772)
 		axe_ax88772_init(sc);
+	else if (sc->sc_flags & AXE_FLAG_772A)
+		axe_ax88772a_init(sc);
 }
 
 static void
@@ -706,6 +749,9 @@ axe_attach_post(struct usb_ether *ue)
 	} else if (sc->sc_flags & AXE_FLAG_772) {
 		axe_ax88772_init(sc);
 		sc->sc_tx_bufsz = 8 * 1024;
+	} else if (sc->sc_flags & AXE_FLAG_772A) {
+		axe_ax88772a_init(sc);
+		sc->sc_tx_bufsz = 8 * 1024;
 	}
 
 	/*
@@ -719,7 +765,13 @@ axe_attach_post(struct usb_ether *ue)
 	/*
 	 * Fetch IPG values.
 	 */
-	axe_cmd(sc, AXE_CMD_READ_IPG012, 0, 0, sc->sc_ipgs);
+	if (sc->sc_flags & AXE_FLAG_772A) {
+		/* Set IPG values. */
+		sc->sc_ipgs[0] = 0x15;
+		sc->sc_ipgs[1] = 0x16;
+		sc->sc_ipgs[2] = 0x1A;
+	} else
+		axe_cmd(sc, AXE_CMD_READ_IPG012, 0, 0, sc->sc_ipgs);
 }
 
 /*
