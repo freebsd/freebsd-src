@@ -76,11 +76,14 @@ struct sysentvec elf64_freebsd_sysvec = {
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_LP64,
+	.sv_flags	= SV_ABI_FREEBSD | SV_LP64 | SV_SHP,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
+	.sv_shared_page_base = SHAREDPAGE,
+	.sv_shared_page_len = PAGE_SIZE,
 };
+INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec);
 
 static Elf64_Brandinfo freebsd_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
@@ -113,7 +116,6 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf64_insert_brand_entry,
 	&freebsd_brand_oinfo);
-
 
 void
 elf64_dump_thread(struct thread *td __unused, void *dst __unused,
