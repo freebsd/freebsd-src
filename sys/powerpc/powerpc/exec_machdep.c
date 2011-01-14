@@ -290,8 +290,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
-	tf->srr0 = (register_t)(p->p_sysent->sv_psstrings -
-	    *(p->p_sysent->sv_szsigcode));
+	tf->srr0 = (register_t)p->p_sysent->sv_sigcode_base;
 
 	/*
 	 * copy the frame out to userland.
