@@ -596,6 +596,15 @@ struct ifmedia_description {
 	{ 0, NULL },							\
 }
 
+#define	IFM_SHARED_OPTION_ALIASES {					\
+	{ IFM_FDX,	"fdx" },					\
+	{ IFM_HDX,	"hdx" },					\
+	{ IFM_FLOW,	"flow" },					\
+	{ IFM_LOOP,	"loop" },					\
+	{ IFM_LOOP,	"loopback" },					\
+	{ 0, NULL },							\
+}
+
 /*
  * Baudrate descriptions for the various media types.
  */
