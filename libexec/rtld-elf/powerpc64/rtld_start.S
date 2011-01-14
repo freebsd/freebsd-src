@@ -159,3 +159,4 @@ _ENTRY(_rtld_bind_start)
 
 	bctr				# jump to target
 
+	.section .note.GNU-stack,"",%progbits
