@@ -156,12 +156,14 @@ g_raid_subdisk_state2str(int state)
 		return ("NONE");
 	case G_RAID_SUBDISK_S_NEW:
 		return ("NEW");
-	case G_RAID_SUBDISK_S_ACTIVE:
-		return ("ACTIVE");
 	case G_RAID_SUBDISK_S_STALE:
 		return ("STALE");
-	case G_RAID_SUBDISK_S_SYNCHRONIZING:
-		return ("SYNCHRONIZING");
+	case G_RAID_SUBDISK_S_REBUILD:
+		return ("REBUILD");
+	case G_RAID_SUBDISK_S_RESYNC:
+		return ("RESYNC");
+	case G_RAID_SUBDISK_S_ACTIVE:
+		return ("ACTIVE");
 	default:
 		return ("INVALID");
 	}

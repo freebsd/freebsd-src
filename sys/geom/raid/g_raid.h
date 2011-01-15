@@ -119,11 +119,12 @@ struct g_raid_disk {
 	TAILQ_ENTRY(g_raid_disk)	 d_next;	/* Next disk in the node. */
 };
 
-#define G_RAID_SUBDISK_S_NONE		0x00
-#define G_RAID_SUBDISK_S_NEW		0x01
-#define G_RAID_SUBDISK_S_ACTIVE		0x02
-#define G_RAID_SUBDISK_S_STALE		0x03
-#define G_RAID_SUBDISK_S_SYNCHRONIZING	0x04
+#define G_RAID_SUBDISK_S_NONE		0x00	/* Absent. */
+#define G_RAID_SUBDISK_S_NEW		0x01	/* Blank. */
+#define G_RAID_SUBDISK_S_STALE		0x02	/* Dirty. */
+#define G_RAID_SUBDISK_S_REBUILD	0x03	/* Blank + rebuild. */
+#define G_RAID_SUBDISK_S_RESYNC		0x04	/* Dirty + check/repair. */
+#define G_RAID_SUBDISK_S_ACTIVE		0x05	/* Usable. */
 
 #define G_RAID_SUBDISK_E_NEW		0x01
 #define G_RAID_SUBDISK_E_DISCONNECTED	0x02
@@ -136,6 +137,7 @@ struct g_raid_subdisk {
 	off_t			 sd_size;	/* Size on the disk. */
 	u_int			 sd_pos;	/* Position in volume. */
 	u_int			 sd_state;	/* Subdisk state. */
+	u_int			 sd_rebuild_pos; /* Rebuild position. */
 	int			 sd_read_errs;  /* Count of the read errors */
 	TAILQ_ENTRY(g_raid_subdisk)	 sd_next; /* Next subdisk on disk. */
 };

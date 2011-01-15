@@ -482,6 +482,8 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 	struct g_raid_md_intel_object *mdi;
 	struct g_raid_md_intel_perdisk *pd, *oldpd;
 	struct intel_raid_conf *meta;
+	struct intel_raid_vol *mvol;
+	struct intel_raid_map *mmap0, *mmap1;
 	int disk_pos;
 
 	sc = disk->d_softc;
@@ -520,6 +522,47 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 	/* Welcome the "new" disk. */
 	g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
 	TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+		mvol = intel_get_volume(meta,
+		    (uintptr_t)(sd->sd_volume->v_md_data));
+		mmap0 = intel_get_map(mvol, 0);
+		if (mvol->migr_state)
+			mmap1 = intel_get_map(mvol, 1);
+		else
+			mmap1 = mmap0;
+
+		if (mvol->migr_state == 0) {
+			if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_NEW);
+			} else {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_ACTIVE);
+			}
+		} else if (mvol->migr_type == INTEL_MT_INIT ||
+			   mvol->migr_type == INTEL_MT_REBUILD) {
+			if (!(mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD)) {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_ACTIVE);
+			} else if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_NEW);
+			} else {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_REBUILD);
+			}
+		} else if (mvol->migr_type == INTEL_MT_VERIFY ||
+			   mvol->migr_type == INTEL_MT_REPAIR) {
+			if (!(mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD)) {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_ACTIVE);
+			} else if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_STALE);
+			} else {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_RESYNC);
+			}
+		}
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 		    G_RAID_EVENT_SUBDISK);
 	}
@@ -1062,6 +1105,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			sd->sd_size = size;
 			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
 			g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 			    G_RAID_EVENT_SUBDISK);
 		}
@@ -1237,6 +1281,8 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			/* Welcome the "new" disk. */
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
 			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_NEW);
 				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 				    G_RAID_EVENT_SUBDISK);
 			}
@@ -1363,7 +1409,12 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 		mmap->offset = sd->sd_offset / sectorsize;
 		mmap->disk_sectors = sd->sd_size / sectorsize;
 		mmap->strip_sectors = vol->v_strip_size / sectorsize;
-		mmap->status = INTEL_S_READY;
+		if (vol->v_state == G_RAID_VOLUME_S_BROKEN)
+			mmap->status = INTEL_S_FAILURE;
+		else if (vol->v_state == G_RAID_VOLUME_S_DEGRADED)
+			mmap->status = INTEL_S_DEGRADED;
+		else
+			mmap->status = INTEL_S_READY;
 		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID0)
 			mmap->type = INTEL_T_RAID0;
 		else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1 ||
@@ -1387,11 +1438,11 @@ g_raid_md_write_intel(struct g_raid_md_object *md)
 			pd = (struct g_raid_md_intel_perdisk *)
 			    sd->sd_disk->d_md_data;
 			mmap->disk_idx[sdi] = pd->pd_disk_pos;
-//			if (sd->sd_state == G_RAID_SUBDISK_S_NONE) {
-//				mmap->disk_idx[sdi] |= INTEL_DI_RBLD;
-//				if (mmap->failed_disk_num == 0xff)
-//					mmap->failed_disk_num = sdi;
-//			}
+			if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE) {
+				mmap->disk_idx[sdi] |= INTEL_DI_RBLD;
+				if (mmap->failed_disk_num == 0xff)
+					mmap->failed_disk_num = sdi;
+			}
 		}
 		vi++;
 	}
