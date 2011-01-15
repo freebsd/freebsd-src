@@ -160,13 +160,13 @@ SYSCTL_INT(_net_isr, OID_AUTO, direct, CTLFLAG_RW,
  */
 static int	netisr_maxthreads = -1;		/* Max number of threads. */
 TUNABLE_INT("net.isr.maxthreads", &netisr_maxthreads);
-SYSCTL_INT(_net_isr, OID_AUTO, maxthreads, CTLFLAG_RD,
+SYSCTL_INT(_net_isr, OID_AUTO, maxthreads, CTLFLAG_RDTUN,
     &netisr_maxthreads, 0,
     "Use at most this many CPUs for netisr processing");
 
 static int	netisr_bindthreads = 0;		/* Bind threads to CPUs. */
 TUNABLE_INT("net.isr.bindthreads", &netisr_bindthreads);
-SYSCTL_INT(_net_isr, OID_AUTO, bindthreads, CTLFLAG_RD,
+SYSCTL_INT(_net_isr, OID_AUTO, bindthreads, CTLFLAG_RDTUN,
     &netisr_bindthreads, 0, "Bind netisr threads to CPUs.");
 
 /*
@@ -176,7 +176,7 @@ SYSCTL_INT(_net_isr, OID_AUTO, bindthreads, CTLFLAG_RD,
 #define	NETISR_DEFAULT_MAXQLIMIT	10240
 static u_int	netisr_maxqlimit = NETISR_DEFAULT_MAXQLIMIT;
 TUNABLE_INT("net.isr.maxqlimit", &netisr_maxqlimit);
-SYSCTL_INT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RD,
+SYSCTL_INT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RDTUN,
     &netisr_maxqlimit, 0,
     "Maximum netisr per-protocol, per-CPU queue depth.");
 
@@ -188,7 +188,7 @@ SYSCTL_INT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RD,
 #define	NETISR_DEFAULT_DEFAULTQLIMIT	256
 static u_int	netisr_defaultqlimit = NETISR_DEFAULT_DEFAULTQLIMIT;
 TUNABLE_INT("net.isr.defaultqlimit", &netisr_defaultqlimit);
-SYSCTL_INT(_net_isr, OID_AUTO, defaultqlimit, CTLFLAG_RD,
+SYSCTL_INT(_net_isr, OID_AUTO, defaultqlimit, CTLFLAG_RDTUN,
     &netisr_defaultqlimit, 0,
     "Default netisr per-protocol, per-CPU queue limit if not set by protocol");
 
