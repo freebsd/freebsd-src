@@ -4217,7 +4217,7 @@ static int
 nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, __unused vnode_t vp,
     NFSPROC_T *p)
 {
-	int gotlock;
+	int gotlock, lktype;
 
 	/*
 	 * If lease hasn't expired, we can't fix it.
@@ -4227,7 +4227,8 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, __unused vnode_t vp,
 		return (0);
 	if (*haslockp == 0) {
 		NFSUNLOCKSTATE();
-		NFSVOPUNLOCK(vp, 0, p);
+		lktype = VOP_ISLOCKED(vp);
+		VOP_UNLOCK(vp, 0);
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
 		do {
@@ -4236,7 +4237,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, __unused vnode_t vp,
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
-		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		vn_lock(vp, lktype | LK_RETRY);
 		return (1);
 	}
 	NFSUNLOCKSTATE();
@@ -4278,7 +4279,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
     vnode_t vp)
 {
 	struct nfsclient *clp = stp->ls_clp;
-	int gotlock, error, retrycnt, zapped_clp;
+	int gotlock, error, lktype, retrycnt, zapped_clp;
 	nfsv4stateid_t tstateid;
 	fhandle_t tfh;
 
@@ -4391,7 +4392,8 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	 */
 	if (*haslockp == 0) {
 		NFSUNLOCKSTATE();
-		NFSVOPUNLOCK(vp, 0, p);
+		lktype = VOP_ISLOCKED(vp);
+		VOP_UNLOCK(vp, 0);
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
 		do {
@@ -4400,7 +4402,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
-		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		vn_lock(vp, lktype | LK_RETRY);
 		return (-1);
 	}
 
