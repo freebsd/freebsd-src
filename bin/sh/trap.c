@@ -153,8 +153,18 @@ trapcmd(int argc, char **argv)
 	char *action;
 	int signo;
 	int errors = 0;
+	int i;
 
-	if (argc <= 1) {
+	while ((i = nextopt("l")) != '\0') {
+		switch (i) {
+		case 'l':
+			printsignals();
+			return (0);
+		}
+	}
+	argv = argptr;
+
+	if (*argv == NULL) {
 		for (signo = 0 ; signo < sys_nsig ; signo++) {
 			if (signo < NSIG && trap[signo] != NULL) {
 				out1str("trap -- ");
@@ -171,19 +181,12 @@ trapcmd(int argc, char **argv)
 		return 0;
 	}
 	action = NULL;
-	if (*++argv && strcmp(*argv, "--") == 0)
-		argv++;
 	if (*argv && sigstring_to_signum(*argv) == -1) {
-		if ((*argv)[0] != '-') {
+		if (strcmp(*argv, "-") == 0)
+			argv++;
+		else {
 			action = *argv;
 			argv++;
-		} else if ((*argv)[1] == '\0') {
-			argv++;
-		} else if ((*argv)[1] == 'l' && (*argv)[2] == '\0') {
-			printsignals();
-			return 0;
-		} else {
-			error("bad option %s", *argv);
 		}
 	}
 	while (*argv) {
