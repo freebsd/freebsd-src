@@ -308,6 +308,9 @@ void g_raid_change_disk_state(struct g_raid_disk *disk, int state);
 void g_raid_change_subdisk_state(struct g_raid_subdisk *sd, int state);
 void g_raid_change_volume_state(struct g_raid_volume *vol, int state);
 
+void g_raid_write_metadata(struct g_raid_softc *sc, struct g_raid_volume *vol,
+    struct g_raid_subdisk *sd, struct g_raid_disk *disk);
+
 u_int g_raid_ndisks(struct g_raid_softc *sc, int state);
 u_int g_raid_nsubdisks(struct g_raid_volume *vol, int state);
 #define	G_RAID_DESTROY_SOFT		0

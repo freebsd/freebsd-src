@@ -1692,6 +1692,14 @@ g_raid_destroy_geom(struct gctl_req *req __unused,
 	return (error);
 }
 
+void g_raid_write_metadata(struct g_raid_softc *sc, struct g_raid_volume *vol,
+    struct g_raid_subdisk *sd, struct g_raid_disk *disk)
+{
+
+	if (sc->sc_md)
+		G_RAID_MD_WRITE(sc->sc_md, vol, sd, disk);
+}
+
 static void
 g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp, struct g_provider *pp)
