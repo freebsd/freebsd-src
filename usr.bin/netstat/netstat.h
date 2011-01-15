@@ -69,6 +69,9 @@ const char *plural(uintmax_t);
 const char *plurales(uintmax_t);
 const char *pluralies(uintmax_t);
 
+struct sockaddr;
+struct socket;
+struct xsocket;
 int	sotoxsocket(struct socket *, struct xsocket *);
 void	protopr(u_long, const char *, int, int);
 void	tcp_stats(u_long, const char *, int, int);
@@ -113,6 +116,8 @@ void	pfkey_stats(u_long, const char *, int, int);
 #endif
 
 void	mbpr(void *, u_long);
+
+void	netisr_stats(void);
 
 void	hostpr(u_long, u_long);
 void	impstats(u_long, u_long);
