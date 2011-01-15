@@ -858,9 +858,11 @@ _bfd_elf_merge_symbol (bfd *abfd,
     return FALSE;
   *sym_hash = h;
 
+  bed = get_elf_backend_data (abfd);
+
   /* This code is for coping with dynamic objects, and is only useful
      if we are doing an ELF link.  */
-  if (info->hash->creator != abfd->xvec)
+  if (!(*bed->relocs_compatible) (abfd->xvec, info->hash->creator))
     return TRUE;
 
   /* For merging, we only care about real symbols.  */
@@ -947,7 +949,6 @@ _bfd_elf_merge_symbol (bfd *abfd,
 	    && h->root.type != bfd_link_hash_undefweak
 	    && h->root.type != bfd_link_hash_common);
 
-  bed = get_elf_backend_data (abfd);
   /* When we try to create a default indirect symbol from the dynamic
      definition with the default version, we skip it if its type and
      the type of existing regular definition mismatch.  We only do it
