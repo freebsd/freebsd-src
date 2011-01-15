@@ -741,7 +741,6 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
 
-	load_cr0(rcr0() | CR0_MP | CR0_TS);
 	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */

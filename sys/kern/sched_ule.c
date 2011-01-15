@@ -118,11 +118,17 @@ static struct td_sched td_sched0;
 
 /*
  * Priority ranges used for interactive and non-interactive timeshare
- * threads.  Interactive threads use realtime priorities.
+ * threads.  The timeshare priorities are split up into four ranges.
+ * The first range handles interactive threads.  The last three ranges
+ * (NHALF, x, and NHALF) handle non-interactive threads with the outer
+ * ranges supporting nice values.
  */
-#define	PRI_MIN_INTERACT	PRI_MIN_REALTIME
-#define	PRI_MAX_INTERACT	PRI_MAX_REALTIME
-#define	PRI_MIN_BATCH		PRI_MIN_TIMESHARE
+#define	PRI_TIMESHARE_RANGE	(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
+#define	PRI_INTERACT_RANGE	((PRI_TIMESHARE_RANGE - SCHED_PRI_NRESV) / 2)
+
+#define	PRI_MIN_INTERACT	PRI_MIN_TIMESHARE
+#define	PRI_MAX_INTERACT	(PRI_MIN_TIMESHARE + PRI_INTERACT_RANGE - 1)
+#define	PRI_MIN_BATCH		(PRI_MIN_TIMESHARE + PRI_INTERACT_RANGE)
 #define	PRI_MAX_BATCH		PRI_MAX_TIMESHARE
 
 /*
@@ -1893,6 +1899,8 @@ sched_sleep(struct thread *td, int prio)
 	td->td_slptick = ticks;
 	if (TD_IS_SUSPENDED(td) || prio >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
+	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
+		return;
 	if (static_boost == 1 && prio)
 		sched_prio(td, prio);
 	else if (static_boost && td->td_priority > static_boost)

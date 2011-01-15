@@ -72,6 +72,7 @@ ppc_create_output_section_statements (void)
 {
   extern const bfd_target bfd_elf64_powerpc_vec;
   extern const bfd_target bfd_elf64_powerpcle_vec;
+  asection *sect;
 
   if (link_info.hash->creator != &bfd_elf64_powerpc_vec
       && link_info.hash->creator != &bfd_elf64_powerpcle_vec)
@@ -92,6 +93,8 @@ ppc_create_output_section_statements (void)
       return;
     }
 
+  if (bfd_get_section_by_name (stub_file->the_bfd, ".note.GNU-stack") == NULL)
+    sect = bfd_make_section (stub_file->the_bfd, ".note.GNU-stack");
   stub_file->the_bfd->flags |= BFD_LINKER_CREATED;
   ldlang_add_file (stub_file);
   ppc64_elf_init_stub_bfd (stub_file->the_bfd, &link_info);

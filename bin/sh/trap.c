@@ -134,7 +134,7 @@ printsignals(void)
 			outlen += 3;	/* good enough */
 		}
 		++outlen;
-		if (outlen > 70 || n == sys_nsig - 1) {
+		if (outlen > 71 || n == sys_nsig - 1) {
 			out1str("\n");
 			outlen = 0;
 		} else {
