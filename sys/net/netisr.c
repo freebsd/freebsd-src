@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2007-2009 Robert N. M. Watson
+ * Copyright (c) 2010 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * This software was developed by Robert N. M. Watson under contract
+ * to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1117,6 +1121,170 @@ netisr_start(void *arg)
 	}
 }
 SYSINIT(netisr_start, SI_SUB_SMP, SI_ORDER_MIDDLE, netisr_start, NULL);
+
+/*
+ * Sysctl monitoring for netisr: query a list of registered protocols.
+ */
+static int
+sysctl_netisr_proto(SYSCTL_HANDLER_ARGS)
+{
+	struct rm_priotracker tracker;
+	struct sysctl_netisr_proto *snpp, *snp_array;
+	struct netisr_proto *npp;
+	u_int counter, proto;
+	int error;
+
+	if (req->newptr != NULL)
+		return (EINVAL);
+	snp_array = malloc(sizeof(*snp_array) * NETISR_MAXPROT, M_TEMP,
+	    M_ZERO | M_WAITOK);
+	counter = 0;
+	NETISR_RLOCK(&tracker);
+	for (proto = 0; proto < NETISR_MAXPROT; proto++) {
+		npp = &np[proto];
+		if (npp->np_name == NULL)
+			continue;
+		snpp = &snp_array[counter];
+		snpp->snp_version = sizeof(*snpp);
+		strlcpy(snpp->snp_name, npp->np_name, NETISR_NAMEMAXLEN);
+		snpp->snp_proto = proto;
+		snpp->snp_qlimit = npp->np_qlimit;
+		snpp->snp_policy = npp->np_policy;
+		if (npp->np_m2flow != NULL)
+			snpp->snp_flags |= NETISR_SNP_FLAGS_M2FLOW;
+		if (npp->np_m2cpuid != NULL)
+			snpp->snp_flags |= NETISR_SNP_FLAGS_M2CPUID;
+		if (npp->np_drainedcpu != NULL)
+			snpp->snp_flags |= NETISR_SNP_FLAGS_DRAINEDCPU;
+		counter++;
+	}
+	NETISR_RUNLOCK(&tracker);
+	KASSERT(counter < NETISR_MAXPROT,
+	    ("sysctl_netisr_proto: counter too big (%d)", counter));
+	error = SYSCTL_OUT(req, snp_array, sizeof(*snp_array) * counter);
+	free(snp_array, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_net_isr, OID_AUTO, proto,
+    CTLFLAG_RD|CTLTYPE_STRUCT|CTLFLAG_MPSAFE, 0, 0, sysctl_netisr_proto,
+    "S,sysctl_netisr_proto",
+    "Return list of protocols registered with netisr");
+
+/*
+ * Sysctl monitoring for netisr: query a list of workstreams.
+ */
+static int
+sysctl_netisr_workstream(SYSCTL_HANDLER_ARGS)
+{
+	struct rm_priotracker tracker;
+	struct sysctl_netisr_workstream *snwsp, *snws_array;
+	struct netisr_workstream *nwsp;
+	u_int counter, cpuid;
+	int error;
+
+	if (req->newptr != NULL)
+		return (EINVAL);
+	snws_array = malloc(sizeof(*snws_array) * MAXCPU, M_TEMP,
+	    M_ZERO | M_WAITOK);
+	counter = 0;
+	NETISR_RLOCK(&tracker);
+	for (cpuid = 0; cpuid < MAXCPU; cpuid++) {
+		if (CPU_ABSENT(cpuid))
+			continue;
+		nwsp = DPCPU_ID_PTR(cpuid, nws);
+		if (nwsp->nws_intr_event == NULL)
+			continue;
+		NWS_LOCK(nwsp);
+		snwsp = &snws_array[counter];
+		snwsp->snws_version = sizeof(*snwsp);
+
+		/*
+		 * For now, we equate workstream IDs and CPU IDs in the
+		 * kernel, but expose them independently to userspace in case
+		 * that assumption changes in the future.
+		 */
+		snwsp->snws_wsid = cpuid;
+		snwsp->snws_cpu = cpuid;
+		if (nwsp->nws_intr_event != NULL)
+			snwsp->snws_flags |= NETISR_SNWS_FLAGS_INTR;
+		NWS_UNLOCK(nwsp);
+		counter++;
+	}
+	NETISR_RUNLOCK(&tracker);
+	KASSERT(counter < MAXCPU,
+	    ("sysctl_netisr_workstream: counter too big (%d)", counter));
+	error = SYSCTL_OUT(req, snws_array, sizeof(*snws_array) * counter);
+	free(snws_array, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_net_isr, OID_AUTO, workstream,
+    CTLFLAG_RD|CTLTYPE_STRUCT|CTLFLAG_MPSAFE, 0, 0, sysctl_netisr_workstream,
+    "S,sysctl_netisr_workstream",
+    "Return list of workstreams implemented by netisr");
+
+/*
+ * Sysctl monitoring for netisr: query per-protocol data across all
+ * workstreams.
+ */
+static int
+sysctl_netisr_work(SYSCTL_HANDLER_ARGS)
+{
+	struct rm_priotracker tracker;
+	struct sysctl_netisr_work *snwp, *snw_array;
+	struct netisr_workstream *nwsp;
+	struct netisr_proto *npp;
+	struct netisr_work *nwp;
+	u_int counter, cpuid, proto;
+	int error;
+
+	if (req->newptr != NULL)
+		return (EINVAL);
+	snw_array = malloc(sizeof(*snw_array) * MAXCPU * NETISR_MAXPROT,
+	    M_TEMP, M_ZERO | M_WAITOK);
+	counter = 0;
+	NETISR_RLOCK(&tracker);
+	for (cpuid = 0; cpuid < MAXCPU; cpuid++) {
+		if (CPU_ABSENT(cpuid))
+			continue;
+		nwsp = DPCPU_ID_PTR(cpuid, nws);
+		if (nwsp->nws_intr_event == NULL)
+			continue;
+		NWS_LOCK(nwsp);
+		for (proto = 0; proto < NETISR_MAXPROT; proto++) {
+			npp = &np[proto];
+			if (npp->np_name == NULL)
+				continue;
+			nwp = &nwsp->nws_work[proto];
+			snwp = &snw_array[counter];
+			snwp->snw_version = sizeof(*snwp);
+			snwp->snw_wsid = cpuid;		/* See comment above. */
+			snwp->snw_proto = proto;
+			snwp->snw_len = nwp->nw_len;
+			snwp->snw_watermark = nwp->nw_watermark;
+			snwp->snw_dispatched = nwp->nw_dispatched;
+			snwp->snw_hybrid_dispatched =
+			    nwp->nw_hybrid_dispatched;
+			snwp->snw_qdrops = nwp->nw_qdrops;
+			snwp->snw_queued = nwp->nw_queued;
+			snwp->snw_handled = nwp->nw_handled;
+			counter++;
+		}
+		NWS_UNLOCK(nwsp);
+	}
+	KASSERT(counter < MAXCPU * NETISR_MAXPROT,
+	    ("sysctl_netisr_work: counter too big (%d)", counter));
+	NETISR_RUNLOCK(&tracker);
+	error = SYSCTL_OUT(req, snw_array, sizeof(*snw_array) * counter);
+	free(snw_array, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_net_isr, OID_AUTO, work,
+    CTLFLAG_RD|CTLTYPE_STRUCT|CTLFLAG_MPSAFE, 0, 0, sysctl_netisr_work,
+    "S,sysctl_netisr_work",
+    "Return list of per-workstream, per-protocol work in netisr");
 
 #ifdef DDB
 DB_SHOW_COMMAND(netisr, db_show_netisr)
