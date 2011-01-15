@@ -117,7 +117,7 @@ void	pfkey_stats(u_long, const char *, int, int);
 
 void	mbpr(void *, u_long);
 
-void	netisr_stats(void);
+void	netisr_stats(void *);
 
 void	hostpr(u_long, u_long);
 void	impstats(u_long, u_long);
