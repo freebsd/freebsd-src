@@ -21,6 +21,7 @@ MAN=	kvm.3 kvm_getcptime.3 kvm_geterr.3 kvm_getfiles.3 kvm_getloadavg.3 \
 	kvm_read.3
 
 MLINKS+=kvm_getpcpu.3 kvm_getmaxcpu.3
+MLINKS+=kvm_getpcpu.3 kvm_dpcpu_setcpu.3
 MLINKS+=kvm_getprocs.3 kvm_getargv.3 kvm_getprocs.3 kvm_getenvv.3
 MLINKS+=kvm_open.3 kvm_close.3 kvm_open.3 kvm_openfiles.3
 MLINKS+=kvm_read.3 kvm_write.3

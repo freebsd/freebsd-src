@@ -69,6 +69,7 @@ struct kvm_swap {
 
 __BEGIN_DECLS
 int	  kvm_close(kvm_t *);
+int	  kvm_dpcpu_setcpu(kvm_t *, unsigned int);
 char	**kvm_getargv(kvm_t *, const struct kinfo_proc *, int);
 int	  kvm_getcptime(kvm_t *, long *);
 char	**kvm_getenvv(kvm_t *, const struct kinfo_proc *, int);
