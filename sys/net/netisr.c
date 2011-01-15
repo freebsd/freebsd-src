@@ -1159,7 +1159,7 @@ sysctl_netisr_proto(SYSCTL_HANDLER_ARGS)
 		counter++;
 	}
 	NETISR_RUNLOCK(&tracker);
-	KASSERT(counter < NETISR_MAXPROT,
+	KASSERT(counter <= NETISR_MAXPROT,
 	    ("sysctl_netisr_proto: counter too big (%d)", counter));
 	error = SYSCTL_OUT(req, snp_array, sizeof(*snp_array) * counter);
 	free(snp_array, M_TEMP);
@@ -1212,7 +1212,7 @@ sysctl_netisr_workstream(SYSCTL_HANDLER_ARGS)
 		counter++;
 	}
 	NETISR_RUNLOCK(&tracker);
-	KASSERT(counter < MAXCPU,
+	KASSERT(counter <= MAXCPU,
 	    ("sysctl_netisr_workstream: counter too big (%d)", counter));
 	error = SYSCTL_OUT(req, snws_array, sizeof(*snws_array) * counter);
 	free(snws_array, M_TEMP);
@@ -1273,7 +1273,7 @@ sysctl_netisr_work(SYSCTL_HANDLER_ARGS)
 		}
 		NWS_UNLOCK(nwsp);
 	}
-	KASSERT(counter < MAXCPU * NETISR_MAXPROT,
+	KASSERT(counter <= MAXCPU * NETISR_MAXPROT,
 	    ("sysctl_netisr_work: counter too big (%d)", counter));
 	NETISR_RUNLOCK(&tracker);
 	error = SYSCTL_OUT(req, snw_array, sizeof(*snw_array) * counter);
