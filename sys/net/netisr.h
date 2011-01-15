@@ -92,7 +92,7 @@ struct sysctl_netisr_proto {
  */
 #define	NETISR_SNP_FLAGS_M2FLOW		0x00000001	/* nh_m2flow */
 #define	NETISR_SNP_FLAGS_M2CPUID	0x00000002	/* nh_m2cpuid */
-#define	NETISR_SNP_FLAGS_DRAINEDCPU	0x00000003	/* nh_drainedcpu */
+#define	NETISR_SNP_FLAGS_DRAINEDCPU	0x00000004	/* nh_drainedcpu */
 
 /*
  * Next, a structure per-workstream, with per-protocol data, exported as
