@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2009
+.Dd February 22, 2010
 .Dt NETISR 9
 .Os
 .Sh NAME
@@ -66,6 +66,8 @@ The
 .Nm
 kernel interface suite allows device drivers (and other packet sources) to
 direct packets to protocols for directly dispatched or deferred processing.
+Protocol registration and work stream statistics may be monitored using
+.Xr netstat 1 .
 .Ss Protocol registration
 Protocols register and unregister handlers using
 .Fn netisr_register
@@ -209,6 +211,7 @@ IPv6
 .It Dv NETISR_NATM
 ATM
 .It Dv NETISR_EPAIR
+.Xr netstat 1 ,
 .Xr epair 4
 .El
 .Sh AUTHORS
