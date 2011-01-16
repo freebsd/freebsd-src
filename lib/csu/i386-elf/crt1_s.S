@@ -40,6 +40,7 @@ _start:
 	.cfi_def_cfa_register %ebp
 	andl	$0xfffffff0,%esp # align stack
 	leal	8(%ebp),%eax
+	subl	$4,%esp
 	pushl	%eax		# argv
 	pushl	4(%ebp)		# argc
 	pushl	%edx		# rtld cleanup
