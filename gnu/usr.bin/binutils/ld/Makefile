@@ -48,10 +48,9 @@ ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 LDSCRIPTS+=	${NATIVE_EMULATION}.${ext}
 .endfor
 
-EMS+=	 ${NATIVE_EMULATION}
 EMXFR=
 EMLST=
-.for _e in ${EMS}
+.for _e in ${NATIVE_EMULATION} ${EMS}
 EMXFR+=	extern ld_emulation_xfer_type ld_${_e}_emulation;
 EMLST+=	&ld_${_e}_emulation,
 .endfor
