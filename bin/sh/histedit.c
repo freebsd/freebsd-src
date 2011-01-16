@@ -214,6 +214,7 @@ histcmd(int argc, char **argv)
 		}
 	argc -= optind, argv += optind;
 
+	savehandler = handler;
 	/*
 	 * If executing...
 	 */
@@ -224,7 +225,6 @@ histcmd(int argc, char **argv)
 		 * Catch interrupts to reset active counter and
 		 * cleanup temp files.
 		 */
-		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			active = 0;
 			if (editfile)
@@ -380,6 +380,7 @@ histcmd(int argc, char **argv)
 		--active;
 	if (displayhist)
 		displayhist = 0;
+	handler = savehandler;
 	return 0;
 }
 
