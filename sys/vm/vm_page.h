@@ -116,7 +116,7 @@ struct vm_page {
 	u_int wire_count;		/* wired down maps refs (P) */
 	short hold_count;		/* page hold count (P) */
 	u_short oflags;			/* page flags (O) */
-	u_char	act_count;		/* page usage count (P) */
+	u_char	act_count;		/* page usage count (O) */
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
