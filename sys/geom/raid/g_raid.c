@@ -51,7 +51,7 @@ static MALLOC_DEFINE(M_RAID, "raid_data", "GEOM_RAID Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW, 0, "GEOM_RAID stuff");
-u_int g_raid_debug = 3;
+u_int g_raid_debug = 2;
 TUNABLE_INT("kern.geom.raid.debug", &g_raid_debug);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RW, &g_raid_debug, 0,
     "Debug level");
@@ -1186,7 +1186,7 @@ g_raid_update_volume(struct g_raid_volume *vol, u_int event)
 	sc = vol->v_softc;
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	G_RAID_DEBUG(3, "Event %s for volume %s.",
+	G_RAID_DEBUG(2, "Event %s for volume %s.",
 	    g_raid_volume_event2str(event),
 	    vol->v_name);
 	switch (event) {
@@ -1230,7 +1230,7 @@ g_raid_update_subdisk(struct g_raid_subdisk *sd, u_int event)
 	vol = sd->sd_volume;
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	G_RAID_DEBUG(3, "Event %s for subdisk %s.",
+	G_RAID_DEBUG(2, "Event %s for subdisk %s.",
 	    g_raid_subdisk_event2str(event),
 	    g_raid_get_subdiskname(sd));
 
@@ -1250,7 +1250,7 @@ g_raid_update_disk(struct g_raid_disk *disk, u_int event)
 	sc = disk->d_softc;
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	G_RAID_DEBUG(3, "Event %s for disk %s.",
+	G_RAID_DEBUG(2, "Event %s for disk %s.",
 	    g_raid_disk_event2str(event),
 	    g_raid_get_diskname(disk));
 
