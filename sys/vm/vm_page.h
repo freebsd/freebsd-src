@@ -104,7 +104,7 @@ struct vm_page {
 	struct vm_page *right;		/* splay tree link (O)		*/
 
 	vm_object_t object;		/* which object am I in (O,P)*/
-	vm_pindex_t pindex;		/* offset into object (O,Q) */
+	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
 	uint8_t	queue;			/* page queue index (P,Q) */
