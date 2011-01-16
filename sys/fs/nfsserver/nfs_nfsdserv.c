@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 extern u_int32_t newnfs_false, newnfs_true;
 extern enum vtype nv34tov_type[8];
 extern struct timeval nfsboottime;
-extern int nfs_rootfhset, nfsv4root_set;
+extern int nfs_rootfhset;
 #endif	/* !APPLEKEXT */
 
 /*
@@ -2874,8 +2874,7 @@ nfsrvd_delegpurge(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0;
 	nfsquad_t clientid;
 
-	if ((!nfs_rootfhset && !nfsv4root_set) ||
-	    nfsd_checkrootexp(nd)) {
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		return (0);
 	}
@@ -3073,8 +3072,7 @@ nfsrvd_renew(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0;
 	nfsquad_t clientid;
 
-	if ((!nfs_rootfhset && !nfsv4root_set) ||
-	    nfsd_checkrootexp(nd)) {
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		return (0);
 	}
@@ -3212,8 +3210,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	u_char *verf, *ucp, *ucp2, addrbuf[24];
 	nfsquad_t clientid, confirm;
 
-	if ((!nfs_rootfhset && !nfsv4root_set) ||
-	    nfsd_checkrootexp(nd)) {
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		return (0);
 	}
@@ -3321,8 +3318,7 @@ nfsrvd_setclientidcfrm(struct nfsrv_descript *nd,
 	int error = 0;
 	nfsquad_t clientid, confirm;
 
-	if ((!nfs_rootfhset && !nfsv4root_set) ||
-	    nfsd_checkrootexp(nd)) {
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		return (0);
 	}
@@ -3409,8 +3405,7 @@ nfsrvd_releaselckown(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0, len;
 	nfsquad_t clientid;
 
-	if ((!nfs_rootfhset && !nfsv4root_set) ||
-	    nfsd_checkrootexp(nd)) {
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		return (0);
 	}
