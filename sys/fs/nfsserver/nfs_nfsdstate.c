@@ -1659,7 +1659,7 @@ tryagain:
 			if (new_stp->ls_flags & bits & NFSLCK_ACCESSBITS) {
 			    ret = nfsrv_clientconflict(tstp->ls_clp, &haslock,
 				vp, p);
-			    if (ret) {
+			    if (ret == 1) {
 				/*
 				* nfsrv_clientconflict unlocks state
 				 * when it returns non-zero.
@@ -1667,13 +1667,17 @@ tryagain:
 				lckstp = NULL;
 				goto tryagain;
 			    }
-			    NFSUNLOCKSTATE();
+			    if (ret == 0)
+				NFSUNLOCKSTATE();
 			    if (haslock) {
 				NFSLOCKV4ROOTMUTEX();
 				nfsv4_unlock(&nfsv4rootfs_lock, 1);
 				NFSUNLOCKV4ROOTMUTEX();
 			    }
-			    return (NFSERR_OPENMODE);
+			    if (ret == 2)
+				return (NFSERR_PERM);
+			    else
+				return (NFSERR_OPENMODE);
 			}
 		    }
 		}
@@ -1826,7 +1830,7 @@ tryagain:
 		    other_lop = NULL;
 		}
 		ret = nfsrv_clientconflict(lop->lo_stp->ls_clp,&haslock,vp,p);
-		if (ret) {
+		if (ret == 1) {
 		    if (filestruct_locked != 0) {
 			/* Roll back local locks. */
 			nfsrv_locallock_rollback(vp, lfp, p);
@@ -1845,7 +1849,7 @@ tryagain:
 		 * Found a conflicting lock, so record the conflict and
 		 * return the error.
 		 */
-		if (cfp) {
+		if (cfp != NULL && ret == 0) {
 		    cfp->cl_clientid.lval[0]=lop->lo_stp->ls_stateid.other[0];
 		    cfp->cl_clientid.lval[1]=lop->lo_stp->ls_stateid.other[1];
 		    cfp->cl_first = lop->lo_first;
@@ -1855,20 +1859,23 @@ tryagain:
 		    NFSBCOPY(lop->lo_stp->ls_owner, cfp->cl_owner,
 			cfp->cl_ownerlen);
 		}
-		if (new_stp->ls_flags & NFSLCK_RECLAIM)
+		if (ret == 2)
+		    error = NFSERR_PERM;
+		else if (new_stp->ls_flags & NFSLCK_RECLAIM)
 		    error = NFSERR_RECLAIMCONFLICT;
 		else if (new_stp->ls_flags & NFSLCK_CHECK)
 		    error = NFSERR_LOCKED;
 		else
 		    error = NFSERR_DENIED;
-		if (filestruct_locked != 0) {
+		if (filestruct_locked != 0 && ret == 0) {
 			/* Roll back local locks. */
 			NFSUNLOCKSTATE();
 			nfsrv_locallock_rollback(vp, lfp, p);
 			NFSLOCKSTATE();
 			nfsrv_unlocklf(lfp);
 		}
-		NFSUNLOCKSTATE();
+		if (ret == 0)
+			NFSUNLOCKSTATE();
 		if (haslock) {
 			NFSLOCKV4ROOTMUTEX();
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
@@ -2120,18 +2127,21 @@ tryagain:
 		     ((stp->ls_flags & NFSLCK_ACCESSBITS) &
 		      ((new_stp->ls_flags>>NFSLCK_SHIFT)&NFSLCK_ACCESSBITS)))){
 			ret = nfsrv_clientconflict(stp->ls_clp,&haslock,vp,p);
-			if (ret) {
+			if (ret == 1) {
 				/*
 				 * nfsrv_clientconflict() unlocks
 				 * state when it returns non-zero.
 				 */
 				goto tryagain;
 			}
-			if (new_stp->ls_flags & NFSLCK_RECLAIM)
+			if (ret == 2)
+				error = NFSERR_PERM;
+			else if (new_stp->ls_flags & NFSLCK_RECLAIM)
 				error = NFSERR_RECLAIMCONFLICT;
 			else
 				error = NFSERR_SHAREDENIED;
-			NFSUNLOCKSTATE();
+			if (ret == 0)
+				NFSUNLOCKSTATE();
 			if (haslock) {
 				NFSLOCKV4ROOTMUTEX();
 				nfsv4_unlock(&nfsv4rootfs_lock, 1);
@@ -2394,7 +2404,7 @@ tryagain:
 		       ((stp->ls_flags & NFSLCK_ACCESSBITS) &
 		        ((new_stp->ls_flags>>NFSLCK_SHIFT)&NFSLCK_ACCESSBITS))){
 			ret = nfsrv_clientconflict(stp->ls_clp,&haslock,vp,p);
-			if (ret) {
+			if (ret == 1) {
 				/*
 				 * nfsrv_clientconflict() unlocks state
 				 * when it returns non-zero.
@@ -2404,11 +2414,14 @@ tryagain:
 				openstp = NULL;
 				goto tryagain;
 			}
-			if (new_stp->ls_flags & NFSLCK_RECLAIM)
+			if (ret == 2)
+				error = NFSERR_PERM;
+			else if (new_stp->ls_flags & NFSLCK_RECLAIM)
 				error = NFSERR_RECLAIMCONFLICT;
 			else
 				error = NFSERR_SHAREDENIED;
-			NFSUNLOCKSTATE();
+			if (ret == 0)
+				NFSUNLOCKSTATE();
 			if (haslock) {
 				NFSLOCKV4ROOTMUTEX();
 				nfsv4_unlock(&nfsv4rootfs_lock, 1);
@@ -4080,10 +4093,13 @@ nfsrv_updatestable(NFSPROC_T *p)
 	NFSVNO_SETATTRVAL(&nva, size, 0);
 	vp = NFSFPVNODE(sf->nsf_fp);
 	NFS_STARTWRITE(vp, &mp);
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = nfsvno_setattr(vp, &nva, NFSFPCRED(sf->nsf_fp), p, NULL);
+	if (vn_lock(vp, LK_EXCLUSIVE) == 0) {
+		error = nfsvno_setattr(vp, &nva, NFSFPCRED(sf->nsf_fp), p,
+		    NULL);
+		VOP_UNLOCK(vp, 0);
+	} else
+		error = EPERM;
 	NFS_ENDWRITE(mp);
-	NFSVOPUNLOCK(vp, 0, p);
 	if (!error)
 	    error = NFSD_RDWR(UIO_WRITE, vp,
 		(caddr_t)&sf->nsf_rec, sizeof (struct nfsf_rec), (off_t)0,
@@ -4211,10 +4227,11 @@ nfsrv_checkstable(struct nfsclient *clp)
  * Return 0 to indicate the conflict can't be revoked and 1 to indicate
  * the revocation worked and the conflicting client is "bye, bye", so it
  * can be tried again.
+ * Return 2 to indicate that the vnode is VI_DOOMED after vn_lock().
  * Unlocks State before a non-zero value is returned.
  */
 static int
-nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, __unused vnode_t vp,
+nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
     NFSPROC_T *p)
 {
 	int gotlock, lktype;
@@ -4238,7 +4255,10 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, __unused vnode_t vp,
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
 		vn_lock(vp, lktype | LK_RETRY);
-		return (1);
+		if ((vp->v_iflag & VI_DOOMED) != 0)
+			return (2);
+		else
+			return (1);
 	}
 	NFSUNLOCKSTATE();
 
@@ -4253,7 +4273,6 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, __unused vnode_t vp,
 	nfsrv_zapclient(clp, p);
 	return (1);
 }
-
 
 /*
  * Resolve a delegation conflict.
@@ -4403,6 +4422,13 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
 		vn_lock(vp, lktype | LK_RETRY);
+		if ((vp->v_iflag & VI_DOOMED) != 0) {
+			*haslockp = 0;
+			NFSLOCKV4ROOTMUTEX();
+			nfsv4_unlock(&nfsv4rootfs_lock, 1);
+			NFSUNLOCKV4ROOTMUTEX();
+			return (NFSERR_PERM);
+		}
 		return (-1);
 	}
 
@@ -4594,12 +4620,11 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	NFSGETNANOTIME(&mytime);
 	starttime = (u_int32_t)mytime.tv_sec;
 	do {
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		if ((vp->v_iflag & VI_DOOMED) == 0)
+		if (vn_lock(vp, LK_EXCLUSIVE) == 0) {
 			error = nfsrv_checkremove(vp, 0, p);
-		else
+			VOP_UNLOCK(vp, 0);
+		} else
 			error = EPERM;
-		VOP_UNLOCK(vp, 0);
 		if (error == NFSERR_DELAY) {
 			NFSGETNANOTIME(&mytime);
 			if (((u_int32_t)mytime.tv_sec - starttime) >
