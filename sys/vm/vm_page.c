@@ -1214,23 +1214,19 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	vm_page_t m;
 	int flags, page_req;
 
-	page_req = req & VM_ALLOC_CLASS_MASK;
-	KASSERT(curthread->td_intr_nesting_level == 0 ||
-	    page_req == VM_ALLOC_INTERRUPT,
-	    ("vm_page_alloc(NORMAL|SYSTEM) in interrupt context"));
-
 	if ((req & VM_ALLOC_NOOBJ) == 0) {
 		KASSERT(object != NULL,
 		    ("vm_page_alloc: NULL object."));
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	}
 
+	page_req = req & VM_ALLOC_CLASS_MASK;
+
 	/*
 	 * The pager is allowed to eat deeper into the free page list.
 	 */
-	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
+	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT))
 		page_req = VM_ALLOC_SYSTEM;
-	};
 
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
