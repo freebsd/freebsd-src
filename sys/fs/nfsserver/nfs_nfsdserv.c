@@ -470,12 +470,10 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 	nd->nd_repstat = nfsvno_getfh(vp, fhp, p);
 	if (!(nd->nd_flag & ND_NFSV4) && !nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred, p, 1);
-	if (vpp) {
-		NFSVOPUNLOCK(vp, 0, p);
+	if (vpp != NULL && nd->nd_repstat == 0)
 		*vpp = vp;
-	} else {
+	else
 		vput(vp);
-	}
 	if (dirp) {
 		if (nd->nd_flag & ND_NFSV3)
 			dattr_ret = nfsvno_getattr(dirp, &dattr, nd->nd_cred,
@@ -1218,12 +1216,11 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 		if ((nd->nd_flag & ND_NFSV3) && !nd->nd_repstat)
 			nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred,
 			    p, 1);
-		if (vpp) {
-			NFSVOPUNLOCK(vp, 0, p);
+		if (vpp != NULL && nd->nd_repstat == 0) {
+			VOP_UNLOCK(vp, 0);
 			*vpp = vp;
-		} else {
+		} else
 			vput(vp);
-		}
 	}
 
 	diraft_ret = nfsvno_getattr(dirp, &diraft, nd->nd_cred, p, 0);
@@ -1706,12 +1703,11 @@ nfsrvd_symlinksub(struct nfsrv_descript *nd, struct nameidata *ndp,
 				nd->nd_repstat = nfsvno_getattr(ndp->ni_vp,
 				    nvap, nd->nd_cred, p, 1);
 		}
-		if (vpp) {
-			NFSVOPUNLOCK(ndp->ni_vp, 0, p);
+		if (vpp != NULL && nd->nd_repstat == 0) {
+			VOP_UNLOCK(ndp->ni_vp, 0);
 			*vpp = ndp->ni_vp;
-		} else {
+		} else
 			vput(ndp->ni_vp);
-		}
 	}
 	if (dirp) {
 		*diraft_retp = nfsvno_getattr(dirp, diraftp, nd->nd_cred, p, 0);
