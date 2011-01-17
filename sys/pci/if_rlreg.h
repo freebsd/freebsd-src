@@ -429,6 +429,7 @@
 #define	RL_CFG3_GRANTSEL	0x80
 #define	RL_CFG3_WOL_MAGIC	0x20
 #define	RL_CFG3_WOL_LINK	0x10
+#define	RL_CFG3_JUMBO_EN0	0x04	/* RTL8168C or later. */
 #define	RL_CFG3_FAST_B2B	0x01
 
 /*
@@ -436,6 +437,7 @@
  */
 #define	RL_CFG4_LWPTN		0x04
 #define	RL_CFG4_LWPME		0x10
+#define	RL_CFG4_JUMBO_EN1	0x02	/* RTL8168C or later. */
 
 /*
  * Config 5 register
@@ -592,6 +594,7 @@ struct rl_hwrev {
 	uint32_t		rl_rev;
 	int			rl_type;
 	char			*rl_desc;
+	int			rl_max_mtu;
 };
 
 struct rl_mii_frame {
@@ -767,6 +770,7 @@ struct rl_stats {
 #define	RL_8139_RX_DESC_CNT	64
 #define	RL_TX_DESC_CNT		RL_8169_TX_DESC_CNT
 #define	RL_RX_DESC_CNT		RL_8169_RX_DESC_CNT
+#define	RL_RX_JUMBO_DESC_CNT	RL_RX_DESC_CNT
 #define	RL_NTXSEGS		32
 
 #define	RL_RING_ALIGN		256
@@ -801,8 +805,13 @@ struct rl_stats {
 
 /* see comment in dev/re/if_re.c */
 #define	RL_JUMBO_FRAMELEN	7440
-#define	RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
-#define	RL_MAX_FRAMELEN		\
+#define	RL_JUMBO_MTU		\
+	(RL_JUMBO_FRAMELEN-ETHER_VLAN_ENCAP_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
+#define	RL_JUMBO_MTU_6K		\
+	((6 * 1024) - ETHER_VLAN_ENCAP_LEN - ETHER_HDR_LEN - ETHER_CRC_LEN)
+#define	RL_JUMBO_MTU_9K		\
+	((9 * 1024) - ETHER_VLAN_ENCAP_LEN - ETHER_HDR_LEN - ETHER_CRC_LEN)
+#define	RL_MTU			\
 	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN - ETHER_HDR_LEN - ETHER_CRC_LEN)
 
 struct rl_txdesc {
@@ -819,6 +828,7 @@ struct rl_rxdesc {
 struct rl_list_data {
 	struct rl_txdesc	rl_tx_desc[RL_TX_DESC_CNT];
 	struct rl_rxdesc	rl_rx_desc[RL_RX_DESC_CNT];
+	struct rl_rxdesc	rl_jrx_desc[RL_RX_JUMBO_DESC_CNT];
 	int			rl_tx_desc_cnt;
 	int			rl_rx_desc_cnt;
 	int			rl_tx_prodidx;
@@ -827,7 +837,9 @@ struct rl_list_data {
 	int			rl_tx_free;
 	bus_dma_tag_t		rl_tx_mtag;	/* mbuf TX mapping tag */
 	bus_dma_tag_t		rl_rx_mtag;	/* mbuf RX mapping tag */
+	bus_dma_tag_t		rl_jrx_mtag;	/* mbuf RX mapping tag */
 	bus_dmamap_t		rl_rx_sparemap;
+	bus_dmamap_t		rl_jrx_sparemap;
 	bus_dma_tag_t		rl_stag;	/* stats mapping tag */
 	bus_dmamap_t		rl_smap;	/* stats map */
 	struct rl_stats		*rl_stats;
@@ -857,9 +869,9 @@ struct rl_softc {
 	device_t		rl_miibus;
 	bus_dma_tag_t		rl_parent_tag;
 	uint8_t			rl_type;
+	struct rl_hwrev		*rl_hwrev;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
-	uint8_t			rl_stats_no_timeout;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;
@@ -868,7 +880,6 @@ struct rl_softc {
 	struct mtx		rl_mtx;
 	struct mbuf		*rl_head;
 	struct mbuf		*rl_tail;
-	uint32_t		rl_hwrev;
 	uint32_t		rl_rxlenmask;
 	int			rl_testmode;
 	int			rl_if_flags;
@@ -890,7 +901,7 @@ struct rl_softc {
 #define	RL_FLAG_AUTOPAD		0x0002
 #define	RL_FLAG_PHYWAKE_PM	0x0004
 #define	RL_FLAG_PHYWAKE		0x0008
-#define	RL_FLAG_NOJUMBO		0x0010
+#define	RL_FLAG_JUMBOV2		0x0010
 #define	RL_FLAG_PAR		0x0020
 #define	RL_FLAG_DESCV2		0x0040
 #define	RL_FLAG_MACSTAT		0x0080
