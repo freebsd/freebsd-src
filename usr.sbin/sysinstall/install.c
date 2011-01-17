@@ -637,10 +637,10 @@ installStandard(dialogMenuItem *self)
     variable_set2(SYSTEM_STATE, "standard", 0);
     dialog_clear_norefresh();
 #ifdef WITH_SLICES
-    msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
+    msgConfirm("In the next menu, you will need to set up an MBR partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
-	       "to FreeBSD (overwriting anything else that might be on the disk(s) selected)\n"
-	       "then use the (A)ll command to select the default partitioning scheme followed\n"
+	       "to FreeBSD (overwriting anything else that might be on the disk selected)\n"
+	       "then use the (A)ll command to create a single partition followed\n"
 	       "by a (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
 	       "partition marked \"unused\" and use the (C)reate command.");
 
@@ -655,7 +655,7 @@ nodisks:
 	goto nodisks;
     }
 
-    msgConfirm("Now you need to create BSD partitions inside of the fdisk partition(s)\n"
+    msgConfirm("Now you need to create BSD partitions inside of the MBR partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (1GB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
 	       "allocate space automatically.  If you have more specific needs or just don't\n"
@@ -872,6 +872,9 @@ installConfigure(void)
     if (!msgNoYes("Visit the general configuration menu for a chance to set\n"
 		  "any last options?"))
 	dmenuOpenSimple(&MenuConfigure, FALSE);
+    else
+	dmenuExit(NULL);
+
     configRC_conf();
     sync();
 }
