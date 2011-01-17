@@ -65,6 +65,9 @@ struct g_command class_commands[] = {
 	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov"
 	},
+	{ "fail", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] name prov"
+	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },

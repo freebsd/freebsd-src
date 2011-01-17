@@ -48,6 +48,7 @@ struct g_raid_tr_object;
 					 G_RAID_DEVICE_FLAG_NOFAILSYNC)
 
 #ifdef _KERNEL
+extern u_int g_raid_aggressive_spare;
 extern u_int g_raid_debug;
 extern u_int g_raid_start_timeout;
 
@@ -98,12 +99,13 @@ struct g_raid_event {
 	int			 e_error;
 	TAILQ_ENTRY(g_raid_event) e_next;
 };
-#define G_RAID_DISK_S_NONE		0x00
-#define G_RAID_DISK_S_ACTIVE		0x01
-#define G_RAID_DISK_S_SPARE		0x02
-#define G_RAID_DISK_S_OFFLINE		0x03
-#define G_RAID_DISK_S_STALE		0x04
-#define G_RAID_DISK_S_FAILED		0x05
+#define G_RAID_DISK_S_NONE		0x00	/* State is unknown. */
+#define G_RAID_DISK_S_OFFLINE		0x01	/* Missing disk placeholder. */
+#define G_RAID_DISK_S_FAILED		0x02	/* Failed. */
+#define G_RAID_DISK_S_STALE_FAILED	0x03	/* Old failed. */
+#define G_RAID_DISK_S_SPARE		0x04	/* Hot-spare. */
+#define G_RAID_DISK_S_STALE		0x05	/* Old disk, unused now. */
+#define G_RAID_DISK_S_ACTIVE		0x06	/* Operational. */
 
 #define G_RAID_DISK_E_DISCONNECTED	0x01
 
@@ -120,14 +122,16 @@ struct g_raid_disk {
 };
 
 #define G_RAID_SUBDISK_S_NONE		0x00	/* Absent. */
-#define G_RAID_SUBDISK_S_NEW		0x01	/* Blank. */
-#define G_RAID_SUBDISK_S_STALE		0x02	/* Dirty. */
-#define G_RAID_SUBDISK_S_REBUILD	0x03	/* Blank + rebuild. */
-#define G_RAID_SUBDISK_S_RESYNC		0x04	/* Dirty + check/repair. */
-#define G_RAID_SUBDISK_S_ACTIVE		0x05	/* Usable. */
+#define G_RAID_SUBDISK_S_FAILED		0x01	/* Failed. */
+#define G_RAID_SUBDISK_S_NEW		0x02	/* Blank. */
+#define G_RAID_SUBDISK_S_STALE		0x03	/* Dirty. */
+#define G_RAID_SUBDISK_S_REBUILD	0x04	/* Blank + rebuild. */
+#define G_RAID_SUBDISK_S_RESYNC		0x05	/* Dirty + check/repair. */
+#define G_RAID_SUBDISK_S_ACTIVE		0x06	/* Usable. */
 
 #define G_RAID_SUBDISK_E_NEW		0x01
-#define G_RAID_SUBDISK_E_DISCONNECTED	0x02
+#define G_RAID_SUBDISK_E_FAILED		0x02
+#define G_RAID_SUBDISK_E_DISCONNECTED	0x03
 
 struct g_raid_subdisk {
 	struct g_raid_softc	*sd_softc;	/* Back-pointer to softc. */
@@ -309,6 +313,8 @@ void g_raid_change_subdisk_state(struct g_raid_subdisk *sd, int state);
 void g_raid_change_volume_state(struct g_raid_volume *vol, int state);
 
 void g_raid_write_metadata(struct g_raid_softc *sc, struct g_raid_volume *vol,
+    struct g_raid_subdisk *sd, struct g_raid_disk *disk);
+void g_raid_fail_disk(struct g_raid_softc *sc,
     struct g_raid_subdisk *sd, struct g_raid_disk *disk);
 
 u_int g_raid_ndisks(struct g_raid_softc *sc, int state);

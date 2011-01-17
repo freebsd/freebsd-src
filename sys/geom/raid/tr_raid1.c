@@ -133,6 +133,8 @@ g_raid_tr_event_raid1(struct g_raid_tr_object *tr,
 	vol = tr->tro_volume;
 	if (event == G_RAID_SUBDISK_E_NEW) {
 //		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
+	} else if (event == G_RAID_SUBDISK_E_FAILED) {
+//		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
 	} else
 		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
 	g_raid_tr_update_state_raid1(vol);

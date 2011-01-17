@@ -51,6 +51,10 @@ static MALLOC_DEFINE(M_RAID, "raid_data", "GEOM_RAID Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW, 0, "GEOM_RAID stuff");
+u_int g_raid_aggressive_spare = 0;
+TUNABLE_INT("kern.geom.raid.aggressive_spare", &g_raid_aggressive_spare);
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, aggressive_spare, CTLFLAG_RW,
+    &g_raid_aggressive_spare, 0, "Use disks without metadata as spare");
 u_int g_raid_debug = 2;
 TUNABLE_INT("kern.geom.raid.debug", &g_raid_debug);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RW, &g_raid_debug, 0,
@@ -122,14 +126,18 @@ g_raid_disk_state2str(int state)
 	switch (state) {
 	case G_RAID_DISK_S_NONE:
 		return ("NONE");
-	case G_RAID_DISK_S_ACTIVE:
-		return ("ACTIVE");
-	case G_RAID_DISK_S_SPARE:
-		return ("SPARE");
 	case G_RAID_DISK_S_OFFLINE:
 		return ("OFFLINE");
+	case G_RAID_DISK_S_FAILED:
+		return ("FAILED");
+	case G_RAID_DISK_S_STALE_FAILED:
+		return ("STALE_FAILED");
+	case G_RAID_DISK_S_SPARE:
+		return ("SPARE");
 	case G_RAID_DISK_S_STALE:
 		return ("STALE");
+	case G_RAID_DISK_S_ACTIVE:
+		return ("ACTIVE");
 	default:
 		return ("INVALID");
 	}
@@ -154,6 +162,8 @@ g_raid_subdisk_state2str(int state)
 	switch (state) {
 	case G_RAID_SUBDISK_S_NONE:
 		return ("NONE");
+	case G_RAID_SUBDISK_S_FAILED:
+		return ("FAILED");
 	case G_RAID_SUBDISK_S_NEW:
 		return ("NEW");
 	case G_RAID_SUBDISK_S_STALE:
@@ -1698,6 +1708,14 @@ void g_raid_write_metadata(struct g_raid_softc *sc, struct g_raid_volume *vol,
 
 	if (sc->sc_md)
 		G_RAID_MD_WRITE(sc->sc_md, vol, sd, disk);
+}
+
+void g_raid_fail_disk(struct g_raid_softc *sc,
+    struct g_raid_subdisk *sd, struct g_raid_disk *disk)
+{
+
+	if (sc->sc_md)
+		G_RAID_MD_FAIL_DISK(sc->sc_md, sd, disk);
 }
 
 static void

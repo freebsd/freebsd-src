@@ -100,6 +100,13 @@ METHOD int write {
 	struct g_raid_disk *disk;
 };
 
+# fail_disk() - mark disk as failed and remove it from use.
+METHOD int fail_disk {
+	struct g_raid_md_object *md;
+	struct g_raid_subdisk *sd;
+	struct g_raid_disk *disk;
+};
+
 # free_disk() - disk destructor.
 METHOD int free_disk {
 	struct g_raid_md_object *md;

@@ -93,7 +93,7 @@ g_raid_tr_update_state_raid0(struct g_raid_volume *vol)
 	struct g_raid_tr_raid0_object *trs;
 	struct g_raid_softc *sc;
 	u_int s;
-	int n;
+	int n, f;
 
 	sc = vol->v_softc;
 	trs = (struct g_raid_tr_raid0_object *)vol->v_tr;
@@ -101,8 +101,12 @@ g_raid_tr_update_state_raid0(struct g_raid_volume *vol)
 		s = G_RAID_VOLUME_S_STOPPED;
 	else {
 		n = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE);
-		if (n == vol->v_disks_count) {
-			s = G_RAID_VOLUME_S_OPTIMAL;
+		f = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_FAILED);
+		if (n + f == vol->v_disks_count) {
+			if (f == 0)
+				s = G_RAID_VOLUME_S_OPTIMAL;
+			else
+				s = G_RAID_VOLUME_S_SUBOPTIMAL;
 			trs->trso_starting = 0;
 		} else if (trs->trso_starting)
 			s = G_RAID_VOLUME_S_STARTING;
@@ -134,10 +138,13 @@ g_raid_tr_event_raid0(struct g_raid_tr_object *tr,
 	sc = vol->v_softc;
 	if (event == G_RAID_SUBDISK_E_NEW) {
 		state = sd->sd_state;
-		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
+		if (state != G_RAID_SUBDISK_S_FAILED)
+			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
 		if (state != sd->sd_state &&
 		    !trs->trso_starting && !trs->trso_stopped)
 			g_raid_write_metadata(sc, vol, sd, NULL);
+	} else if (event == G_RAID_SUBDISK_E_FAILED) {
+//		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
 	} else
 		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
 	g_raid_tr_update_state_raid0(vol);
