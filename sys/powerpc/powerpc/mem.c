@@ -82,7 +82,7 @@ static struct mem_range_ops ppc_mem_range_ops = {
 };
 struct mem_range_softc mem_range_softc = {
 	&ppc_mem_range_ops,
-	0, 0, 0
+	0, 0, NULL
 }; 
 
 /* ARGSUSED */
@@ -225,12 +225,6 @@ memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	return (0);
 }
 
-void
-dev_mem_md_init(void)
-{
-	mem_range_softc.mr_op->init(&mem_range_softc);
-}
-
 static void
 ppc_mrinit(struct mem_range_softc *sc)
 {
@@ -334,4 +328,3 @@ memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 	}
 	return (error);
 }
-
