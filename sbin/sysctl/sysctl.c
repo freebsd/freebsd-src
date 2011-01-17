@@ -67,7 +67,6 @@ static int	show_var(int *, int);
 static int	sysctl_all(int *oid, int len);
 static int	name2oid(char *, int *);
 
-static void	set_T_dev_t(char *, void **, size_t *);
 static int	set_IK(const char *, int *);
 
 static void
@@ -287,10 +286,6 @@ parse(char *string)
 				newsize = sizeof(quadval);
 				break;
 			case CTLTYPE_OPAQUE:
-				if (strcmp(fmt, "T,dev_t") == 0) {
-					set_T_dev_t (newval, &newval, &newsize);
-					break;
-				}
 				/* FALLTHROUGH */
 			default:
 				errx(1, "oid '%s' is type %d,"
@@ -417,40 +412,6 @@ S_vmtotal(int l2, void *p)
 	printf("Free Memory Pages:\t%dK\n", v->t_free * pageKilo);
 
 	return (0);
-}
-
-static int
-T_dev_t(int l2, void *p)
-{
-	dev_t *d = (dev_t *)p;
-
-	if (l2 != sizeof(*d)) {
-		warnx("T_dev_T %d != %zu", l2, sizeof(*d));
-		return (1);
-	}
-	printf("%s", devname(*d, S_IFCHR));
-	return (0);
-}
-
-static void
-set_T_dev_t(char *path, void **val, size_t *size)
-{
-	static struct stat statb;
-
-	if (strcmp(path, "none") && strcmp(path, "off")) {
-		int rc = stat (path, &statb);
-		if (rc) {
-			err(1, "cannot stat %s", path);
-		}
-
-		if (!S_ISCHR(statb.st_mode)) {
-			errx(1, "must specify a device special file.");
-		}
-	} else {
-		statb.st_rdev = NODEV;
-	}
-	*val = (void *) &statb.st_rdev;
-	*size = sizeof(statb.st_rdev);
 }
 
 static int
@@ -675,7 +636,6 @@ show_var(int *oid, int nlen)
 		free(oval);
 		return (0);
 
-	case 'T':
 	case 'S':
 		i = 0;
 		if (strcmp(fmt, "S,clockinfo") == 0)
@@ -686,8 +646,6 @@ show_var(int *oid, int nlen)
 			func = S_loadavg;
 		else if (strcmp(fmt, "S,vmtotal") == 0)
 			func = S_vmtotal;
-		else if (strcmp(fmt, "T,dev_t") == 0)
-			func = T_dev_t;
 		else
 			func = NULL;
 		if (func) {
