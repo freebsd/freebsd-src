@@ -30,7 +30,6 @@ dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/kbd/kbd.c			optional	sc
-dev/mem/memutil.c		optional	mem
 dev/ofw/openfirm.c		optional	aim | fdt
 dev/ofw/openfirmio.c		optional	aim | fdt
 dev/ofw/ofw_bus_if.m		optional	aim | fdt
