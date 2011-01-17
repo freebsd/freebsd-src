@@ -317,9 +317,7 @@ DB_SHOW_COMMAND(dpcpu_off, db_show_dpcpu_off)
 {
 	int id;
 
-	for (id = 0; id <= mp_maxid; id++) {
-		if (CPU_ABSENT(id))
-			continue;
+	CPU_FOREACH(id) {
 		db_printf("dpcpu_off[%2d] = 0x%jx (+ DPCPU_START = %p)\n",
 		    id, (uintmax_t)dpcpu_off[id],
 		    (void *)(uintptr_t)(dpcpu_off[id] + DPCPU_START));
