@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
  */
 MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 
+struct mem_range_softc mem_range_softc;
+
 /* ARGSUSED */
 int
 memrw(struct cdev *dev, struct uio *uio, int flags)
