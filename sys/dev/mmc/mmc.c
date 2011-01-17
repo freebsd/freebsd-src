@@ -749,7 +749,7 @@ mmc_get_bits(uint32_t *bits, int bit_len, int start, int size)
 	uint32_t retval = bits[i] >> shift;
 	if (size + shift > 32)
 		retval |= bits[i - 1] << (32 - shift);
-	return (retval & ((1 << size) - 1));
+	return (retval & ((1llu << size) - 1));
 }
 
 static void
