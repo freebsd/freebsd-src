@@ -2548,8 +2548,8 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	/*
 	 * Check for the special case of the nfsv4root_fh.
 	 */
-	mp = vfs_getvfs(&fhp->fh_fsid);
-	if (!mp) {
+	mp = vfs_busyfs(&fhp->fh_fsid);
+	if (mp == NULL) {
 		*vpp = NULL;
 		nd->nd_repstat = ESTALE;
 		if (*mpp && exp->nes_vfslocked)
@@ -2575,6 +2575,7 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 
 	nd->nd_repstat = nfsvno_fhtovp(mp, fhp, nd->nd_nam, lktype, vpp, exp,
 	    &credanon);
+	vfs_unbusy(mp);
 
 	/*
 	 * For NFSv4 without a pseudo root fs, unexported file handles
@@ -2636,11 +2637,8 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 			VFS_UNLOCK_GIANT(mp);
 			exp->nes_vfslocked = 0;
 		}
-		vfs_rel(mp);
 		*vpp = NULL;
 		*mpp = NULL;
-	} else {
-		vfs_rel(mp);
 	}
 }
 
@@ -2780,10 +2778,11 @@ nfsvno_getvp(fhandle_t *fhp)
 	struct vnode *vp;
 	int error;
 
-	mp = vfs_getvfs(&fhp->fh_fsid);
+	mp = vfs_busyfs(&fhp->fh_fsid);
 	if (mp == NULL)
 		return (NULL);
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp);
+	vfs_unbusy(mp);
 	if (error)
 		return (NULL);
 	return (vp);
