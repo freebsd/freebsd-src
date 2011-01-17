@@ -318,6 +318,7 @@ dev_pager_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
 
 	m = uma_zalloc(fakepg_zone, M_WAITOK | M_ZERO);
 	m->phys_addr = paddr;
+	m->queue = PQ_NONE;
 	/* Fictitious pages don't use "segind". */
 	m->flags = PG_FICTITIOUS;
 	/* Fictitious pages don't use "order" or "pool". */
