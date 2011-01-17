@@ -18,7 +18,6 @@
 #
 # $FreeBSD$
 
-cpu		CPU_CNMIPS
 ident		OCTEON1
 
 makeoptions	ARCH_FLAGS="-march=octeon -mabi=64"
