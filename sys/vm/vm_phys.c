@@ -385,6 +385,7 @@ vm_phys_add_page(vm_paddr_t pa)
 	cnt.v_page_count++;
 	m = vm_phys_paddr_to_vm_page(pa);
 	m->phys_addr = pa;
+	m->queue = PQ_NONE;
 	m->segind = vm_phys_paddr_to_segind(pa);
 	m->flags = PG_FREE;
 	KASSERT(m->order == VM_NFREEORDER,

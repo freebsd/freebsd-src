@@ -146,11 +146,11 @@ struct vm_page {
 #define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
 #define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
 
-#define PQ_NONE		0
-#define	PQ_INACTIVE	1
-#define	PQ_ACTIVE	2
-#define	PQ_HOLD		3
-#define	PQ_COUNT	4
+#define	PQ_NONE		255
+#define	PQ_INACTIVE	0
+#define	PQ_ACTIVE	1
+#define	PQ_HOLD		2
+#define	PQ_COUNT	3
 
 struct vpgqueues {
 	struct pglist pl;
