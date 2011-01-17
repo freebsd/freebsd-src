@@ -2309,6 +2309,5 @@ DECLARE_MODULE(nfslockd, nfslockd_mod, SI_SUB_VFS, SI_ORDER_ANY);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_DEPEND(nfslockd, krpc, 1, 1, 1);
-MODULE_DEPEND(nfslockd, nfs, 1, 1, 1);
 MODULE_DEPEND(nfslockd, nfslock, 1, 1, 1);
 MODULE_VERSION(nfslockd, 1);
