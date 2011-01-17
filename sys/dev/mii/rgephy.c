@@ -146,6 +146,13 @@ rgephy_attach(device_t dev)
 	mii_phy_add_media(sc);
 	printf("\n");
 #undef ADD
+	/*
+	 * Allow IFM_FLAG0 to be set indicating that auto-negotiation with
+	 * manual configuration, which is used to work around issues with
+	 * certain setups by default, should not be triggered as it may in
+	 * turn cause harm in some edge cases.
+	 */
+	mii->mii_media.ifm_mask |= IFM_FLAG0;
 
 	rgephy_reset(sc);
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -201,37 +208,38 @@ rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			speed = RGEPHY_S10;
 			anar |= RGEPHY_ANAR_10_FD | RGEPHY_ANAR_10;
 setit:
-			rgephy_loop(sc);
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX) {
+			if ((ife->ifm_media & IFM_FLOW) != 0 &&
+			    (mii->mii_media.ifm_media & IFM_FLAG0) != 0)
+				return (EINVAL);
+
+			if ((ife->ifm_media & IFM_FDX) != 0) {
 				speed |= RGEPHY_BMCR_FDX;
 				gig = RGEPHY_1000CTL_AFD;
 				anar &= ~(RGEPHY_ANAR_TX | RGEPHY_ANAR_10);
+				if ((ife->ifm_media & IFM_FLOW) != 0 ||
+				    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
+					anar |=
+					    RGEPHY_ANAR_PC | RGEPHY_ANAR_ASP;
 			} else {
 				gig = RGEPHY_1000CTL_AHD;
 				anar &=
 				    ~(RGEPHY_ANAR_TX_FD | RGEPHY_ANAR_10_FD);
 			}
-
-			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T) {
-				PHY_WRITE(sc, RGEPHY_MII_1000CTL, 0);
-				PHY_WRITE(sc, RGEPHY_MII_ANAR, anar);
-				PHY_WRITE(sc, RGEPHY_MII_BMCR, speed |
-				    RGEPHY_BMCR_AUTOEN |
-				    RGEPHY_BMCR_STARTNEG);
-				break;
+			if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+				gig |= RGEPHY_1000CTL_MSE;
+				if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+				    gig |= RGEPHY_1000CTL_MSC;
+			} else {
+				gig = 0;
+				anar &= ~RGEPHY_ANAR_ASP;
 			}
-
-			if ((ife->ifm_media & IFM_FLOW) != 0 ||
-			    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
-				anar |= RGEPHY_ANAR_PC | RGEPHY_ANAR_ASP;
-
-			gig |= RGEPHY_1000CTL_MSE;
-			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
-			    gig |= RGEPHY_1000CTL_MSC;
+			if ((mii->mii_media.ifm_media & IFM_FLAG0) == 0)
+				speed |=
+				    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG;
+			rgephy_loop(sc);
 			PHY_WRITE(sc, RGEPHY_MII_1000CTL, gig);
 			PHY_WRITE(sc, RGEPHY_MII_ANAR, anar);
-			PHY_WRITE(sc, RGEPHY_MII_BMCR, speed |
-			    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG);
+			PHY_WRITE(sc, RGEPHY_MII_BMCR, speed);
 			break;
 		case IFM_NONE:
 			PHY_WRITE(sc, MII_BMCR, BMCR_ISO | BMCR_PDOWN);
@@ -258,8 +266,7 @@ setit:
 
 		/*
 		 * Check to see if we have link.  If we do, we don't
-		 * need to restart the autonegotiation process.  Read
-		 * the BMSR twice in case it's latched.
+		 * need to restart the autonegotiation process.
 		 */
 		if (rsc->mii_revision >= 2) {
 			/* RTL8211B(L) */
