@@ -1860,7 +1860,7 @@ DMenu MenuSysconsKeymap = {
     "System Console Keymap",
     "The system console driver for FreeBSD defaults to a standard\n"
     "\"PC-98x1\" keyboard map.  Users may wish to choose one of the\n"
-    "other keymaps below.\n"
+    "other keymaps below.",
     "Choose a keyboard map",
     NULL,
     { { "Japanese PC-98x1",		"Japanese PC-98x1 keymap",  dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=jp.pc98" },
