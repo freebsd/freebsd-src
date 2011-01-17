@@ -103,8 +103,11 @@ __FBSDID("$FreeBSD$");
 char machine[] = "mips";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
 
-static char cpu_model[30];
+char cpu_model[80];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
+
+char cpu_board[80];
+SYSCTL_STRING(_hw, OID_AUTO, board, CTLFLAG_RD, cpu_board, 0, "Machine board");
 
 int cold = 1;
 long realmem = 0;
