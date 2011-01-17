@@ -558,7 +558,7 @@ mca_scan(enum scan_mode mode)
 		 * If this is a bank this CPU monitors via CMCI,
 		 * update the threshold.
 		 */
-		if (PCPU_GET(cmci_mask) & (1 << i))
+		if (PCPU_GET(cmci_mask) & 1 << i)
 			cmci_update(mode, i, valid, &rec);
 #endif
 	}
@@ -580,9 +580,7 @@ mca_scan_cpus(void *context, int pending)
 	td = curthread;
 	count = 0;
 	thread_lock(td);
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		sched_bind(td, cpu);
 		thread_unlock(td);
 		count += mca_scan(POLLED);

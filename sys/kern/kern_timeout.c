@@ -228,10 +228,8 @@ start_softclock(void *dummy)
 		panic("died while creating standard software ithreads");
 	cc->cc_cookie = softclock_ih;
 #ifdef SMP
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+	CPU_FOREACH(cpu) {
 		if (cpu == timeout_cpu)
-			continue;
-		if (CPU_ABSENT(cpu))
 			continue;
 		cc = CC_CPU(cpu);
 		if (swi_add(NULL, "clock", softclock, cc, SWI_CLOCK,

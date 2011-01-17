@@ -1254,9 +1254,7 @@ sched_setup_smp(void)
 	int i;
 
 	cpu_top = smp_topo();
-	for (i = 0; i < MAXCPU; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		tdq = TDQ_CPU(i);
 		tdq_setup(tdq);
 		tdq->tdq_cg = smp_topo_find(cpu_top, i);
@@ -2489,7 +2487,7 @@ sched_load(void)
 	int i;
 
 	total = 0;
-	for (i = 0; i <= mp_maxid; i++)
+	CPU_FOREACH(i)
 		total += TDQ_CPU(i)->tdq_sysload;
 	return (total);
 #else

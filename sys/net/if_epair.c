@@ -189,10 +189,7 @@ epair_dpcpu_init(void)
 	struct eid_list *s;
 	u_int cpuid;
 
-	for (cpuid = 0; cpuid <= mp_maxid; cpuid++) {
-		if (CPU_ABSENT(cpuid))
-			continue;
-
+	CPU_FOREACH(cpuid) {
 		epair_dpcpu = DPCPU_ID_PTR(cpuid, epair_dpcpu);
 
 		/* Initialize per-cpu lock. */
@@ -217,10 +214,7 @@ epair_dpcpu_detach(void)
 	struct epair_dpcpu *epair_dpcpu;
 	u_int cpuid;
 
-	for (cpuid = 0; cpuid <= mp_maxid; cpuid++) {
-		if (CPU_ABSENT(cpuid))
-			continue;
-
+	CPU_FOREACH(cpuid) {
 		epair_dpcpu = DPCPU_ID_PTR(cpuid, epair_dpcpu);
 
 		/* Destroy per-cpu lock. */
@@ -330,10 +324,7 @@ epair_remove_ifp_from_draining(struct ifnet *ifp)
 	struct epair_ifp_drain *elm, *tvar;
 	u_int cpuid;
 
-	for (cpuid = 0; cpuid <= mp_maxid; cpuid++) {
-		if (CPU_ABSENT(cpuid))
-			continue;
-
+	CPU_FOREACH(cpuid) {
 		epair_dpcpu = DPCPU_ID_PTR(cpuid, epair_dpcpu);
 		EPAIR_LOCK(epair_dpcpu);
 		STAILQ_FOREACH_SAFE(elm, &epair_dpcpu->epair_ifp_drain_list,

@@ -1344,10 +1344,7 @@ cyclic_uninit(void)
 	cpu_t *c;
 	int id;
 
-	for (id = 0; id <= mp_maxid; id++) {
-		if (pcpu_find(id) == NULL)
-			continue;
-
+	CPU_FOREACH(id) {
 		c = &solaris_cpu[id];
 
 		if (c->cpu_cyclic == NULL)
