@@ -857,8 +857,7 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 		    &ndp->ni_cnd, &nvap->na_vattr);
 		vput(ndp->ni_dvp);
 		nfsvno_relpathbuf(ndp);
-		if (error)
-			vrele(ndp->ni_startdir);
+		vrele(ndp->ni_startdir);
 		/*
 		 * Since VOP_MKNOD returns the ni_vp, I can't
 		 * see any reason to do the lookup.
