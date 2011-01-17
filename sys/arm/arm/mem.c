@@ -165,8 +165,3 @@ memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	/* else panic! */
 	return (0);
 }
-
-void
-dev_mem_md_init(void)
-{
-}
