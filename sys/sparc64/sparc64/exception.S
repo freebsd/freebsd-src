@@ -1331,14 +1331,17 @@ END(tl1_sfsr_trap)
 	 * Compute the address of the TTE.  The TSB mask and address of the
 	 * TSB are patched at startup.
 	 */
+	.globl	tl1_immu_miss_patch_tsb_1
+tl1_immu_miss_patch_tsb_1:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
 	.globl	tl1_immu_miss_patch_tsb_mask_1
 tl1_immu_miss_patch_tsb_mask_1:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	.globl	tl1_immu_miss_patch_tsb_1
-tl1_immu_miss_patch_tsb_1:
-	sethi	%hi(TSB_KERNEL), %g7
-	or	%g7, %lo(TSB_KERNEL), %g7
 
 	srlx	%g5, TAR_VPN_SHIFT, %g5
 	and	%g5, %g6, %g6
@@ -1384,14 +1387,17 @@ ENTRY(tl1_immu_miss_set_ref)
 	 * Recompute the TTE address, which we clobbered loading the TTE.
 	 * The TSB mask and address of the TSB are patched at startup.
 	 */
+	.globl	tl1_immu_miss_patch_tsb_2
+tl1_immu_miss_patch_tsb_2:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
 	.globl	tl1_immu_miss_patch_tsb_mask_2
 tl1_immu_miss_patch_tsb_mask_2:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	.globl	tl1_immu_miss_patch_tsb_2
-tl1_immu_miss_patch_tsb_2:
-	sethi	%hi(TSB_KERNEL), %g7
-	or	%g7, %lo(TSB_KERNEL), %g7
 
 	and	%g5, %g6, %g5
 	sllx	%g5, TTE_SHIFT, %g5
@@ -1462,14 +1468,17 @@ END(tl1_immu_miss_trap)
 	 * Compute the address of the TTE.  The TSB mask and address of the
 	 * TSB are patched at startup.
 	 */
+	.globl	tl1_dmmu_miss_patch_tsb_1
+tl1_dmmu_miss_patch_tsb_1:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
 	.globl	tl1_dmmu_miss_patch_tsb_mask_1
 tl1_dmmu_miss_patch_tsb_mask_1:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	.globl	tl1_dmmu_miss_patch_tsb_1
-tl1_dmmu_miss_patch_tsb_1:
-	sethi	%hi(TSB_KERNEL), %g7
-	or	%g7, %lo(TSB_KERNEL), %g7
 
 	srlx	%g5, TAR_VPN_SHIFT, %g5
 	and	%g5, %g6, %g6
@@ -1513,13 +1522,16 @@ ENTRY(tl1_dmmu_miss_set_ref)
 	 * The TSB mask and address of the TSB are patched at startup.
 	 */
 	.globl	tl1_dmmu_miss_patch_tsb_mask_2
+tl1_dmmu_miss_patch_tsb_2:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
+	.globl	tl1_dmmu_miss_patch_tsb_2
 tl1_dmmu_miss_patch_tsb_mask_2:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	.globl	tl1_dmmu_miss_patch_tsb_2
-tl1_dmmu_miss_patch_tsb_2:
-	sethi	%hi(TSB_KERNEL), %g7
-	or	%g7, %lo(TSB_KERNEL), %g7
 
 	and	%g5, %g6, %g5
 	sllx	%g5, TTE_SHIFT, %g5
@@ -1581,15 +1593,21 @@ ENTRY(tl1_dmmu_miss_direct)
 	and	%g5, %g6, %g5
 	.globl	tl1_dmmu_miss_direct_patch_tsb_phys_1
 tl1_dmmu_miss_direct_patch_tsb_phys_1:
-	sethi	%hi(TSB_KERNEL_PHYS), %g7
-	or	%g7, %lo(TSB_KERNEL_PHYS), %g7
+	sethi	%uhi(TSB_KERNEL_PHYS), %g3
+	or	%g3, %ulo(TSB_KERNEL_PHYS), %g3
+	sllx	%g3, 32, %g3
+	sethi	%hi(TSB_KERNEL_PHYS), %g3
+	or	%g7, %g3, %g7
 	cmp	%g4, %g7
 	bl,pt	%xcc, 1f
 	 or	%g5, TD_CP | TD_W, %g5
 	.globl	tl1_dmmu_miss_direct_patch_tsb_phys_end_1
 tl1_dmmu_miss_direct_patch_tsb_phys_end_1:
+	sethi	%uhi(TSB_KERNEL_PHYS_END), %g3
+	or	%g3, %ulo(TSB_KERNEL_PHYS_END), %g3
+	sllx	%g3, 32, %g3
 	sethi	%hi(TSB_KERNEL_PHYS_END), %g7
-	or	%g7, %lo(TSB_KERNEL_PHYS_END), %g7
+	or	%g7, %g3, %g7
 	cmp	%g4, %g7
 	bg,a,pt	%xcc, 1f
 	 nop
@@ -1631,14 +1649,17 @@ ENTRY(tl1_dmmu_prot_1)
 	 * Compute the address of the TTE.  The TSB mask and address of the
 	 * TSB are patched at startup.
 	 */
+	.globl	tl1_dmmu_prot_patch_tsb_1
+tl1_dmmu_prot_patch_tsb_1:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
 	.globl	tl1_dmmu_prot_patch_tsb_mask_1
 tl1_dmmu_prot_patch_tsb_mask_1:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	.globl	tl1_dmmu_prot_patch_tsb_1
-tl1_dmmu_prot_patch_tsb_1:
-	sethi	%hi(TSB_KERNEL), %g7
-	or	%g7, %lo(TSB_KERNEL), %g7
 
 	srlx	%g5, TAR_VPN_SHIFT, %g5
 	and	%g5, %g6, %g6
@@ -1677,15 +1698,17 @@ tl1_dmmu_prot_patch_quad_ldd_1:
 	 * Recompute the TTE address, which we clobbered loading the TTE.
 	 * The TSB mask and address of the TSB are patched at startup.
 	 */
+	.globl	tl1_dmmu_prot_patch_tsb_2
+tl1_dmmu_prot_patch_tsb_2:
+	sethi	%uhi(TSB_KERNEL), %g6
+	or	%g6, %ulo(TSB_KERNEL), %g6
+	sllx	%g6, 32, %g6
+	sethi	%hi(TSB_KERNEL), %g7
+	or	%g7, %g6, %g7
 	.globl	tl1_dmmu_prot_patch_tsb_mask_2
 tl1_dmmu_prot_patch_tsb_mask_2:
 	sethi	%hi(TSB_KERNEL_MASK), %g6
 	or	%g6, %lo(TSB_KERNEL_MASK), %g6
-	.globl	tl1_dmmu_prot_patch_tsb_2
-tl1_dmmu_prot_patch_tsb_2:
-	sethi	%hi(TSB_KERNEL), %g7
-	or	%g7, %lo(TSB_KERNEL), %g7
-
 	and	%g5, %g6, %g5
 	sllx	%g5, TTE_SHIFT, %g5
 	add	%g5, %g7, %g5

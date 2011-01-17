@@ -482,6 +482,21 @@ pmap_bootstrap(u_int cpu_impl)
 #define	PATCH_TSB(addr, val) do {					\
 	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) ||			\
 	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0,			\
+	    IF_F3_RS1(addr[1]))	||					\
+	    addr[3] != SETHI(IF_F2_RD(addr[3]), 0x0))			\
+		panic("%s: patched instructions have changed",		\
+		    __func__);						\
+	addr[0] |= EIF_IMM((val) >> 42, 22);				\
+	addr[1] |= EIF_IMM((val) >> 32, 10);				\
+	addr[3] |= EIF_IMM((val) >> 10, 22);				\
+	flush(addr);							\
+	flush(addr + 1);						\
+	flush(addr + 3);						\
+} while (0)
+
+#define	PATCH_TSB_MASK(addr, val) do {					\
+	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) ||			\
+	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0,			\
 	    IF_F3_RS1(addr[1])))					\
 		panic("%s: patched instructions have changed",		\
 		    __func__);						\
@@ -507,20 +522,20 @@ pmap_bootstrap(u_int cpu_impl)
 	PATCH_LDD(tl1_dmmu_miss_patch_quad_ldd_1, ldd);
 	PATCH_TSB(tl1_dmmu_miss_patch_tsb_1, off);
 	PATCH_TSB(tl1_dmmu_miss_patch_tsb_2, off);
-	PATCH_TSB(tl1_dmmu_miss_patch_tsb_mask_1, tsb_kernel_mask);
-	PATCH_TSB(tl1_dmmu_miss_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_dmmu_miss_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_dmmu_miss_patch_tsb_mask_2, tsb_kernel_mask);
 	PATCH_ASI(tl1_dmmu_prot_patch_asi_1, asi);
 	PATCH_LDD(tl1_dmmu_prot_patch_quad_ldd_1, ldd);
 	PATCH_TSB(tl1_dmmu_prot_patch_tsb_1, off);
 	PATCH_TSB(tl1_dmmu_prot_patch_tsb_2, off);
-	PATCH_TSB(tl1_dmmu_prot_patch_tsb_mask_1, tsb_kernel_mask);
-	PATCH_TSB(tl1_dmmu_prot_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_dmmu_prot_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_dmmu_prot_patch_tsb_mask_2, tsb_kernel_mask);
 	PATCH_ASI(tl1_immu_miss_patch_asi_1, asi);
 	PATCH_LDD(tl1_immu_miss_patch_quad_ldd_1, ldd);
 	PATCH_TSB(tl1_immu_miss_patch_tsb_1, off);
 	PATCH_TSB(tl1_immu_miss_patch_tsb_2, off);
-	PATCH_TSB(tl1_immu_miss_patch_tsb_mask_1, tsb_kernel_mask);
-	PATCH_TSB(tl1_immu_miss_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_immu_miss_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_immu_miss_patch_tsb_mask_2, tsb_kernel_mask);
 
 	/*
 	 * Enter fake 8k pages for the 4MB kernel pages, so that
