@@ -206,7 +206,6 @@ struct ale_softc {
 #define	ALE_FLAG_RXCSUM_BUG	0x0080
 #define	ALE_FLAG_TXCSUM_BUG	0x0100
 #define	ALE_FLAG_TXCMB_BUG	0x0200
-#define	ALE_FLAG_DETACH		0x4000
 #define	ALE_FLAG_LINK		0x8000
 
 	struct callout		ale_tick_ch;
