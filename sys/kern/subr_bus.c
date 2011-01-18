@@ -226,7 +226,7 @@ devclass_sysctl_init(devclass_t dc)
 	    SYSCTL_STATIC_CHILDREN(_dev), OID_AUTO, dc->name,
 	    CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(&dc->sysctl_ctx, SYSCTL_CHILDREN(dc->sysctl_tree),
-	    OID_AUTO, "%parent", CTLFLAG_RD,
+	    OID_AUTO, "%parent", CTLTYPE_STRING | CTLFLAG_RD,
 	    dc, DEVCLASS_SYSCTL_PARENT, devclass_sysctl_handler, "A",
 	    "parent class");
 }
@@ -289,23 +289,23 @@ device_sysctl_init(device_t dev)
 	    dev->nameunit + strlen(dc->name),
 	    CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%desc", CTLFLAG_RD,
+	    OID_AUTO, "%desc", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_DESC, device_sysctl_handler, "A",
 	    "device description");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%driver", CTLFLAG_RD,
+	    OID_AUTO, "%driver", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_DRIVER, device_sysctl_handler, "A",
 	    "device driver name");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%location", CTLFLAG_RD,
+	    OID_AUTO, "%location", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_LOCATION, device_sysctl_handler, "A",
 	    "device location relative to parent");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%pnpinfo", CTLFLAG_RD,
+	    OID_AUTO, "%pnpinfo", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_PNPINFO, device_sysctl_handler, "A",
 	    "device identification");
 	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
-	    OID_AUTO, "%parent", CTLFLAG_RD,
+	    OID_AUTO, "%parent", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_PARENT, device_sysctl_handler, "A",
 	    "parent device");
 }
