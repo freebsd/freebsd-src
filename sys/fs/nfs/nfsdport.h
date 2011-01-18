@@ -52,7 +52,6 @@
  * needs to be returned by nfsd_fhtovp().
  */
 struct nfsexstuff {
-	int	nes_vfslocked;			/* required for all ports */
 	int	nes_exflag;			/* export flags */
 	int	nes_numsecflavor;		/* # of security flavors */
 	int	nes_secflavors[MAXSECFLAVORS];	/* and the flavors */

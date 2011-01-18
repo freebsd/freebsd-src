@@ -1351,7 +1351,6 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	struct nfsvattr fdirfor, fdiraft, tdirfor, tdiraft;
 	struct nfsexstuff tnes;
 	struct nfsrvfh tfh;
-	mount_t mp = NULL;
 	char *bufp, *tbufp = NULL;
 	u_long *hashp;
 
@@ -1387,9 +1386,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 			return (error);
 		}
 		nd->nd_cred->cr_uid = nd->nd_saveduid;
-		/* Won't lock vfs if already locked, mp == NULL */
-		tnes.nes_vfslocked = exp->nes_vfslocked;
-		nfsd_fhtovp(nd, &tfh, LK_EXCLUSIVE, &tdp, &tnes, &mp, 0, p);
+		nfsd_fhtovp(nd, &tfh, LK_EXCLUSIVE, &tdp, &tnes, NULL, 0, p);
 		if (tdp) {
 			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd->nd_cred,
 			    p, 1);
@@ -1401,12 +1398,8 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	if (!nd->nd_repstat) {
 		error = nfsrv_parsename(nd, tbufp, hashp, &tond.ni_pathlen);
 		if (error) {
-			if (tdp) {
-				if (tnes.nes_vfslocked && !exp->nes_vfslocked &&
-				    !(nd->nd_flag & ND_NFSV4))
-					nfsvno_unlockvfs(mp);
+			if (tdp)
 				vrele(tdp);
-			}
 			vput(dp);
 			nfsvno_relpathbuf(&fromnd);
 			nfsvno_relpathbuf(&tond);
@@ -1420,12 +1413,8 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 			nfsrv_wcc(nd, tdirfor_ret, &tdirfor, tdiraft_ret,
 			    &tdiraft);
 		}
-		if (tdp) {
-			if (tnes.nes_vfslocked && !exp->nes_vfslocked &&
-			    !(nd->nd_flag & ND_NFSV4))
-				nfsvno_unlockvfs(mp);
+		if (tdp)
 			vrele(tdp);
-		}
 		vput(dp);
 		nfsvno_relpathbuf(&fromnd);
 		nfsvno_relpathbuf(&tond);
@@ -1445,12 +1434,8 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		}
 		if (fdirp)
 			vrele(fdirp);
-		if (tdp) {
-			if (tnes.nes_vfslocked && !exp->nes_vfslocked &&
-			    !(nd->nd_flag & ND_NFSV4))
-				nfsvno_unlockvfs(mp);
+		if (tdp)
 			vrele(tdp);
-		}
 		nfsvno_relpathbuf(&tond);
 		return (0);
 	}
@@ -1465,9 +1450,6 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	if (tdirp)
 		tdiraft_ret = nfsvno_getattr(tdirp, &tdiraft, nd->nd_cred, p,
 		    0);
-	if (tnes.nes_vfslocked && !exp->nes_vfslocked &&
-	    !(nd->nd_flag & ND_NFSV4))
-		nfsvno_unlockvfs(mp);
 	if (fdirp)
 		vrele(fdirp);
 	if (tdirp)
@@ -1505,7 +1487,6 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 	struct nfsvattr dirfor, diraft, at;
 	struct nfsexstuff tnes;
 	struct nfsrvfh dfh;
-	mount_t mp = NULL;
 	char *bufp;
 	u_long *hashp;
 
@@ -1541,9 +1522,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 				/* tovp is always NULL unless NFSv4 */
 				return (error);
 			}
-			/* Won't lock vfs if already locked, mp == NULL */
-			tnes.nes_vfslocked = exp->nes_vfslocked;
-			nfsd_fhtovp(nd, &dfh, LK_EXCLUSIVE, &dp, &tnes, &mp, 0,
+			nfsd_fhtovp(nd, &dfh, LK_EXCLUSIVE, &dp, &tnes, NULL, 0,
 			    p);
 			if (dp)
 				NFSVOPUNLOCK(dp, 0, p);
@@ -1556,12 +1535,8 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 		error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 		if (error) {
 			vrele(vp);
-			if (dp) {
-				if (tnes.nes_vfslocked && !exp->nes_vfslocked &&
-				    !(nd->nd_flag & ND_NFSV4))
-					nfsvno_unlockvfs(mp);
+			if (dp)
 				vrele(dp);
-			}
 			nfsvno_relpathbuf(&named);
 			return (error);
 		}
@@ -1591,9 +1566,6 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 		diraft_ret = nfsvno_getattr(dirp, &diraft, nd->nd_cred, p, 0);
 		vrele(dirp);
 	}
-	if (tnes.nes_vfslocked && !exp->nes_vfslocked &&
-	    !(nd->nd_flag & ND_NFSV4))
-		nfsvno_unlockvfs(mp);
 	vrele(vp);
 	if (nd->nd_flag & ND_NFSV3) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -3101,7 +3073,6 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	vnode_t dirp = NULL, vp;
 	struct nfsrvfh fh;
 	struct nfsexstuff retnes;
-	mount_t mp;
 	u_int32_t *sizp;
 	int error, savflag, i;
 	char *bufp;
@@ -3134,12 +3105,10 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	fh.nfsrvfh_len = NFSX_MYFH;
 	vp = named.ni_vp;
 	nd->nd_repstat = nfsvno_getfh(vp, (fhandle_t *)fh.nfsrvfh_data, p);
-	mp = vnode_mount(vp);	/* so it won't try to re-lock filesys */
-	retnes.nes_vfslocked = exp->nes_vfslocked;
 	vput(vp);
 	savflag = nd->nd_flag;
 	if (!nd->nd_repstat) {
-		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, &mp, 0, p);
+		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, NULL, 0, p);
 		if (vp)
 			vput(vp);
 	}
