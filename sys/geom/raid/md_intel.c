@@ -477,11 +477,11 @@ g_raid_md_intel_get_volume(struct g_raid_softc *sc, int id)
 	return (mvol);
 }
 
-static void
+static int
 g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 {
 	struct g_raid_softc *sc;
-	struct g_raid_subdisk *sd;
+	struct g_raid_subdisk *sd, *tmpsd;
 	struct g_raid_disk *olddisk;
 	struct g_raid_md_object *md;
 	struct g_raid_md_intel_object *mdi;
@@ -489,46 +489,90 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 	struct intel_raid_conf *meta;
 	struct intel_raid_vol *mvol;
 	struct intel_raid_map *mmap0, *mmap1;
-	int disk_pos;
+	int disk_pos, resurrection = 0;
 
 	sc = disk->d_softc;
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_intel_object *)md;
 	meta = mdi->mdio_meta;
 	pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
+	olddisk = NULL;
 
 	/* Find disk position in metadata by it's serial. */
 	disk_pos = intel_meta_find_disk(meta, pd->pd_disk_meta.serial);
 	if (disk_pos < 0) {
-		G_RAID_DEBUG(1, "Unknown, probably stale disk");
-		if (pd->pd_disk_meta.flags & INTEL_F_FAILED)
-			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
-		else
+		G_RAID_DEBUG(1, "Unknown, probably new or stale disk");
+		/* Failed stale disk is useless for us. */
+		if (pd->pd_disk_meta.flags & INTEL_F_FAILED) {
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE_FAILED);
-		return;
+			return (0);
+		}
+		/* If we are in the start process, that's all for now. */
+		if (!mdi->mdio_started) {
+			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
+			return (0);
+		}
+		/* If we have already started - try to get use of the disk. */
+		TAILQ_FOREACH(olddisk, &sc->sc_disks, d_next) {
+			if (olddisk->d_state != G_RAID_DISK_S_OFFLINE &&
+			    olddisk->d_state != G_RAID_DISK_S_FAILED)
+				continue;
+			/* Make sure this disk is big enough. */
+			TAILQ_FOREACH(sd, &olddisk->d_subdisks, sd_next) {
+				if (sd->sd_offset + sd->sd_size + 4096 >
+				    pd->pd_disk_meta.sectors * 512) {
+					continue;
+				}
+			}
+			break;
+		}
+		if (olddisk == NULL) {
+			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
+			return (0);
+		}
+		oldpd = (struct g_raid_md_intel_perdisk *)olddisk->d_md_data;
+		disk_pos = oldpd->pd_disk_pos;
+		resurrection = 1;
 	}
 
-	/* Find placeholder by position. */
-	olddisk = g_raid_md_intel_get_disk(sc, disk_pos);
-	if (olddisk == NULL)
-		panic("No disk at position %d!", disk_pos);
-	if (olddisk->d_state != G_RAID_DISK_S_OFFLINE) {
-		G_RAID_DEBUG(1, "More then one disk for pos %d", disk_pos);
-		return;
+	if (olddisk == NULL) {
+		/* Find placeholder by position. */
+		olddisk = g_raid_md_intel_get_disk(sc, disk_pos);
+		if (olddisk == NULL)
+			panic("No disk at position %d!", disk_pos);
+		if (olddisk->d_state != G_RAID_DISK_S_OFFLINE) {
+			G_RAID_DEBUG(1, "More then one disk for pos %d",
+			    disk_pos);
+			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
+			return (0);
+		}
+		oldpd = (struct g_raid_md_intel_perdisk *)olddisk->d_md_data;
 	}
-	oldpd = (struct g_raid_md_intel_perdisk *)olddisk->d_md_data;
 
-	/* Merge real disk and placeholder and destroy one of them. */
-	disk->d_consumer->private = olddisk;
-	olddisk->d_consumer = disk->d_consumer;
-	disk->d_consumer = NULL;
-	oldpd->pd_meta = pd->pd_meta;
-	pd->pd_meta = NULL;
-	g_raid_destroy_disk(disk);
-	disk = olddisk;
+	/* Replace failed disk or placeholder with new disk. */
+	TAILQ_FOREACH_SAFE(sd, &olddisk->d_subdisks, sd_next, tmpsd) {
+		TAILQ_REMOVE(&olddisk->d_subdisks, sd, sd_next);
+		TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
+		sd->sd_disk = disk;
+		oldpd->pd_disk_pos = -2;
+		pd->pd_disk_pos = disk_pos;
+	}
 
-	/* Welcome the "new" disk. */
-	if (meta->disk[disk_pos].flags & INTEL_F_FAILED)
+	/* If it was placeholder -- destroy it. */
+	if (olddisk->d_state == G_RAID_DISK_S_OFFLINE) {
+		g_raid_destroy_disk(olddisk);
+	} else {
+		/* Otherwise, make it STALE_FAILED. */
+		g_raid_change_disk_state(olddisk, G_RAID_DISK_S_STALE_FAILED);
+		/* Update global metadata just in case. */
+		memcpy(&meta->disk[disk_pos], &pd->pd_disk_meta,
+		    sizeof(struct intel_raid_disk));
+	}
+
+	/* Welcome the new disk. */
+	if (resurrection)
+		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+	else if (meta->disk[disk_pos].flags & INTEL_F_FAILED)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_FAILED);
 	else
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
@@ -541,7 +585,10 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 		else
 			mmap1 = mmap0;
 
-		if (meta->disk[disk_pos].flags & INTEL_F_FAILED) {
+		if (resurrection) {
+			g_raid_change_subdisk_state(sd,
+			    G_RAID_SUBDISK_S_NEW);
+		} else if (meta->disk[disk_pos].flags & INTEL_F_FAILED) {
 			g_raid_change_subdisk_state(sd,
 			    G_RAID_SUBDISK_S_FAILED);
 		} else if (mvol->migr_state == 0) {
@@ -580,6 +627,54 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 		    G_RAID_EVENT_SUBDISK);
 	}
+	return (resurrection);
+}
+
+static void
+g_raid_md_intel_refill(struct g_raid_softc *sc)
+{
+	struct g_raid_md_object *md;
+	struct g_raid_md_intel_object *mdi;
+	struct intel_raid_conf *meta;
+	struct g_raid_disk *disk;
+	int update;
+
+	md = sc->sc_md;
+	mdi = (struct g_raid_md_intel_object *)md;
+	meta = mdi->mdio_meta;
+	update = 0;
+	do {
+		/* Make sure we miss anything. */
+		if (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) ==
+		    meta->total_disks)
+			break;
+
+		G_RAID_DEBUG(1, "Array is not complete. trying to refill.");
+
+		/* Try to get use some of STALE disks. */
+		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+			if (disk->d_state == G_RAID_DISK_S_STALE) {
+				update += g_raid_md_intel_start_disk(disk);
+				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
+					break;
+			}
+		}
+		if (disk != NULL)
+			continue;
+
+		/* Try to get use some of SPARE disks. */
+		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+			if (disk->d_state == G_RAID_DISK_S_SPARE) {
+				update += g_raid_md_intel_start_disk(disk);
+				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
+					break;
+			}
+		}
+	} while (disk != NULL);
+
+	/* Write new metadata if we changed something. */
+	if (update)
+		g_raid_md_write_intel(md, NULL, NULL, NULL);
 }
 
 static void
@@ -593,7 +688,7 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 	struct intel_raid_map *mmap;
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
-	struct g_raid_disk *disk, *tmpdisk;
+	struct g_raid_disk *disk;
 	int i, j, disk_pos;
 
 	md = sc->sc_md;
@@ -654,13 +749,21 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 		}
 	}
 
-	/* Make existing disks take their places. */
-	TAILQ_FOREACH_SAFE(disk, &sc->sc_disks, d_next, tmpdisk) {
-		if (disk->d_state == G_RAID_DISK_S_NONE)
-			g_raid_md_intel_start_disk(disk);
-	}
+	/* Make all disks found till the moment take their places. */
+	do {
+		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+			if (disk->d_state == G_RAID_DISK_S_NONE) {
+				g_raid_md_intel_start_disk(disk);
+				break;
+			}
+		}
+	} while (disk != NULL);
 
 	mdi->mdio_started = 1;
+
+	/* Pickup any STALE/SPARE disks to refill array if needed. */
+	g_raid_md_intel_refill(sc);
+
 	callout_stop(&mdi->mdio_start_co);
 	G_RAID_DEBUG(1, "root_mount_rel %p", mdi->mdio_rootmount);
 	root_mount_rel(mdi->mdio_rootmount);
@@ -683,7 +786,8 @@ g_raid_md_intel_new_disk(struct g_raid_disk *disk)
 	pdmeta = pd->pd_meta;
 
 	if (mdi->mdio_started) {
-		g_raid_md_intel_start_disk(disk);
+		if (g_raid_md_intel_start_disk(disk))
+			g_raid_md_write_intel(md, NULL, NULL, NULL);
 	} else {
 		/* If we haven't started yet - check metadata freshness. */
 		if (mdi->mdio_meta == NULL ||
@@ -932,6 +1036,9 @@ g_raid_md_event_intel(struct g_raid_md_object *md,
 		/* Write updated metadata to all disks. */
 		g_raid_md_write_intel(md, NULL, NULL, NULL);
 
+		/* Pickup any STALE/SPARE disks to refill array if needed. */
+		g_raid_md_intel_refill(sc);
+
 		/* Check if anything left except placeholders. */
 		if (g_raid_ndisks(sc, -1) ==
 		    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
@@ -948,17 +1055,17 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
-	struct g_raid_disk *disk, *disk1;
+	struct g_raid_disk *disk;
 	struct g_raid_md_intel_object *mdi;
 	struct g_raid_md_intel_perdisk *pd;
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	char arg[16];
+	char arg[16], serial[INTEL_SERIAL_LEN];
 	const char *verb, *volname, *levelname, *diskname;
 	int *nargs;
 	uint64_t size, sectorsize, strip;
 	intmax_t *sizearg, *striparg;
-	int numdisks, i, len, level, qual, disk_pos;
+	int numdisks, i, len, level, qual, update;
 	int error;
 
 	sc = md->mdo_softc;
@@ -1201,6 +1308,9 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		/* Write updated metadata to remaining disks. */
 		g_raid_md_write_intel(md, NULL, NULL, NULL);
 
+		/* Pickup any STALE/SPARE disks to refill array if needed. */
+		g_raid_md_intel_refill(sc);
+
 		/* Check if anything left except placeholders. */
 		if (g_raid_ndisks(sc, -1) ==
 		    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
@@ -1212,24 +1322,8 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
 		}
+		update = 0;
 		for (i = 1; i < *nargs; i++) {
-			/* Look for empty disk slot. */
-			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				pd = (struct g_raid_md_intel_perdisk *)
-				    disk->d_md_data;
-				if (pd->pd_disk_pos < 0)
-					continue;
-				if (disk->d_state == G_RAID_DISK_S_OFFLINE ||
-				    disk->d_state == G_RAID_DISK_S_FAILED)
-					break;
-			}
-			if (disk == NULL) {
-				gctl_error(req, "No missing disks.");
-				error = -2;
-				break;
-			}
-			disk_pos = pd->pd_disk_pos;
-
 			/* Get disk name. */
 			snprintf(arg, sizeof(arg), "arg%d", i);
 			diskname = gctl_get_asciiparam(req, arg);
@@ -1271,39 +1365,9 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			}
 			g_topology_unlock();
 
-			/* Make sure disk is big enough. */
-			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-				if (sd->sd_offset + sd->sd_size + 4096 >
-				    pp->mediasize) {
-					gctl_error(req,
-					    "Disk '%s' too small.",
-					    diskname);
-					g_topology_lock();
-					g_raid_kill_consumer(sc, cp);
-					g_topology_unlock();
-					error = -7;
-					break;
-				}
-			}
-
-			/* If there is failed disk in slot - put it aside. */
-			if (disk->d_state == G_RAID_DISK_S_FAILED) {
-				disk1 = g_raid_create_disk(sc);
-				disk->d_consumer->private = disk1;
-				disk1->d_consumer = disk->d_consumer;
-				disk1->d_md_data = (void *)pd;
-				pd->pd_disk_pos = -2;
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_STALE_FAILED);
-
-				pd = malloc(sizeof(*pd), M_MD_INTEL, M_WAITOK | M_ZERO);
-				pd->pd_disk_pos = disk_pos;
-				disk->d_md_data = (void *)pd;
-			}
-
-			/* Read disk metadata. */
+			/* Read disk serial. */
 			error = g_raid_md_get_label(cp,
-			    &pd->pd_disk_meta.serial[0], INTEL_SERIAL_LEN);
+			    &serial[0], INTEL_SERIAL_LEN);
 			if (error != 0) {
 				gctl_error(req,
 				    "Can't get serial for provider '%s'.",
@@ -1311,28 +1375,39 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 				g_topology_lock();
 				g_raid_kill_consumer(sc, cp);
 				g_topology_unlock();
-				error = -8;
+				error = -7;
 				break;
 			}
 
-			cp->private = disk;
+			pd = malloc(sizeof(*pd), M_MD_INTEL, M_WAITOK | M_ZERO);
+			pd->pd_disk_pos = -1;
+
+			disk = g_raid_create_disk(sc);
 			disk->d_consumer = cp;
+			disk->d_consumer->private = disk;
+			disk->d_md_data = (void *)pd;
+			cp->private = disk;
+
+			memcpy(&pd->pd_disk_meta.serial[0], &serial[0],
+			    INTEL_SERIAL_LEN);
 			pd->pd_disk_meta.sectors = pp->mediasize / pp->sectorsize;
 			pd->pd_disk_meta.id = 0;
 			pd->pd_disk_meta.flags = INTEL_F_ASSIGNED | INTEL_F_ONLINE;
 
 			/* Welcome the "new" disk. */
-			g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
-			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_NEW);
-				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
-				    G_RAID_EVENT_SUBDISK);
+			update += g_raid_md_intel_start_disk(disk);
+			if (disk->d_state != G_RAID_DISK_S_ACTIVE) {
+				gctl_error(req, "Disk '%s' doesn't fit.",
+				    diskname);
+				g_raid_destroy_disk(disk);
+				error = -8;
+				break;
 			}
 		}
 
-		/* Write updated metadata to all disks. */
-		g_raid_md_write_intel(md, NULL, NULL, NULL);
+		/* Write new metadata if we changed something. */
+		if (update)
+			g_raid_md_write_intel(md, NULL, NULL, NULL);
 		return (error);
 	}
 	return (-100);
@@ -1595,6 +1670,9 @@ g_raid_md_fail_disk_intel(struct g_raid_md_object *md,
 
 	/* Write updated metadata to remaining disks. */
 	g_raid_md_write_intel(md, NULL, NULL, tdisk);
+
+	/* Pickup any STALE/SPARE disks to refill array if needed. */
+	g_raid_md_intel_refill(sc);
 
 	/* Check if anything left except placeholders. */
 	if (g_raid_ndisks(sc, -1) ==
