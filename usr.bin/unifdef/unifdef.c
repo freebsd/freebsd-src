@@ -57,7 +57,7 @@
 #include <unistd.h>
 
 const char copyright[] =
-    "@(#) $Version: unifdef-2.3 $\n"
+    "@(#) $Version: unifdef-2.5 $\n"
     "@(#) $FreeBSD$\n"
     "@(#) $Author: Tony Finch (dot@dotat.at) $\n"
     "@(#) $URL: http://dotat.at/prog/unifdef $\n"
@@ -329,16 +329,10 @@ main(int argc, char *argv[])
 		output = stdout;
 	} else {
 		struct stat ist, ost;
-		memset(&ist, 0, sizeof(ist));
-		memset(&ost, 0, sizeof(ost));
-
-		if (fstat(fileno(input), &ist) != 0)
-			err(2, "can't fstat %s", filename);
-		if (stat(ofilename, &ost) != 0 && errno != ENOENT)
-			warn("can't stat %s", ofilename);
-
-		overwriting = (ist.st_dev == ost.st_dev
-		            && ist.st_ino == ost.st_ino);
+		if (stat(ofilename, &ost) == 0 &&
+		    fstat(fileno(input), &ist) == 0)
+			overwriting = (ist.st_dev == ost.st_dev
+				    && ist.st_ino == ost.st_ino);
 		if (overwriting) {
 			const char *dirsep;
 			int ofd;
@@ -402,7 +396,8 @@ usage(void)
  * When we have processed a group that starts off with a known-false
  * #if/#elif sequence (which has therefore been deleted) followed by a
  * #elif that we don't understand and therefore must keep, we edit the
- * latter into a #if to keep the nesting correct.
+ * latter into a #if to keep the nesting correct. We use strncpy() to
+ * overwrite the 4 byte token "elif" with "if  " without a '\0' byte.
  *
  * When we find a true #elif in a group, the following block will
  * always be kept and the rest of the sequence after the next #elif or
@@ -455,7 +450,7 @@ static void Oelif (void) { if (!iocccok) Eioccc(); Pelif(); }
 static void Idrop (void) { Fdrop();  ignoreon(); }
 static void Itrue (void) { Ftrue();  ignoreon(); }
 static void Ifalse(void) { Ffalse(); ignoreon(); }
-/* edit this line */
+/* modify this line */
 static void Mpass (void) { strncpy(keyword, "if  ", 4); Pelif(); }
 static void Mtrue (void) { keywordedit("else");  state(IS_TRUE_MIDDLE); }
 static void Melif (void) { keywordedit("endif"); state(IS_FALSE_TRAILER); }
@@ -629,10 +624,10 @@ done(void)
 	if (incomment)
 		error("EOF in comment");
 	closeout();
-	if (overwriting && rename(tempname, filename) == -1) {
+	if (overwriting && rename(tempname, ofilename) == -1) {
 		warn("couldn't rename temporary file");
 		unlink(tempname);
-		errx(2, "%s unchanged", filename);
+		errx(2, "%s unchanged", ofilename);
 	}
 	exit(exitstat);
 }
