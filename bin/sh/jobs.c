@@ -1062,6 +1062,7 @@ dowait(int block, struct job *job)
 			if (coredump)
 				out1str(" (core dumped)");
 			out1c('\n');
+			flushout(out1);
 		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=%p\n", rootshell, job));
