@@ -4297,11 +4297,11 @@ lem_add_hw_stats(struct adapter *adapter)
 			"Watchdog timeouts");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "device_control",
-			CTLFLAG_RD, adapter, E1000_CTRL,
+			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_CTRL,
 			lem_sysctl_reg_handler, "IU",
 			"Device Control Register");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_control",
-			CTLFLAG_RD, adapter, E1000_RCTL,
+			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_RCTL,
 			lem_sysctl_reg_handler, "IU",
 			"Receiver Control Register");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_high_water",
@@ -4318,19 +4318,19 @@ lem_add_hw_stats(struct adapter *adapter)
 			"TX FIFO resets");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "txd_head", 
-			CTLFLAG_RD, adapter, E1000_TDH(0),
+			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_TDH(0),
 			lem_sysctl_reg_handler, "IU",
  			"Transmit Descriptor Head");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "txd_tail", 
-			CTLFLAG_RD, adapter, E1000_TDT(0),
+			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_TDT(0),
 			lem_sysctl_reg_handler, "IU",
  			"Transmit Descriptor Tail");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rxd_head", 
-			CTLFLAG_RD, adapter, E1000_RDH(0),
+			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_RDH(0),
 			lem_sysctl_reg_handler, "IU",
 			"Receive Descriptor Head");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rxd_tail", 
-			CTLFLAG_RD, adapter, E1000_RDT(0),
+			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_RDT(0),
 			lem_sysctl_reg_handler, "IU",
 			"Receive Descriptor Tail");
 	

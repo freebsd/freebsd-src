@@ -5082,11 +5082,11 @@ em_add_hw_stats(struct adapter *adapter)
 			"Watchdog timeouts");
 	
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "device_control",
-			CTLFLAG_RD, adapter, E1000_CTRL,
+			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_CTRL,
 			em_sysctl_reg_handler, "IU",
 			"Device Control Register");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_control",
-			CTLFLAG_RD, adapter, E1000_RCTL,
+			CTLTYPE_UINT | CTLFLAG_RD, adapter, E1000_RCTL,
 			em_sysctl_reg_handler, "IU",
 			"Receiver Control Register");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_high_water",
@@ -5103,11 +5103,13 @@ em_add_hw_stats(struct adapter *adapter)
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
-				CTLFLAG_RD, adapter, E1000_TDH(txr->me),
+				CTLTYPE_UINT | CTLFLAG_RD, adapter,
+				E1000_TDH(txr->me),
 				em_sysctl_reg_handler, "IU",
  				"Transmit Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail", 
-				CTLFLAG_RD, adapter, E1000_TDT(txr->me),
+				CTLTYPE_UINT | CTLFLAG_RD, adapter,
+				E1000_TDT(txr->me),
 				em_sysctl_reg_handler, "IU",
  				"Transmit Descriptor Tail");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tx_irq",
@@ -5118,11 +5120,13 @@ em_add_hw_stats(struct adapter *adapter)
 				"Queue No Descriptor Available");
 		
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
-				CTLFLAG_RD, adapter, E1000_RDH(rxr->me),
+				CTLTYPE_UINT | CTLFLAG_RD, adapter,
+				E1000_RDH(rxr->me),
 				em_sysctl_reg_handler, "IU",
 				"Receive Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail", 
-				CTLFLAG_RD, adapter, E1000_RDT(rxr->me),
+				CTLTYPE_UINT | CTLFLAG_RD, adapter,
+				E1000_RDT(rxr->me),
 				em_sysctl_reg_handler, "IU",
 				"Receive Descriptor Tail");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "rx_irq",

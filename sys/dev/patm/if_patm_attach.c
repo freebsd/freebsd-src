@@ -254,13 +254,13 @@ patm_attach(device_t dev)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "istats", CTLFLAG_RD, sc, 0, patm_sysctl_istats,
-	    "S", "internal statistics") == NULL)
+	    OID_AUTO, "istats", CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0,
+	    patm_sysctl_istats, "S", "internal statistics") == NULL)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "eeprom", CTLFLAG_RD, sc, 0, patm_sysctl_eeprom,
-	    "S", "EEPROM contents") == NULL)
+	    OID_AUTO, "eeprom", CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0,
+	    patm_sysctl_eeprom, "S", "EEPROM contents") == NULL)
 		goto fail;
 
 	if (SYSCTL_ADD_UINT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
