@@ -95,14 +95,14 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 		largs = &la;
 	} else
 		largs = (struct i386_ldt_args *)uap->parms;
-	if (largs->num > max_ldt_segment || largs->num <= 0)
-		return (EINVAL);
 
 	switch (uap->op) {
 	case I386_GET_LDT:
 		error = amd64_get_ldt(td, largs);
 		break;
 	case I386_SET_LDT:
+		if (largs->descs != NULL && largs->num > max_ldt_segment)
+			return (EINVAL);
 		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 		if (largs->descs != NULL) {
 			lp = (struct user_segment_descriptor *)
@@ -539,7 +539,7 @@ amd64_set_ldt(td, uap, descs)
 		/* Free descriptors */
 		if (uap->start == 0 && uap->num == 0)
 			uap->num = max_ldt_segment;
-		if (uap->num <= 0)
+		if (uap->num == 0)
 			return (EINVAL);
 		if ((pldt = mdp->md_ldt) == NULL ||
 		    uap->start >= max_ldt_segment)
@@ -559,7 +559,7 @@ amd64_set_ldt(td, uap, descs)
 		/* verify range of descriptors to modify */
 		largest_ld = uap->start + uap->num;
 		if (uap->start >= max_ldt_segment ||
-		    uap->num < 0 || largest_ld > max_ldt_segment)
+		    largest_ld > max_ldt_segment)
 			return (EINVAL);
 	}
 
