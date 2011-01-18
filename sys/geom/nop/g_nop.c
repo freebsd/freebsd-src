@@ -176,6 +176,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		gctl_error(req, "Invalid secsize for provider %s.", pp->name);
 		return (EINVAL);
 	}
+	size -= size % secsize;
 	snprintf(name, sizeof(name), "%s%s", pp->name, G_NOP_SUFFIX);
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		if (strcmp(gp->name, name) == 0) {
