@@ -87,7 +87,8 @@ ctty_drvinit(void *unused)
 {
 
 	EVENTHANDLER_REGISTER(dev_clone, ctty_clone, 0, 1000);
-	ctty = make_dev(&ctty_cdevsw, 0, 0, 0, 0666, "ctty");
+	ctty = make_dev_credf(MAKEDEV_ETERNAL, &ctty_cdevsw, 0, NULL, UID_ROOT,
+	    GID_WHEEL, 0666, "ctty");
 }
 
 SYSINIT(cttydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,ctty_drvinit,NULL);
