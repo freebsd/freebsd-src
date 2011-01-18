@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <geom/geom.h>
 #include "geom/raid/g_raid.h"
 #include "g_raid_md_if.h"
@@ -174,6 +175,7 @@ struct g_raid_md_intel_object {
 	struct callout		 mdio_start_co;	/* STARTING state timer. */
 	int			 mdio_disks_present;
 	int			 mdio_started;
+	int			 mdio_incomplete;
 	struct root_hold_token	*mdio_rootmount; /* Root mount delay token. */
 };
 
@@ -451,6 +453,27 @@ intel_meta_erase(struct g_consumer *cp)
 	return (error);
 }
 
+static int
+intel_meta_write_spare(struct g_consumer *cp, struct intel_raid_disk *d)
+{
+	struct intel_raid_conf *meta;
+	int error;
+
+	/* Fill anchor and single disk. */
+	meta = malloc(INTEL_MAX_MD_SIZE(1), M_MD_INTEL, M_WAITOK | M_ZERO);
+	memcpy(&meta->intel_id[0], INTEL_MAGIC, sizeof(INTEL_MAGIC));
+	memcpy(&meta->version[0], INTEL_VERSION_1000,
+	    sizeof(INTEL_VERSION_1000));
+	meta->config_size = INTEL_MAX_MD_SIZE(1);
+	meta->config_id = arc4random();
+	meta->generation = 1;
+	meta->total_disks = 1;
+	meta->disk[0] = *d;
+	error = intel_meta_write(cp, meta);
+	free(meta, M_MD_INTEL);
+	return (error);
+}
+
 static struct g_raid_disk *
 g_raid_md_intel_get_disk(struct g_raid_softc *sc, int id)
 {
@@ -508,10 +531,8 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 			return (0);
 		}
 		/* If we are in the start process, that's all for now. */
-		if (!mdi->mdio_started) {
-			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
-			return (0);
-		}
+		if (!mdi->mdio_started)
+			goto nofit;
 		/* If we have already started - try to get use of the disk. */
 		TAILQ_FOREACH(olddisk, &sc->sc_disks, d_next) {
 			if (olddisk->d_state != G_RAID_DISK_S_OFFLINE &&
@@ -520,15 +541,31 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 			/* Make sure this disk is big enough. */
 			TAILQ_FOREACH(sd, &olddisk->d_subdisks, sd_next) {
 				if (sd->sd_offset + sd->sd_size + 4096 >
-				    pd->pd_disk_meta.sectors * 512) {
-					continue;
+				    (uint64_t)pd->pd_disk_meta.sectors * 512) {
+					G_RAID_DEBUG(1,
+					    "Disk too small (%llu < %llu)",
+					    ((unsigned long long)
+					    pd->pd_disk_meta.sectors) * 512,
+					    (unsigned long long)
+					    sd->sd_offset + sd->sd_size + 4096);
+					break;
 				}
 			}
+			if (sd != NULL)
+				continue;
 			break;
 		}
 		if (olddisk == NULL) {
-			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
-			return (0);
+nofit:
+			if (pd->pd_disk_meta.flags & INTEL_F_SPARE) {
+				g_raid_change_disk_state(disk,
+				    G_RAID_DISK_S_SPARE);
+				return (1);
+			} else {
+				g_raid_change_disk_state(disk,
+				    G_RAID_DISK_S_STALE);
+				return (0);
+			}
 		}
 		oldpd = (struct g_raid_md_intel_perdisk *)olddisk->d_md_data;
 		disk_pos = oldpd->pd_disk_pos;
@@ -574,6 +611,8 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
 	else if (meta->disk[disk_pos].flags & INTEL_F_FAILED)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_FAILED);
+	else if (meta->disk[disk_pos].flags & INTEL_F_SPARE)
+		g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);
 	else
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
 	TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
@@ -627,7 +666,24 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 		    G_RAID_EVENT_SUBDISK);
 	}
+
+	/* Update status of our need for spare. */
+	if (mdi->mdio_started) {
+		mdi->mdio_incomplete =
+		    (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
+		     meta->total_disks);
+	}
+
 	return (resurrection);
+}
+
+static void
+g_disk_md_intel_retaste(void *arg, int pending)
+{
+
+	G_RAID_DEBUG(1, "Array is not complete, trying to retaste.");
+	g_retaste(&g_raid_class);
+	free(arg, M_MD_INTEL);
 }
 
 static void
@@ -637,6 +693,7 @@ g_raid_md_intel_refill(struct g_raid_softc *sc)
 	struct g_raid_md_intel_object *mdi;
 	struct intel_raid_conf *meta;
 	struct g_raid_disk *disk;
+	struct task *task;
 	int update;
 
 	md = sc->sc_md;
@@ -649,7 +706,7 @@ g_raid_md_intel_refill(struct g_raid_softc *sc)
 		    meta->total_disks)
 			break;
 
-		G_RAID_DEBUG(1, "Array is not complete. trying to refill.");
+		G_RAID_DEBUG(1, "Array is not complete, trying to refill.");
 
 		/* Try to get use some of STALE disks. */
 		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
@@ -675,6 +732,18 @@ g_raid_md_intel_refill(struct g_raid_softc *sc)
 	/* Write new metadata if we changed something. */
 	if (update)
 		g_raid_md_write_intel(md, NULL, NULL, NULL);
+
+	/* Update status of our need for spare. */
+	mdi->mdio_incomplete = (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
+	    meta->total_disks);
+
+	/* Request retaste hoping to find spare. */
+	if (mdi->mdio_incomplete) {
+		task = malloc(sizeof(struct task),
+		    M_MD_INTEL, M_WAITOK | M_ZERO);
+		TASK_INIT(task, 0, g_disk_md_intel_retaste, task);
+		taskqueue_enqueue(taskqueue_swi, task);
+	}
 }
 
 static void
@@ -889,9 +958,10 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	struct intel_raid_conf *meta;
 	struct g_raid_md_intel_perdisk *pd;
 	struct g_geom *geom;
-	int error, disk_pos, result;
+	int error, disk_pos, result, spare, len;
 	char serial[INTEL_SERIAL_LEN];
 	char name[16];
+	uint16_t vendor;
 
 	G_RAID_DEBUG(1, "Tasting Intel on %s", cp->provider->name);
 	mdi = (struct g_raid_md_intel_object *)md;
@@ -899,6 +969,9 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
+	spare = 0;
+	vendor = 0xffff;
+	disk_pos = 0;
 	if (g_access(cp, 1, 0, 0) != 0)
 		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
@@ -908,11 +981,27 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		    pp->name, error);
 		goto fail2;
 	}
+	len = 2;
+	if (pp->geom->rank == 1)
+		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
 	meta = intel_meta_read(cp);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
-	if (meta == NULL)
+	if (meta == NULL) {
+		if (g_raid_aggressive_spare) {
+			if (vendor == 0x8086) {
+				G_RAID_DEBUG(1,
+				    "No Intel metadata, forcing spare.");
+				spare = 2;
+				goto search;
+			} else {
+				G_RAID_DEBUG(1,
+				    "Intel vendor mismatch 0x%04x != 0x8086",
+				    vendor);
+			}
+		}
 		return (G_RAID_MD_TASTE_FAIL);
+	}
 
 	/* Check this disk position in obtained metadata. */
 	disk_pos = intel_meta_find_disk(meta, serial);
@@ -931,7 +1020,9 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	/* Metadata valid. Print it. */
 	g_raid_md_intel_print(meta);
 	G_RAID_DEBUG(1, "Intel disk position %d", disk_pos);
+	spare = meta->disk[disk_pos].flags & INTEL_F_SPARE;
 
+search:
 	/* Search for matching node. */
 	sc = NULL;
 	mdi1 = NULL;
@@ -944,9 +1035,13 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		if (sc->sc_md->mdo_class != md->mdo_class)
 			continue;
 		mdi1 = (struct g_raid_md_intel_object *)sc->sc_md;
-		if (mdi1->mdio_config_id != meta->config_id)
-			continue;
-		break;
+		if (spare) {
+			if (mdi1->mdio_incomplete)
+				break;
+		} else {
+			if (mdi1->mdio_config_id == meta->config_id)
+				break;
+		}
 	}
 
 	/* Found matching node. */
@@ -954,7 +1049,11 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		G_RAID_DEBUG(1, "Found matching node %s", sc->sc_name);
 		result = G_RAID_MD_TASTE_EXISTING;
 
-	} else { /* Not found matching node. */
+	} else if (spare) { /* Not found needy node -- left for later. */
+		G_RAID_DEBUG(1, "Spare is not needed at this time");
+		goto fail1;
+
+	} else { /* Not found matching node -- create one. */
 		result = G_RAID_MD_TASTE_NEW;
 		mdi->mdio_config_id = meta->config_id;
 		snprintf(name, sizeof(name), "Intel-%08x", meta->config_id);
@@ -980,7 +1079,14 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	pd = malloc(sizeof(*pd), M_MD_INTEL, M_WAITOK | M_ZERO);
 	pd->pd_meta = meta;
 	pd->pd_disk_pos = -1;
-	pd->pd_disk_meta = meta->disk[disk_pos];
+	if (spare == 2) {
+		memcpy(&pd->pd_disk_meta.serial[0], serial, INTEL_SERIAL_LEN);
+		pd->pd_disk_meta.sectors = pp->mediasize / pp->sectorsize;
+		pd->pd_disk_meta.id = 0;
+		pd->pd_disk_meta.flags = INTEL_F_SPARE;
+	} else {
+		pd->pd_disk_meta = meta->disk[disk_pos];
+	}
 	disk = g_raid_create_disk(sc);
 	disk->d_md_data = (void *)pd;
 	disk->d_consumer = rcp;
@@ -1392,11 +1498,14 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			    INTEL_SERIAL_LEN);
 			pd->pd_disk_meta.sectors = pp->mediasize / pp->sectorsize;
 			pd->pd_disk_meta.id = 0;
-			pd->pd_disk_meta.flags = INTEL_F_ASSIGNED | INTEL_F_ONLINE;
+			pd->pd_disk_meta.flags = INTEL_F_SPARE;
 
 			/* Welcome the "new" disk. */
 			update += g_raid_md_intel_start_disk(disk);
-			if (disk->d_state != G_RAID_DISK_S_ACTIVE) {
+			if (disk->d_state == G_RAID_DISK_S_SPARE) {
+				intel_meta_write_spare(cp, &pd->pd_disk_meta);
+				g_raid_destroy_disk(disk);
+			} else if (disk->d_state != G_RAID_DISK_S_ACTIVE) {
 				gctl_error(req, "Disk '%s' doesn't fit.",
 				    diskname);
 				g_raid_destroy_disk(disk);
@@ -1445,7 +1554,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		numdisks++;
 		if (disk->d_state == G_RAID_DISK_S_ACTIVE) {
 			pd->pd_disk_meta.flags =
-			    INTEL_F_ASSIGNED | INTEL_F_ONLINE;
+			    INTEL_F_ONLINE | INTEL_F_ASSIGNED;
 		} else if (disk->d_state == G_RAID_DISK_S_FAILED) {
 			pd->pd_disk_meta.flags = INTEL_F_FAILED | INTEL_F_ASSIGNED;
 		} else {

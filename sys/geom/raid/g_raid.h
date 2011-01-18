@@ -51,6 +51,7 @@ struct g_raid_tr_object;
 extern u_int g_raid_aggressive_spare;
 extern u_int g_raid_debug;
 extern u_int g_raid_start_timeout;
+extern struct g_class g_raid_class;
 
 #define	G_RAID_DEBUG(lvl, fmt, ...)	do {				\
 	if (g_raid_debug >= (lvl)) {					\
