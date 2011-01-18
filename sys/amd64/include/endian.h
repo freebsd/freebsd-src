@@ -102,9 +102,9 @@ __byte_swap_long_var(__uint64_t x)
 	 (((__uint64_t)x >> 40) & 0xff00) |		\
 	 (((__uint64_t)x >> 24) & 0xff0000) |		\
 	 (((__uint64_t)x >> 8) & 0xff000000) |		\
-	 (((__uint64_t)x << 8) & (0xfful << 32)) |	\
-	 (((__uint64_t)x << 24) & (0xfful << 40)) |	\
-	 (((__uint64_t)x << 40) & (0xfful << 48)) |	\
+	 (((__uint64_t)x << 8) & (0xffull << 32)) |	\
+	 (((__uint64_t)x << 24) & (0xffull << 40)) |	\
+	 (((__uint64_t)x << 40) & (0xffull << 48)) |	\
 	 (((__uint64_t)x << 56))))
 
 #define	__bswap64(x)	(__builtin_constant_p(x) ? \
