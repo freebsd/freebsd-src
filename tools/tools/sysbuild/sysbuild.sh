@@ -229,6 +229,7 @@ ports_build() (
 				if make install ${PORTS_OPTS} ; then
 					if [ "x${PKG_DIR}" != "x" ] ; then
 						make package ${PORTS_OPTS}
+						mkdir -p ${PKG_DIR}
 						mv *.tbz ${PKG_DIR}
 					fi
 				else
