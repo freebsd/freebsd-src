@@ -572,8 +572,6 @@ int nfsvno_pathconf(vnode_t, int, register_t *, struct ucred *,
     NFSPROC_T *);
 vnode_t nfsvno_getvp(fhandle_t *);
 int nfsvno_advlock(vnode_t, int, u_int64_t, u_int64_t, NFSPROC_T *);
-void nfsvno_unlockvfs(mount_t);
-int nfsvno_lockvfs(mount_t);
 int nfsrv_v4rootexport(void *, struct ucred *, NFSPROC_T *);
 int nfsvno_testexp(struct nfsrv_descript *, struct nfsexstuff *);
 uint32_t nfsrv_hashfh(fhandle_t *);

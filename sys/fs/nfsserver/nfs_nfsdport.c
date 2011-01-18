@@ -332,18 +332,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		 * In either case ni_startdir will be dereferenced and NULLed
 		 * out.
 		 */
-		if (exp->nes_vfslocked)
-			ndp->ni_cnd.cn_flags |= GIANTHELD;
 		error = lookup(ndp);
-		/*
-		 * The Giant lock should only change when
-		 * crossing mount points.
-		 */
-		if (crossmnt) {
-			exp->nes_vfslocked =
-			    (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
-			ndp->ni_cnd.cn_flags &= ~GIANTHELD;
-		}
 		if (error)
 			break;
 
@@ -2471,7 +2460,10 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 
 	*credp = NULL;
 	exp->nes_numsecflavor = 0;
-	error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
+	if (VFS_NEEDSGIANT(mp))
+		error = ESTALE;
+	else
+		error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
 	if (error != 0)
 		/* Make sure the server replies ESTALE to the client. */
 		error = ESTALE;
@@ -2521,19 +2513,8 @@ nfsvno_pathconf(struct vnode *vp, int flag, register_t *retf,
  *	- get vp and export rights by calling nfsvno_fhtovp()
  *	- if cred->cr_uid == 0 or MNT_EXPORTANON set it to credanon
  *	  for AUTH_SYS
- * Also handle getting the Giant lock for the file system,
- * as required:
- * - if same mount point as *mpp
- *       do nothing
- *   else if *mpp == NULL
- *       if already locked
- *           leave it locked
- *       else
- *           call VFS_LOCK_GIANT()
- *   else
- *       if already locked
- *            unlock Giant
- *       call VFS_LOCK_GIANT()
+ *	- if mpp != NULL, return the mount point so that it can
+ *	  be used for vn_finished_write() by the caller
  */
 void
 nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
@@ -2549,27 +2530,14 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	 * Check for the special case of the nfsv4root_fh.
 	 */
 	mp = vfs_busyfs(&fhp->fh_fsid);
+	if (mpp != NULL)
+		*mpp = mp;
 	if (mp == NULL) {
 		*vpp = NULL;
 		nd->nd_repstat = ESTALE;
-		if (*mpp && exp->nes_vfslocked)
-			VFS_UNLOCK_GIANT(*mpp);
-		*mpp = NULL;
-		exp->nes_vfslocked = 0;
 		return;
 	}
 
-	/*
-	 * Now, handle Giant for the file system.
-	 */
-	if (*mpp != NULL && *mpp != mp && exp->nes_vfslocked) {
-		VFS_UNLOCK_GIANT(*mpp);
-		exp->nes_vfslocked = 0;
-	}
-	if (!exp->nes_vfslocked && *mpp != mp)
-		exp->nes_vfslocked = VFS_LOCK_GIANT(mp);
-
-	*mpp = mp;
 	if (startwrite)
 		vn_start_write(NULL, mpp, V_WAIT);
 
@@ -2633,12 +2601,9 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	if (nd->nd_repstat) {
 		if (startwrite)
 			vn_finished_write(mp);
-		if (exp->nes_vfslocked) {
-			VFS_UNLOCK_GIANT(mp);
-			exp->nes_vfslocked = 0;
-		}
 		*vpp = NULL;
-		*mpp = NULL;
+		if (mpp != NULL)
+			*mpp = NULL;
 	}
 }
 
@@ -2837,29 +2802,6 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 		    (F_POSIX | F_REMOTE));
 	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	return (error);
-}
-
-/*
- * Unlock an underlying local file system.
- */
-void
-nfsvno_unlockvfs(struct mount *mp)
-{
-
-	VFS_UNLOCK_GIANT(mp);
-}
-
-/*
- * Lock an underlying file system, as required, and return
- * whether or not it is locked.
- */
-int
-nfsvno_lockvfs(struct mount *mp)
-{
-	int ret;
-
-	ret = VFS_LOCK_GIANT(mp);
-	return (ret);
 }
 
 /*
