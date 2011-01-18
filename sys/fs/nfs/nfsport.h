@@ -600,13 +600,6 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
 #define	MAX_COMMIT_COUNT	(1024 * 1024)
 
 /*
- * These macros are called at the start and end of operations that
- * might modify the underlying file system.
- */
-#define	NFS_STARTWRITE(v, m)	vn_start_write((v), (m), V_WAIT)
-#define	NFS_ENDWRITE(m)		vn_finished_write(m)
-
-/*
  * Define these to handle the type of va_rdev.
  */
 #define	NFSMAKEDEV(m, n)	makedev((m), (n))
