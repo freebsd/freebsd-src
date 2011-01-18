@@ -149,6 +149,9 @@ static int sis_ioctl(struct ifnet *, u_long, caddr_t);
 static int sis_newbuf(struct sis_softc *, struct sis_rxdesc *);
 static int sis_resume(device_t);
 static int sis_rxeof(struct sis_softc *);
+static void sis_rxfilter(struct sis_softc *);
+static void sis_rxfilter_ns(struct sis_softc *);
+static void sis_rxfilter_sis(struct sis_softc *);
 static void sis_start(struct ifnet *);
 static void sis_startl(struct ifnet *);
 static void sis_stop(struct sis_softc *);
@@ -806,80 +809,117 @@ sis_mchash(struct sis_softc *sc, const uint8_t *addr)
 }
 
 static void
-sis_setmulti_ns(struct sis_softc *sc)
+sis_rxfilter(struct sis_softc *sc)
 {
-	struct ifnet		*ifp;
-	struct ifmultiaddr	*ifma;
-	uint32_t		h = 0, i, filtsave;
-	int			bit, index;
 
-	ifp = sc->sis_ifp;
+	SIS_LOCK_ASSERT(sc);
 
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		SIS_CLRBIT(sc, SIS_RXFILT_CTL, NS_RXFILTCTL_MCHASH);
-		SIS_SETBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ALLMULTI);
-		return;
-	}
-
-	/*
-	 * We have to explicitly enable the multicast hash table
-	 * on the NatSemi chip if we want to use it, which we do.
-	 */
-	SIS_SETBIT(sc, SIS_RXFILT_CTL, NS_RXFILTCTL_MCHASH);
-	SIS_CLRBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ALLMULTI);
-
-	filtsave = CSR_READ_4(sc, SIS_RXFILT_CTL);
-
-	/* first, zot all the existing hash bits */
-	for (i = 0; i < 32; i++) {
-		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_FMEM_LO + (i*2));
-		CSR_WRITE_4(sc, SIS_RXFILT_DATA, 0);
-	}
-
-	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		h = sis_mchash(sc,
-		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-		index = h >> 3;
-		bit = h & 0x1F;
-		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_FMEM_LO + index);
-		if (bit > 0xF)
-			bit -= 0x10;
-		SIS_SETBIT(sc, SIS_RXFILT_DATA, (1 << bit));
-	}
-	if_maddr_runlock(ifp);
-
-	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave);
+	if (sc->sis_type == SIS_TYPE_83815)
+		sis_rxfilter_ns(sc);
+	else
+		sis_rxfilter_sis(sc);
 }
 
 static void
-sis_setmulti_sis(struct sis_softc *sc)
+sis_rxfilter_ns(struct sis_softc *sc)
 {
 	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
-	uint32_t		h, i, n, ctl;
+	uint32_t		h, i, filter;
+	int			bit, index;
+
+	ifp = sc->sis_ifp;
+	filter = CSR_READ_4(sc, SIS_RXFILT_CTL);
+	if (filter & SIS_RXFILTCTL_ENABLE) {
+		/*
+		 * Filter should be disabled to program other bits.
+		 */
+		CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter & ~SIS_RXFILTCTL_ENABLE);
+		CSR_READ_4(sc, SIS_RXFILT_CTL);
+	}
+	filter &= ~(NS_RXFILTCTL_ARP | NS_RXFILTCTL_PERFECT |
+	    NS_RXFILTCTL_MCHASH | SIS_RXFILTCTL_ALLPHYS | SIS_RXFILTCTL_BROAD |
+	    SIS_RXFILTCTL_ALLMULTI);
+
+	if (ifp->if_flags & IFF_BROADCAST)
+		filter |= SIS_RXFILTCTL_BROAD;
+	/*
+	 * For the NatSemi chip, we have to explicitly enable the
+	 * reception of ARP frames, as well as turn on the 'perfect
+	 * match' filter where we store the station address, otherwise
+	 * we won't receive unicasts meant for this host.
+	 */
+	filter |= NS_RXFILTCTL_ARP | NS_RXFILTCTL_PERFECT;
+
+	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
+		filter |= SIS_RXFILTCTL_ALLMULTI;
+		if (ifp->if_flags & IFF_PROMISC)
+			filter |= SIS_RXFILTCTL_ALLPHYS;
+	} else {
+		/*
+		 * We have to explicitly enable the multicast hash table
+		 * on the NatSemi chip if we want to use it, which we do.
+		 */
+		filter |= NS_RXFILTCTL_MCHASH;
+
+		/* first, zot all the existing hash bits */
+		for (i = 0; i < 32; i++) {
+			CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_FMEM_LO +
+			    (i * 2));
+			CSR_WRITE_4(sc, SIS_RXFILT_DATA, 0);
+		}
+
+		if_maddr_rlock(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			h = sis_mchash(sc,
+			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+			index = h >> 3;
+			bit = h & 0x1F;
+			CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_FMEM_LO +
+			    index);
+			if (bit > 0xF)
+				bit -= 0x10;
+			SIS_SETBIT(sc, SIS_RXFILT_DATA, (1 << bit));
+		}
+		if_maddr_runlock(ifp);
+	}
+
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter);
+	CSR_READ_4(sc, SIS_RXFILT_CTL);
+}
+
+static void
+sis_rxfilter_sis(struct sis_softc *sc)
+{
+	struct ifnet		*ifp;
+	struct ifmultiaddr	*ifma;
+	uint32_t		filter, h, i, n;
 	uint16_t		hashes[16];
 
 	ifp = sc->sis_ifp;
 
 	/* hash table size */
-	if (sc->sis_rev >= SIS_REV_635 ||
-	    sc->sis_rev == SIS_REV_900B)
+	if (sc->sis_rev >= SIS_REV_635 || sc->sis_rev == SIS_REV_900B)
 		n = 16;
 	else
 		n = 8;
 
-	ctl = CSR_READ_4(sc, SIS_RXFILT_CTL) & SIS_RXFILTCTL_ENABLE;
-
+	filter = CSR_READ_4(sc, SIS_RXFILT_CTL);
+	if (filter & SIS_RXFILTCTL_ENABLE) {
+		CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter & ~SIS_RXFILT_CTL);
+		CSR_READ_4(sc, SIS_RXFILT_CTL);
+	}
+	filter &= ~(SIS_RXFILTCTL_ALLPHYS | SIS_RXFILTCTL_BROAD |
+	    SIS_RXFILTCTL_ALLMULTI);
 	if (ifp->if_flags & IFF_BROADCAST)
-		ctl |= SIS_RXFILTCTL_BROAD;
+		filter |= SIS_RXFILTCTL_BROAD;
 
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		ctl |= SIS_RXFILTCTL_ALLMULTI;
+	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
+		filter |= SIS_RXFILTCTL_ALLMULTI;
 		if (ifp->if_flags & IFF_PROMISC)
-			ctl |= SIS_RXFILTCTL_BROAD|SIS_RXFILTCTL_ALLPHYS;
+			filter |= SIS_RXFILTCTL_ALLPHYS;
 		for (i = 0; i < n; i++)
 			hashes[i] = ~0;
 	} else {
@@ -897,7 +937,7 @@ sis_setmulti_sis(struct sis_softc *sc)
 		}
 		if_maddr_runlock(ifp);
 		if (i > n) {
-			ctl |= SIS_RXFILTCTL_ALLMULTI;
+			filter |= SIS_RXFILTCTL_ALLMULTI;
 			for (i = 0; i < n; i++)
 				hashes[i] = ~0;
 		}
@@ -908,7 +948,8 @@ sis_setmulti_sis(struct sis_softc *sc)
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA, hashes[i]);
 	}
 
-	CSR_WRITE_4(sc, SIS_RXFILT_CTL, ctl);
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter);
+	CSR_READ_4(sc, SIS_RXFILT_CTL);
 }
 
 static void
@@ -2104,41 +2145,7 @@ sis_initl(struct sis_softc *sc)
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0);
 	}
 
-	/*
-	 * For the NatSemi chip, we have to explicitly enable the
-	 * reception of ARP frames, as well as turn on the 'perfect
-	 * match' filter where we store the station address, otherwise
-	 * we won't receive unicasts meant for this host.
-	 */
-	if (sc->sis_type == SIS_TYPE_83815) {
-		SIS_SETBIT(sc, SIS_RXFILT_CTL, NS_RXFILTCTL_ARP);
-		SIS_SETBIT(sc, SIS_RXFILT_CTL, NS_RXFILTCTL_PERFECT);
-	}
-
-	 /* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		SIS_SETBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ALLPHYS);
-	} else {
-		SIS_CLRBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ALLPHYS);
-	}
-
-	/*
-	 * Set the capture broadcast bit to capture broadcast frames.
-	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		SIS_SETBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_BROAD);
-	} else {
-		SIS_CLRBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_BROAD);
-	}
-
-	/*
-	 * Load the multicast filter.
-	 */
-	if (sc->sis_type == SIS_TYPE_83815)
-		sis_setmulti_ns(sc);
-	else
-		sis_setmulti_sis(sc);
-
+	sis_rxfilter(sc);
 	/* Turn the receive filter on */
 	SIS_SETBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ENABLE);
 
@@ -2252,27 +2259,19 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 			    ((ifp->if_flags ^ sc->sis_if_flags) &
-			    (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
-				if (sc->sis_type == SIS_TYPE_83815)
-					sis_setmulti_ns(sc);
-				else
-					sis_setmulti_sis(sc);
-			} else
+			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+				sis_rxfilter(sc);
+			else
 				sis_initl(sc);
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			sis_stop(sc);
-		}
 		sc->sis_if_flags = ifp->if_flags;
 		SIS_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		SIS_LOCK(sc);
-		if (sc->sis_type == SIS_TYPE_83815)
-			sis_setmulti_ns(sc);
-		else
-			sis_setmulti_sis(sc);
+		sis_rxfilter(sc);
 		SIS_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
