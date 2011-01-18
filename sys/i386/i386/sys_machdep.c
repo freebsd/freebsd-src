@@ -623,7 +623,7 @@ i386_set_ldt(td, uap, descs)
 			uap->start = NLDT;
 			uap->num = MAX_LD - NLDT;
 		}
-		if (uap->num <= 0)
+		if (uap->num == 0)
 			return (EINVAL);
 		mtx_lock_spin(&dt_lock);
 		if ((pldt = mdp->md_ldt) == NULL ||
@@ -644,8 +644,7 @@ i386_set_ldt(td, uap, descs)
 	if (!(uap->start == LDT_AUTO_ALLOC && uap->num == 1)) {
 		/* verify range of descriptors to modify */
 		largest_ld = uap->start + uap->num;
-		if (uap->start >= MAX_LD ||
-		    uap->num < 0 || largest_ld > MAX_LD) {
+		if (uap->start >= MAX_LD || largest_ld > MAX_LD) {
 			return (EINVAL);
 		}
 	}
