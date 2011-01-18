@@ -240,7 +240,7 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	    OID_AUTO, num, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(&ue->ue_sysctl_ctx,
 	    SYSCTL_CHILDREN(ue->ue_sysctl_oid), OID_AUTO,
-	    "%parent", CTLFLAG_RD, ue, 0,
+	    "%parent", CTLTYPE_STRING | CTLFLAG_RD, ue, 0,
 	    ue_sysctl_parent, "A", "parent device");
 
 	UE_LOCK(ue);
