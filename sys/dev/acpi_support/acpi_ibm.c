@@ -399,7 +399,7 @@ acpi_ibm_attach(device_t dev)
 	if (acpi_ibm_sysctl_init(sc, ACPI_IBM_METHOD_THERMAL)) {
 		SYSCTL_ADD_PROC(sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-		    "thermal", CTLTYPE_STRING | CTLFLAG_RD,
+		    "thermal", CTLTYPE_INT | CTLFLAG_RD,
 		    sc, 0, acpi_ibm_thermal_sysctl, "I",
 		    "Thermal zones");
 	}
