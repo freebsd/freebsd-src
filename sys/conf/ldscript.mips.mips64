@@ -27,11 +27,8 @@
  * SUCH DAMAGE.
  *
  *	JNPR: ldscript.mips,v 1.3 2006/10/11 06:12:04
- * $FreeBSD: projects/mips/sys/conf/ldscript.mips 191079 2009-04-14 22:53:22Z gonzo $
+ * $FreeBSD$
  */
-
-OUTPUT_FORMAT("elf64-tradbigmips", "elf64-tradbigmips", 
-		"elf64-tradlittlemips")
 
 OUTPUT_ARCH(mips)
 ENTRY(_start)
