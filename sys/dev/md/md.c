@@ -854,8 +854,8 @@ mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 
 		nsectors = sc->mediasize / sc->sectorsize;
 		for (u = 0; u < nsectors; u++) {
-			sp = (uintptr_t)uma_zalloc(sc->uma, md_malloc_wait ?
-			    M_WAITOK : M_NOWAIT | M_ZERO);
+			sp = (uintptr_t)uma_zalloc(sc->uma, (md_malloc_wait ?
+			    M_WAITOK : M_NOWAIT) | M_ZERO);
 			if (sp != 0)
 				error = s_write(sc->indir, u, sp);
 			else
