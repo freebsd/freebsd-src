@@ -153,8 +153,8 @@ struct m_ext2fs {
 	uint32_t e2fs_bshift;     /* calc of logical block no */
 	int32_t e2fs_bmask;       /* calc of block offset */
 	int32_t e2fs_bpg;         /* Number of blocks per group */
-	int64_t e2fs_qbmask;       /* = s_blocksize -1 */
-	uint32_t e2fs_fsbtodb;     /* Shift to get disk block */
+	int64_t e2fs_qbmask;      /* = s_blocksize -1 */
+	uint32_t e2fs_fsbtodb;    /* Shift to get disk block */
 	uint32_t e2fs_ipg;        /* Number of inodes per group */
 	uint32_t e2fs_ipb;        /* Number of inodes per block */
 	uint32_t e2fs_itpg;       /* Number of inode table per group */
@@ -326,4 +326,4 @@ struct ext2_gd {
 
 #endif
 
-#endif	/* _LINUX_EXT2_FS_H */
+#endif	/* !_FS_EXT2FS_EXT2FS_H */
