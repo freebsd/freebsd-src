@@ -615,8 +615,12 @@ sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 				}
 				break;
 			case CTLTYPE_INT:    printf(" Int\n"); break;
+			case CTLTYPE_UINT:   printf(" u_int\n"); break;
+			case CTLTYPE_LONG:   printf(" Long\n"); break;
+			case CTLTYPE_ULONG:  printf(" u_long\n"); break;
 			case CTLTYPE_STRING: printf(" String\n"); break;
-			case CTLTYPE_QUAD:   printf(" Quad\n"); break;
+			case CTLTYPE_U64:    printf(" uint64_t\n"); break;
+			case CTLTYPE_S64:    printf(" int64_t\n"); break;
 			case CTLTYPE_OPAQUE: printf(" Opaque/struct\n"); break;
 			default:	     printf("\n");
 		}
@@ -1035,9 +1039,8 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 /*
  * Handle a 64 bit int, signed or unsigned.  arg1 points to it.
  */
-
 int
-sysctl_handle_quad(SYSCTL_HANDLER_ARGS)
+sysctl_handle_64(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
 	uint64_t tmpout;

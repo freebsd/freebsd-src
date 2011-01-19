@@ -3541,7 +3541,7 @@ sysctl_handle_macstat(SYSCTL_HANDLER_ARGS)
 	t3_mac_update_stats(&p->mac);
 	PORT_UNLOCK(p);
 
-	return (sysctl_handle_quad(oidp, parg, 0, req));
+	return (sysctl_handle_64(oidp, parg, 0, req));
 }
 
 void
@@ -3741,7 +3741,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 		 * all that here.
 		 */
 #define CXGB_SYSCTL_ADD_QUAD(a)	SYSCTL_ADD_OID(ctx, poidlist, OID_AUTO, #a, \
-    (CTLTYPE_QUAD | CTLFLAG_RD), pi, offsetof(struct mac_stats, a), \
+    (CTLTYPE_U64 | CTLFLAG_RD), pi, offsetof(struct mac_stats, a), \
     sysctl_handle_macstat, "QU", 0)
 		CXGB_SYSCTL_ADD_QUAD(tx_octets);
 		CXGB_SYSCTL_ADD_QUAD(tx_octets_bad);
