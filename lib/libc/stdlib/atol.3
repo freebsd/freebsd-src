@@ -32,7 +32,7 @@
 .\"     @(#)atol.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2001
+.Dd February 1, 2009
 .Dt ATOL 3
 .Os
 .Sh NAME
@@ -78,13 +78,42 @@ representation.
 It is equivalent to:
 .Pp
 .Dl "strtoll(nptr, (char **)NULL, 10);"
+.Sh COMPATIBILITY
+The
+.Fx
+implementations of the
+.Fn atol
+and
+.Fn atoll
+functions are thin wrappers around
+.Fn strtol
+and
+.Fn stroll
+respectively, so these functions will affect the value of
+.Va errno
+in the same way that the
+.Fn strtol
+and
+.Fn stroll
+functions are able to.
+This behavior of
+.Fn atol
+and
+.Fn atoll
+is not required by
+.St -isoC
+or
+.St -isoC-99 ,
+but it is allowed by all of
+.St -isoC , St -isoC-99
+and
+.St -p1003.1-2001 .
 .Sh ERRORS
 The functions
 .Fn atol
 and
 .Fn atoll
-need not
-affect the value of
+may affect the value of
 .Va errno
 on an error.
 .Sh SEE ALSO
