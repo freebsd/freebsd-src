@@ -183,6 +183,7 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
  * of 10 GbE devices.
  * Devices in the second generation:
  *     82599
+ *     X540
  **/
 s32 ixgbe_start_hw_gen2(struct ixgbe_hw *hw)
 {
@@ -1689,6 +1690,9 @@ s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw)
 		          hw->mac.addr[4], hw->mac.addr[5]);
 
 		hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, IXGBE_RAH_AV);
+
+		/* clear VMDq pool/queue selection for RAR 0 */
+		hw->mac.ops.clear_vmdq(hw, 0, IXGBE_CLEAR_VMDQ_ALL);
 	}
 	hw->addr_ctrl.overflow_promisc = 0;
 
@@ -2524,7 +2528,7 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 
 	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
 		if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO))
-			goto out;
+			goto check_device_status;
 		usec_delay(100);
 	}
 
@@ -2532,12 +2536,10 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 	status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
 
 	/*
-	 * The GIO Master Disable bit didn't clear.  There are multiple reasons
-	 * for this listed in the datasheet 5.2.5.3.2 Master Disable, and they
-	 * all require a double reset to recover from.  Before proceeding, we
-	 * first wait a little more to try to ensure that, at a minimum, the
-	 * PCIe block has no transactions pending.
+	 * Before proceeding, make sure that the PCIe block does not have
+	 * transactions pending.
 	 */
+check_device_status:
 	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
 		if (!(IXGBE_READ_PCIE_WORD(hw, IXGBE_PCI_DEVICE_STATUS) &
 			IXGBE_PCI_DEVICE_STATUS_TRANSACTION_PENDING))
@@ -2547,6 +2549,8 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 
 	if (i == IXGBE_PCI_MASTER_DISABLE_TIMEOUT)
 		DEBUGOUT("PCIe transaction pending bit also did not clear.\n");
+	else
+		goto out;
 
 	/*
 	 * Two consecutive resets are required via CTRL.RST per datasheet
@@ -3480,4 +3484,49 @@ void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf)
 	else
 		pfvfspoof &= ~(1 << vf_target_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), pfvfspoof);
+}
+
+/**
+ *  ixgbe_get_device_caps_generic - Get additional device capabilities
+ *  @hw: pointer to hardware structure
+ *  @device_caps: the EEPROM word with the extra device capabilities
+ *
+ *  This function will read the EEPROM location for the device capabilities,
+ *  and return the word through device_caps.
+ **/
+s32 ixgbe_get_device_caps_generic(struct ixgbe_hw *hw, u16 *device_caps)
+{
+	DEBUGFUNC("ixgbe_get_device_caps_generic");
+
+	hw->eeprom.ops.read(hw, IXGBE_DEVICE_CAPS, device_caps);
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_enable_relaxed_ordering_gen2 - Enable relaxed ordering
+ *  @hw: pointer to hardware structure
+ *
+ **/
+void ixgbe_enable_relaxed_ordering_gen2(struct ixgbe_hw *hw)
+{
+	u32 regval;
+	u32 i;
+
+	DEBUGFUNC("ixgbe_enable_relaxed_ordering_gen2");
+
+	/* Enable relaxed ordering */
+	for (i = 0; i < hw->mac.max_tx_queues; i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(i));
+		regval |= IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(i), regval);
+	}
+
+	for (i = 0; i < hw->mac.max_rx_queues; i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
+		regval |= (IXGBE_DCA_RXCTRL_DESC_WRO_EN |
+		           IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
+	}
+
 }
