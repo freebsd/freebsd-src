@@ -74,5 +74,5 @@ struct ext2fs_dinode {
 	u_int32_t	e2di_linux_reserved3; /* 124 */
 };
 
-#endif /* _FS_EXT2FS_EXT2_DINODE_H_ */
+#endif /* !_FS_EXT2FS_EXT2_DINODE_H_ */
 
