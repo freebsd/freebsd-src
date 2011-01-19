@@ -170,7 +170,8 @@ parse(char *string)
 	long longval;
 	unsigned long ulongval;
 	size_t newsize = 0;
-	quad_t quadval;
+	int64_t i64val;
+	uint64_t u64val;
 	int mib[CTL_MAXNAME];
 	char *cp, *bufp, buf[BUFSIZ], *endptr, fmt[BUFSIZ];
 	u_int kind;
@@ -230,7 +231,8 @@ parse(char *string)
 		    (kind & CTLTYPE) == CTLTYPE_UINT ||
 		    (kind & CTLTYPE) == CTLTYPE_LONG ||
 		    (kind & CTLTYPE) == CTLTYPE_ULONG ||
-		    (kind & CTLTYPE) == CTLTYPE_QUAD) {
+		    (kind & CTLTYPE) == CTLTYPE_S64 ||
+		    (kind & CTLTYPE) == CTLTYPE_U64) {
 			if (strlen(newval) == 0)
 				errx(1, "empty numeric value");
 		}
@@ -277,13 +279,21 @@ parse(char *string)
 				break;
 			case CTLTYPE_STRING:
 				break;
-			case CTLTYPE_QUAD:
-				quadval = strtoq(newval, &endptr, 0);
+			case CTLTYPE_S64:
+				i64val = strtoimax(newval, &endptr, 0);
 				if (endptr == newval || *endptr != '\0')
-					errx(1, "invalid quad integer"
-					    " '%s'", (char *)newval);
-				newval = &quadval;
-				newsize = sizeof(quadval);
+					errx(1, "invalid int64_t '%s'",
+					    (char *)newval);
+				newval = &i64val;
+				newsize = sizeof(i64val);
+				break;
+			case CTLTYPE_U64:
+				u64val = strtoumax(newval, &endptr, 0);
+				if (endptr == newval || *endptr != '\0')
+					errx(1, "invalid uint64_t '%s'",
+					    (char *)newval);
+				newval = &u64val;
+				newsize = sizeof(u64val);
 				break;
 			case CTLTYPE_OPAQUE:
 				/* FALLTHROUGH */
@@ -493,6 +503,21 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 	return (0);
 }
 
+static int ctl_sign[CTLTYPE+1] = {
+	[CTLTYPE_INT] = 1,
+	[CTLTYPE_LONG] = 1,
+	[CTLTYPE_S64] = 1,
+};
+
+static int ctl_size[CTLTYPE+1] = {
+	[CTLTYPE_INT] = sizeof(int),
+	[CTLTYPE_UINT] = sizeof(u_int),
+	[CTLTYPE_LONG] = sizeof(long),
+	[CTLTYPE_ULONG] = sizeof(u_long),
+	[CTLTYPE_S64] = sizeof(int64_t),
+	[CTLTYPE_U64] = sizeof(int64_t),
+};
+
 /*
  * This formats and outputs the value of one variable
  *
@@ -500,7 +525,6 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
  * Returns one if didn't know what to do with this.
  * Return minus one if we had errors.
  */
-
 static int
 show_var(int *oid, int nlen)
 {
@@ -576,7 +600,9 @@ show_var(int *oid, int nlen)
 	oidfmt(oid, nlen, fmt, &kind);
 	p = val;
 	ctltype = (kind & CTLTYPE);
-	sign = (ctltype == CTLTYPE_INT || ctltype == CTLTYPE_LONG) ? 1 : 0;
+	sign = ctl_sign[ctltype];
+	intlen = ctl_size[ctltype];
+
 	switch (ctltype) {
 	case CTLTYPE_STRING:
 		if (!nflag)
@@ -589,19 +615,10 @@ show_var(int *oid, int nlen)
 	case CTLTYPE_UINT:
 	case CTLTYPE_LONG:
 	case CTLTYPE_ULONG:
-	case CTLTYPE_QUAD:
+	case CTLTYPE_S64:
+	case CTLTYPE_U64:
 		if (!nflag)
 			printf("%s%s", name, sep);
-		switch (kind & CTLTYPE) {
-		case CTLTYPE_INT:
-		case CTLTYPE_UINT:
-			intlen = sizeof(int); break;
-		case CTLTYPE_LONG:
-		case CTLTYPE_ULONG:
-			intlen = sizeof(long); break;
-		case CTLTYPE_QUAD:
-			intlen = sizeof(quad_t); break;
-		}
 		hexlen = 2 + (intlen * CHAR_BIT + 3) / 4;
 		sep1 = "";
 		while (len >= intlen) {
@@ -616,9 +633,10 @@ show_var(int *oid, int nlen)
 				umv = *(u_long *)p;
 				mv = *(long *)p;
 				break;
-			case CTLTYPE_QUAD:
-				umv = *(u_quad_t *)p;
-				mv = *(quad_t *)p;
+			case CTLTYPE_S64:
+			case CTLTYPE_U64:
+				umv = *(uint64_t *)p;
+				mv = *(int64_t *)p;
 				break;
 			}
 			fputs(sep1, stdout);

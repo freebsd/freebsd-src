@@ -101,7 +101,7 @@ This is a node intended to be a parent for other nodes.
 This is a signed integer.
 .It Dv CTLTYPE_STRING
 This is a nul-terminated string stored in a character array.
-.It Dv CTLTYPE_QUAD
+.It Dv CTLTYPE_S64
 This is a 64-bit signed integer.
 .It Dv CTLTYPE_OPAQUE
 This is an opaque data structure.
@@ -114,6 +114,8 @@ This is an unsigned integer.
 This is a signed long.
 .It Dv CTLTYPE_ULONG
 This is an unsigned long.
+.It Dv CTLTYPE_U64
+This is a 64-bit unsigned integer.
 .El
 .Pp
 All sysctl types except for new node declarations require one or more flags
