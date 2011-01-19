@@ -255,6 +255,14 @@ pay particular attention to ensure that no other threads wait on the
 same
 .Fa chan .
 .Sh RETURN VALUES
+When awakened by a call to
+.Fn wakeup
+or
+.Fn wakeup_one ,
+if a signal is pending and
+.Dv PCATCH
+is specified,
+a non-zero error code is returned.
 If the thread is awakened by a call to
 .Fn wakeup
 or
