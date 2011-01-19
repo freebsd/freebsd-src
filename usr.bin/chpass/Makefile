@@ -44,7 +44,7 @@ beforeinstall:
 
 .if !defined(NO_FSCHG)
 afterinstall:
-	chflags schg ${DESTDIR}${BINDIR}/chpass
+	-chflags schg ${DESTDIR}${BINDIR}/chpass
 .endif
 
 .include <bsd.prog.mk>
