@@ -100,8 +100,9 @@ load(module_t mod, int cmd, void *arg)
 			return (EINVAL);
 		}
 		SYSCTL_ADD_PROC(&clist, SYSCTL_CHILDREN(a_root1),
-		    OID_AUTO, "procedure", CTLFLAG_RD, 0, 0,
-		    sysctl_dyn_sysctl_test, "A", "I can be here, too");
+		    OID_AUTO, "procedure", CTLTYPE_STRING | CTLFLAG_RD,
+		    NULL, 0, sysctl_dyn_sysctl_test, "A",
+		    "I can be here, too");
 		printf("   (%p)	/kern		  dyn_sysctl\n", &clist);
 
 		/* Overlap second tree with the first. */
