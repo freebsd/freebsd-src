@@ -482,7 +482,7 @@ udp_input(struct mbuf *m, int off)
 			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 				struct sockaddr_in	 group;
 				int			 blocked;
-				if(imo == NULL) {
+				if (imo == NULL) {
 					INP_RUNLOCK(inp);
 					continue;
 				}
