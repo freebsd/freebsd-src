@@ -479,11 +479,13 @@ udp_input(struct mbuf *m, int off)
 			 * and source-specific multicast. [RFC3678]
 			 */
 			imo = inp->inp_moptions;
-			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
-			    imo != NULL) {
+			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 				struct sockaddr_in	 group;
 				int			 blocked;
-
+				if(imo == NULL) {
+					INP_RUNLOCK(inp);
+					continue;
+				}
 				bzero(&group, sizeof(struct sockaddr_in));
 				group.sin_len = sizeof(struct sockaddr_in);
 				group.sin_family = AF_INET;
