@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 LIB=		ssl
-SHLIB_MAJOR=	6
+SHLIB_MAJOR=	5
+
+SYMLINKS=	lib${LIB}.so.5 ${SHLIBDIR}/lib${LIB}.so.6
 
 NO_LINT=
 
