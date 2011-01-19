@@ -510,7 +510,7 @@ show_var(int *oid, int nlen)
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
 	intmax_t mv;
-	int i, hexlen;
+	int i, hexlen, sign, ctltype;
 	size_t intlen;
 	size_t j, len;
 	u_int kind;
@@ -575,46 +575,57 @@ show_var(int *oid, int nlen)
 	fmt = buf;
 	oidfmt(oid, nlen, fmt, &kind);
 	p = val;
-	switch (*fmt) {
-	case 'A':
+	ctltype = (kind & CTLTYPE);
+	sign = (ctltype == CTLTYPE_INT || ctltype == CTLTYPE_LONG) ? 1 : 0;
+	switch (ctltype) {
+	case CTLTYPE_STRING:
 		if (!nflag)
 			printf("%s%s", name, sep);
 		printf("%.*s", (int)len, p);
 		free(oval);
 		return (0);
 
-	case 'I':
-	case 'L':
-	case 'Q':
+	case CTLTYPE_INT:
+	case CTLTYPE_UINT:
+	case CTLTYPE_LONG:
+	case CTLTYPE_ULONG:
+	case CTLTYPE_QUAD:
 		if (!nflag)
 			printf("%s%s", name, sep);
-		switch (*fmt) {
-		case 'I': intlen = sizeof(int); break;
-		case 'L': intlen = sizeof(long); break;
-		case 'Q': intlen = sizeof(quad_t); break;
+		switch (kind & CTLTYPE) {
+		case CTLTYPE_INT:
+		case CTLTYPE_UINT:
+			intlen = sizeof(int); break;
+		case CTLTYPE_LONG:
+		case CTLTYPE_ULONG:
+			intlen = sizeof(long); break;
+		case CTLTYPE_QUAD:
+			intlen = sizeof(quad_t); break;
 		}
 		hexlen = 2 + (intlen * CHAR_BIT + 3) / 4;
 		sep1 = "";
 		while (len >= intlen) {
-			switch (*fmt) {
-			case 'I':
+			switch (kind & CTLTYPE) {
+			case CTLTYPE_INT:
+			case CTLTYPE_UINT:
 				umv = *(u_int *)p;
 				mv = *(int *)p;
 				break;
-			case 'L':
+			case CTLTYPE_LONG:
+			case CTLTYPE_ULONG:
 				umv = *(u_long *)p;
 				mv = *(long *)p;
 				break;
-			case 'Q':
+			case CTLTYPE_QUAD:
 				umv = *(u_quad_t *)p;
 				mv = *(quad_t *)p;
 				break;
 			}
 			fputs(sep1, stdout);
-			if (fmt[1] == 'U')
-				printf(hflag ? "%'ju" : "%ju", umv);
-			else if (fmt[1] == 'X')
+			if (xflag)
 				printf("%#0*jx", hexlen, umv);
+			else if (!sign)
+				printf(hflag ? "%'ju" : "%ju", umv);
 			else if (fmt[1] == 'K') {
 				if (mv < 0)
 					printf("%jd", mv);
@@ -629,14 +640,7 @@ show_var(int *oid, int nlen)
 		free(oval);
 		return (0);
 
-	case 'P':
-		if (!nflag)
-			printf("%s%s", name, sep);
-		printf("%p", *(void **)p);
-		free(oval);
-		return (0);
-
-	case 'S':
+	case CTLTYPE_OPAQUE:
 		i = 0;
 		if (strcmp(fmt, "S,clockinfo") == 0)
 			func = S_clockinfo;
