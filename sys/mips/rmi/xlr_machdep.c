@@ -358,9 +358,9 @@ xlr_mem_init(void)
 			}
 			phys_avail[1] = boot_map->physmem_map[0].addr +
 			    boot_map->physmem_map[0].size;
-			printf("First segment: addr:%p -> %p \n",
-			       (void *)phys_avail[0], 
-			       (void *)phys_avail[1]);
+			printf("First segment: addr:%#jx -> %#jx \n",
+			       (uintmax_t)phys_avail[0], 
+			       (uintmax_t)phys_avail[1]);
 
 			dump_avail[0] = phys_avail[0];
 			dump_avail[1] = phys_avail[1];
