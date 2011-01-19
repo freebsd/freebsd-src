@@ -73,10 +73,9 @@ ENTRY(vm86_bioscall)
 	je 	1f			/* no curproc/npxproc */
 	pushl	%edx
 	movl	TD_PCB(%ecx),%ecx
-	addl	$PCB_SAVEFPU,%ecx
-	pushl	%ecx
+	pushl	PCB_SAVEFPU(%ecx)
 	call	npxsave
-	popl	%ecx
+	addl	$4,%esp
 	popl	%edx			/* recover our pcb */
 1:
 	popfl
