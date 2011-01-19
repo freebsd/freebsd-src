@@ -1228,6 +1228,7 @@ cpu_idle_acpi(int busy)
 
 static int cpu_ident_amdc1e = 0;
 
+#if !defined(XEN) || defined(XEN_PRIVILEGED)
 static int
 cpu_probe_amdc1e(void)
 { 
@@ -1254,6 +1255,7 @@ cpu_probe_amdc1e(void)
 #endif
 	return (0);
 }
+#endif
 
 /*
  * C1E renders the local APIC timer dead, so we disable it by
@@ -2690,8 +2692,10 @@ init386(first)
 	thread0.td_pcb->pcb_fsd = PCPU_GET(fsgs_gdt)[0];
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
 
+#if defined(XEN_PRIVILEGED)
 	if (cpu_probe_amdc1e())
 		cpu_idle_fn = cpu_idle_amdc1e;
+#endif
 }
 
 #else
