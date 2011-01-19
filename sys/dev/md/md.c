@@ -684,7 +684,6 @@ printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid
 #endif
 	}
 	vm_object_pip_subtract(sc->object, 1);
-	vm_object_set_writeable_dirty(sc->object);
 	VM_OBJECT_UNLOCK(sc->object);
 	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
 }
