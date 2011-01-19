@@ -926,6 +926,10 @@ _groff=		gnu/usr.bin/groff/tmac
 _ar=		usr.bin/ar
 .endif
 
+.if ${BOOTSTRAPPING} < 802000
+_lex=		usr.bin/lex
+.endif
+
 .if ${BOOTSTRAPPING} < 800013
 _mklocale=	usr.bin/mklocale
 .endif
@@ -951,6 +955,7 @@ bootstrap-tools:
     ${_gperf} \
     ${_groff} \
     ${_ar} \
+    ${_lex} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \
