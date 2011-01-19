@@ -236,6 +236,7 @@ int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
 	    ptr, val, vnet_sysctl_handle_int, "I", descr)
 #define	SYSCTL_VNET_PROC(parent, nbr, name, access, ptr, arg, handler,	\
 	    fmt, descr)							\
+	CTASSERT(((access) & CTLTYPE) != 0);				\
 	SYSCTL_OID(parent, nbr, name, CTLFLAG_VNET|(access), ptr, arg, 	\
 	    handler, fmt, descr)
 #define	SYSCTL_VNET_OPAQUE(parent, nbr, name, access, ptr, len, fmt,    \
