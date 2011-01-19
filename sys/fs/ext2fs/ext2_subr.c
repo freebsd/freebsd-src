@@ -52,6 +52,8 @@
 #include <fs/ext2fs/fs.h>
 
 #ifdef KDB
+#include <fs/ext2fs/ext2_mount.h>
+
 void	ext2_checkoverlap(struct buf *, struct inode *);
 #endif
 
