@@ -2516,13 +2516,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	m->sctp_sws_sender = SCTP_SWS_SENDER_DEF;
 	m->sctp_sws_receiver = SCTP_SWS_RECEIVER_DEF;
 	m->max_burst = SCTP_BASE_SYSCTL(sctp_max_burst_default);
-	if ((SCTP_BASE_SYSCTL(sctp_default_cc_module) >= SCTP_CC_RFC2581) &&
-	    (SCTP_BASE_SYSCTL(sctp_default_cc_module) <= SCTP_CC_HTCP)) {
-		m->sctp_default_cc_module = SCTP_BASE_SYSCTL(sctp_default_cc_module);
-	} else {
-		/* sysctl done with invalid value, set to 2581 */
-		m->sctp_default_cc_module = SCTP_CC_RFC2581;
-	}
+	m->sctp_default_cc_module = SCTP_BASE_SYSCTL(sctp_default_cc_module);
 	/* number of streams to pre-open on a association */
 	m->pre_open_stream_count = SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default);
 
