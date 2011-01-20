@@ -31,7 +31,7 @@
 #include "ah_eeprom_v14.h"
 #include "ah_eeprom_v4k.h"
 
-#include "ar5416/ar9285.h"
+#include "ar9002/ar9285.h"
 #include "ar5416/ar5416.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"

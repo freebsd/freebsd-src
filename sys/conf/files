@@ -737,16 +737,16 @@ dev/ath/ath_hal/ar5416/ar5416_xmit.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9160 (depends on ar5416)
-dev/ath/ath_hal/ar5416/ar9160_attach.c optional ath_hal | ath_ar9160 \
+dev/ath/ath_hal/ar9001/ar9160_attach.c optional ath_hal | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9280 (depends on ar5416)
-dev/ath/ath_hal/ar5416/ar9280_attach.c optional ath_hal | ath_ar9280 | \
+dev/ath/ath_hal/ar9002/ar9280_attach.c optional ath_hal | ath_ar9280 | \
 	ath_ar9285 \ 
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9285 (depends on ar5416 and ar9280)
-dev/ath/ath_hal/ar5416/ar9285_attach.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_attach.c optional ath_hal | ath_ar9285 \ 
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar9285_reset.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_reset.c optional ath_hal | ath_ar9285 \ 
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # rf backends
 dev/ath/ath_hal/ar5212/ar2316.c	optional ath_rf2316 \
@@ -765,9 +765,9 @@ dev/ath/ath_hal/ar5212/ar5413.c	optional ath_hal | ath_rf5413 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5416/ar2133.c optional ath_hal | ath_ar5416 | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar9280.c optional ath_hal | ath_ar9280 | ath_ar9285 \
+dev/ath/ath_hal/ar9002/ar9280.c optional ath_hal | ath_ar9280 | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar9285.c optional ath_hal | ath_ar9285 \
+dev/ath/ath_hal/ar9002/ar9285.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ath rate control algorithms
 dev/ath/ath_rate/amrr/amrr.c	optional ath_rate_amrr \
