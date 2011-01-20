@@ -176,7 +176,12 @@ case "${targ}" in
     targ_defvec=ecoffalpha_little_vec
     want64=true
     ;;
-  ia64*-*-freebsd* | ia64*-*-netbsd* | ia64*-*-linux-* | ia64*-*-elf* | ia64*-*-kfreebsd*-gnu)
+  ia64*-*-freebsd* | ia64*-*-kfreebsd*-gnu)
+    targ_defvec=bfd_elf64_ia64_freebsd_vec
+    targ_selvecs="bfd_elf64_ia64_little_vec bfd_elf64_ia64_big_vec bfd_efi_app_ia64_vec"
+    want64=true
+    ;;
+  ia64*-*-netbsd* | ia64*-*-linux-* | ia64*-*-elf*)
     targ_defvec=bfd_elf64_ia64_little_vec
     targ_selvecs="bfd_elf64_ia64_big_vec bfd_efi_app_ia64_vec"
     want64=true
