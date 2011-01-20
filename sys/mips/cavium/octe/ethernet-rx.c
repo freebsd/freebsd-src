@@ -164,7 +164,6 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 {
 	int                 coreid;
 	uint64_t            old_group_mask;
-	uint64_t            old_scratch;
 	int                 rx_count = 0;
 	int                 number_to_free;
 	int                 num_freed;
@@ -176,48 +175,23 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 	/* Prefetch cvm_oct_device since we know we need it soon */
 	CVMX_PREFETCH(cvm_oct_device, 0);
 
-	if (USE_ASYNC_IOBDMA) {
-		/* Save scratch in case userspace is using it */
-		CVMX_SYNCIOBDMA;
-		old_scratch = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
-	}
-
 	/* Only allow work for our group (and preserve priorities) */
 	old_group_mask = cvmx_read_csr(CVMX_POW_PP_GRP_MSKX(coreid));
 	cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid),
 		       (old_group_mask & ~0xFFFFull) | 1<<pow_receive_group);
-
-	if (USE_ASYNC_IOBDMA)
-		cvmx_pow_work_request_async(CVMX_SCR_SCRATCH, CVMX_POW_NO_WAIT);
 
 	while (1) {
 		struct mbuf *m = NULL;
 		int mbuf_in_hw;
 		cvmx_wqe_t *work;
 
-		if (USE_ASYNC_IOBDMA) {
-			work = cvmx_pow_work_response_async(CVMX_SCR_SCRATCH);
-		} else {
-			if ((INTERRUPT_LIMIT == 0) || (rx_count < MAX_RX_PACKETS))
-				work = cvmx_pow_work_request_sync(CVMX_POW_NO_WAIT);
-			else
-				work = NULL;
-		}
+		if ((INTERRUPT_LIMIT == 0) || (rx_count < MAX_RX_PACKETS))
+			work = cvmx_pow_work_request_sync(CVMX_POW_NO_WAIT);
+		else
+			work = NULL;
 		CVMX_PREFETCH(work, 0);
 		if (work == NULL)
 			break;
-
-		/* Limit each core to processing MAX_RX_PACKETS packets without a break.
-		   This way the RX can't starve the TX task. */
-		if (USE_ASYNC_IOBDMA) {
-
-			if ((INTERRUPT_LIMIT == 0) || (rx_count < MAX_RX_PACKETS))
-				cvmx_pow_work_request_async_nocheck(CVMX_SCR_SCRATCH, CVMX_POW_NO_WAIT);
-			else {
-				cvmx_scratch_write64(CVMX_SCR_SCRATCH, 0x8000000000000000ull);
-				cvmx_pow_tag_sw_null_nocheck();
-			}
-		}
 
 		mbuf_in_hw = work->word2.s.bufs == 1;
 		if ((mbuf_in_hw)) {
@@ -376,10 +350,6 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 
 	/* Restore the original POW group mask */
 	cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid), old_group_mask);
-	if (USE_ASYNC_IOBDMA) {
-		/* Restore the scratch area */
-		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
-	}
 
 	/* Refill the packet buffer pool */
 	number_to_free =
