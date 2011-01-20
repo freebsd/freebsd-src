@@ -471,6 +471,8 @@ extern	int ath_hal_additional_swba_backoff;	/* in TU's */
 /* wait for the register contents to have the specified value */
 extern	HAL_BOOL ath_hal_wait(struct ath_hal *, u_int reg,
 		uint32_t mask, uint32_t val);
+extern	HAL_BOOL ath_hal_waitfor(struct ath_hal *, u_int reg,
+		uint32_t mask, uint32_t val, uint32_t timeout);
 
 /* return the first n bits in val reversed */
 extern	uint32_t ath_hal_reverseBits(uint32_t val, uint32_t n);
