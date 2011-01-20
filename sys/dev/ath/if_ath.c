@@ -1461,7 +1461,7 @@ ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask, uint32_t *hangs)
 	uint32_t rsize;
 	void *sp;
 
-	if (!ath_hal_getdiagstate(ah, 32, &mask, sizeof(mask), &sp, &rsize))
+	if (!ath_hal_getdiagstate(ah, HAL_DIAG_CHECK_HANGS, &mask, sizeof(mask), &sp, &rsize))
 		return 0;
 	KASSERT(rsize == sizeof(uint32_t), ("resultsize %u", rsize));
 	*hangs = *(uint32_t *)sp;
