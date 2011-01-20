@@ -282,7 +282,7 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 {
 	struct cpcht_softc *sc;
 	struct ofw_pci_register pcir;
-	struct cpcht_range ranges[6], *rp;
+	struct cpcht_range ranges[7], *rp;
 	int nranges, ptr, nextptr;
 	uint32_t vend, val;
 	int i, nirq, irq;
@@ -306,9 +306,10 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 	 */
 	bzero(ranges, sizeof(ranges));
 	nranges = OF_getprop(child, "ranges", ranges, sizeof(ranges));
+	nranges /= sizeof(ranges[0]);
 	
 	ranges[6].pci_hi = 0;
-	for (rp = ranges; rp->pci_hi != 0; rp++) {
+	for (rp = ranges; rp < ranges + nranges && rp->pci_hi != 0; rp++) {
 		switch (rp->pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
 		case OFW_PCI_PHYS_HI_SPACE_CONFIG:
 			break;
