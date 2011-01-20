@@ -142,9 +142,14 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		 * in memory we borrow from the WQE pool.
 		 */
 		work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
-		gp = (uint64_t *)work;
+		if (work == NULL) {
+			m_freem(m);
+			ifp->if_oerrors++;
+			return 1;
+		}
 
 		segs = 0;
+		gp = (uint64_t *)work;
 		for (n = m; n != NULL; n = n->m_next) {
 			if (segs == CVMX_FPA_WQE_POOL_SIZE / sizeof (uint64_t))
 				panic("%s: too many segments in packet; call m_collapse().", __func__);
