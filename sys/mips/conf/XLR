@@ -50,7 +50,6 @@ cpu 		CPU_RMI
 ident 		XLR
 
 makeoptions	MODULES_OVERRIDE=""
-makeoptions     TARGET_BIG_ENDIAN
 #
 
 include		"../rmi/std.xlr"
@@ -58,6 +57,8 @@ include		"../rmi/std.xlr"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 #profile		2
+makeoptions	KERNLOADADDR=0x80100000
+options		ISA_MIPS32
 
 options 	SCHED_ULE		# ULE scheduler
 #options		VERBOSE_SYSINIT
@@ -156,5 +157,3 @@ device      at24co2n	# EEPROM on XLR boards
 #device cryptodev
 #device crypto
 #device rmisec
-options		ISA_MIPS32
-makeoptions	KERNLOADADDR=0x80100000
