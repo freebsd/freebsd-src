@@ -40,10 +40,6 @@
 
 ENTRY(_start)
 SEARCH_DIR(/usr/lib);
-/* Do we need any of these for elf?
-   __DYNAMIC = 0;
-PROVIDE (_DYNAMIC = 0);
-*/
 
 PHDRS
 {
