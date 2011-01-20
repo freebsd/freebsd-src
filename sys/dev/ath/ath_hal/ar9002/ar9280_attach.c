@@ -24,12 +24,12 @@
 
 #include "ah_eeprom_v14.h"		/* XXX for tx/rx gain */
 
-#include "ar5416/ar9280.h"
+#include "ar9002/ar9280.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
-#include "ar5416/ar9280v1.ini"
-#include "ar5416/ar9280v2.ini"
+#include "ar9002/ar9280v1.ini"
+#include "ar9002/ar9280v2.ini"
 
 static const HAL_PERCAL_DATA ar9280_iq_cal = {		/* single sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,

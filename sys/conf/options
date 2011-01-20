@@ -650,6 +650,7 @@ UKBD_DFLT_KEYMAP	opt_ukbd.h
 UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 UVSCOM_INTR_INTERVAL	opt_uvscom.h
+USB_HOST_ALIGN		opt_usb.h
 
 # Embedded system options
 INIT_PATH
