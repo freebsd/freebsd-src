@@ -46,13 +46,10 @@
 # $FreeBSD$
 
 machine 	mips mipseb
-cpu 		CPU_RMI
 ident 		XLR
-
-makeoptions	MODULES_OVERRIDE=""
-
 include		"../rmi/std.xlr"
 
+makeoptions	MODULES_OVERRIDE=""
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	KERNLOADADDR=0x80100000
 #profile		2

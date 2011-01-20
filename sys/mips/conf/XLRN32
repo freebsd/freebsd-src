@@ -18,12 +18,10 @@
 # $FreeBSD$
 
 machine 	mips mipsn32eb
-cpu 		CPU_RMI
 ident 		XLRN32
-
-makeoptions	MODULES_OVERRIDE=""
 include		"../rmi/std.xlr"
 
+makeoptions	MODULES_OVERRIDE=""
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=n32"
 makeoptions	KERNLOADADDR=0x80100000
