@@ -693,3 +693,25 @@ ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
 }
 #endif
+
+/*
+ * Retrieve the rate table from the given TX completion descriptor
+ */
+HAL_BOOL
+ar5416GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *rates, int *tries)
+{
+	const struct ar5416_desc *ads = AR5416DESC_CONST(ds0);
+
+	rates[0] = MS(ads->ds_ctl3, AR_XmitRate0);
+	rates[1] = MS(ads->ds_ctl3, AR_XmitRate1);
+	rates[2] = MS(ads->ds_ctl3, AR_XmitRate2);
+	rates[3] = MS(ads->ds_ctl3, AR_XmitRate3);
+
+	tries[0] = MS(ads->ds_ctl2, AR_XmitDataTries0);
+	tries[1] = MS(ads->ds_ctl2, AR_XmitDataTries1);
+	tries[2] = MS(ads->ds_ctl2, AR_XmitDataTries2);
+	tries[3] = MS(ads->ds_ctl2, AR_XmitDataTries3);
+
+	return AH_TRUE;
+}
+

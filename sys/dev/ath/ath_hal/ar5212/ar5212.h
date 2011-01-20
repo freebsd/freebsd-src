@@ -589,6 +589,8 @@ extern	HAL_STATUS ar5212ProcTxDesc(struct ath_hal *ah,
 		struct ath_desc *, struct ath_tx_status *);
 extern  void ar5212GetTxIntrQueue(struct ath_hal *ah, uint32_t *);
 extern  void ar5212IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *);
+extern	HAL_BOOL ar5212GetTxCompletionRates(struct ath_hal *ah,
+		const struct ath_desc *ds0, int *rates, int *tries);
 
 extern	const HAL_RATE_TABLE *ar5212GetRateTable(struct ath_hal *, u_int mode);
 

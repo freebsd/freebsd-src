@@ -73,6 +73,7 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_procTxDesc			= ar5211ProcTxDesc,
 	.ah_getTxIntrQueue		= ar5211GetTxIntrQueue,
 	.ah_reqTxIntrDesc 		= ar5211IntrReqTxDesc,
+	.ah_getTxCompletionRates	= ar5211GetTxCompletionRates,
 
 	/* RX Functions */
 	.ah_getRxDP			= ar5211GetRxDP,

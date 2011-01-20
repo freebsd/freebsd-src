@@ -177,6 +177,8 @@ extern	HAL_STATUS ar5210ProcTxDesc(struct ath_hal *,
 		struct ath_desc *, struct ath_tx_status *);
 extern  void ar5210GetTxIntrQueue(struct ath_hal *ah, uint32_t *);
 extern  void ar5210IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *);
+extern	HAL_BOOL ar5210GetTxCompletionRates(struct ath_hal *ah,
+		const struct ath_desc *, int *rates, int *tries);
 
 extern	uint32_t ar5210GetRxDP(struct ath_hal *);
 extern	void ar5210SetRxDP(struct ath_hal *, uint32_t rxdp);
