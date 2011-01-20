@@ -8,7 +8,7 @@ ident		SWARM64
 
 machine		mips mips64eb
 makeoptions	ARCH_FLAGS="-mabi=64 -march=mips64"
-makeoptions	LDSCRIPT_NAME=ldscript.mips.64.cfe
+makeoptions	LDSCRIPT_NAME=ldscript.mips.cfe
 makeoptions	KERNLOADADDR=0xffffffff80001000
 
 #
