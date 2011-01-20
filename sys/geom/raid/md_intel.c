@@ -773,9 +773,9 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 		if (mmap->type == INTEL_T_RAID0)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
 		else if (mmap->type == INTEL_T_RAID1 &&
-		    mmap->total_disks < 4)
+		    mmap->total_disks < 4) /* >= 4 disks -> RAID10 */
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
-		else if (mmap->type == INTEL_T_RAID1)
+		else if (mmap->type == INTEL_T_RAID1) /* SIC */
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID10;
 		else if (mmap->type == INTEL_T_RAID5)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
