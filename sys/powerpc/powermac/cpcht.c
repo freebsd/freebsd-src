@@ -475,10 +475,6 @@ cpcht_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 static int
 cpcht_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
-	struct	cpcht_softc *sc;
-
-	sc = device_get_softc(dev);
-
 	switch (which) {
 	case PCIB_IVAR_DOMAIN:
 		*result = device_get_unit(dev);
@@ -514,13 +510,12 @@ cpcht_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct			cpcht_softc *sc;
 	struct			resource *rv;
 	struct			rman *rm;
-	int			needactivate, err;
+	int			needactivate;
 
 	needactivate = flags & RF_ACTIVE;
 	flags &= ~RF_ACTIVE;
 
 	sc = device_get_softc(bus);
-	err = 0;
 
 	switch (type) {
 	case SYS_RES_IOPORT:
@@ -569,9 +564,6 @@ cpcht_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 	void	*p;
-	struct	cpcht_softc *sc;
-
-	sc = device_get_softc(bus);
 
 	if (type == SYS_RES_IRQ)
 		return (bus_activate_resource(bus, type, rid, res));
