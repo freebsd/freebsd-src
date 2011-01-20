@@ -53,7 +53,7 @@ ath_hal_probe(uint16_t vendorid, uint16_t devid)
  */
 struct ath_hal*
 ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *error)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata, HAL_STATUS *error)
 {
 	struct ath_hal_chip * const *pchip;
 
@@ -64,7 +64,7 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 		/* XXX don't have vendorid, assume atheros one works */
 		if (chip->probe(ATHEROS_VENDOR_ID, devid) == AH_NULL)
 			continue;
-		ah = chip->attach(devid, sc, st, sh, error);
+		ah = chip->attach(devid, sc, st, sh, eepromdata, error);
 		if (ah != AH_NULL) {
 			/* copy back private state to public area */
 			ah->ah_devid = AH_PRIVATE(ah)->ah_devid;

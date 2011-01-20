@@ -342,6 +342,7 @@ struct ath_softc {
 	u_int			sc_tdmaslotlen;	/* TDMA slot length (usec) */
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
+	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
 };
 
 #define	ATH_LOCK_INIT(_sc) \

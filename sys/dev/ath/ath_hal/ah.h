@@ -619,6 +619,8 @@ struct ath_hal {
 	uint16_t	ah_analog5GhzRev;/* 5GHz radio revision */
 	uint16_t	ah_analog2GhzRev;/* 2GHz radio revision */
 
+	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
+
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
 				u_int mode);
 	void	  __ahdecl(*ah_detach)(struct ath_hal*);
@@ -817,7 +819,7 @@ extern	const char *__ahdecl ath_hal_probe(uint16_t vendorid, uint16_t devid);
  * be returned if the status parameter is non-zero.
  */
 extern	struct ath_hal * __ahdecl ath_hal_attach(uint16_t devid, HAL_SOFTC,
-		HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS* status);
+		HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata, HAL_STATUS* status);
 
 extern	const char *ath_hal_mac_name(struct ath_hal *);
 extern	const char *ath_hal_rf_name(struct ath_hal *);
