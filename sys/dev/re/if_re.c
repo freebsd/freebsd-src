@@ -2779,8 +2779,13 @@ re_init_locked(struct rl_softc *sc)
 	 * For 8169 gigE NICs, set the max allowed RX packet
 	 * size so we can receive jumbo frames.
 	 */
-	if (sc->rl_type == RL_8169)
-		CSR_WRITE_2(sc, RL_MAXRXPKTLEN, 16383);
+	if (sc->rl_type == RL_8169) {
+		if ((sc->rl_flags & (RL_FLAG_PCIE | RL_FLAG_NOJUMBO)) ==
+		    (RL_FLAG_PCIE | RL_FLAG_NOJUMBO))
+			CSR_WRITE_2(sc, RL_MAXRXPKTLEN, RE_RX_DESC_BUFLEN);
+		else
+			CSR_WRITE_2(sc, RL_MAXRXPKTLEN, 16383);
+	}
 
 	if (sc->rl_testmode)
 		return;
