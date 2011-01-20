@@ -600,38 +600,16 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			     0, 0,
 			     short_tries, long_tries, ts->ts_status);
 	} else {
-		int hwrate0, rix0, tries0;
-		int hwrate1, rix1, tries1;
-		int hwrate2, rix2, tries2;
-		int hwrate3, rix3, tries3;
+		int hwrates[4], tries[4], rix[4];
 		int finalTSIdx = ts->ts_finaltsi;
+		int i;
 
 		/*
 		 * Process intermediate rates that failed.
 		 */
-		if (sc->sc_ah->ah_magic != 0x20065416) {
-			hwrate0 = MS(ds0->ds_ctl3, AR_XmitRate0);
-			hwrate1 = MS(ds0->ds_ctl3, AR_XmitRate1);
-			hwrate2 = MS(ds0->ds_ctl3, AR_XmitRate2);
-			hwrate3 = MS(ds0->ds_ctl3, AR_XmitRate3);
-		} else {
-			hwrate0 = MS(ds0->ds_ctl3, AR5416_XmitRate0);
-			hwrate1 = MS(ds0->ds_ctl3, AR5416_XmitRate1);
-			hwrate2 = MS(ds0->ds_ctl3, AR5416_XmitRate2);
-			hwrate3 = MS(ds0->ds_ctl3, AR5416_XmitRate3);
-		}
-
-		rix0 = rt->rateCodeToIndex[hwrate0];
-		tries0 = MS(ds0->ds_ctl2, AR_XmitDataTries0);
-
-		rix1 = rt->rateCodeToIndex[hwrate1];
-		tries1 = MS(ds0->ds_ctl2, AR_XmitDataTries1);
-
-		rix2 = rt->rateCodeToIndex[hwrate2];
-		tries2 = MS(ds0->ds_ctl2, AR_XmitDataTries2);
-
-		rix3 = rt->rateCodeToIndex[hwrate3];
-		tries3 = MS(ds0->ds_ctl2, AR_XmitDataTries3);
+		ath_hal_gettxcompletionrates(sc->sc_ah, ds0, hwrates, tries);
+		for (i = 0; i < 4; i++)
+			rix[i] = rt->rateCodeToIndex[hwrates[i]];
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
@@ -641,19 +619,19 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		     finalTSIdx,
 		     long_tries, 
 		     ts->ts_status ? "FAIL" : "OK",
-		     rix0, tries0,
-		     rix1, tries1,
-		     rix2, tries2,
-		     rix3, tries3);
+		     rix[0], tries[0],
+		     rix[1], tries[1],
+		     rix[2], tries[2],
+		     rix[3], tries[3]);
 
-		if (tries0 && !IS_RATE_DEFINED(sn, rix0))
-			badrate(ifp, 0, hwrate0, tries0, ts->ts_status);
-		if (tries1 && !IS_RATE_DEFINED(sn, rix1))
-			badrate(ifp, 1, hwrate1, tries1, ts->ts_status);
-		if (tries2 && !IS_RATE_DEFINED(sn, rix2))
-			badrate(ifp, 2, hwrate2, tries2, ts->ts_status);
-		if (tries3 && !IS_RATE_DEFINED(sn, rix3))
-			badrate(ifp, 3, hwrate3, tries3, ts->ts_status);
+		if (tries[0] && !IS_RATE_DEFINED(sn, rix[0]))
+			badrate(ifp, 0, hwrates[0], tries[0], ts->ts_status);
+		if (tries[1] && !IS_RATE_DEFINED(sn, rix[1]))
+			badrate(ifp, 1, hwrates[1], tries[1], ts->ts_status);
+		if (tries[2] && !IS_RATE_DEFINED(sn, rix[2]))
+			badrate(ifp, 2, hwrates[2], tries[2], ts->ts_status);
+		if (tries[3] && !IS_RATE_DEFINED(sn, rix[3]))
+			badrate(ifp, 3, hwrates[3], tries[3], ts->ts_status);
 
 		/*
 		 * NB: series > 0 are not penalized for failure
@@ -662,42 +640,42 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		 * sample higher rates 1 try at a time doing so
 		 * may unfairly penalize them.
 		 */
-		if (tries0) {
+		if (tries[0]) {
 			update_stats(sc, an, frame_size, 
-				     rix0, tries0, 
-				     rix1, tries1, 
-				     rix2, tries2, 
-				     rix3, tries3, 
+				     rix[0], tries[0], 
+				     rix[1], tries[1], 
+				     rix[2], tries[2], 
+				     rix[3], tries[3], 
 				     short_tries, long_tries, 
-				     long_tries > tries0);
-			long_tries -= tries0;
+				     long_tries > tries[0]);
+			long_tries -= tries[0];
 		}
 		
-		if (tries1 && finalTSIdx > 0) {
+		if (tries[1] && finalTSIdx > 0) {
 			update_stats(sc, an, frame_size, 
-				     rix1, tries1, 
-				     rix2, tries2, 
-				     rix3, tries3, 
+				     rix[1], tries[1], 
+				     rix[2], tries[2], 
+				     rix[3], tries[3], 
 				     0, 0, 
 				     short_tries, long_tries, 
 				     ts->ts_status);
-			long_tries -= tries1;
+			long_tries -= tries[1];
 		}
 
-		if (tries2 && finalTSIdx > 1) {
+		if (tries[2] && finalTSIdx > 1) {
 			update_stats(sc, an, frame_size, 
-				     rix2, tries2, 
-				     rix3, tries3, 
+				     rix[2], tries[2], 
+				     rix[3], tries[3], 
 				     0, 0,
 				     0, 0,
 				     short_tries, long_tries, 
 				     ts->ts_status);
-			long_tries -= tries2;
+			long_tries -= tries[2];
 		}
 
-		if (tries3 && finalTSIdx > 2) {
+		if (tries[3] && finalTSIdx > 2) {
 			update_stats(sc, an, frame_size, 
-				     rix3, tries3, 
+				     rix[3], tries[3], 
 				     0, 0,
 				     0, 0,
 				     0, 0,
