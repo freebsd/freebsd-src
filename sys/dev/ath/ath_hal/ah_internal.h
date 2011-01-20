@@ -80,7 +80,8 @@ struct ath_hal_chip {
 	const char	*name;
 	const char	*(*probe)(uint16_t vendorid, uint16_t devid);
 	struct ath_hal	*(*attach)(uint16_t devid, HAL_SOFTC,
-			    HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS *error);
+			    HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata,
+			    HAL_STATUS *error);
 };
 #ifndef AH_CHIP
 #define	AH_CHIP(_name, _probe, _attach)				\

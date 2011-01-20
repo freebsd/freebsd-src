@@ -374,7 +374,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if_initname(ifp, device_get_name(sc->sc_dev),
 		device_get_unit(sc->sc_dev));
 
-	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh, &status);
+	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh, sc->sc_eepromdata, &status);
 	if (ah == NULL) {
 		if_printf(ifp, "unable to attach hardware; HAL status %u\n",
 			status);
