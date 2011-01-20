@@ -22,13 +22,12 @@ cpu 		CPU_RMI
 ident 		XLR64
 
 makeoptions	MODULES_OVERRIDE=""
-makeoptions     TARGET_BIG_ENDIAN
-
 include		"../rmi/std.xlr"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
-makeoptions	LDSCRIPT_NAME=ldscript.mips.64
+makeoptions	KERNLOADADDR=0xffffffff80100000
+options		ISA_MIPS64
 
 #profile		2
 
@@ -129,5 +128,3 @@ device          umass           # Disks/Mass storage - Requires scbus and da
 #device cryptodev
 #device crypto
 #device rmisec
-options		ISA_MIPS64
-makeoptions	KERNLOADADDR=0xffffffff80100000
