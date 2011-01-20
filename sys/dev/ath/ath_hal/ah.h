@@ -680,6 +680,8 @@ struct ath_hal {
 				struct ath_desc *, struct ath_tx_status *);
 	void	   __ahdecl(*ah_getTxIntrQueue)(struct ath_hal *, uint32_t *);
 	void	   __ahdecl(*ah_reqTxIntrDesc)(struct ath_hal *, struct ath_desc*);
+	HAL_BOOL	__ahdecl(*ah_getTxCompletionRates)(struct ath_hal *,
+				const struct ath_desc *ds, int *rates, int *tries);
 
 	/* Receive Functions */
 	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*);
