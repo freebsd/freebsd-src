@@ -717,8 +717,8 @@ ar9280SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 	case HAL_ANT_VARIABLE:
 		/* Restore original chainmask settings */
 		/* XXX */
-		ahp->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
-		ahp->ah_rx_chainmask = AR5416_DEFAULT_RXCHAINMASK;
+		ahp->ah_tx_chainmask = AR9280_DEFAULT_TXCHAINMASK;
+		ahp->ah_rx_chainmask = AR9280_DEFAULT_RXCHAINMASK;
 		break;
 	}
 	return AH_TRUE;
