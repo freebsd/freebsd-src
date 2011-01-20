@@ -347,7 +347,7 @@ sf_buf_free(struct sf_buf *sf)
                 nsfbufsused--;
 
                 if (sf_buf_alloc_want > 0)
-                        wakeup_one(&sf_buf_freelist);
+                        wakeup(&sf_buf_freelist);
         }
         mtx_unlock(&sf_buf_lock);
 }

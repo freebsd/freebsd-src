@@ -218,6 +218,8 @@ extern	HAL_BOOL ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		const struct ath_desc *ds0);
 extern	HAL_STATUS ar5416ProcTxDesc(struct ath_hal *ah,
 		struct ath_desc *, struct ath_tx_status *);
+extern	HAL_BOOL ar5416GetTxCompletionRates(struct ath_hal *ah,
+		const struct ath_desc *ds0, int *rates, int *tries);
 
 extern	const HAL_RATE_TABLE *ar5416GetRateTable(struct ath_hal *, u_int mode);
 #endif	/* _ATH_AR5416_H_ */

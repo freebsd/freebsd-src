@@ -53,7 +53,7 @@ ath_hal_probe(uint16_t vendorid, uint16_t devid)
  */
 struct ath_hal*
 ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *error)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata, HAL_STATUS *error)
 {
 	struct ath_hal_chip * const *pchip;
 
@@ -64,7 +64,7 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 		/* XXX don't have vendorid, assume atheros one works */
 		if (chip->probe(ATHEROS_VENDOR_ID, devid) == AH_NULL)
 			continue;
-		ah = chip->attach(devid, sc, st, sh, error);
+		ah = chip->attach(devid, sc, st, sh, eepromdata, error);
 		if (ah != AH_NULL) {
 			/* copy back private state to public area */
 			ah->ah_devid = AH_PRIVATE(ah)->ah_devid;
@@ -197,9 +197,16 @@ HAL_BOOL
 ath_hal_wait(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val)
 {
 #define	AH_TIMEOUT	1000
+	return ath_hal_waitfor(ah, reg, mask, val, AH_TIMEOUT);
+#undef AH_TIMEOUT
+}
+
+HAL_BOOL
+ath_hal_waitfor(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val, uint32_t timeout)
+{
 	int i;
 
-	for (i = 0; i < AH_TIMEOUT; i++) {
+	for (i = 0; i < timeout; i++) {
 		if ((OS_REG_READ(ah, reg) & mask) == val)
 			return AH_TRUE;
 		OS_DELAY(10);
@@ -208,7 +215,6 @@ ath_hal_wait(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val)
 	    "%s: timeout on reg 0x%x: 0x%08x & 0x%08x != 0x%08x\n",
 	    __func__, reg, OS_REG_READ(ah, reg), mask, val);
 	return AH_FALSE;
-#undef AH_TIMEOUT
 }
 
 /*

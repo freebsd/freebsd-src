@@ -79,6 +79,7 @@ static volatile sig_atomic_t gotsig[NSIG];
 				/* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
 volatile sig_atomic_t gotwinch;
+static int last_trapsig;
 
 static int exiting;		/* exitshell() has been called */
 static int exiting_exitstatus;	/* value passed to exitshell() */
@@ -153,8 +154,18 @@ trapcmd(int argc, char **argv)
 	char *action;
 	int signo;
 	int errors = 0;
+	int i;
 
-	if (argc <= 1) {
+	while ((i = nextopt("l")) != '\0') {
+		switch (i) {
+		case 'l':
+			printsignals();
+			return (0);
+		}
+	}
+	argv = argptr;
+
+	if (*argv == NULL) {
 		for (signo = 0 ; signo < sys_nsig ; signo++) {
 			if (signo < NSIG && trap[signo] != NULL) {
 				out1str("trap -- ");
@@ -171,19 +182,12 @@ trapcmd(int argc, char **argv)
 		return 0;
 	}
 	action = NULL;
-	if (*++argv && strcmp(*argv, "--") == 0)
-		argv++;
 	if (*argv && sigstring_to_signum(*argv) == -1) {
-		if ((*argv)[0] != '-') {
+		if (strcmp(*argv, "-") == 0)
+			argv++;
+		else {
 			action = *argv;
 			argv++;
-		} else if ((*argv)[1] == '\0') {
-			argv++;
-		} else if ((*argv)[1] == 'l' && (*argv)[2] == '\0') {
-			printsignals();
-			return 0;
-		} else {
-			error("bad option %s", *argv);
 		}
 	}
 	while (*argv) {
@@ -438,6 +442,7 @@ dotrap(void)
 					 */
 					if (i == SIGCHLD)
 						ignore_sigchld++;
+					last_trapsig = i;
 					savestatus = exitstatus;
 					evalstring(trap[i], 0);
 					exitstatus = savestatus;
@@ -492,9 +497,16 @@ exitshell_savedstatus(void)
 {
 	struct jmploc loc1, loc2;
 	char *p;
+	int sig = 0;
+	sigset_t sigs;
 
-	if (!exiting)
-		exiting_exitstatus = oexitstatus;
+	if (!exiting) {
+		if (in_dotrap && last_trapsig) {
+			sig = last_trapsig;
+			exiting_exitstatus = sig + 128;
+		} else
+			exiting_exitstatus = oexitstatus;
+	}
 	exitstatus = oexitstatus = exiting_exitstatus;
 	if (setjmp(loc1.loc)) {
 		goto l1;
@@ -512,5 +524,15 @@ l1:   handler = &loc2;			/* probably unnecessary */
 #if JOBS
 	setjobctl(0);
 #endif
-l2:   _exit(exiting_exitstatus);
+l2:
+	if (sig != 0 && sig != SIGSTOP && sig != SIGTSTP && sig != SIGTTIN &&
+	    sig != SIGTTOU) {
+		signal(sig, SIG_DFL);
+		sigemptyset(&sigs);
+		sigaddset(&sigs, sig);
+		sigprocmask(SIG_UNBLOCK, &sigs, NULL);
+		kill(getpid(), sig);
+		/* If the default action is to ignore, fall back to _exit(). */
+	}
+	_exit(exiting_exitstatus);
 }

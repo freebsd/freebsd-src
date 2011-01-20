@@ -677,7 +677,7 @@ alc_aspm(struct alc_softc *sc, int media)
 	pmcfg &= ~PM_CFG_SERDES_PD_EX_L1;
 	pmcfg &= ~(PM_CFG_L1_ENTRY_TIMER_MASK | PM_CFG_LCKDET_TIMER_MASK);
 	pmcfg |= PM_CFG_MAC_ASPM_CHK;
-	pmcfg |= PM_CFG_SERDES_ENB | PM_CFG_RBER_ENB;
+	pmcfg |= (PM_CFG_LCKDET_TIMER_DEFAULT << PM_CFG_LCKDET_TIMER_SHIFT);
 	pmcfg &= ~(PM_CFG_ASPM_L1_ENB | PM_CFG_ASPM_L0S_ENB);
 
 	if ((sc->alc_flags & ALC_FLAG_APS) != 0) {
@@ -3147,6 +3147,9 @@ alc_init_locked(struct alc_softc *sc)
 	alc_init_tx_ring(sc);
 	alc_init_cmb(sc);
 	alc_init_smb(sc);
+
+	/* Enable all clocks. */
+	CSR_WRITE_4(sc, ALC_CLK_GATING_CFG, 0);
 
 	/* Reprogram the station address. */
 	bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);

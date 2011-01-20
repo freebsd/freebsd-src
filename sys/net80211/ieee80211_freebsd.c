@@ -233,7 +233,7 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	oid = SYSCTL_ADD_NODE(ctx, &SYSCTL_NODE_CHILDREN(_net, wlan),
 		OID_AUTO, num, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"%parent", CTLFLAG_RD, vap->iv_ic, 0,
+		"%parent", CTLTYPE_STRING | CTLFLAG_RD, vap->iv_ic, 0,
 		ieee80211_sysctl_parent, "A", "parent device");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"driver_caps", CTLFLAG_RW, &vap->iv_caps, 0,

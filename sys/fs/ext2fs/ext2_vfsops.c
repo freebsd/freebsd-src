@@ -945,9 +945,8 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	}
 
 	/*
-	 * Finish inode initialization now that aliasing has been resolved.
+	 * Finish inode initialization.
 	 */
-	ip->i_devvp = ump->um_devvp;
 
 	/*
 	 * Set up a generation number for this inode if it does not

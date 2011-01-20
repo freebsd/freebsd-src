@@ -385,6 +385,7 @@ struct adapter {
 	int			advertise;  /* link speeds */
 	bool			link_active;
 	u16			max_frame_size;
+	u16			num_segs;
 	u32			link_speed;
 	bool			link_up;
 	u32 			linkvec;

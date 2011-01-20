@@ -2376,7 +2376,6 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 	DPRINTF("new assoc isnew=%d associd=%x addr=%s\n",
 	    isnew, ni->ni_associd, ether_sprintf(ni->ni_macaddr));
 
-	ieee80211_ratectl_node_init(ni);
 	sc->sc_ni[wcid] = ni;
 
 	for (i = 0; i < rs->rs_nrates; i++) {

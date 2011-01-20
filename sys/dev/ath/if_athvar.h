@@ -342,6 +342,7 @@ struct ath_softc {
 	u_int			sc_tdmaslotlen;	/* TDMA slot length (usec) */
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
+	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -645,6 +646,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_procTxDesc)((_ah), (_ds), (_ts)))
 #define	ath_hal_gettxintrtxqs(_ah, _txqs) \
 	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
+#define ath_hal_gettxcompletionrates(_ah, _ds, _rates, _tries) \
+	((*(_ah)->ah_getTxCompletionRates)((_ah), (_ds), (_rates), (_tries)))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))

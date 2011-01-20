@@ -26,7 +26,7 @@
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
-#include "ar5416/ar9160.ini"
+#include "ar9001/ar9160.ini"
 
 static const HAL_PERCAL_DATA ar9160_iq_cal = {		/* multi sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,
@@ -89,7 +89,8 @@ ar9160AniSetup(struct ath_hal *ah)
  */
 static struct ath_hal *
 ar9160Attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_STATUS *status)
 {
 	struct ath_hal_5416 *ahp5416;
 	struct ath_hal_5212 *ahp;

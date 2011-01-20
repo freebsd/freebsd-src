@@ -1214,23 +1214,19 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	vm_page_t m;
 	int flags, page_req;
 
-	page_req = req & VM_ALLOC_CLASS_MASK;
-	KASSERT(curthread->td_intr_nesting_level == 0 ||
-	    page_req == VM_ALLOC_INTERRUPT,
-	    ("vm_page_alloc(NORMAL|SYSTEM) in interrupt context"));
-
 	if ((req & VM_ALLOC_NOOBJ) == 0) {
 		KASSERT(object != NULL,
 		    ("vm_page_alloc: NULL object."));
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	}
 
+	page_req = req & VM_ALLOC_CLASS_MASK;
+
 	/*
 	 * The pager is allowed to eat deeper into the free page list.
 	 */
-	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
+	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT))
 		page_req = VM_ALLOC_SYSTEM;
-	};
 
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
@@ -1342,8 +1338,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		atomic_add_int(&cnt.v_wire_count, 1);
 		m->wire_count = 1;
 	}
-	m->act_count = 0;
 	mtx_unlock(&vm_page_queue_free_mtx);
+	m->act_count = 0;
 
 	if (object != NULL) {
 		/* Ignore device objects; the pager sets "memattr" for them. */
@@ -1607,6 +1603,7 @@ vm_page_activate(vm_page_t m)
 	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((queue = m->queue) != PQ_ACTIVE) {
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)

@@ -76,7 +76,6 @@ static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
  *   2) quadradically rehash into other cylinder groups, until an
  *        available block is located.
  */
-
 int
 ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 	struct inode *ip;
@@ -222,7 +221,7 @@ return ENOSPC;
 	/*
 	 * Find the preferred location for the cluster.
 	 */
-	EXT2_LOCK(ump); 
+	EXT2_LOCK(ump);
 	pref = ext2_blkpref(ip, start_lbn, soff, sbap, blkno);
 	/*
 	 * If the block range spans two block maps, get the second map.

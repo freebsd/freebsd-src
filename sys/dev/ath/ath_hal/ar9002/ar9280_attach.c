@@ -24,12 +24,12 @@
 
 #include "ah_eeprom_v14.h"		/* XXX for tx/rx gain */
 
-#include "ar5416/ar9280.h"
+#include "ar9002/ar9280.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
-#include "ar5416/ar9280v1.ini"
-#include "ar5416/ar9280v2.ini"
+#include "ar9002/ar9280v1.ini"
+#include "ar9002/ar9280v2.ini"
 
 static const HAL_PERCAL_DATA ar9280_iq_cal = {		/* single sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,
@@ -77,7 +77,8 @@ ar9280AniSetup(struct ath_hal *ah)
  */
 static struct ath_hal *
 ar9280Attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_STATUS *status)
 {
 	struct ath_hal_9280 *ahp9280;
 	struct ath_hal_5212 *ahp;
@@ -716,8 +717,8 @@ ar9280SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 	case HAL_ANT_VARIABLE:
 		/* Restore original chainmask settings */
 		/* XXX */
-		ahp->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
-		ahp->ah_rx_chainmask = AR5416_DEFAULT_RXCHAINMASK;
+		ahp->ah_tx_chainmask = AR9280_DEFAULT_TXCHAINMASK;
+		ahp->ah_rx_chainmask = AR9280_DEFAULT_RXCHAINMASK;
 		break;
 	}
 	return AH_TRUE;

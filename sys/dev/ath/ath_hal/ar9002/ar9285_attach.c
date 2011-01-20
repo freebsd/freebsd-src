@@ -24,14 +24,14 @@
 
 #include "ah_eeprom_v4k.h"		/* XXX for tx/rx gain */
 
-#include "ar5416/ar9280.h"
-#include "ar5416/ar9285.h"
+#include "ar9002/ar9280.h"
+#include "ar9002/ar9285.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
-#include "ar5416/ar9285.ini"
-#include "ar5416/ar9285v2.ini"
-#include "ar5416/ar9280v2.ini"		/* XXX ini for tx/rx gain */
+#include "ar9002/ar9285.ini"
+#include "ar9002/ar9285v2.ini"
+#include "ar9002/ar9280v2.ini"		/* XXX ini for tx/rx gain */
 
 static const HAL_PERCAL_DATA ar9280_iq_cal = {		/* single sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,
@@ -79,7 +79,8 @@ ar9285AniSetup(struct ath_hal *ah)
  */
 static struct ath_hal *
 ar9285Attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_STATUS *status)
 {
 	struct ath_hal_9285 *ahp9285;
 	struct ath_hal_5212 *ahp;
@@ -243,6 +244,10 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 	}
 
+	/* Disable 11n for the AR2427 */
+	if (devid == AR2427_DEVID_PCIE)
+		AH_PRIVATE(ah)->ah_caps.halHTSupport = AH_FALSE;
+
 	ecode = ath_hal_eepromGet(ah, AR_EEP_MACADDR, ahp->ah_macaddr);
 	if (ecode != HAL_OK) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
@@ -402,6 +407,9 @@ ar9285Probe(uint16_t vendorid, uint16_t devid)
 {
 	if (vendorid == ATHEROS_VENDOR_ID && devid == AR9285_DEVID_PCIE)
 		return "Atheros 9285";
+	if (vendorid == ATHEROS_VENDOR_ID && (devid == AR2427_DEVID_PCIE))
+		return "Atheros 2427";
+
 	return AH_NULL;
 }
 AH_CHIP(AR9285, ar9285Probe, ar9285Attach);
