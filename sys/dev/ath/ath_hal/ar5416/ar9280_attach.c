@@ -77,7 +77,8 @@ ar9280AniSetup(struct ath_hal *ah)
  */
 static struct ath_hal *
 ar9280Attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_STATUS *status)
 {
 	struct ath_hal_9280 *ahp9280;
 	struct ath_hal_5212 *ahp;
