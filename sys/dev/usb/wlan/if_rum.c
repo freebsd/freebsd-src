@@ -2206,8 +2206,6 @@ rum_ratectl_start(struct rum_softc *sc, struct ieee80211_node *ni)
 	/* clear statistic registers (STA_CSR0 to STA_CSR5) */
 	rum_read_multi(sc, RT2573_STA_CSR0, sc->sta, sizeof sc->sta);
 
-	ieee80211_ratectl_node_init(ni);
-
 	usb_callout_reset(&rvp->ratectl_ch, hz, rum_ratectl_timeout, rvp);
 }
 
