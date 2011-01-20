@@ -231,11 +231,14 @@ uninorth_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	sc->sc_nrange /= sizeof(sc->sc_range[0]);
+
 	sc->sc_range[6].pci_hi = 0;
 	io = NULL;
 	nmem = 0;
 
-	for (rp = sc->sc_range; rp->pci_hi != 0; rp++) {
+	for (rp = sc->sc_range; rp < sc->sc_range + sc->sc_nrange &&
+	       rp->pci_hi != 0; rp++) {
 		switch (rp->pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
 		case OFW_PCI_PHYS_HI_SPACE_CONFIG:
 			break;
