@@ -22,19 +22,21 @@ cpu 		CPU_RMI
 ident 		XLR64
 
 makeoptions	MODULES_OVERRIDE=""
+
 include		"../rmi/std.xlr"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
 makeoptions	KERNLOADADDR=0xffffffff80100000
+
 options		ISA_MIPS64
 
 #profile		2
 
 options 	SCHED_ULE		# ULE scheduler
-#options		VERBOSE_SYSINIT
+#options 	VERBOSE_SYSINIT
 #options 	SCHED_4BSD		# 4BSD scheduler
-#options         SMP
+options 	SMP
 #options 	PREEMPTION		# Enable kernel thread preemption
 #options 	FULL_PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
@@ -43,20 +45,20 @@ options 	FFS			# Berkeley Fast Filesystem
 #options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
-options		NFSCLIENT
-options		NFS_ROOT
+options 	NFSCLIENT
+options 	NFS_ROOT
 #
-options         BOOTP
-options         BOOTP_NFSROOT
-options         BOOTP_NFSV3
-options         BOOTP_WIRED_TO=nlge0
-options         BOOTP_COMPAT
-options		ROOTDEVNAME=\"nfs:10.1.1.8:/usr/extra/nfsroot\"
+options 	BOOTP
+options 	BOOTP_NFSROOT
+options 	BOOTP_NFSV3
+options 	BOOTP_WIRED_TO=nlge0
+options 	BOOTP_COMPAT
+options 	ROOTDEVNAME=\"nfs:10.1.1.8:/usr/extra/nfsroot\"
 #
 #options 	MD_ROOT			# MD is a potential root device
-#options		MD_ROOT_SIZE=27000
-#options		MD_ROOT_SIZE=5120
-#options		ROOTDEVNAME=\"ufs:md0\"
+#options 	MD_ROOT_SIZE=27000
+#options 	MD_ROOT_SIZE=5120
+#options 	ROOTDEVNAME=\"ufs:md0\"
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	HZ=1000	
 options 	NO_SWAPPING
@@ -67,29 +69,28 @@ options 	DDB
 options 	KDB
 options 	GDB
 options 	ALT_BREAK_TO_DEBUGGER
+options  	BREAK_TO_DEBUGGER
 #options 	DEADLKRES		#Enable the deadlock resolver
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 #options 	KTR			# ktr(4) and ktrdump(8) support
-#options 	KTR_COMPILE=(KTR_LOCK|KTR_PROC|KTR_INTR|KTR_CALLOUT|KTR_UMA|KTR_SYSC|KTR_CRITICAL)
+#options 	KTR_COMPILE=(KTR_LOCK|KTR_PROC|KTR_INTR|KTR_CALLOUT|KTR_UMA|KTR_SYSC)
 #options 	KTR_ENTRIES=131072
-#options 	MUTEX_DEBUG
-#options 	MUTEX_PROFILING
+
+#options 	LOCK_PROFILING
+#options 	SLEEPQUEUE_PROFILING
+#options 	TURNSTILE_PROFILING
 
 device		pci
 #device		ata
 #device		atadisk
-#options 	XLR_PERFMON		# Enable XLR processor activity monitoring
-options  	BREAK_TO_DEBUGGER
-#device 		genclock
 device 		uart
 # Pseudo
 device 		loop
 device 		random
 device 		md
-device 		mem
 device 		pty
 device		bpf
 
@@ -100,31 +101,27 @@ device 		ether
 device		re
 device		msk
 
-device          da
-device          scbus
-#device          ohci            # OHCI PCI->USB interface
-device          ehci            # EHCI PCI->USB interface (USB 2.0)
-device          usb             # USB Bus (required)
-options 	USB_DEBUG	# enable debug msgs
-#device         udbp            # USB Double Bulk Pipe devices
-#device          ugen            # Generic
-#device          uhid            # "Human Interface Devices"
-device          umass           # Disks/Mass storage - Requires scbus and da
+device		da
+device		scbus
+device		ehci		# EHCI PCI->USB interface (USB 2.0)
+device		usb		# USB Bus (required)
+options 	USB_DEBUG		# enable debug msgs
+#device		uhid		# "Human Interface Devices"
+device		umass		# Disks/Mass storage - Requires scbus and da
 
 #device		cfi
 
 #i2c
-# Not yet
-#device      ic
-#device      iic
-#device      iicbb
-#device      iicbus
-#device      xlr_rtc
-#device      xlr_temperature
-#device      xlr_eeprom
+device		ic
+device		iic
+device		iicbb
+device		iicbus
+device		ds1374u		# RTC on XLR boards
+device		max6657		# Temparature sensor on XLR boards
+device		at24co2n	# EEPROM on XLR boards
 
 #crypto
 # Not yet
-#device cryptodev
-#device crypto
-#device rmisec
+#device		cryptodev
+#device		crypto
+#device		rmisec
