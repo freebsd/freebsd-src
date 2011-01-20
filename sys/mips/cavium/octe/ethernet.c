@@ -232,22 +232,18 @@ static void cvm_oct_configure_common_hw(device_t bus)
 
 
 #ifdef SMP
-	if (USE_MULTICORE_RECEIVE) {
-		critical_enter();
-		{
-			cvmx_ciu_intx0_t en;
-			int core;
+	{
+		cvmx_ciu_intx0_t en;
+		int core;
 
-			CPU_FOREACH(core) {
-				if (core == PCPU_GET(cpuid))
-					continue;
+		CPU_FOREACH(core) {
+			if (core == PCPU_GET(cpuid))
+				continue;
 
-				en.u64 = cvmx_read_csr(CVMX_CIU_INTX_EN0(core*2));
-				en.s.workq |= (1<<pow_receive_group);
-				cvmx_write_csr(CVMX_CIU_INTX_EN0(core*2), en.u64);
-			}
+			en.u64 = cvmx_read_csr(CVMX_CIU_INTX_EN0(core*2));
+			en.s.workq |= (1<<pow_receive_group);
+			cvmx_write_csr(CVMX_CIU_INTX_EN0(core*2), en.u64);
 		}
-		critical_exit();
 	}
 #endif
 }
