@@ -197,9 +197,16 @@ HAL_BOOL
 ath_hal_wait(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val)
 {
 #define	AH_TIMEOUT	1000
+	return ath_hal_waitfor(ah, reg, mask, val, AH_TIMEOUT);
+#undef AH_TIMEOUT
+}
+
+HAL_BOOL
+ath_hal_waitfor(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val, uint32_t timeout)
+{
 	int i;
 
-	for (i = 0; i < AH_TIMEOUT; i++) {
+	for (i = 0; i < timeout; i++) {
 		if ((OS_REG_READ(ah, reg) & mask) == val)
 			return AH_TRUE;
 		OS_DELAY(10);
@@ -208,7 +215,6 @@ ath_hal_wait(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val)
 	    "%s: timeout on reg 0x%x: 0x%08x & 0x%08x != 0x%08x\n",
 	    __func__, reg, OS_REG_READ(ah, reg), mask, val);
 	return AH_FALSE;
-#undef AH_TIMEOUT
 }
 
 /*
