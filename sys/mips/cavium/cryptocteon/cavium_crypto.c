@@ -355,7 +355,7 @@ octo_des_cbc_encrypt(
 
     if (__predict_false(od == NULL || iov==NULL || iovlen==0 || ivp==NULL ||
 	    (crypt_off & 0x7) || (crypt_off + crypt_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -418,7 +418,7 @@ octo_des_cbc_decrypt(
 
     if (__predict_false(od == NULL || iov==NULL || iovlen==0 || ivp==NULL ||
 	    (crypt_off & 0x7) || (crypt_off + crypt_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -483,7 +483,7 @@ octo_aes_cbc_encrypt(
 
     if (__predict_false(od == NULL || iov==NULL || iovlen==0 || ivp==NULL ||
 	    (crypt_off & 0x7) || (crypt_off + crypt_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -557,7 +557,7 @@ octo_aes_cbc_decrypt(
 
     if (__predict_false(od == NULL || iov==NULL || iovlen==0 || ivp==NULL ||
 	    (crypt_off & 0x7) || (crypt_off + crypt_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -635,7 +635,7 @@ octo_null_md5_encrypt(
 
     if (__predict_false(od == NULL || iov==NULL || iovlen==0 ||
 	    (auth_off & 0x7) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -741,7 +741,7 @@ octo_null_sha1_encrypt(
 
     if (__predict_false(od == NULL || iov==NULL || iovlen==0 ||
 	    (auth_off & 0x7) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -858,7 +858,7 @@ octo_des_cbc_md5_encrypt(
 	    (crypt_len  & 0x7) ||
 	    (auth_len  & 0x7) ||
 	    (auth_off & 0x3) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -1011,7 +1011,7 @@ octo_des_cbc_md5_decrypt(
 	    (crypt_len  & 0x7) ||
 	    (auth_len  & 0x7) ||
 	    (auth_off & 0x3) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -1167,7 +1167,7 @@ octo_des_cbc_sha1_encrypt(
 	    (crypt_len  & 0x7) ||
 	    (auth_len  & 0x7) ||
 	    (auth_off & 0x3) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -1323,7 +1323,7 @@ octo_des_cbc_sha1_decrypt(
 	    (crypt_len  & 0x7) ||
 	    (auth_len  & 0x7) ||
 	    (auth_off & 0x3) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -1482,7 +1482,7 @@ octo_aes_cbc_md5_encrypt(
 	    (crypt_len  & 0x7) ||
 	    (auth_len  & 0x7) ||
 	    (auth_off & 0x3) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -1664,7 +1664,7 @@ octo_aes_cbc_md5_decrypt(
 	    (crypt_len  & 0x7) ||
 	    (auth_len  & 0x7) ||
 	    (auth_off & 0x3) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -1845,7 +1845,7 @@ octo_aes_cbc_sha1_encrypt(
 	    (crypt_len  & 0x7) ||
 	    (auth_len  & 0x7) ||
 	    (auth_off & 0x3) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
@@ -2046,7 +2046,7 @@ octo_aes_cbc_sha1_decrypt(
 	    (crypt_len  & 0x7) ||
 	    (auth_len  & 0x7) ||
 	    (auth_off & 0x3) || (auth_off + auth_len > iovlen))) {
-	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%d "
+	dprintf("%s: Bad parameters od=%p iov=%p iovlen=%jd "
 		"auth_off=%d auth_len=%d crypt_off=%d crypt_len=%d "
 		"icv_off=%d ivp=%p\n", __func__, od, iov, iovlen,
 		auth_off, auth_len, crypt_off, crypt_len, icv_off, ivp);
