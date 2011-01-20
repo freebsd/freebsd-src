@@ -89,6 +89,12 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_OL_PWRCTRL:
 		HALASSERT(val == AH_NULL);
 		return pBase->openLoopPwrCntl ?  HAL_OK : HAL_EIO;
+	case AR_EEP_DAC_HPWR_5G:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_20)) {
+			*(uint8_t *) val = pBase->dacHiPwrMode;
+			return HAL_OK;
+		} else
+			return HAL_EIO;
 	case AR_EEP_AMODE:
 		HALASSERT(val == AH_NULL);
 		return pBase->opCapFlags & AR5416_OPFLAGS_11A ?

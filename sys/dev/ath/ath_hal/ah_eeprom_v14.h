@@ -52,6 +52,9 @@
 #define AR5416_EEP_MINOR_VER_16		0x10
 #define AR5416_EEP_MINOR_VER_17		0x11
 #define AR5416_EEP_MINOR_VER_19		0x13
+#define AR5416_EEP_MINOR_VER_20		0x14
+#define AR5416_EEP_MINOR_VER_21		0x15
+#define	AR5416_EEP_MINOR_VER_22		0x16
 
 // 16-bit offset location start of calibration struct
 #define AR5416_EEP_START_LOC         	256
