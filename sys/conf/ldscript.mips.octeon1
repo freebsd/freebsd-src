@@ -1,8 +1,6 @@
 /* $FreeBSD$ */
 
 ENTRY(_start)
-   __DYNAMIC = 0;
-PROVIDE (_DYNAMIC = 0);
 
 PHDRS {
 	text PT_LOAD FLAGS(0x7);
