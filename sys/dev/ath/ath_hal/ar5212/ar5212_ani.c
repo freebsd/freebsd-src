@@ -912,20 +912,25 @@ updateMIBStats(struct ath_hal *ah, struct ar5212AniState *aniState)
 	aniState->cckPhyErrCount = cckPhyErrCnt;
 }
 
+void
+ar5212RxMonitor(struct ath_hal *ah, const HAL_NODE_STATS *stats,
+		const struct ieee80211_channel *chan)
+{
+	struct ath_hal_5212 *ahp = AH5212(ah);
+	ahp->ah_stats.ast_nodestats.ns_avgbrssi = stats->ns_avgbrssi;
+}
+
 /*
  * Do periodic processing.  This routine is called from the
  * driver's rx interrupt handler after processing frames.
  */
 void
-ar5212AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
-		const struct ieee80211_channel *chan)
+ar5212AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState = ahp->ah_curani;
 	const struct ar5212AniParams *params;
 	int32_t listenTime;
-
-	ahp->ah_stats.ast_nodestats.ns_avgbrssi = stats->ns_avgbrssi;
 
 	/* XXX can aniState be null? */
 	if (aniState == AH_NULL)
