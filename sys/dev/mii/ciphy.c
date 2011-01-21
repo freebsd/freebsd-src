@@ -176,27 +176,24 @@ ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		case IFM_10_T:
 			speed = CIPHY_S10;
 setit:
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX) {
+			if ((ife->ifm_media & IFM_FDX) != 0) {
 				speed |= CIPHY_BMCR_FDX;
 				gig = CIPHY_1000CTL_AFD;
-			} else {
+			} else
 				gig = CIPHY_1000CTL_AHD;
-			}
 
-			PHY_WRITE(sc, CIPHY_MII_1000CTL, 0);
+			if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+				gig |= CIPHY_1000CTL_MSE;
+				if ((ife->ifm_media & IFM_ETH_MASTER) != 0 ||
+				    (mii->mii_ifp->if_flags & IFF_LINK0) != 0)
+					gig |= CIPHY_1000CTL_MSC;
+				speed |=
+				    CIPHY_BMCR_AUTOEN | CIPHY_BMCR_STARTNEG;
+			} else
+				gig = 0;
+			PHY_WRITE(sc, CIPHY_MII_1000CTL, gig);
 			PHY_WRITE(sc, CIPHY_MII_BMCR, speed);
 			PHY_WRITE(sc, CIPHY_MII_ANAR, CIPHY_SEL_TYPE);
-
-			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T)
-				break;
-
-			gig |= CIPHY_1000CTL_MSE;
-			if ((ife->ifm_media & IFM_ETH_MASTER) != 0 ||
-			    (mii->mii_ifp->if_flags & IFF_LINK0) != 0)
-				gig |= CIPHY_1000CTL_MSC;
-			PHY_WRITE(sc, CIPHY_MII_1000CTL, gig);
-			PHY_WRITE(sc, CIPHY_MII_BMCR,
-			    speed | CIPHY_BMCR_AUTOEN | CIPHY_BMCR_STARTNEG);
 			break;
 		case IFM_NONE:
 			PHY_WRITE(sc, MII_BMCR, BMCR_ISO | BMCR_PDOWN);

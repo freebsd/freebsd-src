@@ -171,7 +171,7 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			break;
 		case IFM_1000_SX:
 			mii_phy_reset(sc);
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX) {
+			if ((ife->ifm_media & IFM_FDX) != 0) {
 				PHY_WRITE(sc, XMPHY_MII_ANAR, XMPHY_ANAR_FDX);
 				PHY_WRITE(sc, XMPHY_MII_BMCR, XMPHY_BMCR_FDX);
 			} else {
