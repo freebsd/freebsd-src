@@ -950,10 +950,10 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	/*
 	 * Allocate virtual address space for the message buffer.
 	 */
-	pa = msgbuf_phys = moea64_bootstrap_alloc(MSGBUF_SIZE, PAGE_SIZE);
+	pa = msgbuf_phys = moea64_bootstrap_alloc(msgbufsize, PAGE_SIZE);
 	msgbufp = (struct msgbuf *)virtual_avail;
 	va = virtual_avail;
-	virtual_avail += round_page(MSGBUF_SIZE);
+	virtual_avail += round_page(msgbufsize);
 	while (va < virtual_avail) {
 		moea64_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;
