@@ -35,7 +35,6 @@
  * from: FreeBSD: //depot/projects/arm/src/sys/arm/at91/kb920x_machdep.c, rev 45
  */
 
-#include "opt_msgbuf.h"
 #include "opt_ddb.h"
 #include "opt_platform.h"
 
@@ -427,7 +426,7 @@ initarm(void *mdp, void *unused __unused)
 	valloc_pages(abtstack, ABT_STACK_SIZE);
 	valloc_pages(undstack, UND_STACK_SIZE);
 	valloc_pages(kernelstack, KSTACK_PAGES);
-	valloc_pages(msgbufpv, round_page(MSGBUF_SIZE) / PAGE_SIZE);
+	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
 	/*
 	 * Now we start construction of the L1 page table
@@ -575,7 +574,7 @@ initarm(void *mdp, void *unused __unused)
 
 	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
 	/*

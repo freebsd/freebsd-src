@@ -105,7 +105,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
 #include "opt_pmap.h"
-#include "opt_msgbuf.h"
 #include "opt_smp.h"
 #include "opt_xbox.h"
 
@@ -437,7 +436,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	/*
 	 * msgbufp is used to map the system message buffer.
 	 */
-	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(MSGBUF_SIZE)))
+	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(msgbufsize)))
 
 	/*
 	 * KPTmap is used by pmap_kextract().

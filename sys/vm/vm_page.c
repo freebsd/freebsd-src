@@ -100,7 +100,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_msgbuf.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -375,7 +374,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * through the direct map, they are not automatically included.
 	 */
 	pa = DMAP_TO_PHYS((vm_offset_t)msgbufp->msg_ptr);
-	last_pa = pa + round_page(MSGBUF_SIZE);
+	last_pa = pa + round_page(msgbufsize);
 	while (pa < last_pa) {
 		dump_add_page(pa);
 		pa += PAGE_SIZE;
