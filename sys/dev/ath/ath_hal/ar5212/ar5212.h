@@ -606,8 +606,9 @@ struct ath_rx_status;
 extern	void ar5212AniPhyErrReport(struct ath_hal *ah,
 		const struct ath_rx_status *rs);
 extern	void ar5212ProcessMibIntr(struct ath_hal *, const HAL_NODE_STATS *);
-extern	void ar5212AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+extern	void ar5212RxMonitor(struct ath_hal *, const HAL_NODE_STATS *,
 			     const struct ieee80211_channel *);
+extern	void ar5212AniPoll(struct ath_hal *, const struct ieee80211_channel *);
 extern	void ar5212AniReset(struct ath_hal *, const struct ieee80211_channel *,
 		HAL_OPMODE, int);
 
