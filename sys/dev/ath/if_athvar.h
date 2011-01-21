@@ -333,6 +333,9 @@ struct ath_softc {
 	struct callout		sc_cal_ch;	/* callout handle for cals */
 	int			sc_lastlongcal;	/* last long cal completed */
 	int			sc_lastcalreset;/* last cal reset done */
+	int			sc_lastani;	/* last ANI poll */
+	int			sc_lastshortcal;	/* last short calibration */
+	HAL_BOOL		sc_doresetcal;	/* Yes, we're doing a reset cal atm */
 	HAL_NODE_STATS		sc_halstats;	/* station-mode rssi stats */
 	u_int			sc_tdmadbaprep;	/* TDMA DBA prep time */
 	u_int			sc_tdmaswbaprep;/* TDMA SWBA prep time */
@@ -503,6 +506,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setDefAntenna)((_ah), (_ant)))
 #define	ath_hal_rxmonitor(_ah, _arg, _chan) \
 	((*(_ah)->ah_rxMonitor)((_ah), (_arg), (_chan)))
+#define	ath_hal_ani_poll(_ah, _chan) \
+	((*(_ah)->ah_aniPoll)((_ah), (_chan)))
 #define	ath_hal_mibevent(_ah, _stats) \
 	((*(_ah)->ah_procMibEvent)((_ah), (_stats)))
 #define	ath_hal_setslottime(_ah, _us) \
