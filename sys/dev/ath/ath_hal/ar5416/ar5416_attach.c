@@ -105,9 +105,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
 	ah->ah_procRxDesc		= ar5416ProcRxDesc;
-	ah->ah_rxMonitor		= ar5416RxMonitor,
-	ah->ah_aniPoll			= ar5416AniPoll,
-	ah->ah_procMibEvent		= ar5416ProcessMibIntr,
+	ah->ah_rxMonitor		= ar5416RxMonitor;
+	ah->ah_aniPoll			= ar5416AniPoll;
+	ah->ah_procMibEvent		= ar5416ProcessMibIntr;
 
 	/* Misc Functions */
 	ah->ah_getCapability		= ar5416GetCapability;
