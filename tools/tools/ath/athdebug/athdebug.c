@@ -37,11 +37,15 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <stdio.h>
 #include <ctype.h>
 #include <getopt.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <err.h>
 
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 
