@@ -68,7 +68,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_msgbuf.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -546,8 +545,8 @@ again:
 	/*
 	 * Steal the message buffer from the beginning of memory.
 	 */
-	msgbufp = (struct msgbuf *)pmap_steal_memory(MSGBUF_SIZE);
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufp = (struct msgbuf *)pmap_steal_memory(msgbufsize);
+	msgbufinit(msgbufp, msgbufsize);
 
 	/*
 	 * Steal thread0 kstack.
