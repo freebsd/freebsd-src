@@ -110,6 +110,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_procMibEvent		= ar5416ProcessMibIntr,
 
 	/* Misc Functions */
+	ah->ah_getCapability		= ar5416GetCapability;
 	ah->ah_getDiagState		= ar5416GetDiagState;
 	ah->ah_setLedState		= ar5416SetLedState;
 	ah->ah_gpioCfgOutput		= ar5416GpioCfgOutput;
