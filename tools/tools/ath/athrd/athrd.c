@@ -43,6 +43,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
 int		ath_hal_debug = 0;
 HAL_CTRY_CODE	cc = CTRY_DEFAULT;
