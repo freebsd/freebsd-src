@@ -186,23 +186,22 @@ ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			return (EINVAL);
 		}
 
-		if (((ife->ifm_media & IFM_GMASK) & IFM_FDX) != 0) {
+		if ((ife->ifm_media & IFM_FDX) != 0) {
 			speed |= IP1000PHY_BMCR_FDX;
 			gig = IP1000PHY_1000CR_1000T_FDX;
 		} else
 			gig = IP1000PHY_1000CR_1000T;
 
-		PHY_WRITE(sc, IP1000PHY_MII_1000CR, 0);
-		PHY_WRITE(sc, IP1000PHY_MII_BMCR, speed);
-
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T)
-			break;
-
-		gig |= IP1000PHY_1000CR_MASTER | IP1000PHY_1000CR_MANUAL;
-		if ((ife->ifm_media & IFM_ETH_MASTER) != 0 ||
-		    (mii->mii_ifp->if_flags & IFF_LINK0) != 0)
-			gig |= IP1000PHY_1000CR_MMASTER;
+		if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+			gig |=
+			    IP1000PHY_1000CR_MASTER | IP1000PHY_1000CR_MANUAL;
+			if ((ife->ifm_media & IFM_ETH_MASTER) != 0 ||
+			    (mii->mii_ifp->if_flags & IFF_LINK0) != 0)
+				gig |= IP1000PHY_1000CR_MMASTER;
+		} else
+			gig = 0;
 		PHY_WRITE(sc, IP1000PHY_MII_1000CR, gig);
+		PHY_WRITE(sc, IP1000PHY_MII_BMCR, speed);
 
 done:
 		break;
