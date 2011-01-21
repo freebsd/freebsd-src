@@ -58,6 +58,10 @@ struct mtx nfs_cache_mutex;
 struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
 int nfs_pubfhset = 0, nfs_rootfhset = 0;
+struct proc *nfsd_master_proc = NULL;
+static pid_t nfsd_master_pid = (pid_t)-1;
+static char nfsd_master_comm[MAXCOMLEN + 1];
+static struct timeval nfsd_master_start;
 static uint32_t nfsv4_sysid = 0;
 
 static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
@@ -2905,6 +2909,7 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	struct nameidata nd;
 	vnode_t vp;
 	int error = EINVAL;
+	struct proc *procp;
 
 	if (uap->flag & NFSSVC_PUBLICFH) {
 		NFSBZERO((caddr_t)&nfs_pubfh.nfsrvfh_data,
@@ -2975,6 +2980,14 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 			    CAST_USER_ADDR_T(dumplocklist.ndllck_list), len);
 			free((caddr_t)dumplocks, M_TEMP);
 		}
+	} else if (uap->flag & NFSSVC_BACKUPSTABLE) {
+		procp = p->td_proc;
+		PROC_LOCK(procp);
+		nfsd_master_pid = procp->p_pid;
+		bcopy(procp->p_comm, nfsd_master_comm, MAXCOMLEN + 1);
+		nfsd_master_start = procp->p_stats->p_start;
+		nfsd_master_proc = procp;
+		PROC_UNLOCK(procp);
 	}
 	return (error);
 }
@@ -3028,6 +3041,32 @@ nfsrv_hashfh(fhandle_t *fhp)
 
 	hashval = hash32_buf(&fhp->fh_fid, sizeof(struct fid), 0);
 	return (hashval);
+}
+
+/*
+ * Signal the userland master nfsd to backup the stable restart file.
+ */
+void
+nfsrv_backupstable(void)
+{
+	struct proc *procp;
+
+	if (nfsd_master_proc != NULL) {
+		procp = pfind(nfsd_master_pid);
+		/* Try to make sure it is the correct process. */
+		if (procp == nfsd_master_proc &&
+		    procp->p_stats->p_start.tv_sec ==
+		    nfsd_master_start.tv_sec &&
+		    procp->p_stats->p_start.tv_usec ==
+		    nfsd_master_start.tv_usec &&
+		    strcmp(procp->p_comm, nfsd_master_comm) == 0)
+			psignal(procp, SIGUSR2);
+		else
+			nfsd_master_proc = NULL;
+
+		if (procp != NULL)
+			PROC_UNLOCK(procp);
+	}
 }
 
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);

@@ -97,6 +97,7 @@ static int nfs_proc(struct nfsrv_descript *, u_int32_t, struct socket *,
 
 extern u_long sb_max_adj;
 extern int newnfs_numnfsd;
+extern struct proc *nfsd_master_proc;
 
 /*
  * NFS server system calls
@@ -465,6 +466,7 @@ nfsrvd_init(int terminating)
 	NFSD_LOCK_ASSERT();
 
 	if (terminating) {
+		nfsd_master_proc = NULL;
 		NFSD_UNLOCK();
 		svcpool_destroy(nfsrvd_pool);
 		nfsrvd_pool = NULL;
