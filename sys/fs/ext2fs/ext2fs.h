@@ -39,22 +39,6 @@
 
 #include <sys/types.h>
 
-/*
- * Special inode numbers
- */
-#define	EXT2_BAD_INO		 1	/* Bad blocks inode */
-#define EXT2_ROOT_INO		 2	/* Root inode */
-#define EXT2_BOOT_LOADER_INO	 5	/* Boot loader inode */
-#define EXT2_UNDEL_DIR_INO	 6	/* Undelete directory inode */
-
-/* First non-reserved inode for old ext2 filesystems */
-#define E2FS_REV0_FIRST_INO	11
-
-/*
- * The second extended file system magic number
- */
-#define E2FS_MAGIC		0xEF53
-
 #if defined(_KERNEL)
 /*
  * FreeBSD passes the pointer to the in-core struct with relevant
@@ -170,7 +154,7 @@ struct m_ext2fs {
 	uint32_t e2fs_mount_opt;
 	uint32_t e2fs_blocksize_bits;
 	uint32_t e2fs_total_dir;  /* Total number of directories */
-	uint8_t	*e2fs_contigdirs;
+	uint8_t	*e2fs_contigdirs; /* (u) # of contig. allocated dirs */
 	char e2fs_wasvalid;       /* valid at mount time */
 	off_t e2fs_maxfilesize;
 	struct ext2_gd *e2fs_gd; /* Group Descriptors */
@@ -181,6 +165,14 @@ struct m_ext2fs {
  */
 #define E2FS_DATE		"95/08/09"
 #define E2FS_VERSION		"0.5b"
+
+/* First non-reserved inode for old ext2 filesystems */
+#define E2FS_REV0_FIRST_INO	11
+
+/*
+ * The second extended file system magic number
+ */
+#define E2FS_MAGIC		0xEF53
 
 /*
  * Revision levels
@@ -197,6 +189,7 @@ struct m_ext2fs {
  * compatible/incompatible features
  */
 #define EXT2F_COMPAT_PREALLOC		0x0001
+#define EXT2F_COMPAT_HASJOURNAL		0x0004
 #define EXT2F_COMPAT_RESIZE		0x0010
 
 #define EXT2F_ROCOMPAT_SPARSESUPER	0x0001
