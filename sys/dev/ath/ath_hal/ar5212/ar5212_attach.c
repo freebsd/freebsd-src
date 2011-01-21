@@ -85,7 +85,8 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_setRxFilter			= ar5212SetRxFilter,
 	.ah_setupRxDesc			= ar5212SetupRxDesc,
 	.ah_procRxDesc			= ar5212ProcRxDesc,
-	.ah_rxMonitor			= ar5212AniPoll,
+	.ah_rxMonitor			= ar5212RxMonitor,
+	.ah_aniPoll			= ar5212AniPoll,
 	.ah_procMibEvent		= ar5212ProcessMibIntr,
 
 	/* Misc Functions */

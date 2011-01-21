@@ -305,7 +305,8 @@ extern	HAL_INT ar5211SetInterrupts(struct ath_hal *, HAL_INT ints);
 extern	const HAL_RATE_TABLE *ar5211GetRateTable(struct ath_hal *, u_int mode);
 
 extern	HAL_BOOL ar5211AniControl(struct ath_hal *, HAL_ANI_CMD, int );
-extern	void ar5211AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+extern	void ar5211RxMonitor(struct ath_hal *, const HAL_NODE_STATS *,
 		const struct ieee80211_channel *);
+extern	void ar5211AniPoll(struct ath_hal *, const struct ieee80211_channel *);
 extern	void ar5211MibEvent(struct ath_hal *, const HAL_NODE_STATS *);
 #endif /* _ATH_AR5211_H_ */

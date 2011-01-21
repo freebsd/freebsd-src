@@ -709,6 +709,8 @@ struct ath_hal {
 	void	  __ahdecl(*ah_rxMonitor)(struct ath_hal *,
 				const HAL_NODE_STATS *,
 				const struct ieee80211_channel *);
+	void      __ahdecl(*ah_aniPoll)(struct ath_hal *,
+				const struct ieee80211_channel *);
 	void	  __ahdecl(*ah_procMibEvent)(struct ath_hal *,
 				const HAL_NODE_STATS *);
 

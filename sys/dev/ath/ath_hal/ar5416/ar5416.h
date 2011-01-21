@@ -113,8 +113,9 @@ extern	HAL_BOOL ar5416AniControl(struct ath_hal *, HAL_ANI_CMD cmd, int param);
 extern	HAL_BOOL ar5416AniSetParams(struct ath_hal *,
 		const struct ar5212AniParams *, const struct ar5212AniParams *);
 extern	void ar5416ProcessMibIntr(struct ath_hal *, const HAL_NODE_STATS *);
-extern	void ar5416AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+extern	void ar5416RxMonitor(struct ath_hal *, const HAL_NODE_STATS *,
 			     const struct ieee80211_channel *);
+extern	void ar5416AniPoll(struct ath_hal *, const struct ieee80211_channel *);
 extern	void ar5416AniReset(struct ath_hal *, const struct ieee80211_channel *,
 		HAL_OPMODE, int);
 
