@@ -47,10 +47,18 @@
 #include <unistd.h>
 #include <err.h>
 
+/* Use the system net80211 headers, rather than the kernel tree */
+/*
+ * XXX this means that if you build a separate net80211 stack
+ * XXX with your kernel and don't install the new/changed headers,
+ * XXX this tool may break.
+ * XXX -adrian
+ */
+#include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_radiotap.h>
+
 #include "ah.h"
 #include "ah_desc.h"
-#include "ieee80211_ioctl.h"
-#include "ieee80211_radiotap.h"
 #include "if_athioctl.h"
 
 #include "athstats.h"
