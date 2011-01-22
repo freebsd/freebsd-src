@@ -306,8 +306,9 @@ hastd_reload(void)
 	 * recreating it.
 	 *
 	 * We do just reload (send SIGHUP to worker process) if we act as
-	 * PRIMARY, but only remote address, replication mode and timeout
-	 * has changed. For those, there is no need to restart worker process.
+	 * PRIMARY, but only if remote address, replication mode, timeout or
+	 * execution path has changed. For those, there is no need to restart
+	 * worker process.
 	 * If PRIMARY receives SIGHUP, it will reconnect if remote address or
 	 * replication mode has changed or simply set new timeout if only
 	 * timeout has changed.
@@ -335,6 +336,8 @@ hastd_reload(void)
 			    sizeof(cres->hr_remoteaddr));
 			cres->hr_replication = nres->hr_replication;
 			cres->hr_timeout = nres->hr_timeout;
+			strlcpy(cres->hr_exec, nres->hr_exec,
+			    sizeof(cres->hr_exec));
 			if (cres->hr_workerpid != 0) {
 				if (kill(cres->hr_workerpid, SIGHUP) < 0) {
 					pjdlog_errno(LOG_WARNING,
