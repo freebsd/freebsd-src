@@ -5,7 +5,8 @@
 #
 # universe            - *Really* build *everything* (buildworld and
 #                       all kernels on all architectures).
-# tinderbox           - Same as universe, but stop on first failure.
+# tinderbox           - Same as universe, but presents a list of failed build
+#                       targets and exits with an error if there were any.
 # buildworld          - Rebuild *everything*, including glue to help do
 #                       upgrades.
 # installworld        - Install everything built by "buildworld".
