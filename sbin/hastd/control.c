@@ -159,12 +159,13 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	nv_add_uint8(cnvout, HASTCTL_STATUS, "cmd");
 	error = nv_error(cnvout);
 	if (error != 0) {
-		/* LOG */
+		pjdlog_common(LOG_ERR, 0, error,
+		    "Unable to prepare control header");
 		goto end;
 	}
 	if (hast_proto_send(res, res->hr_ctrl, cnvout, NULL, 0) < 0) {
 		error = errno;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Unable to send control header");
 		goto end;
 	}
 
@@ -173,7 +174,7 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	 */
 	if (hast_proto_recv_hdr(res->hr_ctrl, &cnvin) < 0) {
 		error = errno;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Unable to receive control header");
 		goto end;
 	}
 
@@ -183,7 +184,7 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 
 	if ((str = nv_get_string(cnvin, "status")) == NULL) {
 		error = ENOENT;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Field 'status' is missing.");
 		goto end;
 	}
 	nv_add_string(nvout, str, "status%u", no);
