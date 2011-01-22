@@ -29,6 +29,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ah.h"
+
 /*
  * ath statistics class.
  */
