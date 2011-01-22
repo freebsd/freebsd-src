@@ -1,6 +1,7 @@
 /*-
  * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
  * Copyright 2003 Alexander Kabaev <kan@FreeBSD.ORG>.
+ * Copyright 2009, 2010, 2011 Konstantin Belousov <kib@FreeBSD.ORG>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
