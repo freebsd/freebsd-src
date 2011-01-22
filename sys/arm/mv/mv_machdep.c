@@ -118,6 +118,10 @@ extern unsigned char _edata[];
 extern unsigned char __bss_start[];
 extern unsigned char _end[];
 
+#ifdef DDB
+extern vm_offset_t ksym_start, ksym_end;
+#endif
+
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
@@ -330,6 +334,10 @@ initarm(void *mdp, void *unused __unused)
 			dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND,
 			    vm_offset_t);
+#ifdef DDB
+			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+#endif
 		}
 
 	} else {
