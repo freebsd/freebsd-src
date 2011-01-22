@@ -297,7 +297,7 @@ TARGET_ARCHES_${target}?= ${target}
 .endfor
 
 targets:
-	@echo "Supported TARGET/TARGET_ARCH pairs"
+	@echo "Supported TARGETS/TARGET_ARCH pairs"
 .for target in ${TARGETS}
 .for target_arch in ${TARGET_ARCHES_${target}}
 	@echo "    ${target}/${target_arch}"
