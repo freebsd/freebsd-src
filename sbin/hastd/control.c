@@ -177,7 +177,7 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 		goto end;
 	}
 
-	error = nv_get_int64(cnvin, "error");
+	error = nv_get_int16(cnvin, "error");
 	if (error != 0)
 		goto end;
 
