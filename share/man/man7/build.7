@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 02, 2010
+.Dd January 22, 2011
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -229,6 +229,11 @@ This command takes a long time.
 .It Cm update
 Get updated sources as configured in
 .Xr make.conf 5 .
+.It Cm tinderbox
+Execute the same targets as
+.Cm universe .
+In addition print a summary of all failed targets at the end and
+exit with an error if there were any.
 .El
 .Pp
 Kernel specific build targets in
