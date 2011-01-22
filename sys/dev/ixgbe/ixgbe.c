@@ -5268,12 +5268,16 @@ static int
 ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 {
 	int error;
+	int last = ixgbe_flow_control;
 	struct adapter *adapter;
 
 	error = sysctl_handle_int(oidp, &ixgbe_flow_control, 0, req);
-
 	if (error)
 		return (error);
+
+	/* Don't bother if it's not changed */
+	if (ixgbe_flow_control == last)
+		return (0);
 
 	adapter = (struct adapter *) arg1;
 	switch (ixgbe_flow_control) {
