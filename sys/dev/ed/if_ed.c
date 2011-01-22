@@ -323,19 +323,19 @@ ed_attach(device_t dev)
 	sc->rx_mem = (sc->rec_page_stop - sc->rec_page_start) * ED_PAGE_SIZE;
 	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    0, "type", CTLTYPE_STRING | CTLFLAG_RD, sc->type_str, 0,
+	    0, "type", CTLFLAG_RD, sc->type_str, 0,
 	    "Type of chip in card");
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    1, "TxMem", CTLTYPE_STRING | CTLFLAG_RD, &sc->tx_mem, 0,
+	    1, "TxMem", CTLFLAG_RD, &sc->tx_mem, 0,
 	    "Memory set aside for transmitting packets");
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    2, "RxMem", CTLTYPE_STRING | CTLFLAG_RD, &sc->rx_mem, 0,
+	    2, "RxMem", CTLFLAG_RD, &sc->rx_mem, 0,
 	    "Memory  set aside for receiving packets");
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    3, "Mem", CTLTYPE_STRING | CTLFLAG_RD, &sc->mem_size, 0,
+	    3, "Mem", CTLFLAG_RD, &sc->mem_size, 0,
 	    "Total Card Memory");
 	if (bootverbose) {
 		if (sc->type_str && (*sc->type_str != 0))

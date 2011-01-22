@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
-#include "opt_msgbuf.h"
 #include "opt_perfmon.h"
 #include "opt_sched.h"
 #include "opt_kdtrace.h"
@@ -74,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/memrange.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
@@ -195,8 +193,6 @@ struct region_descriptor r_gdt, r_idt;
 struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
-
-struct mem_range_softc mem_range_softc;
 
 struct mtx dt_lock;	/* lock for GDT and LDT */
 
@@ -386,7 +382,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_rsp = (long)sfp;
-	regs->tf_rip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_rip = p->p_sysent->sv_sigcode_base;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -1507,7 +1503,7 @@ do_next:
 	 * calculation, etc.).
 	 */
 	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
-	    round_page(MSGBUF_SIZE) >= phys_avail[pa_indx]) {
+	    round_page(msgbufsize) >= phys_avail[pa_indx]) {
 		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
 		phys_avail[pa_indx--] = 0;
 		phys_avail[pa_indx--] = 0;
@@ -1516,7 +1512,7 @@ do_next:
 	Maxmem = atop(phys_avail[pa_indx]);
 
 	/* Trim off space for the message buffer. */
-	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
+	phys_avail[pa_indx] -= round_page(msgbufsize);
 
 	/* Map the message buffer. */
 	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(phys_avail[pa_indx]);
@@ -1717,7 +1713,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 	fpuinit();
 
 	/* transfer to user mode */

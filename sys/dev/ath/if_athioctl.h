@@ -119,7 +119,8 @@ struct ath_stats {
 	u_int32_t	ast_tx_raw_fail;/* raw tx failed 'cuz h/w down */
 	u_int32_t	ast_tx_nofrag;	/* tx dropped 'cuz no ath frag buffer */
 	u_int32_t	ast_be_missed;	/* missed beacons */
-	u_int32_t	ast_pad[13];
+	u_int32_t	ast_ani_cal;	/* ANI calibrations performed */
+	u_int32_t	ast_pad[12];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)

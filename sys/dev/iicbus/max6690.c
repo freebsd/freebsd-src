@@ -209,7 +209,6 @@ max6690_attach(device_t dev)
 static void
 max6690_start(void *xdev)
 {
-	phandle_t child;
 	struct max6690_softc *sc;
 	struct sysctl_oid *oid, *sensroot_oid;
 	struct sysctl_ctx_list *ctx;
@@ -221,8 +220,6 @@ max6690_start(void *xdev)
 	sc = device_get_softc(dev);
 
 	sc->sc_nsensors = 0;
-
-	child = ofw_bus_get_node(dev);
 
 	/* Count the actual number of sensors. */
 	sc->sc_nsensors = max6690_fill_sensor_prop(dev);

@@ -272,6 +272,8 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
                 return ipd_port - 16;
 	    return -1;
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
+            if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) && (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2)))
+		return (ipd_port - CVMX_HELPER_BOARD_MGMT_IPD_PORT) + 0x81;
             if ((ipd_port >= 0) && (ipd_port < 4))
                 return ipd_port;
 	    return -1;

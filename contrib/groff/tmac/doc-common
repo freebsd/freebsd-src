@@ -454,6 +454,39 @@
 .ds doc-operating-system-NetBSD-3.1   3.1
 .ds doc-operating-system-NetBSD-4.0   4.0
 .ds doc-operating-system-NetBSD-4.0.1 4.0.1
+.ds doc-operating-system-NetBSD-5.0   5.0
+.ds doc-operating-system-NetBSD-5.0.1 5.0.1
+.ds doc-operating-system-NetBSD-5.0.2 5.0.2
+.
+.ds doc-operating-system-OpenBSD-2.0  2.0
+.ds doc-operating-system-OpenBSD-2.1  2.1
+.ds doc-operating-system-OpenBSD-2.2  2.2
+.ds doc-operating-system-OpenBSD-2.3  2.3
+.ds doc-operating-system-OpenBSD-2.4  2.4
+.ds doc-operating-system-OpenBSD-2.5  2.5
+.ds doc-operating-system-OpenBSD-2.6  2.6
+.ds doc-operating-system-OpenBSD-2.7  2.7
+.ds doc-operating-system-OpenBSD-2.8  2.8
+.ds doc-operating-system-OpenBSD-2.9  2.9
+.ds doc-operating-system-OpenBSD-3.0  3.0
+.ds doc-operating-system-OpenBSD-3.1  3.1
+.ds doc-operating-system-OpenBSD-3.2  3.2
+.ds doc-operating-system-OpenBSD-3.3  3.3
+.ds doc-operating-system-OpenBSD-3.4  3.4
+.ds doc-operating-system-OpenBSD-3.5  3.5
+.ds doc-operating-system-OpenBSD-3.6  3.6
+.ds doc-operating-system-OpenBSD-3.7  3.7
+.ds doc-operating-system-OpenBSD-3.8  3.8
+.ds doc-operating-system-OpenBSD-3.9  3.9
+.ds doc-operating-system-OpenBSD-4.0  4.0
+.ds doc-operating-system-OpenBSD-4.1  4.1
+.ds doc-operating-system-OpenBSD-4.2  4.2
+.ds doc-operating-system-OpenBSD-4.3  4.3
+.ds doc-operating-system-OpenBSD-4.4  4.4
+.ds doc-operating-system-OpenBSD-4.5  4.5
+.ds doc-operating-system-OpenBSD-4.6  4.6
+.ds doc-operating-system-OpenBSD-4.7  4.7
+.ds doc-operating-system-OpenBSD-4.8  4.8
 .
 .ds doc-operating-system-FreeBSD-1.0     1.0
 .ds doc-operating-system-FreeBSD-1.1     1.1
@@ -506,6 +539,10 @@
 .ds doc-operating-system-FreeBSD-6.4     6.4
 .ds doc-operating-system-FreeBSD-7.0     7.0
 .ds doc-operating-system-FreeBSD-7.1     7.1
+.ds doc-operating-system-FreeBSD-7.2     7.2
+.ds doc-operating-system-FreeBSD-7.3     7.3
+.ds doc-operating-system-FreeBSD-8.0     8.0
+.ds doc-operating-system-FreeBSD-8.1     8.1
 .
 .ds doc-operating-system-Darwin-8.0.0  8.0.0
 .ds doc-operating-system-Darwin-8.1.0  8.1.0
@@ -540,6 +577,10 @@
 .ds doc-operating-system-DragonFly-1.12   1.12
 .ds doc-operating-system-DragonFly-1.12.2 1.12.2
 .ds doc-operating-system-DragonFly-2.0    2.0
+.ds doc-operating-system-DragonFly-2.2    2.2
+.ds doc-operating-system-DragonFly-2.4    2.4
+.ds doc-operating-system-DragonFly-2.6    2.6
+.ds doc-operating-system-DragonFly-2.8    2.8
 .
 .de Os
 .  ds doc-command-name
@@ -569,6 +610,14 @@
 .      el \
 .        tm mdoc warning: .Os: Unknown FreeBSD version `\$2' (#\n[.c])
 .  \}\}
+.  el \{ .ie "\$1"DragonFly" \{\
+.    ds doc-operating-system DragonFly
+.    if \A\$2 \{\
+.      ie d doc-operating-system-DragonFly-\$2 \
+.        as doc-operating-system \~\*[doc-operating-system-DragonFly-\$2]
+.      el \
+.        tm mdoc warning: .Os: Unknown DragonFly version `\$2' (#\n[.c])
+.  \}\}
 .  el \{ .ie "\$1"NetBSD" \{\
 .    ds doc-operating-system NetBSD
 .    if \A\$2 \{\
@@ -576,6 +625,14 @@
 .        as doc-operating-system \~\*[doc-operating-system-NetBSD-\$2]
 .      el \
 .        tm mdoc warning: .Os: Unknown NetBSD version `\$2' (#\n[.c])
+.  \}\}
+.  el \{ .ie "\$1"OpenBSD" \{\
+.    ds doc-operating-system OpenBSD
+.    if \A\$2 \{\
+.      ie d doc-operating-system-OpenBSD-\$2 \
+.        as doc-operating-system \~\*[doc-operating-system-OpenBSD-\$2]
+.      el \
+.        tm mdoc warning: .Os: Unknown OpenBSD version `\$2' (#\n[.c])
 .  \}\}
 .  el \{ .ie "\$1"Darwin" \{\
 .    ds doc-operating-system Darwin
@@ -589,7 +646,7 @@
 .    ds doc-operating-system \$1
 .    if !"\$2"" \
 .      as doc-operating-system " \$2
-.  \}\}\}\}\}\}
+.  \}\}\}\}\}\}\}\}
 ..
 .
 .

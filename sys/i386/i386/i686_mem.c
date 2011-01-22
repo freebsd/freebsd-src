@@ -305,6 +305,8 @@ i686_mrstoreone(void *arg)
 
 	mrd = sc->mr_desc;
 
+	critical_enter();
+
 	/* Disable PGE. */
 	cr4 = rcr4();
 	load_cr4(cr4 & ~CR4_PGE);
@@ -393,6 +395,8 @@ i686_mrstoreone(void *arg)
 	/* Restore caches and PGE. */
 	load_cr0(cr0);
 	load_cr4(cr4);
+
+	critical_exit();
 }
 
 /*

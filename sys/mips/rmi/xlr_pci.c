@@ -426,7 +426,7 @@ static void
 bridge_pcix_ack(int irq)
 {
 
-	xlr_read_reg(xlr_io_mmio(XLR_IO_PCIX_OFFSET), 0x140 >> 2);
+	(void)xlr_read_reg(xlr_io_mmio(XLR_IO_PCIX_OFFSET), 0x140 >> 2);
 }
 
 static void

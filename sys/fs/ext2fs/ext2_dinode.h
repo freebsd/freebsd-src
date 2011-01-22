@@ -32,6 +32,23 @@
 #define e2di_size_high	e2di_dacl
 
 /*
+ * Special inode numbers
+ * The root inode is the root of the file system.  Inode 0 can't be used for
+ * normal purposes and bad blocks are normally linked to inode 1, thus
+ * the root inode is 2.
+ * Inode 3 to 10 are reserved in ext2fs.
+ */
+#define	EXT2_BADBLKINO		((ino_t)1)
+#define	EXT2_ROOTINO		((ino_t)2)
+#define	EXT2_ACLIDXINO		((ino_t)3)
+#define	EXT2_ACLDATAINO		((ino_t)4)
+#define	EXT2_BOOTLOADERINO	((ino_t)5)
+#define	EXT2_UNDELDIRINO	((ino_t)6)
+#define	EXT2_RESIZEINO		((ino_t)7)
+#define	EXT2_JOURNALINO		((ino_t)8)
+#define	EXT2_FIRSTINO		((ino_t)11)
+
+/*
  * Inode flags
  * The current implementation uses only EXT2_IMMUTABLE and EXT2_APPEND flags
  */
@@ -74,5 +91,5 @@ struct ext2fs_dinode {
 	u_int32_t	e2di_linux_reserved3; /* 124 */
 };
 
-#endif /* _FS_EXT2FS_EXT2_DINODE_H_ */
+#endif /* !_FS_EXT2FS_EXT2_DINODE_H_ */
 

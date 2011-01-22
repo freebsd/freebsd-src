@@ -34,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -207,8 +206,9 @@ usb_detach(device_t dev)
 
 	usb_proc_free(&bus->control_xfer_proc);
 
+#if USB_HAVE_PF
 	usbpf_detach(bus);
-
+#endif
 	return (0);
 }
 
@@ -437,8 +437,9 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 		usb_devclass_ptr = devclass_find("usbus");
 	mtx_unlock(&Giant);
 
+#if USB_HAVE_PF
 	usbpf_attach(bus);
-
+#endif
 	/* Initialise USB process messages */
 	bus->explore_msg[0].hdr.pm_callback = &usb_bus_explore;
 	bus->explore_msg[0].bus = bus;

@@ -745,7 +745,8 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 
 	/* Adjust priority if requested. */
 	MPASS(pri == 0 || (pri >= PRI_MIN && pri <= PRI_MAX));
-	if (pri != 0 && td->td_priority > pri)
+	if (pri != 0 && td->td_priority > pri &&
+	    PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
 		sched_prio(td, pri);
 
 	/*

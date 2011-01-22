@@ -98,16 +98,19 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setupXTxDesc		= ar5416SetupXTxDesc;
 	ah->ah_fillTxDesc		= ar5416FillTxDesc;
 	ah->ah_procTxDesc		= ar5416ProcTxDesc;
+	ah->ah_getTxCompletionRates	= ar5416GetTxCompletionRates;
 
 	/* Receive Functions */
 	ah->ah_startPcuReceive		= ar5416StartPcuReceive;
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
 	ah->ah_procRxDesc		= ar5416ProcRxDesc;
-	ah->ah_rxMonitor		= ar5416AniPoll,
-	ah->ah_procMibEvent		= ar5416ProcessMibIntr,
+	ah->ah_rxMonitor		= ar5416RxMonitor;
+	ah->ah_aniPoll			= ar5416AniPoll;
+	ah->ah_procMibEvent		= ar5416ProcessMibIntr;
 
 	/* Misc Functions */
+	ah->ah_getCapability		= ar5416GetCapability;
 	ah->ah_getDiagState		= ar5416GetDiagState;
 	ah->ah_setLedState		= ar5416SetLedState;
 	ah->ah_gpioCfgOutput		= ar5416GpioCfgOutput;
@@ -189,7 +192,8 @@ ar5416GetRadioRev(struct ath_hal *ah)
  */
 static struct ath_hal *
 ar5416Attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_STATUS *status)
 {
 	struct ath_hal_5416 *ahp5416;
 	struct ath_hal_5212 *ahp;

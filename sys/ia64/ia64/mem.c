@@ -168,8 +168,3 @@ memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	*paddr = IA64_PHYS_TO_RR7(offset);
 	return (0);
 }
-
-void
-dev_mem_md_init(void)
-{
-}

@@ -113,8 +113,9 @@ extern	HAL_BOOL ar5416AniControl(struct ath_hal *, HAL_ANI_CMD cmd, int param);
 extern	HAL_BOOL ar5416AniSetParams(struct ath_hal *,
 		const struct ar5212AniParams *, const struct ar5212AniParams *);
 extern	void ar5416ProcessMibIntr(struct ath_hal *, const HAL_NODE_STATS *);
-extern	void ar5416AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+extern	void ar5416RxMonitor(struct ath_hal *, const HAL_NODE_STATS *,
 			     const struct ieee80211_channel *);
+extern	void ar5416AniPoll(struct ath_hal *, const struct ieee80211_channel *);
 extern	void ar5416AniReset(struct ath_hal *, const struct ieee80211_channel *,
 		HAL_OPMODE, int);
 
@@ -218,6 +219,8 @@ extern	HAL_BOOL ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		const struct ath_desc *ds0);
 extern	HAL_STATUS ar5416ProcTxDesc(struct ath_hal *ah,
 		struct ath_desc *, struct ath_tx_status *);
+extern	HAL_BOOL ar5416GetTxCompletionRates(struct ath_hal *ah,
+		const struct ath_desc *ds0, int *rates, int *tries);
 
 extern	const HAL_RATE_TABLE *ar5416GetRateTable(struct ath_hal *, u_int mode);
 #endif	/* _ATH_AR5416_H_ */

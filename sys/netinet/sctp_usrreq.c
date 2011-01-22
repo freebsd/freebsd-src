@@ -48,11 +48,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_bsd_addr.h>
-#include <netinet/sctp_cc_functions.h>
 #include <netinet/udp.h>
 
 
 
+extern struct sctp_cc_functions sctp_cc_functions[];
 
 void
 sctp_init(void)
@@ -2341,7 +2341,16 @@ flags_out:
 			}
 
 			if ((stcb) && (net)) {
-				paddri->spinfo_state = net->dest_state & (SCTP_REACHABLE_MASK | SCTP_ADDR_NOHB);
+				if (net->dest_state & SCTP_ADDR_UNCONFIRMED) {
+					/* It's unconfirmed */
+					paddri->spinfo_state = SCTP_UNCONFIRMED;
+				} else if (net->dest_state & SCTP_ADDR_REACHABLE) {
+					/* It's active */
+					paddri->spinfo_state = SCTP_ACTIVE;
+				} else {
+					/* It's inactive */
+					paddri->spinfo_state = SCTP_INACTIVE;
+				}
 				paddri->spinfo_cwnd = net->cwnd;
 				paddri->spinfo_srtt = ((net->lastsa >> 2) + net->lastsv) >> 1;
 				paddri->spinfo_rto = net->RTO;
@@ -2409,7 +2418,16 @@ flags_out:
 			 * Again the user can get info from sctp_constants.h
 			 * for what the state of the network is.
 			 */
-			sstat->sstat_primary.spinfo_state = net->dest_state & SCTP_REACHABLE_MASK;
+			if (net->dest_state & SCTP_ADDR_UNCONFIRMED) {
+				/* It's unconfirmed */
+				sstat->sstat_primary.spinfo_state = SCTP_UNCONFIRMED;
+			} else if (net->dest_state & SCTP_ADDR_REACHABLE) {
+				/* It's active */
+				sstat->sstat_primary.spinfo_state = SCTP_ACTIVE;
+			} else {
+				/* It's inactive */
+				sstat->sstat_primary.spinfo_state = SCTP_INACTIVE;
+			}
 			sstat->sstat_primary.spinfo_cwnd = net->cwnd;
 			sstat->sstat_primary.spinfo_srtt = net->lastsa;
 			sstat->sstat_primary.spinfo_rto = net->RTO;
@@ -2867,75 +2885,26 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 			if (stcb) {
 				switch (av->assoc_value) {
-					/*
-					 * JRS - Standard TCP congestion
-					 * control
-					 */
 				case SCTP_CC_RFC2581:
-					{
-						stcb->asoc.congestion_control_module = SCTP_CC_RFC2581;
-						stcb->asoc.cc_functions.sctp_set_initial_cc_param = &sctp_set_initial_cc_param;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_sack = &sctp_cwnd_update_after_sack;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_fr = &sctp_cwnd_update_after_fr;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_timeout = &sctp_cwnd_update_after_timeout;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo = &sctp_cwnd_update_after_ecn_echo;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_packet_dropped = &sctp_cwnd_update_after_packet_dropped;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_output = &sctp_cwnd_update_after_output;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer = &sctp_cwnd_update_after_fr_timer;
-						SCTP_TCB_UNLOCK(stcb);
-						break;
-					}
-					/*
-					 * JRS - High Speed TCP congestion
-					 * control (Floyd)
-					 */
 				case SCTP_CC_HSTCP:
-					{
-						stcb->asoc.congestion_control_module = SCTP_CC_HSTCP;
-						stcb->asoc.cc_functions.sctp_set_initial_cc_param = &sctp_set_initial_cc_param;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_sack = &sctp_hs_cwnd_update_after_sack;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_fr = &sctp_hs_cwnd_update_after_fr;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_timeout = &sctp_cwnd_update_after_timeout;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo = &sctp_cwnd_update_after_ecn_echo;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_packet_dropped = &sctp_cwnd_update_after_packet_dropped;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_output = &sctp_cwnd_update_after_output;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer = &sctp_cwnd_update_after_fr_timer;
-						SCTP_TCB_UNLOCK(stcb);
-						break;
-					}
-					/* JRS - HTCP congestion control */
 				case SCTP_CC_HTCP:
-					{
-						stcb->asoc.congestion_control_module = SCTP_CC_HTCP;
-						stcb->asoc.cc_functions.sctp_set_initial_cc_param = &sctp_htcp_set_initial_cc_param;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_sack = &sctp_htcp_cwnd_update_after_sack;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_fr = &sctp_htcp_cwnd_update_after_fr;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_timeout = &sctp_htcp_cwnd_update_after_timeout;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo = &sctp_htcp_cwnd_update_after_ecn_echo;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_packet_dropped = &sctp_cwnd_update_after_packet_dropped;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_output = &sctp_cwnd_update_after_output;
-						stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer = &sctp_htcp_cwnd_update_after_fr_timer;
-						SCTP_TCB_UNLOCK(stcb);
-						break;
-					}
-					/*
-					 * JRS - All other values are
-					 * invalid
-					 */
+					stcb->asoc.cc_functions = sctp_cc_functions[av->assoc_value];
+					stcb->asoc.congestion_control_module = av->assoc_value;
+					break;
 				default:
-					{
-						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-						error = EINVAL;
-						SCTP_TCB_UNLOCK(stcb);
-						break;
-					}
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+					break;
 				}
+				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				switch (av->assoc_value) {
 				case SCTP_CC_RFC2581:
 				case SCTP_CC_HSTCP:
 				case SCTP_CC_HTCP:
+					SCTP_INP_WLOCK(inp);
 					inp->sctp_ep.sctp_default_cc_module = av->assoc_value;
+					SCTP_INP_WUNLOCK(inp);
 					break;
 				default:
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);

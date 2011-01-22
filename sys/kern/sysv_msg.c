@@ -1284,7 +1284,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, msgssz, CTLFLAG_RDTUN, &msginfo.msgssz, 0,
     "Size of a message segment");
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgseg, CTLFLAG_RDTUN, &msginfo.msgseg, 0,
     "Number of message segments");
-SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLFLAG_RD,
+SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLTYPE_OPAQUE | CTLFLAG_RD,
     NULL, 0, sysctl_msqids, "", "Message queue IDs");
 
 #ifdef COMPAT_FREEBSD32

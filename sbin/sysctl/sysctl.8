@@ -28,7 +28,7 @@
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2010
+.Dd January 17, 2011
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -134,9 +134,7 @@ few bytes.
 .Pp
 The information available from
 .Nm
-consists of integers, strings, devices
-.Pq Vt dev_t ,
-and opaque types.
+consists of integers, strings, and opaque types.
 The
 .Nm
 utility
@@ -165,17 +163,8 @@ For a detailed description of these variable see
 .Pp
 The changeable column indicates whether a process with appropriate
 privilege can change the value.
-String, integer, and devices values can be set using
+String and integer values can be set using
 .Nm .
-For device values,
-.Ar value
-can be specified as a character device special file name.
-Special values
-.Cm off
-and
-.Cm none
-denote
-.Dq no device .
 .Bl -column security.bsd.unprivileged_read_msgbuf integerxxx
 .It Sy "Name	Type	Changeable
 .It "kern.ostype	string	no
@@ -220,7 +209,6 @@ denote
 .It "hw.floatingpoint	integer	no
 .It "hw.machine_arch	string	no
 .It "hw.realmem	integer	no
-.It "machdep.console_device	dev_t	no
 .It "machdep.adjkerntz	integer	yes
 .It "machdep.disable_rtc_set	integer	yes
 .It "machdep.guessed_bootdev	string	no

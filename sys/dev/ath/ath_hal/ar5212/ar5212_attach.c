@@ -69,6 +69,7 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_procTxDesc			= ar5212ProcTxDesc,
 	.ah_getTxIntrQueue		= ar5212GetTxIntrQueue,
 	.ah_reqTxIntrDesc 		= ar5212IntrReqTxDesc,
+	.ah_getTxCompletionRates	= ar5212GetTxCompletionRates,
 
 	/* RX Functions */
 	.ah_getRxDP			= ar5212GetRxDP,
@@ -84,7 +85,8 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_setRxFilter			= ar5212SetRxFilter,
 	.ah_setupRxDesc			= ar5212SetupRxDesc,
 	.ah_procRxDesc			= ar5212ProcRxDesc,
-	.ah_rxMonitor			= ar5212AniPoll,
+	.ah_rxMonitor			= ar5212RxMonitor,
+	.ah_aniPoll			= ar5212AniPoll,
 	.ah_procMibEvent		= ar5212ProcessMibIntr,
 
 	/* Misc Functions */
@@ -294,7 +296,8 @@ ar5212IsMacSupported(uint8_t macVersion, uint8_t macRev)
  */
 static struct ath_hal *
 ar5212Attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_STATUS *status)
 {
 #define	AH_EEPROM_PROTECT(ah) \
 	(AH_PRIVATE(ah)->ah_ispcie)? AR_EEPROM_PROTECT_PCIE : AR_EEPROM_PROTECT)

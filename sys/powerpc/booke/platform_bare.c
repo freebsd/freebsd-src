@@ -59,6 +59,8 @@ extern uint8_t __boot_page[];		/* Boot page body */
 extern uint32_t kernload;		/* Kernel physical load address */
 #endif
 
+extern uint32_t *bootinfo;
+
 static int cpu, maxcpu;
 
 static int bare_probe(platform_t);
@@ -160,9 +162,12 @@ bare_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
 static u_long
 bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
-	u_long ticks = -1;
+	u_long ticks;
 	phandle_t cpus, child;
 	pcell_t freq;
+
+	/* Backward compatibility. See 8-STABLE. */
+	ticks = bootinfo[3] >> 3;
 
 	if ((cpus = OF_finddevice("/cpus")) == 0)
 		goto out;
@@ -170,14 +175,18 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	if ((child = OF_child(cpus)) == 0)
 		goto out;
 
+	freq = 0;
 	if (OF_getprop(child, "bus-frequency", (void *)&freq,
 	    sizeof(freq)) <= 0)
 		goto out;
+
 	/*
 	 * Time Base and Decrementer are updated every 8 CCB bus clocks.
 	 * HID0[SEL_TBCLK] = 0
 	 */
-	ticks = freq / 8;
+	if (freq != 0)
+		ticks = freq / 8;
+
 out:
 	if (ticks <= 0)
 		panic("Unable to determine timebase frequency!");

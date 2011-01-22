@@ -381,9 +381,13 @@ jailparam_import(struct jailparam *jp, const char *value)
 			((unsigned long *)jp->jp_value)[i] =
 			    strtoul(avalue, &ep, 10);
 			goto integer_test;
-		case CTLTYPE_QUAD:
+		case CTLTYPE_S64:
 			((int64_t *)jp->jp_value)[i] =
 			    strtoimax(avalue, &ep, 10);
+			goto integer_test;
+		case CTLTYPE_U64:
+			((uint64_t *)jp->jp_value)[i] =
+			    strtoumax(avalue, &ep, 10);
 			goto integer_test;
 		case CTLTYPE_STRUCT:
 			tvalue = alloca(fw + 1);
@@ -768,9 +772,13 @@ jailparam_export(struct jailparam *jp)
 			snprintf(valbuf, sizeof(valbuf), "%lu",
 			    ((unsigned long *)jp->jp_value)[i]);
 			break;
-		case CTLTYPE_QUAD:
+		case CTLTYPE_S64:
 			snprintf(valbuf, sizeof(valbuf), "%jd",
 			    (intmax_t)((int64_t *)jp->jp_value)[i]);
+			break;
+		case CTLTYPE_U64:
+			snprintf(valbuf, sizeof(valbuf), "%ju",
+			    (uintmax_t)((uint64_t *)jp->jp_value)[i]);
 			break;
 		case CTLTYPE_STRUCT:
 			switch (jp->jp_structtype) {
@@ -941,7 +949,8 @@ jailparam_type(struct jailparam *jp)
 	case CTLTYPE_ULONG:
 		jp->jp_valuelen = sizeof(long);
 		break;
-	case CTLTYPE_QUAD:
+	case CTLTYPE_S64:
+	case CTLTYPE_U64:
 		jp->jp_valuelen = sizeof(int64_t);
 		break;
 	case CTLTYPE_STRING:

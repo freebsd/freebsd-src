@@ -675,14 +675,13 @@ ale_detach(device_t dev)
 
 	ifp = sc->ale_ifp;
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		ALE_LOCK(sc);
-		sc->ale_flags |= ALE_FLAG_DETACH;
 		ale_stop(sc);
 		ALE_UNLOCK(sc);
 		callout_drain(&sc->ale_tick_ch);
 		taskqueue_drain(sc->ale_tq, &sc->ale_int_task);
 		taskqueue_drain(taskqueue_swi, &sc->ale_link_task);
-		ether_ifdetach(ifp);
 	}
 
 	if (sc->ale_tq != NULL) {
@@ -729,7 +728,10 @@ ale_detach(device_t dev)
 #define	ALE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
 	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
 
-#if __FreeBSD_version > 800000
+#if __FreeBSD_version >= 900030
+#define	ALE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+#elif __FreeBSD_version > 800000
 #define	ALE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
 	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
 #else
@@ -1904,8 +1906,6 @@ ale_start_locked(struct ifnet *ifp)
 		/* Set a timeout in case the chip goes out to lunch. */
 		sc->ale_watchdog_timer = ALE_TX_TIMEOUT;
 	}
-
-	ALE_UNLOCK(sc);
 }
 
 static void
@@ -1969,8 +1969,7 @@ ale_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 					ale_rxfilter(sc);
 			} else {
-				if ((sc->ale_flags & ALE_FLAG_DETACH) == 0)
-					ale_init_locked(sc);
+				ale_init_locked(sc);
 			}
 		} else {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
@@ -2281,6 +2280,7 @@ ale_int_task(void *arg, int pending)
 	sc = (struct ale_softc *)arg;
 
 	status = CSR_READ_4(sc, ALE_INTR_STATUS);
+	ALE_LOCK(sc);
 	if (sc->ale_morework != 0)
 		status |= INTR_RX_PKT;
 	if ((status & ALE_INTRS) == 0)
@@ -2296,7 +2296,6 @@ ale_int_task(void *arg, int pending)
 		if (more == EAGAIN)
 			sc->ale_morework = 1;
 		else if (more == EIO) {
-			ALE_LOCK(sc);
 			sc->ale_stats.reset_brk_seq++;
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ale_init_locked(sc);
@@ -2311,7 +2310,6 @@ ale_int_task(void *arg, int pending)
 			if ((status & INTR_DMA_WR_TO_RST) != 0)
 				device_printf(sc->ale_dev,
 				    "DMA write error! -- resetting\n");
-			ALE_LOCK(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ale_init_locked(sc);
 			ALE_UNLOCK(sc);
@@ -2323,11 +2321,14 @@ ale_int_task(void *arg, int pending)
 
 	if (more == EAGAIN ||
 	    (CSR_READ_4(sc, ALE_INTR_STATUS) & ALE_INTRS) != 0) {
+		ALE_UNLOCK(sc);
 		taskqueue_enqueue(sc->ale_tq, &sc->ale_int_task);
 		return;
 	}
 
 done:
+	ALE_UNLOCK(sc);
+
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, ALE_INTR_STATUS, 0x7FFFFFFF);
 }
@@ -2584,7 +2585,9 @@ ale_rxeof(struct ale_softc *sc, int count)
 		}
 
 		/* Pass it to upper layer. */
+		ALE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		ALE_LOCK(sc);
 
 		ale_rx_update_page(sc, &rx_page, length, &prod);
 	}

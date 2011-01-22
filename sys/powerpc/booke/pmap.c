@@ -979,7 +979,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 
 	/* Allocate space for the message buffer. */
 	msgbufp = (struct msgbuf *)data_end;
-	data_end += MSGBUF_SIZE;
+	data_end += msgbufsize;
 	debugf(" msgbufp at 0x%08x end = 0x%08x\n", (uint32_t)msgbufp,
 	    data_end);
 

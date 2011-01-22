@@ -4378,7 +4378,7 @@ msk_sysctl_stat64(SYSCTL_HANDLER_ARGS)
 	result += *stat;
 	MSK_IF_UNLOCK(sc_if);
 
-	return (sysctl_handle_quad(oidp, &result, 0, req));
+	return (sysctl_handle_64(oidp, &result, 0, req));
 }
 
 #undef MSK_READ_MIB32
@@ -4389,9 +4389,9 @@ msk_sysctl_stat64(SYSCTL_HANDLER_ARGS)
 	    sc, offsetof(struct msk_hw_stats, n), msk_sysctl_stat32,	\
 	    "IU", d)
 #define MSK_SYSCTL_STAT64(sc, c, o, p, n, d) 				\
-	SYSCTL_ADD_PROC(c, p, OID_AUTO, o, CTLTYPE_UINT | CTLFLAG_RD, 	\
+	SYSCTL_ADD_PROC(c, p, OID_AUTO, o, CTLTYPE_U64 | CTLFLAG_RD, 	\
 	    sc, offsetof(struct msk_hw_stats, n), msk_sysctl_stat64,	\
-	    "Q", d)
+	    "QU", d)
 
 static void
 msk_sysctl_node(struct msk_if_softc *sc_if)

@@ -52,16 +52,16 @@ typedef	short			__int16_t;
 typedef	unsigned short		__uint16_t;
 typedef	int			__int32_t;
 typedef	unsigned int		__uint32_t;
-
-#ifdef __GNUCLIKE_ATTRIBUTE_MODE_DI
-typedef	int __attribute__((__mode__(__DI__)))		__int64_t;
-typedef	unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
-#else
+#ifndef lint
+__extension__
+#endif
 /* LONGLONG */
 typedef	long long		__int64_t;
+#ifndef lint
+__extension__
+#endif
 /* LONGLONG */
 typedef	unsigned long long	__uint64_t;
-#endif
 
 /*
  * Standard type definitions.

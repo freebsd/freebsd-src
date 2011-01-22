@@ -1760,8 +1760,6 @@ age_start_locked(struct ifnet *ifp)
 		/* Set a timeout in case the chip goes out to lunch. */
 		sc->age_watchdog_timer = AGE_TX_TIMEOUT;
 	}
-
-	AGE_UNLOCK(sc);
 }
 
 static void

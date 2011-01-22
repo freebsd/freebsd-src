@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_athvar.h>
 #include <dev/ath/ath_hal/ah_devid.h>		/* XXX for softled */
+#include <dev/ath/ath_hal/ah_diagcodes.h>
 
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
@@ -273,6 +274,9 @@ SYSCTL_INT(_hw_ath, OID_AUTO, shortcal, CTLFLAG_RW, &ath_shortcalinterval,
 static	int ath_resetcalinterval = 20*60;	/* reset cal state 20 mins */
 SYSCTL_INT(_hw_ath, OID_AUTO, resetcal, CTLFLAG_RW, &ath_resetcalinterval,
 	    0, "reset chip calibration results (secs)");
+static	int ath_anicalinterval = 100;		/* ANI calibration - 100 msec */
+SYSCTL_INT(_hw_ath, OID_AUTO, anical, CTLFLAG_RW, &ath_anicalinterval,
+	    0, "ANI calibration (msecs)");
 
 static	int ath_rxbuf = ATH_RXBUF;		/* # rx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, rxbuf, CTLFLAG_RW, &ath_rxbuf,
@@ -373,7 +377,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if_initname(ifp, device_get_name(sc->sc_dev),
 		device_get_unit(sc->sc_dev));
 
-	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh, &status);
+	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh, sc->sc_eepromdata, &status);
 	if (ah == NULL) {
 		if_printf(ifp, "unable to attach hardware; HAL status %u\n",
 			status);
@@ -1460,7 +1464,7 @@ ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask, uint32_t *hangs)
 	uint32_t rsize;
 	void *sp;
 
-	if (!ath_hal_getdiagstate(ah, 32, &mask, sizeof(mask), &sp, &rsize))
+	if (!ath_hal_getdiagstate(ah, HAL_DIAG_CHECK_HANGS, &mask, sizeof(mask), &sp, &rsize))
 		return 0;
 	KASSERT(rsize == sizeof(uint32_t), ("resultsize %u", rsize));
 	*hangs = *(uint32_t *)sp;
@@ -1549,6 +1553,9 @@ ath_init(void *arg)
 	sc->sc_lastlongcal = 0;
 	sc->sc_resetcal = 1;
 	sc->sc_lastcalreset = 0;
+	sc->sc_lastani = 0;
+	sc->sc_lastshortcal = 0;
+	sc->sc_doresetcal = AH_FALSE;
 
 	/*
 	 * Setup the hardware after reset: the key cache
@@ -5414,11 +5421,23 @@ ath_calibrate(void *arg)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	HAL_BOOL longCal, isCalDone;
+	HAL_BOOL aniCal, shortCal = AH_FALSE;
 	int nextcal;
 
 	if (ic->ic_flags & IEEE80211_F_SCAN)	/* defer, off channel */
 		goto restart;
 	longCal = (ticks - sc->sc_lastlongcal >= ath_longcalinterval*hz);
+	aniCal = (ticks - sc->sc_lastani >= ath_anicalinterval*hz/1000);
+	if (sc->sc_doresetcal)
+		shortCal = (ticks - sc->sc_lastshortcal >= ath_shortcalinterval*hz/1000);
+
+	DPRINTF(sc, ATH_DEBUG_CALIBRATE, "%s: shortCal=%d; longCal=%d; aniCal=%d\n", __func__, shortCal, longCal, aniCal);
+	if (aniCal) {
+		sc->sc_stats.ast_ani_cal++;
+		sc->sc_lastani = ticks;
+		ath_hal_ani_poll(ah, sc->sc_curchan);
+	}
+
 	if (longCal) {
 		sc->sc_stats.ast_per_cal++;
 		sc->sc_lastlongcal = ticks;
@@ -5439,21 +5458,29 @@ ath_calibrate(void *arg)
 		if (sc->sc_resetcal) {
 			(void) ath_hal_calreset(ah, sc->sc_curchan);
 			sc->sc_lastcalreset = ticks;
+			sc->sc_lastshortcal = ticks;
 			sc->sc_resetcal = 0;
+			sc->sc_doresetcal = AH_TRUE;
 		}
 	}
-	if (ath_hal_calibrateN(ah, sc->sc_curchan, longCal, &isCalDone)) {
-		if (longCal) {
-			/*
-			 * Calibrate noise floor data again in case of change.
-			 */
-			ath_hal_process_noisefloor(ah);
+
+	/* Only call if we're doing a short/long cal, not for ANI calibration */
+	if (shortCal || longCal) {
+		if (ath_hal_calibrateN(ah, sc->sc_curchan, longCal, &isCalDone)) {
+			if (longCal) {
+				/*
+				 * Calibrate noise floor data again in case of change.
+				 */
+				ath_hal_process_noisefloor(ah);
+			}
+		} else {
+			DPRINTF(sc, ATH_DEBUG_ANY,
+				"%s: calibration of channel %u failed\n",
+				__func__, sc->sc_curchan->ic_freq);
+			sc->sc_stats.ast_per_calfail++;
 		}
-	} else {
-		DPRINTF(sc, ATH_DEBUG_ANY,
-			"%s: calibration of channel %u failed\n",
-			__func__, sc->sc_curchan->ic_freq);
-		sc->sc_stats.ast_per_calfail++;
+		if (shortCal)
+			sc->sc_lastshortcal = ticks;
 	}
 	if (!isCalDone) {
 restart:
@@ -5465,16 +5492,23 @@ restart:
 		 * work when operating as an AP to improve operation right
 		 * after startup.
 		 */
-		nextcal = (1000*ath_shortcalinterval)/hz;
+		sc->sc_lastshortcal = ticks;
+		nextcal = ath_shortcalinterval*hz/1000;
 		if (sc->sc_opmode != HAL_M_HOSTAP)
 			nextcal *= 10;
+		sc->sc_doresetcal = AH_TRUE;
 	} else {
+		/* nextcal should be the shortest time for next event */
 		nextcal = ath_longcalinterval*hz;
 		if (sc->sc_lastcalreset == 0)
 			sc->sc_lastcalreset = sc->sc_lastlongcal;
 		else if (ticks - sc->sc_lastcalreset >= ath_resetcalinterval*hz)
 			sc->sc_resetcal = 1;	/* setup reset next trip */
+		sc->sc_doresetcal = AH_FALSE;
 	}
+	/* ANI calibration may occur more often than short/long/resetcal */
+	if (ath_anicalinterval > 0)
+		nextcal = MIN(nextcal, ath_anicalinterval*hz/1000);
 
 	if (nextcal != 0) {
 		DPRINTF(sc, ATH_DEBUG_CALIBRATE, "%s: next +%u (%sisCalDone)\n",
@@ -6565,10 +6599,10 @@ ath_sysctlattach(struct ath_softc *sc)
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 	struct ath_hal *ah = sc->sc_ah;
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"countrycode", CTLFLAG_RD, &sc->sc_eecc, 0,
 		"EEPROM country code");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"regdomain", CTLFLAG_RD, &sc->sc_eerd, 0,
 		"EEPROM regdomain code");
 #ifdef	ATH_DEBUG
@@ -6591,10 +6625,10 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledpin", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_ledpin, "I", "GPIO pin connected to LED");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledon", CTLFLAG_RW, &sc->sc_ledon, 0,
 		"setting to turn LED on");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledidle", CTLFLAG_RW, &sc->sc_ledidle, 0,
 		"idle time for inactivity LED (ticks)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -6608,7 +6642,7 @@ ath_sysctlattach(struct ath_softc *sc)
 			"diversity", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_diversity, "I", "antenna diversity");
 	sc->sc_txintrperiod = ATH_TXINTR_PERIOD;
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txintrperiod", CTLFLAG_RW, &sc->sc_txintrperiod, 0,
 		"tx descriptor batching");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -6642,23 +6676,23 @@ ath_sysctlattach(struct ath_softc *sc)
 			ath_sysctl_intmit, "I", "interference mitigation");
 	}
 	sc->sc_monpass = HAL_RXERR_DECRYPT | HAL_RXERR_MIC;
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"monpass", CTLFLAG_RW, &sc->sc_monpass, 0,
 		"mask of error frames to pass when monitoring");
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
 		sc->sc_tdmadbaprep = 2;
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"dbaprep", CTLFLAG_RW, &sc->sc_tdmadbaprep, 0,
 			"TDMA DBA preparation time");
 		sc->sc_tdmaswbaprep = 10;
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"swbaprep", CTLFLAG_RW, &sc->sc_tdmaswbaprep, 0,
 			"TDMA SWBA preparation time");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"guardtime", CTLFLAG_RW, &sc->sc_tdmaguard, 0,
 			"TDMA slot guard time");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"superframe", CTLFLAG_RD, &sc->sc_tdmabintval, 0,
 			"TDMA calculated super frame");
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -7515,4 +7549,6 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_nofrag, 0, "tx dropped 'cuz no ath frag buffer");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_be_missed", CTLFLAG_RD,
 	    &sc->sc_stats.ast_be_missed, 0, "number of -missed- beacons");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ani_cal", CTLFLAG_RD,
+	    &sc->sc_stats.ast_ani_cal, 0, "number of ANI polls");
 }

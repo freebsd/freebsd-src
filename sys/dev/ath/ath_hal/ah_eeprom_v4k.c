@@ -137,8 +137,8 @@ v4kEepromDiag(struct ath_hal *ah, int request,
 
 	switch (request) {
 	case HAL_DIAG_EEPROM:
-		*result = &ee->ee_base;
-		*resultsize = sizeof(ee->ee_base);
+		*result = ee;
+		*resultsize = sizeof(HAL_EEPROM_v4k);
 		return AH_TRUE;
 	}
 	return AH_FALSE;

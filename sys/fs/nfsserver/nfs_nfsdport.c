@@ -58,6 +58,10 @@ struct mtx nfs_cache_mutex;
 struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
 int nfs_pubfhset = 0, nfs_rootfhset = 0;
+struct proc *nfsd_master_proc = NULL;
+static pid_t nfsd_master_pid = (pid_t)-1;
+static char nfsd_master_comm[MAXCOMLEN + 1];
+static struct timeval nfsd_master_start;
 static uint32_t nfsv4_sysid = 0;
 
 static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
@@ -1685,6 +1689,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct iovec iv;
 	struct componentname cn;
 	int not_zfs;
+	struct mount *mp;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -1854,7 +1859,24 @@ again:
 		toff = off;
 		goto again;
 	}
+
+	/*
+	 * Busy the file system so that the mount point won't go away
+	 * and, as such, VFS_VGET() can be used safely.
+	 */
+	mp = vp->v_mount;
+	vfs_ref(mp);
 	VOP_UNLOCK(vp, 0);
+	nd->nd_repstat = vfs_busy(mp, 0);
+	vfs_rel(mp);
+	if (nd->nd_repstat != 0) {
+		vrele(vp);
+		free(cookies, M_TEMP);
+		free(rbuf, M_TEMP);
+		if (nd->nd_flag & ND_NFSV3)
+			nfsrv_postopattr(nd, getret, &at);
+		return (0);
+	}
 
 	/*
 	 * Save this position, in case there is an error before one entry
@@ -1914,9 +1936,8 @@ again:
 					    vp, dp->d_fileno);
 				if (refp == NULL) {
 					if (usevget)
-						r = VFS_VGET(vp->v_mount,
-						    dp->d_fileno, LK_SHARED,
-						    &nvp);
+						r = VFS_VGET(mp, dp->d_fileno,
+						    LK_SHARED, &nvp);
 					else
 						r = EOPNOTSUPP;
 					if (r == EOPNOTSUPP) {
@@ -2035,6 +2056,7 @@ again:
 		ncookies--;
 	}
 	vrele(vp);
+	vfs_unbusy(mp);
 
 	/*
 	 * If dirlen > cnt, we must strip off the last entry. If that
@@ -2887,6 +2909,7 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	struct nameidata nd;
 	vnode_t vp;
 	int error = EINVAL;
+	struct proc *procp;
 
 	if (uap->flag & NFSSVC_PUBLICFH) {
 		NFSBZERO((caddr_t)&nfs_pubfh.nfsrvfh_data,
@@ -2957,6 +2980,14 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 			    CAST_USER_ADDR_T(dumplocklist.ndllck_list), len);
 			free((caddr_t)dumplocks, M_TEMP);
 		}
+	} else if (uap->flag & NFSSVC_BACKUPSTABLE) {
+		procp = p->td_proc;
+		PROC_LOCK(procp);
+		nfsd_master_pid = procp->p_pid;
+		bcopy(procp->p_comm, nfsd_master_comm, MAXCOMLEN + 1);
+		nfsd_master_start = procp->p_stats->p_start;
+		nfsd_master_proc = procp;
+		PROC_UNLOCK(procp);
 	}
 	return (error);
 }
@@ -3012,6 +3043,32 @@ nfsrv_hashfh(fhandle_t *fhp)
 	return (hashval);
 }
 
+/*
+ * Signal the userland master nfsd to backup the stable restart file.
+ */
+void
+nfsrv_backupstable(void)
+{
+	struct proc *procp;
+
+	if (nfsd_master_proc != NULL) {
+		procp = pfind(nfsd_master_pid);
+		/* Try to make sure it is the correct process. */
+		if (procp == nfsd_master_proc &&
+		    procp->p_stats->p_start.tv_sec ==
+		    nfsd_master_start.tv_sec &&
+		    procp->p_stats->p_start.tv_usec ==
+		    nfsd_master_start.tv_usec &&
+		    strcmp(procp->p_comm, nfsd_master_comm) == 0)
+			psignal(procp, SIGUSR2);
+		else
+			nfsd_master_proc = NULL;
+
+		if (procp != NULL)
+			PROC_UNLOCK(procp);
+	}
+}
+
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);
 
 /*
@@ -3060,6 +3117,10 @@ nfsd_modevent(module_t mod, int type, void *data)
 #endif
 		nfsd_call_servertimer = NULL;
 		nfsd_call_nfsd = NULL;
+
+		/* Clean the NFS server reply cache */
+		nfsrvd_cleancache();
+
 		/* and get rid of the locks */
 		mtx_destroy(&nfs_cache_mutex);
 		mtx_destroy(&nfs_v4root_mutex);

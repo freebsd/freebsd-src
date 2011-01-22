@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
-#include "opt_msgbuf.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
 #include "opt_xbox.h"
@@ -73,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/memrange.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
@@ -238,8 +236,6 @@ static struct trapframe proc0_tf;
 struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
-
-struct mem_range_softc mem_range_softc;
 
 static void
 cpu_startup(dummy)
@@ -2118,7 +2114,7 @@ getmemsize(int first)
 	physmem = Maxmem;
 	basemem = 0;
 	physmap[0] = init_first << PAGE_SHIFT;
-	physmap[1] = ptoa(Maxmem) - round_page(MSGBUF_SIZE);
+	physmap[1] = ptoa(Maxmem) - round_page(msgbufsize);
 	physmap_idx = 0;
 #else
 #ifdef XBOX
@@ -2469,7 +2465,7 @@ do_next:
 	 * calculation, etc.).
 	 */
 	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
-	    round_page(MSGBUF_SIZE) >= phys_avail[pa_indx]) {
+	    round_page(msgbufsize) >= phys_avail[pa_indx]) {
 		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
 		phys_avail[pa_indx--] = 0;
 		phys_avail[pa_indx--] = 0;
@@ -2478,10 +2474,10 @@ do_next:
 	Maxmem = atop(phys_avail[pa_indx]);
 
 	/* Trim off space for the message buffer. */
-	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
+	phys_avail[pa_indx] -= round_page(msgbufsize);
 
 	/* Map the message buffer. */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
+	for (off = 0; off < round_page(msgbufsize); off += PAGE_SIZE)
 		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
 		    off);
 
@@ -2692,7 +2688,7 @@ init386(first)
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 	/* transfer to user mode */
 
 	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
@@ -2950,7 +2946,7 @@ init386(first)
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 
 	/* make a call gate to reenter kernel with */
 	gdp = &ldt[LSYS5CALLS_SEL].gd;

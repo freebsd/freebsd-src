@@ -35,7 +35,6 @@
  * from: FreeBSD: //depot/projects/arm/src/sys/arm/at91/kb920x_machdep.c, rev 45
  */
 
-#include "opt_msgbuf.h"
 #include "opt_ddb.h"
 #include "opt_platform.h"
 
@@ -118,6 +117,10 @@ extern unsigned char _etext[];
 extern unsigned char _edata[];
 extern unsigned char __bss_start[];
 extern unsigned char _end[];
+
+#ifdef DDB
+extern vm_offset_t ksym_start, ksym_end;
+#endif
 
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
@@ -331,6 +334,10 @@ initarm(void *mdp, void *unused __unused)
 			dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND,
 			    vm_offset_t);
+#ifdef DDB
+			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+#endif
 		}
 
 	} else {
@@ -427,7 +434,10 @@ initarm(void *mdp, void *unused __unused)
 	valloc_pages(abtstack, ABT_STACK_SIZE);
 	valloc_pages(undstack, UND_STACK_SIZE);
 	valloc_pages(kernelstack, KSTACK_PAGES);
-	valloc_pages(msgbufpv, round_page(MSGBUF_SIZE) / PAGE_SIZE);
+
+	init_param1();
+
+	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
 	/*
 	 * Now we start construction of the L1 page table
@@ -575,7 +585,7 @@ initarm(void *mdp, void *unused __unused)
 
 	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
 	/*
@@ -584,7 +594,6 @@ initarm(void *mdp, void *unused __unused)
 	physmap_init();
 
 	/* Do basic tuning, hz etc */
-	init_param1();
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -

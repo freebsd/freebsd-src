@@ -684,7 +684,6 @@ printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid
 #endif
 	}
 	vm_object_pip_subtract(sc->object, 1);
-	vm_object_set_writeable_dirty(sc->object);
 	VM_OBJECT_UNLOCK(sc->object);
 	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
 }
@@ -855,8 +854,8 @@ mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 
 		nsectors = sc->mediasize / sc->sectorsize;
 		for (u = 0; u < nsectors; u++) {
-			sp = (uintptr_t)uma_zalloc(sc->uma, md_malloc_wait ?
-			    M_WAITOK : M_NOWAIT | M_ZERO);
+			sp = (uintptr_t)uma_zalloc(sc->uma, (md_malloc_wait ?
+			    M_WAITOK : M_NOWAIT) | M_ZERO);
 			if (sp != 0)
 				error = s_write(sc->indir, u, sp);
 			else

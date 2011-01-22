@@ -38,6 +38,51 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110112: Update dialog to new version, rename old libdialog to libodialog,
+#     removing associated man pages and header files.
+OLD_FILES+=usr/share/man/man3/draw_shadow.3.gz \
+    usr/share/man/man3/draw_box.3.gz usr/share/man/man3/line_edit.3.gz \
+    usr/share/man/man3/strheight.3.gz usr/share/man/man3/strwidth.3.gz \
+    usr/share/man/man3/dialog_create_rc.3.gz \
+    usr/share/man/man3/dialog_yesno.3.gz usr/share/man/man3/dialog_noyes.3.gz \
+    usr/share/man/man3/dialog_prgbox.3.gz \
+    usr/share/man/man3/dialog_textbox.3.gz usr/share/man/man3/dialog_menu.3.gz \
+    usr/share/man/man3/dialog_checklist.3.gz \
+    usr/share/man/man3/dialog_radiolist.3.gz \
+    usr/share/man/man3/dialog_inputbox.3.gz \
+    usr/share/man/man3/dialog_clear_norefresh.3.gz \
+    usr/share/man/man3/dialog_clear.3.gz usr/share/man/man3/dialog_update.3.gz \
+    usr/share/man/man3/dialog_fselect.3.gz \
+    usr/share/man/man3/dialog_notify.3.gz \
+    usr/share/man/man3/dialog_mesgbox.3.gz \
+    usr/share/man/man3/dialog_gauge.3.gz usr/share/man/man3/init_dialog.3.gz \
+    usr/share/man/man3/end_dialog.3.gz usr/share/man/man3/use_helpfile.3.gz \
+    usr/share/man/man3/use_helpline.3.gz usr/share/man/man3/get_helpline.3.gz \
+    usr/share/man/man3/restore_helpline.3.gz \
+    usr/share/man/man3/dialog_msgbox.3.gz \
+    usr/share/man/man3/dialog_ftree.3.gz usr/share/man/man3/dialog_tree.3.gz \
+    usr/share/examples/dialog/README usr/share/examples/dialog/checklist \
+    usr/share/examples/dialog/ftreebox usr/share/examples/dialog/infobox \
+    usr/share/examples/dialog/inputbox usr/share/examples/dialog/menubox \
+    usr/share/examples/dialog/msgbox usr/share/examples/dialog/prgbox \
+    usr/share/examples/dialog/radiolist usr/share/examples/dialog/textbox \
+    usr/share/examples/dialog/treebox usr/share/examples/dialog/yesno \
+    usr/share/examples/libdialog/Makefile usr/share/examples/libdialog/check1.c\
+    usr/share/examples/libdialog/check2.c usr/share/examples/libdialog/check3.c\
+    usr/share/examples/libdialog/dselect.c \
+    usr/share/examples/libdialog/fselect.c \
+    usr/share/examples/libdialog/ftree1.c \
+    usr/share/examples/libdialog/ftree1.test \
+    usr/share/examples/libdialog/ftree2.c \
+    usr/share/examples/libdialog/ftree2.test \
+    usr/share/examples/libdialog/gauge.c usr/share/examples/libdialog/input1.c \
+    usr/share/examples/libdialog/input2.c usr/share/examples/libdialog/menu1.c \
+    usr/share/examples/libdialog/menu2.c usr/share/examples/libdialog/menu3.c \
+    usr/share/examples/libdialog/msg.c usr/share/examples/libdialog/prgbox.c \
+    usr/share/examples/libdialog/radio1.c usr/share/examples/libdialog/radio2.c\
+    usr/share/examples/libdialog/radio3.c usr/share/examples/libdialog/text.c \
+    usr/share/examples/libdialog/tree.c usr/share/examples/libdialog/yesno.c
+OLD_DIRS+=usr/share/examples/libdialog usr/share/examples/dialog
 # 20101114: Remove long-obsolete MAKEDEV.8
 OLD_FILES+=usr/share/man/man8/MAKEDEV.8.gz
 # 20101112: vgonel(9) has gone to private API a while ago

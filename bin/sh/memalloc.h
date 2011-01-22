@@ -55,7 +55,6 @@ pointer stalloc(int);
 void stunalloc(pointer);
 void setstackmark(struct stackmark *);
 void popstackmark(struct stackmark *);
-void grabstackblock(int);
 char *growstackstr(void);
 char *makestrspace(int, char *);
 char *stputbin(const char *data, int len, char *p);
@@ -65,6 +64,7 @@ char *stputs(const char *data, char *p);
 
 #define stackblock() stacknxt
 #define stackblocksize() stacknleft
+#define grabstackblock(n) stalloc(n)
 #define STARTSTACKSTR(p)	p = stackblock()
 #define STPUTC(c, p)	do { if (p == sstrend) p = growstackstr(); *p++ = (c); } while(0)
 #define CHECKSTRSPACE(n, p)	{ if (sstrend - p < n) p = makestrspace(n, p); }

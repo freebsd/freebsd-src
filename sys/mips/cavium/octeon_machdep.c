@@ -92,6 +92,8 @@ struct octeon_feature_description {
 
 extern int	*edata;
 extern int	*end;
+extern char cpu_model[];
+extern char cpu_board[];
 
 static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_SAAD,			"SAAD" },
@@ -384,14 +386,12 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-	platform_counter_freq = cvmx_sysinfo_get()->cpu_clock_hz;
-
-	octeon_timecounter.tc_frequency = cvmx_sysinfo_get()->cpu_clock_hz;
+	cpu_clock = cvmx_sysinfo_get()->cpu_clock_hz;
+	platform_counter_freq = cpu_clock;
+	octeon_timecounter.tc_frequency = cpu_clock;
 	platform_timecounter = &octeon_timecounter;
-
 	mips_timer_init_params(platform_counter_freq, 0);
-
-	set_cputicker(octeon_get_ticks, cvmx_sysinfo_get()->cpu_clock_hz, 0);
+	set_cputicker(octeon_get_ticks, cpu_clock, 0);
 
 #ifdef SMP
 	/*
@@ -610,13 +610,20 @@ octeon_boot_params_init(register_t ptr)
 	    octeon_bootinfo->mac_addr_count);
 
 #if defined(OCTEON_BOARD_CAPK_0100ND)
-	if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_CN3010_EVB_HS5)
+	strcpy(cpu_board, "CAPK-0100ND");
+	if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_CN3010_EVB_HS5) {
 		printf("Compiled for CAPK-0100ND, but board type is %s\n",
 		    cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
+		strcat(cpu_board, " hardwired, but type is ");
+		strcat(cpu_board, 
+		    cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
+	}
 #else
-	printf("Board: %s\n",
+	strcpy(cpu_board,
 	    cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
+	printf("Board: %s\n", cpu_board);
 #endif
-	printf("Model: %s\n", octeon_model_get_string(cvmx_get_proc_id()));
+	strcpy(cpu_model, octeon_model_get_string(cvmx_get_proc_id()));
+	printf("Model: %s\n", cpu_model);
 }
 /* impEND: This stuff should move back into the Cavium SDK */

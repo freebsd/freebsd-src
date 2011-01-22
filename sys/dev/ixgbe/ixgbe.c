@@ -60,7 +60,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.3.7";
+char ixgbe_driver_version[] = "2.3.8";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -189,6 +189,7 @@ static __inline void ixgbe_rx_input(struct rx_ring *, struct ifnet *,
 
 /* Support for pluggable optic modules */
 static bool	ixgbe_sfp_probe(struct adapter *);
+static void	ixgbe_setup_optics(struct adapter *);
 
 /* Legacy (single vector interrupt handler */
 static void	ixgbe_legacy_irq(void *);
@@ -326,13 +327,6 @@ TUNABLE_INT("hw.ixgbe.rxd", &ixgbe_rxd);
 /* Keep running tab on them for sanity check */
 static int ixgbe_total_ports;
 
-/*
-** The number of scatter-gather segments
-** differs for 82598 and 82599, default to
-** the former.
-*/
-static int ixgbe_num_segs = IXGBE_82598_SCATTER;
-
 #ifdef IXGBE_FDIR
 /*
 ** For Flow Director: this is the
@@ -422,7 +416,7 @@ ixgbe_attach(device_t dev)
 	struct adapter *adapter;
 	struct ixgbe_hw *hw;
 	int             error = 0;
-	u16		pci_device_id, csum;
+	u16		csum;
 	u32		ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_attach: begin");
@@ -434,52 +428,6 @@ ixgbe_attach(device_t dev)
 
 	/* Core Lock Init*/
 	IXGBE_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));
-
-	/* Keep track of optics */
-	pci_device_id = pci_get_device(dev);
-	switch (pci_device_id) {
-		case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
-		case IXGBE_DEV_ID_82598EB_CX4:
-			adapter->optics = IFM_10G_CX4;
-			break;
-		case IXGBE_DEV_ID_82598:
-		case IXGBE_DEV_ID_82598AF_DUAL_PORT:
-		case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
-		case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
-		case IXGBE_DEV_ID_82598EB_SFP_LOM:
-		case IXGBE_DEV_ID_82598AT:
-			adapter->optics = IFM_10G_SR;
-			break;
-		case IXGBE_DEV_ID_82598AT2:
-			adapter->optics = IFM_10G_T;
-			break;
-		case IXGBE_DEV_ID_82598EB_XF_LR:
-			adapter->optics = IFM_10G_LR;
-			break;
-		case IXGBE_DEV_ID_82599_SFP:
-			adapter->optics = IFM_10G_SR;
-			ixgbe_num_segs = IXGBE_82599_SCATTER;
-			break;
-		case IXGBE_DEV_ID_82598_DA_DUAL_PORT :
-			adapter->optics = IFM_10G_TWINAX;
-			break;
-		case IXGBE_DEV_ID_82599_KX4:
-		case IXGBE_DEV_ID_82599_KX4_MEZZ:
-		case IXGBE_DEV_ID_82599_CX4:
-			adapter->optics = IFM_10G_CX4;
-			ixgbe_num_segs = IXGBE_82599_SCATTER;
-			break;
-		case IXGBE_DEV_ID_82599_XAUI_LOM:
-		case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
-			ixgbe_num_segs = IXGBE_82599_SCATTER;
-			break;
-		case IXGBE_DEV_ID_82599_T3_LOM:
-			ixgbe_num_segs = IXGBE_82599_SCATTER;
-			adapter->optics = IFM_10G_T;
-		default:
-			ixgbe_num_segs = IXGBE_82599_SCATTER;
-			break;
-	}
 
 	/* SYSCTL APIs */
 
@@ -583,10 +531,6 @@ ixgbe_attach(device_t dev)
 		goto err_late;
 	}
 
-	/* Pick up the smart speed setting */
-	if (hw->mac.type == ixgbe_mac_82599EB)
-		hw->phy.smart_speed = ixgbe_smart_speed;
-
 	/* Get Hardware Flow Control setting */
 	hw->fc.requested_mode = ixgbe_fc_full;
 	hw->fc.pause_time = IXGBE_FC_PAUSE;
@@ -609,6 +553,9 @@ ixgbe_attach(device_t dev)
 		device_printf(dev,"Hardware Initialization Failure\n");
 		goto err_late;
 	}
+
+	/* Detect and set physical type */
+	ixgbe_setup_optics(adapter);
 
 	if ((adapter->msix > 1) && (ixgbe_enable_msix))
 		error = ixgbe_allocate_msix(adapter); 
@@ -1114,7 +1061,7 @@ ixgbe_init_locked(struct adapter *adapter)
 		return;
 	}
 
-	ixgbe_reset_hw(hw);
+	ixgbe_init_hw(hw);
 	ixgbe_initialize_transmit_units(adapter);
 
 	/* Setup Multicast table */
@@ -1128,8 +1075,10 @@ ixgbe_init_locked(struct adapter *adapter)
 		adapter->rx_mbuf_sz = MCLBYTES;
 	else if (adapter->max_frame_size <= 4096)
 		adapter->rx_mbuf_sz = MJUMPAGESIZE;
-	else
+	else if (adapter->max_frame_size <= 9216)
 		adapter->rx_mbuf_sz = MJUM9BYTES;
+	else
+		adapter->rx_mbuf_sz = MJUM16BYTES;
 
 	/* Prepare receive descriptors and buffers */
 	if (ixgbe_setup_receive_structures(adapter)) {
@@ -1669,7 +1618,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	int             i, j, error, nsegs;
 	int		first, last = 0;
 	struct mbuf	*m_head;
-	bus_dma_segment_t segs[ixgbe_num_segs];
+	bus_dma_segment_t segs[adapter->num_segs];
 	bus_dmamap_t	map;
 	struct ixgbe_tx_buf *txbuf, *txbuf_mapped;
 	union ixgbe_adv_tx_desc *txd = NULL;
@@ -1990,7 +1939,6 @@ hung:
 	    txr->me, txr->tx_avail, txr->next_to_clean);
 	adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
-	IXGBE_TX_UNLOCK(txr);
 	ixgbe_init_locked(adapter);
 }
 
@@ -2079,16 +2027,71 @@ static void
 ixgbe_identify_hardware(struct adapter *adapter)
 {
 	device_t        dev = adapter->dev;
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* Save off the information about this board */
-	adapter->hw.vendor_id = pci_get_vendor(dev);
-	adapter->hw.device_id = pci_get_device(dev);
-	adapter->hw.revision_id = pci_read_config(dev, PCIR_REVID, 1);
-	adapter->hw.subsystem_vendor_id =
+	hw->vendor_id = pci_get_vendor(dev);
+	hw->device_id = pci_get_device(dev);
+	hw->revision_id = pci_read_config(dev, PCIR_REVID, 1);
+	hw->subsystem_vendor_id =
 	    pci_read_config(dev, PCIR_SUBVEND_0, 2);
-	adapter->hw.subsystem_device_id =
+	hw->subsystem_device_id =
 	    pci_read_config(dev, PCIR_SUBDEV_0, 2);
 
+	/* We need this here to set the num_segs below */
+	ixgbe_set_mac_type(hw);
+
+	/* Pick up the 82599 and VF settings */
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		hw->phy.smart_speed = ixgbe_smart_speed;
+		adapter->num_segs = IXGBE_82599_SCATTER;
+	} else
+		adapter->num_segs = IXGBE_82598_SCATTER;
+
+	return;
+}
+
+/*********************************************************************
+ *
+ *  Determine optic type
+ *
+ **********************************************************************/
+static void
+ixgbe_setup_optics(struct adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int		layer;
+	
+	layer = ixgbe_get_supported_physical_layer(hw);
+	switch (layer) {
+		case IXGBE_PHYSICAL_LAYER_10GBASE_T:
+			adapter->optics = IFM_10G_T;
+			break;
+		case IXGBE_PHYSICAL_LAYER_1000BASE_T:
+			adapter->optics = IFM_1000_T;
+			break;
+		case IXGBE_PHYSICAL_LAYER_10GBASE_LR:
+		case IXGBE_PHYSICAL_LAYER_10GBASE_LRM:
+			adapter->optics = IFM_10G_LR;
+			break;
+		case IXGBE_PHYSICAL_LAYER_10GBASE_SR:
+			adapter->optics = IFM_10G_SR;
+			break;
+		case IXGBE_PHYSICAL_LAYER_10GBASE_KX4:
+		case IXGBE_PHYSICAL_LAYER_10GBASE_CX4:
+			adapter->optics = IFM_10G_CX4;
+			break;
+		case IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU:
+			adapter->optics = IFM_10G_TWINAX;
+			break;
+		case IXGBE_PHYSICAL_LAYER_1000BASE_KX:
+		case IXGBE_PHYSICAL_LAYER_10GBASE_KR:
+		case IXGBE_PHYSICAL_LAYER_10GBASE_XAUI:
+		case IXGBE_PHYSICAL_LAYER_UNKNOWN:
+		default:
+			adapter->optics = IFM_ETHER | IFM_AUTO;
+			break;
+	}
 	return;
 }
 
@@ -2285,8 +2288,8 @@ ixgbe_setup_msix(struct adapter *adapter)
 
 	if (ixgbe_num_queues != 0)
 		queues = ixgbe_num_queues;
-	/* Set max queues to 8 */
-	else if (queues > 8)
+	/* Set max queues to 8 when autoconfiguring */
+	else if ((ixgbe_num_queues == 0) && (queues > 8))
 		queues = 8;
 
 	/*
@@ -2488,8 +2491,8 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	 */
 	ifmedia_init(&adapter->media, IFM_IMASK, ixgbe_media_change,
 		     ixgbe_media_status);
-	ifmedia_add(&adapter->media, IFM_ETHER | adapter->optics |
-	    IFM_FDX, 0, NULL);
+	ifmedia_add(&adapter->media, IFM_ETHER | adapter->optics, 0, NULL);
+	ifmedia_set(&adapter->media, IFM_ETHER | adapter->optics);
 	if (hw->device_id == IXGBE_DEV_ID_82598AT) {
 		ifmedia_add(&adapter->media,
 		    IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
@@ -2793,7 +2796,7 @@ ixgbe_allocate_transmit_buffers(struct tx_ring *txr)
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
 			       IXGBE_TSO_SIZE,		/* maxsize */
-			       ixgbe_num_segs,		/* nsegments */
+			       adapter->num_segs,	/* nsegments */
 			       PAGE_SIZE,		/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
@@ -3256,72 +3259,67 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 {
 	struct adapter			*adapter = txr->adapter;
 	struct ix_queue			*que;
-	union ixgbe_atr_input		atr_input;
 	struct ip			*ip;
 	struct tcphdr			*th;
 	struct udphdr			*uh;
 	struct ether_vlan_header	*eh;
+	union ixgbe_atr_hash_dword	input = {.dword = 0}; 
+	union ixgbe_atr_hash_dword	common = {.dword = 0}; 
 	int  				ehdrlen, ip_hlen;
-	u16 etype, vlan_id, src_port, dst_port, flex_bytes;
-	u32 src_ipv4_addr, dst_ipv4_addr;
-	u8 l4type = 0, ipproto = 0;
+	u16				etype;
 
 	eh = mtod(mp, struct ether_vlan_header *);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) 
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
 		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-	else
+		etype = eh->evl_proto;
+	} else {
 		ehdrlen = ETHER_HDR_LEN;
-	etype = ntohs(eh->evl_proto);
+		etype = eh->evl_encap_proto;
+	}
 
 	/* Only handling IPv4 */
-	if (etype != ETHERTYPE_IP)
+	if (etype != htons(ETHERTYPE_IP))
 		return;
 
 	ip = (struct ip *)(mp->m_data + ehdrlen);
-	ipproto = ip->ip_p;
 	ip_hlen = ip->ip_hl << 2;
-	src_port = dst_port = 0;
 
 	/* check if we're UDP or TCP */
-	switch (ipproto) {
+	switch (ip->ip_p) {
 	case IPPROTO_TCP:
 		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
-		src_port = th->th_sport;
-		dst_port = th->th_dport;
-		l4type |= IXGBE_ATR_L4TYPE_TCP;
+		/* src and dst are inverted */
+		common.port.dst ^= th->th_sport;
+		common.port.src ^= th->th_dport;
+		input.formatted.flow_type ^= IXGBE_ATR_FLOW_TYPE_TCPV4;
 		break;
 	case IPPROTO_UDP:
 		uh = (struct udphdr *)((caddr_t)ip + ip_hlen);
-		src_port = uh->uh_sport;
-		dst_port = uh->uh_dport;
-		l4type |= IXGBE_ATR_L4TYPE_UDP;
+		/* src and dst are inverted */
+		common.port.dst ^= uh->uh_sport;
+		common.port.src ^= uh->uh_dport;
+		input.formatted.flow_type ^= IXGBE_ATR_FLOW_TYPE_UDPV4;
 		break;
 	default:
 		return;
 	}
 
-	memset(&atr_input, 0, sizeof(union ixgbe_atr_input));
+	input.formatted.vlan_id = htobe16(mp->m_pkthdr.ether_vtag);
+	if (mp->m_pkthdr.ether_vtag)
+		common.flex_bytes ^= htons(ETHERTYPE_VLAN);
+	else
+		common.flex_bytes ^= etype;
+	common.ip ^= ip->ip_src.s_addr ^ ip->ip_dst.s_addr;
 
-	vlan_id = htole16(mp->m_pkthdr.ether_vtag);
-	src_ipv4_addr = ip->ip_src.s_addr;
-	dst_ipv4_addr = ip->ip_dst.s_addr;
-	flex_bytes = etype;
 	que = &adapter->queues[txr->me];
-
-	ixgbe_atr_set_vlan_id_82599(&atr_input, vlan_id);
-	ixgbe_atr_set_src_port_82599(&atr_input, dst_port);
-	ixgbe_atr_set_dst_port_82599(&atr_input, src_port);
-	ixgbe_atr_set_flex_byte_82599(&atr_input, flex_bytes);
-	ixgbe_atr_set_l4type_82599(&atr_input, l4type);
-	/* src and dst are inverted, think how the receiver sees them */
-	ixgbe_atr_set_src_ipv4_82599(&atr_input, dst_ipv4_addr);
-	ixgbe_atr_set_dst_ipv4_82599(&atr_input, src_ipv4_addr);
-
-	/* This assumes the Rx queue and Tx queue are bound to the same CPU */
+	/*
+	** This assumes the Rx queue and Tx
+	** queue are bound to the same CPU
+	*/
 	ixgbe_fdir_add_signature_filter_82599(&adapter->hw,
-	    &atr_input, que->msix);
+	    input, common, que->msix);
 }
-#endif
+#endif /* IXGBE_FDIR */
 
 #if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
 static int
@@ -3668,9 +3666,9 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
 				   NULL, NULL,		/* filter, filterarg */
-				   MJUM9BYTES,		/* maxsize */
+				   MJUM16BYTES,		/* maxsize */
 				   1,			/* nsegments */
-				   MJUM9BYTES,		/* maxsegsize */
+				   MJUM16BYTES,		/* maxsegsize */
 				   0,			/* flags */
 				   NULL,		/* lockfunc */
 				   NULL,		/* lockfuncarg */
@@ -3742,8 +3740,13 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 	*/
 	if (adapter->rx_mbuf_sz == MCLBYTES)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-	else  /* using 4K clusters */
+	else if (adapter->rx_mbuf_sz == MJUMPAGESIZE)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
+	else if (adapter->rx_mbuf_sz == MJUM9BYTES)
+		rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
+	else  /* Using 16K cluster */
+		rscctrl |= IXGBE_RSCCTL_MAXDESC_1;
+
 	IXGBE_WRITE_REG(hw, IXGBE_RSCCTL(rxr->me), rscctrl);
 
 	/* Enable TCP header recognition */
@@ -3981,14 +3984,13 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 
 	/* Set for Jumbo Frames? */
 	hlreg = IXGBE_READ_REG(hw, IXGBE_HLREG0);
-	if (ifp->if_mtu > ETHERMTU) {
+	if (ifp->if_mtu > ETHERMTU)
 		hlreg |= IXGBE_HLREG0_JUMBOEN;
-		bufsz = 4096 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	} else {
+	else
 		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
-		bufsz = 2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	}
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
+
+	bufsz = adapter->rx_mbuf_sz  >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 rdba = rxr->rxdma.dma_paddr;
@@ -4188,7 +4190,9 @@ ixgbe_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u32 ptype
                         if (tcp_lro_rx(&rxr->lro, m, 0) == 0)
                                 return;
         }
+	IXGBE_RX_UNLOCK(rxr);
         (*ifp->if_input)(ifp, m);
+	IXGBE_RX_LOCK(rxr);
 }
 
 static __inline void
@@ -4450,8 +4454,10 @@ next_desc:
 
 		/* Now send to the stack or do LRO */
 		if (sendmp != NULL) {
+			rxr->next_to_check = i;
 			ixgbe_rx_input(rxr, ifp, sendmp, ptype);
 			rx_npkts++;
+			i = rxr->next_to_check;
 		}
 
                /* Every 8 descriptors we go to refresh mbufs */
@@ -4820,6 +4826,8 @@ static bool ixgbe_sfp_probe(struct adapter *adapter)
 			device_printf(dev,"SFP+ module detected!\n");
 		/* We now have supported optics */
 		adapter->sfp_probe = FALSE;
+		/* Set the optics type so system reports correctly */
+		ixgbe_setup_optics(adapter);
 		result = TRUE;
 	}
 out:
@@ -4884,10 +4892,6 @@ ixgbe_handle_msf(void *context, int pending)
 		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiate);
 	if (hw->mac.ops.setup_link)
 		hw->mac.ops.setup_link(hw, autoneg, negotiate, TRUE);
-#if 0
-	ixgbe_check_link(&adapter->hw, &speed, &adapter->link_up, 0);
-       	ixgbe_update_link_status(adapter);
-#endif
 	return;
 }
 
@@ -4996,7 +5000,8 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	bprc = IXGBE_READ_REG(hw, IXGBE_BPRC);
 	adapter->stats.bprc += bprc;
 	adapter->stats.mprc += IXGBE_READ_REG(hw, IXGBE_MPRC);
-	adapter->stats.mprc -= bprc;
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		adapter->stats.mprc -= bprc;
 
 	adapter->stats.prc64 += IXGBE_READ_REG(hw, IXGBE_PRC64);
 	adapter->stats.prc127 += IXGBE_READ_REG(hw, IXGBE_PRC127);
@@ -5037,12 +5042,14 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	adapter->stats.xec += IXGBE_READ_REG(hw, IXGBE_XEC);
 	adapter->stats.fccrc += IXGBE_READ_REG(hw, IXGBE_FCCRC);
 	adapter->stats.fclast += IXGBE_READ_REG(hw, IXGBE_FCLAST);
-	adapter->stats.fcoerpdc += IXGBE_READ_REG(hw, IXGBE_FCOERPDC);
-	adapter->stats.fcoeprc += IXGBE_READ_REG(hw, IXGBE_FCOEPRC);
-	adapter->stats.fcoeptc += IXGBE_READ_REG(hw, IXGBE_FCOEPTC);
-	adapter->stats.fcoedwrc += IXGBE_READ_REG(hw, IXGBE_FCOEDWRC);
-	adapter->stats.fcoedwtc += IXGBE_READ_REG(hw, IXGBE_FCOEDWTC);
-
+	/* Only read FCOE on 82599 */
+	if (hw->mac.type == ixgbe_mac_82599EB) {
+		adapter->stats.fcoerpdc += IXGBE_READ_REG(hw, IXGBE_FCOERPDC);
+		adapter->stats.fcoeprc += IXGBE_READ_REG(hw, IXGBE_FCOEPRC);
+		adapter->stats.fcoeptc += IXGBE_READ_REG(hw, IXGBE_FCOEPTC);
+		adapter->stats.fcoedwrc += IXGBE_READ_REG(hw, IXGBE_FCOEDWRC);
+		adapter->stats.fcoedwtc += IXGBE_READ_REG(hw, IXGBE_FCOEDWTC);
+	}
 
 	/* Fill out the OS statistics structure */
 	ifp->if_ipackets = adapter->stats.gprc;
@@ -5178,18 +5185,6 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_failed",
 			CTLFLAG_RD, &adapter->mbuf_defrag_failed,
 			"m_defrag() failed");
-#if 0
-	/* These counters are not updated by the software */
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_header_failed",
-			CTLFLAG_RD, &adapter->mbuf_header_failed,
-			"???");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_packet_failed",
-			CTLFLAG_RD, &adapter->mbuf_packet_failed,
-			"???");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_tx_map_avail",
-			CTLFLAG_RD, &adapter->no_tx_map_avail,
-			"???");
-#endif
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_tx_dma_setup",
 			CTLFLAG_RD, &adapter->no_tx_dma_setup,
 			"Driver tx dma failure in xmit");
@@ -5210,21 +5205,22 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
-				CTLFLAG_RD, &adapter->queues[i], sizeof(&adapter->queues[i]),
+				CTLTYPE_UINT | CTLFLAG_RD, &adapter->queues[i],
+				sizeof(&adapter->queues[i]),
 				ixgbe_sysctl_interrupt_rate_handler, "IU",
 				"Interrupt Rate");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
-				CTLFLAG_RD, txr, sizeof(txr),
+				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
 				ixgbe_sysctl_tdh_handler, "IU",
 				"Transmit Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail", 
-				CTLFLAG_RD, txr, sizeof(txr),
+				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
 				ixgbe_sysctl_tdt_handler, "IU",
 				"Transmit Descriptor Tail");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
 				CTLFLAG_RD, &txr->no_desc_avail,
 				"Queue No Descriptor Available");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_packets",
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 				CTLFLAG_RD, &txr->total_packets,
 				"Queue Packets Transmitted");
 	}
@@ -5243,23 +5239,23 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
-				CTLFLAG_RD, rxr, sizeof(rxr),
+				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
 				ixgbe_sysctl_rdh_handler, "IU",
 				"Receive Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail", 
-				CTLFLAG_RD, rxr, sizeof(rxr),
+				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
 				ixgbe_sysctl_rdt_handler, "IU",
 				"Receive Descriptor Tail");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_packets",
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 				CTLFLAG_RD, &rxr->rx_packets,
 				"Queue Packets Received");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
 				CTLFLAG_RD, &rxr->rx_bytes,
 				"Queue Bytes Received");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "lro_queued",
+		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "lro_queued",
 				CTLFLAG_RD, &lro->lro_queued, 0,
 				"LRO Queued");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "lro_flushed",
+		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "lro_flushed",
 				CTLFLAG_RD, &lro->lro_flushed, 0,
 				"LRO Flushed");
 	}
@@ -5270,157 +5266,157 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 				    CTLFLAG_RD, NULL, "MAC Statistics");
 	stat_list = SYSCTL_CHILDREN(stat_node);
 
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "crc_errs",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "crc_errs",
 			CTLFLAG_RD, &stats->crcerrs,
 			"CRC Errors");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "ill_errs",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ill_errs",
 			CTLFLAG_RD, &stats->illerrc,
 			"Illegal Byte Errors");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "byte_errs",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "byte_errs",
 			CTLFLAG_RD, &stats->errbc,
 			"Byte Errors");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "short_discards",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "short_discards",
 			CTLFLAG_RD, &stats->mspdc,
 			"MAC Short Packets Discarded");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "local_faults",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "local_faults",
 			CTLFLAG_RD, &stats->mlfc,
 			"MAC Local Faults");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "remote_faults",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "remote_faults",
 			CTLFLAG_RD, &stats->mrfc,
 			"MAC Remote Faults");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rec_len_errs",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rec_len_errs",
 			CTLFLAG_RD, &stats->rlec,
 			"Receive Length Errors");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xon_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xon_txd",
 			CTLFLAG_RD, &stats->lxontxc,
 			"Link XON Transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xon_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xon_rcvd",
 			CTLFLAG_RD, &stats->lxonrxc,
 			"Link XON Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xoff_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xoff_txd",
 			CTLFLAG_RD, &stats->lxofftxc,
 			"Link XOFF Transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xoff_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xoff_rcvd",
 			CTLFLAG_RD, &stats->lxoffrxc,
 			"Link XOFF Received");
 
 	/* Packet Reception Stats */
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_octets_rcvd", 
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_octets_rcvd",
 			CTLFLAG_RD, &stats->tor, 
 			"Total Octets Received"); 
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_rcvd", 
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_rcvd",
 			CTLFLAG_RD, &stats->gorc, 
 			"Good Octets Received"); 
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_rcvd",
 			CTLFLAG_RD, &stats->tpr,
 			"Total Packets Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_rcvd",
 			CTLFLAG_RD, &stats->gprc,
 			"Good Packets Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_rcvd",
 			CTLFLAG_RD, &stats->mprc,
 			"Multicast Packets Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_rcvd",
 			CTLFLAG_RD, &stats->bprc,
 			"Broadcast Packets Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_64",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_64",
 			CTLFLAG_RD, &stats->prc64,
 			"64 byte frames received ");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_65_127",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_65_127",
 			CTLFLAG_RD, &stats->prc127,
 			"65-127 byte frames received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_128_255",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_128_255",
 			CTLFLAG_RD, &stats->prc255,
 			"128-255 byte frames received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_256_511",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_256_511",
 			CTLFLAG_RD, &stats->prc511,
 			"256-511 byte frames received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_512_1023",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_512_1023",
 			CTLFLAG_RD, &stats->prc1023,
 			"512-1023 byte frames received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_1024_1522",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_1024_1522",
 			CTLFLAG_RD, &stats->prc1522,
 			"1023-1522 byte frames received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_undersized",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_undersized",
 			CTLFLAG_RD, &stats->ruc,
 			"Receive Undersized");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_fragmented",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_fragmented",
 			CTLFLAG_RD, &stats->rfc,
 			"Fragmented Packets Received ");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_oversized",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_oversized",
 			CTLFLAG_RD, &stats->roc,
 			"Oversized Packets Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_jabberd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_jabberd",
 			CTLFLAG_RD, &stats->rjc,
 			"Received Jabber");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "management_pkts_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "management_pkts_rcvd",
 			CTLFLAG_RD, &stats->mngprc,
 			"Management Packets Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "management_pkts_drpd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "management_pkts_drpd",
 			CTLFLAG_RD, &stats->mngptc,
 			"Management Packets Dropped");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "checksum_errs",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "checksum_errs",
 			CTLFLAG_RD, &stats->xec,
 			"Checksum Errors");
 
 	/* Packet Transmission Stats */
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_txd", 
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_txd",
 			CTLFLAG_RD, &stats->gotc, 
 			"Good Octets Transmitted"); 
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
 			CTLFLAG_RD, &stats->tpt,
 			"Total Packets Transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
 			CTLFLAG_RD, &stats->gptc,
 			"Good Packets Transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
 			CTLFLAG_RD, &stats->bptc,
 			"Broadcast Packets Transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_txd",
 			CTLFLAG_RD, &stats->mptc,
 			"Multicast Packets Transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "management_pkts_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "management_pkts_txd",
 			CTLFLAG_RD, &stats->mngptc,
 			"Management Packets Transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_64",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_64",
 			CTLFLAG_RD, &stats->ptc64,
 			"64 byte frames transmitted ");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_65_127",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_65_127",
 			CTLFLAG_RD, &stats->ptc127,
 			"65-127 byte frames transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_128_255",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_128_255",
 			CTLFLAG_RD, &stats->ptc255,
 			"128-255 byte frames transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_256_511",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_256_511",
 			CTLFLAG_RD, &stats->ptc511,
 			"256-511 byte frames transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_512_1023",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_512_1023",
 			CTLFLAG_RD, &stats->ptc1023,
 			"512-1023 byte frames transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_1024_1522",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_1024_1522",
 			CTLFLAG_RD, &stats->ptc1522,
 			"1024-1522 byte frames transmitted");
 
 	/* FC Stats */
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_crc",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_crc",
 		CTLFLAG_RD, &stats->fccrc,
 		"FC CRC Errors");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_last",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_last",
 		CTLFLAG_RD, &stats->fclast,
 		"FC Last Error");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_drpd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_drpd",
 		CTLFLAG_RD, &stats->fcoerpdc,
 		"FCoE Packets Dropped");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_pkts_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_pkts_rcvd",
 		CTLFLAG_RD, &stats->fcoeprc,
 		"FCoE Packets Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_pkts_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_pkts_txd",
 		CTLFLAG_RD, &stats->fcoeptc,
 		"FCoE Packets Transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_dword_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_dword_rcvd",
 		CTLFLAG_RD, &stats->fcoedwrc,
 		"FCoE DWords Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_dword_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_dword_txd",
 		CTLFLAG_RD, &stats->fcoedwtc,
 		"FCoE DWords Transmitted");
 }
@@ -5437,12 +5433,16 @@ static int
 ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 {
 	int error;
+	int last = ixgbe_flow_control;
 	struct adapter *adapter;
 
 	error = sysctl_handle_int(oidp, &ixgbe_flow_control, 0, req);
-
 	if (error)
 		return (error);
+
+	/* Don't bother if it's not changed */
+	if (ixgbe_flow_control == last)
+		return (0);
 
 	adapter = (struct adapter *) arg1;
 	switch (ixgbe_flow_control) {

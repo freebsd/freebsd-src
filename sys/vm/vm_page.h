@@ -104,7 +104,7 @@ struct vm_page {
 	struct vm_page *right;		/* splay tree link (O)		*/
 
 	vm_object_t object;		/* which object am I in (O,P)*/
-	vm_pindex_t pindex;		/* offset into object (O,Q) */
+	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
 	uint8_t	queue;			/* page queue index (P,Q) */
@@ -116,7 +116,7 @@ struct vm_page {
 	u_int wire_count;		/* wired down maps refs (P) */
 	short hold_count;		/* page hold count (P) */
 	u_short oflags;			/* page flags (O) */
-	u_char	act_count;		/* page usage count (P) */
+	u_char	act_count;		/* page usage count (O) */
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
@@ -146,11 +146,11 @@ struct vm_page {
 #define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
 #define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
 
-#define PQ_NONE		0
-#define	PQ_INACTIVE	1
-#define	PQ_ACTIVE	2
-#define	PQ_HOLD		3
-#define	PQ_COUNT	4
+#define	PQ_NONE		255
+#define	PQ_INACTIVE	0
+#define	PQ_ACTIVE	1
+#define	PQ_HOLD		2
+#define	PQ_COUNT	3
 
 struct vpgqueues {
 	struct pglist pl;

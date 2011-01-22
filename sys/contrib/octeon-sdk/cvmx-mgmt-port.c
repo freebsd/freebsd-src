@@ -112,7 +112,7 @@ CVMX_SHARED cvmx_mgmt_port_state_t *cvmx_mgmt_port_state_ptr = NULL;
  *
  * @return Number of ports
  */
-int __cvmx_mgmt_port_num_ports(void)
+static int __cvmx_mgmt_port_num_ports(void)
 {
     if (OCTEON_IS_MODEL(OCTEON_CN56XX))
         return 1;
@@ -554,6 +554,62 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_send(int port, int packet_len, void *buff
 }
 
 
+#if defined(__FreeBSD__)
+/**
+ * Send a packet out the management port. The packet is copied so
+ * the input mbuf isn't used after this call.
+ *
+ * @param port       Management port
+ * @param m          Packet mbuf (with pkthdr)
+ *
+ * @return CVMX_MGMT_PORT_SUCCESS or an error code
+ */
+cvmx_mgmt_port_result_t cvmx_mgmt_port_sendm(int port, const struct mbuf *m)
+{
+    cvmx_mgmt_port_state_t *state;
+    cvmx_mixx_oring2_t mix_oring2;
+
+    if ((port < 0) || (port >= __cvmx_mgmt_port_num_ports()))
+        return CVMX_MGMT_PORT_INVALID_PARAM;
+
+    /* Max sure the packet size is valid */
+    if ((m->m_pkthdr.len < 1) || (m->m_pkthdr.len > CVMX_MGMT_PORT_TX_BUFFER_SIZE))
+        return CVMX_MGMT_PORT_INVALID_PARAM;
+
+    state = cvmx_mgmt_port_state_ptr + port;
+
+    cvmx_spinlock_lock(&state->lock);
+
+    mix_oring2.u64 = cvmx_read_csr(CVMX_MIXX_ORING2(port));
+    if (mix_oring2.s.odbell >= CVMX_MGMT_PORT_NUM_TX_BUFFERS - 1)
+    {
+        /* No room for another packet */
+        cvmx_spinlock_unlock(&state->lock);
+        return CVMX_MGMT_PORT_NO_MEMORY;
+    }
+    else
+    {
+        /* Copy the packet into the output buffer */
+	m_copydata(m, 0, m->m_pkthdr.len, state->tx_buffers[state->tx_write_index]);
+        /* Update the TX ring buffer entry size */
+        state->tx_ring[state->tx_write_index].s.len = m->m_pkthdr.len;
+        /* This code doesn't support TX timestamps */
+        state->tx_ring[state->tx_write_index].s.tstamp = 0;
+        /* Increment our TX index */
+        state->tx_write_index = (state->tx_write_index + 1) % CVMX_MGMT_PORT_NUM_TX_BUFFERS;
+        /* Ring the doorbell, sending the packet */
+        CVMX_SYNCWS;
+        cvmx_write_csr(CVMX_MIXX_ORING2(port), 1);
+        if (cvmx_read_csr(CVMX_MIXX_ORCNT(port)))
+            cvmx_write_csr(CVMX_MIXX_ORCNT(port), cvmx_read_csr(CVMX_MIXX_ORCNT(port)));
+
+        cvmx_spinlock_unlock(&state->lock);
+        return CVMX_MGMT_PORT_SUCCESS;
+    }
+}
+#endif
+
+
 /**
  * Receive a packet from the management port.
  *
@@ -564,7 +620,7 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_send(int port, int packet_len, void *buff
  * @return The size of the packet, or a negative erorr code on failure. Zero
  *         means that no packets were available.
  */
-int cvmx_mgmt_port_receive(int port, int buffer_len, void *buffer)
+int cvmx_mgmt_port_receive(int port, int buffer_len, uint8_t *buffer)
 {
     cvmx_mixx_ircnt_t mix_ircnt;
     cvmx_mgmt_port_state_t *state;
@@ -588,13 +644,13 @@ int cvmx_mgmt_port_receive(int port, int buffer_len, void *buffer)
     mix_ircnt.u64 = cvmx_read_csr(CVMX_MIXX_IRCNT(port));
     if (mix_ircnt.s.ircnt)
     {
-        void *source = state->rx_buffers[state->rx_read_index];
-        uint64_t *zero_check = source;
+        uint64_t *source = (void *)state->rx_buffers[state->rx_read_index];
+	uint64_t *zero_check = source;
         /* CN56XX pass 1 has an errata where packets might start 8 bytes
             into the buffer instead of at their correct lcoation. If the
             first 8 bytes is zero we assume this has happened */
         if (OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1_X) && (*zero_check == 0))
-            source += 8;
+            source++;
         /* Start off with zero bytes received */
         result = 0;
         /* While the completion code signals more data, copy the buffers
@@ -621,7 +677,7 @@ int cvmx_mgmt_port_receive(int port, int buffer_len, void *buffer)
             CVMX_SYNCWS;
             /* Increment the number of RX buffers */
             cvmx_write_csr(CVMX_MIXX_IRING2(port), 1);
-            source = state->rx_buffers[state->rx_read_index];
+            source = (void *)state->rx_buffers[state->rx_read_index];
             zero_check = source;
         }
 
