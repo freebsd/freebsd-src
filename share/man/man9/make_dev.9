@@ -326,16 +326,16 @@ call will fail and the device will be not registered if:
 .It Bq Er ENOMEM
 The
 .Dv MAKEDEV_NOWAIT
-flags was specified and a memory allocation request could not be satisfied.
+flag was specified and a memory allocation request could not be satisfied.
 .It Bq Er ENAMETOOLONG
 The
 .Dv MAKEDEV_CHECKNAME
-flags was specified and the provided device name is longer than
+flag was specified and the provided device name is longer than
 .Dv SPECNAMELEN .
 .It Bq Er EINVAL
 The
 .Dv MAKEDEV_CHECKNAME
-flags was specified and the provided device name is empty, contains a
+flag was specified and the provided device name is empty, contains a
 .Qq \&.
 or
 .Qq ..
@@ -344,7 +344,7 @@ path component or ends with
 .It Bq Er EEXIST
 The
 .Dv MAKEDEV_CHECKNAME
-flags was specified and the provided device name already exists.
+flag was specified and the provided device name already exists.
 .El
 .Pp
 .Sh SEE ALSO
