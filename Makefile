@@ -305,7 +305,7 @@ targets:
 .endfor
 
 .if defined(DOING_TINDERBOX)
-FAILFILE=tinderbox.failed
+FAILFILE=${.CURDIR}/_.tinderbox.failed
 MAKEFAIL=tee -a ${FAILFILE}
 .else
 MAKEFAIL=cat
