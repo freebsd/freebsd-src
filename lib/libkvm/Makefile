@@ -15,7 +15,7 @@ KVM_ARCH=${MACHINE_ARCH}
 KVM_ARCH=${MACHINE_CPUARCH}
 .endif
 
-WARNS?=	0
+WARNS?=	3
 
 SRCS=	kvm.c kvm_${KVM_ARCH}.c kvm_cptime.c kvm_file.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_pcpu.c kvm_proc.c kvm_vnet.c

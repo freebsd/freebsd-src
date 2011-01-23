@@ -88,6 +88,25 @@ __FBSDID("$FreeBSD$");
 
 static int ticks;
 static int hz;
+static uint64_t cpu_tick_frequency;
+
+/*
+ * From sys/kern/kern_tc.c. Depends on cpu_tick_frequency, which is
+ * read/initialized before this function is ever called.
+ */
+static uint64_t
+cputick2usec(uint64_t tick)
+{
+
+	if (cpu_tick_frequency == 0)
+		return (0);
+	if (tick > 18446744073709551)		/* floor(2^64 / 1000) */
+		return (tick / (cpu_tick_frequency / 1000000));
+	else if (tick > 18446744073709)	/* floor(2^64 / 1000000) */
+		return ((tick * 1000) / (cpu_tick_frequency / 1000));
+	else
+		return ((tick * 1000000) / cpu_tick_frequency);
+}
 
 /*
  * Read proc's from memory file into buffer bp, which has space to hold
@@ -113,7 +132,6 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 	struct thread mtd;
 	struct proc proc;
 	struct proc pproc;
-	struct timeval tv;
 	struct sysentvec sysent;
 	char svname[KI_EMULNAMELEN];
 
@@ -367,15 +385,7 @@ nopgrp:
 				    kp->ki_lockname, LOCKNAMELEN);
 			kp->ki_lockname[LOCKNAMELEN] = 0;
 		}
-		/*
-		 * XXX: This is plain wrong, rux_runtime has nothing
-		 * to do with struct bintime, rux_runtime is just a 64-bit
-		 * integer counter of cputicks.  What we need here is a way
-		 * to convert cputicks to usecs.  The kernel does it in
-		 * kern/kern_tc.c, but the function can't be just copied.
-		 */
-		bintime2timeval(&proc.p_rux.rux_runtime, &tv);
-		kp->ki_runtime = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+		kp->ki_runtime = cputick2usec(proc.p_rux.rux_runtime);
 		kp->ki_pid = proc.p_pid;
 		kp->ki_siglist = proc.p_siglist;
 		SIGSETOR(kp->ki_siglist, mtd.td_siglist);
@@ -542,14 +552,15 @@ kvm_getprocs(kvm_t *kd, int op, int arg, int *cnt)
 liveout:
 		nprocs = size == 0 ? 0 : size / kd->procbase->ki_structsize;
 	} else {
-		struct nlist nl[6], *p;
+		struct nlist nl[7], *p;
 
 		nl[0].n_name = "_nprocs";
 		nl[1].n_name = "_allproc";
 		nl[2].n_name = "_zombproc";
 		nl[3].n_name = "_ticks";
 		nl[4].n_name = "_hz";
-		nl[5].n_name = 0;
+		nl[5].n_name = "_cpu_tick_frequency";
+		nl[6].n_name = 0;
 
 		if (kvm_nlist(kd, nl) != 0) {
 			for (p = nl; p->n_type != 0; ++p)
@@ -568,6 +579,11 @@ liveout:
 		}
 		if (KREAD(kd, nl[4].n_value, &hz)) {
 			_kvm_err(kd, kd->program, "can't read hz");
+			return (0);
+		}
+		if (KREAD(kd, nl[5].n_value, &cpu_tick_frequency)) {
+			_kvm_err(kd, kd->program,
+			    "can't read cpu_tick_frequency");
 			return (0);
 		}
 		size = nprocs * sizeof(struct kinfo_proc);
