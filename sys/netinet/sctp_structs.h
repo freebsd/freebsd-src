@@ -476,11 +476,54 @@ struct sctp_stream_in {
 	uint8_t delivery_started;
 };
 
-/* This struct is used to track the traffic on outbound streams */
 TAILQ_HEAD(sctpwheel_listhead, sctp_stream_out);
+TAILQ_HEAD(sctplist_listhead, sctp_stream_queue_pending);
+
+/* Round-robin schedulers */
+struct ss_rr {
+	/* next link in wheel */
+	TAILQ_ENTRY(sctp_stream_out) next_spoke;
+};
+
+/* Priority scheduler */
+struct ss_prio {
+	/* next link in wheel */
+	TAILQ_ENTRY(sctp_stream_out) next_spoke;
+	/* priority id */
+	uint16_t priority;
+};
+
+/* Fair Bandwidth scheduler */
+struct ss_fb {
+	/* next link in wheel */
+	TAILQ_ENTRY(sctp_stream_out) next_spoke;
+	/* stores message size */
+	int32_t rounds;
+};
+
+/*
+ * This union holds all data necessary for
+ * different stream schedulers.
+ */
+union scheduling_data {
+	struct sctpwheel_listhead out_wheel;
+	struct sctplist_listhead out_list;
+};
+
+/*
+ * This union holds all parameters per stream
+ * necessary for different stream schedulers.
+ */
+union scheduling_parameters {
+	struct ss_rr rr;
+	struct ss_prio prio;
+	struct ss_fb fb;
+};
+
+/* This struct is used to track the traffic on outbound streams */
 struct sctp_stream_out {
 	struct sctp_streamhead outqueue;
-	                TAILQ_ENTRY(sctp_stream_out) next_spoke;	/* next link in wheel */
+	union scheduling_parameters ss_params;
 	uint16_t stream_no;
 	uint16_t next_sequence_sent;	/* next one I expect to send out */
 	uint8_t last_msg_incomplete;
@@ -571,6 +614,33 @@ struct sctp_cc_functions {
 	         struct sctp_tcb *stcb, struct sctp_nets *net);
 };
 
+/*
+ * RS - Structure to hold function pointers to the functions responsible
+ * for stream scheduling.
+ */
+struct sctp_ss_functions {
+	void (*sctp_ss_init) (struct sctp_tcb *stcb, struct sctp_association *asoc,
+	         int holds_lock);
+	void (*sctp_ss_clear) (struct sctp_tcb *stcb, struct sctp_association *asoc,
+	         int clear_values, int holds_lock);
+	void (*sctp_ss_init_stream) (struct sctp_stream_out *strq);
+	void (*sctp_ss_add_to_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
+	         struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
+	int (*sctp_ss_is_empty) (struct sctp_tcb *stcb, struct sctp_association *asoc);
+	void (*sctp_ss_remove_from_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
+	         struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
+	struct sctp_stream_out *(*sctp_ss_select_stream) (struct sctp_tcb *stcb,
+	                    struct sctp_nets *net, struct sctp_association *asoc);
+	void (*sctp_ss_scheduled) (struct sctp_tcb *stcb, struct sctp_nets *net,
+	         struct sctp_association *asoc, struct sctp_stream_out *strq, int moved_how_much);
+	void (*sctp_ss_packet_done) (struct sctp_tcb *stcb, struct sctp_nets *net,
+	         struct sctp_association *asoc);
+	int (*sctp_ss_get_value) (struct sctp_tcb *stcb, struct sctp_association *asoc,
+	        struct sctp_stream_out *strq, uint16_t * value);
+	int (*sctp_ss_set_value) (struct sctp_tcb *stcb, struct sctp_association *asoc,
+	        struct sctp_stream_out *strq, uint16_t value);
+};
+
 /* used to save ASCONF chunks for retransmission */
 TAILQ_HEAD(sctp_asconf_head, sctp_asconf);
 struct sctp_asconf {
@@ -658,7 +728,7 @@ struct sctp_association {
 	 * set our rwnd to the space in the socket minus also the
 	 * size_on_delivery_queue.
 	 */
-	struct sctpwheel_listhead out_wheel;
+	union scheduling_data ss_data;
 
 	/*
 	 * This pointer will be set to NULL most of the time. But when we
@@ -717,6 +787,10 @@ struct sctp_association {
 	 * module
 	 */
 	uint32_t congestion_control_module;
+	/* RS - the stream scheduling functions are in this struct */
+	struct sctp_ss_functions ss_functions;
+	/* RS - value to store the currently loaded stream scheduling module */
+	uint32_t stream_scheduling_module;
 
 	uint32_t vrf_id;
 

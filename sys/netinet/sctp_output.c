@@ -5616,52 +5616,6 @@ do_a_abort:
 }
 
 
-void
-sctp_insert_on_wheel(struct sctp_tcb *stcb,
-    struct sctp_association *asoc,
-    struct sctp_stream_out *strq, int holds_lock)
-{
-	if (holds_lock == 0) {
-		SCTP_TCB_SEND_LOCK(stcb);
-	}
-	if ((strq->next_spoke.tqe_next == NULL) &&
-	    (strq->next_spoke.tqe_prev == NULL)) {
-		TAILQ_INSERT_TAIL(&asoc->out_wheel, strq, next_spoke);
-	}
-	if (holds_lock == 0) {
-		SCTP_TCB_SEND_UNLOCK(stcb);
-	}
-}
-
-void
-sctp_remove_from_wheel(struct sctp_tcb *stcb,
-    struct sctp_association *asoc,
-    struct sctp_stream_out *strq,
-    int holds_lock)
-{
-	/* take off and then setup so we know it is not on the wheel */
-	if (holds_lock == 0) {
-		SCTP_TCB_SEND_LOCK(stcb);
-	}
-	if (TAILQ_EMPTY(&strq->outqueue)) {
-		if (asoc->last_out_stream == strq) {
-			asoc->last_out_stream = TAILQ_PREV(asoc->last_out_stream, sctpwheel_listhead, next_spoke);
-			if (asoc->last_out_stream == NULL) {
-				asoc->last_out_stream = TAILQ_LAST(&asoc->out_wheel, sctpwheel_listhead);
-			}
-			if (asoc->last_out_stream == strq) {
-				asoc->last_out_stream = NULL;
-			}
-		}
-		TAILQ_REMOVE(&asoc->out_wheel, strq, next_spoke);
-		strq->next_spoke.tqe_next = NULL;
-		strq->next_spoke.tqe_prev = NULL;
-	}
-	if (holds_lock == 0) {
-		SCTP_TCB_SEND_UNLOCK(stcb);
-	}
-}
-
 static void
 sctp_prune_prsctp(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
@@ -5924,11 +5878,7 @@ sctp_msg_append(struct sctp_tcb *stcb,
 		sp->strseq = strm->next_sequence_sent;
 		strm->next_sequence_sent++;
 	}
-	if ((strm->next_spoke.tqe_next == NULL) &&
-	    (strm->next_spoke.tqe_prev == NULL)) {
-		/* Not on wheel, insert */
-		sctp_insert_on_wheel(stcb, &stcb->asoc, strm, 1);
-	}
+	stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb, &stcb->asoc, strm, sp, 1);
 	m = NULL;
 	SCTP_TCB_SEND_UNLOCK(stcb);
 out_now:
@@ -6743,6 +6693,7 @@ one_more_time:
 			}
 			atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 			TAILQ_REMOVE(&strq->outqueue, sp, next);
+			stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, send_lock_up);
 			if (sp->net) {
 				sctp_free_remote_addr(sp->net);
 				sp->net = NULL;
@@ -7152,6 +7103,7 @@ dont_do_it:
 			send_lock_up = 1;
 		}
 		TAILQ_REMOVE(&strq->outqueue, sp, next);
+		stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, send_lock_up);
 		if (sp->net) {
 			sctp_free_remote_addr(sp->net);
 			sp->net = NULL;
@@ -7181,24 +7133,6 @@ out_of:
 }
 
 
-static struct sctp_stream_out *
-sctp_select_a_stream(struct sctp_tcb *stcb, struct sctp_association *asoc)
-{
-	struct sctp_stream_out *strq;
-
-	/* Find the next stream to use */
-	if (asoc->last_out_stream == NULL) {
-		strq = TAILQ_FIRST(&asoc->out_wheel);
-	} else {
-		strq = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
-		if (strq == NULL) {
-			strq = TAILQ_FIRST(&asoc->out_wheel);
-		}
-	}
-	return (strq);
-}
-
-
 static void
 sctp_fill_outqueue(struct sctp_tcb *stcb,
     struct sctp_nets *net, int frag_point, int eeor_mode, int *quit_now)
@@ -7207,7 +7141,6 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 	struct sctp_stream_out *strq, *strqn;
 	int goal_mtu, moved_how_much, total_moved = 0, bail = 0;
 	int locked, giveup;
-	struct sctp_stream_queue_pending *sp;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
@@ -7231,46 +7164,17 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		strq = asoc->locked_on_sending;
 		locked = 1;
 	} else {
-		strq = sctp_select_a_stream(stcb, asoc);
+		strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
 		locked = 0;
 	}
 	strqn = strq;
 	while ((goal_mtu > 0) && strq) {
-		sp = TAILQ_FIRST(&strq->outqueue);
-		if (sp == NULL) {
-			break;
-		}
-		/**
-		 * Honor the users' choice if given. If not given,
-		 * pull it only to the primary path in case of not using
-		 * CMT.
-		 */
-		if (((sp->net != NULL) &&
-		    (sp->net != net)) ||
-		    ((sp->net == NULL) &&
-		    (asoc->sctp_cmt_on_off == 0) &&
-		    (asoc->primary_destination != net))) {
-			/* Do not pull to this network */
-			if (locked) {
-				break;
-			} else {
-				strq = sctp_select_a_stream(stcb, asoc);
-				if (strq == NULL)
-					/* none left */
-					break;
-				if (strqn == strq) {
-					/* I have circled */
-					break;
-				}
-				continue;
-			}
-		}
 		giveup = 0;
 		bail = 0;
 		moved_how_much = sctp_move_to_outqueue(stcb, strq, goal_mtu, frag_point, &locked,
 		    &giveup, eeor_mode, &bail);
 		if (moved_how_much)
-			asoc->last_out_stream = strq;
+			stcb->asoc.ss_functions.sctp_ss_scheduled(stcb, net, asoc, strq, moved_how_much);
 
 		if (locked) {
 			asoc->locked_on_sending = strq;
@@ -7279,23 +7183,10 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 				break;
 		} else {
 			asoc->locked_on_sending = NULL;
-			if (TAILQ_EMPTY(&strq->outqueue)) {
-				if (strq == strqn) {
-					/* Must move start to next one */
-					strqn = TAILQ_NEXT(strq, next_spoke);
-					if (strqn == NULL) {
-						strqn = TAILQ_FIRST(&asoc->out_wheel);
-						if (strqn == NULL) {
-							break;
-						}
-					}
-				}
-				sctp_remove_from_wheel(stcb, asoc, strq, 0);
-			}
 			if ((giveup) || bail) {
 				break;
 			}
-			strq = sctp_select_a_stream(stcb, asoc);
+			strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
 			if (strq == NULL) {
 				break;
 			}
@@ -7306,6 +7197,8 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 	}
 	if (bail)
 		*quit_now = 1;
+
+	stcb->asoc.ss_functions.sctp_ss_packet_done(stcb, net, asoc);
 
 	if (total_moved == 0) {
 		if ((stcb->asoc.sctp_cmt_on_off == 0) &&
@@ -7335,16 +7228,16 @@ void
 sctp_move_chunks_from_net(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	struct sctp_association *asoc;
-	struct sctp_stream_out *outs;
 	struct sctp_tmit_chunk *chk;
 	struct sctp_stream_queue_pending *sp;
+	unsigned int i;
 
 	if (net == NULL) {
 		return;
 	}
 	asoc = &stcb->asoc;
-	TAILQ_FOREACH(outs, &asoc->out_wheel, next_spoke) {
-		TAILQ_FOREACH(sp, &outs->outqueue, next) {
+	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+		TAILQ_FOREACH(sp, &stcb->asoc.strmout[i].outqueue, next) {
 			if (sp->net == net) {
 				sctp_free_remote_addr(sp->net);
 				sp->net = NULL;
@@ -7437,7 +7330,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	if (TAILQ_EMPTY(&asoc->control_send_queue) &&
 	    TAILQ_EMPTY(&asoc->asconf_send_queue) &&
 	    TAILQ_EMPTY(&asoc->send_queue) &&
-	    TAILQ_EMPTY(&asoc->out_wheel)) {
+	    stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
 		*reason_code = 9;
 		return (0);
 	}
@@ -7454,7 +7347,8 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 		max_send_per_dest = SCTP_SB_LIMIT_SND(stcb->sctp_socket) / asoc->numnets;
 	else
 		max_send_per_dest = 0;
-	if ((no_data_chunks == 0) && (!TAILQ_EMPTY(&asoc->out_wheel))) {
+	if ((no_data_chunks == 0) &&
+	    (!stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc))) {
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			/*
 			 * This for loop we are in takes in each net, if
@@ -9638,7 +9532,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 		}
 		if (TAILQ_EMPTY(&asoc->control_send_queue) &&
 		    TAILQ_EMPTY(&asoc->send_queue) &&
-		    TAILQ_EMPTY(&asoc->out_wheel)) {
+		    stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
 			/* Nothing left to send */
 			break;
 		}
@@ -12447,8 +12341,7 @@ sctp_lower_sosend(struct socket *so,
 							TAILQ_INIT(&asoc->strmout[i].outqueue);
 							asoc->strmout[i].stream_no = i;
 							asoc->strmout[i].last_msg_incomplete = 0;
-							asoc->strmout[i].next_spoke.tqe_next = 0;
-							asoc->strmout[i].next_spoke.tqe_prev = 0;
+							asoc->ss_functions.sctp_ss_init_stream(&asoc->strmout[i]);
 						}
 					}
 				}
@@ -12841,11 +12734,7 @@ skip_preblock:
 				SCTP_STAT_INCR(sctps_sends_with_unord);
 			}
 			TAILQ_INSERT_TAIL(&strm->outqueue, sp, next);
-			if ((strm->next_spoke.tqe_next == NULL) &&
-			    (strm->next_spoke.tqe_prev == NULL)) {
-				/* Not on wheel, insert */
-				sctp_insert_on_wheel(stcb, asoc, strm, 1);
-			}
+			stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb, asoc, strm, sp, 1);
 			SCTP_TCB_SEND_UNLOCK(stcb);
 		} else {
 			SCTP_TCB_SEND_LOCK(stcb);
