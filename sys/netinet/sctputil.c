@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern struct sctp_cc_functions sctp_cc_functions[];
+extern struct sctp_ss_functions sctp_ss_functions[];
 
 void
 sctp_sblog(struct sockbuf *sb,
@@ -1048,6 +1049,9 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	stcb->asoc.congestion_control_module = m->sctp_ep.sctp_default_cc_module;
 	stcb->asoc.cc_functions = sctp_cc_functions[m->sctp_ep.sctp_default_cc_module];
 
+	stcb->asoc.stream_scheduling_module = m->sctp_ep.sctp_default_ss_module;
+	stcb->asoc.ss_functions = sctp_ss_functions[m->sctp_ep.sctp_default_ss_module];
+
 	/*
 	 * Now the stream parameters, here we allocate space for all streams
 	 * that we request by default.
@@ -1075,9 +1079,10 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 		TAILQ_INIT(&asoc->strmout[i].outqueue);
 		asoc->strmout[i].stream_no = i;
 		asoc->strmout[i].last_msg_incomplete = 0;
-		asoc->strmout[i].next_spoke.tqe_next = 0;
-		asoc->strmout[i].next_spoke.tqe_prev = 0;
+		asoc->ss_functions.sctp_ss_init_stream(&asoc->strmout[i]);
 	}
+	asoc->ss_functions.sctp_ss_init(stcb, asoc, 0);
+
 	/* Now the mapping array */
 	asoc->mapping_array_size = SCTP_INITIAL_MAPPING_ARRAY;
 	SCTP_MALLOC(asoc->mapping_array, uint8_t *, asoc->mapping_array_size,
@@ -1100,7 +1105,6 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 
 	/* Now the init of the other outqueues */
 	TAILQ_INIT(&asoc->free_chunks);
-	TAILQ_INIT(&asoc->out_wheel);
 	TAILQ_INIT(&asoc->control_send_queue);
 	TAILQ_INIT(&asoc->asconf_send_queue);
 	TAILQ_INIT(&asoc->send_queue);
