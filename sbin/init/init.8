@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2005
+.Dd January 23, 2011
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -146,11 +146,11 @@ executes a shell for that user.
 When this shell
 dies, either because the user logged out
 or an abnormal termination occurred (a signal),
-the
-.Nm
-utility wakes up and records the logout in the the user accounting
+.Nm login
+records the logout in the the user accounting
 database (see
-.Xr getutxent 3 ).
+.Xr getutxent 3)
+and terminates.
 The cycle is
 then restarted by
 .Nm
