@@ -51,9 +51,9 @@ __FBSDID("$FreeBSD$");
 #include "kvm_private.h"
 
 static struct nlist kvm_swap_nl[] = {
-	{ "_swtailq" },		/* list of swap devices and sizes */
-	{ "_dmmax" },		/* maximum size of a swap block */
-	{ NULL }
+	{ .n_name = "_swtailq" },	/* list of swap devices and sizes */
+	{ .n_name = "_dmmax" },		/* maximum size of a swap block */
+	{ .n_name = NULL }
 };
 
 #define NL_SWTAILQ	0
@@ -66,7 +66,7 @@ static int dmmax;
 static int  kvm_getswapinfo_kvm(kvm_t *, struct kvm_swap *, int, int);
 static int  kvm_getswapinfo_sysctl(kvm_t *, struct kvm_swap *, int, int);
 static int  nlist_init(kvm_t *);
-static int  getsysctl(kvm_t *, char *, void *, size_t);
+static int  getsysctl(kvm_t *, const char *, void *, size_t);
 
 #define KREAD(kd, addr, obj) \
 	(kvm_read(kd, addr, (char *)(obj), sizeof(*obj)) != sizeof(*obj))
@@ -90,12 +90,8 @@ static int  getsysctl(kvm_t *, char *, void *, size_t);
 	}
 
 int
-kvm_getswapinfo(
-	kvm_t *kd, 
-	struct kvm_swap *swap_ary,
-	int swap_max, 
-	int flags
-) {
+kvm_getswapinfo(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max, int flags)
+{
 
 	/*
 	 * clear cache
@@ -113,12 +109,9 @@ kvm_getswapinfo(
 }
 
 int
-kvm_getswapinfo_kvm(
-	kvm_t *kd,
-	struct kvm_swap *swap_ary,
-	int swap_max,
-	int flags
-) {
+kvm_getswapinfo_kvm(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max,
+    int flags)
+{
 	int i, ttl;
 	TAILQ_HEAD(, swdevt) swtailq;
 	struct swdevt *sp, swinfo;
@@ -161,12 +154,9 @@ kvm_getswapinfo_kvm(
 #define	SWI_MAXMIB	3
 
 int
-kvm_getswapinfo_sysctl(
-	kvm_t *kd, 
-	struct kvm_swap *swap_ary,
-	int swap_max, 
-	int flags
-) {
+kvm_getswapinfo_sysctl(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max,
+    int flags)
+{
 	int ti, ttl;
 	size_t mibi, len;
 	int soid[SWI_MAXMIB];
@@ -229,8 +219,6 @@ kvm_getswapinfo_sysctl(
 static int
 nlist_init(kvm_t *kd)
 {
-	TAILQ_HEAD(, swdevt) swtailq;
-	struct swdevt *sp, swinfo;
 
 	if (kvm_swap_nl_cached)
 		return (1);
@@ -257,12 +245,8 @@ nlist_init(kvm_t *kd)
 }
 
 static int
-getsysctl (
-	kvm_t *kd,
-	char *name,
-	void *ptr,
-	size_t len
-) {
+getsysctl(kvm_t *kd, const char *name, void *ptr, size_t len)
+{
 	size_t nlen = len;
 	if (sysctlbyname(name, ptr, &nlen, NULL, 0) == -1) {
 		_kvm_err(kd, kd->program, "cannot read sysctl %s:%s", name,
