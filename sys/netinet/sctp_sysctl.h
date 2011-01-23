@@ -96,6 +96,8 @@ struct sctp_sysctl {
 	uint32_t sctp_logging_level;
 	/* JRS - Variable for default congestion control module */
 	uint32_t sctp_default_cc_module;
+	/* RS - Variable for default stream scheduling module */
+	uint32_t sctp_default_ss_module;
 	uint32_t sctp_default_frag_interleave;
 	uint32_t sctp_mobility_base;
 	uint32_t sctp_mobility_fasthandoff;
@@ -443,6 +445,12 @@ struct sctp_sysctl {
 #define SCTPCTL_DEFAULT_CC_MODULE_MIN		0
 #define SCTPCTL_DEFAULT_CC_MODULE_MAX		2
 #define SCTPCTL_DEFAULT_CC_MODULE_DEFAULT	0
+
+/* RS - default stream scheduling module sysctl */
+#define SCTPCTL_DEFAULT_SS_MODULE_DESC		"Default stream scheduling module"
+#define SCTPCTL_DEFAULT_SS_MODULE_MIN		0
+#define SCTPCTL_DEFAULT_SS_MODULE_MAX		5
+#define SCTPCTL_DEFAULT_SS_MODULE_DEFAULT	0
 
 /* RRS - default fragment interleave */
 #define SCTPCTL_DEFAULT_FRAG_INTERLEAVE_DESC	"Default fragment interleave level"
