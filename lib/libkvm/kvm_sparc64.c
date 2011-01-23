@@ -97,7 +97,7 @@ _kvm_read_phys(kvm_t *kd, off_t pos, void *buf, size_t size)
 		_kvm_syserr(kd, kd->program, "_kvm_read_phys: lseek");
 		return (0);
 	}
-	if (read(kd->pmfd, buf, size) != size) {
+	if (read(kd->pmfd, buf, size) != (ssize_t)size) {
 		_kvm_syserr(kd, kd->program, "_kvm_read_phys: read");
 		return (0);
 	}
@@ -146,7 +146,6 @@ _kvm_initvtop(kvm_t *kd)
 	struct vmstate *vm;
 	size_t regsz;
 	vm_offset_t pa;
-	vm_size_t mask;
 
 	vm = (struct vmstate *)_kvm_malloc(kd, sizeof(*vm));
 	if (vm == NULL) {
@@ -189,12 +188,13 @@ fail_vm:
 int
 _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
-	struct vmstate *vm;
 #if !defined(SUN4V)
 	struct tte tte;
+	off_t tte_off;
+	u_long vpn;
 #endif
-	off_t tte_off, pa_off;
-	u_long pg_off, vpn;
+	off_t pa_off;
+	u_long pg_off;
 	int rest;
 
 	pg_off = va & PAGE_MASK;
@@ -220,6 +220,6 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 	return (rest);
 
 invalid:
-	_kvm_err(kd, 0, "invalid address (%x)", va);
+	_kvm_err(kd, 0, "invalid address (%lx)", va);
 	return (0);
 }
