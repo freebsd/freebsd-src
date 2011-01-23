@@ -1045,18 +1045,8 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 
 	asoc->sctp_autoclose_ticks = m->sctp_ep.auto_close_time;
 
-	switch (m->sctp_ep.sctp_default_cc_module) {
-	case SCTP_CC_RFC2581:
-	case SCTP_CC_HSTCP:
-	case SCTP_CC_HTCP:
-		stcb->asoc.congestion_control_module = m->sctp_ep.sctp_default_cc_module;
-		stcb->asoc.cc_functions = sctp_cc_functions[m->sctp_ep.sctp_default_cc_module];
-		break;
-	default:
-		stcb->asoc.congestion_control_module = SCTP_CC_RFC2581;
-		stcb->asoc.cc_functions = sctp_cc_functions[SCTP_CC_RFC2581];
-		break;
-	}
+	stcb->asoc.congestion_control_module = m->sctp_ep.sctp_default_cc_module;
+	stcb->asoc.cc_functions = sctp_cc_functions[m->sctp_ep.sctp_default_cc_module];
 
 	/*
 	 * Now the stream parameters, here we allocate space for all streams
