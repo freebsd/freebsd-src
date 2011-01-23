@@ -275,7 +275,7 @@ make: .PHONY
 		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
 
 tinderbox:
-	cd ${.CURDIR} && \
+	@cd ${.CURDIR} && \
 		DOING_TINDERBOX=YES ${MAKE} JFLAG=${JFLAG} universe
 
 #
@@ -317,7 +317,7 @@ universe_prologue:
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
 .if defined(DOING_TINDERBOX)
-	rm -f ${FAILFILE}
+	@rm -f ${FAILFILE}
 .endif
 .for target in ${TARGETS}
 universe: universe_${target}
