@@ -34,13 +34,13 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/time.h>
 #include <ctype.h>
 #include <err.h>
 #include <grp.h>
 #include <histedit.h>
 #include <pwd.h>
 #include <string.h>
+#include <time.h>
 #include <timeconv.h>
 
 #include <ufs/ufs/dinode.h>

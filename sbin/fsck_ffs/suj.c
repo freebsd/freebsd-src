@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 
+#include <assert.h>
+#include <err.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -46,8 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <strings.h>
 #include <sysexits.h>
-#include <err.h>
-#include <assert.h>
+#include <time.h>
 
 #include "fsck.h"
 
