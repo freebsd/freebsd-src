@@ -65,7 +65,6 @@ sdp_handle_disconn(struct sdp_sock *ssk)
 			struct rdma_cm_id *id;
 
 			id = ssk->id;
-			ssk->id = NULL;
 			SDP_WUNLOCK(ssk);
 			rdma_disconnect(id);
 			SDP_WLOCK(ssk);
@@ -177,8 +176,7 @@ sdp_post_recvs_needed(struct sdp_sock *ssk)
 		unsigned long bytes_in_process =
 			(rx_ring_posted(ssk) - SDP_MIN_TX_CREDITS) *
 			buffer_size;
-		bytes_in_process += rcv_nxt(ssk);
-
+		bytes_in_process += ssk->socket->so_rcv.sb_cc;
 		if (bytes_in_process >= max_bytes) {
 			sdp_prf(ssk->socket, NULL,
 				"bytes_in_process:%ld > max_bytes:%ld",
@@ -645,7 +643,7 @@ sdp_do_posts(struct sdp_sock *ssk)
 
 }
 
-static void
+int
 sdp_process_rx(struct sdp_sock *ssk)
 {
 	int wc_processed = 0;
@@ -653,7 +651,7 @@ sdp_process_rx(struct sdp_sock *ssk)
 
 	if (!rx_ring_trylock(&ssk->rx_ring)) {
 		sdp_dbg(ssk->socket, "ring destroyed. not polling it\n");
-		return;
+		return 0;
 	}
 
 	credits_before = tx_credits(ssk);
@@ -669,6 +667,8 @@ sdp_process_rx(struct sdp_sock *ssk)
 	sdp_arm_rx_cq(ssk);
 
 	rx_ring_unlock(&ssk->rx_ring);
+
+	return (wc_processed);
 }
 
 static void
@@ -722,6 +722,7 @@ sdp_rx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 
 
 	sdp_dbg(ssk->socket, "rx ring created");
+	INIT_WORK(&ssk->rx_comp_work, sdp_rx_comp_work);
 	atomic_set(&ssk->rx_ring.head, 1);
 	atomic_set(&ssk->rx_ring.tail, 1);
 
@@ -745,9 +746,6 @@ sdp_rx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	}
 
 	sdp_sk(ssk->socket)->rx_ring.cq = rx_cq;
-
-	INIT_WORK(&ssk->rx_comp_work, sdp_rx_comp_work);
-
 	sdp_arm_rx_cq(ssk);
 
 	return 0;

@@ -54,6 +54,8 @@
 #define	CONFIG_INFINIBAND_SDP_DEBUG		1
 #define	CONFIG_INFINIBAND_SDP_DEBUG_DATA	1
 
+#define	SDP_DEBUG
+
 #include "sdp_dbg.h"
 
 #undef LIST_HEAD
@@ -88,9 +90,6 @@ struct name {                                                           \
 
 #define SDP_MAX_RDMA_READ_LEN (PAGE_SIZE * (SDP_FMR_SIZE - 2))
 
-#define SDP_MAX_RECV_SGES 9 /* 1 for sdp header + 8 for payload */
-#define SDP_MAX_SEND_SGES 9 /* same as above */
-
 /* mb inlined data len - rest will be rx'ed into frags */
 #define SDP_HEAD_SIZE (sizeof(struct sdp_bsdh))
 
@@ -99,6 +98,9 @@ struct name {                                                           \
  * or rx fragment size (limited by sge->length size) */
 #define	SDP_MAX_PACKET	(1 << 16)
 #define SDP_MAX_PAYLOAD (SDP_MAX_PACKET - SDP_HEAD_SIZE)
+
+#define SDP_MAX_RECV_SGES (SDP_MAX_PACKET / MCLBYTES)
+#define SDP_MAX_SEND_SGES (SDP_MAX_PACKET / MCLBYTES) + 2
 
 #define SDP_NUM_WC 4
 
@@ -366,11 +368,12 @@ struct sdp_moderation {
 #define	SDP_NODELAY	0x0008		/* Disble nagle. */
 #define	SDP_NEEDFIN	0x0010		/* Send a fin on the next tx. */
 #define	SDP_DREQWAIT	0x0020		/* Waiting on DREQ. */
-#define	SDP_HAVEOOB	0x0040		/* Have OOB data. */
+#define	SDP_DESTROY	0x0040		/* Being destroyed. */
+#define	SDP_DISCON	0x0080		/* rdma_disconnect is owed. */
 
 /* These are oobflags */
 #define	SDP_HADOOB	0x0001		/* Had OOB data. */
-#define	SDP_DESTROY	0x0002		/* Being destroyed. */
+#define	SDP_HAVEOOB	0x0002		/* Have OOB data. */
 
 struct sdp_sock {
 	LIST_ENTRY(sdp_sock) list;
@@ -429,6 +432,7 @@ struct sdp_sock {
 	unsigned long tx_bytes;
 	unsigned long rx_bytes;
 	struct sdp_moderation auto_mod;
+	struct task shutdown_task;
 #ifdef SDP_ZCOPY
 	struct tx_srcavail_state *tx_sa;
 	struct rx_srcavail_state *rx_sa;
@@ -713,5 +717,6 @@ int sdp_post_sendsm(struct socket *sk);
 void srcavail_cancel_timeout(struct work_struct *work);
 void sdp_abort_srcavail(struct socket *sk);
 void sdp_abort_rdma_read(struct socket *sk);
+int sdp_process_rx(struct sdp_sock *ssk);
 
 #endif

@@ -115,7 +115,7 @@ sdp_nagle_off(struct sdp_sock *ssk, struct mbuf *mb)
 		unlikely(h->mid != SDP_MID_DATA) ||
 		(ssk->flags & SDP_NODELAY) ||
 		!ssk->nagle_last_unacked ||
-		mb->m_pkthdr.len >= ssk->xmit_size_goal ||
+		mb->m_pkthdr.len >= ssk->xmit_size_goal / 4 ||
 		(mb->m_flags & M_PUSH);
 
 	if (send_now) {
@@ -208,9 +208,10 @@ sdp_post_sends(struct sdp_sock *ssk, int wait)
 		SOCKBUF_LOCK(&sk->so_snd);
 		sk->so_snd.sb_sndptr = mb->m_nextpkt;
 		sk->so_snd.sb_mb = mb->m_nextpkt;
-		for (n = mb; n != NULL; n = mb->m_next)
-			sbfree(&sk->so_snd, mb);
+		mb->m_nextpkt = NULL;
 		SB_EMPTY_FIXUP(&sk->so_snd);
+		for (n = mb; n != NULL; n = n->m_next)
+			sbfree(&sk->so_snd, n);
 		SOCKBUF_UNLOCK(&sk->so_snd);
 		sdp_post_send(ssk, mb);
 		post_count++;

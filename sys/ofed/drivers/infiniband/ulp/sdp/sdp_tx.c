@@ -307,11 +307,10 @@ sdp_process_tx_cq(struct sdp_sock *ssk)
 		sowwakeup(ssk->socket);
 		/*
 		 * If there is no room in the tx queue we arm the tx cq
-		 * to force an interrupt.  sb_notify() isn't a precise
-		 * measure if being out of space but is very cheap and
-		 * should be close enough.
+		 * to force an interrupt.
 		 */
-		if (tx_ring_posted(ssk) && sb_notify(&sk->so_snd)) {
+		if (tx_ring_posted(ssk) && sk->so_snd.sb_cc >=
+		    sk->so_snd.sb_mbmax - ssk->xmit_size_goal) {
 			sdp_prf(ssk->socket, NULL, "pending tx - rearming");
 			sdp_arm_tx_cq(ssk);
 		}
@@ -462,6 +461,7 @@ sdp_tx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	}
 	ssk->tx_ring.cq = tx_cq;
 	ssk->tx_ring.poll_cnt = 0;
+	sdp_arm_tx_cq(ssk);
 
 	return 0;
 
@@ -481,6 +481,8 @@ sdp_tx_ring_destroy(struct sdp_sock *ssk)
 	callout_stop(&ssk->tx_ring.timer);
 	callout_stop(&ssk->nagle_timer);
 	SDP_WUNLOCK(ssk);
+	callout_drain(&ssk->tx_ring.timer);
+	callout_drain(&ssk->nagle_timer);
 
 	if (ssk->tx_ring.buffer) {
 		sdp_tx_ring_purge(ssk);
