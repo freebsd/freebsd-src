@@ -706,11 +706,10 @@ nd_handle_ip(struct mbuf **mb)
 			m_adj(m, ip->ip_len - m->m_pkthdr.len);
 	}
 
-	/* We would process IP options here, but we'll ignore them instead. */
-	/* Strip IP options */
+	/* Ignore packets with IP options. */
 	if (hlen > sizeof(struct ip)) {
-		ip_stripoptions(m, NULL);
-		hlen = sizeof(struct ip);
+		NETDDEBUG("nd_handle_ip: Drop packet with IP options\n");
+		return;
 	}
 
 	/* Check that the source is the server's IP */
