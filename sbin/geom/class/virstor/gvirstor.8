@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006-2008 Ivan Voras <ivoras@FreeBSD.org>
+.\" Copyright (c) 2006-2011 Ivan Voras <ivoras@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2008
+.Dd January 24, 2011
 .Dt GVIRSTOR 8
 .Os
 .Sh NAME
@@ -80,6 +80,10 @@ The idea behind
 is similar to the concept of Virtual Memory in operating systems,
 effectively allowing users to overcommit on storage
 .Pq free file system space .
+The concept is also known as "thin provisioning" in virtualization
+environments, only here it is implemented on the level of physical storage
+devices.
+.Pp
 The first argument to
 .Nm
 indicates an action to be performed:
