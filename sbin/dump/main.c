@@ -43,7 +43,6 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/mount.h>
 #include <sys/disklabel.h>
 
@@ -64,6 +63,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <timeconv.h>
 #include <unistd.h>
 
