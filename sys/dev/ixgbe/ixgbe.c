@@ -2012,6 +2012,9 @@ ixgbe_setup_optics(struct adapter *adapter)
 		case IXGBE_PHYSICAL_LAYER_10GBASE_CX4:
 			adapter->optics = IFM_10G_CX4;
 			break;
+		case IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU:
+			adapter->optics = IFM_10G_TWINAX;
+			break;
 		case IXGBE_PHYSICAL_LAYER_1000BASE_KX:
 		case IXGBE_PHYSICAL_LAYER_10GBASE_KR:
 		case IXGBE_PHYSICAL_LAYER_10GBASE_XAUI:
