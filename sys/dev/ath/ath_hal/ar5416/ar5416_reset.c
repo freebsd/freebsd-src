@@ -209,9 +209,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 #endif
 	}
 
-	/* Set ADC/DAC select values */
-	OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL, 0x0e);
-
 	if (AH5416(ah)->ah_rx_chainmask == 0x5 ||
 	    AH5416(ah)->ah_tx_chainmask == 0x5)
 		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
