@@ -1870,7 +1870,6 @@ hung:
 	    txr->me, txr->tx_avail, txr->next_to_clean);
 	adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
-	IXGBE_TX_UNLOCK(txr);
 	ixgbe_init_locked(adapter);
 }
 
