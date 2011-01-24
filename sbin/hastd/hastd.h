@@ -46,4 +46,6 @@ extern struct pidfh *pfh;
 void hastd_primary(struct hast_resource *res);
 void hastd_secondary(struct hast_resource *res, struct nv *nvin);
 
+void primary_config_reload(struct hast_resource *res, struct nv *nv);
+
 #endif	/* !_HASTD_H_ */
