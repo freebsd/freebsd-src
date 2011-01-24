@@ -62,7 +62,7 @@ static char lbuf[LBUF];
  *	Created.
  */
 
-#define Decimal(str, ans, tmp, size) if (decimal(str, &tmp, ans, size)) ans = tmp
+#define Decimal(str, ans, tmp, nbits) if (decimal(str, &tmp, ans, nbits)) ans = tmp
 
 #define RoundCyl(x) ((((x) + cylsecs - 1) / cylsecs) * cylsecs)
 
@@ -247,7 +247,7 @@ static int get_params(void);
 static int read_s0(void);
 static int write_s0(void);
 static int ok(const char *str);
-static int decimal(const char *str, int *num, int deflt, int size);
+static int decimal(const char *str, int *num, int deflt, int nbits);
 static int read_config(char *config_file);
 static void reset_boot(void);
 static int sanitize_partition(struct dos_partition *);
@@ -572,9 +572,9 @@ change_part(int i)
 	}
 
 	do {
-		Decimal("sysid (165=FreeBSD)", partp->dp_typ, tmp, sizeof(partp->dp_typ));
-		Decimal("start", partp->dp_start, tmp, sizeof(partp->dp_start));
-		Decimal("size", partp->dp_size, tmp, sizeof(partp->dp_size));
+		Decimal("sysid (165=FreeBSD)", partp->dp_typ, tmp, sizeof(partp->dp_typ) * 8);
+		Decimal("start", partp->dp_start, tmp, sizeof(partp->dp_start) * 8);
+		Decimal("size", partp->dp_size, tmp, sizeof(partp->dp_size) * 8);
 		if (!sanitize_partition(partp)) {
 			warnx("ERROR: failed to adjust; setting sysid to 0");
 			partp->dp_typ = 0;
@@ -586,9 +586,9 @@ change_part(int i)
 			tcyl = DPCYL(partp->dp_scyl,partp->dp_ssect);
 			thd = partp->dp_shd;
 			tsec = DPSECT(partp->dp_ssect);
-			Decimal("beginning cylinder", tcyl, tmp, sizeof(partp->dp_scyl));
-			Decimal("beginning head", thd, tmp, sizeof(partp->dp_shd));
-			Decimal("beginning sector", tsec, tmp, sizeof(partp->dp_ssect));
+			Decimal("beginning cylinder", tcyl, tmp, 10);
+			Decimal("beginning head", thd, tmp, sizeof(partp->dp_shd) * 8);
+			Decimal("beginning sector", tsec, tmp, 6);
 			partp->dp_scyl = DOSCYL(tcyl);
 			partp->dp_ssect = DOSSECT(tsec,tcyl);
 			partp->dp_shd = thd;
@@ -596,9 +596,9 @@ change_part(int i)
 			tcyl = DPCYL(partp->dp_ecyl,partp->dp_esect);
 			thd = partp->dp_ehd;
 			tsec = DPSECT(partp->dp_esect);
-			Decimal("ending cylinder", tcyl, tmp, sizeof(partp->dp_ecyl));
-			Decimal("ending head", thd, tmp, sizeof(partp->dp_ehd));
-			Decimal("ending sector", tsec, tmp, sizeof(partp->dp_esect));
+			Decimal("ending cylinder", tcyl, tmp, 10);
+			Decimal("ending head", thd, tmp, sizeof(partp->dp_ehd) * 8);
+			Decimal("ending sector", tsec, tmp, 6);
 			partp->dp_ecyl = DOSCYL(tcyl);
 			partp->dp_esect = DOSSECT(tsec,tcyl);
 			partp->dp_ehd = thd;
@@ -915,16 +915,16 @@ ok(const char *str)
 }
 
 static int
-decimal(const char *str, int *num, int deflt, int size)
+decimal(const char *str, int *num, int deflt, int nbits)
 {
-	long long acc = 0, maxval;
+	long long acc = 0, limit;
 	int c;
 	char *cp;
 
-	if (size == 0) {
-		size = sizeof(*num);
+	if (nbits == 0) {
+		nbits = sizeof(*num) * 8;
 	}
-	maxval = (long long)1 << (size * 8);
+	limit = (long long)1 << nbits;
 	while (1) {
 		printf("Supply a decimal value for \"%s\" [%d] ", str, deflt);
 		fflush(stdout);
@@ -941,7 +941,7 @@ decimal(const char *str, int *num, int deflt, int size)
 			return 0;
 		while ((c = *cp++)) {
 			if (c <= '9' && c >= '0') {
-				if (acc < maxval)
+				if (acc < limit)
 					acc = acc * 10 + c - '0';
 			} else
 				break;
@@ -949,8 +949,8 @@ decimal(const char *str, int *num, int deflt, int size)
 		if (c == ' ' || c == '\t')
 			while ((c = *cp) && (c == ' ' || c == '\t')) cp++;
 		if (!c) {
-			if (acc >= maxval) {
-				acc = maxval - 1;
+			if (acc >= limit) {
+				acc = limit - 1;
 				printf("%s is too big, it will be truncated to %lld\n",
 				    lbuf, acc);
 			}
