@@ -816,7 +816,7 @@ vfs_domount_first(
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
-        error = VFS_MOUNT(mp);
+	error = VFS_MOUNT(mp);
 	if (error != 0) {
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
@@ -940,7 +940,7 @@ vfs_domount_update(
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
-        error = VFS_MOUNT(mp);
+	error = VFS_MOUNT(mp);
 
 	if (error == 0) {
 		/* Process the export option. */
