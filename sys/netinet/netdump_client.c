@@ -114,7 +114,7 @@ static int	 netdump_udp_output(struct mbuf *m);
 #ifdef NETDUMP_CLIENT_DEBUG
 static int	 sysctl_force_crash(SYSCTL_HANDLER_ARGS);
 #endif
-static int	 sysctl_ip(SYSCTL_HANDLER_ARGS);
+static int	 sysctl_handle_inaddr(SYSCTL_HANDLER_ARGS);
 static int	 sysctl_nic(SYSCTL_HANDLER_ARGS);
 
 static eventhandler_tag nd_tag = NULL;       /* record of our shutdown event */
@@ -164,7 +164,7 @@ netdump_supported_nic(struct ifnet *ifp)
  */
 
 /*
- * [sysctl_ip]
+ * [sysctl_handle_inaddr]
  *
  * sysctl handler to deal with converting a string sysctl to/from an in_addr
  *
@@ -177,32 +177,21 @@ netdump_supported_nic(struct ifnet *ifp)
  *	int	see errno.h, 0 for success
  */
 static int
-sysctl_ip(SYSCTL_HANDLER_ARGS)
+sysctl_handle_inaddr(SYSCTL_HANDLER_ARGS)
 {
 	struct in_addr addr;
 	char buf[INET_ADDRSTRLEN];
 	int error;
-	int len=req->newlen - req->newidx;
 
 	inet_ntoa_r(*(struct in_addr *)arg1, buf);
-	error = SYSCTL_OUT(req, buf, strlen(buf)+1);
-
-	if (error || !req->newptr)
-		return error;
-
-	if (len >= INET_ADDRSTRLEN) {
-		error = EINVAL;
-	} else {
-		error = SYSCTL_IN(req, buf, len);
-		buf[len]='\0';
-		if (error)
-			return error;
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error == 0) {
 		if (!inet_aton(buf, &addr))
-			return EINVAL;
-		*(struct in_addr *)arg1 = addr;
+			error = EINVAL;
+		else
+			*(struct in_addr *)arg1 = addr;
 	}
-
-	return error;
+	return (error);
 }
 
 /*
@@ -302,11 +291,11 @@ sysctl_force_crash(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_NODE(_net, OID_AUTO, dump, CTLFLAG_RW, 0, "netdump");
 SYSCTL_PROC(_net_dump, OID_AUTO, server, CTLTYPE_STRING|CTLFLAG_RW, &nd_server,
-	0, sysctl_ip, "A", "dump server");
+	0, sysctl_handle_inaddr, "A", "dump server");
 SYSCTL_PROC(_net_dump, OID_AUTO, client, CTLTYPE_STRING|CTLFLAG_RW, &nd_client,
-	0, sysctl_ip, "A", "dump client");
+	0, sysctl_handle_inaddr, "A", "dump client");
 SYSCTL_PROC(_net_dump, OID_AUTO, gateway, CTLTYPE_STRING|CTLFLAG_RW, &nd_gw,
-	0, sysctl_ip, "A", "dump default gateway");
+	0, sysctl_handle_inaddr, "A", "dump default gateway");
 SYSCTL_PROC(_net_dump, OID_AUTO, nic, CTLTYPE_STRING|CTLFLAG_RW, &nd_ifp,
 	IFNAMSIZ, sysctl_nic, "A", "NIC to dump on");
 SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT|CTLFLAG_RW, &nd_polls, 0,
