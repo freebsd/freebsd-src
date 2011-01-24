@@ -115,7 +115,6 @@ static int	 netdump_udp_output(struct mbuf *m);
 static int	 sysctl_force_crash(SYSCTL_HANDLER_ARGS);
 #endif
 static int	 sysctl_handle_inaddr(SYSCTL_HANDLER_ARGS);
-static int	 sysctl_nic(SYSCTL_HANDLER_ARGS);
 
 static eventhandler_tag nd_tag = NULL;       /* record of our shutdown event */
 static uint32_t nd_seqno = 1;		     /* current sequence number */
@@ -128,6 +127,7 @@ static unsigned char buf[MAXDUMPPGS*PAGE_SIZE]; /* Must be at least as big as
 static struct ether_addr nd_gw_mac;
 
 static int nd_enable = 0;  /* if we should perform a network dump */
+static char nd_ifp_str[IFNAMSIZ]; /* String rappresenting the interface */
 static struct in_addr nd_server = {INADDR_ANY}; /* server address */
 static struct in_addr nd_client = {INADDR_ANY}; /* client (our) address */
 static struct in_addr nd_gw = {INADDR_ANY}; /* gw, if set */
@@ -194,66 +194,6 @@ sysctl_handle_inaddr(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-/*
- * [sysctl_nic]
- *
- * sysctl handler to deal with converting a string sysctl to/from an interface
- *
- * Parameters:
- *	SYSCTL_HANDLER_ARGS
- *	 - arg1 is a pointer to the struct ifnet to the interface
- *	 - arg2 is the maximum string length (IFNAMSIZ)
- *
- * Returns:
- *	int	see errno.h, 0 for success
- */
-static int
-sysctl_nic(SYSCTL_HANDLER_ARGS)
-{
-	struct ifnet *ifp;
-	char buf[arg2+1];
-	int error;
-	int len;
-	int invalid;
-
-	invalid = 0;
-	if (*(struct ifnet **)arg1) {
-		error = SYSCTL_OUT(req,
-				(*(struct ifnet **)arg1)->if_xname,
-				strlen((*(struct ifnet **)arg1)->if_xname));
-	} else
-		invalid = 1;
-
-	if (error || !req->newptr)
-		return error;
-
-	len = req->newlen - req->newidx;
-	if (len >= arg2) {
-		error = EINVAL;
-	} else {
-		if (invalid != 0)
-			ifp = NULL;
-		else {
-			error = SYSCTL_IN(req, buf, len);
-			buf[len]='\0';
-			if (error)
-				return error;
-			IFNET_RLOCK_NOSLEEP();
-			if ((ifp = TAILQ_FIRST(&V_ifnet)) != NULL) do {
-				if (!strcmp(ifp->if_xname, buf)) break;
-			} while ((ifp = TAILQ_NEXT(ifp, if_link)) != NULL);
-			IFNET_RUNLOCK_NOSLEEP();
-
-			if (!ifp) return ENODEV;
-			if (!netdump_supported_nic(ifp)) return EINVAL;
-		}
-
-		(*(struct ifnet **)arg1) = ifp;
-	}
-
-	return error;
-}
-
 #ifdef NETDUMP_CLIENT_DEBUG
 static int
 sysctl_force_crash(SYSCTL_HANDLER_ARGS) 
@@ -296,8 +236,8 @@ SYSCTL_PROC(_net_dump, OID_AUTO, client, CTLTYPE_STRING|CTLFLAG_RW, &nd_client,
 	0, sysctl_handle_inaddr, "A", "dump client");
 SYSCTL_PROC(_net_dump, OID_AUTO, gateway, CTLTYPE_STRING|CTLFLAG_RW, &nd_gw,
 	0, sysctl_handle_inaddr, "A", "dump default gateway");
-SYSCTL_PROC(_net_dump, OID_AUTO, nic, CTLTYPE_STRING|CTLFLAG_RW, &nd_ifp,
-	IFNAMSIZ, sysctl_nic, "A", "NIC to dump on");
+SYSCTL_STRING(_net_dump, OID_AUTO, nic, CTLFLAG_RW, nd_ifp_str,
+	sizeof(nd_ifp_str), "dumping interface string");
 SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT|CTLFLAG_RW, &nd_polls, 0,
 	"times to poll NIC per retry");
 SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT|CTLFLAG_RW, &nd_retries, 0,
@@ -415,6 +355,8 @@ netdump_udp_output(struct mbuf *m)
 	struct udpiphdr *ui;
 	struct ip *ip;
 
+	MPASS(nd_ifp != NULL);
+
 	M_PREPEND(m, sizeof(struct udpiphdr), M_DONTWAIT);
 	if (m == 0) {
 		printf("netdump_udp_output: Out of mbufs\n");
@@ -475,6 +417,8 @@ netdump_send_arp()
 	int pktlen = arphdr_len2(ETHER_ADDR_LEN, sizeof(struct in_addr));
 	struct arphdr *ah;
 	struct ether_addr bcast;
+
+	MPASS(nd_ifp != NULL);
 
 	/* Fill-up a broadcast address. */
 	memset(&bcast, 0xFF, ETHER_ADDR_LEN);
@@ -566,6 +510,8 @@ netdump_send(uint32_t type, off_t offset,
 	uint64_t want_acks=0;
 
 	rcvd_acks = 0;
+
+	MPASS(nd_ifp != NULL);
 
 retransmit:
 	/* We might get chunks too big to fit in packets. Yuck. */
@@ -1051,6 +997,8 @@ static void
 netdump_network_poll()
 {
 
+	MPASS(nd_ifp != NULL);
+
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 	if (panicstr != NULL)
 		nd_ifp->if_ndumpfuncs->ne_poll_unlocked(nd_ifp,
@@ -1135,15 +1083,34 @@ netdump_trigger(void *arg, int howto)
 {
 	struct dumperinfo dumper;
 	void (*old_if_input)(struct ifnet *, struct mbuf *)=NULL;
+	int found;
 
 	if ((howto&(RB_HALT|RB_DUMP))!=RB_DUMP || !nd_enable || cold ||
 	    dumping)
 		return;
 
-	if (!nd_ifp) {
-		printf("netdump_trigger: Can't netdump: no NIC given\n");
+	found = 0;
+#if defined(KDB) && !defined(KDB_UNATTENDED)
+	if (panicstr == NULL)
+#endif
+		IFNET_RLOCK_NOSLEEP();
+	TAILQ_FOREACH(nd_ifp, &V_ifnet, if_link) {
+		if (!strncmp(nd_ifp->if_xname, nd_ifp_str,
+		    strlen(nd_ifp->if_xname))) {
+			found = 1;
+			break;
+		}
+	}
+#if defined(KDB) && !defined(KDB_UNATTENDED)
+	if (panicstr == NULL)
+#endif
+		IFNET_RUNLOCK_NOSLEEP();
+
+	if (found == 0) {
+		printf("netdump_trigger: Can't netdump: no valid NIC given\n");
 		return;
 	}
+	MPASS(nd_ifp != NULL);
 
 	if (nd_server.s_addr == INADDR_ANY) {
 		printf("netdump_trigger: Can't netdump; no server IP given\n");
@@ -1274,7 +1241,8 @@ netdump_config_defaults()
 		found = 0;
 		IFNET_RLOCK_NOSLEEP();
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-			if (!strcmp(ifp->if_xname, nd_nic_tun)) {
+			if (!strncmp(ifp->if_xname, nd_nic_tun,
+			    strlen(ifp->if_xname))) {
 				found = 1;
 				break;
 			}
