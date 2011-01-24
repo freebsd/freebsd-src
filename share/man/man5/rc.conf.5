@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2010
+.Dd January 7, 2011
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -64,7 +64,19 @@ The file
 is used to override settings in
 .Pa /etc/rc.conf
 for historical reasons.
-See the
+In addition to
+.Pa /etc/rc.conf.local
+you can also place smaller configuration files for each
+.Xr rc 8
+script in the
+.Pa /etc/rc.conf.d
+directory, which will be included by the
+.Va load_rc_config
+function.
+For jail configurations you could use the file
+.Pa /etc/rc.conf.d/jail
+to store jail specific configuration options.
+Also see the
 .Va rc_conf_files
 variable below.
 .Pp
