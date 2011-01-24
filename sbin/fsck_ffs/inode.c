@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stdint.h>
-#include <sys/time.h>
 #include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
@@ -47,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <pwd.h>
 #include <string.h>
+#include <time.h>
 
 #include "fsck.h"
 

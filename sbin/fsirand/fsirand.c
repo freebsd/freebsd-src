@@ -35,9 +35,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/disklabel.h>
 #include <sys/param.h>
-#include <sys/time.h>
+#include <sys/disklabel.h>
 #include <sys/resource.h>
 
 #include <ufs/ufs/dinode.h>
@@ -50,6 +49,7 @@ static const char rcsid[] =
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 static void usage(void) __dead2;
