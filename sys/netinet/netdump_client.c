@@ -1083,16 +1083,19 @@ netdump_trigger(void *arg, int howto)
 {
 	struct dumperinfo dumper;
 	void (*old_if_input)(struct ifnet *, struct mbuf *)=NULL;
-	int found;
+	int found, must_lock;
 
 	if ((howto&(RB_HALT|RB_DUMP))!=RB_DUMP || !nd_enable || cold ||
 	    dumping)
 		return;
 
 	found = 0;
+	must_lock = 1;
 #if defined(KDB) && !defined(KDB_UNATTENDED)
-	if (panicstr == NULL)
+	if (panicstr != NULL)
+		must_lock = 0;
 #endif
+	if (must_lock != 0)
 		IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(nd_ifp, &V_ifnet, if_link) {
 		if (!strncmp(nd_ifp->if_xname, nd_ifp_str,
@@ -1101,9 +1104,7 @@ netdump_trigger(void *arg, int howto)
 			break;
 		}
 	}
-#if defined(KDB) && !defined(KDB_UNATTENDED)
-	if (panicstr == NULL)
-#endif
+	if (must_lock != 0)
 		IFNET_RUNLOCK_NOSLEEP();
 
 	if (found == 0) {
@@ -1139,12 +1140,8 @@ netdump_trigger(void *arg, int howto)
 	 * first time it gets called.  Adjust it accordingly.
 	 */
 	nd_server_port = NETDUMP_PORT;
-	if ((nd_ifp->if_capenable & IFCAP_POLLING) == 0) {
-#if defined(KDB) && !defined(KDB_UNATTENDED)
-		if (panicstr == NULL)
-#endif
-			nd_ifp->if_ndumpfuncs->ne_disable_intr(nd_ifp);
-	}
+	if ((nd_ifp->if_capenable & IFCAP_POLLING) == 0 && must_lock != 0)
+		nd_ifp->if_ndumpfuncs->ne_disable_intr(nd_ifp);
 
 	/* Make the card use *our* receive callback */
 	old_if_input = nd_ifp->if_input;
@@ -1194,12 +1191,8 @@ netdump_trigger(void *arg, int howto)
 trig_abort:
 	if (old_if_input)
 		nd_ifp->if_input = old_if_input;
-	if ((nd_ifp->if_capenable & IFCAP_POLLING) == 0) {
-#if defined(KDB) && !defined(KDB_UNATTENDED)
-		if (panicstr == NULL)
-#endif
-			nd_ifp->if_ndumpfuncs->ne_enable_intr(nd_ifp);
-	}
+	if ((nd_ifp->if_capenable & IFCAP_POLLING) == 0 && must_lock != 0)
+		nd_ifp->if_ndumpfuncs->ne_enable_intr(nd_ifp);
 	dumping--;
 }
 
