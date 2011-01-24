@@ -2138,22 +2138,28 @@ interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
     return rv;
 }
 
+/*
+ * The linux ath9k driver and (from what I've been told) the reference
+ * Atheros driver enables the 11n PHY by default whether or not it's
+ * configured.
+ */
 static void
 ar5416Set11nRegs(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	uint32_t phymode;
+	uint32_t enableDacFifo = 0;
 	HAL_HT_MACMODE macmode;		/* MAC - 20/40 mode */
 
-	if (!IEEE80211_IS_CHAN_HT(chan))
-		return;
+	if (AR_SREV_KITE_10_OR_LATER(ah))
+		enableDacFifo = (OS_REG_READ(ah, AR_PHY_TURBO) & AR_PHY_FC_ENABLE_DAC_FIFO);
 
 	/* Enable 11n HT, 20 MHz */
 	phymode = AR_PHY_FC_HT_EN | AR_PHY_FC_SHORT_GI_40
-		| AR_PHY_FC_SINGLE_HT_LTF1 | AR_PHY_FC_WALSH;
+		| AR_PHY_FC_SINGLE_HT_LTF1 | AR_PHY_FC_WALSH | enableDacFifo;
 
 	/* Configure baseband for dynamic 20/40 operation */
 	if (IEEE80211_IS_CHAN_HT40(chan)) {
-		phymode |= AR_PHY_FC_DYN2040_EN | AR_PHY_FC_SHORT_GI_40;
+		phymode |= AR_PHY_FC_DYN2040_EN;
 
 		/* Configure control (primary) channel at +-10MHz */
 		if (IEEE80211_IS_CHAN_HT40U(chan))

@@ -48,7 +48,7 @@ void pjdlog_debug_set(int level);
 int pjdlog_debug_get(void);
 
 void pjdlog_prefix_set(const char *fmt, ...) __printflike(1, 2);
-void pjdlog_prefix_setv(const char *fmt, va_list ap) __printflike(1, 0);
+void pjdlogv_prefix_set(const char *fmt, va_list ap) __printflike(1, 0);
 
 void pjdlog_common(int loglevel, int debuglevel, int error, const char *fmt,
     ...) __printflike(4, 5);

@@ -205,6 +205,45 @@ resource_needs_reload(const struct hast_resource *res0,
 }
 
 static void
+resource_reload(const struct hast_resource *res)
+{
+	struct nv *nvin, *nvout;
+	int error;
+
+	assert(res->hr_role == HAST_ROLE_PRIMARY);
+
+	nvout = nv_alloc();
+	nv_add_uint8(nvout, HASTCTL_RELOAD, "cmd");
+	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr");
+	nv_add_int32(nvout, (int32_t)res->hr_replication, "replication");
+	nv_add_int32(nvout, (int32_t)res->hr_timeout, "timeout");
+	nv_add_string(nvout, res->hr_exec, "exec");
+	if (nv_error(nvout) != 0) {
+		nv_free(nvout);
+		pjdlog_error("Unable to allocate header for reload message.");
+		return;
+	}
+	if (hast_proto_send(res, res->hr_ctrl, nvout, NULL, 0) < 0) {
+		pjdlog_errno(LOG_ERR, "Unable to send reload message");
+		nv_free(nvout);
+		return;
+	}
+	nv_free(nvout);
+
+	/* Receive response. */
+	if (hast_proto_recv_hdr(res->hr_ctrl, &nvin) < 0) {
+		pjdlog_errno(LOG_ERR, "Unable to receive reload reply");
+		return;
+	}
+	error = nv_get_int16(nvin, "error");
+	nv_free(nvin);
+	if (error != 0) {
+		pjdlog_common(LOG_ERR, 0, error, "Reload failed");
+		return;
+	}
+}
+
+static void
 hastd_reload(void)
 {
 	struct hastd_config *newcfg;
@@ -306,8 +345,9 @@ hastd_reload(void)
 	 * recreating it.
 	 *
 	 * We do just reload (send SIGHUP to worker process) if we act as
-	 * PRIMARY, but only remote address, replication mode and timeout
-	 * has changed. For those, there is no need to restart worker process.
+	 * PRIMARY, but only if remote address, replication mode, timeout or
+	 * execution path has changed. For those, there is no need to restart
+	 * worker process.
 	 * If PRIMARY receives SIGHUP, it will reconnect if remote address or
 	 * replication mode has changed or simply set new timeout if only
 	 * timeout has changed.
@@ -335,13 +375,10 @@ hastd_reload(void)
 			    sizeof(cres->hr_remoteaddr));
 			cres->hr_replication = nres->hr_replication;
 			cres->hr_timeout = nres->hr_timeout;
-			if (cres->hr_workerpid != 0) {
-				if (kill(cres->hr_workerpid, SIGHUP) < 0) {
-					pjdlog_errno(LOG_WARNING,
-					    "Unable to send SIGHUP to worker process %u",
-					    (unsigned int)cres->hr_workerpid);
-				}
-			}
+			strlcpy(cres->hr_exec, nres->hr_exec,
+			    sizeof(cres->hr_exec));
+			if (cres->hr_workerpid != 0)
+				resource_reload(cres);
 		}
 	}
 

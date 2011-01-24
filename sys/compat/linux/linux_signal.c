@@ -526,7 +526,7 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 	 * Allow signal 0 as a means to check for privileges
 	 */
 	if (!LINUX_SIG_VALID(args->signum) && args->signum != 0)
-		return EINVAL;
+		return (EINVAL);
 
 	if (args->signum > 0 && args->signum <= LINUX_SIGTBLSZ)
 		tmp.signum = linux_to_bsd_signal[_SIG_IDX(args->signum)];

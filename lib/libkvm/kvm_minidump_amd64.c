@@ -136,7 +136,6 @@ _kvm_minidump_freevtop(kvm_t *kd)
 int
 _kvm_minidump_initvtop(kvm_t *kd)
 {
-	u_long pa;
 	struct vmstate *vmst;
 	off_t off;
 
@@ -207,7 +206,6 @@ _kvm_minidump_vatop_v1(kvm_t *kd, u_long va, off_t *pa)
 	u_long offset;
 	pt_entry_t pte;
 	u_long pteindex;
-	int i;
 	u_long a;
 	off_t ofs;
 
@@ -258,7 +256,6 @@ _kvm_minidump_vatop(kvm_t *kd, u_long va, off_t *pa)
 	pd_entry_t pte;
 	u_long pteindex;
 	u_long pdeindex;
-	int i;
 	u_long a;
 	off_t ofs;
 
