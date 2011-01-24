@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 #include "opt_pmap.h"
 
 #include <sys/param.h>
@@ -439,7 +438,7 @@ pmap_bootstrap(u_int cpu_impl)
 	/*
 	 * Allocate and map the message buffer.
 	 */
-	pa = pmap_bootstrap_alloc(MSGBUF_SIZE, colors);
+	pa = pmap_bootstrap_alloc(msgbufsize, colors);
 	msgbufp = (struct msgbuf *)TLB_PHYS_TO_DIRECT(pa);
 
 	/*

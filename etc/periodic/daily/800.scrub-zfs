@@ -24,11 +24,15 @@ case "$daily_scrub_zfs_enable" in
 
 	for pool in ${daily_scrub_zfs_pools}; do
 		# sanity check
-		zpool list ${pool} >/dev/null 2>&1
+		_status=$(zpool list ${pool} | sed -n -e '$p')
 		if [ $? -ne 0 ]; then
 			echo "   WARNING: pool '${pool}' specified in"
 			echo "            '/etc/periodic.conf:daily_scrub_zfs_pools'"
 			echo "            does not exist"
+			continue
+		fi
+		if echo ${_status} | grep -q FAULTED; then
+			echo "Skipping faulted pool: ${pool}"
 			continue
 		fi
 

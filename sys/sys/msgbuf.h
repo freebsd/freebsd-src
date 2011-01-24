@@ -52,6 +52,7 @@ struct msgbuf {
 #define	MSGBUF_SEQSUB(mbp, seq1, seq2)	(MSGBUF_SEQNORM((mbp), (seq1) - (seq2)))
 
 #ifdef _KERNEL
+extern int	msgbufsize;
 extern int	msgbuftrigger;
 extern struct	msgbuf *msgbufp;
 extern struct	mtx msgbuf_lock;

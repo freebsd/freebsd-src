@@ -46,7 +46,15 @@
 #define	USB_TD_GET_PROC(td) (td)->td_proc
 #define	USB_PROC_GET_GID(td) (td)->p_pgid
 
+#if (!defined(USB_HOST_ALIGN)) || (USB_HOST_ALIGN <= 0)
+/* Use default value. */
+#undef USB_HOST_ALIGN
 #define	USB_HOST_ALIGN    8		/* bytes, must be power of two */
+#endif
+/* Sanity check for USB_HOST_ALIGN: Verify power of two. */
+#if ((-USB_HOST_ALIGN) & USB_HOST_ALIGN) != USB_HOST_ALIGN
+#error "USB_HOST_ALIGN is not power of two."
+#endif
 #define	USB_FS_ISOC_UFRAME_MAX 4	/* exclusive unit */
 #define	USB_BUS_MAX 256			/* units */
 #define	USB_MAX_DEVICES 128		/* units */

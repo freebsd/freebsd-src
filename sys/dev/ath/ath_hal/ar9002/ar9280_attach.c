@@ -721,6 +721,10 @@ ar9280SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 		ahp->ah_rx_chainmask = AR9280_DEFAULT_RXCHAINMASK;
 		break;
 	}
+
+	HALDEBUG(ah, HAL_DEBUG_ANY, "%s: settings=%d, tx/rx chainmask=%d/%d\n",
+	    __func__, settings, ahp->ah_tx_chainmask, ahp->ah_rx_chainmask);
+
 	return AH_TRUE;
 #undef ANTENNA0_CHAINMASK
 #undef ANTENNA1_CHAINMASK

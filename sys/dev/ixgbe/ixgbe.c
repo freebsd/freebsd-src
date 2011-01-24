@@ -1870,7 +1870,6 @@ hung:
 	    txr->me, txr->tx_avail, txr->next_to_clean);
 	adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
-	IXGBE_TX_UNLOCK(txr);
 	ixgbe_init_locked(adapter);
 }
 
@@ -2012,6 +2011,9 @@ ixgbe_setup_optics(struct adapter *adapter)
 		case IXGBE_PHYSICAL_LAYER_10GBASE_KX4:
 		case IXGBE_PHYSICAL_LAYER_10GBASE_CX4:
 			adapter->optics = IFM_10G_CX4;
+			break;
+		case IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU:
+			adapter->optics = IFM_10G_TWINAX;
 			break;
 		case IXGBE_PHYSICAL_LAYER_1000BASE_KX:
 		case IXGBE_PHYSICAL_LAYER_10GBASE_KR:
@@ -5266,12 +5268,16 @@ static int
 ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 {
 	int error;
+	int last = ixgbe_flow_control;
 	struct adapter *adapter;
 
 	error = sysctl_handle_int(oidp, &ixgbe_flow_control, 0, req);
-
 	if (error)
 		return (error);
+
+	/* Don't bother if it's not changed */
+	if (ixgbe_flow_control == last)
+		return (0);
 
 	adapter = (struct adapter *) arg1;
 	switch (ixgbe_flow_control) {

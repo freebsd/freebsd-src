@@ -174,7 +174,7 @@ static void
 growfs(int fsi, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("growfs")
-	time_t	utime;
+	time_t	modtime;
 	uint	cylno;
 	int	i, j, width;
 	char	tmpbuf[100];
@@ -192,7 +192,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	DBG_ENTER;
 
 #endif /* FSIRAND */
-	time(&utime);
+	time(&modtime);
 
 	/*
 	 * Get the cylinder summary into the memory.
@@ -228,7 +228,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	/*
 	 * Do all needed changes in the former last cylinder group.
 	 */
-	updjcg(osblock.fs_ncg-1, utime, fsi, fso, Nflag);
+	updjcg(osblock.fs_ncg-1, modtime, fsi, fso, Nflag);
 
 	/*
 	 * Dump out summary information about file system.
@@ -257,7 +257,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 * Iterate for only the new cylinder groups.
 	 */
 	for (cylno = osblock.fs_ncg; cylno < sblock.fs_ncg; cylno++) {
-		initcg(cylno, utime, fso, Nflag);
+		initcg(cylno, modtime, fso, Nflag);
 		j = sprintf(tmpbuf, " %jd%s",
 		    (intmax_t)fsbtodb(&sblock, cgsblock(&sblock, cylno)),
 		    cylno < (sblock.fs_ncg-1) ? "," : "" );
@@ -275,7 +275,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 * Do all needed changes in the first cylinder group.
 	 * allocate blocks in new location
 	 */
-	updcsloc(utime, fsi, fso, Nflag);
+	updcsloc(modtime, fsi, fso, Nflag);
 
 	/*
 	 * Now write the cylinder summary back to disk.
@@ -307,7 +307,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	/*
 	 * Now write the new superblock back to disk.
 	 */
-	sblock.fs_time = utime;
+	sblock.fs_time = modtime;
 	wtfs(sblockloc, (size_t)SBLOCKSIZE, (void *)&sblock, fso, Nflag);
 	DBG_PRINT0("sblock written\n");
 	DBG_DUMP_FS(&sblock,
@@ -368,7 +368,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
  * provisions for that case are removed here.
  */
 static void
-initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
+initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("initcg")
 	static caddr_t iobuf;
@@ -396,7 +396,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		dupper += howmany(sblock.fs_cssize, sblock.fs_fsize);
 	cs = &fscs[cylno];
 	memset(&acg, 0, sblock.fs_cgsize);
-	acg.cg_time = utime;
+	acg.cg_time = modtime;
 	acg.cg_magic = CG_MAGIC;
 	acg.cg_cgx = cylno;
 	acg.cg_niblk = sblock.fs_ipg;
@@ -680,7 +680,7 @@ cond_bl_upd(ufs2_daddr_t *block, struct gfs_bpp *field, int fsi, int fso,
  * tables and cluster summary during all those operations.
  */
 static void
-updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
+updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("updjcg")
 	ufs2_daddr_t	cbase, dmax, dupper;
@@ -747,7 +747,7 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 	 * Touch the cylinder group, update all fields in the cylinder group as
 	 * needed, update the free space in the superblock.
 	 */
-	acg.cg_time = utime;
+	acg.cg_time = modtime;
 	if ((unsigned)cylno == sblock.fs_ncg - 1) {
 		/*
 		 * This is still the last cylinder group.
@@ -935,7 +935,7 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
  * completely avoid implementing copy on write if we stick to method (2) only.
  */
 static void
-updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
+updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("updcsloc")
 	struct csum	*cs;
@@ -983,7 +983,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 	 * Touch the cylinder group, set up local variables needed later
 	 * and update the superblock.
 	 */
-	acg.cg_time = utime;
+	acg.cg_time = modtime;
 
 	/*
 	 * XXX	In the case of having active snapshots we may need much more

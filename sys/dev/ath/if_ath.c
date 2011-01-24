@@ -274,6 +274,9 @@ SYSCTL_INT(_hw_ath, OID_AUTO, shortcal, CTLFLAG_RW, &ath_shortcalinterval,
 static	int ath_resetcalinterval = 20*60;	/* reset cal state 20 mins */
 SYSCTL_INT(_hw_ath, OID_AUTO, resetcal, CTLFLAG_RW, &ath_resetcalinterval,
 	    0, "reset chip calibration results (secs)");
+static	int ath_anicalinterval = 100;		/* ANI calibration - 100 msec */
+SYSCTL_INT(_hw_ath, OID_AUTO, anical, CTLFLAG_RW, &ath_anicalinterval,
+	    0, "ANI calibration (msecs)");
 
 static	int ath_rxbuf = ATH_RXBUF;		/* # rx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, rxbuf, CTLFLAG_RW, &ath_rxbuf,
@@ -1550,6 +1553,9 @@ ath_init(void *arg)
 	sc->sc_lastlongcal = 0;
 	sc->sc_resetcal = 1;
 	sc->sc_lastcalreset = 0;
+	sc->sc_lastani = 0;
+	sc->sc_lastshortcal = 0;
+	sc->sc_doresetcal = AH_FALSE;
 
 	/*
 	 * Setup the hardware after reset: the key cache
@@ -5415,11 +5421,23 @@ ath_calibrate(void *arg)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	HAL_BOOL longCal, isCalDone;
+	HAL_BOOL aniCal, shortCal = AH_FALSE;
 	int nextcal;
 
 	if (ic->ic_flags & IEEE80211_F_SCAN)	/* defer, off channel */
 		goto restart;
 	longCal = (ticks - sc->sc_lastlongcal >= ath_longcalinterval*hz);
+	aniCal = (ticks - sc->sc_lastani >= ath_anicalinterval*hz/1000);
+	if (sc->sc_doresetcal)
+		shortCal = (ticks - sc->sc_lastshortcal >= ath_shortcalinterval*hz/1000);
+
+	DPRINTF(sc, ATH_DEBUG_CALIBRATE, "%s: shortCal=%d; longCal=%d; aniCal=%d\n", __func__, shortCal, longCal, aniCal);
+	if (aniCal) {
+		sc->sc_stats.ast_ani_cal++;
+		sc->sc_lastani = ticks;
+		ath_hal_ani_poll(ah, sc->sc_curchan);
+	}
+
 	if (longCal) {
 		sc->sc_stats.ast_per_cal++;
 		sc->sc_lastlongcal = ticks;
@@ -5440,21 +5458,29 @@ ath_calibrate(void *arg)
 		if (sc->sc_resetcal) {
 			(void) ath_hal_calreset(ah, sc->sc_curchan);
 			sc->sc_lastcalreset = ticks;
+			sc->sc_lastshortcal = ticks;
 			sc->sc_resetcal = 0;
+			sc->sc_doresetcal = AH_TRUE;
 		}
 	}
-	if (ath_hal_calibrateN(ah, sc->sc_curchan, longCal, &isCalDone)) {
-		if (longCal) {
-			/*
-			 * Calibrate noise floor data again in case of change.
-			 */
-			ath_hal_process_noisefloor(ah);
+
+	/* Only call if we're doing a short/long cal, not for ANI calibration */
+	if (shortCal || longCal) {
+		if (ath_hal_calibrateN(ah, sc->sc_curchan, longCal, &isCalDone)) {
+			if (longCal) {
+				/*
+				 * Calibrate noise floor data again in case of change.
+				 */
+				ath_hal_process_noisefloor(ah);
+			}
+		} else {
+			DPRINTF(sc, ATH_DEBUG_ANY,
+				"%s: calibration of channel %u failed\n",
+				__func__, sc->sc_curchan->ic_freq);
+			sc->sc_stats.ast_per_calfail++;
 		}
-	} else {
-		DPRINTF(sc, ATH_DEBUG_ANY,
-			"%s: calibration of channel %u failed\n",
-			__func__, sc->sc_curchan->ic_freq);
-		sc->sc_stats.ast_per_calfail++;
+		if (shortCal)
+			sc->sc_lastshortcal = ticks;
 	}
 	if (!isCalDone) {
 restart:
@@ -5466,16 +5492,23 @@ restart:
 		 * work when operating as an AP to improve operation right
 		 * after startup.
 		 */
-		nextcal = (1000*ath_shortcalinterval)/hz;
+		sc->sc_lastshortcal = ticks;
+		nextcal = ath_shortcalinterval*hz/1000;
 		if (sc->sc_opmode != HAL_M_HOSTAP)
 			nextcal *= 10;
+		sc->sc_doresetcal = AH_TRUE;
 	} else {
+		/* nextcal should be the shortest time for next event */
 		nextcal = ath_longcalinterval*hz;
 		if (sc->sc_lastcalreset == 0)
 			sc->sc_lastcalreset = sc->sc_lastlongcal;
 		else if (ticks - sc->sc_lastcalreset >= ath_resetcalinterval*hz)
 			sc->sc_resetcal = 1;	/* setup reset next trip */
+		sc->sc_doresetcal = AH_FALSE;
 	}
+	/* ANI calibration may occur more often than short/long/resetcal */
+	if (ath_anicalinterval > 0)
+		nextcal = MIN(nextcal, ath_anicalinterval*hz/1000);
 
 	if (nextcal != 0) {
 		DPRINTF(sc, ATH_DEBUG_CALIBRATE, "%s: next +%u (%sisCalDone)\n",
@@ -7516,4 +7549,6 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_nofrag, 0, "tx dropped 'cuz no ath frag buffer");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_be_missed", CTLFLAG_RD,
 	    &sc->sc_stats.ast_be_missed, 0, "number of -missed- beacons");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ani_cal", CTLFLAG_RD,
+	    &sc->sc_stats.ast_ani_cal, 0, "number of ANI polls");
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 - 2010 Tony Finch <dot@dotat.at>
+ * Copyright (c) 2002 - 2011 Tony Finch <dot@dotat.at>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,7 +57,7 @@
 #include <unistd.h>
 
 const char copyright[] =
-    "@(#) $Version: unifdef-2.5 $\n"
+    "@(#) $Version: unifdef-2.5.6.21f1388 $\n"
     "@(#) $FreeBSD$\n"
     "@(#) $Author: Tony Finch (dot@dotat.at) $\n"
     "@(#) $URL: http://dotat.at/prog/unifdef $\n"
@@ -549,6 +549,7 @@ state(Ifstate is)
 
 /*
  * Write a line to the output or not, according to command line options.
+ * If writing fails, closeout() will print the error and exit.
  */
 static void
 flushline(bool keep)
@@ -561,21 +562,23 @@ flushline(bool keep)
 			delcount += 1;
 			blankcount += 1;
 		} else {
-			if (lnnum && delcount > 0)
-				printf("#line %d%s", linenum, newline);
-			fputs(tline, output);
+			if (lnnum && delcount > 0 &&
+			    fprintf(output, "#line %d%s", linenum, newline) < 0)
+				closeout();
+			if (fputs(tline, output) == EOF)
+				closeout();
 			delcount = 0;
 			blankmax = blankcount = blankline ? blankcount + 1 : 0;
 		}
 	} else {
-		if (lnblank)
-			fputs(newline, output);
+		if (lnblank && fputs(newline, output) == EOF)
+			closeout();
 		exitstat = 1;
 		delcount += 1;
 		blankcount = 0;
 	}
-	if (debugging)
-		fflush(output);
+	if (debugging && fflush(output) == EOF)
+		closeout();
 }
 
 /*
@@ -604,13 +607,13 @@ closeout(void)
 {
 	if (symdepth && !zerosyms)
 		printf("\n");
-	if (fclose(output) == EOF) {
-		warn("couldn't write to %s", ofilename);
+	if (ferror(output) || fclose(output) == EOF) {
 		if (overwriting) {
+			warn("couldn't write to temporary file");
 			unlink(tempname);
-			errx(2, "%s unchanged", filename);
+			errx(2, "%s unchanged", ofilename);
 		} else {
-			exit(2);
+			err(2, "couldn't write to %s", ofilename);
 		}
 	}
 }
@@ -647,8 +650,12 @@ parseline(void)
 	Comment_state wascomment;
 
 	linenum++;
-	if (fgets(tline, MAXLINE, input) == NULL)
-		return (LT_EOF);
+	if (fgets(tline, MAXLINE, input) == NULL) {
+		if (ferror(input))
+			error(strerror(errno));
+		else
+			return (LT_EOF);
+	}
 	if (newline == NULL) {
 		if (strrchr(tline, '\n') == strrchr(tline, '\r') + 1)
 			newline = newline_crlf;
@@ -722,7 +729,9 @@ parseline(void)
 		if (linestate == LS_HASH) {
 			size_t len = cp - tline;
 			if (fgets(tline + len, MAXLINE - len, input) == NULL) {
-				/* append the missing newline */
+				if (ferror(input))
+					error(strerror(errno));
+				/* append the missing newline at eof */
 				strcpy(tline + len, newline);
 				cp += strlen(newline);
 				linestate = LS_START;

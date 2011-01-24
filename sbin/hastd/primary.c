@@ -836,6 +836,7 @@ hastd_primary(struct hast_resource *res)
 	init_local(res);
 	init_ggate(res);
 	init_environment(res);
+
 	/*
 	 * Create the guard thread first, so we can handle signals from the
 	 * very begining.
@@ -1844,47 +1845,32 @@ free_queue:
 	return (NULL);
 }
 
-static void
-config_reload(void)
+void
+primary_config_reload(struct hast_resource *res, struct nv *nv)
 {
-	struct hastd_config *newcfg;
-	struct hast_resource *res;
 	unsigned int ii, ncomps;
-	int modified;
+	int modified, vint;
+	const char *vstr;
 
 	pjdlog_info("Reloading configuration...");
 
+	assert(res->hr_role == HAST_ROLE_PRIMARY);
+	assert(gres == res);
+	nv_assert(nv, "remoteaddr");
+	nv_assert(nv, "replication");
+	nv_assert(nv, "timeout");
+	nv_assert(nv, "exec");
+
 	ncomps = HAST_NCOMPONENTS;
-
-	newcfg = yy_config_parse(cfgpath, false);
-	if (newcfg == NULL)
-		goto failed;
-
-	TAILQ_FOREACH(res, &newcfg->hc_resources, hr_next) {
-		if (strcmp(res->hr_name, gres->hr_name) == 0)
-			break;
-	}
-	/*
-	 * If resource was removed from the configuration file, resource
-	 * name, provider name or path to local component was modified we
-	 * shouldn't be here. This means that someone modified configuration
-	 * file and send SIGHUP to us instead of main hastd process.
-	 * Log advice and ignore the signal.
-	 */
-	if (res == NULL || strcmp(gres->hr_name, res->hr_name) != 0 ||
-	    strcmp(gres->hr_provname, res->hr_provname) != 0 ||
-	    strcmp(gres->hr_localpath, res->hr_localpath) != 0) {
-		pjdlog_warning("To reload configuration send SIGHUP to the main hastd process (pid %u).",
-		    (unsigned int)getppid());
-		goto failed;
-	}
 
 #define MODIFIED_REMOTEADDR	0x1
 #define MODIFIED_REPLICATION	0x2
 #define MODIFIED_TIMEOUT	0x4
 #define MODIFIED_EXEC		0x8
 	modified = 0;
-	if (strcmp(gres->hr_remoteaddr, res->hr_remoteaddr) != 0) {
+
+	vstr = nv_get_string(nv, "remoteaddr");
+	if (strcmp(gres->hr_remoteaddr, vstr) != 0) {
 		/*
 		 * Don't copy res->hr_remoteaddr to gres just yet.
 		 * We want remote_close() to log disconnect from the old
@@ -1892,18 +1878,22 @@ config_reload(void)
 		 */
 		modified |= MODIFIED_REMOTEADDR;
 	}
-	if (gres->hr_replication != res->hr_replication) {
-		gres->hr_replication = res->hr_replication;
+	vint = nv_get_int32(nv, "replication");
+	if (gres->hr_replication != vint) {
+		gres->hr_replication = vint;
 		modified |= MODIFIED_REPLICATION;
 	}
-	if (gres->hr_timeout != res->hr_timeout) {
-		gres->hr_timeout = res->hr_timeout;
+	vint = nv_get_int32(nv, "timeout");
+	if (gres->hr_timeout != vint) {
+		gres->hr_timeout = vint;
 		modified |= MODIFIED_TIMEOUT;
 	}
-	if (strcmp(gres->hr_exec, res->hr_exec) != 0) {
-		strlcpy(gres->hr_exec, res->hr_exec, sizeof(gres->hr_exec));
+	vstr = nv_get_string(nv, "exec");
+	if (strcmp(gres->hr_exec, vstr) != 0) {
+		strlcpy(gres->hr_exec, vstr, sizeof(gres->hr_exec));
 		modified |= MODIFIED_EXEC;
 	}
+
 	/*
 	 * If only timeout was modified we only need to change it without
 	 * reconnecting.
@@ -1937,7 +1927,8 @@ config_reload(void)
 			remote_close(gres, ii);
 		}
 		if (modified & MODIFIED_REMOTEADDR) {
-			strlcpy(gres->hr_remoteaddr, res->hr_remoteaddr,
+			vstr = nv_get_string(nv, "remoteaddr");
+			strlcpy(gres->hr_remoteaddr, vstr,
 			    sizeof(gres->hr_remoteaddr));
 		}
 	}
@@ -1947,16 +1938,6 @@ config_reload(void)
 #undef	MODIFIED_EXEC
 
 	pjdlog_info("Configuration reloaded successfully.");
-	return;
-failed:
-	if (newcfg != NULL) {
-		if (newcfg->hc_controlconn != NULL)
-			proto_close(newcfg->hc_controlconn);
-		if (newcfg->hc_listenconn != NULL)
-			proto_close(newcfg->hc_listenconn);
-		yy_config_free(newcfg);
-	}
-	pjdlog_warning("Configuration not reloaded.");
 }
 
 static void
@@ -2032,7 +2013,6 @@ guard_thread(void *arg)
 	lastcheck = time(NULL);
 
 	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
-	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 
@@ -2042,9 +2022,6 @@ guard_thread(void *arg)
 
 	for (;;) {
 		switch (signo) {
-		case SIGHUP:
-			config_reload();
-			break;
 		case SIGINT:
 		case SIGTERM:
 			sigexit_received = true;

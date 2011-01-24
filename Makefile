@@ -5,7 +5,8 @@
 #
 # universe            - *Really* build *everything* (buildworld and
 #                       all kernels on all architectures).
-# tinderbox           - Same as universe, but stop on first failure.
+# tinderbox           - Same as universe, but presents a list of failed build
+#                       targets and exits with an error if there were any.
 # buildworld          - Rebuild *everything*, including glue to help do
 #                       upgrades.
 # installworld        - Install everything built by "buildworld".
@@ -274,7 +275,7 @@ make: .PHONY
 		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
 
 tinderbox:
-	cd ${.CURDIR} && \
+	@cd ${.CURDIR} && \
 		DOING_TINDERBOX=YES ${MAKE} JFLAG=${JFLAG} universe
 
 #
@@ -296,7 +297,7 @@ TARGET_ARCHES_${target}?= ${target}
 .endfor
 
 targets:
-	@echo "Supported TARGET/TARGET_ARCH pairs"
+	@echo "Supported TARGETS/TARGET_ARCH pairs"
 .for target in ${TARGETS}
 .for target_arch in ${TARGET_ARCHES_${target}}
 	@echo "    ${target}/${target_arch}"
@@ -304,7 +305,7 @@ targets:
 .endfor
 
 .if defined(DOING_TINDERBOX)
-FAILFILE=tinderbox.failed
+FAILFILE=${.CURDIR}/_.tinderbox.failed
 MAKEFAIL=tee -a ${FAILFILE}
 .else
 MAKEFAIL=cat
@@ -316,7 +317,7 @@ universe_prologue:
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
 .if defined(DOING_TINDERBOX)
-	rm -f ${FAILFILE}
+	@rm -f ${FAILFILE}
 .endif
 .for target in ${TARGETS}
 universe: universe_${target}

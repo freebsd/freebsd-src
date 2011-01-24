@@ -105,7 +105,7 @@ pjdlog_prefix_set(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	pjdlog_prefix_setv(fmt, ap);
+	pjdlogv_prefix_set(fmt, ap);
 	va_end(ap);
 }
 
@@ -114,7 +114,7 @@ pjdlog_prefix_set(const char *fmt, ...)
  * Setting prefix to NULL will remove it.
  */
 void
-pjdlog_prefix_setv(const char *fmt, va_list ap)
+pjdlogv_prefix_set(const char *fmt, va_list ap)
 {
 
 	assert(fmt != NULL);
