@@ -151,6 +151,7 @@ SUBDIR=	${_3dfx} \
 	jme \
 	joy \
 	kbdmux \
+	khelp \
 	krpc \
 	ksyms \
 	le \
