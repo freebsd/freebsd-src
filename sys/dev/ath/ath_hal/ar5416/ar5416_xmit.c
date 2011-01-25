@@ -230,6 +230,13 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl2 |= SM(rtsctsDuration, AR_BurstDur);
 		ads->ds_ctl7 |= (rtsctsRate << AR_RTSCTSRate_S);
 	}
+
+	if (AR_SREV_KITE(ah)) {
+		ads->ds_ctl8 = 0;
+		ads->ds_ctl9 = 0;
+		ads->ds_ctl10 = 0;
+		ads->ds_ctl11 = 0;
+	}
 	return AH_TRUE;
 #undef RTSCTS
 }
@@ -416,6 +423,13 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 |= (flags & HAL_TXDESC_CTSENA ? AR_CTSEnable : 0)
 			| (flags & HAL_TXDESC_RTSENA ? AR_RTSEnable : 0);
 		ads->ds_ctl2 |= SM(rtsctsDuration, AR_BurstDur);
+	}
+
+	if (AR_SREV_KITE(ah)) {
+		ads->ds_ctl8 = 0;
+		ads->ds_ctl9 = 0;
+		ads->ds_ctl10 = 0;
+		ads->ds_ctl11 = 0;
 	}
 	
 	return AH_TRUE;
