@@ -187,16 +187,16 @@ arptimer(void *arg)
 			pkts_dropped = llentry_free(lle);
 			ARPSTAT_ADD(dropped, pkts_dropped);
 			ARPSTAT_INC(timeouts);
-		} 
+		} else {
 #ifdef DIAGNOSTIC
-		else {
 			struct sockaddr *l3addr = L3_ADDR(lle);
 			log(LOG_INFO, 
 			    "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
 			    inet_ntoa(
 			        ((const struct sockaddr_in *)l3addr)->sin_addr));
-		}
 #endif
+			LLE_WUNLOCK(lle);
+		}
 	}
 	IF_AFDATA_UNLOCK(ifp);
 	CURVNET_RESTORE();
