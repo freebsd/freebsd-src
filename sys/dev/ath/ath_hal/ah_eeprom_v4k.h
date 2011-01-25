@@ -91,7 +91,7 @@ typedef struct ModalEepHeader4k {
 
 	uint8_t		pdGainOverlap;				// 1
 
-#ifdef __BIG_ENDIAN_BITFIELD
+#ifdef _BYTE_ORDER == _BIG_ENDIAN
 	uint8_t		ob_1:4, ob_0:4;
 	uint8_t		db1_1:4, db1_0:4;
 #else
@@ -109,7 +109,7 @@ typedef struct ModalEepHeader4k {
 	uint8_t		xatten2Db[AR5416_4K_MAX_CHAINS];    	// 1
 	uint8_t		xatten2Margin[AR5416_4K_MAX_CHAINS];	// 1
 
-#ifdef __BIG_ENDIAN_BITFIELD
+#ifdef _BYTE_ORDER == _BIG_ENDIAN
         uint8_t db2_1:4, db2_0:4;				// 1
 #else
 	uint8_t db2_0:4, db2_1:4;				// 1
@@ -117,7 +117,7 @@ typedef struct ModalEepHeader4k {
 
 	uint8_t version;					// 1
 
-#ifdef __BIG_ENDIAN_BITFIELD
+#ifdef _BYTE_ORDER == _BIG_ENDIAN
 	uint8_t ob_3:4, ob_2:4;
 	uint8_t antdiv_ctl1:4, ob_4:4;
 	uint8_t db1_3:4, db1_2:4;
