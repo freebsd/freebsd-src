@@ -111,16 +111,29 @@ eeprom_v4k_modal_print(uint16_t *buf)
 	    mh->txEndToXpaOff, mh->txEndToRxOn, mh->txFrameToXpaOn);
 	printf("| thres62: 0x%.2x\n", mh->thresh62);
 	printf("| xpdGain: 0x%.2x | xpd: 0x%.2x |\n", mh->xpdGain, mh->xpd);
-	printf("| xpaBiasLvlFreq: 0:0x%.4x 1:0x%.4x 2:0x%.4x |\n",
-	    mh->xpaBiasLvlFreq[0], mh->xpaBiasLvlFreq[1], mh->xpaBiasLvlFreq[2]);
-	printf("| pdGainOverlap: 0x%.2x | ob: 0x%.2x | db: 0x%.2x | xpaBiasLvl: 0x%.2x |\n",
-	    mh->pdGainOverlap, mh->ob, mh->db, mh->xpaBiasLvl);
+
+	printf("| pdGainOverlap: 0x%.2x xpaBiasLvl: 0x%.2x |\n", mh->pdGainOverlap, mh->xpaBiasLvl);
 	printf("| txFrameToDataStart: 0x%.2x | txFrameToPaOn: 0x%.2x |\n", mh->txFrameToDataStart, mh->txFrameToPaOn);
 	printf("| ht40PowerIncForPdadc: 0x%.2x |\n", mh->ht40PowerIncForPdadc);
 	printf("| swSettleHt40: 0x%.2x |\n", mh->swSettleHt40);
-	printf("| ob_ch1: 0x%.2x | db_ch1: 0x%.2x |\n", mh->ob_ch1, mh->db_ch1);
-	printf("| flagBits: 0x%.2x | miscBits: 0x%.2x |\n", mh->flagBits, mh->miscBits);
-	printf("| futureModal: 0x%.2x 0x%.2x\n", mh->futureModal[0], mh->futureModal[1]);
+
+	printf("| ob_0: 0x%.2x | ob_1: 0x%.2x | ob_2: 0x%.2x | ob_3: 0x%.2x |\n",
+	    mh->ob_0, mh->ob_1, mh->ob_2, mh->ob_3);
+	printf("| db_1_0: 0x%.2x | db_1_1: 0x%.2x | db_1_2: 0x%.2x | db_1_3: 0x%.2x db_1_4: 0x%.2x|\n",
+	    mh->db1_0, mh->db1_1, mh->db1_2, mh->db1_3, mh->db1_4);
+	printf("| db_1_0: 0x%.2x | db_1_1: 0x%.2x | db_1_2: 0x%.2x | db_1_3: 0x%.2x db_1_4: 0x%.2x|\n",
+	    mh->db2_0, mh->db2_1, mh->db2_2, mh->db2_3, mh->db2_4);
+
+	printf("| antdiv_ctl1: 0x%.2x antdiv_ctl2: 0x%.2x |\n", mh->antdiv_ctl1, mh->antdiv_ctl2);
+
+	printf("| Modal Version: %.2x |\n", mh->version);
+
+	printf("| futureModal: 0x%.2x 0x%.2x 0x%.2x 0x%.2x |\n",
+	    mh->futureModal[0],
+	    mh->futureModal[1],
+	    mh->futureModal[2],
+	    mh->futureModal[3]
+	);
 
 	/* and now, spur channels */
 	for (i = 0; i < AR5416_EEPROM_MODAL_SPURS; i++) {
