@@ -116,8 +116,10 @@ static int g_raid_update_subdisk(struct g_raid_subdisk *subdisk, u_int state);
 static int g_raid_update_volume(struct g_raid_volume *vol, u_int state);
 static void g_raid_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp);
+static void g_raid_start(struct bio *bp);
 static void g_raid_start_request(struct bio *bp);
 static void g_raid_disk_done(struct bio *bp);
+static void g_raid_poll(struct g_raid_softc *sc);
 
 static const char *
 g_raid_disk_state2str(int state)
@@ -714,6 +716,73 @@ g_raid_unidle(struct g_raid_volume *vol)
 }
 
 static void
+g_raid_dumpdone(struct bio *bp)
+{
+
+	bp->bio_flags |= BIO_DONE;
+}
+
+static int
+g_raid_dump(void *arg,
+    void *virtual, vm_offset_t physical, off_t offset, size_t length)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_volume *vol;
+	struct bio *bp;
+
+	vol = (struct g_raid_volume *)arg;
+	sc = vol->v_softc;
+	G_RAID_DEBUG(3, "Dumping at off %llu len %llu.",
+	    (long long unsigned)offset, (long long unsigned)length);
+
+	bp = g_alloc_bio();
+	bp->bio_cmd = BIO_WRITE;
+	bp->bio_done = g_raid_dumpdone;
+	bp->bio_attribute = NULL;
+	bp->bio_offset = offset;
+	bp->bio_length = length;
+	bp->bio_data = virtual;
+	bp->bio_to = vol->v_provider;
+
+	g_raid_start(bp);
+
+	while (!(bp->bio_flags & BIO_DONE)) {
+		G_RAID_DEBUG(4, "Poll...");
+		g_raid_poll(sc);
+		DELAY(10);
+	}
+
+	G_RAID_DEBUG(3, "Dumping at off %llu len %llu done.",
+	    (long long unsigned)offset, (long long unsigned)length);
+
+	g_destroy_bio(bp);
+	return (0);
+}
+
+static void
+g_raid_kerneldump(struct g_raid_softc *sc, struct bio *bp)
+{
+	struct g_kerneldump *gkd;
+	struct g_provider *pp;
+	struct g_raid_volume *vol;
+
+	gkd = (struct g_kerneldump*)bp->bio_data;
+	pp = bp->bio_to;
+	vol = pp->private;
+	g_trace(G_T_TOPOLOGY, "g_raid_kerneldump(%s, %jd, %jd)",
+		pp->name, (intmax_t)gkd->offset, (intmax_t)gkd->length);
+	gkd->di.dumper = g_raid_dump;
+	gkd->di.priv = vol;
+	gkd->di.blocksize = vol->v_sectorsize;
+	gkd->di.maxiosize = DFLTPHYS;
+	gkd->di.mediaoffset = gkd->offset;
+	if ((gkd->offset + gkd->length) > vol->v_mediasize)
+		gkd->length = vol->v_mediasize - gkd->offset;
+	gkd->di.mediasize = gkd->length;
+	g_io_deliver(bp, 0);
+}
+
+static void
 g_raid_start(struct bio *bp)
 {
 	struct g_raid_softc *sc;
@@ -736,6 +805,12 @@ g_raid_start(struct bio *bp)
 	case BIO_FLUSH:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
+	case BIO_GETATTR:
+		if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
+			g_raid_kerneldump(sc, bp);
+		else
+			g_io_deliver(bp, EOPNOTSUPP);
+		return;
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
@@ -743,8 +818,10 @@ g_raid_start(struct bio *bp)
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
-	G_RAID_DEBUG(4, "%s: Waking up %p.", __func__, sc);
-	wakeup(sc);
+	if (!dumping) {
+		G_RAID_DEBUG(4, "%s: Waking up %p.", __func__, sc);
+		wakeup(sc);
+	}
 }
 
 static int
@@ -947,12 +1024,27 @@ g_raid_subdisk_iostart(struct g_raid_subdisk *sd, struct bio *bp)
 
 	cp = sd->sd_disk->d_consumer;
 	bp->bio_done = g_raid_disk_done;
+	bp->bio_from = sd->sd_disk->d_consumer;
 	bp->bio_to = sd->sd_disk->d_consumer->provider;
 	bp->bio_offset += sd->sd_offset;
 	bp->bio_caller1 = sd;
 	cp->index++;
-	G_RAID_LOGREQ(3, bp, "Sending request.");
-	g_io_request(bp, cp);
+	if (dumping) {
+		G_RAID_LOGREQ(3, bp, "Sending dumping request.");
+		if (sd->sd_disk->d_kd.di.dumper == NULL) {
+			bp->bio_error = EOPNOTSUPP;
+			g_raid_disk_done(bp);
+			return;
+		}
+		dump_write(&sd->sd_disk->d_kd.di,
+		    bp->bio_data, 0,
+		    sd->sd_disk->d_kd.di.mediaoffset + bp->bio_offset,
+		    bp->bio_length);
+		g_raid_disk_done(bp);
+	} else {
+		G_RAID_LOGREQ(3, bp, "Sending request.");
+		g_io_request(bp, cp);
+	}
 }
 
 static void
@@ -964,7 +1056,8 @@ g_raid_disk_done(struct bio *bp)
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
-	wakeup(sc);
+	if (!dumping)
+		wakeup(sc);
 }
 
 static void
@@ -1068,7 +1161,8 @@ process:
 		if (ep != NULL)
 			g_raid_handle_event(sc, ep);
 		if (bp != NULL) {
-			if (bp->bio_from->geom != sc->sc_geom)
+			if (bp->bio_from == NULL ||
+			    bp->bio_from->geom != sc->sc_geom)
 				g_raid_start_request(bp);
 			else
 				g_raid_disk_done_request(bp);
@@ -1078,6 +1172,38 @@ process:
 		if (sc->sc_stopping != 0)
 			g_raid_destroy_node(sc, 1);	/* May not return. */
 	}
+}
+
+static void
+g_raid_poll(struct g_raid_softc *sc)
+{
+	struct g_raid_event *ep;
+	struct bio *bp;
+
+	sx_xlock(&sc->sc_lock);
+	mtx_lock(&sc->sc_queue_mtx);
+	/*
+	 * First take a look at events.
+	 * This is important to handle events before any I/O requests.
+	 */
+	ep = TAILQ_FIRST(&sc->sc_events);
+	if (ep != NULL) {
+		TAILQ_REMOVE(&sc->sc_events, ep, e_next);
+		mtx_unlock(&sc->sc_queue_mtx);
+		g_raid_handle_event(sc, ep);
+		goto out;
+	}
+	bp = bioq_takefirst(&sc->sc_queue);
+	if (bp != NULL) {
+		mtx_unlock(&sc->sc_queue_mtx);
+		if (bp->bio_from == NULL ||
+		    bp->bio_from->geom != sc->sc_geom)
+			g_raid_start_request(bp);
+		else
+			g_raid_disk_done_request(bp);
+	}
+out:
+	sx_xunlock(&sc->sc_lock);
 }
 
 #if 0

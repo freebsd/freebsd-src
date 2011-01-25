@@ -114,6 +114,7 @@ struct g_raid_disk {
 	struct g_raid_softc	*d_softc;	/* Back-pointer to softc. */
 	struct g_consumer	*d_consumer;	/* GEOM disk consumer. */
 	void			*d_md_data;	/* Disk's metadata storage. */
+	struct g_kerneldump	 d_kd;		/* Kernel dumping method/args. */
 	u_int			 d_state;	/* Disk state. */
 	uint64_t		 d_flags;	/* Additional flags. */
 	u_int			 d_load;	/* Disk average load. */

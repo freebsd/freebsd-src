@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -1092,6 +1093,14 @@ search:
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
+	/* Read kernel dumping information. */
+	disk->d_kd.offset = 0;
+	disk->d_kd.length = OFF_MAX;
+	len = sizeof(disk->d_kd);
+	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
+	if (disk->d_kd.di.dumper == NULL)
+		G_RAID_DEBUG(2, "Dumping not supported: %d.", error);
+
 	g_raid_md_intel_new_disk(disk);
 
 	sx_xunlock(&sc->sc_lock);
@@ -1267,6 +1276,15 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 				error = -8;
 				break;
 			}
+
+			/* Read kernel dumping information. */
+			disk->d_kd.offset = 0;
+			disk->d_kd.length = OFF_MAX;
+			len = sizeof(disk->d_kd);
+			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
+			if (disk->d_kd.di.dumper == NULL)
+				G_RAID_DEBUG(2, "Dumping not supported.");
+
 			pd->pd_disk_meta.sectors = pp->mediasize / pp->sectorsize;
 			if (size > pp->mediasize)
 				size = pp->mediasize;
@@ -1493,6 +1511,14 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			disk->d_consumer->private = disk;
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
+
+			/* Read kernel dumping information. */
+			disk->d_kd.offset = 0;
+			disk->d_kd.length = OFF_MAX;
+			len = sizeof(disk->d_kd);
+			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
+			if (disk->d_kd.di.dumper == NULL)
+				G_RAID_DEBUG(2, "Dumping not supported.");
 
 			memcpy(&pd->pd_disk_meta.serial[0], &serial[0],
 			    INTEL_SERIAL_LEN);
