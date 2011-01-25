@@ -328,6 +328,10 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 
 	/* Validate each drive. */
 	info->drives = calloc(count, sizeof(struct mfi_pd_info));
+	if (info->drives == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	info->drive_count = count;
 	for (pinfo = info->drives; (cp = strsep(&array_str, ",")) != NULL;
 	     pinfo++) {
@@ -638,6 +642,10 @@ create_volume(int ac, char **av)
 		break;
 	}
 	arrays = calloc(narrays, sizeof(*arrays));
+	if (arrays == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	for (i = 0; i < narrays; i++) {
 		error = parse_array(fd, raid_type, av[i], &arrays[i]);
 		if (error)
@@ -673,6 +681,10 @@ create_volume(int ac, char **av)
 	state.array_count = config->array_count;
 	if (config->array_count > 0) {
 		state.arrays = calloc(config->array_count, sizeof(int));
+		if (state.arrays == NULL) {
+			warnx("malloc failed");
+			return (ENOMEM);
+		}
 		for (i = 0; i < config->array_count; i++) {
 			ar = (struct mfi_array *)p;
 			state.arrays[i] = ar->array_ref;
@@ -685,6 +697,10 @@ create_volume(int ac, char **av)
 	state.log_drv_count = config->log_drv_count;
 	if (config->log_drv_count) {
 		state.volumes = calloc(config->log_drv_count, sizeof(int));
+		if (state.volumes == NULL) {
+			warnx("malloc failed");
+			return (ENOMEM);
+		}
 		for (i = 0; i < config->log_drv_count; i++) {
 			ld = (struct mfi_ld_config *)p;
 			state.volumes[i] = ld->properties.ld.v.target_id;
@@ -721,6 +737,10 @@ create_volume(int ac, char **av)
 	config_size = sizeof(struct mfi_config_data) +
 	    sizeof(struct mfi_ld_config) * nvolumes + MFI_ARRAY_SIZE * narrays;
 	config = calloc(1, config_size);
+	if (config == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	config->size = config_size;
 	config->array_count = narrays;
 	config->array_size = MFI_ARRAY_SIZE;	/* XXX: Firmware hardcode */
@@ -902,6 +922,10 @@ add_spare(int ac, char **av)
 
 	spare = malloc(sizeof(struct mfi_spare) + sizeof(uint16_t) *
 	    config->array_count);
+	if (spare == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	bzero(spare, sizeof(struct mfi_spare));
 	spare->ref = info.ref;
 
@@ -1170,6 +1194,10 @@ dump(int ac, char **av)
 	}
 
 	config = malloc(len);
+	if (config == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	if (sysctlbyname(buf, config, &len, NULL, 0) < 0) {
 		error = errno;
 		warn("Failed to read debug command");
