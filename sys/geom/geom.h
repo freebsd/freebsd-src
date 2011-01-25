@@ -43,6 +43,7 @@
 #include <sys/sx.h>
 #include <sys/queue.h>
 #include <sys/ioccom.h>
+#include <sys/conf.h>
 #include <sys/sbuf.h>
 #include <sys/module.h>
 
@@ -303,6 +304,7 @@ extern struct sx topology_lock;
 struct g_kerneldump {
 	off_t		offset;
 	off_t		length;
+	struct dumperinfo di;
 };
 
 MALLOC_DECLARE(M_GEOM);
