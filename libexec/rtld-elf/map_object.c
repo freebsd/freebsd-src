@@ -101,7 +101,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     phdyn = phinterp = phtls = NULL;
     phdr_vaddr = 0;
     segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
-    stack_flags = PF_X | PF_R | PF_W;
+    stack_flags = RTLD_DEFAULT_STACK_PF_EXEC | PF_R | PF_W;
     while (phdr < phlimit) {
 	switch (phdr->p_type) {
 
