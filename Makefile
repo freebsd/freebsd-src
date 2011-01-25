@@ -28,7 +28,8 @@
 # delete-old-dirs     - Delete obsolete directories.
 # delete-old-files    - Delete obsolete files.
 # delete-old-libs     - Delete obsolete libraries.
-# targets             - Print a list of supported TARGET/TARGET_ARCH pairs.
+# targets             - Print a list of supported TARGET/TARGET_ARCH pairs
+#                       for world and kernel targets.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -297,7 +298,7 @@ TARGET_ARCHES_${target}?= ${target}
 .endfor
 
 targets:
-	@echo "Supported TARGETS/TARGET_ARCH pairs"
+	@echo "Supported TARGET/TARGET_ARCH pairs for world and kernel targets"
 .for target in ${TARGETS}
 .for target_arch in ${TARGET_ARCHES_${target}}
 	@echo "    ${target}/${target_arch}"
