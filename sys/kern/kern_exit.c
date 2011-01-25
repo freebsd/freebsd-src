@@ -121,10 +121,6 @@ exit1(struct thread *td, int rv)
 	struct proc *p, *nq, *q;
 	struct vnode *vtmp;
 	struct vnode *ttyvp = NULL;
-#ifdef KTRACE
-	struct vnode *tracevp;
-	struct ucred *tracecred;
-#endif
 	struct plimit *plim;
 	int locked;
 
@@ -355,33 +351,7 @@ exit1(struct thread *td, int rv)
 	if (ttyvp != NULL)
 		vrele(ttyvp);
 #ifdef KTRACE
-	/*
-	 * Disable tracing, then drain any pending records and release
-	 * the trace file.
-	 */
-	if (p->p_traceflag != 0) {
-		PROC_LOCK(p);
-		mtx_lock(&ktrace_mtx);
-		p->p_traceflag = 0;
-		mtx_unlock(&ktrace_mtx);
-		PROC_UNLOCK(p);
-		ktrprocexit(td);
-		PROC_LOCK(p);
-		mtx_lock(&ktrace_mtx);
-		tracevp = p->p_tracevp;
-		p->p_tracevp = NULL;
-		tracecred = p->p_tracecred;
-		p->p_tracecred = NULL;
-		mtx_unlock(&ktrace_mtx);
-		PROC_UNLOCK(p);
-		if (tracevp != NULL) {
-			locked = VFS_LOCK_GIANT(tracevp->v_mount);
-			vrele(tracevp);
-			VFS_UNLOCK_GIANT(locked);
-		}
-		if (tracecred != NULL)
-			crfree(tracecred);
-	}
+	ktrprocexit(td);
 #endif
 	/*
 	 * Release reference to text vnode
