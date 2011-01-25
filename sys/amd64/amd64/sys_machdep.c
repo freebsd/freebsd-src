@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -58,9 +59,24 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+#define	MAX_LD		8192
+
 int max_ldt_segment = 1024;
-#define LD_PER_PAGE 512
-#define	NULL_LDT_BASE	((caddr_t)NULL)
+SYSCTL_INT(_machdep, OID_AUTO, max_ldt_segment, CTLFLAG_RDTUN,
+    &max_ldt_segment, 0,
+    "Maximum number of allowed LDT segments in the single address space");
+
+static void
+max_ldt_segment_init(void *arg __unused)
+{
+
+	TUNABLE_INT_FETCH("machdep.max_ldt_segment", &max_ldt_segment);
+	if (max_ldt_segment <= 0)
+		max_ldt_segment = 1;
+	if (max_ldt_segment > MAX_LD)
+		max_ldt_segment = MAX_LD;
+}
+SYSINIT(maxldt, SI_SUB_VM_CONF, SI_ORDER_ANY, max_ldt_segment_init, NULL);
 
 #ifdef notyet
 #ifdef SMP
