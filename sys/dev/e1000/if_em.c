@@ -1699,12 +1699,12 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		}
 		ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 		poff = ip_off + (ip->ip_hl << 2);
-		m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
 		if (do_tso) {
+			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			/*
 			 * TSO workaround:
@@ -1728,6 +1728,11 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 			tp->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 		} else if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
+			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			m_head = m_pullup(m_head, poff + (tp->th_off << 2));
 			if (m_head == NULL) {
