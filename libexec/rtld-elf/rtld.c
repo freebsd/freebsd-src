@@ -191,7 +191,7 @@ extern Elf_Dyn _DYNAMIC;
 
 int osreldate, pagesize;
 
-static int stack_prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+static int stack_prot = PROT_READ | PROT_WRITE | RTLD_DEFAULT_STACK_EXEC;
 static int max_stack_flags;
 
 /*
