@@ -728,25 +728,24 @@ g_raid_dump(void *arg,
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
-	struct bio *bp;
+	struct bio bp;
 
 	vol = (struct g_raid_volume *)arg;
 	sc = vol->v_softc;
 	G_RAID_DEBUG(3, "Dumping at off %llu len %llu.",
 	    (long long unsigned)offset, (long long unsigned)length);
 
-	bp = g_alloc_bio();
-	bp->bio_cmd = BIO_WRITE;
-	bp->bio_done = g_raid_dumpdone;
-	bp->bio_attribute = NULL;
-	bp->bio_offset = offset;
-	bp->bio_length = length;
-	bp->bio_data = virtual;
-	bp->bio_to = vol->v_provider;
+	bzero(&bp, sizeof(bp));
+	bp.bio_cmd = BIO_WRITE;
+	bp.bio_done = g_raid_dumpdone;
+	bp.bio_attribute = NULL;
+	bp.bio_offset = offset;
+	bp.bio_length = length;
+	bp.bio_data = virtual;
+	bp.bio_to = vol->v_provider;
 
-	g_raid_start(bp);
-
-	while (!(bp->bio_flags & BIO_DONE)) {
+	g_raid_start(&bp);
+	while (!(bp.bio_flags & BIO_DONE)) {
 		G_RAID_DEBUG(4, "Poll...");
 		g_raid_poll(sc);
 		DELAY(10);
@@ -754,8 +753,6 @@ g_raid_dump(void *arg,
 
 	G_RAID_DEBUG(3, "Dumping at off %llu len %llu done.",
 	    (long long unsigned)offset, (long long unsigned)length);
-
-	g_destroy_bio(bp);
 	return (0);
 }
 
