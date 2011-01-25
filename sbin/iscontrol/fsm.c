@@ -359,8 +359,8 @@ doCAM(isess_t *sess)
       | for now will do this for each lun ...
       */
      for(n = i = 0; i < sess->cam.target_nluns; i++) {
-	  debug(2, "CAM path_id=%d target_id=%d target_lun=%d",
-		sess->cam.path_id, sess->cam.target_id, sess->cam.target_lun[i]);
+	  debug(2, "CAM path_id=%d target_id=%d",
+		sess->cam.path_id, sess->cam.target_id);
 
 	  sess->camdev = cam_open_btl(sess->cam.path_id, sess->cam.target_id,
 				      i, O_RDWR, NULL);
