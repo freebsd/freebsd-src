@@ -163,6 +163,10 @@ flash_adapter(int ac, char **av)
 
 	/* Upload the file 64k at a time. */
 	buf = malloc(FLASH_BUF_SIZE);
+	if (buf == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	offset = 0;
 	while (sb.st_size > 0) {
 		nread = read(flash, buf, FLASH_BUF_SIZE);
