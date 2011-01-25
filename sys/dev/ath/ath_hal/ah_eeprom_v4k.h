@@ -23,6 +23,10 @@
 #include "ah_eeprom.h"
 #include "ah_eeprom_v14.h"
 
+#if	_BYTE_ORDER == _BIG_ENDIAN
+#define	__BIG_ENDIAN_BITFIELD
+#endif
+
 #define	AR9285_RDEXT_DEFAULT	0x1F
 
 #undef owl_eep_start_loc
@@ -70,15 +74,15 @@ typedef struct BaseEepHeader4k {
 } __packed BASE_EEP4K_HEADER; // 32 B
 
 typedef struct ModalEepHeader4k {
-	uint32_t	antCtrlChain[AR5416_4K_MAX_CHAINS];	// 12
+	uint32_t	antCtrlChain[AR5416_4K_MAX_CHAINS];	// 4
 	uint32_t	antCtrlCommon;				// 4
 	int8_t		antennaGainCh[AR5416_4K_MAX_CHAINS];	// 1
 	uint8_t		switchSettling;				// 1
-	uint8_t		txRxAttenCh[AR5416_4K_MAX_CHAINS];		// 1
+	uint8_t		txRxAttenCh[AR5416_4K_MAX_CHAINS];	// 1
 	uint8_t		rxTxMarginCh[AR5416_4K_MAX_CHAINS];	// 1
 	uint8_t		adcDesiredSize;				// 1
 	int8_t		pgaDesiredSize;				// 1
-	uint8_t		xlnaGainCh[AR5416_4K_MAX_CHAINS];		// 1
+	uint8_t		xlnaGainCh[AR5416_4K_MAX_CHAINS];	// 1
 	uint8_t		txEndToXpaOff;				// 1
 	uint8_t		txEndToRxOn;				// 1
 	uint8_t		txFrameToXpaOn;				// 1
@@ -91,9 +95,9 @@ typedef struct ModalEepHeader4k {
 
 	uint8_t		pdGainOverlap;				// 1
 
-#ifdef _BYTE_ORDER == _BIG_ENDIAN
-	uint8_t		ob_1:4, ob_0:4;
-	uint8_t		db1_1:4, db1_0:4;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint8_t		ob_1:4, ob_0:4;				// 1
+	uint8_t		db1_1:4, db1_0:4;			// 1
 #else
 	uint8_t		ob_0:4, ob_1:4;
 	uint8_t		db1_0:4, db1_1:4;
@@ -109,33 +113,33 @@ typedef struct ModalEepHeader4k {
 	uint8_t		xatten2Db[AR5416_4K_MAX_CHAINS];    	// 1
 	uint8_t		xatten2Margin[AR5416_4K_MAX_CHAINS];	// 1
 
-#ifdef _BYTE_ORDER == _BIG_ENDIAN
-        uint8_t db2_1:4, db2_0:4;				// 1
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint8_t		db2_1:4, db2_0:4;			// 1
 #else
-	uint8_t db2_0:4, db2_1:4;				// 1
+	uint8_t		db2_0:4, db2_1:4;			// 1
 #endif
 
-	uint8_t version;					// 1
+	uint8_t		version;				// 1
 
-#ifdef _BYTE_ORDER == _BIG_ENDIAN
-	uint8_t ob_3:4, ob_2:4;
-	uint8_t antdiv_ctl1:4, ob_4:4;
-	uint8_t db1_3:4, db1_2:4;
-	uint8_t antdiv_ctl2:4, db1_4:4;
-	uint8_t db2_2:4, db2_3:4;
-	uint8_t reserved:4, db2_4:4;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint8_t		ob_3:4, ob_2:4;				// 1
+	uint8_t		antdiv_ctl1:4, ob_4:4;			// 1
+	uint8_t		db1_3:4, db1_2:4;			// 1
+	uint8_t		antdiv_ctl2:4, db1_4:4;			// 1
+	uint8_t		db2_2:4, db2_3:4;			// 1
+	uint8_t		reserved:4, db2_4:4;			// 1
 #else
-	uint8_t ob_2:4, ob_3:4;
-	uint8_t ob_4:4, antdiv_ctl1:4;
-	uint8_t db1_2:4, db1_3:4;
-	uint8_t db1_4:4, antdiv_ctl2:4;
-	uint8_t db2_2:4, db2_3:4;
-	uint8_t db2_4:4, reserved:4;
+	uint8_t		ob_2:4, ob_3:4;
+	uint8_t		ob_4:4, antdiv_ctl1:4;
+	uint8_t		db1_2:4, db1_3:4;
+	uint8_t		db1_4:4, antdiv_ctl2:4;
+	uint8_t		db2_2:4, db2_3:4;
+	uint8_t		db2_4:4, reserved:4;
 #endif
-	uint8_t futureModal[4];
+	uint8_t		futureModal[4];				// 4
 
 	SPUR_CHAN spurChans[AR5416_EEPROM_MODAL_SPURS];	// 20 B
-} __packed MODAL_EEP4K_HEADER;				// == ? B
+} __packed MODAL_EEP4K_HEADER;				// == 68 B
 
 typedef struct CalCtlData4k {
 	CAL_CTL_EDGES		ctlEdges[AR5416_4K_MAX_CHAINS][AR5416_4K_NUM_BAND_EDGES];
