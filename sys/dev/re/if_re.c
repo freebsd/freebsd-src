@@ -1504,14 +1504,12 @@ re_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 	/*
-	 * Don't enable TSO by default for old controllers. Under
-	 * certain circumtances the controller generated corrupted
-	 * packets in TSO size.
+	 * Don't enable TSO by default.  It is known to generate
+	 * corrupted TCP segments(bad TCP options) under certain
+	 * circumtances.
 	 */
-	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
-		ifp->if_hwassist &= ~CSUM_TSO;
-		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
-	}
+	ifp->if_hwassist &= ~CSUM_TSO;
+	ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
