@@ -25,13 +25,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2009
+.Dd January 25, 2011
 .Dt SBUF 9
 .Os
 .Sh NAME
 .Nm sbuf ,
 .Nm sbuf_new ,
 .Nm sbuf_new_auto ,
+.Nm sbuf_new_for_sysctl ,
 .Nm sbuf_clear ,
 .Nm sbuf_setpos ,
 .Nm sbuf_bcat ,
@@ -99,6 +100,9 @@
 .Fn sbuf_done "struct sbuf *s"
 .Ft void
 .Fn sbuf_delete "struct sbuf *s"
+.In sys/sysctl.h
+.Ft struct sbuf *
+.Fn sbuf_new_for_sysctl "struct sbuf *s" "char *buf" "int length" "struct sysctl_req *req"
 .Sh DESCRIPTION
 The
 .Nm
@@ -167,6 +171,15 @@ with values
 .Dv 0 ,
 and
 .Dv SBUF_AUTOEXTEND .
+.Pp
+The
+.Fn sbuf_new_for_sysctl
+function will set up an sbuf with a drain function to use
+.Fn SYSCTL_OUT
+when the internal buffer fills.
+The sysctl old buffer will be wired, which allows for doing an
+.Fn sbuf_printf
+while holding a mutex.
 .Pp
 The
 .Fn sbuf_delete
