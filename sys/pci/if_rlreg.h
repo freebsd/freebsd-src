@@ -864,6 +864,7 @@ struct rl_softc {
 	struct resource		*rl_res;
 	int			rl_res_id;
 	int			rl_res_type;
+	struct resource		*rl_res_pba;
 	struct resource		*rl_irq[RL_MSI_MESSAGES];
 	void			*rl_intrhand[RL_MSI_MESSAGES];
 	device_t		rl_miibus;
@@ -908,6 +909,7 @@ struct rl_softc {
 #define	RL_FLAG_FASTETHER	0x0100
 #define	RL_FLAG_CMDSTOP		0x0200
 #define	RL_FLAG_MACRESET	0x0400
+#define	RL_FLAG_MSIX		0x0800
 #define	RL_FLAG_WOLRXENB	0x1000
 #define	RL_FLAG_MACSLEEP	0x2000
 #define	RL_FLAG_PCIE		0x4000
