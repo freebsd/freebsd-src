@@ -105,19 +105,13 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 	case I386_SET_LDT:
 		td->td_pcb->pcb_full_iret = 1;
 		if (largs->descs != NULL) {
-			lp = (struct user_segment_descriptor *)
-			    kmem_alloc(kernel_map, largs->num *
-			    sizeof(struct user_segment_descriptor));
-			if (lp == NULL) {
-				error = ENOMEM;
-				break;
-			}
+			lp = malloc(largs->num * sizeof(struct
+			    user_segment_descriptor), M_TEMP, M_WAITOK);
 			error = copyin(largs->descs, lp, largs->num *
 			    sizeof(struct user_segment_descriptor));
 			if (error == 0)
 				error = amd64_set_ldt(td, largs, lp);
-			kmem_free(kernel_map, (vm_offset_t)lp, largs->num *
-			    sizeof(struct user_segment_descriptor));
+			free(lp, M_TEMP);
 		} else {
 			error = amd64_set_ldt(td, largs, NULL);
 		}
