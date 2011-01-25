@@ -191,8 +191,6 @@ struct stat;
 #define	KTRFAC_DROP	0x20000000	/* last event was dropped */
 
 #ifdef	_KERNEL
-extern struct mtx ktrace_mtx;
-
 void	ktrnamei(char *);
 void	ktrcsw(int, int);
 void	ktrpsig(int, sig_t, sigset_t *, int);
@@ -200,7 +198,9 @@ void	ktrgenio(int, enum uio_rw, struct uio *, int);
 void	ktrsyscall(int, int narg, register_t args[]);
 void	ktrsysctl(int *name, u_int namelen);
 void	ktrsysret(int, int, register_t);
+void	ktrprocexec(struct proc *, struct ucred **, struct vnode **);
 void	ktrprocexit(struct thread *);
+void	ktrprocfork(struct proc *, struct proc *);
 void	ktruserret(struct thread *);
 void	ktrstruct(const char *, size_t, void *, size_t);
 #define ktrsockaddr(s) \
