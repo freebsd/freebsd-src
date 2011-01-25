@@ -88,14 +88,18 @@ typedef struct ModalEepHeader4k {
 	uint8_t		xpd;					// 1
 	int8_t		iqCalICh[AR5416_4K_MAX_CHAINS];		// 1
 	int8_t		iqCalQCh[AR5416_4K_MAX_CHAINS];		// 1
+
 	uint8_t		pdGainOverlap;				// 1
-	uint8_t		ob;					// 1
-	uint8_t		db;					// 1
-	uint8_t		xpaBiasLvl;				// 1
-#if 0
-	uint8_t		pwrDecreaseFor2Chain;			// 1
-	uint8_t		pwrDecreaseFor3Chain;			// 1 -> 48 B
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint8_t		ob_1:4, ob_0:4;
+	uint8_t		db1_1:4, db1_0:4;
+#else
+	uint8_t		ob_0:4, ob_1:4;
+	uint8_t		db1_0:4, db1_1:4;
 #endif
+
+	uint8_t		xpaBiasLvl;				// 1
 	uint8_t		txFrameToDataStart;			// 1
 	uint8_t		txFrameToPaOn;				// 1
 	uint8_t		ht40PowerIncForPdadc;			// 1
@@ -104,23 +108,34 @@ typedef struct ModalEepHeader4k {
 	uint8_t		swSettleHt40;				// 1	
 	uint8_t		xatten2Db[AR5416_4K_MAX_CHAINS];    	// 1
 	uint8_t		xatten2Margin[AR5416_4K_MAX_CHAINS];	// 1
-	uint8_t		ob_ch1;				// 1 -> ob and db become chain specific from AR9280
-	uint8_t		db_ch1;				// 1
-	uint8_t		flagBits;			// 1
-#define	AR5416_EEP_FLAG_USEANT1		0x01	/* +1 configured antenna */
-#define	AR5416_EEP_FLAG_FORCEXPAON	0x02	/* force XPA bit for 5G */
-#define	AR5416_EEP_FLAG_LOCALBIAS	0x04	/* enable local bias */
-#define	AR5416_EEP_FLAG_FEMBANDSELECT	0x08	/* FEM band select used */
-#define	AR5416_EEP_FLAG_XLNABUFIN	0x10
-#define	AR5416_EEP_FLAG_XLNAISEL	0x60
-#define	AR5416_EEP_FLAG_XLNAISEL_S	5
-#define	AR5416_EEP_FLAG_XLNABUFMODE	0x80
-	uint8_t		miscBits;			// [0..1]: bb_tx_dac_scale_cck
-	uint16_t	xpaBiasLvlFreq[3];		// 6
-	uint8_t		futureModal[2];			// 2
+
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint8_t db2_1:4, db2_0:4;				// 1
+#else
+	uint8_t db2_0:4, db2_1:4;				// 1
+#endif
+
+	uint8_t version;					// 1
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint8_t ob_3:4, ob_2:4;
+	uint8_t antdiv_ctl1:4, ob_4:4;
+	uint8_t db1_3:4, db1_2:4;
+	uint8_t antdiv_ctl2:4, db1_4:4;
+	uint8_t db2_2:4, db2_3:4;
+	uint8_t reserved:4, db2_4:4;
+#else
+	uint8_t ob_2:4, ob_3:4;
+	uint8_t ob_4:4, antdiv_ctl1:4;
+	uint8_t db1_2:4, db1_3:4;
+	uint8_t db1_4:4, antdiv_ctl2:4;
+	uint8_t db2_2:4, db2_3:4;
+	uint8_t db2_4:4, reserved:4;
+#endif
+	uint8_t futureModal[4];
 
 	SPUR_CHAN spurChans[AR5416_EEPROM_MODAL_SPURS];	// 20 B
-} __packed MODAL_EEP4K_HEADER;				// == 68 B    
+} __packed MODAL_EEP4K_HEADER;				// == ? B
 
 typedef struct CalCtlData4k {
 	CAL_CTL_EDGES		ctlEdges[AR5416_4K_MAX_CHAINS][AR5416_4K_NUM_BAND_EDGES];
