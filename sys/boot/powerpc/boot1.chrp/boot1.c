@@ -103,6 +103,7 @@ ofwh_t stdinh, stdouth;
 
 __asm("                         \n\
         .data                   \n\
+	.align 4		\n\
 stack:                          \n\
         .space  16384           \n\
                                 \n\
