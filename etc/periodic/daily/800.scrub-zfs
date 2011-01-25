@@ -5,6 +5,10 @@
 
 # If there is a global system configuration file, suck it in.
 #
+
+newline="
+" # A single newline
+
 if [ -r /etc/defaults/periodic.conf ]
 then
     . /etc/defaults/periodic.conf
@@ -24,17 +28,19 @@ case "$daily_scrub_zfs_enable" in
 
 	for pool in ${daily_scrub_zfs_pools}; do
 		# sanity check
-		_status=$(zpool list ${pool} | sed -n -e '$p')
+		_status=$(zpool list "${pool}" 2> /dev/null)
 		if [ $? -ne 0 ]; then
 			echo "   WARNING: pool '${pool}' specified in"
 			echo "            '/etc/periodic.conf:daily_scrub_zfs_pools'"
 			echo "            does not exist"
 			continue
 		fi
-		if echo ${_status} | grep -q FAULTED; then
+		_status=${_status##*$newline}
+		case ${_status} in
+		*FAULTED*)
 			echo "Skipping faulted pool: ${pool}"
-			continue
-		fi
+			continue ;;
+		esac
 
 		# successful only if there is at least one pool to scrub
 		rc=0
