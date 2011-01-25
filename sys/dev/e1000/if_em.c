@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.1.8";
+char em_driver_version[] = "7.1.9";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1909,14 +1909,23 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		error = bus_dmamap_load_mbuf_sg(txr->txtag, map,
 		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
-		if (error) {
+		if (error == ENOMEM) {
+			adapter->no_tx_dma_setup++;
+			return (error);
+		} else if (error != 0) {
 			adapter->no_tx_dma_setup++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
+
+	} else if (error == ENOMEM) {
+		adapter->no_tx_dma_setup++;
+		return (error);
 	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
+		m_freem(*m_headp);
+		*m_headp = NULL;
 		return (error);
 	}
 
@@ -2206,7 +2215,6 @@ hung:
 	    txr->me, txr->tx_avail, txr->next_to_clean);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
-	EM_TX_UNLOCK(txr);
 	em_init_locked(adapter);
 }
 
