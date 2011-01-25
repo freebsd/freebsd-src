@@ -8,6 +8,7 @@ MAN8=	mfiutil.8
 CFLAGS+= -fno-builtin-strftime
 WARNS?=3
 
+DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
 # Here be dragons
