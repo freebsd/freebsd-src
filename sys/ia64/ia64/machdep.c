@@ -512,11 +512,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	int intr;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_intr = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		intr = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_intr = intr;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -524,12 +528,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	int intr;
 
 	td = curthread;
 	critical_exit();
+	intr = td->td_md.md_saved_intr;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_intr);
+		intr_restore(intr);
 }
 
 void
