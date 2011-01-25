@@ -107,7 +107,6 @@ static driver_t ndis_driver = {
 static devclass_t ndis_devclass;
 
 DRIVER_MODULE(ndis, uhub, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
-MODULE_VERSION(ndis, 1);
 
 static int
 ndisusb_devcompare(interface_type bustype, struct ndis_usb_type *t, device_t dev)
