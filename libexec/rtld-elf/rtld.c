@@ -2800,7 +2800,12 @@ get_program_var_addr(const char *name, RtldLockState *lockstate)
     donelist_init(&donelist);
     if (symlook_global(&req, &donelist) != 0)
 	return (NULL);
-    return ((const void **)(req.defobj_out->relocbase + req.sym_out->st_value));
+    if (ELF_ST_TYPE(req.sym_out->st_info) == STT_FUNC)
+	return ((const void **)make_function_pointer(req.sym_out,
+	  req.defobj_out));
+    else
+	return ((const void **)(req.defobj_out->relocbase +
+	  req.sym_out->st_value));
 }
 
 /*
