@@ -564,7 +564,7 @@ in_arpinput(struct mbuf *m)
 	 */
 	IN_IFADDR_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
-		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
+		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
 		    ia->ia_ifp == ifp) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			ifa_ref(&ia->ia_ifa);
@@ -581,7 +581,7 @@ in_arpinput(struct mbuf *m)
 		}
 	}
 	LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
-		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
+		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
 		    ia->ia_ifp == ifp) &&
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			ifa_ref(&ia->ia_ifa);
