@@ -40,12 +40,38 @@ __FBSDID("$FreeBSD$");
 #include "geom/raid/g_raid.h"
 #include "g_raid_tr_if.h"
 
+#define SD_READ_THRESHOLD 10 /* errors to cause a rebuild */
+#define SD_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */
+#define SD_REBUILD_FAIR_IO 10 /* use 1/x of the available I/O */
+#define SD_REBUILD_CLUSTER_BUSY 4
+#define SD_REBUILD_CLUSTER_IDLE 10
+
+/*
+ * We don't want to hammer the disk with I/O requests when doing a rebuild or
+ * a resync.  So, we send these events to ourselves when we go idle (or every
+ * Nth normal I/O to 'clock' the process along.  The number and speed that we
+ * send these will determine the bandwidth we consume of the disk drive and
+ * how long these operations will take.
+ */
+#define G_RAID_SUBDISK_E_TR_REBUILD_SOME (G_RAID_SUBDISK_E_FIRST_TR_PRIVATE + 0)
+#define G_RAID_SUBDISK_E_TR_RESYNC_SOME (G_RAID_SUBDISK_E_FIRST_TR_PRIVATE + 1)
+
 static MALLOC_DEFINE(M_TR_raid1, "tr_raid1_data", "GEOM_RAID raid1 data");
+
+#define TR_RAID1_NONE 0
+#define TR_RAID1_REBUILD 1
+#define TR_RAID1_RESYNC 2
 
 struct g_raid_tr_raid1_object {
 	struct g_raid_tr_object	 trso_base;
 	int			 trso_starting;
 	int			 trso_stopped;
+	int			 trso_type;			/* From here down */
+	int			 trso_recover_slabs;		/* might need to be more */
+	int			 trso_fair_io;
+	struct g_raid_subdisk	*trso_good_sd;			/* specific rather than per tr */
+	struct g_raid_subdisk	*trso_failed_sd;		/* like per volume */
+	void			*trso_buffer;			/* Buffer space */
 };
 
 static g_raid_tr_taste_t g_raid_tr_taste_raid1;
@@ -78,6 +104,9 @@ struct g_raid_tr_class g_raid_tr_raid1_class = {
 	.trc_priority = 100
 };
 
+static void g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr,
+    struct g_raid_volume *vol);
+
 static int
 g_raid_tr_taste_raid1(struct g_raid_tr_object *tr, struct g_raid_volume *volume)
 {
@@ -89,6 +118,115 @@ g_raid_tr_taste_raid1(struct g_raid_tr_object *tr, struct g_raid_volume *volume)
 		return (G_RAID_TR_TASTE_FAIL);
 	trs->trso_starting = 1;
 	return (G_RAID_TR_TASTE_SUCCEED);
+}
+
+static void
+g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
+    struct g_raid_subdisk *sd)
+{
+	struct g_raid_tr_raid1_object *trs;
+	struct bio *bp;
+
+	trs = (struct g_raid_tr_raid1_object *)tr;
+	trs->trso_recover_slabs = SD_REBUILD_CLUSTER_IDLE;
+	trs->trso_fair_io = SD_REBUILD_FAIR_IO;
+	bp = g_new_bio();
+	bp->bio_offset = sd->sd_rebuild_pos;
+	bp->bio_data = trs->trso_buffer;
+	bp->bio_cmd = BIO_READ;
+	bp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
+	bp->bio_caller1 = trs->trso_good_sd;
+	g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
+	    sd->sd_rebuild_pos, SD_REBUILD_SLAB, bp);
+}
+
+static void
+g_raid_tr_raid1_resync_some(struct g_raid_tr_object *tr,
+    struct g_raid_subdisk *sd)
+{
+	panic("We don't implement resync yet");
+}
+
+static void
+g_raid_tr_raid1_idle_rebuild(struct g_raid_volume *vol, void *argp)
+{
+	struct g_raid_tr_raid1_object *trs;
+
+	trs = (struct g_raid_tr_raid1_object *)argp;
+	g_raid_event_send(trs->trso_failed_sd, G_RAID_SUBDISK_E_TR_REBUILD_SOME,
+	    G_RAID_EVENT_SUBDISK);
+}
+
+static void
+g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
+{
+	struct g_raid_tr_raid1_object *trs;
+
+	trs = (struct g_raid_tr_raid1_object *)tr;
+	free(trs->trso_buffer, M_TR_raid1);
+	trs->trso_recover_slabs = 0;
+	trs->trso_failed_sd = NULL;
+	trs->trso_good_sd = NULL;
+	trs->trso_buffer = NULL;
+	/* xxx transition array? */
+}
+
+static void
+g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
+{
+	struct g_raid_tr_raid1_object *trs;
+
+	trs = (struct g_raid_tr_raid1_object *)tr;
+	g_raid_unlock_range(tr->tro_volume,
+	    trs->trso_failed_sd->sd_rebuild_pos, SD_REBUILD_SLAB);
+	free(trs->trso_buffer, M_TR_raid1);
+	trs->trso_recover_slabs = 0;
+	trs->trso_failed_sd = NULL;
+	trs->trso_good_sd = NULL;
+	trs->trso_buffer = NULL;
+}
+
+static struct g_raid_subdisk *
+g_raid_tr_raid1_find_good_drive(struct g_raid_volume *vol)
+{
+	int i;
+
+	for (i = 0; i < vol->v_disks_count; i++)
+		if (vol->v_subdisks[i].sd_state == G_RAID_SUBDISK_S_ACTIVE)
+			return (&vol->v_subdisks[i]);
+	return (NULL);
+}
+
+static struct g_raid_subdisk *
+g_raid_tr_raid1_find_failed_drive(struct g_raid_volume *vol)
+{
+	int i;
+
+	for (i = 0; i < vol->v_disks_count; i++)
+		if (vol->v_subdisks[i].sd_state == G_RAID_SUBDISK_S_REBUILD ||
+		    vol->v_subdisks[i].sd_state == G_RAID_SUBDISK_S_RESYNC)
+			return (&vol->v_subdisks[i]);
+	return (NULL);
+}
+
+static void
+g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
+{
+  /* XXX ---- XXX Should this be based on trs state or vol state? XXX --- XXX */
+	struct g_raid_tr_raid1_object *trs;
+
+	trs = (struct g_raid_tr_raid1_object *)tr;
+	if (trs->trso_failed_sd) {
+		G_RAID_DEBUG(1, "Already rebuild in start rebuild. pos %jd\n",
+		    (intmax_t)trs->trso_failed_sd->sd_rebuild_pos);
+		return;
+	}
+	trs->trso_good_sd = g_raid_tr_raid1_find_good_drive(vol);
+	trs->trso_failed_sd = g_raid_tr_raid1_find_failed_drive(vol);
+	trs->trso_failed_sd->sd_rebuild_pos = 0;
+	trs->trso_buffer = malloc(SD_REBUILD_SLAB, M_TR_raid1, M_WAITOK);
+	/* XXX what else do I need to setup the first time? */
+	g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
 }
 
 static int
@@ -119,6 +257,14 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol)
 		g_raid_event_send(vol, G_RAID_VOLUME_S_ALIVE(s) ?
 		    G_RAID_VOLUME_E_UP : G_RAID_VOLUME_E_DOWN,
 		    G_RAID_EVENT_VOLUME);
+		if (s == G_RAID_VOLUME_S_DEGRADED) {
+			g_raid_tr_raid1_rebuild_start(vol->v_tr, vol);
+			vol->v_timeout = g_raid_tr_raid1_idle_rebuild;
+			vol->v_to_arg = trs;
+		} else {
+			vol->v_timeout = 0;
+			vol->v_to_arg = 0;
+		}
 		g_raid_change_volume_state(vol, s);
 	}
 	return (0);
@@ -133,12 +279,25 @@ g_raid_tr_event_raid1(struct g_raid_tr_object *tr,
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	vol = tr->tro_volume;
-	if (event == G_RAID_SUBDISK_E_NEW) {
+	switch (event) {
+	case G_RAID_SUBDISK_E_NEW:
+		// XXX do I need to start a rebuild here?
 //		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
-	} else if (event == G_RAID_SUBDISK_E_FAILED) {
+		break;
+	case G_RAID_SUBDISK_E_FAILED:
+		// XXX do I need to stop a rebuild here?
 //		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
-	} else
+		break;
+	case G_RAID_SUBDISK_E_DISCONNECTED:
 		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
+		break;
+	case G_RAID_SUBDISK_E_TR_REBUILD_SOME:
+		g_raid_tr_raid1_rebuild_some(tr, sd);
+		break;
+	case G_RAID_SUBDISK_E_TR_RESYNC_SOME:
+		g_raid_tr_raid1_resync_some(tr, sd);
+		break;
+	}
 	g_raid_tr_update_state_raid1(vol);
 	return (0);
 }
@@ -171,13 +330,12 @@ g_raid_tr_stop_raid1(struct g_raid_tr_object *tr)
 }
 
 /*
- * Select the disk to do the reads to.  For now, we just pick the
- * first one in the list that's active always.  This ensures we favor
- * one disk on boot, and have more deterministic recovery from the
- * weird edge cases of power failure.  In the future, we can imagine
- * policies that go for the least loaded disk to improve performance,
- * or we need to limit reads to a disk during some kind of error
- * recovery with that disk.
+ * Select the disk to do the reads to.  For now, we just pick the first one in
+ * the list that's active always.  This ensures we favor one disk on boot, and
+ * have more deterministic recovery from the weird edge cases of power
+ * failure.  In the future, we can imagine policies that go for the least
+ * loaded disk to improve performance, or we need to limit reads to a disk
+ * during some kind of error recovery with that disk.
  */
 static struct g_raid_subdisk *
 g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol)
@@ -220,9 +378,10 @@ g_raid_tr_iostart_raid1_write(struct g_raid_tr_object *tr, struct bio *bp)
 
 	vol = tr->tro_volume;
 	sc = vol->v_softc;
+
 	/*
-	 * Allocate all bios before sending any request, so we can
-	 * return ENOMEM in nice and clean way.
+	 * Allocate all bios before sending any request, so we can return
+	 * ENOMEM in nice and clean way.
 	 */
 	bioq_init(&queue);
 	for (i = 0; i < vol->v_disks_count; i++) {
@@ -230,10 +389,22 @@ g_raid_tr_iostart_raid1_write(struct g_raid_tr_object *tr, struct bio *bp)
 		switch (sd->sd_state) {
 		case G_RAID_SUBDISK_S_ACTIVE:
 			break;
-//		case G_RAID_DISK_STATE_SYNCHRONIZING:
-//			if (bp->bio_offset >= sync->ds_offset)
-//				continue;
-//			break;
+		case G_RAID_SUBDISK_S_REBUILD:
+			/*
+			 * When rebuilding, only part of this subdisk is
+			 * writable, the rest will be written as part of the
+			 * that process.
+			 */
+			if (bp->bio_offset >= sd->sd_offset)
+				continue;
+			break;
+		case G_RAID_SUBDISK_S_RESYNC:
+			/*
+			 * Resyncing still writes on the theory that the
+			 * resync'd disk is very close and writing it will
+			 * keep it that way better if we keep up while
+			 * resyncing.
+			 */
 		default:
 			continue;
 		}
@@ -266,13 +437,29 @@ static void
 g_raid_tr_iostart_raid1(struct g_raid_tr_object *tr, struct bio *bp)
 {
 	struct g_raid_volume *vol;
+	struct g_raid_tr_raid1_object *trs;
 
 	vol = tr->tro_volume;
+	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (vol->v_state != G_RAID_VOLUME_S_OPTIMAL &&
 	    vol->v_state != G_RAID_VOLUME_S_SUBOPTIMAL &&
 	    vol->v_state != G_RAID_VOLUME_S_DEGRADED) {
 		g_raid_iodone(bp, EIO);
 		return;
+	}
+	/*
+	 * If we're rebuilding, squeeze in rebuild activity every so often,
+	 * even when the disk is busy.  Be sure to only count real I/O
+	 * to the disk.  All 'SPECIAL' I/O is traffic generated to the disk
+	 * by this module.
+	 */
+	if (trs->trso_failed_sd != NULL &&
+	    !(bp->bio_cflags & G_RAID_BIO_FLAG_SPECIAL)) {
+		if (--trs->trso_fair_io <= 0) {
+			g_raid_event_send(trs->trso_failed_sd,
+			    G_RAID_SUBDISK_E_TR_REBUILD_SOME,
+			    G_RAID_EVENT_SUBDISK);
+		}
 	}
 	switch (bp->bio_cmd) {
 	case BIO_READ:
@@ -299,15 +486,103 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 	struct g_raid_subdisk *nsd;
 	struct g_raid_volume *vol;
 	struct bio *pbp;
+	struct g_raid_tr_raid1_object *trs;
 	int i;
 
+	trs = (struct g_raid_tr_raid1_object *)tr;
 	pbp = bp->bio_parent;
+	if (bp->bio_cflags & G_RAID_BIO_FLAG_SYNC) {
+		/*
+		 * This operation is part of a rebuild or resync
+		 * operation.  See what work just got done, then
+		 * schedule the next bit of work, if any.
+		 * Rebuild/resync is done a little bit at a time.
+		 * Either when a timeout happens, or after we get a
+		 * bunch of I/Os to the disk (to make sure an active
+		 * system will complete in a sane amount of time).
+		 *
+		 * We are setup to do differing amounts of work for
+		 * each of these cases.  so long as the slabs is
+		 * smallish (less than 50 or so, I'd guess, but that's
+		 * just a WAG), we shouldn't have any bio starvation
+		 * issues.  For active disks, we do 5MB of data, for
+		 * inactive ones, we do 50MB.
+		 */
+		if (trs->trso_type == TR_RAID1_REBUILD) {
+			vol = tr->tro_volume;
+			if (bp->bio_cmd == BIO_READ) {
+				/*
+				 * The read operation finished, queue the
+				 * write and get out.
+				 */
+				pbp->bio_inbed++;
+				if (bp->bio_error != 0) {
+					g_raid_tr_raid1_rebuild_abort(tr, vol);
+					goto out;
+				}
+				cbp = g_clone_bio(pbp);
+				cbp->bio_cmd = BIO_WRITE;
+				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
+				cbp->bio_offset = bp->bio_offset; /* Necessary? */
+				cbp->bio_length = bp->bio_length;
+				g_raid_subdisk_iostart(trs->trso_failed_sd, cbp);
+				return;
+			} else {
+				/*
+				 * The write operation just finished.  Do
+				 * another.  We keep cloning the master bio
+				 * since it has the right buffers allocated to
+				 * it.  We'll free it when slabs get to 0.
+				 * We'll also tie up SD_REBUILD_CLUSTER * 2 +
+				 * 1 bios from the pool.  Since
+				 * SD_REBUILD_CLUSTER should be small, that
+				 * shouldn't be a problem.
+				 */
+				pbp->bio_inbed++;
+				if (bp->bio_error != 0) {
+					g_raid_tr_raid1_rebuild_abort(tr, vol);
+					goto out;
+				}
+				/* A lot of the following is needed when we kick of the work -- refactor */
+				nsd = trs->trso_failed_sd;
+				g_raid_unlock_range(sd->sd_volume,
+				    nsd->sd_rebuild_pos, SD_REBUILD_SLAB);
+				nsd->sd_rebuild_pos += pbp->bio_length;
+				if (nsd->sd_rebuild_pos >= vol->v_mediasize) {
+					g_raid_tr_raid1_rebuild_finish(tr, vol);
+					goto out;
+				}
+				if (--trs->trso_recover_slabs == 0) {
+					goto out;
+				}
+				pbp->bio_offset = nsd->sd_rebuild_pos;
+				cbp = g_clone_bio(pbp);
+				cbp->bio_cmd = BIO_READ;
+				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
+				cbp->bio_offset = nsd->sd_rebuild_pos;
+				cbp->bio_length = MIN(SD_REBUILD_SLAB, vol->v_mediasize - nsd->sd_rebuild_pos);
+				cbp->bio_caller1 = trs->trso_good_sd;
+				g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
+				    nsd->sd_rebuild_pos, SD_REBUILD_SLAB, cbp);
+				goto out;
+			}
+		} else if (trs->trso_type == TR_RAID1_RESYNC) {
+			/*
+			 * read good sd, read bad sd in parallel.
+			 * when both done, compare the buffers.  write
+			 * good_sd to failed_sd if different.  do the
+			 * next bit of work.
+			 */
+			panic("Somehow, we think we're doing a resync");
+		}
+	}
 	if (bp->bio_error != 0 && bp->bio_cmd == BIO_READ &&
 	    pbp->bio_children == 1) {
 
 		/*
-		 * Retry the read error on the other disk drive, if
-		 * available, before erroring out the read.
+		 * Read failed on first drive.  Retry the read error on
+		 * another disk drive, if available, before erroring out the
+		 * read.
 		 */
 		vol = tr->tro_volume;
 		sd->sd_read_errs++;
@@ -316,8 +591,14 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		    sd->sd_read_errs);
 
 		/*
-		 * XXX Check threshold of sd_read_errs here to declare 
-		 * this subdisk bad?
+		 * If there are too many read errors, we move to degraded.
+		 */
+		if (sd->sd_read_errs > SD_READ_THRESHOLD) {
+			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
+		}
+
+		/*
+		 * Find the other disk, and try to do the I/O to it.
 		 */
 		for (nsd = NULL, i = 0; i < vol->v_disks_count; i++) {
 			nsd = &vol->v_subdisks[i];
@@ -334,10 +615,10 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			return;
 		}
 		/*
-		 * something happened, so we can't retry.  Return the
-		 * original error by falling through.
-		 *
-		 * XXX degrade/break the mirror?
+		 * We can't retry.  Return the original error by falling
+		 * through.  This will happen when there's only one good disk.
+		 * We don't need to fail the raid, since its actual state is
+		 * based on the state of the subdisks.
 		 */
 		G_RAID_LOGREQ(3, bp, "Couldn't retry read, failing it");
 	}
@@ -351,12 +632,38 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * disk, remapping the bad sector.  Do we need to do that by
 		 * queueing a request to the main worker thread?  It doesn't
 		 * affect the return code of this current read, and can be
-		 * done at our liesure.
-		 *
-		 * XXX TODO
+		 * done at our liesure.  However, to make the code simpler, it
+		 * is done syncrhonously.
 		 */
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
+		cbp = g_clone_bio(pbp);
+		if (cbp != NULL) {
+			nsd = bp->bio_caller1;
+			cbp->bio_cmd = BIO_WRITE;
+			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
+			cbp->bio_caller1 = nsd;
+			G_RAID_LOGREQ(3, bp,
+			    "Attempting bad sector remap on failing drive.");
+			g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
+			    cbp->bio_offset, cbp->bio_length, cbp);
+		}
 	}
+	if (bp->bio_cflags & G_RAID_BIO_FLAG_REMAP) {
+		/*
+		 * We're doing a remap write, mark the range as unlocked now
+		 * and fail the disk if the write failed.  If the write
+		 * failed, the parent's bio isn't failed since the recovered
+		 * read for that actually succeeded.
+		 */
+		g_raid_unlock_range(sd->sd_volume, bp->bio_offset,
+		    bp->bio_length);
+		if (bp->bio_error) {
+			G_RAID_LOGREQ(3, bp, "Error on remap: mark subdisk bad.");
+			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
+			bp->bio_error = 0;
+		}
+	}
+out:;
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
 		g_raid_iodone(pbp, bp->bio_error);
@@ -397,6 +704,13 @@ g_raid_tr_kerneldump_raid1(struct g_raid_tr_object *tr,
 static int
 g_raid_tr_locked_raid1(struct g_raid_tr_object *tr, void *argp)
 {
+	struct bio *bp;
+	struct g_raid_subdisk *sd;
+
+	bp = (struct bio *)argp;
+	sd = (struct g_raid_subdisk *)bp->bio_caller1;
+	g_raid_subdisk_iostart(sd, bp);
+
 	return (0);
 }
 

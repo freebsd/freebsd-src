@@ -206,6 +206,9 @@ struct g_raid_subdisk {
 #define G_RAID_VOLUME_RLQ_NONE		0x00
 #define G_RAID_VOLUME_RLQ_UNKNOWN	0xff
 
+struct g_raid_volume;
+typedef void (*g_raid_volume_timeout_t)(struct g_raid_volume *, void *);
+
 struct g_raid_volume {
 	struct g_raid_softc	*v_softc;	/* Back-pointer to softc. */
 	struct g_provider	*v_provider;	/* GEOM provider. */
@@ -235,6 +238,8 @@ struct g_raid_volume {
 	int			 v_stopping;	/* Volume is stopping */
 	int			 v_provider_open; /* Number of opens. */
 	int			 v_global_id;	/* Global volume ID (rX). */
+	g_raid_volume_timeout_t  v_timeout;	/* Timeout function, if any */ 
+	void			*v_to_arg;	/* Arg to timeout function */
 	TAILQ_ENTRY(g_raid_volume)	 v_next; /* List of volumes entry. */
 	LIST_ENTRY(g_raid_volume)	 v_global_next; /* Global list entry. */
 };

@@ -77,9 +77,9 @@ TUNABLE_INT("kern.geom.raid.name_format", &g_raid_name_format);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, name_format, CTLFLAG_RW,
     &g_raid_name_format, 0, "Providers name format.");
 
-#define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
+#define	MSLEEP(rv, ident, mtx, priority, wmesg, timeout)	do {	\
 	G_RAID_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));		\
-	msleep((ident), (mtx), (priority), (wmesg), (timeout));		\
+	rv = msleep((ident), (mtx), (priority), (wmesg), (timeout));	\
 	G_RAID_DEBUG(4, "%s: Woken up %p.", __func__, (ident));		\
 } while (0)
 
@@ -403,7 +403,7 @@ g_raid_event_send(void *arg, int event, int flags)
 	sx_xunlock(&sc->sc_lock);
 	while ((ep->e_flags & G_RAID_EVENT_DONE) == 0) {
 		mtx_lock(&sc->sc_queue_mtx);
-		MSLEEP(ep, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:event",
+		MSLEEP(error, ep, &sc->sc_queue_mtx, PRIBIO | PDROP, "m:event",
 		    hz * 5);
 	}
 	error = ep->e_error;
@@ -682,6 +682,8 @@ g_raid_idle(struct g_raid_volume *vol, int acw)
 	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
 			continue;
+//		if (!(disk->d_flags & G_RAID_DISK_FLAG_DIRTY))
+//			continue;
 		G_RAID_DEBUG(1, "Disk %s (device %s) marked as clean.",
 		    g_raid_get_diskname(disk), sc->sc_name);
 //		disk->d_flags &= ~G_RAID_DISK_FLAG_DIRTY;
@@ -888,25 +890,34 @@ g_raid_start_request(struct bio *bp)
 	sc = bp->bio_to->geom->softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 	vol = bp->bio_to->private;
+	/*
+	 * Check to see if this item is in a locked range.  If so,
+	 * queue it to our locked queue and return.  We'll requeue
+	 * it when the range is unlocked.  Internal I/O for the
+	 * rebuild/rescan/recovery process is excluded from this
+	 * check so we can actually do the recovery.
+	 */
+	if (!(bp->bio_cflags & G_RAID_BIO_FLAG_SPECIAL) &&
+	    g_raid_is_in_locked_range(vol, bp)) {
+		bioq_insert_tail(&vol->v_locked, bp);
+		return;
+	}
+
+	/*
+	 * If we're actually going to do the write/delete, then
+	 * update the idle stats for the volume.
+	 */
 	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE) {
 		if (vol->v_idle)
 			g_raid_unidle(vol);
 		else
 			vol->v_last_write = time_uptime;
 	}
-	/*
-	 * Check to see if this item is in a locked range.  If so,
-	 * queue it to our locked queue and return.  We'll requeue
-	 * it when the range is unlocked.
-	 */
-	if (g_raid_is_in_locked_range(vol, bp)) {
-		bioq_insert_tail(&vol->v_locked, bp);
-		return;
-	}
 
 	/*
 	 * Put request onto inflight queue, so we can check if new
-	 * synchronization requests don't collide with it.
+	 * synchronization requests don't collide with it.  Then tell
+	 * the tranlsation layer to start the I/O.
 	 */
 	bioq_insert_tail(&vol->v_inflight, bp);
 	G_RAID_TR_IOSTART(vol->v_tr, bp);
@@ -975,12 +986,12 @@ g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp)
 	lp->l_length = len;
 	lp->l_callback_arg = argp;
 
-	/* XXX lock in-flight queue? -- not done elsewhere, but should it be? */
 	pending = 0;
 	TAILQ_FOREACH(bp, &vol->v_inflight.queue, bio_queue) {
 		if (g_raid_bio_overlaps(bp, off, len))
 			pending++;
 	}	
+
 	/*
 	 * If there are any writes that are pending, we return EBUSY.  All
 	 * callers will have to wait until all pending writes clear.
@@ -990,6 +1001,7 @@ g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp)
 		return (EBUSY);
 	}
 	lp->l_flags &= ~G_RAID_LOCK_PENDING;
+	G_RAID_TR_LOCKED(vol->v_tr, lp->l_callback_arg);
 	return (0);
 }
 
@@ -1149,7 +1161,7 @@ g_raid_worker(void *arg)
 	struct g_raid_event *ep;
 	struct g_raid_volume *vol;
 	struct bio *bp;
-	int timeout;
+	int timeout, rv;
 
 	sc = arg;
 	thread_lock(curthread);
@@ -1165,17 +1177,17 @@ g_raid_worker(void *arg)
 		 */
 		bp = NULL;
 		vol = NULL;
+		rv = 0;
 		ep = TAILQ_FIRST(&sc->sc_events);
 		if (ep != NULL)
 			TAILQ_REMOVE(&sc->sc_events, ep, e_next);
 		else if ((bp = bioq_takefirst(&sc->sc_queue)) != NULL)
 			;
-//		else if ((vol = g_raid_check_idle(sc, &timeout)) != NULL)
-//			;
 		else {
-			timeout = 1000;
+			timeout = 1;
 			sx_xunlock(&sc->sc_lock);
-			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "-", timeout * hz);
+			MSLEEP(rv, sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "-",
+			    timeout * hz);
 			sx_xlock(&sc->sc_lock);
 			goto process;
 		}
@@ -1190,8 +1202,15 @@ process:
 			else
 				g_raid_disk_done_request(bp);
 		}
-		if (vol != NULL)
-			g_raid_idle(vol, -1);
+		if (rv == EWOULDBLOCK) {
+			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+				if (bioq_first(&vol->v_inflight) == NULL &&
+				    !vol->v_idle)
+					g_raid_idle(vol, -1);
+				if (vol->v_timeout)
+					vol->v_timeout(vol, vol->v_to_arg);
+			}
+		}
 		if (sc->sc_stopping != 0)
 			g_raid_destroy_node(sc, 1);	/* May not return. */
 	}
