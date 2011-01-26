@@ -209,13 +209,11 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 #endif
 	}
 
-	if (AH5416(ah)->ah_rx_chainmask == 0x5 ||
-	    AH5416(ah)->ah_tx_chainmask == 0x5)
-		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
-	/* Setup Chain Masks */
-	OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
-	OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
-	OS_REG_WRITE(ah, AR_SELFGEN_MASK, AH5416(ah)->ah_tx_chainmask);
+	/*
+	 * This routine swaps the analog chains - it should be done
+	 * before any radio register twiddling is done.
+	 */
+	ar5416InitChainMasks(ah);
 
 	/* Setup the transmit power values. */
 	if (!ah->ah_setTxPower(ah, chan, rfXpdGain)) {
@@ -1112,6 +1110,18 @@ ar5416SetReset(struct ath_hal *ah, int type)
     ar5416InitPLL(ah, AH_NULL);
 
     return AH_TRUE;
+}
+
+void
+ar5416InitChainMasks(struct ath_hal *ah)
+{
+	if (AH5416(ah)->ah_rx_chainmask == 0x5 ||
+	    AH5416(ah)->ah_tx_chainmask == 0x5)
+		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
+	/* Setup Chain Masks */
+	OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+	OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+	OS_REG_WRITE(ah, AR_SELFGEN_MASK, AH5416(ah)->ah_tx_chainmask);
 }
 
 #ifndef IS_5GHZ_FAST_CLOCK_EN
