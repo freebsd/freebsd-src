@@ -1527,12 +1527,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	struct nmi_pcpu *np;
 	u_int64_t msr;
 	char *env;
+	size_t kstack0_sz;
 
 	thread0.td_kstack = physfree + KERNBASE;
-	bzero((void *)thread0.td_kstack, KSTACK_PAGES * PAGE_SIZE);
-	physfree += KSTACK_PAGES * PAGE_SIZE;
-	thread0.td_pcb = (struct pcb *)
-	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack_pages = KSTACK_PAGES;
+	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
+	bzero((void *)thread0.td_kstack, kstack0_sz);
+	physfree += kstack0_sz;
+	thread0.td_pcb = (struct pcb *)(thread0.td_kstack + kstack0_sz) - 1;
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -1674,8 +1676,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	initializecpucache();
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	common_tss[0].tss_rsp0 = thread0.td_kstack + \
-	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb);
+	common_tss[0].tss_rsp0 = thread0.td_kstack +
+	    kstack0_sz - sizeof(struct pcb);
 	/* Ensure the stack is aligned to 16 bytes */
 	common_tss[0].tss_rsp0 &= ~0xFul;
 	PCPU_SET(rsp0, common_tss[0].tss_rsp0);
