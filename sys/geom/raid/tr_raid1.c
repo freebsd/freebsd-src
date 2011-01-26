@@ -259,8 +259,8 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol)
 		    G_RAID_EVENT_VOLUME);
 		if (s == G_RAID_VOLUME_S_DEGRADED) {
 			g_raid_tr_raid1_rebuild_start(vol->v_tr, vol);
-			vol->v_timeout = g_raid_tr_raid1_idle_rebuild;
 			vol->v_to_arg = trs;
+			vol->v_timeout = g_raid_tr_raid1_idle_rebuild;
 		} else {
 			vol->v_timeout = 0;
 			vol->v_to_arg = 0;
