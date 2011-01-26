@@ -66,12 +66,12 @@ struct g_raid_tr_raid1_object {
 	struct g_raid_tr_object	 trso_base;
 	int			 trso_starting;
 	int			 trso_stopped;
-	int			 trso_type;			/* From here down */
-	int			 trso_recover_slabs;		/* might need to be more */
+	int			 trso_type;
+	int			 trso_recover_slabs; /* might need to be more */
 	int			 trso_fair_io;
-	struct g_raid_subdisk	*trso_good_sd;			/* specific rather than per tr */
-	struct g_raid_subdisk	*trso_failed_sd;		/* like per volume */
-	void			*trso_buffer;			/* Buffer space */
+	struct g_raid_subdisk	*trso_good_sd;	/* specific rather than per tr */
+	struct g_raid_subdisk	*trso_failed_sd;/* like per volume */
+	void			*trso_buffer;	/* Buffer space */
 };
 
 static g_raid_tr_taste_t g_raid_tr_taste_raid1;
@@ -153,6 +153,8 @@ g_raid_tr_raid1_idle_rebuild(struct g_raid_volume *vol, void *argp)
 	struct g_raid_tr_raid1_object *trs;
 
 	trs = (struct g_raid_tr_raid1_object *)argp;
+	if (trs->trso_good_sd == NULL || trs->trso_failed_sd == NULL)
+		return;
 	g_raid_event_send(trs->trso_failed_sd, G_RAID_SUBDISK_E_TR_REBUILD_SOME,
 	    G_RAID_EVENT_SUBDISK);
 }
@@ -223,6 +225,12 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr, struct g_raid_volume 
 	}
 	trs->trso_good_sd = g_raid_tr_raid1_find_good_drive(vol);
 	trs->trso_failed_sd = g_raid_tr_raid1_find_failed_drive(vol);
+	if (trs->trso_good_sd == NULL || trs->trso_failed_sd == NULL) {
+		G_RAID_DEBUG(1, "No failed disk to rebuild.  night night.");
+		return;
+	}
+	G_RAID_DEBUG(2, "Kicking off a rebuild...");
+	trs->trso_type = TR_RAID1_REBUILD;
 	trs->trso_failed_sd->sd_rebuild_pos = 0;
 	trs->trso_buffer = malloc(SD_REBUILD_SLAB, M_TR_raid1, M_WAITOK);
 	/* XXX what else do I need to setup the first time? */
