@@ -98,6 +98,7 @@ static const struct mii_phydesc rlintphys[] = {
 
 static const struct mii_phydesc rlphys[] = {
 	MII_PHY_DESC(REALTEK, RTL8201L),
+	MII_PHY_DESC(xxREALTEK, RTL8201E),
 	MII_PHY_DESC(ICPLUS, IP101),
 	MII_PHY_END
 };
