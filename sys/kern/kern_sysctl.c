@@ -1206,7 +1206,7 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	req.oldfunc = sysctl_old_kernel;
 	req.newfunc = sysctl_new_kernel;
-	req.lock = REQ_LOCKED;
+	req.lock = REQ_UNWIRED;
 
 	SYSCTL_XLOCK();
 	error = sysctl_root(0, name, namelen, &req);
@@ -1314,7 +1314,7 @@ sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 
 	wiredlen = (len > 0 && len < req->oldlen) ? len : req->oldlen;
 	ret = 0;
-	if (req->lock == REQ_LOCKED && req->oldptr &&
+	if (req->lock != REQ_WIRED && req->oldptr &&
 	    req->oldfunc == sysctl_old_user) {
 		if (wiredlen != 0) {
 			ret = vslock(req->oldptr, wiredlen);
@@ -1350,8 +1350,6 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			return (ENOENT);
 
 		indx++;
-		if (oid->oid_kind & CTLFLAG_NOLOCK)
-			req->lock = REQ_UNLOCKED;
 		if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 			if (oid->oid_handler != NULL || indx == namelen) {
 				*noid = oid;
@@ -1548,7 +1546,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	req.oldfunc = sysctl_old_user;
 	req.newfunc = sysctl_new_user;
-	req.lock = REQ_LOCKED;
+	req.lock = REQ_UNWIRED;
 
 #ifdef KTRACE
 	if (KTRPOINT(curthread, KTR_SYSCTL))
