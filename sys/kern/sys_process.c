@@ -727,7 +727,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	 * Set the wrap controls accordingly.
 	 */
 	if (SV_CURPROC_FLAG(SV_ILP32)) {
-		if (td2->td_proc->p_sysent->sv_flags & SV_ILP32)
+		if (SV_PROC_FLAG(td2->td_proc, SV_ILP32))
 			safe = 1;
 		wrap32 = 1;
 	}
