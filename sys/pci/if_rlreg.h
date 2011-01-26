@@ -497,6 +497,14 @@
 
 #define	RL_EARLYTXTHRESH_CNT	0x003F	/* byte count times 8 */
 
+/* Timer interrupt register */
+#define	RL_TIMERINT_8169_VAL	0x00001FFF
+#define	RL_TIMER_MIN		0
+#define	RL_TIMER_MAX		65	/* 65.528us */
+#define	RL_TIMER_DEFAULT	RL_TIMER_MAX
+#define	RL_TIMER_PCIE_CLK	125	/* 125MHZ */
+#define	RL_USECS(x)		((x) * RL_TIMER_PCIE_CLK)
+
 /*
  * Gigabit PHY access register (8169 only)
  */
@@ -896,6 +904,8 @@ struct rl_softc {
 	struct task		rl_inttask;
 
 	int			rl_txstart;
+	int			rl_int_rx_act;
+	int			rl_int_rx_mod;
 	uint32_t		rl_flags;
 #define	RL_FLAG_MSI		0x0001
 #define	RL_FLAG_AUTOPAD		0x0002
