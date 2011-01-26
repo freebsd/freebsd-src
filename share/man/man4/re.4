@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2011
+.Dd January 26, 2011
 .Dt RE 4
 .Os
 .Sh NAME
@@ -175,14 +175,38 @@ Tunables can be set at the
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width "xxxxxx"
+.It Va hw.re.intr_filter
+This tunable makes driver use interrupt filter handler on
+controllers that support MSI/MSI-X capability.
+If MSI/MSI-X is disabled by administrator this tunable has no
+effect and driver will use interrupt filter handler.
+The default value is 0 to use interrupt thread handler.
 .It Va hw.re.msi_disable
 This tunable disables MSI support on the Ethernet hardware.
+The default value is 0.
+.It Va hw.re.msix_disable
+This tunable disables MSI-X support on the Ethernet hardware.
 The default value is 0.
 .It Va hw.re.prefer_iomap
 This tunable controls which register mapping should be used on the
 specified device.
 A non-zero value enables I/O space register mapping.
 The default value is 0 to use memory space register mapping.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.re.%d.int_rx_mod
+Maximum amount of time to delay receive interrupt processing in
+units of 1us.
+The accepted range is 0 to 65, the default is 65(65us).
+Value 0 completely disables the interrupt moderation.
+The interface need to be brought down and up again before a change
+takes effect.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
