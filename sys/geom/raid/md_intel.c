@@ -542,7 +542,7 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 			/* Make sure this disk is big enough. */
 			TAILQ_FOREACH(sd, &olddisk->d_subdisks, sd_next) {
 				if (sd->sd_offset + sd->sd_size + 4096 >
-				    (uint64_t)pd->pd_disk_meta.sectors * 512) {
+				    (off_t)pd->pd_disk_meta.sectors * 512) {
 					G_RAID_DEBUG(1,
 					    "Disk too small (%llu < %llu)",
 					    ((unsigned long long)
@@ -1168,7 +1168,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
     struct gctl_req *req)
 {
 	struct g_raid_softc *sc;
-	struct g_raid_volume *vol;
+	struct g_raid_volume *vol, *vol1;
 	struct g_raid_subdisk *sd;
 	struct g_raid_disk *disk;
 	struct g_raid_md_intel_object *mdi;
@@ -1177,8 +1177,9 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 	struct g_provider *pp;
 	char arg[16], serial[INTEL_SERIAL_LEN];
 	const char *verb, *volname, *levelname, *diskname;
+	char *tmp;
 	int *nargs;
-	uint64_t size, sectorsize, strip;
+	off_t off, size, sectorsize, strip;
 	intmax_t *sizearg, *striparg;
 	int numdisks, i, len, level, qual, update;
 	int error;
@@ -1218,7 +1219,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 
 		/* Search for disks, connect them and probe. */
 		numdisks = *nargs - 3;
-		size = 0xffffffffffffffffllu;
+		size = 0x7fffffffffffffffllu;
 		sectorsize = 0;
 		for (i = 0; i < numdisks; i++) {
 			snprintf(arg, sizeof(arg), "arg%d", i + 3);
@@ -1304,7 +1305,8 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		sizearg = gctl_get_param(req, "size", &len);
 		if (sizearg != NULL && len == sizeof(*sizearg)) {
 			if (*sizearg > size) {
-				gctl_error(req, "Size too big.");
+				gctl_error(req, "Size too big %lld > %lld.",
+				    (long long)*sizearg, (long long)size);
 				return (-9);
 			}
 			size = *sizearg;
@@ -1364,6 +1366,217 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 
 		/* Write metadata based on created entities. */
 		g_raid_md_write_intel(md, NULL, NULL, NULL);
+		return (0);
+	}
+	if (strcmp(verb, "add") == 0) {
+
+		if (*nargs != 3) {
+			gctl_error(req, "Invalid number of arguments.");
+			return (-1);
+		}
+		volname = gctl_get_asciiparam(req, "arg1");
+		if (volname == NULL) {
+			gctl_error(req, "No volume name.");
+			return (-2);
+		}
+		levelname = gctl_get_asciiparam(req, "arg2");
+		if (levelname == NULL) {
+			gctl_error(req, "No RAID level.");
+			return (-3);
+		}
+		if (g_raid_volume_str2level(levelname, &level, &qual)) {
+			gctl_error(req, "Unknown RAID level '%s'.", levelname);
+			return (-4);
+		}
+		if (level != G_RAID_VOLUME_RL_RAID0 &&
+		    level != G_RAID_VOLUME_RL_RAID1 &&
+		    level != G_RAID_VOLUME_RL_RAID5 &&
+		    level != G_RAID_VOLUME_RL_RAID10) {
+			gctl_error(req, "Unsupported RAID level.");
+			return (-5);
+		}
+
+		/* Look for existing volumes. */
+		i = 0;
+		vol1 = NULL;
+		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+			vol1 = vol;
+			i++;
+		}
+		if (i > 1) {
+			gctl_error(req, "Maximum two volumes supported.");
+			return (-6);
+		}
+		if (vol1 == NULL) {
+			gctl_error(req, "At least one volume must exist.");
+			return (-7);
+		}
+
+		/* Collect info about present disks. */
+		size = 0x7fffffffffffffffllu;
+		sectorsize = 512;
+		numdisks = vol1->v_disks_count;
+		for (i = 0; i < numdisks; i++) {
+			disk = vol1->v_subdisks[i].sd_disk;
+			pd = (struct g_raid_md_intel_perdisk *)
+			    disk->d_md_data;
+			if ((off_t)pd->pd_disk_meta.sectors * 512 < size)
+				size = (off_t)pd->pd_disk_meta.sectors * 512;
+			if (disk->d_consumer != NULL &&
+			    disk->d_consumer->provider != NULL &&
+			    disk->d_consumer->provider->sectorsize >
+			     sectorsize) {
+				sectorsize =
+				    disk->d_consumer->provider->sectorsize;
+			}
+		}
+
+		/* Reserve some space for metadata. */
+		size -= ((4096 + sectorsize - 1) / sectorsize) * sectorsize;
+
+		/* Decide insert before or after. */
+		sd = &vol1->v_subdisks[0];
+		if (sd->sd_offset >
+		    size - (sd->sd_offset + sd->sd_size)) {
+			off = 0;
+			size = sd->sd_offset;
+		} else {
+			off = sd->sd_offset + sd->sd_size;
+			size = size - (sd->sd_offset + sd->sd_size);
+		}
+
+		/* Handle size argument. */
+		len = sizeof(*sizearg);
+		sizearg = gctl_get_param(req, "size", &len);
+		if (sizearg != NULL && len == sizeof(*sizearg)) {
+			if (*sizearg > size) {
+				gctl_error(req, "Size too big %lld > %lld.",
+				    (long long)*sizearg, (long long)size);
+				return (-9);
+			}
+			size = *sizearg;
+		}
+
+		/* Handle strip argument. */
+		strip = 131072;
+		len = sizeof(*striparg);
+		striparg = gctl_get_param(req, "strip", &len);
+		if (striparg != NULL && len == sizeof(*striparg)) {
+			if (*striparg < sectorsize) {
+				gctl_error(req, "Strip size too small.");
+				return (-10);
+			}
+			if (*striparg % sectorsize != 0) {
+				gctl_error(req, "Incorrect strip size.");
+				return (-11);
+			}
+			if (strip > 65535 * sectorsize) {
+				gctl_error(req, "Strip size too big.");
+				return (-12);
+			}
+			strip = *striparg;
+		}
+		size -= ((strip - off) % strip);
+		off += ((strip - off) % strip);
+		size -= (size % strip);
+
+		if (size <= 0) {
+			gctl_error(req, "No free space.");
+			return (-13);
+		}
+
+		/* We have all we need, create things: volume, ... */
+		vol = g_raid_create_volume(sc, volname);
+		vol->v_md_data = (void *)(intptr_t)i;
+		vol->v_raid_level = level;
+		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+		vol->v_strip_size = strip;
+		vol->v_disks_count = numdisks;
+		if (level == G_RAID_VOLUME_RL_RAID0)
+			vol->v_mediasize = size * numdisks;
+		else if (level == G_RAID_VOLUME_RL_RAID5)
+			vol->v_mediasize = size * (numdisks - 1);
+		else
+			vol->v_mediasize = size * (numdisks / 2);
+		vol->v_sectorsize = sectorsize;
+		g_raid_start_volume(vol);
+
+		/* , and subdisks. */
+		for (i = 0; i < numdisks; i++) {
+			disk = vol1->v_subdisks[i].sd_disk;
+			sd = &vol->v_subdisks[i];
+			sd->sd_disk = disk;
+			sd->sd_offset = off;
+			sd->sd_size = size;
+			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
+			if (disk->d_state == G_RAID_DISK_S_ACTIVE) {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_ACTIVE);
+				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
+				    G_RAID_EVENT_SUBDISK);
+			}
+		}
+
+		/* Write metadata based on created entities. */
+		g_raid_md_write_intel(md, NULL, NULL, NULL);
+		return (0);
+	}
+	if (strcmp(verb, "delete") == 0) {
+
+		/* Full node destruction. */
+		if (*nargs == 1) {
+			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+				if (disk->d_consumer)
+					intel_meta_erase(disk->d_consumer);
+			}
+			g_raid_destroy_node(sc, 0);
+			return (0);
+		}
+
+		/* Destroy specified volume. If it was last - all node. */
+		if (*nargs != 2) {
+			gctl_error(req, "Invalid number of arguments.");
+			return (-1);
+		}
+		volname = gctl_get_asciiparam(req, "arg1");
+		if (volname == NULL) {
+			gctl_error(req, "No volume name.");
+			return (-2);
+		}
+
+		/* Search for volume. */
+		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+			if (strcmp(vol->v_name, volname) == 0)
+				break;
+		}
+		if (vol == NULL) {
+			i = strtol(volname, &tmp, 10);
+			if (verb != volname && tmp[0] == 0) {
+				TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+					if ((intptr_t)vol->v_md_data == i)
+						break;
+				}
+			}
+		}
+		if (vol == NULL) {
+			gctl_error(req, "Volume '%s' not found.", volname);
+			return (-3);
+		}
+
+		/* Destroy volume and potentially node. */
+		i = 0;
+		TAILQ_FOREACH(vol1, &sc->sc_volumes, v_next)
+			i++;
+		if (i >= 2) {
+			g_raid_destroy_volume(vol);
+			g_raid_md_write_intel(md, NULL, NULL, NULL);
+		} else {
+			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+				if (disk->d_consumer)
+					intel_meta_erase(disk->d_consumer);
+			}
+			g_raid_destroy_node(sc, 0);
+		}
 		return (0);
 	}
 	if (strcmp(verb, "remove") == 0 ||
@@ -1614,6 +1827,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	vi = 0;
 	version = INTEL_VERSION_1000;
 	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+		if (vol->v_stopping)
+			continue;
 		mvol = intel_get_volume(meta, vi);
 
 		/* New metadata may have different volumes order. */

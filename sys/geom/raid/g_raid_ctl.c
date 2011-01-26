@@ -119,7 +119,7 @@ g_raid_ctl_stop(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "nargs");
 		return;
 	}
-	if (*nargs < 1) {
+	if (*nargs != 1) {
 		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}

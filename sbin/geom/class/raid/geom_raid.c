@@ -57,23 +57,34 @@ struct g_command class_commands[] = {
 		{ 's', "strip", G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-S size] [-s stripsize] format name level prov ..."
+	    "[-S size] [-s stripsize] format label level prov ..."
+	},
+	{ "add", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'S', "size", G_VAL_OPTIONAL, G_TYPE_NUMBER },
+		{ 's', "strip", G_VAL_OPTIONAL, G_TYPE_NUMBER },
+		G_OPT_SENTINEL
+	    },
+	    "[-S size] [-s stripsize] name label level"
+	},
+	{ "delete", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] name [label|num]"
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
-	    "[-v] name prov"
+	    "[-v] name prov ..."
 	},
 	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
-	    "[-v] name prov"
+	    "[-v] name prov ..."
 	},
 	{ "fail", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
-	    "[-v] name prov"
+	    "[-v] name prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-fv] name ..."
+	    "[-fv] name"
 	},
 	G_CMD_SENTINEL
 };
