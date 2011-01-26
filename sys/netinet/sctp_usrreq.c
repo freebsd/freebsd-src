@@ -1972,7 +1972,11 @@ flags_out:
 			SCTP_CHECK_AND_CAST(value, optval, uint8_t, *optsize);
 
 			SCTP_INP_RLOCK(inp);
-			*value = inp->sctp_ep.max_burst;
+			if (inp->sctp_ep.max_burst < 256) {
+				*value = inp->sctp_ep.max_burst;
+			} else {
+				*value = 255;
+			}
 			SCTP_INP_RUNLOCK(inp);
 			*optsize = sizeof(uint8_t);
 		}
@@ -3591,9 +3595,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_CHECK_AND_CAST(burst, optval, uint8_t, optsize);
 
 			SCTP_INP_WLOCK(inp);
-			if (*burst) {
-				inp->sctp_ep.max_burst = *burst;
-			}
+			inp->sctp_ep.max_burst = *burst;
 			SCTP_INP_WUNLOCK(inp);
 		}
 		break;

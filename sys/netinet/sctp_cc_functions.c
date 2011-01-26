@@ -601,8 +601,11 @@ sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
 		 * Take 1/4 of the space left or max burst up .. whichever
 		 * is less.
 		 */
-		incr = min((bw_avail - *on_queue) >> 2,
-		    stcb->asoc.max_burst * net->mtu);
+		incr = (bw_avail - *on_queue) >> 2;
+		if ((stcb->asoc.max_burst > 0) &&
+		    (stcb->asoc.max_burst * net->mtu < incr)) {
+			incr = stcb->asoc.max_burst * net->mtu;
+		}
 		net->cwnd += incr;
 	}
 	if (net->cwnd > bw_avail) {
