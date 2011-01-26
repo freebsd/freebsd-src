@@ -716,28 +716,26 @@ g_raid_unidle(struct g_raid_volume *vol)
 }
 
 static void
-g_raid_dumpdone(struct bio *bp)
+g_raid_tr_kerneldump_common_done(struct bio *bp)
 {
 
 	bp->bio_flags |= BIO_DONE;
 }
 
-static int
-g_raid_dump(void *arg,
+int
+g_raid_tr_kerneldump_common(struct g_raid_tr_object *tr,
     void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
 	struct bio bp;
 
-	vol = (struct g_raid_volume *)arg;
+	vol = tr->tro_volume;
 	sc = vol->v_softc;
-	G_RAID_DEBUG(3, "Dumping at off %llu len %llu.",
-	    (long long unsigned)offset, (long long unsigned)length);
 
 	bzero(&bp, sizeof(bp));
 	bp.bio_cmd = BIO_WRITE;
-	bp.bio_done = g_raid_dumpdone;
+	bp.bio_done = g_raid_tr_kerneldump_common_done;
 	bp.bio_attribute = NULL;
 	bp.bio_offset = offset;
 	bp.bio_length = length;
@@ -751,9 +749,26 @@ g_raid_dump(void *arg,
 		DELAY(10);
 	}
 
-	G_RAID_DEBUG(3, "Dumping at off %llu len %llu done.",
+	return (bp.bio_error != 0 ? EIO : 0);
+}
+
+static int
+g_raid_dump(void *arg,
+    void *virtual, vm_offset_t physical, off_t offset, size_t length)
+{
+	struct g_raid_volume *vol;
+	int error;
+
+	vol = (struct g_raid_volume *)arg;
+	G_RAID_DEBUG(3, "Dumping at off %llu len %llu.",
 	    (long long unsigned)offset, (long long unsigned)length);
-	return (0);
+
+	error = G_RAID_TR_KERNELDUMP(vol->v_tr,
+	    virtual, physical, offset, length);
+
+	G_RAID_DEBUG(3, "Dumping at off %llu len %llu done: %d.",
+	    (long long unsigned)offset, (long long unsigned)length, error);
+	return (error);
 }
 
 static void
@@ -1020,28 +1035,39 @@ g_raid_subdisk_iostart(struct g_raid_subdisk *sd, struct bio *bp)
 		vol->v_writes++;
 
 	cp = sd->sd_disk->d_consumer;
-	bp->bio_done = g_raid_disk_done;
 	bp->bio_from = sd->sd_disk->d_consumer;
 	bp->bio_to = sd->sd_disk->d_consumer->provider;
-	bp->bio_offset += sd->sd_offset;
 	bp->bio_caller1 = sd;
 	cp->index++;
 	if (dumping) {
 		G_RAID_LOGREQ(3, bp, "Sending dumping request.");
-		if (sd->sd_disk->d_kd.di.dumper == NULL) {
+		if (bp->bio_cmd == BIO_WRITE) {
+			bp->bio_error = g_raid_subdisk_kerneldump(sd,
+			    bp->bio_data, 0, bp->bio_offset, bp->bio_length);
+		} else
 			bp->bio_error = EOPNOTSUPP;
-			g_raid_disk_done(bp);
-			return;
-		}
-		dump_write(&sd->sd_disk->d_kd.di,
-		    bp->bio_data, 0,
-		    sd->sd_disk->d_kd.di.mediaoffset + bp->bio_offset,
-		    bp->bio_length);
 		g_raid_disk_done(bp);
 	} else {
+		bp->bio_done = g_raid_disk_done;
+		bp->bio_offset += sd->sd_offset;
 		G_RAID_LOGREQ(3, bp, "Sending request.");
 		g_io_request(bp, cp);
 	}
+}
+
+int
+g_raid_subdisk_kerneldump(struct g_raid_subdisk *sd,
+    void *virtual, vm_offset_t physical, off_t offset, size_t length)
+{
+
+	if (sd->sd_disk == NULL)
+		return (ENXIO);
+	if (sd->sd_disk->d_kd.di.dumper == NULL)
+		return (EOPNOTSUPP);
+	return (dump_write(&sd->sd_disk->d_kd.di,
+	    virtual, physical,
+	    sd->sd_disk->d_kd.di.mediaoffset + sd->sd_offset + offset,
+	    length));
 }
 
 static void

@@ -54,6 +54,7 @@ static g_raid_tr_start_t g_raid_tr_start_raid0;
 static g_raid_tr_stop_t g_raid_tr_stop_raid0;
 static g_raid_tr_iostart_t g_raid_tr_iostart_raid0;
 static g_raid_tr_iodone_t g_raid_tr_iodone_raid0;
+static g_raid_tr_kerneldump_t g_raid_tr_kerneldump_raid0;
 static g_raid_tr_free_t g_raid_tr_free_raid0;
 
 static kobj_method_t g_raid_tr_raid0_methods[] = {
@@ -63,6 +64,7 @@ static kobj_method_t g_raid_tr_raid0_methods[] = {
 	KOBJMETHOD(g_raid_tr_stop,	g_raid_tr_stop_raid0),
 	KOBJMETHOD(g_raid_tr_iostart,	g_raid_tr_iostart_raid0),
 	KOBJMETHOD(g_raid_tr_iodone,	g_raid_tr_iodone_raid0),
+	KOBJMETHOD(g_raid_tr_kerneldump,	g_raid_tr_kerneldump_raid0),
 	KOBJMETHOD(g_raid_tr_free,	g_raid_tr_free_raid0),
 	{ 0, 0 }
 };
@@ -272,6 +274,57 @@ failure:
 	if (bp->bio_error == 0)
 		bp->bio_error = ENOMEM;
 	g_raid_iodone(bp, bp->bio_error);
+}
+
+int
+g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr,
+    void *virtual, vm_offset_t physical, off_t boffset, size_t blength)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_volume *vol;
+	char *addr;
+	off_t offset, start, length, nstripe;
+	u_int no, strip_size;
+	int error;
+
+	vol = tr->tro_volume;
+	if (vol->v_state != G_RAID_VOLUME_S_OPTIMAL)
+		return (ENXIO);
+	sc = vol->v_softc;
+
+	addr = virtual;
+	strip_size = vol->v_strip_size;
+	/* Stripe number. */
+	nstripe = boffset / strip_size;
+	/* Start position in stripe. */
+	start = boffset % strip_size;
+	/* Disk number. */
+	no = nstripe % vol->v_disks_count;
+	/* Start position in disk. */
+	offset = (nstripe / vol->v_disks_count) * strip_size + start;
+	/* Length of data to operate. */
+	length = MIN(blength, strip_size - start);
+
+	error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no],
+	    addr, 0, offset, length);
+	if (error != 0)
+		return (error);
+
+	offset -= offset % strip_size;
+	addr += length;
+	length = blength - length;
+	for (no++; length > 0;
+	    no++, length -= strip_size, addr += strip_size) {
+		if (no > vol->v_disks_count - 1) {
+			no = 0;
+			offset += strip_size;
+		}
+		error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no],
+		    addr, 0, offset, MIN(strip_size, length));
+		if (error != 0)
+			return (error);
+	}
+	return (0);
 }
 
 static void

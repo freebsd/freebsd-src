@@ -54,6 +54,7 @@ static g_raid_tr_start_t g_raid_tr_start_raid1;
 static g_raid_tr_stop_t g_raid_tr_stop_raid1;
 static g_raid_tr_iostart_t g_raid_tr_iostart_raid1;
 static g_raid_tr_iodone_t g_raid_tr_iodone_raid1;
+static g_raid_tr_kerneldump_t g_raid_tr_kerneldump_raid1;
 static g_raid_tr_locked_t g_raid_tr_locked_raid1;
 static g_raid_tr_free_t g_raid_tr_free_raid1;
 
@@ -64,6 +65,7 @@ static kobj_method_t g_raid_tr_raid1_methods[] = {
 	KOBJMETHOD(g_raid_tr_stop,	g_raid_tr_stop_raid1),
 	KOBJMETHOD(g_raid_tr_iostart,	g_raid_tr_iostart_raid1),
 	KOBJMETHOD(g_raid_tr_iodone,	g_raid_tr_iodone_raid1),
+	KOBJMETHOD(g_raid_tr_kerneldump,	g_raid_tr_kerneldump_raid1),
 	KOBJMETHOD(g_raid_tr_locked,	g_raid_tr_locked_raid1),
 	KOBJMETHOD(g_raid_tr_free,	g_raid_tr_free_raid1),
 	{ 0, 0 }
@@ -359,6 +361,37 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		pbp->bio_completed = pbp->bio_length;
 		g_raid_iodone(pbp, bp->bio_error);
 	}
+}
+
+int
+g_raid_tr_kerneldump_raid1(struct g_raid_tr_object *tr,
+    void *virtual, vm_offset_t physical, off_t offset, size_t length)
+{
+	struct g_raid_volume *vol;
+	struct g_raid_subdisk *sd;
+	int error, i, ok;
+
+	vol = tr->tro_volume;
+	error = 0;
+	ok = 0;
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		switch (sd->sd_state) {
+		case G_RAID_SUBDISK_S_ACTIVE:
+			break;
+//		case G_RAID_DISK_STATE_SYNCHRONIZING:
+//			if (bp->bio_offset >= sync->ds_offset)
+//				continue;
+//			break;
+		default:
+			continue;
+		}
+		error = g_raid_subdisk_kerneldump(sd,
+		    virtual, physical, offset, length);
+		if (error == 0)
+			ok++;
+	}
+	return (ok > 0 ? 0 : error);
 }
 
 static int
