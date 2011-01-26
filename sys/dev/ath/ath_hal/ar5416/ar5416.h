@@ -201,7 +201,7 @@ extern	void ar5416GetTargetPowersLeg(struct ath_hal *ah,
 		CAL_TARGET_POWER_LEG *powInfo,
 		uint16_t numChannels, CAL_TARGET_POWER_LEG *pNewPower,
 		uint16_t numRates, HAL_BOOL isExtTarget);
-
+extern	void ar5416InitChainMasks(struct ath_hal *ah);
 
 extern	HAL_BOOL ar5416StopTxDma(struct ath_hal *ah, u_int q);
 extern	HAL_BOOL ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
