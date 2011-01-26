@@ -106,7 +106,7 @@ procfs_doprocregs(PFS_FILL_ARGS)
 	td2 = FIRST_THREAD_IN_PROC(p);
 #ifdef COMPAT_FREEBSD32
 	if (SV_CURPROC_FLAG(SV_ILP32)) {
-		if ((td2->td_proc->p_sysent->sv_flags & SV_ILP32) == 0) {
+		if ((SV_PROC_FLAG(td2->td_proc, SV_ILP32)) == 0) {
 			PROC_UNLOCK(p);
 			return (EINVAL);
 		}
