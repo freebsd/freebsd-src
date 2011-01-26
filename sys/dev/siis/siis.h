@@ -371,6 +371,7 @@ struct siis_channel {
 	struct ata_dma		dma;            /* DMA data */
 	struct cam_sim		*sim;
 	struct cam_path		*path;
+	struct cdev		*led;		/* Activity led led(4) cdev. */
 	int			quirks;
 	int			pm_level;	/* power management level */
 
