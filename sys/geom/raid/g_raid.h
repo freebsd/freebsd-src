@@ -76,8 +76,28 @@ extern struct g_class g_raid_class;
 	}								\
 } while (0)
 
-#define	G_RAID_BIO_FLAG_REGULAR	0x01
-#define	G_RAID_BIO_FLAG_SYNC		0x02
+/*
+ * Flags we use to distinguish I/O initiated by the TR layer to maintain
+ * the volume's characteristics, fix subdisks, extra copies of data, etc.
+ *
+ * G_RAID_BIO_FLAG_SYNC		I/O to update an extra copy of the data
+ *				for RAID volumes that maintain extra data
+ *				and need to rebuild that data.
+ * G_RAID_BIO_FLAG_REMAP	I/O done to try to provoke a subdisk into
+ *				doing some desirable action such as bad
+ *				block remapping after we detect a bad part
+ *				of the disk.
+ *
+ * and the following meta item:
+ * G_RAID_BIO_FLAG_SPECIAL	And of the I/O flags that need to make it
+ *				through the range locking which would
+ *				otherwise defer the I/O until after that
+ *				range is unlocked.
+ */
+#define	G_RAID_BIO_FLAG_SYNC		0x01
+#define	G_RAID_BIO_FLAG_REMAP		0x02
+#define G_RAID_BIO_FLAG_SPECIAL \
+		(G_RAID_BIO_FLAG_SYNC|G_RAID_BIO_FLAG_REMAP)
 
 #define G_RAID_LOCK_PENDING	0x1
 struct g_raid_lock {
@@ -131,9 +151,10 @@ struct g_raid_disk {
 #define G_RAID_SUBDISK_S_RESYNC		0x05	/* Dirty + check/repair. */
 #define G_RAID_SUBDISK_S_ACTIVE		0x06	/* Usable. */
 
-#define G_RAID_SUBDISK_E_NEW		0x01
-#define G_RAID_SUBDISK_E_FAILED		0x02
-#define G_RAID_SUBDISK_E_DISCONNECTED	0x03
+#define G_RAID_SUBDISK_E_NEW		0x01	/* A new subdisk has arrived */
+#define G_RAID_SUBDISK_E_FAILED		0x02	/* A subdisk failed, but remains in volume */
+#define G_RAID_SUBDISK_E_DISCONNECTED	0x03	/* A subdisk removed from volume. */
+#define G_RAID_SUBDISK_E_FIRST_TR_PRIVATE 0x80	/* translation private events */
 
 struct g_raid_subdisk {
 	struct g_raid_softc	*sd_softc;	/* Back-pointer to softc. */
