@@ -329,6 +329,8 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	if (!ar5416InitCal(ah, chan))
 		FAIL(HAL_ESELFTEST);
 
+	ar5416RestoreChainMask(ah);
+
 	AH_PRIVATE(ah)->ah_opmode = opmode;	/* record operating mode */
 
 	if (bChannelChange && !IEEE80211_IS_CHAN_DFS(chan)) 
@@ -1123,6 +1125,18 @@ ar5416InitChainMasks(struct ath_hal *ah)
 	OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
 	OS_REG_WRITE(ah, AR_SELFGEN_MASK, AH5416(ah)->ah_tx_chainmask);
 }
+
+void
+ar5416RestoreChainMask(struct ath_hal *ah)
+{
+	int rx_chainmask = AH5416(ah)->ah_rx_chainmask;
+
+	if ((rx_chainmask == 0x5) || (rx_chainmask == 0x3)) {
+		OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx_chainmask);
+		OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx_chainmask);
+	}
+}
+
 
 #ifndef IS_5GHZ_FAST_CLOCK_EN
 #define	IS_5GHZ_FAST_CLOCK_EN(ah, chan)	AH_FALSE
