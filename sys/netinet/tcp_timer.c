@@ -485,7 +485,7 @@ tcp_timer_rexmt(void * xtp)
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 	/*
-	 * Disable rfc1323 if we havn't got any response to
+	 * Disable rfc1323 if we haven't got any response to
 	 * our third SYN to work-around some broken terminal servers
 	 * (most of which have hopefully been retired) that have bad VJ
 	 * header compression code which trashes TCP segments containing
