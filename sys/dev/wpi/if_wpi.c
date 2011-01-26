@@ -174,7 +174,6 @@ static int	wpi_alloc_tx_ring(struct wpi_softc *, struct wpi_tx_ring *,
 		    int, int);
 static void	wpi_reset_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
 static void	wpi_free_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
-static void	wpi_newassoc(struct ieee80211_node *, int);
 static int	wpi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	wpi_mem_lock(struct wpi_softc *);
 static void	wpi_mem_unlock(struct wpi_softc *);
@@ -668,7 +667,6 @@ wpi_attach(device_t dev)
 	ieee80211_ifattach(ic, macaddr);
 	/* override default methods */
 	ic->ic_raw_xmit = wpi_raw_xmit;
-	ic->ic_newassoc = wpi_newassoc;
 	ic->ic_wme.wme_update = wpi_wme_update;
 	ic->ic_scan_start = wpi_scan_start;
 	ic->ic_scan_end = wpi_scan_end;
@@ -3230,14 +3228,6 @@ wpi_stop(struct wpi_softc *sc)
 	WPI_LOCK(sc);
 	wpi_stop_locked(sc);
 	WPI_UNLOCK(sc);
-}
-
-static void
-wpi_newassoc(struct ieee80211_node *ni, int isnew)
-{
-
-	/* XXX move */
-	ieee80211_ratectl_node_init(ni);
 }
 
 static void
