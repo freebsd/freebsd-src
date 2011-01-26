@@ -2493,6 +2493,7 @@ init386(first)
 {
 	unsigned long gdtmachpfn;
 	int error, gsel_tss, metadata_missing, x, pa;
+	size_t kstack0_sz;
 	struct pcpu *pc;
 	struct callback_register event = {
 		.type = CALLBACKTYPE_event,
@@ -2504,8 +2505,9 @@ init386(first)
 	};
 
 	thread0.td_kstack = proc0kstack;
-	thread0.td_pcb = (struct pcb *)
-	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack_pages = KSTACK_PAGES;
+	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
+	thread0.td_pcb = (struct pcb *)(thread0.td_kstack + kstack0_sz) - 1;
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -2656,7 +2658,7 @@ init386(first)
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
 	PCPU_SET(common_tss.tss_esp0, thread0.td_kstack +
-	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
+	    kstack0_sz - sizeof(struct pcb) - 16);
 	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	HYPERVISOR_stack_switch(GSEL(GDATA_SEL, SEL_KPL),
@@ -2716,11 +2718,13 @@ init386(first)
 {
 	struct gate_descriptor *gdp;
 	int gsel_tss, metadata_missing, x, pa;
+	size_t kstack0_sz;
 	struct pcpu *pc;
 
 	thread0.td_kstack = proc0kstack;
-	thread0.td_pcb = (struct pcb *)
-	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack_pages = KSTACK_PAGES;
+	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
+	thread0.td_pcb = (struct pcb *)(thread0.td_kstack + kstack0_sz) - 1;
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -2912,7 +2916,7 @@ init386(first)
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
 	PCPU_SET(common_tss.tss_esp0, thread0.td_kstack +
-	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
+	    kstack0_sz - sizeof(struct pcb) - 16);
 	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
