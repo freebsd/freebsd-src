@@ -666,6 +666,7 @@ main_loop(void)
 			case SIGTERM:
 				sigexit_received = true;
 				terminate_workers();
+				proto_close(cfg->hc_controlconn);
 				exit(EX_OK);
 				break;
 			case SIGCHLD:
