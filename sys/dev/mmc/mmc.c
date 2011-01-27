@@ -749,7 +749,7 @@ mmc_get_bits(uint32_t *bits, int bit_len, int start, int size)
 	uint32_t retval = bits[i] >> shift;
 	if (size + shift > 32)
 		retval |= bits[i - 1] << (32 - shift);
-	return (retval & ((1 << size) - 1));
+	return (retval & ((1llu << size) - 1));
 }
 
 static void
@@ -1500,6 +1500,15 @@ mmc_delayed_attach(void *xsc)
 	config_intrhook_disestablish(&sc->config_intrhook);
 }
 
+static int
+mmc_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "rca=0x%04x", mmc_get_rca(child));
+	return (0);
+}
+
 static device_method_t mmc_methods[] = {
 	/* device_if */
 	DEVMETHOD(device_probe, mmc_probe),
@@ -1511,6 +1520,7 @@ static device_method_t mmc_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar, mmc_read_ivar),
 	DEVMETHOD(bus_write_ivar, mmc_write_ivar),
+	DEVMETHOD(bus_child_location_str, mmc_child_location_str),
 
 	/* MMC Bus interface */
 	DEVMETHOD(mmcbus_wait_for_request, mmc_wait_for_request),

@@ -251,7 +251,6 @@ pte_load_store(pt_entry_t *ptep, pt_entry_t v)
 {
 	pt_entry_t r;
 
-	v = xpmap_ptom(v);
 	r = *ptep;
 	PT_SET_VA(ptep, v, TRUE);
 	return (r);

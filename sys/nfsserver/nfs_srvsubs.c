@@ -639,16 +639,18 @@ nfs_namei(struct nameidata *ndp, struct nfsrv_descript *nfsd,
 			goto out;
 	}
 
+	if (!pubflag && nfs_ispublicfh(fhp))
+		return (ESTALE);
+
 	/*
 	 * Extract and set starting directory.
 	 */
-	error = nfsrv_fhtovp(fhp, FALSE, &dp, &dvfslocked,
-	    nfsd, slp, nam, &rdonly, pubflag);
+	error = nfsrv_fhtovp(fhp, 0, &dp, &dvfslocked, nfsd, slp, nam, &rdonly);
 	if (error)
 		goto out;
 	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 	if (dp->v_type != VDIR) {
-		vrele(dp);
+		vput(dp);
 		error = ENOTDIR;
 		goto out;
 	}
@@ -662,11 +664,11 @@ nfs_namei(struct nameidata *ndp, struct nfsrv_descript *nfsd,
 	 */
 	*retdirp = dp;
 	if (v3) {
-		vn_lock(dp, LK_EXCLUSIVE | LK_RETRY);
 		*retdirattr_retp = VOP_GETATTR(dp, retdirattrp,
 			ndp->ni_cnd.cn_cred);
-		VOP_UNLOCK(dp, 0);
 	}
+
+	VOP_UNLOCK(dp, 0);
 
 	if (pubflag) {
 		/*
@@ -1051,12 +1053,11 @@ nfsm_srvfattr(struct nfsrv_descript *nfsd, struct vattr *vap,
  * 	- look up fsid in mount list (if not found ret error)
  *	- get vp and export rights by calling VFS_FHTOVP()
  *	- if cred->cr_uid == 0 or MNT_EXPORTANON set it to credanon
- *	- if not lockflag unlock it with VOP_UNLOCK()
  */
 int
-nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
+nfsrv_fhtovp(fhandle_t *fhp, int flags, struct vnode **vpp, int *vfslockedp,
     struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct sockaddr *nam, int *rdonlyp, int pubflag)
+    struct sockaddr *nam, int *rdonlyp)
 {
 	struct mount *mp;
 	int i;
@@ -1076,7 +1077,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 	*vpp = NULL;
 
 	if (nfs_ispublicfh(fhp)) {
-		if (!pubflag || !nfs_pub.np_valid)
+		if (!nfs_pub.np_valid)
 			return (ESTALE);
 		fhp = &nfs_pub.np_handle;
 	}
@@ -1128,12 +1129,12 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 		}
 	}
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
-	if (error != 0)
+	if (error) {
 		/* Make sure the server replies ESTALE to the client. */
 		error = ESTALE;
-	vfs_unbusy(mp);
-	if (error)
+		vfs_unbusy(mp);
 		goto out;
+	}
 #ifdef MNT_EXNORESPORT
 	if (!(exflags & (MNT_EXNORESPORT|MNT_EXPUBLIC))) {
 		saddr = (struct sockaddr_in *)nam;
@@ -1144,6 +1145,8 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 			vput(*vpp);
 			*vpp = NULL;
 			error = NFSERR_AUTHERR | AUTH_TOOWEAK;
+			vfs_unbusy(mp);
+			goto out;
 		}
 	}
 #endif
@@ -1160,8 +1163,8 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 	else
 		*rdonlyp = 0;
 
-	if (!lockflag)
-		VOP_UNLOCK(*vpp, 0);
+	if (!(flags & NFSRV_FLAG_BUSY))
+		vfs_unbusy(mp);
 out:
 	if (credanon != NULL)
 		crfree(credanon);

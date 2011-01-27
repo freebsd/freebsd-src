@@ -198,6 +198,10 @@ struct lagg_softc {
 	void	(*sc_lladdr)(struct lagg_softc *);
 	void	(*sc_req)(struct lagg_softc *, caddr_t);
 	void	(*sc_portreq)(struct lagg_port *, caddr_t);
+#if __FreeBSD_version >= 800000
+	eventhandler_tag vlan_attach;
+	eventhandler_tag vlan_detach;
+#endif
 };
 
 struct lagg_port {

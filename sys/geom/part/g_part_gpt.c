@@ -425,7 +425,8 @@ g_part_gpt_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	}
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		g_gpt_utf8_to_utf16(gpp->gpp_label, entry->ent.ent_name,
-		    sizeof(entry->ent.ent_name));
+		    sizeof(entry->ent.ent_name) /
+		    sizeof(entry->ent.ent_name[0]));
 	return (0);
 }
 
@@ -588,7 +589,8 @@ g_part_gpt_modify(struct g_part_table *basetable,
 	}
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		g_gpt_utf8_to_utf16(gpp->gpp_label, entry->ent.ent_name,
-		    sizeof(entry->ent.ent_name));
+		    sizeof(entry->ent.ent_name) /
+		    sizeof(entry->ent.ent_name[0]));
 	return (0);
 }
 

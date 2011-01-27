@@ -196,9 +196,13 @@ struct tcpcb {
 	void	*t_toe;			/* TOE pcb pointer */
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
 
-	int	t_ispare;		/* explicit pad for 64bit alignment */
+	int	t_sndzerowin;	/* zero-window updates sent */
+
 	void	*t_pspare2[6];		/* 2 CC / 4 TBD */
-	uint64_t _pad[12];		/* 7 UTO, 5 TBD (1-2 CC/RTT?) */
+	uint64_t _pad[10];		/* 7 UTO, 3 TBD (1-2 CC/RTT?) */
+
+	uint64_t	t_sndrexmitpack;/* retransmit packets sent */
+	uint64_t	t_rcvoopack;	/* out-of-order packets received */
 };
 
 /*

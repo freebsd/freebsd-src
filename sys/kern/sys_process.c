@@ -92,6 +92,7 @@ struct ptrace_lwpinfo32 {
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct siginfo32 pl_siginfo;	/* siginfo for signal */
+	char	pl_tdname[MAXCOMLEN + 1];	/* LWP name. */
 };
 
 #endif
@@ -517,6 +518,7 @@ ptrace_lwpinfo_to32(const struct ptrace_lwpinfo *pl,
 	pl32->pl_sigmask = pl->pl_sigmask;
 	pl32->pl_siglist = pl->pl_siglist;
 	siginfo_to_siginfo32(&pl->pl_siginfo, &pl32->pl_siginfo);
+	strcpy(pl32->pl_tdname, pl->pl_tdname);
 }
 #endif /* COMPAT_FREEBSD32 */
 
@@ -1172,6 +1174,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			pl->pl_flags |= PL_FLAG_EXEC;
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
+		strcpy(pl->pl_tdname, td2->td_name);
 #ifdef COMPAT_FREEBSD32
 		if (wrap32)
 			ptrace_lwpinfo_to32(pl, pl32);

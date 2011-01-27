@@ -508,7 +508,7 @@ blkfront_initialize(struct xb_softc *sc)
 	sc->ring_pages = 1;
 	sc->max_requests = BLKIF_MAX_RING_REQUESTS(PAGE_SIZE);
 	sc->max_request_segments = BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK;
-	sc->max_request_size = sc->max_request_segments * PAGE_SIZE;
+	sc->max_request_size = (sc->max_request_segments - 1) * PAGE_SIZE;
 	sc->max_request_blocks = BLKIF_SEGS_TO_BLOCKS(sc->max_request_segments);
 
 	/*

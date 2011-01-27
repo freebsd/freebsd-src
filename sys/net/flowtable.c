@@ -195,7 +195,8 @@ static VNET_DEFINE(uma_zone_t, flow_ipv6_zone);
 #define	V_flow_ipv6_zone	VNET(flow_ipv6_zone)
 
 
-static struct cv 	flowclean_cv;
+static struct cv 	flowclean_f_cv;
+static struct cv 	flowclean_c_cv;
 static struct mtx	flowclean_lock;
 static uint32_t		flowclean_cycles;
 static uint32_t		flowclean_freq;
@@ -328,9 +329,7 @@ flowtable_show_stats(struct sbuf *sb, struct flowtable *ft)
 	if (ft->ft_flags & FL_PCPU) {
 		bzero(&fs, sizeof(fs));
 		pfs = &fs;
-		for (i = 0; i <= mp_maxid; i++) {
-			if (CPU_ABSENT(i))
-				continue;
+		CPU_FOREACH(i) {
 			pfs->ft_collisions  += ft->ft_stats[i].ft_collisions;
 			pfs->ft_allocated   += ft->ft_stats[i].ft_allocated;
 			pfs->ft_misses      += ft->ft_stats[i].ft_misses;
@@ -954,7 +953,7 @@ flow_full(struct flowtable *ft)
 		if ((ft->ft_flags & FL_HASH_ALL) == 0)
 			ft->ft_udp_idle = ft->ft_fin_wait_idle =
 			    ft->ft_syn_idle = ft->ft_tcp_idle = 5;
-		cv_broadcast(&flowclean_cv);
+		cv_broadcast(&flowclean_c_cv);
 	} else if (!full && ft->ft_full) {
 		flowclean_freq = 20*hz;
 		if ((ft->ft_flags & FL_HASH_ALL) == 0)
@@ -1494,10 +1493,7 @@ flowtable_route_flush(struct flowtable *ft, struct rtentry *rt)
 	int i;
 
 	if (ft->ft_flags & FL_PCPU) {
-		for (i = 0; i <= mp_maxid; i++) {
-			if (CPU_ABSENT(i))
-				continue;
-			
+		CPU_FOREACH(i) {
 			if (smp_started == 1) {
 				thread_lock(curthread);
 				sched_bind(curthread, i);
@@ -1526,10 +1522,7 @@ flowtable_clean_vnet(void)
 	ft = V_flow_list_head;
 	while (ft != NULL) {
 		if (ft->ft_flags & FL_PCPU) {
-			for (i = 0; i <= mp_maxid; i++) {
-				if (CPU_ABSENT(i))
-					continue;
-
+			CPU_FOREACH(i) {
 				if (smp_started == 1) {
 					thread_lock(curthread);
 					sched_bind(curthread, i);
@@ -1567,14 +1560,14 @@ flowtable_cleaner(void)
 		}
 		VNET_LIST_RUNLOCK();
 
-		flowclean_cycles++;
 		/*
 		 * The 10 second interval between cleaning checks
 		 * is arbitrary
 		 */
 		mtx_lock(&flowclean_lock);
-		cv_broadcast(&flowclean_cv);
-		cv_timedwait(&flowclean_cv, &flowclean_lock, flowclean_freq);
+		flowclean_cycles++;
+		cv_broadcast(&flowclean_f_cv);
+		cv_timedwait(&flowclean_c_cv, &flowclean_lock, flowclean_freq);
 		mtx_unlock(&flowclean_lock);
 	}
 }
@@ -1587,8 +1580,8 @@ flowtable_flush(void *unused __unused)
 	mtx_lock(&flowclean_lock);
 	start = flowclean_cycles;
 	while (start == flowclean_cycles) {
-		cv_broadcast(&flowclean_cv);
-		cv_wait(&flowclean_cv, &flowclean_lock);
+		cv_broadcast(&flowclean_c_cv);
+		cv_wait(&flowclean_f_cv, &flowclean_lock);
 	}
 	mtx_unlock(&flowclean_lock);
 }
@@ -1620,7 +1613,8 @@ static void
 flowtable_init(const void *unused __unused)
 {
 
-	cv_init(&flowclean_cv, "flowcleanwait");
+	cv_init(&flowclean_c_cv, "c_flowcleanwait");
+	cv_init(&flowclean_f_cv, "f_flowcleanwait");
 	mtx_init(&flowclean_lock, "flowclean lock", NULL, MTX_DEF);
 	EVENTHANDLER_REGISTER(ifnet_departure_event, flowtable_flush, NULL,
 	    EVENTHANDLER_PRI_ANY);
@@ -1798,9 +1792,7 @@ flowtable_show_vnet(void)
 	while (ft != NULL) {
 		printf("name: %s\n", ft->ft_name);
 		if (ft->ft_flags & FL_PCPU) {
-			for (i = 0; i <= mp_maxid; i++) {
-				if (CPU_ABSENT(i))
-					continue;
+			CPU_FOREACH(i) {
 				flowtable_show(ft, i);
 			}
 		} else {
@@ -1816,6 +1808,9 @@ DB_SHOW_COMMAND(flowtables, db_show_flowtables)
 
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
+#ifdef VIMAGE
+		db_printf("vnet %p\n", vnet_iter);
+#endif
 		flowtable_show_vnet();
 		CURVNET_RESTORE();
 	}

@@ -413,7 +413,7 @@ ata_serverworks_sata_reset(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
 
-	if (ata_sata_phy_reset(dev, -1, 1))
+	if (ata_sata_phy_reset(dev, -1, 0))
 		ata_generic_reset(dev);
 	else
 		ch->devices = 0;

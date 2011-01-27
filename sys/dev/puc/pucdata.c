@@ -554,6 +554,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_cronyx
 	},
 
+	{   0x13a8, 0x0258, 0xffff, 0,
+	    "Exar XR17V258IV",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x10, 0, -1,
+	},
+
 	{   0x1407, 0x0100, 0xffff, 0,
 	    "Lava Computers Dual Serial",
 	    DEFAULT_RCLK,

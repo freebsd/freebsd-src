@@ -1466,6 +1466,7 @@ extern uint32_t IoConnectInterrupt(kinterrupt **, void *, void *,
 	kspin_lock *, uint32_t, uint8_t, uint8_t, uint8_t, uint8_t,
 	uint32_t, uint8_t);
 extern uint8_t MmIsAddressValid(void *);
+extern void *MmGetSystemRoutineAddress(unicode_string *);
 extern void *MmMapIoSpace(uint64_t, uint32_t, uint32_t);
 extern void MmUnmapIoSpace(void *, size_t);
 extern void MmBuildMdlForNonPagedPool(mdl *);

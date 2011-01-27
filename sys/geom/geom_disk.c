@@ -297,7 +297,11 @@ g_disk_start(struct bio *bp)
 		} while (bp2 != NULL);
 		break;
 	case BIO_GETATTR:
-		if (g_handleattr_int(bp, "GEOM::fwsectors", dp->d_fwsectors))
+		if (g_handleattr_int(bp, "GEOM::candelete",
+		    (dp->d_flags & DISKFLAG_CANDELETE) != 0))
+			break;
+		else if (g_handleattr_int(bp, "GEOM::fwsectors",
+		    dp->d_fwsectors))
 			break;
 		else if (g_handleattr_int(bp, "GEOM::fwheads", dp->d_fwheads))
 			break;

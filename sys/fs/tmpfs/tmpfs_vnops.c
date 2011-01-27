@@ -1277,7 +1277,7 @@ outok:
 	MPASS(error >= -1);
 
 	if (error == -1)
-		error = 0;
+		error = (cnt != 0) ? 0 : EINVAL;
 
 	if (eofflag != NULL)
 		*eofflag =

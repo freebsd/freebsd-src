@@ -103,7 +103,6 @@ static void		rt2560_reset_rx_ring(struct rt2560_softc *,
 			    struct rt2560_rx_ring *);
 static void		rt2560_free_rx_ring(struct rt2560_softc *,
 			    struct rt2560_rx_ring *);
-static void		rt2560_newassoc(struct ieee80211_node *, int);
 static int		rt2560_newstate(struct ieee80211vap *,
 			    enum ieee80211_state, int);
 static uint16_t		rt2560_eeprom_read(struct rt2560_softc *, uint8_t);
@@ -301,7 +300,6 @@ rt2560_attach(device_t dev, int id)
 	ieee80211_init_channels(ic, NULL, &bands);
 
 	ieee80211_ifattach(ic, macaddr);
-	ic->ic_newassoc = rt2560_newassoc;
 	ic->ic_raw_xmit = rt2560_raw_xmit;
 	ic->ic_updateslot = rt2560_update_slot;
 	ic->ic_update_promisc = rt2560_update_promisc;
@@ -755,13 +753,6 @@ rt2560_free_rx_ring(struct rt2560_softc *sc, struct rt2560_rx_ring *ring)
 
 	if (ring->data_dmat != NULL)
 		bus_dma_tag_destroy(ring->data_dmat);
-}
-
-static void
-rt2560_newassoc(struct ieee80211_node *ni, int isnew)
-{
-	/* XXX move */
-	ieee80211_ratectl_node_init(ni);
 }
 
 static int

@@ -457,6 +457,11 @@ usb_parse_configuration(struct usb_config_descriptor *config,
 
 	/* allocate memory for our configuration */
 	ptr = malloc(a + b + c + d);
+	if (ptr == NULL) {
+		/* free config structure */
+		free(ps.a.currcfg);
+		return (-1);
+	}
 
 	/* "currifcw" must be first, hence this pointer is freed */
 	ps.b.currifcw = (void *)(ptr);

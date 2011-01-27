@@ -1593,8 +1593,6 @@ zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
 	 * which we have to use here, because only this file system
 	 * has mnt_export configured.
 	 */
-	vfsp = zfsvfs->z_parent->z_vfs;
-
 	return (vfs_stdcheckexp(zfsvfs->z_parent->z_vfs, nam, extflagsp,
 	    credanonp, numsecflavors, secflavors));
 }

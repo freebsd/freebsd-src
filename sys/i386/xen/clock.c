@@ -340,7 +340,8 @@ clkintr(void *arg)
 	 * time base.
 	 */
 	
-	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version) {
+	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version &&
+	    !independent_wallclock) {
 		printf("[XEN] hypervisor wallclock nudged; nudging TOD.\n");
 		update_wallclock();
 		add_uptime_to_wallclock();
@@ -522,7 +523,8 @@ startrtclock()
 	set_cyc2ns_scale(cpu_khz/1000);
 	tsc_freq = cpu_khz * 1000;
 
-        timer_freq = xen_timecounter.tc_frequency = 1000000000LL;
+        timer_freq = 1000000000LL;
+	xen_timecounter.tc_frequency = timer_freq >> 9;
         tc_init(&xen_timecounter);
 
 	rdtscll(alarm);
@@ -829,7 +831,7 @@ xen_get_timecount(struct timecounter *tc)
 	
         clk = shadow->system_timestamp + get_nsec_offset(shadow);
 
-	return (uint32_t)((clk / NS_PER_TICK) * NS_PER_TICK);
+	return (uint32_t)(clk >> 9);
 
 }
 

@@ -619,6 +619,9 @@ main_loop(void)
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGCHLD) == 0);
 
+	pjdlog_info("Started successfully, running protocol version %d.",
+	    HAST_PROTO_VERSION);
+
 	for (;;) {
 		while ((signo = sigtimedwait(&mask, NULL, &sigtimeout)) != -1) {
 			switch (signo) {
@@ -751,10 +754,18 @@ main(int argc, char *argv[])
 	assert(cfg != NULL);
 
 	/*
+	 * Restore default actions for interesting signals in case parent
+	 * process (like init(8)) decided to ignore some of them (like SIGHUP).
+	 */
+	PJDLOG_VERIFY(signal(SIGHUP, SIG_DFL) != SIG_ERR);
+	PJDLOG_VERIFY(signal(SIGINT, SIG_DFL) != SIG_ERR);
+	PJDLOG_VERIFY(signal(SIGTERM, SIG_DFL) != SIG_ERR);
+	/*
 	 * Because SIGCHLD is ignored by default, setup dummy handler for it,
 	 * so we can mask it.
 	 */
 	PJDLOG_VERIFY(signal(SIGCHLD, dummy_sighandler) != SIG_ERR);
+
 	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);

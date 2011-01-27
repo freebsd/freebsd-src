@@ -256,9 +256,7 @@ lock_prof_idle(void)
 
 	td = curthread;
 	thread_lock(td);
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		sched_bind(td, cpu);
 	}
 	sched_unbind(td);

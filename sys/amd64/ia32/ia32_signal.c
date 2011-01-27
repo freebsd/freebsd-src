@@ -206,7 +206,6 @@ ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
 	tp->tf_rflags = rflags;
 	tp->tf_rsp = mcp->mc_esp;
 	tp->tf_ss = mcp->mc_ss;
-	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }
@@ -742,11 +741,10 @@ ia32_setregs(td, entry, stack, ps_strings)
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
 
-	load_cr0(rcr0() | CR0_MP | CR0_TS);
 	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */
-	pcb->pcb_flags |= PCB_FULLCTX | PCB_32BIT;
+	pcb->pcb_flags |= PCB_32BIT;
 	pcb->pcb_flags &= ~PCB_GS32BIT;
 	td->td_pcb->pcb_full_iret = 1;
 	td->td_retval[1] = 0;

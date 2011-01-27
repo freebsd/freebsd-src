@@ -15,6 +15,7 @@ MACHINE_CPU = itanium
 . elif ${MACHINE_ARCH} == "powerpc"
 MACHINE_CPU = aim
 . elif ${MACHINE_ARCH} == "sparc64"
+MACHINE_CPU = ultrasparc
 . elif ${MACHINE_ARCH} == "arm"
 MACHINE_CPU = arm
 . elif ${MACHINE_ARCH} == "mips"
@@ -57,6 +58,12 @@ CPUTYPE = athlon
 . elif ${MACHINE_ARCH} == "amd64"
 .  if ${CPUTYPE} == "prescott" || ${CPUTYPE} == "core2"
 CPUTYPE = nocona
+.  endif
+. elif ${MACHINE_ARCH} == "sparc64"
+.  if ${CPUTYPE} == "us"
+CPUTYPE = ultrasparc
+.  elif ${CPUTYPE} == "us3"
+CPUTYPE = ultrasparc3
 .  endif
 . endif
 
@@ -116,7 +123,6 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
-MACHINE_CPU = booke
 _CPUCFLAGS = -Wa,-me500 -msoft-float
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
@@ -134,6 +140,14 @@ _CPUCFLAGS = -march=mips64r2
 _CPUCFLAGS = -march=4kc
 .  elif ${CPUTYPE} == "mips24kc"
 _CPUCFLAGS = -march=24kc
+.  endif
+. elif ${MACHINE_ARCH} == "sparc64"
+.  if ${CPUTYPE} == "v9"
+_CPUCFLAGS = -mcpu=v9
+.  elif ${CPUTYPE} == "ultrasparc"
+_CPUCFLAGS = -mcpu=ultrasparc
+.  elif ${CPUTYPE} == "ultrasparc3"
+_CPUCFLAGS = -mcpu=ultrasparc3
 .  endif
 . endif
 
@@ -191,6 +205,18 @@ MACHINE_CPU += amd64 sse2 sse mmx
 .  if ${CPUTYPE} == "itanium"
 MACHINE_CPU = itanium
 .  endif
+. elif ${MACHINE_ARCH} == "powerpc"
+.  if ${CPUTYPE} == "e500"
+MACHINE_CPU = booke
+.  endif
+. elif ${MACHINE_ARCH} == "sparc64"
+.  if ${CPUTYPE} == "v9"
+MACHINE_CPU = v9
+.  elif ${CPUTYPE} == "ultrasparc"
+MACHINE_CPU = v9 ultrasparc
+.  elif ${CPUTYPE} == "ultrasparc3"
+MACHINE_CPU = v9 ultrasparc ultrasparc3
+.  endif
 . endif
 .endif
 
@@ -200,7 +226,7 @@ LDFLAGS += -mbig-endian
 LD += -EB
 .endif
 
-.if ${MACHINE_ARCH} == "mips" 
+.if ${MACHINE_ARCH} == "mips"
 . if defined(TARGET_BIG_ENDIAN)
 CFLAGS += -EB
 LDFLAGS += -Wl,-EB

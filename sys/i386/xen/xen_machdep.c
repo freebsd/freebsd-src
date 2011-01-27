@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sysproto.h>
 
@@ -249,10 +250,12 @@ _xen_flush_queue(void)
 	SET_VCPU();
 	int _xpq_idx = XPQ_IDX;
 	int error, i;
-	/* window of vulnerability here? */
 
+#ifdef INVARIANTS
 	if (__predict_true(gdtset))
-		critical_enter();
+		CRITICAL_ASSERT(curthread);
+#endif
+
 	XPQ_IDX = 0;
 	/* Make sure index is cleared first to avoid double updates. */
 	error = HYPERVISOR_mmu_update((mmu_update_t *)&XPQ_QUEUE,
@@ -286,8 +289,6 @@ _xen_flush_queue(void)
 		}
 	}
 #endif	
-	if (__predict_true(gdtset))
-		critical_exit();
 	if (__predict_false(error < 0)) {
 		for (i = 0; i < _xpq_idx; i++)
 			printf("val: %llx ptr: %llx\n",
@@ -301,7 +302,12 @@ void
 xen_flush_queue(void)
 {
 	SET_VCPU();
+
+	if (__predict_true(gdtset))
+		critical_enter();
 	if (XPQ_IDX != 0) _xen_flush_queue();
+	if (__predict_true(gdtset))
+		critical_exit();
 }
 
 static __inline void
@@ -482,7 +488,6 @@ xen_pt_pin(vm_paddr_t ma)
 	struct mmuext_op op;
 	op.cmd = MMUEXT_PIN_L1_TABLE;
 	op.arg1.mfn = ma >> PAGE_SHIFT;
-	printk("xen_pt_pin(): mfn=%x\n", op.arg1.mfn);
 	xen_flush_queue();
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
 }

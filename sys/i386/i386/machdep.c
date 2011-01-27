@@ -1228,6 +1228,7 @@ cpu_idle_acpi(int busy)
 
 static int cpu_ident_amdc1e = 0;
 
+#if !defined(XEN) || defined(XEN_PRIVILEGED)
 static int
 cpu_probe_amdc1e(void)
 { 
@@ -1254,6 +1255,7 @@ cpu_probe_amdc1e(void)
 #endif
 	return (0);
 }
+#endif
 
 /*
  * C1E renders the local APIC timer dead, so we disable it by
@@ -2437,6 +2439,9 @@ do_next:
 #else
 	phys_avail[0] = physfree;
 	phys_avail[1] = xen_start_info->nr_pages*PAGE_SIZE;
+	dump_avail[0] = 0;	
+	dump_avail[1] = xen_start_info->nr_pages*PAGE_SIZE;
+	
 #endif
 	
 	/*
@@ -2561,6 +2566,8 @@ init386(first)
 		pmap_kenter(pa + KERNBASE, pa);
 	dpcpu_init((void *)(first + KERNBASE), 0);
 	first += DPCPU_SIZE;
+	physfree += DPCPU_SIZE;
+	init_first += DPCPU_SIZE / PAGE_SIZE;
 
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
@@ -2685,8 +2692,10 @@ init386(first)
 	thread0.td_pcb->pcb_fsd = PCPU_GET(fsgs_gdt)[0];
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
 
+#if defined(XEN_PRIVILEGED)
 	if (cpu_probe_amdc1e())
 		cpu_idle_fn = cpu_idle_amdc1e;
+#endif
 }
 
 #else
@@ -2972,11 +2981,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t flags;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_flags = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		flags = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_flags = flags;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -2984,12 +2997,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t flags;
 
 	td = curthread;
 	critical_exit();
+	flags = td->td_md.md_saved_flags;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_flags);
+		intr_restore(flags);
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)

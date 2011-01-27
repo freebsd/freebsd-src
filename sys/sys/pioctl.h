@@ -69,7 +69,7 @@ struct procfs_status {
 
 /*
  * If PF_LINGER is set in procp->p_pfsflags, then the last close
- * of a /proc/<pid>/mem file will nto clear out the stops and continue
+ * of a /proc/<pid>/mem file will not clear out the stops and continue
  * the process.
  */
 

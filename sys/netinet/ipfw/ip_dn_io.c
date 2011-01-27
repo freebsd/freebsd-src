@@ -742,8 +742,11 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	}
 
 	/* compute the initial allowance */
-	{
+	if (si->idle_time < dn_cfg.curr_time) {
+	    /* Do this only on the first packet on an idle pipe */
 	    struct dn_link *p = &fs->sched->link;
+
+	    si->sched_time = dn_cfg.curr_time;
 	    si->credit = dn_cfg.io_fast ? p->bandwidth : 0;
 	    if (p->burst) {
 		uint64_t burst = (dn_cfg.curr_time - si->idle_time) * p->bandwidth;

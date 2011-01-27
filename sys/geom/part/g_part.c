@@ -1796,6 +1796,8 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    table->gpt_heads);
 		sbuf_printf(sb, "%s<state>%s</state>\n", indent,
 		    table->gpt_corrupt ? "CORRUPT": "OK");
+		sbuf_printf(sb, "%s<modified>%s</modified>\n", indent,
+		    table->gpt_opened ? "true": "false");
 		G_PART_DUMPCONF(table, NULL, sb, indent);
 	}
 }

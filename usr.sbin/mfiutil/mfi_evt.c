@@ -624,6 +624,10 @@ show_events(int ac, char **av)
 	}
 
 	list = malloc(size);
+	if (list == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	for (seq = start;;) {
 		if (mfi_get_events(fd, list, num_events, filter, seq,
 		    &status) < 0) {

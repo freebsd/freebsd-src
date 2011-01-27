@@ -239,7 +239,7 @@ mediaSetUSB(dialogMenuItem *self)
 	cnt = deviceCount(devs);
 
 	if (!cnt) {
-		msgConfirm("No USB devices found!");
+		msgConfirm("No USB devices found (try Options/Re-scan Devices)");
 		return DITEM_FAILURE | DITEM_CONTINUE;
 	}
 	else if (cnt > 1) {

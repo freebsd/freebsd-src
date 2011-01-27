@@ -202,6 +202,11 @@ __FBSDID("$FreeBSD$");
 
 #define pmap_pte_set_prot(pte, v) ((*(int *)pte &= ~PG_PROT), (*(int *)pte |= (v)))
 
+#define HAMFISTED_LOCKING
+#ifdef HAMFISTED_LOCKING
+static struct mtx createdelete_lock;
+#endif
+
 struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
@@ -501,6 +506,10 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 
 	/* Turn on PG_G on kernel page(s) */
 	pmap_set_pg();
+#endif
+
+#ifdef HAMFISTED_LOCKING
+	mtx_init(&createdelete_lock, "pmap create/delete", NULL, MTX_DEF);
 #endif
 }
 
@@ -1070,7 +1079,9 @@ pmap_pte_release(pt_entry_t *pte)
 	if ((pt_entry_t *)((vm_offset_t)pte & ~PAGE_MASK) == PADDR2) {
 		CTR1(KTR_PMAP, "pmap_pte_release: pte=0x%jx",
 		    *PMAP2);
+		vm_page_lock_queues();
 		PT_SET_VA(PMAP2, 0, TRUE);
+		vm_page_unlock_queues();
 		mtx_unlock(&PMAP2mutex);
 	}
 }
@@ -1384,6 +1395,7 @@ pmap_qremove(vm_offset_t sva, int count)
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
+	PT_UPDATES_FLUSH();
 	pmap_invalidate_range(kernel_pmap, sva, va);
 	critical_exit();
 	vm_page_unlock_queues();
@@ -1507,6 +1519,10 @@ pmap_pinit(pmap_t pmap)
 	static int color;
 	int i;
 
+#ifdef HAMFISTED_LOCKING
+	mtx_lock(&createdelete_lock);
+#endif
+
 	PMAP_LOCK_INIT(pmap);
 
 	/*
@@ -1518,6 +1534,9 @@ pmap_pinit(pmap_t pmap)
 		    NBPTD);
 		if (pmap->pm_pdir == NULL) {
 			PMAP_LOCK_DESTROY(pmap);
+#ifdef HAMFISTED_LOCKING
+			mtx_unlock(&createdelete_lock);
+#endif
 			return (0);
 		}
 #if defined(XEN) && defined(PAE)	
@@ -1603,6 +1622,9 @@ pmap_pinit(pmap_t pmap)
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 
+#ifdef HAMFISTED_LOCKING
+	mtx_unlock(&createdelete_lock);
+#endif
 	return (1);
 }
 
@@ -1838,6 +1860,10 @@ pmap_release(pmap_t pmap)
 	    pmap->pm_stats.resident_count));
 	PT_UPDATES_FLUSH();
 
+#ifdef HAMFISTED_LOCKING
+	mtx_lock(&createdelete_lock);
+#endif
+
 	pmap_lazyfix(pmap);
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
@@ -1854,16 +1880,29 @@ pmap_release(pmap_t pmap)
 		m = ptdpg[i];
 		ma = xpmap_ptom(VM_PAGE_TO_PHYS(m));
 		/* unpinning L1 and L2 treated the same */
+#if 0
                 xen_pgd_unpin(ma);
+#else
+		if (i == NPGPTD)
+	                xen_pgd_unpin(ma);
+#endif
 #ifdef PAE
-		KASSERT(xpmap_ptom(VM_PAGE_TO_PHYS(m)) == (pmap->pm_pdpt[i] & PG_FRAME),
-		    ("pmap_release: got wrong ptd page"));
+		if (i < NPGPTD)
+			KASSERT(xpmap_ptom(VM_PAGE_TO_PHYS(m)) == (pmap->pm_pdpt[i] & PG_FRAME),
+			    ("pmap_release: got wrong ptd page"));
 #endif
 		m->wire_count--;
 		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free(m);
 	}
+#ifdef PAE
+	pmap_qremove((vm_offset_t)pmap->pm_pdpt, 1);
+#endif
 	PMAP_LOCK_DESTROY(pmap);
+
+#ifdef HAMFISTED_LOCKING
+	mtx_unlock(&createdelete_lock);
+#endif
 }
 
 static int
@@ -2281,19 +2320,8 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, vm_page_t *free)
 	if (oldpte & PG_G)
 		pmap_invalidate_page(kernel_pmap, va);
 	pmap->pm_stats.resident_count -= 1;
-	/*
-	 * XXX This is not strictly correctly, but somewhere along the line
-	 * we are losing the managed bit on some pages. It is unclear to me
-	 * why, but I think the most likely explanation is that xen's writable
-	 * page table implementation doesn't respect the unused bits.
-	 */
-	if ((oldpte & PG_MANAGED) || ((oldpte & PG_V) && (va < VM_MAXUSER_ADDRESS))
-		) {
+	if (oldpte & PG_MANAGED) {
 		m = PHYS_TO_VM_PAGE(xpmap_mtop(oldpte) & PG_FRAME);
-
-		if (!(oldpte & PG_MANAGED))
-			printf("va=0x%x is unmanaged :-( pte=0x%llx\n", va, oldpte);
-
 		if (oldpte & PG_M) {
 			KASSERT((oldpte & PG_RW),
 	("pmap_remove_pte: modified page not writable: va: %#x, pte: %#jx",
@@ -2303,9 +2331,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, vm_page_t *free)
 		if (oldpte & PG_A)
 			vm_page_flag_set(m, PG_REFERENCED);
 		pmap_remove_entry(pmap, m, va);
-	} else if ((va < VM_MAXUSER_ADDRESS) && (oldpte & PG_V))
-		printf("va=0x%x is unmanaged :-( pte=0x%llx\n", va, oldpte);
-
+	}
 	return (pmap_unuse_pt(pmap, va, free));
 }
 
@@ -3098,9 +3124,10 @@ void *
 pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
+	vm_paddr_t ma = xpmap_ptom(pa);
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
-	PT_SET_MA(va, (pa & ~PAGE_MASK) | PG_V | pgeflag);
+	PT_SET_MA(va, (ma & ~PAGE_MASK) | PG_V | pgeflag);
 	invlpg(va);
 	return ((void *)crashdumpmap);
 }
@@ -3242,6 +3269,10 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	CTR5(KTR_PMAP, "pmap_copy:  dst_pmap=%p src_pmap=%p dst_addr=0x%x len=%d src_addr=0x%x",
 	    dst_pmap, src_pmap, dst_addr, len, src_addr);
 	
+#ifdef HAMFISTED_LOCKING
+	mtx_lock(&createdelete_lock);
+#endif
+
 	vm_page_lock_queues();
 	if (dst_pmap < src_pmap) {
 		PMAP_LOCK(dst_pmap);
@@ -3331,6 +3362,10 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
+
+#ifdef HAMFISTED_LOCKING
+	mtx_unlock(&createdelete_lock);
+#endif
 }	
 
 static __inline void
@@ -3711,7 +3746,9 @@ pmap_map_readonly(pmap_t pmap, vm_offset_t va, int len)
 	for (i = 0; i < npages; i++) {
 		pt_entry_t *pte;
 		pte = pmap_pte(pmap, (vm_offset_t)(va + i*PAGE_SIZE));
+		vm_page_lock_queues();
 		pte_store(pte, xpmap_mtop(*pte & ~(PG_RW|PG_M)));
+		vm_page_unlock_queues();
 		PMAP_MARK_PRIV(xpmap_mtop(*pte));
 		pmap_pte_release(pte);
 	}
@@ -3725,7 +3762,9 @@ pmap_map_readwrite(pmap_t pmap, vm_offset_t va, int len)
 		pt_entry_t *pte;
 		pte = pmap_pte(pmap, (vm_offset_t)(va + i*PAGE_SIZE));
 		PMAP_MARK_UNPRIV(xpmap_mtop(*pte));
+		vm_page_lock_queues();
 		pte_store(pte, xpmap_mtop(*pte) | (PG_RW|PG_M));
+		vm_page_unlock_queues();
 		pmap_pte_release(pte);
 	}
 }

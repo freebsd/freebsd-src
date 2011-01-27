@@ -395,9 +395,10 @@ smp_rendezvous_cpus(cpumask_t map,
 		return;
 	}
 
-	for (i = 0; i <= mp_maxid; i++)
-		if (((1 << i) & map) != 0 && !CPU_ABSENT(i))
+	CPU_FOREACH(i) {
+		if (((1 << i) & map) != 0)
 			ncpus++;
+	}
 	if (ncpus == 0)
 		panic("ncpus is 0 with map=0x%x", map);
 

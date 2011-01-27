@@ -511,7 +511,8 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 
 	/* Prepare outgoing connection with remote node. */
 	if (proto_client(res->hr_remoteaddr, &out) < 0) {
-		primary_exit(EX_TEMPFAIL, "Unable to create connection to %s",
+		primary_exit(EX_TEMPFAIL,
+		    "Unable to create outgoing connection to %s",
 		    res->hr_remoteaddr);
 	}
 	/* Try to connect, but accept failure. */
@@ -577,7 +578,8 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	 * Setup incoming connection with remote node.
 	 */
 	if (proto_client(res->hr_remoteaddr, &in) < 0) {
-		pjdlog_errno(LOG_WARNING, "Unable to create connection to %s",
+		primary_exit(EX_TEMPFAIL,
+		    "Unable to create incoming connection to %s",
 		    res->hr_remoteaddr);
 	}
 	/* Try to connect, but accept failure. */
@@ -1133,6 +1135,15 @@ local_send_thread(void *arg)
 				/*
 				 * If READ failed, try to read from remote node.
 				 */
+				if (ret < 0) {
+					reqlog(LOG_WARNING, 0, ggio,
+					    "Local request failed (%s), trying remote node. ",
+					    strerror(errno));
+				} else if (ret != ggio->gctl_length) {
+					reqlog(LOG_WARNING, 0, ggio,
+					    "Local request failed (%zd != %jd), trying remote node. ",
+					    ret, (intmax_t)ggio->gctl_length);
+				}
 				QUEUE_INSERT1(hio, send, rncomp);
 				continue;
 			}
@@ -1141,28 +1152,43 @@ local_send_thread(void *arg)
 			ret = pwrite(res->hr_localfd, ggio->gctl_data,
 			    ggio->gctl_length,
 			    ggio->gctl_offset + res->hr_localoff);
-			if (ret < 0)
+			if (ret < 0) {
 				hio->hio_errors[ncomp] = errno;
-			else if (ret != ggio->gctl_length)
+				reqlog(LOG_WARNING, 0, ggio,
+				    "Local request failed (%s): ",
+				    strerror(errno));
+			} else if (ret != ggio->gctl_length) {
 				hio->hio_errors[ncomp] = EIO;
-			else
+				reqlog(LOG_WARNING, 0, ggio,
+				    "Local request failed (%zd != %jd): ",
+				    ret, (intmax_t)ggio->gctl_length);
+			} else {
 				hio->hio_errors[ncomp] = 0;
+			}
 			break;
 		case BIO_DELETE:
 			ret = g_delete(res->hr_localfd,
 			    ggio->gctl_offset + res->hr_localoff,
 			    ggio->gctl_length);
-			if (ret < 0)
+			if (ret < 0) {
 				hio->hio_errors[ncomp] = errno;
-			else
+				reqlog(LOG_WARNING, 0, ggio,
+				    "Local request failed (%s): ",
+				    strerror(errno));
+			} else {
 				hio->hio_errors[ncomp] = 0;
+			}
 			break;
 		case BIO_FLUSH:
 			ret = g_flush(res->hr_localfd);
-			if (ret < 0)
+			if (ret < 0) {
 				hio->hio_errors[ncomp] = errno;
-			else
+				reqlog(LOG_WARNING, 0, ggio,
+				    "Local request failed (%s): ",
+				    strerror(errno));
+			} else {
 				hio->hio_errors[ncomp] = 0;
+			}
 			break;
 		}
 		if (refcount_release(&hio->hio_countdown)) {
@@ -1443,7 +1469,9 @@ remote_recv_thread(void *arg)
 		error = nv_get_int16(nv, "error");
 		if (error != 0) {
 			/* Request failed on remote side. */
-			hio->hio_errors[ncomp] = 0;
+			hio->hio_errors[ncomp] = error;
+			reqlog(LOG_WARNING, 0, &hio->hio_ggio,
+			    "Remote request failed (%s): ", strerror(error));
 			nv_free(nv);
 			goto done_queue;
 		}
@@ -2008,6 +2036,7 @@ guard_thread(void *arg)
 	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 
+	timeout.tv_sec = RETRY_SLEEP;
 	timeout.tv_nsec = 0;
 	signo = -1;
 
@@ -2033,7 +2062,6 @@ guard_thread(void *arg)
 				guard_one(res, ii);
 			lastcheck = now;
 		}
-		timeout.tv_sec = RETRY_SLEEP;
 		signo = sigtimedwait(&mask, NULL, &timeout);
 	}
 	/* NOTREACHED */

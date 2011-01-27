@@ -340,7 +340,8 @@ struct zio {
 
 #ifdef _KERNEL
 	/* FreeBSD only. */
-	struct ostask	io_task;
+	struct ostask	io_task_issue;
+	struct ostask	io_task_interrupt;
 #endif
 };
 

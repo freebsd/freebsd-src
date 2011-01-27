@@ -339,6 +339,8 @@ _siba_bwn=	siba_bwn
 _sym=		sym
 # no uart_cpu_$MACHINE_ARCH
 _uart=		uart
+# disable_intr() interferes
+_cxgb=		cxgb
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)

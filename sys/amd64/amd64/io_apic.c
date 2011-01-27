@@ -359,7 +359,9 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	if (!intpin->io_masked && !intpin->io_edgetrigger) {
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin),
 		    intpin->io_lowreg | IOART_INTMSET);
+		mtx_unlock_spin(&icu_lock);
 		DELAY(100);
+		mtx_lock_spin(&icu_lock);
 	}
 
 	intpin->io_cpu = apic_id;

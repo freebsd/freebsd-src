@@ -51,6 +51,7 @@ extern int	numeric_port;	/* show ports numerically */
 extern int	rflag;	/* show routing tables (or routing stats) */
 extern int	sflag;	/* show protocol statistics */
 extern int	tflag;	/* show i/f watchdog timers */
+extern int	Tflag;  /* show TCP control block info */
 extern int	Wflag;	/* wide display */
 extern int	xflag;	/* extended display, includes all socket buffer info */
 extern int	zflag;	/* zero stats */
@@ -68,6 +69,9 @@ const char *plural(uintmax_t);
 const char *plurales(uintmax_t);
 const char *pluralies(uintmax_t);
 
+struct sockaddr;
+struct socket;
+struct xsocket;
 int	sotoxsocket(struct socket *, struct xsocket *);
 void	protopr(u_long, const char *, int, int);
 void	tcp_stats(u_long, const char *, int, int);
@@ -112,6 +116,8 @@ void	pfkey_stats(u_long, const char *, int, int);
 #endif
 
 void	mbpr(void *, u_long);
+
+void	netisr_stats(void *);
 
 void	hostpr(u_long, u_long);
 void	impstats(u_long, u_long);

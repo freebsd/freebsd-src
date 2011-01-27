@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2009
+.Dd March 31, 2010
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -311,6 +311,20 @@ should be set as with
 .Sh ENVIRONMENT
 Variables that influence all builds include:
 .Bl -tag -width ".Va MAKEOBJDIRPREFIX"
+.It Va DEBUG_FLAGS
+Defines a set of debugging flags that will be used to build all userland
+binaries under
+.Pa /usr/src .
+When
+.Va DEBUG_FLAGS
+is defined, the
+.Cm install
+and
+.Cm installworld
+targets install binaries from the current
+.Va MAKEOBJDIRPREFIX
+without stripping,
+so that debugging information is retained in the installed binaries.
 .It Va DESTDIR
 The directory hierarchy prefix where built objects will be installed.
 If not set,

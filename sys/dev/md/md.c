@@ -103,6 +103,8 @@ static MALLOC_DEFINE(M_MDSECT, "md_sectors", "Memory Disk Sectors");
 
 static int md_debug;
 SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0, "");
+static int md_malloc_wait;
+SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0, "");
 
 #if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
 /*
@@ -207,11 +209,12 @@ new_indir(u_int shift)
 {
 	struct indir *ip;
 
-	ip = malloc(sizeof *ip, M_MD, M_NOWAIT | M_ZERO);
+	ip = malloc(sizeof *ip, M_MD, (md_malloc_wait ? M_WAITOK : M_NOWAIT)
+	    | M_ZERO);
 	if (ip == NULL)
 		return (NULL);
 	ip->array = malloc(sizeof(uintptr_t) * NINDIR,
-	    M_MDSECT, M_NOWAIT | M_ZERO);
+	    M_MDSECT, (md_malloc_wait ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (ip->array == NULL) {
 		free(ip, M_MD);
 		return (NULL);
@@ -455,6 +458,7 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 			} else {
 				if (osp <= 255) {
 					sp = (uintptr_t)uma_zalloc(sc->uma,
+					    md_malloc_wait ? M_WAITOK :
 					    M_NOWAIT);
 					if (sp == 0) {
 						error = ENOSPC;
@@ -712,11 +716,12 @@ md_kthread(void *arg)
 		}
 		mtx_unlock(&sc->queue_mtx);
 		if (bp->bio_cmd == BIO_GETATTR) {
-			if (sc->fwsectors && sc->fwheads &&
+			if ((sc->fwsectors && sc->fwheads &&
 			    (g_handleattr_int(bp, "GEOM::fwsectors",
 			    sc->fwsectors) ||
 			    g_handleattr_int(bp, "GEOM::fwheads",
-			    sc->fwheads)))
+			    sc->fwheads))) ||
+			    g_handleattr_int(bp, "GEOM::candelete", 1))
 				error = -1;
 			else
 				error = EOPNOTSUPP;
@@ -849,7 +854,8 @@ mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 
 		nsectors = sc->mediasize / sc->sectorsize;
 		for (u = 0; u < nsectors; u++) {
-			sp = (uintptr_t)uma_zalloc(sc->uma, M_NOWAIT | M_ZERO);
+			sp = (uintptr_t)uma_zalloc(sc->uma, (md_malloc_wait ?
+			    M_WAITOK : M_NOWAIT) | M_ZERO);
 			if (sp != 0)
 				error = s_write(sc->indir, u, sp);
 			else

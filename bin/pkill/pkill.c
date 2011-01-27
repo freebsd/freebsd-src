@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/user.h>
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -110,6 +111,7 @@ static int	matchargs;
 static int	fullmatch;
 static int	kthreads;
 static int	cflags = REG_EXTENDED;
+static int	quiet;
 static kvm_t	*kd;
 static pid_t	mypid;
 
@@ -180,10 +182,11 @@ main(int argc, char **argv)
 	debug_opt = 0;
 	pidfile = NULL;
 	pidfilelock = 0;
+	quiet = 0;
 	execf = NULL;
 	coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:ad:fg:ij:lnos:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:ad:fg:ij:lnoqs:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
@@ -255,6 +258,11 @@ main(int argc, char **argv)
 		case 'o':
 			oldest = 1;
 			criteria = 1;
+			break;
+		case 'q':
+			if (!pgrep)
+				usage();
+			quiet = 1;
 			break;
 		case 's':
 			makelist(&sidlist, LT_SID, optarg);
@@ -555,7 +563,7 @@ usage(void)
 	const char *ustr;
 
 	if (pgrep)
-		ustr = "[-LSfilnovx] [-d delim]";
+		ustr = "[-LSfilnoqvx] [-d delim]";
 	else
 		ustr = "[-signal] [-ILfilnovx]";
 
@@ -573,6 +581,10 @@ show_process(const struct kinfo_proc *kp)
 {
 	char **argv;
 
+	if (quiet) {
+		assert(pgrep);
+		return;
+	}
 	if ((longfmt || !pgrep) && matchargs &&
 	    (argv = kvm_getargv(kd, kp, 0)) != NULL) {
 		printf("%d ", (int)kp->ki_pid);
@@ -629,7 +641,8 @@ grepact(const struct kinfo_proc *kp)
 {
 
 	show_process(kp);
-	printf("%s", delim);
+	if (!quiet)
+		printf("%s", delim);
 	return (1);
 }
 

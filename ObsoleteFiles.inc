@@ -16,6 +16,8 @@
 
 # 20101123: removed subblock.h from liblzma
 OLD_FILES+=usr/include/lzma/subblock.h
+# 20101114: Remove long-obsolete MAKEDEV.8
+OLD_FILES+=usr/share/man/man8/MAKEDEV.8.gz
 # 20101112: vgonel(9) has gone to private API a while ago
 OLD_FILES+=usr/share/man/man9/vgonel.9.gz
 # 20101025: catch up with vm_page_sleep_if_busy rename

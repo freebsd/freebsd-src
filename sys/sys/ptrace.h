@@ -34,6 +34,7 @@
 #define	_SYS_PTRACE_H_
 
 #include <sys/signal.h>
+#include <sys/param.h>
 #include <machine/reg.h>
 
 #define	PT_TRACE_ME	0	/* child declares it's being traced */
@@ -106,6 +107,7 @@ struct ptrace_lwpinfo {
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct __siginfo pl_siginfo;	/* siginfo for signal */
+	char		pl_tdname[MAXCOMLEN + 1]; /* LWP name */
 };
 
 /* Argument structure for PT_VM_ENTRY. */

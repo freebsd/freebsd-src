@@ -153,6 +153,17 @@ struct ichwd_softc {
 #define TCO_TMR_HALT		0x0800 /* clear to enable WDT */
 #define TCO_CNT_PRESERVE	0x0200 /* preserve these bits */
 
+/*
+ * Masks for the TCO timer value field in TCO_RLD.
+ * If the datasheets are to be believed, the minimum value actually varies
+ * from chipset to chipset - 4 for ICH5 and 2 for all other chipsets.
+ * I suspect this is a bug in the ICH5 datasheet and that the minimum is
+ * uniformly 2, but I'd rather err on the side of caution.
+ */
+#define TCO_RLD_TMR_MIN		0x0004
+#define TCO_RLD1_TMR_MAX	0x003f
+#define TCO_RLD2_TMR_MAX	0x03ff
+
 /* approximate length in nanoseconds of one WDT tick (about 0.6 sec) */
 #define ICHWD_TICK		600000000
 

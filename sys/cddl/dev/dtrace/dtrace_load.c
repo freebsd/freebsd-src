@@ -30,8 +30,8 @@ dtrace_ap_start(void *dummy)
 	mutex_enter(&cpu_lock);
 
 	/* Setup the rest of the CPUs. */
-	for (i = 1; i <= mp_maxid; i++) {
-		if (pcpu_find(i) == NULL)
+	CPU_FOREACH(i) {
+		if (i == 0)
 			continue;
 
 		(void) dtrace_cpu_setup(CPU_CONFIG, i);

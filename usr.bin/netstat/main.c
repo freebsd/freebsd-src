@@ -336,10 +336,12 @@ int	noutputs = 0;	/* how much outputs before we exit */
 int	numeric_addr;	/* show addresses numerically */
 int	numeric_port;	/* show ports numerically */
 static int pflag;	/* show given protocol */
+int	Qflag;		/* show netisr information */
 int	rflag;		/* show routing tables (or routing stats) */
 int	sflag;		/* show protocol statistics */
 int	tflag;		/* show i/f watchdog timers */
 int	Wflag;		/* wide display */
+int	Tflag;		/* TCP Information */
 int	xflag;		/* extra information, includes all socket buffer info */
 int	zflag;		/* zero stats */
 
@@ -359,7 +361,8 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:q:rSstuWw:xz")) != -1)
+	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:Qq:rSTstuWw:xz"))
+	    != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -445,6 +448,9 @@ main(int argc, char *argv[])
 			}
 			pflag = 1;
 			break;
+		case 'Q':
+			Qflag = 1;
+			break;
 		case 'q':
 			noutputs = atoi(optarg);
 			if (noutputs != 0)
@@ -472,6 +478,9 @@ main(int argc, char *argv[])
 		case 'w':
 			interval = atoi(optarg);
 			iflag = 1;
+			break;
+		case 'T':
+			Tflag = 1;
 			break;
 		case 'x':
 			xflag = 1;
@@ -512,6 +521,9 @@ main(int argc, char *argv[])
 	if (!live)
 		setgid(getgid());
 
+	if (xflag && Tflag) 
+		errx(1, "-x and -T are incompatible, pick one.");
+
 	if (Bflag) {
 		if (!live)
 			usage();
@@ -524,6 +536,14 @@ main(int argc, char *argv[])
 				mbpr(kvmd, nl[N_MBSTAT].n_value);
 		} else
 			mbpr(NULL, 0);
+		exit(0);
+	}
+	if (Qflag) {
+		if (!live) {
+			if (kread(0, NULL, 0) == 0)
+				netisr_stats(kvmd);
+		} else
+			netisr_stats(NULL);
 		exit(0);
 	}
 #if 0
@@ -781,8 +801,8 @@ name2protox(const char *name)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: netstat [-AaLnSWx] [-f protocol_family | -p protocol]\n"
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+"usage: netstat [-AaLnSTWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-abdhntW] [-f address_family]\n"
 "               [-M core] [-N system]",
@@ -796,6 +816,7 @@ usage(void)
 "       netstat -r [-AanW] [-f address_family] [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
 "       netstat -g [-W] [-f address_family] [-M core] [-N system]",
-"       netstat -gs [-s] [-f address_family] [-M core] [-N system]");
+"       netstat -gs [-s] [-f address_family] [-M core] [-N system]",
+"       netstat -Q");
 	exit(1);
 }

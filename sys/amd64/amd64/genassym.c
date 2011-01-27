@@ -135,7 +135,6 @@ ASSYM(PCB_RIP, offsetof(struct pcb, pcb_rip));
 ASSYM(PCB_FSBASE, offsetof(struct pcb, pcb_fsbase));
 ASSYM(PCB_GSBASE, offsetof(struct pcb, pcb_gsbase));
 ASSYM(PCB_KGSBASE, offsetof(struct pcb, pcb_kgsbase));
-ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_CR0, offsetof(struct pcb, pcb_cr0));
 ASSYM(PCB_CR2, offsetof(struct pcb, pcb_cr2));
 ASSYM(PCB_CR3, offsetof(struct pcb, pcb_cr3));
@@ -146,6 +145,7 @@ ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
 ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
 ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
+ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_GS32SD, offsetof(struct pcb, pcb_gs32sd));
 ASSYM(PCB_TSSP, offsetof(struct pcb, pcb_tssp));
@@ -161,7 +161,6 @@ ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_32BIT, PCB_32BIT);
 ASSYM(PCB_GS32BIT, PCB_GS32BIT);
-ASSYM(PCB_FULLCTX, PCB_FULLCTX);
 
 ASSYM(COMMON_TSS_RSP0, offsetof(struct amd64tss, tss_rsp0));
 

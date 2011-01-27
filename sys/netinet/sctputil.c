@@ -3847,6 +3847,11 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		SCTP_TCB_LOCK(stcb);
 		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
+		SCTP_STAT_INCR_COUNTER32(sctps_aborted);
+		if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
+		    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+		}
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTPUTIL + SCTP_LOC_4);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);

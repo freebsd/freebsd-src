@@ -276,7 +276,7 @@ load_dr:
 do_tss:	movq	%rdx,PCPU(TSSP)
 	movq	%rdx,%rcx
 	movq	PCPU(TSS),%rax
-	movw	%rcx,2(%rax)
+	movw	%cx,2(%rax)
 	shrq	$16,%rcx
 	movb	%cl,4(%rax)
 	shrq	$8,%rcx
