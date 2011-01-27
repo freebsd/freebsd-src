@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	part
+GEOM_CLASS=	part
 
 DPADD=	${LIBUTIL}
 LDADD=	-lutil

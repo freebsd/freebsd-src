@@ -3,3 +3,5 @@
 
 #define MEMMOVE
 #include "bcopy.S"
+
+	.section .note.GNU-stack,"",%progbist

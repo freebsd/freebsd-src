@@ -450,6 +450,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
         new_ldt->ldt_refcnt = 1; 
         new_ldt->ldt_active = 0; 
  
+	mtx_lock_spin(&dt_lock);
         if ((pldt = mdp->md_ldt)) { 
                 if (len > pldt->ldt_len) 
                         len = pldt->ldt_len; 
@@ -458,8 +459,10 @@ user_ldt_alloc(struct mdproc *mdp, int len)
         } else { 
                 bcopy(ldt, new_ldt->ldt_base, PAGE_SIZE); 
         } 
+        mtx_unlock_spin(&dt_lock);  /* XXX kill once pmap locking fixed. */
         pmap_map_readonly(kernel_pmap, (vm_offset_t)new_ldt->ldt_base, 
                           new_ldt->ldt_len*sizeof(union descriptor)); 
+        mtx_lock_spin(&dt_lock);  /* XXX kill once pmap locking fixed. */
         return (new_ldt);
 } 
 #else
@@ -520,8 +523,13 @@ user_ldt_free(struct thread *td)
 	}
 
 	if (td == PCPU_GET(curthread)) {
+#ifdef XEN
+		i386_reset_ldt(&default_proc_ldt);
+		PCPU_SET(currentldt, (int)&default_proc_ldt);
+#else
 		lldt(_default_ldt);
 		PCPU_SET(currentldt, _default_ldt);
+#endif
 	}
 
 	mdp->md_ldt = NULL;
@@ -615,7 +623,7 @@ i386_set_ldt(td, uap, descs)
 			uap->start = NLDT;
 			uap->num = MAX_LD - NLDT;
 		}
-		if (uap->num <= 0)
+		if (uap->num == 0)
 			return (EINVAL);
 		mtx_lock_spin(&dt_lock);
 		if ((pldt = mdp->md_ldt) == NULL ||
@@ -636,8 +644,7 @@ i386_set_ldt(td, uap, descs)
 	if (!(uap->start == LDT_AUTO_ALLOC && uap->num == 1)) {
 		/* verify range of descriptors to modify */
 		largest_ld = uap->start + uap->num;
-		if (uap->start >= MAX_LD ||
-		    uap->num < 0 || largest_ld > MAX_LD) {
+		if (uap->start >= MAX_LD || largest_ld > MAX_LD) {
 			return (EINVAL);
 		}
 	}
@@ -758,10 +765,14 @@ i386_set_ldt_data(struct thread *td, int start, int num,
 
 	mtx_assert(&dt_lock, MA_OWNED);
 
-	/* Fill in range */
-	bcopy(descs,
-	    &((union descriptor *)(pldt->ldt_base))[start],
-	    num * sizeof(union descriptor));
+	while (num) {
+		xen_update_descriptor(
+		    &((union descriptor *)(pldt->ldt_base))[start],
+		    descs);
+		num--;
+		start++;
+		descs++;
+	}
 	return (0);
 }
 #else

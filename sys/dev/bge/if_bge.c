@@ -2473,8 +2473,18 @@ bge_dma_alloc(struct bge_softc *sc)
 
 	/* Create parent tag for buffers. */
 	boundary = 0;
-	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0)
+	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0) {
 		boundary = BGE_DMA_BNDRY;
+		/*
+		 * XXX
+		 * watchdog timeout issue was observed on BCM5704 which
+		 * lives behind PCI-X bridge(e.g AMD 8131 PCI-X bridge).
+		 * Limiting DMA address space to 32bits seems to address
+		 * it.
+		 */
+		if (sc->bge_flags & BGE_FLAG_PCIX)
+			lowaddr = BUS_SPACE_MAXADDR_32BIT;
+	}
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev),
 	    1, boundary, lowaddr, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
@@ -5536,7 +5546,7 @@ bge_add_sysctl_stats(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
 #undef BGE_SYSCTL_STAT
 
 #define	BGE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
-	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
 
 static void
 bge_add_sysctl_stats_regs(struct bge_softc *sc, struct sysctl_ctx_list *ctx,

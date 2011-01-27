@@ -558,16 +558,15 @@ hpet_attach(device_t dev)
 		}
 		if (t->irq >= 0) {
 			t->intr_rid = hpet_find_irq_rid(dev, t->irq, t->irq);
-			if (!(t->intr_res =
-			    bus_alloc_resource(dev, SYS_RES_IRQ, &t->intr_rid,
-			    t->irq, t->irq, 1, RF_ACTIVE))) {
+			t->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
+			    &t->intr_rid, t->irq, t->irq, 1, RF_ACTIVE);
+			if (t->intr_res == NULL) {
 				t->irq = -1;
 				device_printf(dev,
 				    "Can't map interrupt for t%d.\n", i);
-			} else if ((bus_setup_intr(dev, t->intr_res,
-			    INTR_MPSAFE | INTR_TYPE_CLK,
-			    (driver_filter_t *)hpet_intr_single, NULL,
-			    t, &t->intr_handle))) {
+			} else if (bus_setup_intr(dev, t->intr_res,
+			    INTR_TYPE_CLK, hpet_intr_single, NULL, t,
+			    &t->intr_handle) != 0) {
 				t->irq = -1;
 				device_printf(dev,
 				    "Can't setup interrupt for t%d.\n", i);
@@ -614,13 +613,12 @@ hpet_attach(device_t dev)
 		while (j > 0 && (cvectors & (1 << (j - 1))) != 0)
 			j--;
 		sc->intr_rid = hpet_find_irq_rid(dev, j, i);
-		if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-		    &sc->intr_rid, j, i, 1, RF_SHAREABLE | RF_ACTIVE)))
-			device_printf(dev,"Can't map interrupt.\n");
-		else if ((bus_setup_intr(dev, sc->intr_res,
-		    INTR_MPSAFE | INTR_TYPE_CLK,
-		    (driver_filter_t *)hpet_intr, NULL,
-		    sc, &sc->intr_handle))) {
+		sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
+		    &sc->intr_rid, j, i, 1, RF_SHAREABLE | RF_ACTIVE);
+		if (sc->intr_res == NULL)
+			device_printf(dev, "Can't map interrupt.\n");
+		else if (bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
+		    hpet_intr, NULL, sc, &sc->intr_handle) != 0) {
 			device_printf(dev, "Can't setup interrupt.\n");
 		} else {
 			sc->irq = rman_get_start(sc->intr_res);

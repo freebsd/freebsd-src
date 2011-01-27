@@ -14,3 +14,5 @@ ENTRY(log10f)
 	fyl2x
 	ret
 END(log10f)
+
+	.section .note.GNU-stack,"",%progbits

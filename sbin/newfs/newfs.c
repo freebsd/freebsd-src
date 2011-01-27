@@ -91,6 +91,7 @@ int	Xflag = 0;		/* exit in middle of newfs for testing */
 int	Jflag;			/* enable gjournal for file system */
 int	lflag;			/* enable multilabel for file system */
 int	nflag;			/* do not create .snap directory */
+int	tflag;			/* enable TRIM */
 intmax_t fssize;		/* file system size */
 int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
@@ -139,7 +140,7 @@ main(int argc, char *argv[])
 	part_name = 'c';
 	reserved = 0;
 	while ((ch = getopt(argc, argv,
-	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:lm:no:r:s:")) != -1)
+	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:lm:no:p:r:s:t")) != -1)
 		switch (ch) {
 		case 'E':
 			Eflag = 1;
@@ -278,6 +279,9 @@ main(int argc, char *argv[])
 			if (errno != 0 || cp == optarg ||
 			    *cp != '\0' || fssize < 0)
 				errx(1, "%s: bad file system size", optarg);
+			break;
+		case 't':
+			tflag = 1;
 			break;
 		case '?':
 		default:
@@ -495,6 +499,7 @@ usage()
 	fprintf(stderr, "\t-p partition name (a..h)\n");
 	fprintf(stderr, "\t-r reserved sectors at the end of device\n");
 	fprintf(stderr, "\t-s file system size (sectors)\n");
+	fprintf(stderr, "\t-t enable TRIM\n");
 	exit(1);
 }
 

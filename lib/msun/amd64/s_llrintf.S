@@ -4,3 +4,5 @@ __FBSDID("$FreeBSD$")
 /* sizeof(long) == sizeof(long long) */
 #define	fn	llrintf
 #include "s_lrintf.S"
+
+	.section .note.GNU-stack,"",%progbits

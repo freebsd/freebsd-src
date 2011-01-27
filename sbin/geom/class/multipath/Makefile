@@ -1,8 +1,9 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/../../misc
-CLASS=	multipath
 
-.include <bsd.lib.mk>
+GEOM_CLASS=	multipath
 
 CFLAGS+=  -I${.CURDIR}/../../../../sys
+
+.include <bsd.lib.mk>

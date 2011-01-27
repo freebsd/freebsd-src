@@ -56,3 +56,5 @@ ENTRY(ceil)
 	leave
 	ret
 END(ceil)
+
+	.section .note.GNU-stack,"",%progbits

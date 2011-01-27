@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 char	*tmpdir;
 
 void
-tinit()
+tinit(void)
 {
 	char *cp;
 

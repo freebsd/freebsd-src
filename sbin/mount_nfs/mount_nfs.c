@@ -213,7 +213,7 @@ main(int argc, char *argv[])
 			build_iovec(&iov, &iovlen, "intr", NULL, 0);
 			break;
 		case 'L':
-			printf("-i deprecated, use -o nolockd\n");
+			printf("-L deprecated, use -o nolockd\n");
 			build_iovec(&iov, &iovlen, "nolockd", NULL, 0);
 			break;
 		case 'l':

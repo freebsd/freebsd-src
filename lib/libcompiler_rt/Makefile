@@ -147,7 +147,7 @@ SRCS+=	${file}.c
 . endif
 .endfor
 
-.if ${MACHINE_CPUARCH} != "sparc64"
+.if ${MACHINE_CPUARCH} != "sparc64" && ${MACHINE_CPUARCH} != "mips"
 . if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=libcompiler_rt.a ${LIBDIR}/libgcc.a
 . endif
@@ -155,5 +155,12 @@ SYMLINKS+=libcompiler_rt.a ${LIBDIR}/libgcc.a
 SYMLINKS+=libcompiler_rt_p.a ${LIBDIR}/libgcc_p.a
 . endif
 .endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "powerpc"
+AFLAGS+=--noexecstack
+ACFLAGS+=-Wa,--noexecstack
+.endif
+
 
 .include <bsd.lib.mk>

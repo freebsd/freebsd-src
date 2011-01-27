@@ -41,27 +41,37 @@
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_asconf.h>
-#include <netinet/sctp_cc_functions.h>
 #include <netinet/sctp_dtrace_declare.h>
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-void
+static void
 sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	struct sctp_association *assoc;
 	uint32_t cwnd_in_mtu;
 
 	assoc = &stcb->asoc;
-	/*
-	 * We take the minimum of the burst limit and the initial congestion
-	 * window. The initial congestion window is at least two times the
-	 * MTU.
-	 */
 	cwnd_in_mtu = SCTP_BASE_SYSCTL(sctp_initial_cwnd);
-	if ((assoc->max_burst > 0) && (cwnd_in_mtu > assoc->max_burst))
-		cwnd_in_mtu = assoc->max_burst;
-	net->cwnd = (net->mtu - sizeof(struct sctphdr)) * cwnd_in_mtu;
+	if (cwnd_in_mtu == 0) {
+		/* Using 0 means that the value of RFC 4960 is used. */
+		net->cwnd = min((net->mtu * 4), max((2 * net->mtu), SCTP_INITIAL_CWND));
+	} else {
+		/*
+		 * We take the minimum of the burst limit and the initial
+		 * congestion window.
+		 */
+		if ((assoc->max_burst > 0) && (cwnd_in_mtu > assoc->max_burst))
+			cwnd_in_mtu = assoc->max_burst;
+		net->cwnd = (net->mtu - sizeof(struct sctphdr)) * cwnd_in_mtu;
+	}
+	if (stcb->asoc.sctp_cmt_on_off == 2) {
+		/* In case of resource pooling initialize appropriately */
+		net->cwnd /= assoc->numnets;
+		if (net->cwnd < (net->mtu - sizeof(struct sctphdr))) {
+			net->cwnd = net->mtu - sizeof(struct sctphdr);
+		}
+	}
 	net->ssthresh = assoc->peers_rwnd;
 
 	SDT_PROBE(sctp, cwnd, net, init,
@@ -73,19 +83,29 @@ sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
     struct sctp_association *asoc)
 {
 	struct sctp_nets *net;
+	uint32_t t_ssthresh, t_cwnd;
 
+	/* MT FIXME: Don't compute this over and over again */
+	t_ssthresh = 0;
+	t_cwnd = 0;
+	if (asoc->sctp_cmt_on_off == 2) {
+		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+			t_ssthresh += net->ssthresh;
+			t_cwnd += net->cwnd;
+		}
+	}
 	/*-
-	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off == 1) &&
+	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off > 0) &&
 	 * (net->fast_retran_loss_recovery == 0)))
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if ((asoc->fast_retran_loss_recovery == 0) ||
-		    (asoc->sctp_cmt_on_off == 1)) {
+		    (asoc->sctp_cmt_on_off > 0)) {
 			/* out of a RFC2582 Fast recovery window? */
 			if (net->net_ack > 0) {
 				/*
@@ -97,9 +117,23 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 				struct sctp_tmit_chunk *lchk;
 				int old_cwnd = net->cwnd;
 
-				net->ssthresh = net->cwnd / 2;
-				if (net->ssthresh < (net->mtu * 2)) {
-					net->ssthresh = 2 * net->mtu;
+				if (asoc->sctp_cmt_on_off == 2) {
+					net->ssthresh = (uint32_t) (((uint64_t) 4 *
+					    (uint64_t) net->mtu *
+					    (uint64_t) net->ssthresh) /
+					    (uint64_t) t_ssthresh);
+					if ((net->cwnd > t_cwnd / 2) &&
+					    (net->ssthresh < net->cwnd - t_cwnd / 2)) {
+						net->ssthresh = net->cwnd - t_cwnd / 2;
+					}
+					if (net->ssthresh < net->mtu) {
+						net->ssthresh = net->mtu;
+					}
+				} else {
+					net->ssthresh = net->cwnd / 2;
+					if (net->ssthresh < (net->mtu * 2)) {
+						net->ssthresh = 2 * net->mtu;
+					}
 				}
 				net->cwnd = net->ssthresh;
 				SDT_PROBE(sctp, cwnd, net, fr,
@@ -156,14 +190,24 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     int accum_moved, int reneged_all, int will_exit)
 {
 	struct sctp_nets *net;
 	int old_cwnd;
+	uint32_t t_ssthresh, t_cwnd, incr;
 
+	/* MT FIXME: Don't compute this over and over again */
+	t_ssthresh = 0;
+	t_cwnd = 0;
+	if (stcb->asoc.sctp_cmt_on_off == 2) {
+		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+			t_ssthresh += net->ssthresh;
+			t_cwnd += net->cwnd;
+		}
+	}
 	/******************************/
 	/* update cwnd and Early FR   */
 	/******************************/
@@ -174,11 +218,8 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * CMT fast recovery code. Need to debug.
 		 */
 		if (net->fast_retran_loss_recovery && net->new_pseudo_cumack) {
-			if (compare_with_wrap(asoc->last_acked_seq,
-			    net->fast_recovery_tsn, MAX_TSN) ||
-			    (asoc->last_acked_seq == net->fast_recovery_tsn) ||
-			    compare_with_wrap(net->pseudo_cumack, net->fast_recovery_tsn, MAX_TSN) ||
-			    (net->pseudo_cumack == net->fast_recovery_tsn)) {
+			if (SCTP_TSN_GE(asoc->last_acked_seq, net->fast_recovery_tsn) ||
+			    SCTP_TSN_GE(net->pseudo_cumack, net->fast_recovery_tsn)) {
 				net->will_exit_fast_recovery = 1;
 			}
 		}
@@ -250,7 +291,7 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * 
 			 * Should we stop any running T3 timer here?
 			 */
-			if ((asoc->sctp_cmt_on_off == 1) &&
+			if ((asoc->sctp_cmt_on_off > 0) &&
 			    (asoc->sctp_cmt_pf > 0) &&
 			    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
@@ -274,10 +315,9 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * CMT fast recovery code
 		 */
 		/*
-		 * if (sctp_cmt_on_off == 1 &&
-		 * net->fast_retran_loss_recovery &&
-		 * net->will_exit_fast_recovery == 0) { @@@ Do something }
-		 * else if (sctp_cmt_on_off == 0 &&
+		 * if (sctp_cmt_on_off > 0 && net->fast_retran_loss_recovery
+		 * && net->will_exit_fast_recovery == 0) { @@@ Do something
+		 * } else if (sctp_cmt_on_off == 0 &&
 		 * asoc->fast_retran_loss_recovery && will_exit == 0) {
 		 */
 #endif
@@ -296,37 +336,44 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * moved.
 		 */
 		if (accum_moved ||
-		    ((asoc->sctp_cmt_on_off == 1) && net->new_pseudo_cumack)) {
+		    ((asoc->sctp_cmt_on_off > 0) && net->new_pseudo_cumack)) {
 			/* If the cumulative ack moved we can proceed */
 			if (net->cwnd <= net->ssthresh) {
 				/* We are in slow start */
 				if (net->flight_size + net->net_ack >= net->cwnd) {
-					if (net->net_ack > (net->mtu * SCTP_BASE_SYSCTL(sctp_L2_abc_variable))) {
-						old_cwnd = net->cwnd;
-						net->cwnd += (net->mtu * SCTP_BASE_SYSCTL(sctp_L2_abc_variable));
-						SDT_PROBE(sctp, cwnd, net, ack,
-						    stcb->asoc.my_vtag,
-						    ((stcb->sctp_ep->sctp_lport << 16) | (stcb->rport)),
-						    net,
-						    old_cwnd, net->cwnd);
-						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
-							sctp_log_cwnd(stcb, net, net->mtu,
-							    SCTP_CWND_LOG_FROM_SS);
+					old_cwnd = net->cwnd;
+					if (stcb->asoc.sctp_cmt_on_off == 2) {
+						uint32_t limit;
+
+						limit = (uint32_t) (((uint64_t) net->mtu *
+						    (uint64_t) SCTP_BASE_SYSCTL(sctp_L2_abc_variable) *
+						    (uint64_t) net->ssthresh) /
+						    (uint64_t) t_ssthresh);
+						incr = (uint32_t) (((uint64_t) net->net_ack *
+						    (uint64_t) net->ssthresh) /
+						    (uint64_t) t_ssthresh);
+						if (incr > limit) {
+							incr = limit;
+						}
+						if (incr == 0) {
+							incr = 1;
 						}
 					} else {
-						old_cwnd = net->cwnd;
-						net->cwnd += net->net_ack;
-						SDT_PROBE(sctp, cwnd, net, ack,
-						    stcb->asoc.my_vtag,
-						    ((stcb->sctp_ep->sctp_lport << 16) | (stcb->rport)),
-						    net,
-						    old_cwnd, net->cwnd);
-
-						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
-							sctp_log_cwnd(stcb, net, net->net_ack,
-							    SCTP_CWND_LOG_FROM_SS);
+						incr = net->net_ack;
+						if (incr > net->mtu * SCTP_BASE_SYSCTL(sctp_L2_abc_variable)) {
+							incr = net->mtu * SCTP_BASE_SYSCTL(sctp_L2_abc_variable);
 						}
 					}
+					net->cwnd += incr;
+					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
+						sctp_log_cwnd(stcb, net, incr,
+						    SCTP_CWND_LOG_FROM_SS);
+					}
+					SDT_PROBE(sctp, cwnd, net, ack,
+					    stcb->asoc.my_vtag,
+					    ((stcb->sctp_ep->sctp_lport << 16) | (stcb->rport)),
+					    net,
+					    old_cwnd, net->cwnd);
 				} else {
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_LOGGING_ENABLE) {
 						sctp_log_cwnd(stcb, net, net->net_ack,
@@ -335,6 +382,8 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 				}
 			} else {
 				/* We are in congestion avoidance */
+				uint32_t incr;
+
 				/*
 				 * Add to pba
 				 */
@@ -344,7 +393,17 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 				    (net->partial_bytes_acked >= net->cwnd)) {
 					net->partial_bytes_acked -= net->cwnd;
 					old_cwnd = net->cwnd;
-					net->cwnd += net->mtu;
+					if (asoc->sctp_cmt_on_off == 2) {
+						incr = (uint32_t) (((uint64_t) net->mtu *
+						    (uint64_t) net->ssthresh) /
+						    (uint64_t) t_ssthresh);
+						if (incr == 0) {
+							incr = 1;
+						}
+					} else {
+						incr = net->mtu;
+					}
+					net->cwnd += incr;
 					SDT_PROBE(sctp, cwnd, net, ack,
 					    stcb->asoc.my_vtag,
 					    ((stcb->sctp_ep->sctp_lport << 16) | (stcb->rport)),
@@ -387,12 +446,36 @@ skip_cwnd_update:
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	int old_cwnd = net->cwnd;
+	uint32_t t_ssthresh, t_cwnd;
 
-	net->ssthresh = max(net->cwnd / 2, 4 * net->mtu);
+	/* MT FIXME: Don't compute this over and over again */
+	t_ssthresh = 0;
+	t_cwnd = 0;
+	if (stcb->asoc.sctp_cmt_on_off == 2) {
+		struct sctp_nets *lnet;
+
+		TAILQ_FOREACH(lnet, &stcb->asoc.nets, sctp_next) {
+			t_ssthresh += lnet->ssthresh;
+			t_cwnd += lnet->cwnd;
+		}
+		net->ssthresh = (uint32_t) (((uint64_t) 4 *
+		    (uint64_t) net->mtu *
+		    (uint64_t) net->ssthresh) /
+		    (uint64_t) t_ssthresh);
+		if ((net->cwnd > t_cwnd / 2) &&
+		    (net->ssthresh < net->cwnd - t_cwnd / 2)) {
+			net->ssthresh = net->cwnd - t_cwnd / 2;
+		}
+		if (net->ssthresh < net->mtu) {
+			net->ssthresh = net->mtu;
+		}
+	} else {
+		net->ssthresh = max(net->cwnd / 2, 4 * net->mtu);
+	}
 	net->cwnd = net->mtu;
 	net->partial_bytes_acked = 0;
 	SDT_PROBE(sctp, cwnd, net, to,
@@ -405,7 +488,7 @@ sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	int old_cwnd = net->cwnd;
@@ -428,7 +511,7 @@ sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
     struct sctp_nets *net, struct sctp_pktdrop_chunk *cp,
     uint32_t * bottle_bw, uint32_t * on_queue)
@@ -518,8 +601,11 @@ sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
 		 * Take 1/4 of the space left or max burst up .. whichever
 		 * is less.
 		 */
-		incr = min((bw_avail - *on_queue) >> 2,
-		    stcb->asoc.max_burst * net->mtu);
+		incr = (bw_avail - *on_queue) >> 2;
+		if ((stcb->asoc.max_burst > 0) &&
+		    (stcb->asoc.max_burst * net->mtu < incr)) {
+			incr = stcb->asoc.max_burst * net->mtu;
+		}
 		net->cwnd += incr;
 	}
 	if (net->cwnd > bw_avail) {
@@ -544,7 +630,7 @@ sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_output(struct sctp_tcb *stcb,
     struct sctp_nets *net, int burst_limit)
 {
@@ -563,7 +649,7 @@ sctp_cwnd_update_after_output(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
@@ -752,19 +838,19 @@ sctp_hs_cwnd_decrease(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_hs_cwnd_update_after_fr(struct sctp_tcb *stcb,
     struct sctp_association *asoc)
 {
 	struct sctp_nets *net;
 
 	/*
-	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off == 1) &&
+	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off > 0) &&
 	 * (net->fast_retran_loss_recovery == 0)))
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if ((asoc->fast_retran_loss_recovery == 0) ||
-		    (asoc->sctp_cmt_on_off == 1)) {
+		    (asoc->sctp_cmt_on_off > 0)) {
 			/* out of a RFC2582 Fast recovery window? */
 			if (net->net_ack > 0) {
 				/*
@@ -824,7 +910,7 @@ sctp_hs_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     int accum_moved, int reneged_all, int will_exit)
@@ -841,11 +927,8 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * CMT fast recovery code. Need to debug.
 		 */
 		if (net->fast_retran_loss_recovery && net->new_pseudo_cumack) {
-			if (compare_with_wrap(asoc->last_acked_seq,
-			    net->fast_recovery_tsn, MAX_TSN) ||
-			    (asoc->last_acked_seq == net->fast_recovery_tsn) ||
-			    compare_with_wrap(net->pseudo_cumack, net->fast_recovery_tsn, MAX_TSN) ||
-			    (net->pseudo_cumack == net->fast_recovery_tsn)) {
+			if (SCTP_TSN_GE(asoc->last_acked_seq, net->fast_recovery_tsn) ||
+			    SCTP_TSN_GE(net->pseudo_cumack, net->fast_recovery_tsn)) {
 				net->will_exit_fast_recovery = 1;
 			}
 		}
@@ -917,7 +1000,7 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * 
 			 * Should we stop any running T3 timer here?
 			 */
-			if ((asoc->sctp_cmt_on_off == 1) &&
+			if ((asoc->sctp_cmt_on_off > 0) &&
 			    (asoc->sctp_cmt_pf > 0) &&
 			    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
@@ -937,10 +1020,9 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * CMT fast recovery code
 		 */
 		/*
-		 * if (sctp_cmt_on_off == 1 &&
-		 * net->fast_retran_loss_recovery &&
-		 * net->will_exit_fast_recovery == 0) { @@@ Do something }
-		 * else if (sctp_cmt_on_off == 0 &&
+		 * if (sctp_cmt_on_off > 0 && net->fast_retran_loss_recovery
+		 * && net->will_exit_fast_recovery == 0) { @@@ Do something
+		 * } else if (sctp_cmt_on_off == 0 &&
 		 * asoc->fast_retran_loss_recovery && will_exit == 0) {
 		 */
 #endif
@@ -959,7 +1041,7 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * moved.
 		 */
 		if (accum_moved ||
-		    ((asoc->sctp_cmt_on_off == 1) && net->new_pseudo_cumack)) {
+		    ((asoc->sctp_cmt_on_off > 0) && net->new_pseudo_cumack)) {
 			/* If the cumulative ack moved we can proceed */
 			if (net->cwnd <= net->ssthresh) {
 				/* We are in slow start */
@@ -1294,7 +1376,7 @@ htcp_init(struct sctp_tcb *stcb, struct sctp_nets *net)
 	net->htcp_ca.last_cong = sctp_get_tick_count();
 }
 
-void
+static void
 sctp_htcp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	/*
@@ -1310,7 +1392,7 @@ sctp_htcp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     int accum_moved, int reneged_all, int will_exit)
@@ -1327,11 +1409,8 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * CMT fast recovery code. Need to debug.
 		 */
 		if (net->fast_retran_loss_recovery && net->new_pseudo_cumack) {
-			if (compare_with_wrap(asoc->last_acked_seq,
-			    net->fast_recovery_tsn, MAX_TSN) ||
-			    (asoc->last_acked_seq == net->fast_recovery_tsn) ||
-			    compare_with_wrap(net->pseudo_cumack, net->fast_recovery_tsn, MAX_TSN) ||
-			    (net->pseudo_cumack == net->fast_recovery_tsn)) {
+			if (SCTP_TSN_GE(asoc->last_acked_seq, net->fast_recovery_tsn) ||
+			    SCTP_TSN_GE(net->pseudo_cumack, net->fast_recovery_tsn)) {
 				net->will_exit_fast_recovery = 1;
 			}
 		}
@@ -1403,7 +1482,7 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * 
 			 * Should we stop any running T3 timer here?
 			 */
-			if ((asoc->sctp_cmt_on_off == 1) &&
+			if ((asoc->sctp_cmt_on_off > 0) &&
 			    (asoc->sctp_cmt_pf > 0) &&
 			    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
@@ -1423,10 +1502,9 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * CMT fast recovery code
 		 */
 		/*
-		 * if (sctp_cmt_on_off == 1 &&
-		 * net->fast_retran_loss_recovery &&
-		 * net->will_exit_fast_recovery == 0) { @@@ Do something }
-		 * else if (sctp_cmt_on_off == 0 &&
+		 * if (sctp_cmt_on_off > 0 && net->fast_retran_loss_recovery
+		 * && net->will_exit_fast_recovery == 0) { @@@ Do something
+		 * } else if (sctp_cmt_on_off == 0 &&
 		 * asoc->fast_retran_loss_recovery && will_exit == 0) {
 		 */
 #endif
@@ -1445,7 +1523,7 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 		 * moved.
 		 */
 		if (accum_moved ||
-		    ((asoc->sctp_cmt_on_off == 1) && net->new_pseudo_cumack)) {
+		    ((asoc->sctp_cmt_on_off > 0) && net->new_pseudo_cumack)) {
 			htcp_cong_avoid(stcb, net);
 			measure_achieved_throughput(stcb, net);
 		} else {
@@ -1474,19 +1552,19 @@ skip_cwnd_update:
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
     struct sctp_association *asoc)
 {
 	struct sctp_nets *net;
 
 	/*
-	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off == 1) &&
+	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off > 0) &&
 	 * (net->fast_retran_loss_recovery == 0)))
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if ((asoc->fast_retran_loss_recovery == 0) ||
-		    (asoc->sctp_cmt_on_off == 1)) {
+		    (asoc->sctp_cmt_on_off > 0)) {
 			/* out of a RFC2582 Fast recovery window? */
 			if (net->net_ack > 0) {
 				/*
@@ -1553,7 +1631,7 @@ sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_timeout(struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
@@ -1569,7 +1647,7 @@ sctp_htcp_cwnd_update_after_timeout(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
@@ -1593,7 +1671,7 @@ sctp_htcp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
@@ -1615,3 +1693,36 @@ sctp_htcp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb,
 		sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_SAT);
 	}
 }
+
+struct sctp_cc_functions sctp_cc_functions[] = {
+	{
+		.sctp_set_initial_cc_param = sctp_set_initial_cc_param,
+		.sctp_cwnd_update_after_sack = sctp_cwnd_update_after_sack,
+		.sctp_cwnd_update_after_fr = sctp_cwnd_update_after_fr,
+		.sctp_cwnd_update_after_timeout = sctp_cwnd_update_after_timeout,
+		.sctp_cwnd_update_after_ecn_echo = sctp_cwnd_update_after_ecn_echo,
+		.sctp_cwnd_update_after_packet_dropped = sctp_cwnd_update_after_packet_dropped,
+		.sctp_cwnd_update_after_output = sctp_cwnd_update_after_output,
+		.sctp_cwnd_update_after_fr_timer = sctp_cwnd_update_after_fr_timer
+	},
+	{
+		.sctp_set_initial_cc_param = sctp_set_initial_cc_param,
+		.sctp_cwnd_update_after_sack = sctp_hs_cwnd_update_after_sack,
+		.sctp_cwnd_update_after_fr = sctp_hs_cwnd_update_after_fr,
+		.sctp_cwnd_update_after_timeout = sctp_cwnd_update_after_timeout,
+		.sctp_cwnd_update_after_ecn_echo = sctp_cwnd_update_after_ecn_echo,
+		.sctp_cwnd_update_after_packet_dropped = sctp_cwnd_update_after_packet_dropped,
+		.sctp_cwnd_update_after_output = sctp_cwnd_update_after_output,
+		.sctp_cwnd_update_after_fr_timer = sctp_cwnd_update_after_fr_timer
+	},
+	{
+		.sctp_set_initial_cc_param = sctp_htcp_set_initial_cc_param,
+		.sctp_cwnd_update_after_sack = sctp_htcp_cwnd_update_after_sack,
+		.sctp_cwnd_update_after_fr = sctp_htcp_cwnd_update_after_fr,
+		.sctp_cwnd_update_after_timeout = sctp_htcp_cwnd_update_after_timeout,
+		.sctp_cwnd_update_after_ecn_echo = sctp_htcp_cwnd_update_after_ecn_echo,
+		.sctp_cwnd_update_after_packet_dropped = sctp_cwnd_update_after_packet_dropped,
+		.sctp_cwnd_update_after_output = sctp_cwnd_update_after_output,
+		.sctp_cwnd_update_after_fr_timer = sctp_htcp_cwnd_update_after_fr_timer
+	}
+};

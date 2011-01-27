@@ -895,6 +895,21 @@ ffs_mountfs(devvp, mp, td)
 		    mp->mnt_stat.f_mntonname);
 #endif
 	}
+	if ((fs->fs_flags & FS_TRIM) != 0) {
+		size = sizeof(int);
+		if (g_io_getattr("GEOM::candelete", cp, &size,
+		    &ump->um_candelete) == 0) {
+			if (!ump->um_candelete)
+				printf(
+"WARNING: %s: TRIM flag on fs but disk does not support TRIM\n",
+				    mp->mnt_stat.f_mntonname);
+		} else {
+			printf(
+"WARNING: %s: TRIM flag on fs but cannot get whether disk supports TRIM\n",
+			    mp->mnt_stat.f_mntonname);
+			ump->um_candelete = 0;
+		}
+	}
 
 	ump->um_mountp = mp;
 	ump->um_dev = dev;

@@ -33,7 +33,7 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 .if ${CC:T:Mclang} != "clang"
 CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
 .endif
-CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
+CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 INLINE_LIMIT?=	8000
 .endif
 
@@ -66,7 +66,7 @@ INLINE_LIMIT?=	15000
 #
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-mcmodel=kernel -mno-red-zone \
-		-mfpmath=387 -mno-sse -mno-sse2 -mno-sse3 -mno-mmx -mno-3dnow \
+		-mfpmath=387 -mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
 		-msoft-float -fno-asynchronous-unwind-tables
 INLINE_LIMIT?=	8000
 .endif

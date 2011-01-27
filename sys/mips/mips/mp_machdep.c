@@ -333,7 +333,7 @@ release_aps(void *dummy __unused)
 	 */
 	ipi_irq = platform_ipi_intrnum();
 	cpu_establish_hardintr("ipi", mips_ipi_handler, NULL, NULL, ipi_irq,
-			       INTR_TYPE_MISC | INTR_EXCL | INTR_FAST, NULL);
+			       INTR_TYPE_MISC | INTR_EXCL, NULL);
 
 	atomic_store_rel_int(&aps_ready, 1);
 

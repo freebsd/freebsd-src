@@ -54,3 +54,5 @@ ENTRY(sin)
 	fsin
 	ret
 END(sin)
+
+	.section .note.GNU-stack,"",%progbits

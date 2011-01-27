@@ -50,7 +50,7 @@ if [ -e "/tmp/sys-install.cfg" ]
 then
   echo "" >>${TMPLOG}
   echo "# PC-SYSINSTALL CFG " >>${TMPLOG}
-  cat /tmp/sys-install.cfg >> ${TMPLOG}
+  cat /tmp/sys-install.cfg | grep -vE 'rootPass|userPass' >> ${TMPLOG}
 fi
 
 # Save dmesg output
@@ -59,7 +59,7 @@ echo "# DMESG OUTPUT " >>${TMPLOG}
 dmesg >> ${TMPLOG}
 
 # Get gpart info on all disks
-for i in `${PROGDIR}/pc-sysinstall disk-list | cut -d ':' -f 1`
+for i in `pc-sysinstall disk-list | cut -d ':' -f 1`
 do
   echo "" >>${TMPLOG}
   echo "# DISK INFO $i " >>${TMPLOG}

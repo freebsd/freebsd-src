@@ -281,8 +281,6 @@ static int
 acpi_pci_probe(device_t dev)
 {
 
-	if (pcib_get_bus(dev) < 0)
-		return (ENXIO);
 	if (acpi_get_handle(dev) == NULL)
 		return (ENXIO);
 	device_set_desc(dev, "ACPI PCI bus");

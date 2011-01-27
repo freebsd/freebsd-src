@@ -110,14 +110,20 @@ ndis_devcompare(bustype, t, dev)
 	struct ndis_pci_type	*t;
 	device_t		dev;
 {
+	uint16_t		vid, did;
+	uint32_t		subsys;
+
 	if (bustype != PCIBus)
 		return(FALSE);
 
+	vid = pci_get_vendor(dev);
+	did = pci_get_device(dev);
+	subsys = pci_get_subdevice(dev);
+	subsys = (subsys << 16) | pci_get_subvendor(dev);
+
 	while(t->ndis_name != NULL) {
-		if ((pci_get_vendor(dev) == t->ndis_vid) &&
-		    (pci_get_device(dev) == t->ndis_did) &&
-		    ((pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
-		    t->ndis_subsys) || t->ndis_subsys == 0)) {
+		if ((t->ndis_vid == vid) && (t->ndis_did == did) &&
+		    (t->ndis_subsys == subsys || t->ndis_subsys == 0)) {
 			device_set_desc(dev, t->ndis_name);
 			return(TRUE);
 		}
@@ -169,6 +175,8 @@ ndis_attach_pci(dev)
 	struct resource_list	*rl;
 	struct resource_list_entry	*rle;
 	struct drvdb_ent	*db;
+	uint16_t		vid, did;
+	uint32_t		subsys;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -192,16 +200,15 @@ ndis_attach_pci(dev)
 			switch (rle->type) {
 			case SYS_RES_IOPORT:
 				sc->ndis_io_rid = rle->rid;
-				sc->ndis_res_io = bus_alloc_resource(dev,
+				sc->ndis_res_io = bus_alloc_resource_any(dev,
 				    SYS_RES_IOPORT, &sc->ndis_io_rid,
-				    0, ~0, 1, RF_ACTIVE);
+				    RF_ACTIVE);
 				if (sc->ndis_res_io == NULL) {
 					device_printf(dev,
 					    "couldn't map iospace\n");
 					error = ENXIO;
 					goto fail;
 				}
-				pci_enable_io(dev, SYS_RES_IOPORT);
 				break;
 			case SYS_RES_MEMORY:
 				if (sc->ndis_res_altmem != NULL &&
@@ -214,10 +221,10 @@ ndis_attach_pci(dev)
 				if (sc->ndis_res_mem) {
 					sc->ndis_altmem_rid = rle->rid;
 					sc->ndis_res_altmem =
-					    bus_alloc_resource(dev,
+					    bus_alloc_resource_any(dev,
 					        SYS_RES_MEMORY,
 						&sc->ndis_altmem_rid,
-						0, ~0, 1, RF_ACTIVE);
+						RF_ACTIVE);
 					if (sc->ndis_res_altmem == NULL) {
 						device_printf(dev,
 						    "couldn't map alt "
@@ -228,10 +235,10 @@ ndis_attach_pci(dev)
 				} else {
 					sc->ndis_mem_rid = rle->rid;
 					sc->ndis_res_mem =
-					    bus_alloc_resource(dev,
+					    bus_alloc_resource_any(dev,
 					        SYS_RES_MEMORY,
 						&sc->ndis_mem_rid,
-						0, ~0, 1, RF_ACTIVE);
+						RF_ACTIVE);
 					if (sc->ndis_res_mem == NULL) {
 						device_printf(dev,
 						    "couldn't map memory\n");
@@ -239,13 +246,12 @@ ndis_attach_pci(dev)
 						goto fail;
 					}
 				}
-				pci_enable_io(dev, SYS_RES_MEMORY);
 				break;
 			case SYS_RES_IRQ:
 				rid = rle->rid;
-				sc->ndis_irq = bus_alloc_resource(dev,
-				    SYS_RES_IRQ, &rid, 0, ~0, 1,
-	    			    RF_SHAREABLE | RF_ACTIVE);
+				sc->ndis_irq = bus_alloc_resource_any(dev,
+				    SYS_RES_IRQ, &rid,
+				    RF_SHAREABLE | RF_ACTIVE);
 				if (sc->ndis_irq == NULL) {
 					device_printf(dev,
 					    "couldn't map interrupt\n");
@@ -270,8 +276,8 @@ ndis_attach_pci(dev)
 	 */
 	if (sc->ndis_irq == NULL) {
 		rid = 0;
-		sc->ndis_irq = bus_alloc_resource(dev, SYS_RES_IRQ,
-		    &rid, 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+		sc->ndis_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &rid, RF_SHAREABLE | RF_ACTIVE);
 		if (sc->ndis_irq == NULL) {
 			device_printf(dev, "couldn't route interrupt\n");
 			error = ENXIO;
@@ -302,18 +308,19 @@ ndis_attach_pci(dev)
 
 	/* Figure out exactly which device we matched. */
 
+	vid = pci_get_vendor(dev);
+	did = pci_get_device(dev);
+	subsys = pci_get_subdevice(dev);
+	subsys = (subsys << 16) | pci_get_subvendor(dev);
+
 	t = db->windrv_devlist;
 
 	while(t->ndis_name != NULL) {
-		if ((pci_get_vendor(dev) == t->ndis_vid) &&
-		    (pci_get_device(dev) == t->ndis_did)) {
+		if (t->ndis_vid == vid && t->ndis_did == did) {
 			if (t->ndis_subsys == 0)
 				defidx = devidx;
-			else {
-				if (t->ndis_subsys ==
-				    pci_read_config(dev, PCIR_SUBVEND_0, 4))
-					break;
-			}
+			else if (t->ndis_subsys == subsys)
+				break;
 		}
 		t++;
 		devidx++;

@@ -1133,6 +1133,8 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 		geom_deletetree(&mesh);
 		errx(EXIT_FAILURE, "Class %s not found.", s);
 	}
+	if (gctl_get_int(req, "nargs") != 1)
+		errx(EXIT_FAILURE, "Invalid number of arguments.");
 	s = gctl_get_ascii(req, "arg0");
 	if (s == NULL)
 		abort();

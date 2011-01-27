@@ -174,7 +174,7 @@ DMenu MenuIndex = {
 #ifdef WITH_MICE
       { " Device, Mouse",	"The mouse configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuMouse },
 #endif
-      { " Disklabel",		"The disk Label editor",		NULL, diskLabelEditor },
+      { " Disklabel",		"The disk label editor",		NULL, diskLabelEditor },
       { " Dists, All",		"Root of the distribution tree.",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { " Dists, Basic",		"Basic FreeBSD distribution menu.",	NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
       { " Dists, Developer",	"Select developer's distribution.",	checkDistDeveloper, distSetDeveloper },
@@ -213,7 +213,7 @@ DMenu MenuIndex = {
       { " Media, UFS",		"Select UFS installation media.",	NULL, mediaSetUFS },
       { " Media, FTP",		"Select FTP installation media.",	NULL, mediaSetFTP },
       { " Media, FTP Passive",	"Select passive FTP installation media.", NULL, mediaSetFTPPassive },
-      { " Media, HTTP",		"Select FTP via HTTP proxy installation media.", NULL, mediaSetHTTP },
+      { " Media, HTTP",		"Select FTP via HTTP proxy install media.", NULL, mediaSetHTTP },
       { " Network Interfaces",	"Configure network interfaces",		NULL, tcpMenuSelect },
       { " Networking Services",	"The network services menu.",		NULL, dmenuSubmenu, NULL, &MenuNetworking },
       { " NFS, client",		"Set NFS client flag.",			dmenuVarCheck, dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
@@ -222,7 +222,7 @@ DMenu MenuIndex = {
       { " Options",		"The options editor.",			NULL, optionsEditor },
       { " Packages",		"The packages collection",		NULL, configPackages },
 #ifdef WITH_SLICES
-      { " Partition",		"The disk Slice (PC-style partition) Editor",	NULL, diskPartitionEditor },
+      { " Partition",		"The disk slice (PC-style partition) editor",	NULL, diskPartitionEditor },
 #endif
       { " PCNFSD",		"Run authentication server for PC-NFS.", dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
       { " Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
@@ -1209,10 +1209,10 @@ DMenu MenuConfigure = {
       { " Root Password", "Set the system manager's password",
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
 #ifdef WITH_SLICES
-      { " Fdisk",	"The disk Slice (PC-style partition) Editor",
+      { " Fdisk",	"The disk slice (PC-style partition) editor",
 	NULL, diskPartitionEditor },
 #endif
-      { " Label",	"The disk Label editor",
+      { " Label",	"The disk label editor",
 	NULL, diskLabelEditor },
       { " User Management",	"Add user and group information",
 	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
@@ -1860,10 +1860,7 @@ DMenu MenuSysconsKeymap = {
     "System Console Keymap",
     "The system console driver for FreeBSD defaults to a standard\n"
     "\"PC-98x1\" keyboard map.  Users may wish to choose one of the\n"
-    "other keymaps below.\n"
-    "Note that sysinstall itself only uses the part of the keyboard map\n"
-    "which is required to generate the ANSI character subset, but your\n"
-    "choice of keymap will also be saved for later (fuller) use.",
+    "other keymaps below.",
     "Choose a keyboard map",
     NULL,
     { { "Japanese PC-98x1",		"Japanese PC-98x1 keymap",  dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=jp.pc98" },
@@ -1875,12 +1872,8 @@ DMenu MenuSysconsKeymap = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
     "The system console driver for FreeBSD defaults to a standard\n"
-    "\"American\" keyboard map.  Users in other countries (or with\n"
-    "different keyboard preferences) may wish to choose one of the\n"
-    "other keymaps below.\n"
-    "Note that sysinstall itself only uses the part of the keyboard map\n"
-    "which is required to generate the ANSI character subset, but your\n"
-    "choice of keymap will also be saved for later (fuller) use.",
+    "\"US\" keyboard map.  Users may wish to choose one of the\n"
+    "other keymaps below.",
     "Choose a keyboard map",
     NULL,
     { { "Belgian",	"Belgian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=be.iso" },
@@ -1958,7 +1951,7 @@ DMenu MenuSysconsKeyrate = {
       { "Normal", "\"Normal\" keyboard repeat rate",	dmenuVarCheck,	dmenuSetVariable, NULL, "keyrate=normal" },
       { "Fast",	"Fast keyboard repeat rate",	dmenuVarCheck,	dmenuSetVariable, NULL, "keyrate=fast" },
       { "Default", "Use default keyboard repeat rate",	dmenuVarCheck,	dmenuSetVariable, NULL, "keyrate=NO" },
-      { NULL } },
+      { NULL } }
 };
 
 DMenu MenuSysconsSaver = {
@@ -1994,9 +1987,11 @@ DMenu MenuSysconsSaver = {
 	dmenuVarCheck, configSaver, NULL, "saver=star" },
       { "c Warp",	"A \"stars warping\" effect",
 	dmenuVarCheck, configSaver, NULL, "saver=warp" },
+      { "d None",	"Disable the screensaver",
+        dmenuVarCheck, configSaver, NULL, "saver=NO" },
       { "Timeout",	"Set the screen saver timeout interval",
 	NULL, configSaverTimeout, NULL, NULL, ' ', ' ', ' ' },
-      { NULL } },
+      { NULL } }
 };
 
 #ifndef PC98

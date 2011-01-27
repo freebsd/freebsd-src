@@ -41,9 +41,9 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)from: main.c	8.1 (Berkeley) 6/20/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -799,7 +799,7 @@ putf(const char *cp)
  * Read a gettytab database entry and perform necessary quirks.
  */
 static void
-dogettytab()
+dogettytab(void)
 {
 	
 	/* Read the database entry. */

@@ -4,8 +4,6 @@ OUTPUT_FORMAT("elf64-sparc", "elf64-sparc",
 OUTPUT_ARCH(sparc:v9)
 ENTRY(_start)
 SEARCH_DIR(/usr/lib);
-/* Do we need any of these for elf?
-   __DYNAMIC = 0;    */
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */

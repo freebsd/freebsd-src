@@ -322,7 +322,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_VERSION_NUMBER	0x3
 
 #define MAX_TSN	0xffffffff
-#define MAX_SEQ	0xffff
 
 /* how many executions every N tick's */
 #define SCTP_ITERATOR_MAX_AT_ONCE 20
@@ -344,8 +343,8 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_NO_FR_UNLESS_SEGMENT_SMALLER 1
 
-/* default max I can burst out after a fast retransmit */
-#define SCTP_DEF_MAX_BURST 4
+/* default max I can burst out after a fast retransmit, 0 disables it */
+#define SCTP_DEF_MAX_BURST 0
 /* IP hdr (20/40) + 12+2+2 (enet) + sctp common 12 */
 #define SCTP_FIRST_MBUF_RESV 68
 /* Packet transmit states in the sent field */
@@ -507,8 +506,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_ADDR_UNCONFIRMED		0x200
 #define SCTP_ADDR_REQ_PRIMARY           0x400
 /* JRS 5/13/07 - Added potentially failed state for CMT PF */
-#define SCTP_ADDR_PF            0x800
-#define SCTP_REACHABLE_MASK		0x203
+#define SCTP_ADDR_PF                    0x800
 
 /* bound address types (e.g. valid address types to allow) */
 #define SCTP_BOUND_V6		0x01
@@ -644,8 +642,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEFAULT_SECRET_LIFE_SEC 3600
 
 #define SCTP_RTO_UPPER_BOUND	(60000)	/* 60 sec in ms */
-#define SCTP_RTO_UPPER_BOUND_SEC 60	/* for the init timer */
-#define SCTP_RTO_LOWER_BOUND	(1000)	/* 1 sec in ms */
+#define SCTP_RTO_LOWER_BOUND	(300)	/* 0.3 sec is ms */
 #define SCTP_RTO_INITIAL	(3000)	/* 3 sec in ms */
 
 
@@ -906,10 +903,13 @@ __FBSDID("$FreeBSD$");
 #define SCTP_MAX_DATA_BUNDLING		256
 
 /* modular comparison */
-/* True if a > b (mod = M) */
-#define compare_with_wrap(a, b, M) (((a > b) && ((a - b) < ((M >> 1) + 1))) || \
-              ((b > a) && ((b - a) > ((M >> 1) + 1))))
-
+/* See RFC 1982 for details. */
+#define SCTP_SSN_GT(a, b) (((a < b) && ((b - a) > (1<<15))) || \
+                           ((a > b) && ((a - b) < (1<<15))))
+#define SCTP_SSN_GE(a, b) (SCTP_SSN_GT(a, b) || (a == b))
+#define SCTP_TSN_GT(a, b) (((a < b) && ((b - a) > (1<<31))) || \
+                           ((a > b) && ((a - b) < (1<<31))))
+#define SCTP_TSN_GE(a, b) (SCTP_TSN_GT(a, b) || (a == b))
 
 /* Mapping array manipulation routines */
 #define SCTP_IS_TSN_PRESENT(arry, gap) ((arry[(gap >> 3)] >> (gap & 0x07)) & 0x01)

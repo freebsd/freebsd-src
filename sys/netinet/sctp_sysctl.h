@@ -96,6 +96,8 @@ struct sctp_sysctl {
 	uint32_t sctp_logging_level;
 	/* JRS - Variable for default congestion control module */
 	uint32_t sctp_default_cc_module;
+	/* RS - Variable for default stream scheduling module */
+	uint32_t sctp_default_ss_module;
 	uint32_t sctp_default_frag_interleave;
 	uint32_t sctp_mobility_base;
 	uint32_t sctp_mobility_fasthandoff;
@@ -182,7 +184,7 @@ struct sctp_sysctl {
 
 /* maxburst: Default max burst for sctp endpoints */
 #define SCTPCTL_MAXBURST_DESC		"Default max burst for sctp endpoints"
-#define SCTPCTL_MAXBURST_MIN		1
+#define SCTPCTL_MAXBURST_MIN		0
 #define SCTPCTL_MAXBURST_MAX		0xFFFFFFFF
 #define SCTPCTL_MAXBURST_DEFAULT	SCTP_DEF_MAX_BURST
 
@@ -325,9 +327,9 @@ struct sctp_sysctl {
 #define SCTPCTL_OUTGOING_STREAMS_DEFAULT SCTP_OSTREAM_INITIAL
 
 /* cmt_on_off: CMT on/off flag */
-#define SCTPCTL_CMT_ON_OFF_DESC		"CMT on/off flag"
+#define SCTPCTL_CMT_ON_OFF_DESC		"CMT settings"
 #define SCTPCTL_CMT_ON_OFF_MIN		0
-#define SCTPCTL_CMT_ON_OFF_MAX		1
+#define SCTPCTL_CMT_ON_OFF_MAX		2
 #define SCTPCTL_CMT_ON_OFF_DEFAULT	0
 
 /* EY - nr_sack_on_off: NR_SACK on/off flag */
@@ -444,6 +446,12 @@ struct sctp_sysctl {
 #define SCTPCTL_DEFAULT_CC_MODULE_MAX		2
 #define SCTPCTL_DEFAULT_CC_MODULE_DEFAULT	0
 
+/* RS - default stream scheduling module sysctl */
+#define SCTPCTL_DEFAULT_SS_MODULE_DESC		"Default stream scheduling module"
+#define SCTPCTL_DEFAULT_SS_MODULE_MIN		0
+#define SCTPCTL_DEFAULT_SS_MODULE_MAX		5
+#define SCTPCTL_DEFAULT_SS_MODULE_DEFAULT	0
+
 /* RRS - default fragment interleave */
 #define SCTPCTL_DEFAULT_FRAG_INTERLEAVE_DESC	"Default fragment interleave level"
 #define SCTPCTL_DEFAULT_FRAG_INTERLEAVE_MIN	0
@@ -500,7 +508,7 @@ struct sctp_sysctl {
 
 /* Initial congestion window in MTU */
 #define SCTPCTL_INITIAL_CWND_DESC	"Initial congestion window in MTUs"
-#define SCTPCTL_INITIAL_CWND_MIN	1
+#define SCTPCTL_INITIAL_CWND_MIN	0
 #define SCTPCTL_INITIAL_CWND_MAX	0xffffffff
 #define SCTPCTL_INITIAL_CWND_DEFAULT	3
 

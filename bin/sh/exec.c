@@ -92,7 +92,6 @@ struct tblentry {
 
 
 static struct tblentry *cmdtable[CMDTABLESIZE];
-static int builtinloc = -1;		/* index in path of %builtin, or -1 */
 int exerrno = 0;			/* Last exec error */
 
 
@@ -190,9 +189,8 @@ padvance(const char **path, const char *name)
 	for (p = start; *p && *p != ':' && *p != '%'; p++)
 		; /* nothing */
 	len = p - start + strlen(name) + 2;	/* "2" is for '/' and '\0' */
-	while (stackblocksize() < len)
-		growstackblock();
-	q = stackblock();
+	STARTSTACKSTR(q);
+	CHECKSTRSPACE(len, q);
 	if (p != start) {
 		memcpy(q, start, p - start);
 		q += p - start;
@@ -245,8 +243,7 @@ hashcmd(int argc __unused, char **argv __unused)
 	}
 	while ((name = *argptr) != NULL) {
 		if ((cmdp = cmdlookup(name, 0)) != NULL
-		 && (cmdp->cmdtype == CMDNORMAL
-		     || (cmdp->cmdtype == CMDBUILTIN && builtinloc >= 0)))
+		 && cmdp->cmdtype == CMDNORMAL)
 			delete_cmd_entry();
 		find_command(name, &entry, DO_ERR, pathval());
 		if (verbose) {
@@ -337,8 +334,8 @@ find_command(const char *name, struct cmdentry *entry, int act,
 			goto success;
 	}
 
-	/* If %builtin not in path, check for builtin next */
-	if (builtinloc < 0 && (i = find_builtin(name, &spec)) >= 0) {
+	/* Check for builtin next */
+	if ((i = find_builtin(name, &spec)) >= 0) {
 		INTOFF;
 		cmdp = cmdlookup(name, 1);
 		if (cmdp->cmdtype == CMDFUNCTION)
@@ -354,7 +351,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 	prev = -1;		/* where to start */
 	if (cmdp) {		/* doing a rehash */
 		if (cmdp->cmdtype == CMDBUILTIN)
-			prev = builtinloc;
+			prev = -1;
 		else
 			prev = cmdp->param.index;
 	}
@@ -366,19 +363,7 @@ loop:
 		stunalloc(fullname);
 		idx++;
 		if (pathopt) {
-			if (prefix("builtin", pathopt)) {
-				if ((i = find_builtin(name, &spec)) < 0)
-					goto loop;
-				INTOFF;
-				cmdp = cmdlookup(name, 1);
-				if (cmdp->cmdtype == CMDFUNCTION)
-					cmdp = &loc_cmd;
-				cmdp->cmdtype = CMDBUILTIN;
-				cmdp->param.index = i;
-				cmdp->special = spec;
-				INTON;
-				goto success;
-			} else if (prefix("func", pathopt)) {
+			if (prefix("func", pathopt)) {
 				/* handled below */
 			} else {
 				goto loop;	/* ignore unimplemented options */
@@ -485,8 +470,7 @@ hashcd(void)
 
 	for (pp = cmdtable ; pp < &cmdtable[CMDTABLESIZE] ; pp++) {
 		for (cmdp = *pp ; cmdp ; cmdp = cmdp->next) {
-			if (cmdp->cmdtype == CMDNORMAL
-			 || (cmdp->cmdtype == CMDBUILTIN && builtinloc >= 0))
+			if (cmdp->cmdtype == CMDNORMAL)
 				cmdp->rehash = 1;
 		}
 	}
@@ -506,13 +490,11 @@ changepath(const char *newval)
 	const char *old, *new;
 	int idx;
 	int firstchange;
-	int bltin;
 
 	old = pathval();
 	new = newval;
 	firstchange = 9999;	/* assume no change */
 	idx = 0;
-	bltin = -1;
 	for (;;) {
 		if (*old != *new) {
 			firstchange = idx;
@@ -523,19 +505,12 @@ changepath(const char *newval)
 		}
 		if (*new == '\0')
 			break;
-		if (*new == '%' && bltin < 0 && prefix("builtin", new + 1))
-			bltin = idx;
 		if (*new == ':') {
 			idx++;
 		}
 		new++, old++;
 	}
-	if (builtinloc < 0 && bltin >= 0)
-		builtinloc = bltin;		/* zap builtins */
-	if (builtinloc >= 0 && bltin < 0)
-		firstchange = 0;
 	clearcmdentry(firstchange);
-	builtinloc = bltin;
 }
 
 
@@ -556,9 +531,7 @@ clearcmdentry(int firstchange)
 		pp = tblp;
 		while ((cmdp = *pp) != NULL) {
 			if ((cmdp->cmdtype == CMDNORMAL &&
-			     cmdp->param.index >= firstchange)
-			 || (cmdp->cmdtype == CMDBUILTIN &&
-			     builtinloc >= firstchange)) {
+			     cmdp->param.index >= firstchange)) {
 				*pp = cmdp->next;
 				ckfree(cmdp);
 			} else {

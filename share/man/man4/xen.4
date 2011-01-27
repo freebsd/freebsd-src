@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2010
+.Dd December 17, 2010
 .Dt XEN 4
 .Os
 .Sh NAME
@@ -40,17 +40,14 @@ the following lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options PAE"
 .Cd "options XEN"
+.Cd "nooptions NATIVE"
 .Ed
 .Pp
-To compile hardware-assisted virtualization (HVM) Xen guest support into an
-amd64 kernel, place the following line in your kernel configuration file:
+To compile hardware-assisted virtualization (HVM) Xen guest support with
+para-virtualized drivers into an amd64 kernel, place the following lines in
+your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options XENHVM"
-.Ed
-.Pp
-To compile support for Xenbux and Xen PV drivers into an amd64 or i386
-kernel, place the following line in your kernel configuration file:
-.Bd -ragged -offset indent
 .Cd "device xenpci"
 .Ed
 .Sh DESCRIPTION
@@ -73,7 +70,9 @@ semantics.
 .Pp
 .Fx
 supports a fully para-virtualized (PV) kernel on the i386 architecture using
-.Cd "options XEN" ;
+.Cd "options XEN"
+and
+.Cd "nooptions NATIVE" ;
 currently, this requires use of a PAE kernel, enabled via
 .Cd "options PAE" .
 .Pp
@@ -81,22 +80,30 @@ currently, this requires use of a PAE kernel, enabled via
 supports hardware-assisted virtualization (HVM) on both the i386 and amd64
 kernels; however, PV device drivers with an HVM kernel are only supported on
 the amd64 architecture, and require
-.Cd "options XENHVM" .
+.Cd "options XENHVM"
+and
+.Cd "device xenpci" .
 .Pp
 Para-virtualized device drivers are required in order to support certain
 functionality, such as processing management requests, returning idle
-physical memory pages to the hypevisor, etc.
-.Ss Para-virtualized drivers
-Adding
-.Cd "options xenpci"
-to the kernel configuration enables the Xen para-virtualized drivers:
+physical memory pages to the hypervisor, etc.
+.Ss Xen DomU device drivers
+Xen para-virtualized drivers are automatically added to the kernel if a PV
+kernel is compiled using
+.Cd "options XEN" ;
+for HVM environments,
+.Cd "options XENHVM"
+and
+.Cd "device xenpci"
+are required.
+The follow drivers are supported:
 .Bl -hang -offset indent -width blkfront
 .It Nm balloon
 Allow physical memory pages to be returned to the hypervisor as a result of
 manual tuning or automatic policy.
 .It Nm blkback
-Exports local block devices to other Xen domains where they can then be
-imported via
+Exports local block devices or files to other Xen domains where they can
+then be imported via
 .Nm blkfront .
 .It Nm blkfront
 Import block devices from other Xen domains as local block devices, to be
@@ -111,20 +118,23 @@ Expose Xen events via the
 .Pa /dev/xen/evtchn
 special device.
 .It Nm netback
-Export local network interfacest to other Xen domains where they can be
+Export local network interfaces to other Xen domains where they can be
 imported via
 .Nm netfront .
 .It Nm netfront
 Import network interfaces from other Xen domains as local network interfaces,
 which may be used for IPv4, IPv6, etc.
 .It Nm pcifront
-No description.
+Allow physical PCI devices to be passed through into a PV domain.
 .It Nm xenpci
-No description.
+Represents the Xen PCI device, an emulated PCI device that is exposed to
+HVM domains.
+This device allows detection of the Xen hypervisor, and provides interrupt
+and shared memory services required to interact with the hypervisor.
 .El
-.Ss Performance
+.Ss Performance considerations
 In general, PV drivers will perform better than emulated hardware, and are
-the recommended configuration.
+the recommended configuration for HVM installations.
 .Pp
 Using a hypervisor introduces a second layer of scheduling that may limit the
 effectiveness of certain
@@ -168,7 +178,8 @@ amd64.
 .Pp
 Para-virtualized drivers under hardware-assisted virtualization (HVM) kernel
 are only supported on amd64, not i386.
-.P
-As of this release, Xen DomU support is not heavily tested; instability has
-been reported during VM migration of PV kernels, and certain PV driver
-features, such as the balloon driver, are under-exercised.
+.Pp
+As of this release, Xen PV DomU support is not heavily tested; instability
+has been reported during VM migration of PV kernels.
+.Pp
+Certain PV driver features, such as the balloon driver, are under-exercised.

@@ -92,8 +92,7 @@ Memory for the cookies should be allocated using:
 .Bd -literal
 	...;
 	*ncookies = number of entries read;
-	*cookies = (u_int*)#
-		malloc(*ncookies * sizeof(u_int), M_TEMP, M_WAITOK);
+	*cookies = malloc(*ncookies * sizeof(u_long), M_TEMP, M_WAITOK);
 .Ed
 .Sh ERRORS
 .Bl -tag -width Er

@@ -333,6 +333,9 @@ struct ath_softc {
 	struct callout		sc_cal_ch;	/* callout handle for cals */
 	int			sc_lastlongcal;	/* last long cal completed */
 	int			sc_lastcalreset;/* last cal reset done */
+	int			sc_lastani;	/* last ANI poll */
+	int			sc_lastshortcal;	/* last short calibration */
+	HAL_BOOL		sc_doresetcal;	/* Yes, we're doing a reset cal atm */
 	HAL_NODE_STATS		sc_halstats;	/* station-mode rssi stats */
 	u_int			sc_tdmadbaprep;	/* TDMA DBA prep time */
 	u_int			sc_tdmaswbaprep;/* TDMA SWBA prep time */
@@ -342,6 +345,7 @@ struct ath_softc {
 	u_int			sc_tdmaslotlen;	/* TDMA slot length (usec) */
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
+	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -502,6 +506,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setDefAntenna)((_ah), (_ant)))
 #define	ath_hal_rxmonitor(_ah, _arg, _chan) \
 	((*(_ah)->ah_rxMonitor)((_ah), (_arg), (_chan)))
+#define	ath_hal_ani_poll(_ah, _chan) \
+	((*(_ah)->ah_aniPoll)((_ah), (_chan)))
 #define	ath_hal_mibevent(_ah, _stats) \
 	((*(_ah)->ah_procMibEvent)((_ah), (_stats)))
 #define	ath_hal_setslottime(_ah, _us) \
@@ -645,6 +651,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_procTxDesc)((_ah), (_ds), (_ts)))
 #define	ath_hal_gettxintrtxqs(_ah, _txqs) \
 	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
+#define ath_hal_gettxcompletionrates(_ah, _ds, _rates, _tries) \
+	((*(_ah)->ah_getTxCompletionRates)((_ah), (_ds), (_rates), (_tries)))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))

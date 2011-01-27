@@ -43,3 +43,5 @@ ENTRY(scalbn)
 	fstp	%st(1)
 	ret
 END(scalbn)
+
+	.section .note.GNU-stack,"",%progbits

@@ -437,7 +437,7 @@ register_msgring_handler(int startb, int endb, msgring_handler action,
 			msgring_maxthreads = xlr_threads_per_core;
 		cpu_establish_hardintr("msgring", msgring_process_fast_intr,
 			NULL, NULL, IRQ_MSGRING, 
-			INTR_TYPE_NET | INTR_FAST, &cookie);
+			INTR_TYPE_NET, &cookie);
 	}
 	return (0);
 }

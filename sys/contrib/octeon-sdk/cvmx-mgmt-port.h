@@ -134,6 +134,19 @@ extern cvmx_mgmt_port_result_t cvmx_mgmt_port_disable(int port);
  */
 extern cvmx_mgmt_port_result_t cvmx_mgmt_port_send(int port, int packet_len, void *buffer);
 
+#if defined(__FreeBSD__)
+/**
+ * Send a packet out the management port. The packet is copied so
+ * the input mbuf isn't used after this call.
+ *
+ * @param port       Management port
+ * @param m          Packet mbuf (with pkthdr)
+ *
+ * @return CVMX_MGMT_PORT_SUCCESS or an error code
+ */
+extern cvmx_mgmt_port_result_t cvmx_mgmt_port_sendm(int port, const struct mbuf *m);
+#endif
+
 /**
  * Receive a packet from the management port.
  *
@@ -144,7 +157,7 @@ extern cvmx_mgmt_port_result_t cvmx_mgmt_port_send(int port, int packet_len, voi
  * @return The size of the packet, or a negative erorr code on failure. Zero
  *         means that no packets were available.
  */
-extern int cvmx_mgmt_port_receive(int port, int buffer_len, void *buffer);
+extern int cvmx_mgmt_port_receive(int port, int buffer_len, uint8_t *buffer);
 
 /**
  * Set the MAC address for a management port

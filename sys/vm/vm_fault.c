@@ -201,13 +201,20 @@ unlock_and_deallocate(struct faultstate *fs)
  *	KERN_SUCCESS is returned if the page fault is handled; otherwise,
  *	a standard error specifying why the fault is fatal is returned.
  *
- *
  *	The map in question must be referenced, and remains so.
  *	Caller may hold no locks.
  */
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
-	 int fault_flags)
+    int fault_flags)
+{
+
+	return (vm_fault_hold(map, vaddr, fault_type, fault_flags, NULL));
+}
+
+int
+vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
+    int fault_flags, vm_page_t *m_hold)
 {
 	vm_prot_t prot;
 	int is_first_object_locked, result;
@@ -376,11 +383,8 @@ RetryFault:;
 			 * found the page ).
 			 */
 			vm_page_busy(fs.m);
-			if (fs.m->valid != VM_PAGE_BITS_ALL &&
-				fs.m->object != kernel_object && fs.m->object != kmem_object) {
+			if (fs.m->valid != VM_PAGE_BITS_ALL)
 				goto readrest;
-			}
-
 			break;
 		}
 
@@ -880,7 +884,8 @@ vnode_locked:
 	if (hardfault)
 		fs.entry->lastr = fs.pindex + faultcount - behind;
 
-	if (prot & VM_PROT_WRITE) {
+	if ((prot & VM_PROT_WRITE) != 0 ||
+	    (fault_flags & VM_FAULT_DIRTY) != 0) {
 		vm_object_set_writeable_dirty(fs.object);
 
 		/*
@@ -906,8 +911,9 @@ vnode_locked:
 		 * Also tell the backing pager, if any, that it should remove
 		 * any swap backing since the page is now dirty.
 		 */
-		if ((fault_type & VM_PROT_WRITE) != 0 &&
-		    (fault_flags & VM_FAULT_CHANGE_WIRING) == 0) {
+		if (((fault_type & VM_PROT_WRITE) != 0 &&
+		    (fault_flags & VM_FAULT_CHANGE_WIRING) == 0) ||
+		    (fault_flags & VM_FAULT_DIRTY) != 0) {
 			vm_page_dirty(fs.m);
 			vm_pager_page_unswapped(fs.m);
 		}
@@ -949,6 +955,10 @@ vnode_locked:
 			vm_page_unwire(fs.m, 1);
 	} else
 		vm_page_activate(fs.m);
+	if (m_hold != NULL) {
+		*m_hold = fs.m;
+		vm_page_hold(fs.m);
+	}
 	vm_page_unlock(fs.m);
 	vm_page_wakeup(fs.m);
 
@@ -1032,21 +1042,78 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 }
 
 /*
- *	vm_fault_quick:
- *
- *	Ensure that the requested virtual address, which may be in userland,
- *	is valid.  Fault-in the page if necessary.  Return -1 on failure.
+ * Hold each of the physical pages that are mapped by the specified range of
+ * virtual addresses, ["addr", "addr" + "len"), if those mappings are valid
+ * and allow the specified types of access, "prot".  If all of the implied
+ * pages are successfully held, then the number of held pages is returned
+ * together with pointers to those pages in the array "ma".  However, if any
+ * of the pages cannot be held, -1 is returned.
  */
 int
-vm_fault_quick(caddr_t v, int prot)
+vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
+    vm_prot_t prot, vm_page_t *ma, int max_count)
 {
-	int r;
+	vm_offset_t end, va;
+	vm_page_t *mp;
+	int count;
+	boolean_t pmap_failed;
 
-	if (prot & VM_PROT_WRITE)
-		r = subyte(v, fubyte(v));
-	else
-		r = fubyte(v);
-	return(r);
+	end = round_page(addr + len);	
+	addr = trunc_page(addr);
+
+	/*
+	 * Check for illegal addresses.
+	 */
+	if (addr < vm_map_min(map) || addr > end || end > vm_map_max(map))
+		return (-1);
+
+	count = howmany(end - addr, PAGE_SIZE);
+	if (count > max_count)
+		panic("vm_fault_quick_hold_pages: count > max_count");
+
+	/*
+	 * Most likely, the physical pages are resident in the pmap, so it is
+	 * faster to try pmap_extract_and_hold() first.
+	 */
+	pmap_failed = FALSE;
+	for (mp = ma, va = addr; va < end; mp++, va += PAGE_SIZE) {
+		*mp = pmap_extract_and_hold(map->pmap, va, prot);
+		if (*mp == NULL)
+			pmap_failed = TRUE;
+		else if ((prot & VM_PROT_WRITE) != 0 &&
+		    (*mp)->dirty != VM_PAGE_BITS_ALL) {
+			/*
+			 * Explicitly dirty the physical page.  Otherwise, the
+			 * caller's changes may go unnoticed because they are
+			 * performed through an unmanaged mapping or by a DMA
+			 * operation.
+			 */
+			vm_page_lock_queues();
+			vm_page_dirty(*mp);
+			vm_page_unlock_queues();
+		}
+	}
+	if (pmap_failed) {
+		/*
+		 * One or more pages could not be held by the pmap.  Either no
+		 * page was mapped at the specified virtual address or that
+		 * mapping had insufficient permissions.  Attempt to fault in
+		 * and hold these pages.
+		 */
+		for (mp = ma, va = addr; va < end; mp++, va += PAGE_SIZE)
+			if (*mp == NULL && vm_fault_hold(map, va, prot,
+			    VM_FAULT_NORMAL, mp) != KERN_SUCCESS)
+				goto error;
+	}
+	return (count);
+error:	
+	for (mp = ma; mp < ma + count; mp++)
+		if (*mp != NULL) {
+			vm_page_lock(*mp);
+			vm_page_unhold(*mp);
+			vm_page_unlock(*mp);
+		}
+	return (-1);
 }
 
 /*

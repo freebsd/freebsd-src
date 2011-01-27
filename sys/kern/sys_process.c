@@ -94,6 +94,7 @@ struct ptrace_lwpinfo32 {
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct siginfo32 pl_siginfo;	/* siginfo for signal */
 	char	pl_tdname[MAXCOMLEN + 1];	/* LWP name. */
+	int	pl_child_pid;		/* New child pid */
 };
 
 #endif
@@ -237,10 +238,9 @@ int
 proc_rwmem(struct proc *p, struct uio *uio)
 {
 	vm_map_t map;
-	vm_object_t backing_object, object;
 	vm_offset_t pageno;		/* page number */
 	vm_prot_t reqprot;
-	int error, writing;
+	int error, fault_flags, page_offset, writing;
 
 	/*
 	 * Assert that someone has locked this vmspace.  (Should be
@@ -255,25 +255,23 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	 */
 	map = &p->p_vmspace->vm_map;
 
+	/*
+	 * If we are writing, then we request vm_fault() to create a private
+	 * copy of each page.  Since these copies will not be writeable by the
+	 * process, we must explicity request that they be dirtied.
+	 */
 	writing = uio->uio_rw == UIO_WRITE;
 	reqprot = writing ? VM_PROT_COPY | VM_PROT_READ : VM_PROT_READ;
+	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL;
 
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
 	 * makes things easier.  This way is trivial - right?
 	 */
 	do {
-		vm_map_t tmap;
 		vm_offset_t uva;
-		int page_offset;		/* offset into page */
-		vm_map_entry_t out_entry;
-		vm_prot_t out_prot;
-		boolean_t wired;
-		vm_pindex_t pindex;
 		u_int len;
 		vm_page_t m;
-
-		object = NULL;
 
 		uva = (vm_offset_t)uio->uio_offset;
 
@@ -289,10 +287,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		len = min(PAGE_SIZE - page_offset, uio->uio_resid);
 
 		/*
-		 * Fault the page on behalf of the process
+		 * Fault and hold the page on behalf of the process.
 		 */
-		error = vm_fault(map, pageno, reqprot, VM_FAULT_NORMAL);
-		if (error) {
+		error = vm_fault_hold(map, pageno, reqprot, fault_flags, &m);
+		if (error != KERN_SUCCESS) {
 			if (error == KERN_RESOURCE_SHORTAGE)
 				error = ENOMEM;
 			else
@@ -301,61 +299,18 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		}
 
 		/*
-		 * Now we need to get the page.  out_entry and wired
-		 * aren't used.  One would think the vm code
-		 * would be a *bit* nicer...  We use tmap because
-		 * vm_map_lookup() can change the map argument.
-		 */
-		tmap = map;
-		error = vm_map_lookup(&tmap, pageno, reqprot, &out_entry,
-		    &object, &pindex, &out_prot, &wired);
-		if (error) {
-			error = EFAULT;
-			break;
-		}
-		VM_OBJECT_LOCK(object);
-		while ((m = vm_page_lookup(object, pindex)) == NULL &&
-		    !writing &&
-		    (backing_object = object->backing_object) != NULL) {
-			/*
-			 * Allow fallback to backing objects if we are reading.
-			 */
-			VM_OBJECT_LOCK(backing_object);
-			pindex += OFF_TO_IDX(object->backing_object_offset);
-			VM_OBJECT_UNLOCK(object);
-			object = backing_object;
-		}
-		if (writing && m != NULL) {
-			vm_page_dirty(m);
-			vm_pager_page_unswapped(m);
-		}
-		VM_OBJECT_UNLOCK(object);
-		if (m == NULL) {
-			vm_map_lookup_done(tmap, out_entry);
-			error = EFAULT;
-			break;
-		}
-
-		/*
-		 * Hold the page in memory.
-		 */
-		vm_page_lock(m);
-		vm_page_hold(m);
-		vm_page_unlock(m);
-
-		/*
-		 * We're done with tmap now.
-		 */
-		vm_map_lookup_done(tmap, out_entry);
-
-		/*
 		 * Now do the i/o move.
 		 */
 		error = uiomove_fromphys(&m, page_offset, len, uio);
 
 		/* Make the I-cache coherent for breakpoints. */
-		if (!error && writing && (out_prot & VM_PROT_EXECUTE))
-			vm_sync_icache(map, uva, len);
+		if (writing && error == 0) {
+			vm_map_lock_read(map);
+			if (vm_map_check_protection(map, pageno, pageno +
+			    PAGE_SIZE, VM_PROT_EXECUTE))
+				vm_sync_icache(map, uva, len);
+			vm_map_unlock_read(map);
+		}
 
 		/*
 		 * Release the page.
@@ -522,6 +477,7 @@ ptrace_lwpinfo_to32(const struct ptrace_lwpinfo *pl,
 	pl32->pl_siglist = pl->pl_siglist;
 	siginfo_to_siginfo32(&pl->pl_siginfo, &pl32->pl_siginfo);
 	strcpy(pl32->pl_tdname, pl->pl_tdname);
+	pl32->pl_child_pid = pl->pl_child_pid;
 }
 #endif /* COMPAT_FREEBSD32 */
 
@@ -703,6 +659,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_TO_SCE:
 	case PT_TO_SCX:
 	case PT_SYSCALL:
+	case PT_FOLLOW_FORK:
 	case PT_DETACH:
 		sx_xlock(&proctree_lock);
 		proctree_locked = 1;
@@ -770,7 +727,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	 * Set the wrap controls accordingly.
 	 */
 	if (SV_CURPROC_FLAG(SV_ILP32)) {
-		if (td2->td_proc->p_sysent->sv_flags & SV_ILP32)
+		if (SV_PROC_FLAG(td2->td_proc, SV_ILP32))
 			safe = 1;
 		wrap32 = 1;
 	}
@@ -898,6 +855,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		td2->td_dbgflags &= ~TDB_SUSPEND;
 		break;
 
+	case PT_FOLLOW_FORK:
+		if (data)
+			p->p_flag |= P_FOLLOWFORK;
+		else
+			p->p_flag &= ~P_FOLLOWFORK;
+		break;
+
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_TO_SCE:
@@ -958,7 +922,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
 			}
-			p->p_flag &= ~(P_TRACED | P_WAITED);
+			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 			p->p_oppid = 0;
 
 			/* should we send SIGCHLD? */
@@ -1164,6 +1128,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			pl->pl_flags |= PL_FLAG_SCX;
 		if (td2->td_dbgflags & TDB_EXEC)
 			pl->pl_flags |= PL_FLAG_EXEC;
+		if (td2->td_dbgflags & TDB_FORK) {
+			pl->pl_flags |= PL_FLAG_FORKED;
+			pl->pl_child_pid = td2->td_dbg_forked;
+		}
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		strcpy(pl->pl_tdname, td2->td_name);

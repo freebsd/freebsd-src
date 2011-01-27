@@ -357,6 +357,8 @@ g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
     struct g_part_parms *gpp)
 {
 #if defined(GEOM_PART_EBR_COMPAT)
+	if (req == G_PART_CTL_DESTROY)
+		return (0);
 	return (ECANCELED);
 #else
 	/*
@@ -377,7 +379,7 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 	char psn[8];
 	struct g_provider *pp;
 	u_char *buf, *p;
-	int error, index, res, sum;
+	int error, index, res;
 	uint16_t magic;
 
 	pp = cp->provider;
@@ -409,29 +411,11 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 	if (magic != DOSMAGIC)
 		goto out;
 
-	/*
-	 * The sector is all zeroes, except for the partition entries,
-	 * pseudo boot code and some signatures or disk serial number.
-	 * The latter can be found in the 9 bytes immediately in front
-	 * of the partition table.
-	 */
-	sum = 0;
-	for (index = 96; index < DOSPARTOFF - 9; index++)
-		sum += buf[index];
-	if (sum != 0)
-		goto out;
-
-	for (index = 0; index < NDOSPART; index++) {
+	for (index = 0; index < 2; index++) {
 		p = buf + DOSPARTOFF + index * DOSPARTSIZE;
 		if (p[0] != 0 && p[0] != 0x80)
 			goto out;
-		if (index < 2)
-			continue;
-		/* The 3rd & 4th entries are always zero. */
-		if ((le64dec(p+0) + le64dec(p+8)) != 0)
-			goto out;
 	}
-
 	res = G_PART_PROBE_PRI_NORM;
 
  out:
@@ -450,7 +434,7 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	u_char *buf;
 	off_t ofs, msize;
 	u_int lba;
-	int error, index;
+	int error, index, sum;
 
 	pp = cp->provider;
 	table = (struct g_part_ebr_table *)basetable;
@@ -465,6 +449,28 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 		ebr_entry_decode(buf + DOSPARTOFF + 0 * DOSPARTSIZE, ent + 0);
 		ebr_entry_decode(buf + DOSPARTOFF + 1 * DOSPARTSIZE, ent + 1);
+
+		/* The 3rd & 4th entries should be zeroes. */
+		if (le64dec(buf + DOSPARTOFF + 2 * DOSPARTSIZE) +
+		    le64dec(buf + DOSPARTOFF + 3 * DOSPARTSIZE) != 0) {
+			basetable->gpt_corrupt = 1;
+			printf("GEOM: %s: invalid entries in the EBR ignored.\n",
+			    pp->name);
+		}
+		/* We do not support bootcode for EBR. If bootcode area is
+		 * not zeroes, then mark this EBR as corrupt to do not break
+		 * anything for another OS'es.
+		 */
+		if (lba == 0) {
+			sum = 0;
+			for (index = 0; index < DOSPARTOFF; index++)
+				sum += buf[index];
+			if (sum != 0) {
+				basetable->gpt_corrupt = 1;
+				printf("GEOM: %s: EBR has non empty bootcode.\n",
+				    pp->name);
+			}
+		}
 		g_free(buf);
 
 		if (ent[0].dp_typ == 0)

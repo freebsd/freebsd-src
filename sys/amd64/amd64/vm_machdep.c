@@ -190,7 +190,7 @@ cpu_fork(td1, p2, td2, flags)
 	pcb2->pcb_tssp = NULL;
 
 	/* New segment registers. */
-	pcb2->pcb_full_iret = 1;
+	set_pcb_flags(pcb2, PCB_FULL_IRET);
 
 	/* Copy the LDT, if necessary. */
 	mdp1 = &td1->td_proc->p_md;
@@ -275,7 +275,7 @@ cpu_thread_exit(struct thread *td)
 	/* Disable any hardware breakpoints. */
 	if (pcb->pcb_flags & PCB_DBREGS) {
 		reset_dbregs();
-		pcb->pcb_flags &= ~PCB_DBREGS;
+		clear_pcb_flags(pcb, PCB_DBREGS);
 	}
 }
 
@@ -385,9 +385,9 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * values here.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	pcb2->pcb_flags &= ~(PCB_FPUINITDONE | PCB_USERFPUINITDONE);
+	clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE);
 	pcb2->pcb_save = &pcb2->pcb_user_save;
-	pcb2->pcb_full_iret = 1;
+	set_pcb_flags(pcb2, PCB_FULL_IRET);
 
 	/*
 	 * Create a new fresh stack for the new thread.
@@ -445,7 +445,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	cpu_thread_clean(td);
 
 #ifdef COMPAT_FREEBSD32
-	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		/*
 	 	 * Set the trap frame to point at the beginning of the uts
 		 * function.
@@ -491,18 +491,20 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
+	struct pcb *pcb;
 
 	if ((u_int64_t)tls_base >= VM_MAXUSER_ADDRESS)
 		return (EINVAL);
 
+	pcb = td->td_pcb;
 #ifdef COMPAT_FREEBSD32
-	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
-		td->td_pcb->pcb_gsbase = (register_t)tls_base;
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+		pcb->pcb_gsbase = (register_t)tls_base;
 		return (0);
 	}
 #endif
-	td->td_pcb->pcb_fsbase = (register_t)tls_base;
-	td->td_pcb->pcb_full_iret = 1;
+	pcb->pcb_fsbase = (register_t)tls_base;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
 }
 

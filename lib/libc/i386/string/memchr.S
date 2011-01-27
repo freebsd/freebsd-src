@@ -57,3 +57,5 @@ L1:	xorl	%eax,%eax
 	popl	%edi
 	ret
 END(memchr)
+
+	.section .note.GNU-stack,"",%progbits

@@ -99,8 +99,8 @@ static int  nfe_jrxeof(struct nfe_softc *, int, int *);
 static void nfe_txeof(struct nfe_softc *);
 static int  nfe_encap(struct nfe_softc *, struct mbuf **);
 static void nfe_setmulti(struct nfe_softc *);
-static void nfe_tx_task(void *, int);
 static void nfe_start(struct ifnet *);
+static void nfe_start_locked(struct ifnet *);
 static void nfe_watchdog(struct ifnet *);
 static void nfe_init(void *);
 static void nfe_init_locked(void *);
@@ -553,7 +553,6 @@ nfe_attach(device_t dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	TASK_INIT(&sc->nfe_tx_task, 1, nfe_tx_task, ifp);
 
 	/*
 	 * Allocate Tx and Rx rings.
@@ -679,7 +678,6 @@ nfe_detach(device_t dev)
 		ifp->if_flags &= ~IFF_UP;
 		NFE_UNLOCK(sc);
 		callout_drain(&sc->nfe_stat_ch);
-		taskqueue_drain(taskqueue_fast, &sc->nfe_tx_task);
 		ether_ifdetach(ifp);
 	}
 
@@ -1631,7 +1629,7 @@ nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		rx_npkts = nfe_rxeof(sc, count, &rx_npkts);
 	nfe_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
+		nfe_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		if ((r = NFE_READ(sc, sc->nfe_irq_status)) == 0) {
@@ -1711,8 +1709,10 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			else {
 				NFE_LOCK(sc);
 				ifp->if_mtu = ifr->ifr_mtu;
-				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 					nfe_init_locked(sc);
+				}
 				NFE_UNLOCK(sc);
 			}
 		}
@@ -1903,7 +1903,7 @@ nfe_int_task(void *arg, int pending)
 	nfe_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
+		nfe_start_locked(ifp);
 
 	NFE_UNLOCK(sc);
 
@@ -2599,29 +2599,27 @@ done:
 
 
 static void
-nfe_tx_task(void *arg, int pending)
+nfe_start(struct ifnet *ifp)
 {
-	struct ifnet *ifp;
+	struct nfe_softc *sc = ifp->if_softc;
 
-	ifp = (struct ifnet *)arg;
-	nfe_start(ifp);
+	NFE_LOCK(sc);
+	nfe_start_locked(ifp);
+	NFE_UNLOCK(sc);
 }
 
-
 static void
-nfe_start(struct ifnet *ifp)
+nfe_start_locked(struct ifnet *ifp)
 {
 	struct nfe_softc *sc = ifp->if_softc;
 	struct mbuf *m0;
 	int enq;
 
-	NFE_LOCK(sc);
+	NFE_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc->nfe_link == 0) {
-		NFE_UNLOCK(sc);
+	    IFF_DRV_RUNNING || sc->nfe_link == 0)
 		return;
-	}
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd);) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
@@ -2651,8 +2649,6 @@ nfe_start(struct ifnet *ifp)
 		 */
 		sc->nfe_watchdog_timer = 5;
 	}
-
-	NFE_UNLOCK(sc);
 }
 
 
@@ -2670,7 +2666,7 @@ nfe_watchdog(struct ifnet *ifp)
 		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
 		    "-- recovering\n");
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
+			nfe_start_locked(ifp);
 		return;
 	}
 	/* Check if we've lost start Tx command. */
@@ -3081,7 +3077,7 @@ sysctl_hw_nfe_proc_limit(SYSCTL_HANDLER_ARGS)
 #define	NFE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
 	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
 #define	NFE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
-	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
 
 static void
 nfe_sysctl_node(struct nfe_softc *sc)

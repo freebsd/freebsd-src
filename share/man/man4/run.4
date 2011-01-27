@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2010
+.Dd January 12, 2011
 .Dt RUN 4
 .Os
 .Sh NAME
@@ -36,11 +36,17 @@ kernel configuration file:
 .Cd "device wlan_amrr"
 .Ed
 .Pp
+Firmware is also needed, and provided by:
+.Bd -ragged -offset indent
+.Cd "device runfw"
+.Ed
+.Pp
 Alternatively, to load the driver as a
-module at boot time, place the following line in
+module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_run_load="YES"
+runfw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -68,6 +74,9 @@ Also known as
 mode, this is used when associating with an access point, through
 which all traffic passes.
 This mode is the default.
+.It Host AP mode
+In this mode the driver acts as an access point (base station)
+for other cards.
 .It monitor mode
 In this mode the driver is able to receive packets without
 associating with an access point.
@@ -94,9 +103,7 @@ hardware for the WEP40, WEP104, TKIP(+MIC) and CCMP ciphers.
 The
 .Nm
 driver can be configured at runtime with
-.Xr ifconfig 8
-or on boot with
-.Xr hostname.if 5 .
+.Xr ifconfig 8 .
 .Sh HARDWARE
 The 
 .Nm
@@ -175,7 +182,7 @@ ifconfig wlan create wlandev run0 wlanmode adhoc ssid my_net \e
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag
-.It "run%d: error %d, could not read firmware %s"
+.It "run%d: faild load firmware of file runfw"
 For some reason, the driver was unable to read the microcode file from the
 filesystem.
 The file might be missing or corrupted.
@@ -188,6 +195,7 @@ The driver will reset the hardware.
 This should not happen.
 .El
 .Sh SEE ALSO
+.Xr runfw 4 ,
 .Xr intro 4 ,
 .Xr netintro 4 ,
 .Xr usb 4 ,

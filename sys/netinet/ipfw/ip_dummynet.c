@@ -2157,7 +2157,7 @@ ip_dn_init(void)
 	DN_LOCK_INIT();
 
 	TASK_INIT(&dn_task, 0, dummynet_task, curvnet);
-	dn_tq = taskqueue_create_fast("dummynet", M_NOWAIT,
+	dn_tq = taskqueue_create("dummynet", M_WAITOK,
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 

@@ -127,7 +127,7 @@ static struct stack_block *stackp;
 static struct stackmark *markp;
 char *stacknxt;
 int stacknleft;
-int sstrnleft;
+char *sstrend;
 
 
 static void
@@ -146,6 +146,7 @@ stnewblock(int nbytes)
 	sp->prev = stackp;
 	stacknxt = SPACE(sp);
 	stacknleft = allocsize - (stacknxt - (char*)sp);
+	sstrend = stacknxt + stacknleft;
 	stackp = sp;
 	INTON;
 }
@@ -204,6 +205,7 @@ popstackmark(struct stackmark *mark)
 	}
 	stacknxt = mark->stacknxt;
 	stacknleft = mark->stacknleft;
+	sstrend = stacknxt + stacknleft;
 	INTON;
 }
 
@@ -218,8 +220,8 @@ popstackmark(struct stackmark *mark)
  * part of the block that has been used.
  */
 
-void
-growstackblock(void)
+static void
+growstackblock(int min)
 {
 	char *p;
 	int newlen;
@@ -229,8 +231,15 @@ growstackblock(void)
 	struct stack_block *oldstackp;
 	struct stackmark *xmark;
 
-	newlen = (stacknleft == 0) ? MINSIZE : stacknleft * 2 + 100;
-	newlen = ALIGN(newlen);
+	if (min < stacknleft)
+		min = stacknleft;
+	if (min >= INT_MAX / 2 - ALIGN(sizeof(struct stack_block)))
+		error("Out of space");
+	min += stacknleft;
+	min += ALIGN(sizeof(struct stack_block));
+	newlen = 512;
+	while (newlen < min)
+		newlen <<= 1;
 	oldspace = stacknxt;
 	oldlen = stacknleft;
 
@@ -243,6 +252,7 @@ growstackblock(void)
 		stackp = sp;
 		stacknxt = SPACE(sp);
 		stacknleft = newlen - (stacknxt - (char*)sp);
+		sstrend = stacknxt + stacknleft;
 
 		/*
 		 * Stack marks pointing to the start of the old block
@@ -257,21 +267,12 @@ growstackblock(void)
 		}
 		INTON;
 	} else {
+		newlen -= ALIGN(sizeof(struct stack_block));
 		p = stalloc(newlen);
 		if (oldlen != 0)
 			memcpy(p, oldspace, oldlen);
 		stunalloc(p);
 	}
-}
-
-
-
-void
-grabstackblock(int len)
-{
-	len = ALIGN(len);
-	stacknxt += len;
-	stacknleft -= len;
 }
 
 
@@ -295,10 +296,9 @@ grabstackblock(int len)
  */
 
 static char *
-growstrstackblock(int n)
+growstrstackblock(int n, int min)
 {
-	growstackblock();
-	sstrnleft = stackblocksize() - n;
+	growstackblock(min);
 	return stackblock() + n;
 }
 
@@ -308,7 +308,7 @@ growstackstr(void)
 	int len;
 
 	len = stackblocksize();
-	return growstrstackblock(len);
+	return (growstrstackblock(len, 0));
 }
 
 
@@ -317,33 +317,21 @@ growstackstr(void)
  */
 
 char *
-makestrspace(void)
+makestrspace(int min, char *p)
 {
 	int len;
 
-	len = stackblocksize() - sstrnleft;
-	return growstrstackblock(len);
-}
-
-
-
-void
-ungrabstackstr(char *s, char *p)
-{
-	stacknleft += stacknxt - s;
-	stacknxt = s;
-	sstrnleft = stacknleft - (p - s);
+	len = p - stackblock();
+	return (growstrstackblock(len, min));
 }
 
 
 char *
 stputbin(const char *data, int len, char *p)
 {
-	int i;
-
-	for (i = 0; i < len; i++)
-		STPUTC(data[i], p);
-	return (p);
+	CHECKSTRSPACE(len, p);
+	memcpy(p, data, len);
+	return (p + len);
 }
 
 char *

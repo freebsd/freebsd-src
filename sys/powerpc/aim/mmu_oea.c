@@ -666,7 +666,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	phandle_t	chosen, mmu;
 	int		sz;
 	int		i, j;
-	int		ofw_mappings;
 	vm_size_t	size, physsz, hwphyssz;
 	vm_offset_t	pa, va, off;
 	void		*dpcpu;
@@ -868,7 +867,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	CTR0(KTR_PMAP, "moea_bootstrap: translations");
 	sz /= sizeof(*translations);
 	qsort(translations, sz, sizeof (*translations), om_cmp);
-	for (i = 0, ofw_mappings = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++) {
 		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
 		    translations[i].om_pa, translations[i].om_va,
 		    translations[i].om_len);
@@ -881,11 +880,9 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 			continue;
 
 		/* Enter the pages */
-		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
+		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE)
 			moea_kenter(mmup, translations[i].om_va + off, 
 				    translations[i].om_pa + off);
-			ofw_mappings++;
-		}
 	}
 
 	/*
@@ -924,10 +921,10 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	/*
 	 * Allocate virtual address space for the message buffer.
 	 */
-	pa = msgbuf_phys = moea_bootstrap_alloc(MSGBUF_SIZE, PAGE_SIZE);
+	pa = msgbuf_phys = moea_bootstrap_alloc(msgbufsize, PAGE_SIZE);
 	msgbufp = (struct msgbuf *)virtual_avail;
 	va = virtual_avail;
-	virtual_avail += round_page(MSGBUF_SIZE);
+	virtual_avail += round_page(msgbufsize);
 	while (va < virtual_avail) {
 		moea_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;

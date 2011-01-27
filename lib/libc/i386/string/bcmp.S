@@ -62,3 +62,5 @@ L1:
 	popl	%edi
 	ret
 END(bcmp)
+
+	.section .note.GNU-stack,"",%progbits

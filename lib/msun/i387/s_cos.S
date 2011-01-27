@@ -54,3 +54,5 @@ ENTRY(cos)
 	fcos
 	ret
 END(cos)
+
+	.section .note.GNU-stack,"",%progbits

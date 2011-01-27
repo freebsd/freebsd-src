@@ -37,7 +37,7 @@
 .\"
 .\" $Begemot: bsnmp/lib/bsnmplib.3,v 1.9 2005/10/04 08:46:51 brandt_h Exp $
 .\"
-.Dd September 9, 2010
+.Dd December 19, 2010
 .Dt BSNMPLIB 3
 .Os
 .Sh NAME
@@ -50,6 +50,7 @@
 .Nm snmp_pdu_decode_header ,
 .Nm snmp_pdu_decode_scoped ,
 .Nm snmp_pdu_decode_secmode ,
+.Nm snmp_pdu_init_secparams ,
 .Nm snmp_pdu_dump ,
 .Nm snmp_passwd_to_keys ,
 .Nm snmp_get_local_keys ,
@@ -82,6 +83,8 @@ Begemot SNMP library
 .Fn snmp_pdu_decode_scoped "struct asn_buf *buf" "struct snmp_pdu *pdu" "int32_t *ip"
 .Ft enum snmp_code
 .Fn snmp_pdu_decode_secmode "struct asn_buf *buf" "struct snmp_pdu *pdu"
+.Ft void
+.Fn snmp_pdu_init_secparams "struct snmp_pdu *pdu"
 .Ft void
 .Fn snmp_pdu_dump "const struct snmp_pdu *pdu"
 .Ft enum snmp_code
@@ -175,12 +178,18 @@ This structure represents an SNMP engine as specified by the SNMP Management
 Architecture described in RFC 3411.
 .Pp
 .Bd -literal -offset indent
-#define	SNMP_USM_NAME_SIZ		(32 + 1)
+#define	SNMP_ADM_STR32_SIZ		(32 + 1)
 #define	SNMP_AUTH_KEY_SIZ		40
 #define	SNMP_PRIV_KEY_SIZ		32
 
+enum snmp_usm_level {
+	SNMP_noAuthNoPriv = 1,
+	SNMP_authNoPriv = 2,
+	SNMP_authPriv = 3
+};
+
 struct snmp_user {
-	char				sec_name[SNMP_USM_NAME_SIZ];
+	char				sec_name[SNMP_ADM_STR32_SIZ];
 	enum snmp_authentication	auth_proto;
 	enum snmp_privacy		priv_proto;
 	uint8_t				auth_key[SNMP_AUTH_KEY_SIZ];
@@ -230,7 +239,9 @@ contain the authentication and privacy keys for the user.
 #define	SNMP_MSG_PRIV_FLAG		0x2
 #define	SNMP_MSG_REPORT_FLAG		0x4
 
-#define	SNMP_SECMODEL_USM		3
+#define	SNMP_MPM_SNMP_V1		0
+#define	SNMP_MPM_SNMP_V2c		1
+#define	SNMP_MPM_SNMP_V3		3
 
 struct snmp_pdu {
 	char			community[SNMP_COMMUNITY_MAXLEN + 1];
@@ -296,7 +307,17 @@ and
 is the type of the PDU.
 .Fa security_model
 is the security model used for SNMPv3 PDUs. The only supported
-value currently is 3 (User-based Security Model).
+value currently is 3 (User-based Security Model). Additional values for any,
+unknown, SNMPv1 and SNMPv2c security models are also enumerated
+.Bd -literal -offset indent
+enum snmp_secmodel {
+	SNMP_SECMODEL_ANY = 0,
+	SNMP_SECMODEL_SNMPv1 = 1,
+	SNMP_SECMODEL_SNMPv2c = 2,
+	SNMP_SECMODEL_USM = 3,
+	SNMP_SECMODEL_UNKNOWN
+};
+.Ed
 .Pp
 The function
 .Fn snmp_value_free
@@ -364,6 +385,13 @@ verifies the authentication parameter contained in the PDU (if present) and
 if the PDU is encrypted, decrypts the PDU contents pointed to by
 .Fa buf .
 If successfull, a plain text scoped PDU is stored in the buffer.
+.Pp
+The function
+.Fn snmp_pdu_init_secparams
+calculates the initialization vector for the privacy protocol in use before
+the PDU pointed to by 
+.Fa pdu
+may be encrypted or decrypted.
 .Pp
 The function
 .Fn snmp_pdu_dump

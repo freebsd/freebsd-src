@@ -70,6 +70,7 @@ hashcmd		hash
 histcmd -h	fc
 jobidcmd	jobid
 jobscmd		jobs
+killcmd		kill
 localcmd	local
 printfcmd	printf
 pwdcmd		pwd

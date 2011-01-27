@@ -25,7 +25,7 @@
 
 if [ "x$1" = "x-b" ]; then
 	cp /usr/src/release/powerpc/boot.tbxi ${4}/boot
-	bootable="-hfs-bless ${4}/boot -map /usr/src/release/powerpc/hfs.map"
+	bootable="-hfs -hfs-bless ${4}/boot -map /usr/src/release/powerpc/hfs.map -hide-hfs ${4}/usr/share/man"
 	shift
 else
 	bootable=""
@@ -54,4 +54,4 @@ fi
 LABEL=$1; shift
 NAME=$1; shift
 
-mkisofs $bootable -r -hfs -part -no-desktop -hfs-volid $LABEL -l -J -allow-leading-dots -o $NAME $*
+mkisofs $bootable -l -r -part -no-desktop -V $LABEL -o $NAME $*

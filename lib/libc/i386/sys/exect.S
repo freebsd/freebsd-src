@@ -50,3 +50,5 @@ ENTRY(exect)
 	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))	/* exect(file, argv, env); */
 END(exect)
+
+	.section .note.GNU-stack,"",%progbits

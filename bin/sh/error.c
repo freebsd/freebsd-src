@@ -134,6 +134,26 @@ onint(void)
 }
 
 
+static void
+vwarning(const char *msg, va_list ap)
+{
+	if (commandname)
+		outfmt(out2, "%s: ", commandname);
+	doformat(out2, msg, ap);
+	out2fmt_flush("\n");
+}
+
+
+void
+warning(const char *msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	vwarning(msg, ap);
+	va_end(ap);
+}
+
+
 /*
  * Exverror is called to raise the error exception.  If the first argument
  * is not NULL then error prints an error message using printf style
@@ -158,12 +178,8 @@ exverror(int cond, const char *msg, va_list ap)
 	else
 		TRACE(("exverror(%d, NULL) pid=%d\n", cond, getpid()));
 #endif
-	if (msg) {
-		if (commandname)
-			outfmt(out2, "%s: ", commandname);
-		doformat(out2, msg, ap);
-		out2c('\n');
-	}
+	if (msg)
+		vwarning(msg, ap);
 	flushall();
 	exraise(cond);
 }

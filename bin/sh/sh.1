@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2010
+.Dd January 16, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -456,9 +456,10 @@ would become
 Aliases provide a convenient way for naive users to
 create shorthands for commands without having to learn how
 to create functions with arguments.
-They can also be
-used to create lexically obscure code.
-This use is discouraged.
+Using aliases in scripts is discouraged
+because the command that defines them must be executed
+before the code that uses them is parsed.
+This is fragile and not portable.
 .Pp
 An alias name may be escaped in a command line, so that it is not
 replaced by its alias value, by using quoting characters within or
@@ -1847,7 +1848,12 @@ If
 .Ar exitstatus
 is given
 it is used as the exit status of the shell;
-otherwise the exit status of the preceding command is used.
+otherwise, if the shell is executing an
+.Cm EXIT
+trap, the exit status of the last command before the trap is used;
+if the shell is executing a trap for a signal,
+the shell exits by resending the signal to itself;
+otherwise, the exit status of the preceding command is used.
 The exit status should be an integer between 0 and 255.
 .It Ic export Ar name ...
 .It Ic export Op Fl p
@@ -2049,6 +2055,10 @@ If the
 .Fl s
 option is specified, only the PIDs of the job commands are printed, one per
 line.
+.It Ic kill
+A built-in equivalent of
+.Xr kill 1
+that additionally supports sending signals to jobs.
 .It Ic local Oo Ar variable ... Oc Op Fl
 See the
 .Sx Functions
@@ -2477,6 +2487,7 @@ will return the argument.
 .Xr echo 1 ,
 .Xr ed 1 ,
 .Xr emacs 1 ,
+.Xr kill 1 ,
 .Xr printf 1 ,
 .Xr pwd 1 ,
 .Xr test 1 ,

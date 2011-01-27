@@ -147,6 +147,7 @@ struct swblock {
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
 
+static MALLOC_DEFINE(M_VMPGDATA, "vm_pgdata", "swap pager private data");
 static struct mtx sw_dev_mtx;
 static TAILQ_HEAD(, swdevt) swtailq = TAILQ_HEAD_INITIALIZER(swtailq);
 static struct swdevt *swdevhd;	/* Allocate from here next */
@@ -1679,8 +1680,6 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 			}
 		}
 		index += SWAP_META_PAGES;
-		if (index > 0x20000000)
-			panic("swap_pager_isswapped: failed to locate all swap meta blocks");
 	}
 	mtx_unlock(&swhash_mtx);
 	return (0);
@@ -1995,8 +1994,6 @@ swp_pager_meta_free_all(vm_object_t object)
 		}
 		mtx_unlock(&swhash_mtx);
 		index += SWAP_META_PAGES;
-		if (index > 0x20000000)
-			panic("swp_pager_meta_free_all: failed to locate all swap meta blocks");
 	}
 }
 

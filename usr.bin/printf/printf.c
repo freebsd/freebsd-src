@@ -58,12 +58,7 @@ static const char rcsid[] =
 #ifdef SHELL
 #define main printfcmd
 #include "bltin/bltin.h"
-#include "memalloc.h"
 #include "error.h"
-#else
-#define	warnx1(a, b, c)		warnx(a)
-#define	warnx2(a, b, c)		warnx(a, b)
-#define	warnx3(a, b, c)		warnx(a, b, c)
 #endif
 
 #define PF(f, func) do { \
@@ -101,7 +96,7 @@ int
 main(int argc, char *argv[])
 {
 	size_t len;
-	int chopped, end, rval;
+	int ch, chopped, end, rval;
 	char *format, *fmt, *start;
 
 #ifndef SHELL
@@ -110,15 +105,15 @@ main(int argc, char *argv[])
 #ifdef SHELL
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
 #endif
-	/* Skip argv[0] which is the process name */
-	argv++;
-	argc--;
-
-	/* Need to accept/ignore "--" option. */
-	if (argc >= 1 && strcmp(*argv, "--") == 0) {
-		argc--;
-		argv++;
-	}
+	while ((ch = getopt(argc, argv, "")) != -1)
+		switch (ch) {
+		case '?':
+		default:
+			usage();
+			return (1);
+		}
+	argc -= optind;
+	argv += optind;
 
 	if (argc < 1) {
 		usage();
@@ -165,7 +160,7 @@ main(int argc, char *argv[])
 		}
 
 		if (end == 1) {
-			warnx1("missing format character", NULL, NULL);
+			warnx("missing format character");
 #ifdef SHELL
 			INTON;
 #endif
@@ -226,7 +221,7 @@ printf_doformat(char *start, int *rval)
 	} else
 		haveprec = 0;
 	if (!*fmt) {
-		warnx1("missing format character", NULL, NULL);
+		warnx("missing format character");
 		return (NULL);
 	}
 
@@ -244,7 +239,7 @@ printf_doformat(char *start, int *rval)
 		mod_ldbl = 1;
 		fmt++;
 		if (!strchr("aAeEfFgG", *fmt)) {
-			warnx2("bad modifier L for %%%c", *fmt, NULL);
+			warnx("bad modifier L for %%%c", *fmt);
 			return (NULL);
 		}
 	} else {
@@ -260,24 +255,16 @@ printf_doformat(char *start, int *rval)
 		char *p;
 		int getout;
 
-#ifdef SHELL
-		p = savestr(getstr());
-#else
 		p = strdup(getstr());
-#endif
 		if (p == NULL) {
-			warnx2("%s", strerror(ENOMEM), NULL);
+			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		getout = escape(p, 0, &len);
 		*(fmt - 1) = 's';
 		PF(start, p);
 		*(fmt - 1) = 'b';
-#ifdef SHELL
-		ckfree(p);
-#else
 		free(p);
-#endif
 		if (getout)
 			return (fmt);
 		break;
@@ -328,7 +315,7 @@ printf_doformat(char *start, int *rval)
 		break;
 	}
 	default:
-		warnx2("illegal format character %c", convch, NULL);
+		warnx("illegal format character %c", convch);
 		return (NULL);
 	}
 	*fmt = nextch;
@@ -346,13 +333,9 @@ mknum(char *str, char ch)
 	len = strlen(str) + 2;
 	if (len > copy_size) {
 		newlen = ((len + 1023) >> 10) << 10;
-#ifdef SHELL
-		if ((newcopy = ckrealloc(copy, newlen)) == NULL)
-#else
 		if ((newcopy = realloc(copy, newlen)) == NULL)
-#endif
 		{
-			warnx2("%s", strerror(ENOMEM), NULL);
+			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		copy = newcopy;
@@ -465,7 +448,7 @@ getint(int *ip)
 		return (1);
 	rval = 0;
 	if (val < INT_MIN || val > INT_MAX) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	*ip = (int)val;
@@ -496,15 +479,15 @@ getnum(intmax_t *ip, uintmax_t *uip, int signedconv)
 	else
 		*uip = strtoumax(*gargv, &ep, 0);
 	if (ep == *gargv) {
-		warnx2("%s: expected numeric value", *gargv, NULL);
+		warnx("%s: expected numeric value", *gargv);
 		rval = 1;
 	}
 	else if (*ep != '\0') {
-		warnx2("%s: not completely converted", *gargv, NULL);
+		warnx("%s: not completely converted", *gargv);
 		rval = 1;
 	}
 	if (errno == ERANGE) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	++gargv;
@@ -532,14 +515,14 @@ getfloating(long double *dp, int mod_ldbl)
 	else
 		*dp = strtod(*gargv, &ep);
 	if (ep == *gargv) {
-		warnx2("%s: expected numeric value", *gargv, NULL);
+		warnx("%s: expected numeric value", *gargv);
 		rval = 1;
 	} else if (*ep != '\0') {
-		warnx2("%s: not completely converted", *gargv, NULL);
+		warnx("%s: not completely converted", *gargv);
 		rval = 1;
 	}
 	if (errno == ERANGE) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	++gargv;

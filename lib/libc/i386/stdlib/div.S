@@ -35,3 +35,5 @@ ENTRY(div)
         idiv    %ecx
         ret
 END(div)
+
+	.section .note.GNU-stack,"",%progbits

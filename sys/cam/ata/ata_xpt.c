@@ -727,6 +727,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ata_params *ident_buf;
 	probe_softc *softc;
 	struct cam_path *path;
+	cam_status status;
 	u_int32_t  priority;
 	u_int caps;
 	int found = 1;
@@ -751,6 +752,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
+		status = done_ccb->ccb_h.status & CAM_STATUS_MASK;
 		if (softc->restart) {
 			softc->faults++;
 			if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) ==
@@ -760,12 +762,32 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				goto done;
 			else
 				softc->restart = 0;
-		} else
+
 		/* Old PIO2 devices may not support mode setting. */
-		if (softc->action == PROBE_SETMODE &&
+		} else if (softc->action == PROBE_SETMODE &&
+		    status == CAM_ATA_STATUS_ERROR &&
 		    ata_max_pmode(ident_buf) <= ATA_PIO2 &&
-		    (ident_buf->capabilities1 & ATA_SUPPORT_IORDY) == 0)
+		    (ident_buf->capabilities1 & ATA_SUPPORT_IORDY) == 0) {
 			goto noerror;
+
+		/*
+		 * Some old WD SATA disks report supported and enabled
+		 * device-initiated interface power management, but return
+		 * ABORT on attempt to disable it.
+		 */
+		} else if (softc->action == PROBE_SETPM &&
+		    status == CAM_ATA_STATUS_ERROR) {
+			goto noerror;
+
+		/*
+		 * Some HP SATA disks report supported DMA Auto-Activation,
+		 * but return ABORT on attempt to enable it.
+		 */
+		} else if (softc->action == PROBE_SETDMAAA &&
+		    status == CAM_ATA_STATUS_ERROR) {
+			goto noerror;
+		}
+
 		/*
 		 * If we get to this point, we got an error status back
 		 * from the inquiry and the error status doesn't require
@@ -974,7 +996,9 @@ noerror:
 		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
 		xpt_action((union ccb *)&cts);
 		softc->caps = caps;
-		if (ident_buf->satasupport & ATA_SUPPORT_IFPWRMNGT) {
+		if ((ident_buf->satasupport & ATA_SUPPORT_IFPWRMNGT) &&
+		    (!(softc->caps & CTS_SATA_CAPS_H_PMREQ)) !=
+		    (!(ident_buf->sataenabled & ATA_SUPPORT_IFPWRMNGT))) {
 			PROBE_SET_ACTION(softc, PROBE_SETPM);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
@@ -983,7 +1007,9 @@ noerror:
 		/* FALLTHROUGH */
 	case PROBE_SETPM:
 		if (ident_buf->satacapabilities != 0xffff &&
-		    ident_buf->satacapabilities & ATA_SUPPORT_DAPST) {
+		    (ident_buf->satacapabilities & ATA_SUPPORT_DAPST) &&
+		    (!(softc->caps & CTS_SATA_CAPS_H_APST)) !=
+		    (!(ident_buf->sataenabled & ATA_ENABLED_DAPST))) {
 			PROBE_SET_ACTION(softc, PROBE_SETAPST);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
@@ -991,7 +1017,9 @@ noerror:
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETAPST:
-		if (ident_buf->satasupport & ATA_SUPPORT_AUTOACTIVATE) {
+		if ((ident_buf->satasupport & ATA_SUPPORT_AUTOACTIVATE) &&
+		    (!(softc->caps & CTS_SATA_CAPS_H_DMAAA)) !=
+		    (!(ident_buf->sataenabled & ATA_SUPPORT_AUTOACTIVATE))) {
 			PROBE_SET_ACTION(softc, PROBE_SETDMAAA);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);

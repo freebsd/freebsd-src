@@ -527,6 +527,11 @@
 #define IXGBE_RTTDTECC_NO_BCN   0x00000100
 
 #define IXGBE_RTTBCNRC    0x04984
+#define IXGBE_RTTBCNRC_RS_ENA           0x80000000
+#define IXGBE_RTTBCNRC_RF_DEC_MASK      0x00003FFF
+#define IXGBE_RTTBCNRC_RF_INT_SHIFT     14
+#define IXGBE_RTTBCNRC_RF_INT_MASK \
+	(IXGBE_RTTBCNRC_RF_DEC_MASK << IXGBE_RTTBCNRC_RF_INT_SHIFT)
 
 /* BCN (for DCB) Registers */
 #define IXGBE_RTTBCNRM    0x04980
@@ -984,8 +989,8 @@
 #define IXGBE_MSCA_OP_CODE_SHIFT     26 /* OP CODE shift */
 #define IXGBE_MSCA_ADDR_CYCLE        0x00000000 /* OP CODE 00 (addr cycle) */
 #define IXGBE_MSCA_WRITE             0x04000000 /* OP CODE 01 (write) */
-#define IXGBE_MSCA_READ              0x08000000 /* OP CODE 10 (read) */
-#define IXGBE_MSCA_READ_AUTOINC      0x0C000000 /* OP CODE 11 (read, auto inc)*/
+#define IXGBE_MSCA_READ              0x0C000000 /* OP CODE 11 (read) */
+#define IXGBE_MSCA_READ_AUTOINC      0x08000000 /* OP CODE 10 (read, auto inc)*/
 #define IXGBE_MSCA_ST_CODE_MASK      0x30000000 /* ST Code mask */
 #define IXGBE_MSCA_ST_CODE_SHIFT     28 /* ST Code shift */
 #define IXGBE_MSCA_NEW_PROTOCOL      0x00000000 /* ST CODE 00 (new protocol) */
@@ -1685,6 +1690,9 @@
 #define IXGBE_SAN_MAC_ADDR_PORT1_OFFSET  0x3
 #define IXGBE_DEVICE_CAPS_ALLOW_ANY_SFP  0x1
 #define IXGBE_DEVICE_CAPS_FCOE_OFFLOADS  0x2
+#define IXGBE_FW_LESM_PARAMETERS_PTR     0x2
+#define IXGBE_FW_LESM_STATE_1            0x1
+#define IXGBE_FW_LESM_STATE_ENABLED      0x8000 /* LESM Enable bit */
 #define IXGBE_FW_PASSTHROUGH_PATCH_CONFIG_PTR   0x4
 #define IXGBE_FW_PATCH_VERSION_4         0x7
 #define IXGBE_FCOE_IBA_CAPS_BLK_PTR         0x33 /* iSCSI/FCOE block */
@@ -2302,31 +2310,49 @@ enum ixgbe_atr_flow_type {
 
 /* Flow Director ATR input struct. */
 union ixgbe_atr_input {
-	/* Byte layout in order, all values with MSB first:
+	/*
+	 * Byte layout in order, all values with MSB first:
 	 *
-	 * rsvd0      - 2 bytes - space reserved must be 0.
+	 * vm_pool    - 1 byte
+	 * flow_type  - 1 byte
 	 * vlan_id    - 2 bytes
 	 * src_ip     - 16 bytes
 	 * dst_ip     - 16 bytes
 	 * src_port   - 2 bytes
 	 * dst_port   - 2 bytes
 	 * flex_bytes - 2 bytes
-	 * vm_pool    - 1 byte
-	 * flow_type  - 1 byte
+	 * rsvd0      - 2 bytes - space reserved must be 0.
 	 */
 	struct {
-		__be16 rsvd0;
+		u8     vm_pool;
+		u8     flow_type;
 		__be16 vlan_id;
 		__be32 dst_ip[4];
 		__be32 src_ip[4];
 		__be16 src_port;
 		__be16 dst_port;
 		__be16 flex_bytes;
-		u8     vm_pool;
-		u8     flow_type;
+		__be16 rsvd0;
 	} formatted;
 	__be32 dword_stream[11];
 };
+
+/* Flow Director compressed ATR hash input struct */
+union ixgbe_atr_hash_dword {
+	struct {
+		u8 vm_pool;
+		u8 flow_type;
+		__be16 vlan_id;
+	} formatted;
+	__be32 ip;
+	struct {
+		__be16 src;
+		__be16 dst;
+	} port;
+	__be16 flex_bytes;
+	__be32 dword;
+};
+
 
 struct ixgbe_atr_input_masks {
 	__be16 rsvd0;

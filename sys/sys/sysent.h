@@ -116,16 +116,23 @@ struct sysentvec {
 	int		(*sv_fetch_syscall_args)(struct thread *, struct
 			    syscall_args *);
 	const char	**sv_syscallnames;
+	vm_offset_t	sv_shared_page_base;
+	vm_offset_t	sv_shared_page_len;
+	vm_offset_t	sv_sigcode_base;
+	void		*sv_shared_page_obj;
 };
 
 #define	SV_ILP32	0x000100
 #define	SV_LP64		0x000200
 #define	SV_IA32		0x004000
 #define	SV_AOUT		0x008000
+#define	SV_SHP		0x010000
 
 #define	SV_ABI_MASK	0xff
-#define	SV_CURPROC_FLAG(x) (curproc->p_sysent->sv_flags & (x))
-#define	SV_CURPROC_ABI() (curproc->p_sysent->sv_flags & SV_ABI_MASK)
+#define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))
+#define	SV_PROC_ABI(p)		((p)->p_sysent->sv_flags & SV_ABI_MASK)
+#define	SV_CURPROC_FLAG(x)	SV_PROC_FLAG(curproc, x)
+#define	SV_CURPROC_ABI()	SV_PROC_ABI(curproc)
 /* same as ELFOSABI_XXX, to prevent header pollution */
 #define	SV_ABI_LINUX	3
 #define	SV_ABI_FREEBSD 	9
@@ -221,6 +228,13 @@ int	lkmressys(struct thread *, struct nosys_args *);
 
 int	syscall_thread_enter(struct thread *td, struct sysent *se);
 void	syscall_thread_exit(struct thread *td, struct sysent *se);
+
+int shared_page_fill(int size, int align, const char *data);
+void exec_sysvec_init(void *param);
+
+#define INIT_SYSENTVEC(name, sv)					\
+    SYSINIT(name, SI_SUB_EXEC, SI_ORDER_ANY,				\
+	(sysinit_cfunc_t)exec_sysvec_init, sv);
 
 #endif /* _KERNEL */
 

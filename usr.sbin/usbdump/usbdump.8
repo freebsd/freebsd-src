@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2010
+.Dd December 4, 2010
 .Dt usbdump 8
 .Os
 .Sh NAME
@@ -41,24 +41,29 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility provides a way to dump USB packets on each host controller.
+utility provides a way to dump USB packets on host controllers.
 .Pp
-The following options are accepted.
+The following options are accepted:
 .Bl -tag -width ".Fl f Ar file"
 .It Fl i Ar ifname
-Listen on USB bus interface.
+Listen on USB bus interface
+.Ar ifname .
 .It Fl r Ar file
-Read the raw packets from file.
+Read the raw packets from
+.Ar file .
 .It Fl s Ar snaplen
-Snapshot bytes from each packet.
+Snapshot
+.Ar snaplen
+bytes from each packet.
 .It Fl v
 Enable debugging messages.
-When it defined multiple times the verbose level increases.
+When defined multiple times the verbosity level increases.
 .It Fl w Ar file
-Write the raw packets to file.
+Write the raw packets to
+.Ar file .
 .El
 .Sh EXAMPLES
-Captures the USB raw packets alive on usbus2:
+Captures USB raw packets on usbus2:
 .Pp
 .Dl "usbdump -i usbus2 -s 256 -v"
 .Pp
@@ -67,11 +72,61 @@ size limit:
 .Pp
 .Dl "usbdump -i usbus2 -s 0 -w /tmp/dump_pkts"
 .Pp
-Read the USB raw packets from the file:
+Read the USB raw packets from previous file:
 .Pp
 .Dl "usbdump -r /tmp/dump_pkts -v"
+.Sh OUTPUT FORMAT
+The output format of
+.Nm
+is as follows:
+.Pp
+.Dl "<time> <bus>.<addr> <ep> <xfertype> <S/D> (<frames>/<length>) <...>"
+.Pp
+The meaning of the output format elements is as follows:
+.Bl -tag -width "<xfertype>"
+.It <time>
+A timestamp preceding all output lines.
+The timestamp has the format "hh:mm:ss.frac" and is as accurate as
+the kernel's clock.
+.It <bus>
+The USB host controller's bus unit number.
+.It <addr>
+The unique number of the USB device as allocated by the host controller driver.
+.It <ep>
+The USB endpoint address that indicates whether the address is
+.Dv OUT
+or
+.Dv IN .
+.It <xfertype>
+The USB transfer type.
+Can be
+.Dv CTRL ,
+.Dv ISOC ,
+.Dv BULK
+or
+.Dv INTR .
+.It <S/D>
+`S' indicates a USB submit.
+`D' indicates a USB transfer done.
+.It <frames>
+Numbers of frames in this packets.
+If this is a USB submit, its value is
+.Li xfer->nframes
+which means how many frames are acceptable or registered to transfer.
+If this is a USB done,
+.Li xfer->aframes
+is the actual number of frames.
+.It <length>
+Total packet size.
+If this is a USB submit, its value is
+.Li xfer->sumlen .
+If this is a USB done, its value is
+.Li xfer->actlen .
+.It <...>
+Optional field used for printing an error string if the packet is from USB done.
+.El
 .Sh SEE ALSO
 .Xr usbconfig 8
 .Sh AUTHORS
 .An Weongyo Jeong
-.Aq weongyo@FreeBSD.org .
+.Aq weongyo@FreeBSD.org

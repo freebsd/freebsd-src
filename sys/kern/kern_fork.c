@@ -112,9 +112,7 @@ fork(struct thread *td, struct fork_args *uap)
 
 /* ARGSUSED */
 int
-vfork(td, uap)
-	struct thread *td;
-	struct vfork_args *uap;
+vfork(struct thread *td, struct vfork_args *uap)
 {
 	int error, flags;
 	struct proc *p2;
@@ -200,7 +198,12 @@ fork_findpid(int flags)
 	int trypid;
 	static int pidchecked = 0;
 
-	sx_assert(&allproc_lock, SX_XLOCKED);
+	/*
+	 * Requires allproc_lock in order to iterate over the list
+	 * of processes, and proctree_lock to access p_pgrp.
+	 */
+	sx_assert(&allproc_lock, SX_LOCKED);
+	sx_assert(&proctree_lock, SX_LOCKED);
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs
@@ -281,7 +284,7 @@ again:
 }
 
 static int
-fork_norfproc(struct thread *td, int flags, struct proc **procp)
+fork_norfproc(struct thread *td, int flags)
 {
 	int error;
 	struct proc *p1;
@@ -289,7 +292,6 @@ fork_norfproc(struct thread *td, int flags, struct proc **procp)
 	KASSERT((flags & RFPROC) == 0,
 	    ("fork_norfproc called with RFPROC set"));
 	p1 = td->td_proc;
-	*procp = NULL;
 
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 	    (flags & (RFCFDG | RFFDG))) {
@@ -336,7 +338,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
     struct vmspace *vm2)
 {
 	struct proc *p1, *pptr;
-	int trypid;
+	int p2_held, trypid;
 	struct filedesc *fd;
 	struct filedesc_to_leader *fdtol;
 	struct sigacts *newsigacts;
@@ -344,6 +346,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	sx_assert(&proctree_lock, SX_SLOCKED);
 	sx_assert(&allproc_lock, SX_XLOCKED);
 
+	p2_held = 0;
 	p1 = td->td_proc;
 
 	/*
@@ -358,12 +361,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
-	/*
-	 * Allow the scheduler to initialize the child.
-	 */
-	thread_lock(td);
-	sched_fork(td, td2);
-	thread_unlock(td);
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
@@ -408,14 +405,12 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	} else {
 		fd = fdshare(p1->p_fd);
 		if (p1->p_fdtol == NULL)
-			p1->p_fdtol =
-				filedesc_to_leader_alloc(NULL,
-							 NULL,
-							 p1->p_leader);
+			p1->p_fdtol = filedesc_to_leader_alloc(NULL, NULL,
+			    p1->p_leader);
 		if ((flags & RFTHREAD) != 0) {
 			/*
-			 * Shared file descriptor table and
-			 * shared process leaders.
+			 * Shared file descriptor table, and shared
+			 * process leaders.
 			 */
 			fdtol = p1->p_fdtol;
 			FILEDESC_XLOCK(p1->p_fd);
@@ -423,12 +418,11 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 			FILEDESC_XUNLOCK(p1->p_fd);
 		} else {
 			/* 
-			 * Shared file descriptor table, and
-			 * different process leaders 
+			 * Shared file descriptor table, and different
+			 * process leaders.
 			 */
 			fdtol = filedesc_to_leader_alloc(p1->p_fdtol,
-							 p1->p_fd,
-							 p2);
+			    p1->p_fd, p2);
 		}
 	}
 	/*
@@ -456,6 +450,13 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	td2->td_vnet = NULL;
 	td2->td_vnet_lpush = NULL;
 #endif
+
+	/*
+	 * Allow the scheduler to initialize the child.
+	 */
+	thread_lock(td);
+	sched_fork(td, td2);
+	thread_unlock(td);
 
 	/*
 	 * Duplicate sub-structures as needed.
@@ -492,7 +493,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	PROC_UNLOCK(p1);
 	PROC_UNLOCK(p2);
 
-	/* Bump references to the text vnode (for procfs) */
+	/* Bump references to the text vnode (for procfs). */
 	if (p2->p_textvp)
 		vref(p2->p_textvp);
 
@@ -622,7 +623,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	/*
 	 * Both processes are set up, now check if any loadable modules want
 	 * to adjust anything.
-	 *   What if they have an error? XXX
 	 */
 	EVENTHANDLER_INVOKE(process_fork, p1, p2, flags);
 
@@ -633,6 +633,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	PROC_SLOCK(p2);
 	p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
+
+	PROC_LOCK(p1);
 #ifdef KDTRACE_HOOKS
 	/*
 	 * Tell the DTrace fasttrap provider about the new process
@@ -641,19 +643,33 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * later on.
 	 */
 	if (dtrace_fasttrap_fork) {
-		PROC_LOCK(p1);
 		PROC_LOCK(p2);
 		dtrace_fasttrap_fork(p1, p2);
 		PROC_UNLOCK(p2);
-		PROC_UNLOCK(p1);
 	}
 #endif
-
-	/*
-	 * If RFSTOPPED not requested, make child runnable and add to
-	 * run queue.
-	 */
+	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
+	    P_FOLLOWFORK)) {
+		/*
+		 * Arrange for debugger to receive the fork event.
+		 *
+		 * We can report PL_FLAG_FORKED regardless of
+		 * P_FOLLOWFORK settings, but it does not make a sense
+		 * for runaway child.
+		 */
+		td->td_dbgflags |= TDB_FORK;
+		td->td_dbg_forked = p2->p_pid;
+		PROC_LOCK(p2);
+		td2->td_dbgflags |= TDB_STOPATFORK;
+		_PHOLD(p2);
+		p2_held = 1;
+		PROC_UNLOCK(p2);
+	}
 	if ((flags & RFSTOPPED) == 0) {
+		/*
+		 * If RFSTOPPED not requested, make child runnable and
+		 * add to run queue.
+		 */
 		thread_lock(td2);
 		TD_SET_CAN_RUN(td2);
 		sched_add(td2, SRQ_BORING);
@@ -663,7 +679,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	/*
 	 * Now can be swapped.
 	 */
-	PROC_LOCK(p1);
 	_PRELE(p1);
 	PROC_UNLOCK(p1);
 
@@ -674,15 +689,22 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	SDT_PROBE(proc, kernel, , create, p2, p1, flags, 0, 0);
 
 	/*
+	 * Wait until debugger is attached to child.
+	 */
+	PROC_LOCK(p2);
+	while ((td2->td_dbgflags & TDB_STOPATFORK) != 0)
+		cv_wait(&p2->p_dbgwait, &p2->p_mtx);
+	if (p2_held)
+		_PRELE(p2);
+
+	/*
 	 * Preserve synchronization semantics of vfork.  If waiting for
 	 * child to exec or exit, set P_PPWAIT on child, and sleep on our
 	 * proc (in case of exit).
 	 */
-	PROC_LOCK(p2);
 	while (p2->p_flag & P_PPWAIT)
 		cv_wait(&p2->p_pwait, &p2->p_mtx);
 	PROC_UNLOCK(p2);
-
 }
 
 int
@@ -708,14 +730,10 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 	 * Here we don't create a new process, but we divorce
 	 * certain parts of a process from itself.
 	 */
-	if ((flags & RFPROC) == 0)
-		return (fork_norfproc(td, flags, procp));
-
-	/*
-	 * XXX
-	 * We did have single-threading code here
-	 * however it proved un-needed and caused problems
-	 */
+	if ((flags & RFPROC) == 0) {
+		*procp = NULL;
+		return (fork_norfproc(td, flags));
+	}
 
 	mem_charged = 0;
 	vm2 = NULL;
@@ -889,8 +907,37 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 void
 fork_return(struct thread *td, struct trapframe *frame)
 {
+	struct proc *p, *dbg;
+
+	if (td->td_dbgflags & TDB_STOPATFORK) {
+		p = td->td_proc;
+		sx_xlock(&proctree_lock);
+		PROC_LOCK(p);
+		if ((p->p_pptr->p_flag & (P_TRACED | P_FOLLOWFORK)) ==
+		    (P_TRACED | P_FOLLOWFORK)) {
+			/*
+			 * If debugger still wants auto-attach for the
+			 * parent's children, do it now.
+			 */
+			dbg = p->p_pptr->p_pptr;
+			p->p_flag |= P_TRACED;
+			p->p_oppid = p->p_pptr->p_pid;
+			proc_reparent(p, dbg);
+			sx_xunlock(&proctree_lock);
+			ptracestop(td, SIGSTOP);
+		} else {
+			/*
+			 * ... otherwise clear the request.
+			 */
+			sx_xunlock(&proctree_lock);
+			td->td_dbgflags &= ~TDB_STOPATFORK;
+			cv_broadcast(&p->p_dbgwait);
+		}
+		PROC_UNLOCK(p);
+	}
 
 	userret(td, frame);
+
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(SYS_fork, 0, 0);

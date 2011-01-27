@@ -198,25 +198,25 @@ struct g_rr_params *gs_rr_me = &me;
 SYSCTL_DECL(_kern_geom_sched);
 SYSCTL_NODE(_kern_geom_sched, OID_AUTO, rr, CTLFLAG_RW, 0,
     "GEOM_SCHED ROUND ROBIN stuff");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, units, CTLFLAG_RD,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, units, CTLFLAG_RD,
     &me.units, 0, "Scheduler instances");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, queues, CTLFLAG_RD,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, queues, CTLFLAG_RD,
     &me.queues, 0, "Total rr queues");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, wait_ms, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, wait_ms, CTLFLAG_RW,
     &me.wait_ms.x_cur, 0, "Wait time milliseconds");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, quantum_ms, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, quantum_ms, CTLFLAG_RW,
     &me.quantum_ms.x_cur, 0, "Quantum size milliseconds");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, bypass, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, bypass, CTLFLAG_RW,
     &me.bypass, 0, "Bypass scheduler");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, w_anticipate, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, w_anticipate, CTLFLAG_RW,
     &me.w_anticipate, 0, "Do anticipation on writes");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, quantum_kb, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, quantum_kb, CTLFLAG_RW,
     &me.quantum_kb.x_cur, 0, "Quantum size Kbytes");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, queue_depth, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, queue_depth, CTLFLAG_RW,
     &me.queue_depth.x_cur, 0, "Maximum simultaneous requests");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, wait_hit, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, wait_hit, CTLFLAG_RW,
     &me.wait_hit, 0, "Hits in anticipation");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, wait_miss, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, wait_miss, CTLFLAG_RW,
     &me.wait_miss, 0, "Misses in anticipation");
 
 #ifdef DEBUG_QUEUES

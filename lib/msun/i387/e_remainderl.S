@@ -46,3 +46,5 @@ ENTRY(remainderl)
 	jp	1b
 	fstp	%st(1)
 	ret
+
+	.section .note.GNU-stack,"",%progbits

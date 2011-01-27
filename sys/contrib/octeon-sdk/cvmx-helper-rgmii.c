@@ -239,6 +239,7 @@ int __cvmx_helper_rgmii_enable(int interface)
 #if defined(OCTEON_VENDOR_LANNER)
 	switch (cvmx_sysinfo_get()->board_type) {
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
             if (port == 0) {
                 cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, interface), 4);
 	    } else {

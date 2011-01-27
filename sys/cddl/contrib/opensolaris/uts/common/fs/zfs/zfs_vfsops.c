@@ -1021,7 +1021,7 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	zfsvfs->z_vfs->mnt_stat.f_iosize = recordsize;
 
 	vfsp->vfs_data = zfsvfs;
-	vfsp->mnt_flag |= MNT_LOCAL;
+	vfsp->mnt_flag |= MNT_LOCAL | MNT_NFS4ACLS;
 	vfsp->mnt_kern_flag |= MNTK_MPSAFE;
 	vfsp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
 	vfsp->mnt_kern_flag |= MNTK_SHARED_WRITES;

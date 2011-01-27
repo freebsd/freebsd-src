@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 #if 0
 #ifndef lint
-__RCSID("$NetBSD: stat.c,v 1.30 2010/11/25 04:33:30 dholland Exp $"
+__RCSID("$NetBSD: stat.c,v 1.31 2010/12/16 05:30:16 dholland Exp $"
 "$OpenBSD: stat.c,v 1.14 2009/06/24 09:44:25 sobrado Exp $");
 #endif
 #endif
@@ -789,7 +789,7 @@ format1(const struct stat *st,
 		small = 0;
 		data = 0;
 		if (file == NULL) {
-			(void)strncpy(path, "(stdin)", sizeof(path));
+			(void)strlcpy(path, "(stdin)", sizeof(path));
 			sdata = path;
 		} else {
 			snprintf(path, sizeof(path), " -> ");
@@ -877,7 +877,7 @@ format1(const struct stat *st,
 	case SHOW_filename:
 		small = 0;
 		data = 0;
-		(void)strncpy(path, file, sizeof(path));
+		(void)strlcpy(path, file, sizeof(path));
 		sdata = path;
 		formats = FMTF_STRING;
 		if (ofmt == 0)

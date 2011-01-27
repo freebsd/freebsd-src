@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/malloc.h>
@@ -394,6 +393,9 @@ dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 	int error, cpu, t;
 	int enabled;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sb = sbuf_new_for_sysctl(NULL, NULL, LPROF_SBUF_SIZE, req);
 	sbuf_printf(sb, "\n%8s %9s %11s %11s %11s %6s %6s %2s %6s %s\n",
 	    "max", "wait_max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");

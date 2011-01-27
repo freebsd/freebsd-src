@@ -326,6 +326,7 @@ _clang_no=CLANG
     DICT \
     DYNAMICROOT \
     EXAMPLES \
+    FDT \
     FLOPPY \
     FORTH \
     FP_LIBC \
@@ -421,7 +422,6 @@ MK_${var}:=	yes
     BIND_XML \
     BSD_GREP \
     ${_clang_no} \
-    FDT \
     GPIO \
     HESIOD \
     IDEA

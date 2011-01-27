@@ -87,3 +87,5 @@ ENTRY(modf)
 
 	ret
 END(modf)
+
+	.section .note.GNU-stack,"",%progbits

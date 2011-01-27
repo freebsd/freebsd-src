@@ -221,6 +221,14 @@ If set,
 .Nm
 will log events such as the loading and unloading of shared objects via
 .Xr utrace 2 .
+.Pp
+.It Ev LD_LOADFLTR
+If set,
+.Nm
+will process the filtee dependencies of the loaded objects immediately,
+instead of postponing it until required.
+Normally, the filtees are opened at the time of the first symbol resolution
+from the filter object.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/ld-elf32.so.hints" -compact

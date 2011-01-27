@@ -197,4 +197,4 @@ _ENTRY(_rtld_powerpc_pltcall)
         mtctr   %r11
         bctr				# (*jmptab[index])()
 
-
+	.section .note.GNU-stack,"",%progbits

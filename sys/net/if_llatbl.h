@@ -116,19 +116,12 @@ struct llentry {
 		LLE_WUNLOCK(lle);				\
 	}							\
 	/* guard against invalid refs */			\
-	lle = 0;						\
+	lle = NULL;						\
 } while (0)
 
 #define	LLE_FREE(lle) do {					\
 	LLE_WLOCK(lle);						\
-	if ((lle)->lle_refcnt <= 1)				\
-		(lle)->lle_tbl->llt_free((lle)->lle_tbl, (lle));\
-	else {							\
-		(lle)->lle_refcnt--;				\
-		LLE_WUNLOCK(lle);				\
-	}							\
-	/* guard against invalid refs */			\
-	lle = NULL;						\
+	LLE_FREE_LOCKED(lle);					\
 } while (0)
 
 

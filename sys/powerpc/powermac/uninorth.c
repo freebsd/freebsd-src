@@ -530,10 +530,7 @@ static int
 unin_chip_activate_resource(device_t bus, device_t child, int type, int rid,
 			    struct resource *res)
 {
-	struct unin_chip_softc *sc;
 	void    *p;
-
-	sc = device_get_softc(bus);
 
 	if (type == SYS_RES_IRQ)
                 return (bus_activate_resource(bus, type, rid, res));

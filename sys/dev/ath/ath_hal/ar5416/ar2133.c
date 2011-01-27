@@ -58,6 +58,65 @@ ar2133WriteRegs(struct ath_hal *ah, u_int modesIndex, u_int freqIndex,
 }
 
 /*
+ * Fix on 2.4 GHz band for orientation sensitivity issue by increasing
+ * rf_pwd_icsyndiv.
+ * 
+ * Theoretical Rules:
+ *   if 2 GHz band
+ *      if forceBiasAuto
+ *         if synth_freq < 2412
+ *            bias = 0
+ *         else if 2412 <= synth_freq <= 2422
+ *            bias = 1
+ *         else // synth_freq > 2422
+ *            bias = 2
+ *      else if forceBias > 0
+ *         bias = forceBias & 7
+ *      else
+ *         no change, use value from ini file
+ *   else
+ *      no change, invalid band
+ *
+ *  1st Mod:
+ *    2422 also uses value of 2
+ *    <approved>
+ *
+ *  2nd Mod:
+ *    Less than 2412 uses value of 0, 2412 and above uses value of 2
+ */
+static void
+ar2133ForceBias(struct ath_hal *ah, uint16_t synth_freq)
+{
+        uint32_t tmp_reg;
+        int reg_writes = 0;
+        uint32_t new_bias = 0;
+	struct ar2133State *priv = AR2133(ah);
+
+	/* XXX this is a bit of a silly check for 2.4ghz channels -adrian */
+        if (synth_freq >= 3000)
+                return;
+
+        if (synth_freq < 2412)
+                new_bias = 0;
+        else if (synth_freq < 2422)
+                new_bias = 1;
+        else
+                new_bias = 2;
+
+        /* pre-reverse this field */
+        tmp_reg = ath_hal_reverseBits(new_bias, 3);
+
+        HALDEBUG(ah, HAL_DEBUG_ANY, "%s: Force rf_pwd_icsyndiv to %1d on %4d\n",
+                  __func__, new_bias, synth_freq);
+
+        /* swizzle rf_pwd_icsyndiv */
+        ar5416ModifyRfBuffer(priv->Bank6Data, tmp_reg, 3, 181, 3);
+
+        /* write Bank 6 with new params */
+        ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank6, priv->Bank6Data, reg_writes);
+}
+
+/*
  * Take the MHz channel value and set the Channel value
  *
  * ASSUMES: Writes enabled to analog bus
@@ -124,6 +183,10 @@ ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		    __func__, freq);
 		return AH_FALSE;
 	}
+
+	/* Workaround for hw bug - AR5416 specific */
+	if (AR_SREV_OWL(ah))
+		ar2133ForceBias(ah, freq);
 
 	reg32 = (channelSel << 8) | (aModeRefSel << 2) | (bModeSynth << 1) |
 		(1 << 5) | 0x1;

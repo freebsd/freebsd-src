@@ -777,7 +777,7 @@ cpu_initclocks(void)
 	
         error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
 	    clkintr, NULL, NULL,
-	    INTR_TYPE_CLK | INTR_FAST, &time_irq);
+	    INTR_TYPE_CLK, &time_irq);
 	if (error)
 		panic("failed to register clock interrupt\n");
 	/* should fast clock be enabled ? */
@@ -796,7 +796,7 @@ ap_cpu_initclocks(int cpu)
 			   &xen_set_periodic_tick);
         error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
 	    clkintr, NULL, NULL,
-	    INTR_TYPE_CLK | INTR_FAST, &time_irq);
+	    INTR_TYPE_CLK, &time_irq);
 	if (error)
 		panic("failed to register clock interrupt\n");
 

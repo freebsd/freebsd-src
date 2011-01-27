@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -100,7 +99,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
 	if (!VM_OBJECT_TRYLOCK(object) &&
-	    !vm_pageout_fallback_object_lock(m, next)) {
+	    (!vm_pageout_fallback_object_lock(m, next) || m->hold_count != 0)) {
 		vm_page_unlock(m);
 		VM_OBJECT_UNLOCK(object);
 		return (EAGAIN);
@@ -111,7 +110,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 		return (EBUSY);
 	}
 	vm_page_test_dirty(m);
-	if (m->dirty == 0 && m->hold_count == 0)
+	if (m->dirty == 0)
 		pmap_remove_all(m);
 	if (m->dirty != 0) {
 		vm_page_unlock(m);
@@ -146,8 +145,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 			return (0);
 		}
 	} else {
-		if (m->hold_count == 0)
-			vm_page_cache(m);
+		vm_page_cache(m);
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(object);
@@ -171,7 +169,7 @@ vm_contig_launder(int queue, vm_paddr_t low, vm_paddr_t high)
 		if (pa < low || pa + PAGE_SIZE > high)
 			continue;
 
-		if (!vm_pageout_page_lock(m, &next)) {
+		if (!vm_pageout_page_lock(m, &next) || m->hold_count != 0) {
 			vm_page_unlock(m);
 			continue;
 		}

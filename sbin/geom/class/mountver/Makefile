@@ -2,6 +2,6 @@
 
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	mountver
+GEOM_CLASS=	mountver
 
 .include <bsd.lib.mk>

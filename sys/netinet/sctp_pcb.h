@@ -276,6 +276,7 @@ struct sctp_pcb {
 	uint32_t sctp_sws_receiver;
 
 	uint32_t sctp_default_cc_module;
+	uint32_t sctp_default_ss_module;
 	/* authentication related fields */
 	struct sctp_keyhead shared_keys;
 	sctp_auth_chklist_t *local_auth_chunks;
@@ -316,7 +317,7 @@ struct sctp_pcb {
 	uint32_t initial_sequence_debug;
 	uint32_t adaptation_layer_indicator;
 	uint32_t store_at;
-	uint8_t max_burst;
+	uint32_t max_burst;
 	char current_secret_number;
 	char last_secret_number;
 };

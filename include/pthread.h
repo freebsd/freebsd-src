@@ -135,15 +135,6 @@ enum pthread_mutextype {
 
 #define PTHREAD_MUTEX_DEFAULT		PTHREAD_MUTEX_ERRORCHECK
 
-enum pthread_rwlocktype_np
-{
-	PTHREAD_RWLOCK_PREFER_READER_NP,
-	PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP,
-	PTHREAD_RWLOCK_PREFER_WRITER_NP,
-	PTHREAD_RWLOCK_DEFAULT_NP =
-		PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP
-};
-
 struct _pthread_cleanup_info {
 	__uintptr_t	pthread_cleanup_pad[8];
 };

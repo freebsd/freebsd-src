@@ -44,3 +44,5 @@ __FBSDID("$FreeBSD$");
  */
 
 RSYSCALL(sigreturn)
+
+	.section .note.GNU-stack,"",%progbits

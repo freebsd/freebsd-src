@@ -125,6 +125,9 @@ sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS)
 	struct vm_freelist *fl;
 	int error, flind, oind, pind;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	for (flind = 0; flind < vm_nfreelists; flind++) {
 		sbuf_printf(&sbuf, "\nFREE LIST %d:\n"
@@ -161,6 +164,9 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 	struct vm_phys_seg *seg;
 	int error, segind;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		sbuf_printf(&sbuf, "\nSEGMENT %d:\n\n", segind);
@@ -187,8 +193,11 @@ sysctl_vm_phys_lookup_lists(SYSCTL_HANDLER_ARGS)
 	struct sbuf sbuf;
 	int domain, error, flind, ndomains;
 
-	ndomains = vm_nfreelists - VM_NFREELIST + 1;
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	ndomains = vm_nfreelists - VM_NFREELIST + 1;
 	for (domain = 0; domain < ndomains; domain++) {
 		sbuf_printf(&sbuf, "\nDOMAIN %d:\n\n", domain);
 		for (flind = 0; flind < vm_nfreelists; flind++)
@@ -385,6 +394,7 @@ vm_phys_add_page(vm_paddr_t pa)
 	cnt.v_page_count++;
 	m = vm_phys_paddr_to_vm_page(pa);
 	m->phys_addr = pa;
+	m->queue = PQ_NONE;
 	m->segind = vm_phys_paddr_to_segind(pa);
 	m->flags = PG_FREE;
 	KASSERT(m->order == VM_NFREEORDER,

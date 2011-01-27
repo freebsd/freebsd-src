@@ -125,7 +125,7 @@ set_regs32(struct thread *td, struct reg32 *regs)
 	tp->tf_fs = regs->r_fs;
 	tp->tf_es = regs->r_es;
 	tp->tf_ds = regs->r_ds;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 	tp->tf_flags = TF_HASSEGS;
 	tp->tf_rdi = regs->r_edi;
 	tp->tf_rsi = regs->r_esi;

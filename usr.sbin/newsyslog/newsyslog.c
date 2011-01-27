@@ -599,7 +599,7 @@ parse_args(int argc, char **argv)
 		*p = '\0';
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:d:f:nrst:vCD:FNPR:")) != -1)
+	while ((ch = getopt(argc, argv, "a:d:f:nrst:vCD:FNPR:S:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;

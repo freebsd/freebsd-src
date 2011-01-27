@@ -27,6 +27,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platform support
 options 	POWERMAC		#NewWorld Apple PowerMacs
+options		PS3			#Sony Playstation 3
 options		MAMBO			#IBM Mambo Full System Simulator
 
 options 	SCHED_ULE		#ULE scheduler
@@ -119,6 +120,9 @@ makeoptions	SC_DFLT_FONT=cp437
 # Serial (COM) ports
 device		scc
 device		uart
+
+# Ethernet hardware
+device		glc		# Sony Playstation 3 Ethernet
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support

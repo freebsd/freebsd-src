@@ -257,6 +257,7 @@ struct region_descriptor {
 #ifdef _KERNEL
 extern int	_default_ldt;
 #ifdef XEN
+extern struct proc_ldt default_proc_ldt;
 extern union descriptor *gdt;
 extern union descriptor *ldt;
 #else

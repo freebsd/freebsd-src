@@ -106,7 +106,8 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(MPLOCKED OP			\
 	: "=m" (*p)					\
-	: CONS (V), "m" (*p));				\
+	: CONS (V), "m" (*p)				\
+	: "cc");					\
 }							\
 							\
 static __inline void					\
@@ -115,7 +116,7 @@ atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	__asm __volatile(MPLOCKED OP			\
 	: "=m" (*p)					\
 	: CONS (V), "m" (*p)				\
-	: "memory");					\
+	: "memory", "cc");				\
 }							\
 struct __hack
 
@@ -172,7 +173,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	: "r" (src),			/* 2 */
 	  "a" (expect),			/* 3 */
 	  "m" (*dst)			/* 4 */
-	: "memory");
+	: "memory", "cc");
 
 	return (res);
 }
@@ -193,8 +194,8 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 	"# atomic_fetchadd_int"
 	: "+r" (v),			/* 0 (result) */
 	  "=m" (*p)			/* 1 */
-	: "m" (*p));			/* 2 */
-
+	: "m" (*p)			/* 2 */
+	: "cc");
 	return (v);
 }
 
@@ -238,7 +239,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	: "=a" (res),			/* 0 */		\
 	  "=m" (*p)			/* 1 */		\
 	: "m" (*p)			/* 2 */		\
-	: "memory");					\
+	: "memory", "cc");				\
 							\
 	return (res);					\
 }							\

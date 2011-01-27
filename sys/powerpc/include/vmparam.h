@@ -35,7 +35,7 @@
 #ifndef _MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_
 
-#define	USRSTACK	VM_MAXUSER_ADDRESS
+#define	USRSTACK	SHAREDPAGE
 
 #ifndef	MAXTSIZ
 #define	MAXTSIZ		(64*1024*1024)		/* max text size */
@@ -58,27 +58,18 @@
 #endif
 
 /*
- * The time for a process to be blocked before being very swappable.
- * This is a number of seconds which the system takes as being a non-trivial
- * amount of real time.  You probably shouldn't change this;
- * it is used in subtle ways (fractions and multiples of it are, that is, like
- * half of a ``long time'', almost a long time, etc.)
- * It is related to human patience and other factors which don't really
- * change over time.
- */
-#define	MAXSLP 		20
-
-/*
  * Would like to have MAX addresses = 0, but this doesn't (currently) work
  */
 #if !defined(LOCORE)
 #ifdef __powerpc64__
 #define	VM_MIN_ADDRESS		(0x0000000000000000UL)
 #define	VM_MAXUSER_ADDRESS	(0x7ffffffffffff000UL)
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
 #else
 #define	VM_MIN_ADDRESS		((vm_offset_t)0)
 #define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x7ffff000)
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #define	VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS
 #endif
 #else /* LOCORE */
@@ -88,8 +79,8 @@
 #endif
 #endif /* LOCORE */
 
-#define	FREEBSD32_USRSTACK	0x7ffff000
-
+#define	FREEBSD32_SHAREDPAGE	(0x7ffff000 - PAGE_SIZE)
+#define	FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE
 
 #ifdef AIM
 #define	KERNBASE		0x00100000UL	/* start of kernel virtual */
@@ -140,9 +131,14 @@ struct pmap_physseg {
 #define	VM_PHYSSEG_MAX		16	/* 1? */
 
 /*
- * The physical address space is densely populated.
+ * The physical address space is densely populated on 32-bit systems,
+ * but may not be on 64-bit ones.
  */
+#ifdef __powerpc64__
+#define	VM_PHYSSEG_SPARSE
+#else
 #define	VM_PHYSSEG_DENSE
+#endif
 
 /*
  * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool

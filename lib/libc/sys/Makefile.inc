@@ -53,14 +53,23 @@ SYM_MAPS+=	${.CURDIR}/sys/Symbol.map
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
 
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "powerpc"
+NOTE_GNU_STACK='\t.section .note.GNU-stack,"",%%progbits\n'
+.else
+NOTE_GNU_STACK=''
+.endif
+
 ${SASM}:
 	printf '#include "compat.h"\n' > ${.TARGET}
 	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' >> ${.TARGET}
+	printf  ${NOTE_GNU_STACK} >>${.TARGET}
 
 ${SPSEUDO}:
 	printf '#include "compat.h"\n' > ${.TARGET}
 	printf '#include "SYS.h"\nPSEUDO(${.PREFIX:S/_//})\n' \
 	    >> ${.TARGET}
+	printf ${NOTE_GNU_STACK} >>${.TARGET}
 
 MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \

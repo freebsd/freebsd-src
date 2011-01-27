@@ -622,9 +622,9 @@ SYSCTL_NODE(_debug_softdep, OID_AUTO, current, CTLFLAG_RW, 0,
 
 #define	SOFTDEP_TYPE(type, str, long)					\
     static MALLOC_DEFINE(M_ ## type, #str, long);			\
-    SYSCTL_LONG(_debug_softdep_total, OID_AUTO, str, CTLFLAG_RD,	\
+    SYSCTL_ULONG(_debug_softdep_total, OID_AUTO, str, CTLFLAG_RD,	\
 	&dep_total[D_ ## type], 0, "");					\
-    SYSCTL_LONG(_debug_softdep_current, OID_AUTO, str, CTLFLAG_RD, 	\
+    SYSCTL_ULONG(_debug_softdep_current, OID_AUTO, str, CTLFLAG_RD, 	\
 	&dep_current[D_ ## type], 0, "");
 
 SOFTDEP_TYPE(PAGEDEP, pagedep, "File page dependencies"); 
@@ -690,6 +690,8 @@ static struct malloc_type *memtype[] = {
 	M_SBDEP,
 	M_JTRUNC
 };
+
+static LIST_HEAD(mkdirlist, mkdir) mkdirlisthd;
 
 #define DtoM(type) (memtype[type])
 
@@ -874,8 +876,8 @@ static	struct jfreeblk *newjfreeblk(struct freeblks *, ufs_lbn_t,
 	    ufs2_daddr_t, int);
 static	struct jfreefrag *newjfreefrag(struct freefrag *, struct inode *,
 	    ufs2_daddr_t, long, ufs_lbn_t);
-static	struct freework *newfreework(struct freeblks *, struct freework *, 
-	    ufs_lbn_t, ufs2_daddr_t, int, int);
+static	struct freework *newfreework(struct ufsmount *, struct freeblks *,
+	    struct freework *, ufs_lbn_t, ufs2_daddr_t, int, int);
 static	void jwait(struct worklist *wk);
 static	struct inodedep *inodedep_lookup_ip(struct inode *);
 static	int bmsafemap_rollbacks(struct bmsafemap *);
@@ -3365,7 +3367,8 @@ free_freedep(freedep)
  * is visible outside of softdep_setup_freeblocks().
  */
 static struct freework *
-newfreework(freeblks, parent, lbn, nb, frags, journal)
+newfreework(ump, freeblks, parent, lbn, nb, frags, journal)
+	struct ufsmount *ump;
 	struct freeblks *freeblks;
 	struct freework *parent;
 	ufs_lbn_t lbn;
@@ -3382,7 +3385,8 @@ newfreework(freeblks, parent, lbn, nb, frags, journal)
 	freework->fw_lbn = lbn;
 	freework->fw_blkno = nb;
 	freework->fw_frags = frags;
-	freework->fw_ref = 0;
+	freework->fw_ref = ((UFSTOVFS(ump)->mnt_kern_flag & MNTK_SUJ) == 0 ||
+	    lbn >= -NXADDR) ? 0 : NINDIR(ump->um_fs) + 1;
 	freework->fw_off = 0;
 	LIST_INIT(&freework->fw_jwork);
 
@@ -5197,15 +5201,16 @@ softdep_setup_freeblocks(ip, length, flags)
 				continue;
 			frags = sblksize(fs, oldsize, i);
 			frags = numfrags(fs, frags);
-			newfreework(freeblks, NULL, i, blkno, frags, needj);
+			newfreework(ip->i_ump, freeblks, NULL, i, blkno, frags,
+			    needj);
 		}
 		for (i = 0, tmpval = NINDIR(fs), lbn = NDADDR; i < NIADDR;
 		    i++, tmpval *= NINDIR(fs)) {
 			blkno = DIP(ip, i_ib[i]);
 			DIP_SET(ip, i_ib[i], 0);
-			if (blkno) 
-				newfreework(freeblks, NULL, -lbn - i, blkno,
-				    fs->fs_frag, needj);
+			if (blkno)
+				newfreework(ip->i_ump, freeblks, NULL, -lbn - i,
+				    blkno, fs->fs_frag, needj);
 			lbn += tmpval;
 		}
 		UFS_LOCK(ip->i_ump);
@@ -5223,8 +5228,8 @@ softdep_setup_freeblocks(ip, length, flags)
 				continue;
 			frags = sblksize(fs, oldextsize, i);
 			frags = numfrags(fs, frags);
-			newfreework(freeblks, NULL, -1 - i, blkno, frags,
-			    needj);
+			newfreework(ip->i_ump, freeblks, NULL, -1 - i, blkno,
+			    frags, needj);
 		}
 	}
 	if (LIST_EMPTY(&freeblks->fb_jfreeblkhd))
@@ -6138,25 +6143,26 @@ indir_trunc(freework, dbn, lbn)
 		ufs1fmt = 0;
 		bap2 = (ufs2_daddr_t *)bp->b_data;
 	}
+
 	/*
 	 * Reclaim indirect blocks which never made it to disk.
 	 */
 	cnt = 0;
 	LIST_FOREACH_SAFE(wk, &wkhd, wk_list, wkn) {
-		struct workhead freewk;
 		if (wk->wk_type != D_JNEWBLK)
 			continue;
-		WORKLIST_REMOVE_UNLOCKED(wk);
-		LIST_INIT(&freewk);
-		WORKLIST_INSERT_UNLOCKED(&freewk, wk);
+		ACQUIRE_LOCK(&lk);
+		WORKLIST_REMOVE(wk);
+		FREE_LOCK(&lk);
 		jnewblk = WK_JNEWBLK(wk);
 		if (jnewblk->jn_lbn > 0)
 			i = (jnewblk->jn_lbn - -lbn) / lbnadd;
 		else
-			i = (jnewblk->jn_lbn - (lbn + 1)) / lbnadd;
+			i = (-(jnewblk->jn_lbn + level - 1) - -(lbn + level)) /
+			    lbnadd;
 		KASSERT(i >= 0 && i < NINDIR(fs),
-		    ("indir_trunc: Index out of range %d parent %jd lbn %jd",
-		    i, lbn, jnewblk->jn_lbn));
+		    ("indir_trunc: Index out of range %d parent %jd lbn %jd level %d",
+		    i, lbn, jnewblk->jn_lbn, level));
 		/* Clear the pointer so it isn't found below. */
 		if (ufs1fmt) {
 			nb = bap1[i];
@@ -6168,13 +6174,29 @@ indir_trunc(freework, dbn, lbn)
 		KASSERT(nb == jnewblk->jn_blkno,
 		    ("indir_trunc: Block mismatch %jd != %jd",
 		    nb, jnewblk->jn_blkno));
-		ffs_blkfree(ump, fs, freeblks->fb_devvp, jnewblk->jn_blkno,
-		    fs->fs_bsize, freeblks->fb_previousinum, &freewk);
+		if (level != 0) {
+			ufs_lbn_t nlbn;
+
+			nlbn = (lbn + 1) - (i * lbnadd);
+			nfreework = newfreework(ump, freeblks, freework,
+			    nlbn, nb, fs->fs_frag, 0);
+			WORKLIST_INSERT_UNLOCKED(&nfreework->fw_jwork, wk);
+			freedeps++;
+			indir_trunc(nfreework, fsbtodb(fs, nb), nlbn);
+		} else {
+			struct workhead freewk;
+
+			LIST_INIT(&freewk);
+			ACQUIRE_LOCK(&lk);
+			WORKLIST_INSERT(&freewk, wk);
+			FREE_LOCK(&lk);
+			ffs_blkfree(ump, fs, freeblks->fb_devvp,
+			    jnewblk->jn_blkno, fs->fs_bsize,
+			    freeblks->fb_previousinum, &freewk);
+		}
 		cnt++;
 	}
 	ACQUIRE_LOCK(&lk);
-	if (needj)
-		freework->fw_ref += NINDIR(fs) + 1;
 	/* Any remaining journal work can be completed with freeblks. */
 	jwork_move(&freeblks->fb_jwork, &wkhd);
 	FREE_LOCK(&lk);
@@ -6203,7 +6225,7 @@ indir_trunc(freework, dbn, lbn)
 
 			nlbn = (lbn + 1) - (i * lbnadd);
 			if (needj != 0) {
-				nfreework = newfreework(freeblks, freework,
+				nfreework = newfreework(ump, freeblks, freework,
 				    nlbn, nb, fs->fs_frag, 0);
 				freedeps++;
 			}
@@ -6896,7 +6918,7 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	 * newdirrem() to setup the full directory remove which requires
 	 * isrmdir > 1.
 	 */
-	dirrem = newdirrem(bp, dp, ip, isrmdir?2:0, &prevdirrem);
+	dirrem = newdirrem(bp, dp, ip, isrmdir, &prevdirrem);
 	/*
 	 * Add the dirrem to the inodedep's pending remove list for quick
 	 * discovery later.
@@ -7130,14 +7152,12 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 			    ip->i_effnlink + 2);
 			dotremref = newjremref(dirrem, ip, ip, DOT_OFFSET,
 			    ip->i_effnlink + 1);
-		} else
-			jremref = newjremref(dirrem, dp, ip, dp->i_offset,
-			    ip->i_effnlink + 1);
-		if (isrmdir > 1) {
 			dotdotremref = newjremref(dirrem, ip, dp, DOTDOT_OFFSET,
 			    dp->i_effnlink + 1);
 			dotdotremref->jr_state |= MKDIR_PARENT;
-		}
+		} else
+			jremref = newjremref(dirrem, dp, ip, dp->i_offset,
+			    ip->i_effnlink + 1);
 	}
 	ACQUIRE_LOCK(&lk);
 	lbn = lblkno(dp->i_fs, dp->i_offset);
@@ -7162,7 +7182,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * cancel it.  Any pending journal work will be added to the dirrem
 	 * to be completed when the workitem remove completes.
 	 */
-	if (isrmdir > 1)
+	if (isrmdir)
 		dotdotremref = cancel_diradd_dotdot(ip, dirrem, dotdotremref);
 	/*
 	 * Check for a diradd dependency for the same directory entry.

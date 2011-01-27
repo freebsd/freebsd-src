@@ -56,9 +56,7 @@ static jmp_buf	hdrjmp;
 extern const char *version;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int i;
 	struct name *to, *cc, *bcc, *smopts;
@@ -305,8 +303,7 @@ Usage: %s [-dEiInv] [-s subject] [-c cc-addr] [-b bcc-addr] [-F] to-addr ...\n\
  */
 /*ARGSUSED*/
 void
-hdrstop(signo)
-	int signo;
+hdrstop(int signo __unused)
 {
 
 	(void)fflush(stdout);
@@ -323,7 +320,7 @@ hdrstop(signo)
  * Width is either 80 or ws_col;
  */
 void
-setscreensize()
+setscreensize(void)
 {
 	struct termios tbuf;
 	struct winsize ws;

@@ -191,10 +191,13 @@ enum intr_type {
 	INTR_TYPE_MISC = 16,
 	INTR_TYPE_CLK = 32,
 	INTR_TYPE_AV = 64,
-	INTR_FAST = 128,
 	INTR_EXCL = 256,		/* exclusive interrupt */
 	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */
-	INTR_ENTROPY = 1024		/* this interrupt provides entropy */
+	INTR_ENTROPY = 1024,		/* this interrupt provides entropy */
+	INTR_MD1 = 4096,		/* flag reserved for MD use */
+	INTR_MD2 = 8192,		/* flag reserved for MD use */
+	INTR_MD3 = 16384,		/* flag reserved for MD use */
+	INTR_MD4 = 32768		/* flag reserved for MD use */
 };
 
 enum intr_trigger {

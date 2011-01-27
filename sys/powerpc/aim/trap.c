@@ -389,7 +389,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		 * so as to maintain quad alignment
 		 * for the rest of the args.
 		 */
-		if (p->p_sysent->sv_flags & SV_ILP32) {
+		if (SV_PROC_FLAG(p, SV_ILP32)) {
 			params += sizeof(register_t);
 			sa->code = *(register_t *) params;
 			params += sizeof(register_t);
@@ -410,7 +410,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 
 	sa->narg = sa->callp->sy_narg;
 
-	if (p->p_sysent->sv_flags & SV_ILP32) {
+	if (SV_PROC_FLAG(p, SV_ILP32)) {
 		argsz = sizeof(uint32_t);
 
 		for (i = 0; i < n; i++)
@@ -430,7 +430,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		error = 0;
 
 #ifdef __powerpc64__
-	if (p->p_sysent->sv_flags & SV_ILP32 && sa->narg > n) {
+	if (SV_PROC_FLAG(p, SV_ILP32) && sa->narg > n) {
 		/* Expand the size of arguments copied from the stack */
 
 		for (i = sa->narg; i >= n; i--)
@@ -523,7 +523,9 @@ trap_pfault(struct trapframe *frame, int user)
 	p = td->td_proc;
 	if (frame->exc == EXC_ISI) {
 		eva = frame->srr0;
-		ftype = VM_PROT_READ | VM_PROT_EXECUTE;
+		ftype = VM_PROT_EXECUTE;
+		if (frame->srr1 & SRR1_ISI_PFAULT)
+			ftype |= VM_PROT_READ;
 	} else {
 		eva = frame->cpu.aim.dar;
 		if (frame->cpu.aim.dsisr & DSISR_STORE)

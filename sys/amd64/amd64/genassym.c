@@ -145,22 +145,22 @@ ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
 ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
 ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
+ASSYM(PCB_GDT, offsetof(struct pcb, pcb_gdt));
+ASSYM(PCB_IDT, offsetof(struct pcb, pcb_idt));
+ASSYM(PCB_LDT, offsetof(struct pcb, pcb_ldt));
+ASSYM(PCB_TR, offsetof(struct pcb, pcb_tr));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_GS32SD, offsetof(struct pcb, pcb_gs32sd));
 ASSYM(PCB_TSSP, offsetof(struct pcb, pcb_tssp));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
 ASSYM(PCB_SAVEFPU_SIZE, sizeof(struct savefpu));
-ASSYM(PCB_FULL_IRET, offsetof(struct pcb, pcb_full_iret));
-ASSYM(PCB_GDT, offsetof(struct pcb, pcb_gdt));
-ASSYM(PCB_IDT, offsetof(struct pcb, pcb_idt));
-ASSYM(PCB_LDT, offsetof(struct pcb, pcb_ldt));
-ASSYM(PCB_TR, offsetof(struct pcb, pcb_tr));
 ASSYM(PCB_USERFPU, offsetof(struct pcb, pcb_user_save));
 ASSYM(PCB_SIZE, sizeof(struct pcb));
+ASSYM(PCB_FULL_IRET, PCB_FULL_IRET);
 ASSYM(PCB_DBREGS, PCB_DBREGS);
-ASSYM(PCB_32BIT, PCB_32BIT);
 ASSYM(PCB_GS32BIT, PCB_GS32BIT);
+ASSYM(PCB_32BIT, PCB_32BIT);
 
 ASSYM(COMMON_TSS_RSP0, offsetof(struct amd64tss, tss_rsp0));
 

@@ -506,7 +506,7 @@ library_path(void)
 
 	path = getenv("GEOM_LIBRARY_PATH");
 	if (path == NULL)
-		path = CLASS_DIR;
+		path = GEOM_CLASS_DIR;
 	return (path);
 }
 

@@ -80,6 +80,7 @@ extern volatile sig_atomic_t intpending;
 
 void exraise(int) __dead2;
 void onint(void);
+void warning(const char *, ...) __printflike(1, 2);
 void error(const char *, ...) __printf0like(1, 2) __dead2;
 void exerror(int, const char *, ...) __printf0like(2, 3) __dead2;
 

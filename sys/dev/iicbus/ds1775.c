@@ -172,6 +172,7 @@ ds1775_start(void *xdev)
 	struct ds1775_sensor *sens;
 	struct sysctl_oid *sensroot_oid;
 	struct sysctl_ctx_list *ctx;
+	ssize_t plen;
 	int i;
 	char sysctl_name[40], sysctl_desc[40];
 	const char *units;
@@ -190,16 +191,20 @@ ds1775_start(void *xdev)
 	ctx = device_get_sysctl_ctx(dev);
 	sensroot_oid = device_get_sysctl_tree(dev);
 
-	OF_getprop(child, "hwsensor-location", sens->location,
-		   sizeof(sens->location));
+	plen = OF_getprop(child, "hwsensor-location", sens->location,
+			  sizeof(sens->location));
 	units = "C";
 
-	for (i = 0; i < strlen(sens->location); i++) {
-		sysctl_name[i] = tolower(sens->location[i]);
-		if (isspace(sysctl_name[i]))
-			sysctl_name[i] = '_';
+	if (plen == -1) {
+		strcpy(sysctl_name, "sensor");
+	} else {
+		for (i = 0; i < strlen(sens->location); i++) {
+			sysctl_name[i] = tolower(sens->location[i]);
+			if (isspace(sysctl_name[i]))
+				sysctl_name[i] = '_';
+		}
+		sysctl_name[i] = 0;
 	}
-	sysctl_name[i] = 0;
 
 	sprintf(sysctl_desc,"%s (%s)", sens->location, units);
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(sensroot_oid), OID_AUTO,

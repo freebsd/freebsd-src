@@ -476,7 +476,7 @@ devstat_alloc(void)
 
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 	if (!once) {
-		make_dev(&devstat_cdevsw, 0,
+		make_dev_credf(MAKEDEV_ETERNAL, &devstat_cdevsw, 0, NULL,
 		    UID_ROOT, GID_WHEEL, 0400, DEVSTAT_DEVICE_NAME);
 		once = 1;
 	}

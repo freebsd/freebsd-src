@@ -167,7 +167,7 @@ void	cal(void);
 void	closecal(FILE *);
 FILE	*opencal(void);
 
-/* ostern.c / pashka.c */
+/* ostern.c / paskha.c */
 int	paskha(int);
 int	easter(int);
 

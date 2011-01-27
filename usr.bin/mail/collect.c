@@ -70,9 +70,7 @@ static	int	colljmp_p;		/* whether to long jump */
 static	jmp_buf	collabort;		/* To end collection with error */
 
 FILE *
-collect(hp, printheaders)
-	struct header *hp;
-	int printheaders;
+collect(struct header *hp, int printheaders)
 {
 	FILE *fbuf;
 	int lc, cc, escape, eofcount, fd, c, t;
@@ -495,10 +493,7 @@ out:
  * Write a file, ex-like if f set.
  */
 int
-exwrite(name, fp, f)
-	char name[];
-	FILE *fp;
-	int f;
+exwrite(char name[], FILE *fp, int f)
 {
 	FILE *of;
 	int c, lc;
@@ -543,9 +538,7 @@ exwrite(name, fp, f)
  * On return, make the edit file the new temp file.
  */
 void
-mesedit(fp, c)
-	FILE *fp;
-	int c;
+mesedit(FILE *fp, int c)
 {
 	sig_t sigint = signal(SIGINT, SIG_IGN);
 	FILE *nf = run_editor(fp, (off_t)-1, c, 0);
@@ -565,9 +558,7 @@ mesedit(fp, c)
  * Sh -c must return 0 to accept the new message.
  */
 void
-mespipe(fp, cmd)
-	FILE *fp;
-	char cmd[];
+mespipe(FILE *fp, char cmd[])
 {
 	FILE *nf;
 	int fd;
@@ -617,11 +608,7 @@ out:
  * should shift over and 'f' if not.
  */
 int
-forward(ms, fp, fn, f)
-	char ms[];
-	FILE *fp;
-	char *fn;
-	int f;
+forward(char ms[], FILE *fp, char *fn, int f)
 {
 	int *msgvec;
 	struct ignoretab *ig;
@@ -665,8 +652,7 @@ forward(ms, fp, fn, f)
  */
 /*ARGSUSED*/
 void
-collstop(s)
-	int s;
+collstop(int s)
 {
 	sig_t old_action = signal(s, SIG_DFL);
 	sigset_t nset;
@@ -690,8 +676,7 @@ collstop(s)
  */
 /*ARGSUSED*/
 void
-collint(s)
-	int s;
+collint(int s __unused)
 {
 	/*
 	 * the control flow is subtle, because we can be called from ~q.
@@ -714,8 +699,7 @@ collint(s)
 
 /*ARGSUSED*/
 void
-collhup(s)
-	int s;
+collhup(int s __unused)
 {
 	rewind(collf);
 	savedeadletter(collf);
@@ -727,8 +711,7 @@ collhup(s)
 }
 
 void
-savedeadletter(fp)
-	FILE *fp;
+savedeadletter(FILE *fp)
 {
 	FILE *dbuf;
 	int c;

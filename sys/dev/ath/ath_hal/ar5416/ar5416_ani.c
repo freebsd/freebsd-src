@@ -181,8 +181,9 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	case HAL_ANI_NOISE_IMMUNITY_LEVEL: {
 		u_int level = param;
 
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_NOISE_IMMUNITY_LEVEL: set level = %d\n", __func__, level);
 		if (level >= params->maxNoiseImmunityLevel) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
+			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: immunity level out of range (%u > %u)\n",
 			    __func__, level, params->maxNoiseImmunityLevel);
 			return AH_FALSE;
@@ -213,6 +214,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		static const TABLE m2CountThrLow = {  63,   48 };
 		u_int on = param ? 1 : 0;
 
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION: %s\n", __func__, on ? "enabled" : "disabled");
 		OS_REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
 			AR_PHY_SFCORR_LOW_M1_THRESH_LOW, m1ThreshLow[on]);
 		OS_REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
@@ -253,6 +255,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		static const TABLE weakSigThrCck = { 8, 6 };
 		u_int high = param ? 1 : 0;
 
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_CCK_WEAK_SIGNAL_THR: %s\n", __func__, high ? "high" : "low");
 		OS_REG_RMW_FIELD(ah, AR_PHY_CCK_DETECT,
 		    AR_PHY_CCK_DETECT_WEAK_SIG_THR_CCK, weakSigThrCck[high]);
 		if (high)
@@ -265,8 +268,9 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	case HAL_ANI_FIRSTEP_LEVEL: {
 		u_int level = param;
 
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_FIRSTEP_LEVEL: level = %d\n", __func__, level);
 		if (level >= params->maxFirstepLevel) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
+			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: firstep level out of range (%u > %u)\n",
 			    __func__, level, params->maxFirstepLevel);
 			return AH_FALSE;
@@ -283,8 +287,9 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	case HAL_ANI_SPUR_IMMUNITY_LEVEL: {
 		u_int level = param;
 
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_SPUR_IMMUNITY_LEVEL: level = %d\n", __func__, level);
 		if (level >= params->maxSpurImmunityLevel) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
+			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: spur immunity level out of range (%u > %u)\n",
 			    __func__, level, params->maxSpurImmunityLevel);
 			return AH_FALSE;
@@ -326,7 +331,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		break;
 #endif /* AH_PRIVATE_DIAG */
 	default:
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid cmd %u\n",
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: invalid cmd %u\n",
 		    __func__, cmd);
 		return AH_FALSE;
 	}
@@ -793,20 +798,25 @@ updateMIBStats(struct ath_hal *ah, struct ar5212AniState *aniState)
 	aniState->cckPhyErrCount = cckPhyErrCnt;
 }
 
+void
+ar5416RxMonitor(struct ath_hal *ah, const HAL_NODE_STATS *stats,
+		const struct ieee80211_channel *chan)
+{
+	struct ath_hal_5212 *ahp = AH5212(ah);
+	ahp->ah_stats.ast_nodestats.ns_avgbrssi = stats->ns_avgbrssi;
+}
+
 /*
  * Do periodic processing.  This routine is called from the
  * driver's rx interrupt handler after processing frames.
  */
 void
-ar5416AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
-		const struct ieee80211_channel *chan)
+ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState = ahp->ah_curani;
 	const struct ar5212AniParams *params;
 	int32_t listenTime;
-
-	ahp->ah_stats.ast_nodestats.ns_avgbrssi = stats->ns_avgbrssi;
 
 	/* XXX can aniState be null? */
 	if (aniState == AH_NULL)

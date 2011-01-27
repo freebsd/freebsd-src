@@ -178,7 +178,9 @@ snmp_pdu_create_response(struct snmp_pdu *pdu, struct snmp_pdu *resp)
 	if (resp->version != SNMP_V3)
 		return;
 
-	snmp_pdu_init_secparams(resp, &pdu->engine, &pdu->user);
+	memcpy(&resp->engine, &pdu->engine, sizeof(pdu->engine));
+	memcpy(&resp->user, &pdu->user, sizeof(pdu->user));
+	snmp_pdu_init_secparams(resp);
 	resp->identifier = pdu->identifier;
 	resp->security_model = pdu->security_model;
 	resp->context_engine_len = pdu->context_engine_len;

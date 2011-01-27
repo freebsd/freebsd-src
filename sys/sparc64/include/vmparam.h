@@ -66,17 +66,6 @@
 #endif
 
 /*
- * The time for a process to be blocked before being very swappable.
- * This is a number of seconds which the system takes as being a non-trivial
- * amount of real time.  You probably shouldn't change this;
- * it is used in subtle ways (fractions and multiples of it are, that is, like
- * half of a ``long time'', almost a long time, etc.)
- * It is related to human patience and other factors which don't really
- * change over time.
- */
-#define	MAXSLP			20
-
-/*
  * The physical address space is sparsely populated.
  */
 #define	VM_PHYSSEG_SPARSE
@@ -240,7 +229,8 @@
  * Ceiling on amount of kmem_map kva space.
  */
 #ifndef VM_KMEM_SIZE_MAX
-#define	VM_KMEM_SIZE_MAX	(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS)
+#define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 3 / 5)
 #endif
 
 /*

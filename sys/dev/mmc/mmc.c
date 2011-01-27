@@ -448,7 +448,7 @@ mmc_send_app_op_cond(struct mmc_softc *sc, uint32_t ocr, uint32_t *rocr)
 	cmd.flags = MMC_RSP_R3 | MMC_CMD_BCR;
 	cmd.data = NULL;
 
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 1000; i++) {
 		err = mmc_wait_for_app_cmd(sc, 0, &cmd, CMD_RETRIES);
 		if (err != MMC_ERR_NONE)
 			break;
@@ -475,7 +475,7 @@ mmc_send_op_cond(struct mmc_softc *sc, uint32_t ocr, uint32_t *rocr)
 	cmd.flags = MMC_RSP_R3 | MMC_CMD_BCR;
 	cmd.data = NULL;
 
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 1000; i++) {
 		err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 		if (err != MMC_ERR_NONE)
 			break;
@@ -749,7 +749,7 @@ mmc_get_bits(uint32_t *bits, int bit_len, int start, int size)
 	uint32_t retval = bits[i] >> shift;
 	if (size + shift > 32)
 		retval |= bits[i - 1] << (32 - shift);
-	return (retval & ((1 << size) - 1));
+	return (retval & ((1llu << size) - 1));
 }
 
 static void

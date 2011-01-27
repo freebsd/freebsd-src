@@ -29,6 +29,8 @@
 # $FreeBSD$
 #
 
+#include "tc.def"
+
 typedef RowStatus ENUM (
 	1 active
 	2 notInService

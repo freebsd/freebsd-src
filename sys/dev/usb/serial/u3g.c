@@ -39,7 +39,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -416,6 +415,7 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(QUALCOMMINC, E0078, 0),
 	U3G_DEV(QUALCOMMINC, E0082, 0),
 	U3G_DEV(QUALCOMMINC, E0086, 0),
+	U3G_DEV(QUALCOMMINC, SURFSTICK, 0),
 	U3G_DEV(QUALCOMMINC, E2002, 0),
 	U3G_DEV(QUALCOMMINC, E2003, 0),
 	U3G_DEV(QUALCOMMINC, MF626, 0),

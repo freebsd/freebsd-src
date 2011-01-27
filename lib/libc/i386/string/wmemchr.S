@@ -104,3 +104,5 @@ no:	xorl	%eax,%eax
 	popl	%edi
 	ret
 END(wmemchr)
+
+	.section .note.GNU-stack,"",%progbits

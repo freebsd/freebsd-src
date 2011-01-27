@@ -70,17 +70,6 @@
 #endif
 
 /*
- * The time for a process to be blocked before being very swappable.
- * This is a number of seconds which the system takes as being a non-trivial
- * amount of real time.  You probably shouldn't change this;
- * it is used in subtle ways (fractions and multiples of it are, that is, like
- * half of a ``long time'', almost a long time, etc.)
- * It is related to human patience and other factors which don't really
- * change over time.
- */
-#define	MAXSLP 		20
-
-/*
  * We provide a machine specific single page allocator through the use
  * of the direct mapped segment.  This uses 2MB pages for reduced
  * TLB pressure.
@@ -186,7 +175,8 @@
 
 #define	VM_MAXUSER_ADDRESS	UVADDR(NUPML4E, 0, 0, 0)
 
-#define	USRSTACK		VM_MAXUSER_ADDRESS
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	USRSTACK		SHAREDPAGE
 
 #define	VM_MAX_ADDRESS		UPT_MAX_ADDRESS
 #define	VM_MIN_ADDRESS		(0)

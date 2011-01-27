@@ -18,11 +18,10 @@
 #
 # $FreeBSD$
 
-cpu		CPU_CNMIPS
 ident		OCTEON1
 
 makeoptions	ARCH_FLAGS="-march=octeon -mabi=64"
-makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1.64
+makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1
 
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
@@ -177,6 +176,9 @@ device		uart		# Generic UART driver
 # On-board Cavium Octeon Ethernet.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		octe
+
+# Cavium Octeon management Ethernet.
+device		octm
 
 # Switch PHY support for the octe driver.  These currently present a VLAN per
 # physical port, but may eventually provide support for DSA or similar instead.

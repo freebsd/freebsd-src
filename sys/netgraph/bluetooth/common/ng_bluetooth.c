@@ -114,7 +114,7 @@ SYSCTL_PROC(_net_bluetooth_hci, OID_AUTO, connection_timeout,
 	bluetooth_set_hci_connect_timeout_value,
 	"I", "HCI connect timeout (sec)");
 
-SYSCTL_INT(_net_bluetooth_hci, OID_AUTO, max_neighbor_age, CTLFLAG_RW,
+SYSCTL_UINT(_net_bluetooth_hci, OID_AUTO, max_neighbor_age, CTLFLAG_RW,
 	&bluetooth_hci_max_neighbor_age_value, 600,
 	"Maximal HCI neighbor cache entry age (sec)");
 

@@ -1946,8 +1946,8 @@ static void
 ttyconsdev_init(void *unused)
 {
 
-	dev_console = make_dev(&ttyconsdev_cdevsw, 0, UID_ROOT, GID_WHEEL,
-	    0600, "console");
+	dev_console = make_dev_credf(MAKEDEV_ETERNAL, &ttyconsdev_cdevsw, 0,
+	    NULL, UID_ROOT, GID_WHEEL, 0600, "console");
 }
 
 SYSINIT(tty, SI_SUB_DRIVERS, SI_ORDER_FIRST, ttyconsdev_init, NULL);

@@ -52,9 +52,7 @@ __FBSDID("$FreeBSD$");
  * mail is queued).
  */
 void
-findmail(user, buf, buflen)
-	char *user, *buf;
-	int buflen;
+findmail(char *user, char *buf, int buflen)
 {
 	char *tmp = getenv("MAIL");
 
@@ -68,7 +66,7 @@ findmail(user, buf, buflen)
  * Get rid of the queued mail.
  */
 void
-demail()
+demail(void)
 {
 
 	if (value("keep") != NULL || rm(mailname) < 0)
@@ -79,7 +77,7 @@ demail()
  * Discover user login name.
  */
 char *
-username()
+username(void)
 {
 	char *np;
 	uid_t uid;

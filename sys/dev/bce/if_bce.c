@@ -507,14 +507,14 @@ SYSCTL_NODE(_hw, OID_AUTO, bce, CTLFLAG_RD, 0, "bce driver parameters");
 /* Allowable values are TRUE or FALSE */
 static int bce_tso_enable = TRUE;
 TUNABLE_INT("hw.bce.tso_enable", &bce_tso_enable);
-SYSCTL_UINT(_hw_bce, OID_AUTO, tso_enable, CTLFLAG_RDTUN, &bce_tso_enable, 0,
+SYSCTL_INT(_hw_bce, OID_AUTO, tso_enable, CTLFLAG_RDTUN, &bce_tso_enable, 0,
 "TSO Enable/Disable");
 
 /* Allowable values are 0 (IRQ), 1 (MSI/IRQ), and 2 (MSI-X/MSI/IRQ) */
 /* ToDo: Add MSI-X support. */
 static int bce_msi_enable = 1;
 TUNABLE_INT("hw.bce.msi_enable", &bce_msi_enable);
-SYSCTL_UINT(_hw_bce, OID_AUTO, msi_enable, CTLFLAG_RDTUN, &bce_msi_enable, 0,
+SYSCTL_INT(_hw_bce, OID_AUTO, msi_enable, CTLFLAG_RDTUN, &bce_msi_enable, 0,
 "MSI-X|MSI|INTx selector");
 
 /* ToDo: Add tunable to enable/disable strict MTU handling. */
@@ -8487,7 +8487,7 @@ bce_add_sysctls(struct bce_softc *sc)
 	    0, "Number of simulated l2_fhdr errors");
 #endif
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "l2fhdr_error_count",
 	    CTLFLAG_RD, &sc->l2fhdr_error_count,
 	    0, "Number of l2_fhdr errors");
@@ -8498,18 +8498,18 @@ bce_add_sysctls(struct bce_softc *sc)
 	    CTLFLAG_RW, &mbuf_alloc_failed_sim_control,
 	    0, "Debug control to force mbuf allocation failures");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "mbuf_alloc_failed_sim_count",
 	    CTLFLAG_RD, &sc->mbuf_alloc_failed_sim_count,
 	    0, "Number of simulated mbuf cluster allocation failures");
 #endif
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "mbuf_alloc_failed_count",
 	    CTLFLAG_RD, &sc->mbuf_alloc_failed_count,
 	    0, "Number of mbuf allocation failures");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "mbuf_frag_count",
 	    CTLFLAG_RD, &sc->mbuf_frag_count,
 	    0, "Number of fragmented mbufs");
@@ -8521,19 +8521,19 @@ bce_add_sysctls(struct bce_softc *sc)
 	    0, "Debug control to force DMA mapping failures");
 
 	/* ToDo: Figure out how to update this value in bce_dma_map_addr(). */
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "dma_map_addr_failed_sim_count",
 	    CTLFLAG_RD, &sc->dma_map_addr_failed_sim_count,
 	    0, "Number of simulated DMA mapping failures");
 
 #endif
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "dma_map_addr_rx_failed_count",
 	    CTLFLAG_RD, &sc->dma_map_addr_rx_failed_count,
 	    0, "Number of RX DMA mapping failures");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "dma_map_addr_tx_failed_count",
 	    CTLFLAG_RD, &sc->dma_map_addr_tx_failed_count,
 	    0, "Number of TX DMA mapping failures");
@@ -8544,13 +8544,13 @@ bce_add_sysctls(struct bce_softc *sc)
 	    CTLFLAG_RW, &unexpected_attention_sim_control,
 	    0, "Debug control to simulate unexpected attentions");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "unexpected_attention_sim_count",
 	    CTLFLAG_RW, &sc->unexpected_attention_sim_count,
 	    0, "Number of simulated unexpected attentions");
 #endif
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "unexpected_attention_count",
 	    CTLFLAG_RW, &sc->unexpected_attention_count,
 	    0, "Number of unexpected attentions");

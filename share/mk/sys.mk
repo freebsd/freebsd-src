@@ -13,7 +13,7 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips.*e[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
 .endif
 
 # If the special target .POSIX appears (without prerequisites or
@@ -41,6 +41,7 @@ RANLIB		?=	ranlib
 
 AS		?=	as
 AFLAGS		?=
+ACFLAGS		?=
 
 .if defined(%POSIX)
 CC		?=	c89
@@ -275,13 +276,13 @@ YFLAGS		?=	-d
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC}
 
 .S.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
+	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
 	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
 		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .asm.o:
-	${CC} -x assembler-with-cpp ${CFLAGS} -c ${.IMPSRC}
+	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
 	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
 		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})

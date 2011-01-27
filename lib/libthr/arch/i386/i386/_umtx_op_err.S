@@ -34,3 +34,5 @@
 			mov __CONCAT($SYS_,x),%eax; int $0x80; ret
 
 SYSCALL_ERR(_umtx_op)
+
+	.section .note.GNU-stack,"",%progbits

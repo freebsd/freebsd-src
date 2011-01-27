@@ -73,9 +73,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Using the InterNet Control Message Protocol (ICMP) "ECHO" facility,
@@ -290,9 +291,7 @@ char	*nigroup(char *);
 void	 usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct itimerval itimer;
 	struct sockaddr_in6 from;
@@ -1209,8 +1208,7 @@ main(argc, argv)
 }
 
 void
-onsignal(sig)
-	int sig;
+onsignal(int sig)
 {
 
 	switch (sig) {
@@ -1233,7 +1231,7 @@ onsignal(sig)
  *	This routine transmits another ping6.
  */
 void
-retransmit()
+retransmit(void)
 {
 	struct itimerval itimer;
 
@@ -1269,7 +1267,7 @@ retransmit()
  * byte-order, to compute the round-trip time.
  */
 size_t
-pingerlen()
+pingerlen(void)
 {
 	size_t l;
 
@@ -1288,7 +1286,7 @@ pingerlen()
 }
 
 int
-pinger()
+pinger(void)
 {
 	struct icmp6_hdr *icp;
 	struct iovec iov[2];
@@ -1403,8 +1401,7 @@ pinger()
 }
 
 int
-myechoreply(icp)
-	const struct icmp6_hdr *icp;
+myechoreply(const struct icmp6_hdr *icp)
 {
 	if (ntohs(icp->icmp6_id) == ident)
 		return 1;
@@ -1413,8 +1410,7 @@ myechoreply(icp)
 }
 
 int
-mynireply(nip)
-	const struct icmp6_nodeinfo *nip;
+mynireply(const struct icmp6_nodeinfo *nip)
 {
 	if (memcmp(nip->icmp6_ni_nonce + sizeof(u_int16_t),
 	    nonce + sizeof(u_int16_t),
@@ -1425,12 +1421,9 @@ mynireply(nip)
 }
 
 char *
-dnsdecode(sp, ep, base, buf, bufsiz)
-	const u_char **sp;
-	const u_char *ep;
-	const u_char *base;	/*base for compressed name*/
-	char *buf;
-	size_t bufsiz;
+dnsdecode(const u_char **sp, const u_char *ep, const u_char *base, char *buf,
+	size_t bufsiz)
+	/*base for compressed name*/
 {
 	int i;
 	const u_char *cp;
@@ -1495,10 +1488,7 @@ dnsdecode(sp, ep, base, buf, bufsiz)
  * program to be run without having intermingled output (or statistics!).
  */
 void
-pr_pack(buf, cc, mhdr)
-	u_char *buf;
-	int cc;
-	struct msghdr *mhdr;
+pr_pack(u_char *buf, int cc, struct msghdr *mhdr)
 {
 #define safeputc(c)	printf((isprint((c)) ? "%c" : "\\%03o"), c)
 	struct icmp6_hdr *icp;
@@ -1779,8 +1769,7 @@ pr_pack(buf, cc, mhdr)
 }
 
 void
-pr_exthdrs(mhdr)
-	struct msghdr *mhdr;
+pr_exthdrs(struct msghdr *mhdr)
 {
 	ssize_t	bufsize;
 	void	*bufp;
@@ -1956,10 +1945,7 @@ pr_rthdr(void *extbuf, size_t bufsize __unused)
 #endif /* USE_RFC2292BIS */
 
 int
-pr_bitrange(v, soff, ii)
-	u_int32_t v;
-	int soff;
-	int ii;
+pr_bitrange(u_int32_t v, int soff, int ii)
 {
 	int off;
 	int i;
@@ -2005,9 +1991,8 @@ pr_bitrange(v, soff, ii)
 }
 
 void
-pr_suptypes(ni, nilen)
-	struct icmp6_nodeinfo *ni; /* ni->qtype must be SUPTYPES */
-	size_t nilen;
+pr_suptypes(struct icmp6_nodeinfo *ni, size_t nilen)
+	/* ni->qtype must be SUPTYPES */
 {
 	size_t clen;
 	u_int32_t v;
@@ -2072,9 +2057,8 @@ pr_suptypes(ni, nilen)
 }
 
 void
-pr_nodeaddr(ni, nilen)
-	struct icmp6_nodeinfo *ni; /* ni->qtype must be NODEADDR */
-	int nilen;
+pr_nodeaddr(struct icmp6_nodeinfo *ni, int nilen)
+	/* ni->qtype must be NODEADDR */
 {
 	u_char *cp = (u_char *)(ni + 1);
 	char ntop_buf[INET6_ADDRSTRLEN];
@@ -2139,8 +2123,7 @@ pr_nodeaddr(ni, nilen)
 }
 
 int
-get_hoplim(mhdr)
-	struct msghdr *mhdr;
+get_hoplim(struct msghdr *mhdr)
 {
 	struct cmsghdr *cm;
 
@@ -2159,8 +2142,7 @@ get_hoplim(mhdr)
 }
 
 struct in6_pktinfo *
-get_rcvpktinfo(mhdr)
-	struct msghdr *mhdr;
+get_rcvpktinfo(struct msghdr *mhdr)
 {
 	struct cmsghdr *cm;
 
@@ -2179,8 +2161,7 @@ get_rcvpktinfo(mhdr)
 }
 
 int
-get_pathmtu(mhdr)
-	struct msghdr *mhdr;
+get_pathmtu(struct msghdr *mhdr)
 {
 #ifdef IPV6_RECVPATHMTU
 	struct cmsghdr *cm;
@@ -2240,8 +2221,7 @@ get_pathmtu(mhdr)
  * be >= in.
  */
 void
-tvsub(out, in)
-	struct timeval *out, *in;
+tvsub(struct timeval *out, struct timeval *in)
 {
 	if ((out->tv_usec -= in->tv_usec) < 0) {
 		--out->tv_sec;
@@ -2256,8 +2236,7 @@ tvsub(out, in)
  */
 /* ARGSUSED */
 void
-onint(notused)
-	int notused;
+onint(int notused __unused)
 {
 	summary();
 
@@ -2284,7 +2263,7 @@ onint(notused)
  *	Print out statistics.
  */
 void
-summary()
+summary(void)
 {
 
 	(void)printf("\n--- %s ping6 statistics ---\n", hostname);
@@ -2332,9 +2311,7 @@ static const char *nircode[] = {
  *	Print a descriptive string about an ICMP header.
  */
 void
-pr_icmph(icp, end)
-	struct icmp6_hdr *icp;
-	u_char *end;
+pr_icmph(struct icmp6_hdr *icp, u_char *end)
 {
 	char ntop_buf[INET6_ADDRSTRLEN];
 	struct nd_redirect *red;
@@ -2564,8 +2541,7 @@ pr_icmph(icp, end)
  *	Print an IP6 header.
  */
 void
-pr_iph(ip6)
-	struct ip6_hdr *ip6;
+pr_iph(struct ip6_hdr *ip6)
 {
 	u_int32_t flow = ip6->ip6_flow & IPV6_FLOWLABEL_MASK;
 	u_int8_t tc;
@@ -2593,9 +2569,7 @@ pr_iph(ip6)
  * a hostname.
  */
 const char *
-pr_addr(addr, addrlen)
-	struct sockaddr *addr;
-	int addrlen;
+pr_addr(struct sockaddr *addr, int addrlen)
 {
 	static char buf[NI_MAXHOST];
 	int flag = 0;
@@ -2614,9 +2588,7 @@ pr_addr(addr, addrlen)
  *	Dump some info on a returned (via ICMPv6) IPv6 packet.
  */
 void
-pr_retip(ip6, end)
-	struct ip6_hdr *ip6;
-	u_char *end;
+pr_retip(struct ip6_hdr *ip6, u_char *end)
 {
 	u_char *cp = (u_char *)ip6, nh;
 	int hlen;
@@ -2696,8 +2668,7 @@ pr_retip(ip6, end)
 }
 
 void
-fill(bp, patp)
-	char *bp, *patp;
+fill(char *bp, char *patp)
 {
 	int ii, jj, kk;
 	int pat[16];
@@ -2730,9 +2701,7 @@ fill(bp, patp)
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 int
-setpolicy(so, policy)
-	int so;
-	char *policy;
+setpolicy(int so __unused, char *policy)
 {
 	char *buf;
 
@@ -2753,8 +2722,7 @@ setpolicy(so, policy)
 #endif
 
 char *
-nigroup(name)
-	char *name;
+nigroup(char *name)
 {
 	char *p;
 	char *q;
@@ -2798,7 +2766,7 @@ nigroup(name)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 #if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)

@@ -110,3 +110,5 @@ ENTRY(__longjmp)
 1:	movq	%rcx,0(%rsp)
 	ret
 END(__longjmp)
+
+	.section .note.GNU-stack,"",%progbits

@@ -218,7 +218,7 @@ EcUnlock(struct acpi_ec_softc *sc)
 	AcpiReleaseGlobalLock(sc->ec_glkhandle);
 }
 
-static uint32_t		EcGpeHandler(void *Context);
+static UINT32		EcGpeHandler(ACPI_HANDLE, UINT32, void *);
 static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function,
 				void *Context, void **return_Context);
 static ACPI_STATUS	EcSpaceHandler(UINT32 Function,
@@ -498,7 +498,7 @@ acpi_ec_attach(device_t dev)
      */
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE handler\n"));
     Status = AcpiInstallGpeHandler(sc->ec_gpehandle, sc->ec_gpebit,
-		ACPI_GPE_EDGE_TRIGGERED, &EcGpeHandler, sc);
+		ACPI_GPE_EDGE_TRIGGERED, EcGpeHandler, sc);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
@@ -529,7 +529,7 @@ acpi_ec_attach(device_t dev)
     return (0);
 
 error:
-    AcpiRemoveGpeHandler(sc->ec_gpehandle, sc->ec_gpebit, &EcGpeHandler);
+    AcpiRemoveGpeHandler(sc->ec_gpehandle, sc->ec_gpebit, EcGpeHandler);
     AcpiRemoveAddressSpaceHandler(sc->ec_handle, ACPI_ADR_SPACE_EC,
 	EcSpaceHandler);
     if (sc->ec_csr_res)
@@ -624,7 +624,7 @@ EcGpeQueryHandler(void *Context)
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     UINT8			Data;
     ACPI_STATUS			Status;
-    int				retry;
+    int				retry, sci_enqueued;
     char			qxx[5];
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -645,6 +645,7 @@ EcGpeQueryHandler(void *Context)
      * that may arise from running the query from causing another query
      * to be queued, we clear the pending flag only after running it.
      */
+    sci_enqueued = sc->ec_sci_pend;
     for (retry = 0; retry < 2; retry++) {
 	Status = EcCommand(sc, EC_COMMAND_QUERY);
 	if (ACPI_SUCCESS(Status))
@@ -684,14 +685,22 @@ EcGpeQueryHandler(void *Context)
 	device_printf(sc->ec_dev, "evaluation of query method %s failed: %s\n",
 	    qxx, AcpiFormatException(Status));
     }
+
+    /* Reenable runtime GPE if its execution was deferred. */
+    if (sci_enqueued) {
+	Status = AcpiFinishGpe(sc->ec_gpehandle, sc->ec_gpebit);
+	if (ACPI_FAILURE(Status))
+	    device_printf(sc->ec_dev, "reenabling runtime GPE failed: %s\n",
+		AcpiFormatException(Status));
+    }
 }
 
 /*
  * The GPE handler is called when IBE/OBF or SCI events occur.  We are
  * called from an unknown lock context.
  */
-static uint32_t
-EcGpeHandler(void *Context)
+static UINT32
+EcGpeHandler(ACPI_HANDLE GpeDevice, UINT32 GpeNumber, void *Context)
 {
     struct acpi_ec_softc *sc = Context;
     ACPI_STATUS		       Status;
@@ -707,7 +716,7 @@ EcGpeHandler(void *Context)
      * address and then data values.)
      */
     atomic_add_int(&sc->ec_gencount, 1);
-    wakeup(&sc);
+    wakeup(sc);
 
     /*
      * If the EC_SCI bit of the status register is set, queue a query handler.
@@ -717,12 +726,13 @@ EcGpeHandler(void *Context)
     if ((EcStatus & EC_EVENT_SCI) && !sc->ec_sci_pend) {
 	CTR0(KTR_ACPI, "ec gpe queueing query handler");
 	Status = AcpiOsExecute(OSL_GPE_HANDLER, EcGpeQueryHandler, Context);
-	if (ACPI_SUCCESS(Status))
+	if (ACPI_SUCCESS(Status)) {
 	    sc->ec_sci_pend = TRUE;
-	else
+	    return (0);
+	} else
 	    printf("EcGpeHandler: queuing GPE query handler failed\n");
     }
-    return (0);
+    return (ACPI_REENABLE_GPE);
 }
 
 static ACPI_STATUS
@@ -858,7 +868,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
 	 */
 	for (i = 0; i < count; i++) {
 	    if (gen_count == sc->ec_gencount)
-		tsleep(&sc, 0, "ecgpe", slp_ival);
+		tsleep(sc, 0, "ecgpe", slp_ival);
 	    /*
 	     * Record new generation count.  It's possible the GPE was
 	     * just to notify us that a query is needed and we need to

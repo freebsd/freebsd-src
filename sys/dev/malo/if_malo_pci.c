@@ -150,21 +150,6 @@ malo_pci_probe(device_t dev)
 }
 
 static int
-malo_pci_setup(device_t dev)
-{
-
-	/*
-	 * Enable memory mapping and bus mastering.
-	 */
-	if (pci_enable_busmaster(dev) != 0)
-		return -1;
-	if (pci_enable_io(dev, SYS_RES_MEMORY) != 0)
-		return -1;
-
-	return 0;
-}
-
-static int
 malo_pci_attach(device_t dev)
 {
 	int error = ENXIO, i, msic, reg;
@@ -173,11 +158,7 @@ malo_pci_attach(device_t dev)
 
 	sc->malo_dev = dev;
 	
-	/*
-	 * Enable memory mapping and bus mastering.
-	 */
-	if (malo_pci_setup(dev))
-		return (ENXIO);
+	pci_enable_busmaster(dev);
 
 	/* 
 	 * Setup memory-mapping of PCI registers.
@@ -341,9 +322,6 @@ static int
 malo_pci_resume(device_t dev)
 {
 	struct malo_pci_softc *psc = device_get_softc(dev);
-
-	if (!malo_pci_setup(dev))
-		return ENXIO;
 
 	malo_resume(&psc->malo_sc);
 

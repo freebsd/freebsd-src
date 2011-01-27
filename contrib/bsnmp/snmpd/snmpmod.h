@@ -5,6 +5,12 @@
  *
  * Author: Harti Brandt <harti@freebsd.org>
  * 
+ * Copyright (c) 2010 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Shteryana Sotirova Shopova
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -455,6 +461,74 @@ struct vacm_context *vacm_add_context(char *, int32_t);
 void vacm_flush_contexts(int32_t);
 
 /*
+ * RFC 3413 SNMP Management Target & Notification MIB
+ */
+
+struct snmpd_target_stats {
+	uint32_t			unavail_contexts;
+	uint32_t			unknown_contexts;
+};
+
+#define	SNMP_UDP_ADDR_SIZ		6
+#define	SNMP_TAG_SIZ			(255 + 1)
+
+struct target_address {
+	char				name[SNMP_ADM_STR32_SIZ];
+	uint8_t				address[SNMP_UDP_ADDR_SIZ];
+	int32_t				timeout;
+	int32_t				retry;
+	char				taglist[SNMP_TAG_SIZ];
+	char				paramname[SNMP_ADM_STR32_SIZ];
+	int32_t				type;
+	int32_t				socket;
+	int32_t				status;
+	SLIST_ENTRY(target_address)	ta;
+};
+
+SLIST_HEAD(target_addresslist, target_address);
+
+struct target_param {
+	char				name[SNMP_ADM_STR32_SIZ];
+	int32_t				mpmodel;
+	int32_t				sec_model;
+	char				secname[SNMP_ADM_STR32_SIZ];
+	enum snmp_usm_level		sec_level;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(target_param)	tp;
+};
+
+SLIST_HEAD(target_paramlist, target_param);
+
+struct target_notify {
+	char				name[SNMP_ADM_STR32_SIZ];
+	char				taglist[SNMP_TAG_SIZ];
+	int32_t				notify_type;
+	int32_t				type;
+	int32_t				status;
+	SLIST_ENTRY(target_notify)	tn;
+};
+
+SLIST_HEAD(target_notifylist, target_notify);
+
+extern struct snmpd_target_stats snmpd_target_stats;
+struct snmpd_target_stats *bsnmpd_get_target_stats(void);
+struct target_address *target_first_address(void);
+struct target_address *target_next_address(struct target_address *);
+struct target_address *target_new_address(char *);
+int target_activate_address(struct target_address *);
+int target_delete_address(struct target_address *);
+struct target_param *target_first_param(void);
+struct target_param *target_next_param(struct target_param *);
+struct target_param *target_new_param(char *);
+int target_delete_param(struct target_param *);
+struct target_notify *target_first_notify(void);
+struct target_notify *target_next_notify(struct target_notify *);
+struct target_notify *target_new_notify(char *);
+int target_delete_notify (struct target_notify *);
+void target_flush_all(void);
+
+/*
  * Well known OIDs
  */
 extern const struct asn_oid oid_zeroDotZero;
@@ -515,6 +589,7 @@ enum snmpd_input_err snmp_input_finish(struct snmp_pdu *, const u_char *,
 void snmp_output(struct snmp_pdu *, u_char *, size_t *, const char *);
 void snmp_send_port(void *, const struct asn_oid *, struct snmp_pdu *,
 	const struct sockaddr *, socklen_t);
+enum snmp_code snmp_pdu_auth_access(struct snmp_pdu *, int32_t *);
 
 /* sending traps */
 void snmp_send_trap(const struct asn_oid *, ...);

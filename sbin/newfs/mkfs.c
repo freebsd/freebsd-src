@@ -44,6 +44,14 @@ static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/disklabel.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <err.h>
 #include <grp.h>
 #include <limits.h>
@@ -52,20 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <time.h>
 #include <unistd.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/resource.h>
-#include <sys/stat.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
-#include <sys/disklabel.h>
-#include <sys/file.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
 #include "newfs.h"
 
 /*
@@ -151,6 +150,8 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_flags |= FS_GJOURNAL;
 	if (lflag)
 		sblock.fs_flags |= FS_MULTILABEL;
+	if (tflag)
+		sblock.fs_flags |= FS_TRIM;
 	/*
 	 * Validate the given file system size.
 	 * Verify that its last block can actually be accessed.

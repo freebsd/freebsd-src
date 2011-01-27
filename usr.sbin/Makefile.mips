@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 SUBDIR:=	${SUBDIR:Nsysinstall}
-.if defined(TARGET_ABI) && ${TARGET_ABI} == "n64"
+.if ${MACHINE_ARCH:Mmips64*} != ""
 SUBDIR:=	${SUBDIR:Nuathload}
 .endif

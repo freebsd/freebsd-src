@@ -134,7 +134,7 @@ static struct g_part_scheme g_part_gpt_scheme = {
 	sizeof(struct g_part_gpt_table),
 	.gps_entrysz = sizeof(struct g_part_gpt_entry),
 	.gps_minent = 128,
-	.gps_maxent = INT_MAX,
+	.gps_maxent = 4096,
 	.gps_bootcodesz = MBRSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_gpt);
@@ -317,7 +317,7 @@ gpt_read_tbl(struct g_part_gpt_table *table, struct g_consumer *cp,
 	struct g_provider *pp;
 	struct gpt_ent *ent, *tbl;
 	char *buf, *p;
-	unsigned int idx, sectors, tblsz;
+	unsigned int idx, sectors, tblsz, size;
 	int error;
 
 	if (hdr == NULL)
@@ -329,11 +329,19 @@ gpt_read_tbl(struct g_part_gpt_table *table, struct g_consumer *cp,
 	table->state[elt] = GPT_STATE_MISSING;
 	tblsz = hdr->hdr_entries * hdr->hdr_entsz;
 	sectors = (tblsz + pp->sectorsize - 1) / pp->sectorsize;
-	buf = g_read_data(cp, table->lba[elt] * pp->sectorsize, 
-	    sectors * pp->sectorsize, &error);
-	if (buf == NULL)
-		return (NULL);
-
+	buf = g_malloc(sectors * pp->sectorsize, M_WAITOK | M_ZERO);
+	for (idx = 0; idx < sectors; idx += MAXPHYS / pp->sectorsize) {
+		size = (sectors - idx > MAXPHYS / pp->sectorsize) ?  MAXPHYS:
+		    (sectors - idx) * pp->sectorsize;
+		p = g_read_data(cp, (table->lba[elt] + idx) * pp->sectorsize,
+		    size, &error);
+		if (p == NULL) {
+			g_free(buf);
+			return (NULL);
+		}
+		bcopy(p, buf + idx * pp->sectorsize, size);
+		g_free(p);
+	}
 	table->state[elt] = GPT_STATE_CORRUPT;
 	if (crc32(buf, tblsz) != hdr->hdr_crc_table) {
 		g_free(buf);
@@ -425,7 +433,8 @@ g_part_gpt_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	}
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		g_gpt_utf8_to_utf16(gpp->gpp_label, entry->ent.ent_name,
-		    sizeof(entry->ent.ent_name));
+		    sizeof(entry->ent.ent_name) /
+		    sizeof(entry->ent.ent_name[0]));
 	return (0);
 }
 
@@ -588,7 +597,8 @@ g_part_gpt_modify(struct g_part_table *basetable,
 	}
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		g_gpt_utf8_to_utf16(gpp->gpp_label, entry->ent.ent_name,
-		    sizeof(entry->ent.ent_name));
+		    sizeof(entry->ent.ent_name) /
+		    sizeof(entry->ent.ent_name[0]));
 	return (0);
 }
 
@@ -984,10 +994,15 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	crc = crc32(buf, table->hdr->hdr_size);
 	le32enc(buf + 16, crc);
 
-	error = g_write_data(cp, table->lba[GPT_ELT_PRITBL] * pp->sectorsize,
-	    buf + pp->sectorsize, tblsz * pp->sectorsize);
-	if (error)
-		goto out;
+	for (index = 0; index < tblsz; index += MAXPHYS / pp->sectorsize) {
+		error = g_write_data(cp,
+		    (table->lba[GPT_ELT_PRITBL] + index) * pp->sectorsize,
+		    buf + (index + 1) * pp->sectorsize,
+		    (tblsz - index > MAXPHYS / pp->sectorsize) ? MAXPHYS:
+		    (tblsz - index) * pp->sectorsize);
+		if (error)
+			goto out;
+	}
 	error = g_write_data(cp, table->lba[GPT_ELT_PRIHDR] * pp->sectorsize,
 	    buf, pp->sectorsize);
 	if (error)
@@ -1001,10 +1016,15 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	crc = crc32(buf, table->hdr->hdr_size);
 	le32enc(buf + 16, crc);
 
-	error = g_write_data(cp, table->lba[GPT_ELT_SECTBL] * pp->sectorsize,
-	    buf + pp->sectorsize, tblsz * pp->sectorsize);
-	if (error)
-		goto out;
+	for (index = 0; index < tblsz; index += MAXPHYS / pp->sectorsize) {
+		error = g_write_data(cp,
+		    (table->lba[GPT_ELT_SECTBL] + index) * pp->sectorsize,
+		    buf + (index + 1) * pp->sectorsize,
+		    (tblsz - index > MAXPHYS / pp->sectorsize) ? MAXPHYS:
+		    (tblsz - index) * pp->sectorsize);
+		if (error)
+			goto out;
+	}
 	error = g_write_data(cp, table->lba[GPT_ELT_SECHDR] * pp->sectorsize,
 	    buf, pp->sectorsize);
 

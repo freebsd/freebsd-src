@@ -947,6 +947,18 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 {
 	spa_t *spa = zio->io_spa;
 	zio_type_t t = zio->io_type;
+#ifdef _KERNEL
+	struct ostask *task;
+#endif
+
+	ASSERT(q == ZIO_TASKQ_ISSUE || q == ZIO_TASKQ_INTERRUPT);
+
+#ifdef _KERNEL
+	if (q == ZIO_TASKQ_ISSUE)
+		task = &zio->io_task_issue;
+	else /* if (q == ZIO_TASKQ_INTERRUPT) */
+		task = &zio->io_task_interrupt;
+#endif
 
 	/*
 	 * If we're a config writer or a probe, the normal issue and
@@ -970,8 +982,13 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 		q++;
 
 	ASSERT3U(q, <, ZIO_TASKQ_TYPES);
+#ifdef _KERNEL
 	(void) taskq_dispatch_safe(spa->spa_zio_taskq[t][q],
-	    (task_func_t *)zio_execute, zio, &zio->io_task);
+	    (task_func_t *)zio_execute, zio, task);
+#else
+	(void) taskq_dispatch(spa->spa_zio_taskq[t][q],
+	    (task_func_t *)zio_execute, zio, TQ_SLEEP);
+#endif
 }
 
 static boolean_t
@@ -2300,9 +2317,16 @@ zio_done(zio_t *zio)
 			 * Reexecution is potentially a huge amount of work.
 			 * Hand it off to the otherwise-unused claim taskq.
 			 */
+#ifdef _KERNEL
 			(void) taskq_dispatch_safe(
 			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
-			    (task_func_t *)zio_reexecute, zio, &zio->io_task);
+			    (task_func_t *)zio_reexecute, zio,
+				&zio->io_task_issue);
+#else
+			(void) taskq_dispatch(
+			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
+				(task_func_t *)zio_reexecute, zio, TQ_SLEEP);
+#endif
 		}
 		return (ZIO_PIPELINE_STOP);
 	}

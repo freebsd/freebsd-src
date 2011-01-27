@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/hhook.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>		/* for proc0 declaration */
@@ -218,6 +219,8 @@ static void inline	cc_ack_received(struct tcpcb *tp, struct tcphdr *th,
 			    uint16_t type);
 static void inline	cc_conn_init(struct tcpcb *tp);
 static void inline	cc_post_recovery(struct tcpcb *tp, struct tcphdr *th);
+static void inline	hhook_run_tcp_est_in(struct tcpcb *tp,
+			    struct tcphdr *th, struct tcpopt *to);
 
 /*
  * Kernel module interface for updating tcpstat.  The argument is an index
@@ -231,6 +234,24 @@ kmod_tcpstat_inc(int statnum)
 {
 
 	(*((u_long *)&V_tcpstat + statnum))++;
+}
+
+/*
+ * Wrapper for the TCP established input helper hook.
+ */
+static void inline
+hhook_run_tcp_est_in(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
+{
+	struct tcp_hhook_data hhook_data;
+
+	if (V_tcp_hhh[HHOOK_TCP_EST_IN]->hhh_nhooks > 0) {
+		hhook_data.tp = tp;
+		hhook_data.th = th;
+		hhook_data.to = to;
+
+		hhook_run_hooks(V_tcp_hhh[HHOOK_TCP_EST_IN], &hhook_data,
+		    tp->osd);
+	}
 }
 
 /*
@@ -1065,7 +1086,7 @@ relocked:
 				    "SYN|FIN segment ignored (based on "
 				    "sysctl setting)\n", s, __func__);
 			TCPSTAT_INC(tcps_badsyn);
-                	goto dropunlock;
+			goto dropunlock;
 		}
 		/*
 		 * Segment's flags are (SYN) or (SYN|FIN).
@@ -1270,6 +1291,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	short ostate = 0;
 #endif
 	thflags = th->th_flags;
+	tp->sackhint.last_sack_ack = 0;
 
 	/*
 	 * If this is either a state-changing packet or current state isn't
@@ -1486,6 +1508,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 							ticks - tp->t_rtttime);
 				}
 				acked = BYTES_THIS_ACK(tp, th);
+
+				/* Run HHOOK_TCP_ESTABLISHED_IN helper hooks. */
+				hhook_run_tcp_est_in(tp, th, &to);
+
 				TCPSTAT_INC(tcps_rcvackpack);
 				TCPSTAT_ADD(tcps_rcvackbyte, acked);
 				sbdrop(&so->so_snd, acked);
@@ -2199,6 +2225,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    ((to.to_flags & TOF_SACK) ||
 		     !TAILQ_EMPTY(&tp->snd_holes)))
 			tcp_sack_doack(tp, &to, th->th_ack);
+
+		/* Run HHOOK_TCP_ESTABLISHED_IN helper hooks. */
+		hhook_run_tcp_est_in(tp, th, &to);
+
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
 			if (tlen == 0 && tiwin == tp->snd_wnd) {
 				TCPSTAT_INC(tcps_rcvdupack);
@@ -2242,7 +2272,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						/*
 						 * Compute the amount of data in flight first.
 						 * We can inject new data into the pipe iff 
-						 * we have less than 1/2 the original window's 	
+						 * we have less than 1/2 the original window's
 						 * worth of data in flight.
 						 */
 						awnd = (tp->snd_nxt - tp->snd_fack) +

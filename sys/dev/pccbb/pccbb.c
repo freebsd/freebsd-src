@@ -152,7 +152,7 @@ SYSCTL_ULONG(_hw_cbb, OID_AUTO, start_32_io, CTLFLAG_RW,
 
 int cbb_debug = 0;
 TUNABLE_INT("hw.cbb.debug", &cbb_debug);
-SYSCTL_ULONG(_hw_cbb, OID_AUTO, debug, CTLFLAG_RW, &cbb_debug, 0,
+SYSCTL_INT(_hw_cbb, OID_AUTO, debug, CTLFLAG_RW, &cbb_debug, 0,
     "Verbose cardbus bridge debugging");
 
 static void	cbb_insert(struct cbb_softc *sc);

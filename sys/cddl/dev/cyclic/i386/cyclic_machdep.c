@@ -122,6 +122,6 @@ static void reprogram(cyb_arg_t arg, hrtime_t exp)
 static void xcall(cyb_arg_t arg, cpu_t *c, cyc_func_t func, void *param)
 {
 
-	smp_rendezvous_cpus((cpumask_t) (1 << c->cpuid), NULL,
-	    func, smp_no_rendevous_barrier, param);
+	smp_rendezvous_cpus((cpumask_t) (1 << c->cpuid),
+	    smp_no_rendevous_barrier, func, smp_no_rendevous_barrier, param);
 }

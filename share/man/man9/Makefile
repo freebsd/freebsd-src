@@ -173,6 +173,7 @@ MAN=	accept_filter.9 \
 	mutex.9 \
 	namei.9 \
 	netisr.9 \
+	osd.9 \
 	panic.9 \
 	pbuf.9 \
 	p_candebug.9 \
@@ -1030,6 +1031,7 @@ MLINKS+=sbuf.9 sbuf_bcat.9 \
 	sbuf.9 sbuf_finish.9 \
 	sbuf.9 sbuf_len.9 \
 	sbuf.9 sbuf_new.9 \
+	sbuf.9 sbuf_new_for_sysctl.9 \
 	sbuf.9 sbuf_printf.9 \
 	sbuf.9 sbuf_putc.9 \
 	sbuf.9 sbuf_set_drain.9 \
@@ -1192,8 +1194,7 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
 	sysctl.9 SYSCTL_UINT.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
-	sysctl.9 SYSCTL_XINT.9 \
-	sysctl.9 SYSCTL_XLONG.9
+	sysctl.9 SYSCTL_QUAD.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_LONG.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_NODE.9 \
@@ -1204,6 +1205,7 @@ MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_STRUCT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_UINT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_ULONG.9 \
+	sysctl_add_oid.9 SYSCTL_ADD_QUAD.9 \
 	sysctl_add_oid.9 SYSCTL_CHILDREN.9 \
 	sysctl_add_oid.9 sysctl_move_oid.9 \
 	sysctl_add_oid.9 sysctl_remove_oid.9 \

@@ -499,16 +499,17 @@ expbackq(union node *cmd, int quoted, int flag)
 		}
 		lastc = *p++;
 		if (lastc != '\0') {
-			if (quotes && syntax[(int)lastc] == CCTL)
-				STPUTC(CTLESC, dest);
 			if (lastc == '\n') {
 				nnl++;
 			} else {
+				CHECKSTRSPACE(nnl + 2, dest);
 				while (nnl > 0) {
 					nnl--;
-					STPUTC('\n', dest);
+					USTPUTC('\n', dest);
 				}
-				STPUTC(lastc, dest);
+				if (quotes && syntax[(int)lastc] == CCTL)
+					USTPUTC(CTLESC, dest);
+				USTPUTC(lastc, dest);
 			}
 		}
 	}
@@ -557,8 +558,6 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 		amount = startp - expdest;
 		STADJUST(amount, expdest);
 		varflags &= ~VSNUL;
-		if (c != 0)
-			*loc = c;
 		return 1;
 
 	case VSQUESTION:
@@ -1568,6 +1567,78 @@ cvtnum(int num, char *buf)
 
 	STPUTS(p, buf);
 	return buf;
+}
+
+/*
+ * Check statically if expanding a string may have side effects.
+ */
+int
+expandhassideeffects(const char *p)
+{
+	int c;
+	int arinest;
+
+	arinest = 0;
+	while ((c = *p++) != '\0') {
+		switch (c) {
+		case CTLESC:
+			p++;
+			break;
+		case CTLVAR:
+			c = *p++;
+			/* Expanding $! sets the job to remembered. */
+			if (*p == '!')
+				return 1;
+			if ((c & VSTYPE) == VSASSIGN)
+				return 1;
+			/*
+			 * If we are in arithmetic, the parameter may contain
+			 * '=' which may cause side effects. Exceptions are
+			 * the length of a parameter and $$, $# and $? which
+			 * are always numeric.
+			 */
+			if ((c & VSTYPE) == VSLENGTH) {
+				while (*p != '=')
+					p++;
+				p++;
+				break;
+			}
+			if ((*p == '$' || *p == '#' || *p == '?') &&
+			    p[1] == '=') {
+				p += 2;
+				break;
+			}
+			if (arinest > 0)
+				return 1;
+			break;
+		case CTLBACKQ:
+		case CTLBACKQ | CTLQUOTE:
+			if (arinest > 0)
+				return 1;
+			break;
+		case CTLARI:
+			arinest++;
+			break;
+		case CTLENDARI:
+			arinest--;
+			break;
+		case '=':
+			if (*p == '=') {
+				/* Allow '==' operator. */
+				p++;
+				continue;
+			}
+			if (arinest > 0)
+				return 1;
+			break;
+		case '!': case '<': case '>':
+			/* Allow '!=', '<=', '>=' operators. */
+			if (*p == '=')
+				p++;
+			break;
+		}
+	}
+	return 0;
 }
 
 /*

@@ -108,8 +108,13 @@ mips_write_membar(void)
 }
 
 #ifdef _KERNEL
+/*
+ * XXX
+ * It would be nice to add variants that read/write register_t, to avoid some
+ * ABI checks.
+ */
 #if defined(__mips_n32) || defined(__mips_n64)
-#define	MIPS_RDRW64_COP0(n,r)					\
+#define	MIPS_RW64_COP0(n,r)					\
 static __inline uint64_t					\
 mips_rd_ ## n (void)						\
 {								\
@@ -132,17 +137,20 @@ mips_wr_ ## n (uint64_t a0)					\
 } struct __hack
 
 #if defined(__mips_n64)
-MIPS_RDRW64_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
-MIPS_RDRW64_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
-MIPS_RDRW64_COP0(entryhi, MIPS_COP_0_TLB_HI);
-MIPS_RDRW64_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
+MIPS_RW64_COP0(excpc, MIPS_COP_0_EXC_PC);
+MIPS_RW64_COP0(entryhi, MIPS_COP_0_TLB_HI);
+MIPS_RW64_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
 #endif
-MIPS_RDRW64_COP0(xcontext, MIPS_COP_0_TLB_XCONTEXT);
+#if defined(__mips_n64) || defined(__mips_n32) /* PHYSADDR_64_BIT */
+MIPS_RW64_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
+MIPS_RW64_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
+#endif
+MIPS_RW64_COP0(xcontext, MIPS_COP_0_TLB_XCONTEXT);
 
-#undef	MIPS_RDRW64_COP0
+#undef	MIPS_RW64_COP0
 #endif
 
-#define	MIPS_RDRW32_COP0(n,r)					\
+#define	MIPS_RW32_COP0(n,r)					\
 static __inline uint32_t					\
 mips_rd_ ## n (void)						\
 {								\
@@ -164,7 +172,7 @@ mips_wr_ ## n (uint32_t a0)					\
 	mips_barrier();						\
 } struct __hack
 
-#define	MIPS_RDRW32_COP0_SEL(n,r,s)					\
+#define	MIPS_RW32_COP0_SEL(n,r,s)				\
 static __inline uint32_t					\
 mips_rd_ ## n(void)						\
 {								\
@@ -199,42 +207,48 @@ static __inline void mips_sync_icache (void)
 }
 #endif
 
-MIPS_RDRW32_COP0(compare, MIPS_COP_0_COMPARE);
-MIPS_RDRW32_COP0(config, MIPS_COP_0_CONFIG);
-MIPS_RDRW32_COP0_SEL(config1, MIPS_COP_0_CONFIG, 1);
-MIPS_RDRW32_COP0_SEL(config2, MIPS_COP_0_CONFIG, 2);
-MIPS_RDRW32_COP0_SEL(config3, MIPS_COP_0_CONFIG, 3);
-MIPS_RDRW32_COP0(count, MIPS_COP_0_COUNT);
-MIPS_RDRW32_COP0(index, MIPS_COP_0_TLB_INDEX);
-MIPS_RDRW32_COP0(wired, MIPS_COP_0_TLB_WIRED);
-MIPS_RDRW32_COP0(cause, MIPS_COP_0_CAUSE);
-MIPS_RDRW32_COP0(status, MIPS_COP_0_STATUS);
+MIPS_RW32_COP0(compare, MIPS_COP_0_COMPARE);
+MIPS_RW32_COP0(config, MIPS_COP_0_CONFIG);
+MIPS_RW32_COP0_SEL(config1, MIPS_COP_0_CONFIG, 1);
+MIPS_RW32_COP0_SEL(config2, MIPS_COP_0_CONFIG, 2);
+MIPS_RW32_COP0_SEL(config3, MIPS_COP_0_CONFIG, 3);
+MIPS_RW32_COP0(count, MIPS_COP_0_COUNT);
+MIPS_RW32_COP0(index, MIPS_COP_0_TLB_INDEX);
+MIPS_RW32_COP0(wired, MIPS_COP_0_TLB_WIRED);
+MIPS_RW32_COP0(cause, MIPS_COP_0_CAUSE);
+#if !defined(__mips_n64)
+MIPS_RW32_COP0(excpc, MIPS_COP_0_EXC_PC);
+#endif
+MIPS_RW32_COP0(status, MIPS_COP_0_STATUS);
 
 /* XXX: Some of these registers are specific to MIPS32. */
 #if !defined(__mips_n64)
-MIPS_RDRW32_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
-MIPS_RDRW32_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
-MIPS_RDRW32_COP0(entryhi, MIPS_COP_0_TLB_HI);
-MIPS_RDRW32_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
+MIPS_RW32_COP0(entryhi, MIPS_COP_0_TLB_HI);
+MIPS_RW32_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
 #endif
-MIPS_RDRW32_COP0(prid, MIPS_COP_0_PRID);
+#if !defined(__mips_n64) && !defined(__mips_n32) /* !PHYSADDR_64_BIT */
+MIPS_RW32_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
+MIPS_RW32_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
+#endif
+MIPS_RW32_COP0(prid, MIPS_COP_0_PRID);
 /* XXX 64-bit?  */
-MIPS_RDRW32_COP0_SEL(ebase, MIPS_COP_0_PRID, 1);
-MIPS_RDRW32_COP0(watchlo, MIPS_COP_0_WATCH_LO);
-MIPS_RDRW32_COP0_SEL(watchlo1, MIPS_COP_0_WATCH_LO, 1);
-MIPS_RDRW32_COP0_SEL(watchlo2, MIPS_COP_0_WATCH_LO, 2);
-MIPS_RDRW32_COP0_SEL(watchlo3, MIPS_COP_0_WATCH_LO, 3);
-MIPS_RDRW32_COP0(watchhi, MIPS_COP_0_WATCH_HI);
-MIPS_RDRW32_COP0_SEL(watchhi1, MIPS_COP_0_WATCH_HI, 1);
-MIPS_RDRW32_COP0_SEL(watchhi2, MIPS_COP_0_WATCH_HI, 2);
-MIPS_RDRW32_COP0_SEL(watchhi3, MIPS_COP_0_WATCH_HI, 3);
+MIPS_RW32_COP0_SEL(ebase, MIPS_COP_0_PRID, 1);
+MIPS_RW32_COP0(watchlo, MIPS_COP_0_WATCH_LO);
+MIPS_RW32_COP0_SEL(watchlo1, MIPS_COP_0_WATCH_LO, 1);
+MIPS_RW32_COP0_SEL(watchlo2, MIPS_COP_0_WATCH_LO, 2);
+MIPS_RW32_COP0_SEL(watchlo3, MIPS_COP_0_WATCH_LO, 3);
+MIPS_RW32_COP0(watchhi, MIPS_COP_0_WATCH_HI);
+MIPS_RW32_COP0_SEL(watchhi1, MIPS_COP_0_WATCH_HI, 1);
+MIPS_RW32_COP0_SEL(watchhi2, MIPS_COP_0_WATCH_HI, 2);
+MIPS_RW32_COP0_SEL(watchhi3, MIPS_COP_0_WATCH_HI, 3);
 
-MIPS_RDRW32_COP0_SEL(perfcnt0, MIPS_COP_0_PERFCNT, 0);
-MIPS_RDRW32_COP0_SEL(perfcnt1, MIPS_COP_0_PERFCNT, 1);
-MIPS_RDRW32_COP0_SEL(perfcnt2, MIPS_COP_0_PERFCNT, 2);
-MIPS_RDRW32_COP0_SEL(perfcnt3, MIPS_COP_0_PERFCNT, 3);
+MIPS_RW32_COP0_SEL(perfcnt0, MIPS_COP_0_PERFCNT, 0);
+MIPS_RW32_COP0_SEL(perfcnt1, MIPS_COP_0_PERFCNT, 1);
+MIPS_RW32_COP0_SEL(perfcnt2, MIPS_COP_0_PERFCNT, 2);
+MIPS_RW32_COP0_SEL(perfcnt3, MIPS_COP_0_PERFCNT, 3);
 
-#undef	MIPS_RDRW32_COP0
+#undef	MIPS_RW32_COP0
+#undef	MIPS_RW32_COP0_SEL
 
 static __inline register_t
 intr_disable(void)

@@ -42,7 +42,8 @@ enum {
 	HAL_DEBUG_EEPROM	= 0x00008000,
 	HAL_DEBUG_BEACON	= 0x00010000,	/* beacon setup work */
 	HAL_DEBUG_POWER		= 0x00020000,	/* power management */
-	HAL_DEBUG_INTERRUPT	= 0x00000080,	/* interrupt handling */
+	HAL_DEBUG_GPIO		= 0x00040000,	/* GPIO debugging */
+	HAL_DEBUG_INTERRUPT	= 0x00080000,	/* interrupt handling */
 
 	HAL_DEBUG_ANY		= 0xffffffff
 };

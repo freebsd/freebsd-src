@@ -72,9 +72,10 @@ __FBSDID("$FreeBSD$");
  */
 MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 
+struct mem_range_softc mem_range_softc;
+
 static struct sx memsxlock;
 SX_SYSINIT(memsxlockinit, &memsxlock, "/dev/mem lock");
-
 
 /* ARGSUSED */
 int
@@ -232,11 +233,4 @@ memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 		break;
 	}
 	return (error);
-}
-
-void
-dev_mem_md_init(void)
-{
-	if (mem_range_softc.mr_op != NULL)
-		mem_range_softc.mr_op->init(&mem_range_softc);
 }

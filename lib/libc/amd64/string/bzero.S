@@ -42,3 +42,5 @@ L1:	movq	%rsi,%rcx		/* zero remainder by bytes */
 
 	ret
 END(bzero)
+
+	.section .note.GNU-stack,"",%progbits

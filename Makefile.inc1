@@ -121,7 +121,7 @@ VERSION+=	${OSRELDATE}
 TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-TARGET=		${TARGET_ARCH:C/mipse[lb]/mips/:C/armeb/arm/}
+TARGET=		${TARGET_ARCH:C/mips.*e[lb]/mips/:C/armeb/arm/}
 .endif
 # Legacy names, for a transition period mips:mips -> mipsel:mips
 .if defined(TARGET) && defined(TARGET_ARCH) && \
@@ -142,7 +142,7 @@ TARGET_ARCH=armeb
 TARGET?=	${MACHINE}
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
+KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips mips64el/mips mips64eb/mips mipsn32el/mips mipsn32eb/mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else

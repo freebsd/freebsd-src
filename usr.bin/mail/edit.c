@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
  * Edit a message list.
  */
 int
-editor(msgvec)
-	int *msgvec;
+editor(int *msgvec)
 {
 
 	return (edit1(msgvec, 'e'));
@@ -60,8 +59,7 @@ editor(msgvec)
  * Invoke the visual editor on a message list.
  */
 int
-visual(msgvec)
-	int *msgvec;
+visual(int *msgvec)
 {
 
 	return (edit1(msgvec, 'v'));
@@ -73,9 +71,7 @@ visual(msgvec)
  * We get the editor from the stuff above.
  */
 int
-edit1(msgvec, type)
-	int *msgvec;
-	int type;
+edit1(int *msgvec, int type)
 {
 	int c, i;
 	FILE *fp;
@@ -137,10 +133,7 @@ edit1(msgvec, type)
  * "Type" is 'e' for _PATH_EX, 'v' for _PATH_VI.
  */
 FILE *
-run_editor(fp, size, type, readonly)
-	FILE *fp;
-	off_t size;
-	int type, readonly;
+run_editor(FILE *fp, off_t size, int type, int readonly)
 {
 	FILE *nf = NULL;
 	int t;

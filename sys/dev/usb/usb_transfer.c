@@ -32,7 +32,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -2197,9 +2196,10 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 		}
 	}
 
+#if USB_HAVE_PF
 	if (xfer->usb_state != USB_ST_SETUP)
 		usbpf_xfertap(xfer, USBPF_XFERTAP_DONE);
-
+#endif
 	/* call processing routine */
 	(xfer->callback) (xfer, xfer->error);
 
@@ -2387,8 +2387,9 @@ usbd_transfer_start_cb(void *arg)
 
 	DPRINTF("start\n");
 
+#if USB_HAVE_PF
 	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
-
+#endif
 	/* start the transfer */
 	(ep->methods->start) (xfer);
 
@@ -2566,8 +2567,9 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 	}
 	DPRINTF("start\n");
 
+#if USB_HAVE_PF
 	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
-
+#endif
 	/* start USB transfer */
 	(ep->methods->start) (xfer);
 

@@ -138,12 +138,12 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 		    &pool->sp_space_low, 0,
 		    "Low water mark for request space.");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_INT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_throttled", CTLFLAG_RD,
 		    &pool->sp_space_throttled, 0,
 		    "Whether nfs requests are currently throttled");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_INT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_throttle_count", CTLFLAG_RD,
 		    &pool->sp_space_throttle_count, 0,
 		    "Count of times throttling based on request space has occurred");

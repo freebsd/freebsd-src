@@ -15,7 +15,7 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
-.if ${TARGET_CPUARCH} == "sparc64"
+.if ${TARGET_CPUARCH} == "sparc64" || ${TARGET_CPUARCH} == "mips"
 LIB=		gcc
 .endif
 
@@ -119,9 +119,10 @@ LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 #	_fixsfsi _fixunssfsi _floatdidf _floatdisf
 .endif
 
-.if ${TARGET_CPUARCH} == "mips"
+.if ${TARGET_CPUARCH} == mips
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
-.if defined(TARGET_ABI) && ${TARGET_ABI} != "o32"
+# XXX do we need n32 here?
+.if ${TARGET_ARCH:Mmips64*} != ""
 LIB2FUNCS_EXTRA+= floatdidf.c fixunsdfsi.c
 LIB2FUNCS_EXTRA+= floatdisf.c floatundidf.c
 LIB2FUNCS_EXTRA+= fixsfdi.c floatundisf.c

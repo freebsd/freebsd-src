@@ -85,9 +85,8 @@ marks the interrupt as being a good source of entropy -
 this may be used by the entropy device
 .Pa /dev/random .
 .Pp
-To define a time-critical handler (previously known as
-.Dv INTR_FAST )
-that will not execute any potentially blocking operation, use the
+To define a time-critical handler that will not execute any potentially
+blocking operation, use the
 .Fa filter
 argument.
 See the
@@ -128,10 +127,7 @@ will no longer be called.
 .Pp
 Mutexes are not allowed to be held across calls to these functions.
 .Ss "Filter Routines"
-A filter runs in a context very similar to what was known as an
-.Dv INTR_FAST
-routine in previous versions of 
-.Fx .
+A filter runs in primary interrupt context.
 In this context, normal mutexes cannot be used.
 Only the spin lock version of these can be used (specified by passing
 .Dv MTX_SPIN 

@@ -5,6 +5,12 @@
  *
  * Author: Harti Brandt <harti@freebsd.org>
  * 
+ * Copyright (c) 2010 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Shteryana Sotirova Shopova
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -97,6 +103,8 @@ struct snmp_engine snmpd_engine;
 
 /* snmpSerialNo */
 int32_t snmp_serial_no;
+
+struct snmpd_target_stats snmpd_target_stats;
 
 /* search path for config files */
 const char *syspath = PATH_SYSCONFIG;
@@ -361,7 +369,7 @@ snmp_pdu_auth_user(struct snmp_pdu *pdu)
  * Check whether access to each of var bindings in the PDU is allowed based
  * on the user credentials against the configured User groups & VACM views.
  */
-static enum snmp_code
+enum snmp_code
 snmp_pdu_auth_access(struct snmp_pdu *pdu, int32_t *ip)
 {
 	const char *uname;
@@ -1838,13 +1846,13 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	snmp_send_trap(&oid_coldStart, (struct snmp_value *)NULL);
-
 	while ((m = TAILQ_FIRST(&modules_start)) != NULL) {
 		m->flags &= ~LM_ONSTARTLIST;
 		TAILQ_REMOVE(&modules_start, m, start);
 		lm_start(m);
 	}
+
+	snmp_send_trap(&oid_coldStart, (struct snmp_value *)NULL);
 
 	for (;;) {
 #ifndef USE_LIBBEGEMOT

@@ -1,7 +1,146 @@
 ----------------------------------------
-13 October 2010. Summary of changes for version 20101013:
+12 January 2011. Summary of changes for version 20110112:
 
-This release is available at www.acpica.org/downloads
+1) ACPI CA Core Subsystem:
+
+Fixed a race condition between method execution and namespace walks that can 
+possibly cause a fault. The problem was apparently introduced in version 
+20100528 as a result of a performance optimization that reduces the number of 
+namespace walks upon method exit by using the delete_namespace_subtree 
+function instead of the delete_namespace_by_owner function used previously. 
+Bug is a missing namespace lock in the delete_namespace_subtree function. 
+dana.myers@oracle.com
+
+Fixed several issues and a possible fault with the automatic "serialized" 
+method support. History: This support changes a method to "serialized" on the 
+fly if the method generates an AE_ALREADY_EXISTS error, indicating the 
+possibility that it cannot handle reentrancy. This fix repairs a couple of 
+issues seen in the field, especially on machines with many cores:
+
+    1) Delete method children only upon the exit of the last thread,
+       so as to not delete objects out from under other running threads
+      (and possibly causing a fault.)
+    2) Set the "serialized" bit for the method only upon the exit of the
+       Last thread, so as to not cause deadlock when running threads
+       attempt to exit.
+    3) Cleanup the use of the AML "MethodFlags" and internal method flags
+       so that there is no longer any confusion between the two.
+
+    Lin Ming, Bob Moore. Reported by dana.myers@oracle.com.
+
+Debugger: Now lock the namespace for duration of a namespace dump. Prevents 
+issues if the namespace is changing dynamically underneath the debugger. 
+Especially affects temporary namespace nodes, since the debugger displays 
+these also.
+
+Updated the ordering of include files. The ACPICA headers should appear 
+before any compiler-specific headers (stdio.h, etc.) so that acenv.h can set 
+any necessary compiler-specific defines, etc. Affects the ACPI-related tools 
+and utilities.
+
+Updated all ACPICA copyrights and signons to 2011. Added the 2011 copyright 
+to all module headers and signons, including the Linux header. This affects 
+virtually every file in the ACPICA core subsystem, iASL compiler, and all 
+utilities.
+
+Added project files for MS Visual Studio 2008 (VC++ 9.0). The original 
+project files for VC++ 6.0 are now obsolete. New project files can be found 
+under acpica/generate/msvc9. See acpica/generate/msvc9/readme.txt for 
+details.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release (VC 6.0):
+    Non-Debug Version:  89.8K Code, 18.9K Data, 108.7K Total
+    Debug Version:     166.6K Code, 52.1K Data, 218.7K Total
+  Current Release (VC 9.0):
+    Non-Debug Version:  89.7K Code, 23.7K Data, 113.4K Total
+    Debug Version:     163.9K Code, 67.5K Data, 231.4K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Added generic data types to the Data Table compiler. Add "generic" data 
+types such as UINT32, String, Unicode, etc., to simplify the generation of 
+platform-defined tables such as UEFI. Lin Ming.
+
+iASL: Added listing support for the Data Table Compiler. Adds listing support 
+(-l) to display actual binary output for each line of input code.
+
+----------------------------------------
+09 December 2010. Summary of changes for version 20101209:
+
+1) ACPI CA Core Subsystem:
+
+Completed the major overhaul of the GPE support code that was begun in July 
+2010. Major features include: removal of _PRW execution in ACPICA (host 
+executes _PRWs anyway), cleanup of "wake" GPE interfaces and processing, 
+changes to existing interfaces, simplification of GPE handler operation, and 
+a handful of new interfaces:
+
+    AcpiUpdateAllGpes
+    AcpiFinishGpe
+    AcpiSetupGpeForWake
+    AcpiSetGpeWakeMask
+    One new file, evxfgpe.c to consolidate all external GPE interfaces.
+
+See the ACPICA Programmer Reference for full details and programming 
+information. See the new section 4.4 "General Purpose Event (GPE) Support" 
+for a full overview, and section 8.7 "ACPI General Purpose Event Management" 
+for programming details. ACPICA BZ 858,870,877. Matthew Garrett, Lin Ming, 
+Bob Moore, Rafael Wysocki.
+
+Implemented a new GPE feature for Windows compatibility, the "Implicit Wake 
+GPE Notify". This feature will automatically issue a Notify(2) on a device 
+when a Wake GPE is received if there is no corresponding GPE method or 
+handler. ACPICA BZ 870.
+
+Fixed a problem with the Scope() operator during table parse and load phase. 
+During load phase (table load or method execution), the scope operator should 
+not enter the target into the namespace. Instead, it should open a new scope 
+at the target location. Linux BZ 19462, ACPICA BZ 882.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  89.8K Code, 18.9K Data, 108.7K Total
+    Debug Version:     166.6K Code, 52.1K Data, 218.7K Total
+  Current Release:
+    Non-Debug Version:  89.9K Code, 19.0K Data, 108.9K Total
+    Debug Version:     166.3K Code, 52.1K Data, 218.4K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Relax the alphanumeric restriction on _CID strings. These strings are 
+"bus-specific" per the ACPI specification, and therefore any characters are 
+acceptable. The only checks that can be performed are for a null string and 
+perhaps for a leading asterisk. ACPICA BZ 886.
+
+iASL: Fixed a problem where a syntax error that caused a premature EOF 
+condition on the source file emitted a very confusing error message. The 
+premature EOF is now detected correctly. ACPICA BZ 891.
+
+Disassembler: Decode the AccessSize within a Generic Address Structure (byte 
+access, word access, etc.) Note, this field does not allow arbitrary bit 
+access, the size is encoded as 1=byte, 2=word, 3=dword, and 4=qword.
+
+New: AcpiNames utility - Example namespace dump utility. Shows an example of 
+ACPICA configuration for a minimal namespace dump utility. Uses table and 
+namespace managers, but no AML interpreter. Does not add any functionality 
+over AcpiExec, it is a subset of AcpiExec. The purpose is to show how to 
+partition and configure ACPICA. ACPICA BZ 883.
+
+AML Debugger: Increased the debugger buffer size for method return objects. 
+Was 4K, increased to 16K. Also enhanced error messages for debugger method 
+execution, including the buffer overflow case.
+
+----------------------------------------
+13 October 2010. Summary of changes for version 20101013:
 
 1) ACPI CA Core Subsystem:
 
@@ -60,8 +199,6 @@ iASL: Moved all compiler messages to a new file, aslmessages.h.
 
 ----------------------------------------
 15 September 2010. Summary of changes for version 20100915:
-
-This release is available at www.acpica.org/downloads
 
 1) ACPI CA Core Subsystem:
 

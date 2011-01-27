@@ -23,7 +23,6 @@ CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
 	-fno-unit-at-a-time \
 	-mno-align-long-strings \
 	-mrtd \
-	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
 	-DGPT -DBOOT2 \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \

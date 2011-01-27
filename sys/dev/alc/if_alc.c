@@ -159,6 +159,7 @@ static void	alc_setlinkspeed(struct alc_softc *);
 static void	alc_setwol(struct alc_softc *);
 static int	alc_shutdown(device_t);
 static void	alc_start(struct ifnet *);
+static void	alc_start_locked(struct ifnet *);
 static void	alc_start_queue(struct alc_softc *);
 static void	alc_stats_clear(struct alc_softc *);
 static void	alc_stats_update(struct alc_softc *);
@@ -168,7 +169,6 @@ static void	alc_stop_queue(struct alc_softc *);
 static int	alc_suspend(device_t);
 static void	alc_sysctl_node(struct alc_softc *);
 static void	alc_tick(void *);
-static void	alc_tx_task(void *, int);
 static void	alc_txeof(struct alc_softc *);
 static void	alc_watchdog(struct alc_softc *);
 static int	sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
@@ -677,7 +677,7 @@ alc_aspm(struct alc_softc *sc, int media)
 	pmcfg &= ~PM_CFG_SERDES_PD_EX_L1;
 	pmcfg &= ~(PM_CFG_L1_ENTRY_TIMER_MASK | PM_CFG_LCKDET_TIMER_MASK);
 	pmcfg |= PM_CFG_MAC_ASPM_CHK;
-	pmcfg |= PM_CFG_SERDES_ENB | PM_CFG_RBER_ENB;
+	pmcfg |= (PM_CFG_LCKDET_TIMER_DEFAULT << PM_CFG_LCKDET_TIMER_SHIFT);
 	pmcfg &= ~(PM_CFG_ASPM_L1_ENB | PM_CFG_ASPM_L0S_ENB);
 
 	if ((sc->alc_flags & ALC_FLAG_APS) != 0) {
@@ -1002,7 +1002,6 @@ alc_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Create local taskq. */
-	TASK_INIT(&sc->alc_tx_task, 1, alc_tx_task, ifp);
 	sc->alc_tq = taskqueue_create_fast("alc_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->alc_tq);
 	if (sc->alc_tq == NULL) {
@@ -1053,14 +1052,12 @@ alc_detach(device_t dev)
 
 	ifp = sc->alc_ifp;
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		ALC_LOCK(sc);
-		sc->alc_flags |= ALC_FLAG_DETACH;
 		alc_stop(sc);
 		ALC_UNLOCK(sc);
 		callout_drain(&sc->alc_tick_ch);
 		taskqueue_drain(sc->alc_tq, &sc->alc_int_task);
-		taskqueue_drain(sc->alc_tq, &sc->alc_tx_task);
-		ether_ifdetach(ifp);
 	}
 
 	if (sc->alc_tq != NULL) {
@@ -1108,7 +1105,7 @@ alc_detach(device_t dev)
 #define	ALC_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
 	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
 #define	ALC_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
-	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
 
 static void
 alc_sysctl_node(struct alc_softc *sc)
@@ -2237,16 +2234,18 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 }
 
 static void
-alc_tx_task(void *arg, int pending)
+alc_start(struct ifnet *ifp)
 {
-	struct ifnet *ifp;
+	struct alc_softc *sc;
 
-	ifp = (struct ifnet *)arg;
-	alc_start(ifp);
+	sc = ifp->if_softc;
+	ALC_LOCK(sc);
+	alc_start_locked(ifp);
+	ALC_UNLOCK(sc);
 }
 
 static void
-alc_start(struct ifnet *ifp)
+alc_start_locked(struct ifnet *ifp)
 {
 	struct alc_softc *sc;
 	struct mbuf *m_head;
@@ -2254,17 +2253,15 @@ alc_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	ALC_LOCK(sc);
+	ALC_LOCK_ASSERT(sc);
 
 	/* Reclaim transmitted frames. */
 	if (sc->alc_cdata.alc_tx_cnt >= ALC_TX_DESC_HIWAT)
 		alc_txeof(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->alc_flags & ALC_FLAG_LINK) == 0) {
-		ALC_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->alc_flags & ALC_FLAG_LINK) == 0)
 		return;
-	}
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -2303,8 +2300,6 @@ alc_start(struct ifnet *ifp)
 		/* Set a timeout in case the chip goes out to lunch. */
 		sc->alc_watchdog_timer = ALC_TX_TIMEOUT;
 	}
-
-	ALC_UNLOCK(sc);
 }
 
 static void
@@ -2330,7 +2325,7 @@ alc_watchdog(struct alc_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	alc_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue(sc->alc_tq, &sc->alc_tx_task);
+		alc_start_locked(ifp);
 }
 
 static int
@@ -2372,7 +2367,7 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    ((ifp->if_flags ^ sc->alc_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 				alc_rxfilter(sc);
-			else if ((sc->alc_flags & ALC_FLAG_DETACH) == 0)
+			else
 				alc_init_locked(sc);
 		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 			alc_stop(sc);
@@ -2667,6 +2662,7 @@ alc_int_task(void *arg, int pending)
 	ifp = sc->alc_ifp;
 
 	status = CSR_READ_4(sc, ALC_INTR_STATUS);
+	ALC_LOCK(sc);
 	if (sc->alc_morework != 0) {
 		sc->alc_morework = 0;
 		status |= INTR_RX_PKT;
@@ -2684,7 +2680,6 @@ alc_int_task(void *arg, int pending)
 			if (more == EAGAIN)
 				sc->alc_morework = 1;
 			else if (more == EIO) {
-				ALC_LOCK(sc);
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				alc_init_locked(sc);
 				ALC_UNLOCK(sc);
@@ -2702,7 +2697,6 @@ alc_int_task(void *arg, int pending)
 			if ((status & INTR_TXQ_TO_RST) != 0)
 				device_printf(sc->alc_dev,
 				    "TxQ reset! -- resetting\n");
-			ALC_LOCK(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			alc_init_locked(sc);
 			ALC_UNLOCK(sc);
@@ -2710,11 +2704,12 @@ alc_int_task(void *arg, int pending)
 		}
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue(sc->alc_tq, &sc->alc_tx_task);
+			alc_start_locked(ifp);
 	}
 
 	if (more == EAGAIN ||
 	    (CSR_READ_4(sc, ALC_INTR_STATUS) & ALC_INTRS) != 0) {
+		ALC_UNLOCK(sc);
 		taskqueue_enqueue(sc->alc_tq, &sc->alc_int_task);
 		return;
 	}
@@ -2724,6 +2719,7 @@ done:
 		/* Re-enable interrupts if we're running. */
 		CSR_WRITE_4(sc, ALC_INTR_STATUS, 0x7FFFFFFF);
 	}
+	ALC_UNLOCK(sc);
 }
 
 static void
@@ -3043,7 +3039,9 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 #endif
 			{
 			/* Pass it on. */
+			ALC_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
+			ALC_LOCK(sc);
 			}
 		}
 	}
@@ -3149,6 +3147,9 @@ alc_init_locked(struct alc_softc *sc)
 	alc_init_tx_ring(sc);
 	alc_init_cmb(sc);
 	alc_init_smb(sc);
+
+	/* Enable all clocks. */
+	CSR_WRITE_4(sc, ALC_CLK_GATING_CFG, 0);
 
 	/* Reprogram the station address. */
 	bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);

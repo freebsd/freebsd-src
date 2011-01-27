@@ -632,6 +632,14 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 }
 
 
+pid_t
+getjobpgrp(char *name)
+{
+	struct job *jp;
+
+	jp = getjob(name);
+	return -jp->ps[0].pid;
+}
 
 /*
  * Return a new job structure,
@@ -1054,6 +1062,7 @@ dowait(int block, struct job *job)
 			if (coredump)
 				out1str(" (core dumped)");
 			out1c('\n');
+			flushout(out1);
 		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=%p\n", rootshell, job));

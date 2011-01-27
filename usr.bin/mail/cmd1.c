@@ -54,8 +54,7 @@ extern const struct cmd cmdtab[];
 static int screen;
 
 int
-headers(msgvec)
-	int *msgvec;
+headers(int *msgvec)
 {
 	int n, mesg, flag, size;
 	struct message *mp;
@@ -94,8 +93,7 @@ headers(msgvec)
  * Scroll to the next/previous screen
  */
 int
-scroll(arg)
-	char arg[];
+scroll(char arg[])
 {
 	int s, size;
 	int cur[1];
@@ -133,7 +131,7 @@ scroll(arg)
  * Compute screen size.
  */
 int
-screensize()
+screensize(void)
 {
 	int s;
 	char *cp;
@@ -148,8 +146,7 @@ screensize()
  * in the passed message list.
  */
 int
-from(msgvec)
-	int *msgvec;
+from(int *msgvec)
 {
 	int *ip;
 
@@ -165,8 +162,7 @@ from(msgvec)
  * This is a slight improvement to the standard one.
  */
 void
-printhead(mesg)
-	int mesg;
+printhead(int mesg)
 {
 	struct message *mp;
 	char headline[LINESIZE], wcount[LINESIZE], *subjline, dispc, curind;
@@ -212,7 +208,7 @@ printhead(mesg)
  * Print out the value of dot.
  */
 int
-pdot()
+pdot(void)
 {
 	printf("%d\n", dot - &message[0] + 1);
 	return (0);
@@ -222,7 +218,7 @@ pdot()
  * Print out all the possible commands.
  */
 int
-pcmdlist()
+pcmdlist(void)
 {
 	const struct cmd *cp;
 	int cc;
@@ -246,8 +242,7 @@ pcmdlist()
  * Paginate messages, honor ignored fields.
  */
 int
-more(msgvec)
-	int *msgvec;
+more(int *msgvec)
 {
 
 	return (type1(msgvec, 1, 1));
@@ -257,8 +252,7 @@ more(msgvec)
  * Paginate messages, even printing ignored fields.
  */
 int
-More(msgvec)
-	int *msgvec;
+More(int *msgvec)
 {
 
 	return (type1(msgvec, 0, 1));
@@ -268,8 +262,7 @@ More(msgvec)
  * Type out messages, honor ignored fields.
  */
 int
-type(msgvec)
-	int *msgvec;
+type(int *msgvec)
 {
 
 	return (type1(msgvec, 1, 0));
@@ -279,8 +272,7 @@ type(msgvec)
  * Type out messages, even printing ignored fields.
  */
 int
-Type(msgvec)
-	int *msgvec;
+Type(int *msgvec)
 {
 
 	return (type1(msgvec, 0, 0));
@@ -291,9 +283,7 @@ Type(msgvec)
  */
 static jmp_buf	pipestop;
 int
-type1(msgvec, doign, page)
-	int *msgvec;
-	int doign, page;
+type1(int *msgvec, int doign, int page)
 {
 	int nlines, *ip;
 	struct message *mp;
@@ -354,8 +344,7 @@ close_pipe:
  */
 /*ARGSUSED*/
 void
-brokpipe(signo)
-	int signo;
+brokpipe(int signo __unused)
 {
 	longjmp(pipestop, 1);
 }
@@ -366,8 +355,7 @@ brokpipe(signo)
  * and defaults to 5.
  */
 int
-top(msgvec)
-	int *msgvec;
+top(int *msgvec)
 {
 	int *ip;
 	struct message *mp;
@@ -408,8 +396,7 @@ top(msgvec)
  * get mboxed.
  */
 int
-stouch(msgvec)
-	int msgvec[];
+stouch(int msgvec[])
 {
 	int *ip;
 
@@ -425,8 +412,7 @@ stouch(msgvec)
  * Make sure all passed messages get mboxed.
  */
 int
-mboxit(msgvec)
-	int msgvec[];
+mboxit(int msgvec[])
 {
 	int *ip;
 
@@ -442,7 +428,7 @@ mboxit(msgvec)
  * List the folders the user currently has.
  */
 int
-folders()
+folders(void)
 {
 	char dirname[PATHSIZE];
 	char *cmd;
@@ -462,8 +448,7 @@ folders()
  * come in since we started reading mail.
  */
 int
-inc(v)
-	void *v;
+inc(void *v __unused)
 {
 	int nmsg, mdot;
 

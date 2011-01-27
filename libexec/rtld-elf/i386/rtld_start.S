@@ -89,3 +89,5 @@ _rtld_bind_start:
 	popf				# Restore eflags
 	leal	4(%esp),%esp		# Discard reloff, do not change eflags
 	ret				# "Return" to target address
+
+	.section .note.GNU-stack,"",%progbits

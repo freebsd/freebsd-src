@@ -615,8 +615,12 @@ sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 				}
 				break;
 			case CTLTYPE_INT:    printf(" Int\n"); break;
+			case CTLTYPE_UINT:   printf(" u_int\n"); break;
+			case CTLTYPE_LONG:   printf(" Long\n"); break;
+			case CTLTYPE_ULONG:  printf(" u_long\n"); break;
 			case CTLTYPE_STRING: printf(" String\n"); break;
-			case CTLTYPE_QUAD:   printf(" Quad\n"); break;
+			case CTLTYPE_U64:    printf(" uint64_t\n"); break;
+			case CTLTYPE_S64:    printf(" int64_t\n"); break;
 			case CTLTYPE_OPAQUE: printf(" Opaque/struct\n"); break;
 			default:	     printf("\n");
 		}
@@ -876,7 +880,8 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_sysctl, 3, name2oid, CTLFLAG_RW|CTLFLAG_ANYBODY|CTLFLAG_MPSAFE,
+SYSCTL_PROC(_sysctl, 3, name2oid,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
     0, 0, sysctl_sysctl_name2oid, "I", "");
 
 static int
@@ -1034,9 +1039,8 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 /*
  * Handle a 64 bit int, signed or unsigned.  arg1 points to it.
  */
-
 int
-sysctl_handle_quad(SYSCTL_HANDLER_ARGS)
+sysctl_handle_64(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
 	uint64_t tmpout;
@@ -1202,7 +1206,7 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	req.oldfunc = sysctl_old_kernel;
 	req.newfunc = sysctl_new_kernel;
-	req.lock = REQ_LOCKED;
+	req.lock = REQ_UNWIRED;
 
 	SYSCTL_XLOCK();
 	error = sysctl_root(0, name, namelen, &req);
@@ -1310,7 +1314,7 @@ sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 
 	wiredlen = (len > 0 && len < req->oldlen) ? len : req->oldlen;
 	ret = 0;
-	if (req->lock == REQ_LOCKED && req->oldptr &&
+	if (req->lock != REQ_WIRED && req->oldptr &&
 	    req->oldfunc == sysctl_old_user) {
 		if (wiredlen != 0) {
 			ret = vslock(req->oldptr, wiredlen);
@@ -1346,8 +1350,6 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			return (ENOENT);
 
 		indx++;
-		if (oid->oid_kind & CTLFLAG_NOLOCK)
-			req->lock = REQ_UNLOCKED;
 		if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 			if (oid->oid_handler != NULL || indx == namelen) {
 				*noid = oid;
@@ -1544,7 +1546,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	req.oldfunc = sysctl_old_user;
 	req.newfunc = sysctl_new_user;
-	req.lock = REQ_LOCKED;
+	req.lock = REQ_UNWIRED;
 
 #ifdef KTRACE
 	if (KTRPOINT(curthread, KTR_SYSCTL))
@@ -1589,7 +1591,8 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 }
 
 /*
- * Drain into a sysctl struct.  The user buffer must be wired.
+ * Drain into a sysctl struct.  The user buffer should be wired if a page
+ * fault would cause issue.
  */
 static int
 sbuf_sysctl_drain(void *arg, const char *data, int len)
@@ -1606,9 +1609,6 @@ struct sbuf *
 sbuf_new_for_sysctl(struct sbuf *s, char *buf, int length,
     struct sysctl_req *req)
 {
-
-	/* Wire the user buffer, so we can write without blocking. */
-	sysctl_wire_old_buffer(req, 0);
 
 	s = sbuf_new(s, buf, length, SBUF_FIXEDLEN);
 	sbuf_set_drain(s, sbuf_sysctl_drain, req);

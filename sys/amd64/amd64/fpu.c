@@ -426,9 +426,11 @@ fpudna(void)
 		fxrstor(&fpu_initialstate);
 		if (pcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
 			fldcw(pcb->pcb_initial_fpucw);
-		pcb->pcb_flags |= PCB_FPUINITDONE;
 		if (PCB_USER_FPU(pcb))
-			pcb->pcb_flags |= PCB_USERFPUINITDONE;
+			set_pcb_flags(pcb,
+			    PCB_FPUINITDONE | PCB_USERFPUINITDONE);
+		else
+			set_pcb_flags(pcb, PCB_FPUINITDONE);
 	} else
 		fxrstor(pcb->pcb_save);
 	critical_exit();
@@ -443,7 +445,7 @@ fpudrop()
 	KASSERT(td == curthread, ("fpudrop: fpcurthread != curthread"));
 	CRITICAL_ASSERT(td);
 	PCPU_SET(fpcurthread, NULL);
-	td->td_pcb->pcb_flags &= ~PCB_FPUINITDONE;
+	clear_pcb_flags(td->td_pcb, PCB_FPUINITDONE);
 	start_emulating();
 }
 
@@ -483,8 +485,10 @@ fpuuserinited(struct thread *td)
 
 	pcb = td->td_pcb;
 	if (PCB_USER_FPU(pcb))
-		pcb->pcb_flags |= PCB_FPUINITDONE;
-	pcb->pcb_flags |= PCB_USERFPUINITDONE;
+		set_pcb_flags(pcb,
+		    PCB_FPUINITDONE | PCB_USERFPUINITDONE);
+	else
+		set_pcb_flags(pcb, PCB_FPUINITDONE);
 }
 
 /*
@@ -500,7 +504,7 @@ fpusetregs(struct thread *td, struct savefpu *addr)
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
 		fxrstor(addr);
 		critical_exit();
-		pcb->pcb_flags |= PCB_FPUINITDONE | PCB_USERFPUINITDONE;
+		set_pcb_flags(pcb, PCB_FPUINITDONE | PCB_USERFPUINITDONE);
 	} else {
 		critical_exit();
 		bcopy(addr, &td->td_pcb->pcb_user_save, sizeof(*addr));
@@ -609,8 +613,8 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 	fpuexit(td);
 	ctx->prev = pcb->pcb_save;
 	pcb->pcb_save = &ctx->hwstate;
-	pcb->pcb_flags |= PCB_KERNFPU;
-	pcb->pcb_flags &= ~PCB_FPUINITDONE;
+	set_pcb_flags(pcb, PCB_KERNFPU);
+	clear_pcb_flags(pcb, PCB_FPUINITDONE);
 	return (0);
 }
 
@@ -626,16 +630,16 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 	critical_exit();
 	pcb->pcb_save = ctx->prev;
 	if (pcb->pcb_save == &pcb->pcb_user_save) {
-		if ((pcb->pcb_flags & PCB_USERFPUINITDONE) != 0)
-			pcb->pcb_flags |= PCB_FPUINITDONE;
-		else
-			pcb->pcb_flags &= ~PCB_FPUINITDONE;
-		pcb->pcb_flags &= ~PCB_KERNFPU;
+		if ((pcb->pcb_flags & PCB_USERFPUINITDONE) != 0) {
+			set_pcb_flags(pcb, PCB_FPUINITDONE);
+			clear_pcb_flags(pcb, PCB_KERNFPU);
+		} else
+			clear_pcb_flags(pcb, PCB_FPUINITDONE | PCB_KERNFPU);
 	} else {
 		if ((ctx->flags & FPU_KERN_CTX_FPUINITDONE) != 0)
-			pcb->pcb_flags |= PCB_FPUINITDONE;
+			set_pcb_flags(pcb, PCB_FPUINITDONE);
 		else
-			pcb->pcb_flags &= ~PCB_FPUINITDONE;
+			clear_pcb_flags(pcb, PCB_FPUINITDONE);
 		KASSERT(!PCB_USER_FPU(pcb), ("unpaired fpu_kern_leave"));
 	}
 	return (0);
@@ -652,7 +656,7 @@ fpu_kern_thread(u_int flags)
 	KASSERT(pcb->pcb_save == &pcb->pcb_user_save, ("mangled pcb_save"));
 	KASSERT(PCB_USER_FPU(pcb), ("recursive call"));
 
-	pcb->pcb_flags |= PCB_KERNFPU;
+	set_pcb_flags(pcb, PCB_KERNFPU);
 	return (0);
 }
 

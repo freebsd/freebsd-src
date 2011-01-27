@@ -1160,10 +1160,11 @@ snmp_pdu_create(struct snmp_pdu *pdu, u_int op)
 	pdu->flags = 0;
 	pdu->security_model = snmp_client.security_model;
 
-	if (snmp_client.security_model == SNMP_SECMODEL_USM)
-		snmp_pdu_init_secparams(pdu, &snmp_client.engine,
-		    &snmp_client.user);
-	else
+	if (snmp_client.security_model == SNMP_SECMODEL_USM) {
+		memcpy(&pdu->engine, &snmp_client.engine, sizeof(pdu->engine));
+		memcpy(&pdu->user, &snmp_client.user, sizeof(pdu->user));
+		snmp_pdu_init_secparams(pdu);
+	} else
 		seterr(&snmp_client, "unknown security model");
 
 	if (snmp_client.clen > 0) {
@@ -1440,9 +1441,11 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 	abuf.asn_len = ret;
 
 	memset(pdu, 0, sizeof(*pdu));
-	if (snmp_client.security_model == SNMP_SECMODEL_USM)
-		snmp_pdu_init_secparams(pdu, &snmp_client.engine,
-		    &snmp_client.user);
+	if (snmp_client.security_model == SNMP_SECMODEL_USM) {
+		memcpy(&pdu->engine, &snmp_client.engine, sizeof(pdu->engine));
+		memcpy(&pdu->user, &snmp_client.user, sizeof(pdu->user));
+		snmp_pdu_init_secparams(pdu);
+	}
 
 	if (SNMP_CODE_OK != (ret = snmp_pdu_decode(&abuf, pdu, &ip))) {
 		seterr(&snmp_client, "snmp_decode_pdu: failed %d", ret);

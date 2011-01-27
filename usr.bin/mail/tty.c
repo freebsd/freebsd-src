@@ -57,9 +57,7 @@ static	int	ttyset;			/* We must now do erase/kill */
  */
 
 int
-grabh(hp, gflags)
-	struct header *hp;
-	int gflags;
+grabh(struct header *hp, int gflags)
 {
 	struct termios ttybuf;
 	sig_t saveint;
@@ -170,9 +168,7 @@ out:
  */
 
 char *
-readtty(pr, src)
-	const char *pr;
-	char src[];
+readtty(const char *pr, char src[])
 {
 	char ch, canonb[BUFSIZ];
 	int c;
@@ -272,8 +268,7 @@ redo:
  * Receipt continuation.
  */
 void
-ttystop(s)
-	int s;
+ttystop(int s)
 {
 	sig_t old_action = signal(s, SIG_DFL);
 	sigset_t nset;
@@ -287,10 +282,8 @@ ttystop(s)
 	longjmp(rewrite, 1);
 }
 
-/*ARGSUSED*/
 void
-ttyint(s)
-	int s;
+ttyint(int s __unused)
 {
 	longjmp(intjmp, 1);
 }

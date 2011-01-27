@@ -74,12 +74,12 @@ int yylex(void);
 			return ARITH_NUM;
 		}
 
-0[0-7]+		{
+0[0-7]*		{
 			yylval.l_value = strtoarith_t(yytext, NULL, 8);
 			return ARITH_NUM;
 		}
 
-[0-9]+		{
+[1-9][0-9]*	{
 			yylval.l_value = strtoarith_t(yytext, NULL, 10);
 			return ARITH_NUM;
 		}
