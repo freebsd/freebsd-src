@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #define SD_REBUILD_FAIR_IO 10 /* use 1/x of the available I/O */
 #define SD_REBUILD_CLUSTER_BUSY 4
 #define SD_REBUILD_CLUSTER_IDLE 10
+#define SD_REBUILD_META_UPDATE 100 /* update meta data every GB or so */
 
 /*
  * We don't want to hammer the disk with I/O requests when doing a rebuild or
@@ -71,6 +72,7 @@ struct g_raid_tr_raid1_object {
 	int			 trso_type;
 	int			 trso_recover_slabs; /* might need to be more */
 	int			 trso_fair_io;
+	int			 trso_meta_update;
 	int			 trso_flags;
 	struct g_raid_subdisk	*trso_good_sd;	/* specific rather than per tr */
 	struct g_raid_subdisk	*trso_failed_sd;/* like per volume */
@@ -290,9 +292,9 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr, struct g_raid_volume 
 	trs->trso_type = TR_RAID1_REBUILD;
 	trs->trso_failed_sd->sd_rebuild_pos = 0;
 	trs->trso_buffer = malloc(SD_REBUILD_SLAB, M_TR_raid1, M_WAITOK);
+	trs->trso_meta_update = SD_REBUILD_META_UPDATE;
 	vol->v_to_arg = trs;
 	vol->v_timeout = g_raid_tr_raid1_idle_rebuild;
-	/* XXX what else do I need to setup the first time? */
 	g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
 }
 
@@ -611,9 +613,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					return;
 				}
 				if (--trs->trso_recover_slabs <= 0) {
-					/* Have we done a substantial enough amount of recovery? */
-					g_raid_write_metadata(vol->v_softc, vol, nsd,
-					    nsd->sd_disk);
+					if (--trs->trso_meta_update <= 0) {
+						g_raid_write_metadata(vol->v_softc,
+						    vol, nsd, nsd->sd_disk);
+						trs->trso_meta_update = SD_REBUILD_META_UPDATE;
+					}
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
 					return;
 				}
