@@ -1548,9 +1548,11 @@ static void
 flowtable_cleaner(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
+	struct thread *td;
 
 	if (bootverbose)
 		log(LOG_INFO, "flowtable cleaner started\n");
+	td = curthread;
 	while (1) {
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
@@ -1565,6 +1567,9 @@ flowtable_cleaner(void)
 		 * is arbitrary
 		 */
 		mtx_lock(&flowclean_lock);
+		thread_lock(td);
+		sched_prio(td, PPAUSE);
+		thread_unlock(td);
 		flowclean_cycles++;
 		cv_broadcast(&flowclean_f_cv);
 		cv_timedwait(&flowclean_c_cv, &flowclean_lock, flowclean_freq);
