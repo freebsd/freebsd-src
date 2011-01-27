@@ -25,7 +25,7 @@ VERSION_MAP=	${SRCDIR}/libgomp.map
 # Target-specific OpenMP configuration
 .if ${MACHINE_CPUARCH} == arm || ${MACHINE_CPUARCH} == i386 || \
     ${MACHINE_ARCH} == powerpc || \
-    ${MACHINE_ARCH} == mipsel || ${MACHINE_ARCH} == mipseb
+    (${MACHINE_CPUARCH} == mips &&  ${MACHINE_ARCH:Mmips64*} == "")
 OMP_LOCK_ALIGN	=	4
 OMP_LOCK_KIND=		4
 OMP_LOCK_SIZE=		4
