@@ -1591,7 +1591,8 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 }
 
 /*
- * Drain into a sysctl struct.  The user buffer must be wired.
+ * Drain into a sysctl struct.  The user buffer should be wired if a page
+ * fault would cause issue.
  */
 static int
 sbuf_sysctl_drain(void *arg, const char *data, int len)
@@ -1608,9 +1609,6 @@ struct sbuf *
 sbuf_new_for_sysctl(struct sbuf *s, char *buf, int length,
     struct sysctl_req *req)
 {
-
-	/* Wire the user buffer, so we can write without blocking. */
-	sysctl_wire_old_buffer(req, 0);
 
 	s = sbuf_new(s, buf, length, SBUF_FIXEDLEN);
 	sbuf_set_drain(s, sbuf_sysctl_drain, req);
