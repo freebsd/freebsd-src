@@ -804,9 +804,10 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, off_t *cntp)
 		/* Copy the new dirent structure into the output buffer and
 		 * advance pointers. */
 		error = uiomove(&d, d.d_reclen, uio);
-
-		(*cntp)++;
-		de = TAILQ_NEXT(de, td_entries);
+		if (error == 0) {
+			(*cntp)++;
+			de = TAILQ_NEXT(de, td_entries);
+		}
 	} while (error == 0 && uio->uio_resid > 0 && de != NULL);
 
 	/* Update the offset and cache. */
