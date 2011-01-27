@@ -858,6 +858,11 @@ ath_hal_ini_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 	for (r = 0; r < ia->rows; r++) {
 		OS_REG_WRITE(ah, HAL_INI_VAL(ia, r, 0),
 		    HAL_INI_VAL(ia, r, col));
+
+		/* Analog shift register delay seems needed for Merlin - PR kern/154220 */
+		if (HAL_INI_VAL(ia, r, 0) >= 0x7800 && HAL_INI_VAL(ia, r, 0) < 0x78a0)
+			OS_DELAY(100);
+
 		DMA_YIELD(regWr);
 	}
 	return regWr;
@@ -881,6 +886,10 @@ ath_hal_ini_bank_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 
 	for (r = 0; r < ia->rows; r++) {
 		OS_REG_WRITE(ah, HAL_INI_VAL(ia, r, 0), data[r]);
+
+		/* Analog shift register delay seems needed for Merlin - PR kern/154220 */
+		if (HAL_INI_VAL(ia, r, 0) >= 0x7800 && HAL_INI_VAL(ia, r, 0) < 0x78a0)
+			OS_DELAY(100);
 		DMA_YIELD(regWr);
 	}
 	return regWr;
