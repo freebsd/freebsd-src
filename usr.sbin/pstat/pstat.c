@@ -246,7 +246,7 @@ ttymode_kvm(void)
 		XT_COPY(olowat);
 #undef XT_COPY
 		ttyprt(&xt);
-		tp = TAILQ_NEXT(tp, t_list);
+		tp = TAILQ_NEXT(&tty, t_list);
 	}
 }
 
