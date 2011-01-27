@@ -101,6 +101,8 @@ struct hastd_config {
 	char	 hc_controladdr[HAST_ADDRSIZE];
 	/* Protocol-specific data. */
 	struct proto_conn *hc_controlconn;
+	/* Incoming control connection. */
+	struct proto_conn *hc_controlin;
 	/* Address to listen on. */
 	char	 hc_listenaddr[HAST_ADDRSIZE];
 	/* Protocol-specific data. */
