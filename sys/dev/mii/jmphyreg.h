@@ -105,4 +105,13 @@
 #define	JMPHY_TMCTL			0x1A
 #define	JMPHY_TMCTL_SLEEP_ENB		0x1000
 
+/* PHY specific configuration register. */
+#define	JMPHY_SPEC_ADDR			0x1E
+#define	JMPHY_SPEC_ADDR_READ		0x4000
+#define	JMPHY_SPEC_ADDR_WRITE		0x8000
+
+#define	JMPHY_SPEC_DATA			0x1F
+
+#define	JMPHY_EXT_COMM_2		0x32
+
 #endif	/* _DEV_MII_JMPHYREG_H_ */
