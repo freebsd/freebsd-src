@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2009-2011 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -385,6 +385,4 @@ pjdlog_verify(const char *func, const char *file, int line,
 		    failedexpr, func, file, line);
 	}
 	abort();
-        /* NOTREACHED */
 }
-
