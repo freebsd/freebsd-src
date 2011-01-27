@@ -544,7 +544,6 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * inactive ones, we do 50MB.
 		 */
 		if (trs->trso_type == TR_RAID1_REBUILD) {
-			printf("Rebuild BIO\n");
 			vol = tr->tro_volume;
 			pbp->bio_inbed++;
 			if (bp->bio_cmd == BIO_READ) {
@@ -552,7 +551,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				 * The read operation finished, queue the
 				 * write and get out.
 				 */
-				G_RAID_LOGREQ(1, bp,
+				G_RAID_LOGREQ(4, bp,
 				    "rebuild read done. Error %d", bp->bio_error);
 				if (bp->bio_error != 0) {
 					g_raid_tr_raid1_rebuild_abort(tr, vol);
@@ -563,9 +562,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 				cbp->bio_offset = bp->bio_offset; /* Necessary? */
 				cbp->bio_length = bp->bio_length;
-				G_RAID_LOGREQ(1, bp, "Queueing reguild write.");
+				G_RAID_LOGREQ(4, bp, "Queueing reguild write.");
 				g_raid_subdisk_iostart(trs->trso_failed_sd, cbp);
-				return;
 			} else {
 				/*
 				 * The write operation just finished.  Do
@@ -577,40 +575,39 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				 * SD_REBUILD_CLUSTER should be small, that
 				 * shouldn't be a problem.
 				 */
-				G_RAID_LOGREQ(1, bp,
+				G_RAID_LOGREQ(4, bp,
 				    "rebuild write done. Error %d", bp->bio_error);
 				if (bp->bio_error != 0) {
 					g_raid_tr_raid1_rebuild_abort(tr, vol);
-					goto out;
+					g_destroy_bio(pbp);
+					return;
 				}
 /* XXX A lot of the following is needed when we kick of the work -- refactor */
 				nsd = trs->trso_failed_sd;
-				if (nsd == NULL) {
-					printf("WTF?  nsd is null\n");
-					goto out;
-				}
 				g_raid_unlock_range(sd->sd_volume,
 				    bp->bio_offset, bp->bio_length);
 				nsd->sd_rebuild_pos += pbp->bio_length;
 				if (nsd->sd_rebuild_pos >= vol->v_mediasize) {
 					g_raid_tr_raid1_rebuild_finish(tr, vol);
-					goto out;
+					g_destroy_bio(pbp);
+					return;
 				}
 				if (--trs->trso_recover_slabs == 0) {
-					goto out;
+					g_destroy_bio(pbp);
+					return;
 				}
 				pbp->bio_offset = nsd->sd_rebuild_pos;
 				cbp = g_clone_bio(pbp);
 				cbp->bio_cmd = BIO_READ;
 				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 				cbp->bio_offset = nsd->sd_rebuild_pos;
-				cbp->bio_length = MIN(SD_REBUILD_SLAB, vol->v_mediasize - nsd->sd_rebuild_pos);
+				cbp->bio_length = MIN(SD_REBUILD_SLAB,
+				    vol->v_mediasize - nsd->sd_rebuild_pos);
 				cbp->bio_caller1 = trs->trso_good_sd;
-				G_RAID_LOGREQ(1, bp,
+				G_RAID_LOGREQ(4, bp,
 				    "Rebuild read at %jd.", cbp->bio_offset);
 				g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
 				    cbp->bio_offset, cbp->bio_length, cbp);
-				goto out;
 			}
 		} else if (trs->trso_type == TR_RAID1_RESYNC) {
 			/*
@@ -621,8 +618,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			 */
 			panic("Somehow, we think we're doing a resync");
 		}
+		return;
 	}
-	printf("Woof.  bp is %p pbp is %p\n", bp, pbp);
 	if (bp->bio_error != 0 && bp->bio_cmd == BIO_READ &&
 	    pbp->bio_children == 1 && bp->bio_cflags == 0) {
 		/*
@@ -632,7 +629,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 */
 		vol = tr->tro_volume;
 		sd->sd_read_errs++;
-		G_RAID_LOGREQ(1, bp,
+		G_RAID_LOGREQ(3, bp,
 		    "Read failure, attempting recovery. %d total read errs",
 		    sd->sd_read_errs);
 
@@ -655,7 +652,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			cbp = g_clone_bio(pbp);
 			if (cbp == NULL)
 				break;
-			G_RAID_LOGREQ(3, cbp, "Retrying read");
+			G_RAID_LOGREQ(2, cbp, "Retrying read");
 			g_raid_subdisk_iostart(nsd, cbp);
 			pbp->bio_inbed++;
 			return;
