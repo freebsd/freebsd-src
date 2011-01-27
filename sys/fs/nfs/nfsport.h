@@ -639,9 +639,9 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
 #define	TAILQ_END(head)		NULL
 
 /*
- * This must be defined to be a global variable the increments once
+ * This must be defined to be a global variable that increments once
  * per second, but never stops or goes backwards, even when a "date"
- * command changes the tod clock. It is used for delta times for
+ * command changes the TOD clock. It is used for delta times for
  * leases, etc.
  */
 #define	NFSD_MONOSEC		time_uptime
