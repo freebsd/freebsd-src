@@ -1935,6 +1935,12 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
 				sbuf_printf(sb, "%s",
 				    g_raid_subdisk_state2str(sd->sd_state));
+				if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+				    sd->sd_state == G_RAID_SUBDISK_S_RESYNC) {
+					sbuf_printf(sb, " %d%%",
+					    (int)(sd->sd_rebuild_pos * 100 /
+					     sd->sd_size));
+				}
 				if (TAILQ_NEXT(sd, sd_next))
 					sbuf_printf(sb, ", ");
 			}
