@@ -278,6 +278,7 @@ control_handle(struct hastd_config *cfg)
 		return;
 	}
 
+	cfg->hc_controlin = conn;
 	nvin = nvout = NULL;
 	role = HAST_ROLE_UNDEF;
 
@@ -384,6 +385,7 @@ close:
 	if (nvout != NULL)
 		nv_free(nvout);
 	proto_close(conn);
+	cfg->hc_controlin = NULL;
 }
 
 /*
