@@ -624,7 +624,7 @@ cxgb_pcpu_start_proc(void *arg)
 			continue;
 		}
 	done:	
-		tsleep(qs, 1, "cxgbidle", idleticks);
+		tsleep(qs, 0, "cxgbidle", idleticks);
 	}
 
 	if (bootverbose)

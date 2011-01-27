@@ -63,10 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/vnode.h>
 #include <sys/eventhandler.h>
-#ifdef KTRACE
-#include <sys/uio.h>
-#include <sys/ktrace.h>
-#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -717,9 +713,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_textvp = p->p_textvp;
 #ifdef KTRACE
 	kp->ki_tracep = p->p_tracevp;
-	mtx_lock(&ktrace_mtx);
 	kp->ki_traceflag = p->p_traceflag;
-	mtx_unlock(&ktrace_mtx);
 #endif
 	kp->ki_fd = p->p_fd;
 	kp->ki_vmspace = p->p_vmspace;
@@ -1456,6 +1450,8 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_flags |= KVME_FLAG_COW;
 		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
 			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
+		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
+			kve->kve_flags |= KVME_FLAG_NOCOREDUMP;
 
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
@@ -1630,6 +1626,8 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_flags |= KVME_FLAG_COW;
 		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
 			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
+		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
+			kve->kve_flags |= KVME_FLAG_NOCOREDUMP;
 
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);

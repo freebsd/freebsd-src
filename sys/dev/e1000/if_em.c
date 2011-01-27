@@ -90,7 +90,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.1.8";
+char em_driver_version[] = "7.1.9";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1699,12 +1699,12 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		}
 		ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 		poff = ip_off + (ip->ip_hl << 2);
-		m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
 		if (do_tso) {
+			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			/*
 			 * TSO workaround:
@@ -1728,6 +1728,11 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 			tp->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 		} else if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
+			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			m_head = m_pullup(m_head, poff + (tp->th_off << 2));
 			if (m_head == NULL) {
@@ -1788,14 +1793,23 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		error = bus_dmamap_load_mbuf_sg(txr->txtag, map,
 		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
-		if (error) {
+		if (error == ENOMEM) {
+			adapter->no_tx_dma_setup++;
+			return (error);
+		} else if (error != 0) {
 			adapter->no_tx_dma_setup++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
+
+	} else if (error == ENOMEM) {
+		adapter->no_tx_dma_setup++;
+		return (error);
 	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
+		m_freem(*m_headp);
+		*m_headp = NULL;
 		return (error);
 	}
 
@@ -2077,7 +2091,6 @@ hung:
 	    txr->me, txr->tx_avail, txr->next_to_clean);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
-	EM_TX_UNLOCK(txr);
 	em_init_locked(adapter);
 }
 

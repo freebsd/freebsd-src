@@ -613,21 +613,7 @@ again:
 	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
 
 #ifdef KTRACE
-	/*
-	 * Copy traceflag and tracefile if enabled.
-	 */
-	mtx_lock(&ktrace_mtx);
-	KASSERT(p2->p_tracevp == NULL, ("new process has a ktrace vnode"));
-	if (p1->p_traceflag & KTRFAC_INHERIT) {
-		p2->p_traceflag = p1->p_traceflag;
-		if ((p2->p_tracevp = p1->p_tracevp) != NULL) {
-			VREF(p2->p_tracevp);
-			KASSERT(p1->p_tracecred != NULL,
-			    ("ktrace vnode with no cred"));
-			p2->p_tracecred = crhold(p1->p_tracecred);
-		}
-	}
-	mtx_unlock(&ktrace_mtx);
+	ktrprocfork(p1, p2);
 #endif
 
 	/*

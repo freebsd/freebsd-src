@@ -32,7 +32,7 @@
 .\"	@(#)gcore.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd April 18, 1994
+.Dd July 14, 2010
 .Dt GCORE 1
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nd get core images of running process
 .Sh SYNOPSIS
 .Nm
+.Op Fl f
 .Op Fl s
 .Op Fl c Ar core
 .Op Ar executable
@@ -55,17 +56,20 @@ By default, the core is written to the file
 The process identifier,
 .Ar pid ,
 must be given on the command line.
-If no executable image is
-specified,
-.Nm
-will use
-.Dq Pa /proc/<pid>/file .
 .Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl c
 Write the core file to the specified file instead of
 .Dq Pa core.<pid> .
+.It Fl f
+Dumps all available segments, excluding only malformed and undumpable segments.
+Unlike the default invocation, this flag dumps mappings of devices which
+may invalidate the state of device transactions or trigger other unexpected
+behavior.
+As a result, this flag should only be used when the behavior of the
+application and any devices it has mapped is fully understood and any side
+effects can be controlled or tolerated.
 .It Fl s
 Stop the process while gathering the core image, and resume it
 when done.
@@ -80,8 +84,6 @@ The same effect can be achieved manually with
 .Bl -tag -width /var/log/messages -compact
 .It Pa core.<pid>
 the core image
-.It Pa /proc/<pid>/file
-the executable image
 .El
 .Sh HISTORY
 A
@@ -89,12 +91,15 @@ A
 utility appeared in
 .Bx 4.2 .
 .Sh BUGS
-Context switches or paging activity that occur while
+Because of the
+.Xr ptrace 2
+usage
 .Nm
-is running may cause the program to become confused.
-For best results, use
-.Fl s
-to temporarily stop the target process.
+may not work with processes which are actively being investigated with
+.Xr truss 1
+or
+.Xr gdb 1 .
+Additionally, interruptable sleeps may exit with EINTR.
 .Pp
 The
 .Nm

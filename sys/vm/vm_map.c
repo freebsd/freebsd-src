@@ -336,15 +336,11 @@ vmspace_dofree(struct vmspace *vm)
 void
 vmspace_free(struct vmspace *vm)
 {
-	int refcnt;
 
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
-	do
-		refcnt = vm->vm_refcnt;
-	while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt - 1));
-	if (refcnt == 1)
+	if (atomic_fetchadd_int(&vm->vm_refcnt, -1) == 1)
 		vmspace_dofree(vm);
 }
 
@@ -561,6 +557,56 @@ vm_map_wakeup(vm_map_t map)
 	wakeup(&map->root);
 }
 
+void
+vm_map_busy(vm_map_t map)
+{
+
+#ifdef INVARIANTS
+	if (map->system_map) {
+		mtx_assert(&map->system_mtx, MA_OWNED);
+	} else
+		sx_assert(&map->lock, SX_XLOCKED);
+#endif
+	map->busy++;
+}
+
+void
+vm_map_unbusy(vm_map_t map)
+{
+
+#ifdef INVARIANTS
+	if (map->system_map) {
+		mtx_assert(&map->system_mtx, MA_OWNED);
+	} else
+		sx_assert(&map->lock, SX_XLOCKED);
+#endif
+	KASSERT(map->busy, ("vm_map_unbusy: not busy"));
+	if (--map->busy == 0 && (map->flags & MAP_BUSY_WAKEUP)) {
+		vm_map_modflags(map, 0, MAP_BUSY_WAKEUP);
+		wakeup(&map->busy);
+	}
+}
+
+void 
+vm_map_wait_busy(vm_map_t map)
+{
+
+#ifdef INVARIANTS
+	if (map->system_map) {
+		mtx_assert(&map->system_mtx, MA_OWNED);
+	} else
+		sx_assert(&map->lock, SX_XLOCKED);
+#endif
+	while (map->busy) {
+		vm_map_modflags(map, MAP_BUSY_WAKEUP, 0);
+		if (map->system_map)
+			msleep(&map->busy, &map->system_mtx, 0, "mbusy", 0);
+		else
+			sx_sleep(&map->busy, &map->lock, 0, "mbusy", 0);
+	}
+	map->timestamp++;
+}
+
 long
 vmspace_resident_count(struct vmspace *vmspace)
 {
@@ -609,6 +655,7 @@ _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 	map->flags = 0;
 	map->root = NULL;
 	map->timestamp = 0;
+	map->busy = 0;
 }
 
 void
@@ -2070,12 +2117,14 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			    entry->object.vm_object->type == OBJT_SG);
 			/*
 			 * Release the map lock, relying on the in-transition
-			 * mark.
+			 * mark.  Mark the map busy for fork.
 			 */
+			vm_map_busy(map);
 			vm_map_unlock(map);
 			rv = vm_fault_wire(map, saved_start, saved_end,
 			    user_wire, fictitious);
 			vm_map_lock(map);
+			vm_map_unbusy(map);
 			if (last_timestamp + 1 != map->timestamp) {
 				/*
 				 * Look again for the entry because the map was
@@ -2605,6 +2654,8 @@ vmspace_fork(struct vmspace *vm1)
 	vm_object_t object;
 
 	vm_map_lock(old_map);
+	if (old_map->busy)
+		vm_map_wait_busy(old_map);
 
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	if (vm2 == NULL)

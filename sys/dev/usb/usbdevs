@@ -1280,6 +1280,9 @@ product ETEK 1COM		0x8007	Serial
 /* Extended Systems products */
 product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 
+/* Falcom products */
+product FALCOM TWIST		0x0001	USB GSM/GPRS modem
+
 /* FEIYA products */
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
 

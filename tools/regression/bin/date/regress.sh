@@ -19,7 +19,7 @@
 TEST1=3222243		# 1970-02-07 07:04:03
 TEST2=1005600000	# 2001-11-12 21:11:12
 
-export LANG=C
+export LC_ALL=C
 export TZ=UTC
 count=0
 

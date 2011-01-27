@@ -194,12 +194,14 @@ struct vm_map {
 	pmap_t pmap;			/* (c) Physical map */
 #define	min_offset	header.start	/* (c) */
 #define	max_offset	header.end	/* (c) */
+	int busy;
 };
 
 /*
  * vm_flags_t values
  */
 #define MAP_WIREFUTURE		0x01	/* wire all future pages */
+#define	MAP_BUSY_WAKEUP		0x02
 
 #ifdef	_KERNEL
 static __inline vm_offset_t
@@ -244,7 +246,7 @@ struct vmspace {
 	caddr_t vm_taddr;	/* (c) user virtual address of text */
 	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
-	int	vm_refcnt;	/* number of references */
+	volatile int vm_refcnt;	/* number of references */
 };
 
 #ifdef	_KERNEL
@@ -276,6 +278,9 @@ int _vm_map_lock_upgrade(vm_map_t map, const char *file, int line);
 void _vm_map_lock_downgrade(vm_map_t map, const char *file, int line);
 int vm_map_unlock_and_wait(vm_map_t map, boolean_t user_wait);
 void vm_map_wakeup(vm_map_t map);
+void vm_map_busy(vm_map_t map);
+void vm_map_unbusy(vm_map_t map);
+void vm_map_wait_busy(vm_map_t map);
 
 #define	vm_map_lock(map)	_vm_map_lock(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock(map)	_vm_map_unlock(map, LOCK_FILE, LOCK_LINE)

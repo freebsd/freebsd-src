@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2006
+.Dd March 31, 2010
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -311,6 +311,20 @@ should be set as with
 .Sh ENVIRONMENT
 Variables that influence all builds include:
 .Bl -tag -width ".Va MAKEOBJDIRPREFIX"
+.It Va DEBUG_FLAGS
+Defines a set of debugging flags that will be used to build all userland
+binaries under
+.Pa /usr/src .
+When
+.Va DEBUG_FLAGS
+is defined, the
+.Cm install
+and
+.Cm installworld
+targets install binaries from the current
+.Va MAKEOBJDIRPREFIX
+without stripping,
+so that debugging information is retained in the installed binaries.
 .It Va DESTDIR
 The directory hierarchy prefix where built objects will be installed.
 If not set,
@@ -367,6 +381,69 @@ Set this to cross-build for a different architecture.
 If not set,
 .Va TARGET_ARCH
 defaults to the current machine architecture.
+.El
+.Pp
+Builds under directory
+.Pa /usr/src
+are also influenced by defining one or more the following symbols,
+using the
+.Fl D
+option of
+.Xr make 1 :
+.Bl -tag -width ".Va -DNO_KERNELDEPEND"
+.It Va NO_CLEANDIR
+If set, the build targets that clean parts of the object tree use the
+equivalent of
+.Dq make clean
+instead of
+.Dq make cleandir .
+.It Va NO_CLEAN
+If set, no object tree files are cleaned at all.
+Setting
+.Va NO_CLEAN
+implies
+.Va NO_KERNELCLEAN ,
+so when
+.Va NO_CLEAN
+is set no kernel objects are cleaned either.
+.It Va NO_CTF
+If set, the build process does not run the DTrace CTF conversion tools
+on built objects.
+.It Va NO_SHARE
+If set, the build does not descend into the
+.Pa /usr/src/share
+subdirectory (i.e. manpages, locale data files, timezone data files and
+other
+.Pa /usr/src/share
+files will not be rebuild from their sources).
+.It Va NO_KERNELCLEAN
+If set, the build process does not run
+.Dq make clean
+as part of the
+.Cm buildkernel
+target.
+.It Va NO_KERNELCONFIG
+If set, the build process does not run
+.Xr config 8
+as part of the
+.Cm buildkernel
+target.
+.It Va NO_KERNELDEPEND
+If set, the build process does not run
+.Dq make depend
+as part of the
+.Cm buildkernel
+target.
+.It Va NO_DOCUPDATE
+If set, the update process does not update the source of the
+.Fx
+documentation as part of the
+.Dq make update
+target.
+.It Va NO_PORTSUPDATE
+If set, the update process does not update the Ports tree as part of the
+.Dq make update
+target.
 .El
 .Pp
 Builds under directory

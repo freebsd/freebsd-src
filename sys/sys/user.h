@@ -343,6 +343,7 @@ struct kinfo_file {
 
 #define	KVME_FLAG_COW		0x00000001
 #define	KVME_FLAG_NEEDS_COPY	0x00000002
+#define	KVME_FLAG_NOCOREDUMP	0x00000004
 
 #if defined(__amd64__)
 #define	KINFO_OVMENTRY_SIZE	1168

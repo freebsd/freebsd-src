@@ -869,6 +869,7 @@ ksem_module_init(void)
 	mtx_init(&ksem_count_lock, "ksem count", NULL, MTX_DEF);
 	sx_init(&ksem_dict_lock, "ksem dictionary");
 	ksem_dictionary = hashinit(1024, M_KSEM, &ksem_hash);
+	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 200112L);
 	p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
 	p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
 
@@ -900,6 +901,7 @@ ksem_module_destroy(void)
 	SYSCALL_DEREGISTER(ksem_getvalue);
 	SYSCALL_DEREGISTER(ksem_destroy);
 
+	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 0);
 	hashdestroy(ksem_dictionary, M_KSEM, ksem_hash);
 	sx_destroy(&ksem_dict_lock);
 	mtx_destroy(&ksem_count_lock);
