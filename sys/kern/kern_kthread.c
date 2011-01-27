@@ -116,14 +116,15 @@ kproc_create(void (*func)(void *), void *arg,
 
 	/* call the processes' main()... */
 	cpu_set_fork_handler(td, func, arg);
+	thread_lock(td);
 	TD_SET_CAN_RUN(td);
+	sched_prio(td, PVM);
+	sched_user_prio(td, PUSER);
 
 	/* Delay putting it on the run queue until now. */
-	if (!(flags & RFSTOPPED)) {
-		thread_lock(td);
+	if (!(flags & RFSTOPPED))
 		sched_add(td, SRQ_BORING); 
-		thread_unlock(td);
-	}
+	thread_unlock(td);
 
 	return 0;
 }
