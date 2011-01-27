@@ -172,6 +172,12 @@ static struct {
 	{0x614511ab, 0x00, "Marvell 88SX6145",	AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
 	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES},
 	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2|AHCI_Q_NOBSYRES},
+	{0x06201103, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
+	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
+	{0x06221103, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
+	{0x06221b4b, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
+	{0x06401103, 0x00, "HighPoint RocketRAID 640",	AHCI_Q_NOBSYRES},
+	{0x06441103, 0x00, "HighPoint RocketRAID 644",	AHCI_Q_NOBSYRES},
 	{0x044c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
@@ -858,7 +864,7 @@ ahci_ch_attach(device_t dev)
 	ch->caps = ctlr->caps;
 	ch->caps2 = ctlr->caps2;
 	ch->quirks = ctlr->quirks;
-	ch->numslots = ((ch->caps & AHCI_CAP_NCS) >> AHCI_CAP_NCS_SHIFT) + 1,
+	ch->numslots = ((ch->caps & AHCI_CAP_NCS) >> AHCI_CAP_NCS_SHIFT) + 1;
 	mtx_init(&ch->mtx, "AHCI channel lock", NULL, MTX_DEF);
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
@@ -1625,12 +1631,13 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	/* Setup the command list entry */
 	clp = (struct ahci_cmd_list *)
 	    (ch->dma.work + AHCI_CL_OFFSET + (AHCI_CL_SIZE * slot->slot));
-	clp->prd_length = slot->dma.nsegs;
-	clp->cmd_flags = (ccb->ccb_h.flags & CAM_DIR_OUT ? AHCI_CMD_WRITE : 0) |
-		     (ccb->ccb_h.func_code == XPT_SCSI_IO ?
-		      (AHCI_CMD_ATAPI | AHCI_CMD_PREFETCH) : 0) |
-		     (fis_size / sizeof(u_int32_t)) |
-		     (port << 12);
+	clp->cmd_flags = htole16(
+		    (ccb->ccb_h.flags & CAM_DIR_OUT ? AHCI_CMD_WRITE : 0) |
+		    (ccb->ccb_h.func_code == XPT_SCSI_IO ?
+		     (AHCI_CMD_ATAPI | AHCI_CMD_PREFETCH) : 0) |
+		    (fis_size / sizeof(u_int32_t)) |
+		    (port << 12));
+	clp->prd_length = htole16(slot->dma.nsegs);
 	/* Special handling for Soft Reset command. */
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL)) {
@@ -1650,7 +1657,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	clp->cmd_table_phys = htole64(ch->dma.work_bus + AHCI_CT_OFFSET +
 				  (AHCI_CT_SIZE * slot->slot));
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
-	    BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(ch->dma.rfis_tag, ch->dma.rfis_map,
 	    BUS_DMASYNC_PREREAD);
 	/* Set ACTIVE bit for NCQ commands. */
@@ -1855,10 +1862,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	device_t dev = slot->dev;
 	struct ahci_channel *ch = device_get_softc(dev);
 	union ccb *ccb = slot->ccb;
+	struct ahci_cmd_list *clp;
 	int lastto;
 
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
-	    BUS_DMASYNC_POSTWRITE);
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	clp = (struct ahci_cmd_list *)
+	    (ch->dma.work + AHCI_CL_OFFSET + (AHCI_CL_SIZE * slot->slot));
 	/* Read result registers to the result struct
 	 * May be incorrect if several commands finished same time,
 	 * so read only when sure or have to.
@@ -1893,6 +1903,16 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 			res->sector_count_exp = fis[13];
 		} else
 			bzero(res, sizeof(*res));
+		if ((ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) == 0 &&
+		    (ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+			ccb->ataio.resid =
+			    ccb->ataio.dxfer_len - le32toh(clp->bytecount);
+		}
+	} else {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+			ccb->csio.resid =
+			    ccb->csio.dxfer_len - le32toh(clp->bytecount);
+		}
 	}
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		bus_dmamap_sync(ch->dma.data_tag, slot->dma.data_map,

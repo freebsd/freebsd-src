@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,17 +68,28 @@ ata_dmainit(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_dc_cb_args dcba;
 
-    ch->dma.alloc = ata_dmaalloc;
-    ch->dma.free = ata_dmafree;
-    ch->dma.setprd = ata_dmasetprd;
-    ch->dma.load = ata_dmaload;
-    ch->dma.unload = ata_dmaunload;
-    ch->dma.alignment = 2;
-    ch->dma.boundary = 65536;
-    ch->dma.segsize = 65536;
-    ch->dma.max_iosize = MIN((ATA_DMA_ENTRIES - 1) * PAGE_SIZE, MAXPHYS);
-    ch->dma.max_address = BUS_SPACE_MAXADDR_32BIT;
-    ch->dma.dma_slots = 1;
+    if (ch->dma.alloc == NULL)
+	ch->dma.alloc = ata_dmaalloc;
+    if (ch->dma.free == NULL)
+	ch->dma.free = ata_dmafree;
+    if (ch->dma.setprd == NULL)
+	ch->dma.setprd = ata_dmasetprd;
+    if (ch->dma.load == NULL)
+	ch->dma.load = ata_dmaload;
+    if (ch->dma.unload == NULL)
+	ch->dma.unload = ata_dmaunload;
+    if (ch->dma.alignment == 0)
+	ch->dma.alignment = 2;
+    if (ch->dma.boundary == 0)
+	ch->dma.boundary = 65536;
+    if (ch->dma.segsize == 0)
+	ch->dma.segsize = 65536;
+    if (ch->dma.max_iosize == 0)
+	ch->dma.max_iosize = MIN((ATA_DMA_ENTRIES - 1) * PAGE_SIZE, MAXPHYS);
+    if (ch->dma.max_address == 0)
+	ch->dma.max_address = BUS_SPACE_MAXADDR_32BIT;
+    if (ch->dma.dma_slots == 0)
+	ch->dma.dma_slots = 1;
 
     if (bus_dma_tag_create(bus_get_dma_tag(dev), ch->dma.alignment, 0,
 			   ch->dma.max_address, BUS_SPACE_MAXADDR,

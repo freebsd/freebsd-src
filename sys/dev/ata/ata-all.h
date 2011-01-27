@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -535,6 +535,7 @@ struct ata_cam_device {
 	int			mode;
 	u_int			bytecount;
 	u_int			atapi;
+	u_int			caps;
 };
 #endif
 

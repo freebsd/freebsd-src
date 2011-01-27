@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <dev/led/led.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include "siis.h"
@@ -65,6 +66,7 @@ static int siis_ch_suspend(device_t dev);
 static int siis_ch_resume(device_t dev);
 static void siis_ch_intr_locked(void *data);
 static void siis_ch_intr(void *data);
+static void siis_ch_led(void *priv, int onoff);
 static void siis_begin_transaction(device_t dev, union ccb *ccb);
 static void siis_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error);
 static void siis_execute_transaction(struct siis_slot *slot);
@@ -516,6 +518,7 @@ siis_ch_attach(device_t dev)
 		goto err3;
 	}
 	mtx_unlock(&ch->mtx);
+	ch->led = led_create(siis_ch_led, dev, device_get_nameunit(dev));
 	return (0);
 
 err3:
@@ -536,6 +539,7 @@ siis_ch_detach(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
 
+	led_destroy(ch->led);
 	mtx_lock(&ch->mtx);
 	xpt_async(AC_LOST_DEVICE, ch->path, NULL);
 	xpt_free_path(ch->path);
@@ -624,6 +628,21 @@ static driver_t siisch_driver = {
         sizeof(struct siis_channel)
 };
 DRIVER_MODULE(siisch, siis, siisch_driver, siis_devclass, 0, 0);
+
+static void
+siis_ch_led(void *priv, int onoff)
+{
+	device_t dev;
+	struct siis_channel *ch;
+
+	dev = (device_t)priv;
+	ch = device_get_softc(dev);
+
+	if (onoff == 0)
+		ATA_OUTL(ch->r_mem, SIIS_P_CTLCLR, SIIS_P_CTL_LED_ON);
+	else
+		ATA_OUTL(ch->r_mem, SIIS_P_CTLSET, SIIS_P_CTL_LED_ON);
+}
 
 struct siis_dc_cb_args {
 	bus_addr_t maddr;
@@ -1208,6 +1227,17 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 			res->sector_count_exp = ATA_INB(ch->r_mem, offs + 13);
 		} else
 			bzero(res, sizeof(*res));
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
+		    ch->numrslots == 1) {
+			ccb->ataio.resid = ccb->ataio.dxfer_len -
+			    ATA_INL(ch->r_mem, SIIS_P_LRAM_SLOT(slot->slot) + 4);
+		}
+	} else {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
+		    ch->numrslots == 1) {
+			ccb->csio.resid = ccb->csio.dxfer_len -
+			    ATA_INL(ch->r_mem, SIIS_P_LRAM_SLOT(slot->slot) + 4);
+		}
 	}
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		bus_dmamap_sync(ch->dma.data_tag, slot->dma.data_map,

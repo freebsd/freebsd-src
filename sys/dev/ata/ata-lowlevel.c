@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -672,7 +672,8 @@ ata_generic_command(struct ata_request *request)
     /* ready to issue command ? */
     if (ata_wait(ch, request->unit, 0) < 0) { 
 	device_printf(request->parent, "timeout waiting to issue command\n");
-	return -1;
+	request->flags |= ATA_R_TIMEOUT;
+	return (-1);
     }
 
     /* enable interrupt */
@@ -697,13 +698,16 @@ ata_generic_command(struct ata_request *request)
 
 	/* command interrupt device ? just return and wait for interrupt */
 	if (request->flags & ATA_R_ATAPI_INTR)
-	    return 0;
+	    return (0);
 
 	/* command processed ? */
 	res = ata_wait(ch, request->unit, 0);
 	if (res != 0) {
-	    if (res < 0)
-		    device_printf(request->parent, "timeout waiting for PACKET command\n");
+	    if (res < 0) {
+		    device_printf(request->parent,
+			"timeout waiting for PACKET command\n");
+		    request->flags |= ATA_R_TIMEOUT;
+	    }
 	    return (-1);
 	}
 	/* wait for ready to write ATAPI command block */
@@ -717,9 +721,10 @@ ata_generic_command(struct ata_request *request)
 	    DELAY(20);
 	}
 	if (timeout <= 0) {
-	    device_printf(request->parent, "timeout waiting for ATAPI ready\n");
-	    request->result = EIO;
-	    return -1;
+	    device_printf(request->parent,
+		"timeout waiting for ATAPI ready\n");
+	    request->flags |= ATA_R_TIMEOUT;
+	    return (-1);
 	}
 
 	/* this seems to be needed for some (slow) devices */
@@ -735,7 +740,7 @@ ata_generic_command(struct ata_request *request)
 	/* issue command to controller */
 	ATA_IDX_OUTB(ch, ATA_COMMAND, request->u.ata.command);
     }
-    return 0;
+    return (0);
 }
 
 static void
@@ -833,12 +838,18 @@ ata_pio_read(struct ata_request *request, int length)
     struct ata_channel *ch = device_get_softc(request->parent);
     int size = min(request->transfersize, length);
     int resid;
+    uint8_t buf[2];
 
-    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)))
+    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t))) {
 	ATA_IDX_INSW_STRM(ch, ATA_DATA,
 			  (void*)((uintptr_t)request->data+request->donecount),
 			  size / sizeof(int16_t));
-    else
+	if (size & 1) {
+	    ATA_IDX_INSW_STRM(ch, ATA_DATA, (void*)buf, 1);
+	    ((uint8_t *)request->data + request->donecount +
+		(size & ~1))[0] = buf[0];
+	}
+    } else
 	ATA_IDX_INSL_STRM(ch, ATA_DATA,
 			  (void*)((uintptr_t)request->data+request->donecount),
 			  size / sizeof(int32_t));
@@ -846,7 +857,7 @@ ata_pio_read(struct ata_request *request, int length)
     if (request->transfersize < length) {
 	device_printf(request->parent, "WARNING - %s read data overrun %d>%d\n",
 		   ata_cmd2str(request), length, request->transfersize);
-	for (resid = request->transfersize; resid < length;
+	for (resid = request->transfersize + (size & 1); resid < length;
 	     resid += sizeof(int16_t))
 	    ATA_IDX_INW(ch, ATA_DATA);
     }
@@ -858,12 +869,18 @@ ata_pio_write(struct ata_request *request, int length)
     struct ata_channel *ch = device_get_softc(request->parent);
     int size = min(request->transfersize, length);
     int resid;
+    uint8_t buf[2];
 
-    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)))
+    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t))) {
 	ATA_IDX_OUTSW_STRM(ch, ATA_DATA,
 			   (void*)((uintptr_t)request->data+request->donecount),
 			   size / sizeof(int16_t));
-    else
+	if (size & 1) {
+	    buf[0] = ((uint8_t *)request->data + request->donecount +
+		(size & ~1))[0];
+	    ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (void*)buf, 1);
+	}
+    } else
 	ATA_IDX_OUTSL_STRM(ch, ATA_DATA,
 			   (void*)((uintptr_t)request->data+request->donecount),
 			   size / sizeof(int32_t));
@@ -871,7 +888,7 @@ ata_pio_write(struct ata_request *request, int length)
     if (request->transfersize < length) {
 	device_printf(request->parent, "WARNING - %s write data underrun %d>%d\n",
 		   ata_cmd2str(request), length, request->transfersize);
-	for (resid = request->transfersize; resid < length;
+	for (resid = request->transfersize + (size & 1); resid < length;
 	     resid += sizeof(int16_t))
 	    ATA_IDX_OUTW(ch, ATA_DATA, 0);
     }
