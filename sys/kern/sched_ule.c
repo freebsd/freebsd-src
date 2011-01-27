@@ -2065,14 +2065,16 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	ts2->ts_cpu = ts->ts_cpu;
 	ts2->ts_runq = NULL;
 	/*
-	 * Grab our parents cpu estimation information and priority.
+	 * Grab our parents cpu estimation information.
 	 */
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
 	ts2->ts_incrtick = ts->ts_incrtick;
 	ts2->ts_ftick = ts->ts_ftick;
-	child->td_user_pri = td->td_user_pri;
-	child->td_base_user_pri = td->td_base_user_pri;
+	/*
+	 * Do not inherit any borrowed priority from the parent.
+	 */
+	child->td_priority = child->td_base_pri;
 	/*
 	 * And update interactivity score.
 	 */
