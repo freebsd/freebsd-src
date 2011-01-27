@@ -683,7 +683,7 @@ jme_attach(device_t dev)
 	/* Set max allowable DMA size. */
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &i) == 0) {
 		sc->jme_flags |= JME_FLAG_PCIE;
-		burst = pci_read_config(dev, i + 0x08, 2);
+		burst = pci_read_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, 2);
 		if (bootverbose) {
 			device_printf(dev, "Read request size : %d bytes.\n",
 			    128 << ((burst >> 12) & 0x07));
@@ -738,8 +738,9 @@ jme_attach(device_t dev)
 
 	/* Set up MII bus. */
 	error = mii_attach(dev, &sc->jme_miibus, ifp, jme_mediachange,
-	    jme_mediastatus, BMSR_DEFCAPMASK, sc->jme_phyaddr, MII_OFFSET_ANY,
-	    MIIF_DOPAUSE);
+	    jme_mediastatus, BMSR_DEFCAPMASK,
+	    sc->jme_flags & JME_FLAG_FPGA ? MII_PHY_ANY : sc->jme_phyaddr,
+	    MII_OFFSET_ANY, MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -861,10 +862,12 @@ jme_detach(device_t dev)
 		}
 	}
 
-	bus_release_resources(dev, sc->jme_irq_spec, sc->jme_irq);
+	if (sc->jme_irq[0] != NULL)
+		bus_release_resources(dev, sc->jme_irq_spec, sc->jme_irq);
 	if ((sc->jme_flags & (JME_FLAG_MSIX | JME_FLAG_MSI)) != 0)
 		pci_release_msi(dev);
-	bus_release_resources(dev, sc->jme_res_spec, sc->jme_res);
+	if (sc->jme_res[0] != NULL)
+		bus_release_resources(dev, sc->jme_res_spec, sc->jme_res);
 	mtx_destroy(&sc->jme_mtx);
 
 	return (0);

@@ -66,8 +66,8 @@
  * JMC250 can send 9K jumbo frame on Tx path and can receive
  * 65535 bytes.
  */
-#define JME_JUMBO_FRAMELEN	9216
-#define JME_JUMBO_MTU							\
+#define	JME_JUMBO_FRAMELEN	9216
+#define	JME_JUMBO_MTU							\
 	(JME_JUMBO_FRAMELEN - sizeof(struct ether_vlan_header) -	\
 	 ETHER_HDR_LEN - ETHER_CRC_LEN)
 #define	JME_MAX_MTU							\
@@ -143,14 +143,14 @@ struct jme_ring_data {
 	bus_addr_t		jme_ssb_block_paddr;
 };
 
-#define JME_TX_RING_ADDR(sc, i)	\
+#define	JME_TX_RING_ADDR(sc, i)	\
     ((sc)->jme_rdata.jme_tx_ring_paddr + sizeof(struct jme_desc) * (i))
-#define JME_RX_RING_ADDR(sc, i)	\
+#define	JME_RX_RING_ADDR(sc, i)	\
     ((sc)->jme_rdata.jme_rx_ring_paddr + sizeof(struct jme_desc) * (i))
 
-#define JME_TX_RING_SIZE	\
+#define	JME_TX_RING_SIZE	\
     (sizeof(struct jme_desc) * JME_TX_RING_CNT)
-#define JME_RX_RING_SIZE	\
+#define	JME_RX_RING_SIZE	\
     (sizeof(struct jme_desc) * JME_RX_RING_CNT)
 #define	JME_SSB_SIZE		sizeof(struct jme_ssb)
 
@@ -223,14 +223,14 @@ struct jme_softc {
 };
 
 /* Register access macros. */
-#define CSR_WRITE_4(_sc, reg, val)	\
+#define	CSR_WRITE_4(_sc, reg, val)	\
 	bus_write_4((_sc)->jme_res[0], (reg), (val))
-#define CSR_READ_4(_sc, reg)		\
+#define	CSR_READ_4(_sc, reg)		\
 	bus_read_4((_sc)->jme_res[0], (reg))
 
-#define JME_LOCK(_sc)		mtx_lock(&(_sc)->jme_mtx)
-#define JME_UNLOCK(_sc)		mtx_unlock(&(_sc)->jme_mtx)
-#define JME_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->jme_mtx, MA_OWNED)
+#define	JME_LOCK(_sc)		mtx_lock(&(_sc)->jme_mtx)
+#define	JME_UNLOCK(_sc)		mtx_unlock(&(_sc)->jme_mtx)
+#define	JME_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->jme_mtx, MA_OWNED)
 
 #define	JME_MAXERR	5
 
@@ -242,8 +242,8 @@ do {									\
 } while (0)
 
 #define	JME_TX_TIMEOUT		5
-#define JME_TIMEOUT		1000
-#define JME_PHY_TIMEOUT		1000
-#define JME_EEPROM_TIMEOUT	1000
+#define	JME_TIMEOUT		1000
+#define	JME_PHY_TIMEOUT		1000
+#define	JME_EEPROM_TIMEOUT	1000
 
 #endif
