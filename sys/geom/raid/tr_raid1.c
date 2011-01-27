@@ -110,8 +110,6 @@ static struct g_raid_tr_class g_raid_tr_raid1_class = {
 	.trc_priority = 100
 };
 
-static void g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr,
-    struct g_raid_volume *vol);
 static void g_raid_tr_raid1_maybe_rebuild(struct g_raid_tr_object *tr,
     struct g_raid_volume *vol);
 
@@ -202,8 +200,10 @@ g_raid_tr_raid1_idle_rebuild(struct g_raid_volume *vol, void *argp)
 	struct g_raid_tr_raid1_object *trs;
 
 	trs = (struct g_raid_tr_raid1_object *)argp;
-	if (trs->trso_good_sd == NULL || trs->trso_failed_sd == NULL)
+	if (trs->trso_good_sd == NULL || trs->trso_failed_sd == NULL) {
+		printf("I hit the case that's obsolete, right?\n");
 		return;
+	}
 	g_raid_event_send(trs->trso_failed_sd, G_RAID_SUBDISK_E_TR_REBUILD_SOME,
 	    G_RAID_EVENT_SUBDISK);
 }
@@ -221,6 +221,7 @@ g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr, struct g_raid_volume
 	g_raid_write_metadata(vol->v_softc, vol, sd, sd->sd_disk);
 	free(trs->trso_buffer, M_TR_raid1);
 	trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+	trs->trso_type = TR_RAID1_NONE;
 	trs->trso_recover_slabs = 0;
 	trs->trso_failed_sd = NULL;
 	trs->trso_good_sd = NULL;
@@ -241,6 +242,7 @@ g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr,
 	g_raid_write_metadata(vol->v_softc, vol, sd, sd->sd_disk);
 	free(trs->trso_buffer, M_TR_raid1);
 	trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+	trs->trso_type = TR_RAID1_NONE;
 	trs->trso_recover_slabs = 0;
 	trs->trso_failed_sd = NULL;
 	trs->trso_good_sd = NULL;
@@ -317,11 +319,22 @@ g_raid_tr_raid1_maybe_rebuild(struct g_raid_tr_object *tr, struct g_raid_volume 
 		return;
 	na = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE);
 	nr = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_REBUILD);
-	if (na == 0 || nr == 0)
-		return;
-	if (trs->trso_good_sd)
-		return;
-	g_raid_tr_raid1_rebuild_start(tr, vol);
+	switch(trs->trso_type) {
+	case TR_RAID1_NONE:
+		if (na == 0 || nr == 0)
+			return;
+		if (trs->trso_type != TR_RAID1_NONE)
+			return;
+		g_raid_tr_raid1_rebuild_start(tr, vol);
+		break;
+	case TR_RAID1_REBUILD:
+		/*
+		 * We're rebuilding, maybe we need to stop...
+		 */
+		break;
+	case TR_RAID1_RESYNC:
+		break;
+	}
 }
 
 static int
@@ -340,12 +353,12 @@ g_raid_tr_event_raid1(struct g_raid_tr_object *tr,
 			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_REBUILD);
 		break;
 	case G_RAID_SUBDISK_E_FAILED:
-		if (trs->trso_good_sd)
+		if (trs->trso_type == TR_RAID1_REBUILD)
 			g_raid_tr_raid1_rebuild_abort(tr, vol);
 //		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
 		break;
 	case G_RAID_SUBDISK_E_DISCONNECTED:
-		if (trs->trso_good_sd)
+		if (trs->trso_type == TR_RAID1_REBUILD)
 			g_raid_tr_raid1_rebuild_abort(tr, vol);
 		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
 		break;
