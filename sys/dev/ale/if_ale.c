@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/in_cksum.h>
 
@@ -2284,8 +2283,7 @@ ale_int_task(void *arg, int pending)
 	sc = (struct ale_softc *)arg;
 
 	status = CSR_READ_4(sc, ALE_INTR_STATUS);
-	more = atomic_readandclear_int(&sc->ale_morework);
-	if (more != 0)
+	if (sc->ale_morework != 0)
 		status |= INTR_RX_PKT;
 	if ((status & ALE_INTRS) == 0)
 		goto done;
@@ -2298,7 +2296,7 @@ ale_int_task(void *arg, int pending)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		more = ale_rxeof(sc, sc->ale_process_limit);
 		if (more == EAGAIN)
-			atomic_set_int(&sc->ale_morework, 1);
+			sc->ale_morework = 1;
 		else if (more == EIO) {
 			ALE_LOCK(sc);
 			sc->ale_stats.reset_brk_seq++;
@@ -3002,7 +3000,7 @@ ale_init_rx_pages(struct ale_softc *sc)
 
 	ALE_LOCK_ASSERT(sc);
 
-	atomic_set_int(&sc->ale_morework, 0);
+	sc->ale_morework = 0;
 	sc->ale_cdata.ale_rx_seqno = 0;
 	sc->ale_cdata.ale_rx_curp = 0;
 
