@@ -772,6 +772,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	pjdlog_init(PJDLOG_MODE_STD);
 	pjdlog_debug_set(debuglevel);
 
 	g_gate_load();
