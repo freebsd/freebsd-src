@@ -419,12 +419,6 @@ again:
 	p2 = newproc;
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
-	/*
-	 * Allow the scheduler to initialize the child.
-	 */
-	thread_lock(td);
-	sched_fork(td, td2);
-	thread_unlock(td);
 	AUDIT_ARG(pid, p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
@@ -512,6 +506,13 @@ again:
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
+
+	/*
+	 * Allow the scheduler to initialize the child.
+	 */
+	thread_lock(td);
+	sched_fork(td, td2);
+	thread_unlock(td);
 
 	/*
 	 * Duplicate sub-structures as needed.
