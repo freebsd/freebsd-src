@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -40,6 +41,9 @@
 
 #define	PJDLOG_MODE_STD		0
 #define	PJDLOG_MODE_SYSLOG	1
+
+void pjdlog_init(int mode);
+void pjdlog_fini(void);
 
 void pjdlog_mode_set(int mode);
 int pjdlog_mode_get(void);
