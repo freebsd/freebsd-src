@@ -59,7 +59,7 @@ pjdlog_mode_set(int mode)
 	pjdlog_mode = mode;
 
 	if (mode == PJDLOG_MODE_SYSLOG)
-		openlog(NULL, LOG_PID, LOG_DAEMON);
+		openlog(NULL, LOG_PID | LOG_NDELAY, LOG_DAEMON);
 }
 
 /*
