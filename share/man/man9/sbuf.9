@@ -177,9 +177,9 @@ The
 function will set up an sbuf with a drain function to use
 .Fn SYSCTL_OUT
 when the internal buffer fills.
-The sysctl old buffer will be wired, which allows for doing an
-.Fn sbuf_printf
-while holding a mutex.
+Note that if the various functions which append to an sbuf are used while
+a non-sleepable lock is held, the user buffer should be wired using
+.Fn sysctl_wire_old_buffer .
 .Pp
 The
 .Fn sbuf_delete
