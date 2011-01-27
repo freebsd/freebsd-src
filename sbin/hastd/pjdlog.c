@@ -440,15 +440,38 @@ pjdlog_exitx(int exitcode, const char *fmt, ...)
  */
 void
 pjdlog_verify(const char *func, const char *file, int line,
-    const char *failedexpr)
+    const char *failedexpr, const char *fmt, ...)
 {
+	va_list ap;
 
-	if (func == NULL) {
-		pjdlog_critical("Assertion failed: (%s), file %s, line %d.",
-		    failedexpr, file, line);
+	assert(pjdlog_initialized);
+
+	/*
+	 * When there is no message we pass __func__ as 'fmt'.
+	 * It would be cleaner to pass NULL or "", but gcc generates a warning
+	 * for both of those.
+	 */
+	if (fmt != func) {
+		va_start(ap, fmt);
+		pjdlogv_critical(fmt, ap);
+		va_end(ap);
+	}
+	if (failedexpr == NULL) {
+		if (func == NULL) {
+			pjdlog_critical("Aborted at file %s, line %d.", file,
+			    line);
+		} else {
+			pjdlog_critical("Aborted at function %s, file %s, line %d.",
+			    func, file, line);
+		}
 	} else {
-		pjdlog_critical("Assertion failed: (%s), function %s, file %s, line %d.",
-		    failedexpr, func, file, line);
+		if (func == NULL) {
+			pjdlog_critical("Assertion failed: (%s), file %s, line %d.",
+			    failedexpr, file, line);
+		} else {
+			pjdlog_critical("Assertion failed: (%s), function %s, file %s, line %d.",
+			    failedexpr, func, file, line);
+		}
 	}
 	abort();
 }
