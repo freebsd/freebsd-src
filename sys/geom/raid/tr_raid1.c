@@ -176,6 +176,7 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 	trs->trso_recover_slabs = SD_REBUILD_CLUSTER_IDLE;
 	trs->trso_fair_io = SD_REBUILD_FAIR_IO;
 	bp = &trs->trso_bio;
+	memset(bp, 0, sizeof(*bp));
 	bp->bio_offset = sd->sd_rebuild_pos;
 	bp->bio_length = MIN(SD_REBUILD_SLAB,
 	    sd->sd_volume->v_mediasize - sd->sd_rebuild_pos);
