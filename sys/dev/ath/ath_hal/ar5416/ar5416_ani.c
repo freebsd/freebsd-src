@@ -183,7 +183,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_NOISE_IMMUNITY_LEVEL: set level = %d\n", __func__, level);
 		if (level >= params->maxNoiseImmunityLevel) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
+			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: immunity level out of range (%u > %u)\n",
 			    __func__, level, params->maxNoiseImmunityLevel);
 			return AH_FALSE;
@@ -270,7 +270,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_FIRSTEP_LEVEL: level = %d\n", __func__, level);
 		if (level >= params->maxFirstepLevel) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
+			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: firstep level out of range (%u > %u)\n",
 			    __func__, level, params->maxFirstepLevel);
 			return AH_FALSE;
@@ -289,7 +289,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 
 		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: HAL_ANI_SPUR_IMMUNITY_LEVEL: level = %d\n", __func__, level);
 		if (level >= params->maxSpurImmunityLevel) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
+			HALDEBUG(ah, HAL_DEBUG_ANI,
 			    "%s: spur immunity level out of range (%u > %u)\n",
 			    __func__, level, params->maxSpurImmunityLevel);
 			return AH_FALSE;
@@ -331,7 +331,7 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		break;
 #endif /* AH_PRIVATE_DIAG */
 	default:
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid cmd %u\n",
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: invalid cmd %u\n",
 		    __func__, cmd);
 		return AH_FALSE;
 	}
