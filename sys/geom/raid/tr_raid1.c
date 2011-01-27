@@ -320,10 +320,13 @@ g_raid_tr_event_raid1(struct g_raid_tr_object *tr,
 			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_REBUILD);
 		break;
 	case G_RAID_SUBDISK_E_FAILED:
-		// XXX do I need to stop a rebuild here?
+		if (trs->trso_good_sd)
+			g_raid_tr_raid1_rebuild_abort(tr, vol);
 //		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
 		break;
 	case G_RAID_SUBDISK_E_DISCONNECTED:
+		if (trs->trso_good_sd)
+			g_raid_tr_raid1_rebuild_abort(tr, vol);
 		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
 		break;
 	case G_RAID_SUBDISK_E_TR_REBUILD_SOME:
@@ -551,8 +554,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				 * The read operation finished, queue the
 				 * write and get out.
 				 */
-				G_RAID_LOGREQ(4, bp,
-				    "rebuild read done. Error %d", bp->bio_error);
+				G_RAID_LOGREQ(4, bp, "rebuild read done. %d",
+				    bp->bio_error);
 				if (bp->bio_error != 0) {
 					g_raid_tr_raid1_rebuild_abort(tr, vol);
 					goto out;
@@ -560,7 +563,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				cbp = g_clone_bio(pbp);
 				cbp->bio_cmd = BIO_WRITE;
 				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
-				cbp->bio_offset = bp->bio_offset; /* Necessary? */
+				cbp->bio_offset = bp->bio_offset;
 				cbp->bio_length = bp->bio_length;
 				G_RAID_LOGREQ(4, bp, "Queueing reguild write.");
 				g_raid_subdisk_iostart(trs->trso_failed_sd, cbp);
