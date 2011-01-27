@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2008
+.Dd December 18, 2010
 .Dt JME 4
 .Os
 .Sh NAME
@@ -48,8 +48,8 @@ if_jme_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-device driver provides support for JMicron JMC250 PCI Express
-Gigabit Ethernet controllers and JMicron JMC260 PCI Express Fast
+device driver provides support for JMicron JMC25x PCI Express
+Gigabit Ethernet controllers and JMicron JMC26x PCI Express Fast
 Ethernet controllers.
 .Pp
 All LOMs supported by the
@@ -59,7 +59,7 @@ TCP segmentation offload (TSO), hardware VLAN tag stripping/insertion
 features, Wake On Lan (WOL) and an interrupt coalescing/moderation
 mechanism as well as a 64-bit multicast hash filter.
 .Pp
-The JMC250 also supports Jumbo Frames (up to 9216 bytes), which can be
+The JMC25x also supports Jumbo Frames (up to 9216 bytes), which can be
 configured via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
@@ -94,6 +94,21 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+device driver provides support for the following Ethernet controllers:
+.Pp
+.Bl -bullet -compact
+.It
+JMicron JMC250 PCI Express Gigabit Ethernet controller
+.It
+JMicron JMC251 PCI Express Gigabit Ethernet with Card Read Host controller
+.It
+JMicron JMC260 PCI Express Fast Ethernet controller
+.It
+JMicron JMC261 PCI Express Gigabit Ethernet with Card Read Host controller
+.El
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
