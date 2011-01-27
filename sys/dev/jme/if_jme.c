@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/in_cksum.h>
 
@@ -2189,7 +2188,7 @@ jme_link_task(void *arg, int pending)
 	 * procuder/consumer index.
 	 */
 	sc->jme_cdata.jme_rx_cons = 0;
-	atomic_set_int(&sc->jme_morework, 0);
+	sc->jme_morework = 0;
 	jme_init_tx_ring(sc);
 	/* Initialize shadow status block. */
 	jme_init_ssb(sc);
@@ -2259,10 +2258,9 @@ jme_int_task(void *arg, int pending)
 	ifp = sc->jme_ifp;
 
 	status = CSR_READ_4(sc, JME_INTR_STATUS);
-	more = atomic_readandclear_int(&sc->jme_morework);
-	if (more != 0) {
+	if (sc->jme_morework != 0) {
+		sc->jme_morework = 0;
 		status |= INTR_RXQ_COAL | INTR_RXQ_COAL_TO;
-		more = 0;
 	}
 	if ((status & JME_INTRS) == 0 || status == 0xFFFFFFFF)
 		goto done;
@@ -2278,7 +2276,7 @@ jme_int_task(void *arg, int pending)
 		if ((status & (INTR_RXQ_COAL | INTR_RXQ_COAL_TO)) != 0) {
 			more = jme_rxintr(sc, sc->jme_process_limit);
 			if (more != 0)
-				atomic_set_int(&sc->jme_morework, 1);
+				sc->jme_morework = 1;
 		}
 		if ((status & INTR_RXQ_DESC_EMPTY) != 0) {
 			/*
@@ -2988,7 +2986,7 @@ jme_init_rx_ring(struct jme_softc *sc)
 
 	sc->jme_cdata.jme_rx_cons = 0;
 	JME_RXCHAIN_RESET(sc);
-	atomic_set_int(&sc->jme_morework, 0);
+	sc->jme_morework = 0;
 
 	rd = &sc->jme_rdata;
 	bzero(rd->jme_rx_ring, JME_RX_RING_SIZE);
