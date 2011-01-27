@@ -552,7 +552,8 @@ yield(struct thread *td, struct yield_args *uap)
 {
 
 	thread_lock(td);
-	sched_prio(td, PRI_MAX_TIMESHARE);
+	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
+		sched_prio(td, PRI_MAX_TIMESHARE);
 	mi_switch(SW_VOL, NULL);
 	thread_unlock(td);
 	td->td_retval[0] = 0;
