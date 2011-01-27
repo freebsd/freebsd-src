@@ -19,6 +19,8 @@ BASEFILE="tinybsd.basefiles"
 PORTSFILE="tinybsd.ports"
 PORTSDIR=/usr/ports
 DEFINSTARGS="-o 0 -g 0 -m 555"
+TINYARCH=$(uname -p)
+
 TS="=====>"
 
 splitarg1 () {
@@ -331,7 +333,7 @@ install_ports() {
 
 make_kernel() {
 	echo "${TS} Building customized tiny beastie kernel... "
-	cp -p ${CURRENTDIR}/conf/${CONF}/${KERNCONF} /usr/src/sys/i386/conf
+	cp -p ${CURRENTDIR}/conf/${CONF}/${KERNCONF} /usr/src/sys/${TINYARCH}/conf
 	cd /usr/src
 	make buildkernel KERNCONF=${KERNCONF} || exit 1
 	gzip -9 /usr/obj/usr/src/sys/${KERNCONF}/kernel
@@ -339,7 +341,7 @@ make_kernel() {
 	install ${DEFINSTARGS} \
 	  /usr/obj/usr/src/sys/${KERNCONF}/modules/usr/src/sys/modules/acpi/acpi/acpi.ko \
 	    ${WORKDIR}/boot/kernel
-	install -o 0 -g 0 -m 444 /sys/i386/conf/GENERIC.hints ${WORKDIR}/boot/device.hints
+	install -o 0 -g 0 -m 444 /sys/${TINYARCH}/conf/GENERIC.hints ${WORKDIR}/boot/device.hints
 }
 
 copy_libraries() {
