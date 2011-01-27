@@ -104,6 +104,7 @@ jmphy_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
+	struct ifnet *ifp;
 
 	jsc = device_get_softc(dev);
 	sc = &jsc->mii_sc;
@@ -118,6 +119,10 @@ jmphy_attach(device_t dev)
 	sc->mii_service = jmphy_service;
 	sc->mii_pdata = mii;
 
+	ifp = sc->mii_pdata->mii_ifp;
+	if (strcmp(ifp->if_dname, "jme") == 0 &&
+	    (sc->mii_flags & MIIF_MACPRIV0) != 0)
+		sc->mii_flags |= MIIF_PHYPRIV0;
 	jsc->mii_oui = MII_OUI(ma->mii_id1, ma->mii_id2);
 	jsc->mii_model = MII_MODEL(ma->mii_id2);
 	jsc->mii_rev = MII_REV(ma->mii_id2);
@@ -265,6 +270,7 @@ static void
 jmphy_reset(struct mii_softc *sc)
 {
 	struct jmphy_softc *jsc;
+	uint16_t t2cr, val;
 	int i;
 
 	jsc = (struct jmphy_softc *)sc;
@@ -278,6 +284,39 @@ jmphy_reset(struct mii_softc *sc)
 		DELAY(1);
 		if ((PHY_READ(sc, MII_BMCR) & BMCR_RESET) == 0)
 			break;
+	}
+	/* Perform vendor recommended PHY calibration. */
+	if ((sc->mii_flags & MIIF_PHYPRIV0) != 0) {
+		/* Select PHY test mode 1. */
+		t2cr = PHY_READ(sc, MII_100T2CR);
+		t2cr &= ~GTCR_TEST_MASK;
+		t2cr |= 0x2000;
+		PHY_WRITE(sc, MII_100T2CR, t2cr);
+		/* Apply calibration patch. */
+		PHY_WRITE(sc, JMPHY_SPEC_ADDR, JMPHY_SPEC_ADDR_READ |
+		    JMPHY_EXT_COMM_2);
+		val = PHY_READ(sc, JMPHY_SPEC_DATA);
+		val &= ~0x0002;
+		val |= 0x0010 | 0x0001;
+		PHY_WRITE(sc, JMPHY_SPEC_DATA, val);
+		PHY_WRITE(sc, JMPHY_SPEC_ADDR, JMPHY_SPEC_ADDR_WRITE |
+		    JMPHY_EXT_COMM_2);
+
+		/* XXX 20ms to complete recalibration. */
+		DELAY(20 * 1000);
+
+		PHY_READ(sc, MII_100T2CR);
+		PHY_WRITE(sc, JMPHY_SPEC_ADDR, JMPHY_SPEC_ADDR_READ |
+		    JMPHY_EXT_COMM_2);
+		val = PHY_READ(sc, JMPHY_SPEC_DATA);
+		val &= ~(0x0001 | 0x0002 | 0x0010);
+		PHY_WRITE(sc, JMPHY_SPEC_DATA, val);
+		PHY_WRITE(sc, JMPHY_SPEC_ADDR, JMPHY_SPEC_ADDR_WRITE |
+		    JMPHY_EXT_COMM_2);
+		/* Disable PHY test mode. */
+		PHY_READ(sc, MII_100T2CR);
+		t2cr &= ~GTCR_TEST_MASK;
+		PHY_WRITE(sc, MII_100T2CR, t2cr);
 	}
 }
 
