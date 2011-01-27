@@ -92,9 +92,9 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		cnt = ulmin(cnt, PAGE_SIZE - page_offset);
 		m = ma[offset >> PAGE_SHIFT];
 		pa = VM_PAGE_TO_PHYS(m);
-		if (pa < MIPS_KSEG0_LARGEST_PHYS) {
+		if (MIPS_DIRECT_MAPPABLE(pa)) {
 			sf = NULL;
-			cp = (char *)MIPS_PHYS_TO_KSEG0(pa) + page_offset;
+			cp = (char *)MIPS_PHYS_TO_DIRECT(pa) + page_offset;
 			/*
 			 * flush all mappings to this page, KSEG0 address first
 			 * in order to get it overwritten by correct data
