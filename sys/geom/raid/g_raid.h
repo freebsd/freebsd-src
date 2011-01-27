@@ -285,7 +285,8 @@ int g_raid_md_modevent(module_t, int, void *);
 	g_raid_md_modevent,					\
 	&name##_class						\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);	\
+    MODULE_DEPEND(name, geom_raid, 0, 0, 0)
 
 /*
  * KOBJ parent class of data transformation modules.
@@ -313,7 +314,8 @@ int g_raid_tr_modevent(module_t, int, void *);
 	g_raid_tr_modevent,					\
 	&name##_class						\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);	\
+    MODULE_DEPEND(name, geom_raid, 0, 0, 0)
 
 const char * g_raid_volume_level2str(int level, int qual);
 int g_raid_volume_str2level(const char *str, int *level, int *qual);

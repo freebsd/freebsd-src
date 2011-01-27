@@ -97,7 +97,7 @@ static kobj_method_t g_raid_tr_raid1_methods[] = {
 	{ 0, 0 }
 };
 
-struct g_raid_tr_class g_raid_tr_raid1_class = {
+static struct g_raid_tr_class g_raid_tr_raid1_class = {
 	"RAID1",
 	g_raid_tr_raid1_methods,
 	sizeof(struct g_raid_tr_raid1_object),
@@ -772,4 +772,4 @@ g_raid_tr_free_raid1(struct g_raid_tr_object *tr)
 	return (0);
 }
 
-//G_RAID_TR_DECLARE(g_raid_tr_raid1);
+G_RAID_TR_DECLARE(g_raid_tr_raid1);

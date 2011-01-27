@@ -93,6 +93,7 @@ LIST_HEAD(, g_raid_volume) g_raid_volumes =
     LIST_HEAD_INITIALIZER(g_raid_volumes);
 
 //static eventhandler_tag g_raid_pre_sync = NULL;
+static int g_raid_started = 0;
 
 static int g_raid_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
@@ -1991,9 +1992,6 @@ g_raid_shutdown_pre_sync(void *arg, int howto)
 }
 #endif
 
-extern struct g_raid_tr_class g_raid_tr_raid0_class;
-extern struct g_raid_tr_class g_raid_tr_raid1_class;
-
 static void
 g_raid_init(struct g_class *mp)
 {
@@ -2002,18 +2000,16 @@ g_raid_init(struct g_class *mp)
 //	    g_raid_shutdown_pre_sync, mp, SHUTDOWN_PRI_FIRST);
 //	if (g_raid_pre_sync == NULL)
 //		G_RAID_DEBUG(0, "Warning! Cannot register shutdown event.");
-	LIST_INSERT_HEAD(&g_raid_tr_classes, &g_raid_tr_raid1_class, trc_list);
-	LIST_INSERT_HEAD(&g_raid_tr_classes, &g_raid_tr_raid0_class, trc_list);
+	g_raid_started = 1;
 }
 
 static void
 g_raid_fini(struct g_class *mp)
 {
 
-	LIST_REMOVE(&g_raid_tr_raid0_class, trc_list);
-	LIST_REMOVE(&g_raid_tr_raid1_class, trc_list);
 //	if (g_raid_pre_sync != NULL)
 //		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, g_raid_pre_sync);
+	g_raid_started = 0;
 }
 
 int
@@ -2035,7 +2031,8 @@ g_raid_md_modevent(module_t mod, int type, void *arg)
 				c = nc;
 			LIST_INSERT_AFTER(c, class, mdc_list);
 		}
-		g_retaste(&g_raid_class);
+		if (g_raid_started)
+			g_retaste(&g_raid_class);
 		break;
 	case MOD_UNLOAD:
 		LIST_REMOVE(class, mdc_list);
@@ -2079,4 +2076,14 @@ g_raid_tr_modevent(module_t mod, int type, void *arg)
 	return (error);
 }
 
-DECLARE_GEOM_CLASS(g_raid_class, g_raid);
+/*
+ * Use local implementation of DECLARE_GEOM_CLASS(g_raid_class, g_raid)
+ * to reduce module priority, allowing submodules to register them first.
+ */
+static moduledata_t g_raid_mod = {
+	"g_raid",
+	g_modevent,
+	&g_raid_class
+};
+DECLARE_MODULE(g_raid, g_raid_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
+MODULE_VERSION(geom_raid, 0);
