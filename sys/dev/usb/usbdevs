@@ -649,6 +649,7 @@ vendor GLOBALSUN	0x16ab	Global Sun Technology
 vendor ANYDATA		0x16d5	AnyDATA Corporation
 vendor JABLOTRON	0x16d6	Jablotron
 vendor CMOTECH		0x16d8	C-motech
+vendor WIENERPLEINBAUS	0x16dc	WIENER Plein & Baus GmbH.
 vendor AXESSTEL		0x1726  Axesstel Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
 vendor SENAO		0x1740	Senao
@@ -668,6 +669,7 @@ vendor STELERA		0x1a8d	Stelera Wireless
 vendor MATRIXORBITAL	0x1b3d	Matrix Orbital 
 vendor OVISLINK		0x1b75	OvisLink
 vendor TCTMOBILE	0x1bbb  TCT Mobile
+vendor WAGO		0x1be3  WAGO Kontakttechnik GmbH.
 vendor TELIT		0x1bc7  Telit
 vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
 vendor MPMAN		0x1cae	MpMan
@@ -1574,7 +1576,8 @@ product FIBERLINE WL430U	0x6003	WL-430U
 product FOSSIL WRISTPDA		0x0002	Wrist PDA
 
 /* Foxconn products */
-product FOXCONN PIRELLI_DP_L10	0xe000	Pirelli DP-L10
+product FOXCONN TCOM_TC_300	0xe000	T-Com TC 300
+product FOXCONN PIRELLI_DP_L10	0xe003	Pirelli DP-L10
 
 /* Freecom products */
 product FREECOM DVD		0xfc01	DVD drive
@@ -2757,6 +2760,9 @@ product REALTEK RTL8187B_0	0x8189	RTL8187B Wireless Adapter
 product REALTEK RTL8187B_1	0x8197	RTL8187B Wireless Adapter
 product REALTEK RTL8187B_2	0x8198	RTL8187B Wireless Adapter
 
+/* Renesas products */
+product RENESAS RX610		0x0053	RX610 RX-Stick
+
 /* Ricoh products */
 product RICOH VGPVCC2		0x1830	VGP-VCC2 Camera
 product RICOH VGPVCC3		0x1832	VGP-VCC3 Camera
@@ -2973,6 +2979,7 @@ product SILABS	TAMSMASTER	0x813f	Tams Master Easy Control
 product SILABS	WMRBATT		0x814a	WMR RIGblaster Plug&Play
 product SILABS	WMRRIGBLASTER	0x814a	WMR RIGblaster Plug&Play
 product SILABS	WMRRIGTALK	0x814b	WMR RIGtalk RT1
+product SILABS	B_G_H3000	0x8156	B&G H3000 Data Cable
 product SILABS	HELICOM		0x815e	Helicomm IP-Link 1220-DVM
 product SILABS	AVIT_USB_TTL	0x818b	AVIT Research USB-TTL
 product SILABS	MJS_TOSLINK	0x819f	MJS USB-TOSLINk
@@ -2994,6 +3001,7 @@ product SILABS	CYGNAL		0x8382	Cygnal
 product SILABS	AMBER_AMB2560	0x83a8	Amber Wireless AMB2560
 product SILABS	KYOCERA_GPS	0x8411	Kyocera GPS
 product SILABS	BEI_VCP		0x846e	BEI USB Sensor (VCP)
+product SILABS	BALLUFF_RFID	0x8477	Balluff RFID reader
 product SILABS	CP2102		0xea60	SILABS USB UART
 product SILABS	CP210X_2	0xea61	CP210x Serial
 product SILABS	INFINITY_MIC	0xea71	Infinity GPS-MIC-1 Radio Monophone
@@ -3327,6 +3335,9 @@ product WACOM GRAPHIRE3_4X5	0x0013	Graphire 3 4x5
 product WACOM INTUOSA5		0x0021	Intuos A5
 product WACOM GD0912U		0x0022	Intuos 9x12 Graphics Tablet
 
+/* WAGO Kontakttechnik GmbH products */
+product WAGO SERVICECABLE	0x07a6	USB Service Cable 750-923
+
 /* WaveSense products */
 product WAVESENSE JAZZ		0xaaaa	Jazz blood glucose meter
 
@@ -3340,6 +3351,12 @@ product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
 product WESTERN MYBOOK		0x0901	MyBook External HDD
 product WESTERN MYPASSWORD	0x0704	MyPassword External HDD
+
+/* WIENER Plein & Baus GmbH products */
+product WIENERPLEINBAUS PL512	0x0010	PL512 PSU
+product WIENERPLEINBAUS RCM	0x0011	RCM Remote Control
+product WIENERPLEINBAUS MPOD	0x0012	MPOD PSU
+product WIENERPLEINBAUS CML	0x0015	CML Data Logger
 
 /* Windbond Electronics */
 product WINBOND UH104		0x5518	4-port USB Hub
