@@ -882,7 +882,20 @@ extern	void __ahdecl ath_hal_process_noisefloor(struct ath_hal *ah);
 extern	u_int __ahdecl ath_hal_getwirelessmodes(struct ath_hal*);
 
 /*
- * Calculate the transmit duration of a frame.
+ * Calculate the packet TX time for a legacy or 11n frame
+ */
+extern uint32_t __ahdecl ath_hal_pkt_txtime(struct ath_hal *ah,
+    const HAL_RATE_TABLE *rates, uint32_t frameLen,
+    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble);
+
+/*
+ * Calculate the duration of an 11n frame.
+ */
+extern uint32_t __ahdecl ath_computedur_ht(uint32_t frameLen, uint16_t rate,
+    int streams, HAL_BOOL isht40, HAL_BOOL isShortGI);
+
+/*
+ * Calculate the transmit duration of a legacy frame.
  */
 extern uint16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
 		const HAL_RATE_TABLE *rates, uint32_t frameLen,
