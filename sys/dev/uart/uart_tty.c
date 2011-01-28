@@ -169,6 +169,14 @@ uart_tty_outwakeup(struct tty *tp)
 	if (sc->sc_txbusy)
 		return;
 
+	/*
+	 * Respect RTS/CTS (output) flow control if enabled and not already
+	 * handled by hardware.
+	 */
+	if ((tp->t_termios.c_cflag & CCTS_OFLOW) && !sc->sc_hwoflow &&
+	    !(sc->sc_hwsig & SER_CTS))
+		return;
+
 	sc->sc_txdatasz = ttydisc_getc(tp, sc->sc_txbuf, sc->sc_txfifosz);
 	if (sc->sc_txdatasz != 0)
 		UART_TRANSMIT(sc);
@@ -316,11 +324,8 @@ uart_tty_intr(void *arg)
 		sig = pend & SER_INT_SIGMASK;
 		if (sig & SER_DDCD)
 			ttydisc_modem(tp, sig & SER_DCD);
-		if ((sig & SER_DCTS) && (tp->t_termios.c_cflag & CCTS_OFLOW) &&
-		    !sc->sc_hwoflow) {
-			if (sig & SER_CTS)
-				uart_tty_outwakeup(tp);
-		}
+		if (sig & SER_DCTS)
+			uart_tty_outwakeup(tp);
 	}
 
 	if (pend & SER_INT_TXIDLE)
