@@ -837,6 +837,8 @@ hastd_primary(struct hast_resource *res)
 	proto_recv(res->hr_ctrl, NULL, 0);
 	descriptors_cleanup(res);
 
+	descriptors_assert(res, mode);
+
 	pjdlog_init(mode);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 	setproctitle("%s (primary)", res->hr_name);
