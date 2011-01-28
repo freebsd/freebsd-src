@@ -1,7 +1,7 @@
 #ifndef OPENIB_OSD_H
 #define OPENIB_OSD_H
 
-#include <byteswap.h>
+#include <infiniband/byteswap.h>
 #include <sys/poll.h>
 
 #if __BYTE_ORDER == __BIG_ENDIAN

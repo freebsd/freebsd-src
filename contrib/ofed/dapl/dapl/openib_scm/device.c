@@ -646,8 +646,8 @@ void dapli_thread(void *arg)
 /* work thread for uAT, uCM, CQ, and async events */
 void dapli_thread(void *arg)
 {
-	struct pollfd ufds[__FD_SETSIZE];
-	struct _ib_hca_transport *uhca[__FD_SETSIZE] = { NULL };
+	struct pollfd ufds[FD_SETSIZE];
+	struct _ib_hca_transport *uhca[FD_SETSIZE] = { NULL };
 	struct _ib_hca_transport *hca;
 	int ret, idx, fds;
 	char rbuf[2];

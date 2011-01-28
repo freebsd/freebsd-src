@@ -64,8 +64,8 @@
 
 #else // _WIN32 || _WIN64
 
-#include <endian.h>
-#include <byteswap.h>
+#include <infiniband/endian.h>
+#include <infiniband/byteswap.h>
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>

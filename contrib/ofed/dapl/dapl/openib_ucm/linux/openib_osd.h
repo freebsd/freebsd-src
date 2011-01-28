@@ -1,7 +1,9 @@
 #ifndef OPENIB_OSD_H
 #define OPENIB_OSD_H
 
-#include <endian.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <infiniband/endian.h>
 #include <netinet/in.h>
 
 #if __BYTE_ORDER == __BIG_ENDIAN

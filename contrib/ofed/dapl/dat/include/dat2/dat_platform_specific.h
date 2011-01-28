@@ -255,8 +255,46 @@ typedef PHYSICAL_ADDRESS	DAT_PADDR;
 #endif /* __KDAPL__ */
 
 /* Windoze ends */
+#elif defined(__FreeBSD__)
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <stddef.h>
+
+#include <netinet/in.h>
+
+typedef u_int32_t               DAT_UINT32;	/* unsigned host order, 32 bits */
+typedef u_int64_t               DAT_UINT64;	/* unsigned host order, 64 bits */
+typedef unsigned long long	DAT_UVERYLONG;	/* unsigned longest native to compiler */
+
+typedef void *                  DAT_PVOID;
+typedef int                     DAT_COUNT;
+typedef DAT_UINT64		DAT_PADDR;
+
+#ifndef UINT64_C
+#define UINT64_C(c)	c ## ULL
+#endif /* UINT64_C */
+
+#define DAT_IA_HANDLE_TO_UL(a) (unsigned long)(a)
+#define DAT_UL_TO_IA_HANDLE(a) (DAT_IA_HANDLE)(a)
 
 
+typedef struct dat_comm {
+	int	domain;
+	int	type;
+	int	protocol;
+} DAT_COMM;
+
+typedef int DAT_FD;		/* DAT File Descriptor */
+
+typedef struct sockaddr         DAT_SOCK_ADDR; /* Socket address header native to OS */
+typedef struct sockaddr_in6     DAT_SOCK_ADDR6; /* Socket address header native to OS */
+#define DAT_AF_INET		AF_INET
+#define DAT_AF_INET6		AF_INET6
+
+#define DAT_API
+#define DAT_EXPORT		extern
+
+/* Linux ends */
 #else
 #error dat_platform_specific.h : OS type not defined
 #endif

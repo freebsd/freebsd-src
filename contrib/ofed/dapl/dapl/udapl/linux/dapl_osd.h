@@ -45,9 +45,9 @@
  * This file is defined for Linux systems only, including it on any
  * other build will cause an error
  */
-#ifndef __linux__
+#if !defined(__linux__) && !defined(__FreeBSD__)
 #error UNDEFINED OS TYPE
-#endif /* __linux__ */
+#endif /* __linux__ || __freebsd__ */
 
 #if !defined (__i386__) && !defined (__ia64__) && !defined(__x86_64__) && !defined(__PPC__) && !defined(__PPC64__)
 #error UNDEFINED ARCH
@@ -67,7 +67,7 @@
 #include <sys/time.h>
 #include <syslog.h>
 #include <netdb.h>			/* for getaddrinfo */
-#include <byteswap.h>
+#include <infiniband/byteswap.h>
 
 #include <sys/ioctl.h>  /* for IOCTL's */
 

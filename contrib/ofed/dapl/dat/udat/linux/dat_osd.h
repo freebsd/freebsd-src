@@ -48,9 +48,9 @@
  * This file is defined for Linux systems only, including it on any
  * other build will cause an error
  */
-#ifndef __linux__
+#if defined(__linux__) || defined(__freebsd__)
 #error "UNDEFINED OS TYPE"
-#endif /* __linux__ */
+#endif /* __linux__ || FreeBSD */
 
 #include <dat2/udat.h>
 
