@@ -1385,7 +1385,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 	digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname);
 	assert(objtmp.needed == NULL);
 #if !defined(__mips__)
-	/* MIPS and SH{3,5} have a bogus DT_TEXTREL. */
+	/* MIPS has a bogus DT_TEXTREL. */
 	assert(!objtmp.textrel);
 #endif
 
