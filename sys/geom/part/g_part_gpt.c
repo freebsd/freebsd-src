@@ -146,6 +146,7 @@ static struct uuid gpt_uuid_apple_raid = GPT_ENT_TYPE_APPLE_RAID;
 static struct uuid gpt_uuid_apple_raid_offline = GPT_ENT_TYPE_APPLE_RAID_OFFLINE;
 static struct uuid gpt_uuid_apple_tv_recovery = GPT_ENT_TYPE_APPLE_TV_RECOVERY;
 static struct uuid gpt_uuid_apple_ufs = GPT_ENT_TYPE_APPLE_UFS;
+static struct uuid gpt_uuid_bios_boot = GPT_ENT_TYPE_BIOS_BOOT;
 static struct uuid gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static struct uuid gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static struct uuid gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
@@ -181,6 +182,7 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_apple_raid_offline,	G_PART_ALIAS_APPLE_RAID_OFFLINE },
 	{ &gpt_uuid_apple_tv_recovery,	G_PART_ALIAS_APPLE_TV_RECOVERY },
 	{ &gpt_uuid_apple_ufs,		G_PART_ALIAS_APPLE_UFS },
+	{ &gpt_uuid_bios_boot,		G_PART_ALIAS_BIOS_BOOT },
 	{ &gpt_uuid_efi, 		G_PART_ALIAS_EFI },
 	{ &gpt_uuid_freebsd,		G_PART_ALIAS_FREEBSD },
 	{ &gpt_uuid_freebsd_boot, 	G_PART_ALIAS_FREEBSD_BOOT },
