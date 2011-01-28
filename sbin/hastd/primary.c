@@ -790,7 +790,7 @@ hastd_primary(struct hast_resource *res)
 {
 	pthread_t td;
 	pid_t pid;
-	int error;
+	int error, mode;
 
 	/*
 	 * Create communication channel between parent and child.
@@ -822,19 +822,24 @@ hastd_primary(struct hast_resource *res)
 		/* This is parent. */
 		/* Declare that we are receiver. */
 		proto_recv(res->hr_event, NULL, 0);
+		/* Declare that we are sender. */
+		proto_send(res->hr_ctrl, NULL, 0);
 		res->hr_workerpid = pid;
 		return;
 	}
 
 	gres = res;
-
-	(void)pidfile_close(pfh);
-	hook_fini();
-
-	setproctitle("%s (primary)", res->hr_name);
+	mode = pjdlog_mode_get();
 
 	/* Declare that we are sender. */
 	proto_send(res->hr_event, NULL, 0);
+	/* Declare that we are receiver. */
+	proto_recv(res->hr_ctrl, NULL, 0);
+	descriptors_cleanup(res);
+
+	pjdlog_init(mode);
+	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
+	setproctitle("%s (primary)", res->hr_name);
 
 	init_local(res);
 	init_ggate(res);
