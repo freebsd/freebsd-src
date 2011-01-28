@@ -66,6 +66,9 @@ enum g_part_alias {
 	G_PART_ALIAS_NETBSD_RAID,	/* A NetBSD RAID partition entry. */
 	G_PART_ALIAS_NETBSD_SWAP,	/* A NetBSD swap partition entry. */
 	G_PART_ALIAS_NETBSD_LFS,	/* A NetBSD LFS partition entry. */
+	G_PART_ALIAS_EBR,		/* A EBR partition entry. */
+	G_PART_ALIAS_MS_FAT32,		/* A Microsoft FAT32 partition entry. */
+	G_PART_ALIAS_BIOS_BOOT,		/* A GRUB 2 boot partition entry. */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };
