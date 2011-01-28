@@ -826,10 +826,18 @@ ether_str(sdl)
 	static char hbuf[NI_MAXHOST];
 	u_char *cp;
 
-	if (sdl->sdl_alen) {
+	if (sdl->sdl_alen == ETHER_ADDR_LEN) {
 		cp = (u_char *)LLADDR(sdl);
 		snprintf(hbuf, sizeof(hbuf), "%x:%x:%x:%x:%x:%x",
 		    cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
+	} else if (sdl->sdl_alen == 20) {
+		cp = (u_char *)LLADDR(sdl);
+		snprintf(hbuf, sizeof(hbuf),
+		   "%x:%x:%x:%x:%x%x:%x:%x:%x:%x%x:%x:%x:%x:%x%x:%x:%x:%x:%x",
+		    cp[0], cp[1], cp[2], cp[3], cp[4], cp[5], cp[6], cp[7],
+		    cp[8], cp[9], cp[10], cp[11], cp[12], cp[13], cp[14],
+		    cp[15], cp[16], cp[17], cp[18], cp[19]);
+
 	} else
 		snprintf(hbuf, sizeof(hbuf), "(incomplete)");
 
