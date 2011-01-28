@@ -72,7 +72,7 @@ struct usbcap_filehdr {
 static int doexit = 0;
 static int pkt_captured = 0;
 static int verbose = 0;
-static const char *i_arg = "usbus0";;
+static const char *i_arg = "usbus0";
 static const char *r_arg = NULL;
 static const char *w_arg = NULL;
 static const char *errstr_table[USB_ERR_MAX] = {
@@ -185,11 +185,10 @@ static void
 hexdump(const char *region, size_t len)
 {
 	const char *line;
-	int x, c;
-	char lbuf[80];
-#define EMIT(fmt, args...)	do {		\
-	sprintf(lbuf, fmt , ## args);		\
-	printf("%s", lbuf);			\
+	int x;
+	int c;
+#define EMIT(fmt, ...)	do {		\
+	printf(fmt,## __VA_ARGS__);	\
 } while (0)
 
 	for (line = region; line < (region + len); line += 16) {
