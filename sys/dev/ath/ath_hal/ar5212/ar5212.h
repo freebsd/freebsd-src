@@ -326,7 +326,7 @@ struct ath_hal_5212 {
 	 */
 	uint16_t	*ah_pcdacTable;
 	u_int		ah_pcdacTableSize;
-	uint16_t	ah_ratesArray[16];
+	uint16_t	ah_ratesArray[37];
 
 	uint8_t		ah_txTrigLev;		/* current Tx trigger level */
 	uint8_t		ah_maxTxTrigLev;	/* max tx trigger level */

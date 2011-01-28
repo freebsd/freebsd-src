@@ -2024,10 +2024,10 @@ fdcheckstd(struct thread *td)
 			error = kern_open(td, "/dev/null", UIO_SYSSPACE,
 			    O_RDWR, 0);
 			devnull = td->td_retval[0];
-			KASSERT(devnull == i, ("oof, we didn't get our fd"));
 			td->td_retval[0] = save;
 			if (error)
 				break;
+			KASSERT(devnull == i, ("oof, we didn't get our fd"));
 		} else {
 			error = do_dup(td, DUP_FIXED, devnull, i, &retval);
 			if (error != 0)

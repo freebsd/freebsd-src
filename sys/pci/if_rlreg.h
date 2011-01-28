@@ -176,6 +176,7 @@
 #define	RL_HWREV_8168C		0x3C000000
 #define	RL_HWREV_8168C_SPIN2	0x3C400000
 #define	RL_HWREV_8168CP		0x3C800000
+#define	RL_HWREV_8105E		0x40800000
 #define	RL_HWREV_8139		0x60000000
 #define	RL_HWREV_8139A		0x70000000
 #define	RL_HWREV_8139AG		0x70800000
@@ -496,6 +497,14 @@
 /* C+ early transmit threshold */
 
 #define	RL_EARLYTXTHRESH_CNT	0x003F	/* byte count times 8 */
+
+/* Timer interrupt register */
+#define	RL_TIMERINT_8169_VAL	0x00001FFF
+#define	RL_TIMER_MIN		0
+#define	RL_TIMER_MAX		65	/* 65.528us */
+#define	RL_TIMER_DEFAULT	RL_TIMER_MAX
+#define	RL_TIMER_PCIE_CLK	125	/* 125MHZ */
+#define	RL_USECS(x)		((x) * RL_TIMER_PCIE_CLK)
 
 /*
  * Gigabit PHY access register (8169 only)
@@ -864,6 +873,7 @@ struct rl_softc {
 	struct resource		*rl_res;
 	int			rl_res_id;
 	int			rl_res_type;
+	struct resource		*rl_res_pba;
 	struct resource		*rl_irq[RL_MSI_MESSAGES];
 	void			*rl_intrhand[RL_MSI_MESSAGES];
 	device_t		rl_miibus;
@@ -892,10 +902,11 @@ struct rl_softc {
 	int			rxcycles;
 #endif
 
-	struct task		rl_txtask;
 	struct task		rl_inttask;
 
 	int			rl_txstart;
+	int			rl_int_rx_act;
+	int			rl_int_rx_mod;
 	uint32_t		rl_flags;
 #define	RL_FLAG_MSI		0x0001
 #define	RL_FLAG_AUTOPAD		0x0002
@@ -908,6 +919,7 @@ struct rl_softc {
 #define	RL_FLAG_FASTETHER	0x0100
 #define	RL_FLAG_CMDSTOP		0x0200
 #define	RL_FLAG_MACRESET	0x0400
+#define	RL_FLAG_MSIX		0x0800
 #define	RL_FLAG_WOLRXENB	0x1000
 #define	RL_FLAG_MACSLEEP	0x2000
 #define	RL_FLAG_PCIE		0x4000

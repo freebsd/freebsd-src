@@ -77,7 +77,6 @@ struct ctlname {
 #define CTLFLAG_RD	0x80000000	/* Allow reads of variable */
 #define CTLFLAG_WR	0x40000000	/* Allow writes to the variable */
 #define CTLFLAG_RW	(CTLFLAG_RD|CTLFLAG_WR)
-#define CTLFLAG_NOLOCK	0x20000000	/* XXX Don't Lock */
 #define CTLFLAG_ANYBODY	0x10000000	/* All users can set this var */
 #define CTLFLAG_SECURE	0x08000000	/* Permit set only if securelevel<=0 */
 #define CTLFLAG_PRISON	0x04000000	/* Prisoned roots can fiddle */
@@ -122,9 +121,8 @@ struct ctlname {
 	struct sysctl_req *req
 
 /* definitions for sysctl_req 'lock' member */
-#define REQ_UNLOCKED	0	/* not locked and not wired */
-#define REQ_LOCKED	1	/* locked and not wired */
-#define REQ_WIRED	2	/* locked and wired */
+#define	REQ_UNWIRED	1
+#define	REQ_WIRED	2
 
 /* definitions for sysctl_req 'flags' member */
 #if defined(__amd64__) || defined(__ia64__) || defined(__powerpc64__)
@@ -137,7 +135,7 @@ struct ctlname {
  */
 struct sysctl_req {
 	struct thread	*td;		/* used for access checking */
-	int		lock;		/* locking/wiring state */
+	int		lock;		/* wiring state */
 	void		*oldptr;
 	size_t		oldlen;
 	size_t		oldidx;

@@ -94,6 +94,7 @@ struct ptrace_lwpinfo32 {
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct siginfo32 pl_siginfo;	/* siginfo for signal */
 	char	pl_tdname[MAXCOMLEN + 1];	/* LWP name. */
+	int	pl_child_pid;		/* New child pid */
 };
 
 #endif
@@ -476,6 +477,7 @@ ptrace_lwpinfo_to32(const struct ptrace_lwpinfo *pl,
 	pl32->pl_siglist = pl->pl_siglist;
 	siginfo_to_siginfo32(&pl->pl_siginfo, &pl32->pl_siginfo);
 	strcpy(pl32->pl_tdname, pl->pl_tdname);
+	pl32->pl_child_pid = pl->pl_child_pid;
 }
 #endif /* COMPAT_FREEBSD32 */
 
@@ -657,6 +659,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_TO_SCE:
 	case PT_TO_SCX:
 	case PT_SYSCALL:
+	case PT_FOLLOW_FORK:
 	case PT_DETACH:
 		sx_xlock(&proctree_lock);
 		proctree_locked = 1;
@@ -724,7 +727,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	 * Set the wrap controls accordingly.
 	 */
 	if (SV_CURPROC_FLAG(SV_ILP32)) {
-		if (td2->td_proc->p_sysent->sv_flags & SV_ILP32)
+		if (SV_PROC_FLAG(td2->td_proc, SV_ILP32))
 			safe = 1;
 		wrap32 = 1;
 	}
@@ -852,6 +855,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		td2->td_dbgflags &= ~TDB_SUSPEND;
 		break;
 
+	case PT_FOLLOW_FORK:
+		if (data)
+			p->p_flag |= P_FOLLOWFORK;
+		else
+			p->p_flag &= ~P_FOLLOWFORK;
+		break;
+
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_TO_SCE:
@@ -912,7 +922,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
 			}
-			p->p_flag &= ~(P_TRACED | P_WAITED);
+			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 			p->p_oppid = 0;
 
 			/* should we send SIGCHLD? */
@@ -1118,6 +1128,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			pl->pl_flags |= PL_FLAG_SCX;
 		if (td2->td_dbgflags & TDB_EXEC)
 			pl->pl_flags |= PL_FLAG_EXEC;
+		if (td2->td_dbgflags & TDB_FORK) {
+			pl->pl_flags |= PL_FLAG_FORKED;
+			pl->pl_child_pid = td2->td_dbg_forked;
+		}
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		strcpy(pl->pl_tdname, td2->td_name);

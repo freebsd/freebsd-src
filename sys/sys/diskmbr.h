@@ -43,13 +43,16 @@
 #define	DOSMAGICOFFSET	510
 #define	DOSMAGIC	0xAA55
 
+#define	DOSPTYP_EXT	0x05	/* DOS extended partition */
+#define	DOSPTYP_NTFS	0x07	/* NTFS partition */
+#define	DOSPTYP_FAT32	0x0b	/* FAT32 partition */
+#define	DOSPTYP_EXTLBA	0x0f	/* DOS extended partition */
 #define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
 #define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
 #define	DOSPTYP_LINUX	0x83	/* Linux partition */
+#define	DOSPTYP_LINLVM	0x8e	/* Linux LVM partition */
 #define	DOSPTYP_PMBR	0xee	/* GPT Protective MBR */
-#define	DOSPTYP_EXT	5	/* DOS extended partition */
-#define	DOSPTYP_EXTLBA	15	/* DOS extended partition */
-#define	DOSPTYP_NTFS	0x07	/* NTFS partition */
+#define	DOSPTYP_LINRAID	0xfd	/* Linux raid partition */
 
 struct dos_partition {
 	unsigned char	dp_flag;	/* bootstrap flags */

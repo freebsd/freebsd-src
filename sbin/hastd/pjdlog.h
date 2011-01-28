@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -40,6 +41,9 @@
 
 #define	PJDLOG_MODE_STD		0
 #define	PJDLOG_MODE_SYSLOG	1
+
+void pjdlog_init(int mode);
+void pjdlog_fini(void);
 
 void pjdlog_mode_set(int mode);
 int pjdlog_mode_get(void);
@@ -86,16 +90,28 @@ void pjdlog_exitx(int exitcode, const char *fmt, ...) __printflike(2, 3) __dead2
 void pjdlogv_exitx(int exitcode, const char *fmt, va_list ap) __printflike(2, 0) __dead2;
 
 void pjdlog_verify(const char *func, const char *file, int line,
-    const char *failedexpr) __dead2;
+    const char *failedexpr, const char *fmt, ...) __printflike(5, 6);
 
 #define	PJDLOG_VERIFY(expr)	do {					\
-	if (!(expr))							\
-		pjdlog_verify(__func__, __FILE__, __LINE__, #expr);	\
+	if (!(expr)) {							\
+		pjdlog_verify(__func__, __FILE__, __LINE__, #expr,	\
+		    __func__);						\
+	}								\
 } while (0)
+#define	PJDLOG_RVERIFY(expr, ...)	do {				\
+	if (!(expr)) {							\
+		pjdlog_verify(__func__, __FILE__, __LINE__, #expr,	\
+		    __VA_ARGS__);					\
+	}								\
+} while (0)
+#define	PJDLOG_ABORT(...)	pjdlog_verify(__func__, __FILE__,	\
+				    __LINE__, NULL, __VA_ARGS__)
 #ifdef NDEBUG
 #define	PJDLOG_ASSERT(expr)	do { } while (0)
+#define	PJDLOG_RASSERT(...)	do { } while (0)
 #else
 #define	PJDLOG_ASSERT(expr)	PJDLOG_VERIFY(expr)
+#define	PJDLOG_RASSERT(...)	PJDLOG_RVERIFY(__VA_ARGS__)
 #endif
 
 #endif	/* !_PJDLOG_H_ */

@@ -74,4 +74,7 @@ typedef struct {
 extern void *___tls_get_addr(tls_index *ti) __attribute__((__regparm__(1)));
 extern void *__tls_get_addr(tls_index *ti);
 
+#define	RTLD_DEFAULT_STACK_PF_EXEC	PF_X
+#define	RTLD_DEFAULT_STACK_EXEC		PROT_EXEC
+
 #endif

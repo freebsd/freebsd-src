@@ -666,6 +666,7 @@ main_loop(void)
 			case SIGTERM:
 				sigexit_received = true;
 				terminate_workers();
+				proto_close(cfg->hc_controlconn);
 				exit(EX_OK);
 				break;
 			case SIGCHLD:
@@ -772,6 +773,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	pjdlog_init(PJDLOG_MODE_STD);
 	pjdlog_debug_set(debuglevel);
 
 	g_gate_load();

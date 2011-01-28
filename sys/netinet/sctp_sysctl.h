@@ -184,7 +184,7 @@ struct sctp_sysctl {
 
 /* maxburst: Default max burst for sctp endpoints */
 #define SCTPCTL_MAXBURST_DESC		"Default max burst for sctp endpoints"
-#define SCTPCTL_MAXBURST_MIN		1
+#define SCTPCTL_MAXBURST_MIN		0
 #define SCTPCTL_MAXBURST_MAX		0xFFFFFFFF
 #define SCTPCTL_MAXBURST_DEFAULT	SCTP_DEF_MAX_BURST
 

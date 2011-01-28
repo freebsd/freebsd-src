@@ -191,7 +191,7 @@ extern Elf_Dyn _DYNAMIC;
 
 int osreldate, pagesize;
 
-static int stack_prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+static int stack_prot = PROT_READ | PROT_WRITE | RTLD_DEFAULT_STACK_EXEC;
 static int max_stack_flags;
 
 /*
@@ -1385,7 +1385,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 	digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname);
 	assert(objtmp.needed == NULL);
 #if !defined(__mips__)
-	/* MIPS and SH{3,5} have a bogus DT_TEXTREL. */
+	/* MIPS has a bogus DT_TEXTREL. */
 	assert(!objtmp.textrel);
 #endif
 
@@ -2800,7 +2800,12 @@ get_program_var_addr(const char *name, RtldLockState *lockstate)
     donelist_init(&donelist);
     if (symlook_global(&req, &donelist) != 0)
 	return (NULL);
-    return ((const void **)(req.defobj_out->relocbase + req.sym_out->st_value));
+    if (ELF_ST_TYPE(req.sym_out->st_info) == STT_FUNC)
+	return ((const void **)make_function_pointer(req.sym_out,
+	  req.defobj_out));
+    else
+	return ((const void **)(req.defobj_out->relocbase +
+	  req.sym_out->st_value));
 }
 
 /*

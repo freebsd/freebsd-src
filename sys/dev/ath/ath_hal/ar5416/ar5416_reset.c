@@ -44,6 +44,7 @@ static void ar5416InitBB(struct ath_hal *ah, const struct ieee80211_channel *);
 static void ar5416InitIMR(struct ath_hal *ah, HAL_OPMODE opmode);
 static void ar5416InitQoS(struct ath_hal *ah);
 static void ar5416InitUserSettings(struct ath_hal *ah);
+static void ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht);
 
 #if 0
 static HAL_BOOL	ar5416ChannelChange(struct ath_hal *, const struct ieee80211_channel *);
@@ -209,13 +210,16 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 #endif
 	}
 
-	if (AH5416(ah)->ah_rx_chainmask == 0x5 ||
-	    AH5416(ah)->ah_tx_chainmask == 0x5)
-		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
-	/* Setup Chain Masks */
-	OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
-	OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
-	OS_REG_WRITE(ah, AR_SELFGEN_MASK, AH5416(ah)->ah_tx_chainmask);
+	/*
+	 * Setup ah_tx_chainmask / ah_rx_chainmask before we fiddle
+	 * with enabling the TX/RX radio chains.
+	 */
+	ar5416UpdateChainMasks(ah, IEEE80211_IS_CHAN_HT(chan));
+	/*
+	 * This routine swaps the analog chains - it should be done
+	 * before any radio register twiddling is done.
+	 */
+	ar5416InitChainMasks(ah);
 
 	/* Setup the transmit power values. */
 	if (!ah->ah_setTxPower(ah, chan, rfXpdGain)) {
@@ -330,6 +334,8 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	if (!ar5416InitCal(ah, chan))
 		FAIL(HAL_ESELFTEST);
+
+	ar5416RestoreChainMask(ah);
 
 	AH_PRIVATE(ah)->ah_opmode = opmode;	/* record operating mode */
 
@@ -1112,6 +1118,54 @@ ar5416SetReset(struct ath_hal *ah, int type)
     ar5416InitPLL(ah, AH_NULL);
 
     return AH_TRUE;
+}
+
+void
+ar5416InitChainMasks(struct ath_hal *ah)
+{
+	if (AH5416(ah)->ah_rx_chainmask == 0x5 ||
+	    AH5416(ah)->ah_tx_chainmask == 0x5)
+		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP, AR_PHY_SWAP_ALT_CHAIN);
+	/* Setup Chain Masks */
+	OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+	OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
+	OS_REG_WRITE(ah, AR_SELFGEN_MASK, AH5416(ah)->ah_tx_chainmask);
+}
+
+void
+ar5416RestoreChainMask(struct ath_hal *ah)
+{
+	int rx_chainmask = AH5416(ah)->ah_rx_chainmask;
+
+	if ((rx_chainmask == 0x5) || (rx_chainmask == 0x3)) {
+		OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx_chainmask);
+		OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx_chainmask);
+	}
+}
+
+/*
+ * Update the chainmask based on the current channel configuration.
+ *
+ * XXX ath9k checks bluetooth co-existence here
+ * XXX ath9k checks whether the current state is "off-channel".
+ * XXX ath9k sticks the hardware into 1x1 mode for legacy;
+ *     we're going to leave multi-RX on for multi-path cancellation.
+ */
+static void
+ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht)
+{
+	struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
+	HAL_CAPABILITIES *pCap = &ahpriv->ah_caps;
+
+	if (is_ht) {
+		AH5416(ah)->ah_tx_chainmask = pCap->halTxChainMask;
+	} else {
+		AH5416(ah)->ah_tx_chainmask = 1;
+	}
+	AH5416(ah)->ah_rx_chainmask = pCap->halRxChainMask;
+	HALDEBUG(ah, HAL_DEBUG_ANY, "TX chainmask: 0x%x; RX chainmask: 0x%x\n",
+	    AH5416(ah)->ah_tx_chainmask,
+	    AH5416(ah)->ah_rx_chainmask);
 }
 
 #ifndef IS_5GHZ_FAST_CLOCK_EN

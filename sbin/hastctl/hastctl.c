@@ -430,6 +430,7 @@ main(int argc, char *argv[])
 		break;
 	}
 
+	pjdlog_init(PJDLOG_MODE_STD);
 	pjdlog_debug_set(debug);
 
 	cfg = yy_config_parse(cfgpath, true);

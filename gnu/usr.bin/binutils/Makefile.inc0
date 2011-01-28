@@ -30,7 +30,7 @@ SRCDIR=	${.CURDIR}/${RELSRC}
 
 .if ${TARGET_CPUARCH} == "arm" || ${TARGET_CPUARCH} == "i386" || \
 	${TARGET_ARCH} == "powerpc" || \
-	${TARGET_ARCH} == "mipsel" || ${TARGET_ARCH} == "mipseb"
+	(${TARGET_CPUARCH} == "mips" && ${TARGET_ARCH:Mmips64*} == "")
 CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=32
 .else
 CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=64
