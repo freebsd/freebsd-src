@@ -44,6 +44,7 @@ extern bool sigexit_received;
 extern struct pidfh *pfh;
 
 void descriptors_cleanup(struct hast_resource *res);
+void descriptors_assert(const struct hast_resource *res, int pjdlogmode);
 
 void hastd_primary(struct hast_resource *res);
 void hastd_secondary(struct hast_resource *res, struct nv *nvin);
