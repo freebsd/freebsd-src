@@ -847,6 +847,11 @@ hastd_primary(struct hast_resource *res)
 	init_ggate(res);
 	init_environment(res);
 
+	if (drop_privs() != 0) {
+		cleanup(res);
+		exit(EX_CONFIG);
+	}
+
 	/*
 	 * Create the guard thread first, so we can handle signals from the
 	 * very begining.
