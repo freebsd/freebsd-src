@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 6, 1998
+.Dd December 8, 2007
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -161,6 +161,9 @@ struct bsxbpb {
     u_int16_t	infs;		/* [-i] file system info sector */
     u_int16_t	bkbs;		/* [-k] backup boot sector */
 };
+.Ed
+.Sh LIMITATION
+The maximum file size is 4GB, even if the file system itself is bigger.
 .Ed
 .Sh EXIT STATUS
 Exit status is 0 on success and 1 on error.
