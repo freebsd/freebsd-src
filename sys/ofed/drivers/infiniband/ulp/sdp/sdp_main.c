@@ -1385,15 +1385,11 @@ deliver:
 			sbdrop_locked(sb, len);
 
 		/* Notify protocol that we drained some data. */
-		if ((so->so_proto->pr_flags & PR_WANTRCVD) &&
-		    (((flags & MSG_WAITALL) && uio->uio_resid > 0) ||
-		     !(flags & MSG_SOCALLBCK))) {
-			SOCKBUF_UNLOCK(sb);
-			SDP_WLOCK(ssk);
-			sdp_do_posts(ssk);
-			SDP_WUNLOCK(ssk);
-			SOCKBUF_LOCK(sb);
-		}
+		SOCKBUF_UNLOCK(sb);
+		SDP_WLOCK(ssk);
+		sdp_do_posts(ssk);
+		SDP_WUNLOCK(ssk);
+		SOCKBUF_LOCK(sb);
 	}
 
 	/*
@@ -1698,6 +1694,18 @@ sdp_ctloutput(struct socket *so, struct sockopt *sopt)
 	return (error);
 }
 #undef SDP_WLOCK_RECHECK
+
+int sdp_mod_count = 0;
+int sdp_mod_usec = 0;
+
+void
+sdp_set_default_moderation(struct sdp_sock *ssk)
+{
+	if (sdp_mod_count <= 0 || sdp_mod_usec <= 0)
+		return;
+	ib_modify_cq(ssk->rx_ring.cq, sdp_mod_count, sdp_mod_usec);
+}
+
 
 static void
 sdp_dev_add(struct ib_device *device)

@@ -134,7 +134,7 @@ sdp_post_send(struct sdp_sock *ssk, struct mbuf *mb)
 		sge->lkey = ssk->sdp_dev->mr->lkey;
 	}
 	tx_wr.next = NULL;
-	tx_wr.wr_id = ring_head(ssk->tx_ring) | SDP_OP_SEND;
+	tx_wr.wr_id = mseq | SDP_OP_SEND;
 	tx_wr.sg_list = ibsge;
 	tx_wr.num_sge = i;
 	tx_wr.opcode = IB_WR_SEND;
@@ -178,10 +178,7 @@ sdp_send_completion(struct sdp_sock *ssk, int mseq)
 	dev = ssk->ib_device;
 	tx_req = &tx_ring->buffer[mseq & (SDP_TX_SIZE - 1)];
 	mb = tx_req->mb;
-
 	sdp_cleanup_sdp_buf(ssk, tx_req, DMA_TO_DEVICE);
-
-	tx_ring->una_seq += mb->m_pkthdr.len - sizeof(struct sdp_bsdh);
 
 #ifdef SDP_ZCOPY
 	/* TODO: AIO and real zcopy code; add their context support here */
@@ -201,10 +198,6 @@ sdp_handle_send_comp(struct sdp_sock *ssk, struct ib_wc *wc)
 	struct mbuf *mb = NULL;
 	struct sdp_bsdh *h;
 
-	mb = sdp_send_completion(ssk, wc->wr_id);
-	if (unlikely(!mb))
-		return -1;
-
 	if (unlikely(wc->status)) {
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
 			sdp_prf(ssk->socket, mb, "Send completion with error. "
@@ -214,6 +207,10 @@ sdp_handle_send_comp(struct sdp_sock *ssk, struct ib_wc *wc)
 			sdp_notify(ssk, ECONNRESET);
 		}
 	}
+
+	mb = sdp_send_completion(ssk, wc->wr_id);
+	if (unlikely(!mb))
+		return -1;
 
 	h = mtod(mb, struct sdp_bsdh *);
 	sdp_prf1(ssk->socket, mb, "tx completion. mseq:%d", ntohl(h->mseq));
@@ -300,21 +297,10 @@ sdp_process_tx_cq(struct sdp_sock *ssk)
 	} while (n == SDP_NUM_WC);
 
 	if (wc_processed) {
-		struct socket *sk = ssk->socket;
 		sdp_post_sends(ssk, M_DONTWAIT);
 		sdp_prf1(sk, NULL, "Waking sendmsg. inflight=%d", 
 				(u32) tx_ring_posted(ssk));
 		sowwakeup(ssk->socket);
-		/*
-		 * If there is no room in the tx queue we arm the tx cq
-		 * to force an interrupt.
-		 */
-		if (tx_ring_posted(ssk) && sk->so_snd.sb_cc >=
-		    sk->so_snd.sb_mbmax - ssk->xmit_size_goal) {
-			sdp_prf(ssk->socket, NULL, "pending tx - rearming");
-			sdp_arm_tx_cq(ssk);
-		}
-
 	}
 
 	return wc_processed;

@@ -163,10 +163,10 @@ out:
 void
 sdp_post_sends(struct sdp_sock *ssk, int wait)
 {
-	/* TODO: nonagle? */
 	struct mbuf *mb;
 	int post_count = 0;
 	struct socket *sk;
+	int low;
 
 	sk = ssk->socket;
 	if (unlikely(!ssk->id)) {
@@ -177,7 +177,7 @@ sdp_post_sends(struct sdp_sock *ssk, int wait)
 		}
 		return;
 	}
-
+again:
 	if (sdp_tx_ring_slots_left(ssk) < SDP_TX_SIZE / 2)
 		sdp_xmit_poll(ssk,  1);
 
@@ -242,8 +242,13 @@ sdp_post_sends(struct sdp_sock *ssk, int wait)
 		sdp_post_send(ssk, mb);
 		post_count++;
 	}
-	if (post_count)
-		sdp_xmit_poll(ssk, 0);
+	low = (sdp_tx_ring_slots_left(ssk) <= SDP_MIN_TX_CREDITS);
+	if (post_count || low) {
+		if (low)
+			sdp_arm_tx_cq(ssk);
+		if (sdp_xmit_poll(ssk, low))
+			goto again;
+	}
 	return;
 
 allocfail:

@@ -33,7 +33,7 @@
 
 SDP_MODPARAM_INT(rcvbuf_initial_size, 32 * 1024,
 		"Receive buffer initial size in bytes.");
-SDP_MODPARAM_SINT(rcvbuf_scale, 0x10,
+SDP_MODPARAM_SINT(rcvbuf_scale, 0x8,
 		"Receive buffer size scale factor.");
 
 /* Like tcp_fin - called when SDP_MID_DISCONNECT is received */
@@ -161,31 +161,31 @@ sdp_post_recv(struct sdp_sock *ssk)
 static inline int
 sdp_post_recvs_needed(struct sdp_sock *ssk)
 {
-	int scale = rcvbuf_scale;
-	int buffer_size = ssk->recv_bytes;
+	unsigned long bytes_in_process;
 	unsigned long max_bytes;
+	int buffer_size;
+	int posted;
 
 	if (!ssk->qp_active || !ssk->socket)
 		return 0;
 
-	max_bytes = ssk->socket->so_snd.sb_mbmax * scale;
-	if  (unlikely(rx_ring_posted(ssk) >= SDP_RX_SIZE))
+	posted = rx_ring_posted(ssk);
+	if (posted >= SDP_RX_SIZE)
 		return 0;
+	if (posted < SDP_MIN_TX_CREDITS)
+		return 1;
 
-	if (likely(rx_ring_posted(ssk) >= SDP_MIN_TX_CREDITS)) {
-		unsigned long bytes_in_process =
-			(rx_ring_posted(ssk) - SDP_MIN_TX_CREDITS) *
-			buffer_size;
-		bytes_in_process += ssk->socket->so_rcv.sb_cc;
-		if (bytes_in_process >= max_bytes) {
-			sdp_prf(ssk->socket, NULL,
-				"bytes_in_process:%ld > max_bytes:%ld",
-				bytes_in_process, max_bytes);
-			return 0;
-		}
-	}
+	buffer_size = ssk->recv_bytes;
+	max_bytes = max(ssk->socket->so_snd.sb_hiwat,
+	    (1 + SDP_MIN_TX_CREDITS) * buffer_size);
+	max_bytes *= rcvbuf_scale;
+	/*
+	 * Compute bytes in the receive queue and socket buffer.
+	 */
+	bytes_in_process = (posted - SDP_MIN_TX_CREDITS) * buffer_size;
+	bytes_in_process += ssk->socket->so_rcv.sb_cc;
 
-	return 1;
+	return bytes_in_process < max_bytes;
 }
 
 static inline void

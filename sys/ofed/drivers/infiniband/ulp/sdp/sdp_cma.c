@@ -192,7 +192,7 @@ sdp_response_handler(struct socket *sk, struct rdma_cm_id *id,
 	ssk = sdp_sk(sk);
 	SDP_WLOCK(ssk);
 	ssk->state = TCPS_ESTABLISHED;
-/*	sdp_set_default_moderation(ssk); */
+	sdp_set_default_moderation(ssk);
 	if (ssk->flags & SDP_DROPPED) {
 		SDP_WUNLOCK(ssk);
 		return 0;
@@ -212,7 +212,6 @@ sdp_response_handler(struct socket *sk, struct rdma_cm_id *id,
 	ssk->fport = dst_addr->sin_port;
 	ssk->faddr = dst_addr->sin_addr.s_addr;
 	soisconnected(sk);
-	sdp_do_posts(ssk);
 	SDP_WUNLOCK(ssk);
 
 	return 0;
@@ -229,15 +228,13 @@ sdp_connected_handler(struct socket *sk, struct rdma_cm_event *event)
 	SDP_WLOCK(ssk);
 	ssk->state = TCPS_ESTABLISHED;
 
-/*	sdp_set_default_moderation(ssk); */
+	sdp_set_default_moderation(ssk);
 
 	if (sk->so_options & SO_KEEPALIVE)
 		sdp_start_keepalive_timer(sk);
 
-	if ((ssk->flags & SDP_DROPPED) == 0) {
+	if ((ssk->flags & SDP_DROPPED) == 0)
 		soisconnected(sk);
-		sdp_do_posts(ssk);
-	}
 	SDP_WUNLOCK(ssk);
 	return 0;
 }

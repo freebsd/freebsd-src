@@ -316,7 +316,6 @@ struct sdp_tx_ring {
 	atomic_t          	tail;
 	struct ib_cq 	 	*cq;
 
-	int 		  	una_seq;
 	atomic_t 	  	credits;
 #define tx_credits(ssk) (atomic_read(&ssk->tx_ring.credits))
 
