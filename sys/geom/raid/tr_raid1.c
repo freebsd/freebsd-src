@@ -109,8 +109,10 @@ static struct g_raid_tr_class g_raid_tr_raid1_class = {
 	.trc_priority = 100
 };
 
+static void g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr,
+    struct g_raid_volume *vol);
 static struct g_raid_subdisk *g_raid_tr_raid1_find_good_drive(
-	struct g_raid_volume *vol);
+    struct g_raid_volume *vol);
 static void g_raid_tr_raid1_maybe_rebuild(struct g_raid_tr_object *tr,
     struct g_raid_volume *vol);
 
@@ -166,11 +168,17 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
     struct g_raid_subdisk *sd)
 {
 	struct g_raid_tr_raid1_object *trs;
+	struct g_raid_subdisk *good_sd;
 	struct bio *bp, *bp2;
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (trs->trso_flags & TR_RAID1_F_DOING_SOME)
 		return;
+	good_sd = g_raid_tr_raid1_find_good_drive(sd->sd_volume);
+	if (good_sd == NULL) {
+		g_raid_tr_raid1_rebuild_abort(tr, sd->sd_volume);
+		return;
+	}
 	trs->trso_flags |= TR_RAID1_F_DOING_SOME;
 	trs->trso_recover_slabs = SD_REBUILD_CLUSTER_IDLE;
 	trs->trso_fair_io = SD_REBUILD_FAIR_IO;
@@ -183,7 +191,7 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 	bp->bio_cmd = BIO_READ;
 	bp2 = g_clone_bio(bp);
 	bp2->bio_cflags = G_RAID_BIO_FLAG_SYNC;
-	bp2->bio_caller1 = g_raid_tr_raid1_find_good_drive(sd->sd_volume);
+	bp2->bio_caller1 = good_sd;
 	g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
 	    bp2->bio_offset, bp2->bio_length, bp2);
 }
@@ -561,7 +569,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
     struct g_raid_subdisk *sd, struct bio *bp)
 {
 	struct bio *cbp;
-	struct g_raid_subdisk *nsd;
+	struct g_raid_subdisk *nsd, *good_sd;
 	struct g_raid_volume *vol;
 	struct bio *pbp;
 	struct g_raid_tr_raid1_object *trs;
@@ -642,6 +650,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
 					return;
 				}
+				good_sd = g_raid_tr_raid1_find_good_drive(vol);
+				if (good_sd == NULL) {
+					g_raid_tr_raid1_rebuild_abort(tr, vol);
+					return;
+				}
 				pbp->bio_offset = nsd->sd_rebuild_pos;
 				cbp = g_clone_bio(pbp);
 				cbp->bio_cmd = BIO_READ;
@@ -649,8 +662,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				cbp->bio_offset = nsd->sd_rebuild_pos;
 				cbp->bio_length = MIN(SD_REBUILD_SLAB,
 				    vol->v_mediasize - nsd->sd_rebuild_pos);
-				cbp->bio_caller1 =
-				    g_raid_tr_raid1_find_good_drive(vol);
+				cbp->bio_caller1 = good_sd;
 				G_RAID_LOGREQ(4, bp,
 				    "Rebuild read at %jd.", cbp->bio_offset);
 				g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
