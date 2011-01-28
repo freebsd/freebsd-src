@@ -320,17 +320,15 @@ tsec_get_hwaddr(struct tsec_softc *sc, uint8_t *addr)
 	union {
 		uint32_t reg[2];
 		uint8_t addr[6];
-	} curmac;
-	uint32_t a[6];
-	uint8_t lma[6];
+	} hw;
 	int i;
 
-	/*
-	 * Retrieve hw address from the device tree.
-	 */
-	i = OF_getprop(sc->node, "local-mac-address", (void *)lma, 6);
-	if (i == 6) {
-		bcopy(lma, addr, 6);
+	hw.reg[0] = hw.reg[1] = 0;
+
+	/* Retrieve the hardware address from the device tree. */
+	i = OF_getprop(sc->node, "local-mac-address", (void *)hw.addr, 6);
+	if (i == 6 && (hw.reg[0] != 0 || hw.reg[1] != 0)) {
+		bcopy(hw.addr, addr, 6);
 		return;
 	}
 
@@ -338,15 +336,8 @@ tsec_get_hwaddr(struct tsec_softc *sc, uint8_t *addr)
 	 * Fall back -- use the currently programmed address in the hope that
 	 * it was set be firmware...
 	 */
-	curmac.reg[0] = TSEC_READ(sc, TSEC_REG_MACSTNADDR1);
-	curmac.reg[1] = TSEC_READ(sc, TSEC_REG_MACSTNADDR2);
+	hw.reg[0] = TSEC_READ(sc, TSEC_REG_MACSTNADDR1);
+	hw.reg[1] = TSEC_READ(sc, TSEC_REG_MACSTNADDR2);
 	for (i = 0; i < 6; i++)
-		a[5-i] = curmac.addr[i];
-
-	addr[0] = a[0];
-	addr[1] = a[1];
-	addr[2] = a[2];
-	addr[3] = a[3];
-	addr[4] = a[4];
-	addr[5] = a[5];
+		addr[5-i] = hw.addr[i];
 }
