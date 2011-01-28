@@ -413,6 +413,9 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	init_local(res);
 	init_environment();
 
+	if (drop_privs() != 0)
+		exit(EX_CONFIG);
+
 	/*
 	 * Create the control thread before sending any event to the parent,
 	 * as we can deadlock when parent sends control request to worker,
