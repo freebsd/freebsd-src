@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
- * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -91,6 +91,32 @@ g_gate_load(void)
 			}
 		}
 	}
+}
+
+void
+descriptors_cleanup(struct hast_resource *res)
+{
+	struct hast_resource *tres;
+
+	TAILQ_FOREACH(tres, &cfg->hc_resources, hr_next) {
+		if (tres == res) {
+			PJDLOG_VERIFY(res->hr_role == HAST_ROLE_SECONDARY ||
+			    (res->hr_remotein == NULL &&
+			     res->hr_remoteout == NULL));
+			continue;
+		}
+		if (tres->hr_remotein != NULL)
+			proto_close(tres->hr_remotein);
+		if (tres->hr_remoteout != NULL)
+			proto_close(tres->hr_remoteout);
+	}
+	if (cfg->hc_controlin != NULL)
+		proto_close(cfg->hc_controlin);
+	proto_close(cfg->hc_controlconn);
+	proto_close(cfg->hc_listenconn);
+	(void)pidfile_close(pfh);
+	hook_fini();
+	pjdlog_fini();
 }
 
 static void
