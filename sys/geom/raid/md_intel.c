@@ -650,6 +650,10 @@ nofit:
 			} else {
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_REBUILD);
+				sd->sd_rebuild_pos =
+				    (off_t)mvol->curr_migr_unit *
+				    sd->sd_volume->v_strip_size *
+				    mmap0->total_domains;
 			}
 		} else if (mvol->migr_type == INTEL_MT_VERIFY ||
 			   mvol->migr_type == INTEL_MT_REPAIR) {
@@ -662,6 +666,10 @@ nofit:
 			} else {
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_RESYNC);
+				sd->sd_rebuild_pos =
+				    (off_t)mvol->curr_migr_unit *
+				    sd->sd_volume->v_strip_size *
+				    mmap0->total_domains;
 			}
 		}
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
@@ -1822,7 +1830,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	struct intel_raid_conf *meta;
 	struct intel_raid_vol *mvol;
 	struct intel_raid_map *mmap0, *mmap1;
-	off_t sectorsize = 512;
+	off_t sectorsize = 512, pos;
 	const char *version, *cv;
 	int vi, sdi, numdisks, len, state;
 
@@ -1924,6 +1932,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 
 		/* Check for any recovery in progress. */
 		state = G_RAID_SUBDISK_S_ACTIVE;
+		pos = 0x7fffffffffffffffllu;
 		for (sdi = 0; sdi < vol->v_disks_count; sdi++) {
 			sd = &vol->v_subdisks[sdi];
 			if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD)
@@ -1931,6 +1940,10 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			else if (sd->sd_state == G_RAID_SUBDISK_S_RESYNC &&
 			    state != G_RAID_SUBDISK_S_REBUILD)
 				state = G_RAID_SUBDISK_S_RESYNC;
+			if ((sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+			    sd->sd_state == G_RAID_SUBDISK_S_RESYNC) &&
+			     sd->sd_rebuild_pos < pos)
+			        pos = sd->sd_rebuild_pos;
 		}
 		if (state == G_RAID_SUBDISK_S_REBUILD) {
 			mvol->migr_state = 1;
@@ -1974,6 +1987,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 
 		/* If there are two maps - copy common and update. */
 		if (mvol->migr_state) {
+			mvol->curr_migr_unit = pos /
+			    vol->v_strip_size / mmap0->total_domains;
 			mmap1 = intel_get_map(mvol, 1);
 			memcpy(mmap1, mmap0, sizeof(struct intel_raid_map));
 			mmap0->status = INTEL_S_READY;
