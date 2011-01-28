@@ -363,18 +363,12 @@ protopr(u_long off, const char *name, int af1, int proto)
 		}
 
 		/* Ignore sockets for protocols other than the desired one. */
-		if (so->xso_protocol != proto) {
-			printf("%s proto %d, proto %d\n",
-			    name,  so->xso_protocol, proto);
+		if (so->xso_protocol != proto)
 			continue;
-		}
 
 		/* Ignore PCBs which were freed during copyout. */
-		if (inp->inp_gencnt > oxig->xig_gen) {
-			printf("%s gencnt %jd, xig gen %jd\n",
-			    name, inp->inp_gencnt, oxig->xig_gen);
+		if (inp->inp_gencnt > oxig->xig_gen)
 			continue;
-		}
 
 		if ((af1 == AF_INET && (inp->inp_vflag & INP_IPV4) == 0)
 #ifdef INET6
