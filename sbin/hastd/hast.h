@@ -81,6 +81,7 @@
 #define	HIO_FLUSH		4
 #define	HIO_KEEPALIVE		5
 
+#define	HAST_USER	"hast"
 #define	HAST_TIMEOUT	5
 #define	HAST_CONFIG	"/etc/hast.conf"
 #define	HAST_CONTROL	"/var/run/hastctl"
