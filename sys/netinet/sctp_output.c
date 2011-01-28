@@ -7809,6 +7809,20 @@ again_one_more_time:
 					if (chk->rec.chunk_id.id == SCTP_COOKIE_ECHO) {
 						cookie = 1;
 						no_out_cnt = 1;
+					} else if (chk->rec.chunk_id.id == SCTP_ECN_ECHO) {
+						/*
+						 * Increment ecne send count
+						 * here this means we may be
+						 * over-zealous in our
+						 * counting if the send
+						 * fails, but its the best
+						 * place to do it (we used
+						 * to do it in the queue of
+						 * the chunk, but that did
+						 * not tell how many times
+						 * it was sent.
+						 */
+						SCTP_STAT_INCR(sctps_sendecne);
 					}
 					chk->sent = SCTP_DATAGRAM_SENT;
 					chk->snd_count++;
@@ -10751,6 +10765,7 @@ sctp_send_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
 			/* found a previous ECN_ECHO update it if needed */
 			ecne = mtod(chk->data, struct sctp_ecne_chunk *);
 			ecne->tsn = htonl(high_tsn);
+			SCTP_STAT_INCR(sctps_queue_upd_ecne);
 			return;
 		}
 	}
@@ -10760,7 +10775,7 @@ sctp_send_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
 		return;
 	}
 	chk->copy_by_ref = 0;
-	SCTP_STAT_INCR(sctps_sendecne);
+	SCTP_STAT_INCR(sctps_queue_upd_ecne);
 	chk->rec.chunk_id.id = SCTP_ECN_ECHO;
 	chk->rec.chunk_id.can_take_data = 0;
 	chk->asoc = &stcb->asoc;
