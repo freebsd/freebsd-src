@@ -114,9 +114,9 @@ static int	ext2_check_sb_compat(struct ext2_super_block *es, struct cdev *dev,
 static int	compute_sb_data(struct vnode * devvp,
 		    struct ext2_super_block * es, struct ext2_sb_info * fs);
 
-static const char *ext2_opts[] = { "from", "export", "acls", "noexec",
-    "noatime", "union", "suiddir", "multilabel", "nosymfollow",
-    "noclusterr", "noclusterw", "force", NULL };
+static const char *ext2_opts[] = { "acls", "async", "noatime", "noclusterr", 
+    "noclusterw", "noexec", "export", "force", "from", "multilabel",
+    "suiddir", "nosymfollow", "sync", "union", NULL };
 
 /*
  * VFS Operations.
