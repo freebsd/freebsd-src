@@ -1229,6 +1229,11 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 				error = -6;
 				break;
 			}
+			if (strcmp(diskname, "NONE") == 0) {
+				cp = NULL;
+				pp = NULL;
+				goto makedisk;
+			}
 			if (strncmp(diskname, "/dev/", 5) == 0)
 				diskname += 5;
 			g_topology_lock();
@@ -1258,12 +1263,19 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 				error = -7;
 				break;
 			}
-
+makedisk:
 			pd = malloc(sizeof(*pd), M_MD_INTEL, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = i;
 			disk = g_raid_create_disk(sc);
 			disk->d_md_data = (void *)pd;
 			disk->d_consumer = cp;
+			if (cp == NULL) {
+				strcpy(&pd->pd_disk_meta.serial[0], "NONE");
+				pd->pd_disk_meta.id = 0;
+				pd->pd_disk_meta.id = 0xffffffff;
+				pd->pd_disk_meta.flags = INTEL_F_ASSIGNED;
+				continue;
+			}
 			cp->private = disk;
 
 			g_topology_unlock();
@@ -1331,7 +1343,20 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			}
 			strip = *striparg;
 		}
-		size -= (size % strip);
+
+		/* Round size down to strip or sector. */
+		if (level == G_RAID_VOLUME_RL_RAID1)
+			size -= (size % sectorsize);
+		else
+			size -= (size % strip);
+		if (size <= 0) {
+			gctl_error(req, "Size too small.");
+			return (-13);
+		}
+		if (size > 0xffffffffllu * sectorsize) {
+			gctl_error(req, "Size too big.");
+			return (-14);
+		}
 
 		/* We have all we need, create things: volume, ... */
 		mdi->mdio_started = 1;
@@ -1343,9 +1368,11 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		vol->v_disks_count = numdisks;
 		if (level == G_RAID_VOLUME_RL_RAID0)
 			vol->v_mediasize = size * numdisks;
+		else if (level == G_RAID_VOLUME_RL_RAID1)
+			vol->v_mediasize = size;
 		else if (level == G_RAID_VOLUME_RL_RAID5)
 			vol->v_mediasize = size * (numdisks - 1);
-		else
+		else /* RAID10 */
 			vol->v_mediasize = size * (numdisks / 2);
 		vol->v_sectorsize = sectorsize;
 		g_raid_start_volume(vol);
@@ -1358,14 +1385,23 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			sd->sd_offset = 0;
 			sd->sd_size = size;
 			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
-			g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
-			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
-			g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
-			    G_RAID_EVENT_SUBDISK);
+			if (sd->sd_disk->d_consumer != NULL) {
+				g_raid_change_disk_state(disk,
+				    G_RAID_DISK_S_ACTIVE);
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_ACTIVE);
+				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
+				    G_RAID_EVENT_SUBDISK);
+			} else {
+				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+			}
 		}
 
 		/* Write metadata based on created entities. */
 		g_raid_md_write_intel(md, NULL, NULL, NULL);
+
+		/* Pickup any STALE/SPARE disks to refill array if needed. */
+		g_raid_md_intel_refill(sc);
 		return (0);
 	}
 	if (strcmp(verb, "add") == 0) {
@@ -1476,13 +1512,23 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			}
 			strip = *striparg;
 		}
+
+		/* Round offset up to strip. */
 		size -= ((strip - off) % strip);
 		off += ((strip - off) % strip);
-		size -= (size % strip);
 
+		/* Round size down to strip or sector. */
+		if (level == G_RAID_VOLUME_RL_RAID1)
+			size -= (size % sectorsize);
+		else
+			size -= (size % strip);
 		if (size <= 0) {
-			gctl_error(req, "No free space.");
+			gctl_error(req, "Size too small.");
 			return (-13);
+		}
+		if (size > 0xffffffffllu * sectorsize) {
+			gctl_error(req, "Size too big.");
+			return (-14);
 		}
 
 		/* We have all we need, create things: volume, ... */
@@ -1494,9 +1540,11 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		vol->v_disks_count = numdisks;
 		if (level == G_RAID_VOLUME_RL_RAID0)
 			vol->v_mediasize = size * numdisks;
+		else if (level == G_RAID_VOLUME_RL_RAID1)
+			vol->v_mediasize = size;
 		else if (level == G_RAID_VOLUME_RL_RAID5)
 			vol->v_mediasize = size * (numdisks - 1);
-		else
+		else /* RAID10 */
 			vol->v_mediasize = size * (numdisks / 2);
 		vol->v_sectorsize = sectorsize;
 		g_raid_start_volume(vol);
