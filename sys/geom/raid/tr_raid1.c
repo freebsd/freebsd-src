@@ -179,9 +179,6 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 		g_raid_tr_raid1_rebuild_abort(tr, sd->sd_volume);
 		return;
 	}
-	trs->trso_flags |= TR_RAID1_F_DOING_SOME;
-	trs->trso_recover_slabs = SD_REBUILD_CLUSTER_IDLE;
-	trs->trso_fair_io = SD_REBUILD_FAIR_IO;
 	bp = &trs->trso_bio;
 	memset(bp, 0, sizeof(*bp));
 	bp->bio_offset = sd->sd_rebuild_pos;
@@ -190,8 +187,13 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 	bp->bio_data = trs->trso_buffer;
 	bp->bio_cmd = BIO_READ;
 	bp2 = g_clone_bio(bp);
+	if (bp2 == NULL)	/* We'll try again later */
+		return;
 	bp2->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 	bp2->bio_caller1 = good_sd;
+	trs->trso_recover_slabs = SD_REBUILD_CLUSTER_IDLE;
+	trs->trso_fair_io = SD_REBUILD_FAIR_IO;
+	trs->trso_flags |= TR_RAID1_F_DOING_SOME;
 	g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
 	    bp2->bio_offset, bp2->bio_length, bp2);
 }
@@ -609,11 +611,23 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					return;
 				}
 				cbp = g_clone_bio(pbp);
+				if (cbp == NULL) {
+					/*
+					 * By flagging that we're not doing anything,
+					 * we'll pick up the rebuild at a later point
+					 * either by timeout or when we steal a small
+					 * part of the active I/O.
+					 */
+					g_destroy_bio(bp); /* reuse? */
+					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+					return;
+				}
 				cbp->bio_cmd = BIO_WRITE;
 				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 				cbp->bio_offset = bp->bio_offset;
 				cbp->bio_length = bp->bio_length;
 				G_RAID_LOGREQ(4, bp, "Queueing reguild write.");
+				g_destroy_bio(bp); /* reuse? */
 				g_raid_subdisk_iostart(trs->trso_failed_sd, cbp);
 			} else {
 				/*
@@ -630,8 +644,10 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				    "rebuild write done. Error %d", bp->bio_error);
 				if (bp->bio_error != 0) {
 					g_raid_tr_raid1_rebuild_abort(tr, vol);
+					g_destroy_bio(bp); /* reuse? */
 					return;
 				}
+				g_destroy_bio(bp); /* reuse? */
 /* XXX A lot of the following is needed when we kick of the work -- refactor */
 				nsd = trs->trso_failed_sd;
 				g_raid_unlock_range(sd->sd_volume,
@@ -657,6 +673,16 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				}
 				pbp->bio_offset = nsd->sd_rebuild_pos;
 				cbp = g_clone_bio(pbp);
+				if (cbp == NULL) {
+					/*
+					 * By flagging that we're not doing anything,
+					 * we'll pick up the rebuild at a later point
+					 * either by timeout or when we steal a small
+					 * part of the active I/O.
+					 */
+					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+					return;
+				}
 				cbp->bio_cmd = BIO_READ;
 				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 				cbp->bio_offset = nsd->sd_rebuild_pos;
