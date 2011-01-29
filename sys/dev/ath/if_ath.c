@@ -89,6 +89,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_hal/ah_devid.h>		/* XXX for softled */
 #include <dev/ath/ath_hal/ah_diagcodes.h>
 
+#include <dev/ath/if_ath_debug.h>
+
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
@@ -290,65 +292,6 @@ TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
 static	int ath_bstuck_threshold = 4;		/* max missed beacons */
 SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
 	    0, "max missed beacon xmits before chip reset");
-
-#ifdef ATH_DEBUG
-enum {
-	ATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
-	ATH_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
-	ATH_DEBUG_RECV		= 0x00000004,	/* basic recv operation */
-	ATH_DEBUG_RECV_DESC	= 0x00000008,	/* recv descriptors */
-	ATH_DEBUG_RATE		= 0x00000010,	/* rate control */
-	ATH_DEBUG_RESET		= 0x00000020,	/* reset processing */
-	ATH_DEBUG_MODE		= 0x00000040,	/* mode init/setup */
-	ATH_DEBUG_BEACON 	= 0x00000080,	/* beacon handling */
-	ATH_DEBUG_WATCHDOG 	= 0x00000100,	/* watchdog timeout */
-	ATH_DEBUG_INTR		= 0x00001000,	/* ISR */
-	ATH_DEBUG_TX_PROC	= 0x00002000,	/* tx ISR proc */
-	ATH_DEBUG_RX_PROC	= 0x00004000,	/* rx ISR proc */
-	ATH_DEBUG_BEACON_PROC	= 0x00008000,	/* beacon ISR proc */
-	ATH_DEBUG_CALIBRATE	= 0x00010000,	/* periodic calibration */
-	ATH_DEBUG_KEYCACHE	= 0x00020000,	/* key cache management */
-	ATH_DEBUG_STATE		= 0x00040000,	/* 802.11 state transitions */
-	ATH_DEBUG_NODE		= 0x00080000,	/* node management */
-	ATH_DEBUG_LED		= 0x00100000,	/* led management */
-	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
-	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
-	ATH_DEBUG_TDMA		= 0x00800000,	/* TDMA processing */
-	ATH_DEBUG_TDMA_TIMER	= 0x01000000,	/* TDMA timer processing */
-	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
-	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
-	ATH_DEBUG_ANY		= 0xffffffff
-};
-static	int ath_debug = 0;
-SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
-	    0, "control debugging printfs");
-TUNABLE_INT("hw.ath.debug", &ath_debug);
-
-#define	IFF_DUMPPKTS(sc, m) \
-	((sc->sc_debug & (m)) || \
-	    (sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
-#define	DPRINTF(sc, m, fmt, ...) do {				\
-	if (sc->sc_debug & (m))					\
-		device_printf(sc->sc_dev, fmt, __VA_ARGS__);		\
-} while (0)
-#define	KEYPRINTF(sc, ix, hk, mac) do {				\
-	if (sc->sc_debug & ATH_DEBUG_KEYCACHE)			\
-		ath_keyprint(sc, __func__, ix, hk, mac);	\
-} while (0)
-static	void ath_printrxbuf(struct ath_softc *, const struct ath_buf *bf,
-	u_int ix, int);
-static	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
-	u_int qnum, u_int ix, int done);
-#else
-#define	IFF_DUMPPKTS(sc, m) \
-	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
-#define	DPRINTF(sc, m, fmt, ...) do {				\
-	(void) sc;						\
-} while (0)
-#define	KEYPRINTF(sc, k, ix, mac) do {				\
-	(void) sc;						\
-} while (0)
-#endif
 
 MALLOC_DEFINE(M_ATHDEV, "athdev", "ath driver dma buffers");
 
@@ -6088,65 +6031,6 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	/* NB: caller is responsible for resetting rate control state */
 #undef N
 }
-
-#ifdef ATH_DEBUG
-static void
-ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
-	u_int ix, int done)
-{
-	const struct ath_rx_status *rs = &bf->bf_status.ds_rxstat;
-	struct ath_hal *ah = sc->sc_ah;
-	const struct ath_desc *ds;
-	int i;
-
-	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf("R[%2u] (DS.V:%p DS.P:%p) L:%08x D:%08x%s\n"
-		       "      %08x %08x %08x %08x\n",
-		    ix, ds, (const struct ath_desc *)bf->bf_daddr + i,
-		    ds->ds_link, ds->ds_data,
-		    !done ? "" : (rs->rs_status == 0) ? " *" : " !",
-		    ds->ds_ctl0, ds->ds_ctl1,
-		    ds->ds_hw[0], ds->ds_hw[1]);
-		if (ah->ah_magic == 0x20065416) {
-			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
-			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
-			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
-			    ds->ds_hw[8]);
-		}
-	}
-}
-
-static void
-ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *bf,
-	u_int qnum, u_int ix, int done)
-{
-	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
-	struct ath_hal *ah = sc->sc_ah;
-	const struct ath_desc *ds;
-	int i;
-
-	printf("Q%u[%3u]", qnum, ix);
-	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:04%x%s\n"
-		       "        %08x %08x %08x %08x %08x %08x\n",
-		    ds, (const struct ath_desc *)bf->bf_daddr + i,
-		    ds->ds_link, ds->ds_data, bf->bf_txflags,
-		    !done ? "" : (ts->ts_status == 0) ? " *" : " !",
-		    ds->ds_ctl0, ds->ds_ctl1,
-		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
-		if (ah->ah_magic == 0x20065416) {
-			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
-			    ds->ds_hw[4], ds->ds_hw[5], ds->ds_hw[6],
-			    ds->ds_hw[7], ds->ds_hw[8], ds->ds_hw[9],
-			    ds->ds_hw[10],ds->ds_hw[11]);
-			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
-			    ds->ds_hw[12],ds->ds_hw[13],ds->ds_hw[14],
-			    ds->ds_hw[15],ds->ds_hw[16],ds->ds_hw[17],
-			    ds->ds_hw[18], ds->ds_hw[19]);
-		}
-	}
-}
-#endif /* ATH_DEBUG */
 
 static void
 ath_watchdog(void *arg)
