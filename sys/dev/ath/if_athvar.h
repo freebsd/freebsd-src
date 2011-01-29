@@ -654,6 +654,29 @@ void	ath_intr(void *);
 #define ath_hal_gettxcompletionrates(_ah, _ds, _rates, _tries) \
 	((*(_ah)->ah_getTxCompletionRates)((_ah), (_ds), (_rates), (_tries)))
 
+#define	ath_hal_chaintxdesc(_ah, _ds, _pktlen, _hdrlen, _type, _keyix, \
+	_	cipher, _delims, _seglen, _first, _last) \
+	((*(_ah)->ah_chainTxDesc((_ah), (_ds), (_pktlen), (_hdrlen), \
+	(_type), (_keyix), (_cipher), (_delims), (_seglen), \
+	(_first), (_last)))) 
+#define	ath_hal_setupfirsttxdesc(_ah, _ds, _aggrlen, _flags, _txpower, \
+		_txr0, _txtr0, _antm, _rcr, _rcd) \
+	((*(_ah)->ah_setupFirstTxDesc)((_ah), (_ds), (_aggrlen), (_flags), \
+	(_txpower), (_txr0), (_txtr0), (_antm), (_rcr), (_rcd)))
+#define	ath_hal_setuplasttxdesc(_ah, _ds, _ds0) \
+	((*(_ah)->ah_setupLastTxDesc)((_ah), (_ds), (_ds0)))
+#define	ath_hal_set11nratescenario(_ah, _ds, _dur, _rt, _series, _ns) \
+	((*(_ah)->ah_set11nRateScenario)((_ah), (_ds), (_dur), (_rt), \
+	(_series), (_ns)))
+#define	ath_hal_set11naggrmiddle(_ah, _ds, _num) \
+	((*(_ah)->ah_set11nAggrMiddle((_ah), (_ds), (_num))))
+#define	ath_hal_set11nburstduration(_ah, _ds, _dur) \
+	((*(_ah)->ah_set11nBurstDuration)((_ah), (_ds), (_dur)))
+
+ #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
+         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))
+ #define ath_hal_gpioset(_ah, _gpio, _b) \
+
 #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))
 #define ath_hal_gpioset(_ah, _gpio, _b) \
