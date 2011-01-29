@@ -35,7 +35,7 @@ ATH_RATE?=	sample		# tx rate control algorithm
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal
 
 KMOD=	if_ath
-SRCS=	if_ath.c if_ath_pci.c
+SRCS=	if_ath.c if_ath_pci.c if_ath_debug.c
 # NB: v3 eeprom support used by both AR5211 and AR5212; just include it
 SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
