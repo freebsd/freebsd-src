@@ -635,6 +635,9 @@ nofit:
 			if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_NEW);
+			} else if (mvol->dirty) {
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_STALE);
 			} else {
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_ACTIVE);
