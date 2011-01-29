@@ -269,4 +269,13 @@
 #define	AR_PHY_CL_CAL_CTL	0xA358		/* carrier leak cal control */
 #define	AR_PHY_CL_CAL_ENABLE	0x00000002
 #define	AR_PHY_PARALLEL_CAL_ENABLE	0x00000001
+
+/* empirically determined "good" CCA value ranges from atheros */
+#define	AR_PHY_CCA_NOM_VAL_5416_2GHZ		-90
+#define	AR_PHY_CCA_NOM_VAL_5416_5GHZ		-100
+#define	AR_PHY_CCA_MIN_GOOD_VAL_5416_2GHZ	-100
+#define	AR_PHY_CCA_MIN_GOOD_VAL_5416_5GHZ	-110
+#define	AR_PHY_CCA_MAX_GOOD_VAL_5416_2GHZ	-80
+#define	AR_PHY_CCA_MAX_GOOD_VAL_5416_5GHZ	-90
+
 #endif /* _DEV_ATH_AR5416PHY_H_ */
