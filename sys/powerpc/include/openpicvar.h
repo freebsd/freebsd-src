@@ -52,7 +52,7 @@ extern devclass_t openpic_devclass;
 /*
  * Bus-independent attach i/f
  */
-int	openpic_attach(device_t);
+int	openpic_common_attach(device_t, uint32_t);
 
 /*
  * PIC interface.
