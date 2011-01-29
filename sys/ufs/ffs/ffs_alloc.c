@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/taskqueue.h>
+
+#include <geom/geom.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
@@ -94,6 +97,10 @@ typedef ufs2_daddr_t allocfcn_t(struct inode *ip, u_int cg, ufs2_daddr_t bpref,
 static ufs2_daddr_t ffs_alloccg(struct inode *, u_int, ufs2_daddr_t, int);
 static ufs2_daddr_t
 	      ffs_alloccgblk(struct inode *, struct buf *, ufs2_daddr_t);
+static void	ffs_blkfree_cg(struct ufsmount *, struct fs *,
+		    struct vnode *, ufs2_daddr_t, long, ino_t);
+static void	ffs_blkfree_trim_completed(struct bio *);
+static void	ffs_blkfree_trim_task(void *ctx, int pending __unused);
 #ifdef INVARIANTS
 static int	ffs_checkblk(struct inode *, ufs2_daddr_t, long);
 #endif
@@ -1843,8 +1850,8 @@ ffs_isfreeblock(struct fs *fs, u_char *cp, ufs1_daddr_t h)
  * free map. If a fragment is deallocated, a possible
  * block reassembly is checked.
  */
-void
-ffs_blkfree(ump, fs, devvp, bno, size, inum)
+static void
+ffs_blkfree_cg(ump, fs, devvp, bno, size, inum)
 	struct ufsmount *ump;
 	struct fs *fs;
 	struct vnode *devvp;
@@ -1968,6 +1975,86 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
 	bdwrite(bp);
+}
+
+TASKQUEUE_DEFINE_THREAD(ffs_trim);
+
+struct ffs_blkfree_trim_params {
+	struct task task;
+	struct ufsmount *ump;
+	struct vnode *devvp;
+	ufs2_daddr_t bno;
+	long size;
+	ino_t inum;
+};
+
+static void
+ffs_blkfree_trim_task(ctx, pending)
+	void *ctx;
+	int pending;
+{
+	struct ffs_blkfree_trim_params *tp;
+
+	tp = ctx;
+	ffs_blkfree_cg(tp->ump, tp->ump->um_fs, tp->devvp, tp->bno, tp->size,
+	    tp->inum);
+	vn_finished_secondary_write(UFSTOVFS(tp->ump));
+	free(tp, M_TEMP);
+}
+
+static void
+ffs_blkfree_trim_completed(bip)
+	struct bio *bip;
+{
+	struct ffs_blkfree_trim_params *tp;
+
+	tp = bip->bio_caller2;
+	g_destroy_bio(bip);
+	TASK_INIT(&tp->task, 0, ffs_blkfree_trim_task, tp);
+	taskqueue_enqueue(taskqueue_ffs_trim, &tp->task);
+}
+
+void
+ffs_blkfree(ump, fs, devvp, bno, size, inum)
+	struct ufsmount *ump;
+	struct fs *fs;
+	struct vnode *devvp;
+	ufs2_daddr_t bno;
+	long size;
+	ino_t inum;
+{
+	struct mount *mp;
+	struct bio *bip;
+	struct ffs_blkfree_trim_params *tp;
+
+	if (!ump->um_candelete) {
+		ffs_blkfree_cg(ump, fs, devvp, bno, size, inum);
+		return;
+	}
+
+	/*
+	 * Postpone the set of the free bit in the cg bitmap until the
+	 * BIO_DELETE is completed.  Otherwise, due to disk queue
+	 * reordering, TRIM might be issued after we reuse the block
+	 * and write some new data into it.
+	 */
+	tp = malloc(sizeof(struct ffs_blkfree_trim_params), M_TEMP, M_WAITOK);
+	tp->ump = ump;
+	tp->devvp = devvp;
+	tp->bno = bno;
+	tp->size = size;
+	tp->inum = inum;
+
+	bip = g_alloc_bio();
+	bip->bio_cmd = BIO_DELETE;
+	bip->bio_offset = dbtob(fsbtodb(fs, bno));
+	bip->bio_done = ffs_blkfree_trim_completed;
+	bip->bio_length = size;
+	bip->bio_caller2 = tp;
+
+	mp = UFSTOVFS(ump);
+	vn_start_secondary_write(NULL, &mp, 0);
+	g_io_request(bip, (struct g_consumer *)devvp->v_bufobj.bo_private);
 }
 
 #ifdef INVARIANTS
