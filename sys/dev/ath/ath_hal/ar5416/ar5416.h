@@ -236,7 +236,7 @@ extern	HAL_BOOL ar5416SetGlobalTxTimeout(struct ath_hal *ah, u_int tu);
 extern	u_int ar5416GetGlobalTxTimeout(struct ath_hal *ah);
 extern	void ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		u_int durUpdateEn, u_int rtsctsRate, HAL_11N_RATE_SERIES series[],
-		u_int nseries);
+		u_int nseries, u_int flags);
 extern	void ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims);
 extern	void ar5416Clr11nAggr(struct ath_hal *ah, struct ath_desc *ds);
 extern	void ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds, u_int burstDuration);

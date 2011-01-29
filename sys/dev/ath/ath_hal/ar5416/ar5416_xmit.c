@@ -612,12 +612,35 @@ ar5416GetGlobalTxTimeout(struct ath_hal *ah)
 void
 ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
         u_int durUpdateEn, u_int rtsctsRate,
-	HAL_11N_RATE_SERIES series[], u_int nseries)
+	HAL_11N_RATE_SERIES series[], u_int nseries, u_int flags)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	uint32_t ds_ctl0;
 
 	HALASSERT(nseries == 4);
 	(void)nseries;
+
+	/*
+	 * Only one of RTS and CTS enable must be set.
+	 * If a frame has both set, just do RTS protection -
+	 * that's enough to satisfy legacy protection.
+	 */
+	if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) {
+		ds_ctl0 = ads->ds_ctl0;
+
+		if (flags & HAL_TXDESC_RTSENA) {
+			ds_ctl0 &= ~AR_CTSEnable;
+			ds_ctl0 |= AR_RTSEnable;
+		} else {
+			ds_ctl0 &= ~AR_RTSEnable;
+			ds_ctl0 |= AR_CTSEnable;
+		}
+
+		ads->ds_ctl0 = ds_ctl0;
+	} else {
+		ads->ds_ctl0 =
+		    (ads->ds_ctl0 & ~(AR_RTSEnable | AR_CTSEnable));
+	}
 
 
 	ads->ds_ctl2 = set11nTries(series, 0)
@@ -642,27 +665,6 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		     | set11nRateFlags(series, 2)
 		     | set11nRateFlags(series, 3)
 		     | SM(rtsctsRate, AR_RTSCTSRate);
-
-	/*
-	 * Enable RTSCTS if any of the series is flagged for RTSCTS,
-	 * but only if CTS is not enabled.
-	 */
-	/*
-	 * FIXME : the entire RTS/CTS handling should be moved to this
-	 * function (by passing the global RTS/CTS flags to this function).
-	 * currently it is split between this function and the
-	 * setupFiirstDescriptor. with this current implementation there
-	 * is an implicit assumption that setupFirstDescriptor is called
-	 * before this function. 
-	 */
-	if (((series[0].RateFlags & HAL_RATESERIES_RTS_CTS) ||
-	     (series[1].RateFlags & HAL_RATESERIES_RTS_CTS) ||
-	     (series[2].RateFlags & HAL_RATESERIES_RTS_CTS) ||
-	     (series[3].RateFlags & HAL_RATESERIES_RTS_CTS) )  &&
-	    (ads->ds_ctl0 & AR_CTSEnable) == 0) {
-		ads->ds_ctl0 |= AR_RTSEnable;
-		ads->ds_ctl0 &= ~AR_CTSEnable;
-	}
 }
 
 void
