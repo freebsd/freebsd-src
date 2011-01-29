@@ -77,11 +77,13 @@ int
 main(int argc, char *argv[])
 {
 	char *avalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
+	char *tvalue;
 	const char *special, *on;
 	const char *name;
 	int active;
 	int Aflag, aflag, eflag, evalue, fflag, fvalue, Jflag, Lflag, lflag;
 	int mflag, mvalue, Nflag, nflag, oflag, ovalue, pflag, sflag, svalue;
+	int tflag;
 	int ch, found_arg, i;
 	const char *chg[2];
 	struct ufs_args args;
@@ -90,12 +92,12 @@ main(int argc, char *argv[])
 	if (argc < 3)
 		usage();
 	Aflag = aflag = eflag = fflag = Jflag = Lflag = lflag = mflag = 0;
-	Nflag = nflag = oflag = pflag = sflag = 0;
+	Nflag = nflag = oflag = pflag = sflag = tflag = 0;
 	avalue = Jvalue = Lvalue = lvalue = Nvalue = nvalue = NULL;
 	evalue = fvalue = mvalue = ovalue = svalue = 0;
 	active = 0;
 	found_arg = 0;		/* At least one arg is required. */
-	while ((ch = getopt(argc, argv, "Aa:e:f:J:L:l:m:N:n:o:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "Aa:e:f:J:L:l:m:N:n:o:ps:t:")) != -1)
 		switch (ch) {
 
 		case 'A':
@@ -238,6 +240,18 @@ main(int argc, char *argv[])
 				errx(10, "%s must be >= 1 (was %s)",
 				    name, optarg);
 			sflag = 1;
+			break;
+
+		case 't':
+			found_arg = 1;
+			name = "trim";
+			tvalue = optarg;
+			if (strcmp(tvalue, "enable") != 0 &&
+			    strcmp(tvalue, "disable") != 0) {
+				errx(10, "bad %s (options are %s)",
+				    name, "`enable' or `disable'");
+			}
+			tflag = 1;
 			break;
 
 		default:
@@ -436,6 +450,24 @@ main(int argc, char *argv[])
 			sblock.fs_avgfpdir = svalue;
 		}
 	}
+	if (tflag) {
+		name = "issue TRIM to the disk";
+ 		if (strcmp(tvalue, "enable") == 0) {
+			if (sblock.fs_flags & FS_TRIM)
+				warnx("%s remains unchanged as enabled", name);
+			else {
+ 				sblock.fs_flags |= FS_TRIM;
+ 				warnx("%s set", name);
+			}
+ 		} else if (strcmp(tvalue, "disable") == 0) {
+			if ((~sblock.fs_flags & FS_TRIM) == FS_TRIM)
+				warnx("%s remains unchanged as disabled", name);
+			else {
+ 				sblock.fs_flags &= ~FS_TRIM;
+ 				warnx("%s cleared", name);
+			}
+ 		}
+	}
 
 	if (sbwrite(&disk, Aflag) == -1)
 		goto err;
@@ -458,11 +490,12 @@ err:
 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
 "              [-J enable | disable ] [-L volname] [-l enable | disable]",
 "              [-m minfree] [-N enable | disable] [-n enable | disable]",
-"              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
+"              [-o space | time] [-p] [-s avgfpdir] [-t enable | disable]",
+"              special | filesystem");
 	exit(2);
 }
 
@@ -479,6 +512,8 @@ printfs(void)
 		(sblock.fs_flags & FS_DOSOFTDEP)? "enabled" : "disabled");
 	warnx("gjournal: (-J)                                     %s",
 		(sblock.fs_flags & FS_GJOURNAL)? "enabled" : "disabled");
+	warnx("trim: (-t)                                         %s", 
+		(sblock.fs_flags & FS_TRIM)? "enabled" : "disabled");
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);
 	warnx("average file size: (-f)                            %d",
