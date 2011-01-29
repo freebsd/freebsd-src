@@ -136,8 +136,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setStationBeaconTimers	= ar5416SetStaBeaconTimers;
 	ah->ah_resetStationBeaconTimers	= ar5416ResetStaBeaconTimers;
 
-	/* XXX 802.11n Functions */
-#if 0
+	/* 802.11n Functions */
 	ah->ah_chainTxDesc		= ar5416ChainTxDesc;
 	ah->ah_setupFirstTxDesc		= ar5416SetupFirstTxDesc;
 	ah->ah_setupLastTxDesc		= ar5416SetupLastTxDesc;
@@ -149,7 +148,6 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_set11nMac2040		= ar5416Set11nMac2040;
 	ah->ah_get11nRxClear		= ar5416Get11nRxClear;
 	ah->ah_set11nRxClear		= ar5416Set11nRxClear;
-#endif
 
 	/* Interrupt functions */
 	ah->ah_isInterruptPending	= ar5416IsInterruptPending;
