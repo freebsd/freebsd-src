@@ -311,8 +311,6 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	return AH_TRUE;
 }
 
-#if 0
-
 HAL_BOOL
 ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	u_int pktLen,
@@ -327,6 +325,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 	uint32_t *ds_txstatus = AR5416_DS_TXSTATUS(ah,ads);
+	struct ath_hal_5416 *ahp = AH5416(ah);
 
 	int isaggr = 0;
 	
@@ -342,7 +341,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	}
 
 	if (!firstSeg) {
-		ath_hal_memzero(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
+		OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
 	}
 
 	ads->ds_ctl0 = (pktLen & AR_FrameLen);
@@ -356,7 +355,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 |= AR_DestIdxValid;
 	}
 
-	ads->ds_ctl6 = SM(keyType[cipher], AR_EncrType);
+	ads->ds_ctl6 = SM(ahp->ah_keytype[cipher], AR_EncrType);
 	if (isaggr) {
 		ads->ds_ctl6 |= SM(delims, AR_PadDelim);
 	}
@@ -456,7 +455,6 @@ ar5416SetupLastTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	
 	return AH_TRUE;
 }
-#endif /* 0 */
 
 #ifdef AH_NEED_DESC_SWAP
 /* Swap transmit descriptor */
@@ -588,7 +586,6 @@ ar5416ProcTxDesc(struct ath_hal *ah,
 	return HAL_OK;
 }
 
-#if 0
 HAL_BOOL
 ar5416SetGlobalTxTimeout(struct ath_hal *ah, u_int tu)
 {
@@ -706,7 +703,6 @@ ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_ctl2 &= ~AR_BurstDur;
 	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
 }
-#endif
 
 /*
  * Retrieve the rate table from the given TX completion descriptor

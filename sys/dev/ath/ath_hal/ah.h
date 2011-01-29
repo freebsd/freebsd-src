@@ -793,6 +793,32 @@ struct ath_hal {
 				const HAL_BEACON_STATE *);
 	void	  __ahdecl(*ah_resetStationBeaconTimers)(struct ath_hal*);
 
+	/* 802.11n Functions */
+	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
+				struct ath_desc *, u_int, u_int, HAL_PKT_TYPE,
+				u_int, HAL_CIPHER, uint8_t, u_int, HAL_BOOL,
+				HAL_BOOL);
+	HAL_BOOL  __ahdecl(*ah_setupFirstTxDesc)(struct ath_hal *,
+				struct ath_desc *, u_int, u_int, u_int,
+				u_int, u_int, u_int, u_int, u_int);
+	HAL_BOOL  __ahdecl(*ah_setupLastTxDesc)(struct ath_hal *,
+				struct ath_desc *, const struct ath_desc *);
+	void	  __ahdecl(*ah_set11nRateScenario)(struct ath_hal *,
+	    			struct ath_desc *, u_int, u_int,
+				HAL_11N_RATE_SERIES [], u_int, u_int);
+	void	  __ahdecl(*ah_set11nAggrMiddle)(struct ath_hal *,
+	    			struct ath_desc *, u_int);
+	void	  __ahdecl(*ah_clr11nAggr)(struct ath_hal *,
+	    			struct ath_desc *);
+	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
+	    			struct ath_desc *, u_int);
+	uint32_t  __ahdecl(*ah_get11nExtBusy)(struct ath_hal *);
+	void      __ahdecl(*ah_set11nMac2040)(struct ath_hal *,
+				HAL_HT_MACMODE);
+	HAL_HT_RXCLEAR __ahdecl(*ah_get11nRxClear)(struct ath_hal *ah);
+	void	  __ahdecl(*ah_set11nRxClear)(struct ath_hal *,
+	    			HAL_HT_RXCLEAR);
+
 	/* Interrupt functions */
 	HAL_BOOL  __ahdecl(*ah_isInterruptPending)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_getPendingInterrupts)(struct ath_hal*, HAL_INT*);

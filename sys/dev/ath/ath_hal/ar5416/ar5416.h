@@ -223,5 +223,23 @@ extern	HAL_STATUS ar5416ProcTxDesc(struct ath_hal *ah,
 extern	HAL_BOOL ar5416GetTxCompletionRates(struct ath_hal *ah,
 		const struct ath_desc *ds0, int *rates, int *tries);
 
+extern	HAL_BOOL ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+		u_int pktLen, u_int hdrLen, HAL_PKT_TYPE type, u_int keyIx,
+		HAL_CIPHER cipher, uint8_t delims, u_int segLen, HAL_BOOL firstSeg,
+		HAL_BOOL lastSeg);
+extern	HAL_BOOL ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+		u_int aggrLen, u_int flags, u_int txPower, u_int txRate0, u_int txTries0,
+		u_int antMode, u_int rtsctsRate, u_int rtsctsDuration);
+extern	HAL_BOOL ar5416SetupLastTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+		const struct ath_desc *ds0);
+extern	HAL_BOOL ar5416SetGlobalTxTimeout(struct ath_hal *ah, u_int tu);
+extern	u_int ar5416GetGlobalTxTimeout(struct ath_hal *ah);
+extern	void ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
+		u_int durUpdateEn, u_int rtsctsRate, HAL_11N_RATE_SERIES series[],
+		u_int nseries);
+extern	void ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims);
+extern	void ar5416Clr11nAggr(struct ath_hal *ah, struct ath_desc *ds);
+extern	void ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds, u_int burstDuration);
+
 extern	const HAL_RATE_TABLE *ar5416GetRateTable(struct ath_hal *, u_int mode);
 #endif	/* _ATH_AR5416_H_ */
