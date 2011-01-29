@@ -253,9 +253,11 @@ dumpfs(const char *name)
 		printf("fs_flags expanded ");
 	if (fsflags & FS_NFS4ACLS)
 		printf("nfsv4acls ");
+	if (fsflags & FS_TRIM)
+		printf("trim ");
 	fsflags &= ~(FS_UNCLEAN | FS_DOSOFTDEP | FS_NEEDSFSCK | FS_INDEXDIRS |
 		     FS_ACLS | FS_MULTILABEL | FS_GJOURNAL | FS_FLAGS_UPDATED |
-		     FS_NFS4ACLS);
+		     FS_NFS4ACLS | FS_TRIM);
 	if (fsflags != 0)
 		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');
