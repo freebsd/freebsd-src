@@ -49,6 +49,12 @@ typedef struct {
 
 #define AR5416_SPUR_RSSI_THRESH		40
 
+struct ar5416NfLimits {
+	int16_t max;
+	int16_t min;
+	int16_t nominal;
+};
+
 struct ath_hal_5416 {
 	struct ath_hal_5212 ah_5212;
 
@@ -82,6 +88,9 @@ struct ath_hal_5416 {
 	uint32_t	ah_tx_chainmask;
 
 	struct ar5416PerCal ah_cal;		/* periodic calibration state */
+
+	struct ar5416NfLimits nf_2g;
+	struct ar5416NfLimits nf_5g;
 };
 #define	AH5416(_ah)	((struct ath_hal_5416 *)(_ah))
 
