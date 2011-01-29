@@ -334,6 +334,9 @@ g_raid_tr_iodone_raid0(struct g_raid_tr_object *tr,
 	struct bio *pbp;
 
 	pbp = bp->bio_parent;
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
+	g_destroy_bio(bp);
 	pbp->bio_inbed++;
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
