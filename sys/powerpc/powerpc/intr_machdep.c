@@ -426,9 +426,6 @@ powerpc_enable_intr(void)
 		    i->pol != INTR_POLARITY_CONFORM)
 			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
-		if (i != NULL && i->pic == root_pic)
-			PIC_BIND(i->pic, i->intline, i->cpu);
-
 		if (i->event != NULL)
 			PIC_ENABLE(i->pic, i->intline, vector);
 	}
