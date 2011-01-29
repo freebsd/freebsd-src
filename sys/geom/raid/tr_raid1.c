@@ -575,7 +575,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 	struct g_raid_volume *vol;
 	struct bio *pbp;
 	struct g_raid_tr_raid1_object *trs;
-	int i;
+	int i, error;
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	pbp = bp->bio_parent;
@@ -793,9 +793,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			bp->bio_error = 0;
 		}
 	}
+	error = bp->bio_error;
+	g_destroy_bio(bp);
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
-		g_raid_iodone(pbp, bp->bio_error);
+		g_raid_iodone(pbp, error);
 	}
 }
 
