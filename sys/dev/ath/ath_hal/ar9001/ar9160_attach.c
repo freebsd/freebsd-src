@@ -250,6 +250,15 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
 
 	ar9160AniSetup(ah);			/* Anti Noise Immunity */
+
+	/* This just uses the AR5416 NF values */
+	AH5416(ah)->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_5416_2GHZ;
+	AH5416(ah)->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_5416_2GHZ;
+	AH5416(ah)->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_5416_2GHZ;
+	AH5416(ah)->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_5416_5GHZ;
+	AH5416(ah)->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_5416_5GHZ;
+	AH5416(ah)->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_5416_5GHZ;
+
 	ar5416InitNfHistBuff(AH5416(ah)->ah_cal.nfCalHist);
 
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
