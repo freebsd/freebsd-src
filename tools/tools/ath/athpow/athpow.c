@@ -78,7 +78,7 @@ main(int argc, char *argv[])
 	const char *ifname;
 	HAL_REVS revs;
 	u_int16_t pcdacTable[MAX(PWR_TABLE_SIZE,PWR_TABLE_SIZE_2413)];
-	u_int16_t ratesArray[16];
+	u_int16_t ratesArray[37];
 	u_int nrates, npcdac;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
