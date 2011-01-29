@@ -108,8 +108,10 @@ bsd_to_linux_sigaltstack(int bsa)
 	return (lsa);
 }
 
-static void bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru)
+static void
+bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru)
 {
+
 	lru->ru_utime.tv_sec = ru->ru_utime.tv_sec;
 	lru->ru_utime.tv_usec = ru->ru_utime.tv_usec;
 	lru->ru_stime.tv_sec = ru->ru_stime.tv_sec;
