@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
  * Device interface
  */
 static int	nexus_probe(device_t);
+static int	nexus_attach(device_t);
 static int	nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
 static int	nexus_deactivate_resource(device_t, device_t, int, int,
@@ -77,14 +78,14 @@ static int	nexus_deactivate_resource(device_t, device_t, int, int,
 static device_method_t nexus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	nexus_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface. Resource management is business of the children... */
-	DEVMETHOD(bus_add_child,	NULL),
+	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_probe_nomatch,	NULL),
 	DEVMETHOD(bus_read_ivar,	NULL),
@@ -109,17 +110,25 @@ static devclass_t nexus_devclass;
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 
 static int
-nexus_probe (device_t dev)
+nexus_probe(device_t dev)
 {
 
-	device_add_child(dev, "fdtbus", 0);
-	device_quiet(dev);
-
+	if (!bootverbose)
+		device_quiet(dev);
 	return (BUS_PROBE_DEFAULT);
 }
 
 static int
-nexus_activate_resource (device_t bus, device_t child, int type, int rid,
+nexus_attach(device_t dev)
+{
+
+	bus_generic_probe(dev);
+	bus_generic_attach(dev);
+	return (0);
+}
+
+static int
+nexus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 
@@ -128,7 +137,7 @@ nexus_activate_resource (device_t bus, device_t child, int type, int rid,
 }
 
 static int
-nexus_deactivate_resource (device_t bus, device_t child, int type, int rid,
+nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 
