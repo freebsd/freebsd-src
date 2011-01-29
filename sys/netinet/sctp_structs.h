@@ -211,7 +211,10 @@ struct sctp_nets {
 	/* mtu discovered so far */
 	uint32_t mtu;
 	uint32_t ssthresh;	/* not sure about this one for split */
-
+	uint32_t last_cwr_tsn;
+	uint32_t cwr_window_tsn;
+	uint32_t ecn_ce_pkt_cnt;
+	uint32_t lost_cnt;
 	/* smoothed average things for RTT and RTO itself */
 	int lastsa;
 	int lastsv;
@@ -864,7 +867,6 @@ struct sctp_association {
 	uint32_t highest_tsn_inside_nr_map;
 
 	uint32_t last_echo_tsn;
-	uint32_t last_cwr_tsn;
 	uint32_t fast_recovery_tsn;
 	uint32_t sat_t3_recovery_tsn;
 	uint32_t tsn_last_delivered;
@@ -1048,7 +1050,6 @@ struct sctp_association {
 	uint16_t ecn_echo_cnt_onq;
 
 	uint16_t free_chunk_cnt;
-
 	uint8_t stream_locked;
 	uint8_t authenticated;	/* packet authenticated ok */
 	/*

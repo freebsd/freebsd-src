@@ -1678,8 +1678,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		asoc->my_rwnd = ntohl(initack_cp->init.a_rwnd);
 		asoc->pre_open_streams = ntohs(initack_cp->init.num_outbound_streams);
 
-		/* Note last_cwr_tsn? where is this used? */
-		asoc->last_cwr_tsn = asoc->init_seq_number - 1;
 		if (ntohl(init_cp->init.initiate_tag) != asoc->peer_vtag) {
 			/*
 			 * Ok the peer probably discarded our data (if we
@@ -1835,7 +1833,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		asoc->sending_seq = asoc->asconf_seq_out = asoc->str_reset_seq_out = asoc->init_seq_number;
 		asoc->asconf_seq_out_acked = asoc->asconf_seq_out - 1;
 
-		asoc->last_cwr_tsn = asoc->init_seq_number - 1;
 		asoc->asconf_seq_in = asoc->last_acked_seq = asoc->init_seq_number - 1;
 
 		asoc->str_reset_seq_in = asoc->init_seq_number;
@@ -2073,7 +2070,6 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	asoc->init_seq_number = ntohl(initack_cp->init.initial_tsn);
 	asoc->sending_seq = asoc->asconf_seq_out = asoc->str_reset_seq_out = asoc->init_seq_number;
 	asoc->asconf_seq_out_acked = asoc->asconf_seq_out - 1;
-	asoc->last_cwr_tsn = asoc->init_seq_number - 1;
 	asoc->asconf_seq_in = asoc->last_acked_seq = asoc->init_seq_number - 1;
 	asoc->str_reset_seq_in = asoc->init_seq_number;
 
@@ -2915,25 +2911,38 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 {
 	struct sctp_nets *net;
 	struct sctp_tmit_chunk *lchk;
-	uint32_t tsn;
+	struct sctp_ecne_chunk bkup;
+	uint8_t override_bit = 0;
+	uint32_t tsn, window_data_tsn;
+	int len;
+	int pkt_cnt;
 
-	if (ntohs(cp->ch.chunk_length) != sizeof(struct sctp_ecne_chunk)) {
+	len = ntohs(cp->ch.chunk_length);
+	if ((len != sizeof(struct sctp_ecne_chunk)) &&
+	    (len != sizeof(struct old_sctp_ecne_chunk))) {
 		return;
+	}
+	if (len == sizeof(struct old_sctp_ecne_chunk)) {
+		/* Its the old format */
+		memcpy(&bkup, cp, sizeof(struct old_sctp_ecne_chunk));
+		bkup.num_pkts_since_cwr = htonl(1);
+		cp = &bkup;
 	}
 	SCTP_STAT_INCR(sctps_recvecne);
 	tsn = ntohl(cp->tsn);
+	pkt_cnt = ntohl(cp->num_pkts_since_cwr);
 	/* ECN Nonce stuff: need a resync and disable the nonce sum check */
 	/* Also we make sure we disable the nonce_wait */
-	lchk = TAILQ_FIRST(&stcb->asoc.send_queue);
+	lchk = TAILQ_LAST(&stcb->asoc.send_queue, sctpchunk_listhead);
 	if (lchk == NULL) {
-		stcb->asoc.nonce_resync_tsn = stcb->asoc.sending_seq;
+		window_data_tsn = stcb->asoc.nonce_resync_tsn = stcb->asoc.sending_seq - 1;
 	} else {
-		stcb->asoc.nonce_resync_tsn = lchk->rec.data.TSN_seq;
+		window_data_tsn = stcb->asoc.nonce_resync_tsn = lchk->rec.data.TSN_seq;
 	}
 	stcb->asoc.nonce_wait_for_ecne = 0;
 	stcb->asoc.nonce_sum_check = 0;
 
-	/* Find where it was sent, if possible */
+	/* Find where it was sent to if possible. */
 	net = NULL;
 	TAILQ_FOREACH(lchk, &stcb->asoc.sent_queue, sctp_next) {
 		if (lchk->rec.data.TSN_seq == tsn) {
@@ -2944,32 +2953,71 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 			break;
 		}
 	}
-	if (net == NULL)
-		/* default is we use the primary */
-		net = stcb->asoc.primary_destination;
-
-	if (SCTP_TSN_GT(tsn, stcb->asoc.last_cwr_tsn)) {
+	if (net == NULL) {
+		/*
+		 * What to do. A previous send of a CWR was possibly lost.
+		 * See how old it is, we may have it marked on the actual
+		 * net.
+		 */
+		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+			if (tsn == net->last_cwr_tsn) {
+				/* Found him, send it off */
+				goto out;
+			}
+		}
+		/*
+		 * If we reach here, we need to send a special CWR that says
+		 * hey, we did this a long time ago and you lost the
+		 * response.
+		 */
+		net = TAILQ_FIRST(&stcb->asoc.nets);
+		override_bit = SCTP_CWR_REDUCE_OVERRIDE;
+	}
+out:
+	if (SCTP_TSN_GT(tsn, net->cwr_window_tsn)) {
 		/*
 		 * JRS - Use the congestion control given in the pluggable
 		 * CC module
 		 */
+		int ocwnd;
+
+		ocwnd = net->cwnd;
 		stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo(stcb, net);
 		/*
-		 * we reduce once every RTT. So we will only lower cwnd at
-		 * the next sending seq i.e. the resync_tsn.
+		 * We reduce once every RTT. So we will only lower cwnd at
+		 * the next sending seq i.e. the window_data_tsn
 		 */
-		stcb->asoc.last_cwr_tsn = stcb->asoc.nonce_resync_tsn;
+		net->cwr_window_tsn = window_data_tsn;
+		net->ecn_ce_pkt_cnt += pkt_cnt;
+		net->lost_cnt = pkt_cnt;
+		net->last_cwr_tsn = tsn;
+	} else {
+		override_bit |= SCTP_CWR_IN_SAME_WINDOW;
+		if (SCTP_TSN_GT(tsn, net->last_cwr_tsn)) {
+			/*
+			 * Another loss in the same window update how man
+			 * marks we have had
+			 */
+
+			if (pkt_cnt > net->lost_cnt) {
+				/* Should be the case */
+				net->ecn_ce_pkt_cnt += (pkt_cnt - net->lost_cnt);
+				net->lost_cnt = pkt_cnt;
+			}
+			net->last_cwr_tsn = tsn;
+		}
 	}
 	/*
 	 * We always send a CWR this way if our previous one was lost our
 	 * peer will get an update, or if it is not time again to reduce we
-	 * still get the cwr to the peer.
+	 * still get the cwr to the peer. Note we set the override when we
+	 * could not find the TSN on the chunk or the destination network.
 	 */
-	sctp_send_cwr(stcb, net, tsn);
+	sctp_send_cwr(stcb, net, net->last_cwr_tsn, override_bit);
 }
 
 static void
-sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb)
+sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	/*
 	 * Here we get a CWR from the peer. We must look in the outqueue and
@@ -2978,18 +3026,22 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb)
 	 */
 	struct sctp_tmit_chunk *chk;
 	struct sctp_ecne_chunk *ecne;
+	int override;
+	uint32_t cwr_tsn;
 
+	cwr_tsn = ntohl(cp->tsn);
+
+	override = cp->ch.chunk_flags & SCTP_CWR_REDUCE_OVERRIDE;
 	TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
 		if (chk->rec.chunk_id.id != SCTP_ECN_ECHO) {
 			continue;
 		}
-		/*
-		 * Look for and remove if it is the right TSN. Since there
-		 * is only ONE ECNE on the control queue at any one time we
-		 * don't need to worry about more than one!
-		 */
+		if ((override == 0) && (chk->whoTo != net)) {
+			/* Must be from the right src unless override is set */
+			continue;
+		}
 		ecne = mtod(chk->data, struct sctp_ecne_chunk *);
-		if (SCTP_TSN_GE(ntohl(cp->tsn), ntohl(ecne->tsn))) {
+		if (SCTP_TSN_GE(cwr_tsn, ntohl(ecne->tsn))) {
 			/* this covers this ECNE, we can remove it */
 			stcb->asoc.ecn_echo_cnt_onq--;
 			TAILQ_REMOVE(&stcb->asoc.control_send_queue, chk,
@@ -3000,7 +3052,9 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb)
 			}
 			stcb->asoc.ctrl_queue_cnt--;
 			sctp_free_a_chunk(stcb, chk);
-			break;
+			if (override == 0) {
+				break;
+			}
 		}
 	}
 }
@@ -5041,7 +5095,7 @@ process_control_chunks:
 					    __LINE__);
 				}
 				stcb->asoc.overall_error_count = 0;
-				sctp_handle_ecn_cwr((struct sctp_cwr_chunk *)ch, stcb);
+				sctp_handle_ecn_cwr((struct sctp_cwr_chunk *)ch, stcb, *netp);
 			}
 			break;
 		case SCTP_SHUTDOWN_COMPLETE:
