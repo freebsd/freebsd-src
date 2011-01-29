@@ -573,6 +573,12 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	h = AH5416(ah)->ah_cal.nfCalHist;
 	HALDEBUG(ah, HAL_DEBUG_NFCAL, "CCA: ");
 	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
+
+		/* Don't write to EXT radio CCA registers */
+		/* XXX this check should really be cleaner! */
+		if (i >= 3 && !IEEE80211_IS_CHAN_HT40(chan))
+			continue;
+
 		if (chainmask & (1 << i)) { 
 			int16_t nf_val;
 
