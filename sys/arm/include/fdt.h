@@ -44,6 +44,9 @@
 /* Max interrupt number */
 #define FDT_INTR_MAX	NIRQ
 
+/* Map phandle/intpin pair to global IRQ number */ 
+#define	FDT_MAP_IRQ(node, pin)	(pin)
+
 /*
  * Bus space tag. XXX endianess info needs to be derived from the blob.
  */
