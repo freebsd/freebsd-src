@@ -1293,17 +1293,13 @@ charged:
 	vm_map_entry_link(map, prev_entry, new_entry);
 	map->size += new_entry->end - new_entry->start;
 
-#if 0
 	/*
-	 * Temporarily removed to avoid MAP_STACK panic, due to
-	 * MAP_STACK being a huge hack.  Will be added back in
-	 * when MAP_STACK (and the user stack mapping) is fixed.
+	 * It may be possible to merge the new entry with the next and/or
+	 * previous entries.  However, due to MAP_STACK_* being a hack, a
+	 * panic can result from merging such entries.
 	 */
-	/*
-	 * It may be possible to simplify the entry
-	 */
-	vm_map_simplify_entry(map, new_entry);
-#endif
+	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0)
+		vm_map_simplify_entry(map, new_entry);
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
 		vm_map_pmap_enter(map, start, prot,
