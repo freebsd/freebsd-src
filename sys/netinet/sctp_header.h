@@ -360,9 +360,15 @@ struct sctp_cookie_ack_chunk {
 }                     SCTP_PACKED;
 
 /* Explicit Congestion Notification Echo (ECNE) */
+struct old_sctp_ecne_chunk {
+	struct sctp_chunkhdr ch;
+	uint32_t tsn;
+}                   SCTP_PACKED;
+
 struct sctp_ecne_chunk {
 	struct sctp_chunkhdr ch;
 	uint32_t tsn;
+	uint32_t num_pkts_since_cwr;
 }               SCTP_PACKED;
 
 /* Congestion Window Reduced (CWR) */
