@@ -221,15 +221,27 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 
 	HAL_INI_INIT(&ahp9285->ah_ini_rxgain, ar9280Modes_original_rxgain_v2,
 	    6);
+
+	if (AR_SREV_9285E_20(ah))
+		ath_hal_printf(ah, "[ath] AR9285E_20 detected; using XE TX gain tables\n");
+
 	/* setup txgain table */
 	switch (ath_hal_eepromGet(ah, AR_EEP_TXGAIN_TYPE, AH_NULL)) {
 	case AR5416_EEP_TXGAIN_HIGH_POWER:
-		HAL_INI_INIT(&ahp9285->ah_ini_txgain,
-		    ar9285Modes_high_power_tx_gain_v2, 6);
+		if (AR_SREV_9285E_20(ah))
+			HAL_INI_INIT(&ahp9285->ah_ini_txgain,
+			    ar9285Modes_XE2_0_high_power, 6);
+		else
+			HAL_INI_INIT(&ahp9285->ah_ini_txgain,
+			    ar9285Modes_high_power_tx_gain_v2, 6);
 		break;
 	case AR5416_EEP_TXGAIN_ORIG:
-		HAL_INI_INIT(&ahp9285->ah_ini_txgain,
-		    ar9285Modes_original_tx_gain_v2, 6);
+		if (AR_SREV_9285E_20(ah))
+			HAL_INI_INIT(&ahp9285->ah_ini_txgain,
+			    ar9285Modes_XE2_0_normal_power, 6);
+		else
+			HAL_INI_INIT(&ahp9285->ah_ini_txgain,
+			    ar9285Modes_original_tx_gain_v2, 6);
 		break;
 	default:
 		HALASSERT(AH_FALSE);
