@@ -657,7 +657,6 @@ g_raid_bump_genid(struct g_raid_softc *sc)
 static int
 g_raid_idle(struct g_raid_volume *vol, int acw)
 {
-	struct g_raid_disk *disk;
 	struct g_raid_softc *sc;
 	int timeout;
 
@@ -665,38 +664,28 @@ g_raid_idle(struct g_raid_volume *vol, int acw)
 	g_topology_assert_not();
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	if (vol->v_provider == NULL)
-		return (0);
 //	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOFAILSYNC) != 0)
 //		return (0);
 	if (vol->v_idle)
 		return (0);
 	if (vol->v_writes > 0)
 		return (0);
-	if (acw > 0 || (acw == -1 && vol->v_provider->acw > 0)) {
+	if (acw > 0 || (acw == -1 &&
+	    vol->v_provider != NULL && vol->v_provider->acw > 0)) {
 		timeout = g_raid_idletime - (time_uptime - vol->v_last_write);
 		if (timeout > 0)
 			return (timeout);
 	}
 	vol->v_idle = 1;
-// ZZZ
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
-			continue;
-//		if (!(disk->d_flags & G_RAID_DISK_FLAG_DIRTY))
-//			continue;
-		G_RAID_DEBUG(1, "Disk %s (device %s) marked as clean.",
-		    g_raid_get_diskname(disk), sc->sc_name);
-//		disk->d_flags &= ~G_RAID_DISK_FLAG_DIRTY;
-//		g_raid_update_metadata(disk);
-	}
+	G_RAID_DEBUG(1, "Volume %s (node %s) marked as clean.",
+	    vol->v_name, sc->sc_name);
+	g_raid_write_metadata(sc, vol, NULL, NULL);
 	return (0);
 }
 
 static void
 g_raid_unidle(struct g_raid_volume *vol)
 {
-	struct g_raid_disk *disk;
 	struct g_raid_softc *sc;
 
 	sc = vol->v_softc;
@@ -706,16 +695,9 @@ g_raid_unidle(struct g_raid_volume *vol)
 //	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOFAILSYNC) != 0)
 //		return;
 	vol->v_idle = 0;
-	vol->v_last_write = time_uptime;
-//ZZZ
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
-			continue;
-		G_RAID_DEBUG(1, "Disk %s (device %s) marked as dirty.",
-		    g_raid_get_diskname(disk), sc->sc_name);
-//		disk->d_flags |= G_RAID_DISK_FLAG_DIRTY;
-//		g_raid_update_metadata(disk);
-	}
+	G_RAID_DEBUG(1, "Volume %s (node %s) marked as dirty.",
+	    vol->v_name, sc->sc_name);
+	g_raid_write_metadata(sc, vol, NULL, NULL);
 }
 
 static void
@@ -911,14 +893,13 @@ g_raid_start_request(struct bio *bp)
 	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE) {
 		if (vol->v_idle)
 			g_raid_unidle(vol);
-		else
-			vol->v_last_write = time_uptime;
+		vol->v_writes++;
 	}
 
 	/*
 	 * Put request onto inflight queue, so we can check if new
 	 * synchronization requests don't collide with it.  Then tell
-	 * the tranlsation layer to start the I/O.
+	 * the transformation layer to start the I/O.
 	 */
 	bioq_insert_tail(&vol->v_inflight, bp);
 	G_RAID_TR_IOSTART(vol->v_tr, bp);
@@ -936,6 +917,13 @@ g_raid_iodone(struct bio *bp, int error)
 
 	vol = bp->bio_to->private;
 	G_RAID_LOGREQ(3, bp, "Request done: %d.", error);
+
+	/* Update stats if we done write/delete. */
+	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE) {
+		vol->v_writes--;
+		vol->v_last_write = time_uptime;
+	}
+
 	bioq_remove(&vol->v_inflight, bp);
 	if (bp->bio_cmd == BIO_WRITE && vol->v_pending_lock &&
 	    g_raid_is_in_locked_range(vol, bp)) {
@@ -1040,12 +1028,7 @@ g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len)
 void
 g_raid_subdisk_iostart(struct g_raid_subdisk *sd, struct bio *bp)
 {
-	struct g_raid_volume *vol;
 	struct g_consumer *cp;
-
-	vol = sd->sd_volume;
-	if (bp->bio_cmd == BIO_WRITE)
-		vol->v_writes++;
 
 	cp = sd->sd_disk->d_consumer;
 	bp->bio_from = sd->sd_disk->d_consumer;
@@ -1111,8 +1094,6 @@ g_raid_disk_done_request(struct bio *bp)
 	sc = sd->sd_softc;
 	vol = sd->sd_volume;
 	bp->bio_from->index--;
-	if (bp->bio_cmd == BIO_WRITE)
-		vol->v_writes--;
 	disk = bp->bio_from->private;
 	if (disk == NULL) {
 		g_topology_lock();
@@ -1205,8 +1186,7 @@ process:
 		}
 		if (rv == EWOULDBLOCK) {
 			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-				if (bioq_first(&vol->v_inflight) == NULL &&
-				    !vol->v_idle)
+				if (vol->v_writes == 0 && !vol->v_idle)
 					g_raid_idle(vol, -1);
 				if (vol->v_timeout)
 					vol->v_timeout(vol, vol->v_to_arg);
@@ -1465,8 +1445,8 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 		error = ENXIO;
 		goto out;
 	}
-//	if (dcw == 0 && !vol->v_idle)
-//		g_raid_idle(vol, dcw);
+	if (dcw == 0 && !vol->v_idle)
+		g_raid_idle(vol, dcw);
 	vol->v_provider_open += acr + acw + ace;
 	/* Handle delayed node destruction. */
 	if (sc->sc_stopping == G_RAID_DESTROY_DELAYED &&
