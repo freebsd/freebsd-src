@@ -92,7 +92,7 @@ LIST_HEAD(, g_raid_tr_class) g_raid_tr_classes =
 LIST_HEAD(, g_raid_volume) g_raid_volumes =
     LIST_HEAD_INITIALIZER(g_raid_volumes);
 
-//static eventhandler_tag g_raid_pre_sync = NULL;
+static eventhandler_tag g_raid_pre_sync = NULL;
 static int g_raid_started = 0;
 
 static int g_raid_destroy_geom(struct gctl_req *req, struct g_class *mp,
@@ -1212,7 +1212,7 @@ process:
 					vol->v_timeout(vol, vol->v_to_arg);
 			}
 		}
-		if (sc->sc_stopping != 0)
+		if (sc->sc_stopping == G_RAID_DESTROY_HARD)
 			g_raid_destroy_node(sc, 1);	/* May not return. */
 	}
 }
@@ -1441,9 +1441,9 @@ g_raid_update_disk(struct g_raid_disk *disk, u_int event)
 static int
 g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 {
-	struct g_raid_volume *vol;
+	struct g_raid_volume *vol, *vol1;
 	struct g_raid_softc *sc;
-	int dcr, dcw, dce;
+	int dcr, dcw, dce, opens, error = 0;
 
 	g_topology_assert();
 	G_RAID_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name, acr,
@@ -1460,14 +1460,35 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
+	/* Deny new opens while dying. */
+	if (sc->sc_stopping != 0 && (acr > 0 || acw > 0 || ace > 0)) {
+		error = ENXIO;
+		goto out;
+	}
 //	if (dcw == 0 && !vol->v_idle)
 //		g_raid_idle(vol, dcw);
 	vol->v_provider_open += acr + acw + ace;
+	/* Handle delayed node destruction. */
+	if (sc->sc_stopping == G_RAID_DESTROY_DELAYED &&
+	    vol->v_provider_open == 0) {
+		/* Count open volumes. */
+		opens = 0;
+		TAILQ_FOREACH(vol1, &sc->sc_volumes, v_next) {
+			if (vol1->v_provider_open != 0)
+				opens++;
+		}
+		if (opens == 0) {
+			sc->sc_stopping = G_RAID_DESTROY_HARD;
+			g_raid_event_send(sc, 0, 0);	/* Wake up worker. */
+		}
+	}
+	/* Handle open volume destruction. */
 	if (vol->v_stopping && vol->v_provider_open == 0)
 		g_raid_destroy_volume(vol);
+out:
 	sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
-	return (0);
+	return (error);
 }
 
 struct g_raid_softc *
@@ -1612,7 +1633,7 @@ g_raid_destroy_node(struct g_raid_softc *sc, int worker)
 	struct g_raid_disk *disk, *tmpd;
 	int error = 0;
 
-	sc->sc_stopping = 1;
+	sc->sc_stopping = G_RAID_DESTROY_HARD;
 	TAILQ_FOREACH_SAFE(vol, &sc->sc_volumes, v_next, tmpv) {
 		if (g_raid_destroy_volume(vol))
 			error = EBUSY;
@@ -1698,7 +1719,7 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 	}
 	G_RAID_DEBUG(2, "Volume %s destroyed.", vol->v_name);
 	free(vol, M_RAID);
-	if (sc->sc_stopping)
+	if (sc->sc_stopping == G_RAID_DESTROY_HARD)
 		g_raid_event_send(sc, 0, 0);	/* Wake up worker. */
 	return (0);
 }
@@ -1760,7 +1781,7 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 			G_RAID_DEBUG(1,
 			    "Node %s will be destroyed on last close.",
 			    sc->sc_name);
-//			sc->sc_stopping = 1;
+			sc->sc_stopping = G_RAID_DESTROY_DELAYED;
 			return (EBUSY);
 		case G_RAID_DESTROY_HARD:
 			G_RAID_DEBUG(1,
@@ -1770,7 +1791,7 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 	}
 
 	/* Mark node for destruction. */
-	sc->sc_stopping = 1;
+	sc->sc_stopping = G_RAID_DESTROY_HARD;
 	/* Wake up worker to let it selfdestruct. */
 	g_raid_event_send(sc, 0, 0);
 	/* Sleep until node destroyed. */
@@ -1970,7 +1991,6 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	}
 }
 
-#if 0
 static void
 g_raid_shutdown_pre_sync(void *arg, int howto)
 {
@@ -1996,16 +2016,15 @@ g_raid_shutdown_pre_sync(void *arg, int howto)
 	g_topology_unlock();
 	PICKUP_GIANT();
 }
-#endif
 
 static void
 g_raid_init(struct g_class *mp)
 {
 
-//	g_raid_pre_sync = EVENTHANDLER_REGISTER(shutdown_pre_sync,
-//	    g_raid_shutdown_pre_sync, mp, SHUTDOWN_PRI_FIRST);
-//	if (g_raid_pre_sync == NULL)
-//		G_RAID_DEBUG(0, "Warning! Cannot register shutdown event.");
+	g_raid_pre_sync = EVENTHANDLER_REGISTER(shutdown_pre_sync,
+	    g_raid_shutdown_pre_sync, mp, SHUTDOWN_PRI_FIRST);
+	if (g_raid_pre_sync == NULL)
+		G_RAID_DEBUG(0, "Warning! Cannot register shutdown event.");
 	g_raid_started = 1;
 }
 
@@ -2013,8 +2032,8 @@ static void
 g_raid_fini(struct g_class *mp)
 {
 
-//	if (g_raid_pre_sync != NULL)
-//		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, g_raid_pre_sync);
+	if (g_raid_pre_sync != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, g_raid_pre_sync);
 	g_raid_started = 0;
 }
 
