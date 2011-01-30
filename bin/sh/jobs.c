@@ -1056,13 +1056,13 @@ dowait(int block, struct job *job)
 			}
 		if (sig > 0 && sig != SIGINT && sig != SIGPIPE) {
 			if (sig < sys_nsig && sys_siglist[sig])
-				out1str(sys_siglist[sig]);
+				out2str(sys_siglist[sig]);
 			else
-				out1fmt("Signal %d", sig);
+				outfmt(out2, "Signal %d", sig);
 			if (coredump)
-				out1str(" (core dumped)");
-			out1c('\n');
-			flushout(out1);
+				out2str(" (core dumped)");
+			out2c('\n');
+			flushout(out2);
 		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=%p\n", rootshell, job));
