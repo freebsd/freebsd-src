@@ -3222,6 +3222,7 @@ scan_and_wait(int s)
 
 	memset(&sr, 0, sizeof(sr));
 	sr.sr_flags = IEEE80211_IOC_SCAN_ACTIVE
+		    | IEEE80211_IOC_SCAN_BGSCAN
 		    | IEEE80211_IOC_SCAN_NOPICK
 		    | IEEE80211_IOC_SCAN_ONCE;
 	sr.sr_duration = IEEE80211_IOC_SCAN_FOREVER;
