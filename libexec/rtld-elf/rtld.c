@@ -3711,7 +3711,7 @@ locate_dependency(const Obj_Entry *obj, const char *name)
 	     * we are all set.  Note that object might not be found if
 	     * dependency was not loaded yet, so the function can
 	     * return NULL here.  This is expected and handled
-	     * properly in caller.
+	     * properly by the caller.
 	     */
 	    return (needed->obj);
 	}
