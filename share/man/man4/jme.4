@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 2010
+.Dd December 20, 2010
 .Dt JME 4
 .Os
 .Sh NAME
@@ -166,3 +166,15 @@ driver was written by
 .Aq yongari@FreeBSD.org .
 It first appeared in
 .Fx 7.1 .
+.Sh CAVEATS
+The
+.Nm
+driver tries to avoid unnecessary station address reprogramming for
+controllers that use eFuse to store station address.
+The number of times that eFuse can be safely reprogrammed is 16 at
+most.
+In addition, there is no way to restore factory default station
+address once station address is reprogrammed via eFuse.
+It is highly recommended not to reprogram station address and
+it is responsibility of administrator to store original station
+address into a safe place when station address should be changed.
