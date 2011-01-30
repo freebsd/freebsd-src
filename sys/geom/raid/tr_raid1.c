@@ -720,6 +720,9 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 
 		/*
 		 * If there are too many read errors, we move to degraded.
+		 * XXX Do we want to FAIL the drive (eg, make the user redo
+		 * everything to get it back in sync), or just degrade the
+		 * drive, which kicks off a resync?
 		 */
 		if (sd->sd_read_errs > SD_READ_THRESHOLD) {
 			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
@@ -779,10 +782,13 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 	}
 	if (bp->bio_cflags & G_RAID_BIO_FLAG_REMAP) {
 		/*
-		 * We're doing a remap write, mark the range as unlocked now
-		 * and fail the disk if the write failed.  If the write
-		 * failed, the parent's bio isn't failed since the recovered
-		 * read for that actually succeeded.
+		 * We're done with a remap write, mark the range as unlocked.
+		 * For any write errors, we agressively fail the disk since
+		 * there was both a READ and a WRITE error at this location.  Both
+		 * types of errors generally indicates the drive is on the verge of
+		 * total failure anyway.  Better to stop trusting it now.  However,
+		 * we need to reset error to 0 in that case because we're not failing
+		 * the original I/O which succeeded.
 		 */
 		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
 		g_raid_unlock_range(sd->sd_volume, bp->bio_offset,
