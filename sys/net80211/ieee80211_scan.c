@@ -416,6 +416,8 @@ start_scan_locked(const struct ieee80211_scanner *scan,
 				vap->iv_stats.is_scan_passive++;
 			if (flags & IEEE80211_SCAN_FLUSH)
 				ss->ss_ops->scan_flush(ss);
+			if (flags & IEEE80211_SCAN_BGSCAN)
+				ic->ic_flags_ext |= IEEE80211_FEXT_BGSCAN;
 
 			/* NB: flush frames rx'd before 1st channel change */
 			SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_DISCARD;
