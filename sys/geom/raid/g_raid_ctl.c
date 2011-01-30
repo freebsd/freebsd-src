@@ -72,6 +72,7 @@ g_raid_ctl_label(struct gctl_req *req, struct g_class *mp)
 	const char *format;
 	int *nargs;
 	int crstatus, ctlstatus;
+	char buf[64];
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -101,6 +102,12 @@ g_raid_ctl_label(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Command failed: %d.", ctlstatus);
 		if (crstatus == G_RAID_MD_TASTE_NEW)
 			g_raid_destroy_node(sc, 0);
+	} else {
+		if (crstatus == G_RAID_MD_TASTE_NEW)
+			snprintf(buf, sizeof(buf), "%s created\n", sc->sc_name);
+		else
+			snprintf(buf, sizeof(buf), "%s reused\n", sc->sc_name);
+		gctl_set_param_err(req, "output", buf, strlen(buf) + 1);
 	}
 	sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
