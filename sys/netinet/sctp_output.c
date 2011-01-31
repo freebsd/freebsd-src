@@ -3389,55 +3389,10 @@ static uint8_t
 sctp_get_ect(struct sctp_tcb *stcb,
     struct sctp_tmit_chunk *chk)
 {
-	uint8_t this_random;
-
-	/* Huh? */
 	if (SCTP_BASE_SYSCTL(sctp_ecn_enable) == 0)
 		return (0);
 
-	if (SCTP_BASE_SYSCTL(sctp_ecn_nonce) == 0)
-		/* no nonce, always return ECT0 */
-		return (SCTP_ECT0_BIT);
-
-	if (stcb->asoc.peer_supports_ecn_nonce == 0) {
-		/* Peer does NOT support it, so we send a ECT0 only */
-		return (SCTP_ECT0_BIT);
-	}
-	if (chk == NULL)
-		return (SCTP_ECT0_BIT);
-
-	if ((stcb->asoc.hb_random_idx > 3) ||
-	    ((stcb->asoc.hb_random_idx == 3) &&
-	    (stcb->asoc.hb_ect_randombit > 7))) {
-		uint32_t rndval;
-
-warp_drive_sa:
-		rndval = sctp_select_initial_TSN(&stcb->sctp_ep->sctp_ep);
-		memcpy(stcb->asoc.hb_random_values, &rndval,
-		    sizeof(stcb->asoc.hb_random_values));
-		this_random = stcb->asoc.hb_random_values[0];
-		stcb->asoc.hb_random_idx = 0;
-		stcb->asoc.hb_ect_randombit = 0;
-	} else {
-		if (stcb->asoc.hb_ect_randombit > 7) {
-			stcb->asoc.hb_ect_randombit = 0;
-			stcb->asoc.hb_random_idx++;
-			if (stcb->asoc.hb_random_idx > 3) {
-				goto warp_drive_sa;
-			}
-		}
-		this_random = stcb->asoc.hb_random_values[stcb->asoc.hb_random_idx];
-	}
-	if ((this_random >> stcb->asoc.hb_ect_randombit) & 0x01) {
-		if (chk != NULL)
-			/* ECN Nonce stuff */
-			chk->rec.data.ect_nonce = SCTP_ECT1_BIT;
-		stcb->asoc.hb_ect_randombit++;
-		return (SCTP_ECT1_BIT);
-	} else {
-		stcb->asoc.hb_ect_randombit++;
-		return (SCTP_ECT0_BIT);
-	}
+	return (SCTP_ECT0_BIT);
 }
 
 static int
@@ -4167,7 +4122,6 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	struct sctp_adaptation_layer_indication *ali;
 	struct sctp_ecn_supported_param *ecn;
 	struct sctp_prsctp_supported_param *prsctp;
-	struct sctp_ecn_nonce_supported_param *ecn_nonce;
 	struct sctp_supported_chunk_types_param *pr_supported;
 	int cnt_inits_to = 0;
 	int padval, ret;
@@ -4326,14 +4280,6 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
 
 
-	/* ECN nonce: And now tell the peer we support ECN nonce */
-	if (SCTP_BASE_SYSCTL(sctp_ecn_nonce)) {
-		ecn_nonce = (struct sctp_ecn_nonce_supported_param *)
-		    ((caddr_t)pr_supported + SCTP_SIZE32(p_len));
-		ecn_nonce->ph.param_type = htons(SCTP_ECN_NONCE_SUPPORTED);
-		ecn_nonce->ph.param_length = htons(sizeof(*ecn_nonce));
-		SCTP_BUF_LEN(m) += sizeof(*ecn_nonce);
-	}
 	/* add authentication parameters */
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable)) {
 		struct sctp_auth_random *randp;
@@ -4555,11 +4501,10 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 		case SCTP_HAS_NAT_SUPPORT:
 			*nat_friendly = 1;
 			/* fall through */
-		case SCTP_ECN_NONCE_SUPPORTED:
 		case SCTP_PRSCTP_SUPPORTED:
 
 			if (padded_size != sizeof(struct sctp_paramhdr)) {
-				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error ecnnonce/prsctp/nat support %d\n", plen);
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error prsctp/nat support %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
@@ -4960,7 +4905,6 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	struct sctp_adaptation_layer_indication *ali;
 	struct sctp_ecn_supported_param *ecn;
 	struct sctp_prsctp_supported_param *prsctp;
-	struct sctp_ecn_nonce_supported_param *ecn_nonce;
 	struct sctp_supported_chunk_types_param *pr_supported;
 	union sctp_sockstore store, store1, *over_addr;
 	struct sockaddr_in *sin, *to_sin;
@@ -5444,14 +5388,6 @@ do_a_abort:
 	bzero((caddr_t)pr_supported + p_len, SCTP_SIZE32(p_len) - p_len);
 	SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
 
-	/* ECN nonce: And now tell the peer we support ECN nonce */
-	if (SCTP_BASE_SYSCTL(sctp_ecn_nonce)) {
-		ecn_nonce = (struct sctp_ecn_nonce_supported_param *)
-		    ((caddr_t)pr_supported + SCTP_SIZE32(p_len));
-		ecn_nonce->ph.param_type = htons(SCTP_ECN_NONCE_SUPPORTED);
-		ecn_nonce->ph.param_length = htons(sizeof(*ecn_nonce));
-		SCTP_BUF_LEN(m) += sizeof(*ecn_nonce);
-	}
 	/* add authentication parameters */
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable)) {
 		struct sctp_auth_random *randp;
@@ -7009,7 +6945,6 @@ dont_do_it:
 	chk->rec.data.payloadtype = sp->ppid;
 	chk->rec.data.context = sp->context;
 	chk->rec.data.doing_fast_retransmit = 0;
-	chk->rec.data.ect_nonce = 0;	/* ECN Nonce */
 
 	chk->rec.data.timetodrop = sp->ts;
 	chk->flags = sp->act_flags;
@@ -10000,13 +9935,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	limit = mtod(a_chk->data, caddr_t);
 	limit += space;
 
-	/* 0x01 is used by nonce for ecn */
-	if ((SCTP_BASE_SYSCTL(sctp_ecn_enable)) &&
-	    (SCTP_BASE_SYSCTL(sctp_ecn_nonce)) &&
-	    (asoc->peer_supports_ecn_nonce))
-		flags = (asoc->receiver_nonce_sum & SCTP_SACK_NONCE_SUM);
-	else
-		flags = 0;
+	flags = 0;
 
 	if ((asoc->sctp_cmt_on_off > 0) &&
 	    SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) {
@@ -10809,11 +10738,11 @@ sctp_send_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
 			ctsn = ntohl(ecne->tsn);
 			if (SCTP_TSN_GT(high_tsn, ctsn)) {
 				ecne->tsn = htonl(high_tsn);
-				cnt = ntohl(ecne->num_pkts_since_cwr);
-				cnt++;
-				ecne->num_pkts_since_cwr = htonl(cnt);
 				SCTP_STAT_INCR(sctps_queue_upd_ecne);
 			}
+			cnt = ntohl(ecne->num_pkts_since_cwr);
+			cnt++;
+			ecne->num_pkts_since_cwr = htonl(cnt);
 			return;
 		}
 	}

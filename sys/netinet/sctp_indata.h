@@ -93,7 +93,7 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc);
 
 void
 sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
-    uint32_t rwnd, int nonce_sum_flag, int *abort_now);
+    uint32_t rwnd, int *abort_now);
 
 void
 sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
