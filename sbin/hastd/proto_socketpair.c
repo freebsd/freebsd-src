@@ -161,6 +161,34 @@ sp_recv(void *ctx, unsigned char *data, size_t size)
 }
 
 static int
+sp_descriptor_send(void *ctx, int fd)
+{
+	struct sp_ctx *spctx = ctx;
+
+	PJDLOG_ASSERT(spctx != NULL);
+	PJDLOG_ASSERT(spctx->sp_magic == SP_CTX_MAGIC);
+	PJDLOG_ASSERT(spctx->sp_side == SP_SIDE_CLIENT);
+	PJDLOG_ASSERT(spctx->sp_fd[0] >= 0);
+	PJDLOG_ASSERT(fd > 0);
+
+	return (proto_common_descriptor_send(spctx->sp_fd[0], fd));
+}
+
+static int
+sp_descriptor_recv(void *ctx, int *fdp)
+{
+	struct sp_ctx *spctx = ctx;
+
+	PJDLOG_ASSERT(spctx != NULL);
+	PJDLOG_ASSERT(spctx->sp_magic == SP_CTX_MAGIC);
+	PJDLOG_ASSERT(spctx->sp_side == SP_SIDE_SERVER);
+	PJDLOG_ASSERT(spctx->sp_fd[1] >= 0);
+	PJDLOG_ASSERT(fdp != NULL);
+
+	return (proto_common_descriptor_recv(spctx->sp_fd[1], fdp));
+}
+
+static int
 sp_descriptor(const void *ctx)
 {
 	const struct sp_ctx *spctx = ctx;
@@ -224,6 +252,8 @@ static struct hast_proto sp_proto = {
 	.hp_client = sp_client,
 	.hp_send = sp_send,
 	.hp_recv = sp_recv,
+	.hp_descriptor_send = sp_descriptor_send,
+	.hp_descriptor_recv = sp_descriptor_recv,
 	.hp_descriptor = sp_descriptor,
 	.hp_close = sp_close
 };

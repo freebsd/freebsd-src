@@ -217,6 +217,42 @@ proto_recv(const struct proto_conn *conn, void *data, size_t size)
 }
 
 int
+proto_descriptor_send(const struct proto_conn *conn, int fd)
+{
+	int ret;
+
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_descriptor_send != NULL);
+
+	ret = conn->pc_proto->hp_descriptor_send(conn->pc_ctx, fd);
+	if (ret != 0) {
+		errno = ret;
+		return (-1);
+	}
+	return (0);
+}
+
+int
+proto_descriptor_recv(const struct proto_conn *conn, int *fdp)
+{
+	int ret;
+
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_descriptor_recv != NULL);
+
+	ret = conn->pc_proto->hp_descriptor_recv(conn->pc_ctx, fdp);
+	if (ret != 0) {
+		errno = ret;
+		return (-1);
+	}
+	return (0);
+}
+
+int
 proto_descriptor(const struct proto_conn *conn)
 {
 
