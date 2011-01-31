@@ -1328,7 +1328,7 @@ init_rtld(caddr_t mapbase)
 	digest_dynamic(&objtmp, 1);
 	assert(objtmp.needed == NULL);
 #if !defined(__mips__)
-	/* MIPS and SH{3,5} have a bogus DT_TEXTREL. */
+	/* MIPS has a bogus DT_TEXTREL. */
 	assert(!objtmp.textrel);
 #endif
 
