@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <libutil.h>
@@ -328,7 +327,7 @@ resource_needs_restart(const struct hast_resource *res0,
     const struct hast_resource *res1)
 {
 
-	assert(strcmp(res0->hr_name, res1->hr_name) == 0);
+	PJDLOG_ASSERT(strcmp(res0->hr_name, res1->hr_name) == 0);
 
 	if (strcmp(res0->hr_provname, res1->hr_provname) != 0)
 		return (true);
@@ -353,9 +352,9 @@ resource_needs_reload(const struct hast_resource *res0,
     const struct hast_resource *res1)
 {
 
-	assert(strcmp(res0->hr_name, res1->hr_name) == 0);
-	assert(strcmp(res0->hr_provname, res1->hr_provname) == 0);
-	assert(strcmp(res0->hr_localpath, res1->hr_localpath) == 0);
+	PJDLOG_ASSERT(strcmp(res0->hr_name, res1->hr_name) == 0);
+	PJDLOG_ASSERT(strcmp(res0->hr_provname, res1->hr_provname) == 0);
+	PJDLOG_ASSERT(strcmp(res0->hr_localpath, res1->hr_localpath) == 0);
 
 	if (res0->hr_role != HAST_ROLE_PRIMARY)
 		return (false);
@@ -377,7 +376,7 @@ resource_reload(const struct hast_resource *res)
 	struct nv *nvin, *nvout;
 	int error;
 
-	assert(res->hr_role == HAST_ROLE_PRIMARY);
+	PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
 
 	nvout = nv_alloc();
 	nv_add_uint8(nvout, HASTCTL_RELOAD, "cmd");
@@ -524,7 +523,7 @@ hastd_reload(void)
 			if (strcmp(cres->hr_name, nres->hr_name) == 0)
 				break;
 		}
-		assert(cres != NULL);
+		PJDLOG_ASSERT(cres != NULL);
 		if (resource_needs_restart(cres, nres)) {
 			pjdlog_info("Resource %s configuration was modified, restarting it.",
 			    cres->hr_name);
@@ -700,10 +699,10 @@ listen_accept(void)
 	 * we have to cancel those and accept the new connection.
 	 */
 	if (token == NULL) {
-		assert(res->hr_remoteout == NULL);
+		PJDLOG_ASSERT(res->hr_remoteout == NULL);
 		pjdlog_debug(1, "Initial connection from %s.", raddr);
 		if (res->hr_workerpid != 0) {
-			assert(res->hr_remotein == NULL);
+			PJDLOG_ASSERT(res->hr_remotein == NULL);
 			pjdlog_debug(1,
 			    "Worker process exists (pid=%u), stopping it.",
 			    (unsigned int)res->hr_workerpid);
@@ -843,29 +842,29 @@ main_loop(void)
 				hastd_reload();
 				break;
 			default:
-				assert(!"invalid condition");
+				PJDLOG_ABORT("Unexpected signal (%d).", signo);
 			}
 		}
 
 		/* Setup descriptors for select(2). */
 		FD_ZERO(&rfds);
 		maxfd = fd = proto_descriptor(cfg->hc_controlconn);
-		assert(fd >= 0);
+		PJDLOG_ASSERT(fd >= 0);
 		FD_SET(fd, &rfds);
 		fd = proto_descriptor(cfg->hc_listenconn);
-		assert(fd >= 0);
+		PJDLOG_ASSERT(fd >= 0);
 		FD_SET(fd, &rfds);
 		maxfd = fd > maxfd ? fd : maxfd;
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
 			fd = proto_descriptor(res->hr_event);
-			assert(fd >= 0);
+			PJDLOG_ASSERT(fd >= 0);
 			FD_SET(fd, &rfds);
 			maxfd = fd > maxfd ? fd : maxfd;
 		}
 
-		assert(maxfd + 1 <= (int)FD_SETSIZE);
+		PJDLOG_ASSERT(maxfd + 1 <= (int)FD_SETSIZE);
 		ret = select(maxfd + 1, &rfds, NULL, NULL, &seltimeout);
 		if (ret == 0)
 			hook_check();
@@ -957,7 +956,7 @@ main(int argc, char *argv[])
 	}
 
 	cfg = yy_config_parse(cfgpath, true);
-	assert(cfg != NULL);
+	PJDLOG_ASSERT(cfg != NULL);
 
 	/*
 	 * Restore default actions for interesting signals in case parent
