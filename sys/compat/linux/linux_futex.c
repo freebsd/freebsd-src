@@ -693,6 +693,13 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			  "op FUTEX_WAIT_REQUEUE_PI not implemented\n");
 		return (ENOSYS);
 
+	case LINUX_FUTEX_CMP_REQUEUE_PI:
+		/* not yet implemented */
+		linux_msg(td,
+			    "linux_sys_futex: "
+			    "op LINUX_FUTEX_CMP_REQUEUE_PI not implemented\n");
+		return (ENOSYS);
+
 	default:
 		linux_msg(td,
 			  "linux_sys_futex: unknown op %d\n", args->op);
