@@ -51,11 +51,8 @@ def disc1_packages():
 	    'misc/freebsd-doc-zh_tw']
 
     if doing_dvd:
-	pkgs.extend(['archivers/unzip',
-	    'emulators/linux_base-f10',
+	pkgs.extend([ 'archivers/unzip',
 	    'lang/perl5.10',
-	    'net/mpd5',
-	    'net/rsync',
 	    'ports-mgmt/p5-FreeBSD-Portindex',
 	    'ports-mgmt/portaudit',
 	    'ports-mgmt/portmaster',
@@ -63,7 +60,6 @@ def disc1_packages():
 	    'shells/bash',
 	    'shells/zsh',
 	    'security/sudo',
-	    'sysutils/screen',
 	    'x11/gnome2',
 	    'x11/kde4',
 	    'x11/xorg'])
