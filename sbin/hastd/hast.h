@@ -81,6 +81,7 @@
 #define	HIO_FLUSH		4
 #define	HIO_KEEPALIVE		5
 
+#define	HAST_USER	"hast"
 #define	HAST_TIMEOUT	5
 #define	HAST_CONFIG	"/etc/hast.conf"
 #define	HAST_CONTROL	"/var/run/hastctl"
@@ -101,6 +102,8 @@ struct hastd_config {
 	char	 hc_controladdr[HAST_ADDRSIZE];
 	/* Protocol-specific data. */
 	struct proto_conn *hc_controlconn;
+	/* Incoming control connection. */
+	struct proto_conn *hc_controlin;
 	/* Address to listen on. */
 	char	 hc_listenaddr[HAST_ADDRSIZE];
 	/* Protocol-specific data. */

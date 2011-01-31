@@ -588,6 +588,10 @@
 #define	AR_XSREV_REVISION_KITE_11	1	/* Kite 1.1 */
 #define	AR_XSREV_REVISION_KITE_12	2	/* Kite 1.2 */
 
+#define	AR_SREV_OWL(_ah) \
+	((AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_OWL_PCI) || \
+	 (AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_OWL_PCIE))
+
 #define	AR_SREV_OWL_20_OR_LATER(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_SOWL || \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_20)
@@ -630,4 +634,8 @@
 #define	AR_SREV_KITE_12_OR_LATER(_ah) \
 	(AR_SREV_KITE_12(_ah) || \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KITE_12)
+#define	AR_SREV_9285E_20(_ah) \
+	(AR_SREV_KITE_12_OR_LATER(_ah) && \
+	((OS_REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
+
 #endif /* _DEV_ATH_AR5416REG_H */

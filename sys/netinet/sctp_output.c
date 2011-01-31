@@ -3389,55 +3389,10 @@ static uint8_t
 sctp_get_ect(struct sctp_tcb *stcb,
     struct sctp_tmit_chunk *chk)
 {
-	uint8_t this_random;
-
-	/* Huh? */
 	if (SCTP_BASE_SYSCTL(sctp_ecn_enable) == 0)
 		return (0);
 
-	if (SCTP_BASE_SYSCTL(sctp_ecn_nonce) == 0)
-		/* no nonce, always return ECT0 */
-		return (SCTP_ECT0_BIT);
-
-	if (stcb->asoc.peer_supports_ecn_nonce == 0) {
-		/* Peer does NOT support it, so we send a ECT0 only */
-		return (SCTP_ECT0_BIT);
-	}
-	if (chk == NULL)
-		return (SCTP_ECT0_BIT);
-
-	if ((stcb->asoc.hb_random_idx > 3) ||
-	    ((stcb->asoc.hb_random_idx == 3) &&
-	    (stcb->asoc.hb_ect_randombit > 7))) {
-		uint32_t rndval;
-
-warp_drive_sa:
-		rndval = sctp_select_initial_TSN(&stcb->sctp_ep->sctp_ep);
-		memcpy(stcb->asoc.hb_random_values, &rndval,
-		    sizeof(stcb->asoc.hb_random_values));
-		this_random = stcb->asoc.hb_random_values[0];
-		stcb->asoc.hb_random_idx = 0;
-		stcb->asoc.hb_ect_randombit = 0;
-	} else {
-		if (stcb->asoc.hb_ect_randombit > 7) {
-			stcb->asoc.hb_ect_randombit = 0;
-			stcb->asoc.hb_random_idx++;
-			if (stcb->asoc.hb_random_idx > 3) {
-				goto warp_drive_sa;
-			}
-		}
-		this_random = stcb->asoc.hb_random_values[stcb->asoc.hb_random_idx];
-	}
-	if ((this_random >> stcb->asoc.hb_ect_randombit) & 0x01) {
-		if (chk != NULL)
-			/* ECN Nonce stuff */
-			chk->rec.data.ect_nonce = SCTP_ECT1_BIT;
-		stcb->asoc.hb_ect_randombit++;
-		return (SCTP_ECT1_BIT);
-	} else {
-		stcb->asoc.hb_ect_randombit++;
-		return (SCTP_ECT0_BIT);
-	}
+	return (SCTP_ECT0_BIT);
 }
 
 static int
@@ -4167,7 +4122,6 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	struct sctp_adaptation_layer_indication *ali;
 	struct sctp_ecn_supported_param *ecn;
 	struct sctp_prsctp_supported_param *prsctp;
-	struct sctp_ecn_nonce_supported_param *ecn_nonce;
 	struct sctp_supported_chunk_types_param *pr_supported;
 	int cnt_inits_to = 0;
 	int padval, ret;
@@ -4326,14 +4280,6 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
 
 
-	/* ECN nonce: And now tell the peer we support ECN nonce */
-	if (SCTP_BASE_SYSCTL(sctp_ecn_nonce)) {
-		ecn_nonce = (struct sctp_ecn_nonce_supported_param *)
-		    ((caddr_t)pr_supported + SCTP_SIZE32(p_len));
-		ecn_nonce->ph.param_type = htons(SCTP_ECN_NONCE_SUPPORTED);
-		ecn_nonce->ph.param_length = htons(sizeof(*ecn_nonce));
-		SCTP_BUF_LEN(m) += sizeof(*ecn_nonce);
-	}
 	/* add authentication parameters */
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable)) {
 		struct sctp_auth_random *randp;
@@ -4555,11 +4501,10 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 		case SCTP_HAS_NAT_SUPPORT:
 			*nat_friendly = 1;
 			/* fall through */
-		case SCTP_ECN_NONCE_SUPPORTED:
 		case SCTP_PRSCTP_SUPPORTED:
 
 			if (padded_size != sizeof(struct sctp_paramhdr)) {
-				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error ecnnonce/prsctp/nat support %d\n", plen);
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error prsctp/nat support %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
@@ -4960,7 +4905,6 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	struct sctp_adaptation_layer_indication *ali;
 	struct sctp_ecn_supported_param *ecn;
 	struct sctp_prsctp_supported_param *prsctp;
-	struct sctp_ecn_nonce_supported_param *ecn_nonce;
 	struct sctp_supported_chunk_types_param *pr_supported;
 	union sctp_sockstore store, store1, *over_addr;
 	struct sockaddr_in *sin, *to_sin;
@@ -5444,14 +5388,6 @@ do_a_abort:
 	bzero((caddr_t)pr_supported + p_len, SCTP_SIZE32(p_len) - p_len);
 	SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
 
-	/* ECN nonce: And now tell the peer we support ECN nonce */
-	if (SCTP_BASE_SYSCTL(sctp_ecn_nonce)) {
-		ecn_nonce = (struct sctp_ecn_nonce_supported_param *)
-		    ((caddr_t)pr_supported + SCTP_SIZE32(p_len));
-		ecn_nonce->ph.param_type = htons(SCTP_ECN_NONCE_SUPPORTED);
-		ecn_nonce->ph.param_length = htons(sizeof(*ecn_nonce));
-		SCTP_BUF_LEN(m) += sizeof(*ecn_nonce);
-	}
 	/* add authentication parameters */
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable)) {
 		struct sctp_auth_random *randp;
@@ -7009,7 +6945,6 @@ dont_do_it:
 	chk->rec.data.payloadtype = sp->ppid;
 	chk->rec.data.context = sp->context;
 	chk->rec.data.doing_fast_retransmit = 0;
-	chk->rec.data.ect_nonce = 0;	/* ECN Nonce */
 
 	chk->rec.data.timetodrop = sp->ts;
 	chk->flags = sp->act_flags;
@@ -7274,7 +7209,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	 * fomulate and send the low level chunks. Making sure to combine
 	 * any control in the control chunk queue also.
 	 */
-	struct sctp_nets *net, *start_at, *old_start_at = NULL;
+	struct sctp_nets *net, *start_at, *sack_goes_to = NULL, *old_start_at = NULL;
 	struct mbuf *outchain, *endoutchain;
 	struct sctp_tmit_chunk *chk, *nchk;
 
@@ -7327,10 +7262,12 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 		no_data_chunks = 0;
 
 	/* Nothing to possible to send? */
-	if (TAILQ_EMPTY(&asoc->control_send_queue) &&
+	if ((TAILQ_EMPTY(&asoc->control_send_queue) ||
+	    (asoc->ctrl_queue_cnt == stcb->asoc.ecn_echo_cnt_onq)) &&
 	    TAILQ_EMPTY(&asoc->asconf_send_queue) &&
 	    TAILQ_EMPTY(&asoc->send_queue) &&
 	    stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
+nothing_to_send:
 		*reason_code = 9;
 		return (0);
 	}
@@ -7340,6 +7277,21 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 		if (asoc->total_flight > 0) {
 			/* we are allowed one chunk in flight */
 			no_data_chunks = 1;
+		}
+	}
+	if (stcb->asoc.ecn_echo_cnt_onq) {
+		/* Record where a sack goes, if any */
+		if (no_data_chunks &&
+		    (asoc->ctrl_queue_cnt == stcb->asoc.ecn_echo_cnt_onq)) {
+			/* Nothing but ECNe to send - we don't do that */
+			goto nothing_to_send;
+		}
+		TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
+			if ((chk->rec.chunk_id.id == SCTP_SELECTIVE_ACK) ||
+			    (chk->rec.chunk_id.id == SCTP_NR_SELECTIVE_ACK)) {
+				sack_goes_to = chk->whoTo;
+				break;
+			}
 		}
 	}
 	max_rwnd_per_dest = ((asoc->peers_rwnd + asoc->total_flight) / asoc->numnets);
@@ -7685,6 +7637,28 @@ again_one_more_time:
 		/************************/
 		/* Now first lets go through the control queue */
 		TAILQ_FOREACH_SAFE(chk, &asoc->control_send_queue, sctp_next, nchk) {
+			if ((sack_goes_to) &&
+			    (chk->rec.chunk_id.id == SCTP_ECN_ECHO) &&
+			    (chk->whoTo != sack_goes_to)) {
+				/*
+				 * if we have a sack in queue, and we are
+				 * looking at an ecn echo that is NOT queued
+				 * to where the sack is going..
+				 */
+				if (chk->whoTo == net) {
+					/*
+					 * Don't transmit it to where its
+					 * going (current net)
+					 */
+					continue;
+				} else if (sack_goes_to == net) {
+					/*
+					 * But do transmit it to this
+					 * address
+					 */
+					goto skip_net_check;
+				}
+			}
 			if (chk->whoTo != net) {
 				/*
 				 * No, not sent to the network we are
@@ -7692,6 +7666,7 @@ again_one_more_time:
 				 */
 				continue;
 			}
+	skip_net_check:
 			if (chk->data == NULL) {
 				continue;
 			}
@@ -7809,6 +7784,20 @@ again_one_more_time:
 					if (chk->rec.chunk_id.id == SCTP_COOKIE_ECHO) {
 						cookie = 1;
 						no_out_cnt = 1;
+					} else if (chk->rec.chunk_id.id == SCTP_ECN_ECHO) {
+						/*
+						 * Increment ecne send count
+						 * here this means we may be
+						 * over-zealous in our
+						 * counting if the send
+						 * fails, but its the best
+						 * place to do it (we used
+						 * to do it in the queue of
+						 * the chunk, but that did
+						 * not tell how many times
+						 * it was sent.
+						 */
+						SCTP_STAT_INCR(sctps_sendecne);
 					}
 					chk->sent = SCTP_DATAGRAM_SENT;
 					chk->snd_count++;
@@ -9322,7 +9311,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	struct sctp_association *asoc;
 	struct sctp_nets *net;
 	int error = 0, num_out = 0, tot_out = 0, ret = 0, reason_code = 0,
-	    burst_cnt = 0, burst_limit = 0;
+	    burst_cnt = 0;
 	struct timeval now;
 	int now_filled = 0;
 	int nagle_on = 0;
@@ -9425,12 +9414,11 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			    &now, &now_filled, frag_point, so_locked);
 			return;
 		}
-		if (tot_frs > asoc->max_burst) {
+		if ((asoc->max_burst > 0) && (tot_frs > asoc->max_burst)) {
 			/* Hit FR burst limit */
 			return;
 		}
 		if ((num_out == 0) && (ret == 0)) {
-
 			/* No more retrans to send */
 			break;
 		}
@@ -9439,7 +9427,6 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	sctp_auditing(12, inp, stcb, NULL);
 #endif
 	/* Check for bad destinations, if they exist move chunks around. */
-	burst_limit = asoc->max_burst;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if ((net->dest_state & SCTP_ADDR_NOT_REACHABLE) ==
 		    SCTP_ADDR_NOT_REACHABLE) {
@@ -9468,24 +9455,29 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			 * { burst_limit = asoc->max_burst *
 			 * SCTP_SAT_NETWORK_BURST_INCR; }
 			 */
-			if (SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst)) {
-				if ((net->flight_size + (burst_limit * net->mtu)) < net->cwnd) {
-					/*
-					 * JRS - Use the congestion control
-					 * given in the congestion control
-					 * module
-					 */
-					asoc->cc_functions.sctp_cwnd_update_after_output(stcb, net, burst_limit);
-					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_MAXBURST_ENABLE) {
-						sctp_log_maxburst(stcb, net, 0, burst_limit, SCTP_MAX_BURST_APPLIED);
+			if (asoc->max_burst > 0) {
+				if (SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst)) {
+					if ((net->flight_size + (asoc->max_burst * net->mtu)) < net->cwnd) {
+						/*
+						 * JRS - Use the congestion
+						 * control given in the
+						 * congestion control module
+						 */
+						asoc->cc_functions.sctp_cwnd_update_after_output(stcb, net, asoc->max_burst);
+						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_MAXBURST_ENABLE) {
+							sctp_log_maxburst(stcb, net, 0, asoc->max_burst, SCTP_MAX_BURST_APPLIED);
+						}
+						SCTP_STAT_INCR(sctps_maxburstqueued);
 					}
-					SCTP_STAT_INCR(sctps_maxburstqueued);
-				}
-				net->fast_retran_ip = 0;
-			} else {
-				if (net->flight_size == 0) {
-					/* Should be decaying the cwnd here */
-					;
+					net->fast_retran_ip = 0;
+				} else {
+					if (net->flight_size == 0) {
+						/*
+						 * Should be decaying the
+						 * cwnd here
+						 */
+						;
+					}
 				}
 			}
 		}
@@ -9540,11 +9532,13 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			/* Nothing left to send */
 			break;
 		}
-	} while (num_out && (SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst) ||
-	    (burst_cnt < burst_limit)));
+	} while (num_out &&
+	    ((asoc->max_burst == 0) ||
+	    SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst) ||
+	    (burst_cnt < asoc->max_burst)));
 
 	if (SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst) == 0) {
-		if (burst_cnt >= burst_limit) {
+		if ((asoc->max_burst > 0) && (burst_cnt >= asoc->max_burst)) {
 			SCTP_STAT_INCR(sctps_maxburstqueued);
 			asoc->burst_limit_applied = 1;
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_MAXBURST_ENABLE) {
@@ -9941,13 +9935,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	limit = mtod(a_chk->data, caddr_t);
 	limit += space;
 
-	/* 0x01 is used by nonce for ecn */
-	if ((SCTP_BASE_SYSCTL(sctp_ecn_enable)) &&
-	    (SCTP_BASE_SYSCTL(sctp_ecn_nonce)) &&
-	    (asoc->peer_supports_ecn_nonce))
-		flags = (asoc->receiver_nonce_sum & SCTP_SACK_NONCE_SUM);
-	else
-		flags = 0;
+	flags = 0;
 
 	if ((asoc->sctp_cmt_on_off > 0) &&
 	    SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) {
@@ -10742,10 +10730,19 @@ sctp_send_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
 	asoc = &stcb->asoc;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
-		if (chk->rec.chunk_id.id == SCTP_ECN_ECHO) {
+		if ((chk->rec.chunk_id.id == SCTP_ECN_ECHO) && (net == chk->whoTo)) {
 			/* found a previous ECN_ECHO update it if needed */
+			uint32_t cnt, ctsn;
+
 			ecne = mtod(chk->data, struct sctp_ecne_chunk *);
-			ecne->tsn = htonl(high_tsn);
+			ctsn = ntohl(ecne->tsn);
+			if (SCTP_TSN_GT(high_tsn, ctsn)) {
+				ecne->tsn = htonl(high_tsn);
+				SCTP_STAT_INCR(sctps_queue_upd_ecne);
+			}
+			cnt = ntohl(ecne->num_pkts_since_cwr);
+			cnt++;
+			ecne->num_pkts_since_cwr = htonl(cnt);
 			return;
 		}
 	}
@@ -10755,7 +10752,7 @@ sctp_send_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
 		return;
 	}
 	chk->copy_by_ref = 0;
-	SCTP_STAT_INCR(sctps_sendecne);
+	SCTP_STAT_INCR(sctps_queue_upd_ecne);
 	chk->rec.chunk_id.id = SCTP_ECN_ECHO;
 	chk->rec.chunk_id.can_take_data = 0;
 	chk->asoc = &stcb->asoc;
@@ -10777,7 +10774,8 @@ sctp_send_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
 	ecne->ch.chunk_flags = 0;
 	ecne->ch.chunk_length = htons(sizeof(struct sctp_ecne_chunk));
 	ecne->tsn = htonl(high_tsn);
-	TAILQ_INSERT_TAIL(&stcb->asoc.control_send_queue, chk, sctp_next);
+	ecne->num_pkts_since_cwr = htonl(1);
+	TAILQ_INSERT_HEAD(&stcb->asoc.control_send_queue, chk, sctp_next);
 	asoc->ctrl_queue_cnt++;
 }
 
@@ -10955,7 +10953,7 @@ jump_out:
 }
 
 void
-sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn)
+sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn, uint8_t override)
 {
 	struct sctp_association *asoc;
 	struct sctp_cwr_chunk *cwr;
@@ -10963,17 +10961,7 @@ sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn)
 
 	asoc = &stcb->asoc;
 	SCTP_TCB_LOCK_ASSERT(stcb);
-	TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
-		if (chk->rec.chunk_id.id == SCTP_ECN_CWR) {
-			/* found a previous ECN_CWR update it if needed */
-			cwr = mtod(chk->data, struct sctp_cwr_chunk *);
-			if (SCTP_TSN_GT(high_tsn, ntohl(cwr->tsn))) {
-				cwr->tsn = htonl(high_tsn);
-			}
-			return;
-		}
-	}
-	/* nope could not find one to update so we must build one */
+
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
 		return;
@@ -10996,7 +10984,7 @@ sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn)
 	atomic_add_int(&chk->whoTo->ref_count, 1);
 	cwr = mtod(chk->data, struct sctp_cwr_chunk *);
 	cwr->ch.chunk_type = SCTP_ECN_CWR;
-	cwr->ch.chunk_flags = 0;
+	cwr->ch.chunk_flags = override;
 	cwr->ch.chunk_length = htons(sizeof(struct sctp_cwr_chunk));
 	cwr->tsn = htonl(high_tsn);
 	TAILQ_INSERT_TAIL(&stcb->asoc.control_send_queue, chk, sctp_next);

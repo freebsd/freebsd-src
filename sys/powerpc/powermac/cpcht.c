@@ -757,7 +757,6 @@ static void	openpic_cpcht_config(device_t, u_int irq,
 static void	openpic_cpcht_enable(device_t, u_int irq, u_int vector);
 static void	openpic_cpcht_unmask(device_t, u_int irq);
 static void	openpic_cpcht_eoi(device_t, u_int irq);
-static uint32_t	openpic_cpcht_id(device_t);
 
 static device_method_t  openpic_cpcht_methods[] = {
 	/* Device interface */
@@ -773,7 +772,6 @@ static device_method_t  openpic_cpcht_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_cpcht_unmask),
-	DEVMETHOD(pic_id,		openpic_cpcht_id),
 
 	{ 0, 0 },
 };
@@ -808,9 +806,11 @@ static int
 openpic_cpcht_attach(device_t dev)
 {
 	struct openpic_cpcht_softc *sc;
+	phandle_t node;
 	int err, irq;
 
-	err = openpic_attach(dev);
+	node = ofw_bus_get_node(dev);
+	err = openpic_common_attach(dev, node);
 	if (err != 0)
 		return (err);
 
@@ -839,9 +839,8 @@ openpic_cpcht_attach(device_t dev)
 	 * be necessary, but Linux does it, and I cannot find any U3 machines
 	 * with MSI devices to test.
 	 */
-	
 	if (dev == root_pic)
-		cpcht_msipic = PIC_ID(dev);
+		cpcht_msipic = node;
 
 	return (0);
 }
@@ -981,10 +980,3 @@ openpic_cpcht_eoi(device_t dev, u_int irq)
 
 	openpic_eoi(dev, irq);
 }
-
-static uint32_t
-openpic_cpcht_id(device_t dev)
-{
-	return (ofw_bus_get_node(dev));
-}
-

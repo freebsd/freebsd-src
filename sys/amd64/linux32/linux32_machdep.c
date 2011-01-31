@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
+#include <sys/wait.h>
 
 #include <machine/frame.h>
 #include <machine/pcb.h>
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
 #include <compat/linux/linux_ipc.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
@@ -106,6 +108,30 @@ bsd_to_linux_sigaltstack(int bsa)
 	return (lsa);
 }
 
+static void
+bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru)
+{
+
+	lru->ru_utime.tv_sec = ru->ru_utime.tv_sec;
+	lru->ru_utime.tv_usec = ru->ru_utime.tv_usec;
+	lru->ru_stime.tv_sec = ru->ru_stime.tv_sec;
+	lru->ru_stime.tv_usec = ru->ru_stime.tv_usec;
+	lru->ru_maxrss = ru->ru_maxrss;
+	lru->ru_ixrss = ru->ru_ixrss;
+	lru->ru_idrss = ru->ru_idrss;
+	lru->ru_isrss = ru->ru_isrss;
+	lru->ru_minflt = ru->ru_minflt;
+	lru->ru_majflt = ru->ru_majflt;
+	lru->ru_nswap = ru->ru_nswap;
+	lru->ru_inblock = ru->ru_inblock;
+	lru->ru_oublock = ru->ru_oublock;
+	lru->ru_msgsnd = ru->ru_msgsnd;
+	lru->ru_msgrcv = ru->ru_msgrcv;
+	lru->ru_nsignals = ru->ru_nsignals;
+	lru->ru_nvcsw = ru->ru_nvcsw;
+	lru->ru_nivcsw = ru->ru_nivcsw;
+}
+
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
@@ -131,7 +157,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 		 * linux_proc_init, this leads to a panic on KASSERT
 		 * because such process has p->p_emuldata == NULL.
 		 */
-	   	if (td->td_proc->p_sysent == &elf_linux_sysvec)
+		if (SV_PROC_ABI(td->td_proc) == SV_ABI_LINUX)
 			error = linux_proc_init(td, 0, 0);
 	return (error);
 }
@@ -1126,24 +1152,7 @@ linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 	if (error != 0)
 		return (error);
 	if (uap->rusage != NULL) {
-		s32.ru_utime.tv_sec = s.ru_utime.tv_sec;
-		s32.ru_utime.tv_usec = s.ru_utime.tv_usec;
-		s32.ru_stime.tv_sec = s.ru_stime.tv_sec;
-		s32.ru_stime.tv_usec = s.ru_stime.tv_usec;
-		s32.ru_maxrss = s.ru_maxrss;
-		s32.ru_ixrss = s.ru_ixrss;
-		s32.ru_idrss = s.ru_idrss;
-		s32.ru_isrss = s.ru_isrss;
-		s32.ru_minflt = s.ru_minflt;
-		s32.ru_majflt = s.ru_majflt;
-		s32.ru_nswap = s.ru_nswap;
-		s32.ru_inblock = s.ru_inblock;
-		s32.ru_oublock = s.ru_oublock;
-		s32.ru_msgsnd = s.ru_msgsnd;
-		s32.ru_msgrcv = s.ru_msgrcv;
-		s32.ru_nsignals = s.ru_nsignals;
-		s32.ru_nvcsw = s.ru_nvcsw;
-		s32.ru_nivcsw = s.ru_nivcsw;
+		bsd_to_linux_rusage(&s, &s32);
 		error = copyout(&s32, uap->rusage, sizeof(s32));
 	}
 	return (error);
@@ -1266,4 +1275,38 @@ linux_set_thread_area(struct thread *td,
 	update_gdt_gsbase(td, info.base_addr);
 
 	return (0);
+}
+
+int
+linux_wait4(struct thread *td, struct linux_wait4_args *args)
+{
+	int error, options;
+	struct rusage ru, *rup;
+	struct l_rusage lru;
+
+#ifdef DEBUG
+	if (ldebug(wait4))
+		printf(ARGS(wait4, "%d, %p, %d, %p"),
+		    args->pid, (void *)args->status, args->options,
+		    (void *)args->rusage);
+#endif
+
+	options = (args->options & (WNOHANG | WUNTRACED));
+	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
+	if (args->options & __WCLONE)
+		options |= WLINUXCLONE;
+
+	if (args->rusage != NULL)
+		rup = &ru;
+	else
+		rup = NULL;
+	error = linux_common_wait(td, args->pid, args->status, options, rup);
+	if (error)
+		return (error);
+	if (args->rusage != NULL) {
+		bsd_to_linux_rusage(rup, &lru);
+		error = copyout(&lru, args->rusage, sizeof(lru));
+	}
+
+	return (error);
 }

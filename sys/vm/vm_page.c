@@ -1318,7 +1318,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	}
 
 	/*
-	 * Initialize structure.  Only the PG_ZERO flag is inherited.
+	 * Only the PG_ZERO flag is inherited.  The PG_CACHED or PG_FREE flag
+	 * must be cleared before the free page queues lock is released.
 	 */
 	flags = 0;
 	if (m->flags & PG_ZERO) {
@@ -1329,15 +1330,19 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	if (object == NULL || object->type == OBJT_PHYS)
 		flags |= PG_UNMANAGED;
 	m->flags = flags;
+	mtx_unlock(&vm_page_queue_free_mtx);
 	if (req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ))
 		m->oflags = 0;
 	else
 		m->oflags = VPO_BUSY;
 	if (req & VM_ALLOC_WIRED) {
+		/*
+		 * The page lock is not required for wiring a page until that
+		 * page is inserted into the object.
+		 */
 		atomic_add_int(&cnt.v_wire_count, 1);
 		m->wire_count = 1;
 	}
-	mtx_unlock(&vm_page_queue_free_mtx);
 	m->act_count = 0;
 
 	if (object != NULL) {

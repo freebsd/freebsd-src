@@ -45,12 +45,12 @@ __FBSDID("$FreeBSD$");
 #include "pic_if.h"
 
 static int openpic_fdt_probe(device_t);
-static uint32_t openpic_fdt_id(device_t);
+static int openpic_fdt_attach(device_t);
 
 static device_method_t openpic_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		openpic_fdt_probe),
-	DEVMETHOD(device_attach,	openpic_attach),
+	DEVMETHOD(device_attach,	openpic_fdt_attach),
 
 	/* PIC interface */
 	DEVMETHOD(pic_bind,		openpic_bind),
@@ -61,7 +61,6 @@ static device_method_t openpic_fdt_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_unmask),
-	DEVMETHOD(pic_id,		openpic_fdt_id),
 
 	{ 0, 0 },
 };
@@ -85,9 +84,9 @@ openpic_fdt_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static uint32_t
-openpic_fdt_id(device_t dev)
+static int
+openpic_fdt_attach(device_t dev)
 {
 
-	return (ofw_bus_get_node(dev));
+	return (openpic_common_attach(dev, ofw_bus_get_node(dev)));
 }

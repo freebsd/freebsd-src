@@ -100,8 +100,8 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		return (EOPNOTSUPP);
 
 #ifdef COMPAT_FREEBSD32
-        if (curproc->p_sysent->sv_flags & SV_ILP32) {
-                if (!(p->p_sysent->sv_flags & SV_ILP32))
+        if (SV_CURPROC_FLAG(SV_ILP32)) {
+                if (!(SV_PROC_FLAG(p, SV_ILP32)))
                         return (EOPNOTSUPP);
                 wrap32 = 1;
         }

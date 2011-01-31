@@ -862,6 +862,9 @@ sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
 	int error, i;
 	struct sbuf sbuf;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	mtx_lock(&malloc_mtx);
 
@@ -1019,6 +1022,9 @@ sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 	waste = 0;
 	mem = 0;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	sbuf_printf(&sbuf, 
 	    "\n  Size                    Requests  Real Size\n");

@@ -3224,6 +3224,9 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	uma_keg_t k;
 	int count, error, i;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 
 	count = 0;

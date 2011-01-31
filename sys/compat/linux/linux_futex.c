@@ -79,6 +79,7 @@ struct futex {
 	struct sx	f_lck;
 	uint32_t	*f_uaddr;
 	uint32_t	f_refcount;
+	uint32_t	f_bitset;
 	LIST_ENTRY(futex) f_list;
 	TAILQ_HEAD(lf_waiting_proc, waiting_proc) f_waiting_proc;
 };
@@ -264,15 +265,25 @@ futex_sleep(struct futex *f, struct waiting_proc *wp, int timeout)
 }
 
 static int
-futex_wake(struct futex *f, int n)
+futex_wake(struct futex *f, int n, uint32_t bitset)
 {
 	struct waiting_proc *wp, *wpt;
 	int count = 0;
+
+	if (bitset == 0)
+		return (EINVAL);
 
 	FUTEX_ASSERT_LOCKED(f);
 	TAILQ_FOREACH_SAFE(wp, &f->f_waiting_proc, wp_list, wpt) {
 		LINUX_CTR3(sys_futex, "futex_wake uaddr %p wp %p ref %d",
 		    f->f_uaddr, wp, f->f_refcount);
+		/*
+		 * Unless we find a matching bit in
+		 * the bitset, continue searching.
+		 */
+		if (!(wp->wp_futex->f_bitset & bitset))
+			continue;
+
 		wp->wp_flags |= FUTEX_WP_REMOVED;
 		TAILQ_REMOVE(&f->f_waiting_proc, wp, wp_list);
 		wakeup_one(wp);
@@ -325,12 +336,17 @@ futex_requeue(struct futex *f, int n, struct futex *f2, int n2)
 }
 
 static int
-futex_wait(struct futex *f, struct waiting_proc *wp, struct l_timespec *ts)
+futex_wait(struct futex *f, struct waiting_proc *wp, struct l_timespec *ts,
+    uint32_t bitset)
 {
 	struct l_timespec timeout;
 	struct timeval tv;
 	int timeout_hz;
 	int error;
+
+	if (bitset == 0)
+		return (EINVAL);
+	f->f_bitset = bitset;
 
 	if (ts != NULL) {
 		error = copyin(ts, &timeout, sizeof(timeout));
@@ -445,13 +461,18 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 	switch (args->op) {
 	case LINUX_FUTEX_WAIT:
+		args->val3 = FUTEX_BITSET_MATCH_ANY;
+		/* FALLTHROUGH */
 
-		LINUX_CTR2(sys_futex, "WAIT val %d uaddr %p",
-		    args->val, args->uaddr);
+	case LINUX_FUTEX_WAIT_BITSET:
+
+		LINUX_CTR3(sys_futex, "WAIT uaddr %p val %d val3 %d",
+		    args->uaddr, args->val, args->val3);
 #ifdef DEBUG
 		if (ldebug(sys_futex))
-			printf(ARGS(sys_futex, "futex_wait val %d uaddr %p"),
-			    args->val, args->uaddr);
+			printf(ARGS(sys_futex,
+			    "futex_wait uaddr %p val %d val3 %d"),
+			    args->uaddr, args->val, args->val3);
 #endif
 		error = futex_get(args->uaddr, &wp, &f, FUTEX_CREATE_WP);
 		if (error)
@@ -464,19 +485,24 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			return (error);
 		}
 		if (val != args->val) {
-			LINUX_CTR3(sys_futex, "WAIT uaddr %p val %d != uval %d",
-			    args->uaddr, args->val, val);
+			LINUX_CTR4(sys_futex,
+			    "WAIT uaddr %p val %d != uval %d val3 %d",
+			    args->uaddr, args->val, val, args->val3);
 			futex_put(f, wp);
 			return (EWOULDBLOCK);
 		}
 
-		error = futex_wait(f, wp, args->timeout);
+		error = futex_wait(f, wp, args->timeout, args->val3);
 		break;
 
 	case LINUX_FUTEX_WAKE:
+		args->val3 = FUTEX_BITSET_MATCH_ANY;
+		/* FALLTHROUGH */
 
-		LINUX_CTR2(sys_futex, "WAKE val %d uaddr %p",
-		    args->val, args->uaddr);
+	case LINUX_FUTEX_WAKE_BITSET:
+
+		LINUX_CTR3(sys_futex, "WAKE uaddr %p val % d val3 %d",
+		    args->uaddr, args->val, args->val3);
 
 		/*
 		 * XXX: Linux is able to cope with different addresses
@@ -485,8 +511,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		 */
 #ifdef DEBUG
 		if (ldebug(sys_futex))
-			printf(ARGS(sys_futex, "futex_wake val %d uaddr %p"),
-			    args->val, args->uaddr);
+			printf(ARGS(sys_futex, "futex_wake uaddr %p val %d val3 %d"),
+			    args->uaddr, args->val, args->val3);
 #endif
 		error = futex_get(args->uaddr, NULL, &f, FUTEX_DONTCREATE);
 		if (error)
@@ -495,7 +521,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			td->td_retval[0] = 0;
 			return (error);
 		}
-		td->td_retval[0] = futex_wake(f, args->val);
+		td->td_retval[0] = futex_wake(f, args->val, args->val3);
 		futex_put(f, NULL);
 		break;
 
@@ -603,16 +629,16 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			return (EFAULT);
 		}
 
-		ret = futex_wake(f, args->val);
+		ret = futex_wake(f, args->val, args->val3);
 
 		if (op_ret > 0) {
 			op_ret = 0;
 			nrwake = (int)(unsigned long)args->timeout;
 
 			if (f2 != NULL)
-				op_ret += futex_wake(f2, nrwake);
+				op_ret += futex_wake(f2, nrwake, args->val3);
 			else
-				op_ret += futex_wake(f, nrwake);
+				op_ret += futex_wake(f, nrwake, args->val3);
 			ret += op_ret;
 
 		}
@@ -660,18 +686,18 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		}
 		return (EINVAL);
 
-	case LINUX_FUTEX_WAIT_BITSET:
-		/* not yet implemented */
-		linux_msg(td,
-			  "linux_sys_futex: "
-			  "op FUTEX_WAIT_BITSET not implemented\n");
-		return (ENOSYS);
-
 	case LINUX_FUTEX_WAIT_REQUEUE_PI:
 		/* not yet implemented */
 		linux_msg(td,
 			  "linux_sys_futex: "
 			  "op FUTEX_WAIT_REQUEUE_PI not implemented\n");
+		return (ENOSYS);
+
+	case LINUX_FUTEX_CMP_REQUEUE_PI:
+		/* not yet implemented */
+		linux_msg(td,
+			    "linux_sys_futex: "
+			    "op LINUX_FUTEX_CMP_REQUEUE_PI not implemented\n");
 		return (ENOSYS);
 
 	default:
@@ -775,7 +801,7 @@ retry:
 			if (error)
 				return (error);
 			if (f != NULL) {
-				futex_wake(f, 1);
+				futex_wake(f, 1, FUTEX_BITSET_MATCH_ANY);
 				futex_put(f, NULL);
 			}
 		}

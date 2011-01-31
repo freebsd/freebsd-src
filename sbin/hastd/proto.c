@@ -34,10 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/socket.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <stdint.h>
 
+#include "pjdlog.h"
 #include "proto.h"
 #include "proto_impl.h"
 
@@ -62,7 +62,7 @@ proto_register(struct hast_proto *proto, bool isdefault)
 	if (!isdefault)
 		TAILQ_INSERT_HEAD(&protos, proto, hp_next);
 	else {
-		assert(!seen_default);
+		PJDLOG_ASSERT(!seen_default);
 		seen_default = true;
 		TAILQ_INSERT_TAIL(&protos, proto, hp_next);
 	}
@@ -76,7 +76,7 @@ proto_common_setup(const char *addr, struct proto_conn **connp, int side)
 	void *ctx;
 	int ret;
 
-	assert(side == PROTO_SIDE_CLIENT || side == PROTO_SIDE_SERVER_LISTEN);
+	PJDLOG_ASSERT(side == PROTO_SIDE_CLIENT || side == PROTO_SIDE_SERVER_LISTEN);
 
 	conn = malloc(sizeof(*conn));
 	if (conn == NULL)
@@ -127,10 +127,11 @@ proto_connect(struct proto_conn *conn)
 {
 	int ret;
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_side == PROTO_SIDE_CLIENT);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_side == PROTO_SIDE_CLIENT);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_connect != NULL);
 
 	ret = conn->pc_proto->hp_connect(conn->pc_ctx);
 	if (ret != 0) {
@@ -154,10 +155,11 @@ proto_accept(struct proto_conn *conn, struct proto_conn **newconnp)
 	struct proto_conn *newconn;
 	int ret;
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_side == PROTO_SIDE_SERVER_LISTEN);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_side == PROTO_SIDE_SERVER_LISTEN);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_accept != NULL);
 
 	newconn = malloc(sizeof(*newconn));
 	if (newconn == NULL)
@@ -183,9 +185,10 @@ proto_send(const struct proto_conn *conn, const void *data, size_t size)
 {
 	int ret;
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_send != NULL);
 
 	ret = conn->pc_proto->hp_send(conn->pc_ctx, data, size);
 	if (ret != 0) {
@@ -200,11 +203,48 @@ proto_recv(const struct proto_conn *conn, void *data, size_t size)
 {
 	int ret;
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_recv != NULL);
 
 	ret = conn->pc_proto->hp_recv(conn->pc_ctx, data, size);
+	if (ret != 0) {
+		errno = ret;
+		return (-1);
+	}
+	return (0);
+}
+
+int
+proto_descriptor_send(const struct proto_conn *conn, int fd)
+{
+	int ret;
+
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_descriptor_send != NULL);
+
+	ret = conn->pc_proto->hp_descriptor_send(conn->pc_ctx, fd);
+	if (ret != 0) {
+		errno = ret;
+		return (-1);
+	}
+	return (0);
+}
+
+int
+proto_descriptor_recv(const struct proto_conn *conn, int *fdp)
+{
+	int ret;
+
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_descriptor_recv != NULL);
+
+	ret = conn->pc_proto->hp_descriptor_recv(conn->pc_ctx, fdp);
 	if (ret != 0) {
 		errno = ret;
 		return (-1);
@@ -216,9 +256,10 @@ int
 proto_descriptor(const struct proto_conn *conn)
 {
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_descriptor != NULL);
 
 	return (conn->pc_proto->hp_descriptor(conn->pc_ctx));
 }
@@ -227,9 +268,10 @@ bool
 proto_address_match(const struct proto_conn *conn, const char *addr)
 {
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_address_match != NULL);
 
 	return (conn->pc_proto->hp_address_match(conn->pc_ctx, addr));
 }
@@ -238,9 +280,10 @@ void
 proto_local_address(const struct proto_conn *conn, char *addr, size_t size)
 {
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_local_address != NULL);
 
 	conn->pc_proto->hp_local_address(conn->pc_ctx, addr, size);
 }
@@ -249,9 +292,10 @@ void
 proto_remote_address(const struct proto_conn *conn, char *addr, size_t size)
 {
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_remote_address != NULL);
 
 	conn->pc_proto->hp_remote_address(conn->pc_ctx, addr, size);
 }
@@ -262,9 +306,9 @@ proto_timeout(const struct proto_conn *conn, int timeout)
 	struct timeval tv;
 	int fd;
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
 
 	fd = proto_descriptor(conn);
 	if (fd < 0)
@@ -284,9 +328,10 @@ void
 proto_close(struct proto_conn *conn)
 {
 
-	assert(conn != NULL);
-	assert(conn->pc_magic == PROTO_CONN_MAGIC);
-	assert(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_close != NULL);
 
 	conn->pc_proto->hp_close(conn->pc_ctx);
 	conn->pc_magic = 0;

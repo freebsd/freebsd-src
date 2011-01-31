@@ -28,7 +28,8 @@
 # delete-old-dirs     - Delete obsolete directories.
 # delete-old-files    - Delete obsolete files.
 # delete-old-libs     - Delete obsolete libraries.
-# targets             - Print a list of supported TARGET/TARGET_ARCH pairs.
+# targets             - Print a list of supported TARGET/TARGET_ARCH pairs
+#                       for world and kernel targets.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -125,6 +126,38 @@ BINMAKE= \
 	-m ${.CURDIR}/share/mk
 _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1
 
+# Guess machine architecture from machine type, and vice versa.
+.if !defined(TARGET_ARCH) && defined(TARGET)
+_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
+.elif !defined(TARGET) && defined(TARGET_ARCH) && \
+    ${TARGET_ARCH} != ${MACHINE_ARCH}
+_TARGET=		${TARGET_ARCH:C/mips.*e[lb]/mips/:C/armeb/arm/}
+.endif
+# Legacy names, for a transition period mips:mips -> mipsel:mips
+.if defined(TARGET) && defined(TARGET_ARCH) && \
+    ${TARGET_ARCH} == "mips" && ${TARGET} == "mips"
+.warning "TARGET_ARCH of mips is deprecated in favor of mipsel or mipseb"
+.if defined(TARGET_BIG_ENDIAN)
+_TARGET_ARCH=mipseb
+.else
+_TARGET_ARCH=mipsel
+.endif
+.endif
+# arm with TARGET_BIG_ENDIAN -> armeb
+.if defined(TARGET_ARCH) && ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
+.warning "TARGET_ARCH of arm with TARGET_BIG_ENDIAN is deprecated.  use armeb"
+_TARGET_ARCH=armeb
+.endif
+.if defined(TARGET) && !defined(_TARGET)
+_TARGET=${TARGET}
+.endif
+.if defined(TARGET_ARCH) && !defined(_TARGET_ARCH)
+_TARGET_ARCH=${TARGET_ARCH}
+.endif
+# Otherwise, default to current machine type and architecture.
+_TARGET?=	${MACHINE}
+_TARGET_ARCH?=	${MACHINE_ARCH}
+
 #
 # Make sure we have an up-to-date make(1). Only world and buildworld
 # should do this as those are the initial targets used for upgrades.
@@ -172,8 +205,7 @@ cleanworld:
 #
 
 ${TGTS}:
-	${_+_}@cd ${.CURDIR}; \
-		${_MAKE} ${.TARGET}
+	${_+_}cd ${.CURDIR}; ${_MAKE} TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH} ${.TARGET}
 
 # Set a reasonable default
 .MAIN:	all
@@ -297,7 +329,7 @@ TARGET_ARCHES_${target}?= ${target}
 .endfor
 
 targets:
-	@echo "Supported TARGETS/TARGET_ARCH pairs"
+	@echo "Supported TARGET/TARGET_ARCH pairs for world and kernel targets"
 .for target in ${TARGETS}
 .for target_arch in ${TARGET_ARCHES_${target}}
 	@echo "    ${target}/${target_arch}"

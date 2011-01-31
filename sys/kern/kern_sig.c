@@ -2393,6 +2393,10 @@ ptracestop(struct thread *td, int sig)
 		p->p_xthread = td;
 		p->p_flag |= (P_STOPPED_SIG|P_STOPPED_TRACE);
 		sig_suspend_threads(td, p, 0);
+		if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
+			td->td_dbgflags &= ~TDB_STOPATFORK;
+			cv_broadcast(&p->p_dbgwait);
+		}
 stopme:
 		thread_suspend_switch(td);
 		if (!(p->p_flag & P_TRACED)) {

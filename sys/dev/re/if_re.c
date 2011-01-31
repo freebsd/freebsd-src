@@ -157,8 +157,12 @@ MODULE_DEPEND(re, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
 /* Tunables. */
+static int intr_filter = 0;
+TUNABLE_INT("hw.re.intr_filter", &intr_filter);
 static int msi_disable = 0;
 TUNABLE_INT("hw.re.msi_disable", &msi_disable);
+static int msix_disable = 0;
+TUNABLE_INT("hw.re.msix_disable", &msix_disable);
 static int prefer_iomap = 0;
 TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
 
@@ -173,7 +177,7 @@ static struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8139, 0,
 	    "RealTek 8139C+ 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
-	    "RealTek 8101E/8102E/8102EL/8103E PCIe 10/100baseTX" },
+	    "RealTek 810xE PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
 	    "RealTek 8168/8111 B/C/CP/D/DP/E PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
@@ -213,6 +217,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8102EL, RL_8169, "8102EL", RL_MTU },
 	{ RL_HWREV_8102EL_SPIN1, RL_8169, "8102EL", RL_MTU },
 	{ RL_HWREV_8103E, RL_8169, "8103E", RL_MTU },
+	{ RL_HWREV_8105E, RL_8169, "8105E", RL_MTU },
 	{ RL_HWREV_8168B_SPIN2, RL_8169, "8168", RL_JUMBO_MTU },
 	{ RL_HWREV_8168B_SPIN3, RL_8169, "8168", RL_JUMBO_MTU },
 	{ RL_HWREV_8168C, RL_8169, "8168C/8111C", RL_JUMBO_MTU_6K },
@@ -251,10 +256,11 @@ static int re_poll		(struct ifnet *, enum poll_cmd, int);
 static int re_poll_locked	(struct ifnet *, enum poll_cmd, int);
 #endif
 static int re_intr		(void *);
+static void re_intr_msi		(void *);
 static void re_tick		(void *);
-static void re_tx_task		(void *, int);
 static void re_int_task		(void *, int);
 static void re_start		(struct ifnet *);
+static void re_start_locked	(struct ifnet *);
 static int re_ioctl		(struct ifnet *, u_long, caddr_t);
 static void re_init		(void *);
 static void re_init_locked	(struct rl_softc *);
@@ -288,6 +294,8 @@ static int re_diag		(struct rl_softc *);
 
 static void re_add_sysctls	(struct rl_softc *);
 static int re_sysctl_stats	(SYSCTL_HANDLER_ARGS);
+static int sysctl_int_range	(SYSCTL_HANDLER_ARGS, int, int);
+static int sysctl_hw_re_int_mod	(SYSCTL_HANDLER_ARGS);
 
 static device_method_t re_methods[] = {
 	/* Device interface */
@@ -1176,7 +1184,7 @@ re_attach(device_t dev)
 	int			hwrev;
 	u_int16_t		devid, re_did = 0;
 	int			error = 0, i, phy, rid;
-	int			msic, reg;
+	int			msic, msixc, reg;
 	uint8_t			cfg;
 
 	sc = device_get_softc(dev);
@@ -1226,18 +1234,51 @@ re_attach(device_t dev)
 	sc->rl_btag = rman_get_bustag(sc->rl_res);
 	sc->rl_bhandle = rman_get_bushandle(sc->rl_res);
 
-	msic = 0;
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	msic = pci_msi_count(dev);
+	msixc = pci_msix_count(dev);
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0)
 		sc->rl_flags |= RL_FLAG_PCIE;
-		msic = pci_msi_count(dev);
-		if (bootverbose)
-			device_printf(dev, "MSI count : %d\n", msic);
+	if (bootverbose) {
+		device_printf(dev, "MSI count : %d\n", msic);
+		device_printf(dev, "MSI-X count : %d\n", msixc);
 	}
-	if (msic > 0 && msi_disable == 0) {
+	if (msix_disable > 0)
+		msixc = 0;
+	if (msi_disable > 0)
+		msic = 0;
+	/* Prefer MSI-X to MSI. */
+	if (msixc > 0) {
+		msixc = 1;
+		rid = PCIR_BAR(4);
+		sc->rl_res_pba = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE);
+		if (sc->rl_res_pba == NULL) {
+			device_printf(sc->rl_dev,
+			    "could not allocate MSI-X PBA resource\n");
+		}
+		if (sc->rl_res_pba != NULL &&
+		    pci_alloc_msix(dev, &msixc) == 0) {
+			if (msixc == 1) {
+				device_printf(dev, "Using %d MSI-X message\n",
+				    msixc);
+				sc->rl_flags |= RL_FLAG_MSIX;
+			} else
+				pci_release_msi(dev);
+		}
+		if ((sc->rl_flags & RL_FLAG_MSIX) == 0) {
+			if (sc->rl_res_pba != NULL)
+				bus_release_resource(dev, SYS_RES_MEMORY, rid,
+				    sc->rl_res_pba);
+			sc->rl_res_pba = NULL;
+			msixc = 0;
+		}
+	}
+	/* Prefer MSI to INTx. */
+	if (msixc == 0 && msic > 0) {
 		msic = 1;
 		if (pci_alloc_msi(dev, &msic) == 0) {
 			if (msic == RL_MSI_MESSAGES) {
-				device_printf(dev, "Using %d MSI messages\n",
+				device_printf(dev, "Using %d MSI message\n",
 				    msic);
 				sc->rl_flags |= RL_FLAG_MSI;
 				/* Explicitly set MSI enable bit. */
@@ -1249,10 +1290,12 @@ re_attach(device_t dev)
 			} else
 				pci_release_msi(dev);
 		}
+		if ((sc->rl_flags & RL_FLAG_MSI) == 0)
+			msic = 0;
 	}
 
 	/* Allocate interrupt */
-	if ((sc->rl_flags & RL_FLAG_MSI) == 0) {
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0) {
 		rid = 0;
 		sc->rl_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
@@ -1333,6 +1376,11 @@ re_attach(device_t dev)
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR | RL_FLAG_DESCV2 |
 		    RL_FLAG_MACSTAT | RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_MACSLEEP;
+		break;
+	case RL_HWREV_8105E:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD;
 		break;
 	case RL_HWREV_8168B_SPIN1:
 	case RL_HWREV_8168B_SPIN2:
@@ -1487,7 +1535,6 @@ re_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = RL_IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	TASK_INIT(&sc->rl_txtask, 1, re_tx_task, ifp);
 	TASK_INIT(&sc->rl_inttask, 0, re_int_task, sc);
 
 	/*
@@ -1504,14 +1551,12 @@ re_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 	/*
-	 * Don't enable TSO by default for old controllers. Under
-	 * certain circumtances the controller generated corrupted
-	 * packets in TSO size.
+	 * Don't enable TSO by default.  It is known to generate
+	 * corrupted TCP segments(bad TCP options) under certain
+	 * circumtances.
 	 */
-	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
-		ifp->if_hwassist &= ~CSUM_TSO;
-		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
-	}
+	ifp->if_hwassist &= ~CSUM_TSO;
+	ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -1540,19 +1585,19 @@ re_attach(device_t dev)
 	}
 #endif
 
+#ifdef RE_TX_MODERATION
+	intr_filter = 1;
+#endif
 	/* Hook interrupt last to avoid having to lock softc */
-	if ((sc->rl_flags & RL_FLAG_MSI) == 0)
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) != 0 &&
+	    intr_filter == 0) {
+		error = bus_setup_intr(dev, sc->rl_irq[0],
+		    INTR_TYPE_NET | INTR_MPSAFE, NULL, re_intr_msi, sc,
+		    &sc->rl_intrhand[0]);
+	} else {
 		error = bus_setup_intr(dev, sc->rl_irq[0],
 		    INTR_TYPE_NET | INTR_MPSAFE, re_intr, NULL, sc,
 		    &sc->rl_intrhand[0]);
-	else {
-		for (i = 0; i < RL_MSI_MESSAGES; i++) {
-			error = bus_setup_intr(dev, sc->rl_irq[i],
-			    INTR_TYPE_NET | INTR_MPSAFE, re_intr, NULL, sc,
-		    	    &sc->rl_intrhand[i]);
-			if (error != 0)
-				break;
-		}
 	}
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
@@ -1599,7 +1644,6 @@ re_detach(device_t dev)
 		RL_UNLOCK(sc);
 		callout_drain(&sc->rl_stat_callout);
 		taskqueue_drain(taskqueue_fast, &sc->rl_inttask);
-		taskqueue_drain(taskqueue_fast, &sc->rl_txtask);
 		/*
 		 * Force off the IFF_UP flag here, in case someone
 		 * still had a BPF descriptor attached to this
@@ -1624,30 +1668,25 @@ re_detach(device_t dev)
 	 * stopped here.
 	 */
 
-	for (i = 0; i < RL_MSI_MESSAGES; i++) {
-		if (sc->rl_intrhand[i] != NULL) {
-			bus_teardown_intr(dev, sc->rl_irq[i],
-			    sc->rl_intrhand[i]);
-			sc->rl_intrhand[i] = NULL;
-		}
+	if (sc->rl_intrhand[0] != NULL) {
+		bus_teardown_intr(dev, sc->rl_irq[0], sc->rl_intrhand[0]);
+		sc->rl_intrhand[0] = NULL;
 	}
 	if (ifp != NULL)
 		if_free(ifp);
-	if ((sc->rl_flags & RL_FLAG_MSI) == 0) {
-		if (sc->rl_irq[0] != NULL) {
-			bus_release_resource(dev, SYS_RES_IRQ, 0,
-			    sc->rl_irq[0]);
-			sc->rl_irq[0] = NULL;
-		}
-	} else {
-		for (i = 0, rid = 1; i < RL_MSI_MESSAGES; i++, rid++) {
-			if (sc->rl_irq[i] != NULL) {
-				bus_release_resource(dev, SYS_RES_IRQ, rid,
-				    sc->rl_irq[i]);
-				sc->rl_irq[i] = NULL;
-			}
-		}
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0)
+		rid = 0;
+	else
+		rid = 1;
+	if (sc->rl_irq[0] != NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->rl_irq[0]);
+		sc->rl_irq[0] = NULL;
+	}
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) != 0)
 		pci_release_msi(dev);
+	if (sc->rl_res_pba) {
+		rid = PCIR_BAR(4);
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->rl_res_pba);
 	}
 	if (sc->rl_res)
 		bus_release_resource(dev, sc->rl_res_type, sc->rl_res_id,
@@ -1933,6 +1972,7 @@ re_rx_list_init(struct rl_softc *sc)
 
 	sc->rl_ldata.rl_rx_prodidx = 0;
 	sc->rl_head = sc->rl_tail = NULL;
+	sc->rl_int_rx_act = 0;
 
 	return (0);
 }
@@ -1956,6 +1996,7 @@ re_jrx_list_init(struct rl_softc *sc)
 
 	sc->rl_ldata.rl_rx_prodidx = 0;
 	sc->rl_head = sc->rl_tail = NULL;
+	sc->rl_int_rx_act = 0;
 
 	return (0);
 }
@@ -2326,7 +2367,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	re_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		re_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
 		u_int16_t       status;
@@ -2429,7 +2470,7 @@ re_int_task(void *arg, int npending)
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		re_start_locked(ifp);
 
 	RL_UNLOCK(sc);
 
@@ -2439,6 +2480,87 @@ re_int_task(void *arg, int npending)
 	}
 
 	CSR_WRITE_2(sc, RL_IMR, RL_INTRS_CPLUS);
+}
+
+static void
+re_intr_msi(void *xsc)
+{
+	struct rl_softc		*sc;
+	struct ifnet		*ifp;
+	uint16_t		intrs, status;
+
+	sc = xsc;
+	RL_LOCK(sc);
+
+	ifp = sc->rl_ifp;
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		RL_UNLOCK(sc);
+		return;
+	}
+#endif
+	/* Disable interrupts. */
+	CSR_WRITE_2(sc, RL_IMR, 0);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		RL_UNLOCK(sc);
+		return;
+	}
+
+	intrs = RL_INTRS_CPLUS;
+	status = CSR_READ_2(sc, RL_ISR);
+        CSR_WRITE_2(sc, RL_ISR, status);
+	if (sc->rl_int_rx_act > 0) {
+		intrs &= ~(RL_ISR_RX_OK | RL_ISR_RX_ERR | RL_ISR_FIFO_OFLOW |
+		    RL_ISR_RX_OVERRUN);
+		status &= ~(RL_ISR_RX_OK | RL_ISR_RX_ERR | RL_ISR_FIFO_OFLOW |
+		    RL_ISR_RX_OVERRUN);
+	}
+
+	if (status & (RL_ISR_TIMEOUT_EXPIRED | RL_ISR_RX_OK | RL_ISR_RX_ERR |
+	    RL_ISR_FIFO_OFLOW | RL_ISR_RX_OVERRUN)) {
+		re_rxeof(sc, NULL);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			if (sc->rl_int_rx_mod != 0 &&
+			    (status & (RL_ISR_RX_OK | RL_ISR_RX_ERR |
+			    RL_ISR_FIFO_OFLOW | RL_ISR_RX_OVERRUN)) != 0) {
+				/* Rearm one-shot timer. */
+				CSR_WRITE_4(sc, RL_TIMERCNT, 1);
+				intrs &= ~(RL_ISR_RX_OK | RL_ISR_RX_ERR |
+				    RL_ISR_FIFO_OFLOW | RL_ISR_RX_OVERRUN);
+				sc->rl_int_rx_act = 1;
+			} else {
+				intrs |= RL_ISR_RX_OK | RL_ISR_RX_ERR |
+				    RL_ISR_FIFO_OFLOW | RL_ISR_RX_OVERRUN;
+				sc->rl_int_rx_act = 0;
+			}
+		}
+	}
+
+	/*
+	 * Some chips will ignore a second TX request issued
+	 * while an existing transmission is in progress. If
+	 * the transmitter goes idle but there are still
+	 * packets waiting to be sent, we need to restart the
+	 * channel here to flush them out. This only seems to
+	 * be required with the PCIe devices.
+	 */
+	if ((status & (RL_ISR_TX_OK | RL_ISR_TX_DESC_UNAVAIL)) &&
+	    (sc->rl_flags & RL_FLAG_PCIE))
+		CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
+	if (status & (RL_ISR_TX_OK | RL_ISR_TX_ERR | RL_ISR_TX_DESC_UNAVAIL))
+		re_txeof(sc);
+
+	if (status & RL_ISR_SYSTEM_ERR) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		re_init_locked(sc);
+	}
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			re_start_locked(ifp);
+		CSR_WRITE_2(sc, RL_IMR, intrs);
+	}
+	RL_UNLOCK(sc);
 }
 
 static int
@@ -2634,19 +2756,21 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 }
 
 static void
-re_tx_task(void *arg, int npending)
+re_start(struct ifnet *ifp)
 {
-	struct ifnet		*ifp;
+	struct rl_softc		*sc;
 
-	ifp = arg;
-	re_start(ifp);
+	sc = ifp->if_softc;
+	RL_LOCK(sc);
+	re_start_locked(ifp);
+	RL_UNLOCK(sc);
 }
 
 /*
  * Main transmit routine for C+ and gigE NICs.
  */
 static void
-re_start(struct ifnet *ifp)
+re_start_locked(struct ifnet *ifp)
 {
 	struct rl_softc		*sc;
 	struct mbuf		*m_head;
@@ -2654,13 +2778,9 @@ re_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	RL_LOCK(sc);
-
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0) {
-		RL_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0)
 		return;
-	}
 
 	for (queued = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
 	    sc->rl_ldata.rl_tx_free > 1;) {
@@ -2690,7 +2810,6 @@ re_start(struct ifnet *ifp)
 		if (sc->rl_ldata.rl_tx_free != sc->rl_ldata.rl_tx_desc_cnt)
 			CSR_WRITE_4(sc, RL_TIMERCNT, 1);
 #endif
-		RL_UNLOCK(sc);
 		return;
 	}
 
@@ -2718,8 +2837,6 @@ re_start(struct ifnet *ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	sc->rl_watchdog_timer = 5;
-
-	RL_UNLOCK(sc);
 }
 
 static void
@@ -2975,18 +3092,35 @@ re_init_locked(struct rl_softc *sc)
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
 #endif
 
-#ifdef RE_TX_MODERATION
 	/*
 	 * Initialize the timer interrupt register so that
 	 * a timer interrupt will be generated once the timer
 	 * reaches a certain number of ticks. The timer is
-	 * reloaded on each transmit. This gives us TX interrupt
+	 * reloaded on each transmit.
+	 */
+#ifdef RE_TX_MODERATION
+	/*
+	 * Use timer interrupt register to moderate TX interrupt
 	 * moderation, which dramatically improves TX frame rate.
 	 */
 	if (sc->rl_type == RL_8169)
 		CSR_WRITE_4(sc, RL_TIMERINT_8169, 0x800);
 	else
 		CSR_WRITE_4(sc, RL_TIMERINT, 0x400);
+#else
+	/*
+	 * Use timer interrupt register to moderate RX interrupt
+	 * moderation.
+	 */
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) != 0 &&
+	    intr_filter == 0) {
+		if (sc->rl_type == RL_8169)
+			CSR_WRITE_4(sc, RL_TIMERINT_8169,
+			    RL_USECS(sc->rl_int_rx_mod));
+	} else {
+		if (sc->rl_type == RL_8169)
+			CSR_WRITE_4(sc, RL_TIMERINT_8169, RL_USECS(0));
+	}
 #endif
 
 	/*
@@ -3239,7 +3373,7 @@ re_watchdog(struct rl_softc *sc)
 		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
 		    "-- recovering\n");
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+			re_start_locked(ifp);
 		return;
 	}
 
@@ -3250,7 +3384,7 @@ re_watchdog(struct rl_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	re_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		re_start_locked(ifp);
 }
 
 /*
@@ -3503,6 +3637,7 @@ re_add_sysctls(struct rl_softc *sc)
 {
 	struct sysctl_ctx_list	*ctx;
 	struct sysctl_oid_list	*children;
+	int			error;
 
 	ctx = device_get_sysctl_ctx(sc->rl_dev);
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->rl_dev));
@@ -3510,6 +3645,26 @@ re_add_sysctls(struct rl_softc *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "stats",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, re_sysctl_stats, "I",
 	    "Statistics Information");
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0)
+		return;
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "int_rx_mod",
+	    CTLTYPE_INT | CTLFLAG_RW, &sc->rl_int_rx_mod, 0,
+	    sysctl_hw_re_int_mod, "I", "re RX interrupt moderation");
+	/* Pull in device tunables. */
+	sc->rl_int_rx_mod = RL_TIMER_DEFAULT;
+	error = resource_int_value(device_get_name(sc->rl_dev),
+	    device_get_unit(sc->rl_dev), "int_rx_mod", &sc->rl_int_rx_mod);
+	if (error == 0) {
+		if (sc->rl_int_rx_mod < RL_TIMER_MIN ||
+		    sc->rl_int_rx_mod > RL_TIMER_MAX) {
+			device_printf(sc->rl_dev, "int_rx_mod value out of "
+			    "range; using default: %d\n",
+			    RL_TIMER_DEFAULT);
+			sc->rl_int_rx_mod = RL_TIMER_DEFAULT;
+		}
+	}
+
 }
 
 static int
@@ -3586,4 +3741,30 @@ done:
 	}
 
 	return (error);
+}
+
+static int
+sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high)
+{
+	int error, value;
+
+	if (arg1 == NULL)
+		return (EINVAL);
+	value = *(int *)arg1;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	if (value < low || value > high)
+		return (EINVAL);
+	*(int *)arg1 = value;
+
+	return (0);
+}
+
+static int
+sysctl_hw_re_int_mod(SYSCTL_HANDLER_ARGS)
+{
+
+	return (sysctl_int_range(oidp, arg1, arg2, req, RL_TIMER_MIN,
+	    RL_TIMER_MAX));
 }

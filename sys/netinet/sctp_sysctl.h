@@ -43,7 +43,7 @@ struct sctp_sysctl {
 	uint32_t sctp_auto_asconf;
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
-	uint32_t sctp_ecn_nonce;
+	uint32_t sctp_not_used;
 	uint32_t sctp_strict_sacks;
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint32_t sctp_no_csum_on_loopback;
@@ -152,12 +152,6 @@ struct sctp_sysctl {
 #define SCTPCTL_ECN_ENABLE_MAX		1
 #define SCTPCTL_ECN_ENABLE_DEFAULT	1
 
-/* ecn_nonce: Enable SCTP ECN Nonce */
-#define SCTPCTL_ECN_NONCE_DESC		"Enable SCTP ECN Nonce"
-#define SCTPCTL_ECN_NONCE_MIN		0
-#define SCTPCTL_ECN_NONCE_MAX		1
-#define SCTPCTL_ECN_NONCE_DEFAULT	0
-
 /* strict_sacks: Enable SCTP Strict SACK checking */
 #define SCTPCTL_STRICT_SACKS_DESC	"Enable SCTP Strict SACK checking"
 #define SCTPCTL_STRICT_SACKS_MIN	0
@@ -184,7 +178,7 @@ struct sctp_sysctl {
 
 /* maxburst: Default max burst for sctp endpoints */
 #define SCTPCTL_MAXBURST_DESC		"Default max burst for sctp endpoints"
-#define SCTPCTL_MAXBURST_MIN		1
+#define SCTPCTL_MAXBURST_MIN		0
 #define SCTPCTL_MAXBURST_MAX		0xFFFFFFFF
 #define SCTPCTL_MAXBURST_DEFAULT	SCTP_DEF_MAX_BURST
 

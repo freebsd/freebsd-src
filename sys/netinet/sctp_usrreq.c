@@ -1967,14 +1967,21 @@ flags_out:
 		break;
 	case SCTP_MAX_BURST:
 		{
-			uint8_t *value;
+			struct sctp_assoc_value *av;
 
-			SCTP_CHECK_AND_CAST(value, optval, uint8_t, *optsize);
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, *optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 
-			SCTP_INP_RLOCK(inp);
-			*value = inp->sctp_ep.max_burst;
-			SCTP_INP_RUNLOCK(inp);
-			*optsize = sizeof(uint8_t);
+			if (stcb) {
+				av->assoc_value = stcb->asoc.max_burst;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				SCTP_INP_RLOCK(inp);
+				av->assoc_value = inp->sctp_ep.max_burst;
+				SCTP_INP_RUNLOCK(inp);
+			}
+			*optsize = sizeof(struct sctp_assoc_value);
+
 		}
 		break;
 	case SCTP_MAXSEG:
@@ -3586,15 +3593,19 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 		break;
 	case SCTP_MAX_BURST:
 		{
-			uint8_t *burst;
+			struct sctp_assoc_value *av;
 
-			SCTP_CHECK_AND_CAST(burst, optval, uint8_t, optsize);
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 
-			SCTP_INP_WLOCK(inp);
-			if (*burst) {
-				inp->sctp_ep.max_burst = *burst;
+			if (stcb) {
+				stcb->asoc.max_burst = av->assoc_value;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				SCTP_INP_WLOCK(inp);
+				inp->sctp_ep.max_burst = av->assoc_value;
+				SCTP_INP_WUNLOCK(inp);
 			}
-			SCTP_INP_WUNLOCK(inp);
 		}
 		break;
 	case SCTP_MAXSEG:

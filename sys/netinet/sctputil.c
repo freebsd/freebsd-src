@@ -971,7 +971,6 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->last_net_cmt_send_started = NULL;
 
 	/* This will need to be adjusted */
-	asoc->last_cwr_tsn = asoc->init_seq_number - 1;
 	asoc->last_acked_seq = asoc->init_seq_number - 1;
 	asoc->advanced_peer_ack_point = asoc->last_acked_seq;
 	asoc->asconf_seq_in = asoc->last_acked_seq;
@@ -988,16 +987,9 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->free_chunk_cnt = 0;
 
 	asoc->iam_blocking = 0;
-	/* ECN Nonce initialization */
+
 	asoc->context = m->sctp_context;
 	asoc->def_send = m->def_send;
-	asoc->ecn_nonce_allowed = 0;
-	asoc->receiver_nonce_sum = 1;
-	asoc->nonce_sum_expect_base = 1;
-	asoc->nonce_sum_check = 1;
-	asoc->nonce_resync_tsn = 0;
-	asoc->nonce_wait_for_ecne = 0;
-	asoc->nonce_wait_tsn = 0;
 	asoc->delayed_ack = TICKS_TO_MSEC(m->sctp_ep.sctp_timeoutticks[SCTP_TIMER_RECV]);
 	asoc->sack_freq = m->sctp_ep.sctp_sack_freq;
 	asoc->pr_sctp_cnt = 0;
@@ -2500,6 +2492,13 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/************************/
 	/* get the current time */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
+
+	/*
+	 * Record the real time of the last RTT for use in DC-CC.
+	 */
+	net->last_measured_rtt = now;
+	timevalsub(&net->last_measured_rtt, old);
+
 	/* compute the RTT value */
 	if ((u_long)now.tv_sec > (u_long)old->tv_sec) {
 		calc_time = ((u_long)now.tv_sec - (u_long)old->tv_sec) * 1000;

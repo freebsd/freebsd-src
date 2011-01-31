@@ -56,12 +56,11 @@ __FBSDID("$FreeBSD$");
  * Mambo interface
  */
 static int	openpic_mambo_probe(device_t);
-static uint32_t	openpic_mambo_id(device_t dev);
+static int	openpic_mambo_attach(device_t);
 static int	openpicbus_mambo_probe(device_t dev);
 static int	openpicbus_mambo_attach(device_t dev);
-static struct resource *openpicbus_alloc_resource(device_t bus, device_t dev, 
-		    int type, int *rid, u_long start, u_long end, u_long count, 
-		    u_int flags);
+static struct resource *openpicbus_alloc_resource(device_t bus, device_t dev,
+    int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
 
 static device_method_t  openpicbus_mambo_methods[] = {
 	/* Device interface */
@@ -87,7 +86,7 @@ static driver_t openpicbus_mambo_driver = {
 static device_method_t  openpic_mambo_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		openpic_mambo_probe),
-	DEVMETHOD(device_attach,	openpic_attach),
+	DEVMETHOD(device_attach,	openpic_mambo_attach),
 
 	/* PIC interface */
 	DEVMETHOD(pic_config,		openpic_config),
@@ -97,7 +96,6 @@ static device_method_t  openpic_mambo_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_unmask),
-	DEVMETHOD(pic_id,		openpic_mambo_id),
 
 	{ 0, 0 },
 };
@@ -167,14 +165,15 @@ openpicbus_alloc_resource(device_t bus, device_t dev, int type, int *rid,
 static int
 openpic_mambo_probe(device_t dev)
 {
+
 	device_set_desc(dev, OPENPIC_DEVSTR);
-	
 	return (0);
 }
 
-static uint32_t
-openpic_mambo_id(device_t dev)
+static int
+openpic_mambo_attach(device_t dev)
 {
-	return (ofw_bus_get_node(device_get_parent(dev)));
+ 
+	return (openpic_common_attach(dev,
+	    ofw_bus_get_node(device_get_parent(dev))));
 }
-

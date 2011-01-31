@@ -163,7 +163,7 @@ sctp_send_packet_dropped(struct sctp_tcb *, struct sctp_nets *, struct mbuf *,
 
 
 
-void sctp_send_cwr(struct sctp_tcb *, struct sctp_nets *, uint32_t);
+void sctp_send_cwr(struct sctp_tcb *, struct sctp_nets *, uint32_t, uint8_t);
 
 
 void
