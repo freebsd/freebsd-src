@@ -33,11 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <strings.h>
 
+#include "pjdlog.h"
 #include "proto_impl.h"
 
 /* Maximum size of packet we want to use when sending data. */
@@ -50,6 +50,10 @@ proto_common_send(int fd, const unsigned char *data, size_t size)
 {
 	ssize_t done;
 	size_t sendsize;
+
+	PJDLOG_ASSERT(fd >= 0);
+	PJDLOG_ASSERT(data != NULL);
+	PJDLOG_ASSERT(size > 0);
 
 	do {
 		sendsize = size < MAX_SEND_SIZE ? size : MAX_SEND_SIZE;
@@ -72,6 +76,10 @@ int
 proto_common_recv(int fd, unsigned char *data, size_t size)
 {
 	ssize_t done;
+
+	PJDLOG_ASSERT(fd >= 0);
+	PJDLOG_ASSERT(data != NULL);
+	PJDLOG_ASSERT(size > 0);
 
 	do {
 		done = recv(fd, data, size, MSG_WAITALL);
