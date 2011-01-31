@@ -934,19 +934,6 @@ start_again:
 			}
 		}
 	}
-	/*
-	 * Setup the ecn nonce re-sync point. We do this since
-	 * retranmissions are NOT setup for ECN. This means that do to
-	 * Karn's rule, we don't know the total of the peers ecn bits.
-	 */
-	chk = TAILQ_FIRST(&stcb->asoc.send_queue);
-	if (chk == NULL) {
-		stcb->asoc.nonce_resync_tsn = stcb->asoc.sending_seq;
-	} else {
-		stcb->asoc.nonce_resync_tsn = chk->rec.data.TSN_seq;
-	}
-	stcb->asoc.nonce_wait_for_ecne = 0;
-	stcb->asoc.nonce_sum_check = 0;
 	/* We return 1 if we only have a window probe outstanding */
 	return (0);
 }
@@ -1144,11 +1131,6 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		lchk = sctp_try_advance_peer_ack_point(stcb, &stcb->asoc);
 		/* C3. See if we need to send a Fwd-TSN */
 		if (SCTP_TSN_GT(stcb->asoc.advanced_peer_ack_point, stcb->asoc.last_acked_seq)) {
-			/*
-			 * ISSUE with ECN, see FWD-TSN processing for notes
-			 * on issues that will occur when the ECN NONCE
-			 * stuff is put into SCTP for cross checking.
-			 */
 			send_forward_tsn(stcb, &stcb->asoc);
 			if (lchk) {
 				/* Assure a timer is up */
