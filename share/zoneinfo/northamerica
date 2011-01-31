@@ -1,5 +1,5 @@
 # <pre>
-# @(#)northamerica	8.34
+# %W%
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -471,20 +471,50 @@ Zone America/Adak	 12:13:21 -	LMT	1867 Oct 18
 #  three votes for and one against."
 
 # Hawaii
+
+# From Arthur David Olson (2010-12-09):
+# "Hawaiian Time" by Robert C. Schmitt and Doak C. Cox appears on pages 207-225
+# of volume 26 of The Hawaiian Journal of History (1992). As of 2010-12-09,
+# the article is available at
+# <a href="http://evols.library.manoa.hawaii.edu/bitstream/10524/239/2/JL26215.pdf">
+# http://evols.library.manoa.hawaii.edu/bitstream/10524/239/2/JL26215.pdf
+# </a>
+# and indicates that standard time was adopted effective noon, January
+# 13, 1896 (page 218), that in "1933, the Legislature decreed daylight
+# saving for the period between the last Sunday of each April and the
+# last Sunday of each September, but less than a month later repealed the
+# act," (page 220), that year-round daylight saving time was in effect
+# from 1942-02-09 to 1945-09-30 (page 221, with no time of day given for
+# when clocks changed) and that clocks were changed by 30 minutes
+# effective the second Sunday of June, 1947 (page 219, with no time of
+# day given for when clocks changed). A footnote for the 1933 changes
+# cites Session Laws of Hawaii 1933, "Act. 90 (approved 26 Apr. 1933)
+# and Act 163 (approved 21 May 1933)."
+
+# From Arthur David Olson (2011-01-19):
+# The following is from "Laws of the Territory of Hawaii Passed by the
+# Seventeenth Legislature: Regular Session 1933," available (as of
+# 2011-01-19) at American University's Pence Law Library. Page 85: "Act
+# 90...At 2 o'clock ante meridian of the last Sunday in April of each
+# year, the standard time of this Territory shall be advanced one
+# hour...This Act shall take effect upon its approval. Approved this 26th
+# day of April, A. D. 1933. LAWRENCE M JUDD, Governor of the Territory of
+# Hawaii." Page 172:  "Act 163...Act 90 of the Session Laws of 1933 is
+# hereby repealed...This Act shall take effect upon its approval, upon
+# which date the standard time of this Territory shall be restored to
+# that existing immediately prior to the taking effect of said Act 90.
+# Approved this 21st day of May, A. D. 1933. LAWRENCE M. JUDD, Governor
+# of the Territory of Hawaii."
 #
-# From Arthur David Olson:
-# And then there's Hawaii.
-# DST was observed for one day in 1933;
-# standard time was changed by half an hour in 1947;
-# it's always standard as of 1986.
-#
-# From Paul Eggert:
-# Shanks says the 1933 experiment lasted for three weeks.  Go with Shanks.
-#
-Zone Pacific/Honolulu	-10:31:26 -	LMT	1900 Jan  1 12:00
-			-10:30	-	HST	1933 Apr 30 2:00
-			-10:30	1:00	HDT	1933 May 21 2:00
-			-10:30	US	H%sT	1947 Jun  8 2:00
+# Note that 1933-05-21 was a Sunday.
+# We're left to guess the time of day when Act 163 was approved; guess noon.
+
+Zone Pacific/Honolulu	-10:31:26 -	LMT	1896 Jan 13 12:00 #Schmitt&Cox
+			-10:30	-	HST	1933 Apr 30 2:00 #Laws 1933
+			-10:30	1:00	HDT	1933 May 21 12:00 #Laws 1933+12
+			-10:30	-	HST	1942 Feb 09 2:00 #Schmitt&Cox+2
+			-10:30	1:00	HDT	1945 Sep 30 2:00 #Schmitt&Fox+2
+			-10:30	US	H%sT	1947 Jun  8 2:00 #Schmitt&Fox+2
 			-10:00	-	HST
 
 # Now we turn to US areas that have diverged from the consensus since 1970.
