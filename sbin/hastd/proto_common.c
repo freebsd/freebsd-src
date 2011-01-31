@@ -113,7 +113,7 @@ proto_common_descriptor_send(int sock, int fd)
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_RIGHTS;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
-//	*((int *)CMSG_DATA(cmsg)) = fd;
+	bcopy(&fd, CMSG_DATA(cmsg), sizeof(fd));
 
 	if (sendmsg(sock, &msg, 0) == -1)
 		return (errno);
@@ -142,14 +142,12 @@ proto_common_descriptor_recv(int sock, int *fdp)
 	if (recvmsg(sock, &msg, 0) == -1)
 		return (errno);
 
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
-	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level == SOL_SOCKET &&
-		    cmsg->cmsg_type == SCM_RIGHTS) {
-//			*fdp = *((int *)CMSG_DATA(cmsg));
-			return (0);
-		}
+	cmsg = CMSG_FIRSTHDR(&msg);
+	if (cmsg->cmsg_level != SOL_SOCKET ||
+	    cmsg->cmsg_type == SCM_RIGHTS) {
+		return (EINVAL);
 	}
+	bcopy(CMSG_DATA(cmsg), fdp, sizeof(*fdp));
 
-	return (ENOENT);
+	return (0);
 }
