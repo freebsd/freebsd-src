@@ -227,7 +227,6 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 |= (flags & HAL_TXDESC_CTSENA ? AR_CTSEnable : 0)
 			     | (flags & HAL_TXDESC_RTSENA ? AR_RTSEnable : 0)
 			     ;
-		ads->ds_ctl2 |= SM(rtsctsDuration, AR_BurstDur);
 		ads->ds_ctl7 |= (rtsctsRate << AR_RTSCTSRate_S);
 	}
 
@@ -421,7 +420,6 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/* XXX validate rtsctsDuration */
 		ads->ds_ctl0 |= (flags & HAL_TXDESC_CTSENA ? AR_CTSEnable : 0)
 			| (flags & HAL_TXDESC_RTSENA ? AR_RTSEnable : 0);
-		ads->ds_ctl2 |= SM(rtsctsDuration, AR_BurstDur);
 	}
 
 	if (AR_SREV_KITE(ah)) {
