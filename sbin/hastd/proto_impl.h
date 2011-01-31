@@ -45,6 +45,8 @@ typedef int hp_server_t(const char *, void **);
 typedef int hp_accept_t(void *, void **);
 typedef int hp_send_t(void *, const unsigned char *, size_t);
 typedef int hp_recv_t(void *, unsigned char *, size_t);
+typedef int hp_descriptor_send_t(void *, int);
+typedef int hp_descriptor_recv_t(void *, int *);
 typedef int hp_descriptor_t(const void *);
 typedef bool hp_address_match_t(const void *, const char *);
 typedef void hp_local_address_t(const void *, char *, size_t);
@@ -59,6 +61,8 @@ struct hast_proto {
 	hp_accept_t	*hp_accept;
 	hp_send_t	*hp_send;
 	hp_recv_t	*hp_recv;
+	hp_descriptor_send_t *hp_descriptor_send;
+	hp_descriptor_recv_t *hp_descriptor_recv;
 	hp_descriptor_t	*hp_descriptor;
 	hp_address_match_t *hp_address_match;
 	hp_local_address_t *hp_local_address;
@@ -69,7 +73,9 @@ struct hast_proto {
 
 void proto_register(struct hast_proto *proto, bool isdefault);
 
-int proto_common_send(int fd, const unsigned char *data, size_t size);
-int proto_common_recv(int fd, unsigned char *data, size_t size);
+int proto_common_send(int sock, const unsigned char *data, size_t size);
+int proto_common_recv(int sock, unsigned char *data, size_t size);
+int proto_common_descriptor_send(int sock, int fd);
+int proto_common_descriptor_recv(int sock, int *fdp);
 
 #endif	/* !_PROTO_IMPL_H_ */
