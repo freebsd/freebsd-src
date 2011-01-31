@@ -603,57 +603,6 @@ g_raid_orphan(struct g_consumer *cp)
 	    G_RAID_EVENT_DISK);
 }
 
-#if 0
-static void
-g_raid_bump_syncid(struct g_raid_softc *sc)
-{
-#if 0
-	struct g_raid_disk *disk;
-
-	g_topology_assert_not();
-	sx_assert(&sc->sc_lock, SX_XLOCKED);
-	KASSERT(g_raid_ndisks(sc, G_RAID_SUBDISK_S_ACTIVE) > 0,
-	    ("%s called with no active disks (device=%s).", __func__,
-	    sc->sc_name));
-
-	sc->sc_syncid++;
-	G_RAID_DEBUG(1, "Device %s: syncid bumped to %u.", sc->sc_name,
-	    sc->sc_syncid);
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_state == G_RAID_DISK_S_ACTIVE ||
-		    disk->d_state == G_RAID_DISK_S_SYNCHRONIZING) {
-//			g_raid_update_metadata(disk);
-		}
-	}
-#endif
-}
-
-static void
-g_raid_bump_genid(struct g_raid_softc *sc)
-{
-#if 0
-	struct g_raid_disk *disk;
-
-	g_topology_assert_not();
-	sx_assert(&sc->sc_lock, SX_XLOCKED);
-	KASSERT(g_raid_ndisks(sc, G_RAID_SUBDISK_S_ACTIVE) > 0,
-	    ("%s called with no active disks (device=%s).", __func__,
-	    sc->sc_name));
-
-	sc->sc_genid++;
-	G_RAID_DEBUG(1, "Device %s: genid bumped to %u.", sc->sc_name,
-	    sc->sc_genid);
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_state == G_RAID_DISK_S_ACTIVE ||
-		    disk->d_state == G_RAID_DISK_S_SYNCHRONIZING) {
-			disk->d_genid = sc->sc_genid;
-//			g_raid_update_metadata(disk);
-		}
-	}
-#endif
-}
-#endif
-
 static int
 g_raid_idle(struct g_raid_volume *vol, int acw)
 {
