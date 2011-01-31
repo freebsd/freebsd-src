@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/stat.h>
 
-#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -248,7 +247,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		 * there is no need to synchronize anything. If primary node
 		 * done any writes already we have to synchronize everything.
 		 */
-		assert(res->hr_secondary_localcnt == 0);
+		PJDLOG_ASSERT(res->hr_secondary_localcnt == 0);
 		res->hr_resuid = resuid;
 		if (metadata_write(res) < 0)
 			exit(EX_NOINPUT);
@@ -307,7 +306,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		 * This should never happen in practise, but we will perform
 		 * full synchronization.
 		 */
-		assert(res->hr_secondary_localcnt < res->hr_primary_remotecnt ||
+		PJDLOG_ASSERT(res->hr_secondary_localcnt < res->hr_primary_remotecnt ||
 		    res->hr_primary_localcnt < res->hr_secondary_remotecnt);
 		mapsize = activemap_calc_ondisk_size(res->hr_local_mediasize -
 		    METADATA_SIZE, res->hr_extentsize,
@@ -425,15 +424,15 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	 * request response.
 	 */
 	error = pthread_create(&td, NULL, ctrl_thread, res);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 
 	init_remote(res, nvin);
 	event_send(res, EVENT_CONNECT);
 
 	error = pthread_create(&td, NULL, recv_thread, res);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 	error = pthread_create(&td, NULL, disk_thread, res);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 	(void)send_thread(res);
 }
 
@@ -555,7 +554,7 @@ secondary_exit(int exitcode, const char *fmt, ...)
 {
 	va_list ap;
 
-	assert(exitcode != EX_OK);
+	PJDLOG_ASSERT(exitcode != EX_OK);
 	va_start(ap, fmt);
 	pjdlogv_errno(LOG_ERR, fmt, ap);
 	va_end(ap);

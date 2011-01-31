@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
@@ -51,7 +50,8 @@ provinfo(struct hast_resource *res, bool dowrite)
 {
 	struct stat sb;
 
-	assert(res->hr_localpath != NULL && res->hr_localpath[0] != '\0');
+	PJDLOG_ASSERT(res->hr_localpath != NULL &&
+	    res->hr_localpath[0] != '\0');
 
 	if (res->hr_localfd == -1) {
 		res->hr_localfd = open(res->hr_localpath,

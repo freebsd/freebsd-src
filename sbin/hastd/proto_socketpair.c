@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -42,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "hast.h"
+#include "pjdlog.h"
 #include "proto_impl.h"
 
 #define	SP_CTX_MAGIC	0x50c3741
@@ -83,40 +83,13 @@ sp_client(const char *addr, void **ctxp)
 }
 
 static int
-sp_connect(void *ctx __unused)
-{
-
-	assert(!"proto_connect() not supported on socketpairs");
-	abort();
-}
-
-static int
-sp_server(const char *addr, void **ctxp __unused)
-{
-
-	if (strcmp(addr, "socketpair://") != 0)
-		return (-1);
-
-	assert(!"proto_server() not supported on socketpairs");
-	abort();
-}
-
-static int
-sp_accept(void *ctx __unused, void **newctxp __unused)
-{
-
-	assert(!"proto_server() not supported on socketpairs");
-	abort();
-}
-
-static int
 sp_send(void *ctx, const unsigned char *data, size_t size)
 {
 	struct sp_ctx *spctx = ctx;
 	int fd;
 
-	assert(spctx != NULL);
-	assert(spctx->sp_magic == SP_CTX_MAGIC);
+	PJDLOG_ASSERT(spctx != NULL);
+	PJDLOG_ASSERT(spctx->sp_magic == SP_CTX_MAGIC);
 
 	switch (spctx->sp_side) {
 	case SP_SIDE_UNDEF:
@@ -128,16 +101,17 @@ sp_send(void *ctx, const unsigned char *data, size_t size)
 		spctx->sp_side = SP_SIDE_CLIENT;
 		/* Close other end. */
 		close(spctx->sp_fd[1]);
+		spctx->sp_fd[1] = -1;
 	case SP_SIDE_CLIENT:
-		assert(spctx->sp_fd[0] >= 0);
+		PJDLOG_ASSERT(spctx->sp_fd[0] >= 0);
 		fd = spctx->sp_fd[0];
 		break;
 	case SP_SIDE_SERVER:
-		assert(spctx->sp_fd[1] >= 0);
+		PJDLOG_ASSERT(spctx->sp_fd[1] >= 0);
 		fd = spctx->sp_fd[1];
 		break;
 	default:
-		abort();
+		PJDLOG_ABORT("Invalid socket side (%d).", spctx->sp_side);
 	}
 
 	/* Someone is just trying to decide about side. */
@@ -153,8 +127,8 @@ sp_recv(void *ctx, unsigned char *data, size_t size)
 	struct sp_ctx *spctx = ctx;
 	int fd;
 
-	assert(spctx != NULL);
-	assert(spctx->sp_magic == SP_CTX_MAGIC);
+	PJDLOG_ASSERT(spctx != NULL);
+	PJDLOG_ASSERT(spctx->sp_magic == SP_CTX_MAGIC);
 
 	switch (spctx->sp_side) {
 	case SP_SIDE_UNDEF:
@@ -166,16 +140,17 @@ sp_recv(void *ctx, unsigned char *data, size_t size)
 		spctx->sp_side = SP_SIDE_SERVER;
 		/* Close other end. */
 		close(spctx->sp_fd[0]);
+		spctx->sp_fd[0] = -1;
 	case SP_SIDE_SERVER:
-		assert(spctx->sp_fd[1] >= 0);
+		PJDLOG_ASSERT(spctx->sp_fd[1] >= 0);
 		fd = spctx->sp_fd[1];
 		break;
 	case SP_SIDE_CLIENT:
-		assert(spctx->sp_fd[0] >= 0);
+		PJDLOG_ASSERT(spctx->sp_fd[0] >= 0);
 		fd = spctx->sp_fd[0];
 		break;
 	default:
-		abort();
+		PJDLOG_ABORT("Invalid socket side (%d).", spctx->sp_side);
 	}
 
 	/* Someone is just trying to decide about side. */
@@ -190,47 +165,21 @@ sp_descriptor(const void *ctx)
 {
 	const struct sp_ctx *spctx = ctx;
 
-	assert(spctx != NULL);
-	assert(spctx->sp_magic == SP_CTX_MAGIC);
-	assert(spctx->sp_side == SP_SIDE_CLIENT ||
+	PJDLOG_ASSERT(spctx != NULL);
+	PJDLOG_ASSERT(spctx->sp_magic == SP_CTX_MAGIC);
+	PJDLOG_ASSERT(spctx->sp_side == SP_SIDE_CLIENT ||
 	    spctx->sp_side == SP_SIDE_SERVER);
 
 	switch (spctx->sp_side) {
 	case SP_SIDE_CLIENT:
-		assert(spctx->sp_fd[0] >= 0);
+		PJDLOG_ASSERT(spctx->sp_fd[0] >= 0);
 		return (spctx->sp_fd[0]);
 	case SP_SIDE_SERVER:
-		assert(spctx->sp_fd[1] >= 0);
+		PJDLOG_ASSERT(spctx->sp_fd[1] >= 0);
 		return (spctx->sp_fd[1]);
 	}
 
-	abort();
-}
-
-static bool
-sp_address_match(const void *ctx __unused, const char *addr __unused)
-{
-
-	assert(!"proto_address_match() not supported on socketpairs");
-	abort();
-}
-
-static void
-sp_local_address(const void *ctx __unused, char *addr __unused,
-    size_t size __unused)
-{
-
-	assert(!"proto_local_address() not supported on socketpairs");
-	abort();
-}
-
-static void
-sp_remote_address(const void *ctx __unused, char *addr __unused,
-    size_t size __unused)
-{
-
-	assert(!"proto_remote_address() not supported on socketpairs");
-	abort();
+	PJDLOG_ABORT("Invalid socket side (%d).", spctx->sp_side);
 }
 
 static void
@@ -238,22 +187,32 @@ sp_close(void *ctx)
 {
 	struct sp_ctx *spctx = ctx;
 
-	assert(spctx != NULL);
-	assert(spctx->sp_magic == SP_CTX_MAGIC);
+	PJDLOG_ASSERT(spctx != NULL);
+	PJDLOG_ASSERT(spctx->sp_magic == SP_CTX_MAGIC);
 
 	switch (spctx->sp_side) {
 	case SP_SIDE_UNDEF:
+		PJDLOG_ASSERT(spctx->sp_fd[0] >= 0);
 		close(spctx->sp_fd[0]);
+		spctx->sp_fd[0] = -1;
+		PJDLOG_ASSERT(spctx->sp_fd[1] >= 0);
 		close(spctx->sp_fd[1]);
+		spctx->sp_fd[1] = -1;
 		break;
 	case SP_SIDE_CLIENT:
+		PJDLOG_ASSERT(spctx->sp_fd[0] >= 0);
 		close(spctx->sp_fd[0]);
+		spctx->sp_fd[0] = -1;
+		PJDLOG_ASSERT(spctx->sp_fd[1] == -1);
 		break;
 	case SP_SIDE_SERVER:
+		PJDLOG_ASSERT(spctx->sp_fd[1] >= 0);
 		close(spctx->sp_fd[1]);
+		spctx->sp_fd[1] = -1;
+		PJDLOG_ASSERT(spctx->sp_fd[0] == -1);
 		break;
 	default:
-		abort();
+		PJDLOG_ABORT("Invalid socket side (%d).", spctx->sp_side);
 	}
 
 	spctx->sp_magic = 0;
@@ -263,15 +222,9 @@ sp_close(void *ctx)
 static struct hast_proto sp_proto = {
 	.hp_name = "socketpair",
 	.hp_client = sp_client,
-	.hp_connect = sp_connect,
-	.hp_server = sp_server,
-	.hp_accept = sp_accept,
 	.hp_send = sp_send,
 	.hp_recv = sp_recv,
 	.hp_descriptor = sp_descriptor,
-	.hp_address_match = sp_address_match,
-	.hp_local_address = sp_local_address,
-	.hp_remote_address = sp_remote_address,
 	.hp_close = sp_close
 };
 
