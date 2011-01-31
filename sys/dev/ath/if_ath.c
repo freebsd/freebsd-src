@@ -2312,6 +2312,8 @@ ath_calcrxfilter(struct ath_softc *sc)
 	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
+	if (IEEE80211_IS_CHAN_HT(ic->ic_curchan))
+		rfilt |= HAL_RX_FILTER_COMPBAR;
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
@@ -3891,6 +3893,10 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 		if (ni != NULL) {
+		/* tag AMPDU aggregates for reorder processing */
+		if (ni->ni_flags & IEEE80211_NODE_HT)
+			m->m_flags |= M_AMPDU;
+
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
