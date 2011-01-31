@@ -2273,7 +2273,6 @@ ath_key_update_end(struct ieee80211vap *vap)
  *   - when operating in mesh mode to detect neighbors
  * o accept control frames:
  *   - when in monitor mode
- * XXX BAR frames for 11n
  * XXX HT protection for 11n
  */
 static u_int32_t
