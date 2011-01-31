@@ -142,12 +142,6 @@ struct sctp_supported_chunk_types_param {
 }                                SCTP_PACKED;
 
 
-/* ECN Nonce: draft-ladha-sctp-ecn-nonce */
-struct sctp_ecn_nonce_supported_param {
-	struct sctp_paramhdr ph;/* type = 0x8001  len = 4 */
-}                              SCTP_PACKED;
-
-
 /*
  * Structures for DATA chunks
  */
