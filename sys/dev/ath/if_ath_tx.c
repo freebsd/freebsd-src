@@ -98,6 +98,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_misc.h>
 #include <dev/ath/if_ath_tx.h>
 
+/*
+ * Whether to use the 11n rate scenario functions or not
+ */
+static inline int
+ath_tx_is_11n(struct ath_softc *sc)
+{
+	return (sc->sc_ah->ah_magic == 0x20065416);
+}
+
 void
 ath_txfrag_cleanup(struct ath_softc *sc,
 	ath_bufhead *frags, struct ieee80211_node *ni)
@@ -216,7 +225,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 }
 
 static void
-ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+ath_tx_chaindesclist(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
@@ -243,6 +252,17 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 			__func__, i, ds->ds_link, ds->ds_data,
 			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
 	}
+
+}
+
+static void
+ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+{
+	struct ath_hal *ah = sc->sc_ah;
+
+	/* Fill in the details in the descriptor list */
+	ath_tx_chaindesclist(sc, txq, bf);
+
 	/*
 	 * Insert the frame on the outbound list and pass it on
 	 * to the hardware.  Multicast frames buffered for power
@@ -348,6 +368,57 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 	ATH_TXQ_UNLOCK(txq);
 }
 
+static int
+ath_tx_tag_crypto(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct mbuf *m0, int iswep, int isfrag, int *hdrlen, int *pktlen, int *keyix)
+{
+	if (iswep) {
+		const struct ieee80211_cipher *cip;
+		struct ieee80211_key *k;
+
+		/*
+		 * Construct the 802.11 header+trailer for an encrypted
+		 * frame. The only reason this can fail is because of an
+		 * unknown or unsupported cipher/key type.
+		 */
+		k = ieee80211_crypto_encap(ni, m0);
+		if (k == NULL) {
+			/*
+			 * This can happen when the key is yanked after the
+			 * frame was queued.  Just discard the frame; the
+			 * 802.11 layer counts failures and provides
+			 * debugging/diagnostics.
+			 */
+			return 0;
+		}
+		/*
+		 * Adjust the packet + header lengths for the crypto
+		 * additions and calculate the h/w key index.  When
+		 * a s/w mic is done the frame will have had any mic
+		 * added to it prior to entry so m0->m_pkthdr.len will
+		 * account for it. Otherwise we need to add it to the
+		 * packet length.
+		 */
+		cip = k->wk_cipher;
+		(*hdrlen) += cip->ic_header;
+		(*pktlen) += cip->ic_header + cip->ic_trailer;
+		/* NB: frags always have any TKIP MIC done in s/w */
+		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0 && !isfrag)
+			(*pktlen) += cip->ic_miclen;
+		(*keyix) = k->wk_keyix;
+	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
+		/*
+		 * Use station key cache slot, if assigned.
+		 */
+		(*keyix) = ni->ni_ucastkey.wk_keyix;
+		if ((*keyix) == IEEE80211_KEYIX_NONE)
+			(*keyix) = HAL_TXKEYIX_INVALID;
+	} else
+		(*keyix) = HAL_TXKEYIX_INVALID;
+
+	return 1;
+}
+
 int
 ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
@@ -383,53 +454,14 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3);
 
-	if (iswep) {
-		const struct ieee80211_cipher *cip;
-		struct ieee80211_key *k;
+	/* Handle encryption twiddling if needed */
+	if (! ath_tx_tag_crypto(sc, ni, m0, iswep, isfrag, &hdrlen, &pktlen, &keyix)) {
+		ath_freetx(m0);
+		return EIO;
+	}
 
-		/*
-		 * Construct the 802.11 header+trailer for an encrypted
-		 * frame. The only reason this can fail is because of an
-		 * unknown or unsupported cipher/key type.
-		 */
-		k = ieee80211_crypto_encap(ni, m0);
-		if (k == NULL) {
-			/*
-			 * This can happen when the key is yanked after the
-			 * frame was queued.  Just discard the frame; the
-			 * 802.11 layer counts failures and provides
-			 * debugging/diagnostics.
-			 */
-			ath_freetx(m0);
-			return EIO;
-		}
-		/*
-		 * Adjust the packet + header lengths for the crypto
-		 * additions and calculate the h/w key index.  When
-		 * a s/w mic is done the frame will have had any mic
-		 * added to it prior to entry so m0->m_pkthdr.len will
-		 * account for it. Otherwise we need to add it to the
-		 * packet length.
-		 */
-		cip = k->wk_cipher;
-		hdrlen += cip->ic_header;
-		pktlen += cip->ic_header + cip->ic_trailer;
-		/* NB: frags always have any TKIP MIC done in s/w */
-		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0 && !isfrag)
-			pktlen += cip->ic_miclen;
-		keyix = k->wk_keyix;
-
-		/* packet header may have moved, reset our local pointer */
-		wh = mtod(m0, struct ieee80211_frame *);
-	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
-		/*
-		 * Use station key cache slot, if assigned.
-		 */
-		keyix = ni->ni_ucastkey.wk_keyix;
-		if (keyix == IEEE80211_KEYIX_NONE)
-			keyix = HAL_TXKEYIX_INVALID;
-	} else
-		keyix = HAL_TXKEYIX_INVALID;
+	/* packet header may have moved, reset our local pointer */
+	wh = mtod(m0, struct ieee80211_frame *);
 
 	pktlen += IEEE80211_CRC_LEN;
 
@@ -787,53 +819,13 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
 
-	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
-		const struct ieee80211_cipher *cip;
-		struct ieee80211_key *k;
-
-		/*
-		 * Construct the 802.11 header+trailer for an encrypted
-		 * frame. The only reason this can fail is because of an
-		 * unknown or unsupported cipher/key type.
-		 */
-		k = ieee80211_crypto_encap(ni, m0);
-		if (k == NULL) {
-			/*
-			 * This can happen when the key is yanked after the
-			 * frame was queued.  Just discard the frame; the
-			 * 802.11 layer counts failures and provides
-			 * debugging/diagnostics.
-			 */
-			ath_freetx(m0);
-			return EIO;
-		}
-		/*
-		 * Adjust the packet + header lengths for the crypto
-		 * additions and calculate the h/w key index.  When
-		 * a s/w mic is done the frame will have had any mic
-		 * added to it prior to entry so m0->m_pkthdr.len will
-		 * account for it. Otherwise we need to add it to the
-		 * packet length.
-		 */
-		cip = k->wk_cipher;
-		hdrlen += cip->ic_header;
-		pktlen += cip->ic_header + cip->ic_trailer;
-		/* NB: frags always have any TKIP MIC done in s/w */
-		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0)
-			pktlen += cip->ic_miclen;
-		keyix = k->wk_keyix;
-
-		/* packet header may have moved, reset our local pointer */
-		wh = mtod(m0, struct ieee80211_frame *);
-	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
-		/*
-		 * Use station key cache slot, if assigned.
-		 */
-		keyix = ni->ni_ucastkey.wk_keyix;
-		if (keyix == IEEE80211_KEYIX_NONE)
-			keyix = HAL_TXKEYIX_INVALID;
-	} else
-		keyix = HAL_TXKEYIX_INVALID;
+	/* Handle encryption twiddling if needed */
+	if (! ath_tx_tag_crypto(sc, ni, m0, params->ibp_flags & IEEE80211_BPF_CRYPTO, 0, &hdrlen, &pktlen, &keyix)) {
+		ath_freetx(m0);
+		return EIO;
+	}
+	/* packet header may have moved, reset our local pointer */
+	wh = mtod(m0, struct ieee80211_frame *);
 
 	error = ath_tx_dmasetup(sc, bf, m0);
 	if (error != 0)
