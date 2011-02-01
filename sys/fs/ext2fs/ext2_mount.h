@@ -76,4 +76,4 @@ struct ext2mount {
 #define	is_sequential(ump, a, b)	((b) == (a) + ump->um_seqinc)
 #endif /* _KERNEL */
 
-#endif
+#endif	/* !_FS_EXT2FS_EXT2_MOUNT_H_ */
