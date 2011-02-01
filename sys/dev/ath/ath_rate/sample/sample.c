@@ -363,6 +363,30 @@ done:
 #undef RATE
 }
 
+/*
+ * Get the TX rates. Don't fiddle with short preamble flags for them;
+ * the caller can do that.
+ */
+void
+ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
+    uint8_t rix0, uint8_t *rix, uint8_t *try)
+{
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+	const struct txschedule *sched = &sn->sched[rix0];
+
+	KASSERT(rix0 == sched->r0, ("rix0 (%x) != sched->r0 (%x)!\n", rix0, sched->r0));
+
+/*	rix[0] = sched->r0; */
+	rix[1] = sched->r1;
+	rix[2] = sched->r2;
+	rix[3] = sched->r3;
+
+	try[0] = sched->t0;
+	try[1] = sched->t1;
+	try[2] = sched->t2;
+	try[3] = sched->t3;
+}
+
 void
 ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 		      struct ath_desc *ds, int shortPreamble, u_int8_t rix)
