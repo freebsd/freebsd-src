@@ -1340,13 +1340,14 @@ restart:
 			brelse(bp);
 			anyfreed = 1;
 
+			BO_LOCK(bo);
 			if (nbp != NULL &&
 			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
 			    (nbp->b_vp != vp) ||
 			    (nbp->b_flags & B_DELWRI))) {
+				BO_UNLOCK(bo);
 				goto restart;
 			}
-			BO_LOCK(bo);
 		}
 
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
@@ -1363,13 +1364,15 @@ restart:
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
 			anyfreed = 1;
+
+			BO_LOCK(bo);
 			if (nbp != NULL &&
 			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
 			    (nbp->b_vp != vp) ||
 			    (nbp->b_flags & B_DELWRI) == 0)) {
+				BO_UNLOCK(bo);
 				goto restart;
 			}
-			BO_LOCK(bo);
 		}
 	}
 
