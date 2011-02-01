@@ -346,6 +346,8 @@ struct ath_softc {
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
+	int			sc_txchainmask;	/* currently configured TX chainmask */
+	int			sc_rxchainmask;	/* currently configured RX chainmask */
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -630,6 +632,10 @@ void	ath_intr(void *);
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, 1, _v, NULL)
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
+#define	ath_hal_getrxchainmask(_ah, _prxchainmask) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RX_CHAINMASK, 0, _prxchainmask))
+#define	ath_hal_gettxchainmask(_ah, _ptxchainmask) \
+	(ath_hal_getcapability(_ah, HAL_CAP_TX_CHAINMASK, 0, _ptxchainmask))
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
