@@ -34,10 +34,6 @@
  */
 
 #include <sys/stdint.h>
-
-typedef	int64_t		clock_t;
-#define	_CLOCK_T_DECLARED
-
 #include_next <sys/types.h>
 
 #define	MAXNAMELEN	256
