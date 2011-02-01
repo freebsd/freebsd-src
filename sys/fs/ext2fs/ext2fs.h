@@ -34,8 +34,8 @@
  * 
  */
 
-#ifndef _FS_EXT2FS_EXT2_FS_H
-#define _FS_EXT2FS_EXT2_FS_H
+#ifndef _FS_EXT2FS_EXT2_FS_H_
+#define _FS_EXT2FS_EXT2_FS_H_
 
 #include <sys/types.h>
 
@@ -118,7 +118,6 @@ struct ext2fs {
 	u_int32_t  reserved2[204];
 };
 
-
 /* Assume that user mode programs are passing in an ext2fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
  * macros from user land. */
@@ -165,9 +164,6 @@ struct m_ext2fs {
  */
 #define E2FS_DATE		"95/08/09"
 #define E2FS_VERSION		"0.5b"
-
-/* First non-reserved inode for old ext2 filesystems */
-#define E2FS_REV0_FIRST_INO	11
 
 /*
  * The second extended file system magic number
@@ -319,4 +315,4 @@ struct ext2_gd {
 
 #endif
 
-#endif	/* !_FS_EXT2FS_EXT2FS_H */
+#endif	/* !_FS_EXT2FS_EXT2FS_H_ */
