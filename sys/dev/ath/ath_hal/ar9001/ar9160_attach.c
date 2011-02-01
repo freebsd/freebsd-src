@@ -290,6 +290,10 @@ ar9160FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halRtsAggrLimit = 64*1024;	/* 802.11n max */
 	pCap->halExtChanDfsSupport = AH_TRUE;
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
+	/* AR9160 is a 2x2 stream device */
+	pCap->halTxStreams = 2;
+	pCap->halRxStreams = 2;
+
 	return AH_TRUE;
 }
 

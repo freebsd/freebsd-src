@@ -111,6 +111,7 @@ typedef enum {
 	HAL_CAP_MAC_HANG	= 36,	/* can MAC hang */
 	HAL_CAP_INTRMASK	= 37,	/* bitmask of supported interrupts */
 	HAL_CAP_BSSIDMATCH	= 38,	/* hardware has disable bssid match */
+	HAL_CAP_STREAMS		= 39,	/* how many 802.11n spatial streams are available */
 } HAL_CAPABILITY_TYPE;
 
 /* 
