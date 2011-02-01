@@ -149,8 +149,10 @@ ar5416StopTxDma(struct ath_hal *ah, u_int q)
 #define VALID_TX_RATES \
         ((1<<0x0b)|(1<<0x0f)|(1<<0x0a)|(1<<0x0e)|(1<<0x09)|(1<<0x0d)|\
          (1<<0x08)|(1<<0x0c)|(1<<0x1b)|(1<<0x1a)|(1<<0x1e)|(1<<0x19)|\
-         (1<<0x1d)|(1<<0x18)|(1<<0x1c))
-#define isValidTxRate(_r)       ((1<<(_r)) & VALID_TX_RATES)
+	 (1<<0x1d)|(1<<0x18)|(1<<0x1c)|(1<<0x01)|(1<<0x02)|(1<<0x03)|\
+	 (1<<0x04)|(1<<0x05)|(1<<0x06)|(1<<0x07)|(1<<0x00))
+/* NB: accept HT rates */
+#define	isValidTxRate(_r)	((1<<((_r) & 0x7f)) & VALID_TX_RATES)
 
 HAL_BOOL
 ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
