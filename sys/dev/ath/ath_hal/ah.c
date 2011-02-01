@@ -583,6 +583,17 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return HAL_OK;
 	case HAL_CAP_BSSIDMATCH:	/* hardware has disable bssid match */
 		return pCap->halBssidMatchSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_STREAMS:		/* number of 11n spatial streams */
+		switch (capability) {
+		case 0:			/* TX */
+			*result = pCap->halTxStreams;
+			return HAL_OK;
+		case 1:			/* RX */
+			*result = pCap->halRxStreams;
+			return HAL_OK;
+		default:
+			return HAL_ENOTSUPP;
+		}
 	default:
 		return HAL_EINVAL;
 	}
