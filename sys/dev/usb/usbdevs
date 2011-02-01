@@ -2387,6 +2387,7 @@ product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
 product NOVATEL U727_2		0x5100	Merlin U727 CDMA
 product NOVATEL U760		0x6000	Novatel U760
 product NOVATEL MC760		0x6002	Novatel MC760
+product NOVATEL MC547		0x7042	Novatel MC547
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */
