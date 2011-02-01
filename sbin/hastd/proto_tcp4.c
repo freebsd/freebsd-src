@@ -170,7 +170,7 @@ static int
 tcp4_common_setup(const char *addr, void **ctxp, int side)
 {
 	struct tcp4_ctx *tctx;
-	int ret, val;
+	int ret, nodelay;
 
 	tctx = malloc(sizeof(*tctx));
 	if (tctx == NULL)
@@ -190,20 +190,10 @@ tcp4_common_setup(const char *addr, void **ctxp, int side)
 	}
 
 	/* Socket settings. */
-	val = 1;
-	if (setsockopt(tctx->tc_fd, IPPROTO_TCP, TCP_NODELAY, &val,
-	    sizeof(val)) == -1) {
+	nodelay = 1;
+	if (setsockopt(tctx->tc_fd, IPPROTO_TCP, TCP_NODELAY, &nodelay,
+	    sizeof(nodelay)) == -1) {
 		pjdlog_warning("Unable to set TCP_NOELAY on %s", addr);
-	}
-	val = 131072;
-	if (setsockopt(tctx->tc_fd, SOL_SOCKET, SO_SNDBUF, &val,
-	    sizeof(val)) == -1) {
-		pjdlog_warning("Unable to set send buffer size on %s", addr);
-	}
-	val = 131072;
-	if (setsockopt(tctx->tc_fd, SOL_SOCKET, SO_RCVBUF, &val,
-	    sizeof(val)) == -1) {
-		pjdlog_warning("Unable to set receive buffer size on %s", addr);
 	}
 
 	tctx->tc_side = side;
