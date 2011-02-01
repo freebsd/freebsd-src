@@ -41,7 +41,7 @@
  * based on L. S. Brakmo and L. L. Peterson, "TCP Vegas: end to end congestion
  * avoidance on a global internet", IEEE J. Sel. Areas Commun., vol. 13, no. 8,
  * pp. 1465-1480, Oct. 1995. The original Vegas duplicate ack policy has not
- * been implemented, since clock ticks are not as course as they were (i.e.
+ * been implemented, since clock ticks are not as coarse as they were (i.e.
  * 500ms) when Vegas was designed. Also, packets are timed once per RTT as in
  * the original paper.
  *
