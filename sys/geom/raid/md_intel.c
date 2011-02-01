@@ -51,7 +51,7 @@ struct intel_raid_map {
 	uint16_t	strip_sectors;
 	uint8_t		status;
 #define INTEL_S_READY           0x00
-#define INTEL_S_DISABLED        0x01
+#define INTEL_S_UNINITIALIZED   0x01
 #define INTEL_S_DEGRADED        0x02
 #define INTEL_S_FAILURE         0x03
 
