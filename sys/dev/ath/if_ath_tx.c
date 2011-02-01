@@ -419,6 +419,46 @@ ath_tx_tag_crypto(struct ath_softc *sc, struct ieee80211_node *ni,
 	return 1;
 }
 
+static void
+ath_tx_calc_ctsduration(struct ath_hal *ah, int rix, int cix,
+    int shortPreamble, int pktlen, const HAL_RATE_TABLE *rt,
+    int flags, u_int8_t *ctsrate, int *ctsduration)
+{
+	/*
+	 * CTS transmit rate is derived from the transmit rate
+	 * by looking in the h/w rate table.  We must also factor
+	 * in whether or not a short preamble is to be used.
+	 */
+	/* NB: cix is set above where RTS/CTS is enabled */
+	KASSERT(cix != 0xff, ("cix not setup"));
+	(*ctsrate) = rt->info[cix].rateCode;
+	/*
+	 * Compute the transmit duration based on the frame
+	 * size and the size of an ACK frame.  We call into the
+	 * HAL to do the computation since it depends on the
+	 * characteristics of the actual PHY being used.
+	 *
+	 * NB: CTS is assumed the same size as an ACK so we can
+	 *     use the precalculated ACK durations.
+	 */
+	if (shortPreamble) {
+		(*ctsrate) |= rt->info[cix].shortPreamble;
+		if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
+			(*ctsduration) += rt->info[cix].spAckDuration;
+		(*ctsduration) += ath_hal_computetxtime(ah,
+			rt, pktlen, rix, AH_TRUE);
+		if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
+			(*ctsduration) += rt->info[rix].spAckDuration;
+	} else {
+		if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
+			(*ctsduration) += rt->info[cix].lpAckDuration;
+		(*ctsduration) += ath_hal_computetxtime(ah,
+			rt, pktlen, rix, AH_FALSE);
+		if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
+			(*ctsduration) += rt->info[rix].lpAckDuration;
+	}
+}
+
 int
 ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
@@ -669,39 +709,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 */
 	ctsduration = 0;
 	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA)) {
-		/*
-		 * CTS transmit rate is derived from the transmit rate
-		 * by looking in the h/w rate table.  We must also factor
-		 * in whether or not a short preamble is to be used.
-		 */
-		/* NB: cix is set above where RTS/CTS is enabled */
-		KASSERT(cix != 0xff, ("cix not setup"));
-		ctsrate = rt->info[cix].rateCode;
-		/*
-		 * Compute the transmit duration based on the frame
-		 * size and the size of an ACK frame.  We call into the
-		 * HAL to do the computation since it depends on the
-		 * characteristics of the actual PHY being used.
-		 *
-		 * NB: CTS is assumed the same size as an ACK so we can
-		 *     use the precalculated ACK durations.
-		 */
-		if (shortPreamble) {
-			ctsrate |= rt->info[cix].shortPreamble;
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].spAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_TRUE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].spAckDuration;
-		} else {
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].lpAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_FALSE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].lpAckDuration;
-		}
+		(void) ath_tx_calc_ctsduration(ah, rix, cix, shortPreamble, pktlen,
+		    rt, flags, &ctsrate, &ctsduration);
 		/*
 		 * Must disable multi-rate retry when using RTS/CTS.
 		 */
@@ -856,29 +865,20 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	txantenna = params->ibp_pri >> 2;
 	if (txantenna == 0)			/* XXX? */
 		txantenna = sc->sc_txantenna;
+
 	ctsduration = 0;
-	if (flags & (HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA)) {
+	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA)) {
 		cix = ath_tx_findrix(sc, params->ibp_ctsrate);
-		ctsrate = rt->info[cix].rateCode;
-		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE) {
-			ctsrate |= rt->info[cix].shortPreamble;
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].spAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_TRUE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].spAckDuration;
-		} else {
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].lpAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_FALSE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].lpAckDuration;
-		}
+		(void) ath_tx_calc_ctsduration(ah, rix, cix,
+		    params->ibp_flags & IEEE80211_BPF_SHORTPRE, pktlen,
+		    rt, flags, &ctsrate, &ctsduration);
+		/*
+		 * Must disable multi-rate retry when using RTS/CTS.
+		 */
 		ismrr = 0;			/* XXX */
 	} else
 		ctsrate = 0;
+
 	pri = params->ibp_pri & 3;
 	/*
 	 * NB: we mark all packets as type PSPOLL so the h/w won't
