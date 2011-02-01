@@ -819,6 +819,9 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTxChainMask = ath_hal_eepromGet(ah, AR_EEP_TXMASK, AH_NULL);
 	/* XXX CB71 uses GPIO 0 to indicate 3 rx chains */
 	pCap->halRxChainMask = ath_hal_eepromGet(ah, AR_EEP_RXMASK, AH_NULL);
+	/* AR5416 may have 3 antennas but is a 2x2 stream device */
+	pCap->halTxStreams = 2;
+	pCap->halRxStreams = 2;
 	pCap->halRtsAggrLimit = 8*1024;		/* Owl 2.0 limit */
 	pCap->halMbssidAggrSupport = AH_TRUE;
 	pCap->halForcePpmSupport = AH_TRUE;
