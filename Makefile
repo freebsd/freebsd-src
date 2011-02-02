@@ -124,7 +124,7 @@ MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}
 BINMAKE= \
 	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
 	-m ${.CURDIR}/share/mk
-_MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1
+_MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
@@ -205,7 +205,7 @@ cleanworld:
 #
 
 ${TGTS}:
-	${_+_}cd ${.CURDIR}; ${_MAKE} TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH} ${.TARGET}
+	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
 # Set a reasonable default
 .MAIN:	all
