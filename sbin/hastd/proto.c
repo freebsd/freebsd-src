@@ -165,7 +165,7 @@ proto_client(const char *addr, struct proto_conn **connp)
 }
 
 int
-proto_connect(struct proto_conn *conn)
+proto_connect(struct proto_conn *conn, int timeout)
 {
 	int ret;
 
@@ -174,8 +174,9 @@ proto_connect(struct proto_conn *conn)
 	PJDLOG_ASSERT(conn->pc_side == PROTO_SIDE_CLIENT);
 	PJDLOG_ASSERT(conn->pc_proto != NULL);
 	PJDLOG_ASSERT(conn->pc_proto->hp_connect != NULL);
+	PJDLOG_ASSERT(timeout >= 0);
 
-	ret = conn->pc_proto->hp_connect(conn->pc_ctx);
+	ret = conn->pc_proto->hp_connect(conn->pc_ctx, timeout);
 	if (ret != 0) {
 		errno = ret;
 		return (-1);

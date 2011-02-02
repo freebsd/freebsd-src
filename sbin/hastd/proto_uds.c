@@ -123,7 +123,7 @@ uds_client(const char *addr, void **ctxp)
 }
 
 static int
-uds_connect(void *ctx)
+uds_connect(void *ctx, int timeout)
 {
 	struct uds_ctx *uctx = ctx;
 
@@ -131,6 +131,7 @@ uds_connect(void *ctx)
 	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
 	PJDLOG_ASSERT(uctx->uc_side == UDS_SIDE_CLIENT);
 	PJDLOG_ASSERT(uctx->uc_fd >= 0);
+	PJDLOG_ASSERT(timeout >= 0);
 
 	if (connect(uctx->uc_fd, (struct sockaddr *)&uctx->uc_sun,
 	    sizeof(uctx->uc_sun)) < 0) {
