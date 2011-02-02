@@ -83,10 +83,10 @@ sp_client(const char *addr, void **ctxp)
 }
 
 static int
-sp_send(void *ctx, const unsigned char *data, size_t size)
+sp_send(void *ctx, const unsigned char *data, size_t size, int fd)
 {
 	struct sp_ctx *spctx = ctx;
-	int fd;
+	int sock;
 
 	PJDLOG_ASSERT(spctx != NULL);
 	PJDLOG_ASSERT(spctx->sp_magic == SP_CTX_MAGIC);
@@ -95,7 +95,7 @@ sp_send(void *ctx, const unsigned char *data, size_t size)
 	case SP_SIDE_UNDEF:
 		/*
 		 * If the first operation done by the caller is proto_send(),
-		 * we assume this the client.
+		 * we assume this is the client.
 		 */
 		/* FALLTHROUGH */
 		spctx->sp_side = SP_SIDE_CLIENT;
@@ -104,11 +104,11 @@ sp_send(void *ctx, const unsigned char *data, size_t size)
 		spctx->sp_fd[1] = -1;
 	case SP_SIDE_CLIENT:
 		PJDLOG_ASSERT(spctx->sp_fd[0] >= 0);
-		fd = spctx->sp_fd[0];
+		sock = spctx->sp_fd[0];
 		break;
 	case SP_SIDE_SERVER:
 		PJDLOG_ASSERT(spctx->sp_fd[1] >= 0);
-		fd = spctx->sp_fd[1];
+		sock = spctx->sp_fd[1];
 		break;
 	default:
 		PJDLOG_ABORT("Invalid socket side (%d).", spctx->sp_side);
@@ -118,11 +118,11 @@ sp_send(void *ctx, const unsigned char *data, size_t size)
 	if (data == NULL)
 		return (0);
 
-	return (proto_common_send(fd, data, size));
+	return (proto_common_send(sock, data, size, fd));
 }
 
 static int
-sp_recv(void *ctx, unsigned char *data, size_t size)
+sp_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
 {
 	struct sp_ctx *spctx = ctx;
 	int fd;
@@ -134,7 +134,7 @@ sp_recv(void *ctx, unsigned char *data, size_t size)
 	case SP_SIDE_UNDEF:
 		/*
 		 * If the first operation done by the caller is proto_recv(),
-		 * we assume this the server.
+		 * we assume this is the server.
 		 */
 		/* FALLTHROUGH */
 		spctx->sp_side = SP_SIDE_SERVER;
@@ -157,35 +157,7 @@ sp_recv(void *ctx, unsigned char *data, size_t size)
 	if (data == NULL)
 		return (0);
 
-	return (proto_common_recv(fd, data, size));
-}
-
-static int
-sp_descriptor_send(void *ctx, int fd)
-{
-	struct sp_ctx *spctx = ctx;
-
-	PJDLOG_ASSERT(spctx != NULL);
-	PJDLOG_ASSERT(spctx->sp_magic == SP_CTX_MAGIC);
-	PJDLOG_ASSERT(spctx->sp_side == SP_SIDE_CLIENT);
-	PJDLOG_ASSERT(spctx->sp_fd[0] >= 0);
-	PJDLOG_ASSERT(fd > 0);
-
-	return (proto_common_descriptor_send(spctx->sp_fd[0], fd));
-}
-
-static int
-sp_descriptor_recv(void *ctx, int *fdp)
-{
-	struct sp_ctx *spctx = ctx;
-
-	PJDLOG_ASSERT(spctx != NULL);
-	PJDLOG_ASSERT(spctx->sp_magic == SP_CTX_MAGIC);
-	PJDLOG_ASSERT(spctx->sp_side == SP_SIDE_SERVER);
-	PJDLOG_ASSERT(spctx->sp_fd[1] >= 0);
-	PJDLOG_ASSERT(fdp != NULL);
-
-	return (proto_common_descriptor_recv(spctx->sp_fd[1], fdp));
+	return (proto_common_recv(fd, data, size, fdp));
 }
 
 static int
@@ -252,8 +224,6 @@ static struct hast_proto sp_proto = {
 	.hp_client = sp_client,
 	.hp_send = sp_send,
 	.hp_recv = sp_recv,
-	.hp_descriptor_send = sp_descriptor_send,
-	.hp_descriptor_recv = sp_descriptor_recv,
 	.hp_descriptor = sp_descriptor,
 	.hp_close = sp_close
 };

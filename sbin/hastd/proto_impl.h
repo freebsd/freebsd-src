@@ -44,10 +44,9 @@ typedef int hp_connect_t(void *, int);
 typedef int hp_connect_wait_t(void *, int);
 typedef int hp_server_t(const char *, void **);
 typedef int hp_accept_t(void *, void **);
-typedef int hp_send_t(void *, const unsigned char *, size_t);
-typedef int hp_recv_t(void *, unsigned char *, size_t);
-typedef int hp_descriptor_send_t(void *, int);
-typedef int hp_descriptor_recv_t(void *, int *);
+typedef int hp_wrap_t(int, bool, void **);
+typedef int hp_send_t(void *, const unsigned char *, size_t, int);
+typedef int hp_recv_t(void *, unsigned char *, size_t, int *);
 typedef int hp_descriptor_t(const void *);
 typedef bool hp_address_match_t(const void *, const char *);
 typedef void hp_local_address_t(const void *, char *, size_t);
@@ -55,29 +54,26 @@ typedef void hp_remote_address_t(const void *, char *, size_t);
 typedef void hp_close_t(void *);
 
 struct hast_proto {
-	const char	*hp_name;
-	hp_client_t	*hp_client;
-	hp_connect_t	*hp_connect;
-	hp_connect_wait_t *hp_connect_wait;
-	hp_server_t	*hp_server;
-	hp_accept_t	*hp_accept;
-	hp_send_t	*hp_send;
-	hp_recv_t	*hp_recv;
-	hp_descriptor_send_t *hp_descriptor_send;
-	hp_descriptor_recv_t *hp_descriptor_recv;
-	hp_descriptor_t	*hp_descriptor;
-	hp_address_match_t *hp_address_match;
-	hp_local_address_t *hp_local_address;
-	hp_remote_address_t *hp_remote_address;
-	hp_close_t	*hp_close;
-	TAILQ_ENTRY(hast_proto) hp_next;
+	const char		*hp_name;
+	hp_client_t		*hp_client;
+	hp_connect_t		*hp_connect;
+	hp_connect_wait_t	*hp_connect_wait;
+	hp_server_t		*hp_server;
+	hp_accept_t		*hp_accept;
+	hp_wrap_t		*hp_wrap;
+	hp_send_t		*hp_send;
+	hp_recv_t		*hp_recv;
+	hp_descriptor_t		*hp_descriptor;
+	hp_address_match_t	*hp_address_match;
+	hp_local_address_t	*hp_local_address;
+	hp_remote_address_t	*hp_remote_address;
+	hp_close_t		*hp_close;
+	TAILQ_ENTRY(hast_proto)	 hp_next;
 };
 
 void proto_register(struct hast_proto *proto, bool isdefault);
 
-int proto_common_send(int sock, const unsigned char *data, size_t size);
-int proto_common_recv(int sock, unsigned char *data, size_t size);
-int proto_common_descriptor_send(int sock, int fd);
-int proto_common_descriptor_recv(int sock, int *fdp);
+int proto_common_send(int sock, const unsigned char *data, size_t size, int fd);
+int proto_common_recv(int sock, unsigned char *data, size_t size, int *fdp);
 
 #endif	/* !_PROTO_IMPL_H_ */
