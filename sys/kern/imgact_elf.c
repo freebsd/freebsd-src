@@ -1622,8 +1622,7 @@ compress_core (gzFile file, char *inbuf, char *dest_buf, unsigned int len,
 		}
 		inbuf += chunk_len;
 		len -= chunk_len;
-		if (ticks - PCPU_GET(switchticks) >= hogticks)
-			uio_yield();
+		maybe_yield();
 	}
 
 	return (error);
