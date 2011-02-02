@@ -83,10 +83,17 @@ proto_common_setup(const char *addr, struct proto_conn **connp, int side)
 		return (-1);
 
 	TAILQ_FOREACH(proto, &protos, hp_next) {
-		if (side == PROTO_SIDE_CLIENT)
-			ret = proto->hp_client(addr, &ctx);
-		else /* if (side == PROTO_SIDE_SERVER_LISTEN) */
-			ret = proto->hp_server(addr, &ctx);
+		if (side == PROTO_SIDE_CLIENT) {
+			if (proto->hp_client == NULL)
+				ret = -1;
+			else
+				ret = proto->hp_client(addr, &ctx);
+		} else /* if (side == PROTO_SIDE_SERVER_LISTEN) */ {
+			if (proto->hp_server == NULL)
+				ret = -1;
+			else
+				ret = proto->hp_server(addr, &ctx);
+		}
 		/*
 		 * ret == 0  - success
 		 * ret == -1 - addr is not for this protocol
