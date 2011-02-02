@@ -217,7 +217,7 @@ uds_accept(void *ctx, void **newctxp)
 }
 
 static int
-uds_send(void *ctx, const unsigned char *data, size_t size)
+uds_send(void *ctx, const unsigned char *data, size_t size, int fd)
 {
 	struct uds_ctx *uctx = ctx;
 
@@ -225,11 +225,11 @@ uds_send(void *ctx, const unsigned char *data, size_t size)
 	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
 	PJDLOG_ASSERT(uctx->uc_fd >= 0);
 
-	return (proto_common_send(uctx->uc_fd, data, size));
+	return (proto_common_send(uctx->uc_fd, data, size, fd));
 }
 
 static int
-uds_recv(void *ctx, unsigned char *data, size_t size)
+uds_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
 {
 	struct uds_ctx *uctx = ctx;
 
@@ -237,33 +237,7 @@ uds_recv(void *ctx, unsigned char *data, size_t size)
 	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
 	PJDLOG_ASSERT(uctx->uc_fd >= 0);
 
-	return (proto_common_recv(uctx->uc_fd, data, size));
-}
-
-static int
-uds_descriptor_send(void *ctx, int fd)
-{
-	struct uds_ctx *uctx = ctx;
-
-	PJDLOG_ASSERT(uctx != NULL);
-	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
-	PJDLOG_ASSERT(uctx->uc_fd >= 0);
-	PJDLOG_ASSERT(fd >= 0);
-
-	return (proto_common_descriptor_send(uctx->uc_fd, fd));
-}
-
-static int
-uds_descriptor_recv(void *ctx, int *fdp)
-{
-	struct uds_ctx *uctx = ctx;
-
-	PJDLOG_ASSERT(uctx != NULL);
-	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
-	PJDLOG_ASSERT(uctx->uc_fd >= 0);
-	PJDLOG_ASSERT(fdp != NULL);
-
-	return (proto_common_descriptor_recv(uctx->uc_fd, fdp));
+	return (proto_common_recv(uctx->uc_fd, data, size, fdp));
 }
 
 static int
@@ -349,8 +323,6 @@ static struct hast_proto uds_proto = {
 	.hp_accept = uds_accept,
 	.hp_send = uds_send,
 	.hp_recv = uds_recv,
-	.hp_descriptor_send = uds_descriptor_send,
-	.hp_descriptor_recv = uds_descriptor_recv,
 	.hp_descriptor = uds_descriptor,
 	.hp_local_address = uds_local_address,
 	.hp_remote_address = uds_remote_address,
