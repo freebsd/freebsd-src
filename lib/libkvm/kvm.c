@@ -454,11 +454,11 @@ again:
 			p->n_other = 0;
 			p->n_desc = 0;
 			if (_kvm_vnet_initialized(kd, initialize) &&
-			    !strcmp(prefix, VNET_SYMPREFIX) == 0)
+			    strcmp(prefix, VNET_SYMPREFIX) == 0)
 				p->n_value =
 				    _kvm_vnet_validaddr(kd, lookup.symvalue);
 			else if (_kvm_dpcpu_initialized(kd, initialize) &&
-			    !strcmp(prefix, DPCPU_SYMPREFIX) == 0)
+			    strcmp(prefix, DPCPU_SYMPREFIX) == 0)
 				p->n_value =
 				    _kvm_dpcpu_validaddr(kd, lookup.symvalue);
 			else
