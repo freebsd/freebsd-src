@@ -158,8 +158,7 @@ uiomove(void *cp, int n, struct uio *uio)
 		switch (uio->uio_segflg) {
 
 		case UIO_USERSPACE:
-			if (ticks - PCPU_GET(switchticks) >= hogticks)
-				uio_yield();
+			maybe_yield();
 			if (uio->uio_rw == UIO_READ)
 				error = copyout(cp, iov->iov_base, cnt);
 			else
@@ -283,11 +282,8 @@ uiomoveco(void *cp, int n, struct uio *uio, int disposable)
 		switch (uio->uio_segflg) {
 
 		case UIO_USERSPACE:
-			if (ticks - PCPU_GET(switchticks) >= hogticks)
-				uio_yield();
-
+			maybe_yield();
 			error = userspaceco(cp, cnt, uio, disposable);
-
 			if (error)
 				return (error);
 			break;
@@ -354,6 +350,21 @@ again:
 	uio->uio_resid--;
 	uio->uio_offset++;
 	return (0);
+}
+
+int
+should_yield(void)
+{
+
+	return (ticks - PCPU_GET(switchticks) >= hogticks);
+}
+
+void
+maybe_yield(void)
+{
+
+	if (should_yield())
+		uio_yield();
 }
 
 void
