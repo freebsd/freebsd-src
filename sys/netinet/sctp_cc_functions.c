@@ -481,6 +481,7 @@ sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
+
 static void
 sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
     int in_window, int num_pkt_lost)
