@@ -39,6 +39,7 @@ struct proto_conn;
 
 int proto_client(const char *addr, struct proto_conn **connp);
 int proto_connect(struct proto_conn *conn, int timeout);
+int proto_connect_wait(struct proto_conn *conn, int timeout);
 int proto_server(const char *addr, struct proto_conn **connp);
 int proto_accept(struct proto_conn *conn, struct proto_conn **newconnp);
 int proto_send(const struct proto_conn *conn, const void *data, size_t size);

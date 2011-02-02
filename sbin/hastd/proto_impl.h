@@ -41,6 +41,7 @@
 
 typedef int hp_client_t(const char *, void **);
 typedef int hp_connect_t(void *, int);
+typedef int hp_connect_wait_t(void *, int);
 typedef int hp_server_t(const char *, void **);
 typedef int hp_accept_t(void *, void **);
 typedef int hp_send_t(void *, const unsigned char *, size_t);
@@ -57,6 +58,7 @@ struct hast_proto {
 	const char	*hp_name;
 	hp_client_t	*hp_client;
 	hp_connect_t	*hp_connect;
+	hp_connect_wait_t *hp_connect_wait;
 	hp_server_t	*hp_server;
 	hp_accept_t	*hp_accept;
 	hp_send_t	*hp_send;
