@@ -1342,7 +1342,7 @@ softdep_process_worklist(mp, full)
 	int full;
 {
 	struct thread *td = curthread;
-	int cnt, matchcnt, loopcount;
+	int cnt, matchcnt;
 	struct ufsmount *ump;
 	long starttime;
 
@@ -1354,7 +1354,6 @@ softdep_process_worklist(mp, full)
 	matchcnt = 0;
 	ump = VFSTOUFS(mp);
 	ACQUIRE_LOCK(&lk);
-	loopcount = 1;
 	starttime = time_second;
 	softdep_process_journal(mp, full?MNT_WAIT:0);
 	while (ump->softdep_on_worklist > 0) {
@@ -1379,7 +1378,7 @@ softdep_process_worklist(mp, full)
 		 * We do not generally want to stop for buffer space, but if
 		 * we are really being a buffer hog, we will stop and wait.
 		 */
-		if (loopcount++ % 128 == 0) {
+		if (should_yield()) {
 			FREE_LOCK(&lk);
 			uio_yield();
 			bwillwrite();

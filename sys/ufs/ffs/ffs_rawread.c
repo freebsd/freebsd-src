@@ -243,8 +243,7 @@ ffs_rawread_readahead(struct vnode *vp,
 		if (vmapbuf(bp) < 0)
 			return EFAULT;
 		
-		if (ticks - PCPU_GET(switchticks) >= hogticks)
-			uio_yield();
+		maybe_yield();
 		bzero(bp->b_data, bp->b_bufsize);
 
 		/* Mark operation completed (similar to bufdone()) */
