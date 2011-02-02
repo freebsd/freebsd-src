@@ -3033,6 +3033,7 @@ g_journal_switcher(void *arg)
 	int error;
 
 	mp = arg;
+	curthread->td_pflags |= TDP_NORUNNINGBUF;
 	for (;;) {
 		g_journal_switcher_wokenup = 0;
 		error = tsleep(&g_journal_switcher_state, PRIBIO, "jsw:wait",
