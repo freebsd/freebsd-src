@@ -2955,7 +2955,8 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 								    &stcb->asoc,
 								    tp1->whoTo,
 								    &tp1->sent_rcv_time,
-								    sctp_align_safe_nocopy);
+								    sctp_align_safe_nocopy,
+								    SCTP_DETERMINE_LL_OK);
 								tp1->do_rtt = 0;
 							}
 						}
@@ -3751,7 +3752,7 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 
 void
 sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
-    uint32_t rwnd, int *abort_now)
+    uint32_t rwnd, int *abort_now, int ecne_seen)
 {
 	struct sctp_nets *net;
 	struct sctp_association *asoc;
@@ -3902,7 +3903,8 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 							    sctp_calculate_rto(stcb,
 							    asoc, tp1->whoTo,
 							    &tp1->sent_rcv_time,
-							    sctp_align_safe_nocopy);
+							    sctp_align_safe_nocopy,
+							    SCTP_DETERMINE_LL_OK);
 							tp1->do_rtt = 0;
 						}
 					}
@@ -3994,7 +3996,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	}
 
 	/* JRS - Use the congestion control given in the CC module */
-	if (asoc->last_acked_seq != cumack)
+	if ((asoc->last_acked_seq != cumack) && (ecne_seen == 0))
 		asoc->cc_functions.sctp_cwnd_update_after_sack(stcb, asoc, 1, 0, 0);
 
 	asoc->last_acked_seq = cumack;
@@ -4240,7 +4242,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
     struct sctp_tcb *stcb, struct sctp_nets *net_from,
     uint16_t num_seg, uint16_t num_nr_seg, uint16_t num_dup,
     int *abort_now, uint8_t flags,
-    uint32_t cum_ack, uint32_t rwnd)
+    uint32_t cum_ack, uint32_t rwnd, int ecne_seen)
 {
 	struct sctp_association *asoc;
 	struct sctp_tmit_chunk *tp1, *tp2;
@@ -4500,7 +4502,8 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 							    sctp_calculate_rto(stcb,
 							    asoc, tp1->whoTo,
 							    &tp1->sent_rcv_time,
-							    sctp_align_safe_nocopy);
+							    sctp_align_safe_nocopy,
+							    SCTP_DETERMINE_LL_OK);
 							tp1->do_rtt = 0;
 						}
 					}
@@ -4754,7 +4757,8 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		asoc->saw_sack_with_nr_frags = 0;
 
 	/* JRS - Use the congestion control given in the CC module */
-	asoc->cc_functions.sctp_cwnd_update_after_sack(stcb, asoc, accum_moved, reneged_all, will_exit_fast_recovery);
+	if (ecne_seen == 0)
+		asoc->cc_functions.sctp_cwnd_update_after_sack(stcb, asoc, accum_moved, reneged_all, will_exit_fast_recovery);
 
 	if (TAILQ_EMPTY(&asoc->sent_queue)) {
 		/* nothing left in-flight */
@@ -5077,7 +5081,7 @@ sctp_update_acked(struct sctp_tcb *stcb, struct sctp_shutdown_chunk *cp,
 	a_rwnd = stcb->asoc.peers_rwnd + stcb->asoc.total_flight;
 
 	/* Now call the express sack handling */
-	sctp_express_handle_sack(stcb, cum_ack, a_rwnd, abort_flag);
+	sctp_express_handle_sack(stcb, cum_ack, a_rwnd, abort_flag, 0);
 }
 
 static void
