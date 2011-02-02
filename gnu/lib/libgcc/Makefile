@@ -122,8 +122,7 @@ LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 .if ${TARGET_CPUARCH} == mips
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 # ABIs other than o32 need this
-.if ${TARGET_ARCH:Mmips64*} != "" || \
-    ${TARGET_ARCH:Mmipsn32*} != ""
+.if ${TARGET_ARCH:Mmipse[lb]} == ""
 LIB2FUNCS_EXTRA+= floatdidf.c fixunsdfsi.c
 LIB2FUNCS_EXTRA+= floatdisf.c floatundidf.c
 LIB2FUNCS_EXTRA+= fixsfdi.c floatundisf.c
