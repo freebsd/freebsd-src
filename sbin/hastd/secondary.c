@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/stat.h>
 
-#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -248,7 +247,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		 * there is no need to synchronize anything. If primary node
 		 * done any writes already we have to synchronize everything.
 		 */
-		assert(res->hr_secondary_localcnt == 0);
+		PJDLOG_ASSERT(res->hr_secondary_localcnt == 0);
 		res->hr_resuid = resuid;
 		if (metadata_write(res) < 0)
 			exit(EX_NOINPUT);
@@ -307,7 +306,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		 * This should never happen in practise, but we will perform
 		 * full synchronization.
 		 */
-		assert(res->hr_secondary_localcnt < res->hr_primary_remotecnt ||
+		PJDLOG_ASSERT(res->hr_secondary_localcnt < res->hr_primary_remotecnt ||
 		    res->hr_primary_localcnt < res->hr_secondary_remotecnt);
 		mapsize = activemap_calc_ondisk_size(res->hr_local_mediasize -
 		    METADATA_SIZE, res->hr_extentsize,
@@ -347,7 +346,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	sigset_t mask;
 	pthread_t td;
 	pid_t pid;
-	int error;
+	int error, mode;
 
 	/*
 	 * Create communication channel between parent and child.
@@ -380,22 +379,29 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		res->hr_remoteout = NULL;
 		/* Declare that we are receiver. */
 		proto_recv(res->hr_event, NULL, 0);
+		/* Declare that we are sender. */
+		proto_send(res->hr_ctrl, NULL, 0);
 		res->hr_workerpid = pid;
 		return;
 	}
 
 	gres = res;
+	mode = pjdlog_mode_get();
 
-	(void)pidfile_close(pfh);
-	hook_fini();
+	/* Declare that we are sender. */
+	proto_send(res->hr_event, NULL, 0);
+	/* Declare that we are receiver. */
+	proto_recv(res->hr_ctrl, NULL, 0);
+	descriptors_cleanup(res);
 
+	descriptors_assert(res, mode);
+
+	pjdlog_init(mode);
+	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 	setproctitle("%s (secondary)", res->hr_name);
 
 	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
-
-	/* Declare that we are sender. */
-	proto_send(res->hr_event, NULL, 0);
 
 	/* Error in setting timeout is not critical, but why should it fail? */
 	if (proto_timeout(res->hr_remotein, 0) < 0)
@@ -406,6 +412,9 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	init_local(res);
 	init_environment();
 
+	if (drop_privs() != 0)
+		exit(EX_CONFIG);
+
 	/*
 	 * Create the control thread before sending any event to the parent,
 	 * as we can deadlock when parent sends control request to worker,
@@ -415,15 +424,15 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	 * request response.
 	 */
 	error = pthread_create(&td, NULL, ctrl_thread, res);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 
 	init_remote(res, nvin);
 	event_send(res, EVENT_CONNECT);
 
 	error = pthread_create(&td, NULL, recv_thread, res);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 	error = pthread_create(&td, NULL, disk_thread, res);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 	(void)send_thread(res);
 }
 
@@ -545,7 +554,7 @@ secondary_exit(int exitcode, const char *fmt, ...)
 {
 	va_list ap;
 
-	assert(exitcode != EX_OK);
+	PJDLOG_ASSERT(exitcode != EX_OK);
 	va_start(ap, fmt);
 	pjdlogv_errno(LOG_ERR, fmt, ap);
 	va_end(ap);

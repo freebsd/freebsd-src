@@ -149,8 +149,10 @@ ar5416StopTxDma(struct ath_hal *ah, u_int q)
 #define VALID_TX_RATES \
         ((1<<0x0b)|(1<<0x0f)|(1<<0x0a)|(1<<0x0e)|(1<<0x09)|(1<<0x0d)|\
          (1<<0x08)|(1<<0x0c)|(1<<0x1b)|(1<<0x1a)|(1<<0x1e)|(1<<0x19)|\
-         (1<<0x1d)|(1<<0x18)|(1<<0x1c))
-#define isValidTxRate(_r)       ((1<<(_r)) & VALID_TX_RATES)
+	 (1<<0x1d)|(1<<0x18)|(1<<0x1c)|(1<<0x01)|(1<<0x02)|(1<<0x03)|\
+	 (1<<0x04)|(1<<0x05)|(1<<0x06)|(1<<0x07)|(1<<0x00))
+/* NB: accept HT rates */
+#define	isValidTxRate(_r)	((1<<((_r) & 0x7f)) & VALID_TX_RATES)
 
 HAL_BOOL
 ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
@@ -227,7 +229,6 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 |= (flags & HAL_TXDESC_CTSENA ? AR_CTSEnable : 0)
 			     | (flags & HAL_TXDESC_RTSENA ? AR_RTSEnable : 0)
 			     ;
-		ads->ds_ctl2 |= SM(rtsctsDuration, AR_BurstDur);
 		ads->ds_ctl7 |= (rtsctsRate << AR_RTSCTSRate_S);
 	}
 
@@ -311,8 +312,6 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	return AH_TRUE;
 }
 
-#if 0
-
 HAL_BOOL
 ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	u_int pktLen,
@@ -327,6 +326,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 	uint32_t *ds_txstatus = AR5416_DS_TXSTATUS(ah,ads);
+	struct ath_hal_5416 *ahp = AH5416(ah);
 
 	int isaggr = 0;
 	
@@ -342,7 +342,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	}
 
 	if (!firstSeg) {
-		ath_hal_memzero(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
+		OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
 	}
 
 	ads->ds_ctl0 = (pktLen & AR_FrameLen);
@@ -356,7 +356,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 |= AR_DestIdxValid;
 	}
 
-	ads->ds_ctl6 = SM(keyType[cipher], AR_EncrType);
+	ads->ds_ctl6 = SM(ahp->ah_keytype[cipher], AR_EncrType);
 	if (isaggr) {
 		ads->ds_ctl6 |= SM(delims, AR_PadDelim);
 	}
@@ -422,7 +422,6 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/* XXX validate rtsctsDuration */
 		ads->ds_ctl0 |= (flags & HAL_TXDESC_CTSENA ? AR_CTSEnable : 0)
 			| (flags & HAL_TXDESC_RTSENA ? AR_RTSEnable : 0);
-		ads->ds_ctl2 |= SM(rtsctsDuration, AR_BurstDur);
 	}
 
 	if (AR_SREV_KITE(ah)) {
@@ -456,7 +455,6 @@ ar5416SetupLastTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	
 	return AH_TRUE;
 }
-#endif /* 0 */
 
 #ifdef AH_NEED_DESC_SWAP
 /* Swap transmit descriptor */
@@ -588,7 +586,6 @@ ar5416ProcTxDesc(struct ath_hal *ah,
 	return HAL_OK;
 }
 
-#if 0
 HAL_BOOL
 ar5416SetGlobalTxTimeout(struct ath_hal *ah, u_int tu)
 {
@@ -615,12 +612,35 @@ ar5416GetGlobalTxTimeout(struct ath_hal *ah)
 void
 ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
         u_int durUpdateEn, u_int rtsctsRate,
-	HAL_11N_RATE_SERIES series[], u_int nseries)
+	HAL_11N_RATE_SERIES series[], u_int nseries, u_int flags)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	uint32_t ds_ctl0;
 
 	HALASSERT(nseries == 4);
 	(void)nseries;
+
+	/*
+	 * Only one of RTS and CTS enable must be set.
+	 * If a frame has both set, just do RTS protection -
+	 * that's enough to satisfy legacy protection.
+	 */
+	if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) {
+		ds_ctl0 = ads->ds_ctl0;
+
+		if (flags & HAL_TXDESC_RTSENA) {
+			ds_ctl0 &= ~AR_CTSEnable;
+			ds_ctl0 |= AR_RTSEnable;
+		} else {
+			ds_ctl0 &= ~AR_RTSEnable;
+			ds_ctl0 |= AR_CTSEnable;
+		}
+
+		ads->ds_ctl0 = ds_ctl0;
+	} else {
+		ads->ds_ctl0 =
+		    (ads->ds_ctl0 & ~(AR_RTSEnable | AR_CTSEnable));
+	}
 
 
 	ads->ds_ctl2 = set11nTries(series, 0)
@@ -645,27 +665,6 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		     | set11nRateFlags(series, 2)
 		     | set11nRateFlags(series, 3)
 		     | SM(rtsctsRate, AR_RTSCTSRate);
-
-	/*
-	 * Enable RTSCTS if any of the series is flagged for RTSCTS,
-	 * but only if CTS is not enabled.
-	 */
-	/*
-	 * FIXME : the entire RTS/CTS handling should be moved to this
-	 * function (by passing the global RTS/CTS flags to this function).
-	 * currently it is split between this function and the
-	 * setupFiirstDescriptor. with this current implementation there
-	 * is an implicit assumption that setupFirstDescriptor is called
-	 * before this function. 
-	 */
-	if (((series[0].RateFlags & HAL_RATESERIES_RTS_CTS) ||
-	     (series[1].RateFlags & HAL_RATESERIES_RTS_CTS) ||
-	     (series[2].RateFlags & HAL_RATESERIES_RTS_CTS) ||
-	     (series[3].RateFlags & HAL_RATESERIES_RTS_CTS) )  &&
-	    (ads->ds_ctl0 & AR_CTSEnable) == 0) {
-		ads->ds_ctl0 |= AR_RTSEnable;
-		ads->ds_ctl0 &= ~AR_CTSEnable;
-	}
 }
 
 void
@@ -706,7 +705,6 @@ ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_ctl2 &= ~AR_BurstDur;
 	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
 }
-#endif
 
 /*
  * Retrieve the rate table from the given TX completion descriptor

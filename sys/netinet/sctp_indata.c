@@ -2386,7 +2386,6 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	}
 }
 
-
 void
 sctp_sack_check(struct sctp_tcb *stcb, int was_a_gap, int *abort_flag)
 {
@@ -2857,11 +2856,6 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 					 * must be held until
 					 * cum-ack passes
 					 */
-					/*-
-					 * ECN Nonce: Add the nonce
-					 * value to the sender's
-					 * nonce sum
-					 */
 					if (tp1->sent < SCTP_DATAGRAM_RESEND) {
 						/*-
 						 * If it is less than RESEND, it is
@@ -2961,14 +2955,13 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 								    &stcb->asoc,
 								    tp1->whoTo,
 								    &tp1->sent_rcv_time,
-								    sctp_align_safe_nocopy);
+								    sctp_align_safe_nocopy,
+								    SCTP_DETERMINE_LL_OK);
 								tp1->do_rtt = 0;
 							}
 						}
 					}
 					if (tp1->sent <= SCTP_DATAGRAM_RESEND) {
-						(*ecn_seg_sums) += tp1->rec.data.ect_nonce;
-						(*ecn_seg_sums) &= SCTP_SACK_NONCE_SUM;
 						if (SCTP_TSN_GT(tp1->rec.data.TSN_seq,
 						    stcb->asoc.this_sack_highest_gap)) {
 							stcb->asoc.this_sack_highest_gap =
@@ -3151,23 +3144,6 @@ sctp_check_for_revoked(struct sctp_tcb *stcb,
 		}
 		if (tp1->sent == SCTP_DATAGRAM_UNSENT)
 			break;
-	}
-	if (tot_revoked > 0) {
-		/*
-		 * Setup the ecn nonce re-sync point. We do this since once
-		 * data is revoked we begin to retransmit things, which do
-		 * NOT have the ECN bits set. This means we are now out of
-		 * sync and must wait until we get back in sync with the
-		 * peer to check ECN bits.
-		 */
-		tp1 = TAILQ_FIRST(&asoc->send_queue);
-		if (tp1 == NULL) {
-			asoc->nonce_resync_tsn = asoc->sending_seq;
-		} else {
-			asoc->nonce_resync_tsn = tp1->rec.data.TSN_seq;
-		}
-		asoc->nonce_wait_for_ecne = 0;
-		asoc->nonce_sum_check = 0;
 	}
 }
 
@@ -3604,17 +3580,6 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			}
 		}
 	}
-
-	if (tot_retrans > 0) {
-		/*
-		 * Setup the ecn nonce re-sync point. We do this since once
-		 * we go to FR something we introduce a Karn's rule scenario
-		 * and won't know the totals for the ECN bits.
-		 */
-		asoc->nonce_resync_tsn = sending_seq;
-		asoc->nonce_wait_for_ecne = 0;
-		asoc->nonce_sum_check = 0;
-	}
 }
 
 struct sctp_tmit_chunk *
@@ -3787,7 +3752,7 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 
 void
 sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
-    uint32_t rwnd, int nonce_sum_flag, int *abort_now)
+    uint32_t rwnd, int *abort_now, int ecne_seen)
 {
 	struct sctp_nets *net;
 	struct sctp_association *asoc;
@@ -3829,6 +3794,10 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	}
 	/* First setup for CC stuff */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+		if (SCTP_TSN_GT(cumack, net->cwr_window_tsn)) {
+			/* Drag along the window_tsn for cwr's */
+			net->cwr_window_tsn = cumack;
+		}
 		net->prev_cwnd = net->cwnd;
 		net->net_ack = 0;
 		net->net_ack2 = 0;
@@ -3897,11 +3866,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 				if (tp1->sent == SCTP_DATAGRAM_UNSENT) {
 					printf("Warning, an unsent is now acked?\n");
 				}
-				/*
-				 * ECN Nonce: Add the nonce to the sender's
-				 * nonce sum
-				 */
-				asoc->nonce_sum_expect_base += tp1->rec.data.ect_nonce;
 				if (tp1->sent < SCTP_DATAGRAM_ACKED) {
 					/*
 					 * If it is less than ACKED, it is
@@ -3939,7 +3903,8 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 							    sctp_calculate_rto(stcb,
 							    asoc, tp1->whoTo,
 							    &tp1->sent_rcv_time,
-							    sctp_align_safe_nocopy);
+							    sctp_align_safe_nocopy,
+							    SCTP_DETERMINE_LL_OK);
 							tp1->do_rtt = 0;
 						}
 					}
@@ -4031,7 +3996,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	}
 
 	/* JRS - Use the congestion control given in the CC module */
-	if (asoc->last_acked_seq != cumack)
+	if ((asoc->last_acked_seq != cumack) && (ecne_seen == 0))
 		asoc->cc_functions.sctp_cwnd_update_after_sack(stcb, asoc, 1, 0, 0);
 
 	asoc->last_acked_seq = cumack;
@@ -4044,53 +4009,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		}
 		asoc->total_flight = 0;
 		asoc->total_flight_count = 0;
-	}
-	/* ECN Nonce updates */
-	if (asoc->ecn_nonce_allowed) {
-		if (asoc->nonce_sum_check) {
-			if (nonce_sum_flag != ((asoc->nonce_sum_expect_base) & SCTP_SACK_NONCE_SUM)) {
-				if (asoc->nonce_wait_for_ecne == 0) {
-					struct sctp_tmit_chunk *lchk;
-
-					lchk = TAILQ_FIRST(&asoc->send_queue);
-					asoc->nonce_wait_for_ecne = 1;
-					if (lchk) {
-						asoc->nonce_wait_tsn = lchk->rec.data.TSN_seq;
-					} else {
-						asoc->nonce_wait_tsn = asoc->sending_seq;
-					}
-				} else {
-					if (SCTP_TSN_GE(asoc->last_acked_seq, asoc->nonce_wait_tsn)) {
-						/*
-						 * Misbehaving peer. We need
-						 * to react to this guy
-						 */
-						asoc->ecn_allowed = 0;
-						asoc->ecn_nonce_allowed = 0;
-					}
-				}
-			}
-		} else {
-			/* See if Resynchronization Possible */
-			if (SCTP_TSN_GT(asoc->last_acked_seq, asoc->nonce_resync_tsn)) {
-				asoc->nonce_sum_check = 1;
-				/*
-				 * Now we must calculate what the base is.
-				 * We do this based on two things, we know
-				 * the total's for all the segments
-				 * gap-acked in the SACK (none). We also
-				 * know the SACK's nonce sum, its in
-				 * nonce_sum_flag. So we can build a truth
-				 * table to back-calculate the new value of
-				 * asoc->nonce_sum_expect_base:
-				 * 
-				 * SACK-flag-Value         Seg-Sums Base 0 0 0
-				 * 1                    0 1 0 1 1 1
-				 * 1 0
-				 */
-				asoc->nonce_sum_expect_base = (0 ^ nonce_sum_flag) & SCTP_SACK_NONCE_SUM;
-			}
-		}
 	}
 	/* RWND update */
 	asoc->peers_rwnd = sctp_sbspace_sub(rwnd,
@@ -4293,18 +4211,10 @@ again:
 		/* C3. See if we need to send a Fwd-TSN */
 		if (SCTP_TSN_GT(asoc->advanced_peer_ack_point, cumack)) {
 			/*
-			 * ISSUE with ECN, see FWD-TSN processing for notes
-			 * on issues that will occur when the ECN NONCE
-			 * stuff is put into SCTP for cross checking.
+			 * ISSUE with ECN, see FWD-TSN processing.
 			 */
 			if (SCTP_TSN_GT(asoc->advanced_peer_ack_point, old_adv_peer_ack_point)) {
 				send_forward_tsn(stcb, asoc);
-				/*
-				 * ECN Nonce: Disable Nonce Sum check when
-				 * FWD TSN is sent and store resync tsn
-				 */
-				asoc->nonce_sum_check = 0;
-				asoc->nonce_resync_tsn = asoc->advanced_peer_ack_point;
 			} else if (lchk) {
 				/* try to FR fwd-tsn's that get lost too */
 				if (lchk->rec.data.fwd_tsn_cnt >= 3) {
@@ -4332,7 +4242,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
     struct sctp_tcb *stcb, struct sctp_nets *net_from,
     uint16_t num_seg, uint16_t num_nr_seg, uint16_t num_dup,
     int *abort_now, uint8_t flags,
-    uint32_t cum_ack, uint32_t rwnd)
+    uint32_t cum_ack, uint32_t rwnd, int ecne_seen)
 {
 	struct sctp_association *asoc;
 	struct sctp_tmit_chunk *tp1, *tp2;
@@ -4347,7 +4257,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	int win_probe_recovery = 0;
 	int win_probe_recovered = 0;
 	struct sctp_nets *net = NULL;
-	int nonce_sum_flag, ecn_seg_sums = 0;
+	int ecn_seg_sums = 0;
 	int done_once;
 	uint8_t reneged_all = 0;
 	uint8_t cmt_dac_flag;
@@ -4379,7 +4289,6 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	j = 0;
 	SCTP_STAT_INCR(sctps_slowpath_sack);
 	last_tsn = cum_ack;
-	nonce_sum_flag = flags & SCTP_SACK_NONCE_SUM;
 	cmt_dac_flag = flags & SCTP_SACK_CMT_DAC;
 #ifdef SCTP_ASOCLOG_OF_TSNS
 	stcb->asoc.cumack_log[stcb->asoc.cumack_log_at] = cum_ack;
@@ -4522,6 +4431,10 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	 * destination address basis.
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+		if (SCTP_TSN_GT(cum_ack, net->cwr_window_tsn)) {
+			/* Drag along the window_tsn for cwr's */
+			net->cwr_window_tsn = cum_ack;
+		}
 		net->prev_cwnd = net->cwnd;
 		net->net_ack = 0;
 		net->net_ack2 = 0;
@@ -4537,11 +4450,6 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
 		if (SCTP_TSN_GE(last_tsn, tp1->rec.data.TSN_seq)) {
 			if (tp1->sent != SCTP_DATAGRAM_UNSENT) {
-				/*
-				 * ECN Nonce: Add the nonce to the sender's
-				 * nonce sum
-				 */
-				asoc->nonce_sum_expect_base += tp1->rec.data.ect_nonce;
 				accum_moved = 1;
 				if (tp1->sent < SCTP_DATAGRAM_ACKED) {
 					/*
@@ -4594,7 +4502,8 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 							    sctp_calculate_rto(stcb,
 							    asoc, tp1->whoTo,
 							    &tp1->sent_rcv_time,
-							    sctp_align_safe_nocopy);
+							    sctp_align_safe_nocopy,
+							    SCTP_DETERMINE_LL_OK);
 							tp1->do_rtt = 0;
 						}
 					}
@@ -4848,7 +4757,8 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		asoc->saw_sack_with_nr_frags = 0;
 
 	/* JRS - Use the congestion control given in the CC module */
-	asoc->cc_functions.sctp_cwnd_update_after_sack(stcb, asoc, accum_moved, reneged_all, will_exit_fast_recovery);
+	if (ecne_seen == 0)
+		asoc->cc_functions.sctp_cwnd_update_after_sack(stcb, asoc, accum_moved, reneged_all, will_exit_fast_recovery);
 
 	if (TAILQ_EMPTY(&asoc->sent_queue)) {
 		/* nothing left in-flight */
@@ -4991,60 +4901,6 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	/* JRS - Use the congestion control given in the CC module */
 	asoc->cc_functions.sctp_cwnd_update_after_fr(stcb, asoc);
 
-	/******************************************************************
-	 *  Here we do the stuff with ECN Nonce checking.
-	 *  We basically check to see if the nonce sum flag was incorrect
-	 *  or if resynchronization needs to be done. Also if we catch a
-	 *  misbehaving receiver we give him the kick.
-	 ******************************************************************/
-
-	if (asoc->ecn_nonce_allowed) {
-		if (asoc->nonce_sum_check) {
-			if (nonce_sum_flag != ((asoc->nonce_sum_expect_base + ecn_seg_sums) & SCTP_SACK_NONCE_SUM)) {
-				if (asoc->nonce_wait_for_ecne == 0) {
-					struct sctp_tmit_chunk *lchk;
-
-					lchk = TAILQ_FIRST(&asoc->send_queue);
-					asoc->nonce_wait_for_ecne = 1;
-					if (lchk) {
-						asoc->nonce_wait_tsn = lchk->rec.data.TSN_seq;
-					} else {
-						asoc->nonce_wait_tsn = asoc->sending_seq;
-					}
-				} else {
-					if (SCTP_TSN_GE(asoc->last_acked_seq, asoc->nonce_wait_tsn)) {
-						/*
-						 * Misbehaving peer. We need
-						 * to react to this guy
-						 */
-						asoc->ecn_allowed = 0;
-						asoc->ecn_nonce_allowed = 0;
-					}
-				}
-			}
-		} else {
-			/* See if Resynchronization Possible */
-			if (SCTP_TSN_GT(asoc->last_acked_seq, asoc->nonce_resync_tsn)) {
-				asoc->nonce_sum_check = 1;
-				/*
-				 * now we must calculate what the base is.
-				 * We do this based on two things, we know
-				 * the total's for all the segments
-				 * gap-acked in the SACK, its stored in
-				 * ecn_seg_sums. We also know the SACK's
-				 * nonce sum, its in nonce_sum_flag. So we
-				 * can build a truth table to back-calculate
-				 * the new value of
-				 * asoc->nonce_sum_expect_base:
-				 * 
-				 * SACK-flag-Value         Seg-Sums Base 0 0 0
-				 * 1                    0 1 0 1 1 1
-				 * 1 0
-				 */
-				asoc->nonce_sum_expect_base = (ecn_seg_sums ^ nonce_sum_flag) & SCTP_SACK_NONCE_SUM;
-			}
-		}
-	}
 	/* Now are we exiting loss recovery ? */
 	if (will_exit_fast_recovery) {
 		/* Ok, we must exit fast recovery */
@@ -5182,9 +5038,7 @@ again:
 		/* C3. See if we need to send a Fwd-TSN */
 		if (SCTP_TSN_GT(asoc->advanced_peer_ack_point, cum_ack)) {
 			/*
-			 * ISSUE with ECN, see FWD-TSN processing for notes
-			 * on issues that will occur when the ECN NONCE
-			 * stuff is put into SCTP for cross checking.
+			 * ISSUE with ECN, see FWD-TSN processing.
 			 */
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
 				sctp_misc_ints(SCTP_FWD_TSN_CHECK,
@@ -5192,14 +5046,7 @@ again:
 				    old_adv_peer_ack_point);
 			}
 			if (SCTP_TSN_GT(asoc->advanced_peer_ack_point, old_adv_peer_ack_point)) {
-
 				send_forward_tsn(stcb, asoc);
-				/*
-				 * ECN Nonce: Disable Nonce Sum check when
-				 * FWD TSN is sent and store resync tsn
-				 */
-				asoc->nonce_sum_check = 0;
-				asoc->nonce_resync_tsn = asoc->advanced_peer_ack_point;
 			} else if (lchk) {
 				/* try to FR fwd-tsn's that get lost too */
 				if (lchk->rec.data.fwd_tsn_cnt >= 3) {
@@ -5234,7 +5081,7 @@ sctp_update_acked(struct sctp_tcb *stcb, struct sctp_shutdown_chunk *cp,
 	a_rwnd = stcb->asoc.peers_rwnd + stcb->asoc.total_flight;
 
 	/* Now call the express sack handling */
-	sctp_express_handle_sack(stcb, cum_ack, a_rwnd, 0, abort_flag);
+	sctp_express_handle_sack(stcb, cum_ack, a_rwnd, abort_flag, 0);
 }
 
 static void
@@ -5376,17 +5223,6 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
     struct sctp_forward_tsn_chunk *fwd,
     int *abort_flag, struct mbuf *m, int offset)
 {
-	/*
-	 * ISSUES that MUST be fixed for ECN! When we are the sender of the
-	 * forward TSN, when the SACK comes back that acknowledges the
-	 * FWD-TSN we must reset the NONCE sum to match correctly. This will
-	 * get quite tricky since we may have sent more data interveneing
-	 * and must carefully account for what the SACK says on the nonce
-	 * and any gaps that are reported. This work will NOT be done here,
-	 * but I note it here since it is really related to PR-SCTP and
-	 * FWD-TSN's
-	 */
-
 	/* The pr-sctp fwd tsn */
 	/*
 	 * here we will perform all the data receiver side steps for
@@ -5474,7 +5310,6 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
 			sctp_log_map(0, 3, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
 		}
-		asoc->last_echo_tsn = asoc->highest_tsn_inside_map;
 	} else {
 		SCTP_TCB_LOCK_ASSERT(stcb);
 		for (i = 0; i <= gap; i++) {

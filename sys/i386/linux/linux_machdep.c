@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_ipc.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
@@ -1312,3 +1313,33 @@ linux_mq_getsetattr(struct thread *td, struct linux_mq_getsetattr_args *args)
 #endif
 }
 
+int
+linux_wait4(struct thread *td, struct linux_wait4_args *args)
+{
+	int error, options;
+	struct rusage ru, *rup;
+
+#ifdef DEBUG
+	if (ldebug(wait4))
+		printf(ARGS(wait4, "%d, %p, %d, %p"),
+		    args->pid, (void *)args->status, args->options,
+		    (void *)args->rusage);
+#endif
+
+	options = (args->options & (WNOHANG | WUNTRACED));
+	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
+	if (args->options & __WCLONE)
+		options |= WLINUXCLONE;
+
+	if (args->rusage != NULL)
+		rup = &ru;
+	else
+		rup = NULL;
+	error = linux_common_wait(td, args->pid, args->status, options, rup);
+	if (error)
+		return (error);
+	if (args->rusage != NULL)
+		error = copyout(&ru, args->rusage, sizeof(ru));
+
+	return (error);
+}

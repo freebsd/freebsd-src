@@ -480,7 +480,7 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 	pcell_t *intr;
 	pcell_t intr_cells;
 	int interrupt, trig, pol;
-	int i, intr_num, rv;
+	int i, intr_num, irq, rv;
 
 	if (OF_getproplen(node, "interrupts") <= 0)
 		/* Node does not have 'interrupts' property. */
@@ -532,7 +532,8 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 		intr_sl[i].trig = trig;
 		intr_sl[i].pol = pol;
 
-		resource_list_add(rl, SYS_RES_IRQ, i, interrupt, interrupt, 1);
+		irq = FDT_MAP_IRQ(intr_par, interrupt);
+		resource_list_add(rl, SYS_RES_IRQ, i, irq, irq, 1);
 	}
 
 out:

@@ -3222,6 +3222,7 @@ scan_and_wait(int s)
 
 	memset(&sr, 0, sizeof(sr));
 	sr.sr_flags = IEEE80211_IOC_SCAN_ACTIVE
+		    | IEEE80211_IOC_SCAN_BGSCAN
 		    | IEEE80211_IOC_SCAN_NOPICK
 		    | IEEE80211_IOC_SCAN_ONCE;
 	sr.sr_duration = IEEE80211_IOC_SCAN_FOREVER;
@@ -3229,8 +3230,12 @@ scan_and_wait(int s)
 
 	ireq.i_data = &sr;
 	ireq.i_len = sizeof(sr);
-	/* NB: only root can trigger a scan so ignore errors */
-	if (ioctl(s, SIOCS80211, &ireq) >= 0) {
+	/*
+	 * NB: only root can trigger a scan so ignore errors. Also ignore
+	 * possible errors from net80211, even if no new scan could be
+	 * started there might still be a valid scan cache.
+	 */
+	if (ioctl(s, SIOCS80211, &ireq) == 0) {
 		char buf[2048];
 		struct if_announcemsghdr *ifan;
 		struct rt_msghdr *rtm;

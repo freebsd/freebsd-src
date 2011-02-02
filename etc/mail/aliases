@@ -30,6 +30,7 @@ bin:	root
 bind:	root
 daemon:	root
 games:	root
+hast:	root
 kmem:	root
 mailnull: postmaster
 man:	root

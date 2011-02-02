@@ -20,4 +20,5 @@ _dhcp:*:65:65::0:0:dhcp programs:/var/empty:/usr/sbin/nologin
 uucp:*:66:66::0:0:UUCP pseudo-user:/var/spool/uucppublic:/usr/local/libexec/uucp/uucico
 pop:*:68:6::0:0:Post Office Owner:/nonexistent:/usr/sbin/nologin
 www:*:80:80::0:0:World Wide Web Owner:/nonexistent:/usr/sbin/nologin
+hast:*:845:845::0:0:HAST unprivileged user:/var/empty:/usr/sbin/nologin
 nobody:*:65534:65534::0:0:Unprivileged user:/nonexistent:/usr/sbin/nologin

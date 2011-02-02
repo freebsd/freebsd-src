@@ -160,7 +160,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	sysinfo.freebig = 0;
 	sysinfo.mem_unit = 1;
 
-	return copyout(&sysinfo, args->info, sizeof(sysinfo));
+	return (copyout(&sysinfo, args->info, sizeof(sysinfo)));
 }
 
 int
@@ -216,7 +216,7 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 	else
 		td->td_retval[0] = (long)old;
 
-	return 0;
+	return (0);
 }
 
 #if defined(__i386__)
@@ -468,7 +468,7 @@ cleanup:
 		vm_map_remove(kernel_map, (vm_offset_t)a_out,
 		    (vm_offset_t)a_out + PAGE_SIZE);
 
-	return error;
+	return (error);
 }
 
 #endif	/* __i386__ */
@@ -562,7 +562,7 @@ select_out:
 	if (ldebug(select))
 		printf(LMSG("select_out -> %d"), error);
 #endif
-	return error;
+	return (error);
 }
 
 int
@@ -602,7 +602,7 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 
 	if (args->new_len > args->old_len) {
 		td->td_retval[0] = 0;
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	if (args->new_len < args->old_len) {
@@ -613,7 +613,7 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 	}
 
 	td->td_retval[0] = error ? 0 : (uintptr_t)args->addr;
-	return error;
+	return (error);
 }
 
 #define LINUX_MS_ASYNC       0x0001
@@ -629,7 +629,7 @@ linux_msync(struct thread *td, struct linux_msync_args *args)
 	bsd_args.len = (uintptr_t)args->len;
 	bsd_args.flags = args->fl & ~LINUX_MS_SYNC;
 
-	return msync(td, &bsd_args);
+	return (msync(td, &bsd_args));
 }
 
 int
@@ -647,9 +647,9 @@ linux_time(struct thread *td, struct linux_time_args *args)
 	microtime(&tv);
 	tm = tv.tv_sec;
 	if (args->tm && (error = copyout(&tm, args->tm, sizeof(tm))))
-		return error;
+		return (error);
 	td->td_retval[0] = tm;
-	return 0;
+	return (0);
 }
 
 struct l_times_argv {
@@ -702,12 +702,12 @@ linux_times(struct thread *td, struct linux_times_args *args)
 		tms.tms_cstime = CONVTCK(cstime);
 
 		if ((error = copyout(&tms, args->buf, sizeof(tms))))
-			return error;
+			return (error);
 	}
 
 	microuptime(&tv);
 	td->td_retval[0] = (int)CONVTCK(tv);
-	return 0;
+	return (0);
 }
 
 int
@@ -766,7 +766,7 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 	if (args->times) {
 		if ((error = copyin(args->times, &lut, sizeof lut))) {
 			LFREEPATH(fname);
-			return error;
+			return (error);
 		}
 		tv[0].tv_sec = lut.l_actime;
 		tv[0].tv_usec = 0;
@@ -847,13 +847,35 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
-#define __WCLONE 0x80000000
+int
+linux_common_wait(struct thread *td, int pid, int *status,
+    int options, struct rusage *ru)
+{
+	int error, tmpstat;
+
+	error = kern_wait(td, pid, &tmpstat, options, ru);
+	if (error)
+		return (error);
+
+	if (status) {
+		tmpstat &= 0xffff;
+		if (WIFSIGNALED(tmpstat))
+			tmpstat = (tmpstat & 0xffffff80) |
+			    BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
+		else if (WIFSTOPPED(tmpstat))
+			tmpstat = (tmpstat & 0xffff00ff) |
+			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
+		error = copyout(&tmpstat, status, sizeof(int));
+	}
+
+	return (error);
+}
 
 int
 linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 {
-	int error, options, tmpstat;
-
+	int options;
+ 
 #ifdef DEBUG
 	if (ldebug(waitpid))
 		printf(ARGS(waitpid, "%d, %p, %d"),
@@ -865,77 +887,15 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 	 */
 	if (args->options & ~(WUNTRACED | WNOHANG | WCONTINUED | __WCLONE))
 		return (EINVAL);
-
+   
 	options = (args->options & (WNOHANG | WUNTRACED));
 	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
 	if (args->options & __WCLONE)
 		options |= WLINUXCLONE;
 
-	error = kern_wait(td, args->pid, &tmpstat, options, NULL);
-	if (error)
-		return error;
-
-	if (args->status) {
-		tmpstat &= 0xffff;
-		if (WIFSIGNALED(tmpstat))
-			tmpstat = (tmpstat & 0xffffff80) |
-			    BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
-		else if (WIFSTOPPED(tmpstat))
-			tmpstat = (tmpstat & 0xffff00ff) |
-			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
-		return copyout(&tmpstat, args->status, sizeof(int));
-	}
-
-	return (0);
+	return (linux_common_wait(td, args->pid, args->status, options, NULL));
 }
 
-int
-linux_wait4(struct thread *td, struct linux_wait4_args *args)
-{
-	int error, options, tmpstat;
-	struct rusage ru, *rup;
-	struct proc *p;
-
-#ifdef DEBUG
-	if (ldebug(wait4))
-		printf(ARGS(wait4, "%d, %p, %d, %p"),
-		    args->pid, (void *)args->status, args->options,
-		    (void *)args->rusage);
-#endif
-
-	options = (args->options & (WNOHANG | WUNTRACED));
-	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
-	if (args->options & __WCLONE)
-		options |= WLINUXCLONE;
-
-	if (args->rusage != NULL)
-		rup = &ru;
-	else
-		rup = NULL;
-	error = kern_wait(td, args->pid, &tmpstat, options, rup);
-	if (error)
-		return error;
-
-	p = td->td_proc;
-	PROC_LOCK(p);
-	sigqueue_delete(&p->p_sigqueue, SIGCHLD);
-	PROC_UNLOCK(p);
-
-	if (args->status) {
-		tmpstat &= 0xffff;
-		if (WIFSIGNALED(tmpstat))
-			tmpstat = (tmpstat & 0xffffff80) |
-			    BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
-		else if (WIFSTOPPED(tmpstat))
-			tmpstat = (tmpstat & 0xffff00ff) |
-			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
-		error = copyout(&tmpstat, args->status, sizeof(int));
-	}
-	if (args->rusage != NULL && error == 0)
-		error = copyout(&ru, args->rusage, sizeof(ru));
-
-	return (error);
-}
 
 int
 linux_mknod(struct thread *td, struct linux_mknod_args *args)
@@ -1043,11 +1003,11 @@ linux_personality(struct thread *td, struct linux_personality_args *args)
 		printf(ARGS(personality, "%lu"), (unsigned long)args->per);
 #endif
 	if (args->per != 0)
-		return EINVAL;
+		return (EINVAL);
 
 	/* Yes Jim, it's still a Linux... */
 	td->td_retval[0] = 0;
-	return 0;
+	return (0);
 }
 
 struct l_itimerval {
@@ -1125,7 +1085,7 @@ linux_nice(struct thread *td, struct linux_nice_args *args)
 	bsd_args.which = PRIO_PROCESS;
 	bsd_args.who = 0;		/* current process */
 	bsd_args.prio = args->inc;
-	return setpriority(td, &bsd_args);
+	return (setpriority(td, &bsd_args));
 }
 
 int
@@ -1352,12 +1312,12 @@ linux_sched_setscheduler(struct thread *td,
 		bsd.policy = SCHED_RR;
 		break;
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	bsd.pid = args->pid;
 	bsd.param = (struct sched_param *)args->param;
-	return sched_setscheduler(td, &bsd);
+	return (sched_setscheduler(td, &bsd));
 }
 
 int
@@ -1387,7 +1347,7 @@ linux_sched_getscheduler(struct thread *td,
 		break;
 	}
 
-	return error;
+	return (error);
 }
 
 int
@@ -1412,9 +1372,9 @@ linux_sched_get_priority_max(struct thread *td,
 		bsd.policy = SCHED_RR;
 		break;
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
-	return sched_get_priority_max(td, &bsd);
+	return (sched_get_priority_max(td, &bsd));
 }
 
 int
@@ -1439,9 +1399,9 @@ linux_sched_get_priority_min(struct thread *td,
 		bsd.policy = SCHED_RR;
 		break;
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
-	return sched_get_priority_min(td, &bsd);
+	return (sched_get_priority_min(td, &bsd));
 }
 
 #define REBOOT_CAD_ON	0x89abcdef
@@ -1466,7 +1426,7 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 #endif
 
 	if (args->magic1 != REBOOT_MAGIC1)
-		return EINVAL;
+		return (EINVAL);
 
 	switch (args->magic2) {
 	case REBOOT_MAGIC2:
@@ -1474,7 +1434,7 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 	case REBOOT_MAGIC2B:
 		break;
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	switch (args->cmd) {
@@ -1492,9 +1452,9 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 		bsd_args.opt = RB_POWEROFF;
 		break;
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
-	return reboot(td, &bsd_args);
+	return (reboot(td, &bsd_args));
 }
 
 
@@ -1632,7 +1592,7 @@ linux_getsid(struct thread *td, struct linux_getsid_args *args)
 #endif
 
 	bsd.pid = args->pid;
-	return getsid(td, &bsd);
+	return (getsid(td, &bsd));
 }
 
 int
@@ -1657,7 +1617,7 @@ linux_getpriority(struct thread *td, struct linux_getpriority_args *args)
 	bsd_args.who = args->who;
 	error = getpriority(td, &bsd_args);
 	td->td_retval[0] = 20 - td->td_retval[0];
-	return error;
+	return (error);
 }
 
 int

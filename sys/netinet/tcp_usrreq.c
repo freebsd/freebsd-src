@@ -1742,10 +1742,6 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_NOPUSH", comma ? ", " : "");
 		comma = 1;
 	}
-	if (t_flags & TF_NOPUSH) {
-		db_printf("%sTF_NOPUSH", comma ? ", " : "");
-		comma = 1;
-	}
 	if (t_flags & TF_MORETOCOME) {
 		db_printf("%sTF_MORETOCOME", comma ? ", " : "");
 		comma = 1;

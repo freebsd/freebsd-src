@@ -43,7 +43,7 @@ struct sctp_sysctl {
 	uint32_t sctp_auto_asconf;
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
-	uint32_t sctp_ecn_nonce;
+	uint32_t sctp_fr_max_burst_default;
 	uint32_t sctp_strict_sacks;
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint32_t sctp_no_csum_on_loopback;
@@ -152,12 +152,6 @@ struct sctp_sysctl {
 #define SCTPCTL_ECN_ENABLE_MAX		1
 #define SCTPCTL_ECN_ENABLE_DEFAULT	1
 
-/* ecn_nonce: Enable SCTP ECN Nonce */
-#define SCTPCTL_ECN_NONCE_DESC		"Enable SCTP ECN Nonce"
-#define SCTPCTL_ECN_NONCE_MIN		0
-#define SCTPCTL_ECN_NONCE_MAX		1
-#define SCTPCTL_ECN_NONCE_DEFAULT	0
-
 /* strict_sacks: Enable SCTP Strict SACK checking */
 #define SCTPCTL_STRICT_SACKS_DESC	"Enable SCTP Strict SACK checking"
 #define SCTPCTL_STRICT_SACKS_MIN	0
@@ -187,6 +181,13 @@ struct sctp_sysctl {
 #define SCTPCTL_MAXBURST_MIN		0
 #define SCTPCTL_MAXBURST_MAX		0xFFFFFFFF
 #define SCTPCTL_MAXBURST_DEFAULT	SCTP_DEF_MAX_BURST
+
+/* fr_maxburst: Default max burst for sctp endpoints when fast retransmitting */
+#define SCTPCTL_FRMAXBURST_DESC		"Default fr max burst for sctp endpoints"
+#define SCTPCTL_FRMAXBURST_MIN		0
+#define SCTPCTL_FRMAXBURST_MAX		0xFFFFFFFF
+#define SCTPCTL_FRMAXBURST_DEFAULT	SCTP_DEF_FRMAX_BURST
+
 
 /* maxchunks: Default max chunks on queue per asoc */
 #define SCTPCTL_MAXCHUNKS_DESC		"Default max chunks on queue per asoc"
@@ -408,7 +409,7 @@ struct sctp_sysctl {
 #define SCTPCTL_HB_MAX_BURST_DESC	"Confirmation Heartbeat max burst"
 #define SCTPCTL_HB_MAX_BURST_MIN	1
 #define SCTPCTL_HB_MAX_BURST_MAX	0xFFFFFFFF
-#define SCTPCTL_HB_MAX_BURST_DEFAULT	SCTP_DEF_MAX_BURST
+#define SCTPCTL_HB_MAX_BURST_DEFAULT	SCTP_DEF_HBMAX_BURST
 
 /* abort_at_limit: When one-2-one hits qlimit abort */
 #define SCTPCTL_ABORT_AT_LIMIT_DESC	"When one-2-one hits qlimit abort"

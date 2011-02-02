@@ -810,7 +810,7 @@ alc_attach(device_t dev)
 		    CSR_READ_4(sc, ALC_PCIE_PHYMISC) |
 		    PCIE_PHYMISC_FORCE_RCV_DET);
 		if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B &&
-		    sc->alc_rev == ATHEROS_AR8152_B_V10) {
+		    pci_get_revid(dev) == ATHEROS_AR8152_B_V10) {
 			val = CSR_READ_4(sc, ALC_PCIE_PHYMISC2);
 			val &= ~(PCIE_PHYMISC2_SERDES_CDR_MASK |
 			    PCIE_PHYMISC2_SERDES_TH_MASK);
@@ -3556,7 +3556,7 @@ alc_stop_queue(struct alc_softc *sc)
 	}
 	/* Disable TxQ. */
 	reg = CSR_READ_4(sc, ALC_TXQ_CFG);
-	if ((reg & TXQ_CFG_ENB) == 0) {
+	if ((reg & TXQ_CFG_ENB) != 0) {
 		reg &= ~TXQ_CFG_ENB;
 		CSR_WRITE_4(sc, ALC_TXQ_CFG, reg);
 	}

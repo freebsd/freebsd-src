@@ -211,7 +211,10 @@ struct sctp_nets {
 	/* mtu discovered so far */
 	uint32_t mtu;
 	uint32_t ssthresh;	/* not sure about this one for split */
-
+	uint32_t last_cwr_tsn;
+	uint32_t cwr_window_tsn;
+	uint32_t ecn_ce_pkt_cnt;
+	uint32_t lost_cnt;
 	/* smoothed average things for RTT and RTO itself */
 	int lastsa;
 	int lastsv;
@@ -234,6 +237,8 @@ struct sctp_nets {
 	uint32_t flight_size;
 	uint32_t cwnd;		/* actual cwnd */
 	uint32_t prev_cwnd;	/* cwnd before any processing */
+	uint32_t ecn_prev_cwnd;	/* ECN prev cwnd at first ecn_echo seen in new
+				 * window */
 	uint32_t partial_bytes_acked;	/* in CA tracks when to incr a MTU */
 	uint32_t prev_rtt;
 	/* tracking variables to avoid the aloc/free in sack processing */
@@ -266,7 +271,7 @@ struct sctp_nets {
 	uint32_t tos_flowlabel;
 
 	struct timeval start_time;	/* time when this net was created */
-
+	struct timeval last_measured_rtt;
 	uint32_t marked_retrans;/* number or DATA chunks marked for timer
 				 * based retransmissions */
 	uint32_t marked_fastretrans;
@@ -315,6 +320,7 @@ struct sctp_nets {
 	uint8_t window_probe;	/* Doing a window probe? */
 	uint8_t RTO_measured;	/* Have we done the first measure */
 	uint8_t last_hs_used;	/* index into the last HS table entry we used */
+	uint8_t lan_type;
 	/* JRS - struct used in HTCP algorithm */
 	struct htcp htcp_ca;
 };
@@ -326,10 +332,7 @@ struct sctp_data_chunkrec {
 	uint16_t stream_number;	/* the stream number of this guy */
 	uint32_t payloadtype;
 	uint32_t context;	/* from send */
-
-	/* ECN Nonce: Nonce Value for this chunk */
-	uint8_t ect_nonce;
-	uint8_t fwd_tsn_cnt;
+	uint32_t cwnd_at_send;
 	/*
 	 * part of the Highest sacked algorithm to be able to stroke counts
 	 * on ones that are FR'd.
@@ -341,6 +344,7 @@ struct sctp_data_chunkrec {
 				 * outbound holds sending flags for PR-SCTP. */
 	uint8_t state_flags;
 	uint8_t chunk_was_revoked;
+	uint8_t fwd_tsn_cnt;
 };
 
 TAILQ_HEAD(sctpchunk_listhead, sctp_tmit_chunk);
@@ -604,7 +608,7 @@ struct sctp_cc_functions {
 	void (*sctp_cwnd_update_after_timeout) (struct sctp_tcb *stcb,
 	         struct sctp_nets *net);
 	void (*sctp_cwnd_update_after_ecn_echo) (struct sctp_tcb *stcb,
-	         struct sctp_nets *net);
+	         struct sctp_nets *net, int in_window, int num_pkt_lost);
 	void (*sctp_cwnd_update_after_packet_dropped) (struct sctp_tcb *stcb,
 	         struct sctp_nets *net, struct sctp_pktdrop_chunk *cp,
 	         uint32_t * bottle_bw, uint32_t * on_queue);
@@ -863,8 +867,6 @@ struct sctp_association {
 	uint8_t *nr_mapping_array;
 	uint32_t highest_tsn_inside_nr_map;
 
-	uint32_t last_echo_tsn;
-	uint32_t last_cwr_tsn;
 	uint32_t fast_recovery_tsn;
 	uint32_t sat_t3_recovery_tsn;
 	uint32_t tsn_last_delivered;
@@ -919,12 +921,9 @@ struct sctp_association {
 	uint32_t sb_send_resv;	/* amount reserved on a send */
 	uint32_t my_rwnd_control_len;	/* shadow of sb_mbcnt used for rwnd
 					 * control */
-	/* 32 bit nonce stuff */
-	uint32_t nonce_resync_tsn;
-	uint32_t nonce_wait_tsn;
 	uint32_t default_flowlabel;
 	uint32_t pr_sctp_cnt;
-	int ctrl_queue_cnt;	/* could be removed  REM */
+	int ctrl_queue_cnt;	/* could be removed  REM - NO IT CAN'T!! RRS */
 	/*
 	 * All outbound datagrams queue into this list from the individual
 	 * stream queue. Here they get assigned a TSN and then await
@@ -1048,7 +1047,6 @@ struct sctp_association {
 	uint16_t ecn_echo_cnt_onq;
 
 	uint16_t free_chunk_cnt;
-
 	uint8_t stream_locked;
 	uint8_t authenticated;	/* packet authenticated ok */
 	/*
@@ -1057,8 +1055,10 @@ struct sctp_association {
 	 */
 	uint8_t send_sack;
 
-	/* max burst after fast retransmit completes */
+	/* max burst of new packets into the network */
 	uint32_t max_burst;
+	/* max burst of fast retransmit packets */
+	uint32_t fr_max_burst;
 
 	uint8_t sat_network;	/* RTT is in range of sat net or greater */
 	uint8_t sat_network_lockout;	/* lockout code */
@@ -1074,20 +1074,13 @@ struct sctp_association {
 	uint8_t default_tos;
 	uint8_t asconf_del_pending;	/* asconf delete last addr pending */
 
-	/* ECN Nonce stuff */
-	uint8_t receiver_nonce_sum;	/* nonce I sum and put in my sack */
-	uint8_t ecn_nonce_allowed;	/* Tells us if ECN nonce is on */
-	uint8_t nonce_sum_check;/* On off switch used during re-sync */
-	uint8_t nonce_wait_for_ecne;	/* flag when we expect a ECN */
-	uint8_t peer_supports_ecn_nonce;
-
 	/*
 	 * This value, plus all other ack'd but above cum-ack is added
 	 * together to cross check against the bit that we have yet to
 	 * define (probably in the SACK). When the cum-ack is updated, this
 	 * sum is updated as well.
 	 */
-	uint8_t nonce_sum_expect_base;
+
 	/* Flag to tell if ECN is allowed */
 	uint8_t ecn_allowed;
 

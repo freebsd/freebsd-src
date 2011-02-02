@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/un.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -124,19 +123,34 @@ uds_client(const char *addr, void **ctxp)
 }
 
 static int
-uds_connect(void *ctx)
+uds_connect(void *ctx, int timeout)
 {
 	struct uds_ctx *uctx = ctx;
 
-	assert(uctx != NULL);
-	assert(uctx->uc_magic == UDS_CTX_MAGIC);
-	assert(uctx->uc_side == UDS_SIDE_CLIENT);
-	assert(uctx->uc_fd >= 0);
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(uctx->uc_side == UDS_SIDE_CLIENT);
+	PJDLOG_ASSERT(uctx->uc_fd >= 0);
+	PJDLOG_ASSERT(timeout >= -1);
 
 	if (connect(uctx->uc_fd, (struct sockaddr *)&uctx->uc_sun,
 	    sizeof(uctx->uc_sun)) < 0) {
 		return (errno);
 	}
+
+	return (0);
+}
+
+static int
+uds_connect_wait(void *ctx, int timeout)
+{
+	struct uds_ctx *uctx = ctx;
+
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(uctx->uc_side == UDS_SIDE_CLIENT);
+	PJDLOG_ASSERT(uctx->uc_fd >= 0);
+	PJDLOG_ASSERT(timeout >= 0);
 
 	return (0);
 }
@@ -177,10 +191,10 @@ uds_accept(void *ctx, void **newctxp)
 	socklen_t fromlen;
 	int ret;
 
-	assert(uctx != NULL);
-	assert(uctx->uc_magic == UDS_CTX_MAGIC);
-	assert(uctx->uc_side == UDS_SIDE_SERVER_LISTEN);
-	assert(uctx->uc_fd >= 0);
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(uctx->uc_side == UDS_SIDE_SERVER_LISTEN);
+	PJDLOG_ASSERT(uctx->uc_fd >= 0);
 
 	newuctx = malloc(sizeof(*newuctx));
 	if (newuctx == NULL)
@@ -203,27 +217,27 @@ uds_accept(void *ctx, void **newctxp)
 }
 
 static int
-uds_send(void *ctx, const unsigned char *data, size_t size)
+uds_send(void *ctx, const unsigned char *data, size_t size, int fd)
 {
 	struct uds_ctx *uctx = ctx;
 
-	assert(uctx != NULL);
-	assert(uctx->uc_magic == UDS_CTX_MAGIC);
-	assert(uctx->uc_fd >= 0);
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(uctx->uc_fd >= 0);
 
-	return (proto_common_send(uctx->uc_fd, data, size));
+	return (proto_common_send(uctx->uc_fd, data, size, fd));
 }
 
 static int
-uds_recv(void *ctx, unsigned char *data, size_t size)
+uds_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
 {
 	struct uds_ctx *uctx = ctx;
 
-	assert(uctx != NULL);
-	assert(uctx->uc_magic == UDS_CTX_MAGIC);
-	assert(uctx->uc_fd >= 0);
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(uctx->uc_fd >= 0);
 
-	return (proto_common_recv(uctx->uc_fd, data, size));
+	return (proto_common_recv(uctx->uc_fd, data, size, fdp));
 }
 
 static int
@@ -231,18 +245,10 @@ uds_descriptor(const void *ctx)
 {
 	const struct uds_ctx *uctx = ctx;
 
-	assert(uctx != NULL);
-	assert(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
 
 	return (uctx->uc_fd);
-}
-
-static bool
-uds_address_match(const void *ctx __unused, const char *addr __unused)
-{
-
-	assert(!"proto_address_match() not supported on UNIX domain sockets");
-	abort();
 }
 
 static void
@@ -252,16 +258,16 @@ uds_local_address(const void *ctx, char *addr, size_t size)
 	struct sockaddr_un sun;
 	socklen_t sunlen;
 
-	assert(uctx != NULL);
-	assert(uctx->uc_magic == UDS_CTX_MAGIC);
-	assert(addr != NULL);
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(addr != NULL);
 
 	sunlen = sizeof(sun);
 	if (getsockname(uctx->uc_fd, (struct sockaddr *)&sun, &sunlen) < 0) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	assert(sun.sun_family == AF_UNIX);
+	PJDLOG_ASSERT(sun.sun_family == AF_UNIX);
 	if (sun.sun_path[0] == '\0') {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
@@ -276,16 +282,16 @@ uds_remote_address(const void *ctx, char *addr, size_t size)
 	struct sockaddr_un sun;
 	socklen_t sunlen;
 
-	assert(uctx != NULL);
-	assert(uctx->uc_magic == UDS_CTX_MAGIC);
-	assert(addr != NULL);
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(addr != NULL);
 
 	sunlen = sizeof(sun);
 	if (getpeername(uctx->uc_fd, (struct sockaddr *)&sun, &sunlen) < 0) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	assert(sun.sun_family == AF_UNIX);
+	PJDLOG_ASSERT(sun.sun_family == AF_UNIX);
 	if (sun.sun_path[0] == '\0') {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
@@ -298,8 +304,8 @@ uds_close(void *ctx)
 {
 	struct uds_ctx *uctx = ctx;
 
-	assert(uctx != NULL);
-	assert(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
 
 	if (uctx->uc_fd >= 0)
 		close(uctx->uc_fd);
@@ -312,12 +318,12 @@ static struct hast_proto uds_proto = {
 	.hp_name = "uds",
 	.hp_client = uds_client,
 	.hp_connect = uds_connect,
+	.hp_connect_wait = uds_connect_wait,
 	.hp_server = uds_server,
 	.hp_accept = uds_accept,
 	.hp_send = uds_send,
 	.hp_recv = uds_recv,
 	.hp_descriptor = uds_descriptor,
-	.hp_address_match = uds_address_match,
 	.hp_local_address = uds_local_address,
 	.hp_remote_address = uds_remote_address,
 	.hp_close = uds_close

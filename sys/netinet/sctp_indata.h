@@ -93,14 +93,14 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc);
 
 void
 sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
-    uint32_t rwnd, int nonce_sum_flag, int *abort_now);
+    uint32_t rwnd, int *abort_now, int ecne_seen);
 
 void
 sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
     struct sctp_tcb *stcb, struct sctp_nets *net_from,
     uint16_t num_seg, uint16_t num_nr_seg, uint16_t num_dup,
     int *abort_now, uint8_t flags,
-    uint32_t cum_ack, uint32_t rwnd);
+    uint32_t cum_ack, uint32_t rwnd, int ecne_seen);
 
 /* draft-ietf-tsvwg-usctp */
 void

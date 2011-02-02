@@ -264,11 +264,13 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 	/* save off parameters */
 	asoc->peer_vtag = ntohl(init->initiate_tag);
 	asoc->peers_rwnd = ntohl(init->a_rwnd);
+	/* init tsn's */
+	asoc->highest_tsn_inside_map = asoc->asconf_seq_in = ntohl(init->initial_tsn) - 1;
+
 	if (!TAILQ_EMPTY(&asoc->nets)) {
 		/* update any ssthresh's that may have a default */
 		TAILQ_FOREACH(lnet, &asoc->nets, sctp_next) {
 			lnet->ssthresh = asoc->peers_rwnd;
-
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_CWND_MONITOR_ENABLE | SCTP_CWND_LOGGING_ENABLE)) {
 				sctp_log_cwnd(stcb, lnet, 0, SCTP_CWND_INITIALIZATION);
 			}
@@ -328,8 +330,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 	}
 	SCTP_TCB_SEND_UNLOCK(stcb);
 	asoc->strm_realoutsize = asoc->streamoutcnt = asoc->pre_open_streams;
-	/* init tsn's */
-	asoc->highest_tsn_inside_map = asoc->asconf_seq_in = ntohl(init->initial_tsn) - 1;
+
 	/* EY - nr_sack: initialize highest tsn in nr_mapping_array */
 	asoc->highest_tsn_inside_nr_map = asoc->highest_tsn_inside_map;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
@@ -340,7 +341,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 
 	asoc->mapping_array_base_tsn = ntohl(init->initial_tsn);
 	asoc->tsn_last_delivered = asoc->cumulative_tsn = asoc->asconf_seq_in;
-	asoc->last_echo_tsn = asoc->asconf_seq_in;
+
 	asoc->advanced_peer_ack_point = asoc->last_acked_seq;
 	/* open the requested streams */
 
@@ -480,7 +481,8 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	    asoc->primary_destination, SCTP_FROM_SCTP_INPUT + SCTP_LOC_4);
 
 	/* calculate the RTO */
-	net->RTO = sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered, sctp_align_safe_nocopy);
+	net->RTO = sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered, sctp_align_safe_nocopy,
+	    SCTP_DETERMINE_LL_NOTOK);
 
 	retval = sctp_send_cookie_echo(m, offset, stcb, net);
 	if (retval < 0) {
@@ -624,7 +626,8 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 		    net, net->cwnd);
 	}
 	/* Now lets do a RTO with this */
-	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv, sctp_align_safe_nocopy);
+	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv, sctp_align_safe_nocopy,
+	    SCTP_DETERMINE_LL_OK);
 	/* Mobility adaptation */
 	if (req_prim) {
 		if ((sctp_is_mobility_feature_on(stcb->sctp_ep,
@@ -1043,11 +1046,6 @@ sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
 		/* draft-ietf-tsvwg-addip-sctp */
 	case SCTP_HAS_NAT_SUPPORT:
 		stcb->asoc.peer_supports_nat = 0;
-		break;
-	case SCTP_ECN_NONCE_SUPPORTED:
-		stcb->asoc.peer_supports_ecn_nonce = 0;
-		stcb->asoc.ecn_nonce_allowed = 0;
-		stcb->asoc.ecn_allowed = 0;
 		break;
 	case SCTP_ADD_IP_ADDRESS:
 	case SCTP_DEL_IP_ADDRESS:
@@ -1544,7 +1542,9 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 */
 			net->hb_responded = 1;
 			net->RTO = sctp_calculate_rto(stcb, asoc, net,
-			    &cookie->time_entered, sctp_align_unsafe_makecopy);
+			    &cookie->time_entered,
+			    sctp_align_unsafe_makecopy,
+			    SCTP_DETERMINE_LL_NOTOK);
 
 			if (stcb->asoc.sctp_autoclose_ticks &&
 			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE))) {
@@ -1678,8 +1678,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		asoc->my_rwnd = ntohl(initack_cp->init.a_rwnd);
 		asoc->pre_open_streams = ntohs(initack_cp->init.num_outbound_streams);
 
-		/* Note last_cwr_tsn? where is this used? */
-		asoc->last_cwr_tsn = asoc->init_seq_number - 1;
 		if (ntohl(init_cp->init.initiate_tag) != asoc->peer_vtag) {
 			/*
 			 * Ok the peer probably discarded our data (if we
@@ -1835,7 +1833,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		asoc->sending_seq = asoc->asconf_seq_out = asoc->str_reset_seq_out = asoc->init_seq_number;
 		asoc->asconf_seq_out_acked = asoc->asconf_seq_out - 1;
 
-		asoc->last_cwr_tsn = asoc->init_seq_number - 1;
 		asoc->asconf_seq_in = asoc->last_acked_seq = asoc->init_seq_number - 1;
 
 		asoc->str_reset_seq_in = asoc->init_seq_number;
@@ -2073,7 +2070,6 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	asoc->init_seq_number = ntohl(initack_cp->init.initial_tsn);
 	asoc->sending_seq = asoc->asconf_seq_out = asoc->str_reset_seq_out = asoc->init_seq_number;
 	asoc->asconf_seq_out_acked = asoc->asconf_seq_out - 1;
-	asoc->last_cwr_tsn = asoc->init_seq_number - 1;
 	asoc->asconf_seq_in = asoc->last_acked_seq = asoc->init_seq_number - 1;
 	asoc->str_reset_seq_in = asoc->init_seq_number;
 
@@ -2251,7 +2247,8 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 	if ((netp) && (*netp)) {
 		(*netp)->RTO = sctp_calculate_rto(stcb, asoc, *netp,
-		    &cookie->time_entered, sctp_align_unsafe_makecopy);
+		    &cookie->time_entered, sctp_align_unsafe_makecopy,
+		    SCTP_DETERMINE_LL_NOTOK);
 	}
 	/* respond with a COOKIE-ACK */
 	sctp_send_cookie_ack(stcb);
@@ -2839,7 +2836,8 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 		SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 		if (asoc->overall_error_count == 0) {
 			net->RTO = sctp_calculate_rto(stcb, asoc, net,
-			    &asoc->time_entered, sctp_align_safe_nocopy);
+			    &asoc->time_entered, sctp_align_safe_nocopy,
+			    SCTP_DETERMINE_LL_NOTOK);
 		}
 		(void)SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_UP, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
@@ -2915,61 +2913,119 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 {
 	struct sctp_nets *net;
 	struct sctp_tmit_chunk *lchk;
-	uint32_t tsn;
+	struct sctp_ecne_chunk bkup;
+	uint8_t override_bit = 0;
+	uint32_t tsn, window_data_tsn;
+	int len;
+	int pkt_cnt;
 
-	if (ntohs(cp->ch.chunk_length) != sizeof(struct sctp_ecne_chunk)) {
+	len = ntohs(cp->ch.chunk_length);
+	if ((len != sizeof(struct sctp_ecne_chunk)) &&
+	    (len != sizeof(struct old_sctp_ecne_chunk))) {
 		return;
+	}
+	if (len == sizeof(struct old_sctp_ecne_chunk)) {
+		/* Its the old format */
+		memcpy(&bkup, cp, sizeof(struct old_sctp_ecne_chunk));
+		bkup.num_pkts_since_cwr = htonl(1);
+		cp = &bkup;
 	}
 	SCTP_STAT_INCR(sctps_recvecne);
 	tsn = ntohl(cp->tsn);
-	/* ECN Nonce stuff: need a resync and disable the nonce sum check */
-	/* Also we make sure we disable the nonce_wait */
-	lchk = TAILQ_FIRST(&stcb->asoc.send_queue);
+	pkt_cnt = ntohl(cp->num_pkts_since_cwr);
+	lchk = TAILQ_LAST(&stcb->asoc.send_queue, sctpchunk_listhead);
 	if (lchk == NULL) {
-		stcb->asoc.nonce_resync_tsn = stcb->asoc.sending_seq;
+		window_data_tsn = stcb->asoc.sending_seq - 1;
 	} else {
-		stcb->asoc.nonce_resync_tsn = lchk->rec.data.TSN_seq;
+		window_data_tsn = lchk->rec.data.TSN_seq;
 	}
-	stcb->asoc.nonce_wait_for_ecne = 0;
-	stcb->asoc.nonce_sum_check = 0;
 
-	/* Find where it was sent, if possible */
+	/* Find where it was sent to if possible. */
 	net = NULL;
 	TAILQ_FOREACH(lchk, &stcb->asoc.sent_queue, sctp_next) {
 		if (lchk->rec.data.TSN_seq == tsn) {
 			net = lchk->whoTo;
+			net->ecn_prev_cwnd = lchk->rec.data.cwnd_at_send;
 			break;
 		}
 		if (SCTP_TSN_GT(lchk->rec.data.TSN_seq, tsn)) {
 			break;
 		}
 	}
-	if (net == NULL)
-		/* default is we use the primary */
-		net = stcb->asoc.primary_destination;
-
-	if (SCTP_TSN_GT(tsn, stcb->asoc.last_cwr_tsn)) {
+	if (net == NULL) {
+		/*
+		 * What to do. A previous send of a CWR was possibly lost.
+		 * See how old it is, we may have it marked on the actual
+		 * net.
+		 */
+		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+			if (tsn == net->last_cwr_tsn) {
+				/* Found him, send it off */
+				goto out;
+			}
+		}
+		/*
+		 * If we reach here, we need to send a special CWR that says
+		 * hey, we did this a long time ago and you lost the
+		 * response.
+		 */
+		net = TAILQ_FIRST(&stcb->asoc.nets);
+		override_bit = SCTP_CWR_REDUCE_OVERRIDE;
+	}
+out:
+	if (SCTP_TSN_GT(tsn, net->cwr_window_tsn) &&
+	    ((override_bit & SCTP_CWR_REDUCE_OVERRIDE) == 0)) {
 		/*
 		 * JRS - Use the congestion control given in the pluggable
 		 * CC module
 		 */
-		stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo(stcb, net);
+		int ocwnd;
+
+		ocwnd = net->cwnd;
+		stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo(stcb, net, 0, pkt_cnt);
 		/*
-		 * we reduce once every RTT. So we will only lower cwnd at
-		 * the next sending seq i.e. the resync_tsn.
+		 * We reduce once every RTT. So we will only lower cwnd at
+		 * the next sending seq i.e. the window_data_tsn
 		 */
-		stcb->asoc.last_cwr_tsn = stcb->asoc.nonce_resync_tsn;
+		net->cwr_window_tsn = window_data_tsn;
+		net->ecn_ce_pkt_cnt += pkt_cnt;
+		net->lost_cnt = pkt_cnt;
+		net->last_cwr_tsn = tsn;
+	} else {
+		override_bit |= SCTP_CWR_IN_SAME_WINDOW;
+		if (SCTP_TSN_GT(tsn, net->last_cwr_tsn) &&
+		    ((override_bit & SCTP_CWR_REDUCE_OVERRIDE) == 0)) {
+			/*
+			 * Another loss in the same window update how many
+			 * marks/packets lost we have had.
+			 */
+			int cnt = 1;
+
+			if (pkt_cnt > net->lost_cnt) {
+				/* Should be the case */
+				cnt = (pkt_cnt - net->lost_cnt);
+				net->ecn_ce_pkt_cnt += cnt;
+			}
+			net->lost_cnt = pkt_cnt;
+			net->last_cwr_tsn = tsn;
+			/*
+			 * Most CC functions will ignore this call, since we
+			 * are in-window yet of the initial CE the peer saw.
+			 */
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo(stcb, net, 1, cnt);
+		}
 	}
 	/*
 	 * We always send a CWR this way if our previous one was lost our
 	 * peer will get an update, or if it is not time again to reduce we
-	 * still get the cwr to the peer.
+	 * still get the cwr to the peer. Note we set the override when we
+	 * could not find the TSN on the chunk or the destination network.
 	 */
-	sctp_send_cwr(stcb, net, tsn);
+	sctp_send_cwr(stcb, net, net->last_cwr_tsn, override_bit);
 }
 
 static void
-sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb)
+sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	/*
 	 * Here we get a CWR from the peer. We must look in the outqueue and
@@ -2978,18 +3034,22 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb)
 	 */
 	struct sctp_tmit_chunk *chk;
 	struct sctp_ecne_chunk *ecne;
+	int override;
+	uint32_t cwr_tsn;
 
+	cwr_tsn = ntohl(cp->tsn);
+
+	override = cp->ch.chunk_flags & SCTP_CWR_REDUCE_OVERRIDE;
 	TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
 		if (chk->rec.chunk_id.id != SCTP_ECN_ECHO) {
 			continue;
 		}
-		/*
-		 * Look for and remove if it is the right TSN. Since there
-		 * is only ONE ECNE on the control queue at any one time we
-		 * don't need to worry about more than one!
-		 */
+		if ((override == 0) && (chk->whoTo != net)) {
+			/* Must be from the right src unless override is set */
+			continue;
+		}
 		ecne = mtod(chk->data, struct sctp_ecne_chunk *);
-		if (SCTP_TSN_GE(ntohl(cp->tsn), ntohl(ecne->tsn))) {
+		if (SCTP_TSN_GE(cwr_tsn, ntohl(ecne->tsn))) {
 			/* this covers this ECNE, we can remove it */
 			stcb->asoc.ecn_echo_cnt_onq--;
 			TAILQ_REMOVE(&stcb->asoc.control_send_queue, chk,
@@ -3000,7 +3060,9 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb)
 			}
 			stcb->asoc.ctrl_queue_cnt--;
 			sctp_free_a_chunk(stcb, chk);
-			break;
+			if (override == 0) {
+				break;
+			}
 		}
 	}
 }
@@ -3130,11 +3192,6 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 						}
 					}
 				}
-				/*
-				 * We zero out the nonce so resync not
-				 * needed
-				 */
-				tp1->rec.data.ect_nonce = 0;
 
 				if (tp1->do_rtt) {
 					/*
@@ -4146,6 +4203,7 @@ __attribute__((noinline))
 	uint32_t chk_length;
 	int ret;
 	int abort_no_unlock = 0;
+	int ecne_seen = 0;
 
 	/*
 	 * How big should this be, and should it be alloc'd? Lets try the
@@ -4589,7 +4647,6 @@ process_control_chunks:
 				uint16_t num_seg, num_dup;
 				uint8_t flags;
 				int offset_seg, offset_dup;
-				int nonce_sum_flag;
 
 				SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SACK\n");
 				SCTP_STAT_INCR(sctps_recvsacks);
@@ -4611,7 +4668,6 @@ process_control_chunks:
 				}
 				sack = (struct sctp_sack_chunk *)ch;
 				flags = ch->chunk_flags;
-				nonce_sum_flag = flags & SCTP_SACK_NONCE_SUM;
 				cum_ack = ntohl(sack->sack.cum_tsn_ack);
 				num_seg = ntohs(sack->sack.num_gap_ack_blks);
 				num_dup = ntohs(sack->sack.num_dup_tsns);
@@ -4643,14 +4699,13 @@ process_control_chunks:
 					 * with no missing segments to go
 					 * this way too.
 					 */
-					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, nonce_sum_flag,
-					    &abort_now);
+					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, &abort_now, ecne_seen);
 				} else {
 					if (netp && *netp)
 						sctp_handle_sack(m, offset_seg, offset_dup,
 						    stcb, *netp,
 						    num_seg, 0, num_dup, &abort_now, flags,
-						    cum_ack, a_rwnd);
+						    cum_ack, a_rwnd, ecne_seen);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
@@ -4676,7 +4731,6 @@ process_control_chunks:
 				uint16_t num_seg, num_nr_seg, num_dup;
 				uint8_t flags;
 				int offset_seg, offset_dup;
-				int nonce_sum_flag;
 
 				SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_NR_SACK\n");
 				SCTP_STAT_INCR(sctps_recvsacks);
@@ -4702,8 +4756,6 @@ process_control_chunks:
 				}
 				nr_sack = (struct sctp_nr_sack_chunk *)ch;
 				flags = ch->chunk_flags;
-				nonce_sum_flag = flags & SCTP_SACK_NONCE_SUM;
-
 				cum_ack = ntohl(nr_sack->nr_sack.cum_tsn_ack);
 				num_seg = ntohs(nr_sack->nr_sack.num_gap_ack_blks);
 				num_nr_seg = ntohs(nr_sack->nr_sack.num_nr_gap_ack_blks);
@@ -4735,14 +4787,14 @@ process_control_chunks:
 					 * missing segments to go this way
 					 * too.
 					 */
-					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, nonce_sum_flag,
-					    &abort_now);
+					sctp_express_handle_sack(stcb, cum_ack, a_rwnd,
+					    &abort_now, ecne_seen);
 				} else {
 					if (netp && *netp)
 						sctp_handle_sack(m, offset_seg, offset_dup,
 						    stcb, *netp,
 						    num_seg, num_nr_seg, num_dup, &abort_now, flags,
-						    cum_ack, a_rwnd);
+						    cum_ack, a_rwnd, ecne_seen);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
@@ -5019,6 +5071,7 @@ process_control_chunks:
 				stcb->asoc.overall_error_count = 0;
 				sctp_handle_ecn_echo((struct sctp_ecne_chunk *)ch,
 				    stcb);
+				ecne_seen = 1;
 			}
 			break;
 		case SCTP_ECN_CWR:
@@ -5041,7 +5094,7 @@ process_control_chunks:
 					    __LINE__);
 				}
 				stcb->asoc.overall_error_count = 0;
-				sctp_handle_ecn_cwr((struct sctp_cwr_chunk *)ch, stcb);
+				sctp_handle_ecn_cwr((struct sctp_cwr_chunk *)ch, stcb, *netp);
 			}
 			break;
 		case SCTP_SHUTDOWN_COMPLETE:
@@ -5341,66 +5394,6 @@ next_chunk:
 }
 
 
-/*
- * Process the ECN bits we have something set so we must look to see if it is
- * ECN(0) or ECN(1) or CE
- */
-static void
-sctp_process_ecn_marked_a(struct sctp_tcb *stcb, struct sctp_nets *net,
-    uint8_t ecn_bits)
-{
-	if ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS) {
-		;
-	} else if ((ecn_bits & SCTP_ECT1_BIT) == SCTP_ECT1_BIT) {
-		/*
-		 * we only add to the nonce sum for ECT1, ECT0 does not
-		 * change the NS bit (that we have yet to find a way to send
-		 * it yet).
-		 */
-
-		/* ECN Nonce stuff */
-		stcb->asoc.receiver_nonce_sum++;
-		stcb->asoc.receiver_nonce_sum &= SCTP_SACK_NONCE_SUM;
-
-		/*
-		 * Drag up the last_echo point if cumack is larger since we
-		 * don't want the point falling way behind by more than
-		 * 2^^31 and then having it be incorrect.
-		 */
-		if (SCTP_TSN_GT(stcb->asoc.cumulative_tsn, stcb->asoc.last_echo_tsn)) {
-			stcb->asoc.last_echo_tsn = stcb->asoc.cumulative_tsn;
-		}
-	} else if ((ecn_bits & SCTP_ECT0_BIT) == SCTP_ECT0_BIT) {
-		/*
-		 * Drag up the last_echo point if cumack is larger since we
-		 * don't want the point falling way behind by more than
-		 * 2^^31 and then having it be incorrect.
-		 */
-		if (SCTP_TSN_GT(stcb->asoc.cumulative_tsn, stcb->asoc.last_echo_tsn)) {
-			stcb->asoc.last_echo_tsn = stcb->asoc.cumulative_tsn;
-		}
-	}
-}
-
-static void
-sctp_process_ecn_marked_b(struct sctp_tcb *stcb, struct sctp_nets *net,
-    uint32_t high_tsn, uint8_t ecn_bits)
-{
-	if ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS) {
-		/*
-		 * we possibly must notify the sender that a congestion
-		 * window reduction is in order. We do this by adding a ECNE
-		 * chunk to the output chunk queue. The incoming CWR will
-		 * remove this chunk.
-		 */
-		if (SCTP_TSN_GT(high_tsn, stcb->asoc.last_echo_tsn)) {
-			/* Yep, we need to add a ECNE */
-			sctp_send_ecn_echo(stcb, net, high_tsn);
-			stcb->asoc.last_echo_tsn = high_tsn;
-		}
-	}
-}
-
 #ifdef INVARIANTS
 #ifdef __GNUC__
 __attribute__((noinline))
@@ -5442,6 +5435,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 	struct mbuf *m = *mm;
 	int abort_flag = 0;
 	int un_sent;
+	int cnt_ctrl_ready = 0;
 
 	SCTP_STAT_INCR(sctps_recvdatagrams);
 #ifdef SCTP_AUDITING_ENABLED
@@ -5599,11 +5593,6 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 		case SCTP_STATE_SHUTDOWN_SENT:
 			break;
 		}
-		/* take care of ECN, part 1. */
-		if (stcb->asoc.ecn_allowed &&
-		    (ecn_bits & (SCTP_ECT0_BIT | SCTP_ECT1_BIT))) {
-			sctp_process_ecn_marked_a(stcb, net, ecn_bits);
-		}
 		/* plow through the data chunks while length > offset */
 		retval = sctp_process_data(mm, iphlen, &offset, length, sh,
 		    inp, stcb, net, &high_tsn);
@@ -5615,18 +5604,15 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 			goto out_now;
 		}
 		data_processed = 1;
-		if (retval == 0) {
-			/* take care of ecn part 2. */
-			if (stcb->asoc.ecn_allowed &&
-			    (ecn_bits & (SCTP_ECT0_BIT | SCTP_ECT1_BIT))) {
-				sctp_process_ecn_marked_b(stcb, net, high_tsn,
-				    ecn_bits);
-			}
-		}
 		/*
 		 * Anything important needs to have been m_copy'ed in
 		 * process_data
 		 */
+	}
+	/* take care of ecn */
+	if (stcb->asoc.ecn_allowed && ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS)) {
+		/* Yep, we need to add a ECNE */
+		sctp_send_ecn_echo(stcb, net, high_tsn);
 	}
 	if ((data_processed == 0) && (fwd_tsn_seen)) {
 		int was_a_gap;
@@ -5659,8 +5645,10 @@ trigger_send:
 	    TAILQ_EMPTY(&stcb->asoc.control_send_queue),
 	    stcb->asoc.total_flight);
 	un_sent = (stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
-
-	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue) ||
+	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
+		cnt_ctrl_ready = stcb->asoc.ctrl_queue_cnt - stcb->asoc.ecn_echo_cnt_onq;
+	}
+	if (cnt_ctrl_ready ||
 	    ((un_sent) &&
 	    (stcb->asoc.peers_rwnd > 0 ||
 	    (stcb->asoc.peers_rwnd <= 0 && stcb->asoc.total_flight == 0)))) {

@@ -93,7 +93,6 @@ static void *fill_search_info(const char *, size_t, void *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
-static void init_dag1(Obj_Entry *, Obj_Entry *, DoneList *);
 static void init_rtld(caddr_t, Elf_Auxinfo **);
 static void initlist_add_neededs(Needed_Entry *, Objlist *);
 static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
@@ -1331,28 +1330,33 @@ gethints(void)
 static void
 init_dag(Obj_Entry *root)
 {
+    const Needed_Entry *needed;
+    const Objlist_Entry *elm;
     DoneList donelist;
 
     if (root->dag_inited)
 	return;
     donelist_init(&donelist);
-    init_dag1(root, root, &donelist);
+
+    /* Root object belongs to own DAG. */
+    objlist_push_tail(&root->dldags, root);
+    objlist_push_tail(&root->dagmembers, root);
+    donelist_check(&donelist, root);
+
+    /*
+     * Add dependencies of root object to DAG in breadth order
+     * by exploiting the fact that each new object get added
+     * to the tail of the dagmembers list.
+     */
+    STAILQ_FOREACH(elm, &root->dagmembers, link) {
+	for (needed = elm->obj->needed; needed != NULL; needed = needed->next) {
+	    if (needed->obj == NULL || donelist_check(&donelist, needed->obj))
+		continue;
+	    objlist_push_tail(&needed->obj->dldags, root);
+	    objlist_push_tail(&root->dagmembers, needed->obj);
+	}
+    }
     root->dag_inited = true;
-}
-
-static void
-init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *dlp)
-{
-    const Needed_Entry *needed;
-
-    if (donelist_check(dlp, obj))
-	return;
-
-    objlist_push_tail(&obj->dldags, root);
-    objlist_push_tail(&root->dagmembers, obj);
-    for (needed = obj->needed;  needed != NULL;  needed = needed->next)
-	if (needed->obj != NULL)
-	    init_dag1(root, needed->obj, dlp);
 }
 
 /*
@@ -2320,32 +2324,28 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 
 	donelist_init(&donelist);
 	if (obj->mainprog) {
-	    /* Search main program and all libraries loaded by it. */
-	    res = symlook_list(&req, &list_main, &donelist);
+            /* Handle obtained by dlopen(NULL, ...) implies global scope. */
+	    res = symlook_global(&req, &donelist);
 	    if (res == 0) {
 		def = req.sym_out;
 		defobj = req.defobj_out;
-	    } else {
-		/*
-		 * We do not distinguish between 'main' object and
-		 * global scope.  If symbol is not defined by objects
-		 * loaded at startup, continue search among
-		 * dynamically loaded objects with RTLD_GLOBAL scope.
-		 */
-		res = symlook_list(&req, &list_global, &donelist);
+	    }
+	    /*
+	     * Search the dynamic linker itself, and possibly resolve the
+	     * symbol from there.  This is how the application links to
+	     * dynamic linker services such as dlopen.
+	     */
+	    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+		res = symlook_obj(&req, &obj_rtld);
 		if (res == 0) {
 		    def = req.sym_out;
 		    defobj = req.defobj_out;
 		}
 	    }
-	} else {
-	    Needed_Entry fake;
-
+	}
+	else {
 	    /* Search the whole DAG rooted at the given object. */
-	    fake.next = NULL;
-	    fake.obj = (Obj_Entry *)obj;
-	    fake.name = 0;
-	    res = symlook_needed(&req, &fake, &donelist);
+	    res = symlook_list(&req, &obj->dagmembers, &donelist);
 	    if (res == 0) {
 		def = req.sym_out;
 		defobj = req.defobj_out;
@@ -2960,53 +2960,33 @@ symlook_list(SymLook *req, const Objlist *objlist, DoneList *dlp)
 }
 
 /*
- * Search the symbol table of a shared object and all objects needed
- * by it for a symbol of the given name.  Search order is
- * breadth-first.  Returns a pointer to the symbol, or NULL if no
- * definition was found.
+ * Search the chain of DAGS cointed to by the given Needed_Entry
+ * for a symbol of the given name.  Each DAG is scanned completely
+ * before advancing to the next one.  Returns a pointer to the symbol,
+ * or NULL if no definition was found.
  */
 static int
 symlook_needed(SymLook *req, const Needed_Entry *needed, DoneList *dlp)
 {
-    const Elf_Sym *def, *def_w;
+    const Elf_Sym *def;
     const Needed_Entry *n;
-    const Obj_Entry *defobj, *defobj1;
+    const Obj_Entry *defobj;
     SymLook req1;
     int res;
 
-    def = def_w = NULL;
+    def = NULL;
     defobj = NULL;
     symlook_init_from_req(&req1, req);
     for (n = needed; n != NULL; n = n->next) {
-	if (n->obj == NULL || donelist_check(dlp, n->obj) ||
-	    (res = symlook_obj(&req1, n->obj)) != 0)
+	if (n->obj == NULL ||
+	    (res = symlook_list(&req1, &n->obj->dagmembers, dlp)) != 0)
 	    continue;
-	def = req1.sym_out;
-	defobj = req1.defobj_out;
-	if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
-	    req->defobj_out = defobj;
-	    req->sym_out = def;
-	    return (0);
+	if (def == NULL || ELF_ST_BIND(req1.sym_out->st_info) != STB_WEAK) {
+	    def = req1.sym_out;
+	    defobj = req1.defobj_out;
+	    if (ELF_ST_BIND(def->st_info) != STB_WEAK)
+		break;
 	}
-    }
-    /*
-     * There we come when either symbol definition is not found in
-     * directly needed objects, or found symbol is weak.
-     */
-    for (n = needed; n != NULL; n = n->next) {
-	if (n->obj == NULL)
-	    continue;
-	res = symlook_needed(&req1, n->obj->needed, dlp);
-	if (res != 0)
-	    continue;
-	def_w = req1.sym_out;
-	defobj1 = req1.defobj_out;
-	if (def == NULL || ELF_ST_BIND(def_w->st_info) != STB_WEAK) {
-	    def = def_w;
-	    defobj = defobj1;
-	}
-	if (ELF_ST_BIND(def_w->st_info) != STB_WEAK)
-	    break;
     }
     if (def != NULL) {
 	req->sym_out = def;
@@ -3724,10 +3704,17 @@ locate_dependency(const Obj_Entry *obj, const char *name)
     }
 
     for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
-	if (needed->obj == NULL)
-	    continue;
-	if (object_match_name(needed->obj, name))
-	    return needed->obj;
+	if (strcmp(obj->strtab + needed->name, name) == 0 ||
+	  (needed->obj != NULL && object_match_name(needed->obj, name))) {
+	    /*
+	     * If there is DT_NEEDED for the name we are looking for,
+	     * we are all set.  Note that object might not be found if
+	     * dependency was not loaded yet, so the function can
+	     * return NULL here.  This is expected and handled
+	     * properly by the caller.
+	     */
+	    return (needed->obj);
+	}
     }
     _rtld_error("%s: Unexpected inconsistency: dependency %s not found",
 	obj->path, name);
@@ -3853,6 +3840,8 @@ rtld_verify_object_versions(Obj_Entry *obj)
     vn = obj->verneed;
     while (vn != NULL) {
 	depobj = locate_dependency(obj, obj->strtab + vn->vn_file);
+	if (depobj == NULL)
+	    return (-1);
 	vna = (const Elf_Vernaux *) ((char *)vn + vn->vn_aux);
 	for (;;) {
 	    if (check_object_provided_version(obj, depobj, vna))

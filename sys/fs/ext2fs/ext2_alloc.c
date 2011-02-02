@@ -59,6 +59,10 @@ static u_long	ext2_hashalloc(struct inode *, int, long, int,
 						int));
 static daddr_t	ext2_nodealloccg(struct inode *, int, daddr_t, int);
 static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
+#ifdef FANCY_REALLOC
+static int	ext2_reallocblks(struct vop_reallocblks_args *);
+#endif
+
 /*
  * Allocate a block in the file system.
  *
@@ -108,13 +112,17 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 		goto nospace;
 	if (bpref >= fs->e2fs->e2fs_bcount)
 		bpref = 0;
-	 if (bpref == 0)
+	if (bpref == 0)
                 cg = ino_to_cg(fs, ip->i_number);
         else
                 cg = dtog(fs, bpref);
         bno = (daddr_t)ext2_hashalloc(ip, cg, bpref, fs->e2fs_bsize,
                                                  ext2_alloccg);
         if (bno > 0) {
+		/* set next_alloc fields as done in block_getblk */
+		ip->i_next_alloc_block = lbn;
+		ip->i_next_alloc_goal = bno;
+
                 ip->i_blocks += btodb(fs->e2fs_bsize);
                 ip->i_flag |= IN_CHANGE | IN_UPDATE;
                 *bnp = bno;
@@ -143,13 +151,14 @@ nospace:
  */
 
 #ifdef FANCY_REALLOC
-#include <sys/sysctl.h>
-static int doasyncfree = 1;
-static int doreallocblks = 1;
+SYSCTL_NODE(_vfs, OID_AUTO, ext2fs, CTLFLAG_RW, 0, "EXT2FS filesystem");
 
-#ifdef	OPT_DEBUG
-SYSCTL_INT(_debug, 14, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, "");
-#endif	/* OPT_DEBUG */
+static int doasyncfree = 1;
+SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doasyncfree, CTLFLAG_RW, &doasyncfree, 0,
+    "Use asychronous writes to update block pointers when freeing blocks");
+
+static int doreallocblks = 1;
+SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 #endif
 
 int
@@ -624,7 +633,8 @@ ext2_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 	struct m_ext2fs *fs;
 	struct buf *bp;
 	struct ext2mount *ump;
-	int error, bno, start, end, loc;
+	daddr_t bno, runstart, runlen;
+	int bit, loc, end, error, start;
 	char *bbp;
 	/* XXX ondisk32 */
 	fs = ip->i_e2fs;
@@ -665,17 +675,51 @@ ext2_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 	else
 		start = 0;
 	end = howmany(fs->e2fs->e2fs_fpg, NBBY) - start;
+retry:
+	runlen = 0;
+	runstart = 0;
 	for (loc = start; loc < end; loc++) {
-		if (bbp[loc] == 0) {
-			bno = loc * NBBY;
+		if (bbp[loc] == (char)0xff) {
+			runlen = 0;
+			continue;
+		}
+
+		/* Start of a run, find the number of high clear bits. */
+		if (runlen == 0) {
+			bit = fls(bbp[loc]);
+			runlen = NBBY - bit;
+			runstart = loc * NBBY + bit;
+		} else if (bbp[loc] == 0) {
+			/* Continue a run. */
+			runlen += NBBY;
+		} else {
+			/*
+			 * Finish the current run.  If it isn't long
+			 * enough, start a new one.
+			 */
+			bit = ffs(bbp[loc]) - 1;
+			runlen += bit;
+			if (runlen >= 8) {
+				bno = runstart;
+				goto gotit;
+			}
+
+			/* Run was too short, start a new one. */
+			bit = fls(bbp[loc]);
+			runlen = NBBY - bit;
+			runstart = loc * NBBY + bit;
+		}
+
+		/* If the current run is long enough, use it. */
+		if (runlen >= 8) {
+			bno = runstart;
 			goto gotit;
 		}
 	}
-	for (loc = 0; loc < start; loc++) {
-		if (bbp[loc] == 0) {
-			bno = loc * NBBY;
-			goto gotit;
-		}
+	if (start != 0) {
+		end = start;
+		start = 0;
+		goto retry;
 	}
 
 	bno = ext2_mapsearch(fs, bbp, bpref);
@@ -686,13 +730,13 @@ ext2_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 	}
 gotit:
 #ifdef DIAGNOSTIC
-	if (isset(bbp, (daddr_t)bno)) {
-		printf("ext2fs_alloccgblk: cg=%d bno=%d fs=%s\n",
-			cg, bno, fs->e2fs_fsmnt);
+	if (isset(bbp, bno)) {
+		printf("ext2fs_alloccgblk: cg=%d bno=%jd fs=%s\n",
+			cg, (intmax_t)bno, fs->e2fs_fsmnt);
 		panic("ext2fs_alloccg: dup alloc");
 	}
 #endif
-	setbit(bbp, (daddr_t)bno);
+	setbit(bbp, bno);
 	EXT2_LOCK(ump);
 	fs->e2fs->e2fs_fbcount--;
 	fs->e2fs_gd[cg].ext2bgd_nbfree--;

@@ -228,10 +228,10 @@ usbpf_xfertap(struct usb_xfer *xfer, int type)
 	ptr += sizeof(struct usbpf_pkthdr);
 
 	for (i = 0; i < up->up_frames; i++) {
-		if (ptr + sizeof(u_int32_t) >= end)
+		if (ptr + sizeof(uint32_t) >= end)
 			goto done;
-		*((u_int32_t *)ptr) = htole32(xfer->frlengths[i]);
-		ptr += sizeof(u_int32_t);
+		*((uint32_t *)ptr) = htole32(xfer->frlengths[i]);
+		ptr += sizeof(uint32_t);
 
 		if (ptr + xfer->frlengths[i] >= end)
 			goto done;

@@ -2516,6 +2516,8 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	m->sctp_sws_sender = SCTP_SWS_SENDER_DEF;
 	m->sctp_sws_receiver = SCTP_SWS_RECEIVER_DEF;
 	m->max_burst = SCTP_BASE_SYSCTL(sctp_max_burst_default);
+	m->fr_max_burst = SCTP_BASE_SYSCTL(sctp_fr_max_burst_default);
+
 	m->sctp_default_cc_module = SCTP_BASE_SYSCTL(sctp_default_cc_module);
 	m->sctp_default_ss_module = SCTP_BASE_SYSCTL(sctp_default_ss_module);
 	/* number of streams to pre-open on a association */
@@ -3854,6 +3856,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	net->RTO_measured = 0;
 	stcb->asoc.numnets++;
 	*(&net->ref_count) = 1;
+	net->cwr_window_tsn = net->last_cwr_tsn = stcb->asoc.sending_seq - 1;
 	net->tos_flowlabel = 0;
 	if (SCTP_BASE_SYSCTL(sctp_udp_tunneling_for_client_enable)) {
 		net->port = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
@@ -6138,10 +6141,6 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 
 				}
 			}
-		} else if (ptype == SCTP_ECN_NONCE_SUPPORTED) {
-			/* Peer supports ECN-nonce */
-			stcb->asoc.peer_supports_ecn_nonce = 1;
-			stcb->asoc.ecn_nonce_allowed = 1;
 		} else if (ptype == SCTP_RANDOM) {
 			if (plen > sizeof(random_store))
 				break;

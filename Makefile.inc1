@@ -116,32 +116,6 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-# Guess machine architecture from machine type, and vice versa.
-.if !defined(TARGET_ARCH) && defined(TARGET)
-TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
-.elif !defined(TARGET) && defined(TARGET_ARCH) && \
-    ${TARGET_ARCH} != ${MACHINE_ARCH}
-TARGET=		${TARGET_ARCH:C/mips.*e[lb]/mips/:C/armeb/arm/}
-.endif
-# Legacy names, for a transition period mips:mips -> mipsel:mips
-.if defined(TARGET) && defined(TARGET_ARCH) && \
-    ${TARGET_ARCH} == "mips" && ${TARGET} == "mips"
-.warning "TARGET_ARCH of mips is deprecated in favor of mipsel or mipseb"
-.if defined(TARGET_BIG_ENDIAN)
-TARGET_ARCH=mipseb
-.else
-TARGET_ARCH=mipsel
-.endif
-.endif
-# arm with TARGET_BIG_ENDIAN -> armeb
-.if defined(TARGET_ARCH) && ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
-.warning "TARGET_ARCH of arm with TARGET_BIG_ENDIAN is deprecated.  use armeb"
-TARGET_ARCH=armeb
-.endif
-# Otherwise, default to current machine type and architecture.
-TARGET?=	${MACHINE}
-TARGET_ARCH?=	${MACHINE_ARCH}
-
 KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips mips64el/mips mips64eb/mips mipsn32el/mips mipsn32eb/mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}

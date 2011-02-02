@@ -191,7 +191,7 @@ macgpio_attach(device_t dev)
 			OF_searchprop(child, "interrupt-parent", &iparent,
 			    sizeof(iparent));
 			resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
-			    0, INTR_VEC(iparent, irq), INTR_VEC(iparent, irq),
+			    0, MAP_IRQ(iparent, irq), MAP_IRQ(iparent, irq),
 			    1);
 		}
 

@@ -43,8 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "pjdlog.h"
 
 static bool pjdlog_initialized = false;
-static int pjdlog_mode = PJDLOG_MODE_STD;
-static int pjdlog_debug_level = 0;
+static int pjdlog_mode, pjdlog_debug_level;
 static char pjdlog_prefix[128];
 
 void
@@ -57,6 +56,8 @@ pjdlog_init(int mode)
 	if (mode == PJDLOG_MODE_SYSLOG)
 		openlog(NULL, LOG_PID | LOG_NDELAY, LOG_DAEMON);
 	pjdlog_mode = mode;
+	pjdlog_debug_level = 0;
+	bzero(pjdlog_prefix, sizeof(pjdlog_prefix));
 
 	pjdlog_initialized = true;
 }
@@ -436,10 +437,10 @@ pjdlog_exitx(int exitcode, const char *fmt, ...)
 }
 
 /*
- * Log assertion and exit.
+ * Log failure message and exit.
  */
 void
-pjdlog_verify(const char *func, const char *file, int line,
+pjdlog_abort(const char *func, const char *file, int line,
     const char *failedexpr, const char *fmt, ...)
 {
 	va_list ap;

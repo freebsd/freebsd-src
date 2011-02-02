@@ -416,6 +416,8 @@ start_scan_locked(const struct ieee80211_scanner *scan,
 				vap->iv_stats.is_scan_passive++;
 			if (flags & IEEE80211_SCAN_FLUSH)
 				ss->ss_ops->scan_flush(ss);
+			if (flags & IEEE80211_SCAN_BGSCAN)
+				ic->ic_flags_ext |= IEEE80211_FEXT_BGSCAN;
 
 			/* NB: flush frames rx'd before 1st channel change */
 			SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_DISCARD;
@@ -432,12 +434,13 @@ start_scan_locked(const struct ieee80211_scanner *scan,
 			ic->ic_flags |= IEEE80211_F_SCAN;
 			ieee80211_runtask(ic, &SCAN_PRIVATE(ss)->ss_scan_task);
 		}
+		return 1;
 	} else {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 		    "%s: %s scan already in progress\n", __func__,
 		    ss->ss_flags & IEEE80211_SCAN_ACTIVE ? "active" : "passive");
 	}
-	return (ic->ic_flags & IEEE80211_F_SCAN);
+	return 0;
 }
 
 /*

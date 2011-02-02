@@ -82,9 +82,6 @@ INCLUDES+= -I$S/dev/twa
 # ...  and XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
-# ...  and OpenSolaris
-INCLUDES+= -I$S/contrib/opensolaris/compat
-
 # ... and the same for cxgb
 INCLUDES+= -I$S/dev/cxgb
 

@@ -345,6 +345,16 @@ __FBSDID("$FreeBSD$");
 
 /* default max I can burst out after a fast retransmit, 0 disables it */
 #define SCTP_DEF_MAX_BURST 0
+#define SCTP_DEF_HBMAX_BURST 4
+#define SCTP_DEF_FRMAX_BURST 4
+
+/* RTO calculation flag to say if it
+ * is safe to determine local lan or not.
+ */
+#define SCTP_DETERMINE_LL_NOTOK 0
+#define SCTP_DETERMINE_LL_OK    1
+
+
 /* IP hdr (20/40) + 12+2+2 (enet) + sctp common 12 */
 #define SCTP_FIRST_MBUF_RESV 68
 /* Packet transmit states in the sent field */
@@ -411,8 +421,7 @@ __FBSDID("$FreeBSD$");
 
 /*************0x8000 series*************/
 #define SCTP_ECN_CAPABLE		0x8000
-/* ECN Nonce: draft-ladha-sctp-ecn-nonce */
-#define SCTP_ECN_NONCE_SUPPORTED	0x8001
+
 /* draft-ietf-tsvwg-auth-xxx */
 #define SCTP_RANDOM			0x8002
 #define SCTP_CHUNK_LIST			0x8003
@@ -948,6 +957,18 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_TIME_WAIT 60
 
+/* How many micro seconds is the cutoff from
+ * local lan type rtt's
+ */
+ /*
+  * We allow 500us for the rtt and another 500us for the cookie processing
+  * since we measure this on the first rtt.
+  */
+#define SCTP_LOCAL_LAN_RTT 1100
+#define SCTP_LAN_UNKNOWN  0
+#define SCTP_LAN_LOCAL    1
+#define SCTP_LAN_INTERNET 2
+
 #define SCTP_SEND_BUFFER_SPLITTING 0x00000001
 #define SCTP_RECV_BUFFER_SPLITTING 0x00000002
 
@@ -995,6 +1016,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(_KERNEL)
 
+#define SCTP_GETTIME_TIMESPEC(x) (getnanouptime(x))
 #define SCTP_GETTIME_TIMEVAL(x)	(getmicrouptime(x))
 #define SCTP_GETPTIME_TIMEVAL(x)	(microuptime(x))
 #endif

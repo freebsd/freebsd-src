@@ -142,12 +142,6 @@ struct sctp_supported_chunk_types_param {
 }                                SCTP_PACKED;
 
 
-/* ECN Nonce: draft-ladha-sctp-ecn-nonce */
-struct sctp_ecn_nonce_supported_param {
-	struct sctp_paramhdr ph;/* type = 0x8001  len = 4 */
-}                              SCTP_PACKED;
-
-
 /*
  * Structures for DATA chunks
  */
@@ -360,9 +354,15 @@ struct sctp_cookie_ack_chunk {
 }                     SCTP_PACKED;
 
 /* Explicit Congestion Notification Echo (ECNE) */
+struct old_sctp_ecne_chunk {
+	struct sctp_chunkhdr ch;
+	uint32_t tsn;
+}                   SCTP_PACKED;
+
 struct sctp_ecne_chunk {
 	struct sctp_chunkhdr ch;
 	uint32_t tsn;
+	uint32_t num_pkts_since_cwr;
 }               SCTP_PACKED;
 
 /* Congestion Window Reduced (CWR) */

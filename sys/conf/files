@@ -566,6 +566,12 @@ dev/ata/atapi-cam.c		optional atapicam
 #
 dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_debug.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_tx.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_tx_ht.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_pci.c		optional ath pci \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ah_osdep.c		optional ath \
