@@ -353,7 +353,7 @@ grackle_route_interrupt(device_t bus, device_t dev, int pin)
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
 	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
 	    &iparent, maskbuf))
-		return (INTR_VEC(iparent, mintr));
+		return (MAP_IRQ(iparent, mintr));
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)
