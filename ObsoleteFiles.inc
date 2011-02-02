@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110119: Remove SYSCTL_*X* sysctl additions.
+OLD_FILES+=usr/share/man/man9/SYSCTL_XINT.9.gz \
+    usr/share/man/man9/SYSCTL_XLONG.9.gz
+
 # 20110112: Update dialog to new version, rename old libdialog to libodialog,
 #     removing associated man pages and header files.
 OLD_FILES+=usr/share/man/man3/draw_shadow.3.gz \
@@ -100,6 +104,8 @@ OLD_FILES+=usr/include/machine/mca.h
 .endif
 # 20101020: catch up with vm_page_sleep_if_busy rename
 OLD_FILES+=usr/share/man/man9/vm_page_sleep_busy.9.gz
+# 20101018: taskqueue(9) updates
+OLD_FILES+=usr/share/man/man9/taskqueue_find.9.gz
 # 20101011: removed subblock.h from liblzma
 OLD_FILES+=usr/include/lzma/subblock.h
 # 20101002: removed manpath.config
