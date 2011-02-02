@@ -71,7 +71,7 @@ static void
 ar9285AniSetup(struct ath_hal *ah)
 {
 	/* NB: disable ANI for reliable RIFS rx */
-	ar5212AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
+	ar5416AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
 }
 
 /*
