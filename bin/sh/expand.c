@@ -155,8 +155,7 @@ stputs_quotes(const char *data, const char *syntax, char *p)
  * expansion are always performed; additional expansions can be requested
  * via flag (EXP_*).
  * The result is left in the stack string.
- * When arglist is NULL, perform here document expansion.  A partial result
- * may be written to herefd, which is then not included in the stack string.
+ * When arglist is NULL, perform here document expansion.
  *
  * Caution: this function uses global state and is not reentrant.
  * However, a new invocation after an interrupted invocation is safe
