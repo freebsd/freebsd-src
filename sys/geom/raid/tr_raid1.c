@@ -306,11 +306,6 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr, struct g_raid_volume 
 	G_RAID_DEBUG(2, "Kicking off a rebuild at %jd...",
 	    trs->trso_failed_sd->sd_rebuild_pos);
 	trs->trso_type = TR_RAID1_REBUILD;
-/*
- * I'm not sure when to reset this and when to use what's there already.
- * XXX
- */
-//	trs->trso_failed_sd->sd_rebuild_pos = 0;
 	trs->trso_buffer = malloc(SD_REBUILD_SLAB, M_TR_raid1, M_WAITOK);
 	trs->trso_meta_update = SD_REBUILD_META_UPDATE;
 	vol->v_to_arg = trs;
