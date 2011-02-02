@@ -730,13 +730,13 @@ retry:
 	}
 gotit:
 #ifdef DIAGNOSTIC
-	if (isset(bbp, (daddr_t)bno)) {
-		printf("ext2fs_alloccgblk: cg=%d bno=%d fs=%s\n",
-			cg, bno, fs->e2fs_fsmnt);
+	if (isset(bbp, bno)) {
+		printf("ext2fs_alloccgblk: cg=%d bno=%jd fs=%s\n",
+			cg, (intmax_t)bno, fs->e2fs_fsmnt);
 		panic("ext2fs_alloccg: dup alloc");
 	}
 #endif
-	setbit(bbp, (daddr_t)bno);
+	setbit(bbp, bno);
 	EXT2_LOCK(ump);
 	fs->e2fs->e2fs_fbcount--;
 	fs->e2fs_gd[cg].ext2bgd_nbfree--;
