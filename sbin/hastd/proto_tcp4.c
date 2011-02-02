@@ -60,6 +60,7 @@ struct tcp4_ctx {
 #define	TCP4_SIDE_SERVER_WORK	2
 };
 
+static int tcp4_connect_wait(void *ctx, int timeout);
 static void tcp4_close(void *ctx);
 
 static in_addr_t
@@ -214,16 +215,14 @@ static int
 tcp4_connect(void *ctx, int timeout)
 {
 	struct tcp4_ctx *tctx = ctx;
-	struct timeval tv;
-	fd_set fdset;
-	socklen_t esize;
-	int error, flags, ret;
+	int error, flags;
 
 	PJDLOG_ASSERT(tctx != NULL);
 	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 	PJDLOG_ASSERT(tctx->tc_side == TCP4_SIDE_CLIENT);
 	PJDLOG_ASSERT(tctx->tc_fd >= 0);
-	PJDLOG_ASSERT(timeout >= 0);
+	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
+	PJDLOG_ASSERT(timeout >= -1);
 
 	flags = fcntl(tctx->tc_fd, F_GETFL);
 	if (flags == -1) {
@@ -244,6 +243,8 @@ tcp4_connect(void *ctx, int timeout)
 
 	if (connect(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sin,
 	    sizeof(tctx->tc_sin)) == 0) {
+		if (timeout == -1)
+			return (0);
 		error = 0;
 		goto done;
 	}
@@ -252,10 +253,35 @@ tcp4_connect(void *ctx, int timeout)
 		pjdlog_common(LOG_DEBUG, 1, errno, "connect() failed");
 		goto done;
 	}
-	/*
-	 * Connection can't be established immediately, let's wait
-	 * for HAST_TIMEOUT seconds.
-	 */
+	if (timeout == -1)
+		return (0);
+	return (tcp4_connect_wait(ctx, timeout));
+done:
+	flags &= ~O_NONBLOCK;
+	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
+		if (error == 0)
+			error = errno;
+		pjdlog_common(LOG_DEBUG, 1, errno,
+		    "fcntl(F_SETFL, ~O_NONBLOCK) failed");
+	}
+	return (error);
+}
+
+static int
+tcp4_connect_wait(void *ctx, int timeout)
+{
+	struct tcp4_ctx *tctx = ctx;
+	struct timeval tv;
+	fd_set fdset;
+	socklen_t esize;
+	int error, flags, ret;
+
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_side == TCP4_SIDE_CLIENT);
+	PJDLOG_ASSERT(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(timeout >= 0);
+
 	tv.tv_sec = timeout;
 	tv.tv_usec = 0;
 again:
@@ -289,6 +315,13 @@ again:
 	}
 	error = 0;
 done:
+	flags = fcntl(tctx->tc_fd, F_GETFL);
+	if (flags == -1) {
+		if (error == 0)
+			error = errno;
+		pjdlog_common(LOG_DEBUG, 1, errno, "fcntl(F_GETFL) failed");
+		return (error);
+	}
 	flags &= ~O_NONBLOCK;
 	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
 		if (error == 0)
@@ -492,6 +525,7 @@ static struct hast_proto tcp4_proto = {
 	.hp_name = "tcp4",
 	.hp_client = tcp4_client,
 	.hp_connect = tcp4_connect,
+	.hp_connect_wait = tcp4_connect_wait,
 	.hp_server = tcp4_server,
 	.hp_accept = tcp4_accept,
 	.hp_send = tcp4_send,

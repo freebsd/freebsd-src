@@ -131,12 +131,26 @@ uds_connect(void *ctx, int timeout)
 	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
 	PJDLOG_ASSERT(uctx->uc_side == UDS_SIDE_CLIENT);
 	PJDLOG_ASSERT(uctx->uc_fd >= 0);
-	PJDLOG_ASSERT(timeout >= 0);
+	PJDLOG_ASSERT(timeout >= -1);
 
 	if (connect(uctx->uc_fd, (struct sockaddr *)&uctx->uc_sun,
 	    sizeof(uctx->uc_sun)) < 0) {
 		return (errno);
 	}
+
+	return (0);
+}
+
+static int
+uds_connect_wait(void *ctx, int timeout)
+{
+	struct uds_ctx *uctx = ctx;
+
+	PJDLOG_ASSERT(uctx != NULL);
+	PJDLOG_ASSERT(uctx->uc_magic == UDS_CTX_MAGIC);
+	PJDLOG_ASSERT(uctx->uc_side == UDS_SIDE_CLIENT);
+	PJDLOG_ASSERT(uctx->uc_fd >= 0);
+	PJDLOG_ASSERT(timeout >= 0);
 
 	return (0);
 }
@@ -330,6 +344,7 @@ static struct hast_proto uds_proto = {
 	.hp_name = "uds",
 	.hp_client = uds_client,
 	.hp_connect = uds_connect,
+	.hp_connect_wait = uds_connect_wait,
 	.hp_server = uds_server,
 	.hp_accept = uds_accept,
 	.hp_send = uds_send,

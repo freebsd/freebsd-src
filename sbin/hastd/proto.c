@@ -174,9 +174,30 @@ proto_connect(struct proto_conn *conn, int timeout)
 	PJDLOG_ASSERT(conn->pc_side == PROTO_SIDE_CLIENT);
 	PJDLOG_ASSERT(conn->pc_proto != NULL);
 	PJDLOG_ASSERT(conn->pc_proto->hp_connect != NULL);
-	PJDLOG_ASSERT(timeout >= 0);
+	PJDLOG_ASSERT(timeout >= -1);
 
 	ret = conn->pc_proto->hp_connect(conn->pc_ctx, timeout);
+	if (ret != 0) {
+		errno = ret;
+		return (-1);
+	}
+
+	return (0);
+}
+
+int
+proto_connect_wait(struct proto_conn *conn, int timeout)
+{
+	int ret;
+
+	PJDLOG_ASSERT(conn != NULL);
+	PJDLOG_ASSERT(conn->pc_magic == PROTO_CONN_MAGIC);
+	PJDLOG_ASSERT(conn->pc_side == PROTO_SIDE_CLIENT);
+	PJDLOG_ASSERT(conn->pc_proto != NULL);
+	PJDLOG_ASSERT(conn->pc_proto->hp_connect_wait != NULL);
+	PJDLOG_ASSERT(timeout >= 0);
+
+	ret = conn->pc_proto->hp_connect_wait(conn->pc_ctx, timeout);
 	if (ret != 0) {
 		errno = ret;
 		return (-1);
