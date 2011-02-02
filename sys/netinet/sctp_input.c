@@ -481,7 +481,8 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	    asoc->primary_destination, SCTP_FROM_SCTP_INPUT + SCTP_LOC_4);
 
 	/* calculate the RTO */
-	net->RTO = sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered, sctp_align_safe_nocopy);
+	net->RTO = sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered, sctp_align_safe_nocopy,
+	    SCTP_DETERMINE_LL_NOTOK);
 
 	retval = sctp_send_cookie_echo(m, offset, stcb, net);
 	if (retval < 0) {
@@ -625,7 +626,8 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 		    net, net->cwnd);
 	}
 	/* Now lets do a RTO with this */
-	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv, sctp_align_safe_nocopy);
+	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv, sctp_align_safe_nocopy,
+	    SCTP_DETERMINE_LL_OK);
 	/* Mobility adaptation */
 	if (req_prim) {
 		if ((sctp_is_mobility_feature_on(stcb->sctp_ep,
@@ -1540,7 +1542,9 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 */
 			net->hb_responded = 1;
 			net->RTO = sctp_calculate_rto(stcb, asoc, net,
-			    &cookie->time_entered, sctp_align_unsafe_makecopy);
+			    &cookie->time_entered,
+			    sctp_align_unsafe_makecopy,
+			    SCTP_DETERMINE_LL_NOTOK);
 
 			if (stcb->asoc.sctp_autoclose_ticks &&
 			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE))) {
@@ -2243,7 +2247,8 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 	if ((netp) && (*netp)) {
 		(*netp)->RTO = sctp_calculate_rto(stcb, asoc, *netp,
-		    &cookie->time_entered, sctp_align_unsafe_makecopy);
+		    &cookie->time_entered, sctp_align_unsafe_makecopy,
+		    SCTP_DETERMINE_LL_NOTOK);
 	}
 	/* respond with a COOKIE-ACK */
 	sctp_send_cookie_ack(stcb);
@@ -2831,7 +2836,8 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 		SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 		if (asoc->overall_error_count == 0) {
 			net->RTO = sctp_calculate_rto(stcb, asoc, net,
-			    &asoc->time_entered, sctp_align_safe_nocopy);
+			    &asoc->time_entered, sctp_align_safe_nocopy,
+			    SCTP_DETERMINE_LL_NOTOK);
 		}
 		(void)SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_UP, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
@@ -2939,6 +2945,7 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 	TAILQ_FOREACH(lchk, &stcb->asoc.sent_queue, sctp_next) {
 		if (lchk->rec.data.TSN_seq == tsn) {
 			net = lchk->whoTo;
+			net->ecn_prev_cwnd = lchk->rec.data.cwnd_at_send;
 			break;
 		}
 		if (SCTP_TSN_GT(lchk->rec.data.TSN_seq, tsn)) {
@@ -4196,6 +4203,7 @@ __attribute__((noinline))
 	uint32_t chk_length;
 	int ret;
 	int abort_no_unlock = 0;
+	int ecne_seen = 0;
 
 	/*
 	 * How big should this be, and should it be alloc'd? Lets try the
@@ -4691,13 +4699,13 @@ process_control_chunks:
 					 * with no missing segments to go
 					 * this way too.
 					 */
-					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, &abort_now);
+					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, &abort_now, ecne_seen);
 				} else {
 					if (netp && *netp)
 						sctp_handle_sack(m, offset_seg, offset_dup,
 						    stcb, *netp,
 						    num_seg, 0, num_dup, &abort_now, flags,
-						    cum_ack, a_rwnd);
+						    cum_ack, a_rwnd, ecne_seen);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
@@ -4780,13 +4788,13 @@ process_control_chunks:
 					 * too.
 					 */
 					sctp_express_handle_sack(stcb, cum_ack, a_rwnd,
-					    &abort_now);
+					    &abort_now, ecne_seen);
 				} else {
 					if (netp && *netp)
 						sctp_handle_sack(m, offset_seg, offset_dup,
 						    stcb, *netp,
 						    num_seg, num_nr_seg, num_dup, &abort_now, flags,
-						    cum_ack, a_rwnd);
+						    cum_ack, a_rwnd, ecne_seen);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
@@ -5063,6 +5071,7 @@ process_control_chunks:
 				stcb->asoc.overall_error_count = 0;
 				sctp_handle_ecn_echo((struct sctp_ecne_chunk *)ch,
 				    stcb);
+				ecne_seen = 1;
 			}
 			break;
 		case SCTP_ECN_CWR:

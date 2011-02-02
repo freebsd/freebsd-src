@@ -318,6 +318,7 @@ struct sctp_pcb {
 	uint32_t adaptation_layer_indicator;
 	uint32_t store_at;
 	uint32_t max_burst;
+	uint32_t fr_max_burst;
 	char current_secret_number;
 	char last_secret_number;
 };
