@@ -554,11 +554,11 @@ fsl_pcib_route_int(struct fsl_pcib_softc *sc, u_int bus, u_int slot, u_int func,
 
 	devfn = DEVFN(bus, slot, func);
 	if (devfn == sc->sc_devfn_via_ide)
-		intline = INTR_VEC(0, 14);
+		intline = MAP_IRQ(0, 14);
 	else if (devfn == sc->sc_devfn_via_ide + 1)
-		intline = INTR_VEC(0, 10);
+		intline = MAP_IRQ(0, 10);
 	else if (devfn == sc->sc_devfn_via_ide + 2)
-		intline = INTR_VEC(0, 10);
+		intline = MAP_IRQ(0, 10);
 	else {
 		if (intpin != 0)
 			err = fdt_pci_route_intr(bus, slot, func, intpin,

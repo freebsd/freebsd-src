@@ -171,7 +171,7 @@ ofw_pcib_pci_route_interrupt(device_t bridge, device_t dev, int intpin)
 			 * it again on higher levels - that causes problems
 			 * in some cases, and never seems to be required.
 			 */
-			return (INTR_VEC(iparent, mintr));
+			return (MAP_IRQ(iparent, mintr));
 		}
 	} else if (intpin >= 1 && intpin <= 4) {
 		/*

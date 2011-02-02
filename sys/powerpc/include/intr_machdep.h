@@ -31,7 +31,7 @@
 #define	INTR_VECTORS	256
 
 #define	MAX_PICS		5
-#define	INTR_VEC(node, pin)	powerpc_get_irq(node, pin)
+#define	MAP_IRQ(node, pin)	powerpc_get_irq(node, pin)
 
 /*
  * Default base address for MSI messages on PowerPC
