@@ -1630,7 +1630,8 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				else if (ret == 0) {
 					break;
 				}
-				if (cnt_sent >= SCTP_BASE_SYSCTL(sctp_hb_maxburst))
+				if (SCTP_BASE_SYSCTL(sctp_hb_maxburst) &&
+				    (cnt_sent >= SCTP_BASE_SYSCTL(sctp_hb_maxburst)))
 					break;
 			}
 		}
