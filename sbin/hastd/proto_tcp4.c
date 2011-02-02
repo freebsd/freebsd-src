@@ -211,7 +211,7 @@ tcp4_client(const char *addr, void **ctxp)
 }
 
 static int
-tcp4_connect(void *ctx)
+tcp4_connect(void *ctx, int timeout)
 {
 	struct tcp4_ctx *tctx = ctx;
 	struct timeval tv;
@@ -223,6 +223,7 @@ tcp4_connect(void *ctx)
 	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 	PJDLOG_ASSERT(tctx->tc_side == TCP4_SIDE_CLIENT);
 	PJDLOG_ASSERT(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(timeout >= 0);
 
 	flags = fcntl(tctx->tc_fd, F_GETFL);
 	if (flags == -1) {
@@ -255,7 +256,7 @@ tcp4_connect(void *ctx)
 	 * Connection can't be established immediately, let's wait
 	 * for HAST_TIMEOUT seconds.
 	 */
-	tv.tv_sec = HAST_TIMEOUT;
+	tv.tv_sec = timeout;
 	tv.tv_usec = 0;
 again:
 	FD_ZERO(&fdset);
