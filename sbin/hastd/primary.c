@@ -1230,8 +1230,12 @@ keepalive_send(struct hast_resource *res, unsigned int ncomp)
 {
 	struct nv *nv;
 
-	if (!ISCONNECTED(res, ncomp))
+	rw_rlock(&hio_remote_lock[ncomp]);
+
+	if (!ISCONNECTED(res, ncomp)) {
+		rw_unlock(&hio_remote_lock[ncomp]);
 		return;
+	}
 	
 	PJDLOG_ASSERT(res->hr_remotein != NULL);
 	PJDLOG_ASSERT(res->hr_remoteout != NULL);
@@ -1239,20 +1243,22 @@ keepalive_send(struct hast_resource *res, unsigned int ncomp)
 	nv = nv_alloc();
 	nv_add_uint8(nv, HIO_KEEPALIVE, "cmd");
 	if (nv_error(nv) != 0) {
+		rw_unlock(&hio_remote_lock[ncomp]);
 		nv_free(nv);
 		pjdlog_debug(1,
 		    "keepalive_send: Unable to prepare header to send.");
 		return;
 	}
 	if (hast_proto_send(res, res->hr_remoteout, nv, NULL, 0) < 0) {
+		rw_unlock(&hio_remote_lock[ncomp]);
 		pjdlog_common(LOG_DEBUG, 1, errno,
 		    "keepalive_send: Unable to send request");
 		nv_free(nv);
-		rw_unlock(&hio_remote_lock[ncomp]);
 		remote_close(res, ncomp);
-		rw_rlock(&hio_remote_lock[ncomp]);
 		return;
 	}
+
+	rw_unlock(&hio_remote_lock[ncomp]);
 	nv_free(nv);
 	pjdlog_debug(2, "keepalive_send: Request sent.");
 }
