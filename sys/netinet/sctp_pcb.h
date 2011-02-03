@@ -624,6 +624,12 @@ sctp_initiate_iterator(inp_func inpf,
     struct sctp_inpcb *,
     uint8_t co_off);
 
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+void
+     sctp_queue_to_mcore(struct mbuf *m, int off, int cpu_to_use);
+
+#endif
+
 #ifdef INVARIANTS
 void
      sctp_validate_no_locks(struct sctp_inpcb *inp);
