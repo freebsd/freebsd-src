@@ -481,6 +481,7 @@ g_raid_tr_iostart_raid1_write(struct g_raid_tr_object *tr, struct bio *bp)
 			if (bp->bio_offset >= sd->sd_rebuild_pos)
 				continue;
 			break;
+		case G_RAID_SUBDISK_S_STALE:
 		case G_RAID_SUBDISK_S_RESYNC:
 			/*
 			 * Resyncing still writes on the theory that the
@@ -488,6 +489,7 @@ g_raid_tr_iostart_raid1_write(struct g_raid_tr_object *tr, struct bio *bp)
 			 * keep it that way better if we keep up while
 			 * resyncing.
 			 */
+			break;
 		default:
 			continue;
 		}
@@ -818,10 +820,23 @@ g_raid_tr_kerneldump_raid1(struct g_raid_tr_object *tr,
 		switch (sd->sd_state) {
 		case G_RAID_SUBDISK_S_ACTIVE:
 			break;
-//		case G_RAID_DISK_STATE_SYNCHRONIZING:
-//			if (bp->bio_offset >= sync->ds_offset)
-//				continue;
-//			break;
+		case G_RAID_SUBDISK_S_REBUILD:
+			/*
+			 * When rebuilding, only part of this subdisk is
+			 * writable, the rest will be written as part of the
+			 * that process.
+			 */
+			if (offset >= sd->sd_rebuild_pos)
+				continue;
+			break;
+		case G_RAID_SUBDISK_S_STALE:
+		case G_RAID_SUBDISK_S_RESYNC:
+			/*
+			 * Resyncing still writes on the theory that the
+			 * resync'd disk is very close and writing it will
+			 * keep it that way better if we keep up while
+			 * resyncing.
+			 */
 		default:
 			continue;
 		}
