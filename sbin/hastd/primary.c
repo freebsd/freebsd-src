@@ -850,6 +850,7 @@ hastd_primary(struct hast_resource *res)
 		cleanup(res);
 		exit(EX_CONFIG);
 	}
+	pjdlog_info("Privileges successfully dropped.");
 
 	/*
 	 * Create the guard thread first, so we can handle signals from the
