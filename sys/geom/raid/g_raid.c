@@ -372,7 +372,7 @@ g_raid_report_disk_state(struct g_raid_disk *disk)
 	}
 	len = sizeof(s);
 	g_io_getattr("GEOM::setstate", disk->d_consumer, &len, &s);
-	G_RAID_DEBUG(1, "Disk %s state reported as %d.",
+	G_RAID_DEBUG(2, "Disk %s state reported as %d.",
 	    g_raid_get_diskname(disk), s);
 }
 
