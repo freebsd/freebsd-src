@@ -1,5 +1,8 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart, rrs@lakerest.net and
+ *                          Michael Tuexen, tuexen@fh-muenster.de
+ *                          All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -5599,11 +5602,18 @@ sctp_pcb_init()
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	bzero(&SCTP_BASE_SYSCTL(sctp_log), sizeof(struct sctp_log));
 #endif
+#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+	SCTP_MALLOC(SCTP_BASE_STATS, struct sctpstat *,
+	    (mp_ncpus * sizeof(struct sctpstat)),
+	    SCTP_M_MCORE);
+#endif
 	(void)SCTP_GETTIME_TIMEVAL(&tv);
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+	bzero(SCTP_BASE_STATS, (sizeof(struct sctpstat) * mp_ncpus));
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_sec = (uint32_t) tv.tv_sec;
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_usec = (uint32_t) tv.tv_usec;
 #else
+	bzero(&SCTP_BASE_STATS, sizeof(struct sctpstat));
 	SCTP_BASE_STAT(sctps_discontinuitytime).tv_sec = (uint32_t) tv.tv_sec;
 	SCTP_BASE_STAT(sctps_discontinuitytime).tv_usec = (uint32_t) tv.tv_usec;
 #endif
@@ -5846,7 +5856,9 @@ sctp_pcb_finish(void)
 		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_ephash), SCTP_BASE_INFO(hashmark));
 	if (SCTP_BASE_INFO(sctp_tcpephash) != NULL)
 		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_tcpephash), SCTP_BASE_INFO(hashtcpmark));
-
+#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+	SCTP_FREE(SCTP_BASE_STATS, SCTP_M_MCORE);
+#endif
 }
 
 
