@@ -68,6 +68,7 @@ MALLOC_DEFINE(SCTP_M_TIMW, "sctp_timw", "sctp time block");
 MALLOC_DEFINE(SCTP_M_MVRF, "sctp_mvrf", "sctp mvrf pcb list");
 MALLOC_DEFINE(SCTP_M_ITER, "sctp_iter", "sctp iterator control");
 MALLOC_DEFINE(SCTP_M_SOCKOPT, "sctp_socko", "sctp socket option");
+MALLOC_DEFINE(SCTP_M_MCORE, "sctp_mcore", "sctp mcore queue");
 
 /* Global NON-VNET structure that controls the iterator */
 struct iterator_control sctp_it_ctl;
