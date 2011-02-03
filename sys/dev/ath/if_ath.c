@@ -3892,9 +3892,15 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 		if (ni != NULL) {
+#if NOTYET
 		/* tag AMPDU aggregates for reorder processing */
+		/*
+		 * XXX this should only tag frames marked as aggregate; rather
+		 * XXX than all frames.
+		 */
 		if (ni->ni_flags & IEEE80211_NODE_HT)
 			m->m_flags |= M_AMPDU;
+#endif
 
 			/*
 			 * Sending station is known, dispatch directly.
