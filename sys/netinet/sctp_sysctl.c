@@ -664,7 +664,7 @@ sysctl_stat_get(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 	memset(&sb, 0, sizeof(sb));
-	for (cpu = 0; cpu < mp_ncpus; cpu++) {
+	for (cpu = 0; cpu < mp_maxid; cpu++) {
 		sarry = &SCTP_BASE_STATS[cpu];
 		if (sarry->sctps_discontinuitytime.tv_sec > sb.sctps_discontinuitytime.tv_sec) {
 			sb.sctps_discontinuitytime.tv_sec = sarry->sctps_discontinuitytime.tv_sec;
