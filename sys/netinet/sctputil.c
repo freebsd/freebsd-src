@@ -1076,7 +1076,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 		TAILQ_INIT(&asoc->strmout[i].outqueue);
 		asoc->strmout[i].stream_no = i;
 		asoc->strmout[i].last_msg_incomplete = 0;
-		asoc->ss_functions.sctp_ss_init_stream(&asoc->strmout[i]);
+		asoc->ss_functions.sctp_ss_init_stream(&asoc->strmout[i], NULL);
 	}
 	asoc->ss_functions.sctp_ss_init(stcb, asoc, 0);
 
