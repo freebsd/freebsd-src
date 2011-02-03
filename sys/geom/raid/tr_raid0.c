@@ -140,7 +140,9 @@ g_raid_tr_event_raid0(struct g_raid_tr_object *tr,
 	sc = vol->v_softc;
 	if (event == G_RAID_SUBDISK_E_NEW) {
 		state = sd->sd_state;
-		if (state != G_RAID_SUBDISK_S_FAILED)
+		if (state != G_RAID_SUBDISK_S_NONE &&
+		    state != G_RAID_SUBDISK_S_FAILED &&
+		    state != G_RAID_SUBDISK_S_ACTIVE)
 			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
 		if (state != sd->sd_state &&
 		    !trs->trso_starting && !trs->trso_stopped)
