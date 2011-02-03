@@ -77,16 +77,17 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used to manage software RAID configurations, supported by GEOM RAID
-class.
+utility is used to manage software RAID configurations, supported by the
+GEOM RAID class.
 GEOM RAID class uses on-disk metadata to provide access to software-RAID
 volumes defined by different RAID BIOSes.
 Depending on RAID BIOS type and it's metadata format, different subsets of
-configurations and features supported.
-To allow booting from RAID volume metadata format should match RAID BIOS type
-and it's capabilities.
-To guarantee this match it is recommended to create volumes via RAID BIOS
-interface, while experienced users are free to do it using this utility.
+configurations and features are supported.
+To allow booting from RAID volume, the metadata format should match the
+RAID BIOS type and its capabilities.
+To guarantee that these match, it is recommended to create volumes via the
+RAID BIOS interface, while experienced users are free to do it using this
+utility.
 .Pp
 The first argument to
 .Nm
@@ -94,16 +95,19 @@ indicates an action to be performed:
 .Bl -tag -width ".Cm destroy"
 .It Cm label
 Create an array with single volume.
+The
 .Ar format
-argument specifies on-disk metadata format to use for this array,
+argument specifies the on-disk metadata format to use for this array,
 such as "Intel".
+The
 .Ar label
-argument specifies label of the created volume.
+argument specifies teh label of the created volume.
+The
 .Ar level
-argument specifies RAID level of the created volume, such as:
+argument specifies the RAID level of the created volume, such as:
 "RAID0", "RAID1", etc.
-Subsequent list enumerates providers to use as array components.
-Special name "NONE" can be used to reserve space for absent disk.
+The subsequent list enumerates providers to use as array components.
+The special name "NONE" can be used to reserve space for absent disks.
 The order of components can be important, depending on specific RAID level
 and metadata format.
 .Pp
@@ -122,39 +126,43 @@ Defaults to 131072.
 .El
 .It Cm add
 Create another volume on the existing array.
+The
 .Ar name
-argument is the name of existing array, reported by label command.
-The rest of arguments are the same as for label command.
+argument is the name of the existing array, reported by label command.
+The rest of arguments are the same as for the label command.
 .It Cm delete
-Delete volume(s) from the existing array. When last volume deleted, array is
-also getting deleted and metadata erased.
+Delete volume(s) from the existing array.
+When the last volume is deleted, the array is also deleted and its metadata
+erased.
+The
 .Ar name
 argument is the name of existing array.
 Optional
 .Ar label
 or
 .Ar num
-arguments allow to specify volume for deletion.
+arguments allow specifying volume for deletion.
 .It Cm insert
 Insert specified provider(s) into specified array instead of the first missing
 or failed components.
-If there is no such components - mark disk(s) as spare.
+If there are no such components, mark disk(s) as spare.
 .It Cm remove
-Remove specified provider(s) from specified array and erase metadata.
-If there are spare disks present - removed disk will be replaced with one
-of them.
+Remove the specified provider(s) from the specified array and erase metadata.
+If there are spare disks present, the removed disk(s) will be replaced by
+spares.
 .It Cm fail
 Mark the given disks(s) as failed, removing from active use unless absolutely
 necessary due to exhausted redundancy.
 If there are spare disks present - failed disk(s) will be replaced with one
 of them.
 .It Cm stop
-Stop the given array. Metadata not erased.
+Stop the given array.
+The metadata will not be erased.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl f"
 .It Fl f
-Stop the given array even if some of it's volumes are opened.
+Stop the given array even if some of its volumes are opened.
 .El
 .It Cm list
 See
@@ -176,19 +184,22 @@ Additional options include:
 Be more verbose.
 .El
 .Sh SUPPORTED METADATA FORMATS
-GEOM RAID class implements modular design, allowing different metadata formats
-to be used. Support for such formats is implemented now:
+The GEOM RAID class follows a modular design, allowing different metadata
+formats to be used.
+Support is currently implemented for the following formats:
 .Bl -tag -width "Intel"
 .It Intel
-Format supported by Intel RAID BIOS. Supports up to two volumes per array.
-Supports such configurations: RAID0 (2+ disks), RAID1 (2 disks),
-RAID5 (3+ disks), RAID10 (2 or 4 disks).
+The format used by Intel RAID BIOS.
+Supports up to two volumes per array.
+Supports configurations: RAID0 (2+ disks), RAID1 (2 disks),
+RAID5 (3+ disks), RAID10 (4 disks).
 .El
 .Sh SUPPORTED RAID LEVELS
-GEOM RAID class implements modular design, allowing different RAID levels
-to be used. Support for such formats is implemented now: RAID0, RAID1.
+The GEOM RAID class follows a modular design, allowing different RAID levels
+to be used.
+Support for the following RAID levels is currently implemented: RAID0, RAID1.
 .Sh EXIT STATUS
-Exit status is 0 on success, and others if the command fails.
+Exit status is 0 on success, and non-zero if the command fails.
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr geom 8 ,
