@@ -626,31 +626,43 @@ nofit:
 			mmap1 = mmap0;
 
 		if (resurrection) {
+			/* Stale disk, almost same as new. */
 			g_raid_change_subdisk_state(sd,
 			    G_RAID_SUBDISK_S_NEW);
 		} else if (meta->disk[disk_pos].flags & INTEL_F_FAILED) {
+			/* Failed disk, almost useless. */
 			g_raid_change_subdisk_state(sd,
 			    G_RAID_SUBDISK_S_FAILED);
 		} else if (mvol->migr_state == 0) {
-			if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+			if (mmap0->status == INTEL_S_UNINITIALIZED) {
+				/* Freshly created uninitialized volume. */
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_NEW);
+			} else if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+				/* Freshly inserted disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_NEW);
 			} else if (mvol->dirty) {
+				/* Dirty volume (unclean shutdown). */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_STALE);
 			} else {
+				/* Up to date disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_ACTIVE);
 			}
 		} else if (mvol->migr_type == INTEL_MT_INIT ||
 			   mvol->migr_type == INTEL_MT_REBUILD) {
 			if (!(mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD)) {
+				/* Up to date disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_ACTIVE);
 			} else if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+				/* Freshly inserted disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_NEW);
 			} else {
+				/* Rebuilding disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_REBUILD);
 				sd->sd_rebuild_pos =
@@ -661,12 +673,15 @@ nofit:
 		} else if (mvol->migr_type == INTEL_MT_VERIFY ||
 			   mvol->migr_type == INTEL_MT_REPAIR) {
 			if (!(mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD)) {
+				/* Up to date disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_ACTIVE);
 			} else if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+				/* Freshly inserted disk. */
 				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_STALE);
+				    G_RAID_SUBDISK_S_NEW);
 			} else {
+				/* Resyncing disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_RESYNC);
 				sd->sd_rebuild_pos =
