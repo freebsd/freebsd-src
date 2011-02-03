@@ -129,20 +129,13 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 	}
 
 	/* Map to POSIX errors */
-	switch (e) {
-	case EACCES:
-		exerrno = 126;
-		break;
-	case ENOENT:
+	if (e == ENOENT || e == ENOTDIR) {
 		exerrno = 127;
-		break;
-	default:
-		exerrno = 2;
-		break;
-	}
-	if (e == ENOENT || e == ENOTDIR)
 		exerror(EXEXEC, "%s: not found", argv[0]);
-	exerror(EXEXEC, "%s: %s", argv[0], strerror(e));
+	} else {
+		exerrno = 126;
+		exerror(EXEXEC, "%s: %s", argv[0], strerror(e));
+	}
 }
 
 
