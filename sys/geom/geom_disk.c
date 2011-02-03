@@ -56,6 +56,16 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_disk.h>
 #include <geom/geom_int.h>
 
+#include <dev/led/led.h>
+
+struct g_disk_softc {
+	struct disk		*dp;
+	struct sysctl_ctx_list	sysctl_ctx;
+	struct sysctl_oid	*sysctl_tree;
+	char			led[64];
+	uint32_t		state;
+};
+
 static struct mtx g_disk_done_mtx;
 
 static g_access_t g_disk_access;
@@ -75,6 +85,9 @@ static struct g_class g_disk_class = {
 	.ioctl = g_disk_ioctl,
 	.dumpconf = g_disk_dumpconf,
 };
+
+SYSCTL_DECL(_kern_geom);
+SYSCTL_NODE(_kern_geom, OID_AUTO, disk, CTLFLAG_RW, 0, "GEOM_DISK stuff");
 
 static void
 g_disk_init(struct g_class *mp __unused)
@@ -110,13 +123,15 @@ static int
 g_disk_access(struct g_provider *pp, int r, int w, int e)
 {
 	struct disk *dp;
+	struct g_disk_softc *sc;
 	int error;
 
 	g_trace(G_T_ACCESS, "g_disk_access(%s, %d, %d, %d)",
 	    pp->name, r, w, e);
 	g_topology_assert();
 	dp = pp->geom->softc;
-	if (dp == NULL || dp->d_destroyed) {
+	sc = pp->private;
+	if (dp == NULL || dp->d_destroyed || sc == NULL) {
 		/*
 		 * Allow decreasing access count even if disk is not
 		 * avaliable anymore.
@@ -155,6 +170,9 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 				    pp->name, error);
 			g_disk_unlock_giant(dp);
 		}
+		sc->state = G_STATE_ACTIVE;
+		if (sc->led[0] != 0)
+			led_set(sc->led, "0");
 		dp->d_flags &= ~DISKFLAG_OPEN;
 	}
 	return (error);
@@ -162,7 +180,7 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 
 static void
 g_disk_kerneldump(struct bio *bp, struct disk *dp)
-{ 
+{
 	struct g_kerneldump *gkd;
 	struct g_geom *gp;
 
@@ -182,6 +200,36 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	if ((gkd->offset + gkd->length) > dp->d_mediasize)
 		gkd->length = dp->d_mediasize - gkd->offset;
 	gkd->di.mediasize = gkd->length;
+	g_io_deliver(bp, 0);
+}
+
+static void
+g_disk_setstate(struct bio *bp, struct disk *dp)
+{
+	struct g_disk_softc *sc;
+	const char *cmd;
+
+	sc = bp->bio_to->private;
+	if (sc != NULL) {
+		memcpy(&sc->state, bp->bio_data, sizeof(sc->state));
+		if (sc->led[0] != 0) {
+			switch (sc->state) {
+			case G_STATE_FAILED:
+				cmd = "1";
+				break;
+			case G_STATE_REBUILD:
+				cmd = "f5";
+				break;
+			case G_STATE_RESYNC:
+				cmd = "f1";
+				break;
+			default:
+				cmd = "0";
+				break;
+			}
+			led_set(sc->led, cmd);
+		}
+	}
 	g_io_deliver(bp, 0);
 }
 
@@ -319,6 +367,8 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_disk_kerneldump(bp, dp);
+		else if (!strcmp(bp->bio_attribute, "GEOM::setstate"))
+			g_disk_setstate(bp, dp);
 		else 
 			error = ENOIOCTL;
 		break;
@@ -376,6 +426,8 @@ g_disk_create(void *arg, int flag)
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct disk *dp;
+	struct g_disk_softc *sc;
+	char tmpstr[80];
 
 	if (flag == EV_CANCEL)
 		return;
@@ -392,6 +444,23 @@ g_disk_create(void *arg, int flag)
 	pp->stripesize = dp->d_stripesize;
 	if (bootverbose)
 		printf("GEOM: new disk %s\n", gp->name);
+	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
+	sc->dp = dp;
+	sysctl_ctx_init(&sc->sysctl_ctx);
+	snprintf(tmpstr, sizeof(tmpstr), "GEOM disk %s", gp->name);
+	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
+		SYSCTL_STATIC_CHILDREN(_kern_geom_disk), OID_AUTO, gp->name,
+		CTLFLAG_RD, 0, tmpstr);
+	if (sc->sysctl_tree != NULL) {
+		snprintf(tmpstr, sizeof(tmpstr),
+		    "kern.geom.disk.%s.led", gp->name);
+		TUNABLE_STR_FETCH(tmpstr, sc->led, sizeof(sc->led));
+		SYSCTL_ADD_STRING(&sc->sysctl_ctx,
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "led",
+		    CTLFLAG_RW | CTLFLAG_TUN, sc->led, sizeof(sc->led),
+		    "LED name");
+	}
+	pp->private = sc;
 	dp->d_geom = gp;
 	g_error_provider(pp, 0);
 }
@@ -401,11 +470,21 @@ g_disk_destroy(void *ptr, int flag)
 {
 	struct disk *dp;
 	struct g_geom *gp;
+	struct g_disk_softc *sc;
 
 	g_topology_assert();
 	dp = ptr;
 	gp = dp->d_geom;
 	if (gp != NULL) {
+		sc = LIST_FIRST(&gp->provider)->private;
+		if (sc->sysctl_tree != NULL) {
+			sysctl_ctx_free(&sc->sysctl_ctx);
+			sc->sysctl_tree = NULL;
+		}
+		if (sc->led[0] != 0)
+			led_set(sc->led, "0");
+		g_free(sc);
+		LIST_FIRST(&gp->provider)->private = NULL;
 		gp->softc = NULL;
 		g_wither_geom(gp, ENXIO);
 	}
