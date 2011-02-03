@@ -912,10 +912,10 @@ g_raid_start_request(struct bio *bp)
 	G_RAID_TR_IOSTART(vol->v_tr, bp);
 }
 
-
-sttic void
+static void
 g_raid_finish_with_locked_ranges(struct g_raid_volume *vol, struct bio *bp)
 {
+	off_t off, len;
 	struct bio *nbp;
 	struct g_raid_lock *lp;
 
@@ -948,7 +948,6 @@ g_raid_finish_with_locked_ranges(struct g_raid_volume *vol, struct bio *bp)
 void
 g_raid_iodone(struct bio *bp, int error)
 {
-	off_t off, len;
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
 
