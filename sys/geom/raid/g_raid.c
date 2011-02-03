@@ -76,6 +76,11 @@ static u_int g_raid_name_format = 0;
 TUNABLE_INT("kern.geom.raid.name_format", &g_raid_name_format);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, name_format, CTLFLAG_RW,
     &g_raid_name_format, 0, "Providers name format.");
+static u_int g_raid_idle_threshold = 1000000;
+TUNABLE_INT("kern.geom.raid.idle_threshold", &g_raid_idle_threshold);
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, idle_threshold, CTLFLAG_RW,
+    &g_raid_idle_threshold, 1000000,
+    "Time in microseconds to consider a volume idle.");
 
 #define	MSLEEP(rv, ident, mtx, priority, wmesg, timeout)	do {	\
 	G_RAID_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));		\
@@ -882,6 +887,7 @@ g_raid_start_request(struct bio *bp)
 	 */
 	if (!(bp->bio_cflags & G_RAID_BIO_FLAG_SPECIAL) &&
 	    g_raid_is_in_locked_range(vol, bp)) {
+		G_RAID_LOGREQ(3, bp, "Defer request.");
 		bioq_insert_tail(&vol->v_locked, bp);
 		return;
 	}
@@ -902,19 +908,52 @@ g_raid_start_request(struct bio *bp)
 	 * the transformation layer to start the I/O.
 	 */
 	bioq_insert_tail(&vol->v_inflight, bp);
+	G_RAID_LOGREQ(2, bp, "Request started");
 	G_RAID_TR_IOSTART(vol->v_tr, bp);
+}
+
+
+sttic void
+g_raid_finish_with_locked_ranges(struct g_raid_volume *vol, struct bio *bp)
+{
+	struct bio *nbp;
+	struct g_raid_lock *lp;
+
+	vol->v_pending_lock = 0;
+	LIST_FOREACH(lp, &vol->v_locks, l_next) {
+		if (lp->l_pending) {
+			off = lp->l_offset;
+			len = lp->l_length;
+			lp->l_pending = 0;
+			TAILQ_FOREACH(nbp, &vol->v_inflight.queue, bio_queue) {
+				if (g_raid_bio_overlaps(nbp, off, len))
+					lp->l_pending++;
+			}
+			if (lp->l_pending) {
+				vol->v_pending_lock = 1;
+				G_RAID_DEBUG(4,
+				    "Deferred lock(%jd, %jd) has %d pending",
+				    (intmax_t)off, (intmax_t)(off + len),
+				    lp->l_pending);
+				continue;
+			}
+			G_RAID_DEBUG(4,
+			    "Deferred lock of %jd to %jd completed",
+			    (intmax_t)off, (intmax_t)(off + len));
+			G_RAID_TR_LOCKED(vol->v_tr, lp->l_callback_arg);
+		}
+	}
 }
 
 void
 g_raid_iodone(struct bio *bp, int error)
 {
+	off_t off, len;
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
-	struct g_raid_lock *lp;
 
 	sc = bp->bio_to->geom->softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
-
 	vol = bp->bio_to->private;
 	G_RAID_LOGREQ(3, bp, "Request done: %d.", error);
 
@@ -925,37 +964,8 @@ g_raid_iodone(struct bio *bp, int error)
 	}
 
 	bioq_remove(&vol->v_inflight, bp);
-	if (bp->bio_cmd == BIO_WRITE && vol->v_pending_lock &&
-	    g_raid_is_in_locked_range(vol, bp)) {
-		/*
-		 * XXX this structure forces serialization of all
-		 * XXX pending requests before any are allowed through.
-		 *
-		 * XXX Also, if there is a pending request that overlaps one
-		 * XXX locked area and another locked area comes along that also
-		 * XXX overlaps that area, we wind up double counting it, but
-		 * XXX not double uncounting it, so we hit deadlock.  Ouch.
-		 * Most likely, we should add pending counts to struct
-		 * g_raid_lock and recompute v_pending_lock in lock_range()
-		 * and here, which would eliminate the doubel counting.  Heck,
-		 * if we wanted to burn the cylces here, we could look at the
-		 * inflight queue and the v_locks and just recompute here.
-		 */
-		G_RAID_LOGREQ(3, bp,
-		    "Write to locking zone complete: %d writes outstanding",
-		    vol->v_pending_lock);
-		if (--vol->v_pending_lock == 0) {
-			G_RAID_LOGREQ(3, bp,
-			    "Last write done, calling pending callbacks.");
-			LIST_FOREACH(lp, &vol->v_locks,l_next) {
-				if (lp->l_flags & G_RAID_LOCK_PENDING) {
-					G_RAID_TR_LOCKED(vol->v_tr,
-					    lp->l_callback_arg);
-					lp->l_flags &= ~G_RAID_LOCK_PENDING;
-				}
-			}
-		}
-	}
+	if (vol->v_pending_lock && g_raid_is_in_locked_range(vol, bp))
+		g_raid_finish_with_locked_ranges(vol, bp);
 	g_io_deliver(bp, error);
 }
 
@@ -965,31 +975,32 @@ g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp)
 	struct g_raid_softc *sc;
 	struct g_raid_lock *lp;
 	struct bio *bp;
-	int pending;
 
 	sc = vol->v_softc;
 	lp = malloc(sizeof(*lp), M_RAID, M_WAITOK | M_ZERO);
 	LIST_INSERT_HEAD(&vol->v_locks, lp, l_next);
-	lp->l_flags |= G_RAID_LOCK_PENDING;
 	lp->l_offset = off;
 	lp->l_length = len;
 	lp->l_callback_arg = argp;
 
-	pending = 0;
+	lp->l_pending = 0;
 	TAILQ_FOREACH(bp, &vol->v_inflight.queue, bio_queue) {
 		if (g_raid_bio_overlaps(bp, off, len))
-			pending++;
+			lp->l_pending++;
 	}	
 
 	/*
 	 * If there are any writes that are pending, we return EBUSY.  All
 	 * callers will have to wait until all pending writes clear.
 	 */
-	if (pending > 0) {
-		vol->v_pending_lock += pending;
+	if (lp->l_pending > 0) {
+		vol->v_pending_lock = 1;
+		G_RAID_DEBUG(4, "Locking range %jd to %jd deferred %d pend",
+		    (intmax_t)off, (intmax_t)(off+len), lp->l_pending);
 		return (EBUSY);
 	}
-	lp->l_flags &= ~G_RAID_LOCK_PENDING;
+	G_RAID_DEBUG(4, "Locking range %jd to %jd",
+	    (intmax_t)off, (intmax_t)(off+len));
 	G_RAID_TR_LOCKED(vol->v_tr, lp->l_callback_arg);
 	return (0);
 }
@@ -997,12 +1008,12 @@ g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp)
 int
 g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len)
 {
-	struct g_raid_lock *lp, *tmp;
+	struct g_raid_lock *lp;
 	struct g_raid_softc *sc;
 	struct bio *bp;
 
 	sc = vol->v_softc;
-	LIST_FOREACH_SAFE(lp, &vol->v_locks, l_next, tmp) {
+	LIST_FOREACH(lp, &vol->v_locks, l_next) {
 		if (lp->l_offset == off && lp->l_length == len) {
 			LIST_REMOVE(lp, l_next);
 			/* XXX
@@ -1011,9 +1022,10 @@ g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len)
 			 * locked ranges will go right back on this list
 			 * when the worker thread runs.
 			 * XXX
-			 * Also, see note above about deadlock and how it
-			 * doth sucketh...
 			 */
+			G_RAID_DEBUG(4, "Unlocked %jd to %jd",
+			    (intmax_t)lp->l_offset,
+			    (intmax_t)(lp->l_offset+lp->l_length));
 			mtx_lock(&sc->sc_queue_mtx);
 			while ((bp = bioq_takefirst(&vol->v_locked)) != NULL)
 				bioq_disksort(&sc->sc_queue, bp);
@@ -1164,10 +1176,17 @@ g_raid_worker(void *arg)
 		else if ((bp = bioq_takefirst(&sc->sc_queue)) != NULL)
 			;
 		else {
-			timeout = 1;
+			/*
+			 * Two steps to avoid overflows at HZ=1000
+			 * and idle timeouts > 2.1s.  Some rounding errors
+			 * can occur, but they are < 1tick, which is deemed to
+			 * be close enough for this purpose.
+			 */
+			int micpertic = 1000000 / hz;
+			timeout = g_raid_idle_threshold / micpertic;
 			sx_xunlock(&sc->sc_lock);
 			MSLEEP(rv, sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "-",
-			    timeout * hz);
+			    timeout);
 			sx_xlock(&sc->sc_lock);
 			goto process;
 		}

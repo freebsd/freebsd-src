@@ -99,12 +99,11 @@ extern struct g_class g_raid_class;
 #define G_RAID_BIO_FLAG_SPECIAL \
 		(G_RAID_BIO_FLAG_SYNC|G_RAID_BIO_FLAG_REMAP)
 
-#define G_RAID_LOCK_PENDING	0x1
 struct g_raid_lock {
 	off_t			 l_offset;
 	off_t			 l_length;
 	void			*l_callback_arg;
-	int			 l_flags;
+	int			 l_pending;
 	LIST_ENTRY(g_raid_lock)	 l_next;
 };
 
