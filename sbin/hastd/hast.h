@@ -182,10 +182,12 @@ struct hast_resource {
 	int	hr_previous_role;
 	/* PID of child worker process. 0 - no child. */
 	pid_t	hr_workerpid;
-	/* Control connection between parent and child. */
+	/* Control commands from parent to child. */
 	struct proto_conn *hr_ctrl;
 	/* Events from child to parent. */
 	struct proto_conn *hr_event;
+	/* Connection requests from child to parent. */
+	struct proto_conn *hr_conn;
 
 	/* Activemap structure. */
 	struct activemap *hr_amp;

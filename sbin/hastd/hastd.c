@@ -214,6 +214,19 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
 				break;
 			}
+		} else if (fd == proto_descriptor(res->hr_conn)) {
+			if (!isopen) {
+				snprintf(msg, sizeof(msg),
+				    "Descriptor %d (conn) is closed, but should be open.",
+				    fd);
+				break;
+			}
+			if (!S_ISSOCK(mode)) {
+				snprintf(msg, sizeof(msg),
+				    "Descriptor %d (conn) is %s, but should be %s.",
+				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
+				break;
+			}
 		} else if (res->hr_role == HAST_ROLE_SECONDARY &&
 		    fd == proto_descriptor(res->hr_remotein)) {
 			if (!isopen) {
@@ -802,6 +815,41 @@ close:
 }
 
 static void
+connection_migrate(struct hast_resource *res)
+{
+	struct proto_conn *conn;
+	int16_t val = 0;
+
+	if (proto_recv(res->hr_conn, &val, sizeof(val)) < 0) {
+		pjdlog_errno(LOG_WARNING,
+		    "Unable to receive connection command");
+		return;
+	}
+	if (proto_client(res->hr_remoteaddr, &conn) < 0) {
+		val = errno;
+		pjdlog_errno(LOG_WARNING,
+		    "Unable to create outgoing connection to %s",
+		    res->hr_remoteaddr);
+		goto out;
+	}
+	if (proto_connect(conn, -1) < 0) {
+		val = errno;
+		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
+		    res->hr_remoteaddr);
+		proto_close(conn);
+		goto out;
+	}
+	val = 0;
+out:
+	if (proto_send(res->hr_conn, &val, sizeof(val)) < 0) {
+		pjdlog_errno(LOG_WARNING,
+		    "Unable to send reply to connection request");
+	}
+	if (val == 0 && proto_connection_send(res->hr_conn, conn) < 0)
+		pjdlog_errno(LOG_WARNING, "Unable to send connection");
+}
+
+static void
 main_loop(void)
 {
 	struct hast_resource *res;
@@ -858,10 +906,18 @@ main_loop(void)
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
+			PJDLOG_ASSERT(res->hr_conn != NULL);
 			fd = proto_descriptor(res->hr_event);
 			PJDLOG_ASSERT(fd >= 0);
 			FD_SET(fd, &rfds);
 			maxfd = fd > maxfd ? fd : maxfd;
+			if (res->hr_role == HAST_ROLE_PRIMARY) {
+				/* Only primary workers asks for connections. */
+				fd = proto_descriptor(res->hr_conn);
+				PJDLOG_ASSERT(fd >= 0);
+				FD_SET(fd, &rfds);
+				maxfd = fd > maxfd ? fd : maxfd;
+			}
 		}
 
 		PJDLOG_ASSERT(maxfd + 1 <= (int)FD_SETSIZE);
@@ -882,12 +938,20 @@ main_loop(void)
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
+			PJDLOG_ASSERT(res->hr_conn != NULL);
 			if (FD_ISSET(proto_descriptor(res->hr_event), &rfds)) {
 				if (event_recv(res) == 0)
 					continue;
 				/* The worker process exited? */
 				proto_close(res->hr_event);
 				res->hr_event = NULL;
+				proto_close(res->hr_conn);
+				res->hr_conn = NULL;
+				continue;
+			}
+			if (res->hr_role == HAST_ROLE_PRIMARY &&
+			    FD_ISSET(proto_descriptor(res->hr_conn), &rfds)) {
+				connection_migrate(res);
 			}
 		}
 	}
