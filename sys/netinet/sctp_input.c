@@ -2719,6 +2719,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			inp->sctp_socket = so;
 			inp->sctp_frag_point = (*inp_p)->sctp_frag_point;
 			inp->sctp_cmt_on_off = (*inp_p)->sctp_cmt_on_off;
+			inp->sctp_ecn_enable = (*inp_p)->sctp_ecn_enable;
 			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
 			inp->sctp_context = (*inp_p)->sctp_context;
 			inp->inp_starting_point_for_iterator = NULL;
@@ -5614,7 +5615,8 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 		 */
 	}
 	/* take care of ecn */
-	if (stcb->asoc.ecn_allowed && ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS)) {
+	if ((stcb->asoc.ecn_allowed == 1) &&
+	    ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS)) {
 		/* Yep, we need to add a ECNE */
 		sctp_send_ecn_echo(stcb, net, high_tsn);
 	}
