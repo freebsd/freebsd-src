@@ -506,7 +506,7 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd, *tmpsd;
-	struct g_raid_disk *olddisk;
+	struct g_raid_disk *olddisk, *tmpdisk;
 	struct g_raid_md_object *md;
 	struct g_raid_md_intel_object *mdi;
 	struct g_raid_md_intel_perdisk *pd, *oldpd;
@@ -534,13 +534,16 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 		/* If we are in the start process, that's all for now. */
 		if (!mdi->mdio_started)
 			goto nofit;
-		/* If we have already started - try to get use of the disk. */
-		TAILQ_FOREACH(olddisk, &sc->sc_disks, d_next) {
-			if (olddisk->d_state != G_RAID_DISK_S_OFFLINE &&
-			    olddisk->d_state != G_RAID_DISK_S_FAILED)
+		/*
+		 * If we have already started - try to get use of the disk.
+		 * Try to replace OFFLINE disks first, then FAILED.
+		 */
+		TAILQ_FOREACH(tmpdisk, &sc->sc_disks, d_next) {
+			if (tmpdisk->d_state != G_RAID_DISK_S_OFFLINE &&
+			    tmpdisk->d_state != G_RAID_DISK_S_FAILED)
 				continue;
 			/* Make sure this disk is big enough. */
-			TAILQ_FOREACH(sd, &olddisk->d_subdisks, sd_next) {
+			TAILQ_FOREACH(sd, &tmpdisk->d_subdisks, sd_next) {
 				if (sd->sd_offset + sd->sd_size + 4096 >
 				    (off_t)pd->pd_disk_meta.sectors * 512) {
 					G_RAID_DEBUG(1,
@@ -554,7 +557,11 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 			}
 			if (sd != NULL)
 				continue;
-			break;
+			if (tmpdisk->d_state == G_RAID_DISK_S_OFFLINE) {
+				olddisk = tmpdisk;
+				break;
+			} else if (olddisk == NULL)
+				olddisk = tmpdisk;
 		}
 		if (olddisk == NULL) {
 nofit:
