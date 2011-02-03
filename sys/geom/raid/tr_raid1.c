@@ -837,6 +837,7 @@ g_raid_tr_kerneldump_raid1(struct g_raid_tr_object *tr,
 			 * keep it that way better if we keep up while
 			 * resyncing.
 			 */
+			break;
 		default:
 			continue;
 		}
