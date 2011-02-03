@@ -5549,27 +5549,27 @@ sctp_startup_mcore_threads(void)
 {
 	int i;
 
-	if (mp_ncpus == 1)
+	if (mp_maxid == 1)
 		return;
 
 	SCTP_MALLOC(sctp_mcore_workers, struct sctp_mcore_ctrl *,
-	    (mp_ncpus * sizeof(struct sctp_mcore_ctrl)),
+	    (mp_maxid * sizeof(struct sctp_mcore_ctrl)),
 	    SCTP_M_MCORE);
 	if (sctp_mcore_workers == NULL) {
 		/* TSNH I hope */
 		return;
 	}
-	memset(sctp_mcore_workers, 0, (mp_ncpus *
+	memset(sctp_mcore_workers, 0, (mp_maxid *
 	    sizeof(struct sctp_mcore_ctrl)));
 	/* Init the structures */
-	for (i = 0; i < mp_ncpus; i++) {
+	for (i = 0; i < mp_maxid; i++) {
 		TAILQ_INIT(&sctp_mcore_workers[i].que);
 		SCTP_MCORE_LOCK_INIT(&sctp_mcore_workers[i]);
 		SCTP_MCORE_QLOCK_INIT(&sctp_mcore_workers[i]);
 		sctp_mcore_workers[i].cpuid = i;
 	}
 	/* Now start them all */
-	for (i = 0; i < mp_ncpus; i++) {
+	for (i = 0; i < mp_maxid; i++) {
 		(void)kproc_create(sctp_mcore_thread,
 		    (void *)&sctp_mcore_workers[i],
 		    &sctp_mcore_workers[i].thread_proc,
@@ -5604,12 +5604,12 @@ sctp_pcb_init()
 #endif
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	SCTP_MALLOC(SCTP_BASE_STATS, struct sctpstat *,
-	    (mp_ncpus * sizeof(struct sctpstat)),
+	    (mp_maxid * sizeof(struct sctpstat)),
 	    SCTP_M_MCORE);
 #endif
 	(void)SCTP_GETTIME_TIMEVAL(&tv);
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
-	bzero(SCTP_BASE_STATS, (sizeof(struct sctpstat) * mp_ncpus));
+	bzero(SCTP_BASE_STATS, (sizeof(struct sctpstat) * mp_maxid));
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_sec = (uint32_t) tv.tv_sec;
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_usec = (uint32_t) tv.tv_usec;
 #else
