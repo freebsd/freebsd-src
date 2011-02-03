@@ -414,6 +414,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 
 	if (drop_privs() != 0)
 		exit(EX_CONFIG);
+	pjdlog_info("Privileges successfully dropped.");
 
 	/*
 	 * Create the control thread before sending any event to the parent,
