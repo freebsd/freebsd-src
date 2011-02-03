@@ -539,7 +539,7 @@ aac_enqueue_ ## name (struct aac_command *cm)				\
 	if ((cm->cm_flags & AAC_ON_AACQ_MASK) != 0) {			\
 		printf("command %p is on another queue, flags = %#x\n",	\
 		       cm, cm->cm_flags);				\
-		panic("command is on another queue");			\
+		panic("aac: command is on another queue");		\
 	}								\
 	TAILQ_INSERT_TAIL(&cm->cm_sc->aac_ ## name, cm, cm_link);	\
 	cm->cm_flags |= AAC_ON_ ## index;				\
@@ -551,7 +551,7 @@ aac_requeue_ ## name (struct aac_command *cm)				\
 	if ((cm->cm_flags & AAC_ON_AACQ_MASK) != 0) {			\
 		printf("command %p is on another queue, flags = %#x\n",	\
 		       cm, cm->cm_flags);				\
-		panic("command is on another queue");			\
+		panic("aac: command is on another queue");		\
 	}								\
 	TAILQ_INSERT_HEAD(&cm->cm_sc->aac_ ## name, cm, cm_link);	\
 	cm->cm_flags |= AAC_ON_ ## index;				\
@@ -567,7 +567,7 @@ aac_dequeue_ ## name (struct aac_softc *sc)				\
 			printf("command %p not in queue, flags = %#x, "	\
 			       "bit = %#x\n", cm, cm->cm_flags,		\
 			       AAC_ON_ ## index);			\
-			panic("command not in queue");			\
+			panic("aac: command not in queue");		\
 		}							\
 		TAILQ_REMOVE(&sc->aac_ ## name, cm, cm_link);		\
 		cm->cm_flags &= ~AAC_ON_ ## index;			\
@@ -582,7 +582,7 @@ aac_remove_ ## name (struct aac_command *cm)				\
 		printf("command %p not in queue, flags = %#x, "		\
 		       "bit = %#x\n", cm, cm->cm_flags, 		\
 		       AAC_ON_ ## index);				\
-		panic("command not in queue");				\
+		panic("aac: command not in queue");			\
 	}								\
 	TAILQ_REMOVE(&cm->cm_sc->aac_ ## name, cm, cm_link);		\
 	cm->cm_flags &= ~AAC_ON_ ## index;				\
