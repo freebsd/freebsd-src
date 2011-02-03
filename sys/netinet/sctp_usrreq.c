@@ -3448,7 +3448,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						stcb->asoc.strmout[i].next_sequence_sent = oldstream[i].next_sequence_sent;
 						stcb->asoc.strmout[i].last_msg_incomplete = oldstream[i].last_msg_incomplete;
 						stcb->asoc.strmout[i].stream_no = i;
-						stcb->asoc.ss_functions.sctp_ss_init_stream(&oldstream[i]);
+						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], &oldstream[i]);
 						/*
 						 * now anything on those
 						 * queues?
@@ -3475,7 +3475,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 						stcb->asoc.strmout[i].stream_no = i;
 						stcb->asoc.strmout[i].last_msg_incomplete = 0;
-						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i]);
+						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
 					}
 					stcb->asoc.strm_realoutsize = stcb->asoc.streamoutcnt + addstrmcnt;
 					SCTP_FREE(oldstream, SCTP_M_STRMO);
