@@ -91,6 +91,8 @@ __FBSDID("$FreeBSD$");
 #define SCTP_KTRHEAD_NAME "sctp_iterator"
 #define SCTP_KTHREAD_PAGES 0
 
+#define SCTP_MCORE_NAME "sctp_core_worker"
+
 
 /* If you support Multi-VRF how big to
  * make the initial array of VRF's to.
