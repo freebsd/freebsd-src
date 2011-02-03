@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_dtrace_define.h>
 #include <netinet/udp.h>
+#include <sys/sched.h>
+#include <sys/smp.h>
+#include <sys/unistd.h>
 
 
 VNET_DEFINE(struct sctp_base_info, system_base_info);
@@ -5435,6 +5438,148 @@ sctp_del_local_addr_restricted(struct sctp_tcb *stcb, struct sctp_ifa *ifa)
 static int sctp_max_number_of_assoc = SCTP_MAX_NUM_OF_ASOC;
 static int sctp_scale_up_for_address = SCTP_SCALE_FOR_ADDR;
 
+
+
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+struct sctp_mcore_ctrl *sctp_mcore_workers = NULL;
+
+void
+sctp_queue_to_mcore(struct mbuf *m, int off, int cpu_to_use)
+{
+	/* Queue a packet to a processor for the specified core */
+	struct sctp_mcore_queue *qent;
+	struct sctp_mcore_ctrl *wkq;
+	int need_wake = 0;
+
+	if (sctp_mcore_workers == NULL) {
+		/* Something went way bad during setup */
+		sctp_input_with_port(m, off, 0);
+		return;
+	}
+	SCTP_MALLOC(qent, struct sctp_mcore_queue *,
+	    (sizeof(struct sctp_mcore_queue)),
+	    SCTP_M_MCORE);
+	if (qent == NULL) {
+		/* This is trouble  */
+		sctp_input_with_port(m, off, 0);
+		return;
+	}
+	qent->vn = curvnet;
+	qent->m = m;
+	qent->off = off;
+	qent->v6 = 0;
+	wkq = &sctp_mcore_workers[cpu_to_use];
+	SCTP_MCORE_QLOCK(wkq);
+
+	TAILQ_INSERT_TAIL(&wkq->que, qent, next);
+	if (wkq->running == 0) {
+		need_wake = 1;
+	}
+	SCTP_MCORE_QUNLOCK(wkq);
+	if (need_wake) {
+		wakeup(&wkq->running);
+	}
+}
+
+static void
+sctp_mcore_thread(void *arg)
+{
+
+	struct sctp_mcore_ctrl *wkq;
+	struct sctp_mcore_queue *qent;
+
+	wkq = (struct sctp_mcore_ctrl *)arg;
+	struct mbuf *m;
+	int off, v6;
+
+	/* Wait for first tickle */
+	SCTP_MCORE_LOCK(wkq);
+	wkq->running = 0;
+	msleep(&wkq->running,
+	    &wkq->core_mtx,
+	    0, "wait for pkt", 0);
+	SCTP_MCORE_UNLOCK(wkq);
+
+	/* Bind to our cpu */
+	thread_lock(curthread);
+	sched_bind(curthread, wkq->cpuid);
+	thread_unlock(curthread);
+
+	/* Now lets start working */
+	SCTP_MCORE_LOCK(wkq);
+	/* Now grab lock and go */
+	while (1) {
+		SCTP_MCORE_QLOCK(wkq);
+skip_sleep:
+		wkq->running = 1;
+		qent = TAILQ_FIRST(&wkq->que);
+		if (qent) {
+			TAILQ_REMOVE(&wkq->que, qent, next);
+			SCTP_MCORE_QUNLOCK(wkq);
+			CURVNET_SET(qent->vn);
+			m = qent->m;
+			off = qent->off;
+			v6 = qent->v6;
+			SCTP_FREE(qent, SCTP_M_MCORE);
+			if (v6 == 0) {
+				sctp_input_with_port(m, off, 0);
+			} else {
+				printf("V6 not yet supported\n");
+				sctp_m_freem(m);
+			}
+			CURVNET_RESTORE();
+			SCTP_MCORE_QLOCK(wkq);
+		}
+		wkq->running = 0;
+		if (!TAILQ_EMPTY(&wkq->que)) {
+			goto skip_sleep;
+		}
+		SCTP_MCORE_QUNLOCK(wkq);
+		msleep(&wkq->running,
+		    &wkq->core_mtx,
+		    0, "wait for pkt", 0);
+	};
+}
+
+static void
+sctp_startup_mcore_threads(void)
+{
+	int i;
+
+	if (mp_ncpus == 1)
+		return;
+
+	SCTP_MALLOC(sctp_mcore_workers, struct sctp_mcore_ctrl *,
+	    (mp_ncpus * sizeof(struct sctp_mcore_ctrl)),
+	    SCTP_M_MCORE);
+	if (sctp_mcore_workers == NULL) {
+		/* TSNH I hope */
+		return;
+	}
+	memset(sctp_mcore_workers, 0, (mp_ncpus *
+	    sizeof(struct sctp_mcore_ctrl)));
+	/* Init the structures */
+	for (i = 0; i < mp_ncpus; i++) {
+		TAILQ_INIT(&sctp_mcore_workers[i].que);
+		SCTP_MCORE_LOCK_INIT(&sctp_mcore_workers[i]);
+		SCTP_MCORE_QLOCK_INIT(&sctp_mcore_workers[i]);
+		sctp_mcore_workers[i].cpuid = i;
+	}
+	/* Now start them all */
+	for (i = 0; i < mp_ncpus; i++) {
+		(void)kproc_create(sctp_mcore_thread,
+		    (void *)&sctp_mcore_workers[i],
+		    &sctp_mcore_workers[i].thread_proc,
+		    RFPROC,
+		    SCTP_KTHREAD_PAGES,
+		    SCTP_MCORE_NAME);
+
+	}
+}
+
+#endif
+
+
 void
 sctp_pcb_init()
 {
@@ -5564,6 +5709,10 @@ sctp_pcb_init()
 	}
 
 	sctp_startup_iterator();
+
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+	sctp_startup_mcore_threads();
+#endif
 
 	/*
 	 * INIT the default VRF which for BSD is the only one, other O/S's
