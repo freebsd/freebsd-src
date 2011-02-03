@@ -112,15 +112,28 @@ struct g_class g_raid_class = {
 };
 
 static void g_raid_destroy_provider(struct g_raid_volume *vol);
-static int g_raid_update_disk(struct g_raid_disk *disk, u_int state);
-static int g_raid_update_subdisk(struct g_raid_subdisk *subdisk, u_int state);
-static int g_raid_update_volume(struct g_raid_volume *vol, u_int state);
+static int g_raid_update_disk(struct g_raid_disk *disk, u_int event);
+static int g_raid_update_subdisk(struct g_raid_subdisk *subdisk, u_int event);
+static int g_raid_update_volume(struct g_raid_volume *vol, u_int event);
+static int g_raid_update_node(struct g_raid_softc *sc, u_int event);
 static void g_raid_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp);
 static void g_raid_start(struct bio *bp);
 static void g_raid_start_request(struct bio *bp);
 static void g_raid_disk_done(struct bio *bp);
 static void g_raid_poll(struct g_raid_softc *sc);
+
+static const char *
+g_raid_node_event2str(int event)
+{
+
+	switch (event) {
+	case G_RAID_NODE_E_START:
+		return ("START");
+	default:
+		return ("INVALID");
+	}
+}
 
 static const char *
 g_raid_disk_state2str(int state)
@@ -324,6 +337,41 @@ g_raid_get_subdiskname(struct g_raid_subdisk *subdisk)
 }
 
 void
+g_raid_report_disk_state(struct g_raid_disk *disk)
+{
+	struct g_raid_subdisk *sd;
+	int len, state;
+	uint32_t s;
+
+	if (disk->d_consumer == NULL)
+		return;
+	if (disk->d_state == G_RAID_DISK_S_FAILED ||
+	    disk->d_state == G_RAID_DISK_S_STALE_FAILED) {
+		s = G_STATE_FAILED;
+	} else {
+		state = G_RAID_SUBDISK_S_ACTIVE;
+		TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+			if (sd->sd_state < state)
+				state = sd->sd_state;
+		}
+		if (state == G_RAID_SUBDISK_S_FAILED)
+			s = G_STATE_FAILED;
+		else if (state == G_RAID_SUBDISK_S_NEW ||
+		    state == G_RAID_SUBDISK_S_REBUILD)
+			s = G_STATE_REBUILD;
+		else if (state == G_RAID_SUBDISK_S_STALE ||
+		    state == G_RAID_SUBDISK_S_RESYNC)
+			s = G_STATE_RESYNC;
+		else
+			s = G_STATE_ACTIVE;
+	}
+	len = sizeof(s);
+	g_io_getattr("GEOM::setstate", disk->d_consumer, &len, &s);
+	G_RAID_DEBUG(1, "Disk %s state reported as %d.",
+	    g_raid_get_diskname(disk), s);
+}
+
+void
 g_raid_change_disk_state(struct g_raid_disk *disk, int state)
 {
 
@@ -332,6 +380,7 @@ g_raid_change_disk_state(struct g_raid_disk *disk, int state)
 	    g_raid_disk_state2str(disk->d_state),
 	    g_raid_disk_state2str(state));
 	disk->d_state = state;
+	g_raid_report_disk_state(disk);
 }
 
 void
@@ -343,6 +392,8 @@ g_raid_change_subdisk_state(struct g_raid_subdisk *sd, int state)
 	    g_raid_subdisk_state2str(sd->sd_state),
 	    g_raid_subdisk_state2str(state));
 	sd->sd_state = state;
+	if (sd->sd_disk)
+		g_raid_report_disk_state(sd->sd_disk);
 }
 
 void
@@ -1058,16 +1109,14 @@ static void
 g_raid_handle_event(struct g_raid_softc *sc, struct g_raid_event *ep)
 {
 
-	if ((ep->e_flags & G_RAID_EVENT_VOLUME) != 0) {
-		ep->e_error = g_raid_update_volume(ep->e_tgt,
-		    ep->e_event);
-	} else if ((ep->e_flags & G_RAID_EVENT_DISK) != 0) {
-		ep->e_error = g_raid_update_disk(ep->e_tgt,
-		    ep->e_event);
-	} else if ((ep->e_flags & G_RAID_EVENT_SUBDISK) != 0) {
-		ep->e_error = g_raid_update_subdisk(ep->e_tgt,
-		    ep->e_event);
-	}
+	if ((ep->e_flags & G_RAID_EVENT_VOLUME) != 0)
+		ep->e_error = g_raid_update_volume(ep->e_tgt, ep->e_event);
+	else if ((ep->e_flags & G_RAID_EVENT_DISK) != 0)
+		ep->e_error = g_raid_update_disk(ep->e_tgt, ep->e_event);
+	else if ((ep->e_flags & G_RAID_EVENT_SUBDISK) != 0)
+		ep->e_error = g_raid_update_subdisk(ep->e_tgt, ep->e_event);
+	else
+		ep->e_error = g_raid_update_node(ep->e_tgt, ep->e_event);
 	if ((ep->e_flags & G_RAID_EVENT_WAIT) == 0) {
 		KASSERT(ep->e_error == 0,
 		    ("Error cannot be handled."));
@@ -1364,6 +1413,22 @@ g_raid_update_disk(struct g_raid_disk *disk, u_int event)
 
 	if (sc->sc_md)
 		G_RAID_MD_EVENT(sc->sc_md, disk, event);
+	return (0);
+}
+
+/*
+ * Node event.
+ */
+static int
+g_raid_update_node(struct g_raid_softc *sc, u_int event)
+{
+	sx_assert(&sc->sc_lock, SX_XLOCKED);
+
+	G_RAID_DEBUG(2, "Event %s for node %s.",
+	    g_raid_node_event2str(event), sc->sc_name);
+
+	if (sc->sc_md)
+		G_RAID_MD_EVENT(sc->sc_md, NULL, event);
 	return (0);
 }
 

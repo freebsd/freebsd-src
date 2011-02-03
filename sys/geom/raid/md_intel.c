@@ -905,7 +905,7 @@ g_raid_intel_go(void *arg)
 	sx_xlock(&sc->sc_lock);
 	if (!mdi->mdio_started) {
 		G_RAID_DEBUG(0, "Force node %s start due to timeout.", sc->sc_name);
-		g_raid_md_intel_start(sc);
+		g_raid_event_send(sc, G_RAID_NODE_E_START, 0);
 	}
 	sx_xunlock(&sc->sc_lock);
 }
@@ -1132,9 +1132,20 @@ g_raid_md_event_intel(struct g_raid_md_object *md,
 {
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd;
+	struct g_raid_md_intel_object *mdi;
 	struct g_raid_md_intel_perdisk *pd;
 
 	sc = md->mdo_softc;
+	mdi = (struct g_raid_md_intel_object *)md;
+	if (disk == NULL) {
+		switch (event) {
+		case G_RAID_NODE_E_START:
+			if (!mdi->mdio_started)
+				g_raid_md_intel_start(sc);
+			return (0);
+		}
+		return (-1);
+	}
 	pd = (struct g_raid_md_intel_perdisk *)disk->d_md_data;
 	switch (event) {
 	case G_RAID_DISK_E_DISCONNECTED:
@@ -1169,9 +1180,9 @@ g_raid_md_event_intel(struct g_raid_md_object *md,
 		if (g_raid_ndisks(sc, -1) ==
 		    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
 			g_raid_destroy_node(sc, 0);
-		break;
+		return (0);
 	}
-	return (0);
+	return (-2);
 }
 
 static int

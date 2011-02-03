@@ -244,6 +244,8 @@ struct g_raid_volume {
 	LIST_ENTRY(g_raid_volume)	 v_global_next; /* Global list entry. */
 };
 
+#define G_RAID_NODE_E_START	0x01
+
 struct g_raid_softc {
 	struct g_raid_md_object	*sc_md;		/* Metadata object. */
 	struct g_geom		*sc_geom;	/* GEOM class instance. */
@@ -340,6 +342,7 @@ int g_raid_subdisk_kerneldump(struct g_raid_subdisk *sd,
 
 void g_raid_kill_consumer(struct g_raid_softc *sc, struct g_consumer *cp);
 
+void g_raid_report_disk_state(struct g_raid_disk *disk);
 void g_raid_change_disk_state(struct g_raid_disk *disk, int state);
 void g_raid_change_subdisk_state(struct g_raid_subdisk *sd, int state);
 void g_raid_change_volume_state(struct g_raid_volume *vol, int state);
