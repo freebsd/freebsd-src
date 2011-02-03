@@ -3392,10 +3392,11 @@ static uint8_t
 sctp_get_ect(struct sctp_tcb *stcb,
     struct sctp_tmit_chunk *chk)
 {
-	if (SCTP_BASE_SYSCTL(sctp_ecn_enable) == 0)
+	if ((stcb != NULL) && (stcb->asoc.ecn_allowed == 1)) {
+		return (SCTP_ECT0_BIT);
+	} else {
 		return (0);
-
-	return (SCTP_ECT0_BIT);
+	}
 }
 
 static int
@@ -3502,17 +3503,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 
 		ip->ip_ttl = inp->ip_inp.inp.inp_ip_ttl;
 		ip->ip_len = packet_length;
-		if (stcb) {
-			if ((stcb->asoc.ecn_allowed) && ecn_ok) {
-				/* Enable ECN */
-				ip->ip_tos = ((u_char)(tos_value & 0xfc) | sctp_get_ect(stcb, chk));
-			} else {
-				/* No ECN */
-				ip->ip_tos = (u_char)(tos_value & 0xfc);
-			}
-		} else {
-			/* no association at all */
-			ip->ip_tos = (tos_value & 0xfc);
+		ip->ip_tos = tos_value & 0xfc;
+		if (ecn_ok) {
+			ip->ip_tos |= sctp_get_ect(stcb, chk);
 		}
 		if (port) {
 			ip->ip_p = IPPROTO_UDP;
@@ -3839,18 +3832,11 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		} else {
 			ro = (sctp_route_t *) & net->ro;
 		}
-		if (stcb != NULL) {
-			if ((stcb->asoc.ecn_allowed) && ecn_ok) {
-				/* Enable ECN */
-				tosBottom = (((((struct in6pcb *)inp)->in6p_flowinfo & 0x0c) | sctp_get_ect(stcb, chk)) << 4);
-			} else {
-				/* No ECN */
-				tosBottom = ((((struct in6pcb *)inp)->in6p_flowinfo & 0x0c) << 4);
-			}
-		} else {
-			/* we could get no asoc if it is a O-O-T-B packet */
-			tosBottom = ((((struct in6pcb *)inp)->in6p_flowinfo & 0x0c) << 4);
+		tosBottom = (((struct in6pcb *)inp)->in6p_flowinfo & 0x0c);
+		if (ecn_ok) {
+			tosBottom |= sctp_get_ect(stcb, chk);
 		}
+		tosBottom <<= 4;
 		ip6h->ip6_flow = htonl(((tosTop << 24) | ((tosBottom | flowTop) << 16) | flowBottom));
 		if (port) {
 			ip6h->ip6_nxt = IPPROTO_UDP;
@@ -4247,7 +4233,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		stcb->asoc.cookie_preserve_req = 0;
 	}
 	/* ECN parameter */
-	if (SCTP_BASE_SYSCTL(sctp_ecn_enable) == 1) {
+	if (stcb->asoc.ecn_allowed == 1) {
 		ecn->ph.param_type = htons(SCTP_ECN_CAPABLE);
 		ecn->ph.param_length = htons(sizeof(*ecn));
 		SCTP_BUF_LEN(m) += sizeof(*ecn);
@@ -5350,7 +5336,8 @@ do_a_abort:
 	ecn = (struct sctp_ecn_supported_param *)((caddr_t)ali + sizeof(*ali));
 
 	/* ECN parameter */
-	if (SCTP_BASE_SYSCTL(sctp_ecn_enable) == 1) {
+	if (((asoc != NULL) && (asoc->ecn_allowed == 1)) ||
+	    (inp->sctp_ecn_enable == 1)) {
 		ecn->ph.param_type = htons(SCTP_ECN_CAPABLE);
 		ecn->ph.param_length = htons(sizeof(*ecn));
 		SCTP_BUF_LEN(m) += sizeof(*ecn);
