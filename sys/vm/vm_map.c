@@ -3077,8 +3077,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			vm_object_reference(object);
 			if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 				vm_object_shadow(&old_entry->object.vm_object,
-					&old_entry->offset,
-					atop(old_entry->end - old_entry->start));
+				    &old_entry->offset,
+				    old_entry->end - old_entry->start);
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 				/* Transfer the second reference too. */
 				vm_object_reference(
@@ -3589,8 +3589,8 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t prot;
 	vm_prot_t fault_type = fault_typea;
 	vm_object_t eobject;
+	vm_size_t size;
 	struct ucred *cred;
-	vm_ooffset_t size;
 
 RetryLookup:;
 
@@ -3677,10 +3677,8 @@ RetryLookup:;
 				}
 				entry->cred = cred;
 			}
-			vm_object_shadow(
-			    &entry->object.vm_object,
-			    &entry->offset,
-			    atop(size));
+			vm_object_shadow(&entry->object.vm_object,
+			    &entry->offset, size);
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 			eobject = entry->object.vm_object;
 			if (eobject->cred != NULL) {
