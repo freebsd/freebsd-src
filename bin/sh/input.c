@@ -119,12 +119,7 @@ INIT {
 
 RESET {
 	popallfiles();
-	if (exception != EXSHELLPROC)
-		parselleft = parsenleft = 0;	/* clear input buffer */
-}
-
-SHELLPROC {
-	popallfiles();
+	parselleft = parsenleft = 0;	/* clear input buffer */
 }
 #endif
 

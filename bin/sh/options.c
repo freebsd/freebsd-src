@@ -304,21 +304,6 @@ setoption(int flag, int val)
 }
 
 
-
-#ifdef mkinit
-INCLUDE "options.h"
-
-SHELLPROC {
-	int i;
-
-	for (i = 0; i < NOPTS; i++)
-		optlist[i].val = 0;
-	optschanged();
-
-}
-#endif
-
-
 /*
  * Set the shell parameters.
  */

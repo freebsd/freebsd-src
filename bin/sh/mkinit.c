@@ -126,16 +126,10 @@ char reset[] = "\
  * interactive shell and control is returned to the main command loop.\n\
  */\n";
 
-char shellproc[] = "\
-/*\n\
- * This routine is called to initialize the shell to run a shell procedure.\n\
- */\n";
-
 
 struct event event[] = {
 	{ "INIT", "init", init, { NULL, 0, NULL, NULL } },
 	{ "RESET", "reset", reset, { NULL, 0, NULL, NULL } },
-	{ "SHELLPROC", "initshellproc", shellproc, { NULL, 0, NULL, NULL } },
 	{ NULL, NULL, NULL, { NULL, 0, NULL, NULL } }
 };
 
