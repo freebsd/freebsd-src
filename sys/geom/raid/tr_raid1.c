@@ -47,16 +47,6 @@ __FBSDID("$FreeBSD$");
 #define SD_REBUILD_CLUSTER_IDLE 10
 #define SD_REBUILD_META_UPDATE 500 /* update meta data every 5 GB or so */
 
-/*
- * We don't want to hammer the disk with I/O requests when doing a rebuild or
- * a resync.  So, we send these events to ourselves when we go idle (or every
- * Nth normal I/O to 'clock' the process along.  The number and speed that we
- * send these will determine the bandwidth we consume of the disk drive and
- * how long these operations will take.
- */
-#define G_RAID_SUBDISK_E_TR_REBUILD_SOME (G_RAID_SUBDISK_E_FIRST_TR_PRIVATE + 0)
-#define G_RAID_SUBDISK_E_TR_RESYNC_SOME (G_RAID_SUBDISK_E_FIRST_TR_PRIVATE + 1)
-
 static MALLOC_DEFINE(M_TR_raid1, "tr_raid1_data", "GEOM_RAID raid1 data");
 
 #define TR_RAID1_NONE 0
@@ -87,6 +77,7 @@ static g_raid_tr_iostart_t g_raid_tr_iostart_raid1;
 static g_raid_tr_iodone_t g_raid_tr_iodone_raid1;
 static g_raid_tr_kerneldump_t g_raid_tr_kerneldump_raid1;
 static g_raid_tr_locked_t g_raid_tr_locked_raid1;
+static g_raid_tr_idle_t g_raid_tr_idle_raid1;
 static g_raid_tr_free_t g_raid_tr_free_raid1;
 
 static kobj_method_t g_raid_tr_raid1_methods[] = {
@@ -96,8 +87,9 @@ static kobj_method_t g_raid_tr_raid1_methods[] = {
 	KOBJMETHOD(g_raid_tr_stop,	g_raid_tr_stop_raid1),
 	KOBJMETHOD(g_raid_tr_iostart,	g_raid_tr_iostart_raid1),
 	KOBJMETHOD(g_raid_tr_iodone,	g_raid_tr_iodone_raid1),
-	KOBJMETHOD(g_raid_tr_kerneldump,	g_raid_tr_kerneldump_raid1),
+	KOBJMETHOD(g_raid_tr_kerneldump, g_raid_tr_kerneldump_raid1),
 	KOBJMETHOD(g_raid_tr_locked,	g_raid_tr_locked_raid1),
+	KOBJMETHOD(g_raid_tr_idle,	g_raid_tr_idle_raid1),
 	KOBJMETHOD(g_raid_tr_free,	g_raid_tr_free_raid1),
 	{ 0, 0 }
 };
@@ -199,27 +191,6 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 }
 
 static void
-g_raid_tr_raid1_resync_some(struct g_raid_tr_object *tr,
-    struct g_raid_subdisk *sd)
-{
-	panic("We don't implement resync yet");
-}
-
-static void
-g_raid_tr_raid1_idle_rebuild(struct g_raid_volume *vol, void *argp)
-{
-	struct g_raid_tr_raid1_object *trs;
-
-	trs = (struct g_raid_tr_raid1_object *)argp;
-	if (trs->trso_failed_sd == NULL) {
-		printf("I hit the case that's obsolete, right?\n");
-		return;
-	}
-	g_raid_event_send(trs->trso_failed_sd, G_RAID_SUBDISK_E_TR_REBUILD_SOME,
-	    G_RAID_EVENT_SUBDISK);
-}
-
-static void
 g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 {
 	struct g_raid_tr_raid1_object *trs;
@@ -237,7 +208,6 @@ g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr, struct g_raid_volume
 	trs->trso_recover_slabs = 0;
 	trs->trso_failed_sd = NULL;
 	trs->trso_buffer = NULL;
-	vol->v_timeout = 0;
 }
 
 static void
@@ -258,7 +228,6 @@ g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr,
 	trs->trso_recover_slabs = 0;
 	trs->trso_failed_sd = NULL;
 	trs->trso_buffer = NULL;
-	vol->v_timeout = 0;
 }
 
 static struct g_raid_subdisk *
@@ -308,8 +277,6 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr, struct g_raid_volume 
 	trs->trso_type = TR_RAID1_REBUILD;
 	trs->trso_buffer = malloc(SD_REBUILD_SLAB, M_TR_raid1, M_WAITOK);
 	trs->trso_meta_update = SD_REBUILD_META_UPDATE;
-	vol->v_to_arg = trs;
-	vol->v_timeout = g_raid_tr_raid1_idle_rebuild;
 	g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
 }
 
@@ -372,12 +339,6 @@ g_raid_tr_event_raid1(struct g_raid_tr_object *tr,
 		if (trs->trso_type == TR_RAID1_REBUILD)
 			g_raid_tr_raid1_rebuild_abort(tr, vol);
 		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
-		break;
-	case G_RAID_SUBDISK_E_TR_REBUILD_SOME:
-		g_raid_tr_raid1_rebuild_some(tr, sd);
-		break;
-	case G_RAID_SUBDISK_E_TR_RESYNC_SOME:
-		g_raid_tr_raid1_resync_some(tr, sd);
 		break;
 	}
 	g_raid_tr_update_state_raid1(vol);
@@ -539,11 +500,8 @@ g_raid_tr_iostart_raid1(struct g_raid_tr_object *tr, struct bio *bp)
 	 */
 	if (trs->trso_failed_sd != NULL &&
 	    !(bp->bio_cflags & G_RAID_BIO_FLAG_SPECIAL)) {
-		if (--trs->trso_fair_io <= 0) {
-			g_raid_event_send(trs->trso_failed_sd,
-			    G_RAID_SUBDISK_E_TR_REBUILD_SOME,
-			    G_RAID_EVENT_SUBDISK);
-		}
+		if (--trs->trso_fair_io <= 0)
+			g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
 	}
 	switch (bp->bio_cmd) {
 	case BIO_READ:
@@ -858,6 +816,17 @@ g_raid_tr_locked_raid1(struct g_raid_tr_object *tr, void *argp)
 	sd = (struct g_raid_subdisk *)bp->bio_caller1;
 	g_raid_subdisk_iostart(sd, bp);
 
+	return (0);
+}
+
+static int
+g_raid_tr_idle_raid1(struct g_raid_tr_object *tr)
+{
+	struct g_raid_tr_raid1_object *trs;
+
+	trs = (struct g_raid_tr_raid1_object *)tr;
+	if (trs->trso_type == TR_RAID1_REBUILD)
+		g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
 	return (0);
 }
 

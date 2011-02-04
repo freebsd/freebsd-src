@@ -110,3 +110,9 @@ METHOD int locked {
 METHOD int free {
 	struct g_raid_tr_object *tr;
 };
+
+# idle() - callback when the volume is idle for a while and the TR wants
+# to schedule some work for that idle period.
+METHOD int idle {
+	struct g_raid_tr_object *tr;
+};

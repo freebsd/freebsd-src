@@ -1204,8 +1204,8 @@ process:
 			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 				if (vol->v_writes == 0 && !vol->v_idle)
 					g_raid_idle(vol, -1);
-				if (vol->v_timeout)
-					vol->v_timeout(vol, vol->v_to_arg);
+				if (vol->v_tr)
+					G_RAID_TR_IDLE(vol->v_tr);
 			}
 		}
 		if (sc->sc_stopping == G_RAID_DESTROY_HARD)
