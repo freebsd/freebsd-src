@@ -3892,7 +3892,7 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 		if (ni != NULL) {
-#if NOTYET
+#ifdef	NOTYET
 		/* tag AMPDU aggregates for reorder processing */
 		/*
 		 * XXX this should only tag frames marked as aggregate; rather
