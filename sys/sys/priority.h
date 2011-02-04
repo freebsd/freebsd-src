@@ -105,7 +105,6 @@
 #define	PZERO			(PRI_MIN_KERN + 20)
 #define	PSOCK			(PRI_MIN_KERN + 24)
 #define	PWAIT			(PRI_MIN_KERN + 28)
-#define	PCONFIG			(PRI_MIN_KERN + 32)
 #define	PLOCK			(PRI_MIN_KERN + 36)
 #define	PPAUSE			(PRI_MIN_KERN + 40)
 
