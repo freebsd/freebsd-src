@@ -195,7 +195,8 @@ g_raid_tr_iostart_raid0(struct g_raid_tr_object *tr, struct bio *bp)
 	u_int no, strip_size;
 
 	vol = tr->tro_volume;
-	if (vol->v_state != G_RAID_VOLUME_S_OPTIMAL) {
+	if (vol->v_state != G_RAID_VOLUME_S_OPTIMAL &&
+	    vol->v_state != G_RAID_VOLUME_S_SUBOPTIMAL) {
 		g_raid_iodone(bp, EIO);
 		return;
 	}
