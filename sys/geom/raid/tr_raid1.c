@@ -372,7 +372,8 @@ g_raid_tr_raid1_maybe_rebuild(struct g_raid_tr_object *tr,
 	if (trs->trso_stopping)
 		return;
 	na = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE);
-	nr = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_REBUILD);
+	nr = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_REBUILD) +
+	    g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_RESYNC);
 	switch(trs->trso_type) {
 	case TR_RAID1_NONE:
 		if (na == 0 || nr == 0)
@@ -402,11 +403,17 @@ g_raid_tr_event_raid1(struct g_raid_tr_object *tr,
 	vol = tr->tro_volume;
 	switch (event) {
 	case G_RAID_SUBDISK_E_NEW:
-		if (sd->sd_state == G_RAID_SUBDISK_S_NEW)
+		if (sd->sd_state == G_RAID_SUBDISK_S_NEW) {
+			sd->sd_rebuild_pos = 0;
 			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_REBUILD);
+		} else if (sd->sd_state == G_RAID_SUBDISK_S_STALE) {
+			sd->sd_rebuild_pos = 0;
+			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_RESYNC);
+		}
 		break;
 	case G_RAID_SUBDISK_E_FAILED:
-		if (trs->trso_type == TR_RAID1_REBUILD)
+		if (trs->trso_type == TR_RAID1_REBUILD ||
+		    trs->trso_type == TR_RAID1_RESYNC)
 			g_raid_tr_raid1_rebuild_abort(tr, vol);
 //		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
 		break;
