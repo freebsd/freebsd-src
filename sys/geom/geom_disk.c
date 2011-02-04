@@ -129,9 +129,8 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	g_trace(G_T_ACCESS, "g_disk_access(%s, %d, %d, %d)",
 	    pp->name, r, w, e);
 	g_topology_assert();
-	dp = pp->geom->softc;
-	sc = pp->private;
-	if (dp == NULL || dp->d_destroyed || sc == NULL) {
+	sc = pp->geom->softc;
+	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
 		/*
 		 * Allow decreasing access count even if disk is not
 		 * avaliable anymore.
@@ -204,31 +203,27 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 }
 
 static void
-g_disk_setstate(struct bio *bp, struct disk *dp)
+g_disk_setstate(struct bio *bp, struct g_disk_softc *sc)
 {
-	struct g_disk_softc *sc;
 	const char *cmd;
 
-	sc = bp->bio_to->private;
-	if (sc != NULL) {
-		memcpy(&sc->state, bp->bio_data, sizeof(sc->state));
-		if (sc->led[0] != 0) {
-			switch (sc->state) {
-			case G_STATE_FAILED:
-				cmd = "1";
-				break;
-			case G_STATE_REBUILD:
-				cmd = "f5";
-				break;
-			case G_STATE_RESYNC:
-				cmd = "f1";
-				break;
-			default:
-				cmd = "0";
-				break;
-			}
-			led_set(sc->led, cmd);
+	memcpy(&sc->state, bp->bio_data, sizeof(sc->state));
+	if (sc->led[0] != 0) {
+		switch (sc->state) {
+		case G_STATE_FAILED:
+			cmd = "1";
+			break;
+		case G_STATE_REBUILD:
+			cmd = "f5";
+			break;
+		case G_STATE_RESYNC:
+			cmd = "f1";
+			break;
+		default:
+			cmd = "0";
+			break;
 		}
+		led_set(sc->led, cmd);
 	}
 	g_io_deliver(bp, 0);
 }
@@ -238,6 +233,7 @@ g_disk_done(struct bio *bp)
 {
 	struct bio *bp2;
 	struct disk *dp;
+	struct g_disk_softc *sc;
 
 	/* See "notes" for why we need a mutex here */
 	/* XXX: will witness accept a mix of Giant/unGiant drivers here ? */
@@ -249,7 +245,8 @@ g_disk_done(struct bio *bp)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
 	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) &&
-	    (dp = bp2->bio_to->geom->softc)) {
+	    (sc = bp2->bio_to->geom->softc) &&
+	    (dp = sc->dp)) {
 		devstat_end_transaction_bio(dp->d_devstat, bp);
 	}
 	g_destroy_bio(bp);
@@ -266,10 +263,12 @@ g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct t
 {
 	struct g_geom *gp;
 	struct disk *dp;
+	struct g_disk_softc *sc;
 	int error;
 
 	gp = pp->geom;
-	dp = gp->softc;
+	sc = gp->softc;
+	dp = sc->dp;
 
 	if (dp->d_ioctl == NULL)
 		return (ENOIOCTL);
@@ -284,11 +283,12 @@ g_disk_start(struct bio *bp)
 {
 	struct bio *bp2, *bp3;
 	struct disk *dp;
+	struct g_disk_softc *sc;
 	int error;
 	off_t off;
 
-	dp = bp->bio_to->geom->softc;
-	if (dp == NULL || dp->d_destroyed) {
+	sc = bp->bio_to->geom->softc;
+	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
 		g_io_deliver(bp, ENXIO);
 		return;
 	}
@@ -368,7 +368,7 @@ g_disk_start(struct bio *bp)
 		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_disk_kerneldump(bp, dp);
 		else if (!strcmp(bp->bio_attribute, "GEOM::setstate"))
-			g_disk_setstate(bp, dp);
+			g_disk_setstate(bp, sc);
 		else 
 			error = ENOIOCTL;
 		break;
@@ -403,9 +403,10 @@ static void
 g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
 	struct disk *dp;
+	struct g_disk_softc *sc;
 
-	dp = gp->softc;
-	if (dp == NULL)
+	sc = gp->softc;
+	if (sc == NULL || (dp = sc->dp) == NULL)
 		return;
 	if (indent == NULL) {
 		sbuf_printf(sb, " hd %u", dp->d_fwheads);
@@ -433,8 +434,10 @@ g_disk_create(void *arg, int flag)
 		return;
 	g_topology_assert();
 	dp = arg;
+	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
+	sc->dp = dp;
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
-	gp->softc = dp;
+	gp->softc = sc;
 	pp = g_new_providerf(gp, "%s", gp->name);
 	pp->mediasize = dp->d_mediasize;
 	pp->sectorsize = dp->d_sectorsize;
@@ -444,8 +447,6 @@ g_disk_create(void *arg, int flag)
 	pp->stripesize = dp->d_stripesize;
 	if (bootverbose)
 		printf("GEOM: new disk %s\n", gp->name);
-	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
-	sc->dp = dp;
 	sysctl_ctx_init(&sc->sysctl_ctx);
 	snprintf(tmpstr, sizeof(tmpstr), "GEOM disk %s", gp->name);
 	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
@@ -476,15 +477,16 @@ g_disk_destroy(void *ptr, int flag)
 	dp = ptr;
 	gp = dp->d_geom;
 	if (gp != NULL) {
-		sc = LIST_FIRST(&gp->provider)->private;
+		sc = gp->softc;
 		if (sc->sysctl_tree != NULL) {
 			sysctl_ctx_free(&sc->sysctl_ctx);
 			sc->sysctl_tree = NULL;
 		}
-		if (sc->led[0] != 0)
+		if (sc->led[0] != 0) {
 			led_set(sc->led, "0");
+			sc->led[0] = 0;
+		}
 		g_free(sc);
-		LIST_FIRST(&gp->provider)->private = NULL;
 		gp->softc = NULL;
 		g_wither_geom(gp, ENXIO);
 	}
