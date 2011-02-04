@@ -225,6 +225,23 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 }
 
 static void
+g_raid_tr_raid1_rebuild_done(struct g_raid_tr_raid1_object *trs,
+    struct g_raid_volume *vol)
+{
+	struct g_raid_subdisk *sd;
+
+	sd = trs->trso_failed_sd;
+	sd->sd_rebuild_pos = 0;
+	g_raid_write_metadata(vol->v_softc, vol, sd, sd->sd_disk);
+	free(trs->trso_buffer, M_TR_raid1);
+	trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+	trs->trso_type = TR_RAID1_NONE;
+	trs->trso_recover_slabs = 0;
+	trs->trso_failed_sd = NULL;
+	trs->trso_buffer = NULL;
+}
+
+static void
 g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr,
     struct g_raid_volume *vol)
 {
@@ -233,16 +250,9 @@ g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr,
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	sd = trs->trso_failed_sd;
-	sd->sd_rebuild_pos = 0;
 	g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
 	g_raid_tr_update_state_raid1(vol);
-	g_raid_write_metadata(vol->v_softc, vol, sd, sd->sd_disk);
-	free(trs->trso_buffer, M_TR_raid1);
-	trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
-	trs->trso_type = TR_RAID1_NONE;
-	trs->trso_recover_slabs = 0;
-	trs->trso_failed_sd = NULL;
-	trs->trso_buffer = NULL;
+	g_raid_tr_raid1_rebuild_done(trs, vol);
 }
 
 static void
@@ -255,16 +265,9 @@ g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr,
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	sd = trs->trso_failed_sd;
-//	sd->sd_rebuild_pos = 0; /* We may need this here... */
 	len = MIN(g_raid1_rebuild_slab, vol->v_mediasize - sd->sd_rebuild_pos);
 	g_raid_unlock_range(tr->tro_volume, sd->sd_rebuild_pos, len);
-	g_raid_write_metadata(vol->v_softc, vol, sd, sd->sd_disk);
-	free(trs->trso_buffer, M_TR_raid1);
-	trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
-	trs->trso_type = TR_RAID1_NONE;
-	trs->trso_recover_slabs = 0;
-	trs->trso_failed_sd = NULL;
-	trs->trso_buffer = NULL;
+	g_raid_tr_raid1_rebuild_done(trs, vol);
 }
 
 static struct g_raid_subdisk *
@@ -614,13 +617,16 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				 * it.
 				 */
 				G_RAID_LOGREQ(4, bp,
-				    "rebuild write done. Error %d", bp->bio_error);
+				    "rebuild write done. Error %d",
+				    bp->bio_error);
+				nsd = trs->trso_failed_sd;
 				if (bp->bio_error != 0) {
+					g_raid_fail_disk(sd->sd_softc, nsd,
+					    nsd->sd_disk);
 					g_raid_tr_raid1_rebuild_abort(tr, vol);
 					return;
 				}
 /* XXX A lot of the following is needed when we kick of the work -- refactor */
-				nsd = trs->trso_failed_sd;
 				g_raid_unlock_range(sd->sd_volume,
 				    bp->bio_offset, bp->bio_length);
 				nsd->sd_rebuild_pos += bp->bio_length;
