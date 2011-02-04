@@ -609,10 +609,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				cbp = g_clone_bio(pbp);
 				if (cbp == NULL) {
 					/*
-					 * By flagging that we're not doing anything,
-					 * we'll pick up the rebuild at a later point
-					 * either by timeout or when we steal a small
-					 * part of the active I/O.
+					 * By flagging that we're not doing
+					 * anything, we'll pick up the rebuild
+					 * at a later point either by timeout
+					 * or when we steal a small part of
+					 * the active I/O.
 					 */
 					g_destroy_bio(bp); /* reuse? */
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
@@ -671,10 +672,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				cbp = g_clone_bio(pbp);
 				if (cbp == NULL) {
 					/*
-					 * By flagging that we're not doing anything,
-					 * we'll pick up the rebuild at a later point
-					 * either by timeout or when we steal a small
-					 * part of the active I/O.
+					 * By flagging that we're not doing
+					 * anything, we'll pick up the rebuild
+					 * at a later point either by timeout
+					 * or when we steal a small part of
+					 * the active I/O.
 					 */
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
 					return;
@@ -692,10 +694,9 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			}
 		} else if (trs->trso_type == TR_RAID1_RESYNC) {
 			/*
-			 * read good sd, read bad sd in parallel.
-			 * when both done, compare the buffers.  write
-			 * good to the failed if different.  do the
-			 * next bit of work.
+			 * read good sd, read bad sd in parallel.  when both
+			 * done, compare the buffers.  write good to the bad
+			 * if different.  do the next bit of work.
 			 */
 			panic("Somehow, we think we're doing a resync");
 		}
@@ -720,9 +721,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * everything to get it back in sync), or just degrade the
 		 * drive, which kicks off a resync?
 		 */
-		if (sd->sd_read_errs > SD_READ_THRESHOLD) {
+		if (sd->sd_read_errs > SD_READ_THRESHOLD)
 			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
-		}
 
 		/*
 		 * Find the other disk, and try to do the I/O to it.
@@ -780,11 +780,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		/*
 		 * We're done with a remap write, mark the range as unlocked.
 		 * For any write errors, we agressively fail the disk since
-		 * there was both a READ and a WRITE error at this location.  Both
-		 * types of errors generally indicates the drive is on the verge of
-		 * total failure anyway.  Better to stop trusting it now.  However,
-		 * we need to reset error to 0 in that case because we're not failing
-		 * the original I/O which succeeded.
+		 * there was both a READ and a WRITE error at this location.
+		 * Both types of errors generally indicates the drive is on
+		 * the verge of total failure anyway.  Better to stop trusting
+		 * it now.  However, we need to reset error to 0 in that case
+		 * because we're not failing the original I/O which succeeded.
 		 */
 		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
 		g_raid_unlock_range(sd->sd_volume, bp->bio_offset,
