@@ -218,7 +218,7 @@ main(int ac, char **av)
 				break;
 			default:
 				if (isalpha((unsigned char)**av)) {
-					if (strncasecmp(*av, "sig", 3) == 0)
+					if (strncasecmp(*av, "SIG", 3) == 0)
 						*av += 3;
 					for (sig = NSIG, p = sys_signame + 1;
 					     --sig; ++p)
