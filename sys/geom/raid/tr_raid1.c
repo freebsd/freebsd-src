@@ -41,11 +41,15 @@ __FBSDID("$FreeBSD$");
 #include "g_raid_tr_if.h"
 
 #define SD_READ_THRESHOLD 10 /* errors to cause a rebuild */
+static int sd_read_threshold = SD_READ_THRESHOLD;
 #define SD_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */
+static int sd_rebuild_slab = SD_REBUILD_SLAB;
 #define SD_REBUILD_FAIR_IO 20 /* use 1/x of the available I/O */
-#define SD_REBUILD_CLUSTER_BUSY 4
+static int sd_rebuild_fair_io = SD_REBUILD_FAIR_IO;
 #define SD_REBUILD_CLUSTER_IDLE 10
+static int sd_rebuild_cluster_idle = SD_REBUILD_CLUSTER_IDLE;
 #define SD_REBUILD_META_UPDATE 500 /* update meta data every 5 GB or so */
+static int sd_rebuild_meta_update = SD_REBUILD_META_UPDATE;
 
 static MALLOC_DEFINE(M_TR_raid1, "tr_raid1_data", "GEOM_RAID raid1 data");
 
@@ -174,7 +178,7 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 	bp = &trs->trso_bio;
 	memset(bp, 0, sizeof(*bp));
 	bp->bio_offset = sd->sd_rebuild_pos;
-	bp->bio_length = MIN(SD_REBUILD_SLAB,
+	bp->bio_length = MIN(sd_rebuild_slab,
 	    sd->sd_volume->v_mediasize - sd->sd_rebuild_pos);
 	bp->bio_data = trs->trso_buffer;
 	bp->bio_cmd = BIO_READ;
@@ -183,8 +187,8 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 		return;
 	bp2->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 	bp2->bio_caller1 = good_sd;
-	trs->trso_recover_slabs = SD_REBUILD_CLUSTER_IDLE;
-	trs->trso_fair_io = SD_REBUILD_FAIR_IO;
+	trs->trso_recover_slabs = sd_rebuild_cluster_idle;
+	trs->trso_fair_io = sd_rebuild_fair_io;
 	trs->trso_flags |= TR_RAID1_F_DOING_SOME;
 	g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
 	    bp2->bio_offset, bp2->bio_length, bp2);
@@ -222,7 +226,7 @@ g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr,
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	sd = trs->trso_failed_sd;
 //	sd->sd_rebuild_pos = 0; /* We may need this here... */
-	len = MIN(SD_REBUILD_SLAB, vol->v_mediasize - sd->sd_rebuild_pos);
+	len = MIN(sd_rebuild_slab, vol->v_mediasize - sd->sd_rebuild_pos);
 	g_raid_unlock_range(tr->tro_volume, sd->sd_rebuild_pos, len);
 	g_raid_write_metadata(vol->v_softc, vol, sd, sd->sd_disk);
 	free(trs->trso_buffer, M_TR_raid1);
@@ -278,8 +282,8 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr,
 	G_RAID_DEBUG(2, "Kicking off a rebuild at %jd...",
 	    trs->trso_failed_sd->sd_rebuild_pos);
 	trs->trso_type = TR_RAID1_REBUILD;
-	trs->trso_buffer = malloc(SD_REBUILD_SLAB, M_TR_raid1, M_WAITOK);
-	trs->trso_meta_update = SD_REBUILD_META_UPDATE;
+	trs->trso_buffer = malloc(sd_rebuild_slab, M_TR_raid1, M_WAITOK);
+	trs->trso_meta_update = sd_rebuild_meta_update;
 	g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
 }
 
@@ -592,11 +596,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				 * The write operation just finished.  Do
 				 * another.  We keep cloning the master bio
 				 * since it has the right buffers allocated to
-				 * it.  We'll free it when slabs get to 0.
-				 * We'll also tie up SD_REBUILD_CLUSTER * 2 +
-				 * 1 bios from the pool.  Since
-				 * SD_REBUILD_CLUSTER should be small, that
-				 * shouldn't be a problem.
+				 * it.
 				 */
 				G_RAID_LOGREQ(4, bp,
 				    "rebuild write done. Error %d", bp->bio_error);
@@ -619,7 +619,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					if (--trs->trso_meta_update <= 0) {
 						g_raid_write_metadata(vol->v_softc,
 						    vol, nsd, nsd->sd_disk);
-						trs->trso_meta_update = SD_REBUILD_META_UPDATE;
+						trs->trso_meta_update =
+						    sd_rebuild_meta_update;
 					}
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
 					return;
@@ -645,7 +646,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				cbp->bio_cmd = BIO_READ;
 				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 				cbp->bio_offset = nsd->sd_rebuild_pos;
-				cbp->bio_length = MIN(SD_REBUILD_SLAB,
+				cbp->bio_length = MIN(sd_rebuild_slab,
 				    vol->v_mediasize - nsd->sd_rebuild_pos);
 				cbp->bio_caller1 = good_sd;
 				G_RAID_LOGREQ(4, bp,
@@ -683,7 +684,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * everything to get it back in sync), or just degrade the
 		 * drive, which kicks off a resync?
 		 */
-		if (sd->sd_read_errs > SD_READ_THRESHOLD)
+		if (sd->sd_read_errs > sd_read_threshold)
 			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 
 		/*
