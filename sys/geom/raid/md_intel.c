@@ -867,6 +867,11 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 	/* Pickup any STALE/SPARE disks to refill array if needed. */
 	g_raid_md_intel_refill(sc);
 
+	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
+		    G_RAID_EVENT_VOLUME);
+	}
+
 	callout_stop(&mdi->mdio_start_co);
 	G_RAID_DEBUG(1, "root_mount_rel %p", mdi->mdio_rootmount);
 	root_mount_rel(mdi->mdio_rootmount);
@@ -1446,6 +1451,9 @@ makedisk:
 
 		/* Pickup any STALE/SPARE disks to refill array if needed. */
 		g_raid_md_intel_refill(sc);
+
+		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
+		    G_RAID_EVENT_VOLUME);
 		return (0);
 	}
 	if (strcmp(verb, "add") == 0) {
@@ -1611,6 +1619,9 @@ makedisk:
 
 		/* Write metadata based on created entities. */
 		g_raid_md_write_intel(md, NULL, NULL, NULL);
+
+		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
+		    G_RAID_EVENT_VOLUME);
 		return (0);
 	}
 	if (strcmp(verb, "delete") == 0) {

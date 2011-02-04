@@ -231,8 +231,7 @@ struct g_raid_volume {
 	time_t			 v_last_write;	/* Time of the last write. */
 	u_int			 v_writes;	/* Number of active writes. */
 	struct root_hold_token	*v_rootmount;	/* Root mount delay token. */
-	struct callout		 v_start_co;	/* STARTING state timer. */
-	int			 v_starting;	/* STARTING state timer armed */
+	int			 v_starting;	/* Volume is starting */
 	int			 v_stopping;	/* Volume is stopping */
 	int			 v_provider_open; /* Number of opens. */
 	int			 v_global_id;	/* Global volume ID (rX). */

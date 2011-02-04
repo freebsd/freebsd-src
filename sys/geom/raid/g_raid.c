@@ -59,10 +59,10 @@ u_int g_raid_debug = 2;
 TUNABLE_INT("kern.geom.raid.debug", &g_raid_debug);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RW, &g_raid_debug, 0,
     "Debug level");
-u_int g_raid_start_timeout = 4;
+u_int g_raid_start_timeout = 15;
 TUNABLE_INT("kern.geom.raid.start_timeout", &g_raid_start_timeout);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, timeout, CTLFLAG_RW, &g_raid_start_timeout,
-    0, "Time to wait on all mirror components");
+    0, "Time to wait for all array components");
 static u_int g_raid_cleantime = 5;
 TUNABLE_INT("kern.geom.raid.cleantime", &g_raid_cleantime);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, cleantime, CTLFLAG_RW,
@@ -553,7 +553,9 @@ g_raid_nsubdisks(struct g_raid_volume *vol, int state)
 	n = 0;
 	for (i = 0; i < vol->v_disks_count; i++) {
 		subdisk = &vol->v_subdisks[i];
-		if (subdisk->sd_state == state || state == -1)
+		if ((state == -1 &&
+		     subdisk->sd_state != G_RAID_SUBDISK_S_NONE) ||
+		    subdisk->sd_state == state)
 			n++;
 	}
 	return (n);
@@ -1338,19 +1340,6 @@ g_raid_destroy_provider(struct g_raid_volume *vol)
 	vol->v_provider = NULL;
 }
 
-static void
-g_raid_go(void *arg)
-{
-	struct g_raid_volume *vol;
-
-	vol = arg;
-	if (vol->v_starting) {
-		G_RAID_DEBUG(0, "Force volume %s start due to timeout.", vol->v_name);
-		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
-		    G_RAID_EVENT_VOLUME);
-	}
-}
-
 /*
  * Update device state.
  */
@@ -1383,7 +1372,6 @@ g_raid_update_volume(struct g_raid_volume *vol, u_int event)
 	/* Manage root mount release. */
 	if (vol->v_starting) {
 		vol->v_starting = 0;
-		callout_drain(&vol->v_start_co);
 		G_RAID_DEBUG(1, "root_mount_rel %p", vol->v_rootmount);
 		root_mount_rel(vol->v_rootmount);
 		vol->v_rootmount = NULL;
@@ -1585,9 +1573,6 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 	/* Delay root mounting. */
 	vol->v_rootmount = root_mount_hold("GRAID");
 	G_RAID_DEBUG(1, "root_mount_hold %p", vol->v_rootmount);
-	callout_init(&vol->v_start_co, 1);
-	callout_reset(&vol->v_start_co, g_raid_start_timeout * hz,
-	    g_raid_go, vol);
 	vol->v_starting = 1;
 	TAILQ_INSERT_TAIL(&sc->sc_volumes, vol, v_next);
 	return (vol);
@@ -1720,7 +1705,6 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 		return (EBUSY);
 	if (vol->v_rootmount)
 		root_mount_rel(vol->v_rootmount);
-	callout_drain(&vol->v_start_co);
 	g_topology_lock();
 	LIST_REMOVE(vol, v_global_next);
 	g_topology_unlock();
