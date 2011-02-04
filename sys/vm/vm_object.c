@@ -1147,7 +1147,7 @@ vm_object_shadow(
 	/*
 	 * Allocate a new object with the given length.
 	 */
-	result = vm_object_allocate(OBJT_DEFAULT, length);
+	result = vm_object_allocate(OBJT_DEFAULT, atop(length));
 
 	/*
 	 * The new object shadows the source object, adding a reference to it.
