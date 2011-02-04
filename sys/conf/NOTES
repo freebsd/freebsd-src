@@ -1815,14 +1815,47 @@ device		puc
 #
 # Network interfaces:
 #
-# MII bus support is required for some PCI 10/100 ethernet NICs,
+# MII bus support is required for many PCI Ethernet NICs,
 # namely those which use MII-compliant transceivers or implement
-# transceiver control interfaces that operate like an MII. Adding
+# transceiver control interfaces that operate like an MII.  Adding
 # "device miibus" to the kernel config pulls in support for
 # the generic miibus API and all of the PHY drivers, including a
 # generic one for PHYs that aren't specifically handled by an
-# individual driver.
-device		miibus
+# individual driver.  Support for specific PHYs may be built by adding
+# "device mii" then adding the appropriate PHY driver.
+device  	miibus		# MII support including all PHYs
+device  	mii		# Minimal MII support
+
+device  	acphy		# Altima Communications AC101
+device  	amphy		# AMD AM79c873 / Davicom DM910{1,2}
+device  	atphy		# Attansic/Atheros F1
+device  	axphy		# Asix Semiconductor AX88x9x
+device  	bmtphy		# Broadcom BCM5201/BCM5202 and 3Com 3c905C
+device  	brgphy		# Broadcom BCM54xx/57xx 1000baseTX
+device  	ciphy		# Cicada/Vitesse CS/VSC8xxx
+device  	e1000phy	# Marvell 88E1000 1000/100/10-BT
+device  	exphy		# 3Com internal PHY
+device  	gentbi		# Generic 10-bit 1000BASE-{LX,SX} fiber ifaces
+device  	icsphy		# ICS ICS1889-1893
+device  	inphy		# Intel 82553/82555
+device  	ip1000phy	# IC Plus IP1000A/IP1001
+device  	jmphy		# JMicron JMP211/JMP202
+device  	lxtphy		# Level One LXT-970
+device  	mlphy		# Micro Linear 6692
+device  	nsgphy		# NatSemi DP8361/DP83865/DP83891
+device  	nsphy		# NatSemi DP83840A
+device  	nsphyter	# NatSemi DP83843/DP83815
+device  	pnaphy		# HomePNA
+device  	qsphy		# Quality Semiconductor QS6612
+device  	rgephy		# RealTek 8169S/8110S/8211B/8211C
+device  	rlphy		# RealTek 8139
+device  	rlswitch	# RealTek 8305
+device  	ruephy		# RealTek RTL8150
+device  	smcphy		# SMSC LAN91C111
+device  	tdkphy		# TDK 89Q2120
+device  	tlphy		# Texas Instruments ThunderLAN
+device  	truephy		# LSI TruePHY
+device		xmphy		# XaQti XMAC II
 
 # an:   Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
 #       PCI and ISA varieties.
