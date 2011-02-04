@@ -145,10 +145,11 @@ struct g_raid_disk {
 #define G_RAID_SUBDISK_S_NONE		0x00	/* Absent. */
 #define G_RAID_SUBDISK_S_FAILED		0x01	/* Failed. */
 #define G_RAID_SUBDISK_S_NEW		0x02	/* Blank. */
-#define G_RAID_SUBDISK_S_STALE		0x03	/* Dirty. */
-#define G_RAID_SUBDISK_S_REBUILD	0x04	/* Blank + rebuild. */
-#define G_RAID_SUBDISK_S_RESYNC		0x05	/* Dirty + check/repair. */
-#define G_RAID_SUBDISK_S_ACTIVE		0x06	/* Usable. */
+#define G_RAID_SUBDISK_S_REBUILD	0x03	/* Blank + rebuild. */
+#define G_RAID_SUBDISK_S_UNINITIALIZED	0x04	/* Disk of the new volume. */
+#define G_RAID_SUBDISK_S_STALE		0x05	/* Dirty. */
+#define G_RAID_SUBDISK_S_RESYNC		0x06	/* Dirty + check/repair. */
+#define G_RAID_SUBDISK_S_ACTIVE		0x07	/* Usable. */
 
 #define G_RAID_SUBDISK_E_NEW		0x01	/* A new subdisk has arrived */
 #define G_RAID_SUBDISK_E_FAILED		0x02	/* A subdisk failed, but remains in volume */
@@ -316,6 +317,9 @@ int g_raid_tr_modevent(module_t, int, void *);
 
 const char * g_raid_volume_level2str(int level, int qual);
 int g_raid_volume_str2level(const char *str, int *level, int *qual);
+const char * g_raid_volume_state2str(int state);
+const char * g_raid_subdisk_state2str(int state);
+const char * g_raid_disk_state2str(int state);
 
 struct g_raid_softc * g_raid_create_node(struct g_class *mp,
     const char *name, struct g_raid_md_object *md);

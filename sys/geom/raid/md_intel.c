@@ -644,7 +644,7 @@ nofit:
 			if (mmap0->status == INTEL_S_UNINITIALIZED) {
 				/* Freshly created uninitialized volume. */
 				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_NEW);
+				    G_RAID_SUBDISK_S_UNINITIALIZED);
 			} else if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
 				/* Freshly inserted disk. */
 				g_raid_change_subdisk_state(sd,
@@ -1879,7 +1879,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	struct intel_raid_map *mmap0, *mmap1;
 	off_t sectorsize = 512, pos;
 	const char *version, *cv;
-	int vi, sdi, numdisks, len, state;
+	int vi, sdi, numdisks, len, state, stale;
 
 	sc = md->mdo_softc;
 	mdi = (struct g_raid_md_intel_object *)md;
@@ -1980,6 +1980,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		/* Check for any recovery in progress. */
 		state = G_RAID_SUBDISK_S_ACTIVE;
 		pos = 0x7fffffffffffffffllu;
+		stale = 0;
 		for (sdi = 0; sdi < vol->v_disks_count; sdi++) {
 			sd = &vol->v_subdisks[sdi];
 			if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD)
@@ -1987,6 +1988,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			else if (sd->sd_state == G_RAID_SUBDISK_S_RESYNC &&
 			    state != G_RAID_SUBDISK_S_REBUILD)
 				state = G_RAID_SUBDISK_S_RESYNC;
+			else if (sd->sd_state == G_RAID_SUBDISK_S_STALE)
+				stale = 1;
 			if ((sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
 			    sd->sd_state == G_RAID_SUBDISK_S_RESYNC) &&
 			     sd->sd_rebuild_pos < pos)
@@ -2000,7 +2003,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			mvol->migr_type = INTEL_MT_REPAIR;
 		} else
 			mvol->migr_state = 0;
-		mvol->dirty = vol->v_dirty;
+		mvol->dirty = (vol->v_dirty || stale);
 
 		mmap0 = intel_get_map(mvol, 0);
 
@@ -2054,7 +2057,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
 			    sd->sd_state == G_RAID_SUBDISK_S_RESYNC) {
 				mmap1->disk_idx[sdi] |= INTEL_DI_RBLD;
-			} else if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE) {
+			} else if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE &&
+			    sd->sd_state != G_RAID_SUBDISK_S_STALE) {
 				mmap0->disk_idx[sdi] |= INTEL_DI_RBLD;
 				if (mvol->migr_state)
 					mmap1->disk_idx[sdi] |= INTEL_DI_RBLD;

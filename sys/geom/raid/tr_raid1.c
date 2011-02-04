@@ -163,8 +163,9 @@ static int
 g_raid_tr_update_state_raid1(struct g_raid_volume *vol)
 {
 	struct g_raid_tr_raid1_object *trs;
+	struct g_raid_subdisk *sd, *bestsd;
 	u_int s;
-	int n;
+	int i, na, ns;
 
 	trs = (struct g_raid_tr_raid1_object *)vol->v_tr;
 	if (trs->trso_stopping &&
@@ -173,10 +174,44 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol)
 	else if (trs->trso_starting)
 		s = G_RAID_VOLUME_S_STARTING;
 	else {
-		n = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE);
-		if (n == vol->v_disks_count)
+		/* Make sure we have at least one ACTIVE disk. */
+		na = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE);
+		if (na == 0) {
+			/*
+			 * Critical situation! We have no any active disk!
+			 * Choose the best disk we have to make it active.
+			 */
+			bestsd = &vol->v_subdisks[0];
+			for (i = 1; i < vol->v_disks_count; i++) {
+				sd = &vol->v_subdisks[i];
+				if (sd->sd_state > bestsd->sd_state)
+					bestsd = sd;
+				else if (sd->sd_state == bestsd->sd_state &&
+				    (sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+				     sd->sd_state == G_RAID_SUBDISK_S_RESYNC) &&
+				    sd->sd_rebuild_pos > bestsd->sd_rebuild_pos)
+					bestsd = sd;
+			}
+			if (bestsd->sd_state >= G_RAID_SUBDISK_S_UNINITIALIZED) {
+				/* We found reasonable candidate. */
+				G_RAID_DEBUG(1,
+				    "Promote subdisk %d from %s to ACTIVE.",
+				    bestsd->sd_pos,
+				    g_raid_subdisk_state2str(bestsd->sd_state));
+				g_raid_change_subdisk_state(bestsd,
+				    G_RAID_SUBDISK_S_ACTIVE);
+				g_raid_write_metadata(vol->v_softc,
+				    vol, bestsd, bestsd->sd_disk);
+			}
+		}
+		na = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE);
+		ns = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_STALE) +
+		     g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_RESYNC);
+		if (na == vol->v_disks_count)
 			s = G_RAID_VOLUME_S_OPTIMAL;
-		else if (n > 0)
+		else if (na + ns == vol->v_disks_count)
+			s = G_RAID_VOLUME_S_SUBOPTIMAL;
+		else if (na > 0)
 			s = G_RAID_VOLUME_S_DEGRADED;
 		else
 			s = G_RAID_VOLUME_S_BROKEN;

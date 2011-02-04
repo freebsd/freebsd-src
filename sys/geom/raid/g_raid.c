@@ -140,7 +140,7 @@ g_raid_node_event2str(int event)
 	}
 }
 
-static const char *
+const char *
 g_raid_disk_state2str(int state)
 {
 
@@ -176,7 +176,7 @@ g_raid_disk_event2str(int event)
 	}
 }
 
-static const char *
+const char *
 g_raid_subdisk_state2str(int state)
 {
 
@@ -214,7 +214,7 @@ g_raid_subdisk_event2str(int event)
 	}
 }
 
-static const char *
+const char *
 g_raid_volume_state2str(int state)
 {
 
