@@ -145,15 +145,7 @@ unalias(const char *name)
 	return (1);
 }
 
-#ifdef mkinit
-MKINIT void rmaliases(void);
-
-SHELLPROC {
-	rmaliases();
-}
-#endif
-
-void
+static void
 rmaliases(void)
 {
 	struct alias *ap, *tmp;

@@ -177,22 +177,6 @@ out:				out2fmt_flush("sh: can't access tty; job control turned off\n");
 #endif
 
 
-#ifdef mkinit
-INCLUDE <sys/types.h>
-INCLUDE <stdlib.h>
-
-SHELLPROC {
-	backgndpid = -1;
-	bgjob = NULL;
-#if JOBS
-	jobctl = 0;
-#endif
-}
-
-#endif
-
-
-
 #if JOBS
 int
 fgcmd(int argc __unused, char **argv)

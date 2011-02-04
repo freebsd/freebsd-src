@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdlib.h>
 
 /*
@@ -105,6 +106,8 @@ static void delete_cmd_entry(void);
 /*
  * Exec a program.  Never returns.  If you change this routine, you may
  * have to change the find_command routine as well.
+ *
+ * The argv array may be changed and element argv[-1] should be writable.
  */
 
 void
@@ -147,12 +150,9 @@ tryexec(char *cmd, char **argv, char **envp)
 	execve(cmd, argv, envp);
 	e = errno;
 	if (e == ENOEXEC) {
-		initshellproc();
-		setinputfile(cmd, 0);
-		commandname = arg0 = savestr(argv[0]);
-		setparam(argv + 1);
-		exraise(EXSHELLPROC);
-		/*NOTREACHED*/
+		*argv = cmd;
+		*--argv = _PATH_BSHELL;
+		execve(_PATH_BSHELL, argv, envp);
 	}
 	errno = e;
 }
@@ -534,43 +534,6 @@ clearcmdentry(int firstchange)
 	}
 	INTON;
 }
-
-
-/*
- * Delete all functions.
- */
-
-#ifdef mkinit
-MKINIT void deletefuncs(void);
-
-SHELLPROC {
-	deletefuncs();
-}
-#endif
-
-void
-deletefuncs(void)
-{
-	struct tblentry **tblp;
-	struct tblentry **pp;
-	struct tblentry *cmdp;
-
-	INTOFF;
-	for (tblp = cmdtable ; tblp < &cmdtable[CMDTABLESIZE] ; tblp++) {
-		pp = tblp;
-		while ((cmdp = *pp) != NULL) {
-			if (cmdp->cmdtype == CMDFUNCTION) {
-				*pp = cmdp->next;
-				unreffunc(cmdp->param.func);
-				ckfree(cmdp);
-			} else {
-				pp = &cmdp->next;
-			}
-		}
-	}
-	INTON;
-}
-
 
 
 /*
