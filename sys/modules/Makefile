@@ -301,6 +301,7 @@ SUBDIR=	${_3dfx} \
 	vkbd \
 	${_vpo} \
 	vr \
+	vte \
 	vx \
 	wb \
 	${_wi} \
