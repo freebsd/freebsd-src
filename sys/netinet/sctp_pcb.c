@@ -1,8 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart, rrs@lakerest.net and
- *                          Michael Tuexen, tuexen@fh-muenster.de
- *                          All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -5446,7 +5445,7 @@ static int sctp_scale_up_for_address = SCTP_SCALE_FOR_ADDR;
 
 #if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
 struct sctp_mcore_ctrl *sctp_mcore_workers = NULL;
-
+int *sctp_cpuarry = NULL;
 void
 sctp_queue_to_mcore(struct mbuf *m, int off, int cpu_to_use)
 {
@@ -5548,32 +5547,48 @@ skip_sleep:
 static void
 sctp_startup_mcore_threads(void)
 {
-	int i;
+	int i, cpu;
 
-	if (mp_maxid == 1)
+	if (mp_ncpus == 1)
 		return;
 
+	if (sctp_mcore_workers != NULL) {
+		/*
+		 * Already been here in some previous vnet?
+		 */
+		return;
+	}
 	SCTP_MALLOC(sctp_mcore_workers, struct sctp_mcore_ctrl *,
-	    (mp_maxid * sizeof(struct sctp_mcore_ctrl)),
+	    ((mp_maxid + 1) * sizeof(struct sctp_mcore_ctrl)),
 	    SCTP_M_MCORE);
 	if (sctp_mcore_workers == NULL) {
 		/* TSNH I hope */
 		return;
 	}
-	memset(sctp_mcore_workers, 0, (mp_maxid *
+	memset(sctp_mcore_workers, 0, ((mp_maxid + 1) *
 	    sizeof(struct sctp_mcore_ctrl)));
 	/* Init the structures */
-	for (i = 0; i < mp_maxid; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		TAILQ_INIT(&sctp_mcore_workers[i].que);
 		SCTP_MCORE_LOCK_INIT(&sctp_mcore_workers[i]);
 		SCTP_MCORE_QLOCK_INIT(&sctp_mcore_workers[i]);
 		sctp_mcore_workers[i].cpuid = i;
 	}
+	if (sctp_cpuarry == NULL) {
+		SCTP_MALLOC(sctp_cpuarry, int *,
+		    (mp_ncpus * sizeof(int)),
+		    SCTP_M_MCORE);
+		i = 0;
+		CPU_FOREACH(cpu) {
+			sctp_cpuarry[i] = cpu;
+			i++;
+		}
+	}
 	/* Now start them all */
-	for (i = 0; i < mp_maxid; i++) {
+	CPU_FOREACH(cpu) {
 		(void)kproc_create(sctp_mcore_thread,
-		    (void *)&sctp_mcore_workers[i],
-		    &sctp_mcore_workers[i].thread_proc,
+		    (void *)&sctp_mcore_workers[cpu],
+		    &sctp_mcore_workers[cpu].thread_proc,
 		    RFPROC,
 		    SCTP_KTHREAD_PAGES,
 		    SCTP_MCORE_NAME);
@@ -5605,12 +5620,12 @@ sctp_pcb_init()
 #endif
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	SCTP_MALLOC(SCTP_BASE_STATS, struct sctpstat *,
-	    (mp_maxid * sizeof(struct sctpstat)),
+	    ((mp_maxid + 1) * sizeof(struct sctpstat)),
 	    SCTP_M_MCORE);
 #endif
 	(void)SCTP_GETTIME_TIMEVAL(&tv);
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
-	bzero(SCTP_BASE_STATS, (sizeof(struct sctpstat) * mp_maxid));
+	bzero(SCTP_BASE_STATS, (sizeof(struct sctpstat) * (mp_maxid + 1)));
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_sec = (uint32_t) tv.tv_sec;
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_usec = (uint32_t) tv.tv_usec;
 #else
