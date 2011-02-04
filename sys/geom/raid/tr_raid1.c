@@ -198,7 +198,7 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 {
 	struct g_raid_tr_raid1_object *trs;
 	struct g_raid_subdisk *good_sd;
-	struct bio *bp, *bp2;
+	struct bio *bp;
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (trs->trso_flags & TR_RAID1_F_DOING_SOME)
@@ -215,16 +215,13 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 	    sd->sd_volume->v_mediasize - sd->sd_rebuild_pos);
 	bp->bio_data = trs->trso_buffer;
 	bp->bio_cmd = BIO_READ;
-	bp2 = g_clone_bio(bp);
-	if (bp2 == NULL)	/* We'll try again later */
-		return;
-	bp2->bio_cflags = G_RAID_BIO_FLAG_SYNC;
-	bp2->bio_caller1 = good_sd;
+	bp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
+	bp->bio_caller1 = good_sd;
 	trs->trso_recover_slabs = g_raid1_rebuild_cluster_idle;
 	trs->trso_fair_io = g_raid1_rebuild_fair_io;
 	trs->trso_flags |= TR_RAID1_F_DOING_SOME;
 	g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
-	    bp2->bio_offset, bp2->bio_length, bp2);
+	   bp->bio_offset, bp->bio_length, bp);
 }
 
 static void
@@ -592,7 +589,6 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 */
 		if (trs->trso_type == TR_RAID1_REBUILD) {
 			vol = tr->tro_volume;
-			pbp->bio_inbed++;
 			if (bp->bio_cmd == BIO_READ) {
 				/*
 				 * The read operation finished, queue the
@@ -604,26 +600,12 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					g_raid_tr_raid1_rebuild_abort(tr, vol);
 					return;
 				}
-				cbp = g_clone_bio(pbp);
-				if (cbp == NULL) {
-					/*
-					 * By flagging that we're not doing
-					 * anything, we'll pick up the rebuild
-					 * at a later point either by timeout
-					 * or when we steal a small part of
-					 * the active I/O.
-					 */
-					g_destroy_bio(bp); /* reuse? */
-					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
-					return;
-				}
-				cbp->bio_cmd = BIO_WRITE;
-				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
-				cbp->bio_offset = bp->bio_offset;
-				cbp->bio_length = bp->bio_length;
+				bp->bio_cmd = BIO_WRITE;
+				bp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
+				bp->bio_offset = bp->bio_offset;
+				bp->bio_length = bp->bio_length;
 				G_RAID_LOGREQ(4, bp, "Queueing reguild write.");
-				g_destroy_bio(bp); /* reuse? */
-				g_raid_subdisk_iostart(trs->trso_failed_sd, cbp);
+				g_raid_subdisk_iostart(trs->trso_failed_sd, bp);
 			} else {
 				/*
 				 * The write operation just finished.  Do
@@ -635,15 +617,13 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				    "rebuild write done. Error %d", bp->bio_error);
 				if (bp->bio_error != 0) {
 					g_raid_tr_raid1_rebuild_abort(tr, vol);
-					g_destroy_bio(bp); /* reuse? */
 					return;
 				}
-				g_destroy_bio(bp); /* reuse? */
 /* XXX A lot of the following is needed when we kick of the work -- refactor */
 				nsd = trs->trso_failed_sd;
 				g_raid_unlock_range(sd->sd_volume,
 				    bp->bio_offset, bp->bio_length);
-				nsd->sd_rebuild_pos += pbp->bio_length;
+				nsd->sd_rebuild_pos += bp->bio_length;
 				if (nsd->sd_rebuild_pos >= vol->v_mediasize) {
 					g_raid_tr_raid1_rebuild_finish(tr, vol);
 					return;
@@ -663,30 +643,17 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					g_raid_tr_raid1_rebuild_abort(tr, vol);
 					return;
 				}
-				pbp->bio_offset = nsd->sd_rebuild_pos;
-				cbp = g_clone_bio(pbp);
-				if (cbp == NULL) {
-					/*
-					 * By flagging that we're not doing
-					 * anything, we'll pick up the rebuild
-					 * at a later point either by timeout
-					 * or when we steal a small part of
-					 * the active I/O.
-					 */
-					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
-					return;
-				}
-				cbp->bio_cmd = BIO_READ;
-				cbp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
-				cbp->bio_offset = nsd->sd_rebuild_pos;
-				cbp->bio_length = MIN(g_raid1_rebuild_slab,
+				bp->bio_cmd = BIO_READ;
+				bp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
+				bp->bio_offset = nsd->sd_rebuild_pos;
+				bp->bio_length = MIN(g_raid1_rebuild_slab,
 				    vol->v_mediasize - nsd->sd_rebuild_pos);
-				cbp->bio_caller1 = good_sd;
+				bp->bio_caller1 = good_sd;
 				G_RAID_LOGREQ(4, bp,
-				    "Rebuild read at %jd.", cbp->bio_offset);
+				    "Rebuild read at %jd.", bp->bio_offset);
 				/* Lock callback starts I/O */
 				g_raid_lock_range(sd->sd_volume,
-				    cbp->bio_offset, cbp->bio_length, cbp);
+				    bp->bio_offset, bp->bio_length, bp);
 			}
 		} else if (trs->trso_type == TR_RAID1_RESYNC) {
 			/*
