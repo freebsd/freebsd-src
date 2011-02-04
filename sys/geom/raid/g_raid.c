@@ -1204,7 +1204,8 @@ process:
 			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 				if (vol->v_writes == 0 && !vol->v_idle)
 					g_raid_idle(vol, -1);
-				if (vol->v_tr)
+				if (bioq_first(&vol->v_inflight) == NULL &&
+				    vol->v_tr)
 					G_RAID_TR_IDLE(vol->v_tr);
 			}
 		}
@@ -1634,6 +1635,8 @@ int g_raid_start_volume(struct g_raid_volume *vol)
 		    G_RAID_EVENT_VOLUME);
 		return (-1);
 	}
+	G_RAID_DEBUG(2, "Transformation module %s chosen for %s.",
+	    class->name, vol->v_name);
 	vol->v_tr = obj;
 	return (0);
 }
