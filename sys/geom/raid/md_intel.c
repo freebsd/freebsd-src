@@ -1989,7 +1989,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			mvol->migr_type = INTEL_MT_REPAIR;
 		} else
 			mvol->migr_state = 0;
-		mvol->dirty = !vol->v_idle;
+		mvol->dirty = vol->v_dirty;
 
 		mmap0 = intel_get_map(mvol, 0);
 

@@ -63,10 +63,10 @@ u_int g_raid_start_timeout = 4;
 TUNABLE_INT("kern.geom.raid.start_timeout", &g_raid_start_timeout);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, timeout, CTLFLAG_RW, &g_raid_start_timeout,
     0, "Time to wait on all mirror components");
-static u_int g_raid_idletime = 5;
-TUNABLE_INT("kern.geom.raid.idletime", &g_raid_idletime);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, idletime, CTLFLAG_RW,
-    &g_raid_idletime, 0, "Mark components as clean when idling");
+static u_int g_raid_cleantime = 5;
+TUNABLE_INT("kern.geom.raid.cleantime", &g_raid_cleantime);
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, cleantime, CTLFLAG_RW,
+    &g_raid_cleantime, 0, "Mark volume as clean when idling");
 static u_int g_raid_disconnect_on_failure = 1;
 TUNABLE_INT("kern.geom.raid.disconnect_on_failure",
     &g_raid_disconnect_on_failure);
@@ -660,7 +660,7 @@ g_raid_orphan(struct g_consumer *cp)
 }
 
 static int
-g_raid_idle(struct g_raid_volume *vol, int acw)
+g_raid_clean(struct g_raid_volume *vol, int acw)
 {
 	struct g_raid_softc *sc;
 	int timeout;
@@ -671,17 +671,17 @@ g_raid_idle(struct g_raid_volume *vol, int acw)
 
 //	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOFAILSYNC) != 0)
 //		return (0);
-	if (vol->v_idle)
+	if (!vol->v_dirty)
 		return (0);
 	if (vol->v_writes > 0)
 		return (0);
 	if (acw > 0 || (acw == -1 &&
 	    vol->v_provider != NULL && vol->v_provider->acw > 0)) {
-		timeout = g_raid_idletime - (time_uptime - vol->v_last_write);
+		timeout = g_raid_cleantime - (time_uptime - vol->v_last_write);
 		if (timeout > 0)
 			return (timeout);
 	}
-	vol->v_idle = 1;
+	vol->v_dirty = 0;
 	G_RAID_DEBUG(1, "Volume %s (node %s) marked as clean.",
 	    vol->v_name, sc->sc_name);
 	g_raid_write_metadata(sc, vol, NULL, NULL);
@@ -689,7 +689,7 @@ g_raid_idle(struct g_raid_volume *vol, int acw)
 }
 
 static void
-g_raid_unidle(struct g_raid_volume *vol)
+g_raid_dirty(struct g_raid_volume *vol)
 {
 	struct g_raid_softc *sc;
 
@@ -699,7 +699,7 @@ g_raid_unidle(struct g_raid_volume *vol)
 
 //	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOFAILSYNC) != 0)
 //		return;
-	vol->v_idle = 0;
+	vol->v_dirty = 1;
 	G_RAID_DEBUG(1, "Volume %s (node %s) marked as dirty.",
 	    vol->v_name, sc->sc_name);
 	g_raid_write_metadata(sc, vol, NULL, NULL);
@@ -897,8 +897,8 @@ g_raid_start_request(struct bio *bp)
 	 * update the idle stats for the volume.
 	 */
 	if (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_DELETE) {
-		if (vol->v_idle)
-			g_raid_unidle(vol);
+		if (!vol->v_dirty)
+			g_raid_dirty(vol);
 		vol->v_writes++;
 	}
 
@@ -1202,8 +1202,8 @@ process:
 		}
 		if (rv == EWOULDBLOCK) {
 			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-				if (vol->v_writes == 0 && !vol->v_idle)
-					g_raid_idle(vol, -1);
+				if (vol->v_writes == 0 && vol->v_dirty)
+					g_raid_clean(vol, -1);
 				if (bioq_first(&vol->v_inflight) == NULL &&
 				    vol->v_tr)
 					G_RAID_TR_IDLE(vol->v_tr);
@@ -1478,8 +1478,8 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 		error = ENXIO;
 		goto out;
 	}
-	if (dcw == 0 && !vol->v_idle)
-		g_raid_idle(vol, dcw);
+	if (dcw == 0 && vol->v_dirty)
+		g_raid_clean(vol, dcw);
 	vol->v_provider_open += acr + acw + ace;
 	/* Handle delayed node destruction. */
 	if (sc->sc_stopping == G_RAID_DESTROY_DELAYED &&
@@ -1561,7 +1561,6 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 	bioq_init(&vol->v_inflight);
 	bioq_init(&vol->v_locked);
 	LIST_INIT(&vol->v_locks);
-	vol->v_idle = 1;
 	for (i = 0; i < G_RAID_MAX_SUBDISKS; i++) {
 		vol->v_subdisks[i].sd_softc = sc;
 		vol->v_subdisks[i].sd_volume = vol;

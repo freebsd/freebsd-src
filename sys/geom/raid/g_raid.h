@@ -227,7 +227,7 @@ struct g_raid_volume {
 	struct bio_queue_head	 v_locked;	/* Blocked I/O requests. */
 	LIST_HEAD(, g_raid_lock) v_locks;	 /* List of locked regions. */
 	int			 v_pending_lock; /* writes to locked region */
-	int			 v_idle;	/* DIRTY flags removed. */
+	int			 v_dirty;	/* Volume is DIRTY. */
 	time_t			 v_last_write;	/* Time of the last write. */
 	u_int			 v_writes;	/* Number of active writes. */
 	struct root_hold_token	*v_rootmount;	/* Root mount delay token. */
