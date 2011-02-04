@@ -111,10 +111,6 @@ RESET {
 	loopnest = 0;
 	funcnest = 0;
 }
-
-SHELLPROC {
-	exitstatus = 0;
-}
 #endif
 
 
@@ -732,7 +728,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	argc = 0;
 	for (sp = arglist.list ; sp ; sp = sp->next)
 		argc++;
-	argv = stalloc(sizeof (char *) * (argc + 1));
+	/* Add one slot at the beginning for tryexec(). */
+	argv = stalloc(sizeof (char *) * (argc + 2));
+	argv++;
 
 	for (sp = arglist.list ; sp ; sp = sp->next) {
 		TRACE(("evalcommand arg: %s\n", sp->text));
@@ -927,14 +925,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		reffunc(cmdentry.u.func);
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
-			if (exception == EXSHELLPROC)
-				freeparam(&saveparam);
-			else {
-				freeparam(&shellparam);
-				shellparam = saveparam;
-				if (exception == EXERROR || exception == EXEXEC)
-					popredir();
-			}
+			freeparam(&shellparam);
+			shellparam = saveparam;
+			if (exception == EXERROR || exception == EXEXEC)
+				popredir();
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
@@ -1016,11 +1010,9 @@ cmddone:
 		out2 = &errout;
 		freestdout();
 		handler = savehandler;
-		if (e != EXSHELLPROC) {
-			commandname = savecmdname;
-			if (jp)
-				exitshell(exitstatus);
-		}
+		commandname = savecmdname;
+		if (jp)
+			exitshell(exitstatus);
 		if (flags == EV_BACKCMD) {
 			backcmd->buf = memout.buf;
 			backcmd->nleft = memout.nextc - memout.buf;

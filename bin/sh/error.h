@@ -56,8 +56,7 @@ extern volatile sig_atomic_t exception;
 /* exceptions */
 #define EXINT 0		/* SIGINT received */
 #define EXERROR 1	/* a generic error */
-#define EXSHELLPROC 2	/* execute a shell procedure */
-#define EXEXEC 3	/* command execution failed */
+#define EXEXEC 2	/* command execution failed */
 
 
 /*
