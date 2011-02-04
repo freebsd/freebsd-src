@@ -68,7 +68,7 @@ SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_fair_io, CTLFLAG_RW,
     &g_raid1_rebuild_fair_io, RAID1_REBUILD_FAIR_IO,
     "Fraction of the I/O bandwidth to use when disk busy for rebuild.");
 
-#define RAID1_REBUILD_CLUSTER_IDLE 10
+#define RAID1_REBUILD_CLUSTER_IDLE 100
 static int g_raid1_rebuild_cluster_idle = RAID1_REBUILD_CLUSTER_IDLE;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_cluster_idle",
     &g_raid1_rebuild_slab);
@@ -578,6 +578,8 @@ g_raid_tr_iostart_raid1(struct g_raid_tr_object *tr, struct bio *bp)
 	    !(bp->bio_cflags & G_RAID_BIO_FLAG_SPECIAL)) {
 		if (--trs->trso_fair_io <= 0)
 			g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
+		/* Make this new or running now round short. */
+		trs->trso_recover_slabs = 0;
 	}
 	switch (bp->bio_cmd) {
 	case BIO_READ:
