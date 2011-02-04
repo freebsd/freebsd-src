@@ -85,14 +85,12 @@
 
 #define	PI_REALTIME		(PRI_MIN_ITHD + 0)
 #define	PI_AV			(PRI_MIN_ITHD + 4)
-#define	PI_TTYHIGH		(PRI_MIN_ITHD + 8)
-#define	PI_TAPE			(PRI_MIN_ITHD + 12)
 #define	PI_NET			(PRI_MIN_ITHD + 16)
 #define	PI_DISK			(PRI_MIN_ITHD + 20)
-#define	PI_TTYLOW		(PRI_MIN_ITHD + 24)
-#define	PI_DISKLOW		(PRI_MIN_ITHD + 28)
+#define	PI_TTY			(PRI_MIN_ITHD + 24)
 #define	PI_DULL			(PRI_MIN_ITHD + 32)
 #define	PI_SOFT			(PRI_MIN_ITHD + 36)
+#define	PI_SWI(x)		(PI_SOFT + (x) * RQ_PPQ)
 
 #define	PRI_MIN_KERN		(64)
 #define	PRI_MAX_KERN		(PRI_MIN_REALTIME - 1)
