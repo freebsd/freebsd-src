@@ -234,6 +234,7 @@ device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vge		# VIA VT612x gigabit Ethernet
 device		vr		# VIA Rhine, Rhine II
+device		vte		# DM&P Vortex86 RDC R6040 Fast Ethernet
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
