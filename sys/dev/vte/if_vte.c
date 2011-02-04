@@ -1979,7 +1979,7 @@ vte_rxfilter(struct vte_softc *sc)
 	}
 
 	nperf = 0;
-	if_maddr_rlock(ifp);
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifma, &sc->vte_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -2000,7 +2000,7 @@ vte_rxfilter(struct vte_softc *sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN);
 		mchash[crc >> 30] |= 1 << ((crc >> 26) & 0x0F);
 	}
-	if_maddr_runlock(ifp);
+	IF_ADDR_UNLOCK(ifp);
 	if (mchash[0] != 0 || mchash[1] != 0 || mchash[2] != 0 ||
 	    mchash[3] != 0)
 		mcr |= MCR0_MULTICAST;
