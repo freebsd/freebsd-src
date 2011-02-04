@@ -1742,6 +1742,7 @@ device  	nsphy		# NatSemi DP83840A
 device  	nsphyter	# NatSemi DP83843/DP83815
 device  	pnaphy		# HomePNA
 device  	qsphy		# Quality Semiconductor QS6612
+device  	rdcphy		# RDC Semiconductor R6040
 device  	rgephy		# RealTek 8169S/8110S/8211B/8211C
 device  	rlphy		# RealTek 8139
 device  	rlswitch	# RealTek 8305
