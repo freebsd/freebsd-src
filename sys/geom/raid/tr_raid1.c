@@ -360,7 +360,6 @@ g_raid_tr_event_raid1(struct g_raid_tr_object *tr,
 	vol = tr->tro_volume;
 	switch (event) {
 	case G_RAID_SUBDISK_E_NEW:
-		printf("Current disk state is %d\n", sd->sd_state);
 		if (sd->sd_state == G_RAID_SUBDISK_S_NEW)
 			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_REBUILD);
 		break;

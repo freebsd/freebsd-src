@@ -908,7 +908,7 @@ g_raid_start_request(struct bio *bp)
 	 * the transformation layer to start the I/O.
 	 */
 	bioq_insert_tail(&vol->v_inflight, bp);
-	G_RAID_LOGREQ(2, bp, "Request started");
+	G_RAID_LOGREQ(4, bp, "Request started");
 	G_RAID_TR_IOSTART(vol->v_tr, bp);
 }
 
