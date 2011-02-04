@@ -119,6 +119,15 @@ static struct td_sched td_sched0;
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
 /*
+ * Priority ranges used for interactive and non-interactive timeshare
+ * threads.  Interactive threads use realtime priorities.
+ */
+#define	PRI_MIN_INTERACT	PRI_MIN_REALTIME
+#define	PRI_MAX_INTERACT	PRI_MAX_REALTIME
+#define	PRI_MIN_BATCH		PRI_MIN_TIMESHARE
+#define	PRI_MAX_BATCH		PRI_MAX_TIMESHARE
+
+/*
  * Cpu percentage computation macros and defines.
  *
  * SCHED_TICK_SECS:	Number of seconds to average the cpu usage across.
@@ -149,8 +158,8 @@ static struct td_sched td_sched0;
  */
 #define	SCHED_PRI_NRESV		(PRIO_MAX - PRIO_MIN)
 #define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
-#define	SCHED_PRI_MIN		(PRI_MIN_TIMESHARE + SCHED_PRI_NHALF)
-#define	SCHED_PRI_MAX		(PRI_MAX_TIMESHARE - SCHED_PRI_NHALF)
+#define	SCHED_PRI_MIN		(PRI_MIN_BATCH + SCHED_PRI_NHALF)
+#define	SCHED_PRI_MAX		(PRI_MAX_BATCH - SCHED_PRI_NHALF)
 #define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN + 1)
 #define	SCHED_PRI_TICKS(ts)						\
     (SCHED_TICK_HZ((ts)) /						\
@@ -385,7 +394,7 @@ tdq_print(int cpu)
 #endif
 }
 
-#define	TS_RQ_PPQ	(((PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE) + 1) / RQ_NQS)
+#define	TS_RQ_PPQ	(((PRI_MAX_BATCH - PRI_MIN_BATCH) + 1) / RQ_NQS)
 /*
  * Add a thread to the actual run-queue.  Keeps transferable counts up to
  * date with what is actually on the run-queue.  Selects the correct
@@ -407,14 +416,14 @@ tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 		u_char pri;
 
 		pri = ts->ts_thread->td_priority;
-		KASSERT(pri <= PRI_MAX_TIMESHARE && pri >= PRI_MIN_TIMESHARE,
+		KASSERT(pri <= PRI_MAX_BATCH && pri >= PRI_MIN_BATCH,
 			("Invalid priority %d on timeshare runq", pri));
 		/*
 		 * This queue contains only priorities between MIN and MAX
 		 * realtime.  Use the whole queue to represent these values.
 		 */
 		if ((flags & (SRQ_BORROWING|SRQ_PREEMPTED)) == 0) {
-			pri = (pri - PRI_MIN_TIMESHARE) / TS_RQ_PPQ;
+			pri = (pri - PRI_MIN_BATCH) / TS_RQ_PPQ;
 			pri = (pri + tdq->tdq_idx) % RQ_NQS;
 			/*
 			 * This effectively shortens the queue by one so we
@@ -845,10 +854,10 @@ tdq_notify(struct td_sched *ts)
 	if (cpri > PRI_MIN_IDLE)
 		goto sendipi;
 	/*
-	 * If we're realtime or better and there is timeshare or worse running
-	 * send an IPI.
+	 * If we're interactive or better and there is non-interactive
+	 * or worse running send an IPI.
 	 */
-	if (pri < PRI_MAX_REALTIME && cpri > PRI_MAX_REALTIME)
+	if (pri <= PRI_MAX_INTERACT && cpri > PRI_MAX_INTERACT)
 		goto sendipi;
 	/*
 	 * Otherwise only IPI if we exceed the threshold.
@@ -1177,7 +1186,7 @@ tdq_choose(struct tdq *tdq)
 		return (ts);
 	ts = runq_choose_from(&tdq->tdq_timeshare, tdq->tdq_ridx);
 	if (ts != NULL) {
-		KASSERT(ts->ts_thread->td_priority >= PRI_MIN_TIMESHARE,
+		KASSERT(ts->ts_thread->td_priority >= PRI_MIN_BATCH,
 		    ("tdq_choose: Invalid priority on timeshare queue %d",
 		    ts->ts_thread->td_priority));
 		return (ts);
@@ -1477,10 +1486,10 @@ sched_priority(struct thread *td)
 	 */
 	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
-		pri = PRI_MIN_REALTIME;
-		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME + 1) /
+		pri = PRI_MIN_INTERACT;
+		pri += ((PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) /
 		    sched_interact) * score;
-		KASSERT(pri >= PRI_MIN_REALTIME && pri <= PRI_MAX_REALTIME,
+		KASSERT(pri >= PRI_MIN_INTERACT && pri <= PRI_MAX_INTERACT,
 		    ("sched_priority: invalid interactive priority %d score %d",
 		    pri, score));
 	} else {
@@ -1488,7 +1497,7 @@ sched_priority(struct thread *td)
 		if (td->td_sched->ts_ticks)
 			pri += SCHED_PRI_TICKS(td->td_sched);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
-		KASSERT(pri >= PRI_MIN_TIMESHARE && pri <= PRI_MAX_TIMESHARE,
+		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
 		    ("sched_priority: invalid priority %d: nice %d, " 
 		    "ticks %d ftick %d ltick %d tick pri %d",
 		    pri, td->td_proc->p_nice, td->td_sched->ts_ticks,
@@ -2395,9 +2404,9 @@ tdq_add(struct tdq *tdq, struct thread *td, int flags)
 	/*
 	 * Pick the run queue based on priority.
 	 */
-	if (td->td_priority <= PRI_MAX_REALTIME)
+	if (td->td_priority < PRI_MIN_BATCH)
 		ts->ts_runq = &tdq->tdq_realtime;
-	else if (td->td_priority <= PRI_MAX_TIMESHARE)
+	else if (td->td_priority <= PRI_MAX_BATCH)
 		ts->ts_runq = &tdq->tdq_timeshare;
 	else
 		ts->ts_runq = &tdq->tdq_idle;
