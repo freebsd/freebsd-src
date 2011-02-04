@@ -43,6 +43,7 @@
 #include <sys/sx.h>
 #include <sys/queue.h>
 #include <sys/ioccom.h>
+#include <sys/conf.h>
 #include <sys/sbuf.h>
 #include <sys/module.h>
 
@@ -207,6 +208,12 @@ struct g_classifier_hook {
 	void			*arg;
 };
 
+/* BIO_GETATTR("GEOM::setstate") argument values. */
+#define G_STATE_FAILED		0
+#define G_STATE_REBUILD		1
+#define G_STATE_RESYNC		2
+#define G_STATE_ACTIVE		3
+
 /* geom_dev.c */
 struct cdev;
 void g_dev_print(void);
@@ -303,6 +310,7 @@ extern struct sx topology_lock;
 struct g_kerneldump {
 	off_t		offset;
 	off_t		length;
+	struct dumperinfo di;
 };
 
 MALLOC_DECLARE(M_GEOM);

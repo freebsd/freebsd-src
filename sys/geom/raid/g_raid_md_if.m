@@ -95,6 +95,15 @@ METHOD int event {
 # write() - metadata write method.
 METHOD int write {
 	struct g_raid_md_object *md;
+	struct g_raid_volume *vol;
+	struct g_raid_subdisk *sd;
+	struct g_raid_disk *disk;
+};
+
+# fail_disk() - mark disk as failed and remove it from use.
+METHOD int fail_disk {
+	struct g_raid_md_object *md;
+	struct g_raid_subdisk *sd;
 	struct g_raid_disk *disk;
 };
 

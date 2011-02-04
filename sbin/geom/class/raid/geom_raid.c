@@ -51,15 +51,40 @@ uint32_t version = G_RAID_VERSION;
 //static void raid_main(struct gctl_req *req, unsigned flags);
 
 struct g_command class_commands[] = {
-	{ "label", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
-	    "format name level prov ..."
+	{ "label", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'S', "size", G_VAL_OPTIONAL, G_TYPE_NUMBER },
+		{ 's', "strip", G_VAL_OPTIONAL, G_TYPE_NUMBER },
+		G_OPT_SENTINEL
+	    },
+	    NULL, "[-S size] [-s stripsize] format label level prov ..."
+	},
+	{ "add", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'S', "size", G_VAL_OPTIONAL, G_TYPE_NUMBER },
+		{ 's', "strip", G_VAL_OPTIONAL, G_TYPE_NUMBER },
+		G_OPT_SENTINEL
+	    },
+	    NULL, "[-S size] [-s stripsize] name label level"
+	},
+	{ "delete", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	    "[-v] name [label|num]"
+	},
+	{ "insert", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	    "[-v] name prov ..."
+	},
+	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	    "[-v] name prov ..."
+	},
+	{ "fail", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	    "[-v] name prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    NULL, "[-fv] name"
 	},
 	G_CMD_SENTINEL
 };
