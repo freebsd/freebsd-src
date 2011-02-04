@@ -84,7 +84,7 @@ SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_meta_update, CTLFLAG_RW,
     &g_raid1_rebuild_meta_update, RAID1_REBUILD_META_UPDATE,
     "When to update the meta data.");
 
-static MALLOC_DEFINE(M_TR_raid1, "tr_raid1_data", "GEOM_RAID raid1 data");
+static MALLOC_DEFINE(M_TR_RAID1, "tr_raid1_data", "GEOM_RAID RAID1 data");
 
 #define TR_RAID1_NONE 0
 #define TR_RAID1_REBUILD 1
@@ -95,7 +95,7 @@ static MALLOC_DEFINE(M_TR_raid1, "tr_raid1_data", "GEOM_RAID raid1 data");
 struct g_raid_tr_raid1_object {
 	struct g_raid_tr_object	 trso_base;
 	int			 trso_starting;
-	int			 trso_stopped;
+	int			 trso_stopping;
 	int			 trso_type;
 	int			 trso_recover_slabs; /* slabs before rest */
 	int			 trso_fair_io;
@@ -166,7 +166,8 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol)
 	int n;
 
 	trs = (struct g_raid_tr_raid1_object *)vol->v_tr;
-	if (trs->trso_stopped)
+	if (trs->trso_stopping &&
+	    (trs->trso_flags & TR_RAID1_F_DOING_SOME) == 0)
 		s = G_RAID_VOLUME_S_STOPPED;
 	else {
 		n = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE);
@@ -233,12 +234,13 @@ g_raid_tr_raid1_rebuild_done(struct g_raid_tr_raid1_object *trs,
 	sd = trs->trso_failed_sd;
 	sd->sd_rebuild_pos = 0;
 	g_raid_write_metadata(vol->v_softc, vol, sd, sd->sd_disk);
-	free(trs->trso_buffer, M_TR_raid1);
+	free(trs->trso_buffer, M_TR_RAID1);
+	trs->trso_buffer = NULL;
 	trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
 	trs->trso_type = TR_RAID1_NONE;
 	trs->trso_recover_slabs = 0;
 	trs->trso_failed_sd = NULL;
-	trs->trso_buffer = NULL;
+	g_raid_tr_update_state_raid1(vol);
 }
 
 static void
@@ -251,7 +253,6 @@ g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr,
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	sd = trs->trso_failed_sd;
 	g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
-	g_raid_tr_update_state_raid1(vol);
 	g_raid_tr_raid1_rebuild_done(trs, vol);
 }
 
@@ -315,7 +316,7 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr,
 	G_RAID_DEBUG(2, "Kicking off a rebuild at %jd...",
 	    trs->trso_failed_sd->sd_rebuild_pos);
 	trs->trso_type = TR_RAID1_REBUILD;
-	trs->trso_buffer = malloc(g_raid1_rebuild_slab, M_TR_raid1, M_WAITOK);
+	trs->trso_buffer = malloc(g_raid1_rebuild_slab, M_TR_RAID1, M_WAITOK);
 	trs->trso_meta_update = g_raid1_rebuild_meta_update;
 	g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
 }
@@ -329,13 +330,13 @@ g_raid_tr_raid1_maybe_rebuild(struct g_raid_tr_object *tr,
 	int na, nr;
 	
 	/*
-	 * If we're stopped, don't do anything.  If we don't have at least one
+	 * If we're stopping, don't do anything.  If we don't have at least one
 	 * good disk and one bad disk, we don't do anything.  And if there's a
 	 * 'good disk' stored in the trs, then we're in progress and we punt.
 	 * If we make it past all these checks, we need to rebuild.
 	 */
 	trs = (struct g_raid_tr_raid1_object *)tr;
-	if (trs->trso_stopped)
+	if (trs->trso_stopping)
 		return;
 	na = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE);
 	nr = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_REBUILD);
@@ -408,7 +409,7 @@ g_raid_tr_stop_raid1(struct g_raid_tr_object *tr)
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	vol = tr->tro_volume;
 	trs->trso_starting = 0;
-	trs->trso_stopped = 1;
+	trs->trso_stopping = 1;
 	g_raid_tr_update_state_raid1(vol);
 	return (0);
 }
@@ -634,6 +635,14 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					g_raid_tr_raid1_rebuild_finish(tr, vol);
 					return;
 				}
+
+				/* Abort rebuild if we are stopping */
+				if (trs->trso_stopping) {
+					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+					g_raid_tr_update_state_raid1(vol);
+					return;
+				}
+
 				if (--trs->trso_recover_slabs <= 0) {
 					if (--trs->trso_meta_update <= 0) {
 						g_raid_write_metadata(vol->v_softc,
@@ -849,6 +858,10 @@ g_raid_tr_free_raid1(struct g_raid_tr_object *tr)
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 
+	if (trs->trso_buffer != NULL) {
+		free(trs->trso_buffer, M_TR_RAID1);
+		trs->trso_buffer = NULL;
+	}
 	return (0);
 }
 
