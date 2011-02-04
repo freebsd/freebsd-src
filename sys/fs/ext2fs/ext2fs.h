@@ -39,19 +39,6 @@
 
 #include <sys/types.h>
 
-#if defined(_KERNEL)
-/*
- * FreeBSD passes the pointer to the in-core struct with relevant
- * fields to EXT2_SB macro when accessing superblock fields.
- */
-#define EXT2_SB(sb)	(sb)
-#else
-/* Assume that user mode programs are passing in an ext2fs superblock, not
- * a kernel struct super_block.  This will allow us to call the feature-test
- * macros from user land. */
-#define EXT2_SB(sb)	(sb)
-#endif
-
 /*
  * Maximal count of links to a file
  */
@@ -118,10 +105,6 @@ struct ext2fs {
 	u_int32_t  reserved2[204];
 };
 
-/* Assume that user mode programs are passing in an ext2fs superblock, not
- * a kernel struct super_block.  This will allow us to call the feature-test
- * macros from user land. */
-#define EXT2_SB(sb)	(sb)
 
 /*
  * In-Memory Superblock
@@ -208,6 +191,11 @@ struct m_ext2fs {
 					 | EXT2F_ROCOMPAT_LARGEFILE)
 #define EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
 
+/* Assume that user mode programs are passing in an ext2fs superblock, not
+ * a kernel struct super_block.  This will allow us to call the feature-test
+ * macros from user land. */
+#define EXT2_SB(sb)	(sb)
+
 /*
  * Feature set definitions
  */
@@ -260,6 +248,7 @@ struct ext2_gd {
 
 #define e2fs_cgload(old, new, size) memcpy((new), (old), (size));
 #define e2fs_cgsave(old, new, size) memcpy((new), (old), (size));
+
 /*
  * Macro-instructions used to manage several block sizes
  */
