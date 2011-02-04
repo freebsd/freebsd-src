@@ -152,7 +152,8 @@ g_raid_tr_taste_raid1(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_RAID1 ||
-	    tr->tro_volume->v_raid_level_qualifier != G_RAID_VOLUME_RLQ_NONE)
+	    tr->tro_volume->v_raid_level_qualifier != G_RAID_VOLUME_RLQ_NONE ||
+	    tr->tro_volume->v_disks_count != 2)
 		return (G_RAID_TR_TASTE_FAIL);
 	trs->trso_starting = 1;
 	return (G_RAID_TR_TASTE_SUCCEED);
