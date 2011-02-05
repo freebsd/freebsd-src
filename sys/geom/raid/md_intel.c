@@ -1364,7 +1364,8 @@ makedisk:
 		/* Handle size argument. */
 		len = sizeof(*sizearg);
 		sizearg = gctl_get_param(req, "size", &len);
-		if (sizearg != NULL && len == sizeof(*sizearg)) {
+		if (sizearg != NULL && len == sizeof(*sizearg) &&
+		    *sizearg > 0) {
 			if (*sizearg > size) {
 				gctl_error(req, "Size too big %lld > %lld.",
 				    (long long)*sizearg, (long long)size);
@@ -1377,7 +1378,8 @@ makedisk:
 		strip = 131072;
 		len = sizeof(*striparg);
 		striparg = gctl_get_param(req, "strip", &len);
-		if (striparg != NULL && len == sizeof(*striparg)) {
+		if (striparg != NULL && len == sizeof(*striparg) &&
+		    *striparg > 0) {
 			if (*striparg < sectorsize) {
 				gctl_error(req, "Strip size too small.");
 				return (-10);
@@ -1536,7 +1538,8 @@ makedisk:
 		/* Handle size argument. */
 		len = sizeof(*sizearg);
 		sizearg = gctl_get_param(req, "size", &len);
-		if (sizearg != NULL && len == sizeof(*sizearg)) {
+		if (sizearg != NULL && len == sizeof(*sizearg) &&
+		    *sizearg > 0) {
 			if (*sizearg > size) {
 				gctl_error(req, "Size too big %lld > %lld.",
 				    (long long)*sizearg, (long long)size);
@@ -1549,7 +1552,8 @@ makedisk:
 		strip = 131072;
 		len = sizeof(*striparg);
 		striparg = gctl_get_param(req, "strip", &len);
-		if (striparg != NULL && len == sizeof(*striparg)) {
+		if (striparg != NULL && len == sizeof(*striparg) &&
+		    *striparg > 0) {
 			if (*striparg < sectorsize) {
 				gctl_error(req, "Strip size too small.");
 				return (-10);
