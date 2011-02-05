@@ -206,7 +206,7 @@ fork1(td, flags, pages, procp)
 {
 	struct proc *p1, *p2, *pptr;
 	struct proc *newproc;
-	int ok, trypid;
+	int ok, p2_held, trypid;
 	static int curfail, pidchecked = 0;
 	static struct timeval lastfail;
 	struct filedesc *fd;
@@ -221,6 +221,7 @@ fork1(td, flags, pages, procp)
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
 
+	p2_held = 0;
 	p1 = td->td_proc;
 
 	/*
@@ -527,6 +528,7 @@ again:
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bzero(&td2->td_rux, sizeof(td2->td_rux));
 	td2->td_map_def_user = NULL;
+	td2->td_dbg_forked = 0;
 
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
@@ -734,11 +736,29 @@ again:
 	p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
 
-	/*
-	 * If RFSTOPPED not requested, make child runnable and add to
-	 * run queue.
-	 */
+	PROC_LOCK(p1);
+	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
+	    P_FOLLOWFORK)) {
+		/*
+		 * Arrange for debugger to receive the fork event.
+		 *
+		 * We can report PL_FLAG_FORKED regardless of
+		 * P_FOLLOWFORK settings, but it does not make a sense
+		 * for runaway child.
+		 */
+		td->td_dbgflags |= TDB_FORK;
+		td->td_dbg_forked = p2->p_pid;
+		PROC_LOCK(p2);
+		td2->td_dbgflags |= TDB_STOPATFORK;
+		_PHOLD(p2);
+		p2_held = 1;
+		PROC_UNLOCK(p2);
+	}
 	if ((flags & RFSTOPPED) == 0) {
+		/*
+		 * If RFSTOPPED not requested, make child runnable and
+		 * add to run queue.
+		 */
 		thread_lock(td2);
 		TD_SET_CAN_RUN(td2);
 		sched_add(td2, SRQ_BORING);
@@ -748,7 +768,6 @@ again:
 	/*
 	 * Now can be swapped.
 	 */
-	PROC_LOCK(p1);
 	_PRELE(p1);
 	PROC_UNLOCK(p1);
 
@@ -759,11 +778,19 @@ again:
 	SDT_PROBE(proc, kernel, , create, p2, p1, flags, 0, 0);
 
 	/*
+	 * Wait until debugger is attached to child.
+	 */
+	PROC_LOCK(p2);
+	while ((td2->td_dbgflags & TDB_STOPATFORK) != 0)
+		cv_wait(&p2->p_dbgwait, &p2->p_mtx);
+	if (p2_held)
+		_PRELE(p2);
+
+	/*
 	 * Preserve synchronization semantics of vfork.  If waiting for
 	 * child to exec or exit, set P_PPWAIT on child, and sleep on our
 	 * proc (in case of exit).
 	 */
-	PROC_LOCK(p2);
 	while (p2->p_flag & P_PPWAIT)
 		cv_wait(&p2->p_pwait, &p2->p_mtx);
 	PROC_UNLOCK(p2);
@@ -856,8 +883,37 @@ fork_return(td, frame)
 	struct thread *td;
 	struct trapframe *frame;
 {
+	struct proc *p, *dbg;
+
+	if (td->td_dbgflags & TDB_STOPATFORK) {
+		p = td->td_proc;
+		sx_xlock(&proctree_lock);
+		PROC_LOCK(p);
+		if ((p->p_pptr->p_flag & (P_TRACED | P_FOLLOWFORK)) ==
+		    (P_TRACED | P_FOLLOWFORK)) {
+			/*
+			 * If debugger still wants auto-attach for the
+			 * parent's children, do it now.
+			 */
+			dbg = p->p_pptr->p_pptr;
+			p->p_flag |= P_TRACED;
+			p->p_oppid = p->p_pptr->p_pid;
+			proc_reparent(p, dbg);
+			sx_xunlock(&proctree_lock);
+			ptracestop(td, SIGSTOP);
+		} else {
+			/*
+			 * ... otherwise clear the request.
+			 */
+			sx_xunlock(&proctree_lock);
+			td->td_dbgflags &= ~TDB_STOPATFORK;
+			cv_broadcast(&p->p_dbgwait);
+		}
+		PROC_UNLOCK(p);
+	}
 
 	userret(td, frame);
+
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(SYS_fork, 0, 0);

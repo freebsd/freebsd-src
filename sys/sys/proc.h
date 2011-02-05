@@ -305,6 +305,7 @@ struct thread {
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
 	struct rusage_ext td_rux;	/* (t) Internal rusage information. */
 	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
+	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -374,6 +375,10 @@ do {									\
 #define	TDB_SCE		0x00000008 /* Thread performs syscall enter */
 #define	TDB_SCX		0x00000010 /* Thread performs syscall exit */
 #define	TDB_EXEC	0x00000020 /* TDB_SCX from exec(2) family */
+#define	TDB_FORK	0x00000040 /* TDB_SCX from fork(2) that created new
+				      process */
+#define	TDB_STOPATFORK	0x00000080 /* Stop at the return from fork (child
+				      only) */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -557,7 +562,9 @@ struct proc {
 	STAILQ_HEAD(, ktr_request)	p_ktr;	/* (o) KTR event queue. */
 	LIST_HEAD(, mqueue_notifier)	p_mqnotifier; /* (c) mqueue notifiers.*/
 	struct kdtrace_proc	*p_dtrace; /* (*) DTrace-specific data. */
-	struct cv	p_pwait;	/* (*) wait cv for exit/exec */
+	struct cv	p_pwait;	/* (*) wait cv for exit/exec. */
+	struct cv	p_dbgwait;	/* (*) wait cv for debugger attach
+					   after fork. */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -573,7 +580,7 @@ struct proc {
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
 #define	P_KTHREAD	0x00004	/* Kernel thread (*). */
-#define	P_UNUSED0	0x00008	/* available. */
+#define	P_FOLLOWFORK	0x00008	/* Attach parent debugger to children. */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
 #define	P_PROFIL	0x00020	/* Has started profiling. */
 #define	P_STOPPROF	0x00040	/* Has thread requesting to stop profiling. */

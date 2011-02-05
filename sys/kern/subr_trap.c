@@ -388,9 +388,9 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 	 */
 	STOPEVENT(p, S_SCX, sa->code);
 	PTRACESTOP_SC(p, td, S_PT_SCX);
-	if (traced || (td->td_dbgflags & TDB_EXEC) != 0) {
+	if (traced || (td->td_dbgflags & (TDB_EXEC | TDB_FORK)) != 0) {
 		PROC_LOCK(p);
-		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC);
+		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
 	}
 }
