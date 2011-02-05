@@ -356,6 +356,7 @@ int g_raid_tr_kerneldump_common(struct g_raid_tr_object *tr,
 
 u_int g_raid_ndisks(struct g_raid_softc *sc, int state);
 u_int g_raid_nsubdisks(struct g_raid_volume *vol, int state);
+u_int g_raid_nopens(struct g_raid_softc *sc);
 #define	G_RAID_DESTROY_SOFT		0
 #define	G_RAID_DESTROY_DELAYED	1
 #define	G_RAID_DESTROY_HARD		2

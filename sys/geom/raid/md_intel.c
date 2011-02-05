@@ -1227,7 +1227,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 	char arg[16], serial[INTEL_SERIAL_LEN];
 	const char *verb, *volname, *levelname, *diskname;
 	char *tmp;
-	int *nargs;
+	int *nargs, *force;
 	off_t off, size, sectorsize, strip;
 	intmax_t *sizearg, *striparg;
 	int numdisks, i, len, level, qual, update;
@@ -1632,6 +1632,14 @@ makedisk:
 
 		/* Full node destruction. */
 		if (*nargs == 1) {
+			/* Check if some volume is still open. */
+			force = gctl_get_paraml(req, "force", sizeof(*force));
+			if (force != NULL && *force == 0 &&
+			    g_raid_nopens(sc) != 0) {
+				gctl_error(req, "Some volume is still open.");
+				return (-4);
+			}
+
 			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 				if (disk->d_consumer)
 					intel_meta_erase(disk->d_consumer);
@@ -1668,6 +1676,14 @@ makedisk:
 		if (vol == NULL) {
 			gctl_error(req, "Volume '%s' not found.", volname);
 			return (-3);
+		}
+
+		/* Check if volume is still open. */
+		force = gctl_get_paraml(req, "force", sizeof(*force));
+		if (force != NULL && *force == 0 &&
+		    vol->v_provider_open != 0) {
+			gctl_error(req, "Volume is still open.");
+			return (-4);
 		}
 
 		/* Destroy volume and potentially node. */

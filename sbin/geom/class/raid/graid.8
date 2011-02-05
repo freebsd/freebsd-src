@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 3, 2011
+.Dd February 5, 2011
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Ar level
 .Nm
 .Cm delete
+.Op Fl f
 .Ar name
 .Op Ar label | Ar num
 .Nm
@@ -142,6 +143,12 @@ Optional
 or
 .Ar num
 arguments allow specifying volume for deletion.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Delete volume(s) even if it is still open.
+.El
 .It Cm insert
 Insert specified provider(s) into specified array instead of the first missing
 or failed components.

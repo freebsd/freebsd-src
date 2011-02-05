@@ -576,6 +576,20 @@ g_raid_nrequests(struct g_raid_softc *sc, struct g_consumer *cp)
 	return (nreqs);
 }
 
+u_int
+g_raid_nopens(struct g_raid_softc *sc)
+{
+	struct g_raid_volume *vol;
+	u_int opens;
+
+	opens = 0;
+	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+		if (vol->v_provider_open != 0)
+			opens++;
+	}
+	return (opens);
+}
+
 static int
 g_raid_consumer_is_busy(struct g_raid_softc *sc, struct g_consumer *cp)
 {
@@ -1442,7 +1456,7 @@ g_raid_update_node(struct g_raid_softc *sc, u_int event)
 static int
 g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 {
-	struct g_raid_volume *vol, *vol1;
+	struct g_raid_volume *vol;
 	struct g_raid_softc *sc;
 	int dcr, dcw, dce, opens, error = 0;
 
@@ -1473,11 +1487,7 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 	if (sc->sc_stopping == G_RAID_DESTROY_DELAYED &&
 	    vol->v_provider_open == 0) {
 		/* Count open volumes. */
-		opens = 0;
-		TAILQ_FOREACH(vol1, &sc->sc_volumes, v_next) {
-			if (vol1->v_provider_open != 0)
-				opens++;
-		}
+		opens = g_raid_nopens(sc);
 		if (opens == 0) {
 			sc->sc_stopping = G_RAID_DESTROY_HARD;
 			g_raid_event_send(sc, 0, 0);	/* Wake up worker. */
@@ -1752,7 +1762,6 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 int
 g_raid_destroy(struct g_raid_softc *sc, int how)
 {
-	struct g_raid_volume *vol;
 	int opens;
 
 	g_topology_assert_not();
@@ -1761,11 +1770,7 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	/* Count open volumes. */
-	opens = 0;
-	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-		if (vol->v_provider_open != 0)
-			opens++;
-	}
+	opens = g_raid_nopens(sc);
 
 	/* React on some opened volumes. */
 	if (opens > 0) {
