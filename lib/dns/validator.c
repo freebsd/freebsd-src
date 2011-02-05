@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.c,v 1.164.12.11.10.7 2010/11/16 01:48:32 marka Exp $ */
+/* $Id: validator.c,v 1.164.12.23 2010-11-16 02:23:44 marka Exp $ */
 
 #include <config.h>
 
@@ -2135,7 +2135,7 @@ dlv_validatezonekey(dns_validator_t *val) {
 					     &sigrdata);
 			result = dns_rdata_tostruct(&sigrdata, &sig, NULL);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
-			if (dlv.key_tag != sig.keyid &&
+			if (dlv.key_tag != sig.keyid ||
 			    dlv.algorithm != sig.algorithm)
 				continue;
 			dstkey = NULL;
@@ -2218,6 +2218,17 @@ validatezonekey(dns_validator_t *val) {
 		return (dlv_validatezonekey(val));
 
 	if (val->dsset == NULL) {
+
+		/*
+		 * We have a dlv sep.  Skip looking up the SEP from
+		 * {trusted,managed}-keys.  If the dlv sep is for the
+		 * root then it will have been handled above so we don't
+		 * need to check whether val->event->name is "." prior to
+		 * looking up the DS.
+		 */
+		if (val->havedlvsep)
+			goto find_ds;
+
 		/*
 		 * First, see if this key was signed by a trusted key.
 		 */
@@ -2250,13 +2261,13 @@ validatezonekey(dns_validator_t *val) {
 				  val->event->name, found) != ISC_R_SUCCESS) {
 				if (val->mustbesecure) {
 					validator_log(val, ISC_LOG_WARNING,
-						      "must be secure failure, "
-						      "not beneath secure root");
+						     "must be secure failure, "
+						     "not beneath secure root");
 					return (DNS_R_MUSTBESECURE);
 				} else
 					validator_log(val, ISC_LOG_DEBUG(3),
-						      "not beneath secure root");
-				if (val->view->dlv == NULL || DLVTRIED(val)) {
+						     "not beneath secure root");
+				if (val->view->dlv == NULL) {
 					markanswer(val, "validatezonekey (1)");
 					return (ISC_R_SUCCESS);
 				}
@@ -2292,17 +2303,6 @@ validatezonekey(dns_validator_t *val) {
 			}
 		}
 
-		/*
-		 * If this is the root name and there was no trusted key,
-		 * give up, since there's no DS at the root.
-		 */
-		if (dns_name_equal(event->name, dns_rootname)) {
-			if ((val->attributes & VALATTR_TRIEDVERIFY) != 0)
-				return (DNS_R_NOVALIDSIG);
-			else
-				return (DNS_R_NOVALIDDS);
-		}
-
 		if (atsep) {
 			/*
 			 * We have not found a key to verify this DNSKEY
@@ -2322,6 +2322,22 @@ validatezonekey(dns_validator_t *val) {
 			return (DNS_R_NOVALIDKEY);
 		}
 
+		/*
+		 * If this is the root name and there was no trusted key,
+		 * give up, since there's no DS at the root.
+		 */
+		if (dns_name_equal(event->name, dns_rootname)) {
+			if ((val->attributes & VALATTR_TRIEDVERIFY) != 0) {
+				validator_log(val, ISC_LOG_DEBUG(3),
+					      "root key failed to validate");
+				return (DNS_R_NOVALIDSIG);
+			} else {
+				validator_log(val, ISC_LOG_DEBUG(3),
+					      "no trusted root key");
+				return (DNS_R_NOVALIDDS);
+			}
+		}
+ find_ds:
 		/*
 		 * Otherwise, try to find the DS record.
 		 */
@@ -4038,19 +4054,19 @@ dns_validator_cancel(dns_validator_t *validator) {
 
 	validator_log(validator, ISC_LOG_DEBUG(3), "dns_validator_cancel");
 
-	if (validator->event != NULL) {
-		if (validator->fetch != NULL)
-			dns_resolver_cancelfetch(validator->fetch);
-
-		if (validator->subvalidator != NULL)
-			dns_validator_cancel(validator->subvalidator);
-		if ((validator->options & DNS_VALIDATOR_DEFER) != 0) {
-			isc_task_t *task = validator->event->ev_sender;
-			validator->options &= ~DNS_VALIDATOR_DEFER;
-			isc_event_free((isc_event_t **)&validator->event);
-			isc_task_detach(&task);
-		}
+	if ((validator->attributes & VALATTR_CANCELED) == 0) {
 		validator->attributes |= VALATTR_CANCELED;
+		if (validator->event != NULL) {
+			if (validator->fetch != NULL)
+				dns_resolver_cancelfetch(validator->fetch);
+
+			if (validator->subvalidator != NULL)
+				dns_validator_cancel(validator->subvalidator);
+			if ((validator->options & DNS_VALIDATOR_DEFER) != 0) {
+				validator->options &= ~DNS_VALIDATOR_DEFER;
+				validator_done(validator, ISC_R_CANCELED);
+			}
+		}
 	}
 	UNLOCK(&validator->lock);
 }

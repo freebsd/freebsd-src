@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.c,v 1.16 2008/04/04 23:47:01 tbox Exp $ */
+/* $Id: mutex.c,v 1.16.112.2 2011-01-04 23:45:43 tbox Exp $ */
 
 /*! \file */
 
@@ -234,10 +234,13 @@ isc_mutex_init_errcheck(isc_mutex_t *mp)
 	if (pthread_mutexattr_init(&attr) != 0)
 		return (ISC_R_UNEXPECTED);
 
-	if (pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK) != 0)
+	if (pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK) != 0) {
+		pthread_mutexattr_destroy(&attr);
 		return (ISC_R_UNEXPECTED);
+	}
 
 	err = pthread_mutex_init(mp, &attr) != 0)
+	pthread_mutexattr_destroy(&attr);
 	if (err == ENOMEM)
 		return (ISC_R_NOMEMORY);
 	return ((err == 0) ? ISC_R_SUCCESS : ISC_R_UNEXPECTED);
