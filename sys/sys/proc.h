@@ -260,7 +260,7 @@ struct thread {
 	struct ksiginfo td_dbgksi;	/* (c) ksi reflected to debugger. */
 	int		td_ng_outbound;	/* (k) Thread entered ng from above. */
 	struct osd	td_osd;		/* (k) Object specific data. */
-#define	td_endzero td_base_pri
+#define	td_endzero td_rqindex
 
 /* Copied during fork1() or thread_sched_upcall(). */
 #define	td_startcopy td_endzero
