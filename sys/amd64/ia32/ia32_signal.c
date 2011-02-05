@@ -167,6 +167,8 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	ia32_get_fpcontext(td, mcp);
 	mcp->mc_fsbase = pcb->pcb_fsbase;
 	mcp->mc_gsbase = pcb->pcb_gsbase;
+	bzero(mcp->mc_spare1, sizeof(mcp->mc_spare1));
+	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
 }
@@ -233,6 +235,7 @@ freebsd32_getcontext(struct thread *td, struct freebsd32_getcontext_args *uap)
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);
+		bzero(&uc.__spare__, sizeof(uc.__spare__));
 		ret = copyout(&uc, uap->ucp, UC_COPY_SIZE);
 	}
 	return (ret);
@@ -348,6 +351,11 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_es = regs->tf_es;
 	sf.sf_uc.uc_mcontext.mc_fs = regs->tf_fs;
 	sf.sf_uc.uc_mcontext.mc_gs = regs->tf_gs;
+	bzero(sf.sf_uc.uc_mcontext.mc_fpregs,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_fpregs));
+	bzero(sf.sf_uc.uc_mcontext.__spare__,
+	    sizeof(sf.sf_uc.uc_mcontext.__spare__));
+	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -365,6 +373,7 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	bzero(&sf.sf_si, sizeof(sf.sf_si));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (u_int32_t)(uintptr_t)&sfp->sf_si;
@@ -468,6 +477,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	fpstate_drop(td);
 	sf.sf_uc.uc_mcontext.mc_fsbase = td->td_pcb->pcb_fsbase;
 	sf.sf_uc.uc_mcontext.mc_gsbase = td->td_pcb->pcb_gsbase;
+	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -487,6 +497,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	bzero(&sf.sf_si, sizeof(sf.sf_si));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (u_int32_t)(uintptr_t)&sfp->sf_si;
