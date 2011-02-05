@@ -504,7 +504,7 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	tdq->tdq_load++;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload++;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
@@ -523,7 +523,7 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 	    ("tdq_load_rem: Removing with 0 load on queue %d", TDQ_ID(tdq)));
 
 	tdq->tdq_load--;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload--;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
