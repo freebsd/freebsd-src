@@ -494,30 +494,7 @@ hashcd(void)
 void
 changepath(const char *newval)
 {
-	const char *old, *new;
-	int idx;
-	int firstchange;
-
-	old = pathval();
-	new = newval;
-	firstchange = 9999;	/* assume no change */
-	idx = 0;
-	for (;;) {
-		if (*old != *new) {
-			firstchange = idx;
-			if ((*old == '\0' && *new == ':')
-			 || (*old == ':' && *new == '\0'))
-				firstchange++;
-			old = new;	/* ignore subsequent differences */
-		}
-		if (*new == '\0')
-			break;
-		if (*new == ':') {
-			idx++;
-		}
-		new++, old++;
-	}
-	clearcmdentry(firstchange);
+	clearcmdentry(0);
 }
 
 
