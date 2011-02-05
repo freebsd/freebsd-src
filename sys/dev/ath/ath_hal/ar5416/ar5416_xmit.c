@@ -621,6 +621,20 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 	(void)nseries;
 
 	/*
+	 * XXX since the upper layers doesn't know the current chainmask
+	 * XXX setup, just override its decisions here.
+	 * XXX The upper layers need to be taught this!
+	 */
+	if (series[0].Tries != 0)
+		series[0].ChSel = AH5416(ah)->ah_tx_chainmask;
+	if (series[1].Tries != 0)
+		series[1].ChSel = AH5416(ah)->ah_tx_chainmask;
+	if (series[2].Tries != 0)
+		series[2].ChSel = AH5416(ah)->ah_tx_chainmask;
+	if (series[3].Tries != 0)
+		series[3].ChSel = AH5416(ah)->ah_tx_chainmask;
+
+	/*
 	 * Only one of RTS and CTS enable must be set.
 	 * If a frame has both set, just do RTS protection -
 	 * that's enough to satisfy legacy protection.
@@ -641,7 +655,6 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 =
 		    (ads->ds_ctl0 & ~(AR_RTSEnable | AR_CTSEnable));
 	}
-
 
 	ads->ds_ctl2 = set11nTries(series, 0)
 		     | set11nTries(series, 1)
