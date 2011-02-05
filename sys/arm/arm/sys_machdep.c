@@ -85,7 +85,7 @@ static int
 arm32_set_tp(struct thread *td, void *args)
 {
 
-	td->td_md.md_tp = args;
+	td->td_md.md_tp = (register_t)args;
 	return (0);
 }
 
@@ -93,7 +93,7 @@ static int
 arm32_get_tp(struct thread *td, void *args)
 {
 
-	td->td_retval[0] = (uint32_t)td->td_md.md_tp;
+	td->td_retval[0] = td->td_md.md_tp;
 	return (0);
 }
 
