@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: builtin.c,v 1.12 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: builtin.c,v 1.12.334.3 2010-08-03 23:45:47 tbox Exp $ */
 
 /*! \file
  * \brief
@@ -95,7 +95,7 @@ put_txt(dns_sdblookup_t *lookup, const char *text) {
 
 static isc_result_t
 do_version_lookup(dns_sdblookup_t *lookup) {
-	if (ns_g_server->version_set) {	
+	if (ns_g_server->version_set) {
 		if (ns_g_server->version == NULL)
 			return (ISC_R_SUCCESS);
 		else
@@ -132,6 +132,7 @@ do_authors_lookup(dns_sdblookup_t *lookup) {
 		"Michael Graff",
 		"Andreas Gustafsson",
 		"Bob Halley",
+		"JINMEI Tatuya",
 		"David Lawrence",
 		"Danny Mayer",
 		"Damien Neil",
@@ -198,7 +199,7 @@ builtin_authority(const char *zone, void *dbdata, dns_sdblookup_t *lookup) {
 		if (b->contact != NULL)
 			contact = b->contact;
 	}
-	
+
 	result = dns_sdb_putsoa(lookup, server, contact, 0);
 	if (result != ISC_R_SUCCESS)
 		return (ISC_R_FAILURE);
@@ -233,7 +234,7 @@ builtin_create(const char *zone, int argc, char **argv,
 		*dbdata = &authors_builtin;
 	else if (strcmp(argv[0], "id") == 0)
 		*dbdata = &id_builtin;
-	else if (strcmp(argv[0], "empty") == 0) { 
+	else if (strcmp(argv[0], "empty") == 0) {
 		builtin_t *empty;
 		char *server;
 		char *contact;
