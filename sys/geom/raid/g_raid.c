@@ -1706,13 +1706,13 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 		return (EBUSY);
 	if (vol->v_provider != NULL)
 		return (EBUSY);
+	if (vol->v_provider_open != 0)
+		return (EBUSY);
 	if (vol->v_tr) {
 		G_RAID_TR_FREE(vol->v_tr);
 		kobj_delete((kobj_t)vol->v_tr, M_RAID);
 		vol->v_tr = NULL;
 	}
-	if (vol->v_provider_open != 0)
-		return (EBUSY);
 	if (vol->v_rootmount)
 		root_mount_rel(vol->v_rootmount);
 	g_topology_lock();
