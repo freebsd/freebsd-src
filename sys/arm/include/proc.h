@@ -50,7 +50,7 @@ struct mdthread {
 	register_t md_saved_cspr;	/* (k) */
 	int md_ptrace_instr;
 	int md_ptrace_addr;
-	void *md_tp;
+	register_t md_tp;
 	void *md_ras_start;
 	void *md_ras_end;
 };
