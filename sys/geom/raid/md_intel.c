@@ -330,8 +330,10 @@ intel_meta_read(struct g_consumer *cp)
 {
 	struct g_provider *pp;
 	struct intel_raid_conf *meta;
+	struct intel_raid_vol *mvol;
+	struct intel_raid_map *mmap;
 	char *buf;
-	int error, i, left;
+	int error, i, j, k, left, size;
 	uint32_t checksum, *ptr;
 
 	pp = cp->provider;
@@ -352,14 +354,15 @@ intel_meta_read(struct g_consumer *cp)
 		g_free(buf);
 		return (NULL);
 	}
-	if (meta->config_size > 65536) {
-		G_RAID_DEBUG(1, "Intel metadata size looks too big: %d",
+	if (meta->config_size > 65536 ||
+	    meta->config_size < sizeof(struct intel_raid_conf)) {
+		G_RAID_DEBUG(1, "Intel metadata size looks wrong: %d",
 		    meta->config_size);
 		g_free(buf);
 		return (NULL);
 	}
 	meta = malloc(meta->config_size, M_MD_INTEL, M_WAITOK);
-	memcpy(meta, buf, pp->sectorsize);
+	memcpy(meta, buf, min(meta->config_size, pp->sectorsize));
 	g_free(buf);
 
 	/* Read all the rest, if needed. */
@@ -390,6 +393,68 @@ intel_meta_read(struct g_consumer *cp)
 		G_RAID_DEBUG(1, "Intel checksum check failed on %s", pp->name);
 		free(meta, M_MD_INTEL);
 		return (NULL);
+	}
+
+	/* Validate metadata size. */
+	size = sizeof(struct intel_raid_conf) +
+	    sizeof(struct intel_raid_disk) * (meta->total_disks - 1) +
+	    sizeof(struct intel_raid_vol) * meta->total_volumes;
+	if (size > meta->config_size) {
+badsize:
+		G_RAID_DEBUG(1, "Intel metadata size incorrect %d < %d",
+		    meta->config_size, size);
+		free(meta, M_MD_INTEL);
+		return (NULL);
+	}
+	for (i = 0; i < meta->total_volumes; i++) {
+		mvol = intel_get_volume(meta, i);
+		mmap = intel_get_map(mvol, 0);
+		size += 4 * (mmap->total_disks - 1);
+		if (size > meta->config_size)
+			goto badsize;
+		if (mvol->migr_state) {
+			size += sizeof(struct intel_raid_map);
+			if (size > meta->config_size)
+				goto badsize;
+			mmap = intel_get_map(mvol, 1);
+			size += 4 * (mmap->total_disks - 1);
+			if (size > meta->config_size)
+				goto badsize;
+		}
+	}
+
+	/* Validate disk indexes. */
+	for (i = 0; i < meta->total_volumes; i++) {
+		mvol = intel_get_volume(meta, i);
+		for (j = 0; j < (mvol->migr_state ? 2 : 1); j++) {
+			mmap = intel_get_map(mvol, j);
+			for (k = 0; k < mmap->total_disks; k++) {
+				if ((mmap->disk_idx[k] & INTEL_DI_IDX) >
+				    meta->total_disks) {
+					G_RAID_DEBUG(1, "Intel metadata disk"
+					    " index %d too big (>%d)",
+					    mmap->disk_idx[k] & INTEL_DI_IDX,
+					    meta->total_disks);
+					free(meta, M_MD_INTEL);
+					return (NULL);
+				}
+			}
+		}
+	}
+
+	/* Validate migration types. */
+	for (i = 0; i < meta->total_volumes; i++) {
+		mvol = intel_get_volume(meta, i);
+		if (mvol->migr_state &&
+		    mvol->migr_type != INTEL_MT_INIT &&
+		    mvol->migr_type != INTEL_MT_REBUILD &&
+		    mvol->migr_type != INTEL_MT_VERIFY &&
+		    mvol->migr_type != INTEL_MT_REPAIR) {
+			G_RAID_DEBUG(1, "Intel metadata has unsupported"
+			    " migration type %d", mvol->migr_type);
+			free(meta, M_MD_INTEL);
+			return (NULL);
+		}
 	}
 
 	return (meta);
