@@ -126,6 +126,8 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 				tryexec(cmdname, argv, envp);
 				if (errno != ENOENT && errno != ENOTDIR)
 					e = errno;
+				if (e == ENOEXEC)
+					break;
 			}
 			stunalloc(cmdname);
 		}
@@ -145,11 +147,23 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 static void
 tryexec(char *cmd, char **argv, char **envp)
 {
-	int e;
+	int e, in;
+	ssize_t n;
+	char buf[256];
 
 	execve(cmd, argv, envp);
 	e = errno;
 	if (e == ENOEXEC) {
+		INTOFF;
+		in = open(cmd, O_RDONLY | O_NONBLOCK);
+		if (in != -1) {
+			n = pread(in, buf, sizeof buf, 0);
+			close(in);
+			if (n > 0 && memchr(buf, '\0', n) != NULL) {
+				errno = ENOEXEC;
+				return;
+			}
+		}
 		*argv = cmd;
 		*--argv = _PATH_BSHELL;
 		execve(_PATH_BSHELL, argv, envp);
