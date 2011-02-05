@@ -338,11 +338,8 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 				(void) vn_start_write(vp, &mp, V_WAIT);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 				VM_OBJECT_LOCK(object);
-				vm_object_page_clean(object,
-				    OFF_TO_IDX(offset),
-				    OFF_TO_IDX(offset + vme->end - vme->start +
-					PAGE_MASK),
-				    OBJPC_SYNC);
+				vm_object_page_clean(object, offset, offset +
+				    vme->end - vme->start, OBJPC_SYNC);
 				VM_OBJECT_UNLOCK(object);
 				VOP_UNLOCK(vp, 0);
 				vn_finished_write(mp);
