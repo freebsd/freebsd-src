@@ -234,7 +234,7 @@ hashcmd(int argc __unused, char **argv __unused)
 	verbose = 0;
 	while ((c = nextopt("rv")) != '\0') {
 		if (c == 'r') {
-			clearcmdentry(0);
+			clearcmdentry();
 		} else if (c == 'v') {
 			verbose++;
 		}
@@ -494,7 +494,7 @@ hashcd(void)
 void
 changepath(const char *newval)
 {
-	clearcmdentry(0);
+	clearcmdentry();
 }
 
 
@@ -504,7 +504,7 @@ changepath(const char *newval)
  */
 
 void
-clearcmdentry(int firstchange)
+clearcmdentry(void)
 {
 	struct tblentry **tblp;
 	struct tblentry **pp;
@@ -514,8 +514,7 @@ clearcmdentry(int firstchange)
 	for (tblp = cmdtable ; tblp < &cmdtable[CMDTABLESIZE] ; tblp++) {
 		pp = tblp;
 		while ((cmdp = *pp) != NULL) {
-			if ((cmdp->cmdtype == CMDNORMAL &&
-			     cmdp->param.index >= firstchange)) {
+			if (cmdp->cmdtype == CMDNORMAL) {
 				*pp = cmdp->next;
 				ckfree(cmdp);
 			} else {
@@ -660,7 +659,7 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 	int error1 = 0;
 
 	if (path != pathval())
-		clearcmdentry(0);
+		clearcmdentry();
 
 	for (i = 1; i < argc; i++) {
 		/* First look at the keywords */
@@ -756,7 +755,7 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 	}
 
 	if (path != pathval())
-		clearcmdentry(0);
+		clearcmdentry();
 
 	return error1;
 }
