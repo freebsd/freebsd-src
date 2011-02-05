@@ -988,7 +988,9 @@ noerror:
 		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
 		xpt_action((union ccb *)&cts);
 		softc->caps = caps;
-		if (ident_buf->satasupport & ATA_SUPPORT_IFPWRMNGT) {
+		if ((ident_buf->satasupport & ATA_SUPPORT_IFPWRMNGT) &&
+		    (!(softc->caps & CTS_SATA_CAPS_H_PMREQ)) !=
+		    (!(ident_buf->sataenabled & ATA_SUPPORT_IFPWRMNGT))) {
 			PROBE_SET_ACTION(softc, PROBE_SETPM);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
@@ -997,7 +999,9 @@ noerror:
 		/* FALLTHROUGH */
 	case PROBE_SETPM:
 		if (ident_buf->satacapabilities != 0xffff &&
-		    ident_buf->satacapabilities & ATA_SUPPORT_DAPST) {
+		    (ident_buf->satacapabilities & ATA_SUPPORT_DAPST) &&
+		    (!(softc->caps & CTS_SATA_CAPS_H_APST)) !=
+		    (!(ident_buf->sataenabled & ATA_ENABLED_DAPST))) {
 			PROBE_SET_ACTION(softc, PROBE_SETAPST);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
@@ -1005,7 +1009,9 @@ noerror:
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETAPST:
-		if (ident_buf->satasupport & ATA_SUPPORT_AUTOACTIVATE) {
+		if ((ident_buf->satasupport & ATA_SUPPORT_AUTOACTIVATE) &&
+		    (!(softc->caps & CTS_SATA_CAPS_H_DMAAA)) !=
+		    (!(ident_buf->sataenabled & ATA_SUPPORT_AUTOACTIVATE))) {
 			PROBE_SET_ACTION(softc, PROBE_SETDMAAA);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
