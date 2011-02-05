@@ -2615,6 +2615,9 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* still no TCB... must be bad cookie-echo */
 		return (NULL);
 	}
+	if ((*netp != NULL) && (m->m_flags & M_FLOWID)) {
+		(*netp)->flowid = m->m_pkthdr.flowid;
+	}
 	/*
 	 * Ok, we built an association so confirm the address we sent the
 	 * INIT-ACK to.
@@ -5839,6 +5842,9 @@ sctp_skip_csum_4:
 			sctp_pathmtu_adjustment(inp, stcb, net, net->mtu - sizeof(struct udphdr));
 		}
 		net->port = port;
+	}
+	if ((net != NULL) && (m->m_flags & M_FLOWID)) {
+		net->flowid = m->m_pkthdr.flowid;
 	}
 	/* inp's ref-count increased && stcb locked */
 	if (inp == NULL) {
