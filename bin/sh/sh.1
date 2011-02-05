@@ -679,11 +679,11 @@ Command names containing a slash are simply executed without
 performing any searches.
 .It
 The shell searches each entry in the
-.Ev PATH
-environment variable
+.Va PATH
+variable
 in turn for the command.
 The value of the
-.Ev PATH
+.Va PATH
 variable should be a series of
 entries separated by colons.
 Each entry consists of a
@@ -1126,6 +1126,84 @@ operand if given (with
 .Fl c )
 or otherwise argument 0 passed to the shell.
 .El
+.Ss Special Variables
+The following variables are set by the shell or
+have special meaning to it:
+.Bl -tag -width ".Va HISTSIZE"
+.It Va CDPATH
+The search path used with the
+.Ic cd
+built-in.
+.It Va EDITOR
+The fallback editor used with the
+.Ic fc
+built-in.
+If not set, the default editor is
+.Xr ed 1 .
+.It Va FCEDIT
+The default editor used with the
+.Ic fc
+built-in.
+.It Va HISTSIZE
+The number of previous commands that are accessible.
+.It Va HOME
+The user's home directory,
+used in tilde expansion and as a default directory for the
+.Ic cd
+built-in.
+.It Va IFS
+Input Field Separators.
+This is normally set to
+.Aq space ,
+.Aq tab ,
+and
+.Aq newline .
+See the
+.Sx White Space Splitting
+section for more details.
+.It Va LINENO
+The current line number in the script or function.
+.It Va MAIL
+The name of a mail file, that will be checked for the arrival of new
+mail.
+Overridden by
+.Va MAILPATH .
+.It Va MAILPATH
+A colon
+.Pq Ql \&:
+separated list of file names, for the shell to check for incoming
+mail.
+This variable overrides the
+.Va MAIL
+setting.
+There is a maximum of 10 mailboxes that can be monitored at once.
+.It Va PATH
+The default search path for executables.
+See the
+.Sx Path Search
+section for details.
+.It Va PPID
+The parent process ID of the invoked shell.
+This is set at startup
+unless this variable is in the environment.
+A later change of parent process ID is not reflected.
+A subshell retains the same value of
+.Va PPID .
+.It Va PS1
+The primary prompt string, which defaults to
+.Dq Li "$ " ,
+unless you are the superuser, in which case it defaults to
+.Dq Li "# " .
+.It Va PS2
+The secondary prompt string, which defaults to
+.Dq Li "> " .
+.It Va PS4
+The prefix for the trace output (if
+.Fl x
+is active).
+The default is
+.Dq Li "+ " .
+.El
 .Ss Word Expansions
 This clause describes the various expansions that are
 performed on words.
@@ -1179,7 +1257,7 @@ If the
 username is missing (as in
 .Pa ~/foobar ) ,
 the tilde is replaced with the value of the
-.Ev HOME
+.Va HOME
 variable (the current user's home directory).
 .Ss Parameter Expansion
 The format for parameter expansion is as follows:
@@ -1517,10 +1595,10 @@ contains any
 .Ql /
 characters, it is used as is.
 Otherwise, the shell searches the
-.Ev PATH
+.Va PATH
 for the file.
 If it is not found in the
-.Ev PATH ,
+.Va PATH ,
 it is sought in the current working directory.
 .It Ic \&[
 A built-in equivalent of
@@ -1564,7 +1642,7 @@ This command is documented in
 Switch to the specified
 .Ar directory ,
 or to the directory specified in the
-.Ev HOME
+.Va HOME
 environment variable if no
 .Ar directory
 is specified.
@@ -1575,17 +1653,17 @@ does not begin with
 or
 .Pa .. ,
 then the directories listed in the
-.Ev CDPATH
+.Va CDPATH
 variable will be
 searched for the specified
 .Ar directory .
 If
-.Ev CDPATH
+.Va CDPATH
 is unset, the current directory is searched.
 The format of
-.Ev CDPATH
+.Va CDPATH
 is the same as that of
-.Ev PATH .
+.Va PATH .
 In an interactive shell,
 the
 .Ic cd
@@ -1593,7 +1671,7 @@ command will print out the name of the directory
 that it actually switched to
 if this is different from the name that the user gave.
 These may be different either because the
-.Ev CDPATH
+.Va CDPATH
 mechanism was used or because a symbolic link was crossed.
 .Pp
 If the
@@ -1625,7 +1703,7 @@ If the
 .Fl p
 option is specified, the command search is performed using a
 default value of
-.Ev PATH
+.Va PATH
 that is guaranteed to find all of the standard utilities.
 .Pp
 If the
@@ -1784,20 +1862,20 @@ The
 .Ar editor
 string is a command name,
 subject to search via the
-.Ev PATH
+.Va PATH
 variable.
 The value in the
-.Ev FCEDIT
+.Va FCEDIT
 variable is used as a default when
 .Fl e
 is not specified.
 If
-.Ev FCEDIT
+.Va FCEDIT
 is null or unset, the value of the
-.Ev EDITOR
+.Va EDITOR
 variable is used.
 If
-.Ev EDITOR
+.Va EDITOR
 is null or unset,
 .Xr ed 1
 is used as the editor.
@@ -1831,7 +1909,7 @@ Re-execute the command without invoking an editor.
 Select the commands to list or edit.
 The number of previous commands that can be accessed
 are determined by the value of the
-.Ev HISTSIZE
+.Va HISTSIZE
 variable.
 The value of
 .Ar first
@@ -1862,12 +1940,12 @@ the string form of the first operand cannot contain an embedded equal sign.
 .El
 .El
 .Pp
-The following environment variables affect the execution of
+The following variables affect the execution of
 .Ic fc :
-.Bl -tag -width ".Ev HISTSIZE"
-.It Ev FCEDIT
+.Bl -tag -width ".Va HISTSIZE"
+.It Va FCEDIT
 Name of the editor to use for history editing.
-.It Ev HISTSIZE
+.It Va HISTSIZE
 The number of previous commands that are accessible.
 .El
 .It Ic fg Op Ar job
@@ -2333,74 +2411,27 @@ command line editing features.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
-.Bl -tag -width ".Ev HISTSIZE"
-.It Ev CDPATH
-The search path used with the
-.Ic cd
-built-in.
-.It Ev EDITOR
-The fallback editor used with the
-.Ic fc
-built-in.
-If not set, the default editor is
-.Xr ed 1 .
-.It Ev FCEDIT
-The default editor used with the
-.Ic fc
-built-in.
-.It Ev HISTSIZE
-The number of previous commands that are accessible.
-.It Ev HOME
-The starting directory of
-.Nm .
-.It Ev IFS
-Input Field Separators.
-This is normally set to
-.Aq space ,
-.Aq tab ,
-and
-.Aq newline .
-See the
-.Sx White Space Splitting
-section for more details.
-.It Ev MAIL
-The name of a mail file, that will be checked for the arrival of new
-mail.
-Overridden by
-.Ev MAILPATH .
-.It Ev MAILPATH
-A colon
-.Pq Ql \&:
-separated list of file names, for the shell to check for incoming
-mail.
-This environment setting overrides the
-.Ev MAIL
-setting.
-There is a maximum of 10 mailboxes that can be monitored at once.
-.It Ev PATH
-The default search path for executables.
-See the
-.Sx Path Search
-section for details.
-.It Ev PS1
-The primary prompt string, which defaults to
-.Dq Li "$ " ,
-unless you are the superuser, in which case it defaults to
-.Dq Li "# " .
-.It Ev PS2
-The secondary prompt string, which defaults to
-.Dq Li "> " .
-.It Ev PS4
-The prefix for the trace output (if
-.Fl x
-is active).
-The default is
-.Dq Li "+ " .
+.Bl -tag -width ".Ev LANGXXXXXX"
+.It Ev ENV
+Initialization file for interactive shells.
+.It Ev LANG , Ev LC_*
+Locale settings.
+These are inherited by children of the shell,
+and is used in a limited manner by the shell itself.
+.It Ev PWD
+An absolute pathname for the current directory,
+possibly containing symbolic links.
+This is used and updated by the shell.
 .It Ev TERM
 The default terminal setting for the shell.
 This is inherited by children of the shell, and is used in the history
 editing modes.
 .El
+.Pp
+Additionally, all environment variables are turned into shell variables
+at startup,
+which may affect the shell as described under
+.Sx Special Variables .
 .Sh EXIT STATUS
 Errors that are detected by the shell, such as a syntax error, will
 cause the shell to exit with a non-zero exit status.
