@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd July 10, 2010
+.Dd January 23, 2011
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -295,6 +295,8 @@ struct ptrace_lwpinfo {
 	sigset_t pl_sigmask;
 	sigset_t pl_siglist;
 	siginfo_t pl_siginfo;
+	char	pl_tdname[MAXCOMLEN + 1];
+	int	pl_child_pid;
 };
 .Ed
 .Pp
@@ -345,6 +347,14 @@ Indicates that
 member of
 .Vt "struct ptrace_lwpinfo"
 contains valid information.
+.It PL_FLAG_FORKED
+Indicates that the process is returning from a call to
+.Fn fork 2
+that created a new child process.
+The process identifier of the new process is available in the
+.Va pl_child_pid
+member of
+.Vt "struct ptrace_lwpinfo" .
 .El
 .It pl_sigmask
 The current signal mask of the LWP
@@ -356,11 +366,20 @@ on an LWP siglist until the thread is selected for delivery.
 The siginfo that accompanies the signal pending.
 Only valid for
 .Dv PL_EVENT_SIGNAL
-kind of stop, when
-.Va pl_flags
-has
+stop when
 .Dv PL_FLAG_SI
-set.
+is set in
+.Va pl_flags .
+.It pl_tdname
+The name of the thread.
+.It pl_child_pid
+The process identifier of the new child process.
+Only valid for a
+.Dv PL_EVENT_SIGNAL
+stop when
+.Dv PL_FLAG_FORKED
+is set in
+.Va pl_flags .
 .El
 .It PT_GETNUMLWPS
 This request returns the number of kernel threads associated with the
@@ -391,6 +410,21 @@ This request will trace the specified process on each system call exit.
 .It PT_SYSCALL
 This request will trace the specified process
 on each system call entry and exit.
+.It PT_FOLLOW_FORK
+This request controls tracing for new child processes of a traced process.
+If
+.Fa data
+is non-zero,
+then new child processes will enable tracing and stop before executing their
+first instruction.
+If
+.Fa data
+is zero, then new child processes will execute without tracing enabled.
+By default, tracing is not enabled for new child processes.
+Child processes do not inherit this property.
+The traced process will set the
+.Dv PL_FLAG_FORKED
+flag upon exit from a system call that creates a new process.
 .It PT_VM_TIMESTAMP
 This request returns the generation number or timestamp of the memory map of
 the traced process as the return value from
@@ -567,6 +601,7 @@ function appeared in
 .At v7 .
 .Sh BUGS
 The
+.Dv PL_FLAG_FORKED ,
 .Dv PL_FLAG_SCE ,
 .Dv PL_FLAG_SCX
 and
