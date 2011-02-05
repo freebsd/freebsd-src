@@ -812,7 +812,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				 * bookinging effort, since most such runs add
 				 * directories in front of the new PATH.
 				 */
-				clearcmdentry(0);
+				clearcmdentry();
 				do_clearcmdentry = 1;
 			}
 
@@ -854,7 +854,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 						argc -= 2;
 					}
 					path = _PATH_STDPATH;
-					clearcmdentry(0);
+					clearcmdentry();
 					do_clearcmdentry = 1;
 				} else if (!strcmp(argv[1], "--")) {
 					if (argc == 2)
@@ -1061,7 +1061,7 @@ out:
 	if (lastarg)
 		setvar("_", lastarg, 0);
 	if (do_clearcmdentry)
-		clearcmdentry(0);
+		clearcmdentry();
 	popstackmark(&smark);
 }
 
