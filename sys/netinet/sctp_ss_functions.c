@@ -1,7 +1,7 @@
 /*-
- * Copyright (c) 2010-2011, by Randall Stewart, rrs@lakerest.net and
- *                          Michael Tuexen, tuexen@fh-muenster.de
- *                          All rights reserved.
+ * Copyright (c) 2010-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2010-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2010-2011, by Robin Seggelmann. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -12,10 +12,6 @@
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
- *
- * c) Neither the name of Cisco Systems, Inc. nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
@@ -178,7 +174,7 @@ default_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
@@ -287,7 +283,6 @@ sctp_ss_rrp_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 	if ((strq->ss_params.rr.next_spoke.tqe_next == NULL) &&
 	    (strq->ss_params.rr.next_spoke.tqe_prev == NULL)) {
-
 		if (TAILQ_EMPTY(&asoc->ss_data.out_wheel)) {
 			TAILQ_INSERT_HEAD(&asoc->ss_data.out_wheel, strq, ss_params.rr.next_spoke);
 		} else {
@@ -331,7 +326,7 @@ rrp_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
@@ -374,7 +369,7 @@ rrp_pd_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
@@ -441,7 +436,6 @@ sctp_ss_prio_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 	if ((strq->ss_params.prio.next_spoke.tqe_next == NULL) &&
 	    (strq->ss_params.prio.next_spoke.tqe_prev == NULL)) {
-
 		if (TAILQ_EMPTY(&asoc->ss_data.out_wheel)) {
 			TAILQ_INSERT_HEAD(&asoc->ss_data.out_wheel, strq, ss_params.prio.next_spoke);
 		} else {
@@ -516,7 +510,7 @@ prio_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
@@ -833,7 +827,7 @@ default_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
