@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.c,v 1.125.124.1 2010/03/03 22:06:39 marka Exp $ */
+/* $Id: result.c,v 1.125.48.2 2010-02-25 10:56:41 tbox Exp $ */
 
 /*! \file */
 

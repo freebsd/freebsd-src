@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: nsupdate.html,v 1.40.48.3.10.1 2010/03/03 22:19:19 tbox Exp $ -->
+<!-- $Id: nsupdate.html,v 1.40.48.4 2010-07-10 02:06:17 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -32,7 +32,7 @@
 <div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [<code class="option">-D</code>] [[<code class="option">-g</code>] |  [<code class="option">-o</code>] |  [<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-R <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-v</code>] [filename]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543447"></a><h2>DESCRIPTION</h2>
+<a name="id2543452"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       is used to submit Dynamic DNS Update requests as defined in RFC2136
       to a name server.
@@ -169,7 +169,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543724"></a><h2>INPUT FORMAT</h2>
+<a name="id2543730"></a><h2>INPUT FORMAT</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       reads input from
       <em class="parameter"><code>filename</code></em>
@@ -282,6 +282,30 @@
               The <span><strong class="command">key</strong></span> command
               overrides any key specified on the command line via
               <code class="option">-y</code> or <code class="option">-k</code>.
+            </p></dd>
+<dt><span class="term">
+            <span><strong class="command">gsstsig</strong></span>
+          </span></dt>
+<dd><p>
+	      Use GSS-TSIG to sign the updated.  This is equivalent to
+	      specifying <code class="option">-g</code> on the commandline.
+            </p></dd>
+<dt><span class="term">
+            <span><strong class="command">oldgsstsig</strong></span>
+          </span></dt>
+<dd><p>
+	      Use the Windows 2000 version of GSS-TSIG to sign the updated.
+	      This is equivalent to specifying <code class="option">-o</code> on the
+	      commandline.
+            </p></dd>
+<dt><span class="term">
+            <span><strong class="command">realm</strong></span>
+             {[<span class="optional">realm_name</span>]}
+          </span></dt>
+<dd><p>
+	      When using GSS-TSIG use <em class="parameter"><code>realm_name</code></em> rather
+	      than the default realm in <code class="filename">krb5.conf</code>.  If no
+	      realm is specified the saved realm is cleared.
             </p></dd>
 <dt><span class="term">
               <span><strong class="command">prereq nxdomain</strong></span>
@@ -433,7 +457,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544565"></a><h2>EXAMPLES</h2>
+<a name="id2544642"></a><h2>EXAMPLES</h2>
 <p>
       The examples below show how
       <span><strong class="command">nsupdate</strong></span>
@@ -487,7 +511,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544609"></a><h2>FILES</h2>
+<a name="id2544685"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
@@ -506,7 +530,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544678"></a><h2>SEE ALSO</h2>
+<a name="id2544755"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">RFC2136</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC3007</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC2104</span></span>,
@@ -519,7 +543,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2542154"></a><h2>BUGS</h2>
+<a name="id2542163"></a><h2>BUGS</h2>
 <p>
       The TSIG key is redundantly stored in two separate files.
       This is a consequence of nsupdate using the DST library
