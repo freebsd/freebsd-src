@@ -470,8 +470,6 @@ expbackq(union node *cmd, int quoted, int flag)
 		}
 		lastc = *p++;
 		if (lastc != '\0') {
-			if (quotes && syntax[(int)lastc] == CCTL)
-				STPUTC(CTLESC, dest);
 			if (lastc == '\n') {
 				nnl++;
 			} else {
@@ -479,6 +477,8 @@ expbackq(union node *cmd, int quoted, int flag)
 					nnl--;
 					STPUTC('\n', dest);
 				}
+				if (quotes && syntax[(int)lastc] == CCTL)
+					STPUTC(CTLESC, dest);
 				STPUTC(lastc, dest);
 			}
 		}
