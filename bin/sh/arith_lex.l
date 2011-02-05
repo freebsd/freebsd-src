@@ -60,7 +60,15 @@ static struct varname *varnames;
 
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max) \
-	result = (*buf = *arith_buf++) ? 1 : YY_NULL;
+	do { \
+		result = strnlen(arith_buf, max); \
+		if (result == 0) \
+			result = YY_NULL; \
+		else { \
+			memcpy(buf, arith_buf, result); \
+			arith_buf += result; \
+		} \
+	} while (0);
 #define YY_NO_UNPUT
 %}
 
