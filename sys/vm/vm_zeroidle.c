@@ -139,26 +139,21 @@ vm_pagezero(void __unused *arg)
 	}
 }
 
-static struct proc *pagezero_proc;
-
 static void
 pagezero_start(void __unused *arg)
 {
 	int error;
+	struct proc *p;
 	struct thread *td;
 
-	error = kproc_create(vm_pagezero, NULL, &pagezero_proc, RFSTOPPED, 0,
-	    "pagezero");
+	error = kproc_create(vm_pagezero, NULL, &p, RFSTOPPED, 0, "pagezero");
 	if (error)
 		panic("pagezero_start: error %d\n", error);
-	/*
-	 * We're an idle task, don't count us in the load.
-	 */
-	PROC_LOCK(pagezero_proc);
-	pagezero_proc->p_flag |= P_NOLOAD;
-	PROC_UNLOCK(pagezero_proc);
-	td = FIRST_THREAD_IN_PROC(pagezero_proc);
+	td = FIRST_THREAD_IN_PROC(p);
 	thread_lock(td);
+
+	/* We're an idle task, don't count us in the load. */
+	td->td_flags |= TDF_NOLOAD;
 	sched_class(td, PRI_IDLE);
 	sched_prio(td, PRI_MAX_IDLE);
 	sched_add(td, SRQ_BORING);
