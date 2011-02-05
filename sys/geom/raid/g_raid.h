@@ -42,23 +42,16 @@
 struct g_raid_md_object;
 struct g_raid_tr_object;
 
-#define	G_RAID_DISK_FLAG_DIRTY		0x0000000000000001ULL
-#define	G_RAID_DISK_FLAG_SYNCHRONIZING	0x0000000000000002ULL
-#define	G_RAID_DISK_FLAG_FORCE_SYNC		0x0000000000000004ULL
-#define	G_RAID_DISK_FLAG_INACTIVE		0x0000000000000008ULL
-#define	G_RAID_DISK_FLAG_MASK		(G_RAID_DISK_FLAG_DIRTY |	\
-					 G_RAID_DISK_FLAG_SYNCHRONIZING | \
-					 G_RAID_DISK_FLAG_FORCE_SYNC | \
-					 G_RAID_DISK_FLAG_INACTIVE)
-
 #define	G_RAID_DEVICE_FLAG_NOAUTOSYNC	0x0000000000000001ULL
 #define	G_RAID_DEVICE_FLAG_NOFAILSYNC	0x0000000000000002ULL
 #define	G_RAID_DEVICE_FLAG_MASK	(G_RAID_DEVICE_FLAG_NOAUTOSYNC | \
 					 G_RAID_DEVICE_FLAG_NOFAILSYNC)
 
 #ifdef _KERNEL
+extern u_int g_raid_aggressive_spare;
 extern u_int g_raid_debug;
 extern u_int g_raid_start_timeout;
+extern struct g_class g_raid_class;
 
 #define	G_RAID_DEBUG(lvl, fmt, ...)	do {				\
 	if (g_raid_debug >= (lvl)) {					\
@@ -83,8 +76,36 @@ extern u_int g_raid_start_timeout;
 	}								\
 } while (0)
 
-#define	G_RAID_BIO_FLAG_REGULAR	0x01
-#define	G_RAID_BIO_FLAG_SYNC		0x02
+/*
+ * Flags we use to distinguish I/O initiated by the TR layer to maintain
+ * the volume's characteristics, fix subdisks, extra copies of data, etc.
+ *
+ * G_RAID_BIO_FLAG_SYNC		I/O to update an extra copy of the data
+ *				for RAID volumes that maintain extra data
+ *				and need to rebuild that data.
+ * G_RAID_BIO_FLAG_REMAP	I/O done to try to provoke a subdisk into
+ *				doing some desirable action such as bad
+ *				block remapping after we detect a bad part
+ *				of the disk.
+ *
+ * and the following meta item:
+ * G_RAID_BIO_FLAG_SPECIAL	And of the I/O flags that need to make it
+ *				through the range locking which would
+ *				otherwise defer the I/O until after that
+ *				range is unlocked.
+ */
+#define	G_RAID_BIO_FLAG_SYNC		0x01
+#define	G_RAID_BIO_FLAG_REMAP		0x02
+#define G_RAID_BIO_FLAG_SPECIAL \
+		(G_RAID_BIO_FLAG_SYNC|G_RAID_BIO_FLAG_REMAP)
+
+struct g_raid_lock {
+	off_t			 l_offset;
+	off_t			 l_length;
+	void			*l_callback_arg;
+	int			 l_pending;
+	LIST_ENTRY(g_raid_lock)	 l_next;
+};
 
 #define	G_RAID_EVENT_WAIT	0x01
 #define	G_RAID_EVENT_VOLUME	0x02
@@ -98,11 +119,13 @@ struct g_raid_event {
 	int			 e_error;
 	TAILQ_ENTRY(g_raid_event) e_next;
 };
-#define G_RAID_DISK_S_NONE		0x00
-#define G_RAID_DISK_S_ACTIVE		0x01
-#define G_RAID_DISK_S_SPARE		0x02
-#define G_RAID_DISK_S_OFFLINE		0x03
-#define G_RAID_DISK_S_STALE		0x04
+#define G_RAID_DISK_S_NONE		0x00	/* State is unknown. */
+#define G_RAID_DISK_S_OFFLINE		0x01	/* Missing disk placeholder. */
+#define G_RAID_DISK_S_FAILED		0x02	/* Failed. */
+#define G_RAID_DISK_S_STALE_FAILED	0x03	/* Old failed. */
+#define G_RAID_DISK_S_SPARE		0x04	/* Hot-spare. */
+#define G_RAID_DISK_S_STALE		0x05	/* Old disk, unused now. */
+#define G_RAID_DISK_S_ACTIVE		0x06	/* Operational. */
 
 #define G_RAID_DISK_E_DISCONNECTED	0x01
 
@@ -110,24 +133,28 @@ struct g_raid_disk {
 	struct g_raid_softc	*d_softc;	/* Back-pointer to softc. */
 	struct g_consumer	*d_consumer;	/* GEOM disk consumer. */
 	void			*d_md_data;	/* Disk's metadata storage. */
+	struct g_kerneldump	 d_kd;		/* Kernel dumping method/args. */
 	u_int			 d_state;	/* Disk state. */
 	uint64_t		 d_flags;	/* Additional flags. */
 	u_int			 d_load;	/* Disk average load. */
 	off_t			 d_last_offset;	/* Last head offset. */
-	LIST_HEAD(, g_raid_subdisk)	 d_subdisks; /* List of subdisks. */
-	LIST_ENTRY(g_raid_disk)	 d_next;	/* Next disk in the node. */
+	TAILQ_HEAD(, g_raid_subdisk)	 d_subdisks; /* List of subdisks. */
+	TAILQ_ENTRY(g_raid_disk)	 d_next;	/* Next disk in the node. */
 };
 
-#define G_RAID_SUBDISK_S_NONE		0x00
-#define G_RAID_SUBDISK_S_NEW		0x01
-#define G_RAID_SUBDISK_S_ACTIVE		0x02
-#define G_RAID_SUBDISK_S_STALE		0x03
-#define G_RAID_SUBDISK_S_SYNCHRONIZING	0x04
-#define G_RAID_SUBDISK_S_DISCONNECTED	0x05
-#define G_RAID_SUBDISK_S_DESTROY	0x06
+#define G_RAID_SUBDISK_S_NONE		0x00	/* Absent. */
+#define G_RAID_SUBDISK_S_FAILED		0x01	/* Failed. */
+#define G_RAID_SUBDISK_S_NEW		0x02	/* Blank. */
+#define G_RAID_SUBDISK_S_REBUILD	0x03	/* Blank + rebuild. */
+#define G_RAID_SUBDISK_S_UNINITIALIZED	0x04	/* Disk of the new volume. */
+#define G_RAID_SUBDISK_S_STALE		0x05	/* Dirty. */
+#define G_RAID_SUBDISK_S_RESYNC		0x06	/* Dirty + check/repair. */
+#define G_RAID_SUBDISK_S_ACTIVE		0x07	/* Usable. */
 
-#define G_RAID_SUBDISK_E_NEW		0x01
-#define G_RAID_SUBDISK_E_DISCONNECTED	0x02
+#define G_RAID_SUBDISK_E_NEW		0x01	/* A new subdisk has arrived */
+#define G_RAID_SUBDISK_E_FAILED		0x02	/* A subdisk failed, but remains in volume */
+#define G_RAID_SUBDISK_E_DISCONNECTED	0x03	/* A subdisk removed from volume. */
+#define G_RAID_SUBDISK_E_FIRST_TR_PRIVATE 0x80	/* translation private events */
 
 struct g_raid_subdisk {
 	struct g_raid_softc	*sd_softc;	/* Back-pointer to softc. */
@@ -137,7 +164,9 @@ struct g_raid_subdisk {
 	off_t			 sd_size;	/* Size on the disk. */
 	u_int			 sd_pos;	/* Position in volume. */
 	u_int			 sd_state;	/* Subdisk state. */
-	LIST_ENTRY(g_raid_subdisk)	 sd_next; /* Next subdisk on disk. */
+	off_t			 sd_rebuild_pos; /* Rebuild position. */
+	int			 sd_read_errs;  /* Count of the read errors */
+	TAILQ_ENTRY(g_raid_subdisk)	 sd_next; /* Next subdisk on disk. */
 };
 
 #define G_RAID_MAX_SUBDISKS	16
@@ -177,6 +206,8 @@ struct g_raid_subdisk {
 #define G_RAID_VOLUME_RLQ_NONE		0x00
 #define G_RAID_VOLUME_RLQ_UNKNOWN	0xff
 
+struct g_raid_volume;
+
 struct g_raid_volume {
 	struct g_raid_softc	*v_softc;	/* Back-pointer to softc. */
 	struct g_provider	*v_provider;	/* GEOM provider. */
@@ -195,24 +226,28 @@ struct g_raid_volume {
 	off_t			 v_mediasize;	/* Volume media size.  */
 	struct bio_queue_head	 v_inflight;	/* In-flight write requests. */
 	struct bio_queue_head	 v_locked;	/* Blocked I/O requests. */
-	LIST_HEAD(, g_raid_lock)	 v_locks; /* List of locked regions. */
-	int			 v_idle;	/* DIRTY flags removed. */
+	LIST_HEAD(, g_raid_lock) v_locks;	 /* List of locked regions. */
+	int			 v_pending_lock; /* writes to locked region */
+	int			 v_dirty;	/* Volume is DIRTY. */
 	time_t			 v_last_write;	/* Time of the last write. */
 	u_int			 v_writes;	/* Number of active writes. */
 	struct root_hold_token	*v_rootmount;	/* Root mount delay token. */
-	struct callout		 v_start_co;	/* STARTING state timer. */
-	int			 v_starting;	/* STARTING state timer armed */
+	int			 v_starting;	/* Volume is starting */
 	int			 v_stopping;	/* Volume is stopping */
 	int			 v_provider_open; /* Number of opens. */
-	LIST_ENTRY(g_raid_volume)	 v_next; /* List of volumes entry. */
+	int			 v_global_id;	/* Global volume ID (rX). */
+	TAILQ_ENTRY(g_raid_volume)	 v_next; /* List of volumes entry. */
+	LIST_ENTRY(g_raid_volume)	 v_global_next; /* Global list entry. */
 };
+
+#define G_RAID_NODE_E_START	0x01
 
 struct g_raid_softc {
 	struct g_raid_md_object	*sc_md;		/* Metadata object. */
 	struct g_geom		*sc_geom;	/* GEOM class instance. */
 	uint64_t		 sc_flags;	/* Additional flags. */
-	LIST_HEAD(, g_raid_volume)	 sc_volumes;	/* List of volumes. */
-	LIST_HEAD(, g_raid_disk)	 sc_disks;	/* List of disks. */
+	TAILQ_HEAD(, g_raid_volume)	 sc_volumes;	/* List of volumes. */
+	TAILQ_HEAD(, g_raid_disk)	 sc_disks;	/* List of disks. */
 	struct sx		 sc_lock;	/* Main node lock. */
 	struct proc		*sc_worker;	/* Worker process. */
 	struct mtx		 sc_queue_mtx;	/* Worker queues lock. */
@@ -248,7 +283,8 @@ int g_raid_md_modevent(module_t, int, void *);
 	g_raid_md_modevent,					\
 	&name##_class						\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);	\
+    MODULE_DEPEND(name, geom_raid, 0, 0, 0)
 
 /*
  * KOBJ parent class of data transformation modules.
@@ -276,10 +312,14 @@ int g_raid_tr_modevent(module_t, int, void *);
 	g_raid_tr_modevent,					\
 	&name##_class						\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);	\
+    MODULE_DEPEND(name, geom_raid, 0, 0, 0)
 
 const char * g_raid_volume_level2str(int level, int qual);
 int g_raid_volume_str2level(const char *str, int *level, int *qual);
+const char * g_raid_volume_state2str(int state);
+const char * g_raid_subdisk_state2str(int state);
+const char * g_raid_disk_state2str(int state);
 
 struct g_raid_softc * g_raid_create_node(struct g_class *mp,
     const char *name, struct g_raid_md_object *md);
@@ -296,12 +336,23 @@ int g_raid_destroy_disk(struct g_raid_disk *disk);
 
 void g_raid_iodone(struct bio *bp, int error);
 void g_raid_subdisk_iostart(struct g_raid_subdisk *sd, struct bio *bp);
+int g_raid_subdisk_kerneldump(struct g_raid_subdisk *sd,
+    void *virtual, vm_offset_t physical, off_t offset, size_t length);
 
 void g_raid_kill_consumer(struct g_raid_softc *sc, struct g_consumer *cp);
 
+void g_raid_report_disk_state(struct g_raid_disk *disk);
 void g_raid_change_disk_state(struct g_raid_disk *disk, int state);
 void g_raid_change_subdisk_state(struct g_raid_subdisk *sd, int state);
 void g_raid_change_volume_state(struct g_raid_volume *vol, int state);
+
+void g_raid_write_metadata(struct g_raid_softc *sc, struct g_raid_volume *vol,
+    struct g_raid_subdisk *sd, struct g_raid_disk *disk);
+void g_raid_fail_disk(struct g_raid_softc *sc,
+    struct g_raid_subdisk *sd, struct g_raid_disk *disk);
+
+int g_raid_tr_kerneldump_common(struct g_raid_tr_object *tr,
+    void *virtual, vm_offset_t physical, off_t offset, size_t length);
 
 u_int g_raid_ndisks(struct g_raid_softc *sc, int state);
 u_int g_raid_nsubdisks(struct g_raid_volume *vol, int state);
@@ -310,6 +361,8 @@ u_int g_raid_nsubdisks(struct g_raid_volume *vol, int state);
 #define	G_RAID_DESTROY_HARD		2
 int g_raid_destroy(struct g_raid_softc *sc, int how);
 int g_raid_event_send(void *arg, int event, int flags);
+int g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp);
+int g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len);
 
 g_ctl_req_t g_raid_ctl;
 #endif	/* _KERNEL */

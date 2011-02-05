@@ -44,52 +44,44 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_RAID_VERSION;
 
-#define	GRAID_BALANCE		"load"
-#define	GRAID_SLICE		"4096"
-#define	GRAID_PRIORITY	"0"
-
-//static void raid_main(struct gctl_req *req, unsigned flags);
+static intmax_t zero = 0;
 
 struct g_command class_commands[] = {
-	{ "label", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
-	    "format name level prov ..."
+	{ "label", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'S', "size", &zero, G_TYPE_NUMBER },
+		{ 's', "strip", &zero, G_TYPE_NUMBER },
+		G_OPT_SENTINEL
+	    },
+	    NULL, "[-S size] [-s stripsize] format label level prov ..."
+	},
+	{ "add", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'S', "size", &zero, G_TYPE_NUMBER },
+		{ 's', "strip", &zero, G_TYPE_NUMBER },
+		G_OPT_SENTINEL
+	    },
+	    NULL, "[-S size] [-s stripsize] name label level"
+	},
+	{ "delete", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	    "[-v] name [label|num]"
+	},
+	{ "insert", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	    "[-v] name prov ..."
+	},
+	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	    "[-v] name prov ..."
+	},
+	{ "fail", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	    "[-v] name prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    NULL, "[-fv] name"
 	},
 	G_CMD_SENTINEL
 };
-
-#if 0
-static int verbose = 0;
-
-static void
-raid_main(struct gctl_req *req, unsigned flags)
-{
-	const char *name;
-
-	if ((flags & G_FLAG_VERBOSE) != 0)
-		verbose = 1;
-
-	name = gctl_get_ascii(req, "verb");
-	if (name == NULL) {
-		gctl_error(req, "No '%s' argument.", "verb");
-		return;
-	}
-	if (strcmp(name, "label") == 0)
-		raid_label(req);
-	else if (strcmp(name, "clear") == 0)
-		raid_clear(req);
-	else if (strcmp(name, "dump") == 0)
-		raid_dump(req);
-	else if (strcmp(name, "activate") == 0)
-		raid_activate(req);
-	else
-		gctl_error(req, "Unknown command: %s.", name);
-}
-#endif
 

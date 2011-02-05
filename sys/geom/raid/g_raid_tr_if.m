@@ -43,7 +43,7 @@ INTERFACE g_raid_tr;
 # Default implementations of methods.
 CODE {
 	static int
-	g_raid_tr_locked_default(struct g_raid_tr_object *tr)
+	g_raid_tr_locked_default(struct g_raid_tr_object *tr, void *argp)
 	{
 
 		return (0);
@@ -91,12 +91,28 @@ METHOD void iodone {
 	struct bio *bp;
 };
 
+# kerneldump() - optimized for rebustness (simplified) kernel dumping routine.
+METHOD int kerneldump {
+	struct g_raid_tr_object *tr;
+	void *virtual;
+	vm_offset_t physical;
+	off_t offset;
+	size_t length;
+} DEFAULT g_raid_tr_kerneldump_common;
+
 # locked() - callback method for lock().
 METHOD int locked {
 	struct g_raid_tr_object *tr;
+	void *argp;
 } DEFAULT g_raid_tr_locked_default;
 
 # free() - destructor.
 METHOD int free {
+	struct g_raid_tr_object *tr;
+};
+
+# idle() - callback when the volume is idle for a while and the TR wants
+# to schedule some work for that idle period.
+METHOD int idle {
 	struct g_raid_tr_object *tr;
 };

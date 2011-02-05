@@ -304,8 +304,11 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		kd.length = OFF_MAX;
 		i = sizeof kd;
 		error = g_io_getattr("GEOM::kerneldump", cp, &i, &kd);
-		if (!error)
-			dev->si_flags |= SI_DUMPDEV;
+		if (!error) {
+			error = set_dumper(&kd.di);
+			if (!error)
+				dev->si_flags |= SI_DUMPDEV;
+		}
 		break;
 	case DIOCGFLUSH:
 		error = g_io_flush(cp);

@@ -1,0 +1,7 @@
+# Generic, tweaked for Cisco.
+include 	"GENERIC"
+ident		CISCO_CAM
+options 	ATA_CAM
+options 	ADA_TEST_FAILURE
+makeoptions	MODULES_OVERRIDE="geom"
+

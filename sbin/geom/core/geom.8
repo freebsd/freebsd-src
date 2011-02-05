@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2004
+.Dd January 5, 2011
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -37,11 +37,12 @@
 .Nm
 .Ar class
 .Cm list
+.Op Fl a
 .Op Ar name ...
 .Nm
 .Ar class
 .Cm status
-.Op Fl s
+.Op Fl ags
 .Op Ar name ...
 .Nm
 .Ar class
@@ -69,6 +70,11 @@ List all available commands for the given class.
 Print detailed information (within the given class) about all geoms
 (if no additional arguments were specified) or the given geoms.
 This command is only available if the given class exists in the kernel.
+Additional options include:
+.Bl -tag -width ".Fl a"
+.It Fl a
+Print information for geoms without providers.
+.El
 .It Cm status
 Print general information (within the given class) about all geoms
 (if no additional arguments were specified) or the given geoms.
@@ -76,6 +82,10 @@ This command is only available if the given class exists in the kernel.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl s"
+.It Fl a
+When used with -g, print status for geoms without providers.
+.It Fl g
+Report statuses for geoms instead of providers.
 .It Fl s
 Produce script-friendly output.
 .El
@@ -117,6 +127,8 @@ LABEL
 MIRROR
 .It
 NOP
+.It
+RAID
 .It
 RAID3
 .It
