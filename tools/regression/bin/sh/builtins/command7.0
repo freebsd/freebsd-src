@@ -24,6 +24,11 @@ check '"$(command -pv ld-elf.so.1; :)" = ""'
 PATH=/libexec
 
 check '"$(command -v ls)" = ""'
-check '"$(command -pv ls)" = "/bin/ls"'
+case $(command -pv ls) in
+/*/ls) ;;
+*)
+	echo "Failed: \$(command -pv ls) match /*/ls"
+	: $((failures += 1)) ;;
+esac
 
 exit $((failures > 0))
