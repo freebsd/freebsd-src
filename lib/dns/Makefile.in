@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2008, 2010  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.163 2008/09/24 02:46:22 marka Exp $
+# $Id: Makefile.in,v 1.163.50.2 2010-06-09 23:48:16 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -47,11 +47,12 @@ LIBS =		@LIBS@
 
 # Alphabetically
 
-DSTOBJS =	@DST_EXTRA_OBJS@ \
+OPENSSLLINKOBJS = openssl_link.@O@ openssldh_link.@O@ openssldsa_link.@O@ \
+		  opensslrsa_link.@O@
+
+DSTOBJS =	@DST_EXTRA_OBJS@ @OPENSSLLINKOBJS@ \
 		dst_api.@O@ dst_lib.@O@ dst_parse.@O@ dst_result.@O@ \
-		gssapi_link.@O@ gssapictx.@O@ hmac_link.@O@ key.@O@ \
-		openssl_link.@O@ openssldh_link.@O@ openssldsa_link.@O@ \
-		opensslrsa_link.@O@
+		gssapi_link.@O@ gssapictx.@O@ hmac_link.@O@ key.@O@ 
 
 # Alphabetically
 DNSOBJS =	acache.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
@@ -73,12 +74,13 @@ DNSOBJS =	acache.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
 OBJS=		${DNSOBJS} ${OTHEROBJS} ${DSTOBJS}
 
 # Alphabetically
-DSTSRCS =	@DST_EXTRA_SRCS@ \
+OPENSSLLINKSRCS = openssl_link.c openssldh_link.c \
+		openssldsa_link.c opensslrsa_link.c
+
+DSTSRCS =	@DST_EXTRA_SRCS@ @OPENSSLLINKSRCS@ \
 		dst_api.c dst_lib.c dst_parse.c \
 		dst_result.c gssapi_link.c gssapictx.c \
-		hmac_link.c key.c \
-		openssl_link.c openssldh_link.c \
-		openssldsa_link.c opensslrsa_link.c
+		hmac_link.c key.c
 
 DNSSRCS =	acache.c acl.c adb.c byaddr.c \
 		cache.c callbacks.c compress.c \

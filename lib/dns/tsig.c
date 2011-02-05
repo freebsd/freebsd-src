@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tsig.c,v 1.136 2008/11/04 21:23:14 marka Exp $
+ * $Id: tsig.c,v 1.136.18.5 2010-12-09 01:12:55 marka Exp $
  */
 /*! \file */
 #include <config.h>
@@ -26,6 +26,7 @@
 #include <isc/mem.h>
 #include <isc/print.h>
 #include <isc/refcount.h>
+#include <isc/serial.h>
 #include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
 #include <isc/time.h>
@@ -46,6 +47,10 @@
 
 #define TSIG_MAGIC		ISC_MAGIC('T', 'S', 'I', 'G')
 #define VALID_TSIG_KEY(x)	ISC_MAGIC_VALID(x, TSIG_MAGIC)
+
+#ifndef DNS_TSIG_MAXGENERATEDKEYS
+#define DNS_TSIG_MAXGENERATEDKEYS 4096
+#endif
 
 #define is_response(msg) (msg->flags & DNS_MESSAGEFLAG_QR)
 #define algname_is_allocated(algname) \
@@ -85,6 +90,31 @@ static dns_name_t gsstsig = {
 	{NULL, NULL}
 };
 LIBDNS_EXTERNAL_DATA dns_name_t *dns_tsig_gssapi_name = &gsstsig;
+
+static void
+remove_fromring(dns_tsigkey_t *tkey) {
+	if (tkey->generated) {
+		ISC_LIST_UNLINK(tkey->ring->lru, tkey, link);
+		tkey->ring->generated--;
+	}
+	(void)dns_rbt_deletename(tkey->ring->keys, &tkey->name, ISC_FALSE);
+}
+
+static void
+adjust_lru(dns_tsigkey_t *tkey) {
+	if (tkey->generated) {
+		RWLOCK(&tkey->ring->lock, isc_rwlocktype_write);
+		/*
+		 * We may have been removed from the LRU list between
+		 * removing the read lock and aquiring the write lock.
+		 */
+		if (ISC_LINK_LINKED(tkey, link)) {
+			ISC_LIST_UNLINK(tkey->ring->lru, tkey, link);
+			ISC_LIST_APPEND(tkey->ring->lru, tkey, link);
+		}
+		RWUNLOCK(&tkey->ring->lock, isc_rwlocktype_write);
+	}
+}
 
 /*
  * Since Microsoft doesn't follow its own standard, we will use this
@@ -327,7 +357,9 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 	} else
 		tkey->creator = NULL;
 
-	tkey->key = dstkey;
+	tkey->key = NULL;
+	if (dstkey != NULL)
+		dst_key_attach(dstkey, &tkey->key);
 	tkey->ring = ring;
 
 	if (key != NULL)
@@ -358,11 +390,24 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 			cleanup_ring(ring);
 			ring->writecount = 0;
 		}
+
 		ret = dns_rbt_addname(ring->keys, name, tkey);
 		if (ret != ISC_R_SUCCESS) {
 			RWUNLOCK(&ring->lock, isc_rwlocktype_write);
 			goto cleanup_refs;
 		}
+
+		if (tkey->generated) {
+			/*
+			 * Add the new key to the LRU list and remove the
+			 * least recently used key if there are too many
+			 * keys on the list.
+			 */
+			ISC_LIST_INITANDAPPEND(ring->lru, tkey, link);
+			if (ring->generated++ > ring->maxgenerated)
+				remove_fromring(ISC_LIST_HEAD(ring->lru));
+		}
+
 		RWUNLOCK(&ring->lock, isc_rwlocktype_write);
 	}
 
@@ -390,6 +435,8 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 		isc_refcount_decrement(&tkey->refs, NULL);
 	isc_refcount_destroy(&tkey->refs);
  cleanup_creator:
+	if (tkey->key != NULL)
+		dst_key_free(&tkey->key);
 	if (tkey->creator != NULL) {
 		dns_name_free(tkey->creator, mctx);
 		isc_mem_put(mctx, tkey->creator, sizeof(dns_name_t));
@@ -452,9 +499,7 @@ cleanup_ring(dns_tsig_keyring_t *ring)
 				tsig_log(tkey, 2, "tsig expire: deleting");
 				/* delete the key */
 				dns_rbtnodechain_invalidate(&chain);
-				(void)dns_rbt_deletename(ring->keys,
-							 &tkey->name,
-							 ISC_FALSE);
+				remove_fromring(tkey);
 				goto again;
 			}
 		}
@@ -464,7 +509,6 @@ cleanup_ring(dns_tsig_keyring_t *ring)
 			dns_rbtnodechain_invalidate(&chain);
 			return;
 		}
-
 	}
 }
 
@@ -572,7 +616,7 @@ dns_tsigkey_create(dns_name_t *name, dns_name_t *algorithm,
 	result = dns_tsigkey_createfromkey(name, algorithm, dstkey,
 					   generated, creator,
 					   inception, expire, mctx, ring, key);
-	if (result != ISC_R_SUCCESS && dstkey != NULL)
+	if (dstkey != NULL)
 		dst_key_free(&dstkey);
 	return (result);
 }
@@ -629,7 +673,7 @@ dns_tsigkey_setdeleted(dns_tsigkey_t *key) {
 	REQUIRE(key->ring != NULL);
 
 	RWLOCK(&key->ring->lock, isc_rwlocktype_write);
-	(void)dns_rbt_deletename(key->ring->keys, &key->name, ISC_FALSE);
+	remove_fromring(key);
 	RWUNLOCK(&key->ring->lock, isc_rwlocktype_write);
 }
 
@@ -888,6 +932,9 @@ dns_tsig_sign(dns_message_t *msg) {
 		      == ISC_R_SUCCESS);
 	msg->tsig = dataset;
 	msg->tsigname = owner;
+
+	/* Windows does not like the tsig name being compressed. */
+	msg->tsigname->attributes |= DNS_NAMEATTR_NOCOMPRESS;
 
 	return (ISC_R_SUCCESS);
 
@@ -1469,19 +1516,30 @@ dns_tsigkey_find(dns_tsigkey_t **tsigkey, dns_name_t *name,
 		RWUNLOCK(&ring->lock, isc_rwlocktype_read);
 		return (ISC_R_NOTFOUND);
 	}
-	if (key->inception != key->expire && key->expire < now) {
+	if (key->inception != key->expire && isc_serial_lt(key->expire, now)) {
 		/*
 		 * The key has expired.
 		 */
 		RWUNLOCK(&ring->lock, isc_rwlocktype_read);
 		RWLOCK(&ring->lock, isc_rwlocktype_write);
-		(void)dns_rbt_deletename(ring->keys, name, ISC_FALSE);
+		remove_fromring(key);
 		RWUNLOCK(&ring->lock, isc_rwlocktype_write);
 		return (ISC_R_NOTFOUND);
 	}
-
+#if 0
+	/*
+	 * MPAXXX We really should look at the inception time.
+	 */
+	if (key->inception != key->expire &&
+	    isc_serial_lt(key->inception, now)) {
+		RWUNLOCK(&ring->lock, isc_rwlocktype_read);
+		adjust_lru(key);
+		return (ISC_R_NOTFOUND);
+	}
+#endif
 	isc_refcount_increment(&key->refs, NULL);
 	RWUNLOCK(&ring->lock, isc_rwlocktype_read);
+	adjust_lru(key);
 	*tsigkey = key;
 	return (ISC_R_SUCCESS);
 }
@@ -1527,6 +1585,9 @@ dns_tsigkeyring_create(isc_mem_t *mctx, dns_tsig_keyring_t **ringp) {
 
 	ring->writecount = 0;
 	ring->mctx = NULL;
+	ring->generated = 0;
+	ring->maxgenerated = DNS_TSIG_MAXGENERATEDKEYS;
+	ISC_LIST_INIT(ring->lru);
 	isc_mem_attach(mctx, &ring->mctx);
 
 	*ringp = ring;

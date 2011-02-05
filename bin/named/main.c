@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.166.34.3.24.3 2010/09/06 03:58:32 marka Exp $ */
+/* $Id: main.c,v 1.166.34.7 2010-09-15 12:16:49 marka Exp $ */
 
 /*! \file */
 
@@ -455,6 +455,8 @@ parse_command_line(int argc, char *argv[]) {
 				ns_g_clienttest = ISC_TRUE;
 			else if (!strcmp(isc_commandline_argument, "nosoa"))
 				ns_g_nosoa = ISC_TRUE;
+			else if (!strcmp(isc_commandline_argument, "noaa"))
+				ns_g_noaa = ISC_TRUE;
 			else
 				fprintf(stderr, "unknown -T flag '%s\n",
 					isc_commandline_argument);
