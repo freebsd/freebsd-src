@@ -778,6 +778,14 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		} else if (softc->action == PROBE_SETPM &&
 		    status == CAM_ATA_STATUS_ERROR) {
 			goto noerror;
+
+		/*
+		 * Some HP SATA disks report supported DMA Auto-Activation,
+		 * but return ABORT on attempt to enable it.
+		 */
+		} else if (softc->action == PROBE_SETDMAAA &&
+		    status == CAM_ATA_STATUS_ERROR) {
+			goto noerror;
 		}
 
 		/*
