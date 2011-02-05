@@ -1785,7 +1785,7 @@ fetch_create_manifest () {
 		echo -n "been downloaded because the files have been "
 		echo "modified locally:"
 		cat modifiedfiles
-	fi | more
+	fi | $PAGER
 	rm modifiedfiles
 
 	# If no files will be updated, tell the user and exit
@@ -1815,7 +1815,7 @@ fetch_create_manifest () {
 		echo -n "The following files will be removed "
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 		cat files.removed
-	fi | more
+	fi | $PAGER
 	rm files.removed
 
 	# Report added files, if any
@@ -1824,7 +1824,7 @@ fetch_create_manifest () {
 		echo -n "The following files will be added "
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 		cat files.added
-	fi | more
+	fi | $PAGER
 	rm files.added
 
 	# Report updated files, if any
@@ -1834,7 +1834,7 @@ fetch_create_manifest () {
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 
 		cat files.updated
-	fi | more
+	fi | $PAGER
 	rm files.updated
 
 	# Create a directory for the install manifest.
@@ -3021,6 +3021,11 @@ cmd_IDS () {
 
 # Make sure we find utilities from the base system
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:${PATH}
+
+# Set a pager if the user doesn't
+if [ -z "$PAGER" ]; then
+	PAGER=/usr/bin/more
+fi
 
 # Set LC_ALL in order to avoid problems with character ranges like [A-Z].
 export LC_ALL=C
