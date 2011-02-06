@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.dnssec-dsfromkey.html,v 1.6.14.14.4.1 2010/03/03 22:06:38 marka Exp $ -->
+<!-- $Id: man.dnssec-dsfromkey.html,v 1.6.14.16 2010-08-20 02:05:40 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -51,14 +51,14 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-dsfromkey</code>  {-s} [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-1</code>] [<code class="option">-2</code>] [<code class="option">-a <em class="replaceable"><code>alg</code></em></code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-d <em class="replaceable"><code>dir</code></em></code>] {dnsname}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604060"></a><h2>DESCRIPTION</h2>
+<a name="id2604158"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-dsfromkey</strong></span>
       outputs the Delegation Signer (DS) resource record (RR), as defined in
       RFC 3658 and RFC 4509, for the given key(s).
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604074"></a><h2>OPTIONS</h2>
+<a name="id2604172"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-1</span></dt>
 <dd><p>
@@ -99,7 +99,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604204"></a><h2>EXAMPLE</h2>
+<a name="id2604302"></a><h2>EXAMPLE</h2>
 <p>
       To build the SHA-256 DS RR from the
       <strong class="userinput"><code>Kexample.com.+003+26160</code></strong>
@@ -114,7 +114,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604241"></a><h2>FILES</h2>
+<a name="id2604407"></a><h2>FILES</h2>
 <p>
       The keyfile can be designed by the key identification
       <code class="filename">Knnnn.+aaa+iiiii</code> or the full file name
@@ -128,13 +128,13 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604282"></a><h2>CAVEAT</h2>
+<a name="id2604449"></a><h2>CAVEAT</h2>
 <p>
       A keyfile error can give a "file not found" even if the file exists.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604292"></a><h2>SEE ALSO</h2>
+<a name="id2604458"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
@@ -143,7 +143,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604328"></a><h2>AUTHOR</h2>
+<a name="id2604494"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
