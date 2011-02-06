@@ -3892,16 +3892,11 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 		if (ni != NULL) {
-#ifdef	NOTYET
-		/* tag AMPDU aggregates for reorder processing */
-		/*
-		 * XXX this should only tag frames marked as aggregate; rather
-		 * XXX than all frames.
-		 */
-		if (ni->ni_flags & IEEE80211_NODE_HT)
-			m->m_flags |= M_AMPDU;
-#endif
-
+			/* tag AMPDU aggregates for reorder processing */
+			if (rs->rs_isaggr) {
+				
+				m->m_flags |= M_AMPDU;
+			}
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
@@ -6499,4 +6494,6 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_be_missed, 0, "number of -missed- beacons");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ani_cal", CTLFLAG_RD,
 	    &sc->sc_stats.ast_ani_cal, 0, "number of ANI polls");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_agg", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_agg, 0, "number of aggregate frames received");
 }

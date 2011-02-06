@@ -120,7 +120,8 @@ struct ath_stats {
 	u_int32_t	ast_tx_nofrag;	/* tx dropped 'cuz no ath frag buffer */
 	u_int32_t	ast_be_missed;	/* missed beacons */
 	u_int32_t	ast_ani_cal;	/* ANI calibrations performed */
-	u_int32_t	ast_pad[12];
+	u_int32_t	ast_rx_agg;	/* number of aggregate frames RX'ed */
+	u_int32_t	ast_pad[11];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
