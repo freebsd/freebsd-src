@@ -168,7 +168,11 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 
 	maxfd = sysconf(_SC_OPEN_MAX);
 	if (maxfd < 0) {
+		pjdlog_init(pjdlogmode);
+		pjdlog_prefix_set("[%s] (%s) ", res->hr_name,
+		    role2str(res->hr_role));
 		pjdlog_errno(LOG_WARNING, "sysconf(_SC_OPEN_MAX) failed");
+		pjdlog_fini();
 		maxfd = 16384;
 	}
 	for (fd = 0; fd <= maxfd; fd++) {
