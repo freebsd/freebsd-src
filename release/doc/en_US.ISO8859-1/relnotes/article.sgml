@@ -159,7 +159,37 @@
     <sect2 id="kernel">
       <title>Kernel Changes</title>
 
-      <para></para>
+      <para arch="ia64" revision="209326">The maximum number of pages
+	used for DMA bounce buffer pool has been increased from 256 to
+	1024.</para>
+
+      <para arch="powerpc" revision="209765">The default value of
+	<varname>kern.hz</varname> has been increased from 100 to
+	1000.</para>
+
+      <para arch="powerpc" revision="209767">The SMP kernel now works on
+	MPC7400-based Apple desktop machines such as
+	PowerMac3,3.</para>
+
+      <para arch="powerpc" revision="211593">&os;/powerpc now supports
+	DMA bounce buffer which is required on systems with larger RAM
+	than 4GB.</para>
+
+      <para revision="209692">The &man.ddb.8; kernel debugger now
+	supports an optional delay in <command>reset</command> and
+	<command>reboot</command> commands.  This allows an
+	administrator to break the system into debugger and trigger
+	automatic textdump when an unattended panic occurs.</para>
+
+      <para revision="212230">The &man.ddb.8; kernel debugger now
+	supports a <command>show cdev</command> command.  This
+	displays the list of all created cdev's, consisting of devfs
+	node name and struct cdev address.</para>
+
+      <para revision="212427">The &os; &man.memguard.9; framework has
+	been improved to make it able to detect use-after-free of
+	allocated memories over a longer time.  For more details, see
+	&man.memguard.9; manual page.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
@@ -170,44 +200,408 @@
       <sect3 id="proc">
 	<title>Hardware Support</title>
 
-	<para></para>
+	<para revision="210476">The &man.aibs.4; driver has been
+	  added.  This supports the hardware sensors in ASUS
+	  motherboards and replaces the &man.acpi.aiboost.4;
+	  driver.</para>
+
+	<para revision="211914">The &man.coretemp.4; driver now supports
+	  Xeon 5500/5600 series.</para>
+
+	<para revision="209952">The &man.ichwd.4; driver
+	  now supports Intel NM10 Express chipset watchdog
+	  timer.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
 
-	  <para></para>
+	  <para>The &os; Linux emulation subsystem now supports
+	    video4linux API.  This requires native video4linux
+	    hardware drivers such as ones which<filename
+	    role="ports">multimedia/pwc</filename> and <filename
+	    role="ports">multimedia/webcamd</filename> provide.</para>
 	</sect4>
 
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
 
-	  <para></para>
+	  <para revision="212021">The &man.alc.4; driver now supports
+	    Atheros AR8151/AR8152 PCIe Gigabit/Fast Ethernet
+	    controllers.</para>
+
+	  <para revision="212011">The TX interrupt moderation timer in
+	    the &man.alc.4; driver has been reduced from 50ms to 1ms.
+	    The 50ms timer resulted in a poor UDP performance.</para>
+
+	  <para revision="211367">A bug in the &man.bge.4; driver which
+	    prevents TSO in BCM57780 from working has been
+	    fixed.</para>
+
+	  <para revision="211379">The &man.bce.4; driver now supports
+	    flow control.</para>
+
+	  <para revision="212275">The &man.bwi.4; driver, which supports
+	    Broadcom BCM430* and BCM431* family Wireless Ethernet
+	    controllers, has been added.  This is not compiled into
+	    the <filename>GENERIC</filename> kernel because there are
+	    some problems.  The kernel module
+	    <filename>if_bwi.ko</filename> is available and can be
+	    loaded without recompiling the kernel to enable this
+	    driver.</para>
+
+	  <para revision="212274">A bug in the &man.bwn.4; driver which
+	    prevents WPA authentication from working has been
+	    fixed.</para>
+
+	  <para revision="211848">The &man.cxgb.4; driver now supports
+	    the following new &man.sysctl.8; variables:
+	    <varname>hw.cxgb.nfilters</varname> sets the maximum
+	    number of entries in the hardware filter table,
+	    <varname>dev.cxgbc.<replaceable>N</replaceable>.pkt_timestamp</varname>
+	    provides packet timestamp instead of connection hash, and
+	    <varname>dev.cxgbc.<replaceable>N</replaceable>.core_clock</varname>
+	    provides the core clock frequency in kHz.</para>
+
+	  <para>The &man.em.4; driver has been updated to version
+	    7.1.9.</para>
+
+	  <para>The &man.igb.4; driver has been updated to version
+	    2.0.7.</para>
+
+	  <para revision="209309">The &man.em.4; and &man.igb.4; drivers
+	    now provide statistics counters as &man.sysctl.8; MIB
+	    objects.</para>
+
+	  <para revision="211241">The &man.em.4; and &man.igb.4; drivers
+	    now support &man.led.4; interface via
+	    <filename>/dev/led/em<replaceable>N</replaceable></filename>
+	    and
+	    <filename>/dev/led/igb<replaceable>N</replaceable></filename>
+	    for identification LED control.  The following command
+	    line makes the LED blink on <literal>em0</literal>:</para>
+
+	  <screen>&prompt.root; echo f2 &gt; /dev/led/em0</screen>
+
+	  <para revision="212386">The &man.ixgbe.4;
+	    driver is now also provided as a kernel module.</para>
+
+	  <para revision="212150">The &man.epair.4; virtual Ethernet
+	    interface driver now supports explicit UP/DOWN linkstate.
+	    This fixes an issue when it is used with the &man.carp.4;
+	    protocol.</para>
+
+	  <para revision="210673">The &man.iwn.4; driver now supports
+	    Intel Wireless WiFi Link 6000 series.  The firmware has
+	    been updated to version 9.221.4.1.</para>
+
+	  <para revision="209308">The &man.ixgbe.4; driver has been
+	    updated to version 2.2.1.  It now supports 82599, better
+	    interrupt handling, hardware assist to LRO, and so
+	    on.</para>
+
+	  <para revision="212386">The &man.mwlfw.4;
+	    driver is now also provided as a kernel module.</para>
+
+	  <para revision="211377">The &man.rl.4; driver now supports WOL
+	    (Wake On Lan) on RTL8139B or newer controllers.</para>
+
+	  <para revision="212039">The &man.rl.4; driver now supports a
+	    device hint to change a way of register access.  Although
+	    some newer RTL8139 controllers support memory-mapped
+	    register access, it is difficult to detect the support
+	    automatically.  For this reason the driver uses I/O
+	    mapping by default and provides the following device hint.
+	    If it is set to <literal>0</literal>, the driver uses
+	    memory mapping for register access.</para>
+
+	  <programlisting>hint.rl.<replaceable>N</replaceable>.prefer_iomap="0"</programlisting>
+
+	  <para>Note that the default value is <literal>1</literal>.</para>
+
+	  <para revision="212468">Some stability issues in
+	    the &man.sis.4; driver have been fixed.</para>
+
+	  <para revision="211357">The &man.ste.4; driver now supports a
+	    device hint to change a way of register access.  Although
+	    it uses memory-mapped register access by default, some old
+	    IC Plus Corp (formerly Sundace) controllers are found
+	    unstable.  The following device hint makes the driver use
+	    I/O mapping for register access:</para>
+
+	  <programlisting>hint.ste.<replaceable>N</replaceable>.prefer_iomap="1"</programlisting>
+
+	  <para revision="211359">The &man.sk.4; driver now disable TX
+	    checksum offloading by default.  This is because some
+	    revision of Yukon controller generates corrupted frames.
+	    The checksum offloading can be enabled manually by using
+	    <option>txcsum</option> option in the &man.ifconfig.8;
+	    utility.</para>
 	</sect4>
       </sect3>
 
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
-	<para></para>
+	<para revision="209783">The &man.altq.4; support is now provided
+	  as a kernel module <filename>alq.ko</filename>.</para>
+
+	<para revision="209691">IPsec flow distribution has been
+	  improved for more parallel processing.</para>
+
+	<para revision="209277">A bug in &os; IPv4 stack that a proxy
+	  ARP entry cannot be added over &man.netgraph.4; interfaces
+	  has been fixed.</para>
+
+	<para revision="211435">A bug in &os; IPv6 stack which prevents
+	  an <option>-I</option> in the &man.ping6.8; utility from
+	  working with
+	  <varname>net.inet6.ip6.use_defaultzone=1</varname> has been
+	  fixed.</para>
+
+	<para revision="209843">A new &man.netgraph.4; node
+	  &man.ng.patch.4; has been added.  This performs data
+	  modification of packets passing through.  Modifications are
+	  restricted to a subset of C language operations on unsigned
+	  integers of 8, 16, 32 or 64-bit size.</para>
+
+	<para revision="212320">The &man.ng.ether.4; &man.netgraph.4;
+	  node now supports interface transfer between multiple virtual
+	  network stacks by &man.ifconfig.8; <command>vnet</command>
+	  command.  A &man.ng.ether.4; node associated with an network
+	  interface is now destroyed and recreated when the network
+	  interface is moved to another vnet.</para>
+
+	<para revision="211538">A TCP bandwidth delay product window
+	  limiting algorithm by a &man.sysctl.8; variable
+	  <varname>net.inet.tcp.inflight.enable</varname> is now
+	  disabled by default.  It has been found that this algorithm
+	  is inefficient on a fast network with smaller RTT than 10ms.
+	  It had been enabled by default since 5.2-RELEASE, and then
+	  had been disabled only if the RTT was lesser than 10ms since
+	  7.0-RELEASE.  Pluggable TCP congestion control algorithm
+	  modules are planned to be added for the future
+	  releases.</para>
+
+	<para revision="211602">A bug in &os; TCP Path MTU discovery
+	  which can lead to a wrong calculation for a smaller MTU than
+	  256 octets has been fixed.  Note that this bug does not
+	  affect when MTU is equal to or larger than 256
+	  octets.</para>
+
+	<para revision="211870">The TCP initial window increase in RFC
+	  3390 which can be controlled by a &man.sysctl.8; variable
+	  <varname>net.inet.tcp.rfc3390</varname> now reduces the
+	  congestion window to the restart window if a TCP connection
+	  has been idle for one retransmit timeout or more.  For more
+	  details, see RFC 5681 Section 4.1.</para>
+
+	<para revision="212319">&os; virtual network stack (vnet) now
+	  supports IPv4 multicast routing.</para>
       </sect3>
 
       <sect3 id="disks">
 	<title>Disks and Storage</title>
 
-	<para></para>
+	<para revision="211458">The &man.ahci.4; driver now disables NCQ
+	  and PMP support on VIA VT8251 because they are unreliable
+	  under load.</para>
+
+	<para revision="210836">The &man.arcmsr.4; driver
+	  has been updated to version 1.20.00.17.</para>
+
+	<para revision="210164">The &man.ata.4; driver
+	  now supports limiting initial ATA mode for devices via
+	  device hints
+	  <varname>hint.<replaceable>devname</replaceable>.<replaceable>unit</replaceable>.dev<replaceable>N</replaceable
+	  >.mode</varname> or
+	  <varname>hint.<replaceable>devname</replaceable>.<replaceable>unit</replaceable>.mode</varname>.
+	  The valid values are the same as ones supported in the
+	  &man.atacontrol.8; and &man.camcontrol.8;.</para>
+
+	<para revision="210204">The &man.ata.4; driver
+	  now enables cable status check on both of controller and
+	  device side when
+	  <varname>hw.ata.ata_dma_check_80pin</varname> is
+	  enabled.</para>
+
+	<para revision="210376">The &man.mpt.4; driver now supports
+	  larger I/O sizes which the device and &man.CAM.4; subsystem
+	  can support.  This was limited to 64KB, and the number of
+	  scatter/gather segments was limited to 33 on platforms with
+	  4K pages.</para>
+
+	<para revision="209404">The &man.twa.4;
+	  driver has been updated.  The version number is
+	  3.80.06.003.</para>
       </sect3>
 
       <sect3 id="fs">
 	<title>File Systems</title>
 
-	<para></para>
+	<para revision="212668">The ZFS on-disk format has been updated
+	  to version 15.</para>
+
+	<para revision="212671">The ZFS metaslab code has been updated.
+	  This provides a noticeable improvement on write speed,
+	  especially on pools with less than 30% of free space.  The
+	  related OpenSolaris Bug IDs are 6826241, 6869229, 6918420,
+	  and 6917066.</para>
+
+	<para>The default value of
+	  <varname>vfs.zfs.vdev.max_pending</varname> has been
+	  decreased from 35 to 10 (OpenSolaris Bug ID is 6891731) to
+	  improve latency.</para>
+
+	<para>Bugs in the ZFS subsystem has been fixed.  The
+	  OpenSolaris Bug IDs are: 6798878, 6809683, 6794570, 6844069,
+	  6788152, 6843235, 6857012, 6870564, 6836714, 6836714,
+	  6870564, 6857012, 6843235, 6788152, 6844069, 6794570,
+	  6809683, 6798878, 6950219, 6953403, 6951024, 6809340,
+	  6755435, 6748436, 6740164, 6769612, 6757430, 6542860,
+	  6761100, 6774886, 6737463, 6765294, 6572357, 6572376,
+	  6328632, 6739487, 6767129, 6747698, 6745863, 6722540,
+	  6759999, 6758107, 6776548, 6761406, 6770866, 6674216,
+	  6621164, 6635482, 6595194, 6722991, 6396518, 6713916,
+	  6739553, 6784104, 6784108, 6788830, 6791064, 6791066,
+	  6791071, 6792134, 6792884, 6798384, 6551866, 6504953,
+	  6702206, 6780491, 6747596, 6801507, 6633095, 6775697,
+	  6790687, 6791101, 6800942, 6582163, 6804954, 6800184,
+	  6803822, 6789318, 6790345, 6797109, 6797118, 6803343,
+	  6815893, 6809691, 6790064, 6604992, 6810367, 6807765,
+	  6821169, 6821170, 6824006, 6792139, 6794830, 6824062,
+	  6816124, 6818183, 6710376, 6501037, 6827260, 6815592,
+	  6759986, 6774713, 6717022, 6799895, 6826466, 6826468,
+	  6826469, 6826470, 6826471, 6826472, 6833711, 6764124,
+	  6830237, 6833162, 6824968, 6834217, 6596237, 6623978,
+	  6801810, 6586537, 6836768, 6838062, 6794136, 6776104,
+	  6664765, 6841321, 6843069, 6847229, 6838344, 6844900,
+	  6857012, 6848242, 6856634, 6861983, 6862984, 6696858,
+	  6696858, 6882227, 6880764, 6793430, 6822816, 6892298,
+	  6807339, 6906110, 6906946, 6898245, and 6833999.</para>
       </sect3>
     </sect2>
 
     <sect2 id="userland">
       <title>Userland Changes</title>
 
-      <para></para>
+      <para revision="209267">The &man.arp.8; utility has been improved.
+	It now runs faster even when a single interface has a number
+	of aliases.</para>
+
+      <para revision="211723">The &man.calendar.1; utility now supports
+	repeating events which span multiple years, lunar events, and
+	solar events.</para>
+
+      <para revision="210915">The &man.dhclient.8; utility now reports a
+	reason for exiting and the 10-second period in which the
+	&man.dhclient.8; ignores routing messages has been changed to
+	start just after <filename>dhclient-script</filename> starts
+	instead of just after it finished.  This change fixes a
+	symptom that &man.dhclient.8; silently exits under a certain
+	condition.</para>
+
+      <para revision="209362">The &man.du.1; utility now supports a
+	<option>-t <replaceable>threshold</replaceable></option>
+	option to display entries that exceeds the value of
+	<replaceable>threshold</replaceable>.  If the value is
+	negative, it displays entries with a value less than the
+	absolute value of <replaceable>threshold</replaceable>.</para>
+
+      <para revision="210567">The &man.gcore.1; utility now supports an
+	<option>-f</option> flag which forces a full dump of all the
+	segments except for the malformed ones.</para>
+
+      <para revision="211938">The <function>gethost*()</function>,
+	<function>getnet*()</function>, and
+	<function>getproto*()</function> functions now set the errno
+	to <literal>ERANGE</literal> and the NSS backend terminates
+	with <literal>NS_RETURN</literal> when the result buffer size
+	is too small.</para>
+
+      <para revision="209497">The &man.gpart.8; utility now supports
+	<command>resize</command> command to resize partitions for all
+	schemes but EBR.</para>
+
+      <para revision="212144">The &man.ifconfig.8; utility now check an
+	invalid CIDR subnet notation more strictly.  It wrongly
+	accepted <literal>10.0.0.1/10.0.0.1</literal> as
+	<literal>10.0.0.1/10</literal>.</para>
+
+      <para revision="209284">Incorrect behaviors in stuttering
+	sequences and reverse ranges in the &man.jot.1; utility have
+	been fixed.</para>
+
+      <para revision="211699">The &man.newsyslog.8; utility now supports
+	an <option>-S <replaceable>pidfile</replaceable></option>
+	option to override the default &man.syslogd.8; PID
+	file.</para>
+
+      <para revision="209912">The &man.pkill.1; utility now supports
+	an <option>-l</option> option which the &man.kill.1; utility
+	does.</para>
+
+      <para revision="211098">The &man.pmcstat.8; utility now supports a
+	file and a network socket as a top source.  A new option
+	<option>-O <replaceable>filename</replaceable></option>
+	specifies to send log output to
+	<replaceable>filename</replaceable>, and another new option
+	<option>-R <replaceable>filename</replaceable></option>
+	specifies to receive events from
+	<replaceable>filename</replaceable>.  For a socket, the
+	<replaceable>filename</replaceable> is in a form of
+	<replaceable>ipaddr:port</replaceable>.  This allows top
+	monitoring over TCP on a system with no local symbols, for
+	example.</para>
+
+      <para revision="210089">The &man.pom.6; utility now
+	supports a <option>-p</option> flag to print only the
+	percentage.</para>
+
+      <para revision="212472">The &man.powerd.8; utility now supports
+	an <option>-m <replaceable>freq</replaceable></option> and
+	<option>-M <replaceable>freq</replaceable></option> to control
+	the minimum and maximum frequency, respectively.</para>
+
+      <para revision="210616">A bug in the &man.sh.1; program has been
+	fixed.  A <literal>SIGINT</literal> signal is now passed
+	through from a child process if the shell is interactive and
+	the job control is enabled.  For example, aborting
+	&man.sleep.1; command by Ctrl-C no longer display
+	<literal>ok</literal> in the following command line:</para>
+
+      <screen>&prompt.user; sleep 5; echo ok</screen>
+
+      <para revision="210732">The &man.sh.1; program now supports a
+	<command>bg</command> command consisting solely of
+	redirections.  For example:</para>
+
+      <screen>&prompt.user; &lt; /dev/null &amp;</screen>
+
+      <para revision="211536">The &man.sleep.1; utility now supports
+	<literal>SIGINFO</literal> signal and reports the specified
+	sleep time and the remaining time.</para>
+
+      <para revision="210566">The &man.uname.1; utility now supports an
+	<option>-o</option> flag as a synonym for the
+	<option>-s</option> flag for compatibility with other
+	systems.</para>
+
+      <para revision="211060">Bugs in &man.vi.1; utility have been
+	fixed.  They include handling of <literal>^@</literal> and
+	<literal>^C</literal> in insert mode when reading an ex
+	command.</para>
+
+      <para revision="209870">The <command>set sharenfs</command>
+	command in the &man.zfs.8; utility now supports
+	<option>sec</option> option.</para>
+
+      <sect3 id="periodic-scripts">
+        <title><filename>/etc/periodic</filename> Scripts</title>
+
+	<para>A periodic script for <command>zfs scrub</command> has
+	  been added.  For more details, see &man.periodic.conf.5;
+	  manual page.</para>
+      </sect3>
 
       <sect3 id="rc-scripts">
         <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -241,14 +635,23 @@
 
       <para><application>sendmail</application> has been updated to
 	version 8.14.4.</para>
-
-      <para>The timezone database has been updated to the
-	<application>tzdata2010j</application> release.</para>
 -->
+      <para>The timezone database has been updated to the
+	<application>tzdata2010l</application> release.</para>
     </sect2>
 
     <sect2 id="releng">
       <title>Release Engineering and Integration</title>
+
+      <para revision="211007">The &man.sysinstall.8; utility now uses
+	the following numbers for default and minimum partition sizes:
+	1GB for <filename>/</filename>, 4GB for
+	<filename>/var</filename>, and 1GB for
+	<filename>/tmp</filename>.</para>
+
+      <para revision="211009">The &man.sysinstall.8; utility now
+	attempts to enable &man.getty.8; on a serial port when no VGA
+	card on the system.</para>
 
       <para>The supported version of
 	the <application>GNOME</application> desktop environment
