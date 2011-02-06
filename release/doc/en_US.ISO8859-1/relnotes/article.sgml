@@ -186,6 +186,15 @@
 	displays the list of all created cdev's, consisting of devfs
 	node name and struct cdev address.</para>
 
+      <para revision="213554,213556,213560">The following sysctl
+	variables are also now loader tunables:
+	<varname>vm.kmem_size</varname>,
+	<varname>vm.kmem_size_max</varname>, and
+	<varname>vm.kmem_size_min</varname>,
+	<varname>debug.kdb.stop_cpus</varname>,
+	<varname>debug.trace_on_panic</varname>, and
+	<varname>kern.sync_on_panic</varname>.</para>
+
       <para revision="212427">The &os; &man.memguard.9; framework has
 	been improved to make it able to detect use-after-free of
 	allocated memories over a longer time.  For more details, see
@@ -194,7 +203,8 @@
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
 
-	<para></para>
+	<para revision="212717">The &man.pxeboot.8; now uses NFS
+	  version 3 instead of version 2 by default.</para>
       </sect3>
 
       <sect3 id="proc">
@@ -233,12 +243,29 @@
 	    the &man.alc.4; driver has been reduced from 50ms to 1ms.
 	    The 50ms timer resulted in a poor UDP performance.</para>
 
+	  <para revision="211379">The &man.bce.4; driver now supports
+	    flow control.</para>
+
 	  <para revision="211367">A bug in the &man.bge.4; driver which
 	    prevents TSO in BCM57780 from working has been
 	    fixed.</para>
 
-	  <para revision="211379">The &man.bce.4; driver now supports
-	    flow control.</para>
+	  <para revision="213109">UDP checksum offloading in the
+	    &man.bge.4; driver has been disabled by default.  This is
+	    because Broadcom controllers have a bug which can generate
+	    UDP datagrams with checksum value <literal>0</literal>
+	    when TX UDP checksum offloading is enabled.  The checksum
+	    offloading can be enabled by using the following loader
+	    tunable:</para>
+
+	  <programlisting>dev.bge.<replaceable>N</replaceable>.forced_udpcsum</programlisting>
+
+	  <para revision="213593">A bug in the &man.bge.4; driver
+	    which can lead poor performance on a system with RAM
+	    larger than 4GB has been fixed.  The cause was that all of
+	    Broadcom controllers except for BCM5755 and later has 4GB
+	    boundary DMA bug and the inefficient use of bounce
+	    buffer.</para>
 
 	  <para revision="212275">The &man.bwi.4; driver, which supports
 	    Broadcom BCM430* and BCM431* family Wireless Ethernet
@@ -302,8 +329,8 @@
 	  <para revision="212386">The &man.mwlfw.4;
 	    driver is now also provided as a kernel module.</para>
 
-	  <para revision="211377">The &man.rl.4; driver now supports WOL
-	    (Wake On Lan) on RTL8139B or newer controllers.</para>
+	  <para revision="211377">The &man.rl.4; driver now supports WoL
+	    (Wake on LAN) on RTL8139B or newer controllers.</para>
 
 	  <para revision="212039">The &man.rl.4; driver now supports a
 	    device hint to change a way of register access.  Although
@@ -318,8 +345,24 @@
 
 	  <para>Note that the default value is <literal>1</literal>.</para>
 
-	  <para revision="212468">Some stability issues in
-	    the &man.sis.4; driver have been fixed.</para>
+	  <para revision="212468,213612,213628">The &man.sis.4; driver
+	    now works on all supported platforms.  Some stability and
+	    performance issues have also been fixed.</para>
+
+	  <para revision="213637">The &man.sis.4; driver now supports
+	    WoL (Wake on LAN) on NS DP8315 controller.</para>
+
+	  <para revision="213626">A tunable
+	    <varname>dev.sis.<replaceable>N</replaceable>.manual_pad</varname>
+	    for the &man.sis.4; driver has been added.  This controls
+	    whether padding with 0x00 for short frames by software,
+	    not the controller.  The reason why this tunable has been
+	    added is that NS DP83815/DP83816 pads them with 0xff
+	    though RFC 1042 specifies it should be 0x00.  The tunable
+	    is disabled by default, which means padding with 0xff is
+	    used because padding with 0x00 by software needs extra CPU
+	    cycles.  Setting a non-zero value enables the software
+	    padding.</para>
 
 	  <para revision="211357">The &man.ste.4; driver now supports a
 	    device hint to change a way of register access.  Although
@@ -336,6 +379,11 @@
 	    The checksum offloading can be enabled manually by using
 	    <option>txcsum</option> option in the &man.ifconfig.8;
 	    utility.</para>
+
+	  <para revision="213120">The &man.xl.4; driver now supports
+	    WoL (Wake on LAN).  Note that not all controllers support
+	    this functionality and some need an additional remote
+	    wakeup cable.</para>
 	</sect4>
       </sect3>
 
@@ -344,6 +392,15 @@
 
 	<para revision="209783">The &man.altq.4; support is now provided
 	  as a kernel module <filename>alq.ko</filename>.</para>
+
+	<para revision="212738">A bug in the &man.ipfw.4; packet
+	  filter subsystem has been fixed.  The syctl variable
+	  <varname>net.inet.ip.fw.one_pass</varname> did not work for
+	  <literal>netgraph</literal> action.</para>
+
+	<para revision="212742">A <literal>ngtee</literal> action in
+	  the &man.ipfw.4; packet filter subsystem has been changed.
+	  It no longer accepts a packet.</para>
 
 	<para revision="209691">IPsec flow distribution has been
 	  improved for more parallel processing.</para>
@@ -370,6 +427,10 @@
 	  command.  A &man.ng.ether.4; node associated with an network
 	  interface is now destroyed and recreated when the network
 	  interface is moved to another vnet.</para>
+
+	<para revision="212905">An ICMP unreachable problem in the
+	  &man.pf.4; packet filter subsystem when TSO support is
+	  enabled has been fixed.</para>
 
 	<para revision="211538">A TCP bandwidth delay product window
 	  limiting algorithm by a &man.sysctl.8; variable
@@ -406,6 +467,10 @@
 	  and PMP support on VIA VT8251 because they are unreliable
 	  under load.</para>
 
+	<para revision="211718">The &man.ahci.4; driver now uses 15
+	  seconds for device reset timeout instead of 10 seconds
+	  because some devices needs 10-12 seconds to spin up.</para>
+
 	<para revision="210836">The &man.arcmsr.4; driver
 	  has been updated to version 1.20.00.17.</para>
 
@@ -424,6 +489,10 @@
 	  <varname>hw.ata.ata_dma_check_80pin</varname> is
 	  enabled.</para>
 
+	<para revision="213291">A device detection of Serverworls K2
+	  SATA controllers in the &man.ata.4; has been
+	  improved.</para>
+
 	<para revision="210376">The &man.mpt.4; driver now supports
 	  larger I/O sizes which the device and &man.CAM.4; subsystem
 	  can support.  This was limited to 64KB, and the number of
@@ -438,6 +507,13 @@
       <sect3 id="fs">
 	<title>File Systems</title>
 
+	<para revision="212716">The &os; NFS client now supports a
+	  kernel environment variable
+	  <varname>boot.nfsroot.nfshandlelen</varname>.  This lets the
+	  diskless root file system on boot to use NFS version 3 and
+	  the spedified file handle length.  If this variable is not
+	  set, NFS version 2 is used.</para>
+
 	<para revision="212668">The ZFS on-disk format has been updated
 	  to version 15.</para>
 
@@ -447,37 +523,46 @@
 	  related OpenSolaris Bug IDs are 6826241, 6869229, 6918420,
 	  and 6917066.</para>
 
-	<para>The default value of
+	<para revision="212672">Performance improvements for the ZFS
+	  have been imported from OpenSolaris.  They include cachin of
+	  ACL permission checks, faster handling of &man.stat.2;,
+	  mitigation of mutex lock contention.  The related
+	  OpenSolaris Bug IDs are 6802734, 6844861, 6848431, 6775100,
+	  6827779, 6857433, 6860318, 6865875, 6867395, 6868276, and
+	  6870564.</para>
+
+	<para revision="210541">The default value of
 	  <varname>vfs.zfs.vdev.max_pending</varname> has been
 	  decreased from 35 to 10 (OpenSolaris Bug ID is 6891731) to
 	  improve latency.</para>
 
-	<para>Bugs in the ZFS subsystem has been fixed.  The
-	  OpenSolaris Bug IDs are: 6798878, 6809683, 6794570, 6844069,
-	  6788152, 6843235, 6857012, 6870564, 6836714, 6836714,
-	  6870564, 6857012, 6843235, 6788152, 6844069, 6794570,
-	  6809683, 6798878, 6950219, 6953403, 6951024, 6809340,
-	  6755435, 6748436, 6740164, 6769612, 6757430, 6542860,
-	  6761100, 6774886, 6737463, 6765294, 6572357, 6572376,
-	  6328632, 6739487, 6767129, 6747698, 6745863, 6722540,
-	  6759999, 6758107, 6776548, 6761406, 6770866, 6674216,
-	  6621164, 6635482, 6595194, 6722991, 6396518, 6713916,
-	  6739553, 6784104, 6784108, 6788830, 6791064, 6791066,
-	  6791071, 6792134, 6792884, 6798384, 6551866, 6504953,
-	  6702206, 6780491, 6747596, 6801507, 6633095, 6775697,
-	  6790687, 6791101, 6800942, 6582163, 6804954, 6800184,
-	  6803822, 6789318, 6790345, 6797109, 6797118, 6803343,
-	  6815893, 6809691, 6790064, 6604992, 6810367, 6807765,
-	  6821169, 6821170, 6824006, 6792139, 6794830, 6824062,
-	  6816124, 6818183, 6710376, 6501037, 6827260, 6815592,
-	  6759986, 6774713, 6717022, 6799895, 6826466, 6826468,
-	  6826469, 6826470, 6826471, 6826472, 6833711, 6764124,
-	  6830237, 6833162, 6824968, 6834217, 6596237, 6623978,
-	  6801810, 6586537, 6836768, 6838062, 6794136, 6776104,
-	  6664765, 6841321, 6843069, 6847229, 6838344, 6844900,
-	  6857012, 6848242, 6856634, 6861983, 6862984, 6696858,
-	  6696858, 6882227, 6880764, 6793430, 6822816, 6892298,
-	  6807339, 6906110, 6906946, 6898245, and 6833999.</para>
+	<para>Various bugs in the ZFS subsystem have been fixed.  The
+	  related OpenSolaris Bug IDs are: 6328632, 6396518, 6501037,
+	  6504953, 6542860, 6551866, 6572357, 6572376, 6582163,
+	  6586537, 6595194, 6596237, 6604992, 6621164, 6623978,
+	  6633095, 6635482, 6664765, 6674216, 6696858, 6696858,
+	  6702206, 6710376, 6713916, 6717022, 6722540, 6722991,
+	  6737463, 6739487, 6739553, 6740164, 6745863, 6747596,
+	  6747698, 6748436, 6755435, 6757430, 6758107, 6759986,
+	  6759999, 6761100, 6761406, 6764124, 6765294, 6767129,
+	  6769612, 6770866, 6774713, 6774886, 6775697, 6776104,
+	  6776548, 6780491, 6784104, 6784108, 6788152, 6788152,
+	  6788830, 6789318, 6790064, 6790345, 6790687, 6791064,
+	  6791066, 6791071, 6791101, 6792134, 6792139, 6792884,
+	  6793430, 6794136, 6794570, 6794570, 6794830, 6797109,
+	  6797118, 6798384, 6798878, 6798878, 6799895, 6800184,
+	  6800942, 6801507, 6801810, 6803343, 6803822, 6804954,
+	  6807339, 6807765, 6809340, 6809683, 6809683, 6809691,
+	  6810367, 6815592, 6815893, 6816124, 6818183, 6821169,
+	  6821170, 6822816, 6824006, 6824062, 6824968, 6826466,
+	  6826468, 6826469, 6826470, 6826471, 6826472, 6827260,
+	  6830237, 6833162, 6833711, 6833999, 6834217, 6836714,
+	  6836714, 6836768, 6838062, 6838344, 6841321, 6843069,
+	  6843235, 6843235, 6844069, 6844069, 6844900, 6847229,
+	  6848242, 6856634, 6857012, 6857012, 6857012, 6861983,
+	  6862984, 6863610, 6870564, 6870564, 6880764, 6882227,
+	  6892298, 6898245, 6906110, 6906946, 6939941, 6950219,
+	  6951024, and 6953403.</para>
       </sect3>
     </sect2>
 
@@ -522,6 +607,16 @@
 	<command>resize</command> command to resize partitions for all
 	schemes but EBR.</para>
 
+      <para revision="213661">The &man.gpart.8; utility now handles
+	given geom/provider names with and without
+	<filename>/dev/</filename> prefix.</para>
+
+      <para revision="213049">The &man.hastd.8; utility now supports
+	<literal>SIGHUP</literal> for reloading the configuration
+	file.  When <literal>SIGTERM</literal> or
+	<literal>SIGINT</literal> is received, the worker processes
+	terminate.</para>
+
       <para revision="212144">The &man.ifconfig.8; utility now check an
 	invalid CIDR subnet notation more strictly.  It wrongly
 	accepted <literal>10.0.0.1/10.0.0.1</literal> as
@@ -531,10 +626,18 @@
 	sequences and reverse ranges in the &man.jot.1; utility have
 	been fixed.</para>
 
+      <para revision="213667">The <filename>libarchive</filename> and
+	&man.tar.1; utility now support LZMA (Lempel-Ziv-Markov
+	chain-Algorithm) compression format.</para>
+
       <para revision="211699">The &man.newsyslog.8; utility now supports
 	an <option>-S <replaceable>pidfile</replaceable></option>
 	option to override the default &man.syslogd.8; PID
 	file.</para>
+
+      <para revision="212848">An off-by-one error in the &man.pax.1;
+	utility when ustar file name is too long has been
+	fixed.</para>
 
       <para revision="209912">The &man.pkill.1; utility now supports
 	an <option>-l</option> option which the &man.kill.1; utility
@@ -580,6 +683,10 @@
       <para revision="211536">The &man.sleep.1; utility now supports
 	<literal>SIGINFO</literal> signal and reports the specified
 	sleep time and the remaining time.</para>
+
+      <para revision="213036,213038">The &man.tftp.1; and &man.tftpd.8;
+	utilities have been improved for better interoperability and
+	they now supports RFC 1350, 2347, 2348, 2349, and 3617.</para>
 
       <para revision="210566">The &man.uname.1; utility now supports an
 	<option>-o</option> flag as a synonym for the
@@ -637,7 +744,7 @@
 	version 8.14.4.</para>
 -->
       <para>The timezone database has been updated to the
-	<application>tzdata2010l</application> release.</para>
+	<application>tzdata2010m</application> release.</para>
     </sect2>
 
     <sect2 id="releng">
