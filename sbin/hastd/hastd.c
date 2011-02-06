@@ -185,7 +185,7 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 		} else {
 			isopen = true;	/* silence gcc */
 			mode = 0;	/* silence gcc */
-			snprintf(msg, sizeof(msg),
+			(void)snprintf(msg, sizeof(msg),
 			    "Unable to fstat descriptor %d: %s", fd,
 			    strerror(errno));
 			break;
@@ -193,7 +193,7 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 		if (fd == STDIN_FILENO || fd == STDOUT_FILENO ||
 		    fd == STDERR_FILENO) {
 			if (!isopen) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (%s) is closed, but should be open.",
 				    fd, (fd == STDIN_FILENO ? "stdin" :
 				    (fd == STDOUT_FILENO ? "stdout" : "stderr")));
@@ -201,39 +201,39 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 			}
 		} else if (fd == proto_descriptor(res->hr_event)) {
 			if (!isopen) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (event) is closed, but should be open.",
 				    fd);
 				break;
 			}
 			if (!S_ISSOCK(mode)) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (event) is %s, but should be %s.",
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
 				break;
 			}
 		} else if (fd == proto_descriptor(res->hr_ctrl)) {
 			if (!isopen) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (ctrl) is closed, but should be open.",
 				    fd);
 				break;
 			}
 			if (!S_ISSOCK(mode)) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (ctrl) is %s, but should be %s.",
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
 				break;
 			}
 		} else if (fd == proto_descriptor(res->hr_conn)) {
 			if (!isopen) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (conn) is closed, but should be open.",
 				    fd);
 				break;
 			}
 			if (!S_ISSOCK(mode)) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (conn) is %s, but should be %s.",
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
 				break;
@@ -241,13 +241,13 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 		} else if (res->hr_role == HAST_ROLE_SECONDARY &&
 		    fd == proto_descriptor(res->hr_remotein)) {
 			if (!isopen) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (remote in) is closed, but should be open.",
 				    fd);
 				break;
 			}
 			if (!S_ISSOCK(mode)) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (remote in) is %s, but should be %s.",
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
 				break;
@@ -255,20 +255,20 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 		} else if (res->hr_role == HAST_ROLE_SECONDARY &&
 		    fd == proto_descriptor(res->hr_remoteout)) {
 			if (!isopen) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (remote out) is closed, but should be open.",
 				    fd);
 				break;
 			}
 			if (!S_ISSOCK(mode)) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (remote out) is %s, but should be %s.",
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
 				break;
 			}
 		} else {
 			if (isopen) {
-				snprintf(msg, sizeof(msg),
+				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d is open (%s), but should be closed.",
 				    fd, dtype2str(mode));
 				break;
