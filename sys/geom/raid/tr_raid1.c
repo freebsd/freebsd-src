@@ -415,12 +415,10 @@ g_raid_tr_event_raid1(struct g_raid_tr_object *tr,
 		if (trs->trso_type == TR_RAID1_REBUILD ||
 		    trs->trso_type == TR_RAID1_RESYNC)
 			g_raid_tr_raid1_rebuild_abort(tr, vol);
-//		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
 		break;
 	case G_RAID_SUBDISK_E_DISCONNECTED:
 		if (trs->trso_type == TR_RAID1_REBUILD)
 			g_raid_tr_raid1_rebuild_abort(tr, vol);
-		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
 		break;
 	}
 	g_raid_tr_update_state_raid1(vol);
