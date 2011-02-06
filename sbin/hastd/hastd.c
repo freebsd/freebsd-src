@@ -109,6 +109,12 @@ descriptors_cleanup(struct hast_resource *res)
 			proto_close(tres->hr_remotein);
 		if (tres->hr_remoteout != NULL)
 			proto_close(tres->hr_remoteout);
+		if (tres->hr_ctrl != NULL)
+			proto_close(tres->hr_ctrl);
+		if (tres->hr_event != NULL)
+			proto_close(tres->hr_event);
+		if (tres->hr_conn != NULL)
+			proto_close(tres->hr_conn);
 	}
 	if (cfg->hc_controlin != NULL)
 		proto_close(cfg->hc_controlin);
