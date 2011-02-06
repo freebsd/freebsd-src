@@ -3891,12 +3891,19 @@ rx_accept:
 			rs->rs_keyix == HAL_RXKEYIX_INVALID ?
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
+		/* tag AMPDU aggregates for reorder processing */
+		/*
+		 * Just make sure all frames are tagged for AMPDU reorder checking.
+		 * As there seems to be some situations where single frames aren't
+		 * matching a node but bump the seqno. This needs to be investigated.
+		 */
+		m->m_flags |= M_AMPDU;
+
+		/* Keep statistics on the number of aggregate packets received */
+		if (rs->rs_isaggr)
+			sc->sc_stats.ast_rx_agg++;
+
 		if (ni != NULL) {
-			/* tag AMPDU aggregates for reorder processing */
-			if (rs->rs_isaggr) {
-				
-				m->m_flags |= M_AMPDU;
-			}
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
