@@ -137,19 +137,15 @@ g_raid_tr_event_raid0(struct g_raid_tr_object *tr,
 	trs = (struct g_raid_tr_raid0_object *)tr;
 	vol = tr->tro_volume;
 	sc = vol->v_softc;
-	if (event == G_RAID_SUBDISK_E_NEW) {
-		state = sd->sd_state;
-		if (state != G_RAID_SUBDISK_S_NONE &&
-		    state != G_RAID_SUBDISK_S_FAILED &&
-		    state != G_RAID_SUBDISK_S_ACTIVE)
-			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
-		if (state != sd->sd_state &&
-		    !trs->trso_starting && !trs->trso_stopped)
-			g_raid_write_metadata(sc, vol, sd, NULL);
-	} else if (event == G_RAID_SUBDISK_E_FAILED) {
-//		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
-	} else
-		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
+
+	state = sd->sd_state;
+	if (state != G_RAID_SUBDISK_S_NONE &&
+	    state != G_RAID_SUBDISK_S_FAILED &&
+	    state != G_RAID_SUBDISK_S_ACTIVE)
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
+	if (state != sd->sd_state &&
+	    !trs->trso_starting && !trs->trso_stopped)
+		g_raid_write_metadata(sc, vol, sd, NULL);
 	g_raid_tr_update_state_raid0(vol);
 	return (0);
 }
