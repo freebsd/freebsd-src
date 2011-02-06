@@ -188,6 +188,7 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 			snprintf(msg, sizeof(msg),
 			    "Unable to fstat descriptor %d: %s", fd,
 			    strerror(errno));
+			break;
 		}
 		if (fd == STDIN_FILENO || fd == STDOUT_FILENO ||
 		    fd == STDERR_FILENO) {
