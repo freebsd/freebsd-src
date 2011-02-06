@@ -332,15 +332,6 @@ g_raid_get_diskname(struct g_raid_disk *disk)
 	return (disk->d_consumer->provider->name);
 }
 
-static const char *
-g_raid_get_subdiskname(struct g_raid_subdisk *subdisk)
-{
-
-	if (subdisk->sd_disk == NULL)
-		return ("[unknown]");
-	return (g_raid_get_diskname(subdisk->sd_disk));
-}
-
 void
 g_raid_report_disk_state(struct g_raid_disk *disk)
 {
@@ -392,8 +383,9 @@ void
 g_raid_change_subdisk_state(struct g_raid_subdisk *sd, int state)
 {
 
-	G_RAID_DEBUG(1, "Subdisk %s state changed from %s to %s.",
-	    g_raid_get_subdiskname(sd),
+	G_RAID_DEBUG(1, "Subdisk %s:%d-%s state changed from %s to %s.",
+	    sd->sd_volume->v_name, sd->sd_pos,
+	    sd->sd_disk ? g_raid_get_diskname(sd->sd_disk) : "[none]",
 	    g_raid_subdisk_state2str(sd->sd_state),
 	    g_raid_subdisk_state2str(state));
 	sd->sd_state = state;
@@ -1408,9 +1400,10 @@ g_raid_update_subdisk(struct g_raid_subdisk *sd, u_int event)
 	vol = sd->sd_volume;
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	G_RAID_DEBUG(3, "Event %s for subdisk %s.",
+	G_RAID_DEBUG(2, "Event %s for subdisk %s:%d-%s.",
 	    g_raid_subdisk_event2str(event),
-	    g_raid_get_subdiskname(sd));
+	    vol->v_name, sd->sd_pos,
+	    sd->sd_disk ? g_raid_get_diskname(sd->sd_disk) : "[none]");
 	if (vol->v_tr)
 		G_RAID_TR_EVENT(vol->v_tr, sd, event);
 

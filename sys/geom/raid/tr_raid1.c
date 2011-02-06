@@ -195,8 +195,8 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol)
 			if (bestsd->sd_state >= G_RAID_SUBDISK_S_UNINITIALIZED) {
 				/* We found reasonable candidate. */
 				G_RAID_DEBUG(1,
-				    "Promote subdisk %d from %s to ACTIVE.",
-				    bestsd->sd_pos,
+				    "Promote subdisk %s:%d from %s to ACTIVE.",
+				    vol->v_name, bestsd->sd_pos,
 				    g_raid_subdisk_state2str(bestsd->sd_state));
 				g_raid_change_subdisk_state(bestsd,
 				    G_RAID_SUBDISK_S_ACTIVE);
