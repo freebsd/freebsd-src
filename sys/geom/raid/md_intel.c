@@ -964,7 +964,7 @@ g_raid_md_intel_new_disk(struct g_raid_disk *disk)
 	} else {
 		/* If we haven't started yet - check metadata freshness. */
 		if (mdi->mdio_meta == NULL ||
-		    pdmeta->generation > mdi->mdio_generation) {
+		    ((int32_t)(pdmeta->generation - mdi->mdio_generation)) > 0) {
 			G_RAID_DEBUG(1, "Newer disk");
 			if (mdi->mdio_meta != NULL)
 				free(mdi->mdio_meta, M_MD_INTEL);
