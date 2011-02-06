@@ -5946,32 +5946,32 @@ sctp_input(struct mbuf *m, int off)
 	struct sctphdr *sh;
 	int offset;
 	int cpu_to_use;
-	uint32_t tag;
+	uint32_t flowid, tag;
 
 	if (mp_ncpus > 1) {
-		ip = mtod(m, struct ip *);
-		offset = off + sizeof(*sh);
-		if (SCTP_BUF_LEN(m) < offset) {
-			if ((m = m_pullup(m, offset)) == 0) {
-				SCTP_STAT_INCR(sctps_hdrops);
-				return;
-			}
-			ip = mtod(m, struct ip *);
-		}
-		sh = (struct sctphdr *)((caddr_t)ip + off);
-		if (sh->v_tag) {
-			tag = htonl(sh->v_tag);
+		if (m->m_flags & M_FLOWID) {
+			flowid = m->m_pkthdr.flowid;
 		} else {
 			/*
-			 * Distribute new INIT's to all CPU's don't just
-			 * pick on 0.
+			 * No flow id built by lower layers fix it so we
+			 * create one.
 			 */
-			struct timeval tv;
-
-			(void)SCTP_GETTIME_TIMEVAL(&tv);
-			tag = (uint32_t) tv.tv_usec;
+			ip = mtod(m, struct ip *);
+			offset = off + sizeof(*sh);
+			if (SCTP_BUF_LEN(m) < offset) {
+				if ((m = m_pullup(m, offset)) == 0) {
+					SCTP_STAT_INCR(sctps_hdrops);
+					return;
+				}
+				ip = mtod(m, struct ip *);
+			}
+			sh = (struct sctphdr *)((caddr_t)ip + off);
+			tag = htonl(sh->v_tag);
+			flowid = tag ^ ntohs(sh->dest_port) ^ ntohs(sh->src_port);
+			m->m_pkthdr.flowid = flowid;
+			m->m_flags |= M_FLOWID;
 		}
-		cpu_to_use = sctp_cpuarry[tag % mp_ncpus];
+		cpu_to_use = sctp_cpuarry[flowid % mp_ncpus];
 		sctp_queue_to_mcore(m, off, cpu_to_use);
 		return;
 	}
