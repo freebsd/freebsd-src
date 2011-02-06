@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.483.36.17 2009/12/21 04:32:42 marka Exp $ */
+/* $Id: zone.c,v 1.483.36.23 2010-12-14 00:48:22 marka Exp $ */
 
 /*! \file */
 
@@ -1700,6 +1700,12 @@ zone_check_mx(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 	dns_fixedname_t fixed;
 	dns_name_t *foundname;
 	int level;
+
+	/*
+	 * "." means the services does not exist.
+	 */
+	if (dns_name_equal(name, dns_rootname))
+		return (ISC_TRUE);
 
 	/*
 	 * Outside of zone.
@@ -3656,6 +3662,7 @@ find_zone_keys(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver,
 	isc_result_t result;
 	dns_dbnode_t *node = NULL;
 	const char *directory = dns_zone_getkeydirectory(zone);
+
 	CHECK(dns_db_findnode(db, dns_db_origin(db), ISC_FALSE, &node));
 	result = dns_dnssec_findzonekeys2(db, ver, node, dns_db_origin(db),
 					  directory, mctx, maxkeys, keys,
@@ -3759,7 +3766,7 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 
 		if (type != dns_rdatatype_dnskey) {
 			result = update_one_rr(db, ver, diff,
-					       DNS_DIFFOP_DEL, name,
+					       DNS_DIFFOP_DELRESIGN, name,
 					       rdataset.ttl, &rdata);
 			dns_rdata_reset(&rdata);
 			if (result != ISC_R_SUCCESS)
@@ -3801,7 +3808,7 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 					break;
 				}
 				result = update_one_rr(db, ver, diff,
-						       DNS_DIFFOP_DEL,
+						       DNS_DIFFOP_DELRESIGN,
 						       name, rdataset.ttl,
 						       &rdata);
 				break;
@@ -3812,8 +3819,9 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 		 * delete the RRSIG.
 		 */
 		if (!found)
-			result = update_one_rr(db, ver, diff, DNS_DIFFOP_DEL,
-					       name, rdataset.ttl, &rdata);
+			result = update_one_rr(db, ver, diff,
+					       DNS_DIFFOP_DELRESIGN, name,
+					       rdataset.ttl, &rdata);
 		dns_rdata_reset(&rdata);
 		if (result != ISC_R_SUCCESS)
 			break;
@@ -3877,6 +3885,7 @@ add_sigs(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 		CHECK(update_one_rr(db, ver, diff, DNS_DIFFOP_ADDRESIGN,
 				    name, rdataset.ttl, &sig_rdata));
 		dns_rdata_reset(&sig_rdata);
+		isc_buffer_init(&buffer, data, sizeof(data));
 	}
 
  failure:
@@ -5475,7 +5484,7 @@ del_sig(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 			    rrsig.keyid != keyid)
 				continue;
 			CHECK(update_one_rr(db, version, diff,
-					    DNS_DIFFOP_DEL, name,
+					    DNS_DIFFOP_DELRESIGN, name,
 					    rdataset.ttl, &rdata));
 		}
 		dns_rdataset_disassociate(&rdataset);
@@ -10091,6 +10100,7 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 	isc_sockaddr_t sourceaddr;
 	isc_sockaddr_t masteraddr;
 	isc_time_t now;
+	const char *soa_before = "";
 
 	UNUSED(task);
 
@@ -10118,6 +10128,8 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 	isc_netaddr_fromsockaddr(&masterip, &zone->masteraddr);
 	(void)dns_peerlist_peerbyaddr(zone->view->peers, &masterip, &peer);
 
+	if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_SOABEFOREAXFR))
+		soa_before = "SOA before ";
 	/*
 	 * Decide whether we should request IXFR or AXFR.
 	 */
@@ -10128,8 +10140,12 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 		xfrtype = dns_rdatatype_axfr;
 	} else if (DNS_ZONE_OPTION(zone, DNS_ZONEOPT_IXFRFROMDIFFS)) {
 		dns_zone_log(zone, ISC_LOG_DEBUG(1), "ixfr-from-differences "
-			     "set, requesting AXFR from %s", master);
-		xfrtype = dns_rdatatype_axfr;
+			     "set, requesting %sAXFR from %s", soa_before,
+			     master);
+		if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_SOABEFOREAXFR))
+			xfrtype = dns_rdatatype_soa;
+		else
+			xfrtype = dns_rdatatype_axfr;
 	} else if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_FORCEXFER)) {
 		dns_zone_log(zone, ISC_LOG_DEBUG(1),
 			     "forced reload, requesting AXFR of "
@@ -10154,8 +10170,8 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 		}
 		if (use_ixfr == ISC_FALSE) {
 			dns_zone_log(zone, ISC_LOG_DEBUG(1),
-				     "IXFR disabled, requesting AXFR from %s",
-				     master);
+				     "IXFR disabled, requesting %sAXFR from %s",
+				     soa_before, master);
 			if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_SOABEFOREAXFR))
 				xfrtype = dns_rdatatype_soa;
 			else

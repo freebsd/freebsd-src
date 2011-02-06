@@ -33,15 +33,11 @@ case $host in
 *-*-sysv*OpenUNIX*)
         # UnixWare
 	use_threads=true ;;
+*-netbsd[1234].*)
+	# NetBSD earlier than NetBSD 5.0 has poor pthreads.  Don't use it by default.
+	use_threads=false ;;
 *-netbsd*)
-	if test -r /usr/lib/libpthread.so ; then
-	    use_threads=true
-	else
-	    # Socket I/O optimizations introduced in 9.2 expose a
-	    # bug in unproven-pthreads; see PR #12650
-	    use_threads=false
-	fi
-	;;
+	use_threads=true ;;
 *-openbsd*)
 	# OpenBSD users have reported that named dumps core on
 	# startup when built with threads.
@@ -92,54 +88,6 @@ then
 	# Search for / configure pthreads in a system-dependent fashion.
 	#
 	case "$host" in
-	  *-netbsd*)
-		# NetBSD has multiple pthreads implementations.	 The
-		# recommended one to use is "unproven-pthreads".  The
-		# older "mit-pthreads" may also work on some NetBSD
-		# versions.  The PTL2 thread library does not
-		# currently work with bind9, but can be chosen with
-		# the --with-ptl2 option for those who wish to
-		# experiment with it.
-		CC="gcc"
-		AC_MSG_CHECKING(which NetBSD thread library to use)
-
-		AC_ARG_WITH(ptl2,
-[  --with-ptl2		on NetBSD, use the ptl2 thread library (experimental)],
-		    use_ptl2="$withval", use_ptl2="no")
-
-		: ${LOCALBASE:=/usr/pkg}
-
-		if test "X$use_ptl2" = "Xyes"
-		then
-			AC_MSG_RESULT(PTL2)
-			AC_MSG_WARN(
-[linking with PTL2 is highly experimental and not expected to work])
-			CC=ptlgcc
-		else
-			if test -r /usr/lib/libpthread.so
-			then
-				AC_MSG_RESULT(native)
-				LIBS="-lpthread $LIBS"
-			else
-				if test ! -d $LOCALBASE/pthreads
-				then
-					AC_MSG_RESULT(none)
-					AC_MSG_ERROR("could not find thread libraries")
-				fi
-
-				if $use_threads
-				then
-					AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
-					pkg="$LOCALBASE/pthreads"
-					lib1="-L$pkg/lib -Wl,-R$pkg/lib"
-					lib2="-lpthread -lm -lgcc -lpthread"
-					LIBS="$lib1 $lib2 $LIBS"
-					CPPFLAGS="$CPPFLAGS -I$pkg/include"
-					STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
-				fi
-			fi
-		fi
-		;;
 		*-freebsd*)
 			# We don't want to set -lpthread as that break
 			# the ability to choose threads library at final

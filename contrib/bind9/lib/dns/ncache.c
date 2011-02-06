@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ncache.c,v 1.43.336.5 2010/05/19 09:56:44 marka Exp $ */
+/* $Id: ncache.c,v 1.43.48.7 2010-05-19 09:53:46 marka Exp $ */
 
 /*! \file */
 

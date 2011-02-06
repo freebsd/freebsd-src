@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.h,v 1.60.56.3.24.1 2010/03/03 22:06:39 marka Exp $ */
+/* $Id: resolver.h,v 1.60.56.5 2010-02-25 10:56:41 tbox Exp $ */
 
 #ifndef DNS_RESOLVER_H
 #define DNS_RESOLVER_H 1
