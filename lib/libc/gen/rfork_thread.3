@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2000
+.Dd February 6, 2011
 .Dt RFORK_THREAD 3
 .Os
 .Sh NAME
@@ -38,6 +38,13 @@
 .Ft pid_t
 .Fn rfork_thread "int flags" "void *stack" "int (*func)(void *arg)" "void *arg"
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn rfork_thread
+function has been deprecated in favor of
+.Xr pthread_create 3 .
+.Ef
+.Pp
 The
 .Fn rfork_thread
 function
@@ -71,7 +78,8 @@ for error return codes.
 .Xr intro 2 ,
 .Xr minherit 2 ,
 .Xr rfork 2 ,
-.Xr vfork 2
+.Xr vfork 2 ,
+.Xr pthread_create 3
 .Sh HISTORY
 The
 .Fn rfork_thread
