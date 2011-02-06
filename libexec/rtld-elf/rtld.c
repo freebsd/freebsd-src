@@ -3448,10 +3448,17 @@ locate_dependency(const Obj_Entry *obj, const char *name)
     }
 
     for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
-	if (needed->obj == NULL)
-	    continue;
-	if (object_match_name(needed->obj, name))
-	    return needed->obj;
+	if (strcmp(obj->strtab + needed->name, name) == 0 ||
+	  (needed->obj != NULL && object_match_name(needed->obj, name))) {
+	    /*
+	     * If there is DT_NEEDED for the name we are looking for,
+	     * we are all set.  Note that object might not be found if
+	     * dependency was not loaded yet, so the function can
+	     * return NULL here.  This is expected and handled
+	     * properly by the caller.
+	     */
+	    return (needed->obj);
+	}
     }
     _rtld_error("%s: Unexpected inconsistency: dependency %s not found",
 	obj->path, name);
@@ -3577,6 +3584,8 @@ rtld_verify_object_versions(Obj_Entry *obj)
     vn = obj->verneed;
     while (vn != NULL) {
 	depobj = locate_dependency(obj, obj->strtab + vn->vn_file);
+	if (depobj == NULL)
+	    return (-1);
 	vna = (const Elf_Vernaux *) ((char *)vn + vn->vn_aux);
 	for (;;) {
 	    if (check_object_provided_version(obj, depobj, vna))
