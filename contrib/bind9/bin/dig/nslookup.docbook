@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nslookup.docbook,v 1.16 2007/06/18 23:47:17 tbox Exp $ -->
+<!-- $Id: nslookup.docbook,v 1.16.334.2 2010-02-22 23:47:53 tbox Exp $ -->
 <!--
  - Copyright (c) 1985, 1989
  -    The Regents of the University of California.  All rights reserved.
@@ -73,6 +73,7 @@
       <year>2005</year>
       <year>2006</year>
       <year>2007</year>
+      <year>2010</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -129,11 +130,11 @@
       arguments and are prefixed with a hyphen.  For example, to
       change the default query type to host information, and the initial
       timeout to 10 seconds, type:
-      <informalexample>
+      <!-- <informalexample> produces bad nroff. -->
         <programlisting>
 nslookup -query=hinfo  -timeout=10
 </programlisting>
-      </informalexample>
+      <!-- </informalexample> -->
     </para>
 
   </refsect1>

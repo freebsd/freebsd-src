@@ -163,8 +163,20 @@ int sigwait(const unsigned int *set, int *sig);
 /* Solaris hack to get select_large_fdset. */
 /* #undef FD_SETSIZE */
 
+/* Define to nothing if C supports flexible array members, and to 1 if it does
+   not. That way, with a declaration like `struct s { int n; double
+   d[FLEXIBLE_ARRAY_MEMBER]; };', the struct hack can be used with pre-C99
+   compilers. When computing the size of such an object, don't use 'sizeof
+   (struct s)' as it overestimates the size. Use 'offsetof (struct s, d)'
+   instead. Don't use 'offsetof (struct s, d[0])', as this doesn't work with
+   MSVC and with C++ compilers. */
+#define FLEXIBLE_ARRAY_MEMBER /**/
+
 /* Define to 1 if you have the `chroot' function. */
 #define HAVE_CHROOT 1
+
+/* Define to 1 if you have the <devpoll.h> header file. */
+/* #undef HAVE_DEVPOLL_H */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
@@ -186,6 +198,15 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
+
+/* Define to 1 if you have the <kerberosv5/krb5.h> header file. */
+/* #undef HAVE_KERBEROSV5_KRB5_H */
+
+/* Define to 1 if you have the <krb5.h> header file. */
+/* #undef HAVE_KRB5_H */
+
+/* Define to 1 if you have the <krb5/krb5.h> header file. */
+/* #undef HAVE_KRB5_KRB5_H */
 
 /* Define to 1 if you have the `c' library (-lc). */
 /* #undef HAVE_LIBC */
