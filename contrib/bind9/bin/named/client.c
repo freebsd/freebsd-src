@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.259.12.3.24.2 2010/09/29 23:46:31 tbox Exp $ */
+/* $Id: client.c,v 1.259.12.5 2010-09-24 08:30:27 tbox Exp $ */
 
 #include <config.h>
 

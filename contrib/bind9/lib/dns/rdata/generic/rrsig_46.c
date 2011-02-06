@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rrsig_46.c,v 1.10 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: rrsig_46.c,v 1.10.332.2 2011-01-13 04:48:23 tbox Exp $ */
 
 /* Reviewed: Fri Mar 17 09:05:02 PST 2000 by gson */
 
@@ -134,8 +134,6 @@ totext_rrsig(ARGS_TOTEXT) {
 	unsigned long exp;
 	unsigned long foot;
 	dns_name_t name;
-	dns_name_t prefix;
-	isc_boolean_t sub;
 
 	REQUIRE(rdata->type == 46);
 	REQUIRE(rdata->length != 0);
@@ -217,11 +215,9 @@ totext_rrsig(ARGS_TOTEXT) {
 	 * Signer.
 	 */
 	dns_name_init(&name, NULL);
-	dns_name_init(&prefix, NULL);
 	dns_name_fromregion(&name, &sr);
 	isc_region_consume(&sr, name_length(&name));
-	sub = name_prefix(&name, tctx->origin, &prefix);
-	RETERR(dns_name_totext(&prefix, sub, target));
+	RETERR(dns_name_totext(&name, ISC_FALSE, target));
 
 	/*
 	 * Sig.

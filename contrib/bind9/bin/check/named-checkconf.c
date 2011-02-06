@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkconf.c,v 1.46.222.2.24.2 2010/09/07 23:46:26 tbox Exp $ */
+/* $Id: named-checkconf.c,v 1.46.222.4 2010-09-07 23:46:05 tbox Exp $ */
 
 /*! \file */
 
