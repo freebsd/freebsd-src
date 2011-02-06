@@ -183,8 +183,6 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 			isopen = false;
 			mode = 0;
 		} else {
-			isopen = true;	/* silence gcc */
-			mode = 0;	/* silence gcc */
 			(void)snprintf(msg, sizeof(msg),
 			    "Unable to fstat descriptor %d: %s", fd,
 			    strerror(errno));
