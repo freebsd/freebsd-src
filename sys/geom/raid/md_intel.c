@@ -737,10 +737,14 @@ nofit:
 				/* Rebuilding disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_REBUILD);
-				sd->sd_rebuild_pos =
-				    (off_t)mvol->curr_migr_unit *
-				    sd->sd_volume->v_strip_size *
-				    mmap0->total_domains;
+				if (mvol->dirty) {
+					sd->sd_rebuild_pos = 0;
+				} else {
+					sd->sd_rebuild_pos =
+					    (off_t)mvol->curr_migr_unit *
+					    sd->sd_volume->v_strip_size *
+					    mmap0->total_domains;
+				}
 			}
 		} else if (mvol->migr_type == INTEL_MT_VERIFY ||
 			   mvol->migr_type == INTEL_MT_REPAIR) {
@@ -756,10 +760,14 @@ nofit:
 				/* Resyncing disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_RESYNC);
-				sd->sd_rebuild_pos =
-				    (off_t)mvol->curr_migr_unit *
-				    sd->sd_volume->v_strip_size *
-				    mmap0->total_domains;
+				if (mvol->dirty) {
+					sd->sd_rebuild_pos = 0;
+				} else {
+					sd->sd_rebuild_pos =
+					    (off_t)mvol->curr_migr_unit *
+					    sd->sd_volume->v_strip_size *
+					    mmap0->total_domains;
+				}
 			}
 		}
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
