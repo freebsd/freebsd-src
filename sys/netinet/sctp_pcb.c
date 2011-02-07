@@ -4039,6 +4039,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	net->flowid = stcb->asoc.my_vtag ^
 	    ntohs(stcb->rport) ^
 	    ntohs(stcb->sctp_ep->sctp_lport);
+	net->flowidset = 1;
 	return (0);
 }
 
@@ -5602,7 +5603,6 @@ sctp_startup_mcore_threads(void)
 
 #endif
 
-
 void
 sctp_pcb_init()
 {
@@ -5750,7 +5750,6 @@ sctp_pcb_init()
 	 * add the VRF's as addresses are added.
 	 */
 	sctp_init_vrf_list(SCTP_DEFAULT_VRF);
-
 }
 
 /*

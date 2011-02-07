@@ -2617,6 +2617,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	}
 	if ((*netp != NULL) && (m->m_flags & M_FLOWID)) {
 		(*netp)->flowid = m->m_pkthdr.flowid;
+		(*netp)->flowidset = 1;
 	}
 	/*
 	 * Ok, we built an association so confirm the address we sent the
@@ -5845,6 +5846,7 @@ sctp_skip_csum_4:
 	}
 	if ((net != NULL) && (m->m_flags & M_FLOWID)) {
 		net->flowid = m->m_pkthdr.flowid;
+		net->flowidset = 1;
 	}
 	/* inp's ref-count increased && stcb locked */
 	if (inp == NULL) {
