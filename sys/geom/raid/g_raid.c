@@ -187,10 +187,12 @@ g_raid_subdisk_state2str(int state)
 		return ("FAILED");
 	case G_RAID_SUBDISK_S_NEW:
 		return ("NEW");
-	case G_RAID_SUBDISK_S_STALE:
-		return ("STALE");
 	case G_RAID_SUBDISK_S_REBUILD:
 		return ("REBUILD");
+	case G_RAID_SUBDISK_S_UNINITIALIZED:
+		return ("UNINITIALIZED");
+	case G_RAID_SUBDISK_S_STALE:
+		return ("STALE");
 	case G_RAID_SUBDISK_S_RESYNC:
 		return ("RESYNC");
 	case G_RAID_SUBDISK_S_ACTIVE:
@@ -551,6 +553,30 @@ g_raid_nsubdisks(struct g_raid_volume *vol, int state)
 			n++;
 	}
 	return (n);
+}
+
+/*
+ * Return the first subdisk in given state.
+ * If state is equal to -1, then the first connected disks.
+ */
+struct g_raid_subdisk *
+g_raid_get_subdisk(struct g_raid_volume *vol, int state)
+{
+	struct g_raid_subdisk *sd;
+	struct g_raid_softc *sc;
+	u_int i;
+
+	sc = vol->v_softc;
+	sx_assert(&sc->sc_lock, SX_LOCKED);
+
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		if ((state == -1 &&
+		     sd->sd_state != G_RAID_SUBDISK_S_NONE) ||
+		    sd->sd_state == state)
+			return (sd);
+	}
+	return (NULL);
 }
 
 static u_int

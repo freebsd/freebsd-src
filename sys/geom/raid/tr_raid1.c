@@ -138,12 +138,9 @@ static struct g_raid_tr_class g_raid_tr_raid1_class = {
 	.trc_priority = 100
 };
 
-static void g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr,
-    struct g_raid_volume *vol);
-static struct g_raid_subdisk *g_raid_tr_raid1_find_good_drive(
-    struct g_raid_volume *vol);
+static void g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr);
 static void g_raid_tr_raid1_maybe_rebuild(struct g_raid_tr_object *tr,
-    struct g_raid_volume *vol);
+    struct g_raid_subdisk *sd);
 
 static int
 g_raid_tr_taste_raid1(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
@@ -160,10 +157,11 @@ g_raid_tr_taste_raid1(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 }
 
 static int
-g_raid_tr_update_state_raid1(struct g_raid_volume *vol)
+g_raid_tr_update_state_raid1(struct g_raid_volume *vol,
+    struct g_raid_subdisk *sd)
 {
 	struct g_raid_tr_raid1_object *trs;
-	struct g_raid_subdisk *sd, *bestsd;
+	struct g_raid_subdisk *tsd, *bestsd;
 	u_int s;
 	int i, na, ns;
 
@@ -183,14 +181,14 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol)
 			 */
 			bestsd = &vol->v_subdisks[0];
 			for (i = 1; i < vol->v_disks_count; i++) {
-				sd = &vol->v_subdisks[i];
-				if (sd->sd_state > bestsd->sd_state)
-					bestsd = sd;
-				else if (sd->sd_state == bestsd->sd_state &&
-				    (sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
-				     sd->sd_state == G_RAID_SUBDISK_S_RESYNC) &&
-				    sd->sd_rebuild_pos > bestsd->sd_rebuild_pos)
-					bestsd = sd;
+				tsd = &vol->v_subdisks[i];
+				if (tsd->sd_state > bestsd->sd_state)
+					bestsd = tsd;
+				else if (tsd->sd_state == bestsd->sd_state &&
+				    (tsd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+				     tsd->sd_state == G_RAID_SUBDISK_S_RESYNC) &&
+				    tsd->sd_rebuild_pos > bestsd->sd_rebuild_pos)
+					bestsd = tsd;
 			}
 			if (bestsd->sd_state >= G_RAID_SUBDISK_S_UNINITIALIZED) {
 				/* We found reasonable candidate. */
@@ -215,8 +213,8 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol)
 			s = G_RAID_VOLUME_S_DEGRADED;
 		else
 			s = G_RAID_VOLUME_S_BROKEN;
+		g_raid_tr_raid1_maybe_rebuild(vol->v_tr, sd);
 	}
-	g_raid_tr_raid1_maybe_rebuild(vol->v_tr, vol);
 	if (s != vol->v_state) {
 		g_raid_event_send(vol, G_RAID_VOLUME_S_ALIVE(s) ?
 		    G_RAID_VOLUME_E_UP : G_RAID_VOLUME_E_DOWN,
@@ -237,9 +235,9 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (trs->trso_flags & TR_RAID1_F_DOING_SOME)
 		return;
-	good_sd = g_raid_tr_raid1_find_good_drive(sd->sd_volume);
+	good_sd = g_raid_get_subdisk(sd->sd_volume, G_RAID_SUBDISK_S_ACTIVE);
 	if (good_sd == NULL) {
-		g_raid_tr_raid1_rebuild_abort(tr, sd->sd_volume);
+		g_raid_tr_raid1_rebuild_abort(tr);
 		return;
 	}
 	bp = &trs->trso_bio;
@@ -259,13 +257,13 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 }
 
 static void
-g_raid_tr_raid1_rebuild_done(struct g_raid_tr_raid1_object *trs,
-    struct g_raid_volume *vol)
+g_raid_tr_raid1_rebuild_done(struct g_raid_tr_raid1_object *trs)
 {
+	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
 
+	vol = trs->trso_base.tro_volume;
 	sd = trs->trso_failed_sd;
-	sd->sd_rebuild_pos = 0;
 	g_raid_write_metadata(vol->v_softc, vol, sd, sd->sd_disk);
 	free(trs->trso_buffer, M_TR_RAID1);
 	trs->trso_buffer = NULL;
@@ -273,12 +271,11 @@ g_raid_tr_raid1_rebuild_done(struct g_raid_tr_raid1_object *trs,
 	trs->trso_type = TR_RAID1_NONE;
 	trs->trso_recover_slabs = 0;
 	trs->trso_failed_sd = NULL;
-	g_raid_tr_update_state_raid1(vol);
+	g_raid_tr_update_state_raid1(vol, NULL);
 }
 
 static void
-g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr,
-    struct g_raid_volume *vol)
+g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr)
 {
 	struct g_raid_tr_raid1_object *trs;
 	struct g_raid_subdisk *sd;
@@ -286,66 +283,75 @@ g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr,
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	sd = trs->trso_failed_sd;
 	g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
-	g_raid_tr_raid1_rebuild_done(trs, vol);
+	sd->sd_rebuild_pos = 0;
+	g_raid_tr_raid1_rebuild_done(trs);
 }
 
 static void
-g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr,
-    struct g_raid_volume *vol)
+g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr)
 {
 	struct g_raid_tr_raid1_object *trs;
 	struct g_raid_subdisk *sd;
+	struct g_raid_volume *vol;
 	off_t len;
 
+	vol = tr->tro_volume;
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	sd = trs->trso_failed_sd;
 	len = MIN(g_raid1_rebuild_slab, vol->v_mediasize - sd->sd_rebuild_pos);
 	g_raid_unlock_range(tr->tro_volume, sd->sd_rebuild_pos, len);
-	g_raid_tr_raid1_rebuild_done(trs, vol);
-}
-
-static struct g_raid_subdisk *
-g_raid_tr_raid1_find_good_drive(struct g_raid_volume *vol)
-{
-	int i;
-
-	for (i = 0; i < vol->v_disks_count; i++)
-		if (vol->v_subdisks[i].sd_state == G_RAID_SUBDISK_S_ACTIVE)
-			return (&vol->v_subdisks[i]);
-	return (NULL);
-}
-
-static struct g_raid_subdisk *
-g_raid_tr_raid1_find_failed_drive(struct g_raid_volume *vol)
-{
-	int i;
-
-	for (i = 0; i < vol->v_disks_count; i++)
-		if (vol->v_subdisks[i].sd_state == G_RAID_SUBDISK_S_REBUILD ||
-		    vol->v_subdisks[i].sd_state == G_RAID_SUBDISK_S_RESYNC)
-			return (&vol->v_subdisks[i]);
-	return (NULL);
+	g_raid_tr_raid1_rebuild_done(trs);
 }
 
 static void
-g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr,
-    struct g_raid_volume *vol)
+g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr)
 {
+	struct g_raid_volume *vol;
 	struct g_raid_tr_raid1_object *trs;
-	struct g_raid_subdisk *sd;
+	struct g_raid_subdisk *sd, *fsd;
 
+	vol = tr->tro_volume;
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (trs->trso_failed_sd) {
 		G_RAID_DEBUG(1, "Already rebuild in start rebuild. pos %jd\n",
 		    (intmax_t)trs->trso_failed_sd->sd_rebuild_pos);
 		return;
 	}
-	sd = g_raid_tr_raid1_find_good_drive(vol);
-	trs->trso_failed_sd = g_raid_tr_raid1_find_failed_drive(vol);
-	if (sd == NULL || trs->trso_failed_sd == NULL) {
+	sd = g_raid_get_subdisk(vol, G_RAID_SUBDISK_S_ACTIVE);
+	if (sd == NULL) {
+		G_RAID_DEBUG(1, "No active disk to rebuild.  night night.");
+		return;
+	}
+	fsd = g_raid_get_subdisk(vol, G_RAID_SUBDISK_S_RESYNC);
+	if (fsd == NULL)
+		fsd = g_raid_get_subdisk(vol, G_RAID_SUBDISK_S_REBUILD);
+	if (fsd == NULL) {
+		fsd = g_raid_get_subdisk(vol, G_RAID_SUBDISK_S_STALE);
+		if (fsd != NULL) {
+			fsd->sd_rebuild_pos = 0;
+			g_raid_change_subdisk_state(fsd,
+			    G_RAID_SUBDISK_S_RESYNC);
+			g_raid_write_metadata(vol->v_softc, vol, fsd, NULL);
+		} else {
+			fsd = g_raid_get_subdisk(vol,
+			    G_RAID_SUBDISK_S_UNINITIALIZED);
+			if (fsd == NULL)
+				fsd = g_raid_get_subdisk(vol,
+				    G_RAID_SUBDISK_S_NEW);
+			if (fsd != NULL) {
+				fsd->sd_rebuild_pos = 0;
+				g_raid_change_subdisk_state(fsd,
+				    G_RAID_SUBDISK_S_REBUILD);
+				g_raid_write_metadata(vol->v_softc,
+				    vol, fsd, NULL);
+			}
+		}
+	}
+	if (fsd == NULL) {
 		G_RAID_DEBUG(1, "No failed disk to rebuild.  night night.");
 		return;
 	}
+	trs->trso_failed_sd = fsd;
 	G_RAID_DEBUG(2, "Kicking off a rebuild at %jd...",
 	    trs->trso_failed_sd->sd_rebuild_pos);
 	trs->trso_type = TR_RAID1_REBUILD;
@@ -357,8 +363,9 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr,
 
 static void
 g_raid_tr_raid1_maybe_rebuild(struct g_raid_tr_object *tr,
-    struct g_raid_volume *vol)
+    struct g_raid_subdisk *sd)
 {
+	struct g_raid_volume *vol;
 	struct g_raid_tr_raid1_object *trs;
 	int na, nr;
 	
@@ -368,6 +375,7 @@ g_raid_tr_raid1_maybe_rebuild(struct g_raid_tr_object *tr,
 	 * 'good disk' stored in the trs, then we're in progress and we punt.
 	 * If we make it past all these checks, we need to rebuild.
 	 */
+	vol = tr->tro_volume;
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (trs->trso_stopping)
 		return;
@@ -376,16 +384,20 @@ g_raid_tr_raid1_maybe_rebuild(struct g_raid_tr_object *tr,
 	    g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_RESYNC);
 	switch(trs->trso_type) {
 	case TR_RAID1_NONE:
-		if (na == 0 || nr == 0)
+		if (na == 0)
 			return;
-		if (trs->trso_type != TR_RAID1_NONE)
-			return;
-		g_raid_tr_raid1_rebuild_start(tr, vol);
+		if (nr == 0) {
+			nr = g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_NEW) +
+			    g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_STALE) +
+			    g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_UNINITIALIZED);
+			if (nr == 0)
+				return;
+		}
+		g_raid_tr_raid1_rebuild_start(tr);
 		break;
 	case TR_RAID1_REBUILD:
-		/*
-		 * We're rebuilding, maybe we need to stop...
-		 */
+		if (na == 0 || nr == 0)
+			g_raid_tr_raid1_rebuild_abort(tr);
 		break;
 	case TR_RAID1_RESYNC:
 		break;
@@ -396,32 +408,8 @@ static int
 g_raid_tr_event_raid1(struct g_raid_tr_object *tr,
     struct g_raid_subdisk *sd, u_int event)
 {
-	struct g_raid_tr_raid1_object *trs;
-	struct g_raid_volume *vol;
 
-	trs = (struct g_raid_tr_raid1_object *)tr;
-	vol = tr->tro_volume;
-	switch (event) {
-	case G_RAID_SUBDISK_E_NEW:
-		if (sd->sd_state == G_RAID_SUBDISK_S_NEW) {
-			sd->sd_rebuild_pos = 0;
-			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_REBUILD);
-		} else if (sd->sd_state == G_RAID_SUBDISK_S_STALE) {
-			sd->sd_rebuild_pos = 0;
-			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_RESYNC);
-		}
-		break;
-	case G_RAID_SUBDISK_E_FAILED:
-		if (trs->trso_type == TR_RAID1_REBUILD ||
-		    trs->trso_type == TR_RAID1_RESYNC)
-			g_raid_tr_raid1_rebuild_abort(tr, vol);
-		break;
-	case G_RAID_SUBDISK_E_DISCONNECTED:
-		if (trs->trso_type == TR_RAID1_REBUILD)
-			g_raid_tr_raid1_rebuild_abort(tr, vol);
-		break;
-	}
-	g_raid_tr_update_state_raid1(vol);
+	g_raid_tr_update_state_raid1(tr->tro_volume, sd);
 	return (0);
 }
 
@@ -434,7 +422,7 @@ g_raid_tr_start_raid1(struct g_raid_tr_object *tr)
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	vol = tr->tro_volume;
 	trs->trso_starting = 0;
-	g_raid_tr_update_state_raid1(vol);
+	g_raid_tr_update_state_raid1(vol, NULL);
 	return (0);
 }
 
@@ -448,7 +436,7 @@ g_raid_tr_stop_raid1(struct g_raid_tr_object *tr)
 	vol = tr->tro_volume;
 	trs->trso_starting = 0;
 	trs->trso_stopping = 1;
-	g_raid_tr_update_state_raid1(vol);
+	g_raid_tr_update_state_raid1(vol, NULL);
 	return (0);
 }
 
@@ -641,7 +629,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				G_RAID_LOGREQ(4, bp, "rebuild read done. %d",
 				    bp->bio_error);
 				if (bp->bio_error != 0) {
-					g_raid_tr_raid1_rebuild_abort(tr, vol);
+					g_raid_tr_raid1_rebuild_abort(tr);
 					return;
 				}
 				bp->bio_cmd = BIO_WRITE;
@@ -664,7 +652,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				if (bp->bio_error != 0) {
 					g_raid_fail_disk(sd->sd_softc, nsd,
 					    nsd->sd_disk);
-					g_raid_tr_raid1_rebuild_abort(tr, vol);
+					g_raid_tr_raid1_rebuild_abort(tr);
 					return;
 				}
 /* XXX A lot of the following is needed when we kick of the work -- refactor */
@@ -672,14 +660,14 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				    bp->bio_offset, bp->bio_length);
 				nsd->sd_rebuild_pos += bp->bio_length;
 				if (nsd->sd_rebuild_pos >= vol->v_mediasize) {
-					g_raid_tr_raid1_rebuild_finish(tr, vol);
+					g_raid_tr_raid1_rebuild_finish(tr);
 					return;
 				}
 
 				/* Abort rebuild if we are stopping */
 				if (trs->trso_stopping) {
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
-					g_raid_tr_update_state_raid1(vol);
+					g_raid_tr_update_state_raid1(vol, NULL);
 					return;
 				}
 
@@ -693,9 +681,10 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
 					return;
 				}
-				good_sd = g_raid_tr_raid1_find_good_drive(vol);
+				good_sd = g_raid_get_subdisk(sd->sd_volume,
+				    G_RAID_SUBDISK_S_ACTIVE);
 				if (good_sd == NULL) {
-					g_raid_tr_raid1_rebuild_abort(tr, vol);
+					g_raid_tr_raid1_rebuild_abort(tr);
 					return;
 				}
 				bp->bio_cmd = BIO_READ;
