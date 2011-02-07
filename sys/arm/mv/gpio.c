@@ -64,7 +64,6 @@ struct mv_gpio_softc {
 	bus_space_handle_t	bsh;
 	uint8_t			pin_num;	/* number of GPIO pins */
 	uint8_t			irq_num;	/* number of real IRQs occupied by GPIO controller */
-	uint8_t			use_high;
 };
 
 extern struct resource_spec mv_gpio_res[];
@@ -141,7 +140,6 @@ mv_gpio_attach(device_t dev)
 	uint32_t dev_id, rev_id;
 
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
-
 	if (sc == NULL)
 		return (ENXIO);
 
@@ -156,12 +154,10 @@ mv_gpio_attach(device_t dev)
 	    dev_id == MV_DEV_MV78100_Z0 ) {
 		sc->pin_num = 32;
 		sc->irq_num = 4;
-		sc->use_high = 0;
 
 	} else if (dev_id == MV_DEV_88F6281) {
 		sc->pin_num = 50;
 		sc->irq_num = 7;
-		sc->use_high = 1;
 
 	} else {
 		device_printf(dev, "unknown chip id=0x%x\n", dev_id);
@@ -182,7 +178,7 @@ mv_gpio_attach(device_t dev)
 	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_LEV_MASK, 0);
 	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_CAUSE, 0);
 
-	if (sc->use_high) {
+	if (sc->pin_num > GPIO_PINS_PER_REG) {
 		bus_space_write_4(sc->bst, sc->bsh,
 		    GPIO_HI_INT_EDGE_MASK, 0);
 		bus_space_write_4(sc->bst, sc->bsh,
@@ -217,7 +213,7 @@ mv_gpio_intr(void *arg)
 	int_cause = mv_gpio_reg_read(GPIO_INT_CAUSE);
 	gpio_val = mv_gpio_reg_read(GPIO_DATA_IN);
 	gpio_val &= int_cause;
-	if (mv_gpio_softc->use_high) {
+	if (mv_gpio_softc->pin_num > GPIO_PINS_PER_REG) {
 		int_cause_hi = mv_gpio_reg_read(GPIO_HI_INT_CAUSE);
 		gpio_val_hi = mv_gpio_reg_read(GPIO_HI_DATA_IN);
 		gpio_val_hi &= int_cause_hi;
@@ -231,7 +227,7 @@ mv_gpio_intr(void *arg)
 		i++;
 	}
 
-	if (mv_gpio_softc->use_high) {
+	if (mv_gpio_softc->pin_num > GPIO_PINS_PER_REG) {
 		i = 0;
 		while (gpio_val_hi != 0) {
 			if (gpio_val_hi & 1)
