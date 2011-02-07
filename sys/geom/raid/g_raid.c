@@ -133,6 +133,8 @@ g_raid_node_event2str(int event)
 {
 
 	switch (event) {
+	case G_RAID_NODE_E_WAKE:
+		return ("WAKE");
 	case G_RAID_NODE_E_START:
 		return ("START");
 	default:
@@ -1467,6 +1469,8 @@ g_raid_update_node(struct g_raid_softc *sc, u_int event)
 	G_RAID_DEBUG(2, "Event %s for node %s.",
 	    g_raid_node_event2str(event), sc->sc_name);
 
+	if (event == G_RAID_NODE_E_WAKE)
+		return (0);
 	if (sc->sc_md)
 		G_RAID_MD_EVENT(sc->sc_md, NULL, event);
 	return (0);
@@ -1509,7 +1513,8 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 		opens = g_raid_nopens(sc);
 		if (opens == 0) {
 			sc->sc_stopping = G_RAID_DESTROY_HARD;
-			g_raid_event_send(sc, 0, 0);	/* Wake up worker. */
+			/* Wake up worker to make it selfdestruct. */
+			g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
 		}
 	}
 	/* Handle open volume destruction. */
@@ -1699,7 +1704,7 @@ g_raid_destroy_node(struct g_raid_softc *sc, int worker)
 		kproc_exit(0);
 	} else {
 		/* Wake up worker to make it selfdestruct. */
-		g_raid_event_send(sc, 0, 0);
+		g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
 	}
 	return (0);
 }
@@ -1746,8 +1751,10 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 	}
 	G_RAID_DEBUG(2, "Volume %s destroyed.", vol->v_name);
 	free(vol, M_RAID);
-	if (sc->sc_stopping == G_RAID_DESTROY_HARD)
-		g_raid_event_send(sc, 0, 0);	/* Wake up worker. */
+	if (sc->sc_stopping == G_RAID_DESTROY_HARD) {
+		/* Wake up worker to let it selfdestruct. */
+		g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
+	}
 	return (0);
 }
 
@@ -1815,7 +1822,7 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 	/* Mark node for destruction. */
 	sc->sc_stopping = G_RAID_DESTROY_HARD;
 	/* Wake up worker to let it selfdestruct. */
-	g_raid_event_send(sc, 0, 0);
+	g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
 	/* Sleep until node destroyed. */
 	sx_sleep(&sc->sc_stopping, &sc->sc_lock,
 	    PRIBIO | PDROP, "r:destroy", 0);

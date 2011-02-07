@@ -240,6 +240,7 @@ struct g_raid_volume {
 	LIST_ENTRY(g_raid_volume)	 v_global_next; /* Global list entry. */
 };
 
+#define G_RAID_NODE_E_WAKE	0x00
 #define G_RAID_NODE_E_START	0x01
 
 struct g_raid_softc {
