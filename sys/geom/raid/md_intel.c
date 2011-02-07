@@ -1972,6 +1972,9 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	sc = md->mdo_softc;
 	mdi = (struct g_raid_md_intel_object *)md;
 
+	if (sc->sc_stopping == G_RAID_DESTROY_HARD)
+		return (0);
+
 	/* Bump generation. Newly written metadata may differ from previous. */
 	mdi->mdio_generation++;
 
