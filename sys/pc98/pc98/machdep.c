@@ -2565,7 +2565,11 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 
 	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
 	    ("not suspended thread %p", td));
+#ifdef DEV_NPX
 	npxgetregs(td);
+#else
+	bzero(fpregs, sizeof(*fpregs));
+#endif
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
 		fill_fpregs_xmm(&td->td_pcb->pcb_user_save.sv_xmm,
@@ -2589,7 +2593,9 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 #endif /* CPU_ENABLE_SSE */
 		bcopy(fpregs, &td->td_pcb->pcb_user_save.sv_87,
 		    sizeof(*fpregs));
+#ifdef DEV_NPX
 	npxuserinited(td);
+#endif
 	return (0);
 }
 
