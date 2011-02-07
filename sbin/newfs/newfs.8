@@ -125,8 +125,9 @@ and the number of bytes per inode.
 .It Fl d Ar max-extent-size
 The file system may choose to store large files using extents.
 This parameter specifies the largest extent size that may be used.
-It is presently limited to its default value which is 16 times
-the file system blocksize.
+The default value is the file system blocksize.
+It is presently limited to a maximum value of 16 times the
+file system blocksize and a minimum value of the file system blocksize.
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
