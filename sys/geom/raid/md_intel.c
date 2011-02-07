@@ -793,7 +793,7 @@ g_raid_md_intel_refill(struct g_raid_softc *sc)
 	struct intel_raid_conf *meta;
 	struct g_raid_disk *disk;
 	struct task *task;
-	int update;
+	int update, na;
 
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_intel_object *)md;
@@ -801,11 +801,12 @@ g_raid_md_intel_refill(struct g_raid_softc *sc)
 	update = 0;
 	do {
 		/* Make sure we miss anything. */
-		if (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) ==
-		    meta->total_disks)
+		na = g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE);
+		if (na == meta->total_disks)
 			break;
 
-		G_RAID_DEBUG(1, "Array is not complete, trying to refill.");
+		G_RAID_DEBUG(1, "Array is not complete (%d of %d), "
+		    "trying to refill.", na, meta->total_disks);
 
 		/* Try to get use some of STALE disks. */
 		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
@@ -829,8 +830,10 @@ g_raid_md_intel_refill(struct g_raid_softc *sc)
 	} while (disk != NULL);
 
 	/* Write new metadata if we changed something. */
-	if (update)
+	if (update) {
 		g_raid_md_write_intel(md, NULL, NULL, NULL);
+		meta = mdi->mdio_meta;
+	}
 
 	/* Update status of our need for spare. */
 	mdi->mdio_incomplete = (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
