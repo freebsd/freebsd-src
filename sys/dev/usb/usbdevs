@@ -1309,6 +1309,7 @@ product CTX EX1300		0x9999	Ex1300 hub
 product CURITEL HX550C		0x1101	CDMA 2000 1xRTT USB modem (HX-550C)
 product CURITEL HX57XB		0x2101	CDMA 2000 1xRTT USB modem (HX-570/575B/PR-600)
 product CURITEL PC5740		0x3701	Broadband Wireless modem
+product CURITEL UM150		0x3711	EVDO modem
 product CURITEL UM175		0x3714	EVDO modem
 
 /* CyberPower products */
