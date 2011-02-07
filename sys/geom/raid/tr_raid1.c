@@ -63,7 +63,7 @@ SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_slab_size, CTLFLAG_RW,
 #define RAID1_REBUILD_FAIR_IO 20 /* use 1/x of the available I/O */
 static int g_raid1_rebuild_fair_io = RAID1_REBUILD_FAIR_IO;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_fair_io",
-    &g_raid1_rebuild_slab);
+    &g_raid1_rebuild_fair_io);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_fair_io, CTLFLAG_RW,
     &g_raid1_rebuild_fair_io, RAID1_REBUILD_FAIR_IO,
     "Fraction of the I/O bandwidth to use when disk busy for rebuild.");
@@ -71,7 +71,7 @@ SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_fair_io, CTLFLAG_RW,
 #define RAID1_REBUILD_CLUSTER_IDLE 100
 static int g_raid1_rebuild_cluster_idle = RAID1_REBUILD_CLUSTER_IDLE;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_cluster_idle",
-    &g_raid1_rebuild_slab);
+    &g_raid1_rebuild_cluster_idle);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_cluster_idle, CTLFLAG_RW,
     &g_raid1_rebuild_cluster_idle, RAID1_REBUILD_CLUSTER_IDLE,
     "Number of slabs to do each time we trigger a rebuild cycle");
@@ -79,7 +79,7 @@ SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_cluster_idle, CTLFLAG_RW,
 #define RAID1_REBUILD_META_UPDATE 1024 /* update meta data every 1GB or so */
 static int g_raid1_rebuild_meta_update = RAID1_REBUILD_META_UPDATE;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_meta_update",
-    &g_raid1_rebuild_slab);
+    &g_raid1_rebuild_meta_update);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_meta_update, CTLFLAG_RW,
     &g_raid1_rebuild_meta_update, RAID1_REBUILD_META_UPDATE,
     "When to update the meta data.");
