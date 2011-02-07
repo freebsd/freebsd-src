@@ -2617,7 +2617,9 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	}
 	if ((*netp != NULL) && (m->m_flags & M_FLOWID)) {
 		(*netp)->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
 		(*netp)->flowidset = 1;
+#endif
 	}
 	/*
 	 * Ok, we built an association so confirm the address we sent the
@@ -5815,6 +5817,12 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 			}
 			net->port = port;
 		}
+		if ((net != NULL) && (m->m_flags & M_FLOWID)) {
+			net->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
+			net->flowidset = 1;
+#endif
+		}
 		if ((inp) && (stcb)) {
 			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR, SCTP_SO_NOT_LOCKED);
@@ -5846,7 +5854,9 @@ sctp_skip_csum_4:
 	}
 	if ((net != NULL) && (m->m_flags & M_FLOWID)) {
 		net->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
 		net->flowidset = 1;
+#endif
 	}
 	/* inp's ref-count increased && stcb locked */
 	if (inp == NULL) {
