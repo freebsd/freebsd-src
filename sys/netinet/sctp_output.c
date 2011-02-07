@@ -3485,6 +3485,12 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		SCTP_BUF_NEXT(newm) = m;
 		m = newm;
 		if (net != NULL) {
+			if (net->flowidset == 0) {
+				net->flowid = stcb->asoc.my_vtag ^
+				    ntohs(stcb->rport) ^
+				    ntohs(stcb->sctp_ep->sctp_lport);
+				net->flowidset = 1;
+			}
 			m->m_pkthdr.flowid = net->flowid;
 			m->m_flags |= M_FLOWID;
 		} else {
@@ -3815,6 +3821,12 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		SCTP_BUF_NEXT(newm) = m;
 		m = newm;
 		if (net != NULL) {
+			if (net->flowidset == 0) {
+				net->flowid = stcb->asoc.my_vtag ^
+				    ntohs(stcb->rport) ^
+				    ntohs(stcb->sctp_ep->sctp_lport);
+				net->flowidset = 1;
+			}
 			m->m_pkthdr.flowid = net->flowid;
 			m->m_flags |= M_FLOWID;
 		} else {
