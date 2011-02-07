@@ -655,7 +655,7 @@ cpcht_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	}
 
 	for (j = 0; j < count; j++) {
-		irqs[j] = INTR_VEC(cpcht_msipic, i+j);
+		irqs[j] = MAP_IRQ(cpcht_msipic, i+j);
 		sc->htirq_map[i+j].irq_type = IRQ_MSI;
 	}
 	mtx_unlock(&sc->htirq_mtx);
@@ -695,7 +695,7 @@ cpcht_alloc_msix(device_t dev, device_t child, int *irq)
 	for (i = 8; i < 124; i++) {
 		if (sc->htirq_map[i].irq_type == IRQ_NONE) {
 			sc->htirq_map[i].irq_type = IRQ_MSI;
-			*irq = INTR_VEC(cpcht_msipic, i);
+			*irq = MAP_IRQ(cpcht_msipic, i);
 
 			mtx_unlock(&sc->htirq_mtx);
 			return (0);

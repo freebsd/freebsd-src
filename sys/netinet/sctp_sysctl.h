@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,7 +45,7 @@ struct sctp_sysctl {
 	uint32_t sctp_auto_asconf;
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
-	uint32_t sctp_not_used;
+	uint32_t sctp_fr_max_burst_default;
 	uint32_t sctp_strict_sacks;
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint32_t sctp_no_csum_on_loopback;
@@ -182,19 +184,26 @@ struct sctp_sysctl {
 #define SCTPCTL_MAXBURST_MAX		0xFFFFFFFF
 #define SCTPCTL_MAXBURST_DEFAULT	SCTP_DEF_MAX_BURST
 
+/* fr_maxburst: Default max burst for sctp endpoints when fast retransmitting */
+#define SCTPCTL_FRMAXBURST_DESC		"Default fr max burst for sctp endpoints"
+#define SCTPCTL_FRMAXBURST_MIN		0
+#define SCTPCTL_FRMAXBURST_MAX		0xFFFFFFFF
+#define SCTPCTL_FRMAXBURST_DEFAULT	SCTP_DEF_FRMAX_BURST
+
+
 /* maxchunks: Default max chunks on queue per asoc */
 #define SCTPCTL_MAXCHUNKS_DESC		"Default max chunks on queue per asoc"
 #define SCTPCTL_MAXCHUNKS_MIN		0
 #define SCTPCTL_MAXCHUNKS_MAX		0xFFFFFFFF
 #define SCTPCTL_MAXCHUNKS_DEFAULT	SCTP_ASOC_MAX_CHUNKS_ON_QUEUE
 
-/* tcbhashsize: Tuneable for Hash table sizes */
+/* tcbhashsize: Tunable for Hash table sizes */
 #define SCTPCTL_TCBHASHSIZE_DESC	"Tunable for TCB hash table sizes"
 #define SCTPCTL_TCBHASHSIZE_MIN		1
 #define SCTPCTL_TCBHASHSIZE_MAX		0xFFFFFFFF
 #define SCTPCTL_TCBHASHSIZE_DEFAULT	SCTP_TCBHASHSIZE
 
-/* pcbhashsize: Tuneable for PCB Hash table sizes */
+/* pcbhashsize: Tunable for PCB Hash table sizes */
 #define SCTPCTL_PCBHASHSIZE_DESC	"Tunable for PCB hash table sizes"
 #define SCTPCTL_PCBHASHSIZE_MIN		1
 #define SCTPCTL_PCBHASHSIZE_MAX		0xFFFFFFFF
@@ -206,8 +215,8 @@ struct sctp_sysctl {
 #define SCTPCTL_MIN_SPLIT_POINT_MAX	0xFFFFFFFF
 #define SCTPCTL_MIN_SPLIT_POINT_DEFAULT	SCTP_DEFAULT_SPLIT_POINT_MIN
 
-/* chunkscale: Tuneable for Scaling of number of chunks and messages */
-#define SCTPCTL_CHUNKSCALE_DESC		"Tuneable for Scaling of number of chunks and messages"
+/* chunkscale: Tunable for Scaling of number of chunks and messages */
+#define SCTPCTL_CHUNKSCALE_DESC		"Tunable for Scaling of number of chunks and messages"
 #define SCTPCTL_CHUNKSCALE_MIN		1
 #define SCTPCTL_CHUNKSCALE_MAX		0xFFFFFFFF
 #define SCTPCTL_CHUNKSCALE_DEFAULT	SCTP_CHUNKQUEUE_SCALE
@@ -402,7 +411,7 @@ struct sctp_sysctl {
 #define SCTPCTL_HB_MAX_BURST_DESC	"Confirmation Heartbeat max burst"
 #define SCTPCTL_HB_MAX_BURST_MIN	1
 #define SCTPCTL_HB_MAX_BURST_MAX	0xFFFFFFFF
-#define SCTPCTL_HB_MAX_BURST_DEFAULT	SCTP_DEF_MAX_BURST
+#define SCTPCTL_HB_MAX_BURST_DEFAULT	SCTP_DEF_HBMAX_BURST
 
 /* abort_at_limit: When one-2-one hits qlimit abort */
 #define SCTPCTL_ABORT_AT_LIMIT_DESC	"When one-2-one hits qlimit abort"

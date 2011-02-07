@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -59,8 +61,6 @@ void
 sctp_init(void)
 {
 	u_long sb_max_adj;
-
-	bzero(&SCTP_BASE_STATS, sizeof(struct sctpstat));
 
 	/* Initialize and modify the sysctled variables */
 	sctp_init_sysctls();
@@ -3447,7 +3447,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						stcb->asoc.strmout[i].next_sequence_sent = oldstream[i].next_sequence_sent;
 						stcb->asoc.strmout[i].last_msg_incomplete = oldstream[i].last_msg_incomplete;
 						stcb->asoc.strmout[i].stream_no = i;
-						stcb->asoc.ss_functions.sctp_ss_init_stream(&oldstream[i]);
+						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], &oldstream[i]);
 						/*
 						 * now anything on those
 						 * queues?
@@ -3474,7 +3474,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 						stcb->asoc.strmout[i].stream_no = i;
 						stcb->asoc.strmout[i].last_msg_incomplete = 0;
-						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i]);
+						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
 					}
 					stcb->asoc.strm_realoutsize = stcb->asoc.streamoutcnt + addstrmcnt;
 					SCTP_FREE(oldstream, SCTP_M_STRMO);

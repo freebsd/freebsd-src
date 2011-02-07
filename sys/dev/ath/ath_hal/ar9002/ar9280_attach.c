@@ -69,7 +69,7 @@ static void
 ar9280AniSetup(struct ath_hal *ah)
 {
 	/* NB: disable ANI for reliable RIFS rx */
-	ar5212AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
+	ar5416AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
 }
 
 /*
@@ -684,6 +684,10 @@ ar9280FillCapabilityInfo(struct ath_hal *ah)
 #if 0
 	pCap->halWowMatchPatternDword = AH_TRUE;
 #endif
+	/* AR9280 is a 2x2 stream device */
+	pCap->halTxStreams = 2;
+	pCap->halRxStreams = 2;
+
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halRifsRxSupport = AH_TRUE;
 	pCap->halRifsTxSupport = AH_TRUE;

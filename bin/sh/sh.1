@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2011
+.Dd February 4, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -647,15 +647,10 @@ resulting in an
 .Er ENOEXEC
 return value from
 .Xr execve 2 )
-the shell will interpret the program in a subshell.
-The child shell will reinitialize itself in this case,
-so that the effect will be
-as if a new shell had been invoked to handle the ad-hoc shell script,
-except that the location of hashed commands located in
-the parent shell will be remembered by the child
-(see the description of the
-.Ic hash
-built-in command below).
+but appears to be a text file,
+the shell will run a new instance of
+.Nm
+to interpret it.
 .Pp
 Note that previous versions of this document
 and the source code itself misleadingly and sporadically

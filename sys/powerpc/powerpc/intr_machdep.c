@@ -403,7 +403,7 @@ powerpc_enable_intr(void)
 
 		KASSERT(piclist[n].ipis != 0, ("%s", __func__));
 		error = powerpc_setup_intr("IPI",
-		    INTR_VEC(piclist[n].node, piclist[n].irqs),
+		    MAP_IRQ(piclist[n].node, piclist[n].irqs),
 		    powerpc_ipi_handler, NULL, NULL,
 		    INTR_TYPE_MISC | INTR_EXCL, &ipi_cookie);
 		if (error) {

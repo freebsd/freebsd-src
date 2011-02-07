@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.270.12.16.10.6 2010/11/16 07:46:23 marka Exp $ */
+/* $Id: rbtdb.c,v 1.270.12.26 2010-12-02 05:09:58 marka Exp $ */
 
 /*! \file */
 
@@ -2090,6 +2090,34 @@ setnsec3parameters(dns_db_t *db, rbtdb_version_t *version,
 }
 
 static void
+cleanup_dead_nodes_callback(isc_task_t *task, isc_event_t *event) {
+	dns_rbtdb_t *rbtdb = event->ev_arg;
+	isc_boolean_t again = ISC_FALSE;
+	unsigned int locknum;
+	unsigned int refs;
+
+	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+	for (locknum = 0; locknum < rbtdb->node_lock_count; locknum++) {
+		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
+			  isc_rwlocktype_write);
+		cleanup_dead_nodes(rbtdb, locknum);
+		if (ISC_LIST_HEAD(rbtdb->deadnodes[locknum]) != NULL)
+			again = ISC_TRUE;
+		NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
+			    isc_rwlocktype_write);
+	}
+	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+	if (again)
+		isc_task_send(task, &event);
+	else {
+		isc_event_free(&event);
+		isc_refcount_decrement(&rbtdb->references, &refs);
+		if (refs == 0)
+			maybe_free_rbtdb(rbtdb);
+	}
+}
+
+static void
 closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)db;
 	rbtdb_version_t *version, *cleanup_version, *least_greater;
@@ -2289,15 +2317,28 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 	}
 
 	if (!EMPTY(cleanup_list)) {
-		/*
-		 * We acquire a tree write lock here in order to make sure
-		 * that stale nodes will be removed in decrement_reference().
-		 * If we didn't have the lock, those nodes could miss the
-		 * chance to be removed until the server stops.  The write lock
-		 * is expensive, but this event should be rare enough to justify
-		 * the cost.
-		 */
-		RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+		isc_event_t *event = NULL;
+		isc_rwlocktype_t tlock = isc_rwlocktype_none;
+
+		if (rbtdb->task != NULL)
+			event = isc_event_allocate(rbtdb->common.mctx, NULL,
+						   DNS_EVENT_RBTDEADNODES,
+						   cleanup_dead_nodes_callback,
+						   rbtdb, sizeof(isc_event_t));
+		if (event == NULL) {
+			/*
+			 * We acquire a tree write lock here in order to make
+			 * sure that stale nodes will be removed in
+			 * decrement_reference().  If we didn't have the lock,
+			 * those nodes could miss the chance to be removed
+			 * until the server stops.  The write lock is
+			 * expensive, but this event should be rare enough
+			 * to justify the cost.
+			 */
+			RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+			tlock = isc_rwlocktype_write;
+		}
+
 		for (changed = HEAD(cleanup_list);
 		     changed != NULL;
 		     changed = next_changed) {
@@ -2312,20 +2353,25 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 			 * This is a good opportunity to purge any dead nodes,
 			 * so use it.
 			 */
-			cleanup_dead_nodes(rbtdb, rbtnode->locknum);
+			if (event == NULL)
+				cleanup_dead_nodes(rbtdb, rbtnode->locknum);
 
 			if (rollback)
 				rollback_node(rbtnode, serial);
 			decrement_reference(rbtdb, rbtnode, least_serial,
-					    isc_rwlocktype_write,
-					    isc_rwlocktype_write, ISC_FALSE);
+					    isc_rwlocktype_write, tlock,
+					    ISC_FALSE);
 
 			NODE_UNLOCK(lock, isc_rwlocktype_write);
 
 			isc_mem_put(rbtdb->common.mctx, changed,
 				    sizeof(*changed));
 		}
-		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+		if (event != NULL) {
+			isc_refcount_increment(&rbtdb->references, NULL);
+			isc_task_send(rbtdb->task, &event);
+		} else
+			RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 	}
 
  end:

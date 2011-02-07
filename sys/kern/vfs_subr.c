@@ -707,11 +707,11 @@ vlrureclaim(struct mount *mp)
 		vdropl(vp);
 		done++;
 next_iter_mntunlocked:
-		if ((count % 256) != 0)
+		if (should_yield())
 			goto relock_mnt;
 		goto yield;
 next_iter:
-		if ((count % 256) != 0)
+		if (should_yield())
 			continue;
 		MNT_IUNLOCK(mp);
 yield:

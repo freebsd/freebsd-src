@@ -204,7 +204,7 @@ vtopte(vm_offset_t va)
 	return (ptep);
 }
 
-extern vm_offset_t phys_avail[];
+extern vm_paddr_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 

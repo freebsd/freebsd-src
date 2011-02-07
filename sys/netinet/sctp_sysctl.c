@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -59,6 +61,7 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_strict_init) = SCTPCTL_STRICT_INIT_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_peer_chunk_oh) = SCTPCTL_PEER_CHKOH_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_max_burst_default) = SCTPCTL_MAXBURST_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_fr_max_burst_default) = SCTPCTL_FRMAXBURST_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue) = SCTPCTL_MAXCHUNKS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_hashtblsize) = SCTPCTL_TCBHASHSIZE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_pcbtblsize) = SCTPCTL_PCBHASHSIZE_DEFAULT;
@@ -576,6 +579,7 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_strict_init), SCTPCTL_STRICT_INIT_MIN, SCTPCTL_STRICT_INIT_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_peer_chunk_oh), SCTPCTL_PEER_CHKOH_MIN, SCTPCTL_PEER_CHKOH_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_max_burst_default), SCTPCTL_MAXBURST_MIN, SCTPCTL_MAXBURST_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_fr_max_burst_default), SCTPCTL_FRMAXBURST_MIN, SCTPCTL_FRMAXBURST_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue), SCTPCTL_MAXCHUNKS_MIN, SCTPCTL_MAXCHUNKS_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_hashtblsize), SCTPCTL_TCBHASHSIZE_MIN, SCTPCTL_TCBHASHSIZE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_pcbtblsize), SCTPCTL_PCBHASHSIZE_MIN, SCTPCTL_PCBHASHSIZE_MAX);
@@ -646,10 +650,20 @@ static int
 sysctl_stat_get(SYSCTL_HANDLER_ARGS)
 {
 	int cpu, error;
-	struct sctpstat sb, *sarry;
+	struct sctpstat sb, *sarry, *cpin = NULL;
 
+	if ((req->newptr) && (req->newlen == sizeof(struct sctpstat))) {
+		/*
+		 * User wants us to clear or at least reset the counters to
+		 * the specified values.
+		 */
+		cpin = (struct sctpstat *)req->newptr;
+	} else if (req->newptr) {
+		/* Must be a stat structure */
+		return (EINVAL);
+	}
 	memset(&sb, 0, sizeof(sb));
-	for (cpu = 0; cpu < mp_ncpus; cpu++) {
+	for (cpu = 0; cpu < mp_maxid; cpu++) {
 		sarry = &SCTP_BASE_STATS[cpu];
 		if (sarry->sctps_discontinuitytime.tv_sec > sb.sctps_discontinuitytime.tv_sec) {
 			sb.sctps_discontinuitytime.tv_sec = sarry->sctps_discontinuitytime.tv_sec;
@@ -787,6 +801,9 @@ sysctl_stat_get(SYSCTL_HANDLER_ARGS)
 		sb.sctps_send_burst_avoid += sarry->sctps_send_burst_avoid;
 		sb.sctps_send_cwnd_avoid += sarry->sctps_send_cwnd_avoid;
 		sb.sctps_fwdtsn_map_over += sarry->sctps_fwdtsn_map_over;
+		if (cpin) {
+			memcpy(sarry, cpin, sizeof(struct sctpstat));
+		}
 	}
 	error = SYSCTL_OUT(req, &sb, sizeof(sb));
 	return (error);
@@ -848,6 +865,10 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, peer_chkoh, CTLTYPE_UINT | CTLFLAG_RW,
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, maxburst, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_max_burst_default), 0, sysctl_sctp_check, "IU",
     SCTPCTL_MAXBURST_DESC);
+
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, fr_maxburst, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_fr_max_burst_default), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_FRMAXBURST_DESC);
 
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, maxchunks, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue), 0, sysctl_sctp_check, "IU",
@@ -1093,7 +1114,7 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, output_unlocked, CTLTYPE_UINT | CTLFLAG_RW
 #endif
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, stats,
-    CTLTYPE_STRUCT | CTLFLAG_RD,
+    CTLTYPE_STRUCT | CTLFLAG_RW,
     0, 0, sysctl_stat_get, "S,sctpstat",
     "SCTP statistics (struct sctp_stat)");
 #else

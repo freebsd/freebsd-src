@@ -149,8 +149,10 @@ ar5416StopTxDma(struct ath_hal *ah, u_int q)
 #define VALID_TX_RATES \
         ((1<<0x0b)|(1<<0x0f)|(1<<0x0a)|(1<<0x0e)|(1<<0x09)|(1<<0x0d)|\
          (1<<0x08)|(1<<0x0c)|(1<<0x1b)|(1<<0x1a)|(1<<0x1e)|(1<<0x19)|\
-         (1<<0x1d)|(1<<0x18)|(1<<0x1c))
-#define isValidTxRate(_r)       ((1<<(_r)) & VALID_TX_RATES)
+	 (1<<0x1d)|(1<<0x18)|(1<<0x1c)|(1<<0x01)|(1<<0x02)|(1<<0x03)|\
+	 (1<<0x04)|(1<<0x05)|(1<<0x06)|(1<<0x07)|(1<<0x00))
+/* NB: accept HT rates */
+#define	isValidTxRate(_r)	((1<<((_r) & 0x7f)) & VALID_TX_RATES)
 
 HAL_BOOL
 ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
@@ -619,6 +621,20 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 	(void)nseries;
 
 	/*
+	 * XXX since the upper layers doesn't know the current chainmask
+	 * XXX setup, just override its decisions here.
+	 * XXX The upper layers need to be taught this!
+	 */
+	if (series[0].Tries != 0)
+		series[0].ChSel = AH5416(ah)->ah_tx_chainmask;
+	if (series[1].Tries != 0)
+		series[1].ChSel = AH5416(ah)->ah_tx_chainmask;
+	if (series[2].Tries != 0)
+		series[2].ChSel = AH5416(ah)->ah_tx_chainmask;
+	if (series[3].Tries != 0)
+		series[3].ChSel = AH5416(ah)->ah_tx_chainmask;
+
+	/*
 	 * Only one of RTS and CTS enable must be set.
 	 * If a frame has both set, just do RTS protection -
 	 * that's enough to satisfy legacy protection.
@@ -639,7 +655,6 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 =
 		    (ads->ds_ctl0 & ~(AR_RTSEnable | AR_CTSEnable));
 	}
-
 
 	ads->ds_ctl2 = set11nTries(series, 0)
 		     | set11nTries(series, 1)

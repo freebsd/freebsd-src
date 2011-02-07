@@ -182,6 +182,10 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	u_int win;
 
+	/* Catch algos which mistakenly leak private signal types. */
+	KASSERT((type & CC_SIGPRIVMASK) == 0,
+	    ("%s: congestion signal type 0x%08x is private\n", __func__, type));
+
 	win = max(CCV(ccv, snd_cwnd) / 2 / CCV(ccv, t_maxseg), 2) *
 	    CCV(ccv, t_maxseg);
 

@@ -2273,7 +2273,6 @@ ath_key_update_end(struct ieee80211vap *vap)
  *   - when operating in mesh mode to detect neighbors
  * o accept control frames:
  *   - when in monitor mode
- * XXX BAR frames for 11n
  * XXX HT protection for 11n
  */
 static u_int32_t
@@ -2312,6 +2311,8 @@ ath_calcrxfilter(struct ath_softc *sc)
 	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
+	if (IEEE80211_IS_CHAN_HT(ic->ic_curchan))
+		rfilt |= HAL_RX_FILTER_COMPBAR;
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
@@ -3890,6 +3891,18 @@ rx_accept:
 			rs->rs_keyix == HAL_RXKEYIX_INVALID ?
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
+		/* tag AMPDU aggregates for reorder processing */
+		/*
+		 * Just make sure all frames are tagged for AMPDU reorder checking.
+		 * As there seems to be some situations where single frames aren't
+		 * matching a node but bump the seqno. This needs to be investigated.
+		 */
+		m->m_flags |= M_AMPDU;
+
+		/* Keep statistics on the number of aggregate packets received */
+		if (rs->rs_isaggr)
+			sc->sc_stats.ast_rx_agg++;
+
 		if (ni != NULL) {
 			/*
 			 * Sending station is known, dispatch directly.
@@ -6488,4 +6501,6 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_be_missed, 0, "number of -missed- beacons");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ani_cal", CTLFLAG_RD,
 	    &sc->sc_stats.ast_ani_cal, 0, "number of ANI polls");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_agg", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_agg, 0, "number of aggregate frames received");
 }

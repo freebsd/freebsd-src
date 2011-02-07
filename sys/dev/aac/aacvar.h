@@ -537,9 +537,8 @@ static __inline void							\
 aac_enqueue_ ## name (struct aac_command *cm)				\
 {									\
 	if ((cm->cm_flags & AAC_ON_AACQ_MASK) != 0) {			\
-		printf("command %p is on another queue, flags = %#x\n",	\
-		       cm, cm->cm_flags);				\
-		panic("command is on another queue");			\
+		panic("aac: command %p is on another queue, flags = %#x", \
+		    cm, cm->cm_flags);					\
 	}								\
 	TAILQ_INSERT_TAIL(&cm->cm_sc->aac_ ## name, cm, cm_link);	\
 	cm->cm_flags |= AAC_ON_ ## index;				\
@@ -549,9 +548,8 @@ static __inline void							\
 aac_requeue_ ## name (struct aac_command *cm)				\
 {									\
 	if ((cm->cm_flags & AAC_ON_AACQ_MASK) != 0) {			\
-		printf("command %p is on another queue, flags = %#x\n",	\
-		       cm, cm->cm_flags);				\
-		panic("command is on another queue");			\
+		panic("aac: command %p is on another queue, flags = %#x", \
+		    cm, cm->cm_flags);					\
 	}								\
 	TAILQ_INSERT_HEAD(&cm->cm_sc->aac_ ## name, cm, cm_link);	\
 	cm->cm_flags |= AAC_ON_ ## index;				\
@@ -564,10 +562,8 @@ aac_dequeue_ ## name (struct aac_softc *sc)				\
 									\
 	if ((cm = TAILQ_FIRST(&sc->aac_ ## name)) != NULL) {		\
 		if ((cm->cm_flags & AAC_ON_ ## index) == 0) {		\
-			printf("command %p not in queue, flags = %#x, "	\
-			       "bit = %#x\n", cm, cm->cm_flags,		\
-			       AAC_ON_ ## index);			\
-			panic("command not in queue");			\
+			panic("aac: command %p not in queue, flags = %#x, bit = %#x", \
+			    cm, cm->cm_flags, AAC_ON_ ## index);	\
 		}							\
 		TAILQ_REMOVE(&sc->aac_ ## name, cm, cm_link);		\
 		cm->cm_flags &= ~AAC_ON_ ## index;			\
@@ -579,10 +575,8 @@ static __inline void							\
 aac_remove_ ## name (struct aac_command *cm)				\
 {									\
 	if ((cm->cm_flags & AAC_ON_ ## index) == 0) {			\
-		printf("command %p not in queue, flags = %#x, "		\
-		       "bit = %#x\n", cm, cm->cm_flags, 		\
-		       AAC_ON_ ## index);				\
-		panic("command not in queue");				\
+		panic("aac: command %p not in queue, flags = %#x, bit = %#x", \
+		    cm, cm->cm_flags, AAC_ON_ ## index);		\
 	}								\
 	TAILQ_REMOVE(&cm->cm_sc->aac_ ## name, cm, cm_link);		\
 	cm->cm_flags &= ~AAC_ON_ ## index;				\

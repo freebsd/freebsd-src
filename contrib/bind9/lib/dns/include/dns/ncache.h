@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ncache.h,v 1.25.48.2.10.2 2010/05/14 23:48:44 tbox Exp $ */
+/* $Id: ncache.h,v 1.25.48.4 2010-05-14 23:47:50 tbox Exp $ */
 
 #ifndef DNS_NCACHE_H
 #define DNS_NCACHE_H 1

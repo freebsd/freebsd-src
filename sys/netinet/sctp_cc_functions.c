@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -375,8 +377,6 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 				}
 			} else {
 				/* We are in congestion avoidance */
-				uint32_t incr;
-
 				/*
 				 * Add to pba
 				 */
@@ -481,6 +481,7 @@ sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
+
 static void
 sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
     int in_window, int num_pkt_lost)
@@ -513,7 +514,8 @@ sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
     uint32_t * bottle_bw, uint32_t * on_queue)
 {
 	uint32_t bw_avail;
-	int rtt, incr;
+	int rtt;
+	unsigned int incr;
 	int old_cwnd = net->cwnd;
 
 	/* need real RTT for this calc */

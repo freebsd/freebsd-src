@@ -69,6 +69,9 @@
 static __inline void
 mips_barrier(void)
 {
+#ifdef CPU_CNMIPS
+	__asm __volatile("" : : : "memory");
+#else
 	__asm __volatile (".set noreorder\n\t"
 			  "nop\n\t"
 			  "nop\n\t"
@@ -80,6 +83,7 @@ mips_barrier(void)
 			  "nop\n\t"
 			  ".set reorder\n\t"
 			  : : : "memory");
+#endif
 }
 
 static __inline void
@@ -91,8 +95,15 @@ mips_cp0_sync(void)
 static __inline void
 mips_wbflush(void)
 {
+#if defined(CPU_CNMIPS)
+	__asm __volatile (".set noreorder\n\t"
+			"syncw\n\t"
+			".set reorder\n"
+			: : : "memory");
+#else	
 	__asm __volatile ("sync" : : : "memory");
 	mips_barrier();
+#endif
 }
 
 static __inline void
@@ -136,10 +147,37 @@ mips_wr_ ## n (uint64_t a0)					\
 	mips_barrier();						\
 } struct __hack
 
+#define	MIPS_RW64_COP0_SEL(n,r,s)				\
+static __inline uint64_t					\
+mips_rd_ ## n(void)						\
+{								\
+	int v0;							\
+	__asm __volatile ("dmfc0 %[v0], $"__XSTRING(r)", "__XSTRING(s)";"	\
+			  : [v0] "=&r"(v0));			\
+	mips_barrier();						\
+	return (v0);						\
+}								\
+static __inline void						\
+mips_wr_ ## n(uint64_t a0)					\
+{								\
+	__asm __volatile ("dmtc0 %[a0], $"__XSTRING(r)", "__XSTRING(s)";"	\
+			 __XSTRING(COP0_SYNC)";"		\
+			 :					\
+			 : [a0] "r"(a0));			\
+	mips_barrier();						\
+} struct __hack
+
 #if defined(__mips_n64)
 MIPS_RW64_COP0(excpc, MIPS_COP_0_EXC_PC);
 MIPS_RW64_COP0(entryhi, MIPS_COP_0_TLB_HI);
 MIPS_RW64_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
+#ifdef CPU_CNMIPS
+MIPS_RW64_COP0_SEL(cvmcount, MIPS_COP_0_COUNT, 6);
+MIPS_RW64_COP0_SEL(cvmctl, MIPS_COP_0_COUNT, 7);
+MIPS_RW64_COP0_SEL(cvmmemctl, MIPS_COP_0_COMPARE, 7);
+MIPS_RW64_COP0_SEL(icache_err, MIPS_COP_0_CACHE_ERR, 0);
+MIPS_RW64_COP0_SEL(dcache_err, MIPS_COP_0_CACHE_ERR, 1);
+#endif
 #endif
 #if defined(__mips_n64) || defined(__mips_n32) /* PHYSADDR_64_BIT */
 MIPS_RW64_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
@@ -148,6 +186,7 @@ MIPS_RW64_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
 MIPS_RW64_COP0(xcontext, MIPS_COP_0_TLB_XCONTEXT);
 
 #undef	MIPS_RW64_COP0
+#undef	MIPS_RW64_COP0_SEL
 #endif
 
 #define	MIPS_RW32_COP0(n,r)					\
@@ -212,6 +251,9 @@ MIPS_RW32_COP0(config, MIPS_COP_0_CONFIG);
 MIPS_RW32_COP0_SEL(config1, MIPS_COP_0_CONFIG, 1);
 MIPS_RW32_COP0_SEL(config2, MIPS_COP_0_CONFIG, 2);
 MIPS_RW32_COP0_SEL(config3, MIPS_COP_0_CONFIG, 3);
+#ifdef CPU_CNMIPS
+MIPS_RW32_COP0_SEL(config4, MIPS_COP_0_CONFIG, 4);
+#endif
 MIPS_RW32_COP0(count, MIPS_COP_0_COUNT);
 MIPS_RW32_COP0(index, MIPS_COP_0_TLB_INDEX);
 MIPS_RW32_COP0(wired, MIPS_COP_0_TLB_WIRED);

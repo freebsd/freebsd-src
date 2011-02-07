@@ -570,6 +570,8 @@ dev/ath/if_ath_debug.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_tx.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_tx_ht.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_pci.c		optional ath pci \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ah_osdep.c		optional ath \
@@ -958,7 +960,7 @@ dev/e1000/e1000_82543.c		optional em | igb \
 dev/e1000/e1000_82571.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_82575.c		optional em | igb \
-	 compile-with "${NORMAL_C} -I$S/dev/igb"
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_ich8lan.c	optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_api.c		optional em | igb \
@@ -1252,7 +1254,7 @@ iwn6050.fw			optional iwn6050fw | iwnfw		\
 	dependency	"$S/contrib/dev/iwn/iwlwifi-6050-9.201.4.1.fw.uu" \
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6050-9.201.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
-	clean		"iwn6000.fw"
+	clean		"iwn6050.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb

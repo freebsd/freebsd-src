@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -913,9 +915,11 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	/* init all variables to a known value. */
 	SCTP_SET_STATE(&stcb->asoc, SCTP_STATE_INUSE);
 	asoc->max_burst = m->sctp_ep.max_burst;
+	asoc->fr_max_burst = m->sctp_ep.fr_max_burst;
 	asoc->heart_beat_delay = TICKS_TO_MSEC(m->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
 	asoc->cookie_life = m->sctp_ep.def_cookie_life;
 	asoc->sctp_cmt_on_off = m->sctp_cmt_on_off;
+	asoc->ecn_allowed = m->sctp_ecn_enable;
 	asoc->sctp_nr_sack_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_nr_sack_on_off);
 	asoc->sctp_cmt_pf = (uint8_t) SCTP_BASE_SYSCTL(sctp_cmt_pf);
 	asoc->sctp_frag_point = m->sctp_frag_point;
@@ -1071,7 +1075,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 		TAILQ_INIT(&asoc->strmout[i].outqueue);
 		asoc->strmout[i].stream_no = i;
 		asoc->strmout[i].last_msg_incomplete = 0;
-		asoc->ss_functions.sctp_ss_init_stream(&asoc->strmout[i]);
+		asoc->ss_functions.sctp_ss_init_stream(&asoc->strmout[i], NULL);
 	}
 	asoc->ss_functions.sctp_ss_init(stcb, asoc, 0);
 
@@ -2459,12 +2463,13 @@ sctp_mtu_size_reset(struct sctp_inpcb *inp,
  * given an association and starting time of the current RTT period return
  * RTO in number of msecs net should point to the current network
  */
+
 uint32_t
 sctp_calculate_rto(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     struct sctp_nets *net,
     struct timeval *told,
-    int safe)
+    int safe, int local_lan_determine)
 {
 	/*-
 	 * given an association and the starting time of the current RTT
@@ -2492,13 +2497,21 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/************************/
 	/* get the current time */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
-
 	/*
 	 * Record the real time of the last RTT for use in DC-CC.
 	 */
 	net->last_measured_rtt = now;
 	timevalsub(&net->last_measured_rtt, old);
 
+	/* Do we need to determine the lan type? */
+	if ((local_lan_determine == SCTP_DETERMINE_LL_OK) && (net->lan_type == SCTP_LAN_UNKNOWN)) {
+		if ((net->last_measured_rtt.tv_sec) ||
+		    (net->last_measured_rtt.tv_usec > SCTP_LOCAL_LAN_RTT)) {
+			net->lan_type = SCTP_LAN_INTERNET;
+		} else {
+			net->lan_type = SCTP_LAN_LOCAL;
+		}
+	}
 	/* compute the RTT value */
 	if ((u_long)now.tv_sec > (u_long)old->tv_sec) {
 		calc_time = ((u_long)now.tv_sec - (u_long)old->tv_sec) * 1000;

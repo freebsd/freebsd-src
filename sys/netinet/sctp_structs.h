@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -105,6 +107,31 @@ typedef void (*asoc_func) (struct sctp_inpcb *, struct sctp_tcb *, void *ptr,
          uint32_t val);
 typedef int (*inp_func) (struct sctp_inpcb *, void *ptr, uint32_t val);
 typedef void (*end_func) (void *ptr, uint32_t val);
+
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+/* whats on the mcore control struct */
+struct sctp_mcore_queue {
+	TAILQ_ENTRY(sctp_mcore_queue) next;
+	struct vnet *vn;
+	struct mbuf *m;
+	int off;
+	int v6;
+};
+
+TAILQ_HEAD(sctp_mcore_qhead, sctp_mcore_queue);
+
+struct sctp_mcore_ctrl {
+	SCTP_PROCESS_STRUCT thread_proc;
+	struct sctp_mcore_qhead que;
+	struct mtx core_mtx;
+	struct mtx que_mtx;
+	int running;
+	int cpuid;
+};
+
+
+#endif
+
 
 struct sctp_iterator {
 	TAILQ_ENTRY(sctp_iterator) sctp_nxt_itr;
@@ -237,6 +264,8 @@ struct sctp_nets {
 	uint32_t flight_size;
 	uint32_t cwnd;		/* actual cwnd */
 	uint32_t prev_cwnd;	/* cwnd before any processing */
+	uint32_t ecn_prev_cwnd;	/* ECN prev cwnd at first ecn_echo seen in new
+				 * window */
 	uint32_t partial_bytes_acked;	/* in CA tracks when to incr a MTU */
 	uint32_t prev_rtt;
 	/* tracking variables to avoid the aloc/free in sack processing */
@@ -318,8 +347,11 @@ struct sctp_nets {
 	uint8_t window_probe;	/* Doing a window probe? */
 	uint8_t RTO_measured;	/* Have we done the first measure */
 	uint8_t last_hs_used;	/* index into the last HS table entry we used */
+	uint8_t lan_type;
 	/* JRS - struct used in HTCP algorithm */
 	struct htcp htcp_ca;
+	uint32_t flowid;
+	uint8_t flowidset;
 };
 
 
@@ -329,8 +361,7 @@ struct sctp_data_chunkrec {
 	uint16_t stream_number;	/* the stream number of this guy */
 	uint32_t payloadtype;
 	uint32_t context;	/* from send */
-
-	uint8_t fwd_tsn_cnt;
+	uint32_t cwnd_at_send;
 	/*
 	 * part of the Highest sacked algorithm to be able to stroke counts
 	 * on ones that are FR'd.
@@ -342,6 +373,7 @@ struct sctp_data_chunkrec {
 				 * outbound holds sending flags for PR-SCTP. */
 	uint8_t state_flags;
 	uint8_t chunk_was_revoked;
+	uint8_t fwd_tsn_cnt;
 };
 
 TAILQ_HEAD(sctpchunk_listhead, sctp_tmit_chunk);
@@ -447,6 +479,7 @@ struct sctp_stream_queue_pending {
 	struct timeval ts;
 	struct sctp_nets *net;
 	          TAILQ_ENTRY(sctp_stream_queue_pending) next;
+	          TAILQ_ENTRY(sctp_stream_queue_pending) ss_next;
 	uint32_t length;
 	uint32_t timetolive;
 	uint32_t ppid;
@@ -624,7 +657,7 @@ struct sctp_ss_functions {
 	         int holds_lock);
 	void (*sctp_ss_clear) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	         int clear_values, int holds_lock);
-	void (*sctp_ss_init_stream) (struct sctp_stream_out *strq);
+	void (*sctp_ss_init_stream) (struct sctp_stream_out *strq, struct sctp_stream_out *with_strq);
 	void (*sctp_ss_add_to_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	         struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
 	int (*sctp_ss_is_empty) (struct sctp_tcb *stcb, struct sctp_association *asoc);
@@ -723,12 +756,7 @@ struct sctp_association {
 	/* re-assembly queue for fragmented chunks on the inbound path */
 	struct sctpchunk_listhead reasmqueue;
 
-	/*
-	 * this queue is used when we reach a condition that we can NOT put
-	 * data into the socket buffer. We track the size of this queue and
-	 * set our rwnd to the space in the socket minus also the
-	 * size_on_delivery_queue.
-	 */
+	/* Scheduling queues */
 	union scheduling_data ss_data;
 
 	/*
@@ -1052,8 +1080,10 @@ struct sctp_association {
 	 */
 	uint8_t send_sack;
 
-	/* max burst after fast retransmit completes */
+	/* max burst of new packets into the network */
 	uint32_t max_burst;
+	/* max burst of fast retransmit packets */
+	uint32_t fr_max_burst;
 
 	uint8_t sat_network;	/* RTT is in range of sat net or greater */
 	uint8_t sat_network_lockout;	/* lockout code */

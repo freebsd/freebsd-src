@@ -795,11 +795,11 @@ vm_object_page_remove_write(vm_page_t p, int flags, int *clearobjflags)
  *	The object must be locked.
  */
 void
-vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
+vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
     int flags)
 {
 	vm_page_t np, p;
-	vm_pindex_t pi, tend;
+	vm_pindex_t pi, tend, tstart;
 	int clearobjflags, curgeneration, n, pagerflags;
 
 	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
@@ -813,13 +813,14 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	    VM_PAGER_PUT_SYNC : VM_PAGER_CLUSTER_OK;
 	pagerflags |= (flags & OBJPC_INVAL) != 0 ? VM_PAGER_PUT_INVAL : 0;
 
-	tend = (end == 0) ? object->size : end;
-	clearobjflags = start == 0 && tend == object->size;
+	tstart = OFF_TO_IDX(start);
+	tend = (end == 0) ? object->size : OFF_TO_IDX(end + PAGE_MASK);
+	clearobjflags = tstart == 0 && tend >= object->size;
 
 rescan:
 	curgeneration = object->generation;
 
-	for (p = vm_page_find_least(object, start); p != NULL; p = np) {
+	for (p = vm_page_find_least(object, tstart); p != NULL; p = np) {
 		pi = p->pindex;
 		if (pi >= tend)
 			break;
@@ -941,10 +942,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
 		flags |= invalidate ? OBJPC_INVAL : 0;
 		VM_OBJECT_LOCK(object);
-		vm_object_page_clean(object,
-		    OFF_TO_IDX(offset),
-		    OFF_TO_IDX(offset + size + PAGE_MASK),
-		    flags);
+		vm_object_page_clean(object, offset, offset + size, flags);
 		VM_OBJECT_UNLOCK(object);
 		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -1147,7 +1145,7 @@ vm_object_shadow(
 	/*
 	 * Allocate a new object with the given length.
 	 */
-	result = vm_object_allocate(OBJT_DEFAULT, length);
+	result = vm_object_allocate(OBJT_DEFAULT, atop(length));
 
 	/*
 	 * The new object shadows the source object, adding a reference to it.

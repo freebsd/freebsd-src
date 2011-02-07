@@ -471,7 +471,7 @@ serve_sched(struct mq *q, struct dn_sch_inst *si, uint64_t now)
 			(m->m_pkthdr.len * 8 + extra_bits(m, s));
 		si->credit -= len_scaled;
 		/* Move packet in the delay line */
-		dn_tag_get(m)->output_time += s->link.delay ;
+		dn_tag_get(m)->output_time = dn_cfg.curr_time + s->link.delay ;
 		mq_append(&si->dline.mq, m);
 	}
 

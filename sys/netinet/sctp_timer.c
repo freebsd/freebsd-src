@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1510,32 +1512,17 @@ sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp,
 		    stcb->asoc.sent_queue_retran_cnt);
 		stcb->asoc.sent_queue_retran_cnt = 0;
 	}
-	SCTP_TCB_SEND_LOCK(stcb);
 	if (stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, &stcb->asoc)) {
-		int cnt = 0;
-
-		/* Check to see if a spoke fell off the wheel */
-		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
-			if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
-				stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb,
-				    &stcb->asoc,
-				    &stcb->asoc.strmout[i],
-				    NULL,
-				    1);
-				cnt++;
-			}
-		}
-		if (cnt) {
-			/* yep, we lost a spoke or two */
-			SCTP_PRINTF("Found an additional %d streams NOT on outwheel, corrected\n", cnt);
+		/* No stream scheduler information, initialize scheduler */
+		stcb->asoc.ss_functions.sctp_ss_init(stcb, &stcb->asoc, 0);
+		if (!stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, &stcb->asoc)) {
+			/* yep, we lost a stream or two */
+			SCTP_PRINTF("Found additional streams NOT managed by scheduler, corrected\n");
 		} else {
-			/* no spokes lost, */
+			/* no streams lost */
 			stcb->asoc.total_output_queue_size = 0;
 		}
-		SCTP_TCB_SEND_UNLOCK(stcb);
-		return;
 	}
-	SCTP_TCB_SEND_UNLOCK(stcb);
 	/* Check to see if some data queued, if so report it */
 	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 		if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
@@ -1630,7 +1617,8 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				else if (ret == 0) {
 					break;
 				}
-				if (cnt_sent >= SCTP_BASE_SYSCTL(sctp_hb_maxburst))
+				if (SCTP_BASE_SYSCTL(sctp_hb_maxburst) &&
+				    (cnt_sent >= SCTP_BASE_SYSCTL(sctp_hb_maxburst)))
 					break;
 			}
 		}

@@ -71,7 +71,7 @@ static void
 ar9285AniSetup(struct ath_hal *ah)
 {
 	/* NB: disable ANI for reliable RIFS rx */
-	ar5212AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
+	ar5416AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
 }
 
 /*
@@ -370,6 +370,10 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 #if 0
 	pCap->halWowMatchPatternDword = AH_TRUE;
 #endif
+	/* AR9285 has 2 antennas but is a 1x1 stream device */
+	pCap->halTxStreams = 2;
+	pCap->halRxStreams = 2;
+
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halRifsRxSupport = AH_TRUE;
 	pCap->halRifsTxSupport = AH_TRUE;

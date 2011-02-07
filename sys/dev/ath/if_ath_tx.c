@@ -97,6 +97,16 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_ath_misc.h>
 #include <dev/ath/if_ath_tx.h>
+#include <dev/ath/if_ath_tx_ht.h>
+
+/*
+ * Whether to use the 11n rate scenario functions or not
+ */
+static inline int
+ath_tx_is_11n(struct ath_softc *sc)
+{
+	return (sc->sc_ah->ah_magic == 0x20065416);
+}
 
 void
 ath_txfrag_cleanup(struct ath_softc *sc,
@@ -216,7 +226,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 }
 
 static void
-ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+ath_tx_chaindesclist(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
@@ -243,6 +253,17 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 			__func__, i, ds->ds_link, ds->ds_data,
 			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
 	}
+
+}
+
+static void
+ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+{
+	struct ath_hal *ah = sc->sc_ah;
+
+	/* Fill in the details in the descriptor list */
+	ath_tx_chaindesclist(sc, txq, bf);
+
 	/*
 	 * Insert the frame on the outbound list and pass it on
 	 * to the hardware.  Multicast frames buffered for power
@@ -348,6 +369,97 @@ ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
 	ATH_TXQ_UNLOCK(txq);
 }
 
+static int
+ath_tx_tag_crypto(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct mbuf *m0, int iswep, int isfrag, int *hdrlen, int *pktlen, int *keyix)
+{
+	if (iswep) {
+		const struct ieee80211_cipher *cip;
+		struct ieee80211_key *k;
+
+		/*
+		 * Construct the 802.11 header+trailer for an encrypted
+		 * frame. The only reason this can fail is because of an
+		 * unknown or unsupported cipher/key type.
+		 */
+		k = ieee80211_crypto_encap(ni, m0);
+		if (k == NULL) {
+			/*
+			 * This can happen when the key is yanked after the
+			 * frame was queued.  Just discard the frame; the
+			 * 802.11 layer counts failures and provides
+			 * debugging/diagnostics.
+			 */
+			return 0;
+		}
+		/*
+		 * Adjust the packet + header lengths for the crypto
+		 * additions and calculate the h/w key index.  When
+		 * a s/w mic is done the frame will have had any mic
+		 * added to it prior to entry so m0->m_pkthdr.len will
+		 * account for it. Otherwise we need to add it to the
+		 * packet length.
+		 */
+		cip = k->wk_cipher;
+		(*hdrlen) += cip->ic_header;
+		(*pktlen) += cip->ic_header + cip->ic_trailer;
+		/* NB: frags always have any TKIP MIC done in s/w */
+		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0 && !isfrag)
+			(*pktlen) += cip->ic_miclen;
+		(*keyix) = k->wk_keyix;
+	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
+		/*
+		 * Use station key cache slot, if assigned.
+		 */
+		(*keyix) = ni->ni_ucastkey.wk_keyix;
+		if ((*keyix) == IEEE80211_KEYIX_NONE)
+			(*keyix) = HAL_TXKEYIX_INVALID;
+	} else
+		(*keyix) = HAL_TXKEYIX_INVALID;
+
+	return 1;
+}
+
+static void
+ath_tx_calc_ctsduration(struct ath_hal *ah, int rix, int cix,
+    int shortPreamble, int pktlen, const HAL_RATE_TABLE *rt,
+    int flags, u_int8_t *ctsrate, int *ctsduration)
+{
+	/*
+	 * CTS transmit rate is derived from the transmit rate
+	 * by looking in the h/w rate table.  We must also factor
+	 * in whether or not a short preamble is to be used.
+	 */
+	/* NB: cix is set above where RTS/CTS is enabled */
+	KASSERT(cix != 0xff, ("cix not setup"));
+	(*ctsrate) = rt->info[cix].rateCode;
+	/*
+	 * Compute the transmit duration based on the frame
+	 * size and the size of an ACK frame.  We call into the
+	 * HAL to do the computation since it depends on the
+	 * characteristics of the actual PHY being used.
+	 *
+	 * NB: CTS is assumed the same size as an ACK so we can
+	 *     use the precalculated ACK durations.
+	 */
+	if (shortPreamble) {
+		(*ctsrate) |= rt->info[cix].shortPreamble;
+		if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
+			(*ctsduration) += rt->info[cix].spAckDuration;
+		(*ctsduration) += ath_hal_computetxtime(ah,
+			rt, pktlen, rix, AH_TRUE);
+		if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
+			(*ctsduration) += rt->info[rix].spAckDuration;
+	} else {
+		if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
+			(*ctsduration) += rt->info[cix].lpAckDuration;
+		(*ctsduration) += ath_hal_computetxtime(ah,
+			rt, pktlen, rix, AH_FALSE);
+		if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
+			(*ctsduration) += rt->info[rix].lpAckDuration;
+	}
+}
+
 int
 ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
@@ -371,6 +483,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	HAL_BOOL shortPreamble;
 	struct ath_node *an;
 	u_int pri;
+	uint8_t try[4], rate[4];
+
+	bzero(try, sizeof(try));
+	bzero(rate, sizeof(rate));
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
@@ -383,53 +499,14 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3);
 
-	if (iswep) {
-		const struct ieee80211_cipher *cip;
-		struct ieee80211_key *k;
+	/* Handle encryption twiddling if needed */
+	if (! ath_tx_tag_crypto(sc, ni, m0, iswep, isfrag, &hdrlen, &pktlen, &keyix)) {
+		ath_freetx(m0);
+		return EIO;
+	}
 
-		/*
-		 * Construct the 802.11 header+trailer for an encrypted
-		 * frame. The only reason this can fail is because of an
-		 * unknown or unsupported cipher/key type.
-		 */
-		k = ieee80211_crypto_encap(ni, m0);
-		if (k == NULL) {
-			/*
-			 * This can happen when the key is yanked after the
-			 * frame was queued.  Just discard the frame; the
-			 * 802.11 layer counts failures and provides
-			 * debugging/diagnostics.
-			 */
-			ath_freetx(m0);
-			return EIO;
-		}
-		/*
-		 * Adjust the packet + header lengths for the crypto
-		 * additions and calculate the h/w key index.  When
-		 * a s/w mic is done the frame will have had any mic
-		 * added to it prior to entry so m0->m_pkthdr.len will
-		 * account for it. Otherwise we need to add it to the
-		 * packet length.
-		 */
-		cip = k->wk_cipher;
-		hdrlen += cip->ic_header;
-		pktlen += cip->ic_header + cip->ic_trailer;
-		/* NB: frags always have any TKIP MIC done in s/w */
-		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0 && !isfrag)
-			pktlen += cip->ic_miclen;
-		keyix = k->wk_keyix;
-
-		/* packet header may have moved, reset our local pointer */
-		wh = mtod(m0, struct ieee80211_frame *);
-	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
-		/*
-		 * Use station key cache slot, if assigned.
-		 */
-		keyix = ni->ni_ucastkey.wk_keyix;
-		if (keyix == IEEE80211_KEYIX_NONE)
-			keyix = HAL_TXKEYIX_INVALID;
-	} else
-		keyix = HAL_TXKEYIX_INVALID;
+	/* packet header may have moved, reset our local pointer */
+	wh = mtod(m0, struct ieee80211_frame *);
 
 	pktlen += IEEE80211_CRC_LEN;
 
@@ -637,39 +714,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 */
 	ctsduration = 0;
 	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA)) {
-		/*
-		 * CTS transmit rate is derived from the transmit rate
-		 * by looking in the h/w rate table.  We must also factor
-		 * in whether or not a short preamble is to be used.
-		 */
-		/* NB: cix is set above where RTS/CTS is enabled */
-		KASSERT(cix != 0xff, ("cix not setup"));
-		ctsrate = rt->info[cix].rateCode;
-		/*
-		 * Compute the transmit duration based on the frame
-		 * size and the size of an ACK frame.  We call into the
-		 * HAL to do the computation since it depends on the
-		 * characteristics of the actual PHY being used.
-		 *
-		 * NB: CTS is assumed the same size as an ACK so we can
-		 *     use the precalculated ACK durations.
-		 */
-		if (shortPreamble) {
-			ctsrate |= rt->info[cix].shortPreamble;
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].spAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_TRUE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].spAckDuration;
-		} else {
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].lpAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_FALSE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].lpAckDuration;
-		}
+		(void) ath_tx_calc_ctsduration(ah, rix, cix, shortPreamble, pktlen,
+		    rt, flags, &ctsrate, &ctsduration);
 		/*
 		 * Must disable multi-rate retry when using RTS/CTS.
 		 */
@@ -727,10 +773,17 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		txq->axq_intrcnt = 0;
 	}
 
+	if (ath_tx_is_11n(sc)) {
+		rate[0] = rix;
+		try[0] = try0;
+	}
+
 	/*
 	 * Formulate first tx descriptor with tx controls.
 	 */
 	/* XXX check return value? */
+	/* XXX is this ok to call for 11n descriptors? */
+	/* XXX or should it go through the first, next, last 11n calls? */
 	ath_hal_setuptxdesc(ah, ds
 		, pktlen		/* packet length */
 		, hdrlen		/* header length */
@@ -751,8 +804,16 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 * when the hardware supports multi-rate retry and
 	 * we don't use it.
 	 */
-	if (ismrr)
-		ath_rate_setupxtxdesc(sc, an, ds, shortPreamble, rix);
+        if (ismrr) {
+                if (ath_tx_is_11n(sc))
+                        ath_rate_getxtxrates(sc, an, rix, rate, try);
+                else
+                        ath_rate_setupxtxdesc(sc, an, ds, shortPreamble, rix);
+        }
+
+        if (ath_tx_is_11n(sc)) {
+                ath_buf_set_rate(sc, ni, bf, pktlen, flags, ctsrate, rate, try);
+        }
 
 	ath_tx_handoff(sc, txq, bf);
 	return 0;
@@ -776,6 +837,10 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	const HAL_RATE_TABLE *rt;
 	struct ath_desc *ds;
 	u_int pri;
+	uint8_t try[4], rate[4];
+
+	bzero(try, sizeof(try));
+	bzero(rate, sizeof(rate));
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
@@ -787,53 +852,13 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
 
-	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
-		const struct ieee80211_cipher *cip;
-		struct ieee80211_key *k;
-
-		/*
-		 * Construct the 802.11 header+trailer for an encrypted
-		 * frame. The only reason this can fail is because of an
-		 * unknown or unsupported cipher/key type.
-		 */
-		k = ieee80211_crypto_encap(ni, m0);
-		if (k == NULL) {
-			/*
-			 * This can happen when the key is yanked after the
-			 * frame was queued.  Just discard the frame; the
-			 * 802.11 layer counts failures and provides
-			 * debugging/diagnostics.
-			 */
-			ath_freetx(m0);
-			return EIO;
-		}
-		/*
-		 * Adjust the packet + header lengths for the crypto
-		 * additions and calculate the h/w key index.  When
-		 * a s/w mic is done the frame will have had any mic
-		 * added to it prior to entry so m0->m_pkthdr.len will
-		 * account for it. Otherwise we need to add it to the
-		 * packet length.
-		 */
-		cip = k->wk_cipher;
-		hdrlen += cip->ic_header;
-		pktlen += cip->ic_header + cip->ic_trailer;
-		/* NB: frags always have any TKIP MIC done in s/w */
-		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0)
-			pktlen += cip->ic_miclen;
-		keyix = k->wk_keyix;
-
-		/* packet header may have moved, reset our local pointer */
-		wh = mtod(m0, struct ieee80211_frame *);
-	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
-		/*
-		 * Use station key cache slot, if assigned.
-		 */
-		keyix = ni->ni_ucastkey.wk_keyix;
-		if (keyix == IEEE80211_KEYIX_NONE)
-			keyix = HAL_TXKEYIX_INVALID;
-	} else
-		keyix = HAL_TXKEYIX_INVALID;
+	/* Handle encryption twiddling if needed */
+	if (! ath_tx_tag_crypto(sc, ni, m0, params->ibp_flags & IEEE80211_BPF_CRYPTO, 0, &hdrlen, &pktlen, &keyix)) {
+		ath_freetx(m0);
+		return EIO;
+	}
+	/* packet header may have moved, reset our local pointer */
+	wh = mtod(m0, struct ieee80211_frame *);
 
 	error = ath_tx_dmasetup(sc, bf, m0);
 	if (error != 0)
@@ -864,29 +889,20 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	txantenna = params->ibp_pri >> 2;
 	if (txantenna == 0)			/* XXX? */
 		txantenna = sc->sc_txantenna;
+
 	ctsduration = 0;
-	if (flags & (HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA)) {
+	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA)) {
 		cix = ath_tx_findrix(sc, params->ibp_ctsrate);
-		ctsrate = rt->info[cix].rateCode;
-		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE) {
-			ctsrate |= rt->info[cix].shortPreamble;
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].spAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_TRUE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].spAckDuration;
-		} else {
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].lpAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_FALSE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].lpAckDuration;
-		}
+		(void) ath_tx_calc_ctsduration(ah, rix, cix,
+		    params->ibp_flags & IEEE80211_BPF_SHORTPRE, pktlen,
+		    rt, flags, &ctsrate, &ctsduration);
+		/*
+		 * Must disable multi-rate retry when using RTS/CTS.
+		 */
 		ismrr = 0;			/* XXX */
 	} else
 		ctsrate = 0;
+
 	pri = params->ibp_pri & 3;
 	/*
 	 * NB: we mark all packets as type PSPOLL so the h/w won't
@@ -933,30 +949,56 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	);
 	bf->bf_txflags = flags;
 
-	if (ismrr) {
-		rix = ath_tx_findrix(sc, params->ibp_rate1);
-		rate1 = rt->info[rix].rateCode;
-		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-			rate1 |= rt->info[rix].shortPreamble;
-		if (params->ibp_try2) {
-			rix = ath_tx_findrix(sc, params->ibp_rate2);
-			rate2 = rt->info[rix].rateCode;
+	if (ath_tx_is_11n(sc)) {
+		rate[0] = ath_tx_findrix(sc, params->ibp_rate0);
+		try[0] = params->ibp_try0;
+
+		if (ismrr) {
+			/* Remember, rate[] is actually an array of rix's -adrian */
+			rate[0] = ath_tx_findrix(sc, params->ibp_rate0);
+			rate[1] = ath_tx_findrix(sc, params->ibp_rate1);
+			rate[2] = ath_tx_findrix(sc, params->ibp_rate2);
+			rate[3] = ath_tx_findrix(sc, params->ibp_rate3);
+
+			try[0] = params->ibp_try0;
+			try[1] = params->ibp_try1;
+			try[2] = params->ibp_try2;
+			try[3] = params->ibp_try3;
+		}
+	} else {
+		if (ismrr) {
+			rix = ath_tx_findrix(sc, params->ibp_rate1);
+			rate1 = rt->info[rix].rateCode;
 			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-				rate2 |= rt->info[rix].shortPreamble;
-		} else
-			rate2 = 0;
-		if (params->ibp_try3) {
-			rix = ath_tx_findrix(sc, params->ibp_rate3);
-			rate3 = rt->info[rix].rateCode;
-			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-				rate3 |= rt->info[rix].shortPreamble;
-		} else
-			rate3 = 0;
-		ath_hal_setupxtxdesc(ah, ds
-			, rate1, params->ibp_try1	/* series 1 */
-			, rate2, params->ibp_try2	/* series 2 */
-			, rate3, params->ibp_try3	/* series 3 */
-		);
+				rate1 |= rt->info[rix].shortPreamble;
+			if (params->ibp_try2) {
+				rix = ath_tx_findrix(sc, params->ibp_rate2);
+				rate2 = rt->info[rix].rateCode;
+				if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
+					rate2 |= rt->info[rix].shortPreamble;
+			} else
+				rate2 = 0;
+			if (params->ibp_try3) {
+				rix = ath_tx_findrix(sc, params->ibp_rate3);
+				rate3 = rt->info[rix].rateCode;
+				if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
+					rate3 |= rt->info[rix].shortPreamble;
+			} else
+				rate3 = 0;
+			ath_hal_setupxtxdesc(ah, ds
+				, rate1, params->ibp_try1	/* series 1 */
+				, rate2, params->ibp_try2	/* series 2 */
+				, rate3, params->ibp_try3	/* series 3 */
+			);
+		}
+	}
+
+	if (ath_tx_is_11n(sc)) {
+		/*
+		 * notice that rix doesn't include any of the "magic" flags txrate
+		 * does for communicating "other stuff" to the HAL.
+		 */
+		ath_buf_set_rate(sc, ni, bf, pktlen, flags, ctsrate, rate, try);
 	}
 
 	/* NB: no buffered multicast in power save support */

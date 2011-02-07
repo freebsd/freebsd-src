@@ -184,7 +184,5 @@ drop_privs(void)
 	PJDLOG_VERIFY(getgroups(1, gidset) == 1);
 	PJDLOG_VERIFY(gidset[0] == pw->pw_gid);
 
-	pjdlog_info("Privileges successfully dropped.");
-
 	return (0);
 }

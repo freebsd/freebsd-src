@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_crc32.h>
 #include <netinet/udp.h>
+#include <sys/smp.h>
 
 
 
@@ -481,7 +484,8 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	    asoc->primary_destination, SCTP_FROM_SCTP_INPUT + SCTP_LOC_4);
 
 	/* calculate the RTO */
-	net->RTO = sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered, sctp_align_safe_nocopy);
+	net->RTO = sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered, sctp_align_safe_nocopy,
+	    SCTP_DETERMINE_LL_NOTOK);
 
 	retval = sctp_send_cookie_echo(m, offset, stcb, net);
 	if (retval < 0) {
@@ -625,7 +629,8 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 		    net, net->cwnd);
 	}
 	/* Now lets do a RTO with this */
-	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv, sctp_align_safe_nocopy);
+	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv, sctp_align_safe_nocopy,
+	    SCTP_DETERMINE_LL_OK);
 	/* Mobility adaptation */
 	if (req_prim) {
 		if ((sctp_is_mobility_feature_on(stcb->sctp_ep,
@@ -1540,7 +1545,9 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 */
 			net->hb_responded = 1;
 			net->RTO = sctp_calculate_rto(stcb, asoc, net,
-			    &cookie->time_entered, sctp_align_unsafe_makecopy);
+			    &cookie->time_entered,
+			    sctp_align_unsafe_makecopy,
+			    SCTP_DETERMINE_LL_NOTOK);
 
 			if (stcb->asoc.sctp_autoclose_ticks &&
 			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE))) {
@@ -2243,7 +2250,8 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 	if ((netp) && (*netp)) {
 		(*netp)->RTO = sctp_calculate_rto(stcb, asoc, *netp,
-		    &cookie->time_entered, sctp_align_unsafe_makecopy);
+		    &cookie->time_entered, sctp_align_unsafe_makecopy,
+		    SCTP_DETERMINE_LL_NOTOK);
 	}
 	/* respond with a COOKIE-ACK */
 	sctp_send_cookie_ack(stcb);
@@ -2607,6 +2615,10 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* still no TCB... must be bad cookie-echo */
 		return (NULL);
 	}
+	if ((*netp != NULL) && (m->m_flags & M_FLOWID)) {
+		(*netp)->flowid = m->m_pkthdr.flowid;
+		(*netp)->flowidset = 1;
+	}
 	/*
 	 * Ok, we built an association so confirm the address we sent the
 	 * INIT-ACK to.
@@ -2710,6 +2722,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			inp->sctp_socket = so;
 			inp->sctp_frag_point = (*inp_p)->sctp_frag_point;
 			inp->sctp_cmt_on_off = (*inp_p)->sctp_cmt_on_off;
+			inp->sctp_ecn_enable = (*inp_p)->sctp_ecn_enable;
 			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
 			inp->sctp_context = (*inp_p)->sctp_context;
 			inp->inp_starting_point_for_iterator = NULL;
@@ -2831,7 +2844,8 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 		SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 		if (asoc->overall_error_count == 0) {
 			net->RTO = sctp_calculate_rto(stcb, asoc, net,
-			    &asoc->time_entered, sctp_align_safe_nocopy);
+			    &asoc->time_entered, sctp_align_safe_nocopy,
+			    SCTP_DETERMINE_LL_NOTOK);
 		}
 		(void)SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_UP, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
@@ -2911,7 +2925,7 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 	uint8_t override_bit = 0;
 	uint32_t tsn, window_data_tsn;
 	int len;
-	int pkt_cnt;
+	unsigned int pkt_cnt;
 
 	len = ntohs(cp->ch.chunk_length);
 	if ((len != sizeof(struct sctp_ecne_chunk)) &&
@@ -2939,6 +2953,7 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 	TAILQ_FOREACH(lchk, &stcb->asoc.sent_queue, sctp_next) {
 		if (lchk->rec.data.TSN_seq == tsn) {
 			net = lchk->whoTo;
+			net->ecn_prev_cwnd = lchk->rec.data.cwnd_at_send;
 			break;
 		}
 		if (SCTP_TSN_GT(lchk->rec.data.TSN_seq, tsn)) {
@@ -4196,6 +4211,7 @@ __attribute__((noinline))
 	uint32_t chk_length;
 	int ret;
 	int abort_no_unlock = 0;
+	int ecne_seen = 0;
 
 	/*
 	 * How big should this be, and should it be alloc'd? Lets try the
@@ -4691,13 +4707,13 @@ process_control_chunks:
 					 * with no missing segments to go
 					 * this way too.
 					 */
-					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, &abort_now);
+					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, &abort_now, ecne_seen);
 				} else {
 					if (netp && *netp)
 						sctp_handle_sack(m, offset_seg, offset_dup,
 						    stcb, *netp,
 						    num_seg, 0, num_dup, &abort_now, flags,
-						    cum_ack, a_rwnd);
+						    cum_ack, a_rwnd, ecne_seen);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
@@ -4780,13 +4796,13 @@ process_control_chunks:
 					 * too.
 					 */
 					sctp_express_handle_sack(stcb, cum_ack, a_rwnd,
-					    &abort_now);
+					    &abort_now, ecne_seen);
 				} else {
 					if (netp && *netp)
 						sctp_handle_sack(m, offset_seg, offset_dup,
 						    stcb, *netp,
 						    num_seg, num_nr_seg, num_dup, &abort_now, flags,
-						    cum_ack, a_rwnd);
+						    cum_ack, a_rwnd, ecne_seen);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
@@ -5063,6 +5079,7 @@ process_control_chunks:
 				stcb->asoc.overall_error_count = 0;
 				sctp_handle_ecn_echo((struct sctp_ecne_chunk *)ch,
 				    stcb);
+				ecne_seen = 1;
 			}
 			break;
 		case SCTP_ECN_CWR:
@@ -5601,7 +5618,8 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 		 */
 	}
 	/* take care of ecn */
-	if (stcb->asoc.ecn_allowed && ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS)) {
+	if ((stcb->asoc.ecn_allowed == 1) &&
+	    ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS)) {
 		/* Yep, we need to add a ECNE */
 		sctp_send_ecn_echo(stcb, net, high_tsn);
 	}
@@ -5826,6 +5844,10 @@ sctp_skip_csum_4:
 		}
 		net->port = port;
 	}
+	if ((net != NULL) && (m->m_flags & M_FLOWID)) {
+		net->flowid = m->m_pkthdr.flowid;
+		net->flowidset = 1;
+	}
 	/* inp's ref-count increased && stcb locked */
 	if (inp == NULL) {
 		struct sctp_init_chunk *init_chk, chunk_buf;
@@ -5912,10 +5934,49 @@ bad:
 	}
 	return;
 }
+
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+extern int *sctp_cpuarry;
+
+#endif
+
 void
-sctp_input(i_pak, off)
-	struct mbuf *i_pak;
-	int off;
+sctp_input(struct mbuf *m, int off)
 {
-	sctp_input_with_port(i_pak, off, 0);
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+	struct ip *ip;
+	struct sctphdr *sh;
+	int offset;
+	int cpu_to_use;
+	uint32_t flowid, tag;
+
+	if (mp_ncpus > 1) {
+		if (m->m_flags & M_FLOWID) {
+			flowid = m->m_pkthdr.flowid;
+		} else {
+			/*
+			 * No flow id built by lower layers fix it so we
+			 * create one.
+			 */
+			ip = mtod(m, struct ip *);
+			offset = off + sizeof(*sh);
+			if (SCTP_BUF_LEN(m) < offset) {
+				if ((m = m_pullup(m, offset)) == 0) {
+					SCTP_STAT_INCR(sctps_hdrops);
+					return;
+				}
+				ip = mtod(m, struct ip *);
+			}
+			sh = (struct sctphdr *)((caddr_t)ip + off);
+			tag = htonl(sh->v_tag);
+			flowid = tag ^ ntohs(sh->dest_port) ^ ntohs(sh->src_port);
+			m->m_pkthdr.flowid = flowid;
+			m->m_flags |= M_FLOWID;
+		}
+		cpu_to_use = sctp_cpuarry[flowid % mp_ncpus];
+		sctp_queue_to_mcore(m, off, cpu_to_use);
+		return;
+	}
+#endif
+	sctp_input_with_port(m, off, 0);
 }
