@@ -76,7 +76,7 @@ SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_cluster_idle, CTLFLAG_RW,
     &g_raid1_rebuild_cluster_idle, RAID1_REBUILD_CLUSTER_IDLE,
     "Number of slabs to do each time we trigger a rebuild cycle");
 
-#define RAID1_REBUILD_META_UPDATE 500 /* update meta data every 5 GB or so */
+#define RAID1_REBUILD_META_UPDATE 1024 /* update meta data every 1GB or so */
 static int g_raid1_rebuild_meta_update = RAID1_REBUILD_META_UPDATE;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_meta_update",
     &g_raid1_rebuild_slab);
@@ -691,13 +691,13 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					return;
 				}
 
+				if (--trs->trso_meta_update <= 0) {
+					g_raid_write_metadata(vol->v_softc,
+					    vol, nsd, nsd->sd_disk);
+					trs->trso_meta_update =
+					    g_raid1_rebuild_meta_update;
+				}
 				if (--trs->trso_recover_slabs <= 0) {
-					if (--trs->trso_meta_update <= 0) {
-						g_raid_write_metadata(vol->v_softc,
-						    vol, nsd, nsd->sd_disk);
-						trs->trso_meta_update =
-						    g_raid1_rebuild_meta_update;
-					}
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
 					return;
 				}
