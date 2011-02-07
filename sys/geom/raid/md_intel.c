@@ -74,6 +74,19 @@ struct intel_raid_vol {
 	uint8_t		name[16];
 	u_int64_t	total_sectors __packed;
 	uint32_t	state;
+#define INTEL_ST_BOOTABLE		0x00000001
+#define INTEL_ST_BOOT_DEVICE		0x00000002
+#define INTEL_ST_READ_COALESCING	0x00000004
+#define INTEL_ST_WRITE_COALESCING	0x00000008
+#define INTEL_ST_LAST_SHUTDOWN_DIRTY	0x00000010
+#define INTEL_ST_HIDDEN_AT_BOOT		0x00000020
+#define INTEL_ST_CURRENTLY_HIDDEN	0x00000040
+#define INTEL_ST_VERIFY_AND_FIX		0x00000080
+#define INTEL_ST_MAP_STATE_UNINIT	0x00000100
+#define INTEL_ST_NO_AUTO_RECOVERY	0x00000200
+#define INTEL_ST_CLONE_N_GO		0x00000400
+#define INTEL_ST_CLONE_MAN_SYNC		0x00000800
+#define INTEL_ST_CNG_MASTER_DISK_NUM	0x00001000
 	uint32_t	reserved;
 	uint8_t		migr_priority;
 	uint8_t		num_sub_vols;
@@ -2099,7 +2112,9 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			mvol->migr_type = INTEL_MT_REBUILD;
 		} else if (state == G_RAID_SUBDISK_S_RESYNC) {
 			mvol->migr_state = 1;
-			mvol->migr_type = INTEL_MT_REPAIR;
+			/* mvol->migr_type = INTEL_MT_REPAIR; */
+			mvol->migr_type = INTEL_MT_VERIFY;
+			mvol->state |= INTEL_ST_VERIFY_AND_FIX;
 		} else
 			mvol->migr_state = 0;
 		mvol->dirty = (vol->v_dirty || stale);
