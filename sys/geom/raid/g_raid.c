@@ -1072,11 +1072,35 @@ void
 g_raid_subdisk_iostart(struct g_raid_subdisk *sd, struct bio *bp)
 {
 	struct g_consumer *cp;
+	struct g_raid_disk *disk;
 
-	cp = sd->sd_disk->d_consumer;
-	bp->bio_from = sd->sd_disk->d_consumer;
-	bp->bio_to = sd->sd_disk->d_consumer->provider;
 	bp->bio_caller1 = sd;
+
+	/*
+	 * Make sure that the disk is present. Generally it is a task of
+	 * transformation layers to not send requests to absent disks, but
+	 * it is better to be safe and report situation then sorry.
+	 */
+	if (sd->sd_disk == NULL) {
+		G_RAID_LOGREQ(0, bp, "Warning! I/O request to an absent disk!");
+nodisk:
+		bp->bio_from = NULL;
+		bp->bio_to = NULL;
+		bp->bio_error = ENXIO;
+		g_raid_disk_done(bp);
+		return;
+	}
+	disk = sd->sd_disk;
+	if (disk->d_state != G_RAID_DISK_S_ACTIVE &&
+	    disk->d_state != G_RAID_DISK_S_FAILED) {
+		G_RAID_LOGREQ(0, bp, "Warning! I/O request to a disk in a "
+		    "wrong state (%s)!", g_raid_disk_state2str(disk->d_state));
+		goto nodisk;
+	}
+
+	cp = disk->d_consumer;
+	bp->bio_from = cp;
+	bp->bio_to = cp->provider;
 	cp->index++;
 	if (dumping) {
 		G_RAID_LOGREQ(3, bp, "Sending dumping request.");
@@ -1113,8 +1137,10 @@ static void
 g_raid_disk_done(struct bio *bp)
 {
 	struct g_raid_softc *sc;
+	struct g_raid_subdisk *sd;
 
-	sc = bp->bio_from->geom->softc;
+	sd = bp->bio_caller1;
+	sc = sd->sd_softc;
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
@@ -1136,12 +1162,14 @@ g_raid_disk_done_request(struct bio *bp)
 	sd = bp->bio_caller1;
 	sc = sd->sd_softc;
 	vol = sd->sd_volume;
-	bp->bio_from->index--;
-	disk = bp->bio_from->private;
-	if (disk == NULL) {
-		g_topology_lock();
-		g_raid_kill_consumer(sc, bp->bio_from);
-		g_topology_unlock();
+	if (bp->bio_from != NULL) {
+		bp->bio_from->index--;
+		disk = bp->bio_from->private;
+		if (disk == NULL) {
+			g_topology_lock();
+			g_raid_kill_consumer(sc, bp->bio_from);
+			g_topology_unlock();
+		}
 	}
 	bp->bio_offset -= sd->sd_offset;
 
@@ -1225,8 +1253,8 @@ process:
 		if (ep != NULL)
 			g_raid_handle_event(sc, ep);
 		if (bp != NULL) {
-			if (bp->bio_from == NULL ||
-			    bp->bio_from->geom != sc->sc_geom)
+			if (bp->bio_to != NULL &&
+			    bp->bio_to->geom == sc->sc_geom)
 				g_raid_start_request(bp);
 			else
 				g_raid_disk_done_request(bp);
