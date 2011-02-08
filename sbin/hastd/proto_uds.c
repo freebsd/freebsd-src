@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 /* UDS - UNIX Domain Socket */
 
+#include <sys/types.h>
 #include <sys/un.h>
 
 #include <errno.h>
