@@ -133,6 +133,8 @@ g_raid_node_event2str(int event)
 {
 
 	switch (event) {
+	case G_RAID_NODE_E_WAKE:
+		return ("WAKE");
 	case G_RAID_NODE_E_START:
 		return ("START");
 	default:
@@ -187,10 +189,12 @@ g_raid_subdisk_state2str(int state)
 		return ("FAILED");
 	case G_RAID_SUBDISK_S_NEW:
 		return ("NEW");
-	case G_RAID_SUBDISK_S_STALE:
-		return ("STALE");
 	case G_RAID_SUBDISK_S_REBUILD:
 		return ("REBUILD");
+	case G_RAID_SUBDISK_S_UNINITIALIZED:
+		return ("UNINITIALIZED");
+	case G_RAID_SUBDISK_S_STALE:
+		return ("STALE");
 	case G_RAID_SUBDISK_S_RESYNC:
 		return ("RESYNC");
 	case G_RAID_SUBDISK_S_ACTIVE:
@@ -323,22 +327,13 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 	return (0);
 }
 
-static const char *
+const char *
 g_raid_get_diskname(struct g_raid_disk *disk)
 {
 
 	if (disk->d_consumer == NULL || disk->d_consumer->provider == NULL)
 		return ("[unknown]");
 	return (disk->d_consumer->provider->name);
-}
-
-static const char *
-g_raid_get_subdiskname(struct g_raid_subdisk *subdisk)
-{
-
-	if (subdisk->sd_disk == NULL)
-		return ("[unknown]");
-	return (g_raid_get_diskname(subdisk->sd_disk));
 }
 
 void
@@ -372,7 +367,7 @@ g_raid_report_disk_state(struct g_raid_disk *disk)
 	}
 	len = sizeof(s);
 	g_io_getattr("GEOM::setstate", disk->d_consumer, &len, &s);
-	G_RAID_DEBUG(2, "Disk %s state reported as %d.",
+	G_RAID_DEBUG1(2, disk->d_softc, "Disk %s state reported as %d.",
 	    g_raid_get_diskname(disk), s);
 }
 
@@ -380,7 +375,7 @@ void
 g_raid_change_disk_state(struct g_raid_disk *disk, int state)
 {
 
-	G_RAID_DEBUG(1, "Disk %s state changed from %s to %s.",
+	G_RAID_DEBUG1(0, disk->d_softc, "Disk %s state changed from %s to %s.",
 	    g_raid_get_diskname(disk),
 	    g_raid_disk_state2str(disk->d_state),
 	    g_raid_disk_state2str(state));
@@ -392,8 +387,10 @@ void
 g_raid_change_subdisk_state(struct g_raid_subdisk *sd, int state)
 {
 
-	G_RAID_DEBUG(1, "Subdisk %s state changed from %s to %s.",
-	    g_raid_get_subdiskname(sd),
+	G_RAID_DEBUG1(0, sd->sd_softc,
+	    "Subdisk %s:%d-%s state changed from %s to %s.",
+	    sd->sd_volume->v_name, sd->sd_pos,
+	    sd->sd_disk ? g_raid_get_diskname(sd->sd_disk) : "[none]",
 	    g_raid_subdisk_state2str(sd->sd_state),
 	    g_raid_subdisk_state2str(state));
 	sd->sd_state = state;
@@ -405,7 +402,8 @@ void
 g_raid_change_volume_state(struct g_raid_volume *vol, int state)
 {
 
-	G_RAID_DEBUG(1, "Volume %s state changed from %s to %s.",
+	G_RAID_DEBUG1(0, vol->v_softc,
+	    "Volume %s state changed from %s to %s.",
 	    vol->v_name,
 	    g_raid_volume_state2str(vol->v_state),
 	    g_raid_volume_state2str(state));
@@ -432,7 +430,6 @@ g_raid_event_send(void *arg, int event, int flags)
 	int error;
 
 	ep = malloc(sizeof(*ep), M_RAID, M_WAITOK);
-	G_RAID_DEBUG(4, "%s: Sending event %p.", __func__, ep);
 	if ((flags & G_RAID_EVENT_VOLUME) != 0) {
 		sc = ((struct g_raid_volume *)arg)->v_softc;
 	} else if ((flags & G_RAID_EVENT_DISK) != 0) {
@@ -446,7 +443,7 @@ g_raid_event_send(void *arg, int event, int flags)
 	ep->e_event = event;
 	ep->e_flags = flags;
 	ep->e_error = 0;
-	G_RAID_DEBUG(4, "%s: Waking up %p.", __func__, sc);
+	G_RAID_DEBUG1(4, sc, "Sending event %p. Waking up %p.", ep, sc);
 	mtx_lock(&sc->sc_queue_mtx);
 	TAILQ_INSERT_TAIL(&sc->sc_events, ep, e_next);
 	mtx_unlock(&sc->sc_queue_mtx);
@@ -456,7 +453,7 @@ g_raid_event_send(void *arg, int event, int flags)
 		return (0);
 
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
-	G_RAID_DEBUG(4, "%s: Sleeping %p.", __func__, ep);
+	G_RAID_DEBUG1(4, sc, "Sleeping on %p.", ep);
 	sx_xunlock(&sc->sc_lock);
 	while ((ep->e_flags & G_RAID_EVENT_DONE) == 0) {
 		mtx_lock(&sc->sc_queue_mtx);
@@ -561,6 +558,30 @@ g_raid_nsubdisks(struct g_raid_volume *vol, int state)
 	return (n);
 }
 
+/*
+ * Return the first subdisk in given state.
+ * If state is equal to -1, then the first connected disks.
+ */
+struct g_raid_subdisk *
+g_raid_get_subdisk(struct g_raid_volume *vol, int state)
+{
+	struct g_raid_subdisk *sd;
+	struct g_raid_softc *sc;
+	u_int i;
+
+	sc = vol->v_softc;
+	sx_assert(&sc->sc_lock, SX_LOCKED);
+
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		if ((state == -1 &&
+		     sd->sd_state != G_RAID_SUBDISK_S_NONE) ||
+		    sd->sd_state == state)
+			return (sd);
+	}
+	return (NULL);
+}
+
 static u_int
 g_raid_nrequests(struct g_raid_softc *sc, struct g_consumer *cp)
 {
@@ -576,18 +597,32 @@ g_raid_nrequests(struct g_raid_softc *sc, struct g_consumer *cp)
 	return (nreqs);
 }
 
+u_int
+g_raid_nopens(struct g_raid_softc *sc)
+{
+	struct g_raid_volume *vol;
+	u_int opens;
+
+	opens = 0;
+	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+		if (vol->v_provider_open != 0)
+			opens++;
+	}
+	return (opens);
+}
+
 static int
 g_raid_consumer_is_busy(struct g_raid_softc *sc, struct g_consumer *cp)
 {
 
 	if (cp->index > 0) {
-		G_RAID_DEBUG(2,
+		G_RAID_DEBUG1(2, sc,
 		    "I/O requests for %s exist, can't destroy it now.",
 		    cp->provider->name);
 		return (1);
 	}
 	if (g_raid_nrequests(sc, cp) > 0) {
-		G_RAID_DEBUG(2,
+		G_RAID_DEBUG1(2, sc,
 		    "I/O requests for %s in queue, can't destroy it now.",
 		    cp->provider->name);
 		return (1);
@@ -625,8 +660,6 @@ g_raid_kill_consumer(struct g_raid_softc *sc, struct g_consumer *cp)
 		if ((pp->geom->flags & G_GEOM_WITHER) == 0)
 			retaste_wait = 1;
 	}
-	G_RAID_DEBUG(2, "Access %s r%dw%de%d = %d", pp->name, -cp->acr,
-	    -cp->acw, -cp->ace, 0);
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	if (retaste_wait) {
@@ -684,8 +717,8 @@ g_raid_clean(struct g_raid_volume *vol, int acw)
 			return (timeout);
 	}
 	vol->v_dirty = 0;
-	G_RAID_DEBUG(1, "Volume %s (node %s) marked as clean.",
-	    vol->v_name, sc->sc_name);
+	G_RAID_DEBUG1(1, sc, "Volume %s marked as clean.",
+	    vol->v_name);
 	g_raid_write_metadata(sc, vol, NULL, NULL);
 	return (0);
 }
@@ -702,8 +735,8 @@ g_raid_dirty(struct g_raid_volume *vol)
 //	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOFAILSYNC) != 0)
 //		return;
 	vol->v_dirty = 1;
-	G_RAID_DEBUG(1, "Volume %s (node %s) marked as dirty.",
-	    vol->v_name, sc->sc_name);
+	G_RAID_DEBUG1(1, sc, "Volume %s marked as dirty.",
+	    vol->v_name);
 	g_raid_write_metadata(sc, vol, NULL, NULL);
 }
 
@@ -736,7 +769,7 @@ g_raid_tr_kerneldump_common(struct g_raid_tr_object *tr,
 
 	g_raid_start(&bp);
 	while (!(bp.bio_flags & BIO_DONE)) {
-		G_RAID_DEBUG(4, "Poll...");
+		G_RAID_DEBUG1(4, sc, "Poll...");
 		g_raid_poll(sc);
 		DELAY(10);
 	}
@@ -752,14 +785,11 @@ g_raid_dump(void *arg,
 	int error;
 
 	vol = (struct g_raid_volume *)arg;
-	G_RAID_DEBUG(3, "Dumping at off %llu len %llu.",
+	G_RAID_DEBUG1(3, vol->v_softc, "Dumping at off %llu len %llu.",
 	    (long long unsigned)offset, (long long unsigned)length);
 
 	error = G_RAID_TR_KERNELDUMP(vol->v_tr,
 	    virtual, physical, offset, length);
-
-	G_RAID_DEBUG(3, "Dumping at off %llu len %llu done: %d.",
-	    (long long unsigned)offset, (long long unsigned)length, error);
 	return (error);
 }
 
@@ -823,7 +853,7 @@ g_raid_start(struct bio *bp)
 	bioq_disksort(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
 	if (!dumping) {
-		G_RAID_DEBUG(4, "%s: Waking up %p.", __func__, sc);
+		G_RAID_DEBUG1(4, sc, "Waking up %p.", sc);
 		wakeup(sc);
 	}
 }
@@ -933,13 +963,13 @@ g_raid_finish_with_locked_ranges(struct g_raid_volume *vol, struct bio *bp)
 			}
 			if (lp->l_pending) {
 				vol->v_pending_lock = 1;
-				G_RAID_DEBUG(4,
+				G_RAID_DEBUG1(4, vol->v_softc,
 				    "Deferred lock(%jd, %jd) has %d pending",
 				    (intmax_t)off, (intmax_t)(off + len),
 				    lp->l_pending);
 				continue;
 			}
-			G_RAID_DEBUG(4,
+			G_RAID_DEBUG1(4, vol->v_softc,
 			    "Deferred lock of %jd to %jd completed",
 			    (intmax_t)off, (intmax_t)(off + len));
 			G_RAID_TR_LOCKED(vol->v_tr, lp->l_callback_arg);
@@ -996,11 +1026,11 @@ g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp)
 	 */
 	if (lp->l_pending > 0) {
 		vol->v_pending_lock = 1;
-		G_RAID_DEBUG(4, "Locking range %jd to %jd deferred %d pend",
+		G_RAID_DEBUG1(4, sc, "Locking range %jd to %jd deferred %d pend",
 		    (intmax_t)off, (intmax_t)(off+len), lp->l_pending);
 		return (EBUSY);
 	}
-	G_RAID_DEBUG(4, "Locking range %jd to %jd",
+	G_RAID_DEBUG1(4, sc, "Locking range %jd to %jd",
 	    (intmax_t)off, (intmax_t)(off+len));
 	G_RAID_TR_LOCKED(vol->v_tr, lp->l_callback_arg);
 	return (0);
@@ -1024,7 +1054,7 @@ g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len)
 			 * when the worker thread runs.
 			 * XXX
 			 */
-			G_RAID_DEBUG(4, "Unlocked %jd to %jd",
+			G_RAID_DEBUG1(4, sc, "Unlocked %jd to %jd",
 			    (intmax_t)lp->l_offset,
 			    (intmax_t)(lp->l_offset+lp->l_length));
 			mtx_lock(&sc->sc_queue_mtx);
@@ -1136,8 +1166,7 @@ g_raid_handle_event(struct g_raid_softc *sc, struct g_raid_event *ep)
 		g_raid_event_free(ep);
 	} else {
 		ep->e_flags |= G_RAID_EVENT_DONE;
-		G_RAID_DEBUG(4, "%s: Waking up %p.", __func__,
-		    ep);
+		G_RAID_DEBUG1(4, sc, "Waking up %p.", ep);
 		mtx_lock(&sc->sc_queue_mtx);
 		wakeup(ep);
 		mtx_unlock(&sc->sc_queue_mtx);
@@ -1248,30 +1277,6 @@ out:
 	sx_xunlock(&sc->sc_lock);
 }
 
-#if 0
-static void
-g_raid_update_idle(struct g_raid_softc *sc, struct g_raid_disk *disk)
-{
-
-	sx_assert(&sc->sc_lock, SX_LOCKED);
-
-	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOFAILSYNC) != 0)
-		return;
-#if 0
-	if (!sc->sc_idle && (disk->d_flags & G_RAID_DISK_FLAG_DIRTY) == 0) {
-		G_RAID_DEBUG(1, "Disk %s (device %s) marked as dirty.",
-		    g_raid_get_diskname(disk), sc->sc_name);
-		disk->d_flags |= G_RAID_DISK_FLAG_DIRTY;
-	} else if (sc->sc_idle &&
-	    (disk->d_flags & G_RAID_DISK_FLAG_DIRTY) != 0) {
-		G_RAID_DEBUG(1, "Disk %s (device %s) marked as clean.",
-		    g_raid_get_diskname(disk), sc->sc_name);
-		disk->d_flags &= ~G_RAID_DISK_FLAG_DIRTY;
-	}
-#endif
-}
-#endif
-
 static void
 g_raid_launch_provider(struct g_raid_volume *vol)
 {
@@ -1308,7 +1313,8 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 	vol->v_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
-	G_RAID_DEBUG(0, "Volume %s launched.", pp->name);
+	G_RAID_DEBUG1(0, sc, "Provider %s for volume %s created.",
+	    pp->name, vol->v_name);
 }
 
 static void
@@ -1333,8 +1339,8 @@ g_raid_destroy_provider(struct g_raid_volume *vol)
 		g_io_deliver(bp, ENXIO);
 	}
 	mtx_unlock(&sc->sc_queue_mtx);
-	G_RAID_DEBUG(0, "Node %s: provider %s destroyed.", sc->sc_name,
-	    pp->name);
+	G_RAID_DEBUG1(0, sc, "Provider %s for volume %s destroyed.",
+	    pp->name, vol->v_name);
 	g_wither_provider(pp, ENXIO);
 	g_topology_unlock();
 	vol->v_provider = NULL;
@@ -1351,7 +1357,7 @@ g_raid_update_volume(struct g_raid_volume *vol, u_int event)
 	sc = vol->v_softc;
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	G_RAID_DEBUG(2, "Event %s for volume %s.",
+	G_RAID_DEBUG1(2, sc, "Event %s for volume %s.",
 	    g_raid_volume_event2str(event),
 	    vol->v_name);
 	switch (event) {
@@ -1372,7 +1378,7 @@ g_raid_update_volume(struct g_raid_volume *vol, u_int event)
 	/* Manage root mount release. */
 	if (vol->v_starting) {
 		vol->v_starting = 0;
-		G_RAID_DEBUG(1, "root_mount_rel %p", vol->v_rootmount);
+		G_RAID_DEBUG1(1, sc, "root_mount_rel %p", vol->v_rootmount);
 		root_mount_rel(vol->v_rootmount);
 		vol->v_rootmount = NULL;
 	}
@@ -1394,9 +1400,10 @@ g_raid_update_subdisk(struct g_raid_subdisk *sd, u_int event)
 	vol = sd->sd_volume;
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	G_RAID_DEBUG(3, "Event %s for subdisk %s.",
+	G_RAID_DEBUG1(2, sc, "Event %s for subdisk %s:%d-%s.",
 	    g_raid_subdisk_event2str(event),
-	    g_raid_get_subdiskname(sd));
+	    vol->v_name, sd->sd_pos,
+	    sd->sd_disk ? g_raid_get_diskname(sd->sd_disk) : "[none]");
 	if (vol->v_tr)
 		G_RAID_TR_EVENT(vol->v_tr, sd, event);
 
@@ -1414,7 +1421,7 @@ g_raid_update_disk(struct g_raid_disk *disk, u_int event)
 	sc = disk->d_softc;
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	G_RAID_DEBUG(2, "Event %s for disk %s.",
+	G_RAID_DEBUG1(2, sc, "Event %s for disk %s.",
 	    g_raid_disk_event2str(event),
 	    g_raid_get_diskname(disk));
 
@@ -1431,9 +1438,11 @@ g_raid_update_node(struct g_raid_softc *sc, u_int event)
 {
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	G_RAID_DEBUG(2, "Event %s for node %s.",
-	    g_raid_node_event2str(event), sc->sc_name);
+	G_RAID_DEBUG1(2, sc, "Event %s for the array.",
+	    g_raid_node_event2str(event));
 
+	if (event == G_RAID_NODE_E_WAKE)
+		return (0);
 	if (sc->sc_md)
 		G_RAID_MD_EVENT(sc->sc_md, NULL, event);
 	return (0);
@@ -1442,18 +1451,18 @@ g_raid_update_node(struct g_raid_softc *sc, u_int event)
 static int
 g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 {
-	struct g_raid_volume *vol, *vol1;
+	struct g_raid_volume *vol;
 	struct g_raid_softc *sc;
 	int dcr, dcw, dce, opens, error = 0;
 
 	g_topology_assert();
-	G_RAID_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name, acr,
-	    acw, ace);
-
 	sc = pp->geom->softc;
 	vol = pp->private;
 	KASSERT(sc != NULL, ("NULL softc (provider=%s).", pp->name));
 	KASSERT(vol != NULL, ("NULL volume (provider=%s).", pp->name));
+
+	G_RAID_DEBUG1(2, sc, "Access request for %s: r%dw%de%d.", pp->name,
+	    acr, acw, ace);
 
 	dcr = pp->acr + acr;
 	dcw = pp->acw + acw;
@@ -1473,14 +1482,11 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 	if (sc->sc_stopping == G_RAID_DESTROY_DELAYED &&
 	    vol->v_provider_open == 0) {
 		/* Count open volumes. */
-		opens = 0;
-		TAILQ_FOREACH(vol1, &sc->sc_volumes, v_next) {
-			if (vol1->v_provider_open != 0)
-				opens++;
-		}
+		opens = g_raid_nopens(sc);
 		if (opens == 0) {
 			sc->sc_stopping = G_RAID_DESTROY_HARD;
-			g_raid_event_send(sc, 0, 0);	/* Wake up worker. */
+			/* Wake up worker to make it selfdestruct. */
+			g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
 		}
 	}
 	/* Handle open volume destruction. */
@@ -1501,7 +1507,7 @@ g_raid_create_node(struct g_class *mp,
 	int error;
 
 	g_topology_assert();
-	G_RAID_DEBUG(1, "Creating node %s.", name);
+	G_RAID_DEBUG(1, "Creating array %s.", name);
 
 	gp = g_new_geomf(mp, "%s", name);
 	sc = malloc(sizeof(*sc), M_RAID, M_WAITOK | M_ZERO);
@@ -1523,7 +1529,7 @@ g_raid_create_node(struct g_class *mp,
 	error = kproc_create(g_raid_worker, sc, &sc->sc_worker, 0, 0,
 	    "g_raid %s", name);
 	if (error != 0) {
-		G_RAID_DEBUG(1, "Cannot create kernel thread for %s.", name);
+		G_RAID_DEBUG(0, "Cannot create kernel thread for %s.", name);
 		mtx_destroy(&sc->sc_queue_mtx);
 		sx_destroy(&sc->sc_lock);
 		g_destroy_geom(sc->sc_geom);
@@ -1531,7 +1537,7 @@ g_raid_create_node(struct g_class *mp,
 		return (NULL);
 	}
 
-	G_RAID_DEBUG(1, "Node %s created.", name);
+	G_RAID_DEBUG1(0, sc, "Array %s created.", name);
 	return (sc);
 }
 
@@ -1541,7 +1547,7 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 	struct g_raid_volume	*vol, *vol1;
 	int i;
 
-	G_RAID_DEBUG(1, "Creating volume %s.", name);
+	G_RAID_DEBUG1(1, sc, "Creating volume %s.", name);
 	vol = malloc(sizeof(*vol), M_RAID, M_WAITOK | M_ZERO);
 	vol->v_softc = sc;
 	strlcpy(vol->v_name, name, G_RAID_MAX_VOLUMENAME);
@@ -1572,7 +1578,7 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 
 	/* Delay root mounting. */
 	vol->v_rootmount = root_mount_hold("GRAID");
-	G_RAID_DEBUG(1, "root_mount_hold %p", vol->v_rootmount);
+	G_RAID_DEBUG1(1, sc, "root_mount_hold %p", vol->v_rootmount);
 	vol->v_starting = 1;
 	TAILQ_INSERT_TAIL(&sc->sc_volumes, vol, v_next);
 	return (vol);
@@ -1583,7 +1589,7 @@ g_raid_create_disk(struct g_raid_softc *sc)
 {
 	struct g_raid_disk	*disk;
 
-	G_RAID_DEBUG(1, "Creating disk.");
+	G_RAID_DEBUG1(1, sc, "Creating disk.");
 	disk = malloc(sizeof(*disk), M_RAID, M_WAITOK | M_ZERO);
 	disk->d_softc = sc;
 	disk->d_state = G_RAID_DISK_S_NONE;
@@ -1598,9 +1604,11 @@ int g_raid_start_volume(struct g_raid_volume *vol)
 	struct g_raid_tr_object *obj;
 	int status;
 
-	G_RAID_DEBUG(2, "Starting volume %s.", vol->v_name);
+	G_RAID_DEBUG1(2, vol->v_softc, "Starting volume %s.", vol->v_name);
 	LIST_FOREACH(class, &g_raid_tr_classes, trc_list) {
-		G_RAID_DEBUG(2, "Tasting %s for %s transformation.", vol->v_name, class->name);
+		G_RAID_DEBUG1(2, vol->v_softc,
+		    "Tasting volume %s for %s transformation.",
+		    vol->v_name, class->name);
 		obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
 		    M_WAITOK);
 		obj->tro_class = class;
@@ -1611,7 +1619,8 @@ int g_raid_start_volume(struct g_raid_volume *vol)
 		kobj_delete((kobj_t)obj, M_RAID);
 	}
 	if (class == NULL) {
-		G_RAID_DEBUG(1, "No transformation module found for %s.",
+		G_RAID_DEBUG1(0, vol->v_softc,
+		    "No transformation module found for %s.",
 		    vol->v_name);
 		vol->v_tr = NULL;
 		g_raid_change_volume_state(vol, G_RAID_VOLUME_S_UNSUPPORTED);
@@ -1619,7 +1628,8 @@ int g_raid_start_volume(struct g_raid_volume *vol)
 		    G_RAID_EVENT_VOLUME);
 		return (-1);
 	}
-	G_RAID_DEBUG(2, "Transformation module %s chosen for %s.",
+	G_RAID_DEBUG1(2, vol->v_softc,
+	    "Transformation module %s chosen for %s.",
 	    class->name, vol->v_name);
 	vol->v_tr = obj;
 	return (0);
@@ -1651,14 +1661,14 @@ g_raid_destroy_node(struct g_raid_softc *sc, int worker)
 		sc->sc_md = NULL;
 	}
 	if (sc->sc_geom != NULL) {
-		G_RAID_DEBUG(1, "Destroying node %s.", sc->sc_name);
+		G_RAID_DEBUG1(0, sc, "Array %s destroyed.", sc->sc_name);
 		g_topology_lock();
 		sc->sc_geom->softc = NULL;
 		g_wither_geom(sc->sc_geom, ENXIO);
 		g_topology_unlock();
 		sc->sc_geom = NULL;
 	} else
-		G_RAID_DEBUG(1, "Destroying node.");
+		G_RAID_DEBUG(1, "Array destroyed.");
 	if (worker) {
 		mtx_destroy(&sc->sc_queue_mtx);
 		sx_xunlock(&sc->sc_lock);
@@ -1670,7 +1680,7 @@ g_raid_destroy_node(struct g_raid_softc *sc, int worker)
 		kproc_exit(0);
 	} else {
 		/* Wake up worker to make it selfdestruct. */
-		g_raid_event_send(sc, 0, 0);
+		g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
 	}
 	return (0);
 }
@@ -1683,7 +1693,7 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 	int i;
 
 	sc = vol->v_softc;
-	G_RAID_DEBUG(2, "Destroying volume %s.", vol->v_name);
+	G_RAID_DEBUG1(2, sc, "Destroying volume %s.", vol->v_name);
 	vol->v_stopping = 1;
 	if (vol->v_state != G_RAID_VOLUME_S_STOPPED) {
 		if (vol->v_tr) {
@@ -1696,13 +1706,13 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 		return (EBUSY);
 	if (vol->v_provider != NULL)
 		return (EBUSY);
+	if (vol->v_provider_open != 0)
+		return (EBUSY);
 	if (vol->v_tr) {
 		G_RAID_TR_FREE(vol->v_tr);
 		kobj_delete((kobj_t)vol->v_tr, M_RAID);
 		vol->v_tr = NULL;
 	}
-	if (vol->v_provider_open != 0)
-		return (EBUSY);
 	if (vol->v_rootmount)
 		root_mount_rel(vol->v_rootmount);
 	g_topology_lock();
@@ -1715,10 +1725,12 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 			continue;
 		TAILQ_REMOVE(&disk->d_subdisks, &vol->v_subdisks[i], sd_next);
 	}
-	G_RAID_DEBUG(2, "Volume %s destroyed.", vol->v_name);
+	G_RAID_DEBUG1(2, sc, "Volume %s destroyed.", vol->v_name);
 	free(vol, M_RAID);
-	if (sc->sc_stopping == G_RAID_DESTROY_HARD)
-		g_raid_event_send(sc, 0, 0);	/* Wake up worker. */
+	if (sc->sc_stopping == G_RAID_DESTROY_HARD) {
+		/* Wake up worker to let it selfdestruct. */
+		g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
+	}
 	return (0);
 }
 
@@ -1729,7 +1741,7 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 	struct g_raid_subdisk *sd, *tmp;
 
 	sc = disk->d_softc;
-	G_RAID_DEBUG(2, "Destroying disk.");
+	G_RAID_DEBUG1(2, sc, "Destroying disk.");
 	if (disk->d_consumer) {
 		g_topology_lock();
 		g_raid_kill_consumer(sc, disk->d_consumer);
@@ -1752,7 +1764,6 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 int
 g_raid_destroy(struct g_raid_softc *sc, int how)
 {
-	struct g_raid_volume *vol;
 	int opens;
 
 	g_topology_assert_not();
@@ -1761,37 +1772,32 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	/* Count open volumes. */
-	opens = 0;
-	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-		if (vol->v_provider_open != 0)
-			opens++;
-	}
+	opens = g_raid_nopens(sc);
 
 	/* React on some opened volumes. */
 	if (opens > 0) {
 		switch (how) {
 		case G_RAID_DESTROY_SOFT:
-			G_RAID_DEBUG(1,
-			    "%d volumes of %s are still open.",
-			    opens, sc->sc_name);
+			G_RAID_DEBUG1(1, sc,
+			    "%d volumes are still open.",
+			    opens);
 			return (EBUSY);
 		case G_RAID_DESTROY_DELAYED:
-			G_RAID_DEBUG(1,
-			    "Node %s will be destroyed on last close.",
-			    sc->sc_name);
+			G_RAID_DEBUG1(1, sc,
+			    "Array will be destroyed on last close.");
 			sc->sc_stopping = G_RAID_DESTROY_DELAYED;
 			return (EBUSY);
 		case G_RAID_DESTROY_HARD:
-			G_RAID_DEBUG(1,
-			    "%d volumes of %s are still open.",
-			    opens, sc->sc_name);
+			G_RAID_DEBUG1(1, sc,
+			    "%d volumes are still open.",
+			    opens);
 		}
 	}
 
 	/* Mark node for destruction. */
 	sc->sc_stopping = G_RAID_DESTROY_HARD;
 	/* Wake up worker to let it selfdestruct. */
-	g_raid_event_send(sc, 0, 0);
+	g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
 	/* Sleep until node destroyed. */
 	sx_sleep(&sc->sc_stopping, &sc->sc_lock,
 	    PRIBIO | PDROP, "r:destroy", 0);
@@ -1817,7 +1823,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
-	G_RAID_DEBUG(2, "Tasting %s.", pp->name);
+	G_RAID_DEBUG(2, "Tasting provider %s.", pp->name);
 
 	gp = g_new_geomf(mp, "mirror:taste");
 	/*
@@ -1829,7 +1835,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	geom = NULL;
 	LIST_FOREACH(class, &g_raid_md_classes, mdc_list) {
-		G_RAID_DEBUG(2, "Tasting %s for %s metadata.", pp->name, class->name);
+		G_RAID_DEBUG(2, "Tasting provider %s for %s metadata.",
+		    pp->name, class->name);
 		obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
 		    M_WAITOK);
 		obj->mdo_class = class;
@@ -1843,7 +1850,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
-	G_RAID_DEBUG(2, "Tasting %s done.", pp->name);
+	G_RAID_DEBUG(2, "Tasting provider %s done.", pp->name);
 	return (geom);
 }
 
@@ -1854,13 +1861,13 @@ g_raid_create_node_format(const char *format, struct g_geom **gp)
 	struct g_raid_md_object *obj;
 	int status;
 
-	G_RAID_DEBUG(2, "Creating node for %s metadata.", format);
+	G_RAID_DEBUG(2, "Creating array for %s metadata.", format);
 	LIST_FOREACH(class, &g_raid_md_classes, mdc_list) {
 		if (strcasecmp(class->name, format) == 0)
 			break;
 	}
 	if (class == NULL) {
-		G_RAID_DEBUG(2, "Creating node for %s metadata.", format);
+		G_RAID_DEBUG(1, "No support for %s metadata.", format);
 		return (G_RAID_MD_TASTE_FAIL);
 	}
 	obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
@@ -1894,6 +1901,8 @@ void g_raid_write_metadata(struct g_raid_softc *sc, struct g_raid_volume *vol,
     struct g_raid_subdisk *sd, struct g_raid_disk *disk)
 {
 
+	if (sc->sc_stopping == G_RAID_DESTROY_HARD)
+		return;
 	if (sc->sc_md)
 		G_RAID_MD_WRITE(sc->sc_md, vol, sd, disk);
 }

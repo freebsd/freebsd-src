@@ -90,7 +90,7 @@ g_raid_ctl_label(struct gctl_req *req, struct g_class *mp)
 	}
 	crstatus = g_raid_create_node_format(format, &geom);
 	if (crstatus == G_RAID_MD_TASTE_FAIL) {
-		gctl_error(req, "Failed to create node with format '%s'.",
+		gctl_error(req, "Failed to create array with format '%s'.",
 		    format);
 		return;
 	}
@@ -132,12 +132,12 @@ g_raid_ctl_stop(struct gctl_req *req, struct g_class *mp)
 	}
 	nodename = gctl_get_asciiparam(req, "arg0");
 	if (nodename == NULL) {
-		gctl_error(req, "No node name recieved.");
+		gctl_error(req, "No array name recieved.");
 		return;
 	}
 	sc = g_raid_find_node(mp, nodename);
 	if (sc == NULL) {
-		gctl_error(req, "Node '%s' not found.", nodename);
+		gctl_error(req, "Array '%s' not found.", nodename);
 		return;
 	}
 	force = gctl_get_paraml(req, "force", sizeof(*force));
@@ -172,12 +172,12 @@ g_raid_ctl_other(struct gctl_req *req, struct g_class *mp)
 	}
 	nodename = gctl_get_asciiparam(req, "arg0");
 	if (nodename == NULL) {
-		gctl_error(req, "No node name recieved.");
+		gctl_error(req, "No array name recieved.");
 		return;
 	}
 	sc = g_raid_find_node(mp, nodename);
 	if (sc == NULL) {
-		gctl_error(req, "Node '%s' not found.", nodename);
+		gctl_error(req, "Array '%s' not found.", nodename);
 		return;
 	}
 	g_topology_unlock();
