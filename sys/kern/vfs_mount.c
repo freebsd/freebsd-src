@@ -1661,7 +1661,7 @@ __mnt_vnode_next(struct vnode **mvp, struct mount *mp)
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	if (should_yield()) {
 		MNT_IUNLOCK(mp);
-		uio_yield();
+		kern_yield(-1);
 		MNT_ILOCK(mp);
 	}
 	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);

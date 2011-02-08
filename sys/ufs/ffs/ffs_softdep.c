@@ -1380,7 +1380,7 @@ softdep_process_worklist(mp, full)
 		 */
 		if (should_yield()) {
 			FREE_LOCK(&lk);
-			uio_yield();
+			kern_yield(-1);
 			bwillwrite();
 			ACQUIRE_LOCK(&lk);
 		}
