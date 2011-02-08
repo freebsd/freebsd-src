@@ -650,6 +650,15 @@ ext2_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 		EXT2_LOCK(ump);
 		return (0);
 	}
+	if (fs->e2fs_gd[cg].ext2bgd_nbfree == 0) {
+		/*
+		 * Another thread allocated the last block in this
+		 * group while we were waiting for the buffer.
+		 */
+		brelse(bp);
+		EXT2_LOCK(ump);
+		return (0);
+	}
 	bbp = (char *)bp->b_data;
 
 	if (dtog(fs, bpref) != cg)
@@ -772,6 +781,15 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 		fs->e2fs_gd[cg].ext2bgd_i_bitmap),
 		(int)fs->e2fs_bsize, NOCRED, &bp);
 	if (error) {
+		brelse(bp);
+		EXT2_LOCK(ump);
+		return (0);
+	}
+	if (fs->e2fs_gd[cg].ext2bgd_nifree == 0) {
+		/*
+		 * Another thread allocated the last i-node in this
+		 * group while we were waiting for the buffer.
+		 */
 		brelse(bp);
 		EXT2_LOCK(ump);
 		return (0);
