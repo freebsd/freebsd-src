@@ -51,6 +51,7 @@
 #include <stdio.h>
 #include <err.h>
 #include <errno.h>
+#include <libutil.h>
 #include <string.h>
 #include <stdlib.h>
 #include <syslog.h>
@@ -79,8 +80,9 @@ struct iovec sndiov[2];
 struct sockaddr_in6 rcvfrom;
 struct sockaddr_in6 sin6_allnodes = {sizeof(sin6_allnodes), AF_INET6};
 struct in6_addr in6a_site_allrouters;
-static char *dumpfilename = "/var/run/rtadvd.dump"; /* XXX: should be configurable */
-static char *pidfilename = "/var/run/rtadvd.pid"; /* should be configurable */
+static char *dumpfilename = "/var/run/rtadvd.dump";
+static char *pidfilename = "/var/run/rtadvd.pid";
+static struct pidfh *pfh;
 static char *mcastif;
 int sock;
 int rtsock = -1;
@@ -159,11 +161,10 @@ main(argc, argv)
 	struct timeval *timeout;
 	int i, ch;
 	int fflag = 0, logopt;
-	FILE *pidfp;
-	pid_t pid;
+	pid_t pid, otherpid;
 
 	/* get command line options and arguments */
-	while ((ch = getopt(argc, argv, "c:dDfM:Rs")) != -1) {
+	while ((ch = getopt(argc, argv, "c:dDF:fMp:Rs")) != -1) {
 		switch (ch) {
 		case 'c':
 			conffile = optarg;
@@ -189,6 +190,12 @@ main(argc, argv)
 		case 's':
 			sflag = 1;
 			break;
+		case 'p':
+			pidfilename = optarg;
+			break;
+		case 'F':
+			dumpfilename = optarg;
+			break;
 		}
 	}
 	argc -= optind;
@@ -196,7 +203,7 @@ main(argc, argv)
 	if (argc == 0) {
 		fprintf(stderr,
 			"usage: rtadvd [-dDfMRs] [-c conffile] "
-			"interfaces...\n");
+			"[-F dumpfile] [-p pidfile] interfaces...\n");
 		exit(1);
 	}
 
@@ -234,6 +241,16 @@ main(argc, argv)
 		exit(1);
 	}
 
+	pfh = pidfile_open(pidfilename, 0600, &otherpid);
+	if (pfh == NULL) {
+		if (errno == EEXIST)
+			errx(1, "%s already running, pid: %d",
+			    getprogname(), otherpid);
+		syslog(LOG_ERR,
+		    "<%s> failed to open the pid log file, run anyway.",
+		    __func__);
+	}
+
 	if (!fflag)
 		daemon(1, 0);
 
@@ -241,14 +258,7 @@ main(argc, argv)
 
 	/* record the current PID */
 	pid = getpid();
-	if ((pidfp = fopen(pidfilename, "w")) == NULL) {
-		syslog(LOG_ERR,
-		    "<%s> failed to open the pid log file, run anyway.",
-		    __func__);
-	} else {
-		fprintf(pidfp, "%d\n", pid);
-		fclose(pidfp);
-	}
+	pidfile_write(pfh);
 
 #ifdef HAVE_POLL_H
 	set[0].fd = sock;
@@ -383,6 +393,7 @@ die()
 			ra_output(ra);
 		sleep(MIN_DELAY_BETWEEN_RAS);
 	}
+	pidfile_remove(pfh);
 	exit(0);
 	/*NOTREACHED*/
 }
