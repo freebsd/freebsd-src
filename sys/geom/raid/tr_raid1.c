@@ -683,7 +683,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				nsd = trs->trso_failed_sd;
 				if (bp->bio_error != 0 ||
 				    trs->trso_flags & TR_RAID1_F_ABORT) {
-					if (bp->bio_error != 0) {
+					if ((trs->trso_flags &
+					    TR_RAID1_F_ABORT) == 0) {
 						g_raid_fail_disk(sd->sd_softc,
 						    nsd, nsd->sd_disk);
 					}
