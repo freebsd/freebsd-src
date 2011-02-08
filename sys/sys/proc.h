@@ -242,6 +242,7 @@ struct thread {
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	int		td_slptick;	/* (t) Time at sleep. */
 	int		td_blktick;	/* (t) Time spent blocked. */
+	int		td_swvoltick;	/* (t) Time at last SW_VOL switch. */
 	struct rusage	td_ru;		/* (t) rusage information. */
 	struct rusage_ext td_rux;	/* (t) Internal rusage information. */
 	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
@@ -822,9 +823,11 @@ void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
+void	kern_yield(int);
 void 	kick_proc0(void);
 int	leavepgrp(struct proc *p);
 int	maybe_preempt(struct thread *td);
+void	maybe_yield(void);
 void	mi_switch(int flags, struct thread *newtd);
 int	p_candebug(struct thread *td, struct proc *p);
 int	p_cansee(struct thread *td, struct proc *p);
@@ -847,6 +850,7 @@ void	sess_hold(struct session *);
 void	sess_release(struct session *);
 int	setrunnable(struct thread *);
 void	setsugid(struct proc *p);
+int	should_yield(void);
 int	sigonstack(size_t sp);
 void	sleepinit(void);
 void	stopevent(struct proc *, u_int, u_int);

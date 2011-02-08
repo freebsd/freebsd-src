@@ -352,33 +352,11 @@ again:
 	return (0);
 }
 
-int
-should_yield(void)
-{
-
-	return (ticks - PCPU_GET(switchticks) >= hogticks);
-}
-
-void
-maybe_yield(void)
-{
-
-	if (should_yield())
-		uio_yield();
-}
-
 void
 uio_yield(void)
 {
-	struct thread *td;
 
-	td = curthread;
-	DROP_GIANT();
-	thread_lock(td);
-	sched_prio(td, td->td_user_pri);
-	mi_switch(SW_INVOL | SWT_RELINQUISH, NULL);
-	thread_unlock(td);
-	PICKUP_GIANT();
+	kern_yield(curthread->td_user_pri);
 }
 
 int
