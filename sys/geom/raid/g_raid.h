@@ -377,7 +377,8 @@ struct g_raid_subdisk * g_raid_get_subdisk(struct g_raid_volume *vol,
 #define	G_RAID_DESTROY_HARD		2
 int g_raid_destroy(struct g_raid_softc *sc, int how);
 int g_raid_event_send(void *arg, int event, int flags);
-int g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp);
+int g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len,
+    struct bio *ignore, void *argp);
 int g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len);
 
 g_ctl_req_t g_raid_ctl;

@@ -255,7 +255,7 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 	trs->trso_flags |= TR_RAID1_F_DOING_SOME;
 	trs->trso_flags |= TR_RAID1_F_LOCKED;
 	g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
-	   bp->bio_offset, bp->bio_length, bp);
+	   bp->bio_offset, bp->bio_length, NULL, bp);
 }
 
 static void
@@ -737,7 +737,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				/* Lock callback starts I/O */
 				trs->trso_flags |= TR_RAID1_F_LOCKED;
 				g_raid_lock_range(sd->sd_volume,
-				    bp->bio_offset, bp->bio_length, bp);
+				    bp->bio_offset, bp->bio_length, NULL, bp);
 			}
 		} else if (trs->trso_type == TR_RAID1_RESYNC) {
 			/*
@@ -749,8 +749,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		}
 		return;
 	}
-	if (bp->bio_error != 0 && bp->bio_cmd == BIO_READ &&
-	    pbp->bio_children == 1 && bp->bio_cflags == 0) {
+	pbp->bio_inbed++;
+	if (bp->bio_cmd == BIO_READ && bp->bio_error != 0) {
 		/*
 		 * Read failed on first drive.  Retry the read error on
 		 * another disk drive, if available, before erroring out the
@@ -758,9 +758,9 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 */
 		vol = tr->tro_volume;
 		sd->sd_read_errs++;
-		G_RAID_LOGREQ(3, bp,
-		    "Read failure, attempting recovery. %d total read errs",
-		    sd->sd_read_errs);
+		G_RAID_LOGREQ(0, bp,
+		    "Read error (%d), %d read errors total",
+		    bp->bio_error, sd->sd_read_errs);
 
 		/*
 		 * If there are too many read errors, we move to degraded.
@@ -768,13 +768,18 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * everything to get it back in sync), or just degrade the
 		 * drive, which kicks off a resync?
 		 */
-		if (sd->sd_read_errs > g_raid1_read_err_thresh)
+		if (sd->sd_read_errs > g_raid1_read_err_thresh) {
 			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
+			if (pbp->bio_children == 1)
+				goto remapdone;
+		}
 
 		/*
 		 * Find the other disk, and try to do the I/O to it.
 		 */
 		for (nsd = NULL, i = 0; i < vol->v_disks_count; i++) {
+			if (pbp->bio_children > 1)
+				break;
 			nsd = &vol->v_subdisks[i];
 			if (sd == nsd)
 				continue;
@@ -784,8 +789,12 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			if (cbp == NULL)
 				break;
 			G_RAID_LOGREQ(2, cbp, "Retrying read");
-			g_raid_subdisk_iostart(nsd, cbp);
-			pbp->bio_inbed++;
+			pbp->bio_driver1 = sd; /* Save original subdisk. */
+			cbp->bio_caller1 = nsd;
+			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
+			/* Lock callback starts I/O */
+			g_raid_lock_range(sd->sd_volume,
+			    cbp->bio_offset, cbp->bio_length, pbp, cbp);
 			return;
 		}
 		/*
@@ -796,9 +805,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 */
 		G_RAID_LOGREQ(2, bp, "Couldn't retry read, failing it");
 	}
-	pbp->bio_inbed++;
-	if (pbp->bio_cmd == BIO_READ && pbp->bio_children == 2 &&
-	    bp->bio_cflags == 0) {
+	if (bp->bio_cmd == BIO_READ && bp->bio_error == 0 &&
+	    pbp->bio_children > 1) {
 		/*
 		 * If it was a read, and bio_children is 2, then we just
 		 * recovered the data from the second drive.  We should try to
@@ -813,17 +821,15 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 		cbp = g_clone_bio(pbp);
 		if (cbp != NULL) {
-			nsd = bp->bio_caller1;
 			cbp->bio_cmd = BIO_WRITE;
 			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
-			cbp->bio_caller1 = nsd;
-			G_RAID_LOGREQ(3, bp,
+			G_RAID_LOGREQ(3, cbp,
 			    "Attempting bad sector remap on failing drive.");
-			/* Lock callback starts I/O */
-			g_raid_lock_range(sd->sd_volume,
-			    cbp->bio_offset, cbp->bio_length, cbp);
+			g_raid_subdisk_iostart(pbp->bio_driver1, cbp);
+			return;
 		}
 	}
+remapdone:
 	if (bp->bio_cflags & G_RAID_BIO_FLAG_REMAP) {
 		/*
 		 * We're done with a remap write, mark the range as unlocked.
@@ -834,14 +840,15 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * it now.  However, we need to reset error to 0 in that case
 		 * because we're not failing the original I/O which succeeded.
 		 */
-		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
-		g_raid_unlock_range(sd->sd_volume, bp->bio_offset,
-		    bp->bio_length);
-		if (bp->bio_error) {
-			G_RAID_LOGREQ(3, bp, "Error on remap: mark subdisk bad.");
+		if (pbp->bio_cmd == BIO_WRITE && bp->bio_error) {
+			G_RAID_LOGREQ(0, bp, "Remap write failed: "
+			    "failing subdisk.");
 			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			bp->bio_error = 0;
 		}
+		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
+		g_raid_unlock_range(sd->sd_volume, bp->bio_offset,
+		    bp->bio_length);
 	}
 	error = bp->bio_error;
 	g_destroy_bio(bp);
