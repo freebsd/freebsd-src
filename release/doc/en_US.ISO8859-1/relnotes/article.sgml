@@ -175,6 +175,18 @@
 	DMA bounce buffer which is required on systems with larger RAM
 	than 4GB.</para>
 
+      <para arch="amd64" revision="214620">&os;/amd64 now always sets
+	the KVA space as equal to or larger than physical memory size.
+	The default size was calculated based on one-third of the
+	physical memory size by a code derived from one for i386.  It
+	has been changed because constraints for memory space are not
+	severe on amd64 and this change would help to prevent a
+	<quote>kmem_map too small</quote> panic which often occurs
+	when using ZFS.</para>
+
+      <para arch="amd64,i386" revision="214621">CPU topology detection
+	for Intel CPUs has been improved.</para>
+
       <para revision="209692">The &man.ddb.8; kernel debugger now
 	supports an optional delay in <command>reset</command> and
 	<command>reboot</command> commands.  This allows an
@@ -279,6 +291,15 @@
 	    prevents TSO in BCM57780 from working has been
 	    fixed.</para>
 
+	  <para revision="214700">A bug in the &man.bge.4; driver
+	    which can wrongly disable the TX checksum offloading
+	    feature as well when one tries only the RX checksum
+	    offloading has been fixed.</para>
+
+	  <para revision="214714">Some improvements for reliability of
+	    the &man.bge.4; driver with BCM5906 or BCM6906 controller
+	    has been added.</para>
+
 	  <para revision="213109">UDP checksum offloading in the
 	    &man.bge.4; driver has been disabled by default.  This is
 	    because Broadcom controllers have a bug which can generate
@@ -345,6 +366,9 @@
 	    interface driver now supports explicit UP/DOWN linkstate.
 	    This fixes an issue when it is used with the &man.carp.4;
 	    protocol.</para>
+
+	  <para revision="214717">The &man.fxp.4; driver now supports
+	    TSO over VLAN on i82550 and i82551 controllers.</para>
 
 	  <para revision="210673">The &man.iwn.4; driver now supports
 	    Intel Wireless WiFi Link 6000 series.  The firmware has
@@ -531,9 +555,12 @@
 	  <varname>hw.ata.ata_dma_check_80pin</varname> is
 	  enabled.</para>
 
-	<para revision="213291">A device detection of Serverworls K2
-	  SATA controllers in the &man.ata.4; has been
-	  improved.</para>
+	<para revision="213291">An issue of device detection of
+	  Serverworks K2 SATA controllers in the &man.ata.4; has been fixed.</para>
+
+	<para revision="214667">A bug in the &man.ata.4; driver which
+	  prevents some Silicon Image chipsets from working on big
+	  endian systems has been fixed.</para>
 
 	<para revision="214330">The &man.gconcat.8; GEOM class now
 	  supports kernel crash dump.  The dumping is performed to the
@@ -650,6 +677,10 @@
       <para revision="209267">The &man.arp.8; utility has been improved.
 	It now runs faster even when a single interface has a number
 	of aliases.</para>
+
+      <para revision="214729">A bug in the &man.b64decode.1; which
+	prevernts an <option>-r</option> option from handling arbitary
+	breaks in a base64 encoded string has been fixed.</para>
 
       <para revision="211723">The &man.calendar.1; utility now supports
 	repeating events which span multiple years, lunar events, and
@@ -901,7 +932,7 @@
 	version 8.14.4.</para>
 -->
       <para>The timezone database has been updated to the
-	<application>tzdata2010m</application> release.</para>
+	<application>tzdata2010o</application> release.</para>
     </sect2>
 
     <sect2 id="releng">
