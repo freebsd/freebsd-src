@@ -1000,7 +1000,8 @@ g_raid_iodone(struct bio *bp, int error)
 }
 
 int
-g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp)
+g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len,
+    struct bio *ignore, void *argp)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_lock *lp;
@@ -1015,7 +1016,7 @@ g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len, void *argp)
 
 	lp->l_pending = 0;
 	TAILQ_FOREACH(bp, &vol->v_inflight.queue, bio_queue) {
-		if (g_raid_bio_overlaps(bp, off, len))
+		if (bp != ignore && g_raid_bio_overlaps(bp, off, len))
 			lp->l_pending++;
 	}	
 
