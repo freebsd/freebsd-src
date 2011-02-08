@@ -194,7 +194,7 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol,
 			}
 			if (bestsd->sd_state >= G_RAID_SUBDISK_S_UNINITIALIZED) {
 				/* We found reasonable candidate. */
-				G_RAID_DEBUG(1,
+				G_RAID_DEBUG1(1, vol->v_softc,
 				    "Promote subdisk %s:%d from %s to ACTIVE.",
 				    vol->v_name, bestsd->sd_pos,
 				    g_raid_subdisk_state2str(bestsd->sd_state));
@@ -285,6 +285,10 @@ g_raid_tr_raid1_rebuild_finish(struct g_raid_tr_object *tr)
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	sd = trs->trso_failed_sd;
+	G_RAID_DEBUG1(0, tr->tro_volume->v_softc,
+	    "Subdisk %s:%d-%s rebuild completed.",
+	    sd->sd_volume->v_name, sd->sd_pos,
+	    sd->sd_disk ? g_raid_get_diskname(sd->sd_disk) : "[none]");
 	g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
 	sd->sd_rebuild_pos = 0;
 	g_raid_tr_raid1_rebuild_done(trs);
@@ -302,8 +306,16 @@ g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr)
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	sd = trs->trso_failed_sd;
 	if (trs->trso_flags & TR_RAID1_F_DOING_SOME) {
+		G_RAID_DEBUG1(1, vol->v_softc,
+		    "Subdisk %s:%d-%s rebuild is aborting.",
+		    sd->sd_volume->v_name, sd->sd_pos,
+		    sd->sd_disk ? g_raid_get_diskname(sd->sd_disk) : "[none]");
 		trs->trso_flags |= TR_RAID1_F_ABORT;
 	} else {
+		G_RAID_DEBUG1(0, vol->v_softc,
+		    "Subdisk %s:%d-%s rebuild aborted.",
+		    sd->sd_volume->v_name, sd->sd_pos,
+		    sd->sd_disk ? g_raid_get_diskname(sd->sd_disk) : "[none]");
 		trs->trso_flags &= ~TR_RAID1_F_ABORT;
 		if (trs->trso_flags & TR_RAID1_F_LOCKED) {
 			trs->trso_flags &= ~TR_RAID1_F_LOCKED;
@@ -326,13 +338,15 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr)
 	vol = tr->tro_volume;
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (trs->trso_failed_sd) {
-		G_RAID_DEBUG(1, "Already rebuild in start rebuild. pos %jd\n",
+		G_RAID_DEBUG1(1, vol->v_softc,
+		    "Already rebuild in start rebuild. pos %jd\n",
 		    (intmax_t)trs->trso_failed_sd->sd_rebuild_pos);
 		return;
 	}
 	sd = g_raid_get_subdisk(vol, G_RAID_SUBDISK_S_ACTIVE);
 	if (sd == NULL) {
-		G_RAID_DEBUG(1, "No active disk to rebuild.  night night.");
+		G_RAID_DEBUG1(1, vol->v_softc,
+		    "No active disk to rebuild.  night night.");
 		return;
 	}
 	fsd = g_raid_get_subdisk(vol, G_RAID_SUBDISK_S_RESYNC);
@@ -361,11 +375,15 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr)
 		}
 	}
 	if (fsd == NULL) {
-		G_RAID_DEBUG(1, "No failed disk to rebuild.  night night.");
+		G_RAID_DEBUG1(1, vol->v_softc,
+		    "No failed disk to rebuild.  night night.");
 		return;
 	}
 	trs->trso_failed_sd = fsd;
-	G_RAID_DEBUG(2, "Kicking off a rebuild at %jd...",
+	G_RAID_DEBUG1(0, vol->v_softc,
+	    "Subdisk %s:%d-%s rebuild start at %jd.",
+	    fsd->sd_volume->v_name, fsd->sd_pos,
+	    fsd->sd_disk ? g_raid_get_diskname(fsd->sd_disk) : "[none]",
 	    trs->trso_failed_sd->sd_rebuild_pos);
 	trs->trso_type = TR_RAID1_REBUILD;
 	trs->trso_buffer = malloc(g_raid1_rebuild_slab, M_TR_RAID1, M_WAITOK);
