@@ -186,14 +186,18 @@
 	displays the list of all created cdev's, consisting of devfs
 	node name and struct cdev address.</para>
 
-      <para revision="213554,213556,213560">The following sysctl
-	variables are also now loader tunables:
+      <para revision="213554,213556,213560">The following
+	&man.sysctl.8; variables are also now loader tunables:
 	<varname>vm.kmem_size</varname>,
 	<varname>vm.kmem_size_max</varname>, and
 	<varname>vm.kmem_size_min</varname>,
 	<varname>debug.kdb.stop_cpus</varname>,
 	<varname>debug.trace_on_panic</varname>, and
-	<varname>kern.sync_on_panic</varname>.</para>
+	<varname>kern.sync_on_panic</varname>.  Also, new
+	&man.sysctl.8; variables <varname>vm.kmem_map_size</varname>
+	for the current kmem map size and
+	<varname>vm.kmem_map_free</varname> for largest contiguous
+	free range in kmem map have been added.</para>
 
       <para revision="212427">The &os; &man.memguard.9; framework has
 	been improved to make it able to detect use-after-free of
@@ -202,6 +206,10 @@
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
+
+	<para revision="213994">&os; now fully supports GPT (GUID
+	  Partition Table).  Checksums of primary header and primary
+	  partition table are verified properly now.</para>
 
 	<para revision="212717">The &man.pxeboot.8; now uses NFS
 	  version 3 instead of version 2 by default.</para>
@@ -402,6 +410,9 @@
 	  the &man.ipfw.4; packet filter subsystem has been changed.
 	  It no longer accepts a packet.</para>
 
+	<para revision="214108">A possible panic in the &man.ipfw.4;
+	  pseudo interface for logging has been fixed.</para>
+
 	<para revision="209691">IPsec flow distribution has been
 	  improved for more parallel processing.</para>
 
@@ -414,6 +425,12 @@
 	  working with
 	  <varname>net.inet6.ip6.use_defaultzone=1</varname> has been
 	  fixed.</para>
+
+	<para revision="214111">The &man.lagg.4; interface now
+	  supports a sysctl variable
+	  <varname>net.link.lagg.failover_rx_all</varname>.  This
+	  controls whether to accept input packets on any link in a
+	  failover lagg.</para>
 
 	<para revision="209843">A new &man.netgraph.4; node
 	  &man.ng.patch.4; has been added.  This performs data
@@ -507,6 +524,10 @@
       <sect3 id="fs">
 	<title>File Systems</title>
 
+	<para revision="214050">The &man.linprocfs.5; Linux process
+	  file system now supports
+	  <filename>proc/$$/environment</filename>.</para>
+
 	<para revision="212716">The &os; NFS client now supports a
 	  kernel environment variable
 	  <varname>boot.nfsroot.nfshandlelen</varname>.  This lets the
@@ -522,6 +543,10 @@
 	  especially on pools with less than 30% of free space.  The
 	  related OpenSolaris Bug IDs are 6826241, 6869229, 6918420,
 	  and 6917066.</para>
+
+	<para revision="214013">The ZFS now supports offlining of log
+	  devices.  The related OpenSolaris Bug IDs are 6599442,
+	  6726045, and 6803605.</para>
 
 	<para revision="212672">Performance improvements for the ZFS
 	  have been imported from OpenSolaris.  They include cachin of
@@ -557,8 +582,8 @@
 	  6821170, 6822816, 6824006, 6824062, 6824968, 6826466,
 	  6826468, 6826469, 6826470, 6826471, 6826472, 6827260,
 	  6830237, 6833162, 6833711, 6833999, 6834217, 6836714,
-	  6836714, 6836768, 6838062, 6838344, 6841321, 6843069,
-	  6843235, 6843235, 6844069, 6844069, 6844900, 6847229,
+	  6836714, 6836768, 6838062, 6838344, 6841321, 6843014,
+	  6843069, 6843235, 6844069, 6844069, 6844900, 6847229,
 	  6848242, 6856634, 6857012, 6857012, 6857012, 6861983,
 	  6862984, 6863610, 6870564, 6870564, 6880764, 6882227,
 	  6892298, 6898245, 6906110, 6906946, 6939941, 6950219,
@@ -611,6 +636,19 @@
 	given geom/provider names with and without
 	<filename>/dev/</filename> prefix.</para>
 
+      <para revision="213684">The &man.gpart.8; utility now supports
+	an <option>-F</option> option for <command>force</command>
+	subcommand.  This option force destroying of the partition
+	table even if it is not empty.</para>
+
+      <para revision="213994">The &man.gpart.8; utility now supports
+	<literal>GPT_ENT_ATTR_BOOTME</literal>,
+	<literal>GPT_ENT_ATTR_BOOTONCE</literal>, and
+	<literal>GPT_ENT_ATTR_BOOTFAILED</literal> attributes in GPT.
+	The attribute keywords in the command line are
+	<literal>bootme</literal>, <literal>bootonce</literal>, and
+	<literal>bootfailed</literal> respectively.</para>
+
       <para revision="213049">The &man.hastd.8; utility now supports
 	<literal>SIGHUP</literal> for reloading the configuration
 	file.  When <literal>SIGTERM</literal> or
@@ -630,10 +668,31 @@
 	&man.tar.1; utility now support LZMA (Lempel-Ziv-Markov
 	chain-Algorithm) compression format.</para>
 
+      <para revision="213978">The <option>-p</option> option in the
+	&man.mount.8; utility now displays <literal>rw</literal> mount
+	option correctly as in the &man.fstab.5; format.</para>
+
+      <para revision="213889">The &man.ncal.1; utility has been
+	updated.  The option <option>-b</option> has been replaced
+	with <option>-C</option> and <option>-B
+	<replaceable>number</replaceable></option>.  Options
+	<option>-3</option> to show previous, this and next month, and
+	<option>-A <replaceable>number</replaceable></option> to show
+	months after this month have been added.  The option
+	<option>-m <replaceable>N</replaceable>
+	<replaceable>YYYY</replaceable></option> now prints only the
+	month, not the whole year.</para>
+
       <para revision="211699">The &man.newsyslog.8; utility now supports
 	an <option>-S <replaceable>pidfile</replaceable></option>
 	option to override the default &man.syslogd.8; PID
 	file.</para>
+
+      <para revision="213980">The &man.ntpd.8; utility is now compiled
+	with shared memory reference clock driver.  For exmaple, GPS
+	devices can be used as source of precise time via <filename
+	role="ports">astro/gpsd</filename> in the Ports
+	Collection.</para>
 
       <para revision="212848">An off-by-one error in the &man.pax.1;
 	utility when ustar file name is too long has been
@@ -665,6 +724,9 @@
 	<option>-M <replaceable>freq</replaceable></option> to control
 	the minimum and maximum frequency, respectively.</para>
 
+      <para revision="213825">The &man.ruptime.1; utility now displays
+	hostnames longer than 12 characters.</para>
+
       <para revision="210616">A bug in the &man.sh.1; program has been
 	fixed.  A <literal>SIGINT</literal> signal is now passed
 	through from a child process if the shell is interactive and
@@ -687,6 +749,10 @@
       <para revision="213036,213038">The &man.tftp.1; and &man.tftpd.8;
 	utilities have been improved for better interoperability and
 	they now supports RFC 1350, 2347, 2348, 2349, and 3617.</para>
+
+      <para revision="213899">A bug in <literal>[=]=]</literal>
+	equivalent class handling in the &man.tr.1; utility has been
+	fixed.</para>
 
       <para revision="210566">The &man.uname.1; utility now supports an
 	<option>-o</option> flag as a synonym for the
