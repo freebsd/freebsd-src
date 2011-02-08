@@ -352,13 +352,6 @@ again:
 	return (0);
 }
 
-void
-uio_yield(void)
-{
-
-	kern_yield(curthread->td_user_pri);
-}
-
 int
 copyinfrom(const void * __restrict src, void * __restrict dst, size_t len,
     int seg)
