@@ -186,6 +186,15 @@
 	displays the list of all created cdev's, consisting of devfs
 	node name and struct cdev address.</para>
 
+      <para revision="214326">The &os; <filename>GENERIC</filename>
+	kernel is now compiled with <option>KDB</option> and
+	<option>KDB_TRACE</option> options.  From 8.2-RELEASE the
+	kernel supports displaying a stack trace on panic by using
+	&man.stack.9; facility with no debugger backend like
+	&man.ddb.8;.  Note that this does not change the default
+	behaviors of the <filename>GENERIC</filename> kernel on
+	panic.</para>
+
       <para revision="213554,213556,213560">The following
 	&man.sysctl.8; variables are also now loader tunables:
 	<varname>vm.kmem_size</varname>,
@@ -197,12 +206,20 @@
 	&man.sysctl.8; variables <varname>vm.kmem_map_size</varname>
 	for the current kmem map size and
 	<varname>vm.kmem_map_free</varname> for largest contiguous
-	free range in kmem map have been added.</para>
+	free range in kmem map, <varname>vfs.ncsizefactor</varname>
+	for size factor for namecache, and
+	<varname>vfs.ncnegfactor</varname> for ratio of negative
+	namecache entries have been added.</para>
 
       <para revision="212427">The &os; &man.memguard.9; framework has
 	been improved to make it able to detect use-after-free of
 	allocated memories over a longer time.  For more details, see
 	&man.memguard.9; manual page.</para>
+
+      <para revision="214254">The &os; &man.crypto.4; framework
+	(opencrypto) now supports XTS-AES (XEX-TCB-CTS, or XEX-based
+	Tweaked Code Book mode with CipherText Stealing), which is
+	defined in IEEE Std. 1619-2007.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
@@ -250,6 +267,10 @@
 	  <para revision="212011">The TX interrupt moderation timer in
 	    the &man.alc.4; driver has been reduced from 50ms to 1ms.
 	    The 50ms timer resulted in a poor UDP performance.</para>
+
+	  <para revision="214297,214298,214301">The &man.axe.4; driver
+	    has been improved for stability and better performance on
+	    the TX packet rate.</para>
 
 	  <para revision="211379">The &man.bce.4; driver now supports
 	    flow control.</para>
@@ -352,6 +373,10 @@
 	  <programlisting>hint.rl.<replaceable>N</replaceable>.prefer_iomap="0"</programlisting>
 
 	  <para>Note that the default value is <literal>1</literal>.</para>
+
+	  <para revision="214407">The man.rl.4; driver has been
+	    improved on interrupt handling.  It now has better TX
+	    performance under high RX load.</para>
 
 	  <para revision="212468,213612,213628">The &man.sis.4; driver
 	    now works on all supported platforms.  Some stability and
@@ -510,6 +535,34 @@
 	  SATA controllers in the &man.ata.4; has been
 	  improved.</para>
 
+	<para revision="214330">The &man.gconcat.8; GEOM class now
+	  supports kernel crash dump.  The dumping is performed to the
+	  component where a dump partition begins.</para>
+
+	<para revision="214405">A bug in the &man.geli.8; GEOM class
+	  on little endian platforms has been fixed.  The metadata
+	  version has been updated to <literal>4</literal> due to
+	  this.</para>
+
+	<para revision="214405">The &man.geli.8; GEOM class now
+	  supports a &man.sysctl.8; variable
+	  <varname>kern.geom.eli.overwrites</varname>.  This specifies
+	  the number of times on-disk keys should be overwritten when
+	  destroying them.  The default value is
+	  <literal>5</literal>.</para>
+
+	<para revision="214405">The &man.geli.8; GEOM class has been
+	  improved for preventing the same encryption key from being
+	  used in 2^20 blocks (sectors).</para>
+
+	<para revision="214405">The &man.geli.8; GEOM class now uses
+	  XTS-AES mode by default.</para>
+
+	<para revision="214405">A &man.sysctl.8; variable
+	  <varname>kern.geom.eli.debug</varname> now allows a value
+	  <literal>-1</literal>.  This means turn off any log messages
+	  of the &man.geli.8; GEOM class.</para>
+
 	<para revision="210376">The &man.mpt.4; driver now supports
 	  larger I/O sizes which the device and &man.CAM.4; subsystem
 	  can support.  This was limited to 64KB, and the number of
@@ -621,6 +674,30 @@
 	<option>-f</option> flag which forces a full dump of all the
 	segments except for the malformed ones.</para>
 
+      <para revision="214405">The &man.geli.8; utility now supports
+	<command>resize</command> subcommand to resize encrypted file
+	systems prior to growing it</para>
+
+      <para revision="214405">The &man.geli.8; utility now supports
+	<command>suspend</command> and <command>resume</command>
+	subcommands.  The <command>suspend</command> subcommand makes
+	&man.geli.8; devices wait for all in-flight I/O requests,
+	suspend new I/O requests, remove all &man.geli.8; sensitive
+	data from the kernel memory (like encryption keys) and will
+	wait for either <command>geli resume</command> or
+	<command>geli detach</command> commmand.  For more
+	information, see &man.geli.8; manual page.</para>
+
+      <para revision="214405">The &man.geli.8; utility now checks the
+	metadata provider size strictly.  If the check fails, the
+	provider is not attached.  A new option <option>-f</option>
+	can override this behavior.</para>
+
+      <para revision="214405">The &man.geli.8; utility now supports
+	<option>-J <replaceable>newpassfile</replaceable></option> and
+	<option>-j <replaceable>passfile</replaceable></option>
+	options for loading passphrease from a file.</para>
+
       <para revision="211938">The <function>gethost*()</function>,
 	<function>getnet*()</function>, and
 	<function>getproto*()</function> functions now set the errno
@@ -667,6 +744,10 @@
       <para revision="213667">The <filename>libarchive</filename> and
 	&man.tar.1; utility now support LZMA (Lempel-Ziv-Markov
 	chain-Algorithm) compression format.</para>
+
+      <para revision="214442">A bug in the &man.lpr.1; utility which
+	prevents it from working with some files on a ZFS file system
+	has been fixed.</para>
 
       <para revision="213978">The <option>-p</option> option in the
 	&man.mount.8; utility now displays <literal>rw</literal> mount
@@ -764,6 +845,12 @@
 	<literal>^C</literal> in insert mode when reading an ex
 	command.</para>
 
+      <para revision="214345">The &man.watchdogd.8; program now set
+        <literal>MADV_PROTECT</literal> memory flag onto themselves to
+        protect from being terminated by the &os; kernel when
+        available memory becomes short.  This kind of process
+        termination happens in a swap-intensive workload.</para>
+
       <para revision="209870">The <command>set sharenfs</command>
 	command in the &man.zfs.8; utility now supports
 	<option>sec</option> option.</para>
@@ -793,7 +880,11 @@
 
       <para>The <application>awk</application> has been updated from
 	the 23 October 2007 release to the 26 November 2009 release.</para>
+-->
+      <para revision="214287">The &man.ee.1; program has been updated
+	to version 1.5.2.</para>
 
+<!--
       <para><application>ISC BIND</application> has been updated to
 	version 9.6.2-P2.</para>
 
