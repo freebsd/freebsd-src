@@ -374,8 +374,9 @@ intel_meta_read(struct g_consumer *cp)
 		g_free(buf);
 		return (NULL);
 	}
-	meta = malloc(meta->config_size, M_MD_INTEL, M_WAITOK);
-	memcpy(meta, buf, min(meta->config_size, pp->sectorsize));
+	size = meta->config_size;
+	meta = malloc(size, M_MD_INTEL, M_WAITOK);
+	memcpy(meta, buf, min(size, pp->sectorsize));
 	g_free(buf);
 
 	/* Read all the rest, if needed. */
