@@ -64,6 +64,17 @@ extern struct g_class g_raid_class;
 		}							\
 	}								\
 } while (0)
+#define	G_RAID_DEBUG1(lvl, sc, fmt, ...)	do {			\
+	if (g_raid_debug >= (lvl)) {					\
+		if (g_raid_debug > 0) {					\
+			printf("GEOM_RAID[%u]: %s: " fmt "\n",		\
+			    lvl, (sc)->sc_name, ## __VA_ARGS__);	\
+		} else {						\
+			printf("GEOM_RAID: %s: " fmt "\n",		\
+			    (sc)->sc_name, ## __VA_ARGS__);		\
+		}							\
+	}								\
+} while (0)
 #define	G_RAID_LOGREQ(lvl, bp, fmt, ...)	do {			\
 	if (g_raid_debug >= (lvl)) {					\
 		if (g_raid_debug > 0) {					\
@@ -240,6 +251,7 @@ struct g_raid_volume {
 	LIST_ENTRY(g_raid_volume)	 v_global_next; /* Global list entry. */
 };
 
+#define G_RAID_NODE_E_WAKE	0x00
 #define G_RAID_NODE_E_START	0x01
 
 struct g_raid_softc {
@@ -327,6 +339,7 @@ int g_raid_create_node_format(const char *format, struct g_geom **gp);
 struct g_raid_volume * g_raid_create_volume(struct g_raid_softc *sc,
     const char *name);
 struct g_raid_disk * g_raid_create_disk(struct g_raid_softc *sc);
+const char * g_raid_get_diskname(struct g_raid_disk *disk);
 
 int g_raid_start_volume(struct g_raid_volume *vol);
 
@@ -356,6 +369,9 @@ int g_raid_tr_kerneldump_common(struct g_raid_tr_object *tr,
 
 u_int g_raid_ndisks(struct g_raid_softc *sc, int state);
 u_int g_raid_nsubdisks(struct g_raid_volume *vol, int state);
+u_int g_raid_nopens(struct g_raid_softc *sc);
+struct g_raid_subdisk * g_raid_get_subdisk(struct g_raid_volume *vol,
+    int state);
 #define	G_RAID_DESTROY_SOFT		0
 #define	G_RAID_DESTROY_DELAYED	1
 #define	G_RAID_DESTROY_HARD		2

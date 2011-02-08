@@ -63,8 +63,12 @@ struct g_command class_commands[] = {
 	    },
 	    NULL, "[-S size] [-s stripsize] name label level"
 	},
-	{ "delete", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
-	    "[-v] name [label|num]"
+	{ "delete", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    NULL, "[-fv] name [label|num]"
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
 	    "[-v] name prov ..."
