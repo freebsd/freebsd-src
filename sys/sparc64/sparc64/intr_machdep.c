@@ -99,7 +99,7 @@ static const char *const pil_names[] = {
 	"preempt",	/* PIL_PREEMPT */
 	"stray", "stray", "stray", "stray", "stray",
 	"filter",	/* PIL_FILTER */
-	"fast",		/* PIL_FAST */
+	"bridge",	/* PIL_BRIDGE */
 	"tick",		/* PIL_TICK */
 };
 
@@ -328,10 +328,10 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 	if (vec < 0 || vec >= IV_MAX)
 		return (EINVAL);
 	/*
-	 * INTR_FAST filters/handlers are special purpose only, allowing
+	 * INTR_BRIDGE filters/handlers are special purpose only, allowing
 	 * them to be shared just would complicate things unnecessarily.
 	 */
-	if ((flags & INTR_FAST) != 0 && (flags & INTR_EXCL) == 0)
+	if ((flags & INTR_BRIDGE) != 0 && (flags & INTR_EXCL) == 0)
 		return (EINVAL);
 	sx_xlock(&intr_table_lock);
 	iv = &intr_vectors[vec];
@@ -349,7 +349,7 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 	ic->ic_disable(iv);
 	iv->iv_refcnt++;
 	if (iv->iv_refcnt == 1)
-		intr_setup((flags & INTR_FAST) != 0 ? PIL_FAST :
+		intr_setup((flags & INTR_BRIDGE) != 0 ? PIL_BRIDGE :
 		    filt != NULL ? PIL_FILTER : PIL_ITHREAD, intr_fast,
 		    vec, intr_execute_handlers, iv);
 	else if (filt != NULL) {
