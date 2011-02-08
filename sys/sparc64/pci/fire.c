@@ -835,7 +835,7 @@ fire_set_intr(struct fire_softc *sc, u_int index, u_int ino,
 	    INTIGN(vec) != sc->sc_ign ||
 	    intr_vectors[vec].iv_ic != &fire_ic ||
 	    bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
-	    INTR_TYPE_MISC | INTR_FAST, handler, NULL, arg,
+	    INTR_TYPE_MISC | INTR_BRIDGE, handler, NULL, arg,
 	    &sc->sc_ihand[index]) != 0)
 		panic("%s: failed to set up interrupt %d", __func__, index);
 }
