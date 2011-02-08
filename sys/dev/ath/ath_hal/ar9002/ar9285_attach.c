@@ -384,9 +384,7 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halBtCoexSupport = AH_TRUE;
 #endif
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
-#if 0
 	pCap->hal4kbSplitTransSupport = AH_FALSE;
-#endif
 	pCap->halRxStbcSupport = 1;
 	pCap->halTxStbcSupport = 1;
 
