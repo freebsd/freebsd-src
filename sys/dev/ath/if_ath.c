@@ -283,6 +283,10 @@ SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
 
 MALLOC_DEFINE(M_ATHDEV, "athdev", "ath driver dma buffers");
 
+#define	HAL_MODE_HT20 (HAL_MODE_11NG_HT20 | HAL_MODE_11NA_HT20)
+#define	HAL_MODE_HT40 \
+	(HAL_MODE_11NG_HT40PLUS | HAL_MODE_11NG_HT40MINUS | \
+	HAL_MODE_11NA_HT40PLUS | HAL_MODE_11NA_HT40MINUS)
 int
 ath_attach(u_int16_t devid, struct ath_softc *sc)
 {
@@ -611,6 +615,52 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_tdma_update = ath_tdma_update;
 	}
 #endif
+
+	/*
+	 * The if_ath 11n support is completely not ready for normal use.
+	 * Enabling this option will likely break everything and everything.
+	 * Don't think of doing that unless you know what you're doing.
+	 */
+
+#ifdef	DO_ATH_11N
+	/*
+	 * Query HT capabilities
+	 */
+	if (ath_hal_getcapability(ah, HAL_CAP_HT, 0, NULL) == HAL_OK &&
+	    (wmodes & (HAL_MODE_HT20 | HAL_MODE_HT40))) {
+		int rxs, txs;
+
+		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
+		ic->ic_htcaps = IEEE80211_HTC_HT		/* HT operation */
+			    | IEEE80211_HTC_AMPDU		/* A-MPDU tx/rx */
+			    | IEEE80211_HTC_AMSDU		/* A-MSDU tx/rx */
+			    | IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
+			    | IEEE80211_HTCAP_SHORTGI20		/* short GI in 20MHz */
+			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
+			;
+
+		if (wmodes & HAL_MODE_HT40)
+			ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40
+			    |  IEEE80211_HTCAP_SHORTGI40;
+
+		/*
+		 * rx/tx stream is not currently used anywhere; it needs to be taken
+		 * into account when negotiating which MCS rates it'll receive and
+		 * what MCS rates are available for TX.
+		 */
+		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 0, &rxs);
+		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 1, &txs);
+
+		ath_hal_getrxchainmask(ah, &sc->sc_rxchainmask);
+		ath_hal_gettxchainmask(ah, &sc->sc_txchainmask);
+
+		ic->ic_txstream = txs;
+		ic->ic_rxstream = rxs;
+
+		device_printf(sc->sc_dev, "[HT] %d RX streams; %d TX streams\n", rxs, txs);
+	}
+#endif
+
 	/*
 	 * Indicate we need the 802.11 header padded to a
 	 * 32-bit boundary for 4-address and QoS frames.
