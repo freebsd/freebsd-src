@@ -575,6 +575,9 @@ softdep_get_depcounts(struct mount *mp,
 }
 
 #else
+
+FEATURE(softupdates, "FFS soft-updates support");
+
 /*
  * These definitions need to be adapted to the system to which
  * this file is being ported.
