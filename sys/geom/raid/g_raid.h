@@ -98,6 +98,8 @@ extern struct g_class g_raid_class;
  *				doing some desirable action such as bad
  *				block remapping after we detect a bad part
  *				of the disk.
+ * G_RAID_BIO_FLAG_FAKE_REMAP	Only doing the reading half of a remap
+ *				operation.
  *
  * and the following meta item:
  * G_RAID_BIO_FLAG_SPECIAL	And of the I/O flags that need to make it
@@ -109,6 +111,7 @@ extern struct g_class g_raid_class;
 #define	G_RAID_BIO_FLAG_REMAP		0x02
 #define G_RAID_BIO_FLAG_SPECIAL \
 		(G_RAID_BIO_FLAG_SYNC|G_RAID_BIO_FLAG_REMAP)
+#define G_RAID_BIO_FLAG_FAKE_REMAP	0x80
 
 struct g_raid_lock {
 	off_t			 l_offset;

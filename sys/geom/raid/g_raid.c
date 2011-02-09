@@ -910,6 +910,7 @@ g_raid_start_request(struct bio *bp)
 	sc = bp->bio_to->geom->softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 	vol = bp->bio_to->private;
+
 	/*
 	 * Check to see if this item is in a locked range.  If so,
 	 * queue it to our locked queue and return.  We'll requeue

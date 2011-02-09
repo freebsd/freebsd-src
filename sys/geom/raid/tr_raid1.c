@@ -630,7 +630,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 	struct g_raid_volume *vol;
 	struct bio *pbp;
 	struct g_raid_tr_raid1_object *trs;
-	int i, error;
+	int i, error, do_write;
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	pbp = bp->bio_parent;
@@ -768,10 +768,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * everything to get it back in sync), or just degrade the
 		 * drive, which kicks off a resync?
 		 */
+		do_write = 1;
 		if (sd->sd_read_errs > g_raid1_read_err_thresh) {
 			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			if (pbp->bio_children == 1)
-				goto remapdone;
+				do_write = 0;
 		}
 
 		/*
@@ -792,6 +793,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			pbp->bio_driver1 = sd; /* Save original subdisk. */
 			cbp->bio_caller1 = nsd;
 			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
+			if (!do_write)
+				cbp->bio_cflags |= G_RAID_BIO_FLAG_FAKE_REMAP;
 			/* Lock callback starts I/O */
 			g_raid_lock_range(sd->sd_volume,
 			    cbp->bio_offset, cbp->bio_length, pbp, cbp);
@@ -805,8 +808,10 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 */
 		G_RAID_LOGREQ(2, bp, "Couldn't retry read, failing it");
 	}
-	if (bp->bio_cmd == BIO_READ && bp->bio_error == 0 &&
-	    pbp->bio_children > 1) {
+	if (bp->bio_cmd == BIO_READ &&
+	    bp->bio_error == 0 &&
+	    pbp->bio_children > 1 &&
+	    !(bp->bio_cflags & G_RAID_BIO_FLAG_FAKE_REMAP)) {
 		/*
 		 * If it was a read, and bio_children is 2, then we just
 		 * recovered the data from the second drive.  We should try to
@@ -817,6 +822,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * affect the return code of this current read, and can be
 		 * done at our liesure.  However, to make the code simpler, it
 		 * is done syncrhonously.
+		 *
+		 * When the FAKE_REMAP flag is set, we fall through to the
+		 * code below which handles the read without the next
+		 * write so we don't return the error that failed the drive,
+		 * but the results of reading the other disk.
 		 */
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 		cbp = g_clone_bio(pbp);
@@ -829,7 +839,6 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			return;
 		}
 	}
-remapdone:
 	if (bp->bio_cflags & G_RAID_BIO_FLAG_REMAP) {
 		/*
 		 * We're done with a remap write, mark the range as unlocked.
