@@ -806,7 +806,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		*mask |= 1 << sd->sd_pos;
 		for (i = 0; i < vol->v_disks_count; i++) {
 			nsd = &vol->v_subdisks[i];
-			if (nsd->sd_state != G_RAID_SUBDISK_S_ACTIVE)
+			if (nsd->sd_state != G_RAID_SUBDISK_S_ACTIVE &&
+			    !((nsd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+			       nsd->sd_state == G_RAID_SUBDISK_S_RESYNC) && 
+			      bp->bio_offset + bp->bio_length <
+			       nsd->sd_rebuild_pos))
 				continue;
 			if ((*mask & (1 << i)) != 0)
 				continue;
