@@ -226,6 +226,25 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol,
 }
 
 static void
+g_raid_tr_raid1_fail_disk(struct g_raid_softc *sc, struct g_raid_subdisk *sd,
+    struct g_raid_disk *disk)
+{
+	/*
+	 * We don't fail the last disk in the pack, since it still has decent
+	 * data on it and that's better than failing the disk if it is the root
+	 * file system.
+	 *
+	 * XXX should this be controlled via a tunable?  It makes sense for
+	 * the volume that has / on it.  I can't think of a case where we'd
+	 * want the volume to go away on this kind of event.
+	 */
+	if (g_raid_nsubdisks(sd->sd_volume, G_RAID_SUBDISK_S_ACTIVE) == 1 &&
+	    g_raid_get_subdisk(sd->sd_volume, G_RAID_SUBDISK_S_ACTIVE) == sd)
+		return;
+	g_raid_fail_disk(sc, sd, disk);
+}
+
+static void
 g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
     struct g_raid_subdisk *sd)
 {
@@ -685,7 +704,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				    trs->trso_flags & TR_RAID1_F_ABORT) {
 					if ((trs->trso_flags &
 					    TR_RAID1_F_ABORT) == 0) {
-						g_raid_fail_disk(sd->sd_softc,
+						g_raid_tr_raid1_fail_disk(sd->sd_softc,
 						    nsd, nsd->sd_disk);
 					}
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
@@ -770,7 +789,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 */
 		do_write = 1;
 		if (sd->sd_read_errs > g_raid1_read_err_thresh) {
-			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
+			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			if (pbp->bio_children == 1)
 				do_write = 0;
 		}
@@ -852,7 +871,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		if (pbp->bio_cmd == BIO_WRITE && bp->bio_error) {
 			G_RAID_LOGREQ(0, bp, "Remap write failed: "
 			    "failing subdisk.");
-			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
+			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			bp->bio_error = 0;
 		}
 		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
