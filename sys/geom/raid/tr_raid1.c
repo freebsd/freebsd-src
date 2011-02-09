@@ -852,7 +852,7 @@ rebuild_round_done:
 			cbp = g_clone_bio(pbp);
 			if (cbp == NULL)
 				break;
-			G_RAID_LOGREQ(2, cbp, "Retrying read");
+			G_RAID_LOGREQ(2, cbp, "Retrying read from %d", i);
 			if (pbp->bio_children == 2 && do_write) {
 				sd->sd_recovery++;
 				cbp->bio_caller1 = nsd;
@@ -893,7 +893,7 @@ rebuild_round_done:
 		if (cbp != NULL) {
 			cbp->bio_cmd = BIO_WRITE;
 			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
-			G_RAID_LOGREQ(3, cbp,
+			G_RAID_LOGREQ(2, cbp,
 			    "Attempting bad sector remap on failing drive.");
 			g_raid_subdisk_iostart(pbp->bio_driver1, cbp);
 			return;
@@ -909,7 +909,7 @@ rebuild_round_done:
 		 * it now.  However, we need to reset error to 0 in that case
 		 * because we're not failing the original I/O which succeeded.
 		 */
-		if (pbp->bio_cmd == BIO_WRITE && bp->bio_error) {
+		if (bp->bio_cmd == BIO_WRITE && bp->bio_error) {
 			G_RAID_LOGREQ(0, bp, "Remap write failed: "
 			    "failing subdisk.");
 			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
