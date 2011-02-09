@@ -1938,10 +1938,10 @@ ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
 		/*
 		 * Group keys on hardware that supports multicast frame
 		 * key search use a MAC that is the sender's address with
-		 * the high bit set instead of the app-specified address.
+		 * the multicast bit set instead of the app-specified address.
 		 */
 		IEEE80211_ADDR_COPY(gmac, bss->ni_macaddr);
-		gmac[0] |= 0x80;
+		gmac[0] |= 0x01;
 		mac = gmac;
 	} else
 		mac = k->wk_macaddr;
