@@ -1348,7 +1348,10 @@ devfs_init_rulesets()
 		return
 	fi
 	for file in $devfs_rulesets; do
-		devfs_rulesets_from_file $file || return 1
+		if ! devfs_rulesets_from_file $file; then
+			warn "$_me: could not read rules from $file"
+			return 1
+		fi
 	done
 	devfs_rulesets_init=1
 	debug "$_me: devfs rulesets initialized"
