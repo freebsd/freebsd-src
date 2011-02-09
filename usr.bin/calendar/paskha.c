@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #define	PASKHALEN	(sizeof(PASKHA) - 1)
 
 /* return year day for Orthodox Easter using Gauss formula */
-/* (old style result) */
+/* (new style result) */
 
 int
 paskha(int R) /*year*/
@@ -53,5 +53,5 @@ paskha(int R) /*year*/
 	d = (19 * a + x) % 30;
 	e = (2 * b + 4 * c + 6 * d + y) % 7;
 	cumday = cumdaytab[isleap(R)];
-	return (((cumday[3] + 1) + 22) + (d + e));
+	return (((cumday[3] + 1) + 22) + (d + e) + 13);
 }
