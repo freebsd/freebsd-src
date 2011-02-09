@@ -560,7 +560,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
     RtldLockState lockstate;
 
     rlock_acquire(rtld_bind_lock, &lockstate);
-    if (setjmp(lockstate.env) != 0)
+    if (sigsetjmp(lockstate.env, 0) != 0)
 	    lock_upgrade(rtld_bind_lock, &lockstate);
     if (obj->pltrel)
 	rel = (const Elf_Rel *) ((caddr_t) obj->pltrel + reloff);
@@ -2142,7 +2142,7 @@ dlopen(const char *name, int mode)
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
     if (ld_tracing != NULL) {
 	rlock_acquire(rtld_bind_lock, &lockstate);
-	if (setjmp(lockstate.env) != 0)
+	if (sigsetjmp(lockstate.env, 0) != 0)
 	    lock_upgrade(rtld_bind_lock, &lockstate);
 	environ = (char **)*get_program_var_addr("environ", &lockstate);
 	lock_release(rtld_bind_lock, &lockstate);
@@ -2264,7 +2264,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
     req.lockstate = &lockstate;
 
     rlock_acquire(rtld_bind_lock, &lockstate);
-    if (setjmp(lockstate.env) != 0)
+    if (sigsetjmp(lockstate.env, 0) != 0)
 	    lock_upgrade(rtld_bind_lock, &lockstate);
     if (handle == NULL || handle == RTLD_NEXT ||
 	handle == RTLD_DEFAULT || handle == RTLD_SELF) {
