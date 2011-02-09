@@ -276,7 +276,7 @@ typedef struct Struct_DoneList {
 
 struct Struct_RtldLockState {
 	int lockstate;
-	jmp_buf env;
+	sigjmp_buf env;
 };
 
 /*
