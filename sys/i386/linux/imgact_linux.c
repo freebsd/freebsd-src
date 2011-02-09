@@ -217,9 +217,6 @@ exec_linux_imgact(struct image_params *imgp)
 #endif
 
 	}
-	/* Indicate that this file should not be modified */
-	mp_fixme("Unlocked v_flag access");
-	imgp->vp->v_vflag |= VV_TEXT;
     }
     /* Fill in process VM information */
     vmspace->vm_tsize = round_page(a_out->a_text) >> PAGE_SHIFT;
