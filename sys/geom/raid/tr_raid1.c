@@ -649,10 +649,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 	struct g_raid_volume *vol;
 	struct bio *pbp;
 	struct g_raid_tr_raid1_object *trs;
+	uintptr_t *mask;
 	int i, error, do_write;
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
-	pbp = bp->bio_parent;
+	vol = tr->tro_volume;
 	if (bp->bio_cflags & G_RAID_BIO_FLAG_SYNC) {
 		/*
 		 * This operation is part of a rebuild or resync operation.
@@ -669,7 +670,6 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * 5MB of data, for inactive ones, we do 50MB.
 		 */
 		if (trs->trso_type == TR_RAID1_REBUILD) {
-			vol = tr->tro_volume;
 			if (bp->bio_cmd == BIO_READ) {
 				/*
 				 * The read operation finished, queue the
@@ -768,6 +768,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		}
 		return;
 	}
+	pbp = bp->bio_parent;
 	pbp->bio_inbed++;
 	if (bp->bio_cmd == BIO_READ && bp->bio_error != 0) {
 		/*
@@ -775,7 +776,6 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * another disk drive, if available, before erroring out the
 		 * read.
 		 */
-		vol = tr->tro_volume;
 		sd->sd_read_errs++;
 		G_RAID_LOGREQ(0, bp,
 		    "Read error (%d), %d read errors total",
@@ -797,26 +797,32 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		/*
 		 * Find the other disk, and try to do the I/O to it.
 		 */
-		for (nsd = NULL, i = 0; i < vol->v_disks_count; i++) {
-			if (pbp->bio_children > 1)
-				break;
+		mask = (uintptr_t *)(&pbp->bio_driver2);
+		if (pbp->bio_children == 1) {
+			/* Save original subdisk. */
+			pbp->bio_driver1 = do_write ? sd : NULL;
+			*mask = 0;
+		}
+		*mask |= 1 << sd->sd_pos;
+		for (i = 0; i < vol->v_disks_count; i++) {
 			nsd = &vol->v_subdisks[i];
-			if (sd == nsd)
-				continue;
 			if (nsd->sd_state != G_RAID_SUBDISK_S_ACTIVE)
+				continue;
+			if ((*mask & (1 << i)) != 0)
 				continue;
 			cbp = g_clone_bio(pbp);
 			if (cbp == NULL)
 				break;
 			G_RAID_LOGREQ(2, cbp, "Retrying read");
-			pbp->bio_driver1 = sd; /* Save original subdisk. */
-			cbp->bio_caller1 = nsd;
-			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
-			if (!do_write)
-				cbp->bio_cflags |= G_RAID_BIO_FLAG_FAKE_REMAP;
-			/* Lock callback starts I/O */
-			g_raid_lock_range(sd->sd_volume,
-			    cbp->bio_offset, cbp->bio_length, pbp, cbp);
+			if (pbp->bio_children == 2 && do_write) {
+				cbp->bio_caller1 = nsd;
+				pbp->bio_pflags = G_RAID_BIO_FLAG_LOCKED;
+				/* Lock callback starts I/O */
+				g_raid_lock_range(sd->sd_volume,
+				    cbp->bio_offset, cbp->bio_length, pbp, cbp);
+			} else {
+				g_raid_subdisk_iostart(nsd, cbp);
+			}
 			return;
 		}
 		/*
@@ -830,9 +836,9 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 	if (bp->bio_cmd == BIO_READ &&
 	    bp->bio_error == 0 &&
 	    pbp->bio_children > 1 &&
-	    !(bp->bio_cflags & G_RAID_BIO_FLAG_FAKE_REMAP)) {
+	    pbp->bio_driver1 != NULL) {
 		/*
-		 * If it was a read, and bio_children is 2, then we just
+		 * If it was a read, and bio_children is >1, then we just
 		 * recovered the data from the second drive.  We should try to
 		 * write that data to the first drive if sector remapping is
 		 * enabled.  A write should put the data in a new place on the
@@ -841,11 +847,6 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * affect the return code of this current read, and can be
 		 * done at our liesure.  However, to make the code simpler, it
 		 * is done syncrhonously.
-		 *
-		 * When the FAKE_REMAP flag is set, we fall through to the
-		 * code below which handles the read without the next
-		 * write so we don't return the error that failed the drive,
-		 * but the results of reading the other disk.
 		 */
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 		cbp = g_clone_bio(pbp);
@@ -858,9 +859,9 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 			return;
 		}
 	}
-	if (bp->bio_cflags & G_RAID_BIO_FLAG_REMAP) {
+	if (pbp->bio_pflags & G_RAID_BIO_FLAG_LOCKED) {
 		/*
-		 * We're done with a remap write, mark the range as unlocked.
+		 * We're done with a recovery, mark the range as unlocked.
 		 * For any write errors, we agressively fail the disk since
 		 * there was both a READ and a WRITE error at this location.
 		 * Both types of errors generally indicates the drive is on
