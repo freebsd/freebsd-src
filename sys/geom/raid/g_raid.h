@@ -147,8 +147,8 @@ struct g_raid_disk {
 	struct g_consumer	*d_consumer;	/* GEOM disk consumer. */
 	void			*d_md_data;	/* Disk's metadata storage. */
 	struct g_kerneldump	 d_kd;		/* Kernel dumping method/args. */
-	u_int			 d_state;	/* Disk state. */
 	uint64_t		 d_flags;	/* Additional flags. */
+	u_int			 d_state;	/* Disk state. */
 	u_int			 d_load;	/* Disk average load. */
 	off_t			 d_last_offset;	/* Last head offset. */
 	TAILQ_HEAD(, g_raid_subdisk)	 d_subdisks; /* List of subdisks. */
@@ -169,6 +169,13 @@ struct g_raid_disk {
 #define G_RAID_SUBDISK_E_DISCONNECTED	0x03	/* A subdisk removed from volume. */
 #define G_RAID_SUBDISK_E_FIRST_TR_PRIVATE 0x80	/* translation private events */
 
+#define G_RAID_SUBDISK_POS(sd)						\
+    ((sd)->sd_disk ? ((sd)->sd_disk->d_last_offset - (sd)->sd_offset) : 0)
+#define G_RAID_SUBDISK_TRACK_SIZE	(1 * 1024 * 1024)
+#define G_RAID_SUBDISK_LOAD(sd)						\
+    ((sd)->sd_disk ? ((sd)->sd_disk->d_load) : 0)
+#define G_RAID_SUBDISK_LOAD_SCALE	256
+
 struct g_raid_subdisk {
 	struct g_raid_softc	*sd_softc;	/* Back-pointer to softc. */
 	struct g_raid_disk	*sd_disk;	/* Where this subdisk lives. */
@@ -179,6 +186,7 @@ struct g_raid_subdisk {
 	u_int			 sd_state;	/* Subdisk state. */
 	off_t			 sd_rebuild_pos; /* Rebuild position. */
 	int			 sd_read_errs;  /* Count of the read errors */
+	int			 sd_recovery;	/* Count of recovery reqs. */
 	TAILQ_ENTRY(g_raid_subdisk)	 sd_next; /* Next subdisk on disk. */
 };
 

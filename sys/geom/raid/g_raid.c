@@ -1074,7 +1074,7 @@ void
 g_raid_subdisk_iostart(struct g_raid_subdisk *sd, struct bio *bp)
 {
 	struct g_consumer *cp;
-	struct g_raid_disk *disk;
+	struct g_raid_disk *disk, *tdisk;
 
 	bp->bio_caller1 = sd;
 
@@ -1104,6 +1104,17 @@ nodisk:
 	bp->bio_from = cp;
 	bp->bio_to = cp->provider;
 	cp->index++;
+
+	/* Update average disks load. */
+	TAILQ_FOREACH(tdisk, &sd->sd_softc->sc_disks, d_next) {
+		if (tdisk->d_consumer == NULL)
+			tdisk->d_load = 0;
+		else
+			tdisk->d_load = (tdisk->d_consumer->index *
+			    G_RAID_SUBDISK_LOAD_SCALE + tdisk->d_load * 7) / 8;
+	}
+
+	disk->d_last_offset = bp->bio_offset + bp->bio_length;
 	if (dumping) {
 		G_RAID_LOGREQ(3, bp, "Sending dumping request.");
 		if (bp->bio_cmd == BIO_WRITE) {

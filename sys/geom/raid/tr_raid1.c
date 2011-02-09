@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -490,22 +491,43 @@ g_raid_tr_stop_raid1(struct g_raid_tr_object *tr)
 }
 
 /*
- * Select the disk to do the reads to.  For now, we just pick the first one in
- * the list that's active always.  This ensures we favor one disk on boot, and
- * have more deterministic recovery from the weird edge cases of power
- * failure.  In the future, we can imagine policies that go for the least
- * loaded disk to improve performance, or we need to limit reads to a disk
- * during some kind of error recovery with that disk.
+ * Select the disk to read from.  Take into account: subdisk state, running
+ * error recovery, average disk load, head position and possible cache hits.
  */
+#define ABS(x)		(((x) >= 0) ? (x) : (-(x)))
 static struct g_raid_subdisk *
-g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol)
+g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol, struct bio *bp)
 {
-	int i;
+	struct g_raid_subdisk *sd, *best;
+	int i, prio, bestprio;
 
-	for (i = 0; i < vol->v_disks_count; i++)
-		if (vol->v_subdisks[i].sd_state == G_RAID_SUBDISK_S_ACTIVE)
-			return (&vol->v_subdisks[i]);
-	return (NULL);
+	best = NULL;
+	bestprio = INT_MAX;
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE &&
+		    !((sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+		       sd->sd_state == G_RAID_SUBDISK_S_RESYNC) && 
+		      bp->bio_offset + bp->bio_length <
+		       sd->sd_rebuild_pos))
+			continue;
+		prio = G_RAID_SUBDISK_LOAD(sd);
+		prio += min(sd->sd_recovery, 255) << 22;
+		prio += (G_RAID_SUBDISK_S_ACTIVE - sd->sd_state) << 16;
+		/* If disk head is precisely in position - highly prefer it. */
+		if (G_RAID_SUBDISK_POS(sd) == bp->bio_offset)
+			prio -= 2 * G_RAID_SUBDISK_LOAD_SCALE;
+		else
+		/* If disk head is close to position - prefer it. */
+		if (ABS(G_RAID_SUBDISK_POS(sd) - bp->bio_offset) <
+		    G_RAID_SUBDISK_TRACK_SIZE)
+			prio -= 1 * G_RAID_SUBDISK_LOAD_SCALE;
+		if (prio < bestprio) {
+			best = sd;
+			bestprio = prio;
+		}
+	}
+	return (best);
 }
 
 static void
@@ -514,7 +536,7 @@ g_raid_tr_iostart_raid1_read(struct g_raid_tr_object *tr, struct bio *bp)
 	struct g_raid_subdisk *sd;
 	struct bio *cbp;
 
-	sd = g_raid_tr_raid1_select_read_disk(tr->tro_volume);
+	sd = g_raid_tr_raid1_select_read_disk(tr->tro_volume, bp);
 	KASSERT(sd != NULL, ("No active disks in volume %s.",
 		tr->tro_volume->v_name));
 
@@ -832,6 +854,7 @@ rebuild_round_done:
 				break;
 			G_RAID_LOGREQ(2, cbp, "Retrying read");
 			if (pbp->bio_children == 2 && do_write) {
+				sd->sd_recovery++;
 				cbp->bio_caller1 = nsd;
 				pbp->bio_pflags = G_RAID_BIO_FLAG_LOCKED;
 				/* Lock callback starts I/O */
@@ -891,6 +914,10 @@ rebuild_round_done:
 			    "failing subdisk.");
 			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			bp->bio_error = 0;
+		}
+		if (pbp->bio_driver1 != NULL) {
+			((struct g_raid_subdisk *)pbp->bio_driver1)
+			    ->sd_recovery--;
 		}
 		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
 		g_raid_unlock_range(sd->sd_volume, bp->bio_offset,
