@@ -125,7 +125,7 @@ usb_make_raw_desc(struct usb_temp_setup *temp,
 		len = raw[0];
 		if (temp->buf) {
 			dst = USB_ADD_BYTES(temp->buf, temp->size);
-			bcopy(raw, dst, len);
+			memcpy(dst, raw, len);
 
 			/* check if we have got a CDC union descriptor */
 

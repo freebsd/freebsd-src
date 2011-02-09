@@ -1148,7 +1148,9 @@ done:
 static void
 usbd_transfer_unsetup_sub(struct usb_xfer_root *info, uint8_t needs_delay)
 {
+#if USB_HAVE_BUSDMA
 	struct usb_page_cache *pc;
+#endif
 
 	USB_BUS_LOCK_ASSERT(info->bus, MA_OWNED);
 
