@@ -487,10 +487,15 @@ main(int argc, char *argv[])
 		    cfg->hc_controladdr);
 	}
 	/* ...and connect to hastd. */
-	if (proto_connect(controlconn) < 0) {
+	if (proto_connect(controlconn, HAST_TIMEOUT) < 0) {
 		pjdlog_exit(EX_OSERR, "Unable to connect to hastd via %s",
 		    cfg->hc_controladdr);
 	}
+
+	if (drop_privs() != 0)
+		exit(EX_CONFIG);
+	pjdlog_debug(1, "Privileges successfully dropped.");
+
 	/* Send the command to the server... */
 	if (hast_proto_send(NULL, controlconn, nv, NULL, 0) < 0) {
 		pjdlog_exit(EX_UNAVAILABLE,

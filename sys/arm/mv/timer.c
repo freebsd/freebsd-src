@@ -150,6 +150,7 @@ mv_timer_attach(device_t dev)
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask |= IRQ_TIMER0_MASK;
+	irq_mask &= ~IRQ_TIMER1_MASK;
 	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
 
 	sc->et.et_name = "CPUTimer0";
@@ -229,7 +230,7 @@ DELAY(int usec)
 	if (!timers_initialized) {
 		for (; usec > 0; usec--)
 			for (val = 100; val > 0; val--)
-				;
+				__asm __volatile("nop" ::: "memory");
 		return;
 	}
 

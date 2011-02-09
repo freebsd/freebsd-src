@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.dig.html,v 1.93.14.15.4.1 2010/03/03 22:06:38 marka Exp $ -->
+<!-- $Id: man.dig.html,v 1.93.14.17 2010-08-20 02:05:39 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -52,7 +52,7 @@
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [global-queryopt...] [query...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2563895"></a><h2>DESCRIPTION</h2>
+<a name="id2575940"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dig</strong></span>
       (domain information groper) is a flexible tool
       for interrogating DNS name servers.  It performs DNS lookups and
@@ -98,7 +98,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2575937"></a><h2>SIMPLE USAGE</h2>
+<a name="id2576035"></a><h2>SIMPLE USAGE</h2>
 <p>
       A typical invocation of <span><strong class="command">dig</strong></span> looks like:
       </p>
@@ -144,7 +144,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2576048"></a><h2>OPTIONS</h2>
+<a name="id2576146"></a><h2>OPTIONS</h2>
 <p>
       The <code class="option">-b</code> option sets the source IP address of the query
       to <em class="parameter"><code>address</code></em>.  This must be a valid
@@ -248,7 +248,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2630184"></a><h2>QUERY OPTIONS</h2>
+<a name="id2630214"></a><h2>QUERY OPTIONS</h2>
 <p><span><strong class="command">dig</strong></span>
       provides a number of query options which affect
       the way in which lookups are made and the results displayed.  Some of
@@ -573,7 +573,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2631253"></a><h2>MULTIPLE QUERIES</h2>
+<a name="id2631283"></a><h2>MULTIPLE QUERIES</h2>
 <p>
       The BIND 9 implementation of <span><strong class="command">dig </strong></span>
       supports
@@ -619,7 +619,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2631406"></a><h2>IDN SUPPORT</h2>
+<a name="id2631436"></a><h2>IDN SUPPORT</h2>
 <p>
       If <span><strong class="command">dig</strong></span> has been built with IDN (internationalized
       domain name) support, it can accept and display non-ASCII domain names.
@@ -633,14 +633,14 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2631435"></a><h2>FILES</h2>
+<a name="id2631465"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 <p><code class="filename">${HOME}/.digrc</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2631457"></a><h2>SEE ALSO</h2>
+<a name="id2631486"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
@@ -648,7 +648,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2631494"></a><h2>BUGS</h2>
+<a name="id2631524"></a><h2>BUGS</h2>
 <p>
       There are probably too many query options.
     </p>

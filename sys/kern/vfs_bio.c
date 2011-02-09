@@ -1647,8 +1647,7 @@ vfs_vmio_release(struct buf *bp)
 			 * no valid data.  We also free the page if the
 			 * buffer was used for direct I/O
 			 */
-			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid &&
-			    m->hold_count == 0) {
+			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid) {
 				vm_page_free(m);
 			} else if (bp->b_flags & B_DIRECT) {
 				vm_page_try_to_free(m);
@@ -2235,7 +2234,7 @@ buf_daemon()
 		while (numdirtybuffers > lodirtybuffers) {
 			if (buf_do_flush(NULL) == 0)
 				break;
-			uio_yield();
+			kern_yield(-1);
 		}
 		lodirtybuffers = lodirtysave;
 

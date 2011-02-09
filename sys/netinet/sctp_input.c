@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_crc32.h>
 #include <netinet/udp.h>
+#include <sys/smp.h>
 
 
 
@@ -2612,6 +2615,12 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* still no TCB... must be bad cookie-echo */
 		return (NULL);
 	}
+	if ((*netp != NULL) && (m->m_flags & M_FLOWID)) {
+		(*netp)->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
+		(*netp)->flowidset = 1;
+#endif
+	}
 	/*
 	 * Ok, we built an association so confirm the address we sent the
 	 * INIT-ACK to.
@@ -2715,6 +2724,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			inp->sctp_socket = so;
 			inp->sctp_frag_point = (*inp_p)->sctp_frag_point;
 			inp->sctp_cmt_on_off = (*inp_p)->sctp_cmt_on_off;
+			inp->sctp_ecn_enable = (*inp_p)->sctp_ecn_enable;
 			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
 			inp->sctp_context = (*inp_p)->sctp_context;
 			inp->inp_starting_point_for_iterator = NULL;
@@ -2917,7 +2927,7 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 	uint8_t override_bit = 0;
 	uint32_t tsn, window_data_tsn;
 	int len;
-	int pkt_cnt;
+	unsigned int pkt_cnt;
 
 	len = ntohs(cp->ch.chunk_length);
 	if ((len != sizeof(struct sctp_ecne_chunk)) &&
@@ -5610,7 +5620,8 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 		 */
 	}
 	/* take care of ecn */
-	if (stcb->asoc.ecn_allowed && ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS)) {
+	if ((stcb->asoc.ecn_allowed == 1) &&
+	    ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS)) {
 		/* Yep, we need to add a ECNE */
 		sctp_send_ecn_echo(stcb, net, high_tsn);
 	}
@@ -5806,6 +5817,12 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 			}
 			net->port = port;
 		}
+		if ((net != NULL) && (m->m_flags & M_FLOWID)) {
+			net->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
+			net->flowidset = 1;
+#endif
+		}
 		if ((inp) && (stcb)) {
 			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR, SCTP_SO_NOT_LOCKED);
@@ -5834,6 +5851,12 @@ sctp_skip_csum_4:
 			sctp_pathmtu_adjustment(inp, stcb, net, net->mtu - sizeof(struct udphdr));
 		}
 		net->port = port;
+	}
+	if ((net != NULL) && (m->m_flags & M_FLOWID)) {
+		net->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
+		net->flowidset = 1;
+#endif
 	}
 	/* inp's ref-count increased && stcb locked */
 	if (inp == NULL) {
@@ -5921,10 +5944,49 @@ bad:
 	}
 	return;
 }
+
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+extern int *sctp_cpuarry;
+
+#endif
+
 void
-sctp_input(i_pak, off)
-	struct mbuf *i_pak;
-	int off;
+sctp_input(struct mbuf *m, int off)
 {
-	sctp_input_with_port(i_pak, off, 0);
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+	struct ip *ip;
+	struct sctphdr *sh;
+	int offset;
+	int cpu_to_use;
+	uint32_t flowid, tag;
+
+	if (mp_ncpus > 1) {
+		if (m->m_flags & M_FLOWID) {
+			flowid = m->m_pkthdr.flowid;
+		} else {
+			/*
+			 * No flow id built by lower layers fix it so we
+			 * create one.
+			 */
+			ip = mtod(m, struct ip *);
+			offset = off + sizeof(*sh);
+			if (SCTP_BUF_LEN(m) < offset) {
+				if ((m = m_pullup(m, offset)) == 0) {
+					SCTP_STAT_INCR(sctps_hdrops);
+					return;
+				}
+				ip = mtod(m, struct ip *);
+			}
+			sh = (struct sctphdr *)((caddr_t)ip + off);
+			tag = htonl(sh->v_tag);
+			flowid = tag ^ ntohs(sh->dest_port) ^ ntohs(sh->src_port);
+			m->m_pkthdr.flowid = flowid;
+			m->m_flags |= M_FLOWID;
+		}
+		cpu_to_use = sctp_cpuarry[flowid % mp_ncpus];
+		sctp_queue_to_mcore(m, off, cpu_to_use);
+		return;
+	}
+#endif
+	sctp_input_with_port(m, off, 0);
 }

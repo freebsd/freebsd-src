@@ -51,7 +51,7 @@
 #define	UINT16_C(c)		(c)
 #define	UINT32_C(c)		(c ## U)
 
-#ifdef __LP64__
+#ifdef __mips_n64
 #define	INT64_C(c)		(c ## L)
 #define	UINT64_C(c)		(c ## UL)
 #else
@@ -136,7 +136,7 @@
  * ISO/IEC 9899:1999
  * 7.18.2.4  Limits of integer types capable of holding object pointers
  */
-#ifdef __LP64__
+#ifdef __mips_n64
 #define	INTPTR_MIN	INT64_MIN
 #define	INTPTR_MAX	INT64_MAX
 #define	UINTPTR_MAX	UINT64_MAX
@@ -158,7 +158,7 @@
  * ISO/IEC 9899:1999
  * 7.18.3  Limits of other integer types
  */
-#ifdef __LP64__
+#ifdef __mips_n64
 /* Limits of ptrdiff_t. */
 #define	PTRDIFF_MIN	INT64_MIN
 #define	PTRDIFF_MAX	INT64_MAX

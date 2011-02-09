@@ -488,6 +488,46 @@ init_local(struct hast_resource *res)
 		exit(EX_NOINPUT);
 }
 
+static int
+primary_connect(struct hast_resource *res, struct proto_conn **connp)
+{
+	struct proto_conn *conn;
+	int16_t val;
+
+	val = 1;
+	if (proto_send(res->hr_conn, &val, sizeof(val)) < 0) {
+		primary_exit(EX_TEMPFAIL,
+		    "Unable to send connection request to parent");
+	}
+	if (proto_recv(res->hr_conn, &val, sizeof(val)) < 0) {
+		primary_exit(EX_TEMPFAIL,
+		    "Unable to receive reply to connection request from parent");
+	}
+	if (val != 0) {
+		errno = val;
+		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
+		    res->hr_remoteaddr);
+		return (-1);
+	}
+	if (proto_connection_recv(res->hr_conn, true, &conn) < 0) {
+		primary_exit(EX_TEMPFAIL,
+		    "Unable to receive connection from parent");
+	}
+	if (proto_connect_wait(conn, HAST_TIMEOUT) < 0) {
+		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
+		    res->hr_remoteaddr);
+		proto_close(conn);
+		return (-1);
+	}
+	/* Error in setting timeout is not critical, but why should it fail? */
+	if (proto_timeout(conn, res->hr_timeout) < 0)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
+
+	*connp = conn;
+
+	return (0);
+}
+
 static bool
 init_remote(struct hast_resource *res, struct proto_conn **inp,
     struct proto_conn **outp)
@@ -508,21 +548,9 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	in = out = NULL;
 	errmsg = NULL;
 
-	/* Prepare outgoing connection with remote node. */
-	if (proto_client(res->hr_remoteaddr, &out) < 0) {
-		primary_exit(EX_TEMPFAIL,
-		    "Unable to create outgoing connection to %s",
-		    res->hr_remoteaddr);
-	}
-	/* Try to connect, but accept failure. */
-	if (proto_connect(out, HAST_TIMEOUT) < 0) {
-		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
-		    res->hr_remoteaddr);
-		goto close;
-	}
-	/* Error in setting timeout is not critical, but why should it fail? */
-	if (proto_timeout(out, res->hr_timeout) < 0)
-		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
+	if (primary_connect(res, &out) == -1)
+		return (false);
+
 	/*
 	 * First handshake step.
 	 * Setup outgoing connection with remote node.
@@ -576,20 +604,9 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	 * Second handshake step.
 	 * Setup incoming connection with remote node.
 	 */
-	if (proto_client(res->hr_remoteaddr, &in) < 0) {
-		primary_exit(EX_TEMPFAIL,
-		    "Unable to create incoming connection to %s",
-		    res->hr_remoteaddr);
-	}
-	/* Try to connect, but accept failure. */
-	if (proto_connect(in, HAST_TIMEOUT) < 0) {
-		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
-		    res->hr_remoteaddr);
+	if (primary_connect(res, &in) == -1)
 		goto close;
-	}
-	/* Error in setting timeout is not critical, but why should it fail? */
-	if (proto_timeout(in, res->hr_timeout) < 0)
-		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
+
 	nvout = nv_alloc();
 	nv_add_string(nvout, res->hr_name, "resource");
 	nv_add_uint8_array(nvout, res->hr_token, sizeof(res->hr_token),
@@ -792,7 +809,8 @@ hastd_primary(struct hast_resource *res)
 	int error, mode;
 
 	/*
-	 * Create communication channel between parent and child.
+	 * Create communication channel for sending control commands from
+	 * parent to child.
 	 */
 	if (proto_client("socketpair://", &res->hr_ctrl) < 0) {
 		/* TODO: There's no need for this to be fatal error. */
@@ -801,13 +819,23 @@ hastd_primary(struct hast_resource *res)
 		    "Unable to create control sockets between parent and child");
 	}
 	/*
-	 * Create communication channel between child and parent.
+	 * Create communication channel for sending events from child to parent.
 	 */
 	if (proto_client("socketpair://", &res->hr_event) < 0) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create event sockets between child and parent");
+	}
+	/*
+	 * Create communication channel for sending connection requests from
+	 * child to parent.
+	 */
+	if (proto_client("socketpair://", &res->hr_conn) < 0) {
+		/* TODO: There's no need for this to be fatal error. */
+		KEEP_ERRNO((void)pidfile_remove(pfh));
+		pjdlog_exit(EX_OSERR,
+		    "Unable to create connection sockets between child and parent");
 	}
 
 	pid = fork();
@@ -821,6 +849,7 @@ hastd_primary(struct hast_resource *res)
 		/* This is parent. */
 		/* Declare that we are receiver. */
 		proto_recv(res->hr_event, NULL, 0);
+		proto_recv(res->hr_conn, NULL, 0);
 		/* Declare that we are sender. */
 		proto_send(res->hr_ctrl, NULL, 0);
 		res->hr_workerpid = pid;
@@ -832,6 +861,7 @@ hastd_primary(struct hast_resource *res)
 
 	/* Declare that we are sender. */
 	proto_send(res->hr_event, NULL, 0);
+	proto_send(res->hr_conn, NULL, 0);
 	/* Declare that we are receiver. */
 	proto_recv(res->hr_ctrl, NULL, 0);
 	descriptors_cleanup(res);
@@ -850,6 +880,7 @@ hastd_primary(struct hast_resource *res)
 		cleanup(res);
 		exit(EX_CONFIG);
 	}
+	pjdlog_info("Privileges successfully dropped.");
 
 	/*
 	 * Create the guard thread first, so we can handle signals from the
@@ -1229,8 +1260,12 @@ keepalive_send(struct hast_resource *res, unsigned int ncomp)
 {
 	struct nv *nv;
 
-	if (!ISCONNECTED(res, ncomp))
+	rw_rlock(&hio_remote_lock[ncomp]);
+
+	if (!ISCONNECTED(res, ncomp)) {
+		rw_unlock(&hio_remote_lock[ncomp]);
 		return;
+	}
 	
 	PJDLOG_ASSERT(res->hr_remotein != NULL);
 	PJDLOG_ASSERT(res->hr_remoteout != NULL);
@@ -1238,20 +1273,22 @@ keepalive_send(struct hast_resource *res, unsigned int ncomp)
 	nv = nv_alloc();
 	nv_add_uint8(nv, HIO_KEEPALIVE, "cmd");
 	if (nv_error(nv) != 0) {
+		rw_unlock(&hio_remote_lock[ncomp]);
 		nv_free(nv);
 		pjdlog_debug(1,
 		    "keepalive_send: Unable to prepare header to send.");
 		return;
 	}
 	if (hast_proto_send(res, res->hr_remoteout, nv, NULL, 0) < 0) {
+		rw_unlock(&hio_remote_lock[ncomp]);
 		pjdlog_common(LOG_DEBUG, 1, errno,
 		    "keepalive_send: Unable to send request");
 		nv_free(nv);
-		rw_unlock(&hio_remote_lock[ncomp]);
 		remote_close(res, ncomp);
-		rw_rlock(&hio_remote_lock[ncomp]);
 		return;
 	}
+
+	rw_unlock(&hio_remote_lock[ncomp]);
 	nv_free(nv);
 	pjdlog_debug(2, "keepalive_send: Request sent.");
 }

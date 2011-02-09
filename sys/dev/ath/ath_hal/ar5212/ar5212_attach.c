@@ -860,6 +860,8 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	if (AH_PRIVATE(ah)->ah_macVersion < AR_SREV_VERSION_GRIFFIN)
 		pCap->halIntrMask &= ~HAL_INT_TBTT;
 
+	pCap->hal4kbSplitTransSupport = AH_TRUE;
+
 	return AH_TRUE;
 #undef IS_COBRA
 #undef IS_GRIFFIN_LITE

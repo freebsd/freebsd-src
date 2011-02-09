@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2010, by Randall Stewart & Michael Tuexen,
- * All rights reserved.
+ * Copyright (c) 2010-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2010-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2010-2011, by Robin Seggelmann. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -11,10 +12,6 @@
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
- *
- * c) Neither the name of Cisco Systems, Inc. nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
@@ -56,6 +53,11 @@ sctp_ss_default_init(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	uint16_t i;
 
 	TAILQ_INIT(&asoc->ss_data.out_wheel);
+	/*
+	 * If there is data in the stream queues already, the scheduler of
+	 * an existing association has been changed. We need to add all
+	 * stream queues to the wheel.
+	 */
 	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 		if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
 			sctp_ss_default_add(stcb, &stcb->asoc,
@@ -83,7 +85,7 @@ sctp_ss_default_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static void
-sctp_ss_default_init_stream(struct sctp_stream_out *strq)
+sctp_ss_default_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *with_strq)
 {
 	strq->ss_params.rr.next_spoke.tqe_next = NULL;
 	strq->ss_params.rr.next_spoke.tqe_prev = NULL;
@@ -172,7 +174,7 @@ default_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
@@ -281,7 +283,6 @@ sctp_ss_rrp_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 	if ((strq->ss_params.rr.next_spoke.tqe_next == NULL) &&
 	    (strq->ss_params.rr.next_spoke.tqe_prev == NULL)) {
-
 		if (TAILQ_EMPTY(&asoc->ss_data.out_wheel)) {
 			TAILQ_INSERT_HEAD(&asoc->ss_data.out_wheel, strq, ss_params.rr.next_spoke);
 		} else {
@@ -325,7 +326,7 @@ rrp_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
@@ -368,7 +369,7 @@ rrp_pd_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
@@ -411,11 +412,15 @@ sctp_ss_prio_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static void
-sctp_ss_prio_init_stream(struct sctp_stream_out *strq)
+sctp_ss_prio_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *with_strq)
 {
 	strq->ss_params.prio.next_spoke.tqe_next = NULL;
 	strq->ss_params.prio.next_spoke.tqe_prev = NULL;
-	strq->ss_params.prio.priority = 0;
+	if (with_strq != NULL) {
+		strq->ss_params.prio.priority = with_strq->ss_params.prio.priority;
+	} else {
+		strq->ss_params.prio.priority = 0;
+	}
 	return;
 }
 
@@ -431,7 +436,6 @@ sctp_ss_prio_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 	if ((strq->ss_params.prio.next_spoke.tqe_next == NULL) &&
 	    (strq->ss_params.prio.next_spoke.tqe_prev == NULL)) {
-
 		if (TAILQ_EMPTY(&asoc->ss_data.out_wheel)) {
 			TAILQ_INSERT_HEAD(&asoc->ss_data.out_wheel, strq, ss_params.prio.next_spoke);
 		} else {
@@ -506,7 +510,7 @@ prio_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
@@ -575,11 +579,15 @@ sctp_ss_fb_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static void
-sctp_ss_fb_init_stream(struct sctp_stream_out *strq)
+sctp_ss_fb_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *with_strq)
 {
 	strq->ss_params.fb.next_spoke.tqe_next = NULL;
 	strq->ss_params.fb.next_spoke.tqe_prev = NULL;
-	strq->ss_params.fb.rounds = -1;
+	if (with_strq != NULL) {
+		strq->ss_params.fb.rounds = with_strq->ss_params.fb.rounds;
+	} else {
+		strq->ss_params.fb.rounds = -1;
+	}
 	return;
 }
 
@@ -697,28 +705,40 @@ sctp_ss_fb_scheduled(struct sctp_tcb *stcb, struct sctp_nets *net,
  * Maintains the order provided by the application.
  */
 static void
+sctp_ss_fcfs_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
+    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp,
+    int holds_lock);
+
+static void
 sctp_ss_fcfs_init(struct sctp_tcb *stcb, struct sctp_association *asoc,
     int holds_lock)
 {
-	int x, element = 0, add_more = 1;
+	uint32_t x, n = 0, add_more = 1;
 	struct sctp_stream_queue_pending *sp;
 	uint16_t i;
 
 	TAILQ_INIT(&asoc->ss_data.out_list);
+	/*
+	 * If there is data in the stream queues already, the scheduler of
+	 * an existing association has been changed. We can only cycle
+	 * through the stream queues and add everything to the FCFS queue.
+	 */
 	while (add_more) {
 		add_more = 0;
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
-			sp = TAILQ_FIRST(&asoc->ss_data.out_list);
-			x = element;
-			while (sp != NULL && x > 0) {
+			sp = TAILQ_FIRST(&stcb->asoc.strmout[i].outqueue);
+			x = 0;
+			/* Find n. message in current stream queue */
+			while (sp != NULL && x < n) {
 				sp = TAILQ_NEXT(sp, next);
+				x++;
 			}
 			if (sp != NULL) {
-				sctp_ss_default_add(stcb, &stcb->asoc, &stcb->asoc.strmout[i], NULL, holds_lock);
+				sctp_ss_fcfs_add(stcb, &stcb->asoc, &stcb->asoc.strmout[i], sp, holds_lock);
 				add_more = 1;
 			}
 		}
-		element++;
+		n++;
 	}
 	return;
 }
@@ -729,14 +749,14 @@ sctp_ss_fcfs_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
 {
 	if (clear_values) {
 		while (!TAILQ_EMPTY(&asoc->ss_data.out_list)) {
-			TAILQ_REMOVE(&asoc->ss_data.out_list, TAILQ_FIRST(&asoc->ss_data.out_list), next);
+			TAILQ_REMOVE(&asoc->ss_data.out_list, TAILQ_FIRST(&asoc->ss_data.out_list), ss_next);
 		}
 	}
 	return;
 }
 
 static void
-sctp_ss_fcfs_init_stream(struct sctp_stream_out *strq)
+sctp_ss_fcfs_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *with_strq)
 {
 	/* Nothing to be done here */
 	return;
@@ -750,9 +770,9 @@ sctp_ss_fcfs_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	if (sp && (sp->next.tqe_next == NULL) &&
-	    (sp->next.tqe_prev == NULL)) {
-		TAILQ_INSERT_TAIL(&asoc->ss_data.out_list, sp, next);
+	if (sp && (sp->ss_next.tqe_next == NULL) &&
+	    (sp->ss_next.tqe_prev == NULL)) {
+		TAILQ_INSERT_TAIL(&asoc->ss_data.out_list, sp, ss_next);
 	}
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
@@ -779,9 +799,9 @@ sctp_ss_fcfs_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
 	if (sp &&
-	    ((sp->next.tqe_next != NULL) ||
-	    (sp->next.tqe_prev != NULL))) {
-		TAILQ_REMOVE(&asoc->ss_data.out_list, sp, next);
+	    ((sp->ss_next.tqe_next != NULL) ||
+	    (sp->ss_next.tqe_prev != NULL))) {
+		TAILQ_REMOVE(&asoc->ss_data.out_list, sp, ss_next);
 	}
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
@@ -807,7 +827,7 @@ default_again:
 
 	/*
 	 * If CMT is off, we must validate that the stream in question has
-	 * the first item pointed towards are network destionation requested
+	 * the first item pointed towards are network destination requested
 	 * by the caller. Note that if we turn out to be locked to a stream
 	 * (assigning TSN's then we must stop, since we cannot look for
 	 * another stream with data to send to that destination). In CMT's
@@ -819,7 +839,7 @@ default_again:
 		if (TAILQ_FIRST(&strq->outqueue) &&
 		    TAILQ_FIRST(&strq->outqueue)->net != NULL &&
 		    TAILQ_FIRST(&strq->outqueue)->net != net) {
-			sp = TAILQ_NEXT(sp, next);
+			sp = TAILQ_NEXT(sp, ss_next);
 			goto default_again;
 		}
 	}

@@ -151,14 +151,14 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		cnf->home = arg->val;
 	}
 
+	dmode = S_IRWXU | S_IRWXG | S_IRWXO;
 	if ((arg = getarg(args, 'M')) != NULL) {
 		dmode_c = arg->val;
 		if ((set = setmode(dmode_c)) == NULL)
 			errx(EX_DATAERR, "invalid directory creation mode '%s'",
 			    dmode_c);
-		dmode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
+		cnf->homemode = getmode(set, dmode);
 		free(set);
-		cnf->homemode = dmode;
 	}
 
 	/*
@@ -186,7 +186,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (strchr(cnf->home+1, '/') == NULL) {
 				strcpy(dbuf, "/usr");
 				strncat(dbuf, cnf->home, MAXPATHLEN-5);
-				if (mkdir(dbuf, cnf->homemode) != -1 || errno == EEXIST) {
+				if (mkdir(dbuf, dmode) != -1 || errno == EEXIST) {
 					chown(dbuf, 0, 0);
 					/*
 					 * Skip first "/" and create symlink:
@@ -202,7 +202,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				while ((p = strchr(++p, '/')) != NULL) {
 					*p = '\0';
 					if (stat(dbuf, &st) == -1) {
-						if (mkdir(dbuf, cnf->homemode) == -1)
+						if (mkdir(dbuf, dmode) == -1)
 							goto direrr;
 						chown(dbuf, 0, 0);
 					} else if (!S_ISDIR(st.st_mode))
@@ -211,7 +211,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				}
 			}
 			if (stat(dbuf, &st) == -1) {
-				if (mkdir(dbuf, cnf->homemode) == -1) {
+				if (mkdir(dbuf, dmode) == -1) {
 				direrr:	err(EX_OSFILE, "mkdir '%s'", dbuf);
 				}
 				chown(dbuf, 0, 0);

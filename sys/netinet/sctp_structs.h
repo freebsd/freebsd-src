@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -105,6 +107,31 @@ typedef void (*asoc_func) (struct sctp_inpcb *, struct sctp_tcb *, void *ptr,
          uint32_t val);
 typedef int (*inp_func) (struct sctp_inpcb *, void *ptr, uint32_t val);
 typedef void (*end_func) (void *ptr, uint32_t val);
+
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+/* whats on the mcore control struct */
+struct sctp_mcore_queue {
+	TAILQ_ENTRY(sctp_mcore_queue) next;
+	struct vnet *vn;
+	struct mbuf *m;
+	int off;
+	int v6;
+};
+
+TAILQ_HEAD(sctp_mcore_qhead, sctp_mcore_queue);
+
+struct sctp_mcore_ctrl {
+	SCTP_PROCESS_STRUCT thread_proc;
+	struct sctp_mcore_qhead que;
+	struct mtx core_mtx;
+	struct mtx que_mtx;
+	int running;
+	int cpuid;
+};
+
+
+#endif
+
 
 struct sctp_iterator {
 	TAILQ_ENTRY(sctp_iterator) sctp_nxt_itr;
@@ -323,6 +350,10 @@ struct sctp_nets {
 	uint8_t lan_type;
 	/* JRS - struct used in HTCP algorithm */
 	struct htcp htcp_ca;
+	uint32_t flowid;
+#ifdef INVARIANTS
+	uint8_t flowidset;
+#endif
 };
 
 
@@ -450,6 +481,7 @@ struct sctp_stream_queue_pending {
 	struct timeval ts;
 	struct sctp_nets *net;
 	          TAILQ_ENTRY(sctp_stream_queue_pending) next;
+	          TAILQ_ENTRY(sctp_stream_queue_pending) ss_next;
 	uint32_t length;
 	uint32_t timetolive;
 	uint32_t ppid;
@@ -627,7 +659,7 @@ struct sctp_ss_functions {
 	         int holds_lock);
 	void (*sctp_ss_clear) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	         int clear_values, int holds_lock);
-	void (*sctp_ss_init_stream) (struct sctp_stream_out *strq);
+	void (*sctp_ss_init_stream) (struct sctp_stream_out *strq, struct sctp_stream_out *with_strq);
 	void (*sctp_ss_add_to_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	         struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
 	int (*sctp_ss_is_empty) (struct sctp_tcb *stcb, struct sctp_association *asoc);
@@ -726,12 +758,7 @@ struct sctp_association {
 	/* re-assembly queue for fragmented chunks on the inbound path */
 	struct sctpchunk_listhead reasmqueue;
 
-	/*
-	 * this queue is used when we reach a condition that we can NOT put
-	 * data into the socket buffer. We track the size of this queue and
-	 * set our rwnd to the space in the socket minus also the
-	 * size_on_delivery_queue.
-	 */
+	/* Scheduling queues */
 	union scheduling_data ss_data;
 
 	/*

@@ -707,15 +707,15 @@ vlrureclaim(struct mount *mp)
 		vdropl(vp);
 		done++;
 next_iter_mntunlocked:
-		if (should_yield())
+		if (!should_yield())
 			goto relock_mnt;
 		goto yield;
 next_iter:
-		if (should_yield())
+		if (!should_yield())
 			continue;
 		MNT_IUNLOCK(mp);
 yield:
-		uio_yield();
+		kern_yield(-1);
 relock_mnt:
 		MNT_ILOCK(mp);
 	}
@@ -828,7 +828,7 @@ vnlru_proc(void)
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
 		} else
-			uio_yield();
+			kern_yield(-1);
 	}
 }
 

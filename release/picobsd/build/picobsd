@@ -176,9 +176,9 @@ create_includes_and_libraries2() { # opt_dir opt_target
     ( cd ${SRC};
     # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
     if [ -d "$1" ] ; then
-	cd $1 ; ${BINMAKE} $2	# specific target, e.g. ld-elf.so
+	cd $1 ; ${BINMAKE} ${o_par} $2	# specific target, e.g. ld-elf.so
     else
-	${BINMAKE} _+_= $no toolchain _includes _libraries
+	${BINMAKE} ${o_par} _+_= $no toolchain _includes _libraries
     fi
     )
 }
@@ -452,7 +452,7 @@ do_kernel() {		# OK
     (cd $MY_TREE; export name SRC BUILDDIR # used in this makefile ;
 	# export CONFIG
 	[ "${o_do_modules}" = "yes" ] && export MODULES=""
-	${BINMAKE} -v -f ${PICO_TREE}/build/Makefile.conf ) || \
+	${BINMAKE} ${o_par} -v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	fail $? missing_kernel
 }
 
@@ -981,6 +981,7 @@ set_build_parameters() {
     log "OSVERSION is ${OSVERSION}"
     if [ ${OSVERSION} -ge 500035 ] ; then
 	export MAKEOBJDIRPREFIX=${l_objtree}
+	export TARGET_ARCH=i386 TARGET=i386
 	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
 	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
     fi
@@ -1019,6 +1020,8 @@ set_build_parameters() {
 #-------------------------------------------------------------------
 # Main entry of the script. Initialize variables, parse command line
 # arguments.
+
+# o_par="-j 8"	# parallel make and other make options
 
 set_defaults
 while [ true ]; do

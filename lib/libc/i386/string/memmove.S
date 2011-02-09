@@ -3,5 +3,3 @@ __FBSDID("$FreeBSD$");
 
 #define MEMMOVE
 #include "bcopy.S"
-
-	.section .note.GNU-stack,"",%progbits

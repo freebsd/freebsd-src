@@ -136,7 +136,7 @@ struct	pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
 	u_int			pm_retries;
-	cpumask_t			pm_active;	/* active on cpus */
+	cpumask_t		pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 };
@@ -204,7 +204,7 @@ vtopte(vm_offset_t va)
 	return (ptep);
 }
 
-extern vm_offset_t phys_avail[];
+extern vm_paddr_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 

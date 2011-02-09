@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdlib.h>
 
 /*
@@ -105,6 +106,8 @@ static void delete_cmd_entry(void);
 /*
  * Exec a program.  Never returns.  If you change this routine, you may
  * have to change the find_command routine as well.
+ *
+ * The argv array may be changed and element argv[-1] should be writable.
  */
 
 void
@@ -123,43 +126,47 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 				tryexec(cmdname, argv, envp);
 				if (errno != ENOENT && errno != ENOTDIR)
 					e = errno;
+				if (e == ENOEXEC)
+					break;
 			}
 			stunalloc(cmdname);
 		}
 	}
 
 	/* Map to POSIX errors */
-	switch (e) {
-	case EACCES:
-		exerrno = 126;
-		break;
-	case ENOENT:
+	if (e == ENOENT || e == ENOTDIR) {
 		exerrno = 127;
-		break;
-	default:
-		exerrno = 2;
-		break;
-	}
-	if (e == ENOENT || e == ENOTDIR)
 		exerror(EXEXEC, "%s: not found", argv[0]);
-	exerror(EXEXEC, "%s: %s", argv[0], strerror(e));
+	} else {
+		exerrno = 126;
+		exerror(EXEXEC, "%s: %s", argv[0], strerror(e));
+	}
 }
 
 
 static void
 tryexec(char *cmd, char **argv, char **envp)
 {
-	int e;
+	int e, in;
+	ssize_t n;
+	char buf[256];
 
 	execve(cmd, argv, envp);
 	e = errno;
 	if (e == ENOEXEC) {
-		initshellproc();
-		setinputfile(cmd, 0);
-		commandname = arg0 = savestr(argv[0]);
-		setparam(argv + 1);
-		exraise(EXSHELLPROC);
-		/*NOTREACHED*/
+		INTOFF;
+		in = open(cmd, O_RDONLY | O_NONBLOCK);
+		if (in != -1) {
+			n = pread(in, buf, sizeof buf, 0);
+			close(in);
+			if (n > 0 && memchr(buf, '\0', n) != NULL) {
+				errno = ENOEXEC;
+				return;
+			}
+		}
+		*argv = cmd;
+		*--argv = _PATH_BSHELL;
+		execve(_PATH_BSHELL, argv, envp);
 	}
 	errno = e;
 }
@@ -227,7 +234,7 @@ hashcmd(int argc __unused, char **argv __unused)
 	verbose = 0;
 	while ((c = nextopt("rv")) != '\0') {
 		if (c == 'r') {
-			clearcmdentry(0);
+			clearcmdentry();
 		} else if (c == 'v') {
 			verbose++;
 		}
@@ -487,30 +494,7 @@ hashcd(void)
 void
 changepath(const char *newval)
 {
-	const char *old, *new;
-	int idx;
-	int firstchange;
-
-	old = pathval();
-	new = newval;
-	firstchange = 9999;	/* assume no change */
-	idx = 0;
-	for (;;) {
-		if (*old != *new) {
-			firstchange = idx;
-			if ((*old == '\0' && *new == ':')
-			 || (*old == ':' && *new == '\0'))
-				firstchange++;
-			old = new;	/* ignore subsequent differences */
-		}
-		if (*new == '\0')
-			break;
-		if (*new == ':') {
-			idx++;
-		}
-		new++, old++;
-	}
-	clearcmdentry(firstchange);
+	clearcmdentry();
 }
 
 
@@ -520,7 +504,7 @@ changepath(const char *newval)
  */
 
 void
-clearcmdentry(int firstchange)
+clearcmdentry(void)
 {
 	struct tblentry **tblp;
 	struct tblentry **pp;
@@ -530,8 +514,7 @@ clearcmdentry(int firstchange)
 	for (tblp = cmdtable ; tblp < &cmdtable[CMDTABLESIZE] ; tblp++) {
 		pp = tblp;
 		while ((cmdp = *pp) != NULL) {
-			if ((cmdp->cmdtype == CMDNORMAL &&
-			     cmdp->param.index >= firstchange)) {
+			if (cmdp->cmdtype == CMDNORMAL) {
 				*pp = cmdp->next;
 				ckfree(cmdp);
 			} else {
@@ -541,43 +524,6 @@ clearcmdentry(int firstchange)
 	}
 	INTON;
 }
-
-
-/*
- * Delete all functions.
- */
-
-#ifdef mkinit
-MKINIT void deletefuncs(void);
-
-SHELLPROC {
-	deletefuncs();
-}
-#endif
-
-void
-deletefuncs(void)
-{
-	struct tblentry **tblp;
-	struct tblentry **pp;
-	struct tblentry *cmdp;
-
-	INTOFF;
-	for (tblp = cmdtable ; tblp < &cmdtable[CMDTABLESIZE] ; tblp++) {
-		pp = tblp;
-		while ((cmdp = *pp) != NULL) {
-			if (cmdp->cmdtype == CMDFUNCTION) {
-				*pp = cmdp->next;
-				unreffunc(cmdp->param.func);
-				ckfree(cmdp);
-			} else {
-				pp = &cmdp->next;
-			}
-		}
-	}
-	INTON;
-}
-
 
 
 /*
@@ -713,7 +659,7 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 	int error1 = 0;
 
 	if (path != pathval())
-		clearcmdentry(0);
+		clearcmdentry();
 
 	for (i = 1; i < argc; i++) {
 		/* First look at the keywords */
@@ -809,7 +755,7 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 	}
 
 	if (path != pathval())
-		clearcmdentry(0);
+		clearcmdentry();
 
 	return error1;
 }

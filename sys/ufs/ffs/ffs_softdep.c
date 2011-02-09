@@ -575,6 +575,9 @@ softdep_get_depcounts(struct mount *mp,
 }
 
 #else
+
+FEATURE(softupdates, "FFS soft-updates support");
+
 /*
  * These definitions need to be adapted to the system to which
  * this file is being ported.
@@ -1380,7 +1383,7 @@ softdep_process_worklist(mp, full)
 		 */
 		if (should_yield()) {
 			FREE_LOCK(&lk);
-			uio_yield();
+			kern_yield(-1);
 			bwillwrite();
 			ACQUIRE_LOCK(&lk);
 		}
