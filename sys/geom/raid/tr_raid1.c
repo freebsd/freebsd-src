@@ -671,18 +671,29 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 */
 		if (trs->trso_type == TR_RAID1_REBUILD) {
 			if (bp->bio_cmd == BIO_READ) {
+
+				/* Immediately abort rebuild, if requested. */
+				if (trs->trso_flags & TR_RAID1_F_ABORT) {
+					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+					g_raid_tr_raid1_rebuild_abort(tr);
+					return;
+				}
+
+				/* On read error, skip and cross fingers. */
+				if (bp->bio_error != 0) {
+					G_RAID_LOGREQ(0, bp,
+					    "Read error during rebuild (%d), "
+					    "possible data loss!",
+					    bp->bio_error);
+					goto rebuild_round_done;
+				}
+
 				/*
 				 * The read operation finished, queue the
 				 * write and get out.
 				 */
 				G_RAID_LOGREQ(4, bp, "rebuild read done. %d",
 				    bp->bio_error);
-				if (bp->bio_error != 0 ||
-				    trs->trso_flags & TR_RAID1_F_ABORT) {
-					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
-					g_raid_tr_raid1_rebuild_abort(tr);
-					return;
-				}
 				bp->bio_cmd = BIO_WRITE;
 				bp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 				bp->bio_offset = bp->bio_offset;
@@ -712,6 +723,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					return;
 				}
 /* XXX A lot of the following is needed when we kick of the work -- refactor */
+rebuild_round_done:
+				nsd = trs->trso_failed_sd;
 				trs->trso_flags &= ~TR_RAID1_F_LOCKED;
 				g_raid_unlock_range(sd->sd_volume,
 				    bp->bio_offset, bp->bio_length);
