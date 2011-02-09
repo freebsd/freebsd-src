@@ -460,19 +460,19 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 
 	if (usb_proc_create(&bus->giant_callback_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB Giant "
+		device_printf(dev, "WARNING: Creation of USB Giant "
 		    "callback process failed.\n");
 	} else if (usb_proc_create(&bus->non_giant_callback_proc,
 	    &bus->bus_mtx, pname, USB_PRI_HIGH)) {
-		printf("WARNING: Creation of USB non-Giant "
+		device_printf(dev, "WARNING: Creation of USB non-Giant "
 		    "callback process failed.\n");
 	} else if (usb_proc_create(&bus->explore_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB explore "
+		device_printf(dev, "WARNING: Creation of USB explore "
 		    "process failed.\n");
 	} else if (usb_proc_create(&bus->control_xfer_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB control transfer "
+		device_printf(dev, "WARNING: Creation of USB control transfer "
 		    "process failed.\n");
 	} else {
 		/* Get final attach going */
