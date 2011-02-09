@@ -830,14 +830,9 @@ ether_str(sdl)
 		cp = (u_char *)LLADDR(sdl);
 		snprintf(hbuf, sizeof(hbuf), "%x:%x:%x:%x:%x:%x",
 		    cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
-	} else if (sdl->sdl_alen == 20) {
-		cp = (u_char *)LLADDR(sdl);
-		snprintf(hbuf, sizeof(hbuf),
-		   "%x:%x:%x:%x:%x%x:%x:%x:%x:%x%x:%x:%x:%x:%x%x:%x:%x:%x:%x",
-		    cp[0], cp[1], cp[2], cp[3], cp[4], cp[5], cp[6], cp[7],
-		    cp[8], cp[9], cp[10], cp[11], cp[12], cp[13], cp[14],
-		    cp[15], cp[16], cp[17], cp[18], cp[19]);
-
+	} else if (sdl->sdl_alen) {
+		int n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
+		snprintf(hbuf, sizeof(hbuf), "%s", link_ntoa(sdl) + n);
 	} else
 		snprintf(hbuf, sizeof(hbuf), "(incomplete)");
 
