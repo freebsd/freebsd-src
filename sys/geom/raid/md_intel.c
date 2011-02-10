@@ -954,6 +954,8 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 	} while (disk != NULL);
 
 	mdi->mdio_started = 1;
+	G_RAID_DEBUG1(0, sc, "Array started.");
+	g_raid_md_write_intel(md, NULL, NULL, NULL);
 
 	/* Pickup any STALE/SPARE disks to refill array if needed. */
 	g_raid_md_intel_refill(sc);
@@ -1541,6 +1543,7 @@ makedisk:
 		}
 
 		/* Write metadata based on created entities. */
+		G_RAID_DEBUG1(0, sc, "Array started.");
 		g_raid_md_write_intel(md, NULL, NULL, NULL);
 
 		/* Pickup any STALE/SPARE disks to refill array if needed. */
