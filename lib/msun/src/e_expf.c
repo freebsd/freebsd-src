@@ -72,7 +72,7 @@ __ieee754_expf(float x)	/* default IEEE double exp */
 	    }
 	    x  = hi - lo;
 	}
-	else if(hx < 0x31800000)  {	/* when |x|<2**-28 */
+	else if(hx < 0x39000000)  {	/* when |x|<2**-14 */
 	    if(huge+x>one) return one+x;/* trigger inexact */
 	}
 	else k = 0;
