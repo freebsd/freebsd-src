@@ -163,10 +163,12 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol,
     struct g_raid_subdisk *sd)
 {
 	struct g_raid_tr_raid1_object *trs;
+	struct g_raid_softc *sc;
 	struct g_raid_subdisk *tsd, *bestsd;
 	u_int s;
 	int i, na, ns;
 
+	sc = vol->v_softc;
 	trs = (struct g_raid_tr_raid1_object *)vol->v_tr;
 	if (trs->trso_stopping &&
 	    (trs->trso_flags & TR_RAID1_F_DOING_SOME) == 0)
@@ -194,13 +196,13 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol,
 			}
 			if (bestsd->sd_state >= G_RAID_SUBDISK_S_UNINITIALIZED) {
 				/* We found reasonable candidate. */
-				G_RAID_DEBUG1(1, vol->v_softc,
+				G_RAID_DEBUG1(1, sc,
 				    "Promote subdisk %s:%d from %s to ACTIVE.",
 				    vol->v_name, bestsd->sd_pos,
 				    g_raid_subdisk_state2str(bestsd->sd_state));
 				g_raid_change_subdisk_state(bestsd,
 				    G_RAID_SUBDISK_S_ACTIVE);
-				g_raid_write_metadata(vol->v_softc,
+				g_raid_write_metadata(sc,
 				    vol, bestsd, bestsd->sd_disk);
 			}
 		}
@@ -222,6 +224,8 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol,
 		    G_RAID_VOLUME_E_UP : G_RAID_VOLUME_E_DOWN,
 		    G_RAID_EVENT_VOLUME);
 		g_raid_change_volume_state(vol, s);
+		if (!trs->trso_starting && !trs->trso_stopping)
+			g_raid_write_metadata(sc, vol, NULL, NULL);
 	}
 	return (0);
 }
