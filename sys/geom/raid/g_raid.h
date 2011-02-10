@@ -216,7 +216,6 @@ struct g_raid_subdisk {
 #define G_RAID_VOLUME_RL_RAID4		0x04
 #define G_RAID_VOLUME_RL_RAID5		0x05
 #define G_RAID_VOLUME_RL_RAID6		0x06
-#define G_RAID_VOLUME_RL_RAID10		0x0a
 #define G_RAID_VOLUME_RL_RAID1E		0x11
 #define G_RAID_VOLUME_RL_SINGLE		0x0f
 #define G_RAID_VOLUME_RL_CONCAT		0x1f

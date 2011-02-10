@@ -898,11 +898,20 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 		if (mmap->type == INTEL_T_RAID0)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
 		else if (mmap->type == INTEL_T_RAID1 &&
-		    mmap->total_disks < 4) /* >= 4 disks -> RAID10 */
-			vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
-		else if (mmap->type == INTEL_T_RAID1) /* SIC */
-			vol->v_raid_level = G_RAID_VOLUME_RL_RAID10;
-		else if (mmap->type == INTEL_T_RAID5)
+		    mmap->total_domains >= 2 &&
+		    mmap->total_domains <= mmap->total_disks) {
+			/* Assume total_domains is correct. */
+			if (mmap->total_domains == mmap->total_disks)
+				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
+			else
+				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
+		} else if (mmap->type == INTEL_T_RAID1) {
+			/* total_domains looks wrong. */
+			if (mmap->total_disks <= 2)
+				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
+			else
+				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
+		} else if (mmap->type == INTEL_T_RAID5)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
 		else
 			vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
@@ -1353,7 +1362,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		if (level != G_RAID_VOLUME_RL_RAID0 &&
 		    level != G_RAID_VOLUME_RL_RAID1 &&
 		    level != G_RAID_VOLUME_RL_RAID5 &&
-		    level != G_RAID_VOLUME_RL_RAID10) {
+		    level != G_RAID_VOLUME_RL_RAID1E) {
 			gctl_error(req, "Unsupported RAID level.");
 			return (-5);
 		}
@@ -1517,8 +1526,10 @@ makedisk:
 			vol->v_mediasize = size;
 		else if (level == G_RAID_VOLUME_RL_RAID5)
 			vol->v_mediasize = size * (numdisks - 1);
-		else /* RAID10 */
-			vol->v_mediasize = size * (numdisks / 2);
+		else { /* RAID1E */
+			vol->v_mediasize = ((size * numdisks) / strip / 2) *
+			    strip;
+		}
 		vol->v_sectorsize = sectorsize;
 		g_raid_start_volume(vol);
 
@@ -1576,7 +1587,7 @@ makedisk:
 		if (level != G_RAID_VOLUME_RL_RAID0 &&
 		    level != G_RAID_VOLUME_RL_RAID1 &&
 		    level != G_RAID_VOLUME_RL_RAID5 &&
-		    level != G_RAID_VOLUME_RL_RAID10) {
+		    level != G_RAID_VOLUME_RL_RAID1E) {
 			gctl_error(req, "Unsupported RAID level.");
 			return (-5);
 		}
@@ -1695,8 +1706,10 @@ makedisk:
 			vol->v_mediasize = size;
 		else if (level == G_RAID_VOLUME_RL_RAID5)
 			vol->v_mediasize = size * (numdisks - 1);
-		else /* RAID10 */
-			vol->v_mediasize = size * (numdisks / 2);
+		else { /* RAID1E */
+			vol->v_mediasize = ((size * numdisks) / strip / 2) *
+			    strip;
+		}
 		vol->v_sectorsize = sectorsize;
 		g_raid_start_volume(vol);
 
@@ -2141,15 +2154,15 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID0)
 			mmap0->type = INTEL_T_RAID0;
 		else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1 ||
-		    vol->v_raid_level == G_RAID_VOLUME_RL_RAID10)
+		    vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
 			mmap0->type = INTEL_T_RAID1;
 		else
 			mmap0->type = INTEL_T_RAID5;
 		mmap0->total_disks = vol->v_disks_count;
-		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID10)
-			mmap0->total_domains = vol->v_disks_count / 2;
-		else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1)
+		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1)
 			mmap0->total_domains = vol->v_disks_count;
+		else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
+			mmap0->total_domains = 2;
 		else
 			mmap0->total_domains = 1;
 		mmap0->stripe_count = sd->sd_size / vol->v_strip_size /

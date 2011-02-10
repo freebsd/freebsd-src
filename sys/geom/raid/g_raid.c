@@ -275,8 +275,6 @@ g_raid_volume_level2str(int level, int qual)
 		return ("RAID5");
 	case G_RAID_VOLUME_RL_RAID6:
 		return ("RAID6");
-	case G_RAID_VOLUME_RL_RAID10:
-		return ("RAID10");
 	case G_RAID_VOLUME_RL_RAID1E:
 		return ("RAID1E");
 	case G_RAID_VOLUME_RL_SINGLE:
@@ -310,9 +308,8 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 		*level = G_RAID_VOLUME_RL_RAID5;
 	else if (strcasecmp(str, "RAID6") == 0)
 		*level = G_RAID_VOLUME_RL_RAID6;
-	else if (strcasecmp(str, "RAID10") == 0)
-		*level = G_RAID_VOLUME_RL_RAID10;
-	else if (strcasecmp(str, "RAID1E") == 0)
+	else if (strcasecmp(str, "RAID10") == 0 ||
+		 strcasecmp(str, "RAID1E") == 0)
 		*level = G_RAID_VOLUME_RL_RAID1E;
 	else if (strcasecmp(str, "SINGLE") == 0)
 		*level = G_RAID_VOLUME_RL_SINGLE;
