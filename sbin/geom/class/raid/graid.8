@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2011
+.Dd February 10, 2011
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Cm label
+.Op Fl f
 .Op Fl S Ar size
 .Op Fl s Ar strip
 .Ar format
@@ -41,6 +42,7 @@
 .Ar prov ...
 .Nm
 .Cm add
+.Op Fl f
 .Op Fl S Ar size
 .Op Fl s Ar strip
 .Ar name
@@ -114,6 +116,9 @@ and metadata format.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl s Ar strip"
+.It Fl f
+Enforce specified configuration creation if it is officially unsupported,
+but technically can be created.
 .It Fl S Ar size
 Use
 .Ar size
@@ -200,6 +205,8 @@ The format used by Intel RAID BIOS.
 Supports up to two volumes per array.
 Supports configurations: RAID0 (2+ disks), RAID1 (2 disks),
 RAID5 (3+ disks), RAID10 (4 disks).
+Configurations not supported by Intel RAID BIOS, but enforsable on your own
+risk: RAID1 (3+ disks), RAID1E (3+ disks), RAID10 (6+ disks).
 .El
 .Sh SUPPORTED RAID LEVELS
 The GEOM RAID class follows a modular design, allowing different RAID levels

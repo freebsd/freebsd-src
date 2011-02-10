@@ -568,6 +568,43 @@ g_raid_md_intel_get_disk(struct g_raid_softc *sc, int id)
 	return (disk);
 }
 
+static int
+g_raid_md_intel_supported(int level, int qual, int disks, int force)
+{
+
+	switch (level) {
+	case G_RAID_VOLUME_RL_RAID0:
+		if (disks < 1)
+			return (0);
+		if (!force && (disks < 2 || disks > 6))
+			return (0);
+		break;
+	case G_RAID_VOLUME_RL_RAID1:
+		if (disks < 1)
+			return (0);
+		if (!force && (disks != 2))
+			return (0);
+		break;
+	case G_RAID_VOLUME_RL_RAID1E:
+		if (disks < 3)
+			return (0);
+		if (!force && (disks != 4))
+			return (0);
+		break;
+	case G_RAID_VOLUME_RL_RAID5:
+		if (disks < 3)
+			return (0);
+		if (!force && disks > 6)
+			return (0);
+		break;
+	default:
+		return (0);
+	}
+	if (qual != G_RAID_VOLUME_RLQ_NONE)
+		return (0);
+	return (1);
+}
+
 static struct g_raid_volume *
 g_raid_md_intel_get_volume(struct g_raid_softc *sc, int id)
 {
@@ -1359,16 +1396,17 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
 		}
-		if (level != G_RAID_VOLUME_RL_RAID0 &&
-		    level != G_RAID_VOLUME_RL_RAID1 &&
-		    level != G_RAID_VOLUME_RL_RAID5 &&
-		    level != G_RAID_VOLUME_RL_RAID1E) {
-			gctl_error(req, "Unsupported RAID level.");
+		numdisks = *nargs - 3;
+		force = gctl_get_paraml(req, "force", sizeof(*force));
+		if (!g_raid_md_intel_supported(level, qual, numdisks,
+		    force ? *force : 0)) {
+			gctl_error(req, "Unsupported RAID level "
+			    "(0x%02x/0x%02x), or number of disks (%d).",
+			    level, qual, numdisks);
 			return (-5);
 		}
 
 		/* Search for disks, connect them and probe. */
-		numdisks = *nargs - 3;
 		size = 0x7fffffffffffffffllu;
 		sectorsize = 0;
 		for (i = 0; i < numdisks; i++) {
@@ -1584,13 +1622,6 @@ makedisk:
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
 		}
-		if (level != G_RAID_VOLUME_RL_RAID0 &&
-		    level != G_RAID_VOLUME_RL_RAID1 &&
-		    level != G_RAID_VOLUME_RL_RAID5 &&
-		    level != G_RAID_VOLUME_RL_RAID1E) {
-			gctl_error(req, "Unsupported RAID level.");
-			return (-5);
-		}
 
 		/* Look for existing volumes. */
 		i = 0;
@@ -1608,10 +1639,19 @@ makedisk:
 			return (-7);
 		}
 
+		numdisks = vol1->v_disks_count;
+		force = gctl_get_paraml(req, "force", sizeof(*force));
+		if (!g_raid_md_intel_supported(level, qual, numdisks,
+		    force ? *force : 0)) {
+			gctl_error(req, "Unsupported RAID level "
+			    "(0x%02x/0x%02x), or number of disks (%d).",
+			    level, qual, numdisks);
+			return (-5);
+		}
+
 		/* Collect info about present disks. */
 		size = 0x7fffffffffffffffllu;
 		sectorsize = 512;
-		numdisks = vol1->v_disks_count;
 		for (i = 0; i < numdisks; i++) {
 			disk = vol1->v_subdisks[i].sd_disk;
 			pd = (struct g_raid_md_intel_perdisk *)
