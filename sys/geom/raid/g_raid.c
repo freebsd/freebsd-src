@@ -1321,10 +1321,11 @@ out:
 static void
 g_raid_launch_provider(struct g_raid_volume *vol)
 {
-//	struct g_raid_disk *disk;
+	struct g_raid_disk *disk;
 	struct g_raid_softc *sc;
 	struct g_provider *pp;
 	char name[G_RAID_MAX_VOLUMENAME];
+	off_t off;
 
 	sc = vol->v_softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
@@ -1343,14 +1344,25 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 	pp->sectorsize = vol->v_sectorsize;
 	pp->stripesize = 0;
 	pp->stripeoffset = 0;
-#if 0
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_consumer && disk->d_consumer->provider &&
-		    disk->d_consumer->provider->stripesize > pp->stripesize) {
+	if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1 ||
+	    vol->v_raid_level == G_RAID_VOLUME_RL_RAID3 ||
+	    vol->v_raid_level == G_RAID_VOLUME_RL_SINGLE ||
+	    vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT) {
+		if ((disk = vol->v_subdisks[0].sd_disk) != NULL &&
+		    disk->d_consumer != NULL &&
+		    disk->d_consumer->provider != NULL) {
 			pp->stripesize = disk->d_consumer->provider->stripesize;
+			off = disk->d_consumer->provider->stripeoffset;
+			pp->stripeoffset = off + vol->v_subdisks[0].sd_offset;
+			if (off > 0)
+				pp->stripeoffset %= off;
 		}
-	}
-#endif
+		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID3) {
+			pp->stripesize *= (vol->v_disks_count - 1);
+			pp->stripeoffset *= (vol->v_disks_count - 1);
+		}
+	} else
+		pp->stripesize = vol->v_strip_size;
 	vol->v_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
