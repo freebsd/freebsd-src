@@ -30,6 +30,8 @@
 #
 # LIBDATADIR	Base path for misc. utility data files. [/usr/libdata]
 #
+# LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
+#
 # LINTLIBDIR	Base path for lint libraries. [/usr/libdata/lint]
 #
 # SHLIBDIR	Base path for shared libraries. [${LIBDIR}]
@@ -129,6 +131,7 @@ KMODMODE?=	${BINMODE}
 LIBDIR?=	/usr/lib
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
+LIBEXECDIR?=	/usr/libexec
 LINTLIBDIR?=	/usr/libdata/lint
 SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
