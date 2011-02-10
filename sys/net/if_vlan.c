@@ -595,6 +595,9 @@ restart:
 	VLAN_UNLOCK();
 }
 
+/*
+ * Return the trunk device for a virtual interface.
+ */
 static struct ifnet  *
 vlan_trunkdev(struct ifnet *ifp)
 {
@@ -611,6 +614,9 @@ vlan_trunkdev(struct ifnet *ifp)
 	return (ifp);
 }
 
+/*
+ * Return the 16bit vlan tag for this interface.
+ */
 static int
 vlan_tag(struct ifnet *ifp, uint16_t *tagp)
 {
@@ -623,6 +629,10 @@ vlan_tag(struct ifnet *ifp, uint16_t *tagp)
 	return (0);
 }
 
+/*
+ * Return a driver specific cookie for this interface.  Synchronization
+ * with setcookie must be provided by the driver. 
+ */
 static void *
 vlan_cookie(struct ifnet *ifp)
 {
@@ -634,6 +644,10 @@ vlan_cookie(struct ifnet *ifp)
 	return (ifv->ifv_cookie);
 }
 
+/*
+ * Store a cookie in our softc that drivers can use to store driver
+ * private per-instance data in.
+ */
 static int
 vlan_setcookie(struct ifnet *ifp, void *cookie)
 {
@@ -646,6 +660,9 @@ vlan_setcookie(struct ifnet *ifp, void *cookie)
 	return (0);
 }
 
+/*
+ * Return the vlan device present at the specific tag.
+ */
 static struct ifnet *
 vlan_devat(struct ifnet *ifp, uint16_t tag)
 {
@@ -1226,7 +1243,9 @@ exists:
 	ifv->ifv_trunk = trunk;
 	ifp = ifv->ifv_ifp;
 	/*
-	 * Initialize fields from our parent.
+	 * Initialize fields from our parent.  This duplicates some
+	 * work with ether_ifattach() but allows for non-ethernet
+	 * interfaces to also work.
 	 */
 	ifp->if_mtu = p->if_mtu - ifv->ifv_mtufudge;
 	ifp->if_baudrate = p->if_baudrate;
