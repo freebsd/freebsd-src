@@ -91,7 +91,8 @@ FEATURE(ufs_quota64, "64bit UFS disk quotas support");
 #endif
 
 #ifdef SUIDDIR
-FEATURE(suiddir, "Give all new files in directory the same ownership as the directory");
+FEATURE(suiddir,
+    "Give all new files in directory the same ownership as the directory");
 #endif
 
 
