@@ -500,7 +500,8 @@ g_raid_tr_stop_raid1(struct g_raid_tr_object *tr)
  */
 #define ABS(x)		(((x) >= 0) ? (x) : (-(x)))
 static struct g_raid_subdisk *
-g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol, struct bio *bp)
+g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol, struct bio *bp,
+    u_int mask)
 {
 	struct g_raid_subdisk *sd, *best;
 	int i, prio, bestprio;
@@ -514,6 +515,8 @@ g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol, struct bio *bp)
 		       sd->sd_state == G_RAID_SUBDISK_S_RESYNC) && 
 		      bp->bio_offset + bp->bio_length <
 		       sd->sd_rebuild_pos))
+			continue;
+		if ((mask & (1 << i)) != 0)
 			continue;
 		prio = G_RAID_SUBDISK_LOAD(sd);
 		prio += min(sd->sd_recovery, 255) << 22;
@@ -540,7 +543,7 @@ g_raid_tr_iostart_raid1_read(struct g_raid_tr_object *tr, struct bio *bp)
 	struct g_raid_subdisk *sd;
 	struct bio *cbp;
 
-	sd = g_raid_tr_raid1_select_read_disk(tr->tro_volume, bp);
+	sd = g_raid_tr_raid1_select_read_disk(tr->tro_volume, bp, 0);
 	KASSERT(sd != NULL, ("No active disks in volume %s.",
 		tr->tro_volume->v_name));
 
@@ -676,7 +679,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 	struct bio *pbp;
 	struct g_raid_tr_raid1_object *trs;
 	uintptr_t *mask;
-	int i, error, do_write;
+	int error, do_write;
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	vol = tr->tro_volume;
@@ -843,20 +846,10 @@ rebuild_round_done:
 			*mask = 0;
 		}
 		*mask |= 1 << sd->sd_pos;
-		for (i = 0; i < vol->v_disks_count; i++) {
-			nsd = &vol->v_subdisks[i];
-			if (nsd->sd_state != G_RAID_SUBDISK_S_ACTIVE &&
-			    !((nsd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
-			       nsd->sd_state == G_RAID_SUBDISK_S_RESYNC) && 
-			      bp->bio_offset + bp->bio_length <
-			       nsd->sd_rebuild_pos))
-				continue;
-			if ((*mask & (1 << i)) != 0)
-				continue;
-			cbp = g_clone_bio(pbp);
-			if (cbp == NULL)
-				break;
-			G_RAID_LOGREQ(2, cbp, "Retrying read from %d", i);
+		nsd = g_raid_tr_raid1_select_read_disk(vol, pbp, *mask);
+		if (nsd != NULL && (cbp = g_clone_bio(pbp)) != NULL) {
+			G_RAID_LOGREQ(2, cbp, "Retrying read from %d",
+			    nsd->sd_pos);
 			if (pbp->bio_children == 2 && do_write) {
 				sd->sd_recovery++;
 				cbp->bio_caller1 = nsd;
