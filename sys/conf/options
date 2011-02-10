@@ -856,3 +856,11 @@ X86BIOS
 # Flattened device tree options
 FDT		opt_platform.h
 FDT_DTB_STATIC	opt_platform.h
+
+# OFED Infiniband stack
+OFED		opt_ofed.h
+OFED_DEBUG_INIT	opt_ofed.h
+SDP		opt_ofed.h
+SDP_DEBUG	opt_ofed.h
+IPOIB_DEBUG	opt_ofed.h
+IPOIB_CM	opt_ofed.h

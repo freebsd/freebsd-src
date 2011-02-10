@@ -90,8 +90,7 @@ void ipoib_free_ah(struct kref *kref)
 static void ipoib_ud_dma_unmap_rx(struct ipoib_dev_priv *priv,
 				  u64 mapping[IPOIB_UD_RX_SG])
 {
-	ib_dma_unmap_single(priv->ca, mapping[0],
-			    IPOIB_UD_BUF_SIZE(priv->max_ib_mtu),
+	ib_dma_unmap_single(priv->ca, mapping[0], priv->max_ib_mtu,
 			    DMA_FROM_DEVICE);
 }
 
@@ -132,7 +131,7 @@ static struct mbuf *ipoib_alloc_rx_mb(struct ipoib_dev_priv *priv, int id)
 	/*
 	 * XXX Should be calculated once and cached.
 	 */
-	buf_size = IPOIB_UD_BUF_SIZE(priv->max_ib_mtu);
+	buf_size = priv->max_ib_mtu;
 	if (buf_size <= MCLBYTES)
 		buf_size = MCLBYTES;
 	else if (buf_size <= MJUMPAGESIZE)
@@ -254,8 +253,7 @@ repost:
 			   "for buf %d\n", wr_id);
 }
 
-static int ipoib_dma_map_tx(struct ib_device *ca,
-			    struct ipoib_tx_buf *tx_req)
+int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req)
 {
 	struct mbuf *mb = tx_req->mb;
 	u64 *mapping = tx_req->mapping;
@@ -293,8 +291,7 @@ static int ipoib_dma_map_tx(struct ib_device *ca,
 	return error;
 }
 
-static void ipoib_dma_unmap_tx(struct ib_device *ca,
-			       struct ipoib_tx_buf *tx_req)
+void ipoib_dma_unmap_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req)
 {
 	struct mbuf *mb = tx_req->mb;
 	u64 *mapping = tx_req->mapping;
@@ -413,11 +410,10 @@ void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr)
 	mod_timer(&priv->poll_timer, jiffies);
 }
 
-static inline int post_send(struct ipoib_dev_priv *priv,
-			    unsigned int wr_id,
-			    struct ib_ah *address, u32 qpn,
-			    struct ipoib_tx_buf *tx_req,
-			    void *head, int hlen)
+static inline int
+post_send(struct ipoib_dev_priv *priv, unsigned int wr_id,
+    struct ib_ah *address, u32 qpn, struct ipoib_tx_buf *tx_req, void *head,
+    int hlen)
 {
 	struct ib_send_wr *bad_wr;
 	struct mbuf *mb = tx_req->mb;
@@ -466,9 +462,9 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		}
 		m_adj(mb, hlen);
 	} else {
-		if (unlikely(mb->m_pkthdr.len > priv->mcast_mtu + IPOIB_ENCAP_LEN)) {
+		if (unlikely(mb->m_pkthdr.len > priv->mcast_mtu)) {
 			ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
-				   mb->m_pkthdr.len, priv->mcast_mtu + IPOIB_ENCAP_LEN);
+				   mb->m_pkthdr.len, priv->mcast_mtu);
 			++dev->if_oerrors;
 			ipoib_cm_mb_too_long(priv, mb, priv->mcast_mtu);
 			return;
@@ -508,8 +504,9 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		dev->if_drv_flags |= IFF_DRV_OACTIVE;
 	}
 
-	if (unlikely(post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
-			       address->ah, qpn, tx_req, phead, hlen))) {
+	if (unlikely(post_send(priv,
+	    priv->tx_head & (ipoib_sendq_size - 1), address->ah, qpn,
+	    tx_req, phead, hlen))) {
 		ipoib_warn(priv, "post_send failed\n");
 		++dev->if_oerrors;
 		--priv->tx_outstanding;
@@ -518,8 +515,6 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		if (dev->if_drv_flags & IFF_DRV_OACTIVE)
 			dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	} else {
-		/* dev->trans_start = jiffies; */
-
 		address->last_send = priv->tx_head;
 		++priv->tx_head;
 	}

@@ -550,12 +550,8 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		priv->mcast_mtu = priv->admin_mtu;
 	spin_unlock_irq(&priv->lock);
 
-	if (!ipoib_cm_admin_enabled(priv)) {
-		/*
-		 * dev_set_mtu(dev, min(priv->mcast_mtu, priv->admin_mtu));
-		 * XXX
-		 */
-	}
+	if (!ipoib_cm_admin_enabled(priv))
+		ipoib_change_mtu(priv, min(priv->mcast_mtu, priv->admin_mtu));
 
 	ipoib_dbg_mcast(priv, "successfully joined all multicast groups\n");
 

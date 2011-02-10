@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 #ifndef	_NET_IF_LLATBL_H_
 #define	_NET_IF_LLATBL_H_
 
+#include "opt_ofed.h"
+
 #include <sys/_rwlock.h>
 #include <netinet/in.h>
 
@@ -72,7 +74,9 @@ struct llentry {
 	union {
 		uint64_t	mac_aligned;
 		uint16_t	mac16[3];
+#ifdef OFED
 		uint8_t		mac8[20];	/* IB needs 20 bytes. */
+#endif
 	} ll_addr;
 
 	/* XXX af-private? */

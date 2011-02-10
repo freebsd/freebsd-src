@@ -221,14 +221,14 @@ ipoib_stop(struct ipoib_dev_priv *priv)
 	return 0;
 }
 
-static int
+int
 ipoib_change_mtu(struct ipoib_dev_priv *priv, int new_mtu)
 {
 	struct ifnet *dev = priv->dev;
 
 	/* dev->if_mtu > 2K ==> connected mode */
 	if (ipoib_cm_admin_enabled(priv)) {
-		if (new_mtu > ipoib_cm_max_mtu(priv))
+		if (new_mtu > IPOIB_CM_MTU(ipoib_cm_max_mtu(priv)))
 			return -EINVAL;
 
 		if (new_mtu > priv->mcast_mtu)
@@ -596,7 +596,7 @@ path_rec_start(struct ipoib_dev_priv *priv, struct ipoib_path *path)
 	p_rec = path->pathrec;
 	p_rec.mtu_selector = IB_SA_GT;
 
-	switch (roundup_pow_of_two(dev->if_mtu + IPOIB_ENCAP_LEN)) {
+	switch (roundup_pow_of_two(dev->if_mtu + IB_GRH_BYTES)) {
 	case 512:
 		p_rec.mtu = IB_MTU_256;
 		break;
@@ -824,45 +824,6 @@ ipoib_dev_cleanup(struct ipoib_dev_priv *priv)
 	priv->tx_ring = NULL;
 }
 
-#if 0
-static int get_mb_hdr(struct mbuf *mb, void **iphdr,
-		       void **tcph, u64 *hdr_flags, void *priv)
-{
-	unsigned int ip_len;
-	struct iphdr *iph;
-
-	if (unlikely(mb->protocol != htons(ETH_P_IP)))
-		return -1;
-
-	/*
-	 * In the future we may add an else clause that verifies the
-	 * checksum and allows devices which do not calculate checksum
-	 * to use LRO.
-	 */
-	if (unlikely(mb->ip_summed != CHECKSUM_UNNECESSARY))
-		return -1;
-
-	/* Check for non-TCP packet */
-	mb_reset_network_header(mb);
-	iph = ip_hdr(mb);
-	if (iph->protocol != IPPROTO_TCP)
-		return -1;
-
-	ip_len = ip_hdrlen(mb);
-	mb_set_transport_header(mb, ip_len);
-	*tcph = tcp_hdr(mb);
-
-	/* check if IP header and TCP header are complete */
-	if (ntohs(iph->tot_len) < ip_len + tcp_hdrlen(mb))
-		return -1;
-
-	*hdr_flags = LRO_IPV4 | LRO_TCP;
-	*iphdr = iph;
-
-	return 0;
-}
-#endif
-
 static volatile int ipoib_unit;
 
 static struct ipoib_dev_priv *
@@ -955,13 +916,13 @@ ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 	priv->dev->if_hwassist = 0;
 	priv->dev->if_capabilities = 0;
 
+#ifndef CONFIG_INFINIBAND_IPOIB_CM
 	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
 		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
 		priv->dev->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
 		priv->dev->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	}
 
-#if 0
 	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
 		priv->dev->if_capabilities |= IFCAP_TSO4 | CSUM_TSO;
 #endif
@@ -993,8 +954,8 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 	}
 
 	/* MTU will be reset when mcast join happens */
-	priv->dev->if_mtu  = IPOIB_UD_MTU(priv->max_ib_mtu);
-	priv->mcast_mtu  = priv->admin_mtu = priv->dev->if_mtu;
+	priv->dev->if_mtu = IPOIB_UD_MTU(priv->max_ib_mtu);
+	priv->mcast_mtu = priv->admin_mtu = priv->dev->if_mtu;
 
 	result = ib_query_pkey(hca, port, 0, &priv->pkey);
 	if (result) {

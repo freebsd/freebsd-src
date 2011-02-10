@@ -1957,5 +1957,5 @@ struct domain sdpdomain = {
 
 DOMAIN_SET(sdp);
 
-int sdp_debug_level = 0;
+int sdp_debug_level = 1;
 int sdp_data_debug_level = 0;

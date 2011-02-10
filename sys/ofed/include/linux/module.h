@@ -49,9 +49,10 @@
 static inline void
 _module_run(void *arg)
 {
+	void (*fn)(void);
+#ifdef OFED_DEBUG_INIT
 	char name[1024];
 	caddr_t pc;
-	void (*fn)(void);
 	long offset;
 
 	pc = (caddr_t)arg;
@@ -59,7 +60,7 @@ _module_run(void *arg)
 		printf("Running ??? (%p)\n", pc);
 	else
 		printf("Running %s (%p)\n", name, pc);
-
+#endif
 	fn = arg;
 	DROP_GIANT();
 	fn();

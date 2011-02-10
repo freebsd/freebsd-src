@@ -3,6 +3,7 @@
 
 #include "opt_ddb.h"
 #include "opt_inet.h"
+#include "opt_ofed.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,10 +52,9 @@
 #include <rdma/sdp_socket.h>
 #include <rdma/ib_fmr_pool.h>
 
-#define	CONFIG_INFINIBAND_SDP_DEBUG		1
-#define	CONFIG_INFINIBAND_SDP_DEBUG_DATA	1
-
-#define	SDP_DEBUG
+#ifdef SDP_DEBUG
+#define	CONFIG_INFINIBAND_SDP_DEBUG
+#endif
 
 #include "sdp_dbg.h"
 

@@ -2743,91 +2743,91 @@ nlm/nlm_prot_svc.c		optional nfslockd | nfsd
 nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 
-# OpenFabrics Enterprise Distribution (infiniband)
-ofed/include/linux/linux_compat.c		optional infiniband	\
+# OpenFabrics Enterprise Distribution (Infiniband)
+ofed/include/linux/linux_compat.c		optional ofed		\
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_idr.c			optional infiniband	\
+ofed/include/linux/linux_idr.c			optional ofed		\
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_radix.c		optional infiniband	\
+ofed/include/linux/linux_radix.c		optional ofed		\
 	no-depend compile-with "${OFED_C}"
-ofed/drivers/infiniband/core/addr.c		optional infiniband	\
+ofed/drivers/infiniband/core/addr.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"	
-ofed/drivers/infiniband/core/agent.c		optional infiniband	\
+ofed/drivers/infiniband/core/agent.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/cache.c		optional infiniband	\
+ofed/drivers/infiniband/core/cache.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 # XXX Mad.c must be ordered before cm.c for sysinit sets to occur in
 # the correct order.
-ofed/drivers/infiniband/core/mad.c		optional infiniband	\
+ofed/drivers/infiniband/core/mad.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/cm.c		optional infiniband	\
+ofed/drivers/infiniband/core/cm.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/cma.c		optional infiniband	\
+ofed/drivers/infiniband/core/cma.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/device.c		optional infiniband	\
+ofed/drivers/infiniband/core/device.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/fmr_pool.c		optional infiniband	\
+ofed/drivers/infiniband/core/fmr_pool.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/iwcm.c		optional infiniband	\
+ofed/drivers/infiniband/core/iwcm.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/local_sa.c		optional infiniband	\
+ofed/drivers/infiniband/core/local_sa.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/mad_rmpp.c		optional infiniband	\
+ofed/drivers/infiniband/core/mad_rmpp.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/multicast.c	optional infiniband	\
+ofed/drivers/infiniband/core/multicast.c	optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/notice.c		optional infiniband	\
+ofed/drivers/infiniband/core/notice.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/packer.c		optional infiniband	\
+ofed/drivers/infiniband/core/packer.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/sa_query.c		optional infiniband	\
+ofed/drivers/infiniband/core/sa_query.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/smi.c		optional infiniband	\
+ofed/drivers/infiniband/core/smi.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/sysfs.c		optional infiniband	\
+ofed/drivers/infiniband/core/sysfs.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/ucm.c		optional infiniband	\
+ofed/drivers/infiniband/core/ucm.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/ucma.c		optional infiniband	\
+ofed/drivers/infiniband/core/ucma.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/ud_header.c	optional infiniband	\
+ofed/drivers/infiniband/core/ud_header.c	optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/umem.c		optional infiniband	\
+ofed/drivers/infiniband/core/umem.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/user_mad.c		optional infiniband	\
+ofed/drivers/infiniband/core/user_mad.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/uverbs_cmd.c	optional infiniband	\
+ofed/drivers/infiniband/core/uverbs_cmd.c	optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/uverbs_main.c	optional infiniband	\
+ofed/drivers/infiniband/core/uverbs_main.c	optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/uverbs_marshall.c	optional infiniband	\
+ofed/drivers/infiniband/core/uverbs_marshall.c	optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/verbs.c		optional infiniband	\
+ofed/drivers/infiniband/core/verbs.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 

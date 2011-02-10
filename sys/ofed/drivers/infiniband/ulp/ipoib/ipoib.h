@@ -37,6 +37,7 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ofed.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -92,7 +93,13 @@
 #define	INFINIBAND_ALEN		20	/* Octets in IPoIB HW addr */
 #define	MAX_MB_FRAGS		(8192 / MCLBYTES)
 
+#ifdef IPOIB_CM
 #define	CONFIG_INFINIBAND_IPOIB_CM
+#endif
+
+#ifdef IPOIB_DEBUG
+#define	CONFIG_INFINIBAND_IPOIB_DEBUG
+#endif
 
 enum ipoib_flush_level {
 	IPOIB_FLUSH_LIGHT,
@@ -106,9 +113,7 @@ enum {
 	IPOIB_UD_HEAD_SIZE	  = IB_GRH_BYTES + IPOIB_ENCAP_LEN,
 	IPOIB_UD_RX_SG		  = 1, /* max buffer needed for 4K mtu */
 
-	IPOIB_CM_MTU		  = (16 * 1024) - 0x14,
-	IPOIB_CM_BUF_SIZE	  = IPOIB_CM_MTU + IPOIB_ENCAP_LEN,
-	IPOIB_CM_HEAD_SIZE	  = IPOIB_CM_BUF_SIZE % PAGE_SIZE,
+	IPOIB_CM_MAX_MTU	  = MJUM16BYTES,
 	IPOIB_CM_RX_SG		  = 1,	/* We only allocate a single mbuf. */
 	IPOIB_RX_RING_SIZE	  = 256,
 	IPOIB_TX_RING_SIZE	  = 128,
@@ -129,7 +134,6 @@ enum {
 	IPOIB_FLAG_SUBINTERFACE	  = 5,
 	IPOIB_MCAST_RUN		  = 6,
 	IPOIB_STOP_REAPER	  = 7,
-	IPOIB_FLAG_ADMIN_CM	  = 9,
 	IPOIB_FLAG_UMCAST	  = 10,
 	IPOIB_FLAG_CSUM		  = 11,
 
@@ -196,11 +200,6 @@ struct ipoib_tx_buf {
 	u64		mapping[MAX_MB_FRAGS];
 };
 
-struct ipoib_cm_tx_buf {
-	struct mbuf *mb;
-	u64		mapping;
-};
-
 struct ib_cm_id;
 
 struct ipoib_cm_data {
@@ -258,11 +257,11 @@ struct ipoib_cm_tx {
 	struct list_head     list;
 	struct ipoib_dev_priv *priv;
 	struct ipoib_path   *path;
-	struct ipoib_cm_tx_buf *tx_ring;
+	struct ipoib_tx_buf *tx_ring;
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
 	unsigned long	     flags;
-	u32		     mtu;
+	u32		     mtu;	/* remote specified mtu, with grh. */
 };
 
 struct ipoib_cm_rx_buf {
@@ -291,7 +290,7 @@ struct ipoib_cm_dev_priv {
 	struct ib_sge		rx_sge[IPOIB_CM_RX_SG];
 	struct ib_recv_wr       rx_wr;
 	int			nonsrq_conn_qp;
-	int			max_cm_mtu;
+	int			max_cm_mtu;	/* Actual buf size. */
 	int			num_frags;
 };
 
@@ -346,9 +345,9 @@ struct ipoib_dev_priv {
 	union ib_gid local_gid;
 	u16	     local_lid;
 
-	unsigned int admin_mtu;
-	unsigned int mcast_mtu;
-	unsigned int max_ib_mtu;
+	unsigned int admin_mtu;		/* User selected MTU, no GRH. */
+	unsigned int mcast_mtu;		/* Minus GRH bytes, from mcast group. */
+	unsigned int max_ib_mtu;	/* Without header, actual buf size. */
 
 	struct ipoib_rx_buf *rx_ring;
 
@@ -414,8 +413,9 @@ struct ipoib_path {
 	int  		      valid;
 };
 
-#define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
-#define IPOIB_UD_BUF_SIZE(ib_mtu)	(ib_mtu + IB_GRH_BYTES)
+/* UD Only transmits encap len but we want the two sizes to be symmetrical. */
+#define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IB_GRH_BYTES)
+#define	IPOIB_CM_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
 
 #define	IPOIB_IS_MULTICAST(addr)	((addr)[4] == 0xff)
 
@@ -501,6 +501,8 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 			  struct ipoib_path *path);
 #endif
 
+int ipoib_change_mtu(struct ipoib_dev_priv *priv, int new_mtu);
+
 int ipoib_mcast_attach(struct ipoib_dev_priv *priv, u16 mlid,
 		       union ib_gid *mgid, int set_qkey);
 
@@ -514,6 +516,9 @@ void ipoib_event(struct ib_event_handler *handler,
 void ipoib_pkey_poll(struct work_struct *work);
 int ipoib_pkey_dev_delay_open(struct ipoib_dev_priv *priv);
 void ipoib_drain_cq(struct ipoib_dev_priv *priv);
+
+int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
+void ipoib_dma_unmap_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
 
 void ipoib_set_ethtool_ops(struct ifnet *dev);
 int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
@@ -530,14 +535,12 @@ extern int ipoib_max_conn_qp;
 
 static inline int ipoib_cm_admin_enabled(struct ipoib_dev_priv *priv)
 {
-	return IPOIB_CM_SUPPORTED(IF_LLADDR(priv->dev)) &&
-		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
+	return IPOIB_CM_SUPPORTED(IF_LLADDR(priv->dev));
 }
 
 static inline int ipoib_cm_enabled(struct ipoib_dev_priv *priv, uint8_t *hwaddr)
 {
-	return IPOIB_CM_SUPPORTED(hwaddr) &&
-		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
+	return IPOIB_CM_SUPPORTED(hwaddr);
 }
 
 static inline int ipoib_cm_up(struct ipoib_path *path)

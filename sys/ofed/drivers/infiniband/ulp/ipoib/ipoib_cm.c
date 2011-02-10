@@ -32,6 +32,8 @@
 
 #include "ipoib.h"
 
+#ifdef CONFIG_INFINIBAND_IPOIB_CM
+
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
@@ -80,7 +82,7 @@ static void ipoib_cm_dma_unmap_rx(struct ipoib_dev_priv *priv,
 				  u64 mapping[IPOIB_CM_RX_SG])
 {
 
-	ib_dma_unmap_single(priv->ca, mapping[0], IPOIB_CM_HEAD_SIZE, DMA_FROM_DEVICE);
+	ib_dma_unmap_single(priv->ca, mapping[0], priv->cm.max_cm_mtu, DMA_FROM_DEVICE);
 
 }
 
@@ -135,7 +137,7 @@ static struct mbuf *ipoib_cm_alloc_rx_mb(struct ipoib_dev_priv *priv,
 	struct mbuf *mb;
 	int buf_size;
 
-	buf_size = IPOIB_CM_HEAD_SIZE + 12;
+	buf_size = priv->cm.max_cm_mtu;
 	if (buf_size <= MCLBYTES)
 		buf_size = MCLBYTES;
 	else if (buf_size <= MJUMPAGESIZE)
@@ -150,7 +152,7 @@ static struct mbuf *ipoib_cm_alloc_rx_mb(struct ipoib_dev_priv *priv,
 		return NULL;
 
 	mapping[0] = ib_dma_map_single(priv->ca, mtod(mb, void *),
-				       IPOIB_CM_HEAD_SIZE, DMA_FROM_DEVICE);
+				       buf_size, DMA_FROM_DEVICE);
 	if (unlikely(ib_dma_mapping_error(priv->ca, mapping[0]))) {
 		m_freem(mb);
 		return NULL;
@@ -293,18 +295,13 @@ static void ipoib_cm_init_rx_wr(struct ipoib_dev_priv *priv,
 				struct ib_recv_wr *wr,
 				struct ib_sge *sge)
 {
-	int i;
 
-	for (i = 0; i < priv->cm.num_frags; ++i)
-		sge[i].lkey = priv->mr->lkey;
-
-	sge[0].length = IPOIB_CM_HEAD_SIZE;
-	for (i = 1; i < priv->cm.num_frags; ++i)
-		sge[i].length = PAGE_SIZE;
+	sge[0].length = priv->cm.max_cm_mtu;
+	sge[0].lkey = priv->mr->lkey;
 
 	wr->next    = NULL;
 	wr->sg_list = sge;
-	wr->num_sge = priv->cm.num_frags;
+	wr->num_sge = 1;
 }
 
 static int ipoib_cm_nonsrq_init_rx(struct ipoib_dev_priv *priv,
@@ -388,7 +385,7 @@ static int ipoib_cm_send_rep(struct ipoib_dev_priv *priv, struct ib_cm_id *cm_id
 	struct ib_cm_rep_param rep = {};
 
 	data.qpn = cpu_to_be32(priv->qp->qp_num);
-	data.mtu = cpu_to_be32(IPOIB_CM_BUF_SIZE);
+	data.mtu = cpu_to_be32(priv->cm.max_cm_mtu);
 
 	rep.private_data = &data;
 	rep.private_data_len = sizeof data;
@@ -484,7 +481,7 @@ static int ipoib_cm_rx_handler(struct ib_cm_id *cm_id,
 	}
 }
 /* Adjust length of mb with fragments to match received data */
-static void mb_put_frags(struct mbuf *mb, unsigned int hdr_space,
+static void mb_put_frags(struct mbuf *mb,
 			  unsigned int length, struct mbuf *tomb)
 {
 
@@ -569,7 +566,7 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	ipoib_dbg_data(priv, "received %d bytes, SLID 0x%04x\n",
 		       wc->byte_len, wc->slid);
 
-	mb_put_frags(mb, IPOIB_CM_HEAD_SIZE, wc->byte_len, newmb);
+	mb_put_frags(mb, wc->byte_len, newmb);
 
 	++dev->if_opackets;
 	dev->if_obytes += mb->m_pkthdr.len;
@@ -577,6 +574,9 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	mb->m_pkthdr.rcvif = dev;
 	proto = *mtod(mb, uint16_t *);
 	m_adj(mb, IPOIB_ENCAP_LEN);
+	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->csum_ok))
+		mb->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
+
 	IPOIB_MTAP_PROTO(dev, mb, proto);
 	spin_unlock(&priv->lock);
 	ipoib_demux(dev, mb, ntohs(proto));
@@ -601,37 +601,43 @@ repost:
 
 static inline int post_send(struct ipoib_dev_priv *priv,
 			    struct ipoib_cm_tx *tx,
-			    unsigned int wr_id,
-			    u64 addr, int len)
+			    struct ipoib_tx_buf *tx_req,
+			    unsigned int wr_id)
 {
 	struct ib_send_wr *bad_wr;
+	struct mbuf *mb = tx_req->mb;
+	u64 *mapping = tx_req->mapping;
+	struct mbuf *m;
+	int i;
 
-	priv->tx_sge[0].addr          = addr;
-	priv->tx_sge[0].length        = len;
-
-	priv->tx_wr.num_sge	= 1;
-	priv->tx_wr.wr_id	= wr_id | IPOIB_OP_CM;
+	for (m = mb, i = 0; m != NULL; m = m->m_next, i++) {
+		priv->tx_sge[i].addr = mapping[i];
+		priv->tx_sge[i].length = m->m_len;
+	}
+	priv->tx_wr.num_sge = i;
+	priv->tx_wr.wr_id = wr_id | IPOIB_OP_CM;
+	priv->tx_wr.opcode = IB_WR_SEND;
 
 	return ib_post_send(tx->qp, &priv->tx_wr, &bad_wr);
 }
 
 void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm_tx *tx)
 {
-	struct ipoib_cm_tx_buf *tx_req;
+	struct ipoib_tx_buf *tx_req;
 	struct ifnet *dev = priv->dev;
-	u64 addr;
 
-	m_adj(mb, INFINIBAND_ALEN);
-	if (unlikely(mb->m_pkthdr.len > tx->mtu)) {
+	m_adj(mb, sizeof(struct ipoib_pseudoheader));
+	if (unlikely(mb->m_pkthdr.len > IPOIB_CM_MTU(tx->mtu))) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
 			   mb->m_pkthdr.len, tx->mtu);
 		++dev->if_oerrors;
-		ipoib_cm_mb_too_long(priv, mb, tx->mtu - IPOIB_ENCAP_LEN);
+		ipoib_cm_mb_too_long(priv, mb, IPOIB_CM_MTU(tx->mtu));
 		return;
 	}
 
 	ipoib_dbg_data(priv, "sending packet: head 0x%x length %d connection 0x%x\n",
 		       tx->tx_head, mb->m_pkthdr.len, tx->qp->qp_num);
+
 
 	/*
 	 * We put the mb into the tx_ring _before_ we call post_send()
@@ -642,21 +648,22 @@ void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm
 	 */
 	tx_req = &tx->tx_ring[tx->tx_head & (ipoib_sendq_size - 1)];
 	tx_req->mb = mb;
-	addr = ib_dma_map_single(priv->ca, mtod(mb, void *), mb->m_pkthdr.len,
-				 DMA_TO_DEVICE);
-	if (unlikely(ib_dma_mapping_error(priv->ca, addr))) {
+	if (unlikely(ipoib_dma_map_tx(priv->ca, tx_req))) {
 		++dev->if_oerrors;
-		m_freem(mb);
+		if (tx_req->mb)
+			m_freem(tx_req->mb);
 		return;
 	}
 
-	tx_req->mapping = addr;
+	if (mb->m_pkthdr.csum_flags & (CSUM_IP|CSUM_TCP|CSUM_UDP))
+		priv->tx_wr.send_flags |= IB_SEND_IP_CSUM;
+	else
+		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
 
-	if (unlikely(post_send(priv, tx, tx->tx_head & (ipoib_sendq_size - 1),
-			       addr, mb->m_pkthdr.len))) {
+	if (unlikely(post_send(priv, tx, tx_req, tx->tx_head & (ipoib_sendq_size - 1)))) {
 		ipoib_warn(priv, "post_send failed\n");
 		++dev->if_oerrors;
-		ib_dma_unmap_single(priv->ca, addr, mb->m_pkthdr.len, DMA_TO_DEVICE);
+		ipoib_dma_unmap_tx(priv->ca, tx_req);
 		m_freem(mb);
 	} else {
 		++tx->tx_head;
@@ -676,7 +683,7 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	struct ipoib_cm_tx *tx = wc->qp->qp_context;
 	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_CM;
 	struct ifnet *dev = priv->dev;
-	struct ipoib_cm_tx_buf *tx_req;
+	struct ipoib_tx_buf *tx_req;
 	unsigned long flags;
 
 	ipoib_dbg_data(priv, "cm send completion: id %d, status: %d\n",
@@ -690,7 +697,7 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 
 	tx_req = &tx->tx_ring[wr_id];
 
-	ib_dma_unmap_single(priv->ca, tx_req->mapping, tx_req->mb->m_pkthdr.len, DMA_TO_DEVICE);
+	ipoib_dma_unmap_tx(priv->ca, tx_req);
 
 	/* FIXME: is this right? Shouldn't we only increment on success? */
 	++dev->if_opackets;
@@ -720,7 +727,6 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 			tx->path = NULL;
 			rb_erase(&path->rb_node, &priv->path_tree);
 			list_del(&path->list);
-			ipoib_path_free(priv, path);
 		}
 
 		if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &tx->flags)) {
@@ -731,6 +737,8 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 		clear_bit(IPOIB_FLAG_OPER_UP, &tx->flags);
 
 		spin_unlock_irqrestore(&priv->lock, flags);
+		if (path)
+			ipoib_path_free(priv, path);
 	}
 
 }
@@ -932,7 +940,7 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct ipoib_dev_priv *priv,
 		.recv_cq		= priv->recv_cq,
 		.srq			= priv->cm.srq,
 		.cap.max_send_wr	= ipoib_sendq_size,
-		.cap.max_send_sge	= 1,
+		.cap.max_send_sge	= MAX_MB_FRAGS,
 		.sq_sig_type		= IB_SIGNAL_ALL_WR,
 		.qp_type		= IB_QPT_RC,
 		.qp_context		= tx
@@ -952,7 +960,7 @@ static int ipoib_cm_send_req(struct ipoib_dev_priv *priv,
 	ipoib_dbg(priv, "cm send req\n");
 
 	data.qpn = cpu_to_be32(priv->qp->qp_num);
-	data.mtu = cpu_to_be32(IPOIB_CM_BUF_SIZE);
+	data.mtu = cpu_to_be32(priv->cm.max_cm_mtu);
 
 	req.primary_path		= pathrec;
 	req.alternate_path		= NULL;
@@ -1065,7 +1073,7 @@ static void ipoib_cm_tx_destroy(struct ipoib_cm_tx *p)
 {
 	struct ipoib_dev_priv *priv = p->priv;
 	struct ifnet *dev = priv->dev;
-	struct ipoib_cm_tx_buf *tx_req;
+	struct ipoib_tx_buf *tx_req;
 	unsigned long begin;
 
 	ipoib_dbg(priv, "Destroy active connection 0x%x head 0x%x tail 0x%x\n",
@@ -1092,8 +1100,7 @@ timeout:
 
 	while ((int) p->tx_tail - (int) p->tx_head < 0) {
 		tx_req = &p->tx_ring[p->tx_tail & (ipoib_sendq_size - 1)];
-		ib_dma_unmap_single(priv->ca, tx_req->mapping, tx_req->mb->m_pkthdr.len,
-				    DMA_TO_DEVICE);
+		ipoib_dma_unmap_tx(priv->ca, tx_req);
 		m_freem(tx_req->mb);
 		++p->tx_tail;
 		if (unlikely(--priv->tx_outstanding == ipoib_sendq_size >> 1) &&
@@ -1142,7 +1149,6 @@ static int ipoib_cm_tx_handler(struct ib_cm_id *cm_id,
 			tx->path = NULL;
 			rb_erase(&path->rb_node, &priv->path_tree);
 			list_del(&path->list);
-			ipoib_path_free(tx->priv, path);
 		}
 
 		if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &tx->flags)) {
@@ -1151,6 +1157,8 @@ static int ipoib_cm_tx_handler(struct ib_cm_id *cm_id,
 		}
 
 		spin_unlock_irqrestore(&priv->lock, flags);
+		if (path)
+			ipoib_path_free(tx->priv, path);
 		break;
 	default:
 		break;
@@ -1182,7 +1190,9 @@ void ipoib_cm_destroy_tx(struct ipoib_cm_tx *tx)
 {
 	struct ipoib_dev_priv *priv = tx->priv;
 	if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &tx->flags)) {
+		spin_lock(&priv->lock);
 		list_move(&tx->list, &priv->cm.reap_list);
+		spin_unlock(&priv->lock);
 		queue_work(ipoib_workqueue, &priv->cm.reap_task);
 		ipoib_dbg(priv, "Reap connection for gid %pI6\n",
 			  tx->path->pathrec.dgid.raw);
@@ -1292,12 +1302,6 @@ ipoib_cm_mb_too_long(struct ipoib_dev_priv *priv, struct mbuf *mb, unsigned int 
 {
 	int e = priv->cm.mb_queue.ifq_len; 
 
-/* XXX */
-#if 0
-	if (mb->dst)
-		mb->dst->ops->update_pmtu(mb->dst, mtu);
-#endif
-
 	IF_ENQUEUE(&priv->cm.mb_queue, mb);
 	if (e == 0)
 		queue_work(ipoib_workqueue, &priv->cm.mb_task);
@@ -1403,13 +1407,12 @@ int ipoib_cm_dev_init(struct ipoib_dev_priv *priv)
 	attr.max_srq_sge = min_t(int, IPOIB_CM_RX_SG, attr.max_srq_sge);
 	ipoib_cm_create_srq(priv, attr.max_srq_sge);
 	if (ipoib_cm_has_srq(priv)) {
-
-		priv->cm.max_cm_mtu = attr.max_srq_sge * PAGE_SIZE - 0x10;
+		priv->cm.max_cm_mtu = attr.max_srq_sge * MJUM16BYTES;
 		priv->cm.num_frags  = attr.max_srq_sge;
 		ipoib_dbg(priv, "max_cm_mtu = 0x%x, num_frags=%d\n",
 			  priv->cm.max_cm_mtu, priv->cm.num_frags);
 	} else {
-		priv->cm.max_cm_mtu = IPOIB_CM_MTU;
+		priv->cm.max_cm_mtu = IPOIB_CM_MAX_MTU;
 		priv->cm.num_frags  = IPOIB_CM_RX_SG;
 	}
 
@@ -1460,3 +1463,5 @@ void ipoib_cm_dev_cleanup(struct ipoib_dev_priv *priv)
 
 	mtx_destroy(&priv->cm.mb_queue.ifq_mtx);
 }
+
+#endif /* CONFIG_INFINIBAND_IPOIB_CM */
