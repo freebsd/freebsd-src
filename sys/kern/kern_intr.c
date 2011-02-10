@@ -744,10 +744,11 @@ intr_handler_source(void *cookie)
  * Sleep until an ithread finishes executing an interrupt handler.
  *
  * XXX Doesn't currently handle interrupt filters or fast interrupt
- * handlers.
+ * handlers.  This is intended for compatibility with linux drivers
+ * only.  Do not use in BSD code.
  */
 void
-intr_drain(int irq)
+_intr_drain(int irq)
 {
 	struct mtx *mtx;
 	struct intr_event *ie;

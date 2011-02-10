@@ -176,7 +176,7 @@ int	intr_event_remove_handler(void *cookie);
 int	intr_getaffinity(int irq, void *mask);
 void	*intr_handler_source(void *cookie);
 int	intr_setaffinity(int irq, void *mask);
-void	intr_drain(int irq);
+void	_intr_drain(int irq);  /* Linux compat only. */
 int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep);
