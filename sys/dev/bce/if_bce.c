@@ -89,12 +89,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /****************************************************************************/
-/* BCE Build Time Options                                                   */
-/****************************************************************************/
-/* #define BCE_NVRAM_WRITE_SUPPORT 1 */
-
-
-/****************************************************************************/
 /* PCI Device ID Table                                                      */
 /*                                                                          */
 /* Used by bce_probe() to identify the devices supported by this driver.    */
@@ -339,9 +333,9 @@ static int  bce_miibus_write_reg	(device_t, int, int, int);
 static void bce_miibus_statchg		(device_t);
 
 #ifdef BCE_DEBUG
-static int sysctl_nvram_dump(SYSCTL_HANDLER_ARGS);
+static int bce_sysctl_nvram_dump(SYSCTL_HANDLER_ARGS);
 #ifdef BCE_NVRAM_WRITE_SUPPORT
-static int sysctl_nvram_write(SYSCTL_HANDLER_ARGS);
+static int bce_sysctl_nvram_write(SYSCTL_HANDLER_ARGS);
 #endif
 #endif
 
@@ -2884,9 +2878,9 @@ bce_nvram_write(struct bce_softc *sc, u32 offset, u8 *data_buf,
 	goto bce_nvram_write_exit;
 
 bce_nvram_write_locked_exit:
-		bce_disable_nvram_write(sc);
-		bce_disable_nvram_access(sc);
-		bce_release_nvram_lock(sc);
+	bce_disable_nvram_write(sc);
+	bce_disable_nvram_access(sc);
+	bce_release_nvram_lock(sc);
 
 bce_nvram_write_exit:
 	if (align_start || align_end)
@@ -2931,7 +2925,7 @@ bce_nvram_test(struct bce_softc *sc)
 	 * Verify that offset 0 of the NVRAM contains
 	 * a valid magic number.
 	 */
-    magic = bce_be32toh(buf[0]);
+	magic = bce_be32toh(buf[0]);
 	if (magic != BCE_NVRAM_MAGIC) {
 		rc = ENODEV;
 		BCE_PRINTF("%s(%d): Invalid NVRAM magic value! "
@@ -8266,7 +8260,6 @@ bce_tick_exit:
 	return;
 }
 
-
 #ifdef BCE_DEBUG
 /****************************************************************************/
 /* Allows the driver state to be dumped through the sysctl interface.       */
@@ -8631,7 +8624,8 @@ bce_sysctl_nvram_read(SYSCTL_HANDLER_ARGS)
 	if (error || (req->newptr == NULL))
 		return (error);
 
-	bce_nvram_read(sc, result, data, 4);
+	error = bce_nvram_read(sc, result, data, 4);
+
 	BCE_PRINTF("offset 0x%08X = 0x%08X\n", result, bce_be32toh(val[0]));
 
 	return (error);
@@ -8701,50 +8695,62 @@ bce_sysctl_phy_read(SYSCTL_HANDLER_ARGS)
 }
 
 
+/****************************************************************************/
+/* Provides a sysctl interface for dumping the nvram contents.              */
+/* DO NOT ENABLE ON PRODUCTION SYSTEMS!					    */
+/*									    */
+/* Returns:								    */
+/*   0 for success, positive errno for failure.				    */
+/****************************************************************************/
 static int
-sysctl_nvram_dump(SYSCTL_HANDLER_ARGS)
+bce_sysctl_nvram_dump(SYSCTL_HANDLER_ARGS)
 {
 	struct bce_softc *sc = (struct bce_softc *)arg1;
 	int error, i;
 
-	if (sc->nvram_buf == NULL) {
+	if (sc->nvram_buf == NULL)
 		sc->nvram_buf = malloc(sc->bce_flash_size,
-				       M_TEMP, M_ZERO | M_WAITOK);
-	}
-	if (sc->nvram_buf == NULL) {
-		return(ENOMEM);
-	}
+				    M_TEMP, M_ZERO | M_WAITOK);
+
+	error = 0;
 	if (req->oldlen == sc->bce_flash_size) {
-		for (i = 0; i < sc->bce_flash_size; i++) {
-			bce_nvram_read(sc, i, &sc->nvram_buf[i], 1);
-		}
+		for (i = 0; i < sc->bce_flash_size && error == 0; i++)
+			error = bce_nvram_read(sc, i, &sc->nvram_buf[i], 1);
 	}
 
-	error = SYSCTL_OUT(req, sc->nvram_buf, sc->bce_flash_size);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sc->nvram_buf, sc->bce_flash_size);
 
 	return error;
 }
 
 #ifdef BCE_NVRAM_WRITE_SUPPORT
+/****************************************************************************/
+/* Provides a sysctl interface for writing to nvram.                        */
+/* DO NOT ENABLE ON PRODUCTION SYSTEMS!					    */
+/*									    */
+/* Returns:								    */
+/*   0 for success, positive errno for failure.				    */
+/****************************************************************************/
 static int
-sysctl_nvram_write(SYSCTL_HANDLER_ARGS)
+bce_sysctl_nvram_write(SYSCTL_HANDLER_ARGS)
 {
 	struct bce_softc *sc = (struct bce_softc *)arg1;
 	int error;
 
-	if (sc->nvram_buf == NULL) {
+	if (sc->nvram_buf == NULL)
 		sc->nvram_buf = malloc(sc->bce_flash_size,
-				       M_TEMP, M_ZERO | M_WAITOK);
-	}
-	if (sc->nvram_buf == NULL) {
-		return(ENOMEM);
-	}
-	bzero(sc->nvram_buf, sc->bce_flash_size);
-	error = SYSCTL_IN(req, sc->nvram_buf, sc->bce_flash_size);
+				    M_TEMP, M_ZERO | M_WAITOK);
+	else
+		bzero(sc->nvram_buf, sc->bce_flash_size);
 
-	if (req->newlen == sc->bce_flash_size) {
-		bce_nvram_write(sc, 0, sc->nvram_buf , sc->bce_flash_size);
-	}
+	error = SYSCTL_IN(req, sc->nvram_buf, sc->bce_flash_size);
+	if (error == 0)
+		return (error);
+
+	if (req->newlen == sc->bce_flash_size)
+		error = bce_nvram_write(sc, 0, sc->nvram_buf,
+			    sc->bce_flash_size);
 
 
 	return error;
@@ -8779,7 +8785,7 @@ bce_sysctl_dump_ctx(SYSCTL_HANDLER_ARGS)
 }
 
 
- /****************************************************************************/
+/****************************************************************************/
 /* Provides a sysctl interface to forcing the driver to dump state and      */
 /* enter the debugger.  DO NOT ENABLE ON PRODUCTION SYSTEMS!                */
 /*                                                                          */
@@ -8807,7 +8813,6 @@ bce_sysctl_breakpoint(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 #endif
-
 
 /****************************************************************************/
 /* Adds any sysctl parameters for tuning or debugging purposes.             */
@@ -8992,13 +8997,13 @@ bce_add_sysctls(struct bce_softc *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 	    "nvram_dump", CTLTYPE_OPAQUE | CTLFLAG_RD,
 	    (void *)sc, 0,
-	    sysctl_nvram_dump, "S", "");
+	    bce_sysctl_nvram_dump, "S", "");
 
 #ifdef BCE_NVRAM_WRITE_SUPPORT
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 	    "nvram_write", CTLTYPE_OPAQUE | CTLFLAG_WR,
 	    (void *)sc, 0,
-	    sysctl_nvram_write, "S", "");
+	    bce_sysctl_nvram_write, "S", "");
 #endif
 #endif /* BCE_DEBUG */
 
