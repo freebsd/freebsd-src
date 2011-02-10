@@ -49,19 +49,21 @@ static intmax_t zero = 0;
 struct g_command class_commands[] = {
 	{ "label", G_FLAG_VERBOSE, NULL,
 	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL },
 		{ 'S', "size", &zero, G_TYPE_NUMBER },
 		{ 's', "strip", &zero, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-S size] [-s stripsize] format label level prov ..."
+	    NULL, "[-fv] [-S size] [-s stripsize] format label level prov ..."
 	},
 	{ "add", G_FLAG_VERBOSE, NULL,
 	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL },
 		{ 'S', "size", &zero, G_TYPE_NUMBER },
 		{ 's', "strip", &zero, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-S size] [-s stripsize] name label level"
+	    NULL, "[-fv] [-S size] [-s stripsize] name label level"
 	},
 	{ "delete", G_FLAG_VERBOSE, NULL,
 	    {

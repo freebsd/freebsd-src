@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -162,10 +163,12 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol,
     struct g_raid_subdisk *sd)
 {
 	struct g_raid_tr_raid1_object *trs;
+	struct g_raid_softc *sc;
 	struct g_raid_subdisk *tsd, *bestsd;
 	u_int s;
 	int i, na, ns;
 
+	sc = vol->v_softc;
 	trs = (struct g_raid_tr_raid1_object *)vol->v_tr;
 	if (trs->trso_stopping &&
 	    (trs->trso_flags & TR_RAID1_F_DOING_SOME) == 0)
@@ -193,13 +196,13 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol,
 			}
 			if (bestsd->sd_state >= G_RAID_SUBDISK_S_UNINITIALIZED) {
 				/* We found reasonable candidate. */
-				G_RAID_DEBUG1(1, vol->v_softc,
+				G_RAID_DEBUG1(1, sc,
 				    "Promote subdisk %s:%d from %s to ACTIVE.",
 				    vol->v_name, bestsd->sd_pos,
 				    g_raid_subdisk_state2str(bestsd->sd_state));
 				g_raid_change_subdisk_state(bestsd,
 				    G_RAID_SUBDISK_S_ACTIVE);
-				g_raid_write_metadata(vol->v_softc,
+				g_raid_write_metadata(sc,
 				    vol, bestsd, bestsd->sd_disk);
 			}
 		}
@@ -221,8 +224,29 @@ g_raid_tr_update_state_raid1(struct g_raid_volume *vol,
 		    G_RAID_VOLUME_E_UP : G_RAID_VOLUME_E_DOWN,
 		    G_RAID_EVENT_VOLUME);
 		g_raid_change_volume_state(vol, s);
+		if (!trs->trso_starting && !trs->trso_stopping)
+			g_raid_write_metadata(sc, vol, NULL, NULL);
 	}
 	return (0);
+}
+
+static void
+g_raid_tr_raid1_fail_disk(struct g_raid_softc *sc, struct g_raid_subdisk *sd,
+    struct g_raid_disk *disk)
+{
+	/*
+	 * We don't fail the last disk in the pack, since it still has decent
+	 * data on it and that's better than failing the disk if it is the root
+	 * file system.
+	 *
+	 * XXX should this be controlled via a tunable?  It makes sense for
+	 * the volume that has / on it.  I can't think of a case where we'd
+	 * want the volume to go away on this kind of event.
+	 */
+	if (g_raid_nsubdisks(sd->sd_volume, G_RAID_SUBDISK_S_ACTIVE) == 1 &&
+	    g_raid_get_subdisk(sd->sd_volume, G_RAID_SUBDISK_S_ACTIVE) == sd)
+		return;
+	g_raid_fail_disk(sc, sd, disk);
 }
 
 static void
@@ -471,22 +495,46 @@ g_raid_tr_stop_raid1(struct g_raid_tr_object *tr)
 }
 
 /*
- * Select the disk to do the reads to.  For now, we just pick the first one in
- * the list that's active always.  This ensures we favor one disk on boot, and
- * have more deterministic recovery from the weird edge cases of power
- * failure.  In the future, we can imagine policies that go for the least
- * loaded disk to improve performance, or we need to limit reads to a disk
- * during some kind of error recovery with that disk.
+ * Select the disk to read from.  Take into account: subdisk state, running
+ * error recovery, average disk load, head position and possible cache hits.
  */
+#define ABS(x)		(((x) >= 0) ? (x) : (-(x)))
 static struct g_raid_subdisk *
-g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol)
+g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol, struct bio *bp,
+    u_int mask)
 {
-	int i;
+	struct g_raid_subdisk *sd, *best;
+	int i, prio, bestprio;
 
-	for (i = 0; i < vol->v_disks_count; i++)
-		if (vol->v_subdisks[i].sd_state == G_RAID_SUBDISK_S_ACTIVE)
-			return (&vol->v_subdisks[i]);
-	return (NULL);
+	best = NULL;
+	bestprio = INT_MAX;
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE &&
+		    !((sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+		       sd->sd_state == G_RAID_SUBDISK_S_RESYNC) && 
+		      bp->bio_offset + bp->bio_length <
+		       sd->sd_rebuild_pos))
+			continue;
+		if ((mask & (1 << i)) != 0)
+			continue;
+		prio = G_RAID_SUBDISK_LOAD(sd);
+		prio += min(sd->sd_recovery, 255) << 22;
+		prio += (G_RAID_SUBDISK_S_ACTIVE - sd->sd_state) << 16;
+		/* If disk head is precisely in position - highly prefer it. */
+		if (G_RAID_SUBDISK_POS(sd) == bp->bio_offset)
+			prio -= 2 * G_RAID_SUBDISK_LOAD_SCALE;
+		else
+		/* If disk head is close to position - prefer it. */
+		if (ABS(G_RAID_SUBDISK_POS(sd) - bp->bio_offset) <
+		    G_RAID_SUBDISK_TRACK_SIZE)
+			prio -= 1 * G_RAID_SUBDISK_LOAD_SCALE;
+		if (prio < bestprio) {
+			best = sd;
+			bestprio = prio;
+		}
+	}
+	return (best);
 }
 
 static void
@@ -495,7 +543,7 @@ g_raid_tr_iostart_raid1_read(struct g_raid_tr_object *tr, struct bio *bp)
 	struct g_raid_subdisk *sd;
 	struct bio *cbp;
 
-	sd = g_raid_tr_raid1_select_read_disk(tr->tro_volume);
+	sd = g_raid_tr_raid1_select_read_disk(tr->tro_volume, bp, 0);
 	KASSERT(sd != NULL, ("No active disks in volume %s.",
 		tr->tro_volume->v_name));
 
@@ -630,10 +678,11 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 	struct g_raid_volume *vol;
 	struct bio *pbp;
 	struct g_raid_tr_raid1_object *trs;
-	int i, error;
+	uintptr_t *mask;
+	int error, do_write;
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
-	pbp = bp->bio_parent;
+	vol = tr->tro_volume;
 	if (bp->bio_cflags & G_RAID_BIO_FLAG_SYNC) {
 		/*
 		 * This operation is part of a rebuild or resync operation.
@@ -650,20 +699,30 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * 5MB of data, for inactive ones, we do 50MB.
 		 */
 		if (trs->trso_type == TR_RAID1_REBUILD) {
-			vol = tr->tro_volume;
 			if (bp->bio_cmd == BIO_READ) {
+
+				/* Immediately abort rebuild, if requested. */
+				if (trs->trso_flags & TR_RAID1_F_ABORT) {
+					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+					g_raid_tr_raid1_rebuild_abort(tr);
+					return;
+				}
+
+				/* On read error, skip and cross fingers. */
+				if (bp->bio_error != 0) {
+					G_RAID_LOGREQ(0, bp,
+					    "Read error during rebuild (%d), "
+					    "possible data loss!",
+					    bp->bio_error);
+					goto rebuild_round_done;
+				}
+
 				/*
 				 * The read operation finished, queue the
 				 * write and get out.
 				 */
 				G_RAID_LOGREQ(4, bp, "rebuild read done. %d",
 				    bp->bio_error);
-				if (bp->bio_error != 0 ||
-				    trs->trso_flags & TR_RAID1_F_ABORT) {
-					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
-					g_raid_tr_raid1_rebuild_abort(tr);
-					return;
-				}
 				bp->bio_cmd = BIO_WRITE;
 				bp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 				bp->bio_offset = bp->bio_offset;
@@ -685,7 +744,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				    trs->trso_flags & TR_RAID1_F_ABORT) {
 					if ((trs->trso_flags &
 					    TR_RAID1_F_ABORT) == 0) {
-						g_raid_fail_disk(sd->sd_softc,
+						g_raid_tr_raid1_fail_disk(sd->sd_softc,
 						    nsd, nsd->sd_disk);
 					}
 					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
@@ -693,6 +752,8 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					return;
 				}
 /* XXX A lot of the following is needed when we kick of the work -- refactor */
+rebuild_round_done:
+				nsd = trs->trso_failed_sd;
 				trs->trso_flags &= ~TR_RAID1_F_LOCKED;
 				g_raid_unlock_range(sd->sd_volume,
 				    bp->bio_offset, bp->bio_length);
@@ -749,6 +810,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		}
 		return;
 	}
+	pbp = bp->bio_parent;
 	pbp->bio_inbed++;
 	if (bp->bio_cmd == BIO_READ && bp->bio_error != 0) {
 		/*
@@ -756,11 +818,10 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * another disk drive, if available, before erroring out the
 		 * read.
 		 */
-		vol = tr->tro_volume;
-		sd->sd_read_errs++;
+		sd->sd_disk->d_read_errs++;
 		G_RAID_LOGREQ(0, bp,
 		    "Read error (%d), %d read errors total",
-		    bp->bio_error, sd->sd_read_errs);
+		    bp->bio_error, sd->sd_disk->d_read_errs);
 
 		/*
 		 * If there are too many read errors, we move to degraded.
@@ -768,33 +829,37 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 * everything to get it back in sync), or just degrade the
 		 * drive, which kicks off a resync?
 		 */
-		if (sd->sd_read_errs > g_raid1_read_err_thresh) {
-			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
+		do_write = 1;
+		if (sd->sd_disk->d_read_errs > g_raid1_read_err_thresh) {
+			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			if (pbp->bio_children == 1)
-				goto remapdone;
+				do_write = 0;
 		}
 
 		/*
 		 * Find the other disk, and try to do the I/O to it.
 		 */
-		for (nsd = NULL, i = 0; i < vol->v_disks_count; i++) {
-			if (pbp->bio_children > 1)
-				break;
-			nsd = &vol->v_subdisks[i];
-			if (sd == nsd)
-				continue;
-			if (nsd->sd_state != G_RAID_SUBDISK_S_ACTIVE)
-				continue;
-			cbp = g_clone_bio(pbp);
-			if (cbp == NULL)
-				break;
-			G_RAID_LOGREQ(2, cbp, "Retrying read");
-			pbp->bio_driver1 = sd; /* Save original subdisk. */
-			cbp->bio_caller1 = nsd;
-			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
-			/* Lock callback starts I/O */
-			g_raid_lock_range(sd->sd_volume,
-			    cbp->bio_offset, cbp->bio_length, pbp, cbp);
+		mask = (uintptr_t *)(&pbp->bio_driver2);
+		if (pbp->bio_children == 1) {
+			/* Save original subdisk. */
+			pbp->bio_driver1 = do_write ? sd : NULL;
+			*mask = 0;
+		}
+		*mask |= 1 << sd->sd_pos;
+		nsd = g_raid_tr_raid1_select_read_disk(vol, pbp, *mask);
+		if (nsd != NULL && (cbp = g_clone_bio(pbp)) != NULL) {
+			G_RAID_LOGREQ(2, cbp, "Retrying read from %d",
+			    nsd->sd_pos);
+			if (pbp->bio_children == 2 && do_write) {
+				sd->sd_recovery++;
+				cbp->bio_caller1 = nsd;
+				pbp->bio_pflags = G_RAID_BIO_FLAG_LOCKED;
+				/* Lock callback starts I/O */
+				g_raid_lock_range(sd->sd_volume,
+				    cbp->bio_offset, cbp->bio_length, pbp, cbp);
+			} else {
+				g_raid_subdisk_iostart(nsd, cbp);
+			}
 			return;
 		}
 		/*
@@ -805,10 +870,12 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		 */
 		G_RAID_LOGREQ(2, bp, "Couldn't retry read, failing it");
 	}
-	if (bp->bio_cmd == BIO_READ && bp->bio_error == 0 &&
-	    pbp->bio_children > 1) {
+	if (bp->bio_cmd == BIO_READ &&
+	    bp->bio_error == 0 &&
+	    pbp->bio_children > 1 &&
+	    pbp->bio_driver1 != NULL) {
 		/*
-		 * If it was a read, and bio_children is 2, then we just
+		 * If it was a read, and bio_children is >1, then we just
 		 * recovered the data from the second drive.  We should try to
 		 * write that data to the first drive if sector remapping is
 		 * enabled.  A write should put the data in a new place on the
@@ -823,16 +890,15 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 		if (cbp != NULL) {
 			cbp->bio_cmd = BIO_WRITE;
 			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
-			G_RAID_LOGREQ(3, cbp,
+			G_RAID_LOGREQ(2, cbp,
 			    "Attempting bad sector remap on failing drive.");
 			g_raid_subdisk_iostart(pbp->bio_driver1, cbp);
 			return;
 		}
 	}
-remapdone:
-	if (bp->bio_cflags & G_RAID_BIO_FLAG_REMAP) {
+	if (pbp->bio_pflags & G_RAID_BIO_FLAG_LOCKED) {
 		/*
-		 * We're done with a remap write, mark the range as unlocked.
+		 * We're done with a recovery, mark the range as unlocked.
 		 * For any write errors, we agressively fail the disk since
 		 * there was both a READ and a WRITE error at this location.
 		 * Both types of errors generally indicates the drive is on
@@ -840,11 +906,15 @@ remapdone:
 		 * it now.  However, we need to reset error to 0 in that case
 		 * because we're not failing the original I/O which succeeded.
 		 */
-		if (pbp->bio_cmd == BIO_WRITE && bp->bio_error) {
+		if (bp->bio_cmd == BIO_WRITE && bp->bio_error) {
 			G_RAID_LOGREQ(0, bp, "Remap write failed: "
 			    "failing subdisk.");
-			g_raid_fail_disk(sd->sd_softc, sd, sd->sd_disk);
+			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			bp->bio_error = 0;
+		}
+		if (pbp->bio_driver1 != NULL) {
+			((struct g_raid_subdisk *)pbp->bio_driver1)
+			    ->sd_recovery--;
 		}
 		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
 		g_raid_unlock_range(sd->sd_volume, bp->bio_offset,
