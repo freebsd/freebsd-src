@@ -83,6 +83,7 @@ IBVERBS_1.1 {
 		ibv_get_device_guid;
 		ibv_open_device;
 		ibv_close_device;
+		ibv_resolve_eth_gid;
 
 		ibv_init_ah_from_wc;
 		ibv_create_ah_from_wc;
