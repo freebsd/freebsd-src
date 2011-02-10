@@ -275,8 +275,6 @@ g_raid_volume_level2str(int level, int qual)
 		return ("RAID5");
 	case G_RAID_VOLUME_RL_RAID6:
 		return ("RAID6");
-	case G_RAID_VOLUME_RL_RAID10:
-		return ("RAID10");
 	case G_RAID_VOLUME_RL_RAID1E:
 		return ("RAID1E");
 	case G_RAID_VOLUME_RL_SINGLE:
@@ -310,9 +308,8 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 		*level = G_RAID_VOLUME_RL_RAID5;
 	else if (strcasecmp(str, "RAID6") == 0)
 		*level = G_RAID_VOLUME_RL_RAID6;
-	else if (strcasecmp(str, "RAID10") == 0)
-		*level = G_RAID_VOLUME_RL_RAID10;
-	else if (strcasecmp(str, "RAID1E") == 0)
+	else if (strcasecmp(str, "RAID10") == 0 ||
+		 strcasecmp(str, "RAID1E") == 0)
 		*level = G_RAID_VOLUME_RL_RAID1E;
 	else if (strcasecmp(str, "SINGLE") == 0)
 		*level = G_RAID_VOLUME_RL_SINGLE;
@@ -910,6 +907,7 @@ g_raid_start_request(struct bio *bp)
 	sc = bp->bio_to->geom->softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 	vol = bp->bio_to->private;
+
 	/*
 	 * Check to see if this item is in a locked range.  If so,
 	 * queue it to our locked queue and return.  We'll requeue
@@ -1073,7 +1071,7 @@ void
 g_raid_subdisk_iostart(struct g_raid_subdisk *sd, struct bio *bp)
 {
 	struct g_consumer *cp;
-	struct g_raid_disk *disk;
+	struct g_raid_disk *disk, *tdisk;
 
 	bp->bio_caller1 = sd;
 
@@ -1103,6 +1101,17 @@ nodisk:
 	bp->bio_from = cp;
 	bp->bio_to = cp->provider;
 	cp->index++;
+
+	/* Update average disks load. */
+	TAILQ_FOREACH(tdisk, &sd->sd_softc->sc_disks, d_next) {
+		if (tdisk->d_consumer == NULL)
+			tdisk->d_load = 0;
+		else
+			tdisk->d_load = (tdisk->d_consumer->index *
+			    G_RAID_SUBDISK_LOAD_SCALE + tdisk->d_load * 7) / 8;
+	}
+
+	disk->d_last_offset = bp->bio_offset + bp->bio_length;
 	if (dumping) {
 		G_RAID_LOGREQ(3, bp, "Sending dumping request.");
 		if (bp->bio_cmd == BIO_WRITE) {
@@ -1309,10 +1318,11 @@ out:
 static void
 g_raid_launch_provider(struct g_raid_volume *vol)
 {
-//	struct g_raid_disk *disk;
+	struct g_raid_disk *disk;
 	struct g_raid_softc *sc;
 	struct g_provider *pp;
 	char name[G_RAID_MAX_VOLUMENAME];
+	off_t off;
 
 	sc = vol->v_softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
@@ -1331,14 +1341,25 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 	pp->sectorsize = vol->v_sectorsize;
 	pp->stripesize = 0;
 	pp->stripeoffset = 0;
-#if 0
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_consumer && disk->d_consumer->provider &&
-		    disk->d_consumer->provider->stripesize > pp->stripesize) {
+	if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1 ||
+	    vol->v_raid_level == G_RAID_VOLUME_RL_RAID3 ||
+	    vol->v_raid_level == G_RAID_VOLUME_RL_SINGLE ||
+	    vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT) {
+		if ((disk = vol->v_subdisks[0].sd_disk) != NULL &&
+		    disk->d_consumer != NULL &&
+		    disk->d_consumer->provider != NULL) {
 			pp->stripesize = disk->d_consumer->provider->stripesize;
+			off = disk->d_consumer->provider->stripeoffset;
+			pp->stripeoffset = off + vol->v_subdisks[0].sd_offset;
+			if (off > 0)
+				pp->stripeoffset %= off;
 		}
-	}
-#endif
+		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID3) {
+			pp->stripesize *= (vol->v_disks_count - 1);
+			pp->stripeoffset *= (vol->v_disks_count - 1);
+		}
+	} else
+		pp->stripesize = vol->v_strip_size;
 	vol->v_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();

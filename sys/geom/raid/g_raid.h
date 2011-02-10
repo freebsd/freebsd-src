@@ -98,6 +98,7 @@ extern struct g_class g_raid_class;
  *				doing some desirable action such as bad
  *				block remapping after we detect a bad part
  *				of the disk.
+ * G_RAID_BIO_FLAG_LOCKED	I/O holds range lock that should re released.
  *
  * and the following meta item:
  * G_RAID_BIO_FLAG_SPECIAL	And of the I/O flags that need to make it
@@ -107,8 +108,9 @@ extern struct g_class g_raid_class;
  */
 #define	G_RAID_BIO_FLAG_SYNC		0x01
 #define	G_RAID_BIO_FLAG_REMAP		0x02
-#define G_RAID_BIO_FLAG_SPECIAL \
+#define	G_RAID_BIO_FLAG_SPECIAL \
 		(G_RAID_BIO_FLAG_SYNC|G_RAID_BIO_FLAG_REMAP)
+#define	G_RAID_BIO_FLAG_LOCKED		0x80
 
 struct g_raid_lock {
 	off_t			 l_offset;
@@ -145,10 +147,11 @@ struct g_raid_disk {
 	struct g_consumer	*d_consumer;	/* GEOM disk consumer. */
 	void			*d_md_data;	/* Disk's metadata storage. */
 	struct g_kerneldump	 d_kd;		/* Kernel dumping method/args. */
-	u_int			 d_state;	/* Disk state. */
 	uint64_t		 d_flags;	/* Additional flags. */
+	u_int			 d_state;	/* Disk state. */
 	u_int			 d_load;	/* Disk average load. */
 	off_t			 d_last_offset;	/* Last head offset. */
+	int			 d_read_errs;	/* Count of the read errors */
 	TAILQ_HEAD(, g_raid_subdisk)	 d_subdisks; /* List of subdisks. */
 	TAILQ_ENTRY(g_raid_disk)	 d_next;	/* Next disk in the node. */
 };
@@ -167,6 +170,13 @@ struct g_raid_disk {
 #define G_RAID_SUBDISK_E_DISCONNECTED	0x03	/* A subdisk removed from volume. */
 #define G_RAID_SUBDISK_E_FIRST_TR_PRIVATE 0x80	/* translation private events */
 
+#define G_RAID_SUBDISK_POS(sd)						\
+    ((sd)->sd_disk ? ((sd)->sd_disk->d_last_offset - (sd)->sd_offset) : 0)
+#define G_RAID_SUBDISK_TRACK_SIZE	(1 * 1024 * 1024)
+#define G_RAID_SUBDISK_LOAD(sd)						\
+    ((sd)->sd_disk ? ((sd)->sd_disk->d_load) : 0)
+#define G_RAID_SUBDISK_LOAD_SCALE	256
+
 struct g_raid_subdisk {
 	struct g_raid_softc	*sd_softc;	/* Back-pointer to softc. */
 	struct g_raid_disk	*sd_disk;	/* Where this subdisk lives. */
@@ -176,7 +186,7 @@ struct g_raid_subdisk {
 	u_int			 sd_pos;	/* Position in volume. */
 	u_int			 sd_state;	/* Subdisk state. */
 	off_t			 sd_rebuild_pos; /* Rebuild position. */
-	int			 sd_read_errs;  /* Count of the read errors */
+	int			 sd_recovery;	/* Count of recovery reqs. */
 	TAILQ_ENTRY(g_raid_subdisk)	 sd_next; /* Next subdisk on disk. */
 };
 
@@ -206,7 +216,6 @@ struct g_raid_subdisk {
 #define G_RAID_VOLUME_RL_RAID4		0x04
 #define G_RAID_VOLUME_RL_RAID5		0x05
 #define G_RAID_VOLUME_RL_RAID6		0x06
-#define G_RAID_VOLUME_RL_RAID10		0x0a
 #define G_RAID_VOLUME_RL_RAID1E		0x11
 #define G_RAID_VOLUME_RL_SINGLE		0x0f
 #define G_RAID_VOLUME_RL_CONCAT		0x1f
