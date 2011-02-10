@@ -963,7 +963,6 @@ options 	DUMMYNET
 # zero_copy(9) for more details.
 options 	ZERO_COPY_SOCKETS
 
-
 #####################################################################
 # FILESYSTEM OPTIONS
 
@@ -1010,6 +1009,7 @@ options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	PSEUDOFS_TRACE		#Debugging support for PSEUDOFS
 options 	SMBFS			#SMB/CIFS filesystem
+options 	TMPFS			#Efficient memory filesystem
 options 	UDF			#Universal Disk Format
 options 	UNIONFS			#Union filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
