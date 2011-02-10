@@ -811,10 +811,10 @@ rebuild_round_done:
 		 * another disk drive, if available, before erroring out the
 		 * read.
 		 */
-		sd->sd_read_errs++;
+		sd->sd_disk->d_read_errs++;
 		G_RAID_LOGREQ(0, bp,
 		    "Read error (%d), %d read errors total",
-		    bp->bio_error, sd->sd_read_errs);
+		    bp->bio_error, sd->sd_disk->d_read_errs);
 
 		/*
 		 * If there are too many read errors, we move to degraded.
@@ -823,7 +823,7 @@ rebuild_round_done:
 		 * drive, which kicks off a resync?
 		 */
 		do_write = 1;
-		if (sd->sd_read_errs > g_raid1_read_err_thresh) {
+		if (sd->sd_disk->d_read_errs > g_raid1_read_err_thresh) {
 			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			if (pbp->bio_children == 1)
 				do_write = 0;

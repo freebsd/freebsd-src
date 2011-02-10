@@ -151,6 +151,7 @@ struct g_raid_disk {
 	u_int			 d_state;	/* Disk state. */
 	u_int			 d_load;	/* Disk average load. */
 	off_t			 d_last_offset;	/* Last head offset. */
+	int			 d_read_errs;	/* Count of the read errors */
 	TAILQ_HEAD(, g_raid_subdisk)	 d_subdisks; /* List of subdisks. */
 	TAILQ_ENTRY(g_raid_disk)	 d_next;	/* Next disk in the node. */
 };
@@ -185,7 +186,6 @@ struct g_raid_subdisk {
 	u_int			 sd_pos;	/* Position in volume. */
 	u_int			 sd_state;	/* Subdisk state. */
 	off_t			 sd_rebuild_pos; /* Rebuild position. */
-	int			 sd_read_errs;  /* Count of the read errors */
 	int			 sd_recovery;	/* Count of recovery reqs. */
 	TAILQ_ENTRY(g_raid_subdisk)	 sd_next; /* Next subdisk on disk. */
 };
