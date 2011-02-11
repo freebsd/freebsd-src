@@ -133,7 +133,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 				, txrate
 				, ic->ic_rxstream
 				, (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
-				, shortPreamble);
+				, series[i].rateFlags & HAL_RATESERIES_HALFGI);
 		} else {
 			series[i].PktDuration = ath_hal_computetxtime(ah,
 			    rt, pktlen, rix[i], shortPreamble);
