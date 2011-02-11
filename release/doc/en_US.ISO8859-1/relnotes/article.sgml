@@ -187,6 +187,18 @@
       <para arch="amd64,i386" revision="214621">CPU topology detection
 	for Intel CPUs has been improved.</para>
 
+      <para arch="amd64,i386" revision="214784">The qpi(4) pseudo bus
+	driver has been added.  This supports extra PCI buses on Intel
+	QPI chipsets where various hardware such as memory controllers
+	for each socket is connected.</para>
+
+      <para arch="amd64,ia64,i386" revision="215006">The &man.acpi.4;
+	driver now uses ACPI Reset Register capability by default only
+	when a flag in the FADT which indicates it is available.  This
+	behavior was controlled by a &man.sysctl.8; variable
+	<varname>hw.acpi.handle_reboot</varname> and the default value
+	was always set to <literal>0</literal>.</para>
+
       <para revision="209692">The &man.ddb.8; kernel debugger now
 	supports an optional delay in <command>reset</command> and
 	<command>reboot</command> commands.  This allows an
@@ -259,6 +271,9 @@
 	  now supports Intel NM10 Express chipset watchdog
 	  timer.</para>
 
+	<para revision="215036">The &man.tpm.4; driver, which supports
+	  Trusted Platform Module has been added.</para>
+
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
 
@@ -276,6 +291,11 @@
 	    Atheros AR8151/AR8152 PCIe Gigabit/Fast Ethernet
 	    controllers.</para>
 
+	  <para revision="215003">A bug in the &man.alc.4; driver
+	    which can lead to a system freeze when the system is
+	    booted without a cable plugged in.  The symptom was found
+	    in AR8132 on EEE PC.</para>
+
 	  <para revision="212011">The TX interrupt moderation timer in
 	    the &man.alc.4; driver has been reduced from 50ms to 1ms.
 	    The 50ms timer resulted in a poor UDP performance.</para>
@@ -286,6 +306,14 @@
 
 	  <para revision="211379">The &man.bce.4; driver now supports
 	    flow control.</para>
+
+	  <para revision="214997">The &man.bge.4; driver now supports
+	    BCM5718 family.  This family is the successor to the
+	    BCM5714/BCM5715 family and supports IPv4/IPv6 checksum
+	    offloading, TSO, VLAN hardware tagging, jumbo frames,
+	    MSI/MSIX, IOV, RSS and TSS.  The current version of the
+	    driver supports all hardware features except IOV and
+	    RSS/TSS.</para>
 
 	  <para revision="211367">A bug in the &man.bge.4; driver which
 	    prevents TSO in BCM57780 from working has been
@@ -382,8 +410,18 @@
 	  <para revision="212386">The &man.mwlfw.4;
 	    driver is now also provided as a kernel module.</para>
 
+	  <para revision="215218">The &man.re.4; driver now supports
+	    64-bit DMA addressing for RTL810xE/RTL8168/RTL8111 PCIe
+	    controllers.</para>
+
 	  <para revision="211377">The &man.rl.4; driver now supports WoL
 	    (Wake on LAN) on RTL8139B or newer controllers.</para>
+
+	  <para revision="215222">The &man.rl.4; driver now supports
+	    reading hardware statistics counters by setting a
+	    &man.sysctl.8; variable
+	    <varname>dev.re.<replaceable>N</replaceable>.stats</varname>
+	    to <literal>1</literal>.</para>
 
 	  <para revision="212039">The &man.rl.4; driver now supports a
 	    device hint to change a way of register access.  Although
@@ -401,6 +439,18 @@
 	  <para revision="214407">The man.rl.4; driver has been
 	    improved on interrupt handling.  It now has better TX
 	    performance under high RX load.</para>
+
+	  <para revision="215216">A bug in the &man.sk.4; driver has
+	    been fixed.  It did not program the station address for
+	    Yukon controllers and overriding the station address with
+	    &man.ifconfig.8; was not possible.</para>
+
+	  <para revision="211359">The &man.sk.4; driver now disable TX
+	    checksum offloading by default.  This is because some
+	    revision of Yukon controller generates corrupted frames.
+	    The checksum offloading can be enabled manually by using
+	    <option>txcsum</option> option in the &man.ifconfig.8;
+	    utility.</para>
 
 	  <para revision="212468,213612,213628">The &man.sis.4; driver
 	    now works on all supported platforms.  Some stability and
@@ -430,13 +480,6 @@
 
 	  <programlisting>hint.ste.<replaceable>N</replaceable>.prefer_iomap="1"</programlisting>
 
-	  <para revision="211359">The &man.sk.4; driver now disable TX
-	    checksum offloading by default.  This is because some
-	    revision of Yukon controller generates corrupted frames.
-	    The checksum offloading can be enabled manually by using
-	    <option>txcsum</option> option in the &man.ifconfig.8;
-	    utility.</para>
-
 	  <para revision="213120">The &man.xl.4; driver now supports
 	    WoL (Wake on LAN).  Note that not all controllers support
 	    this functionality and some need an additional remote
@@ -451,9 +494,15 @@
 	  as a kernel module <filename>alq.ko</filename>.</para>
 
 	<para revision="212738">A bug in the &man.ipfw.4; packet
-	  filter subsystem has been fixed.  The syctl variable
+	  filter subsystem has been fixed.  The &man.sysctl.8; variable
 	  <varname>net.inet.ip.fw.one_pass</varname> did not work for
 	  <literal>netgraph</literal> action.</para>
+
+	<para revision="215342">A new loader tunable
+	  <varname>net.link.ifqmaxlen</varname> has been added.  It
+	  specifies the default value of send interface queue length.
+	  The default value for this parameter is
+	  <varname>50</varname>.</para>
 
 	<para revision="212742">A <literal>ngtee</literal> action in
 	  the &man.ipfw.4; packet filter subsystem has been changed.
@@ -476,7 +525,7 @@
 	  fixed.</para>
 
 	<para revision="214111">The &man.lagg.4; interface now
-	  supports a sysctl variable
+	  supports a &man.sysctl.8; variable
 	  <varname>net.link.lagg.failover_rx_all</varname>.  This
 	  controls whether to accept input packets on any link in a
 	  failover lagg.</para>
@@ -522,6 +571,14 @@
 	  has been idle for one retransmit timeout or more.  For more
 	  details, see RFC 5681 Section 4.1.</para>
 
+	<para revision="214859">The &man.siftr.4;, Statistical
+	  Information For TCP Research (SIFTR) kernel module has been
+	  added.  This is a facility that logs a range of statistics
+	  on active TCP connections to a log file.  It provides the
+	  ability to make highly granular measurements of TCP
+	  connection state, aimed at system administrators, developers
+	  and researchers.</para>
+
 	<para revision="212319">&os; virtual network stack (vnet) now
 	  supports IPv4 multicast routing.</para>
       </sect3>
@@ -539,6 +596,13 @@
 
 	<para revision="210836">The &man.arcmsr.4; driver
 	  has been updated to version 1.20.00.17.</para>
+
+	<para revision="215173">The &man.ada.4; driver now supports a
+	  now &man.sysctl.8; variable
+	  <varname>kern.cam.ada.spindown_shutdown</varname> which
+	  controls whether or not to spin-down disks when shutting
+	  down if the device supports the functionality.  The default
+	  value is <literal>1</literal>.</para>
 
 	<para revision="210164">The &man.ata.4; driver
 	  now supports limiting initial ATA mode for devices via
@@ -612,7 +676,7 @@
 	  kernel environment variable
 	  <varname>boot.nfsroot.nfshandlelen</varname>.  This lets the
 	  diskless root file system on boot to use NFS version 3 and
-	  the spedified file handle length.  If this variable is not
+	  the specified file handle length.  If this variable is not
 	  set, NFS version 2 is used.</para>
 
 	<para revision="212668">The ZFS on-disk format has been updated
@@ -629,7 +693,7 @@
 	  6726045, and 6803605.</para>
 
 	<para revision="212672">Performance improvements for the ZFS
-	  have been imported from OpenSolaris.  They include cachin of
+	  have been imported from OpenSolaris.  They include caching of
 	  ACL permission checks, faster handling of &man.stat.2;,
 	  mitigation of mutex lock contention.  The related
 	  OpenSolaris Bug IDs are 6802734, 6844861, 6848431, 6775100,
@@ -645,29 +709,28 @@
 	  related OpenSolaris Bug IDs are: 6328632, 6396518, 6501037,
 	  6504953, 6542860, 6551866, 6572357, 6572376, 6582163,
 	  6586537, 6595194, 6596237, 6604992, 6621164, 6623978,
-	  6633095, 6635482, 6664765, 6674216, 6696858, 6696858,
+	  6633095, 6635482, 6664765, 6674216, 6696242, 6696858,
 	  6702206, 6710376, 6713916, 6717022, 6722540, 6722991,
 	  6737463, 6739487, 6739553, 6740164, 6745863, 6747596,
 	  6747698, 6748436, 6755435, 6757430, 6758107, 6759986,
 	  6759999, 6761100, 6761406, 6764124, 6765294, 6767129,
 	  6769612, 6770866, 6774713, 6774886, 6775697, 6776104,
-	  6776548, 6780491, 6784104, 6784108, 6788152, 6788152,
+	  6776548, 6780491, 6784104, 6784108, 6785914, 6788152,
 	  6788830, 6789318, 6790064, 6790345, 6790687, 6791064,
 	  6791066, 6791071, 6791101, 6792134, 6792139, 6792884,
-	  6793430, 6794136, 6794570, 6794570, 6794830, 6797109,
-	  6797118, 6798384, 6798878, 6798878, 6799895, 6800184,
-	  6800942, 6801507, 6801810, 6803343, 6803822, 6804954,
-	  6807339, 6807765, 6809340, 6809683, 6809683, 6809691,
-	  6810367, 6815592, 6815893, 6816124, 6818183, 6821169,
-	  6821170, 6822816, 6824006, 6824062, 6824968, 6826466,
-	  6826468, 6826469, 6826470, 6826471, 6826472, 6827260,
-	  6830237, 6833162, 6833711, 6833999, 6834217, 6836714,
-	  6836714, 6836768, 6838062, 6838344, 6841321, 6843014,
-	  6843069, 6843235, 6844069, 6844069, 6844900, 6847229,
-	  6848242, 6856634, 6857012, 6857012, 6857012, 6861983,
-	  6862984, 6863610, 6870564, 6870564, 6880764, 6882227,
-	  6892298, 6898245, 6906110, 6906946, 6939941, 6950219,
-	  6951024, and 6953403.</para>
+	  6793430, 6794136, 6794570, 6794830, 6797109, 6797118,
+	  6798384, 6798878, 6799895, 6800184, 6800942, 6801507,
+	  6801810, 6803343, 6803822, 6804954, 6807339, 6807765,
+	  6809340, 6809683, 6809691, 6810367, 6815592, 6815893,
+	  6816124, 6818183, 6821169, 6821170, 6822816, 6824006,
+	  6824062, 6824968, 6826466, 6826468, 6826469, 6826470,
+	  6826471, 6826472, 6827260, 6830237, 6830541, 6833162,
+	  6833711, 6833999, 6834217, 6836714, 6836768, 6838062,
+	  6838344, 6841321, 6843014, 6843069, 6843235, 6844069,
+	  6844900, 6847229, 6848242, 6856634, 6857012, 6861983,
+	  6862984, 6863610, 6870564, 6880764, 6882227, 6892298,
+	  6898245, 6906110, 6906946, 6939941, 6950219, 6951024, and
+	  6953403.</para>
       </sect3>
     </sect2>
 
@@ -679,7 +742,7 @@
 	of aliases.</para>
 
       <para revision="214729">A bug in the &man.b64decode.1; which
-	prevernts an <option>-r</option> option from handling arbitary
+	prevents an <option>-r</option> option from handling arbitrary
 	breaks in a base64 encoded string has been fixed.</para>
 
       <para revision="211723">The &man.calendar.1; utility now supports
@@ -693,6 +756,14 @@
 	instead of just after it finished.  This change fixes a
 	symptom that &man.dhclient.8; silently exits under a certain
 	condition.</para>
+
+      <para revision="214983">Userland support for the &man.dtrace.1;
+	subsystem has been added.  This allows inspection of userland
+	software itself and its correlation with the kernel, thus
+	allowing a much better picture of what exactly is going on
+	behind the scenes.  The &man.dtruss.1; utility has been added
+	and the <filename>libproc</filename> has been updated to
+	support the facility.</para>
 
       <para revision="209362">The &man.du.1; utility now supports a
 	<option>-t <replaceable>threshold</replaceable></option>
@@ -716,7 +787,7 @@
 	suspend new I/O requests, remove all &man.geli.8; sensitive
 	data from the kernel memory (like encryption keys) and will
 	wait for either <command>geli resume</command> or
-	<command>geli detach</command> commmand.  For more
+	<command>geli detach</command> command.  For more
 	information, see &man.geli.8; manual page.</para>
 
       <para revision="214405">The &man.geli.8; utility now checks the
@@ -749,6 +820,29 @@
 	subcommand.  This option force destroying of the partition
 	table even if it is not empty.</para>
 
+      <para revision="213684">The &man.gpart.8; utility now supports a
+	<command>recover</command> subcommand for GPT partition
+	tables.  A corrupted GPT is now marked when the following
+	three types of corruption:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Primary GPT header or table is corrupted.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Secondary GPT header or table is corrupted.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Secondary GPT header is not located at the last LBA.</para>
+	</listitem>
+      </itemizedlist>
+
+      <para>Any changes to the corrupted GPT table is not allowed
+	except for <command>destroy</command> and
+	<command>recover</command> subcommands./para>
+
       <para revision="213994">The &man.gpart.8; utility now supports
 	<literal>GPT_ENT_ATTR_BOOTME</literal>,
 	<literal>GPT_ENT_ATTR_BOOTONCE</literal>, and
@@ -776,6 +870,11 @@
 	&man.tar.1; utility now support LZMA (Lempel-Ziv-Markov
 	chain-Algorithm) compression format.</para>
 
+      <para revision="215229">The &man.tar.1; utility now supports a
+	blocksize which is up to <literal>8192</literal> (4MB) in the
+	<option>-b <replaceable>blocksize</replaceable></option>
+	option.</para>
+
       <para revision="214442">A bug in the &man.lpr.1; utility which
 	prevents it from working with some files on a ZFS file system
 	has been fixed.</para>
@@ -801,7 +900,7 @@
 	file.</para>
 
       <para revision="213980">The &man.ntpd.8; utility is now compiled
-	with shared memory reference clock driver.  For exmaple, GPS
+	with shared memory reference clock driver.  For example, GPS
 	devices can be used as source of precise time via <filename
 	role="ports">astro/gpsd</filename> in the Ports
 	Collection.</para>
@@ -838,6 +937,10 @@
 
       <para revision="213825">The &man.ruptime.1; utility now displays
 	hostnames longer than 12 characters.</para>
+
+      <para revision="215066">A <option>-u nounset</option> option in
+	the &man.sh.1; program now handles expansion of positional and
+	special variables $@, $*, and $!.</para>
 
       <para revision="210616">A bug in the &man.sh.1; program has been
 	fixed.  A <literal>SIGINT</literal> signal is now passed
@@ -892,6 +995,10 @@
 	<para>A periodic script for <command>zfs scrub</command> has
 	  been added.  For more details, see &man.periodic.conf.5;
 	  manual page.</para>
+
+	<para>A periodic script which can be used to find installed
+	  ports' files with mismatched checksum has been added. For more
+	  details, see &man.periodic.conf.5;</para>
       </sect3>
 
       <sect3 id="rc-scripts">
@@ -915,10 +1022,9 @@
       <para revision="214287">The &man.ee.1; program has been updated
 	to version 1.5.2.</para>
 
-<!--
       <para><application>ISC BIND</application> has been updated to
-	version 9.6.2-P2.</para>
-
+	version 9.6-ESV-R2.</para>
+<!--
       <para><application>netcat</application> has been updated to
 	version 4.7.</para>
 
