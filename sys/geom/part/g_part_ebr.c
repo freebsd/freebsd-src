@@ -113,6 +113,19 @@ static struct g_part_scheme g_part_ebr_scheme = {
 };
 G_PART_SCHEME_DECLARE(g_part_ebr);
 
+static struct g_part_ebr_alias {
+	u_char		typ;
+	int		alias;
+} ebr_alias_match[] = {
+	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
+	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
+	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
+	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },
+	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
+	{ DOSPTYP_LINLVM,	G_PART_ALIAS_LINUX_LVM },
+	{ DOSPTYP_LINRAID,	G_PART_ALIAS_LINUX_RAID },
+};
+
 static void ebr_set_chs(struct g_part_table *, uint32_t, u_char *, u_char *,
     u_char *);
 
@@ -152,6 +165,7 @@ ebr_parse_type(const char *type, u_char *dp_typ)
 	const char *alias;
 	char *endp;
 	long lt;
+	int i;
 
 	if (type[0] == '!') {
 		lt = strtol(type + 1, &endp, 0);
@@ -160,13 +174,17 @@ ebr_parse_type(const char *type, u_char *dp_typ)
 		*dp_typ = (u_char)lt;
 		return (0);
 	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
-	if (!strcasecmp(type, alias)) {
-		*dp_typ = DOSPTYP_386BSD;
-		return (0);
+	for (i = 0;
+	    i < sizeof(ebr_alias_match) / sizeof(ebr_alias_match[0]); i++) {
+		alias = g_part_alias_name(ebr_alias_match[i].alias);
+		if (strcasecmp(type, alias) == 0) {
+			*dp_typ = ebr_alias_match[i].typ;
+			return (0);
+		}
 	}
 	return (EINVAL);
 }
+
 
 static void
 ebr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
@@ -537,13 +555,15 @@ g_part_ebr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_ebr_entry *entry;
-	int type;
+	int i;
 
 	entry = (struct g_part_ebr_entry *)baseentry;
-	type = entry->ent.dp_typ;
-	if (type == DOSPTYP_386BSD)
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
-	snprintf(buf, bufsz, "!%d", type);
+	for (i = 0;
+	    i < sizeof(ebr_alias_match) / sizeof(ebr_alias_match[0]); i++) {
+		if (ebr_alias_match[i].typ == entry->ent.dp_typ)
+			return (g_part_alias_name(ebr_alias_match[i].alias));
+	}
+	snprintf(buf, bufsz, "!%d", entry->ent.dp_typ);
 	return (buf);
 }
 
