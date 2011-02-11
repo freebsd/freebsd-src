@@ -236,6 +236,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_GPE_WALK_INFO",                  SRC_TYPE_STRUCT},
     {"ACPI_GPE_XRUPT_INFO",                 SRC_TYPE_STRUCT},
     {"ACPI_HANDLE",                         SRC_TYPE_SIMPLE},
+    {"ACPI_HANDLER_INFO",                   SRC_TYPE_STRUCT},
     {"ACPI_INIT_HANDLER",                   SRC_TYPE_SIMPLE},
     {"ACPI_IDENTIFIER_TABLE",               SRC_TYPE_STRUCT},
     {"ACPI_INIT_WALK_INFO",                 SRC_TYPE_STRUCT},

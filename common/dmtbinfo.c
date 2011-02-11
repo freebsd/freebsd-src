@@ -477,7 +477,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoAsf2a[] =
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoAsf3[] =
 {
-    {ACPI_DMT_UINT56,   ACPI_ASF3_OFFSET (Capabilities[0]),         "Capabilities", 0},
+    {ACPI_DMT_BUF7,     ACPI_ASF3_OFFSET (Capabilities[0]),         "Capabilities", 0},
     {ACPI_DMT_UINT8,    ACPI_ASF3_OFFSET (CompletionCode),          "Completion Code", 0},
     {ACPI_DMT_UINT32,   ACPI_ASF3_OFFSET (EnterpriseId),            "Enterprise ID", 0},
     {ACPI_DMT_UINT8,    ACPI_ASF3_OFFSET (Command),                 "Command", 0},
@@ -1588,5 +1588,6 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoGeneric[][2] =
     ACPI_DM_GENERIC_ENTRY (ACPI_DMT_BUFFER,     "Buffer"),
     ACPI_DM_GENERIC_ENTRY (ACPI_DMT_UUID,       "GUID"),
     ACPI_DM_GENERIC_ENTRY (ACPI_DMT_STRING,     "DevicePath"),
+    ACPI_DM_GENERIC_ENTRY (ACPI_DMT_LABEL,      "Label"),
     {ACPI_DMT_TERMINATOR}
 };

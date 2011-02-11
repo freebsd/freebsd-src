@@ -120,9 +120,41 @@ AcpiInstallAddressSpaceHandler (
         goto UnlockAndExit;
     }
 
-    /* Run all _REG methods for this address space */
+    /*
+     * For the default SpaceIDs, (the IDs for which there are default region handlers
+     * installed) Only execute the _REG methods if the global initialization _REG
+     * methods have already been run (via AcpiInitializeObjects). In other words,
+     * we will defer the execution of the _REG methods for these SpaceIDs until
+     * execution of AcpiInitializeObjects. This is done because we need the handlers
+     * for the default spaces (mem/io/pci/table) to be installed before we can run
+     * any control methods (or _REG methods). There is known BIOS code that depends
+     * on this.
+     *
+     * For all other SpaceIDs, we can safely execute the _REG methods immediately.
+     * This means that for IDs like EmbeddedController, this function should be called
+     * only after AcpiEnableSubsystem has been called.
+     */
+    switch (SpaceId)
+    {
+    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+    case ACPI_ADR_SPACE_SYSTEM_IO:
+    case ACPI_ADR_SPACE_PCI_CONFIG:
+    case ACPI_ADR_SPACE_DATA_TABLE:
 
-    Status = AcpiEvExecuteRegMethods (Node, SpaceId);
+        if (AcpiGbl_RegMethodsExecuted)
+        {
+            /* Run all _REG methods for this address space */
+
+            Status = AcpiEvExecuteRegMethods (Node, SpaceId);
+        }
+        break;
+
+    default:
+
+        Status = AcpiEvExecuteRegMethods (Node, SpaceId);
+        break;
+    }
+
 
 UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);

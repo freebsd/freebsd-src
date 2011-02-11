@@ -616,15 +616,18 @@ main (
             goto enterloop;
         }
 
-        Status = AeInstallHandlers ();
+         /*
+          * Install most of the handlers.
+          * Override some default region handlers, especially SystemMemory
+          */
+        Status = AeInstallEarlyHandlers ();
         if (ACPI_FAILURE (Status))
         {
             goto enterloop;
         }
 
         /*
-         * TBD:
-         * Need a way to call this after the "LOAD" command
+         * TBD: Need a way to call this after the "LOAD" command
          */
         Status = AcpiEnableSubsystem (InitFlags);
         if (ACPI_FAILURE (Status))
@@ -640,6 +643,11 @@ main (
             goto enterloop;
         }
 
+        /*
+         * Install handlers for "device driver" space IDs (EC,SMBus, etc.)
+         * and fixed event handlers
+         */
+        AeInstallLateHandlers ();
         AeMiscellaneousTests ();
     }
 

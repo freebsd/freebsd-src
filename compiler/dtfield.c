@@ -266,10 +266,12 @@ DtCompileUuid (
  * PARAMETERS:  Buffer              - Output buffer
  *              Field               - Field obj with Integer to be compiled
  *              ByteLength          - Byte length of the integer
+ *              Flags               - Additional compile info
  *
  * RETURN:      None
  *
- * DESCRIPTION: Compile an integer
+ * DESCRIPTION: Compile an integer. Supports integer expressions with C-style
+ *              operators.
  *
  *****************************************************************************/
 
@@ -280,15 +282,11 @@ DtCompileInteger (
     UINT32                  ByteLength,
     UINT8                   Flags)
 {
-    UINT64                  Value = 0;
+    UINT64                  Value;
     UINT64                  MaxValue;
-    UINT8                   *Hex;
-    char                    *Message = NULL;
-    ACPI_STATUS             Status;
-    int                     i;
 
 
-    /* Byte length must be in range 1-8 */
+    /* Output buffer byte length must be in range 1-8 */
 
     if ((ByteLength > 8) || (ByteLength == 0))
     {
@@ -297,23 +295,9 @@ DtCompileInteger (
         return;
     }
 
-    /* Convert string to an actual integer */
+    /* Resolve integer expression to a single integer value */
 
-    Status = DtStrtoul64 (Field->Value, &Value);
-    if (ACPI_FAILURE (Status))
-    {
-        if (Status == AE_LIMIT)
-        {
-            Message = "Constant larger than 64 bits";
-        }
-        else if (Status == AE_BAD_CHARACTER)
-        {
-            Message = "Invalid character in constant";
-        }
-
-        DtError (ASL_ERROR, ASL_MSG_INVALID_HEX_INTEGER, Field, Message);
-        goto Exit;
-    }
+    Value = DtResolveIntegerExpression (Field);
 
     /* Ensure that reserved fields are set to zero */
     /* TBD: should we set to zero, or just make this an ERROR? */
@@ -344,29 +328,10 @@ DtCompileInteger (
 
     if (Value > MaxValue)
     {
-        sprintf (MsgBuffer, "Maximum %u bytes", ByteLength);
+        sprintf (MsgBuffer, "%8.8X%8.8X", ACPI_FORMAT_UINT64 (Value));
         DtError (ASL_ERROR, ASL_MSG_INTEGER_SIZE, Field, MsgBuffer);
     }
 
-    /*
-     * TBD: hard code for ASF! Capabilites field.
-     *
-     * This field is actually a buffer, not a 56-bit integer --
-     * so, the ordering is reversed. Something should be fixed
-     * so we don't need this code.
-     */
-    if (ByteLength == 7)
-    {
-        Hex = ACPI_CAST_PTR (UINT8, &Value);
-        for (i = 6; i >= 0; i--)
-        {
-            Buffer[i] = *Hex;
-            Hex++;
-        }
-        return;
-    }
-
-Exit:
     ACPI_MEMCPY (Buffer, &Value, ByteLength);
     return;
 }

@@ -600,27 +600,25 @@ CmDoCompile (
 
     Event = UtBeginEvent ("Determine object types returned by methods");
     DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Method typing\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE,
-        AnMethodTypingWalkBegin,
-        AnMethodTypingWalkEnd, NULL);
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD,
+        NULL, AnMethodTypingWalkEnd, NULL);
     UtEndEvent (Event);
 
     /* Semantic error checking part three - operand type checking */
 
     Event = UtBeginEvent ("Analyze AML operand types");
     DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Operand type checking\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE,
-        AnOperandTypecheckWalkBegin,
-        AnOperandTypecheckWalkEnd, &AnalysisWalkInfo);
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD,
+        NULL, AnOperandTypecheckWalkEnd, &AnalysisWalkInfo);
     UtEndEvent (Event);
 
     /* Semantic error checking part four - other miscellaneous checks */
 
     Event = UtBeginEvent ("Miscellaneous analysis");
     DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - miscellaneous\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE,
+    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
         AnOtherSemanticAnalysisWalkBegin,
-        AnOtherSemanticAnalysisWalkEnd, &AnalysisWalkInfo);
+        NULL, &AnalysisWalkInfo);
     UtEndEvent (Event);
 
     /* Calculate all AML package lengths */

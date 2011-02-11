@@ -641,6 +641,7 @@ AcpiDmDumpTable (
             ByteLength = 6;
             break;
         case ACPI_DMT_UINT56:
+        case ACPI_DMT_BUF7:
             ByteLength = 7;
             break;
         case ACPI_DMT_UINT64:
@@ -751,16 +752,19 @@ AcpiDmDumpTable (
                 ACPI_FORMAT_UINT64 (ACPI_GET64 (Target)));
             break;
 
+        case ACPI_DMT_BUF7:
         case ACPI_DMT_BUF16:
 
-            /* Buffer of length 16 */
-
-            for (Temp8 = 0; Temp8 < 16; Temp8++)
+            /*
+             * Buffer: Size depends on the opcode and was set above.
+             * Each hex byte is separated with a space.
+             */
+            for (Temp8 = 0; Temp8 < ByteLength; Temp8++)
             {
                 AcpiOsPrintf ("%2.2X", Target[Temp8]);
-                if ((Temp8 + 1) < 16)
+                if ((UINT32) (Temp8 + 1) < ByteLength)
                 {
-                    AcpiOsPrintf (",");
+                    AcpiOsPrintf (" ");
                 }
             }
             AcpiOsPrintf ("\n");
