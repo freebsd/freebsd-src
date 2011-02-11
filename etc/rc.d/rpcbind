@@ -13,5 +13,7 @@ name="rpcbind"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 
+stop_postcmd='/bin/rm -f /var/run/rpcbind.*'
+
 load_rc_config $name
 run_rc_command "$1"
