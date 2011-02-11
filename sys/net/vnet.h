@@ -156,14 +156,23 @@ void vnet_log_recursion(struct vnet *, const char *, int);
 	curthread->td_vnet_lpush = saved_vnet_lpush;
 #else /* !VNET_DEBUG */
 
-#define	CURVNET_SET(arg)						\
+#define	CURVNET_SET_QUIET(arg)						\
+	VNET_ASSERT((arg) != NULL && (arg)->vnet_magic_n == VNET_MAGIC_N, \
+	    ("CURVNET_SET at %s:%d %s() curvnet=%p vnet=%p",		\
+	    __FILE__, __LINE__, __func__, curvnet, (arg)));		\
 	struct vnet *saved_vnet = curvnet;				\
 	curvnet = arg;	
  
-#define	CURVNET_SET_VERBOSE(arg)	CURVNET_SET(arg)
-#define	CURVNET_SET_QUIET(arg)		CURVNET_SET(arg)
+#define	CURVNET_SET_VERBOSE(arg)					\
+	CURVNET_SET_QUIET(arg)
+
+#define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
  
 #define	CURVNET_RESTORE()						\
+	VNET_ASSERT(curvnet != NULL && (saved_vnet == NULL ||		\
+	    saved_vnet->vnet_magic_n == VNET_MAGIC_N),			\
+	    ("CURVNET_RESTORE at %s:%d %s() curvnet=%p saved_vnet=%p",	\
+	    __FILE__, __LINE__, __func__, curvnet, saved_vnet));	\
 	curvnet = saved_vnet;
 #endif /* VNET_DEBUG */
 
