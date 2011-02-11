@@ -1995,7 +1995,7 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		vol = pp->private;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
-		sbuf_printf(sb, "%s<VolumeName>%s</VolumeName>\n", indent,
+		sbuf_printf(sb, "%s<Label>%s</Label>\n", indent,
 		    vol->v_name);
 		sbuf_printf(sb, "%s<RAIDLevel>%s</RAIDLevel>\n", indent,
 		    g_raid_volume_level2str(vol->v_raid_level,
@@ -2038,6 +2038,16 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			sbuf_printf(sb, ")");
 		}
 		sbuf_printf(sb, "</State>\n");
+		sbuf_printf(sb, "%s<Subdisks>", indent);
+		TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+			sbuf_printf(sb, "r%d(%s):%d@%ju",
+			    sd->sd_volume->v_global_id,
+			    sd->sd_volume->v_name,
+			    sd->sd_pos, sd->sd_offset);
+			if (TAILQ_NEXT(sd, sd_next))
+				sbuf_printf(sb, ", ");
+		}
+		sbuf_printf(sb, "</Subdisks>\n");
 		sbuf_printf(sb, "%s<ReadErrors>%d</ReadErrors>\n", indent,
 		    disk->d_read_errs);
 		sx_xunlock(&sc->sc_lock);
