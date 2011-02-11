@@ -383,7 +383,6 @@ static s32 e1000_ready_nvm_eeprom(struct e1000_hw *hw)
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 eecd = E1000_READ_REG(hw, E1000_EECD);
 	s32 ret_val = E1000_SUCCESS;
-	u16 timeout = 0;
 	u8 spi_stat_reg;
 
 	DEBUGFUNC("e1000_ready_nvm_eeprom");
@@ -397,11 +396,12 @@ static s32 e1000_ready_nvm_eeprom(struct e1000_hw *hw)
 		E1000_WRITE_REG(hw, E1000_EECD, eecd);
 	} else
 	if (nvm->type == e1000_nvm_eeprom_spi) {
+		u16 timeout = NVM_MAX_RETRY_SPI;
+
 		/* Clear SK and CS */
 		eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
 		E1000_WRITE_REG(hw, E1000_EECD, eecd);
 		usec_delay(1);
-		timeout = NVM_MAX_RETRY_SPI;
 
 		/*
 		 * Read "Status Register" repeatedly until the LSB is cleared.
@@ -783,7 +783,7 @@ out:
  *  Reads the product board assembly (PBA) number from the EEPROM and stores
  *  the value in pba_num.
  **/
-s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num, 
+s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
                                   u32 pba_num_size)
 {
 	s32 ret_val;
@@ -947,43 +947,6 @@ s32 e1000_read_pba_length_generic(struct e1000_hw *hw, u32 *pba_num_size)
 	 * and subtract 2 because length field is included in length.
 	 */
 	*pba_num_size = ((u32)length * 2) - 1;
-
-out:
-	return ret_val;
-}
-
-/**
- *  e1000_read_pba_num_generic - Read device part number
- *  @hw: pointer to the HW structure
- *  @pba_num: pointer to device part number
- *
- *  Reads the product board assembly (PBA) number from the EEPROM and stores
- *  the value in pba_num.
- **/
-s32 e1000_read_pba_num_generic(struct e1000_hw *hw, u32 *pba_num)
-{
-	s32  ret_val;
-	u16 nvm_data;
-
-	DEBUGFUNC("e1000_read_pba_num_generic");
-
-	ret_val = hw->nvm.ops.read(hw, NVM_PBA_OFFSET_0, 1, &nvm_data);
-	if (ret_val) {
-		DEBUGOUT("NVM Read Error\n");
-		goto out;
-	} else if (nvm_data == NVM_PBA_PTR_GUARD) {
-		DEBUGOUT("NVM Not Supported\n");
-		ret_val = E1000_NOT_IMPLEMENTED;
-		goto out;
-	}
-	*pba_num = (u32)(nvm_data << 16);
-
-	ret_val = hw->nvm.ops.read(hw, NVM_PBA_OFFSET_1, 1, &nvm_data);
-	if (ret_val) {
-		DEBUGOUT("NVM Read Error\n");
-		goto out;
-	}
-	*pba_num |= nvm_data;
 
 out:
 	return ret_val;
