@@ -1488,6 +1488,9 @@ kern.geom.label.gpt.enable</programlisting>
 
       <para>The timezone database has been updated to the
 	<application>tzdata2010j</application> release.</para>
+
+      <para><application>xz</application> has been updated
+	from snapshot as of 12 April 2010 to 5.0.0.</para>
     </sect2>
 
     <sect2 id="releng">
