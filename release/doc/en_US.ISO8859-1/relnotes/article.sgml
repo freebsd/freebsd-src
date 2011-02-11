@@ -175,6 +175,14 @@
 	DMA bounce buffer which is required on systems with larger RAM
 	than 4GB.</para>
 
+      <para arch="mips" revision="215938">&os;/mips support has been
+	improved.  It now supports SMP on a SWARM with a dual-core
+	Sibyte processor.</para>
+
+      <para arch="sparc64" revision="215598">&os;/sparc64 now supports
+	reservation-based physical memory allocation which provides
+	better performance.</para>
+
       <para arch="amd64" revision="214620">&os;/amd64 now always sets
 	the KVA space as equal to or larger than physical memory size.
 	The default size was calculated based on one-third of the
@@ -187,17 +195,26 @@
       <para arch="amd64,i386" revision="214621">CPU topology detection
 	for Intel CPUs has been improved.</para>
 
+      <para arch="amd64,i386" revision="215513">ACPI suspend/resume
+	functionality support has been improved.</para>
+
       <para arch="amd64,i386" revision="214784">The qpi(4) pseudo bus
 	driver has been added.  This supports extra PCI buses on Intel
 	QPI chipsets where various hardware such as memory controllers
 	for each socket is connected.</para>
 
-      <para arch="amd64,ia64,i386" revision="215006">The &man.acpi.4;
+      <para arch="amd64,i386,ia64" revision="215006">The &man.acpi.4;
 	driver now uses ACPI Reset Register capability by default only
 	when a flag in the FADT which indicates it is available.  This
 	behavior was controlled by a &man.sysctl.8; variable
 	<varname>hw.acpi.handle_reboot</varname> and the default value
 	was always set to <literal>0</literal>.</para>
+
+      <para arch="amd64,i386,ia64" revision="215521">The &man.acpi.4;
+	driver now supports new loader tunables
+	<varname>hw.acpi.install_interface</varname> and
+	<varname>hw.acpi.remove_interface</varname>.  For more
+	details, see &man.acpi.4; manual page.</para>
 
       <para revision="209692">The &man.ddb.8; kernel debugger now
 	supports an optional delay in <command>reset</command> and
@@ -245,12 +262,20 @@
 	Tweaked Code Book mode with CipherText Stealing), which is
 	defined in IEEE Std. 1619-2007.</para>
 
+      <para arch="amd64" revision="215788">Xen HVM support in
+	&os;/amd64 kernel has been improved.  For more details, see
+	&man.xen.4; manual page.</para>
+
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
 
 	<para revision="213994">&os; now fully supports GPT (GUID
 	  Partition Table).  Checksums of primary header and primary
 	  partition table are verified properly now.</para>
+
+	<para arch="powerpc" revision="215919,215920">Memory
+	  management issues which prevents &os; OpenFirmware loader
+	  and netbooting from working have been fixed.</para>
 
 	<para revision="212717">The &man.pxeboot.8; now uses NFS
 	  version 3 instead of version 2 by default.</para>
@@ -259,20 +284,40 @@
       <sect3 id="proc">
 	<title>Hardware Support</title>
 
-	<para revision="210476">The &man.aibs.4; driver has been
-	  added.  This supports the hardware sensors in ASUS
-	  motherboards and replaces the &man.acpi.aiboost.4;
+	<para arch="amd64,i386" revision="215633">The &man.aesni.4;
+	  driver, which supports AES accelerator on Intel CPUs has
+	  been added.  This accelerates AES operations for
+	  &man.crypto.4;.</para>
+
+	<para arch="amd64,i386" revision="210476">The &man.aibs.4;
+	  driver has been added.  This supports the hardware sensors
+	  in ASUS motherboards and replaces the &man.acpi.aiboost.4;
 	  driver.</para>
 
-	<para revision="211914">The &man.coretemp.4; driver now supports
-	  Xeon 5500/5600 series.</para>
+	<para arch="amd64,i386" revision="211914">The &man.coretemp.4;
+	  driver now supports Xeon 5500/5600 series.</para>
 
-	<para revision="209952">The &man.ichwd.4; driver
-	  now supports Intel NM10 Express chipset watchdog
+	<para arch="powerpc" revision="215694">&os;/powerpc now
+	  supports I2C bus in Apple System Management Unit.</para>
+
+	<para arch="powerpc" revision="215695">A device driver which
+	  supports CPU temperature sensors on PowerMac 11,2 has been
+	  added.</para>
+
+	<para revision="215482">The &man.ehci.4;, &man.ohci.4;, and
+	  &man.uhci.4; driver now support LOW speed BULK transfer
+	  mode.</para>
+
+	<para arch="amd64,i386" revision="209952">The &man.ichwd.4;
+	  driver now supports Intel NM10 Express chipset watchdog
 	  timer.</para>
 
 	<para revision="215036">The &man.tpm.4; driver, which supports
 	  Trusted Platform Module has been added.</para>
+
+	<para revision="215944">The xhci(4) driver, which supports
+	  Extensible Host Controller Interface (xHCI) and USB 3.0 has
+	  been added.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
@@ -282,6 +327,15 @@
 	    hardware drivers such as ones which<filename
 	    role="ports">multimedia/pwc</filename> and <filename
 	    role="ports">multimedia/webcamd</filename> provide.</para>
+
+	  <para revision="215483">MIDI input buffer size in the
+	    &man.uaudio.4; driver has been changed.  This fixes a
+	    problem where the input appears several seconds
+	    late.</para>
+
+	  <para revision="215484">An issue in the &man.uaudio.4;
+	    driver which prevents some USB audio devices from working
+	    has been fixed.</para>
 	</sect4>
 
 	<sect4 id="net-if">
@@ -303,9 +357,6 @@
 	  <para revision="214297,214298,214301">The &man.axe.4; driver
 	    has been improved for stability and better performance on
 	    the TX packet rate.</para>
-
-	  <para revision="211379">The &man.bce.4; driver now supports
-	    flow control.</para>
 
 	  <para revision="214997">The &man.bge.4; driver now supports
 	    BCM5718 family.  This family is the successor to the
@@ -358,6 +409,9 @@
 	    prevents WPA authentication from working has been
 	    fixed.</para>
 
+	  <para revision="215499">A bug in the &man.cdce.4; driver has
+	    been fixed.</para>
+
 	  <para revision="211848">The &man.cxgb.4; driver now supports
 	    the following new &man.sysctl.8; variables:
 	    <varname>hw.cxgb.nfilters</varname> sets the maximum
@@ -387,9 +441,6 @@
 
 	  <screen>&prompt.root; echo f2 &gt; /dev/led/em0</screen>
 
-	  <para revision="212386">The &man.ixgbe.4;
-	    driver is now also provided as a kernel module.</para>
-
 	  <para revision="212150">The &man.epair.4; virtual Ethernet
 	    interface driver now supports explicit UP/DOWN linkstate.
 	    This fixes an issue when it is used with the &man.carp.4;
@@ -402,17 +453,40 @@
 	    Intel Wireless WiFi Link 6000 series.  The firmware has
 	    been updated to version 9.221.4.1.</para>
 
-	  <para revision="209308">The &man.ixgbe.4; driver has been
-	    updated to version 2.2.1.  It now supports 82599, better
-	    interrupt handling, hardware assist to LRO, and so
-	    on.</para>
+	  <para revision="212386">The &man.ixgbe.4;
+	    driver is now also provided as a kernel module.</para>
+
+	  <para revision="209308,215970,217593">The &man.ixgbe.4;
+	    driver has been updated to version 2.3.8.  It now supports
+	    82599, better interrupt handling, hardware assist to LRO,
+	    VM SRIOV interface, and so on.</para>
+
+	  <para revision="211379,215881,216023,216029,216031">The
+	    &man.miibus.4; has been rewritten for the generic IEEE
+	    802.3 annex 31B full duplex flow control support.  The
+	    &man.alc.4; &man.bge.4;, &man.bce.4;, &man.jme.4;,
+	    &man.msk.4;, &man.nfe.4;, &man.re.4;, and &man.stge.4;
+	    drivers along with brgphy(4), e1000phy(4), ip1000phy(4),
+	    atphy(4), bmtphy(4), gentbi(4), inphy(4), jmphy(4),
+	    nsgphy(4), nsphyter(4), and &man.rgephy.4; have been
+	    updated to support flow control via this facility./para>
 
 	  <para revision="212386">The &man.mwlfw.4;
 	    driver is now also provided as a kernel module.</para>
 
+	  <para revision="216054">A bug in the &man.mxge.4; driver
+	    which prevents TSO from working has been fixed.</para>
+
+	  <para revision="215456">The &man.nfe.4; driver now supports
+	    WoL (Wake on LAN).</para>
+
 	  <para revision="215218">The &man.re.4; driver now supports
 	    64-bit DMA addressing for RTL810xE/RTL8168/RTL8111 PCIe
 	    controllers.</para>
+
+	  <para revision="215405">The &man.re.4; driver now supports
+	    hardware interrupt moderation of TX completion interrupt
+	    on RTL8169/RTL8169 controllers.</para>
 
 	  <para revision="211377">The &man.rl.4; driver now supports WoL
 	    (Wake on LAN) on RTL8139B or newer controllers.</para>
@@ -436,9 +510,13 @@
 
 	  <para>Note that the default value is <literal>1</literal>.</para>
 
-	  <para revision="214407">The man.rl.4; driver has been
+	  <para revision="214407">The &man.rl.4; driver has been
 	    improved on interrupt handling.  It now has better TX
 	    performance under high RX load.</para>
+
+	  <para revision="217861">The &man.run.4; driver, which is
+	    from OpenBSD and supports Ralink RT2700U/RT2800U/RT3000U
+	    USB 802.11agn devices has been added.</para>
 
 	  <para revision="215216">A bug in the &man.sk.4; driver has
 	    been fixed.  It did not program the station address for
@@ -493,10 +571,11 @@
 	<para revision="209783">The &man.altq.4; support is now provided
 	  as a kernel module <filename>alq.ko</filename>.</para>
 
-	<para revision="212738">A bug in the &man.ipfw.4; packet
-	  filter subsystem has been fixed.  The &man.sysctl.8; variable
-	  <varname>net.inet.ip.fw.one_pass</varname> did not work for
-	  <literal>netgraph</literal> action.</para>
+	<para revision="212738,216348">A bug in the &man.ipfw.4;
+	  packet filter subsystem has been fixed.  The &man.sysctl.8;
+	  variable <varname>net.inet.ip.fw.one_pass</varname> did not
+	  work for <literal>netgraph</literal> action and in-kernel
+	  NAT.</para>
 
 	<para revision="215342">A new loader tunable
 	  <varname>net.link.ifqmaxlen</varname> has been added.  It
@@ -530,11 +609,9 @@
 	  controls whether to accept input packets on any link in a
 	  failover lagg.</para>
 
-	<para revision="209843">A new &man.netgraph.4; node
-	  &man.ng.patch.4; has been added.  This performs data
-	  modification of packets passing through.  Modifications are
-	  restricted to a subset of C language operations on unsigned
-	  integers of 8, 16, 32 or 64-bit size.</para>
+	<para revision="215869">The &man.ng.eiface.4; &man.netgraph.4;
+	  node now supports VLAN-compatible MTU and an MTU size which
+	  is larger than 1500.</para>
 
 	<para revision="212320">The &man.ng.ether.4; &man.netgraph.4;
 	  node now supports interface transfer between multiple virtual
@@ -542,6 +619,12 @@
 	  command.  A &man.ng.ether.4; node associated with an network
 	  interface is now destroyed and recreated when the network
 	  interface is moved to another vnet.</para>
+
+	<para revision="209843">A new &man.netgraph.4; node
+	  &man.ng.patch.4; has been added.  This performs data
+	  modification of packets passing through.  Modifications are
+	  restricted to a subset of C language operations on unsigned
+	  integers of 8, 16, 32 or 64-bit size.</para>
 
 	<para revision="212905">An ICMP unreachable problem in the
 	  &man.pf.4; packet filter subsystem when TSO support is
@@ -594,8 +677,8 @@
 	  seconds for device reset timeout instead of 10 seconds
 	  because some devices needs 10-12 seconds to spin up.</para>
 
-	<para revision="210836">The &man.arcmsr.4; driver
-	  has been updated to version 1.20.00.17.</para>
+	<para revision="215825">The &man.arcmsr.4; driver
+	  has been updated to version 1.20.00.19.</para>
 
 	<para revision="215173">The &man.ada.4; driver now supports a
 	  now &man.sysctl.8; variable
@@ -772,6 +855,10 @@
 	negative, it displays entries with a value less than the
 	absolute value of <replaceable>threshold</replaceable>.</para>
 
+      <para revision="215667">The &man.fdisk.8; utility now supports
+	partitions which are provided by &man.gjournal.8; or
+	&man.geli.8; GEOM class.</para>
+
       <para revision="210567">The &man.gcore.1; utility now supports an
 	<option>-f</option> flag which forces a full dump of all the
 	segments except for the malformed ones.</para>
@@ -810,6 +897,11 @@
       <para revision="209497">The &man.gpart.8; utility now supports
 	<command>resize</command> command to resize partitions for all
 	schemes but EBR.</para>
+
+      <para revision="215941">The &man.gpart.8; utility now supports
+	<command>backup</command> and <command>restore</command>
+	subcommands to backup partition tables and restore
+	them.</para>
 
       <para revision="213661">The &man.gpart.8; utility now handles
 	given geom/provider names with and without
@@ -851,6 +943,16 @@
 	<literal>bootme</literal>, <literal>bootonce</literal>, and
 	<literal>bootfailed</literal> respectively.</para>
 
+      <para revision="215728">An issue in the &man.newfs.8; utility
+	has been fixed.  A UFS1 file system created with 64KB
+	blocksize was incorrectly recognized as one with a broken
+	superblock.  This is because &os; kernel checks UFS2
+	superblock at 64KB offset in the partition first, and UFS1
+	with 64KB blocksize has an alternative superblock at the same
+	location.  For example, a file system created by
+	<command>newfs -U -O 1 -b 65536 -f 8192</command> could lead
+	to this symptom.</para>
+
       <para revision="213049">The &man.hastd.8; utility now supports
 	<literal>SIGHUP</literal> for reloading the configuration
 	file.  When <literal>SIGTERM</literal> or
@@ -861,6 +963,10 @@
 	invalid CIDR subnet notation more strictly.  It wrongly
 	accepted <literal>10.0.0.1/10.0.0.1</literal> as
 	<literal>10.0.0.1/10</literal>.</para>
+
+      <para revision="215237">An accuracy issue in the &man.jn.3; and
+	&man.jnf.3; functions in <filename>libm</filename> has been
+	fixed.</para>
 
       <para revision="209284">Incorrect behaviors in stuttering
 	sequences and reverse ranges in the &man.jot.1; utility have
@@ -898,6 +1004,13 @@
 	an <option>-S <replaceable>pidfile</replaceable></option>
 	option to override the default &man.syslogd.8; PID
 	file.</para>
+
+      <para revision="215622">The &man.newsyslog.8; utility now
+	supports a special log file name
+	<literal>&lt;include&gt;</literal> for processing file
+	inclusion.  Globing in the file name and circular dependency
+	detection are supported.  For more details, see
+	&man.newsyslog.conf.5; manual page.</para>
 
       <para revision="213980">The &man.ntpd.8; utility is now compiled
 	with shared memory reference clock driver.  For example, GPS
@@ -938,9 +1051,11 @@
       <para revision="213825">The &man.ruptime.1; utility now displays
 	hostnames longer than 12 characters.</para>
 
-      <para revision="215066">A <option>-u nounset</option> option in
-	the &man.sh.1; program now handles expansion of positional and
-	special variables $@, $*, and $!.</para>
+      <para revision="215066">A behavior of the &man.sh.1; program
+	when an <option>-u nounset</option> option is specified has
+	been changed.  The special parameters <varname>$@</varname>
+	and <varname>$*</varname> no longer cause an error when there
+	are no positional parameters.</para>
 
       <para revision="210616">A bug in the &man.sh.1; program has been
 	fixed.  A <literal>SIGINT</literal> signal is now passed
@@ -1000,45 +1115,39 @@
 	  ports' files with mismatched checksum has been added. For more
 	  details, see &man.periodic.conf.5;</para>
       </sect3>
-
-      <sect3 id="rc-scripts">
-        <title><filename>/etc/rc.d</filename> Scripts</title>
-
-	<para></para>
-      </sect3>
     </sect2>
 
     <sect2 id="contrib">
       <title>Contributed Software</title>
 
-      <para></para>
-<!--
       <para>The <application>ACPI-CA</application> has been updated to
-	20100304.</para>
+	20101013.</para>
 
-      <para>The <application>awk</application> has been updated from
-	the 23 October 2007 release to the 26 November 2009 release.</para>
--->
       <para revision="214287">The &man.ee.1; program has been updated
 	to version 1.5.2.</para>
 
       <para><application>ISC BIND</application> has been updated to
-	version 9.6-ESV-R2.</para>
-<!--
-      <para><application>netcat</application> has been updated to
-	version 4.7.</para>
+	version 9.6-ESV-R4.</para>
 
-      <para><application>OpenSSH</application> has been updated from
-	version 5.1p1 to version 5.4p1.</para>
+      <para><application>netcat</application> has been updated to
+	version 4.8.</para>
 
       <para><application>OpenSSL</application> has been updated to
-	version 0.9.8n.</para>
+	version 0.9.8q.</para>
 
-      <para><application>sendmail</application> has been updated to
-	version 8.14.4.</para>
--->
       <para>The timezone database has been updated to the
 	<application>tzdata2010o</application> release.</para>
+
+      <para><application>xz</application> has been updated from
+	snapshot as of 12 April 2010 to 5.0.0 release</para>
+    </sect2>
+
+    <sect2 id="ports">
+      <title>Ports/Packages Collection Infrastructure</title>
+
+      <para>The &man.pkg.create.1; utility now supports
+	<application>xz</application> compression.  Note that the
+	default is still <application>bzip2</application>.</para>
     </sect2>
 
     <sect2 id="releng">
