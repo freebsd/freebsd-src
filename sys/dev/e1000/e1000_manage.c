@@ -34,8 +34,6 @@
 
 #include "e1000_api.h"
 
-static u8 e1000_calculate_checksum(u8 *buffer, u32 length);
-
 /**
  *  e1000_calculate_checksum - Calculate checksum for buffer
  *  @buffer: pointer to EEPROM
@@ -44,10 +42,10 @@ static u8 e1000_calculate_checksum(u8 *buffer, u32 length);
  *  Calculates the checksum for some buffer on a specified length.  The
  *  checksum calculated is returned.
  **/
-static u8 e1000_calculate_checksum(u8 *buffer, u32 length)
+u8 e1000_calculate_checksum(u8 *buffer, u32 length)
 {
 	u32 i;
-	u8  sum = 0;
+	u8 sum = 0;
 
 	DEBUGFUNC("e1000_calculate_checksum");
 
@@ -399,6 +397,87 @@ bool e1000_enable_mng_pass_thru(struct e1000_hw *hw)
 			ret_val = TRUE;
 			goto out;
 	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_host_interface_command - Writes buffer to host interface
+ *  @hw: pointer to the HW structure
+ *  @buffer: contains a command to write
+ *  @length: the byte length of the buffer, must be multiple of 4 bytes
+ *
+ *  Writes a buffer to the Host Interface.  Upon success, returns E1000_SUCCESS
+ *  else returns E1000_ERR_HOST_INTERFACE_COMMAND.
+ **/
+s32 e1000_host_interface_command(struct e1000_hw *hw, u8 *buffer, u32 length)
+{
+	u32 hicr, i;
+	s32 ret_val = E1000_SUCCESS;
+
+	DEBUGFUNC("e1000_host_interface_command");
+
+	if (!(hw->mac.arc_subsystem_valid)) {
+		DEBUGOUT("Hardware doesn't support host interface command.\n");
+		goto out;
+	}
+
+	if (!hw->mac.asf_firmware_present) {
+		DEBUGOUT("Firmware is not present.\n");
+		goto out;
+	}
+
+	if (length == 0 || length & 0x3 ||
+	    length > E1000_HI_MAX_BLOCK_BYTE_LENGTH) {
+		DEBUGOUT("Buffer length failure.\n");
+		ret_val = -E1000_ERR_HOST_INTERFACE_COMMAND;
+		goto out;
+	}
+
+	/* Check that the host interface is enabled. */
+	hicr = E1000_READ_REG(hw, E1000_HICR);
+	if ((hicr & E1000_HICR_EN) == 0) {
+		DEBUGOUT("E1000_HOST_EN bit disabled.\n");
+		ret_val = -E1000_ERR_HOST_INTERFACE_COMMAND;
+		goto out;
+	}
+
+	/* Calculate length in DWORDs */
+	length >>= 2;
+
+	/*
+	 * The device driver writes the relevant command block
+	 * into the ram area.
+	 */
+	for (i = 0; i < length; i++)
+		E1000_WRITE_REG_ARRAY_DWORD(hw,
+		                            E1000_HOST_IF,
+		                            i,
+		                            *((u32 *)buffer + i));
+
+	/* Setting this bit tells the ARC that a new command is pending. */
+	E1000_WRITE_REG(hw, E1000_HICR, hicr | E1000_HICR_C);
+
+	for (i = 0; i < E1000_HI_COMMAND_TIMEOUT; i++) {
+		hicr = E1000_READ_REG(hw, E1000_HICR);
+		if (!(hicr & E1000_HICR_C))
+			break;
+		msec_delay(1);
+	}
+
+	/* Check command successful completion. */
+	if (i == E1000_HI_COMMAND_TIMEOUT ||
+	    (!(E1000_READ_REG(hw, E1000_HICR) & E1000_HICR_SV))) {
+		DEBUGOUT("Command has failed with no status valid.\n");
+		ret_val = -E1000_ERR_HOST_INTERFACE_COMMAND;
+		goto out;
+	}
+
+	for (i = 0; i < length; i++)
+		*((u32 *)buffer + i) = E1000_READ_REG_ARRAY_DWORD(hw,
+		                                                  E1000_HOST_IF,
+		                                                  i);
 
 out:
 	return ret_val;
