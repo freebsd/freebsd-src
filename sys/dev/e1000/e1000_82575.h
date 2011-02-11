@@ -52,6 +52,7 @@
 #define E1000_RAR_ENTRIES_82575        16
 #define E1000_RAR_ENTRIES_82576        24
 #define E1000_RAR_ENTRIES_82580        24
+#define E1000_RAR_ENTRIES_I350         32
 #define E1000_SW_SYNCH_MB              0x00000100
 #define E1000_STAT_DEV_RST_SET         0x00100000
 #define E1000_CTRL_DEV_RST             0x20000000
@@ -200,8 +201,8 @@ union e1000_adv_rx_desc {
 				__le32 data;
 				struct {
 					__le16 pkt_info; /*RSS type, Pkt type*/
-					__le16 hdr_info; /* Split Header,
-				        	          * header buffer len*/
+					/* Split Header, header buffer len */
+					__le16 hdr_info;
 				} hs_rss;
 			} lo_dword;
 			union {
@@ -425,6 +426,14 @@ struct e1000_adv_tx_context_desc {
 #define E1000_VMOLR_STRVLAN    0x40000000 /* Vlan stripping enable */
 #define E1000_VMOLR_STRCRC     0x80000000 /* CRC stripping enable */
 
+#define E1000_VMOLR_VPE        0x00800000 /* VLAN promiscuous enable */
+#define E1000_VMOLR_UPE        0x20000000 /* Unicast promisuous enable */
+#define E1000_DVMOLR_HIDVLAN   0x20000000 /* Vlan hiding enable */
+#define E1000_DVMOLR_STRVLAN   0x40000000 /* Vlan stripping enable */
+#define E1000_DVMOLR_STRCRC    0x80000000 /* CRC stripping enable */
+
+#define E1000_PBRWAC_WALPB     0x00000007 /* Wrap around event on LAN Rx PB */
+#define E1000_PBRWAC_PBE       0x00000008 /* Rx packet buffer empty */
 
 #define E1000_VLVF_ARRAY_SIZE     32
 #define E1000_VLVF_VLANID_MASK    0x00000FFF
@@ -455,7 +464,7 @@ struct e1000_adv_tx_context_desc {
 
 #define ALL_QUEUES   0xFFFF
 
-/* RX packet buffer size defines */
+/* Rx packet buffer size defines */
 #define E1000_RXPBS_SIZE_MASK_82576  0x0000007F
 void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable);
 void e1000_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf);
@@ -472,4 +481,5 @@ void e1000_vfta_set_vf(struct e1000_hw *, u16, bool);
 void e1000_rlpml_set_vf(struct e1000_hw *, u16);
 s32 e1000_promisc_set_vf(struct e1000_hw *, enum e1000_promisc_type type);
 u16 e1000_rxpbs_adjust_82580(u32 data);
+s32 e1000_set_eee_i350(struct e1000_hw *);
 #endif /* _E1000_82575_H_ */
