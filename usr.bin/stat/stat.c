@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 #if 0
 #ifndef lint
-__RCSID("$NetBSD: stat.c,v 1.31 2010/12/16 05:30:16 dholland Exp $"
+__RCSID("$NetBSD: stat.c,v 1.33 2011/01/15 22:54:10 njoly Exp $"
 "$OpenBSD: stat.c,v 1.14 2009/06/24 09:44:25 sobrado Exp $");
 #endif
 #endif
@@ -731,6 +731,10 @@ format1(const struct stat *st,
 		small = (sizeof(ts.tv_sec) == 4);
 		data = ts.tv_sec;
 		tm = localtime(&ts.tv_sec);
+		if (tm == NULL) {
+			ts.tv_sec = 0;
+			tm = localtime(&ts.tv_sec);
+		}
 		(void)strftime(path, sizeof(path), timefmt, tm);
 		sdata = path;
 		formats = FMTF_DECIMAL | FMTF_OCTAL | FMTF_UNSIGNED | FMTF_HEX |
