@@ -34,9 +34,6 @@
 
 #include "e1000_api.h"
 
-static s32 e1000_set_default_fc_generic(struct e1000_hw *hw);
-static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw);
-static s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw);
 static s32 e1000_validate_mdi_setting_generic(struct e1000_hw *hw);
 static void e1000_set_lan_id_multi_port_pcie(struct e1000_hw *hw);
 
@@ -1097,7 +1094,7 @@ void e1000_config_collision_dist_generic(struct e1000_hw *hw)
  *  Polls for link up by reading the status register, if link fails to come
  *  up with auto-negotiation, then the link is forced if a signal is detected.
  **/
-static s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
+s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 i, status;
@@ -1149,7 +1146,7 @@ out:
  *  Write the flow control settings to the Transmit Config Word Register (TXCW)
  *  base on the flow control settings in e1000_mac_info.
  **/
-static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
+s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 txcw;
@@ -1264,7 +1261,7 @@ s32 e1000_set_fc_watermarks_generic(struct e1000_hw *hw)
  *  Read the EEPROM for the default values for flow control and store the
  *  values.
  **/
-static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
+s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 	u16 nvm_data;
