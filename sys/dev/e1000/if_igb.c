@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -99,7 +99,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.1.3";
+char igb_driver_version[] = "version - 2.1.4";
 
 
 /*********************************************************************
@@ -1937,6 +1937,10 @@ igb_local_timer(void *arg)
 			goto timeout;
 out:
 	callout_reset(&adapter->timer, hz, igb_local_timer, adapter);
+#ifndef DEVICE_POLLING
+	/* Fire off all queue interrupts - deadlock protection */
+	E1000_WRITE_REG(&adapter->hw, E1000_EICS, adapter->que_mask);
+#endif
 	return;
 
 timeout:
@@ -3616,6 +3620,7 @@ igb_refresh_mbufs(struct rx_ring *rxr, int limit)
 	int			i, nsegs, error, cleaned;
 
 	i = rxr->next_to_refresh;
+	rxr->needs_refresh = FALSE;
 	cleaned = -1; /* Signify no completions */
 	while (i != limit) {
 		rxbuf = &rxr->rx_buffers[i];
@@ -3624,8 +3629,10 @@ igb_refresh_mbufs(struct rx_ring *rxr, int limit)
 			goto no_split;
 		if (rxbuf->m_head == NULL) {
 			mh = m_gethdr(M_DONTWAIT, MT_DATA);
-			if (mh == NULL)
+			if (mh == NULL) {
+				rxr->needs_refresh = TRUE;
 				goto update;
+			}
 		} else
 			mh = rxbuf->m_head;
 
@@ -3651,8 +3658,10 @@ no_split:
 		if (rxbuf->m_pack == NULL) {
 			mp = m_getjcl(M_DONTWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
-			if (mp == NULL)
+			if (mp == NULL) {
+				rxr->needs_refresh = TRUE;
 				goto update;
+			}
 		} else
 			mp = rxbuf->m_pack;
 
@@ -4302,6 +4311,10 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	/* Sync the ring. */
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+	/* Try outstanding refresh first */
+	if (rxr->needs_refresh == TRUE)
+		igb_refresh_mbufs(rxr, rxr->next_to_check);
 
 	/* Main clean loop */
 	for (i = rxr->next_to_check; count != 0;) {
