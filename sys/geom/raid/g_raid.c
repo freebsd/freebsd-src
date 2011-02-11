@@ -1984,7 +1984,7 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
 	struct g_raid_disk *disk;
-	int s;
+	int i, s;
 
 	g_topology_assert();
 
@@ -2011,6 +2011,29 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    g_raid_volume_state2str(vol->v_state));
 		sbuf_printf(sb, "%s<Dirty>%s</Dirty>\n", indent,
 		    vol->v_dirty ? "Yes" : "No");
+		sbuf_printf(sb, "%s<Subdisks>", indent);
+		for (i = 0; i < vol->v_disks_count; i++) {
+			sd = &vol->v_subdisks[i];
+			if (sd->sd_disk != NULL &&
+			    sd->sd_disk->d_consumer != NULL) {
+				sbuf_printf(sb, "%s ",
+				    g_raid_get_diskname(sd->sd_disk));
+			} else {
+				sbuf_printf(sb, "NONE ");
+			}
+			sbuf_printf(sb, "(%s",
+			    g_raid_subdisk_state2str(sd->sd_state));
+			if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+			    sd->sd_state == G_RAID_SUBDISK_S_RESYNC) {
+				sbuf_printf(sb, " %d%%",
+				    (int)(sd->sd_rebuild_pos * 100 /
+				     sd->sd_size));
+			}
+			sbuf_printf(sb, ")");
+			if (i + 1 < vol->v_disks_count)
+				sbuf_printf(sb, ", ");
+		}
+		sbuf_printf(sb, "</Subdisks>\n");
 		sx_xunlock(&sc->sc_lock);
 		g_topology_lock();
 	} else if (cp != NULL) {
