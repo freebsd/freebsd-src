@@ -2009,6 +2009,8 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    vol->v_strip_size);
 		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
 		    g_raid_volume_state2str(vol->v_state));
+		sbuf_printf(sb, "%s<Dirty>%s</Dirty>\n", indent,
+		    vol->v_dirty ? "Yes" : "No");
 		sx_xunlock(&sc->sc_lock);
 		g_topology_lock();
 	} else if (cp != NULL) {
@@ -2036,6 +2038,8 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			sbuf_printf(sb, ")");
 		}
 		sbuf_printf(sb, "</State>\n");
+		sbuf_printf(sb, "%s<ReadErrors>%d</ReadErrors>\n", indent,
+		    disk->d_read_errs);
 		sx_xunlock(&sc->sc_lock);
 		g_topology_lock();
 	} else {
