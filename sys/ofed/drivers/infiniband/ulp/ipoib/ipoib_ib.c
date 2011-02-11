@@ -90,8 +90,8 @@ void ipoib_free_ah(struct kref *kref)
 static void ipoib_ud_dma_unmap_rx(struct ipoib_dev_priv *priv,
 				  u64 mapping[IPOIB_UD_RX_SG])
 {
-	ib_dma_unmap_single(priv->ca, mapping[0], priv->max_ib_mtu,
-			    DMA_FROM_DEVICE);
+	ib_dma_unmap_single(priv->ca, mapping[0],
+	    priv->max_ib_mtu + IB_GRH_BYTES, DMA_FROM_DEVICE);
 }
 
 static void ipoib_ud_mb_put_frags(struct ipoib_dev_priv *priv,
@@ -110,6 +110,8 @@ static int ipoib_ib_post_receive(struct ipoib_dev_priv *priv, int id)
 
 	priv->rx_wr.wr_id   = id | IPOIB_OP_RECV;
 	priv->rx_sge[0].addr = priv->rx_ring[id].mapping[0];
+	priv->rx_sge[0].length = priv->max_ib_mtu + IB_GRH_BYTES;
+
 
 	ret = ib_post_recv(priv->qp, &priv->rx_wr, &bad_wr);
 	if (unlikely(ret)) {
@@ -131,7 +133,7 @@ static struct mbuf *ipoib_alloc_rx_mb(struct ipoib_dev_priv *priv, int id)
 	/*
 	 * XXX Should be calculated once and cached.
 	 */
-	buf_size = priv->max_ib_mtu;
+	buf_size = priv->max_ib_mtu + IB_GRH_BYTES;
 	if (buf_size <= MCLBYTES)
 		buf_size = MCLBYTES;
 	else if (buf_size <= MJUMPAGESIZE)
@@ -198,13 +200,18 @@ ipoib_ib_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	mb  = priv->rx_ring[wr_id].mb;
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
-		if (wc->status != IB_WC_WR_FLUSH_ERR)
+		if (wc->status != IB_WC_WR_FLUSH_ERR) {
 			ipoib_warn(priv, "failed recv event "
 				   "(status=%d, wrid=%d vend_err %x)\n",
 				   wc->status, wr_id, wc->vendor_err);
-		ipoib_ud_dma_unmap_rx(priv, priv->rx_ring[wr_id].mapping);
-		m_freem(mb);
-		priv->rx_ring[wr_id].mb = NULL;
+			goto repost;
+		}
+		if (mb) {
+			ipoib_ud_dma_unmap_rx(priv,
+			     priv->rx_ring[wr_id].mapping);
+			m_freem(mb);
+			priv->rx_ring[wr_id].mb = NULL;
+		}
 		return;
 	}
 
@@ -243,9 +250,7 @@ ipoib_ib_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->csum_ok))
 		mb->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
 
-	spin_unlock(&priv->lock);
 	dev->if_input(dev, mb);
-	spin_lock(&priv->lock);
 
 repost:
 	if (unlikely(ipoib_ib_post_receive(priv, wr_id)))
@@ -257,11 +262,19 @@ int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req)
 {
 	struct mbuf *mb = tx_req->mb;
 	u64 *mapping = tx_req->mapping;
-	struct mbuf *m;
+	struct mbuf *m, *p;
 	int error;
 	int i;
 
-	for (m = mb, i = 0; m != NULL; m = m->m_next, i++);
+	for (m = mb, p = NULL, i = 0; m != NULL; p = m, m = m->m_next, i++) {
+		if (m->m_len != 0)
+			continue;
+		if (p == NULL)
+			panic("ipoib_dma_map_tx: First mbuf empty\n");
+		p->m_next = m_free(m);
+		m = p;
+		i--;
+	}
 	i--;
 	if (i >= MAX_MB_FRAGS) {
 		tx_req->mb = mb = m_defrag(mb, M_DONTWAIT);
@@ -339,13 +352,19 @@ static void ipoib_ib_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 			   wc->status, wr_id, wc->vendor_err);
 }
 
-static int poll_tx(struct ipoib_dev_priv *priv)
+int
+ipoib_poll_tx(struct ipoib_dev_priv *priv)
 {
 	int n, i;
 
 	n = ib_poll_cq(priv->send_cq, MAX_SEND_CQE, priv->send_wc);
-	for (i = 0; i < n; ++i)
-		ipoib_ib_handle_tx_wc(priv, priv->send_wc + i);
+	for (i = 0; i < n; ++i) {
+		struct ib_wc *wc = priv->send_wc + i;
+		if (wc->wr_id & IPOIB_OP_CM)
+			ipoib_cm_handle_tx_wc(priv, wc);
+		else
+			ipoib_ib_handle_tx_wc(priv, wc);
+	}
 
 	return n == MAX_SEND_CQE;
 }
@@ -362,13 +381,13 @@ poll_more:
 		for (i = 0; i < n; i++) {
 			struct ib_wc *wc = priv->ibwc + i;
 
-			if (wc->wr_id & IPOIB_OP_RECV) {
-				if (wc->wr_id & IPOIB_OP_CM)
-					ipoib_cm_handle_rx_wc(priv, wc);
-				else
-					ipoib_ib_handle_rx_wc(priv, wc);
-			} else
-				ipoib_cm_handle_tx_wc(priv, wc);
+			if ((wc->wr_id & IPOIB_OP_RECV) == 0)
+				panic("ipoib_poll: Bad wr_id 0x%jX\n",
+				    (intmax_t)wc->wr_id);
+			if (wc->wr_id & IPOIB_OP_CM)
+				ipoib_cm_handle_rx_wc(priv, wc);
+			else
+				ipoib_ib_handle_rx_wc(priv, wc);
 		}
 
 		if (n != IPOIB_NUM_WC)
@@ -384,9 +403,7 @@ void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 {
 	struct ipoib_dev_priv *priv = dev_ptr;
 
-	spin_lock(&priv->lock);
 	ipoib_poll(priv);
-	spin_unlock(&priv->lock);
 }
 
 static void drain_tx_cq(struct ipoib_dev_priv *priv)
@@ -394,7 +411,7 @@ static void drain_tx_cq(struct ipoib_dev_priv *priv)
 	struct ifnet *dev = priv->dev;
 
 	spin_lock(&priv->lock);
-	while (poll_tx(priv))
+	while (ipoib_poll_tx(priv))
 		; /* nothing */
 
 	if (dev->if_drv_flags & IFF_DRV_OACTIVE)
@@ -430,6 +447,7 @@ post_send(struct ipoib_dev_priv *priv, unsigned int wr_id,
 	priv->tx_wr.wr.ud.remote_qpn = qpn;
 	priv->tx_wr.wr.ud.ah 	     = address;
 
+
 	if (head) {
 		priv->tx_wr.wr.ud.mss	 = 0; /* XXX mb_shinfo(mb)->gso_size; */
 		priv->tx_wr.wr.ud.header = head;
@@ -450,6 +468,10 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 	int hlen;
 	void *phead;
 
+	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE))
+		while (ipoib_poll_tx(priv))
+			; /* nothing */
+
 	m_adj(mb, sizeof (struct ipoib_pseudoheader));
 	if (0 /* XXX segment offload mb_is_gso(mb) */) {
 		/* XXX hlen = mb_transport_offset(mb) + tcp_hdrlen(mb); */
@@ -462,7 +484,7 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		}
 		m_adj(mb, hlen);
 	} else {
-		if (unlikely(mb->m_pkthdr.len > priv->mcast_mtu)) {
+		if (unlikely(mb->m_pkthdr.len - IPOIB_ENCAP_LEN > priv->mcast_mtu)) {
 			ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
 				   mb->m_pkthdr.len, priv->mcast_mtu);
 			++dev->if_oerrors;
@@ -518,10 +540,6 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		address->last_send = priv->tx_head;
 		++priv->tx_head;
 	}
-
-	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE))
-		while (poll_tx(priv))
-			; /* nothing */
 }
 
 static void __ipoib_reap_ah(struct ipoib_dev_priv *priv)
@@ -681,7 +699,6 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 {
 	int i, n;
 
-	spin_lock(&priv->lock);
 	do {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 		for (i = 0; i < n; ++i) {
@@ -693,17 +710,18 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 			if (priv->ibwc[i].status == IB_WC_SUCCESS)
 				priv->ibwc[i].status = IB_WC_WR_FLUSH_ERR;
 
-			if (priv->ibwc[i].wr_id & IPOIB_OP_RECV) {
-				if (priv->ibwc[i].wr_id & IPOIB_OP_CM)
-					ipoib_cm_handle_rx_wc(priv, priv->ibwc + i);
-				else
-					ipoib_ib_handle_rx_wc(priv, priv->ibwc + i);
-			} else
-				ipoib_cm_handle_tx_wc(priv, priv->ibwc + i);
+			if ((priv->ibwc[i].wr_id & IPOIB_OP_RECV) == 0)
+				panic("ipoib_drain_cq:  Bad wrid 0x%jX\n",
+				    (intmax_t)priv->ibwc[i].wr_id);
+			if (priv->ibwc[i].wr_id & IPOIB_OP_CM)
+				ipoib_cm_handle_rx_wc(priv, priv->ibwc + i);
+			else
+				ipoib_ib_handle_rx_wc(priv, priv->ibwc + i);
 		}
 	} while (n == IPOIB_NUM_WC);
 
-	while (poll_tx(priv))
+	spin_lock(&priv->lock);
+	while (ipoib_poll_tx(priv))
 		; /* nothing */
 
 	spin_unlock(&priv->lock);

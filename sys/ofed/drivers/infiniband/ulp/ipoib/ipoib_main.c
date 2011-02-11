@@ -596,7 +596,7 @@ path_rec_start(struct ipoib_dev_priv *priv, struct ipoib_path *path)
 	p_rec = path->pathrec;
 	p_rec.mtu_selector = IB_SA_GT;
 
-	switch (roundup_pow_of_two(dev->if_mtu + IB_GRH_BYTES)) {
+	switch (roundup_pow_of_two(dev->if_mtu + IPOIB_ENCAP_LEN)) {
 	case 512:
 		p_rec.mtu = IB_MTU_256;
 		break;
@@ -923,8 +923,10 @@ ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 		priv->dev->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	}
 
+#if 0
 	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
 		priv->dev->if_capabilities |= IFCAP_TSO4 | CSUM_TSO;
+#endif
 #endif
 	priv->dev->if_capabilities |=
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_LINKSTATE;

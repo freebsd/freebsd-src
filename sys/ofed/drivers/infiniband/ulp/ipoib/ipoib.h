@@ -91,7 +91,7 @@
 /* constants */
 
 #define	INFINIBAND_ALEN		20	/* Octets in IPoIB HW addr */
-#define	MAX_MB_FRAGS		(8192 / MCLBYTES)
+#define	MAX_MB_FRAGS		((8192 / MCLBYTES) + 2)
 
 #ifdef IPOIB_CM
 #define	CONFIG_INFINIBAND_IPOIB_CM
@@ -99,6 +99,7 @@
 
 #ifdef IPOIB_DEBUG
 #define	CONFIG_INFINIBAND_IPOIB_DEBUG
+#define CONFIG_INFINIBAND_IPOIB_DEBUG_DATA
 #endif
 
 enum ipoib_flush_level {
@@ -110,7 +111,6 @@ enum ipoib_flush_level {
 enum {
 	IPOIB_ENCAP_LEN		  = 4,
 	IPOIB_HEADER_LEN	  = IPOIB_ENCAP_LEN + INFINIBAND_ALEN,
-	IPOIB_UD_HEAD_SIZE	  = IB_GRH_BYTES + IPOIB_ENCAP_LEN,
 	IPOIB_UD_RX_SG		  = 1, /* max buffer needed for 4K mtu */
 
 	IPOIB_CM_MAX_MTU	  = MJUM16BYTES,
@@ -286,7 +286,6 @@ struct ipoib_cm_dev_priv {
 	struct ifqueue     	mb_queue;
 	struct list_head	start_list;
 	struct list_head	reap_list;
-	struct ib_wc		ibwc[IPOIB_NUM_WC];
 	struct ib_sge		rx_sge[IPOIB_CM_RX_SG];
 	struct ib_recv_wr       rx_wr;
 	int			nonsrq_conn_qp;
@@ -414,7 +413,7 @@ struct ipoib_path {
 };
 
 /* UD Only transmits encap len but we want the two sizes to be symmetrical. */
-#define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IB_GRH_BYTES)
+#define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
 #define	IPOIB_CM_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
 
 #define	IPOIB_IS_MULTICAST(addr)	((addr)[4] == 0xff)
@@ -519,6 +518,8 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv);
 
 int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
 void ipoib_dma_unmap_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
+int ipoib_poll_tx(struct ipoib_dev_priv *priv);
+
 
 void ipoib_set_ethtool_ops(struct ifnet *dev);
 int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);

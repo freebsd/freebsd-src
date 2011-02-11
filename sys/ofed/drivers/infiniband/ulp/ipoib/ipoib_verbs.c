@@ -222,7 +222,6 @@ int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
 	priv->tx_wr.send_flags	= IB_SEND_SIGNALED;
 
 	priv->rx_sge[0].lkey = priv->mr->lkey;
-	priv->rx_sge[0].length = priv->max_ib_mtu;
 	priv->rx_wr.num_sge = 1;
 	priv->rx_wr.next = NULL;
 	priv->rx_wr.sg_list = priv->rx_sge;

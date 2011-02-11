@@ -94,6 +94,7 @@ static int ipoib_cm_post_receive_srq(struct ipoib_dev_priv *priv, int id)
 	priv->cm.rx_wr.wr_id = id | IPOIB_OP_CM | IPOIB_OP_RECV;
 
 	priv->cm.rx_sge[0].addr = priv->cm.srq_ring[id].mapping[0];
+	priv->cm.rx_sge[0].length = priv->cm.max_cm_mtu;
 
 	ret = ib_post_srq_recv(priv->cm.srq, &priv->cm.rx_wr, &bad_wr);
 	if (unlikely(ret)) {
@@ -117,6 +118,7 @@ static int ipoib_cm_post_receive_nonsrq(struct ipoib_dev_priv *priv,
 	wr->wr_id = id | IPOIB_OP_CM | IPOIB_OP_RECV;
 
 	sge[0].addr = rx->rx_ring[id].mapping[0];
+	priv->cm.rx_sge[0].length = priv->cm.max_cm_mtu;
 
 	ret = ib_post_recv(rx->qp, wr, &bad_wr);
 	if (unlikely(ret)) {
@@ -505,11 +507,13 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 
 	if (unlikely(wr_id >= ipoib_recvq_size)) {
 		if (wr_id == (IPOIB_CM_RX_DRAIN_WRID & ~(IPOIB_OP_CM | IPOIB_OP_RECV))) {
+			spin_lock(&priv->lock);
 			list_splice_init(&priv->cm.rx_drain_list, &priv->cm.rx_reap_list);
 			ipoib_cm_start_rx_drain(priv);
 			if (priv->cm.id != NULL)
 				queue_work(ipoib_workqueue,
 				    &priv->cm.rx_reap_task);
+			spin_unlock(&priv->lock);
 		} else
 			ipoib_warn(priv, "cm recv completion event with wrid %d (> %d)\n",
 				   wr_id, ipoib_recvq_size);
@@ -532,8 +536,10 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 			goto repost;
 		else {
 			if (!--p->recv_count) {
+				spin_lock(&priv->lock);
 				list_move(&p->list, &priv->cm.rx_reap_list);
 				queue_work(ipoib_workqueue, &priv->cm.rx_reap_task);
+				spin_unlock(&priv->lock);
 			}
 			return;
 		}
@@ -574,13 +580,9 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	mb->m_pkthdr.rcvif = dev;
 	proto = *mtod(mb, uint16_t *);
 	m_adj(mb, IPOIB_ENCAP_LEN);
-	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->csum_ok))
-		mb->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
 
 	IPOIB_MTAP_PROTO(dev, mb, proto);
-	spin_unlock(&priv->lock);
 	ipoib_demux(dev, mb, ntohs(proto));
-	spin_lock(&priv->lock);
 
 repost:
 	if (has_srq) {
@@ -626,8 +628,11 @@ void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm
 	struct ipoib_tx_buf *tx_req;
 	struct ifnet *dev = priv->dev;
 
+	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE))
+		while (ipoib_poll_tx(priv)); /* nothing */
+
 	m_adj(mb, sizeof(struct ipoib_pseudoheader));
-	if (unlikely(mb->m_pkthdr.len > IPOIB_CM_MTU(tx->mtu))) {
+	if (unlikely(mb->m_pkthdr.len > tx->mtu)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
 			   mb->m_pkthdr.len, tx->mtu);
 		++dev->if_oerrors;
@@ -655,11 +660,6 @@ void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm
 		return;
 	}
 
-	if (mb->m_pkthdr.csum_flags & (CSUM_IP|CSUM_TCP|CSUM_UDP))
-		priv->tx_wr.send_flags |= IB_SEND_IP_CSUM;
-	else
-		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
-
 	if (unlikely(post_send(priv, tx, tx_req, tx->tx_head & (ipoib_sendq_size - 1)))) {
 		ipoib_warn(priv, "post_send failed\n");
 		++dev->if_oerrors;
@@ -676,6 +676,7 @@ void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm
 			dev->if_drv_flags |= IFF_DRV_OACTIVE;
 		}
 	}
+
 }
 
 void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
@@ -936,7 +937,7 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct ipoib_dev_priv *priv,
     struct ipoib_cm_tx *tx)
 {
 	struct ib_qp_init_attr attr = {
-		.send_cq		= priv->recv_cq,
+		.send_cq		= priv->send_cq,
 		.recv_cq		= priv->recv_cq,
 		.srq			= priv->cm.srq,
 		.cap.max_send_wr	= ipoib_sendq_size,
