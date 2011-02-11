@@ -1681,19 +1681,6 @@ makedisk:
 			size = size - (sd->sd_offset + sd->sd_size);
 		}
 
-		/* Handle size argument. */
-		len = sizeof(*sizearg);
-		sizearg = gctl_get_param(req, "size", &len);
-		if (sizearg != NULL && len == sizeof(*sizearg) &&
-		    *sizearg > 0) {
-			if (*sizearg > size) {
-				gctl_error(req, "Size too big %lld > %lld.",
-				    (long long)*sizearg, (long long)size);
-				return (-9);
-			}
-			size = *sizearg;
-		}
-
 		/* Handle strip argument. */
 		strip = 131072;
 		len = sizeof(*striparg);
@@ -1716,8 +1703,23 @@ makedisk:
 		}
 
 		/* Round offset up to strip. */
-		size -= ((strip - off) % strip);
-		off += ((strip - off) % strip);
+		if (off % strip != 0) {
+			size -= strip - off % strip;
+			off += strip - off % strip;
+		}
+
+		/* Handle size argument. */
+		len = sizeof(*sizearg);
+		sizearg = gctl_get_param(req, "size", &len);
+		if (sizearg != NULL && len == sizeof(*sizearg) &&
+		    *sizearg > 0) {
+			if (*sizearg > size) {
+				gctl_error(req, "Size too big %lld > %lld.",
+				    (long long)*sizearg, (long long)size);
+				return (-9);
+			}
+			size = *sizearg;
+		}
 
 		/* Round size down to strip or sector. */
 		if (level == G_RAID_VOLUME_RL_RAID1)

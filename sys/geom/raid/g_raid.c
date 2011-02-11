@@ -1961,6 +1961,17 @@ void g_raid_fail_disk(struct g_raid_softc *sc,
     struct g_raid_subdisk *sd, struct g_raid_disk *disk)
 {
 
+	if (disk == NULL)
+		disk = sd->sd_disk;
+	if (disk == NULL) {
+		G_RAID_DEBUG1(0, sc, "Warning! Fail request to an absent disk!");
+		return;
+	}
+	if (disk->d_state != G_RAID_DISK_S_ACTIVE) {
+		G_RAID_DEBUG1(0, sc, "Warning! Fail request to a disk in a "
+		    "wrong state (%s)!", g_raid_disk_state2str(disk->d_state));
+		return;
+	}
 	if (sc->sc_md)
 		G_RAID_MD_FAIL_DISK(sc->sc_md, sd, disk);
 }
@@ -1973,7 +1984,7 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
 	struct g_raid_disk *disk;
-	int s;
+	int i, s;
 
 	g_topology_assert();
 
@@ -1984,7 +1995,7 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		vol = pp->private;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
-		sbuf_printf(sb, "%s<VolumeName>%s</VolumeName>\n", indent,
+		sbuf_printf(sb, "%s<Label>%s</Label>\n", indent,
 		    vol->v_name);
 		sbuf_printf(sb, "%s<RAIDLevel>%s</RAIDLevel>\n", indent,
 		    g_raid_volume_level2str(vol->v_raid_level,
@@ -1998,6 +2009,31 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    vol->v_strip_size);
 		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
 		    g_raid_volume_state2str(vol->v_state));
+		sbuf_printf(sb, "%s<Dirty>%s</Dirty>\n", indent,
+		    vol->v_dirty ? "Yes" : "No");
+		sbuf_printf(sb, "%s<Subdisks>", indent);
+		for (i = 0; i < vol->v_disks_count; i++) {
+			sd = &vol->v_subdisks[i];
+			if (sd->sd_disk != NULL &&
+			    sd->sd_disk->d_consumer != NULL) {
+				sbuf_printf(sb, "%s ",
+				    g_raid_get_diskname(sd->sd_disk));
+			} else {
+				sbuf_printf(sb, "NONE ");
+			}
+			sbuf_printf(sb, "(%s",
+			    g_raid_subdisk_state2str(sd->sd_state));
+			if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
+			    sd->sd_state == G_RAID_SUBDISK_S_RESYNC) {
+				sbuf_printf(sb, " %d%%",
+				    (int)(sd->sd_rebuild_pos * 100 /
+				     sd->sd_size));
+			}
+			sbuf_printf(sb, ")");
+			if (i + 1 < vol->v_disks_count)
+				sbuf_printf(sb, ", ");
+		}
+		sbuf_printf(sb, "</Subdisks>\n");
 		sx_xunlock(&sc->sc_lock);
 		g_topology_lock();
 	} else if (cp != NULL) {
@@ -2025,6 +2061,18 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			sbuf_printf(sb, ")");
 		}
 		sbuf_printf(sb, "</State>\n");
+		sbuf_printf(sb, "%s<Subdisks>", indent);
+		TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+			sbuf_printf(sb, "r%d(%s):%d@%ju",
+			    sd->sd_volume->v_global_id,
+			    sd->sd_volume->v_name,
+			    sd->sd_pos, sd->sd_offset);
+			if (TAILQ_NEXT(sd, sd_next))
+				sbuf_printf(sb, ", ");
+		}
+		sbuf_printf(sb, "</Subdisks>\n");
+		sbuf_printf(sb, "%s<ReadErrors>%d</ReadErrors>\n", indent,
+		    disk->d_read_errs);
 		sx_xunlock(&sc->sc_lock);
 		g_topology_lock();
 	} else {
