@@ -118,18 +118,23 @@ void	vnet_destroy(struct vnet *vnet);
  * Various macros -- get and set the current network stack, but also
  * assertions.
  */
+#if defined(INVARIANTS) || defined(VNET_DEBUG)
+#define	VNET_ASSERT(exp, msg)	do {					\
+	if (!(exp))							\
+		panic msg;						\
+} while (0)
+#else
+#define	VNET_ASSERT(exp, msg)	do {					\
+} while (0)
+#endif
+
 #ifdef VNET_DEBUG
 void vnet_log_recursion(struct vnet *, const char *, int);
 
-#define	VNET_ASSERT(condition)						\
-	if (!(condition)) {						\
-		printf("VNET_ASSERT @ %s:%d %s():\n",			\
-			__FILE__, __LINE__, __func__);			\
-		panic(#condition);					\
-	}
-
 #define	CURVNET_SET_QUIET(arg)						\
-	VNET_ASSERT((arg)->vnet_magic_n == VNET_MAGIC_N);		\
+	VNET_ASSERT((arg) != NULL && (arg)->vnet_magic_n == VNET_MAGIC_N, \
+	    ("CURVNET_SET at %s:%d %s() curvnet=%p vnet=%p",		\
+	    __FILE__, __LINE__, __func__, curvnet, (arg)));		\
 	struct vnet *saved_vnet = curvnet;				\
 	const char *saved_vnet_lpush = curthread->td_vnet_lpush;	\
 	curvnet = arg;							\
@@ -143,12 +148,13 @@ void vnet_log_recursion(struct vnet *, const char *, int);
 #define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
  
 #define	CURVNET_RESTORE()						\
-	VNET_ASSERT(saved_vnet == NULL ||				\
-		    saved_vnet->vnet_magic_n == VNET_MAGIC_N);		\
+	VNET_ASSERT(curvnet != NULL && (saved_vnet == NULL ||		\
+	    saved_vnet->vnet_magic_n == VNET_MAGIC_N),			\
+	    ("CURVNET_RESTORE at %s:%d %s() curvnet=%p saved_vnet=%p",	\
+	    __FILE__, __LINE__, __func__, curvnet, saved_vnet));	\
 	curvnet = saved_vnet;						\
 	curthread->td_vnet_lpush = saved_vnet_lpush;
 #else /* !VNET_DEBUG */
-#define	VNET_ASSERT(condition)
 
 #define	CURVNET_SET(arg)						\
 	struct vnet *saved_vnet = curvnet;				\
@@ -351,7 +357,7 @@ do {									\
  */
 #define	curvnet			NULL
 
-#define	VNET_ASSERT(condition)
+#define	VNET_ASSERT(exp, msg)
 #define	CURVNET_SET(arg)
 #define	CURVNET_SET_QUIET(arg)
 #define	CURVNET_RESTORE()
