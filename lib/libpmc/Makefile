@@ -38,7 +38,7 @@ MAN+=	pmc.corei7uc.3
 MAN+=	pmc.westmere.3
 MAN+=	pmc.westmereuc.3
 MAN+=	pmc.tsc.3
-.elif ${MACHINE_CPUARCH} == "arm" && ${CPUTYPE} == "xscale"
+.elif ${MACHINE_CPUARCH} == "arm" && defined(CPUTYPE) && ${CPUTYPE} == "xscale"
 MAN+=	pmc.xscale.3
 .endif
 
