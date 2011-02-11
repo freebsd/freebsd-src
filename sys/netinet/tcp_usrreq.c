@@ -1318,9 +1318,10 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_WLOCK_RECHECK(inp);
 			if (optval)
 				tp->t_flags |= TF_NOPUSH;
-			else {
+			else if (tp->t_flags & TF_NOPUSH) {
 				tp->t_flags &= ~TF_NOPUSH;
-				error = tcp_output(tp);
+				if (TCPS_HAVEESTABLISHED(tp->t_state))
+					error = tcp_output(tp);
 			}
 			INP_WUNLOCK(inp);
 			break;
