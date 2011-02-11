@@ -73,6 +73,7 @@
 #define DT_FIELD_TYPE_UUID              7
 #define DT_FIELD_TYPE_UNICODE           8
 #define DT_FIELD_TYPE_DEVICE_PATH       9
+#define DT_FIELD_TYPE_LABEL             10
 
 
 /*
@@ -80,13 +81,15 @@
  */
 typedef struct dt_field
 {
-    char                    *Name;
-    char                    *Value;
-    struct dt_field         *Next;
+    char                    *Name;      /* Field name (from name : value) */
+    char                    *Value;     /* Field value (from name : value) */
+    struct dt_field         *Next;      /* Next field */
+    struct dt_field         *NextLabel; /* If field is a label, next label */
     UINT32                  Line;       /* Line number for this field */
     UINT32                  ByteOffset; /* Offset in source file for field */
     UINT32                  NameColumn; /* Start column for field name */
     UINT32                  Column;     /* Start column for field value */
+    UINT32                  TableOffset;/* Binary offset within ACPI table */
     UINT8                   Flags;
 
 } DT_FIELD;
@@ -130,6 +133,14 @@ DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_RootTable, NULL);
 /* Stack for subtables */
 
 DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableStack, NULL);
+
+/* List for defined labels */
+
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_LabelList, NULL);
+
+/* Current offset within the binary output table */
+
+DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_CurrentTableOffset, 0);
 
 
 /* dtcompiler - main module */
@@ -205,6 +216,17 @@ DtGetNextSubtable (
 DT_SUBTABLE *
 DtGetParentSubtable (
     DT_SUBTABLE             *Subtable);
+
+
+/* dtexpress - Integer expressions and labels */
+
+UINT64
+DtResolveIntegerExpression (
+    DT_FIELD                *Field);
+
+void
+DtDetectAllLabels (
+    DT_FIELD                *FieldList);
 
 
 /* dtfield - Compile individual fields within a table */
@@ -390,6 +412,10 @@ DtCompileWdat (
 ACPI_STATUS
 DtCompileXsdt (
     void                    **PFieldList);
+
+ACPI_DMTABLE_INFO *
+DtGetGenericTableInfo (
+    char                    *Name);
 
 /* ACPI Table templates */
 

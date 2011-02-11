@@ -27,6 +27,8 @@ OBJS = \
 	dbfileio.o \
 	dbhistry.o \
 	dbinput.o \
+	dbmethod.o \
+	dbnames.o \
 	dbstats.o \
 	dbutils.o \
 	dbxface.o \
@@ -39,6 +41,8 @@ OBJS = \
 	dmresrcs.o \
 	dmutils.o \
 	dmwalk.o \
+	dsargs.o \
+	dscontrol.o \
 	dsfield.o \
 	dsinit.o \
 	dsmethod.o \
@@ -48,6 +52,7 @@ OBJS = \
 	dsutils.o \
 	dswexec.o \
 	dswload.o \
+	dswload2.o \
 	dswscope.o \
 	dswstate.o \
 	evevent.o \
@@ -146,6 +151,7 @@ OBJS = \
 	utcache.o \
 	utcopy.o \
 	utdebug.o \
+	utdecode.o \
 	utdelete.o \
 	uteval.o \
 	utglobal.o \
@@ -216,6 +222,12 @@ dbhistry.o :        $(ACPICA_CORE)/debugger/dbhistry.c
 dbinput.o :         $(ACPICA_CORE)/debugger/dbinput.c
 	$(COMPILE)
 
+dbmethod.o :        $(ACPICA_CORE)/debugger/dbmethod.c
+	$(COMPILE)
+
+dbnames.o :         $(ACPICA_CORE)/debugger/dbnames.c
+	$(COMPILE)
+
 dbstats.o :         $(ACPICA_CORE)/debugger/dbstats.c
 	$(COMPILE)
 
@@ -252,6 +264,12 @@ dmutils.o :         $(ACPICA_CORE)/disassembler/dmutils.c
 dmwalk.o :          $(ACPICA_CORE)/disassembler/dmwalk.c
 	$(COMPILE)
 
+dsargs.o :          $(ACPICA_CORE)/dispatcher/dsargs.c
+	$(COMPILE)
+
+dscontrol.o :       $(ACPICA_CORE)/dispatcher/dscontrol.c
+	$(COMPILE)
+
 dsfield.o :         $(ACPICA_CORE)/dispatcher/dsfield.c
 	$(COMPILE)
 
@@ -277,6 +295,9 @@ dswexec.o :         $(ACPICA_CORE)/dispatcher/dswexec.c
 	$(COMPILE)
 
 dswload.o :         $(ACPICA_CORE)/dispatcher/dswload.c
+	$(COMPILE)
+
+dswload2.o :        $(ACPICA_CORE)/dispatcher/dswload2.c
 	$(COMPILE)
 
 dswscope.o :        $(ACPICA_CORE)/dispatcher/dswscope.c
@@ -562,6 +583,9 @@ utcache.o :         $(ACPICA_CORE)/utilities/utcache.c
 	$(COMPILE)
 
 utcopy.o :          $(ACPICA_CORE)/utilities/utcopy.c
+	$(COMPILE)
+
+utdebug.o :         $(ACPICA_CORE)/utilities/utdebug.c
 	$(COMPILE)
 
 utdebug.o :         $(ACPICA_CORE)/utilities/utdebug.c

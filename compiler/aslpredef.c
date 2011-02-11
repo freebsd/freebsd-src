@@ -54,6 +54,11 @@
 
 /* Local prototypes */
 
+static void
+ApCheckForUnexpectedReturnValue (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo);
+
 static UINT32
 ApCheckForSpecialName (
     ACPI_PARSE_OBJECT       *Op,
@@ -238,6 +243,53 @@ ApCheckForPredefinedMethod (
 
 /*******************************************************************************
  *
+ * FUNCTION:    ApCheckForUnexpectedReturnValue
+ *
+ * PARAMETERS:  Op              - A parse node of type "RETURN".
+ *              MethodInfo      - Saved info about this method
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Check for an unexpected return value from a predefined method.
+ *              Invoked for predefined methods that are defined to not return
+ *              any value. If there is a return value, issue a remark, since
+ *              the ASL writer may be confused as to the method definition
+ *              and/or functionality.
+ *
+ * Note: We ignore all return values of "Zero", since this is what a standalone
+ *       Return() statement will always generate -- so we ignore it here --
+ *       i.e., there is no difference between Return() and Return(Zero).
+ *       Also, a null Return() will be disassembled to return(Zero) -- so, we
+ *       don't want to generate extraneous remarks/warnings for a disassembled
+ *       ASL file.
+ *
+ ******************************************************************************/
+
+static void
+ApCheckForUnexpectedReturnValue (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo)
+{
+    ACPI_PARSE_OBJECT       *ReturnValueOp;
+
+
+    /* Ignore Return() and Return(Zero) (they are the same) */
+
+    ReturnValueOp = Op->Asl.Child;
+    if (ReturnValueOp->Asl.ParseOpcode == PARSEOP_ZERO)
+    {
+        return;
+    }
+
+    /* We have a valid return value, but the reserved name did not expect it */
+
+    AslError (ASL_WARNING, ASL_MSG_RESERVED_NO_RETURN_VAL,
+        Op, MethodInfo->Op->Asl.ExternalName);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    ApCheckPredefinedReturnValue
  *
  * PARAMETERS:  Op              - A parse node of type "RETURN".
@@ -249,7 +301,9 @@ ApCheckForPredefinedMethod (
  *              value. Only "static" types can be validated - a simple return
  *              of an integer/string/buffer/package or a named reference to
  *              a static object. Values such as a Localx or Argx or a control
- *              method invocation are not checked.
+ *              method invocation are not checked. Issue a warning if there is
+ *              a valid return value, but the reserved method defines no
+ *              return value.
  *
  ******************************************************************************/
 
@@ -269,20 +323,27 @@ ApCheckPredefinedReturnValue (
 
     switch (Index)
     {
+    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
+
+        /* No return value expected, warn if there is one */
+
+        ApCheckForUnexpectedReturnValue (Op, MethodInfo);
+        return;
+
     case ACPI_NOT_RESERVED_NAME:        /* No underscore or _Txx or _xxx name not matched */
     case ACPI_PREDEFINED_NAME:          /* Resource Name or reserved scope name */
     case ACPI_COMPILER_RESERVED_NAME:   /* A _Txx that was not emitted by compiler */
-    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
 
         /* Just return, nothing to do */
         return;
 
     default: /* A standard predefined ACPI name */
 
-        /* Exit if no return value expected */
-
         if (!PredefinedNames[Index].Info.ExpectedBtypes)
         {
+            /* No return value expected, warn if there is one */
+
+            ApCheckForUnexpectedReturnValue (Op, MethodInfo);
             return;
         }
 

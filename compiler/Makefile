@@ -32,7 +32,9 @@ OBJS = \
 	adfile.o \
 	adisasm.o \
 	adwalk.o \
+	aslbtypes.o \
 	aslanalyze.o \
+	aslbtypes.o \
 	aslcodegen.o \
 	aslcompile.o \
 	aslcompilerlex.o \
@@ -64,7 +66,9 @@ OBJS = \
 	asltree.o \
 	aslutils.o \
 	asluuid.o \
+	aslwalks.o \
 	dtcompile.o \
+	dtexpress.o \
 	dtfield.o \
 	dtio.o \
 	dtsubtable.o \
@@ -86,12 +90,15 @@ OBJS = \
 	dmtbinfo.o \
 	dmutils.o \
 	dmwalk.o \
+	dsargs.o \
+	dscontrol.o \
 	dsfield.o \
 	dsobject.o \
 	dsopcode.o \
 	dsutils.o \
 	dswexec.o \
 	dswload.o \
+	dswload2.o \
 	dswscope.o \
 	dswstate.o \
 	exconvrt.o \
@@ -142,6 +149,7 @@ OBJS = \
 	utcache.o \
 	utcopy.o \
 	utdebug.o \
+	utdecode.o \
 	utdelete.o \
 	utglobal.o \
 	utinit.o \
@@ -199,6 +207,9 @@ aslcompilerparse.o : aslcompilerparse.c
 # Compiler source
 #
 aslanalyze.o :      $(ASL_COMPILER)/aslanalyze.c
+	$(COMPILE)
+
+aslbtypes.o :       $(ASL_COMPILER)/aslbtypes.c
 	$(COMPILE)
 
 aslcodegen.o :      $(ASL_COMPILER)/aslcodegen.c
@@ -288,11 +299,17 @@ aslutils.o :        $(ASL_COMPILER)/aslutils.c
 asluuid.o :         $(ASL_COMPILER)/asluuid.c
 	$(COMPILE)
 
+aslwalks.o :        $(ASL_COMPILER)/aslwalks.c
+	$(COMPILE)
+
 
 #
 # Data Table Compiler
 #
 dtcompile.o :       $(ASL_COMPILER)/dtcompile.c
+	$(COMPILE)
+
+dtexpress.o :       $(ASL_COMPILER)/dtexpress.c
 	$(COMPILE)
 
 dtfield.o :         $(ASL_COMPILER)/dtfield.c
@@ -378,6 +395,12 @@ dmutils.o :         $(ACPICA_CORE)/disassembler/dmutils.c
 dmwalk.o :          $(ACPICA_CORE)/disassembler/dmwalk.c
 	$(COMPILE)
 
+dsargs.o :          $(ACPICA_CORE)/dispatcher/dsargs.c
+	$(COMPILE)
+
+dscontrol.o :       $(ACPICA_CORE)/dispatcher/dscontrol.c
+	$(COMPILE)
+
 dsfield.o :         $(ACPICA_CORE)/dispatcher/dsfield.c
 	$(COMPILE)
 
@@ -394,6 +417,9 @@ dswexec.o :         $(ACPICA_CORE)/dispatcher/dswexec.c
 	$(COMPILE)
 
 dswload.o :         $(ACPICA_CORE)/dispatcher/dswload.c
+	$(COMPILE)
+
+dswload2.o :        $(ACPICA_CORE)/dispatcher/dswload2.c
 	$(COMPILE)
 
 dswscope.o :        $(ACPICA_CORE)/dispatcher/dswscope.c
@@ -538,6 +564,9 @@ utcopy.o :          $(ACPICA_CORE)/utilities/utcopy.c
 	$(COMPILE)
 
 utdebug.o :         $(ACPICA_CORE)/utilities/utdebug.c
+	$(COMPILE)
+
+utdecode.o :        $(ACPICA_CORE)/utilities/utdecode.c
 	$(COMPILE)
 
 utdelete.o :        $(ACPICA_CORE)/utilities/utdelete.c

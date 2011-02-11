@@ -165,6 +165,29 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
     Name (_INI, 1)
     Name (_PTP, 2)
 
+    // GPE methods that cause type collision (L vs. E)
+
+    Scope (\_GPE)
+    {
+        Method (_L1D)
+        {
+        }
+        Method (_E1D)
+        {
+        }
+    }
+
+    // Predefined names that should not have a return value
+
+    Method (_FDM, 1)
+    {
+        Return (Buffer(1){0x33})
+    }
+    Method (_Q22)
+    {
+        Return ("Unexpected Return Value")
+    }
+
     /*
      * Resource Descriptor error checking
      */
@@ -172,10 +195,10 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
     {
         // Illegal nested StartDependent macros
 
-		StartDependentFn (0, 0)
-		{
-		    StartDependentFn (0, 0)
-		    {
+        StartDependentFn (0, 0)
+        {
+            StartDependentFn (0, 0)
+            {
             }
         }
 
