@@ -437,7 +437,8 @@ sonewconn(struct socket *head, int connstatus)
 	if (over)
 #endif
 		return (NULL);
-	VNET_ASSERT(head->so_vnet);
+	VNET_ASSERT(head->so_vnet != NULL, ("%s:%d so_vnet is NULL, head=%p",
+	    __func__, __LINE__, head));
 	so = soalloc(head->so_vnet);
 	if (so == NULL)
 		return (NULL);

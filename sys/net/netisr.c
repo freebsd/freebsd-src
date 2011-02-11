@@ -647,7 +647,8 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 		if (local_npw.nw_head == NULL)
 			local_npw.nw_tail = NULL;
 		local_npw.nw_len--;
-		VNET_ASSERT(m->m_pkthdr.rcvif != NULL);
+		VNET_ASSERT(m->m_pkthdr.rcvif != NULL,
+		    ("%s:%d rcvif == NULL: m=%p", __func__, __LINE__, m));
 		CURVNET_SET(m->m_pkthdr.rcvif->if_vnet);
 		netisr_proto[proto].np_handler(m);
 		CURVNET_RESTORE();
