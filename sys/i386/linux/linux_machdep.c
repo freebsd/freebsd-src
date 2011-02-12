@@ -387,6 +387,62 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	return (0);
 }
 
+static int
+linux_set_cloned_tls(struct thread *td, void *desc)
+{
+	struct segment_descriptor sd;
+	struct l_user_desc info;
+	int idx, error;
+	int a[2];
+
+	error = copyin(desc, &info, sizeof(struct l_user_desc));
+	if (error) {
+		printf(LMSG("copyin failed!"));
+	} else {
+		idx = info.entry_number;
+
+		/* 
+		 * looks like we're getting the idx we returned
+		 * in the set_thread_area() syscall
+		 */
+		if (idx != 6 && idx != 3) {
+			printf(LMSG("resetting idx!"));
+			idx = 3;
+		}
+
+		/* this doesnt happen in practice */
+		if (idx == 6) {
+	   		/* we might copy out the entry_number as 3 */
+		   	info.entry_number = 3;
+			error = copyout(&info, desc, sizeof(struct l_user_desc));
+			if (error)
+				printf(LMSG("copyout failed!"));
+		}
+
+		a[0] = LINUX_LDT_entry_a(&info);
+		a[1] = LINUX_LDT_entry_b(&info);
+
+		memcpy(&sd, &a, sizeof(a));
+#ifdef DEBUG
+		if (ldebug(clone))
+			printf("Segment created in clone with "
+			"CLONE_SETTLS: lobase: %x, hibase: %x, "
+			"lolimit: %x, hilimit: %x, type: %i, "
+			"dpl: %i, p: %i, xx: %i, def32: %i, "
+			"gran: %i\n", sd.sd_lobase, sd.sd_hibase,
+			sd.sd_lolimit, sd.sd_hilimit, sd.sd_type,
+			sd.sd_dpl, sd.sd_p, sd.sd_xx,
+			sd.sd_def32, sd.sd_gran);
+#endif
+
+		/* set %gs */
+		td->td_pcb->pcb_gsd = sd;
+		td->td_pcb->pcb_gs = GSEL(GUGS_SEL, SEL_UPL);
+	}
+
+	return (error);
+}
+
 int
 linux_clone(struct thread *td, struct linux_clone_args *args)
 {
@@ -505,60 +561,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (args->stack)
    	   	td2->td_frame->tf_esp = (unsigned int)args->stack;
 
-	if (args->flags & LINUX_CLONE_SETTLS) {
-   	   	struct l_user_desc info;
-   	   	int idx;
-	   	int a[2];
-		struct segment_descriptor sd;
-
-	   	error = copyin((void *)td->td_frame->tf_esi, &info, sizeof(struct l_user_desc));
-		if (error) {
-			printf(LMSG("copyin failed!"));
-		} else {
-		
-			idx = info.entry_number;
-		
-			/* 
-			 * looks like we're getting the idx we returned
-			 * in the set_thread_area() syscall
-			 */
-			if (idx != 6 && idx != 3) {
-				printf(LMSG("resetting idx!"));
-				idx = 3;
-			}
-
-			/* this doesnt happen in practice */
-			if (idx == 6) {
-		   		/* we might copy out the entry_number as 3 */
-			   	info.entry_number = 3;
-				error = copyout(&info, (void *) td->td_frame->tf_esi, sizeof(struct l_user_desc));
-				if (error)
-					printf(LMSG("copyout failed!"));
-			}
-
-			a[0] = LINUX_LDT_entry_a(&info);
-			a[1] = LINUX_LDT_entry_b(&info);
-
-			memcpy(&sd, &a, sizeof(a));
-#ifdef DEBUG
-		if (ldebug(clone))
-		   	printf("Segment created in clone with CLONE_SETTLS: lobase: %x, hibase: %x, lolimit: %x, hilimit: %x, type: %i, dpl: %i, p: %i, xx: %i, def32: %i, gran: %i\n", sd.sd_lobase,
-			sd.sd_hibase,
-			sd.sd_lolimit,
-			sd.sd_hilimit,
-			sd.sd_type,
-			sd.sd_dpl,
-			sd.sd_p,
-			sd.sd_xx,
-			sd.sd_def32,
-			sd.sd_gran);
-#endif
-
-			/* set %gs */
-			td2->td_pcb->pcb_gsd = sd;
-			td2->td_pcb->pcb_gs = GSEL(GUGS_SEL, SEL_UPL);
-		}
-	} 
+	if (args->flags & LINUX_CLONE_SETTLS)
+		linux_set_cloned_tls(td2, args->tls);
 
 #ifdef DEBUG
 	if (ldebug(clone))
