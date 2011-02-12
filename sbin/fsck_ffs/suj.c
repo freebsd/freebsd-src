@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -201,6 +202,11 @@ opendisk(const char *devnam)
 		    disk->d_error);
 	}
 	fs = &disk->d_fs;
+	if (real_dev_bsize == 0 && ioctl(disk->d_fd, DIOCGSECTORSIZE,
+	    &real_dev_bsize) == -1)
+		real_dev_bsize = secsize;
+	if (debug)
+		printf("dev_bsize %ld\n", real_dev_bsize);
 }
 
 /*
@@ -2262,7 +2268,7 @@ suj_build(void)
 		rec = (union jrec *)seg->ss_blk;
 		for (i = 0; i < seg->ss_rec.jsr_cnt; off += JREC_SIZE, rec++) {
 			/* skip the segrec. */
-			if ((off % DEV_BSIZE) == 0)
+			if ((off % real_dev_bsize) == 0)
 				continue;
 			switch (rec->rec_jrefrec.jr_op) {
 			case JOP_ADDREF:
@@ -2340,7 +2346,7 @@ suj_prune(void)
 	TAILQ_FOREACH_SAFE(seg, &allsegs, ss_next, segn) {
 		if (!discard && newseq++ == seg->ss_rec.jsr_seq) {
 			jrecs += seg->ss_rec.jsr_cnt;
-			jbytes += seg->ss_rec.jsr_blocks * DEV_BSIZE;
+			jbytes += seg->ss_rec.jsr_blocks * real_dev_bsize;
 			continue;
 		}
 		discard = 1;
@@ -2440,7 +2446,7 @@ jblocks_next(struct jblocks *jblocks, int bytes, int *actual)
 	int freecnt;
 	int blocks;
 
-	blocks = bytes / DEV_BSIZE;
+	blocks = bytes / disk->d_bsize;
 	jext = &jblocks->jb_extent[jblocks->jb_head];
 	freecnt = jext->je_blocks - jblocks->jb_off;
 	if (freecnt == 0) {
@@ -2452,7 +2458,7 @@ jblocks_next(struct jblocks *jblocks, int bytes, int *actual)
 	}
 	if (freecnt > blocks)
 		freecnt = blocks;
-	*actual = freecnt * DEV_BSIZE;
+	*actual = freecnt * disk->d_bsize;
 	daddr = jext->je_daddr + jblocks->jb_off;
 
 	return (daddr);
@@ -2466,7 +2472,7 @@ static void
 jblocks_advance(struct jblocks *jblocks, int bytes)
 {
 
-	jblocks->jb_off += bytes / DEV_BSIZE;
+	jblocks->jb_off += bytes / disk->d_bsize;
 }
 
 static void
@@ -2563,7 +2569,7 @@ restart:
 		}
 		for (rec = (void *)block; size; size -= recsize,
 		    rec = (struct jsegrec *)((uintptr_t)rec + recsize)) {
-			recsize = DEV_BSIZE;
+			recsize = real_dev_bsize;
 			if (rec->jsr_time != fs->fs_mtime) {
 				if (debug)
 					printf("Rec time %jd != fs mtime %jd\n",
@@ -2579,7 +2585,7 @@ restart:
 				continue;
 			}
 			blocks = rec->jsr_blocks;
-			recsize = blocks * DEV_BSIZE;
+			recsize = blocks * real_dev_bsize;
 			if (recsize > size) {
 				/*
 				 * We may just have run out of buffer, restart
@@ -2592,7 +2598,7 @@ restart:
 				if (debug)
 					printf("Found invalid segsize %d > %d\n",
 					    recsize, size);
-				recsize = DEV_BSIZE;
+				recsize = real_dev_bsize;
 				jblocks_advance(suj_jblocks, recsize);
 				continue;
 			}
@@ -2600,15 +2606,15 @@ restart:
 			 * Verify that all blocks in the segment are present.
 			 */
 			for (i = 1; i < blocks; i++) {
-				recn = (void *)
-				    ((uintptr_t)rec) + i * DEV_BSIZE;
+				recn = (void *)((uintptr_t)rec) + i *
+				    real_dev_bsize;
 				if (recn->jsr_seq == rec->jsr_seq &&
 				    recn->jsr_time == rec->jsr_time) 
 					continue;
 				if (debug)
 					printf("Incomplete record %jd (%d)\n",
 					    rec->jsr_seq, i);
-				recsize = i * DEV_BSIZE;
+				recsize = i * real_dev_bsize;
 				jblocks_advance(suj_jblocks, recsize);
 				goto restart;
 			}
