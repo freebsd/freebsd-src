@@ -908,7 +908,6 @@ int	thread_unsuspend_one(struct thread *td);
 void	thread_unthread(struct thread *td);
 void	thread_wait(struct proc *p);
 struct thread	*thread_find(struct proc *p, lwpid_t tid);
-void	thr_exit1(void);
 
 #endif	/* _KERNEL */
 
