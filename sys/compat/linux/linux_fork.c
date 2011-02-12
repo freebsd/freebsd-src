@@ -67,13 +67,9 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2)) != 0)
 		return (error);
 
-	if (error == 0) {
-		td->td_retval[0] = p2->p_pid;
-		td->td_retval[1] = 0;
-	}
+	td->td_retval[0] = p2->p_pid;
+	td->td_retval[1] = 0;
 
-	if (td->td_retval[1] == 1)
-		td->td_retval[0] = 0;
 	error = linux_proc_init(td, td->td_retval[0], 0);
 	if (error)
 		return (error);
@@ -106,13 +102,10 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	/* Exclude RFPPWAIT */
 	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFSTOPPED, 0, &p2)) != 0)
 		return (error);
-	if (error == 0) {
-	   	td->td_retval[0] = p2->p_pid;
-		td->td_retval[1] = 0;
-	}
-	/* Are we the child? */
-	if (td->td_retval[1] == 1)
-		td->td_retval[0] = 0;
+
+   	td->td_retval[0] = p2->p_pid;
+	td->td_retval[1] = 0;
+
 	error = linux_proc_init(td, td->td_retval[0], 0);
 	if (error)
 		return (error);
