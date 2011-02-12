@@ -120,8 +120,6 @@ s32  e1000_mng_write_cmd_header(struct e1000_hw *hw,
 s32  e1000_mng_write_dhcp_info(struct e1000_hw * hw,
                                     u8 *buffer, u16 length);
 u32  e1000_translate_register_82542(u32 reg);
-s32  e1000_commit_fc_settings_generic(struct e1000_hw *hw);
-s32  e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw);
 
 /*
  * TBI_ACCEPT macro definition:
