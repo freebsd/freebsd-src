@@ -75,6 +75,9 @@ static void e1000_release_nvm_ich8lan(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_ich8lan(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_pchlan(struct e1000_hw *hw);
 static void e1000_rar_set_pch2lan(struct e1000_hw *hw, u8 *addr, u32 index);
+static void e1000_update_mc_addr_list_pch2lan(struct e1000_hw *hw,
+                                              u8 *mc_addr_list,
+                                              u32 mc_addr_count);
 static s32  e1000_check_reset_block_ich8lan(struct e1000_hw *hw);
 static s32  e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw);
 static s32  e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active);
@@ -213,7 +216,8 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	 * the interconnect to PCIe mode.
 	 */
 	fwsm = E1000_READ_REG(hw, E1000_FWSM);
-	if (!(fwsm & E1000_ICH_FWSM_FW_VALID)) {
+	if (!(fwsm & E1000_ICH_FWSM_FW_VALID) &&
+	    !(hw->phy.ops.check_reset_block(hw))) {
 		ctrl = E1000_READ_REG(hw, E1000_CTRL);
 		ctrl |=  E1000_CTRL_LANPHYPC_OVERRIDE;
 		ctrl &= ~E1000_CTRL_LANPHYPC_VALUE;
@@ -540,6 +544,9 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 	case e1000_pch2lan:
 		mac->rar_entry_count = E1000_PCH2_RAR_ENTRIES;
 		mac->ops.rar_set = e1000_rar_set_pch2lan;
+		/* multicast address update for pch2 */
+		mac->ops.update_mc_addr_list =
+			e1000_update_mc_addr_list_pch2lan;
 		/* fall-through */
 	case e1000_pchlan:
 		/* save PCH revision_id */
@@ -835,8 +842,13 @@ static void e1000_release_swflag_ich8lan(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_release_swflag_ich8lan");
 
 	extcnf_ctrl = E1000_READ_REG(hw, E1000_EXTCNF_CTRL);
-	extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
-	E1000_WRITE_REG(hw, E1000_EXTCNF_CTRL, extcnf_ctrl);
+
+	if (extcnf_ctrl & E1000_EXTCNF_CTRL_SWFLAG) {
+		extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
+		E1000_WRITE_REG(hw, E1000_EXTCNF_CTRL, extcnf_ctrl);
+	} else {
+		DEBUGOUT("Semaphore unexpectedly released by sw/fw/hw\n");
+	}
 
 	E1000_MUTEX_UNLOCK(&hw->dev_spec.ich8lan.swflag_mutex);
 
@@ -939,6 +951,34 @@ static void e1000_rar_set_pch2lan(struct e1000_hw *hw, u8 *addr, u32 index)
 	}
 
 	DEBUGOUT1("Failed to write receive address at index %d\n", index);
+}
+
+/**
+ *  e1000_update_mc_addr_list_pch2lan - Update Multicast addresses
+ *  @hw: pointer to the HW structure
+ *  @mc_addr_list: array of multicast addresses to program
+ *  @mc_addr_count: number of multicast addresses to program
+ *
+ *  Updates entire Multicast Table Array of the PCH2 MAC and PHY.
+ *  The caller must have a packed mc_addr_list of multicast addresses.
+ **/
+static void e1000_update_mc_addr_list_pch2lan(struct e1000_hw *hw,
+                                              u8 *mc_addr_list,
+                                              u32 mc_addr_count)
+{
+	int i;
+
+	DEBUGFUNC("e1000_update_mc_addr_list_pch2lan");
+
+	e1000_update_mc_addr_list_generic(hw, mc_addr_list, mc_addr_count);
+
+	for (i = 0; i < hw->mac.mta_reg_count; i++) {
+		hw->phy.ops.write_reg(hw, BM_MTA(i),
+		                   (u16)(hw->mac.mta_shadow[i] & 0xFFFF));
+		hw->phy.ops.write_reg(hw, (BM_MTA(i) + 1),
+		                      (u16)((hw->mac.mta_shadow[i] >> 16) &
+		                       0xFFFF));
+	}
 }
 
 /**
@@ -1482,13 +1522,11 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
-	ret_val = hw->phy.ops.read_reg_locked(hw,
-	                                      PHY_REG(BM_PORT_CTRL_PAGE, 17),
+	ret_val = hw->phy.ops.read_reg_locked(hw, BM_PORT_GEN_CFG_REG,
 	                                      &phy_data);
 	if (ret_val)
 		goto release;
-	ret_val = hw->phy.ops.write_reg_locked(hw,
-	                                       PHY_REG(BM_PORT_CTRL_PAGE, 17),
+	ret_val = hw->phy.ops.write_reg_locked(hw, BM_PORT_GEN_CFG_REG,
 	                                       phy_data & 0x00FF);
 release:
 	hw->phy.ops.release(hw);
@@ -1773,7 +1811,7 @@ out:
 /**
  *  e1000_gate_hw_phy_config_ich8lan - disable PHY config via hardware
  *  @hw:   pointer to the HW structure
- *  @gate: boolean set to TRUE to gate, FALSE to un-gate
+ *  @gate: boolean set to TRUE to gate, FALSE to ungate
  *
  *  Gate/ungate the automatic PHY configuration via hardware; perform
  *  the configuration via software instead.
@@ -1911,11 +1949,26 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 	/* Configure the LCD with the OEM bits in NVM */
 	ret_val = e1000_oem_bits_config_ich8lan(hw, TRUE);
 
-	/* Ungate automatic PHY configuration on non-managed 82579 */
-	if ((hw->mac.type == e1000_pch2lan) &&
-	    !(E1000_READ_REG(hw, E1000_FWSM) & E1000_ICH_FWSM_FW_VALID)) {
-		msec_delay(10);
-		e1000_gate_hw_phy_config_ich8lan(hw, FALSE);
+	if (hw->mac.type == e1000_pch2lan) {
+		/* Ungate automatic PHY configuration on non-managed 82579 */
+		if (!(E1000_READ_REG(hw, E1000_FWSM) &
+		    E1000_ICH_FWSM_FW_VALID)) {
+			msec_delay(10);
+			e1000_gate_hw_phy_config_ich8lan(hw, FALSE);
+		}
+
+		/* Set EEE LPI Update Timer to 200usec */
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val)
+			goto out;
+		ret_val = hw->phy.ops.write_reg_locked(hw, I82579_EMI_ADDR,
+						       I82579_LPI_UPDATE_TIMER);
+		if (ret_val)
+			goto release;
+		ret_val = hw->phy.ops.write_reg_locked(hw, I82579_EMI_DATA,
+						       0x1387);
+release:
+		hw->phy.ops.release(hw);
 	}
 
 out:
@@ -2323,7 +2376,6 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 {
 	union ich8_hws_flash_status hsfsts;
 	s32 ret_val = -E1000_ERR_NVM;
-	s32 i = 0;
 
 	DEBUGFUNC("e1000_flash_cycle_init_ich8lan");
 
@@ -2361,6 +2413,8 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 		E1000_WRITE_FLASH_REG16(hw, ICH_FLASH_HSFSTS, hsfsts.regval);
 		ret_val = E1000_SUCCESS;
 	} else {
+		s32 i;
+
 		/*
 		 * Otherwise poll for sometime so the current
 		 * cycle has a chance to end before giving up.
@@ -3198,7 +3252,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
 	u16 reg;
-	u32 ctrl, icr, kab;
+	u32 ctrl, kab;
 	s32 ret_val;
 
 	DEBUGFUNC("e1000_reset_hw_ich8lan");
@@ -3290,7 +3344,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 		E1000_WRITE_REG(hw, E1000_CRC_OFFSET, 0x65656565);
 
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
-	icr = E1000_READ_REG(hw, E1000_ICR);
+	E1000_READ_REG(hw, E1000_ICR);
 
 	kab = E1000_READ_REG(hw, E1000_KABGTXD);
 	kab |= E1000_KABGTXD_BGSQLBIAS;
@@ -3665,7 +3719,7 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_kmrn_lock_loss_workaround_ich8lan");
 
-	if (!(dev_spec->kmrn_lock_loss_workaround_enabled))
+	if (!dev_spec->kmrn_lock_loss_workaround_enabled)
 		goto out;
 
 	/*

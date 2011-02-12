@@ -52,6 +52,8 @@ s32  e1000_check_for_copper_link_generic(struct e1000_hw *hw);
 s32  e1000_check_for_fiber_link_generic(struct e1000_hw *hw);
 s32  e1000_check_for_serdes_link_generic(struct e1000_hw *hw);
 s32  e1000_cleanup_led_generic(struct e1000_hw *hw);
+s32  e1000_commit_fc_settings_generic(struct e1000_hw *hw);
+s32  e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw);
 s32  e1000_config_fc_after_link_up_generic(struct e1000_hw *hw);
 s32  e1000_disable_pcie_master_generic(struct e1000_hw *hw);
 s32  e1000_force_mac_fc_generic(struct e1000_hw *hw);
