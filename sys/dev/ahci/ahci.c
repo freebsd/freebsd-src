@@ -114,6 +114,7 @@ static struct {
 #define AHCI_Q_SATA2	128
 #define AHCI_Q_NOBSYRES	256
 #define AHCI_Q_NOAA	512
+#define AHCI_Q_NOCOUNT	1024
 } ahci_ids[] = {
 	{0x43801002, 0x00, "ATI IXP600",	0},
 	{0x43901002, 0x00, "ATI IXP700",	0},
@@ -161,19 +162,19 @@ static struct {
 	{0x1c038086, 0x00, "Intel Cougar Point",	0},
 	{0x1c048086, 0x00, "Intel Cougar Point",	0},
 	{0x1c058086, 0x00, "Intel Cougar Point",	0},
-	{0x23238086, 0x00, "Intel DH89xxCC",	0},
-	{0x1d028086, 0x00, "Intel Patsburg",	0},
-	{0x1d048086, 0x00, "Intel Patsburg",	0},
-	{0x1d068086, 0x00, "Intel Patsburg",	0},
 	{0x2361197b, 0x00, "JMicron JMB361",	AHCI_Q_NOFORCE},
 	{0x2363197b, 0x00, "JMicron JMB363",	AHCI_Q_NOFORCE},
 	{0x2365197b, 0x00, "JMicron JMB365",	AHCI_Q_NOFORCE},
 	{0x2366197b, 0x00, "JMicron JMB366",	AHCI_Q_NOFORCE},
 	{0x2368197b, 0x00, "JMicron JMB368",	AHCI_Q_NOFORCE},
-	{0x611111ab, 0x00, "Marvell 88SX6111",	AHCI_Q_NOFORCE|AHCI_Q_1CH|AHCI_Q_EDGEIS},
-	{0x612111ab, 0x00, "Marvell 88SX6121",	AHCI_Q_NOFORCE|AHCI_Q_2CH|AHCI_Q_EDGEIS},
-	{0x614111ab, 0x00, "Marvell 88SX6141",	AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
-	{0x614511ab, 0x00, "Marvell 88SX6145",	AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
+	{0x611111ab, 0x00, "Marvell 88SX6111",	AHCI_Q_NOFORCE | AHCI_Q_1CH |
+	    AHCI_Q_EDGEIS},
+	{0x612111ab, 0x00, "Marvell 88SX6121",	AHCI_Q_NOFORCE | AHCI_Q_2CH |
+	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
+	{0x614111ab, 0x00, "Marvell 88SX6141",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
+	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
+	{0x614511ab, 0x00, "Marvell 88SX6145",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
+	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
 	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES},
 	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2|AHCI_Q_NOBSYRES},
 	{0x06201103, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
@@ -1908,12 +1909,14 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		} else
 			bzero(res, sizeof(*res));
 		if ((ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) == 0 &&
-		    (ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+		    (ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
+		    (ch->quirks & AHCI_Q_NOCOUNT) == 0) {
 			ccb->ataio.resid =
 			    ccb->ataio.dxfer_len - le32toh(clp->bytecount);
 		}
 	} else {
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
+		    (ch->quirks & AHCI_Q_NOCOUNT) == 0) {
 			ccb->csio.resid =
 			    ccb->csio.dxfer_len - le32toh(clp->bytecount);
 		}
