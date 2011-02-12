@@ -750,7 +750,7 @@ static	void handle_written_jnewblk(struct jnewblk *);
 static	void handle_written_jfreeblk(struct jfreeblk *);
 static	void handle_written_jfreefrag(struct jfreefrag *);
 static	void complete_jseg(struct jseg *);
-static	void jseg_write(struct fs *, struct jblocks *, struct jseg *,
+static	void jseg_write(struct ufsmount *ump, struct jblocks *, struct jseg *,
 	    uint8_t *);
 static	void jaddref_write(struct jaddref *, struct jseg *, uint8_t *);
 static	void jremref_write(struct jremref *, struct jseg *, uint8_t *);
@@ -2557,8 +2557,8 @@ softdep_prelink(dvp, vp)
 }
 
 static void
-jseg_write(fs, jblocks, jseg, data)
-	struct fs *fs;
+jseg_write(ump, jblocks, jseg, data)
+	struct ufsmount *ump;
 	struct jblocks *jblocks;
 	struct jseg *jseg;
 	uint8_t *data;
@@ -2569,9 +2569,9 @@ jseg_write(fs, jblocks, jseg, data)
 	rec->jsr_seq = jseg->js_seq;
 	rec->jsr_oldest = jblocks->jb_oldestseq;
 	rec->jsr_cnt = jseg->js_cnt;
-	rec->jsr_blocks = jseg->js_size / DEV_BSIZE;
+	rec->jsr_blocks = jseg->js_size / ump->um_devvp->v_bufobj.bo_bsize;
 	rec->jsr_crc = 0;
-	rec->jsr_time = fs->fs_mtime;
+	rec->jsr_time = ump->um_fs->fs_mtime;
 }
 
 static inline void
@@ -2721,19 +2721,21 @@ softdep_process_journal(mp, flags)
 	int size;
 	int cnt;
 	int off;
+	int devbsize;
 
 	if ((mp->mnt_kern_flag & MNTK_SUJ) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	jblocks = ump->softdep_jblocks;
+	devbsize = ump->um_devvp->v_bufobj.bo_bsize;
 	/*
 	 * We write anywhere between a disk block and fs block.  The upper
 	 * bound is picked to prevent buffer cache fragmentation and limit
 	 * processing time per I/O.
 	 */
-	jrecmin = (DEV_BSIZE / JREC_SIZE) - 1; /* -1 for seg header */
-	jrecmax = (fs->fs_bsize / DEV_BSIZE) * jrecmin;
+	jrecmin = (devbsize / JREC_SIZE) - 1; /* -1 for seg header */
+	jrecmax = (fs->fs_bsize / devbsize) * jrecmin;
 	segwritten = 0;
 	while ((cnt = ump->softdep_on_journal) != 0) {
 		/*
@@ -2788,7 +2790,7 @@ softdep_process_journal(mp, flags)
 		 */
 		cnt = ump->softdep_on_journal;
 		if (cnt < jrecmax)
-			size = howmany(cnt, jrecmin) * DEV_BSIZE;
+			size = howmany(cnt, jrecmin) * devbsize;
 		else
 			size = fs->fs_bsize;
 		/*
@@ -2808,7 +2810,7 @@ softdep_process_journal(mp, flags)
 		 * sequence number to it and link it in-order.
 		 */
 		cnt = MIN(ump->softdep_on_journal,
-		    (size / DEV_BSIZE) * jrecmin);
+		    (size / devbsize) * jrecmin);
 		jseg->js_buf = bp;
 		jseg->js_cnt = cnt;
 		jseg->js_refs = cnt + 1;	/* Self ref. */
@@ -2827,8 +2829,8 @@ softdep_process_journal(mp, flags)
 		while ((wk = LIST_FIRST(&ump->softdep_journal_pending))
 		    != NULL) {
 			/* Place a segment header on every device block. */
-			if ((off % DEV_BSIZE) == 0) {
-				jseg_write(fs, jblocks, jseg, data);
+			if ((off % devbsize) == 0) {
+				jseg_write(ump, jblocks, jseg, data);
 				off += JREC_SIZE;
 				data = bp->b_data + off;
 			}

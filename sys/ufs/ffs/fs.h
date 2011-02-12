@@ -682,7 +682,7 @@ struct jsegrec {
 	uint64_t	jsr_seq;	/* Our sequence number */
 	uint64_t	jsr_oldest;	/* Oldest valid sequence number */
 	uint16_t	jsr_cnt;	/* Count of valid records */
-	uint16_t	jsr_blocks;	/* Count of DEV_BSIZE blocks. */
+	uint16_t	jsr_blocks;	/* Count of device bsize blocks. */
 	uint32_t	jsr_crc;	/* 32bit crc of the valid space */
 	ufs_time_t	jsr_time;	/* timestamp for mount instance */
 };
