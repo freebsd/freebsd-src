@@ -185,13 +185,12 @@ g_raid_tr_stop_raid0(struct g_raid_tr_object *tr)
 static void
 g_raid_tr_iostart_raid0(struct g_raid_tr_object *tr, struct bio *bp)
 {
-	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
 	struct bio_queue_head queue;
 	struct bio *cbp;
 	char *addr;
-	off_t offset, start, length, nstripe;
+	off_t offset, start, length, nstripe, remain;
 	u_int no, strip_size;
 
 	vol = tr->tro_volume;
@@ -204,8 +203,6 @@ g_raid_tr_iostart_raid0(struct g_raid_tr_object *tr, struct bio *bp)
 		g_raid_tr_flush_common(tr, bp);
 		return;
 	}
-	sc = vol->v_softc;
-
 	addr = bp->bio_data;
 	strip_size = vol->v_strip_size;
 
@@ -215,55 +212,30 @@ g_raid_tr_iostart_raid0(struct g_raid_tr_object *tr, struct bio *bp)
 	start = bp->bio_offset % strip_size;
 	/* Disk number. */
 	no = nstripe % vol->v_disks_count;
-	/* Start position in disk. */
-	offset = (nstripe / vol->v_disks_count) * strip_size + start;
+	/* Stripe start position in disk. */
+	offset = (nstripe / vol->v_disks_count) * strip_size;
 	/* Length of data to operate. */
-	length = MIN(bp->bio_length, strip_size - start);
+	remain = bp->bio_length;
 
-	/*
-	 * Allocate all bios before sending any request, so we can
-	 * return ENOMEM in nice and clean way.
-	 */
 	bioq_init(&queue);
-	cbp = g_clone_bio(bp);
-	if (cbp == NULL)
-		goto failure;
-	/*
-	 * Fill in the component buf structure.
-	 */
-	cbp->bio_offset = offset;
-	cbp->bio_data = addr;
-	cbp->bio_length = length;
-	cbp->bio_caller1 = &vol->v_subdisks[no];
-	bioq_insert_tail(&queue, cbp);
-
-	offset -= offset % strip_size;
-	addr += length;
-	length = bp->bio_length - length;
-	for (no++; length > 0;
-	    no++, length -= strip_size, addr += strip_size) {
-		if (no > vol->v_disks_count - 1) {
-			no = 0;
-			offset += strip_size;
-		}
+	do {
+		length = MIN(strip_size - start, remain);
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL)
 			goto failure;
-
-		/*
-		 * Fill in the component buf structure.
-		 */
-		cbp->bio_offset = offset;
+		cbp->bio_offset = offset + start;
 		cbp->bio_data = addr;
-		/*
-		 * MIN() is in case when
-		 * (bp->bio_length % sc->sc_stripesize) != 0.
-		 */
-		cbp->bio_length = MIN(strip_size, length);
-
+		cbp->bio_length = length;
 		cbp->bio_caller1 = &vol->v_subdisks[no];
 		bioq_insert_tail(&queue, cbp);
-	}
+		if (++no >= vol->v_disks_count) {
+			no = 0;
+			offset += strip_size;
+		}
+		remain -= length;
+		addr += length;
+		start = 0;
+	} while (remain > 0);
 	for (cbp = bioq_first(&queue); cbp != NULL;
 	    cbp = bioq_first(&queue)) {
 		bioq_remove(&queue, cbp);
@@ -287,50 +259,43 @@ int
 g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr,
     void *virtual, vm_offset_t physical, off_t boffset, size_t blength)
 {
-	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
 	char *addr;
-	off_t offset, start, length, nstripe;
+	off_t offset, start, length, nstripe, remain;
 	u_int no, strip_size;
 	int error;
 
 	vol = tr->tro_volume;
 	if (vol->v_state != G_RAID_VOLUME_S_OPTIMAL)
 		return (ENXIO);
-	sc = vol->v_softc;
-
 	addr = virtual;
 	strip_size = vol->v_strip_size;
+
 	/* Stripe number. */
 	nstripe = boffset / strip_size;
 	/* Start position in stripe. */
 	start = boffset % strip_size;
 	/* Disk number. */
 	no = nstripe % vol->v_disks_count;
-	/* Start position in disk. */
-	offset = (nstripe / vol->v_disks_count) * strip_size + start;
+	/* Stripe tart position in disk. */
+	offset = (nstripe / vol->v_disks_count) * strip_size;
 	/* Length of data to operate. */
-	length = MIN(blength, strip_size - start);
+	remain = blength;
 
-	error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no],
-	    addr, 0, offset, length);
-	if (error != 0)
-		return (error);
-
-	offset -= offset % strip_size;
-	addr += length;
-	length = blength - length;
-	for (no++; length > 0;
-	    no++, length -= strip_size, addr += strip_size) {
-		if (no > vol->v_disks_count - 1) {
+	do {
+		length = MIN(strip_size - start, remain);
+		error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no],
+		    addr, 0, offset + start, length);
+		if (error != 0)
+			return (error);
+		if (++no >= vol->v_disks_count) {
 			no = 0;
 			offset += strip_size;
 		}
-		error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no],
-		    addr, 0, offset, MIN(strip_size, length));
-		if (error != 0)
-			return (error);
-	}
+		remain -= length;
+		addr += length;
+		start = 0;
+	} while (remain > 0);
 	return (0);
 }
 
