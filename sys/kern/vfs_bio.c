@@ -2830,11 +2830,6 @@ loop:
 
 		if (vmio) {
 			bp->b_flags |= B_VMIO;
-#if defined(VFS_BIO_DEBUG)
-			if (vn_canvmio(vp) != TRUE)
-				printf("getblk: VMIO on vnode type %d\n",
-					vp->v_type);
-#endif
 			KASSERT(vp->v_object == bp->b_bufobj->bo_object,
 			    ("ARGH! different b_bufobj->bo_object %p %p %p\n",
 			    bp, vp->v_object, bp->b_bufobj->bo_object));
@@ -3343,36 +3338,26 @@ bufdone_finish(struct buf *bp)
 		buf_complete(bp);
 
 	if (bp->b_flags & B_VMIO) {
-		int i;
 		vm_ooffset_t foff;
 		vm_page_t m;
 		vm_object_t obj;
-		int bogus, iosize;
-		struct vnode *vp = bp->b_vp;
+		struct vnode *vp;
+		int bogus, i, iosize;
 
 		obj = bp->b_bufobj->bo_object;
+		KASSERT(obj->paging_in_progress >= bp->b_npages,
+		    ("biodone_finish: paging in progress(%d) < b_npages(%d)",
+		    obj->paging_in_progress, bp->b_npages));
 
-#if defined(VFS_BIO_DEBUG)
-		mp_fixme("usecount and vflag accessed without locks.");
-		if (vp->v_usecount == 0) {
-			panic("biodone: zero vnode ref count");
-		}
-
+		vp = bp->b_vp;
+		KASSERT(vp->v_holdcnt > 0,
+		    ("biodone_finish: vnode %p has zero hold count", vp));
 		KASSERT(vp->v_object != NULL,
-			("biodone: vnode %p has no vm_object", vp));
-#endif
+		    ("biodone_finish: vnode %p has no vm_object", vp));
 
 		foff = bp->b_offset;
 		KASSERT(bp->b_offset != NOOFFSET,
-		    ("biodone: no buffer offset"));
-
-		VM_OBJECT_LOCK(obj);
-#if defined(VFS_BIO_DEBUG)
-		if (obj->paging_in_progress < bp->b_npages) {
-			printf("biodone: paging in progress(%d) < bp->b_npages(%d)\n",
-			    obj->paging_in_progress, bp->b_npages);
-		}
-#endif
+		    ("biodone_finish: bp %p has no buffer offset", bp));
 
 		/*
 		 * Set B_CACHE if the op was a normal read and no error
@@ -3386,6 +3371,7 @@ bufdone_finish(struct buf *bp)
 			bp->b_flags |= B_CACHE;
 		}
 		bogus = 0;
+		VM_OBJECT_LOCK(obj);
 		for (i = 0; i < bp->b_npages; i++) {
 			int bogusflag = 0;
 			int resid;
@@ -3405,13 +3391,9 @@ bufdone_finish(struct buf *bp)
 					panic("biodone: page disappeared!");
 				bp->b_pages[i] = m;
 			}
-#if defined(VFS_BIO_DEBUG)
-			if (OFF_TO_IDX(foff) != m->pindex) {
-				printf(
-"biodone: foff(%jd)/m->pindex(%ju) mismatch\n",
-				    (intmax_t)foff, (uintmax_t)m->pindex);
-			}
-#endif
+			KASSERT(OFF_TO_IDX(foff) == m->pindex,
+			    ("biodone_finish: foff(%jd)/pindex(%ju) mismatch",
+			    (intmax_t)foff, (uintmax_t)m->pindex));
 
 			/*
 			 * In the write case, the valid and clean bits are
@@ -3425,31 +3407,6 @@ bufdone_finish(struct buf *bp)
 				vfs_page_set_valid(bp, foff, m);
 			}
 
-			/*
-			 * when debugging new filesystems or buffer I/O methods, this
-			 * is the most common error that pops up.  if you see this, you
-			 * have not set the page busy flag correctly!!!
-			 */
-			if (m->busy == 0) {
-				printf("biodone: page busy < 0, "
-				    "pindex: %d, foff: 0x(%x,%x), "
-				    "resid: %d, index: %d\n",
-				    (int) m->pindex, (int)(foff >> 32),
-						(int) foff & 0xffffffff, resid, i);
-				if (!vn_isdisk(vp, NULL))
-					printf(" iosize: %jd, lblkno: %jd, flags: 0x%x, npages: %d\n",
-					    (intmax_t)bp->b_vp->v_mount->mnt_stat.f_iosize,
-					    (intmax_t) bp->b_lblkno,
-					    bp->b_flags, bp->b_npages);
-				else
-					printf(" VDEV, lblkno: %jd, flags: 0x%x, npages: %d\n",
-					    (intmax_t) bp->b_lblkno,
-					    bp->b_flags, bp->b_npages);
-				printf(" valid: 0x%lx, dirty: 0x%lx, wired: %d\n",
-				    (u_long)m->valid, (u_long)m->dirty,
-				    m->wire_count);
-				panic("biodone: page busy < 0\n");
-			}
 			vm_page_io_finish(m);
 			vm_object_pip_subtract(obj, 1);
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
