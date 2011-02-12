@@ -496,6 +496,50 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	return (0);
 }
 
+static int
+linux_set_cloned_tls(struct thread *td, void *desc)
+{
+	struct user_segment_descriptor sd;
+	struct l_user_desc info;
+	struct pcb *pcb;
+	int error;
+	int a[2];
+
+	error = copyin(desc, &info, sizeof(struct l_user_desc));
+	if (error) {
+		printf(LMSG("copyin failed!"));
+	} else {
+		/* We might copy out the entry_number as GUGS32_SEL. */
+		info.entry_number = GUGS32_SEL;
+		error = copyout(&info, desc, sizeof(struct l_user_desc));
+		if (error)
+			printf(LMSG("copyout failed!"));
+
+		a[0] = LINUX_LDT_entry_a(&info);
+		a[1] = LINUX_LDT_entry_b(&info);
+
+		memcpy(&sd, &a, sizeof(a));
+#ifdef DEBUG
+		if (ldebug(clone))
+			printf("Segment created in clone with "
+			    "CLONE_SETTLS: lobase: %x, hibase: %x, "
+			    "lolimit: %x, hilimit: %x, type: %i, "
+			    "dpl: %i, p: %i, xx: %i, long: %i, "
+			    "def32: %i, gran: %i\n", sd.sd_lobase,
+			    sd.sd_hibase, sd.sd_lolimit, sd.sd_hilimit,
+			    sd.sd_type, sd.sd_dpl, sd.sd_p, sd.sd_xx,
+			    sd.sd_long, sd.sd_def32, sd.sd_gran);
+#endif
+		pcb = td->td_pcb;
+		pcb->pcb_gsbase = (register_t)info.base_addr;
+/* XXXKIB	pcb->pcb_gs32sd = sd; */
+		td->td_frame->tf_gs = GSEL(GUGS32_SEL, SEL_UPL);
+		set_pcb_flags(pcb, PCB_GS32BIT | PCB_32BIT);
+	}
+
+	return (error);
+}
+
 int
 linux_clone(struct thread *td, struct linux_clone_args *args)
 {
@@ -613,46 +657,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (args->stack)
 		td2->td_frame->tf_rsp = PTROUT(args->stack);
 
-	if (args->flags & LINUX_CLONE_SETTLS) {
-		struct user_segment_descriptor sd;
-		struct l_user_desc info;
-		struct pcb *pcb;
-		int a[2];
-
-		error = copyin((void *)td->td_frame->tf_rsi, &info,
-		    sizeof(struct l_user_desc));
-		if (error) {
-			printf(LMSG("copyin failed!"));
-		} else {
-			/* We might copy out the entry_number as GUGS32_SEL. */
-			info.entry_number = GUGS32_SEL;
-			error = copyout(&info, (void *)td->td_frame->tf_rsi,
-			    sizeof(struct l_user_desc));
-			if (error)
-				printf(LMSG("copyout failed!"));
-
-			a[0] = LINUX_LDT_entry_a(&info);
-			a[1] = LINUX_LDT_entry_b(&info);
-
-			memcpy(&sd, &a, sizeof(a));
-#ifdef DEBUG
-			if (ldebug(clone))
-				printf("Segment created in clone with "
-				    "CLONE_SETTLS: lobase: %x, hibase: %x, "
-				    "lolimit: %x, hilimit: %x, type: %i, "
-				    "dpl: %i, p: %i, xx: %i, long: %i, "
-				    "def32: %i, gran: %i\n", sd.sd_lobase,
-				    sd.sd_hibase, sd.sd_lolimit, sd.sd_hilimit,
-				    sd.sd_type, sd.sd_dpl, sd.sd_p, sd.sd_xx,
-				    sd.sd_long, sd.sd_def32, sd.sd_gran);
-#endif
-			pcb = td2->td_pcb;
-			pcb->pcb_gsbase = (register_t)info.base_addr;
-/* XXXKIB		pcb->pcb_gs32sd = sd; */
-			td2->td_frame->tf_gs = GSEL(GUGS32_SEL, SEL_UPL);
-			set_pcb_flags(pcb, PCB_GS32BIT | PCB_32BIT);
-		}
-	}
+	if (args->flags & LINUX_CLONE_SETTLS)
+		linux_set_cloned_tls(td2, args->tls);
 
 #ifdef DEBUG
 	if (ldebug(clone))
