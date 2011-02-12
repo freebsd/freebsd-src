@@ -8,7 +8,7 @@ CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 .PATH: ${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_CPUARCH}/linux${SFX}
 
 KMOD=	linux
-SRCS=	linux${SFX}_dummy.c linux_emul.c linux_file.c \
+SRCS=	linux_fork.c linux${SFX}_dummy.c linux_emul.c linux_file.c \
 	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
 	linux${SFX}_machdep.c linux_mib.c linux_misc.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
