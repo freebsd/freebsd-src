@@ -688,6 +688,19 @@ journal_findfile(void)
 	return (0);
 }
 
+static void
+dir_clear_block(char *block, off_t off)
+{
+	struct direct *dp;
+
+	for (; off < sblock.fs_bsize; off += DIRBLKSIZ) {
+		dp = (struct direct *)&block[off];
+		dp->d_ino = 0;
+		dp->d_reclen = DIRBLKSIZ;
+		dp->d_type = DT_UNKNOWN;
+	}
+}
+
 /*
  * Insert the journal at inode 'ino' into directory blk 'blk' at the first
  * free offset of 'off'.  DIRBLKSIZ blocks after off are initialized as
@@ -710,13 +723,7 @@ dir_insert(ufs2_daddr_t blk, off_t off, ino_t ino)
 	dp->d_type = DT_REG;
 	dp->d_namlen = strlen(SUJ_FILE);
 	bcopy(SUJ_FILE, &dp->d_name, strlen(SUJ_FILE));
-	off += DIRBLKSIZ;
-	for (; off < sblock.fs_bsize; off += DIRBLKSIZ) {
-		dp = (struct direct *)&block[off];
-		dp->d_ino = 0;
-		dp->d_reclen = DIRBLKSIZ;
-		dp->d_type = DT_UNKNOWN;
-	}
+	dir_clear_block(block, off + DIRBLKSIZ);
 	if (bwrite(&disk, fsbtodb(&sblock, blk), block, sblock.fs_bsize) <= 0) {
 		warn("Failed to write dir block");
 		return (-1);
@@ -733,16 +740,19 @@ dir_extend(ufs2_daddr_t blk, ufs2_daddr_t nblk, off_t size, ino_t ino)
 {
 	char block[MAXBSIZE];
 
-	if (bread(&disk, fsbtodb(&sblock, blk), block, size) <= 0) {
+	if (bread(&disk, fsbtodb(&sblock, blk), block,
+	    roundup(size, sblock.fs_fsize)) <= 0) {
 		warn("Failed to read dir block");
 		return (-1);
 	}
-	if (bwrite(&disk, fsbtodb(&sblock, nblk), block, size) <= 0) {
+	dir_clear_block(block, size);
+	if (bwrite(&disk, fsbtodb(&sblock, nblk), block, sblock.fs_bsize)
+	    <= 0) {
 		warn("Failed to write dir block");
 		return (-1);
 	}
 
-	return dir_insert(nblk, size, ino);
+	return (dir_insert(nblk, size, ino));
 }
 
 /*
