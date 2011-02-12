@@ -50,6 +50,7 @@ struct g_raid_tr_object;
 #ifdef _KERNEL
 extern u_int g_raid_aggressive_spare;
 extern u_int g_raid_debug;
+extern int g_raid_read_err_thresh;
 extern u_int g_raid_start_timeout;
 extern struct g_class g_raid_class;
 

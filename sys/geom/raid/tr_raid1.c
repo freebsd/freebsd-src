@@ -46,19 +46,12 @@ SYSCTL_DECL(_kern_geom_raid);
 SYSCTL_NODE(_kern_geom_raid, OID_AUTO, raid1, CTLFLAG_RW, 0,
     "RAID1 parameters");
 
-#define RAID1_READ_ERR_THRESH 10 /* errors to cause a rebuild */
-static int g_raid1_read_err_thresh = RAID1_READ_ERR_THRESH;
-TUNABLE_INT("kern.geom.raid.raid1.read_err_thresh", &g_raid1_read_err_thresh);
-SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, read_err_thresh, CTLFLAG_RW,
-    &g_raid1_read_err_thresh, RAID1_READ_ERR_THRESH,
-    "Number of read errors on a subdisk that trigger a rebuild");
-
 #define RAID1_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */
 static int g_raid1_rebuild_slab = RAID1_REBUILD_SLAB;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_slab_size",
     &g_raid1_rebuild_slab);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_slab_size, CTLFLAG_RW,
-    &g_raid1_rebuild_slab, RAID1_REBUILD_SLAB,
+    &g_raid1_rebuild_slab, 0,
     "Amount of the disk to rebuild each read/write cycle of the rebuild.");
 
 #define RAID1_REBUILD_FAIR_IO 20 /* use 1/x of the available I/O */
@@ -66,7 +59,7 @@ static int g_raid1_rebuild_fair_io = RAID1_REBUILD_FAIR_IO;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_fair_io",
     &g_raid1_rebuild_fair_io);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_fair_io, CTLFLAG_RW,
-    &g_raid1_rebuild_fair_io, RAID1_REBUILD_FAIR_IO,
+    &g_raid1_rebuild_fair_io, 0,
     "Fraction of the I/O bandwidth to use when disk busy for rebuild.");
 
 #define RAID1_REBUILD_CLUSTER_IDLE 100
@@ -74,7 +67,7 @@ static int g_raid1_rebuild_cluster_idle = RAID1_REBUILD_CLUSTER_IDLE;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_cluster_idle",
     &g_raid1_rebuild_cluster_idle);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_cluster_idle, CTLFLAG_RW,
-    &g_raid1_rebuild_cluster_idle, RAID1_REBUILD_CLUSTER_IDLE,
+    &g_raid1_rebuild_cluster_idle, 0,
     "Number of slabs to do each time we trigger a rebuild cycle");
 
 #define RAID1_REBUILD_META_UPDATE 1024 /* update meta data every 1GB or so */
@@ -82,7 +75,7 @@ static int g_raid1_rebuild_meta_update = RAID1_REBUILD_META_UPDATE;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_meta_update",
     &g_raid1_rebuild_meta_update);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_meta_update, CTLFLAG_RW,
-    &g_raid1_rebuild_meta_update, RAID1_REBUILD_META_UPDATE,
+    &g_raid1_rebuild_meta_update, 0,
     "When to update the meta data.");
 
 static MALLOC_DEFINE(M_TR_RAID1, "tr_raid1_data", "GEOM_RAID RAID1 data");
@@ -833,7 +826,7 @@ rebuild_round_done:
 		 * drive, which kicks off a resync?
 		 */
 		do_write = 1;
-		if (sd->sd_disk->d_read_errs > g_raid1_read_err_thresh) {
+		if (sd->sd_disk->d_read_errs > g_raid_read_err_thresh) {
 			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			if (pbp->bio_children == 1)
 				do_write = 0;

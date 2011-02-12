@@ -59,14 +59,20 @@ u_int g_raid_debug = 2;
 TUNABLE_INT("kern.geom.raid.debug", &g_raid_debug);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RW, &g_raid_debug, 0,
     "Debug level");
+int g_raid_read_err_thresh = 10;
+TUNABLE_INT("kern.geom.raid.read_err_thresh", &g_raid_read_err_thresh);
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, read_err_thresh, CTLFLAG_RW,
+    &g_raid_read_err_thresh, 0,
+    "Number of read errors equated to disk failure");
 u_int g_raid_start_timeout = 15;
 TUNABLE_INT("kern.geom.raid.start_timeout", &g_raid_start_timeout);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, timeout, CTLFLAG_RW, &g_raid_start_timeout,
-    0, "Time to wait for all array components");
-static u_int g_raid_cleantime = 5;
-TUNABLE_INT("kern.geom.raid.cleantime", &g_raid_cleantime);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, cleantime, CTLFLAG_RW,
-    &g_raid_cleantime, 0, "Mark volume as clean when idling");
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, start_timeout, CTLFLAG_RW,
+    &g_raid_start_timeout, 0,
+    "Time to wait for all array components");
+static u_int g_raid_clean_time = 5;
+TUNABLE_INT("kern.geom.raid.clean_time", &g_raid_clean_time);
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, clean_time, CTLFLAG_RW,
+    &g_raid_clean_time, 0, "Mark volume as clean when idling");
 static u_int g_raid_disconnect_on_failure = 1;
 TUNABLE_INT("kern.geom.raid.disconnect_on_failure",
     &g_raid_disconnect_on_failure);
@@ -709,7 +715,7 @@ g_raid_clean(struct g_raid_volume *vol, int acw)
 		return (0);
 	if (acw > 0 || (acw == -1 &&
 	    vol->v_provider != NULL && vol->v_provider->acw > 0)) {
-		timeout = g_raid_cleantime - (time_uptime - vol->v_last_write);
+		timeout = g_raid_clean_time - (time_uptime - vol->v_last_write);
 		if (timeout > 0)
 			return (timeout);
 	}
