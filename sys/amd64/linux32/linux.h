@@ -921,5 +921,6 @@ struct linux_robust_list_head {
 };
 
 int linux_set_upcall_kse(struct thread *td, register_t stack);
+int linux_set_cloned_tls(struct thread *td, void *desc);
 
 #endif /* !_AMD64_LINUX_H_ */
