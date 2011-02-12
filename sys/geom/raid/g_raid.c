@@ -737,6 +737,54 @@ g_raid_dirty(struct g_raid_volume *vol)
 	g_raid_write_metadata(sc, vol, NULL, NULL);
 }
 
+void
+g_raid_tr_flush_common(struct g_raid_tr_object *tr, struct bio *bp)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_volume *vol;
+	struct g_raid_subdisk *sd;
+	struct bio_queue_head queue;
+	struct bio *cbp;
+	int i;
+
+	vol = tr->tro_volume;
+	sc = vol->v_softc;
+
+	/*
+	 * Allocate all bios before sending any request, so we can return
+	 * ENOMEM in nice and clean way.
+	 */
+	bioq_init(&queue);
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		if (sd->sd_state == G_RAID_SUBDISK_S_NONE ||
+		    sd->sd_state == G_RAID_SUBDISK_S_FAILED)
+			continue;
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL)
+			goto failure;
+		cbp->bio_caller1 = sd;
+		bioq_insert_tail(&queue, cbp);
+	}
+	for (cbp = bioq_first(&queue); cbp != NULL;
+	    cbp = bioq_first(&queue)) {
+		bioq_remove(&queue, cbp);
+		sd = cbp->bio_caller1;
+		cbp->bio_caller1 = NULL;
+		g_raid_subdisk_iostart(sd, cbp);
+	}
+	return;
+failure:
+	for (cbp = bioq_first(&queue); cbp != NULL;
+	    cbp = bioq_first(&queue)) {
+		bioq_remove(&queue, cbp);
+		g_destroy_bio(cbp);
+	}
+	if (bp->bio_error == 0)
+		bp->bio_error = ENOMEM;
+	g_raid_iodone(bp, bp->bio_error);
+}
+
 static void
 g_raid_tr_kerneldump_common_done(struct bio *bp)
 {
@@ -832,10 +880,8 @@ g_raid_start(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		break;
 	case BIO_FLUSH:
-		g_io_deliver(bp, EOPNOTSUPP);
-		return;
+		break;
 	case BIO_GETATTR:
 		if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_raid_kerneldump(sc, bp);

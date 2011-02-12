@@ -200,6 +200,10 @@ g_raid_tr_iostart_raid0(struct g_raid_tr_object *tr, struct bio *bp)
 		g_raid_iodone(bp, EIO);
 		return;
 	}
+	if (bp->bio_cmd == BIO_FLUSH) {
+		g_raid_tr_flush_common(tr, bp);
+		return;
+	}
 	sc = vol->v_softc;
 
 	addr = bp->bio_data;

@@ -601,17 +601,8 @@ g_raid_tr_iostart_raid1_write(struct g_raid_tr_object *tr, struct bio *bp)
 			continue;
 		}
 		cbp = g_clone_bio(bp);
-		if (cbp == NULL) {
-			for (cbp = bioq_first(&queue); cbp != NULL;
-			    cbp = bioq_first(&queue)) {
-				bioq_remove(&queue, cbp);
-				g_destroy_bio(cbp);
-			}
-			if (bp->bio_error == 0)
-				bp->bio_error = ENOMEM;
-			g_raid_iodone(bp, bp->bio_error);
-			return;
-		}
+		if (cbp == NULL)
+			goto failure;
 		cbp->bio_caller1 = sd;
 		bioq_insert_tail(&queue, cbp);
 	}
@@ -622,7 +613,16 @@ g_raid_tr_iostart_raid1_write(struct g_raid_tr_object *tr, struct bio *bp)
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
-
+	return;
+failure:
+	for (cbp = bioq_first(&queue); cbp != NULL;
+	    cbp = bioq_first(&queue)) {
+		bioq_remove(&queue, cbp);
+		g_destroy_bio(cbp);
+	}
+	if (bp->bio_error == 0)
+		bp->bio_error = ENOMEM;
+	g_raid_iodone(bp, bp->bio_error);
 }
 
 static void
@@ -661,6 +661,9 @@ g_raid_tr_iostart_raid1(struct g_raid_tr_object *tr, struct bio *bp)
 		break;
 	case BIO_DELETE:
 		g_raid_iodone(bp, EIO);
+		break;
+	case BIO_FLUSH:
+		g_raid_tr_flush_common(tr, bp);
 		break;
 	default:
 		KASSERT(1 == 0, ("Invalid command here: %u (volume=%s)",

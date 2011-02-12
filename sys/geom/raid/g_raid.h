@@ -373,6 +373,7 @@ void g_raid_write_metadata(struct g_raid_softc *sc, struct g_raid_volume *vol,
 void g_raid_fail_disk(struct g_raid_softc *sc,
     struct g_raid_subdisk *sd, struct g_raid_disk *disk);
 
+void g_raid_tr_flush_common(struct g_raid_tr_object *tr, struct bio *bp);
 int g_raid_tr_kerneldump_common(struct g_raid_tr_object *tr,
     void *virtual, vm_offset_t physical, off_t offset, size_t length);
 
