@@ -920,4 +920,6 @@ struct linux_robust_list_head {
 	l_uintptr_t			pending_list;
 };
 
+int linux_set_upcall_kse(struct thread *td, register_t stack);
+
 #endif /* !_AMD64_LINUX_H_ */
