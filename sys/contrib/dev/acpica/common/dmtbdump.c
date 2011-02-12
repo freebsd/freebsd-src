@@ -52,6 +52,12 @@
         ACPI_MODULE_NAME    ("dmtbdump")
 
 
+static void
+AcpiDmValidateFadtLength (
+    UINT32                  Revision,
+    UINT32                  Length);
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDmDumpRsdp
@@ -201,6 +207,10 @@ AcpiDmDumpXsdt (
  *
  * DESCRIPTION: Format the contents of a FADT
  *
+ * NOTE:        We cannot depend on the FADT version to indicate the actual
+ *              contents of the FADT because of BIOS bugs. The table length
+ *              is the only reliable indicator.
+ *
  ******************************************************************************/
 
 void
@@ -208,20 +218,21 @@ AcpiDmDumpFadt (
     ACPI_TABLE_HEADER       *Table)
 {
 
-    /* Common ACPI 1.0 portion of FADT */
+    /* Always dump the minimum FADT revision 1 fields (ACPI 1.0) */
 
     AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt1);
 
-    /* Check for ACPI 1.0B MS extensions (FADT revision 2) */
+    /* Check for FADT revision 2 fields (ACPI 1.0B MS extensions) */
 
-    if (Table->Revision == 2)
+    if ((Table->Length > ACPI_FADT_V1_SIZE) &&
+        (Table->Length <= ACPI_FADT_V2_SIZE))
     {
         AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt2);
     }
 
-    /* Check for ACPI 2.0+ extended data (FADT revision 3+) */
+    /* Check for FADT revision 3 fields and up (ACPI 2.0+ extended data) */
 
-    else if (Table->Length >= sizeof (ACPI_TABLE_FADT))
+    else if (Table->Length > ACPI_FADT_V2_SIZE)
     {
         AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt3);
     }
@@ -229,6 +240,68 @@ AcpiDmDumpFadt (
     /* Validate various fields in the FADT, including length */
 
     AcpiTbCreateLocalFadt (Table, Table->Length);
+
+    /* Validate FADT length against the revision */
+
+    AcpiDmValidateFadtLength (Table->Revision, Table->Length);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmValidateFadtLength
+ *
+ * PARAMETERS:  Revision            - FADT revision (Header->Revision)
+ *              Length              - FADT length (Header->Length
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Check the FADT revision against the expected table length for
+ *              that revision. Issue a warning if the length is not what was
+ *              expected. This seems to be such a common BIOS bug that the
+ *              FADT revision has been rendered virtually meaningless.
+ *
+ ******************************************************************************/
+
+static void
+AcpiDmValidateFadtLength (
+    UINT32                  Revision,
+    UINT32                  Length)
+{
+    UINT32                  ExpectedLength;
+
+
+    switch (Revision)
+    {
+    case 0:
+        AcpiOsPrintf ("// ACPI Warning: Invalid FADT revision: 0\n");
+        return;
+
+    case 1:
+        ExpectedLength = ACPI_FADT_V1_SIZE;
+        break;
+
+    case 2:
+        ExpectedLength = ACPI_FADT_V2_SIZE;
+        break;
+
+    case 3:
+    case 4:
+        ExpectedLength = ACPI_FADT_V3_SIZE;
+        break;
+
+    default:
+        return;
+    }
+
+    if (Length == ExpectedLength)
+    {
+        return;
+    }
+
+    AcpiOsPrintf (
+        "\n// ACPI Warning: FADT revision %X does not match length: found %X expected %X\n",
+        Revision, Length, ExpectedLength);
 }
 
 
