@@ -298,14 +298,14 @@ AcpiExAccessRegion (
         if (Status == AE_NOT_IMPLEMENTED)
         {
             ACPI_ERROR ((AE_INFO,
-                "Region %s(0x%X) not implemented",
+                "Region %s (ID=%u) not implemented",
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));
         }
         else if (Status == AE_NOT_EXIST)
         {
             ACPI_ERROR ((AE_INFO,
-                "Region %s(0x%X) has no handler",
+                "Region %s (ID=%u) has no handler",
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));
         }

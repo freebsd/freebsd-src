@@ -245,6 +245,10 @@ ACPI_EXTERN UINT32                      AcpiGbl_OwnerIdMask[ACPI_NUM_OWNERID_MAS
 ACPI_EXTERN UINT8                       AcpiGbl_LastOwnerIdIndex;
 ACPI_EXTERN UINT8                       AcpiGbl_NextOwnerIdOffset;
 
+/* Initialization sequencing */
+
+ACPI_EXTERN BOOLEAN                     AcpiGbl_RegMethodsExecuted;
+
 /* Misc */
 
 ACPI_EXTERN UINT32                      AcpiGbl_OriginalMode;
