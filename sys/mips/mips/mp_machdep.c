@@ -200,12 +200,14 @@ start_ap(int cpuid)
 void
 cpu_mp_setmaxid(void)
 {
+	cpumask_t cpumask;
 
-	mp_ncpus = platform_num_processors();
+	cpumask = platform_cpu_mask();
+	mp_ncpus = bitcount32(cpumask);
 	if (mp_ncpus <= 0)
 		mp_ncpus = 1;
 
-	mp_maxid = min(mp_ncpus, MAXCPU) - 1;
+	mp_maxid = min(fls(cpumask), MAXCPU) - 1;
 }
 
 void
@@ -231,24 +233,30 @@ void
 cpu_mp_start(void)
 {
 	int error, cpuid;
+	cpumask_t cpumask;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
-	all_cpus = 1;		/* BSP */
-	for (cpuid = 1; cpuid < platform_num_processors(); ++cpuid) {
+	all_cpus = 0;
+	cpumask = platform_cpu_mask();
+
+	while (cpumask != 0) {
+		cpuid = ffs(cpumask) - 1;
+		cpumask &= ~(1 << cpuid);
+
 		if (cpuid >= MAXCPU) {
 			printf("cpu_mp_start: ignoring AP #%d.\n", cpuid);
 			continue;
 		}
 
-		if ((error = start_ap(cpuid)) != 0) {
-			printf("AP #%d failed to start: %d\n", cpuid, error);
-			continue;
+		if (cpuid != platform_processor_id()) {
+			if ((error = start_ap(cpuid)) != 0) {
+				printf("AP #%d failed to start: %d\n", cpuid, error);
+				continue;
+			}
+			if (bootverbose)
+				printf("AP #%d started!\n", cpuid);
 		}
-		
-		if (bootverbose)
-			printf("AP #%d started!\n", cpuid);
-
 		all_cpus |= 1 << cpuid;
 	}
 
