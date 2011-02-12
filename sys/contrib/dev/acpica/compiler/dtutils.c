@@ -399,6 +399,7 @@ DtGetFieldType (
         break;
 
     case ACPI_DMT_BUFFER:
+    case ACPI_DMT_BUF7:
     case ACPI_DMT_BUF16:
     case ACPI_DMT_PCI_PATH:
         Type = DT_FIELD_TYPE_BUFFER;
@@ -419,6 +420,10 @@ DtGetFieldType (
 
     case ACPI_DMT_DEVICE_PATH:
         Type = DT_FIELD_TYPE_DEVICE_PATH;
+        break;
+
+    case ACPI_DMT_LABEL:
+        Type = DT_FIELD_TYPE_LABEL;
         break;
 
     default:
@@ -507,6 +512,7 @@ DtGetFieldLength (
     case ACPI_DMT_FLAG7:
     case ACPI_DMT_FLAGS0:
     case ACPI_DMT_FLAGS2:
+    case ACPI_DMT_LABEL:
         ByteLength = 0;
         break;
 
@@ -549,6 +555,7 @@ DtGetFieldLength (
         break;
 
     case ACPI_DMT_UINT56:
+    case ACPI_DMT_BUF7:
         ByteLength = 7;
         break;
 
