@@ -179,6 +179,9 @@
 	improved.  It now supports SMP on a SWARM with a dual-core
 	Sibyte processor.</para>
 
+      <para arch="mips">&os;/mips now supports Netlogic Microsystems'
+	XLR and XLS multi-core processor families.</para>
+
       <para arch="sparc64" revision="215598">&os;/sparc64 now supports
 	reservation-based physical memory allocation which provides
 	better performance.</para>
@@ -198,10 +201,11 @@
       <para arch="amd64,i386" revision="215513">ACPI suspend/resume
 	functionality support has been improved.</para>
 
-      <para arch="amd64,i386" revision="214784">The qpi(4) pseudo bus
-	driver has been added.  This supports extra PCI buses on Intel
-	QPI chipsets where various hardware such as memory controllers
-	for each socket is connected.</para>
+      <para arch="amd64,i386" revision="215513">&os; kernel now
+	supports <function>kern_fpu_enter()</function> and
+	<function>kern_fpu_leave()</function> KPIs which allow the
+	kernel subsystems to use XMM register files used in Intel SSE
+	(Streaming SIMD Extensions).</para>
 
       <para arch="amd64,i386,ia64" revision="215006">The &man.acpi.4;
 	driver now uses ACPI Reset Register capability by default only
@@ -257,6 +261,14 @@
 	allocated memories over a longer time.  For more details, see
 	&man.memguard.9; manual page.</para>
 
+      <para revision="214756"><literal>PT_LWPINFO</literal> request to
+	obtain information about the kernel thread that caused the
+	traced process to stop in the &man.ptrace.2; process tracing
+	and debugging facility has been improved.  It now reports
+	system call entry and leave events, as well as availability of
+	<varname>siginfo_t</varname> accompanying the reported
+	signal.</para>
+
       <para revision="214254">The &os; &man.crypto.4; framework
 	(opencrypto) now supports XTS-AES (XEX-TCB-CTS, or XEX-based
 	Tweaked Code Book mode with CipherText Stealing), which is
@@ -265,6 +277,11 @@
       <para arch="amd64" revision="215788">Xen HVM support in
 	&os;/amd64 kernel has been improved.  For more details, see
 	&man.xen.4; manual page.</para>
+
+      <para arch="amd64,i386" revision="214784">The qpi(4) pseudo bus
+	driver has been added.  This supports extra PCI buses on Intel
+	QPI chipsets where various hardware such as memory controllers
+	for each socket is connected.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
@@ -324,9 +341,9 @@
 
 	  <para>The &os; Linux emulation subsystem now supports
 	    video4linux API.  This requires native video4linux
-	    hardware drivers such as ones which<filename
-	    role="ports">multimedia/pwc</filename> and <filename
-	    role="ports">multimedia/webcamd</filename> provide.</para>
+	    hardware drivers such as the ones provided by <filename
+	    role="ports">multimedia/pwcbsd</filename> and <filename
+	    role="ports">multimedia/webcamd</filename>.</para>
 
 	  <para revision="215483">MIDI input buffer size in the
 	    &man.uaudio.4; driver has been changed.  This fixes a
@@ -347,8 +364,8 @@
 
 	  <para revision="215003">A bug in the &man.alc.4; driver
 	    which can lead to a system freeze when the system is
-	    booted without a cable plugged in.  The symptom was found
-	    in AR8132 on EEE PC.</para>
+	    booted without a cable plugged in has been fixed.  The
+	    symptom was found in AR8132 on EEE PC.</para>
 
 	  <para revision="212011">The TX interrupt moderation timer in
 	    the &man.alc.4; driver has been reduced from 50ms to 1ms.
@@ -376,8 +393,16 @@
 	    offloading has been fixed.</para>
 
 	  <para revision="214714">Some improvements for reliability of
-	    the &man.bge.4; driver with BCM5906 or BCM6906 controller
-	    has been added.</para>
+	    the &man.bge.4; driver with BCM5906 controller has been
+	    added.</para>
+
+	  <para revision="214698">The &man.bge.4; driver now supports
+	    hardware MAC statistics in controller's internal memory
+	    for BCM5705 or newer Broadcom controllers.  These counters
+	    can be accessed via &man.sysctl.8; variable
+	    <varname>dev.bge.<replaceable>N</replaceable>.stats.*</varname>
+	    and provide useful information to diagnose driver
+	    issues.</para>
 
 	  <para revision="213109">UDP checksum offloading in the
 	    &man.bge.4; driver has been disabled by default.  This is
@@ -390,7 +415,7 @@
 	  <programlisting>dev.bge.<replaceable>N</replaceable>.forced_udpcsum</programlisting>
 
 	  <para revision="213593">A bug in the &man.bge.4; driver
-	    which can lead poor performance on a system with RAM
+	    which can lead to poor performance on a system with RAM
 	    larger than 4GB has been fixed.  The cause was that all of
 	    Broadcom controllers except for BCM5755 and later has 4GB
 	    boundary DMA bug and the inefficient use of bounce
@@ -461,15 +486,17 @@
 	    82599, better interrupt handling, hardware assist to LRO,
 	    VM SRIOV interface, and so on.</para>
 
-	  <para revision="211379,215881,216023,216029,216031">The
+	  <para
+	    revision="211379,215881,215890,2105894,216002,216023,216029,216031,216033">The
 	    &man.miibus.4; has been rewritten for the generic IEEE
 	    802.3 annex 31B full duplex flow control support.  The
-	    &man.alc.4; &man.bge.4;, &man.bce.4;, &man.jme.4;,
-	    &man.msk.4;, &man.nfe.4;, &man.re.4;, and &man.stge.4;
-	    drivers along with brgphy(4), e1000phy(4), ip1000phy(4),
-	    atphy(4), bmtphy(4), gentbi(4), inphy(4), jmphy(4),
+	    &man.alc.4;, &man.bge.4;, &man.bce.4;, &man.cas.4;,
+	    &man.fxp.4;, &man.gem.4;, &man.jme.4;, &man.msk.4;,
+	    &man.nfe.4;, &man.re.4;, &man.stge.4;, and &man.xl.4;
+	    drivers along with atphy(4), bmtphy(4), brgphy(4),
+	    e1000phy(4), gentbi(4), inphy(4), ip1000phy(4), jmphy(4),
 	    nsgphy(4), nsphyter(4), and &man.rgephy.4; have been
-	    updated to support flow control via this facility./para>
+	    updated to support flow control via this facility.</para>
 
 	  <para revision="212386">The &man.mwlfw.4;
 	    driver is now also provided as a kernel module.</para>
@@ -486,7 +513,7 @@
 
 	  <para revision="215405">The &man.re.4; driver now supports
 	    hardware interrupt moderation of TX completion interrupt
-	    on RTL8169/RTL8169 controllers.</para>
+	    on RTL8169/RTL8168 controllers.</para>
 
 	  <para revision="211377">The &man.rl.4; driver now supports WoL
 	    (Wake on LAN) on RTL8139B or newer controllers.</para>
@@ -494,7 +521,7 @@
 	  <para revision="215222">The &man.rl.4; driver now supports
 	    reading hardware statistics counters by setting a
 	    &man.sysctl.8; variable
-	    <varname>dev.re.<replaceable>N</replaceable>.stats</varname>
+	    <varname>dev.rl.<replaceable>N</replaceable>.stats</varname>
 	    to <literal>1</literal>.</para>
 
 	  <para revision="212039">The &man.rl.4; driver now supports a
@@ -513,10 +540,6 @@
 	  <para revision="214407">The &man.rl.4; driver has been
 	    improved on interrupt handling.  It now has better TX
 	    performance under high RX load.</para>
-
-	  <para revision="217861">The &man.run.4; driver, which is
-	    from OpenBSD and supports Ralink RT2700U/RT2800U/RT3000U
-	    USB 802.11agn devices has been added.</para>
 
 	  <para revision="215216">A bug in the &man.sk.4; driver has
 	    been fixed.  It did not program the station address for
@@ -568,8 +591,9 @@
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
-	<para revision="209783">The &man.altq.4; support is now provided
-	  as a kernel module <filename>alq.ko</filename>.</para>
+	<para revision="209783">The &man.alq.9; support is now
+	  provided as a kernel module
+	  <filename>alq.ko</filename>.</para>
 
 	<para revision="212738,216348">A bug in the &man.ipfw.4;
 	  packet filter subsystem has been fixed.  The &man.sysctl.8;
@@ -681,7 +705,7 @@
 	  has been updated to version 1.20.00.19.</para>
 
 	<para revision="215173">The &man.ada.4; driver now supports a
-	  now &man.sysctl.8; variable
+	  new &man.sysctl.8; variable
 	  <varname>kern.cam.ada.spindown_shutdown</varname> which
 	  controls whether or not to spin-down disks when shutting
 	  down if the device supports the functionality.  The default
@@ -696,11 +720,25 @@
 	  The valid values are the same as ones supported in the
 	  &man.atacontrol.8; and &man.camcontrol.8;.</para>
 
-	<para revision="210204">The &man.ata.4; driver
-	  now enables cable status check on both of controller and
-	  device side when
+	<para revision="210204">The &man.ata.4; driver now disables
+	  cable status check on both of controller and device side
+	  when the loader tunable
 	  <varname>hw.ata.ata_dma_check_80pin</varname> is
-	  enabled.</para>
+	  <literal>0</literal>.  The check on controller side was
+	  performed regardless of this loader tunable.</para>
+
+	<para revision="215777">The &man.ata.4; driver now reports
+	  SATA power management capabilities to &man.CAM.4; layer when
+	  <option>ATA_CAM</option> is enabled.  This allows a device
+	  to initiate transitions if controller configured to accept
+	  it.  This makes
+	  <varname>hint.ata.<replaceable>N</replaceable>.pm_level=1</varname>
+	  mode work.</para>
+
+	<para revision="214671">The &man.ata.4; driver has been
+	  improved on hotplugging and connection speed reporting
+	  support for some Intel SATA controllers including ICH5 and
+	  ICH8+ operating in legacy mode.</para>
 
 	<para revision="213291">An issue of device detection of
 	  Serverworks K2 SATA controllers in the &man.ata.4; has been fixed.</para>
@@ -865,7 +903,7 @@
 
       <para revision="214405">The &man.geli.8; utility now supports
 	<command>resize</command> subcommand to resize encrypted file
-	systems prior to growing it</para>
+	systems prior to growing it.</para>
 
       <para revision="214405">The &man.geli.8; utility now supports
 	<command>suspend</command> and <command>resume</command>
@@ -885,7 +923,7 @@
       <para revision="214405">The &man.geli.8; utility now supports
 	<option>-J <replaceable>newpassfile</replaceable></option> and
 	<option>-j <replaceable>passfile</replaceable></option>
-	options for loading passphrease from a file.</para>
+	options for loading passphrase from a file.</para>
 
       <para revision="211938">The <function>gethost*()</function>,
 	<function>getnet*()</function>, and
@@ -933,7 +971,7 @@
 
       <para>Any changes to the corrupted GPT table is not allowed
 	except for <command>destroy</command> and
-	<command>recover</command> subcommands./para>
+	<command>recover</command> subcommands.</para>
 
       <para revision="213994">The &man.gpart.8; utility now supports
 	<literal>GPT_ENT_ATTR_BOOTME</literal>,
@@ -1008,7 +1046,7 @@
       <para revision="215622">The &man.newsyslog.8; utility now
 	supports a special log file name
 	<literal>&lt;include&gt;</literal> for processing file
-	inclusion.  Globing in the file name and circular dependency
+	inclusion.  Globbing in the file name and circular dependency
 	detection are supported.  For more details, see
 	&man.newsyslog.conf.5; manual page.</para>
 
@@ -1052,10 +1090,10 @@
 	hostnames longer than 12 characters.</para>
 
       <para revision="215066">A behavior of the &man.sh.1; program
-	when an <option>-u nounset</option> option is specified has
-	been changed.  The special parameters <varname>$@</varname>
-	and <varname>$*</varname> no longer cause an error when there
-	are no positional parameters.</para>
+	when an <option>-u</option> option is specified has been
+	changed.  The special parameters <varname>$@</varname> and
+	<varname>$*</varname> no longer cause an error when there are
+	no positional parameters.</para>
 
       <para revision="210616">A bug in the &man.sh.1; program has been
 	fixed.  A <literal>SIGINT</literal> signal is now passed
@@ -1082,7 +1120,9 @@
 
       <para revision="213899">A bug in <literal>[=]=]</literal>
 	equivalent class handling in the &man.tr.1; utility has been
-	fixed.</para>
+	fixed.  A closing bracket immediately after
+	<literal>[=</literal> was incorrectly treated as
+	special.</para>
 
       <para revision="210566">The &man.uname.1; utility now supports an
 	<option>-o</option> flag as a synonym for the
@@ -1135,18 +1175,19 @@
       <para><application>OpenSSL</application> has been updated to
 	version 0.9.8q.</para>
 
-      <para>The timezone database has been updated to the
-	<application>tzdata2010o</application> release.</para>
+      <para>The <application>timezone</application> database has been
+	updated to the <application>tzdata2010o</application>
+	release.</para>
 
-      <para><application>xz</application> has been updated from
-	snapshot as of 12 April 2010 to 5.0.0 release</para>
+      <para>The <application>xz</application> program has been updated
+	from snapshot as of 12 April 2010 to 5.0.0 release</para>
     </sect2>
 
     <sect2 id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
 
-      <para>The &man.pkg.create.1; utility now supports
-	<application>xz</application> compression.  Note that the
+      <para revision="215738">The &man.pkg.create.1; utility now supports LZMA
+	(<application>xz</application>) compression.  Note that the
 	default is still <application>bzip2</application>.</para>
     </sect2>
 
