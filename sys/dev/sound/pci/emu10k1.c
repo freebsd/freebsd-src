@@ -2012,7 +2012,7 @@ emu_pci_attach(device_t dev)
 
 	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev), /*alignment*/2,
 		/*boundary*/0,
-		/*lowaddr*/1 << 31, /* can only access 0-2gb */
+		/*lowaddr*/(1U << 31) - 1, /* can only access 0-2gb */
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
 		/*maxsize*/sc->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
