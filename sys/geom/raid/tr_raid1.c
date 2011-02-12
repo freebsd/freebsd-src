@@ -504,10 +504,9 @@ g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol, struct bio *bp,
 	for (i = 0; i < vol->v_disks_count; i++) {
 		sd = &vol->v_subdisks[i];
 		if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE &&
-		    !((sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
-		       sd->sd_state == G_RAID_SUBDISK_S_RESYNC) && 
-		      bp->bio_offset + bp->bio_length <
-		       sd->sd_rebuild_pos))
+		    ((sd->sd_state != G_RAID_SUBDISK_S_REBUILD &&
+		      sd->sd_state != G_RAID_SUBDISK_S_RESYNC) ||
+		     bp->bio_offset + bp->bio_length > sd->sd_rebuild_pos))
 			continue;
 		if ((mask & (1 << i)) != 0)
 			continue;
