@@ -31,34 +31,6 @@
 #define	__LIBUFS_H__
 
 /*
- * libufs macros (internal, non-exported).
- */
-#ifdef	_LIBUFS
-#ifdef	_LIBUFS_DEBUGGING
-/*
- * Trace steps through libufs, to be used at entry and erroneous return.
- */
-#define	ERROR(uufsd, str)					\
-do {								\
-	fprintf(stderr, "libufs in %s", __func__);		\
-	if (str != NULL)					\
-		fprintf(stderr, ": %s", str);			\
-	if (errno)						\
-		fprintf(stderr, ": %s", strerror(errno));	\
-	fprintf(stderr, "\n");					\
-	if ((uufsd) != NULL)					\
-		(uufsd)->d_error = str;				\
-} while (0)
-#else	/* _LIBUFS_DEBUGGING */
-#define	ERROR(uufsd, str)					\
-do {								\
-	if ((uufsd) != NULL)					\
-		(uufsd)->d_error = str;				\
-} while (0)
-#endif	/* _LIBUFS_DEBUGGING */
-#endif	/* _LIBUFS */
-
-/*
  * libufs structures.
  */
 
@@ -93,6 +65,30 @@ struct uufsd {
 #define	d_sb	d_sbunion.d_sb
 #define	d_cg	d_cgunion.d_cg
 };
+
+/*
+ * libufs macros (internal, non-exported).
+ */
+#ifdef	_LIBUFS
+/*
+ * Trace steps through libufs, to be used at entry and erroneous return.
+ */
+static inline void
+ERROR(struct uufsd *u, const char *str)
+{
+
+#ifdef	_LIBUFS_DEBUGGING
+	if (str != NULL) {
+		fprintf(stderr, "libufs: %s", str);
+		if (errno != 0)
+			fprintf(stderr, ": %s", strerror(errno));
+		fprintf(stderr, "\n");
+	}
+#endif
+	if (u != NULL)
+		u->d_error = str;
+}
+#endif	/* _LIBUFS */
 
 __BEGIN_DECLS
 
