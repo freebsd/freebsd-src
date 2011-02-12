@@ -125,6 +125,8 @@ static arith_t do_binop(int op, arith_t a, arith_t b)
 	case ARITH_DIV:
 		if (!b)
 			yyerror("division by zero");
+		if (a == ARITH_MIN && b == -1)
+			yyerror("divide error");
 		return op == ARITH_REM ? a % b : a / b;
 	case ARITH_MUL:
 		return a * b;
