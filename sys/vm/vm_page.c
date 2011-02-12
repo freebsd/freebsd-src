@@ -557,6 +557,7 @@ vm_page_io_finish(vm_page_t m)
 {
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	KASSERT(m->busy > 0, ("vm_page_io_finish: page %p is not busy", m));
 	m->busy--;
 	if (m->busy == 0)
 		vm_page_flash(m);
