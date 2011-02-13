@@ -586,7 +586,7 @@ g_raid_md_intel_supported(int level, int qual, int disks, int force)
 			return (0);
 		break;
 	case G_RAID_VOLUME_RL_RAID1E:
-		if (disks < 3)
+		if (disks < 2)
 			return (0);
 		if (!force && (disks != 4))
 			return (0);
@@ -1539,6 +1539,9 @@ makedisk:
 		/* Round size down to strip or sector. */
 		if (level == G_RAID_VOLUME_RL_RAID1)
 			size -= (size % sectorsize);
+		else if (level == G_RAID_VOLUME_RL_RAID1E &&
+		    (numdisks & 1) != 0)
+			size -= (size % (2 * strip));
 		else
 			size -= (size % strip);
 		if (size <= 0) {

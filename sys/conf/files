@@ -2092,6 +2092,7 @@ geom/raid/g_raid_tr_if.m	optional geom_raid
 geom/raid/md_intel.c		optional geom_raid
 geom/raid/tr_raid0.c		optional geom_raid
 geom/raid/tr_raid1.c		optional geom_raid
+geom/raid/tr_raid1e.c		optional geom_raid
 geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec
