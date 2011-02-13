@@ -70,18 +70,11 @@
 .ds doc-default-operating-system FreeBSD\~8.2
 .
 .\" FreeBSD releases not found in doc-common
-.ds doc-operating-system-FreeBSD-7.2    7.2
-.ds doc-operating-system-FreeBSD-7.3    7.3
-.ds doc-operating-system-FreeBSD-7.4    7.4
-.ds doc-operating-system-FreeBSD-8.0    8.0
-.ds doc-operating-system-FreeBSD-8.1    8.1
 .ds doc-operating-system-FreeBSD-8.2    8.2
 .ds doc-operating-system-FreeBSD-8.3    8.3
 .ds doc-operating-system-FreeBSD-9.0    9.0
 .
 .\" Definitions not (yet) in doc-syms
-.ds doc-str-St--p1003.1-2008   \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-2008
-.as doc-str-St--p1003.1-2008   " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
 .
 .ec
 .
