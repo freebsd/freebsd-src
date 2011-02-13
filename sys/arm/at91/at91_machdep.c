@@ -234,7 +234,7 @@ at91_ramsize(void)
 		bw = (cr & AT91SAM9G20_SDRAMC_CR_DBW_16) ? 1 : 2;
 	}
 
-	return (1 << (cols + rows + banks + bw));
+	return ((1 << (cols + rows + banks + bw));
 }
 
 void *
@@ -302,6 +302,8 @@ initarm(void *arg, void *arg2)
 	valloc_pages(kernelstack, KSTACK_PAGES);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
+	/* Do basic tuning, hz etc */
+	init_param1();
 	/*
 	 * Now we start construction of the L1 page table
 	 * We start by mapping the L2 page tables into the L1.
@@ -440,8 +442,6 @@ initarm(void *arg, void *arg2)
 	phys_avail[i++] = PHYSADDR + memsize;
 	phys_avail[i++] = 0;
 	phys_avail[i++] = 0;
-	/* Do basic tuning, hz etc */
-	init_param1();
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
