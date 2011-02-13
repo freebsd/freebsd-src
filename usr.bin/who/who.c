@@ -266,8 +266,8 @@ whoami(FILE *fp)
 
 	if ((tty = ttyname(STDIN_FILENO)) == NULL)
 		tty = "tty??";
-	else if ((p = strrchr(tty, '/')) != NULL)
-		tty = p + 1;
+	else if (strncmp(tty, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
+		tty += sizeof _PATH_DEV - 1;
 
 	/* Search utmp for our tty, dump first matching record. */
 	while (fread(&ut, sizeof(ut), 1, fp) == 1)
