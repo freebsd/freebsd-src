@@ -923,7 +923,7 @@ rebuild_round_done:
 	}
 }
 
-int
+static int
 g_raid_tr_kerneldump_raid1(struct g_raid_tr_object *tr,
     void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {

@@ -255,7 +255,7 @@ failure:
 	g_raid_iodone(bp, bp->bio_error);
 }
 
-int
+static int
 g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr,
     void *virtual, vm_offset_t physical, off_t boffset, size_t blength)
 {
