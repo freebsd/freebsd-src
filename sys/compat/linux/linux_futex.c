@@ -88,7 +88,7 @@ struct futex_list futex_list;
 
 #define FUTEX_LOCK(f)		sx_xlock(&(f)->f_lck)
 #define FUTEX_UNLOCK(f)		sx_xunlock(&(f)->f_lck)
-#define FUTEX_INIT(f)		sx_init_flags(&(f)->f_lck, "ftlk", 0)
+#define FUTEX_INIT(f)		sx_init_flags(&(f)->f_lck, "ftlk", SX_DUPOK)
 #define FUTEX_DESTROY(f)	sx_destroy(&(f)->f_lck)
 #define FUTEX_ASSERT_LOCKED(f)	sx_assert(&(f)->f_lck, SA_XLOCKED)
 
