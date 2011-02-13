@@ -880,8 +880,9 @@ g_raid_tr_iodone_raid1e(struct g_raid_tr_object *tr,
 	struct g_raid_volume *vol;
 	struct bio *pbp;
 	struct g_raid_tr_raid1e_object *trs;
-	uintptr_t *mask;
-	int error, do_write;
+	off_t virtual, offset, start;
+	uintptr_t mask;
+	int error, do_write, copy, disk, best;
 
 	trs = (struct g_raid_tr_raid1e_object *)tr;
 	vol = tr->tro_volume;
@@ -987,6 +988,7 @@ rebuild_round_done:
 	}
 	pbp = bp->bio_parent;
 	pbp->bio_inbed++;
+	mask = (intptr_t)bp->bio_caller2;
 	if (bp->bio_cmd == BIO_READ && bp->bio_error != 0) {
 		/*
 		 * Read failed on first drive.  Retry the read error on
@@ -1004,38 +1006,43 @@ rebuild_round_done:
 		 * everything to get it back in sync), or just degrade the
 		 * drive, which kicks off a resync?
 		 */
-		do_write = 1;
-		if (sd->sd_disk->d_read_errs > g_raid_read_err_thresh) {
+		do_write = 0;
+		if (sd->sd_disk->d_read_errs > g_raid_read_err_thresh)
 			g_raid_tr_raid1e_fail_disk(sd->sd_softc, sd, sd->sd_disk);
-			if (pbp->bio_children == 1)
-				do_write = 0;
-		}
+		else if (mask == 0)
+			do_write = 1;
 
-		/*
-		 * Find the other disk, and try to do the I/O to it.
-		 */
-		mask = (uintptr_t *)(&pbp->bio_driver2);
-		if (pbp->bio_children == 1) {
-			/* Save original subdisk. */
-			pbp->bio_driver1 = do_write ? sd : NULL;
-			*mask = 0;
-		}
-		*mask |= 1 << sd->sd_pos;
-//P2V(struct g_raid_volume *vol, int disk, off_t offset,
-//    off_t *virt, int *copy)
-//		best = g_raid_tr_raid1e_select_read_disk(vol,
-//		    no, offset, start, 0);
-		nsd = NULL; //g_raid_tr_raid1e_select_read_disk(vol, pbp, *mask);
-		if (nsd != NULL && (cbp = g_clone_bio(pbp)) != NULL) {
+		/* Restore what we were doing. */
+		P2V(vol, sd->sd_pos, bp->bio_offset, &virtual, &copy);
+		V2P(vol, virtual, &disk, &offset, &start);
+
+		/* Find the other disk, and try to do the I/O to it. */
+		mask |= 1 << copy;
+		best = g_raid_tr_raid1e_select_read_disk(vol,
+		    disk, offset, start, mask);
+		if (best >= 0 && (cbp = g_clone_bio(pbp)) != NULL) {
+			disk += best;
+			if (disk >= vol->v_disks_count) {
+				disk -= vol->v_disks_count;
+				offset += vol->v_strip_size;
+			}
+			cbp->bio_offset = offset + start;
+			cbp->bio_length = bp->bio_length;
+			cbp->bio_data = bp->bio_data;
+			g_destroy_bio(bp);
+			nsd = &vol->v_subdisks[disk];
 			G_RAID_LOGREQ(2, cbp, "Retrying read from %d",
 			    nsd->sd_pos);
-			if (pbp->bio_children == 2 && do_write) {
+			if (do_write)
+				mask |= 1 << 31;
+			if ((mask & (1 << 31)) != 0)
 				sd->sd_recovery++;
+			cbp->bio_caller2 = (void *)mask;
+			if (do_write) {
 				cbp->bio_caller1 = nsd;
-				pbp->bio_pflags = G_RAID_BIO_FLAG_LOCKED;
 				/* Lock callback starts I/O */
 				g_raid_lock_range(sd->sd_volume,
-				    cbp->bio_offset, cbp->bio_length, pbp, cbp);
+				    virtual, cbp->bio_length, pbp, cbp);
 			} else {
 				g_raid_subdisk_iostart(nsd, cbp);
 			}
@@ -1051,31 +1058,36 @@ rebuild_round_done:
 	}
 	if (bp->bio_cmd == BIO_READ &&
 	    bp->bio_error == 0 &&
-	    pbp->bio_children > 1 &&
-	    pbp->bio_driver1 != NULL) {
-		/*
-		 * If it was a read, and bio_children is >1, then we just
-		 * recovered the data from the second drive.  We should try to
-		 * write that data to the first drive if sector remapping is
-		 * enabled.  A write should put the data in a new place on the
-		 * disk, remapping the bad sector.  Do we need to do that by
-		 * queueing a request to the main worker thread?  It doesn't
-		 * affect the return code of this current read, and can be
-		 * done at our liesure.  However, to make the code simpler, it
-		 * is done syncrhonously.
-		 */
+	    (mask & (1 << 31)) != 0) {
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
-		cbp = g_clone_bio(pbp);
-		if (cbp != NULL) {
+
+		/* Restore what we were doing. */
+		P2V(vol, sd->sd_pos, bp->bio_offset, &virtual, &copy);
+		V2P(vol, virtual, &disk, &offset, &start);
+
+		/* Find best disk to write. */
+		best = g_raid_tr_raid1e_select_read_disk(vol,
+		    disk, offset, start, ~mask);
+		if (best >= 0 && (cbp = g_clone_bio(pbp)) != NULL) {
+			disk += best;
+			if (disk >= vol->v_disks_count) {
+				disk -= vol->v_disks_count;
+				offset += vol->v_strip_size;
+			}
+			cbp->bio_offset = offset + start;
+			cbp->bio_length = bp->bio_length;
+			cbp->bio_data = bp->bio_data;
 			cbp->bio_cmd = BIO_WRITE;
 			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
+			cbp->bio_caller2 = (void *)mask;
+			g_destroy_bio(bp);
 			G_RAID_LOGREQ(2, cbp,
 			    "Attempting bad sector remap on failing drive.");
-			g_raid_subdisk_iostart(pbp->bio_driver1, cbp);
+			g_raid_subdisk_iostart(&vol->v_subdisks[disk], cbp);
 			return;
 		}
 	}
-	if (pbp->bio_pflags & G_RAID_BIO_FLAG_LOCKED) {
+	if ((mask & (1 << 31)) != 0) {
 		/*
 		 * We're done with a recovery, mark the range as unlocked.
 		 * For any write errors, we agressively fail the disk since
@@ -1085,19 +1097,25 @@ rebuild_round_done:
 		 * it now.  However, we need to reset error to 0 in that case
 		 * because we're not failing the original I/O which succeeded.
 		 */
+
+		/* Restore what we were doing. */
+		P2V(vol, sd->sd_pos, bp->bio_offset, &virtual, &copy);
+		V2P(vol, virtual, &disk, &offset, &start);
+
+		for (copy = 0; copy < N; copy++) {
+			if ((mask & (1 << copy) ) != 0)
+				vol->v_subdisks[(disk + copy) %
+				    vol->v_disks_count].sd_recovery--;
+		}
+
 		if (bp->bio_cmd == BIO_WRITE && bp->bio_error) {
 			G_RAID_LOGREQ(0, bp, "Remap write failed: "
 			    "failing subdisk.");
 			g_raid_tr_raid1e_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			bp->bio_error = 0;
 		}
-		if (pbp->bio_driver1 != NULL) {
-			((struct g_raid_subdisk *)pbp->bio_driver1)
-			    ->sd_recovery--;
-		}
 		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
-		g_raid_unlock_range(sd->sd_volume, bp->bio_offset,
-		    bp->bio_length);
+		g_raid_unlock_range(sd->sd_volume, virtual, bp->bio_length);
 	}
 	error = bp->bio_error;
 	g_destroy_bio(bp);
