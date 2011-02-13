@@ -776,15 +776,11 @@ nofit:
 			}
 		} else if (mvol->migr_type == INTEL_MT_INIT ||
 			   mvol->migr_type == INTEL_MT_REBUILD) {
-			if (!(mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD)) {
-				/* Up to date disk. */
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_ACTIVE);
-			} else if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+			if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
 				/* Freshly inserted disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_NEW);
-			} else {
+			} else if (mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
 				/* Rebuilding disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_REBUILD);
@@ -796,18 +792,22 @@ nofit:
 					    sd->sd_volume->v_strip_size *
 					    mmap0->total_domains;
 				}
-			}
-		} else if (mvol->migr_type == INTEL_MT_VERIFY ||
-			   mvol->migr_type == INTEL_MT_REPAIR) {
-			if (!(mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD)) {
+			} else if (mvol->dirty) {
+				/* Dirty volume (unclean shutdown). */
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_STALE);
+			} else {
 				/* Up to date disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_ACTIVE);
-			} else if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+			}
+		} else if (mvol->migr_type == INTEL_MT_VERIFY ||
+			   mvol->migr_type == INTEL_MT_REPAIR) {
+			if (mmap0->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
 				/* Freshly inserted disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_NEW);
-			} else {
+			} else if (mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
 				/* Resyncing disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_RESYNC);
@@ -819,6 +819,14 @@ nofit:
 					    sd->sd_volume->v_strip_size *
 					    mmap0->total_domains;
 				}
+			} else if (mvol->dirty) {
+				/* Dirty volume (unclean shutdown). */
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_STALE);
+			} else {
+				/* Up to date disk. */
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_ACTIVE);
 			}
 		}
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
