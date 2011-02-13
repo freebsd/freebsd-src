@@ -486,10 +486,6 @@ udp_input(struct mbuf *m, int off)
 					INP_RUNLOCK(inp);
 					continue;
 				}
-				if (imo == NULL) {
-					INP_RUNLOCK(inp);
-					continue;
-				}
 				bzero(&group, sizeof(struct sockaddr_in));
 				group.sin_len = sizeof(struct sockaddr_in);
 				group.sin_family = AF_INET;
