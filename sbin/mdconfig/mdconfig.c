@@ -373,7 +373,7 @@ md_list(char *units, int opt)
 					found = 1;
 			}
 			gc = &pp->lg_config;
-			printf("%s", pp->lg_name);
+			printf("%s", nflag ? pp->lg_name + 2 : pp->lg_name);
 			if (opt & OPT_VERBOSE || opt & OPT_UNIT) {
 				type = geom_config_get(gc, "type");
 				if (strcmp(type, "vnode") == 0)
