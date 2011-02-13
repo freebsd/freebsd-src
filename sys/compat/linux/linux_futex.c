@@ -194,6 +194,7 @@ retry:
 		tmpf = malloc(sizeof(*tmpf), M_FUTEX, M_WAITOK | M_ZERO);
 		tmpf->f_uaddr = uaddr;
 		tmpf->f_refcount = 1;
+		tmpf->f_bitset = FUTEX_BITSET_MATCH_ANY;
 		FUTEX_INIT(tmpf);
 		TAILQ_INIT(&tmpf->f_waiting_proc);
 
