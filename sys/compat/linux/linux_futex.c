@@ -60,8 +60,8 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
-#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_util.h>
 
 MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
