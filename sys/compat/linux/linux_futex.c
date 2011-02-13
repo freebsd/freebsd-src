@@ -553,8 +553,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 		/*
 		 * To avoid deadlocks return EINVAL if second futex
-		 * exists at this time. Otherwise create the new futex
-		 * and ignore false positive LOR which thus happens.
+		 * exists at this time.
 		 *
 		 * Glibc fall back to FUTEX_WAKE in case of any error
 		 * returned by FUTEX_CMP_REQUEUE.
