@@ -87,6 +87,7 @@ eeprom_v14_base_print(uint16_t *buf)
 {
 	HAL_EEPROM_v14 *eep = (HAL_EEPROM_v14 *) buf;
 	BASE_EEP_HEADER *eh = &eep->ee_base.baseEepHeader;
+	int i;
 
 	printf("| Version: 0x%.4x   | Length: 0x%.4x | Checksum: 0x%.4x ",
 	    eh->version, eh->length, eh->checksum);
@@ -104,14 +105,22 @@ eeprom_v14_base_print(uint16_t *buf)
 	    (int) eh->pwdclkind, (int) eh->fastClk5g, (int) eh->divChain,
 	    (int) eh->rxGainType);
 
-	printf("| dacHiPwrMode: 0x%.2x | openLoopPwrCntl: 0x%.2x | dacLpMode: 0x%.2x ",
-	    (int) eh->dacHiPwrMode, (int) eh->openLoopPwrCntl, (int) eh->dacLpMode);
+	printf("| dacHiPwrMode_5G: 0x%.2x | openLoopPwrCntl: 0x%.2x | dacLpMode: 0x%.2x ",
+	    (int) eh->dacHiPwrMode_5G, (int) eh->openLoopPwrCntl, (int) eh->dacLpMode);
 	printf("| txGainType: 0x%.2x | rcChainMask: 0x%.2x |\n",
 	    (int) eh->txGainType, (int) eh->rcChainMask);
+
+	printf("| desiredScaleCCK: 0x%.2x | pwr_table_offset: 0x%.2x | frac_n_5g: %.2x\n",
+	    (int) eh->desiredScaleCCK, (int) eh->pwr_table_offset, (int) eh->frac_n_5g);
 
 	/* because it's convienent */
 	printf("| antennaGainMax[0]: 0x%.2x antennaGainMax[1]: 0x%.2x |\n",
 	    eep->ee_antennaGainMax[0], eep->ee_antennaGainMax[1]);
+
+	printf(" | futureBase:");
+	for (i = 0; i < sizeof(eh->futureBase) / sizeof(uint8_t); i++) 
+		printf(" %.2x", (int) eh->futureBase[i]);
+	printf("\n");
 }
 
 static void
