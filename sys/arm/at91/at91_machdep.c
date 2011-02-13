@@ -234,7 +234,7 @@ at91_ramsize(void)
 		bw = (cr & AT91SAM9G20_SDRAMC_CR_DBW_16) ? 1 : 2;
 	}
 
-	return ((1 << (cols + rows + banks + bw));
+	return (1 << (cols + rows + banks + bw));
 }
 
 void *
