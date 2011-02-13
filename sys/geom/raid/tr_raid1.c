@@ -843,6 +843,7 @@ rebuild_round_done:
 		*mask |= 1 << sd->sd_pos;
 		nsd = g_raid_tr_raid1_select_read_disk(vol, pbp, *mask);
 		if (nsd != NULL && (cbp = g_clone_bio(pbp)) != NULL) {
+			g_destroy_bio(bp);
 			G_RAID_LOGREQ(2, cbp, "Retrying read from %d",
 			    nsd->sd_pos);
 			if (pbp->bio_children == 2 && do_write) {
@@ -883,6 +884,7 @@ rebuild_round_done:
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 		cbp = g_clone_bio(pbp);
 		if (cbp != NULL) {
+			g_destroy_bio(bp);
 			cbp->bio_cmd = BIO_WRITE;
 			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
 			G_RAID_LOGREQ(2, cbp,
