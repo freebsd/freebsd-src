@@ -65,31 +65,30 @@ acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
 
     switch (res->Type) {
     case ACPI_RESOURCE_TYPE_IRQ:
+	irqnum = res->Data.Irq.InterruptCount;
+	irq = res->Data.Irq.Interrupts[0];
+	len = ACPI_RS_SIZE(ACPI_RESOURCE_IRQ);
+	break;
     case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-	if (res->Type == ACPI_RESOURCE_TYPE_IRQ) {
-	    irqnum = res->Data.Irq.InterruptCount;
-	    irq = res->Data.Irq.Interrupts[0];
-	} else {
-	    irqnum = res->Data.ExtendedIrq.InterruptCount;
-	    irq = res->Data.ExtendedIrq.Interrupts[0];
-	}
-	if (irqnum != 1)
-	    break;
-	req = (struct lookup_irq_request *)context;
-	if (req->counter != req->rid) {
-	    req->counter++;
-	    break;
-	}
-	req->found = 1;
-	KASSERT(irq == rman_get_start(req->res),
-	    ("IRQ resources do not match"));
-	len = res->Length;
-	if (len > sizeof(ACPI_RESOURCE))
-		len = sizeof(ACPI_RESOURCE);
-	bcopy(res, req->acpi_res, len);
-	return (AE_CTRL_TERMINATE);
+	irqnum = res->Data.ExtendedIrq.InterruptCount;
+	irq = res->Data.ExtendedIrq.Interrupts[0];
+	len = ACPI_RS_SIZE(ACPI_RESOURCE_EXTENDED_IRQ);
+	break;
+    default:
+	return (AE_OK);
     }
-    return (AE_OK);
+    if (irqnum != 1)
+	return (AE_OK);
+    req = (struct lookup_irq_request *)context;
+    if (req->counter != req->rid) {
+	req->counter++;
+	return (AE_OK);
+    }
+    req->found = 1;
+    KASSERT(irq == rman_get_start(req->res),
+	("IRQ resources do not match"));
+    bcopy(res, req->acpi_res, len);
+    return (AE_CTRL_TERMINATE);
 }
 
 ACPI_STATUS
