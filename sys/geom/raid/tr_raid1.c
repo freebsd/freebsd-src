@@ -46,19 +46,12 @@ SYSCTL_DECL(_kern_geom_raid);
 SYSCTL_NODE(_kern_geom_raid, OID_AUTO, raid1, CTLFLAG_RW, 0,
     "RAID1 parameters");
 
-#define RAID1_READ_ERR_THRESH 10 /* errors to cause a rebuild */
-static int g_raid1_read_err_thresh = RAID1_READ_ERR_THRESH;
-TUNABLE_INT("kern.geom.raid.raid1.read_err_thresh", &g_raid1_read_err_thresh);
-SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, read_err_thresh, CTLFLAG_RW,
-    &g_raid1_read_err_thresh, RAID1_READ_ERR_THRESH,
-    "Number of read errors on a subdisk that trigger a rebuild");
-
 #define RAID1_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */
 static int g_raid1_rebuild_slab = RAID1_REBUILD_SLAB;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_slab_size",
     &g_raid1_rebuild_slab);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_slab_size, CTLFLAG_RW,
-    &g_raid1_rebuild_slab, RAID1_REBUILD_SLAB,
+    &g_raid1_rebuild_slab, 0,
     "Amount of the disk to rebuild each read/write cycle of the rebuild.");
 
 #define RAID1_REBUILD_FAIR_IO 20 /* use 1/x of the available I/O */
@@ -66,7 +59,7 @@ static int g_raid1_rebuild_fair_io = RAID1_REBUILD_FAIR_IO;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_fair_io",
     &g_raid1_rebuild_fair_io);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_fair_io, CTLFLAG_RW,
-    &g_raid1_rebuild_fair_io, RAID1_REBUILD_FAIR_IO,
+    &g_raid1_rebuild_fair_io, 0,
     "Fraction of the I/O bandwidth to use when disk busy for rebuild.");
 
 #define RAID1_REBUILD_CLUSTER_IDLE 100
@@ -74,7 +67,7 @@ static int g_raid1_rebuild_cluster_idle = RAID1_REBUILD_CLUSTER_IDLE;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_cluster_idle",
     &g_raid1_rebuild_cluster_idle);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_cluster_idle, CTLFLAG_RW,
-    &g_raid1_rebuild_cluster_idle, RAID1_REBUILD_CLUSTER_IDLE,
+    &g_raid1_rebuild_cluster_idle, 0,
     "Number of slabs to do each time we trigger a rebuild cycle");
 
 #define RAID1_REBUILD_META_UPDATE 1024 /* update meta data every 1GB or so */
@@ -82,7 +75,7 @@ static int g_raid1_rebuild_meta_update = RAID1_REBUILD_META_UPDATE;
 TUNABLE_INT("kern.geom.raid.raid1.rebuild_meta_update",
     &g_raid1_rebuild_meta_update);
 SYSCTL_UINT(_kern_geom_raid_raid1, OID_AUTO, rebuild_meta_update, CTLFLAG_RW,
-    &g_raid1_rebuild_meta_update, RAID1_REBUILD_META_UPDATE,
+    &g_raid1_rebuild_meta_update, 0,
     "When to update the meta data.");
 
 static MALLOC_DEFINE(M_TR_RAID1, "tr_raid1_data", "GEOM_RAID RAID1 data");
@@ -250,16 +243,16 @@ g_raid_tr_raid1_fail_disk(struct g_raid_softc *sc, struct g_raid_subdisk *sd,
 }
 
 static void
-g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
-    struct g_raid_subdisk *sd)
+g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr)
 {
 	struct g_raid_tr_raid1_object *trs;
-	struct g_raid_subdisk *good_sd;
+	struct g_raid_subdisk *sd, *good_sd;
 	struct bio *bp;
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (trs->trso_flags & TR_RAID1_F_DOING_SOME)
 		return;
+	sd = trs->trso_failed_sd;
 	good_sd = g_raid_get_subdisk(sd->sd_volume, G_RAID_SUBDISK_S_ACTIVE);
 	if (good_sd == NULL) {
 		g_raid_tr_raid1_rebuild_abort(tr);
@@ -269,13 +262,11 @@ g_raid_tr_raid1_rebuild_some(struct g_raid_tr_object *tr,
 	memset(bp, 0, sizeof(*bp));
 	bp->bio_offset = sd->sd_rebuild_pos;
 	bp->bio_length = MIN(g_raid1_rebuild_slab,
-	    sd->sd_volume->v_mediasize - sd->sd_rebuild_pos);
+	    sd->sd_size - sd->sd_rebuild_pos);
 	bp->bio_data = trs->trso_buffer;
 	bp->bio_cmd = BIO_READ;
 	bp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
 	bp->bio_caller1 = good_sd;
-	trs->trso_recover_slabs = g_raid1_rebuild_cluster_idle;
-	trs->trso_fair_io = g_raid1_rebuild_fair_io;
 	trs->trso_flags |= TR_RAID1_F_DOING_SOME;
 	trs->trso_flags |= TR_RAID1_F_LOCKED;
 	g_raid_lock_range(sd->sd_volume,	/* Lock callback starts I/O */
@@ -343,7 +334,7 @@ g_raid_tr_raid1_rebuild_abort(struct g_raid_tr_object *tr)
 		if (trs->trso_flags & TR_RAID1_F_LOCKED) {
 			trs->trso_flags &= ~TR_RAID1_F_LOCKED;
 			len = MIN(g_raid1_rebuild_slab,
-			    vol->v_mediasize - sd->sd_rebuild_pos);
+			    sd->sd_size - sd->sd_rebuild_pos);
 			g_raid_unlock_range(tr->tro_volume,
 			    sd->sd_rebuild_pos, len);
 		}
@@ -411,7 +402,7 @@ g_raid_tr_raid1_rebuild_start(struct g_raid_tr_object *tr)
 	trs->trso_type = TR_RAID1_REBUILD;
 	trs->trso_buffer = malloc(g_raid1_rebuild_slab, M_TR_RAID1, M_WAITOK);
 	trs->trso_meta_update = g_raid1_rebuild_meta_update;
-	g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
+	g_raid_tr_raid1_rebuild_some(tr);
 }
 
 
@@ -511,10 +502,9 @@ g_raid_tr_raid1_select_read_disk(struct g_raid_volume *vol, struct bio *bp,
 	for (i = 0; i < vol->v_disks_count; i++) {
 		sd = &vol->v_subdisks[i];
 		if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE &&
-		    !((sd->sd_state == G_RAID_SUBDISK_S_REBUILD ||
-		       sd->sd_state == G_RAID_SUBDISK_S_RESYNC) && 
-		      bp->bio_offset + bp->bio_length <
-		       sd->sd_rebuild_pos))
+		    ((sd->sd_state != G_RAID_SUBDISK_S_REBUILD &&
+		      sd->sd_state != G_RAID_SUBDISK_S_RESYNC) ||
+		     bp->bio_offset + bp->bio_length > sd->sd_rebuild_pos))
 			continue;
 		if ((mask & (1 << i)) != 0)
 			continue;
@@ -601,17 +591,8 @@ g_raid_tr_iostart_raid1_write(struct g_raid_tr_object *tr, struct bio *bp)
 			continue;
 		}
 		cbp = g_clone_bio(bp);
-		if (cbp == NULL) {
-			for (cbp = bioq_first(&queue); cbp != NULL;
-			    cbp = bioq_first(&queue)) {
-				bioq_remove(&queue, cbp);
-				g_destroy_bio(cbp);
-			}
-			if (bp->bio_error == 0)
-				bp->bio_error = ENOMEM;
-			g_raid_iodone(bp, bp->bio_error);
-			return;
-		}
+		if (cbp == NULL)
+			goto failure;
 		cbp->bio_caller1 = sd;
 		bioq_insert_tail(&queue, cbp);
 	}
@@ -622,7 +603,16 @@ g_raid_tr_iostart_raid1_write(struct g_raid_tr_object *tr, struct bio *bp)
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
-
+	return;
+failure:
+	for (cbp = bioq_first(&queue); cbp != NULL;
+	    cbp = bioq_first(&queue)) {
+		bioq_remove(&queue, cbp);
+		g_destroy_bio(cbp);
+	}
+	if (bp->bio_error == 0)
+		bp->bio_error = ENOMEM;
+	g_raid_iodone(bp, bp->bio_error);
 }
 
 static void
@@ -647,10 +637,12 @@ g_raid_tr_iostart_raid1(struct g_raid_tr_object *tr, struct bio *bp)
 	 */
 	if (trs->trso_failed_sd != NULL &&
 	    !(bp->bio_cflags & G_RAID_BIO_FLAG_SPECIAL)) {
-		if (--trs->trso_fair_io <= 0)
-			g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
 		/* Make this new or running now round short. */
 		trs->trso_recover_slabs = 0;
+		if (--trs->trso_fair_io <= 0) {
+			trs->trso_fair_io = g_raid1_rebuild_fair_io;
+			g_raid_tr_raid1_rebuild_some(tr);
+		}
 	}
 	switch (bp->bio_cmd) {
 	case BIO_READ:
@@ -661,6 +653,9 @@ g_raid_tr_iostart_raid1(struct g_raid_tr_object *tr, struct bio *bp)
 		break;
 	case BIO_DELETE:
 		g_raid_iodone(bp, EIO);
+		break;
+	case BIO_FLUSH:
+		g_raid_tr_flush_common(tr, bp);
 		break;
 	default:
 		KASSERT(1 == 0, ("Invalid command here: %u (volume=%s)",
@@ -674,7 +669,7 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
     struct g_raid_subdisk *sd, struct bio *bp)
 {
 	struct bio *cbp;
-	struct g_raid_subdisk *nsd, *good_sd;
+	struct g_raid_subdisk *nsd;
 	struct g_raid_volume *vol;
 	struct bio *pbp;
 	struct g_raid_tr_raid1_object *trs;
@@ -751,14 +746,13 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 					g_raid_tr_raid1_rebuild_abort(tr);
 					return;
 				}
-/* XXX A lot of the following is needed when we kick of the work -- refactor */
 rebuild_round_done:
 				nsd = trs->trso_failed_sd;
 				trs->trso_flags &= ~TR_RAID1_F_LOCKED;
 				g_raid_unlock_range(sd->sd_volume,
 				    bp->bio_offset, bp->bio_length);
 				nsd->sd_rebuild_pos += bp->bio_length;
-				if (nsd->sd_rebuild_pos >= vol->v_mediasize) {
+				if (nsd->sd_rebuild_pos >= nsd->sd_size) {
 					g_raid_tr_raid1_rebuild_finish(tr);
 					return;
 				}
@@ -776,29 +770,10 @@ rebuild_round_done:
 					trs->trso_meta_update =
 					    g_raid1_rebuild_meta_update;
 				}
-				if (--trs->trso_recover_slabs <= 0) {
-					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+				trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
+				if (--trs->trso_recover_slabs <= 0)
 					return;
-				}
-				good_sd = g_raid_get_subdisk(sd->sd_volume,
-				    G_RAID_SUBDISK_S_ACTIVE);
-				if (good_sd == NULL) {
-					trs->trso_flags &= ~TR_RAID1_F_DOING_SOME;
-					g_raid_tr_raid1_rebuild_abort(tr);
-					return;
-				}
-				bp->bio_cmd = BIO_READ;
-				bp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
-				bp->bio_offset = nsd->sd_rebuild_pos;
-				bp->bio_length = MIN(g_raid1_rebuild_slab,
-				    vol->v_mediasize - nsd->sd_rebuild_pos);
-				bp->bio_caller1 = good_sd;
-				G_RAID_LOGREQ(4, bp,
-				    "Rebuild read at %jd.", bp->bio_offset);
-				/* Lock callback starts I/O */
-				trs->trso_flags |= TR_RAID1_F_LOCKED;
-				g_raid_lock_range(sd->sd_volume,
-				    bp->bio_offset, bp->bio_length, NULL, bp);
+				g_raid_tr_raid1_rebuild_some(tr);
 			}
 		} else if (trs->trso_type == TR_RAID1_RESYNC) {
 			/*
@@ -830,7 +805,7 @@ rebuild_round_done:
 		 * drive, which kicks off a resync?
 		 */
 		do_write = 1;
-		if (sd->sd_disk->d_read_errs > g_raid1_read_err_thresh) {
+		if (sd->sd_disk->d_read_errs > g_raid_read_err_thresh) {
 			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 			if (pbp->bio_children == 1)
 				do_write = 0;
@@ -848,6 +823,7 @@ rebuild_round_done:
 		*mask |= 1 << sd->sd_pos;
 		nsd = g_raid_tr_raid1_select_read_disk(vol, pbp, *mask);
 		if (nsd != NULL && (cbp = g_clone_bio(pbp)) != NULL) {
+			g_destroy_bio(bp);
 			G_RAID_LOGREQ(2, cbp, "Retrying read from %d",
 			    nsd->sd_pos);
 			if (pbp->bio_children == 2 && do_write) {
@@ -888,6 +864,7 @@ rebuild_round_done:
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 		cbp = g_clone_bio(pbp);
 		if (cbp != NULL) {
+			g_destroy_bio(bp);
 			cbp->bio_cmd = BIO_WRITE;
 			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
 			G_RAID_LOGREQ(2, cbp,
@@ -928,7 +905,7 @@ rebuild_round_done:
 	}
 }
 
-int
+static int
 g_raid_tr_kerneldump_raid1(struct g_raid_tr_object *tr,
     void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
@@ -992,8 +969,10 @@ g_raid_tr_idle_raid1(struct g_raid_tr_object *tr)
 	struct g_raid_tr_raid1_object *trs;
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
+	trs->trso_fair_io = g_raid1_rebuild_fair_io;
+	trs->trso_recover_slabs = g_raid1_rebuild_cluster_idle;
 	if (trs->trso_type == TR_RAID1_REBUILD)
-		g_raid_tr_raid1_rebuild_some(tr, trs->trso_failed_sd);
+		g_raid_tr_raid1_rebuild_some(tr);
 	return (0);
 }
 

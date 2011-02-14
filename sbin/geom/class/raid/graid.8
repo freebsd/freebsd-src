@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2011
+.Dd February 13, 2011
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -211,7 +211,8 @@ risk: RAID1 (3+ disks), RAID1E (3+ disks), RAID10 (6+ disks).
 .Sh SUPPORTED RAID LEVELS
 The GEOM RAID class follows a modular design, allowing different RAID levels
 to be used.
-Support for the following RAID levels is currently implemented: RAID0, RAID1.
+Support for the following RAID levels is currently implemented: RAID0, RAID1,
+RAID1E, RAID10.
 .Sh EXIT STATUS
 Exit status is 0 on success, and non-zero if the command fails.
 .Sh SEE ALSO
