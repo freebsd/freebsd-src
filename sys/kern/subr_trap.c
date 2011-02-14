@@ -74,6 +74,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
+#ifdef VIMAGE
+#include <net/vnet.h>
+#endif
+
 #ifdef XEN
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -126,6 +130,13 @@ userret(struct thread *td, struct trapframe *frame)
 	sched_userret(td);
 	KASSERT(td->td_locks == 0,
 	    ("userret: Returning with %d locks held.", td->td_locks));
+#ifdef VIMAGE
+	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
+	VNET_ASSERT(curvnet == NULL,
+	    ("%s: Returning on td %p (pid %d, %s) with vnet %p set in %s",
+	    __func__, td, p->p_pid, td->td_name, curvnet,
+	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
+#endif
 #ifdef XEN
 	PT_UPDATES_FLUSH();
 #endif
