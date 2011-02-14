@@ -874,9 +874,9 @@ tmpfs_dir_whiteout_remove(struct vnode *dvp, struct componentname *cnp)
 /* --------------------------------------------------------------------- */
 
 /*
- * Resizes the aobj associated to the regular file pointed to by vp to
- * the size newsize.  'vp' must point to a vnode that represents a regular
- * file.  'newsize' must be positive.
+ * Resizes the aobj associated with the regular file pointed to by 'vp' to the
+ * size 'newsize'.  'vp' must point to a vnode that represents a regular file.
+ * 'newsize' must be positive.
  *
  * Returns zero on success or an appropriate error code on failure.
  */
@@ -890,7 +890,6 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 	vm_pindex_t newpages, oldpages;
 	off_t oldsize;
 	size_t zerolen;
-	int error;
 
 	MPASS(vp->v_type == VREG);
 	MPASS(newsize >= 0);
@@ -899,20 +898,19 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 	uobj = node->tn_reg.tn_aobj;
 	tmp = VFS_TO_TMPFS(vp->v_mount);
 
-	/* Convert the old and new sizes to the number of pages needed to
+	/*
+	 * Convert the old and new sizes to the number of pages needed to
 	 * store them.  It may happen that we do not need to do anything
 	 * because the last allocated page can accommodate the change on
-	 * its own. */
+	 * its own.
+	 */
 	oldsize = node->tn_size;
 	oldpages = OFF_TO_IDX(oldsize + PAGE_MASK);
 	MPASS(oldpages == uobj->size);
 	newpages = OFF_TO_IDX(newsize + PAGE_MASK);
-
 	if (newpages > oldpages &&
-	    newpages - oldpages > TMPFS_PAGES_AVAIL(tmp)) {
-		error = ENOSPC;
-		goto out;
-	}
+	    newpages - oldpages > TMPFS_PAGES_AVAIL(tmp))
+		return (ENOSPC);
 
 	TMPFS_LOCK(tmp);
 	tmp->tm_pages_used += (newpages - oldpages);
@@ -923,7 +921,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 	VM_OBJECT_LOCK(uobj);
 	if (newsize < oldsize) {
 		/*
-		 * free "backing store"
+		 * Release any swap space and free any whole pages.
 		 */
 		if (newpages < oldpages) {
 			swap_pager_freespace(uobj, newpages, oldpages -
@@ -932,7 +930,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 		}
 
 		/*
-		 * zero out the truncated part of the last page.
+		 * Zero the truncated part of the last page.
 		 */
 		zerolen = round_page(newsize) - newsize;
 		if (zerolen > 0) {
@@ -943,10 +941,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 	}
 	uobj->size = newpages;
 	VM_OBJECT_UNLOCK(uobj);
-	error = 0;
-
-out:
-	return (error);
+	return (0);
 }
 
 /* --------------------------------------------------------------------- */
