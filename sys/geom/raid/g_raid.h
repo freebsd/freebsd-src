@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/kobj.h>
 #include <sys/bio.h>
+#include <sys/time.h>
 
 #define	G_RAID_CLASS_NAME	"RAID"
 
@@ -250,6 +251,7 @@ struct g_raid_volume {
 	LIST_HEAD(, g_raid_lock) v_locks;	 /* List of locked regions. */
 	int			 v_pending_lock; /* writes to locked region */
 	int			 v_dirty;	/* Volume is DIRTY. */
+	struct timeval		 v_last_done;	/* Time of the last I/O. */
 	time_t			 v_last_write;	/* Time of the last write. */
 	u_int			 v_writes;	/* Number of active writes. */
 	struct root_hold_token	*v_rootmount;	/* Root mount delay token. */

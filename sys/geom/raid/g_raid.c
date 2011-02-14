@@ -1047,6 +1047,7 @@ g_raid_iodone(struct bio *bp, int error)
 	bioq_remove(&vol->v_inflight, bp);
 	if (vol->v_pending_lock && g_raid_is_in_locked_range(vol, bp))
 		g_raid_finish_with_locked_ranges(vol, bp);
+	getmicrouptime(&vol->v_last_done);
 	g_io_deliver(bp, error);
 }
 
@@ -1273,6 +1274,7 @@ g_raid_worker(void *arg)
 	struct g_raid_event *ep;
 	struct g_raid_volume *vol;
 	struct bio *bp;
+	struct timeval now, t;
 	int timeout, rv;
 
 	sc = arg;
@@ -1296,38 +1298,59 @@ g_raid_worker(void *arg)
 		else if ((bp = bioq_takefirst(&sc->sc_queue)) != NULL)
 			;
 		else {
-			/*
-			 * Two steps to avoid overflows at HZ=1000
-			 * and idle timeouts > 2.1s.  Some rounding errors
-			 * can occur, but they are < 1tick, which is deemed to
-			 * be close enough for this purpose.
-			 */
-			int micpertic = 1000000 / hz;
-			timeout = g_raid_idle_threshold / micpertic;
-			sx_xunlock(&sc->sc_lock);
-			MSLEEP(rv, sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "-",
-			    timeout);
-			sx_xlock(&sc->sc_lock);
-			goto process;
+			getmicrouptime(&now);
+			t = now;
+			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+				if (bioq_first(&vol->v_inflight) == NULL &&
+				    timevalcmp(&vol->v_last_done, &t, < ))
+					t = vol->v_last_done;
+			}
+			timevalsub(&t, &now);
+			timeout = g_raid_idle_threshold +
+			    t.tv_sec * 1000000 + t.tv_usec;
+			if (timeout > 0) {
+				/*
+				 * Two steps to avoid overflows at HZ=1000
+				 * and idle timeouts > 2.1s.  Some rounding
+				 * errors can occur, but they are < 1tick,
+				 * which is deemed to be close enough for
+				 * this purpose.
+				 */
+				int micpertic = 1000000 / hz;
+				timeout = (timeout + micpertic - 1) / micpertic;
+				sx_xunlock(&sc->sc_lock);
+				MSLEEP(rv, sc, &sc->sc_queue_mtx,
+				    PRIBIO | PDROP, "-", timeout);
+				sx_xlock(&sc->sc_lock);
+				goto process;
+			} else
+				rv = EWOULDBLOCK;
 		}
 		mtx_unlock(&sc->sc_queue_mtx);
 process:
-		if (ep != NULL)
+		if (ep != NULL) {
 			g_raid_handle_event(sc, ep);
-		if (bp != NULL) {
+		} else if (bp != NULL) {
 			if (bp->bio_to != NULL &&
 			    bp->bio_to->geom == sc->sc_geom)
 				g_raid_start_request(bp);
 			else
 				g_raid_disk_done_request(bp);
-		}
-		if (rv == EWOULDBLOCK) {
+		} else if (rv == EWOULDBLOCK) {
 			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 				if (vol->v_writes == 0 && vol->v_dirty)
 					g_raid_clean(vol, -1);
 				if (bioq_first(&vol->v_inflight) == NULL &&
-				    vol->v_tr)
-					G_RAID_TR_IDLE(vol->v_tr);
+				    vol->v_tr) {
+					t.tv_sec = g_raid_idle_threshold / 1000000;
+					t.tv_usec = g_raid_idle_threshold % 1000000;
+					timevaladd(&t, &vol->v_last_done);
+					getmicrouptime(&now);
+					if (timevalcmp(&t, &now, <= )) {
+						G_RAID_TR_IDLE(vol->v_tr);
+						vol->v_last_done = now;
+					}
+				}
 			}
 		}
 		if (sc->sc_stopping == G_RAID_DESTROY_HARD)
