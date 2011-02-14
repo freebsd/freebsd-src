@@ -3715,7 +3715,6 @@ ath_rx_proc(void *arg, int npending)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	int len, type, ngood;
-	u_int phyerr;
 	HAL_STATUS status;
 	int16_t nf;
 	u_int64_t tsf;
@@ -3769,6 +3768,21 @@ ath_rx_proc(void *arg, int npending)
 		if (status == HAL_EINPROGRESS)
 			break;
 		STAILQ_REMOVE_HEAD(&sc->sc_rxbuf, bf_list);
+
+		/* These aren't specifically errors */
+		if (rs->rs_flags & HAL_RX_GI)
+			sc->sc_stats.ast_rx_halfgi++;
+		if (rs->rs_flags & HAL_RX_2040)
+			sc->sc_stats.ast_rx_2040++;
+		if (rs->rs_flags & HAL_RX_DELIM_CRC_PRE)
+			sc->sc_stats.ast_rx_pre_crc_err++;
+		if (rs->rs_flags & HAL_RX_DELIM_CRC_POST)
+			sc->sc_stats.ast_rx_post_crc_err++;
+		if (rs->rs_flags & HAL_RX_DECRYPT_BUSY)
+			sc->sc_stats.ast_rx_decrypt_busy_err++;
+		if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
+			sc->sc_stats.ast_rx_hi_rx_chain++;
+
 		if (rs->rs_status != 0) {
 			if (rs->rs_status & HAL_RXERR_CRC)
 				sc->sc_stats.ast_rx_crcerr++;
@@ -3776,8 +3790,9 @@ ath_rx_proc(void *arg, int npending)
 				sc->sc_stats.ast_rx_fifoerr++;
 			if (rs->rs_status & HAL_RXERR_PHY) {
 				sc->sc_stats.ast_rx_phyerr++;
-				phyerr = rs->rs_phyerr & 0x1f;
-				sc->sc_stats.ast_rx_phy[phyerr]++;
+				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
+				if (rs->rs_phyerr < 64)
+					sc->sc_stats.ast_rx_phy[rs->rs_phyerr]++;
 				goto rx_error;	/* NB: don't count in ierrors */
 			}
 			if (rs->rs_status & HAL_RXERR_DECRYPT) {
@@ -6402,7 +6417,7 @@ ath_sysctl_stats_attach_rxphyerr(struct ath_softc *sc, struct sysctl_oid_list *p
 
 	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx_phy_err", CTLFLAG_RD, NULL, "Per-code RX PHY Errors");
 	child = SYSCTL_CHILDREN(tree);
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < 64; i++) {
 		snprintf(sn, sizeof(sn), "%d", i);
 		SYSCTL_ADD_UINT(ctx, child, OID_AUTO, sn, CTLFLAG_RD, &sc->sc_stats.ast_rx_phy[i], 0, "");
 	}
@@ -6579,6 +6594,13 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_ani_cal, 0, "number of ANI polls");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_agg", CTLFLAG_RD,
 	    &sc->sc_stats.ast_rx_agg, 0, "number of aggregate frames received");
+
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_halfgi", CTLFLAG_RD, &sc->sc_stats.ast_rx_halfgi, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_2040", CTLFLAG_RD, &sc->sc_stats.ast_rx_2040, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_pre_crc_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_pre_crc_err, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_post_crc_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_post_crc_err, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_decrypt_busy_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_decrypt_busy_err, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_hi_rx_chain", CTLFLAG_RD, &sc->sc_stats.ast_rx_hi_rx_chain, 0, "");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
