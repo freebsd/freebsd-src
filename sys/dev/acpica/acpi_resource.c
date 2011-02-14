@@ -60,6 +60,7 @@ static ACPI_STATUS
 acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
 {
     struct lookup_irq_request *req;
+    size_t len;
     u_int irqnum, irq;
 
     switch (res->Type) {
@@ -82,7 +83,10 @@ acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
 	req->found = 1;
 	KASSERT(irq == rman_get_start(req->res),
 	    ("IRQ resources do not match"));
-	bcopy(res, req->acpi_res, sizeof(ACPI_RESOURCE));
+	len = res->Length;
+	if (len > sizeof(ACPI_RESOURCE))
+		len = sizeof(ACPI_RESOURCE);
+	bcopy(res, req->acpi_res, len);
 	return (AE_CTRL_TERMINATE);
     }
     return (AE_OK);
