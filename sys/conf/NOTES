@@ -2120,7 +2120,7 @@ device		fatm			#Fore PCA200E
 device		hatm			#Fore/Marconi HE155/622
 device		patm			#IDT77252 cards (ProATM and IDT)
 device		utopia			#ATM PHY driver
-#options 	NATM			#native ATM
+options 	NATM			#native ATM
 
 options 	LIBMBPOOL		#needed by patm, iatm
 
