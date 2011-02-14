@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/kobj.h>
 #include <sys/bio.h>
+#include <sys/time.h>
 
 #define	G_RAID_CLASS_NAME	"RAID"
 
@@ -50,6 +51,7 @@ struct g_raid_tr_object;
 #ifdef _KERNEL
 extern u_int g_raid_aggressive_spare;
 extern u_int g_raid_debug;
+extern int g_raid_read_err_thresh;
 extern u_int g_raid_start_timeout;
 extern struct g_class g_raid_class;
 
@@ -249,6 +251,7 @@ struct g_raid_volume {
 	LIST_HEAD(, g_raid_lock) v_locks;	 /* List of locked regions. */
 	int			 v_pending_lock; /* writes to locked region */
 	int			 v_dirty;	/* Volume is DIRTY. */
+	struct timeval		 v_last_done;	/* Time of the last I/O. */
 	time_t			 v_last_write;	/* Time of the last write. */
 	u_int			 v_writes;	/* Number of active writes. */
 	struct root_hold_token	*v_rootmount;	/* Root mount delay token. */
@@ -373,6 +376,7 @@ void g_raid_write_metadata(struct g_raid_softc *sc, struct g_raid_volume *vol,
 void g_raid_fail_disk(struct g_raid_softc *sc,
     struct g_raid_subdisk *sd, struct g_raid_disk *disk);
 
+void g_raid_tr_flush_common(struct g_raid_tr_object *tr, struct bio *bp);
 int g_raid_tr_kerneldump_common(struct g_raid_tr_object *tr,
     void *virtual, vm_offset_t physical, off_t offset, size_t length);
 

@@ -59,14 +59,20 @@ u_int g_raid_debug = 2;
 TUNABLE_INT("kern.geom.raid.debug", &g_raid_debug);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RW, &g_raid_debug, 0,
     "Debug level");
+int g_raid_read_err_thresh = 10;
+TUNABLE_INT("kern.geom.raid.read_err_thresh", &g_raid_read_err_thresh);
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, read_err_thresh, CTLFLAG_RW,
+    &g_raid_read_err_thresh, 0,
+    "Number of read errors equated to disk failure");
 u_int g_raid_start_timeout = 15;
 TUNABLE_INT("kern.geom.raid.start_timeout", &g_raid_start_timeout);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, timeout, CTLFLAG_RW, &g_raid_start_timeout,
-    0, "Time to wait for all array components");
-static u_int g_raid_cleantime = 5;
-TUNABLE_INT("kern.geom.raid.cleantime", &g_raid_cleantime);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, cleantime, CTLFLAG_RW,
-    &g_raid_cleantime, 0, "Mark volume as clean when idling");
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, start_timeout, CTLFLAG_RW,
+    &g_raid_start_timeout, 0,
+    "Time to wait for all array components");
+static u_int g_raid_clean_time = 5;
+TUNABLE_INT("kern.geom.raid.clean_time", &g_raid_clean_time);
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, clean_time, CTLFLAG_RW,
+    &g_raid_clean_time, 0, "Mark volume as clean when idling");
 static u_int g_raid_disconnect_on_failure = 1;
 TUNABLE_INT("kern.geom.raid.disconnect_on_failure",
     &g_raid_disconnect_on_failure);
@@ -709,7 +715,7 @@ g_raid_clean(struct g_raid_volume *vol, int acw)
 		return (0);
 	if (acw > 0 || (acw == -1 &&
 	    vol->v_provider != NULL && vol->v_provider->acw > 0)) {
-		timeout = g_raid_cleantime - (time_uptime - vol->v_last_write);
+		timeout = g_raid_clean_time - (time_uptime - vol->v_last_write);
 		if (timeout > 0)
 			return (timeout);
 	}
@@ -735,6 +741,54 @@ g_raid_dirty(struct g_raid_volume *vol)
 	G_RAID_DEBUG1(1, sc, "Volume %s marked as dirty.",
 	    vol->v_name);
 	g_raid_write_metadata(sc, vol, NULL, NULL);
+}
+
+void
+g_raid_tr_flush_common(struct g_raid_tr_object *tr, struct bio *bp)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_volume *vol;
+	struct g_raid_subdisk *sd;
+	struct bio_queue_head queue;
+	struct bio *cbp;
+	int i;
+
+	vol = tr->tro_volume;
+	sc = vol->v_softc;
+
+	/*
+	 * Allocate all bios before sending any request, so we can return
+	 * ENOMEM in nice and clean way.
+	 */
+	bioq_init(&queue);
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		if (sd->sd_state == G_RAID_SUBDISK_S_NONE ||
+		    sd->sd_state == G_RAID_SUBDISK_S_FAILED)
+			continue;
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL)
+			goto failure;
+		cbp->bio_caller1 = sd;
+		bioq_insert_tail(&queue, cbp);
+	}
+	for (cbp = bioq_first(&queue); cbp != NULL;
+	    cbp = bioq_first(&queue)) {
+		bioq_remove(&queue, cbp);
+		sd = cbp->bio_caller1;
+		cbp->bio_caller1 = NULL;
+		g_raid_subdisk_iostart(sd, cbp);
+	}
+	return;
+failure:
+	for (cbp = bioq_first(&queue); cbp != NULL;
+	    cbp = bioq_first(&queue)) {
+		bioq_remove(&queue, cbp);
+		g_destroy_bio(cbp);
+	}
+	if (bp->bio_error == 0)
+		bp->bio_error = ENOMEM;
+	g_raid_iodone(bp, bp->bio_error);
 }
 
 static void
@@ -832,10 +886,8 @@ g_raid_start(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		break;
 	case BIO_FLUSH:
-		g_io_deliver(bp, EOPNOTSUPP);
-		return;
+		break;
 	case BIO_GETATTR:
 		if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_raid_kerneldump(sc, bp);
@@ -995,6 +1047,7 @@ g_raid_iodone(struct bio *bp, int error)
 	bioq_remove(&vol->v_inflight, bp);
 	if (vol->v_pending_lock && g_raid_is_in_locked_range(vol, bp))
 		g_raid_finish_with_locked_ranges(vol, bp);
+	getmicrouptime(&vol->v_last_done);
 	g_io_deliver(bp, error);
 }
 
@@ -1221,6 +1274,7 @@ g_raid_worker(void *arg)
 	struct g_raid_event *ep;
 	struct g_raid_volume *vol;
 	struct bio *bp;
+	struct timeval now, t;
 	int timeout, rv;
 
 	sc = arg;
@@ -1244,38 +1298,59 @@ g_raid_worker(void *arg)
 		else if ((bp = bioq_takefirst(&sc->sc_queue)) != NULL)
 			;
 		else {
-			/*
-			 * Two steps to avoid overflows at HZ=1000
-			 * and idle timeouts > 2.1s.  Some rounding errors
-			 * can occur, but they are < 1tick, which is deemed to
-			 * be close enough for this purpose.
-			 */
-			int micpertic = 1000000 / hz;
-			timeout = g_raid_idle_threshold / micpertic;
-			sx_xunlock(&sc->sc_lock);
-			MSLEEP(rv, sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "-",
-			    timeout);
-			sx_xlock(&sc->sc_lock);
-			goto process;
+			getmicrouptime(&now);
+			t = now;
+			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+				if (bioq_first(&vol->v_inflight) == NULL &&
+				    timevalcmp(&vol->v_last_done, &t, < ))
+					t = vol->v_last_done;
+			}
+			timevalsub(&t, &now);
+			timeout = g_raid_idle_threshold +
+			    t.tv_sec * 1000000 + t.tv_usec;
+			if (timeout > 0) {
+				/*
+				 * Two steps to avoid overflows at HZ=1000
+				 * and idle timeouts > 2.1s.  Some rounding
+				 * errors can occur, but they are < 1tick,
+				 * which is deemed to be close enough for
+				 * this purpose.
+				 */
+				int micpertic = 1000000 / hz;
+				timeout = (timeout + micpertic - 1) / micpertic;
+				sx_xunlock(&sc->sc_lock);
+				MSLEEP(rv, sc, &sc->sc_queue_mtx,
+				    PRIBIO | PDROP, "-", timeout);
+				sx_xlock(&sc->sc_lock);
+				goto process;
+			} else
+				rv = EWOULDBLOCK;
 		}
 		mtx_unlock(&sc->sc_queue_mtx);
 process:
-		if (ep != NULL)
+		if (ep != NULL) {
 			g_raid_handle_event(sc, ep);
-		if (bp != NULL) {
+		} else if (bp != NULL) {
 			if (bp->bio_to != NULL &&
 			    bp->bio_to->geom == sc->sc_geom)
 				g_raid_start_request(bp);
 			else
 				g_raid_disk_done_request(bp);
-		}
-		if (rv == EWOULDBLOCK) {
+		} else if (rv == EWOULDBLOCK) {
 			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 				if (vol->v_writes == 0 && vol->v_dirty)
 					g_raid_clean(vol, -1);
 				if (bioq_first(&vol->v_inflight) == NULL &&
-				    vol->v_tr)
-					G_RAID_TR_IDLE(vol->v_tr);
+				    vol->v_tr) {
+					t.tv_sec = g_raid_idle_threshold / 1000000;
+					t.tv_usec = g_raid_idle_threshold % 1000000;
+					timevaladd(&t, &vol->v_last_done);
+					getmicrouptime(&now);
+					if (timevalcmp(&t, &now, <= )) {
+						G_RAID_TR_IDLE(vol->v_tr);
+						vol->v_last_done = now;
+					}
+				}
 			}
 		}
 		if (sc->sc_stopping == G_RAID_DESTROY_HARD)
