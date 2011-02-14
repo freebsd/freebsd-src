@@ -591,13 +591,13 @@ isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 		mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 		mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 		mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN);
+		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
 		isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			FC_SCRATCH_RELEASE(isp, chan);
 			return (EIO);
 		}
-		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN);
+		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
 		isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
 
 #ifdef	ISP_TARGET_MODE
