@@ -649,4 +649,8 @@ ksiginfo_to_lsiginfo(ksiginfo_t *ksi, l_siginfo_t *lsi, l_int sig)
 		lsi->lsi_uid = ksi->ksi_uid;
 		break;
 	}
+	if (sig >= LINUX_SIGRTMIN) {
+		lsi->lsi_int = ksi->ksi_info.si_value.sival_int;
+		lsi->lsi_ptr = PTROUT(ksi->ksi_info.si_value.sival_ptr);
+	}
 }
