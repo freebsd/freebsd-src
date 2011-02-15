@@ -78,6 +78,7 @@ SRCS+=	check.c \
 .if defined(MACHINE_ARCH) && ${MACHINE_ARCH} == "i386"
 SRCS+=	crc32_x86.S \
 	crc64_x86.S
+ACFLAGS+=	-Wa,--noexecstack
 .else
 SRCS+=	crc32_fast.c \
 	crc64_fast.c
