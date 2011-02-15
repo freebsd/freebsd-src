@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2011
+.Dd February 15, 2011
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -207,6 +207,13 @@ Supports configurations: RAID0 (2+ disks), RAID1 (2 disks),
 RAID5 (3+ disks), RAID10 (4 disks).
 Configurations not supported by Intel RAID BIOS, but enforsable on your own
 risk: RAID1 (3+ disks), RAID1E (3+ disks), RAID10 (6+ disks).
+.It JMicron
+The format used by JMicron RAID BIOS.
+Supports one volume per array.
+Supports configurations: RAID0 (2+ disks), RAID1 (2 disks),
+RAID10 (4 disks), CONCAT (2+ disks).
+Configurations not supported by JMicron RAID BIOS, but enforsable on your own
+risk: RAID1 (3+ disks), RAID1E (3+ disks), RAID10 (6+ disks), RAID5 (3+ disks).
 .El
 .Sh SUPPORTED RAID LEVELS
 The GEOM RAID class follows a modular design, allowing different RAID levels
