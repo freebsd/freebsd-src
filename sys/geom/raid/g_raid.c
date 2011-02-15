@@ -2229,7 +2229,7 @@ g_raid_md_modevent(module_t mod, int type, void *arg)
 	switch (type) {
 	case MOD_LOAD:
 		c = LIST_FIRST(&g_raid_md_classes);
-		if (c == NULL || c->mdc_priority < class->mdc_priority)
+		if (c == NULL || c->mdc_priority > class->mdc_priority)
 			LIST_INSERT_HEAD(&g_raid_md_classes, class, mdc_list);
 		else {
 			while ((nc = LIST_NEXT(c, mdc_list)) != NULL &&
@@ -2262,7 +2262,7 @@ g_raid_tr_modevent(module_t mod, int type, void *arg)
 	switch (type) {
 	case MOD_LOAD:
 		c = LIST_FIRST(&g_raid_tr_classes);
-		if (c == NULL || c->trc_priority < class->trc_priority)
+		if (c == NULL || c->trc_priority > class->trc_priority)
 			LIST_INSERT_HEAD(&g_raid_tr_classes, class, trc_list);
 		else {
 			while ((nc = LIST_NEXT(c, trc_list)) != NULL &&
