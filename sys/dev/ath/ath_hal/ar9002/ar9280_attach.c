@@ -705,11 +705,18 @@ ar9280FillCapabilityInfo(struct ath_hal *ah)
 	return AH_TRUE;
 }
 
+/*
+ * This has been disabled - having the HAL flip chainmasks on/off
+ * when attempting to implement 11n disrupts things. For now, just
+ * leave this flipped off and worry about implementing TX diversity
+ * for legacy and MCS0-7 when 11n is fully functioning.
+ */
 HAL_BOOL
 ar9280SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 {
 #define ANTENNA0_CHAINMASK    0x1
 #define ANTENNA1_CHAINMASK    0x2
+#if 0
 	struct ath_hal_5416 *ahp = AH5416(ah);
 
 	/* Antenna selection is done by setting the tx/rx chainmasks approp. */
@@ -736,6 +743,7 @@ ar9280SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 	HALDEBUG(ah, HAL_DEBUG_ANY, "%s: settings=%d, tx/rx chainmask=%d/%d\n",
 	    __func__, settings, ahp->ah_tx_chainmask, ahp->ah_rx_chainmask);
 
+#endif
 	return AH_TRUE;
 #undef ANTENNA0_CHAINMASK
 #undef ANTENNA1_CHAINMASK
