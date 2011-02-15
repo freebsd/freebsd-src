@@ -431,7 +431,7 @@ int
 linux_rt_sigtimedwait(struct thread *td,
 	struct linux_rt_sigtimedwait_args *args)
 {
-	int error;
+	int error, sig;
 	l_timeval ltv;
 	struct timeval tv;
 	struct timespec ts, *tsa;
@@ -495,19 +495,15 @@ linux_rt_sigtimedwait(struct thread *td,
 	if (error)
 		return (error);
 
+	sig = BSD_TO_LINUX_SIGNAL(info.ksi_signo);
+
 	if (args->ptr) {
 		memset(&linfo, 0, sizeof(linfo));
-		linfo.lsi_signo = info.ksi_signo;
+		ksiginfo_to_lsiginfo(&info, &linfo, sig);
 		error = copyout(&linfo, args->ptr, sizeof(linfo));
 	}
-
-	/* Repost if we got an error. */
-	if (error && info.ksi_signo) {
-		PROC_LOCK(td->td_proc);
-		tdksignal(td, info.ksi_signo, &info);
-		PROC_UNLOCK(td->td_proc);
-	} else
-		td->td_retval[0] = info.ksi_signo; 
+	if (error == 0)
+		td->td_retval[0] = sig; 
 
 	return (error);
 }
