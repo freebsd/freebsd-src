@@ -457,8 +457,9 @@ linux_rt_sigtimedwait(struct thread *td,
 			return (error);
 #ifdef DEBUG
 		if (ldebug(rt_sigtimedwait))
-			printf(LMSG("linux_rt_sigtimedwait: incoming timeout (%d/%d)\n"),
-				ltv.tv_sec, ltv.tv_usec);
+			printf(LMSG("linux_rt_sigtimedwait: "
+			    "incoming timeout (%d/%d)\n"),
+			    ltv.tv_sec, ltv.tv_usec);
 #endif
 		tv.tv_sec = (long)ltv.tv_sec;
 		tv.tv_usec = (suseconds_t)ltv.tv_usec;
@@ -477,8 +478,9 @@ linux_rt_sigtimedwait(struct thread *td,
 				timevalclear(&tv);
 #ifdef DEBUG
 			if (ldebug(rt_sigtimedwait))
-				printf(LMSG("linux_rt_sigtimedwait: converted timeout (%jd/%ld)\n"),
-					(intmax_t)tv.tv_sec, tv.tv_usec);
+				printf(LMSG("linux_rt_sigtimedwait: "
+				    "converted timeout (%jd/%ld)\n"),
+				    (intmax_t)tv.tv_sec, tv.tv_usec);
 #endif
 		}
 		TIMEVAL_TO_TIMESPEC(&tv, &ts);
@@ -487,7 +489,8 @@ linux_rt_sigtimedwait(struct thread *td,
 	error = kern_sigtimedwait(td, bset, &info, tsa);
 #ifdef DEBUG
 	if (ldebug(rt_sigtimedwait))
-		printf(LMSG("linux_rt_sigtimedwait: sigtimedwait returning (%d)\n"), error);
+		printf(LMSG("linux_rt_sigtimedwait: "
+		    "sigtimedwait returning (%d)\n"), error);
 #endif
 	if (error)
 		return (error);
