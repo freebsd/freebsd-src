@@ -1302,6 +1302,7 @@ g_raid_worker(void *arg)
 			t = now;
 			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 				if (bioq_first(&vol->v_inflight) == NULL &&
+				    vol->v_tr &&
 				    timevalcmp(&vol->v_last_done, &t, < ))
 					t = vol->v_last_done;
 			}
