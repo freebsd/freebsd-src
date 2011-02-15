@@ -3117,6 +3117,10 @@ nfsd_modevent(module_t mod, int type, void *data)
 #endif
 		nfsd_call_servertimer = NULL;
 		nfsd_call_nfsd = NULL;
+
+		/* Clean the NFS server reply cache */
+		nfsrvd_cleancache();
+
 		/* and get rid of the locks */
 		mtx_destroy(&nfs_cache_mutex);
 		mtx_destroy(&nfs_v4root_mutex);
