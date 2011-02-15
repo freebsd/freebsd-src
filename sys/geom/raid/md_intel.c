@@ -715,9 +715,9 @@ nofit:
 		TAILQ_REMOVE(&olddisk->d_subdisks, sd, sd_next);
 		TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 		sd->sd_disk = disk;
-		oldpd->pd_disk_pos = -2;
-		pd->pd_disk_pos = disk_pos;
 	}
+	oldpd->pd_disk_pos = -2;
+	pd->pd_disk_pos = disk_pos;
 
 	/* If it was placeholder -- destroy it. */
 	if (olddisk->d_state == G_RAID_DISK_S_OFFLINE) {
