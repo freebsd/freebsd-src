@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 29, 2009
+.Dd February 14, 2011
 .Dt MKSNAP_FFS 8
 .Os
 .Sh NAME
@@ -79,3 +79,12 @@ utility first appeared in
 .Sh CAVEATS
 The disk full situation is not handled gracefully and may
 lead to a system panic when no free blocks are found.
+.Pp
+Every filesystem can have only up to 20 active snapshots.
+When this limit is reached, attempting to create more snapshots
+fails with
+.Er ENOSPC ,
+and
+.Nm
+reports that it is
+.Dq out of space .
