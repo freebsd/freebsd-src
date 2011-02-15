@@ -121,6 +121,7 @@ struct run_cmdq {
 struct run_vap {
 	struct ieee80211vap             vap;
 	struct ieee80211_beacon_offsets bo;
+	struct mbuf			*beacon_mbuf;
 
 	int                             (*newstate)(struct ieee80211vap *,
                                             enum ieee80211_state, int);
@@ -159,7 +160,10 @@ struct run_softc {
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 	struct ifnet			*sc_ifp;
-	struct ieee80211_node		*sc_ni[RT2870_WCID_MAX + 1];
+	uint16_t			wcid_stats[RT2870_WCID_MAX + 1][3];
+#define	RUN_TXCNT	0
+#define	RUN_SUCCESS	1
+#define	RUN_RETRY	2
 
 	int				(*sc_srom_read)(struct run_softc *,
 					    uint16_t, uint16_t *);

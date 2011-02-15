@@ -22,6 +22,7 @@ SRCS+= \
 	thr_getprio.c \
 	thr_getcpuclockid.c \
 	thr_getschedparam.c \
+	thr_getthreadid_np.c \
 	thr_info.c \
 	thr_init.c \
 	thr_join.c \

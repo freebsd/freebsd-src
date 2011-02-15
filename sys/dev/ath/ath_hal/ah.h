@@ -112,6 +112,7 @@ typedef enum {
 	HAL_CAP_INTRMASK	= 37,	/* bitmask of supported interrupts */
 	HAL_CAP_BSSIDMATCH	= 38,	/* hardware has disable bssid match */
 	HAL_CAP_STREAMS		= 39,	/* how many 802.11n spatial streams are available */
+	HAP_CAP_SPLIT_4KB_TRANS	= 40,	/* hardware supports descriptors straddling a 4k page boundary */
 } HAL_CAPABILITY_TYPE;
 
 /* 

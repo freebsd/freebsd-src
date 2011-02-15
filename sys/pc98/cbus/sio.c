@@ -2250,7 +2250,6 @@ sysctl_siots(SYSCTL_HANDLER_ARGS)
 		error = SYSCTL_OUT(req, buf, len);
 		if (error != 0)
 			return (error);
-		uio_yield();
 	}
 	return (0);
 }

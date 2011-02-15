@@ -446,7 +446,7 @@ sblock_init(void)
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
 	if ((lp = getdisklabel(NULL, fsreadfd)))
-		dev_bsize = secsize = lp->d_secsize;
+		real_dev_bsize = dev_bsize = secsize = lp->d_secsize;
 	else
 		dev_bsize = secsize = DEV_BSIZE;
 }

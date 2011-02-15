@@ -82,7 +82,19 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef UFS_GJOURNAL
 #include <ufs/ufs/gjournal.h>
+FEATURE(ufs_gjournal, "Journaling support through GEOM for UFS");
 #endif
+
+#ifdef QUOTA
+FEATURE(ufs_quota, "UFS disk quotas support");
+FEATURE(ufs_quota64, "64bit UFS disk quotas support");
+#endif
+
+#ifdef SUIDDIR
+FEATURE(suiddir,
+    "Give all new files in directory the same ownership as the directory");
+#endif
+
 
 #include <ufs/ffs/ffs_extern.h>
 

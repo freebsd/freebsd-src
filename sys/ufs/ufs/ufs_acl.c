@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef UFS_ACL
 
+FEATURE(ufs_acl, "ACL support for UFS");
+
 /*
  * Synchronize an ACL and an inode by copying over appropriate inode fields
  * to the passed ACL.  Assumes an ACL that would satisfy acl_posix1e_check(),

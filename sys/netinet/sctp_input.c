@@ -2617,7 +2617,9 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	}
 	if ((*netp != NULL) && (m->m_flags & M_FLOWID)) {
 		(*netp)->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
 		(*netp)->flowidset = 1;
+#endif
 	}
 	/*
 	 * Ok, we built an association so confirm the address we sent the
@@ -2863,23 +2865,30 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 			SCTP_SOCKET_LOCK(so, 1);
 			SCTP_TCB_LOCK(stcb);
 			atomic_subtract_int(&stcb->asoc.refcnt, 1);
-			if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-				SCTP_SOCKET_UNLOCK(so, 1);
-				return;
-			}
 #endif
-			soisconnected(stcb->sctp_socket);
+			if ((stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) == 0) {
+				soisconnected(stcb->sctp_socket);
+			}
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			SCTP_SOCKET_UNLOCK(so, 1);
 #endif
 		}
-		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep,
-		    stcb, net);
 		/*
 		 * since we did not send a HB make sure we don't double
 		 * things
 		 */
 		net->hb_responded = 1;
+
+		if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
+			/*
+			 * We don't need to do the asconf thing, nor hb or
+			 * autoclose if the socket is closed.
+			 */
+			goto closed_socket;
+		}
+		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep,
+		    stcb, net);
+
 
 		if (stcb->asoc.sctp_autoclose_ticks &&
 		    sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_AUTOCLOSE)) {
@@ -2904,6 +2913,7 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 #endif
 		}
 	}
+closed_socket:
 	/* Toss the cookie if I can */
 	sctp_toss_old_cookies(stcb, asoc);
 	if (!TAILQ_EMPTY(&asoc->sent_queue)) {
@@ -5815,6 +5825,12 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 			}
 			net->port = port;
 		}
+		if ((net != NULL) && (m->m_flags & M_FLOWID)) {
+			net->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
+			net->flowidset = 1;
+#endif
+		}
 		if ((inp) && (stcb)) {
 			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR, SCTP_SO_NOT_LOCKED);
@@ -5846,7 +5862,9 @@ sctp_skip_csum_4:
 	}
 	if ((net != NULL) && (m->m_flags & M_FLOWID)) {
 		net->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
 		net->flowidset = 1;
+#endif
 	}
 	/* inp's ref-count increased && stcb locked */
 	if (inp == NULL) {

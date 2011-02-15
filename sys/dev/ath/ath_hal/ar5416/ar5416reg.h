@@ -365,6 +365,10 @@
 #define	AR_AN_RF5G1_CH1_DB5     0x00380000
 #define	AR_AN_RF5G1_CH1_DB5_S   19
 
+#define AR_AN_TOP1                  0x7890
+#define AR_AN_TOP1_DACIPMODE        0x00040000
+#define AR_AN_TOP1_DACIPMODE_S      18
+
 #define	AR_AN_TOP2_XPABIAS_LVL      0xC0000000
 #define	AR_AN_TOP2_XPABIAS_LVL_S    30
 #define	AR_AN_TOP2_LOCALBIAS        0x00200000

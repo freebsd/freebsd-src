@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2011
+.Dd February 8, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1499,13 +1499,8 @@ and contain integer constants.
 .Li "* / % + - << >> < <= > >= == != & ^ | && ||"
 .It Assignment operators
 .Li "= += -= *= /= %= <<= >>= &= ^= |="
-.It Short-circuit evaluation
-The
-.Li &&
-and
-.Li ||
-operators always evaluate both sides.
-This is a bug.
+.It Conditional operator
+.Li "? :"
 .El
 .Pp
 The result of the expression is substituted in decimal.

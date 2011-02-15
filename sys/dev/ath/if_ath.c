@@ -283,6 +283,10 @@ SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
 
 MALLOC_DEFINE(M_ATHDEV, "athdev", "ath driver dma buffers");
 
+#define	HAL_MODE_HT20 (HAL_MODE_11NG_HT20 | HAL_MODE_11NA_HT20)
+#define	HAL_MODE_HT40 \
+	(HAL_MODE_11NG_HT40PLUS | HAL_MODE_11NG_HT40MINUS | \
+	HAL_MODE_11NA_HT40PLUS | HAL_MODE_11NA_HT40MINUS)
 int
 ath_attach(u_int16_t devid, struct ath_softc *sc)
 {
@@ -611,6 +615,52 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_tdma_update = ath_tdma_update;
 	}
 #endif
+
+	/*
+	 * The if_ath 11n support is completely not ready for normal use.
+	 * Enabling this option will likely break everything and everything.
+	 * Don't think of doing that unless you know what you're doing.
+	 */
+
+#ifdef	DO_ATH_11N
+	/*
+	 * Query HT capabilities
+	 */
+	if (ath_hal_getcapability(ah, HAL_CAP_HT, 0, NULL) == HAL_OK &&
+	    (wmodes & (HAL_MODE_HT20 | HAL_MODE_HT40))) {
+		int rxs, txs;
+
+		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
+		ic->ic_htcaps = IEEE80211_HTC_HT		/* HT operation */
+			    | IEEE80211_HTC_AMPDU		/* A-MPDU tx/rx */
+			    | IEEE80211_HTC_AMSDU		/* A-MSDU tx/rx */
+			    | IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
+			    | IEEE80211_HTCAP_SHORTGI20		/* short GI in 20MHz */
+			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
+			;
+
+		if (wmodes & HAL_MODE_HT40)
+			ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40
+			    |  IEEE80211_HTCAP_SHORTGI40;
+
+		/*
+		 * rx/tx stream is not currently used anywhere; it needs to be taken
+		 * into account when negotiating which MCS rates it'll receive and
+		 * what MCS rates are available for TX.
+		 */
+		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 0, &rxs);
+		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 1, &txs);
+
+		ath_hal_getrxchainmask(ah, &sc->sc_rxchainmask);
+		ath_hal_gettxchainmask(ah, &sc->sc_txchainmask);
+
+		ic->ic_txstream = txs;
+		ic->ic_rxstream = rxs;
+
+		device_printf(sc->sc_dev, "[HT] %d RX streams; %d TX streams\n", rxs, txs);
+	}
+#endif
+
 	/*
 	 * Indicate we need the 802.11 header padded to a
 	 * 32-bit boundary for 4-address and QoS frames.
@@ -1938,10 +1988,10 @@ ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
 		/*
 		 * Group keys on hardware that supports multicast frame
 		 * key search use a MAC that is the sender's address with
-		 * the high bit set instead of the app-specified address.
+		 * the multicast bit set instead of the app-specified address.
 		 */
 		IEEE80211_ADDR_COPY(gmac, bss->ni_macaddr);
-		gmac[0] |= 0x80;
+		gmac[0] |= 0x01;
 		mac = gmac;
 	} else
 		mac = k->wk_macaddr;
@@ -3665,7 +3715,6 @@ ath_rx_proc(void *arg, int npending)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	int len, type, ngood;
-	u_int phyerr;
 	HAL_STATUS status;
 	int16_t nf;
 	u_int64_t tsf;
@@ -3719,6 +3768,21 @@ ath_rx_proc(void *arg, int npending)
 		if (status == HAL_EINPROGRESS)
 			break;
 		STAILQ_REMOVE_HEAD(&sc->sc_rxbuf, bf_list);
+
+		/* These aren't specifically errors */
+		if (rs->rs_flags & HAL_RX_GI)
+			sc->sc_stats.ast_rx_halfgi++;
+		if (rs->rs_flags & HAL_RX_2040)
+			sc->sc_stats.ast_rx_2040++;
+		if (rs->rs_flags & HAL_RX_DELIM_CRC_PRE)
+			sc->sc_stats.ast_rx_pre_crc_err++;
+		if (rs->rs_flags & HAL_RX_DELIM_CRC_POST)
+			sc->sc_stats.ast_rx_post_crc_err++;
+		if (rs->rs_flags & HAL_RX_DECRYPT_BUSY)
+			sc->sc_stats.ast_rx_decrypt_busy_err++;
+		if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
+			sc->sc_stats.ast_rx_hi_rx_chain++;
+
 		if (rs->rs_status != 0) {
 			if (rs->rs_status & HAL_RXERR_CRC)
 				sc->sc_stats.ast_rx_crcerr++;
@@ -3726,8 +3790,9 @@ ath_rx_proc(void *arg, int npending)
 				sc->sc_stats.ast_rx_fifoerr++;
 			if (rs->rs_status & HAL_RXERR_PHY) {
 				sc->sc_stats.ast_rx_phyerr++;
-				phyerr = rs->rs_phyerr & 0x1f;
-				sc->sc_stats.ast_rx_phy[phyerr]++;
+				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
+				if (rs->rs_phyerr < 64)
+					sc->sc_stats.ast_rx_phy[rs->rs_phyerr]++;
 				goto rx_error;	/* NB: don't count in ierrors */
 			}
 			if (rs->rs_status & HAL_RXERR_DECRYPT) {
@@ -3892,18 +3957,27 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 		/* tag AMPDU aggregates for reorder processing */
+#if 0
 		/*
 		 * Just make sure all frames are tagged for AMPDU reorder checking.
 		 * As there seems to be some situations where single frames aren't
 		 * matching a node but bump the seqno. This needs to be investigated.
 		 */
 		m->m_flags |= M_AMPDU;
+#endif
 
 		/* Keep statistics on the number of aggregate packets received */
 		if (rs->rs_isaggr)
 			sc->sc_stats.ast_rx_agg++;
 
 		if (ni != NULL) {
+			/*
+ 			 * Only punt packets for ampdu reorder processing for 11n nodes;
+ 			 * net80211 enforces that M_AMPDU is only set for 11n nodes.
+ 			 */
+			if (ni->ni_flags & IEEE80211_NODE_HT)
+				m->m_flags |= M_AMPDU;
+
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
@@ -6333,6 +6407,23 @@ ath_sysctl_clearstats(SYSCTL_HANDLER_ARGS)
 }
 
 static void
+ath_sysctl_stats_attach_rxphyerr(struct ath_softc *sc, struct sysctl_oid_list *parent)
+{
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+	int i;
+	char sn[8];
+
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx_phy_err", CTLFLAG_RD, NULL, "Per-code RX PHY Errors");
+	child = SYSCTL_CHILDREN(tree);
+	for (i = 0; i < 64; i++) {
+		snprintf(sn, sizeof(sn), "%d", i);
+		SYSCTL_ADD_UINT(ctx, child, OID_AUTO, sn, CTLFLAG_RD, &sc->sc_stats.ast_rx_phy[i], 0, "");
+	}
+}
+
+static void
 ath_sysctl_stats_attach(struct ath_softc *sc)
 {
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
@@ -6503,4 +6594,14 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_ani_cal, 0, "number of ANI polls");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_agg", CTLFLAG_RD,
 	    &sc->sc_stats.ast_rx_agg, 0, "number of aggregate frames received");
+
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_halfgi", CTLFLAG_RD, &sc->sc_stats.ast_rx_halfgi, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_2040", CTLFLAG_RD, &sc->sc_stats.ast_rx_2040, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_pre_crc_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_pre_crc_err, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_post_crc_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_post_crc_err, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_decrypt_busy_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_decrypt_busy_err, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_hi_rx_chain", CTLFLAG_RD, &sc->sc_stats.ast_rx_hi_rx_chain, 0, "");
+
+	/* Attach the RX phy error array */
+	ath_sysctl_stats_attach_rxphyerr(sc, child);
 }

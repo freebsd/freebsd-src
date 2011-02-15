@@ -392,6 +392,9 @@ NamePathTail                [.]{NameSeg}
 "AddressRangeNVS"           { count (0); return (PARSEOP_ADDRESSTYPE_NVS); }
 "AddressRangeACPI"          { count (0); return (PARSEOP_ADDRESSTYPE_ACPI); }
 
+"__DATE__"                  { count (0); return (PARSEOP___DATE__); }
+"__FILE__"                  { count (0); return (PARSEOP___FILE__); }
+"__LINE__"                  { count (0); return (PARSEOP___LINE__); }
 
 "{"                         { count (0); return('{'); }
 "}"                         { count (0); return('}'); }

@@ -161,6 +161,8 @@ contrib/dev/acpica/debugger/dbexec.c	optional acpi acpi_debug
 contrib/dev/acpica/debugger/dbfileio.c	optional acpi acpi_debug
 contrib/dev/acpica/debugger/dbhistry.c	optional acpi acpi_debug
 contrib/dev/acpica/debugger/dbinput.c	optional acpi acpi_debug
+contrib/dev/acpica/debugger/dbmethod.c	optional acpi acpi_debug
+contrib/dev/acpica/debugger/dbnames.c	optional acpi acpi_debug
 contrib/dev/acpica/debugger/dbstats.c	optional acpi acpi_debug
 contrib/dev/acpica/debugger/dbutils.c	optional acpi acpi_debug
 contrib/dev/acpica/debugger/dbxface.c	optional acpi acpi_debug
@@ -173,6 +175,8 @@ contrib/dev/acpica/disassembler/dmresrcl.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrcs.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmutils.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmwalk.c	optional acpi acpi_debug
+contrib/dev/acpica/dispatcher/dsargs.c		optional acpi
+contrib/dev/acpica/dispatcher/dscontrol.c	optional acpi
 contrib/dev/acpica/dispatcher/dsfield.c		optional acpi
 contrib/dev/acpica/dispatcher/dsinit.c		optional acpi
 contrib/dev/acpica/dispatcher/dsmethod.c	optional acpi
@@ -182,6 +186,7 @@ contrib/dev/acpica/dispatcher/dsopcode.c	optional acpi
 contrib/dev/acpica/dispatcher/dsutils.c		optional acpi
 contrib/dev/acpica/dispatcher/dswexec.c		optional acpi
 contrib/dev/acpica/dispatcher/dswload.c		optional acpi
+contrib/dev/acpica/dispatcher/dswload2.c	optional acpi
 contrib/dev/acpica/dispatcher/dswscope.c	optional acpi
 contrib/dev/acpica/dispatcher/dswstate.c	optional acpi
 contrib/dev/acpica/events/evevent.c		optional acpi
@@ -278,6 +283,7 @@ contrib/dev/acpica/utilities/utalloc.c		optional acpi
 contrib/dev/acpica/utilities/utcache.c		optional acpi
 contrib/dev/acpica/utilities/utcopy.c		optional acpi
 contrib/dev/acpica/utilities/utdebug.c		optional acpi
+contrib/dev/acpica/utilities/utdecode.c		optional acpi
 contrib/dev/acpica/utilities/utdelete.c		optional acpi
 contrib/dev/acpica/utilities/uteval.c		optional acpi
 contrib/dev/acpica/utilities/utglobal.c		optional acpi

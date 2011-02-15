@@ -30,6 +30,7 @@
 # delete-old-libs     - Delete obsolete libraries.
 # targets             - Print a list of supported TARGET/TARGET_ARCH pairs
 #                       for world and kernel targets.
+# toolchains          - Build a toolchain for all world and kernel targets.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -307,8 +308,10 @@ make: .PHONY
 		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
 
 tinderbox:
-	@cd ${.CURDIR} && \
-		DOING_TINDERBOX=YES ${MAKE} JFLAG=${JFLAG} universe
+	@cd ${.CURDIR} && ${MAKE} DOING_TINDERBOX=YES universe
+
+toolchains:
+	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=toolchain universe
 
 #
 # universe
@@ -327,6 +330,12 @@ TARGET_ARCHES_sun4v?=	sparc64
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
 .endfor
+
+.if defined(UNIVERSE_TARGET)
+MAKE_JUST_WORLDS=	YES
+.else
+UNIVERSE_TARGET?=	buildworld
+.endif
 
 targets:
 	@echo "Supported TARGET/TARGET_ARCH pairs for world and kernel targets"
@@ -361,16 +370,16 @@ universe_${target}_prologue:
 .for target_arch in ${TARGET_ARCHES_${target}}
 universe_${target}: universe_${target}_${target_arch}
 universe_${target}_${target_arch}: universe_${target}_prologue
-	@echo ">> ${target}.${target_arch} buildworld started on `LC_ALL=C date`"
+	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${MAKE} ${JFLAG} buildworld \
+	    ${MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
 	    TARGET=${target} \
 	    TARGET_ARCH=${target_arch} \
-	    > _.${target}.${target_arch}.buildworld 2>&1 || \
-	    (echo "${target}.${target_arch} world failed," \
-	    "check _.${target}.${target_arch}.buildworld for details" | \
+	    > _.${target}.${target_arch}.${UNIVERSE_TARGET} 2>&1 || \
+	    (echo "${target}.${target_arch} ${UNIVERSE_TARGET} failed," \
+	    "check _.${target}.${target_arch}.${UNIVERSE_TARGET} for details" | \
 	    ${MAKEFAIL}))
-	@echo ">> ${target}.${target_arch} buildworld completed on `LC_ALL=C date`"
+	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} completed on `LC_ALL=C date`"
 .endfor
 .endif
 .if !defined(MAKE_JUST_WORLDS)

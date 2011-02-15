@@ -1180,12 +1180,12 @@ isp_pci_rd_reg(ispsoftc_t *isp, int regoff)
 		 */
 		oldconf = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oldconf | BIU_PCI_CONF1_SXP);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	}
 	rv = BXR2(isp, IspVirt2Off(isp, regoff));
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oldconf);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	}
 	return (rv);
 }
@@ -1202,13 +1202,13 @@ isp_pci_wr_reg(ispsoftc_t *isp, int regoff, uint32_t val)
 		oldconf = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1),
 		    oldconf | BIU_PCI_CONF1_SXP);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	}
 	BXW2(isp, IspVirt2Off(isp, regoff), val);
-	MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2);
+	MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2, -1);
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oldconf);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	}
 
 }
@@ -1231,17 +1231,17 @@ isp_pci_rd_reg_1080(ispsoftc_t *isp, int regoff)
 		else
 			tc |= BIU_PCI1080_CONF1_SXP0;
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), tc);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	} else if ((regoff & _BLK_REG_MASK) == DMA_BLOCK) {
 		oc = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), 
 		    oc | BIU_PCI1080_CONF1_DMA);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	}
 	rv = BXR2(isp, IspVirt2Off(isp, regoff));
 	if (oc) {
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oc);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	}
 	return (rv);
 }
@@ -1264,18 +1264,18 @@ isp_pci_wr_reg_1080(ispsoftc_t *isp, int regoff, uint32_t val)
 		else
 			tc |= BIU_PCI1080_CONF1_SXP0;
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), tc);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	} else if ((regoff & _BLK_REG_MASK) == DMA_BLOCK) {
 		oc = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), 
 		    oc | BIU_PCI1080_CONF1_DMA);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	}
 	BXW2(isp, IspVirt2Off(isp, regoff), val);
-	MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2);
+	MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2, -1);
 	if (oc) {
 		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oc);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2, -1);
 	}
 }
 
@@ -1350,7 +1350,7 @@ isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 		break;
 	case MBOX_BLOCK:
 		BXW2(isp, IspVirt2Off(isp, regoff), val);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2, -1);
 		return;
 	case SXP_BLOCK:
 		isp_prt(isp, ISP_LOGWARN, "SXP_BLOCK write at 0x%x", regoff);
@@ -1386,7 +1386,7 @@ isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 	case BIU2400_GPIOE:
 	case BIU2400_HSEMA:
 		BXW4(isp, IspVirt2Off(isp, regoff), val);
-		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 4);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 4, -1);
 		break;
 	default:
 		isp_prt(isp, ISP_LOGERR,
@@ -1574,7 +1574,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		return (1);
 	}
 
-	if (bus_dmamem_alloc(isp->isp_osinfo.cdmat, (void **)&base, BUS_DMA_NOWAIT, &isp->isp_osinfo.cdmap) != 0) {
+	if (bus_dmamem_alloc(isp->isp_osinfo.cdmat, (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &isp->isp_osinfo.cdmap) != 0) {
 		isp_prt(isp, ISP_LOGERR, "cannot allocate %d bytes of CCB memory", len);
 		bus_dma_tag_destroy(isp->isp_osinfo.cdmat);
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
@@ -1603,7 +1603,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 			if (isp_dma_tag_create(isp->isp_osinfo.dmat, 64, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, ISP_FC_SCRLEN, 1, slim, 0, &fc->tdmat)) {
 				goto bad;
 			}
-			if (bus_dmamem_alloc(fc->tdmat, (void **)&base, BUS_DMA_NOWAIT, &fc->tdmap) != 0) {
+			if (bus_dmamem_alloc(fc->tdmat, (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &fc->tdmap) != 0) {
 				bus_dma_tag_destroy(fc->tdmat);
 				goto bad;
 			}

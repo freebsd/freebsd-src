@@ -79,7 +79,7 @@ struct ath_stats {
 	u_int32_t	ast_rx_badcrypt;/* rx failed 'cuz decryption */
 	u_int32_t	ast_rx_badmic;	/* rx failed 'cuz MIC failure */
 	u_int32_t	ast_rx_phyerr;	/* rx failed 'cuz of PHY err */
-	u_int32_t	ast_rx_phy[32];	/* rx PHY error per-code counts */
+	u_int32_t	ast_rx_phy[64];	/* rx PHY error per-code counts */
 	u_int32_t	ast_rx_tooshort;/* rx discarded 'cuz frame too short */
 	u_int32_t	ast_rx_toobig;	/* rx discarded 'cuz frame too large */
 	u_int32_t	ast_rx_packets;	/* packet recv on the interface */
@@ -121,7 +121,13 @@ struct ath_stats {
 	u_int32_t	ast_be_missed;	/* missed beacons */
 	u_int32_t	ast_ani_cal;	/* ANI calibrations performed */
 	u_int32_t	ast_rx_agg;	/* number of aggregate frames RX'ed */
-	u_int32_t	ast_pad[11];
+	u_int32_t	ast_rx_halfgi;
+	u_int32_t	ast_rx_2040;
+	u_int32_t	ast_rx_pre_crc_err;
+	u_int32_t	ast_rx_post_crc_err;
+	u_int32_t	ast_rx_decrypt_busy_err;
+	u_int32_t	ast_rx_hi_rx_chain;
+	u_int32_t	ast_pad[4];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)

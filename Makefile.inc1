@@ -28,6 +28,17 @@
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
+# You are supposed to define both of these when calling Makefile.inc1
+# directly.  However, some old scripts don't.  Cope for the moment, but
+# issue a new warning for a transition period.
+.if defined(TARGET) && !defined(TARGET_ARCH)
+.warning "You must pass both TARGET and TARGET_ARCH to Makefile.inc1.  Setting TARGET_ARCH=${TARGET}."
+TARGET_ARCH=${TARGET}
+.endif
+.if !defined(TARGET) || !defined(TARGET_ARCH)
+.error "Both TARGET and TARGET_ARCH must be defined."
+.endif
+
 .include <bsd.own.mk>
 .include <bsd.arch.inc.mk>
 
@@ -1378,19 +1389,63 @@ check-old: check-old-files check-old-libs check-old-dirs
 showconfig:
 	@${MAKE} -n -f bsd.own.mk -V dummy -dg1 | grep ^MK_ | sort
 
+.if !empty(KRNLOBJDIR) && !empty(KERNCONF)
+DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
+
+.if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
+.if exists(${KERNCONFDIR}/${KERNCONF})
+FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
+	${KERNCONFDIR}/${KERNCONF}
+.endif
+.endif
+
+.endif
+
+.if !defined(DTBOUTPUTPATH) || !exists(${DTBOUTPUTPATH})
+DTBOUTPUTPATH= ${.CURDIR}
+.endif
+
+#
+# Build 'standalone' Device Tree Blob
+#
+builddtb:
+	@if [ "${FDT_DTS_FILE}" = "" ]; then \
+		echo "ERROR: FDT_DTS_FILE must be specified!"; \
+		exit 1; \
+	fi;	\
+	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE} ]; then \
+		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
+			exist!"; \
+		exit 1;	\
+	fi;	\
+	if [ "${DTBOUTPUTPATH}" = "${.CURDIR}" ]; then	\
+		echo "WARNING: DTB will be placed in the current working \
+			directory"; \
+	fi
+	@PATH=${TMPPATH} \
+	dtc -O dtb -o \
+	    ${DTBOUTPUTPATH}/`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 \
+	    -p 1024 ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE}
 
 ###############
 
 .if defined(XDEV) && defined(XDEV_ARCH)
 
+.if ${XDEV} == ${MACHINE} && ${XDEV_ARCH} == ${MACHINE_ARCH}
+XDEV_CPUTYPE?=${CPUTYPE}
+.else
+XDEV_CPUTYPE?=${TARGET_CPUTYPE}
+.endif
+
 NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
 	-DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_PROFILE \
-	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS
+	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS \
+	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
+	CPUTYPE=${XDEV_CPUTYPE}
 
-XDDIR=${XDEV}-freebsd
+XDDIR=${XDEV_ARCH}-freebsd
 XDTP=/usr/${XDDIR}
-CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
-	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH}
+CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR}
 CDENV= ${CDBENV} \
 	_SHLIBDIRPREFIX=${XDTP} \
 	TOOLS_PREFIX=${XDTP}
@@ -1412,7 +1467,7 @@ xdev: xdev-build xdev-install
 xdev-build: _xb-build-tools _xb-cross-tools
 
 _xb-build-tools:
-	${_+_}cd ${.CURDIR}; \
+	${_+_}@cd ${.CURDIR}; \
 	${CDBENV} ${MAKE} -f Makefile.inc1 ${NOFUN} build-tools
 
 _xb-cross-tools:
@@ -1466,41 +1521,3 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .endif
-
-.if !empty(KRNLOBJDIR) && !empty(KERNCONF)
-DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
-
-.if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
-.if exists(${KERNCONFDIR}/${KERNCONF})
-FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
-	${KERNCONFDIR}/${KERNCONF}
-.endif
-.endif
-
-.endif
-
-.if !defined(DTBOUTPUTPATH) || !exists(${DTBOUTPUTPATH})
-DTBOUTPUTPATH= ${.CURDIR}
-.endif
-
-#
-# Build 'standalone' Device Tree Blob
-#
-builddtb:
-	@if [ "${FDT_DTS_FILE}" = "" ]; then \
-		echo "ERROR: FDT_DTS_FILE must be specified!"; \
-		exit 1; \
-	fi;	\
-	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE} ]; then \
-		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
-			exist!"; \
-		exit 1;	\
-	fi;	\
-	if [ "${DTBOUTPUTPATH}" = "${.CURDIR}" ]; then	\
-		echo "WARNING: DTB will be placed in the current working \
-			directory"; \
-	fi
-	@PATH=${TMPPATH} \
-	dtc -O dtb -o \
-	    ${DTBOUTPUTPATH}/`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 \
-	    -p 1024 ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE}

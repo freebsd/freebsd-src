@@ -234,7 +234,11 @@ void *linker_hwpmc_list_objects(void);
 /*
  * Module lookup
  */
+extern vm_offset_t	preload_addr_relocate;
 extern caddr_t		preload_metadata;
+
+extern void *		preload_fetch_addr(caddr_t _mod);
+extern size_t		preload_fetch_size(caddr_t _mod);
 extern caddr_t		preload_search_by_name(const char *_name);
 extern caddr_t		preload_search_by_type(const char *_type);
 extern caddr_t		preload_search_next_name(caddr_t _base);

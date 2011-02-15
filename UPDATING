@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110207:
+	Remove the uio_yield prototype and symbol.  This function has
+	been misnamed since it was introduced and should not be
+	globally exposed with this name.  The equivalent functionality
+	is now available using kern_yield(curthread->td_user_pri).
+	The function remains undocumented.
+
 20110112:
 	A SYSCTL_[ADD_]UQUAD was added for unsigned uint64_t pointers,
 	symmetric with the existing SYSCTL_[ADD_]QUAD.  Type checking

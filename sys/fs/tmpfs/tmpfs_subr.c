@@ -146,7 +146,6 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 		nnode->tn_reg.tn_aobj =
 		    vm_pager_allocate(OBJT_SWAP, NULL, 0, VM_PROT_DEFAULT, 0,
 			NULL /* XXXKIB - tmpfs needs swap reservation */);
-		nnode->tn_reg.tn_aobj_pages = 0;
 		break;
 
 	default:
@@ -184,7 +183,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 void
 tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 {
-	size_t pages = 0;
+	vm_object_t uobj;
 
 #ifdef INVARIANTS
 	TMPFS_NODE_LOCK(node);
@@ -220,9 +219,13 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 		break;
 
 	case VREG:
-		if (node->tn_reg.tn_aobj != NULL)
-			vm_object_deallocate(node->tn_reg.tn_aobj);
-		pages = node->tn_reg.tn_aobj_pages;
+		uobj = node->tn_reg.tn_aobj;
+		if (uobj != NULL) {
+			TMPFS_LOCK(tmp);
+			tmp->tm_pages_used -= uobj->size;
+			TMPFS_UNLOCK(tmp);
+			vm_object_deallocate(uobj);
+		}
 		break;
 
 	default:
@@ -231,10 +234,6 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 
 	free_unr(tmp->tm_ino_unr, node->tn_id);
 	uma_zfree(tmp->tm_node_pool, node);
-
-	TMPFS_LOCK(tmp);
-	tmp->tm_pages_used -= pages;
-	TMPFS_UNLOCK(tmp);
 }
 
 /* --------------------------------------------------------------------- */
@@ -875,43 +874,43 @@ tmpfs_dir_whiteout_remove(struct vnode *dvp, struct componentname *cnp)
 /* --------------------------------------------------------------------- */
 
 /*
- * Resizes the aobj associated to the regular file pointed to by vp to
- * the size newsize.  'vp' must point to a vnode that represents a regular
- * file.  'newsize' must be positive.
+ * Resizes the aobj associated with the regular file pointed to by 'vp' to the
+ * size 'newsize'.  'vp' must point to a vnode that represents a regular file.
+ * 'newsize' must be positive.
  *
  * Returns zero on success or an appropriate error code on failure.
  */
 int
 tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 {
-	int error;
-	size_t newpages, oldpages;
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
+	vm_object_t uobj;
+	vm_page_t m;
+	vm_pindex_t newpages, oldpages;
 	off_t oldsize;
+	size_t zerolen;
 
 	MPASS(vp->v_type == VREG);
 	MPASS(newsize >= 0);
 
 	node = VP_TO_TMPFS_NODE(vp);
+	uobj = node->tn_reg.tn_aobj;
 	tmp = VFS_TO_TMPFS(vp->v_mount);
 
-	/* Convert the old and new sizes to the number of pages needed to
+	/*
+	 * Convert the old and new sizes to the number of pages needed to
 	 * store them.  It may happen that we do not need to do anything
 	 * because the last allocated page can accommodate the change on
-	 * its own. */
+	 * its own.
+	 */
 	oldsize = node->tn_size;
-	oldpages = round_page(oldsize) / PAGE_SIZE;
-	MPASS(oldpages == node->tn_reg.tn_aobj_pages);
-	newpages = round_page(newsize) / PAGE_SIZE;
-
+	oldpages = OFF_TO_IDX(oldsize + PAGE_MASK);
+	MPASS(oldpages == uobj->size);
+	newpages = OFF_TO_IDX(newsize + PAGE_MASK);
 	if (newpages > oldpages &&
-	    newpages - oldpages > TMPFS_PAGES_AVAIL(tmp)) {
-		error = ENOSPC;
-		goto out;
-	}
-
-	node->tn_reg.tn_aobj_pages = newpages;
+	    newpages - oldpages > TMPFS_PAGES_AVAIL(tmp))
+		return (ENOSPC);
 
 	TMPFS_LOCK(tmp);
 	tmp->tm_pages_used += (newpages - oldpages);
@@ -919,40 +918,30 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 
 	node->tn_size = newsize;
 	vnode_pager_setsize(vp, newsize);
+	VM_OBJECT_LOCK(uobj);
 	if (newsize < oldsize) {
-		size_t zerolen = round_page(newsize) - newsize;
-		vm_object_t uobj = node->tn_reg.tn_aobj;
-		vm_page_t m;
-
 		/*
-		 * free "backing store"
+		 * Release any swap space and free any whole pages.
 		 */
-		VM_OBJECT_LOCK(uobj);
 		if (newpages < oldpages) {
-			swap_pager_freespace(uobj,
-						newpages, oldpages - newpages);
-			vm_object_page_remove(uobj,
-				OFF_TO_IDX(newsize + PAGE_MASK), 0, FALSE);
+			swap_pager_freespace(uobj, newpages, oldpages -
+			    newpages);
+			vm_object_page_remove(uobj, newpages, 0, FALSE);
 		}
 
 		/*
-		 * zero out the truncated part of the last page.
+		 * Zero the truncated part of the last page.
 		 */
-
+		zerolen = round_page(newsize) - newsize;
 		if (zerolen > 0) {
 			m = vm_page_grab(uobj, OFF_TO_IDX(newsize),
 			    VM_ALLOC_NOBUSY | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-			pmap_zero_page_area(m, PAGE_SIZE - zerolen,
-				zerolen);
+			pmap_zero_page_area(m, PAGE_SIZE - zerolen, zerolen);
 		}
-		VM_OBJECT_UNLOCK(uobj);
-
 	}
-
-	error = 0;
-
-out:
-	return error;
+	uobj->size = newpages;
+	VM_OBJECT_UNLOCK(uobj);
+	return (0);
 }
 
 /* --------------------------------------------------------------------- */

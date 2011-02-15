@@ -180,7 +180,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		val &= ~AR_PHY_RIFS_INIT_DELAY;
 		OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
 	}
-	
+
 	AH5416(ah)->ah_writeIni(ah, chan);
 
 	/* Setup 11n MAC/Phy mode registers */
@@ -1236,6 +1236,65 @@ ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	OS_REG_WRITE(ah, AR_RTC_SLEEP_CLK, AR_RTC_SLEEP_DERIVED_CLK);
 }
 
+static void
+ar5416SetDefGainValues(struct ath_hal *ah,
+    const MODAL_EEP_HEADER *pModal,
+    const struct ar5416eeprom *eep,
+    uint8_t txRxAttenLocal, int regChainOffset, int i)
+{
+	if (IS_EEP_MINOR_V3(ah)) {
+		txRxAttenLocal = pModal->txRxAttenCh[i];
+
+		if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+			OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+			      AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN,
+			      pModal->bswMargin[i]);
+			OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+			      AR_PHY_GAIN_2GHZ_XATTEN1_DB,
+			      pModal->bswAtten[i]);
+			OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+			      AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN,
+			      pModal->xatten2Margin[i]);
+			OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+			      AR_PHY_GAIN_2GHZ_XATTEN2_DB,
+			      pModal->xatten2Db[i]);
+		} else {
+			OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+			  (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) &
+			   ~AR_PHY_GAIN_2GHZ_BSW_MARGIN)
+			  | SM(pModal-> bswMargin[i],
+			       AR_PHY_GAIN_2GHZ_BSW_MARGIN));
+			OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+			  (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) &
+			   ~AR_PHY_GAIN_2GHZ_BSW_ATTEN)
+			  | SM(pModal->bswAtten[i],
+			       AR_PHY_GAIN_2GHZ_BSW_ATTEN));
+		}
+	}
+
+	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+		OS_REG_RMW_FIELD(ah,
+		      AR_PHY_RXGAIN + regChainOffset,
+		      AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
+		OS_REG_RMW_FIELD(ah,
+		      AR_PHY_RXGAIN + regChainOffset,
+		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[i]);
+	} else {
+		OS_REG_WRITE(ah,
+			  AR_PHY_RXGAIN + regChainOffset,
+			  (OS_REG_READ(ah, AR_PHY_RXGAIN + regChainOffset) &
+			   ~AR_PHY_RXGAIN_TXRX_ATTEN)
+			  | SM(txRxAttenLocal, AR_PHY_RXGAIN_TXRX_ATTEN));
+		OS_REG_WRITE(ah,
+			  AR_PHY_GAIN_2GHZ + regChainOffset,
+			  (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) &
+			   ~AR_PHY_GAIN_2GHZ_RXTX_MARGIN) |
+			  SM(pModal->rxTxMarginCh[i], AR_PHY_GAIN_2GHZ_RXTX_MARGIN));
+	}
+}
+
+
+
 /*
  * Read EEPROM header info and program the device for correct operation
  * given the channel value.
@@ -1272,6 +1331,7 @@ ar5416SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
         }
 
         OS_REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0 + regChainOffset, pModal->antCtrlChain[i]);
+
         OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4 + regChainOffset, 
         	(OS_REG_READ(ah, AR_PHY_TIMING_CTRL4 + regChainOffset) &
         	~(AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF | AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF)) |
@@ -1283,21 +1343,34 @@ ar5416SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * XXX update
          */
 
-        if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah)) {
-            OS_REG_WRITE(ah, AR_PHY_RXGAIN + regChainOffset, 
-		(OS_REG_READ(ah, AR_PHY_RXGAIN + regChainOffset) & ~AR_PHY_RXGAIN_TXRX_ATTEN) |
-			SM(IS_EEP_MINOR_V3(ah)  ? pModal->txRxAttenCh[i] : txRxAttenLocal,
-				AR_PHY_RXGAIN_TXRX_ATTEN));
+        if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah))
+	    ar5416SetDefGainValues(ah, pModal, eep, txRxAttenLocal, regChainOffset, i);
 
-            OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + regChainOffset, 
-	    	(OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) & ~AR_PHY_GAIN_2GHZ_RXTX_MARGIN) |
-			SM(pModal->rxTxMarginCh[i], AR_PHY_GAIN_2GHZ_RXTX_MARGIN));
-        }
     }
+
+	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+                if (IEEE80211_IS_CHAN_2GHZ(chan)) {
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_RF2G1_CH0, AR_AN_RF2G1_CH0_OB, pModal->ob);
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_RF2G1_CH0, AR_AN_RF2G1_CH0_DB, pModal->db);
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_RF2G1_CH1, AR_AN_RF2G1_CH1_OB, pModal->ob_ch1);
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_RF2G1_CH1, AR_AN_RF2G1_CH1_DB, pModal->db_ch1);
+                } else {
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_RF5G1_CH0, AR_AN_RF5G1_CH0_OB5, pModal->ob);
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_RF5G1_CH0, AR_AN_RF5G1_CH0_DB5, pModal->db);
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_RF5G1_CH1, AR_AN_RF5G1_CH1_OB5, pModal->ob_ch1);
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_RF5G1_CH1, AR_AN_RF5G1_CH1_DB5, pModal->db_ch1);
+                }
+                OS_A_REG_RMW_FIELD(ah, AR_AN_TOP2, AR_AN_TOP2_XPABIAS_LVL, pModal->xpaBiasLvl);
+                OS_A_REG_RMW_FIELD(ah, AR_AN_TOP2, AR_AN_TOP2_LOCALBIAS, pModal->flagBits & AR5416_EEP_FLAG_LOCALBIAS);
+                OS_A_REG_RMW_FIELD(ah, AR_PHY_XPA_CFG, AR_PHY_FORCE_XPA_CFG, pModal->flagBits & AR5416_EEP_FLAG_FORCEXPAON);
+        }
 
     OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH, pModal->switchSettling);
     OS_REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ, AR_PHY_DESIRED_SZ_ADC, pModal->adcDesiredSize);
-    OS_REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ, AR_PHY_DESIRED_SZ_PGA, pModal->pgaDesiredSize);
+
+    if (! AR_SREV_MERLIN_20_OR_LATER(ah))
+    	OS_REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ, AR_PHY_DESIRED_SZ_PGA, pModal->pgaDesiredSize);
+
     OS_REG_WRITE(ah, AR_PHY_RF_CTL4,
         SM(pModal->txEndToXpaOff, AR_PHY_RF_CTL4_TX_END_XPAA_OFF)
         | SM(pModal->txEndToXpaOff, AR_PHY_RF_CTL4_TX_END_XPAB_OFF)
@@ -1323,37 +1396,26 @@ ar5416SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
         OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL2,  AR_PHY_TX_FRAME_TO_DATA_START, pModal->txFrameToDataStart);
         OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL2,  AR_PHY_TX_FRAME_TO_PA_ON, pModal->txFrameToPaOn);    
     }	
-    
-    if (IS_EEP_MINOR_V3(ah)) {
-	if (IEEE80211_IS_CHAN_HT40(chan)) {
+
+    if (IS_EEP_MINOR_V3(ah) && IEEE80211_IS_CHAN_HT40(chan))
 		/* Overwrite switch settling with HT40 value */
 		OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH, pModal->swSettleHt40);
-	}
-	
-        if ((AR_SREV_OWL_20_OR_LATER(ah)) &&
-            (  AH5416(ah)->ah_rx_chainmask == 0x5 || AH5416(ah)->ah_tx_chainmask == 0x5)){
-            /* Reg Offsets are swapped for logical mapping */
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x1000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x1000) & ~AR_PHY_GAIN_2GHZ_BSW_MARGIN) |
-			SM(pModal->bswMargin[2], AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x1000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x1000) & ~AR_PHY_GAIN_2GHZ_BSW_ATTEN) |
-			SM(pModal->bswAtten[2], AR_PHY_GAIN_2GHZ_BSW_ATTEN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x2000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x2000) & ~AR_PHY_GAIN_2GHZ_BSW_MARGIN) |
-			SM(pModal->bswMargin[1], AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x2000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x2000) & ~AR_PHY_GAIN_2GHZ_BSW_ATTEN) |
-			SM(pModal->bswAtten[1], AR_PHY_GAIN_2GHZ_BSW_ATTEN));
-        } else {
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x1000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x1000) & ~AR_PHY_GAIN_2GHZ_BSW_MARGIN) |
-			SM(pModal->bswMargin[1], AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x1000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x1000) & ~AR_PHY_GAIN_2GHZ_BSW_ATTEN) |
-			SM(pModal->bswAtten[1], AR_PHY_GAIN_2GHZ_BSW_ATTEN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x2000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x2000) & ~AR_PHY_GAIN_2GHZ_BSW_MARGIN) |
-			SM(pModal->bswMargin[2],AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-		OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + 0x2000, (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + 0x2000) & ~AR_PHY_GAIN_2GHZ_BSW_ATTEN) |
-			SM(pModal->bswAtten[2], AR_PHY_GAIN_2GHZ_BSW_ATTEN));
+
+    if (AR_SREV_MERLIN_20_OR_LATER(ah) && EEP_MINOR(ah) >= AR5416_EEP_MINOR_VER_19)
+         OS_REG_RMW_FIELD(ah, AR_PHY_CCK_TX_CTRL, AR_PHY_CCK_TX_CTRL_TX_DAC_SCALE_CCK, pModal->miscBits);
+
+        if (AR_SREV_MERLIN_20(ah) && EEP_MINOR(ah) >= AR5416_EEP_MINOR_VER_20) {
+                if (IEEE80211_IS_CHAN_2GHZ(chan))
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_TOP1, AR_AN_TOP1_DACIPMODE, eep->baseEepHeader.dacLpMode);
+                else if (eep->baseEepHeader.dacHiPwrMode_5G)
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_TOP1, AR_AN_TOP1_DACIPMODE, 0);
+                else
+                        OS_A_REG_RMW_FIELD(ah, AR_AN_TOP1, AR_AN_TOP1_DACIPMODE, eep->baseEepHeader.dacLpMode);
+
+                OS_REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL, AR_PHY_FRAME_CTL_TX_CLIP, pModal->miscBits >> 2);
+                OS_REG_RMW_FIELD(ah, AR_PHY_TX_PWRCTRL9, AR_PHY_TX_DESIRED_SCALE_CCK, eep->baseEepHeader.desiredScaleCCK);
         }
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_BSW_MARGIN, pModal->bswMargin[0]);
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_BSW_ATTEN, pModal->bswAtten[0]);
-    }
+
     return AH_TRUE;
 }
 
@@ -2234,7 +2296,7 @@ ar5416Set11nRegs(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	/* carrier sense timeout */
 	OS_REG_SET_BIT(ah, AR_GTTM, AR_GTTM_CST_USEC);
-	OS_REG_WRITE(ah, AR_CST, 1 << AR_CST_TIMEOUT_LIMIT_S);
+	OS_REG_WRITE(ah, AR_CST, 0xF << AR_CST_TIMEOUT_LIMIT_S);
 }
 
 void

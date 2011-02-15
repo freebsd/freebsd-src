@@ -389,7 +389,8 @@ pmap_bootstrap(u_int cpu_impl)
 	 * not support it, yet.
 	 */
 	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIIIp)
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIIIp)
 		tsb_kernel_ldd_phys = 1;
 	else {
 		dtlb_slots_avail = 0;

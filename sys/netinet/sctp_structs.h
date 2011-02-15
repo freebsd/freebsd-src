@@ -351,7 +351,9 @@ struct sctp_nets {
 	/* JRS - struct used in HTCP algorithm */
 	struct htcp htcp_ca;
 	uint32_t flowid;
+#ifdef INVARIANTS
 	uint8_t flowidset;
+#endif
 };
 
 

@@ -496,9 +496,8 @@
     <para><application>WPA Supplicant</application> has been
       updated from 0.5.8 to 0.5.10.</para>
 
-    <para role="merged">A snapshot of <application>xz</application> as of
-      12 April 2010 has been added. More information can be found in the 
-      &man.xz.1;, &man.xzdec.1; and &man.lzmainfo.1; manual pages.</para>
+    <para role="merged"><application>xz</application> has been updated
+      from snapshot as of 12 April 2010 to 5.0.0.</para>
 
   </sect2>
 
