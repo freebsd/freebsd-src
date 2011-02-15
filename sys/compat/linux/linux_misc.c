@@ -92,9 +92,6 @@ __FBSDID("$FreeBSD$");
 
 int stclohz;				/* Statistics clock frequency */
 
-#define BSD_TO_LINUX_SIGNAL(sig)	\
-	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
-
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
 	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
