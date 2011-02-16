@@ -260,14 +260,9 @@ listen(td, uap)
 		so = fp->f_data;
 #ifdef MAC
 		error = mac_socket_check_listen(td->td_ucred, so);
-		if (error == 0) {
+		if (error == 0)
 #endif
-			CURVNET_SET(so->so_vnet);
 			error = solisten(so, uap->backlog, td);
-			CURVNET_RESTORE();
-#ifdef MAC
-		}
-#endif
 		fdrop(fp, td);
 	}
 	return(error);
@@ -428,9 +423,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	tmp = fflag & FASYNC;
 	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
 	sa = 0;
-	CURVNET_SET(so->so_vnet);
 	error = soaccept(so, &sa);
-	CURVNET_RESTORE();
 	if (error) {
 		/*
 		 * return a namelen of zero for older code which might
@@ -981,11 +974,9 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
-	CURVNET_SET(so->so_vnet);
 	error = soreceive(so, &fromsa, &auio, (struct mbuf **)0,
 	    (mp->msg_control || controlp) ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
-	CURVNET_RESTORE();
 	if (error) {
 		if (auio.uio_resid != (int)len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -1331,9 +1322,7 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
-		CURVNET_SET(so->so_vnet);
 		error = sosetopt(so, &sopt);
-		CURVNET_RESTORE();
 		fdrop(fp, td);
 	}
 	return(error);
@@ -1412,9 +1401,7 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
-		CURVNET_SET(so->so_vnet);
 		error = sogetopt(so, &sopt);
-		CURVNET_RESTORE();
 		*valsize = sopt.sopt_valsize;
 		fdrop(fp, td);
 	}

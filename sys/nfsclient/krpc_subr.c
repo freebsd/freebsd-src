@@ -216,8 +216,6 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 	nam = mhead = NULL;
 	from = NULL;
 
-	CURVNET_SET(TD_TO_VNET(td));
-
 	/*
 	 * Create socket and set its recieve timeout.
 	 */
@@ -430,7 +428,6 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 	if (mhead) m_freem(mhead);
 	if (from) free(from, M_SONAME);
 	soclose(so);
-	CURVNET_RESTORE();
 	return error;
 }
 
