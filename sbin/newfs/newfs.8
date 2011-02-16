@@ -36,7 +36,7 @@
 .Nd construct a new UFS1/UFS2 file system
 .Sh SYNOPSIS
 .Nm
-.Op Fl EJNUlnt
+.Op Fl EJNUjlnt
 .Op Fl L Ar volname
 .Op Fl O Ar filesystem-type
 .Op Fl S Ar sector-size
@@ -157,6 +157,12 @@ If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
 One inode is required for each distinct file, so this value effectively
 specifies the average file size on the file system.
+.It Fl j
+Enable soft updates journaling on the new file system.
+This flag is implemented by running the
+.Xr tunefs 8
+utility found in the user's
+.Dv $PATH .
 .It Fl l
 Enable multilabel MAC on the new file system.
 .It Fl m Ar free-space
