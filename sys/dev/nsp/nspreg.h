@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/nsp/nspreg.h,v 1.3.26.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*	$NecBSD: nspreg.h,v 1.4.14.3 2001/06/29 06:27:53 honda Exp $	*/
 /*	$NetBSD$	*/
 

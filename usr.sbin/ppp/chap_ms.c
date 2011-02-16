@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/chap_ms.c,v 1.20.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <ctype.h>

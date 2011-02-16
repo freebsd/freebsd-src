@@ -39,7 +39,7 @@
  *
  * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm.c#23 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm/aicasm.c,v 1.38.10.1.4.1 2010/12/21 17:10:29 kensmith Exp $
  */
 #include <sys/types.h>
 #include <sys/mman.h>

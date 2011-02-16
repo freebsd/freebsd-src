@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/share/syscons/scrnmaps/us-ascii_to_cp437,v 1.2.42.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 scrmap_t scrmap = {

@@ -88,7 +88,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/name6.c,v 1.62.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

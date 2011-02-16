@@ -7,7 +7,7 @@
 **
 *******************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/i386/sysdep.c,v 1.7.60.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #ifdef TESTMAIN
 #include <stdio.h>

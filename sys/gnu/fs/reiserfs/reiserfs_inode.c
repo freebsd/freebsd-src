@@ -4,7 +4,7 @@
  * 
  * Ported to FreeBSD by Jean-Sébastien Pédron <dumbbell@FreeBSD.org>
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/reiserfs/reiserfs_inode.c,v 1.3.12.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <gnu/fs/reiserfs/reiserfs_fs.h>

@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: vmparam.h,v 1.11 2000/02/11 19:25:16 thorpej Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/vmparam.h,v 1.10.2.1.6.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_VMPARAM_H_

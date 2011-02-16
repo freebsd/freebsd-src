@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_write.c,v 1.25.14.1 2010/12/21 17:10:29 kensmith Exp $
  *
  */
 #include <sys/types.h>

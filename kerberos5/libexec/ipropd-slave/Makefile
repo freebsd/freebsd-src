@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/libexec/ipropd-slave/Makefile,v 1.17.24.1 2010/12/21 17:10:29 kensmith Exp $
 
 PROG=	ipropd-slave
 NO_MAN=

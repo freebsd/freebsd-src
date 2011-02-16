@@ -29,7 +29,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $NetBSD: natm.h,v 1.1 1996/07/04 03:20:12 chuck Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netnatm/natm.h,v 1.14.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/upa.c,v 1.9.2.2.6.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

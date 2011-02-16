@@ -24,7 +24,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * from NetBSD: openpicreg.h,v 1.3 2001/08/30 03:08:52 briggs Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/openpicreg.h,v 1.3.30.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

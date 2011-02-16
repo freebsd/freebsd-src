@@ -25,7 +25,7 @@
  *
  * Author: Ruslan Ermilov <ru@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_vlan.h,v 1.2.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _NETGRAPH_NG_VLAN_H_

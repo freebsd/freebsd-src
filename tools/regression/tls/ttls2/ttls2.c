@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/regression/tls/ttls2/ttls2.c,v 1.1.34.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #include <stdio.h>
 #include <pthread.h>

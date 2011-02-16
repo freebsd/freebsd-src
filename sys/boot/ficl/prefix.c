@@ -41,7 +41,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/prefix.c,v 1.3.40.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #include <string.h>
 #include <ctype.h>

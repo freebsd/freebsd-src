@@ -1,5 +1,5 @@
 # $Id: protocols,v 1.2 2003/05/21 22:17:14 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/bluetooth/protocols,v 1.2.14.1 2010/12/21 17:10:29 kensmith Exp $
 #
 # Bluetooth Protocol/Service Multiplexor (PSM) names and numbers
 #

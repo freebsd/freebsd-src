@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_eli/init.t,v 1.3.12.1 2010/12/21 17:10:29 kensmith Exp $
 
 base=`basename $0`
 no=45

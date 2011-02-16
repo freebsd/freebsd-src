@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ns16550.h	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ic/ns16550.h,v 1.17.12.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

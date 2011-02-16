@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_mtree.c,v 1.1.2.2.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /* Single entry with a hardlink. */
 static unsigned char archive[] = {

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/traceroute/Makefile,v 1.22.2.2.4.1 2010/12/21 17:10:29 kensmith Exp $
 
 TRACEROUTE_DISTDIR?= ${.CURDIR}/../../contrib/traceroute
 .PATH: ${TRACEROUTE_DISTDIR}

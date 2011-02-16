@@ -32,7 +32,7 @@
  *
  *	@(#)ctags.h	8.3 (Berkeley) 4/2/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/ctags/ctags.h,v 1.7.40.1 2010/12/21 17:10:29 kensmith Exp $
  *
  */
 

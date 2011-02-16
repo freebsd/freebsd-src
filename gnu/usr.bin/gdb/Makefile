@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/Makefile,v 1.12.2.1.2.1 2010/12/21 17:10:29 kensmith Exp $
 
 SUBDIR=	doc libgdb gdb gdbtui kgdb
 

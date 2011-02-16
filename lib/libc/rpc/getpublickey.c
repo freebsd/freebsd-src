@@ -32,7 +32,7 @@
 static char sccsid[] = "@(#)publickey.c 1.10 91/03/11 Copyr 1986 Sun Micro";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/getpublickey.c,v 1.9.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * publickey.c

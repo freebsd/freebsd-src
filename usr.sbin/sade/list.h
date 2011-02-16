@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/list.h,v 1.4.16.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * Copyright (c) 1997 FreeBSD, Inc.
  * All rights reserved.

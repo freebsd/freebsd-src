@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/el.c,v 1.14.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * el.c: EditLine interface functions

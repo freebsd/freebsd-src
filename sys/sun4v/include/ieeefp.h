@@ -1,7 +1,7 @@
 /*-
  * Written by J.T. Conklin, Apr 6, 1995
  * Public domain.
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/ieeefp.h,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_IEEEFP_H_

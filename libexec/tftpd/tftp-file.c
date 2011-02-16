@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/libexec/tftpd/tftp-file.c,v 1.1.4.3.2.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

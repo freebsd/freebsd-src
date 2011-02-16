@@ -26,7 +26,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/cxgb/ulp/tom/cxgb_t3_ddp.h,v 1.3.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
 
 ***************************************************************************/
 

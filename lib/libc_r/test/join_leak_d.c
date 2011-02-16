@@ -26,7 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/test/join_leak_d.c,v 1.2.36.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * Test for leaked joined threads.
  */

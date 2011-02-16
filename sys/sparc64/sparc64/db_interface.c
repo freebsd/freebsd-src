@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/db_interface.c,v 1.11.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <sys/param.h> 

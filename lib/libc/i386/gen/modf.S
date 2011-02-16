@@ -34,7 +34,7 @@
 	.asciz "@(#)modf.s	5.5 (Berkeley) 3/18/91"
 #endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/gen/modf.S,v 1.11.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * modf(value, iptr): return fractional part of value, and stores the

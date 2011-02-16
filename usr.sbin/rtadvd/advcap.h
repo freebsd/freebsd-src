@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/rtadvd/advcap.h,v 1.5.34.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*	$KAME: advcap.h,v 1.5 2003/06/09 05:40:54 t-momose Exp $	*/
 
 /*

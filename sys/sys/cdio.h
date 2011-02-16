@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/cdio.h,v 1.26.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

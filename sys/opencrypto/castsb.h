@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/opencrypto/castsb.h,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*      $OpenBSD: castsb.h,v 1.1 2000/02/28 23:13:04 deraadt Exp $       */
 /*-
  *	CAST-128 in C

@@ -1,6 +1,6 @@
 /*
  * $NetBSD: rpcb_svc_4.c,v 1.1 2000/06/02 23:15:41 fvdl Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rpcbind/rpcb_svc_4.c,v 1.4.38.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

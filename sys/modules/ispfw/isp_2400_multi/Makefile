@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ispfw/isp_2400_multi/Makefile,v 1.1.4.2.2.1 2010/12/21 17:10:29 kensmith Exp $
 #-
 # Copyright (c) 2009 by Matthew Jacob
 # All rights reserved.

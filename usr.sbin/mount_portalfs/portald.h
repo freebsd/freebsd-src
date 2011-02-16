@@ -32,7 +32,7 @@
  *
  *	@(#)portald.h	8.1 (Berkeley) 6/5/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mount_portalfs/portald.h,v 1.11.12.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <sys/cdefs.h>

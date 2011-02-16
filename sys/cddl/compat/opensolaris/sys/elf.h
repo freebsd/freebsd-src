@@ -18,7 +18,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/compat/opensolaris/sys/elf.h,v 1.2.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * ELF compatibility definitions for OpenSolaris source.
  *

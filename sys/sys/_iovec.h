@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/_iovec.h,v 1.4.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _SYS__IOVEC_H_

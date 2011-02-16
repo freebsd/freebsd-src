@@ -1,2 +1,2 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_DICT,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 Set to not build the Webster dictionary files.

@@ -66,7 +66,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: bus.h,v 1.9.4.1 2000/06/30 16:27:30 simonb Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/bus.h,v 1.19.12.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef	_MACPPC_BUS_H_

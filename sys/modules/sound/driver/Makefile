@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/Makefile,v 1.24.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
 
 .if ${MACHINE_ARCH} == "sparc64"
 .if ${MACHINE} == "sparc64"

@@ -31,7 +31,7 @@
 
 #ident "$Id: iir_pci.c 1.2 2003/08/26 12:29:55 achim Exp $"
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iir/iir_pci.c,v 1.20.2.1.4.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  *  iir_pci.c:  PCI Bus Attachment for Intel Integrated RAID Controller driver

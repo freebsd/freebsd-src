@@ -29,7 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/ib_user_sa.h,v 1.1.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef IB_USER_SA_H

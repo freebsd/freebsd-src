@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/font/devlj4/Makefile,v 1.2.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 DEV=		lj4
 LJ4RES=		1200

@@ -1,5 +1,5 @@
 # Makefile for dialog
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/dialog/Makefile,v 1.13.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

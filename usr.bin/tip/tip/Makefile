@@ -1,5 +1,5 @@
 #	$OpenBSD: Makefile,v 1.11 2006/05/25 08:41:52 jmc Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tip/tip/Makefile,v 1.20.2.1.4.1 2010/12/21 17:10:29 kensmith Exp $
 #
 # Files are:
 #	/etc/remote		remote host description file

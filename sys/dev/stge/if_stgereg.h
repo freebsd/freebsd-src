@@ -36,7 +36,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/stge/if_stgereg.h,v 1.3.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /*
  * Sundance Technology PCI vendor ID

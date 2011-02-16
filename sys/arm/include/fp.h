@@ -42,7 +42,7 @@
  *
  * Created      : 10/10/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/fp.h,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_FP_H

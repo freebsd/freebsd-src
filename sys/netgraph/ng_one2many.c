@@ -37,7 +37,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_one2many.c,v 1.21.24.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

@@ -1,7 +1,7 @@
 /*
  * International and national calendar files
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.all,v 1.10.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _calendar_all_

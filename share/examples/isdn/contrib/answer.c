@@ -1,4 +1,4 @@
-// $FreeBSD$
+// $FreeBSD: src/share/examples/isdn/contrib/answer.c,v 1.2.38.1 2010/12/21 17:10:29 kensmith Exp $
 // changed ".g711a" to ".al" (-hm)
 // Tue Mar  3 02:42:14 MET 1998 	dave@turbocat.de
 // started

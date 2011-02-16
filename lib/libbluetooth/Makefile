@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.5 2003/07/22 18:38:04 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/lib/libbluetooth/Makefile,v 1.3.2.3.4.1 2010/12/21 17:10:29 kensmith Exp $
 
 LIB=		bluetooth
 MAN=		bluetooth.3

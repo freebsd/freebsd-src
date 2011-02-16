@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/strdup.c,v 1.3.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strdup.c	8.1 (Berkeley) 6/4/93";

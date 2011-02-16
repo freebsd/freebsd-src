@@ -26,7 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_attr_setguardsize.c,v 1.8.2.1.4.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include "namespace.h"

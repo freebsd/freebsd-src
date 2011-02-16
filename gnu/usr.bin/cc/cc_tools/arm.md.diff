@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/gnu/usr.bin/cc/cc_tools/arm.md.diff,v 1.2.14.1 2010/12/21 17:10:29 kensmith Exp $
 Index: arm.md
 ===================================================================
 RCS file: /cognet/ncvs/src/contrib/gcc/config/arm/arm.md,v

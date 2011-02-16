@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	1.8 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/kernmalloc/Makefile,v 1.7.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 VOLUME=		papers
 DOC=		kernmalloc

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/i2c/controllers/intpm/Makefile,v 1.1.40.1 2010/12/21 17:10:29 kensmith Exp $
 
 .PATH:		${.CURDIR}/../../../../pci
 KMOD		= intpm

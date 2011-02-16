@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/complete.c,v 1.13.12.1 2010/12/21 17:10:29 kensmith Exp $ */
 /* complete.c -- filename completion for readline. */
 
 /* Copyright (C) 1987-2005 Free Software Foundation, Inc.

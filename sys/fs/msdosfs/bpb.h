@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/fs/msdosfs/bpb.h,v 1.16.14.1 2010/12/21 17:10:29 kensmith Exp $ */
 /*	$NetBSD: bpb.h,v 1.7 1997/11/17 15:36:24 ws Exp $	*/
 
 /*-

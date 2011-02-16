@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/altq/altq/altq_hfsc.c,v 1.4.12.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*	$KAME: altq_hfsc.c,v 1.24 2003/12/05 05:40:46 kjc Exp $	*/
 
 /*

@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/hostapd/ieee802_1x.c,v 1.5.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include "includes.h"

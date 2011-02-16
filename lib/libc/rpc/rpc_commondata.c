@@ -33,7 +33,7 @@
 static char *sccsid = "@(#)rpc_commondata.c	2.1 88/07/29 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/rpc_commondata.c,v 1.9.40.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include "namespace.h"
 #include <rpc/rpc.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/pcap-namedb.h,v 1.6.24.1 2010/12/21 17:10:29 kensmith Exp $
  * @(#) $Header: /tcpdump/master/libpcap/pcap-namedb.h,v 1.10 2005/03/17 07:02:32 guy Exp $ (LBL)
  */
 

@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/dev/dtrace/amd64/dtrace_subr.c,v 1.1.2.3.4.1 2010/12/21 17:10:29 kensmith Exp $
  *
  */
 /*

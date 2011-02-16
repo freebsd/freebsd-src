@@ -1,5 +1,5 @@
 /* $NetBSD: awivar.h,v 1.20 2004/01/15 09:39:15 onoe Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/awi/awivar.h,v 1.14.12.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1999,2000,2001 The NetBSD Foundation, Inc.

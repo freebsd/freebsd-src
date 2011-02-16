@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/330.news,v 1.4.40.1 2010/12/21 17:10:29 kensmith Exp $
 #
 # Expire news articles
 # (This is present only for backwards compatibility, usually the news

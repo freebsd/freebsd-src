@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/spitfire.c,v 1.5.20.4.2.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include "opt_pmap.h"
 

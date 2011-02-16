@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/scripts/ntpver,v 1.1.60.1 2010/12/21 17:10:29 kensmith Exp $
 # print version string of NTP daemon
 # Copyright (c) 1997 by Ulrich Windl
 # Modified 970318: Harlan Stenn: rewritten...

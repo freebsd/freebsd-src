@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/geom/class/eli/Makefile,v 1.3.16.1 2010/12/21 17:10:29 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../misc ${.CURDIR}/../../../../sys/geom/eli ${.CURDIR}/../../../../sys/crypto/sha2
 

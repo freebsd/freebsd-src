@@ -77,7 +77,7 @@
 #include <dev/sound/pcm/sound.h>
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_rate.c,v 1.23.12.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #define RATE_ASSERT(x, y)	/* KASSERT(x,y) */
 #define RATE_TEST(x, y)		/* if (!(x)) printf y */

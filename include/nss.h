@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/nss.h,v 1.2.34.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * Compatibility header for the GNU C Library-style nsswitch interface.
  */

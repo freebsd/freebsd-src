@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)fnmatch.c	8.2 (Berkeley) 4/16/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/fnmatch.c,v 1.18.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * Function fnmatch() as specified in POSIX 1003.2-1992, section B.6.

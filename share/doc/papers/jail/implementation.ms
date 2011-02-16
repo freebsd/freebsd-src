@@ -1,5 +1,5 @@
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/jail/implementation.ms,v 1.1.42.1 2010/12/21 17:10:29 kensmith Exp $
 .\"
 .NH
 Implementation jail in the FreeBSD kernel.

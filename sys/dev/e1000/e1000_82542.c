@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/e1000/e1000_82542.c,v 1.1.2.3.2.1 2010/12/21 17:10:29 kensmith Exp $*/
 
 /*
  * 82542 Gigabit Ethernet Controller

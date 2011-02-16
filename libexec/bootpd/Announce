@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/bootpd/Announce,v 1.5.60.1 2010/12/21 17:10:29 kensmith Exp $
 
 This is an enhanced version of the CMU BOOTP server which was derived
 from the original BOOTP server created by Bill Croft at Stanford.

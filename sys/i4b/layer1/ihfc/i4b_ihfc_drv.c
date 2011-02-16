@@ -35,7 +35,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer1/ihfc/i4b_ihfc_drv.c,v 1.17.2.1.2.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

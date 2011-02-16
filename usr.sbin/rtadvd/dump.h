@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/rtadvd/dump.h,v 1.3.38.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*	$KAME: dump.h,v 1.1 2000/05/23 11:31:26 itojun Exp $	*/
 
 /*

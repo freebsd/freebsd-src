@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_enc.c,v 1.6.2.3.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <sys/param.h>

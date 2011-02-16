@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/jot/regress.sh,v 1.7.2.1.4.1 2010/12/21 17:10:29 kensmith Exp $
 
 echo 1..57
 

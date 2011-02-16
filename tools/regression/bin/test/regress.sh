@@ -28,7 +28,7 @@
 #
 # TEST.sh - check if test(1) or builtin test works
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/test/regress.sh,v 1.1.4.2.2.1 2010/12/21 17:10:29 kensmith Exp $
 
 # force a specified test program, e.g. `env test=/bin/test sh regress.sh'
 : ${test=test}		

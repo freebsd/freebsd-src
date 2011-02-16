@@ -2,7 +2,7 @@
 #
 # (Based on the German de_DE.ISO_8859-1)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/sv_SE.ISO8859-1.src,v 1.2.40.1 2010/12/21 17:10:29 kensmith Exp $
 #
 charmap map.ISO8859-1
 order \

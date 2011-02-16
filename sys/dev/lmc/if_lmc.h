@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/lmc/if_lmc.h,v 1.5.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * Copyright (c) 2002-2004 David Boggs. (boggs@boggs.palo-alto.ca.us)
  * All rights reserved.

@@ -28,7 +28,7 @@
  * its contributors.
  */
 
-/*  $FreeBSD$ */
+/*  $FreeBSD: src/sys/dev/usb/dsbr100io.h,v 1.3.12.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #include <sys/ioccom.h>
 

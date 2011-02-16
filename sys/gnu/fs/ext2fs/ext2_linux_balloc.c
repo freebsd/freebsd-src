@@ -4,7 +4,7 @@
  *  Aug 1995, Godmar Back (gback@cs.utah.edu)
  *  University of Utah, Department of Computer Science
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/ext2_linux_balloc.c,v 1.25.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 /*-
  *  linux/fs/ext2/balloc.c

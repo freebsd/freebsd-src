@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/libalias/alias_local.h,v 1.34.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

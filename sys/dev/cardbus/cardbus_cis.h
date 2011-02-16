@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cardbus/cardbus_cis.h,v 1.13.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

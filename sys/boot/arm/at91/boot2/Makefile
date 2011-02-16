@@ -1,4 +1,4 @@
-#  $FreeBSD$
+#  $FreeBSD: src/sys/boot/arm/at91/boot2/Makefile,v 1.3.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 .PATH: ${.CURDIR}/../libat91 ${.CURDIR}/../bootspi
 

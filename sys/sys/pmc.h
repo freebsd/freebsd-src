@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/pmc.h,v 1.11.2.6.2.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _SYS_PMC_H_

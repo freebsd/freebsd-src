@@ -1,5 +1,5 @@
 # $Id: Makefile.def,v 1.18 2007/03/22 11:20:15 gmm Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/hptrr/Makefile,v 1.1.2.1.10.1 2010/12/21 17:10:29 kensmith Exp $
 
 HPTRR=  ${.CURDIR}/../../dev/hptrr
 .PATH: ${HPTRR}

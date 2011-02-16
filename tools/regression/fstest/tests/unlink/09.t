@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/unlink/09.t,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="unlink returns EPERM if the named file has its immutable, undeletable or append-only flag set"
 

@@ -1,5 +1,5 @@
 #       @(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/bin/pax/Makefile,v 1.12.18.1.2.1 2010/12/21 17:10:29 kensmith Exp $
 
 # To install on versions prior to BSD 4.4 the following may have to be
 # defined with CFLAGS +=

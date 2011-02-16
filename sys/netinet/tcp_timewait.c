@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/tcp_timewait.c,v 1.287.2.6.4.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/msdosfs/msdosfstest.sh,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $
 # A really simple script to create a swap-backed msdosfs filesystem, copy a few
 # files to it, unmount/remount the filesystem, and make sure all is well.
 # 

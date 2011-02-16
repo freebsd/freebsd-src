@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/modules.inc,v 1.20.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

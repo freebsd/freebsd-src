@@ -97,7 +97,7 @@
 #define RCSID	"$Id: ipv6cp.c,v 1.7 1999/10/08 01:08:18 masputra Exp $"
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pppd/ipv6cp.c,v 1.2.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * TODO: 

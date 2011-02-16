@@ -19,7 +19,7 @@
 static const char rcsid[] = "$Id: nsap_addr.c,v 1.3.18.2 2005/07/28 07:38:08 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/inet/nsap_addr.c,v 1.3.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include "port_before.h"
 

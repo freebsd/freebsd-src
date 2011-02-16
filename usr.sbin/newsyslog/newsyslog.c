@@ -54,7 +54,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/newsyslog/newsyslog.c,v 1.107.2.3.2.2 2011/01/07 18:34:09 brian Exp $");
 
 #define	OSF
 #ifndef COMPRESS_POSTFIX

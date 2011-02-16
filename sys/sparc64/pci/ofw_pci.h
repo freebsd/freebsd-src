@@ -28,7 +28,7 @@
  *
  *	from: NetBSD: psychoreg.h,v 1.8 2001/09/10 16:17:06 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/pci/ofw_pci.h,v 1.11.2.4.4.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _SPARC64_PCI_OFW_PCI_H_

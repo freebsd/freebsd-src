@@ -7,7 +7,7 @@
 # Be sure to include a meta-character into the command line, so that
 # really our shell is executed.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/shell/path/Makefile,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $
 #
 
 .ifmake sh_test

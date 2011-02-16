@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libsmb/Makefile,v 1.11.12.1 2010/12/21 17:10:29 kensmith Exp $
 
 CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
 .PATH: ${CONTRIBDIR}/lib/smb

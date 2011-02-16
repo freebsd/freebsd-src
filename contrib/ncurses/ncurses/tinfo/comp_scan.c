@@ -32,7 +32,7 @@
  *     and: Thomas E. Dickey                        1996 on                 *
  ****************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ncurses/ncurses/tinfo/comp_scan.c,v 1.7.12.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /*
  *	comp_scan.c --- Lexical scanner for terminfo compiler.

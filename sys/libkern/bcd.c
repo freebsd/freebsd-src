@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/bcd.c,v 1.7.26.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <sys/libkern.h>
 

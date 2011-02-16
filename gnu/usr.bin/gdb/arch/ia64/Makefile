@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/arch/ia64/Makefile,v 1.3.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 .if !defined(GDB_CROSS_DEBUGGER)
 LIBSRCS+= fbsd-proc.c gcore.c

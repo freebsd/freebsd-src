@@ -10,7 +10,7 @@
  * - added inflateIncomp and deflateOutputPending
  * - allow strm->next_out to be NULL, meaning discard the output
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/zlib.c,v 1.20.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /* 

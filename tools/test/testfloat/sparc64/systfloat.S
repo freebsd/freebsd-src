@@ -48,7 +48,7 @@ this code that are retained.
 */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/test/testfloat/sparc64/systfloat.S,v 1.1.4.2.2.1 2010/12/21 17:10:29 kensmith Exp $");
 
 	.text
 

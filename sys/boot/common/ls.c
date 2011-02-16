@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/ls.c,v 1.11.36.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <sys/param.h>
 #include <ufs/ufs/dinode.h>

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/geom/notes,v 1.5.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 For the lack of a better place to put them, this file will contain
 notes on some of the more intricate details of geom.

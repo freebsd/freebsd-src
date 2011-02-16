@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/ac97_patch.h,v 1.7.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 typedef void (*ac97_patch)(struct ac97_info*);

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/sys/thr_error.c,v 1.10.2.1.4.1 2010/12/21 17:10:29 kensmith Exp $
  */
 #include <errno.h>
 #include <pthread.h>

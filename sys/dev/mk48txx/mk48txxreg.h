@@ -28,7 +28,7 @@
  *
  *	$NetBSD: mk48txxreg.h,v 1.10 2008/04/28 20:23:50 martin Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mk48txx/mk48txxreg.h,v 1.5.10.2.4.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

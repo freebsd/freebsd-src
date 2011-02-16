@@ -31,7 +31,7 @@
  *
  *	@(#)sig.h	8.1 (Berkeley) 6/4/93
  *	$NetBSD: sig.h,v 1.5 2003/08/07 16:44:33 agc Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libedit/sig.h,v 1.3.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

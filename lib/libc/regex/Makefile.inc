@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/regex/Makefile.inc,v 1.8.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 # regex sources
 .PATH: ${.CURDIR}/regex

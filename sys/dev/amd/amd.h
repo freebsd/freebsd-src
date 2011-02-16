@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/amd/amd.h,v 1.6.24.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef AMD_H

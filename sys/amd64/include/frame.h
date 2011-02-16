@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/frame.h,v 1.30.12.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_FRAME_H_

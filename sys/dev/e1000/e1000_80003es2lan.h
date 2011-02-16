@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/e1000/e1000_80003es2lan.h,v 1.1.2.2.2.1 2010/12/21 17:10:29 kensmith Exp $*/
 
 #ifndef _E1000_80003ES2LAN_H_
 #define _E1000_80003ES2LAN_H_

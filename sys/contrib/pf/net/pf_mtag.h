@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/pf/net/pf_mtag.h,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*
  * Copyright (c) 2001 Daniel Hartmeier
  * All rights reserved.

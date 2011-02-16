@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/samples/proxy.c,v 1.4.14.1 2010/12/21 17:10:29 kensmith Exp $	*/
 
 /*
  * Sample transparent proxy program.

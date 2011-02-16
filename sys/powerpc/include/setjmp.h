@@ -1,6 +1,6 @@
 /*-
  *	$NetBSD: setjmp.h,v 1.3 1998/09/16 23:51:27 thorpej Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/setjmp.h,v 1.4.32.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_SETJMP_H_

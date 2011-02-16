@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/libexec/pt_chown/pt_chown.c,v 1.1.36.1 2010/12/21 17:10:29 kensmith Exp $");
 #endif /* not lint */
 
 #include <sys/stat.h>

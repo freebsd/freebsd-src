@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkfifo/01.t,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="mkfifo returns ENOTDIR if a component of the path prefix is not a directory"
 

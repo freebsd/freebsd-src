@@ -28,7 +28,7 @@
  *	i4btemux - record while playing
  *      ===============================
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/isdn/contrib/isdntelmux.c,v 1.2.12.1 2010/12/21 17:10:29 kensmith Exp $
  *
  *----------------------------------------------------------------------------*/
 

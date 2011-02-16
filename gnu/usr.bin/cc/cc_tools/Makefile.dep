@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/cc_tools/Makefile.dep,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 errors.o: bconfig.h auto-host.h
 

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/psd/18.gprof/Makefile,v 1.7.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 VOLUME=		psd/18.gprof
 SRCS=		header.me abstract.me intro.me profiling.me gathering.me \

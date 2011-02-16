@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: l2control.c,v 1.6 2003/09/05 00:38:25 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/l2control/l2control.c,v 1.3.36.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <assert.h>

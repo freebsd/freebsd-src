@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cpio/Makefile,v 1.12.2.1.2.1 2010/12/21 17:10:29 kensmith Exp $
 
 CPIODIR= ${.CURDIR}/../../../contrib/cpio
 .PATH: ${CPIODIR}/lib ${CPIODIR}/src ${CPIODIR}/doc

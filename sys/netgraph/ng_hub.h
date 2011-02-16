@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_hub.h,v 1.1.36.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _NETGRAPH_NG_HUB_H_

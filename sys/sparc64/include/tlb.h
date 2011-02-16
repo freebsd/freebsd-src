@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/tlb.h,v 1.26.22.4.2.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef	_MACHINE_TLB_H_

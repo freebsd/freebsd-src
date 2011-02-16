@@ -31,7 +31,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/fdescfs/fdesc_vfsops.c,v 1.56.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

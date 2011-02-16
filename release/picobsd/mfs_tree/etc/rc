@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/etc/rc,v 1.9.24.1.6.1 2010/12/21 17:10:29 kensmith Exp $
 
 stty status '^T'
 trap : 2

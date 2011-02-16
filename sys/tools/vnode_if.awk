@@ -30,7 +30,7 @@
 
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $FreeBSD$
+# $FreeBSD: src/sys/tools/vnode_if.awk,v 1.55.12.1 2010/12/21 17:10:29 kensmith Exp $
 #
 # Script to produce VFS front-end sugar.
 #
@@ -148,7 +148,7 @@ common_head = \
     " * This file is produced automatically.\n" \
     " * Do not modify anything in here by hand.\n" \
     " *\n" \
-    " * Created from $FreeBSD$\n" \
+    " * Created from $FreeBSD: src/sys/tools/vnode_if.awk,v 1.55.12.1 2010/12/21 17:10:29 kensmith Exp $\n" \
     " */\n" \
     "\n";
 

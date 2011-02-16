@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/include/signal.h,v 1.14.14.1 2010/12/21 17:10:29 kensmith Exp $ */
 /* From: NetBSD: signal.h,v 1.3 1997/04/06 08:47:43 cgd Exp */
 
 /*-

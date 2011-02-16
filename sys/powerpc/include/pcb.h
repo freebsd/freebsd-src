@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: pcb.h,v 1.4 2000/06/04 11:57:17 tsubai Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/pcb.h,v 1.9.2.1.6.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_PCB_H_

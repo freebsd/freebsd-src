@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/unlink/03.t,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="unlink returns ENAMETOOLONG if an entire path name exceeded 1023 characters"
 

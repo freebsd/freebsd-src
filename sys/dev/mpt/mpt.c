@@ -96,7 +96,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mpt/mpt.c,v 1.44.2.7.2.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <dev/mpt/mpt.h>
 #include <dev/mpt/mpt_cam.h> /* XXX For static handler registration */

@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_compression_all.c,v 1.6.12.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include "archive.h"
 

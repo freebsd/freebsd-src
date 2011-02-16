@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom/MdLoad/Makefile,v 1.5.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 PROG=	MdLoad
 DPADD=	${LIBSBUF} ${LIBBSDXML}

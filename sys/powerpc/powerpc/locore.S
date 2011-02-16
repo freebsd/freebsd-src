@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/powerpc/powerpc/locore.S,v 1.22.12.1 2010/12/21 17:10:29 kensmith Exp $ */
 /* $NetBSD: locore.S,v 1.24 2000/05/31 05:09:17 thorpej Exp $ */
 
 /*-

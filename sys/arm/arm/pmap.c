@@ -147,7 +147,7 @@
 #include "opt_vm.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/pmap.c,v 1.86.2.5.4.1 2010/12/21 17:10:29 kensmith Exp $");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

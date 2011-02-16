@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/com_err/com_err.c,v 1.3.32.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>

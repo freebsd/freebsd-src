@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkdir/12.t,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="mkdir returns EFAULT if the path argument points outside the process's allocated address space"
 

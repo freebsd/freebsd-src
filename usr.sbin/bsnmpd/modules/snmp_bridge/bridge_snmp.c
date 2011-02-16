@@ -25,7 +25,7 @@
  *
  * Bridge MIB implementation for SNMPd.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_bridge/bridge_snmp.c,v 1.3.16.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/nxge/include/xgehal-stats.h,v 1.1.2.1.10.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef XGE_HAL_STATS_H

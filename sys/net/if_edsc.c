@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_edsc.c,v 1.3.16.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_self.c,v 1.5.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include "namespace.h"

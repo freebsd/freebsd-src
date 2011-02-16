@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)arith.h	1.1 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/arith.h,v 1.11.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include "shell.h"

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_disk_perms.c,v 1.7.2.2.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #if ARCHIVE_VERSION_STAMP >= 1009000
 

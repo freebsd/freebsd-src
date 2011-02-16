@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/resource.h,v 1.3.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_RESOURCE_H_

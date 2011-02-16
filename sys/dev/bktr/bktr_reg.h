@@ -1,5 +1,5 @@
 /*-
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/bktr/bktr_reg.h,v 1.50.26.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * Copyright (c) 1999 Roger Hardiman
  * Copyright (c) 1998 Amancio Hasty

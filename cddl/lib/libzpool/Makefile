@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/cddl/lib/libzpool/Makefile,v 1.5.2.3.2.1 2010/12/21 17:10:29 kensmith Exp $
 
 .include "${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/Makefile.files"
 

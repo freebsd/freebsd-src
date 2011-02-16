@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rpc.umntall/mounttab.h,v 1.2.38.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #define STRSIZ  (RPCMNT_NAMELEN+RPCMNT_PATHLEN+100)

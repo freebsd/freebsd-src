@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/pf.os,v 1.4.14.1 2010/12/21 17:10:29 kensmith Exp $
 # $OpenBSD: pf.os,v 1.21 2006/07/28 21:51:12 david Exp $
 # passive OS fingerprinting
 # -------------------------

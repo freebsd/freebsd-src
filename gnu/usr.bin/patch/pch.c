@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/gnu/usr.bin/patch/pch.c,v 1.20.38.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * $Log: pch.c,v $
  * Revision 2.0.2.0  90/05/01  22:17:51  davison

@@ -45,7 +45,7 @@ char *copyright_message[] = { "Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993,
 				"All rights are reserved."};
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ee/new_curse.c,v 1.9.38.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include "new_curse.h"
 #include <signal.h>

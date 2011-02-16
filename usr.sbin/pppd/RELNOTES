@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pppd/RELNOTES,v 1.7.36.1 2010/12/21 17:10:29 kensmith Exp $
 
 This is the README file for ppp-2.3, a package which implements the
 Point-to-Point Protocol (PPP) to provide Internet connections over

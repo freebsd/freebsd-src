@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/net/if_stf.h,v 1.5.26.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*	$KAME: if_stf.h,v 1.5 2001/10/12 10:09:17 keiichi Exp $	*/
 
 /*-

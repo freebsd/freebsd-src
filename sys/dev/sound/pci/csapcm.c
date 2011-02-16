@@ -38,7 +38,7 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/csapcm.c,v 1.41.12.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /* Buffer size on dma transfer. Fixed for CS416x. */
 #define CS461x_BUFFSIZE   (4 * 1024)

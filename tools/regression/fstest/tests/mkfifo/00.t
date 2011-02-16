@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkfifo/00.t,v 1.2.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="mkfifo creates fifo files"
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/tmpfs/tmpfs.h,v 1.11.2.4.6.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _FS_TMPFS_TMPFS_H_

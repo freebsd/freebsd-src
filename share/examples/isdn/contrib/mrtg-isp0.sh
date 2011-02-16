@@ -8,7 +8,7 @@
 #
 #	last edit-date: [Fri May 25 15:22:45 2001]
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/isdn/contrib/mrtg-isp0.sh,v 1.1.40.1 2010/12/21 17:10:29 kensmith Exp $
 #
 #---------------------------------------------------------------------------
 #

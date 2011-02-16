@@ -15,7 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  * $Id: ar5210_reset.c,v 1.8 2008/11/11 17:25:16 sam Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ath/ath_hal/ar5210/ar5210_reset.c,v 1.1.2.2.2.1 2010/12/21 17:10:29 kensmith Exp $
  */
 #include "opt_ah.h"
 

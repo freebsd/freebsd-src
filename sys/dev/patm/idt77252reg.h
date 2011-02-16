@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/patm/idt77252reg.h,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * Register definitions for the IDT77252 chip.
  */

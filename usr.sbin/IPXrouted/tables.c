@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/IPXrouted/tables.c,v 1.8.34.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef lint

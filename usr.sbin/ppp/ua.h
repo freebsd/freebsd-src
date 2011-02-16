@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/ua.h,v 1.3.62.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifdef __i386__		/* Do any other archs not care about alignment ? */

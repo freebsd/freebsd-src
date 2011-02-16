@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/arm/init.c,v 1.1.4.1.10.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /* Do not modify this file.  */
 /* It is created automatically by the Makefile.  */

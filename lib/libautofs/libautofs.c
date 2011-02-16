@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libautofs/libautofs.c,v 1.5.26.1 2010/12/21 17:10:29 kensmith Exp $
  * $Id: libautofs.c,v 1.5 2004/09/08 08:44:12 bright Exp $
  */
 #include <err.h>

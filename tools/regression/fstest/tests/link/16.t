@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/link/16.t,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="link returns EROFS if the requested link requires writing in a directory on a read-only file system"
 

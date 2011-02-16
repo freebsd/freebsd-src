@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/blowfish/bf_pi.h,v 1.4.40.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*	$KAME: bf_pi.h,v 1.4 2001/09/10 04:03:56 itojun Exp $	*/
 
 /* crypto/bf/bf_pi.h */

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/ftpd/config.h,v 1.1.40.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 
 /* config.h.  Generated automatically by configure.  */

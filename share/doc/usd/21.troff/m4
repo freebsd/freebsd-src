@@ -36,7 +36,7 @@
 .\"
 .\"	@(#)m4	8.1 (Berkeley) 8/14/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/usd/21.troff/m4,v 1.2.40.1 2010/12/21 17:10:29 kensmith Exp $
 .tr |
 .mh
 Hyphenation.

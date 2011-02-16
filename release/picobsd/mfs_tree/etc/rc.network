@@ -1,5 +1,5 @@
 #!/bin/sh -
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/etc/rc.network,v 1.5.40.1 2010/12/21 17:10:29 kensmith Exp $
 
 network_pass1() {
     echo -n 'Doing initial network setup:'

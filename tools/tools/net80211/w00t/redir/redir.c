@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/net80211/w00t/redir/redir.c,v 1.1.12.1 2010/12/21 17:10:29 kensmith Exp $
  */
 #include <sys/time.h>
 #include <sys/types.h>

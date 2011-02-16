@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_fox.c,v 1.11.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /* This is a GEOM module for handling path selection for multi-path

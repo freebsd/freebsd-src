@@ -17,7 +17,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ipfw/ipfw2.c,v 1.108.2.14.4.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <sys/types.h>

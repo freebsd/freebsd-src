@@ -29,7 +29,7 @@
  *
  *	$Id: pcause.c,v 1.13 2000/10/09 12:53:29 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/pcause.c,v 1.8.38.1 2010/12/21 17:10:29 kensmith Exp $
  *
  *	last edit-date: [Mon Dec 13 21:48:07 1999]
  *

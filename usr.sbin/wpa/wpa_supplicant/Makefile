@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/wpa/wpa_supplicant/Makefile,v 1.11.2.5.8.1 2010/12/21 17:10:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

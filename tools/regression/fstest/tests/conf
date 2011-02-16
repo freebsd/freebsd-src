@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/conf,v 1.1.12.1 2010/12/21 17:10:29 kensmith Exp $
 # fstest configuration file
 
 # Known operating systems: FreeBSD, SunOS, Linux

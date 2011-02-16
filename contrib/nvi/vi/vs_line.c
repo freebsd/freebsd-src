@@ -14,7 +14,7 @@
 static const char sccsid[] = "@(#)vs_line.c	10.19 (Berkeley) 9/26/96";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/contrib/nvi/vi/vs_line.c,v 1.5.40.1 2010/12/21 17:10:29 kensmith Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

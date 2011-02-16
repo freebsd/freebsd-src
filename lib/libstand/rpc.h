@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/rpc.h,v 1.2.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /* XXX defines we can't easily get from system includes */

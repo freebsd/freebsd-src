@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/cron/cron/cron.c,v 1.18.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $";
 #endif
 
 #define	MAIN_PROGRAM

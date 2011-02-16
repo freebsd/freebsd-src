@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/netflow/Makefile,v 1.1.28.1 2010/12/21 17:10:29 kensmith Exp $
 #
 # Author: Gleb Smirnoff <glebius@freebsd.org>
 #

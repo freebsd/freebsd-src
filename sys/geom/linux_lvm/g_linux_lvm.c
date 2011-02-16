@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/linux_lvm/g_linux_lvm.c,v 1.1.2.2.4.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <sys/ctype.h>
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/test/dtrace/Makefile,v 1.1.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
 
 TESTSRCDIR=	${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/dtrace/test
 DTEST=		${TESTSRCDIR}/cmd/scripts/dtest.pl -n

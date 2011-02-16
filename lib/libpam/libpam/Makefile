@@ -33,7 +33,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/libpam/Makefile,v 1.54.10.1.8.1 2010/12/21 17:10:29 kensmith Exp $
 
 OPENPAM=	${.CURDIR}/../../../contrib/openpam
 .PATH: ${OPENPAM}/include ${OPENPAM}/lib ${OPENPAM}/doc/man

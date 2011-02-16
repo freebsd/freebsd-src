@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libmd/i386/sha.S,v 1.3.14.1 2010/12/21 17:10:29 kensmith Exp $ */
 /* -*- Fundamental -*- Emacs' assembler mode hoses this file */
 #ifndef PIC
 /* Run the C pre-processor over this file with one of the following defined

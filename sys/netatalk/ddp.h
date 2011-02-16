@@ -20,7 +20,7 @@
  *	+1-313-763-0525
  *	netatalk@itd.umich.edu
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/ddp.h,v 1.4.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _NETATALK_DDP_H_

@@ -16,7 +16,7 @@
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/contrib/tcp_wrappers/hosts_access.c,v 1.5.10.1.2.1 2010/12/21 17:10:29 kensmith Exp $
   */
 
 #ifndef lint

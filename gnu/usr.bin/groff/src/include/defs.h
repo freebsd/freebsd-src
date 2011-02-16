@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/groff/src/include/defs.h,v 1.4.42.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #define PROG_PREFIX ""
 #define DEVICE "ps"

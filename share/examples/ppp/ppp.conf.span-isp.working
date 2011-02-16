@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ppp/ppp.conf.span-isp.working,v 1.7.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 # This is a working example of ppp.conf.span-isp that uses ppp connections
 # to the same machine through 3 null-modem serial cables.

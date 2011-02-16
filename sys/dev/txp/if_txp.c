@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/txp/if_txp.c,v 1.46.2.12.4.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * Driver for 3c990 (Typhoon) Ethernet ASIC

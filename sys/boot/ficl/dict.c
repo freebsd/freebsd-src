@@ -51,7 +51,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/dict.c,v 1.13.40.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #ifdef TESTMAIN
 #include <stdio.h>

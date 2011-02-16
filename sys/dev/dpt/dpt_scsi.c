@@ -27,9 +27,9 @@
  * SUCH DAMAGE.
  */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sys/dev/dpt/dpt_scsi.c,v 1.57.14.1 2010/12/21 17:10:29 kensmith Exp $"
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/dpt/dpt_scsi.c,v 1.57.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * dpt_scsi.c: SCSI dependant code for the DPT driver

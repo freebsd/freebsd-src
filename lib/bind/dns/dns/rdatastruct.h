@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/bind/dns/dns/rdatastruct.h,v 1.5.2.2.2.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /*
  * Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")

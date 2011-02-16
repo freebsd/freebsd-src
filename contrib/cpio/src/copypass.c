@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/src/copypass.c,v 1.4.4.1.2.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /* copypass.c - cpio copy pass sub-function.
    Copyright (C) 1990, 1991, 1992, 2001, 2003, 2004,

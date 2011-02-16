@@ -71,7 +71,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net/ppp_tty.c,v 1.72.12.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #include "opt_ppp.h"		/* XXX for ppp_defs.h */
 

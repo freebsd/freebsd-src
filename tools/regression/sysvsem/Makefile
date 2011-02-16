@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/sysvsem/Makefile,v 1.3.26.1 2010/12/21 17:10:29 kensmith Exp $
 # SysV Semaphores Regression Utility 
 # Obtained from: $NetBSD: Makefile,v 1.3 2002/03/05 21:57:00 thorpej Exp $
 

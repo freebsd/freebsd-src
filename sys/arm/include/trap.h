@@ -1,5 +1,5 @@
 /*	$NetBSD: trap.h,v 1.1 2001/02/23 03:48:19 ichiro Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/include/trap.h,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #ifndef _MACHINE_TRAP_H_
 #define _MACHINE_TRAP_H_

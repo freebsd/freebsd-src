@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/font/devX75-12/Makefile,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 NO_OBJ=
 

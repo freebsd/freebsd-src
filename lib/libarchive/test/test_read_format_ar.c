@@ -26,7 +26,7 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_ar.c,v 1.4.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #if ARCHIVE_VERSION_STAMP >= 1009000
 /*

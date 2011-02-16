@@ -8,7 +8,7 @@
 #
 # http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mac.html 
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/MAC,v 1.1.12.1 2010/12/21 17:10:29 kensmith Exp $
 
 include 	GENERIC
 ident 		MAC

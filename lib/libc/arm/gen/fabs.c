@@ -35,7 +35,7 @@
  * fabs(x) returns the absolute value of x.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/gen/fabs.c,v 1.1.26.1 2010/12/21 17:10:29 kensmith Exp $");
 
 double
 fabs(double x)

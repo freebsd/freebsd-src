@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_tar.c,v 1.3.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 char buff[1000000];
 char buff2[64];

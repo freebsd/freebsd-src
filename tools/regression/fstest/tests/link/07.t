@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/link/07.t,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="link returns EACCES when the requested link requires writing in a directory with a mode that denies write permission"
 

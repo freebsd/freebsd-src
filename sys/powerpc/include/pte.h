@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: pte.h,v 1.2 1998/08/31 14:43:40 tsubai Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/pte.h,v 1.5.12.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef	_MACHINE_PTE_H_

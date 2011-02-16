@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/man/Makefile,v 1.9.40.1 2010/12/21 17:10:29 kensmith Exp $
 
 MAN=		groff_font.5 groff_out.5 groff_tmac.5
 MLINKS=		groff_tmac.5 tmac.5

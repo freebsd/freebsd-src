@@ -33,7 +33,7 @@
 #
 # PS: this wrapper works also for catman(1)
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/makewhatis/makewhatis.local.sh,v 1.7.54.1 2010/12/21 17:10:29 kensmith Exp $
 
 PATH=/bin:/usr/bin:$PATH; export PATH
 opt= dirs= localdirs=

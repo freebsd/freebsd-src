@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/texinfo/doc/Makefile,v 1.12.60.1 2010/12/21 17:10:29 kensmith Exp $
 
 INFO=	info info-stnd texinfo
 SRCDIR=	${TXIDIR}/doc

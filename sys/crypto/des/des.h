@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/des/des.h,v 1.6.40.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*	$KAME: des.h,v 1.8 2001/09/10 04:03:57 itojun Exp $	*/
 
 /* lib/des/des.h */

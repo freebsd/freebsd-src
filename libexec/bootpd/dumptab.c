@@ -1,7 +1,7 @@
 /*
  * dumptab.c - handles dumping the database
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/dumptab.c,v 1.9.40.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <sys/types.h>

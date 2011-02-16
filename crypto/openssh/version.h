@@ -1,5 +1,5 @@
 /* $OpenBSD: version.h,v 1.54 2008/07/21 08:19:07 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/version.h,v 1.35.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #ifndef SSH_VERSION
 

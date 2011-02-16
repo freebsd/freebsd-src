@@ -43,7 +43,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/ixp425/ixp425_a4x_io.S,v 1.1.16.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * bus_space I/O functions with offset*4

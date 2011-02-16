@@ -1,5 +1,5 @@
 # $Whistle: Makefile,v 1.5 1999/01/24 06:48:37 archie Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/Makefile,v 1.49.2.1.2.1 2010/12/21 17:10:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/share/examples/ses/srcs/inienc.c,v 1.1.60.1 2010/12/21 17:10:29 kensmith Exp $ */
 /*
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.

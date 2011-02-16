@@ -1,7 +1,7 @@
 /*
  * Belarusian language. Modern/standard (1959) grammar.
  * Prepared by Yury Tarasievich <spytar@yahoo.com>
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/be_BY.CP1131.src,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 ENCODING	"NONE"

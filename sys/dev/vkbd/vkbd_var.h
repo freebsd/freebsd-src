@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: vkbd_var.h,v 1.4 2004/08/17 17:43:14 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vkbd/vkbd_var.h,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _VKBD_VAR_H_

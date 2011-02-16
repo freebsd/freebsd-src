@@ -1,7 +1,7 @@
 /*
  * Test the POSIX shared-memory API.
  * Dedicated to tyhe public domain by Garrett A. Wollman, 2000.
- * $FreeBSD$
+ * $FreeBSD: src/tools/test/posixshm/shm_test.c,v 1.1.40.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <sys/types.h>

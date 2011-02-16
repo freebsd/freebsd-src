@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)2.t	8.1 (Berkeley) 7/27/93
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/smm/01.setup/2.t,v 1.7.44.1.2.1 2010/12/21 17:10:29 kensmith Exp $
 .\"
 .ds lq ``
 .ds rq ''

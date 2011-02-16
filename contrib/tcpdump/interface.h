@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/interface.h,v 1.12.2.1.10.1 2010/12/21 17:10:29 kensmith Exp $
  * @(#) $Header: /tcpdump/master/tcpdump/interface.h,v 1.244.2.21 2007/03/28 07:45:46 hannes Exp $ (LBL)
  */
 

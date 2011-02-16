@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/arm/armfbsd-nat.c,v 1.1.4.1.10.1 2010/12/21 17:10:29 kensmith Exp $ */
 
  /* Native-dependent code for BSD Unix running on ARM's, for GDB.
    Copyright 1988, 1989, 1991, 1992, 1994, 1996, 1999, 2002

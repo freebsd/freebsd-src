@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/conf/options.arm,v 1.17.2.1.10.1 2010/12/21 17:10:29 kensmith Exp $
 ARM9_CACHE_WRITE_THROUGH	opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h
 ARMFPE			opt_global.h

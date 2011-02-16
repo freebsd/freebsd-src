@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.14 1996/09/27 22:38:37 christos Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/fsck/Makefile,v 1.11.36.1 2010/12/21 17:10:29 kensmith Exp $
 
 PROG=	fsck
 SRCS=	fsck.c fsutil.c preen.c

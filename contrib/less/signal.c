@@ -8,7 +8,7 @@
  * contact the author, see the README file.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/signal.c,v 1.6.2.1.2.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /*
  * Routines dealing with signals.

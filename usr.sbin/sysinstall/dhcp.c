@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/dhcp.c,v 1.5.34.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * Copyright (c) 1999
  *	C. Stone.  All rights reserved.

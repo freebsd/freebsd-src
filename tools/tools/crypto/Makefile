@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/tools/tools/crypto/Makefile,v 1.8.26.1 2010/12/21 17:10:29 kensmith Exp $
 #
 # Copyright (c) 2002, 2003	Sam Leffler, Errno Consulting
 # All rights reserved.

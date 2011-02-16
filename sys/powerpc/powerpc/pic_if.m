@@ -24,7 +24,7 @@
 # SUCH DAMAGE.
 #
 # from: src/sys/kern/bus_if.m,v 1.21 2002/04/21 11:16:10 markm Exp
-# $FreeBSD$
+# $FreeBSD: src/sys/powerpc/powerpc/pic_if.m,v 1.4.12.1 2010/12/21 17:10:29 kensmith Exp $
 #
 
 #include <sys/bus.h>

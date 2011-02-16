@@ -1,6 +1,6 @@
 # ex:ts=8
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/ntp/FREEBSD-upgrade,v 1.5.32.1 2010/12/21 17:10:29 kensmith Exp $
 
 NTP 4.2.0
 	originals can be found on ftp://ftp.udel.edu/pub/ntp/ntp4/

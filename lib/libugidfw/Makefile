@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libugidfw/Makefile,v 1.8.12.1 2010/12/21 17:10:29 kensmith Exp $
 
 LIB=		ugidfw
 SHLIB_MAJOR=	3

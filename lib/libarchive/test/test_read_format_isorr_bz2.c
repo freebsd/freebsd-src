@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_isorr_bz2.c,v 1.2.2.2.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
 Execute the following to rebuild the data for this program:

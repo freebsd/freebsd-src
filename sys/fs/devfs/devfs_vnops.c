@@ -31,7 +31,7 @@
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
  * From: FreeBSD: src/sys/miscfs/kernfs/kernfs_vnops.c 1.43
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/devfs/devfs_vnops.c,v 1.149.2.10.4.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

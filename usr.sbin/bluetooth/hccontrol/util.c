@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: util.c,v 1.2 2003/05/19 17:29:29 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/hccontrol/util.c,v 1.7.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
  
 #include <sys/param.h>

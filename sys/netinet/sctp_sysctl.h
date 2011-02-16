@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctp_sysctl.h,v 1.13.2.5.6.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #ifndef __sctp_sysctl_h__
 #define __sctp_sysctl_h__

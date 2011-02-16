@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/nxge/if_nxge.c,v 1.3.2.2.2.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <dev/nxge/if_nxge.h>

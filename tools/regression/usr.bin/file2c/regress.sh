@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/file2c/regress.sh,v 1.5.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 echo 1..9
 

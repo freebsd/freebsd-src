@@ -31,7 +31,7 @@
  *
  * so there!
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ifconfig/ifconfig.h,v 1.21.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #define	__constructor	__attribute__((constructor))

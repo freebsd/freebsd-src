@@ -12,7 +12,7 @@
  * 
  * RCS source control definitions needed by rcs.c and friends
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/rcs.h,v 1.11.18.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /* Strings which indicate a conflict if they occur at the start of a line.  */

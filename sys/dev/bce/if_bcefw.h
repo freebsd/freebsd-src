@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/bce/if_bcefw.h,v 1.4.2.3.2.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

@@ -6,7 +6,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the LICENSE file included in this
  * release for licensing terms and conditions.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cxgb/common/cxgb_ctl_defs.h,v 1.3.2.2.6.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _CXGB3_OFFLOAD_CTL_DEFS_H

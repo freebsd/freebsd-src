@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/builtins/cd2.0,v 1.1.4.2.2.1 2010/12/21 17:10:29 kensmith Exp $
 set -e
 
 T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)

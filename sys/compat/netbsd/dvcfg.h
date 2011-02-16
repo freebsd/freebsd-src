@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/compat/netbsd/dvcfg.h,v 1.6.26.1 2010/12/21 17:10:29 kensmith Exp $ */
 /*	$NetBSD$	*/
 /*-
  * [NetBSD for NEC PC98 series]

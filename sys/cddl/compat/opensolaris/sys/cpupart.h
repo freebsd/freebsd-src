@@ -18,7 +18,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/compat/opensolaris/sys/cpupart.h,v 1.3.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/_bus.h,v 1.1.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef AMD64_INCLUDE__BUS_H

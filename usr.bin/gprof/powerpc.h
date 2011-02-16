@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)i386.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gprof/powerpc.h,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
     /*

@@ -32,7 +32,7 @@
 __RCSID("$NetBSD: wcscat.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
 #endif /* LIBC_SCCS and not lint */
 #endif
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/wcscat.c,v 1.8.38.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <wchar.h>
 

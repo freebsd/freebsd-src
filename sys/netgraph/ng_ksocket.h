@@ -37,7 +37,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_ksocket.h,v 1.13.14.1 2010/12/21 17:10:29 kensmith Exp $
  * $Whistle: ng_ksocket.h,v 1.1 1999/11/16 20:04:40 archie Exp $
  */
 

@@ -2,7 +2,7 @@
  * Machine-independent glue to integrate David Gay's gdtoa
  * package into libc.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gdtoa/glue.c,v 1.2.36.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <pthread.h>

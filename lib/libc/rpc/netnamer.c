@@ -32,7 +32,7 @@
 static char sccsid[] = "@(#)netnamer.c 1.13 91/03/11 Copyr 1986 Sun Micro";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/netnamer.c,v 1.12.24.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * netname utility routines convert from unix names to network names and

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_data_large.c,v 1.3.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * Test read/write of a 10M block of data in a single operation.

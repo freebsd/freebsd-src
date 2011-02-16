@@ -39,7 +39,7 @@
 __COPYRIGHT(
 "@(#) Copyright (c) 1999\
  The NetBSD Foundation, Inc.  All rights reserved.");
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/usr.bin/nl/nl.c,v 1.11.12.1 2010/12/21 17:10:29 kensmith Exp $");
 #endif    
 
 #include <sys/types.h>

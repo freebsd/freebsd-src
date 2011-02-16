@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ypserv/yp_extern.h,v 1.17.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <db.h>

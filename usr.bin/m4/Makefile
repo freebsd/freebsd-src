@@ -1,5 +1,5 @@
 #	$OpenBSD: Makefile,v 1.10 2002/04/26 13:13:41 espie Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/m4/Makefile,v 1.7.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 # -DEXTENDED 
 # 	if you want the paste & spaste macros.

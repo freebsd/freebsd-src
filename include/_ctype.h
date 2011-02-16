@@ -40,7 +40,7 @@
  *
  * From @(#)ctype.h	8.4 (Berkeley) 1/21/94
  * From FreeBSD: src/include/ctype.h,v 1.27 2004/06/23 07:11:39 tjr Exp
- * $FreeBSD$
+ * $FreeBSD: src/include/_ctype.h,v 1.30.10.2.10.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef __CTYPE_H_

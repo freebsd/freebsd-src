@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/if_ndis/if_ndisvar.h,v 1.27.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #define NDIS_DEFAULT_NODENAME	"FreeBSD NDIS node"

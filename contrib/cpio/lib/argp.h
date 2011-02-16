@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/lib/argp.h,v 1.2.4.1.2.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /* Hierarchial argument parsing, layered over getopt.
    Copyright (C) 1995-1999,2003-2007 Free Software Foundation, Inc.

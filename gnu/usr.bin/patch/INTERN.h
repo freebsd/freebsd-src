@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/gnu/usr.bin/patch/INTERN.h,v 1.6.60.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * $Log: INTERN.h,v $
  * Revision 2.0  86/09/17  15:35:58  lwall

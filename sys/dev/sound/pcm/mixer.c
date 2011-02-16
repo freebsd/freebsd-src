@@ -28,7 +28,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/mixer.c,v 1.61.12.1 2010/12/21 17:10:29 kensmith Exp $");
 
 MALLOC_DEFINE(M_MIXER, "mixer", "mixer");
 

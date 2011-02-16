@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chflags/11.t,v 1.1.12.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="chflags returns EPERM if a user tries to set or remove the SF_SNAPSHOT flag"
 

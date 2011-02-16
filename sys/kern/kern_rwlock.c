@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_rwlock.c,v 1.28.4.7.4.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include "opt_ddb.h"
 #include "opt_no_adaptive_rwlocks.h"

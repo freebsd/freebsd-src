@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/lib/libdialog/yesno.c,v 1.15.38.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <dialog.h>
 #include "dialog.priv.h"

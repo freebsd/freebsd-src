@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rmdir/04.t,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="rmdir returns ENOENT if the named directory does not exist"
 

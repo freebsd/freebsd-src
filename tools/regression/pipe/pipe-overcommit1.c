@@ -30,7 +30,7 @@
 #include <stdlib.h>
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/pipe/pipe-overcommit1.c,v 1.1.26.1 2010/12/21 17:10:29 kensmith Exp $
  * This program just allocates as many pipes as it can to ensure
  * that using up all pipe memory doesn't cause a panic.
  */

@@ -30,7 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/le/am79900var.h,v 1.1.4.1.2.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #ifndef _DEV_LE_AM79900VAR_H_
 #define	_DEV_LE_AM79900VAR_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/monthly/Makefile,v 1.3.24.1.6.1 2010/12/21 17:10:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

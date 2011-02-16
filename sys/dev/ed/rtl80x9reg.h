@@ -28,7 +28,7 @@
  *
  * Based on patches subitted by: David Madole, edited by M. Warner Losh.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ed/rtl80x9reg.h,v 1.1.16.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/xlint/xlint/pathnames.h,v 1.6.40.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /* directory where lint1 and lint2 reside */

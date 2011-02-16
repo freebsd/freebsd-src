@@ -31,7 +31,7 @@
 #
 # Verify that no cancellation points are propagated inside of libpthread.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libkse/test/propagate_s.pl,v 1.3.14.1 2010/12/21 17:10:29 kensmith Exp $
 #
 
 @CPOINTS = ("aio_suspend", "close", "creat", "fcntl", "fsync", "mq_receive",

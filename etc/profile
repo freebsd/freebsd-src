@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/profile,v 1.14.34.1 2010/12/21 17:10:29 kensmith Exp $
 #
 # System-wide .profile file for sh(1).
 #

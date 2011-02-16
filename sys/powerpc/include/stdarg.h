@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: stdarg.h,v 1.5 2000/02/27 17:50:21 tsubai Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/stdarg.h,v 1.10.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_STDARG_H_

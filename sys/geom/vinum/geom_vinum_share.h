@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/vinum/geom_vinum_share.h,v 1.2.24.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _GEOM_VINUM_SHARE_H_

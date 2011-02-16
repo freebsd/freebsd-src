@@ -30,7 +30,7 @@
  *
  * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/xfs/FreeBSD/xfs_freebsd_iget.c,v 1.2.2.1.2.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include "xfs.h"

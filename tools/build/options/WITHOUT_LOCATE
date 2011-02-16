@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_LOCATE,v 1.1.2.1.6.1 2010/12/21 17:10:29 kensmith Exp $
 Set to not build
 .Xr locate 1
 and related programs.

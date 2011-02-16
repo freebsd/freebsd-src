@@ -28,7 +28,7 @@
  *	i4b_tel_ioctl.h telephony interface ioctls
  *	------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/include/i4b_tel_ioctl.h,v 1.11.12.1 2010/12/21 17:10:29 kensmith Exp $
  *
  *      last edit-date: [Sun Mar 17 10:10:39 2002]
  *

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/mga_dma.c,v 1.13.2.2.6.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /**
  * \file mga_dma.c

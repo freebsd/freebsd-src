@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/doc/Makefile,v 1.13.26.1 2010/12/21 17:10:29 kensmith Exp $
 
 INFO=	gdb gdbint stabs
 INFOSECTION= "Software development"

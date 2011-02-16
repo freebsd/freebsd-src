@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/vasprintf.c,v 1.18.38.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

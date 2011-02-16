@@ -33,7 +33,7 @@
 static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/rpc.ypupdated/update.c,v 1.8.14.1 2010/12/21 17:10:29 kensmith Exp $";
 #endif /* not lint */
 
 /*

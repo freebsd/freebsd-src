@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/libcrypto/Makefile,v 1.81.2.1.2.2 2011/01/19 07:44:47 simon Exp $
 
 SHLIBDIR?=	/lib
 SUBDIR=		engines

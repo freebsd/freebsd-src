@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/test/test_strip_components.c,v 1.2.4.1.6.1 2010/12/21 17:10:29 kensmith Exp $");
 
 static int
 touch(const char *fn)

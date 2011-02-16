@@ -40,7 +40,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)tseq.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/db/test/hash.tests/tseq.c,v 1.4.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/file.h>

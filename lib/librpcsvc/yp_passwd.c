@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/librpcsvc/yp_passwd.c,v 1.7.36.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <stdlib.h>
 #include <rpc/rpc.h>

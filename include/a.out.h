@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)a.out.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/include/a.out.h,v 1.4.34.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef	_AOUT_H_

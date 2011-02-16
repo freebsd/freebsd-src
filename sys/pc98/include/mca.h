@@ -1,6 +1,6 @@
 /*-
  * This file is in the public domain.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pc98/include/mca.h,v 1.1.4.2.4.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #include <i386/mca.h>

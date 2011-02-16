@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_ioctl.c,v 1.57.2.2.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include "opt_compat.h"
 

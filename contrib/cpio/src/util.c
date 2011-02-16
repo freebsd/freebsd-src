@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/src/util.c,v 1.2.4.2.2.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /* util.c - Several utility routines for cpio.
    Copyright (C) 1990, 1991, 1992, 2001, 2004,

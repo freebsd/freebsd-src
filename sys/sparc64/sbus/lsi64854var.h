@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/sparc64/sbus/lsi64854var.h,v 1.6.2.2.2.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 struct lsi64854_softc {
 	device_t		sc_dev;

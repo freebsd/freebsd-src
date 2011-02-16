@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/wpa/wpa_supplicant/Packet32.c,v 1.4.12.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * This file implements a small portion of the Winpcap API for the

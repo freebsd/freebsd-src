@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/stat.h,v 1.42.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _SYS_STAT_H_

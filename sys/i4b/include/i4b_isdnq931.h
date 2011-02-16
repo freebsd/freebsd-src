@@ -28,7 +28,7 @@
  *	i4b_isdnq931.h - DSS1 layer 3 message types
  *	-------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/include/i4b_isdnq931.h,v 1.9.24.1 2010/12/21 17:10:29 kensmith Exp $
  *
  *	last edit-date: [Sat Mar  9 15:53:49 2002]
  *

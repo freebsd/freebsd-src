@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/tr/regress.sh,v 1.1.2.1.6.1 2010/12/21 17:10:29 kensmith Exp $
 
 echo 1..12
 

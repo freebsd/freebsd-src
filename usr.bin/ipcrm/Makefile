@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/ipcrm/Makefile,v 1.6.24.1.8.1 2010/12/21 17:10:29 kensmith Exp $
 
 PROG=	ipcrm
 SRCS=	ipcrm.c ipc.c

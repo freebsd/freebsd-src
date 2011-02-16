@@ -1,5 +1,5 @@
 /*	$OpenBSD: readpassphrase.h,v 1.5 2003/06/17 21:56:23 millert Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/include/readpassphrase.h,v 1.2.28.2.2.1 2010/12/21 17:10:29 kensmith Exp $	*/
 
 /*
  * Copyright (c) 2000, 2002 Todd C. Miller <Todd.Miller@courtesan.com>

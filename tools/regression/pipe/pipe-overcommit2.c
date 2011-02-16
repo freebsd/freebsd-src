@@ -31,7 +31,7 @@
 #include <fcntl.h>
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/pipe/pipe-overcommit2.c,v 1.1.26.1 2010/12/21 17:10:29 kensmith Exp $
  * This program tests how sys_pipe.c handles the case where there
  * is ample memory to allocate a pipe, but the file descriptor
  * limit for that user has been exceeded.

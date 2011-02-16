@@ -28,7 +28,7 @@
  *      i4b_iwic - isdn4bsd Winbond W6692 driver
  *      ----------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/iwic/i4b_w6692.h,v 1.3.24.1 2010/12/21 17:10:29 kensmith Exp $
  *
  *      last edit-date: [Sun Jan 21 11:09:46 2001]
  *

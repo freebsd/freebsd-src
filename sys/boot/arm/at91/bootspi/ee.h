@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/arm/at91/bootspi/ee.h,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 void EEInit(void);
 void EERead(unsigned ee_off, char *data_addr, unsigned size);

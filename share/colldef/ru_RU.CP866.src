@@ -1,6 +1,6 @@
 # CP866 (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/ru_RU.CP866.src,v 1.10.36.1 2010/12/21 17:10:29 kensmith Exp $
 #
 charmap map.CP866
 order \

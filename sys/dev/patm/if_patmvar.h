@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/patm/if_patmvar.h,v 1.5.26.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * Driver for IDT77252 (ABR) based cards like ProSum's.
  */

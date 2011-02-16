@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/string/strcmp.S,v 1.10.24.1.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * strcmp(s1, s2)

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: bthost.c,v 1.5 2003/05/21 20:30:01 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/bluetooth/bthost/bthost.c,v 1.1.36.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <bluetooth.h>

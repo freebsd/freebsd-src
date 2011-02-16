@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/arm/xm-fbsd.h,v 1.1.16.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /* Parameters for execution on an ARM running NetBSD, for GDB.
    Copyright 1994 Free Software Foundation, Inc.

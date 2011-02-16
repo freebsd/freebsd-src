@@ -17,7 +17,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ipfw/ipv6.c,v 1.1.2.1.6.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * ipv6 support
  */

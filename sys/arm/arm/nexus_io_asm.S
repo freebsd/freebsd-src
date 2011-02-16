@@ -34,7 +34,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/nexus_io_asm.S,v 1.3.24.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * bus_space I/O functions for nexus

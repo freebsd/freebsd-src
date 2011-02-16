@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_trantcp.h,v 1.4.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 #ifndef _NETSMB_SMB_TRANTCP_H_
 #define	_NETSMB_SMB_TRANTCP_H_

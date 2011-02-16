@@ -19,7 +19,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/spi_flash.c,v 1.4.12.1 2010/12/21 17:10:29 kensmith Exp $
  *****************************************************************************/
 
 #include "at91rm9200.h"

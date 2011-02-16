@@ -17,7 +17,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/bootspi/env_vars.h,v 1.1.16.1 2010/12/21 17:10:29 kensmith Exp $
  *****************************************************************************/
 
 #ifndef _ENV_VARS_H_

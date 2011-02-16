@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/execution/func1.0,v 1.1.4.3.2.1 2010/12/21 17:10:29 kensmith Exp $
 
 MALLOC_OPTIONS=J ${SH} -c 'g() { g() { :; }; :; }; g' &&
 MALLOC_OPTIONS=J ${SH} -c 'g() { unset -f g; :; }; g'

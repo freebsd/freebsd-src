@@ -19,7 +19,7 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 02110-1301, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/c-decl.c,v 1.15.12.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /* Process declarations and symbol lookup for C front end.
    Also constructs types; the standard scalar types at initialization,

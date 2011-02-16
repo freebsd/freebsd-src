@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/wpa/hostapd/Makefile,v 1.4.2.1.10.1 2010/12/21 17:10:29 kensmith Exp $
 
 .include <bsd.own.mk>
 

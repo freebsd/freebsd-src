@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_icmp.h,v 1.26.10.1.6.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _NETINET_IP_ICMP_H_

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chflags/13.t,v 1.1.12.1 2010/12/21 17:10:29 kensmith Exp $
 
 desc="chflags returns EFAULT if the path argument points outside the process's allocated address space"
 

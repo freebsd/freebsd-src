@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)proc.h	7.1 (Berkeley) 5/15/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/proc.h,v 1.26.2.2.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_PROC_H_

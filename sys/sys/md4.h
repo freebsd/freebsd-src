@@ -1,5 +1,5 @@
 /* MD4.H - header file for MD4C.C
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/md4.h,v 1.2.26.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*-

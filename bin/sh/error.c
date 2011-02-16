@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/sh/error.c,v 1.26.14.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /*
  * Errors and exceptions.

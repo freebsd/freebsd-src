@@ -30,7 +30,7 @@
  *
  *	$Id: i4b_hdlc.h,v 1.5 2000/08/28 07:41:19 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/itjc/i4b_hdlc.h,v 1.3.24.1 2010/12/21 17:10:29 kensmith Exp $
  *
  *	last edit-date: [Thu Jan 11 11:31:01 2001]
  *

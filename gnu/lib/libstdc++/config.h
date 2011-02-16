@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/lib/libstdc++/config.h,v 1.15.2.1.2.1 2010/12/21 17:10:29 kensmith Exp $ */
 #ifndef __ISO_C_VISIBLE
 #include <sys/cdefs.h>
 #endif

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/com_err/compile_et.c,v 1.3.32.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #undef ROKEN_RENAME
 #include "compile_et.h"

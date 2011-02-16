@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_nanosleep.c,v 1.17.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 #include <stdio.h>
 #include <errno.h>

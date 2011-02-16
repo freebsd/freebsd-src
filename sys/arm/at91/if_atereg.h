@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/if_atereg.h,v 1.2.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #ifndef ARM_AT91_IF_ATEREG_H
 #define ARM_AT91_IF_ATEREG_H

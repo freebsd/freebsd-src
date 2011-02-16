@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/setfib/setfib.c,v 1.3.2.3.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 
 #include <errno.h>

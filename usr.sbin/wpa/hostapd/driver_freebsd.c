@@ -12,7 +12,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/wpa/hostapd/driver_freebsd.c,v 1.6.2.1.4.1 2010/12/21 17:10:29 kensmith Exp $
  */
 #include <stdlib.h>
 #include <stdio.h>

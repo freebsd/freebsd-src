@@ -14,7 +14,7 @@
  * Routines to test the hash are included if SELF_TEST is defined.
  * You can use this free for any purpose.  It has no warranty.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cxgb/common/jhash.h,v 1.1.16.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /* NOTE: Arguments are modified. */

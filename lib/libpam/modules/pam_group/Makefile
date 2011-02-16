@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_group/Makefile,v 1.1.38.1 2010/12/21 17:10:29 kensmith Exp $
 
 LIB=		pam_group
 SRCS=		pam_group.c

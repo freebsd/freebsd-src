@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libopcodes/Makefile.alpha,v 1.4.40.1 2010/12/21 17:10:29 kensmith Exp $
 
 SRCS+=	alpha-dis.c alpha-opc.c
 CFLAGS+= -DARCH_alpha

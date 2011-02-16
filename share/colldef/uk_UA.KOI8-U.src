@@ -1,6 +1,6 @@
 # koi8-u (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/uk_UA.KOI8-U.src,v 1.4.36.1 2010/12/21 17:10:29 kensmith Exp $
 #
 charmap map.KOI8-U
 order \

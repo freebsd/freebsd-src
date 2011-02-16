@@ -31,7 +31,7 @@
 /*static char sccsid[] = "from: * @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
 __RCSID("$NetBSD: nlm_prot.x,v 1.6 2000/06/07 14:30:15 bouyer Exp $");
 #endif /* not lint */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nlm/nlm_prot_server.c,v 1.2.2.3.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/malloc.h>

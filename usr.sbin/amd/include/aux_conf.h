@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/amd/include/aux_conf.h,v 1.4.18.1.8.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /*
  * aux_conf.h:

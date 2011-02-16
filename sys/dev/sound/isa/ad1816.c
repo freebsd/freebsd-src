@@ -33,7 +33,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/ad1816.c,v 1.45.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $");
 
 struct ad1816_info;
 

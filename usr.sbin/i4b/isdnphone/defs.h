@@ -29,7 +29,7 @@
  *
  *	$Id: defs.h,v 1.6 1999/12/13 21:25:26 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnphone/defs.h,v 1.3.12.1 2010/12/21 17:10:29 kensmith Exp $
  *
  *      last edit-date: [Mon Dec 13 21:52:46 1999]
  *

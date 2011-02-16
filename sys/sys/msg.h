@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/sys/msg.h,v 1.20.10.1.4.1 2010/12/21 17:10:29 kensmith Exp $ */
 /*	$NetBSD: msg.h,v 1.4 1994/06/29 06:44:43 cgd Exp $	*/
 
 /*-

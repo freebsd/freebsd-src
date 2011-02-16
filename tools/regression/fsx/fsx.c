@@ -36,7 +36,7 @@
  *
  *	Updated license to APSL 2.0, 2004/7/27 - Jordan Hubbard
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/fsx/fsx.c,v 1.5.12.1 2010/12/21 17:10:29 kensmith Exp $
  *
  */
 

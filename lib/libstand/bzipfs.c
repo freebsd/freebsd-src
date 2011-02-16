@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/bzipfs.c,v 1.7.10.2.4.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #ifndef REGRESSION
 #include "stand.h"

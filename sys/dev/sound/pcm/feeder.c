@@ -28,7 +28,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder.c,v 1.44.12.1 2010/12/21 17:10:29 kensmith Exp $");
 
 MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 

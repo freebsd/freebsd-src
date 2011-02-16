@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/redzone9/test.sh,v 1.1.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 sysctl debug.redzone.malloc_underflow=1
 sysctl debug.redzone.malloc_overflow=1

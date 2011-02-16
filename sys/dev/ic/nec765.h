@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)nec765.h	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ic/nec765.h,v 1.13.14.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 /*

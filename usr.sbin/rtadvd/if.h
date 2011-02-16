@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/rtadvd/if.h,v 1.5.34.1 2010/12/21 17:10:29 kensmith Exp $	*/
 /*	$KAME: if.h,v 1.10 2003/02/24 11:29:10 ono Exp $	*/
 
 /*

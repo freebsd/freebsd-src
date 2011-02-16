@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/diff3/Makefile,v 1.8.14.1 2010/12/21 17:10:29 kensmith Exp $
 
 DIFFSRC=${.CURDIR}/../../../contrib/diff/src
 .PATH:  ${DIFFSRC} \

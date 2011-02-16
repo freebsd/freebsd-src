@@ -1,7 +1,7 @@
 /*
  * Fundamental constants relating to ethernet.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/ethernet.h,v 1.32.2.2.8.1 2010/12/21 17:10:29 kensmith Exp $
  *
  */
 

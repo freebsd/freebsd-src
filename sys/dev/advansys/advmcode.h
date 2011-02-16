@@ -1,7 +1,7 @@
 /*-
  * Exported interface to downloadable microcode for AdvanSys SCSI Adapters
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/advmcode.h,v 1.8.26.1 2010/12/21 17:10:29 kensmith Exp $
  *
  * Obtained from:
  *

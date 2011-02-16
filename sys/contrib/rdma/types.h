@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/types.h,v 1.2.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $
  */
 #ifndef	__RDMA_TYPES_H_
 #define	__RDMA_TYPES_H_

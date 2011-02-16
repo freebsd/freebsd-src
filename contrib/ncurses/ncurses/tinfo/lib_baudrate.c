@@ -32,7 +32,7 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ncurses/ncurses/tinfo/lib_baudrate.c,v 1.2.2.1.8.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 /*
  *	lib_baudrate.c

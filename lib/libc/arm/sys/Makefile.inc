@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/arm/sys/Makefile.inc,v 1.3.12.1 2010/12/21 17:10:29 kensmith Exp $
 
 MDASM= Ovfork.S brk.S cerror.S pipe.S ptrace.S sbrk.S shmat.S sigreturn.S syscall.S
 

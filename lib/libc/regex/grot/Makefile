@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/regex/grot/Makefile,v 1.4.34.1 2010/12/21 17:10:29 kensmith Exp $
 # You probably want to take -DREDEBUG out of CFLAGS, and put something like
 # -O in, *after* testing (-DREDEBUG strengthens testing by enabling a lot of
 # internal assertion checking).  Take -Dconst= out for an ANSI compiler.

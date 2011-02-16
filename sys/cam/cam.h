@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/cam.h,v 1.11.24.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #ifndef _CAM_CAM_H

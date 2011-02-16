@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$"); 
+__FBSDID("$FreeBSD: src/lib/msun/amd64/s_remquo.S,v 1.1.10.1.4.1 2010/12/21 17:10:29 kensmith Exp $"); 
 	
 ENTRY(remquo)
 	movsd	%xmm0,-8(%rsp)

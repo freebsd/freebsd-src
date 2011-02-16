@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/fbsd-kgdb-i386.h,v 1.5.34.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #ifndef FBSD_KGDB_I386_H
 #define FBSD_KGDB_I386_H

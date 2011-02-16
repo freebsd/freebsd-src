@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/gbk.c,v 1.13.2.1.10.1 2010/12/21 17:10:29 kensmith Exp $");
 
 #include <sys/types.h>
 #include <errno.h>

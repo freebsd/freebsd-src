@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp_freebsd.h,v 1.107.2.3.2.1 2010/12/21 17:10:29 kensmith Exp $ */
 /*-
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  *

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: main.c,v 1.8 2004/01/13 19:31:54 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/main.c,v 1.1.34.1 2010/12/21 17:10:29 kensmith Exp $
  */
 
 #include <sys/select.h>

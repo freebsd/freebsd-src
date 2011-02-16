@@ -32,4 +32,4 @@
 	ret
 
 	.section .rodata
-.ascii "$FreeBSD$\0"
+.ascii "$FreeBSD: src/lib/csu/i386-elf/crtn.S,v 1.6.26.1 2010/12/21 17:10:29 kensmith Exp $\0"

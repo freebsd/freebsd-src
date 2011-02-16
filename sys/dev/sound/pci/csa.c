@@ -48,7 +48,7 @@
 
 #include <gnu/dev/sound/pci/csaimg.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/csa.c,v 1.37.12.1 2010/12/21 17:10:29 kensmith Exp $");
 
 /* This is the pci device id. */
 #define CS4610_PCI_ID 0x60011013

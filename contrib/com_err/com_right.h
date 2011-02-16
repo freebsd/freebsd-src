@@ -32,7 +32,7 @@
  */
 
 /* $Id: com_right.h,v 1.11 2000/07/31 01:11:08 assar Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/com_err/com_right.h,v 1.3.32.1 2010/12/21 17:10:29 kensmith Exp $ */
 
 #ifndef __COM_RIGHT_H__
 #define __COM_RIGHT_H__
