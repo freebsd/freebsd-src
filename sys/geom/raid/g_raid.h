@@ -364,6 +364,8 @@ void g_raid_subdisk_iostart(struct g_raid_subdisk *sd, struct bio *bp);
 int g_raid_subdisk_kerneldump(struct g_raid_subdisk *sd,
     void *virtual, vm_offset_t physical, off_t offset, size_t length);
 
+struct g_consumer *g_raid_open_consumer(struct g_raid_softc *sc,
+    const char *name);
 void g_raid_kill_consumer(struct g_raid_softc *sc, struct g_consumer *cp);
 
 void g_raid_report_disk_state(struct g_raid_disk *disk);

@@ -585,6 +585,32 @@ g_raid_get_subdisk(struct g_raid_volume *vol, int state)
 	return (NULL);
 }
 
+struct g_consumer *
+g_raid_open_consumer(struct g_raid_softc *sc, const char *name)
+{
+	struct g_consumer *cp;
+	struct g_provider *pp;
+
+	g_topology_assert();
+
+	if (strncmp(name, "/dev/", 5) == 0)
+		name += 5;
+	pp = g_provider_by_name(name);
+	if (pp == NULL)
+		return (NULL);
+	cp = g_new_consumer(sc->sc_geom);
+	if (g_attach(cp, pp) != 0) {
+		g_destroy_consumer(cp);
+		return (NULL);
+	}
+	if (g_access(cp, 1, 1, 1) != 0) {
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		return (NULL);
+	}
+	return (cp);
+}
+
 static u_int
 g_raid_nrequests(struct g_raid_softc *sc, struct g_consumer *cp)
 {

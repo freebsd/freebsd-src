@@ -1085,38 +1085,18 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			if (strcmp(diskname, "NONE") == 0) {
 				cp = NULL;
 				pp = NULL;
-				goto makedisk;
+			} else {
+				g_topology_lock();
+				cp = g_raid_open_consumer(sc, diskname);
+				if (cp == NULL) {
+					gctl_error(req, "Can't open '%s'.",
+					    diskname);
+					g_topology_unlock();
+					error = -7;
+					break;
+				}
+				pp = cp->provider;
 			}
-			if (strncmp(diskname, "/dev/", 5) == 0)
-				diskname += 5;
-			g_topology_lock();
-			pp = g_provider_by_name(diskname);
-			if (pp == NULL) {
-				gctl_error(req, "Provider '%s' not found.",
-				    diskname);
-				g_topology_unlock();
-				error = -7;
-				break;
-			}
-			cp = g_new_consumer(sc->sc_geom);
-			if (g_attach(cp, pp) != 0) {
-				gctl_error(req, "Can't attach provider '%s'.",
-				    diskname);
-				g_destroy_consumer(cp);
-				g_topology_unlock();
-				error = -7;
-				break;
-			}
-			if (g_access(cp, 1, 1, 1) != 0) {
-				gctl_error(req, "Can't open provider '%s'.",
-				    diskname);
-				g_detach(cp);
-				g_destroy_consumer(cp);
-				g_topology_unlock();
-				error = -7;
-				break;
-			}
-makedisk:
 			pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = i;
 			pd->pd_disk_id = arc4random() & JMICRON_DISK_MASK;
@@ -1126,7 +1106,6 @@ makedisk:
 			if (cp == NULL)
 				continue;
 			cp->private = disk;
-
 			g_topology_unlock();
 
 			/* Read kernel dumping information. */
@@ -1359,38 +1338,18 @@ makedisk:
 				error = -3;
 				break;
 			}
-			if (strncmp(diskname, "/dev/", 5) == 0)
-				diskname += 5;
 
 			/* Try to find provider with specified name. */
 			g_topology_lock();
-			pp = g_provider_by_name(diskname);
-			if (pp == NULL) {
-				gctl_error(req, "Provider '%s' not found.",
+			cp = g_raid_open_consumer(sc, diskname);
+			if (cp == NULL) {
+				gctl_error(req, "Can't open disk '%s'.",
 				    diskname);
 				g_topology_unlock();
 				error = -4;
 				break;
 			}
-			cp = g_new_consumer(sc->sc_geom);
-			if (g_attach(cp, pp) != 0) {
-				gctl_error(req, "Can't attach provider '%s'.",
-				    diskname);
-				g_destroy_consumer(cp);
-				g_topology_unlock();
-				error = -5;
-				break;
-			}
-			if (g_access(cp, 1, 1, 1) != 0) {
-				gctl_error(req, "Can't open provider '%s'.",
-				    diskname);
-				g_detach(cp);
-				g_destroy_consumer(cp);
-				g_topology_unlock();
-				error = -6;
-				break;
-			}
-			g_topology_unlock();
+			pp = cp->provider;
 
 			pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = -3;
@@ -1402,6 +1361,7 @@ makedisk:
 			disk->d_consumer->private = disk;
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
+			g_topology_unlock();
 
 			/* Read kernel dumping information. */
 			disk->d_kd.offset = 0;
