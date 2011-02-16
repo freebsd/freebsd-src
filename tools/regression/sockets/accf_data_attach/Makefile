@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/sockets/accf_data_attach/Makefile,v 1.3.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 
 PROG=	accf_data_attach

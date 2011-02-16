@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/rescue/rescue/Makefile,v 1.71.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
 NO_MAN=

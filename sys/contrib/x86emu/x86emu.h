@@ -1,6 +1,6 @@
 /*	$NetBSD: x86emu.h,v 1.1 2007/12/01 20:14:10 joerg Exp $	*/
 /*	$OpenBSD: x86emu.h,v 1.3 2009/06/06 03:45:05 matthieu Exp $ */
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/x86emu/x86emu.h,v 1.2.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $	*/
 
 /****************************************************************************
 *

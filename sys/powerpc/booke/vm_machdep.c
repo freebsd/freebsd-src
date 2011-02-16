@@ -26,7 +26,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: $FreeBSD$
+ *	from: $FreeBSD: src/sys/powerpc/booke/vm_machdep.c,v 1.8.2.4.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 /*-
  * Copyright (c) 1982, 1986 The Regents of the University of California.
@@ -97,7 +97,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/booke/vm_machdep.c,v 1.8.2.4.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

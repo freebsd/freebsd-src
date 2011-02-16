@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 6/10/97
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/makemap/Makefile,v 1.12.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH: ${SENDMAIL_DIR}/makemap

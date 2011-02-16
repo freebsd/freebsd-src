@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/support.S,v 1.6.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/errno.h>
 

@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/libexec/tftpd/tftp-file.h,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 int	write_init(int fd, FILE *f, const char *mode);
 size_t	write_file(char *buffer, int count);

@@ -30,7 +30,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/cpufunc_asm_sheeva.S,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <machine/param.h>
 

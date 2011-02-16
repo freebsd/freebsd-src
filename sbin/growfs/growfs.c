@@ -47,7 +47,7 @@ All rights reserved.\n";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/growfs/growfs.c,v 1.26.2.6.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /* ********************************************************** INCLUDES ***** */
 #include <sys/param.h>

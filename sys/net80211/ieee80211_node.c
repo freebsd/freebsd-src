@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_node.c,v 1.133.2.6.2.2 2011/01/26 17:20:34 bschmidt Exp $");
 
 #include "opt_wlan.h"
 

@@ -12,7 +12,7 @@
  * warranties of merchantability and fitness for a particular
  * purpose.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/boot2/boot1.S,v 1.32.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /* Memory Locations */

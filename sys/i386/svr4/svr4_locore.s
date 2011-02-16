@@ -3,7 +3,7 @@
 
 #include <compat/svr4/svr4_syscall.h>		/* system call numbers */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/svr4/svr4_locore.s,v 1.15.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 	
 NON_GPROF_ENTRY(svr4_sigcode)
 	call	*SVR4_SIGF_HANDLER(%esp)

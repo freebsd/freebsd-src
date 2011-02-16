@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/common/newvers.sh,v 1.5.30.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #	$NetBSD: newvers.sh,v 1.1 1997/07/26 01:50:38 thorpej Exp $
 #
 # Copyright (c) 1984, 1986, 1990, 1993

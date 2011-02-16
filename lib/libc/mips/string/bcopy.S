@@ -36,7 +36,7 @@
 
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/mips/string/bcopy.S,v 1.3.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #define _LOCORE		/* XXX not really, just assembly-code source */
 #include <machine/endian.h>

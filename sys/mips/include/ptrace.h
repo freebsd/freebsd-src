@@ -28,7 +28,7 @@
  *
  *	@(#)ptrace.h	8.1 (Berkeley) 6/11/93
  *	from: src/sys/i386/include/ptrace.h,v 1.14 2005/05/31 09:43:04 dfr
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/ptrace.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE_PTRACE_H_

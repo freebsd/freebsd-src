@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_gate/test-2.sh,v 1.1.30.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 base=`basename $0`
 us=45

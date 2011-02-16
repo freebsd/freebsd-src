@@ -39,7 +39,7 @@ static const char sccsid[] = "@(#)badsect.c	8.1 (Berkeley) 6/5/93";
 #endif
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/badsect/badsect.c,v 1.21.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * badsect

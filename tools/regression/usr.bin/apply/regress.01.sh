@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/apply/regress.01.sh,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 SHELL=/bin/sh; export SHELL
 

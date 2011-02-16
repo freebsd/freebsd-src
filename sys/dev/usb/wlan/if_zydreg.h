@@ -1,6 +1,6 @@
 /*	$OpenBSD: if_zydreg.h,v 1.19 2006/11/30 19:28:07 damien Exp $	*/
 /*	$NetBSD: if_zydreg.h,v 1.2 2007/06/16 11:18:45 kiyohara Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/wlan/if_zydreg.h,v 1.6.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 2006 by Damien Bergamini <damien.bergamini@free.fr>

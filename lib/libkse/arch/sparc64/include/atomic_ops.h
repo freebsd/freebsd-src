@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/arch/sparc64/include/atomic_ops.h,v 1.3.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef	_ATOMIC_OPS_H_

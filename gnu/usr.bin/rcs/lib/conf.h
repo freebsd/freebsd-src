@@ -1,6 +1,6 @@
 /* RCS compile-time configuration */
 
-	/* $FreeBSD$ */
+	/* $FreeBSD: src/gnu/usr.bin/rcs/lib/conf.h,v 1.11.32.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /*
  * This file is generated automatically.

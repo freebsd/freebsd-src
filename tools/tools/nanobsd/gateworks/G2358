@@ -2,7 +2,7 @@
 # Gateworks Cambria IXP435 XScale board
 # kernel configuration file for FreeBSD/arm
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/nanobsd/gateworks/G2358,v 1.7.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 machine		arm
 ident		G2358

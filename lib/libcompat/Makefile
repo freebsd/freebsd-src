@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libcompat/Makefile,v 1.25.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 LIB=compat
 CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS -I${.CURDIR}/../libc/locale

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.sparc64,v 1.11.30.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 DEFAULT_VECTOR=	bfd_elf64_sparc_vec
 

@@ -28,7 +28,7 @@
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/sockopt.h,v 1.1.4.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 #ifndef _SYS_SOCKOPT_H_
 #define _SYS_SOCKOPT_H_

@@ -33,7 +33,7 @@
  *
  *	@(#)rpcv2.h	8.1 (Berkeley) 6/10/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/rpcv2.h,v 1.2.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

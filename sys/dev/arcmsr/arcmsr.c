@@ -65,7 +65,7 @@
 **	   				10/25/2010		Ching Huang			 Fixed bad range input in bus_alloc_resource for ADAPTER_TYPE_B
 **	   1.20.00.19	11/11/2010		Ching Huang			 Fixed arcmsr driver prevent arcsas support for Areca SAS HBA ARC13x0
 ******************************************************************************************
-* $FreeBSD$
+* $FreeBSD: src/sys/dev/arcmsr/arcmsr.c,v 1.31.2.5.2.1 2010/12/21 17:09:25 kensmith Exp $
 */
 #include <sys/param.h>
 #include <sys/systm.h>

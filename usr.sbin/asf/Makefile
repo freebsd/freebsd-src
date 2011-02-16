@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/asf/Makefile,v 1.3.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 PROG=	asf
 SRCS=	asf.c asf_kld.c asf_kvm.c asf_prog.c

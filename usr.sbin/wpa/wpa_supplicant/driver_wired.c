@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/wpa/wpa_supplicant/driver_wired.c,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include "includes.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/suffixes/src_wild1/Makefile,v 1.1.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 test1:	TEST1.b
 	cat TEST1.a TEST2.a | diff -u - TEST1.b

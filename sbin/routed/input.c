@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/input.c,v 1.17.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include "defs.h"
@@ -34,7 +34,7 @@
 #ifdef __NetBSD__
 __RCSID("$NetBSD$");
 #elif defined(__FreeBSD__)
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/sbin/routed/input.c,v 1.17.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 #else
 __RCSID("$Revision: 2.26 $");
 #ident "$Revision: 2.26 $"

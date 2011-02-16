@@ -1,7 +1,7 @@
 # Czech month and day names
 # by Rudolf Cejka <cejkar@dcse.fee.vutbr.cz>
 #
-# $FreeBSD$
+# $FreeBSD: src/share/timedef/cs_CZ.UTF-8.src,v 1.3.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too

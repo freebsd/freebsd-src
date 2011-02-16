@@ -8,7 +8,7 @@
 # created).  The WDSUP script is invoked for each wds vap that
 # gets created--to add the vap to a bridge.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/scripts/setup.wdsmain,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 PATH=.:$PATH
 . config

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/vmparam.h,v 1.49.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/misc/iso3166,v 1.20.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # Please consult with http://www.FreeBSD.org/internal/i18n.html before
 # making changes to this file.

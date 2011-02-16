@@ -37,7 +37,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/string/memcpy_arm.S,v 1.1.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 /*
  * This is one fun bit of code ...
  * Some easy listening music is suggested while trying to understand this

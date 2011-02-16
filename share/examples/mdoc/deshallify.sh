@@ -1,7 +1,7 @@
 #!/bin/sh
 # Script to remove shall clauses.
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/mdoc/deshallify.sh,v 1.2.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 sed -e 's/s shall define/s define/g' \
     -e 's/shall define/defines/g' \

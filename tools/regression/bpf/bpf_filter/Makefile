@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bpf/bpf_filter/Makefile,v 1.11.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 TEST_CASES?=	test0001 test0002 test0003 test0004	\
 		test0005 test0006 test0007 test0008	\

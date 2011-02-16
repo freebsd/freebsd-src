@@ -11,7 +11,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/e_hypotl.c,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /* long double version of hypot().  See e_hypot.c for most comments. */
 

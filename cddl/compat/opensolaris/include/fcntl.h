@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/cddl/compat/opensolaris/include/fcntl.h,v 1.2.4.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  *
  */
 

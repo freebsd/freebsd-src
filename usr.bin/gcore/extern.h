@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gcore/extern.h,v 1.4.36.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #define	PFLAGS_FULL	0x01

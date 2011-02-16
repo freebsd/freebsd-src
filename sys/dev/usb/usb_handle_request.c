@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/usb_handle_request.c,v 1.15.2.3.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /*-
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *

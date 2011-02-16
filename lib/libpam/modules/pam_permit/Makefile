@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_permit/Makefile,v 1.7.34.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 LIB=	pam_permit
 SRCS=	pam_permit.c

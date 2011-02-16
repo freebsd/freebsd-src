@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/sys_machdep.c,v 1.120.2.1.6.2 2011/01/06 22:57:06 cperciva Exp $");
 
 #include "opt_kstack_pages.h"
 

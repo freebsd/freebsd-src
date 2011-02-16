@@ -29,7 +29,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/tcpdump-stdinc.h,v 1.6.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.17 2006-05-19 17:55:34 hannes Exp $ (LBL)
  */
 

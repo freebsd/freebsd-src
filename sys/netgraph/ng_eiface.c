@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_eiface.c,v 1.54.2.5.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <sys/param.h>

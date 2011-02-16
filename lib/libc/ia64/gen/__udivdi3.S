@@ -28,7 +28,7 @@
 //
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/gen/__udivdi3.S,v 1.2.34.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 .section .text
 .proc __udivdi3#

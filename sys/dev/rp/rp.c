@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/rp/rp.c,v 1.77.2.2.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /* 
  * rp.c - for RocketPort FreeBSD

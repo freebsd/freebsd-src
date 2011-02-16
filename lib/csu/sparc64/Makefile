@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/csu/sparc64/Makefile,v 1.12.36.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 
 .PATH: ${.CURDIR}/../common
 

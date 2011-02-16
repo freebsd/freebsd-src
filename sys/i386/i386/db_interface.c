@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/db_interface.c,v 1.83.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * Interface to new debugger.

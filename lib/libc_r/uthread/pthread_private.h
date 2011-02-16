@@ -28,7 +28,7 @@
  *
  * Private thread definitions for the uthread kernel.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/pthread_private.h,v 1.88.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _PTHREAD_PRIVATE_H

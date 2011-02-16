@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/conf/wireless/tinybsd.ports,v 1.1.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 # Here you can add the applications from the FreeBSD Ports Collection which you 
 # want TinyBSD ports system to install in your embedded system. You whould list 
 # one application per line, mentioning its category and name, like the examples:

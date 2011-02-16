@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/stdarg.h,v 1.21.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE_STDARG_H_

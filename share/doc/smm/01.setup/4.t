@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)4.t	8.1 (Berkeley) 7/29/93
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/smm/01.setup/4.t,v 1.2.68.1.2.1 2010/12/21 17:09:25 kensmith Exp $
 .\"
 .ds LH "Installing/Operating \*(4B
 .ds CF \*(Dy

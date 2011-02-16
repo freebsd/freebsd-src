@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/powerpc/powerpc/in_cksum.c,v 1.3.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /* $NetBSD: in_cksum.c,v 1.7 1997/09/02 13:18:15 thorpej Exp $ */
 
 /*-

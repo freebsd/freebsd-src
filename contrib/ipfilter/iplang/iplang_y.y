@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/iplang/iplang_y.y,v 1.9.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 
 %{
 /*
@@ -7,7 +7,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * Id: iplang_y.y,v 2.9.2.4 2006/03/17 12:11:29 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ipfilter/iplang/iplang_y.y,v 1.9.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <stdio.h>

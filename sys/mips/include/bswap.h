@@ -1,6 +1,6 @@
 /*      $NetBSD: bswap.h,v 1.2 1999/08/21 05:39:53 simonb Exp $      */
 /*	JNPR: bswap.h,v 1.1 2006/08/07 05:38:57 katta */
-/* $FreeBSD$
+/* $FreeBSD: src/sys/mips/include/bswap.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 #ifndef _MACHINE_BSWAP_H_
 #define	_MACHINE_BSWAP_H_

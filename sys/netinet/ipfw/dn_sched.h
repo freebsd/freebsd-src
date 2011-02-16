@@ -27,7 +27,7 @@
 /*
  * The API to write a packet scheduling algorithm for dummynet.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ipfw/dn_sched.h,v 1.2.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _DN_SCHED_H

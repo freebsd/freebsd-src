@@ -32,7 +32,7 @@
  * BE LIABLE FOR ANY INFRINGEMENT OF ANY OTHERS' INTELLECTUAL
  * PROPERTIES.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net/radix_mpath.h,v 1.3.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #ifndef _NET_RADIX_MPATH_H_
 #define	_NET_RADIX_MPATH_H_

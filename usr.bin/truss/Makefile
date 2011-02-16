@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/truss/Makefile,v 1.25.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 WARNS?= 6
 NO_WERROR=

@@ -39,7 +39,7 @@
  *
  * Updated by Andrew Thompson <thompsa@FreeBSD.org> for MPSAFE TTY.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_tty.c,v 1.43.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  * $Whistle: ng_tty.c,v 1.21 1999/11/01 09:24:52 julian Exp $
  */
 

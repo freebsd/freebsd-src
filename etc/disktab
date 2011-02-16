@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/disktab,v 1.26.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # Disk geometry and partition layout tables.
 # See disktab(5) for format of this file.

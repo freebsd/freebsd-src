@@ -43,7 +43,7 @@ static const char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/rwall/rwall.c,v 1.14.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * This program is not related to David Wall, whose Stanford Ph.D. thesis

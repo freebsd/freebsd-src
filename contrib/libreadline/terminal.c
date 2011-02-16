@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/terminal.c,v 1.10.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /* terminal.c -- controlling the terminal with termcap. */
 
 /* Copyright (C) 1996-2006 Free Software Foundation, Inc.

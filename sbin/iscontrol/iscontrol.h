@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/iscontrol/iscontrol.h,v 1.2.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 /*
  | $Id: iscontrol.h,v 2.3 2007/04/27 08:36:49 danny Exp danny $

@@ -23,7 +23,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/ofw/ofw_bus_if.m,v 1.3.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 # Interface for retrieving the package handle and a subset, namely
 # 'compatible', 'device_type', 'model' and 'name', of the standard

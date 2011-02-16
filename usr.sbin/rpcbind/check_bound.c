@@ -1,5 +1,5 @@
 /*	$NetBSD: check_bound.c,v 1.2 2000/06/22 08:09:26 fvdl Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/usr.sbin/rpcbind/check_bound.c,v 1.5.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for

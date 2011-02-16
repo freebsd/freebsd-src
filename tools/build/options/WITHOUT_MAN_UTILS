@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_MAN_UTILS,v 1.1.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 Set to not build utilities for manual pages,
 .Xr apropos 1 ,
 .Xr catman 1 ,

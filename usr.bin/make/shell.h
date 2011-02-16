@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/shell.h,v 1.1.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef shell_h_6002e3b8

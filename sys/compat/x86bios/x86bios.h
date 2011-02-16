@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/x86bios/x86bios.h,v 1.5.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 /*
  * x86 registers were borrowed from x86emu.h x86emu_regs.h

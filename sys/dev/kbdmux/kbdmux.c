@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: kbdmux.c,v 1.4 2005/07/14 17:38:35 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/kbdmux/kbdmux.c,v 1.23.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include "opt_compat.h"

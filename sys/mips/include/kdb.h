@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: src/sys/alpha/include/kdb.h,v 1.2 2005/01/05 20:05:50 imp
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/kdb.h,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE_KDB_H_

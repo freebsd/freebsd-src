@@ -1,7 +1,7 @@
 	USAGE
 	KAME Project
 	$KAME: USAGE,v 1.33 2000/11/22 10:22:57 itojun Exp $
-	$FreeBSD$
+	$FreeBSD: src/share/examples/IPv6/USAGE,v 1.5.34.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 This is an introduction of how to use the commands provided in the KAME
 kit.  For more information, please refer to each man page.

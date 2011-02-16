@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/ncp_rcfile.h,v 1.5.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 #ifndef _NETNCP_NCP_RCFILE_H_
 #define _NETNCP_NCP_RCFILE_H_

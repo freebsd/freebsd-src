@@ -17,4 +17,4 @@ seed of 100:
 
     tcpstream client 192.168.10.10 8080 100
 
-$FreeBSD$
+$FreeBSD: src/tools/regression/netinet/tcpstream/README,v 1.1.24.1.6.1 2010/12/21 17:09:25 kensmith Exp $

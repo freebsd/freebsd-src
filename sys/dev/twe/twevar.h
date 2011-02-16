@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/twe/twevar.h,v 1.13.30.2.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #define TWE_DRIVER_VERSION_STRING	"1.50.01.002"

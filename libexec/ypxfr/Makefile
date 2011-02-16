@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/ypxfr/Makefile,v 1.11.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 PROG=	ypxfr
 SRCS=	yp_dblookup.c yp_dbwrite.c yp_error.c \

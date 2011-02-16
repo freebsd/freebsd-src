@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/sentry5/files.sentry5,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 # TODO: Add attachment elsehwere in the tree
 # for USB 1.1 OHCI, Ethernet and IPSEC cores

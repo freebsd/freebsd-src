@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/libgdb/fbsd-threads.c,v 1.18.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $ */
 /* FreeBSD libthread_db assisted debugging support.
    Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
 

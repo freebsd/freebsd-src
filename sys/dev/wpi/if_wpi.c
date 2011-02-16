@@ -19,7 +19,7 @@
 #define VERSION "20071127"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/wpi/if_wpi.c,v 1.27.2.11.2.4 2011/01/26 17:20:34 bschmidt Exp $");
 
 /*
  * Driver for Intel PRO/Wireless 3945ABG 802.11 network adapters.

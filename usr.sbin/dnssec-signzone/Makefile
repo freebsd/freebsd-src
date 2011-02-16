@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/dnssec-signzone/Makefile,v 1.4.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 BIND_DIR=	${.CURDIR}/../../contrib/bind9
 LIB_BIND_REL=	../../lib/bind

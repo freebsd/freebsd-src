@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/groff/src/libs/libgroff/invalid.cpp,v 1.3.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #include "lib.h"
 

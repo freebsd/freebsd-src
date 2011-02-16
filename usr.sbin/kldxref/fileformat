@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.sbin/kldxref/fileformat,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 linker.hints file consists from the one or more records,
 and is processed by sys/kern/kern_linker.c::linker_hints_lookup()

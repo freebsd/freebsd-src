@@ -3,7 +3,7 @@
 #
 # portsinfo - Generate list of new ports for last two weeks.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/portsinfo/portsinfo.sh,v 1.5.56.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 PATH=/bin:/usr/bin:/usr/local/bin:$PATH; export PATH
 

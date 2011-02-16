@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/unlink/00.t,v 1.1.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 desc="unlink removes regular files, symbolic links, fifos and sockets"
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/dev/ral/rt2661_ucode.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 /*	$OpenBSD: microcode.h,v 1.5 2008/03/06 09:18:04 deraadt Exp $	*/
 
 /*-

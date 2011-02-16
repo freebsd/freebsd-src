@@ -55,7 +55,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm.h,v 1.32.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef VM_H

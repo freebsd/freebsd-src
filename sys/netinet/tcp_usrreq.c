@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/tcp_usrreq.c,v 1.192.2.3.4.2 2011/02/11 15:14:51 jhb Exp $");
 
 #include "opt_ddb.h"
 #include "opt_inet.h"

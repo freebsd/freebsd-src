@@ -24,7 +24,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/include/bus_dma.h,v 1.28.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #ifndef _I386_BUS_DMA_H_
 #define _I386_BUS_DMA_H_

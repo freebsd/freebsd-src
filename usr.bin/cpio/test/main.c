@@ -45,7 +45,7 @@
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
 #define KNOWNREF	"test_option_f.cpio.uu"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/main.c,v 1.4.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * "list.h" is simply created by "grep DEFINE_TEST"; it has

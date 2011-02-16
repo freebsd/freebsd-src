@@ -36,7 +36,7 @@
 #
 # Posix 1003.2 compliant print spooler interface.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/lpr/lp/lp.sh,v 1.8.2.2.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 
 ncopies=""

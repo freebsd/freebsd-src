@@ -2,7 +2,7 @@
  * Offsets into structures used from asm.  Must be kept in sync with
  * appropriate headers.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/sparc64/sys/assym.s,v 1.3.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #define	FPRS_FEF	0x4

@@ -12,7 +12,7 @@
 
   <corpauthor>The &os; Project</corpauthor>
 
-  <pubdate>$FreeBSD$</pubdate>
+  <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/relnotes/article.sgml,v 1.1101.2.23.2.11 2011/02/12 09:12:11 hrs Exp $</pubdate>
 
   <copyright>
     <year>2011</year>

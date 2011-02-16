@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/ia32/ia32_exception.S,v 1.7.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <machine/asmacros.h>

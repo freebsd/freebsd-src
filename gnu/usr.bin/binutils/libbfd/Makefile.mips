@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.mips,v 1.4.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 #xxxIMPxxx: endian and size
 DEFAULT_VECTOR=	bfd_elf32_tradbigmips_vec

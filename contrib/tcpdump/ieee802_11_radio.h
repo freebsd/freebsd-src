@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tcpdump/ieee802_11_radio.h,v 1.5.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /* $NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp $ */
 /* $Header: /tcpdump/master/tcpdump/ieee802_11_radio.h,v 1.3 2007-08-29 02:31:44 mcr Exp $ */
 

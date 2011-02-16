@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia64/support.S,v 1.28.2.4.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 /*-
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pat_rep.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/pat_rep.h,v 1.6.30.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

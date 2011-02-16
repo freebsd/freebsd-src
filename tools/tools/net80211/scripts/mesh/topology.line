@@ -4,7 +4,7 @@
 #
 #  node1 <-> node2 <-> node3 <-> node4 <-> node5
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/scripts/mesh/topology.line,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 PATH=../:.:$PATH
 . config

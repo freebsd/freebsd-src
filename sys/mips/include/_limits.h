@@ -28,7 +28,7 @@
  *
  *	@(#)limits.h	8.3 (Berkeley) 1/4/94
  *	from: src/sys/i386/include/_limits.h,v 1.27 2005/01/06 22:18:15 imp
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/_limits.h,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE__LIMITS_H_

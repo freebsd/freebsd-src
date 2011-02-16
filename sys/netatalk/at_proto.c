@@ -20,7 +20,7 @@
  *	+1-313-763-0525
  *	netatalk@itd.umich.edu
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/at_proto.c,v 1.14.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <sys/param.h>

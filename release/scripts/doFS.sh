@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/doFS.sh,v 1.62.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 
 set -ex

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/timepps.h,v 1.19.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  *
  * The is a FreeBSD version of the RFC 2783 API for Pulse Per Second 
  * timing interfaces.  

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_access.h,v 1.11.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _DDB_DB_ACCESS_H_

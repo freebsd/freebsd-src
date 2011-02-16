@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/usr.sbin/mptutil/mpt_cam.c,v 1.1.2.4.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/param.h>
 #include <err.h>

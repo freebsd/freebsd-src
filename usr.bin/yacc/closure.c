@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)closure.c	5.3 (Berkeley) 5/24/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/yacc/closure.c,v 1.13.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <stdlib.h>
 #include "defs.h"

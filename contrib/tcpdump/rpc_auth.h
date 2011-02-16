@@ -29,7 +29,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/rpc_auth.h,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  * FreeBSD: src/include/rpc/auth.h,v 1.14.2.1 1999/08/29 14:39:02 peter Exp
  */
 

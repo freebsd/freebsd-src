@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/ssh-agent.c,v 1.29.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

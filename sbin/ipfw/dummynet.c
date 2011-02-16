@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ipfw/dummynet.c,v 1.9.2.4.4.1 2010/12/21 17:09:25 kensmith Exp $
  *
  * dummynet support
  */

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libusb/Makefile,v 1.7.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # Makefile for the FreeBSD specific LibUSB 2.0
 #

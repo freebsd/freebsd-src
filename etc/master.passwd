@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/master.passwd,v 1.40.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 root::0:0::0:0:Charlie &:/root:/bin/csh
 toor:*:0:0::0:0:Bourne-again Superuser:/root:

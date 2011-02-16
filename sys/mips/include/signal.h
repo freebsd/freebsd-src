@@ -33,7 +33,7 @@
  *
  *	@(#)signal.h	8.1 (Berkeley) 6/10/93
  *	JNPR: signal.h,v 1.4 2007/01/08 04:58:37 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/signal.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE_SIGNAL_H_

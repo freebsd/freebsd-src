@@ -2,7 +2,7 @@
 #
 # Setup a TDMA slave and hook it into a bridge.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/scripts/setup.tdma-slave,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 PATH=.:$PATH
 . config

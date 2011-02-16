@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/lib/libregex/regex.h,v 1.5.30.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 #ifndef _REGEX_H
 #include <posix/regex.h>
 

@@ -31,7 +31,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/fdescfs/fdesc_vnops.c,v 1.117.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

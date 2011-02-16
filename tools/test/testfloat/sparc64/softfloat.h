@@ -32,7 +32,7 @@ these four paragraphs for those parts of this code that are retained.
 
 =============================================================================*/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/test/testfloat/sparc64/softfloat.h,v 1.1.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #include <machine/ieeefp.h>
 

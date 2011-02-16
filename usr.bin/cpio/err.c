@@ -26,7 +26,7 @@
 
 
 #include "cpio_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/err.c,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>

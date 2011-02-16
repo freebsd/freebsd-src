@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/atomic.c,v 1.6.32.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /* This file creates publically callable functions to perform various
  * simple arithmetic on memory which is atomic in the presence of

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *	from: BSDI: trap.c,v 1.17.2.9 1999/10/19 15:29:52 cp Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/rwindow.c,v 1.9.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/libc/stdlib/test-mergesort.t,v 1.1.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 cd `dirname $0`
 

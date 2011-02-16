@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/vi_mode.c,v 1.7.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /* vi_mode.c -- A vi emulation mode for Bash.
    Derived from code written by Jeff Sparkes (jsparkes@bnr.ca).  */
 

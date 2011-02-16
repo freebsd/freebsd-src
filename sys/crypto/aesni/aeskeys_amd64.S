@@ -252,4 +252,4 @@ ENTRY(aesni_set_deckey)
 	.cfi_endproc
 END(aesni_set_deckey)
 
-	.ident	"$FreeBSD$"
+	.ident	"$FreeBSD: src/sys/crypto/aesni/aeskeys_amd64.S,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $"

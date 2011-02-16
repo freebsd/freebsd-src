@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/builtins/read3.0,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 printf '%s\n' 'a\ b c'	| { read a b; printf '%s\n' "x${a}x${b}x"; }
 printf '%s\n' 'a b\ c'	| { read a b; printf '%s\n' "x${a}x${b}x"; }

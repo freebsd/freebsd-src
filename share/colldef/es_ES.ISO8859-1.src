@@ -1,6 +1,6 @@
 # Espan~ol (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/es_ES.ISO8859-1.src,v 1.5.38.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 charmap map.ISO8859-1
 order \

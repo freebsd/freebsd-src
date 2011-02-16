@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/at91/std.kb920x,v 1.7.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 include "../at91/std.at91"
 
 options		STARTUP_PAGETABLE_ADDR=0x20800000

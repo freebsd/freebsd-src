@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/expansion/question1.0,v 1.1.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 x=a\ b
 [ "$x" = "${x?}" ] || exit 1

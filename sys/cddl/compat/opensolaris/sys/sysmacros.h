@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/compat/opensolaris/sys/sysmacros.h,v 1.5.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved  	*/

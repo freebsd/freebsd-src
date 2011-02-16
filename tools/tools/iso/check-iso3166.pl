@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/iso/check-iso3166.pl,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # This script compares the file iso3166 (from head/share/misc) with the files
 # list-en1-semic-2.txt (from

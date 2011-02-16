@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/libexec/rtld-elf/mips/reloc.c,v 1.3.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

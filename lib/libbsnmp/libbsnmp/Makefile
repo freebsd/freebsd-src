@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libbsnmp/libbsnmp/Makefile,v 1.6.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 

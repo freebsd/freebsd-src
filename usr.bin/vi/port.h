@@ -1,6 +1,6 @@
 /* @(#)port.h.in	8.13 (Berkeley) 6/12/96 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/vi/port.h,v 1.2.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /*
  * Declare the basic types, if they aren't already declared.  Named and

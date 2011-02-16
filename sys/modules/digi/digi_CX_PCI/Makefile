@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/digi/digi_CX_PCI/Makefile,v 1.1.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../../dev/digi
 KMOD=	digi_CX_PCI

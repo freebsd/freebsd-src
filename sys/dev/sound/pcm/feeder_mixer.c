@@ -36,7 +36,7 @@
 #define SND_USE_FXDIV
 #include "snd_fxdiv_gen.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_mixer.c,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 #endif
 
 #undef SND_FEEDER_MULTIFORMAT

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.ia64,v 1.29.2.4.4.1 2010/12/21 17:09:25 kensmith Exp $
 # Options specific to the ia64 platform kernels
 
 ITANIUM			opt_global.h

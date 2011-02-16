@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: gn.c,v 1.1 2008/03/11 00:02:42 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/gn.c,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <sys/queue.h>

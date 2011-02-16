@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/environment.c,v 1.7.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * Manage an environment-like space in which string variables may be stored.

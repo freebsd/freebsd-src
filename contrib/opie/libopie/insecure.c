@@ -28,7 +28,7 @@ License Agreement applies to this software.
         Created at NRL for OPIE 2.2 from opiesubr.c. Fixed pointer
              assignment that should have been a comparison.
 
-$FreeBSD$
+$FreeBSD: src/contrib/opie/libopie/insecure.c,v 1.3.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 */
 #include "opie_cfg.h"

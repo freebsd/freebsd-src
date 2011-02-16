@@ -14,7 +14,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/s_finitef.c,v 1.7.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * finitef(x) returns 1 is x is finite, else 0;

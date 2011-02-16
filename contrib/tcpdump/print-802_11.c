@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tcpdump/print-802_11.c,v 1.6.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /*
  * Copyright (c) 2001
  *	Fortress Technologies, Inc.  All rights reserved.

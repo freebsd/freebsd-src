@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/conf/ldscript.powerpc,v 1.8.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 OUTPUT_FORMAT("elf32-powerpc", "elf32-powerpc", "elf32-powerpc")
 OUTPUT_ARCH(powerpc)

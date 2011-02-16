@@ -2,7 +2,7 @@
 # 
 # A program to act as a test harness for the mctest program
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/mctest/mctest_run.sh,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # Defaults
 size=1024

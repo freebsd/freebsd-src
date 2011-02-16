@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: src/sys/alpha/include/memdev.h,v 1.2 2004/08/01 18:51:44 markm
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/memdev.h,v 1.2.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #define	CDEV_MINOR_MEM	0

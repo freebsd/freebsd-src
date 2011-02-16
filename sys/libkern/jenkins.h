@@ -2,7 +2,7 @@
 #define __LIBKERN_JENKINS_H__
 /*
  * Taken from http://burtleburtle.net/bob/c/lookup3.c
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/jenkins.h,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

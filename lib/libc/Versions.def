@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/Versions.def,v 1.8.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 
 #
 # Note: Whenever bumping the FBSD version, always make

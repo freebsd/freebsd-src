@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/mac/mac_bsdextended/test_matches.sh,v 1.1.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 
 uidrange="60000:100000"

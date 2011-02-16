@@ -34,7 +34,7 @@
 #define	_IF_ADMSWVAR_H_
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/mips/adm5120/if_admswvar.h,v 1.2.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

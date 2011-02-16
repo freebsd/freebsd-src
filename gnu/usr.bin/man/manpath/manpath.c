@@ -13,7 +13,7 @@
  * The University of Texas at Austin
  * Austin, Texas  78712
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/man/manpath/manpath.c,v 1.14.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #define MANPATH_MAIN

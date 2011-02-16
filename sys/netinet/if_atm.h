@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/netinet/if_atm.h,v 1.7.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /*      $NetBSD: if_atm.h,v 1.2 1996/07/03 17:17:17 chuck Exp $       */
 
 /*-

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/auxio/auxioreg.h,v 1.2.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /*	$NetBSD: auxioreg.h,v 1.4 2001/10/22 07:31:41 mrg Exp $	*/
 
 /*-

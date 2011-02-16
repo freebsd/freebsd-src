@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_TCSH,v 1.1.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 Set to not build and install
 .Pa /bin/csh
 (which is

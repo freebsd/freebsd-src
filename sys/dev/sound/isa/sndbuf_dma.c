@@ -32,7 +32,7 @@
 
 #include <isa/isavar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/sndbuf_dma.c,v 1.4.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 int
 sndbuf_dmasetup(struct snd_dbuf *b, struct resource *drq)

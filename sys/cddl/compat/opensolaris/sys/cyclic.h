@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/compat/opensolaris/sys/cyclic.h,v 1.3.4.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  *
  */
 /*

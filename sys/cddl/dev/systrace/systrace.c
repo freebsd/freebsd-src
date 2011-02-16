@@ -20,7 +20,7 @@
  *
  * Portions Copyright 2006-2008 John Birrell jb@freebsd.org
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/dev/systrace/systrace.c,v 1.2.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efiapi.h,v 1.7.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 #ifndef _EFI_API_H
 #define _EFI_API_H
 

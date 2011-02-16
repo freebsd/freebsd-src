@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netipsec/key_var.h,v 1.3.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 /*	$KAME: key_var.h,v 1.11 2001/09/12 23:05:07 sakane Exp $	*/
 
 /*-

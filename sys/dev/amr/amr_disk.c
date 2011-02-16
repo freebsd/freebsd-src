@@ -56,7 +56,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/amr/amr_disk.c,v 1.39.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * Disk driver for AMI MegaRaid controllers

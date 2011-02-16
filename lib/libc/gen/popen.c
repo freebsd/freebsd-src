@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 5/3/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/popen.c,v 1.21.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

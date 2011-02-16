@@ -3,7 +3,7 @@
  *
  * $OpenBSD: uthread_msync.c,v 1.2 1999/06/09 07:16:17 d Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_msync.c,v 1.13.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include "namespace.h"

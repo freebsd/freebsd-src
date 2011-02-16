@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ip_ipsec.c,v 1.22.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include "opt_ipsec.h"
 #include "opt_sctp.h"

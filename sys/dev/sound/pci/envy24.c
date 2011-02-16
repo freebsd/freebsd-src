@@ -39,7 +39,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/envy24.c,v 1.17.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 MALLOC_DEFINE(M_ENVY24, "envy24", "envy24 audio");
 

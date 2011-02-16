@@ -1,6 +1,6 @@
 /*	$OpenBSD: pathnames.h,v 1.3 2003/06/03 02:56:18 millert Exp $	*/
 /*	$NetBSD: pathnames.h,v 1.3 1994/12/08 09:30:59 jtc Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.bin/tip/tip/pathnames.h,v 1.6.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 
 /*
  * Copyright (c) 1989, 1993

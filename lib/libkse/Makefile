@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libkse/Makefile,v 1.73.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does

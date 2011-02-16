@@ -17,7 +17,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/wlan/if_run.c,v 1.4.2.17.2.2 2011/01/26 17:20:34 bschmidt Exp $");
 
 /*-
  * Ralink Technology RT2700U/RT2800U/RT3000U chipset driver.

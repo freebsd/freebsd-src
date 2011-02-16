@@ -36,7 +36,7 @@
  *
  ***********************license end**************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/mips/cavium/dev/rgmii/octeon_rgmx.h,v 1.3.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /*------------------------------------------------------------------
  * octeon_rgmx.h      RGMII Ethernet Interfaces

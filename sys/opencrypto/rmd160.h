@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/opencrypto/rmd160.h,v 1.2.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 /*	$OpenBSD: rmd160.h,v 1.3 2002/03/14 01:26:51 millert Exp $	*/
 /*-
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.

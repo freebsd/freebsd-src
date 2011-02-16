@@ -33,7 +33,7 @@ static char sccsid[] = "from: @(#)rpc.rstatd.c 1.1 86/09/25 Copyr 1984 Sun Micro
 static char sccsid[] = "from: @(#)rstat_proc.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/rpc.rstatd/rstat_proc.c,v 1.26.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $";
 #endif
 
 /*

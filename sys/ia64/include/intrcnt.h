@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/include/intrcnt.h,v 1.6.22.2.4.1 2010/12/21 17:09:25 kensmith Exp $ */
 /* $NetBSD: intrcnt.h,v 1.17 1998/11/19 01:48:04 ross Exp $ */
 
 /*-

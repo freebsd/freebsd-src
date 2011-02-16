@@ -75,7 +75,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/xen/pmap.c,v 1.17.2.6.2.5 2011/01/07 23:11:19 cperciva Exp $");
 
 /*
  *	Manages physical address maps.

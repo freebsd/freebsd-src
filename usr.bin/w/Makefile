@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/w/Makefile,v 1.8.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 PROG=	w
 SRCS=	fmt.c pr_time.c proc_compare.c w.c

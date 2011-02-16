@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/altq/altq/altq_cdnr.c,v 1.4.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 /*	$KAME: altq_cdnr.c,v 1.14 2003/09/05 22:40:36 itojun Exp $	*/
 
 /*

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libelf/elf_scn.c,v 1.2.10.3.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <assert.h>
 #include <errno.h>

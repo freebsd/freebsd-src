@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfs/nfs_common.c,v 1.122.2.3.4.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * These functions support the macros and help fiddle mbuf chains for

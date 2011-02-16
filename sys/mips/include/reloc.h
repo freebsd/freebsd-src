@@ -31,5 +31,5 @@
  *
  *	from: src/sys/alpha/include/reloc.h,v 1.1.1.1.6.1 2000/08/03 00:48:04 peter
  *	JNPR: reloc.h,v 1.3 2006/08/07 05:38:57 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/reloc.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */

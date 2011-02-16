@@ -28,7 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/bktr/ioctl_meteor.h,v 1.16.22.2.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 /*
  *	ioctl constants for Matrox Meteor Capture card.

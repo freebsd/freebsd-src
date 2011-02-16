@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/firewire/fwe/Makefile,v 1.4.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 # Makefile for the fwe(4) module (Ethernet over IEEE1394)
 

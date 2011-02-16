@@ -163,4 +163,4 @@ ENTRY(aesni_decrypt_cbc)
 	.cfi_endproc
 END(aesni_decrypt_cbc)
 
-	.ident	"$FreeBSD$"
+	.ident	"$FreeBSD: src/sys/crypto/aesni/aesencdec_i386.S,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $"

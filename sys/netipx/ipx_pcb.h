@@ -61,7 +61,7 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_pcb.h,v 1.29.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _NETIPX_IPX_PCB_H_

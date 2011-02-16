@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  * RMI_BSD
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/rmi/dev/xlr/debug.h,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 #ifndef _RMI_DEBUG_H_
 #define _RMI_DEBUG_H_

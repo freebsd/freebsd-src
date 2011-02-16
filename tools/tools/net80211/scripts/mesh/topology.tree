@@ -13,7 +13,7 @@
 #      v      v
 #    node4  node5
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/scripts/mesh/topology.tree,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 PATH=../:.:$PATH
 . config

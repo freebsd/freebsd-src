@@ -25,7 +25,7 @@
 
 #include <sys/cdefs.h>
 #ifdef __FreeBSD__
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_hostap.c,v 1.27.2.4.2.1 2010/12/21 17:09:25 kensmith Exp $");
 #endif
 
 /*

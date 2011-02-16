@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gnu-sort/lib/version-etc.c,v 1.4.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /* Written by Jim Meyering. */
 

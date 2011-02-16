@@ -71,7 +71,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_ipc.c,v 1.24.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include "opt_sysvipc.h"
 

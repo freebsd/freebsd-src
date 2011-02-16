@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/aac/aacvar.h,v 1.52.2.7.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <sys/bio.h>

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ppp/async.c,v 1.29.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/types.h>
 

@@ -1,5 +1,5 @@
 /*	$NetBSD: ehcivar.h,v 1.19 2005/04/29 15:04:29 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/mips/rmi/ehcivar.h,v 1.4.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 2001 The NetBSD Foundation, Inc.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libopcodes/Makefile.mips,v 1.4.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 SRCS+=	mips-dis.c mips-opc.c mips16-opc.c
 CFLAGS+= -DARCH_mips

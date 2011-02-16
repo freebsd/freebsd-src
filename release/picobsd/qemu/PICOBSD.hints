@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/qemu/PICOBSD.hints,v 1.1.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 hint.fdc.0.at="isa"
 hint.fdc.0.port="0x3F0"
 hint.fdc.0.irq="6"

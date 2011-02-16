@@ -23,7 +23,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91_sscreg.h,v 1.4.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #ifndef ARM_AT91_AT91_SSCREG_H
 #define ARM_AT91_AT91_SSCREG_H

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/sysdoc/sysctl.sh,v 1.1.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # For each sysctl, repeat:
 #	if it has a short description

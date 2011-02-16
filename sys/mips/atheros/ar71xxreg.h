@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/mips/atheros/ar71xxreg.h,v 1.14.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #ifndef _AR71XX_REG_H_
 #define _AR71XX_REG_H_

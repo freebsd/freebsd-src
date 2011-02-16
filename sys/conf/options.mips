@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 #	JNPR: options.mips,v 1.2 2006/09/15 12:52:34
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.mips,v 1.3.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 CPU_MIPS4KC	opt_global.h
 CPU_MIPS32	opt_global.h

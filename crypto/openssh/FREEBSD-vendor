@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/crypto/openssh/FREEBSD-vendor,v 1.2.4.2.6.1 2010/12/21 17:09:25 kensmith Exp $
 Project:	Portable OpenSSH
 ProjectURL:	http://www.openssh.com/portable.html
 Version:	5.2p1

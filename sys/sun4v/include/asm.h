@@ -31,7 +31,7 @@
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
  *	from: FreeBSD: src/sys/i386/include/asm.h,v 1.7 2000/01/25
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/asm.h,v 1.2.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE_ASM_H_

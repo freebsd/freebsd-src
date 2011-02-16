@@ -42,7 +42,7 @@
  *
  * Created      : 08/02/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/undefined.h,v 1.3.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 

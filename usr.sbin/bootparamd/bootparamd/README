@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.sbin/bootparamd/bootparamd/README,v 1.2.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 This directory contains a version of the rpc.bootparamd, which have been 
 written using the Sun's RPC protocol for bootparamd. To use it you must 

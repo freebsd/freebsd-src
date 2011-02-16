@@ -1,7 +1,7 @@
 #
 # DEFAULTS -- Default kernel configuration file for FreeBSD/pc98
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/pc98/conf/DEFAULTS,v 1.13.2.4.4.1 2010/12/21 17:09:25 kensmith Exp $
 
 machine		pc98 i386
 options 	PC98

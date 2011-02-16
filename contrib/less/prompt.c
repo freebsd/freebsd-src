@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/prompt.c,v 1.8.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /*
  * Copyright (C) 1984-2009  Mark Nudelman
  *

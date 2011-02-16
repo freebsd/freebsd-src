@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.arm,v 1.8.12.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 .if defined(TARGET_BIG_ENDIAN)
 DEFAULT_VECTOR=	bfd_elf32_bigarm_vec

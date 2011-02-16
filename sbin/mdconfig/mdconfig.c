@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/mdconfig/mdconfig.c,v 1.57.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
  *
  */
 #include <sys/param.h>

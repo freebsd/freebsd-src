@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/conf/wrap/etc/ttys,v 1.1.12.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # This file specifies various information about terminals on the system.
 # It is used by several different programs.  Common entries for the

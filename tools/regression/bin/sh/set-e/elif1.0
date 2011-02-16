@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/set-e/elif1.0,v 1.1.10.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 set -e
 if false; then
 	:

@@ -1,5 +1,5 @@
 /*	$NetBSD: instr.h,v 1.4 2005/12/11 12:18:43 christos Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/powerpc/fpu/fpu_instr.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /*
  * Copyright (c) 1992, 1993

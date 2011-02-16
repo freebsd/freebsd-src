@@ -1,4 +1,4 @@
-// $FreeBSD$
+// $FreeBSD: src/sys/ia64/ia64/setjmp.S,v 1.3.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 //-
 // Copyright (c) 1999, 2000

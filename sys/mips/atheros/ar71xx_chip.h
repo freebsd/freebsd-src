@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/mips/atheros/ar71xx_chip.h,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #ifndef	__AR71XX_CHIP_H__
 #define	__AR71XX_CHIP_H__

@@ -7,7 +7,7 @@
 //  fitness for any particular purpose, or against the infringements of
 //  intellectual property rights of others.
 // ----------------------------------------------------------------------------
-// $FreeBSD$
+// $FreeBSD: src/sys/boot/arm/at91/libat91/at91rm9200.h,v 1.3.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 //
 // File Name           : AT91RM9200.h
 // Object              : AT91RM9200 definitions

@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/tinyware/passwd/Makefile,v 1.4.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 # Only NO_PAM is used by PicoBSD and supported here
 

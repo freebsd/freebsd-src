@@ -1,6 +1,6 @@
 #	@(#)Makefile	5.2 (Berkeley) 12/28/90
 #	$Id: Makefile,v 1.6 1994/06/30 05:33:39 cgd Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/make/Makefile,v 1.67.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 PROG=	make
 CFLAGS+=-I${.CURDIR}

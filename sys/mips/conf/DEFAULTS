@@ -1,7 +1,7 @@
 #
 # DEFAULTS -- Default kernel configuration file for FreeBSD/mips
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/conf/DEFAULTS,v 1.2.2.3.4.1 2010/12/21 17:09:25 kensmith Exp $
 
 machine 	mips
 

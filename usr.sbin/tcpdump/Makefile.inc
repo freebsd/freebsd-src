@@ -1,4 +1,4 @@
 #	@(#)Makefile.inc	5.1 (Berkeley) 5/11/90
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/tcpdump/Makefile.inc,v 1.3.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 BINDIR?=	/usr/sbin

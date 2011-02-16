@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/revnetgroup/revnetgroup.c,v 1.13.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $";
 #endif /* not lint */
 
 #include <err.h>

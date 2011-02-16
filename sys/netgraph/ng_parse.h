@@ -38,7 +38,7 @@
  * Author: Archie Cobbs <archie@freebsd.org>
  *
  * $Whistle: ng_parse.h,v 1.2 1999/11/29 01:43:48 archie Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_parse.h,v 1.13.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _NETGRAPH_NG_PARSE_H_

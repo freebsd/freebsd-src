@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libgssapi/gss_set_sec_context_option.c,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /* RCSID("$Id: gss_set_sec_context_option.c 19928 2007-01-16 10:37:54Z lha $"); */
 
 #include <gssapi/gssapi.h>

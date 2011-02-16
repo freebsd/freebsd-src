@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/controller/avr32dci.c,v 1.8.2.4.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*-
  * Copyright (c) 2009 Hans Petter Selasky. All rights reserved.

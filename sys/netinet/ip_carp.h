@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet/ip_carp.h,v 1.4.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $	*/
 /*	$OpenBSD: ip_carp.h,v 1.8 2004/07/29 22:12:15 mcbride Exp $	*/
 
 /*

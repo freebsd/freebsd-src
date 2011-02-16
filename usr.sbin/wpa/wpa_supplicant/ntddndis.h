@@ -2,7 +2,7 @@
 #define _NTDDNDIS_H_
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/wpa/wpa_supplicant/ntddndis.h,v 1.2.14.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/ipf/ipf/Makefile,v 1.6.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 PROG=		ipf
 SRCS=		${GENHDRS} ipf.c ipfcomp.c ipf_y.c ipf_l.c bpf_filter.c

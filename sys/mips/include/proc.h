@@ -33,7 +33,7 @@
  *
  *	@(#)proc.h	8.1 (Berkeley) 6/10/93
  *	JNPR: proc.h,v 1.7.2.1 2007/09/10 06:25:24 girish
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/proc.h,v 1.1.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE_PROC_H_

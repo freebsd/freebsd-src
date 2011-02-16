@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sis/if_sis.c,v 1.9.2.14.2.2 2011/01/24 21:03:22 yongari Exp $");
 
 /*
  * SiS 900/SiS 7016 fast ethernet PCI NIC driver. Datasheets are

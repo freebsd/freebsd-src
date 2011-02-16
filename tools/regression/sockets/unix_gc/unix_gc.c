@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/sockets/unix_gc/unix_gc.c,v 1.2.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

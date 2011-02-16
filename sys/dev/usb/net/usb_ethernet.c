@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/net/usb_ethernet.c,v 1.8.2.5.2.1 2010/12/21 17:09:25 kensmith Exp $ */
 /*-
  * Copyright (c) 2009 Andrew Thompson (thompsa@FreeBSD.org)
  *

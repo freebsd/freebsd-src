@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_uathvar.h,v 1.3 2006/09/20 19:47:17 damien Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/wlan/if_uathvar.h,v 1.4.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 2006

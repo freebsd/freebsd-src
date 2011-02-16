@@ -11,7 +11,7 @@
 #   -Frédéric Praca <frederic.praca@freebsd-fr.org>
 #   -Clément Pillias <clement.pillias@free.fr> for accent keys
 #
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/fr.dvorak.acc.kbd,v 1.1.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state

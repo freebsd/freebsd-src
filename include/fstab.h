@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fstab.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/include/fstab.h,v 1.4.34.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _FSTAB_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.bin/ssh-keygen/Makefile,v 1.17.10.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 
 PROG=	ssh-keygen
 SRCS=	ssh-keygen.c

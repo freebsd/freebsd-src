@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/drm_bufs.c,v 1.13.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /** @file drm_bufs.c
  * Implementation of the ioctls for setup of DRM mappings and DMA buffers.

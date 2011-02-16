@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/build/mk/OptionalObsoleteFiles.inc,v 1.20.2.8.2.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # This file add support for the WITHOUT_* and WITH_* knobs in src.conf(5) to
 # the check-old and delete-old* targets.

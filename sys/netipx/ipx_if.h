@@ -58,7 +58,7 @@
  *
  *	@(#)ipx_if.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_if.h,v 1.20.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _NETIPX_IPX_IF_H_

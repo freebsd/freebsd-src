@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/crunch/crunchgen/Makefile,v 1.6.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 PROG=	crunchgen
 SRCS=	crunchgen.c crunched_skel.c

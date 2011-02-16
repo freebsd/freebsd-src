@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libusb/libusb10_io.c,v 1.3.2.6.2.1 2010/12/21 17:09:25 kensmith Exp $ */
 /*-
  * Copyright (c) 2009 Sylvestre Gallon. All rights reserved.
  *

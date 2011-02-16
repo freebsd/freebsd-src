@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cxgb/cxgb/Makefile,v 1.14.2.3.4.1 2010/12/21 17:09:25 kensmith Exp $
 
 CXGB = ${.CURDIR}/../../../dev/cxgb
 .PATH: ${CXGB} ${CXGB}/common ${CXGB}/sys

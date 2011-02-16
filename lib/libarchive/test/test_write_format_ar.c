@@ -26,7 +26,7 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_ar.c,v 1.10.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 char buff[4096];
 char buff2[64];

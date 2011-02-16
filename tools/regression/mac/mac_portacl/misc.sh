@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/mac/mac_portacl/misc.sh,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 sysctl security.mac.portacl >/dev/null 2>&1
 if [ $? -ne 0 ]; then

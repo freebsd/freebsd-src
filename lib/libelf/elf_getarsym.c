@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libelf/elf_getarsym.c,v 1.1.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <libelf.h>
 

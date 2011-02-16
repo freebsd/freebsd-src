@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/bwi/if_bwi.c,v 1.8.2.7.2.2 2011/01/26 17:20:34 bschmidt Exp $");
 
 #include "opt_inet.h"
 #include "opt_bwi.h"

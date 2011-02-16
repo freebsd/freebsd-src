@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/snit.c,v 1.3.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 
 /*
  * (C)opyright 1992-1998 Darren Reed. (from tcplog)

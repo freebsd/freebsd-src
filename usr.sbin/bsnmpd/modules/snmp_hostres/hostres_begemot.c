@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_hostres/hostres_begemot.c,v 1.2.12.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <stdlib.h>

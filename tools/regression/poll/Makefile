@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/poll/Makefile,v 1.2.2.2.6.1 2010/12/21 17:09:25 kensmith Exp $
 # This makefile has been uglified for portability.
 # Nothing yet works with gmake for the path to the sources.
 .PATH: ..

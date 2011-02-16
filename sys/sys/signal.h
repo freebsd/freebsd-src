@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.4 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/signal.h,v 1.58.2.4.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _SYS_SIGNAL_H_

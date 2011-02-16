@@ -1,6 +1,6 @@
 #
 # $P4: //depot/projects/trustedbsd/openbsm/etc/audit_class#6 $
-# $FreeBSD$
+# $FreeBSD: src/contrib/openbsm/etc/audit_class,v 1.4.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 0x00000000:no:invalid class
 0x00000001:fr:file read

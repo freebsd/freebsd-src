@@ -1,2 +1,2 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options-compat,v 1.1.2.1.2.1 2010/12/21 17:09:25 kensmith Exp $
 COMPAT_IA32	COMPAT_FREEBSD32

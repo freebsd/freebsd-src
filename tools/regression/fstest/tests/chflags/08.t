@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chflags/08.t,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 desc="chflags returns EPERM when one of SF_IMMUTABLE, SF_APPEND, or SF_NOUNLINK is set and the user is not the super-user"
 

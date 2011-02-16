@@ -1,5 +1,5 @@
 #	$OpenBSD: sshd_config,v 1.74 2006/07/19 13:07:10 dtucker Exp $
-#	$FreeBSD$
+#	$FreeBSD: src/tools/tools/nanobsd/rescue/Files/etc/ssh/sshd_config,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.

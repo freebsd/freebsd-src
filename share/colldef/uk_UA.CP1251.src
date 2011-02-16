@@ -1,6 +1,6 @@
 # CP1251 (for Ukrainian)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/uk_UA.CP1251.src,v 1.1.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 charmap map.CP1251
 order \

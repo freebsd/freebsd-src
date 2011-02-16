@@ -8,7 +8,7 @@
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/top/utils.c,v 1.4.36.3.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

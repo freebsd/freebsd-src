@@ -34,7 +34,7 @@
 #include <sys/ctype.h>
 #include <sys/sysent.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/dsp.c,v 1.114.2.3.4.1 2010/12/21 17:09:25 kensmith Exp $");
 
 static int dsp_mmap_allow_prot_exec = 0;
 SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RW,

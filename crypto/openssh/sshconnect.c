@@ -1,5 +1,5 @@
 /* $OpenBSD: sshconnect.c,v 1.220 2010/03/04 10:36:03 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/sshconnect.c,v 1.35.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland

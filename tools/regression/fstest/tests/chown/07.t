@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chown/07.t,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 desc="chown returns EPERM if the operation would change the ownership, but the effective user ID is not the super-user and the process is not an owner of the file"
 

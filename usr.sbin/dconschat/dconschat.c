@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  * 
  * $Id: dconschat.c,v 1.76 2003/10/23 06:21:13 simokawa Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/dconschat/dconschat.c,v 1.16.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <sys/param.h>

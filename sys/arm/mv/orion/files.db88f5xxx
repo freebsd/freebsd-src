@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/mv/orion/files.db88f5xxx,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 arm/mv/orion/orion.c		standard
 arm/mv/orion/db88f5xxx.c	standard

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_bad_fd.c,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /* Verify that attempting to open an invalid fd returns correct error. */
 DEFINE_TEST(test_bad_fd)

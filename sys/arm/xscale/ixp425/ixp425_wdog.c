@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/ixp425/ixp425_wdog.c,v 1.3.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * IXP4XX Watchdog Timer Support.

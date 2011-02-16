@@ -1,5 +1,5 @@
 # GEOM_LIBRARY_PATH
-# $FreeBSD$
+# $FreeBSD: src/sbin/geom/class/sched/Makefile,v 1.2.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../misc
 #CFLAGS += -I/usr/src/sbin/geom

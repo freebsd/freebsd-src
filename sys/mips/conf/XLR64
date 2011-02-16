@@ -15,7 +15,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check first 
 # in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/conf/XLR64,v 1.5.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 machine 	mips
 cpu 		CPU_RMI

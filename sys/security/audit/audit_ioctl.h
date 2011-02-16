@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/audit/audit_ioctl.h,v 1.5.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _SECURITY_AUDIT_AUDIT_IOCTL_H_

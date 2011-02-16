@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mpt/mpt_raid.c,v 1.20.2.6.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <dev/mpt/mpt.h>
 #include <dev/mpt/mpt_raid.h>

@@ -1,7 +1,7 @@
 /*
  * IBM PC display definitions
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/pc/display.h,v 1.7.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /* Color attributes for foreground text */

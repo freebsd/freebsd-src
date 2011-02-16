@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/signal.h,v 1.30.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE_SIGNAL_H_

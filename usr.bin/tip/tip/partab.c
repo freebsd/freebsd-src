@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tip/tip/partab.c,v 1.5.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #ifndef lint
 #if 0

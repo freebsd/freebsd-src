@@ -30,7 +30,7 @@
  *
  *	from: @(#)svc.h 1.35 88/12/17 SMI
  *	from: @(#)svc.h      1.27    94/04/25 SMI
- * $FreeBSD$
+ * $FreeBSD: src/include/rpc/svc.h,v 1.25.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

@@ -1,7 +1,7 @@
 #
 # XENHVM -- Xen HVM kernel configuration file for FreeBSD/amd64
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/amd64/conf/XENHVM,v 1.3.2.5.2.1 2010/12/21 17:09:25 kensmith Exp $
 #
 include		GENERIC
 ident		XENHVM

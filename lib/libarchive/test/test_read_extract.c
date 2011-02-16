@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_extract.c,v 1.8.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #define BUFF_SIZE 1000000
 #define FILE_BUFF_SIZE 100000

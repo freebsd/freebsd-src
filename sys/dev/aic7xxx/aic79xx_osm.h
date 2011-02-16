@@ -32,7 +32,7 @@
  *
  * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.h#23 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic79xx_osm.h,v 1.22.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _AIC79XX_FREEBSD_H_

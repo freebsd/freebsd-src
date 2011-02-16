@@ -1,6 +1,6 @@
 HFS template boot filesystem created by generate-hfs.sh
 DO NOT EDIT
-$FreeBSD$
+$FreeBSD: src/sys/boot/powerpc/boot1.chrp/hfs.tmpl.bz2.uu,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 begin 644 hfs.tmpl.bz2
 M0EIH.3%!62936?(HJX\``"]_]?___O)20>!4M2$>0#MUW$1$``$!$``"2!`(
 M4EG``>G*VV3"22334_2(/*>ID,@``:#U&"-#(!IZ0`)$HIY0>B-#(/4T```&

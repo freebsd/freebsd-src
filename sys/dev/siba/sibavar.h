@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/siba/sibavar.h,v 1.1.2.4.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _SIBA_SIBAVAR_H_

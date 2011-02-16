@@ -1,7 +1,7 @@
 /*-
  * Test 0007:	BPF_LD+BPF_W+BPF_LEN
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0007.h,v 1.3.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /* BPF program */

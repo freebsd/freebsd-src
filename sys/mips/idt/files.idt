@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/idt/files.idt,v 1.2.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 mips/idt/idt_machdep.c		standard
 mips/idt/idtpci.c		optional pci

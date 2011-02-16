@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/execution/fork2.0,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 result=$(${SH} -c '(/bin/sleep 1)& sleep 0.1; ps -p $! -o comm=; kill $!')
 test "$result" = sleep || exit 1

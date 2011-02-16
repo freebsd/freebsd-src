@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/mv/regress.sh,v 1.6.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 # A directory in a device different from that where the tests are run
 TMPDIR=/tmp/regress.$$

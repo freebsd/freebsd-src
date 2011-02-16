@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet6/ip6_ipsec.c,v 1.19.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include "opt_inet6.h"
 #include "opt_ipsec.h"

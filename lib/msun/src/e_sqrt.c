@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/e_sqrt.c,v 1.11.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /* __ieee754_sqrt(x)
  * Return correctly rounded sqrt.

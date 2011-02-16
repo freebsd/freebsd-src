@@ -38,7 +38,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/mips/net/htonl.S,v 1.3.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 LEAF(htonl)                            # a0 = 0x11223344, return 0x44332211
 #ifdef __MIPSEB__

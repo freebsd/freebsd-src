@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/string/test-stpncpy.c,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/mman.h>
 #include <sys/param.h>

@@ -2,7 +2,7 @@
 #
 # Setup a TDMA master and bridge it to a wired NIC.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/scripts/setup.tdma-master,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 PATH=.:$PATH
 . config

@@ -30,7 +30,7 @@
 //
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/tools/mcgrab/mcgrab.cc,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 // C++ STL and other related includes
 #include <stdlib.h>

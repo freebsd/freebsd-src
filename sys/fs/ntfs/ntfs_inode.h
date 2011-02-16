@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/ntfs/ntfs_inode.h,v 1.12.30.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /* These flags are kept in i_flag. */

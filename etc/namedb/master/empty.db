@@ -1,5 +1,5 @@
 
-; $FreeBSD$
+; $FreeBSD: src/etc/namedb/master/empty.db,v 1.1.12.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 $TTL 3h
 @ SOA @ nobody.localhost. 42 1d 12h 1w 3h

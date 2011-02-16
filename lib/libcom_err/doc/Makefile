@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libcom_err/doc/Makefile,v 1.8.56.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 INFO=	com_err
 INFOSECTION= "Programming & development tools."

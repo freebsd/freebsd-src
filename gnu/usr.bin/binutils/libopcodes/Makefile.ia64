@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libopcodes/Makefile.ia64,v 1.1.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 SRCS+=	ia64-dis.c ia64-opc.c
 CFLAGS+= -DARCH_ia64

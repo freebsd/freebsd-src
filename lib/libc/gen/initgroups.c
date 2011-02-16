@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)initgroups.c	8.1 (Berkeley) 6/4/93";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/initgroups.c,v 1.10.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/param.h>
 

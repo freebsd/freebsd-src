@@ -1,7 +1,7 @@
 /*	$NetBSD: smc90cx6.c,v 1.38 2001/07/07 15:57:53 thorpej Exp $ */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cm/smc90cx6.c,v 1.20.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*-
  * Copyright (c) 1994, 1995, 1998 The NetBSD Foundation, Inc.

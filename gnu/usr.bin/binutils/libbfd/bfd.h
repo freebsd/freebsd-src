@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/libbfd/bfd.h,v 1.5.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /* DO NOT EDIT!  -*- buffer-read-only: t -*-  This file is automatically 
    generated from "bfd-in.h", "init.c", "opncls.c", "libbfd.c", 

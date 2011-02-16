@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/e_log10.c,v 1.12.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /* __ieee754_log10(x)
  * Return the base 10 logarithm of x

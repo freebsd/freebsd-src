@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/ld128/k_cosl.c,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * ld128 version of k_cos.c.  See ../src/k_cos.c for most comments.

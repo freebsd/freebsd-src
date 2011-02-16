@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/service/service.sh,v 1.3.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $
 
 #  Copyright (c) 2009 Douglas Barton
 #  All rights reserved.

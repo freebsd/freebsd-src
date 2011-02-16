@@ -37,7 +37,7 @@
 #define SND_USE_FXDIV
 #include "snd_fxdiv_gen.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_volume.c,v 1.7.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 #endif
 
 typedef void (*feed_volume_t)(int *, int *, uint32_t, uint8_t *, uint32_t);

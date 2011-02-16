@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/mountcritlocal,v 1.17.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $
 #
 
 # PROVIDE: mountcritlocal

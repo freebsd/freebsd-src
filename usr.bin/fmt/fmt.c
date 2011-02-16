@@ -173,7 +173,7 @@ static const char copyright[] =
   "Copyright (c) 1997 Gareth McCaughan. All rights reserved.\n";
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/fmt/fmt.c,v 1.23.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <err.h>
 #include <limits.h>

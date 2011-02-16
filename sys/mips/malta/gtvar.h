@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/mips/malta/gtvar.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #ifndef _GTVAR_H_
 #define _GTVAR_H_

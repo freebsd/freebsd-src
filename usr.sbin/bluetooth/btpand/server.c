@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/bluetooth/btpand/server.c,v 1.2.4.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: server.c,v 1.2 2009/01/24 17:29:28 plunky Exp $");

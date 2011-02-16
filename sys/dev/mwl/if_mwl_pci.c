@@ -30,7 +30,7 @@
 
 #include <sys/cdefs.h>
 #ifdef __FreeBSD__
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mwl/if_mwl_pci.c,v 1.1.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $");
 #endif
 
 /*

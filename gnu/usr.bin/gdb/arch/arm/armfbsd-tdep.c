@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/arm/armfbsd-tdep.c,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /* Target-specific functions for ARM running under NetBSD.
    Copyright 2002, 2003 Free Software Foundation, Inc.

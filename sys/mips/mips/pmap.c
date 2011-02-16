@@ -66,7 +66,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/mips/mips/pmap.c,v 1.21.2.4.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include "opt_msgbuf.h"
 #include "opt_ddb.h"

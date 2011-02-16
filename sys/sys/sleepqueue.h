@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/sleepqueue.h,v 1.17.2.3.4.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _SYS_SLEEPQUEUE_H_

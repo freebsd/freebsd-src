@@ -23,7 +23,7 @@
  * Extensively modified by Hannes Gredler (hannes@juniper.net) for more
  * complete IS-IS & CLNP support.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-isoclns.c,v 1.18.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef lint

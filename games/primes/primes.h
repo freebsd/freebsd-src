@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)primes.h	8.2 (Berkeley) 3/1/94
- * $FreeBSD$
+ * $FreeBSD: src/games/primes/primes.h,v 1.3.34.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

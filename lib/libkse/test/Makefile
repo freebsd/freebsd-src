@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libkse/test/Makefile,v 1.14.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 # Automated test suite for libpthread (pthreads).
 #

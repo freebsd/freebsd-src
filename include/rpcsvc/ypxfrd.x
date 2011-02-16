@@ -66,7 +66,7 @@
 
 #ifndef RPC_HDR
 %#include <sys/cdefs.h>
-%__FBSDID("$FreeBSD$");
+%__FBSDID("$FreeBSD: src/include/rpcsvc/ypxfrd.x,v 1.9.34.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 #endif
 
 /* XXX cribbed from yp.x */

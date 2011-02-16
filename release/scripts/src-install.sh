@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/src-install.sh,v 1.13.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 
 if [ "`id -u`" != "0" ]; then

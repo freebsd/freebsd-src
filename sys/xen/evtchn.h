@@ -6,7 +6,7 @@
  * 
  * Copyright (c) 2004, K A Fraser
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/xen/evtchn.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef __ASM_EVTCHN_H__

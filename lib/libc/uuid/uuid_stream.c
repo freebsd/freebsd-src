@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/uuid/uuid_stream.c,v 1.1.6.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include <sys/endian.h>
 #include <uuid.h>

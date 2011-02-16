@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  * RMI_BSD
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/rmi/msgring.h,v 1.9.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 #ifndef _RMI_MSGRING_H_
 #define _RMI_MSGRING_H_

@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/xen/console/console.c,v 1.13.2.2.4.2 2011/01/06 22:54:48 cperciva Exp $");
 
 #include <sys/param.h>
 #include <sys/module.h>

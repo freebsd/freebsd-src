@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/en_US.ISO8859-1/readme/Makefile,v 1.7.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 RELN_ROOT?= ${.CURDIR}/../..
 .ifdef NO_LANGCODE_IN_DESTDIR

@@ -1,5 +1,5 @@
 .\" Startup file for eqn.
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/eqnrc,v 1.6.32.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 .EQ
 sdefine << %{ < back 20 < }%
 sdefine >> %{ > back 20 > }%

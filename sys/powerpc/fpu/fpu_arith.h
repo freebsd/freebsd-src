@@ -1,5 +1,5 @@
 /*	$NetBSD: fpu_arith.h,v 1.4 2005/12/24 20:07:28 perry Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/powerpc/fpu/fpu_arith.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /*
  * Copyright (c) 1992, 1993

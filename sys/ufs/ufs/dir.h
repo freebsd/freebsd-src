@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/dir.h,v 1.12.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _UFS_UFS_DIR_H_

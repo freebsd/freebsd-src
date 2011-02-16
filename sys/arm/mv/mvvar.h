@@ -34,7 +34,7 @@
  *
  * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0var.h, rev 1
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/mv/mvvar.h,v 1.5.2.2.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MVVAR_H_

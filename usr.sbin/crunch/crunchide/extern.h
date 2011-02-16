@@ -1,5 +1,5 @@
 /*	$NetBSD: extern.h,v 1.5 1998/05/06 13:16:57 mycroft Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/crunch/crunchide/extern.h,v 1.4.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 /*
  * Copyright (c) 1997 Christopher G. Demetriou.  All rights reserved.

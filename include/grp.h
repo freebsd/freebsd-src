@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)grp.h	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/include/grp.h,v 1.19.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _GRP_H_

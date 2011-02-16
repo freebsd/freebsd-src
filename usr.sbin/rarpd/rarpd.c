@@ -22,7 +22,7 @@ The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/rarpd/rarpd.c,v 1.41.30.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * rarpd - Reverse ARP Daemon

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/opencrypto/skipjack.h,v 1.2.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 /*	$OpenBSD: skipjack.h,v 1.3 2002/03/14 01:26:51 millert Exp $	*/
 
 /*-

@@ -33,7 +33,7 @@
 //
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/tools/mctest/mctest.cc,v 1.5.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 // C++ STL and other related includes
 #include <iostream>

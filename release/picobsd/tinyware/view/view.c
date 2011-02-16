@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/picobsd/tinyware/view/view.c,v 1.7.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

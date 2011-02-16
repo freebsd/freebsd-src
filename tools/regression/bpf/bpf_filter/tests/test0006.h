@@ -1,7 +1,7 @@
 /*-
  * Test 0006:	BPF_LD+BPF_B+BPF_ABS
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0006.h,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /* BPF program */

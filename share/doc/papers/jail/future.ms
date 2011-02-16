@@ -1,5 +1,5 @@
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/jail/future.ms,v 1.1.38.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 .\"
 .NH
 Future Directions

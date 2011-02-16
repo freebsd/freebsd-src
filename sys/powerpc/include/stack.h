@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/stack.h,v 1.1.4.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE_STACK_H_

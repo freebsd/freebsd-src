@@ -34,7 +34,7 @@
 #include "spnego/spnego_locl.h"
 
 RCSID("$Id: accept_sec_context.c 21461 2007-07-10 14:01:13Z lha $");
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/heimdal/lib/gssapi/spnego/accept_sec_context.c,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 static OM_uint32
 send_reject (OM_uint32 *minor_status,

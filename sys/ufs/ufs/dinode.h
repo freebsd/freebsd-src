@@ -62,7 +62,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dinode.h	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/dinode.h,v 1.18.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _UFS_UFS_DINODE_H_

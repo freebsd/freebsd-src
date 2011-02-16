@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/zfs/zfsimpl.c,v 1.5.4.9.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  *	Stand-alone ZFS file reader.

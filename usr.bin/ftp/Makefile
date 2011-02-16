@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/ftp/Makefile,v 1.18.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 #	$NetBSD: Makefile,v 1.15 1997/10/18 15:31:20 lukem Exp $
 #	from: @(#)Makefile	8.2 (Berkeley) 4/3/94
 

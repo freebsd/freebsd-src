@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/expansion/plus-minus4.0,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 # These may be a bit unclear in the POSIX spec or the proposed revisions,
 # and conflict with bash's interpretation, but I think ksh93's interpretation

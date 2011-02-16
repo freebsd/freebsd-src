@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/Makefile,v 1.74.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 FILES=	INDEX.keymaps \
 	be.iso.kbd be.iso.acc.kbd \

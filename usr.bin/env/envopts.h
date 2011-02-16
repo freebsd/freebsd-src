@@ -27,7 +27,7 @@
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of the FreeBSD Project.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/env/envopts.h,v 1.1.24.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 void		 search_paths(char *path, char **argv);

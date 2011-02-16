@@ -19,7 +19,7 @@ along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 51 Franklin Street, Fifth Floor,
 Boston, MA 02110-1301, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/i386/i386.c,v 1.25.10.2.4.1 2010/12/21 17:09:25 kensmith Exp $ */
 
 #include "config.h"
 #include "system.h"

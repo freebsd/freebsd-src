@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/snc/if_sncreg.h,v 1.3.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 /*	$NecBSD: if_snreg.h,v 1.3 1999/01/24 01:39:52 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
   

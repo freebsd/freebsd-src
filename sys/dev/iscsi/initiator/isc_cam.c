@@ -28,7 +28,7 @@
  | $Id: isc_cam.c 998 2009-12-20 10:32:45Z danny $
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iscsi/initiator/isc_cam.c,v 1.3.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include "opt_iscsi_initiator.h"
 

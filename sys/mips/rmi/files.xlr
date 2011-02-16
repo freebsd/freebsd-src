@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/rmi/files.xlr,v 1.10.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
 #mips/rmi/xlr_boot1_console.c			standard
 mips/rmi/xlr_machdep.c				standard
 mips/rmi/tick.c 				standard

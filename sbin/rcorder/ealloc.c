@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/rcorder/ealloc.c,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $	*/
 /*	$NetBSD: ealloc.c,v 1.1.1.1 1999/11/19 04:30:56 mrg Exp $	*/
 
 /*

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ipfw/ip_fw_sockopt.c,v 1.14.2.5.4.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * Sockopt support for ipfw. The routines here implement

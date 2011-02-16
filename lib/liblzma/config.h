@@ -1,4 +1,4 @@
-// $FreeBSD$
+// $FreeBSD: src/lib/liblzma/config.h,v 1.1.2.4.2.2 2011/02/08 15:05:47 mm Exp $
 #define ASSUME_RAM 128
 #define HAVE_CHECK_CRC32 1
 #define HAVE_CHECK_CRC64 1

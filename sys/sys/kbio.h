@@ -1,5 +1,5 @@
 /*-
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/kbio.h,v 1.11.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef	_SYS_KBIO_H_

@@ -34,7 +34,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/environ/timings.c,v 1.2.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 
 const char value1[] = "Large ------------------ value";

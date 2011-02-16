@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)auth.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/contrib/telnet/libtelnet/auth.h,v 1.3.36.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /*

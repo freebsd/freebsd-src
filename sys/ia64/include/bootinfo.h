@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/include/bootinfo.h,v 1.8.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $ */
 /*-
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.

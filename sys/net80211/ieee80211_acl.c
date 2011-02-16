@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_acl.c,v 1.10.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*
  * IEEE 802.11 MAC ACL support.

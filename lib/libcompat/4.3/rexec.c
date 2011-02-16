@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcompat/4.3/rexec.c,v 1.8.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

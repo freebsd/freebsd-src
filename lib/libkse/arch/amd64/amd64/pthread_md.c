@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/arch/amd64/amd64/pthread_md.c,v 1.5.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <stdlib.h>

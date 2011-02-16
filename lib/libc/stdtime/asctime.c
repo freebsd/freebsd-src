@@ -15,7 +15,7 @@
 static char	elsieid[] __unused = "@(#)asctime.c	8.2";
 #endif /* !defined NOID */
 #endif /* !defined lint */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdtime/asctime.c,v 1.13.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /*LINTLIBRARY*/
 

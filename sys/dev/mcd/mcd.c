@@ -43,7 +43,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mcd/mcd.c,v 1.147.22.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
 #include <sys/param.h>

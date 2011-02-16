@@ -40,7 +40,7 @@
  *
  * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_gram.y#29 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm/aicasm_gram.y,v 1.26.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <sys/types.h>

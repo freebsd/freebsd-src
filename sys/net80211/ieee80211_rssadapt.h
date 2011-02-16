@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/net80211/ieee80211_rssadapt.h,v 1.1.2.2.4.1 2010/12/21 17:09:25 kensmith Exp $	*/
 /* $NetBSD: ieee80211_rssadapt.h,v 1.4 2005/02/26 22:45:09 perry Exp $ */
 /*-
  * Copyright (c) 2003, 2004 David Young.  All rights reserved.

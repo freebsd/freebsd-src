@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_fcntl.c,v 1.17.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 #include <stdarg.h>
 #include <unistd.h>

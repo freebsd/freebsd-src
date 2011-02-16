@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/xen/evtchn/evtchn.c,v 1.11.2.3.2.2 2011/01/06 22:55:53 cperciva Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

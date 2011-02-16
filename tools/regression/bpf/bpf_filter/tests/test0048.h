@@ -1,7 +1,7 @@
 /*-
  * Test 0048:	Check boundary conditions (BPF_LDX+BPF_MSH+BPF_B)
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0048.h,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 /* BPF program */

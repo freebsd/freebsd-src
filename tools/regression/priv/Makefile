@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/priv/Makefile,v 1.4.2.2.6.1 2010/12/21 17:09:25 kensmith Exp $
 #
 
 .include <bsd.own.mk>

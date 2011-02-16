@@ -1,6 +1,6 @@
 FreeBSD Driver for 10 Gigabit PCI Express Server Adapters
 =============================================
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgbe/README,v 1.2.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $*/
 
 May 14, 2008
 

@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsclient/nfsm_subs.h,v 1.40.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _NFSCLIENT_NFSM_SUBS_H_

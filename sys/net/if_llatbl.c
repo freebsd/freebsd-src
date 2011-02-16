@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/if_llatbl.c,v 1.8.2.14.2.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include "opt_ddb.h"
 #include "opt_inet.h"

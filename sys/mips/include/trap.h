@@ -36,7 +36,7 @@
  *	from: Utah Hdr: trap.h 1.1 90/07/09
  *	from: @(#)trap.h	8.1 (Berkeley) 6/10/93
  *	JNPR: trap.h,v 1.3 2006/12/02 09:53:41 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/trap.h,v 1.1.2.2.2.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _MACHINE_TRAP_H_

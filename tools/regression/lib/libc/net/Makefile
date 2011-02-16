@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/libc/net/Makefile,v 1.3.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 TESTS=	test-ether test-eui64_aton test-eui64_line test-eui64_ntoa
 CFLAGS+= -g -Wall

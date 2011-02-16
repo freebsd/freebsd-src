@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  * 
  * $DragonFly: src/sys/dev/netif/bwi/bwimac.h,v 1.2 2008/02/15 11:15:38 sephe Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/bwi/bwimac.h,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #ifndef _BWI_MAC_H

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/ati_pcigart.c,v 1.10.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 /** @file ati_pcigart.c
  * Implementation of ATI's PCIGART, which provides an aperture in card virtual

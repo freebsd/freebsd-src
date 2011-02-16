@@ -2,7 +2,7 @@
 # Gateworks Avila IXP425 XScale board
 # kernel configuration file for FreeBSD/arm
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/nanobsd/gateworks/G2348,v 1.5.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 machine		arm
 ident		G2348

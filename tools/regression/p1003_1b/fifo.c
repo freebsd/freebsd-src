@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/p1003_1b/fifo.c,v 1.1.56.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 #include <unistd.h>
 #include <stdlib.h>

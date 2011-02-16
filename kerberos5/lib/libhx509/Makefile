@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libhx509/Makefile,v 1.1.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 LIB=	hx509
 VERSION_MAP= ${KRB5DIR}/lib/hx509/version-script.map

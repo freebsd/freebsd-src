@@ -15,7 +15,7 @@
 
 #ifndef INLINE_KERNEL_TANDF
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/k_tanf.c,v 1.23.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 #endif
 
 #include "math.h"

@@ -40,7 +40,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/bcopy_page.S,v 1.5.2.1.6.1 2010/12/21 17:09:25 kensmith Exp $");
 
 #include "assym.s"
 

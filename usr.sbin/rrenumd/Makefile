@@ -12,7 +12,7 @@
 # LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rrenumd/Makefile,v 1.11.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
 
 PROG=	rrenumd
 MAN=	rrenumd.conf.5 rrenumd.8

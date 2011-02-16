@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: kiconv.c,v 1.3 2001/08/22 03:31:36 bp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/smbfs/lib/smb/kiconv.c,v 1.4.10.1.6.1 2010/12/21 17:09:25 kensmith Exp $
  */
 
 #include <sys/types.h>
