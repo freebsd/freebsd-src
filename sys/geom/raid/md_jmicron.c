@@ -390,6 +390,8 @@ g_raid_md_jmicron_supported(int level, int qual, int disks, int force)
 	case G_RAID_VOLUME_RL_SINGLE:
 		if (disks != 1)
 			return (0);
+		if (!force)
+			return (0);
 		break;
 	case G_RAID_VOLUME_RL_CONCAT:
 		if (disks < 2)
@@ -666,7 +668,10 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
 		vol->v_mediasize = size * mdi->mdio_total_disks / 2;
 	} else if (meta->type == JMICRON_T_CONCAT) {
-		vol->v_raid_level = G_RAID_VOLUME_RL_CONCAT;
+		if (mdi->mdio_total_disks == 1)
+			vol->v_raid_level = G_RAID_VOLUME_RL_SINGLE;
+		else
+			vol->v_raid_level = G_RAID_VOLUME_RL_CONCAT;
 		vol->v_mediasize = 0;
 	} else if (meta->type == JMICRON_T_RAID5) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
@@ -1190,7 +1195,8 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		vol->v_strip_size = strip;
 		vol->v_disks_count = numdisks;
 		if (level == G_RAID_VOLUME_RL_RAID0 ||
-		    level == G_RAID_VOLUME_RL_CONCAT)
+		    level == G_RAID_VOLUME_RL_CONCAT ||
+		    level == G_RAID_VOLUME_RL_SINGLE)
 			vol->v_mediasize = size * numdisks;
 		else if (level == G_RAID_VOLUME_RL_RAID1)
 			vol->v_mediasize = size;
@@ -1427,7 +1433,8 @@ g_raid_md_write_jmicron(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		meta->type = JMICRON_T_RAID1;
 	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
 		meta->type = JMICRON_T_RAID01;
-	else if (vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT)
+	else if (vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT ||
+	    vol->v_raid_level == G_RAID_VOLUME_RL_SINGLE)
 		meta->type = JMICRON_T_CONCAT;
 	else
 		meta->type = JMICRON_T_RAID5;
