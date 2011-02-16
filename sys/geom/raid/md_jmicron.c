@@ -91,6 +91,7 @@ struct g_raid_md_jmicron_perdisk {
 	struct jmicron_raid_conf	*pd_meta;
 	int				 pd_disk_pos;
 	int				 pd_disk_id;
+	off_t				 pd_disk_size;
 };
 
 struct g_raid_md_jmicron_object {
@@ -154,7 +155,7 @@ g_raid_md_jmicron_print(struct jmicron_raid_conf *meta)
 	printf("stripe_shift        %d\n", meta->stripe_shift);
 	printf("flags               %04x\n", meta->flags);
 	printf("spare              ");
-	for (k = 0; k < 2; k++)
+	for (k = 0; k < JMICRON_MAX_SPARE; k++)
 		printf(" 0x%08x", meta->spare[k]);
 	printf("\n");
 	printf("disks              ");
@@ -247,7 +248,7 @@ jmicron_meta_find_disk(struct jmicron_raid_conf *meta, uint32_t id)
 		if ((meta->disks[pos] & JMICRON_DISK_MASK) == id)
 			return (pos);
 	}
-	for (pos = 0; pos < 2; pos++) {
+	for (pos = 0; pos < JMICRON_MAX_SPARE; pos++) {
 		if ((meta->spare[pos] & JMICRON_DISK_MASK) == id)
 			return (-3);
 	}
@@ -442,23 +443,19 @@ g_raid_md_jmicron_start_disk(struct g_raid_disk *disk)
 			if (tmpdisk->d_state != G_RAID_DISK_S_OFFLINE &&
 			    tmpdisk->d_state != G_RAID_DISK_S_FAILED)
 				continue;
-#if 0
 			/* Make sure this disk is big enough. */
 			TAILQ_FOREACH(sd, &tmpdisk->d_subdisks, sd_next) {
-				if (sd->sd_offset + sd->sd_size + 4096 >
-				    (off_t)pd->pd_disk_meta.sectors * 512) {
+				if (sd->sd_offset + sd->sd_size + 512 >
+				    pd->pd_disk_size) {
 					G_RAID_DEBUG1(1, sc,
-					    "Disk too small (%llu < %llu)",
-					    ((unsigned long long)
-					    pd->pd_disk_meta.sectors) * 512,
-					    (unsigned long long)
-					    sd->sd_offset + sd->sd_size + 4096);
+					    "Disk too small (%ju < %ju)",
+					    pd->pd_disk_size,
+					    sd->sd_offset + sd->sd_size + 512);
 					break;
 				}
 			}
 			if (sd != NULL)
 				continue;
-#endif
 			if (tmpdisk->d_state == G_RAID_DISK_S_OFFLINE) {
 				olddisk = tmpdisk;
 				break;
@@ -746,23 +743,26 @@ g_raid_md_jmicron_new_disk(struct g_raid_disk *disk)
 		if (g_raid_md_jmicron_start_disk(disk))
 			g_raid_md_write_jmicron(md, NULL, NULL, NULL);
 	} else {
-		/* If we haven't started yet - check metadata freshness. */
-		if (mdi->mdio_meta == NULL) {
-			G_RAID_DEBUG1(1, sc, "Newer disk");
+		/*
+		 * If we haven't started yet - update common metadata
+		 * to get subdisks details, avoiding data from spare disks.
+		 */
+		if (mdi->mdio_meta == NULL ||
+		    jmicron_meta_find_disk(mdi->mdio_meta,
+		     mdi->mdio_meta->disk_id) == -3) {
 			if (mdi->mdio_meta != NULL)
 				free(mdi->mdio_meta, M_MD_JMICRON);
 			mdi->mdio_meta = jmicron_meta_copy(pdmeta);
 			mdi->mdio_total_disks = jmicron_meta_total_disks(pdmeta);
-			mdi->mdio_disks_present = 1;
-		} else {
-			mdi->mdio_disks_present++;
-			G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d+%d up)",
-			    mdi->mdio_disks_present,
-			    mdi->mdio_total_disks,
-			    jmicron_meta_total_spare(mdi->mdio_meta));
-			mdi->mdio_meta->flags |=
-			    pdmeta->flags & JMICRON_F_BADSEC;
 		}
+		mdi->mdio_meta->flags |= pdmeta->flags & JMICRON_F_BADSEC;
+
+		mdi->mdio_disks_present++;
+		G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d+%d up)",
+		    mdi->mdio_disks_present,
+		    mdi->mdio_total_disks,
+		    jmicron_meta_total_spare(mdi->mdio_meta));
+
 		/* If we collected all needed disks - start array. */
 		if (mdi->mdio_disks_present == mdi->mdio_total_disks +
 		    jmicron_meta_total_spare(mdi->mdio_meta))
@@ -928,13 +928,13 @@ search:
 	pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
 	pd->pd_meta = meta;
 	if (spare == 2) {
-//		pd->pd_disk_meta.sectors = pp->mediasize / pp->sectorsize;
 		pd->pd_disk_pos = -3;
 		pd->pd_disk_id = arc4random() & JMICRON_DISK_MASK;
 	} else {
 		pd->pd_disk_pos = -1;
 		pd->pd_disk_id = meta->disk_id;
 	}
+	pd->pd_disk_size = pp->mediasize;
 	disk = g_raid_create_disk(sc);
 	disk->d_md_data = (void *)pd;
 	disk->d_consumer = rcp;
@@ -1141,7 +1141,7 @@ makedisk:
 				    "Dumping not supported by %s.",
 				    cp->provider->name);
 
-//			pd->pd_disk_meta.sectors = pp->mediasize / pp->sectorsize;
+			pd->pd_disk_size = pp->mediasize;
 			if (size > pp->mediasize)
 				size = pp->mediasize;
 			if (sectorsize < pp->sectorsize)
@@ -1199,7 +1199,7 @@ makedisk:
 			gctl_error(req, "Size too small.");
 			return (-13);
 		}
-		if (size > 0xffffffffllu * sectorsize) {
+		if (size > 0xffffffffffffllu * sectorsize) {
 			gctl_error(req, "Size too big.");
 			return (-14);
 		}
@@ -1399,6 +1399,7 @@ makedisk:
 			pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = -3;
 			pd->pd_disk_id = arc4random() & JMICRON_DISK_MASK;
+			pd->pd_disk_size = pp->mediasize;
 
 			disk = g_raid_create_disk(sc);
 			disk->d_consumer = cp;
