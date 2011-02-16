@@ -7,7 +7,7 @@ SRCS=	uathload.c ar5523.bin
 
 CLEANFILES=	ar5523.bin
 
-.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 LDFLAGS+=	-Wl,-z,noexecstack
 .endif
 
