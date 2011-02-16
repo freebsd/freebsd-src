@@ -1327,9 +1327,7 @@ g_raid_md_event_intel(struct g_raid_md_object *md,
 		if (pd->pd_disk_pos >= 0) {
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
 			if (disk->d_consumer) {
-				g_topology_lock();
 				g_raid_kill_consumer(sc, disk->d_consumer);
-				g_topology_unlock();
 				disk->d_consumer = NULL;
 			}
 			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
@@ -1908,9 +1906,7 @@ makedisk:
 			if (pd->pd_disk_pos >= 0) {
 				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
 				if (disk->d_consumer) {
-					g_topology_lock();
 					g_raid_kill_consumer(sc, disk->d_consumer);
-					g_topology_unlock();
 					disk->d_consumer = NULL;
 				}
 				TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
@@ -1992,9 +1988,7 @@ makedisk:
 				gctl_error(req,
 				    "Can't get serial for provider '%s'.",
 				    diskname);
-				g_topology_lock();
 				g_raid_kill_consumer(sc, cp);
-				g_topology_unlock();
 				error = -7;
 				break;
 			}

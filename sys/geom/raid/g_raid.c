@@ -652,11 +652,12 @@ g_raid_kill_consumer(struct g_raid_softc *sc, struct g_consumer *cp)
 	struct g_provider *pp;
 	int retaste_wait;
 
-	g_topology_assert();
+	g_topology_assert_not();
 
+	g_topology_lock();
 	cp->private = NULL;
 	if (g_raid_consumer_is_busy(sc, cp))
-		return;
+		goto out;
 	pp = cp->provider;
 	retaste_wait = 0;
 	if (cp->acw == 1) {
@@ -676,11 +677,13 @@ g_raid_kill_consumer(struct g_raid_softc *sc, struct g_consumer *cp)
 		 * after retaste event is sent.
 		 */
 		g_post_event(g_raid_destroy_consumer, cp, M_WAITOK, NULL);
-		return;
+		goto out;
 	}
 	G_RAID_DEBUG(1, "Consumer %s destroyed.", pp->name);
 	g_detach(cp);
 	g_destroy_consumer(cp);
+out:
+	g_topology_unlock();
 }
 
 static void
@@ -1228,11 +1231,8 @@ g_raid_disk_done_request(struct bio *bp)
 	if (bp->bio_from != NULL) {
 		bp->bio_from->index--;
 		disk = bp->bio_from->private;
-		if (disk == NULL) {
-			g_topology_lock();
+		if (disk == NULL)
 			g_raid_kill_consumer(sc, bp->bio_from);
-			g_topology_unlock();
-		}
 	}
 	bp->bio_offset -= sd->sd_offset;
 
@@ -1869,9 +1869,7 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 	sc = disk->d_softc;
 	G_RAID_DEBUG1(2, sc, "Destroying disk.");
 	if (disk->d_consumer) {
-		g_topology_lock();
 		g_raid_kill_consumer(sc, disk->d_consumer);
-		g_topology_unlock();
 		disk->d_consumer = NULL;
 	}
 	TAILQ_FOREACH_SAFE(sd, &disk->d_subdisks, sd_next, tmp) {
