@@ -814,7 +814,7 @@ mos_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* Remember the last byte was used for the status fields */
 		pktlen = actlen - 1;
 		if (pktlen < sizeof(struct ether_header)) {
-			MOS_DPRINTFN("error: pktlen %i is smaller than ether_header %i", pktlen, sizeof(struct ether_header));
+			MOS_DPRINTFN("error: pktlen %d is smaller than ether_header %zd", pktlen, sizeof(struct ether_header));
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
