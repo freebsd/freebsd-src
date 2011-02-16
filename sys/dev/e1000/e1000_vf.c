@@ -532,8 +532,8 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 	 * or a virtual function reset
 	 */
 
-	/* If we were hit with a reset drop the link */
-	if (!mbx->ops.check_for_rst(hw, 0))
+	/* If we were hit with a reset or timeout drop the link */
+	if (!mbx->ops.check_for_rst(hw, 0) || !mbx->timeout)
 		mac->get_link_status = TRUE;
 
 	if (!mac->get_link_status)

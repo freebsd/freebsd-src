@@ -102,10 +102,10 @@ platform_init_ap(int cpuid)
 	mips_wbflush();
 }
 
-int
-platform_num_processors(void)
+cpumask_t
+platform_cpu_mask(void)
 {
-	return (bitcount32(octeon_bootinfo->core_mask));
+       return (octeon_bootinfo->core_mask);
 }
 
 struct cpu_group *

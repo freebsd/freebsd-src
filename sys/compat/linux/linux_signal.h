@@ -40,4 +40,7 @@ void ksiginfo_to_lsiginfo(ksiginfo_t *ksi, l_siginfo_t *lsi, l_int sig);
 
 #define LINUX_SIG_VALID(sig)	((sig) <= LINUX_NSIG && (sig) > 0)
 
+#define BSD_TO_LINUX_SIGNAL(sig)				\
+	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
+
 #endif /* _LINUX_SIGNAL_H_ */

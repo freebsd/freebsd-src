@@ -131,9 +131,9 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			series[i].PktDuration =
 			    ath_computedur_ht(pktlen
 				, txrate
-				, ic->ic_rxstream
+				, ic->ic_txstream
 				, (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
-				, shortPreamble);
+				, series[i].RateFlags & HAL_RATESERIES_HALFGI);
 		} else {
 			series[i].PktDuration = ath_hal_computetxtime(ah,
 			    rt, pktlen, rix[i], shortPreamble);
@@ -168,7 +168,7 @@ ath_rateseries_print(HAL_11N_RATE_SERIES *series)
 
 void
 ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
-    int pktlen, int flags, uint8_t ctsrate, uint8_t *rix, uint8_t *try)
+    int pktlen, int flags, uint8_t ctsrate, int is_pspoll, uint8_t *rix, uint8_t *try)
 {
 	HAL_11N_RATE_SERIES series[4];
 	struct ath_desc *ds = bf->bf_desc;
@@ -189,8 +189,9 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf
 
 	/* Set rate scenario */
 	ath_hal_set11nratescenario(ah, ds,
+	    !is_pspoll,	/* whether to override the duration or not */
+			/* don't allow hardware to override the duration on ps-poll packets */
 	    ctsrate,	/* rts/cts rate */
-	    0,		/* rts/cts duration */
 	    series,	/* 11n rate series */
 	    4,		/* number of series */
 	    flags);

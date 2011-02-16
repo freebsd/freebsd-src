@@ -2865,23 +2865,30 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 			SCTP_SOCKET_LOCK(so, 1);
 			SCTP_TCB_LOCK(stcb);
 			atomic_subtract_int(&stcb->asoc.refcnt, 1);
-			if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-				SCTP_SOCKET_UNLOCK(so, 1);
-				return;
-			}
 #endif
-			soisconnected(stcb->sctp_socket);
+			if ((stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) == 0) {
+				soisconnected(stcb->sctp_socket);
+			}
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			SCTP_SOCKET_UNLOCK(so, 1);
 #endif
 		}
-		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep,
-		    stcb, net);
 		/*
 		 * since we did not send a HB make sure we don't double
 		 * things
 		 */
 		net->hb_responded = 1;
+
+		if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
+			/*
+			 * We don't need to do the asconf thing, nor hb or
+			 * autoclose if the socket is closed.
+			 */
+			goto closed_socket;
+		}
+		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep,
+		    stcb, net);
+
 
 		if (stcb->asoc.sctp_autoclose_ticks &&
 		    sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_AUTOCLOSE)) {
@@ -2906,6 +2913,7 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 #endif
 		}
 	}
+closed_socket:
 	/* Toss the cookie if I can */
 	sctp_toss_old_cookies(stcb, asoc);
 	if (!TAILQ_EMPTY(&asoc->sent_queue)) {

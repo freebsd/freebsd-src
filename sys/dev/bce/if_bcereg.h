@@ -6789,11 +6789,12 @@ struct bce_softc
 	/* Number of split header frames received. */
 	u64			split_header_frames_rcvd;
 
-      /* Number of split header TCP frames received. */
+	/* Number of split header TCP frames received. */
 	u64			split_header_tcp_frames_rcvd;
-#endif /* BCE_DEBUG */
 
-	uint8_t *nvram_buf;
+	/* Buffer with NVRAM contents for the NIC. */
+	u8			*nvram_buf;
+#endif /* BCE_DEBUG */
 };
 
 #endif /* __BCEREG_H_DEFINED */

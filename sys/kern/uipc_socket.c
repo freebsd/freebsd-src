@@ -437,7 +437,8 @@ sonewconn(struct socket *head, int connstatus)
 	if (over)
 #endif
 		return (NULL);
-	VNET_ASSERT(head->so_vnet);
+	VNET_ASSERT(head->so_vnet != NULL, ("%s:%d so_vnet is NULL, head=%p",
+	    __func__, __LINE__, head));
 	so = soalloc(head->so_vnet);
 	if (so == NULL)
 		return (NULL);
@@ -2448,15 +2449,16 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_SETFIB:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
-			if (optval < 1 || optval > rt_numfibs) {
+			if (optval < 0 || optval > rt_numfibs) {
 				error = EINVAL;
 				goto bad;
 			}
-			if ((so->so_proto->pr_domain->dom_family == PF_INET) ||
-			    (so->so_proto->pr_domain->dom_family == PF_ROUTE)) {
+			if (so->so_proto != NULL &&
+			   ((so->so_proto->pr_domain->dom_family == PF_INET) ||
+			   (so->so_proto->pr_domain->dom_family == PF_ROUTE))) {
 				so->so_fibnum = optval;
 				/* Note: ignore error */
-				if (so->so_proto && so->so_proto->pr_ctloutput)
+				if (so->so_proto->pr_ctloutput)
 					(*so->so_proto->pr_ctloutput)(so, sopt);
 			} else {
 				so->so_fibnum = 0;

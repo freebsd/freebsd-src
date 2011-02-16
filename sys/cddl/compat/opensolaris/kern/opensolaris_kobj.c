@@ -200,10 +200,9 @@ kobj_read_file_loader(struct _buf *file, char *buf, unsigned size, unsigned off)
 {
 	char *ptr;
 
-	ptr = preload_search_info(file->ptr, MODINFO_ADDR);
+	ptr = preload_fetch_addr(file->ptr);
 	if (ptr == NULL)
 		return (ENOENT);
-	ptr = *(void **)ptr;
 	bcopy(ptr + off, buf, size);
 	return (0);
 }

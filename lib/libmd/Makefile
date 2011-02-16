@@ -43,11 +43,14 @@ CFLAGS+= -I${.CURDIR}
 
 .if exists(${MACHINE_ARCH}/sha.S)
 SRCS+=	sha.S
-CFLAGS+= -DSHA1_ASM -DELF
+CFLAGS+= -DSHA1_ASM
 .endif
 .if exists(${MACHINE_ARCH}/rmd160.S)
 SRCS+=	rmd160.S
-CFLAGS+= -DRMD160_ASM -DELF
+CFLAGS+= -DRMD160_ASM
+.endif
+.if exists(${MACHINE_ARCH}/sha.S) || exists(${MACHINE_ARCH}/rmd160.S)
+ACFLAGS+= -DELF -Wa,--noexecstack
 .endif
 
 md2hl.c: mdXhl.c

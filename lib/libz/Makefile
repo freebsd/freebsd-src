@@ -39,12 +39,14 @@ SRCS+=		zutil.c
 .PATH:		${.CURDIR}/contrib/asm686
 SRCS+=		match.S
 CFLAGS+=	-DASMV -DNO_UNDERLINE
+ACFLAGS+=	-Wa,--noexecstack
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
 .PATH:		${.CURDIR}/contrib/gcc_gvmat64
 SRCS+=		gvmat64.S
 CFLAGS+=	-DASMV -DNO_UNDERLINE
+ACFLAGS+=	-Wa,--noexecstack
 .endif
 
 VERSION_DEF=	${.CURDIR}/Versions.def

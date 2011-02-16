@@ -422,6 +422,16 @@ AcpiEvGpeDetect (
 
             GpeRegisterInfo = &GpeBlock->RegisterInfo[i];
 
+            /*
+             * Optimization: If there are no GPEs enabled within this
+             * register, we can safely ignore the entire register.
+             */
+            if (!(GpeRegisterInfo->EnableForRun |
+                  GpeRegisterInfo->EnableForWake))
+            {
+                continue;
+            }
+
             /* Read the Status Register */
 
             Status = AcpiHwRead (&StatusReg, &GpeRegisterInfo->StatusAddress);

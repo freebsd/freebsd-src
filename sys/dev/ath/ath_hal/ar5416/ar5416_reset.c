@@ -2296,7 +2296,7 @@ ar5416Set11nRegs(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	/* carrier sense timeout */
 	OS_REG_SET_BIT(ah, AR_GTTM, AR_GTTM_CST_USEC);
-	OS_REG_WRITE(ah, AR_CST, 1 << AR_CST_TIMEOUT_LIMIT_S);
+	OS_REG_WRITE(ah, AR_CST, 0xF << AR_CST_TIMEOUT_LIMIT_S);
 }
 
 void

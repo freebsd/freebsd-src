@@ -60,8 +60,8 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
-#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_util.h>
 
 MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
@@ -88,7 +88,7 @@ struct futex_list futex_list;
 
 #define FUTEX_LOCK(f)		sx_xlock(&(f)->f_lck)
 #define FUTEX_UNLOCK(f)		sx_xunlock(&(f)->f_lck)
-#define FUTEX_INIT(f)		sx_init_flags(&(f)->f_lck, "ftlk", 0)
+#define FUTEX_INIT(f)		sx_init_flags(&(f)->f_lck, "ftlk", SX_DUPOK)
 #define FUTEX_DESTROY(f)	sx_destroy(&(f)->f_lck)
 #define FUTEX_ASSERT_LOCKED(f)	sx_assert(&(f)->f_lck, SA_XLOCKED)
 
@@ -194,6 +194,7 @@ retry:
 		tmpf = malloc(sizeof(*tmpf), M_FUTEX, M_WAITOK | M_ZERO);
 		tmpf->f_uaddr = uaddr;
 		tmpf->f_refcount = 1;
+		tmpf->f_bitset = FUTEX_BITSET_MATCH_ANY;
 		FUTEX_INIT(tmpf);
 		TAILQ_INIT(&tmpf->f_waiting_proc);
 
@@ -435,8 +436,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	int clockrt, nrwake, op_ret, ret, val;
 	struct linux_emuldata *em;
 	struct waiting_proc *wp;
-	struct futex *f, *f2 = NULL;
-	int error = 0;
+	struct futex *f, *f2;
+	int error;
 
 	/*
 	 * Our implementation provides only privates futexes. Most of the apps
@@ -458,6 +459,9 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	if (clockrt && args->op != LINUX_FUTEX_WAIT_BITSET &&
 		args->op != LINUX_FUTEX_WAIT_REQUEUE_PI)
 		return (ENOSYS);
+
+	error = 0;
+	f = f2 = NULL;
 
 	switch (args->op) {
 	case LINUX_FUTEX_WAIT:
@@ -552,8 +556,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 		/*
 		 * To avoid deadlocks return EINVAL if second futex
-		 * exists at this time. Otherwise create the new futex
-		 * and ignore false positive LOR which thus happens.
+		 * exists at this time.
 		 *
 		 * Glibc fall back to FUTEX_WAKE in case of any error
 		 * returned by FUTEX_CMP_REQUEUE.
@@ -678,11 +681,11 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		 * FUTEX_REQUEUE returned EINVAL.
 		 */
 		em = em_find(td->td_proc, EMUL_DONTLOCK);
-		if (em->used_requeue == 0) {
+		if ((em->flags & LINUX_XDEPR_REQUEUEOP) == 0) {
 			linux_msg(td,
 				  "linux_sys_futex: "
 				  "unsupported futex_requeue op\n");
-			em->used_requeue = 1;
+			em->flags |= LINUX_XDEPR_REQUEUEOP;
 		}
 		return (EINVAL);
 

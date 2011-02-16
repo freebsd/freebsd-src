@@ -431,7 +431,7 @@ int
 linux_rt_sigtimedwait(struct thread *td,
 	struct linux_rt_sigtimedwait_args *args)
 {
-	int error;
+	int error, sig;
 	l_timeval ltv;
 	struct timeval tv;
 	struct timespec ts, *tsa;
@@ -457,8 +457,9 @@ linux_rt_sigtimedwait(struct thread *td,
 			return (error);
 #ifdef DEBUG
 		if (ldebug(rt_sigtimedwait))
-			printf(LMSG("linux_rt_sigtimedwait: incoming timeout (%d/%d)\n"),
-				ltv.tv_sec, ltv.tv_usec);
+			printf(LMSG("linux_rt_sigtimedwait: "
+			    "incoming timeout (%d/%d)\n"),
+			    ltv.tv_sec, ltv.tv_usec);
 #endif
 		tv.tv_sec = (long)ltv.tv_sec;
 		tv.tv_usec = (suseconds_t)ltv.tv_usec;
@@ -477,8 +478,9 @@ linux_rt_sigtimedwait(struct thread *td,
 				timevalclear(&tv);
 #ifdef DEBUG
 			if (ldebug(rt_sigtimedwait))
-				printf(LMSG("linux_rt_sigtimedwait: converted timeout (%jd/%ld)\n"),
-					(intmax_t)tv.tv_sec, tv.tv_usec);
+				printf(LMSG("linux_rt_sigtimedwait: "
+				    "converted timeout (%jd/%ld)\n"),
+				    (intmax_t)tv.tv_sec, tv.tv_usec);
 #endif
 		}
 		TIMEVAL_TO_TIMESPEC(&tv, &ts);
@@ -487,24 +489,21 @@ linux_rt_sigtimedwait(struct thread *td,
 	error = kern_sigtimedwait(td, bset, &info, tsa);
 #ifdef DEBUG
 	if (ldebug(rt_sigtimedwait))
-		printf(LMSG("linux_rt_sigtimedwait: sigtimedwait returning (%d)\n"), error);
+		printf(LMSG("linux_rt_sigtimedwait: "
+		    "sigtimedwait returning (%d)\n"), error);
 #endif
 	if (error)
 		return (error);
 
+	sig = BSD_TO_LINUX_SIGNAL(info.ksi_signo);
+
 	if (args->ptr) {
 		memset(&linfo, 0, sizeof(linfo));
-		linfo.lsi_signo = info.ksi_signo;
+		ksiginfo_to_lsiginfo(&info, &linfo, sig);
 		error = copyout(&linfo, args->ptr, sizeof(linfo));
 	}
-
-	/* Repost if we got an error. */
-	if (error && info.ksi_signo) {
-		PROC_LOCK(td->td_proc);
-		tdksignal(td, info.ksi_signo, &info);
-		PROC_UNLOCK(td->td_proc);
-	} else
-		td->td_retval[0] = info.ksi_signo; 
+	if (error == 0)
+		td->td_retval[0] = sig; 
 
 	return (error);
 }
@@ -649,5 +648,9 @@ ksiginfo_to_lsiginfo(ksiginfo_t *ksi, l_siginfo_t *lsi, l_int sig)
 		lsi->lsi_pid = ksi->ksi_pid;
 		lsi->lsi_uid = ksi->ksi_uid;
 		break;
+	}
+	if (sig >= LINUX_SIGRTMIN) {
+		lsi->lsi_int = ksi->ksi_info.si_value.sival_int;
+		lsi->lsi_ptr = PTROUT(ksi->ksi_info.si_value.sival_ptr);
 	}
 }

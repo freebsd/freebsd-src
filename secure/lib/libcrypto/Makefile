@@ -345,6 +345,10 @@ INCSDIR=	${INCLUDEDIR}/openssl
 
 CSTD=	gnu89
 
+.if !empty(SRCS:M*.s)
+AFLAGS+=	--noexecstack
+.endif
+
 CLEANFILES=	buildinf.h opensslconf.h evp.h
 
 buildinf.h: ${.CURDIR}/Makefile
