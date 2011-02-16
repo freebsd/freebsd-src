@@ -60,6 +60,8 @@
 
 #include <fs/portalfs/portal.h>
 
+#include <net/vnet.h>
+
 static int portal_fileid = PORTAL_ROOTFILEID+1;
 
 static void	portal_closefd(struct thread *td, int fd);
@@ -185,8 +187,12 @@ portal_connect(so, so2)
 	if ((so2->so_options & SO_ACCEPTCONN) == 0)
 		return (ECONNREFUSED);
 
-	if ((so3 = sonewconn(so2, 0)) == 0)
+	CURVNET_SET(so2->so_vnet);
+	if ((so3 = sonewconn(so2, 0)) == 0) {
+		CURVNET_RESTORE();
 		return (ECONNREFUSED);
+	}
+	CURVNET_RESTORE();
 
 	unp2 = sotounpcb(so2);
 	unp3 = sotounpcb(so3);

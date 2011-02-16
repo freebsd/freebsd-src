@@ -52,6 +52,9 @@
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
+
+#include <net/vnet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
@@ -1163,8 +1166,11 @@ ng_btsocket_rfcomm_connect_ind(ng_btsocket_rfcomm_session_p s, int channel)
 
 	mtx_lock(&pcb->pcb_mtx);
 
-	if (pcb->so->so_qlen <= pcb->so->so_qlimit)
+	if (pcb->so->so_qlen <= pcb->so->so_qlimit) {
+		CURVNET_SET(pcb->so->so_vnet);
 		so1 = sonewconn(pcb->so, 0);
+		CURVNET_RESTORE();
+	}
 
 	mtx_unlock(&pcb->pcb_mtx);
 
