@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20110221:
+	FreeBSD 7.4-RELEASE
+
 20101126:
 	New version of minidump format for amd64 architecture was
 	introduced in r215874.  To analyze vmcore files produced by
