@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.224 2010/04/16 21:14:27 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.232 2011/01/16 11:50:36 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,6 +34,7 @@
 #include <paths.h>
 #endif
 #include <pwd.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,14 +67,15 @@ char *server_version_string = NULL;
 
 static int matching_host_key_dns = 0;
 
+static pid_t proxy_command_pid = 0;
+
 /* import */
 extern Options options;
 extern char *__progname;
 extern uid_t original_real_uid;
 extern uid_t original_effective_uid;
-extern pid_t proxy_command_pid;
 
-static int show_other_keys(const char *, Key *);
+static int show_other_keys(struct hostkeys *, Key *);
 static void warn_changed_key(Key *);
 
 /*
@@ -87,7 +89,7 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 	pid_t pid;
 	char *shell, strport[NI_MAXSERV];
 
-	if ((shell = getenv("SHELL")) == NULL)
+	if ((shell = getenv("SHELL")) == NULL || *shell == '\0')
 		shell = _PATH_BSHELL;
 
 	/* Convert the port number into a string. */
@@ -141,6 +143,7 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 
 		/* Execute the proxy command.  Note that we gave up any
 		   extra privileges above. */
+		signal(SIGPIPE, SIG_DFL);
 		execv(argv[0], argv);
 		perror(argv[0]);
 		exit(1);
@@ -165,6 +168,17 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 
 	/* Indicate OK return */
 	return 0;
+}
+
+void
+ssh_kill_proxy_command(void)
+{
+	/*
+	 * Send SIGHUP to proxy command if used. We don't wait() in
+	 * case it hangs and instead rely on init to reap the child
+	 */
+	if (proxy_command_pid > 1)
+		kill(proxy_command_pid, SIGHUP);
 }
 
 /*
@@ -594,6 +608,79 @@ check_host_cert(const char *host, const Key *host_key)
 	return 1;
 }
 
+static int
+sockaddr_is_local(struct sockaddr *hostaddr)
+{
+	switch (hostaddr->sa_family) {
+	case AF_INET:
+		return (ntohl(((struct sockaddr_in *)hostaddr)->
+		    sin_addr.s_addr) >> 24) == IN_LOOPBACKNET;
+	case AF_INET6:
+		return IN6_IS_ADDR_LOOPBACK(
+		    &(((struct sockaddr_in6 *)hostaddr)->sin6_addr));
+	default:
+		return 0;
+	}
+}
+
+/*
+ * Prepare the hostname and ip address strings that are used to lookup
+ * host keys in known_hosts files. These may have a port number appended.
+ */
+void
+get_hostfile_hostname_ipaddr(char *hostname, struct sockaddr *hostaddr,
+    u_short port, char **hostfile_hostname, char **hostfile_ipaddr)
+{
+	char ntop[NI_MAXHOST];
+	socklen_t addrlen;
+
+	switch (hostaddr == NULL ? -1 : hostaddr->sa_family) {
+	case -1:
+		addrlen = 0;
+		break;
+	case AF_INET:
+		addrlen = sizeof(struct sockaddr_in);
+		break;
+	case AF_INET6:
+		addrlen = sizeof(struct sockaddr_in6);
+		break;
+	default:
+		addrlen = sizeof(struct sockaddr);
+		break;
+	}
+
+	/*
+	 * We don't have the remote ip-address for connections
+	 * using a proxy command
+	 */
+	if (hostfile_ipaddr != NULL) {
+		if (options.proxy_command == NULL) {
+			if (getnameinfo(hostaddr, addrlen,
+			    ntop, sizeof(ntop), NULL, 0, NI_NUMERICHOST) != 0)
+			fatal("check_host_key: getnameinfo failed");
+			*hostfile_ipaddr = put_host_port(ntop, port);
+		} else {
+			*hostfile_ipaddr = xstrdup("<no hostip for proxy "
+			    "command>");
+		}
+	}
+
+	/*
+	 * Allow the user to record the key under a different name or
+	 * differentiate a non-standard port.  This is useful for ssh
+	 * tunneling over forwarded connections or if you run multiple
+	 * sshd's on different ports on the same machine.
+	 */
+	if (hostfile_hostname != NULL) {
+		if (options.host_key_alias != NULL) {
+			*hostfile_hostname = xstrdup(options.host_key_alias);
+			debug("using hostkeyalias: %s", *hostfile_hostname);
+		} else {
+			*hostfile_hostname = put_host_port(hostname, port);
+		}
+	}
+}
+
 /*
  * check whether the supplied host key is valid, return -1 if the key
  * is not valid. the user_hostfile will not be updated if 'readonly' is true.
@@ -603,21 +690,21 @@ check_host_cert(const char *host, const Key *host_key)
 #define ROQUIET	2
 static int
 check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
-    Key *host_key, int readonly, const char *user_hostfile,
-    const char *system_hostfile)
+    Key *host_key, int readonly, char *user_hostfile,
+    char *system_hostfile)
 {
-	Key *file_key, *raw_key = NULL;
+	Key *raw_key = NULL;
 	const char *type;
 	char *ip = NULL, *host = NULL;
 	char hostline[1000], *hostp, *fp, *ra;
 	HostStatus host_status;
 	HostStatus ip_status;
-	int r, want_cert, local = 0, host_ip_differ = 0;
-	int salen;
-	char ntop[NI_MAXHOST];
+	int r, want_cert = key_is_cert(host_key), host_ip_differ = 0;
+	int local = sockaddr_is_local(hostaddr);
 	char msg[1024];
-	int len, host_line, ip_line, cancelled_forwarding = 0;
-	const char *host_file = NULL, *ip_file = NULL;
+	int len, cancelled_forwarding = 0;
+	struct hostkeys *host_hostkeys, *ip_hostkeys;
+	const struct hostkey_entry *host_found, *ip_found;
 
 	/*
 	 * Force accepting of the host key for loopback/localhost. The
@@ -627,23 +714,6 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	 * essentially disables host authentication for localhost; however,
 	 * this is probably not a real problem.
 	 */
-	/**  hostaddr == 0! */
-	switch (hostaddr->sa_family) {
-	case AF_INET:
-		local = (ntohl(((struct sockaddr_in *)hostaddr)->
-		    sin_addr.s_addr) >> 24) == IN_LOOPBACKNET;
-		salen = sizeof(struct sockaddr_in);
-		break;
-	case AF_INET6:
-		local = IN6_IS_ADDR_LOOPBACK(
-		    &(((struct sockaddr_in6 *)hostaddr)->sin6_addr));
-		salen = sizeof(struct sockaddr_in6);
-		break;
-	default:
-		local = 0;
-		salen = sizeof(struct sockaddr_storage);
-		break;
-	}
 	if (options.no_host_authentication_for_localhost == 1 && local &&
 	    options.host_key_alias == NULL) {
 		debug("Forcing accepting of host key for "
@@ -652,17 +722,10 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	}
 
 	/*
-	 * We don't have the remote ip-address for connections
-	 * using a proxy command
+	 * Prepare the hostname and address strings used for hostkey lookup.
+	 * In some cases, these will have a port number appended.
 	 */
-	if (options.proxy_command == NULL) {
-		if (getnameinfo(hostaddr, salen, ntop, sizeof(ntop),
-		    NULL, 0, NI_NUMERICHOST) != 0)
-			fatal("check_host_key: getnameinfo failed");
-		ip = put_host_port(ntop, port);
-	} else {
-		ip = xstrdup("<no hostip for proxy command>");
-	}
+	get_hostfile_hostname_ipaddr(hostname, hostaddr, port, &host, &ip);
 
 	/*
 	 * Turn off check_host_ip if the connection is to localhost, via proxy
@@ -672,74 +735,52 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	    strcmp(hostname, ip) == 0 || options.proxy_command != NULL))
 		options.check_host_ip = 0;
 
-	/*
-	 * Allow the user to record the key under a different name or
-	 * differentiate a non-standard port.  This is useful for ssh
-	 * tunneling over forwarded connections or if you run multiple
-	 * sshd's on different ports on the same machine.
-	 */
-	if (options.host_key_alias != NULL) {
-		host = xstrdup(options.host_key_alias);
-		debug("using hostkeyalias: %s", host);
-	} else {
-		host = put_host_port(hostname, port);
+	host_hostkeys = init_hostkeys();
+	load_hostkeys(host_hostkeys, host, user_hostfile);
+	load_hostkeys(host_hostkeys, host, system_hostfile);
+
+	ip_hostkeys = NULL;
+	if (!want_cert && options.check_host_ip) {
+		ip_hostkeys = init_hostkeys();
+		load_hostkeys(ip_hostkeys, ip, user_hostfile);
+		load_hostkeys(ip_hostkeys, ip, system_hostfile);
 	}
 
  retry:
+	/* Reload these as they may have changed on cert->key downgrade */
 	want_cert = key_is_cert(host_key);
 	type = key_type(host_key);
-
-	/*
-	 * Store the host key from the known host file in here so that we can
-	 * compare it with the key for the IP address.
-	 */
-	file_key = key_new(key_is_cert(host_key) ? KEY_UNSPEC : host_key->type);
 
 	/*
 	 * Check if the host key is present in the user's list of known
 	 * hosts or in the systemwide list.
 	 */
-	host_file = user_hostfile;
-	host_status = check_host_in_hostfile(host_file, host, host_key,
-	    file_key, &host_line);
-	if (host_status == HOST_NEW) {
-		host_file = system_hostfile;
-		host_status = check_host_in_hostfile(host_file, host, host_key,
-		    file_key, &host_line);
-	}
+	host_status = check_key_in_hostkeys(host_hostkeys, host_key,
+	    &host_found);
+
 	/*
 	 * Also perform check for the ip address, skip the check if we are
 	 * localhost, looking for a certificate, or the hostname was an ip
 	 * address to begin with.
 	 */
-	if (!want_cert && options.check_host_ip) {
-		Key *ip_key = key_new(host_key->type);
-
-		ip_file = user_hostfile;
-		ip_status = check_host_in_hostfile(ip_file, ip, host_key,
-		    ip_key, &ip_line);
-		if (ip_status == HOST_NEW) {
-			ip_file = system_hostfile;
-			ip_status = check_host_in_hostfile(ip_file, ip,
-			    host_key, ip_key, &ip_line);
-		}
+	if (!want_cert && ip_hostkeys != NULL) {
+		ip_status = check_key_in_hostkeys(ip_hostkeys, host_key,
+		    &ip_found);
 		if (host_status == HOST_CHANGED &&
-		    (ip_status != HOST_CHANGED || !key_equal(ip_key, file_key)))
+		    (ip_status != HOST_CHANGED || 
+		    (ip_found != NULL &&
+		    !key_equal(ip_found->key, host_found->key))))
 			host_ip_differ = 1;
-
-		key_free(ip_key);
 	} else
 		ip_status = host_status;
-
-	key_free(file_key);
 
 	switch (host_status) {
 	case HOST_OK:
 		/* The host is known and the key matches. */
 		debug("Host '%.200s' is known and matches the %s host %s.",
 		    host, type, want_cert ? "certificate" : "key");
-		debug("Found %s in %s:%d",
-		    want_cert ? "CA key" : "key", host_file, host_line);
+		debug("Found %s in %s:%lu", want_cert ? "CA key" : "key",
+		    host_found->file, host_found->line);
 		if (want_cert && !check_host_cert(hostname, host_key))
 			goto fail;
 		if (options.check_host_ip && ip_status == HOST_NEW) {
@@ -790,7 +831,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		} else if (options.strict_host_key_checking == 2) {
 			char msg1[1024], msg2[1024];
 
-			if (show_other_keys(host, host_key))
+			if (show_other_keys(host_hostkeys, host_key))
 				snprintf(msg1, sizeof(msg1),
 				    "\nbut keys of different type are already"
 				    " known for this host.");
@@ -831,8 +872,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		 * local known_hosts file.
 		 */
 		if (options.check_host_ip && ip_status == HOST_NEW) {
-			snprintf(hostline, sizeof(hostline), "%s,%s",
-			    host, ip);
+			snprintf(hostline, sizeof(hostline), "%s,%s", host, ip);
 			hostp = hostline;
 			if (options.hash_known_hosts) {
 				/* Add hash of host and IP separately */
@@ -886,8 +926,8 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			 * all hosts that one might visit.
 			 */
 			debug("Host certificate authority does not "
-			    "match %s in %s:%d", CA_MARKER,
-			    host_file, host_line);
+			    "match %s in %s:%lu", CA_MARKER,
+			    host_found->file, host_found->line);
 			goto fail;
 		}
 		if (readonly == ROQUIET)
@@ -909,13 +949,15 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			error("DNS SPOOFING is happening or the IP address for the host");
 			error("and its host key have changed at the same time.");
 			if (ip_status != HOST_NEW)
-				error("Offending key for IP in %s:%d", ip_file, ip_line);
+				error("Offending key for IP in %s:%lu",
+				    ip_found->file, ip_found->line);
 		}
 		/* The host key has changed. */
 		warn_changed_key(host_key);
 		error("Add correct host key in %.100s to get rid of this message.",
 		    user_hostfile);
-		error("Offending key in %s:%d", host_file, host_line);
+		error("Offending %s key in %s:%lu", key_type(host_found->key),
+		    host_found->file, host_found->line);
 
 		/*
 		 * If strict host key checking is in use, the user will have
@@ -1000,13 +1042,13 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		snprintf(msg, sizeof(msg),
 		    "Warning: the %s host key for '%.200s' "
 		    "differs from the key for the IP address '%.128s'"
-		    "\nOffending key for IP in %s:%d",
-		    type, host, ip, ip_file, ip_line);
+		    "\nOffending key for IP in %s:%lu",
+		    type, host, ip, ip_found->file, ip_found->line);
 		if (host_status == HOST_OK) {
 			len = strlen(msg);
 			snprintf(msg + len, sizeof(msg) - len,
-			    "\nMatching host key in %s:%d",
-			    host_file, host_line);
+			    "\nMatching host key in %s:%lu",
+			    host_found->file, host_found->line);
 		}
 		if (options.strict_host_key_checking == 1) {
 			logit("%s", msg);
@@ -1024,6 +1066,10 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 
 	xfree(ip);
 	xfree(host);
+	if (host_hostkeys != NULL)
+		free_hostkeys(host_hostkeys);
+	if (ip_hostkeys != NULL)
+		free_hostkeys(ip_hostkeys);
 	return 0;
 
 fail:
@@ -1043,6 +1089,10 @@ fail:
 		key_free(raw_key);
 	xfree(ip);
 	xfree(host);
+	if (host_hostkeys != NULL)
+		free_hostkeys(host_hostkeys);
+	if (ip_hostkeys != NULL)
+		free_hostkeys(ip_hostkeys);
 	return -1;
 }
 
@@ -1052,6 +1102,11 @@ verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
 {
 	struct stat st;
 	int flags = 0;
+	char *fp;
+
+	fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
+	debug("Server host key: %s %s", key_type(host_key), fp);
+	xfree(fp);
 
 	/* XXX certs are not yet supported for DNS */
 	if (!key_is_cert(host_key) && options.verify_host_key_dns &&
@@ -1095,7 +1150,7 @@ verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
  */
 void
 ssh_login(Sensitive *sensitive, const char *orighost,
-    struct sockaddr *hostaddr, struct passwd *pw, int timeout_ms)
+    struct sockaddr *hostaddr, u_short port, struct passwd *pw, int timeout_ms)
 {
 	char *host, *cp;
 	char *server_user, *local_user;
@@ -1118,7 +1173,7 @@ ssh_login(Sensitive *sensitive, const char *orighost,
 	/* key exchange */
 	/* authenticate user */
 	if (compat20) {
-		ssh_kex2(host, hostaddr);
+		ssh_kex2(host, hostaddr, port);
 		ssh_userauth2(local_user, server_user, host, sensitive);
 	} else {
 		ssh_kex(host, hostaddr);
@@ -1145,68 +1200,41 @@ ssh_put_password(char *password)
 	xfree(padded);
 }
 
-static int
-show_key_from_file(const char *file, const char *host, int keytype)
-{
-	Key *found;
-	char *fp, *ra;
-	int line, ret;
-
-	found = key_new(keytype);
-	if ((ret = lookup_key_in_hostfile_by_type(file, host,
-	    keytype, found, &line))) {
-		fp = key_fingerprint(found, SSH_FP_MD5, SSH_FP_HEX);
-		ra = key_fingerprint(found, SSH_FP_MD5, SSH_FP_RANDOMART);
-		logit("WARNING: %s key found for host %s\n"
-		    "in %s:%d\n"
-		    "%s key fingerprint %s.\n%s\n",
-		    key_type(found), host, file, line,
-		    key_type(found), fp, ra);
-		xfree(ra);
-		xfree(fp);
-	}
-	key_free(found);
-	return (ret);
-}
-
 /* print all known host keys for a given host, but skip keys of given type */
 static int
-show_other_keys(const char *host, Key *key)
+show_other_keys(struct hostkeys *hostkeys, Key *key)
 {
-	int type[] = { KEY_RSA1, KEY_RSA, KEY_DSA, -1};
-	int i, found = 0;
+	int type[] = { KEY_RSA1, KEY_RSA, KEY_DSA, KEY_ECDSA, -1};
+	int i, ret = 0;
+	char *fp, *ra;
+	const struct hostkey_entry *found;
 
 	for (i = 0; type[i] != -1; i++) {
 		if (type[i] == key->type)
 			continue;
-		if (type[i] != KEY_RSA1 &&
-		    show_key_from_file(options.user_hostfile2, host, type[i])) {
-			found = 1;
+		if (!lookup_key_in_hostkeys_by_type(hostkeys, type[i], &found))
 			continue;
-		}
-		if (type[i] != KEY_RSA1 &&
-		    show_key_from_file(options.system_hostfile2, host, type[i])) {
-			found = 1;
-			continue;
-		}
-		if (show_key_from_file(options.user_hostfile, host, type[i])) {
-			found = 1;
-			continue;
-		}
-		if (show_key_from_file(options.system_hostfile, host, type[i])) {
-			found = 1;
-			continue;
-		}
-		debug2("no key of type %d for host %s", type[i], host);
+		fp = key_fingerprint(found->key, SSH_FP_MD5, SSH_FP_HEX);
+		ra = key_fingerprint(found->key, SSH_FP_MD5, SSH_FP_RANDOMART);
+		logit("WARNING: %s key found for host %s\n"
+		    "in %s:%lu\n"
+		    "%s key fingerprint %s.",
+		    key_type(found->key),
+		    found->host, found->file, found->line,
+		    key_type(found->key), fp);
+		if (options.visual_host_key)
+			logit("%s", ra);
+		xfree(ra);
+		xfree(fp);
+		ret = 1;
 	}
-	return (found);
+	return ret;
 }
 
 static void
 warn_changed_key(Key *host_key)
 {
 	char *fp;
-	const char *type = key_type(host_key);
 
 	fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
 
@@ -1215,9 +1243,9 @@ warn_changed_key(Key *host_key)
 	error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 	error("IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!");
 	error("Someone could be eavesdropping on you right now (man-in-the-middle attack)!");
-	error("It is also possible that the %s host key has just been changed.", type);
+	error("It is also possible that a host key has just been changed.");
 	error("The fingerprint for the %s key sent by the remote host is\n%s.",
-	    type, fp);
+	    key_type(host_key), fp);
 	error("Please contact your system administrator.");
 
 	xfree(fp);
@@ -1232,16 +1260,19 @@ ssh_local_cmd(const char *args)
 	char *shell;
 	pid_t pid;
 	int status;
+	void (*osighand)(int);
 
 	if (!options.permit_local_command ||
 	    args == NULL || !*args)
 		return (1);
 
-	if ((shell = getenv("SHELL")) == NULL)
+	if ((shell = getenv("SHELL")) == NULL || *shell == '\0')
 		shell = _PATH_BSHELL;
 
+	osighand = signal(SIGCHLD, SIG_DFL);
 	pid = fork();
 	if (pid == 0) {
+		signal(SIGPIPE, SIG_DFL);
 		debug3("Executing %s -c \"%s\"", shell, args);
 		execl(shell, shell, "-c", args, (char *)NULL);
 		error("Couldn't execute %s -c \"%s\": %s",
@@ -1252,6 +1283,7 @@ ssh_local_cmd(const char *args)
 	while (waitpid(pid, &status, 0) == -1)
 		if (errno != EINTR)
 			fatal("Couldn't wait for child: %s", strerror(errno));
+	signal(SIGCHLD, osighand);
 
 	if (!WIFEXITED(status))
 		return (1);

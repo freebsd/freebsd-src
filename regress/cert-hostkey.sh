@@ -1,7 +1,13 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.4 2010/04/16 01:58:45 djm Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.5 2010/08/31 12:24:09 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
+
+# used to disable ECC based tests on platforms without ECC
+ecdsa=""
+if test "x$TEST_SSH_ECC" = "xyes"; then
+	ecdsa=ecdsa
+fi
 
 rm -f $OBJ/known_hosts-cert $OBJ/host_ca_key* $OBJ/cert_host_key*
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
@@ -18,7 +24,7 @@ ${SSHKEYGEN} -q -N '' -t rsa  -f $OBJ/host_ca_key ||\
 ) > $OBJ/known_hosts-cert
 
 # Generate and sign host keys
-for ktype in rsa dsa ; do 
+for ktype in rsa dsa $ecdsa ; do 
 	verbose "$tid: sign host ${ktype} cert"
 	# Generate and sign a host key
 	${SSHKEYGEN} -q -N '' -t ${ktype} \
@@ -28,6 +34,8 @@ for ktype in rsa dsa ; do
 	    -I "regress host key for $USER" \
 	    -n $HOSTS $OBJ/cert_host_key_${ktype} ||
 		fail "couldn't sign cert_host_key_${ktype}"
+	# v00 ecdsa certs do not exist
+	test "${ktype}" = "ecdsa" && continue
 	cp $OBJ/cert_host_key_${ktype} $OBJ/cert_host_key_${ktype}_v00
 	cp $OBJ/cert_host_key_${ktype}.pub $OBJ/cert_host_key_${ktype}_v00.pub
 	${SSHKEYGEN} -t v00 -h -q -s $OBJ/host_ca_key \
@@ -38,7 +46,7 @@ done
 
 # Basic connect tests
 for privsep in yes no ; do
-	for ktype in rsa dsa rsa_v00 dsa_v00; do 
+	for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00; do 
 		verbose "$tid: host ${ktype} cert connect privsep $privsep"
 		(
 			cat $OBJ/sshd_proxy_bak
@@ -64,6 +72,11 @@ done
 	echon '@revoked '
 	echon "* "
 	cat $OBJ/cert_host_key_rsa.pub
+	if test "x$TEST_SSH_ECC" = "xyes"; then
+		echon '@revoked '
+		echon "* "
+		cat $OBJ/cert_host_key_ecdsa.pub
+	fi
 	echon '@revoked '
 	echon "* "
 	cat $OBJ/cert_host_key_dsa.pub
@@ -75,7 +88,7 @@ done
 	cat $OBJ/cert_host_key_dsa_v00.pub
 ) > $OBJ/known_hosts-cert
 for privsep in yes no ; do
-	for ktype in rsa dsa rsa_v00 dsa_v00; do 
+	for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00; do 
 		verbose "$tid: host ${ktype} revoked cert privsep $privsep"
 		(
 			cat $OBJ/sshd_proxy_bak
@@ -102,7 +115,7 @@ done
 	echon "* "
 	cat $OBJ/host_ca_key.pub
 ) > $OBJ/known_hosts-cert
-for ktype in rsa dsa rsa_v00 dsa_v00 ; do 
+for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00 ; do 
 	verbose "$tid: host ${ktype} revoked cert"
 	(
 		cat $OBJ/sshd_proxy_bak
@@ -173,7 +186,9 @@ test_one "cert has constraints"	failure "-h -Oforce-command=false"
 
 # Check downgrade of cert to raw key when no CA found
 for v in v01 v00 ;  do 
-	for ktype in rsa dsa ; do 
+	for ktype in rsa dsa $ecdsa ; do 
+		# v00 ecdsa certs do not exist.
+		test "${v}${ktype}" = "v00ecdsa" && continue
 		rm -f $OBJ/known_hosts-cert $OBJ/cert_host_key*
 		verbose "$tid: host ${ktype} ${v} cert downgrade to raw key"
 		# Generate and sign a host key
@@ -210,7 +225,9 @@ done
 	cat $OBJ/host_ca_key.pub
 ) > $OBJ/known_hosts-cert
 for v in v01 v00 ;  do 
-	for kt in rsa dsa ; do 
+	for kt in rsa dsa $ecdsa ; do 
+		# v00 ecdsa certs do not exist.
+		test "${v}${ktype}" = "v00ecdsa" && continue
 		rm -f $OBJ/cert_host_key*
 		# Self-sign key
 		${SSHKEYGEN} -q -N '' -t ${kt} \

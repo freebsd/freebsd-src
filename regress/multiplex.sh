@@ -5,8 +5,7 @@ CTL=/tmp/openssh.regress.ctl-sock.$$
 
 tid="connection multiplexing"
 
-if grep "#define.*DISABLE_FD_PASSING" ${BUILDDIR}/config.h >/dev/null 2>&1
-then
+if config_defined DISABLE_FD_PASSING ; then
 	echo "skipped (not supported on this platform)"
 	exit 0
 fi

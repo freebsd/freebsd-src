@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.48 2010/03/04 10:36:03 djm Exp $ */
+/* $OpenBSD: hostfile.c,v 1.50 2010/12/04 13:31:37 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -56,6 +56,12 @@
 #include "key.h"
 #include "hostfile.h"
 #include "log.h"
+#include "misc.h"
+
+struct hostkeys {
+	struct hostkey_entry *entries;
+	u_int num_entries;
+};
 
 static int
 extract_salt(const char *s, u_int l, char *salt, size_t salt_len)
@@ -164,26 +170,28 @@ hostfile_read_key(char **cpp, u_int *bitsp, Key *ret)
 
 	/* Return results. */
 	*cpp = cp;
-	*bitsp = key_size(ret);
+	if (bitsp != NULL)
+		*bitsp = key_size(ret);
 	return 1;
 }
 
 static int
-hostfile_check_key(int bits, const Key *key, const char *host, const char *filename, int linenum)
+hostfile_check_key(int bits, const Key *key, const char *host,
+    const char *filename, u_long linenum)
 {
 	if (key == NULL || key->type != KEY_RSA1 || key->rsa == NULL)
 		return 1;
 	if (bits != BN_num_bits(key->rsa->n)) {
-		logit("Warning: %s, line %d: keysize mismatch for host %s: "
+		logit("Warning: %s, line %lu: keysize mismatch for host %s: "
 		    "actual %d vs. announced %d.",
 		    filename, linenum, host, BN_num_bits(key->rsa->n), bits);
-		logit("Warning: replace %d with %d in %s, line %d.",
+		logit("Warning: replace %d with %d in %s, line %lu.",
 		    bits, BN_num_bits(key->rsa->n), filename, linenum);
 	}
 	return 1;
 }
 
-static enum { MRK_ERROR, MRK_NONE, MRK_REVOKE, MRK_CA }
+static HostkeyMarker
 check_markers(char **cpp)
 {
 	char marker[32], *sp, *cp = *cpp;
@@ -218,49 +226,32 @@ check_markers(char **cpp)
 	return ret;
 }
 
-/*
- * Checks whether the given host (which must be in all lowercase) is already
- * in the list of our known hosts. Returns HOST_OK if the host is known and
- * has the specified key, HOST_NEW if the host is not known, and HOST_CHANGED
- * if the host is known but used to have a different host key.
- *
- * If no 'key' has been specified and a key of type 'keytype' is known
- * for the specified host, then HOST_FOUND is returned.
- */
+struct hostkeys *
+init_hostkeys(void)
+{
+	struct hostkeys *ret = xcalloc(1, sizeof(*ret));
 
-static HostStatus
-check_host_in_hostfile_by_key_or_type(const char *filename,
-    const char *host, const Key *key, int keytype, Key *found,
-    int want_revocation, int *numret)
+	ret->entries = NULL;
+	return ret;
+}
+
+void
+load_hostkeys(struct hostkeys *hostkeys, const char *host, const char *path)
 {
 	FILE *f;
 	char line[8192];
-	int want, have, linenum = 0, want_cert = key_is_cert(key);
-	u_int kbits;
+	u_long linenum = 0, num_loaded = 0;
 	char *cp, *cp2, *hashed_host;
-	HostStatus end_return;
+	HostkeyMarker marker;
+	Key *key;
+	int kbits;
 
-	debug3("check_host_in_hostfile: host %s filename %s", host, filename);
-
-	if (want_revocation && (key == NULL || keytype != 0 || found != NULL))
-		fatal("%s: invalid arguments", __func__);
-
-	/* Open the file containing the list of known hosts. */
-	f = fopen(filename, "r");
-	if (!f)
-		return HOST_NEW;
-
-	/*
-	 * Return value when the loop terminates.  This is set to
-	 * HOST_CHANGED if we have seen a different key for the host and have
-	 * not found the proper one.
-	 */
-	end_return = HOST_NEW;
-
-	/* Go through the file. */
-	while (fgets(line, sizeof(line), f)) {
+	if ((f = fopen(path, "r")) == NULL)
+		return;
+	debug3("%s: loading entries for host \"%.100s\" from file \"%s\"",
+	    __func__, host, path);
+	while (read_keyfile_line(f, path, line, sizeof(line), &linenum) == 0) {
 		cp = line;
-		linenum++;
 
 		/* Skip any leading whitespace, comments and empty lines. */
 		for (; *cp == ' ' || *cp == '\t'; cp++)
@@ -268,19 +259,11 @@ check_host_in_hostfile_by_key_or_type(const char *filename,
 		if (!*cp || *cp == '#' || *cp == '\n')
 			continue;
 
-		if (want_revocation)
-			want = MRK_REVOKE;
-		else if (want_cert)
-			want = MRK_CA;
-		else
-			want = MRK_NONE;
-
-		if ((have = check_markers(&cp)) == MRK_ERROR) {
-			verbose("%s: invalid marker at %s:%d",
-			    __func__, filename, linenum);
+		if ((marker = check_markers(&cp)) == MRK_ERROR) {
+			verbose("%s: invalid marker at %s:%lu",
+			    __func__, path, linenum);
 			continue;
-		} else if (want != have)
-			continue;
+		}
 
 		/* Find the end of the host name portion. */
 		for (cp2 = cp; *cp2 && *cp2 != ' ' && *cp2 != '\t'; cp2++)
@@ -292,8 +275,8 @@ check_host_in_hostfile_by_key_or_type(const char *filename,
 				continue;
 			hashed_host = host_hash(host, cp, (u_int) (cp2 - cp));
 			if (hashed_host == NULL) {
-				debug("Invalid hashed host line %d of %s",
-				    linenum, filename);
+				debug("Invalid hashed host line %lu of %s",
+				    linenum, path);
 				continue;
 			}
 			if (strncmp(hashed_host, cp, (u_int) (cp2 - cp)) != 0)
@@ -303,98 +286,167 @@ check_host_in_hostfile_by_key_or_type(const char *filename,
 		/* Got a match.  Skip host name. */
 		cp = cp2;
 
-		if (want_revocation)
-			found = key_new(KEY_UNSPEC);
-
 		/*
 		 * Extract the key from the line.  This will skip any leading
 		 * whitespace.  Ignore badly formatted lines.
 		 */
-		if (!hostfile_read_key(&cp, &kbits, found))
-			continue;
-
-		if (numret != NULL)
-			*numret = linenum;
-
-		if (key == NULL) {
-			/* we found a key of the requested type */
-			if (found->type == keytype) {
-				fclose(f);
-				return HOST_FOUND;
+		key = key_new(KEY_UNSPEC);
+		if (!hostfile_read_key(&cp, &kbits, key)) {
+			key_free(key);
+			key = key_new(KEY_RSA1);
+			if (!hostfile_read_key(&cp, &kbits, key)) {
+				key_free(key);
+				continue;
 			}
-			continue;
 		}
-
-		if (!hostfile_check_key(kbits, found, host, filename, linenum))
+		if (!hostfile_check_key(kbits, key, host, path, linenum))
 			continue;
 
-		if (want_revocation) {
-			if (key_is_cert(key) &&
-			    key_equal_public(key->cert->signature_key, found)) {
-				verbose("check_host_in_hostfile: revoked CA "
-				    "line %d", linenum);
-				key_free(found);
-				return HOST_REVOKED;
-			}
-			if (key_equal_public(key, found)) {
-				verbose("check_host_in_hostfile: revoked key "
-				    "line %d", linenum);
-				key_free(found);
-				return HOST_REVOKED;
-			}
-			key_free(found);
-			continue;
-		}
-
-		/* Check if the current key is the same as the given key. */
-		if (want_cert && key_equal(key->cert->signature_key, found)) {
-			/* Found CA cert for key */
-			debug3("check_host_in_hostfile: CA match line %d",
-			    linenum);
-			fclose(f);
-			return HOST_OK;
-		} else if (!want_cert && key_equal(key, found)) {
-			/* Found identical key */
-			debug3("check_host_in_hostfile: match line %d", linenum);
-			fclose(f);
-			return HOST_OK;
-		}
-		/*
-		 * They do not match.  We will continue to go through the
-		 * file; however, we note that we will not return that it is
-		 * new.
-		 */
-		end_return = HOST_CHANGED;
+		debug3("%s: found %skey type %s in file %s:%lu", __func__,
+		    marker == MRK_NONE ? "" :
+		    (marker == MRK_CA ? "ca " : "revoked "),
+		    key_type(key), path, linenum);
+		hostkeys->entries = xrealloc(hostkeys->entries,
+		    hostkeys->num_entries + 1, sizeof(*hostkeys->entries));
+		hostkeys->entries[hostkeys->num_entries].host = xstrdup(host);
+		hostkeys->entries[hostkeys->num_entries].file = xstrdup(path);
+		hostkeys->entries[hostkeys->num_entries].line = linenum;
+		hostkeys->entries[hostkeys->num_entries].key = key;
+		hostkeys->entries[hostkeys->num_entries].marker = marker;
+		hostkeys->num_entries++;
+		num_loaded++;
 	}
-	/* Clear variables and close the file. */
+	debug3("%s: loaded %lu keys", __func__, num_loaded);
 	fclose(f);
+	return;
+}	
 
-	/*
-	 * Return either HOST_NEW or HOST_CHANGED, depending on whether we
-	 * saw a different key for the host.
-	 */
-	return end_return;
+void
+free_hostkeys(struct hostkeys *hostkeys)
+{
+	u_int i;
+
+	for (i = 0; i < hostkeys->num_entries; i++) {
+		xfree(hostkeys->entries[i].host);
+		xfree(hostkeys->entries[i].file);
+		key_free(hostkeys->entries[i].key);
+		bzero(hostkeys->entries + i, sizeof(*hostkeys->entries));
+	}
+	if (hostkeys->entries != NULL)
+		xfree(hostkeys->entries);
+	hostkeys->entries = NULL;
+	hostkeys->num_entries = 0;
+	xfree(hostkeys);
 }
 
+static int
+check_key_not_revoked(struct hostkeys *hostkeys, Key *k)
+{
+	int is_cert = key_is_cert(k);
+	u_int i;
+
+	for (i = 0; i < hostkeys->num_entries; i++) {
+		if (hostkeys->entries[i].marker != MRK_REVOKE)
+			continue;
+		if (key_equal_public(k, hostkeys->entries[i].key))
+			return -1;
+		if (is_cert &&
+		    key_equal_public(k->cert->signature_key,
+		    hostkeys->entries[i].key))
+			return -1;
+	}
+	return 0;
+}
+
+/*
+ * Match keys against a specified key, or look one up by key type.
+ *
+ * If looking for a keytype (key == NULL) and one is found then return
+ * HOST_FOUND, otherwise HOST_NEW.
+ *
+ * If looking for a key (key != NULL):
+ *  1. If the key is a cert and a matching CA is found, return HOST_OK
+ *  2. If the key is not a cert and a matching key is found, return HOST_OK
+ *  3. If no key matches but a key with a different type is found, then
+ *     return HOST_CHANGED
+ *  4. If no matching keys are found, then return HOST_NEW.
+ *
+ * Finally, check any found key is not revoked.
+ */
+static HostStatus
+check_hostkeys_by_key_or_type(struct hostkeys *hostkeys,
+    Key *k, int keytype, const struct hostkey_entry **found)
+{
+	u_int i;
+	HostStatus end_return = HOST_NEW;
+	int want_cert = key_is_cert(k);
+	HostkeyMarker want_marker = want_cert ? MRK_CA : MRK_NONE;
+	int proto = (k ? k->type : keytype) == KEY_RSA1 ? 1 : 2;
+
+	if (found != NULL)
+		*found = NULL;
+
+	for (i = 0; i < hostkeys->num_entries; i++) {
+		if (proto == 1 && hostkeys->entries[i].key->type != KEY_RSA1)
+			continue;
+		if (proto == 2 && hostkeys->entries[i].key->type == KEY_RSA1)
+			continue;
+		if (hostkeys->entries[i].marker != want_marker)
+			continue;
+		if (k == NULL) {
+			if (hostkeys->entries[i].key->type != keytype)
+				continue;
+			end_return = HOST_FOUND;
+			if (found != NULL)
+				*found = hostkeys->entries + i;
+			k = hostkeys->entries[i].key;
+			break;
+		}
+		if (want_cert) {
+			if (key_equal_public(k->cert->signature_key,
+			    hostkeys->entries[i].key)) {
+				/* A matching CA exists */
+				end_return = HOST_OK;
+				if (found != NULL)
+					*found = hostkeys->entries + i;
+				break;
+			}
+		} else {
+			if (key_equal(k, hostkeys->entries[i].key)) {
+				end_return = HOST_OK;
+				if (found != NULL)
+					*found = hostkeys->entries + i;
+				break;
+			}
+			/* A non-maching key exists */
+			end_return = HOST_CHANGED;
+			if (found != NULL)
+				*found = hostkeys->entries + i;
+		}
+	}
+	if (check_key_not_revoked(hostkeys, k) != 0) {
+		end_return = HOST_REVOKED;
+		if (found != NULL)
+			*found = NULL;
+	}
+	return end_return;
+}
+	
 HostStatus
-check_host_in_hostfile(const char *filename, const char *host, const Key *key,
-    Key *found, int *numret)
+check_key_in_hostkeys(struct hostkeys *hostkeys, Key *key,
+    const struct hostkey_entry **found)
 {
 	if (key == NULL)
 		fatal("no key to look up");
-	if (check_host_in_hostfile_by_key_or_type(filename, host,
-	    key, 0, NULL, 1, NULL) == HOST_REVOKED)
-		return HOST_REVOKED;
-	return check_host_in_hostfile_by_key_or_type(filename, host, key, 0,
-	    found, 0, numret);
+	return check_hostkeys_by_key_or_type(hostkeys, key, 0, found);
 }
 
 int
-lookup_key_in_hostfile_by_type(const char *filename, const char *host,
-    int keytype, Key *found, int *numret)
+lookup_key_in_hostkeys_by_type(struct hostkeys *hostkeys, int keytype,
+    const struct hostkey_entry **found)
 {
-	return (check_host_in_hostfile_by_key_or_type(filename, host, NULL,
-	    keytype, found, 0, numret) == HOST_FOUND);
+	return (check_hostkeys_by_key_or_type(hostkeys, NULL, keytype,
+	    found) == HOST_FOUND);
 }
 
 /*

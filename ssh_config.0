@@ -313,7 +313,18 @@ DESCRIPTION
      HostKeyAlgorithms
              Specifies the protocol version 2 host key algorithms that the
              client wants to use in order of preference.  The default for this
-             option is: ``ssh-rsa,ssh-dss''.
+             option is:
+
+                ecdsa-sha2-nistp256-cert-v01@openssh.com,
+                ecdsa-sha2-nistp384-cert-v01@openssh.com,
+                ecdsa-sha2-nistp521-cert-v01@openssh.com,
+                ssh-rsa-cert-v01@openssh.com,ssh-dss-cert-v01@openssh.com,
+                ssh-rsa-cert-v00@openssh.com,ssh-dss-cert-v00@openssh.com,
+                ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                ssh-rsa,ssh-dss
+
+             If hostkeys are known for the destination host then this default
+             is modified to prefer their algorithms.
 
      HostKeyAlias
              Specifies an alias that should be used instead of the real host
@@ -340,14 +351,14 @@ DESCRIPTION
              ``no''.
 
      IdentityFile
-             Specifies a file from which the user's RSA or DSA authentication
-             identity is read.  The default is ~/.ssh/identity for protocol
-             version 1, and ~/.ssh/id_rsa and ~/.ssh/id_dsa for protocol
-             version 2.  Additionally, any identities represented by the
-             authentication agent will be used for authentication.  ssh(1)
-             will try to load certificate information from the filename
-             obtained by appending -cert.pub to the path of a specified
-             IdentityFile.
+             Specifies a file from which the user's DSA, ECDSA or DSA
+             authentication identity is read.  The default is ~/.ssh/identity
+             for protocol version 1, and ~/.ssh/id_dsa, ~/.ssh/id_ecdsa and
+             ~/.ssh/id_rsa for protocol version 2.  Additionally, any
+             identities represented by the authentication agent will be used
+             for authentication.  ssh(1) will try to load certificate
+             information from the filename obtained by appending -cert.pub to
+             the path of a specified IdentityFile.
 
              The file name may use the tilde syntax to refer to a user's home
              directory or one of the following escape characters: `%d' (local
@@ -357,6 +368,19 @@ DESCRIPTION
              It is possible to have multiple identity files specified in
              configuration files; all these identities will be tried in
              sequence.
+
+     IPQoS   Specifies the IPv4 type-of-service or DSCP class for connections.
+             Accepted values are ``af11'', ``af12'', ``af13'', ``af14'',
+             ``af22'', ``af23'', ``af31'', ``af32'', ``af33'', ``af41'',
+             ``af42'', ``af43'', ``cs0'', ``cs1'', ``cs2'', ``cs3'', ``cs4'',
+             ``cs5'', ``cs6'', ``cs7'', ``ef'', ``lowdelay'', ``throughput'',
+             ``reliability'', or a numeric value.  This option may take one or
+             two arguments, separated by whitespace.  If one argument is
+             specified, it is used as the packet class unconditionally.  If
+             two values are specified, the first is automatically selected for
+             interactive sessions and the second for non-interactive sessions.
+             The default is ``lowdelay'' for interactive sessions and
+             ``throughput'' for non-interactive sessions.
 
      KbdInteractiveAuthentication
              Specifies whether to use keyboard-interactive authentication.
@@ -370,6 +394,16 @@ DESCRIPTION
              available vary depending on what the server supports.  For an
              OpenSSH server, it may be zero or more of: ``bsdauth'', ``pam'',
              and ``skey''.
+
+     KexAlgorithms
+             Specifies the available KEX (Key Exchange) algorithms.  Multiple
+             algorithms must be comma-separated.  The default is:
+
+                   ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
+                   diffie-hellman-group-exchange-sha256,
+                   diffie-hellman-group-exchange-sha1,
+                   diffie-hellman-group14-sha1,
+                   diffie-hellman-group1-sha1
 
      LocalCommand
              Specifies a command to execute on the local machine after
@@ -444,7 +478,7 @@ DESCRIPTION
 
      PKCS11Provider
              Specifies which PKCS#11 provider to use.  The argument to this
-             keyword is the PKCS#11 shared libary ssh(1) should use to
+             keyword is the PKCS#11 shared library ssh(1) should use to
              communicate with a PKCS#11 token providing the user's private RSA
              key.
 
@@ -614,7 +648,7 @@ DESCRIPTION
              Specifies the tun(4) devices to open on the client (local_tun)
              and the server (remote_tun).
 
-             The argument must be local_tun [:remote_tun].  The devices may be
+             The argument must be local_tun[:remote_tun].  The devices may be
              specified by numerical ID or the keyword ``any'', which uses the
              next available tunnel device.  If remote_tun is not specified, it
              defaults to ``any''.  The default is ``any:any''.
@@ -707,4 +741,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.8                     August 4, 2010                     OpenBSD 4.8
+OpenBSD 4.8                    December 8, 2010                    OpenBSD 4.8

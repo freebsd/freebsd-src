@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.166 2010/07/01 13:06:59 millert Exp $ */
+/* $OpenBSD: scp.c,v 1.170 2010/12/09 14:13:33 jmc Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -119,14 +119,15 @@ extern char *__progname;
 #define COPY_BUFLEN	16384
 
 int do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout);
-
-void bwlimit(int);
+int do_cmd2(char *host, char *remuser, char *cmd, int fdin, int fdout);
 
 /* Struct for addargs */
 arglist args;
+arglist remote_remote_args;
 
 /* Bandwidth limit */
-off_t limit_rate = 0;
+long long limit_kbps = 0;
+struct bwlimit bwlimit;
 
 /* Name of current file being transferred. */
 char *curfile;
@@ -136,6 +137,12 @@ int verbose_mode = 0;
 
 /* This is set to zero if the progressmeter is not desired. */
 int showprogress = 1;
+
+/*
+ * This is set to non-zero if remote-remote copy should be piped
+ * through this process.
+ */
+int throughlocal = 0;
 
 /* This is the program to execute for the secured connection. ("ssh" or -S) */
 char *ssh_program = _PATH_SSH_PROGRAM;
@@ -287,6 +294,50 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
 	return 0;
 }
 
+/*
+ * This functions executes a command simlar to do_cmd(), but expects the
+ * input and output descriptors to be setup by a previous call to do_cmd().
+ * This way the input and output of two commands can be connected.
+ */
+int
+do_cmd2(char *host, char *remuser, char *cmd, int fdin, int fdout)
+{
+	pid_t pid;
+	int status;
+
+	if (verbose_mode)
+		fprintf(stderr,
+		    "Executing: 2nd program %s host %s, user %s, command %s\n",
+		    ssh_program, host,
+		    remuser ? remuser : "(unspecified)", cmd);
+
+	/* Fork a child to execute the command on the remote host using ssh. */
+	pid = fork();
+	if (pid == 0) {
+		dup2(fdin, 0);
+		dup2(fdout, 1);
+
+		replacearg(&args, 0, "%s", ssh_program);
+		if (remuser != NULL) {
+			addargs(&args, "-l");
+			addargs(&args, "%s", remuser);
+		}
+		addargs(&args, "--");
+		addargs(&args, "%s", host);
+		addargs(&args, "%s", cmd);
+
+		execvp(ssh_program, args.list);
+		perror(ssh_program);
+		exit(1);
+	} else if (pid == -1) {
+		fatal("fork: %s", strerror(errno));
+	}
+	while (waitpid(pid, &status, 0) == -1)
+		if (errno != EINTR)
+			fatal("do_cmd2: waitpid: %s", strerror(errno));
+	return 0;
+}
+
 typedef struct {
 	size_t cnt;
 	char *buf;
@@ -312,15 +363,14 @@ void sink(int, char *[]);
 void source(int, char *[]);
 void tolocal(int, char *[]);
 void toremote(char *, int, char *[]);
-size_t scpio(ssize_t (*)(int, void *, size_t), int, void *, size_t, off_t *);
 void usage(void);
 
 int
 main(int argc, char **argv)
 {
 	int ch, fflag, tflag, status, n;
-	double speed;
-	char *targ, *endp, **newargv;
+	char *targ, **newargv;
+	const char *errstr;
 	extern char *optarg;
 	extern int optind;
 
@@ -336,15 +386,16 @@ main(int argc, char **argv)
 	__progname = ssh_get_progname(argv[0]);
 
 	memset(&args, '\0', sizeof(args));
-	args.list = NULL;
+	memset(&remote_remote_args, '\0', sizeof(remote_remote_args));
+	args.list = remote_remote_args.list = NULL;
 	addargs(&args, "%s", ssh_program);
 	addargs(&args, "-x");
-	addargs(&args, "-oForwardAgent no");
-	addargs(&args, "-oPermitLocalCommand no");
-	addargs(&args, "-oClearAllForwardings yes");
+	addargs(&args, "-oForwardAgent=no");
+	addargs(&args, "-oPermitLocalCommand=no");
+	addargs(&args, "-oClearAllForwardings=yes");
 
 	fflag = tflag = 0;
-	while ((ch = getopt(argc, argv, "dfl:prtvBCc:i:P:q1246S:o:F:")) != -1)
+	while ((ch = getopt(argc, argv, "dfl:prtvBCc:i:P:q12346S:o:F:")) != -1)
 		switch (ch) {
 		/* User-visible flags. */
 		case '1':
@@ -353,26 +404,37 @@ main(int argc, char **argv)
 		case '6':
 		case 'C':
 			addargs(&args, "-%c", ch);
+			addargs(&remote_remote_args, "-%c", ch);
+			break;
+		case '3':
+			throughlocal = 1;
 			break;
 		case 'o':
 		case 'c':
 		case 'i':
 		case 'F':
+			addargs(&remote_remote_args, "-%c", ch);
+			addargs(&remote_remote_args, "%s", optarg);
 			addargs(&args, "-%c", ch);
 			addargs(&args, "%s", optarg);
 			break;
 		case 'P':
+			addargs(&remote_remote_args, "-p");
+			addargs(&remote_remote_args, "%s", optarg);
 			addargs(&args, "-p");
 			addargs(&args, "%s", optarg);
 			break;
 		case 'B':
-			addargs(&args, "-oBatchmode yes");
+			addargs(&remote_remote_args, "-oBatchmode=yes");
+			addargs(&args, "-oBatchmode=yes");
 			break;
 		case 'l':
-			speed = strtod(optarg, &endp);
-			if (speed <= 0 || *endp != '\0')
+			limit_kbps = strtonum(optarg, 1, 100 * 1024 * 1024,
+			    &errstr);
+			if (errstr != NULL)
 				usage();
-			limit_rate = speed * 1024;
+			limit_kbps *= 1024; /* kbps */
+			bandwidth_limit_init(&bwlimit, limit_kbps, COPY_BUFLEN);
 			break;
 		case 'p':
 			pflag = 1;
@@ -385,10 +447,12 @@ main(int argc, char **argv)
 			break;
 		case 'v':
 			addargs(&args, "-v");
+			addargs(&remote_remote_args, "-v");
 			verbose_mode = 1;
 			break;
 		case 'q':
 			addargs(&args, "-q");
+			addargs(&remote_remote_args, "-q");
 			showprogress = 0;
 			break;
 
@@ -474,41 +538,16 @@ main(int argc, char **argv)
 	exit(errs != 0);
 }
 
-/*
- * atomicio-like wrapper that also applies bandwidth limits and updates
- * the progressmeter counter.
- */
-size_t
-scpio(ssize_t (*f)(int, void *, size_t), int fd, void *_p, size_t l, off_t *c)
+/* Callback from atomicio6 to update progress meter and limit bandwidth */
+static int
+scpio(void *_cnt, size_t s)
 {
-	u_char *p = (u_char *)_p;
-	size_t offset;
-	ssize_t r;
-	struct pollfd pfd;
+	off_t *cnt = (off_t *)_cnt;
 
-	pfd.fd = fd;
-	pfd.events = f == read ? POLLIN : POLLOUT;
-	for (offset = 0; offset < l;) {
-		r = f(fd, p + offset, l - offset);
-		if (r == 0) {
-			errno = EPIPE;
-			return offset;
-		}
-		if (r < 0) {
-			if (errno == EINTR)
-				continue;
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				(void)poll(&pfd, 1, -1); /* Ignore errors */
-				continue;
-			}
-			return offset;
-		}
-		offset += (size_t)r;
-		*c += (off_t)r;
-		if (limit_rate)
-			bwlimit(r);
-	}
-	return offset;
+	*cnt += s;
+	if (limit_kbps > 0)
+		bandwidth_limit(&bwlimit, s);
+	return 0;
 }
 
 void
@@ -517,6 +556,7 @@ toremote(char *targ, int argc, char **argv)
 	char *bp, *host, *src, *suser, *thost, *tuser, *arg;
 	arglist alist;
 	int i;
+	u_int j;
 
 	memset(&alist, '\0', sizeof(alist));
 	alist.list = NULL;
@@ -544,15 +584,45 @@ toremote(char *targ, int argc, char **argv)
 
 	for (i = 0; i < argc - 1; i++) {
 		src = colon(argv[i]);
-		if (src) {	/* remote to remote */
+		if (src && throughlocal) {	/* extended remote to remote */
+			*src++ = 0;
+			if (*src == 0)
+				src = ".";
+			host = strrchr(argv[i], '@');
+			if (host) {
+				*host++ = 0;
+				host = cleanhostname(host);
+				suser = argv[i];
+				if (*suser == '\0')
+					suser = pwd->pw_name;
+				else if (!okname(suser))
+					continue;
+			} else {
+				host = cleanhostname(argv[i]);
+				suser = NULL;
+			}
+			xasprintf(&bp, "%s -f -- %s", cmd, src);
+			if (do_cmd(host, suser, bp, &remin, &remout) < 0)
+				exit(1);
+			(void) xfree(bp);
+			host = cleanhostname(thost);
+			xasprintf(&bp, "%s -t -- %s", cmd, targ);
+			if (do_cmd2(host, tuser, bp, remin, remout) < 0)
+				exit(1);
+			(void) xfree(bp);
+			(void) close(remin);
+			(void) close(remout);
+			remin = remout = -1;
+		} else if (src) {	/* standard remote to remote */
 			freeargs(&alist);
 			addargs(&alist, "%s", ssh_program);
-			if (verbose_mode)
-				addargs(&alist, "-v");
 			addargs(&alist, "-x");
-			addargs(&alist, "-oClearAllForwardings yes");
+			addargs(&alist, "-oClearAllForwardings=yes");
 			addargs(&alist, "-n");
-
+			for (j = 0; j < remote_remote_args.num; j++) {
+				addargs(&alist, "%s",
+				    remote_remote_args.list[j]);
+			}
 			*src++ = 0;
 			if (*src == 0)
 				src = ".";
@@ -750,7 +820,7 @@ next:			if (fd != -1) {
 				(void)atomicio(vwrite, remout, bp->buf, amt);
 				continue;
 			}
-			if (scpio(vwrite, remout, bp->buf, amt,
+			if (atomicio6(vwrite, remout, bp->buf, amt, scpio,
 			    &statbytes) != amt)
 				haderr = errno;
 		}
@@ -822,60 +892,6 @@ rsource(char *name, struct stat *statp)
 	(void) closedir(dirp);
 	(void) atomicio(vwrite, remout, "E\n", 2);
 	(void) response();
-}
-
-void
-bwlimit(int amount)
-{
-	static struct timeval bwstart, bwend;
-	static int lamt, thresh = 16384;
-	u_int64_t waitlen;
-	struct timespec ts, rm;
-
-	if (!timerisset(&bwstart)) {
-		gettimeofday(&bwstart, NULL);
-		return;
-	}
-
-	lamt += amount;
-	if (lamt < thresh)
-		return;
-
-	gettimeofday(&bwend, NULL);
-	timersub(&bwend, &bwstart, &bwend);
-	if (!timerisset(&bwend))
-		return;
-
-	lamt *= 8;
-	waitlen = (double)1000000L * lamt / limit_rate;
-
-	bwstart.tv_sec = waitlen / 1000000L;
-	bwstart.tv_usec = waitlen % 1000000L;
-
-	if (timercmp(&bwstart, &bwend, >)) {
-		timersub(&bwstart, &bwend, &bwend);
-
-		/* Adjust the wait time */
-		if (bwend.tv_sec) {
-			thresh /= 2;
-			if (thresh < 2048)
-				thresh = 2048;
-		} else if (bwend.tv_usec < 10000) {
-			thresh *= 2;
-			if (thresh > COPY_BUFLEN * 4)
-				thresh = COPY_BUFLEN * 4;
-		}
-
-		TIMEVAL_TO_TIMESPEC(&bwend, &ts);
-		while (nanosleep(&ts, &rm) == -1) {
-			if (errno != EINTR)
-				break;
-			ts = rm;
-		}
-	}
-
-	lamt = 0;
-	gettimeofday(&bwstart, NULL);
 }
 
 void
@@ -1071,7 +1087,8 @@ bad:			run_err("%s: %s", np, strerror(errno));
 				amt = size - i;
 			count += amt;
 			do {
-				j = scpio(read, remin, cp, amt, &statbytes);
+				j = atomicio6(read, remin, cp, amt,
+				    scpio, &statbytes);
 				if (j == 0) {
 					run_err("%s", j != EPIPE ?
 					    strerror(errno) :
@@ -1197,7 +1214,7 @@ void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "usage: scp [-1246BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]\n"
+	    "usage: scp [-12346BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]\n"
 	    "           [-l limit] [-o ssh_option] [-P port] [-S program]\n"
 	    "           [[user@]host1:]file1 ... [[user@]host2:]file2\n");
 	exit(1);

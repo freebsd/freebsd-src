@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-jpake.c,v 1.3 2009/03/05 07:18:19 djm Exp $ */
+/* $OpenBSD: auth2-jpake.c,v 1.4 2010/08/31 11:54:45 djm Exp $ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
  *
@@ -161,6 +161,11 @@ derive_rawsalt(const char *username, u_char *rawsalt, u_int len)
 		if (k->dsa->priv_key == NULL)
 			fatal("%s: DSA key missing priv_key", __func__);
 		buffer_put_bignum2(&b, k->dsa->priv_key);
+		break;
+	case KEY_ECDSA:
+		if (EC_KEY_get0_private_key(k->ecdsa) == NULL)
+			fatal("%s: ECDSA key missing priv_key", __func__);
+		buffer_put_bignum2(&b, EC_KEY_get0_private_key(k->ecdsa));
 		break;
 	default:
 		fatal("%s: unknown key type %d", __func__, k->type);

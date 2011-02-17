@@ -157,7 +157,7 @@ init_rng(void)
 	 */
 	if ((SSLeay() ^ OPENSSL_VERSION_NUMBER) & ~0xff0L)
 		fatal("OpenSSL version mismatch. Built against %lx, you "
-		    "have %lx", OPENSSL_VERSION_NUMBER, SSLeay());
+		    "have %lx", (u_long)OPENSSL_VERSION_NUMBER, SSLeay());
 
 #ifndef OPENSSL_PRNG_ONLY
 	original_uid = getuid();

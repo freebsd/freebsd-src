@@ -9,17 +9,18 @@ SYNOPSIS
 
 DESCRIPTION
      ssh-agent is a program to hold private keys used for public key
-     authentication (RSA, DSA).  The idea is that ssh-agent is started in the
-     beginning of an X-session or a login session, and all other windows or
-     programs are started as clients to the ssh-agent program.  Through use of
-     environment variables the agent can be located and automatically used for
-     authentication when logging in to other machines using ssh(1).
+     authentication (RSA, DSA, ECDSA).  The idea is that ssh-agent is started
+     in the beginning of an X-session or a login session, and all other
+     windows or programs are started as clients to the ssh-agent program.
+     Through use of environment variables the agent can be located and
+     automatically used for authentication when logging in to other machines
+     using ssh(1).
 
      The options are as follows:
 
      -a bind_address
              Bind the agent to the UNIX-domain socket bind_address.  The
-             default is /tmp/ssh-XXXXXXXXXX/agent.<ppid>.
+             default is $TMPDIR/ssh-XXXXXXXXXX/agent.<ppid>.
 
      -c      Generate C-shell commands on stdout.  This is the default if
              SHELL looks like it's a csh style of shell.
@@ -45,13 +46,13 @@ DESCRIPTION
 
      The agent initially does not have any private keys.  Keys are added using
      ssh-add(1).  When executed without arguments, ssh-add(1) adds the files
-     ~/.ssh/id_rsa, ~/.ssh/id_dsa and ~/.ssh/identity.  If the identity has a
-     passphrase, ssh-add(1) asks for the passphrase on the terminal if it has
-     one or from a small X11 program if running under X11.  If neither of
-     these is the case then the authentication will fail.  It then sends the
-     identity to the agent.  Several identities can be stored in the agent;
-     the agent can automatically use any of these identities.  ssh-add -l
-     displays the identities currently held by the agent.
+     ~/.ssh/id_rsa, ~/.ssh/id_dsa, ~/.ssh/id_ecdsa and ~/.ssh/identity.  If
+     the identity has a passphrase, ssh-add(1) asks for the passphrase on the
+     terminal if it has one or from a small X11 program if running under X11.
+     If neither of these is the case then the authentication will fail.  It
+     then sends the identity to the agent.  Several identities can be stored
+     in the agent; the agent can automatically use any of these identities.
+     ssh-add -l displays the identities currently held by the agent.
 
      The idea is that the agent is run in the user's local PC, laptop, or
      terminal.  Authentication data need not be stored on any other machine,
@@ -95,11 +96,15 @@ FILES
              Contains the protocol version 2 DSA authentication identity of
              the user.
 
+     ~/.ssh/id_ecdsa
+             Contains the protocol version 2 ECDSA authentication identity of
+             the user.
+
      ~/.ssh/id_rsa
              Contains the protocol version 2 RSA authentication identity of
              the user.
 
-     /tmp/ssh-XXXXXXXXXX/agent.<ppid>
+     $TMPDIR/ssh-XXXXXXXXXX/agent.<ppid>
              UNIX-domain sockets used to contain the connection to the
              authentication agent.  These sockets should only be readable by
              the owner.  The sockets should get automatically removed when the
@@ -115,4 +120,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.8                    January 17, 2010                    OpenBSD 4.8
+OpenBSD 4.8                    November 21, 2010                   OpenBSD 4.8

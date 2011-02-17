@@ -17,7 +17,6 @@ DESCRIPTION
      The file consists of newline-separated records, one per modulus,
      containing seven space separated fields.  These fields are as follows:
 
-
            timestamp    The time that the modulus was last processed as
                         YYYYMMDDHHMMSS.
 

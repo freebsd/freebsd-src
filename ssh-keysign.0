@@ -23,14 +23,18 @@ FILES
      /etc/ssh/ssh_config
              Controls whether ssh-keysign is enabled.
 
-     /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_rsa_key
+     /etc/ssh/ssh_host_dsa_key
+     /etc/ssh/ssh_host_ecdsa_key
+     /etc/ssh/ssh_host_rsa_key
              These files contain the private parts of the host keys used to
              generate the digital signature.  They should be owned by root,
              readable only by root, and not accessible to others.  Since they
              are readable only by root, ssh-keysign must be set-uid root if
              host-based authentication is used.
 
-     /etc/ssh/ssh_host_dsa_key-cert.pub, /etc/ssh/ssh_host_rsa_key-cert.pub
+     /etc/ssh/ssh_host_dsa_key-cert.pub
+     /etc/ssh/ssh_host_ecdsa_key-cert.pub
+     /etc/ssh/ssh_host_rsa_key-cert.pub
              If these files exist they are assumed to contain public
              certificate information corresponding with the private keys
              above.
@@ -44,4 +48,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 4.8                     August 4, 2010                     OpenBSD 4.8
+OpenBSD 4.8                     August 31, 2010                    OpenBSD 4.8

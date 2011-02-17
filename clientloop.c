@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.222 2010/07/19 09:15:12 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.231 2011/01/16 12:05:59 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -325,7 +325,7 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 		if (trusted == 0) {
 			xauthdir = xmalloc(MAXPATHLEN);
 			xauthfile = xmalloc(MAXPATHLEN);
-			strlcpy(xauthdir, "/tmp/ssh-XXXXXXXXXX", MAXPATHLEN);
+			mktemp_proto(xauthdir, MAXPATHLEN);
 			if (mkdtemp(xauthdir) != NULL) {
 				do_unlink = 1;
 				snprintf(xauthfile, MAXPATHLEN, "%s/xauthfile",
@@ -544,7 +544,7 @@ static void
 server_alive_check(void)
 {
 	if (packet_inc_alive_timeouts() > options.server_alive_count_max) {
-		logit("Timeout, server not responding.");
+		logit("Timeout, server %s not responding.", host);
 		cleanup_exit(255);
 	}
 	packet_start(SSH2_MSG_GLOBAL_REQUEST);
@@ -1590,25 +1590,23 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	}
 
 	/* Output any buffered data for stdout. */
-	while (buffer_len(&stdout_buffer) > 0) {
-		len = write(fileno(stdout), buffer_ptr(&stdout_buffer),
-		    buffer_len(&stdout_buffer));
-		if (len <= 0) {
+	if (buffer_len(&stdout_buffer) > 0) {
+		len = atomicio(vwrite, fileno(stdout),
+		    buffer_ptr(&stdout_buffer), buffer_len(&stdout_buffer));
+		if (len < 0 || (u_int)len != buffer_len(&stdout_buffer))
 			error("Write failed flushing stdout buffer.");
-			break;
-		}
-		buffer_consume(&stdout_buffer, len);
+		else
+			buffer_consume(&stdout_buffer, len);
 	}
 
 	/* Output any buffered data for stderr. */
-	while (buffer_len(&stderr_buffer) > 0) {
-		len = write(fileno(stderr), buffer_ptr(&stderr_buffer),
-		    buffer_len(&stderr_buffer));
-		if (len <= 0) {
+	if (buffer_len(&stderr_buffer) > 0) {
+		len = atomicio(vwrite, fileno(stderr),
+		    buffer_ptr(&stderr_buffer), buffer_len(&stderr_buffer));
+		if (len < 0 || (u_int)len != buffer_len(&stderr_buffer))
 			error("Write failed flushing stderr buffer.");
-			break;
-		}
-		buffer_consume(&stderr_buffer, len);
+		else
+			buffer_consume(&stderr_buffer, len);
 	}
 
 	/* Clear and free any buffers. */
@@ -1622,7 +1620,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	packet_get_state(MODE_IN, NULL, NULL, NULL, &ibytes);
 	packet_get_state(MODE_OUT, NULL, NULL, NULL, &obytes);
 	verbose("Transferred: sent %llu, received %llu bytes, in %.1f seconds",
-	    obytes, ibytes, total_time);
+	    (unsigned long long)obytes, (unsigned long long)ibytes, total_time);
 	if (total_time > 0)
 		verbose("Bytes per second: sent %.1f, received %.1f",
 		    obytes / total_time, ibytes / total_time);
@@ -1933,7 +1931,7 @@ client_input_channel_req(int type, u_int32_t seq, void *ctxt)
 		}
 		packet_check_eom();
 	}
-	if (reply) {
+	if (reply && c != NULL) {
 		packet_start(success ?
 		    SSH2_MSG_CHANNEL_SUCCESS : SSH2_MSG_CHANNEL_FAILURE);
 		packet_put_int(c->remote_id);
@@ -1972,6 +1970,9 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 
 	if ((c = channel_lookup(id)) == NULL)
 		fatal("client_session2_setup: channel %d: unknown channel", id);
+
+	packet_set_interactive(want_tty,
+	    options.ip_qos_interactive, options.ip_qos_bulk);
 
 	if (want_tty) {
 		struct winsize ws;
@@ -2129,5 +2130,6 @@ cleanup_exit(int i)
 	leave_non_blocking();
 	if (options.control_path != NULL && muxserver_sock != -1)
 		unlink(options.control_path);
+	ssh_kill_proxy_command();
 	_exit(i);
 }

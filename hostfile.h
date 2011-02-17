@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.h,v 1.18 2010/03/04 10:36:03 djm Exp $ */
+/* $OpenBSD: hostfile.h,v 1.19 2010/11/29 23:45:51 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -18,12 +18,30 @@ typedef enum {
 	HOST_OK, HOST_NEW, HOST_CHANGED, HOST_REVOKED, HOST_FOUND
 }       HostStatus;
 
+typedef enum {
+	MRK_ERROR, MRK_NONE, MRK_REVOKE, MRK_CA
+}	HostkeyMarker;
+
+struct hostkey_entry {
+	char *host;
+	char *file;
+	u_long line;
+	Key *key;
+	HostkeyMarker marker;
+};
+struct hostkeys;
+
+struct hostkeys *init_hostkeys(void);
+void	 load_hostkeys(struct hostkeys *, const char *, const char *);
+void	 free_hostkeys(struct hostkeys *);
+
+HostStatus check_key_in_hostkeys(struct hostkeys *, Key *,
+    const struct hostkey_entry **);
+int	 lookup_key_in_hostkeys_by_type(struct hostkeys *, int,
+    const struct hostkey_entry **);
+
 int	 hostfile_read_key(char **, u_int *, Key *);
-HostStatus check_host_in_hostfile(const char *, const char *,
-	    const Key *, Key *, int *);
-int	add_host_to_hostfile(const char *, const char *, const Key *, int);
-int	lookup_key_in_hostfile_by_type(const char *, const char *,
-	    int, Key *, int *);
+int	 add_host_to_hostfile(const char *, const char *, const Key *, int);
 
 #define HASH_MAGIC	"|1|"
 #define HASH_DELIM	'|'
