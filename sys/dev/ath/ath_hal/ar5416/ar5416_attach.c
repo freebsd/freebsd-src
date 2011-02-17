@@ -58,7 +58,7 @@ ar5416AniSetup(struct ath_hal *ah)
 		.period			= 100,
 	};
 	/* NB: ANI is not enabled yet */
-	ar5212AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
+	ar5416AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
 }
 
 /*
