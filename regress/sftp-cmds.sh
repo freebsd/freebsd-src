@@ -1,4 +1,4 @@
-#	$OpenBSD: sftp-cmds.sh,v 1.10 2009/08/13 01:11:55 djm Exp $
+#	$OpenBSD: sftp-cmds.sh,v 1.11 2010/12/04 00:21:19 djm Exp $
 #	Placed in the Public Domain.
 
 # XXX - TODO: 
@@ -209,7 +209,13 @@ test -d ${COPY}.dd2 || fail "missing newname after rename directory"
 
 verbose "$tid: ln"
 echo "ln ${COPY}.1 ${COPY}.2" | ${SFTP} -D ${SFTPSERVER} >/dev/null 2>&1 || fail "ln failed"
-test -h ${COPY}.2 || fail "missing file after ln"
+test -f ${COPY}.2 || fail "missing file after ln"
+cmp ${COPY}.1 ${COPY}.2 || fail "created file is not equal after ln"
+
+verbose "$tid: ln -s"
+rm -f ${COPY}.2
+echo "ln -s ${COPY}.1 ${COPY}.2" | ${SFTP} -D ${SFTPSERVER} >/dev/null 2>&1 || fail "ln -s failed"
+test -h ${COPY}.2 || fail "missing file after ln -s"
 
 verbose "$tid: mkdir"
 echo "mkdir ${COPY}.dd" | ${SFTP} -D ${SFTPSERVER} >/dev/null 2>&1 \

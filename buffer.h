@@ -1,4 +1,4 @@
-/* $OpenBSD: buffer.h,v 1.19 2010/02/09 03:56:28 djm Exp $ */
+/* $OpenBSD: buffer.h,v 1.21 2010/08/31 11:54:45 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -68,6 +68,7 @@ void    buffer_put_char(Buffer *, int);
 void   *buffer_get_string(Buffer *, u_int *);
 void   *buffer_get_string_ptr(Buffer *, u_int *);
 void    buffer_put_string(Buffer *, const void *, u_int);
+char   *buffer_get_cstring(Buffer *, u_int *);
 void	buffer_put_cstring(Buffer *, const char *);
 
 #define buffer_skip_string(b) \
@@ -81,7 +82,17 @@ int	buffer_get_short_ret(u_short *, Buffer *);
 int	buffer_get_int_ret(u_int *, Buffer *);
 int	buffer_get_int64_ret(u_int64_t *, Buffer *);
 void	*buffer_get_string_ret(Buffer *, u_int *);
+char	*buffer_get_cstring_ret(Buffer *, u_int *);
 void	*buffer_get_string_ptr_ret(Buffer *, u_int *);
 int	buffer_get_char_ret(char *, Buffer *);
+
+#ifdef OPENSSL_HAS_ECC
+#include <openssl/ec.h>
+
+int	buffer_put_ecpoint_ret(Buffer *, const EC_GROUP *, const EC_POINT *);
+void	buffer_put_ecpoint(Buffer *, const EC_GROUP *, const EC_POINT *);
+int	buffer_get_ecpoint_ret(Buffer *, const EC_GROUP *, EC_POINT *);
+void	buffer_get_ecpoint(Buffer *, const EC_GROUP *, EC_POINT *);
+#endif
 
 #endif				/* BUFFER_H */

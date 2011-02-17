@@ -1,4 +1,4 @@
-/* $OpenBSD: schnorr.c,v 1.3 2009/03/05 07:18:19 djm Exp $ */
+/* $OpenBSD: schnorr.c,v 1.5 2010/12/03 23:49:26 djm Exp $ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
  *
@@ -138,6 +138,10 @@ schnorr_sign(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 		error("%s: g_x < 1", __func__);
 		return -1;
 	}
+	if (BN_cmp(g_x, grp_p) >= 0) {
+		error("%s: g_x > g", __func__);
+		return -1;
+	}
 
 	h = g_v = r = tmp = v = NULL;
 	if ((bn_ctx = BN_CTX_new()) == NULL) {
@@ -254,14 +258,19 @@ schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
     const BIGNUM *r, const BIGNUM *e)
 {
 	int success = -1;
-	BIGNUM *h, *g_xh, *g_r, *expected;
+	BIGNUM *h = NULL, *g_xh = NULL, *g_r = NULL, *gx_q = NULL;
+	BIGNUM *expected = NULL;
 	BN_CTX *bn_ctx;
 
 	SCHNORR_DEBUG_BN((g_x, "%s: g_x = ", __func__));
 
 	/* Avoid degenerate cases: g^0 yields a spoofable signature */
 	if (BN_cmp(g_x, BN_value_one()) <= 0) {
-		error("%s: g_x < 1", __func__);
+		error("%s: g_x <= 1", __func__);
+		return -1;
+	}
+	if (BN_cmp(g_x, grp_p) >= 0) {
+		error("%s: g_x >= p", __func__);
 		return -1;
 	}
 
@@ -272,6 +281,7 @@ schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 	}
 	if ((g_xh = BN_new()) == NULL ||
 	    (g_r = BN_new()) == NULL ||
+	    (gx_q = BN_new()) == NULL ||
 	    (expected = BN_new()) == NULL) {
 		error("%s: BN_new", __func__);
 		goto out;
@@ -280,6 +290,17 @@ schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 	SCHNORR_DEBUG_BN((e, "%s: e = ", __func__));
 	SCHNORR_DEBUG_BN((r, "%s: r = ", __func__));
 
+	/* gx_q = (g^x)^q must === 1 mod p */
+	if (BN_mod_exp(gx_q, g_x, grp_q, grp_p, bn_ctx) == -1) {
+		error("%s: BN_mod_exp (g_x^q mod p)", __func__);
+		goto out;
+	}
+	if (BN_cmp(gx_q, BN_value_one()) != 0) {
+		error("%s: Invalid signature (g^x)^q != 1 mod p", __func__);
+		goto out;
+	}
+
+	SCHNORR_DEBUG_BN((g_xh, "%s: g_xh = ", __func__));
 	/* h = H(g || g^v || g^x || id) */
 	if ((h = schnorr_hash(grp_p, grp_q, grp_g, evp_md, e, g_x,
 	    id, idlen)) == NULL) {
@@ -314,9 +335,14 @@ schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 	BN_CTX_free(bn_ctx);
 	if (h != NULL)
 		BN_clear_free(h);
-	BN_clear_free(g_xh);
-	BN_clear_free(g_r);
-	BN_clear_free(expected);
+	if (gx_q != NULL)
+		BN_clear_free(gx_q);
+	if (g_xh != NULL)
+		BN_clear_free(g_xh);
+	if (g_r != NULL)
+		BN_clear_free(g_r);
+	if (expected != NULL)
+		BN_clear_free(expected);
 	return success;
 }
 

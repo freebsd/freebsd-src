@@ -1,4 +1,4 @@
-/* $OpenBSD: cipher-ctr.c,v 1.10 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: cipher-ctr.c,v 1.11 2010/10/01 23:05:32 djm Exp $ */
 /*
  * Copyright (c) 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -34,7 +34,7 @@
 #endif
 
 const EVP_CIPHER *evp_aes_128_ctr(void);
-void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, u_int);
+void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, size_t);
 
 struct ssh_aes_ctr_ctx
 {
@@ -48,7 +48,7 @@ struct ssh_aes_ctr_ctx
  * (LSB at ctr[len-1], MSB at ctr[0])
  */
 static void
-ssh_ctr_inc(u_char *ctr, u_int len)
+ssh_ctr_inc(u_char *ctr, size_t len)
 {
 	int i;
 
@@ -59,10 +59,10 @@ ssh_ctr_inc(u_char *ctr, u_int len)
 
 static int
 ssh_aes_ctr(EVP_CIPHER_CTX *ctx, u_char *dest, const u_char *src,
-    u_int len)
+    LIBCRYPTO_EVP_INL_TYPE len)
 {
 	struct ssh_aes_ctr_ctx *c;
-	u_int n = 0;
+	size_t n = 0;
 	u_char buf[AES_BLOCK_SIZE];
 
 	if (len == 0)
@@ -113,7 +113,7 @@ ssh_aes_ctr_cleanup(EVP_CIPHER_CTX *ctx)
 }
 
 void
-ssh_aes_ctr_iv(EVP_CIPHER_CTX *evp, int doset, u_char * iv, u_int len)
+ssh_aes_ctr_iv(EVP_CIPHER_CTX *evp, int doset, u_char * iv, size_t len)
 {
 	struct ssh_aes_ctr_ctx *c;
 

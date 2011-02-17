@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keysign.c,v 1.32 2010/08/04 06:08:40 djm Exp $ */
+/* $OpenBSD: ssh-keysign.c,v 1.35 2010/08/31 12:33:38 djm Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
@@ -194,7 +194,7 @@ main(int argc, char **argv)
 	if (key_fd[0] == -1 && key_fd[1] == -1)
 		fatal("could not open any host key");
 
-	SSLeay_add_all_algorithms();
+	OpenSSL_add_all_algorithms();
 	for (i = 0; i < 256; i++)
 		rnd[i] = arc4random();
 	RAND_seed(rnd, sizeof(rnd));

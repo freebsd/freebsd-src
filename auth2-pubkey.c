@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.26 2010/06/29 23:16:46 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.27 2010/11/20 05:12:38 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -232,7 +232,7 @@ match_principals_file(char *file, struct passwd *pw, struct KeyCert *cert)
 		if ((ep = strrchr(cp, ' ')) != NULL ||
 		    (ep = strrchr(cp, '\t')) != NULL) {
 			for (; *ep == ' ' || *ep == '\t'; ep++)
-				;;
+				;
 			line_opts = cp;
 			cp = ep;
 		}

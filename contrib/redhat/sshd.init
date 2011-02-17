@@ -104,7 +104,7 @@ start()
 	do_dsa_keygen
 
 	echo -n $"Starting $prog:"
-	initlog -c "$SSHD $OPTIONS" && success || failure
+	$SSHD $OPTIONS && success || failure
 	RETVAL=$?
 	[ "$RETVAL" = 0 ] && touch /var/lock/subsys/sshd
 	echo

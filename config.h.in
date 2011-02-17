@@ -125,6 +125,9 @@
 /* Builtin PRNG command timeout */
 #undef ENTROPY_TIMEOUT_MSEC
 
+/* File names may not contain backslash characters */
+#undef FILESYSTEM_NO_BACKSLASH
+
 /* fsid_t has member val */
 #undef FSID_HAS_VAL
 
@@ -142,6 +145,9 @@
 
 /* Define if your system glob() function has gl_matchc options in glob_t */
 #undef GLOB_HAS_GL_MATCHC
+
+/* Define if your system glob() function has gl_statv options in glob_t */
+#undef GLOB_HAS_GL_STATV
 
 /* Define this if you want GSSAPI support in the version 2 protocol */
 #undef GSSAPI
@@ -202,6 +208,9 @@
 
 /* Define to 1 if you have the `bindresvport_sa' function. */
 #undef HAVE_BINDRESVPORT_SA
+
+/* Define to 1 if you have the `BN_is_prime_ex' function. */
+#undef HAVE_BN_IS_PRIME_EX
 
 /* Define to 1 if you have the <bsm/audit.h> header file. */
 #undef HAVE_BSM_AUDIT_H
@@ -310,6 +319,9 @@
 
 /* Define to 1 if you have the `dirname' function. */
 #undef HAVE_DIRNAME
+
+/* Define to 1 if you have the `DSA_generate_parameters_ex' function. */
+#undef HAVE_DSA_GENERATE_PARAMETERS_EX
 
 /* Define to 1 if you have the <endian.h> header file. */
 #undef HAVE_ENDIAN_H
@@ -533,8 +545,14 @@
 /* Define to 1 if the system has the type `in_port_t'. */
 #undef HAVE_IN_PORT_T
 
+/* Define if you have isblank(3C). */
+#undef HAVE_ISBLANK
+
 /* Define to 1 if you have the <lastlog.h> header file. */
 #undef HAVE_LASTLOG_H
+
+/* Define to 1 if you have the <libaudit.h> header file. */
+#undef HAVE_LIBAUDIT_H
 
 /* Define to 1 if you have the `bsm' library (-lbsm). */
 #undef HAVE_LIBBSM
@@ -737,6 +755,12 @@
 
 /* Define to 1 if you have the `rresvport_af' function. */
 #undef HAVE_RRESVPORT_AF
+
+/* Define to 1 if you have the `RSA_generate_key_ex' function. */
+#undef HAVE_RSA_GENERATE_KEY_EX
+
+/* Define to 1 if you have the `RSA_get_default_method' function. */
+#undef HAVE_RSA_GET_DEFAULT_METHOD
 
 /* define if you have sa_family_t data type */
 #undef HAVE_SA_FAMILY_T
@@ -1044,6 +1068,9 @@
 /* Define if you have ut_time in utmpx.h */
 #undef HAVE_TIME_IN_UTMPX
 
+/* Define to 1 if you have the `timingsafe_bcmp' function. */
+#undef HAVE_TIMINGSAFE_BCMP
+
 /* Define to 1 if you have the <tmpdir.h> header file. */
 #undef HAVE_TMPDIR_H
 
@@ -1259,6 +1286,9 @@
 /* Define if EVP_DigestUpdate returns void */
 #undef OPENSSL_EVP_DIGESTUPDATE_VOID
 
+/* libcrypto includes complete ECC support */
+#undef OPENSSL_HAS_ECC
+
 /* libcrypto is missing AES 192 and 256 bit functions */
 #undef OPENSSL_LOBOTOMISED_AES
 
@@ -1390,6 +1420,9 @@
 /* Use libedit for sftp */
 #undef USE_LIBEDIT
 
+/* Use Linux audit module */
+#undef USE_LINUX_AUDIT
+
 /* Enable OpenSSL engine support */
 #undef USE_OPENSSL_ENGINE
 
@@ -1401,6 +1434,9 @@
 
 /* Define if you have Solaris process contracts */
 #undef USE_SOLARIS_PROCESS_CONTRACTS
+
+/* Define if you have Solaris projects */
+#undef USE_SOLARIS_PROJECTS
 
 /* Define if you shouldn't strip 'tty' from your ttyname in [uw]tmp */
 #undef WITH_ABBREV_NO_TTY

@@ -51,7 +51,7 @@ DESCRIPTION
 SEE ALSO
      sftp(1), ssh(1), sshd_config(5), sshd(8)
 
-     T. Ylonen, S. Lehtinen, SSH File Transfer Protocol,
+     T. Ylonen and S. Lehtinen, SSH File Transfer Protocol,
      draft-ietf-secsh-filexfer-00.txt, January 2001, work in progress
      material.
 

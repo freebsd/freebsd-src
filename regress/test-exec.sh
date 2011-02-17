@@ -221,6 +221,17 @@ fatal ()
 	exit $RESULT
 }
 
+# Check whether preprocessor symbols are defined in config.h.
+config_defined ()
+{
+	str=$1
+	while test "x$2" != "x" ; do
+		str="$str|$2"
+		shift
+	done
+	egrep "^#define.*($str)" ${BUILDDIR}/config.h >/dev/null 2>&1
+}
+
 RESULT=0
 PIDFILE=$OBJ/pidfile
 

@@ -78,10 +78,10 @@ DESCRIPTION
              be given if sshd is not run as root (as the normal host key files
              are normally not readable by anyone but root).  The default is
              /etc/ssh/ssh_host_key for protocol version 1, and
-             /etc/ssh/ssh_host_rsa_key and /etc/ssh/ssh_host_dsa_key for
-             protocol version 2.  It is possible to have multiple host key
-             files for the different protocol versions and host key
-             algorithms.
+             /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_ecdsa_key and
+             /etc/ssh/ssh_host_rsa_key for protocol version 2.  It is possible
+             to have multiple host key files for the different protocol
+             versions and host key algorithms.
 
      -i      Specifies that sshd is being run from inetd(8).  sshd is normally
              not run from inetd because it needs to generate the server key
@@ -143,8 +143,8 @@ DESCRIPTION
 AUTHENTICATION
      The OpenSSH SSH daemon supports SSH protocols 1 and 2.  The default is to
      use protocol 2 only, though this can be changed via the Protocol option
-     in sshd_config(5).  Protocol 2 supports both RSA and DSA keys; protocol 1
-     only supports RSA keys.  For both protocols, each host has a host-
+     in sshd_config(5).  Protocol 2 supports DSA, ECDSA and RSA keys; protocol
+     1 only supports RSA keys.  For both protocols, each host has a host-
      specific key, normally 2048 bits, used to identify the host.
 
      Forward security for protocol 1 is provided through an additional server
@@ -273,13 +273,15 @@ AUTHORIZED_KEYS FILE FORMAT
      exponent, modulus, and comment fields give the RSA key for protocol
      version 1; the comment field is not used for anything (but may be
      convenient for the user to identify the key).  For protocol version 2 the
-     keytype is ``ssh-dss'' or ``ssh-rsa''.
+     keytype is ``ecdsa-sha2-nistp256'', ``ecdsa-sha2-nistp384'',
+     ``ecdsa-sha2-nistp521'', ``ssh-dss'' or ``ssh-rsa''.
 
      Note that lines in this file are usually several hundred bytes long
      (because of the size of the public key encoding) up to a limit of 8
      kilobytes, which permits DSA keys up to 8 kilobits and RSA keys up to 16
      kilobits.  You don't want to type them in; instead, copy the
-     identity.pub, id_dsa.pub, or the id_rsa.pub file and edit it.
+     identity.pub, id_dsa.pub, id_ecdsa.pub, or the id_rsa.pub file and edit
+     it.
 
      sshd enforces a minimum RSA key modulus size for protocol 1 and protocol
      2 keys of 768 bits.
@@ -504,11 +506,11 @@ FILES
              for the user, and not accessible by others.
 
      ~/.ssh/authorized_keys
-             Lists the public keys (RSA/DSA) that can be used for logging in
-             as this user.  The format of this file is described above.  The
-             content of the file is not highly sensitive, but the recommended
-             permissions are read/write for the user, and not accessible by
-             others.
+             Lists the public keys (DSA/ECDSA/RSA) that can be used for
+             logging in as this user.  The format of this file is described
+             above.  The content of the file is not highly sensitive, but the
+             recommended permissions are read/write for the user, and not
+             accessible by others.
 
              If this file, the ~/.ssh directory, or the user's home directory
              are writable by other users, then the file could be modified or
@@ -565,6 +567,7 @@ FILES
 
      /etc/ssh/ssh_host_key
      /etc/ssh/ssh_host_dsa_key
+     /etc/ssh/ssh_host_ecdsa_key
      /etc/ssh/ssh_host_rsa_key
              These three files contain the private parts of the host keys.
              These files should only be owned by root, readable only by root,
@@ -573,6 +576,7 @@ FILES
 
      /etc/ssh/ssh_host_key.pub
      /etc/ssh/ssh_host_dsa_key.pub
+     /etc/ssh/ssh_host_ecdsa_key.pub
      /etc/ssh/ssh_host_rsa_key.pub
              These three files contain the public parts of the host keys.
              These files should be world-readable but writable only by root.
@@ -627,4 +631,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are
      disabled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 4.8                     August 4, 2010                     OpenBSD 4.8
+OpenBSD 4.8                    October 28, 2010                    OpenBSD 4.8

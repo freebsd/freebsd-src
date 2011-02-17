@@ -273,7 +273,7 @@ login_logout(struct logininfo *li)
  *                try to retrieve lastlog information from wtmp/wtmpx.
  */
 unsigned int
-login_get_lastlog_time(const int uid)
+login_get_lastlog_time(const uid_t uid)
 {
 	struct logininfo li;
 
@@ -297,7 +297,7 @@ login_get_lastlog_time(const int uid)
  *  0  on failure (will use OpenSSH's logging facilities for diagnostics)
  */
 struct logininfo *
-login_get_lastlog(struct logininfo *li, const int uid)
+login_get_lastlog(struct logininfo *li, const uid_t uid)
 {
 	struct passwd *pw;
 
@@ -311,7 +311,8 @@ login_get_lastlog(struct logininfo *li, const int uid)
 	 */
 	pw = getpwuid(uid);
 	if (pw == NULL)
-		fatal("%s: Cannot find account for uid %i", __func__, uid);
+		fatal("%s: Cannot find account for uid %ld", __func__,
+		    (long)uid);
 
 	/* No MIN_SIZEOF here - we absolutely *must not* truncate the
 	 * username (XXX - so check for trunc!) */
@@ -335,7 +336,7 @@ login_get_lastlog(struct logininfo *li, const int uid)
  * allocation fails, the program halts.
  */
 struct
-logininfo *login_alloc_entry(int pid, const char *username,
+logininfo *login_alloc_entry(pid_t pid, const char *username,
     const char *hostname, const char *line)
 {
 	struct logininfo *newli;
@@ -363,7 +364,7 @@ login_free_entry(struct logininfo *li)
  * Returns: 1
  */
 int
-login_init_entry(struct logininfo *li, int pid, const char *username,
+login_init_entry(struct logininfo *li, pid_t pid, const char *username,
     const char *hostname, const char *line)
 {
 	struct passwd *pw;
@@ -468,9 +469,9 @@ login_write(struct logininfo *li)
 #endif
 #ifdef SSH_AUDIT_EVENTS
 	if (li->type == LTYPE_LOGIN)
-		audit_session_open(li->line);
+		audit_session_open(li);
 	else if (li->type == LTYPE_LOGOUT)
-		audit_session_close(li->line);
+		audit_session_close(li);
 #endif
 	return (0);
 }
@@ -872,11 +873,13 @@ utmp_write_direct(struct logininfo *li, struct utmp *ut)
 		pos = (off_t)tty * sizeof(struct utmp);
 		if ((ret = lseek(fd, pos, SEEK_SET)) == -1) {
 			logit("%s: lseek: %s", __func__, strerror(errno));
+			close(fd);
 			return (0);
 		}
 		if (ret != pos) {
 			logit("%s: Couldn't seek to tty %d slot in %s",
 			    __func__, tty, UTMP_FILE);
+			close(fd);
 			return (0);
 		}
 		/*
@@ -892,16 +895,20 @@ utmp_write_direct(struct logininfo *li, struct utmp *ut)
 
 		if ((ret = lseek(fd, pos, SEEK_SET)) == -1) {
 			logit("%s: lseek: %s", __func__, strerror(errno));
+			close(fd);
 			return (0);
 		}
 		if (ret != pos) {
 			logit("%s: Couldn't seek to tty %d slot in %s",
 			    __func__, tty, UTMP_FILE);
+			close(fd);
 			return (0);
 		}
 		if (atomicio(vwrite, fd, ut, sizeof(*ut)) != sizeof(*ut)) {
 			logit("%s: error writing %s: %s", __func__,
 			    UTMP_FILE, strerror(errno));
+			close(fd);
+			return (0);
 		}
 
 		close(fd);
@@ -1205,7 +1212,7 @@ wtmp_get_entry(struct logininfo *li)
 			close (fd);
 			return (0);
 		}
-		if ( wtmp_islogin(li, &ut) ) {
+		if (wtmp_islogin(li, &ut) ) {
 			found = 1;
 			/*
 			 * We've already checked for a time in struct
@@ -1496,11 +1503,12 @@ lastlog_openseek(struct logininfo *li, int *fd, int filemode)
 
 	if (S_ISREG(st.st_mode)) {
 		/* find this uid's offset in the lastlog file */
-		offset = (off_t) ((long)li->uid * sizeof(struct lastlog));
+		offset = (off_t) ((u_long)li->uid * sizeof(struct lastlog));
 
 		if (lseek(*fd, offset, SEEK_SET) != offset) {
 			logit("%s: %s->lseek(): %s", __func__,
 			    lastlog_file, strerror(errno));
+			close(*fd);
 			return (0);
 		}
 	}
@@ -1672,7 +1680,7 @@ record_failed_login(const char *username, const char *hostname,
 		    strerror(errno));
 		goto out;
 	}
-	if((fst.st_mode & (S_IRWXG | S_IRWXO)) || (fst.st_uid != 0)){
+	if((fst.st_mode & (S_IXGRP | S_IRWXO)) || (fst.st_uid != 0)){
 		logit("Excess permission or bad ownership on file %s",
 		    _PATH_BTMP);
 		goto out;

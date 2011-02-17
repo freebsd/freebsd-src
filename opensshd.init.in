@@ -20,6 +20,7 @@ SSH_KEYGEN=$prefix/bin/ssh-keygen
 HOST_KEY_RSA1=$sysconfdir/ssh_host_key
 HOST_KEY_DSA=$sysconfdir/ssh_host_dsa_key
 HOST_KEY_RSA=$sysconfdir/ssh_host_rsa_key
+@COMMENT_OUT_ECC@HOST_KEY_ECDSA=$sysconfdir/ssh_host_ecdsa_key
 
 
 checkkeys() {
@@ -32,6 +33,9 @@ checkkeys() {
     if [ ! -f $HOST_KEY_RSA ]; then
 	${SSH_KEYGEN} -t rsa -f ${HOST_KEY_RSA} -N ""
     fi
+@COMMENT_OUT_ECC@    if [ ! -f $HOST_KEY_ECDSA ]; then
+@COMMENT_OUT_ECC@	${SSH_KEYGEN} -t ecdsa -f ${HOST_KEY_ECDSA} -N ""
+@COMMENT_OUT_ECC@    fi
 }
 
 stop_service() {

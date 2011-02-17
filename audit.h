@@ -1,4 +1,4 @@
-/* $Id: audit.h,v 1.3 2006/08/05 14:05:10 dtucker Exp $ */
+/* $Id: audit.h,v 1.4 2011/01/17 10:15:30 dtucker Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Darren Tucker.  All rights reserved.
@@ -26,6 +26,9 @@
 
 #ifndef _SSH_AUDIT_H
 # define _SSH_AUDIT_H
+
+#include "loginrec.h"
+
 enum ssh_audit_event_type {
 	SSH_LOGIN_EXCEED_MAXTRIES,
 	SSH_LOGIN_ROOT_DENIED,
@@ -46,8 +49,8 @@ typedef enum ssh_audit_event_type ssh_audit_event_t;
 
 void	audit_connection_from(const char *, int);
 void	audit_event(ssh_audit_event_t);
-void	audit_session_open(const char *);
-void	audit_session_close(const char *);
+void	audit_session_open(struct logininfo *);
+void	audit_session_close(struct logininfo *);
 void	audit_run_command(const char *);
 ssh_audit_event_t audit_classify_auth(const char *);
 

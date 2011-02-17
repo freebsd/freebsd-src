@@ -4,7 +4,7 @@ NAME
      scp - secure copy (remote file copy program)
 
 SYNOPSIS
-     scp [-1246BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]
+     scp [-12346BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]
          [-l limit] [-o ssh_option] [-P port] [-S program]
          [[user@]host1:]file1 ... [[user@]host2:]file2
 
@@ -25,6 +25,11 @@ DESCRIPTION
      -1      Forces scp to use protocol 1.
 
      -2      Forces scp to use protocol 2.
+
+     -3      Copies between two remote hosts are transferred through the local
+             host.  Without this option the data is copied directly between
+             the two remote hosts.  Note that this option disables the
+             progress meter.
 
      -4      Forces scp to use IPv4 addresses only.
 
@@ -83,7 +88,9 @@ DESCRIPTION
                    HostName
                    IdentityFile
                    IdentitiesOnly
+                   IPQoS
                    KbdInteractiveDevices
+                   KexAlgorithms
                    LogLevel
                    MACs
                    NoHostAuthenticationForLocalhost
@@ -131,6 +138,7 @@ DESCRIPTION
              about their progress.  This is helpful in debugging connection,
              authentication, and configuration problems.
 
+EXIT STATUS
      The scp utility exits 0 on success, and >0 if an error occurs.
 
 SEE ALSO
@@ -145,4 +153,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 4.8                    February 8, 2010                    OpenBSD 4.8
+OpenBSD 4.8                    December 9, 2010                    OpenBSD 4.8

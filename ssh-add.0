@@ -1,7 +1,7 @@
 SSH-ADD(1)                 OpenBSD Reference Manual                 SSH-ADD(1)
 
 NAME
-     ssh-add - adds RSA or DSA identities to the authentication agent
+     ssh-add - adds private key identities to the authentication agent
 
 SYNOPSIS
      ssh-add [-cDdLlXx] [-t life] [file ...]
@@ -9,10 +9,10 @@ SYNOPSIS
      ssh-add -e pkcs11
 
 DESCRIPTION
-     ssh-add adds RSA or DSA identities to the authentication agent,
+     ssh-add adds private key identities to the authentication agent,
      ssh-agent(1).  When run without arguments, it adds the files
-     ~/.ssh/id_rsa, ~/.ssh/id_dsa and ~/.ssh/identity.  After loading a
-     private key, ssh-add will try to load corresponding certificate
+     ~/.ssh/id_rsa, ~/.ssh/id_dsa, ~/.ssh/id_ecdsa and ~/.ssh/identity.  After
+     loading a private key, ssh-add will try to load corresponding certificate
      information from the filename obtained by appending -cert.pub to the name
      of the private key file.  Alternative file names can be given on the
      command line.
@@ -87,6 +87,10 @@ FILES
              Contains the protocol version 2 DSA authentication identity of
              the user.
 
+     ~/.ssh/id_ecdsa
+             Contains the protocol version 2 ECDSA authentication identity of
+             the user.
+
      ~/.ssh/id_rsa
              Contains the protocol version 2 RSA authentication identity of
              the user.
@@ -94,7 +98,7 @@ FILES
      Identity files should not be readable by anyone but the user.  Note that
      ssh-add ignores identity files if they are accessible by others.
 
-DIAGNOSTICS
+EXIT STATUS
      Exit status is 0 on success, 1 if the specified command fails, and 2 if
      ssh-add is unable to contact the authentication agent.
 
@@ -108,4 +112,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.8                      March 5, 2010                     OpenBSD 4.8
+OpenBSD 4.8                    October 28, 2010                    OpenBSD 4.8

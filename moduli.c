@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.21 2008/06/26 09:19:40 djm Exp $ */
+/* $OpenBSD: moduli.c,v 1.22 2010/11/10 01:33:07 djm Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -53,6 +53,8 @@
 #include "xmalloc.h"
 #include "dh.h"
 #include "log.h"
+
+#include "openbsd-compat/openssl-compat.h"
 
 /*
  * File output defines
@@ -600,7 +602,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted)
 		 * that p is also prime. A single pass will weed out the
 		 * vast majority of composite q's.
 		 */
-		if (BN_is_prime(q, 1, NULL, ctx, NULL) <= 0) {
+		if (BN_is_prime_ex(q, 1, ctx, NULL) <= 0) {
 			debug("%10u: q failed first possible prime test",
 			    count_in);
 			continue;
@@ -613,14 +615,14 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted)
 		 * will show up on the first Rabin-Miller iteration so it
 		 * doesn't hurt to specify a high iteration count.
 		 */
-		if (!BN_is_prime(p, trials, NULL, ctx, NULL)) {
+		if (!BN_is_prime_ex(p, trials, ctx, NULL)) {
 			debug("%10u: p is not prime", count_in);
 			continue;
 		}
 		debug("%10u: p is almost certainly prime", count_in);
 
 		/* recheck q more rigorously */
-		if (!BN_is_prime(q, trials - 1, NULL, ctx, NULL)) {
+		if (!BN_is_prime_ex(q, trials - 1, ctx, NULL)) {
 			debug("%10u: q is not prime", count_in);
 			continue;
 		}
