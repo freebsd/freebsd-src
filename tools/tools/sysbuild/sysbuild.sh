@@ -178,7 +178,11 @@ ports_recurse() (
 	do
 		if [ ! -d $d ] ; then
 			echo "Missing port $d" 1>&2
-			exit 2
+			continue
+		fi
+		if [ ! -f $d/Makefile ] ; then
+			echo "Missing port $d" 1>&2
+			continue
 		fi
 		if [ "x$t" != "x." ] ; then
 			echo "\"$t\" -> \"$d\"" >> /tmp/_.plist.dot
