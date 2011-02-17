@@ -152,10 +152,6 @@ TUNABLE_INT("vm.boot_pages", &boot_pages);
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
 	"number of pages allocated for bootstrapping the VM system");
 
-static int pa_tryrelock_race;
-SYSCTL_INT(_vm, OID_AUTO, tryrelock_race, CTLFLAG_RD,
-    &pa_tryrelock_race, 0, "Number of tryrelock race cases");
-
 static int pa_tryrelock_restart;
 SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
     &pa_tryrelock_restart, 0, "Number of tryrelock restarts");
@@ -181,9 +177,7 @@ int
 vm_page_pa_tryrelock(pmap_t pmap, vm_paddr_t pa, vm_paddr_t *locked)
 {
 	vm_paddr_t lockpa;
-	uint32_t gen_count;
 
-	gen_count = pmap->pm_gen_count;
 	lockpa = *locked;
 	*locked = pa;
 	if (lockpa) {
@@ -198,13 +192,7 @@ vm_page_pa_tryrelock(pmap_t pmap, vm_paddr_t pa, vm_paddr_t *locked)
 	atomic_add_int(&pa_tryrelock_restart, 1);
 	PA_LOCK(pa);
 	PMAP_LOCK(pmap);
-
-	if (pmap->pm_gen_count != gen_count + 1) {
-		pmap->pm_retries++;
-		atomic_add_int(&pa_tryrelock_race, 1);
-		return (EAGAIN);
-	}
-	return (0);
+	return (EAGAIN);
 }
 
 /*
