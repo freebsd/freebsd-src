@@ -1815,10 +1815,11 @@ dev/usb/net/if_cdce.c		optional cdce
 dev/usb/net/if_cue.c		optional cue
 dev/usb/net/if_ipheth.c		optional ipheth
 dev/usb/net/if_kue.c		optional kue
+dev/usb/net/if_mos.c		optional mos
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_udav.c		optional udav
-dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | rue | \
-					 udav
+dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | mos | \
+					 rue | udav
 dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
