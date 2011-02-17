@@ -99,8 +99,6 @@ struct	pmap {
 	register_t	pm_sr[16];
     #endif
 	cpumask_t	pm_active;
-	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
-	u_int		pm_retries;
 
 	struct pmap	*pmap_phys;
 	struct		pmap_statistics	pm_stats;
@@ -178,15 +176,10 @@ struct pmap {
 	struct mtx		pm_mtx;		/* pmap mutex */
 	tlbtid_t		pm_tid[MAXCPU];	/* TID to identify this pmap entries in TLB */
 	cpumask_t		pm_active;	/* active on cpus */
-	int			pm_refs;	/* ref count */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 
 	/* Page table directory, array of pointers to page tables. */
 	pte_t			*pm_pdir[PDIR_NENTRIES];
-
-	/* generation count (pmap lock dropped) */
-	uint32_t		pm_gen_count;
-	u_int			pm_retries;
 
 	/* List of allocated ptbl bufs (ptbl kva regions). */
 	TAILQ_HEAD(, ptbl_buf)	pm_ptbl_list;

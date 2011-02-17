@@ -77,8 +77,6 @@ struct pmap {
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	uint32_t		pm_rid[5];	/* base RID for pmap */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
-	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
-	u_int			pm_retries;
 };
 
 typedef struct pmap	*pmap_t;
