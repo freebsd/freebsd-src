@@ -67,11 +67,10 @@ fi
 export CFGF
 
 # Start by doing a sanity check, which will catch any obvious mistakes in the config
-file_sanity_check "installMode disk0 installType installMedium packageType"
+file_sanity_check "installMode installType installMedium packageType"
 
 # We passed the Sanity check, lets grab some of the universal config settings and store them
-check_value installMode "fresh upgrade"
-check_value bootManager "bsd none"
+check_value installMode "fresh upgrade extract"
 check_value installType "PCBSD FreeBSD"
 check_value installMedium "dvd usb ftp rsync image"
 check_value packageType "uzip tar rsync split"
@@ -106,6 +105,16 @@ case "${INSTALLMODE}" in
     else
       install_fresh
     fi
+    ;;
+
+  extract)
+    # Extracting only, make sure we have a valid target directory
+    get_value_from_cfg installLocation
+    FSMNT="${VAL}" ; export FSMNT
+    if [ -z "$FSMNT" ] ; then exit_err "Missing installLocation=" ; fi
+    if [ ! -d "$FSMNT" ] ; then exit_err "No such directory: $FSMNT" ; fi
+
+    install_extractonly
     ;;
 
   upgrade)

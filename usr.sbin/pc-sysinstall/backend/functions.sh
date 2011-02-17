@@ -409,6 +409,7 @@ write_image()
   fi
 };
 
+# Setup and install on a new disk / partition
 install_fresh()
 {
   # Lets start setting up the disk slices now
@@ -458,6 +459,39 @@ install_fresh()
   echo_log "Installation finished!"
 };
 
+# Extract the system to a pre-mounted directory
+install_extractonly()
+{
+  # We are ready to begin extraction, lets start now
+  init_extraction 
+
+  # Check if we have any optional modules to load 
+  install_components
+
+  # Check if we have any packages to install
+  install_packages
+
+  # Do any localization in configuration
+  run_localize
+
+  # Save any networking config on the installed system
+  save_networking_install
+
+  # Now add any users
+  setup_users
+
+  # Now run any commands specified
+  run_commands
+  
+  # Set a hostname on the install system
+  setup_hostname
+      
+  # Set the root_pw if it is specified
+  set_root_pw
+
+  echo_log "Installation finished!"
+};
+
 install_image()
 {
   # We are ready to begin extraction, lets start now
@@ -478,7 +512,7 @@ install_upgrade()
   # Do any localization in configuration
   run_localize
 
-  # ow run any commands specified
+  # Now run any commands specified
   run_commands
   
   # Merge any old configuration files
