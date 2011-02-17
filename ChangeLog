@@ -1,3 +1,31 @@
+20110204
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2011/01/31 21:42:15
+     [PROTOCOL.mux]
+     cut'n'pasto; from bert.wesarg AT googlemail.com
+   - djm@cvs.openbsd.org 2011/02/04 00:44:21
+     [key.c]
+     fix uninitialised nonce variable; reported by Mateusz Kocielski
+   - djm@cvs.openbsd.org 2011/02/04 00:44:43
+     [version.h]
+     openssh-5.8
+ - (djm) [README contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+   [contrib/suse/openssh.spec] update versions in docs and spec files.
+ - Release OpenSSH 5.8p1
+
+20110128
+ - (djm) [openbsd-compat/port-linux.c] Check whether SELinux is enabled
+   before attempting setfscreatecon(). Check whether matchpathcon()
+   succeeded before using its result. Patch from cjwatson AT debian.org;
+   bz#1851
+
+20110125
+ - (djm) [configure.ac Makefile.in ssh.c openbsd-compat/port-linux.c
+   openbsd-compat/port-linux.h] Move SELinux-specific code from ssh.c to
+   port-linux.c to avoid compilation errors. Add -lselinux to ssh when
+   building with SELinux support to avoid linking failure; report from
+   amk AT spamfence.net; ok dtucker
+
 20110122
  - (dtucker) [configure.ac openbsd-compat/openssl-compat.{c,h}] Add
    RSA_get_default_method() for the benefit of openssl versions that don't
