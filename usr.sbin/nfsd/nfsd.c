@@ -134,7 +134,7 @@ main(int argc, char **argv)
 	socklen_t len;
 	int on = 1, unregister, reregister, sock;
 	int tcp6sock, ip6flag, tcpflag, tcpsock;
-	int udpflag, ecode, s, srvcnt;
+	int udpflag, ecode, error, s, srvcnt;
 	int bindhostc, bindanyflag, rpcbreg, rpcbregcnt;
 	int stablefd, nfssvc_addsock;
 	char **bindhost = NULL;
@@ -738,8 +738,9 @@ main(int argc, char **argv)
 		if (connect_type_cnt > 1) {
 			if (select(maxsock + 1,
 			    &ready, NULL, NULL, NULL) < 1) {
+				error = errno;
 				syslog(LOG_ERR, "select failed: %m");
-				if (errno == EINTR)
+				if (error == EINTR)
 					continue;
 				nfsd_exit(1);
 			}
@@ -750,9 +751,10 @@ main(int argc, char **argv)
 					len = sizeof(inetpeer);
 					if ((msgsock = accept(tcpsock,
 					    (struct sockaddr *)&inetpeer, &len)) < 0) {
+						error = errno;
 						syslog(LOG_ERR, "accept failed: %m");
-						if (errno == ECONNABORTED ||
-						    errno == EINTR)
+						if (error == ECONNABORTED ||
+						    error == EINTR)
 							continue;
 						nfsd_exit(1);
 					}
@@ -772,10 +774,11 @@ main(int argc, char **argv)
 					if ((msgsock = accept(tcpsock,
 					    (struct sockaddr *)&inet6peer,
 					    &len)) < 0) {
+						error = errno;
 						syslog(LOG_ERR,
 						     "accept failed: %m");
-						if (errno == ECONNABORTED ||
-						    errno == EINTR)
+						if (error == ECONNABORTED ||
+						    error == EINTR)
 							continue;
 						nfsd_exit(1);
 					}
