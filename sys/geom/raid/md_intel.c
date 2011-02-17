@@ -715,9 +715,9 @@ nofit:
 		TAILQ_REMOVE(&olddisk->d_subdisks, sd, sd_next);
 		TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 		sd->sd_disk = disk;
-		oldpd->pd_disk_pos = -2;
-		pd->pd_disk_pos = disk_pos;
 	}
+	oldpd->pd_disk_pos = -2;
+	pd->pd_disk_pos = disk_pos;
 
 	/* If it was placeholder -- destroy it. */
 	if (olddisk->d_state == G_RAID_DISK_S_OFFLINE) {
@@ -1327,9 +1327,7 @@ g_raid_md_event_intel(struct g_raid_md_object *md,
 		if (pd->pd_disk_pos >= 0) {
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
 			if (disk->d_consumer) {
-				g_topology_lock();
 				g_raid_kill_consumer(sc, disk->d_consumer);
-				g_topology_unlock();
 				disk->d_consumer = NULL;
 			}
 			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
@@ -1428,38 +1426,18 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			if (strcmp(diskname, "NONE") == 0) {
 				cp = NULL;
 				pp = NULL;
-				goto makedisk;
+			} else {
+				g_topology_lock();
+				cp = g_raid_open_consumer(sc, diskname);
+				if (cp == NULL) {
+					gctl_error(req, "Can't open disk '%s'.",
+					    diskname);
+					g_topology_unlock();
+					error = -4;
+					break;
+				}
+				pp = cp->provider;
 			}
-			if (strncmp(diskname, "/dev/", 5) == 0)
-				diskname += 5;
-			g_topology_lock();
-			pp = g_provider_by_name(diskname);
-			if (pp == NULL) {
-				gctl_error(req, "Provider '%s' not found.",
-				    diskname);
-				g_topology_unlock();
-				error = -7;
-				break;
-			}
-			cp = g_new_consumer(sc->sc_geom);
-			if (g_attach(cp, pp) != 0) {
-				gctl_error(req, "Can't attach provider '%s'.",
-				    diskname);
-				g_destroy_consumer(cp);
-				g_topology_unlock();
-				error = -7;
-				break;
-			}
-			if (g_access(cp, 1, 1, 1) != 0) {
-				gctl_error(req, "Can't open provider '%s'.",
-				    diskname);
-				g_detach(cp);
-				g_destroy_consumer(cp);
-				g_topology_unlock();
-				error = -7;
-				break;
-			}
-makedisk:
 			pd = malloc(sizeof(*pd), M_MD_INTEL, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = i;
 			disk = g_raid_create_disk(sc);
@@ -1467,13 +1445,11 @@ makedisk:
 			disk->d_consumer = cp;
 			if (cp == NULL) {
 				strcpy(&pd->pd_disk_meta.serial[0], "NONE");
-				pd->pd_disk_meta.id = 0;
 				pd->pd_disk_meta.id = 0xffffffff;
 				pd->pd_disk_meta.flags = INTEL_F_ASSIGNED;
 				continue;
 			}
 			cp->private = disk;
-
 			g_topology_unlock();
 
 			error = g_raid_md_get_label(cp,
@@ -1908,9 +1884,7 @@ makedisk:
 			if (pd->pd_disk_pos >= 0) {
 				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
 				if (disk->d_consumer) {
-					g_topology_lock();
 					g_raid_kill_consumer(sc, disk->d_consumer);
-					g_topology_unlock();
 					disk->d_consumer = NULL;
 				}
 				TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
@@ -1952,37 +1926,18 @@ makedisk:
 				error = -3;
 				break;
 			}
-			if (strncmp(diskname, "/dev/", 5) == 0)
-				diskname += 5;
 
 			/* Try to find provider with specified name. */
 			g_topology_lock();
-			pp = g_provider_by_name(diskname);
-			if (pp == NULL) {
-				gctl_error(req, "Provider '%s' not found.",
+			cp = g_raid_open_consumer(sc, diskname);
+			if (cp == NULL) {
+				gctl_error(req, "Can't open disk '%s'.",
 				    diskname);
 				g_topology_unlock();
 				error = -4;
 				break;
 			}
-			cp = g_new_consumer(sc->sc_geom);
-			if (g_attach(cp, pp) != 0) {
-				gctl_error(req, "Can't attach provider '%s'.",
-				    diskname);
-				g_destroy_consumer(cp);
-				g_topology_unlock();
-				error = -5;
-				break;
-			}
-			if (g_access(cp, 1, 1, 1) != 0) {
-				gctl_error(req, "Can't open provider '%s'.",
-				    diskname);
-				g_detach(cp);
-				g_destroy_consumer(cp);
-				g_topology_unlock();
-				error = -6;
-				break;
-			}
+			pp = cp->provider;
 			g_topology_unlock();
 
 			/* Read disk serial. */
@@ -1992,9 +1947,7 @@ makedisk:
 				gctl_error(req,
 				    "Can't get serial for provider '%s'.",
 				    diskname);
-				g_topology_lock();
 				g_raid_kill_consumer(sc, cp);
-				g_topology_unlock();
 				error = -7;
 				break;
 			}

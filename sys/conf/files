@@ -2019,6 +2019,8 @@ geom/raid/g_raid_ctl.c		optional geom_raid
 geom/raid/g_raid_md_if.m	optional geom_raid
 geom/raid/g_raid_tr_if.m	optional geom_raid
 geom/raid/md_intel.c		optional geom_raid
+geom/raid/md_jmicron.c		optional geom_raid
+geom/raid/tr_concat.c		optional geom_raid
 geom/raid/tr_raid0.c		optional geom_raid
 geom/raid/tr_raid1.c		optional geom_raid
 geom/raid/tr_raid1e.c		optional geom_raid
