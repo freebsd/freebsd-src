@@ -802,8 +802,10 @@ mos_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			MOS_DPRINTFN("erroneous frame received");
 			if (rxstat & MOS_RXSTS_SHORT_FRAME)
 				MOS_DPRINTFN("frame size less than 64 bytes");
-			if (rxstat & MOS_RXSTS_LARGE_FRAME)
-				MOS_DPRINTFN("frame size larger than 1532 bytes");
+			if (rxstat & MOS_RXSTS_LARGE_FRAME) {
+				MOS_DPRINTFN("frame size larger than "
+				    "1532 bytes");
+			}
 			if (rxstat & MOS_RXSTS_CRC_ERROR)
 				MOS_DPRINTFN("CRC error");
 			if (rxstat & MOS_RXSTS_ALIGN_ERROR)
@@ -814,7 +816,9 @@ mos_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* Remember the last byte was used for the status fields */
 		pktlen = actlen - 1;
 		if (pktlen < sizeof(struct ether_header)) {
-			MOS_DPRINTFN("error: pktlen %d is smaller than ether_header %zd", pktlen, sizeof(struct ether_header));
+			MOS_DPRINTFN("error: pktlen %d is smaller "
+			    "than ether_header %zd", pktlen,
+			    sizeof(struct ether_header));
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
