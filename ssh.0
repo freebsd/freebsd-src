@@ -135,15 +135,15 @@ DESCRIPTION
              with a PKCS#11 token providing the user's private RSA key.
 
      -i identity_file
-             Selects a file from which the identity (private key) for RSA or
-             DSA authentication is read.  The default is ~/.ssh/identity for
-             protocol version 1, and ~/.ssh/id_rsa and ~/.ssh/id_dsa for
-             protocol version 2.  Identity files may also be specified on a
-             per-host basis in the configuration file.  It is possible to have
-             multiple -i options (and multiple identities specified in
-             configuration files).  ssh will also try to load certificate
-             information from the filename obtained by appending -cert.pub to
-             identity filenames.
+             Selects a file from which the identity (private key) for public
+             key authentication is read.  The default is ~/.ssh/identity for
+             protocol version 1, and ~/.ssh/id_dsa, ~/.ssh/id_ecdsa and
+             ~/.ssh/id_rsa for protocol version 2.  Identity files may also be
+             specified on a per-host basis in the configuration file.  It is
+             possible to have multiple -i options (and multiple identities
+             specified in configuration files).  ssh will also try to load
+             certificate information from the filename obtained by appending
+             -cert.pub to identity filenames.
 
      -K      Enables GSSAPI-based authentication and forwarding (delegation)
              of GSSAPI credentials to the server.
@@ -244,7 +244,9 @@ DESCRIPTION
                    HostName
                    IdentityFile
                    IdentitiesOnly
+                   IPQoS
                    KbdInteractiveDevices
+                   KexAlgorithms
                    LocalCommand
                    LocalForward
                    LogLevel
@@ -380,9 +382,6 @@ DESCRIPTION
      configuration file and a system-wide configuration file.  The file format
      and configuration options are described in ssh_config(5).
 
-     ssh exits with the exit status of the remote command or with 255 if an
-     error occurred.
-
 AUTHENTICATION
      The OpenSSH SSH client supports SSH protocols 1 and 2.  The default is to
      use protocol 2 only, though this can be changed via the Protocol option
@@ -421,9 +420,9 @@ AUTHENTICATION
      creates a public/private key pair for authentication purposes.  The
      server knows the public key, and only the user knows the private key.
      ssh implements public key authentication protocol automatically, using
-     either the RSA or DSA algorithms.  Protocol 1 is restricted to using only
-     RSA keys, but protocol 2 may use either.  The HISTORY section of ssl(8)
-     contains a brief discussion of the two algorithms.
+     one of the DSA, ECDSA or RSA algorithms.  Protocol 1 is restricted to
+     using only RSA keys, but protocol 2 may use any.  The HISTORY section of
+     ssl(8) contains a brief discussion of the DSA and RSA algorithms.
 
      The file ~/.ssh/authorized_keys lists the public keys that are permitted
      for logging in.  When the user logs in, the ssh program tells the server
@@ -433,14 +432,15 @@ AUTHENTICATION
 
      The user creates his/her key pair by running ssh-keygen(1).  This stores
      the private key in ~/.ssh/identity (protocol 1), ~/.ssh/id_dsa (protocol
-     2 DSA), or ~/.ssh/id_rsa (protocol 2 RSA) and stores the public key in
-     ~/.ssh/identity.pub (protocol 1), ~/.ssh/id_dsa.pub (protocol 2 DSA), or
-     ~/.ssh/id_rsa.pub (protocol 2 RSA) in the user's home directory.  The
-     user should then copy the public key to ~/.ssh/authorized_keys in his/her
-     home directory on the remote machine.  The authorized_keys file
-     corresponds to the conventional ~/.rhosts file, and has one key per line,
-     though the lines can be very long.  After this, the user can log in
-     without giving the password.
+     2 DSA), ~/.ssh/id_ecdsa (protocol 2 ECDSA), or ~/.ssh/id_rsa (protocol 2
+     RSA) and stores the public key in ~/.ssh/identity.pub (protocol 1),
+     ~/.ssh/id_dsa.pub (protocol 2 DSA), ~/.ssh/id_ecdsa.pub (protocol 2
+     ECDSA), or ~/.ssh/id_rsa.pub (protocol 2 RSA) in the user's home
+     directory.  The user should then copy the public key to
+     ~/.ssh/authorized_keys in his/her home directory on the remote machine.
+     The authorized_keys file corresponds to the conventional ~/.rhosts file,
+     and has one key per line, though the lines can be very long.  After this,
+     the user can log in without giving the password.
 
      A variation on public key authentication is available in the form of
      certificate authentication: instead of a set of public/private keys,
@@ -763,10 +763,10 @@ FILES
              for the user, and not accessible by others.
 
      ~/.ssh/authorized_keys
-             Lists the public keys (RSA/DSA) that can be used for logging in
-             as this user.  The format of this file is described in the
-             sshd(8) manual page.  This file is not highly sensitive, but the
-             recommended permissions are read/write for the user, and not
+             Lists the public keys (DSA/ECDSA/RSA) that can be used for
+             logging in as this user.  The format of this file is described in
+             the sshd(8) manual page.  This file is not highly sensitive, but
+             the recommended permissions are read/write for the user, and not
              accessible by others.
 
      ~/.ssh/config
@@ -781,6 +781,7 @@ FILES
 
      ~/.ssh/identity
      ~/.ssh/id_dsa
+     ~/.ssh/id_ecdsa
      ~/.ssh/id_rsa
              Contains the private key for authentication.  These files contain
              sensitive data and should be readable by the user but not
@@ -792,6 +793,7 @@ FILES
 
      ~/.ssh/identity.pub
      ~/.ssh/id_dsa.pub
+     ~/.ssh/id_ecdsa.pub
      ~/.ssh/id_rsa.pub
              Contains the public key for authentication.  These files are not
              sensitive and can (but need not) be readable by anyone.
@@ -822,6 +824,7 @@ FILES
 
      /etc/ssh/ssh_host_key
      /etc/ssh/ssh_host_dsa_key
+     /etc/ssh/ssh_host_ecdsa_key
      /etc/ssh/ssh_host_rsa_key
              These three files contain the private parts of the host keys and
              are used for host-based authentication.  If protocol version 1 is
@@ -841,6 +844,10 @@ FILES
              Commands in this file are executed by ssh when the user logs in,
              just before the user's shell (or command) is started.  See the
              sshd(8) manual page for more information.
+
+EXIT STATUS
+     ssh exits with the exit status of the remote command or with 255 if an
+     error occurred.
 
 SEE ALSO
      scp(1), sftp(1), ssh-add(1), ssh-agent(1), ssh-keygen(1), ssh-keyscan(1),
@@ -874,7 +881,10 @@ SEE ALSO
 
      The Secure Shell (SSH) Public Key File Format, RFC 4716, 2006.
 
-     A. Perrig, D. Song, Hash Visualization: a New Technique to improve
+     Elliptic Curve Algorithm Integration in the Secure Shell Transport Layer,
+     RFC 5656, 2009.
+
+     A. Perrig and D. Song, Hash Visualization: a New Technique to improve
      Real-World Security, 1999, International Workshop on Cryptographic
      Techniques and E-Commerce (CrypTEC '99).
 
@@ -885,4 +895,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.8                     August 4, 2010                     OpenBSD 4.8
+OpenBSD 4.8                    November 18, 2010                   OpenBSD 4.8

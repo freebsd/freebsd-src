@@ -159,8 +159,8 @@ successfully added or a SSH_AGENT_FAILURE if an error occurred.
 
 2.2.3 Add protocol 2 key
 
-The OpenSSH agent supports DSA and RSA keys for protocol 2. DSA keys may
-be added using the following request
+The OpenSSH agent supports DSA, ECDSA and RSA keys for protocol 2. DSA
+keys may be added using the following request
 
 	byte			SSH2_AGENTC_ADD_IDENTITY or
 				SSH2_AGENTC_ADD_ID_CONSTRAINED
@@ -179,6 +179,30 @@ DSA certificates may be added with:
 	string			"ssh-dss-cert-v00@openssh.com"
 	string			certificate
 	mpint			dsa_private_key
+	string			key_comment
+	constraint[]		key_constraints
+
+ECDSA keys may be added using the following request
+
+	byte			SSH2_AGENTC_ADD_IDENTITY or
+				SSH2_AGENTC_ADD_ID_CONSTRAINED
+	string			"ecdsa-sha2-nistp256" |
+				"ecdsa-sha2-nistp384" |
+				"ecdsa-sha2-nistp521"
+	string			ecdsa_curve_name
+	string			ecdsa_public_key
+	mpint			ecdsa_private
+	string			key_comment
+	constraint[]		key_constraints
+
+ECDSA certificates may be added with:
+	byte			SSH2_AGENTC_ADD_IDENTITY or
+				SSH2_AGENTC_ADD_ID_CONSTRAINED
+	string			"ecdsa-sha2-nistp256-cert-v01@openssh.com" |
+				"ecdsa-sha2-nistp384-cert-v01@openssh.com" |
+				"ecdsa-sha2-nistp521-cert-v01@openssh.com"
+	string			certificate
+	mpint			ecdsa_private_key
 	string			key_comment
 	constraint[]		key_constraints
 
@@ -214,7 +238,7 @@ order to the protocol 1 add keys message. As with the corresponding
 protocol 1 "add key" request, the private key is overspecified to avoid
 redundant processing.
 
-For both DSA and RSA key add requests, "key_constraints" may only be
+For DSA, ECDSA and RSA key add requests, "key_constraints" may only be
 present if the request type is SSH2_AGENTC_ADD_ID_CONSTRAINED.
 
 The agent will reply with a SSH_AGENT_SUCCESS if the key has been
@@ -294,8 +318,7 @@ Protocol 2 keys may be removed with the following request:
 	string			key_blob
 
 Where "key_blob" is encoded as per RFC 4253 section 6.6 "Public Key
-Algorithms" for either of the supported key types: "ssh-dss" or
-"ssh-rsa".
+Algorithms" for any of the supported protocol 2 key types.
 
 The agent will delete any private key matching the specified public key
 and return SSH_AGENT_SUCCESS. If no such key was found, the agent will
@@ -364,8 +387,7 @@ Followed by zero or more consecutive keys, encoded as:
 	string			key_comment
 
 Where "key_blob" is encoded as per RFC 4253 section 6.6 "Public Key
-Algorithms" for either of the supported key types: "ssh-dss" or
-"ssh-rsa".
+Algorithms" for any of the supported protocol 2 key types.
 
 2.6 Private key operations
 
@@ -429,9 +451,9 @@ a protocol 2 key:
 	uint32			flags
 
 Where "key_blob" is encoded as per RFC 4253 section 6.6 "Public Key
-Algorithms" for either of the supported key types: "ssh-dss" or
-"ssh-rsa". "flags" is a bit-mask, but at present only one possible value
-is defined (see below for its meaning):
+Algorithms" for any of the supported protocol 2 key types. "flags" is
+a bit-mask, but at present only one possible value is defined (see below
+for its meaning):
 
 	SSH_AGENT_OLD_SIGNATURE		1
 
@@ -535,4 +557,4 @@ Locking and unlocking affects both protocol 1 and protocol 2 keys.
 	SSH_AGENT_CONSTRAIN_LIFETIME			1
 	SSH_AGENT_CONSTRAIN_CONFIRM			2
 
-$OpenBSD: PROTOCOL.agent,v 1.5 2010/02/26 20:29:54 djm Exp $
+$OpenBSD: PROTOCOL.agent,v 1.6 2010/08/31 11:54:45 djm Exp $

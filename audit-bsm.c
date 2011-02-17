@@ -1,4 +1,4 @@
-/* $Id: audit-bsm.c,v 1.6 2008/02/25 10:05:04 dtucker Exp $ */
+/* $Id: audit-bsm.c,v 1.7 2011/01/17 10:15:29 dtucker Exp $ */
 
 /*
  * TODO
@@ -305,13 +305,13 @@ audit_run_command(const char *command)
 }
 
 void
-audit_session_open(const char *ttyn)
+audit_session_open(struct logininfo *li)
 {
 	/* not implemented */
 }
 
 void
-audit_session_close(const char *ttyn)
+audit_session_close(struct logininfo *li)
 {
 	/* not implemented */
 }

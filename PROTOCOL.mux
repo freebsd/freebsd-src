@@ -28,7 +28,7 @@ defined.
 To open a new multiplexed session, a client may send the following
 request:
 
-	uint32	MUX_C_MSG_NEW_SESSION
+	uint32	MUX_C_NEW_SESSION
 	uint32  request id
 	string	reserved
 	bool	want tty flag
@@ -99,7 +99,7 @@ The server will reply with one of MUX_S_OK or MUX_S_PERMISSION_DENIED.
 
 A client may request the master to establish a port forward:
 
-	uint32	MUX_C_OPEN_FORWARD
+	uint32	MUX_C_OPEN_FWD
 	uint32	request id
 	uint32	forwarding type
 	string	listen host
@@ -118,24 +118,23 @@ For dynamically allocated listen port the server replies with
 	uint32	client request id
 	uint32	allocated remote listen port
 
-5. Requesting closure of port forwards
+6. Requesting closure of port forwards
+
+Note: currently unimplemented (server will always reply with MUX_S_FAILURE).
 
 A client may request the master to establish a port forward:
 
-	uint32	MUX_C_OPEN_FORWARD
+	uint32	MUX_C_CLOSE_FWD
 	uint32	request id
-	uint32	forwarding type
 	string	listen host
 	string	listen port
 	string	connect host
 	string	connect port
 
-forwarding type may be MUX_FWD_LOCAL, MUX_FWD_REMOTE, MUX_FWD_DYNAMIC.
-
 A server may reply with a MUX_S_OK, a MUX_S_PERMISSION_DENIED or a
 MUX_S_FAILURE.
 
-6. Requesting stdio forwarding
+7. Requesting stdio forwarding
 
 A client may request the master to establish a stdio forwarding:
 
@@ -153,7 +152,7 @@ The contents of "reserved" are currently ignored.
 A server may reply with a MUX_S_SESSION_OPEED, a MUX_S_PERMISSION_DENIED
 or a MUX_S_FAILURE.
 
-7. Status messages
+8. Status messages
 
 The MUX_S_OK message is empty:
 
@@ -170,14 +169,15 @@ The MUX_S_PERMISSION_DENIED and MUX_S_FAILURE include a reason:
 	uint32	client request id
 	string	reason
 
-7. Protocol numbers
+9. Protocol numbers
 
 #define MUX_MSG_HELLO		0x00000001
 #define MUX_C_NEW_SESSION	0x10000002
 #define MUX_C_ALIVE_CHECK	0x10000004
 #define MUX_C_TERMINATE		0x10000005
-#define MUX_C_OPEN_FORWARD	0x10000006
-#define MUX_C_CLOSE_FORWARD	0x10000007
+#define MUX_C_OPEN_FWD		0x10000006
+#define MUX_C_CLOSE_FWD		0x10000007
+#define MUX_C_NEW_STDIO_FWD	0x10000008
 #define MUX_S_OK		0x80000001
 #define MUX_S_PERMISSION_DENIED	0x80000002
 #define MUX_S_FAILURE		0x80000003
@@ -200,4 +200,4 @@ XXX server->client error/warning notifications
 XXX port0 rfwd (need custom response message)
 XXX send signals via mux
 
-$OpenBSD: PROTOCOL.mux,v 1.2 2010/05/16 12:55:51 markus Exp $
+$OpenBSD: PROTOCOL.mux,v 1.3 2011/01/13 21:55:25 djm Exp $

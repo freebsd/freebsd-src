@@ -272,11 +272,12 @@ DESCRIPTION
      HostKey
              Specifies a file containing a private host key used by SSH.  The
              default is /etc/ssh/ssh_host_key for protocol version 1, and
-             /etc/ssh/ssh_host_rsa_key and /etc/ssh/ssh_host_dsa_key for
-             protocol version 2.  Note that sshd(8) will refuse to use a file
-             if it is group/world-accessible.  It is possible to have multiple
-             host key files.  ``rsa1'' keys are used for version 1 and ``dsa''
-             or ``rsa'' are used for version 2 of the SSH protocol.
+             /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_ecdsa_key and
+             /etc/ssh/ssh_host_rsa_key for protocol version 2.  Note that
+             sshd(8) will refuse to use a file if it is group/world-
+             accessible.  It is possible to have multiple host key files.
+             ``rsa1'' keys are used for version 1 and ``dsa'', ``ecdsa'' or
+             ``rsa'' are used for version 2 of the SSH protocol.
 
      IgnoreRhosts
              Specifies that .rhosts and .shosts files will not be used in
@@ -289,6 +290,20 @@ DESCRIPTION
              Specifies whether sshd(8) should ignore the user's
              ~/.ssh/known_hosts during RhostsRSAAuthentication or
              HostbasedAuthentication.  The default is ``no''.
+
+     IPQoS   Specifies the IPv4 type-of-service or DSCP class for the
+             connection.  Accepted values are ``af11'', ``af12'', ``af13'',
+             ``af14'', ``af22'', ``af23'', ``af31'', ``af32'', ``af33'',
+             ``af41'', ``af42'', ``af43'', ``cs0'', ``cs1'', ``cs2'', ``cs3'',
+             ``cs4'', ``cs5'', ``cs6'', ``cs7'', ``ef'', ``lowdelay'',
+             ``throughput'', ``reliability'', or a numeric value.  This option
+             may take one or two arguments, separated by whitespace.  If one
+             argument is specified, it is used as the packet class
+             unconditionally.  If two values are specified, the first is
+             automatically selected for interactive sessions and the second
+             for non-interactive sessions.  The default is ``lowdelay'' for
+             interactive sessions and ``throughput'' for non-interactive
+             sessions.
 
      KerberosAuthentication
              Specifies whether the password provided by the user for
@@ -311,6 +326,14 @@ DESCRIPTION
              Specifies whether to automatically destroy the user's ticket
              cache file on logout.  The default is ``yes''.
 
+     KexAlgorithms
+             Specifies the available KEX (Key Exchange) algorithms.  Multiple
+             algorithms must be comma-separated.  The default is
+             ``ecdh-sha2-nistp256'', ``ecdh-sha2-nistp384'',
+             ``ecdh-sha2-nistp521'', ``diffie-hellman-group-exchange-sha256'',
+             ``diffie-hellman-group-exchange-sha1'',
+             ``diffie-hellman-group14-sha1'', ``diffie-hellman-group1-sha1''.
+
      KeyRegenerationInterval
              In protocol version 1, the ephemeral server key is automatically
              regenerated after this many seconds (if it has been used).  The
@@ -323,8 +346,8 @@ DESCRIPTION
              Specifies the local addresses sshd(8) should listen on.  The
              following forms may be used:
 
-                   ListenAddress host | IPv4_addr | IPv6_addr
-                   ListenAddress host | IPv4_addr:port
+                   ListenAddress host|IPv4_addr|IPv6_addr
+                   ListenAddress host|IPv4_addr:port
                    ListenAddress [host|IPv6_addr]:port
 
              If port is not specified, sshd will listen on the address and all
@@ -424,7 +447,7 @@ DESCRIPTION
 
                    PermitOpen host:port
                    PermitOpen IPv4_addr:port
-                   PermitOpen [ IPv6_addr ]:port
+                   PermitOpen [IPv6_addr]:port
 
              Multiple forwards may be specified by separating them with
              whitespace.  An argument of ``any'' can be used to remove all
@@ -650,9 +673,9 @@ DESCRIPTION
 
 TIME FORMATS
      sshd(8) command-line arguments and configuration file options that
-     specify time may be expressed using a sequence of the form: time
-     [qualifier], where time is a positive integer value and qualifier is one
-     of the following:
+     specify time may be expressed using a sequence of the form:
+     time[qualifier], where time is a positive integer value and qualifier is
+     one of the following:
 
            <none>  seconds
            s | S   seconds
@@ -687,4 +710,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 4.8                      June 30, 2010                     OpenBSD 4.8
+OpenBSD 4.8                    December 8, 2010                    OpenBSD 4.8

@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.25 2010/04/16 01:47:26 djm Exp $ */
+/* $OpenBSD: myproposal.h,v 1.27 2010/09/01 22:42:13 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -26,26 +26,49 @@
 
 #include <openssl/opensslv.h>
 
-/* Old OpenSSL doesn't support what we need for DHGEX-sha256 */
-#if OPENSSL_VERSION_NUMBER < 0x00907000L
-# define KEX_DEFAULT_KEX		\
-	"diffie-hellman-group-exchange-sha1," \
-	"diffie-hellman-group14-sha1," \
-	"diffie-hellman-group1-sha1"
+#ifdef OPENSSL_HAS_ECC
+# define KEX_ECDH_METHODS \
+	"ecdh-sha2-nistp256," \
+	"ecdh-sha2-nistp384," \
+	"ecdh-sha2-nistp521,"
+# define HOSTKEY_ECDSA_CERT_METHODS \
+	"ecdsa-sha2-nistp256-cert-v01@openssh.com," \
+	"ecdsa-sha2-nistp384-cert-v01@openssh.com," \
+	"ecdsa-sha2-nistp521-cert-v01@openssh.com,"
+# define HOSTKEY_ECDSA_METHODS \
+	"ecdsa-sha2-nistp256," \
+	"ecdsa-sha2-nistp384," \
+	"ecdsa-sha2-nistp521,"
 #else
-# define KEX_DEFAULT_KEX		\
-	"diffie-hellman-group-exchange-sha256," \
-	"diffie-hellman-group-exchange-sha1," \
-	"diffie-hellman-group14-sha1," \
-	"diffie-hellman-group1-sha1"
+# define KEX_ECDH_METHODS
+# define HOSTKEY_ECDSA_CERT_METHODS
+# define HOSTKEY_ECDSA_METHODS
 #endif
 
+/* Old OpenSSL doesn't support what we need for DHGEX-sha256 */
+#if OPENSSL_VERSION_NUMBER >= 0x00907000L
+# define KEX_SHA256_METHODS \
+	"diffie-hellman-group-exchange-sha256,"
+#else
+# define KEX_SHA256_METHODS
+#endif
+
+# define KEX_DEFAULT_KEX \
+	KEX_ECDH_METHODS \
+	KEX_SHA256_METHODS \
+	"diffie-hellman-group-exchange-sha1," \
+	"diffie-hellman-group14-sha1," \
+	"diffie-hellman-group1-sha1"
+
 #define	KEX_DEFAULT_PK_ALG	\
-				"ssh-rsa-cert-v01@openssh.com," \
-				"ssh-dss-cert-v01@openssh.com," \
-				"ssh-rsa-cert-v00@openssh.com," \
- 				"ssh-dss-cert-v00@openssh.com," \
- 				"ssh-rsa,ssh-dss"
+	HOSTKEY_ECDSA_CERT_METHODS \
+	"ssh-rsa-cert-v01@openssh.com," \
+	"ssh-dss-cert-v01@openssh.com," \
+	"ssh-rsa-cert-v00@openssh.com," \
+	"ssh-dss-cert-v00@openssh.com," \
+	HOSTKEY_ECDSA_METHODS \
+	"ssh-rsa," \
+	"ssh-dss"
 
 #define	KEX_DEFAULT_ENCRYPT \
 	"aes128-ctr,aes192-ctr,aes256-ctr," \

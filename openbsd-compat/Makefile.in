@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.45 2010/08/16 03:15:23 dtucker Exp $
+# $Id: Makefile.in,v 1.46 2010/10/07 11:19:24 djm Exp $
 
 sysconfdir=@sysconfdir@
 piddir=@piddir@
@@ -16,7 +16,7 @@ RANLIB=@RANLIB@
 INSTALL=@INSTALL@
 LDFLAGS=-L. @LDFLAGS@
 
-OPENBSD=base64.o basename.o bindresvport.o daemon.o dirname.o fmt_scaled.o getcwd.o getgrouplist.o getopt.o getrrsetbyname.o glob.o inet_aton.o inet_ntoa.o inet_ntop.o mktemp.o pwcache.o readpassphrase.o realpath.o rresvport.o setenv.o setproctitle.o sha2.o sigact.o strlcat.o strlcpy.o strmode.o strptime.o strsep.o strtonum.o strtoll.o strtoul.o vis.o
+OPENBSD=base64.o basename.o bindresvport.o daemon.o dirname.o fmt_scaled.o getcwd.o getgrouplist.o getopt.o getrrsetbyname.o glob.o inet_aton.o inet_ntoa.o inet_ntop.o mktemp.o pwcache.o readpassphrase.o realpath.o rresvport.o setenv.o setproctitle.o sha2.o sigact.o strlcat.o strlcpy.o strmode.o strptime.o strsep.o strtonum.o strtoll.o strtoul.o timingsafe_bcmp.o vis.o
 
 COMPAT=bsd-arc4random.o bsd-asprintf.o bsd-closefrom.o bsd-cray.o bsd-cygwin_util.o bsd-getpeereid.o bsd-misc.o bsd-nextstep.o bsd-openpty.o bsd-poll.o bsd-snprintf.o bsd-statvfs.o bsd-waitpid.o fake-rfc2553.o openssl-compat.o xmmap.o xcrypt.o
 

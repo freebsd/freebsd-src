@@ -16,7 +16,7 @@
 
 #old cvs stuff.  please update before use.  may be deprecated.
 %define use_stable	1
-%define version 	5.6p1
+%define version 	5.7p1
 %if %{use_stable}
   %define cvs		%{nil}
   %define release 	1
@@ -57,7 +57,7 @@ BuildRequires	: XFree86-imake
 # %{use_stable}==0:	:pserver:cvs@bass.directhit.com:/cvs/openssh_cvs
 Source0: see-above:/.../openssh-%{version}.tar.gz
 %if %{use_stable}
-Source1: see-above:/.../openssh-%{version}.tar.gz.sig
+Source1: see-above:/.../openssh-%{version}.tar.gz.asc
 %endif
 Source2: http://www.jmknoble.net/software/%{xsa}/%{askpass}.tar.gz
 Source3: http://www.openssh.com/faq.html
@@ -182,7 +182,7 @@ CFLAGS="$RPM_OPT_FLAGS" \
 	    --with-privsep-path=%{_var}/empty/sshd \
 	    #leave this line for easy edits.
 
-%__make CFLAGS="$RPM_OPT_FLAGS"
+%__make
 
 cd %{askpass}
 %configure \
@@ -356,7 +356,11 @@ fi
  
 
 %ChangeLog
+* Tue Jan 18 2011 Tim Rice <tim@multitalents.net>
+- Use CFLAGS from Makefile instead of RPM so build completes.
+- Signatures were changed to .asc since 4.1p1.
+
 * Mon Jan 01 1998 ...
 Template Version: 1.31
 
-$Id: openssh.spec,v 1.71 2010/08/08 16:32:09 djm Exp $
+$Id: openssh.spec,v 1.73 2011/01/22 09:23:33 djm Exp $

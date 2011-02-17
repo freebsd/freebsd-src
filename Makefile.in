@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.310 2010/05/12 06:51:39 dtucker Exp $
+# $Id: Makefile.in,v 1.320 2011/01/17 10:15:29 dtucker Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -58,6 +58,7 @@ ENT=@ENT@
 XAUTH_PATH=@XAUTH_PATH@
 LDFLAGS=-L. -Lopenbsd-compat/ @LDFLAGS@
 EXEEXT=@EXEEXT@
+MANFMT=@MANFMT@
 
 INSTALL_SSH_PRNG_CMDS=@INSTALL_SSH_PRNG_CMDS@
 INSTALL_SSH_RAND_HELPER=@INSTALL_SSH_RAND_HELPER@
@@ -71,26 +72,27 @@ LIBSSH_OBJS=acss.o authfd.o authfile.o bufaux.o bufbn.o buffer.o \
 	log.o match.o md-sha256.o moduli.o nchan.o packet.o \
 	readpass.o rsa.o ttymodes.o xmalloc.o addrmatch.o \
 	atomicio.o key.o dispatch.o kex.o mac.o uidswap.o uuencode.o misc.o \
-	monitor_fdpass.o rijndael.o ssh-dss.o ssh-rsa.o dh.o kexdh.o \
-	kexgex.o kexdhc.o kexgexc.o msg.o progressmeter.o dns.o \
-	entropy.o gss-genr.o umac.o jpake.o schnorr.o \
-	ssh-pkcs11.o
+	monitor_fdpass.o rijndael.o ssh-dss.o ssh-ecdsa.o ssh-rsa.o dh.o \
+	kexdh.o kexgex.o kexdhc.o kexgexc.o bufec.o kexecdh.o kexecdhc.o \
+	msg.o progressmeter.o dns.o entropy.o gss-genr.o umac.o jpake.o \
+	schnorr.o ssh-pkcs11.o
 
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
 	sshconnect.o sshconnect1.o sshconnect2.o mux.o \
 	roaming_common.o roaming_client.o
 
 SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
+	audit.o audit-bsm.o audit-linux.o platform.o \
 	sshpty.o sshlogin.o servconf.o serverloop.o \
 	auth.o auth1.o auth2.o auth-options.o session.o \
 	auth-chall.o auth2-chall.o groupaccess.o \
 	auth-skey.o auth-bsdauth.o auth2-hostbased.o auth2-kbdint.o \
 	auth2-none.o auth2-passwd.o auth2-pubkey.o auth2-jpake.o \
-	monitor_mm.o monitor.o monitor_wrap.o kexdhs.o kexgexs.o \
+	monitor_mm.o monitor.o monitor_wrap.o kexdhs.o kexgexs.o kexecdhs.o \
 	auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
 	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
-	audit.o audit-bsm.o platform.o sftp-server.o sftp-common.o \
+	sftp-server.o sftp-common.o \
 	roaming_common.o roaming_serv.o
 
 MANPAGES	= moduli.5.out scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-rand-helper.8.out ssh-keysign.8.out ssh-pkcs11-helper.8.out sshd_config.5.out ssh_config.5.out
@@ -108,6 +110,7 @@ PATHSUBS	= \
 	-e 's|/usr/libexec|$(libexecdir)|g' \
 	-e 's|/etc/shosts.equiv|$(sysconfdir)/shosts.equiv|g' \
 	-e 's|/etc/ssh/ssh_host_key|$(sysconfdir)/ssh_host_key|g' \
+	-e 's|/etc/ssh/ssh_host_ecdsa_key|$(sysconfdir)/ssh_host_ecdsa_key|g' \
 	-e 's|/etc/ssh/ssh_host_dsa_key|$(sysconfdir)/ssh_host_dsa_key|g' \
 	-e 's|/etc/ssh/ssh_host_rsa_key|$(sysconfdir)/ssh_host_rsa_key|g' \
 	-e 's|/var/run/sshd.pid|$(piddir)/sshd.pid|g' \
@@ -230,7 +233,7 @@ catman-do:
 	@for f in $(MANPAGES_IN) ; do \
 		base=`echo $$f | sed 's/\..*$$//'` ; \
 		echo "$$f -> $$base.0" ; \
-		nroff -mandoc $$f | cat -v | sed -e 's/.\^H//g' \
+		$(MANFMT) $$f | cat -v | sed -e 's/.\^H//g' \
 			>$$base.0 ; \
 	done
 
@@ -324,20 +327,27 @@ install-sysconf:
 
 host-key: ssh-keygen$(EXEEXT)
 	@if [ -z "$(DESTDIR)" ] ; then \
-		if [ -f "$(DESTDIR)$(sysconfdir)/ssh_host_key" ] ; then \
-			echo "$(DESTDIR)$(sysconfdir)/ssh_host_key already exists, skipping." ; \
+		if [ -f "$(sysconfdir)/ssh_host_key" ] ; then \
+			echo "$(sysconfdir)/ssh_host_key already exists, skipping." ; \
 		else \
-			./ssh-keygen -t rsa1 -f $(DESTDIR)$(sysconfdir)/ssh_host_key -N "" ; \
+			./ssh-keygen -t rsa1 -f $(sysconfdir)/ssh_host_key -N "" ; \
 		fi ; \
-		if [ -f $(DESTDIR)$(sysconfdir)/ssh_host_dsa_key ] ; then \
-			echo "$(DESTDIR)$(sysconfdir)/ssh_host_dsa_key already exists, skipping." ; \
+		if [ -f $(sysconfdir)/ssh_host_dsa_key ] ; then \
+			echo "$(sysconfdir)/ssh_host_dsa_key already exists, skipping." ; \
 		else \
-			./ssh-keygen -t dsa -f $(DESTDIR)$(sysconfdir)/ssh_host_dsa_key -N "" ; \
+			./ssh-keygen -t dsa -f $(sysconfdir)/ssh_host_dsa_key -N "" ; \
 		fi ; \
-		if [ -f $(DESTDIR)$(sysconfdir)/ssh_host_rsa_key ] ; then \
-			echo "$(DESTDIR)$(sysconfdir)/ssh_host_rsa_key already exists, skipping." ; \
+		if [ -f $(sysconfdir)/ssh_host_rsa_key ] ; then \
+			echo "$(sysconfdir)/ssh_host_rsa_key already exists, skipping." ; \
 		else \
-			./ssh-keygen -t rsa -f $(DESTDIR)$(sysconfdir)/ssh_host_rsa_key -N "" ; \
+			./ssh-keygen -t rsa -f $(sysconfdir)/ssh_host_rsa_key -N "" ; \
+		fi ; \
+		if [ -z "@COMMENT_OUT_ECC@" ] ; then \
+		    if [ -f $(sysconfdir)/ssh_host_ecdsa_key ] ; then \
+			echo "$(sysconfdir)/ssh_host_ecdsa_key already exists, skipping." ; \
+		    else \
+			./ssh-keygen -t ecdsa -f $(sysconfdir)/ssh_host_ecdsa_key -N "" ; \
+		    fi ; \
 		fi ; \
 	fi ;
 
@@ -345,6 +355,7 @@ host-key-force: ssh-keygen$(EXEEXT)
 	./ssh-keygen -t rsa1 -f $(DESTDIR)$(sysconfdir)/ssh_host_key -N ""
 	./ssh-keygen -t dsa -f $(DESTDIR)$(sysconfdir)/ssh_host_dsa_key -N ""
 	./ssh-keygen -t rsa -f $(DESTDIR)$(sysconfdir)/ssh_host_rsa_key -N ""
+	test -z "@COMMENT_OUT_ECC@" && ./ssh-keygen -t ecdsa -f $(DESTDIR)$(sysconfdir)/ssh_host_ecdsa_key -N ""
 
 uninstallall:	uninstall
 	-rm -f $(DESTDIR)$(sysconfdir)/ssh_config
@@ -405,6 +416,8 @@ tests interop-tests:	$(TARGETS)
 	TEST_SSH_PUTTYGEN="puttygen"; \
 	TEST_SSH_CONCH="conch"; \
 	TEST_SSH_IPV6="@TEST_SSH_IPV6@" ; \
+	TEST_SSH_ECC="@TEST_SSH_ECC@" ; \
+	TEST_SSH_SHA256="@TEST_SSH_SHA256@" ; \
 	cd $(srcdir)/regress || exit $$?; \
 	$(MAKE) \
 		.OBJDIR="$${BUILDDIR}/regress" \
@@ -425,7 +438,9 @@ tests interop-tests:	$(TARGETS)
 		TEST_SSH_PLINK="$${TEST_SSH_PLINK}" \
 		TEST_SSH_PUTTYGEN="$${TEST_SSH_PUTTYGEN}" \
 		TEST_SSH_CONCH="$${TEST_SSH_CONCH}" \
-		TEST_SSH_IPV6="@TEST_SSH_IPV6@" \
+		TEST_SSH_IPV6="$${TEST_SSH_IPV6}" \
+		TEST_SSH_ECC="$${TEST_SSH_ECC}" \
+		TEST_SSH_SHA256="$${TEST_SSH_SHA256}" \
 		EXEEXT="$(EXEEXT)" \
 		$@ && echo all tests passed
 

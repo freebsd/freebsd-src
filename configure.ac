@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.451 2010/08/16 03:15:23 dtucker Exp $
+# $Id: configure.ac,v 1.469 2011/01/21 22:37:05 dtucker Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -15,8 +15,20 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT(OpenSSH, Portable, openssh-unix-dev@mindrot.org)
-AC_REVISION($Revision: 1.451 $)
+AC_REVISION($Revision: 1.469 $)
 AC_CONFIG_SRCDIR([ssh.c])
+
+# local macros
+AC_DEFUN([OPENSSH_CHECK_CFLAG_COMPILE], [{
+	AC_MSG_CHECKING([if $CC supports $1])
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $1"
+	AC_COMPILE_IFELSE([void main(void) { return 0; }],
+		[ AC_MSG_RESULT(yes) ],
+		[ AC_MSG_RESULT(no)
+		  CFLAGS="$saved_CFLAGS" ]
+	)
+}])
 
 AC_CONFIG_HEADER(config.h)
 AC_PROG_CC
@@ -41,7 +53,23 @@ AC_PATH_PROG(TEST_MINUS_S_SH, bash)
 AC_PATH_PROG(TEST_MINUS_S_SH, ksh)
 AC_PATH_PROG(TEST_MINUS_S_SH, sh)
 AC_PATH_PROG(SH, sh)
+AC_PATH_PROG(GROFF, groff)
+AC_PATH_PROG(NROFF, nroff)
+AC_PATH_PROG(MANDOC, mandoc)
 AC_SUBST(TEST_SHELL,sh)
+
+dnl select manpage formatter
+if test "x$MANDOC" != "x" ; then
+	MANFMT="$MANDOC"
+elif test "x$NROFF" != "x" ; then
+	MANFMT="$NROFF -mandoc"
+elif test "x$GROFF" != "x" ; then
+	MANFMT="$GROFF -mandoc -Tascii"
+else
+	AC_MSG_WARN([no manpage formatted found])
+	MANFMT="false"
+fi
+AC_SUBST(MANFMT)
 
 dnl for buildpkg.sh
 AC_PATH_PROG(PATH_GROUPADD_PROG, groupadd, groupadd,
@@ -97,20 +125,27 @@ AC_ARG_WITH(stackprotect,
 	use_stack_protector=0
     fi ])
 
+
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
-	CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wuninitialized"
+	OPENSSH_CHECK_CFLAG_COMPILE([-Wall])
+	OPENSSH_CHECK_CFLAG_COMPILE([-Wpointer-arith])
+	OPENSSH_CHECK_CFLAG_COMPILE([-Wuninitialized])
+	OPENSSH_CHECK_CFLAG_COMPILE([-Wsign-compare])
+	OPENSSH_CHECK_CFLAG_COMPILE([-Wformat-security])
+	OPENSSH_CHECK_CFLAG_COMPILE([-Wno-pointer-sign])
+	OPENSSH_CHECK_CFLAG_COMPILE([-Wno-unused-result])
+	OPENSSH_CHECK_CFLAG_COMPILE([-fno-strict-aliasing])
+	AC_MSG_CHECKING(gcc version)
 	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
 	case $GCC_VER in
 		1.*) no_attrib_nonnull=1 ;;
 		2.8* | 2.9*)
-		     CFLAGS="$CFLAGS -Wsign-compare"
 		     no_attrib_nonnull=1
 		     ;;
 		2.*) no_attrib_nonnull=1 ;;
-		3.*) CFLAGS="$CFLAGS -Wsign-compare -Wformat-security" ;;
-		4.*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign -Wformat-security -fno-strict-aliasing" ;;
 		*) ;;
 	esac
+	AC_MSG_RESULT($GCC_VER)
 
 	AC_MSG_CHECKING(if $CC accepts -fno-builtin-memset)
 	saved_CFLAGS="$CFLAGS"
@@ -333,6 +368,7 @@ AC_CHECK_HEADERS(sys/mount.h, [], [], [
 # Messages for features tested for in target-specific section
 SIA_MSG="no"
 SPC_MSG="no"
+SP_MSG="no"
 
 # Check for some target-specific stuff
 case "$host" in
@@ -447,6 +483,7 @@ int main(void) { exit(0); }
 		[Define if your platform needs to skip post auth
 		file descriptor passing])
 	AC_DEFINE(SSH_IOBUFSZ, 65535, [Windows is sensitive to read buffer size])
+	AC_DEFINE(FILESYSTEM_NO_BACKSLASH, 1, [File names may not contain backslash characters]) 
 	;;
 *-*-dgux*)
 	AC_DEFINE(IP_TOS_IS_BROKEN, 1,
@@ -702,6 +739,17 @@ mips-sony-bsd|mips-sony-newsos4)
 			  SSHDLIBS="$SSHDLIBS -lcontract"
 			  AC_SUBST(SSHDLIBS)
 			  SPC_MSG="yes" ], )
+		],
+	)
+	AC_ARG_WITH(solaris-projects,
+		[  --with-solaris-projects Enable Solaris projects (experimental)],
+		[
+		AC_CHECK_LIB(project, setproject,
+			[ AC_DEFINE(USE_SOLARIS_PROJECTS, 1,
+				[Define if you have Solaris projects])
+			SSHDLIBS="$SSHDLIBS -lproject"
+			AC_SUBST(SSHDLIBS)
+			SP_MSG="yes" ], )
 		],
 	)
 	;;
@@ -1118,6 +1166,28 @@ AC_TRY_COMPILE(
 	]
 )
 
+# Check for g.gl_statv glob() extension
+AC_MSG_CHECKING(for gl_statv and GLOB_KEEPSTAT extensions for glob)
+AC_TRY_COMPILE(
+	[ #include <glob.h> ],
+	[
+#ifndef GLOB_KEEPSTAT
+#error "glob does not support GLOB_KEEPSTAT extension"
+#endif
+glob_t g;
+g.gl_statv = NULL;
+],
+	[
+		AC_DEFINE(GLOB_HAS_GL_STATV, 1,
+			[Define if your system glob() function has
+			gl_statv options in glob_t])
+		AC_MSG_RESULT(yes)
+	],
+	[
+		AC_MSG_RESULT(no)
+	]
+)
+
 AC_CHECK_DECLS(GLOB_NOMATCH, , , [#include <glob.h>])
 
 AC_MSG_CHECKING([whether struct dirent allocates space for d_name])
@@ -1273,7 +1343,7 @@ AC_ARG_WITH(libedit,
 				LDFLAGS="-L${withval}/lib ${LDFLAGS}"
 			fi
 		fi
-		if test "x$use_pkgconfig_for_libedit" == "xyes"; then
+		if test "x$use_pkgconfig_for_libedit" = "xyes"; then
 			LIBEDIT=`$PKGCONFIG --libs-only-l libedit`
 			CPPFLAGS="$CPPFLAGS `$PKGCONFIG --cflags libedit`"
 		else
@@ -1308,7 +1378,7 @@ int main(void)
 
 AUDIT_MODULE=none
 AC_ARG_WITH(audit,
-	[  --with-audit=module     Enable EXPERIMENTAL audit support (modules=debug,bsm)],
+	[  --with-audit=module     Enable audit support (modules=debug,bsm,linux)],
 	[
 	  AC_MSG_CHECKING(for supported audit module)
 	  case "$withval" in
@@ -1332,10 +1402,18 @@ AC_ARG_WITH(audit,
 		AC_CHECK_FUNCS(getaudit_addr aug_get_machine)
 		AC_DEFINE(USE_BSM_AUDIT, 1, [Use BSM audit module])
 		;;
+	  linux)
+		AC_MSG_RESULT(linux)
+		AUDIT_MODULE=linux
+		dnl    Checks for headers, libs and functions
+		AC_CHECK_HEADERS(libaudit.h)
+		SSHDLIBS="$SSHDLIBS -laudit"
+		AC_DEFINE(USE_LINUX_AUDIT, 1, [Use Linux audit module])
+		;;
 	  debug)
 		AUDIT_MODULE=debug
 		AC_MSG_RESULT(debug)
-		AC_DEFINE(SSH_AUDIT_EVENTS, 1, Use audit debugging module)
+		AC_DEFINE(SSH_AUDIT_EVENTS, 1, [Use audit debugging module])
 		;;
 	  no)
 		AC_MSG_RESULT(no)
@@ -1434,6 +1512,7 @@ AC_CHECK_FUNCS( \
 	swap32 \
 	sysconf \
 	tcgetpgrp \
+	timingsafe_bcmp \
 	truncate \
 	unsetenv \
 	updwtmpx \
@@ -1443,6 +1522,17 @@ AC_CHECK_FUNCS( \
 	vsnprintf \
 	waitpid \
 )
+
+AC_LINK_IFELSE(
+[
+#include <ctype.h>
+int main(void)
+{
+	return (isblank('a'));
+}
+],
+	[AC_DEFINE(HAVE_ISBLANK, 1, [Define if you have isblank(3C).])
+])
 
 # PKCS#11 support requires dlopen() and co
 AC_SEARCH_LIBS(dlopen, dl,
@@ -2090,6 +2180,8 @@ int main(void) { SSLeay_add_all_algorithms(); }
 	]
 )
 
+AC_CHECK_FUNCS(RSA_generate_key_ex DSA_generate_parameters_ex BN_is_prime_ex RSA_get_default_method)
+
 AC_ARG_WITH(ssl-engine,
 	[  --with-ssl-engine       Enable OpenSSL (hardware) ENGINE support ],
 	[ if test "x$withval" != "xno" ; then
@@ -2156,7 +2248,43 @@ if test "x$check_for_libcrypt_later" = "x1"; then
 fi
 
 # Search for SHA256 support in libc and/or OpenSSL
-AC_CHECK_FUNCS(SHA256_Update EVP_sha256)
+AC_CHECK_FUNCS(SHA256_Update EVP_sha256, [TEST_SSH_SHA256=yes],
+    [TEST_SSH_SHA256=no])
+AC_SUBST(TEST_SSH_SHA256)
+
+# Check complete ECC support in OpenSSL
+AC_MSG_CHECKING([whether OpenSSL has complete ECC support])
+AC_LINK_IFELSE(
+	[AC_LANG_SOURCE([[
+#include <openssl/ec.h>
+#include <openssl/ecdh.h>
+#include <openssl/ecdsa.h>
+#include <openssl/evp.h>
+#include <openssl/objects.h>
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
+# error "OpenSSL < 0.9.8g has unreliable ECC code"
+#endif
+int main(void) {
+	EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp521r1);
+	const EVP_MD *m = EVP_sha512(); /* We need this too */
+}
+	]])],
+	[
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(OPENSSL_HAS_ECC, 1,
+		    [libcrypto includes complete ECC support])
+		TEST_SSH_ECC=yes
+		COMMENT_OUT_ECC=""
+	],
+	[
+		AC_MSG_RESULT(no)
+		TEST_SSH_ECC=no
+		COMMENT_OUT_ECC="#no ecc#"
+	]
+)
+AC_SUBST(TEST_SSH_ECC)
+AC_SUBST(COMMENT_OUT_ECC)
 
 saved_LIBS="$LIBS"
 AC_CHECK_LIB(iaf, ia_openinfo, [
@@ -3443,10 +3571,12 @@ AC_ARG_WITH(kerberos5,
 				       [ char *tmp = heimdal_version; ],
 				       [ AC_MSG_RESULT(yes)
 					 AC_DEFINE(HEIMDAL)
-					 K5LIBS="-lkrb5 -ldes"
+					 K5LIBS="-lkrb5"
 					 K5LIBS="$K5LIBS -lcom_err -lasn1"
 					 AC_CHECK_LIB(roken, net_write,
 					   [K5LIBS="$K5LIBS -lroken"])
+					 AC_CHECK_LIB(des, des_cbc_encrypt,
+					   [K5LIBS="$K5LIBS -ldes"])
 				       ],
 				       [ AC_MSG_RESULT(no)
 					 K5LIBS="-lkrb5 -lk5crypto -lcom_err"
@@ -4191,6 +4321,7 @@ echo "              TCP Wrappers support: $TCPW_MSG"
 echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"
 echo "  Solaris process contract support: $SPC_MSG"
+echo "           Solaris project support: $SP_MSG"
 echo "       IP address in \$DISPLAY hack: $DISPLAY_HACK_MSG"
 echo "           Translate v4 in v6 hack: $IPV4_IN6_HACK_MSG"
 echo "                  BSD Auth support: $BSD_AUTH_MSG"

@@ -28,18 +28,19 @@ SYNOPSIS
 DESCRIPTION
      ssh-keygen generates, manages and converts authentication keys for
      ssh(1).  ssh-keygen can create RSA keys for use by SSH protocol version 1
-     and RSA or DSA keys for use by SSH protocol version 2.  The type of key
-     to be generated is specified with the -t option.  If invoked without any
-     arguments, ssh-keygen will generate an RSA key for use in SSH protocol 2
-     connections.
+     and DSA, ECDSA or RSA keys for use by SSH protocol version 2.  The type
+     of key to be generated is specified with the -t option.  If invoked
+     without any arguments, ssh-keygen will generate an RSA key for use in SSH
+     protocol 2 connections.
 
      ssh-keygen is also used to generate groups for use in Diffie-Hellman
      group exchange (DH-GEX).  See the MODULI GENERATION section for details.
 
-     Normally each user wishing to use SSH with RSA or DSA authentication runs
+     Normally each user wishing to use SSH with public key authentication runs
      this once to create the authentication key in ~/.ssh/identity,
-     ~/.ssh/id_dsa or ~/.ssh/id_rsa.  Additionally, the system administrator
-     may use this to generate host keys, as seen in /etc/rc.
+     ~/.ssh/id_ecdsa, ~/.ssh/id_dsa or ~/.ssh/id_rsa.  Additionally, the
+     system administrator may use this to generate host keys, as seen in
+     /etc/rc.
 
      Normally this program generates the key and asks for a file in which to
      store the private key.  The public key is stored in a file with the same
@@ -255,8 +256,8 @@ DESCRIPTION
 
      -t type
              Specifies the type of key to create.  The possible values are
-             ``rsa1'' for protocol version 1 and ``rsa'' or ``dsa'' for
-             protocol version 2.
+             ``rsa1'' for protocol version 1 and ``dsa'', ``ecdsa'' or ``rsa''
+             for protocol version 2.
 
      -V validity_interval
              Specify a validity interval when signing a certificate.  A
@@ -391,10 +392,9 @@ FILES
              the user.  This file should not be readable by anyone but the
              user.  It is possible to specify a passphrase when generating the
              key; that passphrase will be used to encrypt the private part of
-             this file using 128-bit AES.  This file is not automatically
-             accessed by ssh-keygen but it is offered as the default file for
-             the private key.  ssh(1) will read this file when a login attempt
-             is made.
+             this file using 3DES.  This file is not automatically accessed by
+             ssh-keygen but it is offered as the default file for the private
+             key.  ssh(1) will read this file when a login attempt is made.
 
      ~/.ssh/identity.pub
              Contains the protocol version 1 RSA public key for
@@ -404,34 +404,21 @@ FILES
              contents of this file secret.
 
      ~/.ssh/id_dsa
-             Contains the protocol version 2 DSA authentication identity of
-             the user.  This file should not be readable by anyone but the
-             user.  It is possible to specify a passphrase when generating the
-             key; that passphrase will be used to encrypt the private part of
-             this file using 128-bit AES.  This file is not automatically
-             accessed by ssh-keygen but it is offered as the default file for
-             the private key.  ssh(1) will read this file when a login attempt
-             is made.
+     ~/.ssh/id_ecdsa
+     ~/.ssh/id_rsa
+             Contains the protocol version 2 DSA, ECDSA or RSA authentication
+             identity of the user.  This file should not be readable by anyone
+             but the user.  It is possible to specify a passphrase when
+             generating the key; that passphrase will be used to encrypt the
+             private part of this file using 128-bit AES.  This file is not
+             automatically accessed by ssh-keygen but it is offered as the
+             default file for the private key.  ssh(1) will read this file
+             when a login attempt is made.
 
      ~/.ssh/id_dsa.pub
-             Contains the protocol version 2 DSA public key for
-             authentication.  The contents of this file should be added to
-             ~/.ssh/authorized_keys on all machines where the user wishes to
-             log in using public key authentication.  There is no need to keep
-             the contents of this file secret.
-
-     ~/.ssh/id_rsa
-             Contains the protocol version 2 RSA authentication identity of
-             the user.  This file should not be readable by anyone but the
-             user.  It is possible to specify a passphrase when generating the
-             key; that passphrase will be used to encrypt the private part of
-             this file using 128-bit AES.  This file is not automatically
-             accessed by ssh-keygen but it is offered as the default file for
-             the private key.  ssh(1) will read this file when a login attempt
-             is made.
-
+     ~/.ssh/id_ecdsa.pub
      ~/.ssh/id_rsa.pub
-             Contains the protocol version 2 RSA public key for
+             Contains the protocol version 2 DSA, ECDSA or RSA public key for
              authentication.  The contents of this file should be added to
              ~/.ssh/authorized_keys on all machines where the user wishes to
              log in using public key authentication.  There is no need to keep
@@ -453,4 +440,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.8                     August 4, 2010                     OpenBSD 4.8
+OpenBSD 4.8                    October 28, 2010                    OpenBSD 4.8

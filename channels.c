@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.309 2010/08/05 13:08:42 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.310 2010/11/24 01:24:14 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -373,9 +373,6 @@ channel_close_fd(int *fdp)
 static void
 channel_close_fds(Channel *c)
 {
-	debug3("channel %d: close_fds r %d w %d e %d",
-	    c->self, c->rfd, c->wfd, c->efd);
-
 	channel_close_fd(&c->sock);
 	channel_close_fd(&c->rfd);
 	channel_close_fd(&c->wfd);

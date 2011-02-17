@@ -1,4 +1,4 @@
-/* $OpenBSD: auth1.c,v 1.74 2010/06/25 08:46:17 djm Exp $ */
+/* $OpenBSD: auth1.c,v 1.75 2010/08/31 09:58:37 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -167,7 +167,7 @@ auth1_process_rhosts_rsa(Authctxt *authctxt, char *info, size_t infolen)
 	 * trust the client; root on the client machine can
 	 * claim to be any user.
 	 */
-	client_user = packet_get_string(&ulen);
+	client_user = packet_get_cstring(&ulen);
 
 	/* Get the client host key. */
 	client_host_key = key_new(KEY_RSA1);
@@ -389,7 +389,7 @@ do_authentication(Authctxt *authctxt)
 	packet_read_expect(SSH_CMSG_USER);
 
 	/* Get the user name. */
-	user = packet_get_string(&ulen);
+	user = packet_get_cstring(&ulen);
 	packet_check_eom();
 
 	if ((style = strchr(user, ':')) != NULL)

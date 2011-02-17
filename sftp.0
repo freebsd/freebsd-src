@@ -5,7 +5,7 @@ NAME
 
 SYNOPSIS
      sftp [-1246Cpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
-          [-D sftp_server_path] [-F ssh_config] [-i identity_file]
+          [-D sftp_server_path] [-F ssh_config] [-i identity_file] [-l limit]
           [-o ssh_option] [-P port] [-R num_requests] [-S program]
           [-s subsystem | sftp_server] host
      sftp [user@]host[:file ...]
@@ -50,9 +50,9 @@ DESCRIPTION
              batchfile of `-' may be used to indicate standard input.  sftp
              will abort if any of the following commands fail: get, put,
              rename, ln, rm, mkdir, chdir, ls, lchdir, chmod, chown, chgrp,
-             lpwd, df, and lmkdir.  Termination on error can be suppressed on
-             a command by command basis by prefixing the command with a `-'
-             character (for example, -rm /tmp/blah*).
+             lpwd, df, symlink, and lmkdir.  Termination on error can be
+             suppressed on a command by command basis by prefixing the command
+             with a `-' character (for example, -rm /tmp/blah*).
 
      -C      Enables compression (via ssh's -C flag).
 
@@ -72,6 +72,9 @@ DESCRIPTION
              Selects the file from which the identity (private key) for public
              key authentication is read.  This option is directly passed to
              ssh(1).
+
+     -l limit
+             Limits the used bandwidth, specified in Kbit/s.
 
      -o ssh_option
              Can be used to pass options to ssh in the format used in
@@ -105,7 +108,9 @@ DESCRIPTION
                    HostName
                    IdentityFile
                    IdentitiesOnly
+                   IPQoS
                    KbdInteractiveDevices
+                   KexAlgorithms
                    LogLevel
                    MACs
                    NoHostAuthenticationForLocalhost
@@ -225,8 +230,10 @@ INTERACTIVE COMMANDS
      lmkdir path
              Create local directory specified by path.
 
-     ln oldpath newpath
-             Create a symbolic link from oldpath to newpath.
+     ln [-s] oldpath newpath
+             Create a link from oldpath to newpath.  If the -s flag is
+             specified the created link is a symbolic link, otherwise it is a
+             hard link.
 
      lpwd    Print local working directory.
 
@@ -317,8 +324,8 @@ SEE ALSO
      ftp(1), ls(1), scp(1), ssh(1), ssh-add(1), ssh-keygen(1), glob(3),
      ssh_config(5), sftp-server(8), sshd(8)
 
-     T. Ylonen, S. Lehtinen, SSH File Transfer Protocol,
+     T. Ylonen and S. Lehtinen, SSH File Transfer Protocol,
      draft-ietf-secsh-filexfer-00.txt, January 2001, work in progress
      material.
 
-OpenBSD 4.8                    February 8, 2010                    OpenBSD 4.8
+OpenBSD 4.8                    December 4, 2010                    OpenBSD 4.8
