@@ -659,6 +659,14 @@ m_last(struct mbuf *m)
 	return (m);
 }
 
+extern void (*m_addr_chg_pf_p)(struct mbuf *m);
+
+static __inline void 
+m_addr_changed(struct mbuf *m) {
+       if (m_addr_chg_pf_p)
+               m_addr_chg_pf_p(m);
+}
+
 /*
  * mbuf, cluster, and external object allocation macros (for compatibility
  * purposes).

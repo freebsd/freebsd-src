@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl.h,v 1.40 2007/02/09 11:25:27 henning Exp $ */
+/*	$OpenBSD: pfctl.h,v 1.42 2007/12/05 12:01:47 chl Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -49,7 +49,6 @@ struct pfr_buffer {
 	    (var) != NULL;				\
 	    (var) = pfr_buf_next((buf), (var)))
 
-void	 pfr_set_fd(int);
 int	 pfr_get_fd(void);
 int	 pfr_clr_tables(struct pfr_table *, int *, int);
 int	 pfr_add_tables(struct pfr_table *, int, int *, int);
@@ -64,9 +63,7 @@ int	 pfr_set_addrs(struct pfr_table *, struct pfr_addr *, int, int *,
 	    int *, int *, int *, int);
 int	 pfr_get_addrs(struct pfr_table *, struct pfr_addr *, int *, int);
 int	 pfr_get_astats(struct pfr_table *, struct pfr_astats *, int *, int);
-int	 pfr_clr_astats(struct pfr_table *, struct pfr_addr *, int, int *, int);
 int	 pfr_tst_addrs(struct pfr_table *, struct pfr_addr *, int, int *, int);
-int	 pfr_set_tflags(struct pfr_table *, int, int, int, int *, int *, int);
 int	 pfr_ina_define(struct pfr_table *, struct pfr_addr *, int, int *,
 	    int *, int, int);
 void	 pfr_buf_clear(struct pfr_buffer *);
@@ -91,6 +88,8 @@ FILE	*pfctl_fopen(const char *, const char *);
 
 #ifdef __FreeBSD__
 extern int altqsupport;
+extern int dummynetsupport;
+ #define HTONL(x)       (x) = htonl((__uint32_t)(x))
 #endif
 
 #ifndef DEFAULT_PRIORITY
@@ -117,9 +116,9 @@ struct pf_altq	*pfaltq_lookup(const char *);
 char		*rate2str(double);
 
 void	 print_addr(struct pf_addr_wrap *, sa_family_t, int);
-void	 print_host(struct pf_state_host *, sa_family_t, int);
-void	 print_seq(struct pf_state_peer *);
-void	 print_state(struct pf_state *, int);
+void	 print_host(struct pf_addr *, u_int16_t p, sa_family_t, int);
+void	 print_seq(struct pfsync_state_peer *);
+void	 print_state(struct pfsync_state *, int);
 int	 unmask(struct pf_addr *, sa_family_t);
 
 int	 pfctl_cmdline_symset(char *);

@@ -671,6 +671,8 @@ icmp_reflect(struct mbuf *m)
 		goto done;	/* Ip_output() will check for broadcast */
 	}
 
+	m_addr_changed(m);
+
 	t = ip->ip_dst;
 	ip->ip_dst = ip->ip_src;
 
