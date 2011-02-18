@@ -1,5 +1,6 @@
 /* ix86 ELF support for BFD.
-   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2002, 2004, 2005, 2006
+   Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -15,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _ELF_I386_H
 #define _ELF_I386_H
@@ -61,6 +62,13 @@ START_RELOC_NUMBERS (elf_i386_reloc_type)
      RELOC_NUMBER (R_386_TLS_DTPMOD32, 35)
      RELOC_NUMBER (R_386_TLS_DTPOFF32, 36)
      RELOC_NUMBER (R_386_TLS_TPOFF32,  37)
+/* 38 */
+     RELOC_NUMBER (R_386_TLS_GOTDESC,  39)
+     RELOC_NUMBER (R_386_TLS_DESC_CALL,40)
+     RELOC_NUMBER (R_386_TLS_DESC,     41)
+
+     /* Used by Intel.  */
+     RELOC_NUMBER (R_386_USED_BY_INTEL_200, 200)
 
      /* These are GNU extensions to enable C++ vtable garbage collection.  */
      RELOC_NUMBER (R_386_GNU_VTINHERIT, 250)

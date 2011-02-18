@@ -1,294 +1,197 @@
-/* ARM opcode list.
-   Copyright 1989, 1991 Free Software Foundation, Inc.
+/* ARM assembler/disassembler support.
+   Copyright 2004 Free Software Foundation, Inc.
 
-This file is part of GDB and GAS.
+   This file is part of GDB and GAS.
 
-GDB and GAS are free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
-any later version.
+   GDB and GAS are free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation; either version 1, or (at
+   your option) any later version.
 
-GDB and GAS are distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GDB and GAS are distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GDB or GAS; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GDB or GAS; see the file COPYING.  If not, write to the
+   Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
-/* types of instruction (encoded in bits 26 and 27 of the instruction) */
+/* The following bitmasks control CPU extensions:  */
+#define ARM_EXT_V1	 0x00000001	/* All processors (core set).  */
+#define ARM_EXT_V2	 0x00000002	/* Multiply instructions.  */
+#define ARM_EXT_V2S	 0x00000004	/* SWP instructions.       */
+#define ARM_EXT_V3	 0x00000008	/* MSR MRS.                */
+#define ARM_EXT_V3M	 0x00000010	/* Allow long multiplies.  */
+#define ARM_EXT_V4	 0x00000020	/* Allow half word loads.  */
+#define ARM_EXT_V4T	 0x00000040	/* Thumb.                  */
+#define ARM_EXT_V5	 0x00000080	/* Allow CLZ, etc.         */
+#define ARM_EXT_V5T	 0x00000100	/* Improved interworking.  */
+#define ARM_EXT_V5ExP	 0x00000200	/* DSP core set.           */
+#define ARM_EXT_V5E	 0x00000400	/* DSP Double transfers.   */
+#define ARM_EXT_V5J	 0x00000800	/* Jazelle extension.	   */
+#define ARM_EXT_V6       0x00001000     /* ARM V6.                 */
+#define ARM_EXT_V6K      0x00002000     /* ARM V6K.                */
+#define ARM_EXT_V6Z      0x00004000     /* ARM V6Z.                */
+#define ARM_EXT_V6T2	 0x00008000	/* Thumb-2.                */
+#define ARM_EXT_DIV	 0x00010000	/* Integer division.       */
+/* The 'M' in Arm V7M stands for Microcontroller.
+   On earlier architecture variants it stands for Multiply.  */
+#define ARM_EXT_V5E_NOTM 0x00020000	/* Arm V5E but not Arm V7M. */
+#define ARM_EXT_V6_NOTM	 0x00040000	/* Arm V6 but not Arm V7M. */
+#define ARM_EXT_V7	 0x00080000	/* Arm V7.                 */
+#define ARM_EXT_V7A	 0x00100000	/* Arm V7A.                */
+#define ARM_EXT_V7R	 0x00200000	/* Arm V7R.                */
+#define ARM_EXT_V7M	 0x00400000	/* Arm V7M.                */
 
-#define TYPE_ARITHMETIC		0
-#define TYPE_LDR_STR		1
-#define TYPE_BLOCK_BRANCH	2
-#define TYPE_SWI		3
+/* Co-processor space extensions.  */
+#define ARM_CEXT_XSCALE   0x00000001	/* Allow MIA etc.          */
+#define ARM_CEXT_MAVERICK 0x00000002	/* Use Cirrus/DSP coprocessor.  */
+#define ARM_CEXT_IWMMXT   0x00000004    /* Intel Wireless MMX technology coprocessor.   */
+#define ARM_CEXT_IWMMXT2  0x00000008    /* Intel Wireless MMX technology coprocessor version 2.   */
 
-/* bit 25 decides whether an instruction is a block move or a branch */
-#define SUBTYPE_BLOCK		0
-#define SUBTYPE_BRANCH		1
+#define FPU_ENDIAN_PURE	 0x80000000	/* Pure-endian doubles.	      */
+#define FPU_ENDIAN_BIG	 0		/* Double words-big-endian.   */
+#define FPU_FPA_EXT_V1	 0x40000000	/* Base FPA instruction set.  */
+#define FPU_FPA_EXT_V2	 0x20000000	/* LFM/SFM.		      */
+#define FPU_MAVERICK	 0x10000000	/* Cirrus Maverick.	      */
+#define FPU_VFP_EXT_V1xD 0x08000000	/* Base VFP instruction set.  */
+#define FPU_VFP_EXT_V1	 0x04000000	/* Double-precision insns.    */
+#define FPU_VFP_EXT_V2	 0x02000000	/* ARM10E VFPr1.	      */
+#define FPU_VFP_EXT_V3	 0x01000000	/* VFPv3 insns.	              */
+#define FPU_NEON_EXT_V1	 0x00800000	/* Neon (SIMD) insns.	      */
 
-/* codes to distinguish the arithmetic instructions */
+/* Architectures are the sum of the base and extensions.  The ARM ARM (rev E)
+   defines the following: ARMv3, ARMv3M, ARMv4xM, ARMv4, ARMv4TxM, ARMv4T,
+   ARMv5xM, ARMv5, ARMv5TxM, ARMv5T, ARMv5TExP, ARMv5TE.  To these we add
+   three more to cover cores prior to ARM6.  Finally, there are cores which
+   implement further extensions in the co-processor space.  */
+#define ARM_AEXT_V1			  ARM_EXT_V1
+#define ARM_AEXT_V2	(ARM_AEXT_V1	| ARM_EXT_V2)
+#define ARM_AEXT_V2S	(ARM_AEXT_V2	| ARM_EXT_V2S)
+#define ARM_AEXT_V3	(ARM_AEXT_V2S	| ARM_EXT_V3)
+#define ARM_AEXT_V3M	(ARM_AEXT_V3	| ARM_EXT_V3M)
+#define ARM_AEXT_V4xM	(ARM_AEXT_V3	| ARM_EXT_V4)
+#define ARM_AEXT_V4	(ARM_AEXT_V3M	| ARM_EXT_V4)
+#define ARM_AEXT_V4TxM	(ARM_AEXT_V4xM	| ARM_EXT_V4T)
+#define ARM_AEXT_V4T	(ARM_AEXT_V4	| ARM_EXT_V4T)
+#define ARM_AEXT_V5xM	(ARM_AEXT_V4xM	| ARM_EXT_V5)
+#define ARM_AEXT_V5	(ARM_AEXT_V4	| ARM_EXT_V5)
+#define ARM_AEXT_V5TxM	(ARM_AEXT_V5xM	| ARM_EXT_V4T | ARM_EXT_V5T)
+#define ARM_AEXT_V5T	(ARM_AEXT_V5	| ARM_EXT_V4T | ARM_EXT_V5T)
+#define ARM_AEXT_V5TExP	(ARM_AEXT_V5T	| ARM_EXT_V5ExP)
+#define ARM_AEXT_V5TE	(ARM_AEXT_V5TExP | ARM_EXT_V5E)
+#define ARM_AEXT_V5TEJ	(ARM_AEXT_V5TE	| ARM_EXT_V5J)
+#define ARM_AEXT_V6     (ARM_AEXT_V5TEJ | ARM_EXT_V6)
+#define ARM_AEXT_V6K    (ARM_AEXT_V6    | ARM_EXT_V6K)
+#define ARM_AEXT_V6Z    (ARM_AEXT_V6    | ARM_EXT_V6Z)
+#define ARM_AEXT_V6ZK   (ARM_AEXT_V6    | ARM_EXT_V6K | ARM_EXT_V6Z)
+#define ARM_AEXT_V6T2   (ARM_AEXT_V6    | ARM_EXT_V6T2 | ARM_EXT_V6_NOTM)
+#define ARM_AEXT_V6KT2  (ARM_AEXT_V6T2 | ARM_EXT_V6K)
+#define ARM_AEXT_V6ZT2  (ARM_AEXT_V6T2 | ARM_EXT_V6Z)
+#define ARM_AEXT_V6ZKT2 (ARM_AEXT_V6T2 | ARM_EXT_V6K | ARM_EXT_V6Z)
+#define ARM_AEXT_V7_ARM	(ARM_AEXT_V6ZKT2 | ARM_EXT_V7)
+#define ARM_AEXT_V7A	(ARM_AEXT_V7_ARM | ARM_EXT_V7A)
+#define ARM_AEXT_V7R	(ARM_AEXT_V7_ARM | ARM_EXT_V7R | ARM_EXT_DIV)
+#define ARM_AEXT_NOTM \
+  (ARM_AEXT_V4 | ARM_EXT_V5ExP | ARM_EXT_V5J | ARM_EXT_V6_NOTM)
+#define ARM_AEXT_V7M \
+  ((ARM_AEXT_V7_ARM | ARM_EXT_V7M | ARM_EXT_DIV) & ~(ARM_AEXT_NOTM))
+#define ARM_AEXT_V7 (ARM_AEXT_V7A & ARM_AEXT_V7R & ARM_AEXT_V7M)
 
-#define OPCODE_AND	0
-#define OPCODE_EOR	1
-#define OPCODE_SUB	2
-#define OPCODE_RSB	3
-#define OPCODE_ADD	4
-#define OPCODE_ADC	5
-#define OPCODE_SBC	6
-#define OPCODE_RSC	7
-#define OPCODE_TST	8
-#define OPCODE_TEQ	9
-#define OPCODE_CMP	10
-#define OPCODE_CMN	11
-#define OPCODE_ORR	12
-#define OPCODE_MOV	13
-#define OPCODE_BIC	14
-#define OPCODE_MVN	15
+/* Processors with specific extensions in the co-processor space.  */
+#define ARM_ARCH_XSCALE	ARM_FEATURE (ARM_AEXT_V5TE, ARM_CEXT_XSCALE)
+#define ARM_ARCH_IWMMXT	\
+ ARM_FEATURE (ARM_AEXT_V5TE, ARM_CEXT_XSCALE | ARM_CEXT_IWMMXT)
+#define ARM_ARCH_IWMMXT2	\
+ ARM_FEATURE (ARM_AEXT_V5TE, ARM_CEXT_XSCALE | ARM_CEXT_IWMMXT | ARM_CEXT_IWMMXT2)
 
-/* condition codes */
+#define FPU_VFP_V1xD	(FPU_VFP_EXT_V1xD | FPU_ENDIAN_PURE)
+#define FPU_VFP_V1	(FPU_VFP_V1xD | FPU_VFP_EXT_V1)
+#define FPU_VFP_V2	(FPU_VFP_V1 | FPU_VFP_EXT_V2)
+#define FPU_VFP_V3	(FPU_VFP_V2 | FPU_VFP_EXT_V3)
+#define FPU_VFP_HARD	(FPU_VFP_EXT_V1xD | FPU_VFP_EXT_V1 | FPU_VFP_EXT_V2 \
+                         | FPU_VFP_EXT_V3 | FPU_NEON_EXT_V1)
+#define FPU_FPA		(FPU_FPA_EXT_V1 | FPU_FPA_EXT_V2)
 
-#define COND_EQ		0
-#define COND_NE		1
-#define COND_CS		2
-#define COND_CC		3
-#define COND_MI		4
-#define COND_PL		5
-#define COND_VS		6
-#define COND_VC		7
-#define COND_HI		8
-#define COND_LS		9
-#define COND_GE		10
-#define COND_LT		11
-#define COND_GT		12
-#define COND_LE		13
-#define COND_AL		14
-#define COND_NV		15
+/* Deprecated */
+#define FPU_ARCH_VFP	ARM_FEATURE (0, FPU_ENDIAN_PURE)
 
-/* Describes the format of an ARM machine instruction */
+#define FPU_ARCH_FPE	ARM_FEATURE (0, FPU_FPA_EXT_V1)
+#define FPU_ARCH_FPA	ARM_FEATURE (0, FPU_FPA)
 
-struct generic_fmt {
-    unsigned rest	:25;	/* the rest of the instruction */
-    unsigned subtype	:1;	/* used to decide between block and branch */
-    unsigned type	:2;	/* one of TYPE_* */
-    unsigned cond	:4;	/* one of COND_* defined above */
-};
+#define FPU_ARCH_VFP_V1xD ARM_FEATURE (0, FPU_VFP_V1xD)
+#define FPU_ARCH_VFP_V1	  ARM_FEATURE (0, FPU_VFP_V1)
+#define FPU_ARCH_VFP_V2	  ARM_FEATURE (0, FPU_VFP_V2)
+#define FPU_ARCH_VFP_V3	  ARM_FEATURE (0, FPU_VFP_V3)
+#define FPU_ARCH_NEON_V1  ARM_FEATURE (0, FPU_NEON_EXT_V1)
+#define FPU_ARCH_VFP_V3_PLUS_NEON_V1 \
+  ARM_FEATURE (0, FPU_VFP_V3 | FPU_NEON_EXT_V1)
+#define FPU_ARCH_VFP_HARD ARM_FEATURE (0, FPU_VFP_HARD)
 
-struct arith_fmt {
-    unsigned operand2	:12;	/* #nn or rn or rn shift #m or rn shift rm */
-    unsigned dest	:4;	/* place where the answer goes */
-    unsigned operand1	:4;	/* first operand to instruction */
-    unsigned set	:1;	/* == 1 means set processor flags */
-    unsigned opcode	:4;	/* one of OPCODE_* defined above */
-    unsigned immed	:1;	/* operand2 is an immediate value */
-    unsigned type	:2;	/* == TYPE_ARITHMETIC */
-    unsigned cond	:4;	/* one of COND_* defined above */
-};
+#define FPU_ARCH_ENDIAN_PURE ARM_FEATURE (0, FPU_ENDIAN_PURE)
 
-struct ldr_str_fmt {
-    unsigned offset	:12;	/* #nn or rn or rn shift #m */
-    unsigned reg	:4;	/* destination for LDR, source for STR */
-    unsigned base	:4;	/* base register */
-    unsigned is_load	:1;	/* == 1 for LDR */
-    unsigned writeback	:1;	/* == 1 means write back (base+offset) into base */
-    unsigned byte	:1;	/* == 1 means byte access else word */
-    unsigned up		:1;	/* == 1 means add offset else subtract it */
-    unsigned pre_index	:1;	/* == 1 means [a,b] form else [a],b form */
-    unsigned immed	:1;	/* == 0 means immediate offset */
-    unsigned type	:2;	/* == TYPE_LDR_STR */
-    unsigned cond	:4;	/* one of COND_* defined above */
-};
+#define FPU_ARCH_MAVERICK ARM_FEATURE (0, FPU_MAVERICK)
 
-struct block_fmt {
-    unsigned mask	:16;	/* register mask */
-    unsigned base	:4;	/* register used as base of move */
-    unsigned is_load	:1;	/* == 1 for LDM */
-    unsigned writeback	:1;	/* == 1 means update base after move */
-    unsigned set	:1;	/* == 1 means set flags in pc if included in mask */
-    unsigned increment	:1;	/* == 1 means increment base register */
-    unsigned before	:1;	/* == 1 means inc/dec before each move */
-    unsigned is_block	:1;	/* == SUBTYPE_BLOCK */
-    unsigned type	:2;	/* == TYPE_BLOCK_BRANCH */
-    unsigned cond	:4;	/* one of COND_* defined above */
-};
+#define ARM_ARCH_V1	ARM_FEATURE (ARM_AEXT_V1, 0)
+#define ARM_ARCH_V2	ARM_FEATURE (ARM_AEXT_V2, 0)
+#define ARM_ARCH_V2S	ARM_FEATURE (ARM_AEXT_V2S, 0)
+#define ARM_ARCH_V3	ARM_FEATURE (ARM_AEXT_V3, 0)
+#define ARM_ARCH_V3M	ARM_FEATURE (ARM_AEXT_V3M, 0)
+#define ARM_ARCH_V4xM	ARM_FEATURE (ARM_AEXT_V4xM, 0)
+#define ARM_ARCH_V4	ARM_FEATURE (ARM_AEXT_V4, 0)
+#define ARM_ARCH_V4TxM	ARM_FEATURE (ARM_AEXT_V4TxM, 0)
+#define ARM_ARCH_V4T	ARM_FEATURE (ARM_AEXT_V4T, 0)
+#define ARM_ARCH_V5xM	ARM_FEATURE (ARM_AEXT_V5xM, 0)
+#define ARM_ARCH_V5	ARM_FEATURE (ARM_AEXT_V5, 0)
+#define ARM_ARCH_V5TxM	ARM_FEATURE (ARM_AEXT_V5TxM, 0)
+#define ARM_ARCH_V5T	ARM_FEATURE (ARM_AEXT_V5T, 0)
+#define ARM_ARCH_V5TExP	ARM_FEATURE (ARM_AEXT_V5TExP, 0)
+#define ARM_ARCH_V5TE	ARM_FEATURE (ARM_AEXT_V5TE, 0)
+#define ARM_ARCH_V5TEJ	ARM_FEATURE (ARM_AEXT_V5TEJ, 0)
+#define ARM_ARCH_V6	ARM_FEATURE (ARM_AEXT_V6, 0)
+#define ARM_ARCH_V6K	ARM_FEATURE (ARM_AEXT_V6K, 0)
+#define ARM_ARCH_V6Z	ARM_FEATURE (ARM_AEXT_V6Z, 0)
+#define ARM_ARCH_V6ZK	ARM_FEATURE (ARM_AEXT_V6ZK, 0)
+#define ARM_ARCH_V6T2	ARM_FEATURE (ARM_AEXT_V6T2, 0)
+#define ARM_ARCH_V6KT2	ARM_FEATURE (ARM_AEXT_V6KT2, 0)
+#define ARM_ARCH_V6ZT2	ARM_FEATURE (ARM_AEXT_V6ZT2, 0)
+#define ARM_ARCH_V6ZKT2	ARM_FEATURE (ARM_AEXT_V6ZKT2, 0)
+#define ARM_ARCH_V7	ARM_FEATURE (ARM_AEXT_V7, 0)
+#define ARM_ARCH_V7A	ARM_FEATURE (ARM_AEXT_V7A, 0)
+#define ARM_ARCH_V7R	ARM_FEATURE (ARM_AEXT_V7R, 0)
+#define ARM_ARCH_V7M	ARM_FEATURE (ARM_AEXT_V7M, 0)
 
-struct branch_fmt {
-    unsigned dest	:24;	/* destination of the branch */
-    unsigned link	:1;	/* branch with link (function call) */
-    unsigned is_branch	:1;	/* == SUBTYPE_BRANCH */
-    unsigned type	:2;	/* == TYPE_BLOCK_BRANCH */
-    unsigned cond	:4;	/* one of COND_* defined above */
-};
+/* Some useful combinations:  */
+#define ARM_ARCH_NONE	ARM_FEATURE (0, 0)
+#define FPU_NONE	ARM_FEATURE (0, 0)
+#define ARM_ANY		ARM_FEATURE (-1, 0)	/* Any basic core.  */
+#define FPU_ANY_HARD	ARM_FEATURE (0, FPU_FPA | FPU_VFP_HARD | FPU_MAVERICK)
+#define ARM_ARCH_THUMB2 ARM_FEATURE (ARM_EXT_V6T2 | ARM_EXT_V7 | ARM_EXT_V7A | ARM_EXT_V7R | ARM_EXT_V7M | ARM_EXT_DIV, 0)
 
-#define ROUND_N		0
-#define ROUND_P		1
-#define ROUND_M		2
-#define ROUND_Z		3
+/* There are too many feature bits to fit in a single word, so use a
+   structure.  For simplicity we put all core features in one word and
+   everything else in the other.  */
+typedef struct
+{
+  unsigned long core;
+  unsigned long coproc;
+} arm_feature_set;
 
-#define FLOAT2_MVF	0
-#define FLOAT2_MNF	1
-#define FLOAT2_ABS	2
-#define FLOAT2_RND	3
-#define FLOAT2_SQT	4
-#define FLOAT2_LOG	5
-#define FLOAT2_LGN	6
-#define FLOAT2_EXP	7
-#define FLOAT2_SIN	8
-#define FLOAT2_COS	9
-#define FLOAT2_TAN	10
-#define FLOAT2_ASN	11
-#define FLOAT2_ACS	12
-#define FLOAT2_ATN	13
+#define ARM_CPU_HAS_FEATURE(CPU,FEAT) \
+  (((CPU).core & (FEAT).core) != 0 || ((CPU).coproc & (FEAT).coproc) != 0)
 
-#define FLOAT3_ADF	0
-#define FLOAT3_MUF	1
-#define FLOAT3_SUF	2
-#define FLOAT3_RSF	3
-#define FLOAT3_DVF	4
-#define FLOAT3_RDF	5
-#define FLOAT3_POW	6
-#define FLOAT3_RPW	7
-#define FLOAT3_RMF	8
-#define FLOAT3_FML	9
-#define FLOAT3_FDV	10
-#define FLOAT3_FRD	11
-#define FLOAT3_POL	12
+#define ARM_MERGE_FEATURE_SETS(TARG,F1,F2)	\
+  do {						\
+    (TARG).core = (F1).core | (F2).core;	\
+    (TARG).coproc = (F1).coproc | (F2).coproc;	\
+  } while (0)
 
-struct float2_fmt {
-    unsigned operand2	:3;	/* second operand */
-    unsigned immed	:1;	/* == 1 if second operand is a constant */
-    unsigned pad1	:1;	/* == 0 */
-    unsigned rounding	:2;	/* ROUND_* */
-    unsigned is_double	:1;	/* == 1 if precision is double (only if not extended) */
-    unsigned pad2	:4;	/* == 1 */
-    unsigned dest	:3;	/* destination */
-    unsigned is_2_op	:1;	/* == 1 if 2 operand ins */
-    unsigned operand1	:3;	/* first operand (only of is_2_op == 0) */
-    unsigned is_extended :1;	/* == 1 if precision is extended */
-    unsigned opcode	:4;	/* FLOAT2_* or FLOAT3_* depending on is_2_op */
-    unsigned must_be_2	:2;	/* == 2 */
-    unsigned type	:2;	/* == TYPE_SWI */
-    unsigned cond	:4;	/* COND_* */
-};
+#define ARM_CLEAR_FEATURE(TARG,F1,F2)		\
+  do {						\
+    (TARG).core = (F1).core &~ (F2).core;	\
+    (TARG).coproc = (F1).coproc &~ (F2).coproc;	\
+  } while (0)
 
-struct swi_fmt {
-    unsigned argument	:24;	/* argument to SWI (syscall number) */
-    unsigned must_be_3	:2;	/* == 3 */
-    unsigned type	:2;	/* == TYPE_SWI */
-    unsigned cond	:4;	/* one of COND_* defined above */
-};
-
-union insn_fmt {
-    struct generic_fmt	generic;
-    struct arith_fmt	arith;
-    struct ldr_str_fmt	ldr_str;
-    struct block_fmt	block;
-    struct branch_fmt	branch;
-    struct swi_fmt	swi;
-    unsigned long	ins;
-};
-
-struct opcode {
-    unsigned long value, mask;	/* recognise instruction if (op&mask)==value */
-    char *assembler;		/* how to disassemble this instruction */
-};
-
-/* format of the assembler string :
-   
-   %%			%
-   %<bitfield>d		print the bitfield in decimal
-   %<bitfield>x		print the bitfield in hex
-   %<bitfield>r		print as an ARM register
-   %<bitfield>f		print a floating point constant if >7 else an fp register
-   %c			print condition code (always bits 28-31)
-   %P			print floating point precision in arithmetic insn
-   %Q			print floating point precision in ldf/stf insn
-   %R			print floating point rounding mode
-   %<bitnum>'c		print specified char iff bit is one
-   %<bitnum>`c		print specified char iff bit is zero
-   %<bitnum>?ab		print a if bit is one else print b
-   %p			print 'p' iff bits 12-15 are 15
-   %o			print operand2 (immediate or register + shift)
-   %a			print address for ldr/str instruction
-   %b			print branch destination
-   %A			print address for ldc/stc/ldf/stf instruction
-   %m			print register mask for ldm/stm instruction
-*/
-
-static struct opcode opcodes[] = {
-    /* ARM instructions */
-    0x00000090, 0x0fe000f0, "mul%20's %12-15r, %16-19r, %0-3r",
-    0x00200090, 0x0fe000f0, "mla%20's %12-15r, %16-19r, %0-3r, %8-11r",
-    0x00000000, 0x0de00000, "and%c%20's %12-15r, %16-19r, %o",
-    0x00200000, 0x0de00000, "eor%c%20's %12-15r, %16-19r, %o",
-    0x00400000, 0x0de00000, "sub%c%20's %12-15r, %16-19r, %o",
-    0x00600000, 0x0de00000, "rsb%c%20's %12-15r, %16-19r, %o",
-    0x00800000, 0x0de00000, "add%c%20's %12-15r, %16-19r, %o",
-    0x00a00000, 0x0de00000, "adc%c%20's %12-15r, %16-19r, %o",
-    0x00c00000, 0x0de00000, "sbc%c%20's %12-15r, %16-19r, %o",
-    0x00e00000, 0x0de00000, "rsc%c%20's %12-15r, %16-19r, %o",
-    0x01000000, 0x0de00000, "tst%c%p %16-19r, %o",
-    0x01200000, 0x0de00000, "teq%c%p %16-19r, %o",
-    0x01400000, 0x0de00000, "cmp%c%p %16-19r, %o",
-    0x01600000, 0x0de00000, "cmn%c%p %16-19r, %o",
-    0x01800000, 0x0de00000, "orr%c%20's %12-15r, %16-19r, %o",
-    0x01a00000, 0x0de00000, "mov%c%20's %12-15r, %o",
-    0x01c00000, 0x0de00000, "bic%c%20's %12-15r, %16-19r, %o",
-    0x01e00000, 0x0de00000, "mvn%c%20's %12-15r, %o",
-    0x04000000, 0x0c100000, "str%c%22'b %12-15r, %a",
-    0x04100000, 0x0c100000, "ldr%c%22'b %12-15r, %a",
-    0x08000000, 0x0e100000, "stm%c%23?id%24?ba %16-19r%22`!, %m",
-    0x08100000, 0x0e100000, "ldm%c%23?id%24?ba %16-19r%22`!, %m%22'^",
-    0x0a000000, 0x0e000000, "b%c%24'l %b",
-    0x0f000000, 0x0f000000, "swi%c %0-23x",
-    /* Floating point coprocessor instructions */
-    0x0e000100, 0x0ff08f10, "adf%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e100100, 0x0ff08f10, "muf%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e200100, 0x0ff08f10, "suf%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e300100, 0x0ff08f10, "rsf%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e400100, 0x0ff08f10, "dvf%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e500100, 0x0ff08f10, "rdf%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e600100, 0x0ff08f10, "pow%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e700100, 0x0ff08f10, "rpw%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e800100, 0x0ff08f10, "rmf%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e900100, 0x0ff08f10, "fml%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0ea00100, 0x0ff08f10, "fdv%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0eb00100, 0x0ff08f10, "frd%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0ec00100, 0x0ff08f10, "pol%c%P%R %12-14f, %16-18f, %0-3f",
-    0x0e008100, 0x0ff08f10, "mvf%c%P%R %12-14f, %0-3f",
-    0x0e108100, 0x0ff08f10, "mnf%c%P%R %12-14f, %0-3f",
-    0x0e208100, 0x0ff08f10, "abs%c%P%R %12-14f, %0-3f",
-    0x0e308100, 0x0ff08f10, "rnd%c%P%R %12-14f, %0-3f",
-    0x0e408100, 0x0ff08f10, "sqt%c%P%R %12-14f, %0-3f",
-    0x0e508100, 0x0ff08f10, "log%c%P%R %12-14f, %0-3f",
-    0x0e608100, 0x0ff08f10, "lgn%c%P%R %12-14f, %0-3f",
-    0x0e708100, 0x0ff08f10, "exp%c%P%R %12-14f, %0-3f",
-    0x0e808100, 0x0ff08f10, "sin%c%P%R %12-14f, %0-3f",
-    0x0e908100, 0x0ff08f10, "cos%c%P%R %12-14f, %0-3f",
-    0x0ea08100, 0x0ff08f10, "tan%c%P%R %12-14f, %0-3f",
-    0x0eb08100, 0x0ff08f10, "asn%c%P%R %12-14f, %0-3f",
-    0x0ec08100, 0x0ff08f10, "acs%c%P%R %12-14f, %0-3f",
-    0x0ed08100, 0x0ff08f10, "atn%c%P%R %12-14f, %0-3f",
-    0x0e000110, 0x0ff00f1f, "flt%c%P%R %16-18f, %12-15r",
-    0x0e100110, 0x0fff0f98, "fix%c%R %12-15r, %0-2f",
-    0x0e200110, 0x0fff0fff, "wfs%c %12-15r",
-    0x0e300110, 0x0fff0fff, "rfs%c %12-15r",
-    0x0e400110, 0x0fff0fff, "wfc%c %12-15r",
-    0x0e500110, 0x0fff0fff, "rfc%c %12-15r",
-    0x0e90f110, 0x0ff8fff0, "cmf%c %16-18f, %0-3f",
-    0x0eb0f110, 0x0ff8fff0, "cnf%c %16-18f, %0-3f",
-    0x0ed0f110, 0x0ff8fff0, "cmfe%c %16-18f, %0-3f",
-    0x0ef0f110, 0x0ff8fff0, "cnfe%c %16-18f, %0-3f",
-    0x0c000100, 0x0e100f00, "stf%c%Q %12-14f, %A",
-    0x0c100100, 0x0e100f00, "ldf%c%Q %12-14f, %A",
-    /* Generic coprocessor instructions */
-    0x0e000000, 0x0f000010, "cdp%c %8-11d, %20-23d, cr%12-15d, cr%16-19d, cr%0-3d, {%5-7d}",
-    0x0e000010, 0x0f100010, "mrc%c %8-11d, %21-23d, %12-15r, cr%16-19d, cr%0-3d, {%5-7d}",
-    0x0e100010, 0x0f100010, "mcr%c %8-11d, %21-23d, %12-15r, cr%16-19d, cr%0-3d, {%5-7d}",
-    0x0c000000, 0x0e100000, "stc%c%22`l %8-11d, cr%12-15d, %A",
-    0x0c100000, 0x0e100000, "ldc%c%22`l %8-11d, cr%12-15d, %A",
-    /* the rest */
-    0x00000000, 0x00000000, "undefined instruction %0-31x",
-};
-#define N_OPCODES	(sizeof opcodes / sizeof opcodes[0])
+#define ARM_FEATURE(core, coproc) {(core), (coproc)}

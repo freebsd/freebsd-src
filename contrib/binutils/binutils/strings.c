@@ -1,6 +1,6 @@
 /* strings -- print the strings of printable characters in files
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Usage: strings [options] file...
 
@@ -46,6 +46,7 @@
 		littleendian 32-bit.
 
    --target=BFDNAME
+   -T {bfdname}
 		Specify a non-default object file format.
 
    --help
@@ -57,16 +58,13 @@
    Written by Richard Stallman <rms@gnu.ai.mit.edu>
    and David MacKenzie <djm@gnu.ai.mit.edu>.  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include "sysdep.h"
 #include "bfd.h"
-#include <stdio.h>
 #include "getopt.h"
-#include <errno.h>
-#include "bucomm.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
+#include <sys/stat.h>
+#include "bucomm.h"
 
 /* Some platforms need to put stdin into binary mode, to read
     binary files.  */
@@ -103,6 +101,13 @@ typedef off64_t file_off;
 #else
 typedef off_t file_off;
 #define file_open(s,m) fopen(s, m)
+#endif
+#ifdef HAVE_STAT64
+typedef struct stat64 statbuf;
+#define file_stat(f,s) stat64(f, s)
+#else
+typedef struct stat statbuf;
+#define file_stat(f,s) stat(f, s)
 #endif
 
 /* Radix for printing addresses (must be 8, 10 or 16).  */
@@ -143,6 +148,15 @@ static struct option long_options[] =
   {NULL, 0, NULL, 0}
 };
 
+/* Records the size of a named file so that we
+   do not repeatedly run bfd_stat() on it.  */
+
+typedef struct
+{
+  const char *  filename;
+  bfd_size_type filesize;
+} filename_and_size_t;
+
 static void strings_a_section (bfd *, asection *, void *);
 static bfd_boolean strings_object_file (const char *);
 static bfd_boolean strings_file (char *file);
@@ -168,6 +182,9 @@ main (int argc, char **argv)
 
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
+
+  expandargv (&argc, &argv);
+
   string_min = -1;
   print_addresses = FALSE;
   print_filenames = FALSE;
@@ -175,7 +192,7 @@ main (int argc, char **argv)
   target = NULL;
   encoding = 's';
 
-  while ((optc = getopt_long (argc, argv, "afhHn:ot:e:Vv0123456789",
+  while ((optc = getopt_long (argc, argv, "afhHn:ot:e:T:Vv0123456789",
 			      long_options, (int *) 0)) != EOF)
     {
       switch (optc)
@@ -306,27 +323,62 @@ main (int argc, char **argv)
   return (exit_status);
 }
 
-/* Scan section SECT of the file ABFD, whose printable name is FILE.
-   If it contains initialized data,
-   set `got_a_section' and print the strings in it.  */
+/* Scan section SECT of the file ABFD, whose printable name is in
+   ARG->filename and whose size might be in ARG->filesize.  If it
+   contains initialized data set `got_a_section' and print the
+   strings in it.
+
+   FIXME: We ought to be able to return error codes/messages for
+   certain conditions.  */
 
 static void
-strings_a_section (bfd *abfd, asection *sect, void *filearg)
+strings_a_section (bfd *abfd, asection *sect, void *arg)
 {
-  const char *file = (const char *) filearg;
+  filename_and_size_t * filename_and_sizep;
+  bfd_size_type *filesizep;
+  bfd_size_type sectsize;
+  void *mem;
+     
+  if ((sect->flags & DATA_FLAGS) != DATA_FLAGS)
+    return;
 
-  if ((sect->flags & DATA_FLAGS) == DATA_FLAGS)
+  sectsize = bfd_get_section_size (sect);
+     
+  if (sectsize <= 0)
+    return;
+
+  /* Get the size of the file.  This might have been cached for us.  */
+  filename_and_sizep = (filename_and_size_t *) arg;
+  filesizep = & filename_and_sizep->filesize;
+
+  if (*filesizep == 0)
     {
-      bfd_size_type sz = bfd_get_section_size_before_reloc (sect);
-      void *mem = xmalloc (sz);
+      struct stat st;
+      
+      if (bfd_stat (abfd, &st))
+	return;
 
-      if (bfd_get_section_contents (abfd, sect, mem, (file_ptr) 0, sz))
-	{
-	  got_a_section = TRUE;
-	  print_strings (file, (FILE *) NULL, sect->filepos, 0, sz, mem);
-	}
-      free (mem);
+      /* Cache the result so that we do not repeatedly stat this file.  */
+      *filesizep = st.st_size;
     }
+
+  /* Compare the size of the section against the size of the file.
+     If the section is bigger then the file must be corrupt and
+     we should not try dumping it.  */
+  if (sectsize >= *filesizep)
+    return;
+
+  mem = xmalloc (sectsize);
+
+  if (bfd_get_section_contents (abfd, sect, mem, (file_ptr) 0, sectsize))
+    {
+      got_a_section = TRUE;
+
+      print_strings (filename_and_sizep->filename, NULL, sect->filepos,
+		     0, sectsize, mem);
+    }
+
+  free (mem);
 }
 
 /* Scan all of the sections in FILE, and print the strings
@@ -338,7 +390,10 @@ strings_a_section (bfd *abfd, asection *sect, void *filearg)
 static bfd_boolean
 strings_object_file (const char *file)
 {
-  bfd *abfd = bfd_openr (file, target);
+  filename_and_size_t filename_and_size;
+  bfd *abfd;
+
+  abfd = bfd_openr (file, target);
 
   if (abfd == NULL)
     /* Treat the file as a non-object file.  */
@@ -354,7 +409,9 @@ strings_object_file (const char *file)
     }
 
   got_a_section = FALSE;
-  bfd_map_over_sections (abfd, strings_a_section, (void *) file);
+  filename_and_size.filename = file;
+  filename_and_size.filesize = 0;
+  bfd_map_over_sections (abfd, strings_a_section, & filename_and_size);
 
   if (!bfd_close (abfd))
     {
@@ -370,8 +427,17 @@ strings_object_file (const char *file)
 static bfd_boolean
 strings_file (char *file)
 {
-  if (get_file_size (file) < 1)
-    return FALSE;
+  statbuf st;
+
+  if (file_stat (file, &st) < 0)
+    {
+      if (errno == ENOENT)
+	non_fatal (_("'%s': No such file"), file);
+      else
+	non_fatal (_("Warning: could not locate '%s'.  reason: %s"),
+		   file, strerror (errno));
+      return FALSE;
+    }
 
   /* If we weren't told to scan the whole file,
      try to open it as an object file and only look at
@@ -430,7 +496,12 @@ get_char (FILE *stream, file_off *address, int *magiccount, char **magic)
 	{
 	  if (stream == NULL)
 	    return EOF;
-#ifdef HAVE_GETC_UNLOCKED
+
+	  /* Only use getc_unlocked if we found a declaration for it.
+	     Otherwise, libc is not thread safe by default, and we
+	     should not use it.  */
+
+#if defined(HAVE_GETC_UNLOCKED) && HAVE_DECL_GETC_UNLOCKED
 	  c = getc_unlocked (stream);
 #else
 	  c = getc (stream);
@@ -512,7 +583,7 @@ print_strings (const char *filename, FILE *stream, file_off address,
 	}
 
       /* We found a run of `string_min' graphic characters.  Print up
-         to the next non-graphic character.  */
+	 to the next non-graphic character.  */
 
       if (print_filenames)
 	printf ("%s: ", filename);
@@ -557,7 +628,8 @@ print_strings (const char *filename, FILE *stream, file_off address,
 #else
 # if !BFD_HOST_64BIT_LONG
 	    if (start != (unsigned long) start)
-	      printf ("%lx%8.8lx ", start >> 32, start & 0xffffffff);
+	      printf ("%lx%8.8lx ", (unsigned long) (start >> 32),
+		      (unsigned long) (start & 0xffffffff));
 	    else
 # endif
 #endif
@@ -637,15 +709,16 @@ usage (FILE *stream, int status)
   -f --print-file-name      Print the name of the file before each string\n\
   -n --bytes=[number]       Locate & print any NUL-terminated sequence of at\n\
   -<number>                 least [number] characters (default 4).\n\
-  -t --radix={o,x,d}        Print the location of the string in base 8, 10 or 16\n\
+  -t --radix={o,d,x}        Print the location of the string in base 8, 10 or 16\n\
   -o                        An alias for --radix=o\n\
   -T --target=<BFDNAME>     Specify the binary file format\n\
   -e --encoding={s,S,b,l,B,L} Select character size and endianness:\n\
                             s = 7-bit, S = 8-bit, {b,l} = 16-bit, {B,L} = 32-bit\n\
+  @<file>                   Read options from <file>\n\
   -h --help                 Display this information\n\
   -v --version              Print the program's version number\n"));
   list_supported_targets (program_name, stream);
-  if (status == 0)
+  if (REPORT_BUGS_TO[0] && status == 0)
     fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }

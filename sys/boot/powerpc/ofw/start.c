@@ -40,6 +40,7 @@ void startup(void *, int, int (*)(void *), char *, int);
 
 __asm("				\n\
 	.data			\n\
+	.align 4		\n\
 stack:				\n\
 	.space	16388		\n\
 				\n\

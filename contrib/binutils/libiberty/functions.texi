@@ -3,7 +3,7 @@
 @c Edit the *.c files, configure with --enable-maintainer-mode,
 @c and let gather-docs build you a new copy.
 
-@c safe-ctype.c:24
+@c safe-ctype.c:25
 @defvr Extension HOST_CHARSET
 This macro indicates the basic character set and encoding used by the
 host: more precisely, the encoding used for character constants in
@@ -43,7 +43,7 @@ the possibility of a GCC built-in function.
 
 @end deftypefn
 
-@c asprintf.c:33
+@c asprintf.c:32
 @deftypefn Extension int asprintf (char **@var{resptr}, const char *@var{format}, ...)
 
 Like @code{sprintf}, but instead of passing a pointer to a buffer, you
@@ -104,7 +104,7 @@ is respectively less than, matching, or greater than the array member.
 
 @end deftypefn
 
-@c argv.c:139
+@c argv.c:124
 @deftypefn Extension char** buildargv (char *@var{sp})
 
 Given a pointer to a string, parse the string extracting fields
@@ -153,12 +153,12 @@ find one.  The current directory is chosen if all else fails so the
 program is exited if a temporary directory can't be found (@code{mktemp}
 fails).  The buffer for the result is obtained with @code{xmalloc}.
 
-This function is provided for backwards compatability only.  Its use is
+This function is provided for backwards compatibility only.  Its use is
 not recommended.
 
 @end deftypefn
 
-@c make-temp-file.c:88
+@c make-temp-file.c:87
 @deftypefn Replacement char* choose_tmpdir ()
 
 Returns a pointer to a directory path suitable for creating temporary
@@ -185,7 +185,7 @@ pointer encountered.  Pointers to empty strings are ignored.
 
 @end deftypefn
 
-@c argv.c:65
+@c argv.c:52
 @deftypefn Extension char** dupargv (char **@var{vector})
 
 Duplicate an argument vector.  Simply scans through @var{vector},
@@ -196,7 +196,7 @@ argument vector.
 
 @end deftypefn
 
-@c strerror.c:566
+@c strerror.c:567
 @deftypefn Extension int errno_max (void)
 
 Returns the maximum @code{errno} value for which a corresponding
@@ -211,6 +211,26 @@ implied by the largest @code{errno} value defined in @code{<errno.h>}.
 
 We return the maximum value that can be used to obtain a meaningful
 symbolic name or message.
+
+@end deftypefn
+
+@c argv.c:293
+@deftypefn Extension void expandargv (int *@var{argcp}, char ***@var{argvp})
+
+The @var{argcp} and @code{argvp} arguments are pointers to the usual
+@code{argc} and @code{argv} arguments to @code{main}.  This function
+looks for arguments that begin with the character @samp{@@}.  Any such
+arguments are interpreted as ``response files''.  The contents of the
+response file are interpreted as additional command line options.  In
+particular, the file is separated into whitespace-separated strings;
+each such string is taken as a command-line option.  The new options
+are inserted in place of the option naming the response file, and
+@code{*argcp} and @code{*argvp} will be updated.  If the value of
+@code{*argvp} is modified by this function, then the new value has
+been dynamically allocated and can be deallocated by the caller with
+@code{freeargv}.  However, most callers will simply call
+@code{expandargv} near the beginning of @code{main} and allow the
+operating system to free the memory when the program exits.
 
 @end deftypefn
 
@@ -229,12 +249,38 @@ and inode numbers.
 
 @end deftypefn
 
+@c fopen_unlocked.c:48
+@deftypefn Extension {FILE *} fdopen_unlocked (int @var{fildes}, const char * @var{mode})
+
+Opens and returns a @code{FILE} pointer via @code{fdopen}.  If the
+operating system supports it, ensure that the stream is setup to avoid
+any multi-threaded locking.  Otherwise return the @code{FILE} pointer
+unchanged.
+
+@end deftypefn
+
 @c ffs.c:3
 @deftypefn Supplemental int ffs (int @var{valu})
 
 Find the first (least significant) bit set in @var{valu}.  Bits are
 numbered from right to left, starting with bit 1 (corresponding to the
 value 1).  If @var{valu} is zero, zero is returned.
+
+@end deftypefn
+
+@c filename_cmp.c:28
+@deftypefn Extension int filename_cmp (const char *@var{s1}, const char *@var{s2})
+
+Return zero if the two paths @var{s1} and @var{s2} are equivalent.
+If not equivalent, the returned value is similar to what strcmp would
+return.  In other words, it returns a negative value if @var{s1} is less
+than @var{s2}, or a positive value if @var{s2} is greater than @var{s2}.
+
+This function does not normalize path names. As a result, this function
+will treat filenames that are spelled differently as different even in
+the case when the two filenames point to the same underlying file.
+However, it does handle the fact that on DOS-like file systems, forward
+and backward slashes are equal.
 
 @end deftypefn
 
@@ -288,13 +334,33 @@ Ignores case when performing the comparison.
 
 @end deftypefn
 
-@c argv.c:111
+@c fopen_unlocked.c:39
+@deftypefn Extension {FILE *} fopen_unlocked (const char *@var{path}, const char * @var{mode})
+
+Opens and returns a @code{FILE} pointer via @code{fopen}.  If the
+operating system supports it, ensure that the stream is setup to avoid
+any multi-threaded locking.  Otherwise return the @code{FILE} pointer
+unchanged.
+
+@end deftypefn
+
+@c argv.c:97
 @deftypefn Extension void freeargv (char **@var{vector})
 
 Free an argument vector that was built using @code{buildargv}.  Simply
 scans through @var{vector}, freeing the memory for each argument until
 the terminating @code{NULL} is found, and then frees @var{vector}
 itself.
+
+@end deftypefn
+
+@c fopen_unlocked.c:57
+@deftypefn Extension {FILE *} freopen_unlocked (const char * @var{path}, const char * @var{mode}, FILE * @var{stream})
+
+Opens and returns a @code{FILE} pointer via @code{freopen}.  If the
+operating system supports it, ensure that the stream is setup to avoid
+any multi-threaded locking.  Otherwise return the @code{FILE} pointer
+unchanged.
 
 @end deftypefn
 
@@ -339,7 +405,15 @@ between calls to @code{getpwd}.
 
 @end deftypefn
 
-@c hex.c:30
+@c gettimeofday.c:12
+@deftypefn Supplemental int gettimeofday (struct timeval *@var{tp}, void *@var{tz})
+
+Writes the current time to @var{tp}.  This implementation requires
+that @var{tz} be NULL.  Returns 0 on success, -1 on failure.
+
+@end deftypefn
+
+@c hex.c:33
 @deftypefn Extension void hex_init (void)
 
 Initializes the array mapping the current character set to
@@ -349,7 +423,7 @@ default ASCII-based table will normally be used on ASCII systems.
 
 @end deftypefn
 
-@c hex.c:39
+@c hex.c:42
 @deftypefn Extension int hex_p (int @var{c})
 
 Evaluates to non-zero if the given character is a valid hex character,
@@ -358,11 +432,11 @@ or zero if it is not.  Note that the value you pass will be cast to
 
 @end deftypefn
 
-@c hex.c:47
-@deftypefn Extension unsigned int hex_value (int @var{c})
+@c hex.c:50
+@deftypefn Extension {unsigned int} hex_value (int @var{c})
 
 Returns the numeric equivalent of the given character when interpreted
-as a hexidecimal digit.  The result is undefined if you pass an
+as a hexadecimal digit.  The result is undefined if you pass an
 invalid hex digit.  Note that the value you pass will be cast to
 @code{unsigned char} within the macro.
 
@@ -404,7 +478,7 @@ struct qelem @{
 
 @end deftypefn
 
-@c safe-ctype.c:45
+@c safe-ctype.c:46
 @deffn  Extension ISALPHA  (@var{c})
 @deffnx Extension ISALNUM  (@var{c})
 @deffnx Extension ISBLANK  (@var{c})
@@ -454,7 +528,7 @@ false for characters with numeric values from 128 to 255.
 @end itemize
 @end deffn
 
-@c safe-ctype.c:94
+@c safe-ctype.c:95
 @deffn  Extension ISIDNUM         (@var{c})
 @deffnx Extension ISIDST          (@var{c})
 @deffnx Extension IS_VSPACE       (@var{c})
@@ -527,7 +601,7 @@ relative prefix can be found, return @code{NULL}.
 
 @end deftypefn
 
-@c make-temp-file.c:138
+@c make-temp-file.c:137
 @deftypefn Replacement char* make_temp_file (const char *@var{suffix})
 
 Return a temporary file name (as a string) or @code{NULL} if unable to
@@ -592,65 +666,327 @@ Sets the first @var{count} bytes of @var{s} to the constant byte
 
 @end deftypefn
 
-@c mkstemps.c:54
-@deftypefn Replacement int mkstemps (char *@var{template}, int @var{suffix_len})
+@c mkstemps.c:58
+@deftypefn Replacement int mkstemps (char *@var{pattern}, int @var{suffix_len})
 
-Generate a unique temporary file name from @var{template}.
-@var{template} has the form:
+Generate a unique temporary file name from @var{pattern}.
+@var{pattern} has the form:
 
 @example
    @var{path}/ccXXXXXX@var{suffix}
 @end example
 
 @var{suffix_len} tells us how long @var{suffix} is (it can be zero
-length).  The last six characters of @var{template} before @var{suffix}
+length).  The last six characters of @var{pattern} before @var{suffix}
 must be @samp{XXXXXX}; they are replaced with a string that makes the
 filename unique.  Returns a file descriptor open on the file for
 reading and writing.
 
 @end deftypefn
 
-@c pexecute.txh:1
-@deftypefn Extension int pexecute (const char *@var{program}, char * const *@var{argv}, const char *@var{this_pname}, const char *@var{temp_base}, char **@var{errmsg_fmt}, char **@var{errmsg_arg}, int flags)
+@c pexecute.txh:266
+@deftypefn Extension void pex_free (struct pex_obj @var{obj})
 
-Executes a program.
-
-@var{program} and @var{argv} are the arguments to
-@code{execv}/@code{execvp}.
-
-@var{this_pname} is name of the calling program (i.e., @code{argv[0]}).
-
-@var{temp_base} is the path name, sans suffix, of a temporary file to
-use if needed.  This is currently only needed for MS-DOS ports that
-don't use @code{go32} (do any still exist?).  Ports that don't need it
-can pass @code{NULL}.
-
-(@code{@var{flags} & PEXECUTE_SEARCH}) is non-zero if @env{PATH}
-should be searched (??? It's not clear that GCC passes this flag
-correctly).  (@code{@var{flags} & PEXECUTE_FIRST}) is nonzero for the
-first process in chain.  (@code{@var{flags} & PEXECUTE_FIRST}) is
-nonzero for the last process in chain.  The first/last flags could be
-simplified to only mark the last of a chain of processes but that
-requires the caller to always mark the last one (and not give up
-early if some error occurs).  It's more robust to require the caller
-to mark both ends of the chain.
-
-The result is the pid on systems like Unix where we
-@code{fork}/@code{exec} and on systems like WIN32 and OS/2 where we
-use @code{spawn}.  It is up to the caller to wait for the child.
-
-The result is the @code{WEXITSTATUS} on systems like MS-DOS where we
-@code{spawn} and wait for the child here.
-
-Upon failure, @var{errmsg_fmt} and @var{errmsg_arg} are set to the
-text of the error message with an optional argument (if not needed,
-@var{errmsg_arg} is set to @code{NULL}), and @minus{}1 is returned.
-@code{errno} is available to the caller to use.
+Clean up and free all data associated with @var{obj}.
 
 @end deftypefn
 
-@c strsignal.c:547
-@deftypefn Supplemental void psignal (unsigned @var{signo}, char *@var{message})
+@c pexecute.txh:241
+@deftypefn Extension int pex_get_status (struct pex_obj *@var{obj}, int @var{count}, int *@var{vector})
+
+Returns the exit status of all programs run using @var{obj}.
+@var{count} is the number of results expected.  The results will be
+placed into @var{vector}.  The results are in the order of the calls
+to @code{pex_run}.  Returns 0 on error, 1 on success.
+
+@end deftypefn
+
+@c pexecute.txh:250
+@deftypefn Extension int pex_get_times (struct pex_obj *@var{obj}, int @var{count}, struct pex_time *@var{vector})
+
+Returns the process execution times of all programs run using
+@var{obj}.  @var{count} is the number of results expected.  The
+results will be placed into @var{vector}.  The results are in the
+order of the calls to @code{pex_run}.  Returns 0 on error, 1 on
+success.
+
+@code{struct pex_time} has the following fields of the type
+@code{unsigned long}: @code{user_seconds},
+@code{user_microseconds}, @code{system_seconds},
+@code{system_microseconds}.  On systems which do not support reporting
+process times, all the fields will be set to @code{0}.
+
+@end deftypefn
+
+@c pexecute.txh:2
+@deftypefn Extension {struct pex_obj *} pex_init (int @var{flags}, const char *@var{pname}, const char *@var{tempbase})
+
+Prepare to execute one or more programs, with standard output of each
+program fed to standard input of the next.  This is a system
+independent interface to execute a pipeline.
+
+@var{flags} is a bitwise combination of the following:
+
+@table @code
+
+@vindex PEX_RECORD_TIMES
+@item PEX_RECORD_TIMES
+Record subprocess times if possible.
+
+@vindex PEX_USE_PIPES
+@item PEX_USE_PIPES
+Use pipes for communication between processes, if possible.
+
+@vindex PEX_SAVE_TEMPS
+@item PEX_SAVE_TEMPS
+Don't delete temporary files used for communication between
+processes.
+
+@end table
+
+@var{pname} is the name of program to be executed, used in error
+messages.  @var{tempbase} is a base name to use for any required
+temporary files; it may be @code{NULL} to use a randomly chosen name.
+
+@end deftypefn
+
+@c pexecute.txh:155
+@deftypefn Extension {FILE *} pex_input_file (struct pex_obj *@var{obj}, int @var{flags}, const char *@var{in_name})
+
+Return a stream for a temporary file to pass to the first program in
+the pipeline as input.
+
+The name of the input file is chosen according to the same rules
+@code{pex_run} uses to choose output file names, based on
+@var{in_name}, @var{obj} and the @code{PEX_SUFFIX} bit in @var{flags}.
+
+Don't call @code{fclose} on the returned stream; the first call to
+@code{pex_run} closes it automatically.
+
+If @var{flags} includes @code{PEX_BINARY_OUTPUT}, open the stream in
+binary mode; otherwise, open it in the default mode.  Including
+@code{PEX_BINARY_OUTPUT} in @var{flags} has no effect on Unix.
+@end deftypefn
+
+@c pexecute.txh:172
+@deftypefn Extension {FILE *} pex_input_pipe (struct pex_obj *@var{obj}, int @var{binary})
+
+Return a stream @var{fp} for a pipe connected to the standard input of
+the first program in the pipeline; @var{fp} is opened for writing.
+You must have passed @code{PEX_USE_PIPES} to the @code{pex_init} call
+that returned @var{obj}.
+
+You must close @var{fp} using @code{fclose} yourself when you have
+finished writing data to the pipeline.
+
+The file descriptor underlying @var{fp} is marked not to be inherited
+by child processes.
+
+On systems that do not support pipes, this function returns
+@code{NULL}, and sets @code{errno} to @code{EINVAL}.  If you would
+like to write code that is portable to all systems the @code{pex}
+functions support, consider using @code{pex_input_file} instead.
+
+There are two opportunities for deadlock using
+@code{pex_input_pipe}:
+
+@itemize @bullet
+@item
+Most systems' pipes can buffer only a fixed amount of data; a process
+that writes to a full pipe blocks.  Thus, if you write to @file{fp}
+before starting the first process, you run the risk of blocking when
+there is no child process yet to read the data and allow you to
+continue.  @code{pex_input_pipe} makes no promises about the
+size of the pipe's buffer, so if you need to write any data at all
+before starting the first process in the pipeline, consider using
+@code{pex_input_file} instead.
+
+@item
+Using @code{pex_input_pipe} and @code{pex_read_output} together
+may also cause deadlock.  If the output pipe fills up, so that each
+program in the pipeline is waiting for the next to read more data, and
+you fill the input pipe by writing more data to @var{fp}, then there
+is no way to make progress: the only process that could read data from
+the output pipe is you, but you are blocked on the input pipe.
+
+@end itemize
+
+@end deftypefn
+
+@c pexecute.txh:272
+@deftypefn Extension {const char *} pex_one (int @var{flags}, const char *@var{executable}, char * const *@var{argv}, const char *@var{pname}, const char *@var{outname}, const char *@var{errname}, int *@var{status}, int *@var{err})
+
+An interface to permit the easy execution of a
+single program.  The return value and most of the parameters are as
+for a call to @code{pex_run}.  @var{flags} is restricted to a
+combination of @code{PEX_SEARCH}, @code{PEX_STDERR_TO_STDOUT}, and
+@code{PEX_BINARY_OUTPUT}.  @var{outname} is interpreted as if
+@code{PEX_LAST} were set.  On a successful return, @code{*@var{status}} will
+be set to the exit status of the program.
+
+@end deftypefn
+
+@c pexecute.txh:228
+@deftypefn Extension {FILE *} pex_read_err (struct pex_obj *@var{obj}, int @var{binary})
+
+Returns a @code{FILE} pointer which may be used to read the standard
+error of the last program in the pipeline.  When this is used,
+@code{PEX_LAST} should not be used in a call to @code{pex_run}.  After
+this is called, @code{pex_run} may no longer be called with the same
+@var{obj}.  @var{binary} should be non-zero if the file should be
+opened in binary mode.  Don't call @code{fclose} on the returned file;
+it will be closed by @code{pex_free}.
+
+@end deftypefn
+
+@c pexecute.txh:216
+@deftypefn Extension {FILE *} pex_read_output (struct pex_obj *@var{obj}, int @var{binary})
+
+Returns a @code{FILE} pointer which may be used to read the standard
+output of the last program in the pipeline.  When this is used,
+@code{PEX_LAST} should not be used in a call to @code{pex_run}.  After
+this is called, @code{pex_run} may no longer be called with the same
+@var{obj}.  @var{binary} should be non-zero if the file should be
+opened in binary mode.  Don't call @code{fclose} on the returned file;
+it will be closed by @code{pex_free}.
+
+@end deftypefn
+
+@c pexecute.txh:33
+@deftypefn Extension {const char *} pex_run (struct pex_obj *@var{obj}, int @var{flags}, const char *@var{executable}, char * const *@var{argv}, const char *@var{outname}, const char *@var{errname}, int *@var{err})
+
+Execute one program in a pipeline.  On success this returns
+@code{NULL}.  On failure it returns an error message, a statically
+allocated string.
+
+@var{obj} is returned by a previous call to @code{pex_init}.
+
+@var{flags} is a bitwise combination of the following:
+
+@table @code
+
+@vindex PEX_LAST
+@item PEX_LAST
+This must be set on the last program in the pipeline.  In particular,
+it should be set when executing a single program.  The standard output
+of the program will be sent to @var{outname}, or, if @var{outname} is
+@code{NULL}, to the standard output of the calling program.  Do @emph{not}
+set this bit if you want to call @code{pex_read_output}
+(described below).  After a call to @code{pex_run} with this bit set,
+@var{pex_run} may no longer be called with the same @var{obj}.
+
+@vindex PEX_SEARCH
+@item PEX_SEARCH
+Search for the program using the user's executable search path.
+
+@vindex PEX_SUFFIX
+@item PEX_SUFFIX
+@var{outname} is a suffix.  See the description of @var{outname},
+below.
+
+@vindex PEX_STDERR_TO_STDOUT
+@item PEX_STDERR_TO_STDOUT
+Send the program's standard error to standard output, if possible.
+
+@vindex PEX_BINARY_INPUT
+@vindex PEX_BINARY_OUTPUT
+@vindex PEX_BINARY_ERROR
+@item PEX_BINARY_INPUT
+@itemx PEX_BINARY_OUTPUT
+@itemx PEX_BINARY_ERROR
+The standard input (output or error) of the program should be read (written) in
+binary mode rather than text mode.  These flags are ignored on systems
+which do not distinguish binary mode and text mode, such as Unix.  For
+proper behavior these flags should match appropriately---a call to
+@code{pex_run} using @code{PEX_BINARY_OUTPUT} should be followed by a
+call using @code{PEX_BINARY_INPUT}.
+
+@vindex PEX_STDERR_TO_PIPE
+@item PEX_STDERR_TO_PIPE
+Send the program's standard error to a pipe, if possible.  This flag
+cannot be specified together with @code{PEX_STDERR_TO_STDOUT}.  This
+flag can be specified only on the last program in pipeline.
+
+@end table
+
+@var{executable} is the program to execute.  @var{argv} is the set of
+arguments to pass to the program; normally @code{@var{argv}[0]} will
+be a copy of @var{executable}.
+
+@var{outname} is used to set the name of the file to use for standard
+output.  There are two cases in which no output file will be used:
+
+@enumerate
+@item
+if @code{PEX_LAST} is not set in @var{flags}, and @code{PEX_USE_PIPES}
+was set in the call to @code{pex_init}, and the system supports pipes
+
+@item
+if @code{PEX_LAST} is set in @var{flags}, and @var{outname} is
+@code{NULL}
+@end enumerate
+
+@noindent
+Otherwise the code will use a file to hold standard
+output.  If @code{PEX_LAST} is not set, this file is considered to be
+a temporary file, and it will be removed when no longer needed, unless
+@code{PEX_SAVE_TEMPS} was set in the call to @code{pex_init}.
+
+There are two cases to consider when setting the name of the file to
+hold standard output.
+
+@enumerate
+@item
+@code{PEX_SUFFIX} is set in @var{flags}.  In this case
+@var{outname} may not be @code{NULL}.  If the @var{tempbase} parameter
+to @code{pex_init} was not @code{NULL}, then the output file name is
+the concatenation of @var{tempbase} and @var{outname}.  If
+@var{tempbase} was @code{NULL}, then the output file name is a random
+file name ending in @var{outname}.
+
+@item
+@code{PEX_SUFFIX} was not set in @var{flags}.  In this
+case, if @var{outname} is not @code{NULL}, it is used as the output
+file name.  If @var{outname} is @code{NULL}, and @var{tempbase} was
+not NULL, the output file name is randomly chosen using
+@var{tempbase}.  Otherwise the output file name is chosen completely
+at random.
+@end enumerate
+
+@var{errname} is the file name to use for standard error output.  If
+it is @code{NULL}, standard error is the same as the caller's.
+Otherwise, standard error is written to the named file.
+
+On an error return, the code sets @code{*@var{err}} to an @code{errno}
+value, or to 0 if there is no relevant @code{errno}.
+
+@end deftypefn
+
+@c pexecute.txh:142
+@deftypefn Extension {const char *} pex_run_in_environment (struct pex_obj *@var{obj}, int @var{flags}, const char *@var{executable}, char * const *@var{argv}, char * const *@var{env}, int @var{env_size}, const char *@var{outname}, const char *@var{errname}, int *@var{err})
+
+Execute one program in a pipeline, permitting the environment for the
+program to be specified.  Behaviour and parameters not listed below are
+as for @code{pex_run}.
+
+@var{env} is the environment for the child process, specified as an array of
+character pointers.  Each element of the array should point to a string of the
+form @code{VAR=VALUE}, with the exception of the last element that must be
+@code{NULL}.
+
+@end deftypefn
+
+@c pexecute.txh:284
+@deftypefn Extension int pexecute (const char *@var{program}, char * const *@var{argv}, const char *@var{this_pname}, const char *@var{temp_base}, char **@var{errmsg_fmt}, char **@var{errmsg_arg}, int @var{flags})
+
+This is the old interface to execute one or more programs.  It is
+still supported for compatibility purposes, but is no longer
+documented.
+
+@end deftypefn
+
+@c strsignal.c:539
+@deftypefn Supplemental void psignal (int @var{signo}, char *@var{message})
 
 Print @var{message} to the standard error, followed by a colon,
 followed by the description of the signal specified by @var{signo},
@@ -668,23 +1004,10 @@ name is unset/removed.
 
 @end deftypefn
 
-@c pexecute.txh:39
+@c pexecute.txh:292
 @deftypefn Extension int pwait (int @var{pid}, int *@var{status}, int @var{flags})
 
-Waits for a program started by @code{pexecute} to finish.
-
-@var{pid} is the process id of the task to wait for. @var{status} is
-the `status' argument to wait. @var{flags} is currently unused
-(allows future enhancement without breaking upward compatibility).
-Pass 0 for now.
-
-The result is the pid of the child reaped, or -1 for failure
-(@code{errno} says why).
-
-On systems that don't support waiting for a particular child,
-@var{pid} is ignored.  On systems like MS-DOS that don't really
-multitask @code{pwait} is just a mechanism to provide a consistent
-interface for the caller.
+Another part of the old execution interface.
 
 @end deftypefn
 
@@ -703,7 +1026,7 @@ control over the state of the random number generator.
 
 @end deftypefn
 
-@c concat.c:177
+@c concat.c:173
 @deftypefn Extension char* reconcat (char *@var{optr}, const char *@var{s1}, @dots{}, @code{NULL})
 
 Same as @code{concat}, except that if @var{optr} is not @code{NULL} it
@@ -746,7 +1069,7 @@ environment.  This implementation is not safe for multithreaded code.
 
 @end deftypefn
 
-@c strsignal.c:353
+@c strsignal.c:348
 @deftypefn Extension int signo_max (void)
 
 Returns the maximum signal value for which a corresponding symbolic
@@ -857,7 +1180,7 @@ valid until the next call to @code{strerrno}.
 
 @end deftypefn
 
-@c strerror.c:602
+@c strerror.c:603
 @deftypefn Supplemental char* strerror (int @var{errnoval})
 
 Maps an @code{errno} number to an error message string, the contents
@@ -893,6 +1216,15 @@ Compares the first @var{n} bytes of two strings, returning a value as
 
 @end deftypefn
 
+@c strndup.c:23
+@deftypefn Extension char* strndup (const char *@var{s}, size_t @var{n})
+
+Returns a pointer to a copy of @var{s} with at most @var{n} characters
+in memory obtained from @code{malloc}, or @code{NULL} if insufficient
+memory was available.  The result is always NUL terminated.
+
+@end deftypefn
+
 @c strrchr.c:6
 @deftypefn Supplemental char* strrchr (const char *@var{s}, int @var{c})
 
@@ -902,7 +1234,7 @@ null character, the results are undefined.
 
 @end deftypefn
 
-@c strsignal.c:388
+@c strsignal.c:383
 @deftypefn Supplemental {const char *} strsignal (int @var{signo})
 
 Maps an signal number to an signal message string, the contents of
@@ -923,7 +1255,7 @@ call to @code{strsignal}.
 
 @end deftypefn
 
-@c strsignal.c:452
+@c strsignal.c:446
 @deftypefn Extension {const char*} strsigno (int @var{signo})
 
 Given an signal number, returns a pointer to a string containing the
@@ -965,7 +1297,7 @@ the location referenced by @var{endptr}.
 
 @end deftypefn
 
-@c strerror.c:730
+@c strerror.c:729
 @deftypefn Extension int strtoerrno (const char *@var{name})
 
 Given the symbolic name of a error number (e.g., @code{EACCES}), map it
@@ -989,13 +1321,60 @@ that the converted value is unsigned.
 
 @end deftypefn
 
-@c strsignal.c:507
+@c strsignal.c:500
 @deftypefn Extension int strtosigno (const char *@var{name})
 
 Given the symbolic name of a signal, map it to a signal number.  If no
 translation is found, returns 0.
 
 @end deftypefn
+
+@c strverscmp.c:25
+@deftypefun int strverscmp (const char *@var{s1}, const char *@var{s2})
+The @code{strverscmp} function compares the string @var{s1} against
+@var{s2}, considering them as holding indices/version numbers.  Return
+value follows the same conventions as found in the @code{strverscmp}
+function.  In fact, if @var{s1} and @var{s2} contain no digits,
+@code{strverscmp} behaves like @code{strcmp}.
+
+Basically, we compare strings normally (character by character), until
+we find a digit in each string - then we enter a special comparison
+mode, where each sequence of digits is taken as a whole.  If we reach the
+end of these two parts without noticing a difference, we return to the
+standard comparison mode.  There are two types of numeric parts:
+"integral" and "fractional" (those  begin with a '0'). The types
+of the numeric parts affect the way we sort them:
+
+@itemize @bullet
+@item
+integral/integral: we compare values as you would expect.
+
+@item
+fractional/integral: the fractional part is less than the integral one.
+Again, no surprise.
+
+@item
+fractional/fractional: the things become a bit more complex.
+If the common prefix contains only leading zeroes, the longest part is less
+than the other one; else the comparison behaves normally.
+@end itemize
+
+@smallexample
+strverscmp ("no digit", "no digit")
+    @result{} 0    // @r{same behavior as strcmp.}
+strverscmp ("item#99", "item#100")
+    @result{} <0   // @r{same prefix, but 99 < 100.}
+strverscmp ("alpha1", "alpha001")
+    @result{} >0   // @r{fractional part inferior to integral one.}
+strverscmp ("part1_f012", "part1_f01")
+    @result{} >0   // @r{two fractional parts.}
+strverscmp ("foo.009", "foo.0")
+    @result{} <0   // @r{idem, but with leading zeroes only.}
+@end smallexample
+
+This function is especially useful when dealing with filename sorting,
+because filenames frequently hold indices/version numbers.
+@end deftypefun
 
 @c tmpnam.c:3
 @deftypefn Supplemental char* tmpnam (char *@var{s})
@@ -1008,7 +1387,35 @@ not be used in new projects.  Use @code{mkstemp} instead.
 
 @end deftypefn
 
-@c vasprintf.c:48
+@c unlink-if-ordinary.c:27
+@deftypefn Supplemental int unlink_if_ordinary (const char*)
+
+Unlinks the named file, unless it is special (e.g. a device file).
+Returns 0 when the file was unlinked, a negative value (and errno set) when
+there was an error deleting the file, and a positive value if no attempt
+was made to unlink the file because it is special.
+
+@end deftypefn
+
+@c fopen_unlocked.c:31
+@deftypefn Extension void unlock_std_streams (void)
+
+If the OS supports it, ensure that the standard I/O streams,
+@code{stdin}, @code{stdout} and @code{stderr} are setup to avoid any
+multi-threaded locking.  Otherwise do nothing.
+
+@end deftypefn
+
+@c fopen_unlocked.c:23
+@deftypefn Extension void unlock_stream (FILE * @var{stream})
+
+If the OS supports it, ensure that the supplied stream is setup to
+avoid any multi-threaded locking.  Otherwise leave the @code{FILE}
+pointer unchanged.  If the @var{stream} is @code{NULL} do nothing.
+
+@end deftypefn
+
+@c vasprintf.c:47
 @deftypefn Extension int vasprintf (char **@var{resptr}, const char *@var{format}, va_list @var{args})
 
 Like @code{vsprintf}, but instead of passing a pointer to a buffer,
@@ -1150,6 +1557,15 @@ obtain memory.
 
 Behaves exactly like the standard @code{strerror} function, but
 will never return a @code{NULL} pointer.
+
+@end deftypefn
+
+@c xstrndup.c:23
+@deftypefn Replacement char* xstrndup (const char *@var{s}, size_t @var{n})
+
+Returns a pointer to a copy of @var{s} with at most @var{n} characters
+without fail, using @code{xmalloc} to obtain memory.  The result is
+always NUL terminated.
 
 @end deftypefn
 

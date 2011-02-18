@@ -1,7 +1,8 @@
 /* Low-level I/O routines for BFDs.
 
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   Free Software Foundation, Inc.
 
    Written by Cygnus Support.
 
@@ -19,14 +20,12 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "sysdep.h"
-
+#include <limits.h>
 #include "bfd.h"
 #include "libbfd.h"
-
-#include <limits.h>
 
 #ifndef S_IXUSR
 #define S_IXUSR 0100    /* Execute by owner.  */
@@ -62,37 +61,51 @@ real_fseek (FILE *file, file_ptr offset, int whence)
 #endif
 }
 
-/* Note that archive entries don't have streams; they share their parent's.
-   This allows someone to play with the iostream behind BFD's back.
-
-   Also, note that the origin pointer points to the beginning of a file's
-   contents (0 for non-archive elements).  For archive entries this is the
-   first octet in the file, NOT the beginning of the archive header.  */
-
-static size_t
-real_read (void *where, size_t a, size_t b, FILE *file)
+FILE *
+real_fopen (const char *filename, const char *modes)
 {
-  /* FIXME - this looks like an optimization, but it's really to cover
-     up for a feature of some OSs (not solaris - sigh) that
-     ld/pe-dll.c takes advantage of (apparently) when it creates BFDs
-     internally and tries to link against them.  BFD seems to be smart
-     enough to realize there are no symbol records in the "file" that
-     doesn't exist but attempts to read them anyway.  On Solaris,
-     attempting to read zero bytes from a NULL file results in a core
-     dump, but on other platforms it just returns zero bytes read.
-     This makes it to something reasonable. - DJ */
-  if (a == 0 || b == 0)
-    return 0;
-
-
-#if defined (__VAX) && defined (VMS)
-  /* Apparently fread on Vax VMS does not keep the record length
-     information.  */
-  return read (fileno (file), where, a * b);
+#if defined (HAVE_FOPEN64)
+  return fopen64 (filename, modes);
 #else
-  return fread (where, a, b, file);
+  return fopen (filename, modes);
 #endif
 }
+
+/*
+INTERNAL_DEFINITION
+	struct bfd_iovec
+
+DESCRIPTION
+
+	The <<struct bfd_iovec>> contains the internal file I/O class.
+	Each <<BFD>> has an instance of this class and all file I/O is
+	routed through it (it is assumed that the instance implements
+	all methods listed below).
+
+.struct bfd_iovec
+.{
+.  {* To avoid problems with macros, a "b" rather than "f"
+.     prefix is prepended to each method name.  *}
+.  {* Attempt to read/write NBYTES on ABFD's IOSTREAM storing/fetching
+.     bytes starting at PTR.  Return the number of bytes actually
+.     transfered (a read past end-of-file returns less than NBYTES),
+.     or -1 (setting <<bfd_error>>) if an error occurs.  *}
+.  file_ptr (*bread) (struct bfd *abfd, void *ptr, file_ptr nbytes);
+.  file_ptr (*bwrite) (struct bfd *abfd, const void *ptr,
+.                      file_ptr nbytes);
+.  {* Return the current IOSTREAM file offset, or -1 (setting <<bfd_error>>
+.     if an error occurs.  *}
+.  file_ptr (*btell) (struct bfd *abfd);
+.  {* For the following, on successful completion a value of 0 is returned.
+.     Otherwise, a value of -1 is returned (and  <<bfd_error>> is set).  *}
+.  int (*bseek) (struct bfd *abfd, file_ptr offset, int whence);
+.  int (*bclose) (struct bfd *abfd);
+.  int (*bflush) (struct bfd *abfd);
+.  int (*bstat) (struct bfd *abfd, struct stat *sb);
+.};
+
+*/
+
 
 /* Return value is amount read.  */
 
@@ -100,6 +113,15 @@ bfd_size_type
 bfd_bread (void *ptr, bfd_size_type size, bfd *abfd)
 {
   size_t nread;
+
+  /* If this is an archive element, don't read past the end of
+     this element.  */
+  if (abfd->arelt_data != NULL)
+    {
+      size_t maxbytes = ((struct areltdata *) abfd->arelt_data)->parsed_size;
+      if (size > maxbytes)
+	size = maxbytes;
+    }
 
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     {
@@ -121,24 +143,12 @@ bfd_bread (void *ptr, bfd_size_type size, bfd *abfd)
       return get;
     }
 
-  nread = real_read (ptr, 1, (size_t) size, bfd_cache_lookup (abfd));
+  if (abfd->iovec)
+    nread = abfd->iovec->bread (abfd, ptr, size);
+  else
+    nread = 0;
   if (nread != (size_t) -1)
     abfd->where += nread;
-
-  /* Set bfd_error if we did not read as much data as we expected.
-
-     If the read failed due to an error set the bfd_error_system_call,
-     else set bfd_error_file_truncated.
-
-     A BFD backend may wish to override bfd_error_file_truncated to
-     provide something more useful (eg. no_symbols or wrong_format).  */
-  if (nread != size)
-    {
-      if (ferror (bfd_cache_lookup (abfd)))
-	bfd_set_error (bfd_error_system_call);
-      else
-	bfd_set_error (bfd_error_file_truncated);
-    }
 
   return nread;
 }
@@ -151,6 +161,7 @@ bfd_bwrite (const void *ptr, bfd_size_type size, bfd *abfd)
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     {
       struct bfd_in_memory *bim = abfd->iostream;
+
       size = (size_t) size;
       if (abfd->where + size > bim->size)
 	{
@@ -175,7 +186,11 @@ bfd_bwrite (const void *ptr, bfd_size_type size, bfd *abfd)
       return size;
     }
 
-  nwrote = fwrite (ptr, 1, (size_t) size, bfd_cache_lookup (abfd));
+  if (abfd->iovec)
+    nwrote = abfd->iovec->bwrite (abfd, ptr, size);
+  else
+    nwrote = 0;
+
   if (nwrote != (size_t) -1)
     abfd->where += nwrote;
   if (nwrote != size)
@@ -196,10 +211,16 @@ bfd_tell (bfd *abfd)
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     return abfd->where;
 
-  ptr = real_ftell (bfd_cache_lookup (abfd));
+  if (abfd->iovec)
+    {
+      ptr = abfd->iovec->btell (abfd);
 
-  if (abfd->my_archive)
-    ptr -= abfd->origin;
+      if (abfd->my_archive)
+	ptr -= abfd->origin;
+    }
+  else
+    ptr = 0;
+
   abfd->where = ptr;
   return ptr;
 }
@@ -209,7 +230,10 @@ bfd_flush (bfd *abfd)
 {
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     return 0;
-  return fflush (bfd_cache_lookup(abfd));
+
+  if (abfd->iovec)
+    return abfd->iovec->bflush (abfd);
+  return 0;
 }
 
 /* Returns 0 for success, negative value for failure (in which case
@@ -217,19 +241,16 @@ bfd_flush (bfd *abfd)
 int
 bfd_stat (bfd *abfd, struct stat *statbuf)
 {
-  FILE *f;
   int result;
 
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     abort ();
 
-  f = bfd_cache_lookup (abfd);
-  if (f == NULL)
-    {
-      bfd_set_error (bfd_error_system_call);
-      return -1;
-    }
-  result = fstat (fileno (f), statbuf);
+  if (abfd->iovec)
+    result = abfd->iovec->bstat (abfd, statbuf);
+  else
+    result = -1;
+
   if (result < 0)
     bfd_set_error (bfd_error_system_call);
   return result;
@@ -242,7 +263,6 @@ int
 bfd_seek (bfd *abfd, file_ptr position, int direction)
 {
   int result;
-  FILE *f;
   file_ptr file_position;
   /* For the time being, a BFD may not seek to it's end.  The problem
      is that we don't easily have a way to recognize the end of an
@@ -270,6 +290,7 @@ bfd_seek (bfd *abfd, file_ptr position, int direction)
 	      (abfd->direction == both_direction))
 	    {
 	      bfd_size_type newsize, oldsize;
+
 	      oldsize = (bim->size + 127) & ~(bfd_size_type) 127;
 	      bim->size = abfd->where;
 	      /* Round up to cut down on memory fragmentation */
@@ -296,20 +317,6 @@ bfd_seek (bfd *abfd, file_ptr position, int direction)
 
   if (abfd->format != bfd_archive && abfd->my_archive == 0)
     {
-#if 0
-      /* Explanation for this code: I'm only about 95+% sure that the above
-	 conditions are sufficient and that all i/o calls are properly
-	 adjusting the `where' field.  So this is sort of an `assert'
-	 that the `where' field is correct.  If we can go a while without
-	 tripping the abort, we can probably safely disable this code,
-	 so that the real optimizations happen.  */
-      file_ptr where_am_i_now;
-      where_am_i_now = real_ftell (bfd_cache_lookup (abfd));
-      if (abfd->my_archive)
-	where_am_i_now -= abfd->origin;
-      if (where_am_i_now != abfd->where)
-	abort ();
-#endif
       if (direction == SEEK_SET && (bfd_vma) position == abfd->where)
 	return 0;
     }
@@ -328,12 +335,15 @@ bfd_seek (bfd *abfd, file_ptr position, int direction)
 	 In the meantime, no optimization for archives.  */
     }
 
-  f = bfd_cache_lookup (abfd);
   file_position = position;
   if (direction == SEEK_SET && abfd->my_archive != NULL)
     file_position += abfd->origin;
 
-  result = real_fseek (f, file_position, direction);
+  if (abfd->iovec)
+    result = abfd->iovec->bseek (abfd, file_position, direction);
+  else
+    result = -1;
+
   if (result != 0)
     {
       int hold_errno = errno;
@@ -378,14 +388,15 @@ DESCRIPTION
 long
 bfd_get_mtime (bfd *abfd)
 {
-  FILE *fp;
   struct stat buf;
 
   if (abfd->mtime_set)
     return abfd->mtime;
 
-  fp = bfd_cache_lookup (abfd);
-  if (0 != fstat (fileno (fp), &buf))
+  if (abfd->iovec == NULL)
+    return 0;
+
+  if (abfd->iovec->bstat (abfd, &buf) != 0)
     return 0;
 
   abfd->mtime = buf.st_mtime;		/* Save value in case anyone wants it */
@@ -397,7 +408,7 @@ FUNCTION
 	bfd_get_size
 
 SYNOPSIS
-	long bfd_get_size (bfd *abfd);
+	file_ptr bfd_get_size (bfd *abfd);
 
 DESCRIPTION
 	Return the file size (as read from file system) for the file
@@ -425,17 +436,18 @@ DESCRIPTION
 	size reasonable?".
 */
 
-long
+file_ptr
 bfd_get_size (bfd *abfd)
 {
-  FILE *fp;
   struct stat buf;
 
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     return ((struct bfd_in_memory *) abfd->iostream)->size;
 
-  fp = bfd_cache_lookup (abfd);
-  if (0 != fstat (fileno (fp), & buf))
+  if (abfd->iovec == NULL)
+    return 0;
+
+  if (abfd->iovec->bstat (abfd, &buf) != 0)
     return 0;
 
   return buf.st_size;

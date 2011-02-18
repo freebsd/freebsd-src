@@ -1,6 +1,6 @@
 /* srconv.c -- Sysroff conversion program
-   Copyright 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
+   2005, 2007 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Written by Steve Chamberlain (sac@cygnus.com)
 
@@ -26,6 +26,7 @@
 
    All debugging information is preserved */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "bucomm.h"
 #include "sysroff.h"
@@ -46,11 +47,11 @@ static int get_member_id (int);
 static int get_ordinary_id (int);
 static char *section_translate (char *);
 static char *strip_suffix (char *);
-static void checksum (FILE *, char *, int, int);
-static void writeINT (int, char *, int *, int, FILE *);
-static void writeBITS (int, char *, int *, int);
-static void writeBARRAY (barray, char *, int *, int, FILE *);
-static void writeCHARS (char *, char *, int *, int, FILE *);
+static void checksum (FILE *, unsigned char *, int, int);
+static void writeINT (int, unsigned char *, int *, int, FILE *);
+static void writeBITS (int, unsigned char *, int *, int);
+static void writeBARRAY (barray, unsigned char *, int *, int, FILE *);
+static void writeCHARS (char *, unsigned char *, int *, int, FILE *);
 static void wr_tr (void);
 static void wr_un (struct coff_ofile *, struct coff_sfile *, int, int);
 static void wr_hd (struct coff_ofile *);
@@ -158,7 +159,7 @@ strip_suffix (char *name)
 
 /* IT LEN stuff CS */
 static void
-checksum (FILE *file, char *ptr, int size, int code)
+checksum (FILE *file, unsigned char *ptr, int size, int code)
 {
   int j;
   int last;
@@ -181,7 +182,7 @@ checksum (FILE *file, char *ptr, int size, int code)
 
 
 static void
-writeINT (int n, char *ptr, int *idx, int size, FILE *file)
+writeINT (int n, unsigned char *ptr, int *idx, int size, FILE *file)
 {
   int byte = *idx / 8;
 
@@ -222,7 +223,7 @@ writeINT (int n, char *ptr, int *idx, int size, FILE *file)
 }
 
 static void
-writeBITS (int val, char *ptr, int *idx, int size)
+writeBITS (int val, unsigned char *ptr, int *idx, int size)
 {
   int byte = *idx / 8;
   int bit = *idx % 8;
@@ -239,8 +240,8 @@ writeBITS (int val, char *ptr, int *idx, int size)
 }
 
 static void
-writeBARRAY (barray data, char *ptr, int *idx, int size ATTRIBUTE_UNUSED,
-	     FILE *file)
+writeBARRAY (barray data, unsigned char *ptr, int *idx,
+	     int size ATTRIBUTE_UNUSED, FILE *file)
 {
   int i;
 
@@ -250,7 +251,7 @@ writeBARRAY (barray data, char *ptr, int *idx, int size ATTRIBUTE_UNUSED,
 }
 
 static void
-writeCHARS (char *string, char *ptr, int *idx, int size, FILE *file)
+writeCHARS (char *string, unsigned char *ptr, int *idx, int size, FILE *file)
 {
   int i = *idx / 8;
 
@@ -317,12 +318,8 @@ wr_un (struct coff_ofile *ptr, struct coff_sfile *sfile, int first,
     un.format = FORMAT_OM;
   un.spare1 = 0;
 
-#if 1
-  un.nsections = ptr->nsections - 1;	/*  Don't count the abs section.  */
-#else
-  /*NEW - only count sections with size.  */
-  un.nsections = nsecs;
-#endif
+  /* Don't count the abs section.  */
+  un.nsections = ptr->nsections - 1;
 
   un.nextdefs = 0;
   un.nextrefs = 0;
@@ -456,14 +453,14 @@ wr_ob (struct coff_ofile *p ATTRIBUTE_UNUSED, struct coff_section *section)
   unsigned char stuff[200];
 
   i = 0;
-  while (i < section->bfd_section->_raw_size)
+  while (i < bfd_get_section_size (section->bfd_section))
     {
       struct IT_ob ob;
       int todo = 200;		/* Copy in 200 byte lumps.  */
 
       ob.spare = 0;
-      if (i + todo > section->bfd_section->_raw_size)
-	todo = section->bfd_section->_raw_size - i;
+      if (i + todo > bfd_get_section_size (section->bfd_section))
+	todo = bfd_get_section_size (section->bfd_section) - i;
 
       if (first)
 	{
@@ -708,6 +705,7 @@ walk_tree_type_1 (struct coff_sfile *sfile, struct coff_symbol *symbol,
       {
 	struct IT_dpt dpt;
 
+	dpt.dunno = 0;
 	walk_tree_type_1 (sfile, symbol, type->u.pointer.points_to, nest + 1);
 	dpt.neg = 0x1001;
 	sysroff_swap_dpt_out (file, &dpt);
@@ -1208,11 +1206,6 @@ wr_du (struct coff_ofile *p, struct coff_sfile *sfile, int n)
 {
   struct IT_du du;
   int lim;
-#if 0
-  struct coff_symbol *symbol;
-  static int incit = 0x500000;
-  int used = 0;
-#endif
   int i;
   int j;
   unsigned int *lowest = (unsigned *) nints (p->nsections);
@@ -1233,47 +1226,6 @@ wr_du (struct coff_ofile *p, struct coff_sfile *sfile, int n)
       lowest[i] = ~0;
       highest[i] = 0;
     }
-
-  /* Look through all the symbols and try and work out the extents in this
-     source file.  */
-#if 0
-  for (symbol = sfile->scope->vars_head;
-       symbol;
-       symbol = symbol->next)
-    {
-      if (symbol->type->type == coff_secdef_type)
-	{
-	  unsigned int low = symbol->where->offset;
-	  unsigned int high = symbol->where->offset + symbol->type->size - 1;
-	  struct coff_section *section = symbol->where->section;
-
-	  int sn = section->number;
-	  if (low < lowest[sn])
-	    lowest[sn] = low;
-	  if (high > highest[sn])
-	    highest[sn] = high;
-	}
-    }
-
-  for (i = 0; i < du.sections; i++)
-    {
-      if (highest[i] == 0)
-	lowest[i] = highest[i] = incit;
-
-      du.san[used] = i;
-      du.length[used] = highest[i] - lowest[i];
-      du.address[used] = bfd_get_file_flags (abfd) & EXEC_P ? lowest[i] : 0;
-
-      if (debug)
-	{
-	  printf (" section %6s 0x%08x..0x%08x\n",
-		  p->sections[i + 1].name,
-		  lowest[i],
-		  highest[i]);
-	}
-      used++;
-    }
-#endif
 
   lim = du.sections;
   for (j = 0; j < lim; j++)
@@ -1328,22 +1280,8 @@ wr_dus (struct coff_ofile *p ATTRIBUTE_UNUSED, struct coff_sfile *sfile)
   dus.spare = nints (dus.ns);
   dus.ndir = 0;
   /* Find the filenames.  */
-#if 0
-  i = 0;
-
-  for (sfile = p->source_head;
-       sfile;
-       sfile = sfile->next)
-    {
-      dus.drb[i] = 0;
-      dus.spare[i] = 0;
-      dus.fname[i] = sfile->name;
-      i++;
-    }
-#else
   dus.drb[0] = 0;
   dus.fname[0] = sfile->name;
-#endif
 
   sysroff_swap_dus_out (file, &dus);
 
@@ -1362,69 +1300,6 @@ static void
 wr_dln (struct coff_ofile *p ATTRIBUTE_UNUSED, struct coff_sfile *sfile,
 	int n ATTRIBUTE_UNUSED)
 {
-#if 0
-  if (n == 0)
-    {
-      /* Count up all the linenumbers */
-      struct coff_symbol *sy;
-      int lc = 0;
-      struct IT_dln dln;
-
-      int idx;
-
-      for (sy = p->symbol_list_head;
-	   sy;
-	   sy = sy->next_in_ofile_list)
-	{
-	  struct coff_type *t = sy->type;
-	  if (t->type == coff_function_type)
-	    {
-	      struct coff_line *l = t->u.function.lines;
-	      lc += l->nlines;
-	    }
-	}
-
-      dln.sfn = nints (lc);
-      dln.sln = nints (lc);
-      dln.lln = nints (lc);
-      dln.section = nints (lc);
-
-      dln.from_address = nints (lc);
-      dln.to_address = nints (lc);
-
-
-      dln.neg = 0x1001;
-
-      dln.nln = lc;
-
-      /* Run through once more and fill up the structure */
-      idx = 0;
-      for (sy = p->symbol_list_head;
-	   sy;
-	   sy = sy->next_in_ofile_list)
-	{
-	  if (sy->type->type == coff_function_type)
-	    {
-	      int i;
-	      struct coff_line *l = sy->type->u.function.lines;
-	      for (i = 0; i < l->nlines; i++)
-		{
-		  dln.section[idx] = sy->where->section->number;
-		  dln.sfn[idx] = n;
-		  dln.sln[idx] = l->lines[i];
-		  dln.from_address[idx] = l->addresses[i];
-		  if (idx)
-		    dln.to_address[idx - 1] = dln.from_address[idx];
-		  idx++;
-		}
-	    }
-	  n++;
-	}
-      sysroff_swap_dln_out (file, &dln);
-    }
-
-#endif
-#if 1
   /* Count up all the linenumbers */
 
   struct coff_symbol *sy;
@@ -1491,7 +1366,6 @@ wr_dln (struct coff_ofile *p ATTRIBUTE_UNUSED, struct coff_sfile *sfile,
     }
   if (lc)
     sysroff_swap_dln_out (file, &dln);
-#endif
 }
 
 /* Write the global symbols out to the debug info.  */
@@ -1692,16 +1566,9 @@ wr_sc (struct coff_ofile *ptr, struct coff_sfile *sfile)
 	{
 	  sc.contents = CONTENTS_CODE;
 	}
-#if 0
-      /* NEW */
-      if (sc.length)
-	{
-#endif
-	  sysroff_swap_sc_out (file, &sc);
-	  scount++;
-#if 0
-	}
-#endif
+
+      sysroff_swap_sc_out (file, &sc);
+      scount++;
     }
   return scount;
 }
@@ -1856,13 +1723,14 @@ show_usage (FILE *file, int status)
   fprintf (file, _("Usage: %s [option(s)] in-file [out-file]\n"), program_name);
   fprintf (file, _("Convert a COFF object file into a SYSROFF object file\n"));
   fprintf (file, _(" The options are:\n\
-  -q --quick       (Obsolete - ignoerd)\n\
+  -q --quick       (Obsolete - ignored)\n\
   -n --noprescan   Do not perform a scan to convert commons into defs\n\
   -d --debug       Display information about what is being done\n\
+  @<file>          Read options from <file>\n\
   -h --help        Display this information\n\
   -v --version     Print the program's version number\n"));
 
-  if (status == 0)
+  if (REPORT_BUGS_TO[0] && status == 0)
     fprintf (file, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
@@ -1895,6 +1763,8 @@ main (int ac, char **av)
 
   program_name = av[0];
   xmalloc_set_program_name (program_name);
+
+  expandargv (&ac, &av);
 
   while ((opt = getopt_long (ac, av, "dHhVvqn", long_options,
 			     (int *) NULL))

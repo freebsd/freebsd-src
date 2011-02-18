@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GLD; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef DEFFILE_H
 #define DEFFILE_H
@@ -36,7 +36,7 @@ typedef struct def_file_export {
   char *internal_name;		/* always set, may == name */
   int ordinal;			/* -1 if not specified */
   int hint;
-  char flag_private, flag_constant, flag_noname, flag_data;
+  char flag_private, flag_constant, flag_noname, flag_data, flag_forward;
 } def_file_export;
 
 typedef struct def_file_module {

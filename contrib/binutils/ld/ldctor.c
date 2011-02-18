@@ -1,6 +1,6 @@
 /* ldctor.c -- constructor support routines
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2006, 2007 Free Software Foundation, Inc.
    By Steve Chamberlain <sac@cygnus.com>
 
 This file is part of GLD, the Gnu Linker.
@@ -17,11 +17,11 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GLD; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "safe-ctype.h"
 
@@ -49,7 +49,7 @@ struct set_info *sets;
    RELOC is the relocation to use for an entry in the set.  SECTION
    and VALUE are the value to add.  This is called during the first
    phase of the link, when we are still gathering symbols together.
-   We just record the information now.  The ldctor_find_constructors
+   We just record the information now.  The ldctor_build_sets
    function will construct the sets.  */
 
 void
@@ -131,7 +131,7 @@ ctor_prio (const char *name)
   while (*name == '_')
     ++name;
 
-  if (strncmp (name, "GLOBAL_", sizeof "GLOBAL_" - 1) != 0)
+  if (! CONST_STRNEQ (name, "GLOBAL_"))
     return -1;
 
   name += sizeof "GLOBAL_" - 1;

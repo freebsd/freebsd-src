@@ -16,8 +16,8 @@ General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* For an easily readable description of splay-trees, see:
 
@@ -37,166 +37,164 @@ Boston, MA 02111-1307, USA.  */
 #include "libiberty.h"
 #include "splay-tree.h"
 
-static void splay_tree_delete_helper    PARAMS((splay_tree, 
-						splay_tree_node));
-static void splay_tree_splay            PARAMS((splay_tree,
-						splay_tree_key));
-static splay_tree_node splay_tree_splay_helper     
-                                        PARAMS((splay_tree,
-						splay_tree_key,
-						splay_tree_node*,
-						splay_tree_node*,
-						splay_tree_node*));
-static int splay_tree_foreach_helper    PARAMS((splay_tree,
-					        splay_tree_node,
-						splay_tree_foreach_fn,
-						void*));
+static void splay_tree_delete_helper (splay_tree, splay_tree_node);
+static inline void rotate_left (splay_tree_node *,
+				splay_tree_node, splay_tree_node);
+static inline void rotate_right (splay_tree_node *,
+				splay_tree_node, splay_tree_node);
+static void splay_tree_splay (splay_tree, splay_tree_key);
+static int splay_tree_foreach_helper (splay_tree, splay_tree_node,
+                                      splay_tree_foreach_fn, void*);
 
 /* Deallocate NODE (a member of SP), and all its sub-trees.  */
 
 static void 
-splay_tree_delete_helper (sp, node)
-     splay_tree sp;
-     splay_tree_node node;
+splay_tree_delete_helper (splay_tree sp, splay_tree_node node)
 {
+  splay_tree_node pending = 0;
+  splay_tree_node active = 0;
+
   if (!node)
     return;
 
-  splay_tree_delete_helper (sp, node->left);
-  splay_tree_delete_helper (sp, node->right);
+#define KDEL(x)  if (sp->delete_key) (*sp->delete_key)(x);
+#define VDEL(x)  if (sp->delete_value) (*sp->delete_value)(x);
 
-  if (sp->delete_key)
-    (*sp->delete_key)(node->key);
-  if (sp->delete_value)
-    (*sp->delete_value)(node->value);
+  KDEL (node->key);
+  VDEL (node->value);
 
-  (*sp->deallocate) ((char*) node, sp->allocate_data);
+  /* We use the "key" field to hold the "next" pointer.  */
+  node->key = (splay_tree_key)pending;
+  pending = (splay_tree_node)node;
+
+  /* Now, keep processing the pending list until there aren't any
+     more.  This is a little more complicated than just recursing, but
+     it doesn't toast the stack for large trees.  */
+
+  while (pending)
+    {
+      active = pending;
+      pending = 0;
+      while (active)
+	{
+	  splay_tree_node temp;
+
+	  /* active points to a node which has its key and value
+	     deallocated, we just need to process left and right.  */
+
+	  if (active->left)
+	    {
+	      KDEL (active->left->key);
+	      VDEL (active->left->value);
+	      active->left->key = (splay_tree_key)pending;
+	      pending = (splay_tree_node)(active->left);
+	    }
+	  if (active->right)
+	    {
+	      KDEL (active->right->key);
+	      VDEL (active->right->value);
+	      active->right->key = (splay_tree_key)pending;
+	      pending = (splay_tree_node)(active->right);
+	    }
+
+	  temp = active;
+	  active = (splay_tree_node)(temp->key);
+	  (*sp->deallocate) ((char*) temp, sp->allocate_data);
+	}
+    }
+#undef KDEL
+#undef VDEL
 }
 
-/* Help splay SP around KEY.  PARENT and GRANDPARENT are the parent
-   and grandparent, respectively, of NODE.  */
+/* Rotate the edge joining the left child N with its parent P.  PP is the
+   grandparents pointer to P.  */
 
-static splay_tree_node
-splay_tree_splay_helper (sp, key, node, parent, grandparent)
-     splay_tree sp;
-     splay_tree_key key;
-     splay_tree_node *node;
-     splay_tree_node *parent;
-     splay_tree_node *grandparent;
+static inline void
+rotate_left (splay_tree_node *pp, splay_tree_node p, splay_tree_node n)
 {
-  splay_tree_node *next;
-  splay_tree_node n;
-  int comparison;
-  
-  n = *node;
-
-  if (!n)
-    return *parent;
-
-  comparison = (*sp->comp) (key, n->key);
-
-  if (comparison == 0)
-    /* We've found the target.  */
-    next = 0;
-  else if (comparison < 0)
-    /* The target is to the left.  */
-    next = &n->left;
-  else 
-    /* The target is to the right.  */
-    next = &n->right;
-
-  if (next)
-    {
-      /* Continue down the tree.  */
-      n = splay_tree_splay_helper (sp, key, next, node, parent);
-
-      /* The recursive call will change the place to which NODE
-	 points.  */
-      if (*node != n)
-	return n;
-    }
-
-  if (!parent)
-    /* NODE is the root.  We are done.  */
-    return n;
-
-  /* First, handle the case where there is no grandparent (i.e.,
-     *PARENT is the root of the tree.)  */
-  if (!grandparent) 
-    {
-      if (n == (*parent)->left)
-	{
-	  *node = n->right;
-	  n->right = *parent;
-	}
-      else
-	{
-	  *node = n->left;
-	  n->left = *parent;
-	}
-      *parent = n;
-      return n;
-    }
-
-  /* Next handle the cases where both N and *PARENT are left children,
-     or where both are right children.  */
-  if (n == (*parent)->left && *parent == (*grandparent)->left)
-    {
-      splay_tree_node p = *parent;
-
-      (*grandparent)->left = p->right;
-      p->right = *grandparent;
-      p->left = n->right;
-      n->right = p;
-      *grandparent = n;
-      return n; 
-    }
-  else if  (n == (*parent)->right && *parent == (*grandparent)->right)
-    {
-      splay_tree_node p = *parent;
-
-      (*grandparent)->right = p->left;
-      p->left = *grandparent;
-      p->right = n->left;
-      n->left = p;
-      *grandparent = n;
-      return n;
-    }
-
-  /* Finally, deal with the case where N is a left child, but *PARENT
-     is a right child, or vice versa.  */
-  if (n == (*parent)->left) 
-    {
-      (*parent)->left = n->right;
-      n->right = *parent;
-      (*grandparent)->right = n->left;
-      n->left = *grandparent;
-      *grandparent = n;
-      return n;
-    } 
-  else
-    {
-      (*parent)->right = n->left;
-      n->left = *parent;
-      (*grandparent)->left = n->right;
-      n->right = *grandparent;
-      *grandparent = n;
-      return n;
-    }
+  splay_tree_node tmp;
+  tmp = n->right;
+  n->right = p;
+  p->left = tmp;
+  *pp = n;
 }
 
-/* Splay SP around KEY.  */
+/* Rotate the edge joining the right child N with its parent P.  PP is the
+   grandparents pointer to P.  */
+
+static inline void
+rotate_right (splay_tree_node *pp, splay_tree_node p, splay_tree_node n)
+{
+  splay_tree_node tmp;
+  tmp = n->left;
+  n->left = p;
+  p->right = tmp;
+  *pp = n;
+}
+
+/* Bottom up splay of key.  */
 
 static void
-splay_tree_splay (sp, key)
-     splay_tree sp;
-     splay_tree_key key;
+splay_tree_splay (splay_tree sp, splay_tree_key key)
 {
   if (sp->root == 0)
     return;
 
-  splay_tree_splay_helper (sp, key, &sp->root, 
-			   /*grandparent=*/0, /*parent=*/0); 
+  do {
+    int cmp1, cmp2;
+    splay_tree_node n, c;
+
+    n = sp->root;
+    cmp1 = (*sp->comp) (key, n->key);
+
+    /* Found.  */
+    if (cmp1 == 0)
+      return;
+
+    /* Left or right?  If no child, then we're done.  */
+    if (cmp1 < 0)
+      c = n->left;
+    else
+      c = n->right;
+    if (!c)
+      return;
+
+    /* Next one left or right?  If found or no child, we're done
+       after one rotation.  */
+    cmp2 = (*sp->comp) (key, c->key);
+    if (cmp2 == 0
+        || (cmp2 < 0 && !c->left)
+        || (cmp2 > 0 && !c->right))
+      {
+	if (cmp1 < 0)
+	  rotate_left (&sp->root, n, c);
+	else
+	  rotate_right (&sp->root, n, c);
+        return;
+      }
+
+    /* Now we have the four cases of double-rotation.  */
+    if (cmp1 < 0 && cmp2 < 0)
+      {
+	rotate_left (&n->left, c, c->left);
+	rotate_left (&sp->root, n, n->left);
+      }
+    else if (cmp1 > 0 && cmp2 > 0)
+      {
+	rotate_right (&n->right, c, c->right);
+	rotate_right (&sp->root, n, n->right);
+      }
+    else if (cmp1 < 0 && cmp2 > 0)
+      {
+	rotate_right (&n->left, c, c->right);
+	rotate_left (&sp->root, n, n->left);
+      }
+    else if (cmp1 > 0 && cmp2 < 0)
+      {
+	rotate_left (&n->right, c, c->left);
+	rotate_right (&sp->root, n, n->right);
+      }
+  } while (1);
 }
 
 /* Call FN, passing it the DATA, for every node below NODE, all of
@@ -205,11 +203,8 @@ splay_tree_splay (sp, key)
    value is returned.  Otherwise, this function returns 0.  */
 
 static int
-splay_tree_foreach_helper (sp, node, fn, data)
-     splay_tree sp;
-     splay_tree_node node;
-     splay_tree_foreach_fn fn;
-     void* data;
+splay_tree_foreach_helper (splay_tree sp, splay_tree_node node,
+                           splay_tree_foreach_fn fn, void *data)
 {
   int val;
 
@@ -230,17 +225,13 @@ splay_tree_foreach_helper (sp, node, fn, data)
 
 /* An allocator and deallocator based on xmalloc.  */
 static void *
-splay_tree_xmalloc_allocate (size, data)
-     int size;
-     void *data ATTRIBUTE_UNUSED;
+splay_tree_xmalloc_allocate (int size, void *data ATTRIBUTE_UNUSED)
 {
   return (void *) xmalloc (size);
 }
 
 static void
-splay_tree_xmalloc_deallocate (object, data)
-     void *object;
-     void *data ATTRIBUTE_UNUSED;
+splay_tree_xmalloc_deallocate (void *object, void *data ATTRIBUTE_UNUSED)
 {
   free (object);
 }
@@ -252,10 +243,9 @@ splay_tree_xmalloc_deallocate (object, data)
    nodes added.  */
 
 splay_tree 
-splay_tree_new (compare_fn, delete_key_fn, delete_value_fn)
-     splay_tree_compare_fn compare_fn;
-     splay_tree_delete_key_fn delete_key_fn;
-     splay_tree_delete_value_fn delete_value_fn;
+splay_tree_new (splay_tree_compare_fn compare_fn,
+                splay_tree_delete_key_fn delete_key_fn,
+                splay_tree_delete_value_fn delete_value_fn)
 {
   return (splay_tree_new_with_allocator
           (compare_fn, delete_key_fn, delete_value_fn,
@@ -268,14 +258,12 @@ splay_tree_new (compare_fn, delete_key_fn, delete_value_fn)
    values.  */
 
 splay_tree 
-splay_tree_new_with_allocator (compare_fn, delete_key_fn, delete_value_fn,
-                               allocate_fn, deallocate_fn, allocate_data)
-     splay_tree_compare_fn compare_fn;
-     splay_tree_delete_key_fn delete_key_fn;
-     splay_tree_delete_value_fn delete_value_fn;
-     splay_tree_allocate_fn allocate_fn;
-     splay_tree_deallocate_fn deallocate_fn;
-     void *allocate_data;
+splay_tree_new_with_allocator (splay_tree_compare_fn compare_fn,
+                               splay_tree_delete_key_fn delete_key_fn,
+                               splay_tree_delete_value_fn delete_value_fn,
+                               splay_tree_allocate_fn allocate_fn,
+                               splay_tree_deallocate_fn deallocate_fn,
+                               void *allocate_data)
 {
   splay_tree sp = (splay_tree) (*allocate_fn) (sizeof (struct splay_tree_s),
                                                allocate_data);
@@ -293,8 +281,7 @@ splay_tree_new_with_allocator (compare_fn, delete_key_fn, delete_value_fn,
 /* Deallocate SP.  */
 
 void 
-splay_tree_delete (sp)
-     splay_tree sp;
+splay_tree_delete (splay_tree sp)
 {
   splay_tree_delete_helper (sp, sp->root);
   (*sp->deallocate) ((char*) sp, sp->allocate_data);
@@ -305,10 +292,7 @@ splay_tree_delete (sp)
    with the new value.  Returns the new node.  */
 
 splay_tree_node
-splay_tree_insert (sp, key, value)
-     splay_tree sp;
-     splay_tree_key key;
-     splay_tree_value value;
+splay_tree_insert (splay_tree sp, splay_tree_key key, splay_tree_value value)
 {
   int comparison = 0;
 
@@ -360,9 +344,7 @@ splay_tree_insert (sp, key, value)
 /* Remove KEY from SP.  It is not an error if it did not exist.  */
 
 void
-splay_tree_remove (sp, key)
-     splay_tree sp;
-     splay_tree_key key;
+splay_tree_remove (splay_tree sp, splay_tree_key key)
 {
   splay_tree_splay (sp, key);
 
@@ -402,9 +384,7 @@ splay_tree_remove (sp, key)
    otherwise.  */
 
 splay_tree_node
-splay_tree_lookup (sp, key)
-     splay_tree sp;
-     splay_tree_key key;
+splay_tree_lookup (splay_tree sp, splay_tree_key key)
 {
   splay_tree_splay (sp, key);
 
@@ -417,8 +397,7 @@ splay_tree_lookup (sp, key)
 /* Return the node in SP with the greatest key.  */
 
 splay_tree_node
-splay_tree_max (sp)
-     splay_tree sp;
+splay_tree_max (splay_tree sp)
 {
   splay_tree_node n = sp->root;
 
@@ -434,8 +413,7 @@ splay_tree_max (sp)
 /* Return the node in SP with the smallest key.  */
 
 splay_tree_node
-splay_tree_min (sp)
-     splay_tree sp;
+splay_tree_min (splay_tree sp)
 {
   splay_tree_node n = sp->root;
 
@@ -452,9 +430,7 @@ splay_tree_min (sp)
    predecessor.  KEY need not be present in the tree.  */
 
 splay_tree_node
-splay_tree_predecessor (sp, key)
-     splay_tree sp;
-     splay_tree_key key;
+splay_tree_predecessor (splay_tree sp, splay_tree_key key)
 {
   int comparison;
   splay_tree_node node;
@@ -485,9 +461,7 @@ splay_tree_predecessor (sp, key)
    successor.  KEY need not be present in the tree.  */
 
 splay_tree_node
-splay_tree_successor (sp, key)
-     splay_tree sp;
-     splay_tree_key key;
+splay_tree_successor (splay_tree sp, splay_tree_key key)
 {
   int comparison;
   splay_tree_node node;
@@ -520,10 +494,7 @@ splay_tree_successor (sp, key)
    Otherwise, this function returns 0.  */
 
 int
-splay_tree_foreach (sp, fn, data)
-     splay_tree sp;
-     splay_tree_foreach_fn fn;
-     void *data;
+splay_tree_foreach (splay_tree sp, splay_tree_foreach_fn fn, void *data)
 {
   return splay_tree_foreach_helper (sp, sp->root, fn, data);
 }
@@ -531,9 +502,7 @@ splay_tree_foreach (sp, fn, data)
 /* Splay-tree comparison function, treating the keys as ints.  */
 
 int
-splay_tree_compare_ints (k1, k2)
-     splay_tree_key k1;
-     splay_tree_key k2;
+splay_tree_compare_ints (splay_tree_key k1, splay_tree_key k2)
 {
   if ((int) k1 < (int) k2)
     return -1;
@@ -546,9 +515,7 @@ splay_tree_compare_ints (k1, k2)
 /* Splay-tree comparison function, treating the keys as pointers.  */
 
 int
-splay_tree_compare_pointers (k1, k2)
-     splay_tree_key k1;
-     splay_tree_key k2;
+splay_tree_compare_pointers (splay_tree_key k1, splay_tree_key k2)
 {
   if ((char*) k1 < (char*) k2)
     return -1;

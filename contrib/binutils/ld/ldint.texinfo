@@ -1,6 +1,7 @@
 \input texinfo
 @setfilename ldint.info
-@c Copyright 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2003
+@c Copyright 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
+@c 2003, 2007
 @c Free Software Foundation, Inc.
 
 @ifinfo
@@ -11,28 +12,31 @@ END-INFO-DIR-ENTRY
 @end format
 @end ifinfo
 
-@ifinfo
+@copying
 This file documents the internals of the GNU linker ld.
 
-Copyright 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000
+Copyright @copyright{} 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2007
 Free Software Foundation, Inc.
 Contributed by Cygnus Support.
 
-      Permission is granted to copy, distribute and/or modify this document
-      under the terms of the GNU Free Documentation License, Version 1.1
-      or any later version published by the Free Software Foundation;
-      with no Invariant Sections, with no Front-Cover Texts, and with no
-      Back-Cover Texts.  A copy of the license is included in the
-      section entitled "GNU Free Documentation License".
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'' and ``Funding
+Free Software'', the Front-Cover texts being (a) (see below), and with
+the Back-Cover Texts being (b) (see below).  A copy of the license is
+included in the section entitled ``GNU Free Documentation License''.
 
-@ignore
-Permission is granted to process this file through Tex and print the
-results, provided the printed document carries copying permission
-notice identical to this one except for the removal of this paragraph
-(this paragraph not being relevant to the printed manual).
+(a) The FSF's Front-Cover Text is:
 
-@end ignore
-@end ifinfo
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
 
 @iftex
 @finalout
@@ -179,10 +183,10 @@ as well as some conventional shell variables interpreted by the
 @item SCRIPT_NAME
 This is the name of the @file{scripttempl} script to use.  If
 @code{SCRIPT_NAME} is set to @var{script}, @file{genscripts.sh} will use
-the script @file{scriptteml/@var{script}.sc}.
+the script @file{scripttempl/@var{script}.sc}.
 
 @item TEMPLATE_NAME
-This is the name of the @file{emultemlp} script to use.  If
+This is the name of the @file{emultempl} script to use.  If
 @code{TEMPLATE_NAME} is set to @var{template}, @file{genscripts.sh} will
 use the script @file{emultempl/@var{template}.em}.  If this variable is
 not set, the default value is @samp{generic}.
@@ -290,7 +294,7 @@ option.  The output has an extension of
 The @file{scripttempl} script is only invoked with @code{LD_FLAG} set to
 this value if @code{GENERATE_COMBRELOC_SCRIPT} is defined in the
 @file{emulparams} file or if @code{SCRIPT_NAME} is @code{elf} and
-@code{GENERATE_SHLIB_SCRIPT} is defined in the @file{emulparms} file.
+@code{GENERATE_SHLIB_SCRIPT} is defined in the @file{emulparams} file.
 The @file{emultempl} script must arrange to use this script at the
 appropriate time, normally when the linker is invoked with the @code{-shared
 -z combreloc} option.  The output has an extension of @file{.xsc}.
@@ -644,7 +648,7 @@ Motivation
 The obvious and only way to get rid of dllimport insanity is 
 to make client access variable directly in the DLL, bypassing 
 the extra dereference imposed by ordinary DLL runtime linking.
-I.e., whenever client contains someting like
+I.e., whenever client contains something like
 
 @code{mov dll_var,%eax,}
 
@@ -653,7 +657,7 @@ into loaded DLL. The aim is to make OS loader do so, and than
 make ld help with that.  Import section of PE made following 
 way: there's a vector of structures each describing imports 
 from particular DLL. Each such structure points to two other 
-parellel vectors: one holding imported names, and one which 
+parallel vectors: one holding imported names, and one which 
 will hold address of corresponding imported name. So, the 
 solution is de-vectorize these structures, making import 
 locations be sparse and pointing directly into code.
@@ -699,7 +703,7 @@ require more work on behalf of loader than not doing it.
                    Version 1.1, March 2000
 
  Copyright (C) 2000  Free Software Foundation, Inc.
-  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
      
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.

@@ -1,5 +1,6 @@
 /* ia64-opc.h -- IA-64 opcode table.
-   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2002, 2005, 2006
+   Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this file; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef IA64_OPC_H
 #define IA64_OPC_H
@@ -112,6 +113,7 @@
 #define IMMU24	IA64_OPND_IMMU24
 #define IMMU62	IA64_OPND_IMMU62
 #define IMMU64	IA64_OPND_IMMU64
+#define IMMU5b	IA64_OPND_IMMU5b
 #define IMMU7a	IA64_OPND_IMMU7a
 #define IMMU7b	IA64_OPND_IMMU7b
 #define IMMU9	IA64_OPND_IMMU9

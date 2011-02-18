@@ -2,7 +2,7 @@
 # It does some substitutions.
 cat >e${EMULATION_NAME}.c <<EOF
 /* A vanilla emulation with no defaults
-   Copyright 1991, 1992, 1994, 2000, 2001, 2002, 2003
+   Copyright 1991, 1992, 1994, 2000, 2001, 2002, 2003, 2007
    Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
@@ -20,11 +20,10 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
-
+#include "bfd.h"
 
 #include "ld.h"
 #include "ldmisc.h"
@@ -68,7 +67,7 @@ struct ld_emulation_xfer_struct ld_vanilla_emulation =
   vanilla_get_script,
   "vanilla",
   "a.out-sunos-big",
-  NULL,	/* finish */
+  finish_default,
   NULL,	/* create output section statements */
   NULL,	/* open dynamic archive */
   NULL,	/* place orphan */

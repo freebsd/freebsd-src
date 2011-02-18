@@ -2,6 +2,7 @@
 /\\$/N
 /\\$/b loop
 
+s! \./! !g
 s!@INCDIR@!$(INCDIR)!g
 s!@TOPDIR@/include!$(INCDIR)!g
 s!@BFDDIR@!$(BFDDIR)!g

@@ -21,21 +21,20 @@ be the value @code{1}).
 #include <sys/types.h>
 #include <signal.h>
 
-extern void abort PARAMS ((void)) ATTRIBUTE_NORETURN;
+extern void abort (void) ATTRIBUTE_NORETURN;
 
 #ifdef SIG_SETMASK
 int
-sigsetmask (set)
-      int set;
+sigsetmask (int set)
 {
-    sigset_t new;
-    sigset_t old;
+    sigset_t new_sig;
+    sigset_t old_sig;
     
-    sigemptyset (&new);
+    sigemptyset (&new_sig);
     if (set != 0) {
       abort();	/* FIXME, we don't know how to translate old mask to new */
     }
-    sigprocmask(SIG_SETMASK, &new, &old);
+    sigprocmask(SIG_SETMASK, &new_sig, &old_sig);
     return 1;	/* FIXME, we always return 1 as old value.  */
 }
 #endif

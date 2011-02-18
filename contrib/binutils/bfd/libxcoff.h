@@ -1,5 +1,5 @@
 /* BFD XCOFF object file private structure.
-   Copyright 2001, 2002 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2005 Free Software Foundation, Inc.
    Written by Tom Rix, Redhat.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef LIBXCOFF_H
 #define LIBXCOFF_H
@@ -39,18 +39,12 @@ struct xcoff_backend_data_rec
   long _xcoff_machine;
 
   /* Function pointers to xcoff specific swap routines.  */
-  void (* _xcoff_swap_ldhdr_in)
-    PARAMS ((bfd *, const PTR, struct internal_ldhdr *));
-  void (* _xcoff_swap_ldhdr_out)
-    PARAMS ((bfd *, const struct internal_ldhdr *, PTR));
-  void (* _xcoff_swap_ldsym_in)
-    PARAMS ((bfd *, const PTR, struct internal_ldsym *));
-  void (* _xcoff_swap_ldsym_out)
-    PARAMS ((bfd *, const struct internal_ldsym *, PTR));
-  void (* _xcoff_swap_ldrel_in)
-    PARAMS ((bfd *, const PTR, struct internal_ldrel *));
-  void (* _xcoff_swap_ldrel_out)
-    PARAMS ((bfd *, const struct internal_ldrel *, PTR));
+  void (* _xcoff_swap_ldhdr_in) (bfd *, const void *, struct internal_ldhdr *);
+  void (* _xcoff_swap_ldhdr_out)(bfd *, const struct internal_ldhdr *, void *);
+  void (* _xcoff_swap_ldsym_in) (bfd *, const void *, struct internal_ldsym *);
+  void (* _xcoff_swap_ldsym_out)(bfd *, const struct internal_ldsym *, void *);
+  void (* _xcoff_swap_ldrel_in) (bfd *, const void *, struct internal_ldrel *);
+  void (* _xcoff_swap_ldrel_out)(bfd *, const struct internal_ldrel *, void *);
 
   /* Size of the external struct.  */
   unsigned int _xcoff_ldhdrsz;
@@ -69,33 +63,29 @@ struct xcoff_backend_data_rec
   unsigned long _xcoff_ldhdr_version;
 
   bfd_boolean (* _xcoff_put_symbol_name)
-    PARAMS ((bfd *, struct bfd_strtab_hash *, struct internal_syment *,
-	     const char *));
+    (bfd *, struct bfd_strtab_hash *, struct internal_syment *,
+     const char *);
 
   bfd_boolean (* _xcoff_put_ldsymbol_name)
-    PARAMS ((bfd *, struct xcoff_loader_info *, struct internal_ldsym *,
-	     const char *));
+    (bfd *, struct xcoff_loader_info *, struct internal_ldsym *,
+     const char *);
 
   reloc_howto_type *_xcoff_dynamic_reloc;
 
   asection * (* _xcoff_create_csect_from_smclas)
-    PARAMS ((bfd *, union internal_auxent *, const char *));
+    (bfd *, union internal_auxent *, const char *);
 
   /* Line number and relocation overflow.
      XCOFF32 overflows to another section when the line number or the 
      relocation count exceeds 0xffff.  XCOFF64 does not overflow.  */
-  bfd_boolean (*_xcoff_is_lineno_count_overflow)
-    PARAMS ((bfd *, bfd_vma));
-  bfd_boolean (*_xcoff_is_reloc_count_overflow)
-    PARAMS ((bfd *, bfd_vma));
+  bfd_boolean (*_xcoff_is_lineno_count_overflow) (bfd *, bfd_vma);
+  bfd_boolean (*_xcoff_is_reloc_count_overflow)  (bfd *, bfd_vma);
 
   /* Loader section symbol and relocation table offset
      XCOFF32 is after the .loader header
      XCOFF64 is offset in .loader header.  */
-  bfd_vma (*_xcoff_loader_symbol_offset)
-    PARAMS ((bfd *, struct internal_ldhdr *));
-  bfd_vma (*_xcoff_loader_reloc_offset)
-    PARAMS ((bfd *, struct internal_ldhdr *));
+  bfd_vma (*_xcoff_loader_symbol_offset) (bfd *, struct internal_ldhdr *);
+  bfd_vma (*_xcoff_loader_reloc_offset)  (bfd *, struct internal_ldhdr *);
   
   /* Global linkage.  The first word of global linkage code must be be 
      modified by filling in the correct TOC offset.  */
@@ -107,7 +97,7 @@ struct xcoff_backend_data_rec
   /* rtinit.  */
   unsigned int _xcoff_rtinit_size;
   bfd_boolean (*_xcoff_generate_rtinit)
-    PARAMS ((bfd *, const char *, const char *, bfd_boolean));
+    (bfd *, const char *, const char *, bfd_boolean);
 };
 
 /* Look up an entry in an XCOFF link hash table.  */
@@ -120,7 +110,7 @@ struct xcoff_backend_data_rec
 #define xcoff_link_hash_traverse(table, func, info)			\
   (bfd_link_hash_traverse						\
    (&(table)->root,							\
-    (bfd_boolean (*) PARAMS ((struct bfd_link_hash_entry *, PTR))) (func),	\
+    (bfd_boolean (*) (struct bfd_link_hash_entry *, void *)) (func),	\
     (info)))
 
 /* Get the XCOFF link hash table from the info structure.  This is
@@ -131,80 +121,80 @@ struct xcoff_backend_data_rec
 #define xcoff_backend(abfd) \
   ((struct xcoff_backend_data_rec *) (abfd)->xvec->backend_data)
 
-#define bfd_xcoff_magic_number(a) ((xcoff_backend(a)->_xcoff_magic_number))
-#define bfd_xcoff_architecture(a) ((xcoff_backend(a)->_xcoff_architecture))
-#define bfd_xcoff_machine(a) ((xcoff_backend(a)->_xcoff_machine))
+#define bfd_xcoff_magic_number(a) ((xcoff_backend (a)->_xcoff_magic_number))
+#define bfd_xcoff_architecture(a) ((xcoff_backend (a)->_xcoff_architecture))
+#define bfd_xcoff_machine(a)      ((xcoff_backend (a)->_xcoff_machine))
 
 #define bfd_xcoff_swap_ldhdr_in(a, b, c) \
-  ((xcoff_backend(a)->_xcoff_swap_ldhdr_in) ((a), (b), (c)))
+  ((xcoff_backend (a)->_xcoff_swap_ldhdr_in) ((a), (b), (c)))
 
 #define bfd_xcoff_swap_ldhdr_out(a, b, c) \
-  ((xcoff_backend(a)->_xcoff_swap_ldhdr_out) ((a), (b), (c)))
+  ((xcoff_backend (a)->_xcoff_swap_ldhdr_out) ((a), (b), (c)))
 
 #define bfd_xcoff_swap_ldsym_in(a, b, c) \
-  ((xcoff_backend(a)->_xcoff_swap_ldsym_in) ((a), (b), (c)))
+  ((xcoff_backend (a)->_xcoff_swap_ldsym_in) ((a), (b), (c)))
 
 #define bfd_xcoff_swap_ldsym_out(a, b, c) \
-  ((xcoff_backend(a)->_xcoff_swap_ldsym_out) ((a), (b), (c)))
+  ((xcoff_backend (a)->_xcoff_swap_ldsym_out) ((a), (b), (c)))
 
 #define bfd_xcoff_swap_ldrel_in(a, b, c) \
-  ((xcoff_backend(a)->_xcoff_swap_ldrel_in) ((a), (b), (c)))
+  ((xcoff_backend (a)->_xcoff_swap_ldrel_in) ((a), (b), (c)))
 
 #define bfd_xcoff_swap_ldrel_out(a, b, c) \
-  ((xcoff_backend(a)->_xcoff_swap_ldrel_out) ((a), (b), (c)))
+  ((xcoff_backend (a)->_xcoff_swap_ldrel_out) ((a), (b), (c)))
 
-#define bfd_xcoff_ldhdrsz(a) ((xcoff_backend(a)->_xcoff_ldhdrsz))
-#define bfd_xcoff_ldsymsz(a) ((xcoff_backend(a)->_xcoff_ldsymsz))
-#define bfd_xcoff_ldrelsz(a) ((xcoff_backend(a)->_xcoff_ldrelsz))
+#define bfd_xcoff_ldhdrsz(a) ((xcoff_backend (a)->_xcoff_ldhdrsz))
+#define bfd_xcoff_ldsymsz(a) ((xcoff_backend (a)->_xcoff_ldsymsz))
+#define bfd_xcoff_ldrelsz(a) ((xcoff_backend (a)->_xcoff_ldrelsz))
 #define bfd_xcoff_function_descriptor_size(a) \
-  ((xcoff_backend(a)->_xcoff_function_descriptor_size))
+  ((xcoff_backend (a)->_xcoff_function_descriptor_size))
 #define bfd_xcoff_small_aout_header_size(a) \
-  ((xcoff_backend(a)->_xcoff_small_aout_header_size))
+  ((xcoff_backend (a)->_xcoff_small_aout_header_size))
 
-#define bfd_xcoff_ldhdr_version(a) ((xcoff_backend(a)->_xcoff_ldhdr_version))
+#define bfd_xcoff_ldhdr_version(a) ((xcoff_backend (a)->_xcoff_ldhdr_version))
 
 #define bfd_xcoff_put_symbol_name(a, b, c, d) \
-  ((xcoff_backend(a)->_xcoff_put_symbol_name) ((a), (b), (c), (d)))
+  ((xcoff_backend (a)->_xcoff_put_symbol_name) ((a), (b), (c), (d)))
 
 #define bfd_xcoff_put_ldsymbol_name(a, b, c, d) \
-  ((xcoff_backend(a)->_xcoff_put_ldsymbol_name) ((a), (b), (c), (d)))
+  ((xcoff_backend (a)->_xcoff_put_ldsymbol_name) ((a), (b), (c), (d)))
 
 /* Get the XCOFF hash table entries for a BFD.  */
 #define obj_xcoff_sym_hashes(bfd) \
   ((struct xcoff_link_hash_entry **) obj_coff_sym_hashes (bfd))
 
 #define bfd_xcoff_dynamic_reloc_howto(a) \
-   ((xcoff_backend(a)->_xcoff_dynamic_reloc))
+   ((xcoff_backend (a)->_xcoff_dynamic_reloc))
 
 #define bfd_xcoff_create_csect_from_smclas(a, b, c) \
-   ((xcoff_backend(a)->_xcoff_create_csect_from_smclas((a), (b), (c))))
+   ((xcoff_backend (a)->_xcoff_create_csect_from_smclas((a), (b), (c))))
 
 #define bfd_xcoff_is_lineno_count_overflow(a, b) \
-   ((xcoff_backend(a)->_xcoff_is_lineno_count_overflow((a), (b))))
+   ((xcoff_backend (a)->_xcoff_is_lineno_count_overflow((a), (b))))
 
 #define bfd_xcoff_is_reloc_count_overflow(a, b) \
-   ((xcoff_backend(a)->_xcoff_is_reloc_count_overflow((a), (b))))
+   ((xcoff_backend (a)->_xcoff_is_reloc_count_overflow((a), (b))))
 
 #define bfd_xcoff_loader_symbol_offset(a, b) \
- ((xcoff_backend(a)->_xcoff_loader_symbol_offset((a), (b))))
+ ((xcoff_backend (a)->_xcoff_loader_symbol_offset((a), (b))))
 
 #define bfd_xcoff_loader_reloc_offset(a, b) \
- ((xcoff_backend(a)->_xcoff_loader_reloc_offset((a), (b))))
+ ((xcoff_backend (a)->_xcoff_loader_reloc_offset((a), (b))))
 
-#define bfd_xcoff_glink_code(a, b) ((xcoff_backend(a)->_xcoff_glink_code[(b)]))
-#define bfd_xcoff_glink_code_size(a) ((xcoff_backend(a)->_xcoff_glink_size))
+#define bfd_xcoff_glink_code(a, b)   ((xcoff_backend (a)->_xcoff_glink_code[(b)]))
+#define bfd_xcoff_glink_code_size(a) ((xcoff_backend (a)->_xcoff_glink_size))
 
 /* Check for the magic number U803XTOCMAGIC or U64_TOCMAGIC for 64 bit 
    targets.  */
 #define bfd_xcoff_is_xcoff64(a) \
-  (   (0x01EF == (bfd_xcoff_magic_number(a))) \
-   || (0x01F7 == (bfd_xcoff_magic_number(a))))
+  (   (0x01EF == (bfd_xcoff_magic_number (a))) \
+   || (0x01F7 == (bfd_xcoff_magic_number (a))))
 
 /* Check for the magic number U802TOMAGIC for 32 bit targets.  */
-#define bfd_xcoff_is_xcoff32(a) (0x01DF == (bfd_xcoff_magic_number(a)))
+#define bfd_xcoff_is_xcoff32(a) (0x01DF == (bfd_xcoff_magic_number (a)))
 
-#define bfd_xcoff_rtinit_size(a) ((xcoff_backend(a)->_xcoff_rtinit_size))
-#define bfd_xcoff_generate_rtinit(a, b, c, d) ((xcoff_backend(a)->_xcoff_generate_rtinit ((a), (b), (c), (d))))
+#define bfd_xcoff_rtinit_size(a)              ((xcoff_backend (a)->_xcoff_rtinit_size))
+#define bfd_xcoff_generate_rtinit(a, b, c, d) ((xcoff_backend (a)->_xcoff_generate_rtinit ((a), (b), (c), (d))))
 
 /* Accessor macros for tdata.  */
 #define bfd_xcoff_text_align_power(a) ((xcoff_data (a)->text_align_power))
@@ -228,18 +218,18 @@ struct xcoff_backend_data_rec
   bfd *, bfd_vma, bfd_vma, struct reloc_howto_struct *howto
 
 extern bfd_boolean (*xcoff_calculate_relocation[XCOFF_MAX_CALCULATE_RELOCATION])
-  PARAMS ((XCOFF_RELOC_FUNCTION_ARGS));
+  (XCOFF_RELOC_FUNCTION_ARGS);
 extern bfd_boolean (*xcoff_complain_overflow[XCOFF_MAX_COMPLAIN_OVERFLOW])
-  PARAMS ((XCOFF_COMPLAIN_FUNCTION_ARGS));
+  (XCOFF_COMPLAIN_FUNCTION_ARGS);
 
 /* Relocation functions */
-bfd_boolean xcoff_reloc_type_noop PARAMS ((XCOFF_RELOC_FUNCTION_ARGS));
-bfd_boolean xcoff_reloc_type_fail PARAMS ((XCOFF_RELOC_FUNCTION_ARGS));
-bfd_boolean xcoff_reloc_type_pos PARAMS ((XCOFF_RELOC_FUNCTION_ARGS));
-bfd_boolean xcoff_reloc_type_neg PARAMS ((XCOFF_RELOC_FUNCTION_ARGS));
-bfd_boolean xcoff_reloc_type_rel PARAMS ((XCOFF_RELOC_FUNCTION_ARGS));
-bfd_boolean xcoff_reloc_type_toc PARAMS ((XCOFF_RELOC_FUNCTION_ARGS));
-bfd_boolean xcoff_reloc_type_ba PARAMS ((XCOFF_RELOC_FUNCTION_ARGS));
-bfd_boolean xcoff_reloc_type_crel PARAMS ((XCOFF_RELOC_FUNCTION_ARGS));
+bfd_boolean xcoff_reloc_type_noop (XCOFF_RELOC_FUNCTION_ARGS);
+bfd_boolean xcoff_reloc_type_fail (XCOFF_RELOC_FUNCTION_ARGS);
+bfd_boolean xcoff_reloc_type_pos  (XCOFF_RELOC_FUNCTION_ARGS);
+bfd_boolean xcoff_reloc_type_neg  (XCOFF_RELOC_FUNCTION_ARGS);
+bfd_boolean xcoff_reloc_type_rel  (XCOFF_RELOC_FUNCTION_ARGS);
+bfd_boolean xcoff_reloc_type_toc  (XCOFF_RELOC_FUNCTION_ARGS);
+bfd_boolean xcoff_reloc_type_ba   (XCOFF_RELOC_FUNCTION_ARGS);
+bfd_boolean xcoff_reloc_type_crel (XCOFF_RELOC_FUNCTION_ARGS);
 
 #endif /* LIBXCOFF_H */

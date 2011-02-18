@@ -1,78 +1,71 @@
 /* BFD back end for NetBSD style core files
    Copyright 1988, 1989, 1991, 1992, 1993, 1996, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004
+   2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Paul Kranenburg, EUR
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
-#include "libaout.h"           /* BFD a.out internal data structures */
+#include "libaout.h"           /* BFD a.out internal data structures.  */
 
 #include <sys/param.h>
 #include <sys/dir.h>
 #include <signal.h>
 #include <sys/core.h>
 
-/*
- * FIXME: On NetBSD/sparc CORE_FPU_OFFSET should be (sizeof (struct trapframe))
- */
+/* The machine ID for OpenBSD/sparc64 and older versions of
+   NetBSD/sparc64 overlaps with M_MIPS1.  */
+#define M_SPARC64_OPENBSD	M_MIPS1
 
 /* Offset of StackGhost cookie within `struct md_coredump' on
    OpenBSD/sparc.  */
-#define CORE_WCOOKIE_OFFSET	344
+#define SPARC_WCOOKIE_OFFSET	344
 
-struct netbsd_core_struct {
-	struct core core;
+/* Offset of StackGhost cookie within `struct md_coredump' on
+   OpenBSD/sparc64.  */
+#define SPARC64_WCOOKIE_OFFSET	832
+
+#define netbsd_core_file_matches_executable_p generic_core_file_matches_executable_p
+
+struct netbsd_core_struct
+{
+  struct core core;
 } *rawptr;
-
-/* forward declarations */
-
-static const bfd_target *netbsd_core_file_p
-  PARAMS ((bfd *abfd));
-static char *netbsd_core_file_failing_command
-  PARAMS ((bfd *abfd));
-static int netbsd_core_file_failing_signal
-  PARAMS ((bfd *abfd));
-static bfd_boolean netbsd_core_file_matches_executable_p
-  PARAMS ((bfd *core_bfd, bfd *exec_bfd));
-static void swap_abort
-  PARAMS ((void));
 
 /* Handle NetBSD-style core dump file.  */
 
 static const bfd_target *
-netbsd_core_file_p (abfd)
-     bfd *abfd;
-
+netbsd_core_file_p (bfd *abfd)
 {
-  int i, val;
+  int val;
+  unsigned i;
   file_ptr offset;
-  asection *asect, *asect2;
+  asection *asect;
   struct core core;
   struct coreseg coreseg;
   bfd_size_type amt = sizeof core;
 
-  val = bfd_bread ((void *) &core, amt, abfd);
+  val = bfd_bread (&core, amt, abfd);
   if (val != sizeof core)
     {
-      /* Too small to be a core file */
+      /* Too small to be a core file.  */
       bfd_set_error (bfd_error_wrong_format);
       return 0;
     }
@@ -100,7 +93,7 @@ netbsd_core_file_p (abfd)
       if (bfd_seek (abfd, offset, SEEK_SET) != 0)
 	goto punt;
 
-      val = bfd_bread ((void *) &coreseg, (bfd_size_type) sizeof coreseg, abfd);
+      val = bfd_bread (&coreseg, sizeof coreseg, abfd);
       if (val != sizeof coreseg)
 	{
 	  bfd_set_error (bfd_error_file_truncated);
@@ -133,54 +126,103 @@ netbsd_core_file_p (abfd)
 	  flags = SEC_ALLOC + SEC_HAS_CONTENTS;
 	  break;
 	}
-      asect = bfd_make_section_anyway (abfd, sname);
+      asect = bfd_make_section_anyway_with_flags (abfd, sname, flags);
       if (asect == NULL)
 	goto punt;
 
-      asect->flags = flags;
-      asect->_raw_size = coreseg.c_size;
+      asect->size = coreseg.c_size;
       asect->vma = coreseg.c_addr;
       asect->filepos = offset;
       asect->alignment_power = 2;
 
-      if (CORE_GETMID (core) == M_SPARC_NETBSD
-	  && CORE_GETFLAG (coreseg) == CORE_CPU
-	  && coreseg.c_size > CORE_WCOOKIE_OFFSET)
+      if (CORE_GETFLAG (coreseg) == CORE_CPU)
 	{
-	  /* Truncate the .reg section.  */
-	  asect->_raw_size = CORE_WCOOKIE_OFFSET;
+	  bfd_size_type wcookie_offset;
 
-	  /* And create the .wcookie section.  */
-	  asect = bfd_make_section_anyway (abfd, ".wcookie");
-	  if (asect == NULL)
-	    goto punt;
+	  switch (CORE_GETMID (core))
+	    {
+	    case M_SPARC_NETBSD:
+	      wcookie_offset = SPARC_WCOOKIE_OFFSET;
+	      break;
+	    case M_SPARC64_OPENBSD:
+	      wcookie_offset = SPARC64_WCOOKIE_OFFSET;
+	      break;
+	    default:
+	      wcookie_offset = 0;
+	      break;
+	    }
 
-	  asect->flags = SEC_ALLOC + SEC_HAS_CONTENTS;
-	  asect->_raw_size = 4;
-	  asect->vma = 0;
-	  asect->filepos = offset + CORE_WCOOKIE_OFFSET;
-	  asect->alignment_power = 2;
+	  if (wcookie_offset > 0 && coreseg.c_size > wcookie_offset)
+	    {
+	      /* Truncate the .reg section.  */
+	      asect->size = wcookie_offset;
+
+	      /* And create the .wcookie section.  */
+	      flags = SEC_ALLOC + SEC_HAS_CONTENTS;
+	      asect = bfd_make_section_anyway_with_flags (abfd, ".wcookie",
+							  flags);
+	      if (asect == NULL)
+		goto punt;
+
+	      asect->size = coreseg.c_size - wcookie_offset;
+	      asect->vma = 0;
+	      asect->filepos = offset + wcookie_offset;
+	      asect->alignment_power = 2;
+	    }
 	}
 
       offset += coreseg.c_size;
+    }
 
-#ifdef CORE_FPU_OFFSET
-      switch (CORE_GETFLAG (coreseg))
-	{
-	case CORE_CPU:
-	  /* Hackish...  */
-	  asect->_raw_size = CORE_FPU_OFFSET;
-	  asect2 = bfd_make_section_anyway (abfd, ".reg2");
-	  if (asect2 == NULL)
-	    goto punt;
-	  asect2->_raw_size = coreseg.c_size - CORE_FPU_OFFSET;
-	  asect2->vma = 0;
-	  asect2->filepos = asect->filepos + CORE_FPU_OFFSET;
-	  asect2->alignment_power = 2;
-	  asect2->flags = SEC_ALLOC + SEC_HAS_CONTENTS;
-	  break;
-	}
-#endif
+  /* Set architecture from machine ID.  */
+  switch (CORE_GETMID (core))
+    {
+    case M_ALPHA_NETBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_alpha, 0);
+      break;
+
+    case M_ARM6_NETBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_arm, bfd_mach_arm_3);
+      break;
+
+    case M_X86_64_NETBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_i386, bfd_mach_x86_64);
+      break;
+
+    case M_386_NETBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_i386, bfd_mach_i386_i386);
+      break;
+
+    case M_68K_NETBSD:
+    case M_68K4K_NETBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_m68k, 0);
+      break;
+
+    case M_88K_OPENBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_m88k, 0);
+      break;
+
+    case M_HPPA_OPENBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_hppa, bfd_mach_hppa11);
+      break;
+
+    case M_POWERPC_NETBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_powerpc, bfd_mach_ppc);
+      break;
+
+    case M_SPARC_NETBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_sparc, bfd_mach_sparc);
+      break;
+
+    case M_SPARC64_NETBSD:
+    case M_SPARC64_OPENBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_sparc, bfd_mach_sparc_v9);
+      break;
+
+    case M_VAX_NETBSD:
+    case M_VAX4K_NETBSD:
+      bfd_default_set_arch_mach (abfd, bfd_arch_vax, 0);
+      break;
     }
 
   /* OK, we believe you.  You're a core file (sure, sure).  */
@@ -194,34 +236,26 @@ netbsd_core_file_p (abfd)
 }
 
 static char*
-netbsd_core_file_failing_command (abfd)
-	bfd *abfd;
+netbsd_core_file_failing_command (bfd *abfd)
 {
- /*return core_command (abfd);*/
+  /*return core_command (abfd);*/
   return abfd->tdata.netbsd_core_data->core.c_name;
 }
 
 static int
-netbsd_core_file_failing_signal (abfd)
-	bfd *abfd;
+netbsd_core_file_failing_signal (bfd *abfd)
 {
   /*return core_signal (abfd);*/
   return abfd->tdata.netbsd_core_data->core.c_signo;
 }
-
-static bfd_boolean
-netbsd_core_file_matches_executable_p  (core_bfd, exec_bfd)
-     bfd *core_bfd ATTRIBUTE_UNUSED;
-     bfd *exec_bfd ATTRIBUTE_UNUSED;
-{
-  return TRUE;		/* FIXME, We have no way of telling at this point */
-}
 
 /* If somebody calls any byte-swapping routines, shoot them.  */
+
 static void
-swap_abort ()
+swap_abort (void)
 {
-  abort (); /* This way doesn't require any declaration for ANSI to fuck up */
+ /* This way doesn't require any declaration for ANSI to fuck up.  */
+  abort ();
 }
 
 #define	NO_GET ((bfd_vma (*) (const void *)) swap_abort)
@@ -235,15 +269,16 @@ const bfd_target netbsd_core_vec =
   {
     "netbsd-core",
     bfd_target_unknown_flavour,
-    BFD_ENDIAN_UNKNOWN,		/* target byte order */
-    BFD_ENDIAN_UNKNOWN,		/* target headers byte order */
-    (HAS_RELOC | EXEC_P |	/* object flags */
+    BFD_ENDIAN_UNKNOWN,		/* Target byte order.  */
+    BFD_ENDIAN_UNKNOWN,		/* Target headers byte order.  */
+    (HAS_RELOC | EXEC_P |	/* Object flags.  */
      HAS_LINENO | HAS_DEBUG |
      HAS_SYMS | HAS_LOCALS | WP_TEXT | D_PAGED),
-    (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC), /* section flags */
-    0,			                                   /* symbol prefix */
-    ' ',						   /* ar_pad_char */
-    16,							   /* ar_max_namelen */
+    (SEC_HAS_CONTENTS |		/* Section flags.  */
+     SEC_ALLOC | SEC_LOAD | SEC_RELOC),
+    0,				/* Symbol prefix.  */
+    ' ',			/* ar_pad_char.  */
+    16,				/* ar_max_namelen.  */
     NO_GET64, NO_GETS64, NO_PUT64,	/* 64 bit data.  */
     NO_GET, NO_GETS, NO_PUT,		/* 32 bit data.  */
     NO_GET, NO_GETS, NO_PUT,		/* 16 bit data.  */
@@ -251,17 +286,17 @@ const bfd_target netbsd_core_vec =
     NO_GET, NO_GETS, NO_PUT,		/* 32 bit hdrs.  */
     NO_GET, NO_GETS, NO_PUT,		/* 16 bit hdrs.  */
 
-    {				/* bfd_check_format */
-      _bfd_dummy_target,		/* unknown format */
-      _bfd_dummy_target,		/* object file */
-      _bfd_dummy_target,		/* archive */
-      netbsd_core_file_p		/* a core file */
+    {					/* bfd_check_format.  */
+      _bfd_dummy_target,		/* Unknown format.  */
+      _bfd_dummy_target,		/* Object file.  */
+      _bfd_dummy_target,		/* Archive.  */
+      netbsd_core_file_p		/* A core file.  */
     },
-    {				/* bfd_set_format */
+    {					/* bfd_set_format.  */
       bfd_false, bfd_false,
       bfd_false, bfd_false
     },
-    {				/* bfd_write_contents */
+    {					/* bfd_write_contents.  */
       bfd_false, bfd_false,
       bfd_false, bfd_false
     },
@@ -278,5 +313,5 @@ const bfd_target netbsd_core_vec =
 
     NULL,
 
-    (PTR) 0			/* backend_data */
+    (PTR) 0			        /* Backend_data.  */
   };

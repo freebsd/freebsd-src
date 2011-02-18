@@ -1,6 +1,6 @@
 #
 # Makefile
-#   Copyright (C) 1990, 91-99, 2000, 2001, 2002, 2003, 2004
+#   Copyright (C) 1990, 91-99, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
 #   Free Software Foundation
 #
 # This file is part of the libiberty library.
@@ -16,8 +16,8 @@
 #
 # You should have received a copy of the GNU Library General Public
 # License along with libiberty; see the file COPYING.LIB.  If not,
-# write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-# Boston, MA 02111-1307, USA.
+# write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+# Boston, MA 02110-1301, USA.
 #
 
 # This file was written by K. Richard Pixley <rich@cygnus.com>.
@@ -131,8 +131,10 @@ CFILES = alloca.c argv.c asprintf.c atexit.c				\
 	calloc.c choose-temp.c clock.c concat.c cp-demangle.c		\
 	 cp-demint.c cplus-dem.c					\
 	dyn-string.c							\
-	fdmatch.c ffs.c fibheap.c floatformat.c fnmatch.c		\
+	fdmatch.c ffs.c fibheap.c filename_cmp.c floatformat.c		\
+	fnmatch.c fopen_unlocked.c					\
 	getcwd.c getopt.c getopt1.c getpagesize.c getpwd.c getruntime.c	\
+         gettimeofday.c                                                 \
 	hashtab.c hex.c							\
 	index.c insque.c						\
 	lbasename.c							\
@@ -141,60 +143,67 @@ CFILES = alloca.c argv.c asprintf.c atexit.c				\
 	make-temp-file.c md5.c memchr.c memcmp.c memcpy.c memmove.c	\
 	 mempcpy.c memset.c mkstemps.c					\
 	objalloc.c obstack.c						\
-	partition.c							\
-	 pex-djgpp.c pex-mpw.c pex-msdos.c pex-os2.c			\
+	partition.c pexecute.c						\
+	 pex-common.c pex-djgpp.c pex-msdos.c pex-one.c			\
 	 pex-unix.c pex-win32.c						\
          physmem.c putenv.c						\
 	random.c regex.c rename.c rindex.c				\
 	safe-ctype.c setenv.c sigsetmask.c snprintf.c sort.c spaces.c	\
 	 splay-tree.c stpcpy.c stpncpy.c strcasecmp.c strchr.c strdup.c	\
 	 strerror.c strncasecmp.c strncmp.c strrchr.c strsignal.c	\
-	 strstr.c strtod.c strtol.c strtoul.c				\
+	 strstr.c strtod.c strtol.c strtoul.c strndup.c	strverscmp.c	\
 	ternary.c tmpnam.c						\
+	unlink-if-ordinary.c						\
 	vasprintf.c vfork.c vfprintf.c vprintf.c vsnprintf.c vsprintf.c	\
 	waitpid.c							\
-	xatexit.c xexit.c xmalloc.c xmemdup.c xstrdup.c xstrerror.c
+	xatexit.c xexit.c xmalloc.c xmemdup.c xstrdup.c xstrerror.c	\
+	 xstrndup.c
 
 # These are always included in the library.  The first four are listed
 # first and by compile time to optimize parallel builds.
-REQUIRED_OFILES = ./regex.o ./cplus-dem.o ./cp-demangle.o ./cp-demint.o ./md5.o		\
-	./alloca.o ./argv.o							\
-	./choose-temp.o ./concat.o						\
+REQUIRED_OFILES = ./regex.o ./cplus-dem.o ./cp-demangle.o ./md5.o	\
+	./alloca.o ./argv.o						\
+	./choose-temp.o ./concat.o ./cp-demint.o			\
 	./dyn-string.o							\
-	./fdmatch.o ./fibheap.o ./floatformat.o ./fnmatch.o			\
-	./getopt.o ./getopt1.o ./getpwd.o ./getruntime.o			\
-	./hashtab.o ./hex.o							\
-	./lbasename.o							\
-	./lrealpath.o							\
-	./make-relative-prefix.o						\
-	./make-temp-file.o						\
-	./objalloc.o ./obstack.o						\
-	./partition.o ./physmem.o @pexecute@						\
-	./safe-ctype.o ./sort.o ./spaces.o ./splay-tree.o ./strerror.o		\
+	./fdmatch.o ./fibheap.o ./filename_cmp.o ./floatformat.o	\
+	./fnmatch.o ./fopen_unlocked.o					\
+	./getopt.o ./getopt1.o ./getpwd.o ./getruntime.o		\
+	./hashtab.o ./hex.o						\
+	./lbasename.o ./lrealpath.o					\
+	./make-relative-prefix.o ./make-temp-file.o			\
+	./objalloc.o ./obstack.o					\
+	./partition.o ./pexecute.o ./physmem.o				\
+	./pex-common.o ./pex-one.o @pexecute@				\
+	./safe-ctype.o ./sort.o ./spaces.o ./splay-tree.o ./strerror.o	\
 	 ./strsignal.o							\
 	./ternary.o							\
-	./xatexit.o ./xexit.o ./xmalloc.o ./xmemdup.o ./xstrdup.o ./xstrerror.o
+	./unlink-if-ordinary.o						\
+	./xatexit.o ./xexit.o ./xmalloc.o ./xmemdup.o ./xstrdup.o	\
+	 ./xstrerror.o ./xstrndup.o
 
 # These are all the objects that configure may add to the library via
 # $funcs or EXTRA_OFILES.  This list exists here only for "make
 # maint-missing" and "make check".
-CONFIGURED_OFILES = ./asprintf.o ./atexit.o					\
-	./basename.o ./bcmp.o ./bcopy.o ./bsearch.o ./bzero.o			\
-	./calloc.o ./clock.o ./copysign.o					\
+CONFIGURED_OFILES = ./asprintf.o ./atexit.o				\
+	./basename.o ./bcmp.o ./bcopy.o ./bsearch.o ./bzero.o		\
+	./calloc.o ./clock.o ./copysign.o				\
 	./_doprnt.o							\
 	./ffs.o								\
-	./getcwd.o ./getpagesize.o						\
+	./getcwd.o ./getpagesize.o ./gettimeofday.o			\
 	./index.o ./insque.o						\
-	./memchr.o ./memcmp.o ./memcpy.o ./memmove.o ./mempcpy.o ./memset.o ./mkstemps.o \
-	./pex-djgpp.o ./pex-mpw.o ./pex-msdos.o ./pex-os2.o			\
-	 ./pex-unix.o ./pex-win32.o						\
+	./memchr.o ./memcmp.o ./memcpy.o ./memmove.o ./mempcpy.o	\
+	 ./memset.o ./mkstemps.o					\
+	./pex-djgpp.o ./pex-msdos.o					\
+	 ./pex-unix.o ./pex-win32.o					\
 	 ./putenv.o							\
-	./random.o ./rename.o ./rindex.o					\
-	./setenv.o ./sigsetmask.o ./snprintf.o ./stpcpy.o ./stpncpy.o ./strcasecmp.o \
-	 ./strchr.o ./strdup.o ./strncasecmp.o ./strncmp.o ./strrchr.o ./strstr.o	\
-	 ./strtod.o ./strtol.o ./strtoul.o					\
+	./random.o ./rename.o ./rindex.o				\
+	./setenv.o ./sigsetmask.o ./snprintf.o ./stpcpy.o ./stpncpy.o	\
+	 ./strcasecmp.o ./strchr.o ./strdup.o ./strncasecmp.o		\
+	 ./strncmp.o ./strndup.o ./strrchr.o ./strstr.o			\
+	 ./strtod.o ./strtol.o ./strtoul.o ./strverscmp.o		\
 	./tmpnam.o							\
-	./vasprintf.o ./vfork.o ./vfprintf.o ./vprintf.o ./vsnprintf.o ./vsprintf.o	\
+	./vasprintf.o ./vfork.o ./vfprintf.o ./vprintf.o ./vsnprintf.o	\
+	 ./vsprintf.o							\
 	./waitpid.o
 
 # These files are installed if the library has been configured to do so.
@@ -236,7 +245,80 @@ info: libiberty.info info-subdir
 install-info: install-info-subdir
 clean-info: clean-info-subdir
 dvi: libiberty.dvi dvi-subdir
-html: libiberty.html
+
+LIBIBERTY_PDFFILES = libiberty.pdf
+
+pdf: $(LIBIBERTY_PDFFILES) pdf-subdir
+
+.PHONY: install-pdf
+
+pdf__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
+
+install-pdf: $(LIBIBERTY_PDFFILES)
+	@$(NORMAL_INSTALL)
+	test -z "$(pdfdir)" || $(mkinstalldirs) "$(DESTDIR)$(pdfdir)"
+	@list='$(LIBIBERTY_PDFFILES)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(pdf__strip_dir) \
+	  echo " $(INSTALL_DATA) '$$d$$p' '$(DESTDIR)$(pdfdir)/$$f'"; \
+	  $(INSTALL_DATA) "$$d$$p" "$(DESTDIR)$(pdfdir)/$$f"; \
+	done
+
+# html, install-html targets
+HTMLS = libiberty.html
+
+html: $(HTMLS)
+
+.PHONY: install-html install-html-am install-html-recursive
+
+NORMAL_INSTALL = :
+mkdir_p = mkdir -p --
+ 
+html__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
+
+install-html: install-html-recursive  install-html-am
+
+install-html-am: $(HTMLS)
+	@$(NORMAL_INSTALL)
+	test -z "$(htmldir)" || $(mkdir_p) "$(DESTDIR)$(htmldir)"
+	@list='$(HTMLS)'; for p in $$list; do \
+	  if test -f "$$p" || test -d "$$p"; then d=""; else d="$(srcdir)/"; fi; \
+	  f=$(html__strip_dir) \
+	  if test -d "$$d$$p"; then \
+	    echo " $(mkdir_p) '$(DESTDIR)$(htmldir)/$$f'"; \
+	    $(mkdir_p) "$(DESTDIR)$(htmldir)/$$f" || exit 1; \
+	    echo " $(INSTALL_DATA) '$$d$$p'/* '$(DESTDIR)$(htmldir)/$$f'"; \
+	    $(INSTALL_DATA) "$$d$$p"/* "$(DESTDIR)$(htmldir)/$$f"; \
+	  else \
+	    echo " $(INSTALL_DATA) '$$d$$p' '$(DESTDIR)$(htmldir)/$$f'"; \
+	    $(INSTALL_DATA) "$$d$$p" "$(DESTDIR)$(htmldir)/$$f"; \
+	  fi; \
+	done
+
+install-html-recursive:
+	@failcom='exit 1'; \
+	for f in x $$MAKEFLAGS; do \
+	  case $$f in \
+	    *=* | --[!k]*);; \
+	    *k*) failcom='fail=yes';; \
+	  esac; \
+	done; \
+	dot_seen=no; \
+	target=`echo $@ | sed s/-recursive//`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    dot_seen=yes; \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
+	  || eval $$failcom; \
+	done; \
+	if test "$$dot_seen" = "no"; then \
+	  $(MAKE) $(AM_MAKEFLAGS) "$$target-am" || exit 1; \
+	fi; test -z "$$fail"
 
 TEXISRC = \
 	$(srcdir)/libiberty.texi \
@@ -255,28 +337,36 @@ libiberty.info : $(srcdir)/libiberty.texi $(TEXISRC)
 libiberty.dvi : $(srcdir)/libiberty.texi $(TEXISRC)
 	texi2dvi $(srcdir)/libiberty.texi
 
+libiberty.pdf : $(srcdir)/libiberty.texi $(TEXISRC)
+	texi2pdf $(srcdir)/libiberty.texi
+
 libiberty.html : $(srcdir)/libiberty.texi $(TEXISRC)
-	$(MAKEINFO) --html -I$(srcdir) $(srcdir)/libiberty.texi
+	$(MAKEINFO) --no-split --html -I$(srcdir) -o $@ $<
 
 @MAINT@$(srcdir)/functions.texi : stamp-functions
 @MAINT@	@true
 
-@MAINT@stamp-functions : $(CFILES) $(TEXIFILES) $(srcdir)/gather-docs Makefile
+@MAINT@stamp-functions : $(CFILES:%=$(srcdir)/%) $(TEXIFILES:%=$(srcdir)/%) $(srcdir)/gather-docs Makefile
 @MAINT@@HAVE_PERL@	$(PERL) $(srcdir)/gather-docs $(srcdir) $(srcdir)/functions.texi $(CFILES) $(TEXIFILES)
 @MAINT@	echo stamp > stamp-functions
 
 INSTALL_DEST = @INSTALL_DEST@
 install: install_to_$(INSTALL_DEST) install-subdir
 
+# This is tricky.  Even though CC in the Makefile contains
+# multilib-specific flags, it's overridden by FLAGS_TO_PASS from the
+# default multilib, so we have to take LIBCFLAGS into account as well,
+# since it will be passed the multilib flags.
+MULTIOSDIR = `$(CC) $(LIBCFLAGS) -print-multi-os-directory`
 install_to_libdir: all
-	${mkinstalldirs} $(DESTDIR)$(libdir)$(MULTISUBDIR)
-	$(INSTALL_DATA) $(TARGETLIB) $(DESTDIR)$(libdir)$(MULTISUBDIR)/$(TARGETLIB)n
-	( cd $(DESTDIR)$(libdir)$(MULTISUBDIR) ; $(RANLIB) $(TARGETLIB)n )
-	mv -f $(DESTDIR)$(libdir)$(MULTISUBDIR)/$(TARGETLIB)n $(DESTDIR)$(libdir)$(MULTISUBDIR)/$(TARGETLIB)
+	${mkinstalldirs} $(DESTDIR)$(libdir)/$(MULTIOSDIR)
+	$(INSTALL_DATA) $(TARGETLIB) $(DESTDIR)$(libdir)/$(MULTIOSDIR)/$(TARGETLIB)n
+	( cd $(DESTDIR)$(libdir)/$(MULTIOSDIR) ; chmod 644 $(TARGETLIB)n ;$(RANLIB) $(TARGETLIB)n )
+	mv -f $(DESTDIR)$(libdir)/$(MULTIOSDIR)/$(TARGETLIB)n $(DESTDIR)$(libdir)/$(MULTIOSDIR)/$(TARGETLIB)
 	if test -n "${target_header_dir}"; then \
 	  case "${target_header_dir}" in \
 	    /*)    thd=${target_header_dir};; \
-	    *)     thd=${includedir}${MULTISUBDIR}/${target_header_dir};; \
+	    *)     thd=${includedir}/${target_header_dir};; \
 	  esac; \
 	  ${mkinstalldirs} $(DESTDIR)$${thd}; \
 	  for h in ${INSTALLED_HEADERS}; do \
@@ -285,15 +375,10 @@ install_to_libdir: all
 	fi
 	@$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO=install
 
-# This is tricky.  Even though CC in the Makefile contains
-# multilib-specific flags, it's overridden by FLAGS_TO_PASS from the
-# default multilib, so we have to take LIBCFLAGS into account as well,
-# since it will be passed the multilib flags.
-MULTIOSDIR = `$(CC) $(LIBCFLAGS) -print-multi-os-directory`
 install_to_tooldir: all
 	${mkinstalldirs} $(DESTDIR)$(tooldir)/lib/$(MULTIOSDIR)
 	$(INSTALL_DATA) $(TARGETLIB) $(DESTDIR)$(tooldir)/lib/$(MULTIOSDIR)/$(TARGETLIB)n
-	( cd $(DESTDIR)$(tooldir)/lib/$(MULTIOSDIR) ; $(RANLIB) $(TARGETLIB)n )
+	( cd $(DESTDIR)$(tooldir)/lib/$(MULTIOSDIR) ; chmod 644 $(TARGETLIB)n; $(RANLIB) $(TARGETLIB)n )
 	mv -f $(DESTDIR)$(tooldir)/lib/$(MULTIOSDIR)/$(TARGETLIB)n $(DESTDIR)$(tooldir)/lib/$(MULTIOSDIR)/$(TARGETLIB)
 	@$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO=install
 
@@ -370,7 +455,7 @@ mostlyclean: mostlyclean-subdir
 clean: clean-subdir
 	$(MAKE) SUBDIRS="" mostlyclean
 	-rm -f *.a required-list tmpmulti.out
-	-rm -f libiberty.dvi libiberty.info* libiberty.html
+	-rm -f libiberty.dvi libiberty.pdf libiberty.info* libiberty.html
 	@$(MULTICLEAN) multi-clean DO=clean
 distclean: distclean-subdir
 	$(MAKE) SUBDIRS="" clean
@@ -392,14 +477,14 @@ config.h: stamp-h ; @true
 stamp-h: $(srcdir)/config.in config.status Makefile
 	CONFIG_FILES= CONFIG_HEADERS=config.h:$(srcdir)/config.in $(SHELL) ./config.status
 
-config.status: $(srcdir)/configure $(srcdir)/config.table
+config.status: $(srcdir)/configure
 	$(SHELL) ./config.status --recheck
 
 # Depending on config.h makes sure that config.status has been re-run
 # if needed.  This prevents problems with parallel builds, in case
 # subdirectories need to run config.status also.
 all-subdir check-subdir installcheck-subdir info-subdir	\
-install-info-subdir clean-info-subdir dvi-subdir install-subdir	\
+install-info-subdir clean-info-subdir dvi-subdir pdf-subdir install-subdir	\
 etags-subdir mostlyclean-subdir clean-subdir distclean-subdir \
 maintainer-clean-subdir: config.h
 	@subdirs='$(SUBDIRS)'; \
@@ -410,6 +495,10 @@ maintainer-clean-subdir: config.h
 
 $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS): stamp-picdir
 $(CONFIGURED_OFILES): stamp-picdir
+
+# Don't export variables to the environment, in order to not confuse
+# configure.
+.NOEXPORT:
 
 # The dependencies in the remainder of this file are automatically
 # generated by "make maint-deps".  Manual edits will be lost.
@@ -428,13 +517,15 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/alloca.c $(OUTPUT_OPTION)
 
-./argv.o: $(srcdir)/argv.c $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+./argv.o: $(srcdir)/argv.c config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/safe-ctype.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/argv.c -o pic/$@; \
 	else true; fi
 	$(COMPILE.c) $(srcdir)/argv.c $(OUTPUT_OPTION)
 
-./asprintf.o: $(srcdir)/asprintf.c $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+./asprintf.o: $(srcdir)/asprintf.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/asprintf.c -o pic/$@; \
 	else true; fi
@@ -446,8 +537,8 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/atexit.c $(OUTPUT_OPTION)
 
-./basename.o: $(srcdir)/basename.c $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
-	$(INCDIR)/safe-ctype.h
+./basename.o: $(srcdir)/basename.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h $(INCDIR)/safe-ctype.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/basename.c -o pic/$@; \
 	else true; fi
@@ -540,7 +631,8 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/dyn-string.c $(OUTPUT_OPTION)
 
-./fdmatch.o: $(srcdir)/fdmatch.c $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+./fdmatch.o: $(srcdir)/fdmatch.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/fdmatch.c -o pic/$@; \
 	else true; fi
@@ -559,6 +651,13 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/fibheap.c $(OUTPUT_OPTION)
 
+./filename_cmp.o: $(srcdir)/filename_cmp.c $(INCDIR)/filenames.h \
+	$(INCDIR)/safe-ctype.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/filename_cmp.c -o pic/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/filename_cmp.c $(OUTPUT_OPTION)
+
 ./floatformat.o: $(srcdir)/floatformat.c config.h $(INCDIR)/ansidecl.h \
 	$(INCDIR)/floatformat.h $(INCDIR)/libiberty.h
 	if [ x"$(PICFLAG)" != x ]; then \
@@ -573,13 +672,20 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/fnmatch.c $(OUTPUT_OPTION)
 
+./fopen_unlocked.o: $(srcdir)/fopen_unlocked.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/fopen_unlocked.c -o pic/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/fopen_unlocked.c $(OUTPUT_OPTION)
+
 ./getcwd.o: $(srcdir)/getcwd.c config.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/getcwd.c -o pic/$@; \
 	else true; fi
 	$(COMPILE.c) $(srcdir)/getcwd.c $(OUTPUT_OPTION)
 
-./getopt.o: $(srcdir)/getopt.c config.h $(INCDIR)/getopt.h
+./getopt.o: $(srcdir)/getopt.c config.h $(INCDIR)/ansidecl.h $(INCDIR)/getopt.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/getopt.c -o pic/$@; \
 	else true; fi
@@ -611,6 +717,13 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/getruntime.c $(OUTPUT_OPTION)
 
+./gettimeofday.o: $(srcdir)/gettimeofday.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/gettimeofday.c -o pic/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/gettimeofday.c $(OUTPUT_OPTION)
+
 ./hashtab.o: $(srcdir)/hashtab.c config.h $(INCDIR)/ansidecl.h \
 	$(INCDIR)/hashtab.h $(INCDIR)/libiberty.h
 	if [ x"$(PICFLAG)" != x ]; then \
@@ -618,7 +731,7 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/hashtab.c $(OUTPUT_OPTION)
 
-./hex.o: $(srcdir)/hex.c $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+./hex.o: $(srcdir)/hex.c config.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
 	$(INCDIR)/safe-ctype.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/hex.c -o pic/$@; \
@@ -637,8 +750,9 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/insque.c $(OUTPUT_OPTION)
 
-./lbasename.o: $(srcdir)/lbasename.c $(INCDIR)/ansidecl.h $(INCDIR)/filenames.h \
-	$(INCDIR)/libiberty.h $(INCDIR)/safe-ctype.h
+./lbasename.o: $(srcdir)/lbasename.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/filenames.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/safe-ctype.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/lbasename.c -o pic/$@; \
 	else true; fi
@@ -713,12 +827,6 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/mkstemps.c $(OUTPUT_OPTION)
 
-./mpw.o: $(srcdir)/mpw.c
-	if [ x"$(PICFLAG)" != x ]; then \
-	  $(COMPILE.c) $(PICFLAG) $(srcdir)/mpw.c -o pic/$@; \
-	else true; fi
-	$(COMPILE.c) $(srcdir)/mpw.c $(OUTPUT_OPTION)
-
 ./msdos.o: $(srcdir)/msdos.c
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/msdos.c -o pic/$@; \
@@ -745,19 +853,19 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/partition.c $(OUTPUT_OPTION)
 
+./pex-common.o: $(srcdir)/pex-common.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h $(srcdir)/pex-common.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/pex-common.c -o pic/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/pex-common.c $(OUTPUT_OPTION)
+
 ./pex-djgpp.o: $(srcdir)/pex-djgpp.c config.h $(INCDIR)/ansidecl.h \
 	$(INCDIR)/libiberty.h $(srcdir)/pex-common.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/pex-djgpp.c -o pic/$@; \
 	else true; fi
 	$(COMPILE.c) $(srcdir)/pex-djgpp.c $(OUTPUT_OPTION)
-
-./pex-mpw.o: $(srcdir)/pex-mpw.c config.h $(INCDIR)/ansidecl.h \
-	$(INCDIR)/libiberty.h $(srcdir)/pex-common.h
-	if [ x"$(PICFLAG)" != x ]; then \
-	  $(COMPILE.c) $(PICFLAG) $(srcdir)/pex-mpw.c -o pic/$@; \
-	else true; fi
-	$(COMPILE.c) $(srcdir)/pex-mpw.c $(OUTPUT_OPTION)
 
 ./pex-msdos.o: $(srcdir)/pex-msdos.c config.h $(INCDIR)/ansidecl.h \
 	$(INCDIR)/libiberty.h $(srcdir)/pex-common.h \
@@ -767,12 +875,12 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/pex-msdos.c $(OUTPUT_OPTION)
 
-./pex-os2.o: $(srcdir)/pex-os2.c config.h $(INCDIR)/ansidecl.h \
-	$(INCDIR)/libiberty.h $(srcdir)/pex-common.h
+./pex-one.o: $(srcdir)/pex-one.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h
 	if [ x"$(PICFLAG)" != x ]; then \
-	  $(COMPILE.c) $(PICFLAG) $(srcdir)/pex-os2.c -o pic/$@; \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/pex-one.c -o pic/$@; \
 	else true; fi
-	$(COMPILE.c) $(srcdir)/pex-os2.c $(OUTPUT_OPTION)
+	$(COMPILE.c) $(srcdir)/pex-one.c $(OUTPUT_OPTION)
 
 ./pex-unix.o: $(srcdir)/pex-unix.c config.h $(INCDIR)/ansidecl.h \
 	$(INCDIR)/libiberty.h $(srcdir)/pex-common.h
@@ -787,6 +895,13 @@ $(CONFIGURED_OFILES): stamp-picdir
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/pex-win32.c -o pic/$@; \
 	else true; fi
 	$(COMPILE.c) $(srcdir)/pex-win32.c $(OUTPUT_OPTION)
+
+./pexecute.o: $(srcdir)/pexecute.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/pexecute.c -o pic/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/pexecute.c $(OUTPUT_OPTION)
 
 ./physmem.o: $(srcdir)/physmem.c config.h $(INCDIR)/ansidecl.h \
 	$(INCDIR)/libiberty.h
@@ -807,7 +922,8 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/random.c $(OUTPUT_OPTION)
 
-./regex.o: $(srcdir)/regex.c config.h $(INCDIR)/xregex.h $(INCDIR)/xregex2.h
+./regex.o: $(srcdir)/regex.c config.h $(INCDIR)/ansidecl.h $(INCDIR)/xregex.h \
+	$(INCDIR)/xregex2.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/regex.c -o pic/$@; \
 	else true; fi
@@ -857,7 +973,8 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/sort.c $(OUTPUT_OPTION)
 
-./spaces.o: $(srcdir)/spaces.c $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+./spaces.o: $(srcdir)/spaces.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/spaces.c -o pic/$@; \
 	else true; fi
@@ -919,6 +1036,12 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/strncmp.c $(OUTPUT_OPTION)
 
+./strndup.o: $(srcdir)/strndup.c $(INCDIR)/ansidecl.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/strndup.c -o pic/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/strndup.c $(OUTPUT_OPTION)
+
 ./strrchr.o: $(srcdir)/strrchr.c $(INCDIR)/ansidecl.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/strrchr.c -o pic/$@; \
@@ -957,6 +1080,13 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/strtoul.c $(OUTPUT_OPTION)
 
+./strverscmp.o: $(srcdir)/strverscmp.c $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
+	$(INCDIR)/safe-ctype.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/strverscmp.c -o pic/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/strverscmp.c $(OUTPUT_OPTION)
+
 ./ternary.o: $(srcdir)/ternary.c config.h $(INCDIR)/ansidecl.h \
 	$(INCDIR)/libiberty.h $(INCDIR)/ternary.h
 	if [ x"$(PICFLAG)" != x ]; then \
@@ -969,6 +1099,13 @@ $(CONFIGURED_OFILES): stamp-picdir
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/tmpnam.c -o pic/$@; \
 	else true; fi
 	$(COMPILE.c) $(srcdir)/tmpnam.c $(OUTPUT_OPTION)
+
+./unlink-if-ordinary.o: $(srcdir)/unlink-if-ordinary.c config.h \
+	$(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/unlink-if-ordinary.c -o pic/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/unlink-if-ordinary.c $(OUTPUT_OPTION)
 
 ./vasprintf.o: $(srcdir)/vasprintf.c config.h $(INCDIR)/ansidecl.h \
 	$(INCDIR)/libiberty.h
@@ -1008,13 +1145,14 @@ $(CONFIGURED_OFILES): stamp-picdir
 	else true; fi
 	$(COMPILE.c) $(srcdir)/vsprintf.c $(OUTPUT_OPTION)
 
-./waitpid.o: $(srcdir)/waitpid.c config.h
+./waitpid.o: $(srcdir)/waitpid.c config.h $(INCDIR)/ansidecl.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/waitpid.c -o pic/$@; \
 	else true; fi
 	$(COMPILE.c) $(srcdir)/waitpid.c $(OUTPUT_OPTION)
 
-./xatexit.o: $(srcdir)/xatexit.c $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h
+./xatexit.o: $(srcdir)/xatexit.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h
 	if [ x"$(PICFLAG)" != x ]; then \
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/xatexit.c -o pic/$@; \
 	else true; fi
@@ -1053,4 +1191,11 @@ $(CONFIGURED_OFILES): stamp-picdir
 	  $(COMPILE.c) $(PICFLAG) $(srcdir)/xstrerror.c -o pic/$@; \
 	else true; fi
 	$(COMPILE.c) $(srcdir)/xstrerror.c $(OUTPUT_OPTION)
+
+./xstrndup.o: $(srcdir)/xstrndup.c config.h $(INCDIR)/ansidecl.h \
+	$(INCDIR)/libiberty.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/xstrndup.c -o pic/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/xstrndup.c $(OUTPUT_OPTION)
 
