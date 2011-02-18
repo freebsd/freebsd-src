@@ -2671,7 +2671,6 @@ dc_pnic_rx_bug_war(struct dc_softc *sc, int idx)
 	 * the status word to make it look like a successful
 	 * frame reception.
 	 */
-	dc_newbuf(sc, i, 0);
 	bcopy(ptr, mtod(m, char *), total_len);
 	cur_rx->dc_status = htole32(rxstat | DC_RXSTAT_FIRSTFRAG);
 }
