@@ -486,7 +486,10 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, MPI2_EVENT_SAS_TOPO_PHY_ENTRY 
 		return;
 	}
 
+	mps_dprint(sc, MPS_INFO, "Preparing to remove target %d\n", targ->tid);
+
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
+	memset(req, 0, sizeof(*req));
 	req->DevHandle = targ->handle;
 	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
@@ -507,6 +510,7 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *cm)
 	MPI2_SCSI_TASK_MANAGE_REPLY *reply;
 	MPI2_SAS_IOUNIT_CONTROL_REQUEST *req;
 	struct mpssas_target *targ;
+	struct mps_command *next_cm;
 	uint16_t handle;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
@@ -523,11 +527,13 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *cm)
 		return;
 	}
 
-	mps_printf(sc, "Reset aborted %d commands\n", reply->TerminationCount);
+	mps_dprint(sc, MPS_INFO, "Reset aborted %u commands\n",
+	    reply->TerminationCount);
 	mps_free_reply(sc, cm->cm_reply_data);
 
 	/* Reuse the existing command */
 	req = (MPI2_SAS_IOUNIT_CONTROL_REQUEST *)cm->cm_req;
+	memset(req, 0, sizeof(*req));
 	req->Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	req->Operation = MPI2_SAS_OP_REMOVE_DEVICE;
 	req->DevHandle = handle;
@@ -539,6 +545,17 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *cm)
 	mps_map_command(sc, cm);
 
 	mps_dprint(sc, MPS_INFO, "clearing target handle 0x%04x\n", handle);
+	TAILQ_FOREACH_SAFE(cm, &sc->io_list, cm_link, next_cm) {
+		union ccb *ccb;
+
+		if (cm->cm_targ->handle != handle)
+			continue;
+
+		mps_dprint(sc, MPS_INFO, "Completing missed command %p\n", cm);
+		ccb = cm->cm_complete_data;
+		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+		mpssas_scsiio_complete(sc, cm);
+	}
 	targ = mpssas_find_target(sc->sassc, 0, handle);
 	if (targ != NULL) {
 		targ->handle = 0x0;
@@ -1430,6 +1447,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	cm->cm_complete_data = ccb;
 	cm->cm_targ = targ;
 
+	TAILQ_INSERT_TAIL(&sc->io_list, cm, cm_link);
 	callout_reset(&cm->cm_callout, (ccb->ccb_h.timeout * hz) / 1000,
 	   mpssas_scsiio_timeout, cm);
 
@@ -1449,6 +1467,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
 	callout_stop(&cm->cm_callout);
+	TAILQ_REMOVE(&sc->io_list, cm, cm_link);
 
 	sassc = sc->sassc;
 	ccb = cm->cm_complete_data;
@@ -1470,8 +1489,10 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 
 	/* Take the fast path to completion */
 	if (cm->cm_reply == NULL) {
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		ccb->csio.scsi_status = SCSI_STATUS_OK;
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
+			ccb->ccb_h.status = CAM_REQ_CMP;
+			ccb->csio.scsi_status = SCSI_STATUS_OK;
+		}
 		mps_free_command(sc, cm);
 		xpt_done(ccb);
 		return;
