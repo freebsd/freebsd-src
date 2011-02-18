@@ -1334,7 +1334,6 @@ dc_setfilt_xircom(struct dc_softc *sc)
 
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sframe->dc_status = htole32(DC_TXSTAT_OWN);
 	CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
 
@@ -3696,14 +3695,13 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		sc->dc_if_flags = ifp->if_flags;
 		DC_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		DC_LOCK(sc);
-		dc_setfilt(sc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			dc_setfilt(sc);
 		DC_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
