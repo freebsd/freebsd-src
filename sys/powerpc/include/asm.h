@@ -37,7 +37,7 @@
 
 #include <sys/cdefs.h>
 
-#ifdef PIC
+#if defined(PIC) && !defined(__powerpc64__)
 #define	PIC_PROLOGUE	XXX
 #define	PIC_EPILOGUE	XXX
 #define	PIC_PLT(x)	x@plt
@@ -51,11 +51,6 @@
 #define	PIC_EPILOGUE
 #define	PIC_PLT(x)	x
 #define PIC_GOT(x)	x
-#endif
-
-#ifdef __powerpc64__
-#undef	PIC_PLT
-#define	PIC_PLT(x)	__CONCAT(.,x)
 #endif
 
 #define	CNAME(csym)		csym
@@ -73,8 +68,8 @@
 #define _ENTRY(x) \
 	.text; .align 2; .globl x; .section ".opd","aw"; \
 	.align 3; x: \
-	    .quad .x,.TOC.@tocbase,0; .previous; \
-	.align 4; .globl .x; .type .x,@function; .x:
+	    .quad .L.x,.TOC.@tocbase,0; .size x,24; .previous; \
+	.align 4; .type x,@function; .L.x:
 #else
 #define	_ENTRY(x) \
 	.text; .align 4; .globl x; .type x,@function; x:

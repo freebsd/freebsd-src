@@ -65,7 +65,7 @@ _ENTRY(_rtld_start)
 	ld	%r4,-0x8000(%r2) /* First TOC entry is TOC base */
 	subf	%r4,%r4,%r2	/* Subtract from real TOC base to get base */
 
-	bl	.reloc_non_plt_self /* reloc_non_plt_self(&_DYNAMIC,base) */
+	bl	reloc_non_plt_self /* reloc_non_plt_self(&_DYNAMIC,base) */
 	nop
 
 	/*
@@ -80,7 +80,7 @@ _ENTRY(_rtld_start)
 	addi	%r4,%r1,128	/* &exit_proc on stack */
 	addi	%r5,%r1,120	/* &obj_main on stack */
 
-	bl      ._rtld		/* &_start = _rtld(sp, &exit_proc, &obj_main)*/
+	bl      _rtld		/* &_start = _rtld(sp, &exit_proc, &obj_main)*/
 	nop
 	ld	%r2,8(%r3)
 	ld	%r11,16(%r3)
@@ -133,7 +133,7 @@ _ENTRY(_rtld_bind_start)
 
 	ld	%r3,0(%r11)
 	ld	%r4,8(%r11)
-	bl      ._rtld_bind		# target addr = _rtld_bind(obj, reloff)
+	bl      _rtld_bind		# target addr = _rtld_bind(obj, reloff)
 	nop
 
 	ld	%r2,8(%r3)
