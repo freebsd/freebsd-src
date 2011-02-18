@@ -170,6 +170,7 @@ FILE	*opencal(void);
 /* ostern.c / paskha.c */
 int	paskha(int);
 int	easter(int);
+int	j2g(int);
 
 /* dates.c */
 extern int cumdaytab[][14];
