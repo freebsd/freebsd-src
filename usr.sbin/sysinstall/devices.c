@@ -109,6 +109,7 @@ static struct _devname {
     NETWORK("cas",	"Sun Cassini/Cassini+ or NS DP83065 Saturn Ethernet"),
     NETWORK("cue",	"CATC USB Ethernet adapter"),
     NETWORK("cxgb",	"Chelsio T3 10Gb Ethernet card"),
+    NETWORK("cxgbe",	"Chelsio T4 10Gb Ethernet card"),
     NETWORK("fpa",	"DEC DEFPA PCI FDDI card"),
     NETWORK("sr",	"SDL T1/E1 sync serial PCI card"),
     NETWORK("cc3i",	"SDL HSSI sync serial PCI card"),
