@@ -7,6 +7,7 @@ SUBDIR= adduser \
 	arp \
 	bootparamd \
 	burncd \
+	bsdinstall \
 	cdcontrol \
 	chkgrp \
 	chown \
