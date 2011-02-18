@@ -1303,6 +1303,11 @@ dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd
 dev/mn/if_mn.c			optional mn pci
+dev/mps/mps.c			optional mps
+dev/mps/mps_pci.c		optional mps pci
+dev/mps/mps_sas.c		optional mps
+dev/mps/mps_table.c		optional mps
+dev/mps/mps_user.c		optional mps
 dev/mpt/mpt.c			optional mpt
 dev/mpt/mpt_cam.c		optional mpt
 dev/mpt/mpt_debug.c		optional mpt

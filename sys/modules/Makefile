@@ -186,6 +186,7 @@ SUBDIR=	${_3dfx} \
 	mmc \
 	mmcsd \
 	${_mpt} \
+	mps \
 	mqueue \
 	msdosfs \
 	msdosfs_iconv \

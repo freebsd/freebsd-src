@@ -2882,7 +2882,7 @@ bwn_set_channel(struct ieee80211com *ic)
 
 	error = bwn_switch_band(sc, ic->ic_curchan);
 	if (error)
-		goto fail;;
+		goto fail;
 	bwn_mac_suspend(mac);
 	bwn_set_txretry(mac, BWN_RETRY_SHORT, BWN_RETRY_LONG);
 	chan = ieee80211_chan2ieee(ic, ic->ic_curchan);
@@ -8260,7 +8260,7 @@ bwn_switch_band(struct bwn_softc *sc, struct ieee80211_channel *chan)
 	device_printf(sc->sc_dev, "switching to %s-GHz band\n",
 	    IEEE80211_IS_CHAN_2GHZ(chan) ? "2" : "5");
 
-	down_dev = sc->sc_curmac;;
+	down_dev = sc->sc_curmac;
 	status = down_dev->mac_status;
 	if (status >= BWN_MAC_STATUS_STARTED)
 		bwn_core_stop(down_dev);

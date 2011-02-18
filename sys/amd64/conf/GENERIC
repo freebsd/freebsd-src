@@ -114,6 +114,7 @@ device		hptiop		# Highpoint RocketRaid 3xxx series
 device		isp		# Qlogic family
 #device		ispfw		# Firmware for QLogic HBAs- normally a module
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		trm		# Tekram DC395U/UW/F DC315U adapters
