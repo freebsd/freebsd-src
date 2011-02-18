@@ -37,6 +37,13 @@
 #undef	TARGET_AIX
 #define	TARGET_AIX TARGET_64BIT
 
+#ifdef HAVE_LD_NO_DOT_SYMS
+/* New ABI uses a local sym for the function entry point.  */
+extern int dot_symbols;
+#undef DOT_SYMBOLS
+#define DOT_SYMBOLS dot_symbols
+#endif
+
 #undef  FBSD_TARGET_CPU_CPP_BUILTINS
 #define FBSD_TARGET_CPU_CPP_BUILTINS()		\
   do						\
@@ -196,7 +203,7 @@
 #ifdef __powerpc64__
 #define CRT_CALL_STATIC_FUNCTION(SECTION_OP, FUNC)	\
   asm (SECTION_OP "\n"					\
-"	bl ." #FUNC "\n"				\
+"	bl " #FUNC "\n"					\
 "	nop\n"						\
 "	.previous");
 #endif

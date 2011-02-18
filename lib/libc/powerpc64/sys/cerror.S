@@ -45,7 +45,7 @@ ENTRY(HIDENAME(cerror))
 	std	%r31,48(%r1)
 
 	mr	%r31,%r3          /* stash errval in callee-saved register */
-	bl	PIC_PLT(CNAME(__error))
+	bl	CNAME(__error)
 	nop
 	stw	%r31,0(%r3)		/* store errval into &errno */
 
