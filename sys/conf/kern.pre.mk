@@ -82,8 +82,8 @@ INCLUDES+= -I$S/dev/twa
 # ...  and XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
-# ... and the same for cxgb
-INCLUDES+= -I$S/dev/cxgb
+# ... and the same for cxgb and cxgbe
+INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 .endif
 
