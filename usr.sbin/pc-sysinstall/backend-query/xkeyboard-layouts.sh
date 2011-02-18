@@ -59,8 +59,6 @@ do
 
 done < $XLST
 
-# Display the output, with us English as the first entry
-echo "us		U.S. English"
 sort -b -d +1 $TMPLIST
 
 # Delete the tmp file
