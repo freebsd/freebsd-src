@@ -11,6 +11,7 @@ check() {
 }
 
 unset LANG LC_ALL LC_COLLATE LC_CTYPE LC_MONETARY LC_NUMERIC LC_TIME LC_MESSAGES
+unset LANGUAGE
 
 msgeng="No such file or directory"
 msgdut="Bestand of map niet gevonden"
