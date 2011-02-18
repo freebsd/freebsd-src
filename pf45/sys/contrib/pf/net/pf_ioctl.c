@@ -890,7 +890,7 @@ pf_begin_altq(u_int32_t *ticket)
 		return (error);
 #ifdef __FreeBSD__
 	*ticket = ++V_ticket_altqs_inactive;
-	altqs_inactive_open = 1;
+	V_altqs_inactive_open = 1;
 #else
 	*ticket = ++ticket_altqs_inactive;
 	altqs_inactive_open = 1;
@@ -930,7 +930,11 @@ pf_rollback_altq(u_int32_t ticket)
 		pool_put(&pf_altq_pl, altq);
 #endif
 	}
+#ifdef __FreeBSD__
+	V_altqs_inactive_open = 0;
+#else
 	altqs_inactive_open = 0;
+#endif
 	return (error);
 }
 
@@ -1020,7 +1024,11 @@ pf_commit_altq(u_int32_t ticket)
 	}
 	splx(s);
 
+#ifdef __FreeBSD__
+	V_altqs_inactive_open = 0;
+#else
 	altqs_inactive_open = 0;
+#endif
 	return (error);
 }
 
