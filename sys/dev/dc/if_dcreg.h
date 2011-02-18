@@ -1064,6 +1064,8 @@ struct dc_softc {
  * SROM nonsense.
  */
 
+#define	DC_ROM_SIZE(bits)	(2 << (bits))
+
 #define DC_IB_CTLRCNT		0x13
 #define DC_IB_LEAF0_CNUM	0x1A
 #define DC_IB_LEAF0_OFFSET	0x1B
