@@ -1,2 +1,0 @@
-@findex 
-@subsubsection @code{}

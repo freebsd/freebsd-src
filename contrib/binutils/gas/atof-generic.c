@@ -1,6 +1,6 @@
 /* atof_generic.c - turn a string of digits into a Flonum
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000,
+   2001, 2003, 2005, 2006 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,10 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
-
-#include <string.h>
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "as.h"
 #include "safe-ctype.h"
@@ -324,19 +322,10 @@ atof_generic (/* return pointer to just AFTER number we read.  */
 		   + 1);	/* Number of destination littlenums.  */
 
       /* Includes guard bits (two littlenums worth) */
-#if 0 /* The integer version below is very close, and it doesn't
-	 require floating point support (which is currently buggy on
-	 the Alpha).  */
-      maximum_useful_digits = (((double) (precision - 2))
-			       * ((double) (LITTLENUM_NUMBER_OF_BITS))
-			       / (LOG_TO_BASE_2_OF_10))
-	+ 2;			/* 2 :: guard digits.  */
-#else
       maximum_useful_digits = (((precision - 2))
 			       * ( (LITTLENUM_NUMBER_OF_BITS))
 			       * 1000000 / 3321928)
 	+ 2;			/* 2 :: guard digits.  */
-#endif
 
       if (number_of_digits_available > maximum_useful_digits)
 	{
@@ -353,13 +342,8 @@ atof_generic (/* return pointer to just AFTER number we read.  */
       decimal_exponent += ((long) number_of_digits_before_decimal
 			   - (long) number_of_digits_to_use);
 
-#if 0
-      more_than_enough_bits_for_digits
-	= ((((double) number_of_digits_to_use) * LOG_TO_BASE_2_OF_10) + 1);
-#else
       more_than_enough_bits_for_digits
 	= (number_of_digits_to_use * 3321928 / 1000000 + 1);
-#endif
 
       more_than_enough_littlenums_for_digits
 	= (more_than_enough_bits_for_digits

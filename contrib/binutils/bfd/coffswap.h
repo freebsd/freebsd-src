@@ -1,6 +1,6 @@
 /* Generic COFF swapping routines, for BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2000,
-   2001, 2002
+   2001, 2002, 2005
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* This file contains routines used to swap COFF data.  It is a header
    file because the details of swapping depend on the details of the
@@ -210,41 +210,17 @@
 #define PUT_RELOC_VADDR H_PUT_32
 #endif
 
-static void coff_swap_aouthdr_in PARAMS ((bfd *, PTR, PTR));
-static unsigned int coff_swap_aouthdr_out PARAMS ((bfd *, PTR, PTR));
-static void coff_swap_scnhdr_in PARAMS ((bfd *, PTR, PTR));
-static unsigned int coff_swap_scnhdr_out PARAMS ((bfd *, PTR, PTR));
-static void coff_swap_filehdr_in PARAMS ((bfd *, PTR, PTR));
-static unsigned int coff_swap_filehdr_out PARAMS ((bfd *, PTR, PTR));
-#ifndef NO_COFF_RELOCS
-static void coff_swap_reloc_in PARAMS ((bfd *, PTR, PTR));
-static unsigned int coff_swap_reloc_out PARAMS ((bfd *, PTR, PTR));
-#endif /* NO_COFF_RELOCS */
-#ifndef NO_COFF_SYMBOLS
-static void coff_swap_sym_in PARAMS ((bfd *, PTR, PTR));
-static unsigned int coff_swap_sym_out PARAMS ((bfd *, PTR, PTR));
-static void coff_swap_aux_in PARAMS ((bfd *, PTR, int, int, int, int, PTR));
-static unsigned int coff_swap_aux_out PARAMS ((bfd *, PTR, int, int, int, int, PTR));
-#endif /* NO_COFF_SYMBOLS */
-#ifndef NO_COFF_LINENOS
-static void coff_swap_lineno_in PARAMS ((bfd *, PTR, PTR));
-static unsigned int coff_swap_lineno_out PARAMS ((bfd *, PTR, PTR));
-#endif /* NO_COFF_LINENOS */
-
 #ifndef NO_COFF_RELOCS
 
 static void
-coff_swap_reloc_in (abfd, src, dst)
-     bfd *abfd;
-     PTR src;
-     PTR dst;
+coff_swap_reloc_in (bfd * abfd, void * src, void * dst)
 {
   RELOC *reloc_src = (RELOC *) src;
   struct internal_reloc *reloc_dst = (struct internal_reloc *) dst;
 
-  reloc_dst->r_vaddr = GET_RELOC_VADDR (abfd, reloc_src->r_vaddr);
+  reloc_dst->r_vaddr  = GET_RELOC_VADDR (abfd, reloc_src->r_vaddr);
   reloc_dst->r_symndx = H_GET_S32 (abfd, reloc_src->r_symndx);
-  reloc_dst->r_type = H_GET_16 (abfd, reloc_src->r_type);
+  reloc_dst->r_type   = H_GET_16 (abfd, reloc_src->r_type);
 
 #ifdef SWAP_IN_RELOC_OFFSET
   reloc_dst->r_offset = SWAP_IN_RELOC_OFFSET (abfd, reloc_src->r_offset);
@@ -252,13 +228,11 @@ coff_swap_reloc_in (abfd, src, dst)
 }
 
 static unsigned int
-coff_swap_reloc_out (abfd, src, dst)
-     bfd *abfd;
-     PTR src;
-     PTR dst;
+coff_swap_reloc_out (bfd * abfd, void * src, void * dst)
 {
   struct internal_reloc *reloc_src = (struct internal_reloc *) src;
   struct external_reloc *reloc_dst = (struct external_reloc *) dst;
+
   PUT_RELOC_VADDR (abfd, reloc_src->r_vaddr, reloc_dst->r_vaddr);
   H_PUT_32 (abfd, reloc_src->r_symndx, reloc_dst->r_symndx);
   H_PUT_16 (abfd, reloc_src->r_type, reloc_dst->r_type);
@@ -276,10 +250,7 @@ coff_swap_reloc_out (abfd, src, dst)
 #endif /* NO_COFF_RELOCS */
 
 static void
-coff_swap_filehdr_in (abfd, src, dst)
-     bfd *abfd;
-     PTR src;
-     PTR dst;
+coff_swap_filehdr_in (bfd * abfd, void * src, void * dst)
 {
   FILHDR *filehdr_src = (FILHDR *) src;
   struct internal_filehdr *filehdr_dst = (struct internal_filehdr *) dst;
@@ -287,13 +258,13 @@ coff_swap_filehdr_in (abfd, src, dst)
 #ifdef COFF_ADJUST_FILEHDR_IN_PRE
   COFF_ADJUST_FILEHDR_IN_PRE (abfd, src, dst);
 #endif
-  filehdr_dst->f_magic = H_GET_16 (abfd, filehdr_src->f_magic);
-  filehdr_dst->f_nscns = H_GET_16 (abfd, filehdr_src->f_nscns);
+  filehdr_dst->f_magic  = H_GET_16 (abfd, filehdr_src->f_magic);
+  filehdr_dst->f_nscns  = H_GET_16 (abfd, filehdr_src->f_nscns);
   filehdr_dst->f_timdat = H_GET_32 (abfd, filehdr_src->f_timdat);
   filehdr_dst->f_symptr = GET_FILEHDR_SYMPTR (abfd, filehdr_src->f_symptr);
-  filehdr_dst->f_nsyms = H_GET_32 (abfd, filehdr_src->f_nsyms);
+  filehdr_dst->f_nsyms  = H_GET_32 (abfd, filehdr_src->f_nsyms);
   filehdr_dst->f_opthdr = H_GET_16 (abfd, filehdr_src->f_opthdr);
-  filehdr_dst->f_flags = H_GET_16 (abfd, filehdr_src->f_flags);
+  filehdr_dst->f_flags  = H_GET_16 (abfd, filehdr_src->f_flags);
 #ifdef TIC80_TARGET_ID
   filehdr_dst->f_target_id = H_GET_16 (abfd, filehdr_src->f_target_id);
 #endif
@@ -304,10 +275,7 @@ coff_swap_filehdr_in (abfd, src, dst)
 }
 
 static  unsigned int
-coff_swap_filehdr_out (abfd, in, out)
-     bfd *abfd;
-     PTR in;
-     PTR out;
+coff_swap_filehdr_out (bfd *abfd, void * in, void * out)
 {
   struct internal_filehdr *filehdr_in = (struct internal_filehdr *) in;
   FILHDR *filehdr_out = (FILHDR *) out;
@@ -335,10 +303,7 @@ coff_swap_filehdr_out (abfd, in, out)
 #ifndef NO_COFF_SYMBOLS
 
 static void
-coff_swap_sym_in (abfd, ext1, in1)
-     bfd *abfd;
-     PTR ext1;
-     PTR in1;
+coff_swap_sym_in (bfd * abfd, void * ext1, void * in1)
 {
   SYMENT *ext = (SYMENT *) ext1;
   struct internal_syment *in = (struct internal_syment *) in1;
@@ -351,21 +316,18 @@ coff_swap_sym_in (abfd, ext1, in1)
   else
     {
 #if SYMNMLEN != E_SYMNMLEN
-      -> Error, we need to cope with truncating or extending SYMNMLEN!;
+#error we need to cope with truncating or extending SYMNMLEN
 #else
       memcpy (in->_n._n_name, ext->e.e_name, SYMNMLEN);
 #endif
     }
+
   in->n_value = H_GET_32 (abfd, ext->e_value);
   in->n_scnum = H_GET_16 (abfd, ext->e_scnum);
   if (sizeof (ext->e_type) == 2)
-    {
-      in->n_type = H_GET_16 (abfd, ext->e_type);
-    }
+    in->n_type = H_GET_16 (abfd, ext->e_type);
   else
-    {
-      in->n_type = H_GET_32 (abfd, ext->e_type);
-    }
+    in->n_type = H_GET_32 (abfd, ext->e_type);
   in->n_sclass = H_GET_8 (abfd, ext->e_sclass);
   in->n_numaux = H_GET_8 (abfd, ext->e_numaux);
 #ifdef COFF_ADJUST_SYM_IN_POST
@@ -374,10 +336,7 @@ coff_swap_sym_in (abfd, ext1, in1)
 }
 
 static unsigned int
-coff_swap_sym_out (abfd, inp, extp)
-     bfd *abfd;
-     PTR inp;
-     PTR extp;
+coff_swap_sym_out (bfd * abfd, void * inp, void * extp)
 {
   struct internal_syment *in = (struct internal_syment *) inp;
   SYMENT *ext =(SYMENT *) extp;
@@ -394,7 +353,7 @@ coff_swap_sym_out (abfd, inp, extp)
   else
     {
 #if SYMNMLEN != E_SYMNMLEN
-      -> Error, we need to cope with truncating or extending SYMNMLEN!;
+#error we need to cope with truncating or extending SYMNMLEN
 #else
       memcpy (ext->e.e_name, in->_n._n_name, SYMNMLEN);
 #endif
@@ -404,13 +363,9 @@ coff_swap_sym_out (abfd, inp, extp)
   H_PUT_16 (abfd, in->n_scnum, ext->e_scnum);
 
   if (sizeof (ext->e_type) == 2)
-    {
-      H_PUT_16 (abfd, in->n_type, ext->e_type);
-    }
+    H_PUT_16 (abfd, in->n_type, ext->e_type);
   else
-    {
-      H_PUT_32 (abfd, in->n_type, ext->e_type);
-    }
+    H_PUT_32 (abfd, in->n_type, ext->e_type);
 
   H_PUT_8 (abfd, in->n_sclass, ext->e_sclass);
   H_PUT_8 (abfd, in->n_numaux, ext->e_numaux);
@@ -423,14 +378,13 @@ coff_swap_sym_out (abfd, inp, extp)
 }
 
 static void
-coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
-     bfd *abfd;
-     PTR ext1;
-     int type;
-     int class;
-     int indx;
-     int numaux;
-     PTR in1;
+coff_swap_aux_in (bfd *abfd,
+		  void * ext1,
+		  int type,
+		  int class,
+		  int indx,
+		  int numaux,
+		  void * in1)
 {
   AUXENT *ext = (AUXENT *) ext1;
   union internal_auxent *in = (union internal_auxent *) in1;
@@ -450,7 +404,7 @@ coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
       else
 	{
 #if FILNMLEN != E_FILNMLEN
-	  -> Error, we need to cope with truncating or extending FILNMLEN!;
+#error we need to cope with truncating or extending FILNMLEN
 #else
 	  if (numaux > 1)
 	    {
@@ -512,9 +466,7 @@ coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
     }
 
   if (ISFCN (type))
-    {
-      in->x_sym.x_misc.x_fsize = H_GET_32 (abfd, ext->x_sym.x_misc.x_fsize);
-    }
+    in->x_sym.x_misc.x_fsize = H_GET_32 (abfd, ext->x_sym.x_misc.x_fsize);
   else
     {
       in->x_sym.x_misc.x_lnsz.x_lnno = GET_LNSZ_LNNO (abfd, ext);
@@ -529,23 +481,22 @@ coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
 }
 
 static unsigned int
-coff_swap_aux_out (abfd, inp, type, class, indx, numaux, extp)
-     bfd *abfd;
-     PTR inp;
-     int type;
-     int class;
-     int indx ATTRIBUTE_UNUSED;
-     int numaux ATTRIBUTE_UNUSED;
-     PTR extp;
+coff_swap_aux_out (bfd * abfd,
+		   void * inp,
+		   int type,
+		   int class,
+		   int indx ATTRIBUTE_UNUSED,
+		   int numaux ATTRIBUTE_UNUSED,
+		   void * extp)
 {
-  union internal_auxent *in = (union internal_auxent *) inp;
+  union internal_auxent * in = (union internal_auxent *) inp;
   AUXENT *ext = (AUXENT *) extp;
 
 #ifdef COFF_ADJUST_AUX_OUT_PRE
   COFF_ADJUST_AUX_OUT_PRE (abfd, inp, type, class, indx, numaux, extp);
 #endif
 
-  memset ((PTR)ext, 0, AUXESZ);
+  memset (ext, 0, AUXESZ);
 
   switch (class)
     {
@@ -558,7 +509,7 @@ coff_swap_aux_out (abfd, inp, type, class, indx, numaux, extp)
       else
 	{
 #if FILNMLEN != E_FILNMLEN
-	  -> Error, we need to cope with truncating or extending FILNMLEN!;
+#error we need to cope with truncating or extending FILNMLEN
 #else
 	  memcpy (ext->x_file.x_fname, in->x_file.x_fname, FILNMLEN);
 #endif
@@ -625,10 +576,7 @@ coff_swap_aux_out (abfd, inp, type, class, indx, numaux, extp)
 #ifndef NO_COFF_LINENOS
 
 static void
-coff_swap_lineno_in (abfd, ext1, in1)
-     bfd *abfd;
-     PTR ext1;
-     PTR in1;
+coff_swap_lineno_in (bfd * abfd, void * ext1, void * in1)
 {
   LINENO *ext = (LINENO *) ext1;
   struct internal_lineno *in = (struct internal_lineno *) in1;
@@ -638,10 +586,7 @@ coff_swap_lineno_in (abfd, ext1, in1)
 }
 
 static unsigned int
-coff_swap_lineno_out (abfd, inp, outp)
-     bfd *abfd;
-     PTR inp;
-     PTR outp;
+coff_swap_lineno_out (bfd * abfd, void * inp, void * outp)
 {
   struct internal_lineno *in = (struct internal_lineno *) inp;
   struct external_lineno *ext = (struct external_lineno *) outp;
@@ -654,10 +599,7 @@ coff_swap_lineno_out (abfd, inp, outp)
 #endif /* NO_COFF_LINENOS */
 
 static void
-coff_swap_aouthdr_in (abfd, aouthdr_ext1, aouthdr_int1)
-     bfd *abfd;
-     PTR aouthdr_ext1;
-     PTR aouthdr_int1;
+coff_swap_aouthdr_in (bfd * abfd, void * aouthdr_ext1, void * aouthdr_int1)
 {
   AOUTHDR *aouthdr_ext;
   struct internal_aouthdr *aouthdr_int;
@@ -730,10 +672,7 @@ coff_swap_aouthdr_in (abfd, aouthdr_ext1, aouthdr_int1)
 }
 
 static unsigned int
-coff_swap_aouthdr_out (abfd, in, out)
-     bfd *abfd;
-     PTR in;
-     PTR out;
+coff_swap_aouthdr_out (bfd * abfd, void * in, void * out)
 {
   struct internal_aouthdr *aouthdr_in = (struct internal_aouthdr *) in;
   AOUTHDR *aouthdr_out = (AOUTHDR *) out;
@@ -807,10 +746,7 @@ coff_swap_aouthdr_out (abfd, in, out)
 }
 
 static void
-coff_swap_scnhdr_in (abfd, ext, in)
-     bfd *abfd;
-     PTR ext;
-     PTR in;
+coff_swap_scnhdr_in (bfd * abfd, void * ext, void * in)
 {
   SCNHDR *scnhdr_ext = (SCNHDR *) ext;
   struct internal_scnhdr *scnhdr_int = (struct internal_scnhdr *) in;
@@ -839,10 +775,7 @@ coff_swap_scnhdr_in (abfd, ext, in)
 }
 
 static unsigned int
-coff_swap_scnhdr_out (abfd, in, out)
-     bfd *abfd;
-     PTR in;
-     PTR out;
+coff_swap_scnhdr_out (bfd * abfd, void * in, void * out)
 {
   struct internal_scnhdr *scnhdr_int = (struct internal_scnhdr *) in;
   SCNHDR *scnhdr_ext = (SCNHDR *) out;

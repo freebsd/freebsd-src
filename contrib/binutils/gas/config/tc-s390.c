@@ -1,5 +1,6 @@
 /* tc-s390.c -- Assemble for the S390
-   Copyright 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -16,10 +17,9 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
@@ -312,8 +312,8 @@ static flagword s390_flags = 0;
 symbolS *GOT_symbol;		/* Pre-defined "_GLOBAL_OFFSET_TABLE_" */
 
 #ifndef WORKING_DOT_WORD
-const int md_short_jump_size = 4;
-const int md_long_jump_size = 4;
+int md_short_jump_size = 4;
+int md_long_jump_size = 4;
 #endif
 
 const char *md_shortopts = "A:m:kVQ:";
@@ -409,6 +409,10 @@ md_parse_option (c, arg)
 	    current_cpu = S390_OPCODE_Z900;
 	  else if (strcmp (arg + 5, "z990") == 0)
 	    current_cpu = S390_OPCODE_Z990;
+	  else if (strcmp (arg + 5, "z9-109") == 0)
+	    current_cpu = S390_OPCODE_Z9_109;
+	  else if (strcmp (arg + 5, "z9-ec") == 0)
+	    current_cpu = S390_OPCODE_Z9_EC;
 	  else
 	    {
 	      as_bad (_("invalid switch -m%s"), arg);
@@ -601,21 +605,15 @@ s390_insert_operand (insn, operand, val, file, line)
       /* Check for underflow / overflow.  */
       if (uval < min || uval > max)
 	{
-	  const char *err =
-	    "operand out of range (%s not between %ld and %ld)";
-	  char buf[100];
-
 	  if (operand->flags & S390_OPERAND_LENGTH)
 	    {
 	      uval++;
 	      min++;
 	      max++;
 	    }
-	  sprint_value (buf, uval);
-	  if (file == (char *) NULL)
-	    as_bad (err, buf, (int) min, (int) max);
-	  else
-	    as_bad_where (file, line, err, buf, (int) min, (int) max);
+
+	  as_bad_value_out_of_range (_("operand"), uval, (offsetT) min, (offsetT) max, file, line);
+
 	  return;
 	}
     }
@@ -1358,8 +1356,19 @@ md_gather_operands (str, insn, opcode)
 	      /* If there is a next operand it must be separated by a comma.  */
 	      if (opindex_ptr[1] != '\0')
 		{
-		  if (*str++ != ',')
-		    as_bad (_("syntax error; expected ,"));
+		  if (*str != ',')
+		    {
+		      while (opindex_ptr[1] != '\0')
+			{
+			  operand = s390_operands + *(++opindex_ptr);
+			  if (operand->flags & S390_OPERAND_OPTIONAL)
+			    continue;
+			  as_bad (_("syntax error; expected ,"));
+			  break;
+			}
+		    }
+		  else
+		    str++;
 		}
 	    }
 	  else
@@ -1391,8 +1400,19 @@ md_gather_operands (str, insn, opcode)
 	  /* If there is a next operand it must be separated by a comma.  */
 	  if (opindex_ptr[1] != '\0')
 	    {
-	      if (*str++ != ',')
-		as_bad (_("syntax error; expected ,"));
+	      if (*str != ',')
+		{
+		  while (opindex_ptr[1] != '\0')
+		    {
+		      operand = s390_operands + *(++opindex_ptr);
+		      if (operand->flags & S390_OPERAND_OPTIONAL)
+			continue;
+		      as_bad (_("syntax error; expected ,"));
+		      break;
+		    }
+		}
+	      else
+		str++;
 	    }
 	}
       else
@@ -1410,8 +1430,19 @@ md_gather_operands (str, insn, opcode)
 	  /* If there is a next operand it must be separated by a comma.  */
 	  if (opindex_ptr[1] != '\0')
 	    {
-	      if (*str++ != ',')
-		as_bad (_("syntax error; expected ,"));
+	      if (*str != ',')
+		{
+		  while (opindex_ptr[1] != '\0')
+		    {
+		      operand = s390_operands + *(++opindex_ptr);
+		      if (operand->flags & S390_OPERAND_OPTIONAL)
+			continue;
+		      as_bad (_("syntax error; expected ,"));
+		      break;
+		    }
+		}
+	      else
+		str++;
 	    }
 	}
     }
@@ -1454,7 +1485,7 @@ md_gather_operands (str, insn, opcode)
      BFD_RELOC_UNUSED plus the operand index.  This lets us easily
      handle fixups for any operand type, although that is admittedly
      not a very exciting feature.  We pick a BFD reloc type in
-     md_apply_fix3.  */
+     md_apply_fix.  */
   for (i = 0; i < fc; i++)
     {
 
@@ -1602,15 +1633,12 @@ s390_insn (ignore)
   if (exp.X_op == O_constant)
     {
       if (   (   opformat->oplen == 6
-	      && exp.X_add_number >= 0
 	      && (addressT) exp.X_add_number < (1ULL << 48))
 	  || (   opformat->oplen == 4
-	      && exp.X_add_number >= 0
 	      && (addressT) exp.X_add_number < (1ULL << 32))
 	  || (   opformat->oplen == 2
-	      && exp.X_add_number >= 0
 	      && (addressT) exp.X_add_number < (1ULL << 16)))
-	md_number_to_chars (insn, exp.X_add_number, opformat->oplen);
+	md_number_to_chars ((char *) insn, exp.X_add_number, opformat->oplen);
       else
 	as_bad (_("Invalid .insn format\n"));
     }
@@ -1620,9 +1648,9 @@ s390_insn (ignore)
 	  && opformat->oplen == 6
 	  && generic_bignum[3] == 0)
 	{
-	  md_number_to_chars (insn, generic_bignum[2], 2);
-	  md_number_to_chars (&insn[2], generic_bignum[1], 2);
-	  md_number_to_chars (&insn[4], generic_bignum[0], 2);
+	  md_number_to_chars ((char *) insn, generic_bignum[2], 2);
+	  md_number_to_chars ((char *) &insn[2], generic_bignum[1], 2);
+	  md_number_to_chars ((char *) &insn[4], generic_bignum[0], 2);
 	}
       else
 	as_bad (_("Invalid .insn format\n"));
@@ -1965,7 +1993,7 @@ tc_s390_force_relocation (fixp)
    fixup.  */
 
 void
-md_apply_fix3 (fixP, valP, seg)
+md_apply_fix (fixP, valP, seg)
      fixS *fixP;
      valueT *valP;
      segT seg ATTRIBUTE_UNUSED;
@@ -2000,8 +2028,8 @@ md_apply_fix3 (fixP, valP, seg)
       if (fixP->fx_done)
 	{
 	  /* Insert the fully resolved operand value.  */
-	  s390_insert_operand (where, operand, (offsetT) value,
-			       fixP->fx_file, fixP->fx_line);
+	  s390_insert_operand ((unsigned char *) where, operand,
+			       (offsetT) value, fixP->fx_file, fixP->fx_line);
 	  return;
 	}
 
@@ -2223,10 +2251,12 @@ md_apply_fix3 (fixP, valP, seg)
 	case BFD_RELOC_390_TLS_DTPMOD:
 	case BFD_RELOC_390_TLS_DTPOFF:
 	case BFD_RELOC_390_TLS_TPOFF:
+	  S_SET_THREAD_LOCAL (fixP->fx_addsy);
 	  /* Fully resolved at link time.  */
 	  break;
 	case BFD_RELOC_390_TLS_IEENT:
 	  /* Fully resolved at link time.  */
+	  S_SET_THREAD_LOCAL (fixP->fx_addsy);
 	  value += 2;
 	  break;
 
@@ -2293,7 +2323,7 @@ s390_cfi_frame_initial_instructions ()
 }
 
 int
-tc_s390_regname_to_dw2regnum (const char *regname)
+tc_s390_regname_to_dw2regnum (char *regname)
 {
   int regnum = -1;
 

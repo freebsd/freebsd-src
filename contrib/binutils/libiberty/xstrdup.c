@@ -19,16 +19,18 @@ obtain memory.
 #endif
 #ifdef HAVE_STRING_H
 #include <string.h>
+#else
+# ifdef HAVE_STRINGS_H
+#  include <strings.h>
+# endif
 #endif
 #include "ansidecl.h"
 #include "libiberty.h"
 
 char *
-xstrdup (s)
-  const char *s;
+xstrdup (const char *s)
 {
   register size_t len = strlen (s) + 1;
-  register char *ret = xmalloc (len);
-  memcpy (ret, s, len);
-  return ret;
+  register char *ret = XNEWVEC (char, len);
+  return (char *) memcpy (ret, s, len);
 }

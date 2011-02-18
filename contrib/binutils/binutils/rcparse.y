@@ -1,6 +1,8 @@
 %{ /* rcparse.y -- parser for Windows rc files
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
+   Extended by Kai Tietz, Onevision.
 
    This file is part of GNU Binutils.
 
@@ -16,12 +18,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This is a parser for Windows rc files.  It is based on the parser
    by Gunther Ebert <gunther.ebert@ixos-leipzig.de>.  */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "bucomm.h"
 #include "libiberty.h"
@@ -34,12 +37,12 @@ static unsigned short language;
 
 /* The resource information during a sub statement.  */
 
-static struct res_res_info sub_res_info;
+static rc_res_res_info sub_res_info;
 
 /* Dialog information.  This is built by the nonterminals styles and
    controls.  */
 
-static struct dialog dialog;
+static rc_dialog dialog;
 
 /* This is used when building a style.  It is modified by the
    nonterminal styleexpr.  */
@@ -49,50 +52,62 @@ static unsigned long style;
 /* These are used when building a control.  They are set before using
    control_params.  */
 
-static unsigned long base_style;
-static unsigned long default_style;
-static unsigned long class;
+static rc_uint_type base_style;
+static rc_uint_type default_style;
+static rc_res_id class;
+static rc_res_id res_text_field;
+static unichar null_unichar;
+
+/* This is used for COMBOBOX, LISTBOX and EDITTEXT which
+   do not allow resource 'text' field in control definition. */
+static const rc_res_id res_null_text = { 1, {{0, &null_unichar}}};
 
 %}
 
 %union
 {
-  struct accelerator acc;
-  struct accelerator *pacc;
-  struct dialog_control *dialog_control;
-  struct menuitem *menuitem;
+  rc_accelerator acc;
+  rc_accelerator *pacc;
+  rc_dialog_control *dialog_control;
+  rc_menuitem *menuitem;
   struct
   {
-    struct rcdata_item *first;
-    struct rcdata_item *last;
+    rc_rcdata_item *first;
+    rc_rcdata_item *last;
   } rcdata;
-  struct rcdata_item *rcdata_item;
-  struct stringtable_data *stringtable;
-  struct fixed_versioninfo *fixver;
-  struct ver_info *verinfo;
-  struct ver_stringinfo *verstring;
-  struct ver_varinfo *vervar;
-  struct res_id id;
-  struct res_res_info res_info;
+  rc_rcdata_item *rcdata_item;
+  rc_fixed_versioninfo *fixver;
+  rc_ver_info *verinfo;
+  rc_ver_stringinfo *verstring;
+  rc_ver_varinfo *vervar;
+  rc_toolbar_item *toobar_item;
+  rc_res_id id;
+  rc_res_res_info res_info;
   struct
   {
-    unsigned short on;
-    unsigned short off;
+    rc_uint_type on;
+    rc_uint_type off;
   } memflags;
   struct
   {
-    unsigned long val;
+    rc_uint_type val;
     /* Nonzero if this number was explicitly specified as long.  */
     int dword;
   } i;
-  unsigned long il;
-  unsigned short is;
+  rc_uint_type il;
+  rc_uint_type is;
   const char *s;
   struct
   {
-    unsigned long length;
+    rc_uint_type length;
     const char *s;
   } ss;
+  unichar *uni;
+  struct
+  {
+    rc_uint_type length;
+    const unichar *s;
+  } suni;
 };
 
 %token BEG END
@@ -106,6 +121,7 @@ static unsigned long class;
 %token BEDIT HEDIT IEDIT
 %token FONT
 %token ICON
+%token ANICURSOR ANIICON DLGINCLUDE DLGINIT FONTDIR HTML MANIFEST PLUGPLAY VXD TOOLBAR BUTTON
 %token LANGUAGE CHARACTERISTICS VERSIONK
 %token MENU MENUEX MENUITEM SEPARATOR POPUP CHECKED GRAYED HELP INACTIVE
 %token MENUBARBREAK MENUBREAK
@@ -118,8 +134,10 @@ static unsigned long class;
 %token <s> BLOCK
 %token MOVEABLE FIXED PURE IMPURE PRELOAD LOADONCALL DISCARDABLE
 %token NOT
+%token <uni> QUOTEDUNISTRING
 %token <s> QUOTEDSTRING STRING
 %token <i> NUMBER
+%token <suni> SIZEDUNISTRING
 %token <ss> SIZEDSTRING
 %token IGNORED_TOKEN
 
@@ -133,13 +151,17 @@ static unsigned long class;
 %type <verinfo> verblocks
 %type <verstring> vervals
 %type <vervar> vertrans
+%type <toobar_item> toolbar_data
 %type <res_info> suboptions memflags_move_discard memflags_move
 %type <memflags> memflag
-%type <id> id resref
+%type <id> id rcdata_id optresidc resref resid cresid
 %type <il> exstyle parennumber
 %type <il> numexpr posnumexpr cnumexpr optcnumexpr cposnumexpr
 %type <is> acc_options acc_option menuitem_flags menuitem_flag
-%type <s> optstringc file_name resname
+%type <s> file_name
+%type <uni> res_unicode_string resname res_unicode_string_concat
+%type <ss> sizedstring
+%type <suni> sizedunistring
 %type <i> sizednumexpr sizedposnumexpr
 
 %left '|'
@@ -163,8 +185,8 @@ input:
 	| input menu
 	| input menuex
 	| input messagetable
-	| input rcdata
 	| input stringtable
+	| input toolbar
 	| input user
 	| input versioninfo
 	| input IGNORED_TOKEN
@@ -189,15 +211,15 @@ acc_entries:
 	  }
 	| acc_entries acc_entry
 	  {
-	    struct accelerator *a;
+	    rc_accelerator *a;
 
-	    a = (struct accelerator *) res_alloc (sizeof *a);
+	    a = (rc_accelerator *) res_alloc (sizeof *a);
 	    *a = $2;
 	    if ($1 == NULL)
 	      $$ = a;
 	    else
 	      {
-		struct accelerator **pp;
+		rc_accelerator **pp;
 
 		for (pp = &$1->next; *pp != NULL; pp = &(*pp)->next)
 		  ;
@@ -239,8 +261,7 @@ acc_event:
 	      {
 		$$.flags = ACC_CONTROL | ACC_VIRTKEY;
 		++s;
-		ch = *s;
-		ch = TOUPPER (ch);
+		ch = TOUPPER (s[0]);
 	      }
 	    $$.key = ch;
 	    if (s[1] != '\0')
@@ -364,9 +385,9 @@ dialog:
 	      dialog.menu.named = 1;
 	      dialog.class.named = 1;
 	      dialog.font = NULL;
-	      dialog.ex = ((struct dialog_ex *)
-			   res_alloc (sizeof (struct dialog_ex)));
-	      memset (dialog.ex, 0, sizeof (struct dialog_ex));
+	      dialog.ex = ((rc_dialog_ex *)
+			   res_alloc (sizeof (rc_dialog_ex)));
+	      memset (dialog.ex, 0, sizeof (rc_dialog_ex));
 	      dialog.controls = NULL;
 	      sub_res_info = $3;
 	      style = 0;
@@ -391,9 +412,9 @@ dialog:
 	      dialog.menu.named = 1;
 	      dialog.class.named = 1;
 	      dialog.font = NULL;
-	      dialog.ex = ((struct dialog_ex *)
-			   res_alloc (sizeof (struct dialog_ex)));
-	      memset (dialog.ex, 0, sizeof (struct dialog_ex));
+	      dialog.ex = ((rc_dialog_ex *)
+			   res_alloc (sizeof (rc_dialog_ex)));
+	      memset (dialog.ex, 0, sizeof (rc_dialog_ex));
 	      dialog.ex->help = $9;
 	      dialog.controls = NULL;
 	      sub_res_info = $3;
@@ -421,11 +442,11 @@ exstyle:
 
 styles:
 	  /* empty */
-	| styles CAPTION QUOTEDSTRING
+	| styles CAPTION res_unicode_string_concat
 	  {
 	    dialog.style |= WS_CAPTION;
 	    style |= WS_CAPTION;
-	    unicode_from_ascii ((int *) NULL, &dialog.caption, $3);
+	    dialog.caption = $3;
 	  }
 	| styles CLASS id
 	  {
@@ -440,16 +461,16 @@ styles:
 	  {
 	    dialog.exstyle = $3;
 	  }
-	| styles CLASS QUOTEDSTRING
+	| styles CLASS res_unicode_string_concat
 	  {
-	    res_string_to_id (& dialog.class, $3);
+	    res_unistring_to_id (& dialog.class, $3);
 	  }
-	| styles FONT numexpr ',' QUOTEDSTRING
+	| styles FONT numexpr ',' res_unicode_string_concat
 	  {
 	    dialog.style |= DS_SETFONT;
 	    style |= DS_SETFONT;
 	    dialog.pointsize = $3;
-	    unicode_from_ascii ((int *) NULL, &dialog.font, $5);
+	    dialog.font = $5;
 	    if (dialog.ex != NULL)
 	      {
 		dialog.ex->weight = 0;
@@ -457,12 +478,12 @@ styles:
 		dialog.ex->charset = 1;
 	      }
 	  }
-	| styles FONT numexpr ',' QUOTEDSTRING cnumexpr
+	| styles FONT numexpr ',' res_unicode_string_concat cnumexpr
 	  {
 	    dialog.style |= DS_SETFONT;
 	    style |= DS_SETFONT;
 	    dialog.pointsize = $3;
-	    unicode_from_ascii ((int *) NULL, &dialog.font, $5);
+	    dialog.font = $5;
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("extended FONT requires DIALOGEX"));
 	    else
@@ -472,12 +493,12 @@ styles:
 		dialog.ex->charset = 1;
 	      }
 	  }
-	| styles FONT numexpr ',' QUOTEDSTRING cnumexpr cnumexpr
+	| styles FONT numexpr ',' res_unicode_string_concat cnumexpr cnumexpr
 	  {
 	    dialog.style |= DS_SETFONT;
 	    style |= DS_SETFONT;
 	    dialog.pointsize = $3;
-	    unicode_from_ascii ((int *) NULL, &dialog.font, $5);
+	    dialog.font = $5;
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("extended FONT requires DIALOGEX"));
 	    else
@@ -487,12 +508,12 @@ styles:
 		dialog.ex->charset = 1;
 	      }
 	  }
-	| styles FONT numexpr ',' QUOTEDSTRING cnumexpr cnumexpr cnumexpr
+	| styles FONT numexpr ',' res_unicode_string_concat cnumexpr cnumexpr cnumexpr
 	  {
 	    dialog.style |= DS_SETFONT;
 	    style |= DS_SETFONT;
 	    dialog.pointsize = $3;
-	    unicode_from_ascii ((int *) NULL, &dialog.font, $5);
+	    dialog.font = $5;
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("extended FONT requires DIALOGEX"));
 	    else
@@ -524,7 +545,7 @@ controls:
 	  /* empty */
 	| controls control
 	  {
-	    struct dialog_control **pp;
+	    rc_dialog_control **pp;
 
 	    for (pp = &dialog.controls; *pp != NULL; pp = &(*pp)->next)
 	      ;
@@ -533,70 +554,84 @@ controls:
 	;
 
 control:
-	  AUTO3STATE
+	  AUTO3STATE optresidc
 	    {
 	      default_style = BS_AUTO3STATE | WS_TABSTOP;
 	      base_style = BS_AUTO3STATE;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| AUTOCHECKBOX
+	| AUTOCHECKBOX optresidc
 	    {
 	      default_style = BS_AUTOCHECKBOX | WS_TABSTOP;
 	      base_style = BS_AUTOCHECKBOX;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| AUTORADIOBUTTON
+	| AUTORADIOBUTTON optresidc
 	    {
 	      default_style = BS_AUTORADIOBUTTON | WS_TABSTOP;
 	      base_style = BS_AUTORADIOBUTTON;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| BEDIT
+	| BEDIT optresidc
 	    {
 	      default_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
-	      class = CTL_EDIT;
+	      class.named = 0;
+	      class.u.id = CTL_EDIT;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("BEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "BEDIT");
 	  }
-	| CHECKBOX
+	| CHECKBOX optresidc
 	    {
 	      default_style = BS_CHECKBOX | WS_TABSTOP;
 	      base_style = BS_CHECKBOX | WS_TABSTOP;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
 	| COMBOBOX
 	    {
+	      /* This is as per MSDN documentation.  With some (???)
+		 versions of MS rc.exe their is no default style.  */
 	      default_style = CBS_SIMPLE | WS_TABSTOP;
 	      base_style = 0;
-	      class = CTL_COMBOBOX;
+	      class.named = 0;
+	      class.u.id = CTL_COMBOBOX;
+	      res_text_field = res_null_text;	
 	    }
 	    control_params
 	  {
 	    $$ = $3;
 	  }
-	| CONTROL optstringc numexpr cnumexpr control_styleexpr cnumexpr
+	| CONTROL optresidc numexpr cresid control_styleexpr cnumexpr
 	    cnumexpr cnumexpr cnumexpr optcnumexpr opt_control_data
 	  {
 	    $$ = define_control ($2, $3, $6, $7, $8, $9, $4, style, $10);
@@ -607,7 +642,7 @@ control:
 		$$->data = $11;
 	      }
 	  }
-	| CONTROL optstringc numexpr cnumexpr control_styleexpr cnumexpr
+	| CONTROL optresidc numexpr cresid control_styleexpr cnumexpr
 	    cnumexpr cnumexpr cnumexpr cnumexpr cnumexpr opt_control_data
 	  {
 	    $$ = define_control ($2, $3, $6, $7, $8, $9, $4, style, $10);
@@ -616,79 +651,65 @@ control:
 	    $$->help = $11;
 	    $$->data = $12;
 	  }
-	| CONTROL optstringc numexpr ',' QUOTEDSTRING control_styleexpr
-	    cnumexpr cnumexpr cnumexpr cnumexpr optcnumexpr opt_control_data
-	  {
-	    $$ = define_control ($2, $3, $7, $8, $9, $10, 0, style, $11);
-	    if ($12 != NULL)
-	      {
-		if (dialog.ex == NULL)
-		  rcparse_warning ("control data requires DIALOGEX");
-		$$->data = $12;
-	      }
-	    $$->class.named = 1;
-  	    unicode_from_ascii (&$$->class.u.n.length, &$$->class.u.n.name, $5);
-	  }
-	| CONTROL optstringc numexpr ',' QUOTEDSTRING control_styleexpr
-	    cnumexpr cnumexpr cnumexpr cnumexpr cnumexpr cnumexpr opt_control_data
-	  {
-	    $$ = define_control ($2, $3, $7, $8, $9, $10, 0, style, $11);
-	    if (dialog.ex == NULL)
-	      rcparse_warning ("help ID requires DIALOGEX");
-	    $$->help = $12;
-	    $$->data = $13;
-	    $$->class.named = 1;
-  	    unicode_from_ascii (&$$->class.u.n.length, &$$->class.u.n.name, $5);
-	  }
-	| CTEXT
+	| CTEXT optresidc
 	    {
 	      default_style = SS_CENTER | WS_GROUP;
 	      base_style = SS_CENTER;
-	      class = CTL_STATIC;
+	      class.named = 0;
+	      class.u.id = CTL_STATIC;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| DEFPUSHBUTTON
+	| DEFPUSHBUTTON optresidc
 	    {
 	      default_style = BS_DEFPUSHBUTTON | WS_TABSTOP;
 	      base_style = BS_DEFPUSHBUTTON | WS_TABSTOP;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
 	| EDITTEXT
 	    {
 	      default_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
-	      class = CTL_EDIT;
+	      class.named = 0;
+	      class.u.id = CTL_EDIT;
+	      res_text_field = res_null_text;	
 	    }
 	    control_params
 	  {
 	    $$ = $3;
 	  }
-	| GROUPBOX
+	| GROUPBOX optresidc
 	    {
 	      default_style = BS_GROUPBOX;
 	      base_style = BS_GROUPBOX;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| HEDIT
+	| HEDIT optresidc
 	    {
 	      default_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
-	      class = CTL_EDIT;
+	      class.named = 0;
+	      class.u.id = CTL_EDIT;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("IEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "HEDIT");
@@ -716,15 +737,17 @@ control:
 	    $$ = define_icon_control ($2, $3, $4, $5, style, $9, $10, $11,
 				      dialog.ex);
           }
-	| IEDIT
+	| IEDIT optresidc
 	    {
 	      default_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
-	      class = CTL_EDIT;
+	      class.named = 0;
+	      class.u.id = CTL_EDIT;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("IEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "IEDIT");
@@ -733,89 +756,107 @@ control:
 	    {
 	      default_style = LBS_NOTIFY | WS_BORDER;
 	      base_style = LBS_NOTIFY | WS_BORDER;
-	      class = CTL_LISTBOX;
+	      class.named = 0;
+	      class.u.id = CTL_LISTBOX;
+	      res_text_field = res_null_text;	
 	    }
 	    control_params
 	  {
 	    $$ = $3;
 	  }
-	| LTEXT
+	| LTEXT optresidc
 	    {
 	      default_style = SS_LEFT | WS_GROUP;
 	      base_style = SS_LEFT;
-	      class = CTL_STATIC;
+	      class.named = 0;
+	      class.u.id = CTL_STATIC;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| PUSHBOX
+	| PUSHBOX optresidc
 	    {
 	      default_style = BS_PUSHBOX | WS_TABSTOP;
 	      base_style = BS_PUSHBOX;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| PUSHBUTTON
+	| PUSHBUTTON optresidc
 	    {
 	      default_style = BS_PUSHBUTTON | WS_TABSTOP;
 	      base_style = BS_PUSHBUTTON | WS_TABSTOP;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| RADIOBUTTON
+	| RADIOBUTTON optresidc
 	    {
 	      default_style = BS_RADIOBUTTON | WS_TABSTOP;
 	      base_style = BS_RADIOBUTTON;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| RTEXT
+	| RTEXT optresidc
 	    {
 	      default_style = SS_RIGHT | WS_GROUP;
 	      base_style = SS_RIGHT;
-	      class = CTL_STATIC;
+	      class.named = 0;
+	      class.u.id = CTL_STATIC;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
 	| SCROLLBAR
 	    {
 	      default_style = SBS_HORZ;
 	      base_style = 0;
-	      class = CTL_SCROLLBAR;
+	      class.named = 0;
+	      class.u.id = CTL_SCROLLBAR;
+	      res_text_field = res_null_text;	
 	    }
 	    control_params
 	  {
 	    $$ = $3;
 	  }
-	| STATE3
+	| STATE3 optresidc
 	    {
 	      default_style = BS_3STATE | WS_TABSTOP;
 	      base_style = BS_3STATE;
-	      class = CTL_BUTTON;
+	      class.named = 0;
+	      class.u.id = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| USERBUTTON QUOTEDSTRING ',' numexpr ',' numexpr ',' numexpr ','
+	| USERBUTTON resref numexpr ',' numexpr ',' numexpr ','
 	    numexpr ',' numexpr ',' 
 	    { style = WS_CHILD | WS_VISIBLE; }
 	    styleexpr optcnumexpr
 	  {
-	    $$ = define_control ($2, $4, $6, $8, $10, $12, CTL_BUTTON,
-				 style, $16);
+	    rc_res_id cid;
+	    cid.named = 0;
+	    cid.u.id = CTL_BUTTON;
+	    $$ = define_control ($2, $3, $5, $7, $9, $11, cid,
+				 style, $15);
 	  }
 	;
 
@@ -827,52 +868,68 @@ control:
    style.  CLASS is the class of the control.  */
 
 control_params:
-	  optstringc numexpr cnumexpr cnumexpr cnumexpr cnumexpr
-	    opt_control_data
+	  numexpr cnumexpr cnumexpr cnumexpr cnumexpr opt_control_data
 	  {
-	    $$ = define_control ($1, $2, $3, $4, $5, $6, class,
+	    $$ = define_control (res_text_field, $1, $2, $3, $4, $5, class,
 				 default_style | WS_CHILD | WS_VISIBLE, 0);
-	    if ($7 != NULL)
+	    if ($6 != NULL)
 	      {
 		if (dialog.ex == NULL)
 		  rcparse_warning (_("control data requires DIALOGEX"));
-		$$->data = $7;
+		$$->data = $6;
 	      }
 	  }
-	| optstringc numexpr cnumexpr cnumexpr cnumexpr cnumexpr
+	| numexpr cnumexpr cnumexpr cnumexpr cnumexpr
 	    control_params_styleexpr optcnumexpr opt_control_data
 	  {
-	    $$ = define_control ($1, $2, $3, $4, $5, $6, class, style, $8);
-	    if ($9 != NULL)
+	    $$ = define_control (res_text_field, $1, $2, $3, $4, $5, class, style, $7);
+	    if ($8 != NULL)
 	      {
 		if (dialog.ex == NULL)
 		  rcparse_warning (_("control data requires DIALOGEX"));
-		$$->data = $9;
+		$$->data = $8;
 	      }
 	  }
-	| optstringc numexpr cnumexpr cnumexpr cnumexpr cnumexpr
+	| numexpr cnumexpr cnumexpr cnumexpr cnumexpr
 	    control_params_styleexpr cnumexpr cnumexpr opt_control_data
 	  {
-	    $$ = define_control ($1, $2, $3, $4, $5, $6, class, style, $8);
+	    $$ = define_control (res_text_field, $1, $2, $3, $4, $5, class, style, $7);
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("help ID requires DIALOGEX"));
-	    $$->help = $9;
-	    $$->data = $10;
+	    $$->help = $8;
+	    $$->data = $9;
 	  }
 	;
 
-optstringc:
+cresid:
+	  ',' resid
+	  {
+	    if ($2.named)
+	      res_unistring_to_id (&$$, $2.u.n.name);
+	    else
+	      $$=$2;
+	  }
+	;
+
+optresidc:
 	  /* empty */
 	  {
-	    $$ = NULL;
+	    res_string_to_id (&$$, "");
 	  }
-	| QUOTEDSTRING
+	| resid ',' { $$=$1; }
+	;
+
+resid:
+	  posnumexpr
 	  {
-	    $$ = $1;
+	    $$.named = 0;
+	    $$.u.id = $1;
 	  }
-	| QUOTEDSTRING ','
+	| res_unicode_string
 	  {
-	    $$ = $1;
+	    $$.named = 1;
+	    $$.u.n.name = $1;
+	    $$.u.n.length = unichar_len ($1);
 	  }
 	;
 
@@ -964,7 +1021,7 @@ menuitems:
 	      $$ = $2;
 	    else
 	      {
-		struct menuitem **pp;
+		rc_menuitem **pp;
 
 		for (pp = &$1->next; *pp != NULL; pp = &(*pp)->next)
 		  ;
@@ -975,7 +1032,7 @@ menuitems:
 	;
 
 menuitem:
-	  MENUITEM QUOTEDSTRING cnumexpr menuitem_flags
+	  MENUITEM res_unicode_string_concat cnumexpr menuitem_flags
 	  {
 	    $$ = define_menuitem ($2, $3, $4, 0, 0, NULL);
 	  }
@@ -983,7 +1040,7 @@ menuitem:
 	  {
 	    $$ = define_menuitem (NULL, 0, 0, 0, 0, NULL);
 	  }
-	| POPUP QUOTEDSTRING menuitem_flags BEG menuitems END
+	| POPUP res_unicode_string_concat menuitem_flags BEG menuitems END
 	  {
 	    $$ = define_menuitem ($2, 0, $3, 0, 0, $5);
 	  }
@@ -1054,7 +1111,7 @@ menuexitems:
 	      $$ = $2;
 	    else
 	      {
-		struct menuitem **pp;
+		rc_menuitem **pp;
 
 		for (pp = &$1->next; *pp != NULL; pp = &(*pp)->next)
 		  ;
@@ -1065,15 +1122,15 @@ menuexitems:
 	;
 
 menuexitem:
-	  MENUITEM QUOTEDSTRING
+	  MENUITEM res_unicode_string_concat
 	  {
 	    $$ = define_menuitem ($2, 0, 0, 0, 0, NULL);
 	  }
-	| MENUITEM QUOTEDSTRING cnumexpr
+	| MENUITEM res_unicode_string_concat cnumexpr
 	  {
 	    $$ = define_menuitem ($2, $3, 0, 0, 0, NULL);
 	  }
-	| MENUITEM QUOTEDSTRING cnumexpr cnumexpr optcnumexpr
+	| MENUITEM res_unicode_string_concat cnumexpr cnumexpr optcnumexpr
 	  {
 	    $$ = define_menuitem ($2, $3, $4, $5, 0, NULL);
 	  }
@@ -1081,19 +1138,19 @@ menuexitem:
  	  {
  	    $$ = define_menuitem (NULL, 0, 0, 0, 0, NULL);
  	  }
-	| POPUP QUOTEDSTRING BEG menuexitems END
+	| POPUP res_unicode_string_concat BEG menuexitems END
 	  {
 	    $$ = define_menuitem ($2, 0, 0, 0, 0, $4);
 	  }
-	| POPUP QUOTEDSTRING cnumexpr BEG menuexitems END
+	| POPUP res_unicode_string_concat cnumexpr BEG menuexitems END
 	  {
 	    $$ = define_menuitem ($2, $3, 0, 0, 0, $5);
 	  }
-	| POPUP QUOTEDSTRING cnumexpr cnumexpr BEG menuexitems END
+	| POPUP res_unicode_string_concat cnumexpr cnumexpr BEG menuexitems END
 	  {
 	    $$ = define_menuitem ($2, $3, $4, 0, 0, $6);
 	  }
-	| POPUP QUOTEDSTRING cnumexpr cnumexpr cnumexpr optcnumexpr
+	| POPUP res_unicode_string_concat cnumexpr cnumexpr cnumexpr optcnumexpr
 	    BEG menuexitems END
 	  {
 	    $$ = define_menuitem ($2, $3, $4, $5, $6, $8);
@@ -1106,18 +1163,6 @@ messagetable:
 	  id MESSAGETABLE memflags_move file_name
 	  {
 	    define_messagetable ($1, &$3, $4);
-	    if (yychar != YYEMPTY)
-	      YYERROR;
-	    rcparse_discard_strings ();
-	  }
-	;
-
-/* Rcdata resources.  */
-
-rcdata:
-	  id RCDATA suboptions BEG optrcdata_data END
-	  {
-	    define_rcdata ($1, &$3, $5.first);
 	    if (yychar != YYEMPTY)
 	      YYERROR;
 	    rcparse_discard_strings ();
@@ -1151,34 +1196,51 @@ optrcdata_data_int:
 	;
 
 rcdata_data:
-	  SIZEDSTRING
+	  sizedstring
 	  {
-	    struct rcdata_item *ri;
+	    rc_rcdata_item *ri;
 
 	    ri = define_rcdata_string ($1.s, $1.length);
 	    $$.first = ri;
 	    $$.last = ri;
 	  }
+	| sizedunistring
+	  {
+	    rc_rcdata_item *ri;
+
+	    ri = define_rcdata_unistring ($1.s, $1.length);
+	    $$.first = ri;
+	    $$.last = ri;
+	  }
 	| sizednumexpr
 	  {
-	    struct rcdata_item *ri;
+	    rc_rcdata_item *ri;
 
 	    ri = define_rcdata_number ($1.val, $1.dword);
 	    $$.first = ri;
 	    $$.last = ri;
 	  }
-	| rcdata_data ',' SIZEDSTRING
+	| rcdata_data ',' sizedstring
 	  {
-	    struct rcdata_item *ri;
+	    rc_rcdata_item *ri;
 
 	    ri = define_rcdata_string ($3.s, $3.length);
 	    $$.first = $1.first;
 	    $1.last->next = ri;
 	    $$.last = ri;
 	  }
+	| rcdata_data ',' sizedunistring
+	  {
+	    rc_rcdata_item *ri;
+
+	    ri = define_rcdata_unistring ($3.s, $3.length);
+	    $$.first = $1.first;
+	    $1.last->next = ri;
+	    $$.last = ri;
+	  }
 	| rcdata_data ',' sizednumexpr
 	  {
-	    struct rcdata_item *ri;
+	    rc_rcdata_item *ri;
 
 	    ri = define_rcdata_number ($3.val, $3.dword);
 	    $$.first = $1.first;
@@ -1197,14 +1259,14 @@ stringtable:
 
 string_data:
 	  /* empty */
-	| string_data numexpr QUOTEDSTRING
+	| string_data numexpr res_unicode_string_concat
 	  {
 	    define_stringtable (&sub_res_info, $2, $3);
 	    if (yychar != YYEMPTY)
 	      YYERROR;
 	    rcparse_discard_strings ();
 	  }
-	| string_data numexpr ',' QUOTEDSTRING
+	| string_data numexpr ',' res_unicode_string_concat
 	  {
 	    define_stringtable (&sub_res_info, $2, $4);
 	    if (yychar != YYEMPTY)
@@ -1213,24 +1275,125 @@ string_data:
 	  }
 	;
 
+rcdata_id:
+	id
+	  {
+	    $$=$1;
+	  }
+      | HTML
+	{
+	  $$.named = 0;
+	  $$.u.id = 23;
+	}
+      | RCDATA
+        {
+          $$.named = 0;
+          $$.u.id = RT_RCDATA;
+        }
+      | MANIFEST
+        {
+          $$.named = 0;
+          $$.u.id = RT_MANIFEST;
+        }
+      | PLUGPLAY
+        {
+          $$.named = 0;
+          $$.u.id = RT_PLUGPLAY;
+        }
+      | VXD
+        {
+          $$.named = 0;
+          $$.u.id = RT_VXD;
+        }
+      | DLGINCLUDE
+        {
+          $$.named = 0;
+          $$.u.id = RT_DLGINCLUDE;
+        }
+      | DLGINIT
+        {
+          $$.named = 0;
+          $$.u.id = RT_DLGINIT;
+        }
+      | ANICURSOR
+        {
+          $$.named = 0;
+          $$.u.id = RT_ANICURSOR;
+        }
+      | ANIICON
+        {
+          $$.named = 0;
+          $$.u.id = RT_ANIICON;
+        }
+      ;
+
 /* User defined resources.  We accept general suboptions in the
    file_name case to keep the parser happy.  */
 
 user:
-	  id id suboptions BEG optrcdata_data END
+	  id rcdata_id suboptions BEG optrcdata_data END
 	  {
 	    define_user_data ($1, $2, &$3, $5.first);
 	    if (yychar != YYEMPTY)
 	      YYERROR;
 	    rcparse_discard_strings ();
 	  }
-	| id id suboptions file_name
+	| id rcdata_id suboptions file_name
 	  {
 	    define_user_file ($1, $2, &$3, $4);
 	    if (yychar != YYEMPTY)
 	      YYERROR;
 	    rcparse_discard_strings ();
 	  }
+	;
+
+toolbar:
+	id TOOLBAR suboptions numexpr cnumexpr BEG toolbar_data END
+	{
+	  define_toolbar ($1, &$3, $4, $5, $7);
+	}
+	;
+
+toolbar_data: /* empty */ { $$= NULL; }
+	| toolbar_data BUTTON id
+	{
+	  rc_toolbar_item *c,*n;
+	  c = $1;
+	  n= (rc_toolbar_item *)
+	      res_alloc (sizeof (rc_toolbar_item));
+	  if (c != NULL)
+	    while (c->next != NULL)
+	      c = c->next;
+	  n->prev = c;
+	  n->next = NULL;
+	  if (c != NULL)
+	    c->next = n;
+	  n->id = $3;
+	  if ($1 == NULL)
+	    $$ = n;
+	  else
+	    $$ = $1;
+	}
+	| toolbar_data SEPARATOR
+	{
+	  rc_toolbar_item *c,*n;
+	  c = $1;
+	  n= (rc_toolbar_item *)
+	      res_alloc (sizeof (rc_toolbar_item));
+	  if (c != NULL)
+	    while (c->next != NULL)
+	      c = c->next;
+	  n->prev = c;
+	  n->next = NULL;
+	  if (c != NULL)
+	    c->next = n;
+	  n->id.named = 0;
+	  n->id.u.id = 0;
+	  if ($1 == NULL)
+	    $$ = n;
+	  else
+	    $$ = $1;
+	}
 	;
 
 /* Versioninfo resources.  */
@@ -1248,9 +1411,9 @@ versioninfo:
 fixedverinfo:
 	  /* empty */
 	  {
-	    $$ = ((struct fixed_versioninfo *)
-		  res_alloc (sizeof (struct fixed_versioninfo)));
-	    memset ($$, 0, sizeof (struct fixed_versioninfo));
+	    $$ = ((rc_fixed_versioninfo *)
+		  res_alloc (sizeof (rc_fixed_versioninfo)));
+	    memset ($$, 0, sizeof (rc_fixed_versioninfo));
 	  }
 	| fixedverinfo FILEVERSION numexpr cnumexpr cnumexpr cnumexpr
 	  {
@@ -1306,7 +1469,7 @@ verblocks:
 	  {
 	    $$ = append_ver_stringfileinfo ($1, $4, $6);
 	  }
-	| verblocks BLOCKVARFILEINFO BEG VALUE QUOTEDSTRING vertrans END
+	| verblocks BLOCKVARFILEINFO BEG VALUE res_unicode_string_concat vertrans END
 	  {
 	    $$ = append_ver_varfileinfo ($1, $5, $6);
 	  }
@@ -1317,7 +1480,7 @@ vervals:
 	  {
 	    $$ = NULL;
 	  }
-	| vervals VALUE QUOTEDSTRING ',' QUOTEDSTRING
+	| vervals VALUE res_unicode_string_concat ',' res_unicode_string_concat
 	  {
 	    $$ = append_verval ($1, $3, $5);
 	  }
@@ -1342,33 +1505,24 @@ id:
 	    $$.named = 0;
 	    $$.u.id = $1;
 	  }
-	| STRING
+	| resname
 	  {
-	    char *copy, *s;
-
-	    /* It seems that resource ID's are forced to upper case.  */
-	    copy = xstrdup ($1);
-	    for (s = copy; *s != '\0'; s++)
-	      *s = TOUPPER (*s);
-	    res_string_to_id (&$$, copy);
-	    free (copy);
+	    res_unistring_to_id (&$$, $1);
 	  }
 	;
 
 /* A resource reference.  */
 
 resname:
-	  QUOTEDSTRING
+	  res_unicode_string
 	  {
 	    $$ = $1;
 	  }
-	| QUOTEDSTRING ','
+	| STRING
 	  {
-	    $$ = $1;
-	  }
-	| STRING ','
-	  {
-	    $$ = $1;
+	    unichar *h = NULL;
+	    unicode_from_ascii ((rc_uint_type *) NULL, &h, $1);
+	    $$ = h;
 	  }
 	;
 
@@ -1381,14 +1535,11 @@ resref:
 	  }
 	| resname
 	  {
-	    char *copy, *s;
-
-	    /* It seems that resource ID's are forced to upper case.  */
-	    copy = xstrdup ($1);
-	    for (s = copy; *s != '\0'; s++)
-	      *s = TOUPPER (*s);
-	    res_string_to_id (&$$, copy);
-	    free (copy);
+	    res_unistring_to_id (&$$, $1);
+	  }
+	| resname ','
+	  {
+	    res_unistring_to_id (&$$, $1);
 	  }
 	;
 
@@ -1398,7 +1549,7 @@ resref:
 suboptions:
 	  /* empty */
 	  {
-	    memset (&$$, 0, sizeof (struct res_res_info));
+	    memset (&$$, 0, sizeof (rc_res_res_info));
 	    $$.language = language;
 	    /* FIXME: Is this the right default?  */
 	    $$.memflags = MEMFLAG_MOVEABLE | MEMFLAG_PURE | MEMFLAG_DISCARDABLE;
@@ -1431,7 +1582,7 @@ suboptions:
 memflags_move_discard:
 	  /* empty */
 	  {
-	    memset (&$$, 0, sizeof (struct res_res_info));
+	    memset (&$$, 0, sizeof (rc_res_res_info));
 	    $$.language = language;
 	    $$.memflags = MEMFLAG_MOVEABLE | MEMFLAG_DISCARDABLE;
 	  }
@@ -1448,7 +1599,7 @@ memflags_move_discard:
 memflags_move:
 	  /* empty */
 	  {
-	    memset (&$$, 0, sizeof (struct res_res_info));
+	    memset (&$$, 0, sizeof (rc_res_res_info));
 	    $$.language = language;
 	    $$.memflags = MEMFLAG_MOVEABLE | MEMFLAG_PURE | MEMFLAG_DISCARDABLE;
 	  }
@@ -1511,6 +1662,72 @@ file_name:
 	| STRING
 	  {
 	    $$ = $1;
+	  }
+	;
+
+/* Concat string */
+res_unicode_string_concat:
+	  res_unicode_string
+	  {
+	    $$ = $1;
+	  }
+	|
+	  res_unicode_string_concat res_unicode_string
+	  {
+	    rc_uint_type l1 = unichar_len ($1);
+	    rc_uint_type l2 = unichar_len ($2);
+	    unichar *h = (unichar *) res_alloc ((l1 + l2 + 1) * sizeof (unichar));
+	    if (l1 != 0)
+	      memcpy (h, $1, l1 * sizeof (unichar));
+	    if (l2 != 0)
+	      memcpy (h + l1, $2, l2  * sizeof (unichar));
+	    h[l1 + l2] = 0;
+	    $$ = h;
+	  }
+	;
+
+res_unicode_string:
+	  QUOTEDUNISTRING
+	  {
+	    $$ = unichar_dup ($1);
+	  }
+	| QUOTEDSTRING
+	  {
+	    unichar *h = NULL;
+	    unicode_from_ascii ((rc_uint_type *) NULL, &h, $1);
+	    $$ = h;
+	  }
+	;
+
+sizedstring:
+	  SIZEDSTRING
+	  {
+	    $$ = $1;
+	  }
+	| sizedstring SIZEDSTRING
+	  {
+	    rc_uint_type l = $1.length + $2.length;
+	    char *h = (char *) res_alloc (l);
+	    memcpy (h, $1.s, $1.length);
+	    memcpy (h + $1.length, $2.s, $2.length);
+	    $$.s = h;
+	    $$.length = l;
+	  }
+	;
+
+sizedunistring:
+	  SIZEDUNISTRING
+	  {
+	    $$ = $1;
+	  }
+	| sizedunistring SIZEDUNISTRING
+	  {
+	    rc_uint_type l = $1.length + $2.length;
+	    unichar *h = (unichar *) res_alloc (l * sizeof (unichar));
+	    memcpy (h, $1.s, $1.length * sizeof (unichar));
+	    memcpy (h + $1.length, $2.s, $2.length  * sizeof (unichar));
+	    $$.s = h;
+	    $$.length = l;
 	  }
 	;
 
@@ -1732,8 +1949,7 @@ sizedposnumexpr:
 /* Set the language from the command line.  */
 
 void
-rcparse_set_language (lang)
-     int lang;
+rcparse_set_language (int lang)
 {
   language = lang;
 }

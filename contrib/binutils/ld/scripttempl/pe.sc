@@ -24,7 +24,11 @@ if test "${RELOCATING}"; then
     SORT(*)(.idata$5)
     SORT(*)(.idata$6)
     SORT(*)(.idata$7)'
-  R_CRT='*(SORT(.CRT$*))'
+  R_CRT_XC='*(SORT(.CRT$XC*))  /* C initialization */'
+  R_CRT_XI='*(SORT(.CRT$XI*))  /* C++ initialization */'
+  R_CRT_XL='*(SORT(.CRT$XL*))  /* TLS callbacks */'
+  R_CRT_XP='*(SORT(.CRT$XP*))  /* Pre-termination */'
+  R_CRT_XT='*(SORT(.CRT$XT*))  /* Termination */'
   R_TLS='
     *(.tls)
     *(.tls$)
@@ -46,11 +50,13 @@ ${OUTPUT_ARCH+OUTPUT_ARCH(${OUTPUT_ARCH})}
 
 ${LIB_SEARCH_DIRS}
 
-ENTRY(${ENTRY})
-
 SECTIONS
 {
-  .text ${RELOCATING+ __image_base__ + __section_alignment__ } : 
+  ${RELOCATING+/* Make the virtual address and file offset synced if the alignment is}
+  ${RELOCATING+   lower than the target page size. */}
+  ${RELOCATING+. = SIZEOF_HEADERS;}
+  ${RELOCATING+. = ALIGN(__section_alignment__);}
+  .text ${RELOCATING+ __image_base__ + ( __section_alignment__ < ${TARGET_PAGE_SIZE} ? . : __section_alignment__ )} : 
   {
     ${RELOCATING+ *(.init)}
     *(.text)
@@ -58,9 +64,9 @@ SECTIONS
     *(.glue_7t)
     *(.glue_7)
     ${CONSTRUCTING+ ___CTOR_LIST__ = .; __CTOR_LIST__ = . ; 
-			LONG (-1); *(SORT(.ctors.*)); *(.ctors); *(.ctor); LONG (0); }
+			LONG (-1);*(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); }
     ${CONSTRUCTING+ ___DTOR_LIST__ = .; __DTOR_LIST__ = . ; 
-			LONG (-1); *(SORT(.dtors.*)); *(.dtors); *(.dtor);  LONG (0); }
+			LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); }
     ${RELOCATING+ *(.fini)}
     /* ??? Why is .gcc_exc here?  */
     ${RELOCATING+ *(.gcc_exc)}
@@ -80,6 +86,7 @@ SECTIONS
     *(.data)
     *(.data2)
     ${R_DATA}
+    *(.jcr)
     ${RELOCATING+__data_end__ = . ;}
     ${RELOCATING+*(.data_cygwin_nocopy)}
   }
@@ -130,12 +137,28 @@ SECTIONS
   }
   .CRT ${RELOCATING+BLOCK(__section_alignment__)} :
   { 					
-    ${R_CRT}
+    ${RELOCATING+___crt_xc_start__ = . ;}
+    ${R_CRT_XC}
+    ${RELOCATING+___crt_xc_end__ = . ;}
+    ${RELOCATING+___crt_xi_start__ = . ;}
+    ${R_CRT_XI}
+    ${RELOCATING+___crt_xi_end__ = . ;}
+    ${RELOCATING+___crt_xl_start__ = . ;}
+    ${R_CRT_XL}
+    /* ___crt_xl_end__ is defined in the TLS Directory support code */
+    ${RELOCATING+___crt_xp_start__ = . ;}
+    ${R_CRT_XP}
+    ${RELOCATING+___crt_xp_end__ = . ;}
+    ${RELOCATING+___crt_xt_start__ = . ;}
+    ${R_CRT_XT}
+    ${RELOCATING+___crt_xt_end__ = . ;}
   }
 
   .tls ${RELOCATING+BLOCK(__section_alignment__)} :
   { 					
+    ${RELOCATING+___tls_start__ = . ;}
     ${R_TLS}
+    ${RELOCATING+___tls_end__ = . ;}
   }
 
   .endjunk ${RELOCATING+BLOCK(__section_alignment__)} :
@@ -159,13 +182,91 @@ SECTIONS
 
   .stab ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
   {
-    [ .stab ]
+    *(.stab)
   }
 
   .stabstr ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
   {
-    [ .stabstr ]
+    *(.stabstr)
   }
 
+  /* DWARF debug sections.
+     Symbols in the DWARF debugging sections are relative to the beginning
+     of the section.  Unlike other targets that fake this by putting the
+     section VMA at 0, the PE format will not allow it.  */
+     
+  /* DWARF 1.1 and DWARF 2.  */
+  .debug_aranges ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_aranges)
+  }
+
+  .debug_pubnames ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_pubnames)
+  }
+
+  /* DWARF 2.  */
+  .debug_info ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_info) *(.gnu.linkonce.wi.*)
+  }
+
+  .debug_abbrev ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_abbrev)
+  }
+
+  .debug_line ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_line)
+  }
+
+  .debug_frame ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_frame)
+  }
+
+  .debug_str ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_str)
+  }
+
+  .debug_loc ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_loc)
+  }
+
+  .debug_macinfo ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_macinfo)
+  }
+
+  /* SGI/MIPS DWARF 2 extensions.  */
+  .debug_weaknames ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_weaknames)
+  }
+
+  .debug_funcnames ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_funcnames)
+  }
+
+  .debug_typenames ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_typenames)
+  }
+
+  .debug_varnames ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_varnames)
+  }
+
+  /* DWARF 3.  */
+  .debug_ranges ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_ranges)
+  }
 }
 EOF

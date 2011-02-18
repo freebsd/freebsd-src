@@ -1,5 +1,6 @@
 /* ECOFF debugging support.
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
+   2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.  A
@@ -20,8 +21,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "as.h"
 
@@ -2312,7 +2313,7 @@ add_file (const char *file_name, int indx ATTRIBUTE_UNUSED, int fake)
    compiler output, only in hand coded assembler.  */
 
 void
-ecoff_new_file (const char *name)
+ecoff_new_file (const char *name, int appfile ATTRIBUTE_UNUSED)
 {
   if (cur_file_ptr != NULL && strcmp (cur_file_ptr->name, name) == 0)
     return;
@@ -2777,7 +2778,7 @@ ecoff_directive_val (int ignore ATTRIBUTE_UNUSED)
   expression (&exp);
   if (exp.X_op != O_constant && exp.X_op != O_symbol)
     {
-      as_bad (_(".val expression is too copmlex"));
+      as_bad (_(".val expression is too complex"));
       demand_empty_rest_of_line ();
       return;
     }
@@ -3185,14 +3186,10 @@ ecoff_directive_frame (int ignore ATTRIBUTE_UNUSED)
 
   cur_proc_ptr->pdr.pcreg = tc_get_register (0);
 
-#if 0
   /* Alpha-OSF1 adds "the offset of saved $a0 from $sp", according to
      Sandro.  I don't yet know where this value should be stored, if
-     anywhere.  */
-  demand_empty_rest_of_line ();
-#else
+     anywhere.  Don't call demand_empty_rest_of_line ().  */
   s_ignore (42);
-#endif
 }
 
 /* Parse .mask directives.  */
@@ -3685,6 +3682,8 @@ ecoff_build_lineno (const struct ecoff_debug_swap *backend,
   iline = 0;
   totcount = 0;
 
+  /* FIXME?  Now that MIPS embedded-PIC is gone, it may be safe to
+     remove this code.  */
   /* For some reason the address of the first procedure is ignored
      when reading line numbers.  This doesn't matter if the address of
      the first procedure is 0, but when gcc is generating MIPS

@@ -13,8 +13,8 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If not,
-   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 
 /*
@@ -80,10 +80,7 @@ static char **last_environ;
 
 
 int
-setenv (name, value, replace)
-     const char *name;
-     const char *value;
-     int replace;
+setenv (const char *name, const char *value, int replace)
 {
   register char **ep = 0;
   register size_t size;
@@ -118,7 +115,7 @@ setenv (name, value, replace)
 	  return -1;
 	}
 
-      new_environ[size] = malloc (namelen + 1 + vallen);
+      new_environ[size] = (char *) malloc (namelen + 1 + vallen);
       if (new_environ[size] == NULL)
 	{
 	  free ((char *) new_environ);
@@ -145,13 +142,13 @@ setenv (name, value, replace)
       if (len + 1 < namelen + 1 + vallen)
 	{
 	  /* The existing string is too short; malloc a new one.  */
-	  char *new = malloc (namelen + 1 + vallen);
-	  if (new == NULL)
+	  char *new_string = (char *) malloc (namelen + 1 + vallen);
+	  if (new_string == NULL)
 	    {
 	      UNLOCK;
 	      return -1;
 	    }
-	  *ep = new;
+	  *ep = new_string;
 	}
       memcpy (*ep, name, namelen);
       (*ep)[namelen] = '=';
@@ -164,8 +161,7 @@ setenv (name, value, replace)
 }
 
 void
-unsetenv (name)
-     const char *name;
+unsetenv (const char *name)
 {
   const size_t len = strlen (name);
   char **ep;
