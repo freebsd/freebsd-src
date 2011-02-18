@@ -301,18 +301,17 @@ struct pfsync_softc {
 #ifndef __FreeBSD__
 struct pfsync_softc	*pfsyncif = NULL;
 struct pfsyncstats	 pfsyncstats;
+#define	V_pfsyncstats	 pfsyncstats
 #endif
 #ifdef __FreeBSD__
 VNET_DEFINE(struct pfsync_softc	*, pfsyncif) = NULL;
 #define	V_pfsyncif	VNET(pfsyncif)
 VNET_DEFINE(struct pfsyncstats, pfsyncstats);
 #define	V_pfsyncstats	VNET(pfsyncstats)
-#ifdef notyet
-SYSCTL_DECL(_net_inet_pfsync);
-SYSCTL_STRUCT(_net_inet_pfsync, 0, stats, CTLFLAG_RW,
-    &pfsyncstats, pfsyncstats,
+SYSCTL_DECL(_net_pfsync);
+SYSCTL_VNET_STRUCT(_net_pfsync, 0, stats, CTLFLAG_RW,
+    &VNET_NAME(pfsyncstats), pfsyncstats,
     "PFSYNC statistics (struct pfsyncstats, net/if_pfsync.h)");
-#endif
 
 static void	pfsyncintr(void *);
 struct pfsync_swi {
@@ -910,7 +909,7 @@ pfsync_input(struct mbuf *m, ...)
 	int offset;
 	int rv;
 
-	pfsyncstats.pfsyncs_ipackets++;
+	V_pfsyncstats.pfsyncs_ipackets++;
 
 	/* verify that we have a sync interface configured */
 #ifdef __FreeBSD__
@@ -922,7 +921,7 @@ pfsync_input(struct mbuf *m, ...)
 
 	/* verify that the packet came in on the right interface */
 	if (sc->sc_sync_if != m->m_pkthdr.rcvif) {
-		pfsyncstats.pfsyncs_badif++;
+		V_pfsyncstats.pfsyncs_badif++;
 		goto done;
 	}
 
@@ -935,19 +934,19 @@ pfsync_input(struct mbuf *m, ...)
 #endif
 	/* verify that the IP TTL is 255. */
 	if (ip->ip_ttl != PFSYNC_DFLTTL) {
-		pfsyncstats.pfsyncs_badttl++;
+		V_pfsyncstats.pfsyncs_badttl++;
 		goto done;
 	}
 
 	offset = ip->ip_hl << 2;
 	if (m->m_pkthdr.len < offset + sizeof(*ph)) {
-		pfsyncstats.pfsyncs_hdrops++;
+		V_pfsyncstats.pfsyncs_hdrops++;
 		goto done;
 	}
 
 	if (offset + sizeof(*ph) > m->m_len) {
 		if (m_pullup(m, offset + sizeof(*ph)) == NULL) {
-			pfsyncstats.pfsyncs_hdrops++;
+			V_pfsyncstats.pfsyncs_hdrops++;
 			return;
 		}
 		ip = mtod(m, struct ip *);
@@ -956,7 +955,7 @@ pfsync_input(struct mbuf *m, ...)
 
 	/* verify the version */
 	if (ph->version != PFSYNC_VERSION) {
-		pfsyncstats.pfsyncs_badver++;
+		V_pfsyncstats.pfsyncs_badver++;
 		goto done;
 	}
 
@@ -985,7 +984,7 @@ pfsync_input(struct mbuf *m, ...)
 		offset += sizeof(subh);
 
 		if (subh.action >= PFSYNC_ACT_MAX) {
-			pfsyncstats.pfsyncs_badact++;
+			V_pfsyncstats.pfsyncs_badact++;
 			goto done;
 		}
 
@@ -1017,7 +1016,7 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	clr = (struct pfsync_clr *)(mp->m_data + offp);
@@ -1091,7 +1090,7 @@ pfsync_in_ins(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	sa = (struct pfsync_state *)(mp->m_data + offp);
@@ -1117,7 +1116,7 @@ pfsync_in_ins(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 				printf("pfsync_input: PFSYNC5_ACT_INS: "
 				    "invalid value\n");
 			}
-			pfsyncstats.pfsyncs_badval++;
+			V_pfsyncstats.pfsyncs_badval++;
 			continue;
 		}
 
@@ -1148,7 +1147,7 @@ pfsync_in_iack(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	iaa = (struct pfsync_ins_ack *)(mp->m_data + offp);
@@ -1232,7 +1231,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	sa = (struct pfsync_state *)(mp->m_data + offp);
@@ -1256,7 +1255,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 				printf("pfsync_input: PFSYNC_ACT_UPD: "
 				    "invalid value\n");
 			}
-			pfsyncstats.pfsyncs_badval++;
+			V_pfsyncstats.pfsyncs_badval++;
 			continue;
 		}
 
@@ -1267,7 +1266,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		if (st == NULL) {
 			/* insert the update */
 			if (pfsync_state_import(sp, 0))
-				pfsyncstats.pfsyncs_badstate++;
+				V_pfsyncstats.pfsyncs_badstate++;
 			continue;
 		}
 
@@ -1301,7 +1300,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 				    sfail, betoh64(st->id),
 				    ntohl(st->creatorid));
 			}
-			pfsyncstats.pfsyncs_stale++;
+			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
 			schednetisr(NETISR_PFSYNC);
@@ -1339,7 +1338,7 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	ua = (struct pfsync_upd_c *)(mp->m_data + offp);
@@ -1364,7 +1363,7 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 				    "PFSYNC_ACT_UPD_C: "
 				    "invalid value\n");
 			}
-			pfsyncstats.pfsyncs_badval++;
+			V_pfsyncstats.pfsyncs_badval++;
 			continue;
 		}
 
@@ -1407,7 +1406,7 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 				    betoh64(st->id),
 				    ntohl(st->creatorid));
 			}
-			pfsyncstats.pfsyncs_stale++;
+			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
 			schednetisr(NETISR_PFSYNC);
@@ -1441,7 +1440,7 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	ura = (struct pfsync_upd_req *)(mp->m_data + offp);
@@ -1457,7 +1456,7 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		else {
 			st = pf_find_state_byid(&id_key);
 			if (st == NULL) {
-				pfsyncstats.pfsyncs_badstate++;
+				V_pfsyncstats.pfsyncs_badstate++;
 				continue;
 			}
 			if (ISSET(st->state_flags, PFSTATE_NOSYNC))
@@ -1483,7 +1482,7 @@ pfsync_in_del(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	sa = (struct pfsync_state *)(mp->m_data + offp);
@@ -1500,7 +1499,7 @@ pfsync_in_del(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 		st = pf_find_state_byid(&id_key);
 		if (st == NULL) {
-			pfsyncstats.pfsyncs_badstate++;
+			V_pfsyncstats.pfsyncs_badstate++;
 			continue;
 		}
 		SET(st->state_flags, PFSTATE_NOSYNC);
@@ -1527,7 +1526,7 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	sa = (struct pfsync_del_c *)(mp->m_data + offp);
@@ -1544,7 +1543,7 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 		st = pf_find_state_byid(&id_key);
 		if (st == NULL) {
-			pfsyncstats.pfsyncs_badstate++;
+			V_pfsyncstats.pfsyncs_badstate++;
 			continue;
 		}
 
@@ -1578,7 +1577,7 @@ pfsync_in_bus(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	bus = (struct pfsync_bus *)(mp->m_data + offp);
@@ -1661,7 +1660,7 @@ pfsync_in_tdb(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 	mp = m_pulldown(m, offset, len, &offp);
 	if (mp == NULL) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		return (-1);
 	}
 	tp = (struct pfsync_tdb *)(mp->m_data + offp);
@@ -1722,7 +1721,7 @@ bad:
 #endif
 		printf("pfsync_insert: PFSYNC_ACT_TDB_UPD: "
 		    "invalid value\n");
-	pfsyncstats.pfsyncs_badstate++;
+	V_pfsyncstats.pfsyncs_badstate++;
 	return;
 }
 #endif
@@ -1733,7 +1732,7 @@ pfsync_in_eof(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	/* check if we are at the right place in the packet */
 	if (offset != m->m_pkthdr.len - sizeof(struct pfsync_eof))
-		pfsyncstats.pfsyncs_badact++;
+		V_pfsyncstats.pfsyncs_badact++;
 
 	/* we're done. free and let the caller return */
 	m_freem(m);
@@ -1743,7 +1742,7 @@ pfsync_in_eof(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 int
 pfsync_in_error(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
-	pfsyncstats.pfsyncs_badact++;
+	V_pfsyncstats.pfsyncs_badact++;
 
 	m_freem(m);
 	return (-1);
@@ -2161,7 +2160,7 @@ pfsync_sendout(void)
 #else
 		sc->sc_if.if_oerrors++;
 #endif
-		pfsyncstats.pfsyncs_onomem++;
+		V_pfsyncstats.pfsyncs_onomem++;
 		pfsync_drop(sc);
 		return;
 	}
@@ -2188,7 +2187,7 @@ pfsync_sendout(void)
 #else
 			sc->sc_if.if_oerrors++;
 #endif
-			pfsyncstats.pfsyncs_onomem++;
+			V_pfsyncstats.pfsyncs_onomem++;
 			pfsync_drop(sc);
 			return;
 		}
@@ -2344,7 +2343,7 @@ pfsync_sendout(void)
 	{
 		PF_LOCK();
 #endif
-		pfsyncstats.pfsyncs_opackets++;
+		V_pfsyncstats.pfsyncs_opackets++;
 #ifdef __FreeBSD__
 	}
 #endif
@@ -2353,7 +2352,7 @@ pfsync_sendout(void)
 	{
 		PF_LOCK();
 #endif
-		pfsyncstats.pfsyncs_oerrors++;
+		V_pfsyncstats.pfsyncs_oerrors++;
 #ifdef __FreeBSD__
 	}
 #endif
@@ -3285,7 +3284,7 @@ pfsync_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
 		if (newp != NULL)
 			return (EPERM);
 		return (sysctl_struct(oldp, oldlenp, newp, newlen,
-		    &pfsyncstats, sizeof(pfsyncstats)));
+		    &V_pfsyncstats, sizeof(V_pfsyncstats)));
 	default:
 		return (ENOPROTOOPT);
 	}
@@ -3336,7 +3335,7 @@ vnet_pfsync_init(const void *unused)
 
 	pfsyncattach(0);
 
-	error = swi_add(NULL, "pfsync", pfsyncintr, pfsyncif,
+	error = swi_add(NULL, "pfsync", pfsyncintr, V_pfsyncif,
 		SWI_NET, INTR_MPSAFE, &pfsync_swi.pfsync_swi_cookie);
 	if (error)
 		panic("%s: swi_add %d", __func__, error);
