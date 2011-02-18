@@ -1815,6 +1815,7 @@ dc_attach(device_t dev)
 	u_int32_t command;
 	struct dc_softc *sc;
 	struct ifnet *ifp;
+	struct dc_mediainfo *m;
 	u_int32_t reg, revision;
 	int error, i, mac_offset, phy, rid, tmp;
 	u_int8_t *mac;
@@ -2108,8 +2109,24 @@ dc_attach(device_t dev)
 	if ((sc->dc_eaddr[0] == 0 && (sc->dc_eaddr[1] & ~0xffff) == 0) ||
 	    (sc->dc_eaddr[0] == 0xffffffff &&
 	    (sc->dc_eaddr[1] & 0xffff) == 0xffff)) {
-		if (dc_check_multiport(sc) == 0)
+		error = dc_check_multiport(sc);
+		if (error == 0) {
 			bcopy(sc->dc_eaddr, eaddr, sizeof(eaddr));
+			/* Extract media information. */
+			if (DC_IS_INTEL(sc) && sc->dc_srom != NULL) {
+				while (sc->dc_mi != NULL) {
+					m = sc->dc_mi->dc_next;
+					free(sc->dc_mi, M_DEVBUF);
+					sc->dc_mi = m;
+				}
+				error = dc_parse_21143_srom(sc);
+				if (error != 0)
+					goto fail;
+			}
+		} else if (error == ENOMEM)
+			goto fail;
+		else
+			error = 0;
 	}
 
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
@@ -3875,12 +3892,30 @@ dc_check_multiport(struct dc_softc *sc)
 			continue;
 		if (unit > device_get_unit(sc->dc_dev))
 			continue;
+		if (device_is_attached(child) == 0)
+			continue;
 		dsc = device_get_softc(child);
-		device_printf(sc->dc_dev, "Using station address of %s as base",
+		device_printf(sc->dc_dev,
+		    "Using station address of %s as base\n",
 		    device_get_nameunit(child));
 		bcopy(dsc->dc_eaddr, sc->dc_eaddr, ETHER_ADDR_LEN);
 		eaddr = (uint8_t *)sc->dc_eaddr;
 		eaddr[5]++;
+		/* Prepare SROM to parse again. */
+		if (DC_IS_INTEL(sc) && dsc->dc_srom != NULL &&
+		    sc->dc_romwidth != 0) {
+			free(sc->dc_srom, M_DEVBUF);
+			sc->dc_romwidth = dsc->dc_romwidth;
+			sc->dc_srom = malloc(DC_ROM_SIZE(sc->dc_romwidth),
+			    M_DEVBUF, M_NOWAIT);
+			if (sc->dc_srom == NULL) {
+				device_printf(sc->dc_dev,
+				    "Could not allocate SROM buffer\n");
+				return (ENOMEM);
+			}
+			bcopy(dsc->dc_srom, sc->dc_srom,
+			    DC_ROM_SIZE(sc->dc_romwidth));
+		}
 		return (0);
 	}
 	return (ENOENT);
