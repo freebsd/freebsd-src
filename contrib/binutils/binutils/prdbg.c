@@ -1,5 +1,6 @@
 /* prdbg.c -- Print out generic debugging information.
-   Copyright 1995, 1996, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1999, 2002, 2003, 2004, 2006, 2007
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
    Tags style generation written by Salvador E. Tropea <set@computer.org>.
 
@@ -17,18 +18,17 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file prints out the generic debugging information, by
    supplying a set of routines to debug_write.  */
 
-#include <stdio.h>
+#include "sysdep.h"
 #include <assert.h>
-
 #include "bfd.h"
-#include "bucomm.h"
 #include "libiberty.h"
+#include "demangle.h"
 #include "debug.h"
 #include "budbg.h"
 
@@ -52,7 +52,7 @@ struct pr_handle
   /* The symbols table for this BFD.  */
   asymbol **syms;
   /* Pointer to a function to demangle symbols.  */
-  char *(*demangler) (bfd *, const char *);
+  char *(*demangler) (bfd *, const char *, int);
 };
 
 /* The type stack.  */
@@ -723,8 +723,8 @@ pr_function_type (void *p, int argcount, bfd_boolean varargs)
 
   /* Now the return type is on the top of the stack.  */
 
-  s = (char *) xmalloc (len);
-  strcpy (s, "(|) (");
+  s = xmalloc (len);
+  LITSTRCPY (s, "(|) (");
 
   if (argcount < 0)
     strcat (s, "/* unknown */");
@@ -909,11 +909,10 @@ pr_method_type (void *p, bfd_boolean domain, int argcount, bfd_boolean varargs)
       domain_type = pop_type (info);
       if (domain_type == NULL)
 	return FALSE;
-      if (strncmp (domain_type, "class ", sizeof "class " - 1) == 0
+      if (CONST_STRNEQ (domain_type, "class ")
 	  && strchr (domain_type + sizeof "class " - 1, ' ') == NULL)
 	domain_type += sizeof "class " - 1;
-      else if (strncmp (domain_type, "union class ",
-			sizeof "union class ") == 0
+      else if (CONST_STRNEQ (domain_type, "union class ")
 	       && (strchr (domain_type + sizeof "union class " - 1, ' ')
 		   == NULL))
 	domain_type += sizeof "union class " - 1;
@@ -1316,7 +1315,7 @@ pr_class_baseclass (void *p, bfd_vma bitpos, bfd_boolean virtual,
   if (t == NULL)
     return FALSE;
 
-  if (strncmp (t, "class ", sizeof "class " - 1) == 0)
+  if (CONST_STRNEQ (t, "class "))
     t += sizeof "class " - 1;
 
   /* Push it back on to take advantage of the prepend_type and
@@ -1904,7 +1903,7 @@ find_address_in_section (bfd *abfd, asection *section, void *data)
   if (pc < vma)
     return;
 
-  size = bfd_get_section_size_before_reloc (section);
+  size = bfd_get_section_size (section);
   if (pc >= vma + size)
     return;
 
@@ -2153,12 +2152,10 @@ tg_class_static_member (void *p, const char *name,
 
   len_var = strlen (name);
   len_class = strlen (info->stack->next->type);
-  full_name = (char *) xmalloc (len_var + len_class + 3);
+  full_name = xmalloc (len_var + len_class + 3);
   if (! full_name)
     return FALSE;
-  memcpy (full_name, info->stack->next->type, len_class);
-  memcpy (full_name + len_class, "::", 2);
-  memcpy (full_name + len_class + 2, name, len_var + 1);
+  sprintf (full_name, "%s::%s", info->stack->next->type, name);
 
   if (! substitute_type (info, full_name))
     return FALSE;
@@ -2198,7 +2195,7 @@ tg_class_baseclass (void *p, bfd_vma bitpos ATTRIBUTE_UNUSED,
   if (t == NULL)
     return FALSE;
 
-  if (strncmp (t, "class ", sizeof "class " - 1) == 0)
+  if (CONST_STRNEQ (t, "class "))
     t += sizeof "class " - 1;
 
   /* Push it back on to take advantage of the prepend_type and
@@ -2528,25 +2525,18 @@ tg_variable (void *p, const char *name, enum debug_var_kind kind,
 	     bfd_vma val ATTRIBUTE_UNUSED)
 {
   struct pr_handle *info = (struct pr_handle *) p;
-  char *t;
-  const char *dname, *from_class;
+  char *t, *dname, *from_class;
 
   t = pop_type (info);
   if (t == NULL)
     return FALSE;
 
-  dname = name;
+  dname = NULL;
   if (info->demangler)
-    {
-      dname = info->demangler (info->abfd, name);
-      if (strcmp (name, dname) == 0)
-	{
-	  free ((char *) dname);
-	  dname = name;
-	}
-    }
+    dname = info->demangler (info->abfd, name, DMGL_ANSI | DMGL_PARAMS);
 
-  if (dname != name)
+  from_class = NULL;
+  if (dname != NULL)
     {
       char *sep;
       sep = strstr (dname, "::");
@@ -2557,14 +2547,9 @@ tg_variable (void *p, const char *name, enum debug_var_kind kind,
 	  from_class = dname;
 	}
       else
-	{
-	  /* Obscure types as vts and type_info nodes.  */
-	  name = dname;
-	  from_class = NULL;
-	}
+	/* Obscure types as vts and type_info nodes.  */
+	name = dname;
     }
-  else
-    from_class = NULL;
 
   fprintf (info->f, "%s\t%s\t0;\"\tkind:v\ttype:%s", name, info->filename, t);
 
@@ -2582,10 +2567,10 @@ tg_variable (void *p, const char *name, enum debug_var_kind kind,
     }
 
   if (from_class)
-    {
-      fprintf (info->f, "\tclass:%s",from_class);
-      free ((char *) dname);
-    }
+    fprintf (info->f, "\tclass:%s", from_class);
+
+  if (dname)
+    free (dname);
 
   fprintf (info->f, "\n");
 
@@ -2600,28 +2585,22 @@ static bfd_boolean
 tg_start_function (void *p, const char *name, bfd_boolean global)
 {
   struct pr_handle *info = (struct pr_handle *) p;
-  const char *dname;
+  char *dname;
 
   if (! global)
     info->stack->flavor = "static";
   else
     info->stack->flavor = NULL;
 
-  dname = name;
+  dname = NULL;
   if (info->demangler)
-    {
-      dname = info->demangler (info->abfd, name);
-      if (strcmp (name, dname) == 0)
-	{
-	  free ((char *) dname);
-	  dname = name;
-	}
-    }
+    dname = info->demangler (info->abfd, name, DMGL_ANSI | DMGL_PARAMS);
 
-  if (! substitute_type (info, dname))
+  if (! substitute_type (info, dname ? dname : name))
     return FALSE;
 
-  if (dname != name)
+  info->stack->method = NULL;
+  if (dname != NULL)
     {
       char *sep;
       sep = strstr (dname, "::");
@@ -2641,8 +2620,6 @@ tg_start_function (void *p, const char *name, bfd_boolean global)
 	*sep = 0;
       /* Obscure functions as type_info function.  */
     }
-  else
-    info->stack->method = NULL;
 
   info->stack->parents = strdup (name);
 

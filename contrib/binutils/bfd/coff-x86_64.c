@@ -634,7 +634,9 @@ coff_amd64_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 }
 
 #define coff_bfd_reloc_type_lookup coff_amd64_reloc_type_lookup
+#ifdef notyet
 #define coff_bfd_reloc_name_lookup coff_amd64_reloc_name_lookup
+#endif
 
 static reloc_howto_type *
 coff_amd64_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED, bfd_reloc_code_real_type code)
@@ -677,6 +679,7 @@ coff_amd64_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED, bfd_reloc_code_real_ty
     }
 }
 
+#ifdef notyet
 static reloc_howto_type *
 coff_amd64_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 			      const char *r_name)
@@ -690,6 +693,7 @@ coff_amd64_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 
   return NULL;
 }
+#endif
 
 #define coff_rtype_to_howto coff_amd64_rtype_to_howto
 

@@ -1,6 +1,3 @@
-# $FreeBSD$
-
-
 # This shell script emits a C file. -*- C -*-
 # It does some substitutions.
 # This file is now misnamed, because it supports both 32 bit and 64 bit
@@ -16,7 +13,7 @@ cat >e${EMULATION_NAME}.c <<EOF
 
 /* ${ELFSIZE} bit ELF emulation code for ${EMULATION_NAME}
    Copyright 1991, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
    ELF support by Ian Lance Taylor <ian@cygnus.com>
 
@@ -34,12 +31,12 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #define TARGET_IS_${EMULATION_NAME}
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
 #include "getopt.h"
@@ -55,19 +52,32 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldemul.h"
 #include <ldgram.h>
 #include "elf/common.h"
+#include "elf-bfd.h"
 
 /* Declare functions used by various EXTRA_EM_FILEs.  */
 static void gld${EMULATION_NAME}_before_parse (void);
 static void gld${EMULATION_NAME}_after_open (void);
 static void gld${EMULATION_NAME}_before_allocation (void);
-static bfd_boolean gld${EMULATION_NAME}_place_orphan
-  (lang_input_statement_type *file, asection *s);
+static bfd_boolean gld${EMULATION_NAME}_place_orphan (asection *s);
 static void gld${EMULATION_NAME}_finish (void);
 
 EOF
 
+if [ "x${USE_LIBPATH}" = xyes ] ; then
+  case ${target} in
+    *-*-linux-* | *-*-k*bsd*-*)
+  cat >>e${EMULATION_NAME}.c <<EOF
+#ifdef HAVE_GLOB
+#include <glob.h>
+#endif
+EOF
+    ;;
+  esac
+fi
+
 # Import any needed special functions and/or overrides.
 #
+. ${srcdir}/emultempl/elf-generic.em
 if test -n "$EXTRA_EM_FILE" ; then
 . ${srcdir}/emultempl/${EXTRA_EM_FILE}.em
 fi
@@ -99,14 +109,30 @@ cat >>e${EMULATION_NAME}.c <<EOF
 static bfd_boolean
 gld${EMULATION_NAME}_load_symbols (lang_input_statement_type *entry)
 {
-  if (!entry->as_needed
-      || (bfd_get_file_flags (entry->the_bfd) & DYNAMIC) == 0)
-    return FALSE;
+  int class = 0;
 
   /* Tell the ELF linker that we don't want the output file to have a
      DT_NEEDED entry for this file, unless it is used to resolve
      references in a regular object.  */
-  bfd_elf_set_dyn_lib_class (entry->the_bfd, DYN_AS_NEEDED);
+  if (entry->as_needed)
+    class = DYN_AS_NEEDED;
+
+  /* Tell the ELF linker that we don't want the output file to have a
+     DT_NEEDED entry for any dynamic library in DT_NEEDED tags from
+     this file at all.  */
+  if (!entry->add_needed)
+    class |= DYN_NO_ADD_NEEDED;
+
+  if (entry->just_syms_flag
+      && (bfd_get_file_flags (entry->the_bfd) & DYNAMIC) != 0)
+    einfo (_("%P%F: --just-symbols may not be used on DSO: %B\n"),
+	   entry->the_bfd);
+
+  if (!class
+      || (bfd_get_file_flags (entry->the_bfd) & DYNAMIC) == 0)
+    return FALSE;
+
+  bfd_elf_set_dyn_lib_class (entry->the_bfd, class);
 
   /* Continue on with normal load_symbols processing.  */
   return FALSE;
@@ -121,7 +147,7 @@ cat >>e${EMULATION_NAME}.c <<EOF
 
 static struct bfd_link_needed_list *global_needed;
 static struct stat global_stat;
-static bfd_boolean global_found;
+static lang_input_statement_type *global_found;
 static struct bfd_link_needed_list *global_vercheck_needed;
 static bfd_boolean global_vercheck_failed;
 
@@ -202,9 +228,14 @@ gld${EMULATION_NAME}_stat_needed (lang_input_statement_type *s)
   const char *suffix;
   const char *soname;
 
-  if (global_found)
+  if (global_found != NULL)
     return;
   if (s->the_bfd == NULL)
+    return;
+
+  /* If this input file was an as-needed entry, and wasn't found to be
+     needed at the stage it was linked, then don't say we have loaded it.  */
+  if ((bfd_elf_get_dyn_lib_class (s->the_bfd) & DYN_AS_NEEDED) != 0)
     return;
 
   if (bfd_stat (s->the_bfd, &st) != 0)
@@ -213,10 +244,18 @@ gld${EMULATION_NAME}_stat_needed (lang_input_statement_type *s)
       return;
     }
 
+  /* Some operating systems, e.g. Windows, do not provide a meaningful
+     st_ino; they always set it to zero.  (Windows does provide a
+     meaningful st_dev.)  Do not indicate a duplicate library in that
+     case.  While there is no guarantee that a system that provides
+     meaningful inode numbers will never set st_ino to zero, this is
+     merely an optimization, so we do not need to worry about false
+     negatives.  */
   if (st.st_dev == global_stat.st_dev
-      && st.st_ino == global_stat.st_ino)
+      && st.st_ino == global_stat.st_ino
+      && st.st_ino != 0)
     {
-      global_found = TRUE;
+      global_found = s;
       return;
     }
 
@@ -245,16 +284,24 @@ gld${EMULATION_NAME}_stat_needed (lang_input_statement_type *s)
 	   global_needed->name, global_needed->by, soname);
 }
 
+struct dt_needed
+{
+  bfd *by;
+  const char *name;
+};
 
 /* This function is called for each possible name for a dynamic object
    named by a DT_NEEDED entry.  The FORCE parameter indicates whether
    to skip the check for a conflicting version.  */
 
 static bfd_boolean
-gld${EMULATION_NAME}_try_needed (const char *name, int force)
+gld${EMULATION_NAME}_try_needed (struct dt_needed *needed,
+				 int force)
 {
   bfd *abfd;
+  const char *name = needed->name;
   const char *soname;
+  int class;
 
   abfd = bfd_openr (name, bfd_get_target (output_bfd));
   if (abfd == NULL)
@@ -311,13 +358,13 @@ gld${EMULATION_NAME}_try_needed (const char *name, int force)
 
 EOF
 case ${target} in
-  *-*-linux-gnu*)
+  *-*-linux-* | *-*-k*bsd*-*)
     cat >>e${EMULATION_NAME}.c <<EOF
 	  {
 	    struct bfd_link_needed_list *l;
 
 	    for (l = needed; l != NULL; l = l->next)
-	      if (strncmp (l->name, "libc.so", 7) == 0)
+	      if (CONST_STRNEQ (l->name, "libc.so"))
 		break;
 	    if (l == NULL)
 	      {
@@ -352,9 +399,9 @@ cat >>e${EMULATION_NAME}.c <<EOF
   if (trace_file_tries)
     info_msg (_("found %s at %s\n"), soname, name);
 
-  global_found = FALSE;
+  global_found = NULL;
   lang_for_each_input_file (gld${EMULATION_NAME}_stat_needed);
-  if (global_found)
+  if (global_found != NULL)
     {
       /* Return TRUE to indicate that we found the file, even though
 	 we aren't going to do anything with it.  */
@@ -367,7 +414,16 @@ cat >>e${EMULATION_NAME}.c <<EOF
   /* Tell the ELF linker that we don't want the output file to have a
      DT_NEEDED entry for this file, unless it is used to resolve
      references in a regular object.  */
-  bfd_elf_set_dyn_lib_class (abfd, DYN_DT_NEEDED);
+  class = DYN_DT_NEEDED;
+
+  /* Tell the ELF linker that we don't want the output file to have a
+     DT_NEEDED entry for this file at all if the entry is from a file
+     with DYN_NO_ADD_NEEDED.  */
+  if (needed->by != NULL
+      && (bfd_elf_get_dyn_lib_class (needed->by) & DYN_NO_ADD_NEEDED) != 0)
+    class |= DYN_NO_NEEDED | DYN_NO_ADD_NEEDED;
+
+  bfd_elf_set_dyn_lib_class (abfd, class);
 
   /* Add this file into the symbol table.  */
   if (! bfd_link_add_symbols (abfd, &link_info))
@@ -380,22 +436,29 @@ cat >>e${EMULATION_NAME}.c <<EOF
 /* Search for a needed file in a path.  */
 
 static bfd_boolean
-gld${EMULATION_NAME}_search_needed (const char *path, const char *name, int force)
+gld${EMULATION_NAME}_search_needed (const char *path,
+				    struct dt_needed *n, int force)
 {
   const char *s;
+  const char *name = n->name;
   size_t len;
+  struct dt_needed needed;
 
   if (name[0] == '/')
-    return gld${EMULATION_NAME}_try_needed (name, force);
+    return gld${EMULATION_NAME}_try_needed (n, force);
 
   if (path == NULL || *path == '\0')
     return FALSE;
+
+  needed.by = n->by;
+  needed.name = n->name;
+
   len = strlen (name);
   while (1)
     {
       char *filename, *sset;
 
-      s = strchr (path, ':');
+      s = strchr (path, config.rpath_separator);
       if (s == NULL)
 	s = path + strlen (path);
 
@@ -410,7 +473,8 @@ gld${EMULATION_NAME}_search_needed (const char *path, const char *name, int forc
 	}
       strcpy (sset, name);
 
-      if (gld${EMULATION_NAME}_try_needed (filename, force))
+      needed.name = filename;
+      if (gld${EMULATION_NAME}_try_needed (&needed, force))
 	return TRUE;
 
       free (filename);
@@ -427,7 +491,8 @@ EOF
 if [ "x${USE_LIBPATH}" = xyes ] ; then
   cat >>e${EMULATION_NAME}.c <<EOF
 
-/* Add the sysroot to every entry in a colon-separated path.  */
+/* Add the sysroot to every entry in a path separated by
+   config.rpath_separator.  */
 
 static char *
 gld${EMULATION_NAME}_add_sysroot (const char *path)
@@ -439,7 +504,7 @@ gld${EMULATION_NAME}_add_sysroot (const char *path)
   colons = 0;
   i = 0;
   while (path[i])
-    if (path[i++] == ':')
+    if (path[i++] == config.rpath_separator)
       colons++;
 
   if (path[i])
@@ -451,7 +516,7 @@ gld${EMULATION_NAME}_add_sysroot (const char *path)
   p = ret + strlen (ret);
   i = 0;
   while (path[i])
-    if (path[i] == ':')
+    if (path[i] == config.rpath_separator)
       {
 	*p++ = path[i++];
 	strcpy (p, ld_sysroot);
@@ -466,20 +531,23 @@ gld${EMULATION_NAME}_add_sysroot (const char *path)
 
 EOF
   case ${target} in
-    *-*-freebsd*)
+    *-*-freebsd* | *-*-dragonfly*)
       cat >>e${EMULATION_NAME}.c <<EOF
-/*
- * Read the system search path the FreeBSD way rather than like Linux.
- */
+/* Read the system search path the FreeBSD way rather than the Linux way.  */
+#ifdef HAVE_ELF_HINTS_H
 #include <elf-hints.h>
+#else
+#include "elf-hints-local.h"
+#endif
 
 static bfd_boolean
 gld${EMULATION_NAME}_check_ld_elf_hints (const char *name, int force)
 {
   static bfd_boolean initialized;
   static char *ld_elf_hints;
+  struct dt_needed needed;
 
-  if (! initialized)
+  if (!initialized)
     {
       FILE *f;
       char *tmppath;
@@ -491,26 +559,20 @@ gld${EMULATION_NAME}_check_ld_elf_hints (const char *name, int force)
 	{
 	  struct elfhints_hdr hdr;
 
-	  if (fread(&hdr, 1, sizeof(hdr), f) == sizeof(hdr) &&
-	      hdr.magic == ELFHINTS_MAGIC &&
-	      hdr.version == 1)
+	  if (fread (&hdr, 1, sizeof (hdr), f) == sizeof (hdr)
+	      && hdr.magic == ELFHINTS_MAGIC
+	      && hdr.version == 1)
 	    {
-	      if (fseek(f, hdr.strtab + hdr.dirlist, SEEK_SET) != -1)
+	      if (fseek (f, hdr.strtab + hdr.dirlist, SEEK_SET) != -1)
 		{
 		  char *b;
 
-		  b = (char *) xmalloc (hdr.dirlistlen + 1);
-		  if (fread(b, 1, hdr.dirlistlen + 1, f) !=
+		  b = xmalloc (hdr.dirlistlen + 1);
+		  if (fread (b, 1, hdr.dirlistlen + 1, f) ==
 		      hdr.dirlistlen + 1)
-		    {
-		      free(b);
-		      b = NULL;
-		    }
-		  else
-		    {
-		      ld_elf_hints = gld${EMULATION_NAME}_add_sysroot (b);
-		      free (b);
-		    }
+		    ld_elf_hints = gld${EMULATION_NAME}_add_sysroot (b);
+
+		  free (b);
 		}
 	    }
 	  fclose (f);
@@ -522,98 +584,219 @@ gld${EMULATION_NAME}_check_ld_elf_hints (const char *name, int force)
   if (ld_elf_hints == NULL)
     return FALSE;
 
-  return gld${EMULATION_NAME}_search_needed (ld_elf_hints, name, force);
+  needed.by = NULL;
+  needed.name = name;
+  return gld${EMULATION_NAME}_search_needed (ld_elf_hints, & needed,
+					     force);
 }
 EOF
     # FreeBSD
     ;;
 
-    *-*-linux-gnu*)
+    *-*-linux-* | *-*-k*bsd*-*)
       cat >>e${EMULATION_NAME}.c <<EOF
 /* For a native linker, check the file /etc/ld.so.conf for directories
    in which we may find shared libraries.  /etc/ld.so.conf is really
    only meaningful on Linux.  */
+
+struct gld${EMULATION_NAME}_ld_so_conf
+{
+  char *path;
+  size_t len, alloc;
+};
+
+static bfd_boolean
+gld${EMULATION_NAME}_parse_ld_so_conf
+     (struct gld${EMULATION_NAME}_ld_so_conf *info, const char *filename);
+
+static void
+gld${EMULATION_NAME}_parse_ld_so_conf_include
+     (struct gld${EMULATION_NAME}_ld_so_conf *info, const char *filename,
+      const char *pattern)
+{
+  char *newp = NULL;
+#ifdef HAVE_GLOB
+  glob_t gl;
+#endif
+
+  if (pattern[0] != '/')
+    {
+      char *p = strrchr (filename, '/');
+      size_t patlen = strlen (pattern) + 1;
+
+      newp = xmalloc (p - filename + 1 + patlen);
+      memcpy (newp, filename, p - filename + 1);
+      memcpy (newp + (p - filename + 1), pattern, patlen);
+      pattern = newp;
+    }
+
+#ifdef HAVE_GLOB
+  if (glob (pattern, 0, NULL, &gl) == 0)
+    {
+      size_t i;
+
+      for (i = 0; i < gl.gl_pathc; ++i)
+	gld${EMULATION_NAME}_parse_ld_so_conf (info, gl.gl_pathv[i]);
+      globfree (&gl);
+    }
+#else
+  /* If we do not have glob, treat the pattern as a literal filename.  */
+  gld${EMULATION_NAME}_parse_ld_so_conf (info, pattern);
+#endif
+
+  if (newp)
+    free (newp);
+}
+
+static bfd_boolean
+gld${EMULATION_NAME}_parse_ld_so_conf
+     (struct gld${EMULATION_NAME}_ld_so_conf *info, const char *filename)
+{
+  FILE *f = fopen (filename, FOPEN_RT);
+  char *line;
+  size_t linelen;
+
+  if (f == NULL)
+    return FALSE;
+
+  linelen = 256;
+  line = xmalloc (linelen);
+  do
+    {
+      char *p = line, *q;
+
+      /* Normally this would use getline(3), but we need to be portable.  */
+      while ((q = fgets (p, linelen - (p - line), f)) != NULL
+	     && strlen (q) == linelen - (p - line) - 1
+	     && line[linelen - 2] != '\n')
+	{
+	  line = xrealloc (line, 2 * linelen);
+	  p = line + linelen - 1;
+	  linelen += linelen;
+	}
+
+      if (q == NULL && p == line)
+	break;
+
+      p = strchr (line, '\n');
+      if (p)
+	*p = '\0';
+
+      /* Because the file format does not know any form of quoting we
+	 can search forward for the next '#' character and if found
+	 make it terminating the line.  */
+      p = strchr (line, '#');
+      if (p)
+	*p = '\0';
+
+      /* Remove leading whitespace.  NUL is no whitespace character.  */
+      p = line;
+      while (*p == ' ' || *p == '\f' || *p == '\r' || *p == '\t' || *p == '\v')
+	++p;
+
+      /* If the line is blank it is ignored.  */
+      if (p[0] == '\0')
+	continue;
+
+      if (CONST_STRNEQ (p, "include") && (p[7] == ' ' || p[7] == '\t'))
+	{
+	  char *dir, c;
+	  p += 8;
+	  do
+	    {
+	      while (*p == ' ' || *p == '\t')
+		++p;
+
+	      if (*p == '\0')
+		break;
+
+	      dir = p;
+
+	      while (*p != ' ' && *p != '\t' && *p)
+		++p;
+
+	      c = *p;
+	      *p++ = '\0';
+	      if (dir[0] != '\0')
+		gld${EMULATION_NAME}_parse_ld_so_conf_include (info, filename,
+							       dir);
+	    }
+	  while (c != '\0');
+	}
+      else
+	{
+	  char *dir = p;
+	  while (*p && *p != '=' && *p != ' ' && *p != '\t' && *p != '\f'
+		 && *p != '\r' && *p != '\v')
+	    ++p;
+
+	  while (p != dir && p[-1] == '/')
+	    --p;
+	  if (info->path == NULL)
+	    {
+	      info->alloc = p - dir + 1 + 256;
+	      info->path = xmalloc (info->alloc);
+	      info->len = 0;
+	    }
+	  else
+	    {
+	      if (info->len + 1 + (p - dir) >= info->alloc)
+		{
+		  info->alloc += p - dir + 256;
+		  info->path = xrealloc (info->path, info->alloc);
+		}
+	      info->path[info->len++] = config.rpath_separator;
+	    }
+	  memcpy (info->path + info->len, dir, p - dir);
+	  info->len += p - dir;
+	  info->path[info->len] = '\0';
+	}
+    }
+  while (! feof (f));
+  free (line);
+  fclose (f);
+  return TRUE;
+}
 
 static bfd_boolean
 gld${EMULATION_NAME}_check_ld_so_conf (const char *name, int force)
 {
   static bfd_boolean initialized;
   static char *ld_so_conf;
+  struct dt_needed needed;
 
   if (! initialized)
     {
-      FILE *f;
       char *tmppath;
+      struct gld${EMULATION_NAME}_ld_so_conf info;
 
-      tmppath = concat (ld_sysroot, "/etc/ld.so.conf", NULL);
-      f = fopen (tmppath, FOPEN_RT);
-      free (tmppath);
-      if (f != NULL)
+      info.path = NULL;
+      info.len = info.alloc = 0;
+      tmppath = concat (ld_sysroot, "${prefix}/etc/ld.so.conf", NULL);
+      if (!gld${EMULATION_NAME}_parse_ld_so_conf (&info, tmppath))
 	{
-	  char *b;
-	  size_t len, alloc;
-	  int c;
-
-	  len = 0;
-	  alloc = 100;
-	  b = (char *) xmalloc (alloc);
-
-	  while ((c = getc (f)) != EOF)
-	    {
-	      if (len + 1 >= alloc)
-		{
-		  alloc *= 2;
-		  b = (char *) xrealloc (b, alloc);
-		}
-	      if (c != ':'
-		  && c != ' '
-		  && c != '\t'
-		  && c != '\n'
-		  && c != ',')
-		{
-		  b[len] = c;
-		  ++len;
-		}
-	      else
-		{
-		  if (len > 0 && b[len - 1] != ':')
-		    {
-		      b[len] = ':';
-		      ++len;
-		    }
-		}
-	    }
-
-	  if (len > 0 && b[len - 1] == ':')
-	    --len;
-
-	  if (len > 0)
-	    b[len] = '\0';
-	  else
-	    {
-	      free (b);
-	      b = NULL;
-	    }
-
-	  fclose (f);
-
-	  if (b)
-	    {
-	      char *d = gld${EMULATION_NAME}_add_sysroot (b);
-	      free (b);
-	      b = d;
-	    }
-
-	  ld_so_conf = b;
+	  free (tmppath);
+	  tmppath = concat (ld_sysroot, "/etc/ld.so.conf", NULL);
+	  gld${EMULATION_NAME}_parse_ld_so_conf (&info, tmppath);
 	}
+      free (tmppath);
 
+      if (info.path)
+	{
+	  char *d = gld${EMULATION_NAME}_add_sysroot (info.path);
+	  free (info.path);
+	  ld_so_conf = d;
+	}
       initialized = TRUE;
     }
 
   if (ld_so_conf == NULL)
     return FALSE;
 
-  return gld${EMULATION_NAME}_search_needed (ld_so_conf, name, force);
+
+  needed.by = NULL;
+  needed.name = name;
+  return gld${EMULATION_NAME}_search_needed (ld_so_conf, &needed, force);
 }
 
 EOF
@@ -628,42 +811,45 @@ cat >>e${EMULATION_NAME}.c <<EOF
 static void
 gld${EMULATION_NAME}_check_needed (lang_input_statement_type *s)
 {
-  if (global_found)
+  const char *soname;
+
+  /* Stop looking if we've found a loaded lib.  */
+  if (global_found != NULL
+      && (bfd_elf_get_dyn_lib_class (global_found->the_bfd)
+	  & DYN_AS_NEEDED) == 0)
     return;
 
-  if (s->filename != NULL)
+  if (s->filename == NULL || s->the_bfd == NULL)
+    return;
+
+  /* Don't look for a second non-loaded as-needed lib.  */
+  if (global_found != NULL
+      && (bfd_elf_get_dyn_lib_class (s->the_bfd) & DYN_AS_NEEDED) != 0)
+    return;
+
+  if (strcmp (s->filename, global_needed->name) == 0)
     {
-      const char *f;
+      global_found = s;
+      return;
+    }
 
-      if (strcmp (s->filename, global_needed->name) == 0)
+  if (s->search_dirs_flag)
+    {
+      const char *f = strrchr (s->filename, '/');
+      if (f != NULL
+	  && strcmp (f + 1, global_needed->name) == 0)
 	{
-	  global_found = TRUE;
+	  global_found = s;
 	  return;
-	}
-
-      if (s->search_dirs_flag)
-	{
-	  f = strrchr (s->filename, '/');
-	  if (f != NULL
-	      && strcmp (f + 1, global_needed->name) == 0)
-	    {
-	      global_found = TRUE;
-	      return;
-	    }
 	}
     }
 
-  if (s->the_bfd != NULL)
+  soname = bfd_elf_get_dt_soname (s->the_bfd);
+  if (soname != NULL
+      && strcmp (soname, global_needed->name) == 0)
     {
-      const char *soname;
-
-      soname = bfd_elf_get_dt_soname (s->the_bfd);
-      if (soname != NULL
-	  && strcmp (soname, global_needed->name) == 0)
-	{
-	  global_found = TRUE;
-	  return;
-	}
+      global_found = s;
+      return;
     }
 }
 
@@ -678,6 +864,42 @@ static void
 gld${EMULATION_NAME}_after_open (void)
 {
   struct bfd_link_needed_list *needed, *l;
+
+  if (link_info.eh_frame_hdr
+      && ! link_info.traditional_format
+      && ! link_info.relocatable)
+    {
+      struct elf_link_hash_table *htab;
+
+      htab = elf_hash_table (&link_info);
+      if (is_elf_hash_table (htab))
+	{
+	  bfd *abfd;
+	  asection *s;
+
+	  for (abfd = link_info.input_bfds; abfd; abfd = abfd->link_next)
+	    {
+	      s = bfd_get_section_by_name (abfd, ".eh_frame");
+	      if (s && s->size > 8 && !bfd_is_abs_section (s->output_section))
+		 break;
+	    }
+	  if (abfd)
+	    {
+	      const struct elf_backend_data *bed;
+
+	      bed = get_elf_backend_data (abfd);
+	      s = bfd_make_section_with_flags (abfd, ".eh_frame_hdr",
+					       bed->dynamic_sec_flags
+					       | SEC_READONLY);
+	      if (s != NULL
+		 && bfd_set_section_alignment (abfd, s, 2))
+		htab->eh_info.hdr_sec = s;
+	      else
+		einfo ("%P: warning: Cannot create .eh_frame_hdr section,"
+		       " --eh-frame-hdr ignored.\n");
+	    }
+	}
+    }
 
   /* We only need to worry about this when doing a final link.  */
   if (link_info.relocatable || !link_info.executable)
@@ -696,24 +918,47 @@ gld${EMULATION_NAME}_after_open (void)
   for (l = needed; l != NULL; l = l->next)
     {
       struct bfd_link_needed_list *ll;
+      struct dt_needed n, nn;
       int force;
+
+      /* If the lib that needs this one was --as-needed and wasn't
+	 found to be needed, then this lib isn't needed either.  */
+      if (l->by != NULL
+	  && (bfd_elf_get_dyn_lib_class (l->by) & DYN_AS_NEEDED) != 0)
+	continue;
 
       /* If we've already seen this file, skip it.  */
       for (ll = needed; ll != l; ll = ll->next)
-	if (strcmp (ll->name, l->name) == 0)
+	if ((ll->by == NULL
+	     || (bfd_elf_get_dyn_lib_class (ll->by) & DYN_AS_NEEDED) == 0)
+	    && strcmp (ll->name, l->name) == 0)
 	  break;
       if (ll != l)
 	continue;
 
       /* See if this file was included in the link explicitly.  */
       global_needed = l;
-      global_found = FALSE;
+      global_found = NULL;
       lang_for_each_input_file (gld${EMULATION_NAME}_check_needed);
-      if (global_found)
+      if (global_found != NULL
+	  && (bfd_elf_get_dyn_lib_class (global_found->the_bfd)
+	      & DYN_AS_NEEDED) == 0)
 	continue;
 
+      n.by = l->by;
+      n.name = l->name;
+      nn.by = l->by;
       if (trace_file_tries)
 	info_msg (_("%s needed by %B\n"), l->name, l->by);
+
+      /* As-needed libs specified on the command line (or linker script)
+	 take priority over libs found in search dirs.  */
+      if (global_found != NULL)
+	{
+	  nn.name = global_found->filename;
+	  if (gld${EMULATION_NAME}_try_needed (&nn, TRUE))
+	    continue;
+	}
 
       /* We need to find this file and include the symbol table.  We
 	 want to search for the file in the same way that the dynamic
@@ -731,9 +976,13 @@ gld${EMULATION_NAME}_after_open (void)
 	  size_t len;
 	  search_dirs_type *search;
 EOF
-if [ "x${USE_LIBPATH}" = xyes ] ; then
+if [ "x${NATIVE}" = xyes ] ; then
 cat >>e${EMULATION_NAME}.c <<EOF
 	  const char *lib_path;
+EOF
+fi
+if [ "x${USE_LIBPATH}" = xyes ] ; then
+cat >>e${EMULATION_NAME}.c <<EOF
 	  struct bfd_link_needed_list *rp;
 	  int found;
 EOF
@@ -741,13 +990,13 @@ fi
 cat >>e${EMULATION_NAME}.c <<EOF
 
 	  if (gld${EMULATION_NAME}_search_needed (command_line.rpath_link,
-						  l->name, force))
+						  &n, force))
 	    break;
 EOF
 if [ "x${USE_LIBPATH}" = xyes ] ; then
 cat >>e${EMULATION_NAME}.c <<EOF
 	  if (gld${EMULATION_NAME}_search_needed (command_line.rpath,
-						  l->name, force))
+						  &n, force))
 	    break;
 EOF
 fi
@@ -757,12 +1006,12 @@ cat >>e${EMULATION_NAME}.c <<EOF
 	      && command_line.rpath == NULL)
 	    {
 	      lib_path = (const char *) getenv ("LD_RUN_PATH");
-	      if (gld${EMULATION_NAME}_search_needed (lib_path, l->name,
+	      if (gld${EMULATION_NAME}_search_needed (lib_path, &n,
 						      force))
 		break;
 	    }
 	  lib_path = (const char *) getenv ("LD_LIBRARY_PATH");
-	  if (gld${EMULATION_NAME}_search_needed (lib_path, l->name, force))
+	  if (gld${EMULATION_NAME}_search_needed (lib_path, &n, force))
 	    break;
 EOF
 fi
@@ -775,7 +1024,7 @@ cat >>e${EMULATION_NAME}.c <<EOF
 	      char *tmpname = gld${EMULATION_NAME}_add_sysroot (rp->name);
 	      found = (rp->by == l->by
 		       && gld${EMULATION_NAME}_search_needed (tmpname,
-							      l->name,
+							      &n,
 							      force));
 	      free (tmpname);
 	    }
@@ -783,6 +1032,26 @@ cat >>e${EMULATION_NAME}.c <<EOF
 	    break;
 
 EOF
+fi
+if [ "x${USE_LIBPATH}" = xyes ] ; then
+  case ${target} in
+    *-*-freebsd* | *-*-dragonfly*)
+      cat >>e${EMULATION_NAME}.c <<EOF
+	  if (gld${EMULATION_NAME}_check_ld_elf_hints (l->name, force))
+	    break;
+EOF
+    # FreeBSD
+    ;;
+
+    *-*-linux-* | *-*-k*bsd*-*)
+    # Linux
+      cat >>e${EMULATION_NAME}.c <<EOF
+	  if (gld${EMULATION_NAME}_check_ld_so_conf (l->name, force))
+	    break;
+
+EOF
+    ;;
+  esac
 fi
 cat >>e${EMULATION_NAME}.c <<EOF
 	  len = strlen (l->name);
@@ -794,32 +1063,14 @@ cat >>e${EMULATION_NAME}.c <<EOF
 		continue;
 	      filename = (char *) xmalloc (strlen (search->name) + len + 2);
 	      sprintf (filename, "%s/%s", search->name, l->name);
-	      if (gld${EMULATION_NAME}_try_needed (filename, force))
+	      nn.name = filename;
+	      if (gld${EMULATION_NAME}_try_needed (&nn, force))
 		break;
 	      free (filename);
 	    }
 	  if (search != NULL)
 	    break;
 EOF
-if [ "x${USE_LIBPATH}" = xyes ] ; then
-  case ${target} in
-    *-*-freebsd*)
-      cat >>e${EMULATION_NAME}.c <<EOF
-	  if (gld${EMULATION_NAME}_check_ld_elf_hints (l->name, force))
-	    break;
-EOF
-    # FreeBSD
-    ;;
-
-    *-*-linux-gnu*)
-      cat >>e${EMULATION_NAME}.c <<EOF
-	  if (gld${EMULATION_NAME}_check_ld_so_conf (l->name, force))
-	    break;
-EOF
-    # Linux
-    ;;
-  esac
-fi
 cat >>e${EMULATION_NAME}.c <<EOF
 	}
 
@@ -841,16 +1092,14 @@ cat >>e${EMULATION_NAME}.c <<EOF
 static void
 gld${EMULATION_NAME}_find_exp_assignment (etree_type *exp)
 {
-  struct bfd_link_hash_entry *h;
+  bfd_boolean provide = FALSE;
 
   switch (exp->type.node_class)
     {
     case etree_provide:
-      h = bfd_link_hash_lookup (link_info.hash, exp->assign.dst,
-				FALSE, FALSE, FALSE);
-      if (h == NULL)
-	break;
-
+      provide = TRUE;
+      /* Fall thru */
+    case etree_assign:
       /* We call record_link_assignment even if the symbol is defined.
 	 This is because if it is defined by a dynamic object, we
 	 actually want to use the value defined by the linker script,
@@ -858,14 +1107,11 @@ gld${EMULATION_NAME}_find_exp_assignment (etree_type *exp)
 	 symbols like etext).  If the symbol is defined by a regular
 	 object, then, as it happens, calling record_link_assignment
 	 will do no harm.  */
-
-      /* Fall through.  */
-    case etree_assign:
       if (strcmp (exp->assign.dst, ".") != 0)
 	{
-	  if (! (bfd_elf_record_link_assignment
-		 (output_bfd, &link_info, exp->assign.dst,
-		  exp->type.node_class == etree_provide ? TRUE : FALSE)))
+	  if (!bfd_elf_record_link_assignment (output_bfd, &link_info,
+					       exp->assign.dst, provide,
+					       exp->assign.hidden))
 	    einfo ("%P%F: failed to record assignment to %s: %E\n",
 		   exp->assign.dst);
 	}
@@ -912,8 +1158,8 @@ if test x"$LDEMUL_BEFORE_ALLOCATION" != xgld"$EMULATION_NAME"_before_allocation;
     ELF_INTERPRETER_SET_DEFAULT="
   if (sinterp != NULL)
     {
-      sinterp->contents = ${ELF_INTERPRETER_NAME};
-      sinterp->_raw_size = strlen (sinterp->contents) + 1;
+      sinterp->contents = (unsigned char *) ${ELF_INTERPRETER_NAME};
+      sinterp->size = strlen ((char *) sinterp->contents) + 1;
     }
 
 "
@@ -950,13 +1196,14 @@ gld${EMULATION_NAME}_before_allocation (void)
 	  (const char * const *) command_line.auxiliary_filters,
 	  &link_info, &sinterp, lang_elf_version_info)))
     einfo ("%P%F: failed to set dynamic section sizes: %E\n");
+
 ${ELF_INTERPRETER_SET_DEFAULT}
   /* Let the user override the dynamic linker we are using.  */
   if (command_line.interpreter != NULL
       && sinterp != NULL)
     {
       sinterp->contents = (bfd_byte *) command_line.interpreter;
-      sinterp->_raw_size = strlen (command_line.interpreter) + 1;
+      sinterp->size = strlen (command_line.interpreter) + 1;
     }
 
   /* Look for any sections named .gnu.warning.  As a GNU extensions,
@@ -969,10 +1216,8 @@ ${ELF_INTERPRETER_SET_DEFAULT}
       {
 	asection *s;
 	bfd_size_type sz;
-	bfd_size_type prefix_len;
 	char *msg;
 	bfd_boolean ret;
-	const char * gnu_warning_prefix = _("warning: ");
 
 	if (is->just_syms_flag)
 	  continue;
@@ -981,15 +1226,13 @@ ${ELF_INTERPRETER_SET_DEFAULT}
 	if (s == NULL)
 	  continue;
 
-	sz = bfd_section_size (is->the_bfd, s);
-	prefix_len = strlen (gnu_warning_prefix);
-	msg = xmalloc ((size_t) (prefix_len + sz + 1));
-	strcpy (msg, gnu_warning_prefix);
-	if (! bfd_get_section_contents (is->the_bfd, s,	msg + prefix_len,
+	sz = s->size;
+	msg = xmalloc ((size_t) (sz + 1));
+	if (! bfd_get_section_contents (is->the_bfd, s,	msg,
 					(file_ptr) 0, sz))
 	  einfo ("%F%B: Can't read contents of section .gnu.warning: %E\n",
 		 is->the_bfd);
-	msg[prefix_len + sz] = '\0';
+	msg[sz] = '\0';
 	ret = link_info.callbacks->warning (&link_info, msg,
 					    (const char *) NULL,
 					    is->the_bfd, (asection *) NULL,
@@ -997,11 +1240,27 @@ ${ELF_INTERPRETER_SET_DEFAULT}
 	ASSERT (ret);
 	free (msg);
 
-	/* Clobber the section size, so that we don't waste copying the
-	   warning into the output file.  */
-	s->_raw_size = 0;
+	/* Clobber the section size, so that we don't waste space
+	   copying the warning into the output file.  If we've already
+	   sized the output section, adjust its size.  The adjustment
+	   is on rawsize because targets that size sections early will
+	   have called lang_reset_memory_regions after sizing.  */
+	if (s->output_section != NULL
+	    && s->output_section->rawsize >= s->size)
+	  s->output_section->rawsize -= s->size;
+
+	s->size = 0;
+
+	/* Also set SEC_EXCLUDE, so that local symbols defined in the
+	   warning section don't get copied to the output.  */
+	s->flags |= SEC_EXCLUDE | SEC_KEEP;
       }
   }
+
+  before_allocation_default ();
+
+  if (!bfd_elf_size_dynsym_hash_dynstr (output_bfd, &link_info))
+    einfo ("%P%F: failed to set dynamic section sizes: %E\n");
 }
 
 EOF
@@ -1089,12 +1348,11 @@ fi
 if test x"$LDEMUL_PLACE_ORPHAN" != xgld"$EMULATION_NAME"_place_orphan; then
 cat >>e${EMULATION_NAME}.c <<EOF
 
-/* A variant of lang_output_section_find.  Used by place_orphan.  */
+/* A variant of lang_output_section_find used by place_orphan.  */
 
 static lang_output_section_statement_type *
 output_rel_find (asection *sec, int isdyn)
 {
-  lang_statement_union_type *u;
   lang_output_section_statement_type *lookup;
   lang_output_section_statement_type *last = NULL;
   lang_output_section_statement_type *last_alloc = NULL;
@@ -1102,10 +1360,12 @@ output_rel_find (asection *sec, int isdyn)
   lang_output_section_statement_type *last_rel_alloc = NULL;
   int rela = sec->name[4] == 'a';
 
-  for (u = lang_output_section_statement.head; u; u = lookup->next)
+  for (lookup = &lang_output_section_statement.head->output_section_statement;
+       lookup != NULL;
+       lookup = lookup->next)
     {
-      lookup = &u->output_section_statement;
-      if (strncmp (".rel", lookup->name, 4) == 0)
+      if (lookup->constraint != -1
+	  && CONST_STRNEQ (lookup->name, ".rel"))
 	{
 	  int lookrela = lookup->name[4] == 'a';
 
@@ -1145,104 +1405,128 @@ output_rel_find (asection *sec, int isdyn)
   return last;
 }
 
-/* Find the last output section before given output statement.
-   Used by place_orphan.  */
-
-static asection *
-output_prev_sec_find (lang_output_section_statement_type *os)
-{
-  asection *s = (asection *) NULL;
-  lang_statement_union_type *u;
-  lang_output_section_statement_type *lookup;
-
-  for (u = lang_output_section_statement.head;
-       u != (lang_statement_union_type *) NULL;
-       u = lookup->next)
-    {
-      lookup = &u->output_section_statement;
-      if (lookup == os)
-	return s;
-
-      if (lookup->bfd_section != NULL && lookup->bfd_section->owner != NULL)
-	s = lookup->bfd_section;
-    }
-
-  return NULL;
-}
-
 /* Place an orphan section.  We use this to put random SHF_ALLOC
    sections in the right segment.  */
 
-struct orphan_save {
-  lang_output_section_statement_type *os;
-  asection **section;
-  lang_statement_union_type **stmt;
-  lang_statement_union_type **os_tail;
-};
-
 static bfd_boolean
-gld${EMULATION_NAME}_place_orphan (lang_input_statement_type *file, asection *s)
+gld${EMULATION_NAME}_place_orphan (asection *s)
 {
-  static struct orphan_save hold_text;
-  static struct orphan_save hold_rodata;
-  static struct orphan_save hold_data;
-  static struct orphan_save hold_bss;
-  static struct orphan_save hold_rel;
-  static struct orphan_save hold_interp;
-  static struct orphan_save hold_sdata;
-  static int count = 1;
+  static struct orphan_save hold[] =
+    {
+      { ".text",
+	SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE,
+	0, 0, 0, 0 },
+      { ".rodata",
+	SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_DATA,
+	0, 0, 0, 0 },
+      { ".data",
+	SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_DATA,
+	0, 0, 0, 0 },
+      { ".bss",
+	SEC_ALLOC,
+	0, 0, 0, 0 },
+      { 0,
+	SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_DATA,
+	0, 0, 0, 0 },
+      { ".interp",
+	SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_DATA,
+	0, 0, 0, 0 },
+      { ".sdata",
+	SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_DATA | SEC_SMALL_DATA,
+	0, 0, 0, 0 }
+    };
+  enum orphan_save_index
+    {
+      orphan_text = 0,
+      orphan_rodata,
+      orphan_data,
+      orphan_bss,
+      orphan_rel,
+      orphan_interp,
+      orphan_sdata
+    };
+  static int orphan_init_done = 0;
   struct orphan_save *place;
-  lang_statement_list_type *old;
-  lang_statement_list_type add;
-  etree_type *address;
   const char *secname;
-  const char *ps = NULL;
+  lang_output_section_statement_type *after;
   lang_output_section_statement_type *os;
-  lang_statement_union_type **os_tail;
-  etree_type *load_base;
   int isdyn = 0;
+  int iself = s->owner->xvec->flavour == bfd_target_elf_flavour;
+  unsigned int sh_type = iself ? elf_section_type (s) : SHT_NULL;
 
   secname = bfd_get_section_name (s->owner, s);
+
   if (! link_info.relocatable
       && link_info.combreloc
-      && (s->flags & SEC_ALLOC)
-      && strncmp (secname, ".rel", 4) == 0)
+      && (s->flags & SEC_ALLOC))
     {
-      if (secname[4] == 'a')
-	secname = ".rela.dyn";
-      else
-	secname = ".rel.dyn";
-      isdyn = 1;
+      if (iself)
+	switch (sh_type)
+	  {
+	  case SHT_RELA:
+	    secname = ".rela.dyn";
+	    isdyn = 1;
+	    break;
+	  case SHT_REL:
+	    secname = ".rel.dyn";
+	    isdyn = 1;
+	    break;
+	  default:
+	    break;
+	  }
+      else if (CONST_STRNEQ (secname, ".rel"))
+	{
+	  secname = secname[4] == 'a' ? ".rela.dyn" : ".rel.dyn";
+	  isdyn = 1;
+	}
     }
 
-  if (isdyn || (!config.unique_orphan_sections && !unique_section_p (secname)))
+  if (isdyn || (!config.unique_orphan_sections && !unique_section_p (s)))
     {
       /* Look through the script to see where to place this section.  */
       os = lang_output_section_find (secname);
 
       if (os != NULL
 	  && (os->bfd_section == NULL
-	      || ((s->flags ^ os->bfd_section->flags)
-		  & (SEC_LOAD | SEC_ALLOC)) == 0))
+	      || os->bfd_section->flags == 0
+	      || (_bfd_elf_match_sections_by_type (output_bfd,
+						   os->bfd_section,
+						   s->owner, s)
+		  && ((s->flags ^ os->bfd_section->flags)
+		      & (SEC_LOAD | SEC_ALLOC)) == 0)))
 	{
 	  /* We already have an output section statement with this
-	     name, and its bfd section, if any, has compatible flags.  */
-	  lang_add_section (&os->children, s, os, file);
+	     name, and its bfd section, if any, has compatible flags.
+	     If the section already exists but does not have any flags
+	     set, then it has been created by the linker, probably as a
+	     result of a --section-start command line switch.  */
+	  lang_add_section (&os->children, s, os);
 	  return TRUE;
 	}
     }
 
-  if (hold_text.os == NULL)
-    hold_text.os = lang_output_section_find (".text");
+  if (!orphan_init_done)
+    {
+      struct orphan_save *ho;
+      for (ho = hold; ho < hold + sizeof (hold) / sizeof (hold[0]); ++ho)
+	if (ho->name != NULL)
+	  {
+	    ho->os = lang_output_section_find (ho->name);
+	    if (ho->os != NULL && ho->os->flags == 0)
+	      ho->os->flags = ho->flags;
+	  }
+      orphan_init_done = 1;
+    }
 
   /* If this is a final link, then always put .gnu.warning.SYMBOL
      sections into the .text section to get them out of the way.  */
   if (link_info.executable
       && ! link_info.relocatable
-      && strncmp (secname, ".gnu.warning.", sizeof ".gnu.warning." - 1) == 0
-      && hold_text.os != NULL)
+      && CONST_STRNEQ (secname, ".gnu.warning.")
+      && hold[orphan_text].os != NULL)
     {
-      lang_add_section (&hold_text.os->children, s, hold_text.os, file);
+      lang_add_section (&hold[orphan_text].os->children, s,
+			hold[orphan_text].os);
       return TRUE;
     }
 
@@ -1251,223 +1535,60 @@ gld${EMULATION_NAME}_place_orphan (lang_input_statement_type *file, asection *s)
      right after the .interp section, so that the PT_NOTE segment is
      stored right after the program headers where the OS can read it
      in the first page.  */
-#define HAVE_SECTION(hold, name) \
-(hold.os != NULL || (hold.os = lang_output_section_find (name)) != NULL)
-
-  if ((s->flags & SEC_EXCLUDE) != 0 && !link_info.relocatable)
-    {
-      if (s->output_section == NULL)
-	s->output_section = bfd_abs_section_ptr;
-      return TRUE;
-    }
 
   place = NULL;
   if ((s->flags & SEC_ALLOC) == 0)
     ;
   else if ((s->flags & SEC_LOAD) != 0
-	   && strncmp (secname, ".note", 5) == 0
-	   && HAVE_SECTION (hold_interp, ".interp"))
-    place = &hold_interp;
-  else if ((s->flags & SEC_HAS_CONTENTS) == 0
-	   && HAVE_SECTION (hold_bss, ".bss"))
-    place = &hold_bss;
-  else if ((s->flags & SEC_SMALL_DATA) != 0
-	   && HAVE_SECTION (hold_sdata, ".sdata"))
-    place = &hold_sdata;
-  else if ((s->flags & SEC_READONLY) == 0
-	   && HAVE_SECTION (hold_data, ".data"))
-    place = &hold_data;
-  else if (strncmp (secname, ".rel", 4) == 0
-	   && (s->flags & SEC_LOAD) != 0
-	   && (hold_rel.os != NULL
-	       || (hold_rel.os = output_rel_find (s, isdyn)) != NULL))
-    place = &hold_rel;
-  else if ((s->flags & (SEC_CODE | SEC_READONLY)) == SEC_READONLY
-	   && HAVE_SECTION (hold_rodata, ".rodata"))
-    place = &hold_rodata;
-  else if ((s->flags & (SEC_CODE | SEC_READONLY)) == (SEC_CODE | SEC_READONLY)
-	   && hold_text.os != NULL)
-    place = &hold_text;
+	   && ((iself && sh_type == SHT_NOTE)
+	       || (!iself && CONST_STRNEQ (secname, ".note"))))
+    place = &hold[orphan_interp];
+  else if ((s->flags & (SEC_LOAD | SEC_HAS_CONTENTS)) == 0)
+    place = &hold[orphan_bss];
+  else if ((s->flags & SEC_SMALL_DATA) != 0)
+    place = &hold[orphan_sdata];
+  else if ((s->flags & SEC_READONLY) == 0)
+    place = &hold[orphan_data];
+  else if (((iself && (sh_type == SHT_RELA || sh_type == SHT_REL))
+	    || (!iself && CONST_STRNEQ (secname, ".rel")))
+	   && (s->flags & SEC_LOAD) != 0)
+    place = &hold[orphan_rel];
+  else if ((s->flags & SEC_CODE) == 0)
+    place = &hold[orphan_rodata];
+  else
+    place = &hold[orphan_text];
 
-#undef HAVE_SECTION
+  after = NULL;
+  if (place != NULL)
+    {
+      if (place->os == NULL)
+	{
+	  if (place->name != NULL)
+	    place->os = lang_output_section_find (place->name);
+	  else
+	    place->os = output_rel_find (s, isdyn);
+	}
+      after = place->os;
+      if (after == NULL)
+	after = lang_output_section_find_by_flags
+	  (s, &place->os, _bfd_elf_match_sections_by_type);
+      if (after == NULL)
+	/* *ABS* is always the first output section statement.  */
+	after = &lang_output_section_statement.head->output_section_statement;
+    }
 
   /* Choose a unique name for the section.  This will be needed if the
      same section name appears in the input file with different
      loadable or allocatable characteristics.  */
   if (bfd_get_section_by_name (output_bfd, secname) != NULL)
     {
+      static int count = 1;
       secname = bfd_get_unique_section_name (output_bfd, secname, &count);
       if (secname == NULL)
 	einfo ("%F%P: place_orphan failed: %E\n");
     }
 
-  /* Start building a list of statements for this section.
-     First save the current statement pointer.  */
-  old = stat_ptr;
-
-  /* If we have found an appropriate place for the output section
-     statements for this orphan, add them to our own private list,
-     inserting them later into the global statement list.  */
-  if (place != NULL)
-    {
-      stat_ptr = &add;
-      lang_list_init (stat_ptr);
-    }
-
-  address = NULL;
-  if (link_info.relocatable || (s->flags & (SEC_LOAD | SEC_ALLOC)) == 0)
-    address = exp_intop ((bfd_vma) 0);
-
-  load_base = NULL;
-  if (place != NULL && place->os->load_base != NULL)
-    {
-      etree_type *lma_from_vma;
-      lma_from_vma = exp_binop ('-', place->os->load_base,
-				exp_nameop (ADDR, place->os->name));
-      load_base = exp_binop ('+', lma_from_vma,
-			     exp_nameop (ADDR, secname));
-    }
-
-  os_tail = lang_output_section_statement.tail;
-  os = lang_enter_output_section_statement (secname, address, 0,
-					    (etree_type *) NULL,
-					    (etree_type *) NULL,
-					    load_base);
-
-  if (config.build_constructors)
-    {
-      /* If the name of the section is representable in C, then create
-	 symbols to mark the start and the end of the section.  */
-      for (ps = secname; *ps != '\0'; ps++)
-	if (! ISALNUM (*ps) && *ps != '_')
-	  break;
-      if (*ps == '\0')
-	{
-	  char *symname;
-	  etree_type *e_align;
-
-	  symname = (char *) xmalloc (ps - secname + sizeof "__start_");
-	  sprintf (symname, "__start_%s", secname);
-	  lang_add_assignment (exp_assop ('=', symname,
-					  exp_unop (ABSOLUTE,
-						    exp_nameop (NAME, "."))));
-	}
-    }
-
-  lang_add_section (&os->children, s, os, file);
-
-  lang_leave_output_section_statement
-    ((bfd_vma) 0, "*default*",
-     (struct lang_output_section_phdr_list *) NULL, NULL);
-
-  if (config.build_constructors && *ps == '\0')
-    {
-      char *symname;
-
-      /* lang_leave_ouput_section_statement resets stat_ptr.  Put
-	 stat_ptr back where we want it.  */
-      if (place != NULL)
-	stat_ptr = &add;
-
-      symname = (char *) xmalloc (ps - secname + sizeof "__stop_");
-      sprintf (symname, "__stop_%s", secname);
-      lang_add_assignment (exp_assop ('=', symname,
-				      exp_nameop (NAME, ".")));
-    }
-
-  /* Restore the global list pointer.  */
-  stat_ptr = old;
-
-  if (place != NULL && os->bfd_section != NULL)
-    {
-      asection *snew, **pps;
-
-      snew = os->bfd_section;
-
-      /* Shuffle the bfd section list to make the output file look
-	 neater.  This is really only cosmetic.  */
-      if (place->section == NULL)
-	{
-	  asection *bfd_section = place->os->bfd_section;
-
-	  /* If the output statement hasn't been used to place
-	     any input sections (and thus doesn't have an output
-	     bfd_section), look for the closest prior output statement
-	     having an output section.  */
-	  if (bfd_section == NULL)
-	    bfd_section = output_prev_sec_find (place->os);
-
-	  if (bfd_section != NULL && bfd_section != snew)
-	    place->section = &bfd_section->next;
-	}
-
-      if (place->section != NULL)
-	{
-	  /* Unlink the section.  */
-	  for (pps = &output_bfd->sections; *pps != snew; pps = &(*pps)->next)
-	    ;
-	  bfd_section_list_remove (output_bfd, pps);
-
-	  /* Now tack it on to the "place->os" section list.  */
-	  bfd_section_list_insert (output_bfd, place->section, snew);
-	}
-
-      /* Save the end of this list.  Further ophans of this type will
-	 follow the one we've just added.  */
-      place->section = &snew->next;
-
-      /* The following is non-cosmetic.  We try to put the output
-	 statements in some sort of reasonable order here, because
-	 they determine the final load addresses of the orphan
-	 sections.  In addition, placing output statements in the
-	 wrong order may require extra segments.  For instance,
-	 given a typical situation of all read-only sections placed
-	 in one segment and following that a segment containing all
-	 the read-write sections, we wouldn't want to place an orphan
-	 read/write section before or amongst the read-only ones.  */
-      if (add.head != NULL)
-	{
-	  lang_statement_union_type *newly_added_os;
-
-	  if (place->stmt == NULL)
-	    {
-	      /* Put the new statement list right at the head.  */
-	      *add.tail = place->os->header.next;
-	      place->os->header.next = add.head;
-
-	      place->os_tail = &place->os->next;
-	    }
-	  else
-	    {
-	      /* Put it after the last orphan statement we added.  */
-	      *add.tail = *place->stmt;
-	      *place->stmt = add.head;
-	    }
-
-	  /* Fix the global list pointer if we happened to tack our
-	     new list at the tail.  */
-	  if (*old->tail == add.head)
-	    old->tail = add.tail;
-
-	  /* Save the end of this list.  */
-	  place->stmt = add.tail;
-
-	  /* Do the same for the list of output section statements.  */
-	  newly_added_os = *os_tail;
-	  *os_tail = NULL;
-	  newly_added_os->output_section_statement.next = *place->os_tail;
-	  *place->os_tail = newly_added_os;
-	  place->os_tail = &newly_added_os->output_section_statement.next;
-
-	  /* Fixing the global list pointer here is a little different.
-	     We added to the list in lang_enter_output_section_statement,
-	     trimmed off the new output_section_statment above when
-	     assigning *os_tail = NULL, but possibly added it back in
-	     the same place when assigning *place->os_tail.  */
-	  if (*os_tail == NULL)
-	    lang_output_section_statement.tail = os_tail;
-	}
-    }
+  lang_insert_orphan (s, secname, after, place, NULL, NULL);
 
   return TRUE;
 }
@@ -1480,21 +1601,10 @@ cat >>e${EMULATION_NAME}.c <<EOF
 static void
 gld${EMULATION_NAME}_finish (void)
 {
-  if (bfd_elf_discard_info (output_bfd, &link_info))
-    {
-      lang_reset_memory_regions ();
+  bfd_boolean need_layout = bfd_elf_discard_info (output_bfd, &link_info);
 
-      /* Resize the sections.  */
-      lang_size_sections (stat_ptr->head, abs_output_section,
-			  &stat_ptr->head, 0, (bfd_vma) 0, NULL, TRUE);
-
-      /* Redo special stuff.  */
-      ldemul_after_allocation ();
-
-      /* Do the assignments again.  */
-      lang_do_assignments (stat_ptr->head, abs_output_section,
-			   (fill_type *) 0, (bfd_vma) 0);
-    }
+  gld${EMULATION_NAME}_map_segments (need_layout);
+  finish_default ();
 }
 EOF
 fi
@@ -1520,38 +1630,49 @@ cat >>e${EMULATION_NAME}.c <<EOF
   if (link_info.relocatable && config.build_constructors)
     return
 EOF
-sed $sc ldscripts/${EMULATION_NAME}.xu                 >> e${EMULATION_NAME}.c
-echo '  ; else if (link_info.relocatable) return'     >> e${EMULATION_NAME}.c
-sed $sc ldscripts/${EMULATION_NAME}.xr                 >> e${EMULATION_NAME}.c
-echo '  ; else if (!config.text_read_only) return'     >> e${EMULATION_NAME}.c
-sed $sc ldscripts/${EMULATION_NAME}.xbn                >> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xu			>> e${EMULATION_NAME}.c
+echo '  ; else if (link_info.relocatable) return'	>> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xr			>> e${EMULATION_NAME}.c
+echo '  ; else if (!config.text_read_only) return'	>> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xbn			>> e${EMULATION_NAME}.c
 if cmp -s ldscripts/${EMULATION_NAME}.x ldscripts/${EMULATION_NAME}.xn; then : ; else
-echo '  ; else if (!config.magic_demand_paged) return' >> e${EMULATION_NAME}.c
-sed $sc ldscripts/${EMULATION_NAME}.xn                 >> e${EMULATION_NAME}.c
+echo '  ; else if (!config.magic_demand_paged) return'	>> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xn			>> e${EMULATION_NAME}.c
 fi
 if test -n "$GENERATE_PIE_SCRIPT" ; then
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
+echo '  ; else if (link_info.pie && link_info.combreloc' >> e${EMULATION_NAME}.c
+echo '             && link_info.relro' >> e${EMULATION_NAME}.c
+echo '             && (link_info.flags & DT_BIND_NOW)) return' >> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xdw			>> e${EMULATION_NAME}.c
 echo '  ; else if (link_info.pie && link_info.combreloc) return' >> e${EMULATION_NAME}.c
-sed $sc ldscripts/${EMULATION_NAME}.xdc                >> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xdc			>> e${EMULATION_NAME}.c
 fi
-echo '  ; else if (link_info.pie) return'	       >> e${EMULATION_NAME}.c
-sed $sc ldscripts/${EMULATION_NAME}.xd                 >> e${EMULATION_NAME}.c
+echo '  ; else if (link_info.pie) return'		>> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xd			>> e${EMULATION_NAME}.c
 fi
 if test -n "$GENERATE_SHLIB_SCRIPT" ; then
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
+echo '  ; else if (link_info.shared && link_info.combreloc' >> e${EMULATION_NAME}.c
+echo '             && link_info.relro' >> e${EMULATION_NAME}.c
+echo '             && (link_info.flags & DT_BIND_NOW)) return' >> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xsw			>> e${EMULATION_NAME}.c
 echo '  ; else if (link_info.shared && link_info.combreloc) return' >> e${EMULATION_NAME}.c
-sed $sc ldscripts/${EMULATION_NAME}.xsc                >> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xsc			>> e${EMULATION_NAME}.c
 fi
-echo '  ; else if (link_info.shared) return'	       >> e${EMULATION_NAME}.c
-sed $sc ldscripts/${EMULATION_NAME}.xs                 >> e${EMULATION_NAME}.c
+echo '  ; else if (link_info.shared) return'		>> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xs			>> e${EMULATION_NAME}.c
 fi
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
-echo '  ; else if (link_info.combreloc) return'        >> e${EMULATION_NAME}.c
-sed $sc ldscripts/${EMULATION_NAME}.xc                 >> e${EMULATION_NAME}.c
+echo '  ; else if (link_info.combreloc && link_info.relro' >> e${EMULATION_NAME}.c
+echo '             && (link_info.flags & DT_BIND_NOW)) return' >> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xw			>> e${EMULATION_NAME}.c
+echo '  ; else if (link_info.combreloc) return'		>> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.xc			>> e${EMULATION_NAME}.c
 fi
-echo '  ; else return'                                 >> e${EMULATION_NAME}.c
-sed $sc ldscripts/${EMULATION_NAME}.x                  >> e${EMULATION_NAME}.c
-echo '; }'                                             >> e${EMULATION_NAME}.c
+echo '  ; else return'					>> e${EMULATION_NAME}.c
+sed $sc ldscripts/${EMULATION_NAME}.x			>> e${EMULATION_NAME}.c
+echo '; }'						>> e${EMULATION_NAME}.c
 
 else
 # Scripts read from the filesystem.
@@ -1577,6 +1698,9 @@ fi
 if test -n "$GENERATE_PIE_SCRIPT" ; then
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 cat >>e${EMULATION_NAME}.c <<EOF
+  else if (link_info.pie && link_info.combreloc
+	   && link_info.relro && (link_info.flags & DT_BIND_NOW))
+    return "ldscripts/${EMULATION_NAME}.xdw";
   else if (link_info.pie && link_info.combreloc)
     return "ldscripts/${EMULATION_NAME}.xdc";
 EOF
@@ -1589,6 +1713,9 @@ fi
 if test -n "$GENERATE_SHLIB_SCRIPT" ; then
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 cat >>e${EMULATION_NAME}.c <<EOF
+  else if (link_info.shared && link_info.combreloc
+	   && link_info.relro && (link_info.flags & DT_BIND_NOW))
+    return "ldscripts/${EMULATION_NAME}.xsw";
   else if (link_info.shared && link_info.combreloc)
     return "ldscripts/${EMULATION_NAME}.xsc";
 EOF
@@ -1600,6 +1727,9 @@ EOF
 fi
 if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 cat >>e${EMULATION_NAME}.c <<EOF
+  else if (link_info.combreloc && link_info.relro
+	   && (link_info.flags & DT_BIND_NOW))
+    return "ldscripts/${EMULATION_NAME}.xw";
   else if (link_info.combreloc)
     return "ldscripts/${EMULATION_NAME}.xc";
 EOF
@@ -1627,6 +1757,8 @@ cat >>e${EMULATION_NAME}.c <<EOF
 #define OPTION_ENABLE_NEW_DTAGS		(OPTION_DISABLE_NEW_DTAGS + 1)
 #define OPTION_GROUP			(OPTION_ENABLE_NEW_DTAGS + 1)
 #define OPTION_EH_FRAME_HDR		(OPTION_GROUP + 1)
+#define OPTION_EXCLUDE_LIBS		(OPTION_EH_FRAME_HDR + 1)
+#define OPTION_HASH_STYLE		(OPTION_EXCLUDE_LIBS + 1)
 
 static void
 gld${EMULATION_NAME}_add_options
@@ -1642,6 +1774,8 @@ cat >>e${EMULATION_NAME}.c <<EOF
     {"disable-new-dtags", no_argument, NULL, OPTION_DISABLE_NEW_DTAGS},
     {"enable-new-dtags", no_argument, NULL, OPTION_ENABLE_NEW_DTAGS},
     {"eh-frame-hdr", no_argument, NULL, OPTION_EH_FRAME_HDR},
+    {"exclude-libs", required_argument, NULL, OPTION_EXCLUDE_LIBS},
+    {"hash-style", required_argument, NULL, OPTION_HASH_STYLE},
     {"Bgroup", no_argument, NULL, OPTION_GROUP},
 EOF
 fi
@@ -1694,6 +1828,26 @@ cat >>e${EMULATION_NAME}.c <<EOF
       link_info.unresolved_syms_in_shared_libs = RM_GENERATE_ERROR;
       break;
 
+    case OPTION_EXCLUDE_LIBS:
+      add_excluded_libs (optarg);
+      break;
+
+    case OPTION_HASH_STYLE:
+      link_info.emit_hash = FALSE;
+      link_info.emit_gnu_hash = FALSE;
+      if (strcmp (optarg, "sysv") == 0)
+	link_info.emit_hash = TRUE;
+      else if (strcmp (optarg, "gnu") == 0)
+	link_info.emit_gnu_hash = TRUE;
+      else if (strcmp (optarg, "both") == 0)
+	{
+	  link_info.emit_hash = TRUE;
+	  link_info.emit_gnu_hash = TRUE;
+	}
+      else
+	einfo (_("%P%F: invalid hash style \`%s'\n"), optarg);
+      break;
+
     case 'z':
       if (strcmp (optarg, "initfirst") == 0)
 	link_info.flags_1 |= (bfd_vma) DF_1_INITFIRST;
@@ -1713,6 +1867,11 @@ cat >>e${EMULATION_NAME}.c <<EOF
 	{
 	  link_info.flags |= (bfd_vma) DF_BIND_NOW;
 	  link_info.flags_1 |= (bfd_vma) DF_1_NOW;
+	}
+      else if (strcmp (optarg, "lazy") == 0)
+	{
+	  link_info.flags &= ~(bfd_vma) DF_BIND_NOW;
+	  link_info.flags_1 &= ~(bfd_vma) DF_1_NOW;
 	}
       else if (strcmp (optarg, "origin") == 0)
 	{
@@ -1738,6 +1897,41 @@ cat >>e${EMULATION_NAME}.c <<EOF
 	{
 	  link_info.noexecstack = TRUE;
 	  link_info.execstack = FALSE;
+	}
+EOF
+
+  if test -n "$COMMONPAGESIZE"; then
+cat >>e${EMULATION_NAME}.c <<EOF
+      else if (strcmp (optarg, "relro") == 0)
+	link_info.relro = TRUE;
+      else if (strcmp (optarg, "norelro") == 0)
+	link_info.relro = FALSE;
+EOF
+  fi
+
+cat >>e${EMULATION_NAME}.c <<EOF
+      else if (CONST_STRNEQ (optarg, "max-page-size="))
+	{
+	  char *end;
+
+	  config.maxpagesize = strtoul (optarg + 14, &end, 0);
+	  if (*end || (config.maxpagesize & (config.maxpagesize - 1)) != 0)
+	    einfo (_("%P%F: invalid maxium page size \`%s'\n"),
+		   optarg + 14);
+	  ASSERT (default_target != NULL);
+	  bfd_emul_set_maxpagesize (default_target, config.maxpagesize);
+	}
+      else if (CONST_STRNEQ (optarg, "common-page-size="))
+	{
+	  char *end;
+	  config.commonpagesize = strtoul (optarg + 17, &end, 0);
+	  if (*end
+	      || (config.commonpagesize & (config.commonpagesize - 1)) != 0)
+	    einfo (_("%P%F: invalid common page size \`%s'\n"),
+		   optarg + 17);
+	  ASSERT (default_target != NULL);
+	  bfd_emul_set_commonpagesize (default_target,
+				       config.commonpagesize);
 	}
       /* What about the other Solaris -z options? FIXME.  */
       break;
@@ -1772,11 +1966,13 @@ cat >>e${EMULATION_NAME}.c <<EOF
   fprintf (file, _("  --disable-new-dtags\tDisable new dynamic tags\n"));
   fprintf (file, _("  --enable-new-dtags\tEnable new dynamic tags\n"));
   fprintf (file, _("  --eh-frame-hdr\tCreate .eh_frame_hdr section\n"));
+  fprintf (file, _("  --hash-style=STYLE\tSet hash style to sysv, gnu or both\n"));
   fprintf (file, _("  -z combreloc\t\tMerge dynamic relocs into one section and sort\n"));
   fprintf (file, _("  -z defs\t\tReport unresolved symbols in object files.\n"));
   fprintf (file, _("  -z execstack\t\tMark executable as requiring executable stack\n"));
   fprintf (file, _("  -z initfirst\t\tMark DSO to be initialized first at runtime\n"));
   fprintf (file, _("  -z interpose\t\tMark object to interpose all DSOs but executable\n"));
+  fprintf (file, _("  -z lazy\t\tMark object lazy runtime binding (default)\n"));
   fprintf (file, _("  -z loadfltr\t\tMark object requiring immediate process\n"));
   fprintf (file, _("  -z muldefs\t\tAllow multiple definitions\n"));
   fprintf (file, _("  -z nocombreloc\tDon't merge dynamic relocs into one section\n"));
@@ -1786,8 +1982,28 @@ cat >>e${EMULATION_NAME}.c <<EOF
   fprintf (file, _("  -z nodlopen\t\tMark DSO not available to dlopen\n"));
   fprintf (file, _("  -z nodump\t\tMark DSO not available to dldump\n"));
   fprintf (file, _("  -z noexecstack\tMark executable as not requiring executable stack\n"));
+EOF
+
+  if test -n "$COMMONPAGESIZE"; then
+cat >>e${EMULATION_NAME}.c <<EOF
+  fprintf (file, _("  -z norelro\t\tDon't create RELRO program header\n"));
+EOF
+  fi
+
+cat >>e${EMULATION_NAME}.c <<EOF
   fprintf (file, _("  -z now\t\tMark object non-lazy runtime binding\n"));
   fprintf (file, _("  -z origin\t\tMark object requiring immediate \$ORIGIN processing\n\t\t\t  at runtime\n"));
+EOF
+
+  if test -n "$COMMONPAGESIZE"; then
+cat >>e${EMULATION_NAME}.c <<EOF
+  fprintf (file, _("  -z relro\t\tCreate RELRO program header\n"));
+EOF
+  fi
+
+cat >>e${EMULATION_NAME}.c <<EOF
+  fprintf (file, _("  -z max-page-size=SIZE\tSet maximum page size to SIZE\n"));
+  fprintf (file, _("  -z common-page-size=SIZE\n\t\t\tSet common page size to SIZE\n"));
   fprintf (file, _("  -z KEYWORD\t\tIgnored for Solaris compatibility\n"));
 EOF
 fi

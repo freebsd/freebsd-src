@@ -42,8 +42,8 @@ CFLAGS+= -I${TARGET_SUBDIR}
 CFLAGS+= -I${BMAKE_BU}/libbfd -I${BMAKE_BU}/libbfd/${TARGET_CPUARCH}
 CFLAGS+= -I${CNTRB_GDB}/gdb
 CFLAGS+= -I${CNTRB_GDB}/gdb/config
-CFLAGS+= -I${CNTRB_GDB}/include
 CFLAGS+= -I${CNTRB_BU}/include
+CFLAGS+= -I${CNTRB_GDB}/include
 CFLAGS+= -I${CNTRB_BU}/bfd
 
 GENSRCS+= nm.h tm.h

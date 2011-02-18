@@ -1,6 +1,6 @@
 /* read.h - of read.c
    Copyright 1986, 1990, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003
+   2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 extern char *input_line_pointer;	/* -> char we are parsing now.  */
 
@@ -56,6 +56,7 @@ extern char lex_type[];
 extern char is_end_of_line[];
 
 extern int is_it_end_of_statement (void);
+extern char *find_end_of_line (char *, int);
 
 extern int target_big_endian;
 
@@ -101,7 +102,6 @@ extern void aout_process_stab (int, const char *, int, int, int);
 extern char *demand_copy_string (int *lenP);
 extern char *demand_copy_C_string (int *len_pointer);
 extern char get_absolute_expression_and_terminator (long *val_pointer);
-extern offsetT get_absolute_expr (expressionS *);
 extern offsetT get_absolute_expression (void);
 extern unsigned int next_char_of_string (void);
 extern void s_mri_sect (char *);
@@ -111,11 +111,10 @@ extern void add_include_dir (char *path);
 extern void cons (int nbytes);
 extern void demand_empty_rest_of_line (void);
 extern void emit_expr (expressionS *exp, unsigned int nbytes);
-extern void emit_leb128_expr (expressionS *, int);
 extern void equals (char *sym_name, int reassign);
 extern void float_cons (int float_type);
 extern void ignore_rest_of_line (void);
-extern void discard_rest_of_line (void);
+#define discard_rest_of_line ignore_rest_of_line
 extern int output_leb128 (char *, valueT, int sign);
 extern void pseudo_set (symbolS * symbolP);
 extern void read_a_source_file (char *name);
@@ -139,10 +138,9 @@ extern void bss_alloc (symbolS *, addressT, int);
 extern offsetT parse_align (int);
 extern symbolS *s_comm_internal (int, symbolS *(*) (int, symbolS *, addressT));
 extern symbolS *s_lcomm_internal (int, symbolS *, addressT);
-extern void s_app_file_string (char *);
+extern void s_app_file_string (char *, int);
 extern void s_app_file (int);
 extern void s_app_line (int);
-extern void s_bad_endr (int);
 extern void s_comm (int);
 extern void s_data (int);
 extern void s_desc (int);
@@ -151,13 +149,14 @@ extern void s_elseif (int arg);
 extern void s_end (int arg);
 extern void s_endif (int arg);
 extern void s_err (int);
+extern void s_errwarn (int);
 extern void s_fail (int);
 extern void s_fill (int);
 extern void s_float_space (int mult);
 extern void s_func (int);
-extern void do_s_func (int, const char *);
 extern void s_globl (int arg);
 extern void s_if (int arg);
+extern void s_ifb (int arg);
 extern void s_ifc (int arg);
 extern void s_ifdef (int arg);
 extern void s_ifeqs (int arg);
@@ -186,3 +185,5 @@ extern void stringer (int append_zero);
 extern void s_xstab (int what);
 extern void s_rva (int);
 extern void s_incbin (int);
+extern void s_vendor_attribute (int);
+extern void s_weakref (int);

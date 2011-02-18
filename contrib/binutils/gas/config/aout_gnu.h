@@ -1,6 +1,6 @@
 /* This file is aout_gnu.h
 
-   Copyright 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 2000
+   Copyright 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 2000, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,7 +17,7 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef __A_OUT_GNU_H__
 #define __A_OUT_GNU_H__
@@ -26,15 +26,15 @@
    relocations, and one which uses extended relocations.
 
    Today, the extended reloc uses are
-   TC_SPARC, TC_A29K
+   TC_SPARC
 
    each must define the enum reloc_type
 
 */
 
-#define USE_EXTENDED_RELOC (defined(TC_SPARC) || defined(TC_A29K))
+#define USE_EXTENDED_RELOC defined(TC_SPARC)
 
-#if defined(TC_SPARC) || defined(TC_A29K)
+#if defined(TC_SPARC)
 enum reloc_type
   {
     RELOC_8, RELOC_16, RELOC_32,/* simple relocations */
@@ -62,7 +62,7 @@ enum reloc_type
     NO_RELOC
   };
 
-#endif /* TC_SPARC or TC_A29K */
+#endif /* TC_SPARC */
 
 #define __GNU_EXEC_MACROS__
 

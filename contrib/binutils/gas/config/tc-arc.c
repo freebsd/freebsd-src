@@ -1,6 +1,6 @@
 /* tc-arc.c -- Assembler for the ARC
-   Copyright 1994, 1995, 1997, 1999, 2000, 2001, 2002
-   Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+   2006  Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -17,11 +17,9 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
-#include <stdio.h>
-#include "libiberty.h"
 #include "as.h"
 #include "struc-symbol.h"
 #include "safe-ctype.h"
@@ -31,31 +29,12 @@
 #include "elf/arc.h"
 #include "dwarf2dbg.h"
 
-extern int arc_get_mach PARAMS ((char *));
-extern int arc_operand_type PARAMS ((int));
-extern int arc_insn_not_jl PARAMS ((arc_insn));
-extern int arc_limm_fixup_adjust PARAMS ((arc_insn));
-extern int arc_get_noshortcut_flag PARAMS ((void));
-extern int arc_set_ext_seg PARAMS ((void));
-extern void arc_code_symbol PARAMS ((expressionS *));
-
-static arc_insn arc_insert_operand PARAMS ((arc_insn,
-					    const struct arc_operand *, int,
-					    const struct arc_operand_value *,
-					    offsetT, char *, unsigned int));
-static void arc_common PARAMS ((int));
-static void arc_extinst PARAMS ((int));
-static void arc_extoper PARAMS ((int));
-static void arc_option PARAMS ((int));
-static int  get_arc_exp_reloc_type PARAMS ((int, int, expressionS *,
-					   expressionS *));
-
-static void init_opcode_tables PARAMS ((int));
-
-const struct suffix_classes {
+const struct suffix_classes
+{
   char *name;
   int  len;
-} suffixclass[] = {
+} suffixclass[] =
+{
   { "SUFFIX_COND|SUFFIX_FLAG",23 },
   { "SUFFIX_FLAG", 11 },
   { "SUFFIX_COND", 11 },
@@ -64,11 +43,13 @@ const struct suffix_classes {
 
 #define MAXSUFFIXCLASS (sizeof (suffixclass) / sizeof (struct suffix_classes))
 
-const struct syntax_classes {
+const struct syntax_classes
+{
   char *name;
   int  len;
   int  class;
-} syntaxclass[] = {
+} syntaxclass[] =
+{
   { "SYNTAX_3OP|OP1_MUST_BE_IMM", 26, SYNTAX_3OP|OP1_MUST_BE_IMM|SYNTAX_VALID },
   { "OP1_MUST_BE_IMM|SYNTAX_3OP", 26, OP1_MUST_BE_IMM|SYNTAX_3OP|SYNTAX_VALID },
   { "SYNTAX_2OP|OP1_IMM_IMPLIED", 26, SYNTAX_2OP|OP1_IMM_IMPLIED|SYNTAX_VALID },
@@ -78,28 +59,6 @@ const struct syntax_classes {
 };
 
 #define MAXSYNTAXCLASS (sizeof (syntaxclass) / sizeof (struct syntax_classes))
-
-const pseudo_typeS md_pseudo_table[] = {
-  { "align", s_align_bytes, 0 }, /* Defaulting is invalid (0).  */
-  { "comm", arc_common, 0 },
-  { "common", arc_common, 0 },
-  { "lcomm", arc_common, 1 },
-  { "lcommon", arc_common, 1 },
-  { "2byte", cons, 2 },
-  { "half", cons, 2 },
-  { "short", cons, 2 },
-  { "3byte", cons, 3 },
-  { "4byte", cons, 4 },
-  { "word", cons, 4 },
-  { "option", arc_option, 0 },
-  { "cpu", arc_option, 0 },
-  { "block", s_space, 0 },
-  { "extcondcode", arc_extoper, 0 },
-  { "extcoreregister", arc_extoper, 1 },
-  { "extauxregister", arc_extoper, 2 },
-  { "extinstruction", arc_extinst, 0 },
-  { NULL, 0, 0 },
-};
 
 /* This array holds the chars that always start a comment.  If the
    pre-processor is disabled, these aren't very useful.  */
@@ -144,21 +103,27 @@ static int cpu_tables_init_p = 0;
 static struct hash_control *arc_suffix_hash = NULL;
 
 const char *md_shortopts = "";
-struct option md_longopts[] = {
-#define OPTION_EB (OPTION_MD_BASE + 0)
+
+enum options
+{
+  OPTION_EB = OPTION_MD_BASE,
+  OPTION_EL,
+  OPTION_ARC5,
+  OPTION_ARC6,
+  OPTION_ARC7,
+  OPTION_ARC8,
+  OPTION_ARC
+};
+
+struct option md_longopts[] =
+{
   { "EB", no_argument, NULL, OPTION_EB },
-#define OPTION_EL (OPTION_MD_BASE + 1)
   { "EL", no_argument, NULL, OPTION_EL },
-#define OPTION_ARC5 (OPTION_MD_BASE + 2)
   { "marc5", no_argument, NULL, OPTION_ARC5 },
   { "pre-v6", no_argument, NULL, OPTION_ARC5 },
-#define OPTION_ARC6 (OPTION_MD_BASE + 3)
   { "marc6", no_argument, NULL, OPTION_ARC6 },
-#define OPTION_ARC7 (OPTION_MD_BASE + 4)
   { "marc7", no_argument, NULL, OPTION_ARC7 },
-#define OPTION_ARC8 (OPTION_MD_BASE + 5)
   { "marc8", no_argument, NULL, OPTION_ARC8 },
-#define OPTION_ARC (OPTION_MD_BASE + 6)
   { "marc", no_argument, NULL, OPTION_ARC },
   { NULL, no_argument, NULL, 0 }
 };
@@ -173,9 +138,7 @@ struct arc_operand_value *get_ext_suffix (char *s);
    See if it's a processor-specific option.  */
 
 int
-md_parse_option (c, arg)
-     int c;
-     char *arg ATTRIBUTE_UNUSED;
+md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -207,8 +170,7 @@ md_parse_option (c, arg)
 }
 
 void
-md_show_usage (stream)
-     FILE *stream;
+md_show_usage (FILE *stream)
 {
   fprintf (stream, "\
 ARC Options:\n\
@@ -223,7 +185,7 @@ ARC Options:\n\
    command.  */
 
 void
-md_begin ()
+md_begin (void)
 {
   /* The endianness can be chosen "at the factory".  */
   target_big_endian = byte_order == BIG_ENDIAN;
@@ -239,9 +201,9 @@ md_begin ()
 
 /* Initialize the various opcode and operand tables.
    MACH is one of bfd_mach_arc_xxx.  */
+
 static void
-init_opcode_tables (mach)
-     int mach;
+init_opcode_tables (int mach)
 {
   int i;
   char *last;
@@ -262,7 +224,7 @@ init_opcode_tables (mach)
   for (i = 0; i < arc_suffixes_count; i++)
     {
       if (strcmp (arc_suffixes[i].name, last) != 0)
-	hash_insert (arc_suffix_hash, arc_suffixes[i].name, (PTR) (arc_suffixes + i));
+	hash_insert (arc_suffix_hash, arc_suffixes[i].name, (void *) (arc_suffixes + i));
       last = arc_suffixes[i].name;
     }
 
@@ -282,7 +244,7 @@ init_opcode_tables (mach)
 	 output registers into the object file's symbol table.  */
       symbol_table_insert (symbol_create (arc_reg_names[i].name,
 					  reg_section,
-					  (int) &arc_reg_names[i],
+					  (valueT) &arc_reg_names[i],
 					  &zero_address_frag));
     }
 
@@ -294,14 +256,13 @@ init_opcode_tables (mach)
    If REG is non-NULL, it is a register number and ignore VAL.  */
 
 static arc_insn
-arc_insert_operand (insn, operand, mods, reg, val, file, line)
-     arc_insn insn;
-     const struct arc_operand *operand;
-     int mods;
-     const struct arc_operand_value *reg;
-     offsetT val;
-     char *file;
-     unsigned int line;
+arc_insert_operand (arc_insn insn,
+		    const struct arc_operand *operand,
+		    int mods,
+		    const struct arc_operand_value *reg,
+		    offsetT val,
+		    char *file,
+		    unsigned int line)
 {
   if (operand->bits != 32)
     {
@@ -328,17 +289,7 @@ arc_insert_operand (insn, operand, mods, reg, val, file, line)
 	test = val;
 
       if (test < (offsetT) min || test > (offsetT) max)
-	{
-	  const char *err =
-	    "operand out of range (%s not between %ld and %ld)";
-	  char buf[100];
-
-	  sprint_value (buf, test);
-	  if (file == (char *) NULL)
-	    as_warn (err, buf, min, max);
-	  else
-	    as_warn_where (file, line, err, buf, min, max);
-	}
+	as_warn_value_out_of_range (_("operand"), test, (offsetT) min, (offsetT) max, file, line);
     }
 
   if (operand->insert)
@@ -361,7 +312,8 @@ arc_insert_operand (insn, operand, mods, reg, val, file, line)
    we go, because that would require us to first create the frag, and
    that would screw up references to ``.''.  */
 
-struct arc_fixup {
+struct arc_fixup
+{
   /* index into `arc_operands'  */
   int opindex;
   expressionS exp;
@@ -371,524 +323,81 @@ struct arc_fixup {
 
 #define MAX_SUFFIXES 5
 
-/* This routine is called for each instruction to be assembled.  */
+/* Compute the reloc type of an expression.
+   The possibly modified expression is stored in EXPNEW.
 
-void
-md_assemble (str)
-     char *str;
+   This is used to convert the expressions generated by the %-op's into
+   the appropriate operand type.  It is called for both data in instructions
+   (operands) and data outside instructions (variables, debugging info, etc.).
+
+   Currently supported %-ops:
+
+   %st(symbol): represented as "symbol >> 2"
+                "st" is short for STatus as in the status register (pc)
+
+   DEFAULT_TYPE is the type to use if no special processing is required.
+
+   DATA_P is non-zero for data or limm values, zero for insn operands.
+   Remember that the opcode "insertion fns" cannot be used on data, they're
+   only for inserting operands into insns.  They also can't be used for limm
+   values as the insertion routines don't handle limm values.  When called for
+   insns we return fudged reloc types (real_value - BFD_RELOC_UNUSED).  When
+   called for data or limm values we use real reloc types.  */
+
+static int
+get_arc_exp_reloc_type (int data_p,
+			int default_type,
+			expressionS *exp,
+			expressionS *expnew)
 {
-  const struct arc_opcode *opcode;
-  const struct arc_opcode *std_opcode;
-  struct arc_opcode *ext_opcode;
-  char *start;
-  const char *last_errmsg = 0;
-  arc_insn insn;
-  static int init_tables_p = 0;
+  /* If the expression is "symbol >> 2" we must change it to just "symbol",
+     as fix_new_exp can't handle it.  Similarly for (symbol - symbol) >> 2.
+     That's ok though.  What's really going on here is that we're using
+     ">> 2" as a special syntax for specifying BFD_RELOC_ARC_B26.  */
 
-  /* Opcode table initialization is deferred until here because we have to
-     wait for a possible .option command.  */
-  if (!init_tables_p)
+  if (exp->X_op == O_right_shift
+      && exp->X_op_symbol != NULL
+      && exp->X_op_symbol->sy_value.X_op == O_constant
+      && exp->X_op_symbol->sy_value.X_add_number == 2
+      && exp->X_add_number == 0)
     {
-      init_opcode_tables (arc_mach_type);
-      init_tables_p = 1;
+      if (exp->X_add_symbol != NULL
+	  && (exp->X_add_symbol->sy_value.X_op == O_constant
+	      || exp->X_add_symbol->sy_value.X_op == O_symbol))
+	{
+	  *expnew = *exp;
+	  expnew->X_op = O_symbol;
+	  expnew->X_op_symbol = NULL;
+	  return data_p ? BFD_RELOC_ARC_B26 : arc_operand_map['J'];
+	}
+      else if (exp->X_add_symbol != NULL
+	       && exp->X_add_symbol->sy_value.X_op == O_subtract)
+	{
+	  *expnew = exp->X_add_symbol->sy_value;
+	  return data_p ? BFD_RELOC_ARC_B26 : arc_operand_map['J'];
+	}
     }
 
-  /* Skip leading white space.  */
-  while (ISSPACE (*str))
-    str++;
-
-  /* The instructions are stored in lists hashed by the first letter (though
-     we needn't care how they're hashed).  Get the first in the list.  */
-
-  ext_opcode = arc_ext_opcodes;
-  std_opcode = arc_opcode_lookup_asm (str);
-
-  /* Keep looking until we find a match.  */
-
-  start = str;
-  for (opcode = (ext_opcode ? ext_opcode : std_opcode);
-       opcode != NULL;
-       opcode = (ARC_OPCODE_NEXT_ASM (opcode)
-		 ? ARC_OPCODE_NEXT_ASM (opcode)
-		 : (ext_opcode ? ext_opcode = NULL, std_opcode : NULL)))
-    {
-      int past_opcode_p, fc, num_suffixes;
-      int fix_up_at = 0;
-      char *syn;
-      struct arc_fixup fixups[MAX_FIXUPS];
-      /* Used as a sanity check.  If we need a limm reloc, make sure we ask
-	 for an extra 4 bytes from frag_more.  */
-      int limm_reloc_p;
-      int ext_suffix_p;
-      const struct arc_operand_value *insn_suffixes[MAX_SUFFIXES];
-
-      /* Is this opcode supported by the selected cpu?  */
-      if (! arc_opcode_supported (opcode))
-	continue;
-
-      /* Scan the syntax string.  If it doesn't match, try the next one.  */
-
-      arc_opcode_init_insert ();
-      insn = opcode->value;
-      fc = 0;
-      past_opcode_p = 0;
-      num_suffixes = 0;
-      limm_reloc_p = 0;
-      ext_suffix_p = 0;
-
-      /* We don't check for (*str != '\0') here because we want to parse
-	 any trailing fake arguments in the syntax string.  */
-      for (str = start, syn = opcode->syntax; *syn != '\0';)
-	{
-	  int mods;
-	  const struct arc_operand *operand;
-
-	  /* Non operand chars must match exactly.  */
-	  if (*syn != '%' || *++syn == '%')
-	    {
-	      /* Handle '+' specially as we want to allow "ld r0,[sp-4]".  */
-	      /* ??? The syntax has changed to [sp,-4].  */
-	      if (0 && *syn == '+' && *str == '-')
-		{
-		  /* Skip over syn's +, but leave str's - alone.
-		     That makes the case identical to "ld r0,[sp+-4]".  */
-		  ++syn;
-		}
-	      else if (*str == *syn)
-		{
-		  if (*syn == ' ')
-		    past_opcode_p = 1;
-		  ++syn;
-		  ++str;
-		}
-	      else
-		break;
-	      continue;
-	    }
-
-	  /* We have an operand.  Pick out any modifiers.  */
-	  mods = 0;
-	  while (ARC_MOD_P (arc_operands[arc_operand_map[(int) *syn]].flags))
-	    {
-	      mods |= arc_operands[arc_operand_map[(int) *syn]].flags & ARC_MOD_BITS;
-	      ++syn;
-	    }
-	  operand = arc_operands + arc_operand_map[(int) *syn];
-	  if (operand->fmt == 0)
-	    as_fatal ("unknown syntax format character `%c'", *syn);
-
-	  if (operand->flags & ARC_OPERAND_FAKE)
-	    {
-	      const char *errmsg = NULL;
-	      if (operand->insert)
-		{
-		  insn = (*operand->insert) (insn, operand, mods, NULL, 0, &errmsg);
-		  if (errmsg != (const char *) NULL)
-		    {
-		      last_errmsg = errmsg;
-		      if (operand->flags & ARC_OPERAND_ERROR)
-			{
-			  as_bad (errmsg);
-			  return;
-			}
-		      else if (operand->flags & ARC_OPERAND_WARN)
-			as_warn (errmsg);
-		      break;
-		    }
-		  if (limm_reloc_p
-		      && (operand->flags && operand->flags & ARC_OPERAND_LIMM)
-		      && (operand->flags &
-			  (ARC_OPERAND_ABSOLUTE_BRANCH | ARC_OPERAND_ADDRESS)))
-		    {
-		      fixups[fix_up_at].opindex = arc_operand_map[operand->fmt];
-		    }
-		}
-	      ++syn;
-	    }
-	  /* Are we finished with suffixes?  */
-	  else if (!past_opcode_p)
-	    {
-	      int found;
-	      char c;
-	      char *s, *t;
-	      const struct arc_operand_value *suf, *suffix_end;
-	      const struct arc_operand_value *suffix = NULL;
-
-	      if (!(operand->flags & ARC_OPERAND_SUFFIX))
-		abort ();
-
-	      /* If we're at a space in the input string, we want to skip the
-		 remaining suffixes.  There may be some fake ones though, so
-		 just go on to try the next one.  */
-	      if (*str == ' ')
-		{
-		  ++syn;
-		  continue;
-		}
-
-	      s = str;
-	      if (mods & ARC_MOD_DOT)
-		{
-		  if (*s != '.')
-		    break;
-		  ++s;
-		}
-	      else
-		{
-		  /* This can happen in "b.nd foo" and we're currently looking
-		     for "%q" (ie: a condition code suffix).  */
-		  if (*s == '.')
-		    {
-		      ++syn;
-		      continue;
-		    }
-		}
-
-	      /* Pick the suffix out and look it up via the hash table.  */
-	      for (t = s; *t && ISALNUM (*t); ++t)
-		continue;
-	      c = *t;
-	      *t = '\0';
-	      if ((suf = get_ext_suffix (s)))
-		ext_suffix_p = 1;
-	      else
-		suf = hash_find (arc_suffix_hash, s);
-	      if (!suf)
-		{
-		  /* This can happen in "blle foo" and we're currently using
-		     the template "b%q%.n %j".  The "bl" insn occurs later in
-		     the table so "lle" isn't an illegal suffix.  */
-		  *t = c;
-		  break;
-		}
-
-	      /* Is it the right type?  Note that the same character is used
-		 several times, so we have to examine all of them.  This is
-		 relatively efficient as equivalent entries are kept
-		 together.  If it's not the right type, don't increment `str'
-		 so we try the next one in the series.  */
-	      found = 0;
-	      if (ext_suffix_p && arc_operands[suf->type].fmt == *syn)
-		{
-		  /* Insert the suffix's value into the insn.  */
-		  *t = c;
-		  if (operand->insert)
-		    insn = (*operand->insert) (insn, operand,
-					       mods, NULL, suf->value,
-					       NULL);
-		  else
-		    insn |= suf->value << operand->shift;
-
-		  str = t;
-		  found = 1;
-		}
-	      else
-		{
-		  *t = c;
-		  suffix_end = arc_suffixes + arc_suffixes_count;
-		  for (suffix = suf;
-		       suffix < suffix_end && strcmp (suffix->name, suf->name) == 0;
-		       ++suffix)
-		    {
-		      if (arc_operands[suffix->type].fmt == *syn)
-			{
-			  /* Insert the suffix's value into the insn.  */
-			  if (operand->insert)
-			    insn = (*operand->insert) (insn, operand,
-						       mods, NULL, suffix->value,
-						       NULL);
-			  else
-			    insn |= suffix->value << operand->shift;
-
-			  str = t;
-			  found = 1;
-			  break;
-			}
-		    }
-		}
-	      ++syn;
-	      if (!found)
-		/* Wrong type.  Just go on to try next insn entry.  */
-		;
-	      else
-		{
-		  if (num_suffixes == MAX_SUFFIXES)
-		    as_bad ("too many suffixes");
-		  else
-		    insn_suffixes[num_suffixes++] = suffix;
-		}
-	    }
-	  else
-	    /* This is either a register or an expression of some kind.  */
-	    {
-	      char *hold;
-	      const struct arc_operand_value *reg = NULL;
-	      long value = 0;
-	      expressionS exp;
-
-	      if (operand->flags & ARC_OPERAND_SUFFIX)
-		abort ();
-
-	      /* Is there anything left to parse?
-		 We don't check for this at the top because we want to parse
-		 any trailing fake arguments in the syntax string.  */
-	      if (is_end_of_line[(unsigned char) *str])
-		break;
-
-	      /* Parse the operand.  */
-	      hold = input_line_pointer;
-	      input_line_pointer = str;
-	      expression (&exp);
-	      str = input_line_pointer;
-	      input_line_pointer = hold;
-
-	      if (exp.X_op == O_illegal)
-		as_bad ("illegal operand");
-	      else if (exp.X_op == O_absent)
-		as_bad ("missing operand");
-	      else if (exp.X_op == O_constant)
-		{
-		  value = exp.X_add_number;
-		}
-	      else if (exp.X_op == O_register)
-		{
-		  reg = (struct arc_operand_value *) exp.X_add_number;
-		}
-#define IS_REG_DEST_OPERAND(o) ((o) == 'a')
-	      else if (IS_REG_DEST_OPERAND (*syn))
-		as_bad ("symbol as destination register");
-	      else
-		{
-		  if (!strncmp (str, "@h30", 4))
-		    {
-		      arc_code_symbol (&exp);
-		      str += 4;
-		    }
-		  /* We need to generate a fixup for this expression.  */
-		  if (fc >= MAX_FIXUPS)
-		    as_fatal ("too many fixups");
-		  fixups[fc].exp = exp;
-		  /* We don't support shimm relocs. break here to force
-		     the assembler to output a limm.  */
-#define IS_REG_SHIMM_OFFSET(o) ((o) == 'd')
-		  if (IS_REG_SHIMM_OFFSET (*syn))
-		    break;
-		  /* If this is a register constant (IE: one whose
-		     register value gets stored as 61-63) then this
-		     must be a limm.  */
-		  /* ??? This bit could use some cleaning up.
-		     Referencing the format chars like this goes
-		     against style.  */
-		  if (IS_SYMBOL_OPERAND (*syn))
-		    {
-		      const char *junk;
-		      limm_reloc_p = 1;
-		      /* Save this, we don't yet know what reloc to use.  */
-		      fix_up_at = fc;
-		      /* Tell insert_reg we need a limm.  This is
-			 needed because the value at this point is
-			 zero, a shimm.  */
-		      /* ??? We need a cleaner interface than this.  */
-		      (*arc_operands[arc_operand_map['Q']].insert)
-			(insn, operand, mods, reg, 0L, &junk);
-		    }
-		  else
-		    fixups[fc].opindex = arc_operand_map[(int) *syn];
-		  ++fc;
-		  value = 0;
-		}
-
-	      /* Insert the register or expression into the instruction.  */
-	      if (operand->insert)
-		{
-		  const char *errmsg = NULL;
-		  insn = (*operand->insert) (insn, operand, mods,
-					     reg, (long) value, &errmsg);
-		  if (errmsg != (const char *) NULL)
-		    {
-		      last_errmsg = errmsg;
-		      if (operand->flags & ARC_OPERAND_ERROR)
-			{
-			  as_bad (errmsg);
-			  return;
-			}
-		      else if (operand->flags & ARC_OPERAND_WARN)
-			as_warn (errmsg);
-		      break;
-		    }
-		}
-	      else
-		insn |= (value & ((1 << operand->bits) - 1)) << operand->shift;
-
-	      ++syn;
-	    }
-	}
-
-      /* If we're at the end of the syntax string, we're done.  */
-      /* FIXME: try to move this to a separate function.  */
-      if (*syn == '\0')
-	{
-	  int i;
-	  char *f;
-	  long limm, limm_p;
-
-	  /* For the moment we assume a valid `str' can only contain blanks
-	     now.  IE: We needn't try again with a longer version of the
-	     insn and it is assumed that longer versions of insns appear
-	     before shorter ones (eg: lsr r2,r3,1 vs lsr r2,r3).  */
-
-	  while (ISSPACE (*str))
-	    ++str;
-
-	  if (!is_end_of_line[(unsigned char) *str])
-	    as_bad ("junk at end of line: `%s'", str);
-
-	  /* Is there a limm value?  */
-	  limm_p = arc_opcode_limm_p (&limm);
-
-	  /* Perform various error and warning tests.  */
-
-	  {
-	    static int in_delay_slot_p = 0;
-	    static int prev_insn_needs_cc_nop_p = 0;
-	    /* delay slot type seen */
-	    int delay_slot_type = ARC_DELAY_NONE;
-	    /* conditional execution flag seen */
-	    int conditional = 0;
-	    /* 1 if condition codes are being set */
-	    int cc_set_p = 0;
-	    /* 1 if conditional branch, including `b' "branch always" */
-	    int cond_branch_p = opcode->flags & ARC_OPCODE_COND_BRANCH;
-
-	    for (i = 0; i < num_suffixes; ++i)
-	      {
-		switch (arc_operands[insn_suffixes[i]->type].fmt)
-		  {
-		  case 'n':
-		    delay_slot_type = insn_suffixes[i]->value;
-		    break;
-		  case 'q':
-		    conditional = insn_suffixes[i]->value;
-		    break;
-		  case 'f':
-		    cc_set_p = 1;
-		    break;
-		  }
-	      }
-
-	    /* Putting an insn with a limm value in a delay slot is supposed to
-	       be legal, but let's warn the user anyway.  Ditto for 8 byte
-	       jumps with delay slots.  */
-	    if (in_delay_slot_p && limm_p)
-	      as_warn ("8 byte instruction in delay slot");
-	    if (delay_slot_type != ARC_DELAY_NONE
-		&& limm_p && arc_insn_not_jl (insn)) /* except for jl  addr */
-	      as_warn ("8 byte jump instruction with delay slot");
-	    in_delay_slot_p = (delay_slot_type != ARC_DELAY_NONE) && !limm_p;
-
-	    /* Warn when a conditional branch immediately follows a set of
-	       the condition codes.  Note that this needn't be done if the
-	       insn that sets the condition codes uses a limm.  */
-	    if (cond_branch_p && conditional != 0 /* 0 = "always" */
-		&& prev_insn_needs_cc_nop_p && arc_mach_type == bfd_mach_arc_5)
-	      as_warn ("conditional branch follows set of flags");
-	    prev_insn_needs_cc_nop_p =
-	      /* FIXME: ??? not required:
-		 (delay_slot_type != ARC_DELAY_NONE) &&  */
-	      cc_set_p && !limm_p;
-	  }
-
-	  /* Write out the instruction.
-	     It is important to fetch enough space in one call to `frag_more'.
-	     We use (f - frag_now->fr_literal) to compute where we are and we
-	     don't want frag_now to change between calls.  */
-	  if (limm_p)
-	    {
-	      f = frag_more (8);
-	      md_number_to_chars (f, insn, 4);
-	      md_number_to_chars (f + 4, limm, 4);
-	      dwarf2_emit_insn (8);
-	    }
-	  else if (limm_reloc_p)
-	    {
-	      /* We need a limm reloc, but the tables think we don't.  */
-	      abort ();
-	    }
-	  else
-	    {
-	      f = frag_more (4);
-	      md_number_to_chars (f, insn, 4);
-	      dwarf2_emit_insn (4);
-	    }
-
-	  /* Create any fixups.  */
-	  for (i = 0; i < fc; ++i)
-	    {
-	      int op_type, reloc_type;
-	      expressionS exptmp;
-	      const struct arc_operand *operand;
-
-	      /* Create a fixup for this operand.
-		 At this point we do not use a bfd_reloc_code_real_type for
-		 operands residing in the insn, but instead just use the
-		 operand index.  This lets us easily handle fixups for any
-		 operand type, although that is admittedly not a very exciting
-		 feature.  We pick a BFD reloc type in md_apply_fix3.
-
-		 Limm values (4 byte immediate "constants") must be treated
-		 normally because they're not part of the actual insn word
-		 and thus the insertion routines don't handle them.  */
-
-	      if (arc_operands[fixups[i].opindex].flags & ARC_OPERAND_LIMM)
-		{
-		  /* Modify the fixup addend as required by the cpu.  */
-		  fixups[i].exp.X_add_number += arc_limm_fixup_adjust (insn);
-		  op_type = fixups[i].opindex;
-		  /* FIXME: can we add this data to the operand table?  */
-		  if (op_type == arc_operand_map['L']
-		      || op_type == arc_operand_map['s']
-		      || op_type == arc_operand_map['o']
-		      || op_type == arc_operand_map['O'])
-		    reloc_type = BFD_RELOC_32;
-		  else if (op_type == arc_operand_map['J'])
-		    reloc_type = BFD_RELOC_ARC_B26;
-		  else
-		    abort ();
-		  reloc_type = get_arc_exp_reloc_type (1, reloc_type,
-						       &fixups[i].exp,
-						       &exptmp);
-		}
-	      else
-		{
-		  op_type = get_arc_exp_reloc_type (0, fixups[i].opindex,
-						    &fixups[i].exp, &exptmp);
-		  reloc_type = op_type + (int) BFD_RELOC_UNUSED;
-		}
-	      operand = &arc_operands[op_type];
-	      fix_new_exp (frag_now,
-			   ((f - frag_now->fr_literal)
-			    + (operand->flags & ARC_OPERAND_LIMM ? 4 : 0)), 4,
-			   &exptmp,
-			   (operand->flags & ARC_OPERAND_RELATIVE_BRANCH) != 0,
-			   (bfd_reloc_code_real_type) reloc_type);
-	    }
-
-	  /* All done.  */
-	  return;
-	}
-
-      /* Try the next entry.  */
-    }
-
-  if (NULL == last_errmsg)
-    as_bad ("bad instruction `%s'", start);
-  else
-    as_bad (last_errmsg);
+  *expnew = *exp;
+  return default_type;
 }
 
+static int
+arc_set_ext_seg (void)
+{
+  if (!arcext_section)
+    {
+      arcext_section = subseg_new (".arcextmap", 0);
+      bfd_set_section_flags (stdoutput, arcext_section,
+			     SEC_READONLY | SEC_HAS_CONTENTS);
+    }
+  else
+    subseg_set (arcext_section, 0);
+  return 1;
+}
+
 static void
-arc_extoper (opertype)
-     int opertype;
+arc_extoper (int opertype)
 {
   char *name;
   char *mode;
@@ -1031,8 +540,7 @@ arc_extoper (opertype)
       return;
     }
 
-  ext_oper = (struct arc_ext_operand_value *) \
-    xmalloc (sizeof (struct arc_ext_operand_value));
+  ext_oper = xmalloc (sizeof (struct arc_ext_operand_value));
 
   if (opertype)
     {
@@ -1040,7 +548,7 @@ arc_extoper (opertype)
       if ((symbolP = symbol_find (name)))
 	{
 	  if (S_GET_SEGMENT (symbolP) == reg_section)
-	    S_SET_VALUE (symbolP, (int) &ext_oper->operand);
+	    S_SET_VALUE (symbolP, (valueT) &ext_oper->operand);
 	  else
 	    {
 	      as_bad ("attempt to override symbol: %s", name);
@@ -1054,7 +562,8 @@ arc_extoper (opertype)
 	{
 	  /* If its not there, add it.  */
 	  symbol_table_insert (symbol_create (name, reg_section,
-					      (int) &ext_oper->operand, &zero_address_frag));
+					      (valueT) &ext_oper->operand,
+					      &zero_address_frag));
 	}
     }
 
@@ -1128,10 +637,9 @@ arc_extoper (opertype)
 }
 
 static void
-arc_extinst (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+arc_extinst (int ignore ATTRIBUTE_UNUSED)
 {
-  unsigned char syntax[129];
+  char syntax[129];
   char *name;
   char *p;
   char c;
@@ -1294,7 +802,7 @@ arc_extinst (ignore)
     strcat (syntax, "%F");
   strcat (syntax, "%S%L");
 
-  ext_op = (struct arc_opcode *) xmalloc (sizeof (struct arc_opcode));
+  ext_op = xmalloc (sizeof (struct arc_opcode));
   ext_op->syntax = xstrdup (syntax);
 
   ext_op->mask  = I (-1) | ((0x3 == opcode) ? C (-1) : 0);
@@ -1332,23 +840,8 @@ arc_extinst (ignore)
   demand_empty_rest_of_line ();
 }
 
-int
-arc_set_ext_seg ()
-{
-  if (!arcext_section)
-    {
-      arcext_section = subseg_new (".arcextmap", 0);
-      bfd_set_section_flags (stdoutput, arcext_section,
-			     SEC_READONLY | SEC_HAS_CONTENTS);
-    }
-  else
-    subseg_set (arcext_section, 0);
-  return 1;
-}
-
 static void
-arc_common (localScope)
-     int localScope;
+arc_common (int localScope)
 {
   char *name;
   char c;
@@ -1459,9 +952,9 @@ arc_common (localScope)
 /* Select the cpu we're assembling for.  */
 
 static void
-arc_option (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+arc_option (int ignore ATTRIBUTE_UNUSED)
 {
+  extern int arc_get_mach (char *);
   int mach;
   char c;
   char *cpu;
@@ -1515,10 +1008,7 @@ arc_option (ignore)
 #define MAX_LITTLENUMS 6
 
 char *
-md_atof (type, litP, sizeP)
-     int type;
-     char *litP;
-     int *sizeP;
+md_atof (int type, char *litP, int *sizeP)
 {
   int prec;
   LITTLENUM_TYPE words[MAX_LITTLENUMS];
@@ -1559,10 +1049,7 @@ md_atof (type, litP, sizeP)
    endianness.  */
 
 void
-md_number_to_chars (buf, val, n)
-     char *buf;
-     valueT val;
-     int n;
+md_number_to_chars (char *buf, valueT val, int n)
 {
   if (target_big_endian)
     number_to_chars_bigendian (buf, val, n);
@@ -1573,9 +1060,7 @@ md_number_to_chars (buf, val, n)
 /* Round up a section size to the appropriate boundary.  */
 
 valueT
-md_section_align (segment, size)
-     segT segment;
-     valueT size;
+md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
 
@@ -1585,9 +1070,8 @@ md_section_align (segment, size)
 /* We don't have any form of relaxing.  */
 
 int
-md_estimate_size_before_relax (fragp, seg)
-     fragS *fragp ATTRIBUTE_UNUSED;
-     asection *seg ATTRIBUTE_UNUSED;
+md_estimate_size_before_relax (fragS *fragp ATTRIBUTE_UNUSED,
+			       asection *seg ATTRIBUTE_UNUSED)
 {
   as_fatal (_("md_estimate_size_before_relax\n"));
   return 1;
@@ -1596,21 +1080,20 @@ md_estimate_size_before_relax (fragp, seg)
 /* Convert a machine dependent frag.  We never generate these.  */
 
 void
-md_convert_frag (abfd, sec, fragp)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *sec ATTRIBUTE_UNUSED;
-     fragS *fragp ATTRIBUTE_UNUSED;
+md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
+		 asection *sec ATTRIBUTE_UNUSED,
+		 fragS *fragp ATTRIBUTE_UNUSED)
 {
   as_fatal (_("md_convert_frag\n"));
 }
 
-void
-arc_code_symbol (expressionP)
-     expressionS *expressionP;
+static void
+arc_code_symbol (expressionS *expressionP)
 {
   if (expressionP->X_op == O_symbol && expressionP->X_add_number == 0)
     {
       expressionS two;
+
       expressionP->X_op = O_right_shift;
       expressionP->X_add_symbol->sy_value.X_op = O_constant;
       two.X_op = O_constant;
@@ -1625,6 +1108,7 @@ arc_code_symbol (expressionP)
 	   && expressionP->X_add_number == 0)
     {
       expressionS two;
+
       expressionP->X_add_symbol = make_expr_symbol (expressionP);
       expressionP->X_op = O_right_shift;
       two.X_op = O_constant;
@@ -1633,10 +1117,7 @@ arc_code_symbol (expressionP)
       expressionP->X_op_symbol = make_expr_symbol (&two);
     }
   else
-    {
-      as_bad ("expression too complex code symbol");
-      return;
-    }
+    as_bad ("expression too complex code symbol");
 }
 
 /* Parse an operand that is machine-specific.
@@ -1650,55 +1131,56 @@ arc_code_symbol (expressionP)
    to achieve the same effect.  */
 
 void
-md_operand (expressionP)
-     expressionS *expressionP;
+md_operand (expressionS *expressionP)
 {
   char *p = input_line_pointer;
 
-  if (*p == '%')
-    if (strncmp (p, "%st(", 4) == 0)
-      {
-	input_line_pointer += 4;
-	expression (expressionP);
-	if (*input_line_pointer != ')')
-	  {
-	    as_bad ("missing ')' in %%-op");
-	    return;
-	  }
-	++input_line_pointer;
-	arc_code_symbol (expressionP);
-      }
-    else
-      {
-	/* It could be a register.  */
-	int i, l;
-	struct arc_ext_operand_value *ext_oper = arc_ext_operands;
-	p++;
+  if (*p != '%')
+    return;
 
-	while (ext_oper)
-	  {
-	    l = strlen (ext_oper->operand.name);
-	    if (!strncmp (p, ext_oper->operand.name, l) && !ISALNUM (*(p + l)))
-	      {
-		input_line_pointer += l + 1;
-		expressionP->X_op = O_register;
-		expressionP->X_add_number = (int) &ext_oper->operand;
-		return;
-	      }
-	    ext_oper = ext_oper->next;
-	  }
-	for (i = 0; i < arc_reg_names_count; i++)
-	  {
-	    l = strlen (arc_reg_names[i].name);
-	    if (!strncmp (p, arc_reg_names[i].name, l) && !ISALNUM (*(p + l)))
-	      {
-		input_line_pointer += l + 1;
-		expressionP->X_op = O_register;
-		expressionP->X_add_number = (int) &arc_reg_names[i];
-		break;
-	      }
-	  }
-      }
+  if (strncmp (p, "%st(", 4) == 0)
+    {
+      input_line_pointer += 4;
+      expression (expressionP);
+      if (*input_line_pointer != ')')
+	{
+	  as_bad ("missing ')' in %%-op");
+	  return;
+	}
+      ++input_line_pointer;
+      arc_code_symbol (expressionP);
+    }
+  else
+    {
+      /* It could be a register.  */
+      int i, l;
+      struct arc_ext_operand_value *ext_oper = arc_ext_operands;
+      p++;
+
+      while (ext_oper)
+	{
+	  l = strlen (ext_oper->operand.name);
+	  if (!strncmp (p, ext_oper->operand.name, l) && !ISALNUM (*(p + l)))
+	    {
+	      input_line_pointer += l + 1;
+	      expressionP->X_op = O_register;
+	      expressionP->X_add_number = (offsetT) &ext_oper->operand;
+	      return;
+	    }
+	  ext_oper = ext_oper->next;
+	}
+      for (i = 0; i < arc_reg_names_count; i++)
+	{
+	  l = strlen (arc_reg_names[i].name);
+	  if (!strncmp (p, arc_reg_names[i].name, l) && !ISALNUM (*(p + l)))
+	    {
+	      input_line_pointer += l + 1;
+	      expressionP->X_op = O_register;
+	      expressionP->X_add_number = (offsetT) &arc_reg_names[i];
+	      break;
+	    }
+	}
+    }
 }
 
 /* We have no need to default values of symbols.
@@ -1706,8 +1188,7 @@ md_operand (expressionP)
    them all in the symbol table to begin with.  */
 
 symbolS *
-md_undefined_symbol (name)
-     char *name ATTRIBUTE_UNUSED;
+md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -1720,9 +1201,8 @@ md_undefined_symbol (name)
    `label' will be right shifted by 2.  */
 
 void
-arc_parse_cons_expression (exp, nbytes)
-     expressionS *exp;
-     unsigned int nbytes ATTRIBUTE_UNUSED;
+arc_parse_cons_expression (expressionS *exp,
+			   unsigned int nbytes ATTRIBUTE_UNUSED)
 {
   char *p = input_line_pointer;
   int code_symbol_fix = 0;
@@ -1733,7 +1213,7 @@ arc_parse_cons_expression (exp, nbytes)
 	code_symbol_fix = 1;
 	strcpy (p, ";   ");
       }
-  expr (0, exp);
+  expression_and_evaluate (exp);
   if (code_symbol_fix)
     {
       arc_code_symbol (exp);
@@ -1744,11 +1224,10 @@ arc_parse_cons_expression (exp, nbytes)
 /* Record a fixup for a cons expression.  */
 
 void
-arc_cons_fix_new (frag, where, nbytes, exp)
-     fragS *frag;
-     int where;
-     int nbytes;
-     expressionS *exp;
+arc_cons_fix_new (fragS *frag,
+		  int where,
+		  int nbytes,
+		  expressionS *exp)
 {
   if (nbytes == 4)
     {
@@ -1774,71 +1253,10 @@ arc_cons_fix_new (frag, where, nbytes, exp)
    given a PC relative reloc.  */
 
 long
-md_pcrel_from (fixP)
-     fixS *fixP;
+md_pcrel_from (fixS *fixP)
 {
   /* Return the address of the delay slot.  */
   return fixP->fx_frag->fr_address + fixP->fx_where + fixP->fx_size;
-}
-
-/* Compute the reloc type of an expression.
-   The possibly modified expression is stored in EXPNEW.
-
-   This is used to convert the expressions generated by the %-op's into
-   the appropriate operand type.  It is called for both data in instructions
-   (operands) and data outside instructions (variables, debugging info, etc.).
-
-   Currently supported %-ops:
-
-   %st(symbol): represented as "symbol >> 2"
-                "st" is short for STatus as in the status register (pc)
-
-   DEFAULT_TYPE is the type to use if no special processing is required.
-
-   DATA_P is non-zero for data or limm values, zero for insn operands.
-   Remember that the opcode "insertion fns" cannot be used on data, they're
-   only for inserting operands into insns.  They also can't be used for limm
-   values as the insertion routines don't handle limm values.  When called for
-   insns we return fudged reloc types (real_value - BFD_RELOC_UNUSED).  When
-   called for data or limm values we use real reloc types.  */
-
-static int
-get_arc_exp_reloc_type (data_p, default_type, exp, expnew)
-     int data_p;
-     int default_type;
-     expressionS *exp;
-     expressionS *expnew;
-{
-  /* If the expression is "symbol >> 2" we must change it to just "symbol",
-     as fix_new_exp can't handle it.  Similarly for (symbol - symbol) >> 2.
-     That's ok though.  What's really going on here is that we're using
-     ">> 2" as a special syntax for specifying BFD_RELOC_ARC_B26.  */
-
-  if (exp->X_op == O_right_shift
-      && exp->X_op_symbol != NULL
-      && exp->X_op_symbol->sy_value.X_op == O_constant
-      && exp->X_op_symbol->sy_value.X_add_number == 2
-      && exp->X_add_number == 0)
-    {
-      if (exp->X_add_symbol != NULL
-	  && (exp->X_add_symbol->sy_value.X_op == O_constant
-	      || exp->X_add_symbol->sy_value.X_op == O_symbol))
-	{
-	  *expnew = *exp;
-	  expnew->X_op = O_symbol;
-	  expnew->X_op_symbol = NULL;
-	  return data_p ? BFD_RELOC_ARC_B26 : arc_operand_map['J'];
-	}
-      else if (exp->X_add_symbol != NULL
-	       && exp->X_add_symbol->sy_value.X_op == O_subtract)
-	{
-	  *expnew = exp->X_add_symbol->sy_value;
-	  return data_p ? BFD_RELOC_ARC_B26 : arc_operand_map['J'];
-	}
-    }
-
-  *expnew = *exp;
-  return default_type;
 }
 
 /* Apply a fixup to the object code.  This is called for all the
@@ -1850,14 +1268,8 @@ get_arc_exp_reloc_type (data_p, default_type, exp, expnew)
    that, we determine the correct reloc code and put it back in the fixup.  */
 
 void
-md_apply_fix3 (fixP, valP, seg)
-     fixS *fixP;
-     valueT * valP;
-     segT seg;
+md_apply_fix (fixS *fixP, valueT * valP, segT seg)
 {
-#if 0
-  char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
-#endif
   valueT value = * valP;
 
   if (fixP->fx_addsy == (symbolS *) NULL)
@@ -1900,10 +1312,8 @@ md_apply_fix3 (fixP, valP, seg)
 	bfd_putl32 ((bfd_vma) insn, (unsigned char *) where);
 
       if (fixP->fx_done)
-	{
-	  /* Nothing else to do here.  */
-	  return;
-	}
+	/* Nothing else to do here.  */
+	return;
 
       /* Determine a BFD reloc value based on the operand information.
 	 We are only prepared to turn a few of the operands into relocs.
@@ -1956,12 +1366,6 @@ md_apply_fix3 (fixP, valP, seg)
 	  md_number_to_chars (fixP->fx_frag->fr_literal + fixP->fx_where,
 			      value, 4);
 	  break;
-#if 0
-	case BFD_RELOC_64:
-	  md_number_to_chars (fixP->fx_frag->fr_literal + fixP->fx_where,
-			      value, 8);
-	  break;
-#endif
 	case BFD_RELOC_ARC_B26:
 	  /* If !fixP->fx_done then `value' is an implicit addend.
 	     We must shift it right by 2 in this case as well because the
@@ -1981,15 +1385,15 @@ md_apply_fix3 (fixP, valP, seg)
    format.  */
 
 arelent *
-tc_gen_reloc (section, fixP)
-     asection *section ATTRIBUTE_UNUSED;
-     fixS *fixP;
+tc_gen_reloc (asection *section ATTRIBUTE_UNUSED,
+	      fixS *fixP)
 {
   arelent *reloc;
 
-  reloc = (arelent *) xmalloc (sizeof (arelent));
+  reloc = xmalloc (sizeof (arelent));
+  reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
 
-  reloc->sym_ptr_ptr = &fixP->fx_addsy->bsym;
+  *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixP->fx_addsy);
   reloc->address = fixP->fx_frag->fr_address + fixP->fx_where;
   reloc->howto = bfd_reloc_type_lookup (stdoutput, fixP->fx_r_type);
   if (reloc->howto == (reloc_howto_type *) NULL)
@@ -2009,4 +1413,521 @@ tc_gen_reloc (section, fixP)
   reloc->addend = (fixP->fx_pcrel ? -4 : 0);
 
   return reloc;
+}
+
+const pseudo_typeS md_pseudo_table[] =
+{
+  { "align", s_align_bytes, 0 }, /* Defaulting is invalid (0).  */
+  { "comm", arc_common, 0 },
+  { "common", arc_common, 0 },
+  { "lcomm", arc_common, 1 },
+  { "lcommon", arc_common, 1 },
+  { "2byte", cons, 2 },
+  { "half", cons, 2 },
+  { "short", cons, 2 },
+  { "3byte", cons, 3 },
+  { "4byte", cons, 4 },
+  { "word", cons, 4 },
+  { "option", arc_option, 0 },
+  { "cpu", arc_option, 0 },
+  { "block", s_space, 0 },
+  { "extcondcode", arc_extoper, 0 },
+  { "extcoreregister", arc_extoper, 1 },
+  { "extauxregister", arc_extoper, 2 },
+  { "extinstruction", arc_extinst, 0 },
+  { NULL, 0, 0 },
+};
+
+/* This routine is called for each instruction to be assembled.  */
+
+void
+md_assemble (char *str)
+{
+  const struct arc_opcode *opcode;
+  const struct arc_opcode *std_opcode;
+  struct arc_opcode *ext_opcode;
+  char *start;
+  const char *last_errmsg = 0;
+  arc_insn insn;
+  static int init_tables_p = 0;
+
+  /* Opcode table initialization is deferred until here because we have to
+     wait for a possible .option command.  */
+  if (!init_tables_p)
+    {
+      init_opcode_tables (arc_mach_type);
+      init_tables_p = 1;
+    }
+
+  /* Skip leading white space.  */
+  while (ISSPACE (*str))
+    str++;
+
+  /* The instructions are stored in lists hashed by the first letter (though
+     we needn't care how they're hashed).  Get the first in the list.  */
+
+  ext_opcode = arc_ext_opcodes;
+  std_opcode = arc_opcode_lookup_asm (str);
+
+  /* Keep looking until we find a match.  */
+  start = str;
+  for (opcode = (ext_opcode ? ext_opcode : std_opcode);
+       opcode != NULL;
+       opcode = (ARC_OPCODE_NEXT_ASM (opcode)
+		 ? ARC_OPCODE_NEXT_ASM (opcode)
+		 : (ext_opcode ? ext_opcode = NULL, std_opcode : NULL)))
+    {
+      int past_opcode_p, fc, num_suffixes;
+      int fix_up_at = 0;
+      char *syn;
+      struct arc_fixup fixups[MAX_FIXUPS];
+      /* Used as a sanity check.  If we need a limm reloc, make sure we ask
+	 for an extra 4 bytes from frag_more.  */
+      int limm_reloc_p;
+      int ext_suffix_p;
+      const struct arc_operand_value *insn_suffixes[MAX_SUFFIXES];
+
+      /* Is this opcode supported by the selected cpu?  */
+      if (! arc_opcode_supported (opcode))
+	continue;
+
+      /* Scan the syntax string.  If it doesn't match, try the next one.  */
+      arc_opcode_init_insert ();
+      insn = opcode->value;
+      fc = 0;
+      past_opcode_p = 0;
+      num_suffixes = 0;
+      limm_reloc_p = 0;
+      ext_suffix_p = 0;
+
+      /* We don't check for (*str != '\0') here because we want to parse
+	 any trailing fake arguments in the syntax string.  */
+      for (str = start, syn = opcode->syntax; *syn != '\0';)
+	{
+	  int mods;
+	  const struct arc_operand *operand;
+
+	  /* Non operand chars must match exactly.  */
+	  if (*syn != '%' || *++syn == '%')
+	    {
+	     if (*str == *syn)
+		{
+		  if (*syn == ' ')
+		    past_opcode_p = 1;
+		  ++syn;
+		  ++str;
+		}
+	      else
+		break;
+	      continue;
+	    }
+
+	  /* We have an operand.  Pick out any modifiers.  */
+	  mods = 0;
+	  while (ARC_MOD_P (arc_operands[arc_operand_map[(int) *syn]].flags))
+	    {
+	      mods |= arc_operands[arc_operand_map[(int) *syn]].flags & ARC_MOD_BITS;
+	      ++syn;
+	    }
+	  operand = arc_operands + arc_operand_map[(int) *syn];
+	  if (operand->fmt == 0)
+	    as_fatal ("unknown syntax format character `%c'", *syn);
+
+	  if (operand->flags & ARC_OPERAND_FAKE)
+	    {
+	      const char *errmsg = NULL;
+	      if (operand->insert)
+		{
+		  insn = (*operand->insert) (insn, operand, mods, NULL, 0, &errmsg);
+		  if (errmsg != (const char *) NULL)
+		    {
+		      last_errmsg = errmsg;
+		      if (operand->flags & ARC_OPERAND_ERROR)
+			{
+			  as_bad (errmsg);
+			  return;
+			}
+		      else if (operand->flags & ARC_OPERAND_WARN)
+			as_warn (errmsg);
+		      break;
+		    }
+		  if (limm_reloc_p
+		      && (operand->flags && operand->flags & ARC_OPERAND_LIMM)
+		      && (operand->flags &
+			  (ARC_OPERAND_ABSOLUTE_BRANCH | ARC_OPERAND_ADDRESS)))
+		    {
+		      fixups[fix_up_at].opindex = arc_operand_map[operand->fmt];
+		    }
+		}
+	      ++syn;
+	    }
+	  /* Are we finished with suffixes?  */
+	  else if (!past_opcode_p)
+	    {
+	      int found;
+	      char c;
+	      char *s, *t;
+	      const struct arc_operand_value *suf, *suffix_end;
+	      const struct arc_operand_value *suffix = NULL;
+
+	      if (!(operand->flags & ARC_OPERAND_SUFFIX))
+		abort ();
+
+	      /* If we're at a space in the input string, we want to skip the
+		 remaining suffixes.  There may be some fake ones though, so
+		 just go on to try the next one.  */
+	      if (*str == ' ')
+		{
+		  ++syn;
+		  continue;
+		}
+
+	      s = str;
+	      if (mods & ARC_MOD_DOT)
+		{
+		  if (*s != '.')
+		    break;
+		  ++s;
+		}
+	      else
+		{
+		  /* This can happen in "b.nd foo" and we're currently looking
+		     for "%q" (ie: a condition code suffix).  */
+		  if (*s == '.')
+		    {
+		      ++syn;
+		      continue;
+		    }
+		}
+
+	      /* Pick the suffix out and look it up via the hash table.  */
+	      for (t = s; *t && ISALNUM (*t); ++t)
+		continue;
+	      c = *t;
+	      *t = '\0';
+	      if ((suf = get_ext_suffix (s)))
+		ext_suffix_p = 1;
+	      else
+		suf = hash_find (arc_suffix_hash, s);
+	      if (!suf)
+		{
+		  /* This can happen in "blle foo" and we're currently using
+		     the template "b%q%.n %j".  The "bl" insn occurs later in
+		     the table so "lle" isn't an illegal suffix.  */
+		  *t = c;
+		  break;
+		}
+
+	      /* Is it the right type?  Note that the same character is used
+		 several times, so we have to examine all of them.  This is
+		 relatively efficient as equivalent entries are kept
+		 together.  If it's not the right type, don't increment `str'
+		 so we try the next one in the series.  */
+	      found = 0;
+	      if (ext_suffix_p && arc_operands[suf->type].fmt == *syn)
+		{
+		  /* Insert the suffix's value into the insn.  */
+		  *t = c;
+		  if (operand->insert)
+		    insn = (*operand->insert) (insn, operand,
+					       mods, NULL, suf->value,
+					       NULL);
+		  else
+		    insn |= suf->value << operand->shift;
+		  suffix = suf;
+		  str = t;
+		  found = 1;
+		}
+	      else
+		{
+		  *t = c;
+		  suffix_end = arc_suffixes + arc_suffixes_count;
+		  for (suffix = suf;
+		       suffix < suffix_end && strcmp (suffix->name, suf->name) == 0;
+		       ++suffix)
+		    {
+		      if (arc_operands[suffix->type].fmt == *syn)
+			{
+			  /* Insert the suffix's value into the insn.  */
+			  if (operand->insert)
+			    insn = (*operand->insert) (insn, operand,
+						       mods, NULL, suffix->value,
+						       NULL);
+			  else
+			    insn |= suffix->value << operand->shift;
+
+			  str = t;
+			  found = 1;
+			  break;
+			}
+		    }
+		}
+	      ++syn;
+	      if (!found)
+		/* Wrong type.  Just go on to try next insn entry.  */
+		;
+	      else
+		{
+		  if (num_suffixes == MAX_SUFFIXES)
+		    as_bad ("too many suffixes");
+		  else
+		    insn_suffixes[num_suffixes++] = suffix;
+		}
+	    }
+	  else
+	    /* This is either a register or an expression of some kind.  */
+	    {
+	      char *hold;
+	      const struct arc_operand_value *reg = NULL;
+	      long value = 0;
+	      expressionS exp;
+
+	      if (operand->flags & ARC_OPERAND_SUFFIX)
+		abort ();
+
+	      /* Is there anything left to parse?
+		 We don't check for this at the top because we want to parse
+		 any trailing fake arguments in the syntax string.  */
+	      if (is_end_of_line[(unsigned char) *str])
+		break;
+
+	      /* Parse the operand.  */
+	      hold = input_line_pointer;
+	      input_line_pointer = str;
+	      expression (&exp);
+	      str = input_line_pointer;
+	      input_line_pointer = hold;
+
+	      if (exp.X_op == O_illegal)
+		as_bad ("illegal operand");
+	      else if (exp.X_op == O_absent)
+		as_bad ("missing operand");
+	      else if (exp.X_op == O_constant)
+		value = exp.X_add_number;
+	      else if (exp.X_op == O_register)
+		reg = (struct arc_operand_value *) exp.X_add_number;
+#define IS_REG_DEST_OPERAND(o) ((o) == 'a')
+	      else if (IS_REG_DEST_OPERAND (*syn))
+		as_bad ("symbol as destination register");
+	      else
+		{
+		  if (!strncmp (str, "@h30", 4))
+		    {
+		      arc_code_symbol (&exp);
+		      str += 4;
+		    }
+		  /* We need to generate a fixup for this expression.  */
+		  if (fc >= MAX_FIXUPS)
+		    as_fatal ("too many fixups");
+		  fixups[fc].exp = exp;
+		  /* We don't support shimm relocs. break here to force
+		     the assembler to output a limm.  */
+#define IS_REG_SHIMM_OFFSET(o) ((o) == 'd')
+		  if (IS_REG_SHIMM_OFFSET (*syn))
+		    break;
+		  /* If this is a register constant (IE: one whose
+		     register value gets stored as 61-63) then this
+		     must be a limm.  */
+		  /* ??? This bit could use some cleaning up.
+		     Referencing the format chars like this goes
+		     against style.  */
+		  if (IS_SYMBOL_OPERAND (*syn))
+		    {
+		      const char *junk;
+		      limm_reloc_p = 1;
+		      /* Save this, we don't yet know what reloc to use.  */
+		      fix_up_at = fc;
+		      /* Tell insert_reg we need a limm.  This is
+			 needed because the value at this point is
+			 zero, a shimm.  */
+		      /* ??? We need a cleaner interface than this.  */
+		      (*arc_operands[arc_operand_map['Q']].insert)
+			(insn, operand, mods, reg, 0L, &junk);
+		    }
+		  else
+		    fixups[fc].opindex = arc_operand_map[(int) *syn];
+		  ++fc;
+		  value = 0;
+		}
+
+	      /* Insert the register or expression into the instruction.  */
+	      if (operand->insert)
+		{
+		  const char *errmsg = NULL;
+		  insn = (*operand->insert) (insn, operand, mods,
+					     reg, (long) value, &errmsg);
+		  if (errmsg != (const char *) NULL)
+		    {
+		      last_errmsg = errmsg;
+		      if (operand->flags & ARC_OPERAND_ERROR)
+			{
+			  as_bad (errmsg);
+			  return;
+			}
+		      else if (operand->flags & ARC_OPERAND_WARN)
+			as_warn (errmsg);
+		      break;
+		    }
+		}
+	      else
+		insn |= (value & ((1 << operand->bits) - 1)) << operand->shift;
+
+	      ++syn;
+	    }
+	}
+
+      /* If we're at the end of the syntax string, we're done.  */
+      /* FIXME: try to move this to a separate function.  */
+      if (*syn == '\0')
+	{
+	  int i;
+	  char *f;
+	  long limm, limm_p;
+
+	  /* For the moment we assume a valid `str' can only contain blanks
+	     now.  IE: We needn't try again with a longer version of the
+	     insn and it is assumed that longer versions of insns appear
+	     before shorter ones (eg: lsr r2,r3,1 vs lsr r2,r3).  */
+
+	  while (ISSPACE (*str))
+	    ++str;
+
+	  if (!is_end_of_line[(unsigned char) *str])
+	    as_bad ("junk at end of line: `%s'", str);
+
+	  /* Is there a limm value?  */
+	  limm_p = arc_opcode_limm_p (&limm);
+
+	  /* Perform various error and warning tests.  */
+
+	  {
+	    static int in_delay_slot_p = 0;
+	    static int prev_insn_needs_cc_nop_p = 0;
+	    /* delay slot type seen */
+	    int delay_slot_type = ARC_DELAY_NONE;
+	    /* conditional execution flag seen */
+	    int conditional = 0;
+	    /* 1 if condition codes are being set */
+	    int cc_set_p = 0;
+	    /* 1 if conditional branch, including `b' "branch always" */
+	    int cond_branch_p = opcode->flags & ARC_OPCODE_COND_BRANCH;
+
+	    for (i = 0; i < num_suffixes; ++i)
+	      {
+		switch (arc_operands[insn_suffixes[i]->type].fmt)
+		  {
+		  case 'n':
+		    delay_slot_type = insn_suffixes[i]->value;
+		    break;
+		  case 'q':
+		    conditional = insn_suffixes[i]->value;
+		    break;
+		  case 'f':
+		    cc_set_p = 1;
+		    break;
+		  }
+	      }
+
+	    /* Putting an insn with a limm value in a delay slot is supposed to
+	       be legal, but let's warn the user anyway.  Ditto for 8 byte
+	       jumps with delay slots.  */
+	    if (in_delay_slot_p && limm_p)
+	      as_warn ("8 byte instruction in delay slot");
+	    if (delay_slot_type != ARC_DELAY_NONE
+		&& limm_p && arc_insn_not_jl (insn)) /* except for jl  addr */
+	      as_warn ("8 byte jump instruction with delay slot");
+	    in_delay_slot_p = (delay_slot_type != ARC_DELAY_NONE) && !limm_p;
+
+	    /* Warn when a conditional branch immediately follows a set of
+	       the condition codes.  Note that this needn't be done if the
+	       insn that sets the condition codes uses a limm.  */
+	    if (cond_branch_p && conditional != 0 /* 0 = "always" */
+		&& prev_insn_needs_cc_nop_p && arc_mach_type == bfd_mach_arc_5)
+	      as_warn ("conditional branch follows set of flags");
+	    prev_insn_needs_cc_nop_p =
+	      /* FIXME: ??? not required:
+		 (delay_slot_type != ARC_DELAY_NONE) &&  */
+	      cc_set_p && !limm_p;
+	  }
+
+	  /* Write out the instruction.
+	     It is important to fetch enough space in one call to `frag_more'.
+	     We use (f - frag_now->fr_literal) to compute where we are and we
+	     don't want frag_now to change between calls.  */
+	  if (limm_p)
+	    {
+	      f = frag_more (8);
+	      md_number_to_chars (f, insn, 4);
+	      md_number_to_chars (f + 4, limm, 4);
+	      dwarf2_emit_insn (8);
+	    }
+	  else if (limm_reloc_p)
+	    /* We need a limm reloc, but the tables think we don't.  */
+	    abort ();
+	  else
+	    {
+	      f = frag_more (4);
+	      md_number_to_chars (f, insn, 4);
+	      dwarf2_emit_insn (4);
+	    }
+
+	  /* Create any fixups.  */
+	  for (i = 0; i < fc; ++i)
+	    {
+	      int op_type, reloc_type;
+	      expressionS exptmp;
+	      const struct arc_operand *operand;
+
+	      /* Create a fixup for this operand.
+		 At this point we do not use a bfd_reloc_code_real_type for
+		 operands residing in the insn, but instead just use the
+		 operand index.  This lets us easily handle fixups for any
+		 operand type, although that is admittedly not a very exciting
+		 feature.  We pick a BFD reloc type in md_apply_fix.
+
+		 Limm values (4 byte immediate "constants") must be treated
+		 normally because they're not part of the actual insn word
+		 and thus the insertion routines don't handle them.  */
+
+	      if (arc_operands[fixups[i].opindex].flags & ARC_OPERAND_LIMM)
+		{
+		  /* Modify the fixup addend as required by the cpu.  */
+		  fixups[i].exp.X_add_number += arc_limm_fixup_adjust (insn);
+		  op_type = fixups[i].opindex;
+		  /* FIXME: can we add this data to the operand table?  */
+		  if (op_type == arc_operand_map['L']
+		      || op_type == arc_operand_map['s']
+		      || op_type == arc_operand_map['o']
+		      || op_type == arc_operand_map['O'])
+		    reloc_type = BFD_RELOC_32;
+		  else if (op_type == arc_operand_map['J'])
+		    reloc_type = BFD_RELOC_ARC_B26;
+		  else
+		    abort ();
+		  reloc_type = get_arc_exp_reloc_type (1, reloc_type,
+						       &fixups[i].exp,
+						       &exptmp);
+		}
+	      else
+		{
+		  op_type = get_arc_exp_reloc_type (0, fixups[i].opindex,
+						    &fixups[i].exp, &exptmp);
+		  reloc_type = op_type + (int) BFD_RELOC_UNUSED;
+		}
+	      operand = &arc_operands[op_type];
+	      fix_new_exp (frag_now,
+			   ((f - frag_now->fr_literal)
+			    + (operand->flags & ARC_OPERAND_LIMM ? 4 : 0)), 4,
+			   &exptmp,
+			   (operand->flags & ARC_OPERAND_RELATIVE_BRANCH) != 0,
+			   (bfd_reloc_code_real_type) reloc_type);
+	    }
+	  return;
+	}
+    }
+
+  if (NULL == last_errmsg)
+    as_bad ("bad instruction `%s'", start);
+  else
+    as_bad (last_errmsg);
 }

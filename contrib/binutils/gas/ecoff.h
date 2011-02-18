@@ -1,5 +1,5 @@
 /* ecoff.h -- header file for ECOFF debugging support
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2003, 2005
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Put together by Ian Lance Taylor <ian@cygnus.com>.
@@ -18,8 +18,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef GAS_ECOFF_H
 #define GAS_ECOFF_H
@@ -38,7 +38,7 @@ extern void ecoff_read_begin_hook (void);
 
 /* This function should be called when the assembler switches to a new
    file.  */
-extern void ecoff_new_file (const char *);
+extern void ecoff_new_file (const char *, int);
 
 /* This function should be called when a new symbol is created, by
    obj_symbol_new_hook.  */

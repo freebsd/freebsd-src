@@ -4,7 +4,7 @@ Wed Dec 31 12:29:47 1997  Jeffrey A Law  (law@cygnus.com)
 
 Mon Dec 22 13:06:05 1997  Joel Sherrill  <joel@oarcorp.com>
 
-        * configure.in (i386*-go32-rtems*): Fix to be the same as
+	* configure.in (i386*-go32-rtems*): Fix to be the same as
 	i[3456]86-go32.
 	* configure: Rebuild.
 
@@ -96,7 +96,7 @@ Mon Dec 15 15:20:32 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* doc/as.texinfo: Add documentation of m32r processor.
 
-	* doc/c-m32r.texi: New file, documenting m32r specific features.  
+	* doc/c-m32r.texi: New file, documenting m32r specific features.
 
 Mon Dec 15 10:32:28 1997  Jeffrey A Law  (law@cygnus.com)
 
@@ -151,7 +151,7 @@ Sat Nov 22 16:19:22 1997  Richard Henderson  <rth@cygnus.com>
 Sat Nov 22 14:26:09 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-arm.c: Brought up to date with latest changes on arm
-	branch. 
+	branch.
 
 Sat Nov 22 15:50:09 1997  Klaus Kaempf  <kkaempf@progis.de>
 
@@ -171,7 +171,7 @@ Thu Nov 20 15:06:08 1997  Richard Earnshaw <rearnsha@arm.com>
 
 Wed Nov 19 17:44:42 1997  Richard Henderson  <rth@cygnus.com>
 
-        * config/tc-sh.c (parse_reg): Properly quote for fv4.
+	* config/tc-sh.c (parse_reg): Properly quote for fv4.
 
 Wed Nov 19 23:46:18 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -180,7 +180,7 @@ Wed Nov 19 23:46:18 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 Tue Nov 18 18:45:14 1997  J"orn Rennecke  <amylaar@cygnus.co.uk>
 
-	* config/tc-d10v.c (parallel_ok, find_opcode): 
+	* config/tc-d10v.c (parallel_ok, find_opcode):
 	Split OPERAND_FLAG into OPERAND_FFLAG and OPERAND_CFLAG.
 
 Sun Nov 16 10:05:07 1997  Fred Fish  <fnf@cygnus.com>
@@ -191,9 +191,9 @@ Sun Nov 16 10:05:07 1997  Fred Fish  <fnf@cygnus.com>
 Thu Nov 13 13:53:10 1997  Andrew Cagney  <cagney@b1.cygnus.com>
 
 	* configure.in (emulations): Make FreeBSD an aout / i386bsd
- 	variant.
+	variant.
 	* configure: Re-generate.
-	
+
 Thu Nov 13 11:07:14 1997  Gavin Koch  <gavin@cygnus.com>
 
 	* config/tc-mips.c (macro_build): Use the membership field
@@ -255,35 +255,35 @@ Tue Nov  4 16:35:57 1997  Ian Dall  <Ian.Dall@dsto.defence.gov.au>
 	* write.c (print_fixup): Use TC_FIX_DATA_PRINT (if defined) to
 	print out MD fields of fix.
 	* frags.c (frag_var, frag_variant): Use TC_FRAG_INIT macro (if
- 	defined) to initialize MD fields in frag.
+	defined) to initialize MD fields in frag.
 	* as.h (struct frag, ns32k support): Rename ns32k to fr_ns32k.
 	Delete pcrel_adjust.  Add fr_opcode_fragP, fr_opcode_offset.
 	* config/tc-ns32k.h: Add comments. Remove obsolete
- 	BFD_FAST_SECTION_FILL definition, change prototypes for
- 	fix_new_ns32k and fix_new_ns32k_exp to add new arguments
- 	opcode_frag and opcode_offset and remove pcrel_adjust.
+	BFD_FAST_SECTION_FILL definition, change prototypes for
+	fix_new_ns32k and fix_new_ns32k_exp to add new arguments
+	opcode_frag and opcode_offset and remove pcrel_adjust.
 	(TC_FIX_TYPE): add opcode_fragP and opcode_offset fields.
 	(TC_FIX_DATA_PRINT): new macro to print out TC_FIX_TYPE.
 	(TC_FRAG_INIT): new macro to initialize machine dependent field in
- 	frags.
+	frags.
 	(frag_opcode_frag, frag_opcode_offset, frag_bsr): macros to access
- 	MD fields in frag structure.
+	MD fields in frag structure.
 	(fix_im_disp, fix_bit_fixP, fix_opcode_frag, fix_opcode_offset,
- 	fix_bsr): macros to access MD fields in fix structure.
+	fix_bsr): macros to access MD fields in fix structure.
 	* config/tc-ns32k.c: Avoid overlength lines. Align comments.  Don't
- 	use struct opcode_location as these fields are now in the frag
+	use struct opcode_location as these fields are now in the frag
 	structure.
 	(convert_iif): Call frag_more as it is needed instead
- 	of trying to allocate for the whole insn. Avoid call of frag_more
- 	with negative argument.
+	of trying to allocate for the whole insn. Avoid call of frag_more
+	with negative argument.
 	(md_pcrel_adjust, md_fix_pcrel_adjust, md_apply_fix,
 	md_estimate_size_before_relax, md_pcrel_from,
 	tc_aout_fix_to_chars): use accessor macros to get md fields in fix
- 	and frag structures.
+	and frag structures.
 	(fix_new_ns32k, fix_new_ns32k_exp): add new arguments opcode_frag and
 	opcode_offset and remove pcrel_adjust.
 	(convert_iif, cons_fix_new_ns32k): call fix_new_ns32k,
- 	fix_new_ns32k_exp with changed arguments.
+	fix_new_ns32k_exp with changed arguments.
 
 Mon Nov  3 13:30:17 1997  Gavin Koch  <gavin@cygnus.com>
 
@@ -429,8 +429,8 @@ Tue Oct 14 19:12:45 1997  Richard Henderson  <rth@cygnus.com>
 Fri Oct 10 16:09:35 1997  Andrew Cagney  <cagney@b1.cygnus.com>
 
 	* config/tc-d10v.c (parallel_ok): Allow parallel instruction issue
- 	when second instruction is writing to first instructions inputs.
-	
+	when second instruction is writing to first instructions inputs.
+
 Mon Oct 13 15:27:17 1997  Richard Henderson  <rth@cygnus.com>
 
 	* ecoff.c (PAGE_SIZE): Double to 8k as a hack to allow some C++
@@ -439,7 +439,7 @@ Mon Oct 13 15:27:17 1997  Richard Henderson  <rth@cygnus.com>
 Fri Oct 10 17:48:29 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-v850.c (md_relax_table): Add support for relaxing
-	unconditional branches.  This patch is courtesy of Jim Wilson. 
+	unconditional branches.  This patch is courtesy of Jim Wilson.
 	(md_convert_frag): Fix relaxing of branches.  This patch is
 	courtesy of Jim Wilson.
 	(md_assemble): Create different fixups for conditional and
@@ -449,7 +449,7 @@ Fri Oct 10 17:48:29 1997  Nick Clifton  <nickc@cygnus.com>
 	branch.  This patch is courtesy of Jim Wilson.
 	(v850_sdata, v850_tdata, v850_zdata, v850_sbss, v850_tbss,
 	v850_zbss, v850_rosdata, v850_rozdata, v850_bss): Add call to
-	obj_elf_section_change_hook(). 
+	obj_elf_section_change_hook().
 	(v850_comm): New function.
 	(md_pseudo_table): Add new pseudo ops .zcomm, .scomm and .tcomm.
 	(md_begin): Add bss flag to seg_info of bss sections.
@@ -472,7 +472,7 @@ Fri Oct 10 11:22:45 1997  Martin M. Hunt  <hunt@cygnus.com>
 Fri Oct 10 11:54:50 1997  Andrew Cagney  <cagney@b1.cygnus.com>
 
 	* config/tc-d10v.c (parallel_ok): Flag SP as modified for @-sp
- 	operand - OPERAND_ATMINUS.
+	operand - OPERAND_ATMINUS.
 
 Fri Oct 10 00:47:44 1997  Michael Meissner  <meissner@cygnus.com>
 
@@ -532,7 +532,7 @@ Wed Oct  8 00:04:05 1997  Gavin Koch  <gavin@cygnus.com>
 	* config/tc-mips.c (md_begin): Replace the TARGET_CPU value
 	of mipsr3900 with mipstx39.
 
-	* config/tc-mips.c (mips_ip): Don't print the 'opcode requires 
+	* config/tc-mips.c (mips_ip): Don't print the 'opcode requires
 	-mipsXX message' if the insn isn't an ISA insn.
 
 Tue Oct  7 12:48:30 1997  Doug Evans  <dje@canuck.cygnus.com>
@@ -580,7 +580,7 @@ Thu Sep 25 13:08:02 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 Wed Sep 24 16:54:40 1997  Joel Sherrill  <joel@oarcorp.com>
 
-        * configure.in (sh*-*-rtems*): New target, like sh-*-elf*.
+	* configure.in (sh*-*-rtems*): New target, like sh-*-elf*.
 	* configure: Rebuild.
 
 Wed Sep 24 11:30:25 1997  Ian Lance Taylor  <ian@cygnus.com>
@@ -624,7 +624,7 @@ Thu Sep 18 14:11:56 1997  Nick Clifton  <nickc@cygnus.com>
 	(md_assemble): Produce error message when special data area
 	relocations are used on instructions which do not support them.
 	(md_assemble): Reset processor mask if defined by command line
-	switch. 
+	switch.
 
 Thu Sep 18 11:24:01 1997  Doug Evans  <dje@canuck.cygnus.com>
 
@@ -653,13 +653,13 @@ Thu Sep 18 11:24:01 1997  Doug Evans  <dje@canuck.cygnus.com>
 Wed Sep 17 16:54:20 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-v850.c (v850_reloc_prefix): Recoded to use CHECK_ ()
-	macro. 
+	macro.
 	(handle_tdaoff, handle_zdaoff, handle_sdaoff): New functions.
 
 	* config/tc-v850.c (md_assemble): Corrected typo.
 	* config/tc-v850.c Add new sections: call_table_data and
 	call_table_text.
-	(v850_reloc_prefix): Add support for ctoff() relocation prefix. 
+	(v850_reloc_prefix): Add support for ctoff() relocation prefix.
 	(handle_ctoff): New Function.
 
 	* doc/c-v850.texi (V850 Opcodes): Document call table relocations.
@@ -679,7 +679,7 @@ Mon Sep 15 18:33:06 1997  Nick Clifton  <nickc@cygnus.com>
 	* config/tc-v850.c (processor_mask): New variable.
 	(set_machine, md_parse_option): Set processor_mask.
 	(md_assemble): Check that instruction is available to target
-	processor. 
+	processor.
 
 	* config/tc-v850.h (TARGET_PROCESSOR): New constant.
 
@@ -768,7 +768,7 @@ Tue Sep  9 10:19:37 1997  Nick Clifton  <nickc@cygnus.com>
 	* config/tc-v850.c (.v850): New pseudo op.
 	* config/tc-v850.c (.v850e): New pseudo op.
 	* config/tc-v850.c (.v850ea): New pseudo op.
-	
+
 
 Mon Sep  8 23:08:04 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -791,7 +791,7 @@ Mon Sep  8 12:33:40 1997  Nick Clifton  <nickc@cygnus.com>
 	* config/tc-v850.h (TARGET_MACHINE): New constant.
 
 	* config/tc-v850.c (v850_insert_operand): Add
-	-mwarn_unsigned_overflow. 
+	-mwarn_unsigned_overflow.
 	(md_begin): Set BFD machine number based on machine variable.
 	(md_parse_option): Add -mv850, -mv850e and -mv850ea options.
 
@@ -802,15 +802,15 @@ Mon Sep  8 11:20:46 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 Sun Sep  7 00:30:19 1997  Richard Henderson  <rth@cygnus.com>
 
-        * config/tc-alpha.c (md_parse_option): Move m[] out to top level and
-        rename to cpu_types[].
-        (s_alpha_arch): New function.
-        (md_pseudo_table): Add "arch".
+	* config/tc-alpha.c (md_parse_option): Move m[] out to top level and
+	rename to cpu_types[].
+	(s_alpha_arch): New function.
+	(md_pseudo_table): Add "arch".
 
-        * config/tc-alpha.c (md_begin): Merge the two loops through the
-        opcode table.
-        (s_alpha_proc): Add initial SKIP_WHITESPACE.
-        (s_alpha_set): Likewise.  Use get_symbol_end instead local while loop.
+	* config/tc-alpha.c (md_begin): Merge the two loops through the
+	opcode table.
+	(s_alpha_proc): Add initial SKIP_WHITESPACE.
+	(s_alpha_set): Likewise.  Use get_symbol_end instead local while loop.
 
 Sat Sep  6 19:38:12 1997  Fred Fish  <fnf@cygnus.com>
 
@@ -827,14 +827,14 @@ Wed Sep  3 11:21:33 1997  Nick Clifton  <nickc@cygnus.com>
 
 Tue Sep  2 18:32:30 1997  Jeffrey A Law  (law@cygnus.com)
 
-        * config/tc-mn10200.c (md_convert_frag): PC relative instructions arex
+	* config/tc-mn10200.c (md_convert_frag): PC relative instructions arex
 	relative to the next instruction, not the current instruction.
 	(md_assemble): Similarly.
 
 Tue Sep  2 15:58:52 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* doc/c-v850.texi: Explanations of offsets in SDA/ZDA areas
-	correcetd. 
+	correcetd.
 
 	* config/tc-v850.c: Add support for SDA/TDA/ZDA sections.
 	(v850_reloc_prefix): Duplicate code eliminated.  Add code to
@@ -842,12 +842,12 @@ Tue Sep  2 15:58:52 1997  Nick Clifton  <nickc@cygnus.com>
 	(md_assemble): Calculation of the size of a fixups corrected.
 
 	* config/tc-v850.h (ELF_TC_SPECIAL_SECTIONS): Add SDA/TDA/ZDA
-	sections. 	
+	sections.
 
 Tue Sep  2 15:40:56 1997  Andrew Cagney  <cagney@b1.cygnus.com>
 
 	* config/tc-v850.c (md_assemble): Use opcode->name instead of
- 	opcode->opcode as the sentinal. Zero is a valid opcode.
+	opcode->opcode as the sentinal. Zero is a valid opcode.
 
 Tue Aug 26 16:51:14 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -857,7 +857,7 @@ Tue Aug 26 16:51:14 1997  Ian Lance Taylor  <ian@cygnus.com>
 Tue Aug 26 09:46:22 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* doc/c-v850.texi (V850 Opcodes): Correct name for tiny data area
-	pointer. 
+	pointer.
 
 Tue Aug 26 12:23:25 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -898,15 +898,15 @@ Mon Aug 25 14:25:48 1997  Ian Lance Taylor  <ian@cygnus.com>
 Mon Aug 25 11:21:48 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-v850.c (md_assemble): Restore input_line_pointer upon
-	exit. 
-	
+	exit.
+
 	* config/tc-v850.c (parse_register_list): Support constant
 	expressions as register lists.
 
 Mon Aug 25 10:19:34 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* doc/c-v850.texi: Change the major node to v850 Machine
-	Dependencies. 
+	Dependencies.
 
 Fri Aug 22 11:16:14 1997  Nick Clifton  <nickc@cygnus.com>
 
@@ -993,8 +993,8 @@ Mon Aug 18 11:26:36 1997  Nick Clifton  <nickc@cygnus.com>
 Mon Aug 18 11:24:21 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-v850.c: Remove support_v850e flag and command line
-	option. 
-	
+	option.
+
 	* configure.in (emulations): Add support for v850e target
 
 	* configure (emulations): Add support for v850e target
@@ -1002,8 +1002,8 @@ Mon Aug 18 11:24:21 1997  Nick Clifton  <nickc@cygnus.com>
 Mon Aug 18 11:24:21 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-v850.c: Remove support_v850ea flag and command line
-	option. 
-	
+	option.
+
 	* configure.in (emulations): Add support for v850ea target
 
 	* configure (emulations): Add support for v850ea target
@@ -1045,9 +1045,9 @@ Wed Aug 13 18:58:56 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-v850.c (md_assemble, md_show_usage, md_parse_option):
 	Add support for v850e instructions.
-	
+
 	* config/tc-v850.c (md_assemble): Fix error recovery to reload
-	text of entire opcode. 
+	text of entire opcode.
 
 Tue Aug 12 10:27:34 1997  Richard Henderson  <rth@cygnus.com>
 
@@ -1066,7 +1066,7 @@ Mon Aug 11 21:48:00 1997  Richard Henderson  <rth@cygnus.com>
 	functions.
 	* read.h: Update prototypes.
 	* symbols.c (resolve_symbol_value): Streamline quite a bit.  Return
-	the symbol value, add a second FINALIZE argument that prevents 
+	the symbol value, add a second FINALIZE argument that prevents
 	changes from being comitted.  Update all callers.
 	* write.c (cvt_frag_to_fill, relax_segment): Handle rs_leb128.
 	* doc/as.texinfo: Document the new pseudos.
@@ -1137,9 +1137,9 @@ Mon Aug  4 11:28:35 1997  Ian Lance Taylor  <ian@cygnus.com>
 	has an associated external symbol.
 
 Sun Aug  3 23:23:59 1997  Richard Henderson  <rth@cygnus.com>
- 
-        * config/tc-alpha.c (s_alpha_ucons): New function.
-        (md_pseudo_table): Add unaligned data pseudos for DWARF.
+
+	* config/tc-alpha.c (s_alpha_ucons): New function.
+	(md_pseudo_table): Add unaligned data pseudos for DWARF.
 
 Thu Jul 31 15:13:43 1997  Jeffrey A Law  (law@cygnus.com)
 
@@ -1158,10 +1158,10 @@ Tue Jul 29 14:20:43 1997  Jeffrey A Law  (law@cygnus.com)
 
 Mon Jul 28 18:41:41 1997  Rob Savoye  <rob@chinadoll.cygnus.com>
 
-        * configure.in: Use CYGWIN and EXEEXT autoconf macro to look for
-        win32 dependencies.
-        * configure: Regenerated with autoconf 2.12.
-        * Makefile.in: Add $(EXEEXT) to all executables.
+	* configure.in: Use CYGWIN and EXEEXT autoconf macro to look for
+	win32 dependencies.
+	* configure: Regenerated with autoconf 2.12.
+	* Makefile.in: Add $(EXEEXT) to all executables.
 
 Fri Jul 25 10:54:43 1997  Jeffrey A Law  (law@cygnus.com)
 
@@ -1182,9 +1182,9 @@ Thu Jul 24 17:51:29 1997  Ian Lance Taylor  <ian@cygnus.com>
 Thu Jul 24 12:13:19 1997  Fred Fish  <fnf@cygnus.com>
 
 	* config/tc-tic80.c (build_insn): Remove "extended" and replace with
- 	"fx" and "fxfrag".  Add "ffrag".  Change code to initialize and use
+	"fx" and "fxfrag".  Add "ffrag".  Change code to initialize and use
 	the right f/ffrag and fx/fxfrag pairs since instruction may be split
- 	across frags.
+	across frags.
 
 Tue Jul 22 18:38:56 1997  Robert Hoehne <robert.hoehne@Mathematik.TU-Chemnitz.DE>
 
@@ -1244,7 +1244,7 @@ Mon Jul  7 22:53:08 1997  Ian Lance Taylor  <ian@cygnus.com>
 	BFD_ASSEMBLER, handle one ELF case for COFF as well, and add a PE
 	case.
 	* write.c (fixup_segment): Change special case for i386-coff to
- 	not apply for i386-pe.
+	not apply for i386-pe.
 	* config/obj-coff.c (coff_adjust_section_syms): Only count fixups
 	which were not done.
 	(coff_frob_file_after_relocs): Rename from coff_frob_file.
@@ -1401,14 +1401,14 @@ Wed May 28 15:45:07 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-arm.c (md_begin): Change call to
 	coff_arm_bfd_set_private_flags() to a call to
-	bfd_set_private_flags(). 
+	bfd_set_private_flags().
 
 Wed May 28 16:17:34 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 	* Makefile.in: Rebuild dependencies.
 
 	* config/tc-i386.c (tc_gen_reloc): Don't try to convert the type
- 	of a BFD_RELOC_RVA reloc.
+	of a BFD_RELOC_RVA reloc.
 
 Wed May 28 10:48:14 1997  Jeffrey A Law  (law@cygnus.com)
 
@@ -1456,11 +1456,11 @@ Wed May 14 09:54:53 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-arm.c (global variables): Added 'uses_apcs_26' flag to
 	hold APCS selection.
-  	(md_begin): Added code to generate flags to be set into the COFF
+	(md_begin): Added code to generate flags to be set into the COFF
 	header and the calls to the BFD functions to do this.
-  	(md_parse_option, md_show_usage): Added new command line
+	(md_parse_option, md_show_usage): Added new command line
 	options -mapcs-32, -mapcs-26, -marmv2, -marmv2a, -marmv3,
-	-marmv3m, -marmv4, -marmv4t. 
+	-marmv3m, -marmv4, -marmv4t.
 
 	* config/tc-arm.h (LOCAL_LABEL): Removed the definition of this macro
 	as it is never used.
@@ -1493,7 +1493,7 @@ Thu May  8 11:10:15 1997  Ian Lance Taylor  <ian@cygnus.com>
 Wed May  7 15:39:48 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 	* config/obj-coff.c (write_object_file): Just pass NULL to
- 	md_do_align, not the address of a char holding NOP_OPCODE.
+	md_do_align, not the address of a char holding NOP_OPCODE.
 
 	* config/tc-mips.c (macro): Handle constants for M_LI_D and
 	M_LI_DD.
@@ -1540,7 +1540,7 @@ Tue Apr 29 20:23:10 1997  Jim Wilson  <wilson@cygnus.com>
 Tue Apr 29 19:54:36 1997  Richard Henderson  <rth@tamu.edu>
 
 	* config/obj-elf.c (elf_pseudo_table): Add "subsection".
- 	(obj_elf_subsection): New static function.
+	(obj_elf_subsection): New static function.
 
 Tue Apr 29 19:52:47 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -1606,7 +1606,7 @@ Tue Apr 15 18:11:44 1997  Gavin Koch  <gavin@cygnus.com>
 Tue Apr 15 13:04:47 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 	* Makefile.in (srcroot): Remove.
- 	(INSTALL): Set to @INSTALL@.
+	(INSTALL): Set to @INSTALL@.
 	(INSTALL_XFORM, INSTALL_XFORM1): Remove.
 	(all, dvi): Don't set srcroot.
 	(install): Depend upon as.new, gasp.new, and installdirs.  Use
@@ -1660,7 +1660,7 @@ Mon Apr  7 14:58:22 1997  Jeffrey A Law  (law@cygnus.com)
 Mon Apr  7 10:54:59 1997  Doug Evans  <dje@canuck.cygnus.com>
 
 	* Makefile.in: Regenerate dependencies.
- 	(TARG_CPU): New variable.
+	(TARG_CPU): New variable.
 	(cgen.o): Depend on cgen.h, $(TARG_CPU)-opc.h.
 	(.dep1): Delete creating of cgen-opc.h.
 	(.tcdep): Put proper contents in cgen-opc.h.
@@ -1761,7 +1761,7 @@ Mon Mar 31 23:53:44 1997  H.J. Lu  <hjl@gnu.ai.mit.edu>
 
 Mon Mar 31 16:31:04 1997  Joel Sherrill  <joel@oarcorp.com>
 
-        * configure.in (hppa*-*-rtems*): New target, like hppa-*-*elf*.
+	* configure.in (hppa*-*-rtems*): New target, like hppa-*-*elf*.
 	* configure: Rebuild.
 
 Mon Mar 31 14:15:19 1997  Ian Lance Taylor  <ian@cygnus.com>
@@ -1879,7 +1879,7 @@ Mon Mar 24 12:11:18 1997  Ian Lance Taylor  <ian@cygnus.com>
 	(alpha_frob_file_before_adjust): Declare if OBJ_ECOFF.
 	* config/tc-alpha.c (alpha_debug): New static variable.
 	(md_parse_option): Set alpha_debug if -g is seen.
- 	(alpha_frob_file_before_adjust): New function if OBJ_ECOFF.
+	(alpha_frob_file_before_adjust): New function if OBJ_ECOFF.
 
 Sun Mar 23 18:03:31 1997  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
@@ -2030,7 +2030,7 @@ Sat Mar 15 20:27:12 1997  Fred Fish  <fnf@cygnus.com>
 	* NEWS: Note BeOS support.
 	* configure.in: (ppc-*-beos): New target, use coff as object format.
 	* configure: Regenerate with autoconf.
-	
+
 Sat Mar 15 19:14:02 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 	* config/tc-mips.c (md_apply_fix): Improve error message for out
@@ -2290,23 +2290,23 @@ Mon Feb 24 18:27:43 1997  Eric Youngdale  <eric@andante.jic.com>
 
 Mon Feb 24 15:19:57 1997  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
-	* config/tc-d10v.c: Change pre_defined_registers to 
+	* config/tc-d10v.c: Change pre_defined_registers to
 	d10v_predefined_registers and reg_name_cnt to d10v_reg_name_cnt.
 
 Mon Feb 24 10:40:45 1997  Fred Fish  <fnf@cygnus.com>
 
 	* config/obj-coff.c: Fix typo in comment section.
 	* config/tc-tic80.c (md_pseudo_table): Add entry for bss, which takes
- 	an additional alignment argument.
+	an additional alignment argument.
 	(find_opcode): Allow O_symbol relocs for any 32 bit field, not just
- 	base relative ones.
+	base relative ones.
 	(build_insn): Handle O_symbol relocs for any 32 bit field, not just
- 	base relative ones.
+	base relative ones.
 
 Mon Feb 24 02:23:00 1997  Dawn Perchik  <dawn@cygnus.com>
 
 	* Makefile.in: Remove dependancies on itbl-cpu.h.
-	* as.c: Define stubs for itbl_parse and itbl_init if HAVE_ITBL_CPU 
+	* as.c: Define stubs for itbl_parse and itbl_init if HAVE_ITBL_CPU
 	is not defined.
 
 Mon Feb 24 02:03:00 1997  Dawn Perchik  <dawn@cygnus.com>
@@ -2354,10 +2354,10 @@ Sat Feb 22 21:25:00 1997  Dawn Perchik  <dawn@cygnus.com>
 	* as.c: Add itbl support.
 	Add new option "--insttbl" for dynamically extending instruction set.
 	* as.h: Declare insttbl_file_name;
-	the name of file defining extensions to the basic instruction set 
-	* configure.in, configure: Add itbl-parse.o, itbl-lex.o, and 
+	the name of file defining extensions to the basic instruction set
+	* configure.in, configure: Add itbl-parse.o, itbl-lex.o, and
 	itbl-ops.o to extra_objects for mips configuration.
-	Add include file link from itbl-cpu.h to 
+	Add include file link from itbl-cpu.h to
 	config/itbl-${target_cpu_type}.h.
 	* config/tc-mips.c: Allow copz instructions.
 	Add notes for future additions to the itbl support.
@@ -2372,18 +2372,18 @@ Sat Feb 22 20:53:01 1997  Fred Fish  <fnf@cygnus.com>
 	* config/tc-tic80.c (find_opcode): Add code to support O_symbol
 	operands.
 	(build_insn): Grab a frag early so we can use the address in
- 	fixups.  Take one's complement of BITNUM values before insertion
- 	in opcode.  Add code to support O_symbol operands.
+	fixups.  Take one's complement of BITNUM values before insertion
+	in opcode.  Add code to support O_symbol operands.
 	(md_apply_fix): Replace unimplemented warning with implementation.
 	(md_pcrel_from): Ditto.
 	(tc_coff_fix2rtype): Ditto.
 
 Fri Feb 21 14:34:31 1997  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
-	* config/tc-d30v.c (parallel_ok): New function. 
+	* config/tc-d30v.c (parallel_ok): New function.
 	* config/tc-d30v.h: Define TARGET_BYTES_BIG_ENDIAN.
 	* config/tc-d10v.c (md_pcrel_from_section): Return 0 if
-        relocation is in different section.
+	relocation is in different section.
 
 Fri Feb 21 10:08:25 1997  Jim Wilson  <wilson@cygnus.com>
 
@@ -2397,7 +2397,7 @@ Fri Feb 21 11:55:03 1997  Ian Lance Taylor  <ian@cygnus.com>
 	* app.c (LEX_IS_TWOCHAR_COMMENT_2ND): Don't define.
 	(do_scrub_begin): Don't set lex['*'].
 	(do_scrub_chars): When handling LEX_IS_TWOCHAR_COMMENT_1ST, don't
- 	check for LEX_IS_TWOCHAR_COMMENT_2ND.  Instead, just check for
+	check for LEX_IS_TWOCHAR_COMMENT_2ND.  Instead, just check for
 	a literal '*'.
 
 	* configure.in: Set em=svr4 for m68k-*-sysv4*.
@@ -2439,24 +2439,24 @@ Tue Feb 18 18:42:51 1997  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 	* config/tc-d30v.c, config/tc-d30v.h: New files.
 
- 	* configure: Rebuilt.
-	
+	* configure: Rebuilt.
+
 	* configure.in: Add case for d30v.
 
 Sun Feb 16 17:47:29 1997  Fred Fish  <fnf@cygnus.com>
 
 	* config/tc-alpha.h (md_operand): Define with a null expansion,
 	like all the other targets.
-	* doc/internals.texi (CPU backend): Add missing word in 
+	* doc/internals.texi (CPU backend): Add missing word in
 	md_flush_pending_output description.  Fix typo in md_convert_frag
 	description.
 	* config/tc-tic80: Minor comment additions/changes.
-	
+
 Fri Feb 14 18:09:59 1997  Philippe De Muyter  <phdm@info.ucl.ac.be>
 
 	* config/tc-m68k.c (LOCAL_LABEL): Macro redefined if TE_DELTA.
 	(tc_canonicalize_symbol_name): Macro defined if TE_DELTA.
- 	* config/obj-coff.c (obj_coff_def): Use
+	* config/obj-coff.c (obj_coff_def): Use
 	tc_canonicalize_symbol_name if defined.
 	(obj_coff_tag, obj_coff_val): Likewise.
 	* expr.c (operand): Reject '~' as operator if is_name_beginner.
@@ -2503,7 +2503,7 @@ Thu Feb 13 20:02:16 1997  Fred Fish  <fnf@cygnus.com>
 	tc-mn10200.h, tc-mn10300.h, tc-sh.h, tc-vax.h, tc-w65.h}:
 	Add default definition of zero for TARGET_BYTES_BIG_ENDIAN.
 	* config/{tc-arm.h, tc-hppa.h, tc-i386.h, tc-mips.h, tc-ns32k.h,
- 	tc-ppc.h, tc-sparc.h}: Move definition of TARGET_BYTES_BIG_ENDIAN
+	tc-ppc.h, tc-sparc.h}: Move definition of TARGET_BYTES_BIG_ENDIAN
 	to a location consistent with the rest of the target include files.
 	* config/tc-i386.c: Remove misleading comment.
 	* doc/internals.texi (CPU backend): Add description of function
@@ -2513,7 +2513,7 @@ Thu Feb 13 20:02:16 1997  Fred Fish  <fnf@cygnus.com>
 	Remove custom code that use to parse them.
 	* config/tc-tic80.h: Move definition of TARGET_BYTES_BIG_ENDIAN
 	to a location consistent with the rest of the target include files.
-	
+
 Thu Feb 13 21:44:18 1997  Klaus Kaempf  <kkaempf@progis.de>
 
 	* as.h: GNU c provides unlink() function.
@@ -2541,7 +2541,7 @@ Thu Feb 13 16:29:04 1997  Fred Fish  <fnf@cygnus.com>
 	(DVIPS): Set to dvips.
 	(ps, as.ps, gasp.ps): New targets.
 	(internals.info, gasp.dvi, internals.dvi): Set both TEXINPUTS
- 	and MAKEINFO env variables.
+	and MAKEINFO env variables.
 	(internals.ps): Use DVIPS macro.
 	(clean): Remove core and backup files.
 	(distclean): Remove temporary files from building internals.
@@ -2623,7 +2623,7 @@ Wed Feb 12 14:36:29 1997  Ian Lance Taylor  <ian@cygnus.com>
 	symbol.
 
 	* config/tc-mips.c (append_insn): Warn about an attempt to put an
- 	extended instruction in a delay slot when not reordering.
+	extended instruction in a delay slot when not reordering.
 	(md_convert_frag): Warn if an extended instruction appears in a
 	delay slot.
 
@@ -2659,11 +2659,11 @@ Mon Feb 10 22:06:00 1997  Dawn Perchik  (dawn@cygnus.com)
 
 Mon Feb 10 18:09:00 1997  Dawn Perchik  (dawn@cygnus.com)
 
-	* itbl-ops.c: New file.  Add support for dynamically read 
-	instruction registers, opcodes and formats.  Build internal table 
-	for new instructions and provide callbacks for assembler and 
+	* itbl-ops.c: New file.  Add support for dynamically read
+	instruction registers, opcodes and formats.  Build internal table
+	for new instructions and provide callbacks for assembler and
 	disassembler.
-	* itbl-lex.l, itbl-parse.y: Lex and yacc parsers for instruction 
+	* itbl-lex.l, itbl-parse.y: Lex and yacc parsers for instruction
 	spec table.
 	* itbl-ops.h: New file.  Header file for itbl support.
 	* config/itbl-mips.h: New file.  Mips specific definitions for
@@ -2736,7 +2736,7 @@ Fri Jan 31 10:46:14 1997  Ian Lance Taylor  <ian@cygnus.com>
 	enforce-aligned-data.
 
 	* config/tc-ppc.c (md_pseudo_table): If OBJ_XCOFF, add "long",
- 	"word", and "short".
+	"word", and "short".
 	(ppc_xcoff_cons): New static function.
 
 	* write.c (relax_segment): Give an error if a .space symbol is
@@ -2816,14 +2816,14 @@ Wed Jan 22 10:39:39 1997  Doug Evans  <dje@canuck.cygnus.com>
 Mon Jan 20 10:56:47 1997  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
 
 	* config/tc-m68k.c (m68k_ip): Reject pc-relative addresses for the
- 	'p' operand specifier.
+	'p' operand specifier.
 
 Mon Jan 20 10:39:36 1997  J.T. Conklin  <jtc@cygnus.com>
 
 	* config/tc-m68k.c (HAVE_LONG_BRANCH): New macro, returns true for
- 	m68k family cpus which support long branch addressing modes.
+	m68k family cpus which support long branch addressing modes.
 	(m68k_ip, md_convert_frag_1, md_estimate_size_before_relax,
- 	md_create_long_jump): Use it.
+	md_create_long_jump): Use it.
 
 Mon Jan 20 12:42:06 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -2981,8 +2981,8 @@ Thu Jan  2 13:37:29 1997  Ian Lance Taylor  <ian@cygnus.com>
 	work if valueT is only 32 bits.
 
 	* config/tc-mips.c: Throughout, check target_big_endian rather
- 	than byte_order.
- 	(byte_order): Remove.
+	than byte_order.
+	(byte_order): Remove.
 	(mips_init_after_args): Remove.
 	* config/tc-mips.h (LITTLE_ENDIAN, BIG_ENDIAN): Don't define.
 	(mips_init_after_args): Don't declare.
@@ -3008,9 +3008,9 @@ Tue Dec 31 12:56:41 1996  Ian Lance Taylor  <ian@cygnus.com>
 	* Makefile.in (ALL_CFLAGS): Add -D_GNU_SOURCE.
 
 	* config/tc-sparc.c (md_apply_fix3): Rename from md_apply_fix, and
- 	add segment argument.  If OBJ_ELF, treat a relocation against a
- 	symbol in a linkonce section like a relocation against an external
- 	symbol.
+	add segment argument.  If OBJ_ELF, treat a relocation against a
+	symbol in a linkonce section like a relocation against an external
+	symbol.
 	* config/tc-sparc.h (MD_APPLY_FIX3): Define.
 
 Mon Dec 30 11:35:40 1996  Ian Lance Taylor  <ian@cygnus.com>
@@ -3023,14 +3023,14 @@ Fri Dec 27 22:51:51 1996  Fred Fish  <fnf@cygnus.com>
 	includes config.h instead of host.h, tc.h instead of tp.h, and
 	targ-env.h instead of target-environment.h.
 	Also, obj-format.h includes targ-cpu.h instead of
- 	target-processor.h.
+	target-processor.h.
 	* configure.in (case ${generic_target}): Add tic80-*-coff entry.
 	* configure: Rebuild with autoconf.
 	* config/obj-coff.h (coff/tic80.h): Include if TC_TIC80 defined.
 	(TARGET_FORMAT): Define to "coff-tic80".
 	* config/tc-tic80.c: New file for TIc80 support.
 	* config/tc-tic80.h: New file for TIc80 support.
-	
+
 Fri Dec 27 11:42:29 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* doc/as.texinfo (M): Mention explicitly that -M changes macro
@@ -3065,7 +3065,7 @@ Wed Dec 18 10:08:46 1996  Jeffrey A Law  (law@cygnus.com)
 Tue Dec 17 10:59:32 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* config/tc-mips.c: Undo part of last Friday's alignment changes.
- 	(md_begin): Always align the text section to a four byte
+	(md_begin): Always align the text section to a four byte
 	boundary.
 	(append_insn): Remove call to record_align.
 
@@ -3233,7 +3233,7 @@ Fri Dec  6 00:55:48 1996  Martin  <hunt@cygnus.com>
 	(d10v_cleanup): No longer uses its argument, so make it void.
 
 	* config/tc-d10v.h (d10v_cleanup): Change prototype.
-	
+
 Thu Dec  5 11:03:31 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* write.c (fixup_segment): Don't discard the symbol for a PC
@@ -3325,7 +3325,7 @@ Tue Nov 26 10:33:16 1996  Ian Lance Taylor  <ian@cygnus.com>
 Mon Nov 25 18:02:29 1996  J.T. Conklin  <jtc@beauty.cygnus.com>
 
 	* config/tc-m68k.c (m68k_ip): Implement cases for new <, >, m, n,
- 	o and p operand specifiers.
+	o and p operand specifiers.
 
 Mon Nov 25 10:45:14 1996  Doug Evans  <dje@seba.cygnus.com>
 
@@ -3359,7 +3359,7 @@ Fri Nov 22 15:42:26 1996  Ian Lance Taylor  <ian@cygnus.com>
 Thu Nov 21 11:56:11 1996  Jeffrey A Law  (law@cygnus.com)
 
 	* config/tc-mn10300.h (DIFF_EXPR_OK): Don't define this.
-	(tc_fix_adjustable): Don't adjust relocs against weak symbols or 
+	(tc_fix_adjustable): Don't adjust relocs against weak symbols or
 	pc-relative relocs.
 	* config/tc-mn10300.c (md_begin): Set linkrelax.
 	(md_assemble): Create fixups as needed.
@@ -3399,7 +3399,7 @@ Fri Nov  8 13:55:03 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 	* doc/c-d10v.texi: Add info on @word modifier.
 
 Wed Nov  6 13:46:07 1996  Jeffrey A Law  (law@cygnus.com)
-	
+
 	* config/tc-mn10300.c (mn10300_insert_operand): MN10300_OPERAND_SPLIT
 	operands are assumed to be 32bits.  Use "bits" field to hold the
 	number of bits in the main instruction word for MN10300_OPERAND_SPLIT.
@@ -3556,8 +3556,8 @@ Mon Oct 21 11:38:30 1996  Ian Lance Taylor  <ian@cygnus.com>
 	(tc_gen_reloc): Handle BFD_RELOC_64.
 
 	* config/tc-i386.c (md_apply_fix3): Don't increment value for a PC
- 	relative reloc when BFD_ASSEMBLER and OBJ_AOUT (more ugly gas
- 	reloc hacking).
+	relative reloc when BFD_ASSEMBLER and OBJ_AOUT (more ugly gas
+	reloc hacking).
 
 	* config/obj-aout.h (S_IS_DEFINE): non BFD_ASSEMBLER version:
 	Don't check S_GET_OTHER.
@@ -3744,7 +3744,7 @@ Tue Oct  1 12:37:48 1996  Ian Lance Taylor  <ian@cygnus.com>
 	register numbers.  From Ken Rose <rose@netcom.com>.
 
 	* config/tc-alpha.c: Add some static function prototypes.
- 	(alpha_macros): Move to top of file.  Make static.
+	(alpha_macros): Move to top of file.  Make static.
 	(alpha_num_macros): Move to top of file.
 
 Tue Oct  1 09:36:19 1996  Stu Grossman  (grossman@critters.cygnus.com)
@@ -3768,7 +3768,7 @@ Tue Sep 24 19:05:08 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Tue Sep 24 12:22:18 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
-	* config/tc-d10v.c (md_operand): Created.  Allows operands to 
+	* config/tc-d10v.c (md_operand): Created.  Allows operands to
 	start with '#'.
 	* config/tc-d10v.h (md_operand): Undefined.
 
@@ -3795,10 +3795,10 @@ Mon Sep 16 11:41:40 1996  Ian Lance Taylor  <ian@cygnus.com>
 Thu Sep 12 10:25:45 1996  James G. Smith  <jsmith@cygnus.co.uk>
 
 	* config/tc-arm.c (md_apply_fix3): Update two thumb instruction
- 	slots when processing BL fixups.
+	slots when processing BL fixups.
 
 	* config/tc-arm.c (output_inst): Ensure Thumb BL fixup is marked
- 	on the first half of the instruction.
+	on the first half of the instruction.
 
 Wed Sep 11 00:09:35 1996  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -3828,11 +3828,11 @@ Mon Sep  9 10:57:42 1996  Ian Lance Taylor  <ian@cygnus.com>
 Sat Sep  7 13:25:55 1996  James G. Smith  <jsmith@cygnus.co.uk>
 
 	* config/tc-mips.c (COUNT_TOP_ZEROES): Added macro to count
- 	leading zeroes.
+	leading zeroes.
 	(load_register): Ensure hi32 bits are not lost during lo32bit
- 	processing. Fix shift offset that was overflowing into the next
- 	instruction field. Add code to generate shorter sequences for
- 	constants with a single contiguous seqeuence of ones.
+	processing. Fix shift offset that was overflowing into the next
+	instruction field. Add code to generate shorter sequences for
+	constants with a single contiguous seqeuence of ones.
 
 Fri Sep  6 17:07:12 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
@@ -3882,8 +3882,8 @@ Wed Sep  4 10:23:20 1996  Ian Lance Taylor  <ian@cygnus.com>
 Wed Sep  4 11:24:29 1996  James G. Smith  <jsmith@cygnus.co.uk>
 
 	* config/tc-mips.c (load_register): Remove unnecessary code that
- 	was causing the high 32bits of 64bit constants to be lost.
-	
+	was causing the high 32bits of 64bit constants to be lost.
+
 Tue Sep  3 13:52:56 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 	* config/tc-d10v.c: Added changes to support function
@@ -3916,22 +3916,22 @@ Fri Aug 30 23:50:08 1996  Jeffrey A Law  (law@cygnus.com)
 Fri Aug 30 18:35:26 1996  J.T. Conklin  <jtc@hippo.cygnus.com>
 
 	* config/tc-v850.c (reg_name_search): Align calling convention to
- 	be like identical function found in tc-ppc.c.
+	be like identical function found in tc-ppc.c.
 	(get_reloc): Removed.
 	(v850_reloc_prefix): New function, parse lo(), hi() and hi0().
 	(md_assemble): emit fixups.
 	(md_pcrel_from): renamed from md_pcrel_from_section, emit proper
- 	displacement.
+	displacement.
 	(md_apply_fix3): handle fixups/relocs.
 	* config/tc-v850.h (MD_PCREL_FROM_SECTION): Removed definition.
-	
+
 Fri Aug 30 18:12:00 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	Add SH ELF support.
 	* configure.in (sh-*-elf*): New target.
 	* config/tc-sh.h (TARGET_ARCH): Define.
 	(WORKING_DOT_WORD): Define.
- 	(TC_COFF_FIX2RTYPE): Only define if OBJ_COFF.
+	(TC_COFF_FIX2RTYPE): Only define if OBJ_COFF.
 	(BFD_ARCH, COFF_MAGIC, TC_COUNT_RELOC): Likewise.
 	(TC_RELOC_MANGLE, tc_coff_symbol_emit_hook): Likewise.
 	(DO_NOT_STRIP, NEED_FX_R_TYPE, TC_KEEP_FX_OFFSET): Likewise.
@@ -3975,7 +3975,7 @@ Fri Aug 30 18:12:00 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Fri Aug 30 14:47:38 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
-	* config/tc-d10v.c (find_opcode): Fix problem with calculating 
+	* config/tc-d10v.c (find_opcode): Fix problem with calculating
 	branch sizes in across sections.
 
 Fri Aug 30 00:44:13 1996  Jeffrey A Law  (law@cygnus.com)
@@ -4022,7 +4022,7 @@ Mon Aug 26 18:24:51 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 Mon Aug 26 13:39:27 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
-	* config/tc-d10v.c (parallel_ok): Fix bug in parallel 
+	* config/tc-d10v.c (parallel_ok): Fix bug in parallel
 	checking code.
 
 Mon Aug 26 14:38:22 1996  Ian Lance Taylor  <ian@cygnus.com>
@@ -4035,7 +4035,7 @@ Mon Aug 26 14:38:22 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Fri Aug 23 11:40:47 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
-	* doc/c-d10v.texi: Fix typo. 
+	* doc/c-d10v.texi: Fix typo.
 
 Fri Aug 23 10:41:32 1996  Jeffrey A Law  (law@cygnus.com)
 
@@ -4060,7 +4060,7 @@ Fri Aug 23 10:41:32 1996  Jeffrey A Law  (law@cygnus.com)
 	(system_register_name): New function.
 	(SYSREG_NAME_CNT): Define.
 	(md_assemble): Handle operands which are system registers.
-	
+
 	* config/tc-v850.c (md_assemble): If we find a register, but the
 	opcode doesn't want a register, then we don't have a match.
 	(md_assemble): Get size of the instruction from the opcode table.
@@ -4077,16 +4077,16 @@ Thu Aug 22 10:20:30 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Thu Aug 22 10:50:00 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
-	* config/tc-d10v.c: Fix a reloc bug caused by my last change. 
+	* config/tc-d10v.c: Fix a reloc bug caused by my last change.
 	* doc/c-d10v.texi: Cleanup.
-	
+
 Tue Aug 20 15:15:16 1996  J.T. Conklin  <jtc@hippo.cygnus.com>
 
 	* config/tc-v850.c: New file.
 	* config/tc-v850.h: New file.
 	* configure (v850-*-elf): New target.
 	* configure.in (v850-*-elf): New target.
-	
+
 Wed Aug 21 15:50:54 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 	* doc/c-d10v.texi: New file.
@@ -4096,7 +4096,7 @@ Wed Aug 21 15:50:54 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 Tue Aug 20 14:10:02 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 	* config/tc-d10v.c: All references to defined symbols should
- 	now use the optimal instruction.  .float and .double now work. 
+	now use the optimal instruction.  .float and .double now work.
 
 Mon Aug 19 14:41:36 1996  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -4111,13 +4111,13 @@ Thu Aug 15 16:37:59 1996  Stan Shebs  <shebs@andros.cygnus.com>
 Thu Aug 15 13:24:30 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 	* config/tc-d10v.c: Add additional information to the opcode
-        table to help determinine which instructions can be done
-        in parallel. 
+	table to help determinine which instructions can be done
+	in parallel.
 
 Thu Aug 15 17:01:31 1996  James G. Smith  <jsmith@cygnus.co.uk>
 
 	* config/tc-arm.c: Major changes to add Thumb support, with lots
- 	of change input from <rearnsha@armltd.co.uk>.
+	of change input from <rearnsha@armltd.co.uk>.
 	Reverted to INSN_SIZE macro, rather than insn_size variable.
 	(insns): Added ARM "bx" instruction support.
 	(tinsns): Added Thumb instruction definition structure.
@@ -4128,21 +4128,21 @@ Thu Aug 15 17:01:31 1996  James G. Smith  <jsmith@cygnus.co.uk>
 	(do_ldst): Simpler halfword support.
 	(do_ldmstm): Improved.
 	(reg_list, do_bx, thumb_reg, thumb_add_sub, thumb_shift,
- 	thumb_mov_compare, thumb_load_store, do_t_arit, do_t_add,
- 	do_t_asr, do_t_branch, do_t_bx, do_t_compare, do_t_ldmstm,
- 	do_t_ldrb, do_t_ldrh, do_t_lds, do_t_lsl, do_t_lsr, do_t_mov,
- 	do_t_push_pop, do_t_str, do_t_strb, do_t_strh, do_t_sub, do_t_swi,
- 	do_t_adr): Added.
+	thumb_mov_compare, thumb_load_store, do_t_arit, do_t_add,
+	do_t_asr, do_t_branch, do_t_bx, do_t_compare, do_t_ldmstm,
+	do_t_ldrb, do_t_ldrh, do_t_lds, do_t_lsl, do_t_lsr, do_t_mov,
+	do_t_push_pop, do_t_str, do_t_strb, do_t_strh, do_t_sub, do_t_swi,
+	do_t_adr): Added.
 	(md_apply_fix3): Add support for BFD_RELOC_ARM_THUMB_* relocations.
 	(md_parse_option): Add support for -mthumb.
 	(md_show_usage): Updated to reflect new command line option.
 	(arm_data_in_code, arm_canonicalize_symbol_name): Added.
 	* config/tc-arm.h: Provide TC_FIX_TYPE to allow private ARM
- 	fragment information to be held.
+	fragment information to be held.
 
 Thu Aug 15 16:12:00 1996  Richard Earnshaw (rearnsha@armltd.co.uk)
 
-	* config/tc-arm.c (md_apply_fix3): Also set fixP->fx_done if fx_addsy is 
+	* config/tc-arm.c (md_apply_fix3): Also set fixP->fx_done if fx_addsy is
 	non-null, but is a constant.
 	(fix_new_arm): Call make_expr_symbol to make the expression symbol
 	so that error reporting will work correctly.
@@ -4165,7 +4165,7 @@ Mon Aug 12 16:49:43 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Fri Aug  9 17:48:28 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
-	* config/tc-d10v.c: Fix problem with relocs. 
+	* config/tc-d10v.c: Fix problem with relocs.
 
 Fri Aug  9 14:16:14 1996  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -4243,7 +4243,7 @@ Fri Aug  2 11:23:31 1996  Ian Lance Taylor  <ian@cygnus.com>
 Thu Aug  1 23:51:52 1996  Jeffrey A Law  (law@cygnus.com)
 
 	* config/tc-hppa.c: Revert yesterday's changes.
-	
+
 Wed Jul 31 14:46:11 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 	* config/tc-d10v.c: Disable range checking on 16-bit values.
@@ -4260,22 +4260,22 @@ Wed Jul 31 11:45:15 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 Wed Jul 31 15:41:42 1996  James G. Smith  <jsmith@cygnus.co.uk>
 
 	* config/tc-arm.c: Changed INSN_SIZE to variable insn_size, as
- 	pre-cursor to adding Thumb support. Also added cpu_variant flag
- 	information to each of the asm_flg structures.
+	pre-cursor to adding Thumb support. Also added cpu_variant flag
+	information to each of the asm_flg structures.
 	(md_parse_option): Updated ARM7 parsing to allow 't' for
- 	thumb/halfword support, aswell as 'm' for long multiply.
+	thumb/halfword support, aswell as 'm' for long multiply.
 	(md_show_usage): Updated help message.
 	(md_assemble): Check that instruction flags are applicated to the
- 	current cpu variant.
+	current cpu variant.
 	(md_apply_fix3, tc_gen_reloc): Add BFD_RELOC_ARM_OFFSET_IMM8 and
- 	BFD_RELOC_ARM_HWLITERAL relocation support for new halfword and
- 	signextension instructions.
+	BFD_RELOC_ARM_HWLITERAL relocation support for new halfword and
+	signextension instructions.
 	(do_ldst): Generate halfword and signextension variants if
- 	mnemonic flags match.
+	mnemonic flags match.
 	(ldst_extend): Do not allow shifts in the offset field of halfword
- 	or signextension instructions.
+	or signextension instructions.
 	(validate_offset_imm): Provide check on halfword and signextension
- 	immediate range.
+	immediate range.
 	(add_to_lit_pool): Merge identical literal pool values.
 
 Tue Jul 30 14:28:23 1996  Jeffrey A Law  (law@cygnus.com)
@@ -4298,7 +4298,7 @@ Fri Jul 26 11:43:03 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 	* config/tc-d10v.c: Added lots of error checking.  Added hacks
 	to support accumulator shifts.
-	
+
 Fri Jul 26 11:56:08 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* symbols.c (S_SET_EXTERNAL): Let .weak override.
@@ -4315,8 +4315,8 @@ Thu Jul 25 12:03:33 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 	* config/tc-d10v.c: Fix packaging bug. Added range checking.
 	Added kludge for divs instruction.  Fixed minor problem with
 	multiple text sections.
-	* config/tc-d10v.h (d10v_cleanup): Change prototype. 
-	
+	* config/tc-d10v.h (d10v_cleanup): Change prototype.
+
 Tue Jul 23 10:49:36 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 	* config/tc-d10v.c (md_apply_fix3): Fix all instruction
@@ -4325,11 +4325,11 @@ Tue Jul 23 10:49:36 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 Mon Jul 22 11:32:36 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 
 	* config/tc-d10v.c: Many changes to get relocs working.
- 	(register_name): No longer creates a symbol for register names.
- 	(pre_defined_registers): moved to opcodes/d10v-opc.c.
+	(register_name): No longer creates a symbol for register names.
+	(pre_defined_registers): moved to opcodes/d10v-opc.c.
 	(d10v_insert_operand): Now works correctly for either container.
-	* config/tc-d10v.h (d10v_cleanup): Declare. 
-	
+	* config/tc-d10v.h (d10v_cleanup): Declare.
+
 Mon Jul 22 14:01:33 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* config/tc-mips.c (tc_gen_reloc): BFD_RELOC_PCREL_HI16_S and
@@ -4396,7 +4396,7 @@ Wed Jul 17 14:25:13 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
 	* config/tc-d10v.h: New file.
 	* configure (d10v-*-elf): New target.
 	* configure.in (d10v-*-elf): New target.
-	
+
 Fri Jul 12 20:54:19 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
 
 	* config/tc-ppc.c (md_parse_option): Recognize -K PIC.
@@ -4423,9 +4423,9 @@ Wed Jul 10 00:23:30 1996  Ian Lance Taylor  <ian@cygnus.com>
 Mon Jul  8 14:11:49 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* config/tc-mips.c (mips_regmask_frag): Only define if OBJ_ELF or
- 	OBJ_MAYBE_ELF.
+	OBJ_MAYBE_ELF.
 	(tc_gen_reloc): If fixup was changed to be PC relative, change
- 	reloc type accordingly.  Use name of reloc in error message.
+	reloc type accordingly.  Use name of reloc in error message.
 
 	* as.h: Don't define const or volatile.
 	* flonum.h: Don't define const.
@@ -4442,7 +4442,7 @@ Fri Jul  5 10:32:58 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
 	* doc/as.texinfo: Likewise.
 
 	* config/tc-m68k.c (m68k_ip): The coldfire does not support 8x
- 	scale factor.
+	scale factor.
 
 Fri Jul  5 11:07:24 1996  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -4458,14 +4458,14 @@ Thu Jul  4 11:59:46 1996  Ian Lance Taylor  <ian@cygnus.com>
 Thu Jul  4 10:11:33 1996  James G. Smith  <jsmith@cygnus.co.uk>
 
 	* config/tc-mips.c (mips_ip): Only perform range check when
- 	dealing with O_constant expressions.
+	dealing with O_constant expressions.
 
 Wed Jul  3 15:02:21 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
 
 	* m68k-parse.h (m68k_register): Add new coldfile control
 	registers.
 
-	* config/tc-m68k.c (mcf5200_control_regs): New variable, 
+	* config/tc-m68k.c (mcf5200_control_regs): New variable,
 	array of control registers for the coldfire.
 	(cpu_of_arch): Added mcf5200.
 	(archs): Added mcf5200.
@@ -4499,7 +4499,7 @@ Wed Jul  3 16:05:50 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Tue Jul  2 23:02:12 1996  Jeffrey A Law  (law@cygnus.com)
 
-	* config/tc-h8300.c (build_bytes): If an operand type is 
+	* config/tc-h8300.c (build_bytes): If an operand type is
 	marked as SRC_IN_DST retrieve it from the "destination" op.
 
 Sat Jun 29 13:38:31 1996  Ian Lance Taylor  <ian@cygnus.com>
@@ -4558,7 +4558,7 @@ Wed Jun 26 13:21:34 1996  Ian Lance Taylor  <ian@cygnus.com>
 Wed Jun 26 16:23:08 1996  James G. Smith  <jsmith@cygnus.co.uk>
 
 	* config/tc-mips.c: Added cop_interlocks, to avoid NOP insertion
- 	between co-processor comparisons and branches for the VR4300.
+	between co-processor comparisons and branches for the VR4300.
 
 Mon Jun 24 18:02:50 1996  Jason Molenda  (crash@godzilla.cygnus.co.jp)
 
@@ -4710,8 +4710,8 @@ Wed Jun 19 11:31:50 1996  Ian Lance Taylor  <ian@cygnus.com>
 	emit relocations against external symbols.
 
 	* config/tc-alpha.c (tc_gen_reloc): Output a sensible error
- 	message if bfd_reloc_type_lookup fails, rather than calling
- 	assert.
+	message if bfd_reloc_type_lookup fails, rather than calling
+	assert.
 
 	* config/tc-alpha.c (alpha_force_relocation): Add
 	BFD_RELOC_12_PCREL to switch.
@@ -4757,7 +4757,7 @@ Tue Jun 18 13:19:51 1996  Jeffrey A. Law  <law@rtl.cygnus.com>
 Mon Jun 17 15:50:53 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
 
 	* doc/as.texinfo: Reorder chapter of machine dependent options so
- 	that it is sorted by chip name.  
+	that it is sorted by chip name.
 
 	* doc/as.texinfo: Use consistant spelling of Vax.
 	* doc/c-vax.texi: Likewise.
@@ -4822,7 +4822,7 @@ Mon Jun 10 11:45:51 1996  Ian Lance Taylor  <ian@cygnus.com>
 	flag for C_MOS, C_MOE, C_MOU, or C_EOS symbols, since they should
 	have a section of N_ABS rather than N_DEBUG.  If we do a merge,
 	remove the new symbol from the list.
- 	(obj_coff_endef, both versions): Call tag_insert even if there is
+	(obj_coff_endef, both versions): Call tag_insert even if there is
 	an old symbol with the same name, if the old symbol does not
 	happen to be a tag.
 	(coff_frob_symbol): Check SF_GET_TAG, C_EOF, and C_FILE outside of
@@ -4839,7 +4839,7 @@ Mon Jun 10 11:45:51 1996  Ian Lance Taylor  <ian@cygnus.com>
 	defined.
 
 	* app.c (do_scrub_chars): If '/' is LINE_COMMENT_START, check
- 	whether the next character is '*' before checking whether we are
+	whether the next character is '*' before checking whether we are
 	at the start of a line.  Permit LINE_COMMENT_START to start a
 	comment in state 1 (seen some whitespace) as well, to match the
 	documentation.
@@ -4948,7 +4948,7 @@ Thu May 16 15:51:48 1996  Ian Lance Taylor  <ian@cygnus.com>
 	(sh_flush_pending_output): Declare.
 	(md_flush_pending_output): Define.
 	* config/tc-sh.c (md_assemble): If relaxing, emit a R_SH_CODE
- 	reloc before the instruction if necessary.
+	reloc before the instruction if necessary.
 	(sh_frob_label): New function.
 	(sh_flush_pending_output): New function.
 	(sh_coff_frob_file): Ignore ALIGN, CODE, DATA, and LABEL relocs
@@ -4971,7 +4971,7 @@ Wed May 15 12:23:53 1996  Ian Lance Taylor  <ian@cygnus.com>
 Wed May 15 08:33:37 1996  Jeffrey A Law  (law@cygnus.com)
 
 	* config/obj-coff.c (count_entries_in_chain): Ignore Fixups with
-	fx_done set. 
+	fx_done set.
 	(do_relocs_for): Likewise.
 	(fixup_segment): Don't just quit if linkrelax is set.  Try to
 	apply non pc-relative sym1-sym2 fixups, even if linkrelax is
@@ -5018,7 +5018,7 @@ Sat May  4 12:49:35 1996  Jeffrey A Law  (law@cygnus.com)
 Sat May  4 11:26:19 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* Makefile.in: Add subsegs.h to appropriate TARG_CPU_DEP_*
- 	variables.
+	variables.
 
 Fri May  3 17:58:31 1996  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -5068,7 +5068,7 @@ Thu Apr 25 11:39:51 1996  Ian Lance Taylor  <ian@cygnus.com>
 Wed Apr 24 11:28:38 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* config/tc-m68k.c (m68k_ip): Prevent attempts to use long offsets
- 	in 68000 mode.
+	in 68000 mode.
 
 	* config/obj-coff.c (obj_coff_section): BFD_ASSEMBLER version:
 	call demand_empty_rest_of_line.  Non BFD_ASSEMBLER version:
@@ -5087,7 +5087,7 @@ Mon Apr 22 18:02:37 1996  Doug Evans  <dje@blues.cygnus.com>
 Thu Apr 18 18:58:33 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* config/obj-coff.c: BFD_ASSEMBLER:
- 	(coff_last_bf): New static variable.
+	(coff_last_bf): New static variable.
 	(coff_frob_symbol): Set endndx of a .bf symbol.
 	Non BFD_ASSEMBLER:
 	(obj_coff_endef): Call SF_SET_PROCESS on a .bf symbol.
@@ -5185,7 +5185,7 @@ Fri Apr  5 14:29:23 1996  Ian Lance Taylor  <ian@cygnus.com>
 Fri Apr  5 18:39:28 1996  James G. Smith  <jsmith@cygnus.co.uk>
 
 	* config/tc-mips.c: Allow non-zero offsets from .sdata symbols to
- 	be accessed using the $gp register.
+	be accessed using the $gp register.
 	* config/tc-mips.h (MAX_GPREL_OFFSET): Added.
 
 Wed Apr  3 10:56:14 1996  Doug Evans  <dje@canuck.cygnus.com>
@@ -5324,7 +5324,7 @@ Mon Mar 11 09:59:53 1996  Steve Chamberlain  <sac@slash.cygnus.com>
 	(do_relocs_for, w_symbols, obj_coff_add_segment, do_linenos_for,
 	crawl_symbols, coff_header_append): Loop to SEG_LAST rather than
 	SEG_E9.
-	
+
 Thu Mar  7 15:17:39 1996  Doug Evans  <dje@charmed.cygnus.com>
 
 	* config/tc-sparc.c (sparc_ip): Handle operand char 'O' (neg reg).
@@ -5464,7 +5464,7 @@ Mon Feb 19 02:15:57 1996  Doug Evans  <dje@charmed.cygnus.com>
 Sun Feb 18 15:03:50 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* configure.in: Check for 'do not mix' from native linker before
- 	trying to use -rpath.
+	trying to use -rpath.
 	* configure: Rebuild.
 
 Fri Feb 16 16:53:31 1996  Ian Lance Taylor  <ian@cygnus.com>
@@ -5585,7 +5585,7 @@ Mon Feb 12 15:16:29 1996  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.
 	(NO_RELOC): Define to BFD_RELOC_NONE if BFD_ASSEMBLER, to zero
 	otherwise.
 	* config/tc-m68k.c: Delete definition of NO_RELOC.
- 	(struct m68k_it): Add pic_reloc field.
+	(struct m68k_it): Add pic_reloc field.
 	(add_fix): Copy over pic_reloc field.
 	(md_pseudo_table): Interpret .align parameter as byte count.
 	(mote_pseudo_table): Likewise.
@@ -5599,7 +5599,7 @@ Mon Feb 12 15:16:29 1996  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.
 	(md_begin): Align .text, .data and .bss on 4 byte boundary by
 	default.
 	* write.c (fixup_segment): Don't add symbol value to addend if
- 	TC_M68K and OBJ_ELF.
+	TC_M68K and OBJ_ELF.
 	* config/m68k-parse.y (yylex): Handle @PLTPC, etc.
 	(motorola_operand): Add rule for `(zapc, EXPR)'.
 
@@ -5809,7 +5809,7 @@ Mon Jan 29 12:21:30 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Fri Jan 26 19:28:52 1996  Kim Knuttila  <krk@cygnus.com>
 
-	* config/tc-ppc.c (md_assemble): Ignore overflow on 
+	* config/tc-ppc.c (md_assemble): Ignore overflow on
 	BFD_RELOC_16_GOTOFF and BFD_RELOC_PPC_TOC16.
 
 Fri Jan 26 16:14:17 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
@@ -5957,3 +5957,10 @@ Tue Jan  2 12:43:23 1996  Jim Wilson  <wilson@chestnut.cygnus.com>
 	not alphanumeric.
 
 For older changes see ChangeLog-9295
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

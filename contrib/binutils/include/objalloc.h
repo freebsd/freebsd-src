@@ -14,8 +14,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #ifndef OBJALLOC_H
 #define OBJALLOC_H
@@ -45,7 +45,7 @@ struct objalloc
 {
   char *current_ptr;
   unsigned int current_space;
-  PTR chunks;
+  void *chunks;
 };
 
 /* Work out the required alignment.  */
@@ -64,12 +64,12 @@ struct objalloc_align { char x; double d; };
 
 /* Create an objalloc structure.  Returns NULL if malloc fails.  */
 
-extern struct objalloc *objalloc_create PARAMS ((void));
+extern struct objalloc *objalloc_create (void);
 
 /* Allocate space from an objalloc structure.  Returns NULL if malloc
    fails.  */
 
-extern PTR _objalloc_alloc PARAMS ((struct objalloc *, unsigned long));
+extern void *_objalloc_alloc (struct objalloc *, unsigned long);
 
 /* The macro version of objalloc_alloc.  We only define this if using
    gcc, because otherwise we would have to evaluate the arguments
@@ -94,7 +94,7 @@ extern PTR _objalloc_alloc PARAMS ((struct objalloc *, unsigned long));
      (__len <= __o->current_space					\
       ? (__o->current_ptr += __len,					\
 	 __o->current_space -= __len,					\
-	 (PTR) (__o->current_ptr - __len))				\
+	 (void *) (__o->current_ptr - __len))				\
       : _objalloc_alloc (__o, __len)); })
 
 #else /* ! __GNUC__ */
@@ -105,11 +105,11 @@ extern PTR _objalloc_alloc PARAMS ((struct objalloc *, unsigned long));
 
 /* Free an entire objalloc structure.  */
 
-extern void objalloc_free PARAMS ((struct objalloc *));
+extern void objalloc_free (struct objalloc *);
 
 /* Free a block allocated by objalloc_alloc.  This also frees all more
    recently allocated blocks.  */
 
-extern void objalloc_free_block PARAMS ((struct objalloc *, PTR));
+extern void objalloc_free_block (struct objalloc *, void *);
 
 #endif /* OBJALLOC_H */

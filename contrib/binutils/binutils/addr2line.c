@@ -1,5 +1,5 @@
 /* addr2line.c -- convert addresses to line number and function name
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006, 2007
    Free Software Foundation, Inc.
    Contributed by Ulrich Lauther <Ulrich.Lauther@mchp.siemens.de>
 
@@ -17,7 +17,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Derived from objdump.c and nm.c by Ulrich.Lauther@mchp.siemens.de
 
@@ -29,15 +29,14 @@
    both forms write results to stdout, the second form reads addresses
    to be converted from stdin.  */
 
-#include <string.h>
-
+#include "sysdep.h"
 #include "bfd.h"
 #include "getopt.h"
 #include "libiberty.h"
 #include "demangle.h"
 #include "bucomm.h"
-#include "budemang.h"
 
+static bfd_boolean unwind_inlines;	/* -i, unwind inlined functions. */
 static bfd_boolean with_functions;	/* -f, show function names.  */
 static bfd_boolean do_demangle;		/* -C, demangle names.  */
 static bfd_boolean base_names;		/* -s, strip directory names.  */
@@ -53,6 +52,8 @@ static struct option long_options[] =
   {"demangle", optional_argument, NULL, 'C'},
   {"exe", required_argument, NULL, 'e'},
   {"functions", no_argument, NULL, 'f'},
+  {"inlines", no_argument, NULL, 'i'},
+  {"section", required_argument, NULL, 'j'},
   {"target", required_argument, NULL, 'b'},
   {"help", no_argument, NULL, 'H'},
   {"version", no_argument, NULL, 'V'},
@@ -62,8 +63,8 @@ static struct option long_options[] =
 static void usage (FILE *, int);
 static void slurp_symtab (bfd *);
 static void find_address_in_section (bfd *, asection *, void *);
-static void translate_addresses (bfd *);
-static void process_file (const char *, const char *);
+static void find_offset_in_section (bfd *, asection *);
+static void translate_addresses (bfd *, asection *);
 
 /* Print a usage message to STREAM and exit with STATUS.  */
 
@@ -74,8 +75,11 @@ usage (FILE *stream, int status)
   fprintf (stream, _(" Convert addresses into line number/file name pairs.\n"));
   fprintf (stream, _(" If no addresses are specified on the command line, they will be read from stdin\n"));
   fprintf (stream, _(" The options are:\n\
+  @<file>                Read options from <file>\n\
   -b --target=<bfdname>  Set the binary file format\n\
   -e --exe=<executable>  Set the input file name (default is a.out)\n\
+  -i --inlines           Unwind inlined functions\n\
+  -j --section=<name>    Read section-relative offsets instead of addresses\n\
   -s --basenames         Strip directory names\n\
   -f --functions         Show function names\n\
   -C --demangle[=style]  Demangle function names\n\
@@ -84,7 +88,7 @@ usage (FILE *stream, int status)
 \n"));
 
   list_supported_targets (program_name, stream);
-  if (status == 0)
+  if (REPORT_BUGS_TO[0] && status == 0)
     fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
@@ -137,7 +141,7 @@ find_address_in_section (bfd *abfd, asection *section,
   if (pc < vma)
     return;
 
-  size = bfd_get_section_size_before_reloc (section);
+  size = bfd_get_section_size (section);
   if (pc >= vma + size)
     return;
 
@@ -145,11 +149,32 @@ find_address_in_section (bfd *abfd, asection *section,
 				 &filename, &functionname, &line);
 }
 
+/* Look for an offset in a section.  This is directly called.  */
+
+static void
+find_offset_in_section (bfd *abfd, asection *section)
+{
+  bfd_size_type size;
+
+  if (found)
+    return;
+
+  if ((bfd_get_section_flags (abfd, section) & SEC_ALLOC) == 0)
+    return;
+
+  size = bfd_get_section_size (section);
+  if (pc >= size)
+    return;
+
+  found = bfd_find_nearest_line (abfd, section, syms, pc,
+				 &filename, &functionname, &line);
+}
+
 /* Read hexadecimal addresses from stdin, translate into
    file_name:line_number and optionally function name.  */
 
 static void
-translate_addresses (bfd *abfd)
+translate_addresses (bfd *abfd, asection *section)
 {
   int read_stdin = (naddr == 0);
 
@@ -172,7 +197,10 @@ translate_addresses (bfd *abfd)
 	}
 
       found = FALSE;
-      bfd_map_over_sections (abfd, find_address_in_section, NULL);
+      if (section)
+	find_offset_in_section (abfd, section);
+      else
+	bfd_map_over_sections (abfd, find_address_in_section, NULL);
 
       if (! found)
 	{
@@ -182,36 +210,44 @@ translate_addresses (bfd *abfd)
 	}
       else
 	{
-	  if (with_functions)
-	    {
-	      const char *name;
-	      char *alloc = NULL;
+	  do {
+	    if (with_functions)
+	      {
+		const char *name;
+		char *alloc = NULL;
 
-	      name = functionname;
-	      if (name == NULL || *name == '\0')
-		name = "??";
-	      else if (do_demangle)
-		{
-		  alloc = demangle (abfd, name);
-		  name = alloc;
-		}
+		name = functionname;
+		if (name == NULL || *name == '\0')
+		  name = "??";
+		else if (do_demangle)
+		  {
+		    alloc = bfd_demangle (abfd, name, DMGL_ANSI | DMGL_PARAMS);
+		    if (alloc != NULL)
+		      name = alloc;
+		  }
 
-	      printf ("%s\n", name);
+		printf ("%s\n", name);
 
-	      if (alloc != NULL)
-		free (alloc);
-	    }
+		if (alloc != NULL)
+		  free (alloc);
+	      }
 
-	  if (base_names && filename != NULL)
-	    {
-	      char *h;
+	    if (base_names && filename != NULL)
+	      {
+		char *h;
 
-	      h = strrchr (filename, '/');
-	      if (h != NULL)
-		filename = h + 1;
-	    }
+		h = strrchr (filename, '/');
+		if (h != NULL)
+		  filename = h + 1;
+	      }
 
-	  printf ("%s:%u\n", filename ? filename : "??", line);
+	    printf ("%s:%u\n", filename ? filename : "??", line);
+	    if (!unwind_inlines)
+	      found = FALSE;
+	    else
+	      found = bfd_find_inliner_info (abfd, &filename, &functionname, &line);
+	  } while (found);
+
 	}
 
       /* fflush() is essential for using this command as a server
@@ -222,23 +258,25 @@ translate_addresses (bfd *abfd)
     }
 }
 
-/* Process a file.  */
+/* Process a file.  Returns an exit value for main().  */
 
-static void
-process_file (const char *file_name, const char *target)
+static int
+process_file (const char *file_name, const char *section_name,
+	      const char *target)
 {
   bfd *abfd;
+  asection *section;
   char **matching;
 
   if (get_file_size (file_name) < 1)
-    return;
+    return 1;
 
   abfd = bfd_openr (file_name, target);
   if (abfd == NULL)
     bfd_fatal (file_name);
 
   if (bfd_check_format (abfd, bfd_archive))
-    fatal (_("%s: can not get addresses from archive"), file_name);
+    fatal (_("%s: cannot get addresses from archive"), file_name);
 
   if (! bfd_check_format_matches (abfd, bfd_object, &matching))
     {
@@ -251,9 +289,18 @@ process_file (const char *file_name, const char *target)
       xexit (1);
     }
 
+  if (section_name != NULL)
+    {
+      section = bfd_get_section_by_name (abfd, section_name);
+      if (section == NULL)
+	fatal (_("%s: cannot find section %s"), file_name, section_name);
+    }
+  else
+    section = NULL;
+
   slurp_symtab (abfd);
 
-  translate_addresses (abfd);
+  translate_addresses (abfd, section);
 
   if (syms != NULL)
     {
@@ -262,14 +309,15 @@ process_file (const char *file_name, const char *target)
     }
 
   bfd_close (abfd);
+
+  return 0;
 }
 
-int main (int, char **);
-
 int
 main (int argc, char **argv)
 {
   const char *file_name;
+  const char *section_name;
   char *target;
   int c;
 
@@ -285,12 +333,15 @@ main (int argc, char **argv)
   program_name = *argv;
   xmalloc_set_program_name (program_name);
 
+  expandargv (&argc, &argv);
+
   bfd_init ();
   set_default_bfd_target ();
 
   file_name = NULL;
+  section_name = NULL;
   target = NULL;
-  while ((c = getopt_long (argc, argv, "b:Ce:sfHhVv", long_options, (int *) 0))
+  while ((c = getopt_long (argc, argv, "b:Ce:sfHhij:Vv", long_options, (int *) 0))
 	 != EOF)
     {
       switch (c)
@@ -331,6 +382,12 @@ main (int argc, char **argv)
 	case 'H':
 	  usage (stdout, 0);
 	  break;
+	case 'i':
+	  unwind_inlines = TRUE;
+	  break;
+	case 'j':
+	  section_name = optarg;
+	  break;
 	default:
 	  usage (stderr, 1);
 	  break;
@@ -343,7 +400,5 @@ main (int argc, char **argv)
   addr = argv + optind;
   naddr = argc - optind;
 
-  process_file (file_name, target);
-
-  return 0;
+  return process_file (file_name, section_name, target);
 }

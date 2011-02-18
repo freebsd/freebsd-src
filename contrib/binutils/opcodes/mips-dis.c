@@ -58,11 +58,14 @@ struct mips_cp0sel_name
   const char * const name;
 };
 
-/* The mips16 register names.  */
-static const char * const mips16_reg_names[] =
+/* The mips16 registers.  */
+static const unsigned int mips16_to_32_reg_map[] =
 {
-  "s0", "s1", "v0", "v1", "a0", "a1", "a2", "a3"
+  16, 17, 2, 3, 4, 5, 6, 7
 };
+
+#define mips16_reg_names(rn)	mips_gpr_names[mips16_to_32_reg_map[rn]]
+
 
 static const char * const mips_gpr_names_numeric[32] =
 {
@@ -188,7 +191,28 @@ static const char * const mips_cp0_names_mips3264r2[32] =
 static const struct mips_cp0sel_name mips_cp0sel_names_mips3264r2[] =
 {
   {  4, 1, "c0_contextconfig"	},
+  {  0, 1, "c0_mvpcontrol"	},
+  {  0, 2, "c0_mvpconf0"	},
+  {  0, 3, "c0_mvpconf1"	},
+  {  1, 1, "c0_vpecontrol"	},
+  {  1, 2, "c0_vpeconf0"	},
+  {  1, 3, "c0_vpeconf1"	},
+  {  1, 4, "c0_yqmask"		},
+  {  1, 5, "c0_vpeschedule"	},
+  {  1, 6, "c0_vpeschefback"	},
+  {  2, 1, "c0_tcstatus"	},
+  {  2, 2, "c0_tcbind"		},
+  {  2, 3, "c0_tcrestart"	},
+  {  2, 4, "c0_tchalt"		},
+  {  2, 5, "c0_tccontext"	},
+  {  2, 6, "c0_tcschedule"	},
+  {  2, 7, "c0_tcschefback"	},
   {  5, 1, "c0_pagegrain"	},
+  {  6, 1, "c0_srsconf0"	},
+  {  6, 2, "c0_srsconf1"	},
+  {  6, 3, "c0_srsconf2"	},
+  {  6, 4, "c0_srsconf3"	},
+  {  6, 5, "c0_srsconf4"	},
   { 12, 1, "c0_intctl"		},
   { 12, 2, "c0_srsctl"		},
   { 12, 3, "c0_srsmap"		},
@@ -407,26 +431,28 @@ const struct mips_arch_choice mips_arch_choices[] =
      MIPS32 Architecture_ (MIPS Document Number MD00082, Revision 0.95),
      page 1.  */
   { "mips32",	1, bfd_mach_mipsisa32, CPU_MIPS32,
-    ISA_MIPS32 | INSN_MIPS16 | INSN_DSP,
+    ISA_MIPS32 | INSN_MIPS16 | INSN_SMARTMIPS,
     mips_cp0_names_mips3264,
     mips_cp0sel_names_mips3264, ARRAY_SIZE (mips_cp0sel_names_mips3264),
     mips_hwr_names_numeric },
 
   { "mips32r2",	1, bfd_mach_mipsisa32r2, CPU_MIPS32R2,
-    ISA_MIPS32R2 | INSN_MIPS16 | INSN_DSP | INSN_MT,
+    (ISA_MIPS32R2 | INSN_MIPS16 | INSN_SMARTMIPS | INSN_DSP | INSN_DSPR2
+     | INSN_MIPS3D | INSN_MT),
     mips_cp0_names_mips3264r2,
     mips_cp0sel_names_mips3264r2, ARRAY_SIZE (mips_cp0sel_names_mips3264r2),
     mips_hwr_names_mips3264r2 },
 
   /* For stock MIPS64, disassemble all applicable MIPS-specified ASEs.  */
   { "mips64",	1, bfd_mach_mipsisa64, CPU_MIPS64,
-    ISA_MIPS64 | INSN_MIPS16 | INSN_MIPS3D | INSN_MDMX | INSN_DSP,
+    ISA_MIPS64 | INSN_MIPS16 | INSN_MIPS3D | INSN_MDMX,
     mips_cp0_names_mips3264,
     mips_cp0sel_names_mips3264, ARRAY_SIZE (mips_cp0sel_names_mips3264),
     mips_hwr_names_numeric },
 
   { "mips64r2",	1, bfd_mach_mipsisa64r2, CPU_MIPS64R2,
-    ISA_MIPS64R2 | INSN_MIPS16 | INSN_MIPS3D | INSN_MDMX | INSN_DSP,
+    (ISA_MIPS64R2 | INSN_MIPS16 | INSN_MIPS3D | INSN_DSP | INSN_DSPR2
+     | INSN_DSP64 | INSN_MT | INSN_MDMX),
     mips_cp0_names_mips3264r2,
     mips_cp0sel_names_mips3264r2, ARRAY_SIZE (mips_cp0sel_names_mips3264r2),
     mips_hwr_names_mips3264r2 },
@@ -602,7 +628,7 @@ parse_mips_dis_option (const char *option, unsigned int len)
     }
 
   /* Try to match options that are simple flags */
-  if (strncmp (option, "no-aliases", 10) == 0)
+  if (CONST_STRNEQ (option, "no-aliases"))
     {
       no_aliases = 1;
       return;
@@ -741,7 +767,8 @@ static void
 print_insn_args (const char *d,
 		 register unsigned long int l,
 		 bfd_vma pc,
-		 struct disassemble_info *info)
+		 struct disassemble_info *info,
+		 const struct mips_opcode *opp)
 {
   int op, delta;
   unsigned int lsb, msb, msbd;
@@ -781,6 +808,26 @@ print_insn_args (const char *d,
 	      (*info->fprintf_func) (info->stream, "0x%x", msb - lsb + 1);
 	      break;
 
+	    case '1':
+	      (*info->fprintf_func) (info->stream, "0x%lx",
+				     (l >> OP_SH_UDI1) & OP_MASK_UDI1);
+	      break;
+	      
+	    case '2':
+	      (*info->fprintf_func) (info->stream, "0x%lx",
+				     (l >> OP_SH_UDI2) & OP_MASK_UDI2);
+	      break;
+	      
+	    case '3':
+	      (*info->fprintf_func) (info->stream, "0x%lx",
+				     (l >> OP_SH_UDI3) & OP_MASK_UDI3);
+	      break;
+      
+	    case '4':
+	      (*info->fprintf_func) (info->stream, "0x%lx",
+				     (l >> OP_SH_UDI4) & OP_MASK_UDI4);
+	      break;
+	      
 	    case 'C':
 	    case 'H':
 	      msbd = (l >> OP_SH_EXTMSBD) & OP_MASK_EXTMSBD;
@@ -859,6 +906,11 @@ print_insn_args (const char *d,
 				     *d);
 	      return;
 	    }
+	  break;
+
+	case '2':
+	  (*info->fprintf_func) (info->stream, "0x%lx",
+				 (l >> OP_SH_BP) & OP_MASK_BP);
 	  break;
 
 	case '3':
@@ -992,6 +1044,10 @@ print_insn_args (const char *d,
 	case 'a':
 	  info->target = (((pc + 4) & ~(bfd_vma) 0x0fffffff)
 			  | (((l >> OP_SH_TARGET) & OP_MASK_TARGET) << 2));
+	  /* For gdb disassembler, force odd address on jalx.  */
+	  if (info->flavour == bfd_target_unknown_flavour
+	      && strcmp (opp->name, "jalx") == 0)
+	    info->target |= 1;
 	  (*info->print_address_func) (info->target, info);
 	  break;
 
@@ -1054,7 +1110,7 @@ print_insn_args (const char *d,
 
 	/* Display 5 bits of bbit0/1 bit index amount. */
 	case '^':
-          (*info->fprintf_func) (info->stream, "0x%x",
+          (*info->fprintf_func) (info->stream, "0x%lx",
                                  (l >> OP_SH_BITIND) & OP_MASK_BITIND);
           break;
 
@@ -1138,7 +1194,9 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'N':
-	  (*info->fprintf_func) (info->stream, "$fcc%ld",
+	  (*info->fprintf_func) (info->stream,
+				 ((opp->pinfo & (FP_D | FP_S)) != 0
+				  ? "$fcc%ld" : "$cc%ld"),
 				 (l >> OP_SH_BCC) & OP_MASK_BCC);
 	  break;
 
@@ -1337,7 +1395,7 @@ print_insn_mips (bfd_vma memaddr,
 	      if (d != NULL && *d != '\0')
 		{
 		  (*info->fprintf_func) (info->stream, "\t");
-		  print_insn_args (d, word, memaddr, info);
+		  print_insn_args (d, word, memaddr, info, op);
 		}
 
 	      return INSNLEN;
@@ -1373,27 +1431,27 @@ print_mips16_insn_arg (char type,
     case 'y':
     case 'w':
       (*info->fprintf_func) (info->stream, "%s",
-			     mips16_reg_names[((l >> MIPS16OP_SH_RY)
-					       & MIPS16OP_MASK_RY)]);
+			     mips16_reg_names(((l >> MIPS16OP_SH_RY)
+					       & MIPS16OP_MASK_RY)));
       break;
 
     case 'x':
     case 'v':
       (*info->fprintf_func) (info->stream, "%s",
-			     mips16_reg_names[((l >> MIPS16OP_SH_RX)
-					       & MIPS16OP_MASK_RX)]);
+			     mips16_reg_names(((l >> MIPS16OP_SH_RX)
+					       & MIPS16OP_MASK_RX)));
       break;
 
     case 'z':
       (*info->fprintf_func) (info->stream, "%s",
-			     mips16_reg_names[((l >> MIPS16OP_SH_RZ)
-					       & MIPS16OP_MASK_RZ)]);
+			     mips16_reg_names(((l >> MIPS16OP_SH_RZ)
+					       & MIPS16OP_MASK_RZ)));
       break;
 
     case 'Z':
       (*info->fprintf_func) (info->stream, "%s",
-			     mips16_reg_names[((l >> MIPS16OP_SH_MOVE32Z)
-					       & MIPS16OP_MASK_MOVE32Z)]);
+			     mips16_reg_names(((l >> MIPS16OP_SH_MOVE32Z)
+					       & MIPS16OP_MASK_MOVE32Z)));
       break;
 
     case '0':
@@ -1675,15 +1733,26 @@ print_mips16_insn_arg (char type,
 		  }
 	      }
 	    info->target = (baseaddr & ~((1 << shift) - 1)) + immed;
+	    if (pcrel && branch
+		&& info->flavour == bfd_target_unknown_flavour)
+	      /* For gdb disassembler, maintain odd address.  */
+	      info->target |= 1;
 	    (*info->print_address_func) (info->target, info);
 	  }
       }
       break;
 
     case 'a':
-      if (! use_extend)
-	extend = 0;
-      l = ((l & 0x1f) << 23) | ((l & 0x3e0) << 13) | (extend << 2);
+      {
+	int jalx = l & 0x400;
+
+	if (! use_extend)
+	  extend = 0;
+	l = ((l & 0x1f) << 23) | ((l & 0x3e0) << 13) | (extend << 2);
+	if (!jalx && info->flavour == bfd_target_unknown_flavour)
+	  /* For gdb disassembler, maintain odd address.  */
+	  l |= 1;
+      }
       info->target = ((memaddr + 4) & ~(bfd_vma) 0x0fffffff) | l;
       (*info->print_address_func) (info->target, info);
       info->insn_type = dis_jsr;

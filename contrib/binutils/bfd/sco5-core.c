@@ -1,5 +1,5 @@
 /* BFD back end for SCO5 core files (U-area and raw sections)
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Jouke Numan <jnuman@hiscom.nl>
 
@@ -17,10 +17,10 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libaout.h"		/* BFD a.out internal data structures */
 
@@ -31,8 +31,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <signal.h>
 
 #include <sys/user.h>		/* After a.out.h  */
+#ifdef SCO5_CORE
 #include <sys/paccess.h>
 #include <sys/region.h>
+#endif
 
 struct sco5_core_struct
 {
@@ -47,26 +49,24 @@ static struct user *read_uarea PARAMS ((bfd *, int));
 const bfd_target *sco5_core_file_p PARAMS ((bfd *abfd));
 char *sco5_core_file_failing_command PARAMS ((bfd *abfd));
 int sco5_core_file_failing_signal PARAMS ((bfd *abfd));
-bfd_boolean sco5_core_file_matches_executable_p
-  PARAMS ((bfd *core_bfd, bfd *exec_bfd));
+#define sco5_core_file_matches_executable_p generic_core_file_matches_executable_p
 static void swap_abort PARAMS ((void));
 
 static asection *
-make_bfd_asection (abfd, name, flags, _raw_size, vma, filepos)
+make_bfd_asection (abfd, name, flags, size, vma, filepos)
      bfd *abfd;
      const char *name;
      flagword flags;
-     bfd_size_type _raw_size;
+     bfd_size_type size;
      bfd_vma vma;
      file_ptr filepos;
 {
   asection *asect;
 
-  asect = bfd_make_section_anyway (abfd, name);
+  asect = bfd_make_section_anyway_with_flags (abfd, name, flags);
   if (!asect)
     return NULL;
-  asect->flags = flags;
-  asect->_raw_size = _raw_size;
+  asect->size = size;
   asect->vma = vma;
   asect->filepos = filepos;
   asect->alignment_power = 2;
@@ -123,18 +123,14 @@ sco5_core_file_p (abfd)
   char *secname;
   flagword flags;
 
-  /* Read coreoffsets region at end of core (see core(FP)) */
+  /* Read coreoffsets region at end of core (see core(FP)).  */
 
   {
-    FILE *stream = bfd_cache_lookup (abfd);
     struct stat statbuf;
-    if (stream == NULL)
+
+    if (bfd_stat (abfd, &statbuf) < 0)
       return NULL;
-    if (fstat (fileno (stream), &statbuf) < 0)
-      {
-	bfd_set_error (bfd_error_system_call);
-	return NULL;
-      }
+
     coresize = statbuf.st_size;
   }
   /* Last long in core is sizeof struct coreoffsets, read it */
@@ -345,14 +341,6 @@ sco5_core_file_failing_signal (ignore_abfd)
   return ((ignore_abfd->tdata.sco5_core_data->u.u_sysabort != 0)
 	  ? ignore_abfd->tdata.sco5_core_data->u.u_sysabort
 	  : -1);
-}
-
-bfd_boolean
-sco5_core_file_matches_executable_p  (core_bfd, exec_bfd)
-     bfd *core_bfd ATTRIBUTE_UNUSED;
-     bfd *exec_bfd ATTRIBUTE_UNUSED;
-{
-  return TRUE;		/* FIXME, We have no way of telling at this point */
 }
 
 /* If somebody calls any byte-swapping routines, shoot them.  */
