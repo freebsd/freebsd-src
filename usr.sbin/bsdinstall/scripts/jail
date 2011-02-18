@@ -1,0 +1,81 @@
+#!/bin/sh
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+echo "Begun Installation at $(date)" > $BSDINSTALL_LOG
+
+export BSDINSTALL_CHROOT=$1
+export DISTRIBUTIONS="`echo $DISTRIBUTIONS | sed 's/kernel\.[^ ]* //g'`"
+
+error() {
+	dialog --backtitle "FreeBSD Installer" --title "Abort" \
+	    --no-label "Exit" --yes-label "Restart" --yesno \
+	    "You have canceled an installation step. Would you like to restart the installation or exit the installer?" 0 0
+	if [ $? -ne 0 ]; then
+		exit
+	else
+		test -f $PATH_FSTAB && bsdinstall umount
+		exec $0
+	fi
+}
+
+
+rm -rf $BSDINSTALL_TMPETC
+mkdir $BSDINSTALL_TMPETC
+
+trap error SIGINT	# SIGINT is bad
+
+FETCH_DISTRIBUTIONS=""
+for dist in $DISTRIBUTIONS; do
+	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
+		FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
+	fi
+done
+
+if [ ! -z $FETCH_DISTRIBUTIONS ]; then
+	ALL_DISTRIBUTIONS=$DISTRIBUTIONS
+	DISTRIBUTIONS=$FETCH_DISTRIBUTIONS
+	bsdinstall distfetch || error
+	DISTRIBUTIONS=$ALL_DISTRIBUTIONS
+fi
+
+bsdinstall distextract || error
+bsdinstall rootpass || error
+
+trap true SIGINT	# This section is optional
+bsdinstall time
+bsdinstall services
+
+dialog --backtitle "FreeBSD Installer" --title "Add User Accounts" --yesno \
+    "Would you like to add users to the installed system now?" 0 0 && \
+    bsdinstall adduser
+
+trap error SIGINT	# SIGINT is bad again
+bsdinstall config  || error
+
+echo "Installation Completed at $(date)" >> $BSDINSTALL_LOG
+
