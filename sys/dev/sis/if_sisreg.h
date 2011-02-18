@@ -497,7 +497,7 @@ struct sis_softc {
 	int			sis_tx_prod;
 	int			sis_tx_cons;
 	int			sis_tx_cnt;
-	int			sis_rx_cons;;
+	int			sis_rx_cons;
 	bus_addr_t		sis_rx_paddr;
 	bus_addr_t		sis_tx_paddr;
 	struct callout		sis_stat_ch;

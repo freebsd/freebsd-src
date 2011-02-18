@@ -165,7 +165,7 @@ mips_ipi_handler(void *arg)
 #if 0
 		case IPI_HARDCLOCK:
 			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
-			hardclockintr();;
+			hardclockintr();
 			break;
 #endif
 		default:
