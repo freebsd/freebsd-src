@@ -2466,10 +2466,11 @@ dc_list_tx_init(struct dc_softc *sc)
 			nexti = 0;
 		else
 			nexti = i + 1;
+		ld->dc_tx_list[i].dc_status = 0;
+		ld->dc_tx_list[i].dc_ctl = 0;
+		ld->dc_tx_list[i].dc_data = 0;
 		ld->dc_tx_list[i].dc_next = htole32(DC_TXDESC(sc, nexti));
 		cd->dc_tx_chain[i] = NULL;
-		ld->dc_tx_list[i].dc_data = 0;
-		ld->dc_tx_list[i].dc_ctl = 0;
 	}
 
 	cd->dc_tx_prod = cd->dc_tx_cons = cd->dc_tx_cnt = 0;
@@ -2916,11 +2917,10 @@ dc_txeof(struct dc_softc *sc)
 				dc_init_locked(sc);
 				return;
 			}
-		}
-
+		} else
+			ifp->if_opackets++;
 		ifp->if_collisions += (txstat & DC_TXSTAT_COLLCNT) >> 3;
 
-		ifp->if_opackets++;
 		if (sc->dc_cdata.dc_tx_chain[idx] != NULL) {
 			bus_dmamap_sync(sc->dc_mtag,
 			    sc->dc_cdata.dc_tx_map[idx],
