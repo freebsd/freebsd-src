@@ -3391,11 +3391,6 @@ dc_start_locked(struct ifnet *ifp)
 		 * to him.
 		 */
 		BPF_MTAP(ifp, m_head);
-
-		if (sc->dc_flags & DC_TX_ONE) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
 	}
 
 	if (queued > 0) {
