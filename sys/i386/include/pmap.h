@@ -208,7 +208,7 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
  */
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
-#ifdef XEN
+#if defined(XEN)
 #include <sys/param.h>
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
@@ -253,7 +253,6 @@ pte_load_store(pt_entry_t *ptep, pt_entry_t v)
 {
 	pt_entry_t r;
 
-	v = xpmap_ptom(v);
 	r = *ptep;
 	PT_SET_VA(ptep, v, TRUE);
 	return (r);
@@ -316,7 +315,9 @@ pmap_kextract(vm_offset_t va)
 	}
 	return (pa);
 }
+#endif
 
+#if !defined(XEN)
 #define PT_UPDATES_FLUSH()
 #endif
 
@@ -435,8 +436,6 @@ struct pmap {
 	cpumask_t		pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
-	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
-	u_int			pm_retries;
 #ifdef PAE
 	pdpt_entry_t		*pm_pdpt;	/* KVA of page director pointer
 						   table */

@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-bus_space_tag_t uart_bus_space_io = I386_BUS_SPACE_IO;
-bus_space_tag_t uart_bus_space_mem = I386_BUS_SPACE_MEM;
+bus_space_tag_t uart_bus_space_io = X86_BUS_SPACE_IO;
+bus_space_tag_t uart_bus_space_mem = X86_BUS_SPACE_MEM;
 
 static struct {
 	u_long iobase;

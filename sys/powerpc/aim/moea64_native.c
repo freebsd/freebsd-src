@@ -281,7 +281,10 @@ moea64_pte_set_native(struct lpte *pt, struct lpte *pvo_pt)
 	EIEIO();
 	pt->pte_hi = pvo_pt->pte_hi;
 	PTESYNC();
-	moea64_pte_valid++;
+
+	/* Keep statistics for unlocked pages */
+	if (!(pvo_pt->pte_hi & LPTE_LOCKED))
+		moea64_pte_valid++;
 }
 
 static void
@@ -291,6 +294,9 @@ moea64_pte_unset_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt,
 	struct lpte *pt = (struct lpte *)pt_cookie;
 
 	pvo_pt->pte_hi &= ~LPTE_VALID;
+
+	/* Finish all pending operations */
+	isync();
 
 	/*
 	 * Force the reg & chg bits back into the PTEs.
@@ -307,7 +313,10 @@ moea64_pte_unset_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt,
 	 * Save the reg & chg bits.
 	 */
 	moea64_pte_synch_native(mmu, pt_cookie, pvo_pt);
-	moea64_pte_valid--;
+
+	/* Keep statistics for unlocked pages */
+	if (!(pvo_pt->pte_hi & LPTE_LOCKED))
+		moea64_pte_valid--;
 }
 
 static void

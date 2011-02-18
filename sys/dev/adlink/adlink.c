@@ -375,9 +375,7 @@ adlink_attach(device_t self)
 	if (error)
 		return (error);
 
-	/* XXX why do we need INTR_MPSAFE if INTR_FAST was declared too?!?!? */
-	i = bus_setup_intr(self, sc->res[2],
-	    INTR_MPSAFE | INTR_TYPE_MISC,
+	i = bus_setup_intr(self, sc->res[2], INTR_TYPE_MISC,
 	    adlink_intr, NULL, sc, &sc->intrhand);
 	if (i) {
 		printf("adlink: Couldn't get FAST intr\n");

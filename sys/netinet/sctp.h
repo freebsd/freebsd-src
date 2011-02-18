@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -158,6 +160,9 @@ struct sctp_paramhdr {
 #define SCTP_CMT_USE_DAC                0x00001201
 /* JRS - Pluggable Congestion Control Socket option */
 #define SCTP_PLUGGABLE_CC               0x00001202
+/* RS - Pluggable Stream Scheduling Socket option */
+#define SCTP_PLUGGABLE_SS				0x00001203
+#define SCTP_SS_VALUE					0x00001204
 
 /* read only */
 #define SCTP_GET_SNDBUF_USE		0x00001101
@@ -252,6 +257,22 @@ struct sctp_paramhdr {
 #define SCTP_CC_HSTCP		0x00000001
 /* HTCP Congestion Control */
 #define SCTP_CC_HTCP		0x00000002
+
+/* RS - Supported stream scheduling modules for pluggable
+ * stream scheduling
+ */
+/* Default simple round-robin */
+#define SCTP_SS_DEFAULT			0x00000000
+/* Real round-robin */
+#define SCTP_SS_ROUND_ROBIN		0x00000001
+/* Real round-robin per packet */
+#define SCTP_SS_ROUND_ROBIN_PACKET	0x00000002
+/* Priority */
+#define SCTP_SS_PRIORITY		0x00000003
+/* Fair Bandwidth */
+#define SCTP_SS_FAIR_BANDWITH		0x00000004
+/* First-come, first-serve */
+#define SCTP_SS_FIRST_COME		0x00000005
 
 
 /* fragment interleave constants
@@ -397,6 +418,10 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_FROM_MIDDLE_BOX	SCTP_HAD_NO_TCB
 #define SCTP_BADCRC		0x02
 #define SCTP_PACKET_TRUNCATED	0x04
+
+/* Flag for ECN -CWR */
+#define SCTP_CWR_REDUCE_OVERRIDE 0x01
+#define SCTP_CWR_IN_SAME_WINDOW  0x02
 
 #define SCTP_SAT_NETWORK_MIN	400	/* min ms for RTT to set satellite
 					 * time */

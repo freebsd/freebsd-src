@@ -323,6 +323,9 @@ again:
 	} else {
 		mtu = ifp->if_mtu;
 	}
+	/* Catch a possible divide by zero later. */
+	KASSERT(mtu > 0, ("%s: mtu %d <= 0, rte=%p (rt_flags=0x%08x) ifp=%p",
+	    __func__, mtu, rte, (rte != NULL) ? rte->rt_flags : 0, ifp));
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
 		/*

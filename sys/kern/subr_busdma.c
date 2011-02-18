@@ -613,8 +613,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		vm_offset_t	vendaddr;
 
 		CTR4(KTR_BUSDMA, "lowaddr= %d Maxmem= %d, boundary= %d, "
-		    "alignment= %d", dmat->lowaddr, ptoa((vm_paddr_t)Maxmem),
-		    dmat->boundary, dmat->alignment);
+		    "alignment= %lu", dmat->lowaddr, ptoa((vm_paddr_t)Maxmem),
+		    dmat->boundary, (u_long)dmat->alignment);
 		CTR3(KTR_BUSDMA, "map= %p, nobouncemap= %p, pagesneeded= %d",
 		    map, &nobounce_dmamap, map->pagesneeded);
 		/*
@@ -1071,7 +1071,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_STRING(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "lowaddr", CTLFLAG_RD, bz->lowaddrid, 0, "");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
+	SYSCTL_ADD_ULONG(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "alignment", CTLFLAG_RD, &bz->alignment, 0, "");
 

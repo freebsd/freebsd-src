@@ -780,7 +780,6 @@ struct dc_softc {
 #define DC_128BIT_HASH		0x00001000
 #define DC_64BIT_HASH		0x00002000
 #define DC_TULIP_LEDS		0x00004000
-#define DC_TX_ONE		0x00008000
 #define DC_TX_ALIGN		0x00010000	/* align mbuf on tx */
 
 /*
@@ -1063,6 +1062,8 @@ struct dc_softc {
 /*
  * SROM nonsense.
  */
+
+#define	DC_ROM_SIZE(bits)	(2 << (bits))
 
 #define DC_IB_CTLRCNT		0x13
 #define DC_IB_LEAF0_CNUM	0x1A

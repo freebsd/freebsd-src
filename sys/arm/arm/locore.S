@@ -65,14 +65,20 @@ __FBSDID("$FreeBSD$");
 
 ENTRY_NP(btext)
 
+/*
+ * On entry:
+ *	r0 - metadata pointer or 0
+ *	r1 - if (r0 == 0) then metadata pointer
+ */
 ASENTRY_NP(_start)
 
-/*
- * Move metadata ptr to r12 (ip)
- */
-
+	/* Move metadata ptr to r12 (ip) */
 	mov	ip, r0
-
+	ldr	r0, =0
+	cmp	ip, r0
+	bne	1f
+	mov	ip, r1
+1:
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
 	orr	r7, r7, #(I32_bit|F32_bit)

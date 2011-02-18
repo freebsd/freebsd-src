@@ -136,7 +136,7 @@ static int fsl_pcib_decode_win(phandle_t, struct fsl_pcib_softc *);
 static void fsl_pcib_err_init(device_t);
 static void fsl_pcib_inbound(struct fsl_pcib_softc *, int, int, u_long,
     u_long, u_long);
-static int fsl_pcib_init(struct fsl_pcib_softc *, int, int, int);
+static int fsl_pcib_init(struct fsl_pcib_softc *, int, int);
 static int fsl_pcib_intr_info(phandle_t, struct fsl_pcib_softc *);
 static int fsl_pcib_set_range(struct fsl_pcib_softc *, int, int, u_long,
     u_long);
@@ -159,8 +159,6 @@ static int fsl_pcib_maxslots(device_t);
 static uint32_t fsl_pcib_read_config(device_t, u_int, u_int, u_int, u_int, int);
 static void fsl_pcib_write_config(device_t, u_int, u_int, u_int, u_int,
     uint32_t, int);
-
-static int next_busnr = 0;
 
 /* Configuration r/w mutex. */
 struct mtx pcicfg_mtx;
@@ -215,23 +213,17 @@ DRIVER_MODULE(pcib, fdtbus, fsl_pcib_driver, pcib_devclass, 0, 0);
 static int
 fsl_pcib_probe(device_t dev)
 {
-	phandle_t parnode;
+	phandle_t node;
 
-	/*
-	 * The PCI subnode does not have the 'compatible' property, so we need
-	 * to check in the parent PCI node. However the parent is not
-	 * represented by a separate ofw_bus child, and therefore
-	 * ofw_bus_is_compatible() cannot be used, but direct fdt equivalent.
-	 */
-	parnode = OF_parent(ofw_bus_get_node(dev));
-	if (parnode == 0)
+	node = ofw_bus_get_node(dev);
+	if (!fdt_is_type(node, "pci"))
 		return (ENXIO);
-	if (!(fdt_is_compatible(parnode, "fsl,mpc8548-pcie") ||
-	    fdt_is_compatible(parnode, "fsl,mpc8548-pcie")))
+
+	if (!(fdt_is_compatible(node, "fsl,mpc8540-pci") ||
+	    fdt_is_compatible(node, "fsl,mpc8548-pcie")))
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale Integrated PCI/PCI-E Controller");
-
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -241,7 +233,7 @@ fsl_pcib_attach(device_t dev)
 	struct fsl_pcib_softc *sc;
 	phandle_t node;
 	uint32_t cfgreg;
-	int maxslot, subbus;
+	int maxslot;
 	uint8_t ltssm, capptr;
 
 	sc = device_get_softc(dev);
@@ -304,23 +296,13 @@ fsl_pcib_attach(device_t dev)
 	sc->sc_devfn_tundra = -1;
 	sc->sc_devfn_via_ide = -1;
 
-	maxslot = (sc->sc_pcie) ? 1 : 31;
 
 	/*
-	 * Scan bus using firmware configured, 0 based bus numbering,
-	 * let fsl_pcib_init() shift bus number by next_busnr offset.
+	 * Scan bus using firmware configured, 0 based bus numbering.
 	 */
-	sc->sc_busnr = 1;
-	subbus = fsl_pcib_init(sc, 0, next_busnr, maxslot);
-
-	if (bootverbose)
-		printf("PCI: domain %d, busnr = %d, next_busnr = %d\n",
-		    device_get_unit(dev), next_busnr + 1,
-		    next_busnr + subbus + 1);
-
-	/* Set final busnr */
-	sc->sc_busnr = next_busnr + 1;
-	next_busnr += subbus + 1;
+	sc->sc_busnr = 0;
+	maxslot = (sc->sc_pcie) ? 0 : PCI_SLOTMAX;
+	fsl_pcib_init(sc, sc->sc_busnr, maxslot);
 
 	if (sc->sc_pcie) {
 		ltssm = fsl_pcib_cfgread(sc, 0, 0, 0, PCIR_LTSSM, 1);
@@ -455,7 +437,7 @@ fsl_pcib_maxslots(device_t dev)
 {
 	struct fsl_pcib_softc *sc = device_get_softc(dev);
 
-	return ((sc->sc_pcie) ? 1 : 31);
+	return ((sc->sc_pcie) ? 0 : PCI_SLOTMAX);
 }
 
 static uint32_t
@@ -572,14 +554,11 @@ fsl_pcib_route_int(struct fsl_pcib_softc *sc, u_int bus, u_int slot, u_int func,
 
 	devfn = DEVFN(bus, slot, func);
 	if (devfn == sc->sc_devfn_via_ide)
-#if 0
-		intline = INTR_VEC(ATPIC_ID, 14);
+		intline = MAP_IRQ(0, 14);
 	else if (devfn == sc->sc_devfn_via_ide + 1)
-		intline = INTR_VEC(ATPIC_ID, 10);
+		intline = MAP_IRQ(0, 10);
 	else if (devfn == sc->sc_devfn_via_ide + 2)
-		intline = INTR_VEC(ATPIC_ID, 10);
-#endif
-		;
+		intline = MAP_IRQ(0, 10);
 	else {
 		if (intpin != 0)
 			err = fdt_pci_route_intr(bus, slot, func, intpin,
@@ -596,10 +575,9 @@ fsl_pcib_route_int(struct fsl_pcib_softc *sc, u_int bus, u_int slot, u_int func,
 }
 
 static int
-fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int busnr_offset,
-    int maxslot)
+fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int maxslot)
 {
-	int secbus, subbus;
+	int secbus;
 	int old_pribus, old_secbus, old_subbus;
 	int new_pribus, new_secbus, new_subbus;
 	int slot, func, maxfunc;
@@ -608,11 +586,10 @@ fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int busnr_offset,
 	uint8_t command, hdrtype, class, subclass;
 	uint8_t intline, intpin;
 
-	subbus = bus;
+	secbus = bus;
 	for (slot = 0; slot <= maxslot; slot++) {
 		maxfunc = 0;
 		for (func = 0; func <= maxfunc; func++) {
-
 			hdrtype = fsl_pcib_read_config(sc->sc_dev, bus, slot,
 			    func, PCIR_HDRTYPE, 1);
 
@@ -667,19 +644,14 @@ fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int busnr_offset,
 			    func, PCIR_CLASS, 1);
 			subclass = fsl_pcib_read_config(sc->sc_dev, bus, slot,
 			    func, PCIR_SUBCLASS, 1);
-#if 0
+
 			/* Allow only proper PCI-PCI briges */
 			if (class != PCIC_BRIDGE)
 				continue;
 			if (subclass != PCIS_BRIDGE_PCI)
 				continue;
-#endif
-			/* Allow all DEVTYPE 1 devices */
-			if (hdrtype != PCIM_HDRTYPE_BRIDGE)
-				continue;
 
-			subbus++;
-			secbus = subbus;
+			secbus++;
 
 			/* Program I/O decoder. */
 			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
@@ -718,31 +690,20 @@ fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int busnr_offset,
 			if (bootverbose)
 				printf("PCI: reading firmware bus numbers for "
 				    "secbus = %d (bus/sec/sub) = (%d/%d/%d)\n",
-				    secbus + busnr_offset, old_pribus,
-				    old_secbus, old_subbus);
+				    secbus, old_pribus, old_secbus, old_subbus);
 
-			/* Skip unconfigured devices */
-			if ((old_pribus == 0) &&
-			    (old_secbus == 0) && (old_subbus == 0))
-				continue;
+			new_pribus = bus;
+			new_secbus = secbus;
 
-			subbus += fsl_pcib_init(sc, secbus, busnr_offset,
-			    (subclass == PCIS_BRIDGE_PCI) ? 31 : 1);
+			secbus = fsl_pcib_init(sc, secbus,
+			    (subclass == PCIS_BRIDGE_PCI) ? PCI_SLOTMAX : 0);
 
-			new_pribus = bus + busnr_offset;
-			new_secbus = secbus + busnr_offset;
-			new_subbus = subbus + busnr_offset;
-
-			/* Fixup pribus for MPC8572 PCIE controller */
-			if ((vendor == 0x1957) && ((device = 0x0040) ||
-			    (device == 0x0041)))
-				new_pribus = 0;
+			new_subbus = secbus;
 
 			if (bootverbose)
-				printf("PCI: translate firmware bus numbers for "
-				    "secbus %d (%d/%d/%d) -> (%d/%d/%d)\n",
-				    secbus + busnr_offset,
-				    old_pribus, old_secbus, old_subbus,
+				printf("PCI: translate firmware bus numbers "
+				    "for secbus %d (%d/%d/%d) -> (%d/%d/%d)\n",
+				    secbus, old_pribus, old_secbus, old_subbus,
 				    new_pribus, new_secbus, new_subbus);
 
 			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
@@ -754,11 +715,7 @@ fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int busnr_offset,
 		}
 	}
 
-	if (bootverbose)
-		printf("PCI: bus %d, #subbus = %d\n",
-		    bus + busnr_offset, subbus - bus);
-
-	return (subbus - bus);
+	return (secbus);
 }
 
 static void
@@ -938,12 +895,10 @@ fsl_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		va = sc->sc_iomem_va;
 		break;
 	case SYS_RES_IRQ:
-#if 0
-		if (INTR_IGN(start) == powerpc_ign_lookup(ATPIC_ID)) {
+		if (start < 16) {
 			device_printf(dev, "%s requested ISA interrupt %lu\n",
 			    device_get_nameunit(child), start);
 		}
-#endif
 		flags |= RF_SHAREABLE;
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 		    type, rid, start, end, count, flags));

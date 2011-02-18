@@ -42,21 +42,21 @@ static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
                                           u16 *data, bool read);
 
 /* Cable length tables */
-static const u16 e1000_m88_cable_length_table[] =
-	{ 0, 50, 80, 110, 140, 140, E1000_CABLE_LENGTH_UNDEFINED };
+static const u16 e1000_m88_cable_length_table[] = {
+	0, 50, 80, 110, 140, 140, E1000_CABLE_LENGTH_UNDEFINED };
 #define M88E1000_CABLE_LENGTH_TABLE_SIZE \
                 (sizeof(e1000_m88_cable_length_table) / \
                  sizeof(e1000_m88_cable_length_table[0]))
 
-static const u16 e1000_igp_2_cable_length_table[] =
-    { 0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 8, 11, 13, 16, 18, 21,
-      0, 0, 0, 3, 6, 10, 13, 16, 19, 23, 26, 29, 32, 35, 38, 41,
-      6, 10, 14, 18, 22, 26, 30, 33, 37, 41, 44, 48, 51, 54, 58, 61,
-      21, 26, 31, 35, 40, 44, 49, 53, 57, 61, 65, 68, 72, 75, 79, 82,
-      40, 45, 51, 56, 61, 66, 70, 75, 79, 83, 87, 91, 94, 98, 101, 104,
-      60, 66, 72, 77, 82, 87, 92, 96, 100, 104, 108, 111, 114, 117, 119, 121,
-      83, 89, 95, 100, 105, 109, 113, 116, 119, 122, 124,
-      104, 109, 114, 118, 121, 124};
+static const u16 e1000_igp_2_cable_length_table[] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 8, 11, 13, 16, 18, 21, 0, 0, 0, 3,
+	6, 10, 13, 16, 19, 23, 26, 29, 32, 35, 38, 41, 6, 10, 14, 18, 22,
+	26, 30, 33, 37, 41, 44, 48, 51, 54, 58, 61, 21, 26, 31, 35, 40,
+	44, 49, 53, 57, 61, 65, 68, 72, 75, 79, 82, 40, 45, 51, 56, 61,
+	66, 70, 75, 79, 83, 87, 91, 94, 98, 101, 104, 60, 66, 72, 77, 82,
+	87, 92, 96, 100, 104, 108, 111, 114, 117, 119, 121, 83, 89, 95,
+	100, 105, 109, 113, 116, 119, 122, 124, 104, 109, 114, 118, 121,
+	124};
 #define IGP02E1000_CABLE_LENGTH_TABLE_SIZE \
                 (sizeof(e1000_igp_2_cable_length_table) / \
                  sizeof(e1000_igp_2_cable_length_table[0]))
@@ -281,9 +281,9 @@ s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 		goto out;
 	}
 	*data = (u16) mdic;
-	
+
 	/*
-	 * Allow some time after each MDIC transaction to avoid 
+	 * Allow some time after each MDIC transaction to avoid
 	 * reading duplicate data in the next MDIC transaction.
 	 */
 	if (hw->mac.type == e1000_pch2lan)
@@ -353,7 +353,7 @@ s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 	}
 
 	/*
-	 * Allow some time after each MDIC transaction to avoid 
+	 * Allow some time after each MDIC transaction to avoid
 	 * reading duplicate data in the next MDIC transaction.
 	 */
 	if (hw->mac.type == e1000_pch2lan)
@@ -841,7 +841,7 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 		}
 	}
 
-	/* Enable CRS on TX. This must be set for half-duplex operation. */
+	/* Enable CRS on Tx. This must be set for half-duplex operation. */
 	ret_val = hw->phy.ops.read_reg(hw, I82577_CFG_REG, &phy_data);
 	if (ret_val)
 		goto out;
@@ -882,10 +882,9 @@ s32 e1000_copper_link_setup_m88(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	phy_data |= M88E1000_PSCR_ASSERT_CRS_ON_TX;
 	/* For BM PHY this bit is downshift enable */
-	if (phy->type == e1000_phy_bm)
-		phy_data &= ~M88E1000_PSCR_ASSERT_CRS_ON_TX;
+	if (phy->type != e1000_phy_bm)
+		phy_data |= M88E1000_PSCR_ASSERT_CRS_ON_TX;
 
 	/*
 	 * Options:
@@ -996,6 +995,91 @@ s32 e1000_copper_link_setup_m88(struct e1000_hw *hw)
 		                             phy_data);
 		if (ret_val)
 			goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_copper_link_setup_m88_gen2 - Setup m88 PHY's for copper link
+ *  @hw: pointer to the HW structure
+ *
+ *  Sets up MDI/MDI-X and polarity for i347-AT4, m88e1322 and m88e1112 PHY's.
+ *  Also enables and sets the downshift parameters.
+ **/
+s32 e1000_copper_link_setup_m88_gen2(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data;
+
+	DEBUGFUNC("e1000_copper_link_setup_m88_gen2");
+
+	if (phy->reset_disable) {
+		ret_val = E1000_SUCCESS;
+		goto out;
+	}
+
+	/* Enable CRS on Tx. This must be set for half-duplex operation. */
+	ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
+	if (ret_val)
+		goto out;
+
+	/*
+	 * Options:
+	 *   MDI/MDI-X = 0 (default)
+	 *   0 - Auto for all speeds
+	 *   1 - MDI mode
+	 *   2 - MDI-X mode
+	 *   3 - Auto for 1000Base-T only (MDI-X for 10/100Base-T modes)
+	 */
+	phy_data &= ~M88E1000_PSCR_AUTO_X_MODE;
+
+	switch (phy->mdix) {
+	case 1:
+		phy_data |= M88E1000_PSCR_MDI_MANUAL_MODE;
+		break;
+	case 2:
+		phy_data |= M88E1000_PSCR_MDIX_MANUAL_MODE;
+		break;
+	case 3:
+		/* M88E1112 does not support this mode) */
+		if (phy->id != M88E1112_E_PHY_ID) {
+			phy_data |= M88E1000_PSCR_AUTO_X_1000T;
+			break;
+		}
+	case 0:
+	default:
+		phy_data |= M88E1000_PSCR_AUTO_X_MODE;
+		break;
+	}
+
+	/*
+	 * Options:
+	 *   disable_polarity_correction = 0 (default)
+	 *       Automatic Correction for Reversed Cable Polarity
+	 *   0 - Disabled
+	 *   1 - Enabled
+	 */
+	phy_data &= ~M88E1000_PSCR_POLARITY_REVERSAL;
+	if (phy->disable_polarity_correction == 1)
+		phy_data |= M88E1000_PSCR_POLARITY_REVERSAL;
+
+	/* Enable downshift and setting it to X6 */
+	phy_data &= ~I347AT4_PSCR_DOWNSHIFT_MASK;
+	phy_data |= I347AT4_PSCR_DOWNSHIFT_6X;
+	phy_data |= I347AT4_PSCR_DOWNSHIFT_ENABLE;
+
+	ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
+	if (ret_val)
+		goto out;
+
+	/* Commit the changes. */
+	ret_val = phy->ops.commit(hw);
+	if (ret_val) {
+		DEBUGOUT("Error committing the PHY changes\n");
+		goto out;
 	}
 
 out:
@@ -1570,7 +1654,9 @@ s32 e1000_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 			goto out;
 
 		if (!link) {
-			if (hw->phy.type != e1000_phy_m88) {
+			if (hw->phy.type != e1000_phy_m88 ||
+			    hw->phy.id == I347AT4_E_PHY_ID ||
+			    hw->phy.id == M88E1112_E_PHY_ID) {
 				DEBUGOUT("Link taking longer than expected.\n");
 			} else {
 				/*
@@ -1595,7 +1681,9 @@ s32 e1000_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 			goto out;
 	}
 
-	if (hw->phy.type != e1000_phy_m88)
+	if (hw->phy.type != e1000_phy_m88 ||
+	    hw->phy.id == I347AT4_E_PHY_ID ||
+	    hw->phy.id == M88E1112_E_PHY_ID)
 		goto out;
 
 	ret_val = phy->ops.read_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL, &phy_data);
@@ -2136,6 +2224,95 @@ out:
 	return ret_val;
 }
 
+s32 e1000_get_cable_length_m88_gen2(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data, phy_data2, index, default_page, is_cm;
+
+	DEBUGFUNC("e1000_get_cable_length_m88_gen2");
+
+	switch (hw->phy.id) {
+	case I347AT4_E_PHY_ID:
+		/* Remember the original page select and set it to 7 */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PAGE_SELECT,
+					    &default_page);
+		if (ret_val)
+			goto out;
+
+		ret_val = phy->ops.write_reg(hw, I347AT4_PAGE_SELECT, 0x07);
+		if (ret_val)
+			goto out;
+
+		/* Get cable length from PHY Cable Diagnostics Control Reg */
+		ret_val = phy->ops.read_reg(hw, (I347AT4_PCDL + phy->addr),
+					    &phy_data);
+		if (ret_val)
+			goto out;
+
+		/* Check if the unit of cable length is meters or cm */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDC, &phy_data2);
+		if (ret_val)
+			goto out;
+
+		is_cm = !(phy_data & I347AT4_PCDC_CABLE_LENGTH_UNIT);
+
+		/* Populate the phy structure with cable length in meters */
+		phy->min_cable_length = phy_data / (is_cm ? 100 : 1);
+		phy->max_cable_length = phy_data / (is_cm ? 100 : 1);
+		phy->cable_length = phy_data / (is_cm ? 100 : 1);
+
+		/* Reset the page selec	to its original value */
+		ret_val = phy->ops.write_reg(hw, I347AT4_PAGE_SELECT,
+					     default_page);
+		if (ret_val)
+			goto out;
+		break;
+	case M88E1112_E_PHY_ID:
+		/* Remember the original page select and set it to 5 */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PAGE_SELECT,
+					    &default_page);
+		if (ret_val)
+			goto out;
+
+		ret_val = phy->ops.write_reg(hw, I347AT4_PAGE_SELECT, 0x05);
+		if (ret_val)
+			goto out;
+
+		ret_val = phy->ops.read_reg(hw, M88E1112_VCT_DSP_DISTANCE,
+					    &phy_data);
+		if (ret_val)
+			goto out;
+
+		index = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
+			M88E1000_PSSR_CABLE_LENGTH_SHIFT;
+		if (index >= M88E1000_CABLE_LENGTH_TABLE_SIZE - 1) {
+			ret_val = -E1000_ERR_PHY;
+			goto out;
+		}
+
+		phy->min_cable_length = e1000_m88_cable_length_table[index];
+		phy->max_cable_length = e1000_m88_cable_length_table[index + 1];
+
+		phy->cable_length = (phy->min_cable_length +
+				     phy->max_cable_length) / 2;
+
+		/* Reset the page select to its original value */
+		ret_val = phy->ops.write_reg(hw, I347AT4_PAGE_SELECT,
+					     default_page);
+		if (ret_val)
+			goto out;
+
+		break;
+	default:
+		ret_val = -E1000_ERR_PHY;
+		goto out;
+	}
+
+out:
+	return ret_val;
+}
+
 /**
  *  e1000_get_cable_length_igp_2 - Determine cable length for igp2 PHY
  *  @hw: pointer to the HW structure
@@ -2154,11 +2331,12 @@ s32 e1000_get_cable_length_igp_2(struct e1000_hw *hw)
 	u16 phy_data, i, agc_value = 0;
 	u16 cur_agc_index, max_agc_index = 0;
 	u16 min_agc_index = IGP02E1000_CABLE_LENGTH_TABLE_SIZE - 1;
-	u16 agc_reg_array[IGP02E1000_PHY_CHANNEL_NUM] =
-	                                                 {IGP02E1000_PHY_AGC_A,
-	                                                  IGP02E1000_PHY_AGC_B,
-	                                                  IGP02E1000_PHY_AGC_C,
-	                                                  IGP02E1000_PHY_AGC_D};
+	static const u16 agc_reg_array[IGP02E1000_PHY_CHANNEL_NUM] = {
+	       IGP02E1000_PHY_AGC_A,
+	       IGP02E1000_PHY_AGC_B,
+	       IGP02E1000_PHY_AGC_C,
+	       IGP02E1000_PHY_AGC_D
+	};
 
 	DEBUGFUNC("e1000_get_cable_length_igp_2");
 
@@ -2607,6 +2785,8 @@ enum e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id)
 	case M88E1000_E_PHY_ID:
 	case M88E1111_I_PHY_ID:
 	case M88E1011_I_PHY_ID:
+	case I347AT4_E_PHY_ID:
+	case M88E1112_E_PHY_ID:
 		phy_type = e1000_phy_m88;
 		break;
 	case IGP01E1000_I_PHY_ID: /* IGP 1 & 2 share this */
@@ -2675,7 +2855,7 @@ s32 e1000_determine_phy_address(struct e1000_hw *hw)
 			 * If phy_type is valid, break - we found our
 			 * PHY address
 			 */
-			if (phy_type  != e1000_phy_unknown) {
+			if (phy_type != e1000_phy_unknown) {
 				ret_val = E1000_SUCCESS;
 				goto out;
 			}
@@ -2716,9 +2896,7 @@ static u32 e1000_get_phy_addr_for_bm_page(u32 page, u32 reg)
 s32 e1000_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	s32 ret_val;
-	u32 page_select = 0;
 	u32 page = offset >> IGP_PAGE_SHIFT;
-	u32 page_shift = 0;
 
 	DEBUGFUNC("e1000_write_phy_reg_bm");
 
@@ -2736,6 +2914,8 @@ s32 e1000_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data)
 	hw->phy.addr = e1000_get_phy_addr_for_bm_page(page, offset);
 
 	if (offset > MAX_PHY_MULTI_PAGE_REG) {
+		u32 page_shift, page_select;
+
 		/*
 		 * Page select is register 31 for phy address 1 and 22 for
 		 * phy address 2 and 3. Page select is shifted only for
@@ -2777,9 +2957,7 @@ out:
 s32 e1000_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	s32 ret_val;
-	u32 page_select = 0;
 	u32 page = offset >> IGP_PAGE_SHIFT;
-	u32 page_shift = 0;
 
 	DEBUGFUNC("e1000_read_phy_reg_bm");
 
@@ -2797,6 +2975,8 @@ s32 e1000_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 	hw->phy.addr = e1000_get_phy_addr_for_bm_page(page, offset);
 
 	if (offset > MAX_PHY_MULTI_PAGE_REG) {
+		u32 page_shift, page_select;
+
 		/*
 		 * Page select is register 31 for phy address 1 and 22 for
 		 * phy address 2 and 3. Page select is shifted only for
@@ -2980,8 +3160,7 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 	}
 
 	/* Select page 800 */
-	ret_val = e1000_write_phy_reg_mdic(hw,
-	                                   IGP01E1000_PHY_PAGE_SELECT,
+	ret_val = e1000_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
 	                                   (BM_WUC_PAGE << IGP_PAGE_SHIFT));
 
 	/* Write the page 800 offset value using opcode 0x11 */

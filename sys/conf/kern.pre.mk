@@ -15,7 +15,7 @@ KODIR?=		/boot/${KERNEL}
 LDSCRIPT_NAME?=	ldscript.$M
 LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 
-M=	${MACHINE_CPUARCH}
+M=		${MACHINE_CPUARCH}
 
 AWK?=		awk
 LINT?=		lint
@@ -82,11 +82,8 @@ INCLUDES+= -I$S/dev/twa
 # ...  and XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
-# ...  and OpenSolaris
-INCLUDES+= -I$S/contrib/opensolaris/compat
-
-# ... and the same for cxgb
-INCLUDES+= -I$S/dev/cxgb
+# ... and the same for cxgb and cxgbe
+INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 .endif
 
@@ -174,6 +171,9 @@ MKMODULESENV+=	ALL_MODULES=LINT
 .endif
 .if defined(MODULES_OVERRIDE)
 MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
+.endif
+.if defined(WITHOUT_MODULES)
+MKMODULESENV+=	WITHOUT_MODULES="${WITHOUT_MODULES}"
 .endif
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"

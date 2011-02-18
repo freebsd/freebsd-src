@@ -279,6 +279,20 @@ int cvm_oct_common_init(struct ifnet *ifp)
 		octeon_bootinfo->mac_addr_base[5] + count};
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 
+	switch (cvmx_sysinfo_get()->board_type) {
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
+		/*
+		 * The MR-730 uses its first two MACs for the management
+		 * ports.
+		 */
+		mac[5] += 2;
+		break;
+#endif
+	default:
+		break;
+	}
+
 	ifp->if_mtu = ETHERMTU;
 
 	count++;
@@ -294,6 +308,7 @@ int cvm_oct_common_init(struct ifnet *ifp)
 	switch (cvmx_sysinfo_get()->board_type) {
 #if defined(OCTEON_VENDOR_LANNER)
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
 		if (priv->phy_id == 16)
 			cvm_oct_mv88e61xx_setup_device(ifp);
 		break;

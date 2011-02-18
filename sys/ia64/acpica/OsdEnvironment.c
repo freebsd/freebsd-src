@@ -29,7 +29,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/linker_set.h>
 #include <sys/sysctl.h>
 #include <machine/efi.h>
 

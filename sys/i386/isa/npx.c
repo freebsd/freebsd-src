@@ -684,7 +684,9 @@ npxdna(void)
 		fpurstor(&npx_initialstate);
 		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
 			fldcw(pcb->pcb_initial_npxcw);
-		npxuserinited(curthread);
+		pcb->pcb_flags |= PCB_NPXINITDONE;
+		if (PCB_USER_FPU(pcb))
+			pcb->pcb_flags |= PCB_NPXUSERINITDONE;
 	} else {
 		/*
 		 * The following fpurstor() may cause an IRQ13 when the

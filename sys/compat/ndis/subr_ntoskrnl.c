@@ -80,8 +80,9 @@ __FBSDID("$FreeBSD$");
 #ifdef NTOSKRNL_DEBUG_TIMERS
 static int sysctl_show_timers(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_PROC(_debug, OID_AUTO, ntoskrnl_timers, CTLFLAG_RW, 0, 0,
-	sysctl_show_timers, "I", "Show ntoskrnl timer stats");
+SYSCTL_PROC(_debug, OID_AUTO, ntoskrnl_timers, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, sysctl_show_timers, "I",
+    "Show ntoskrnl timer stats");
 #endif
 
 struct kdpc_queue {
@@ -2589,6 +2590,17 @@ MmGetPhysicalAddress(void *base)
 	return (pmap_extract(kernel_map->pmap, (vm_offset_t)base));
 }
 
+void *
+MmGetSystemRoutineAddress(ustr)
+	unicode_string		*ustr;
+{
+	ansi_string		astr;
+
+	if (RtlUnicodeStringToAnsiString(&astr, ustr, TRUE))
+		return (NULL);
+	return (ndis_get_routine_address(ntoskrnl_functbl, astr.as_buf));
+}
+
 uint8_t
 MmIsAddressValid(vaddr)
 	void			*vaddr;
@@ -4382,6 +4394,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(MmUnmapLockedPages, 2),
 	IMPORT_SFUNC(MmBuildMdlForNonPagedPool, 1),
 	IMPORT_SFUNC(MmGetPhysicalAddress, 1),
+	IMPORT_SFUNC(MmGetSystemRoutineAddress, 1),
 	IMPORT_SFUNC(MmIsAddressValid, 1),
 	IMPORT_SFUNC(MmMapIoSpace, 3 + 1),
 	IMPORT_SFUNC(MmUnmapIoSpace, 2),

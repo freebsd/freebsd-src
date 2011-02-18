@@ -66,14 +66,6 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-#define DC_SETBIT(sc, reg, x)                           \
-        CSR_WRITE_4(sc, reg,                            \
-                CSR_READ_4(sc, reg) | x)
-
-#define DC_CLRBIT(sc, reg, x)                           \
-        CSR_WRITE_4(sc, reg,                            \
-                CSR_READ_4(sc, reg) & ~x)
-
 static int pnphy_probe(device_t);
 static int pnphy_attach(device_t);
 
@@ -170,23 +162,19 @@ pnphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
+		/*
+		 * Note that auto-negotiation is broken on this chip.
+		 */
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
-		case IFM_AUTO:
-			/* NWAY is busted on this chip */
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
 		case IFM_100_TX:
 			mii->mii_media_active = IFM_ETHER | IFM_100_TX;
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				mii->mii_media_active |= IFM_FDX;
 			MIIBUS_STATCHG(sc->mii_dev);
 			return (0);
 		case IFM_10_T:
 			mii->mii_media_active = IFM_ETHER | IFM_10_T;
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				mii->mii_media_active |= IFM_FDX;
 			MIIBUS_STATCHG(sc->mii_dev);
 			return (0);
@@ -226,15 +214,14 @@ pnphy_status(struct mii_softc *sc)
 	mii->mii_media_active = IFM_ETHER;
 
 	reg = CSR_READ_4(dc_sc, DC_ISR);
-
 	if (!(reg & DC_ISR_LINKFAIL))
 		mii->mii_media_status |= IFM_ACTIVE;
-
-	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_SPEEDSEL)
+	reg = CSR_READ_4(dc_sc, DC_NETCFG);
+	if (reg & DC_NETCFG_SPEEDSEL)
 		mii->mii_media_active |= IFM_10_T;
 	else
 		mii->mii_media_active |= IFM_100_TX;
-	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_FULLDUPLEX)
+	if (reg & DC_NETCFG_FULLDUPLEX)
 		mii->mii_media_active |= IFM_FDX;
 	else
 		mii->mii_media_active |= IFM_HDX;

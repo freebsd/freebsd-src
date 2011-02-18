@@ -521,7 +521,7 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 	register_t	msr;
 	vm_offset_t	off;
 	vm_paddr_t	pa_base;
-	int		i, ofw_mappings;
+	int		i;
 
 	bzero(translations, sz);
 	if (OF_getprop(mmu, "translations", translations, sz) == -1)
@@ -531,7 +531,7 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 	sz /= sizeof(*translations);
 	qsort(translations, sz, sizeof (*translations), om_cmp);
 
-	for (i = 0, ofw_mappings = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++) {
 		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
 		    (uint32_t)(translations[i].om_pa_lo), translations[i].om_va,
 		    translations[i].om_len);
@@ -558,8 +558,6 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 
 			moea64_kenter(mmup, translations[i].om_va + off,
 			    pa_base + off);
-
-			ofw_mappings++;
 		}
 		ENABLE_TRANS(msr);
 	}
@@ -652,8 +650,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 
 			moea64_pvo_enter(mmup, kernel_pmap, moea64_upvo_zone,
 				    &moea64_pvo_kunmanaged, pa, pa,
-				    pte_lo, PVO_WIRED | PVO_LARGE |
-				    VM_PROT_EXECUTE);
+				    pte_lo, PVO_WIRED | PVO_LARGE);
 		  }
 		}
 		PMAP_UNLOCK(kernel_pmap);
@@ -953,10 +950,10 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	/*
 	 * Allocate virtual address space for the message buffer.
 	 */
-	pa = msgbuf_phys = moea64_bootstrap_alloc(MSGBUF_SIZE, PAGE_SIZE);
+	pa = msgbuf_phys = moea64_bootstrap_alloc(msgbufsize, PAGE_SIZE);
 	msgbufp = (struct msgbuf *)virtual_avail;
 	va = virtual_avail;
-	virtual_avail += round_page(MSGBUF_SIZE);
+	virtual_avail += round_page(msgbufsize);
 	while (va < virtual_avail) {
 		moea64_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;
@@ -1114,6 +1111,7 @@ void moea64_set_scratchpage_pa(mmu_t mmup, int which, vm_offset_t pa) {
 	MOEA64_PTE_CHANGE(mmup, moea64_scratchpage_pte[which],
 	    &moea64_scratchpage_pvo[which]->pvo_pte.lpte,
 	    moea64_scratchpage_pvo[which]->pvo_vpn);
+	isync();
 }
 
 void
@@ -1267,8 +1265,8 @@ moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	} else
 		pte_lo |= LPTE_BR;
 
-	if (prot & VM_PROT_EXECUTE)
-		pvo_flags |= VM_PROT_EXECUTE;
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		pte_lo |= LPTE_NOEXEC;
 
 	if (wired)
 		pvo_flags |= PVO_WIRED;
@@ -1693,8 +1691,7 @@ moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 
 	PMAP_LOCK(kernel_pmap);
 	error = moea64_pvo_enter(mmu, kernel_pmap, moea64_upvo_zone,
-	    &moea64_pvo_kunmanaged, va, pa, pte_lo, 
-	    PVO_WIRED | VM_PROT_EXECUTE);
+	    &moea64_pvo_kunmanaged, va, pa, pte_lo, PVO_WIRED);
 
 	if (error != 0 && error != ENOENT)
 		panic("moea64_kenter: failed to enter va %#zx pa %#zx: %d", va,
@@ -2192,8 +2189,8 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 	LIST_FOREACH(pvo, &moea64_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
 			if ((pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) == pa &&
-			    (pvo->pvo_pte.lpte.pte_lo & LPTE_PP) ==
-			    (pte_lo & LPTE_PP)) {
+			    (pvo->pvo_pte.lpte.pte_lo & (LPTE_NOEXEC | LPTE_PP))
+			    == (pte_lo & (LPTE_NOEXEC | LPTE_PP))) {
 			    	if (!(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID)) {
 					/* Re-insert if spilled */
 					i = MOEA64_PTE_INSERT(mmu, ptegidx,
@@ -2247,8 +2244,6 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 	LIST_INSERT_HEAD(&moea64_pvo_table[ptegidx], pvo, pvo_olink);
 	pvo->pvo_vaddr &= ~ADDR_POFF;
 
-	if (!(flags & VM_PROT_EXECUTE))
-		pte_lo |= LPTE_NOEXEC;
 	if (flags & PVO_WIRED)
 		pvo->pvo_vaddr |= PVO_WIRED;
 	if (pvo_head != &moea64_pvo_kunmanaged)

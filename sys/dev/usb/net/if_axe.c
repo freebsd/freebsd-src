@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -200,7 +199,8 @@ static const struct usb_config axe_config[AXE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.bufsize = AXE_BULK_BUF_SIZE,
+		.frames = 16,
+		.bufsize = 16 * MCLBYTES,
 		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
 		.callback = axe_bulk_write_callback,
 		.timeout = 10000,	/* 10 seconds */
@@ -939,7 +939,7 @@ axe_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	struct usb_page_cache *pc;
 	struct mbuf *m;
-	int pos;
+	int nframes, pos;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -956,40 +956,34 @@ tr_setup:
 			 */
 			return;
 		}
-		pos = 0;
-		pc = usbd_xfer_get_frame(xfer, 0);
 
-		while (1) {
-
+		for (nframes = 0; nframes < 16 &&
+		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd); nframes++) {
 			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-
-			if (m == NULL) {
-				if (pos > 0)
-					break;	/* send out data */
-				return;
-			}
-			if (m->m_pkthdr.len > MCLBYTES) {
-				m->m_pkthdr.len = MCLBYTES;
-			}
+			if (m == NULL)
+				break;
+			usbd_xfer_set_frame_offset(xfer, nframes * MCLBYTES,
+			    nframes);
+			pos = 0;
+			pc = usbd_xfer_get_frame(xfer, nframes);
 			if (AXE_IS_178_FAMILY(sc)) {
-
 				hdr.len = htole16(m->m_pkthdr.len);
 				hdr.ilen = ~hdr.len;
-
 				usbd_copy_in(pc, pos, &hdr, sizeof(hdr));
-
 				pos += sizeof(hdr);
-
-				/*
-				 * NOTE: Some drivers force a short packet
-				 * by appending a dummy header with zero
-				 * length at then end of the USB transfer.
-				 * This driver uses the
-				 * USB_FORCE_SHORT_XFER flag instead.
-				 */
+				usbd_m_copy_in(pc, pos, m, 0, m->m_pkthdr.len);
+				pos += m->m_pkthdr.len;
+				if ((pos % 512) == 0) {
+					hdr.len = 0;
+					hdr.ilen = 0xffff;
+					usbd_copy_in(pc, pos, &hdr,
+					    sizeof(hdr));
+					pos += sizeof(hdr);
+				}
+			} else {
+				usbd_m_copy_in(pc, pos, m, 0, m->m_pkthdr.len);
+				pos += m->m_pkthdr.len;
 			}
-			usbd_m_copy_in(pc, pos, m, 0, m->m_pkthdr.len);
-			pos += m->m_pkthdr.len;
 
 			/*
 			 * XXX
@@ -1010,22 +1004,16 @@ tr_setup:
 
 			m_freem(m);
 
-			if (AXE_IS_178_FAMILY(sc)) {
-				if (pos > (AXE_BULK_BUF_SIZE - MCLBYTES - sizeof(hdr))) {
-					/* send out frame(s) */
-					break;
-				}
-			} else {
-				/* send out frame */
-				break;
-			}
+			/* Set frame length. */
+			usbd_xfer_set_frame_len(xfer, nframes, pos);
 		}
-
-		usbd_xfer_set_frame_len(xfer, 0, pos);
-		usbd_transfer_submit(xfer);
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		if (nframes != 0) {
+			usbd_xfer_set_frames(xfer, nframes);
+			usbd_transfer_submit(xfer);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		}
 		return;
-
+		/* NOTREACHED */
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));

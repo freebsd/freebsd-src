@@ -51,13 +51,10 @@ struct acpi_softc {
     device_t		acpi_dev;
     struct cdev		*acpi_dev_t;
 
-    struct resource	*acpi_irq;
-    int			acpi_irq_rid;
-    void		*acpi_irq_handle;
-
     int			acpi_enabled;
     int			acpi_sstate;
     int			acpi_sleep_disabled;
+    int			acpi_resources_reserved;
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;

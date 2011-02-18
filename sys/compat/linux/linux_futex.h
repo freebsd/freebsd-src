@@ -49,7 +49,9 @@ extern struct mtx futex_mtx;
 #define LINUX_FUTEX_UNLOCK_PI		 7
 #define LINUX_FUTEX_TRYLOCK_PI		 8
 #define LINUX_FUTEX_WAIT_BITSET		 9
+#define LINUX_FUTEX_WAKE_BITSET		10
 #define LINUX_FUTEX_WAIT_REQUEUE_PI	11
+#define LINUX_FUTEX_CMP_REQUEUE_PI	12
 
 #define LINUX_FUTEX_PRIVATE_FLAG	128
 #define LINUX_FUTEX_CLOCK_REALTIME	256
@@ -72,6 +74,7 @@ extern struct mtx futex_mtx;
 #define	FUTEX_WAITERS		0x80000000
 #define	FUTEX_OWNER_DIED	0x40000000
 #define	FUTEX_TID_MASK		0x3fffffff
+#define	FUTEX_BITSET_MATCH_ANY	0xffffffff
 
 void	release_futexes(struct proc *);
 

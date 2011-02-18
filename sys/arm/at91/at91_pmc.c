@@ -325,7 +325,7 @@ at91_pmc_clock_disable(struct at91_pmc_clock *clk)
 static int
 at91_pmc_pll_rate(struct at91_pmc_clock *clk, uint32_t reg)
 {
-	uint32_t mul, div, freq;;
+	uint32_t mul, div, freq;
 
 	freq = clk->parent->hz;
 	div = (reg >> clk->pll_div_shift) & clk->pll_div_mask;

@@ -407,12 +407,11 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 				    va+off, tx);
 			} else {
 				(void) dmu_read(os, oid, start+off, nbytes,
-				    va+off, DMU_READ_PREFETCH);;
+				    va+off, DMU_READ_PREFETCH);
 			}
 			zfs_unmap_page(sf);
 			VM_OBJECT_LOCK(obj);
 			page_unlock(pp);
-
 		}
 		len -= nbytes;
 		off = 0;
@@ -528,9 +527,15 @@ again:
 				zfs_unmap_page(sf);
 			}
 			VM_OBJECT_LOCK(obj);
-			if (error == 0)
-				m->valid = VM_PAGE_BITS_ALL;
 			vm_page_io_finish(m);
+			vm_page_lock(m);
+			if (error == 0) {
+				m->valid = VM_PAGE_BITS_ALL;
+				vm_page_activate(m);
+			} else
+				vm_page_free(m);
+			vm_page_unlock(m);
+
 			if (error == 0) {
 				uio->uio_resid -= bytes;
 				uio->uio_offset += bytes;

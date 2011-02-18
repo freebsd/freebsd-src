@@ -192,8 +192,8 @@ struct bus_space_handle {
 extern struct bus_space_tag SBUS_io_space_tag;
 extern struct bus_space_tag SBUS_mem_space_tag;
 
-#define I386_BUS_SPACE_IO	(&SBUS_io_space_tag)
-#define I386_BUS_SPACE_MEM	(&SBUS_mem_space_tag)
+#define X86_BUS_SPACE_IO	(&SBUS_io_space_tag)
+#define X86_BUS_SPACE_MEM	(&SBUS_mem_space_tag)
 
 /*
  * Allocate/Free bus_space_handle

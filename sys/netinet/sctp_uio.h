@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -233,30 +235,9 @@ struct sctp_paddr_change {
 #define SCTP_ADDR_MADE_PRIM	0x0005
 #define SCTP_ADDR_CONFIRMED	0x0006
 
-/*
- * CAUTION: these are user exposed SCTP addr reachability states must be
- * compatible with SCTP_ADDR states in sctp_constants.h
- */
-#ifdef SCTP_ACTIVE
-#undef SCTP_ACTIVE
-#endif
 #define SCTP_ACTIVE		0x0001	/* SCTP_ADDR_REACHABLE */
-
-#ifdef SCTP_INACTIVE
-#undef SCTP_INACTIVE
-#endif
 #define SCTP_INACTIVE		0x0002	/* SCTP_ADDR_NOT_REACHABLE */
-
-#ifdef SCTP_UNCONFIRMED
-#undef SCTP_UNCONFIRMED
-#endif
 #define SCTP_UNCONFIRMED	0x0200	/* SCTP_ADDR_UNCONFIRMED */
-
-#ifdef SCTP_NOHEARTBEAT
-#undef SCTP_NOHEARTBEAT
-#endif
-#define SCTP_NOHEARTBEAT	0x0040	/* SCTP_ADDR_NOHB */
-
 
 /* remote error events */
 struct sctp_remote_error {
@@ -417,7 +398,7 @@ union sctp_notification {
 #define SCTP_AUTHENTICATION_EVENT		0x0008
 #define SCTP_STREAM_RESET_EVENT			0x0009
 #define SCTP_SENDER_DRY_EVENT			0x000a
-#define SCTP__NOTIFICATIONS_STOPPED_EVENT	0x000b	/* we don't send this */
+#define SCTP_NOTIFICATIONS_STOPPED_EVENT	0x000b	/* we don't send this */
 /*
  * socket option structs
  */
@@ -550,6 +531,12 @@ struct sctp_authchunks {
 struct sctp_assoc_value {
 	sctp_assoc_t assoc_id;
 	uint32_t assoc_value;
+};
+
+struct sctp_stream_value {
+	sctp_assoc_t assoc_id;
+	uint16_t stream_id;
+	uint16_t stream_value;
 };
 
 struct sctp_assoc_ids {
@@ -961,8 +948,9 @@ struct sctpstat {
 					 * max burst inflight to net */
 	uint32_t sctps_fwdtsn_map_over;	/* number of map array over-runs via
 					 * fwd-tsn's */
-
-	uint32_t sctps_reserved[32];	/* Future ABI compat - remove int's
+	uint32_t sctps_queue_upd_ecne;	/* Number of times we queued or
+					 * updated an ECN chunk on send queue */
+	uint32_t sctps_reserved[31];	/* Future ABI compat - remove int's
 					 * from here when adding new */
 };
 

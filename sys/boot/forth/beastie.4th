@@ -193,7 +193,7 @@ at-xy ."         `--{__________) [0m"
 			then
 		else
 			menuidx @
-			1+ dup
+			1+
 			menuidx !
 			-2 bootacpikey !
 		then

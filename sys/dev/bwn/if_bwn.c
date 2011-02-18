@@ -2882,7 +2882,7 @@ bwn_set_channel(struct ieee80211com *ic)
 
 	error = bwn_switch_band(sc, ic->ic_curchan);
 	if (error)
-		goto fail;;
+		goto fail;
 	bwn_mac_suspend(mac);
 	bwn_set_txretry(mac, BWN_RETRY_SHORT, BWN_RETRY_LONG);
 	chan = ieee80211_chan2ieee(ic, ic->ic_curchan);
@@ -8260,7 +8260,7 @@ bwn_switch_band(struct bwn_softc *sc, struct ieee80211_channel *chan)
 	device_printf(sc->sc_dev, "switching to %s-GHz band\n",
 	    IEEE80211_IS_CHAN_2GHZ(chan) ? "2" : "5");
 
-	down_dev = sc->sc_curmac;;
+	down_dev = sc->sc_curmac;
 	status = down_dev->mac_status;
 	if (status >= BWN_MAC_STATUS_STARTED)
 		bwn_core_stop(down_dev);
@@ -8329,7 +8329,6 @@ bwn_phy_reset(struct bwn_mac *mac)
 static int
 bwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
-	const struct ieee80211_txparam *tp;
 	struct bwn_vap *bvp = BWN_VAP(vap);
 	struct ieee80211com *ic= vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
@@ -8378,11 +8377,6 @@ bwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		bwn_set_pretbtt(mac);
 		bwn_spu_setdelay(mac, 0);
 		bwn_set_macaddr(mac);
-
-		/* Initializes ratectl for a node. */
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
-		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
-			ieee80211_ratectl_node_init(vap->iv_bss);
 	}
 
 	BWN_UNLOCK(sc);
@@ -14211,13 +14205,13 @@ bwn_sysctl_node(struct bwn_softc *sc)
 		return;
 	stats = &mac->mac_stats;
 
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "linknoise", CTLFLAG_RW, &stats->rts, 0, "Noise level");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "rts", CTLFLAG_RW, &stats->rts, 0, "RTS");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "rtsfail", CTLFLAG_RW, &stats->rtsfail, 0, "RTS failed to send");
 

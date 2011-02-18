@@ -213,7 +213,7 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 				    sizeof(icells));
 
 				if (iparent != 0)
-					intr[0] = INTR_VEC(iparent, intr[0]);
+					intr[0] = MAP_IRQ(iparent, intr[0]);
 
 				if (iparent != 0 && icells > 1) {
 					powerpc_config_intr(intr[0],
@@ -348,12 +348,12 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 
 	isz = OF_getprop(node, "AAPL,interrupts", &intr, sizeof(intr));
 	if (isz == sizeof(intr))
-		return ((iparent == -1) ? intr : INTR_VEC(iparent, intr));
+		return ((iparent == -1) ? intr : MAP_IRQ(iparent, intr));
 
 	isz = OF_getprop(node, "interrupts", &intr, sizeof(intr));
 	if (isz == sizeof(intr)) {
 		if (iparent != -1)
-			intr = INTR_VEC(iparent, intr);
+			intr = MAP_IRQ(iparent, intr);
 	} else {
 		/* No property: our best guess is the intpin. */
 		intr = pci_get_intpin(child);

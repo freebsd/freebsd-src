@@ -282,7 +282,7 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 {
 	struct cpcht_softc *sc;
 	struct ofw_pci_register pcir;
-	struct cpcht_range ranges[6], *rp;
+	struct cpcht_range ranges[7], *rp;
 	int nranges, ptr, nextptr;
 	uint32_t vend, val;
 	int i, nirq, irq;
@@ -306,9 +306,10 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 	 */
 	bzero(ranges, sizeof(ranges));
 	nranges = OF_getprop(child, "ranges", ranges, sizeof(ranges));
+	nranges /= sizeof(ranges[0]);
 	
 	ranges[6].pci_hi = 0;
-	for (rp = ranges; rp->pci_hi != 0; rp++) {
+	for (rp = ranges; rp < ranges + nranges && rp->pci_hi != 0; rp++) {
 		switch (rp->pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
 		case OFW_PCI_PHYS_HI_SPACE_CONFIG:
 			break;
@@ -474,10 +475,6 @@ cpcht_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 static int
 cpcht_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
-	struct	cpcht_softc *sc;
-
-	sc = device_get_softc(dev);
-
 	switch (which) {
 	case PCIB_IVAR_DOMAIN:
 		*result = device_get_unit(dev);
@@ -513,13 +510,12 @@ cpcht_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct			cpcht_softc *sc;
 	struct			resource *rv;
 	struct			rman *rm;
-	int			needactivate, err;
+	int			needactivate;
 
 	needactivate = flags & RF_ACTIVE;
 	flags &= ~RF_ACTIVE;
 
 	sc = device_get_softc(bus);
-	err = 0;
 
 	switch (type) {
 	case SYS_RES_IOPORT:
@@ -568,9 +564,6 @@ cpcht_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 	void	*p;
-	struct	cpcht_softc *sc;
-
-	sc = device_get_softc(bus);
 
 	if (type == SYS_RES_IRQ)
 		return (bus_activate_resource(bus, type, rid, res));
@@ -662,7 +655,7 @@ cpcht_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	}
 
 	for (j = 0; j < count; j++) {
-		irqs[j] = INTR_VEC(cpcht_msipic, i+j);
+		irqs[j] = MAP_IRQ(cpcht_msipic, i+j);
 		sc->htirq_map[i+j].irq_type = IRQ_MSI;
 	}
 	mtx_unlock(&sc->htirq_mtx);
@@ -702,7 +695,7 @@ cpcht_alloc_msix(device_t dev, device_t child, int *irq)
 	for (i = 8; i < 124; i++) {
 		if (sc->htirq_map[i].irq_type == IRQ_NONE) {
 			sc->htirq_map[i].irq_type = IRQ_MSI;
-			*irq = INTR_VEC(cpcht_msipic, i);
+			*irq = MAP_IRQ(cpcht_msipic, i);
 
 			mtx_unlock(&sc->htirq_mtx);
 			return (0);
@@ -764,7 +757,6 @@ static void	openpic_cpcht_config(device_t, u_int irq,
 static void	openpic_cpcht_enable(device_t, u_int irq, u_int vector);
 static void	openpic_cpcht_unmask(device_t, u_int irq);
 static void	openpic_cpcht_eoi(device_t, u_int irq);
-static uint32_t	openpic_cpcht_id(device_t);
 
 static device_method_t  openpic_cpcht_methods[] = {
 	/* Device interface */
@@ -780,7 +772,6 @@ static device_method_t  openpic_cpcht_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_cpcht_unmask),
-	DEVMETHOD(pic_id,		openpic_cpcht_id),
 
 	{ 0, 0 },
 };
@@ -815,9 +806,11 @@ static int
 openpic_cpcht_attach(device_t dev)
 {
 	struct openpic_cpcht_softc *sc;
+	phandle_t node;
 	int err, irq;
 
-	err = openpic_attach(dev);
+	node = ofw_bus_get_node(dev);
+	err = openpic_common_attach(dev, node);
 	if (err != 0)
 		return (err);
 
@@ -846,9 +839,8 @@ openpic_cpcht_attach(device_t dev)
 	 * be necessary, but Linux does it, and I cannot find any U3 machines
 	 * with MSI devices to test.
 	 */
-	
 	if (dev == root_pic)
-		cpcht_msipic = PIC_ID(dev);
+		cpcht_msipic = node;
 
 	return (0);
 }
@@ -988,10 +980,3 @@ openpic_cpcht_eoi(device_t dev, u_int irq)
 
 	openpic_eoi(dev, irq);
 }
-
-static uint32_t
-openpic_cpcht_id(device_t dev)
-{
-	return (ofw_bus_get_node(dev));
-}
-

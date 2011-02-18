@@ -53,7 +53,7 @@ ath_hal_probe(uint16_t vendorid, uint16_t devid)
  */
 struct ath_hal*
 ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *error)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata, HAL_STATUS *error)
 {
 	struct ath_hal_chip * const *pchip;
 
@@ -64,7 +64,7 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 		/* XXX don't have vendorid, assume atheros one works */
 		if (chip->probe(ATHEROS_VENDOR_ID, devid) == AH_NULL)
 			continue;
-		ah = chip->attach(devid, sc, st, sh, error);
+		ah = chip->attach(devid, sc, st, sh, eepromdata, error);
 		if (ah != AH_NULL) {
 			/* copy back private state to public area */
 			ah->ah_devid = AH_PRIVATE(ah)->ah_devid;
@@ -197,9 +197,16 @@ HAL_BOOL
 ath_hal_wait(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val)
 {
 #define	AH_TIMEOUT	1000
+	return ath_hal_waitfor(ah, reg, mask, val, AH_TIMEOUT);
+#undef AH_TIMEOUT
+}
+
+HAL_BOOL
+ath_hal_waitfor(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val, uint32_t timeout)
+{
 	int i;
 
-	for (i = 0; i < AH_TIMEOUT; i++) {
+	for (i = 0; i < timeout; i++) {
 		if ((OS_REG_READ(ah, reg) & mask) == val)
 			return AH_TRUE;
 		OS_DELAY(10);
@@ -208,7 +215,6 @@ ath_hal_wait(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val)
 	    "%s: timeout on reg 0x%x: 0x%08x & 0x%08x != 0x%08x\n",
 	    __func__, reg, OS_REG_READ(ah, reg), mask, val);
 	return AH_FALSE;
-#undef AH_TIMEOUT
 }
 
 /*
@@ -226,6 +232,78 @@ ath_hal_reverseBits(uint32_t val, uint32_t n)
 		val >>= 1;
 	}
 	return retval;
+}
+
+/* 802.11n related timing definitions */
+
+#define	OFDM_PLCP_BITS	22
+#define	HT_L_STF	8
+#define	HT_L_LTF	8
+#define	HT_L_SIG	4
+#define	HT_SIG		8
+#define	HT_STF		4
+#define	HT_LTF(n)	((n) * 4)
+
+#define	HT_RC_2_MCS(_rc)	((_rc) & 0xf)
+#define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
+#define	IS_HT_RATE(_rc)		( (_rc) & IEEE80211_RATE_MCS)
+
+/*
+ * Calculate the duration of a packet whether it is 11n or legacy.
+ */
+uint32_t
+ath_hal_pkt_txtime(struct ath_hal *ah, const HAL_RATE_TABLE *rates, uint32_t frameLen,
+    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble)
+{
+	uint8_t rc;
+	int numStreams;
+
+	rc = rates->info[rateix].rateCode;
+
+	/* Legacy rate? Return the old way */
+	if (! IS_HT_RATE(rc))
+		return ath_hal_computetxtime(ah, rates, frameLen, rateix, shortPreamble);
+
+	/* 11n frame - extract out the number of spatial streams */
+	numStreams = HT_RC_2_STREAMS(rc);
+	KASSERT(numStreams == 1 || numStreams == 2, ("number of spatial streams needs to be 1 or 2: MCS rate 0x%x!", rateix));
+
+	return ath_computedur_ht(frameLen, rc, numStreams, isht40, shortPreamble);
+}
+
+/*
+ * Calculate the transmit duration of an 11n frame.
+ * This only works for MCS0->MCS15.
+ */
+uint32_t
+ath_computedur_ht(uint32_t frameLen, uint16_t rate, int streams, HAL_BOOL isht40,
+    HAL_BOOL isShortGI)
+{
+	static const uint16_t ht20_bps[16] = {
+	    26, 52, 78, 104, 156, 208, 234, 260,
+	    52, 104, 156, 208, 312, 416, 468, 520
+	};
+	static const uint16_t ht40_bps[16] = {
+	    54, 108, 162, 216, 324, 432, 486, 540,
+	    108, 216, 324, 432, 648, 864, 972, 1080,
+	};
+	uint32_t bitsPerSymbol, numBits, numSymbols, txTime;
+
+	KASSERT(rate & IEEE80211_RATE_MCS, ("not mcs %d", rate));
+	KASSERT((rate &~ IEEE80211_RATE_MCS) < 16, ("bad mcs 0x%x", rate));
+
+	if (isht40)
+		bitsPerSymbol = ht40_bps[rate & 0xf];
+	else
+		bitsPerSymbol = ht20_bps[rate & 0xf];
+	numBits = OFDM_PLCP_BITS + (frameLen << 3);
+	numSymbols = howmany(numBits, bitsPerSymbol);
+	if (isShortGI)
+		txTime = ((numSymbols * 18) + 4) / 5;   /* 3.6us */
+	else
+		txTime = numSymbols * 4;                /* 4us */
+	return txTime + HT_L_STF + HT_L_LTF +
+	    HT_L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
 }
 
 /*
@@ -505,6 +583,19 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return HAL_OK;
 	case HAL_CAP_BSSIDMATCH:	/* hardware has disable bssid match */
 		return pCap->halBssidMatchSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_STREAMS:		/* number of 11n spatial streams */
+		switch (capability) {
+		case 0:			/* TX */
+			*result = pCap->halTxStreams;
+			return HAL_OK;
+		case 1:			/* RX */
+			*result = pCap->halRxStreams;
+			return HAL_OK;
+		default:
+			return HAL_ENOTSUPP;
+		}
+	case HAP_CAP_SPLIT_4KB_TRANS:	/* hardware handles descriptors straddling 4k page boundary */
+		return pCap->hal4kbSplitTransSupport ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
@@ -852,6 +943,11 @@ ath_hal_ini_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 	for (r = 0; r < ia->rows; r++) {
 		OS_REG_WRITE(ah, HAL_INI_VAL(ia, r, 0),
 		    HAL_INI_VAL(ia, r, col));
+
+		/* Analog shift register delay seems needed for Merlin - PR kern/154220 */
+		if (HAL_INI_VAL(ia, r, 0) >= 0x7800 && HAL_INI_VAL(ia, r, 0) < 0x78a0)
+			OS_DELAY(100);
+
 		DMA_YIELD(regWr);
 	}
 	return regWr;
@@ -875,6 +971,12 @@ ath_hal_ini_bank_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 
 	for (r = 0; r < ia->rows; r++) {
 		OS_REG_WRITE(ah, HAL_INI_VAL(ia, r, 0), data[r]);
+
+		/* Analog shift register delay seems needed for Merlin - PR kern/154220 */
+		/* XXX verify whether any analog radio bank writes will hit up this */
+		/* XXX since this is a merlin work-around; and merlin doesn't use radio banks */
+		if (HAL_INI_VAL(ia, r, 0) >= 0x7800 && HAL_INI_VAL(ia, r, 0) < 0x78a0)
+			OS_DELAY(100);
 		DMA_YIELD(regWr);
 	}
 	return regWr;

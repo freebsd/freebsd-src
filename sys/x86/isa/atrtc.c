@@ -245,9 +245,10 @@ atrtc_attach(device_t dev)
 	int i;
 
 	sc = device_get_softc(dev);
-	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &sc->port_rid, IO_RTC, IO_RTC + 1, 2, RF_ACTIVE)))
-		device_printf(dev,"Warning: Couldn't map I/O.\n");
+	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
+	    IO_RTC, IO_RTC + 1, 2, RF_ACTIVE);
+	if (sc->port_res == NULL)
+		device_printf(dev, "Warning: Couldn't map I/O.\n");
 	atrtc_start();
 	clock_register(dev, 1000000);
 	bzero(&sc->et, sizeof(struct eventtimer));
@@ -258,14 +259,13 @@ atrtc_attach(device_t dev)
 		while (bus_get_resource(dev, SYS_RES_IRQ, sc->intr_rid,
 		    &s, NULL) == 0 && s != 8)
 			sc->intr_rid++;
-		if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-		    &sc->intr_rid, 8, 8, 1, RF_ACTIVE))) {
-			device_printf(dev,"Can't map interrupt.\n");
+		sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
+		    &sc->intr_rid, 8, 8, 1, RF_ACTIVE);
+		if (sc->intr_res == NULL) {
+			device_printf(dev, "Can't map interrupt.\n");
 			return (0);
-		} else if ((bus_setup_intr(dev, sc->intr_res,
-		    INTR_MPSAFE | INTR_TYPE_CLK,
-		    (driver_filter_t *)rtc_intr, NULL,
-		    sc, &sc->intr_handler))) {
+		} else if ((bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
+		    rtc_intr, NULL, sc, &sc->intr_handler))) {
 			device_printf(dev, "Can't setup interrupt.\n");
 			return (0);
 		} else { 

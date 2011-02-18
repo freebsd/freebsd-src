@@ -52,6 +52,9 @@
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
+
+#include <net/vnet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
@@ -202,11 +205,11 @@ static int					ng_btsocket_rfcomm_curpps;
 SYSCTL_DECL(_net_bluetooth_rfcomm_sockets);
 SYSCTL_NODE(_net_bluetooth_rfcomm_sockets, OID_AUTO, stream, CTLFLAG_RW,
 	0, "Bluetooth STREAM RFCOMM sockets family");
-SYSCTL_INT(_net_bluetooth_rfcomm_sockets_stream, OID_AUTO, debug_level,
+SYSCTL_UINT(_net_bluetooth_rfcomm_sockets_stream, OID_AUTO, debug_level,
 	CTLFLAG_RW,
 	&ng_btsocket_rfcomm_debug_level, NG_BTSOCKET_INFO_LEVEL,
 	"Bluetooth STREAM RFCOMM sockets debug level");
-SYSCTL_INT(_net_bluetooth_rfcomm_sockets_stream, OID_AUTO, timeout,
+SYSCTL_UINT(_net_bluetooth_rfcomm_sockets_stream, OID_AUTO, timeout,
 	CTLFLAG_RW,
 	&ng_btsocket_rfcomm_timo, 60,
 	"Bluetooth STREAM RFCOMM sockets timeout");
@@ -1163,8 +1166,11 @@ ng_btsocket_rfcomm_connect_ind(ng_btsocket_rfcomm_session_p s, int channel)
 
 	mtx_lock(&pcb->pcb_mtx);
 
-	if (pcb->so->so_qlen <= pcb->so->so_qlimit)
+	if (pcb->so->so_qlen <= pcb->so->so_qlimit) {
+		CURVNET_SET(pcb->so->so_vnet);
 		so1 = sonewconn(pcb->so, 0);
+		CURVNET_RESTORE();
+	}
 
 	mtx_unlock(&pcb->pcb_mtx);
 

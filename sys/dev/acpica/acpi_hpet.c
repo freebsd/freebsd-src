@@ -303,6 +303,23 @@ hpet_find(ACPI_HANDLE handle, UINT32 level, void *context,
 	return (AE_OK);
 }
 
+/*
+ * Find an existing IRQ resource that matches the requested IRQ range
+ * and return its RID.  If one is not found, use a new RID.
+ */
+static int
+hpet_find_irq_rid(device_t dev, u_long start, u_long end)
+{
+	u_long irq;
+	int error, rid;
+
+	for (rid = 0;; rid++) {
+		error = bus_get_resource(dev, SYS_RES_IRQ, rid, &irq, NULL);
+		if (error != 0 || (start <= irq && irq <= end))
+			return (rid);
+	}
+}
+
 /* Discover the HPET via the ACPI table of the same name. */
 static void 
 hpet_identify(driver_t *driver, device_t parent)
@@ -540,16 +557,16 @@ hpet_attach(device_t dev)
 			dvectors &= ~(1 << t->irq);
 		}
 		if (t->irq >= 0) {
-			if (!(t->intr_res =
-			    bus_alloc_resource(dev, SYS_RES_IRQ, &t->intr_rid,
-			    t->irq, t->irq, 1, RF_ACTIVE))) {
+			t->intr_rid = hpet_find_irq_rid(dev, t->irq, t->irq);
+			t->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
+			    &t->intr_rid, t->irq, t->irq, 1, RF_ACTIVE);
+			if (t->intr_res == NULL) {
 				t->irq = -1;
 				device_printf(dev,
 				    "Can't map interrupt for t%d.\n", i);
-			} else if ((bus_setup_intr(dev, t->intr_res,
-			    INTR_MPSAFE | INTR_TYPE_CLK,
-			    (driver_filter_t *)hpet_intr_single, NULL,
-			    t, &t->intr_handle))) {
+			} else if (bus_setup_intr(dev, t->intr_res,
+			    INTR_TYPE_CLK, hpet_intr_single, NULL, t,
+			    &t->intr_handle) != 0) {
 				t->irq = -1;
 				device_printf(dev,
 				    "Can't setup interrupt for t%d.\n", i);
@@ -590,19 +607,18 @@ hpet_attach(device_t dev)
 	}
 	bus_write_4(sc->mem_res, HPET_ISR, 0xffffffff);
 	sc->irq = -1;
-	sc->intr_rid = -1;
 	/* If at least one timer needs legacy IRQ - set it up. */
 	if (sc->useirq) {
 		j = i = fls(cvectors) - 1;
 		while (j > 0 && (cvectors & (1 << (j - 1))) != 0)
 			j--;
-		if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-		    &sc->intr_rid, j, i, 1, RF_SHAREABLE | RF_ACTIVE)))
-			device_printf(dev,"Can't map interrupt.\n");
-		else if ((bus_setup_intr(dev, sc->intr_res,
-		    INTR_MPSAFE | INTR_TYPE_CLK,
-		    (driver_filter_t *)hpet_intr, NULL,
-		    sc, &sc->intr_handle))) {
+		sc->intr_rid = hpet_find_irq_rid(dev, j, i);
+		sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
+		    &sc->intr_rid, j, i, 1, RF_SHAREABLE | RF_ACTIVE);
+		if (sc->intr_res == NULL)
+			device_printf(dev, "Can't map interrupt.\n");
+		else if (bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
+		    hpet_intr, NULL, sc, &sc->intr_handle) != 0) {
 			device_printf(dev, "Can't setup interrupt.\n");
 		} else {
 			sc->irq = rman_get_start(sc->intr_res);

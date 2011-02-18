@@ -105,13 +105,6 @@ __FBSDID("$FreeBSD$");
         (MSI_MIPS_DATA_TRGRLVL | MSI_MIPS_DATA_DELFIXED |	       \
 	 MSI_MIPS_DATA_ASSERT | (irq))
 
-#define DEBUG
-#ifdef DEBUG
-#define dbg_devprintf	device_printf
-#else
-#define dbg_devprintf(dev, fmt, ...)
-#endif
-
 struct xlr_pcib_softc {
 	bus_dma_tag_t	sc_pci_dmat;	/* PCI DMA tag pointer */
 };
@@ -433,7 +426,7 @@ static void
 bridge_pcix_ack(int irq)
 {
 
-	xlr_read_reg(xlr_io_mmio(XLR_IO_PCIX_OFFSET), 0x140 >> 2);
+	(void)xlr_read_reg(xlr_io_mmio(XLR_IO_PCIX_OFFSET), 0x140 >> 2);
 }
 
 static void

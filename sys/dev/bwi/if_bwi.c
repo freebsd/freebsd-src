@@ -537,11 +537,11 @@ bwi_attach(struct bwi_softc *sc)
 	/*
 	 * Add sysctl nodes
 	 */
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 		        SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		        "fw_version", CTLFLAG_RD, &sc->sc_fw_version, 0,
 		        "Firmware version");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 		        SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		        "led_idle", CTLFLAG_RW, &sc->sc_led_idle, 0,
 		        "# ticks before LED enters idle state");
@@ -1769,7 +1769,6 @@ static int
 bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct bwi_vap *bvp = BWI_VAP(vap);
-	const struct ieee80211_txparam *tp;
 	struct ieee80211com *ic= vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	enum ieee80211_state ostate = vap->iv_state;
@@ -1822,11 +1821,6 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 #else
 		sc->sc_txpwrcb_type = BWI_TXPWR_CALIB;
 #endif
-
-		/* Initializes ratectl for a node. */
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
-		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
-			ieee80211_ratectl_node_init(vap->iv_bss);
 
 		callout_reset(&sc->sc_calib_ch, hz, bwi_calibrate, sc);
 	}

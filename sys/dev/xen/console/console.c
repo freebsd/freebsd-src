@@ -125,17 +125,18 @@ xc_cnterm(struct consdev *cp)
 static int
 xc_cngetc(struct consdev *dev)
 {
-	int ret = (xc_mute ? 0 : -1);
+	int ret;
 
 	if (xencons_has_input())
 		xencons_handle_input(NULL);
 	
 	CN_LOCK(cn_mtx);
-	if ((rp - rc)) {
+	if ((rp - rc) && !xc_mute) {
 		/* we need to return only one char */
 		ret = (int)rbuf[RBUF_MASK(rc)];
 		rc++;
-	}
+	} else
+		ret = -1;
 	CN_UNLOCK(cn_mtx);
 	return(ret);
 }

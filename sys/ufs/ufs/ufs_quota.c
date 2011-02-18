@@ -238,9 +238,9 @@ chkdq(struct inode *ip, ufs2_daddr_t change, struct ucred *cred, int flags)
 		dq->dq_flags |= DQ_MOD;
 		DQI_UNLOCK(dq);
 		if (warn)
-			uprintf("\n%s: warning, %s %s\n",
-				ITOV(ip)->v_mount->mnt_stat.f_mntonname,
-				quotatypes[i], "disk quota exceeded");
+			uprintf("\n%s: warning, %s disk quota exceeded\n",
+			    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
+			    quotatypes[i]);
 	}
 	return (0);
 }
@@ -289,10 +289,10 @@ chkdqchg(struct inode *ip, ufs2_daddr_t change, struct ucred *cred,
 			    ip->i_uid == cred->cr_uid) {
 				dq->dq_flags |= DQ_BLKS;
 				DQI_UNLOCK(dq);
-				uprintf("\n%s: write failed, %s %s\n",
+				uprintf("\n%s: write failed, %s "
+				    "disk quota exceeded for too long\n",
 				    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
-				    quotatypes[type],
-				    "disk quota exceeded for too long");
+				    quotatypes[type]);
 				return (EDQUOT);
 			}
 			DQI_UNLOCK(dq);
@@ -384,9 +384,9 @@ chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 		dq->dq_flags |= DQ_MOD;
 		DQI_UNLOCK(dq);
 		if (warn)
-			uprintf("\n%s: warning, %s %s\n",
-				ITOV(ip)->v_mount->mnt_stat.f_mntonname,
-				quotatypes[i], "inode quota exceeded");
+			uprintf("\n%s: warning, %s inode quota exceeded\n",
+			    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
+			    quotatypes[i]);
 	}
 	return (0);
 }
@@ -434,10 +434,10 @@ chkiqchg(struct inode *ip, int change, struct ucred *cred, int type, int *warn)
 			    ip->i_uid == cred->cr_uid) {
 				dq->dq_flags |= DQ_INODS;
 				DQI_UNLOCK(dq);
-				uprintf("\n%s: write failed, %s %s\n",
-					ITOV(ip)->v_mount->mnt_stat.f_mntonname,
-					quotatypes[type],
-					"inode quota exceeded for too long");
+				uprintf("\n%s: write failed, %s "
+				    "inode quota exceeded for too long\n",
+				    ITOV(ip)->v_mount->mnt_stat.f_mntonname,
+				    quotatypes[type]);
 				return (EDQUOT);
 			}
 			DQI_UNLOCK(dq);

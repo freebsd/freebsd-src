@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
+#if defined(__amd64__) || defined(__i386__)
+#include <machine/clock.h>
+#endif
 #include <sys/rman.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -510,6 +513,14 @@ acpi_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
     case CPU_IVAR_PCPU:
 	*result = (uintptr_t)sc->cpu_pcpu;
 	break;
+#if defined(__amd64__) || defined(__i386__)
+    case CPU_IVAR_NOMINAL_MHZ:
+	if (tsc_is_invariant) {
+	    *result = (uintptr_t)(tsc_freq / 1000000);
+	    break;
+	}
+	/* FALLTHROUGH */
+#endif
     default:
 	return (ENOENT);
     }

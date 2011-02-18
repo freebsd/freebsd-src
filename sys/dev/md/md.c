@@ -103,6 +103,8 @@ static MALLOC_DEFINE(M_MDSECT, "md_sectors", "Memory Disk Sectors");
 
 static int md_debug;
 SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0, "");
+static int md_malloc_wait;
+SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0, "");
 
 #if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
 /*
@@ -208,11 +210,12 @@ new_indir(u_int shift)
 {
 	struct indir *ip;
 
-	ip = malloc(sizeof *ip, M_MD, M_NOWAIT | M_ZERO);
+	ip = malloc(sizeof *ip, M_MD, (md_malloc_wait ? M_WAITOK : M_NOWAIT)
+	    | M_ZERO);
 	if (ip == NULL)
 		return (NULL);
 	ip->array = malloc(sizeof(uintptr_t) * NINDIR,
-	    M_MDSECT, M_NOWAIT | M_ZERO);
+	    M_MDSECT, (md_malloc_wait ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (ip->array == NULL) {
 		free(ip, M_MD);
 		return (NULL);
@@ -456,6 +459,7 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 			} else {
 				if (osp <= 255) {
 					sp = (uintptr_t)uma_zalloc(sc->uma,
+					    md_malloc_wait ? M_WAITOK :
 					    M_NOWAIT);
 					if (sp == 0) {
 						error = ENOSPC;
@@ -645,7 +649,6 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			}
 			bcopy(p, (void *)(sf_buf_kva(sf) + offs), len);
 			m->valid = VM_PAGE_BITS_ALL;
-#if 0
 		} else if (bp->bio_cmd == BIO_DELETE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
@@ -655,16 +658,21 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				vm_page_wakeup(m);
 				break;
 			}
-			bzero((void *)(sf_buf_kva(sf) + offs), len);
-			vm_page_dirty(m);
-			m->valid = VM_PAGE_BITS_ALL;
-#endif
+			if (len != PAGE_SIZE) {
+				bzero((void *)(sf_buf_kva(sf) + offs), len);
+				vm_page_clear_dirty(m, offs, len);
+				m->valid = VM_PAGE_BITS_ALL;
+			} else
+				vm_pager_page_unswapped(m);
 		}
 		sf_buf_free(sf);
 		sched_unpin();
 		vm_page_wakeup(m);
 		vm_page_lock(m);
-		vm_page_activate(m);
+		if (bp->bio_cmd == BIO_DELETE && len == PAGE_SIZE)
+			vm_page_free(m);
+		else
+			vm_page_activate(m);
 		vm_page_unlock(m);
 		if (bp->bio_cmd == BIO_WRITE)
 			vm_page_dirty(m);
@@ -680,7 +688,6 @@ printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid
 #endif
 	}
 	vm_object_pip_subtract(sc->object, 1);
-	vm_object_set_writeable_dirty(sc->object);
 	VM_OBJECT_UNLOCK(sc->object);
 	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
 }
@@ -713,11 +720,12 @@ md_kthread(void *arg)
 		}
 		mtx_unlock(&sc->queue_mtx);
 		if (bp->bio_cmd == BIO_GETATTR) {
-			if (sc->fwsectors && sc->fwheads &&
+			if ((sc->fwsectors && sc->fwheads &&
 			    (g_handleattr_int(bp, "GEOM::fwsectors",
 			    sc->fwsectors) ||
 			    g_handleattr_int(bp, "GEOM::fwheads",
-			    sc->fwheads)))
+			    sc->fwheads))) ||
+			    g_handleattr_int(bp, "GEOM::candelete", 1))
 				error = -1;
 			else
 				error = EOPNOTSUPP;
@@ -727,9 +735,9 @@ md_kthread(void *arg)
 
 		if (error != -1) {
 			bp->bio_completed = bp->bio_length;
-			g_io_deliver(bp, error);
 			if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE))
 				devstat_end_transaction_bio(sc->devstat, bp);
+			g_io_deliver(bp, error);
 		}
 	}
 }
@@ -850,7 +858,8 @@ mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 
 		nsectors = sc->mediasize / sc->sectorsize;
 		for (u = 0; u < nsectors; u++) {
-			sp = (uintptr_t)uma_zalloc(sc->uma, M_NOWAIT | M_ZERO);
+			sp = (uintptr_t)uma_zalloc(sc->uma, (md_malloc_wait ?
+			    M_WAITOK : M_NOWAIT) | M_ZERO);
 			if (sp != 0)
 				error = s_write(sc->indir, u, sp);
 			else
@@ -1226,7 +1235,6 @@ static void
 g_md_init(struct g_class *mp __unused)
 {
 	caddr_t mod;
-	caddr_t c;
 	u_char *ptr, *name, *type;
 	unsigned len;
 	int i;
@@ -1254,15 +1262,15 @@ g_md_init(struct g_class *mp __unused)
 			continue;
 		if (strcmp(type, "md_image") && strcmp(type, "mfs_root"))
 			continue;
-		c = preload_search_info(mod, MODINFO_ADDR);
-		ptr = *(u_char **)c;
-		c = preload_search_info(mod, MODINFO_SIZE);
-		len = *(size_t *)c;
-		printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
-		    MD_NAME, mdunits, name, len, ptr);
-		sx_xlock(&md_sx);
-		md_preloaded(ptr, len);
-		sx_xunlock(&md_sx);
+		ptr = preload_fetch_addr(mod);
+		len = preload_fetch_size(mod);
+		if (ptr != NULL && len != 0) {
+			printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
+			    MD_NAME, mdunits, name, len, ptr);
+			sx_xlock(&md_sx);
+			md_preloaded(ptr, len);
+			sx_xunlock(&md_sx);
+		}
 	}
 	status_dev = make_dev(&mdctl_cdevsw, INT_MAX, UID_ROOT, GID_WHEEL,
 	    0600, MDCTL_NAME);

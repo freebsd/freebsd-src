@@ -928,7 +928,7 @@ do {									\
 
 #ifdef COMPAT_FREEBSD32
 	env_vector32 = NULL;
-	if ((p->p_sysent->sv_flags & SV_ILP32) != 0) {
+	if (SV_PROC_FLAG(p, SV_ILP32) != 0) {
 		env_vector32 = malloc(sizeof(*env_vector32) * MAX_ARGV_STR,
 		    M_TEMP, M_WAITOK);
 		elm_len = sizeof(int32_t);
@@ -1215,20 +1215,43 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	char ifname[16]; /* XXX LINUX_IFNAMSIZ */
 	struct ifnet *ifp;
 
-	sbuf_printf(sb, "%6s|%58s|%s\n%6s|%58s|%58s\n",
-	    "Inter-", "   Receive", "  Transmit", " face",
-	    "bytes    packets errs drop fifo frame compressed",
-	    "bytes    packets errs drop fifo frame compressed");
+	sbuf_printf(sb, "%6s|%58s|%s\n"
+	    "%6s|%58s|%58s\n",
+	    "Inter-", "   Receive", "  Transmit",
+	    " face",
+	    "bytes    packets errs drop fifo frame compressed multicast",
+	    "bytes    packets errs drop fifo colls carrier compressed");
 
 	CURVNET_SET(TD_TO_VNET(curthread));
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		linux_ifname(ifp, ifname, sizeof ifname);
-			sbuf_printf(sb, "%6.6s:", ifname);
-		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu ",
-		    0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL);
+		sbuf_printf(sb, "%6.6s: ", ifname);
+		sbuf_printf(sb, "%7lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu ",
+		    ifp->if_ibytes,	/* rx_bytes */
+		    ifp->if_ipackets,	/* rx_packets */
+		    ifp->if_ierrors,	/* rx_errors */
+		    ifp->if_iqdrops,	/* rx_dropped +
+					 * rx_missed_errors */
+		    0UL,		/* rx_fifo_errors */
+		    0UL,		/* rx_length_errors +
+					 * rx_over_errors +
+		    			 * rx_crc_errors +
+					 * rx_frame_errors */
+		    0UL,		/* rx_compressed */
+		    ifp->if_imcasts);	/* multicast, XXX-BZ rx only? */
 		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
-		    0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL);
+		    ifp->if_obytes,	/* tx_bytes */
+		    ifp->if_opackets,	/* tx_packets */
+		    ifp->if_oerrors,	/* tx_errors */
+		    0UL,		/* tx_dropped */
+		    0UL,		/* tx_fifo_errors */
+		    ifp->if_collisions,	/* collisions */
+		    0UL,		/* tx_carrier_errors +
+					 * tx_aborted_errors +
+					 * tx_window_errors +
+					 * tx_heartbeat_errors */
+		    0UL);		/* tx_compressed */
 	}
 	IFNET_RUNLOCK();
 	CURVNET_RESTORE();

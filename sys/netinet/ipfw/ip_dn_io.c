@@ -144,9 +144,9 @@ SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_lost,
     "Number of ticks coalesced by dummynet taskqueue.");
 
 /* Drain parameters */
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
+SYSCTL_UINT(_net_inet_ip_dummynet, OID_AUTO, expire,
     CTLFLAG_RW, DC(expire), 0, "Expire empty queues/pipes");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire_cycle,
+SYSCTL_UINT(_net_inet_ip_dummynet, OID_AUTO, expire_cycle,
     CTLFLAG_RD, DC(expire_cycle), 0, "Expire cycle for queues/pipes");
 
 /* statistics */
@@ -471,7 +471,7 @@ serve_sched(struct mq *q, struct dn_sch_inst *si, uint64_t now)
 			(m->m_pkthdr.len * 8 + extra_bits(m, s));
 		si->credit -= len_scaled;
 		/* Move packet in the delay line */
-		dn_tag_get(m)->output_time += s->link.delay ;
+		dn_tag_get(m)->output_time = dn_cfg.curr_time + s->link.delay ;
 		mq_append(&si->dline.mq, m);
 	}
 

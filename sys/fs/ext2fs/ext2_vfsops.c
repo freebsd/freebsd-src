@@ -59,8 +59,9 @@
 #include <fs/ext2fs/inode.h>
 
 #include <fs/ext2fs/fs.h>
-#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_dinode.h>
+#include <fs/ext2fs/ext2_extern.h>
 
 static int	ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
 static int	ext2_mountfs(struct vnode *, struct mount *);
@@ -95,9 +96,9 @@ static int	ext2_check_sb_compat(struct ext2fs *es, struct cdev *dev,
 static int	compute_sb_data(struct vnode * devvp,
 		    struct ext2fs * es, struct m_ext2fs * fs);
 
-static const char *ext2_opts[] = { "from", "export", "acls", "noexec",
-    "noatime", "union", "suiddir", "multilabel", "nosymfollow",
-    "noclusterr", "noclusterw", "force", NULL };
+static const char *ext2_opts[] = { "acls", "async", "noatime", "noclusterr", 
+    "noclusterw", "noexec", "export", "force", "from", "multilabel",
+    "suiddir", "nosymfollow", "sync", "union", NULL };
 
 /*
  * VFS Operations.
@@ -329,7 +330,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_fpg = es->e2fs_fpg;
 	fs->e2fs_ipg = es->e2fs_ipg;
 	if (es->e2fs_rev == E2FS_REV0) {
-		fs->e2fs_first_inode = E2FS_REV0_FIRST_INO;
+		fs->e2fs_first_inode = EXT2_FIRSTINO;
 		fs->e2fs_isize = E2FS_REV0_INODE_SIZE ;
 	} else {
 		fs->e2fs_first_inode = es->e2fs_first_ino;
@@ -945,9 +946,8 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	}
 
 	/*
-	 * Finish inode initialization now that aliasing has been resolved.
+	 * Finish inode initialization.
 	 */
-	ip->i_devvp = ump->um_devvp;
 
 	/*
 	 * Set up a generation number for this inode if it does not

@@ -111,6 +111,8 @@ typedef enum {
 	HAL_CAP_MAC_HANG	= 36,	/* can MAC hang */
 	HAL_CAP_INTRMASK	= 37,	/* bitmask of supported interrupts */
 	HAL_CAP_BSSIDMATCH	= 38,	/* hardware has disable bssid match */
+	HAL_CAP_STREAMS		= 39,	/* how many 802.11n spatial streams are available */
+	HAP_CAP_SPLIT_4KB_TRANS	= 40,	/* hardware supports descriptors straddling a 4k page boundary */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -619,6 +621,8 @@ struct ath_hal {
 	uint16_t	ah_analog5GhzRev;/* 5GHz radio revision */
 	uint16_t	ah_analog2GhzRev;/* 2GHz radio revision */
 
+	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
+
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
 				u_int mode);
 	void	  __ahdecl(*ah_detach)(struct ath_hal*);
@@ -680,6 +684,8 @@ struct ath_hal {
 				struct ath_desc *, struct ath_tx_status *);
 	void	   __ahdecl(*ah_getTxIntrQueue)(struct ath_hal *, uint32_t *);
 	void	   __ahdecl(*ah_reqTxIntrDesc)(struct ath_hal *, struct ath_desc*);
+	HAL_BOOL	__ahdecl(*ah_getTxCompletionRates)(struct ath_hal *,
+				const struct ath_desc *ds, int *rates, int *tries);
 
 	/* Receive Functions */
 	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*);
@@ -704,6 +710,8 @@ struct ath_hal {
 				struct ath_rx_status *);
 	void	  __ahdecl(*ah_rxMonitor)(struct ath_hal *,
 				const HAL_NODE_STATS *,
+				const struct ieee80211_channel *);
+	void      __ahdecl(*ah_aniPoll)(struct ath_hal *,
 				const struct ieee80211_channel *);
 	void	  __ahdecl(*ah_procMibEvent)(struct ath_hal *,
 				const HAL_NODE_STATS *);
@@ -787,6 +795,32 @@ struct ath_hal {
 				const HAL_BEACON_STATE *);
 	void	  __ahdecl(*ah_resetStationBeaconTimers)(struct ath_hal*);
 
+	/* 802.11n Functions */
+	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
+				struct ath_desc *, u_int, u_int, HAL_PKT_TYPE,
+				u_int, HAL_CIPHER, uint8_t, u_int, HAL_BOOL,
+				HAL_BOOL);
+	HAL_BOOL  __ahdecl(*ah_setupFirstTxDesc)(struct ath_hal *,
+				struct ath_desc *, u_int, u_int, u_int,
+				u_int, u_int, u_int, u_int, u_int);
+	HAL_BOOL  __ahdecl(*ah_setupLastTxDesc)(struct ath_hal *,
+				struct ath_desc *, const struct ath_desc *);
+	void	  __ahdecl(*ah_set11nRateScenario)(struct ath_hal *,
+	    			struct ath_desc *, u_int, u_int,
+				HAL_11N_RATE_SERIES [], u_int, u_int);
+	void	  __ahdecl(*ah_set11nAggrMiddle)(struct ath_hal *,
+	    			struct ath_desc *, u_int);
+	void	  __ahdecl(*ah_clr11nAggr)(struct ath_hal *,
+	    			struct ath_desc *);
+	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
+	    			struct ath_desc *, u_int);
+	uint32_t  __ahdecl(*ah_get11nExtBusy)(struct ath_hal *);
+	void      __ahdecl(*ah_set11nMac2040)(struct ath_hal *,
+				HAL_HT_MACMODE);
+	HAL_HT_RXCLEAR __ahdecl(*ah_get11nRxClear)(struct ath_hal *ah);
+	void	  __ahdecl(*ah_set11nRxClear)(struct ath_hal *,
+	    			HAL_HT_RXCLEAR);
+
 	/* Interrupt functions */
 	HAL_BOOL  __ahdecl(*ah_isInterruptPending)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_getPendingInterrupts)(struct ath_hal*, HAL_INT*);
@@ -815,7 +849,7 @@ extern	const char *__ahdecl ath_hal_probe(uint16_t vendorid, uint16_t devid);
  * be returned if the status parameter is non-zero.
  */
 extern	struct ath_hal * __ahdecl ath_hal_attach(uint16_t devid, HAL_SOFTC,
-		HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS* status);
+		HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata, HAL_STATUS* status);
 
 extern	const char *ath_hal_mac_name(struct ath_hal *);
 extern	const char *ath_hal_rf_name(struct ath_hal *);
@@ -876,7 +910,20 @@ extern	void __ahdecl ath_hal_process_noisefloor(struct ath_hal *ah);
 extern	u_int __ahdecl ath_hal_getwirelessmodes(struct ath_hal*);
 
 /*
- * Calculate the transmit duration of a frame.
+ * Calculate the packet TX time for a legacy or 11n frame
+ */
+extern uint32_t __ahdecl ath_hal_pkt_txtime(struct ath_hal *ah,
+    const HAL_RATE_TABLE *rates, uint32_t frameLen,
+    uint16_t rateix, HAL_BOOL isht40, HAL_BOOL shortPreamble);
+
+/*
+ * Calculate the duration of an 11n frame.
+ */
+extern uint32_t __ahdecl ath_computedur_ht(uint32_t frameLen, uint16_t rate,
+    int streams, HAL_BOOL isht40, HAL_BOOL isShortGI);
+
+/*
+ * Calculate the transmit duration of a legacy frame.
  */
 extern uint16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
 		const HAL_RATE_TABLE *rates, uint32_t frameLen,

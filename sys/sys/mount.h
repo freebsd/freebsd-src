@@ -644,7 +644,11 @@ vfs_statfs_t	__vfs_statfs;
 		_locked = 0;						\
 	_locked;							\
 })
-#define	VFS_UNLOCK_GIANT(locked)	if ((locked)) mtx_unlock(&Giant);
+#define	VFS_UNLOCK_GIANT(locked) do					\
+{									\
+	if ((locked))							\
+		mtx_unlock(&Giant);					\
+} while (0)
 #define	VFS_ASSERT_GIANT(MP) do						\
 {									\
 	struct mount *_mp;						\

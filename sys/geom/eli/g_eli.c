@@ -981,8 +981,9 @@ g_eli_destroy_geom(struct gctl_req *req __unused,
 static int
 g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 {
-	u_char *keyfile, *data, *size;
+	u_char *keyfile, *data;
 	char *file, name[64];
+	size_t size;
 	int i;
 
 	for (i = 0; ; i++) {
@@ -990,15 +991,14 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 		keyfile = preload_search_by_type(name);
 		if (keyfile == NULL)
 			return (i);	/* Return number of loaded keyfiles. */
-		data = preload_search_info(keyfile, MODINFO_ADDR);
+		data = preload_fetch_addr(keyfile);
 		if (data == NULL) {
 			G_ELI_DEBUG(0, "Cannot find key file data for %s.",
 			    name);
 			return (0);
 		}
-		data = *(void **)data;
-		size = preload_search_info(keyfile, MODINFO_SIZE);
-		if (size == NULL) {
+		size = preload_fetch_size(keyfile);
+		if (size == 0) {
 			G_ELI_DEBUG(0, "Cannot find key file size for %s.",
 			    name);
 			return (0);
@@ -1011,15 +1011,16 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 		}
 		G_ELI_DEBUG(1, "Loaded keyfile %s for %s (type: %s).", file,
 		    provider, name);
-		g_eli_crypto_hmac_update(ctx, data, *(size_t *)size);
+		g_eli_crypto_hmac_update(ctx, data, size);
 	}
 }
 
 static void
 g_eli_keyfiles_clear(const char *provider)
 {
-	u_char *keyfile, *data, *size;
+	u_char *keyfile, *data;
 	char name[64];
+	size_t size;
 	int i;
 
 	for (i = 0; ; i++) {
@@ -1027,12 +1028,10 @@ g_eli_keyfiles_clear(const char *provider)
 		keyfile = preload_search_by_type(name);
 		if (keyfile == NULL)
 			return;
-		data = preload_search_info(keyfile, MODINFO_ADDR);
-		size = preload_search_info(keyfile, MODINFO_SIZE);
-		if (data == NULL || size == NULL)
-			continue;
-		data = *(void **)data;
-		bzero(data, *(size_t *)size);
+		data = preload_fetch_addr(keyfile);
+		size = preload_fetch_size(keyfile);
+		if (data != NULL && size != 0)
+			bzero(data, size);
 	}
 }
 

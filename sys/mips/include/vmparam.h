@@ -69,17 +69,6 @@
 #define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */
 #endif
 
-/* 
- * The time for a process to be blocked before being very swappable.
- * This is a number of seconds which the system takes as being a non-trivial
- * amount of real time.	 You probably shouldn't change this;
- * it is used in subtle ways (fractions and multiples of it are, that is, like
- * half of a ``long time'', almost a long time, etc.)
- * It is related to human patience and other factors which don't really
- * change over time.
- */
-#define	MAXSLP		20
-
 /*
  * Mach derived constants
  */
@@ -148,6 +137,8 @@
 #ifndef VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
+
+#define	UMA_MD_SMALL_ALLOC
 
 /*
  * max number of non-contig chunks of physical RAM you can have

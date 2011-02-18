@@ -1511,11 +1511,11 @@ vif_attach(device_t dev)
 	    "handle of frontend");
 #ifdef XEN_NETBACK_DEBUG
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "txring", CTLFLAG_RD,
+	    OID_AUTO, "txring", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, VIF_SYSCTL_TXRING, vif_sysctl_handler, "A",
 	    "tx ring info");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev), SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "rxring", CTLFLAG_RD,
+	    OID_AUTO, "rxring", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, VIF_SYSCTL_RXRING, vif_sysctl_handler, "A",
 	    "rx ring info");
 #endif

@@ -148,7 +148,7 @@ avila_gpio_pin_configure(struct avila_gpio_softc *sc, struct gpio_pin *pin,
 	 * Manage input/output
 	 */
 	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
-		IXP4XX_GPIO_LOCK(sc);
+		IXP4XX_GPIO_LOCK();
 		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
 			pin->gp_flags |= GPIO_PIN_OUTPUT;
@@ -158,7 +158,7 @@ avila_gpio_pin_configure(struct avila_gpio_softc *sc, struct gpio_pin *pin,
 			pin->gp_flags |= GPIO_PIN_INPUT;
 			GPIO_SET_BITS(sc, IXP425_GPIO_GPOER, mask);
 		}
-		IXP4XX_GPIO_UNLOCK(sc);
+		IXP4XX_GPIO_UNLOCK();
 	}
 }
 
@@ -190,11 +190,11 @@ avila_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & (1 << pin)))
 		return (EINVAL);
 
-	IXP4XX_GPIO_LOCK(sc);
+	IXP4XX_GPIO_LOCK();
 	/* refresh since we do not own all the pins */
 	sc->sc_pins[pin].gp_flags = avila_gpio_pin_flags(sc, pin);
 	*flags = sc->sc_pins[pin].gp_flags;
-	IXP4XX_GPIO_UNLOCK(sc);
+	IXP4XX_GPIO_UNLOCK();
 
 	return (0);
 }
@@ -242,12 +242,12 @@ avila_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & mask))
 		return (EINVAL);
 
-	IXP4XX_GPIO_LOCK(sc);
+	IXP4XX_GPIO_LOCK();
 	if (value)
 		GPIO_SET_BITS(sc, IXP425_GPIO_GPOUTR, mask);
 	else
 		GPIO_CLEAR_BITS(sc, IXP425_GPIO_GPOUTR, mask);
-	IXP4XX_GPIO_UNLOCK(sc);
+	IXP4XX_GPIO_UNLOCK();
 
 	return (0);
 }
@@ -260,9 +260,9 @@ avila_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & (1 << pin)))
 		return (EINVAL);
 
-	IXP4XX_GPIO_LOCK(sc);
+	IXP4XX_GPIO_LOCK();
 	*val = (GPIO_CONF_READ_4(sc, IXP425_GPIO_GPINR) & (1 << pin)) ? 1 : 0;
-	IXP4XX_GPIO_UNLOCK(sc);
+	IXP4XX_GPIO_UNLOCK();
 
 	return (0);
 }
@@ -277,13 +277,13 @@ avila_gpio_pin_toggle(device_t dev, uint32_t pin)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & mask))
 		return (EINVAL);
 
-	IXP4XX_GPIO_LOCK(sc);
+	IXP4XX_GPIO_LOCK();
 	res = GPIO_CONF_READ_4(sc, IXP425_GPIO_GPINR) & mask;
 	if (res)
 		GPIO_CLEAR_BITS(sc, IXP425_GPIO_GPOUTR, mask);
 	else
 		GPIO_SET_BITS(sc, IXP425_GPIO_GPOUTR, mask);
-	IXP4XX_GPIO_UNLOCK(sc);
+	IXP4XX_GPIO_UNLOCK();
 
 	return (0);
 }

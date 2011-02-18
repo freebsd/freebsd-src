@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 900026	/* Master, propagated to newvers */
+#define __FreeBSD_version 900032	/* Master, propagated to newvers */
 
 #ifdef _KERNEL
 #define	P_OSREL_SIGSEGV		700004

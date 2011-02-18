@@ -671,6 +671,41 @@ vm_map_wakeup(vm_map_t map)
 	wakeup(&map->root);
 }
 
+void
+vm_map_busy(vm_map_t map)
+{
+
+	VM_MAP_ASSERT_LOCKED(map);
+	map->busy++;
+}
+
+void
+vm_map_unbusy(vm_map_t map)
+{
+
+	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT(map->busy, ("vm_map_unbusy: not busy"));
+	if (--map->busy == 0 && (map->flags & MAP_BUSY_WAKEUP)) {
+		vm_map_modflags(map, 0, MAP_BUSY_WAKEUP);
+		wakeup(&map->busy);
+	}
+}
+
+void 
+vm_map_wait_busy(vm_map_t map)
+{
+
+	VM_MAP_ASSERT_LOCKED(map);
+	while (map->busy) {
+		vm_map_modflags(map, MAP_BUSY_WAKEUP, 0);
+		if (map->system_map)
+			msleep(&map->busy, &map->system_mtx, 0, "mbusy", 0);
+		else
+			sx_sleep(&map->busy, &map->lock, 0, "mbusy", 0);
+	}
+	map->timestamp++;
+}
+
 long
 vmspace_resident_count(struct vmspace *vmspace)
 {
@@ -718,6 +753,7 @@ _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 	map->flags = 0;
 	map->root = NULL;
 	map->timestamp = 0;
+	map->busy = 0;
 }
 
 void
@@ -1257,17 +1293,13 @@ charged:
 	vm_map_entry_link(map, prev_entry, new_entry);
 	map->size += new_entry->end - new_entry->start;
 
-#if 0
 	/*
-	 * Temporarily removed to avoid MAP_STACK panic, due to
-	 * MAP_STACK being a huge hack.  Will be added back in
-	 * when MAP_STACK (and the user stack mapping) is fixed.
+	 * It may be possible to merge the new entry with the next and/or
+	 * previous entries.  However, due to MAP_STACK_* being a hack, a
+	 * panic can result from merging such entries.
 	 */
-	/*
-	 * It may be possible to simplify the entry
-	 */
-	vm_map_simplify_entry(map, new_entry);
-#endif
+	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0)
+		vm_map_simplify_entry(map, new_entry);
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
 		vm_map_pmap_enter(map, start, prot,
@@ -2382,12 +2414,14 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			    entry->object.vm_object->type == OBJT_SG);
 			/*
 			 * Release the map lock, relying on the in-transition
-			 * mark.
+			 * mark.  Mark the map busy for fork.
 			 */
+			vm_map_busy(map);
 			vm_map_unlock(map);
 			rv = vm_fault_wire(map, saved_start, saved_end,
 			    fictitious);
 			vm_map_lock(map);
+			vm_map_unbusy(map);
 			if (last_timestamp + 1 != map->timestamp) {
 				/*
 				 * Look again for the entry because the map was
@@ -2995,6 +3029,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 	int locked;
 
 	vm_map_lock(old_map);
+	if (old_map->busy)
+		vm_map_wait_busy(old_map);
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	if (vm2 == NULL)
 		goto unlock_and_return;
@@ -3041,8 +3077,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			vm_object_reference(object);
 			if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 				vm_object_shadow(&old_entry->object.vm_object,
-					&old_entry->offset,
-					atop(old_entry->end - old_entry->start));
+				    &old_entry->offset,
+				    old_entry->end - old_entry->start);
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 				/* Transfer the second reference too. */
 				vm_object_reference(
@@ -3553,8 +3589,8 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t prot;
 	vm_prot_t fault_type = fault_typea;
 	vm_object_t eobject;
+	vm_size_t size;
 	struct ucred *cred;
-	vm_ooffset_t size;
 
 RetryLookup:;
 
@@ -3641,10 +3677,8 @@ RetryLookup:;
 				}
 				entry->cred = cred;
 			}
-			vm_object_shadow(
-			    &entry->object.vm_object,
-			    &entry->offset,
-			    atop(size));
+			vm_object_shadow(&entry->object.vm_object,
+			    &entry->offset, size);
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 			eobject = entry->object.vm_object;
 			if (eobject->cred != NULL) {

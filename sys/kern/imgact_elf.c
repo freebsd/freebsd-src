@@ -92,6 +92,8 @@ static boolean_t __elfN(freebsd_trans_osrel)(const Elf_Note *note,
 static boolean_t kfreebsd_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static boolean_t __elfN(check_note)(struct image_params *imgp,
     Elf_Brandnote *checknote, int32_t *osrel);
+static vm_prot_t __elfN(trans_prot)(Elf_Word);
+static Elf_Word __elfN(untrans_prot)(vm_prot_t);
 
 SYSCTL_NODE(_kern, OID_AUTO, __CONCAT(elf, __ELF_WORD_SIZE), CTLFLAG_RW, 0,
     "");
@@ -112,6 +114,11 @@ TUNABLE_INT("kern.elf" __XSTRING(__ELF_WORD_SIZE) ".fallback_brand",
 static int elf_legacy_coredump = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
     &elf_legacy_coredump, 0, "");
+
+static int __elfN(nxstack) = 0;
+SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
+    nxstack, CTLFLAG_RW, &__elfN(nxstack), 0,
+    __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": enable non-executable stack");
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
@@ -644,14 +651,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	for (i = 0, numsegs = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type == PT_LOAD && phdr[i].p_memsz != 0) {
 			/* Loadable segment */
-			prot = 0;
-			if (phdr[i].p_flags & PF_X)
-  				prot |= VM_PROT_EXECUTE;
-			if (phdr[i].p_flags & PF_W)
-  				prot |= VM_PROT_WRITE;
-			if (phdr[i].p_flags & PF_R)
-  				prot |= VM_PROT_READ;
-
+			prot = __elfN(trans_prot)(phdr[i].p_flags);
 			if ((error = __elfN(load_section)(vmspace,
 			    imgp->object, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,
@@ -729,19 +729,24 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	n = 0;
 	baddr = 0;
 	for (i = 0; i < hdr->e_phnum; i++) {
-		if (phdr[i].p_type == PT_LOAD) {
+		switch (phdr[i].p_type) {
+		case PT_LOAD:
 			if (n == 0)
 				baddr = phdr[i].p_vaddr;
 			n++;
-			continue;
-		}
-		if (phdr[i].p_type == PT_INTERP) {
+			break;
+		case PT_INTERP:
 			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
 			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE)
 				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
-			continue;
+			break;
+		case PT_GNU_STACK:
+			if (__elfN(nxstack))
+				imgp->stack_prot =
+				    __elfN(trans_prot)(phdr[i].p_flags);
+			break;
 		}
 	}
 
@@ -792,13 +797,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		case PT_LOAD:	/* Loadable segment */
 			if (phdr[i].p_memsz == 0)
 				break;
-			prot = 0;
-			if (phdr[i].p_flags & PF_X)
-  				prot |= VM_PROT_EXECUTE;
-			if (phdr[i].p_flags & PF_W)
-  				prot |= VM_PROT_WRITE;
-			if (phdr[i].p_flags & PF_R)
-  				prot |= VM_PROT_READ;
+			prot = __elfN(trans_prot)(phdr[i].p_flags);
 
 #if defined(__ia64__) && __ELF_WORD_SIZE == 32 && defined(IA32_ME_HARDER)
 			/*
@@ -983,6 +982,9 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 		AUXARGS_ENTRY(pos, AT_PAGESIZES, imgp->pagesizes);
 		AUXARGS_ENTRY(pos, AT_PAGESIZESLEN, imgp->pagesizeslen);
 	}
+	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->sysent->sv_shared_page_obj
+	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
+	    imgp->sysent->sv_stackprot);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);
@@ -1172,13 +1174,7 @@ cb_put_phdr(entry, closure)
 	phdr->p_paddr = 0;
 	phdr->p_filesz = phdr->p_memsz = entry->end - entry->start;
 	phdr->p_align = PAGE_SIZE;
-	phdr->p_flags = 0;
-	if (entry->protection & VM_PROT_READ)
-		phdr->p_flags |= PF_R;
-	if (entry->protection & VM_PROT_WRITE)
-		phdr->p_flags |= PF_W;
-	if (entry->protection & VM_PROT_EXECUTE)
-		phdr->p_flags |= PF_X;
+	phdr->p_flags = __elfN(untrans_prot)(entry->protection);
 
 	phc->offset += phdr->p_filesz;
 	phc->phdr++;
@@ -1626,10 +1622,39 @@ compress_core (gzFile file, char *inbuf, char *dest_buf, unsigned int len,
 		}
 		inbuf += chunk_len;
 		len -= chunk_len;
-		if (ticks - PCPU_GET(switchticks) >= hogticks)
-			uio_yield();
+		maybe_yield();
 	}
 
 	return (error);
 }
 #endif /* COMPRESS_USER_CORES */
+
+static vm_prot_t
+__elfN(trans_prot)(Elf_Word flags)
+{
+	vm_prot_t prot;
+
+	prot = 0;
+	if (flags & PF_X)
+		prot |= VM_PROT_EXECUTE;
+	if (flags & PF_W)
+		prot |= VM_PROT_WRITE;
+	if (flags & PF_R)
+		prot |= VM_PROT_READ;
+	return (prot);
+}
+
+static Elf_Word
+__elfN(untrans_prot)(vm_prot_t prot)
+{
+	Elf_Word flags;
+
+	flags = 0;
+	if (prot & VM_PROT_EXECUTE)
+		flags |= PF_X;
+	if (prot & VM_PROT_READ)
+		flags |= PF_R;
+	if (prot & VM_PROT_WRITE)
+		flags |= PF_W;
+	return (flags);
+}

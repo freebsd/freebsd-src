@@ -71,6 +71,7 @@ enum g_rr_state {
 
 /* possible queue flags */
 enum g_rr_flags {
+	/* G_FLAG_COMPLETED means that the field q_slice_end is valid. */
 	G_FLAG_COMPLETED = 1,	/* Completed a req. in the current budget. */
 };
 
@@ -87,7 +88,7 @@ struct g_rr_queue {
 
 	enum g_rr_state	q_status;
 	unsigned int	q_service;	/* service received so far */
-	int		q_slice_end;	/* actual slice end in ticks */
+	int		q_slice_end;	/* actual slice end time, in ticks */
 	enum g_rr_flags	q_flags;	/* queue flags */
 	struct bio_queue_head q_bioq;
 
@@ -198,25 +199,25 @@ struct g_rr_params *gs_rr_me = &me;
 SYSCTL_DECL(_kern_geom_sched);
 SYSCTL_NODE(_kern_geom_sched, OID_AUTO, rr, CTLFLAG_RW, 0,
     "GEOM_SCHED ROUND ROBIN stuff");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, units, CTLFLAG_RD,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, units, CTLFLAG_RD,
     &me.units, 0, "Scheduler instances");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, queues, CTLFLAG_RD,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, queues, CTLFLAG_RD,
     &me.queues, 0, "Total rr queues");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, wait_ms, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, wait_ms, CTLFLAG_RW,
     &me.wait_ms.x_cur, 0, "Wait time milliseconds");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, quantum_ms, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, quantum_ms, CTLFLAG_RW,
     &me.quantum_ms.x_cur, 0, "Quantum size milliseconds");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, bypass, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, bypass, CTLFLAG_RW,
     &me.bypass, 0, "Bypass scheduler");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, w_anticipate, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, w_anticipate, CTLFLAG_RW,
     &me.w_anticipate, 0, "Do anticipation on writes");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, quantum_kb, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, quantum_kb, CTLFLAG_RW,
     &me.quantum_kb.x_cur, 0, "Quantum size Kbytes");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, queue_depth, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, queue_depth, CTLFLAG_RW,
     &me.queue_depth.x_cur, 0, "Maximum simultaneous requests");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, wait_hit, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, wait_hit, CTLFLAG_RW,
     &me.wait_hit, 0, "Hits in anticipation");
-SYSCTL_UINT(_kern_geom_sched_rr, OID_AUTO, wait_miss, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, wait_miss, CTLFLAG_RW,
     &me.wait_miss, 0, "Misses in anticipation");
 
 #ifdef DEBUG_QUEUES
@@ -638,14 +639,25 @@ g_rr_done(void *data, struct bio *bp)
 	sc->sc_in_flight--;
 
 	qp = bp->bio_caller1;
-	if (qp == sc->sc_active && qp->q_status == G_QUEUE_BUSY) {
-		if (!(qp->q_flags & G_FLAG_COMPLETED)) {
-			qp->q_flags |= G_FLAG_COMPLETED;
-			/* in case we want to make the slice adaptive */
-			qp->q_slice_duration = get_bounded(&me.quantum_ms, 2);
-			qp->q_slice_end = ticks + qp->q_slice_duration;
-		}
 
+	/*
+	 * When the first request for this queue completes, update the
+	 * duration and end of the slice. We do not do it when the
+	 * slice starts to avoid charging to the queue the time for
+	 * the first seek.
+	 */
+	if (!(qp->q_flags & G_FLAG_COMPLETED)) {
+		qp->q_flags |= G_FLAG_COMPLETED;
+		/*
+		 * recompute the slice duration, in case we want
+		 * to make it adaptive. This is not used right now.
+		 * XXX should we do the same for q_quantum and q_wait_ticks ?
+		 */
+		qp->q_slice_duration = get_bounded(&me.quantum_ms, 2);
+		qp->q_slice_end = ticks + qp->q_slice_duration;
+	}
+
+	if (qp == sc->sc_active && qp->q_status == G_QUEUE_BUSY) {
 		/* The queue is trying anticipation, start the timer. */
 		qp->q_status = G_QUEUE_IDLING;
 		/* may make this adaptive */

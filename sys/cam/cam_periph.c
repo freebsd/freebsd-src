@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -658,10 +657,19 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		numbufs = 2;
 		break;
 	case XPT_GDEV_ADVINFO:
+		if (ccb->cgdai.bufsiz == 0)
+			return (0);
+
 		data_ptrs[0] = (uint8_t **)&ccb->cgdai.buf;
 		lengths[0] = ccb->cgdai.bufsiz;
 		dirs[0] = CAM_DIR_IN;
 		numbufs = 1;
+
+		/*
+		 * This request will not go to the hardware, no reason
+		 * to be so strict. vmapbuf() is able to map up to MAXPHYS.
+		 */
+		maxmap = MAXPHYS;
 		break;
 	default:
 		return(EINVAL);

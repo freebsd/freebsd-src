@@ -177,11 +177,10 @@ via_free_sg_info(drm_via_sg_info_t *vsg)
 		free(vsg->desc_pages, DRM_MEM_DRIVER);
 	case dr_via_pages_locked:
 		for (i=0; i < vsg->num_pages; ++i) {
-			if ( NULL != (page = vsg->pages[i])) {
-				vm_page_lock(page);
-				vm_page_unwire(page, 0);
-				vm_page_unlock(page);
-			}
+			page = vsg->pages[i];
+			vm_page_lock(page);
+			vm_page_unwire(page, 0);
+			vm_page_unlock(page);
 		}
 	case dr_via_pages_alloc:
 		free(vsg->pages, DRM_MEM_DRIVER);
@@ -224,40 +223,30 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 {
 	unsigned long first_pfn = VIA_PFN(xfer->mem_addr);
 	vm_page_t m;
-	vm_map_t map;
 	int i;
-
-	map = &curproc->p_vmspace->vm_map;
 
 	vsg->num_pages = VIA_PFN(xfer->mem_addr +
 	    (xfer->num_lines * xfer->mem_stride -1)) - first_pfn + 1;
 
-	/* Make sure that the user has access to these pages */
-	for(i = 0; i < vsg->num_pages; i++) {
-		if (vm_fault_quick((caddr_t)xfer->mem_addr + IDX_TO_OFF(i),
-		    VM_PROT_RW) < 0)
-			return (-EACCES);
-	}
-
 	if (NULL == (vsg->pages = malloc(sizeof(vm_page_t) * vsg->num_pages,
-	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO)))
+	    DRM_MEM_DRIVER, M_NOWAIT)))
 		return -ENOMEM;
 
-	for(i = 0; i < vsg->num_pages; i++) {
-		m = pmap_extract_and_hold(map->pmap,
-		    (vm_offset_t)xfer->mem_addr + IDX_TO_OFF(i), VM_PROT_RW);
-		if (m == NULL)
-			break;
+	vsg->state = dr_via_pages_alloc;
+
+	if (vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
+	    (vm_offset_t)xfer->mem_addr, vsg->num_pages * PAGE_SIZE,
+	    VM_PROT_READ | VM_PROT_WRITE, vsg->pages, vsg->num_pages) < 0)
+		return -EACCES;
+
+	for (i = 0; i < vsg->num_pages; i++) {
+		m = vsg->pages[i];
 		vm_page_lock(m);
 		vm_page_wire(m);
 		vm_page_unhold(m);
 		vm_page_unlock(m);
-		vsg->pages[i] = m;
 	}
 	vsg->state = dr_via_pages_locked;
-
-	if (i != vsg->num_pages)
-		return -EINVAL;
 
 	DRM_DEBUG("DMA pages locked\n");
 

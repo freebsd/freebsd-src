@@ -157,8 +157,12 @@ MODULE_DEPEND(re, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
 /* Tunables. */
+static int intr_filter = 0;
+TUNABLE_INT("hw.re.intr_filter", &intr_filter);
 static int msi_disable = 0;
 TUNABLE_INT("hw.re.msi_disable", &msi_disable);
+static int msix_disable = 0;
+TUNABLE_INT("hw.re.msix_disable", &msix_disable);
 static int prefer_iomap = 0;
 TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
 
@@ -173,7 +177,7 @@ static struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8139, 0,
 	    "RealTek 8139C+ 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
-	    "RealTek 8101E/8102E/8102EL/8103E PCIe 10/100baseTX" },
+	    "RealTek 810xE PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
 	    "RealTek 8168/8111 B/C/CP/D/DP/E PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
@@ -189,39 +193,42 @@ static struct rl_type re_devs[] = {
 };
 
 static struct rl_hwrev re_hwrevs[] = {
-	{ RL_HWREV_8139, RL_8139,  "" },
-	{ RL_HWREV_8139A, RL_8139, "A" },
-	{ RL_HWREV_8139AG, RL_8139, "A-G" },
-	{ RL_HWREV_8139B, RL_8139, "B" },
-	{ RL_HWREV_8130, RL_8139, "8130" },
-	{ RL_HWREV_8139C, RL_8139, "C" },
-	{ RL_HWREV_8139D, RL_8139, "8139D/8100B/8100C" },
-	{ RL_HWREV_8139CPLUS, RL_8139CPLUS, "C+"},
-	{ RL_HWREV_8168_SPIN1, RL_8169, "8168"},
-	{ RL_HWREV_8169, RL_8169, "8169"},
-	{ RL_HWREV_8169S, RL_8169, "8169S"},
-	{ RL_HWREV_8110S, RL_8169, "8110S"},
-	{ RL_HWREV_8169_8110SB, RL_8169, "8169SB/8110SB"},
-	{ RL_HWREV_8169_8110SC, RL_8169, "8169SC/8110SC"},
-	{ RL_HWREV_8169_8110SBL, RL_8169, "8169SBL/8110SBL"},
-	{ RL_HWREV_8169_8110SCE, RL_8169, "8169SC/8110SC"},
-	{ RL_HWREV_8100, RL_8139, "8100"},
-	{ RL_HWREV_8101, RL_8139, "8101"},
-	{ RL_HWREV_8100E, RL_8169, "8100E"},
-	{ RL_HWREV_8101E, RL_8169, "8101E"},
-	{ RL_HWREV_8102E, RL_8169, "8102E"},
-	{ RL_HWREV_8102EL, RL_8169, "8102EL"},
-	{ RL_HWREV_8102EL_SPIN1, RL_8169, "8102EL"},
-	{ RL_HWREV_8103E, RL_8169, "8103E"},
-	{ RL_HWREV_8168_SPIN2, RL_8169, "8168"},
-	{ RL_HWREV_8168_SPIN3, RL_8169, "8168"},
-	{ RL_HWREV_8168C, RL_8169, "8168C/8111C"},
-	{ RL_HWREV_8168C_SPIN2, RL_8169, "8168C/8111C"},
-	{ RL_HWREV_8168CP, RL_8169, "8168CP/8111CP"},
-	{ RL_HWREV_8168D, RL_8169, "8168D/8111D"},
-	{ RL_HWREV_8168DP, RL_8169, "8168DP/8111DP"},
-	{ RL_HWREV_8168E, RL_8169, "8168E/8111E"},
-	{ 0, 0, NULL }
+	{ RL_HWREV_8139, RL_8139,  "", RL_MTU },
+	{ RL_HWREV_8139A, RL_8139, "A", RL_MTU },
+	{ RL_HWREV_8139AG, RL_8139, "A-G", RL_MTU },
+	{ RL_HWREV_8139B, RL_8139, "B", RL_MTU },
+	{ RL_HWREV_8130, RL_8139, "8130", RL_MTU },
+	{ RL_HWREV_8139C, RL_8139, "C", RL_MTU },
+	{ RL_HWREV_8139D, RL_8139, "8139D/8100B/8100C", RL_MTU },
+	{ RL_HWREV_8139CPLUS, RL_8139CPLUS, "C+", RL_MTU },
+	{ RL_HWREV_8168B_SPIN1, RL_8169, "8168", RL_JUMBO_MTU },
+	{ RL_HWREV_8169, RL_8169, "8169", RL_JUMBO_MTU },
+	{ RL_HWREV_8169S, RL_8169, "8169S", RL_JUMBO_MTU },
+	{ RL_HWREV_8110S, RL_8169, "8110S", RL_JUMBO_MTU },
+	{ RL_HWREV_8169_8110SB, RL_8169, "8169SB/8110SB", RL_JUMBO_MTU },
+	{ RL_HWREV_8169_8110SC, RL_8169, "8169SC/8110SC", RL_JUMBO_MTU },
+	{ RL_HWREV_8169_8110SBL, RL_8169, "8169SBL/8110SBL", RL_JUMBO_MTU },
+	{ RL_HWREV_8169_8110SCE, RL_8169, "8169SC/8110SC", RL_JUMBO_MTU },
+	{ RL_HWREV_8100, RL_8139, "8100", RL_MTU },
+	{ RL_HWREV_8101, RL_8139, "8101", RL_MTU },
+	{ RL_HWREV_8100E, RL_8169, "8100E", RL_MTU },
+	{ RL_HWREV_8101E, RL_8169, "8101E", RL_MTU },
+	{ RL_HWREV_8102E, RL_8169, "8102E", RL_MTU },
+	{ RL_HWREV_8102EL, RL_8169, "8102EL", RL_MTU },
+	{ RL_HWREV_8102EL_SPIN1, RL_8169, "8102EL", RL_MTU },
+	{ RL_HWREV_8103E, RL_8169, "8103E", RL_MTU },
+	{ RL_HWREV_8401E, RL_8169, "8401E", RL_MTU },
+	{ RL_HWREV_8105E, RL_8169, "8105E", RL_MTU },
+	{ RL_HWREV_8168B_SPIN2, RL_8169, "8168", RL_JUMBO_MTU },
+	{ RL_HWREV_8168B_SPIN3, RL_8169, "8168", RL_JUMBO_MTU },
+	{ RL_HWREV_8168C, RL_8169, "8168C/8111C", RL_JUMBO_MTU_6K },
+	{ RL_HWREV_8168C_SPIN2, RL_8169, "8168C/8111C", RL_JUMBO_MTU_6K },
+	{ RL_HWREV_8168CP, RL_8169, "8168CP/8111CP", RL_JUMBO_MTU_6K },
+	{ RL_HWREV_8168D, RL_8169, "8168D/8111D", RL_JUMBO_MTU_9K },
+	{ RL_HWREV_8168DP, RL_8169, "8168DP/8111DP", RL_JUMBO_MTU_9K },
+	{ RL_HWREV_8168E, RL_8169, "8168E/8111E", RL_JUMBO_MTU_9K},
+	{ RL_HWREV_8168E_VL, RL_8169, "8168E/8111E-VL", RL_JUMBO_MTU_6K},
+	{ 0, 0, NULL, 0 }
 };
 
 static int re_probe		(device_t);
@@ -235,7 +242,9 @@ static int re_allocmem		(device_t, struct rl_softc *);
 static __inline void re_discard_rxbuf
 				(struct rl_softc *, int);
 static int re_newbuf		(struct rl_softc *, int);
+static int re_jumbo_newbuf	(struct rl_softc *, int);
 static int re_rx_list_init	(struct rl_softc *);
+static int re_jrx_list_init	(struct rl_softc *);
 static int re_tx_list_init	(struct rl_softc *);
 #ifdef RE_FIXUP_RX
 static __inline void re_fixup_rx
@@ -248,10 +257,11 @@ static int re_poll		(struct ifnet *, enum poll_cmd, int);
 static int re_poll_locked	(struct ifnet *, enum poll_cmd, int);
 #endif
 static int re_intr		(void *);
+static void re_intr_msi		(void *);
 static void re_tick		(void *);
-static void re_tx_task		(void *, int);
 static void re_int_task		(void *, int);
 static void re_start		(struct ifnet *);
+static void re_start_locked	(struct ifnet *);
 static int re_ioctl		(struct ifnet *, u_long, caddr_t);
 static void re_init		(void *);
 static void re_init_locked	(struct rl_softc *);
@@ -273,6 +283,7 @@ static int re_miibus_readreg	(device_t, int, int);
 static int re_miibus_writereg	(device_t, int, int, int);
 static void re_miibus_statchg	(device_t);
 
+static void re_set_jumbo	(struct rl_softc *, int);
 static void re_set_rxmode		(struct rl_softc *);
 static void re_reset		(struct rl_softc *);
 static void re_setwol		(struct rl_softc *);
@@ -284,6 +295,8 @@ static int re_diag		(struct rl_softc *);
 
 static void re_add_sysctls	(struct rl_softc *);
 static int re_sysctl_stats	(SYSCTL_HANDLER_ARGS);
+static int sysctl_int_range	(SYSCTL_HANDLER_ARGS, int, int);
+static int sysctl_hw_re_int_mod	(SYSCTL_HANDLER_ARGS);
 
 static device_method_t re_methods[] = {
 	/* Device interface */
@@ -698,7 +711,7 @@ re_reset(struct rl_softc *sc)
 
 	if ((sc->rl_flags & RL_FLAG_MACRESET) != 0)
 		CSR_WRITE_1(sc, 0x82, 1);
-	if (sc->rl_hwrev == RL_HWREV_8169S)
+	if (sc->rl_hwrev->rl_rev == RL_HWREV_8169S)
 		re_gmii_writereg(sc->rl_dev, 1, 0x0b, 0);
 }
 
@@ -990,6 +1003,17 @@ re_allocmem(device_t dev, struct rl_softc *sc)
 	 * Allocate map for RX mbufs.
 	 */
 
+	if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0) {
+		error = bus_dma_tag_create(sc->rl_parent_tag, sizeof(uint64_t),
+		    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+		    MJUM9BYTES, 1, MJUM9BYTES, 0, NULL, NULL,
+		    &sc->rl_ldata.rl_jrx_mtag);
+		if (error) {
+			device_printf(dev,
+			    "could not allocate jumbo RX DMA tag\n");
+			return (error);
+		}
+	}
 	error = bus_dma_tag_create(sc->rl_parent_tag, sizeof(uint64_t), 0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    MCLBYTES, 1, MCLBYTES, 0, NULL, NULL, &sc->rl_ldata.rl_rx_mtag);
@@ -1081,6 +1105,24 @@ re_allocmem(device_t dev, struct rl_softc *sc)
 
 	/* Create DMA maps for RX buffers */
 
+	if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0) {
+		error = bus_dmamap_create(sc->rl_ldata.rl_jrx_mtag, 0,
+		    &sc->rl_ldata.rl_jrx_sparemap);
+		if (error) {
+			device_printf(dev,
+			    "could not create spare DMA map for jumbo RX\n");
+			return (error);
+		}
+		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
+			error = bus_dmamap_create(sc->rl_ldata.rl_jrx_mtag, 0,
+			    &sc->rl_ldata.rl_jrx_desc[i].rx_dmamap);
+			if (error) {
+				device_printf(dev,
+				    "could not create DMA map for jumbo RX\n");
+				return (error);
+			}
+		}
+	}
 	error = bus_dmamap_create(sc->rl_ldata.rl_rx_mtag, 0,
 	    &sc->rl_ldata.rl_rx_sparemap);
 	if (error) {
@@ -1143,7 +1185,7 @@ re_attach(device_t dev)
 	int			hwrev;
 	u_int16_t		devid, re_did = 0;
 	int			error = 0, i, phy, rid;
-	int			msic, reg;
+	int			msic, msixc, reg;
 	uint8_t			cfg;
 
 	sc = device_get_softc(dev);
@@ -1193,23 +1235,51 @@ re_attach(device_t dev)
 	sc->rl_btag = rman_get_bustag(sc->rl_res);
 	sc->rl_bhandle = rman_get_bushandle(sc->rl_res);
 
-	msic = 0;
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	msic = pci_msi_count(dev);
+	msixc = pci_msix_count(dev);
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0)
 		sc->rl_flags |= RL_FLAG_PCIE;
-		if (devid != RT_DEVICEID_8101E) {
-			/* Set PCIe maximum read request size to 2048. */
-			if (pci_get_max_read_req(dev) < 2048)
-				pci_set_max_read_req(dev, 2048);
-		}
-		msic = pci_msi_count(dev);
-		if (bootverbose)
-			device_printf(dev, "MSI count : %d\n", msic);
+	if (bootverbose) {
+		device_printf(dev, "MSI count : %d\n", msic);
+		device_printf(dev, "MSI-X count : %d\n", msixc);
 	}
-	if (msic > 0 && msi_disable == 0) {
+	if (msix_disable > 0)
+		msixc = 0;
+	if (msi_disable > 0)
+		msic = 0;
+	/* Prefer MSI-X to MSI. */
+	if (msixc > 0) {
+		msixc = 1;
+		rid = PCIR_BAR(4);
+		sc->rl_res_pba = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE);
+		if (sc->rl_res_pba == NULL) {
+			device_printf(sc->rl_dev,
+			    "could not allocate MSI-X PBA resource\n");
+		}
+		if (sc->rl_res_pba != NULL &&
+		    pci_alloc_msix(dev, &msixc) == 0) {
+			if (msixc == 1) {
+				device_printf(dev, "Using %d MSI-X message\n",
+				    msixc);
+				sc->rl_flags |= RL_FLAG_MSIX;
+			} else
+				pci_release_msi(dev);
+		}
+		if ((sc->rl_flags & RL_FLAG_MSIX) == 0) {
+			if (sc->rl_res_pba != NULL)
+				bus_release_resource(dev, SYS_RES_MEMORY, rid,
+				    sc->rl_res_pba);
+			sc->rl_res_pba = NULL;
+			msixc = 0;
+		}
+	}
+	/* Prefer MSI to INTx. */
+	if (msixc == 0 && msic > 0) {
 		msic = 1;
 		if (pci_alloc_msi(dev, &msic) == 0) {
 			if (msic == RL_MSI_MESSAGES) {
-				device_printf(dev, "Using %d MSI messages\n",
+				device_printf(dev, "Using %d MSI message\n",
 				    msic);
 				sc->rl_flags |= RL_FLAG_MSI;
 				/* Explicitly set MSI enable bit. */
@@ -1221,10 +1291,12 @@ re_attach(device_t dev)
 			} else
 				pci_release_msi(dev);
 		}
+		if ((sc->rl_flags & RL_FLAG_MSI) == 0)
+			msic = 0;
 	}
 
 	/* Allocate interrupt */
-	if ((sc->rl_flags & RL_FLAG_MSI) == 0) {
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0) {
 		rid = 0;
 		sc->rl_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
@@ -1258,11 +1330,6 @@ re_attach(device_t dev)
 		CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 	}
 
-	/* Reset the adapter. */
-	RL_LOCK(sc);
-	re_reset(sc);
-	RL_UNLOCK(sc);
-
 	hw_rev = re_hwrevs;
 	hwrev = CSR_READ_4(sc, RL_TXCFG);
 	switch (hwrev & 0x70000000) {
@@ -1280,7 +1347,7 @@ re_attach(device_t dev)
 	while (hw_rev->rl_desc != NULL) {
 		if (hw_rev->rl_rev == hwrev) {
 			sc->rl_type = hw_rev->rl_type;
-			sc->rl_hwrev = hw_rev->rl_rev;
+			sc->rl_hwrev = hw_rev;
 			break;
 		}
 		hw_rev++;
@@ -1293,32 +1360,35 @@ re_attach(device_t dev)
 
 	switch (hw_rev->rl_rev) {
 	case RL_HWREV_8139CPLUS:
-		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_FASTETHER |
-		    RL_FLAG_AUTOPAD;
+		sc->rl_flags |= RL_FLAG_FASTETHER | RL_FLAG_AUTOPAD;
 		break;
 	case RL_HWREV_8100E:
 	case RL_HWREV_8101E:
-		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_PHYWAKE |
-		    RL_FLAG_FASTETHER;
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_FASTETHER;
 		break;
 	case RL_HWREV_8102E:
 	case RL_HWREV_8102EL:
 	case RL_HWREV_8102EL_SPIN1:
-		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_PHYWAKE |
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR | RL_FLAG_DESCV2 |
+		    RL_FLAG_MACSTAT | RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP |
+		    RL_FLAG_AUTOPAD;
+		break;
+	case RL_HWREV_8103E:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR | RL_FLAG_DESCV2 |
+		    RL_FLAG_MACSTAT | RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP |
+		    RL_FLAG_AUTOPAD | RL_FLAG_MACSLEEP;
+		break;
+	case RL_HWREV_8401E:
+	case RL_HWREV_8105E:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
 		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD;
 		break;
-	case RL_HWREV_8103E:
-		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_PHYWAKE |
-		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
-		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD |
-		    RL_FLAG_MACSLEEP;
-		break;
-	case RL_HWREV_8168_SPIN1:
-	case RL_HWREV_8168_SPIN2:
+	case RL_HWREV_8168B_SPIN1:
+	case RL_HWREV_8168B_SPIN2:
 		sc->rl_flags |= RL_FLAG_WOLRXENB;
 		/* FALLTHROUGH */
-	case RL_HWREV_8168_SPIN3:
+	case RL_HWREV_8168B_SPIN3:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_MACSTAT;
 		break;
 	case RL_HWREV_8168C_SPIN2:
@@ -1333,23 +1403,17 @@ re_attach(device_t dev)
 	case RL_HWREV_8168DP:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
-		    RL_FLAG_AUTOPAD;
-		/*
-		 * These controllers support jumbo frame but it seems
-		 * that enabling it requires touching additional magic
-		 * registers. Depending on MAC revisions some
-		 * controllers need to disable checksum offload. So
-		 * disable jumbo frame until I have better idea what
-		 * it really requires to make it support.
-		 * RTL8168C/CP : supports up to 6KB jumbo frame.
-		 * RTL8111C/CP : supports up to 9KB jumbo frame.
-		 */
-		sc->rl_flags |= RL_FLAG_NOJUMBO;
+		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
 		break;
 	case RL_HWREV_8168E:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
-		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_NOJUMBO;
+		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
+		break;
+	case RL_HWREV_8168E_VL:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
+		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
+		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
@@ -1365,6 +1429,11 @@ re_attach(device_t dev)
 	default:
 		break;
 	}
+
+	/* Reset the adapter. */
+	RL_LOCK(sc);
+	re_reset(sc);
+	RL_UNLOCK(sc);
 
 	/* Enable PME. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
@@ -1435,8 +1504,11 @@ re_attach(device_t dev)
 	}
 
 	/* Take PHY out of power down mode. */
-	if ((sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0)
+	if ((sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0) {
 		CSR_WRITE_1(sc, RL_PMCH, CSR_READ_1(sc, RL_PMCH) | 0x80);
+		if (hw_rev->rl_rev == RL_HWREV_8401E)
+			CSR_WRITE_1(sc, 0xD1, CSR_READ_1(sc, 0xD1) & ~0x08);
+	}
 	if ((sc->rl_flags & RL_FLAG_PHYWAKE) != 0) {
 		re_gmii_writereg(dev, 1, 0x1f, 0);
 		re_gmii_writereg(dev, 1, 0x0e, 0);
@@ -1460,26 +1532,24 @@ re_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
 	ifp->if_start = re_start;
-	ifp->if_hwassist = RE_CSUM_FEATURES;
-	ifp->if_capabilities = IFCAP_HWCSUM;
+	/*
+	 * RTL8168/8111C generates wrong IP checksummed frame if the
+	 * packet has IP options so disable TX IP checksum offloading.
+	 */
+	if (sc->rl_hwrev->rl_rev == RL_HWREV_8168C ||
+	    sc->rl_hwrev->rl_rev == RL_HWREV_8168C_SPIN2)
+		ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
+	else
+		ifp->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
+	ifp->if_hwassist |= CSUM_TSO;
+	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = RL_IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	TASK_INIT(&sc->rl_txtask, 1, re_tx_task, ifp);
 	TASK_INIT(&sc->rl_inttask, 0, re_int_task, sc);
-
-	/*
-	 * XXX
-	 * Still have no idea how to make TSO work on 8168C, 8168CP,
-	 * 8111C and 8111CP.
-	 */
-	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
-		ifp->if_hwassist |= CSUM_TSO;
-		ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
-	}
 
 	/*
 	 * Call MI attach routine.
@@ -1495,9 +1565,9 @@ re_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 	/*
-	 * Don't enable TSO by default. Under certain
-	 * circumtances the controller generated corrupted
-	 * packets in TSO size.
+	 * Don't enable TSO by default.  It is known to generate
+	 * corrupted TCP segments(bad TCP options) under certain
+	 * circumtances.
 	 */
 	ifp->if_hwassist &= ~CSUM_TSO;
 	ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
@@ -1529,19 +1599,19 @@ re_attach(device_t dev)
 	}
 #endif
 
+#ifdef RE_TX_MODERATION
+	intr_filter = 1;
+#endif
 	/* Hook interrupt last to avoid having to lock softc */
-	if ((sc->rl_flags & RL_FLAG_MSI) == 0)
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) != 0 &&
+	    intr_filter == 0) {
+		error = bus_setup_intr(dev, sc->rl_irq[0],
+		    INTR_TYPE_NET | INTR_MPSAFE, NULL, re_intr_msi, sc,
+		    &sc->rl_intrhand[0]);
+	} else {
 		error = bus_setup_intr(dev, sc->rl_irq[0],
 		    INTR_TYPE_NET | INTR_MPSAFE, re_intr, NULL, sc,
 		    &sc->rl_intrhand[0]);
-	else {
-		for (i = 0; i < RL_MSI_MESSAGES; i++) {
-			error = bus_setup_intr(dev, sc->rl_irq[i],
-			    INTR_TYPE_NET | INTR_MPSAFE, re_intr, NULL, sc,
-		    	    &sc->rl_intrhand[i]);
-			if (error != 0)
-				break;
-		}
 	}
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
@@ -1588,7 +1658,6 @@ re_detach(device_t dev)
 		RL_UNLOCK(sc);
 		callout_drain(&sc->rl_stat_callout);
 		taskqueue_drain(taskqueue_fast, &sc->rl_inttask);
-		taskqueue_drain(taskqueue_fast, &sc->rl_txtask);
 		/*
 		 * Force off the IFF_UP flag here, in case someone
 		 * still had a BPF descriptor attached to this
@@ -1613,30 +1682,25 @@ re_detach(device_t dev)
 	 * stopped here.
 	 */
 
-	for (i = 0; i < RL_MSI_MESSAGES; i++) {
-		if (sc->rl_intrhand[i] != NULL) {
-			bus_teardown_intr(dev, sc->rl_irq[i],
-			    sc->rl_intrhand[i]);
-			sc->rl_intrhand[i] = NULL;
-		}
+	if (sc->rl_intrhand[0] != NULL) {
+		bus_teardown_intr(dev, sc->rl_irq[0], sc->rl_intrhand[0]);
+		sc->rl_intrhand[0] = NULL;
 	}
 	if (ifp != NULL)
 		if_free(ifp);
-	if ((sc->rl_flags & RL_FLAG_MSI) == 0) {
-		if (sc->rl_irq[0] != NULL) {
-			bus_release_resource(dev, SYS_RES_IRQ, 0,
-			    sc->rl_irq[0]);
-			sc->rl_irq[0] = NULL;
-		}
-	} else {
-		for (i = 0, rid = 1; i < RL_MSI_MESSAGES; i++, rid++) {
-			if (sc->rl_irq[i] != NULL) {
-				bus_release_resource(dev, SYS_RES_IRQ, rid,
-				    sc->rl_irq[i]);
-				sc->rl_irq[i] = NULL;
-			}
-		}
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0)
+		rid = 0;
+	else
+		rid = 1;
+	if (sc->rl_irq[0] != NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->rl_irq[0]);
+		sc->rl_irq[0] = NULL;
+	}
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) != 0)
 		pci_release_msi(dev);
+	if (sc->rl_res_pba) {
+		rid = PCIR_BAR(4);
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->rl_res_pba);
 	}
 	if (sc->rl_res)
 		bus_release_resource(dev, sc->rl_res_type, sc->rl_res_id,
@@ -1671,21 +1735,35 @@ re_detach(device_t dev)
 	/* Destroy all the RX and TX buffer maps */
 
 	if (sc->rl_ldata.rl_tx_mtag) {
-		for (i = 0; i < sc->rl_ldata.rl_tx_desc_cnt; i++)
-			bus_dmamap_destroy(sc->rl_ldata.rl_tx_mtag,
-			    sc->rl_ldata.rl_tx_desc[i].tx_dmamap);
+		for (i = 0; i < sc->rl_ldata.rl_tx_desc_cnt; i++) {
+			if (sc->rl_ldata.rl_tx_desc[i].tx_dmamap)
+				bus_dmamap_destroy(sc->rl_ldata.rl_tx_mtag,
+				    sc->rl_ldata.rl_tx_desc[i].tx_dmamap);
+		}
 		bus_dma_tag_destroy(sc->rl_ldata.rl_tx_mtag);
 	}
 	if (sc->rl_ldata.rl_rx_mtag) {
-		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++)
-			bus_dmamap_destroy(sc->rl_ldata.rl_rx_mtag,
-			    sc->rl_ldata.rl_rx_desc[i].rx_dmamap);
+		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
+			if (sc->rl_ldata.rl_rx_desc[i].rx_dmamap)
+				bus_dmamap_destroy(sc->rl_ldata.rl_rx_mtag,
+				    sc->rl_ldata.rl_rx_desc[i].rx_dmamap);
+		}
 		if (sc->rl_ldata.rl_rx_sparemap)
 			bus_dmamap_destroy(sc->rl_ldata.rl_rx_mtag,
 			    sc->rl_ldata.rl_rx_sparemap);
 		bus_dma_tag_destroy(sc->rl_ldata.rl_rx_mtag);
 	}
-
+	if (sc->rl_ldata.rl_jrx_mtag) {
+		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
+			if (sc->rl_ldata.rl_jrx_desc[i].rx_dmamap)
+				bus_dmamap_destroy(sc->rl_ldata.rl_jrx_mtag,
+				    sc->rl_ldata.rl_jrx_desc[i].rx_dmamap);
+		}
+		if (sc->rl_ldata.rl_jrx_sparemap)
+			bus_dmamap_destroy(sc->rl_ldata.rl_jrx_mtag,
+			    sc->rl_ldata.rl_jrx_sparemap);
+		bus_dma_tag_destroy(sc->rl_ldata.rl_jrx_mtag);
+	}
 	/* Unload and free the stats buffer and map */
 
 	if (sc->rl_ldata.rl_stag) {
@@ -1713,7 +1791,11 @@ re_discard_rxbuf(struct rl_softc *sc, int idx)
 	struct rl_rxdesc	*rxd;
 	uint32_t		cmdstat;
 
-	rxd = &sc->rl_ldata.rl_rx_desc[idx];
+	if (sc->rl_ifp->if_mtu > RL_MTU &&
+	    (sc->rl_flags & RL_FLAG_JUMBOV2) != 0)
+		rxd = &sc->rl_ldata.rl_jrx_desc[idx];
+	else
+		rxd = &sc->rl_ldata.rl_rx_desc[idx];
 	desc = &sc->rl_ldata.rl_rx_list[idx];
 	desc->rl_vlanctl = 0;
 	cmdstat = rxd->rx_size;
@@ -1772,6 +1854,59 @@ re_newbuf(struct rl_softc *sc, int idx)
 	rxd->rx_size = segs[0].ds_len;
 	sc->rl_ldata.rl_rx_sparemap = map;
 	bus_dmamap_sync(sc->rl_ldata.rl_rx_mtag, rxd->rx_dmamap,
+	    BUS_DMASYNC_PREREAD);
+
+	desc = &sc->rl_ldata.rl_rx_list[idx];
+	desc->rl_vlanctl = 0;
+	desc->rl_bufaddr_lo = htole32(RL_ADDR_LO(segs[0].ds_addr));
+	desc->rl_bufaddr_hi = htole32(RL_ADDR_HI(segs[0].ds_addr));
+	cmdstat = segs[0].ds_len;
+	if (idx == sc->rl_ldata.rl_rx_desc_cnt - 1)
+		cmdstat |= RL_RDESC_CMD_EOR;
+	desc->rl_cmdstat = htole32(cmdstat | RL_RDESC_CMD_OWN);
+
+	return (0);
+}
+
+static int
+re_jumbo_newbuf(struct rl_softc *sc, int idx)
+{
+	struct mbuf		*m;
+	struct rl_rxdesc	*rxd;
+	bus_dma_segment_t	segs[1];
+	bus_dmamap_t		map;
+	struct rl_desc		*desc;
+	uint32_t		cmdstat;
+	int			error, nsegs;
+
+	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+	if (m == NULL)
+		return (ENOBUFS);
+	m->m_len = m->m_pkthdr.len = MJUM9BYTES;
+#ifdef RE_FIXUP_RX
+	m_adj(m, RE_ETHER_ALIGN);
+#endif
+	error = bus_dmamap_load_mbuf_sg(sc->rl_ldata.rl_jrx_mtag,
+	    sc->rl_ldata.rl_jrx_sparemap, m, segs, &nsegs, BUS_DMA_NOWAIT);
+	if (error != 0) {
+		m_freem(m);
+		return (ENOBUFS);
+	}
+	KASSERT(nsegs == 1, ("%s: %d segment returned!", __func__, nsegs));
+
+	rxd = &sc->rl_ldata.rl_jrx_desc[idx];
+	if (rxd->rx_m != NULL) {
+		bus_dmamap_sync(sc->rl_ldata.rl_jrx_mtag, rxd->rx_dmamap,
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->rl_ldata.rl_jrx_mtag, rxd->rx_dmamap);
+	}
+
+	rxd->rx_m = m;
+	map = rxd->rx_dmamap;
+	rxd->rx_dmamap = sc->rl_ldata.rl_jrx_sparemap;
+	rxd->rx_size = segs[0].ds_len;
+	sc->rl_ldata.rl_jrx_sparemap = map;
+	bus_dmamap_sync(sc->rl_ldata.rl_jrx_mtag, rxd->rx_dmamap,
 	    BUS_DMASYNC_PREREAD);
 
 	desc = &sc->rl_ldata.rl_rx_list[idx];
@@ -1851,6 +1986,31 @@ re_rx_list_init(struct rl_softc *sc)
 
 	sc->rl_ldata.rl_rx_prodidx = 0;
 	sc->rl_head = sc->rl_tail = NULL;
+	sc->rl_int_rx_act = 0;
+
+	return (0);
+}
+
+static int
+re_jrx_list_init(struct rl_softc *sc)
+{
+	int			error, i;
+
+	bzero(sc->rl_ldata.rl_rx_list,
+	    sc->rl_ldata.rl_rx_desc_cnt * sizeof(struct rl_desc));
+	for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
+		sc->rl_ldata.rl_jrx_desc[i].rx_m = NULL;
+		if ((error = re_jumbo_newbuf(sc, i)) != 0)
+			return (error);
+	}
+
+	bus_dmamap_sync(sc->rl_ldata.rl_rx_list_tag,
+	    sc->rl_ldata.rl_rx_list_map,
+	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+
+	sc->rl_ldata.rl_rx_prodidx = 0;
+	sc->rl_head = sc->rl_tail = NULL;
+	sc->rl_int_rx_act = 0;
 
 	return (0);
 }
@@ -1865,14 +2025,18 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 {
 	struct mbuf		*m;
 	struct ifnet		*ifp;
-	int			i, total_len;
+	int			i, rxerr, total_len;
 	struct rl_desc		*cur_rx;
 	u_int32_t		rxstat, rxvlan;
-	int			maxpkt = 16, rx_npkts = 0;
+	int			jumbo, maxpkt = 16, rx_npkts = 0;
 
 	RL_LOCK_ASSERT(sc);
 
 	ifp = sc->rl_ifp;
+	if (ifp->if_mtu > RL_MTU && (sc->rl_flags & RL_FLAG_JUMBOV2) != 0)
+		jumbo = 1;
+	else
+		jumbo = 0;
 
 	/* Invalidate the descriptor memory */
 
@@ -1890,9 +2054,21 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 			break;
 		total_len = rxstat & sc->rl_rxlenmask;
 		rxvlan = le32toh(cur_rx->rl_vlanctl);
-		m = sc->rl_ldata.rl_rx_desc[i].rx_m;
+		if (jumbo != 0)
+			m = sc->rl_ldata.rl_jrx_desc[i].rx_m;
+		else
+			m = sc->rl_ldata.rl_rx_desc[i].rx_m;
 
-		if (!(rxstat & RL_RDESC_STAT_EOF)) {
+		if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0 &&
+		    (rxstat & (RL_RDESC_STAT_SOF | RL_RDESC_STAT_EOF)) !=
+		    (RL_RDESC_STAT_SOF | RL_RDESC_STAT_EOF)) {
+			/*
+			 * RTL8168C or later controllers do not
+			 * support multi-fragment packet.
+			 */
+			re_discard_rxbuf(sc, i);
+			continue;
+		} else if ((rxstat & RL_RDESC_STAT_EOF) == 0) {
 			if (re_newbuf(sc, i) != 0) {
 				/*
 				 * If this is part of a multi-fragment packet,
@@ -1939,27 +2115,36 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 		 * if total_len > 2^13-1, both _RXERRSUM and _GIANT will be
 		 * set, but if CRC is clear, it will still be a valid frame.
 		 */
-		if (rxstat & RL_RDESC_STAT_RXERRSUM && !(total_len > 8191 &&
-		    (rxstat & RL_RDESC_STAT_ERRS) == RL_RDESC_STAT_GIANT)) {
-			ifp->if_ierrors++;
-			/*
-			 * If this is part of a multi-fragment packet,
-			 * discard all the pieces.
-			 */
-			if (sc->rl_head != NULL) {
-				m_freem(sc->rl_head);
-				sc->rl_head = sc->rl_tail = NULL;
+		if ((rxstat & RL_RDESC_STAT_RXERRSUM) != 0) {
+			rxerr = 1;
+			if ((sc->rl_flags & RL_FLAG_JUMBOV2) == 0 &&
+			    total_len > 8191 &&
+			    (rxstat & RL_RDESC_STAT_ERRS) == RL_RDESC_STAT_GIANT)
+				rxerr = 0;
+			if (rxerr != 0) {
+				ifp->if_ierrors++;
+				/*
+				 * If this is part of a multi-fragment packet,
+				 * discard all the pieces.
+				 */
+				if (sc->rl_head != NULL) {
+					m_freem(sc->rl_head);
+					sc->rl_head = sc->rl_tail = NULL;
+				}
+				re_discard_rxbuf(sc, i);
+				continue;
 			}
-			re_discard_rxbuf(sc, i);
-			continue;
 		}
 
 		/*
 		 * If allocating a replacement mbuf fails,
 		 * reload the current one.
 		 */
-
-		if (re_newbuf(sc, i) != 0) {
+		if (jumbo != 0)
+			rxerr = re_jumbo_newbuf(sc, i);
+		else
+			rxerr = re_newbuf(sc, i);
+		if (rxerr != 0) {
 			ifp->if_iqdrops++;
 			if (sc->rl_head != NULL) {
 				m_freem(sc->rl_head);
@@ -1970,9 +2155,13 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 		}
 
 		if (sc->rl_head != NULL) {
-			m->m_len = total_len % RE_RX_DESC_BUFLEN;
-			if (m->m_len == 0)
-				m->m_len = RE_RX_DESC_BUFLEN;
+			if (jumbo != 0)
+				m->m_len = total_len;
+			else {
+				m->m_len = total_len % RE_RX_DESC_BUFLEN;
+				if (m->m_len == 0)
+					m->m_len = RE_RX_DESC_BUFLEN;
+			}
 			/*
 			 * Special case: if there's 4 bytes or less
 			 * in this buffer, the mbuf can be discarded:
@@ -2192,7 +2381,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	re_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		re_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
 		u_int16_t       status;
@@ -2295,7 +2484,7 @@ re_int_task(void *arg, int npending)
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		re_start_locked(ifp);
 
 	RL_UNLOCK(sc);
 
@@ -2305,6 +2494,87 @@ re_int_task(void *arg, int npending)
 	}
 
 	CSR_WRITE_2(sc, RL_IMR, RL_INTRS_CPLUS);
+}
+
+static void
+re_intr_msi(void *xsc)
+{
+	struct rl_softc		*sc;
+	struct ifnet		*ifp;
+	uint16_t		intrs, status;
+
+	sc = xsc;
+	RL_LOCK(sc);
+
+	ifp = sc->rl_ifp;
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		RL_UNLOCK(sc);
+		return;
+	}
+#endif
+	/* Disable interrupts. */
+	CSR_WRITE_2(sc, RL_IMR, 0);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		RL_UNLOCK(sc);
+		return;
+	}
+
+	intrs = RL_INTRS_CPLUS;
+	status = CSR_READ_2(sc, RL_ISR);
+        CSR_WRITE_2(sc, RL_ISR, status);
+	if (sc->rl_int_rx_act > 0) {
+		intrs &= ~(RL_ISR_RX_OK | RL_ISR_RX_ERR | RL_ISR_FIFO_OFLOW |
+		    RL_ISR_RX_OVERRUN);
+		status &= ~(RL_ISR_RX_OK | RL_ISR_RX_ERR | RL_ISR_FIFO_OFLOW |
+		    RL_ISR_RX_OVERRUN);
+	}
+
+	if (status & (RL_ISR_TIMEOUT_EXPIRED | RL_ISR_RX_OK | RL_ISR_RX_ERR |
+	    RL_ISR_FIFO_OFLOW | RL_ISR_RX_OVERRUN)) {
+		re_rxeof(sc, NULL);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			if (sc->rl_int_rx_mod != 0 &&
+			    (status & (RL_ISR_RX_OK | RL_ISR_RX_ERR |
+			    RL_ISR_FIFO_OFLOW | RL_ISR_RX_OVERRUN)) != 0) {
+				/* Rearm one-shot timer. */
+				CSR_WRITE_4(sc, RL_TIMERCNT, 1);
+				intrs &= ~(RL_ISR_RX_OK | RL_ISR_RX_ERR |
+				    RL_ISR_FIFO_OFLOW | RL_ISR_RX_OVERRUN);
+				sc->rl_int_rx_act = 1;
+			} else {
+				intrs |= RL_ISR_RX_OK | RL_ISR_RX_ERR |
+				    RL_ISR_FIFO_OFLOW | RL_ISR_RX_OVERRUN;
+				sc->rl_int_rx_act = 0;
+			}
+		}
+	}
+
+	/*
+	 * Some chips will ignore a second TX request issued
+	 * while an existing transmission is in progress. If
+	 * the transmitter goes idle but there are still
+	 * packets waiting to be sent, we need to restart the
+	 * channel here to flush them out. This only seems to
+	 * be required with the PCIe devices.
+	 */
+	if ((status & (RL_ISR_TX_OK | RL_ISR_TX_DESC_UNAVAIL)) &&
+	    (sc->rl_flags & RL_FLAG_PCIE))
+		CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
+	if (status & (RL_ISR_TX_OK | RL_ISR_TX_ERR | RL_ISR_TX_DESC_UNAVAIL))
+		re_txeof(sc);
+
+	if (status & RL_ISR_SYSTEM_ERR) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		re_init_locked(sc);
+	}
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			re_start_locked(ifp);
+		CSR_WRITE_2(sc, RL_IMR, intrs);
+	}
+	RL_UNLOCK(sc);
 }
 
 static int
@@ -2413,11 +2683,17 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 	 */
 	vlanctl = 0;
 	csum_flags = 0;
-	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0)
-		csum_flags = RL_TDESC_CMD_LGSEND |
-		    ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
-		    RL_TDESC_CMD_MSSVAL_SHIFT);
-	else {
+	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		if ((sc->rl_flags & RL_FLAG_DESCV2) != 0) {
+			csum_flags |= RL_TDESC_CMD_LGSEND;
+			vlanctl |= ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
+			    RL_TDESC_CMD_MSSVALV2_SHIFT);
+		} else {
+			csum_flags |= RL_TDESC_CMD_LGSEND |
+			    ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
+			    RL_TDESC_CMD_MSSVAL_SHIFT);
+		}
+	} else {
 		/*
 		 * Unconditionally enable IP checksum if TCP or UDP
 		 * checksum is required. Otherwise, TCP/UDP checksum
@@ -2494,19 +2770,21 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 }
 
 static void
-re_tx_task(void *arg, int npending)
+re_start(struct ifnet *ifp)
 {
-	struct ifnet		*ifp;
+	struct rl_softc		*sc;
 
-	ifp = arg;
-	re_start(ifp);
+	sc = ifp->if_softc;
+	RL_LOCK(sc);
+	re_start_locked(ifp);
+	RL_UNLOCK(sc);
 }
 
 /*
  * Main transmit routine for C+ and gigE NICs.
  */
 static void
-re_start(struct ifnet *ifp)
+re_start_locked(struct ifnet *ifp)
 {
 	struct rl_softc		*sc;
 	struct mbuf		*m_head;
@@ -2514,13 +2792,9 @@ re_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	RL_LOCK(sc);
-
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0) {
-		RL_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0)
 		return;
-	}
 
 	for (queued = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
 	    sc->rl_ldata.rl_tx_free > 1;) {
@@ -2550,7 +2824,6 @@ re_start(struct ifnet *ifp)
 		if (sc->rl_ldata.rl_tx_free != sc->rl_ldata.rl_tx_desc_cnt)
 			CSR_WRITE_4(sc, RL_TIMERCNT, 1);
 #endif
-		RL_UNLOCK(sc);
 		return;
 	}
 
@@ -2578,8 +2851,59 @@ re_start(struct ifnet *ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	sc->rl_watchdog_timer = 5;
+}
 
-	RL_UNLOCK(sc);
+static void
+re_set_jumbo(struct rl_softc *sc, int jumbo)
+{
+
+	if (sc->rl_hwrev->rl_rev == RL_HWREV_8168E_VL) {
+		pci_set_max_read_req(sc->rl_dev, 4096);
+		return;
+	}
+
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
+	if (jumbo != 0) {
+		CSR_WRITE_1(sc, RL_CFG3, CSR_READ_1(sc, RL_CFG3) |
+		    RL_CFG3_JUMBO_EN0);
+		switch (sc->rl_hwrev->rl_rev) {
+		case RL_HWREV_8168DP:
+			break;
+		case RL_HWREV_8168E:
+			CSR_WRITE_1(sc, RL_CFG4, CSR_READ_1(sc, RL_CFG4) |
+			    0x01);
+			break;
+		default:
+			CSR_WRITE_1(sc, RL_CFG4, CSR_READ_1(sc, RL_CFG4) |
+			    RL_CFG4_JUMBO_EN1);
+		}
+	} else {
+		CSR_WRITE_1(sc, RL_CFG3, CSR_READ_1(sc, RL_CFG3) &
+		    ~RL_CFG3_JUMBO_EN0);
+		switch (sc->rl_hwrev->rl_rev) {
+		case RL_HWREV_8168DP:
+			break;
+		case RL_HWREV_8168E:
+			CSR_WRITE_1(sc, RL_CFG4, CSR_READ_1(sc, RL_CFG4) &
+			    ~0x01);
+			break;
+		default:
+			CSR_WRITE_1(sc, RL_CFG4, CSR_READ_1(sc, RL_CFG4) &
+			    ~RL_CFG4_JUMBO_EN1);
+		}
+	}
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
+
+	switch (sc->rl_hwrev->rl_rev) {
+	case RL_HWREV_8168DP:
+		pci_set_max_read_req(sc->rl_dev, 4096);
+		break;
+	default:
+		if (jumbo != 0)
+			pci_set_max_read_req(sc->rl_dev, 512);
+		else
+			pci_set_max_read_req(sc->rl_dev, 4096);
+	}
 }
 
 static void
@@ -2620,6 +2944,45 @@ re_init_locked(struct rl_softc *sc)
 	re_reset(sc);
 
 	/*
+	 * For C+ mode, initialize the RX descriptors and mbufs.
+	 */
+	if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0) {
+		if (ifp->if_mtu > RL_MTU) {
+			if (re_jrx_list_init(sc) != 0) {
+				device_printf(sc->rl_dev,
+				    "no memory for jumbo RX buffers\n");
+				re_stop(sc);
+				return;
+			}
+			/* Disable checksum offloading for jumbo frames. */
+			ifp->if_capenable &= ~(IFCAP_HWCSUM | IFCAP_TSO4);
+			ifp->if_hwassist &= ~(RE_CSUM_FEATURES | CSUM_TSO);
+		} else {
+			if (re_rx_list_init(sc) != 0) {
+				device_printf(sc->rl_dev,
+				    "no memory for RX buffers\n");
+				re_stop(sc);
+				return;
+			}
+		}
+		re_set_jumbo(sc, ifp->if_mtu > RL_MTU);
+	} else {
+		if (re_rx_list_init(sc) != 0) {
+			device_printf(sc->rl_dev, "no memory for RX buffers\n");
+			re_stop(sc);
+			return;
+		}
+		if ((sc->rl_flags & RL_FLAG_PCIE) != 0 &&
+		    pci_get_device(sc->rl_dev) != RT_DEVICEID_8101E) {
+			if (ifp->if_mtu > RL_MTU)
+				pci_set_max_read_req(sc->rl_dev, 512);
+			else
+				pci_set_max_read_req(sc->rl_dev, 4096);
+		}
+	}
+	re_tx_list_init(sc);
+
+	/*
 	 * Enable C+ RX and TX mode, as well as VLAN stripping and
 	 * RX checksum offload. We must configure the C+ register
 	 * before all others.
@@ -2636,12 +2999,12 @@ re_init_locked(struct rl_softc *sc)
 	} else
 		cfg |= RL_CPLUSCMD_RXENB | RL_CPLUSCMD_TXENB;
 	CSR_WRITE_2(sc, RL_CPLUS_CMD, cfg);
-	if (sc->rl_hwrev == RL_HWREV_8169_8110SC ||
-	    sc->rl_hwrev == RL_HWREV_8169_8110SCE) {
+	if (sc->rl_hwrev->rl_rev == RL_HWREV_8169_8110SC ||
+	    sc->rl_hwrev->rl_rev == RL_HWREV_8169_8110SCE) {
 		reg = 0x000fff00;
 		if ((CSR_READ_1(sc, RL_CFG2) & RL_CFG2_PCI66MHZ) != 0)
 			reg |= 0x000000ff;
-		if (sc->rl_hwrev == RL_HWREV_8169_8110SCE)
+		if (sc->rl_hwrev->rl_rev == RL_HWREV_8169_8110SCE)
 			reg |= 0x00f00000;
 		CSR_WRITE_4(sc, 0x7c, reg);
 		/* Disable interrupt mitigation. */
@@ -2669,12 +3032,6 @@ re_init_locked(struct rl_softc *sc)
 	CSR_WRITE_4(sc, RL_IDR4,
 	    htole32(*(u_int32_t *)(&eaddr.eaddr[4])));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
-
-	/*
-	 * For C+ mode, initialize the RX descriptors and mbufs.
-	 */
-	re_rx_list_init(sc);
-	re_tx_list_init(sc);
 
 	/*
 	 * Load the addresses of the RX and TX lists into the chip.
@@ -2717,20 +3074,8 @@ re_init_locked(struct rl_softc *sc)
 
 	/* Configure interrupt moderation. */
 	if (sc->rl_type == RL_8169) {
-		switch (sc->rl_hwrev) {
-		case RL_HWREV_8100E:
-		case RL_HWREV_8101E:
-		case RL_HWREV_8102E:
-		case RL_HWREV_8102EL:
-		case RL_HWREV_8102EL_SPIN1:
-		case RL_HWREV_8103E:
-			CSR_WRITE_2(sc, RL_INTRMOD, 0);
-			break;
-		default:
-			/* Magic from vendor. */
-			CSR_WRITE_2(sc, RL_INTRMOD, 0x5100);
-			break;
-		}
+		/* Magic from vendor. */
+		CSR_WRITE_2(sc, RL_INTRMOD, 0x5100);
 	}
 
 #ifdef DEVICE_POLLING
@@ -2761,26 +3106,63 @@ re_init_locked(struct rl_softc *sc)
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
 #endif
 
-#ifdef RE_TX_MODERATION
 	/*
 	 * Initialize the timer interrupt register so that
 	 * a timer interrupt will be generated once the timer
 	 * reaches a certain number of ticks. The timer is
-	 * reloaded on each transmit. This gives us TX interrupt
+	 * reloaded on each transmit.
+	 */
+#ifdef RE_TX_MODERATION
+	/*
+	 * Use timer interrupt register to moderate TX interrupt
 	 * moderation, which dramatically improves TX frame rate.
 	 */
 	if (sc->rl_type == RL_8169)
 		CSR_WRITE_4(sc, RL_TIMERINT_8169, 0x800);
 	else
 		CSR_WRITE_4(sc, RL_TIMERINT, 0x400);
+#else
+	/*
+	 * Use timer interrupt register to moderate RX interrupt
+	 * moderation.
+	 */
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) != 0 &&
+	    intr_filter == 0) {
+		if (sc->rl_type == RL_8169)
+			CSR_WRITE_4(sc, RL_TIMERINT_8169,
+			    RL_USECS(sc->rl_int_rx_mod));
+	} else {
+		if (sc->rl_type == RL_8169)
+			CSR_WRITE_4(sc, RL_TIMERINT_8169, RL_USECS(0));
+	}
 #endif
 
 	/*
 	 * For 8169 gigE NICs, set the max allowed RX packet
 	 * size so we can receive jumbo frames.
 	 */
-	if (sc->rl_type == RL_8169)
-		CSR_WRITE_2(sc, RL_MAXRXPKTLEN, 16383);
+	if (sc->rl_type == RL_8169) {
+		if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0) {
+			/*
+			 * For controllers that use new jumbo frame scheme,
+			 * set maximum size of jumbo frame depedning on
+			 * controller revisions.
+			 */
+			if (ifp->if_mtu > RL_MTU)
+				CSR_WRITE_2(sc, RL_MAXRXPKTLEN,
+				    sc->rl_hwrev->rl_max_mtu +
+				    ETHER_VLAN_ENCAP_LEN + ETHER_HDR_LEN +
+				    ETHER_CRC_LEN);
+			else
+				CSR_WRITE_2(sc, RL_MAXRXPKTLEN,
+				    RE_RX_DESC_BUFLEN);
+		} else if ((sc->rl_flags & RL_FLAG_PCIE) != 0 &&
+		    sc->rl_hwrev->rl_max_mtu == RL_MTU) {
+			/* RTL810x has no jumbo frame support. */
+			CSR_WRITE_2(sc, RL_MAXRXPKTLEN, RE_RX_DESC_BUFLEN);
+		} else
+			CSR_WRITE_2(sc, RL_MAXRXPKTLEN, 16383);
+	}
 
 	if (sc->rl_testmode)
 		return;
@@ -2841,26 +3223,30 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
+	uint32_t		rev;
 	int			error = 0;
 
 	switch (command) {
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > RL_JUMBO_MTU) {
-			error = EINVAL;
-			break;
-		}
-		if ((sc->rl_flags & RL_FLAG_NOJUMBO) != 0 &&
-		    ifr->ifr_mtu > RL_MAX_FRAMELEN) {
+		if (ifr->ifr_mtu < ETHERMIN ||
+		    ifr->ifr_mtu > sc->rl_hwrev->rl_max_mtu) {
 			error = EINVAL;
 			break;
 		}
 		RL_LOCK(sc);
-		if (ifp->if_mtu != ifr->ifr_mtu)
+		if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
-		if (ifp->if_mtu > RL_TSO_MTU &&
-		    (ifp->if_capenable & IFCAP_TSO4) != 0) {
-			ifp->if_capenable &= ~IFCAP_TSO4;
-			ifp->if_hwassist &= ~CSUM_TSO;
+			if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0 &&
+			    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				re_init_locked(sc);
+			}
+			if (ifp->if_mtu > RL_TSO_MTU &&
+			    (ifp->if_capenable & IFCAP_TSO4) != 0) {
+				ifp->if_capenable &= ~(IFCAP_TSO4 |
+				    IFCAP_VLAN_HWTSO);
+				ifp->if_hwassist &= ~CSUM_TSO;
+			}
 			VLAN_CAPABILITIES(ifp);
 		}
 		RL_UNLOCK(sc);
@@ -2920,12 +3306,23 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 #endif /* DEVICE_POLLING */
-		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if (ifp->if_capenable & IFCAP_TXCSUM)
-				ifp->if_hwassist |= RE_CSUM_FEATURES;
-			else
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0) {
+				rev = sc->rl_hwrev->rl_rev;
+				if (rev == RL_HWREV_8168C ||
+				    rev == RL_HWREV_8168C_SPIN2)
+					ifp->if_hwassist |= CSUM_TCP | CSUM_UDP;
+				else
+					ifp->if_hwassist |= RE_CSUM_FEATURES;
+			} else
 				ifp->if_hwassist &= ~RE_CSUM_FEATURES;
+			reinit = 1;
+		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 			reinit = 1;
 		}
 		if ((mask & IFCAP_TSO4) != 0 &&
@@ -2952,6 +3349,10 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
 			reinit = 1;
 		}
+		if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0 &&
+		    (mask & (IFCAP_HWCSUM | IFCAP_TSO4 |
+		    IFCAP_VLAN_HWTSO)) != 0)
+				reinit = 1;
 		if ((mask & IFCAP_WOL) != 0 &&
 		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
 			if ((mask & IFCAP_WOL_UCAST) != 0)
@@ -2992,7 +3393,7 @@ re_watchdog(struct rl_softc *sc)
 		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
 		    "-- recovering\n");
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+			re_start_locked(ifp);
 		return;
 	}
 
@@ -3003,7 +3404,7 @@ re_watchdog(struct rl_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	re_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		re_start_locked(ifp);
 }
 
 /*
@@ -3256,6 +3657,7 @@ re_add_sysctls(struct rl_softc *sc)
 {
 	struct sysctl_ctx_list	*ctx;
 	struct sysctl_oid_list	*children;
+	int			error;
 
 	ctx = device_get_sysctl_ctx(sc->rl_dev);
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->rl_dev));
@@ -3263,6 +3665,26 @@ re_add_sysctls(struct rl_softc *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "stats",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, re_sysctl_stats, "I",
 	    "Statistics Information");
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0)
+		return;
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "int_rx_mod",
+	    CTLTYPE_INT | CTLFLAG_RW, &sc->rl_int_rx_mod, 0,
+	    sysctl_hw_re_int_mod, "I", "re RX interrupt moderation");
+	/* Pull in device tunables. */
+	sc->rl_int_rx_mod = RL_TIMER_DEFAULT;
+	error = resource_int_value(device_get_name(sc->rl_dev),
+	    device_get_unit(sc->rl_dev), "int_rx_mod", &sc->rl_int_rx_mod);
+	if (error == 0) {
+		if (sc->rl_int_rx_mod < RL_TIMER_MIN ||
+		    sc->rl_int_rx_mod > RL_TIMER_MAX) {
+			device_printf(sc->rl_dev, "int_rx_mod value out of "
+			    "range; using default: %d\n",
+			    RL_TIMER_DEFAULT);
+			sc->rl_int_rx_mod = RL_TIMER_DEFAULT;
+		}
+	}
+
 }
 
 static int
@@ -3280,6 +3702,10 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	if (result == 1) {
 		sc = (struct rl_softc *)arg1;
 		RL_LOCK(sc);
+		if ((sc->rl_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+			RL_UNLOCK(sc);
+			goto done;
+		}
 		bus_dmamap_sync(sc->rl_ldata.rl_stag,
 		    sc->rl_ldata.rl_smap, BUS_DMASYNC_PREREAD);
 		CSR_WRITE_4(sc, RL_DUMPSTATS_HI,
@@ -3303,6 +3729,7 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 			    "DUMP statistics request timedout\n");
 			return (ETIMEDOUT);
 		}
+done:
 		stats = sc->rl_ldata.rl_stats;
 		printf("%s statistics:\n", device_get_nameunit(sc->rl_dev));
 		printf("Tx frames : %ju\n",
@@ -3334,4 +3761,30 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	}
 
 	return (error);
+}
+
+static int
+sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high)
+{
+	int error, value;
+
+	if (arg1 == NULL)
+		return (EINVAL);
+	value = *(int *)arg1;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	if (value < low || value > high)
+		return (EINVAL);
+	*(int *)arg1 = value;
+
+	return (0);
+}
+
+static int
+sysctl_hw_re_int_mod(SYSCTL_HANDLER_ARGS)
+{
+
+	return (sysctl_int_range(oidp, arg1, arg2, req, RL_TIMER_MIN,
+	    RL_TIMER_MAX));
 }

@@ -117,6 +117,21 @@ static struct td_sched td_sched0;
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
 /*
+ * Priority ranges used for interactive and non-interactive timeshare
+ * threads.  The timeshare priorities are split up into four ranges.
+ * The first range handles interactive threads.  The last three ranges
+ * (NHALF, x, and NHALF) handle non-interactive threads with the outer
+ * ranges supporting nice values.
+ */
+#define	PRI_TIMESHARE_RANGE	(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
+#define	PRI_INTERACT_RANGE	((PRI_TIMESHARE_RANGE - SCHED_PRI_NRESV) / 2)
+
+#define	PRI_MIN_INTERACT	PRI_MIN_TIMESHARE
+#define	PRI_MAX_INTERACT	(PRI_MIN_TIMESHARE + PRI_INTERACT_RANGE - 1)
+#define	PRI_MIN_BATCH		(PRI_MIN_TIMESHARE + PRI_INTERACT_RANGE)
+#define	PRI_MAX_BATCH		PRI_MAX_TIMESHARE
+
+/*
  * Cpu percentage computation macros and defines.
  *
  * SCHED_TICK_SECS:	Number of seconds to average the cpu usage across.
@@ -147,9 +162,9 @@ static struct td_sched td_sched0;
  */
 #define	SCHED_PRI_NRESV		(PRIO_MAX - PRIO_MIN)
 #define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
-#define	SCHED_PRI_MIN		(PRI_MIN_TIMESHARE + SCHED_PRI_NHALF)
-#define	SCHED_PRI_MAX		(PRI_MAX_TIMESHARE - SCHED_PRI_NHALF)
-#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN)
+#define	SCHED_PRI_MIN		(PRI_MIN_BATCH + SCHED_PRI_NHALF)
+#define	SCHED_PRI_MAX		(PRI_MAX_BATCH - SCHED_PRI_NHALF)
+#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN + 1)
 #define	SCHED_PRI_TICKS(ts)						\
     (SCHED_TICK_HZ((ts)) /						\
     (roundup(SCHED_TICK_TOTAL((ts)), SCHED_PRI_RANGE) / SCHED_PRI_RANGE))
@@ -194,7 +209,7 @@ static int preempt_thresh = PRI_MIN_KERN;
 #else 
 static int preempt_thresh = 0;
 #endif
-static int static_boost = PRI_MIN_TIMESHARE;
+static int static_boost = PRI_MIN_BATCH;
 static int sched_idlespins = 10000;
 static int sched_idlespinthresh = 16;
 
@@ -393,15 +408,15 @@ sched_shouldpreempt(int pri, int cpri, int remote)
 	if (pri <= preempt_thresh)
 		return (1);
 	/*
-	 * If we're realtime or better and there is timeshare or worse running
-	 * preempt only remote processors.
+	 * If we're interactive or better and there is non-interactive
+	 * or worse running preempt only remote processors.
 	 */
-	if (remote && pri <= PRI_MAX_REALTIME && cpri > PRI_MAX_REALTIME)
+	if (remote && pri <= PRI_MAX_INTERACT && cpri > PRI_MAX_INTERACT)
 		return (1);
 	return (0);
 }
 
-#define	TS_RQ_PPQ	(((PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE) + 1) / RQ_NQS)
+#define	TS_RQ_PPQ	(((PRI_MAX_BATCH - PRI_MIN_BATCH) + 1) / RQ_NQS)
 /*
  * Add a thread to the actual run-queue.  Keeps transferable counts up to
  * date with what is actually on the run-queue.  Selects the correct
@@ -423,18 +438,18 @@ tdq_runq_add(struct tdq *tdq, struct thread *td, int flags)
 		tdq->tdq_transferable++;
 		ts->ts_flags |= TSF_XFERABLE;
 	}
-	if (pri <= PRI_MAX_REALTIME) {
+	if (pri < PRI_MIN_BATCH) {
 		ts->ts_runq = &tdq->tdq_realtime;
-	} else if (pri <= PRI_MAX_TIMESHARE) {
+	} else if (pri <= PRI_MAX_BATCH) {
 		ts->ts_runq = &tdq->tdq_timeshare;
-		KASSERT(pri <= PRI_MAX_TIMESHARE && pri >= PRI_MIN_TIMESHARE,
+		KASSERT(pri <= PRI_MAX_BATCH && pri >= PRI_MIN_BATCH,
 			("Invalid priority %d on timeshare runq", pri));
 		/*
 		 * This queue contains only priorities between MIN and MAX
 		 * realtime.  Use the whole queue to represent these values.
 		 */
 		if ((flags & (SRQ_BORROWING|SRQ_PREEMPTED)) == 0) {
-			pri = (pri - PRI_MIN_TIMESHARE) / TS_RQ_PPQ;
+			pri = (pri - PRI_MIN_BATCH) / TS_RQ_PPQ;
 			pri = (pri + tdq->tdq_idx) % RQ_NQS;
 			/*
 			 * This effectively shortens the queue by one so we
@@ -1205,7 +1220,7 @@ tdq_choose(struct tdq *tdq)
 		return (td);
 	td = runq_choose_from(&tdq->tdq_timeshare, tdq->tdq_ridx);
 	if (td != NULL) {
-		KASSERT(td->td_priority >= PRI_MIN_TIMESHARE,
+		KASSERT(td->td_priority >= PRI_MIN_BATCH,
 		    ("tdq_choose: Invalid priority on timeshare queue %d",
 		    td->td_priority));
 		return (td);
@@ -1388,7 +1403,7 @@ sched_priority(struct thread *td)
 	int score;
 	int pri;
 
-	if (td->td_pri_class != PRI_TIMESHARE)
+	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
 		return;
 	/*
 	 * If the score is interactive we place the thread in the realtime
@@ -1405,10 +1420,10 @@ sched_priority(struct thread *td)
 	 */
 	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
-		pri = PRI_MIN_REALTIME;
-		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)
-		    * score;
-		KASSERT(pri >= PRI_MIN_REALTIME && pri <= PRI_MAX_REALTIME,
+		pri = PRI_MIN_INTERACT;
+		pri += ((PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) /
+		    sched_interact) * score;
+		KASSERT(pri >= PRI_MIN_INTERACT && pri <= PRI_MAX_INTERACT,
 		    ("sched_priority: invalid interactive priority %d score %d",
 		    pri, score));
 	} else {
@@ -1416,7 +1431,7 @@ sched_priority(struct thread *td)
 		if (td->td_sched->ts_ticks)
 			pri += SCHED_PRI_TICKS(td->td_sched);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
-		KASSERT(pri >= PRI_MIN_TIMESHARE && pri <= PRI_MAX_TIMESHARE,
+		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
 		    ("sched_priority: invalid priority %d: nice %d, " 
 		    "ticks %d ftick %d ltick %d tick pri %d",
 		    pri, td->td_proc->p_nice, td->td_sched->ts_ticks,
@@ -1677,8 +1692,8 @@ sched_user_prio(struct thread *td, u_char prio)
 {
 
 	td->td_base_user_pri = prio;
-	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
-                return;
+	if (td->td_lend_user_pri <= prio)
+		return;
 	td->td_user_pri = prio;
 }
 
@@ -1687,23 +1702,12 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_flags |= TDF_UBORROWING;
-	td->td_user_pri = prio;
-}
-
-void
-sched_unlend_user_prio(struct thread *td, u_char prio)
-{
-	u_char base_pri;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	base_pri = td->td_base_user_pri;
-	if (prio >= base_pri) {
-		td->td_flags &= ~TDF_UBORROWING;
-		sched_user_prio(td, base_pri);
-	} else {
-		sched_lend_user_prio(td, prio);
-	}
+	td->td_lend_user_pri = prio;
+	td->td_user_pri = min(prio, td->td_base_user_pri);
+	if (td->td_priority > td->td_user_pri)
+		sched_prio(td, td->td_user_pri);
+	else if (td->td_priority != td->td_user_pri)
+		td->td_flags |= TDF_NEEDRESCHED;
 }
 
 /*
@@ -1895,6 +1899,8 @@ sched_sleep(struct thread *td, int prio)
 	td->td_slptick = ticks;
 	if (TD_IS_SUSPENDED(td) || prio >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
+	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
+		return;
 	if (static_boost == 1 && prio)
 		sched_prio(td, prio);
 	else if (static_boost && td->td_priority > static_boost)
@@ -1972,14 +1978,16 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	ts2->ts_cpu = ts->ts_cpu;
 	ts2->ts_flags = 0;
 	/*
-	 * Grab our parents cpu estimation information and priority.
+	 * Grab our parents cpu estimation information.
 	 */
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
 	ts2->ts_incrtick = ts->ts_incrtick;
 	ts2->ts_ftick = ts->ts_ftick;
-	child->td_user_pri = td->td_user_pri;
-	child->td_base_user_pri = td->td_base_user_pri;
+	/*
+	 * Do not inherit any borrowed priority from the parent.
+	 */
+	child->td_priority = child->td_base_pri;
 	/*
 	 * And update interactivity score.
 	 */
@@ -2133,7 +2141,7 @@ sched_clock(struct thread *td)
 	ts = td->td_sched;
 	if (td->td_pri_class & PRI_FIFO_BIT)
 		return;
-	if (td->td_pri_class == PRI_TIMESHARE) {
+	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE) {
 		/*
 		 * We used a tick; charge it to the thread so
 		 * that we can compute our interactivity.

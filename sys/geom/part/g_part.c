@@ -76,7 +76,10 @@ struct g_part_alias_list {
 	{ "apple-raid-offline", G_PART_ALIAS_APPLE_RAID_OFFLINE },
 	{ "apple-tv-recovery", G_PART_ALIAS_APPLE_TV_RECOVERY },
 	{ "apple-ufs", G_PART_ALIAS_APPLE_UFS },
+	{ "bios-boot", G_PART_ALIAS_BIOS_BOOT },
+	{ "ebr", G_PART_ALIAS_EBR },
 	{ "efi", G_PART_ALIAS_EFI },
+	{ "fat32", G_PART_ALIAS_MS_FAT32 },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
 	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
 	{ "freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
@@ -87,6 +90,7 @@ struct g_part_alias_list {
 	{ "linux-lvm", G_PART_ALIAS_LINUX_LVM },
 	{ "linux-raid", G_PART_ALIAS_LINUX_RAID },
 	{ "linux-swap", G_PART_ALIAS_LINUX_SWAP },
+	{ "mbr", G_PART_ALIAS_MBR },
 	{ "ms-basic-data", G_PART_ALIAS_MS_BASIC_DATA },
 	{ "ms-ldm-data", G_PART_ALIAS_MS_LDM_DATA },
 	{ "ms-ldm-metadata", G_PART_ALIAS_MS_LDM_METADATA },
@@ -98,7 +102,6 @@ struct g_part_alias_list {
 	{ "netbsd-lfs", G_PART_ALIAS_NETBSD_LFS },
 	{ "netbsd-raid", G_PART_ALIAS_NETBSD_RAID },
 	{ "netbsd-swap", G_PART_ALIAS_NETBSD_SWAP },
-	{ "mbr", G_PART_ALIAS_MBR }
 };
 
 /*
@@ -1868,6 +1871,8 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    table->gpt_heads);
 		sbuf_printf(sb, "%s<state>%s</state>\n", indent,
 		    table->gpt_corrupt ? "CORRUPT": "OK");
+		sbuf_printf(sb, "%s<modified>%s</modified>\n", indent,
+		    table->gpt_opened ? "true": "false");
 		G_PART_DUMPCONF(table, NULL, sb, indent);
 	}
 }

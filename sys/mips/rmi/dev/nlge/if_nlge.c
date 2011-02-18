@@ -213,7 +213,6 @@ static int	send_fmn_msg_tx(struct nlge_softc *, struct msgrng_msg *,
 //#define DEBUG
 #ifdef DEBUG
 static int	mac_debug = 1;
-static int 	reg_dump = 0;
 #undef PDEBUG
 #define PDEBUG(fmt, args...) \
         do {\
@@ -1716,8 +1715,8 @@ nlge_irq_init(struct nlge_softc *sc)
 
 	irq_num = block_info->baseirq + sc->instance;
 	irq_res.__r_i = (struct resource_i *)(intptr_t) (irq_num);
-	ret = bus_setup_intr(sc->nlge_dev, &irq_res, (INTR_FAST |
-	    INTR_TYPE_NET | INTR_MPSAFE), NULL, nlge_intr, sc, NULL);
+	ret = bus_setup_intr(sc->nlge_dev, &irq_res,
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, nlge_intr, sc, NULL);
 	if (ret) {
 		nlge_detach(sc->nlge_dev);
 		device_printf(sc->nlge_dev, "couldn't set up irq: error=%d\n",

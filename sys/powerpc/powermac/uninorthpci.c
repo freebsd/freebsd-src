@@ -231,11 +231,14 @@ uninorth_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	sc->sc_nrange /= sizeof(sc->sc_range[0]);
+
 	sc->sc_range[6].pci_hi = 0;
 	io = NULL;
 	nmem = 0;
 
-	for (rp = sc->sc_range; rp->pci_hi != 0; rp++) {
+	for (rp = sc->sc_range; rp < sc->sc_range + sc->sc_nrange &&
+	       rp->pci_hi != 0; rp++) {
 		switch (rp->pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
 		case OFW_PCI_PHYS_HI_SPACE_CONFIG:
 			break;
@@ -364,7 +367,7 @@ uninorth_route_interrupt(device_t bus, device_t dev, int pin)
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
 	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
 	    &iparent, maskbuf))
-		return (INTR_VEC(iparent, mintr));
+		return (MAP_IRQ(iparent, mintr));
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)

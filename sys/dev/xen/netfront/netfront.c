@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenfunc.h>
+#include <machine/xen/xenvar.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/evtchn.h>
@@ -1272,7 +1273,6 @@ xennet_get_responses(struct netfront_info *np,
 	struct mbuf *m, *m0, *m_prev;
 	grant_ref_t ref = xennet_get_rx_ref(np, *cons);
 	RING_IDX ref_cons = *cons;
-	int max = 5 /* MAX_TX_REQ_FRAGS + (rx->status <= RX_COPY_THRESHOLD) */;
 	int frags = 1;
 	int err = 0;
 	u_long ret;
@@ -1415,20 +1415,10 @@ next_skip_queue:
 		frags++;
 	}
 	*list = m0;
-
-	if (unlikely(frags > max)) {
-		if (net_ratelimit())
-			WPRINTK("Too many frags\n");
-		printf("%s: too many frags %d > max %d\n", __func__, frags,
-		       max);
-		err = E2BIG;
-	}
-
 	*cons += frags;
-
 	*pages_flipped_p = pages_flipped;
 
-	return err;
+	return (err);
 }
 
 static void

@@ -34,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -207,8 +206,9 @@ usb_detach(device_t dev)
 
 	usb_proc_free(&bus->control_xfer_proc);
 
+#if USB_HAVE_PF
 	usbpf_detach(bus);
-
+#endif
 	return (0);
 }
 
@@ -437,8 +437,9 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 		usb_devclass_ptr = devclass_find("usbus");
 	mtx_unlock(&Giant);
 
+#if USB_HAVE_PF
 	usbpf_attach(bus);
-
+#endif
 	/* Initialise USB process messages */
 	bus->explore_msg[0].hdr.pm_callback = &usb_bus_explore;
 	bus->explore_msg[0].bus = bus;
@@ -459,19 +460,19 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 
 	if (usb_proc_create(&bus->giant_callback_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB Giant "
+		device_printf(dev, "WARNING: Creation of USB Giant "
 		    "callback process failed.\n");
 	} else if (usb_proc_create(&bus->non_giant_callback_proc,
 	    &bus->bus_mtx, pname, USB_PRI_HIGH)) {
-		printf("WARNING: Creation of USB non-Giant "
+		device_printf(dev, "WARNING: Creation of USB non-Giant "
 		    "callback process failed.\n");
 	} else if (usb_proc_create(&bus->explore_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB explore "
+		device_printf(dev, "WARNING: Creation of USB explore "
 		    "process failed.\n");
 	} else if (usb_proc_create(&bus->control_xfer_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB control transfer "
+		device_printf(dev, "WARNING: Creation of USB control transfer "
 		    "process failed.\n");
 	} else {
 		/* Get final attach going */

@@ -32,14 +32,15 @@
 KMOD=	acpi
 
 # ACPI CA sources
-SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbstats.c
-SRCS+=	dbutils.c dbxface.c
+SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbmethod.c
+SRCS+=	dbnames.c dbstats.c dbutils.c dbxface.c
 SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
 SRCS+=	dmresrcs.c dmutils.c dmwalk.c
-SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c dsobject.c dsopcode.c
-SRCS+=	dsutils.c dswexec.c dswload.c dswscope.c dswstate.c
+SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c dsmthdat.c
+SRCS+=	dsobject.c dsopcode.c dsutils.c dswexec.c dswload.c dswload2.c
+SRCS+=	dswscope.c dswstate.c
 SRCS+=	evevent.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c evmisc.c
-SRCS+=	evregion.c evrgnini.c evsci.c evxface.c evxfevnt.c evxfregn.c
+SRCS+=	evregion.c evrgnini.c evsci.c evxface.c evxfevnt.c evxfgpe.c evxfregn.c
 SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c exfield.c
 SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c exoparg2.c
 SRCS+=	exoparg3.c exoparg6.c exprep.c exregion.c exresnte.c exresolv.c
@@ -54,9 +55,9 @@ SRCS+=	pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
 SRCS+=	rsmemory.c rsmisc.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
-SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c uteval.c utglobal.c
-SRCS+=	utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c utobject.c
-SRCS+=	utosi.c utresrc.c utstate.c utxface.c utxferror.c
+SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdecode.c utdelete.c uteval.c
+SRCS+=	utglobal.c utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c
+SRCS+=	utobject.c utosi.c utresrc.c utstate.c utxface.c utxferror.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c acpi_package.c acpi_pci.c acpi_pcib.c

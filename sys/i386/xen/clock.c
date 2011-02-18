@@ -340,7 +340,8 @@ clkintr(void *arg)
 	 * time base.
 	 */
 	
-	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version) {
+	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version &&
+	    !independent_wallclock) {
 		printf("[XEN] hypervisor wallclock nudged; nudging TOD.\n");
 		update_wallclock();
 		add_uptime_to_wallclock();
@@ -522,7 +523,8 @@ startrtclock()
 	set_cyc2ns_scale(cpu_khz/1000);
 	tsc_freq = cpu_khz * 1000;
 
-        timer_freq = xen_timecounter.tc_frequency = 1000000000LL;
+        timer_freq = 1000000000LL;
+	xen_timecounter.tc_frequency = timer_freq >> 9;
         tc_init(&xen_timecounter);
 
 	rdtscll(alarm);
@@ -775,7 +777,7 @@ cpu_initclocks(void)
 	
         error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
 	    clkintr, NULL, NULL,
-	    INTR_TYPE_CLK | INTR_FAST, &time_irq);
+	    INTR_TYPE_CLK, &time_irq);
 	if (error)
 		panic("failed to register clock interrupt\n");
 	/* should fast clock be enabled ? */
@@ -794,7 +796,7 @@ ap_cpu_initclocks(int cpu)
 			   &xen_set_periodic_tick);
         error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
 	    clkintr, NULL, NULL,
-	    INTR_TYPE_CLK | INTR_FAST, &time_irq);
+	    INTR_TYPE_CLK, &time_irq);
 	if (error)
 		panic("failed to register clock interrupt\n");
 
@@ -829,7 +831,7 @@ xen_get_timecount(struct timecounter *tc)
 	
         clk = shadow->system_timestamp + get_nsec_offset(shadow);
 
-	return (uint32_t)(clk);
+	return (uint32_t)(clk >> 9);
 
 }
 

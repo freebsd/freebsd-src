@@ -116,7 +116,8 @@ static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, struct vnode **,
 		    struct ucred *cred, int);
 static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
-		    struct sockaddr_storage *, int *, off_t *);
+		    struct sockaddr_storage *, int *, off_t *,
+		    struct timeval *);
 static vfs_mount_t nfs_mount;
 static vfs_cmount_t nfs_cmount;
 static vfs_unmount_t nfs_unmount;
@@ -427,7 +428,6 @@ nfs_mountroot(struct mount *mp)
 	char buf[128];
 	char *cp;
 
-	CURVNET_SET(TD_TO_VNET(td));
 
 #if defined(BOOTP_NFSROOT) && defined(BOOTP)
 	bootpc_init();		/* use bootp to get nfs_diskless filled in */
@@ -436,7 +436,6 @@ nfs_mountroot(struct mount *mp)
 #endif
 
 	if (nfs_diskless_valid == 0) {
-		CURVNET_RESTORE();
 		return (-1);
 	}
 	if (nfs_diskless_valid == 1)
@@ -503,10 +502,12 @@ nfs_mountroot(struct mount *mp)
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(sin);
                 /* XXX MRT use table 0 for this sort of thing */
+		CURVNET_SET(TD_TO_VNET(td));
 		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
 		    RTF_UP | RTF_GATEWAY, NULL);
+		CURVNET_RESTORE();
 		if (error)
 			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
@@ -524,7 +525,6 @@ nfs_mountroot(struct mount *mp)
 	nd->root_args.hostname = buf;
 	if ((error = nfs_mountdiskless(buf,
 	    &nd->root_saddr, &nd->root_args, td, &vp, mp)) != 0) {
-		CURVNET_RESTORE();
 		return (error);
 	}
 
@@ -538,7 +538,6 @@ nfs_mountroot(struct mount *mp)
 	    sizeof (prison0.pr_hostname));
 	mtx_unlock(&prison0.pr_mtx);
 	inittodr(ntohl(nd->root_time));
-	CURVNET_RESTORE();
 	return (0);
 }
 
@@ -1205,6 +1204,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		TAILQ_INIT(&nmp->nm_bufq);
 		mp->mnt_data = nmp;
 		nmp->nm_getinfo = nfs_getnlminfo;
+		nmp->nm_vinvalbuf = nfs_vinvalbuf;
 	}
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
@@ -1499,7 +1499,8 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
  */
 static void
 nfs_getnlminfo(struct vnode *vp, uint8_t *fhp, size_t *fhlenp,
-    struct sockaddr_storage *sp, int *is_v3p, off_t *sizep)
+    struct sockaddr_storage *sp, int *is_v3p, off_t *sizep,
+    struct timeval *timeop)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np = VTONFS(vp);
@@ -1515,5 +1516,9 @@ nfs_getnlminfo(struct vnode *vp, uint8_t *fhp, size_t *fhlenp,
 		*is_v3p = NFS_ISV3(vp);
 	if (sizep != NULL)
 		*sizep = np->n_size;
+	if (timeop != NULL) {
+		timeop->tv_sec = nmp->nm_timeo / NFS_HZ;
+		timeop->tv_usec = (nmp->nm_timeo % NFS_HZ) * (1000000 / NFS_HZ);
+	}
 }
 

@@ -439,6 +439,7 @@ SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
 SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
 SCTP_USE_PERCPU_STAT    opt_sctp.h # Use per cpu stats.
+SCTP_MCORE_INPUT        opt_sctp.h # Have multiple input threads for input mbufs
 #
 #
 #
@@ -642,6 +643,7 @@ BUS_DEBUG		opt_bus.h
 
 # options for USB support
 USB_DEBUG		opt_usb.h
+USB_HOST_ALIGN		opt_usb.h
 USB_REQ_DEBUG		opt_usb.h
 USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h

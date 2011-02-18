@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -484,7 +483,7 @@ sf_buf_free(struct sf_buf *sf)
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
 	nsfbufsused--;
 	if (sf_buf_alloc_want > 0)
-		wakeup_one(&sf_freelist);
+		wakeup(&sf_freelist);
 	mtx_unlock(&sf_freelist.sf_lock);
 }
 

@@ -326,7 +326,7 @@ static int
 siba_bwn_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct siba_dev_softc *sd;
-	struct siba_softc *siba;;
+	struct siba_softc *siba;
 
 	sd = device_get_ivars(child);
 	siba = sd->sd_bus;

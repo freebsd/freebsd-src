@@ -49,6 +49,12 @@ typedef struct {
 
 #define AR5416_SPUR_RSSI_THRESH		40
 
+struct ar5416NfLimits {
+	int16_t max;
+	int16_t min;
+	int16_t nominal;
+};
+
 struct ath_hal_5416 {
 	struct ath_hal_5212 ah_5212;
 
@@ -81,7 +87,12 @@ struct ath_hal_5416 {
 	uint32_t	ah_rx_chainmask;
 	uint32_t	ah_tx_chainmask;
 
+	HAL_ANI_CMD	ah_ani_function;
+
 	struct ar5416PerCal ah_cal;		/* periodic calibration state */
+
+	struct ar5416NfLimits nf_2g;
+	struct ar5416NfLimits nf_5g;
 };
 #define	AH5416(_ah)	((struct ath_hal_5416 *)(_ah))
 
@@ -113,8 +124,9 @@ extern	HAL_BOOL ar5416AniControl(struct ath_hal *, HAL_ANI_CMD cmd, int param);
 extern	HAL_BOOL ar5416AniSetParams(struct ath_hal *,
 		const struct ar5212AniParams *, const struct ar5212AniParams *);
 extern	void ar5416ProcessMibIntr(struct ath_hal *, const HAL_NODE_STATS *);
-extern	void ar5416AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+extern	void ar5416RxMonitor(struct ath_hal *, const HAL_NODE_STATS *,
 			     const struct ieee80211_channel *);
+extern	void ar5416AniPoll(struct ath_hal *, const struct ieee80211_channel *);
 extern	void ar5416AniReset(struct ath_hal *, const struct ieee80211_channel *,
 		HAL_OPMODE, int);
 
@@ -200,7 +212,8 @@ extern	void ar5416GetTargetPowersLeg(struct ath_hal *ah,
 		CAL_TARGET_POWER_LEG *powInfo,
 		uint16_t numChannels, CAL_TARGET_POWER_LEG *pNewPower,
 		uint16_t numRates, HAL_BOOL isExtTarget);
-
+extern	void ar5416InitChainMasks(struct ath_hal *ah);
+extern	void ar5416RestoreChainMask(struct ath_hal *ah);
 
 extern	HAL_BOOL ar5416StopTxDma(struct ath_hal *ah, u_int q);
 extern	HAL_BOOL ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
@@ -218,6 +231,26 @@ extern	HAL_BOOL ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		const struct ath_desc *ds0);
 extern	HAL_STATUS ar5416ProcTxDesc(struct ath_hal *ah,
 		struct ath_desc *, struct ath_tx_status *);
+extern	HAL_BOOL ar5416GetTxCompletionRates(struct ath_hal *ah,
+		const struct ath_desc *ds0, int *rates, int *tries);
+
+extern	HAL_BOOL ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+		u_int pktLen, u_int hdrLen, HAL_PKT_TYPE type, u_int keyIx,
+		HAL_CIPHER cipher, uint8_t delims, u_int segLen, HAL_BOOL firstSeg,
+		HAL_BOOL lastSeg);
+extern	HAL_BOOL ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+		u_int aggrLen, u_int flags, u_int txPower, u_int txRate0, u_int txTries0,
+		u_int antMode, u_int rtsctsRate, u_int rtsctsDuration);
+extern	HAL_BOOL ar5416SetupLastTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+		const struct ath_desc *ds0);
+extern	HAL_BOOL ar5416SetGlobalTxTimeout(struct ath_hal *ah, u_int tu);
+extern	u_int ar5416GetGlobalTxTimeout(struct ath_hal *ah);
+extern	void ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
+		u_int durUpdateEn, u_int rtsctsRate, HAL_11N_RATE_SERIES series[],
+		u_int nseries, u_int flags);
+extern	void ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims);
+extern	void ar5416Clr11nAggr(struct ath_hal *ah, struct ath_desc *ds);
+extern	void ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds, u_int burstDuration);
 
 extern	const HAL_RATE_TABLE *ar5416GetRateTable(struct ath_hal *, u_int mode);
 #endif	/* _ATH_AR5416_H_ */

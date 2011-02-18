@@ -326,7 +326,7 @@ struct ath_hal_5212 {
 	 */
 	uint16_t	*ah_pcdacTable;
 	u_int		ah_pcdacTableSize;
-	uint16_t	ah_ratesArray[16];
+	uint16_t	ah_ratesArray[37];
 
 	uint8_t		ah_txTrigLev;		/* current Tx trigger level */
 	uint8_t		ah_maxTxTrigLev;	/* max tx trigger level */
@@ -589,6 +589,8 @@ extern	HAL_STATUS ar5212ProcTxDesc(struct ath_hal *ah,
 		struct ath_desc *, struct ath_tx_status *);
 extern  void ar5212GetTxIntrQueue(struct ath_hal *ah, uint32_t *);
 extern  void ar5212IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *);
+extern	HAL_BOOL ar5212GetTxCompletionRates(struct ath_hal *ah,
+		const struct ath_desc *ds0, int *rates, int *tries);
 
 extern	const HAL_RATE_TABLE *ar5212GetRateTable(struct ath_hal *, u_int mode);
 
@@ -604,8 +606,9 @@ struct ath_rx_status;
 extern	void ar5212AniPhyErrReport(struct ath_hal *ah,
 		const struct ath_rx_status *rs);
 extern	void ar5212ProcessMibIntr(struct ath_hal *, const HAL_NODE_STATS *);
-extern	void ar5212AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+extern	void ar5212RxMonitor(struct ath_hal *, const HAL_NODE_STATS *,
 			     const struct ieee80211_channel *);
+extern	void ar5212AniPoll(struct ath_hal *, const struct ieee80211_channel *);
 extern	void ar5212AniReset(struct ath_hal *, const struct ieee80211_channel *,
 		HAL_OPMODE, int);
 

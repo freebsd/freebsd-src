@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
+#include <sys/endian.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -61,6 +62,7 @@ static void mps_startup(void *arg);
 static void mps_startup_complete(struct mps_softc *sc, struct mps_command *cm);
 static int mps_send_iocinit(struct mps_softc *sc);
 static int mps_attach_log(struct mps_softc *sc);
+static __inline void mps_complete_command(struct mps_command *cm);
 static void mps_dispatch_event(struct mps_softc *sc, uintptr_t data, MPI2_EVENT_NOTIFICATION_REPLY *reply);
 static void mps_config_complete(struct mps_softc *sc, struct mps_command *cm);
 static void mps_periodic(void *);
@@ -386,6 +388,15 @@ mps_enqueue_request(struct mps_softc *sc, struct mps_command *cm)
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
+	if (sc->mps_flags & MPS_FLAGS_ATTACH_DONE)
+		mtx_assert(&sc->mps_mtx, MA_OWNED);
+
+	if ((cm->cm_desc.Default.SMID < 1)
+	 || (cm->cm_desc.Default.SMID >= sc->num_reqs)) {
+		mps_printf(sc, "%s: invalid SMID %d, desc %#x %#x\n",
+			   __func__, cm->cm_desc.Default.SMID,
+			   cm->cm_desc.Words.High, cm->cm_desc.Words.Low);
+	}
 	mps_regwrite(sc, MPI2_REQUEST_DESCRIPTOR_POST_LOW_OFFSET,
 	    cm->cm_desc.Words.Low);
 	mps_regwrite(sc, MPI2_REQUEST_DESCRIPTOR_POST_HIGH_OFFSET,
@@ -607,9 +618,16 @@ mps_alloc_queues(struct mps_softc *sc)
 static int
 mps_alloc_replies(struct mps_softc *sc)
 {
-	int rsize;
+	int rsize, num_replies;
 
-	rsize = sc->facts->ReplyFrameSize * sc->num_replies * 4; 
+	/*
+	 * sc->num_replies should be one less than sc->fqdepth.  We need to
+	 * allocate space for sc->fqdepth replies, but only sc->num_replies
+	 * replies can be used at once.
+	 */
+	num_replies = max(sc->fqdepth, sc->num_replies);
+
+	rsize = sc->facts->ReplyFrameSize * num_replies * 4; 
         if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -724,6 +742,7 @@ mps_alloc_requests(struct mps_softc *sc)
 		chain->chain_busaddr = sc->chain_busaddr +
 		    i * sc->facts->IOCRequestFrameSize * 4;
 		mps_free_chain(sc, chain);
+		sc->chain_free_lowwater++;
 	}
 
 	/* XXX Need to pick a more precise value */
@@ -782,11 +801,19 @@ mps_init_queues(struct mps_softc *sc)
 
 	memset((uint8_t *)sc->post_queue, 0xff, sc->pqdepth * 8);
 
+	/*
+	 * According to the spec, we need to use one less reply than we
+	 * have space for on the queue.  So sc->num_replies (the number we
+	 * use) should be less than sc->fqdepth (allocated size).
+	 */
 	if (sc->num_replies >= sc->fqdepth)
 		return (EINVAL);
 
-	for (i = 0; i < sc->num_replies; i++)
-		sc->free_queue[i] = sc->reply_busaddr + i * sc->facts->ReplyFrameSize * 4;
+	/*
+	 * Initialize all of the free queue entries.
+	 */
+	for (i = 0; i < sc->fqdepth; i++)
+		sc->free_queue[i] = sc->reply_busaddr + (i * sc->facts->ReplyFrameSize * 4);
 	sc->replyfreeindex = sc->num_replies;
 
 	return (0);
@@ -830,14 +857,34 @@ mps_attach(struct mps_softc *sc)
 	if (sc->sysctl_tree == NULL)
 		return (ENOMEM);
 
-	SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	SYSCTL_ADD_UINT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    OID_AUTO, "debug_level", CTLFLAG_RW, &sc->mps_debug, 0,
 	    "mps debug level");
 
-	SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	SYSCTL_ADD_UINT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    OID_AUTO, "allow_multiple_tm_cmds", CTLFLAG_RW,
 	    &sc->allow_multiple_tm_cmds, 0,
 	    "allow multiple simultaneous task management cmds");
+
+	SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	    OID_AUTO, "io_cmds_active", CTLFLAG_RD,
+	    &sc->io_cmds_active, 0, "number of currently active commands");
+
+	SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	    OID_AUTO, "io_cmds_highwater", CTLFLAG_RD,
+	    &sc->io_cmds_highwater, 0, "maximum active commands seen");
+
+	SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	    OID_AUTO, "chain_free", CTLFLAG_RD,
+	    &sc->chain_free, 0, "number of free chain elements");
+
+	SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	    OID_AUTO, "chain_free_lowwater", CTLFLAG_RD,
+	    &sc->chain_free_lowwater, 0,"lowest number of free chain elements");
+
+	SYSCTL_ADD_UQUAD(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	    OID_AUTO, "chain_alloc_fail", CTLFLAG_RD,
+	    &sc->chain_alloc_fail, "chain allocation failures");
 
 	if ((error = mps_transition_ready(sc)) != 0)
 		return (error);
@@ -879,9 +926,12 @@ mps_attach(struct mps_softc *sc)
 	sc->num_reqs = MIN(MPS_REQ_FRAMES, sc->facts->RequestCredit);
 	sc->num_replies = MIN(MPS_REPLY_FRAMES + MPS_EVT_REPLY_FRAMES,
 	    sc->facts->MaxReplyDescriptorPostQueueDepth) - 1;
+	mps_dprint(sc, MPS_INFO, "num_reqs %d, num_replies %d\n", sc->num_reqs,
+		   sc->num_replies);
 	TAILQ_INIT(&sc->req_list);
 	TAILQ_INIT(&sc->chain_list);
 	TAILQ_INIT(&sc->tm_list);
+	TAILQ_INIT(&sc->io_list);
 
 	if (((error = mps_alloc_queues(sc)) != 0) ||
 	    ((error = mps_alloc_replies(sc)) != 0) ||
@@ -907,7 +957,6 @@ mps_attach(struct mps_softc *sc)
 	 * replies.
 	 */
 	sc->replypostindex = 0;
-	sc->replycurindex = 0;
 	mps_regwrite(sc, MPI2_REPLY_FREE_HOST_INDEX_OFFSET, sc->replyfreeindex);
 	mps_regwrite(sc, MPI2_REPLY_POST_HOST_INDEX_OFFSET, 0);
 
@@ -951,6 +1000,8 @@ mps_attach(struct mps_softc *sc)
 		mps_dprint(sc, MPS_FAULT, "Cannot establish MPS config hook\n");
 		error = EINVAL;
 	}
+
+	sc->mps_flags |= MPS_FLAGS_ATTACH_DONE;
 
 	return (error);
 }
@@ -1151,6 +1202,22 @@ mps_free(struct mps_softc *sc)
 	return (0);
 }
 
+static __inline void
+mps_complete_command(struct mps_command *cm)
+{
+	if (cm->cm_flags & MPS_CM_FLAGS_POLLED)
+		cm->cm_flags |= MPS_CM_FLAGS_COMPLETE;
+
+	if (cm->cm_complete != NULL)
+		cm->cm_complete(cm->cm_sc, cm);
+
+	if (cm->cm_flags & MPS_CM_FLAGS_WAKEUP) {
+		mps_dprint(cm->cm_sc, MPS_TRACE, "%s: waking up %p\n",
+			   __func__, cm);
+		wakeup(cm);
+	}
+}
+
 void
 mps_intr(void *data)
 {
@@ -1211,7 +1278,8 @@ mps_intr_locked(void *data)
 		desc = &sc->post_queue[pq];
 		flags = desc->Default.ReplyFlags &
 		    MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
-		if (flags == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
+		if ((flags == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
+		 || (desc->Words.High == 0xffffffff))
 			break;
 
 		switch (flags) {
@@ -1224,9 +1292,36 @@ mps_intr_locked(void *data)
 			uint32_t baddr;
 			uint8_t *reply;
 
+			/*
+			 * Re-compose the reply address from the address
+			 * sent back from the chip.  The ReplyFrameAddress
+			 * is the lower 32 bits of the physical address of
+			 * particular reply frame.  Convert that address to
+			 * host format, and then use that to provide the
+			 * offset against the virtual address base
+			 * (sc->reply_frames).
+			 */
+			baddr = le32toh(desc->AddressReply.ReplyFrameAddress);
 			reply = sc->reply_frames +
-			    sc->replycurindex * sc->facts->ReplyFrameSize * 4;
-			baddr = desc->AddressReply.ReplyFrameAddress;
+				(baddr - ((uint32_t)sc->reply_busaddr));
+			/*
+			 * Make sure the reply we got back is in a valid
+			 * range.  If not, go ahead and panic here, since
+			 * we'll probably panic as soon as we deference the
+			 * reply pointer anyway.
+			 */
+			if ((reply < sc->reply_frames)
+			 || (reply > (sc->reply_frames +
+			     (sc->fqdepth * sc->facts->ReplyFrameSize * 4)))) {
+				printf("%s: WARNING: reply %p out of range!\n",
+				       __func__, reply);
+				printf("%s: reply_frames %p, fqdepth %d, "
+				       "frame size %d\n", __func__,
+				       sc->reply_frames, sc->fqdepth,
+				       sc->facts->ReplyFrameSize * 4);
+				printf("%s: baddr %#x,\n", __func__, baddr);
+				panic("Reply address out of range");
+			}
 			if (desc->AddressReply.SMID == 0) {
 				mps_dispatch_event(sc, baddr,
 				   (MPI2_EVENT_NOTIFICATION_REPLY *) reply);
@@ -1236,8 +1331,6 @@ mps_intr_locked(void *data)
 				cm->cm_reply_data =
 				    desc->AddressReply.ReplyFrameAddress;
 			}
-			if (++sc->replycurindex >= sc->fqdepth)
-				sc->replycurindex = 0;
 			break;
 		}
 		case MPI2_RPY_DESCRIPT_FLAGS_TARGETASSIST_SUCCESS:
@@ -1251,16 +1344,8 @@ mps_intr_locked(void *data)
 			break;
 		}
 
-		if (cm != NULL) {
-			if (cm->cm_flags & MPS_CM_FLAGS_POLLED)
-				cm->cm_flags |= MPS_CM_FLAGS_COMPLETE;
-
-			if (cm->cm_complete != NULL)
-				cm->cm_complete(sc, cm);
-
-			if (cm->cm_flags & MPS_CM_FLAGS_WAKEUP)
-				wakeup(cm);
-		}
+		if (cm != NULL)
+			mps_complete_command(cm);
 
 		desc->Words.Low = 0xffffffff;
 		desc->Words.High = 0xffffffff;
@@ -1282,7 +1367,7 @@ mps_dispatch_event(struct mps_softc *sc, uintptr_t data,
     MPI2_EVENT_NOTIFICATION_REPLY *reply)
 {
 	struct mps_event_handle *eh;
-	int event, handled = 0;;
+	int event, handled = 0;
 
 	event = reply->Event;
 	TAILQ_FOREACH(eh, &sc->event_list, eh_list) {
@@ -1621,6 +1706,8 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		if (error != 0) {
 			/* Resource shortage, roll back! */
 			mps_printf(sc, "out of chain frames\n");
+			cm->cm_flags |= MPS_CM_FLAGS_CHAIN_FAILED;
+			mps_complete_command(cm);
 			return;
 		}
 	}
@@ -1760,6 +1847,15 @@ mps_config_complete(struct mps_softc *sc, struct mps_command *cm)
 		bus_dmamap_unload(sc->buffer_dmat, cm->cm_dmamap);
 	}
 
+	/*
+	 * XXX KDM need to do more error recovery?  This results in the
+	 * device in question not getting probed.
+	 */
+	if ((cm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
+		params->status = MPI2_IOCSTATUS_BUSY;
+		goto bailout;
+	}
+
 	reply = (MPI2_CONFIG_REPLY *)cm->cm_reply;
 	params->status = reply->IOCStatus;
 	if (params->hdr.Ext.ExtPageType != 0) {
@@ -1771,6 +1867,8 @@ mps_config_complete(struct mps_softc *sc, struct mps_command *cm)
 		params->hdr.Struct.PageLength = reply->Header.PageLength;
 		params->hdr.Struct.PageVersion = reply->Header.PageVersion;
 	}
+
+bailout:
 
 	mps_free_command(sc, cm);
 	if (params->callback != NULL)

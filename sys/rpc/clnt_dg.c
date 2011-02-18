@@ -200,14 +200,11 @@ clnt_dg_create(
 		return (NULL);
 	}
 
-	CURVNET_SET(so->so_vnet);
 	if (!__rpc_socket2sockinfo(so, &si)) {
 		rpc_createerr.cf_stat = RPC_TLIERROR;
 		rpc_createerr.cf_error.re_errno = 0;
-		CURVNET_RESTORE();
 		return (NULL);
 	}
-	CURVNET_RESTORE();
 
 	/*
 	 * Find the receive and the send size
@@ -1089,15 +1086,14 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 		/*
 		 * The XID is in the first uint32_t of the reply.
 		 */
-		if (m->m_len < sizeof(xid))
-			m = m_pullup(m, sizeof(xid));
-		if (!m)
+		if (m->m_len < sizeof(xid) && m_length(m, NULL) < sizeof(xid))
 			/*
 			 * Should never happen.
 			 */
 			continue;
 
-		xid = ntohl(*mtod(m, uint32_t *));
+		m_copydata(m, 0, sizeof(xid), (char *)&xid);
+		xid = ntohl(xid);
 
 		/*
 		 * Attempt to match this reply with a pending request.

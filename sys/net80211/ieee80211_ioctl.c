@@ -2384,7 +2384,7 @@ ieee80211_scanreq(struct ieee80211vap *vap, struct ieee80211_scan_req *sr)
 	 IEEE80211_IOC_SCAN_NOJOIN | IEEE80211_IOC_SCAN_FLUSH | \
 	 IEEE80211_IOC_SCAN_CHECK)
 	struct ieee80211com *ic = vap->iv_ic;
-	int i;
+	int error, i;
 
 	/* convert duration */
 	if (sr->sr_duration == IEEE80211_IOC_SCAN_FOREVER)
@@ -2458,20 +2458,21 @@ ieee80211_scanreq(struct ieee80211vap *vap, struct ieee80211_scan_req *sr)
 	} else {
 		vap->iv_flags_ext &= ~IEEE80211_FEXT_SCANREQ;
 		IEEE80211_UNLOCK(ic);
-		/* XXX neeed error return codes */
 		if (sr->sr_flags & IEEE80211_IOC_SCAN_CHECK) {
-			(void) ieee80211_check_scan(vap, sr->sr_flags,
+			error = ieee80211_check_scan(vap, sr->sr_flags,
 			    sr->sr_duration, sr->sr_mindwell, sr->sr_maxdwell,
 			    sr->sr_nssid,
 			    /* NB: cheat, we assume structures are compatible */
 			    (const struct ieee80211_scan_ssid *) &sr->sr_ssid[0]);
 		} else {
-			(void) ieee80211_start_scan(vap, sr->sr_flags,
+			error = ieee80211_start_scan(vap, sr->sr_flags,
 			    sr->sr_duration, sr->sr_mindwell, sr->sr_maxdwell,
 			    sr->sr_nssid,
 			    /* NB: cheat, we assume structures are compatible */
 			    (const struct ieee80211_scan_ssid *) &sr->sr_ssid[0]);
 		}
+		if (error == 0)
+			return EINPROGRESS;
 	}
 	return 0;
 #undef IEEE80211_IOC_SCAN_FLAGS

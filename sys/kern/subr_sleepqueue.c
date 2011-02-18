@@ -745,7 +745,8 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 
 	/* Adjust priority if requested. */
 	MPASS(pri == 0 || (pri >= PRI_MIN && pri <= PRI_MAX));
-	if (pri != 0 && td->td_priority > pri)
+	if (pri != 0 && td->td_priority > pri &&
+	    PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
 		sched_prio(td, pri);
 
 	/*
@@ -1129,6 +1130,9 @@ dump_sleepq_prof_stats(SYSCTL_HANDLER_ARGS)
 	int error;
 	int i;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sb = sbuf_new_for_sysctl(NULL, NULL, SLEEPQ_SBUFSIZE, req);
 	sbuf_printf(sb, "\nwmesg\tcount\n");
 	enabled = prof_enabled;

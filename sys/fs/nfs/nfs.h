@@ -568,6 +568,7 @@ struct nfsv4_opflag {
 	int	needscfh;
 	int	savereply;
 	int	modifyfs;
+	int	lktype;
 };
 
 /*

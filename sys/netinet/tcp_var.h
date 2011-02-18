@@ -70,6 +70,7 @@ struct sackhole {
 struct sackhint {
 	struct sackhole	*nexthole;
 	int		sack_bytes_rexmit;
+	tcp_seq		last_sack_ack;	/* Most recent/largest sacked ack */
 
 	int		ispare;		/* explicit pad for 64bit alignment */
 	uint64_t	_pad[2];	/* 1 sacked_bytes, 1 TBD */
@@ -199,7 +200,8 @@ struct tcpcb {
 	void	*t_toe;			/* TOE pcb pointer */
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
 	struct cc_algo	*cc_algo;	/* congestion control algorithm */
-	struct cc_var	*ccv;
+	struct cc_var	*ccv;		/* congestion control specific vars */
+	struct osd	*osd;		/* storage for Khelp module data */
 
 	int	t_ispare;		/* explicit pad for 64bit alignment */
 	void	*t_pspare2[4];		/* 4 TBD */
@@ -474,7 +476,7 @@ struct	tcpstat {
 	u_long  tcps_sack_rexmit_bytes;	    /* SACK rexmit bytes      */
 	u_long  tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
 	u_long  tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
-	u_long  tcps_sack_sboverflow; 	    /* times scoreboard overflowed */
+	u_long  tcps_sack_sboverflow;	    /* times scoreboard overflowed */
 	
 	/* ECN related stats */
 	u_long	tcps_ecn_ce;		/* ECN Congestion Experienced */
@@ -500,6 +502,22 @@ struct	tcpstat {
 void	kmod_tcpstat_inc(int statnum);
 #define	KMOD_TCPSTAT_INC(name)						\
 	kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(u_long))
+
+/*
+ * TCP specific helper hook point identifiers.
+ */
+#define	HHOOK_TCP_EST_IN		0
+#define	HHOOK_TCP_EST_OUT		1
+#define	HHOOK_TCP_LAST			HHOOK_TCP_EST_OUT
+
+struct tcp_hhook_data {
+	struct tcpcb	*tp;
+	struct tcphdr	*th;
+	struct tcpopt	*to;
+	long		len;
+	int		tso;
+	tcp_seq		curack;
+};
 #endif
 
 /*
@@ -514,7 +532,7 @@ struct xtcp_timer {
 	int tt_keep;	/* keepalive */
 	int tt_2msl;	/* 2*msl TIME_WAIT timer */
 	int tt_delack;	/* delayed ACK timer */
-	int t_rcvtime; 	/* Time since last packet received */
+	int t_rcvtime;	/* Time since last packet received */
 };
 struct	xtcpcb {
 	size_t	xt_len;
@@ -607,6 +625,9 @@ VNET_DECLARE(int, tcp_ecn_maxretries);
 #define	V_tcp_do_ecn		VNET(tcp_do_ecn)
 #define	V_tcp_ecn_maxretries	VNET(tcp_ecn_maxretries)
 
+VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST + 1]);
+#define	V_tcp_hhh		VNET(tcp_hhh)
+
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 int	 tcp_ccalgounload(struct cc_algo *unload_algo);
 struct tcpcb *
@@ -627,7 +648,7 @@ void	 tcp_init(void);
 void	 tcp_destroy(void);
 #endif
 void	 tcp_fini(void *);
-char 	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
+char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);

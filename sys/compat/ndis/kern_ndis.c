@@ -433,6 +433,19 @@ ndis_flush_sysctls(arg)
 	return (0);
 }
 
+void *
+ndis_get_routine_address(functbl, name)
+	struct image_patch_table *functbl;
+	char			*name;
+{
+	int			i;
+
+	for (i = 0; functbl[i].ipt_name != NULL; i++)
+		if (strcmp(name, functbl[i].ipt_name) == 0)
+			return (functbl[i].ipt_wrap);
+	return (NULL);
+}
+
 static void
 ndis_return(dobj, arg)
 	device_object		*dobj;

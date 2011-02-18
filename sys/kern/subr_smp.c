@@ -73,7 +73,7 @@ u_int mp_maxid;
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
 
-SYSCTL_INT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD, &mp_maxid, 0,
+SYSCTL_UINT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD, &mp_maxid, 0,
     "Max CPU ID.");
 
 SYSCTL_INT(_kern_smp, OID_AUTO, maxcpus, CTLFLAG_RD, &mp_maxcpus, 0,
@@ -476,7 +476,7 @@ smp_topo_none(void)
 	top = &group[0];
 	top->cg_parent = NULL;
 	top->cg_child = NULL;
-	top->cg_mask = ~0U >> (32 - mp_ncpus);
+	top->cg_mask = all_cpus;
 	top->cg_count = mp_ncpus;
 	top->cg_children = 0;
 	top->cg_level = CG_SHARE_NONE;

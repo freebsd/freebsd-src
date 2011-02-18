@@ -101,10 +101,12 @@ struct cc_var {
  * bits (0x01000000 - 0x80000000) are reserved for CC algos to declare their own
  * congestion signal types.
  */
-#define	CC_ECN		0x000001/* ECN marked packet received. */
-#define	CC_RTO		0x000002/* RTO fired. */
-#define	CC_RTO_ERR	0x000004/* RTO fired in error. */
-#define	CC_NDUPACK	0x000008/* Threshold of dupack's reached. */
+#define	CC_ECN		0x00000001	/* ECN marked packet received. */
+#define	CC_RTO		0x00000002	/* RTO fired. */
+#define	CC_RTO_ERR	0x00000004	/* RTO fired in error. */
+#define	CC_NDUPACK	0x00000008	/* Threshold of dupack's reached. */
+
+#define	CC_SIGPRIVMASK	0xFF000000	/* Mask to check if sig is private. */
 
 /*
  * Structure to hold data and function pointers that together represent a

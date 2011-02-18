@@ -97,9 +97,7 @@ struct fork_args {
 
 /* ARGSUSED */
 int
-fork(td, uap)
-	struct thread *td;
-	struct fork_args *uap;
+fork(struct thread *td, struct fork_args *uap)
 {
 	int error;
 	struct proc *p2;
@@ -114,9 +112,7 @@ fork(td, uap)
 
 /* ARGSUSED */
 int
-vfork(td, uap)
-	struct thread *td;
-	struct vfork_args *uap;
+vfork(struct thread *td, struct vfork_args *uap)
 {
 	int error, flags;
 	struct proc *p2;
@@ -135,9 +131,7 @@ vfork(td, uap)
 }
 
 int
-rfork(td, uap)
-	struct thread *td;
-	struct rfork_args *uap;
+rfork(struct thread *td, struct rfork_args *uap)
 {
 	struct proc *p2;
 	int error;
@@ -197,176 +191,19 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, sysctl_kern_randompid, "I", "Random PID modulus");
 
-int
-fork1(td, flags, pages, procp)
-	struct thread *td;
-	int flags;
-	int pages;
-	struct proc **procp;
+static int
+fork_findpid(int flags)
 {
-	struct proc *p1, *p2, *pptr;
-	struct proc *newproc;
-	int ok, trypid;
-	static int curfail, pidchecked = 0;
-	static struct timeval lastfail;
-	struct filedesc *fd;
-	struct filedesc_to_leader *fdtol;
-	struct thread *td2;
-	struct sigacts *newsigacts;
-	struct vmspace *vm2;
-	vm_ooffset_t mem_charged;
-	int error;
-
-	/* Can't copy and clear. */
-	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
-		return (EINVAL);
-
-	p1 = td->td_proc;
+	struct proc *p;
+	int trypid;
+	static int pidchecked = 0;
 
 	/*
-	 * Here we don't create a new process, but we divorce
-	 * certain parts of a process from itself.
+	 * Requires allproc_lock in order to iterate over the list
+	 * of processes, and proctree_lock to access p_pgrp.
 	 */
-	if ((flags & RFPROC) == 0) {
-		if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
-		    (flags & (RFCFDG | RFFDG))) {
-			PROC_LOCK(p1);
-			if (thread_single(SINGLE_BOUNDARY)) {
-				PROC_UNLOCK(p1);
-				return (ERESTART);
-			}
-			PROC_UNLOCK(p1);
-		}
-
-		error = vm_forkproc(td, NULL, NULL, NULL, flags);
-		if (error)
-			goto norfproc_fail;
-
-		/*
-		 * Close all file descriptors.
-		 */
-		if (flags & RFCFDG) {
-			struct filedesc *fdtmp;
-			fdtmp = fdinit(td->td_proc->p_fd);
-			fdfree(td);
-			p1->p_fd = fdtmp;
-		}
-
-		/*
-		 * Unshare file descriptors (from parent).
-		 */
-		if (flags & RFFDG) 
-			fdunshare(p1, td);
-
-norfproc_fail:
-		if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
-		    (flags & (RFCFDG | RFFDG))) {
-			PROC_LOCK(p1);
-			thread_single_end();
-			PROC_UNLOCK(p1);
-		}
-		*procp = NULL;
-		return (error);
-	}
-
-	/*
-	 * XXX
-	 * We did have single-threading code here
-	 * however it proved un-needed and caused problems
-	 */
-
-	mem_charged = 0;
-	vm2 = NULL;
-	if (pages == 0)
-		pages = KSTACK_PAGES;
-	/* Allocate new proc. */
-	newproc = uma_zalloc(proc_zone, M_WAITOK);
-	td2 = FIRST_THREAD_IN_PROC(newproc);
-	if (td2 == NULL) {
-		td2 = thread_alloc(pages);
-		if (td2 == NULL) {
-			error = ENOMEM;
-			goto fail1;
-		}
-		proc_linkup(newproc, td2);
-	} else {
-		if (td2->td_kstack == 0 || td2->td_kstack_pages != pages) {
-			if (td2->td_kstack != 0)
-				vm_thread_dispose(td2);
-			if (!thread_alloc_stack(td2, pages)) {
-				error = ENOMEM;
-				goto fail1;
-			}
-		}
-	}
-
-	if ((flags & RFMEM) == 0) {
-		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
-		if (vm2 == NULL) {
-			error = ENOMEM;
-			goto fail1;
-		}
-		if (!swap_reserve(mem_charged)) {
-			/*
-			 * The swap reservation failed. The accounting
-			 * from the entries of the copied vm2 will be
-			 * substracted in vmspace_free(), so force the
-			 * reservation there.
-			 */
-			swap_reserve_force(mem_charged);
-			error = ENOMEM;
-			goto fail1;
-		}
-	} else
-		vm2 = NULL;
-#ifdef MAC
-	mac_proc_init(newproc);
-#endif
-	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
-	STAILQ_INIT(&newproc->p_ktr);
-
-	/* We have to lock the process tree while we look for a pid. */
-	sx_slock(&proctree_lock);
-
-	/*
-	 * Although process entries are dynamically created, we still keep
-	 * a global limit on the maximum number we will create.  Don't allow
-	 * a nonprivileged user to use the last ten processes; don't let root
-	 * exceed the limit. The variable nprocs is the current number of
-	 * processes, maxproc is the limit.
-	 */
-	sx_xlock(&allproc_lock);
-	if ((nprocs >= maxproc - 10 && priv_check_cred(td->td_ucred,
-	    PRIV_MAXPROC, 0) != 0) || nprocs >= maxproc) {
-		error = EAGAIN;
-		goto fail;
-	}
-
-	/*
-	 * Increment the count of procs running with this uid. Don't allow
-	 * a nonprivileged user to exceed their current limit.
-	 *
-	 * XXXRW: Can we avoid privilege here if it's not needed?
-	 */
-	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, 0);
-	if (error == 0)
-		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
-	else {
-		PROC_LOCK(p1);
-		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
-		    lim_cur(p1, RLIMIT_NPROC));
-		PROC_UNLOCK(p1);
-	}
-	if (!ok) {
-		error = EAGAIN;
-		goto fail;
-	}
-
-	/*
-	 * Increment the nprocs resource before blocking can occur.  There
-	 * are hard-limits as to the number of processes that can run.
-	 */
-	nprocs++;
+	sx_assert(&allproc_lock, SX_LOCKED);
+	sx_assert(&proctree_lock, SX_LOCKED);
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs
@@ -404,37 +241,36 @@ retry:
 		 * is in use.  Remember the lowest pid that's greater
 		 * than trypid, so we can avoid checking for a while.
 		 */
-		p2 = LIST_FIRST(&allproc);
+		p = LIST_FIRST(&allproc);
 again:
-		for (; p2 != NULL; p2 = LIST_NEXT(p2, p_list)) {
-			while (p2->p_pid == trypid ||
-			    (p2->p_pgrp != NULL &&
-			    (p2->p_pgrp->pg_id == trypid ||
-			    (p2->p_session != NULL &&
-			    p2->p_session->s_sid == trypid)))) {
+		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
+			while (p->p_pid == trypid ||
+			    (p->p_pgrp != NULL &&
+			    (p->p_pgrp->pg_id == trypid ||
+			    (p->p_session != NULL &&
+			    p->p_session->s_sid == trypid)))) {
 				trypid++;
 				if (trypid >= pidchecked)
 					goto retry;
 			}
-			if (p2->p_pid > trypid && pidchecked > p2->p_pid)
-				pidchecked = p2->p_pid;
-			if (p2->p_pgrp != NULL) {
-				if (p2->p_pgrp->pg_id > trypid &&
-				    pidchecked > p2->p_pgrp->pg_id)
-					pidchecked = p2->p_pgrp->pg_id;
-				if (p2->p_session != NULL &&
-				    p2->p_session->s_sid > trypid &&
-				    pidchecked > p2->p_session->s_sid)
-					pidchecked = p2->p_session->s_sid;
+			if (p->p_pid > trypid && pidchecked > p->p_pid)
+				pidchecked = p->p_pid;
+			if (p->p_pgrp != NULL) {
+				if (p->p_pgrp->pg_id > trypid &&
+				    pidchecked > p->p_pgrp->pg_id)
+					pidchecked = p->p_pgrp->pg_id;
+				if (p->p_session != NULL &&
+				    p->p_session->s_sid > trypid &&
+				    pidchecked > p->p_session->s_sid)
+					pidchecked = p->p_session->s_sid;
 			}
 		}
 		if (!doingzomb) {
 			doingzomb = 1;
-			p2 = LIST_FIRST(&zombproc);
+			p = LIST_FIRST(&zombproc);
 			goto again;
 		}
 	}
-	sx_sunlock(&proctree_lock);
 
 	/*
 	 * RFHIGHPID does not mess with the lastpid counter during boot.
@@ -444,15 +280,87 @@ again:
 	else
 		lastpid = trypid;
 
-	p2 = newproc;
+	return (trypid);
+}
+
+static int
+fork_norfproc(struct thread *td, int flags)
+{
+	int error;
+	struct proc *p1;
+
+	KASSERT((flags & RFPROC) == 0,
+	    ("fork_norfproc called with RFPROC set"));
+	p1 = td->td_proc;
+
+	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
+	    (flags & (RFCFDG | RFFDG))) {
+		PROC_LOCK(p1);
+		if (thread_single(SINGLE_BOUNDARY)) {
+			PROC_UNLOCK(p1);
+			return (ERESTART);
+		}
+		PROC_UNLOCK(p1);
+	}
+
+	error = vm_forkproc(td, NULL, NULL, NULL, flags);
+	if (error)
+		goto fail;
+
+	/*
+	 * Close all file descriptors.
+	 */
+	if (flags & RFCFDG) {
+		struct filedesc *fdtmp;
+		fdtmp = fdinit(td->td_proc->p_fd);
+		fdfree(td);
+		p1->p_fd = fdtmp;
+	}
+
+	/*
+	 * Unshare file descriptors (from parent).
+	 */
+	if (flags & RFFDG) 
+		fdunshare(p1, td);
+
+fail:
+	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
+	    (flags & (RFCFDG | RFFDG))) {
+		PROC_LOCK(p1);
+		thread_single_end();
+		PROC_UNLOCK(p1);
+	}
+	return (error);
+}
+
+static void
+do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
+    struct vmspace *vm2)
+{
+	struct proc *p1, *pptr;
+	int p2_held, trypid;
+	struct filedesc *fd;
+	struct filedesc_to_leader *fdtol;
+	struct sigacts *newsigacts;
+
+	sx_assert(&proctree_lock, SX_SLOCKED);
+	sx_assert(&allproc_lock, SX_XLOCKED);
+
+	p2_held = 0;
+	p1 = td->td_proc;
+
+	/*
+	 * Increment the nprocs resource before blocking can occur.  There
+	 * are hard-limits as to the number of processes that can run.
+	 */
+	nprocs++;
+
+	trypid = fork_findpid(flags);
+
+	sx_sunlock(&proctree_lock);
+
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
-	/*
-	 * Allow the scheduler to initialize the child.
-	 */
-	thread_lock(td);
-	sched_fork(td, td2);
-	thread_unlock(td);
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
@@ -497,14 +405,12 @@ again:
 	} else {
 		fd = fdshare(p1->p_fd);
 		if (p1->p_fdtol == NULL)
-			p1->p_fdtol =
-				filedesc_to_leader_alloc(NULL,
-							 NULL,
-							 p1->p_leader);
+			p1->p_fdtol = filedesc_to_leader_alloc(NULL, NULL,
+			    p1->p_leader);
 		if ((flags & RFTHREAD) != 0) {
 			/*
-			 * Shared file descriptor table and
-			 * shared process leaders.
+			 * Shared file descriptor table, and shared
+			 * process leaders.
 			 */
 			fdtol = p1->p_fdtol;
 			FILEDESC_XLOCK(p1->p_fd);
@@ -512,12 +418,11 @@ again:
 			FILEDESC_XUNLOCK(p1->p_fd);
 		} else {
 			/* 
-			 * Shared file descriptor table, and
-			 * different process leaders 
+			 * Shared file descriptor table, and different
+			 * process leaders.
 			 */
 			fdtol = filedesc_to_leader_alloc(p1->p_fdtol,
-							 p1->p_fd,
-							 p2);
+			    p1->p_fd, p2);
 		}
 	}
 	/*
@@ -539,11 +444,19 @@ again:
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
+	td2->td_lend_user_pri = PRI_MAX;
 
 #ifdef VIMAGE
 	td2->td_vnet = NULL;
 	td2->td_vnet_lpush = NULL;
 #endif
+
+	/*
+	 * Allow the scheduler to initialize the child.
+	 */
+	thread_lock(td);
+	sched_fork(td, td2);
+	thread_unlock(td);
 
 	/*
 	 * Duplicate sub-structures as needed.
@@ -580,7 +493,7 @@ again:
 	PROC_UNLOCK(p1);
 	PROC_UNLOCK(p2);
 
-	/* Bump references to the text vnode (for procfs) */
+	/* Bump references to the text vnode (for procfs). */
 	if (p2->p_textvp)
 		vref(p2->p_textvp);
 
@@ -710,7 +623,6 @@ again:
 	/*
 	 * Both processes are set up, now check if any loadable modules want
 	 * to adjust anything.
-	 *   What if they have an error? XXX
 	 */
 	EVENTHANDLER_INVOKE(process_fork, p1, p2, flags);
 
@@ -721,6 +633,8 @@ again:
 	PROC_SLOCK(p2);
 	p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
+
+	PROC_LOCK(p1);
 #ifdef KDTRACE_HOOKS
 	/*
 	 * Tell the DTrace fasttrap provider about the new process
@@ -729,19 +643,33 @@ again:
 	 * later on.
 	 */
 	if (dtrace_fasttrap_fork) {
-		PROC_LOCK(p1);
 		PROC_LOCK(p2);
 		dtrace_fasttrap_fork(p1, p2);
 		PROC_UNLOCK(p2);
-		PROC_UNLOCK(p1);
 	}
 #endif
-
-	/*
-	 * If RFSTOPPED not requested, make child runnable and add to
-	 * run queue.
-	 */
+	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
+	    P_FOLLOWFORK)) {
+		/*
+		 * Arrange for debugger to receive the fork event.
+		 *
+		 * We can report PL_FLAG_FORKED regardless of
+		 * P_FOLLOWFORK settings, but it does not make a sense
+		 * for runaway child.
+		 */
+		td->td_dbgflags |= TDB_FORK;
+		td->td_dbg_forked = p2->p_pid;
+		PROC_LOCK(p2);
+		td2->td_dbgflags |= TDB_STOPATFORK;
+		_PHOLD(p2);
+		p2_held = 1;
+		PROC_UNLOCK(p2);
+	}
 	if ((flags & RFSTOPPED) == 0) {
+		/*
+		 * If RFSTOPPED not requested, make child runnable and
+		 * add to run queue.
+		 */
 		thread_lock(td2);
 		TD_SET_CAN_RUN(td2);
 		sched_add(td2, SRQ_BORING);
@@ -751,7 +679,6 @@ again:
 	/*
 	 * Now can be swapped.
 	 */
-	PROC_LOCK(p1);
 	_PRELE(p1);
 	PROC_UNLOCK(p1);
 
@@ -762,20 +689,145 @@ again:
 	SDT_PROBE(proc, kernel, , create, p2, p1, flags, 0, 0);
 
 	/*
+	 * Wait until debugger is attached to child.
+	 */
+	PROC_LOCK(p2);
+	while ((td2->td_dbgflags & TDB_STOPATFORK) != 0)
+		cv_wait(&p2->p_dbgwait, &p2->p_mtx);
+	if (p2_held)
+		_PRELE(p2);
+
+	/*
 	 * Preserve synchronization semantics of vfork.  If waiting for
 	 * child to exec or exit, set P_PPWAIT on child, and sleep on our
 	 * proc (in case of exit).
 	 */
-	PROC_LOCK(p2);
 	while (p2->p_flag & P_PPWAIT)
 		cv_wait(&p2->p_pwait, &p2->p_mtx);
 	PROC_UNLOCK(p2);
+}
+
+int
+fork1(struct thread *td, int flags, int pages, struct proc **procp)
+{
+	struct proc *p1;
+	struct proc *newproc;
+	int ok;
+	struct thread *td2;
+	struct vmspace *vm2;
+	vm_ooffset_t mem_charged;
+	int error;
+	static int curfail;
+	static struct timeval lastfail;
+
+	/* Can't copy and clear. */
+	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
+		return (EINVAL);
+
+	p1 = td->td_proc;
 
 	/*
-	 * Return child proc pointer to parent.
+	 * Here we don't create a new process, but we divorce
+	 * certain parts of a process from itself.
 	 */
-	*procp = p2;
-	return (0);
+	if ((flags & RFPROC) == 0) {
+		*procp = NULL;
+		return (fork_norfproc(td, flags));
+	}
+
+	mem_charged = 0;
+	vm2 = NULL;
+	if (pages == 0)
+		pages = KSTACK_PAGES;
+	/* Allocate new proc. */
+	newproc = uma_zalloc(proc_zone, M_WAITOK);
+	td2 = FIRST_THREAD_IN_PROC(newproc);
+	if (td2 == NULL) {
+		td2 = thread_alloc(pages);
+		if (td2 == NULL) {
+			error = ENOMEM;
+			goto fail1;
+		}
+		proc_linkup(newproc, td2);
+	} else {
+		if (td2->td_kstack == 0 || td2->td_kstack_pages != pages) {
+			if (td2->td_kstack != 0)
+				vm_thread_dispose(td2);
+			if (!thread_alloc_stack(td2, pages)) {
+				error = ENOMEM;
+				goto fail1;
+			}
+		}
+	}
+
+	if ((flags & RFMEM) == 0) {
+		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
+		if (vm2 == NULL) {
+			error = ENOMEM;
+			goto fail1;
+		}
+		if (!swap_reserve(mem_charged)) {
+			/*
+			 * The swap reservation failed. The accounting
+			 * from the entries of the copied vm2 will be
+			 * substracted in vmspace_free(), so force the
+			 * reservation there.
+			 */
+			swap_reserve_force(mem_charged);
+			error = ENOMEM;
+			goto fail1;
+		}
+	} else
+		vm2 = NULL;
+#ifdef MAC
+	mac_proc_init(newproc);
+#endif
+	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
+	STAILQ_INIT(&newproc->p_ktr);
+
+	/* We have to lock the process tree while we look for a pid. */
+	sx_slock(&proctree_lock);
+
+	/*
+	 * Although process entries are dynamically created, we still keep
+	 * a global limit on the maximum number we will create.  Don't allow
+	 * a nonprivileged user to use the last ten processes; don't let root
+	 * exceed the limit. The variable nprocs is the current number of
+	 * processes, maxproc is the limit.
+	 */
+	sx_xlock(&allproc_lock);
+	if ((nprocs >= maxproc - 10 && priv_check_cred(td->td_ucred,
+	    PRIV_MAXPROC, 0) != 0) || nprocs >= maxproc) {
+		error = EAGAIN;
+		goto fail;
+	}
+
+	/*
+	 * Increment the count of procs running with this uid. Don't allow
+	 * a nonprivileged user to exceed their current limit.
+	 *
+	 * XXXRW: Can we avoid privilege here if it's not needed?
+	 */
+	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, 0);
+	if (error == 0)
+		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
+	else {
+		PROC_LOCK(p1);
+		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
+		    lim_cur(p1, RLIMIT_NPROC));
+		PROC_UNLOCK(p1);
+	}
+	if (ok) {
+		do_fork(td, flags, newproc, td2, vm2);
+
+		/*
+		 * Return child proc pointer to parent.
+		 */
+		*procp = newproc;
+		return (0);
+	}
+
+	error = EAGAIN;
 fail:
 	sx_sunlock(&proctree_lock);
 	if (ppsratecheck(&lastfail, &curfail, 1))
@@ -798,10 +850,8 @@ fail1:
  * is called from the MD fork_trampoline() entry point.
  */
 void
-fork_exit(callout, arg, frame)
-	void (*callout)(void *, struct trapframe *);
-	void *arg;
-	struct trapframe *frame;
+fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
+    struct trapframe *frame)
 {
 	struct proc *p;
 	struct thread *td;
@@ -855,12 +905,39 @@ fork_exit(callout, arg, frame)
  * first parameter and is called when returning to a new userland process.
  */
 void
-fork_return(td, frame)
-	struct thread *td;
-	struct trapframe *frame;
+fork_return(struct thread *td, struct trapframe *frame)
 {
+	struct proc *p, *dbg;
+
+	if (td->td_dbgflags & TDB_STOPATFORK) {
+		p = td->td_proc;
+		sx_xlock(&proctree_lock);
+		PROC_LOCK(p);
+		if ((p->p_pptr->p_flag & (P_TRACED | P_FOLLOWFORK)) ==
+		    (P_TRACED | P_FOLLOWFORK)) {
+			/*
+			 * If debugger still wants auto-attach for the
+			 * parent's children, do it now.
+			 */
+			dbg = p->p_pptr->p_pptr;
+			p->p_flag |= P_TRACED;
+			p->p_oppid = p->p_pptr->p_pid;
+			proc_reparent(p, dbg);
+			sx_xunlock(&proctree_lock);
+			ptracestop(td, SIGSTOP);
+		} else {
+			/*
+			 * ... otherwise clear the request.
+			 */
+			sx_xunlock(&proctree_lock);
+			td->td_dbgflags &= ~TDB_STOPATFORK;
+			cv_broadcast(&p->p_dbgwait);
+		}
+		PROC_UNLOCK(p);
+	}
 
 	userret(td, frame);
+
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(SYS_fork, 0, 0);

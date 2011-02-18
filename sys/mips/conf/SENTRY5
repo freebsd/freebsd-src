@@ -29,6 +29,7 @@ ident		SENTRY5
 # XXX only siba should be hardwired for now; we will use
 # bus enumeration there
 hints		"SENTRY5.hints"
+include		"../sentry5/std.sentry5"
 
 # sentry5 normally ships with cfe firmware; use the console for now
 options		CFE

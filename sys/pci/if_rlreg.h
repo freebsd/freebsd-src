@@ -160,21 +160,24 @@
 #define	RL_HWREV_8110S		0x04000000
 #define	RL_HWREV_8169_8110SB	0x10000000
 #define	RL_HWREV_8169_8110SC	0x18000000
+#define	RL_HWREV_8401E		0x24000000
 #define	RL_HWREV_8102EL		0x24800000
 #define	RL_HWREV_8102EL_SPIN1	0x24C00000
 #define	RL_HWREV_8168D		0x28000000
 #define	RL_HWREV_8168DP		0x28800000
 #define	RL_HWREV_8168E		0x2C000000
-#define	RL_HWREV_8168_SPIN1	0x30000000
+#define	RL_HWREV_8168E_VL	0x2C800000
+#define	RL_HWREV_8168B_SPIN1	0x30000000
 #define	RL_HWREV_8100E		0x30800000
 #define	RL_HWREV_8101E		0x34000000
 #define	RL_HWREV_8102E		0x34800000
 #define	RL_HWREV_8103E		0x34C00000
-#define	RL_HWREV_8168_SPIN2	0x38000000
-#define	RL_HWREV_8168_SPIN3	0x38400000
+#define	RL_HWREV_8168B_SPIN2	0x38000000
+#define	RL_HWREV_8168B_SPIN3	0x38400000
 #define	RL_HWREV_8168C		0x3C000000
 #define	RL_HWREV_8168C_SPIN2	0x3C400000
 #define	RL_HWREV_8168CP		0x3C800000
+#define	RL_HWREV_8105E		0x40800000
 #define	RL_HWREV_8139		0x60000000
 #define	RL_HWREV_8139A		0x70000000
 #define	RL_HWREV_8139AG		0x70800000
@@ -428,6 +431,7 @@
 #define	RL_CFG3_GRANTSEL	0x80
 #define	RL_CFG3_WOL_MAGIC	0x20
 #define	RL_CFG3_WOL_LINK	0x10
+#define	RL_CFG3_JUMBO_EN0	0x04	/* RTL8168C or later. */
 #define	RL_CFG3_FAST_B2B	0x01
 
 /*
@@ -435,6 +439,7 @@
  */
 #define	RL_CFG4_LWPTN		0x04
 #define	RL_CFG4_LWPME		0x10
+#define	RL_CFG4_JUMBO_EN1	0x02	/* RTL8168C or later. */
 
 /*
  * Config 5 register
@@ -493,6 +498,14 @@
 /* C+ early transmit threshold */
 
 #define	RL_EARLYTXTHRESH_CNT	0x003F	/* byte count times 8 */
+
+/* Timer interrupt register */
+#define	RL_TIMERINT_8169_VAL	0x00001FFF
+#define	RL_TIMER_MIN		0
+#define	RL_TIMER_MAX		65	/* 65.528us */
+#define	RL_TIMER_DEFAULT	RL_TIMER_MAX
+#define	RL_TIMER_PCIE_CLK	125	/* 125MHZ */
+#define	RL_USECS(x)		((x) * RL_TIMER_PCIE_CLK)
 
 /*
  * Gigabit PHY access register (8169 only)
@@ -591,6 +604,7 @@ struct rl_hwrev {
 	uint32_t		rl_rev;
 	int			rl_type;
 	char			*rl_desc;
+	int			rl_max_mtu;
 };
 
 struct rl_mii_frame {
@@ -657,6 +671,8 @@ struct rl_desc {
 #define	RL_TDESC_CMD_UDPCSUMV2	0x80000000
 #define	RL_TDESC_CMD_TCPCSUMV2	0x40000000
 #define	RL_TDESC_CMD_IPCSUMV2	0x20000000
+#define	RL_TDESC_CMD_MSSVALV2	0x1FFC0000
+#define	RL_TDESC_CMD_MSSVALV2_SHIFT	18
 
 /*
  * Error bits are valid only on the last descriptor of a frame
@@ -764,6 +780,7 @@ struct rl_stats {
 #define	RL_8139_RX_DESC_CNT	64
 #define	RL_TX_DESC_CNT		RL_8169_TX_DESC_CNT
 #define	RL_RX_DESC_CNT		RL_8169_RX_DESC_CNT
+#define	RL_RX_JUMBO_DESC_CNT	RL_RX_DESC_CNT
 #define	RL_NTXSEGS		32
 
 #define	RL_RING_ALIGN		256
@@ -798,8 +815,13 @@ struct rl_stats {
 
 /* see comment in dev/re/if_re.c */
 #define	RL_JUMBO_FRAMELEN	7440
-#define	RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
-#define	RL_MAX_FRAMELEN		\
+#define	RL_JUMBO_MTU		\
+	(RL_JUMBO_FRAMELEN-ETHER_VLAN_ENCAP_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
+#define	RL_JUMBO_MTU_6K		\
+	((6 * 1024) - ETHER_VLAN_ENCAP_LEN - ETHER_HDR_LEN - ETHER_CRC_LEN)
+#define	RL_JUMBO_MTU_9K		\
+	((9 * 1024) - ETHER_VLAN_ENCAP_LEN - ETHER_HDR_LEN - ETHER_CRC_LEN)
+#define	RL_MTU			\
 	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN - ETHER_HDR_LEN - ETHER_CRC_LEN)
 
 struct rl_txdesc {
@@ -816,6 +838,7 @@ struct rl_rxdesc {
 struct rl_list_data {
 	struct rl_txdesc	rl_tx_desc[RL_TX_DESC_CNT];
 	struct rl_rxdesc	rl_rx_desc[RL_RX_DESC_CNT];
+	struct rl_rxdesc	rl_jrx_desc[RL_RX_JUMBO_DESC_CNT];
 	int			rl_tx_desc_cnt;
 	int			rl_rx_desc_cnt;
 	int			rl_tx_prodidx;
@@ -824,7 +847,9 @@ struct rl_list_data {
 	int			rl_tx_free;
 	bus_dma_tag_t		rl_tx_mtag;	/* mbuf TX mapping tag */
 	bus_dma_tag_t		rl_rx_mtag;	/* mbuf RX mapping tag */
+	bus_dma_tag_t		rl_jrx_mtag;	/* mbuf RX mapping tag */
 	bus_dmamap_t		rl_rx_sparemap;
+	bus_dmamap_t		rl_jrx_sparemap;
 	bus_dma_tag_t		rl_stag;	/* stats mapping tag */
 	bus_dmamap_t		rl_smap;	/* stats map */
 	struct rl_stats		*rl_stats;
@@ -849,14 +874,15 @@ struct rl_softc {
 	struct resource		*rl_res;
 	int			rl_res_id;
 	int			rl_res_type;
+	struct resource		*rl_res_pba;
 	struct resource		*rl_irq[RL_MSI_MESSAGES];
 	void			*rl_intrhand[RL_MSI_MESSAGES];
 	device_t		rl_miibus;
 	bus_dma_tag_t		rl_parent_tag;
 	uint8_t			rl_type;
+	struct rl_hwrev		*rl_hwrev;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
-	uint8_t			rl_stats_no_timeout;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;
@@ -865,7 +891,6 @@ struct rl_softc {
 	struct mtx		rl_mtx;
 	struct mbuf		*rl_head;
 	struct mbuf		*rl_tail;
-	uint32_t		rl_hwrev;
 	uint32_t		rl_rxlenmask;
 	int			rl_testmode;
 	int			rl_if_flags;
@@ -878,22 +903,24 @@ struct rl_softc {
 	int			rxcycles;
 #endif
 
-	struct task		rl_txtask;
 	struct task		rl_inttask;
 
 	int			rl_txstart;
+	int			rl_int_rx_act;
+	int			rl_int_rx_mod;
 	uint32_t		rl_flags;
 #define	RL_FLAG_MSI		0x0001
 #define	RL_FLAG_AUTOPAD		0x0002
 #define	RL_FLAG_PHYWAKE_PM	0x0004
 #define	RL_FLAG_PHYWAKE		0x0008
-#define	RL_FLAG_NOJUMBO		0x0010
+#define	RL_FLAG_JUMBOV2		0x0010
 #define	RL_FLAG_PAR		0x0020
 #define	RL_FLAG_DESCV2		0x0040
 #define	RL_FLAG_MACSTAT		0x0080
 #define	RL_FLAG_FASTETHER	0x0100
 #define	RL_FLAG_CMDSTOP		0x0200
 #define	RL_FLAG_MACRESET	0x0400
+#define	RL_FLAG_MSIX		0x0800
 #define	RL_FLAG_WOLRXENB	0x1000
 #define	RL_FLAG_MACSLEEP	0x2000
 #define	RL_FLAG_PCIE		0x4000

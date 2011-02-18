@@ -212,7 +212,7 @@ cubic_cb_init(struct cc_var *ccv)
 	/* Init some key variables with sensible defaults. */
 	cubic_data->t_last_cong = ticks;
 	cubic_data->min_rtt_ticks = TCPTV_SRTTBASE;
-	cubic_data->mean_rtt_ticks = TCPTV_SRTTBASE;
+	cubic_data->mean_rtt_ticks = 1;
 
 	ccv->cc_data = cubic_data;
 
@@ -328,12 +328,11 @@ cubic_post_recovery(struct cc_var *ccv)
 	cubic_data->t_last_cong = ticks;
 
 	/* Calculate the average RTT between congestion epochs. */
-	if (cubic_data->epoch_ack_count > 0 && cubic_data->sum_rtt_ticks > 0)
+	if (cubic_data->epoch_ack_count > 0 &&
+	    cubic_data->sum_rtt_ticks >= cubic_data->epoch_ack_count) {
 		cubic_data->mean_rtt_ticks = (int)(cubic_data->sum_rtt_ticks /
 		    cubic_data->epoch_ack_count);
-	else
-		/* For safety. */
-		cubic_data->mean_rtt_ticks = cubic_data->min_rtt_ticks;
+	}
 
 	cubic_data->epoch_ack_count = 0;
 	cubic_data->sum_rtt_ticks = 0;
@@ -362,8 +361,20 @@ cubic_record_rtt(struct cc_var *ccv)
 		 * XXXLAS: Should there be some hysteresis for minrtt?
 		 */
 		if ((t_srtt_ticks < cubic_data->min_rtt_ticks ||
-		    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE))
+		    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE)) {
 			cubic_data->min_rtt_ticks = max(1, t_srtt_ticks);
+
+			/*
+			 * If the connection is within its first congestion
+			 * epoch, ensure we prime mean_rtt_ticks with a
+			 * reasonable value until the epoch average RTT is
+			 * calculated in cubic_post_recovery().
+			 */
+			if (cubic_data->min_rtt_ticks >
+			    cubic_data->mean_rtt_ticks)
+				cubic_data->mean_rtt_ticks =
+				    cubic_data->min_rtt_ticks;
+		}
 
 		/* Sum samples for epoch average RTT calculation. */
 		cubic_data->sum_rtt_ticks += t_srtt_ticks;

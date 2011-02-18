@@ -88,7 +88,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -198,6 +197,8 @@ static void	*umodem_get_desc(struct usb_attach_arg *, uint8_t, uint8_t);
 static usb_error_t umodem_set_comm_feature(struct usb_device *, uint8_t,
 		    uint16_t, uint16_t);
 static void	umodem_poll(struct ucom_softc *ucom);
+static void	umodem_find_data_iface(struct usb_attach_arg *uaa,
+		    uint8_t, uint8_t *, uint8_t *);
 
 static const struct usb_config umodem_config[UMODEM_N_TRANSFER] = {
 
@@ -312,13 +313,30 @@ umodem_attach(device_t dev)
 		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
 
 		if ((cud == NULL) || (cud->bLength < sizeof(*cud))) {
-			device_printf(dev, "Missing descriptor. "
+			DPRINTF("Missing descriptor. "
 			    "Assuming data interface is next.\n");
-			if (sc->sc_ctrl_iface_no == 0xFF)
+			if (sc->sc_ctrl_iface_no == 0xFF) {
 				goto detach;
-			else
-				sc->sc_data_iface_no = 
-				    sc->sc_ctrl_iface_no + 1;
+			} else {
+				uint8_t class_match = 0;
+
+				/* set default interface number */
+				sc->sc_data_iface_no = 0xFF;
+
+				/* try to find the data interface backwards */
+				umodem_find_data_iface(uaa,
+				    uaa->info.bIfaceIndex - 1,
+				    &sc->sc_data_iface_no, &class_match);
+
+				/* try to find the data interface forwards */
+				umodem_find_data_iface(uaa,
+				    uaa->info.bIfaceIndex + 1,
+				    &sc->sc_data_iface_no, &class_match);
+
+				/* check if nothing was found */
+				if (sc->sc_data_iface_no == 0xFF)
+					goto detach;
+			}
 		} else {
 			sc->sc_data_iface_no = cud->bSlaveInterface[0];
 		}
@@ -396,6 +414,36 @@ umodem_attach(device_t dev)
 detach:
 	umodem_detach(dev);
 	return (ENXIO);
+}
+
+static void
+umodem_find_data_iface(struct usb_attach_arg *uaa,
+    uint8_t iface_index, uint8_t *p_data_no, uint8_t *p_match_class)
+{
+	struct usb_interface_descriptor *id;
+	struct usb_interface *iface;
+	
+	iface = usbd_get_iface(uaa->device, iface_index);
+
+	/* check for end of interfaces */
+	if (iface == NULL)
+		return;
+
+	id = usbd_get_interface_descriptor(iface);
+
+	/* check for non-matching interface class */
+	if (id->bInterfaceClass != UICLASS_CDC_DATA ||
+	    id->bInterfaceSubClass != UISUBCLASS_DATA) {
+		/* if we got a class match then return */
+		if (*p_match_class)
+			return;
+	} else {
+		*p_match_class = 1;
+	}
+
+	DPRINTFN(11, "Match at index %u\n", iface_index);
+
+	*p_data_no = id->bInterfaceNumber;
 }
 
 static void

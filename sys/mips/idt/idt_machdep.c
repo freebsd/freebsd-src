@@ -167,6 +167,9 @@ platform_start(__register_t a0, __register_t a1,
 	phys_avail[0] = MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 	phys_avail[1] = ctob(realmem);
 
+	dump_avail[0] = phys_avail[0];
+	dump_avail[1] = phys_avail[1];
+
 	physmem = realmem;
 
 	/* 

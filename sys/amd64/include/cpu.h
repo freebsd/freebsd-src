@@ -56,6 +56,7 @@
 #ifdef _KERNEL
 extern char	btext[];
 extern char	etext[];
+extern int	tsc_present;
 
 void	cpu_halt(void);
 void	cpu_reset(void);

@@ -365,6 +365,10 @@
 #define	AR_AN_RF5G1_CH1_DB5     0x00380000
 #define	AR_AN_RF5G1_CH1_DB5_S   19
 
+#define AR_AN_TOP1                  0x7890
+#define AR_AN_TOP1_DACIPMODE        0x00040000
+#define AR_AN_TOP1_DACIPMODE_S      18
+
 #define	AR_AN_TOP2_XPABIAS_LVL      0xC0000000
 #define	AR_AN_TOP2_XPABIAS_LVL_S    30
 #define	AR_AN_TOP2_LOCALBIAS        0x00200000
@@ -588,6 +592,10 @@
 #define	AR_XSREV_REVISION_KITE_11	1	/* Kite 1.1 */
 #define	AR_XSREV_REVISION_KITE_12	2	/* Kite 1.2 */
 
+#define	AR_SREV_OWL(_ah) \
+	((AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_OWL_PCI) || \
+	 (AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_OWL_PCIE))
+
 #define	AR_SREV_OWL_20_OR_LATER(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_SOWL || \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_20)
@@ -630,4 +638,8 @@
 #define	AR_SREV_KITE_12_OR_LATER(_ah) \
 	(AR_SREV_KITE_12(_ah) || \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KITE_12)
+#define	AR_SREV_9285E_20(_ah) \
+	(AR_SREV_KITE_12_OR_LATER(_ah) && \
+	((OS_REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
+
 #endif /* _DEV_ATH_AR5416REG_H */

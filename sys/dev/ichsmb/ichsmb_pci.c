@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #define ID_PCH				0x3b308086
 #define ID_6300ESB			0x25a48086
 #define	ID_631xESB			0x269b8086
+#define ID_DH89XXCC			0x23308086
+#define ID_PATSBURG			0x1d228086
 #define ID_CPT				0x1c228086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
@@ -174,6 +176,12 @@ ichsmb_pci_probe(device_t dev)
 		break;
 	case ID_631xESB:
 		device_set_desc(dev, "Intel 631xESB/6321ESB (ESB2) SMBus controller");
+		break;
+	case ID_DH89XXCC:
+		device_set_desc(dev, "Intel DH89xxCC SMBus controller");
+		break;
+	case ID_PATSBURG:
+		device_set_desc(dev, "Intel Patsburg SMBus controller");
 		break;
 	case ID_CPT:
 		device_set_desc(dev, "Intel Cougar Point SMBus controller");

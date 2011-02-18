@@ -34,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -791,6 +790,10 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 #endif
 		err = usbd_req_get_port_status(udev, mtx, &ps, port);
 		if (err) {
+			goto done;
+		}
+		/* if the device disappeared, just give up */
+		if (!(UGETW(ps.wPortStatus) & UPS_CURRENT_CONNECT_STATUS)) {
 			goto done;
 		}
 		/* check if reset is complete */

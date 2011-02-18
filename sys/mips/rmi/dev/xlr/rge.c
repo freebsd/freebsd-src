@@ -170,10 +170,8 @@ extern uint32_t cpu_ltop_map[32];
 static int port_counters[4][8] __aligned(XLR_CACHELINE_SIZE);
 
 #define port_inc_counter(port, counter) 	atomic_add_int(&port_counters[port][(counter)], 1)
-#define port_set_counter(port, counter, value) 	atomic_set_int(&port_counters[port][(counter)], (value))
 #else
 #define port_inc_counter(port, counter)	/* Nothing */
-#define port_set_counter(port, counter, value)	/* Nothing */
 #endif
 
 int xlr_rge_tx_prepend[MAXCPU];
@@ -1843,7 +1841,7 @@ rge_attach(device_t dev)
 	 */
 	sc->rge_irq.__r_i = (struct resource_i *)(intptr_t)sc->irq;
 
-	ret = bus_setup_intr(dev, &sc->rge_irq, INTR_FAST | INTR_TYPE_NET | INTR_MPSAFE,
+	ret = bus_setup_intr(dev, &sc->rge_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, rge_intr, sc, &sc->rge_intrhand);
 
 	if (ret) {
@@ -2281,7 +2279,7 @@ rmi_xlr_mac_open(struct rge_softc *sc)
 	mtx_unlock_spin(&priv->lock);
 
 	for (i = 0; i < 8; i++) {
-		atomic_set_int(&(priv->frin_to_be_sent[i]), 0);
+		priv->frin_to_be_sent[i] = 0;
 	}
 
 	return 0;

@@ -272,10 +272,13 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
                 return ipd_port - 16;
 	    return -1;
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
+            if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) && (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2)))
+		return (ipd_port - CVMX_HELPER_BOARD_MGMT_IPD_PORT) + 0x81;
             if ((ipd_port >= 0) && (ipd_port < 4))
                 return ipd_port;
 	    return -1;
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
 	    /* Port 0 is a Marvell 88E6161 switch, ports 1 and 2 are Marvell
 	       88E1111 interfaces.  */
 	    switch (ipd_port) {
@@ -417,6 +420,7 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
 	    is_broadcom_phy = 1;
 	    break;
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
 	    /* Port 0 connects to the switch */
 	    if (ipd_port == 0)
 	    {
@@ -860,6 +864,7 @@ cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
         case CVMX_BOARD_TYPE_LANAI2_G:
 #if defined(OCTEON_VENDOR_LANNER)
     case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+    case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
 #endif
             return USB_CLOCK_TYPE_CRYSTAL_12;
     }

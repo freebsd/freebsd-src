@@ -82,6 +82,10 @@ static s32  e1000_get_hw_semaphore_82573(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82573(struct e1000_hw *hw);
 static s32  e1000_get_hw_semaphore_82574(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82574(struct e1000_hw *hw);
+static s32  e1000_set_d0_lplu_state_82574(struct e1000_hw *hw,
+                                          bool active);
+static s32  e1000_set_d3_lplu_state_82574(struct e1000_hw *hw,
+                                          bool active);
 static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw);
 static s32  e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
                                        u16 words, u16 *data);
@@ -95,7 +99,6 @@ static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw);
 static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	struct e1000_dev_spec_82571 *dev_spec = &hw->dev_spec._82571;
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_init_phy_params_82571");
@@ -129,16 +132,6 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		phy->ops.write_reg          = e1000_write_phy_reg_igp;
 		phy->ops.acquire            = e1000_get_hw_semaphore_82571;
 		phy->ops.release            = e1000_put_hw_semaphore_82571;
-
-		/* This uses above function pointers */
-		ret_val = e1000_get_phy_id_82571(hw);
-
-		/* Verify PHY ID */
-		if (phy->id != IGP01E1000_I_PHY_ID) {
-			ret_val = -E1000_ERR_PHY;
-			DEBUGOUT1("PHY ID unknown: type = 0x%08x\n", phy->id);
-			goto out;
-		}
 		break;
 	case e1000_82573:
 		phy->type                   = e1000_phy_m88;
@@ -152,20 +145,10 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		phy->ops.write_reg          = e1000_write_phy_reg_m88;
 		phy->ops.acquire            = e1000_get_hw_semaphore_82571;
 		phy->ops.release            = e1000_put_hw_semaphore_82571;
-
-		/* This uses above function pointers */
-		ret_val = e1000_get_phy_id_82571(hw);
-
-		/* Verify PHY ID */
-		if (phy->id != M88E1111_I_PHY_ID) {
-			ret_val = -E1000_ERR_PHY;
-			DEBUGOUT1("PHY ID unknown: type = 0x%08x\n", phy->id);
-			goto out;
-		}
 		break;
 	case e1000_82574:
 	case e1000_82583:
-		E1000_MUTEX_INIT(&dev_spec->swflag_mutex);
+		E1000_MUTEX_INIT(&hw->dev_spec._82571.swflag_mutex);
 
 		phy->type                   = e1000_phy_bm;
 		phy->ops.get_cfg_done       = e1000_get_cfg_done_generic;
@@ -178,21 +161,45 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		phy->ops.write_reg          = e1000_write_phy_reg_bm2;
 		phy->ops.acquire            = e1000_get_hw_semaphore_82574;
 		phy->ops.release            = e1000_put_hw_semaphore_82574;
-
-		/* This uses above function pointers */
-		ret_val = e1000_get_phy_id_82571(hw);
-		/* Verify PHY ID */
-		if (phy->id != BME1000_E_PHY_ID_R2) {
-			ret_val = -E1000_ERR_PHY;
-			DEBUGOUT1("PHY ID unknown: type = 0x%08x\n", phy->id);
-			goto out;
-		}
+		phy->ops.set_d0_lplu_state  = e1000_set_d0_lplu_state_82574;
+		phy->ops.set_d3_lplu_state  = e1000_set_d3_lplu_state_82574;
 		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 		break;
 	}
+
+	/* This can only be done after all function pointers are setup. */
+	ret_val = e1000_get_phy_id_82571(hw);
+	if (ret_val) {
+		DEBUGOUT("Error getting PHY ID\n");
+		goto out;
+	}
+
+	/* Verify phy id */
+	switch (hw->mac.type) {
+	case e1000_82571:
+	case e1000_82572:
+		if (phy->id != IGP01E1000_I_PHY_ID)
+			ret_val = -E1000_ERR_PHY;
+		break;
+	case e1000_82573:
+		if (phy->id != M88E1111_I_PHY_ID)
+			ret_val = -E1000_ERR_PHY;
+		break;
+	case e1000_82574:
+	case e1000_82583:
+		if (phy->id != BME1000_E_PHY_ID_R2)
+			ret_val = -E1000_ERR_PHY;
+		break;
+	default:
+		ret_val = -E1000_ERR_PHY;
+		break;
+	}
+
+	if (ret_val)
+		DEBUGOUT1("PHY ID unknown: type = 0x%08x\n", phy->id);
 
 out:
 	return ret_val;
@@ -693,6 +700,62 @@ static void e1000_put_hw_semaphore_82574(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_set_d0_lplu_state_82574 - Set Low Power Linkup D0 state
+ *  @hw: pointer to the HW structure
+ *  @active: TRUE to enable LPLU, FALSE to disable
+ *
+ *  Sets the LPLU D0 state according to the active flag.
+ *  LPLU will not be activated unless the
+ *  device autonegotiation advertisement meets standards of
+ *  either 10 or 10/100 or 10/100/1000 at all duplexes.
+ *  This is a function pointer entry point only called by
+ *  PHY setup routines.
+ **/
+static s32 e1000_set_d0_lplu_state_82574(struct e1000_hw *hw, bool active)
+{
+	u16 data = E1000_READ_REG(hw, E1000_POEMB);
+
+	DEBUGFUNC("e1000_set_d0_lplu_state_82574");
+
+	if (active)
+		data |= E1000_PHY_CTRL_D0A_LPLU;
+	else
+		data &= ~E1000_PHY_CTRL_D0A_LPLU;
+
+	E1000_WRITE_REG(hw, E1000_POEMB, data);
+	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_set_d3_lplu_state_82574 - Sets low power link up state for D3
+ *  @hw: pointer to the HW structure
+ *  @active: boolean used to enable/disable lplu
+ *
+ *  The low power link up (lplu) state is set to the power management level D3
+ *  when active is TRUE, else clear lplu for D3. LPLU
+ *  is used during Dx states where the power conservation is most important.
+ *  During driver activity, SmartSpeed should be enabled so performance is
+ *  maintained.
+ **/
+static s32 e1000_set_d3_lplu_state_82574(struct e1000_hw *hw, bool active)
+{
+	u16 data = E1000_READ_REG(hw, E1000_POEMB);
+
+	DEBUGFUNC("e1000_set_d3_lplu_state_82574");
+
+	if (!active) {
+		data &= ~E1000_PHY_CTRL_NOND0A_LPLU;
+	} else if ((hw->phy.autoneg_advertised == E1000_ALL_SPEED_DUPLEX) ||
+	           (hw->phy.autoneg_advertised == E1000_ALL_NOT_GIG) ||
+	           (hw->phy.autoneg_advertised == E1000_ALL_10_SPEED)) {
+		data |= E1000_PHY_CTRL_NOND0A_LPLU;
+	}
+
+	E1000_WRITE_REG(hw, E1000_POEMB, data);
+	return E1000_SUCCESS;
+}
+
+/**
  *  e1000_acquire_nvm_82571 - Request for access to the EEPROM
  *  @hw: pointer to the HW structure
  *
@@ -1039,7 +1102,7 @@ out:
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
-	u32 ctrl, ctrl_ext, icr;
+	u32 ctrl, ctrl_ext;
 	s32 ret_val;
 
 	DEBUGFUNC("e1000_reset_hw_82571");
@@ -1125,7 +1188,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	/* Clear any pending interrupt events. */
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
-	icr = E1000_READ_REG(hw, E1000_ICR);
+	E1000_READ_REG(hw, E1000_ICR);
 
 	if (hw->mac.type == e1000_82571) {
 		/* Install any alternate MAC address into RAR0 */
@@ -1336,7 +1399,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		 * apply workaround for hardware errata documented in errata
 		 * docs Fixes issue where some error prone or unreliable PCIe
 		 * completions are occurring, particularly with ASPM enabled.
-		 * Without fix, issue can cause tx timeouts.
+		 * Without fix, issue can cause Tx timeouts.
 		 */
 		reg = E1000_READ_REG(hw, E1000_GCR2);
 		reg |= 1;
@@ -1467,7 +1530,7 @@ bool e1000_check_phy_82574(struct e1000_hw *hw)
 	                               &receive_errors);
 	if (ret_val)
 		goto out;
-	if (receive_errors == E1000_RECEIVE_ERROR_MAX)  {
+	if (receive_errors == E1000_RECEIVE_ERROR_MAX) {
 		ret_val = hw->phy.ops.read_reg(hw, E1000_BASE1000T_STATUS,
 		                               &status_1kbt);
 		if (ret_val)
@@ -1510,6 +1573,7 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 	default:
 		break;
 	}
+
 	return e1000_setup_link_generic(hw);
 }
 
@@ -1645,7 +1709,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			 * auto-negotiation in the TXCW register and disable
 			 * forced link in the Device Control register in an
 			 * attempt to auto-negotiate with our link partner.
-			 * If the partner code word is null, stop forcing 
+			 * If the partner code word is null, stop forcing
 			 * and restart auto negotiation.
 			 */
 			if ((rxcw & E1000_RXCW_C) || !(rxcw & E1000_RXCW_CW))  {
