@@ -504,9 +504,15 @@ again:
 				zfs_unmap_page(sf);
 			}
 			VM_OBJECT_LOCK(obj);
-			if (error == 0)
-				m->valid = VM_PAGE_BITS_ALL;
 			vm_page_io_finish(m);
+			vm_page_lock_queues();
+			if (error == 0) {
+				m->valid = VM_PAGE_BITS_ALL;
+				vm_page_activate(m);
+			} else
+				vm_page_free(m);
+			vm_page_unlock_queues();
+
 			if (error == 0) {
 				uio->uio_resid -= bytes;
 				uio->uio_offset += bytes;
