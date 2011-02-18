@@ -1,6 +1,6 @@
 /* expr.h -> header file for expr.c
-   Copyright 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
-   Free Software Foundation, Inc.
+   Copyright 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2002, 2003 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /*
  * By popular demand, we define a struct to represent an expression.
@@ -143,8 +143,17 @@ typedef struct expressionS {
   unsigned short X_md;
 } expressionS;
 
+enum expr_mode
+{
+  expr_evaluate,
+  expr_normal,
+  expr_defer
+};
+
 /* "result" should be type (expressionS *).  */
-#define expression(result) expr (0, result)
+#define expression(result) expr (0, result, expr_normal)
+#define expression_and_evaluate(result) expr (0, result, expr_evaluate)
+#define deferred_expression(result) expr (0, result, expr_defer)
 
 /* If an expression is O_big, look here for its value. These common
    data may be clobbered whenever expr() is called.  */
@@ -160,12 +169,12 @@ typedef char operator_rankT;
 extern char get_symbol_end (void);
 extern void expr_begin (void);
 extern void expr_set_precedence (void);
-extern segT expr (int rank, expressionS * resultP);
+extern segT expr (int, expressionS *, enum expr_mode);
 extern unsigned int get_single_number (void);
 extern symbolS *make_expr_symbol (expressionS * expressionP);
 extern int expr_symbol_where (symbolS *, char **, unsigned int *);
 
 extern symbolS *expr_build_uconstant (offsetT);
-extern symbolS *expr_build_unary (operatorT, symbolS *);
-extern symbolS *expr_build_binary (operatorT, symbolS *, symbolS *);
 extern symbolS *expr_build_dot (void);
+
+int resolve_expression (expressionS *);

@@ -1,4 +1,4 @@
-@c Copyright 2001, 2002
+@c Copyright 2001, 2002, 2003, 2005, 2006
 @c Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
@@ -58,6 +58,12 @@ Generate code for PowerPC 7400/7410/7450/7455.
 @item -mppc64, -m620
 Generate code for PowerPC 620/625/630.
 
+@item -me500, -me500x2
+Generate code for Motorola e500 core complex.
+
+@item -mspe
+Generate code for Motorola SPE instructions.
+
 @item -mppc64bridge
 Generate code for PowerPC 64, including bridge insns.
 
@@ -67,11 +73,23 @@ Generate code for 64-bit BookE.
 @item -mbooke, mbooke32
 Generate code for 32-bit BookE.
 
+@item -me300
+Generate code for PowerPC e300 family.
+
 @item -maltivec
 Generate code for processors with AltiVec instructions.
 
 @item -mpower4
 Generate code for Power4 architecture.
+
+@item -mpower5
+Generate code for Power5 architecture.
+
+@item -mpower6
+Generate code for Power6 architecture.
+
+@item -mcell
+Generate code for Cell Broadband Engine architecture.
 
 @item -mcom
 Generate code Power/PowerPC common instructions.
@@ -86,10 +104,10 @@ Allow symbolic names for registers.
 Do not allow symbolic names for registers.
 
 @item -mrelocatable
-Support for GCC's -mrelocatble option.
+Support for GCC's -mrelocatable option.
 
 @item -mrelocatable-lib
-Support for GCC's -mrelocatble-lib option.
+Support for GCC's -mrelocatable-lib option.
 
 @item -memb
 Set PPC_EMB bit in ELF flags.

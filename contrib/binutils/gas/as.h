@@ -1,6 +1,6 @@
 /* as.h - global header file
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,28 +17,26 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef GAS
 #define GAS 1
 /* I think this stuff is largely out of date.  xoxorich.
- *
- * CAPITALISED names are #defined.
- * "lowercaseH" is #defined if "lowercase.h" has been #include-d.
- * "lowercaseT" is a typedef of "lowercase" objects.
- * "lowercaseP" is type "pointer to object of type 'lowercase'".
- * "lowercaseS" is typedef struct ... lowercaseS.
- *
- * #define DEBUG to enable all the "know" assertion tests.
- * #define SUSPECT when debugging hash code.
- * #define COMMON as "extern" for all modules except one, where you #define
- *	COMMON as "".
- * If TEST is #defined, then we are testing a module: #define COMMON as "".
- */
+ 
+   CAPITALISED names are #defined.
+   "lowercaseH" is #defined if "lowercase.h" has been #include-d.
+   "lowercaseT" is a typedef of "lowercase" objects.
+   "lowercaseP" is type "pointer to object of type 'lowercase'".
+   "lowercaseS" is typedef struct ... lowercaseS.
+  
+   #define DEBUG to enable all the "know" assertion tests.
+   #define SUSPECT when debugging hash code.
+   #define COMMON as "extern" for all modules except one, where you #define
+  	COMMON as "".
+   If TEST is #defined, then we are testing a module: #define COMMON as "".  */
 
 #include "config.h"
-#include "bin-bugs.h"
 
 /* This is the code recommended in the autoconf documentation, almost
    verbatim.  If it doesn't work for you, let me know, and notify
@@ -69,6 +67,19 @@ extern void *alloca ();
 # endif /* HAVE_ALLOCA_H */
 #endif /* __GNUC__ */
 
+/* Prefer varargs for non-ANSI compiler, since some will barf if the
+   ellipsis definition is used with a no-arguments declaration.  */
+#if defined (HAVE_VARARGS_H) && !defined (__STDC__)
+#undef HAVE_STDARG_H
+#endif
+
+#if defined (HAVE_STDARG_H)
+#define USE_STDARG
+#endif
+#if !defined (USE_STDARG) && defined (HAVE_VARARGS_H)
+#define USE_VARARGS
+#endif
+
 /* Now, tend to the rest of the configuration.  */
 
 /* System include files first...  */
@@ -91,6 +102,27 @@ extern void *alloca ();
 #include <sys/types.h>
 #endif
 
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+
+#ifdef USE_STDARG
+#include <stdarg.h>
+#endif
+
+#ifdef USE_VARARGS
+#include <varargs.h>
+#endif
+
+#if !defined (USE_STDARG) && !defined (USE_VARARGS)
+/* Roll our own.  */
+#define va_alist REST
+#define va_dcl
+typedef int * va_list;
+#define va_start(ARGS)	ARGS = &REST
+#define va_end(ARGS)
+#endif
+
 #include "getopt.h"
 /* The first getopt value for machine-independent long options.
    150 isn't special; it's just an arbitrary non-ASCII char value.  */
@@ -105,60 +137,49 @@ extern void *alloca ();
 #if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 6)
 #define __PRETTY_FUNCTION__  ((char*)0)
 #endif
-#if 0
-
-/* Handle lossage with assert.h.  */
-#ifndef BROKEN_ASSERT
-#include <assert.h>
-#else /* BROKEN_ASSERT */
-#ifndef NDEBUG
-#define assert(p) ((p) ? 0 : (as_assert (__FILE__, __LINE__, __PRETTY_FUNCTION__), 0))
-#else
-#define assert(p) ((p), 0)
-#endif
-#endif /* BROKEN_ASSERT */
-
-#else
-
-#define assert(P) ((P) ? 0 : (as_assert (__FILE__, __LINE__, __PRETTY_FUNCTION__), 0))
+#define assert(P) \
+  ((void) ((P) ? 0 : (as_assert (__FILE__, __LINE__, __PRETTY_FUNCTION__), 0)))
 #undef abort
 #define abort()		as_abort (__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#endif
-
 /* Now GNU header files...  */
 #include "ansidecl.h"
-#ifdef BFD_ASSEMBLER
 #include "bfd.h"
-#endif
 #include "libiberty.h"
 
 /* Define the standard progress macros.  */
 #include "progress.h"
 
 /* This doesn't get taken care of anywhere.  */
-#ifndef __MWERKS__  /* Metrowerks C chokes on the "defined (inline)" */
+#ifndef __MWERKS__  /* Metrowerks C chokes on the "defined (inline)"  */
 #if !defined (__GNUC__) && !defined (inline)
 #define inline
 #endif
 #endif /* !__MWERKS__ */
 
 /* Other stuff from config.h.  */
-#ifdef NEED_DECLARATION_STRSTR
-extern char *strstr ();
+#ifdef NEED_DECLARATION_ENVIRON
+extern char **environ;
+#endif
+#ifdef NEED_DECLARATION_ERRNO
+extern int errno;
+#endif
+#ifdef NEED_DECLARATION_FFS
+extern int ffs (int);
+#endif
+#ifdef NEED_DECLARATION_FREE
+extern void free ();
 #endif
 #ifdef NEED_DECLARATION_MALLOC
 extern PTR malloc ();
 extern PTR realloc ();
 #endif
-#ifdef NEED_DECLARATION_FREE
-extern void free ();
+#ifdef NEED_DECLARATION_STRSTR
+extern char *strstr ();
 #endif
-#ifdef NEED_DECLARATION_ERRNO
-extern int errno;
-#endif
-#ifdef NEED_DECLARATION_ENVIRON
-extern char **environ;
+
+#if !HAVE_DECL_VSNPRINTF
+extern int vsnprintf(char *, size_t, const char *, va_list);
 #endif
 
 /* This is needed for VMS.  */
@@ -188,7 +209,7 @@ extern char **environ;
 #endif /* __FILE__ */
 
 #ifndef FOPEN_WB
-#if defined GO32 || defined __MINGW32__
+#ifdef USE_BINARY_FOPEN
 #include "fopen-bin.h"
 #else
 #include "fopen-same.h"
@@ -221,33 +242,32 @@ extern char **environ;
 
 /* These are assembler-wide concepts */
 
-#ifdef BFD_ASSEMBLER
 extern bfd *stdoutput;
 typedef bfd_vma addressT;
 typedef bfd_signed_vma offsetT;
-#else
-typedef unsigned long addressT;
-typedef long offsetT;
-#endif
 
 /* Type of symbol value, etc.  For use in prototypes.  */
 typedef addressT valueT;
 
 #ifndef COMMON
 #ifdef TEST
-#define COMMON			/* declare our COMMONs storage here.  */
+#define COMMON			/* Declare our COMMONs storage here.  */
 #else
-#define COMMON extern		/* our commons live elsewhere */
+#define COMMON extern		/* Our commons live elsewhere.  */
 #endif
 #endif
 /* COMMON now defined */
 
-#ifdef DEBUG
+#ifndef ENABLE_CHECKING
+#define ENABLE_CHECKING 0
+#endif
+
+#if ENABLE_CHECKING || defined (DEBUG)
 #ifndef know
-#define know(p) assert(p)	/* Verify our assumptions! */
+#define know(p) assert(p)	/* Verify our assumptions!  */
 #endif /* not yet defined */
 #else
-#define know(p)			/* know() checks are no-op.ed */
+#define know(p)			/* know() checks are no-op.ed  */
 #endif
 
 /* input_scrub.c */
@@ -257,90 +277,36 @@ typedef addressT valueT;
 
 /* subsegs.c     Sub-segments. Also, segment(=expression type)s.*/
 
-#ifndef BFD_ASSEMBLER
-
-#ifdef MANY_SEGMENTS
-#include "bfd.h"
-#define N_SEGMENTS 40
-#define SEG_NORMAL(x) ((x) >= SEG_E0 && (x) <= SEG_E39)
-#define SEG_LIST SEG_E0,SEG_E1,SEG_E2,SEG_E3,SEG_E4,SEG_E5,SEG_E6,SEG_E7,SEG_E8,SEG_E9,\
-		 SEG_E10,SEG_E11,SEG_E12,SEG_E13,SEG_E14,SEG_E15,SEG_E16,SEG_E17,SEG_E18,SEG_E19,\
-		 SEG_E20,SEG_E21,SEG_E22,SEG_E23,SEG_E24,SEG_E25,SEG_E26,SEG_E27,SEG_E28,SEG_E29,\
-		 SEG_E30,SEG_E31,SEG_E32,SEG_E33,SEG_E34,SEG_E35,SEG_E36,SEG_E37,SEG_E38,SEG_E39
-#define SEG_TEXT SEG_E0
-#define SEG_DATA SEG_E1
-#define SEG_BSS SEG_E2
-#define SEG_LAST SEG_E39
-#else
-#define N_SEGMENTS 3
-#define SEG_NORMAL(x) ((x) == SEG_TEXT || (x) == SEG_DATA || (x) == SEG_BSS)
-#define SEG_LIST SEG_TEXT,SEG_DATA,SEG_BSS
-#endif
-
-typedef enum _segT {
-  SEG_ABSOLUTE = 0,
-  SEG_LIST,
-  SEG_UNKNOWN,
-  SEG_GOOF,			/* Only happens if AS has a logic error.  */
-  /* Invented so we don't crash printing */
-  /* error message involving weird segment.  */
-  SEG_EXPR,			/* Intermediate expression values.  */
-  SEG_DEBUG,			/* Debug segment */
-  SEG_NTV,			/* Transfert vector preload segment */
-  SEG_PTV,			/* Transfert vector postload segment */
-  SEG_REGISTER			/* Mythical: a register-valued expression */
-} segT;
-
-#define SEG_MAXIMUM_ORDINAL (SEG_REGISTER)
-#else
 typedef asection *segT;
-#define SEG_NORMAL(SEG)		((SEG) != absolute_section	\
+#define SEG_NORMAL(SEG)		(   (SEG) != absolute_section	\
 				 && (SEG) != undefined_section	\
 				 && (SEG) != reg_section	\
 				 && (SEG) != expr_section)
-#endif
 typedef int subsegT;
 
-/* What subseg we are accessing now? */
+/* What subseg we are accessing now?  */
 COMMON subsegT now_subseg;
 
 /* Segment our instructions emit to.  */
 COMMON segT now_seg;
 
-#ifdef BFD_ASSEMBLER
 #define segment_name(SEG)	bfd_get_section_name (stdoutput, SEG)
-#else
-extern char const *const seg_name[];
-#define segment_name(SEG)	seg_name[(int) (SEG)]
-#endif
 
-#ifndef BFD_ASSEMBLER
-extern int section_alignment[];
-#endif
-
-#ifdef BFD_ASSEMBLER
 extern segT reg_section, expr_section;
 /* Shouldn't these be eliminated someday?  */
 extern segT text_section, data_section, bss_section;
 #define absolute_section	bfd_abs_section_ptr
 #define undefined_section	bfd_und_section_ptr
-#else
-#define reg_section		SEG_REGISTER
-#define expr_section		SEG_EXPR
-#define text_section		SEG_TEXT
-#define data_section		SEG_DATA
-#define bss_section		SEG_BSS
-#define absolute_section	SEG_ABSOLUTE
-#define undefined_section	SEG_UNKNOWN
-#endif
 
-/* relax() */
+enum _relax_state
+{
+  /* Dummy frag used by listing code.  */
+  rs_dummy = 0,
 
-enum _relax_state {
   /* Variable chars to be repeated fr_offset times.
      Fr_symbol unused. Used with fr_offset == 0 for a
      constant length frag.  */
-  rs_fill = 1,
+  rs_fill,
 
   /* Align.  The fr_offset field holds the power of 2 to which to
      align.  The fr_var field holds the number of characters in the
@@ -368,7 +334,7 @@ enum _relax_state {
   rs_broken_word,
 #endif
 
-  /* machine-specific relaxable (or similarly alterable) instruction */
+  /* Machine specific relaxable (or similarly alterable) instruction.  */
   rs_machine_dependent,
 
   /* .space directive with expression operand that needs to be computed
@@ -414,7 +380,7 @@ struct relax_type
 
 typedef struct relax_type relax_typeS;
 
-/* main program "as.c" (command arguments etc) */
+/* main program "as.c" (command arguments etc).  */
 
 COMMON unsigned char flag_no_comments; /* -f */
 COMMON unsigned char flag_debug; /* -D */
@@ -482,7 +448,8 @@ extern int listing;
    This is especially relevant to DWARF2, since the compiler may emit line
    number directives that the assembler resolves.  */
 
-enum debug_info_type {
+enum debug_info_type
+{
   DEBUG_UNSPECIFIED,
   DEBUG_NONE,
   DEBUG_STABS,
@@ -504,7 +471,8 @@ extern int verbose;
    increase malloc calls for monitoring memory allocation.  */
 extern int chunksize;
 
-struct _pseudo_type {
+struct _pseudo_type
+{
   /* assembler mnemonic, lower case, no '.' */
   const char *poc_name;
   /* Do the work */
@@ -514,19 +482,6 @@ struct _pseudo_type {
 };
 
 typedef struct _pseudo_type pseudo_typeS;
-
-/* Prefer varargs for non-ANSI compiler, since some will barf if the
-   ellipsis definition is used with a no-arguments declaration.  */
-#if defined (HAVE_VARARGS_H) && !defined (__STDC__)
-#undef HAVE_STDARG_H
-#endif
-
-#if defined (HAVE_STDARG_H)
-#define USE_STDARG
-#endif
-#if !defined (USE_STDARG) && defined (HAVE_VARARGS_H)
-#define USE_VARARGS
-#endif
 
 #ifdef USE_STDARG
 #if (__GNUC__ >= 2) && !defined(VMS)
@@ -569,76 +524,66 @@ PRINTF_LIKE (as_warn);
 PRINTF_WHERE_LIKE (as_bad_where);
 PRINTF_WHERE_LIKE (as_warn_where);
 
-void as_assert (const char *, int, const char *);
-void as_abort (const char *, int, const char *) ATTRIBUTE_NORETURN;
-
-void fprint_value (FILE *file, addressT value);
-void sprint_value (char *buf, addressT value);
-
-int had_errors (void);
-int had_warnings (void);
-
-void print_version_id (void);
-char *app_push (void);
-char *atof_ieee (char *str, int what_kind, LITTLENUM_TYPE * words);
-char *input_scrub_include_file (char *filename, char *position);
-extern void input_scrub_insert_line (const char *line);
-extern void input_scrub_insert_file (char *path);
-char *input_scrub_new_file (char *filename);
-char *input_scrub_next_buffer (char **bufp);
-int do_scrub_chars (int (*get) (char *, int), char *to, int tolen);
-int gen_to_words (LITTLENUM_TYPE * words, int precision,
-			  long exponent_bits);
-int had_err (void);
-int ignore_input (void);
-void cond_finish_check (int);
-void cond_exit_macro (int);
-int seen_at_least_1_file (void);
-void app_pop (char *arg);
-void as_howmuch (FILE * stream);
-void as_perror (const char *gripe, const char *filename);
-void as_where (char **namep, unsigned int *linep);
-void bump_line_counters (void);
-void do_scrub_begin (int);
-void input_scrub_begin (void);
-void input_scrub_close (void);
-void input_scrub_end (void);
-int new_logical_line (char *fname, int line_number);
-void subsegs_begin (void);
-void subseg_change (segT seg, int subseg);
-segT subseg_new (const char *name, subsegT subseg);
-segT subseg_force_new (const char *name, subsegT subseg);
-void subseg_set (segT seg, subsegT subseg);
-#ifdef BFD_ASSEMBLER
-segT subseg_get (const char *, int);
-#endif
-int subseg_text_p (segT);
-
-void start_dependencies (char *);
-void register_dependency (char *);
-void print_dependencies (void);
+void   as_assert (const char *, int, const char *);
+void   as_abort (const char *, int, const char *) ATTRIBUTE_NORETURN;
+void   sprint_value (char *, addressT);
+int    had_errors (void);
+int    had_warnings (void);
+void   as_warn_value_out_of_range (char *, offsetT, offsetT, offsetT, char *, unsigned);
+void   as_bad_value_out_of_range (char *, offsetT, offsetT, offsetT, char *, unsigned);
+void   print_version_id (void);
+char * app_push (void);
+char * atof_ieee (char *, int, LITTLENUM_TYPE *);
+char * input_scrub_include_file (char *, char *);
+void   input_scrub_insert_line (const char *);
+void   input_scrub_insert_file (char *);
+char * input_scrub_new_file (char *);
+char * input_scrub_next_buffer (char **bufp);
+int    do_scrub_chars (int (*get) (char *, int), char *, int);
+int    gen_to_words (LITTLENUM_TYPE *, int, long);
+int    had_err (void);
+int    ignore_input (void);
+void   cond_finish_check (int);
+void   cond_exit_macro (int);
+int    seen_at_least_1_file (void);
+void   app_pop (char *);
+void   as_where (char **, unsigned int *);
+void   bump_line_counters (void);
+void   do_scrub_begin (int);
+void   input_scrub_begin (void);
+void   input_scrub_close (void);
+void   input_scrub_end (void);
+int    new_logical_line (char *, int);
+int    new_logical_line_flags (char *, int, int);
+void   subsegs_begin (void);
+void   subseg_change (segT, int);
+segT   subseg_new (const char *, subsegT);
+segT   subseg_force_new (const char *, subsegT);
+void   subseg_set (segT, subsegT);
+int    subseg_text_p (segT);
+int    seg_not_empty_p (segT);
+void   start_dependencies (char *);
+void   register_dependency (char *);
+void   print_dependencies (void);
+segT   subseg_get (const char *, int);
 
 struct expressionS;
 struct fix;
 typedef struct symbol symbolS;
-struct relax_type;
 typedef struct frag fragS;
 
-#ifdef BFD_ASSEMBLER
 /* literal.c */
 valueT add_to_literal_pool (symbolS *, valueT, segT, int);
-#endif
 
 int check_eh_frame (struct expressionS *, unsigned int *);
 int eh_frame_estimate_size_before_relax (fragS *);
 int eh_frame_relax_frag (fragS *);
 void eh_frame_convert_frag (fragS *);
-
 int generic_force_reloc (struct fix *);
 
 #include "expr.h"		/* Before targ-*.h */
 
-/* this one starts the chain of target dependant headers */
+/* This one starts the chain of target dependant headers.  */
 #include "targ-env.h"
 
 #ifdef OBJ_MAYBE_ELF
@@ -668,14 +613,19 @@ int generic_force_reloc (struct fix *);
 #ifdef TC_M68K
 /* True if we are assembling in m68k MRI mode.  */
 COMMON int flag_m68k_mri;
+#define DOLLAR_AMBIGU flag_m68k_mri
 #else
 #define flag_m68k_mri 0
 #endif
 
 #ifdef WARN_COMMENTS
-COMMON int warn_comment;
-COMMON unsigned int found_comment;
-COMMON char *found_comment_file;
+COMMON int           warn_comment;
+COMMON unsigned int  found_comment;
+COMMON char *        found_comment_file;
+#endif
+
+#ifndef DOLLAR_AMBIGU
+#define DOLLAR_AMBIGU 0
 #endif
 
 #ifndef NUMBERS_WITH_SUFFIX

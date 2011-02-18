@@ -1,5 +1,5 @@
 /* Generic ECOFF swapping routines, for BFD.
-   Copyright 1992, 1993, 1994, 1995, 1996, 2000, 2001, 2002
+   Copyright 1992, 1993, 1994, 1995, 1996, 2000, 2001, 2002, 2004, 2005
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -17,7 +17,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* NOTE: This is a header file, but it contains executable routines.
    This is done this way because these routines are substantially
@@ -65,40 +65,37 @@
    for all ECOFF targets, so they are defined in ecofflink.c.  */
 
 extern void _bfd_ecoff_swap_tir_in
-  PARAMS ((int, const struct tir_ext *, TIR *));
+  (int, const struct tir_ext *, TIR *);
 extern void _bfd_ecoff_swap_tir_out
-  PARAMS ((int, const TIR *, struct tir_ext *));
+  (int, const TIR *, struct tir_ext *);
 extern void _bfd_ecoff_swap_rndx_in
-  PARAMS ((int, const struct rndx_ext *, RNDXR *));
+  (int, const struct rndx_ext *, RNDXR *);
 extern void _bfd_ecoff_swap_rndx_out
-  PARAMS ((int, const RNDXR *, struct rndx_ext *));
+  (int, const RNDXR *, struct rndx_ext *);
 
 /* Prototypes for functions defined in this file.  */
 
-static void ecoff_swap_hdr_in PARAMS ((bfd *, PTR, HDRR *));
-static void ecoff_swap_hdr_out PARAMS ((bfd *, const HDRR *, PTR));
-static void ecoff_swap_fdr_in PARAMS ((bfd *, PTR, FDR *));
-static void ecoff_swap_fdr_out PARAMS ((bfd *, const FDR *, PTR));
-static void ecoff_swap_pdr_in PARAMS ((bfd *, PTR, PDR *));
-static void ecoff_swap_pdr_out PARAMS ((bfd *, const PDR *, PTR));
-static void ecoff_swap_sym_in PARAMS ((bfd *, PTR, SYMR *));
-static void ecoff_swap_sym_out PARAMS ((bfd *, const SYMR *, PTR));
-static void ecoff_swap_ext_in PARAMS ((bfd *, PTR, EXTR *));
-static void ecoff_swap_ext_out PARAMS ((bfd *, const EXTR *, PTR));
-static void ecoff_swap_rfd_in PARAMS ((bfd *, PTR, RFDT *));
-static void ecoff_swap_rfd_out PARAMS ((bfd *, const RFDT *, PTR));
-static void ecoff_swap_opt_in PARAMS ((bfd *, PTR, OPTR *));
-static void ecoff_swap_opt_out PARAMS ((bfd *, const OPTR *, PTR));
-static void ecoff_swap_dnr_in PARAMS ((bfd *, PTR, DNR *));
-static void ecoff_swap_dnr_out PARAMS ((bfd *, const DNR *, PTR));
+static void ecoff_swap_hdr_in (bfd *, void *, HDRR *);
+static void ecoff_swap_hdr_out (bfd *, const HDRR *, void *);
+static void ecoff_swap_fdr_in (bfd *, void *, FDR *);
+static void ecoff_swap_fdr_out (bfd *, const FDR *, void *);
+static void ecoff_swap_pdr_in (bfd *, void *, PDR *);
+static void ecoff_swap_pdr_out (bfd *, const PDR *, void *);
+static void ecoff_swap_sym_in (bfd *, void *, SYMR *);
+static void ecoff_swap_sym_out (bfd *, const SYMR *, void *);
+static void ecoff_swap_ext_in (bfd *, void *, EXTR *);
+static void ecoff_swap_ext_out (bfd *, const EXTR *, void *);
+static void ecoff_swap_rfd_in (bfd *, void *, RFDT *);
+static void ecoff_swap_rfd_out (bfd *, const RFDT *, void *);
+static void ecoff_swap_opt_in (bfd *, void *, OPTR *);
+static void ecoff_swap_opt_out (bfd *, const OPTR *, void *);
+static void ecoff_swap_dnr_in (bfd *, void *, DNR *);
+static void ecoff_swap_dnr_out (bfd *, const DNR *, void *);
 
 /* Swap in the symbolic header.  */
 
 static void
-ecoff_swap_hdr_in (abfd, ext_copy, intern)
-     bfd *abfd;
-     PTR ext_copy;
-     HDRR *intern;
+ecoff_swap_hdr_in (bfd *abfd, void * ext_copy, HDRR *intern)
 {
   struct hdr_ext ext[1];
 
@@ -131,7 +128,7 @@ ecoff_swap_hdr_in (abfd, ext_copy, intern)
   intern->cbExtOffset   = ECOFF_GET_OFF (abfd, ext->h_cbExtOffset);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -139,10 +136,7 @@ ecoff_swap_hdr_in (abfd, ext_copy, intern)
 /* Swap out the symbolic header.  */
 
 static void
-ecoff_swap_hdr_out (abfd, intern_copy, ext_ptr)
-     bfd *abfd;
-     const HDRR *intern_copy;
-     PTR ext_ptr;
+ecoff_swap_hdr_out (bfd *abfd, const HDRR *intern_copy, void * ext_ptr)
 {
   struct hdr_ext *ext = (struct hdr_ext *) ext_ptr;
   HDRR intern[1];
@@ -184,10 +178,7 @@ ecoff_swap_hdr_out (abfd, intern_copy, ext_ptr)
 /* Swap in the file descriptor record.  */
 
 static void
-ecoff_swap_fdr_in (abfd, ext_copy, intern)
-     bfd *abfd;
-     PTR ext_copy;
-     FDR *intern;
+ecoff_swap_fdr_in (bfd *abfd, void * ext_copy, FDR *intern)
 {
   struct fdr_ext ext[1];
 
@@ -247,7 +238,7 @@ ecoff_swap_fdr_in (abfd, ext_copy, intern)
   intern->cbLine        = ECOFF_GET_OFF (abfd, ext->f_cbLine);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -255,10 +246,7 @@ ecoff_swap_fdr_in (abfd, ext_copy, intern)
 /* Swap out the file descriptor record.  */
 
 static void
-ecoff_swap_fdr_out (abfd, intern_copy, ext_ptr)
-     bfd *abfd;
-     const FDR *intern_copy;
-     PTR ext_ptr;
+ecoff_swap_fdr_out (bfd *abfd, const FDR *intern_copy, void * ext_ptr)
 {
   struct fdr_ext *ext = (struct fdr_ext *) ext_ptr;
   FDR intern[1];
@@ -319,26 +307,21 @@ ecoff_swap_fdr_out (abfd, intern_copy, ext_ptr)
   ECOFF_PUT_OFF (abfd, intern->cbLine, ext->f_cbLine);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
 
-#ifndef MPW_C
-
 /* Swap in the procedure descriptor record.  */
 
 static void
-ecoff_swap_pdr_in (abfd, ext_copy, intern)
-     bfd *abfd;
-     PTR ext_copy;
-     PDR *intern;
+ecoff_swap_pdr_in (bfd *abfd, void * ext_copy, PDR *intern)
 {
   struct pdr_ext ext[1];
 
   *ext = *(struct pdr_ext *) ext_copy;
 
-  memset ((PTR) intern, 0, sizeof (*intern));
+  memset ((void *) intern, 0, sizeof (*intern));
 
   intern->adr           = ECOFF_GET_OFF (abfd, ext->p_adr);
   intern->isym          = H_GET_32 (abfd, ext->p_isym);
@@ -386,7 +369,7 @@ ecoff_swap_pdr_in (abfd, ext_copy, intern)
 #endif
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -394,10 +377,7 @@ ecoff_swap_pdr_in (abfd, ext_copy, intern)
 /* Swap out the procedure descriptor record.  */
 
 static void
-ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
-     bfd *abfd;
-     const PDR *intern_copy;
-     PTR ext_ptr;
+ecoff_swap_pdr_out (bfd *abfd, const PDR *intern_copy, void * ext_ptr)
 {
   struct pdr_ext *ext = (struct pdr_ext *) ext_ptr;
   PDR intern[1];
@@ -449,90 +429,15 @@ ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
 #endif
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
-
-#else /* MPW_C */
-/* Same routines, but with ECOFF_64 code removed, so ^&%$#&! MPW C doesn't
-   corrupt itself and then freak out.  */
-/* Swap in the procedure descriptor record.  */
-
-static void
-ecoff_swap_pdr_in (abfd, ext_copy, intern)
-     bfd *abfd;
-     PTR ext_copy;
-     PDR *intern;
-{
-  struct pdr_ext ext[1];
-
-  *ext = *(struct pdr_ext *) ext_copy;
-
-  intern->adr           = ECOFF_GET_OFF (abfd, ext->p_adr);
-  intern->isym          = H_GET_32 (abfd, ext->p_isym);
-  intern->iline         = H_GET_32 (abfd, ext->p_iline);
-  intern->regmask       = H_GET_32 (abfd, ext->p_regmask);
-  intern->regoffset     = H_GET_S32 (abfd, ext->p_regoffset);
-  intern->iopt          = H_GET_S32 (abfd, ext->p_iopt);
-  intern->fregmask      = H_GET_32 (abfd, ext->p_fregmask);
-  intern->fregoffset    = H_GET_S32 (abfd, ext->p_fregoffset);
-  intern->frameoffset   = H_GET_S32 (abfd, ext->p_frameoffset);
-  intern->framereg      = H_GET_16 (abfd, ext->p_framereg);
-  intern->pcreg         = H_GET_16 (abfd, ext->p_pcreg);
-  intern->lnLow         = H_GET_32 (abfd, ext->p_lnLow);
-  intern->lnHigh        = H_GET_32 (abfd, ext->p_lnHigh);
-  intern->cbLineOffset  = ECOFF_GET_OFF (abfd, ext->p_cbLineOffset);
-
-#ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort ();
-#endif
-}
-
-/* Swap out the procedure descriptor record.  */
-
-static void
-ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
-     bfd *abfd;
-     const PDR *intern_copy;
-     PTR ext_ptr;
-{
-  struct pdr_ext *ext = (struct pdr_ext *) ext_ptr;
-  PDR intern[1];
-
-  /* Make it reasonable to do in-place.  */
-  *intern = *intern_copy;
-
-  ECOFF_PUT_OFF (abfd, intern->adr,          ext->p_adr);
-  H_PUT_32      (abfd, intern->isym,         ext->p_isym);
-  H_PUT_32      (abfd, intern->iline,        ext->p_iline);
-  H_PUT_32      (abfd, intern->regmask,      ext->p_regmask);
-  H_PUT_32      (abfd, intern->regoffset,    ext->p_regoffset);
-  H_PUT_32      (abfd, intern->iopt,         ext->p_iopt);
-  H_PUT_32      (abfd, intern->fregmask,     ext->p_fregmask);
-  H_PUT_32      (abfd, intern->fregoffset,   ext->p_fregoffset);
-  H_PUT_32      (abfd, intern->frameoffset,  ext->p_frameoffset);
-  H_PUT_16      (abfd, intern->framereg,     ext->p_framereg);
-  H_PUT_16      (abfd, intern->pcreg,        ext->p_pcreg);
-  H_PUT_32      (abfd, intern->lnLow,        ext->p_lnLow);
-  H_PUT_32      (abfd, intern->lnHigh,       ext->p_lnHigh);
-  ECOFF_PUT_OFF (abfd, intern->cbLineOffset, ext->p_cbLineOffset);
-
-#ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort ();
-#endif
-}
-#endif /* MPW_C */
 
 /* Swap in a symbol record.  */
 
 static void
-ecoff_swap_sym_in (abfd, ext_copy, intern)
-     bfd *abfd;
-     PTR ext_copy;
-     SYMR *intern;
+ecoff_swap_sym_in (bfd *abfd, void * ext_copy, SYMR *intern)
 {
   struct sym_ext ext[1];
 
@@ -578,7 +483,7 @@ ecoff_swap_sym_in (abfd, ext_copy, intern)
     }
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -586,10 +491,7 @@ ecoff_swap_sym_in (abfd, ext_copy, intern)
 /* Swap out a symbol record.  */
 
 static void
-ecoff_swap_sym_out (abfd, intern_copy, ext_ptr)
-     bfd *abfd;
-     const SYMR *intern_copy;
-     PTR ext_ptr;
+ecoff_swap_sym_out (bfd *abfd, const SYMR *intern_copy, void * ext_ptr)
 {
   struct sym_ext *ext = (struct sym_ext *) ext_ptr;
   SYMR intern[1];
@@ -631,7 +533,7 @@ ecoff_swap_sym_out (abfd, intern_copy, ext_ptr)
     }
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -639,10 +541,7 @@ ecoff_swap_sym_out (abfd, intern_copy, ext_ptr)
 /* Swap in an external symbol record.  */
 
 static void
-ecoff_swap_ext_in (abfd, ext_copy, intern)
-     bfd *abfd;
-     PTR ext_copy;
-     EXTR *intern;
+ecoff_swap_ext_in (bfd *abfd, void * ext_copy, EXTR *intern)
 {
   struct ext_ext ext[1];
 
@@ -673,7 +572,7 @@ ecoff_swap_ext_in (abfd, ext_copy, intern)
   ecoff_swap_sym_in (abfd, &ext->es_asym, &intern->asym);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -681,10 +580,7 @@ ecoff_swap_ext_in (abfd, ext_copy, intern)
 /* Swap out an external symbol record.  */
 
 static void
-ecoff_swap_ext_out (abfd, intern_copy, ext_ptr)
-     bfd *abfd;
-     const EXTR *intern_copy;
-     PTR ext_ptr;
+ecoff_swap_ext_out (bfd *abfd, const EXTR *intern_copy, void * ext_ptr)
 {
   struct ext_ext *ext = (struct ext_ext *) ext_ptr;
   EXTR intern[1];
@@ -726,7 +622,7 @@ ecoff_swap_ext_out (abfd, intern_copy, ext_ptr)
   ecoff_swap_sym_out (abfd, &intern->asym, &ext->es_asym);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -734,17 +630,14 @@ ecoff_swap_ext_out (abfd, intern_copy, ext_ptr)
 /* Swap in a relative file descriptor.  */
 
 static void
-ecoff_swap_rfd_in (abfd, ext_ptr, intern)
-     bfd *abfd;
-     PTR ext_ptr;
-     RFDT *intern;
+ecoff_swap_rfd_in (bfd *abfd, void * ext_ptr, RFDT *intern)
 {
   struct rfd_ext *ext = (struct rfd_ext *) ext_ptr;
 
   *intern = H_GET_32 (abfd, ext->rfd);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -752,17 +645,14 @@ ecoff_swap_rfd_in (abfd, ext_ptr, intern)
 /* Swap out a relative file descriptor.  */
 
 static void
-ecoff_swap_rfd_out (abfd, intern, ext_ptr)
-     bfd *abfd;
-     const RFDT *intern;
-     PTR ext_ptr;
+ecoff_swap_rfd_out (bfd *abfd, const RFDT *intern, void * ext_ptr)
 {
   struct rfd_ext *ext = (struct rfd_ext *) ext_ptr;
 
   H_PUT_32 (abfd, *intern, ext->rfd);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -770,10 +660,7 @@ ecoff_swap_rfd_out (abfd, intern, ext_ptr)
 /* Swap in an optimization symbol.  */
 
 static void
-ecoff_swap_opt_in (abfd, ext_copy, intern)
-     bfd *abfd;
-     PTR ext_copy;
-     OPTR *intern;
+ecoff_swap_opt_in (bfd *abfd, void * ext_copy, OPTR * intern)
 {
   struct opt_ext ext[1];
 
@@ -803,7 +690,7 @@ ecoff_swap_opt_in (abfd, ext_copy, intern)
   intern->offset = H_GET_32 (abfd, ext->o_offset);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -811,10 +698,7 @@ ecoff_swap_opt_in (abfd, ext_copy, intern)
 /* Swap out an optimization symbol.  */
 
 static void
-ecoff_swap_opt_out (abfd, intern_copy, ext_ptr)
-     bfd *abfd;
-     const OPTR *intern_copy;
-     PTR ext_ptr;
+ecoff_swap_opt_out (bfd *abfd, const OPTR *intern_copy, void * ext_ptr)
 {
   struct opt_ext *ext = (struct opt_ext *) ext_ptr;
   OPTR intern[1];
@@ -843,7 +727,7 @@ ecoff_swap_opt_out (abfd, intern_copy, ext_ptr)
   H_PUT_32 (abfd, intern->value, ext->o_offset);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -851,10 +735,7 @@ ecoff_swap_opt_out (abfd, intern_copy, ext_ptr)
 /* Swap in a dense number.  */
 
 static void
-ecoff_swap_dnr_in (abfd, ext_copy, intern)
-     bfd *abfd;
-     PTR ext_copy;
-     DNR *intern;
+ecoff_swap_dnr_in (bfd *abfd, void * ext_copy, DNR *intern)
 {
   struct dnr_ext ext[1];
 
@@ -864,7 +745,7 @@ ecoff_swap_dnr_in (abfd, ext_copy, intern)
   intern->index = H_GET_32 (abfd, ext->d_index);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }
@@ -872,10 +753,7 @@ ecoff_swap_dnr_in (abfd, ext_copy, intern)
 /* Swap out a dense number.  */
 
 static void
-ecoff_swap_dnr_out (abfd, intern_copy, ext_ptr)
-     bfd *abfd;
-     const DNR *intern_copy;
-     PTR ext_ptr;
+ecoff_swap_dnr_out (bfd *abfd, const DNR *intern_copy, void * ext_ptr)
 {
   struct dnr_ext *ext = (struct dnr_ext *) ext_ptr;
   DNR intern[1];
@@ -887,7 +765,7 @@ ecoff_swap_dnr_out (abfd, intern_copy, ext_ptr)
   H_PUT_32 (abfd, intern->index, ext->d_index);
 
 #ifdef TEST
-  if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
+  if (memcmp ((char *) ext, (char *) intern, sizeof (*intern)) != 0)
     abort ();
 #endif
 }

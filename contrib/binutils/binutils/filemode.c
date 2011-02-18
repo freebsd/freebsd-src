@@ -1,6 +1,6 @@
 /* filemode.c -- make a string describing file modes
-   Copyright 1985, 1990, 1991, 1994, 1995, 1997, 2003
-   Free Software Foundation, Inc.
+   Copyright 1985, 1990, 1991, 1994, 1995, 1997, 1999, 2002, 2003, 2005,
+   2007 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "bucomm.h"
 
@@ -58,18 +59,6 @@ static void setst (unsigned long, char *);
 	(will be retained in swap space after execution), '-'
 	otherwise.
 	'T' if the file is sticky but not executable.  */
-
-#if 0
-
-/* This is not used; only mode_string is used.  */
-
-void
-filemodestring (struct stat *statp, char *str)
-{
-  mode_string ((unsigned long) statp->st_mode, str);
-}
-
-#endif
 
 /* Get definitions for the file permission bits.  */
 

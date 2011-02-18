@@ -1,6 +1,6 @@
 /* input_scrub.c - Break up input buffers into whole numbers of lines.
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   2000
+   2000, 2001, 2003, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,10 +17,9 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
-#include <errno.h>		/* Need this to make errno declaration right */
 #include "as.h"
 #include "input-file.h"
 #include "sb.h"
@@ -56,6 +55,10 @@
 #define AFTER_STRING ("\0")	/* memcpy of 0 chars might choke.  */
 #define BEFORE_SIZE (1)
 #define AFTER_SIZE  (1)
+
+#ifndef TC_EOL_IN_INSN
+#define TC_EOL_IN_INSN(P) 0
+#endif
 
 static char *buffer_start;	/*->1st char of full buffer area.  */
 static char *partial_where;	/*->after last full line in buffer.  */
@@ -123,7 +126,6 @@ struct input_save {
 
 static struct input_save *input_scrub_push (char *saved_position);
 static char *input_scrub_pop (struct input_save *arg);
-static void as_1_char (unsigned int c, FILE * stream);
 
 /* Saved information about the file that .include'd this one.  When we hit EOF,
    we automatically pop to that file.  */
@@ -280,7 +282,7 @@ input_scrub_include_sb (sb *from, char *position, int is_expansion)
       /* Add the sentinel required by read.c.  */
       sb_add_char (&from_sb, '\n');
     }
-  sb_add_sb (&from_sb, from);
+  sb_scrub_and_add_sb (&from_sb, from);
   sb_index = 1;
 
   /* These variables are reset by input_scrub_push.  Restore them
@@ -343,8 +345,9 @@ input_scrub_next_buffer (char **bufp)
   if (limit)
     {
       register char *p;		/* Find last newline.  */
-
-      for (p = limit - 1; *p != '\n'; --p)
+      /* Terminate the buffer to avoid confusing TC_EOL_IN_INSN.  */
+      *limit = '\0';
+      for (p = limit - 1; *p != '\n' || TC_EOL_IN_INSN (p); --p)
 	;
       ++p;
 
@@ -370,7 +373,9 @@ input_scrub_next_buffer (char **bufp)
 	      return NULL;
 	    }
 
-	  for (p = limit - 1; *p != '\n'; --p)
+	  /* Terminate the buffer to avoid confusing TC_EOL_IN_INSN.  */
+	  *limit = '\0';
+	  for (p = limit - 1; *p != '\n' || TC_EOL_IN_INSN (p); --p)
 	    ;
 	  ++p;
 	}
@@ -430,13 +435,34 @@ bump_line_counters (void)
    Returns nonzero if the filename actually changes.  */
 
 int
-new_logical_line (char *fname, /* DON'T destroy it!  We point to it!  */
-		  int line_number)
+new_logical_line_flags (char *fname, /* DON'T destroy it!  We point to it!  */
+			int line_number,
+			int flags)
 {
+  switch (flags)
+    {
+    case 0:
+      break;
+    case 1:
+      if (line_number != -1)
+	abort ();
+      break;
+    case 1 << 1:
+    case 1 << 2:
+      /* FIXME: we could check that include nesting is correct.  */
+      break;
+    default:
+      abort ();
+    }
+
   if (line_number >= 0)
     logical_input_line = line_number;
-  else if (line_number == -2 && logical_input_line > 0)
-    --logical_input_line;
+  else if (line_number == -1 && fname && !*fname && (flags & (1 << 2)))
+    {
+      logical_input_file = physical_input_file;
+      logical_input_line = physical_input_line;
+      fname = NULL;
+    }
 
   if (fname
       && (logical_input_file == NULL
@@ -448,6 +474,13 @@ new_logical_line (char *fname, /* DON'T destroy it!  We point to it!  */
   else
     return 0;
 }
+
+int
+new_logical_line (char *fname, int line_number)
+{
+  return new_logical_line_flags (fname, line_number, 0);
+}
+
 
 /* Return the current file name and line number.
    namep should be char * const *, but there are compilers which screw
@@ -475,40 +508,4 @@ as_where (char **namep, unsigned int *linep)
       if (linep != NULL)
 	*linep = 0;
     }
-}
-
-/* Output to given stream how much of line we have scanned so far.
-   Assumes we have scanned up to and including input_line_pointer.
-   No free '\n' at end of line.  */
-
-void
-as_howmuch (FILE *stream /* Opened for write please.  */)
-{
-  register char *p;		/* Scan input line.  */
-
-  for (p = input_line_pointer - 1; *p != '\n'; --p)
-    {
-    }
-  ++p;				/* p->1st char of line.  */
-  for (; p <= input_line_pointer; p++)
-    {
-      /* Assume ASCII. EBCDIC & other micro-computer char sets ignored.  */
-      as_1_char ((unsigned char) *p, stream);
-    }
-}
-
-static void
-as_1_char (unsigned int c, FILE *stream)
-{
-  if (c > 127)
-    {
-      (void) putc ('%', stream);
-      c -= 128;
-    }
-  if (c < 32)
-    {
-      (void) putc ('^', stream);
-      c += '@';
-    }
-  (void) putc (c, stream);
 }

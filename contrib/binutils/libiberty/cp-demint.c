@@ -25,7 +25,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. 
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 */
 
 /* This file implements a few interface functions which are provided
@@ -56,11 +56,10 @@
 /* Fill in most component types.  */
 
 int
-cplus_demangle_fill_component (p, type, left, right)
-     struct demangle_component *p;
-     enum demangle_component_type type;
-     struct demangle_component *left;
-     struct demangle_component *right;
+cplus_demangle_fill_component (struct demangle_component *p,
+                               enum demangle_component_type type,
+                               struct demangle_component *left,
+                                struct demangle_component *right)
 {
   if (p == NULL)
     return 0;
@@ -130,20 +129,19 @@ cplus_demangle_fill_component (p, type, left, right)
 /* Fill in a DEMANGLE_COMPONENT_BUILTIN_TYPE.  */
 
 int
-cplus_demangle_fill_builtin_type (p, typename)
-     struct demangle_component *p;
-     const char *typename;
+cplus_demangle_fill_builtin_type (struct demangle_component *p,
+                                  const char *type_name)
 {
   int len;
   unsigned int i;
 
-  if (p == NULL || typename == NULL)
+  if (p == NULL || type_name == NULL)
     return 0;
-  len = strlen (typename);
+  len = strlen (type_name);
   for (i = 0; i < D_BUILTIN_TYPE_COUNT; ++i)
     {
       if (len == cplus_demangle_builtin_types[i].len
-	  && strcmp (typename, cplus_demangle_builtin_types[i].name) == 0)
+	  && strcmp (type_name, cplus_demangle_builtin_types[i].name) == 0)
 	{
 	  p->type = DEMANGLE_COMPONENT_BUILTIN_TYPE;
 	  p->u.s_builtin.type = &cplus_demangle_builtin_types[i];
@@ -156,10 +154,8 @@ cplus_demangle_fill_builtin_type (p, typename)
 /* Fill in a DEMANGLE_COMPONENT_OPERATOR.  */
 
 int
-cplus_demangle_fill_operator (p, opname, args)
-     struct demangle_component *p;
-     const char *opname;
-     int args;
+cplus_demangle_fill_operator (struct demangle_component *p,
+                              const char *opname, int args)
 {
   int len;
   unsigned int i;
@@ -184,10 +180,7 @@ cplus_demangle_fill_operator (p, opname, args)
 /* Translate a mangled name into components.  */
 
 struct demangle_component *
-cplus_demangle_v3_components (mangled, options, mem)
-     const char *mangled;
-     int options;
-     void **mem;
+cplus_demangle_v3_components (const char *mangled, int options, void **mem)
 {
   size_t len;
   int type;

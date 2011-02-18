@@ -1,6 +1,6 @@
 \input texinfo
 @c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998,
-@c 2000, 2001, 2002, 2003
+@c 2000, 2001, 2002, 2003, 2004, 2006, 2007
 @c Free Software Foundation, Inc.
 @setfilename bfdint.info
 
@@ -12,6 +12,33 @@
 @author{Cygnus Solutions}
 @page
 @end iftex
+
+@copying
+This file documents the internals of the BFD library.
+
+Copyright @copyright{} 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
+1996, 1998, 2000, 2001, 2002, 2003, 2004, 2006, 2007
+Free Software Foundation, Inc.
+Contributed by Cygnus Support.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'' and ``Funding
+Free Software'', the Front-Cover texts being (a) (see below), and with
+the Back-Cover Texts being (b) (see below).  A copy of the license is
+included in the section entitled ``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
 
 @node Top
 @top BFD Internals
@@ -189,7 +216,7 @@ and handle it using the special hooks.
 
 In some cases there is also implicit information which BFD can not
 represent.  For example, the MIPS processor distinguishes small and
-large symbols, and requires that all small symbls be within 32K of the
+large symbols, and requires that all small symbols be within 32K of the
 GP register.  This means that the MIPS assembler must be able to mark
 variables as either small or large, and the MIPS linker must know to put
 small symbols within range of the GP register.  Since BFD can not
@@ -230,7 +257,7 @@ Follow the GNU coding standards.
 Avoid global variables.  We ideally want BFD to be fully reentrant, so
 that it can be used in multiple threads.  All uses of global or static
 variables interfere with that.  Initialized constant variables are OK,
-and they should be explicitly marked with const.  Instead of global
+and they should be explicitly marked with @samp{const}.  Instead of global
 variables, use data attached to a BFD or to a linker hash table.
 
 @item
@@ -1391,7 +1418,7 @@ constants used by the generic support.
 @subsection ELF sections and segments
 
 The ELF ABI permits a file to have either sections or segments or both.
-Relocateable object files conventionally have only sections.
+Relocatable object files conventionally have only sections.
 Executables conventionally have both.  Core files conventionally have
 only program segments.
 
@@ -1743,23 +1770,6 @@ support.
 
 The processor function hooks and constants are ad hoc and need better
 documentation.
-
-When a linker script uses @samp{SIZEOF_HEADERS}, the ELF backend must
-guess at the number of program segments which will be required, in
-@samp{get_program_header_size}.  This is because the linker calls
-@samp{bfd_sizeof_headers} before it knows all the section addresses and
-sizes.  The ELF backend may later discover, when creating program
-segments, that more program segments are required.  This is currently
-reported as an error in @samp{assign_file_positions_for_segments}.
-
-In practice this makes it difficult to use @samp{SIZEOF_HEADERS} except
-with a carefully defined linker script.  Unfortunately,
-@samp{SIZEOF_HEADERS} is required for fast program loading on a native
-system, since it permits the initial code section to appear on the same
-page as the program segments, saving a page read when the program starts
-running.  Fortunately, native systems permit careful definition of the
-linker script.  Still, ideally it would be possible to use relaxation to
-compute the number of program segments.
 
 @node BFD glossary
 @section BFD glossary

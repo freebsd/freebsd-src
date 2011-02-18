@@ -1,5 +1,5 @@
 /* BFD back-end for IBM RS/6000 "XCOFF64" files.
-   Copyright 2000, 2001, 2002, 2003
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written Clinton Popetz.
    Contributed by Cygnus Support.
@@ -18,10 +18,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "coff/internal.h"
@@ -127,7 +127,7 @@ extern bfd_boolean _bfd_xcoff_write_armap
 extern bfd_boolean _bfd_xcoff_write_archive_contents
   PARAMS ((bfd *));
 extern int _bfd_xcoff_sizeof_headers
-  PARAMS ((bfd *, bfd_boolean));
+  PARAMS ((bfd *, struct bfd_link_info *));
 extern void _bfd_xcoff_swap_sym_in
   PARAMS ((bfd *, PTR, PTR));
 extern unsigned int _bfd_xcoff_swap_sym_out
@@ -161,7 +161,7 @@ static const bfd_target *xcoff64_archive_p
 static bfd *xcoff64_openr_next_archived_file
   PARAMS ((bfd *, bfd *));
 static int xcoff64_sizeof_headers
-  PARAMS ((bfd *, bfd_boolean));
+  PARAMS ((bfd *, struct bfd_link_info *));
 static asection *xcoff64_create_csect_from_smclas
   PARAMS ((bfd *, union internal_auxent *, const char *));
 static bfd_boolean xcoff64_is_lineno_count_overflow
@@ -237,6 +237,7 @@ bfd_boolean (*xcoff64_calculate_relocation[XCOFF_MAX_CALCULATE_RELOCATION])
 #define coff_bfd_copy_private_bfd_data _bfd_xcoff_copy_private_bfd_data
 #define coff_bfd_is_local_label_name _bfd_xcoff_is_local_label_name
 #define coff_bfd_reloc_type_lookup xcoff64_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup xcoff64_reloc_name_lookup
 #ifdef AIX_CORE
 extern const bfd_target * rs6000coff_core_p
   PARAMS ((bfd *abfd));
@@ -564,7 +565,7 @@ _bfd_xcoff64_put_ldsymbol_name (abfd, ldinfo, ldsym, name)
   if (ldinfo->string_size + len + 3 > ldinfo->string_alc)
     {
       bfd_size_type newalc;
-      bfd_byte *newstrings;
+      char *newstrings;
 
       newalc = ldinfo->string_alc * 2;
       if (newalc == 0)
@@ -572,8 +573,7 @@ _bfd_xcoff64_put_ldsymbol_name (abfd, ldinfo, ldsym, name)
       while (ldinfo->string_size + len + 3 > newalc)
 	newalc *= 2;
 
-      newstrings = ((bfd_byte *)
-		    bfd_realloc ((PTR) ldinfo->strings, newalc));
+      newstrings = bfd_realloc (ldinfo->strings, newalc);
       if (newstrings == NULL)
 	{
 	  ldinfo->failed = TRUE;
@@ -845,11 +845,11 @@ xcoff64_write_object_contents (abfd)
 
       section.s_vaddr = current->vma;
       section.s_paddr = current->lma;
-      section.s_size =  current->_raw_size;
+      section.s_size =  current->size;
 
       /* If this section has no size or is unloadable then the scnptr
 	 will be 0 too.  */
-      if (current->_raw_size == 0
+      if (current->size == 0
 	  || (current->flags & (SEC_LOAD | SEC_HAS_CONTENTS)) == 0)
 	{
 	  section.s_scnptr = 0;
@@ -965,19 +965,19 @@ xcoff64_write_object_contents (abfd)
 
   if (text_sec)
     {
-      internal_a.tsize = bfd_get_section_size_before_reloc (text_sec);
+      internal_a.tsize = text_sec->size;
       internal_a.text_start = internal_a.tsize ? text_sec->vma : 0;
     }
 
   if (data_sec)
     {
-      internal_a.dsize = bfd_get_section_size_before_reloc (data_sec);
+      internal_a.dsize = data_sec->size;
       internal_a.data_start = internal_a.dsize ? data_sec->vma : 0;
     }
 
   if (bss_sec)
     {
-      internal_a.bsize = bfd_get_section_size_before_reloc (bss_sec);
+      internal_a.bsize = bss_sec->size;
       if (internal_a.bsize && bss_sec->vma < internal_a.data_start)
 	internal_a.data_start = bss_sec->vma;
     }
@@ -1127,8 +1127,7 @@ xcoff64_reloc_type_br (input_bfd, input_section, output_bfd, rel, sym, howto,
      cror.  */
   if (NULL != h
       && bfd_link_hash_defined == h->root.type
-      && (rel->r_vaddr - input_section->vma + 8
-	  <= input_section->_cooked_size))
+      && rel->r_vaddr - input_section->vma + 8 <= input_section->size)
     {
       bfd_byte *pnext;
       unsigned long next;
@@ -1301,7 +1300,7 @@ xcoff64_ppc_relocate_section (output_bfd, info, input_bfd,
       address = rel->r_vaddr - input_section->vma;
       location = contents + address;
 
-      if (address > input_section->_raw_size)
+      if (address > input_section->size)
 	abort ();
 
       /* Get the value we are going to relocate.  */
@@ -1336,7 +1335,7 @@ xcoff64_ppc_relocate_section (output_bfd, info, input_bfd,
 	    }
 	  else if (h != NULL)
 	    {
-	      name = h->root.root.string;
+	      name = NULL;
 	    }
 	  else
 	    {
@@ -1347,8 +1346,9 @@ xcoff64_ppc_relocate_section (output_bfd, info, input_bfd,
 	  sprintf (reloc_type_name, "0x%02x", rel->r_type);
 
 	  if (! ((*info->callbacks->reloc_overflow)
-		 (info, name, reloc_type_name, (bfd_vma) 0, input_bfd,
-		  input_section, rel->r_vaddr - input_section->vma)))
+		 (info, (h ? &h->root : NULL), name, reloc_type_name,
+		  (bfd_vma) 0, input_bfd, input_section,
+		  rel->r_vaddr - input_section->vma)))
 	    return FALSE;
 	}
 
@@ -1844,6 +1844,22 @@ xcoff64_reloc_type_lookup (abfd, code)
     }
 }
 
+static reloc_howto_type *
+xcoff64_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			   const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (xcoff64_howto_table) / sizeof (xcoff64_howto_table[0]);
+       i++)
+    if (xcoff64_howto_table[i].name != NULL
+	&& strcasecmp (xcoff64_howto_table[i].name, r_name) == 0)
+      return &xcoff64_howto_table[i];
+
+  return NULL;
+}
+
 /* Read in the armap of an XCOFF archive.  */
 
 static bfd_boolean
@@ -1984,10 +2000,12 @@ xcoff64_archive_p (abfd)
   if (bfd_ardata (abfd) == (struct artdata *) NULL)
     goto error_ret_restore;
 
-  bfd_ardata (abfd)->cache = NULL;
-  bfd_ardata (abfd)->archive_head = NULL;
-  bfd_ardata (abfd)->symdefs = NULL;
-  bfd_ardata (abfd)->extended_names = NULL;
+  /* Already cleared by bfd_zalloc above.
+     bfd_ardata (abfd)->cache = NULL;
+     bfd_ardata (abfd)->archive_head = NULL;
+     bfd_ardata (abfd)->symdefs = NULL;
+     bfd_ardata (abfd)->extended_names = NULL;
+     bfd_ardata (abfd)->extended_names_size = 0;  */
   bfd_ardata (abfd)->first_file_filepos = bfd_scan_vma (hdr.firstmemoff,
 							(const char **) NULL,
 							10);
@@ -2055,9 +2073,8 @@ xcoff64_openr_next_archived_file (archive, last_file)
    always uses an a.out header.  */
 
 static int
-xcoff64_sizeof_headers (abfd, reloc)
-     bfd *abfd;
-     bfd_boolean reloc ATTRIBUTE_UNUSED;
+xcoff64_sizeof_headers (bfd *abfd,
+			struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   int size;
 
@@ -2105,8 +2122,8 @@ xcoff64_create_csect_from_smclas (abfd, aux, symbol_name)
   else
     {
       (*_bfd_error_handler)
-	(_("%s: symbol `%s' has unrecognized smclas %d"),
-	 bfd_archive_filename (abfd), symbol_name, aux->x_csect.x_smclas);
+	(_("%B: symbol `%s' has unrecognized smclas %d"),
+	 abfd, symbol_name, aux->x_csect.x_smclas);
       bfd_set_error (bfd_error_bad_value);
     }
 
@@ -2681,8 +2698,10 @@ const bfd_target rs6000coff64_vec =
     /* Copy */
     _bfd_xcoff_copy_private_bfd_data,
     ((bfd_boolean (*) (bfd *, bfd *)) bfd_true),
+    _bfd_generic_init_private_section_data,
     ((bfd_boolean (*) (bfd *, asection *, bfd *, asection *)) bfd_true),
     ((bfd_boolean (*) (bfd *, asymbol *, bfd *, asymbol *)) bfd_true),
+    ((bfd_boolean (*) (bfd *, bfd *)) bfd_true),
     ((bfd_boolean (*) (bfd *, flagword)) bfd_true),
     ((bfd_boolean (*) (bfd *, void * )) bfd_true),
 
@@ -2710,8 +2729,11 @@ const bfd_target rs6000coff64_vec =
     coff_print_symbol,
     coff_get_symbol_info,
     _bfd_xcoff_is_local_label_name,
+    coff_bfd_is_target_special_symbol,
     coff_get_lineno,
     coff_find_nearest_line,
+    _bfd_generic_find_line,
+    coff_find_inliner_info,
     coff_bfd_make_debug_symbol,
     _bfd_generic_read_minisymbols,
     _bfd_generic_minisymbol_to_symbol,
@@ -2720,6 +2742,7 @@ const bfd_target rs6000coff64_vec =
     coff_get_reloc_upper_bound,
     coff_canonicalize_reloc,
     xcoff64_reloc_type_lookup,
+    xcoff64_reloc_name_lookup,
 
     /* Write */
     coff_set_arch_mach,
@@ -2737,11 +2760,14 @@ const bfd_target rs6000coff64_vec =
     _bfd_generic_link_split_section,
     bfd_generic_gc_sections,
     bfd_generic_merge_sections,
+    bfd_generic_is_group_section,
     bfd_generic_discard_group,
+    _bfd_generic_section_already_linked,
 
     /* Dynamic */
     _bfd_xcoff_get_dynamic_symtab_upper_bound,
     _bfd_xcoff_canonicalize_dynamic_symtab,
+    _bfd_nodynamic_get_synthetic_symtab,
     _bfd_xcoff_get_dynamic_reloc_upper_bound,
     _bfd_xcoff_canonicalize_dynamic_reloc,
 
@@ -2924,8 +2950,10 @@ const bfd_target aix5coff64_vec =
     /* Copy */
     _bfd_xcoff_copy_private_bfd_data,
     ((bfd_boolean (*) (bfd *, bfd *)) bfd_true),
+    _bfd_generic_init_private_section_data,
     ((bfd_boolean (*) (bfd *, asection *, bfd *, asection *)) bfd_true),
     ((bfd_boolean (*) (bfd *, asymbol *, bfd *, asymbol *)) bfd_true),
+    ((bfd_boolean (*) (bfd *, bfd *)) bfd_true),
     ((bfd_boolean (*) (bfd *, flagword)) bfd_true),
     ((bfd_boolean (*) (bfd *, void * )) bfd_true),
 
@@ -2953,8 +2981,11 @@ const bfd_target aix5coff64_vec =
     coff_print_symbol,
     coff_get_symbol_info,
     _bfd_xcoff_is_local_label_name,
+    coff_bfd_is_target_special_symbol,
     coff_get_lineno,
     coff_find_nearest_line,
+    _bfd_generic_find_line,
+    coff_find_inliner_info,
     coff_bfd_make_debug_symbol,
     _bfd_generic_read_minisymbols,
     _bfd_generic_minisymbol_to_symbol,
@@ -2963,6 +2994,7 @@ const bfd_target aix5coff64_vec =
     coff_get_reloc_upper_bound,
     coff_canonicalize_reloc,
     xcoff64_reloc_type_lookup,
+    xcoff64_reloc_name_lookup,
 
     /* Write */
     coff_set_arch_mach,
@@ -2980,11 +3012,14 @@ const bfd_target aix5coff64_vec =
     _bfd_generic_link_split_section,
     bfd_generic_gc_sections,
     bfd_generic_merge_sections,
+    bfd_generic_is_group_section,
     bfd_generic_discard_group,
+    _bfd_generic_section_already_linked,
 
     /* Dynamic */
     _bfd_xcoff_get_dynamic_symtab_upper_bound,
     _bfd_xcoff_canonicalize_dynamic_symtab,
+    _bfd_nodynamic_get_synthetic_symtab,
     _bfd_xcoff_get_dynamic_reloc_upper_bound,
     _bfd_xcoff_canonicalize_dynamic_reloc,
 

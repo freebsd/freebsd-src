@@ -1,3 +1,10 @@
+2005-05-10  Nick Clifton  <nickc@redhat.com>
+
+	* Update the address and phone number of the FSF organization in
+	the GPL notices in the following files:
+	adobe.h, aout64.h, ar.h, dynix3.h, encap.h, host.h, hp.h,
+	ranlib.h, reloc.h, stab.def, stab_gnu.h, sun4.h
+
 2004-01-06  Mark Kettenis  <kettenis@gnu.org>
 
 	* stab.def: Add N_PATCH to DO definition.

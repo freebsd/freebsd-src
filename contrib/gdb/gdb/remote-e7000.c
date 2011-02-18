@@ -1568,7 +1568,7 @@ e7000_load (char *args, int from_tty)
 	  file_ptr fptr;
 
 	  section_address = bfd_get_section_vma (pbfd, section);
-	  section_size = bfd_get_section_size_before_reloc (section);
+	  section_size = bfd_get_section_size (section);
 
 	  if (!quiet)
 	    printf_filtered ("[Loading section %s at 0x%s (%s bytes)]\n",
