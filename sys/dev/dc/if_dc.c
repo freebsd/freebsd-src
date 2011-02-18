@@ -287,11 +287,11 @@ static void dc_reset(struct dc_softc *);
 static int dc_list_rx_init(struct dc_softc *);
 static int dc_list_tx_init(struct dc_softc *);
 
-static void dc_read_srom(struct dc_softc *, int);
-static void dc_parse_21143_srom(struct dc_softc *);
-static void dc_decode_leaf_sia(struct dc_softc *, struct dc_eblock_sia *);
-static void dc_decode_leaf_mii(struct dc_softc *, struct dc_eblock_mii *);
-static void dc_decode_leaf_sym(struct dc_softc *, struct dc_eblock_sym *);
+static int dc_read_srom(struct dc_softc *, int);
+static int dc_parse_21143_srom(struct dc_softc *);
+static int dc_decode_leaf_sia(struct dc_softc *, struct dc_eblock_sia *);
+static int dc_decode_leaf_mii(struct dc_softc *, struct dc_eblock_mii *);
+static int dc_decode_leaf_sym(struct dc_softc *, struct dc_eblock_sym *);
 static void dc_apply_fixup(struct dc_softc *, int);
 static int dc_check_multiport(struct dc_softc *);
 
@@ -1616,12 +1616,16 @@ dc_apply_fixup(struct dc_softc *sc, int media)
 	}
 }
 
-static void
+static int
 dc_decode_leaf_sia(struct dc_softc *sc, struct dc_eblock_sia *l)
 {
 	struct dc_mediainfo *m;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (m == NULL) {
+		device_printf(sc->dc_dev, "Could not allocate mediainfo\n");
+		return (ENOMEM);
+	}
 	switch (l->dc_sia_code & ~DC_SIA_CODE_EXT) {
 	case DC_SIA_CODE_10BT:
 		m->dc_media = IFM_10_T;
@@ -1658,14 +1662,19 @@ dc_decode_leaf_sia(struct dc_softc *sc, struct dc_eblock_sia *l)
 	sc->dc_mi = m;
 
 	sc->dc_pmode = DC_PMODE_SIA;
+	return (0);
 }
 
-static void
+static int
 dc_decode_leaf_sym(struct dc_softc *sc, struct dc_eblock_sym *l)
 {
 	struct dc_mediainfo *m;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (m == NULL) {
+		device_printf(sc->dc_dev, "Could not allocate mediainfo\n");
+		return (ENOMEM);
+	}
 	if (l->dc_sym_code == DC_SYM_CODE_100BT)
 		m->dc_media = IFM_100_TX;
 
@@ -1679,15 +1688,20 @@ dc_decode_leaf_sym(struct dc_softc *sc, struct dc_eblock_sym *l)
 	sc->dc_mi = m;
 
 	sc->dc_pmode = DC_PMODE_SYM;
+	return (0);
 }
 
-static void
+static int
 dc_decode_leaf_mii(struct dc_softc *sc, struct dc_eblock_mii *l)
 {
 	struct dc_mediainfo *m;
 	u_int8_t *p;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (m == NULL) {
+		device_printf(sc->dc_dev, "Could not allocate mediainfo\n");
+		return (ENOMEM);
+	}
 	/* We abuse IFM_AUTO to represent MII. */
 	m->dc_media = IFM_AUTO;
 	m->dc_gp_len = l->dc_gpr_len;
@@ -1702,24 +1716,30 @@ dc_decode_leaf_mii(struct dc_softc *sc, struct dc_eblock_mii *l)
 
 	m->dc_next = sc->dc_mi;
 	sc->dc_mi = m;
+	return (0);
 }
 
-static void
+static int
 dc_read_srom(struct dc_softc *sc, int bits)
 {
 	int size;
 
-	size = 2 << bits;
+	size = DC_ROM_SIZE(bits);
 	sc->dc_srom = malloc(size, M_DEVBUF, M_NOWAIT);
+	if (sc->dc_srom == NULL) {
+		device_printf(sc->dc_dev, "Could not allocate SROM buffer\n");
+		return (ENOMEM);
+	}
 	dc_read_eeprom(sc, (caddr_t)sc->dc_srom, 0, (size / 2), 0);
+	return (0);
 }
 
-static void
+static int
 dc_parse_21143_srom(struct dc_softc *sc)
 {
 	struct dc_leaf_hdr *lhdr;
 	struct dc_eblock_hdr *hdr;
-	int have_mii, i, loff;
+	int error, have_mii, i, loff;
 	char *ptr;
 
 	have_mii = 0;
@@ -1746,20 +1766,21 @@ dc_parse_21143_srom(struct dc_softc *sc)
 	 */
 	ptr = (char *)lhdr;
 	ptr += sizeof(struct dc_leaf_hdr) - 1;
+	error = 0;
 	for (i = 0; i < lhdr->dc_mcnt; i++) {
 		hdr = (struct dc_eblock_hdr *)ptr;
 		switch (hdr->dc_type) {
 		case DC_EBLOCK_MII:
-			dc_decode_leaf_mii(sc, (struct dc_eblock_mii *)hdr);
+			error = dc_decode_leaf_mii(sc, (struct dc_eblock_mii *)hdr);
 			break;
 		case DC_EBLOCK_SIA:
 			if (! have_mii)
-				dc_decode_leaf_sia(sc,
+				error = dc_decode_leaf_sia(sc,
 				    (struct dc_eblock_sia *)hdr);
 			break;
 		case DC_EBLOCK_SYM:
 			if (! have_mii)
-				dc_decode_leaf_sym(sc,
+				error = dc_decode_leaf_sym(sc,
 				    (struct dc_eblock_sym *)hdr);
 			break;
 		default:
@@ -1769,6 +1790,7 @@ dc_parse_21143_srom(struct dc_softc *sc)
 		ptr += (hdr->dc_len & 0x7F);
 		ptr++;
 	}
+	return (error);
 }
 
 static void
@@ -1835,6 +1857,7 @@ dc_attach(device_t dev)
 	sc->dc_info = dc_devtype(dev);
 	revision = pci_get_revid(dev);
 
+	error = 0;
 	/* Get the eeprom width, but PNIC and XIRCOM have diff eeprom */
 	if (sc->dc_info->dc_devid !=
 	    DC_DEVID(DC_VENDORID_LO, DC_DEVICEID_82C168) &&
@@ -1848,7 +1871,9 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_POLL | DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		/* Save EEPROM contents so we can parse them later. */
-		dc_read_srom(sc, sc->dc_romwidth);
+		error = dc_read_srom(sc, sc->dc_romwidth);
+		if (error != 0)
+			goto fail;
 		break;
 	case DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9009):
 	case DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9100):
@@ -1867,7 +1892,9 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
 		sc->dc_pmode = DC_PMODE_MII;
-		dc_read_srom(sc, sc->dc_romwidth);
+		error = dc_read_srom(sc, sc->dc_romwidth);
+		if (error != 0)
+			goto fail;
 		break;
 	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN983):
 	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN985):
@@ -1934,6 +1961,12 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_STORENFWD | DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_PNIC_RX_BUG_WAR;
 		sc->dc_pnic_rx_buf = malloc(DC_RXLEN * 5, M_DEVBUF, M_NOWAIT);
+		if (sc->dc_pnic_rx_buf == NULL) {
+			device_printf(sc->dc_dev,
+			    "Could not allocate PNIC RX buffer\n");
+			error = ENOMEM;
+			goto fail;
+		}
 		if (revision < DC_REVISION_82C169)
 			sc->dc_pmode = DC_PMODE_SYM;
 		break;
@@ -1959,7 +1992,9 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_pmode = DC_PMODE_MII;
-		dc_read_srom(sc, sc->dc_romwidth);
+		error = dc_read_srom(sc, sc->dc_romwidth);
+		if (error != 0)
+			goto fail;
 		break;
 	default:
 		device_printf(dev, "unknown device: %x\n",
@@ -1990,9 +2025,11 @@ dc_attach(device_t dev)
 	 * The tricky ones are the Macronix/PNIC II and the
 	 * Intel 21143.
 	 */
-	if (DC_IS_INTEL(sc))
-		dc_parse_21143_srom(sc);
-	else if (DC_IS_MACRONIX(sc) || DC_IS_PNICII(sc)) {
+	if (DC_IS_INTEL(sc)) {
+		error = dc_parse_21143_srom(sc);
+		if (error != 0)
+			goto fail;
+	} else if (DC_IS_MACRONIX(sc) || DC_IS_PNICII(sc)) {
 		if (sc->dc_type == DC_TYPE_98713)
 			sc->dc_pmode = DC_PMODE_MII;
 		else
