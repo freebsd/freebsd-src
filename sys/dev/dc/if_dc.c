@@ -944,23 +944,45 @@ static void
 dc_miibus_statchg(device_t dev)
 {
 	struct dc_softc *sc;
+	struct ifnet *ifp;
 	struct mii_data *mii;
 	struct ifmedia *ifm;
 
 	sc = device_get_softc(dev);
-	if (DC_IS_ADMTEK(sc))
-		return;
 
 	mii = device_get_softc(sc->dc_miibus);
+	ifp = sc->dc_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
 	ifm = &mii->mii_media;
 	if (DC_IS_DAVICOM(sc) &&
 	    IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1) {
 		dc_setcfg(sc, ifm->ifm_media);
 		sc->dc_if_media = ifm->ifm_media;
-	} else {
-		dc_setcfg(sc, mii->mii_media_active);
-		sc->dc_if_media = mii->mii_media_active;
+		return;
 	}
+
+	sc->dc_link = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->dc_link = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	if (sc->dc_link == 0)
+		return;
+
+	sc->dc_if_media = mii->mii_media_active;
+	if (DC_IS_ADMTEK(sc))
+		return;
+	dc_setcfg(sc, mii->mii_media_active);
 }
 
 /*
@@ -1404,8 +1426,6 @@ dc_setcfg(struct dc_softc *sc, int media)
 			if (!DC_IS_DAVICOM(sc))
 				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_CLRBIT(sc, DC_10BTCTRL, 0xFFFF);
-			if (DC_IS_INTEL(sc))
-				dc_apply_fixup(sc, IFM_AUTO);
 		} else {
 			if (DC_IS_PNIC(sc)) {
 				DC_PN_GPIO_SETBIT(sc, DC_PN_GPIO_SPEEDSEL);
@@ -1415,10 +1435,6 @@ dc_setcfg(struct dc_softc *sc, int media)
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PCS);
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_SCRAMBLER);
-			if (DC_IS_INTEL(sc))
-				dc_apply_fixup(sc,
-				    (media & IFM_GMASK) == IFM_FDX ?
-				    IFM_100_TX | IFM_FDX : IFM_100_TX);
 		}
 	}
 
@@ -1442,8 +1458,6 @@ dc_setcfg(struct dc_softc *sc, int media)
 			if (!DC_IS_DAVICOM(sc))
 				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_CLRBIT(sc, DC_10BTCTRL, 0xFFFF);
-			if (DC_IS_INTEL(sc))
-				dc_apply_fixup(sc, IFM_AUTO);
 		} else {
 			if (DC_IS_PNIC(sc)) {
 				DC_PN_GPIO_CLRBIT(sc, DC_PN_GPIO_SPEEDSEL);
@@ -1463,9 +1477,6 @@ dc_setcfg(struct dc_softc *sc, int media)
 				DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
 				DC_CLRBIT(sc, DC_10BTCTRL,
 				    DC_TCTL_AUTONEGENBL);
-				dc_apply_fixup(sc,
-				    (media & IFM_GMASK) == IFM_FDX ?
-				    IFM_10_T | IFM_FDX : IFM_10_T);
 				DELAY(20000);
 			}
 		}
@@ -1537,7 +1548,7 @@ dc_reset(struct dc_softc *sc)
 	 */
 	if (DC_IS_INTEL(sc)) {
 		DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
-		CSR_WRITE_4(sc, DC_10BTCTRL, 0);
+		CSR_WRITE_4(sc, DC_10BTCTRL, 0xFFFFFFFF);
 		CSR_WRITE_4(sc, DC_WATCHDOG, 0);
 	}
 }
@@ -2963,11 +2974,8 @@ dc_tick(void *xsc)
 			 */
 			if ((DC_HAS_BROKEN_RXSTATE(sc) || (CSR_READ_4(sc,
 			    DC_ISR) & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT) &&
-			    sc->dc_cdata.dc_tx_cnt == 0) {
+			    sc->dc_cdata.dc_tx_cnt == 0)
 				mii_tick(mii);
-				if (!(mii->mii_media_status & IFM_ACTIVE))
-					sc->dc_link = 0;
-			}
 		}
 	} else
 		mii_tick(mii);
@@ -2991,12 +2999,8 @@ dc_tick(void *xsc)
 	 * that time, packets will stay in the send queue, and once the
 	 * link comes up, they will be flushed out to the wire.
 	 */
-	if (!sc->dc_link && mii->mii_media_status & IFM_ACTIVE &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		sc->dc_link++;
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			dc_start_locked(ifp);
-	}
+	if (sc->dc_link != 0 && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		dc_start_locked(ifp);
 
 	if (sc->dc_flags & DC_21143_NWAY && !sc->dc_link)
 		callout_reset(&sc->dc_stat_ch, hz/10, dc_tick, sc);
@@ -3421,6 +3425,7 @@ dc_init_locked(struct dc_softc *sc)
 {
 	struct ifnet *ifp = sc->dc_ifp;
 	struct mii_data *mii;
+	struct ifmedia *ifm;
 
 	DC_LOCK_ASSERT(sc);
 
@@ -3431,6 +3436,10 @@ dc_init_locked(struct dc_softc *sc)
 	 */
 	dc_stop(sc);
 	dc_reset(sc);
+	if (DC_IS_INTEL(sc)) {
+		ifm = &mii->mii_media;
+		dc_apply_fixup(sc, ifm->ifm_media);
+	}
 
 	/*
 	 * Set cache alignment and burst length.
@@ -3574,11 +3583,11 @@ dc_init_locked(struct dc_softc *sc)
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
 	CSR_WRITE_4(sc, DC_RXSTART, 0xFFFFFFFF);
 
-	mii_mediachg(mii);
-	dc_setcfg(sc, sc->dc_if_media);
-
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	mii_mediachg(mii);
+	dc_setcfg(sc, sc->dc_if_media);
 
 	/* Don't start the ticker if this is a homePNA link. */
 	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_HPNA_1)
@@ -3610,7 +3619,9 @@ dc_ifmedia_upd(struct ifnet *ifp)
 	mii_mediachg(mii);
 	ifm = &mii->mii_media;
 
-	if (DC_IS_DAVICOM(sc) &&
+	if (DC_IS_INTEL(sc))
+		dc_setcfg(sc, ifm->ifm_media);
+	else if (DC_IS_DAVICOM(sc) &&
 	    IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1)
 		dc_setcfg(sc, ifm->ifm_media);
 	else
