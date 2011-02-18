@@ -174,7 +174,7 @@ ASENTRY(__start)
 	insrdi	9,8,1,0
 	mtmsrd	9
 	
-	bl	.OF_initial_setup
+	bl	OF_initial_setup
 	nop
 
 	lis	4,end@ha
@@ -188,14 +188,14 @@ ASENTRY(__start)
 	mr	6,20
 	mr	7,21
 
-	bl	.powerpc_init
+	bl	powerpc_init
 	nop
 	mr	%r1, %r3
 	li	%r3, 0
 	std	%r3, 0(%r1)
-	bl	.mi_startup
+	bl	mi_startup
 	nop
-	b	.OF_exit
+	b	OF_exit
 	nop
 
 /*
