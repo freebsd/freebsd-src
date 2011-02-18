@@ -495,6 +495,7 @@ struct dc_chain_data {
 	bus_dmamap_t		dc_tx_map[DC_TX_LIST_CNT];
 	u_int32_t		*dc_sbuf;
 	u_int8_t		dc_pad[DC_MIN_FRAMELEN];
+	int			dc_tx_pkts;
 	int			dc_tx_first;
 	int			dc_tx_prod;
 	int			dc_tx_cons;
