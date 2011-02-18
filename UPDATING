@@ -22,6 +22,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110218:
+	IPsec's HMAC_SHA256-512 support has been fixed to be RFC4868
+	compliant, and will now use half of hash for authentication.
+	This will break interoperability with all stacks (including all
+	actual FreeBSD versions) who implement
+	draft-ietf-ipsec-ciph-sha-256-00 (they use 96 bits of hash for
+	authentication).
+	The only workaround with such peers is to use another HMAC
+	algorithm for IPsec ("phase 2") authentication.
+
 20110207:
 	Remove the uio_yield prototype and symbol.  This function has
 	been misnamed since it was introduced and should not be

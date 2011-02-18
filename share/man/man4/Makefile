@@ -83,6 +83,7 @@ MAN=	aac.4 \
 	crypto.4 \
 	cue.4 \
 	cxgb.4 \
+	cxgbe.4 \
 	cy.4 \
 	da.4 \
 	dc.4 \
@@ -221,6 +222,7 @@ MAN=	aac.4 \
 	mmc.4 \
 	mmcsd.4 \
 	mn.4 \
+	mos.4 \
 	mouse.4 \
 	mps.4 \
 	mpt.4 \

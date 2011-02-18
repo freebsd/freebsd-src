@@ -36,6 +36,15 @@ __FBSDID("$FreeBSD$");
 #define	PASKHA		"paskha"
 #define	PASKHALEN	(sizeof(PASKHA) - 1)
 
+/* return difference in days between Julian and Gregorian calendars */
+int
+j2g(int year)
+{
+	return (year < 1500) ?
+		0 :
+		10 + (year/100 - 16) - ((year/100 - 16) / 4);
+}
+
 /* return year day for Orthodox Easter using Gauss formula */
 /* (new style result) */
 
@@ -53,5 +62,5 @@ paskha(int R) /*year*/
 	d = (19 * a + x) % 30;
 	e = (2 * b + 4 * c + 6 * d + y) % 7;
 	cumday = cumdaytab[isleap(R)];
-	return (((cumday[3] + 1) + 22) + (d + e) + 13);
+	return (((cumday[3] + 1) + 22) + (d + e) + j2g(R));
 }

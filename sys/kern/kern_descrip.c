@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <net/vnet.h>
+
 #include <security/audit/audit.h>
 
 #include <vm/uma.h>
@@ -2330,7 +2332,9 @@ fputsock(struct socket *so)
 
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
+	CURVNET_SET(so->so_vnet);
 	sorele(so);
+	CURVNET_RESTORE();
 }
 
 /*

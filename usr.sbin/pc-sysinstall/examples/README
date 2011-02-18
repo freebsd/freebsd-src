@@ -12,9 +12,9 @@ installed system
 When hostname= is not present, pc-sysinstall will auto-generate
 a hostname such as freebsd-XXXX or pcbsd-XXXX
 
-# installMode=(fresh or upgrade)
+# installMode=(fresh/upgrade/extract)
 
-Set the type of install we are doing, fresh or upgrade.
+Set the type of install we are doing.
 
 Fresh installs will format and mount the target disks before
 extracting the install images to the system. Using this mode
@@ -26,6 +26,19 @@ archive to the disk, overwriting files on the disk.
 The conf/exclude-from-upgrade file can be used to specify
 additional files to exclude from overwriting during the
 install process.
+
+Extract will skip any disk setup, and perform an installation
+to the directory specified by "installLocation=". This location
+should be a directory with your pre-mounted file-systems ready
+for file extraction. When using the "extract" option, /etc/fstab
+on the installed system will *not* be automatically configured. 
+
+# installLocation=
+
+Used only when installMode is set to extract. 
+
+This is set to the location you want to extract your system to,
+and should already be mounted properly. 
 
 # installInteractive=(yes or no)
 
@@ -320,7 +333,7 @@ Run the specified command within chroot of the installed system
 # runScript=
 
 runScript will copy the specified script into FSMNT, and run it in chroot of the system
-Usefull when you have a 3rd party script on the DVD / USB, and you want to copy it into
+Useful when you have a 3rd party script on the DVD / USB, and you want to copy it into
 the installed system and run
 
 # runExtCommand=
@@ -330,7 +343,7 @@ The variable $FSMNT is set to the mount-point of your installed system
 
 
 ########################################################################
-# PC-BSD SPECIFC OPTIONS
+# PC-BSD SPECIFIC OPTIONS
 ########################################################################
 
 Options for time-zones and NTP on the installed system

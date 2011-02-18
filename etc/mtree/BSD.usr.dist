@@ -32,6 +32,8 @@
         ..
     ..
     libexec
+	bsdinstall
+	..
         lpr
             ru
             ..

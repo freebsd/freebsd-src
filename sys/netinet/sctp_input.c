@@ -2675,8 +2675,10 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			oso = (*inp_p)->sctp_socket;
 			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
 			SCTP_TCB_UNLOCK((*stcb));
+			CURVNET_SET(oso->so_vnet);
 			so = sonewconn(oso, 0
 			    );
+			CURVNET_RESTORE();
 			SCTP_TCB_LOCK((*stcb));
 			atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
 

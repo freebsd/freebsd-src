@@ -486,7 +486,10 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, MPI2_EVENT_SAS_TOPO_PHY_ENTRY 
 		return;
 	}
 
+	mps_dprint(sc, MPS_INFO, "Preparing to remove target %d\n", targ->tid);
+
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
+	memset(req, 0, sizeof(*req));
 	req->DevHandle = targ->handle;
 	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
@@ -507,6 +510,7 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *cm)
 	MPI2_SCSI_TASK_MANAGE_REPLY *reply;
 	MPI2_SAS_IOUNIT_CONTROL_REQUEST *req;
 	struct mpssas_target *targ;
+	struct mps_command *next_cm;
 	uint16_t handle;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
@@ -516,6 +520,18 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *cm)
 
 	mpssas_complete_tm_request(sc, cm, /*free_cm*/ 0);
 
+	/*
+	 * Currently there should be no way we can hit this case.  It only
+	 * happens when we have a failure to allocate chain frames, and
+	 * task management commands don't have S/G lists.
+	 */
+	if ((cm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
+		mps_printf(sc, "%s: cm_flags = %#x for remove of handle %#04x! "
+			   "This should not happen!\n", __func__, cm->cm_flags,
+			   handle);
+		return;
+	}
+
 	if (reply->IOCStatus != MPI2_IOCSTATUS_SUCCESS) {
 		mps_printf(sc, "Failure 0x%x reseting device 0x%04x\n", 
 		   reply->IOCStatus, handle);
@@ -523,11 +539,13 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *cm)
 		return;
 	}
 
-	mps_printf(sc, "Reset aborted %d commands\n", reply->TerminationCount);
+	mps_dprint(sc, MPS_INFO, "Reset aborted %u commands\n",
+	    reply->TerminationCount);
 	mps_free_reply(sc, cm->cm_reply_data);
 
 	/* Reuse the existing command */
 	req = (MPI2_SAS_IOUNIT_CONTROL_REQUEST *)cm->cm_req;
+	memset(req, 0, sizeof(*req));
 	req->Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	req->Operation = MPI2_SAS_OP_REMOVE_DEVICE;
 	req->DevHandle = handle;
@@ -539,6 +557,17 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *cm)
 	mps_map_command(sc, cm);
 
 	mps_dprint(sc, MPS_INFO, "clearing target handle 0x%04x\n", handle);
+	TAILQ_FOREACH_SAFE(cm, &sc->io_list, cm_link, next_cm) {
+		union ccb *ccb;
+
+		if (cm->cm_targ->handle != handle)
+			continue;
+
+		mps_dprint(sc, MPS_INFO, "Completing missed command %p\n", cm);
+		ccb = cm->cm_complete_data;
+		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+		mpssas_scsiio_complete(sc, cm);
+	}
 	targ = mpssas_find_target(sc->sassc, 0, handle);
 	if (targ != NULL) {
 		targ->handle = 0x0;
@@ -1083,6 +1112,17 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *cm)
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
 
+	/*
+	 * Currently there should be no way we can hit this case.  It only
+	 * happens when we have a failure to allocate chain frames, and
+	 * task management commands don't have S/G lists.
+	 */
+	if ((cm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
+		mps_printf(sc, "%s: cm_flags = %#x for abort on handle %#04x! "
+			   "This should not happen!\n", __func__, cm->cm_flags,
+			   req->DevHandle);
+	}
+
 	mps_printf(sc, "%s: abort request on handle %#04x SMID %d "
 		   "complete\n", __func__, req->DevHandle, req->TaskMID);
 
@@ -1199,7 +1239,8 @@ mpssas_tm_complete(struct mps_softc *sc, struct mps_command *cm, int error)
 
 	resp = (MPI2_SCSI_TASK_MANAGE_REPLY *)cm->cm_reply;
 
-	resp->ResponseCode = error;
+	if (resp != NULL)
+		resp->ResponseCode = error;
 
 	/*
 	 * Call the callback for this command, it will be
@@ -1349,6 +1390,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	}
 
 	req = (MPI2_SCSI_IO_REQUEST *)cm->cm_req;
+	bzero(req, sizeof(*req));
 	req->DevHandle = targ->handle;
 	req->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
 	req->MsgFlags = 0;
@@ -1430,6 +1472,11 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	cm->cm_complete_data = ccb;
 	cm->cm_targ = targ;
 
+	sc->io_cmds_active++;
+	if (sc->io_cmds_active > sc->io_cmds_highwater)
+		sc->io_cmds_highwater = sc->io_cmds_active;
+
+	TAILQ_INSERT_TAIL(&sc->io_list, cm, cm_link);
 	callout_reset(&cm->cm_callout, (ccb->ccb_h.timeout * hz) / 1000,
 	   mpssas_scsiio_timeout, cm);
 
@@ -1449,11 +1496,18 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
 	callout_stop(&cm->cm_callout);
+	TAILQ_REMOVE(&sc->io_list, cm, cm_link);
+	sc->io_cmds_active--;
 
 	sassc = sc->sassc;
 	ccb = cm->cm_complete_data;
 	rep = (MPI2_SCSI_IO_REPLY *)cm->cm_reply;
 
+	/*
+	 * XXX KDM if the chain allocation fails, does it matter if we do
+	 * the sync and unload here?  It is simpler to do it in every case,
+	 * assuming it doesn't cause problems.
+	 */
 	if (cm->cm_data != NULL) {
 		if (cm->cm_flags & MPS_CM_FLAGS_DATAIN)
 			dir = BUS_DMASYNC_POSTREAD;
@@ -1463,15 +1517,51 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		bus_dmamap_unload(sc->buffer_dmat, cm->cm_dmamap);
 	}
 
-	if (sassc->flags & MPSSAS_QUEUE_FROZEN) {
-		ccb->ccb_h.flags |= CAM_RELEASE_SIMQ;
-		sassc->flags &= ~MPSSAS_QUEUE_FROZEN;
+	if ((cm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
+		/*
+		 * We ran into an error after we tried to map the command,
+		 * so we're getting a callback without queueing the command
+		 * to the hardware.  So we set the status here, and it will
+		 * be retained below.  We'll go through the "fast path",
+		 * because there can be no reply when we haven't actually
+		 * gone out to the hardware.
+		 */
+		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+
+		/*
+		 * Currently the only error included in the mask is
+		 * MPS_CM_FLAGS_CHAIN_FAILED, which means we're out of
+		 * chain frames.  We need to freeze the queue until we get
+		 * a command that completed without this error, which will
+		 * hopefully have some chain frames attached that we can
+		 * use.  If we wanted to get smarter about it, we would
+		 * only unfreeze the queue in this condition when we're
+		 * sure that we're getting some chain frames back.  That's
+		 * probably unnecessary.
+		 */
+		if ((sassc->flags & MPSSAS_QUEUE_FROZEN) == 0) {
+			xpt_freeze_simq(sassc->sim, 1);
+			sassc->flags |= MPSSAS_QUEUE_FROZEN;
+			mps_printf(sc, "Error sending command, freezing "
+				   "SIM queue\n");
+		}
 	}
 
 	/* Take the fast path to completion */
 	if (cm->cm_reply == NULL) {
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		ccb->csio.scsi_status = SCSI_STATUS_OK;
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
+			ccb->ccb_h.status = CAM_REQ_CMP;
+			ccb->csio.scsi_status = SCSI_STATUS_OK;
+
+			if (sassc->flags & MPSSAS_QUEUE_FROZEN) {
+				ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+				sassc->flags &= ~MPSSAS_QUEUE_FROZEN;
+				mps_printf(sc, "Unfreezing SIM queue\n");
+			}
+		} else {
+			ccb->ccb_h.status |= CAM_DEV_QFRZN;
+			xpt_freeze_devq(ccb->ccb_h.path, /*count*/ 1);
+		}
 		mps_free_command(sc, cm);
 		xpt_done(ccb);
 		return;
@@ -1526,7 +1616,16 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		break;
 	case MPI2_IOCSTATUS_SCSI_IOC_TERMINATED:
 	case MPI2_IOCSTATUS_SCSI_EXT_TERMINATED:
+#if 0
 		ccb->ccb_h.status = CAM_REQ_ABORTED;
+#endif
+		mps_printf(sc, "(%d:%d:%d) terminated ioc %x scsi %x state %x "
+			   "xfer %u\n", xpt_path_path_id(ccb->ccb_h.path),
+			   xpt_path_target_id(ccb->ccb_h.path),
+			   xpt_path_lun_id(ccb->ccb_h.path),
+			   rep->IOCStatus, rep->SCSIStatus, rep->SCSIState,
+			   rep->TransferCount);
+		ccb->ccb_h.status = CAM_REQUEUE_REQ;
 		break;
 	case MPI2_IOCSTATUS_INVALID_SGL:
 		mps_print_scsiio_cmd(sc, cm);
@@ -1580,6 +1679,15 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	if (rep->SCSIState & MPI2_SCSI_STATE_RESPONSE_INFO_VALID)
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 
+	if (sassc->flags & MPSSAS_QUEUE_FROZEN) {
+		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		sassc->flags &= ~MPSSAS_QUEUE_FROZEN;
+		mps_printf(sc, "Command completed, unfreezing SIM queue\n");
+	}
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+		xpt_freeze_devq(ccb->ccb_h.path, /*count*/ 1);
+	}
 	mps_free_command(sc, cm);
 	xpt_done(ccb);
 }
@@ -1594,6 +1702,20 @@ mpssas_smpio_complete(struct mps_softc *sc, struct mps_command *cm)
 	union ccb *ccb;
 
 	ccb = cm->cm_complete_data;
+
+	/*
+	 * Currently there should be no way we can hit this case.  It only
+	 * happens when we have a failure to allocate chain frames, and SMP
+	 * commands require two S/G elements only.  That should be handled
+	 * in the standard request size.
+	 */
+	if ((cm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
+		mps_printf(sc, "%s: cm_flags = %#x on SMP request!\n",
+			   __func__, cm->cm_flags);
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		goto bailout;
+	}
+
 	rpl = (MPI2_SMP_PASSTHROUGH_REPLY *)cm->cm_reply;
 	if (rpl == NULL) {
 		mps_dprint(sc, MPS_INFO, "%s: NULL cm_reply!\n", __func__);
@@ -1973,6 +2095,19 @@ mpssas_resetdev_complete(struct mps_softc *sc, struct mps_command *cm)
 	resp = (MPI2_SCSI_TASK_MANAGE_REPLY *)cm->cm_reply;
 	ccb = cm->cm_complete_data;
 
+	if ((cm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
+		MPI2_SCSI_TASK_MANAGE_REQUEST *req;
+
+		req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
+
+		mps_printf(sc, "%s: cm_flags = %#x for reset of handle %#04x! "
+			   "This should not happen!\n", __func__, cm->cm_flags,
+			   req->DevHandle);
+
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		goto bailout;
+	}
+
 	printf("resetdev complete IOCStatus= 0x%x ResponseCode= 0x%x\n",
 	    resp->IOCStatus, resp->ResponseCode);
 
@@ -1981,6 +2116,7 @@ mpssas_resetdev_complete(struct mps_softc *sc, struct mps_command *cm)
 	else
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 
+bailout:
 	mpssas_complete_tm_request(sc, cm, /*free_cm*/ 1);
 
 	xpt_done(ccb);

@@ -426,18 +426,19 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	const int size_bin = size_to_bin(frame_size);
 	const int size = bin_to_size(size_bin);
 	int tt, tries_so_far;
+	int is_ht40 = (an->an_node.ni_htcap & IEEE80211_HTCAP_CHWIDTH40);
 
 	if (!IS_RATE_DEFINED(sn, rix0))
 		return;
 	tt = calc_usecs_unicast_packet(sc, size, rix0, short_tries,
-		MIN(tries0, tries) - 1);
+		MIN(tries0, tries) - 1, is_ht40);
 	tries_so_far = tries0;
 
 	if (tries1 && tries_so_far < tries) {
 		if (!IS_RATE_DEFINED(sn, rix1))
 			return;
 		tt += calc_usecs_unicast_packet(sc, size, rix1, short_tries,
-			MIN(tries1 + tries_so_far, tries) - tries_so_far - 1);
+			MIN(tries1 + tries_so_far, tries) - tries_so_far - 1, is_ht40);
 		tries_so_far += tries1;
 	}
 
@@ -445,7 +446,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 		if (!IS_RATE_DEFINED(sn, rix2))
 			return;
 		tt += calc_usecs_unicast_packet(sc, size, rix2, short_tries,
-			MIN(tries2 + tries_so_far, tries) - tries_so_far - 1);
+			MIN(tries2 + tries_so_far, tries) - tries_so_far - 1, is_ht40);
 		tries_so_far += tries2;
 	}
 
@@ -453,7 +454,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 		if (!IS_RATE_DEFINED(sn, rix3))
 			return;
 		tt += calc_usecs_unicast_packet(sc, size, rix3, short_tries,
-			MIN(tries3 + tries_so_far, tries) - tries_so_far - 1);
+			MIN(tries3 + tries_so_far, tries) - tries_so_far - 1, is_ht40);
 	}
 
 	if (sn->stats[size_bin][rix0].total_packets < ssc->smoothing_minpackets) {
@@ -765,7 +766,8 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			if ((mask & 1) == 0)
 				continue;
 			printf(" %d/%d", dot11rate(rt, rix),
-			    calc_usecs_unicast_packet(sc, 1600, rix, 0,0));
+			    calc_usecs_unicast_packet(sc, 1600, rix, 0,0,
+			        (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)));
 		}
 		printf("\n");
 	}
@@ -794,7 +796,8 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			sn->stats[y][rix].last_tx = 0;
 			
 			sn->stats[y][rix].perfect_tx_time =
-			    calc_usecs_unicast_packet(sc, size, rix, 0, 0);
+			    calc_usecs_unicast_packet(sc, size, rix, 0, 0,
+			    (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40));
 			sn->stats[y][rix].average_tx_time =
 			    sn->stats[y][rix].perfect_tx_time;
 		}

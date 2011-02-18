@@ -169,9 +169,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
-			if (*where != addr)
-				*where = addr;
-
+			*where += addr;
 			break;
 
 		case R_ARM_COPY:	/* none */
