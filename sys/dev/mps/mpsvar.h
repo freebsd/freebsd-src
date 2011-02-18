@@ -133,6 +133,7 @@ struct mps_softc {
 	TAILQ_HEAD(, mps_command)	req_list;
 	TAILQ_HEAD(, mps_chain)		chain_list;
 	TAILQ_HEAD(, mps_command)	tm_list;
+	TAILQ_HEAD(, mps_command)	io_list;
 	int				replypostindex;
 	int				replyfreeindex;
 
