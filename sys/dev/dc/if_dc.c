@@ -2473,6 +2473,7 @@ dc_list_tx_init(struct dc_softc *sc)
 	}
 
 	cd->dc_tx_prod = cd->dc_tx_cons = cd->dc_tx_cnt = 0;
+	cd->dc_tx_pkts = 0;
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
 	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 	return (0);
@@ -2841,6 +2842,9 @@ dc_txeof(struct dc_softc *sc)
 	int idx;
 	u_int32_t ctl, txstat;
 
+	if (sc->dc_cdata.dc_tx_cnt == 0)
+		return;
+
 	ifp = sc->dc_ifp;
 
 	/*
@@ -2951,6 +2955,13 @@ dc_tick(void *xsc)
 	DC_LOCK_ASSERT(sc);
 	ifp = sc->dc_ifp;
 	mii = device_get_softc(sc->dc_miibus);
+
+	/*
+	 * Reclaim transmitted frames for controllers that do
+	 * not generate TX completion interrupt for every frame.
+	 */
+	if (sc->dc_flags & DC_TX_USE_TX_INTR)
+		dc_txeof(sc);
 
 	if (sc->dc_flags & DC_REDUCED_MII_POLL) {
 		if (sc->dc_flags & DC_21143_NWAY) {
@@ -3322,8 +3333,11 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 		    htole32(DC_TXCTL_FINT);
 	if (sc->dc_flags & DC_TX_INTR_ALWAYS)
 		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= htole32(DC_TXCTL_FINT);
-	if (sc->dc_flags & DC_TX_USE_TX_INTR && sc->dc_cdata.dc_tx_cnt > 64)
+	if (sc->dc_flags & DC_TX_USE_TX_INTR &&
+	    ++sc->dc_cdata.dc_tx_pkts >= 8) {
+		sc->dc_cdata.dc_tx_pkts = 0;
 		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= htole32(DC_TXCTL_FINT);
+	}
 	sc->dc_ldata->dc_tx_list[first].dc_status = htole32(DC_TXSTAT_OWN);
 
 	bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
