@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #endif /* __FreeBSD__ */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #ifdef __FreeBSD__
 #include <sys/bus.h>
 #include <sys/interrupt.h>
@@ -93,7 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/timeout.h>
 #endif
-#include <sys/kernel.h>
 #include <sys/sysctl.h>
 #ifndef __FreeBSD__
 #include <sys/pool.h>
@@ -107,6 +107,10 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/bpf.h>
 #include <net/netisr.h>
+#ifdef __FreeBSD__
+#include <net/vnet.h>
+#endif
+
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <netinet/tcp.h>
@@ -298,21 +302,24 @@ struct pfsync_softc {
 
 };
 
-#ifndef __FreeBSD__
+#ifdef __FreeBSD__
+static VNET_DEFINE(struct pfsync_softc	*, pfsyncif) = NULL;
+#define	V_pfsyncif		VNET(pfsyncif)
+
+static VNET_DEFINE(struct pfsyncstats, pfsyncstats);
+#define	V_pfsyncstats		VNET(pfsyncstats)
+
+SYSCTL_NODE(_net, OID_AUTO, pfsync, CTLFLAG_RW, 0, "PFSYNC");
+SYSCTL_VNET_STRUCT(_net_pfsync, OID_AUTO, stats, CTLFLAG_RW,
+    &VNET_NAME(pfsyncstats), pfsyncstats,
+    "PFSYNC statistics (struct pfsyncstats, net/if_pfsync.h)");
+#else
 struct pfsync_softc	*pfsyncif = NULL;
 struct pfsyncstats	 pfsyncstats;
 #define	V_pfsyncstats	 pfsyncstats
 #endif
-#ifdef __FreeBSD__
-VNET_DEFINE(struct pfsync_softc	*, pfsyncif) = NULL;
-#define	V_pfsyncif	VNET(pfsyncif)
-VNET_DEFINE(struct pfsyncstats, pfsyncstats);
-#define	V_pfsyncstats	VNET(pfsyncstats)
-SYSCTL_DECL(_net_pfsync);
-SYSCTL_VNET_STRUCT(_net_pfsync, 0, stats, CTLFLAG_RW,
-    &VNET_NAME(pfsyncstats), pfsyncstats,
-    "PFSYNC statistics (struct pfsyncstats, net/if_pfsync.h)");
 
+#ifdef __FreeBSD__
 static void	pfsyncintr(void *);
 struct pfsync_swi {
 	void *	pfsync_swi_cookie;
@@ -2509,7 +2516,7 @@ pfsync_defer_tmo(void *arg)
 
 	s = splsoftnet();
 #ifdef __FreeBSD__
-	CURVNET_SET(pd->pd_m->m_pkthdr.rcvif); /* XXX */
+	CURVNET_SET(pd->pd_m->m_pkthdr.rcvif->if_vnet); /* XXX */
 	PF_LOCK();
 #endif
 	pfsync_undefer(arg, 0);
@@ -3270,11 +3277,12 @@ pfsyncintr(void)
 #endif
 }
 
-#ifdef notyet
 int
 pfsync_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
     size_t newlen)
 {
+
+#ifdef notyet
 	/* All sysctl names at this level are terminal. */
 	if (namelen != 1)
 		return (ENOTDIR);
@@ -3285,11 +3293,10 @@ pfsync_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
 			return (EPERM);
 		return (sysctl_struct(oldp, oldlenp, newp, newlen,
 		    &V_pfsyncstats, sizeof(V_pfsyncstats)));
-	default:
-		return (ENOPROTOOPT);
 	}
-}
 #endif
+	return (ENOPROTOOPT);
+}
 
 #ifdef __FreeBSD__
 void
