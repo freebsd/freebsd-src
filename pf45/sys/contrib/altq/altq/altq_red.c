@@ -572,7 +572,7 @@ mark_ecn(struct mbuf *m, struct altq_pktattr *pktattr, int flags)
 		}
 		break;
 #ifdef INET6
-	case 6:
+	case (IPV6_VERSION >> 4):
 		if (flags & REDF_ECN6) {
 			struct ip6_hdr *ip6 = hdr;
 			u_int32_t flowlabel;
