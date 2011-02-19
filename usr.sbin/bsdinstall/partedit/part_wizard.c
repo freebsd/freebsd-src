@@ -213,6 +213,10 @@ wizard_partition(struct gmesh *mesh, const char *disk)
 		}
 	}
 
+	/* Treat uncommitted scheme deletions as no scheme */
+	if (scheme != NULL && strcmp(scheme, "(none)") == 0)
+		scheme = NULL;
+
 query:
 	dialog_vars.yes_label = "Entire Disk";
 	dialog_vars.no_label = "Partition";
@@ -247,8 +251,9 @@ query:
 		scheme = default_scheme();
 	}
 
-	if (scheme == NULL || strcmp(scheme, "(none)") == 0 || choice == 0) {
-		if (gpart != NULL) { /* Erase partitioned disk */
+	if (scheme == NULL || choice == 0) {
+		if (gpart != NULL && scheme != NULL) {
+			/* Erase partitioned disk */
 			choice = dialog_yesno("Confirmation", "This will erase "
 			   "the disk. Are you sure you want to proceed?", 0, 0);
 			if (choice != 0)
