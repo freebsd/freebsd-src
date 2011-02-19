@@ -3250,7 +3250,7 @@ dc_intr(void *arg)
 {
 	struct dc_softc *sc;
 	struct ifnet *ifp;
-	u_int32_t status;
+	u_int32_t r, status;
 	int curpkts, n;
 
 	sc = arg;
@@ -3305,6 +3305,8 @@ dc_intr(void *arg)
 
 		if ((status & DC_ISR_RX_WATDOGTIMEO)
 		    || (status & DC_ISR_RX_NOBUF)) {
+			r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
+			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
 			curpkts = ifp->if_ipackets;
 			dc_rxeof(sc);
 			if (curpkts == ifp->if_ipackets) {
@@ -3722,6 +3724,9 @@ dc_init_locked(struct dc_softc *sc)
 
 	mii_mediachg(mii);
 	dc_setcfg(sc, sc->dc_if_media);
+
+	/* Clear missed frames and overflow counter. */
+	CSR_READ_4(sc, DC_FRAMESDISCARDED);
 
 	/* Don't start the ticker if this is a homePNA link. */
 	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_HPNA_1)
