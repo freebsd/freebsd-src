@@ -140,6 +140,20 @@ pc98_parse_type(const char *type, u_char *dp_mid, u_char *dp_sid)
 	return (EINVAL);
 }
 
+static int
+pc98_set_slicename(const char *label, u_char *dp_name)
+{
+	int len;
+
+	len = strlen(label);
+	if (len > sizeof(((struct pc98_partition *)NULL)->dp_name))
+		return (EINVAL);
+	bzero(dp_name, sizeof(((struct pc98_partition *)NULL)->dp_name));
+	strncpy(dp_name, label, len);
+
+	return (0);
+}
+
 static void
 pc98_set_chs(struct g_part_table *table, uint32_t lba, u_short *cylp,
     u_char *hdp, u_char *secp)
@@ -164,9 +178,7 @@ g_part_pc98_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	struct g_part_pc98_entry *entry;
 	struct g_part_pc98_table *table;
 	uint32_t cyl, start, size;
-
-	if (gpp->gpp_parms & G_PART_PARM_LABEL)
-		return (EINVAL);
+	int error;
 
 	cyl = basetable->gpt_heads * basetable->gpt_sectors;
 
@@ -199,8 +211,16 @@ g_part_pc98_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	    &entry->ent.dp_shd, &entry->ent.dp_ssect);
 	pc98_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
 	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
-	return (pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
-	    &entry->ent.dp_sid));
+
+	error = pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
+	    &entry->ent.dp_sid);
+	if (error)
+		return (error);
+
+	if (gpp->gpp_parms & G_PART_PARM_LABEL)
+		return (pc98_set_slicename(gpp->gpp_label, entry->ent.dp_name));
+
+	return (0);
 }
 
 static int
@@ -231,7 +251,7 @@ g_part_pc98_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	pp = gpp->gpp_provider;
 	cp = LIST_FIRST(&pp->consumers);
 
-	if (pp->sectorsize < SECSIZE || pp->mediasize < 2 * SECSIZE)
+	if (pp->sectorsize < SECSIZE || pp->mediasize < BOOTSIZE)
 		return (ENOSPC);
 	if (pp->sectorsize > SECSIZE)
 		return (ENXIO);
@@ -305,14 +325,20 @@ g_part_pc98_modify(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_pc98_entry *entry;
-
-	if (gpp->gpp_parms & G_PART_PARM_LABEL)
-		return (EINVAL);
+	int error;
 
 	entry = (struct g_part_pc98_entry *)baseentry;
-	if (gpp->gpp_parms & G_PART_PARM_TYPE)
-		return (pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
-		    &entry->ent.dp_sid));
+
+	if (gpp->gpp_parms & G_PART_PARM_TYPE) {
+		error = pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
+		    &entry->ent.dp_sid);
+		if (error)
+			return (error);
+	}
+
+	if (gpp->gpp_parms & G_PART_PARM_LABEL)
+		return (pc98_set_slicename(gpp->gpp_label, entry->ent.dp_name));
+
 	return (0);
 }
 
