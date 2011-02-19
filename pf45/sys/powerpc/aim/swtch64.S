@@ -121,7 +121,7 @@ ENTRY(cpu_switch)
 	/* Save FPU context if needed */
 	andi.	%r7, %r7, PCB_FPU
 	beq	.L1
-	bl	.save_fpu
+	bl	save_fpu
 	nop
 
 .L1:
@@ -130,12 +130,12 @@ ENTRY(cpu_switch)
 	/* Save Altivec context if needed */
 	andi.	%r7, %r7, PCB_VEC
 	beq	.L2
-	bl	.save_vec
+	bl	save_vec
 	nop
 	
 .L2:
 	mr	%r3,%r14		/* restore old thread ptr */
-	bl	.pmap_deactivate	/* Deactivate the current pmap */
+	bl	pmap_deactivate	/* Deactivate the current pmap */
 	nop
 
 	addi	%r1,%r1,48
@@ -161,7 +161,7 @@ blocked_loop:
 	stdu	%r1,-48(%r1)
 
 	mr	%r3,%r15		/* Get new thread ptr */
-	bl	.pmap_activate		/* Activate the new address space */
+	bl	pmap_activate		/* Activate the new address space */
 	nop
 
 	lwz	%r6, PCB_FLAGS(%r17)
@@ -169,7 +169,7 @@ blocked_loop:
 	andi.	%r6, %r6, PCB_FPU
 	beq	.L3
 	mr	%r3,%r15		/* Pass curthread to enable_fpu */
-	bl	.enable_fpu
+	bl	enable_fpu
 	nop
 
 .L3:
@@ -178,7 +178,7 @@ blocked_loop:
 	andi.	%r6, %r6, PCB_VEC
 	beq	.L4
 	mr	%r3,%r15		/* Pass curthread to enable_vec */
-	bl	.enable_vec
+	bl	enable_vec
 	nop
 
 	/* thread to restore is in r3 */
@@ -276,7 +276,7 @@ ENTRY(fork_trampoline)
 	ld	%r5,CF_ARG1(%r1)
 
 	stdu	%r1,-48(%r1)
-	bl	.fork_exit
+	bl	fork_exit
 	nop
 	addi	%r1,%r1,48+CF_SIZE-FSP	/* Allow 8 bytes in front of
 					   trapframe to simulate FRAME_SETUP

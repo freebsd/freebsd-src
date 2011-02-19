@@ -42,6 +42,10 @@
 #include "gdbcmd.h"
 #include "solib-svr4.h"
 
+#include "gregset.h"
+#ifdef PT_GETXMMREGS
+#include "i387-tdep.h"
+#endif
 
 #define LIBTHREAD_DB_SO "libthread_db.so"
 
@@ -1701,7 +1705,7 @@ ps_lsetregs (struct ps_prochandle *ph, lwpid_t lwpid, const prgregset_t gregset)
 
   old_chain = save_inferior_ptid ();
   inferior_ptid = BUILD_LWP (lwpid, PIDGET (inferior_ptid));
-  supply_gregset (gregset);
+  supply_gregset ((gdb_gregset_t *) gregset);
   target_store_registers (-1);
   do_cleanups (old_chain);
   return PS_OK;
@@ -1728,7 +1732,7 @@ ps_lsetfpregs (struct ps_prochandle *ph, lwpid_t lwpid,
 
   old_chain = save_inferior_ptid ();
   inferior_ptid = BUILD_LWP (lwpid, PIDGET (inferior_ptid));
-  supply_fpregset (fpregset);
+  supply_fpregset ((gdb_fpregset_t *) fpregset);
   target_store_registers (-1);
   do_cleanups (old_chain);
   return PS_OK;

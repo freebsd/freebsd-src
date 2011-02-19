@@ -1,5 +1,6 @@
 /* tc-s390.h -- Header file for tc-s390.c.
-   Copyright 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
    Written by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -16,18 +17,12 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #define TC_S390
 
-#ifdef ANSI_PROTOTYPES
 struct fix;
-#endif
-
-#ifndef BFD_ASSEMBLER
- #error S390 support requires BFD_ASSEMBLER
-#endif
 
 #define TC_FORCE_RELOCATION(FIX) tc_s390_force_relocation(FIX)
 extern int tc_s390_force_relocation PARAMS ((struct fix *));
@@ -39,7 +34,7 @@ extern int tc_s390_force_relocation PARAMS ((struct fix *));
 #define tc_fix_adjustable(X)  tc_s390_fix_adjustable(X)
 extern int tc_s390_fix_adjustable PARAMS ((struct fix *));
 
-/* Values passed to md_apply_fix3 don't include symbol values.  */
+/* Values passed to md_apply_fix don't include symbol values.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 /* The target BFD architecture.  */
@@ -93,7 +88,7 @@ extern void s390_md_end PARAMS ((void));
 extern void s390_cfi_frame_initial_instructions PARAMS ((void));
 
 #define tc_regname_to_dw2regnum tc_s390_regname_to_dw2regnum
-extern int tc_s390_regname_to_dw2regnum PARAMS ((const char *regname));
+extern int tc_s390_regname_to_dw2regnum PARAMS ((char *regname));
 
 extern int s390_cie_data_alignment;
 

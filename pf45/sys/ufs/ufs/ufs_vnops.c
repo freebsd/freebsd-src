@@ -1295,7 +1295,9 @@ relock:
 			newparent = tdp->i_number;
 		doingdirectory = 1;
 	}
-	if (fvp->v_mountedhere != NULL || (tvp && tvp->v_mountedhere != NULL)) {
+	if ((fvp->v_type == VDIR && fvp->v_mountedhere != NULL) ||
+	    (tvp != NULL && tvp->v_type == VDIR &&
+	    tvp->v_mountedhere != NULL)) {
 		error = EXDEV;
 		goto unlockout;
 	}

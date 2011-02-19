@@ -1,31 +1,40 @@
 %{
-/* Copyright 2001 Free Software Foundation, Inc.
+/* Copyright 2001, 2003, 2005 Free Software Foundation, Inc.
 
-This file is part of GLD, the Gnu Linker.
+This file is part of GNU Binutils.
 
-GLD is free software; you can redistribute it and/or modify
+This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GLD is distributed in the hope that it will be useful,
+This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GLD; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
+#include "config.h"
+#ifdef HAVE_STRING_H
+#include <string.h>
+#else
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+#endif
 #include "sysinfo.h"
-char *word;
-int number;
-int unit;
+
+#define YY_NO_UNPUT
 
 #ifndef yywrap
-static int yywrap () { return 1; }
+static int yywrap (void) { return 1; }
 #endif
+
+extern int yylex (void);
 %}
 %%
 "(" { return '(';}
@@ -37,9 +46,9 @@ static int yywrap () { return 1; }
 "\t" { ; }
 "\n" { ; }
 "\""[^\"]*"\"" {
-yylval.s = malloc(strlen (yytext));
-strcpy(yylval.s, yytext+1);
-yylval.s[strlen(yylval.s)-1] = 0;
+	yylval.s = malloc (yyleng - 1);
+	memcpy (yylval.s, yytext + 1, yyleng - 2);
+	yylval.s[yyleng - 2] = '\0';
         return NAME;
 	}
 

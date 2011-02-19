@@ -92,6 +92,8 @@ struct mps_command {
 #define MPS_CM_FLAGS_ACTIVE		(1 << 6)
 #define MPS_CM_FLAGS_USE_UIO		(1 << 7)
 #define MPS_CM_FLAGS_SMP_PASS		(1 << 8)
+#define	MPS_CM_FLAGS_CHAIN_FAILED	(1 << 9)
+#define	MPS_CM_FLAGS_ERROR_MASK		MPS_CM_FLAGS_CHAIN_FAILED
 	u_int				cm_state;
 #define MPS_CM_STATE_FREE		0
 #define MPS_CM_STATE_BUSY		1
@@ -119,9 +121,15 @@ struct mps_softc {
 #define MPS_FLAGS_MSI		(1 << 1)
 #define MPS_FLAGS_BUSY		(1 << 2)
 #define MPS_FLAGS_SHUTDOWN	(1 << 3)
+#define	MPS_FLAGS_ATTACH_DONE	(1 << 4)
 	u_int				mps_debug;
 	u_int				allow_multiple_tm_cmds;
 	int				tm_cmds_active;
+	int				io_cmds_active;
+	int				io_cmds_highwater;
+	int				chain_free;
+	int				chain_free_lowwater;
+	uint64_t			chain_alloc_fail;
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;
 	struct mps_command		*commands;
@@ -133,6 +141,7 @@ struct mps_softc {
 	TAILQ_HEAD(, mps_command)	req_list;
 	TAILQ_HEAD(, mps_chain)		chain_list;
 	TAILQ_HEAD(, mps_command)	tm_list;
+	TAILQ_HEAD(, mps_command)	io_list;
 	int				replypostindex;
 	int				replyfreeindex;
 
@@ -228,8 +237,13 @@ mps_alloc_chain(struct mps_softc *sc)
 {
 	struct mps_chain *chain;
 
-	if ((chain = TAILQ_FIRST(&sc->chain_list)) != NULL)
+	if ((chain = TAILQ_FIRST(&sc->chain_list)) != NULL) {
 		TAILQ_REMOVE(&sc->chain_list, chain, chain_link);
+		sc->chain_free--;
+		if (sc->chain_free < sc->chain_free_lowwater)
+			sc->chain_free_lowwater = sc->chain_free;
+	} else
+		sc->chain_alloc_fail++;
 	return (chain);
 }
 
@@ -239,6 +253,7 @@ mps_free_chain(struct mps_softc *sc, struct mps_chain *chain)
 #if 0
 	bzero(chain->chain, 128);
 #endif
+	sc->chain_free++;
 	TAILQ_INSERT_TAIL(&sc->chain_list, chain, chain_link);
 }
 

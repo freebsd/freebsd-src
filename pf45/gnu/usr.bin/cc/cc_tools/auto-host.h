@@ -267,9 +267,7 @@
 
 /* Define if your assembler supports -relax option. */
 #ifndef USED_FOR_TARGET
-# ifdef __sparc64__
-#  define HAVE_AS_RELAX_OPTION 1
-# endif
+#define HAVE_AS_RELAX_OPTION 1
 #endif
 
 
@@ -327,7 +325,7 @@
 
 /* Define 0/1 if your assembler and linker support COMDAT groups. */
 #ifndef USED_FOR_TARGET
-#define HAVE_COMDAT_GROUP 0
+#define HAVE_COMDAT_GROUP 1
 #endif
 
 
@@ -783,7 +781,7 @@
 
 /* Define if your assembler supports .weakref. */
 #ifndef USED_FOR_TARGET
-/* #undef HAVE_GAS_WEAKREF */
+#define HAVE_GAS_WEAKREF 1
 #endif
 
 
@@ -891,7 +889,7 @@
 
 /* Define if your PowerPC64 linker only needs function descriptor syms. */
 #ifndef USED_FOR_TARGET
-/* #undef HAVE_LD_NO_DOT_SYMS */
+#define HAVE_LD_NO_DOT_SYMS 1
 #endif
 
 
@@ -916,7 +914,7 @@
 
 /* Define if your linker supports --sysroot. */
 #ifndef USED_FOR_TARGET
-/* #undef HAVE_LD_SYSROOT */
+#define HAVE_LD_SYSROOT 1
 #endif
 
 

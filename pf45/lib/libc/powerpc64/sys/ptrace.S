@@ -39,7 +39,7 @@ ENTRY(ptrace)
 	std	%r5,56(%r1)
 	stw	%r6,64(%r1)
 
-	bl	PIC_PLT(CNAME(__error))
+	bl	CNAME(__error)
 	nop
 	li	%r7,0
 	stw	%r7,0(%r3)
@@ -57,7 +57,7 @@ ENTRY(ptrace)
 	blr
 1:
 	stdu	%r1,-48(%r1)		/* lr already saved */
-	bl	PIC_PLT(HIDENAME(cerror))
+	bl	HIDENAME(cerror)
 	nop
 	ld	%r1,0(%r1)
 	ld	%r0,16(%r1)

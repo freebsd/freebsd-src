@@ -1,6 +1,6 @@
 /* BFD back-end for PPCbug boot records.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006,
+   2007 Free Software Foundation, Inc.
    Written by Michael Meissner, Cygnus Support, <meissner@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* This is a BFD backend which may be used to write PowerPCBug boot objects.
    It may only be used for output, not input.  The intention is that this may
@@ -32,9 +32,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    the file.  objcopy cooperates by specially setting the start
    address to zero by default.  */
 
+#include "sysdep.h"
 #include "safe-ctype.h"
 #include "bfd.h"
-#include "sysdep.h"
 #include "libbfd.h"
 
 /* PPCbug location structure */
@@ -99,7 +99,6 @@ static long ppcboot_canonicalize_symtab PARAMS ((bfd *, asymbol **));
 static void ppcboot_get_symbol_info PARAMS ((bfd *, asymbol *, symbol_info *));
 static bfd_boolean ppcboot_set_section_contents
   PARAMS ((bfd *, asection *, const PTR, file_ptr, bfd_size_type));
-static int ppcboot_sizeof_headers PARAMS ((bfd *, bfd_boolean));
 static bfd_boolean ppcboot_bfd_print_private_bfd_data PARAMS ((bfd *, PTR));
 
 #define ppcboot_set_tdata(abfd, ptr) ((abfd)->tdata.any = (PTR) (ptr))
@@ -151,6 +150,7 @@ ppcboot_object_p (abfd)
   ppcboot_hdr_t hdr;
   size_t i;
   ppcboot_data_t *tdata;
+  flagword flags;
 
   BFD_ASSERT (sizeof (ppcboot_hdr_t) == 1024);
 
@@ -205,12 +205,12 @@ ppcboot_object_p (abfd)
   abfd->symcount = PPCBOOT_SYMS;
 
   /* One data section.  */
-  sec = bfd_make_section (abfd, ".data");
+  flags = SEC_ALLOC | SEC_LOAD | SEC_DATA | SEC_CODE | SEC_HAS_CONTENTS;
+  sec = bfd_make_section_with_flags (abfd, ".data", flags);
   if (sec == NULL)
     return NULL;
-  sec->flags = SEC_ALLOC | SEC_LOAD | SEC_DATA | SEC_CODE | SEC_HAS_CONTENTS;
   sec->vma = 0;
-  sec->_raw_size = statbuf.st_size - sizeof (ppcboot_hdr_t);
+  sec->size = statbuf.st_size - sizeof (ppcboot_hdr_t);
   sec->filepos = sizeof (ppcboot_hdr_t);
 
   ppcboot_mkobject (abfd);
@@ -311,7 +311,7 @@ ppcboot_canonicalize_symtab (abfd, alocation)
   /* End symbol.  */
   syms[1].the_bfd = abfd;
   syms[1].name = mangle_name (abfd, "end");
-  syms[1].value = sec->_raw_size;
+  syms[1].value = sec->size;
   syms[1].flags = BSF_GLOBAL;
   syms[1].section = sec;
   syms[1].udata.p = NULL;
@@ -319,7 +319,7 @@ ppcboot_canonicalize_symtab (abfd, alocation)
   /* Size symbol.  */
   syms[2].the_bfd = abfd;
   syms[2].name = mangle_name (abfd, "size");
-  syms[2].value = sec->_raw_size;
+  syms[2].value = sec->size;
   syms[2].flags = BSF_GLOBAL;
   syms[2].section = bfd_abs_section_ptr;
   syms[2].udata.p = NULL;
@@ -345,18 +345,15 @@ ppcboot_get_symbol_info (ignore_abfd, symbol, ret)
   bfd_symbol_info (symbol, ret);
 }
 
+#define ppcboot_bfd_is_target_special_symbol \
+  ((bfd_boolean (*) (bfd *, asymbol *)) bfd_false)
 #define ppcboot_bfd_is_local_label_name bfd_generic_is_local_label_name
 #define ppcboot_get_lineno _bfd_nosymbols_get_lineno
 #define ppcboot_find_nearest_line _bfd_nosymbols_find_nearest_line
+#define ppcboot_find_inliner_info _bfd_nosymbols_find_inliner_info
 #define ppcboot_bfd_make_debug_symbol _bfd_nosymbols_bfd_make_debug_symbol
 #define ppcboot_read_minisymbols _bfd_generic_read_minisymbols
 #define ppcboot_minisymbol_to_symbol _bfd_generic_minisymbol_to_symbol
-
-#define ppcboot_get_reloc_upper_bound \
-  ((long (*) PARAMS ((bfd *, asection *))) bfd_0l)
-#define ppcboot_canonicalize_reloc \
-  ((long (*) PARAMS ((bfd *, asection *, arelent **, asymbol **))) bfd_0l)
-#define ppcboot_bfd_reloc_type_lookup _bfd_norelocs_bfd_reloc_type_lookup
 
 /* Write section contents of a ppcboot file.  */
 
@@ -392,9 +389,8 @@ ppcboot_set_section_contents (abfd, sec, data, offset, size)
 
 
 static int
-ppcboot_sizeof_headers (abfd, exec)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     bfd_boolean exec ATTRIBUTE_UNUSED;
+ppcboot_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
+			struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return sizeof (ppcboot_hdr_t);
 }
@@ -469,7 +465,10 @@ ppcboot_bfd_print_private_bfd_data (abfd, farg)
 #define ppcboot_bfd_relax_section bfd_generic_relax_section
 #define ppcboot_bfd_gc_sections bfd_generic_gc_sections
 #define ppcboot_bfd_merge_sections bfd_generic_merge_sections
+#define ppcboot_bfd_is_group_section bfd_generic_is_group_section
 #define ppcboot_bfd_discard_group bfd_generic_discard_group
+#define ppcboot_section_already_linked \
+  _bfd_generic_section_already_linked
 #define ppcboot_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
 #define ppcboot_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 #define ppcboot_bfd_link_add_symbols _bfd_generic_link_add_symbols
@@ -483,6 +482,7 @@ ppcboot_bfd_print_private_bfd_data (abfd, farg)
 #define ppcboot_bfd_merge_private_bfd_data _bfd_generic_bfd_merge_private_bfd_data
 #define ppcboot_bfd_copy_private_section_data _bfd_generic_bfd_copy_private_section_data
 #define ppcboot_bfd_copy_private_symbol_data _bfd_generic_bfd_copy_private_symbol_data
+#define ppcboot_bfd_copy_private_header_data _bfd_generic_bfd_copy_private_header_data
 #define ppcboot_bfd_set_private_flags _bfd_generic_bfd_set_private_flags
 #define ppcboot_bfd_print_private_bfd_dat ppcboot_bfd_print_private_bfd_data
 
@@ -528,7 +528,7 @@ const bfd_target ppcboot_vec =
   BFD_JUMP_TABLE_CORE (_bfd_nocore),
   BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
   BFD_JUMP_TABLE_SYMBOLS (ppcboot),
-  BFD_JUMP_TABLE_RELOCS (ppcboot),
+  BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
   BFD_JUMP_TABLE_WRITE (ppcboot),
   BFD_JUMP_TABLE_LINK (ppcboot),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),

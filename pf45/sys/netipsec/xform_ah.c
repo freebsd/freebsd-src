@@ -85,8 +85,7 @@
  * to use a fixed 16-byte authenticator.  The new algorithm use 12-byte
  * authenticator.
  */
-#define	AUTHSIZE(sav) \
-	((sav->flags & SADB_X_EXT_OLD) ? 16 : AH_HMAC_HASHLEN)
+#define	AUTHSIZE(sav)	ah_authsize(sav)
 
 VNET_DEFINE(int, ah_enable) = 1;	/* control flow of packets with AH */
 VNET_DEFINE(int, ah_cleartos) = 1;	/* clear ip_tos when doing AH calc */
@@ -105,6 +104,27 @@ static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
 static int ah_input_cb(struct cryptop*);
 static int ah_output_cb(struct cryptop*);
 
+static int
+ah_authsize(struct secasvar *sav)
+{
+
+	IPSEC_ASSERT(sav != NULL, ("%s: sav == NULL", __func__));
+
+	if (sav->flags & SADB_X_EXT_OLD)
+		return 16;
+
+	switch (sav->alg_auth) {
+	case SADB_X_AALG_SHA2_256:
+		return 16;
+	case SADB_X_AALG_SHA2_384:
+		return 24;
+	case SADB_X_AALG_SHA2_512:
+		return 32;
+	default:
+		return AH_HMAC_HASHLEN;
+	}
+	/* NOTREACHED */
+}
 /*
  * NB: this is public for use by the PF_KEY support.
  */

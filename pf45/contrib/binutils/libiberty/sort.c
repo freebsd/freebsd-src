@@ -16,8 +16,8 @@ General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -44,10 +44,7 @@ Boston, MA 02111-1307, USA.  */
 /* POINTERS and WORK are both arrays of N pointers.  When this
    function returns POINTERS will be sorted in ascending order.  */
 
-void sort_pointers (n, pointers, work)
-     size_t n;
-     void **pointers;
-     void **work;
+void sort_pointers (size_t n, void **pointers, void **work)
 {
   /* The type of a single digit.  This can be any unsigned integral
      type.  When changing this, DIGIT_MAX should be changed as 
@@ -140,8 +137,7 @@ void sort_pointers (n, pointers, work)
 
 #include <stdio.h>
 
-void *xmalloc (n)
-     size_t n;
+void *xmalloc (size_t n)
 {
   return malloc (n);
 }
@@ -159,8 +155,8 @@ int main (int argc, char **argv)
   else
     k = 10;
 
-  pointers = xmalloc (k * sizeof (void *));
-  work = xmalloc (k * sizeof (void *));
+  pointers = XNEWVEC (void*, k);
+  work = XNEWVEC (void*, k);
 
   for (i = 0; i < k; ++i)
     {

@@ -1,6 +1,6 @@
 /* 8 and 16 bit COFF relocation functions, for BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001,
-   2002, 2003 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2007 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Most of this hacked by Steve Chamberlain <sac@cygnus.com>.  */
 
@@ -32,8 +32,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    file) (unless info->keep_memory is FALSE, in which case they should
    free up the relocs after dealing with them).  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "bfdlink.h"
 #include "genlink.h"
@@ -230,7 +230,8 @@ bfd_coff_reloc16_relax_section (abfd, input_section, link_info, again)
       free ((char *) shrinks);
     }
 
-  input_section->_cooked_size -= shrink;
+  input_section->rawsize = input_section->size;
+  input_section->size -= shrink;
   free ((char *) reloc_vector);
   return TRUE;
 }
@@ -255,6 +256,7 @@ bfd_coff_reloc16_get_relocated_section_contents (in_abfd,
   long reloc_size = bfd_get_reloc_upper_bound (input_bfd, input_section);
   arelent **reloc_vector;
   long reloc_count;
+  bfd_size_type sz;
 
   if (reloc_size < 0)
     return NULL;
@@ -267,11 +269,8 @@ bfd_coff_reloc16_get_relocated_section_contents (in_abfd,
 						       symbols);
 
   /* Read in the section.  */
-  if (!bfd_get_section_contents (input_bfd,
-				 input_section,
-				 data,
-				 (bfd_vma) 0,
-				 input_section->_raw_size))
+  sz = input_section->rawsize ? input_section->rawsize : input_section->size;
+  if (!bfd_get_section_contents (input_bfd, input_section, data, 0, sz))
     return NULL;
 
   reloc_vector = (arelent **) bfd_malloc ((bfd_size_type) reloc_size);

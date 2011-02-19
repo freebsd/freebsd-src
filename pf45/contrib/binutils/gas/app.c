@@ -1,6 +1,6 @@
 /* This is the Assembler Pre-Processor
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2002, 2003
+   1999, 2000, 2001, 2002, 2003, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,17 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Modified by Allen Wirfs-Brock, Instantiations Inc 2/90.  */
-/* App, the assembler pre-processor.  This pre-processor strips out excess
-   spaces, turns single-quoted characters into a decimal constant, and turns
-   # <number> <filename> <garbage> into a .line <number>\n.file <filename>
-   pair.  This needs better error-handling.  */
+/* App, the assembler pre-processor.  This pre-processor strips out
+   excess spaces, turns single-quoted characters into a decimal
+   constant, and turns the # in # <number> <filename> <garbage> into a
+   .linefile.  This needs better error-handling.  */
 
-#include <stdio.h>
-#include "as.h"			/* For BAD_CASE() only.  */
+#include "as.h"
 
 #if (__STDC__ != 1)
 #ifndef const
@@ -345,16 +344,18 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
   char *fromend;
   int fromlen;
   register int ch, ch2 = 0;
+  /* Character that started the string we're working on.  */
+  static char quotechar;
 
   /*State 0: beginning of normal line
 	  1: After first whitespace on line (flush more white)
 	  2: After first non-white (opcode) on line (keep 1white)
 	  3: after second white on line (into operands) (flush white)
-	  4: after putting out a .line, put out digits
+	  4: after putting out a .linefile, put out digits
 	  5: parsing a string, then go to old-state
 	  6: putting out \ escape in a "d string.
-	  7: After putting out a .appfile, put out string.
-	  8: After putting out a .appfile string, flush until newline.
+	  7: no longer used
+	  8: no longer used
 	  9: After seeing symbol char in state 3 (keep 1white after symchar)
 	 10: After seeing whitespace in state 9 (keep white before symchar)
 	 11: After seeing a symbol character in state 0 (eg a label definition)
@@ -373,6 +374,10 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	     predicate.
 	 15: After seeing a `(' at state 1, looking for a `)' as
 	     predicate.
+#endif
+#ifdef TC_Z80
+	 16: After seeing an 'a' or an 'A' at the start of a symbol
+	 17: After seeing an 'f' or an 'F' in state 16
 #endif
 	  */
 
@@ -505,14 +510,10 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 		ch = GET ();
 	      if (ch == '"')
 		{
-		  UNGET (ch);
-		  if (scrub_m68k_mri)
-		    out_string = "\n\tappfile ";
-		  else
-		    out_string = "\n\t.appfile ";
-		  old_state = 7;
-		  state = -1;
-		  PUT (*out_string++);
+		  quotechar = ch;
+		  state = 5;
+		  old_state = 3;
+		  PUT (ch);
 		}
 	      else
 		{
@@ -536,11 +537,8 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	    for (s = from; s < fromend; s++)
 	      {
 		ch = *s;
-		/* This condition must be changed if the type of any
-		   other character can be LEX_IS_STRINGQUOTE.  */
 		if (ch == '\\'
-		    || ch == '"'
-		    || ch == '\''
+		    || ch == quotechar
 		    || ch == '\n')
 		  break;
 	      }
@@ -552,18 +550,20 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 		memcpy (to, from, len);
 		to += len;
 		from += len;
+		if (to >= toend)
+		  goto tofull;
 	      }
 	  }
 
 	  ch = GET ();
 	  if (ch == EOF)
 	    {
-	      as_warn (_("end of file in string; inserted '\"'"));
+	      as_warn (_("end of file in string; '%c' inserted"), quotechar);
 	      state = old_state;
 	      UNGET ('\n');
-	      PUT ('"');
+	      PUT (quotechar);
 	    }
-	  else if (lex[ch] == LEX_IS_STRINGQUOTE)
+	  else if (ch == quotechar)
 	    {
 	      state = old_state;
 	      PUT (ch);
@@ -603,8 +603,8 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      continue;
 
 	    case EOF:
-	      as_warn (_("end of file in string; '\"' inserted"));
-	      PUT ('"');
+	      as_warn (_("end of file in string; '%c' inserted"), quotechar);
+	      PUT (quotechar);
 	      continue;
 
 	    case '"':
@@ -636,25 +636,6 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	  PUT (ch);
 	  continue;
 
-	case 7:
-	  ch = GET ();
-	  state = 5;
-	  old_state = 8;
-	  if (ch == EOF)
-	    goto fromeof;
-	  PUT (ch);
-	  continue;
-
-	case 8:
-	  do
-	    ch = GET ();
-	  while (ch != '\n' && ch != EOF);
-	  if (ch == EOF)
-	    goto fromeof;
-	  state = 0;
-	  PUT (ch);
-	  continue;
-
 #ifdef DOUBLEBAR_PARALLEL
 	case 13:
 	  ch = GET ();
@@ -666,6 +647,32 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	  state = 1;
 	  PUT ('|');
 	  continue;
+#endif
+#ifdef TC_Z80
+	case 16:
+	  /* We have seen an 'a' at the start of a symbol, look for an 'f'.  */
+	  ch = GET ();
+	  if (ch == 'f' || ch == 'F') 
+	    {
+	      state = 17;
+	      PUT (ch);
+	    }
+	  else
+	    {
+	      state = 9;
+	      break;
+	    }
+	case 17:
+	  /* We have seen "af" at the start of a symbol,
+	     a ' here is a part of that symbol.  */
+	  ch = GET ();
+	  state = 9;
+	  if (ch == '\'')
+	    /* Change to avoid warning about unclosed string.  */
+	    PUT ('`');
+	  else
+	    UNGET (ch);
+	  break;
 #endif
 	}
 
@@ -860,9 +867,6 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 
 	  switch (state)
 	    {
-	    case 0:
-	      state++;
-	      goto recycle;	/* Punted leading sp */
 	    case 1:
 	      /* We can arrive here if we leave a leading whitespace
 		 character at the beginning of a line.  */
@@ -975,6 +979,7 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	  break;
 
 	case LEX_IS_STRINGQUOTE:
+	  quotechar = ch;
 	  if (state == 10)
 	    {
 	      /* Preserve the whitespace in foo "bar".  */
@@ -1171,9 +1176,9 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      old_state = 4;
 	      state = -1;
 	      if (scrub_m68k_mri)
-		out_string = "\tappline ";
+		out_string = "\tlinefile ";
 	      else
-		out_string = "\t.appline ";
+		out_string = "\t.linefile ";
 	      PUT (*out_string++);
 	      break;
 	    }
@@ -1216,6 +1221,15 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	  if ((symver_state != NULL) && (*symver_state == 0))
 	    goto de_fault;
 #endif
+
+#ifdef TC_ARM
+	  /* For the ARM, care is needed not to damage occurrences of \@
+	     by stripping the @ onwards.  Yuck.  */
+	  if (to > tostart && *(to - 1) == '\\')
+	    /* Do not treat the @ as a start-of-comment.  */
+	    goto de_fault;
+#endif
+
 #ifdef WARN_COMMENTS
 	  if (!found_comment)
 	    as_where (&found_comment_file, &found_comment);
@@ -1243,6 +1257,30 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      break;
 	    }
 
+#ifdef TC_Z80
+	  /* "af'" is a symbol containing '\''.  */
+	  if (state == 3 && (ch == 'a' || ch == 'A')) 
+	    {
+	      state = 16;
+	      PUT (ch);
+	      ch = GET ();
+	      if (ch == 'f' || ch == 'F') 
+		{
+		  state = 17;
+		  PUT (ch);
+		  break;
+		}
+	      else
+		{
+		  state = 9;
+		  if (!IS_SYMBOL_COMPONENT (ch)) 
+		    {
+		      UNGET (ch);
+		      break;
+		    }
+		}
+	    }
+#endif
 	  if (state == 3)
 	    state = 9;
 
@@ -1282,26 +1320,11 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      if (len > 0)
 		{
 		  PUT (ch);
-		  if (len > 8)
-		    {
-		      memcpy (to, from, len);
-		      to += len;
-		      from += len;
-		    }
-		  else
-		    {
-		      switch (len)
-			{
-			case 8: *to++ = *from++;
-			case 7: *to++ = *from++;
-			case 6: *to++ = *from++;
-			case 5: *to++ = *from++;
-			case 4: *to++ = *from++;
-			case 3: *to++ = *from++;
-			case 2: *to++ = *from++;
-			case 1: *to++ = *from++;
-			}
-		    }
+		  memcpy (to, from, len);
+		  to += len;
+		  from += len;
+		  if (to >= toend)
+		    goto tofull;
 		  ch = GET ();
 		}
 	    }
@@ -1339,7 +1362,15 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 		     the space.  We don't have enough information to
 		     make the right choice, so here we are making the
 		     choice which is more likely to be correct.  */
-		  PUT (' ');
+		  if (to + 1 >= toend)
+		    {
+		      /* If we're near the end of the buffer, save the
+		         character for the next time round.  Otherwise
+		         we'll lose our state.  */
+		      UNGET (ch);
+		      goto tofull;
+		    }
+		  *to++ = ' ';
 		}
 
 	      state = 3;

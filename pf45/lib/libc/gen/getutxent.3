@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2010
+.Dd February 19, 2011
 .Dt GETUTXENT 3
 .Os
 .Sh NAME
@@ -367,16 +367,15 @@ It returns
 .Dv NULL
 when the provided
 .Vt utmpx
-is invalid.
-This may be because
-.Fa ut_type
-is invalid or
+is invalid, or
 .Fa ut_type
 has a value of
 .Dv DEAD_PROCESS
 and an entry with an identifier with a value equal to the field
 .Fa ut_id
-was not found.
+was not found; the global variable
+.Va errno
+is set to indicate the error.
 .Pp
 The
 .Fn setutxdb
@@ -386,6 +385,24 @@ Otherwise, -1 is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
+In addition to the error conditions described in
+.Xr fdopen 3 ,
+.Xr fopen 3 ,
+.Xr fseek 3 ,
+.Xr open 3 ,
+the
+.Fn pututxline
+function can generate the following errors:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+The value of
+.Fa ut_type
+is DEAD_PROCESS, and the process entry could not be found.
+.It Bq Er EINVAL
+The value of
+.Fa ut_type
+is not supported by this implementation.
+.El
 In addition to the error conditions described in
 .Xr fopen 3 ,
 the
@@ -407,7 +424,8 @@ The file format is invalid.
 .Xr gettimeofday 2 ,
 .Xr tty 4 ,
 .Xr ac 8 ,
-.Xr newsyslog 8
+.Xr newsyslog 8 ,
+.Xr utxrm 8
 .Sh STANDARDS
 The
 .Fn endutxent ,

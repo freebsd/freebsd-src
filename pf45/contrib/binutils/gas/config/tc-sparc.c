@@ -1,6 +1,6 @@
 /* tc-sparc.c -- Assemble for the SPARC
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
@@ -16,10 +16,8 @@
 
    You should have received a copy of the GNU General Public
    License along with GAS; see the file COPYING.  If not, write
-   to the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
-
-#include <stdio.h>
+   to the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #include "as.h"
 #include "safe-ctype.h"
@@ -133,7 +131,7 @@ int sparc_cie_data_alignment;
 /* Handle of the OPCODE hash table.  */
 static struct hash_control *op_hash;
 
-static int log2 PARAMS ((int));
+static int mylog2 PARAMS ((int));
 static void s_data1 PARAMS ((void));
 static void s_seg PARAMS ((int));
 static void s_proc PARAMS ((int));
@@ -174,9 +172,6 @@ const pseudo_typeS md_pseudo_table[] =
   {NULL, 0, 0},
 };
 
-/* Size of relocation record.  */
-const int md_reloc_size = 12;
-
 /* This array holds the chars that always start a comment.  If the
    pre-processor is disabled, these aren't very useful.  */
 const char comment_chars[] = "!";	/* JF removed '|' from
@@ -207,7 +202,7 @@ const char FLT_CHARS[] = "rRsSfFdDxXpP";
    changed in read.c.  Ideally it shouldn't have to know about it at all,
    but nothing is ideal around here.  */
 
-#define isoctal(c)  ((unsigned) ((c) - '0') < '8')
+#define isoctal(c)  ((unsigned) ((c) - '0') < 8)
 
 struct sparc_it
   {
@@ -337,8 +332,12 @@ sparc_target_format ()
 #endif
 #endif
 
+#ifdef TE_VXWORKS
+  return "elf32-sparc-vxworks";
+#endif
+
 #ifdef OBJ_ELF
-  return sparc_arch_size == 64 ? "elf64-sparc" : "elf32-sparc";
+  return sparc_arch_size == 64 ? ELF64_TARGET_FORMAT : ELF_TARGET_FORMAT;
 #endif
 
   abort ();
@@ -546,12 +545,12 @@ md_parse_option (c, arg)
 	  {
 	    if (sparc_arch_size == 32)
 	      {
-		if (strcmp (*l, "elf32-sparc") == 0)
+		if (CONST_STRNEQ (*l, "elf32-sparc"))
 		  break;
 	      }
 	    else
 	      {
-		if (strcmp (*l, "elf64-sparc") == 0)
+		if (CONST_STRNEQ (*l, "elf64-sparc"))
 		  break;
 	      }
 	  }
@@ -727,7 +726,7 @@ struct
   {NULL, NULL, NULL},
 };
 
-/* sparc64 privileged registers.  */
+/* sparc64 privileged and hyperprivileged registers.  */
 
 struct priv_reg_entry
 {
@@ -753,7 +752,19 @@ struct priv_reg_entry priv_reg_table[] =
   {"otherwin", 13},
   {"wstate", 14},
   {"fq", 15},
+  {"gl", 16},
   {"ver", 31},
+  {"", -1},			/* End marker.  */
+};
+
+struct priv_reg_entry hpriv_reg_table[] =
+{
+  {"hpstate", 0},
+  {"htstate", 1},
+  {"hintp", 3},
+  {"htba", 5},
+  {"hver", 6},
+  {"hstick_cmpr", 31},
   {"", -1},			/* End marker.  */
 };
 
@@ -1304,11 +1315,12 @@ md_assemble (str)
 
   know (str);
   special_case = sparc_ip (str, &insn);
+  if (insn == NULL)
+    return;
 
   /* We warn about attempts to put a floating point branch in a delay slot,
      unless the delay slot has been annulled.  */
-  if (insn != NULL
-      && last_insn != NULL
+  if (last_insn != NULL
       && (insn->flags & F_FBR) != 0
       && (last_insn->flags & F_DELAYED) != 0
       /* ??? This test isn't completely accurate.  We assume anything with
@@ -1321,7 +1333,6 @@ md_assemble (str)
      point instruction and a floating point branch.  We insert one
      automatically, with a warning.  */
   if (max_architecture < SPARC_OPCODE_ARCH_V9
-      && insn != NULL
       && last_insn != NULL
       && (insn->flags & F_FBR) != 0
       && (last_insn->flags & F_FLOAT) != 0)
@@ -1417,7 +1428,9 @@ sparc_ip (str, pinsn)
       break;
 
     default:
-      as_fatal (_("Unknown opcode: `%s'"), str);
+      as_bad (_("Unknown opcode: `%s'"), str);
+      *pinsn = NULL;
+      return special_case;
     }
   insn = (struct sparc_opcode *) hash_find (op_hash, str);
   *pinsn = insn;
@@ -1570,6 +1583,42 @@ sparc_ip (str, pinsn)
 	      else
 		{
 		  error_message = _(": unrecognizable privileged register");
+		  goto error;
+		}
+
+	    case '$':
+	    case '%':
+	      /* Parse a sparc64 hyperprivileged register.  */
+	      if (*s == '%')
+		{
+		  struct priv_reg_entry *p = hpriv_reg_table;
+		  unsigned int len = 9999999; /* Init to make gcc happy.  */
+
+		  s += 1;
+		  while (p->name[0] > s[0])
+		    p++;
+		  while (p->name[0] == s[0])
+		    {
+		      len = strlen (p->name);
+		      if (strncmp (p->name, s, len) == 0)
+			break;
+		      p++;
+		    }
+		  if (p->name[0] != s[0])
+		    {
+		      error_message = _(": unrecognizable hyperprivileged register");
+		      goto error;
+		    }
+		  if (*args == '$')
+		    opcode |= (p->regnum << 14);
+		  else
+		    opcode |= (p->regnum << 25);
+		  s += len;
+		  continue;
+		}
+	      else
+		{
+		  error_message = _(": unrecognizable hyperprivileged register");
 		  goto error;
 		}
 
@@ -1811,7 +1860,8 @@ sparc_ip (str, pinsn)
 	    case '\0':		/* End of args.  */
 	      if (s[0] == ',' && s[1] == '%')
 		{
-		  static const struct tls_ops {
+		  static const struct tls_ops
+		  {
 		    /* The name as it appears in assembler.  */
 		    char *name;
 		    /* strlen (name), precomputed for speed */
@@ -1820,7 +1870,9 @@ sparc_ip (str, pinsn)
 		    int reloc;
 		    /* 1 if call.  */
 		    int call;
-		  } tls_ops[] = {
+		  }
+		  tls_ops[] =
+		  {
 		    { "tgd_add", 7, BFD_RELOC_SPARC_TLS_GD_ADD, 0 },
 		    { "tgd_call", 8, BFD_RELOC_SPARC_TLS_GD_CALL, 1 },
 		    { "tldm_add", 8, BFD_RELOC_SPARC_TLS_LDM_ADD, 0 },
@@ -1828,7 +1880,8 @@ sparc_ip (str, pinsn)
 		    { "tldo_add", 8, BFD_RELOC_SPARC_TLS_LDO_ADD, 0 },
 		    { "tie_ldx", 7, BFD_RELOC_SPARC_TLS_IE_LDX, 0 },
 		    { "tie_ld", 6, BFD_RELOC_SPARC_TLS_IE_LD, 0 },
-		    { "tie_add", 7, BFD_RELOC_SPARC_TLS_IE_ADD, 0 }
+		    { "tie_add", 7, BFD_RELOC_SPARC_TLS_IE_ADD, 0 },
+		    { NULL, 0, 0, 0 }
 		  };
 		  const struct tls_ops *o;
 		  char *s1;
@@ -2231,7 +2284,7 @@ sparc_ip (str, pinsn)
 	      {
 		char *s1;
 		char *op_arg = NULL;
-		expressionS op_exp;
+		static expressionS op_exp;
 		bfd_reloc_code_real_type old_reloc = the_insn.reloc;
 
 		/* Check for %hi, etc.  */
@@ -2484,12 +2537,12 @@ sparc_ip (str, pinsn)
 		      goto error;
 		    }
 
-		  /* Constants that won't fit are checked in md_apply_fix3
+		  /* Constants that won't fit are checked in md_apply_fix
 		     and bfd_install_relocation.
 		     ??? It would be preferable to install the constants
 		     into the insn here and save having to create a fixS
 		     for each one.  There already exists code to handle
-		     all the various cases (e.g. in md_apply_fix3 and
+		     all the various cases (e.g. in md_apply_fix and
 		     bfd_install_relocation) so duplicating all that code
 		     here isn't right.  */
 		}
@@ -2877,7 +2930,7 @@ output_insn (insn, the_insn)
 				 the_insn->pcrel,
 				 the_insn->reloc);
       /* Turn off overflow checking in fixup_segment.  We'll do our
-	 own overflow checking in md_apply_fix3.  This is necessary because
+	 own overflow checking in md_apply_fix.  This is necessary because
 	 the insn size is 4 and fixup_segment will signal an overflow for
 	 large 8 byte quantities.  */
       fixP->fx_no_overflow = 1;
@@ -2996,7 +3049,7 @@ md_number_to_chars (buf, val, n)
    hold.  */
 
 void
-md_apply_fix3 (fixP, valP, segment)
+md_apply_fix (fixP, valP, segment)
      fixS *fixP;
      valueT *valP;
      segT segment ATTRIBUTE_UNUSED;
@@ -3012,7 +3065,41 @@ md_apply_fix3 (fixP, valP, segment)
 #ifdef OBJ_ELF
   /* SPARC ELF relocations don't use an addend in the data field.  */
   if (fixP->fx_addsy != NULL)
-    return;
+    {
+      switch (fixP->fx_r_type)
+	{
+	case BFD_RELOC_SPARC_TLS_GD_HI22:
+	case BFD_RELOC_SPARC_TLS_GD_LO10:
+	case BFD_RELOC_SPARC_TLS_GD_ADD:
+	case BFD_RELOC_SPARC_TLS_GD_CALL:
+	case BFD_RELOC_SPARC_TLS_LDM_HI22:
+	case BFD_RELOC_SPARC_TLS_LDM_LO10:
+	case BFD_RELOC_SPARC_TLS_LDM_ADD:
+	case BFD_RELOC_SPARC_TLS_LDM_CALL:
+	case BFD_RELOC_SPARC_TLS_LDO_HIX22:
+	case BFD_RELOC_SPARC_TLS_LDO_LOX10:
+	case BFD_RELOC_SPARC_TLS_LDO_ADD:
+	case BFD_RELOC_SPARC_TLS_IE_HI22:
+	case BFD_RELOC_SPARC_TLS_IE_LO10:
+	case BFD_RELOC_SPARC_TLS_IE_LD:
+	case BFD_RELOC_SPARC_TLS_IE_LDX:
+	case BFD_RELOC_SPARC_TLS_IE_ADD:
+	case BFD_RELOC_SPARC_TLS_LE_HIX22:
+	case BFD_RELOC_SPARC_TLS_LE_LOX10:
+	case BFD_RELOC_SPARC_TLS_DTPMOD32:
+	case BFD_RELOC_SPARC_TLS_DTPMOD64:
+	case BFD_RELOC_SPARC_TLS_DTPOFF32:
+	case BFD_RELOC_SPARC_TLS_DTPOFF64:
+	case BFD_RELOC_SPARC_TLS_TPOFF32:
+	case BFD_RELOC_SPARC_TLS_TPOFF64:
+	  S_SET_THREAD_LOCAL (fixP->fx_addsy);
+
+	default:
+	  break;
+	}
+
+      return;
+    }
 #endif
 
   /* This is a hack.  There should be a better way to
@@ -3226,9 +3313,9 @@ md_apply_fix3 (fixP, valP, segment)
 	  break;
 
 	case BFD_RELOC_SPARC_WDISP16:
-	  /* FIXME: simplify.  */
-	  if (((val > 0) && (val & ~0x3fffc))
-	      || ((val < 0) && (~(val - 1) & ~0x3fffc)))
+	  if ((val & 3)
+	      || val >= 0x1fffc
+	      || val <= -(offsetT) 0x20008)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("relocation overflow"));
 	  /* FIXME: The +1 deserves a comment.  */
@@ -3237,9 +3324,9 @@ md_apply_fix3 (fixP, valP, segment)
 	  break;
 
 	case BFD_RELOC_SPARC_WDISP19:
-	  /* FIXME: simplify.  */
-	  if (((val > 0) && (val & ~0x1ffffc))
-	      || ((val < 0) && (~(val - 1) & ~0x1ffffc)))
+	  if ((val & 3)
+	      || val >= 0xffffc
+	      || val <= -(offsetT) 0x100008)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("relocation overflow"));
 	  /* FIXME: The +1 deserves a comment.  */
@@ -3354,7 +3441,7 @@ md_apply_fix3 (fixP, valP, segment)
 
 arelent **
 tc_gen_reloc (section, fixp)
-     asection *section ATTRIBUTE_UNUSED;
+     asection *section;
      fixS *fixp;
 {
   static arelent *relocs[3];
@@ -3447,6 +3534,10 @@ tc_gen_reloc (section, fixp)
 #else
 #define GOT_NAME "__GLOBAL_OFFSET_TABLE_"
 #endif
+#ifdef TE_VXWORKS
+#define GOTT_BASE "__GOTT_BASE__"
+#define GOTT_INDEX "__GOTT_INDEX__"
+#endif
 
   /* This code must be parallel to the OBJ_ELF tc_fix_adjustable.  */
 
@@ -3459,18 +3550,30 @@ tc_gen_reloc (section, fixp)
 	    code = BFD_RELOC_SPARC_WPLT30;
 	  break;
 	case BFD_RELOC_HI22:
-	  if (fixp->fx_addsy != NULL
-	      && strcmp (S_GET_NAME (fixp->fx_addsy), GOT_NAME) == 0)
-	    code = BFD_RELOC_SPARC_PC22;
-	  else
-	    code = BFD_RELOC_SPARC_GOT22;
+	  code = BFD_RELOC_SPARC_GOT22;
+	  if (fixp->fx_addsy != NULL)
+	    {
+	      if (strcmp (S_GET_NAME (fixp->fx_addsy), GOT_NAME) == 0)
+		code = BFD_RELOC_SPARC_PC22;
+#ifdef TE_VXWORKS
+	      if (strcmp (S_GET_NAME (fixp->fx_addsy), GOTT_BASE) == 0
+		  || strcmp (S_GET_NAME (fixp->fx_addsy), GOTT_INDEX) == 0)
+		code = BFD_RELOC_HI22; /* Unchanged.  */
+#endif
+	    }
 	  break;
 	case BFD_RELOC_LO10:
-	  if (fixp->fx_addsy != NULL
-	      && strcmp (S_GET_NAME (fixp->fx_addsy), GOT_NAME) == 0)
-	    code = BFD_RELOC_SPARC_PC10;
-	  else
-	    code = BFD_RELOC_SPARC_GOT10;
+	  code = BFD_RELOC_SPARC_GOT10;
+	  if (fixp->fx_addsy != NULL)
+	    {
+	      if (strcmp (S_GET_NAME (fixp->fx_addsy), GOT_NAME) == 0)
+		code = BFD_RELOC_SPARC_PC10;
+#ifdef TE_VXWORKS
+	      if (strcmp (S_GET_NAME (fixp->fx_addsy), GOTT_BASE) == 0
+		  || strcmp (S_GET_NAME (fixp->fx_addsy), GOTT_INDEX) == 0)
+		code = BFD_RELOC_LO10; /* Unchanged.  */
+#endif
+	    }
 	  break;
 	case BFD_RELOC_SPARC13:
 	  code = BFD_RELOC_SPARC_GOT13;
@@ -3480,6 +3583,16 @@ tc_gen_reloc (section, fixp)
 	}
     }
 #endif /* defined (OBJ_ELF) || defined (OBJ_AOUT)  */
+
+  /* Nothing is aligned in DWARF debugging sections.  */
+  if (bfd_get_section_flags (stdoutput, section) & SEC_DEBUGGING)
+    switch (code)
+      {
+      case BFD_RELOC_16: code = BFD_RELOC_SPARC_UA16; break;
+      case BFD_RELOC_32: code = BFD_RELOC_SPARC_UA32; break;
+      case BFD_RELOC_64: code = BFD_RELOC_SPARC_UA64; break;
+      default: break;
+      }
 
   if (code == BFD_RELOC_SPARC_OLO10)
     reloc->howto = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_LO10);
@@ -3603,7 +3716,7 @@ md_pcrel_from (fixP)
    of two.  */
 
 static int
-log2 (value)
+mylog2 (value)
      int value;
 {
   int shift;
@@ -3705,7 +3818,7 @@ s_reserve (ignore)
 
       if (align != 0)
 	{
-	  temp = log2 (align);
+	  temp = mylog2 (align);
 	  if (temp < 0)
 	    {
 	      as_bad (_("alignment not a power of 2"));
@@ -3843,7 +3956,7 @@ s_common (ignore)
       if (temp > max_alignment)
 	{
 	  temp = max_alignment;
-	  as_warn (_("alignment too large; assuming %d"), temp);
+	  as_warn (_("alignment too large; assuming %ld"), (long) temp);
 	}
 #endif
 
@@ -3868,7 +3981,7 @@ s_common (ignore)
 	  if (temp == 0)
 	    align = 0;
 	  else
-	    align = log2 (temp);
+	    align = mylog2 (temp);
 
 	  if (align < 0)
 	    {
@@ -3925,9 +4038,7 @@ s_common (ignore)
       goto allocate_common;
     }
 
-#ifdef BFD_ASSEMBLER
   symbol_get_bfdsym (symbolP)->flags |= BSF_OBJECT;
-#endif
 
   demand_empty_rest_of_line ();
   return;
@@ -4191,7 +4302,7 @@ sparc_cons_align (nbytes)
   if (sparc_no_align_cons)
     return;
 
-  nalign = log2 (nbytes);
+  nalign = mylog2 (nbytes);
   if (nalign == 0)
     return;
 
@@ -4503,7 +4614,7 @@ sparc_cfi_frame_initial_instructions ()
 }
 
 int
-sparc_regname_to_dw2regnum (const char *regname)
+sparc_regname_to_dw2regnum (char *regname)
 {
   char *p, *q;
 
