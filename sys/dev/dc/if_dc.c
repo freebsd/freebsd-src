@@ -3135,16 +3135,19 @@ dc_intr(void *arg)
 	struct dc_softc *sc;
 	struct ifnet *ifp;
 	u_int32_t status;
+	int curpkts, n;
 
 	sc = arg;
 
 	if (sc->suspended)
 		return;
 
-	if ((CSR_READ_4(sc, DC_ISR) & DC_INTRS) == 0)
-		return;
-
 	DC_LOCK(sc);
+	status = CSR_READ_4(sc, DC_ISR);
+	if (status == 0xFFFFFFFF || (status & DC_INTRS) == 0) {
+		DC_UNLOCK(sc);
+		return;
+	}
 	ifp = sc->dc_ifp;
 #ifdef DEVICE_POLLING
 	if (ifp->if_capenable & IFCAP_POLLING) {
@@ -3152,26 +3155,16 @@ dc_intr(void *arg)
 		return;
 	}
 #endif
-
-	/* Suppress unwanted interrupts */
-	if (!(ifp->if_flags & IFF_UP)) {
-		if (CSR_READ_4(sc, DC_ISR) & DC_INTRS)
-			dc_stop(sc);
-		DC_UNLOCK(sc);
-		return;
-	}
-
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 
-	while (((status = CSR_READ_4(sc, DC_ISR)) & DC_INTRS) &&
-	    status != 0xFFFFFFFF &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-
+	for (n = 16; n > 0; n--) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
+		/* Ack interrupts. */
 		CSR_WRITE_4(sc, DC_ISR, status);
 
 		if (status & DC_ISR_RX_OK) {
-			int		curpkts;
 			curpkts = ifp->if_ipackets;
 			dc_rxeof(sc);
 			if (curpkts == ifp->if_ipackets) {
@@ -3196,7 +3189,6 @@ dc_intr(void *arg)
 
 		if ((status & DC_ISR_RX_WATDOGTIMEO)
 		    || (status & DC_ISR_RX_NOBUF)) {
-			int		curpkts;
 			curpkts = ifp->if_ipackets;
 			dc_rxeof(sc);
 			if (curpkts == ifp->if_ipackets) {
@@ -3205,17 +3197,23 @@ dc_intr(void *arg)
 			}
 		}
 
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			dc_start_locked(ifp);
+
 		if (status & DC_ISR_BUS_ERR) {
 			dc_reset(sc);
 			dc_init_locked(sc);
+			DC_UNLOCK(sc);
+			return;
 		}
+		status = CSR_READ_4(sc, DC_ISR);
+		if (status == 0xFFFFFFFF || (status & DC_INTRS) == 0)
+			break;
 	}
 
 	/* Re-enable interrupts. */
-	CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
-
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		dc_start_locked(ifp);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
 
 	DC_UNLOCK(sc);
 }
