@@ -127,7 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#define DC_USEIOSPACE
+#define	DC_USEIOSPACE
 
 #include <dev/dc/if_dcreg.h>
 
@@ -301,11 +301,11 @@ static void dc_apply_fixup(struct dc_softc *, int);
 static int dc_check_multiport(struct dc_softc *);
 
 #ifdef DC_USEIOSPACE
-#define DC_RES			SYS_RES_IOPORT
-#define DC_RID			DC_PCI_CFBIO
+#define	DC_RES			SYS_RES_IOPORT
+#define	DC_RID			DC_PCI_CFBIO
 #else
-#define DC_RES			SYS_RES_MEMORY
-#define DC_RID			DC_PCI_CFBMA
+#define	DC_RES			SYS_RES_MEMORY
+#define	DC_RID			DC_PCI_CFBMA
 #endif
 
 static device_method_t dc_methods[] = {
@@ -341,14 +341,14 @@ static devclass_t dc_devclass;
 DRIVER_MODULE(dc, pci, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
 
-#define DC_SETBIT(sc, reg, x)				\
+#define	DC_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | (x))
 
-#define DC_CLRBIT(sc, reg, x)				\
+#define	DC_CLRBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) & ~(x))
 
-#define SIO_SET(x)	DC_SETBIT(sc, DC_SIO, (x))
-#define SIO_CLR(x)	DC_CLRBIT(sc, DC_SIO, (x))
+#define	SIO_SET(x)	DC_SETBIT(sc, DC_SIO, (x))
+#define	SIO_CLR(x)	DC_CLRBIT(sc, DC_SIO, (x))
 
 static void
 dc_delay(struct dc_softc *sc)
@@ -1016,9 +1016,9 @@ dc_miibus_mediainit(device_t dev)
 		ifmedia_add(ifm, IFM_ETHER | IFM_HPNA_1, 0, NULL);
 }
 
-#define DC_BITS_512	9
-#define DC_BITS_128	7
-#define DC_BITS_64	6
+#define	DC_BITS_512	9
+#define	DC_BITS_128	7
+#define	DC_BITS_64	6
 
 static uint32_t
 dc_mchash_le(struct dc_softc *sc, const uint8_t *addr)
@@ -2715,7 +2715,7 @@ dc_newbuf(struct dc_softc *sc, int i)
  * the time.
  */
 
-#define DC_WHOLEFRAME	(DC_RXSTAT_FIRSTFRAG | DC_RXSTAT_LASTFRAG)
+#define	DC_WHOLEFRAME	(DC_RXSTAT_FIRSTFRAG | DC_RXSTAT_LASTFRAG)
 static void
 dc_pnic_rx_bug_war(struct dc_softc *sc, int idx)
 {
