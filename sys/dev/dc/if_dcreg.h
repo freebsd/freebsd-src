@@ -392,10 +392,10 @@
  */
 
 struct dc_desc {
-	u_int32_t		dc_status;
-	u_int32_t		dc_ctl;
-	u_int32_t		dc_ptr1;
-	u_int32_t		dc_ptr2;
+	uint32_t		dc_status;
+	uint32_t		dc_ctl;
+	uint32_t		dc_ptr1;
+	uint32_t		dc_ptr2;
 };
 
 #define	dc_data		dc_ptr1
@@ -502,8 +502,8 @@ struct dc_chain_data {
 	struct mbuf		*dc_tx_chain[DC_TX_LIST_CNT];
 	bus_dmamap_t		dc_rx_map[DC_RX_LIST_CNT];
 	bus_dmamap_t		dc_tx_map[DC_TX_LIST_CNT];
-	u_int32_t		*dc_sbuf;
-	u_int8_t		dc_pad[DC_MIN_FRAMELEN];
+	uint32_t		*dc_sbuf;
+	uint8_t			dc_pad[DC_MIN_FRAMELEN];
 	int			dc_tx_pkts;
 	int			dc_tx_first;
 	int			dc_tx_prod;
@@ -514,27 +514,27 @@ struct dc_chain_data {
 
 struct dc_mediainfo {
 	int			dc_media;
-	u_int8_t		*dc_gp_ptr;
-	u_int8_t		dc_gp_len;
-	u_int8_t		*dc_reset_ptr;
-	u_int8_t		dc_reset_len;
+	uint8_t			*dc_gp_ptr;
+	uint8_t			dc_gp_len;
+	uint8_t			*dc_reset_ptr;
+	uint8_t			dc_reset_len;
 	struct dc_mediainfo	*dc_next;
 };
 
 
 struct dc_type {
-	u_int32_t		dc_devid;
-	u_int8_t		dc_minrev;
+	uint32_t		dc_devid;
+	uint8_t			dc_minrev;
 	char			*dc_name;
 };
 
 struct dc_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
+	uint8_t			mii_stdelim;
+	uint8_t			mii_opcode;
+	uint8_t			mii_phyaddr;
+	uint8_t			mii_regaddr;
+	uint8_t			mii_turnaround;
+	uint16_t		mii_data;
 };
 
 /*
@@ -747,19 +747,19 @@ struct dc_softc {
 	struct resource		*dc_res;
 	const struct dc_type	*dc_info;	/* adapter info */
 	device_t		dc_miibus;
-	u_int8_t		dc_type;
-	u_int8_t		dc_pmode;
-	u_int8_t		dc_link;
-	u_int8_t		dc_cachesize;
+	uint8_t			dc_type;
+	uint8_t			dc_pmode;
+	uint8_t			dc_link;
+	uint8_t			dc_cachesize;
 	int			dc_romwidth;
 	int			dc_pnic_rx_bug_save;
 	unsigned char		*dc_pnic_rx_buf;
 	int			dc_if_flags;
 	int			dc_if_media;
-	u_int32_t		dc_flags;
-	u_int32_t		dc_txthresh;
-	u_int32_t		dc_eaddr[2];
-	u_int8_t		*dc_srom;
+	uint32_t		dc_flags;
+	uint32_t		dc_txthresh;
+	uint32_t		dc_eaddr[2];
+	uint8_t			*dc_srom;
 	struct dc_mediainfo	*dc_mi;
 	struct dc_list_data	dc_ldata;
 	struct dc_chain_data	dc_cdata;
@@ -1082,10 +1082,10 @@ struct dc_softc {
 #define	DC_IB_LEAF0_OFFSET	0x1B
 
 struct dc_info_leaf {
-	u_int16_t		dc_conntype;
-	u_int8_t		dc_blkcnt;
-	u_int8_t		dc_rsvd;
-	u_int16_t		dc_infoblk;
+	uint16_t		dc_conntype;
+	uint8_t			dc_blkcnt;
+	uint8_t			dc_rsvd;
+	uint16_t		dc_infoblk;
 };
 
 #define	DC_CTYPE_10BT			0x0000
@@ -1116,28 +1116,28 @@ struct dc_info_leaf {
 #define	DC_EBLOCK_PHY_SHUTDOWN		0x0006
 
 struct dc_leaf_hdr {
-	u_int16_t		dc_mtype;
-	u_int8_t		dc_mcnt;
-	u_int8_t		dc_rsvd;
+	uint16_t		dc_mtype;
+	uint8_t			dc_mcnt;
+	uint8_t			dc_rsvd;
 };
 
 struct dc_eblock_hdr {
-	u_int8_t		dc_len;
-	u_int8_t		dc_type;
+	uint8_t			dc_len;
+	uint8_t			dc_type;
 };
 
 struct dc_eblock_sia {
 	struct dc_eblock_hdr	dc_sia_hdr;
-	u_int8_t		dc_sia_code;
+	uint8_t		dc_sia_code;
 	union {
 		struct dc_sia_ext { /* if (dc_sia_code & DC_SIA_CODE_EXT) */
-			u_int8_t dc_sia_mediaspec[6]; /* CSR13, CSR14, CSR15 */
-			u_int8_t dc_sia_gpio_ctl[2];
-			u_int8_t dc_sia_gpio_dat[2];
+			uint8_t dc_sia_mediaspec[6]; /* CSR13, CSR14, CSR15 */
+			uint8_t dc_sia_gpio_ctl[2];
+			uint8_t dc_sia_gpio_dat[2];
 		} dc_sia_ext;
 		struct dc_sia_noext { 
-			u_int8_t dc_sia_gpio_ctl[2];
-			u_int8_t dc_sia_gpio_dat[2];
+			uint8_t dc_sia_gpio_ctl[2];
+			uint8_t dc_sia_gpio_dat[2];
 		} dc_sia_noext;
 	} dc_un;
 };
@@ -1154,11 +1154,11 @@ struct dc_eblock_sia {
  */
 struct dc_eblock_mii {
 	struct dc_eblock_hdr	dc_mii_hdr;
-	u_int8_t		dc_mii_phynum;
-	u_int8_t		dc_gpr_len;
-/*	u_int16_t		dc_gpr_dat[n]; */
-/*	u_int8_t		dc_reset_len; */
-/*	u_int16_t		dc_reset_dat[n]; */
+	uint8_t			dc_mii_phynum;
+	uint8_t			dc_gpr_len;
+/*	uint16_t		dc_gpr_dat[n]; */
+/*	uint8_t			dc_reset_len; */
+/*	uint16_t		dc_reset_dat[n]; */
 /* There are other fields after these, but we don't
  * care about them since they can be determined by looking
  * at the PHY.
@@ -1167,10 +1167,10 @@ struct dc_eblock_mii {
 
 struct dc_eblock_sym {
 	struct dc_eblock_hdr	dc_sym_hdr;
-	u_int8_t		dc_sym_code;
-	u_int8_t		dc_sym_gpio_ctl[2];
-	u_int8_t		dc_sym_gpio_dat[2];
-	u_int8_t		dc_sym_cmd[2];
+	uint8_t			dc_sym_code;
+	uint8_t			dc_sym_gpio_ctl[2];
+	uint8_t			dc_sym_gpio_dat[2];
+	uint8_t			dc_sym_cmd[2];
 };
 
 #define	DC_SYM_CODE_100BT	0x03
@@ -1181,6 +1181,6 @@ struct dc_eblock_sym {
 
 struct dc_eblock_reset {
 	struct dc_eblock_hdr	dc_reset_hdr;
-	u_int8_t		dc_reset_len;
-/*	u_int16_t		dc_reset_dat[n]; */
+	uint8_t			dc_reset_len;
+/*	uint16_t		dc_reset_dat[n]; */
 };
