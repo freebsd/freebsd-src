@@ -853,8 +853,7 @@ tmpfs_remove(struct vop_remove_args *v)
 	tmpfs_free_dirent(tmp, de, TRUE);
 
 	if (node->tn_links > 0)
-		node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
-	    TMPFS_NODE_MODIFIED;
+		node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED;
 	error = 0;
 
 out:
