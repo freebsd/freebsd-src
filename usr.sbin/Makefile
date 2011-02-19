@@ -89,6 +89,7 @@ SUBDIR= adduser \
 	trpt \
 	tzsetup \
 	ugidfw \
+	utxrm \
 	vipw \
 	wake \
 	watch \
