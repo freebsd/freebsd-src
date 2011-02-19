@@ -65,6 +65,19 @@ gpart_show_error(const char *title, const char *explanation, const char *errstr)
 	dialog_msgbox(title, message, 0, 0, TRUE);
 }
 
+static int
+scheme_supports_labels(const char *scheme)
+{
+	if (strcmp(scheme, "APM") == 0)
+		return (1);
+	if (strcmp(scheme, "GPT") == 0)
+		return (1);
+	if (strcmp(scheme, "PC98") == 0)
+		return (1);
+
+	return (0);
+}
+
 int
 gpart_partition(const char *lg_name, const char *scheme)
 {
@@ -389,11 +402,7 @@ gpart_edit(struct gprovider *pp)
 		}
 	}
 
-	/* Labels only supported on GPT and APM */
-	if (strcmp(scheme, "GPT") == 0 || strcmp(scheme, "APM") == 0)
-		nitems = 4;
-	else
-		nitems = 3;
+	nitems = scheme_supports_labels(scheme) ? 4 : 3;
 
 	/* Edit editable parameters of a partition */
 	hadlabel = 0;
@@ -738,11 +747,7 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	if (strcmp(scheme, "MBR") == 0 || strcmp(scheme, "PC98") == 0)
 		items[0].text = "freebsd";
 
-	/* Labels only supported on GPT and APM */
-	if (strcmp(scheme, "GPT") == 0 || strcmp(scheme, "APM") == 0)
-		nitems = 4;
-	else
-		nitems = 3;
+	nitems = scheme_supports_labels(scheme) ? 4 : 3;
 
 	if (default_type != NULL)
 		items[0].text = default_type;
