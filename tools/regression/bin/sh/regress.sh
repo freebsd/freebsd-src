@@ -9,7 +9,6 @@ export SH=${SH}
 COUNTER=1
 
 do_test() {
-	local c
 	c=${COUNTER}
 	COUNTER=$((COUNTER+1))
 	${SH} $1 > tmp.stdout 2> tmp.stderr
