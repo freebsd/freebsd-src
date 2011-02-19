@@ -961,9 +961,9 @@ DMenu MenuDistributions = {
 	checkDistKernDeveloper, distSetKernDeveloper },
       { "6 User",		"Average user - binaries and doc only",
 	checkDistUser,		distSetUser },
-      { "A Minimal",		"The smallest configuration possible",
+      { "7 Minimal",		"The smallest configuration possible",
 	checkDistMinimum,	distSetMinimum },
-      { "B Custom",		"Specify your own distribution set",
+      { "8 Custom",		"Specify your own distribution set",
 	NULL,			dmenuSubmenu, NULL, &MenuSubDistributions, '>', '>', '>' },
       { NULL } },
 };
