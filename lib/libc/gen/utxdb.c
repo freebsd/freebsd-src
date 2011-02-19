@@ -132,9 +132,8 @@ futx_to_utx(const struct futx *fu)
 		ut = calloc(1, sizeof *ut);
 		if (ut == NULL)
 			return (NULL);
-	} else {
+	} else
 		memset(ut, 0, sizeof *ut);
-	}
 
 	switch (fu->fu_type) {
 	case BOOT_TIME:
