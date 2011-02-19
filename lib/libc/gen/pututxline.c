@@ -43,9 +43,9 @@ __FBSDID("$FreeBSD$");
 static FILE *
 futx_open(const char *file)
 {
-	int fd;
-	FILE *fp;
 	struct stat sb;
+	FILE *fp;
+	int fd;
 
 	fd = _open(file, O_CREAT|O_RDWR|O_EXLOCK, 0644);
 	if (fd < 0)
@@ -54,7 +54,7 @@ futx_open(const char *file)
 	/* Safety check: never use broken files. */
 	if (_fstat(fd, &sb) != -1 && sb.st_size % sizeof(struct futx) != 0) {
 		_close(fd);
-		errno = EINVAL;
+		errno = EFTYPE;
 		return (NULL);
 	}
 	
@@ -63,16 +63,16 @@ futx_open(const char *file)
 		_close(fd);
 		return (NULL);
 	}
-
 	return (fp);
 }
 
 static int
 utx_active_add(const struct futx *fu)
 {
-	FILE *fp;
 	struct futx fe;
+	FILE *fp;
 	off_t partial = -1;
+	int error, ret;
 
 	/*
 	 * Register user login sessions.  Overwrite entries of sessions
@@ -80,16 +80,17 @@ utx_active_add(const struct futx *fu)
 	 */
 	fp = futx_open(_PATH_UTX_ACTIVE);
 	if (fp == NULL)
-		return (1);
-	while (fread(&fe, sizeof fe, 1, fp) == 1) {
+		return (-1);
+	while (fread(&fe, sizeof(fe), 1, fp) == 1) {
 		switch (fe.fu_type) {
 		case USER_PROCESS:
 		case INIT_PROCESS:
 		case LOGIN_PROCESS:
 		case DEAD_PROCESS:
 			/* Overwrite when ut_id matches. */
-			if (memcmp(fu->fu_id, fe.fu_id, sizeof fe.fu_id) == 0) {
-				fseeko(fp, -(off_t)sizeof fe, SEEK_CUR);
+			if (memcmp(fu->fu_id, fe.fu_id, sizeof(fe.fu_id)) ==
+			    0) {
+				ret = fseeko(fp, -(off_t)sizeof(fe), SEEK_CUR);
 				goto exact;
 			}
 			if (fe.fu_type != DEAD_PROCESS)
@@ -97,55 +98,73 @@ utx_active_add(const struct futx *fu)
 			/* FALLTHROUGH */
 		default:
 			/* Allow us to overwrite unused records. */
-			if (partial == -1)
-				partial = ftello(fp) - (off_t)sizeof fe;
+			if (partial == -1) {
+				partial = ftello(fp);
+				/* 
+				 * Distinguish errors from valid values so we
+				 * don't overwrite good data by accident.
+				 */
+				if (partial != -1)
+					partial -= (off_t)sizeof(fe);
+			}
 			break;
 		}
 	}
-	
+
 	/*
 	 * No exact match found.  Use the partial match.  If no partial
 	 * match was found, just append a new record.
 	 */
 	if (partial != -1)
-		fseeko(fp, partial, SEEK_SET);
+		ret = fseeko(fp, partial, SEEK_SET);
 exact:
-	fwrite(fu, sizeof *fu, 1, fp);
+	if (ret == -1)
+		error = errno;
+	else if (fwrite(fu, sizeof(*fu), 1, fp) < 1)
+		error = errno;
+	else
+		error = 0;
 	fclose(fp);
-	return (0);
+	errno = error;
+	return (error == 0 ? 0 : 1);
 }
 
 static int
 utx_active_remove(struct futx *fu)
 {
-	FILE *fp;
 	struct futx fe;
+	FILE *fp;
+	int error, ret;
 
 	/*
 	 * Remove user login sessions, having the same ut_id.
 	 */
 	fp = futx_open(_PATH_UTX_ACTIVE);
 	if (fp == NULL)
-		return (1);
-	while (fread(&fe, sizeof fe, 1, fp) == 1) {
+		return (-1);
+	error = ESRCH;
+	ret = -1;
+	while (fread(&fe, sizeof(fe), 1, fp) == 1 && ret != 0)
 		switch (fe.fu_type) {
 		case USER_PROCESS:
 		case INIT_PROCESS:
 		case LOGIN_PROCESS:
-			if (memcmp(fu->fu_id, fe.fu_id, sizeof fe.fu_id) != 0)
+			if (memcmp(fu->fu_id, fe.fu_id, sizeof(fe.fu_id)) != 0)
 				continue;
 
 			/* Terminate session. */
-			fseeko(fp, -(off_t)sizeof fe, SEEK_CUR);
-			fwrite(fu, sizeof *fu, 1, fp);
-			fclose(fp);
-			return (0);
+			if (fseeko(fp, -(off_t)sizeof(fe), SEEK_CUR) == -1)
+				error = errno;
+			else if (fwrite(fu, sizeof(*fu), 1, fp) < 1)
+				error = errno;
+			else
+				ret = 0;
+
 		}
-	}
 
 	fclose(fp);
-	errno = ESRCH;
-	return (1);
+	errno = error;
+	return (ret);
 }
 
 static void
@@ -158,8 +177,11 @@ utx_active_purge(void)
 static int
 utx_lastlogin_add(const struct futx *fu)
 {
-	FILE *fp;
 	struct futx fe;
+	FILE *fp;
+	int error, ret;
+
+	ret = 0;
 
 	/*
 	 * Write an entry to lastlogin.  Overwrite the entry if the
@@ -168,25 +190,31 @@ utx_lastlogin_add(const struct futx *fu)
 	 */
 	fp = futx_open(_PATH_UTX_LASTLOGIN);
 	if (fp == NULL)
-		return (1);
+		return (-1);
 	while (fread(&fe, sizeof fe, 1, fp) == 1) {
 		if (strncmp(fu->fu_user, fe.fu_user, sizeof fe.fu_user) != 0)
 			continue;
-		
+
 		/* Found a previous lastlogin entry for this user. */
-		fseeko(fp, -(off_t)sizeof fe, SEEK_CUR);
+		ret = fseeko(fp, -(off_t)sizeof fe, SEEK_CUR);
 		break;
 	}
-	fwrite(fu, sizeof *fu, 1, fp);
+	if (ret == -1)
+		error = errno;
+	else if (fwrite(fu, sizeof *fu, 1, fp) < 1) {
+		error = errno;
+		ret = -1;
+	}
 	fclose(fp);
-	return (0);
+	errno = error;
+	return (ret);
 }
 
 static void
 utx_lastlogin_upgrade(void)
 {
-	int fd;
 	struct stat sb;
+	int fd;
 
 	fd = _open(_PATH_UTX_LASTLOGIN, O_RDWR, 0644);
 	if (fd < 0)
@@ -205,9 +233,9 @@ utx_lastlogin_upgrade(void)
 static int
 utx_log_add(const struct futx *fu)
 {
-	int fd;
-	uint16_t l;
 	struct iovec vec[2];
+	int error, fd;
+	uint16_t l;
 
 	/*
 	 * Append an entry to the log file.  We only need to append
@@ -215,19 +243,23 @@ utx_log_add(const struct futx *fu)
 	 * zero-bytes.  Prepend a length field, indicating the length of
 	 * the record, excluding the length field itself.
 	 */
-	for (l = sizeof *fu; l > 0 && ((const char *)fu)[l - 1] == '\0'; l--);
+	for (l = sizeof(*fu); l > 0 && ((const char *)fu)[l - 1] == '\0'; l--) ;
 	vec[0].iov_base = &l;
-	vec[0].iov_len = sizeof l;
+	vec[0].iov_len = sizeof(l);
 	vec[1].iov_base = __DECONST(void *, fu);
 	vec[1].iov_len = l;
 	l = htobe16(l);
 
 	fd = _open(_PATH_UTX_LOG, O_CREAT|O_WRONLY|O_APPEND, 0644);
 	if (fd < 0)
-		return (1);
-	_writev(fd, vec, 2);
+		return (-1);
+	if (_writev(fd, vec, 2) == -1)
+		error = errno;
+	else
+		error = 0;
 	_close(fd);
-	return (0);
+	errno = error;
+	return (error == 0 ? 0 : 1);
 }
 
 struct utmpx *
@@ -237,7 +269,7 @@ pututxline(const struct utmpx *utmpx)
 	int bad = 0;
 
 	utx_to_futx(utmpx, &fu);
-	
+
 	switch (fu.fu_type) {
 	case BOOT_TIME:
 	case SHUTDOWN_TIME:
@@ -267,6 +299,7 @@ pututxline(const struct utmpx *utmpx)
 			return (NULL);
 		break;
 	default:
+		errno = EINVAL;
 		return (NULL);
 	}
 
