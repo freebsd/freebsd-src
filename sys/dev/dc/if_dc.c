@@ -3375,10 +3375,8 @@ dc_start_locked(struct ifnet *ifp)
 
 	DC_LOCK_ASSERT(sc);
 
-	if (!sc->dc_link && ifp->if_snd.ifq_len < 10)
-		return;
-
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || sc->dc_link == 0)
 		return;
 
 	idx = sc->dc_cdata.dc_tx_first = sc->dc_cdata.dc_tx_prod;
