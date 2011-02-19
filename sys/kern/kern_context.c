@@ -71,6 +71,7 @@ getcontext(struct thread *td, struct getcontext_args *uap)
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);
+		bzero(uc.__spare__, sizeof(uc.__spare__));
 		ret = copyout(&uc, uap->ucp, UC_COPY_SIZE);
 	}
 	return (ret);
@@ -107,6 +108,7 @@ swapcontext(struct thread *td, struct swapcontext_args *uap)
 		ret = EINVAL;
 	else {
 		get_mcontext(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
+		bzero(uc.__spare__, sizeof(uc.__spare__));
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);
