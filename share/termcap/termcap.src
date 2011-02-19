@@ -2784,6 +2784,9 @@ SH|screen-s|VT 100/ANSI X3.64 virtual terminal with hardstatus line:\
 	:ts=\E_:fs=\E\\:ds=\E_\E\\:tc=screen:
 SW|screen-w|VT 100/ANSI X3.64 virtual terminal with 132 cols:\
 	:co#132:tc=screen:
+screen-256color|VT 100/ANSI X3.64 terminal with 256 colors:\
+	:Co#256:pa#32767:\
+	:AB=\E[48;5;%dm:AF=\E[38;5;%dm:tc=screen:
 # $XTermId: termcap,v 1.78 2009/11/09 00:24:26 tom Exp $
 #
 # Note:
@@ -4632,7 +4635,11 @@ rxvt|rxvt terminal emulator (X Window System):\
 	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:tc=rxvt-mono:
 
 rxvt-256color|rxvt terminal emulator with 256 colors:\
-	:Co#256:AF=\E[38;5;%dm:AB=\E[48;5;%dm:tc=rxvt-unicode:
+	:Co#256:pa#32767:\
+	:AB=\E[48;5;%dm:AF=\E[38;5;%dm:op=\E[39;49m:tc=rxvt-unicode:
+
+rxvt-unicode-256color|rxvt-unicode terminal with 256 colors (X Window System):\
+	:tc=rxvt-256color:
 
 # Termcap entry for Eterm, taken from the sources of Eterm-0.9.2
 Eterm|Eterm Terminal Emulator (X11 Window System):\
