@@ -19,6 +19,7 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetOptions.h"
@@ -30,7 +31,7 @@ using namespace llvm;
 /// of insertvalue or extractvalue indices that identify a member, return
 /// the linearized index of the start of the member.
 ///
-unsigned llvm::ComputeLinearIndex(const TargetLowering &TLI, const Type *Ty,
+unsigned llvm::ComputeLinearIndex(const Type *Ty,
                                   const unsigned *Indices,
                                   const unsigned *IndicesEnd,
                                   unsigned CurIndex) {
@@ -45,8 +46,8 @@ unsigned llvm::ComputeLinearIndex(const TargetLowering &TLI, const Type *Ty,
                                       EE = STy->element_end();
         EI != EE; ++EI) {
       if (Indices && *Indices == unsigned(EI - EB))
-        return ComputeLinearIndex(TLI, *EI, Indices+1, IndicesEnd, CurIndex);
-      CurIndex = ComputeLinearIndex(TLI, *EI, 0, 0, CurIndex);
+        return ComputeLinearIndex(*EI, Indices+1, IndicesEnd, CurIndex);
+      CurIndex = ComputeLinearIndex(*EI, 0, 0, CurIndex);
     }
     return CurIndex;
   }
@@ -55,8 +56,8 @@ unsigned llvm::ComputeLinearIndex(const TargetLowering &TLI, const Type *Ty,
     const Type *EltTy = ATy->getElementType();
     for (unsigned i = 0, e = ATy->getNumElements(); i != e; ++i) {
       if (Indices && *Indices == i)
-        return ComputeLinearIndex(TLI, EltTy, Indices+1, IndicesEnd, CurIndex);
-      CurIndex = ComputeLinearIndex(TLI, EltTy, 0, 0, CurIndex);
+        return ComputeLinearIndex(EltTy, Indices+1, IndicesEnd, CurIndex);
+      CurIndex = ComputeLinearIndex(EltTy, 0, 0, CurIndex);
     }
     return CurIndex;
   }
@@ -125,7 +126,7 @@ GlobalVariable *llvm::ExtractTypeInfo(Value *V) {
 /// hasInlineAsmMemConstraint - Return true if the inline asm instruction being
 /// processed uses a memory 'm' constraint.
 bool
-llvm::hasInlineAsmMemConstraint(std::vector<InlineAsm::ConstraintInfo> &CInfos,
+llvm::hasInlineAsmMemConstraint(InlineAsm::ConstraintInfoVector &CInfos,
                                 const TargetLowering &TLI) {
   for (unsigned i = 0, e = CInfos.size(); i != e; ++i) {
     InlineAsm::ConstraintInfo &CI = CInfos[i];
@@ -283,3 +284,20 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
   return true;
 }
 
+bool llvm::isInTailCallPosition(SelectionDAG &DAG, SDNode *Node,
+                                const TargetLowering &TLI) {
+  const Function *F = DAG.getMachineFunction().getFunction();
+
+  // Conservatively require the attributes of the call to match those of
+  // the return. Ignore noalias because it doesn't affect the call sequence.
+  unsigned CallerRetAttr = F->getAttributes().getRetAttributes();
+  if (CallerRetAttr & ~Attribute::NoAlias)
+    return false;
+
+  // It's not safe to eliminate the sign / zero extension of the return value.
+  if ((CallerRetAttr & Attribute::ZExt) || (CallerRetAttr & Attribute::SExt))
+    return false;
+
+  // Check if the only use is a function return node.
+  return TLI.isUsedByReturnOnly(Node);
+}

@@ -1,4 +1,4 @@
-//===-- X86Subtarget.cpp - X86 Subtarget Information ------------*- C++ -*-===//
+//===-- X86Subtarget.cpp - X86 Subtarget Information ----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,7 +18,7 @@
 #include "llvm/GlobalValue.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Host.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/SmallVector.h"
@@ -256,13 +256,14 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
   if ((ECX >> 9)  & 1) X86SSELevel = SSSE3;
   if ((ECX >> 19) & 1) X86SSELevel = SSE41;
   if ((ECX >> 20) & 1) X86SSELevel = SSE42;
+  // FIXME: AVX codegen support is not ready.
+  //if ((ECX >> 28) & 1) { HasAVX = true; X86SSELevel = NoMMXSSE; }
 
   bool IsIntel = memcmp(text.c, "GenuineIntel", 12) == 0;
   bool IsAMD   = !IsIntel && memcmp(text.c, "AuthenticAMD", 12) == 0;
 
   HasCLMUL = IsIntel && ((ECX >> 1) & 0x1);
   HasFMA3  = IsIntel && ((ECX >> 12) & 0x1);
-  HasAVX   = ((ECX >> 28) & 0x1);
   HasAES   = IsIntel && ((ECX >> 25) & 0x1);
 
   if (IsIntel || IsAMD) {
@@ -289,6 +290,7 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS,
   , X863DNowLevel(NoThreeDNow)
   , HasCMov(false)
   , HasX86_64(false)
+  , HasPOPCNT(false)
   , HasSSE4A(false)
   , HasAVX(false)
   , HasAES(false)
@@ -315,11 +317,13 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS,
     ParseSubtargetFeatures(FS, CPU);
     // All X86-64 CPUs also have SSE2, however user might request no SSE via 
     // -mattr, so don't force SSELevel here.
+    if (HasAVX)
+      X86SSELevel = NoMMXSSE;
   } else {
     // Otherwise, use CPUID to auto-detect feature set.
     AutoDetectSubtargetFeatures();
     // Make sure SSE2 is enabled; it is available on all X86-64 CPUs.
-    if (Is64Bit && X86SSELevel < SSE2)
+    if (Is64Bit && !HasAVX && X86SSELevel < SSE2)
       X86SSELevel = SSE2;
   }
 
@@ -338,9 +342,9 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS,
   assert((!Is64Bit || HasX86_64) &&
          "64-bit code requested on a subtarget that doesn't support it!");
 
-  // Stack alignment is 16 bytes on Darwin (both 32 and 64 bit) and for all 64
-  // bit targets.
-  if (isTargetDarwin() || Is64Bit)
+  // Stack alignment is 16 bytes on Darwin and Linux (both 32 and 64 bit) and 
+  // for all 64-bit targets.
+  if (isTargetDarwin() || isTargetLinux() || Is64Bit)
     stackAlignment = 16;
 
   if (StackAlignment)

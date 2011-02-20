@@ -273,8 +273,13 @@ private:
   void ProcessBlock(const CFGBlock* B, bool recordStmtValues,
                     dataflow::forward_analysis_tag) {
 
-    for (StmtItr I=ItrTraits::StmtBegin(B), E=ItrTraits::StmtEnd(B); I!=E;++I)
-      ProcessStmt(*I, recordStmtValues, AnalysisDirTag());
+    TF.setCurrentBlock(B);
+    
+    for (StmtItr I=ItrTraits::StmtBegin(B), E=ItrTraits::StmtEnd(B); I!=E;++I) {
+      CFGElement El = *I;
+      if (CFGStmt S = El.getAs<CFGStmt>())
+        ProcessStmt(S, recordStmtValues, AnalysisDirTag());
+    }
 
     TF.VisitTerminator(const_cast<CFGBlock*>(B));
   }
@@ -282,10 +287,15 @@ private:
   void ProcessBlock(const CFGBlock* B, bool recordStmtValues,
                     dataflow::backward_analysis_tag) {
 
+    TF.setCurrentBlock(B);
+    
     TF.VisitTerminator(const_cast<CFGBlock*>(B));
 
-    for (StmtItr I=ItrTraits::StmtBegin(B), E=ItrTraits::StmtEnd(B); I!=E;++I)
-      ProcessStmt(*I, recordStmtValues, AnalysisDirTag());
+    for (StmtItr I=ItrTraits::StmtBegin(B), E=ItrTraits::StmtEnd(B); I!=E;++I) {
+      CFGElement El = *I;
+      if (CFGStmt S = El.getAs<CFGStmt>())
+        ProcessStmt(S, recordStmtValues, AnalysisDirTag());
+    }
   }
 
   void ProcessStmt(const Stmt* S, bool record, dataflow::forward_analysis_tag) {

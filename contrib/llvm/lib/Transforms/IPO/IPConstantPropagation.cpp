@@ -35,7 +35,9 @@ namespace {
   ///
   struct IPCP : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
-    IPCP() : ModulePass(ID) {}
+    IPCP() : ModulePass(ID) {
+      initializeIPCPPass(*PassRegistry::getPassRegistry());
+    }
 
     bool runOnModule(Module &M);
   private:
@@ -46,7 +48,7 @@ namespace {
 
 char IPCP::ID = 0;
 INITIALIZE_PASS(IPCP, "ipconstprop",
-                "Interprocedural constant propagation", false, false);
+                "Interprocedural constant propagation", false, false)
 
 ModulePass *llvm::createIPConstantPropagationPass() { return new IPCP(); }
 

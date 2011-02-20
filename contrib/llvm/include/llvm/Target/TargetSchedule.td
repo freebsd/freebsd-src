@@ -22,6 +22,13 @@
 //  
 class FuncUnit;
 
+//===----------------------------------------------------------------------===//
+// Pipeline bypass / forwarding - These values specifies the symbolic names of
+// pipeline bypasses which can be used to forward results of instructions
+// that are forwarded to uses.
+class Bypass;
+def NoBypass : Bypass;
+
 class ReservationKind<bits<1> val> {
   int Value = val;
 }
@@ -66,30 +73,58 @@ class InstrStage<int cycles, list<FuncUnit> units,
 // across all chip sets.  Thus a new chip set can be added without modifying
 // instruction information.
 //
-class InstrItinClass;
+// NumMicroOps represents the number of micro-operations that each instruction
+// in the class are decoded to. If the number is zero, then it means the
+// instruction can decode into variable number of micro-ops and it must be
+// determined dynamically.
+//
+class InstrItinClass<int ops = 1> {
+  int NumMicroOps = ops;
+}
 def NoItinerary : InstrItinClass;
 
 //===----------------------------------------------------------------------===//
 // Instruction itinerary data - These values provide a runtime map of an 
 // instruction itinerary class (name) to its itinerary data.
 //
+// OperandCycles are optional "cycle counts". They specify the cycle after
+// instruction issue the values which correspond to specific operand indices
+// are defined or read. Bypasses are optional "pipeline forwarding pathes", if
+// a def by an instruction is available on a specific bypass and the use can
+// read from the same bypass, then the operand use latency is reduced by one.
+//
+//  InstrItinData<IIC_iLoad_i , [InstrStage<1, [A9_Pipe1]>,
+//                               InstrStage<1, [A9_AGU]>],
+//                              [3, 1], [A9_LdBypass]>,
+//  InstrItinData<IIC_iMVNr   , [InstrStage<1, [A9_Pipe0, A9_Pipe1]>],
+//                              [1, 1], [NoBypass, A9_LdBypass]>,
+//
+// In this example, the instruction of IIC_iLoadi reads its input on cycle 1
+// (after issue) and the result of the load is available on cycle 3. The result
+// is available via forwarding path A9_LdBypass. If it's used by the first
+// source operand of instructions of IIC_iMVNr class, then the operand latency
+// is reduced by 1.
 class InstrItinData<InstrItinClass Class, list<InstrStage> stages,
-                    list<int> operandcycles = []> {
+                    list<int> operandcycles = [],
+                    list<Bypass> bypasses = []> {
   InstrItinClass TheClass = Class;
   list<InstrStage> Stages = stages;
   list<int> OperandCycles = operandcycles;
+  list<Bypass> Bypasses = bypasses;
 }
 
 //===----------------------------------------------------------------------===//
 // Processor itineraries - These values represent the set of all itinerary
 // classes for a given chip set.
 //
-class ProcessorItineraries<list<FuncUnit> fu, list<InstrItinData> iid> {
+class ProcessorItineraries<list<FuncUnit> fu, list<Bypass> bp,
+                           list<InstrItinData> iid> {
   list<FuncUnit> FU = fu;
+  list<Bypass> BP = bp;
   list<InstrItinData> IID = iid;
 }
 
 // NoItineraries - A marker that can be used by processors without schedule
 // info.
-def NoItineraries : ProcessorItineraries<[], []>;
+def NoItineraries : ProcessorItineraries<[], [], []>;
 

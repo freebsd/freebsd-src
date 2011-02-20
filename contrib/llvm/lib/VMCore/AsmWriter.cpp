@@ -198,6 +198,7 @@ void TypePrinting::CalcTypeName(const Type *Ty,
   case Type::PPC_FP128TyID: OS << "ppc_fp128"; break;
   case Type::LabelTyID:     OS << "label"; break;
   case Type::MetadataTyID:  OS << "metadata"; break;
+  case Type::X86_MMXTyID:   OS << "x86_mmx"; break;
   case Type::IntegerTyID:
     OS << 'i' << cast<IntegerType>(Ty)->getBitWidth();
     break;
@@ -830,7 +831,8 @@ static void WriteOptimizationInfo(raw_ostream &Out, const User *U) {
       Out << " nuw";
     if (OBO->hasNoSignedWrap())
       Out << " nsw";
-  } else if (const SDivOperator *Div = dyn_cast<SDivOperator>(U)) {
+  } else if (const PossiblyExactOperator *Div =
+               dyn_cast<PossiblyExactOperator>(U)) {
     if (Div->isExact())
       Out << " exact";
   } else if (const GEPOperator *GEP = dyn_cast<GEPOperator>(U)) {
@@ -1057,11 +1059,6 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
     return;
   }
 
-  if (const MDNode *Node = dyn_cast<MDNode>(CV)) {
-    Out << "!" << Machine->getMetadataSlot(Node);
-    return;
-  }
-
   if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
     Out << CE->getOpcodeName();
     WriteOptimizationInfo(Out, CE);
@@ -1165,7 +1162,11 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
       else
         Machine = new SlotTracker(Context);
     }
-    Out << '!' << Machine->getMetadataSlot(N);
+    int Slot = Machine->getMetadataSlot(N);
+    if (Slot == -1)
+      Out << "<badref>";
+    else
+      Out << '!' << Slot;
     return;
   }
 
@@ -1395,7 +1396,11 @@ void AssemblyWriter::printNamedMDNode(const NamedMDNode *NMD) {
   Out << "!" << NMD->getName() << " = !{";
   for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
     if (i) Out << ", ";
-    Out << '!' << Machine.getMetadataSlot(NMD->getOperand(i));
+    int Slot = Machine.getMetadataSlot(NMD->getOperand(i));
+    if (Slot == -1)
+      Out << "<badref>";
+    else
+      Out << '!' << Slot;
   }
   Out << "}\n";
 }
@@ -1455,6 +1460,7 @@ void AssemblyWriter::printGlobal(const GlobalVariable *GV) {
   if (GV->isThreadLocal()) Out << "thread_local ";
   if (unsigned AddressSpace = GV->getType()->getAddressSpace())
     Out << "addrspace(" << AddressSpace << ") ";
+  if (GV->hasUnnamedAddr()) Out << "unnamed_addr ";
   Out << (GV->isConstant() ? "constant " : "global ");
   TypePrinter.print(GV->getType()->getElementType(), Out);
 
@@ -1575,6 +1581,8 @@ void AssemblyWriter::printFunction(const Function *F) {
   case CallingConv::ARM_AAPCS:    Out << "arm_aapcscc "; break;
   case CallingConv::ARM_AAPCS_VFP:Out << "arm_aapcs_vfpcc "; break;
   case CallingConv::MSP430_INTR:  Out << "msp430_intrcc "; break;
+  case CallingConv::PTX_Kernel:   Out << "ptx_kernel"; break;
+  case CallingConv::PTX_Device:   Out << "ptx_device"; break;
   default: Out << "cc" << F->getCallingConv() << " "; break;
   }
 
@@ -1622,6 +1630,8 @@ void AssemblyWriter::printFunction(const Function *F) {
     Out << "...";  // Output varargs portion of signature!
   }
   Out << ')';
+  if (F->hasUnnamedAddr())
+    Out << " unnamed_addr";
   Attributes FnAttrs = Attrs.getFnAttributes();
   if (FnAttrs != Attribute::None)
     Out << ' ' << Attribute::getAsString(Attrs.getFnAttributes());
@@ -1843,6 +1853,8 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     case CallingConv::ARM_AAPCS:    Out << " arm_aapcscc "; break;
     case CallingConv::ARM_AAPCS_VFP:Out << " arm_aapcs_vfpcc "; break;
     case CallingConv::MSP430_INTR:  Out << " msp430_intrcc "; break;
+    case CallingConv::PTX_Kernel:   Out << " ptx_kernel"; break;
+    case CallingConv::PTX_Device:   Out << " ptx_device"; break;
     default: Out << " cc" << CI->getCallingConv(); break;
     }
 
@@ -1897,6 +1909,8 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     case CallingConv::ARM_AAPCS:    Out << " arm_aapcscc "; break;
     case CallingConv::ARM_AAPCS_VFP:Out << " arm_aapcs_vfpcc "; break;
     case CallingConv::MSP430_INTR:  Out << " msp430_intrcc "; break;
+    case CallingConv::PTX_Kernel:   Out << " ptx_kernel"; break;
+    case CallingConv::PTX_Device:   Out << " ptx_device"; break;
     default: Out << " cc" << II->getCallingConv(); break;
     }
 
@@ -2033,15 +2047,7 @@ static void WriteMDNodeComment(const MDNode *Node,
     return;
   
   Out.PadToColumn(50);
-  if (Tag == dwarf::DW_TAG_auto_variable)
-    Out << "; [ DW_TAG_auto_variable ]";
-  else if (Tag == dwarf::DW_TAG_arg_variable)
-    Out << "; [ DW_TAG_arg_variable ]";
-  else if (Tag == dwarf::DW_TAG_return_variable)
-    Out << "; [ DW_TAG_return_variable ]";
-  else if (Tag == dwarf::DW_TAG_vector_type)
-    Out << "; [ DW_TAG_vector_type ]";
-  else if (Tag == dwarf::DW_TAG_user_base)
+  if (Tag == dwarf::DW_TAG_user_base)
     Out << "; [ DW_TAG_user_base ]";
   else if (Tag.isIntN(32)) {
     if (const char *TagName = dwarf::TagString(Tag.getZExtValue()))

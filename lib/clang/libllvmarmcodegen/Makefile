@@ -3,19 +3,25 @@
 LIB=	llvmarmcodegen
 
 SRCDIR=	lib/Target/ARM
-SRCS=	ARMAsmPrinter.cpp \
+SRCS=	ARMAsmBackend.cpp \
+	ARMAsmPrinter.cpp \
 	ARMBaseInstrInfo.cpp \
 	ARMBaseRegisterInfo.cpp \
 	ARMCodeEmitter.cpp \
 	ARMConstantIslandPass.cpp \
 	ARMConstantPoolValue.cpp \
+	ARMELFWriterInfo.cpp \
 	ARMExpandPseudoInsts.cpp \
 	ARMFastISel.cpp \
+	ARMFrameLowering.cpp \
 	ARMGlobalMerge.cpp \
+	ARMHazardRecognizer.cpp \
 	ARMISelDAGToDAG.cpp \
 	ARMISelLowering.cpp \
 	ARMInstrInfo.cpp \
 	ARMJITInfo.cpp \
+	ARMMCCodeEmitter.cpp \
+	ARMMCExpr.cpp \
 	ARMLoadStoreOptimizer.cpp \
 	ARMMCAsmInfo.cpp \
 	ARMMCInstLower.cpp \
@@ -24,11 +30,11 @@ SRCS=	ARMAsmPrinter.cpp \
 	ARMSubtarget.cpp \
 	ARMTargetMachine.cpp \
 	ARMTargetObjectFile.cpp \
+	MLxExpansionPass.cpp \
 	NEONMoveFix.cpp \
-	NEONPreAllocPass.cpp \
+	Thumb1FrameLowering.cpp \
 	Thumb1InstrInfo.cpp \
 	Thumb1RegisterInfo.cpp \
-	Thumb2HazardRecognizer.cpp \
 	Thumb2ITBlockPass.cpp \
 	Thumb2InstrInfo.cpp \
 	Thumb2RegisterInfo.cpp \
@@ -41,6 +47,7 @@ TGHDRS=	ARMGenAsmWriter \
 	ARMGenFastISel \
 	ARMGenInstrInfo \
 	ARMGenInstrNames \
+	ARMGenMCCodeEmitter \
 	ARMGenRegisterInfo \
 	ARMGenRegisterInfo.h \
 	ARMGenRegisterNames \

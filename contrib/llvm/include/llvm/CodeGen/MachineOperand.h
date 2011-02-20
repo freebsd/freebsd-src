@@ -14,11 +14,11 @@
 #ifndef LLVM_CODEGEN_MACHINEOPERAND_H
 #define LLVM_CODEGEN_MACHINEOPERAND_H
 
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include <cassert>
 
 namespace llvm {
-  
+
 class BlockAddress;
 class ConstantFP;
 class GlobalValue;
@@ -30,7 +30,7 @@ class TargetMachine;
 class TargetRegisterInfo;
 class raw_ostream;
 class MCSymbol;
-  
+
 /// MachineOperand class - Representation of each machine instruction operand.
 ///
 class MachineOperand {
@@ -54,21 +54,21 @@ private:
   /// OpKind - Specify what kind of operand this is.  This discriminates the
   /// union.
   unsigned char OpKind; // MachineOperandType
-  
+
   /// SubReg - Subregister number, only valid for MO_Register.  A value of 0
   /// indicates the MO_Register has no subReg.
   unsigned char SubReg;
-  
+
   /// TargetFlags - This is a set of target-specific operand flags.
   unsigned char TargetFlags;
-  
+
   /// IsDef/IsImp/IsKill/IsDead flags - These are only valid for MO_Register
   /// operands.
-  
+
   /// IsDef - True if this is a def, false if this is a use of the register.
   ///
   bool IsDef : 1;
-  
+
   /// IsImp - True if this is an implicit def or use, false if it is explicit.
   ///
   bool IsImp : 1;
@@ -94,7 +94,16 @@ private:
   /// not a real instruction.  Such uses should be ignored during codegen.
   bool IsDebug : 1;
 
-  /// ParentMI - This is the instruction that this operand is embedded into. 
+  /// SmallContents - Thisreally should be part of the Contents union, but lives
+  /// out here so we can get a better packed struct.
+  /// MO_Register: Register number.
+  /// OffsetedInfo: Low bits of offset.
+  union {
+    unsigned RegNo;           // For MO_Register.
+    unsigned OffsetLo;        // Matches Contents.OffsetedInfo.OffsetHi.
+  } SmallContents;
+
+  /// ParentMI - This is the instruction that this operand is embedded into.
   /// This is valid for all operand types, when the operand is in an instr.
   MachineInstr *ParentMI;
 
@@ -107,11 +116,11 @@ private:
     MCSymbol *Sym;            // For MO_MCSymbol
 
     struct {                  // For MO_Register.
-      unsigned RegNo;
+      // Register number is in SmallContents.RegNo.
       MachineOperand **Prev;  // Access list for register.
       MachineOperand *Next;
     } Reg;
-    
+
     /// OffsetedInfo - This struct contains the offset and an object identifier.
     /// this represent the object as with an optional offset from it.
     struct {
@@ -121,10 +130,11 @@ private:
         const GlobalValue *GV;    // For MO_GlobalAddress.
         const BlockAddress *BA;   // For MO_BlockAddress.
       } Val;
-      int64_t Offset;             // An offset from the object.
+      // Low bits of offset are in SmallContents.OffsetLo.
+      int OffsetHi;               // An offset from the object, high 32 bits.
     } OffsetedInfo;
   } Contents;
-  
+
   explicit MachineOperand(MachineOperandType K) : OpKind(K), ParentMI(0) {
     TargetFlags = 0;
   }
@@ -132,17 +142,27 @@ public:
   /// getType - Returns the MachineOperandType for this operand.
   ///
   MachineOperandType getType() const { return (MachineOperandType)OpKind; }
-  
+
   unsigned char getTargetFlags() const { return TargetFlags; }
   void setTargetFlags(unsigned char F) { TargetFlags = F; }
   void addTargetFlag(unsigned char F) { TargetFlags |= F; }
-  
+
 
   /// getParent - Return the instruction that this operand belongs to.
   ///
   MachineInstr *getParent() { return ParentMI; }
   const MachineInstr *getParent() const { return ParentMI; }
-  
+
+  /// clearParent - Reset the parent pointer.
+  ///
+  /// The MachineOperand copy constructor also copies ParentMI, expecting the
+  /// original to be deleted. If a MachineOperand is ever stored outside a
+  /// MachineInstr, the parent pointer must be cleared.
+  ///
+  /// Never call clearParent() on an operand in a MachineInstr.
+  ///
+  void clearParent() { ParentMI = 0; }
+
   void print(raw_ostream &os, const TargetMachine *TM = 0) const;
 
   //===--------------------------------------------------------------------===//
@@ -180,44 +200,44 @@ public:
   /// getReg - Returns the register number.
   unsigned getReg() const {
     assert(isReg() && "This is not a register operand!");
-    return Contents.Reg.RegNo;
+    return SmallContents.RegNo;
   }
-  
+
   unsigned getSubReg() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return (unsigned)SubReg;
   }
-  
-  bool isUse() const { 
+
+  bool isUse() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return !IsDef;
   }
-  
+
   bool isDef() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return IsDef;
   }
-  
-  bool isImplicit() const { 
+
+  bool isImplicit() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return IsImp;
   }
-  
+
   bool isDead() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return IsDead;
   }
-  
+
   bool isKill() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return IsKill;
   }
-  
+
   bool isUndef() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return IsUndef;
   }
-  
+
   bool isEarlyClobber() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return IsEarlyClobber;
@@ -238,11 +258,11 @@ public:
   //===--------------------------------------------------------------------===//
   // Mutators for Register Operands
   //===--------------------------------------------------------------------===//
-  
+
   /// Change the register this operand corresponds to.
   ///
   void setReg(unsigned Reg);
-  
+
   void setSubReg(unsigned subReg) {
     assert(isReg() && "Wrong MachineOperand accessor");
     SubReg = (unsigned char)subReg;
@@ -266,14 +286,14 @@ public:
     assert((Val || !isDebug()) && "Marking a debug operation as def");
     IsDef = !Val;
   }
-  
+
   void setIsDef(bool Val = true) {
     assert(isReg() && "Wrong MachineOperand accessor");
     assert((!Val || !isDebug()) && "Marking a debug operation as def");
     IsDef = Val;
   }
 
-  void setImplicit(bool Val = true) { 
+  void setImplicit(bool Val = true) {
     assert(isReg() && "Wrong MachineOperand accessor");
     IsImp = Val;
   }
@@ -283,7 +303,7 @@ public:
     assert((!Val || !isDebug()) && "Marking a debug operation as kill");
     IsKill = Val;
   }
-  
+
   void setIsDead(bool Val = true) {
     assert(isReg() && IsDef && "Wrong MachineOperand accessor");
     IsDead = Val;
@@ -293,7 +313,7 @@ public:
     assert(isReg() && "Wrong MachineOperand accessor");
     IsUndef = Val;
   }
-  
+
   void setIsEarlyClobber(bool Val = true) {
     assert(isReg() && IsDef && "Wrong MachineOperand accessor");
     IsEarlyClobber = Val;
@@ -307,17 +327,17 @@ public:
   //===--------------------------------------------------------------------===//
   // Accessors for various operand types.
   //===--------------------------------------------------------------------===//
-  
+
   int64_t getImm() const {
     assert(isImm() && "Wrong MachineOperand accessor");
     return Contents.ImmVal;
   }
-  
+
   const ConstantFP *getFPImm() const {
     assert(isFPImm() && "Wrong MachineOperand accessor");
     return Contents.CFP;
   }
-  
+
   MachineBasicBlock *getMBB() const {
     assert(isMBB() && "Wrong MachineOperand accessor");
     return Contents.MBB;
@@ -328,7 +348,7 @@ public:
            "Wrong MachineOperand accessor");
     return Contents.OffsetedInfo.Val.Index;
   }
-  
+
   const GlobalValue *getGlobal() const {
     assert(isGlobal() && "Wrong MachineOperand accessor");
     return Contents.OffsetedInfo.Val.GV;
@@ -343,15 +363,16 @@ public:
     assert(isMCSymbol() && "Wrong MachineOperand accessor");
     return Contents.Sym;
   }
-  
+
   /// getOffset - Return the offset from the symbol in this operand. This always
   /// returns 0 for ExternalSymbol operands.
   int64_t getOffset() const {
     assert((isGlobal() || isSymbol() || isCPI() || isBlockAddress()) &&
            "Wrong MachineOperand accessor");
-    return Contents.OffsetedInfo.Offset;
+    return (int64_t(Contents.OffsetedInfo.OffsetHi) << 32) |
+           SmallContents.OffsetLo;
   }
-  
+
   const char *getSymbolName() const {
     assert(isSymbol() && "Wrong MachineOperand accessor");
     return Contents.OffsetedInfo.Val.SymbolName;
@@ -361,11 +382,11 @@ public:
     assert(isMetadata() && "Wrong MachineOperand accessor");
     return Contents.MD;
   }
-  
+
   //===--------------------------------------------------------------------===//
   // Mutators for various operand types.
   //===--------------------------------------------------------------------===//
-  
+
   void setImm(int64_t immVal) {
     assert(isImm() && "Wrong MachineOperand mutator");
     Contents.ImmVal = immVal;
@@ -374,56 +395,57 @@ public:
   void setOffset(int64_t Offset) {
     assert((isGlobal() || isSymbol() || isCPI() || isBlockAddress()) &&
         "Wrong MachineOperand accessor");
-    Contents.OffsetedInfo.Offset = Offset;
+    SmallContents.OffsetLo = unsigned(Offset);
+    Contents.OffsetedInfo.OffsetHi = int(Offset >> 32);
   }
-  
+
   void setIndex(int Idx) {
     assert((isFI() || isCPI() || isJTI()) &&
            "Wrong MachineOperand accessor");
     Contents.OffsetedInfo.Val.Index = Idx;
   }
-  
+
   void setMBB(MachineBasicBlock *MBB) {
     assert(isMBB() && "Wrong MachineOperand accessor");
     Contents.MBB = MBB;
   }
-  
+
   //===--------------------------------------------------------------------===//
   // Other methods.
   //===--------------------------------------------------------------------===//
-  
+
   /// isIdenticalTo - Return true if this operand is identical to the specified
   /// operand. Note: This method ignores isKill and isDead properties.
   bool isIdenticalTo(const MachineOperand &Other) const;
-  
+
   /// ChangeToImmediate - Replace this operand with a new immediate operand of
   /// the specified value.  If an operand is known to be an immediate already,
   /// the setImm method should be used.
   void ChangeToImmediate(int64_t ImmVal);
-  
+
   /// ChangeToRegister - Replace this operand with a new register operand of
   /// the specified value.  If an operand is known to be an register already,
   /// the setReg method should be used.
   void ChangeToRegister(unsigned Reg, bool isDef, bool isImp = false,
                         bool isKill = false, bool isDead = false,
                         bool isUndef = false, bool isDebug = false);
-  
+
   //===--------------------------------------------------------------------===//
   // Construction methods.
   //===--------------------------------------------------------------------===//
-  
+
   static MachineOperand CreateImm(int64_t Val) {
     MachineOperand Op(MachineOperand::MO_Immediate);
     Op.setImm(Val);
     return Op;
   }
-  
+
   static MachineOperand CreateFPImm(const ConstantFP *CFP) {
     MachineOperand Op(MachineOperand::MO_FPImmediate);
     Op.Contents.CFP = CFP;
     return Op;
   }
-  
+
   static MachineOperand CreateReg(unsigned Reg, bool isDef, bool isImp = false,
                                   bool isKill = false, bool isDead = false,
                                   bool isUndef = false,
@@ -438,7 +460,7 @@ public:
     Op.IsUndef = isUndef;
     Op.IsEarlyClobber = isEarlyClobber;
     Op.IsDebug = isDebug;
-    Op.Contents.Reg.RegNo = Reg;
+    Op.SmallContents.RegNo = Reg;
     Op.Contents.Reg.Prev = 0;
     Op.Contents.Reg.Next = 0;
     Op.SubReg = SubReg;
@@ -506,7 +528,7 @@ public:
     Op.Contents.Sym = Sym;
     return Op;
   }
-  
+
   friend class MachineInstr;
   friend class MachineRegisterInfo;
 private:
@@ -521,7 +543,7 @@ private:
     assert(isReg() && "Can only add reg operand to use lists");
     return Contents.Reg.Prev != 0;
   }
-  
+
   /// AddRegOperandToRegInfo - Add this register operand to the specified
   /// MachineRegisterInfo.  If it is null, then the next/prev fields should be
   /// explicitly nulled out.

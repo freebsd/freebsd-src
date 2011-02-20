@@ -27,12 +27,6 @@
 
 typedef int8_t bool;
 
-#ifdef __GNUC__
-#define NORETURN __attribute__((noreturn))
-#else
-#define NORETURN
-#endif
-
 #ifndef NDEBUG
 #define debug(s) do { x86DisassemblerDebug(__FILE__, __LINE__, s); } while (0)
 #else
@@ -103,7 +97,7 @@ static InstrUID decode(OpcodeType type,
                        InstructionContext insnContext,
                        uint8_t opcode,
                        uint8_t modRM) {
-  struct ModRMDecision* dec;
+  const struct ModRMDecision* dec;
   
   switch (type) {
   default:
@@ -147,7 +141,7 @@ static InstrUID decode(OpcodeType type,
  *              decode(); specifierForUID will not check bounds.
  * @return    - A pointer to the specification for that instruction.
  */
-static struct InstructionSpecifier* specifierForUID(InstrUID uid) {
+static const struct InstructionSpecifier *specifierForUID(InstrUID uid) {
   return &INSTRUCTIONS_SYM[uid];
 }
 
@@ -296,7 +290,7 @@ static int readPrefixes(struct InternalInstruction* insn) {
   BOOL isPrefix = TRUE;
   BOOL prefixGroups[4] = { FALSE };
   uint64_t prefixLocation;
-  uint8_t byte;
+  uint8_t byte = 0;
   
   BOOL hasAdSize = FALSE;
   BOOL hasOpSize = FALSE;
@@ -394,6 +388,7 @@ static int readPrefixes(struct InternalInstruction* insn) {
     }
   } else {
     unconsumeByte(insn);
+    insn->necessaryPrefixLocation = insn->readerCursor - 1;
   }
   
   if (insn->mode == MODE_16BIT) {
@@ -405,7 +400,7 @@ static int readPrefixes(struct InternalInstruction* insn) {
     insn->registerSize       = (hasOpSize ? 2 : 4);
     insn->addressSize        = (hasAdSize ? 2 : 4);
     insn->displacementSize   = (hasAdSize ? 2 : 4);
-    insn->immediateSize      = (hasAdSize ? 2 : 4);
+    insn->immediateSize      = (hasOpSize ? 2 : 4);
   } else if (insn->mode == MODE_64BIT) {
     if (insn->rexPrefix && wFromREX(insn->rexPrefix)) {
       insn->registerSize       = 8;
@@ -517,7 +512,8 @@ static int getIDWithAttrMask(uint16_t* instructionID,
                                     insn->opcode);
   
   if (hasModRMExtension) {
-    readModRM(insn);
+    if (readModRM(insn))
+      return -1;
     
     *instructionID = decode(insn->opcodeType,
                             instructionClass,
@@ -632,9 +628,9 @@ static int getID(struct InternalInstruction* insn) {
      * instead of F2 changes a 32 to a 64, we adopt the new encoding.
      */
     
-    struct InstructionSpecifier* spec;
+    const struct InstructionSpecifier *spec;
     uint16_t instructionIDWithREXw;
-    struct InstructionSpecifier* specWithREXw;
+    const struct InstructionSpecifier *specWithREXw;
     
     spec = specifierForUID(instructionID);
     
@@ -672,9 +668,9 @@ static int getID(struct InternalInstruction* insn) {
      * in the right place we check if there's a 16-bit operation.
      */
     
-    struct InstructionSpecifier* spec;
+    const struct InstructionSpecifier *spec;
     uint16_t instructionIDWithOpsize;
-    struct InstructionSpecifier* specWithOpsize;
+    const struct InstructionSpecifier *specWithOpsize;
     
     spec = specifierForUID(instructionID);
     
@@ -866,7 +862,8 @@ static int readModRM(struct InternalInstruction* insn) {
   if (insn->consumedModRM)
     return 0;
   
-  consumeByte(insn, &insn->modRM);
+  if (consumeByte(insn, &insn->modRM))
+    return -1;
   insn->consumedModRM = TRUE;
   
   mod     = modFromModRM(insn->modRM);
@@ -1067,7 +1064,7 @@ GENERIC_FIXUP_FUNC(fixupRMValue,  insn->eaRegBase,  EA_REG)
  *                invalid for its class.
  */
 static int fixupReg(struct InternalInstruction *insn, 
-                    struct OperandSpecifier *op) {
+                    const struct OperandSpecifier *op) {
   uint8_t valid;
   
   dbgprintf(insn, "fixupReg()");

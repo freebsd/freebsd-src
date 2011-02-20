@@ -258,15 +258,16 @@ private:
 
   struct BitTestBlock {
     BitTestBlock(APInt F, APInt R, const Value* SV,
-                 unsigned Rg, bool E,
+                 unsigned Rg, EVT RgVT, bool E,
                  MachineBasicBlock* P, MachineBasicBlock* D,
                  const BitTestInfo& C):
-      First(F), Range(R), SValue(SV), Reg(Rg), Emitted(E),
+      First(F), Range(R), SValue(SV), Reg(Rg), RegVT(RgVT), Emitted(E),
       Parent(P), Default(D), Cases(C) { }
     APInt First;
     APInt Range;
     const Value *SValue;
     unsigned Reg;
+    EVT RegVT;
     bool Emitted;
     MachineBasicBlock *Parent;
     MachineBasicBlock *Default;
@@ -347,7 +348,7 @@ public:
   SDValue getControlRoot();
 
   DebugLoc getCurDebugLoc() const { return CurDebugLoc; }
-
+  void setCurDebugLoc(DebugLoc dl){ CurDebugLoc = dl; }
   unsigned getSDNodeOrder() const { return SDNodeOrder; }
 
   void CopyValueToVirtualRegister(const Value *V, unsigned Reg);
@@ -398,6 +399,10 @@ public:
   void LowerCallTo(ImmutableCallSite CS, SDValue Callee, bool IsTailCall,
                    MachineBasicBlock *LandingPad = NULL);
 
+  /// UpdateSplitBlock - When an MBB was split during scheduling, update the
+  /// references that ned to refer to the last resulting block.
+  void UpdateSplitBlock(MachineBasicBlock *First, MachineBasicBlock *Last);
+
 private:
   // Terminator instructions.
   void visitRet(const ReturnInst &I);
@@ -431,7 +436,8 @@ public:
   void visitSwitchCase(CaseBlock &CB,
                        MachineBasicBlock *SwitchBB);
   void visitBitTestHeader(BitTestBlock &B, MachineBasicBlock *SwitchBB);
-  void visitBitTestCase(MachineBasicBlock* NextMBB,
+  void visitBitTestCase(BitTestBlock &BB,
+                        MachineBasicBlock* NextMBB,
                         unsigned Reg,
                         BitTestCase &B,
                         MachineBasicBlock *SwitchBB);

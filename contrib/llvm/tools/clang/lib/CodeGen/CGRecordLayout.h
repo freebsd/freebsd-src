@@ -11,10 +11,11 @@
 #define CLANG_CODEGEN_CGRECORDLAYOUT_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/DerivedTypes.h"
 #include "clang/AST/Decl.h"
 namespace llvm {
   class raw_ostream;
-  class Type;
+  class StructType;
 }
 
 namespace clang {
@@ -172,8 +173,13 @@ class CGRecordLayout {
   void operator=(const CGRecordLayout&); // DO NOT IMPLEMENT
 
 private:
-  /// The LLVMType corresponding to this record layout.
-  const llvm::Type *LLVMType;
+  /// The LLVM type corresponding to this record layout; used when
+  /// laying it out as a complete object.
+  llvm::PATypeHolder CompleteObjectType;
+
+  /// The LLVM type for the non-virtual part of this record layout;
+  /// used when laying it out as a base subobject.
+  llvm::PATypeHolder BaseSubobjectType;
 
   /// Map from (non-bit-field) struct field to the corresponding llvm struct
   /// type field no. This info is populated by record builder.
@@ -185,25 +191,53 @@ private:
 
   // FIXME: Maybe we could use a CXXBaseSpecifier as the key and use a single
   // map for both virtual and non virtual bases.
-  llvm::DenseMap<const CXXRecordDecl *, unsigned> NonVirtualBaseFields;
+  llvm::DenseMap<const CXXRecordDecl *, unsigned> NonVirtualBases;
 
-  /// Whether one of the fields in this record layout is a pointer to data
-  /// member, or a struct that contains pointer to data member.
+  /// Map from virtual bases to their field index in the complete object.
+  llvm::DenseMap<const CXXRecordDecl *, unsigned> CompleteObjectVirtualBases;
+
+  /// False if any direct or indirect subobject of this class, when
+  /// considered as a complete object, requires a non-zero bitpattern
+  /// when zero-initialized.
   bool IsZeroInitializable : 1;
 
-public:
-  CGRecordLayout(const llvm::Type *T, bool IsZeroInitializable)
-    : LLVMType(T), IsZeroInitializable(IsZeroInitializable) {}
+  /// False if any direct or indirect subobject of this class, when
+  /// considered as a base subobject, requires a non-zero bitpattern
+  /// when zero-initialized.
+  bool IsZeroInitializableAsBase : 1;
 
-  /// \brief Return the LLVM type associated with this record.
-  const llvm::Type *getLLVMType() const {
-    return LLVMType;
+public:
+  CGRecordLayout(const llvm::StructType *CompleteObjectType,
+                 const llvm::StructType *BaseSubobjectType,
+                 bool IsZeroInitializable,
+                 bool IsZeroInitializableAsBase)
+    : CompleteObjectType(CompleteObjectType),
+      BaseSubobjectType(BaseSubobjectType),
+      IsZeroInitializable(IsZeroInitializable),
+      IsZeroInitializableAsBase(IsZeroInitializableAsBase) {}
+
+  /// \brief Return the "complete object" LLVM type associated with
+  /// this record.
+  const llvm::StructType *getLLVMType() const {
+    return cast<llvm::StructType>(CompleteObjectType.get());
+  }
+
+  /// \brief Return the "base subobject" LLVM type associated with
+  /// this record.
+  const llvm::StructType *getBaseSubobjectLLVMType() const {
+    return cast<llvm::StructType>(BaseSubobjectType.get());
   }
 
   /// \brief Check whether this struct can be C++ zero-initialized
   /// with a zeroinitializer.
   bool isZeroInitializable() const {
     return IsZeroInitializable;
+  }
+
+  /// \brief Check whether this struct can be C++ zero-initialized
+  /// with a zeroinitializer when considered as a base subobject.
+  bool isZeroInitializableAsBase() const {
+    return IsZeroInitializableAsBase;
   }
 
   /// \brief Return llvm::StructType element number that corresponds to the
@@ -215,8 +249,15 @@ public:
   }
 
   unsigned getNonVirtualBaseLLVMFieldNo(const CXXRecordDecl *RD) const {
-    assert(NonVirtualBaseFields.count(RD) && "Invalid non-virtual base!");
-    return NonVirtualBaseFields.lookup(RD);
+    assert(NonVirtualBases.count(RD) && "Invalid non-virtual base!");
+    return NonVirtualBases.lookup(RD);
+  }
+
+  /// \brief Return the LLVM field index corresponding to the given
+  /// virtual base.  Only valid when operating on the complete object.
+  unsigned getVirtualBaseIndex(const CXXRecordDecl *base) const {
+    assert(CompleteObjectVirtualBases.count(base) && "Invalid virtual base!");
+    return CompleteObjectVirtualBases.lookup(base);
   }
 
   /// \brief Return the BitFieldInfo that corresponds to the field FD.
@@ -224,7 +265,7 @@ public:
     assert(FD->isBitField() && "Invalid call for non bit-field decl!");
     llvm::DenseMap<const FieldDecl *, CGBitFieldInfo>::const_iterator
       it = BitFields.find(FD);
-    assert(it != BitFields.end()  && "Unable to find bitfield info");
+    assert(it != BitFields.end() && "Unable to find bitfield info");
     return it->second;
   }
 

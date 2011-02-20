@@ -22,10 +22,16 @@
 /* #undef LLVM_MULTITHREADED */
 
 /* LLVM architecture name for the native architecture, if available */
-#define LLVM_NATIVE_ARCH X86Target
+#define LLVM_NATIVE_ARCH X86
 
-/* Short LLVM architecture name for the native architecture, if available */
-#define LLVM_NATIVE_ARCHNAME X86
+/* LLVM name for the native Target init function, if available */
+#define LLVM_NATIVE_TARGET LLVMInitializeX86Target
+
+/* LLVM name for the native TargetInfo init function, if available */
+#define LLVM_NATIVE_TARGETINFO LLVMInitializeX86TargetInfo
+
+/* LLVM name for the native AsmPrinter init function, if available */
+#define LLVM_NATIVE_ASMPRINTER LLVMInitializeX86AsmPrinter
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1

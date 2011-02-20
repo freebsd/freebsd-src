@@ -23,9 +23,11 @@ def u16imm64 : Operand<i64> {
 }
 def symbolHi64 : Operand<i64> {
   let PrintMethod = "printSymbolHi";
+  let EncoderMethod = "getHA16Encoding";
 }
 def symbolLo64 : Operand<i64> {
   let PrintMethod = "printSymbolLo";
+  let EncoderMethod = "getLO16Encoding";
 }
 
 //===----------------------------------------------------------------------===//
@@ -58,7 +60,7 @@ def HI48_64 : SDNodeXForm<imm, [{
 //
 
 let Defs = [LR8] in
-  def MovePCtoLR8 : Pseudo<(outs), (ins piclabel:$label), "bl $label", []>,
+  def MovePCtoLR8 : Pseudo<(outs), (ins piclabel:$label), "", []>,
                     PPC970_Unit_BRU;
 
 // Darwin ABI Calls.
@@ -130,39 +132,31 @@ def : Pat<(PPCnop),
 let usesCustomInserter = 1 in {
   let Uses = [CR0] in {
     def ATOMIC_LOAD_ADD_I64 : Pseudo<
-      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr),
-      "${:comment} ATOMIC_LOAD_ADD_I64 PSEUDO!",
+      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr), "",
       [(set G8RC:$dst, (atomic_load_add_64 xoaddr:$ptr, G8RC:$incr))]>;
     def ATOMIC_LOAD_SUB_I64 : Pseudo<
-      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr),
-      "${:comment} ATOMIC_LOAD_SUB_I64 PSEUDO!",
+      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr), "",
       [(set G8RC:$dst, (atomic_load_sub_64 xoaddr:$ptr, G8RC:$incr))]>;
     def ATOMIC_LOAD_OR_I64 : Pseudo<
-      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr),
-      "${:comment} ATOMIC_LOAD_OR_I64 PSEUDO!",
+      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr), "",
       [(set G8RC:$dst, (atomic_load_or_64 xoaddr:$ptr, G8RC:$incr))]>;
     def ATOMIC_LOAD_XOR_I64 : Pseudo<
-      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr),
-      "${:comment} ATOMIC_LOAD_XOR_I64 PSEUDO!",
+      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr), "",
       [(set G8RC:$dst, (atomic_load_xor_64 xoaddr:$ptr, G8RC:$incr))]>;
     def ATOMIC_LOAD_AND_I64 : Pseudo<
-      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr),
-      "${:comment} ATOMIC_LOAD_AND_I64 PSEUDO!",
+      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr), "",
       [(set G8RC:$dst, (atomic_load_and_64 xoaddr:$ptr, G8RC:$incr))]>;
     def ATOMIC_LOAD_NAND_I64 : Pseudo<
-      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr),
-      "${:comment} ATOMIC_LOAD_NAND_I64 PSEUDO!",
+      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$incr), "",
       [(set G8RC:$dst, (atomic_load_nand_64 xoaddr:$ptr, G8RC:$incr))]>;
 
     def ATOMIC_CMP_SWAP_I64 : Pseudo<
-      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$old, G8RC:$new),
-      "${:comment} ATOMIC_CMP_SWAP_I64 PSEUDO!",
+      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$old, G8RC:$new), "",
       [(set G8RC:$dst, 
                     (atomic_cmp_swap_64 xoaddr:$ptr, G8RC:$old, G8RC:$new))]>;
 
     def ATOMIC_SWAP_I64 : Pseudo<
-      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$new),
-      "${:comment} ATOMIC_SWAP_I64 PSEUDO!",
+      (outs G8RC:$dst), (ins memrr:$ptr, G8RC:$new), "",
       [(set G8RC:$dst, (atomic_swap_64 xoaddr:$ptr, G8RC:$new))]>;
   }
 }
@@ -240,8 +234,7 @@ def MTCTR8 : XFXForm_7_ext<31, 467, 9, (outs), (ins G8RC:$rS),
 }
 
 let Defs = [X1], Uses = [X1] in
-def DYNALLOC8 : Pseudo<(outs G8RC:$result), (ins G8RC:$negsize, memri:$fpsi),
-                       "${:comment} DYNALLOC8 $result, $negsize, $fpsi",
+def DYNALLOC8 : Pseudo<(outs G8RC:$result), (ins G8RC:$negsize, memri:$fpsi),"",
                        [(set G8RC:$result,
                              (PPCdynalloc G8RC:$negsize, iaddr:$fpsi))]>;
 
@@ -500,7 +493,7 @@ def LWAX : XForm_1<31, 341, (outs G8RC:$rD), (ins memrr:$src),
 
 // Update forms.
 let mayLoad = 1 in
-def LHAU8 : DForm_1<43, (outs G8RC:$rD, ptr_rc:$ea_result), (ins symbolLo:$disp,
+def LHAU8 : DForm_1a<43, (outs G8RC:$rD, ptr_rc:$ea_result), (ins symbolLo:$disp,
                             ptr_rc:$rA),
                     "lhau $rD, $disp($rA)", LdStGeneral,
                     []>, RegConstraint<"$rA = $ea_result">,
@@ -555,18 +548,20 @@ let canFoldAsLoad = 1, PPC970_Unit = 2 in {
 def LD   : DSForm_1<58, 0, (outs G8RC:$rD), (ins memrix:$src),
                     "ld $rD, $src", LdStLD,
                     [(set G8RC:$rD, (load ixaddr:$src))]>, isPPC64;
-def LDtoc: DSForm_1<58, 0, (outs G8RC:$rD), (ins tocentry:$disp, G8RC:$reg),
-                    "ld $rD, $disp($reg)", LdStLD,
-                    [(set G8RC:$rD,
+def LDtoc: Pseudo<(outs G8RC:$rD), (ins tocentry:$disp, G8RC:$reg),
+                  "",
+                  [(set G8RC:$rD,
                      (PPCtoc_entry tglobaladdr:$disp, G8RC:$reg))]>, isPPC64;
-let RST = 2, DS = 8 in
+                     
+let RST = 2, DS_RA = 0 in // FIXME: Should be a pseudo.
 def LDinto_toc: DSForm_1<58, 0, (outs), (ins G8RC:$reg),
                     "ld 2, 8($reg)", LdStLD,
                     [(PPCload_toc G8RC:$reg)]>, isPPC64;
-let RST = 2, DS = 40, RA = 1 in
+                    
+let RST = 2, DS_RA = 0 in // FIXME: Should be a pseudo.
 def LDtoc_restore : DSForm_1<58, 0, (outs), (ins),
                     "ld 2, 40(1)", LdStLD,
-                    []>, isPPC64;
+                    [(PPCtoc_restore)]>, isPPC64;
 def LDX  : XForm_1<31,  21, (outs G8RC:$rD), (ins memrr:$src),
                    "ldx $rD, $src", LdStLD,
                    [(set G8RC:$rD, (load xaddr:$src))]>, isPPC64;
@@ -579,8 +574,6 @@ def LDU  : DSForm_1<58, 1, (outs G8RC:$rD, ptr_rc:$ea_result), (ins memrix:$addr
 
 }
 
-def : Pat<(PPCtoc_restore),
-          (LDtoc_restore)>;
 def : Pat<(PPCload ixaddr:$src),
           (LD ixaddr:$src)>;
 def : Pat<(PPCload xaddr:$src),
@@ -621,14 +614,14 @@ def STDX  : XForm_8<31, 149, (outs), (ins G8RC:$rS, memrr:$dst),
 
 let PPC970_Unit = 2 in {
 
-def STBU8 : DForm_1<38, (outs ptr_rc:$ea_res), (ins G8RC:$rS,
+def STBU8 : DForm_1a<38, (outs ptr_rc:$ea_res), (ins G8RC:$rS,
                              symbolLo:$ptroff, ptr_rc:$ptrreg),
                     "stbu $rS, $ptroff($ptrreg)", LdStGeneral,
                     [(set ptr_rc:$ea_res,
                           (pre_truncsti8 G8RC:$rS, ptr_rc:$ptrreg, 
                                          iaddroff:$ptroff))]>,
                     RegConstraint<"$ptrreg = $ea_res">, NoEncode<"$ea_res">;
-def STHU8 : DForm_1<45, (outs ptr_rc:$ea_res), (ins G8RC:$rS,
+def STHU8 : DForm_1a<45, (outs ptr_rc:$ea_res), (ins G8RC:$rS,
                              symbolLo:$ptroff, ptr_rc:$ptrreg),
                     "sthu $rS, $ptroff($ptrreg)", LdStGeneral,
                     [(set ptr_rc:$ea_res,
@@ -636,8 +629,8 @@ def STHU8 : DForm_1<45, (outs ptr_rc:$ea_res), (ins G8RC:$rS,
                                         iaddroff:$ptroff))]>,
                     RegConstraint<"$ptrreg = $ea_res">, NoEncode<"$ea_res">;
 
-def STDU : DSForm_1<62, 1, (outs ptr_rc:$ea_res), (ins G8RC:$rS,
-                                s16immX4:$ptroff, ptr_rc:$ptrreg),
+def STDU : DSForm_1a<62, 1, (outs ptr_rc:$ea_res), (ins G8RC:$rS,
+                                        s16immX4:$ptroff, ptr_rc:$ptrreg),
                     "stdu $rS, $ptroff($ptrreg)", LdStSTD,
                     [(set ptr_rc:$ea_res, (pre_store G8RC:$rS, ptr_rc:$ptrreg, 
                                                      iaddroff:$ptroff))]>,

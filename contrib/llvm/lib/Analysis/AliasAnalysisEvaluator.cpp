@@ -36,6 +36,7 @@ static cl::opt<bool> PrintAll("print-all-alias-modref-info", cl::ReallyHidden);
 
 static cl::opt<bool> PrintNoAlias("print-no-aliases", cl::ReallyHidden);
 static cl::opt<bool> PrintMayAlias("print-may-aliases", cl::ReallyHidden);
+static cl::opt<bool> PrintPartialAlias("print-partial-aliases", cl::ReallyHidden);
 static cl::opt<bool> PrintMustAlias("print-must-aliases", cl::ReallyHidden);
 
 static cl::opt<bool> PrintNoModRef("print-no-modref", cl::ReallyHidden);
@@ -45,12 +46,14 @@ static cl::opt<bool> PrintModRef("print-modref", cl::ReallyHidden);
 
 namespace {
   class AAEval : public FunctionPass {
-    unsigned NoAlias, MayAlias, MustAlias;
+    unsigned NoAlias, MayAlias, PartialAlias, MustAlias;
     unsigned NoModRef, Mod, Ref, ModRef;
 
   public:
     static char ID; // Pass identification, replacement for typeid
-    AAEval() : FunctionPass(ID) {}
+    AAEval() : FunctionPass(ID) {
+      initializeAAEvalPass(*PassRegistry::getPassRegistry());
+    }
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<AliasAnalysis>();
@@ -58,11 +61,12 @@ namespace {
     }
 
     bool doInitialization(Module &M) {
-      NoAlias = MayAlias = MustAlias = 0;
+      NoAlias = MayAlias = PartialAlias = MustAlias = 0;
       NoModRef = Mod = Ref = ModRef = 0;
 
       if (PrintAll) {
-        PrintNoAlias = PrintMayAlias = PrintMustAlias = true;
+        PrintNoAlias = PrintMayAlias = true;
+        PrintPartialAlias = PrintMustAlias = true;
         PrintNoModRef = PrintMod = PrintRef = PrintModRef = true;
       }
       return false;
@@ -74,8 +78,11 @@ namespace {
 }
 
 char AAEval::ID = 0;
-INITIALIZE_PASS(AAEval, "aa-eval",
-                "Exhaustive Alias Analysis Precision Evaluator", false, true);
+INITIALIZE_PASS_BEGIN(AAEval, "aa-eval",
+                "Exhaustive Alias Analysis Precision Evaluator", false, true)
+INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
+INITIALIZE_PASS_END(AAEval, "aa-eval",
+                "Exhaustive Alias Analysis Precision Evaluator", false, true)
 
 FunctionPass *llvm::createAAEvalPass() { return new AAEval(); }
 
@@ -155,7 +162,7 @@ bool AAEval::runOnFunction(Function &F) {
     }
   }
 
-  if (PrintNoAlias || PrintMayAlias || PrintMustAlias ||
+  if (PrintNoAlias || PrintMayAlias || PrintPartialAlias || PrintMustAlias ||
       PrintNoModRef || PrintMod || PrintRef || PrintModRef)
     errs() << "Function: " << F.getName() << ": " << Pointers.size()
            << " pointers, " << CallSites.size() << " call sites\n";
@@ -163,12 +170,12 @@ bool AAEval::runOnFunction(Function &F) {
   // iterate over the worklist, and run the full (n^2)/2 disambiguations
   for (SetVector<Value *>::iterator I1 = Pointers.begin(), E = Pointers.end();
        I1 != E; ++I1) {
-    unsigned I1Size = ~0u;
+    uint64_t I1Size = AliasAnalysis::UnknownSize;
     const Type *I1ElTy = cast<PointerType>((*I1)->getType())->getElementType();
     if (I1ElTy->isSized()) I1Size = AA.getTypeStoreSize(I1ElTy);
 
     for (SetVector<Value *>::iterator I2 = Pointers.begin(); I2 != I1; ++I2) {
-      unsigned I2Size = ~0u;
+      uint64_t I2Size = AliasAnalysis::UnknownSize;
       const Type *I2ElTy =cast<PointerType>((*I2)->getType())->getElementType();
       if (I2ElTy->isSized()) I2Size = AA.getTypeStoreSize(I2ElTy);
 
@@ -179,6 +186,10 @@ bool AAEval::runOnFunction(Function &F) {
       case AliasAnalysis::MayAlias:
         PrintResults("MayAlias", PrintMayAlias, *I1, *I2, F.getParent());
         ++MayAlias; break;
+      case AliasAnalysis::PartialAlias:
+        PrintResults("PartialAlias", PrintPartialAlias, *I1, *I2,
+                     F.getParent());
+        ++PartialAlias; break;
       case AliasAnalysis::MustAlias:
         PrintResults("MustAlias", PrintMustAlias, *I1, *I2, F.getParent());
         ++MustAlias; break;
@@ -195,7 +206,7 @@ bool AAEval::runOnFunction(Function &F) {
 
     for (SetVector<Value *>::iterator V = Pointers.begin(), Ve = Pointers.end();
          V != Ve; ++V) {
-      unsigned Size = ~0u;
+      uint64_t Size = AliasAnalysis::UnknownSize;
       const Type *ElTy = cast<PointerType>((*V)->getType())->getElementType();
       if (ElTy->isSized()) Size = AA.getTypeStoreSize(ElTy);
 
@@ -250,7 +261,7 @@ static void PrintPercent(unsigned Num, unsigned Sum) {
 }
 
 bool AAEval::doFinalization(Module &M) {
-  unsigned AliasSum = NoAlias + MayAlias + MustAlias;
+  unsigned AliasSum = NoAlias + MayAlias + PartialAlias + MustAlias;
   errs() << "===== Alias Analysis Evaluator Report =====\n";
   if (AliasSum == 0) {
     errs() << "  Alias Analysis Evaluator Summary: No pointers!\n";
@@ -260,10 +271,13 @@ bool AAEval::doFinalization(Module &M) {
     PrintPercent(NoAlias, AliasSum);
     errs() << "  " << MayAlias << " may alias responses ";
     PrintPercent(MayAlias, AliasSum);
+    errs() << "  " << PartialAlias << " partial alias responses ";
+    PrintPercent(PartialAlias, AliasSum);
     errs() << "  " << MustAlias << " must alias responses ";
     PrintPercent(MustAlias, AliasSum);
     errs() << "  Alias Analysis Evaluator Pointer Alias Summary: "
            << NoAlias*100/AliasSum  << "%/" << MayAlias*100/AliasSum << "%/"
+           << PartialAlias*100/AliasSum << "%/"
            << MustAlias*100/AliasSum << "%\n";
   }
 

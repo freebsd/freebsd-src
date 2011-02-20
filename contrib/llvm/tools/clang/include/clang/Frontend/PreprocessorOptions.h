@@ -15,6 +15,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <set>
 
 namespace llvm {
   class MemoryBuffer;
@@ -46,7 +47,18 @@ public:
   /// \brief When true, disables most of the normal validation performed on
   /// precompiled headers.
   bool DisablePCHValidation;
-  
+
+  /// \brief When true, disables the use of the stat cache within a
+  /// precompiled header or AST file.
+  bool DisableStatCache;
+
+  /// \brief Dump declarations that are deserialized from PCH, for testing.
+  bool DumpDeserializedPCHDecls;
+
+  /// \brief This is a set of names for decls that we do not want to be
+  /// deserialized, and we emit an error if they are; for testing purposes.
+  std::set<std::string> DeserializedPCHDeclsToErrorOn;
+
   /// \brief If non-zero, the implicit PCH include is actually a precompiled
   /// preamble that covers this number of bytes in the main source file.
   ///
@@ -117,7 +129,8 @@ public:
   
 public:
   PreprocessorOptions() : UsePredefines(true), DetailedRecord(false),
-                          DisablePCHValidation(false),
+                          DisablePCHValidation(false), DisableStatCache(false),
+                          DumpDeserializedPCHDecls(false),
                           PrecompiledPreambleBytes(0, true),
                           RetainRemappedFileBuffers(false) { }
 

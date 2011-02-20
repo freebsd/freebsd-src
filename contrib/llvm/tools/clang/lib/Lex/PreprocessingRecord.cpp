@@ -14,10 +14,28 @@
 #include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/Token.h"
+#include "clang/Basic/IdentifierTable.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
 
 ExternalPreprocessingRecordSource::~ExternalPreprocessingRecordSource() { }
+
+
+InclusionDirective::InclusionDirective(PreprocessingRecord &PPRec,
+                                       InclusionKind Kind, 
+                                       llvm::StringRef FileName, 
+                                       bool InQuotes, const FileEntry *File, 
+                                       SourceRange Range)
+  : PreprocessingDirective(InclusionDirectiveKind, Range), 
+    InQuotes(InQuotes), Kind(Kind), File(File) 
+{ 
+  char *Memory 
+    = (char*)PPRec.Allocate(FileName.size() + 1, llvm::alignOf<char>());
+  memcpy(Memory, FileName.data(), FileName.size());
+  Memory[FileName.size()] = 0;
+  this->FileName = llvm::StringRef(Memory, FileName.size());
+}
 
 void PreprocessingRecord::MaybeLoadPreallocatedEntities() const {
   if (!ExternalSource || LoadedPreallocatedEntities)
@@ -109,17 +127,18 @@ void PreprocessingRecord::MacroExpands(const Token &Id, const MacroInfo* MI) {
                                                       Def));
 }
 
-void PreprocessingRecord::MacroDefined(const IdentifierInfo *II, 
+void PreprocessingRecord::MacroDefined(const Token &Id,
                                        const MacroInfo *MI) {
   SourceRange R(MI->getDefinitionLoc(), MI->getDefinitionEndLoc());
   MacroDefinition *Def
-    = new (*this) MacroDefinition(II, MI->getDefinitionLoc(), R);
+      = new (*this) MacroDefinition(Id.getIdentifierInfo(),
+                                    MI->getDefinitionLoc(),
+                                    R);
   MacroDefinitions[MI] = Def;
   PreprocessedEntities.push_back(Def);
 }
 
-void PreprocessingRecord::MacroUndefined(SourceLocation Loc,
-                                         const IdentifierInfo *II,
+void PreprocessingRecord::MacroUndefined(const Token &Id,
                                          const MacroInfo *MI) {
   llvm::DenseMap<const MacroInfo *, MacroDefinition *>::iterator Pos
     = MacroDefinitions.find(MI);
@@ -127,3 +146,38 @@ void PreprocessingRecord::MacroUndefined(SourceLocation Loc,
     MacroDefinitions.erase(Pos);
 }
 
+void PreprocessingRecord::InclusionDirective(SourceLocation HashLoc,
+                                             const clang::Token &IncludeTok, 
+                                             llvm::StringRef FileName, 
+                                             bool IsAngled, 
+                                             const FileEntry *File,
+                                           clang::SourceLocation EndLoc) {
+  InclusionDirective::InclusionKind Kind = InclusionDirective::Include;
+  
+  switch (IncludeTok.getIdentifierInfo()->getPPKeywordID()) {
+  case tok::pp_include: 
+    Kind = InclusionDirective::Include; 
+    break;
+    
+  case tok::pp_import: 
+    Kind = InclusionDirective::Import; 
+    break;
+    
+  case tok::pp_include_next: 
+    Kind = InclusionDirective::IncludeNext; 
+    break;
+    
+  case tok::pp___include_macros: 
+    Kind = InclusionDirective::IncludeMacros;
+    break;
+    
+  default:
+    llvm_unreachable("Unknown include directive kind");
+    return;
+  }
+  
+  clang::InclusionDirective *ID
+    = new (*this) clang::InclusionDirective(*this, Kind, FileName, !IsAngled, 
+                                            File, SourceRange(HashLoc, EndLoc));
+  PreprocessedEntities.push_back(ID);
+}

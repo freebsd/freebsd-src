@@ -15,14 +15,16 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/System/Errno.h"
-#include "llvm/System/Path.h"
-#include "llvm/System/Process.h"
-#include "llvm/System/Program.h"
+#include "llvm/Support/Errno.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Support/Program.h"
+#include "llvm/Support/system_error.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
+#include <new>
 #include <sys/types.h>
 #include <sys/stat.h>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -33,6 +35,8 @@
 #endif
 #include <fcntl.h>
 using namespace llvm;
+
+namespace { const llvm::error_code success; }
 
 //===----------------------------------------------------------------------===//
 // MemoryBuffer implementation itself.
@@ -142,22 +146,20 @@ MemoryBuffer *MemoryBuffer::getNewMemBuffer(size_t Size, StringRef BufferName) {
 /// if the Filename is "-".  If an error occurs, this returns null and fills
 /// in *ErrStr with a reason.  If stdin is empty, this API (unlike getSTDIN)
 /// returns an empty buffer.
-MemoryBuffer *MemoryBuffer::getFileOrSTDIN(StringRef Filename,
-                                           std::string *ErrStr,
-                                           int64_t FileSize,
-                                           struct stat *FileInfo) {
+error_code MemoryBuffer::getFileOrSTDIN(StringRef Filename,
+                                        OwningPtr<MemoryBuffer> &result,
+                                        int64_t FileSize) {
   if (Filename == "-")
-    return getSTDIN(ErrStr);
-  return getFile(Filename, ErrStr, FileSize, FileInfo);
+    return getSTDIN(result);
+  return getFile(Filename, result, FileSize);
 }
 
-MemoryBuffer *MemoryBuffer::getFileOrSTDIN(const char *Filename,
-                                           std::string *ErrStr,
-                                           int64_t FileSize,
-                                           struct stat *FileInfo) {
+error_code MemoryBuffer::getFileOrSTDIN(const char *Filename,
+                                        OwningPtr<MemoryBuffer> &result,
+                                        int64_t FileSize) {
   if (strcmp(Filename, "-") == 0)
-    return getSTDIN(ErrStr);
-  return getFile(Filename, ErrStr, FileSize, FileInfo);
+    return getSTDIN(result);
+  return getFile(Filename, result, FileSize);
 }
 
 //===----------------------------------------------------------------------===//
@@ -177,50 +179,47 @@ public:
     sys::Path::UnMapFilePages(getBufferStart(), getBufferSize());
   }
 };
-
-/// FileCloser - RAII object to make sure an FD gets closed properly.
-class FileCloser {
-  int FD;
-public:
-  explicit FileCloser(int FD) : FD(FD) {}
-  ~FileCloser() { ::close(FD); }
-};
 }
 
-MemoryBuffer *MemoryBuffer::getFile(StringRef Filename, std::string *ErrStr,
-                                    int64_t FileSize, struct stat *FileInfo) {
+error_code MemoryBuffer::getFile(StringRef Filename,
+                                 OwningPtr<MemoryBuffer> &result,
+                                 int64_t FileSize) {
+  // Ensure the path is null terminated.
   SmallString<256> PathBuf(Filename.begin(), Filename.end());
-  return MemoryBuffer::getFile(PathBuf.c_str(), ErrStr, FileSize, FileInfo);
+  return MemoryBuffer::getFile(PathBuf.c_str(), result, FileSize);
 }
 
-MemoryBuffer *MemoryBuffer::getFile(const char *Filename, std::string *ErrStr,
-                                    int64_t FileSize, struct stat *FileInfo) {
+error_code MemoryBuffer::getFile(const char *Filename,
+                                 OwningPtr<MemoryBuffer> &result,
+                                 int64_t FileSize) {
   int OpenFlags = O_RDONLY;
 #ifdef O_BINARY
   OpenFlags |= O_BINARY;  // Open input file in binary mode on win32.
 #endif
   int FD = ::open(Filename, OpenFlags);
   if (FD == -1) {
-    if (ErrStr) *ErrStr = sys::StrError();
-    return 0;
+    return error_code(errno, posix_category());
   }
-  FileCloser FC(FD); // Close FD on return.
-  
+  error_code ret = getOpenFile(FD, Filename, result, FileSize);
+  close(FD);
+  return ret;
+}
+
+error_code MemoryBuffer::getOpenFile(int FD, const char *Filename,
+                                     OwningPtr<MemoryBuffer> &result,
+                                     int64_t FileSize) {
   // If we don't know the file size, use fstat to find out.  fstat on an open
   // file descriptor is cheaper than stat on a random path.
-  if (FileSize == -1 || FileInfo) {
-    struct stat MyFileInfo;
-    struct stat *FileInfoPtr = FileInfo? FileInfo : &MyFileInfo;
-    
+  if (FileSize == -1) {
+    struct stat FileInfo;
     // TODO: This should use fstat64 when available.
-    if (fstat(FD, FileInfoPtr) == -1) {
-      if (ErrStr) *ErrStr = sys::StrError();
-      return 0;
+    if (fstat(FD, &FileInfo) == -1) {
+      return error_code(errno, posix_category());
     }
-    FileSize = FileInfoPtr->st_size;
+    FileSize = FileInfo.st_size;
   }
-  
-  
+
+
   // If the file is large, try to use mmap to read it in.  We don't use mmap
   // for small files, because this can severely fragment our address space. Also
   // don't try to map files that are exactly a multiple of the system page size,
@@ -230,16 +229,17 @@ MemoryBuffer *MemoryBuffer::getFile(const char *Filename, std::string *ErrStr,
   if (FileSize >= 4096*4 &&
       (FileSize & (sys::Process::GetPageSize()-1)) != 0) {
     if (const char *Pages = sys::Path::MapInFilePages(FD, FileSize)) {
-      return GetNamedBuffer<MemoryBufferMMapFile>(StringRef(Pages, FileSize),
-                                                  Filename);
+      result.reset(GetNamedBuffer<MemoryBufferMMapFile>(
+        StringRef(Pages, FileSize), Filename));
+      return success;
     }
   }
 
   MemoryBuffer *Buf = MemoryBuffer::getNewUninitMemBuffer(FileSize, Filename);
   if (!Buf) {
-    // Failed to create a buffer.
-    if (ErrStr) *ErrStr = "could not allocate buffer";
-    return 0;
+    // Failed to create a buffer. The only way it can fail is if
+    // new(std::nothrow) returns 0.
+    return make_error_code(errc::not_enough_memory);
   }
 
   OwningPtr<MemoryBuffer> SB(Buf);
@@ -252,26 +252,27 @@ MemoryBuffer *MemoryBuffer::getFile(const char *Filename, std::string *ErrStr,
       if (errno == EINTR)
         continue;
       // Error while reading.
-      if (ErrStr) *ErrStr = sys::StrError();
-      return 0;
+      return error_code(errno, posix_category());
     } else if (NumRead == 0) {
       // We hit EOF early, truncate and terminate buffer.
       Buf->BufferEnd = BufPtr;
       *BufPtr = 0;
-      return SB.take();
+      result.swap(SB);
+      return success;
     }
     BytesLeft -= NumRead;
     BufPtr += NumRead;
   }
 
-  return SB.take();
+  result.swap(SB);
+  return success;
 }
 
 //===----------------------------------------------------------------------===//
 // MemoryBuffer::getSTDIN implementation.
 //===----------------------------------------------------------------------===//
 
-MemoryBuffer *MemoryBuffer::getSTDIN(std::string *ErrStr) {
+error_code MemoryBuffer::getSTDIN(OwningPtr<MemoryBuffer> &result) {
   // Read in all of the data from stdin, we cannot mmap stdin.
   //
   // FIXME: That isn't necessarily true, we should try to mmap stdin and
@@ -287,11 +288,11 @@ MemoryBuffer *MemoryBuffer::getSTDIN(std::string *ErrStr) {
     ReadBytes = read(0, Buffer.end(), ChunkSize);
     if (ReadBytes == -1) {
       if (errno == EINTR) continue;
-      if (ErrStr) *ErrStr = sys::StrError();
-      return 0;
+      return error_code(errno, posix_category());
     }
     Buffer.set_size(Buffer.size() + ReadBytes);
   } while (ReadBytes != 0);
 
-  return getMemBufferCopy(Buffer, "<stdin>");
+  result.reset(getMemBufferCopy(Buffer, "<stdin>"));
+  return success;
 }

@@ -45,13 +45,13 @@ namespace clang {
     
     /// \brief The file managers we're importing to and from.
     FileManager &ToFileManager, &FromFileManager;
-    
-    /// \brief The diagnostics object that we should use to emit diagnostics.
-    Diagnostic &Diags;
+
+    /// \brief Whether to perform a minimal import.
+    bool Minimal;
     
     /// \brief Mapping from the already-imported types in the "from" context
     /// to the corresponding types in the "to" context.
-    llvm::DenseMap<Type *, Type *> ImportedTypes;
+    llvm::DenseMap<const Type *, const Type *> ImportedTypes;
     
     /// \brief Mapping from the already-imported declarations in the "from"
     /// context to the corresponding declarations in the "to" context.
@@ -63,7 +63,7 @@ namespace clang {
 
     /// \brief Mapping from the already-imported FileIDs in the "from" source
     /// manager to the corresponding FileIDs in the "to" source manager.
-    llvm::DenseMap<unsigned, FileID> ImportedFileIDs;
+    llvm::DenseMap<FileID, FileID> ImportedFileIDs;
     
     /// \brief Imported, anonymous tag declarations that are missing their 
     /// corresponding typedefs.
@@ -74,11 +74,28 @@ namespace clang {
     NonEquivalentDeclSet NonEquivalentDecls;
     
   public:
-    ASTImporter(Diagnostic &Diags,
-                ASTContext &ToContext, FileManager &ToFileManager,
-                ASTContext &FromContext, FileManager &FromFileManager);
+    /// \brief Create a new AST importer.
+    ///
+    /// \param ToContext The context we'll be importing into.
+    ///
+    /// \param ToFileManager The file manager we'll be importing into.
+    ///
+    /// \param FromContext The context we'll be importing from.
+    ///
+    /// \param FromFileManager The file manager we'll be importing into.
+    ///
+    /// \param MinimalImport If true, the importer will attempt to import
+    /// as little as it can, e.g., by importing declarations as forward
+    /// declarations that can be completed at a later point.
+    ASTImporter(ASTContext &ToContext, FileManager &ToFileManager,
+                ASTContext &FromContext, FileManager &FromFileManager,
+                bool MinimalImport);
     
     virtual ~ASTImporter();
+    
+    /// \brief Whether the importer will perform a minimal import, creating
+    /// to-be-completed forward declarations when possible.
+    bool isMinimalImport() const { return Minimal; }
     
     /// \brief Import the given type from the "from" context into the "to"
     /// context.
@@ -129,6 +146,10 @@ namespace clang {
     /// context, or NULL if an error occurred.
     NestedNameSpecifier *Import(NestedNameSpecifier *FromNNS);
     
+    /// \brief Import the goven template name from the "from" context into the
+    /// "to" context.
+    TemplateName Import(TemplateName From);
+    
     /// \brief Import the given source location from the "from" context into
     /// the "to" context.
     ///
@@ -154,7 +175,7 @@ namespace clang {
     /// into the "to" context.
     ///
     /// \returns the equivalent identifier in the "to" context.
-    IdentifierInfo *Import(IdentifierInfo *FromId);
+    IdentifierInfo *Import(const IdentifierInfo *FromId);
 
     /// \brief Import the given Objective-C selector from the "from"
     /// context into the "to" context.
@@ -169,6 +190,12 @@ namespace clang {
     /// context.
     FileID Import(FileID);
     
+    /// \brief Import the definition of the given declaration, including all of
+    /// the declarations it contains.
+    ///
+    /// This routine is intended to be used 
+    void ImportDefinition(Decl *From);
+
     /// \brief Cope with a name conflict when importing a declaration into the
     /// given context.
     ///
@@ -212,9 +239,6 @@ namespace clang {
 
     /// \brief Retrieve the file manager that AST nodes are being imported from.
     FileManager &getFromFileManager() const { return FromFileManager; }
-
-    /// \brief Retrieve the diagnostic formatter.
-    Diagnostic &getDiags() const { return Diags; }
     
     /// \brief Report a diagnostic in the "to" context.
     DiagnosticBuilder ToDiag(SourceLocation Loc, unsigned DiagID);
@@ -228,12 +252,13 @@ namespace clang {
     /// \brief Note that we have imported the "from" declaration by mapping it
     /// to the (potentially-newly-created) "to" declaration.
     ///
-    /// \returns \p To
-    Decl *Imported(Decl *From, Decl *To);
+    /// Subclasses can override this function to observe all of the \c From ->
+    /// \c To declaration mappings as they are imported.
+    virtual Decl *Imported(Decl *From, Decl *To);
     
     /// \brief Determine whether the given types are structurally
     /// equivalent.
-    bool IsStructurallyEquivalent(QualType From, QualType To);
+    bool IsStructurallyEquivalent(QualType From, QualType To);    
   };
 }
 

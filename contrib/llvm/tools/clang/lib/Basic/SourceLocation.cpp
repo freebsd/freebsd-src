@@ -43,6 +43,11 @@ void SourceLocation::print(llvm::raw_ostream &OS, const SourceManager &SM)const{
 
   if (isFileID()) {
     PresumedLoc PLoc = SM.getPresumedLoc(*this);
+    
+    if (PLoc.isInvalid()) {
+      OS << "<invalid>";
+      return;
+    }
     // The instantiation and spelling pos is identical for file locs.
     OS << PLoc.getFilename() << ':' << PLoc.getLine()
        << ':' << PLoc.getColumn();
@@ -103,6 +108,11 @@ unsigned FullSourceLoc::getSpellingColumnNumber(bool *Invalid) const {
 bool FullSourceLoc::isInSystemHeader() const {
   assert(isValid());
   return SrcMgr->isInSystemHeader(*this);
+}
+
+bool FullSourceLoc::isBeforeInTranslationUnitThan(SourceLocation Loc) const {
+  assert(isValid());
+  return SrcMgr->isBeforeInTranslationUnit(*this, Loc);
 }
 
 const char *FullSourceLoc::getCharacterData(bool *Invalid) const {

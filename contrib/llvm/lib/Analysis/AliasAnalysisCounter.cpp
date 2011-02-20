@@ -29,13 +29,14 @@ PrintAllFailures("count-aa-print-all-failed-queries", cl::ReallyHidden);
 
 namespace {
   class AliasAnalysisCounter : public ModulePass, public AliasAnalysis {
-    unsigned No, May, Must;
+    unsigned No, May, Partial, Must;
     unsigned NoMR, JustRef, JustMod, MR;
     Module *M;
   public:
     static char ID; // Class identification, replacement for typeinfo
     AliasAnalysisCounter() : ModulePass(ID) {
-      No = May = Must = 0;
+      initializeAliasAnalysisCounterPass(*PassRegistry::getPassRegistry());
+      No = May = Partial = Must = 0;
       NoMR = JustRef = JustMod = MR = 0;
     }
 
@@ -44,7 +45,7 @@ namespace {
              << Val*100/Sum << "%)\n";
     }
     ~AliasAnalysisCounter() {
-      unsigned AASum = No+May+Must;
+      unsigned AASum = No+May+Partial+Must;
       unsigned MRSum = NoMR+JustRef+JustMod+MR;
       if (AASum + MRSum) { // Print a report if any counted queries occurred...
         errs() << "\n===== Alias Analysis Counter Report =====\n"
@@ -53,9 +54,12 @@ namespace {
         if (AASum) {
           printLine("no alias",     No, AASum);
           printLine("may alias",   May, AASum);
+          printLine("partial alias", Partial, AASum);
           printLine("must alias", Must, AASum);
           errs() << "  Alias Analysis Counter Summary: " << No*100/AASum << "%/"
-                 << May*100/AASum << "%/" << Must*100/AASum<<"%\n\n";
+                 << May*100/AASum << "%/"
+                 << Partial*100/AASum << "%/"
+                 << Must*100/AASum<<"%\n\n";
         }
 
         errs() << "  " << MRSum    << " Total Mod/Ref Queries Performed\n";
@@ -94,17 +98,16 @@ namespace {
     }
     
     // FIXME: We could count these too...
-    bool pointsToConstantMemory(const Value *P) {
-      return getAnalysis<AliasAnalysis>().pointsToConstantMemory(P);
+    bool pointsToConstantMemory(const Location &Loc, bool OrLocal) {
+      return getAnalysis<AliasAnalysis>().pointsToConstantMemory(Loc, OrLocal);
     }
 
     // Forwarding functions: just delegate to a real AA implementation, counting
     // the number of responses...
-    AliasResult alias(const Value *V1, unsigned V1Size,
-                      const Value *V2, unsigned V2Size);
+    AliasResult alias(const Location &LocA, const Location &LocB);
 
     ModRefResult getModRefInfo(ImmutableCallSite CS,
-                               const Value *P, unsigned Size);
+                               const Location &Loc);
     ModRefResult getModRefInfo(ImmutableCallSite CS1,
                                ImmutableCallSite CS2) {
       return AliasAnalysis::getModRefInfo(CS1,CS2);
@@ -114,32 +117,32 @@ namespace {
 
 char AliasAnalysisCounter::ID = 0;
 INITIALIZE_AG_PASS(AliasAnalysisCounter, AliasAnalysis, "count-aa",
-                   "Count Alias Analysis Query Responses", false, true, false);
+                   "Count Alias Analysis Query Responses", false, true, false)
 
 ModulePass *llvm::createAliasAnalysisCounterPass() {
   return new AliasAnalysisCounter();
 }
 
 AliasAnalysis::AliasResult
-AliasAnalysisCounter::alias(const Value *V1, unsigned V1Size,
-                            const Value *V2, unsigned V2Size) {
-  AliasResult R = getAnalysis<AliasAnalysis>().alias(V1, V1Size, V2, V2Size);
+AliasAnalysisCounter::alias(const Location &LocA, const Location &LocB) {
+  AliasResult R = getAnalysis<AliasAnalysis>().alias(LocA, LocB);
 
   const char *AliasString;
   switch (R) {
   default: llvm_unreachable("Unknown alias type!");
   case NoAlias:   No++;   AliasString = "No alias"; break;
   case MayAlias:  May++;  AliasString = "May alias"; break;
+  case PartialAlias: Partial++; AliasString = "Partial alias"; break;
   case MustAlias: Must++; AliasString = "Must alias"; break;
   }
 
   if (PrintAll || (PrintAllFailures && R == MayAlias)) {
     errs() << AliasString << ":\t";
-    errs() << "[" << V1Size << "B] ";
-    WriteAsOperand(errs(), V1, true, M);
+    errs() << "[" << LocA.Size << "B] ";
+    WriteAsOperand(errs(), LocA.Ptr, true, M);
     errs() << ", ";
-    errs() << "[" << V2Size << "B] ";
-    WriteAsOperand(errs(), V2, true, M);
+    errs() << "[" << LocB.Size << "B] ";
+    WriteAsOperand(errs(), LocB.Ptr, true, M);
     errs() << "\n";
   }
 
@@ -148,8 +151,8 @@ AliasAnalysisCounter::alias(const Value *V1, unsigned V1Size,
 
 AliasAnalysis::ModRefResult
 AliasAnalysisCounter::getModRefInfo(ImmutableCallSite CS,
-                                    const Value *P, unsigned Size) {
-  ModRefResult R = getAnalysis<AliasAnalysis>().getModRefInfo(CS, P, Size);
+                                    const Location &Loc) {
+  ModRefResult R = getAnalysis<AliasAnalysis>().getModRefInfo(CS, Loc);
 
   const char *MRString;
   switch (R) {
@@ -162,8 +165,8 @@ AliasAnalysisCounter::getModRefInfo(ImmutableCallSite CS,
 
   if (PrintAll || (PrintAllFailures && R == ModRef)) {
     errs() << MRString << ":  Ptr: ";
-    errs() << "[" << Size << "B] ";
-    WriteAsOperand(errs(), P, true, M);
+    errs() << "[" << Loc.Size << "B] ";
+    WriteAsOperand(errs(), Loc.Ptr, true, M);
     errs() << "\t<->" << *CS.getInstruction() << '\n';
   }
   return R;

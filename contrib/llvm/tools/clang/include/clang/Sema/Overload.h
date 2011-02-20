@@ -75,6 +75,7 @@ namespace clang {
     ICK_Vector_Conversion,     ///< Vector conversions
     ICK_Vector_Splat,          ///< A vector splat from an arithmetic type
     ICK_Complex_Real,          ///< Complex-real conversions (C99 6.3.1.7)
+    ICK_Block_Pointer_Conversion,    ///< Block Pointer conversions 
     ICK_Num_Conversion_Kinds   ///< The number of conversion kinds
   };
 
@@ -130,27 +131,37 @@ namespace clang {
     /// Third - The third conversion can be a qualification conversion.
     ImplicitConversionKind Third : 8;
 
-    /// Deprecated - Whether this the deprecated conversion of a
+    /// \brief Whether this is the deprecated conversion of a
     /// string literal to a pointer to non-const character data
     /// (C++ 4.2p2).
-    bool DeprecatedStringLiteralToCharPtr : 1;
+    unsigned DeprecatedStringLiteralToCharPtr : 1;
 
     /// IncompatibleObjC - Whether this is an Objective-C conversion
     /// that we should warn about (if we actually use it).
-    bool IncompatibleObjC : 1;
+    unsigned IncompatibleObjC : 1;
 
     /// ReferenceBinding - True when this is a reference binding
     /// (C++ [over.ics.ref]).
-    bool ReferenceBinding : 1;
+    unsigned ReferenceBinding : 1;
 
     /// DirectBinding - True when this is a reference binding that is a
     /// direct binding (C++ [dcl.init.ref]).
-    bool DirectBinding : 1;
+    unsigned DirectBinding : 1;
 
-    /// RRefBinding - True when this is a reference binding of an rvalue
-    /// reference to an rvalue (C++0x [over.ics.rank]p3b4).
-    bool RRefBinding : 1;
-
+    /// \brief Whether this is an lvalue reference binding (otherwise, it's
+    /// an rvalue reference binding).
+    unsigned IsLvalueReference : 1;
+    
+    /// \brief Whether we're binding to a function lvalue.
+    unsigned BindsToFunctionLvalue : 1;
+    
+    /// \brief Whether we're binding to an rvalue.
+    unsigned BindsToRvalue : 1;
+    
+    /// \brief Whether this binds an implicit object argument to a 
+    /// non-static member function without a ref-qualifier.
+    unsigned BindsImplicitObjectArgumentWithoutRefQualifier : 1;
+    
     /// FromType - The type that this conversion is converting
     /// from. This is an opaque pointer that can be translated into a
     /// QualType.
@@ -231,6 +242,11 @@ namespace clang {
     /// user-defined conversion.
     FunctionDecl* ConversionFunction;
 
+    /// \brief The declaration that we found via name lookup, which might be
+    /// the same as \c ConversionFunction or it might be a using declaration
+    /// that refers to \c ConversionFunction.
+    NamedDecl *FoundConversionFunction;
+    
     void DebugPrint() const;
   };
 
@@ -283,7 +299,9 @@ namespace clang {
       no_conversion,
       unrelated_class,
       suppressed_user,
-      bad_qualifiers
+      bad_qualifiers,
+      lvalue_ref_to_rvalue,
+      rvalue_ref_to_lvalue
     };
 
     // This can be null, e.g. for implicit object arguments.
@@ -549,6 +567,10 @@ namespace clang {
     /// Actually an OverloadFailureKind.
     unsigned char FailureKind;
 
+    /// \brief The number of call arguments that were explicitly provided,
+    /// to be used while performing partial ordering of function templates.
+    unsigned ExplicitCallArguments;
+    
     /// A structure used to record information about a failed
     /// template argument deduction.
     struct DeductionFailureInfo {
@@ -630,7 +652,8 @@ namespace clang {
 
     /// Find the best viable function on this overload set, if it exists.
     OverloadingResult BestViableFunction(Sema &S, SourceLocation Loc,
-                                         OverloadCandidateSet::iterator& Best);
+                                         OverloadCandidateSet::iterator& Best,
+                                         bool UserDefinedConversion = false);
 
     void NoteCandidates(Sema &S,
                         OverloadCandidateDisplayKind OCD,
@@ -642,7 +665,8 @@ namespace clang {
   bool isBetterOverloadCandidate(Sema &S,
                                  const OverloadCandidate& Cand1,
                                  const OverloadCandidate& Cand2,
-                                 SourceLocation Loc);
+                                 SourceLocation Loc,
+                                 bool UserDefinedConversion = false);
 } // end namespace clang
 
 #endif // LLVM_CLANG_SEMA_OVERLOAD_H

@@ -38,10 +38,12 @@ class DocumentXML::DeclPrinter : public DeclVisitor<DocumentXML::DeclPrinter> {
   }
 
   void addSubNodes(RecordDecl* RD) {
-    for (RecordDecl::field_iterator i = RD->field_begin(),
-                                    e = RD->field_end(); i != e; ++i) {
-      Visit(*i);
-      Doc.toParent();
+    for (RecordDecl::decl_iterator i = RD->decls_begin(),
+                                   e = RD->decls_end(); i != e; ++i) {
+      if (!(*i)->isImplicit()) {
+        Visit(*i);
+        Doc.toParent();
+      }
     }
   }
 
@@ -71,15 +73,7 @@ class DocumentXML::DeclPrinter : public DeclVisitor<DocumentXML::DeclPrinter> {
         Doc.addAttribute("is_virtual", base->isVirtual());
         Doc.toParent();
       }
-
-      for (CXXRecordDecl::method_iterator i = RD->method_begin(),
-             e = RD->method_end(); i != e; ++i) {
-        Visit(*i);
-        Doc.toParent();
-      }
-
     }
-
   }
 
   void addSubNodes(EnumDecl* ED) {
@@ -110,7 +104,7 @@ class DocumentXML::DeclPrinter : public DeclVisitor<DocumentXML::DeclPrinter> {
       Doc.PrintStmt(argDecl->getDefaultArg());
   }
 
-  void addSubNodes(NamespaceDecl* ns) {
+  void addSubNodes(DeclContext* ns) {
 
     for (DeclContext::decl_iterator 
            d    = ns->decls_begin(), 

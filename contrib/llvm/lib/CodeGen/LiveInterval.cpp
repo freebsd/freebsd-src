@@ -30,58 +30,19 @@
 #include <algorithm>
 using namespace llvm;
 
-// An example for liveAt():
-//
-// this = [1,4), liveAt(0) will return false. The instruction defining this
-// spans slots [0,3]. The interval belongs to an spilled definition of the
-// variable it represents. This is because slot 1 is used (def slot) and spans
-// up to slot 3 (store slot).
-//
-bool LiveInterval::liveAt(SlotIndex I) const {
-  Ranges::const_iterator r = std::upper_bound(ranges.begin(), ranges.end(), I);
-
-  if (r == ranges.begin())
-    return false;
-
-  --r;
-  return r->contains(I);
+// CompEnd - Compare LiveRange ends.
+namespace {
+struct CompEnd {
+  bool operator()(const LiveRange &A, const LiveRange &B) const {
+    return A.end < B.end;
+  }
+};
 }
 
-// liveBeforeAndAt - Check if the interval is live at the index and the index
-// just before it. If index is liveAt, check if it starts a new live range.
-// If it does, then check if the previous live range ends at index-1.
-bool LiveInterval::liveBeforeAndAt(SlotIndex I) const {
-  Ranges::const_iterator r = std::upper_bound(ranges.begin(), ranges.end(), I);
-
-  if (r == ranges.begin())
-    return false;
-
-  --r;
-  if (!r->contains(I))
-    return false;
-  if (I != r->start)
-    return true;
-  // I is the start of a live range. Check if the previous live range ends
-  // at I-1.
-  if (r == ranges.begin())
-    return false;
-  return r->end == I;
-}
-
-/// killedAt - Return true if a live range ends at index. Note that the kill
-/// point is not contained in the half-open live range. It is usually the
-/// getDefIndex() slot following its last use.
-bool LiveInterval::killedAt(SlotIndex I) const {
-  Ranges::const_iterator r = std::lower_bound(ranges.begin(), ranges.end(), I);
-
-  // Now r points to the first interval with start >= I, or ranges.end().
-  if (r == ranges.begin())
-    return false;
-
-  --r;
-  // Now r points to the last interval with end <= I.
-  // r->end is the kill point.
-  return r->end == I;
+LiveInterval::iterator LiveInterval::find(SlotIndex Pos) {
+  assert(Pos.isValid() && "Cannot search for an invalid index");
+  return std::upper_bound(begin(), end(), LiveRange(SlotIndex(), Pos, 0),
+                          CompEnd());
 }
 
 /// killedInRange - Return true if the interval has kills in [Start,End).
@@ -330,25 +291,14 @@ LiveInterval::addRangeFrom(LiveRange LR, iterator From) {
   return ranges.insert(it, LR);
 }
 
-/// isInOneLiveRange - Return true if the range specified is entirely in
-/// a single LiveRange of the live interval.
-bool LiveInterval::isInOneLiveRange(SlotIndex Start, SlotIndex End) {
-  Ranges::iterator I = std::upper_bound(ranges.begin(), ranges.end(), Start);
-  if (I == ranges.begin())
-    return false;
-  --I;
-  return I->containsRange(Start, End);
-}
-
 
 /// removeRange - Remove the specified range from this interval.  Note that
 /// the range must be in a single LiveRange in its entirety.
 void LiveInterval::removeRange(SlotIndex Start, SlotIndex End,
                                bool RemoveDeadValNo) {
   // Find the LiveRange containing this span.
-  Ranges::iterator I = std::upper_bound(ranges.begin(), ranges.end(), Start);
-  assert(I != ranges.begin() && "Range is not in interval!");
-  --I;
+  Ranges::iterator I = find(Start);
+  assert(I != ranges.end() && "Range is not in interval!");
   assert(I->containsRange(Start, End) && "Range is not entirely in interval!");
 
   // If the span we are removing is at the start of the LiveRange, adjust it.
@@ -405,32 +355,6 @@ void LiveInterval::removeValNo(VNInfo *ValNo) {
   markValNoForDeletion(ValNo);
 }
 
-/// getLiveRangeContaining - Return the live range that contains the
-/// specified index, or null if there is none.
-LiveInterval::const_iterator
-LiveInterval::FindLiveRangeContaining(SlotIndex Idx) const {
-  const_iterator It = std::upper_bound(begin(), end(), Idx);
-  if (It != ranges.begin()) {
-    --It;
-    if (It->contains(Idx))
-      return It;
-  }
-
-  return end();
-}
-
-LiveInterval::iterator
-LiveInterval::FindLiveRangeContaining(SlotIndex Idx) {
-  iterator It = std::upper_bound(begin(), end(), Idx);
-  if (It != begin()) {
-    --It;
-    if (It->contains(Idx))
-      return It;
-  }
-
-  return end();
-}
-
 /// findDefinedVNInfo - Find the VNInfo defined by the specified
 /// index (register interval).
 VNInfo *LiveInterval::findDefinedVNInfoForRegInt(SlotIndex Idx) const {
@@ -440,17 +364,6 @@ VNInfo *LiveInterval::findDefinedVNInfoForRegInt(SlotIndex Idx) const {
       return *i;
   }
 
-  return 0;
-}
-
-/// findDefinedVNInfo - Find the VNInfo defined by the specified
-/// register (stack inteval).
-VNInfo *LiveInterval::findDefinedVNInfoForStackInt(unsigned reg) const {
-  for (LiveInterval::const_vni_iterator i = vni_begin(), e = vni_end();
-       i != e; ++i) {
-    if ((*i)->getReg() == reg)
-      return *i;
-  }
   return 0;
 }
 
@@ -616,103 +529,6 @@ void LiveInterval::MergeValueInAsValue(
 }
 
 
-/// MergeInClobberRanges - For any live ranges that are not defined in the
-/// current interval, but are defined in the Clobbers interval, mark them
-/// used with an unknown definition value.
-void LiveInterval::MergeInClobberRanges(LiveIntervals &li_,
-                                        const LiveInterval &Clobbers,
-                                        VNInfo::Allocator &VNInfoAllocator) {
-  if (Clobbers.empty()) return;
-
-  DenseMap<VNInfo*, VNInfo*> ValNoMaps;
-  VNInfo *UnusedValNo = 0;
-  iterator IP = begin();
-  for (const_iterator I = Clobbers.begin(), E = Clobbers.end(); I != E; ++I) {
-    // For every val# in the Clobbers interval, create a new "unknown" val#.
-    VNInfo *ClobberValNo = 0;
-    DenseMap<VNInfo*, VNInfo*>::iterator VI = ValNoMaps.find(I->valno);
-    if (VI != ValNoMaps.end())
-      ClobberValNo = VI->second;
-    else if (UnusedValNo)
-      ClobberValNo = UnusedValNo;
-    else {
-      UnusedValNo = ClobberValNo =
-        getNextValue(li_.getInvalidIndex(), 0, false, VNInfoAllocator);
-      ValNoMaps.insert(std::make_pair(I->valno, ClobberValNo));
-    }
-
-    bool Done = false;
-    SlotIndex Start = I->start, End = I->end;
-    // If a clobber range starts before an existing range and ends after
-    // it, the clobber range will need to be split into multiple ranges.
-    // Loop until the entire clobber range is handled.
-    while (!Done) {
-      Done = true;
-      IP = std::upper_bound(IP, end(), Start);
-      SlotIndex SubRangeStart = Start;
-      SlotIndex SubRangeEnd = End;
-
-      // If the start of this range overlaps with an existing liverange, trim it.
-      if (IP != begin() && IP[-1].end > SubRangeStart) {
-        SubRangeStart = IP[-1].end;
-        // Trimmed away the whole range?
-        if (SubRangeStart >= SubRangeEnd) continue;
-      }
-      // If the end of this range overlaps with an existing liverange, trim it.
-      if (IP != end() && SubRangeEnd > IP->start) {
-        // If the clobber live range extends beyond the existing live range,
-        // it'll need at least another live range, so set the flag to keep
-        // iterating.
-        if (SubRangeEnd > IP->end) {
-          Start = IP->end;
-          Done = false;
-        }
-        SubRangeEnd = IP->start;
-        // If this trimmed away the whole range, ignore it.
-        if (SubRangeStart == SubRangeEnd) continue;
-      }
-
-      // Insert the clobber interval.
-      IP = addRangeFrom(LiveRange(SubRangeStart, SubRangeEnd, ClobberValNo),
-                        IP);
-      UnusedValNo = 0;
-    }
-  }
-
-  if (UnusedValNo) {
-    // Delete the last unused val#.
-    valnos.pop_back();
-  }
-}
-
-void LiveInterval::MergeInClobberRange(LiveIntervals &li_,
-                                       SlotIndex Start,
-                                       SlotIndex End,
-                                       VNInfo::Allocator &VNInfoAllocator) {
-  // Find a value # to use for the clobber ranges.  If there is already a value#
-  // for unknown values, use it.
-  VNInfo *ClobberValNo =
-    getNextValue(li_.getInvalidIndex(), 0, false, VNInfoAllocator);
-
-  iterator IP = begin();
-  IP = std::upper_bound(IP, end(), Start);
-
-  // If the start of this range overlaps with an existing liverange, trim it.
-  if (IP != begin() && IP[-1].end > Start) {
-    Start = IP[-1].end;
-    // Trimmed away the whole range?
-    if (Start >= End) return;
-  }
-  // If the end of this range overlaps with an existing liverange, trim it.
-  if (IP != end() && End > IP->start) {
-    End = IP->start;
-    // If this trimmed away the whole range, ignore it.
-    if (Start == End) return;
-  }
-
-  // Insert the clobber interval.
-  addRangeFrom(LiveRange(Start, End, ClobberValNo), IP);
-}
 
 /// MergeValueNumberInto - This method is called when two value nubmers
 /// are found to be equivalent.  This eliminates V1, replacing all
@@ -766,6 +582,9 @@ VNInfo* LiveInterval::MergeValueNumberInto(VNInfo *V1, VNInfo *V2) {
       }
     }
   }
+
+  // Merge the relevant flags.
+  V2->mergeFlags(V1);
 
   // Now that V1 is dead, remove it.
   markValNoForDeletion(V1);
@@ -831,14 +650,9 @@ void LiveRange::dump() const {
 }
 
 void LiveInterval::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
-  if (isStackSlot())
-    OS << "SS#" << getStackSlotIndex();
-  else if (TRI && TargetRegisterInfo::isPhysicalRegister(reg))
-    OS << TRI->getName(reg);
-  else
-    OS << "%reg" << reg;
-
-  OS << ',' << weight;
+  OS << PrintReg(reg, TRI);
+  if (weight != 0)
+    OS << ',' << weight;
 
   if (empty())
     OS << " EMPTY";
@@ -863,10 +677,9 @@ void LiveInterval::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
       if (vni->isUnused()) {
         OS << "x";
       } else {
-        if (!vni->isDefAccurate() && !vni->isPHIDef())
-          OS << "?";
-        else
-          OS << vni->def;
+        OS << vni->def;
+        if (vni->isPHIDef())
+          OS << "-phidef";
         if (vni->hasPHIKill())
           OS << "-phikill";
         if (vni->hasRedefByEC())
@@ -883,4 +696,85 @@ void LiveInterval::dump() const {
 
 void LiveRange::print(raw_ostream &os) const {
   os << *this;
+}
+
+unsigned ConnectedVNInfoEqClasses::Classify(const LiveInterval *LI) {
+  // Create initial equivalence classes.
+  eqClass_.clear();
+  eqClass_.grow(LI->getNumValNums());
+
+  const VNInfo *used = 0, *unused = 0;
+
+  // Determine connections.
+  for (LiveInterval::const_vni_iterator I = LI->vni_begin(), E = LI->vni_end();
+       I != E; ++I) {
+    const VNInfo *VNI = *I;
+    // Group all unused values into one class.
+    if (VNI->isUnused()) {
+      if (unused)
+        eqClass_.join(unused->id, VNI->id);
+      unused = VNI;
+      continue;
+    }
+    used = VNI;
+    if (VNI->isPHIDef()) {
+      const MachineBasicBlock *MBB = lis_.getMBBFromIndex(VNI->def);
+      assert(MBB && "Phi-def has no defining MBB");
+      // Connect to values live out of predecessors.
+      for (MachineBasicBlock::const_pred_iterator PI = MBB->pred_begin(),
+           PE = MBB->pred_end(); PI != PE; ++PI)
+        if (const VNInfo *PVNI =
+              LI->getVNInfoAt(lis_.getMBBEndIdx(*PI).getPrevSlot()))
+          eqClass_.join(VNI->id, PVNI->id);
+    } else {
+      // Normal value defined by an instruction. Check for two-addr redef.
+      // FIXME: This could be coincidental. Should we really check for a tied
+      // operand constraint?
+      // Note that VNI->def may be a use slot for an early clobber def.
+      if (const VNInfo *UVNI = LI->getVNInfoAt(VNI->def.getPrevSlot()))
+        eqClass_.join(VNI->id, UVNI->id);
+    }
+  }
+
+  // Lump all the unused values in with the last used value.
+  if (used && unused)
+    eqClass_.join(used->id, unused->id);
+
+  eqClass_.compress();
+  return eqClass_.getNumClasses();
+}
+
+void ConnectedVNInfoEqClasses::Distribute(LiveInterval *LIV[]) {
+  assert(LIV[0] && "LIV[0] must be set");
+  LiveInterval &LI = *LIV[0];
+
+  // First move runs to new intervals.
+  LiveInterval::iterator J = LI.begin(), E = LI.end();
+  while (J != E && eqClass_[J->valno->id] == 0)
+    ++J;
+  for (LiveInterval::iterator I = J; I != E; ++I) {
+    if (unsigned eq = eqClass_[I->valno->id]) {
+      assert((LIV[eq]->empty() || LIV[eq]->expiredAt(I->start)) &&
+             "New intervals should be empty");
+      LIV[eq]->ranges.push_back(*I);
+    } else
+      *J++ = *I;
+  }
+  LI.ranges.erase(J, E);
+
+  // Transfer VNInfos to their new owners and renumber them.
+  unsigned j = 0, e = LI.getNumValNums();
+  while (j != e && eqClass_[j] == 0)
+    ++j;
+  for (unsigned i = j; i != e; ++i) {
+    VNInfo *VNI = LI.getValNumInfo(i);
+    if (unsigned eq = eqClass_[i]) {
+      VNI->id = LIV[eq]->getNumValNums();
+      LIV[eq]->valnos.push_back(VNI);
+    } else {
+      VNI->id = j;
+      LI.valnos[j++] = VNI;
+    }
+  }
+  LI.valnos.resize(j);
 }

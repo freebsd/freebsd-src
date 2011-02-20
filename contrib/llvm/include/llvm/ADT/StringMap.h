@@ -137,8 +137,8 @@ public:
   StringMapEntry(unsigned strLen, const ValueTy &V)
     : StringMapEntryBase(strLen), second(V) {}
 
-  StringRef getKey() const { 
-    return StringRef(getKeyData(), getKeyLength()); 
+  StringRef getKey() const {
+    return StringRef(getKeyData(), getKeyLength());
   }
 
   const ValueTy &getValue() const { return second; }
@@ -167,7 +167,7 @@ public:
 
     unsigned AllocSize = static_cast<unsigned>(sizeof(StringMapEntry))+
       KeyLength+1;
-    unsigned Alignment = alignof<StringMapEntry>();
+    unsigned Alignment = alignOf<StringMapEntry>();
 
     StringMapEntry *NewItem =
       static_cast<StringMapEntry*>(Allocator.Allocate(AllocSize,Alignment));
@@ -216,14 +216,14 @@ public:
   static const StringMapEntry &GetStringMapEntryFromValue(const ValueTy &V) {
     return GetStringMapEntryFromValue(const_cast<ValueTy&>(V));
   }
-  
+
   /// GetStringMapEntryFromKeyData - Given key data that is known to be embedded
   /// into a StringMapEntry, return the StringMapEntry itself.
   static StringMapEntry &GetStringMapEntryFromKeyData(const char *KeyData) {
     char *Ptr = const_cast<char*>(KeyData) - sizeof(StringMapEntry<ValueTy>);
     return *reinterpret_cast<StringMapEntry*>(Ptr);
   }
-  
+
 
   /// Destroy - Destroy this StringMapEntry, releasing memory back to the
   /// specified allocator.
@@ -254,7 +254,7 @@ public:
   StringMap() : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))) {}
   explicit StringMap(unsigned InitialSize)
     : StringMapImpl(InitialSize, static_cast<unsigned>(sizeof(MapEntryTy))) {}
-  
+
   explicit StringMap(AllocatorTy A)
     : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))), Allocator(A) {}
 
@@ -262,16 +262,19 @@ public:
     : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))) {
     assert(RHS.empty() &&
            "Copy ctor from non-empty stringmap not implemented yet!");
+    (void)RHS;
   }
   void operator=(const StringMap &RHS) {
     assert(RHS.empty() &&
            "assignment from non-empty stringmap not implemented yet!");
+    (void)RHS;
     clear();
   }
 
-
-  AllocatorTy &getAllocator() { return Allocator; }
-  const AllocatorTy &getAllocator() const { return Allocator; }
+  typedef typename ReferenceAdder<AllocatorTy>::result AllocatorRefTy;
+  typedef typename ReferenceAdder<const AllocatorTy>::result AllocatorCRefTy;
+  AllocatorRefTy getAllocator() { return Allocator; }
+  AllocatorCRefTy getAllocator() const { return Allocator; }
 
   typedef const char* key_type;
   typedef ValueTy mapped_type;

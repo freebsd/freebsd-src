@@ -134,7 +134,7 @@ struct EffectiveContext {
   bool Dependent;
 };
 
-/// Like sema:;AccessedEntity, but kindly lets us scribble all over
+/// Like sema::AccessedEntity, but kindly lets us scribble all over
 /// it.
 struct AccessTarget : public AccessedEntity {
   AccessTarget(const AccessedEntity &Entity)
@@ -516,6 +516,11 @@ static AccessResult MatchesFriend(Sema &S,
 static AccessResult MatchesFriend(Sema &S,
                                   const EffectiveContext &EC,
                                   FriendDecl *FriendD) {
+  // Whitelist accesses if there's an invalid or unsupported friend
+  // declaration.
+  if (FriendD->isInvalidDecl() || FriendD->isUnsupportedFriend())
+    return AR_accessible;
+
   if (TypeSourceInfo *T = FriendD->getFriendType())
     return MatchesFriend(S, EC, T->getType()->getCanonicalTypeUnqualified());
 
@@ -1003,9 +1008,51 @@ static void DiagnoseAccessPath(Sema &S,
           TryDiagnoseProtectedAccess(S, EC, Entity))
         return;
 
+      // Find an original declaration.
+      while (D->isOutOfLine()) {
+        NamedDecl *PrevDecl = 0;
+        if (isa<VarDecl>(D))
+          PrevDecl = cast<VarDecl>(D)->getPreviousDeclaration();
+        else if (isa<FunctionDecl>(D))
+          PrevDecl = cast<FunctionDecl>(D)->getPreviousDeclaration();
+        else if (isa<TypedefDecl>(D))
+          PrevDecl = cast<TypedefDecl>(D)->getPreviousDeclaration();
+        else if (isa<TagDecl>(D)) {
+          if (isa<RecordDecl>(D) && cast<RecordDecl>(D)->isInjectedClassName())
+            break;
+          PrevDecl = cast<TagDecl>(D)->getPreviousDeclaration();
+        }
+        if (!PrevDecl) break;
+        D = PrevDecl;
+      }
+
+      CXXRecordDecl *DeclaringClass = FindDeclaringClass(D);
+      Decl *ImmediateChild;
+      if (D->getDeclContext() == DeclaringClass)
+        ImmediateChild = D;
+      else {
+        DeclContext *DC = D->getDeclContext();
+        while (DC->getParent() != DeclaringClass)
+          DC = DC->getParent();
+        ImmediateChild = cast<Decl>(DC);
+      }
+      
+      // Check whether there's an AccessSpecDecl preceding this in the
+      // chain of the DeclContext.
+      bool Implicit = true;
+      for (CXXRecordDecl::decl_iterator
+             I = DeclaringClass->decls_begin(), E = DeclaringClass->decls_end();
+           I != E; ++I) {
+        if (*I == ImmediateChild) break;
+        if (isa<AccessSpecDecl>(*I)) {
+          Implicit = false;
+          break;
+        }
+      }
+
       S.Diag(D->getLocation(), diag::note_access_natural)
         << (unsigned) (Access == AS_protected)
-        << /*FIXME: not implicitly*/ 0;
+        << Implicit;
       return;
     }
 
@@ -1213,13 +1260,19 @@ static Sema::AccessResult CheckAccess(Sema &S, SourceLocation Loc,
   if (S.SuppressAccessChecking)
     return Sema::AR_accessible;
 
-  // If we're currently parsing a top-level declaration, delay
-  // diagnostics.  This is the only case where parsing a declaration
-  // can actually change our effective context for the purposes of
-  // access control.
-  if (S.CurContext->isFileContext() && S.ParsingDeclDepth) {
-    S.DelayedDiagnostics.push_back(
-        DelayedDiagnostic::makeAccess(Loc, Entity));
+  // If we're currently parsing a declaration, we may need to delay
+  // access control checking, because our effective context might be
+  // different based on what the declaration comes out as.
+  //
+  // For example, we might be parsing a declaration with a scope
+  // specifier, like this:
+  //   A::private_type A::foo() { ... }
+  //
+  // Or we might be parsing something that will turn out to be a friend:
+  //   void foo(A::private_type);
+  //   void B::foo(A::private_type);
+  if (S.DelayedDiagnostics.shouldDelayDiagnostics()) {
+    S.DelayedDiagnostics.add(DelayedDiagnostic::makeAccess(Loc, Entity));
     return Sema::AR_delayed;
   }
 
@@ -1233,16 +1286,20 @@ static Sema::AccessResult CheckAccess(Sema &S, SourceLocation Loc,
   return Sema::AR_accessible;
 }
 
-void Sema::HandleDelayedAccessCheck(DelayedDiagnostic &DD, Decl *Ctx) {
-  // Pretend we did this from the context of the newly-parsed
-  // declaration. If that declaration itself forms a declaration context,
-  // include it in the effective context so that parameters and return types of
-  // befriended functions have that function's access priveledges.
-  DeclContext *DC = Ctx->getDeclContext();
-  if (isa<FunctionDecl>(Ctx))
-    DC = cast<DeclContext>(Ctx);
-  else if (FunctionTemplateDecl *FnTpl = dyn_cast<FunctionTemplateDecl>(Ctx))
-    DC = cast<DeclContext>(FnTpl->getTemplatedDecl());
+void Sema::HandleDelayedAccessCheck(DelayedDiagnostic &DD, Decl *decl) {
+  // Access control for names used in the declarations of functions
+  // and function templates should normally be evaluated in the context
+  // of the declaration, just in case it's a friend of something.
+  // However, this does not apply to local extern declarations.
+
+  DeclContext *DC = decl->getDeclContext();
+  if (FunctionDecl *fn = dyn_cast<FunctionDecl>(decl)) {
+    if (!DC->isFunctionOrMethod()) DC = fn;
+  } else if (FunctionTemplateDecl *fnt = dyn_cast<FunctionTemplateDecl>(decl)) {
+    // Never a local declaration.
+    DC = fnt->getTemplatedDecl();
+  }
+
   EffectiveContext EC(DC);
 
   AccessTarget Target(DD.getAccessData());

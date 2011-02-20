@@ -18,7 +18,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
 class raw_ostream;
@@ -33,24 +33,27 @@ class MCOperand {
     kInvalid,                 ///< Uninitialized.
     kRegister,                ///< Register operand.
     kImmediate,               ///< Immediate operand.
+    kFPImmediate,             ///< Floating-point immediate operand.
     kExpr                     ///< Relocatable immediate operand.
   };
   unsigned char Kind;
-  
+
   union {
     unsigned RegVal;
     int64_t ImmVal;
+    double FPImmVal;
     const MCExpr *ExprVal;
   };
 public:
-  
-  MCOperand() : Kind(kInvalid) {}
+
+  MCOperand() : Kind(kInvalid), FPImmVal(0.0) {}
 
   bool isValid() const { return Kind != kInvalid; }
   bool isReg() const { return Kind == kRegister; }
   bool isImm() const { return Kind == kImmediate; }
+  bool isFPImm() const { return Kind == kFPImmediate; }
   bool isExpr() const { return Kind == kExpr; }
-  
+
   /// getReg - Returns the register number.
   unsigned getReg() const {
     assert(isReg() && "This is not a register operand!");
@@ -62,7 +65,7 @@ public:
     assert(isReg() && "This is not a register operand!");
     RegVal = Reg;
   }
-  
+
   int64_t getImm() const {
     assert(isImm() && "This is not an immediate");
     return ImmVal;
@@ -71,7 +74,17 @@ public:
     assert(isImm() && "This is not an immediate");
     ImmVal = Val;
   }
-  
+
+  double getFPImm() const {
+    assert(isFPImm() && "This is not an FP immediate");
+    return FPImmVal;
+  }
+
+  void setFPImm(double Val) {
+    assert(isFPImm() && "This is not an FP immediate");
+    FPImmVal = Val;
+  }
+
   const MCExpr *getExpr() const {
     assert(isExpr() && "This is not an expression");
     return ExprVal;
@@ -80,7 +93,7 @@ public:
     assert(isExpr() && "This is not an expression");
     ExprVal = Val;
   }
-  
+
   static MCOperand CreateReg(unsigned Reg) {
     MCOperand Op;
     Op.Kind = kRegister;
@@ -91,6 +104,12 @@ public:
     MCOperand Op;
     Op.Kind = kImmediate;
     Op.ImmVal = Val;
+    return Op;
+  }
+  static MCOperand CreateFPImm(double Val) {
+    MCOperand Op;
+    Op.Kind = kFPImmediate;
+    Op.FPImmVal = Val;
     return Op;
   }
   static MCOperand CreateExpr(const MCExpr *Val) {
@@ -104,23 +123,23 @@ public:
   void dump() const;
 };
 
-  
+
 /// MCInst - Instances of this class represent a single low-level machine
-/// instruction. 
+/// instruction.
 class MCInst {
   unsigned Opcode;
   SmallVector<MCOperand, 8> Operands;
 public:
   MCInst() : Opcode(0) {}
-  
+
   void setOpcode(unsigned Op) { Opcode = Op; }
-  
+
   unsigned getOpcode() const { return Opcode; }
 
   const MCOperand &getOperand(unsigned i) const { return Operands[i]; }
   MCOperand &getOperand(unsigned i) { return Operands[i]; }
   unsigned getNumOperands() const { return Operands.size(); }
-  
+
   void addOperand(const MCOperand &Op) {
     Operands.push_back(Op);
   }
@@ -136,6 +155,15 @@ public:
                    StringRef Separator = " ") const;
 };
 
+inline raw_ostream& operator<<(raw_ostream &OS, const MCOperand &MO) {
+  MO.print(OS, 0);
+  return OS;
+}
+
+inline raw_ostream& operator<<(raw_ostream &OS, const MCInst &MI) {
+  MI.print(OS, 0);
+  return OS;
+}
 
 } // end namespace llvm
 

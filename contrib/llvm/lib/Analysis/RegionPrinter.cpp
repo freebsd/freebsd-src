@@ -121,35 +121,41 @@ namespace {
 struct RegionViewer
   : public DOTGraphTraitsViewer<RegionInfo, false> {
   static char ID;
-  RegionViewer() : DOTGraphTraitsViewer<RegionInfo, false>("reg", ID){}
+  RegionViewer() : DOTGraphTraitsViewer<RegionInfo, false>("reg", ID){
+    initializeRegionViewerPass(*PassRegistry::getPassRegistry());
+  }
 };
-
 char RegionViewer::ID = 0;
-INITIALIZE_PASS(RegionViewer, "view-regions", "View regions of function",
-                true, true);
 
 struct RegionOnlyViewer
   : public DOTGraphTraitsViewer<RegionInfo, true> {
   static char ID;
-  RegionOnlyViewer() : DOTGraphTraitsViewer<RegionInfo, true>("regonly", ID){}
+  RegionOnlyViewer() : DOTGraphTraitsViewer<RegionInfo, true>("regonly", ID) {
+    initializeRegionOnlyViewerPass(*PassRegistry::getPassRegistry());
+  }
 };
-
 char RegionOnlyViewer::ID = 0;
-INITIALIZE_PASS(RegionOnlyViewer, "view-regions-only",
-                "View regions of function (with no function bodies)",
-                true, true);
 
 struct RegionPrinter
   : public DOTGraphTraitsPrinter<RegionInfo, false> {
   static char ID;
   RegionPrinter() :
-    DOTGraphTraitsPrinter<RegionInfo, false>("reg", ID) {}
+    DOTGraphTraitsPrinter<RegionInfo, false>("reg", ID) {
+      initializeRegionPrinterPass(*PassRegistry::getPassRegistry());
+    }
 };
+char RegionPrinter::ID = 0;
 } //end anonymous namespace
 
-char RegionPrinter::ID = 0;
 INITIALIZE_PASS(RegionPrinter, "dot-regions",
-                "Print regions of function to 'dot' file", true, true);
+                "Print regions of function to 'dot' file", true, true)
+
+INITIALIZE_PASS(RegionViewer, "view-regions", "View regions of function",
+                true, true)
+                
+INITIALIZE_PASS(RegionOnlyViewer, "view-regions-only",
+                "View regions of function (with no function bodies)",
+                true, true)
 
 namespace {
 
@@ -157,7 +163,9 @@ struct RegionOnlyPrinter
   : public DOTGraphTraitsPrinter<RegionInfo, true> {
   static char ID;
   RegionOnlyPrinter() :
-    DOTGraphTraitsPrinter<RegionInfo, true>("reg", ID) {}
+    DOTGraphTraitsPrinter<RegionInfo, true>("reg", ID) {
+      initializeRegionOnlyPrinterPass(*PassRegistry::getPassRegistry());
+    }
 };
 
 }
@@ -166,7 +174,7 @@ char RegionOnlyPrinter::ID = 0;
 INITIALIZE_PASS(RegionOnlyPrinter, "dot-regions-only",
                 "Print regions of function to 'dot' file "
                 "(with no function bodies)",
-                true, true);
+                true, true)
 
 FunctionPass* llvm::createRegionViewerPass() {
   return new RegionViewer();

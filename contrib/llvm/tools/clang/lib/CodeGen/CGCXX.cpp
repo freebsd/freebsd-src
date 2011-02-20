@@ -1,4 +1,4 @@
-//===--- CGDecl.cpp - Emit LLVM Code for declarations ---------------------===//
+//===--- CGCXX.cpp - Emit LLVM Code for declarations ----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,12 +16,12 @@
 #include "CGCXXABI.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
-#include "Mangle.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/Mangle.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/ADT/StringExtras.h"
@@ -60,13 +60,12 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
     return true;
   }
 
-  // If any fields have a non-trivial destructor, we have to emit it
-  // separately.
+  // If any field has a non-trivial destructor, we have to emit the
+  // destructor separately.
   for (CXXRecordDecl::field_iterator I = Class->field_begin(),
          E = Class->field_end(); I != E; ++I)
-    if (const RecordType *RT = (*I)->getType()->getAs<RecordType>())
-      if (!cast<CXXRecordDecl>(RT->getDecl())->hasTrivialDestructor())
-        return true;
+    if ((*I)->getType().isDestructedType())
+      return true;
 
   // Try to find a unique base class with a non-trivial destructor.
   const CXXRecordDecl *UniqueBase = 0;
@@ -103,7 +102,7 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
 
   // If the base is at a non-zero offset, give up.
   const ASTRecordLayout &ClassLayout = Context.getASTRecordLayout(Class);
-  if (ClassLayout.getBaseClassOffset(UniqueBase) != 0)
+  if (ClassLayout.getBaseClassOffsetInBits(UniqueBase) != 0)
     return true;
 
   return TryEmitDefinitionAsAlias(GlobalDecl(D, Dtor_Base),
@@ -180,7 +179,7 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
   }
 
   // Finally, set up the alias with its proper name and attributes.
-  SetCommonAttributes(AliasDecl.getDecl(), Alias);
+  SetCommonAttributes(cast<NamedDecl>(AliasDecl.getDecl()), Alias);
 
   return false;
 }
@@ -227,7 +226,8 @@ CodeGenModule::GetAddrOfCXXConstructor(const CXXConstructorDecl *D,
   const llvm::FunctionType *FTy =
     getTypes().GetFunctionType(getTypes().getFunctionInfo(D, Type), 
                                FPT->isVariadic());
-  return cast<llvm::Function>(GetOrCreateLLVMFunction(Name, FTy, GD));
+  return cast<llvm::Function>(GetOrCreateLLVMFunction(Name, FTy, GD,
+                                                      /*ForVTable=*/false));
 }
 
 void CodeGenModule::EmitCXXDestructors(const CXXDestructorDecl *D) {
@@ -284,16 +284,15 @@ CodeGenModule::GetAddrOfCXXDestructor(const CXXDestructorDecl *D,
   const llvm::FunctionType *FTy =
     getTypes().GetFunctionType(getTypes().getFunctionInfo(D, Type), false);
 
-  return cast<llvm::Function>(GetOrCreateLLVMFunction(Name, FTy, GD));
+  return cast<llvm::Function>(GetOrCreateLLVMFunction(Name, FTy, GD,
+                                                      /*ForVTable=*/false));
 }
 
 static llvm::Value *BuildVirtualCall(CodeGenFunction &CGF, uint64_t VTableIndex, 
                                      llvm::Value *This, const llvm::Type *Ty) {
-  Ty = Ty->getPointerTo()->getPointerTo()->getPointerTo();
+  Ty = Ty->getPointerTo()->getPointerTo();
   
-  llvm::Value *VTable = CGF.Builder.CreateBitCast(This, Ty);
-  VTable = CGF.Builder.CreateLoad(VTable);
-  
+  llvm::Value *VTable = CGF.GetVTablePtr(This, Ty);
   llvm::Value *VFuncPtr = 
     CGF.Builder.CreateConstInBoundsGEP1_64(VTable, VTableIndex, "vfn");
   return CGF.Builder.CreateLoad(VFuncPtr);
@@ -308,9 +307,80 @@ CodeGenFunction::BuildVirtualCall(const CXXMethodDecl *MD, llvm::Value *This,
   return ::BuildVirtualCall(*this, VTableIndex, This, Ty);
 }
 
+/// BuildVirtualCall - This routine is to support gcc's kext ABI making
+/// indirect call to virtual functions. It makes the call through indexing
+/// into the vtable.
+llvm::Value *
+CodeGenFunction::BuildAppleKextVirtualCall(const CXXMethodDecl *MD, 
+                                  NestedNameSpecifier *Qual,
+                                  const llvm::Type *Ty) {
+  llvm::Value *VTable = 0;
+  assert((Qual->getKind() == NestedNameSpecifier::TypeSpec) &&
+         "BuildAppleKextVirtualCall - bad Qual kind");
+  
+  const Type *QTy = Qual->getAsType();
+  QualType T = QualType(QTy, 0);
+  const RecordType *RT = T->getAs<RecordType>();
+  assert(RT && "BuildAppleKextVirtualCall - Qual type must be record");
+  const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+  
+  if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(MD))
+    return BuildAppleKextVirtualDestructorCall(DD, Dtor_Complete, RD);
+  
+  VTable = CGM.getVTables().GetAddrOfVTable(RD);
+  Ty = Ty->getPointerTo()->getPointerTo();
+  VTable = Builder.CreateBitCast(VTable, Ty);
+  assert(VTable && "BuildVirtualCall = kext vtbl pointer is null");
+  MD = MD->getCanonicalDecl();
+  uint64_t VTableIndex = CGM.getVTables().getMethodVTableIndex(MD);
+  uint64_t AddressPoint = 
+    CGM.getVTables().getAddressPoint(BaseSubobject(RD, 0), RD);
+  VTableIndex += AddressPoint;
+  llvm::Value *VFuncPtr = 
+    Builder.CreateConstInBoundsGEP1_64(VTable, VTableIndex, "vfnkxt");
+  return Builder.CreateLoad(VFuncPtr);
+}
+
+/// BuildVirtualCall - This routine makes indirect vtable call for
+/// call to virtual destructors. It returns 0 if it could not do it.
+llvm::Value *
+CodeGenFunction::BuildAppleKextVirtualDestructorCall(
+                                            const CXXDestructorDecl *DD,
+                                            CXXDtorType Type,
+                                            const CXXRecordDecl *RD) {
+  llvm::Value * Callee = 0;
+  const CXXMethodDecl *MD = cast<CXXMethodDecl>(DD);
+  // FIXME. Dtor_Base dtor is always direct!!
+  // It need be somehow inline expanded into the caller.
+  // -O does that. But need to support -O0 as well.
+  if (MD->isVirtual() && Type != Dtor_Base) {
+    // Compute the function type we're calling.
+    const CGFunctionInfo *FInfo = 
+    &CGM.getTypes().getFunctionInfo(cast<CXXDestructorDecl>(MD),
+                                    Dtor_Complete);
+    const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+    const llvm::Type *Ty
+      = CGM.getTypes().GetFunctionType(*FInfo, FPT->isVariadic());
+
+    llvm::Value *VTable = CGM.getVTables().GetAddrOfVTable(RD);
+    Ty = Ty->getPointerTo()->getPointerTo();
+    VTable = Builder.CreateBitCast(VTable, Ty);
+    DD = cast<CXXDestructorDecl>(DD->getCanonicalDecl());
+    uint64_t VTableIndex = 
+      CGM.getVTables().getMethodVTableIndex(GlobalDecl(DD, Type));
+    uint64_t AddressPoint =
+      CGM.getVTables().getAddressPoint(BaseSubobject(RD, 0), RD);
+    VTableIndex += AddressPoint;
+    llvm::Value *VFuncPtr =
+      Builder.CreateConstInBoundsGEP1_64(VTable, VTableIndex, "vfnkxt");
+    Callee = Builder.CreateLoad(VFuncPtr);
+  }
+  return Callee;
+}
+
 llvm::Value *
 CodeGenFunction::BuildVirtualCall(const CXXDestructorDecl *DD, CXXDtorType Type, 
-                                  llvm::Value *&This, const llvm::Type *Ty) {
+                                  llvm::Value *This, const llvm::Type *Ty) {
   DD = cast<CXXDestructorDecl>(DD->getCanonicalDecl());
   uint64_t VTableIndex = 
     CGM.getVTables().getMethodVTableIndex(GlobalDecl(DD, Type));
@@ -318,154 +388,3 @@ CodeGenFunction::BuildVirtualCall(const CXXDestructorDecl *DD, CXXDtorType Type,
   return ::BuildVirtualCall(*this, VTableIndex, This, Ty);
 }
 
-/// Implementation for CGCXXABI.  Possibly this should be moved into
-/// the incomplete ABI implementations?
-
-CGCXXABI::~CGCXXABI() {}
-
-static void ErrorUnsupportedABI(CodeGenFunction &CGF,
-                                llvm::StringRef S) {
-  Diagnostic &Diags = CGF.CGM.getDiags();
-  unsigned DiagID = Diags.getCustomDiagID(Diagnostic::Error,
-                                          "cannot yet compile %1 in this ABI");
-  Diags.Report(CGF.getContext().getFullLoc(CGF.CurCodeDecl->getLocation()),
-               DiagID)
-    << S;
-}
-
-static llvm::Constant *GetBogusMemberPointer(CodeGenModule &CGM,
-                                             QualType T) {
-  return llvm::Constant::getNullValue(CGM.getTypes().ConvertType(T));
-}
-
-const llvm::Type *
-CGCXXABI::ConvertMemberPointerType(const MemberPointerType *MPT) {
-  return CGM.getTypes().ConvertType(CGM.getContext().getPointerDiffType());
-}
-
-llvm::Value *CGCXXABI::EmitLoadOfMemberFunctionPointer(CodeGenFunction &CGF,
-                                                       llvm::Value *&This,
-                                                       llvm::Value *MemPtr,
-                                                 const MemberPointerType *MPT) {
-  ErrorUnsupportedABI(CGF, "calls through member pointers");
-
-  const FunctionProtoType *FPT = 
-    MPT->getPointeeType()->getAs<FunctionProtoType>();
-  const CXXRecordDecl *RD = 
-    cast<CXXRecordDecl>(MPT->getClass()->getAs<RecordType>()->getDecl());
-  const llvm::FunctionType *FTy = 
-    CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(RD, FPT),
-                                   FPT->isVariadic());
-  return llvm::Constant::getNullValue(FTy->getPointerTo());
-}
-
-llvm::Value *CGCXXABI::EmitMemberDataPointerAddress(CodeGenFunction &CGF,
-                                                    llvm::Value *Base,
-                                                    llvm::Value *MemPtr,
-                                              const MemberPointerType *MPT) {
-  ErrorUnsupportedABI(CGF, "loads of member pointers");
-  const llvm::Type *Ty = CGF.ConvertType(MPT->getPointeeType())->getPointerTo();
-  return llvm::Constant::getNullValue(Ty);
-}
-
-llvm::Value *CGCXXABI::EmitMemberPointerConversion(CodeGenFunction &CGF,
-                                                   const CastExpr *E,
-                                                   llvm::Value *Src) {
-  ErrorUnsupportedABI(CGF, "member function pointer conversions");
-  return GetBogusMemberPointer(CGM, E->getType());
-}
-
-llvm::Value *
-CGCXXABI::EmitMemberPointerComparison(CodeGenFunction &CGF,
-                                      llvm::Value *L,
-                                      llvm::Value *R,
-                                      const MemberPointerType *MPT,
-                                      bool Inequality) {
-  ErrorUnsupportedABI(CGF, "member function pointer comparison");
-  return CGF.Builder.getFalse();
-}
-
-llvm::Value *
-CGCXXABI::EmitMemberPointerIsNotNull(CodeGenFunction &CGF,
-                                     llvm::Value *MemPtr,
-                                     const MemberPointerType *MPT) {
-  ErrorUnsupportedABI(CGF, "member function pointer null testing");
-  return CGF.Builder.getFalse();
-}
-
-llvm::Constant *
-CGCXXABI::EmitMemberPointerConversion(llvm::Constant *C, const CastExpr *E) {
-  return GetBogusMemberPointer(CGM, E->getType());
-}
-
-llvm::Constant *
-CGCXXABI::EmitNullMemberPointer(const MemberPointerType *MPT) {
-  return GetBogusMemberPointer(CGM, QualType(MPT, 0));
-}
-
-llvm::Constant *CGCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
-  return GetBogusMemberPointer(CGM,
-                         CGM.getContext().getMemberPointerType(MD->getType(),
-                                         MD->getParent()->getTypeForDecl()));
-}
-
-llvm::Constant *CGCXXABI::EmitMemberPointer(const FieldDecl *FD) {
-  return GetBogusMemberPointer(CGM,
-                         CGM.getContext().getMemberPointerType(FD->getType(),
-                                         FD->getParent()->getTypeForDecl()));
-}
-
-bool CGCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
-  // Fake answer.
-  return true;
-}
-
-void CGCXXABI::BuildThisParam(CodeGenFunction &CGF, FunctionArgList &Params) {
-  const CXXMethodDecl *MD = cast<CXXMethodDecl>(CGF.CurGD.getDecl());
-
-  // FIXME: I'm not entirely sure I like using a fake decl just for code
-  // generation. Maybe we can come up with a better way?
-  ImplicitParamDecl *ThisDecl
-    = ImplicitParamDecl::Create(CGM.getContext(), 0, MD->getLocation(),
-                                &CGM.getContext().Idents.get("this"),
-                                MD->getThisType(CGM.getContext()));
-  Params.push_back(std::make_pair(ThisDecl, ThisDecl->getType()));
-  getThisDecl(CGF) = ThisDecl;
-}
-
-void CGCXXABI::EmitThisParam(CodeGenFunction &CGF) {
-  /// Initialize the 'this' slot.
-  assert(getThisDecl(CGF) && "no 'this' variable for function");
-  getThisValue(CGF)
-    = CGF.Builder.CreateLoad(CGF.GetAddrOfLocalVar(getThisDecl(CGF)),
-                             "this");
-}
-
-void CGCXXABI::EmitReturnFromThunk(CodeGenFunction &CGF,
-                                   RValue RV, QualType ResultType) {
-  CGF.EmitReturnOfRValue(RV, ResultType);
-}
-
-CharUnits CGCXXABI::GetArrayCookieSize(QualType ElementType) {
-  return CharUnits::Zero();
-}
-
-llvm::Value *CGCXXABI::InitializeArrayCookie(CodeGenFunction &CGF,
-                                             llvm::Value *NewPtr,
-                                             llvm::Value *NumElements,
-                                             QualType ElementType) {
-  // Should never be called.
-  ErrorUnsupportedABI(CGF, "array cookie initialization");
-  return 0;
-}
-
-void CGCXXABI::ReadArrayCookie(CodeGenFunction &CGF, llvm::Value *Ptr,
-                               QualType ElementType, llvm::Value *&NumElements,
-                               llvm::Value *&AllocPtr, CharUnits &CookieSize) {
-  ErrorUnsupportedABI(CGF, "array cookie reading");
-
-  // This should be enough to avoid assertions.
-  NumElements = 0;
-  AllocPtr = llvm::Constant::getNullValue(CGF.Builder.getInt8PtrTy());
-  CookieSize = CharUnits::Zero();
-}

@@ -5,6 +5,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Relative directory for resource files */
+#define CLANG_RESOURCE_DIR ""
+
 /* 32 bit multilib directory. */
 #define CXX_INCLUDE_32BIT_DIR ""
 
@@ -120,6 +123,9 @@
 /* Define if the neat program is available */
 /* #undef HAVE_FDP */
 
+/* Define to 1 if you have the <fenv.h> header file. */
+#define HAVE_FENV_H 1
+
 /* Define if libffi is available on this platform. */
 /* #undef HAVE_FFI_CALL */
 
@@ -149,9 +155,6 @@
 
 /* Define to 1 if you have the `getrusage' function. */
 #define HAVE_GETRUSAGE 1
-
-/* Have Darwin getsect() support */
-/* #undef HAVE_GETSECT */
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
@@ -225,9 +228,6 @@
 
 /* Define to 1 if you have the <mach-o/dyld.h> header file. */
 /* #undef HAVE_MACH_O_DYLD_H */
-
-/* Define to 1 if you have the <mach-o/getsect.h> header file. */
-/* #undef HAVE_MACH_O_GETSECT_H */
 
 /* Define if mallinfo() is available on this platform. */
 /* #undef HAVE_MALLINFO */
@@ -466,6 +466,9 @@
 /* Define to 1 if you have the <windows.h> header file. */
 /* #undef HAVE_WINDOWS_H */
 
+/* Define if the xdot.py program is available */
+/* #undef HAVE_XDOT_PY */
+
 /* Define to 1 if you have the `__dso_handle' function. */
 #define HAVE___DSO_HANDLE 1
 
@@ -473,10 +476,16 @@
 /* #undef LLVM_MULTITHREADED */
 
 /* LLVM architecture name for the native architecture, if available */
-#define LLVM_NATIVE_ARCH X86Target
+#define LLVM_NATIVE_ARCH X86
 
-/* Short LLVM architecture name for the native architecture, if available */
-#define LLVM_NATIVE_ARCHNAME X86
+/* LLVM name for the native AsmPrinter init function, if available */
+#define LLVM_NATIVE_ASMPRINTER LLVMInitializeX86AsmPrinter
+
+/* LLVM name for the native Target init function, if available */
+#define LLVM_NATIVE_TARGET LLVMInitializeX86Target
+
+/* LLVM name for the native TargetInfo init function, if available */
+#define LLVM_NATIVE_TARGETINFO LLVMInitializeX86TargetInfo
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
@@ -507,6 +516,9 @@
 
 /* Define to path to twopi program if found or 'echo twopi' otherwise */
 /* #undef LLVM_PATH_TWOPI */
+
+/* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
+/* #undef LLVM_PATH_XDOT_PY */
 
 /* Installation prefix directory */
 #define LLVM_PREFIX "/usr"
@@ -542,13 +554,13 @@
 #define PACKAGE_NAME "llvm"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "llvm 2.8svn"
+#define PACKAGE_STRING "llvm 2.9svn"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "-llvm-"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.8svn"
+#define PACKAGE_VERSION "2.9svn"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

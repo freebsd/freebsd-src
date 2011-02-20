@@ -15,7 +15,7 @@
 #include "llvm/CompilerDriver/Tool.h"
 
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 
 #include <algorithm>
 
@@ -61,7 +61,7 @@ sys::Path Tool::OutFilename(const sys::Path& In,
       Out.appendSuffix(OutputSuffix);
     }
     else {
-      Out.set(In.getBasename());
+      Out.set(sys::path::stem(In.str()));
       Out.appendSuffix(OutputSuffix);
     }
   }
@@ -69,7 +69,7 @@ sys::Path Tool::OutFilename(const sys::Path& In,
     if (IsJoin())
       Out = MakeTempFile(TempDir, "tmp", OutputSuffix);
     else
-      Out = MakeTempFile(TempDir, In.getBasename(), OutputSuffix);
+      Out = MakeTempFile(TempDir, sys::path::stem(In.str()), OutputSuffix);
   }
   return Out;
 }

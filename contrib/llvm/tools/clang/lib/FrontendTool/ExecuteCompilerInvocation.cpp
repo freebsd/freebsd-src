@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/FrontendTool/Utils.h"
-#include "clang/Checker/FrontendActions.h"
+#include "clang/StaticAnalyzer/Frontend/FrontendActions.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Driver/CC1Options.h"
 #include "clang/Driver/OptTable.h"
@@ -24,7 +24,7 @@
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/Rewrite/FrontendActions.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/System/DynamicLibrary.h"
+#include "llvm/Support/DynamicLibrary.h"
 using namespace clang;
 
 static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
@@ -35,6 +35,7 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
     llvm_unreachable("Invalid program action!");
 
   case ASTDump:                return new ASTDumpAction();
+  case ASTDumpXML:             return new ASTDumpXMLAction();
   case ASTPrint:               return new ASTPrintAction();
   case ASTPrintXML:            return new ASTPrintXMLAction();
   case ASTView:                return new ASTViewAction();
@@ -52,7 +53,6 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   case FixIt:                  return new FixItAction();
   case GeneratePCH:            return new GeneratePCHAction();
   case GeneratePTH:            return new GeneratePTHAction();
-  case InheritanceView:        return new InheritanceViewAction();
   case InitOnly:               return new InitOnlyAction();
   case ParseSyntaxOnly:        return new SyntaxOnlyAction();
 
@@ -79,7 +79,7 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   case RewriteMacros:          return new RewriteMacrosAction();
   case RewriteObjC:            return new RewriteObjCAction();
   case RewriteTest:            return new RewriteTestAction();
-  case RunAnalysis:            return new AnalysisAction();
+  case RunAnalysis:            return new ento::AnalysisAction();
   case RunPreprocessorOnly:    return new PreprocessOnlyAction();
   }
 }
@@ -141,7 +141,7 @@ bool clang::ExecuteCompilerInvocation(CompilerInstance *Clang) {
 
   // If there were errors in processing arguments, don't do anything else.
   bool Success = false;
-  if (!Clang->getDiagnostics().getNumErrors()) {
+  if (!Clang->getDiagnostics().hasErrorOccurred()) {
     // Create and execute the frontend action.
     llvm::OwningPtr<FrontendAction> Act(CreateFrontendAction(*Clang));
     if (Act) {

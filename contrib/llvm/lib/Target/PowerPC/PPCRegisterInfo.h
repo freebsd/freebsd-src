@@ -44,16 +44,9 @@ public:
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
-  /// targetHandlesStackFrameRounding - Returns true if the target is
-  /// responsible for rounding up the stack frame (probably at emitPrologue
-  /// time).
-  bool targetHandlesStackFrameRounding() const { return true; }
-
   /// requiresRegisterScavenging - We require a register scavenger.
   /// FIXME (64-bit): Should be inlined.
   bool requiresRegisterScavenging(const MachineFunction &MF) const;
-
-  bool hasFP(const MachineFunction &MF) const;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
@@ -66,21 +59,9 @@ public:
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
                            int SPAdj, RegScavenger *RS = NULL) const;
 
-  /// determineFrameLayout - Determine the size of the frame and maximum call
-  /// frame size.
-  void determineFrameLayout(MachineFunction &MF) const;
-
-  void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                            RegScavenger *RS = NULL) const;
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
-
-  void emitPrologue(MachineFunction &MF) const;
-  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
-
   // Debug information queries.
   unsigned getRARegister() const;
   unsigned getFrameRegister(const MachineFunction &MF) const;
-  void getInitialFrameState(std::vector<MachineMove> &Moves) const;
 
   // Exception handling queries.
   unsigned getEHExceptionRegister() const;

@@ -40,6 +40,14 @@ CFLAGS+=	-fno-omit-frame-pointer
 
 MKMODULESENV+= MACHINE=amd64
 
+.if ${CC:T:Mclang} == "clang"
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+ASM_CFLAGS+=	${.IMPSRC:T:Macpi_wakecode.S:C/^.+$/-no-integrated-as/}
+ASM_CFLAGS+=	${.IMPSRC:T:Mia32_sigtramp.S:C/^.+$/-no-integrated-as/}
+ASM_CFLAGS+=	${.IMPSRC:T:Mlinux32_locore.s:C/^.+$/-no-integrated-as/}
+ASM_CFLAGS+=	${.IMPSRC:T:Mmpboot.S:C/^.+$/-no-integrated-as/}
+.endif
+
 %BEFORE_DEPEND
 
 %OBJS

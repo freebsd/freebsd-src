@@ -462,8 +462,8 @@ Instruction *InstCombiner::visitTrunc(TruncInst &CI) {
   
   // Transform trunc(lshr (zext A), Cst) to eliminate one type conversion.
   Value *A = 0; ConstantInt *Cst = 0;
-  if (match(Src, m_LShr(m_ZExt(m_Value(A)), m_ConstantInt(Cst))) &&
-      Src->hasOneUse()) {
+  if (Src->hasOneUse() &&
+      match(Src, m_LShr(m_ZExt(m_Value(A)), m_ConstantInt(Cst)))) {
     // We have three types to worry about here, the type of A, the source of
     // the truncate (MidSize), and the destination of the truncate. We know that
     // ASize < MidSize   and MidSize > ResultSize, but don't know the relation
@@ -481,6 +481,16 @@ Instruction *InstCombiner::visitTrunc(TruncInst &CI) {
     Value *Shift = Builder->CreateLShr(A, Cst->getZExtValue());
     Shift->takeName(Src);
     return CastInst::CreateIntegerCast(Shift, CI.getType(), false);
+  }
+  
+  // Transform "trunc (and X, cst)" -> "and (trunc X), cst" so long as the dest
+  // type isn't non-native.
+  if (Src->hasOneUse() && isa<IntegerType>(Src->getType()) &&
+      ShouldChangeType(Src->getType(), CI.getType()) &&
+      match(Src, m_And(m_Value(A), m_ConstantInt(Cst)))) {
+    Value *NewTrunc = Builder->CreateTrunc(A, CI.getType(), A->getName()+".tr");
+    return BinaryOperator::CreateAnd(NewTrunc,
+                                     ConstantExpr::getTrunc(Cst, CI.getType()));
   }
 
   return 0;
@@ -1019,8 +1029,22 @@ Instruction *InstCombiner::visitSExt(SExtInst &CI) {
     }
   }
   }
-  
-  
+
+  // vector (x <s 0) ? -1 : 0 -> ashr x, 31   -> all ones if signed.
+  if (const VectorType *VTy = dyn_cast<VectorType>(DestTy)) {
+    ICmpInst::Predicate Pred; Value *CmpLHS;
+    if (match(Src, m_ICmp(Pred, m_Value(CmpLHS), m_Zero()))) {
+      if (Pred == ICmpInst::ICMP_SLT && CmpLHS->getType() == DestTy) {
+        const Type *EltTy = VTy->getElementType();
+
+        // splat the shift constant to a constant vector.
+        Constant *VSh = ConstantInt::get(VTy, EltTy->getScalarSizeInBits()-1);
+        Value *In = Builder->CreateAShr(CmpLHS, VSh,CmpLHS->getName()+".lobit");
+        return ReplaceInstUsesWith(CI, In);
+      }
+    }
+  }
+
   // If the input is a shl/ashr pair of a same constant, then this is a sign
   // extension from a smaller value.  If we could trust arbitrary bitwidth
   // integers, we could turn this into a truncate to the smaller bit and then
@@ -1363,8 +1387,7 @@ static Instruction *OptimizeVectorResize(Value *InVal, const VectorType *DestTy,
                        ConstantInt::get(Int32Ty, SrcElts));
   }
   
-  Constant *Mask = ConstantVector::get(ShuffleMask.data(), ShuffleMask.size());
-  return new ShuffleVectorInst(InVal, V2, Mask);
+  return new ShuffleVectorInst(InVal, V2, ConstantVector::get(ShuffleMask));
 }
 
 static bool isMultipleOfTypeSize(unsigned Value, const Type *Ty) {

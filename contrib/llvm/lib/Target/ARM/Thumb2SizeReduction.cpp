@@ -58,7 +58,7 @@ namespace {
     { ARM::t2ADDri, ARM::tADDi3,  ARM::tADDi8,   3,   8,    1,   1,  0,0, 0 },
     { ARM::t2ADDrr, ARM::tADDrr,  ARM::tADDhirr, 0,   0,    1,   0,  0,1, 0 },
     // Note: immediate scale is 4.
-    { ARM::t2ADDrSPi,ARM::tADDrSPi,0,            8,   0,    1,   0,  1,0, 0 },
+    { ARM::t2ADDrSPi,ARM::tADDrSPi,0,            8,   0,    1,   0,  1,0, 1 },
     { ARM::t2ADDSri,ARM::tADDi3,  ARM::tADDi8,   3,   8,    1,   1,  2,2, 1 },
     { ARM::t2ADDSrr,ARM::tADDrr,  0,             0,   0,    1,   0,  2,0, 1 },
     { ARM::t2ANDrr, 0,            ARM::tAND,     0,   0,    0,   1,  0,0, 0 },
@@ -68,9 +68,7 @@ namespace {
     //FIXME: Disable CMN, as CCodes are backwards from compare expectations
     //{ ARM::t2CMNrr, ARM::tCMN,    0,             0,   0,    1,   0,  2,0, 0 },
     { ARM::t2CMPri, ARM::tCMPi8,  0,             8,   0,    1,   0,  2,0, 0 },
-    { ARM::t2CMPrr, ARM::tCMPhir, 0,             0,   0,    0,   0,  2,0, 0 },
-    { ARM::t2CMPzri,ARM::tCMPzi8, 0,             8,   0,    1,   0,  2,0, 0 },
-    { ARM::t2CMPzrr,ARM::tCMPzhir,0,             0,   0,    0,   0,  2,0, 0 },
+    { ARM::t2CMPrr, ARM::tCMPhir, 0,             0,   0,    0,   0,  2,0, 1 },
     { ARM::t2EORrr, 0,            ARM::tEOR,     0,   0,    0,   1,  0,0, 0 },
     // FIXME: adr.n immediate offset must be multiple of 4.
     //{ ARM::t2LEApcrelJT,ARM::tLEApcrelJT, 0,     0,   0,    1,   0,  1,0, 0 },
@@ -106,26 +104,27 @@ namespace {
 
     // FIXME: Clean this up after splitting each Thumb load / store opcode
     // into multiple ones.
-    { ARM::t2LDRi12,ARM::tLDR,    ARM::tLDRspi,  5,   8,    1,   0,  0,0, 1 },
-    { ARM::t2LDRs,  ARM::tLDR,    0,             0,   0,    1,   0,  0,0, 1 },
-    { ARM::t2LDRBi12,ARM::tLDRB,  0,             5,   0,    1,   0,  0,0, 1 },
-    { ARM::t2LDRBs, ARM::tLDRB,   0,             0,   0,    1,   0,  0,0, 1 },
-    { ARM::t2LDRHi12,ARM::tLDRH,  0,             5,   0,    1,   0,  0,0, 1 },
-    { ARM::t2LDRHs, ARM::tLDRH,   0,             0,   0,    1,   0,  0,0, 1 },
+    { ARM::t2LDRi12,ARM::tLDRi,   ARM::tLDRspi,  5,   8,    1,   0,  0,0, 1 },
+    { ARM::t2LDRs,  ARM::tLDRr,   0,             0,   0,    1,   0,  0,0, 1 },
+    { ARM::t2LDRBi12,ARM::tLDRBi, 0,             5,   0,    1,   0,  0,0, 1 },
+    { ARM::t2LDRBs, ARM::tLDRBr,  0,             0,   0,    1,   0,  0,0, 1 },
+    { ARM::t2LDRHi12,ARM::tLDRHi, 0,             5,   0,    1,   0,  0,0, 1 },
+    { ARM::t2LDRHs, ARM::tLDRHr,  0,             0,   0,    1,   0,  0,0, 1 },
     { ARM::t2LDRSBs,ARM::tLDRSB,  0,             0,   0,    1,   0,  0,0, 1 },
     { ARM::t2LDRSHs,ARM::tLDRSH,  0,             0,   0,    1,   0,  0,0, 1 },
-    { ARM::t2STRi12,ARM::tSTR,    ARM::tSTRspi,  5,   8,    1,   0,  0,0, 1 },
-    { ARM::t2STRs,  ARM::tSTR,    0,             0,   0,    1,   0,  0,0, 1 },
-    { ARM::t2STRBi12,ARM::tSTRB,  0,             5,   0,    1,   0,  0,0, 1 },
-    { ARM::t2STRBs, ARM::tSTRB,   0,             0,   0,    1,   0,  0,0, 1 },
-    { ARM::t2STRHi12,ARM::tSTRH,  0,             5,   0,    1,   0,  0,0, 1 },
-    { ARM::t2STRHs, ARM::tSTRH,   0,             0,   0,    1,   0,  0,0, 1 },
+    { ARM::t2STRi12,ARM::tSTRi,   ARM::tSTRspi,  5,   8,    1,   0,  0,0, 1 },
+    { ARM::t2STRs,  ARM::tSTRr,   0,             0,   0,    1,   0,  0,0, 1 },
+    { ARM::t2STRBi12,ARM::tSTRBi, 0,             5,   0,    1,   0,  0,0, 1 },
+    { ARM::t2STRBs, ARM::tSTRBr,  0,             0,   0,    1,   0,  0,0, 1 },
+    { ARM::t2STRHi12,ARM::tSTRHi, 0,             5,   0,    1,   0,  0,0, 1 },
+    { ARM::t2STRHs, ARM::tSTRHr,  0,             0,   0,    1,   0,  0,0, 1 },
 
-    { ARM::t2LDM,   ARM::tLDM,    0,             0,   0,    1,   1,  1,1, 1 },
-    { ARM::t2LDM_RET,0,           ARM::tPOP_RET, 0,   0,    1,   1,  1,1, 1 },
-    { ARM::t2LDM_UPD,ARM::tLDM_UPD,ARM::tPOP,    0,   0,    1,   1,  1,1, 1 },
+    { ARM::t2LDMIA, ARM::tLDMIA,  0,             0,   0,    1,   1,  1,1, 1 },
+    { ARM::t2LDMIA_RET,0,         ARM::tPOP_RET, 0,   0,    1,   1,  1,1, 1 },
+    { ARM::t2LDMIA_UPD,ARM::tLDMIA_UPD,ARM::tPOP,0,   0,    1,   1,  1,1, 1 },
     // ARM::t2STM (with no basereg writeback) has no Thumb1 equivalent
-    { ARM::t2STM_UPD,ARM::tSTM_UPD,ARM::tPUSH,   0,   0,    1,   1,  1,1, 1 },
+    { ARM::t2STMIA_UPD,ARM::tSTMIA_UPD, 0,       0,   0,    1,   1,  1,1, 1 },
+    { ARM::t2STMDB_UPD, 0,        ARM::tPUSH,    0,   0,    1,   1,  1,1, 1 },
   };
 
   class Thumb2SizeReduce : public MachineFunctionPass {
@@ -217,8 +216,8 @@ Thumb2SizeReduce::VerifyPredAndCC(MachineInstr *MI, const ReduceEntry &Entry,
     /// Old opcode has an optional def of CPSR.
     if (HasCC)
       return true;
-    // If both old opcode does not implicit CPSR def, then it's not ok since
-    // these new opcodes CPSR def is not meant to be thrown away. e.g. CMP.
+    // If old opcode does not implicitly define CPSR, then it's not ok since
+    // these new opcodes' CPSR def is not meant to be thrown away. e.g. CMP.
     if (!HasImplicitCPSRDef(MI->getDesc()))
       return false;
     HasCC = true;
@@ -233,9 +232,10 @@ Thumb2SizeReduce::VerifyPredAndCC(MachineInstr *MI, const ReduceEntry &Entry,
 
 static bool VerifyLowRegs(MachineInstr *MI) {
   unsigned Opc = MI->getOpcode();
-  bool isPCOk = (Opc == ARM::t2LDM_RET || Opc == ARM::t2LDM ||
-                 Opc == ARM::t2LDM_UPD);
-  bool isLROk = (Opc == ARM::t2STM_UPD);
+  bool isPCOk = (Opc == ARM::t2LDMIA_RET || Opc == ARM::t2LDMIA     ||
+                 Opc == ARM::t2LDMDB     || Opc == ARM::t2LDMIA_UPD ||
+                 Opc == ARM::t2LDMDB_UPD);
+  bool isLROk = (Opc == ARM::t2STMIA_UPD || Opc == ARM::t2STMDB_UPD);
   bool isSPOk = isPCOk || isLROk || (Opc == ARM::t2ADDrSPi);
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
@@ -275,29 +275,32 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
   unsigned Opc = Entry.NarrowOpc1;
   unsigned OpNum = 3; // First 'rest' of operands.
   uint8_t  ImmLimit = Entry.Imm1Limit;
+
   switch (Entry.WideOpc) {
   default:
     llvm_unreachable("Unexpected Thumb2 load / store opcode!");
   case ARM::t2LDRi12:
-  case ARM::t2STRi12: {
-    unsigned BaseReg = MI->getOperand(1).getReg();
-    if (BaseReg == ARM::SP) {
+  case ARM::t2STRi12:
+    if (MI->getOperand(1).getReg() == ARM::SP) {
       Opc = Entry.NarrowOpc2;
       ImmLimit = Entry.Imm2Limit;
       HasOffReg = false;
     }
+
     Scale = 4;
     HasImmOffset = true;
+    HasOffReg = false;
     break;
-  }
   case ARM::t2LDRBi12:
   case ARM::t2STRBi12:
     HasImmOffset = true;
+    HasOffReg = false;
     break;
   case ARM::t2LDRHi12:
   case ARM::t2STRHi12:
     Scale = 2;
     HasImmOffset = true;
+    HasOffReg = false;
     break;
   case ARM::t2LDRs:
   case ARM::t2LDRBs:
@@ -310,11 +313,12 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
     HasShift = true;
     OpNum = 4;
     break;
-  case ARM::t2LDM: {
+  case ARM::t2LDMIA:
+  case ARM::t2LDMDB: {
     unsigned BaseReg = MI->getOperand(0).getReg();
-    ARM_AM::AMSubMode Mode = ARM_AM::getAM4SubMode(MI->getOperand(1).getImm());
-    if (!isARMLowRegister(BaseReg) || Mode != ARM_AM::ia)
+    if (!isARMLowRegister(BaseReg) || Entry.WideOpc != ARM::t2LDMIA)
       return false;
+
     // For the non-writeback version (this one), the base register must be
     // one of the registers being loaded.
     bool isOK = false;
@@ -324,6 +328,7 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
         break;
       }
     }
+
     if (!isOK)
       return false;
 
@@ -331,28 +336,33 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
     isLdStMul = true;
     break;
   }
-  case ARM::t2LDM_RET: {
+  case ARM::t2LDMIA_RET: {
     unsigned BaseReg = MI->getOperand(1).getReg();
     if (BaseReg != ARM::SP)
       return false;
     Opc = Entry.NarrowOpc2; // tPOP_RET
-    OpNum = 3;
+    OpNum = 2;
     isLdStMul = true;
     break;
   }
-  case ARM::t2LDM_UPD:
-  case ARM::t2STM_UPD: {
+  case ARM::t2LDMIA_UPD:
+  case ARM::t2LDMDB_UPD:
+  case ARM::t2STMIA_UPD:
+  case ARM::t2STMDB_UPD: {
     OpNum = 0;
+
     unsigned BaseReg = MI->getOperand(1).getReg();
-    ARM_AM::AMSubMode Mode = ARM_AM::getAM4SubMode(MI->getOperand(2).getImm());
     if (BaseReg == ARM::SP &&
-        ((Entry.WideOpc == ARM::t2LDM_UPD && Mode == ARM_AM::ia) ||
-         (Entry.WideOpc == ARM::t2STM_UPD && Mode == ARM_AM::db))) {
+        (Entry.WideOpc == ARM::t2LDMIA_UPD ||
+         Entry.WideOpc == ARM::t2STMDB_UPD)) {
       Opc = Entry.NarrowOpc2; // tPOP or tPUSH
-      OpNum = 3;
-    } else if (!isARMLowRegister(BaseReg) || Mode != ARM_AM::ia) {
+      OpNum = 2;
+    } else if (!isARMLowRegister(BaseReg) ||
+               (Entry.WideOpc != ARM::t2LDMIA_UPD &&
+                Entry.WideOpc != ARM::t2STMIA_UPD)) {
       return false;
     }
+
     isLdStMul = true;
     break;
   }
@@ -363,6 +373,7 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
   if (HasShift) {
     OffsetReg  = MI->getOperand(2).getReg();
     OffsetKill = MI->getOperand(2).isKill();
+
     if (MI->getOperand(3).getImm())
       // Thumb1 addressing mode doesn't support shift.
       return false;
@@ -372,23 +383,22 @@ Thumb2SizeReduce::ReduceLoadStore(MachineBasicBlock &MBB, MachineInstr *MI,
   if (HasImmOffset) {
     OffsetImm = MI->getOperand(2).getImm();
     unsigned MaxOffset = ((1 << ImmLimit) - 1) * Scale;
-    if ((OffsetImm & (Scale-1)) || OffsetImm > MaxOffset)
+
+    if ((OffsetImm & (Scale - 1)) || OffsetImm > MaxOffset)
       // Make sure the immediate field fits.
       return false;
   }
 
   // Add the 16-bit load / store instruction.
-  // FIXME: Thumb1 addressing mode encode both immediate and register offset.
   DebugLoc dl = MI->getDebugLoc();
   MachineInstrBuilder MIB = BuildMI(MBB, *MI, dl, TII->get(Opc));
   if (!isLdStMul) {
-    MIB.addOperand(MI->getOperand(0)).addOperand(MI->getOperand(1));
-    if (Opc != ARM::tLDRSB && Opc != ARM::tLDRSH) {
-      // tLDRSB and tLDRSH do not have an immediate offset field. On the other
-      // hand, it must have an offset register.
-      // FIXME: Remove this special case.
-      MIB.addImm(OffsetImm/Scale);
-    }
+    MIB.addOperand(MI->getOperand(0));
+    MIB.addOperand(MI->getOperand(1));
+
+    if (HasImmOffset)
+      MIB.addImm(OffsetImm / Scale);
+
     assert((!HasShift || OffsetReg) && "Invalid so_reg load / store address!");
 
     if (HasOffReg)
@@ -423,7 +433,7 @@ Thumb2SizeReduce::ReduceSpecial(MachineBasicBlock &MBB, MachineInstr *MI,
   unsigned Opc = MI->getOpcode();
   switch (Opc) {
   default: break;
-  case ARM::t2ADDSri: 
+  case ARM::t2ADDSri:
   case ARM::t2ADDSrr: {
     unsigned PredReg = 0;
     if (getInstrPredicate(MI, PredReg) == ARMCC::AL) {
@@ -451,6 +461,25 @@ Thumb2SizeReduce::ReduceSpecial(MachineBasicBlock &MBB, MachineInstr *MI,
     if (MI->getOperand(1).isImm())
       return ReduceToNarrow(MBB, MI, Entry, LiveCPSR);
     break;
+  case ARM::t2CMPrr: {
+    // Try to reduce to the lo-reg only version first. Why there are two
+    // versions of the instruction is a mystery.
+    // It would be nice to just have two entries in the master table that
+    // are prioritized, but the table assumes a unique entry for each
+    // source insn opcode. So for now, we hack a local entry record to use.
+    static const ReduceEntry NarrowEntry =
+      { ARM::t2CMPrr,ARM::tCMPr, 0, 0, 0, 1, 1,2, 0, 1 };
+    if (ReduceToNarrow(MBB, MI, NarrowEntry, LiveCPSR))
+      return true;
+    return ReduceToNarrow(MBB, MI, Entry, LiveCPSR);
+  }
+  case ARM::t2ADDrSPi: {
+    static const ReduceEntry NarrowEntry =
+      { ARM::t2ADDrSPi,ARM::tADDspi, 0, 7, 0, 1, 0, 1, 0, 1 };
+    if (MI->getOperand(0).getReg() == ARM::SP)
+      return ReduceToNarrow(MBB, MI, NarrowEntry, LiveCPSR);
+    return ReduceToNarrow(MBB, MI, Entry, LiveCPSR);
+  }
   }
   return false;
 }
