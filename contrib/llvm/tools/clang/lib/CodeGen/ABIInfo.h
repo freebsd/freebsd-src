@@ -70,11 +70,12 @@ namespace clang {
     Kind TheKind;
     llvm::PATypeHolder TypeData;
     unsigned UIntData;
-    bool BoolData;
+    bool BoolData0;
+    bool BoolData1;
 
     ABIArgInfo(Kind K, const llvm::Type *TD=0,
-               unsigned UI=0, bool B = false) 
-      : TheKind(K), TypeData(TD), UIntData(UI), BoolData(B) {}
+               unsigned UI=0, bool B0 = false, bool B1 = false)
+      : TheKind(K), TypeData(TD), UIntData(UI), BoolData0(B0), BoolData1(B1) {}
 
   public:
     ABIArgInfo() : TheKind(Direct), TypeData(0), UIntData(0) {}
@@ -88,8 +89,9 @@ namespace clang {
     static ABIArgInfo getIgnore() {
       return ABIArgInfo(Ignore);
     }
-    static ABIArgInfo getIndirect(unsigned Alignment, bool ByVal = true) {
-      return ABIArgInfo(Indirect, 0, Alignment, ByVal);
+    static ABIArgInfo getIndirect(unsigned Alignment, bool ByVal = true
+                                  , bool Realign = false) {
+      return ABIArgInfo(Indirect, 0, Alignment, ByVal, Realign);
     }
     static ABIArgInfo getExpand() {
       return ABIArgInfo(Expand);
@@ -105,7 +107,7 @@ namespace clang {
     bool canHaveCoerceToType() const {
       return TheKind == Direct || TheKind == Extend;
     }
-    
+
     // Direct/Extend accessors
     unsigned getDirectOffset() const {
       assert((isDirect() || isExtend()) && "Not a direct or extend kind");
@@ -115,12 +117,12 @@ namespace clang {
       assert(canHaveCoerceToType() && "Invalid kind!");
       return TypeData;
     }
-    
+
     void setCoerceToType(const llvm::Type *T) {
       assert(canHaveCoerceToType() && "Invalid kind!");
       TypeData = T;
     }
-    
+
     // Indirect accessors
     unsigned getIndirectAlign() const {
       assert(TheKind == Indirect && "Invalid kind!");
@@ -129,9 +131,14 @@ namespace clang {
 
     bool getIndirectByVal() const {
       assert(TheKind == Indirect && "Invalid kind!");
-      return BoolData;
+      return BoolData0;
     }
-    
+
+    bool getIndirectRealign() const {
+      assert(TheKind == Indirect && "Invalid kind!");
+      return BoolData1;
+    }
+
     void dump() const;
   };
 
@@ -140,10 +147,10 @@ namespace clang {
   class ABIInfo {
   public:
     CodeGen::CodeGenTypes &CGT;
-    
+
     ABIInfo(CodeGen::CodeGenTypes &cgt) : CGT(cgt) {}
     virtual ~ABIInfo();
-    
+
     ASTContext &getContext() const;
     llvm::LLVMContext &getVMContext() const;
     const llvm::TargetData &getTargetData() const;

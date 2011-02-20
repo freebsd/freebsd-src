@@ -1,4 +1,4 @@
-//===--- OptTable.cpp - Option Table Implementation ---------------------*-===//
+//===--- OptTable.cpp - Option Table Implementation -----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -226,7 +226,8 @@ Arg *OptTable::ParseOneArg(const ArgList &Args, unsigned &Index) const {
   return new Arg(TheUnknownOption, Index++, Str);
 }
 
-InputArgList *OptTable::ParseArgs(const char **ArgBegin, const char **ArgEnd,
+InputArgList *OptTable::ParseArgs(const char* const *ArgBegin,
+                                  const char* const *ArgEnd,
                                   unsigned &MissingArgIndex,
                                   unsigned &MissingArgCount) const {
   InputArgList *Args = new InputArgList(ArgBegin, ArgEnd);

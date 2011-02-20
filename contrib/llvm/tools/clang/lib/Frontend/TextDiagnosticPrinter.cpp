@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Lex/Lexer.h"
@@ -57,7 +58,9 @@ PrintIncludeStack(SourceLocation Loc, const SourceManager &SM) {
   if (Loc.isInvalid()) return;
 
   PresumedLoc PLoc = SM.getPresumedLoc(Loc);
-
+  if (PLoc.isInvalid())
+    return;
+  
   // Print out the other include frames first.
   PrintIncludeStack(PLoc.getIncludeLoc(), SM);
 
@@ -137,8 +140,9 @@ void TextDiagnosticPrinter::HighlightRange(const CharSourceRange &R,
            (SourceLine[EndColNo-1] == ' ' || SourceLine[EndColNo-1] == '\t'))
       --EndColNo;
 
-    // If the start/end passed each other, then we are trying to highlight a range
-    // that just exists in whitespace, which must be some sort of other bug.
+    // If the start/end passed each other, then we are trying to highlight a
+    // range that just exists in whitespace, which must be some sort of other
+    // bug.
     assert(StartColNo <= EndColNo && "Trying to highlight whitespace??");
   }
 
@@ -328,7 +332,9 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
     if (!Suppressed) {
       // Get the pretty name, according to #line directives etc.
       PresumedLoc PLoc = SM.getPresumedLoc(Loc);
-
+      if (PLoc.isInvalid())
+        return;
+      
       // If this diagnostic is not in the main file, print out the
       // "included from" lines.
       if (LastWarningLoc != PLoc.getIncludeLoc()) {
@@ -567,6 +573,10 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
 
         // We specifically do not do word-wrapping or tab-expansion here,
         // because this is supposed to be easy to parse.
+        PresumedLoc PLoc = SM.getPresumedLoc(B);
+        if (PLoc.isInvalid())
+          break;
+        
         OS << "fix-it:\"";
         OS.write_escaped(SM.getPresumedLoc(B).getFilename());
         OS << "\":{" << SM.getLineNumber(BInfo.first, BInfo.second)
@@ -756,6 +766,9 @@ static bool PrintWordWrapped(llvm::raw_ostream &OS,
 
 void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
                                              const DiagnosticInfo &Info) {
+  // Default implementation (Warnings/errors count).
+  DiagnosticClient::HandleDiagnostic(Level, Info);
+
   // Keeps track of the the starting position of the location
   // information (e.g., "foo.c:10:4:") that precedes the error
   // message. We use this information to determine how long the
@@ -768,77 +781,96 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
   // If the location is specified, print out a file/line/col and include trace
   // if enabled.
   if (Info.getLocation().isValid()) {
-    const SourceManager &SM = Info.getLocation().getManager();
+    const SourceManager &SM = Info.getSourceManager();
     PresumedLoc PLoc = SM.getPresumedLoc(Info.getLocation());
-    unsigned LineNo = PLoc.getLine();
-
-    // First, if this diagnostic is not in the main file, print out the
-    // "included from" lines.
-    if (LastWarningLoc != PLoc.getIncludeLoc()) {
-      LastWarningLoc = PLoc.getIncludeLoc();
-      PrintIncludeStack(LastWarningLoc, SM);
-      StartOfLocationInfo = OS.tell();
-    }
-
-    // Compute the column number.
-    if (DiagOpts->ShowLocation) {
-      if (DiagOpts->ShowColors)
-        OS.changeColor(savedColor, true);
-
-      // Emit a Visual Studio compatible line number syntax.
-      if (LangOpts && LangOpts->Microsoft) {
-        OS << PLoc.getFilename() << '(' << LineNo << ')';
-        OS << " : ";
-      } else {
-        OS << PLoc.getFilename() << ':' << LineNo << ':';
-        if (DiagOpts->ShowColumn)
-          if (unsigned ColNo = PLoc.getColumn())
-            OS << ColNo << ':';
-      }
-      if (DiagOpts->ShowSourceRanges && Info.getNumRanges()) {
-        FileID CaretFileID =
-          SM.getFileID(SM.getInstantiationLoc(Info.getLocation()));
-        bool PrintedRange = false;
-
-        for (unsigned i = 0, e = Info.getNumRanges(); i != e; ++i) {
-          // Ignore invalid ranges.
-          if (!Info.getRange(i).isValid()) continue;
-
-          SourceLocation B = Info.getRange(i).getBegin();
-          SourceLocation E = Info.getRange(i).getEnd();
-          B = SM.getInstantiationLoc(B);
-          E = SM.getInstantiationLoc(E);
-
-          // If the End location and the start location are the same and are a
-          // macro location, then the range was something that came from a macro
-          // expansion or _Pragma.  If this is an object-like macro, the best we
-          // can do is to highlight the range.  If this is a function-like
-          // macro, we'd also like to highlight the arguments.
-          if (B == E && Info.getRange(i).getEnd().isMacroID())
-            E = SM.getInstantiationRange(Info.getRange(i).getEnd()).second;
-
-          std::pair<FileID, unsigned> BInfo = SM.getDecomposedLoc(B);
-          std::pair<FileID, unsigned> EInfo = SM.getDecomposedLoc(E);
-
-          // If the start or end of the range is in another file, just discard
-          // it.
-          if (BInfo.first != CaretFileID || EInfo.first != CaretFileID)
-            continue;
-
-          // Add in the length of the token, so that we cover multi-char tokens.
-          unsigned TokSize = 0;
-          if (Info.getRange(i).isTokenRange())
-            TokSize = Lexer::MeasureTokenLength(E, SM, *LangOpts);
-
-          OS << '{' << SM.getLineNumber(BInfo.first, BInfo.second) << ':'
-             << SM.getColumnNumber(BInfo.first, BInfo.second) << '-'
-             << SM.getLineNumber(EInfo.first, EInfo.second) << ':'
-             << (SM.getColumnNumber(EInfo.first, EInfo.second)+TokSize) << '}';
-          PrintedRange = true;
+    if (PLoc.isInvalid()) {
+      // At least print the file name if available:
+      FileID FID = SM.getFileID(Info.getLocation());
+      if (!FID.isInvalid()) {
+        const FileEntry* FE = SM.getFileEntryForID(FID);
+        if (FE && FE->getName()) {
+          OS << FE->getName();
+          if (FE->getDevice() == 0 && FE->getInode() == 0
+              && FE->getFileMode() == 0) {
+            // in PCH is a guess, but a good one:
+            OS << " (in PCH)";
+          }
+          OS << ": ";
         }
+      }
+    } else {
+      unsigned LineNo = PLoc.getLine();
 
-        if (PrintedRange)
-          OS << ':';
+      // First, if this diagnostic is not in the main file, print out the
+      // "included from" lines.
+      if (LastWarningLoc != PLoc.getIncludeLoc()) {
+        LastWarningLoc = PLoc.getIncludeLoc();
+        PrintIncludeStack(LastWarningLoc, SM);
+        StartOfLocationInfo = OS.tell();
+      }
+
+      // Compute the column number.
+      if (DiagOpts->ShowLocation && PLoc.isValid()) {
+        if (DiagOpts->ShowColors)
+          OS.changeColor(savedColor, true);
+
+        // Emit a Visual Studio compatible line number syntax.
+        if (LangOpts && LangOpts->Microsoft) {
+          OS << PLoc.getFilename() << '(' << LineNo << ')';
+          OS << " : ";
+        } else {
+          OS << PLoc.getFilename() << ':' << LineNo << ':';
+          if (DiagOpts->ShowColumn)
+            if (unsigned ColNo = PLoc.getColumn())
+              OS << ColNo << ':';
+        }
+        if (DiagOpts->ShowSourceRanges && Info.getNumRanges()) {
+          FileID CaretFileID =
+            SM.getFileID(SM.getInstantiationLoc(Info.getLocation()));
+          bool PrintedRange = false;
+
+          for (unsigned i = 0, e = Info.getNumRanges(); i != e; ++i) {
+            // Ignore invalid ranges.
+            if (!Info.getRange(i).isValid()) continue;
+
+            SourceLocation B = Info.getRange(i).getBegin();
+            SourceLocation E = Info.getRange(i).getEnd();
+            B = SM.getInstantiationLoc(B);
+            E = SM.getInstantiationLoc(E);
+
+            // If the End location and the start location are the same and are a
+            // macro location, then the range was something that came from a
+            // macro expansion or _Pragma.  If this is an object-like macro, the
+            // best we can do is to highlight the range.  If this is a
+            // function-like macro, we'd also like to highlight the arguments.
+            if (B == E && Info.getRange(i).getEnd().isMacroID())
+              E = SM.getInstantiationRange(Info.getRange(i).getEnd()).second;
+
+            std::pair<FileID, unsigned> BInfo = SM.getDecomposedLoc(B);
+            std::pair<FileID, unsigned> EInfo = SM.getDecomposedLoc(E);
+
+            // If the start or end of the range is in another file, just discard
+            // it.
+            if (BInfo.first != CaretFileID || EInfo.first != CaretFileID)
+              continue;
+
+            // Add in the length of the token, so that we cover multi-char
+            // tokens.
+            unsigned TokSize = 0;
+            if (Info.getRange(i).isTokenRange())
+              TokSize = Lexer::MeasureTokenLength(E, SM, *LangOpts);
+
+            OS << '{' << SM.getLineNumber(BInfo.first, BInfo.second) << ':'
+               << SM.getColumnNumber(BInfo.first, BInfo.second) << '-'
+               << SM.getLineNumber(EInfo.first, EInfo.second) << ':'
+               << (SM.getColumnNumber(EInfo.first, EInfo.second)+TokSize)
+               << '}';
+            PrintedRange = true;
+          }
+
+          if (PrintedRange)
+            OS << ':';
+        }
       }
       OS << ' ';
       if (DiagOpts->ShowColors)
@@ -873,7 +905,8 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
 
   std::string OptionName;
   if (DiagOpts->ShowOptionNames) {
-    if (const char *Opt = Diagnostic::getWarningOptionForDiag(Info.getID())) {
+    if (const char *
+          Opt = DiagnosticIDs::getWarningOptionForDiag(Info.getID())) {
       OptionName = "-W";
       OptionName += Opt;
     } else if (Info.getID() == diag::fatal_too_many_errors) {
@@ -882,7 +915,8 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
       // If the diagnostic is an extension diagnostic and not enabled by default
       // then it must have been turned on with -pedantic.
       bool EnabledByDefault;
-      if (Diagnostic::isBuiltinExtensionDiag(Info.getID(), EnabledByDefault) &&
+      if (DiagnosticIDs::isBuiltinExtensionDiag(Info.getID(),
+                                                EnabledByDefault) &&
           !EnabledByDefault)
         OptionName = "-pedantic";
     }
@@ -891,7 +925,7 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
   // If the user wants to see category information, include it too.
   unsigned DiagCategory = 0;
   if (DiagOpts->ShowCategories)
-    DiagCategory = Diagnostic::getCategoryNumberForDiag(Info.getID());
+    DiagCategory = DiagnosticIDs::getCategoryNumberForDiag(Info.getID());
 
   // If there is any categorization information, include it.
   if (!OptionName.empty() || DiagCategory != 0) {
@@ -909,7 +943,7 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
         OutStr += llvm::utostr(DiagCategory);
       else {
         assert(DiagOpts->ShowCategories == 2 && "Invalid ShowCategories value");
-        OutStr += Diagnostic::getCategoryNameFromID(DiagCategory);
+        OutStr += DiagnosticIDs::getCategoryNameFromID(DiagCategory);
       }
     }
     
@@ -951,7 +985,7 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
        (LastCaretDiagnosticWasNote && Level != Diagnostic::Note) ||
        Info.getNumFixItHints())) {
     // Cache the LastLoc, it allows us to omit duplicate source/caret spewage.
-    LastLoc = Info.getLocation();
+    LastLoc = FullSourceLoc(Info.getLocation(), Info.getSourceManager());
     LastCaretDiagnosticWasNote = (Level == Diagnostic::Note);
 
     // Get the ranges into a local array we can hack on.

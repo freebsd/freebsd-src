@@ -109,6 +109,9 @@ def llvm_empty_ty      : LLVMType<OtherVT>;                       // { }
 def llvm_descriptor_ty : LLVMPointerType<llvm_empty_ty>;          // { }*
 def llvm_metadata_ty   : LLVMType<MetadataVT>;                    // !{...}
 
+def llvm_x86mmx_ty     : LLVMType<x86mmx>;
+def llvm_ptrx86mmx_ty  : LLVMPointerType<llvm_x86mmx_ty>;         // <1 x i64>*
+
 def llvm_v2i8_ty       : LLVMType<v2i8>;     //  2 x i8
 def llvm_v4i8_ty       : LLVMType<v4i8>;     //  4 x i8
 def llvm_v8i8_ty       : LLVMType<v8i8>;     //  8 x i8
@@ -256,7 +259,7 @@ def int_siglongjmp : Intrinsic<[], [llvm_ptr_ty, llvm_i32_ty]>;
 
 // Internal interface for object size checking
 def int_objectsize : Intrinsic<[llvm_anyint_ty], [llvm_ptr_ty, llvm_i1_ty],
-                               [IntrReadArgMem]>,
+                               [IntrNoMem]>,
                                GCCBuiltin<"__builtin_object_size">;
 
 //===-------------------- Bit Manipulation Intrinsics ---------------------===//
@@ -304,6 +307,7 @@ let Properties = [IntrNoMem] in {
   def int_eh_sjlj_lsda    : Intrinsic<[llvm_ptr_ty]>;
   def int_eh_sjlj_callsite: Intrinsic<[], [llvm_i32_ty]>;
 }
+def int_eh_sjlj_dispatch_setup : Intrinsic<[], [llvm_ptr_ty]>;
 def int_eh_sjlj_setjmp  : Intrinsic<[llvm_i32_ty], [llvm_ptr_ty]>;
 def int_eh_sjlj_longjmp : Intrinsic<[], [llvm_ptr_ty]>;
 
@@ -432,7 +436,7 @@ def int_lifetime_end    : Intrinsic<[],
                                     [IntrReadWriteArgMem, NoCapture<1>]>;
 def int_invariant_start : Intrinsic<[llvm_descriptor_ty],
                                     [llvm_i64_ty, llvm_ptr_ty],
-                                    [IntrReadArgMem, NoCapture<1>]>;
+                                    [IntrReadWriteArgMem, NoCapture<1>]>;
 def int_invariant_end   : Intrinsic<[],
                                     [llvm_descriptor_ty, llvm_i64_ty,
                                      llvm_ptr_ty],

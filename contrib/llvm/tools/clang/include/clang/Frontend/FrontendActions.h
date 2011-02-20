@@ -54,6 +54,12 @@ protected:
                                          llvm::StringRef InFile);
 };
 
+class ASTDumpXMLAction : public ASTFrontendAction {
+protected:
+  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                         llvm::StringRef InFile);
+};
+
 class ASTViewAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
@@ -83,14 +89,9 @@ public:
   static bool ComputeASTConsumerArguments(CompilerInstance &CI,
                                           llvm::StringRef InFile,
                                           std::string &Sysroot,
+                                          std::string &OutputFile,
                                           llvm::raw_ostream *&OS,
                                           bool &Chaining);
-};
-
-class InheritanceViewAction : public ASTFrontendAction {
-protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
 };
 
 class SyntaxOnlyAction : public ASTFrontendAction {

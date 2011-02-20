@@ -11,7 +11,7 @@
 //
 // Structures and enums defined within this file where created using
 // information from Microsoft's publicly available PE/COFF format document:
-// 
+//
 // Microsoft Portable Executable and Common Object File Format Specification
 // Revision 8.1 - February 15, 2008
 //
@@ -23,7 +23,7 @@
 #ifndef LLVM_SUPPORT_WIN_COFF_H
 #define LLVM_SUPPORT_WIN_COFF_H
 
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include <cstring>
 
 namespace llvm {
@@ -69,7 +69,7 @@ namespace COFF {
     SF_ClassMask = 0x00FF0000,
     SF_ClassShift = 16,
 
-    SF_WeakReference = 0x01000000
+    SF_WeakExternal = 0x01000000
   };
 
   enum SymbolSectionNumber {
@@ -133,13 +133,13 @@ namespace COFF {
   };
 
   enum SymbolComplexType {
-    IMAGE_SYM_DTYPE_NULL     = 0, ///< No complex type; simple scalar variable. 
+    IMAGE_SYM_DTYPE_NULL     = 0, ///< No complex type; simple scalar variable.
     IMAGE_SYM_DTYPE_POINTER  = 1, ///< A pointer to base type.
     IMAGE_SYM_DTYPE_FUNCTION = 2, ///< A function that returns a base type.
     IMAGE_SYM_DTYPE_ARRAY    = 3, ///< An array of base type.
-    
+
     /// Type is formed as (base + (derived << SCT_COMPLEX_TYPE_SHIFT))
-    SCT_COMPLEX_TYPE_SHIFT   = 8
+    SCT_COMPLEX_TYPE_SHIFT   = 4
   };
 
   struct section {

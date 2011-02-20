@@ -4,17 +4,19 @@
 SUBDIR=	libclanganalysis \
 	libclangast \
 	libclangbasic \
-	libclangchecker \
 	libclangcodegen \
 	libclangdriver \
-	libclangindex \
 	libclangfrontend \
 	libclangfrontendtool \
+	libclangindex \
 	libclanglex \
 	libclangparse \
 	libclangrewrite \
 	libclangsema \
 	libclangserialization \
+	libclangstaticanalyzercore \
+	libclangstaticanalyzerfrontend \
+	libclangstaticanalyzercheckers \
 	\
 	libllvmanalysis \
 	libllvmasmparser \
@@ -31,25 +33,25 @@ SUBDIR=	libclanganalysis \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \
-	libllvmsystem \
 	libllvmtarget \
 	libllvmtransformutils \
 	\
 	libllvmarmasmparser \
-	libllvmarmasmprinter \
+	libllvmarminstprinter \
 	libllvmarmcodegen \
+	libllvmarmdisassembler \
 	libllvmarminfo \
-	libllvmmipsasmprinter \
 	libllvmmipscodegen \
 	libllvmmipsinfo \
-	libllvmpowerpcasmprinter \
+	libllvmpowerpcinstprinter \
 	libllvmpowerpccodegen \
 	libllvmpowerpcinfo \
 	libllvmx86asmparser \
-	libllvmx86asmprinter \
+	libllvmx86instprinter \
 	libllvmx86codegen \
 	libllvmx86disassembler \
-	libllvmx86info
+	libllvmx86info \
+	libllvmx86utils
 .endif
 
 SUBDIR+= include

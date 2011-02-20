@@ -39,12 +39,16 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Host.h"
-#include "llvm/System/Path.h"
-#include "llvm/System/Signals.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/system_error.h"
 #include "llvm/Target/TargetAsmBackend.h"
+#include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/Target/TargetAsmParser.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetSelect.h"
@@ -97,6 +101,7 @@ struct AssemblerInvocation {
   /// @{
 
   unsigned RelaxAll : 1;
+  unsigned NoExecStack : 1;
 
   /// @}
 
@@ -111,6 +116,7 @@ public:
     ShowInst = 0;
     ShowEncoding = 0;
     RelaxAll = 0;
+    NoExecStack = 0;
   }
 
   static void CreateFromArgs(AssemblerInvocation &Res, const char **ArgBegin,
@@ -189,6 +195,7 @@ void AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
 
   // Assemble Options
   Opts.RelaxAll = Args->hasArg(OPT_relax_all);
+  Opts.NoExecStack =  Args->hasArg(OPT_no_exec_stack);
 }
 
 static formatted_raw_ostream *GetOutputStream(AssemblerInvocation &Opts,
@@ -224,11 +231,13 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
     return false;
   }
 
-  MemoryBuffer *Buffer = MemoryBuffer::getFileOrSTDIN(Opts.InputFile, &Error);
-  if (Buffer == 0) {
+  OwningPtr<MemoryBuffer> BufferPtr;
+  if (error_code ec = MemoryBuffer::getFileOrSTDIN(Opts.InputFile, BufferPtr)) {
+    Error = ec.message();
     Diags.Report(diag::err_fe_error_reading) << Opts.InputFile;
     return false;
   }
+  MemoryBuffer *Buffer = BufferPtr.take();
 
   SourceMgr SrcMgr;
 
@@ -242,7 +251,6 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
   OwningPtr<MCAsmInfo> MAI(TheTarget->createAsmInfo(Opts.Triple));
   assert(MAI && "Unable to create target asm info!");
 
-  MCContext Ctx(*MAI);
   bool IsBinary = Opts.OutputType == AssemblerInvocation::FT_Obj;
   formatted_raw_ostream *Out = GetOutputStream(Opts, Diags, IsBinary);
   if (!Out)
@@ -255,16 +263,28 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
     return false;
   }
 
+  const TargetAsmInfo *tai = new TargetAsmInfo(*TM);
+  MCContext Ctx(*MAI, tai);
+
   OwningPtr<MCStreamer> Str;
 
+  const TargetLoweringObjectFile &TLOF =
+    TM->getTargetLowering()->getObjFileLowering();
+  const_cast<TargetLoweringObjectFile&>(TLOF).Initialize(Ctx, *TM);
+
+  // FIXME: There is a bit of code duplication with addPassesToEmitFile.
   if (Opts.OutputType == AssemblerInvocation::FT_Asm) {
     MCInstPrinter *IP =
       TheTarget->createMCInstPrinter(Opts.OutputAsmVariant, *MAI);
     MCCodeEmitter *CE = 0;
-    if (Opts.ShowEncoding)
+    TargetAsmBackend *TAB = 0;
+    if (Opts.ShowEncoding) {
       CE = TheTarget->createCodeEmitter(*TM, Ctx);
-    Str.reset(createAsmStreamer(Ctx, *Out,TM->getTargetData()->isLittleEndian(),
-                                /*asmverbose*/true, IP, CE, Opts.ShowInst));
+      TAB = TheTarget->createAsmBackend(Opts.Triple);
+    }
+    Str.reset(TheTarget->createAsmStreamer(Ctx, *Out, /*asmverbose*/true,
+                                           /*useLoc*/ true, IP, CE, TAB,
+                                           Opts.ShowInst));
   } else if (Opts.OutputType == AssemblerInvocation::FT_Null) {
     Str.reset(createNullStreamer(Ctx));
   } else {
@@ -273,7 +293,9 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
     MCCodeEmitter *CE = TheTarget->createCodeEmitter(*TM, Ctx);
     TargetAsmBackend *TAB = TheTarget->createAsmBackend(Opts.Triple);
     Str.reset(TheTarget->createObjectStreamer(Opts.Triple, Ctx, *TAB, *Out,
-                                              CE, Opts.RelaxAll));
+                                              CE, Opts.RelaxAll,
+                                              Opts.NoExecStack));
+    Str.get()->InitSections();
   }
 
   OwningPtr<MCAsmParser> Parser(createMCAsmParser(*TheTarget, SrcMgr, Ctx,
@@ -325,7 +347,8 @@ int cc1as_main(const char **ArgBegin, const char **ArgEnd,
   TextDiagnosticPrinter *DiagClient
     = new TextDiagnosticPrinter(errs(), DiagnosticOptions());
   DiagClient->setPrefix("clang -cc1as");
-  Diagnostic Diags(DiagClient);
+  llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+  Diagnostic Diags(DiagID, DiagClient);
 
   // Set an error handler, so that any LLVM backend diagnostics go through our
   // error handler.
@@ -366,7 +389,7 @@ int cc1as_main(const char **ArgBegin, const char **ArgEnd,
 
   // Execute the invocation, unless there were parsing errors.
   bool Success = false;
-  if (!Diags.getNumErrors())
+  if (!Diags.hasErrorOccurred())
     Success = ExecuteAssembler(Asm, Diags);
 
   // If any timers were active but haven't been destroyed yet, print their

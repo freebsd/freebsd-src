@@ -14,6 +14,7 @@
 #define DEBUG_TYPE "ssaupdater"
 #include "llvm/Instructions.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/CFG.h"
@@ -178,9 +179,9 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
 
   // See if the PHI node can be merged to a single value.  This can happen in
   // loop cases when we get a PHI of itself and one other value.
-  if (Value *ConstVal = InsertedPHI->hasConstantValue()) {
+  if (Value *V = SimplifyInstruction(InsertedPHI)) {
     InsertedPHI->eraseFromParent();
-    return ConstVal;
+    return V;
   }
 
   // If the client wants to know about all new instructions, tell it.
@@ -341,4 +342,170 @@ Value *SSAUpdater::GetValueAtEndOfBlockInternal(BasicBlock *BB) {
 
   SSAUpdaterImpl<SSAUpdater> Impl(this, &AvailableVals, InsertedPHIs);
   return Impl.GetValue(BB);
+}
+
+//===----------------------------------------------------------------------===//
+// LoadAndStorePromoter Implementation
+//===----------------------------------------------------------------------===//
+
+LoadAndStorePromoter::
+LoadAndStorePromoter(const SmallVectorImpl<Instruction*> &Insts,
+                     SSAUpdater &S, StringRef BaseName) : SSA(S) {
+  if (Insts.empty()) return;
+  
+  Value *SomeVal;
+  if (LoadInst *LI = dyn_cast<LoadInst>(Insts[0]))
+    SomeVal = LI;
+  else
+    SomeVal = cast<StoreInst>(Insts[0])->getOperand(0);
+
+  if (BaseName.empty())
+    BaseName = SomeVal->getName();
+  SSA.Initialize(SomeVal->getType(), BaseName);
+}
+
+
+void LoadAndStorePromoter::
+run(const SmallVectorImpl<Instruction*> &Insts) const {
+  
+  // First step: bucket up uses of the alloca by the block they occur in.
+  // This is important because we have to handle multiple defs/uses in a block
+  // ourselves: SSAUpdater is purely for cross-block references.
+  // FIXME: Want a TinyVector<Instruction*> since there is often 0/1 element.
+  DenseMap<BasicBlock*, std::vector<Instruction*> > UsesByBlock;
+  
+  for (unsigned i = 0, e = Insts.size(); i != e; ++i) {
+    Instruction *User = Insts[i];
+    UsesByBlock[User->getParent()].push_back(User);
+  }
+  
+  // Okay, now we can iterate over all the blocks in the function with uses,
+  // processing them.  Keep track of which loads are loading a live-in value.
+  // Walk the uses in the use-list order to be determinstic.
+  SmallVector<LoadInst*, 32> LiveInLoads;
+  DenseMap<Value*, Value*> ReplacedLoads;
+  
+  for (unsigned i = 0, e = Insts.size(); i != e; ++i) {
+    Instruction *User = Insts[i];
+    BasicBlock *BB = User->getParent();
+    std::vector<Instruction*> &BlockUses = UsesByBlock[BB];
+    
+    // If this block has already been processed, ignore this repeat use.
+    if (BlockUses.empty()) continue;
+    
+    // Okay, this is the first use in the block.  If this block just has a
+    // single user in it, we can rewrite it trivially.
+    if (BlockUses.size() == 1) {
+      // If it is a store, it is a trivial def of the value in the block.
+      if (StoreInst *SI = dyn_cast<StoreInst>(User))
+        SSA.AddAvailableValue(BB, SI->getOperand(0));
+      else 
+        // Otherwise it is a load, queue it to rewrite as a live-in load.
+        LiveInLoads.push_back(cast<LoadInst>(User));
+      BlockUses.clear();
+      continue;
+    }
+    
+    // Otherwise, check to see if this block is all loads.
+    bool HasStore = false;
+    for (unsigned i = 0, e = BlockUses.size(); i != e; ++i) {
+      if (isa<StoreInst>(BlockUses[i])) {
+        HasStore = true;
+        break;
+      }
+    }
+    
+    // If so, we can queue them all as live in loads.  We don't have an
+    // efficient way to tell which on is first in the block and don't want to
+    // scan large blocks, so just add all loads as live ins.
+    if (!HasStore) {
+      for (unsigned i = 0, e = BlockUses.size(); i != e; ++i)
+        LiveInLoads.push_back(cast<LoadInst>(BlockUses[i]));
+      BlockUses.clear();
+      continue;
+    }
+    
+    // Otherwise, we have mixed loads and stores (or just a bunch of stores).
+    // Since SSAUpdater is purely for cross-block values, we need to determine
+    // the order of these instructions in the block.  If the first use in the
+    // block is a load, then it uses the live in value.  The last store defines
+    // the live out value.  We handle this by doing a linear scan of the block.
+    Value *StoredValue = 0;
+    for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E; ++II) {
+      if (LoadInst *L = dyn_cast<LoadInst>(II)) {
+        // If this is a load from an unrelated pointer, ignore it.
+        if (!isInstInList(L, Insts)) continue;
+        
+        // If we haven't seen a store yet, this is a live in use, otherwise
+        // use the stored value.
+        if (StoredValue) {
+          replaceLoadWithValue(L, StoredValue);
+          L->replaceAllUsesWith(StoredValue);
+          ReplacedLoads[L] = StoredValue;
+        } else {
+          LiveInLoads.push_back(L);
+        }
+        continue;
+      }
+      
+      if (StoreInst *S = dyn_cast<StoreInst>(II)) {
+        // If this is a store to an unrelated pointer, ignore it.
+        if (!isInstInList(S, Insts)) continue;
+        
+        // Remember that this is the active value in the block.
+        StoredValue = S->getOperand(0);
+      }
+    }
+    
+    // The last stored value that happened is the live-out for the block.
+    assert(StoredValue && "Already checked that there is a store in block");
+    SSA.AddAvailableValue(BB, StoredValue);
+    BlockUses.clear();
+  }
+  
+  // Okay, now we rewrite all loads that use live-in values in the loop,
+  // inserting PHI nodes as necessary.
+  for (unsigned i = 0, e = LiveInLoads.size(); i != e; ++i) {
+    LoadInst *ALoad = LiveInLoads[i];
+    Value *NewVal = SSA.GetValueInMiddleOfBlock(ALoad->getParent());
+    replaceLoadWithValue(ALoad, NewVal);
+
+    // Avoid assertions in unreachable code.
+    if (NewVal == ALoad) NewVal = UndefValue::get(NewVal->getType());
+    ALoad->replaceAllUsesWith(NewVal);
+    ReplacedLoads[ALoad] = NewVal;
+  }
+  
+  // Allow the client to do stuff before we start nuking things.
+  doExtraRewritesBeforeFinalDeletion();
+  
+  // Now that everything is rewritten, delete the old instructions from the
+  // function.  They should all be dead now.
+  for (unsigned i = 0, e = Insts.size(); i != e; ++i) {
+    Instruction *User = Insts[i];
+    
+    // If this is a load that still has uses, then the load must have been added
+    // as a live value in the SSAUpdate data structure for a block (e.g. because
+    // the loaded value was stored later).  In this case, we need to recursively
+    // propagate the updates until we get to the real value.
+    if (!User->use_empty()) {
+      Value *NewVal = ReplacedLoads[User];
+      assert(NewVal && "not a replaced load?");
+      
+      // Propagate down to the ultimate replacee.  The intermediately loads
+      // could theoretically already have been deleted, so we don't want to
+      // dereference the Value*'s.
+      DenseMap<Value*, Value*>::iterator RLI = ReplacedLoads.find(NewVal);
+      while (RLI != ReplacedLoads.end()) {
+        NewVal = RLI->second;
+        RLI = ReplacedLoads.find(NewVal);
+      }
+      
+      replaceLoadWithValue(cast<LoadInst>(User), NewVal);
+      User->replaceAllUsesWith(NewVal);
+    }
+    
+    instructionDeleted(User);
+    User->eraseFromParent();
+  }
 }

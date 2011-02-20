@@ -38,23 +38,22 @@ void ASTMergeAction::ExecuteAction() {
                                          CI.getASTContext().getLangOptions());
   CI.getDiagnostics().SetArgToStringFn(&FormatASTNodeDiagnosticArgument,
                                        &CI.getASTContext());
-  llvm::IntrusiveRefCntPtr<Diagnostic> Diags(&CI.getDiagnostics());
+  llvm::IntrusiveRefCntPtr<DiagnosticIDs>
+      DiagIDs(CI.getDiagnostics().getDiagnosticIDs());
   for (unsigned I = 0, N = ASTFiles.size(); I != N; ++I) {
-    ASTUnit *Unit = ASTUnit::LoadFromASTFile(ASTFiles[I], Diags, false);
+    llvm::IntrusiveRefCntPtr<Diagnostic>
+        Diags(new Diagnostic(DiagIDs, CI.getDiagnostics().getClient(),
+                             /*ShouldOwnClient=*/false));
+    ASTUnit *Unit = ASTUnit::LoadFromASTFile(ASTFiles[I], Diags,
+                                             CI.getFileSystemOpts(), false);
     if (!Unit)
       continue;
 
-    // Reset the argument -> string function so that it has the AST
-    // context we want, since the Sema object created by
-    // LoadFromASTFile will override it.
-    CI.getDiagnostics().SetArgToStringFn(&FormatASTNodeDiagnosticArgument,
-                                         &CI.getASTContext());
-
-    ASTImporter Importer(CI.getDiagnostics(),
-                         CI.getASTContext(), 
+    ASTImporter Importer(CI.getASTContext(), 
                          CI.getFileManager(),
                          Unit->getASTContext(), 
-                         Unit->getFileManager());
+                         Unit->getFileManager(),
+                         /*MinimalImport=*/false);
 
     TranslationUnitDecl *TU = Unit->getASTContext().getTranslationUnitDecl();
     for (DeclContext::decl_iterator D = TU->decls_begin(), 

@@ -16,6 +16,7 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ELF.h"
 using namespace llvm;
 
 static cl::opt<unsigned>
@@ -25,21 +26,21 @@ SSThreshold("mips-ssection-threshold", cl::Hidden,
 
 void MipsTargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &TM){
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
- 
+
   SmallDataSection =
-    getContext().getELFSection(".sdata", MCSectionELF::SHT_PROGBITS,
-                               MCSectionELF::SHF_WRITE |MCSectionELF::SHF_ALLOC,
+    getContext().getELFSection(".sdata", ELF::SHT_PROGBITS,
+                               ELF::SHF_WRITE |ELF::SHF_ALLOC,
                                SectionKind::getDataRel());
-  
+
   SmallBSSSection =
-    getContext().getELFSection(".sbss", MCSectionELF::SHT_NOBITS,
-                               MCSectionELF::SHF_WRITE |MCSectionELF::SHF_ALLOC,
+    getContext().getELFSection(".sbss", ELF::SHT_NOBITS,
+                               ELF::SHF_WRITE |ELF::SHF_ALLOC,
                                SectionKind::getBSS());
-  
+
 }
 
-// A address must be loaded from a small section if its size is less than the 
-// small section size threshold. Data in this section must be addressed using 
+// A address must be loaded from a small section if its size is less than the
+// small section size threshold. Data in this section must be addressed using
 // gp_rel operator.
 static bool IsInSmallSection(uint64_t Size) {
   return Size > 0 && Size <= SSThreshold;
@@ -49,7 +50,7 @@ bool MipsTargetObjectFile::IsGlobalInSmallSection(const GlobalValue *GV,
                                                 const TargetMachine &TM) const {
   if (GV->isDeclaration() || GV->hasAvailableExternallyLinkage())
     return false;
-  
+
   return IsGlobalInSmallSection(GV, TM, getKindForGlobal(GV, TM));
 }
 
@@ -68,11 +69,11 @@ IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM,
   const GlobalVariable *GVA = dyn_cast<GlobalVariable>(GV);
   if (!GVA)
     return false;
-  
+
   // We can only do this for datarel or BSS objects for now.
   if (!Kind.isBSS() && !Kind.isDataRel())
     return false;
-  
+
   // If this is a internal constant string, there is a special
   // section for it, but not in small data/bss.
   if (Kind.isMergeable1ByteCString())
@@ -89,13 +90,13 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
                        Mangler *Mang, const TargetMachine &TM) const {
   // TODO: Could also support "weak" symbols as well with ".gnu.linkonce.s.*"
   // sections?
-  
+
   // Handle Small Section classification here.
   if (Kind.isBSS() && IsGlobalInSmallSection(GV, TM, Kind))
     return SmallBSSSection;
   if (Kind.isDataNoRel() && IsGlobalInSmallSection(GV, TM, Kind))
     return SmallDataSection;
-  
+
   // Otherwise, we work the same as ELF.
   return TargetLoweringObjectFileELF::SelectSectionForGlobal(GV, Kind, Mang,TM);
 }

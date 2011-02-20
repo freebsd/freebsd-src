@@ -20,8 +20,8 @@
 #include "llvm/Support/LeakDetector.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/StringPool.h"
-#include "llvm/System/RWMutex.h"
-#include "llvm/System/Threading.h"
+#include "llvm/Support/RWMutex.h"
+#include "llvm/Support/Threading.h"
 #include "SymbolTableListTraitsImpl.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringExtras.h"
@@ -227,19 +227,10 @@ void Function::dropAllReferences() {
   for (iterator I = begin(), E = end(); I != E; ++I)
     I->dropAllReferences();
   
-  // Delete all basic blocks.
-  while (!BasicBlocks.empty()) {
-    // If there is still a reference to the block, it must be a 'blockaddress'
-    // constant pointing to it.  Just replace the BlockAddress with undef.
-    BasicBlock *BB = BasicBlocks.begin();
-    if (!BB->use_empty()) {
-      BlockAddress *BA = cast<BlockAddress>(BB->use_back());
-      BA->replaceAllUsesWith(UndefValue::get(BA->getType()));
-      BA->destroyConstant();
-    }
-    
-    BB->eraseFromParent();
-  }
+  // Delete all basic blocks. They are now unused, except possibly by
+  // blockaddresses, but BasicBlock's destructor takes care of those.
+  while (!BasicBlocks.empty())
+    BasicBlocks.begin()->eraseFromParent();
 }
 
 void Function::addAttribute(unsigned i, Attributes attr) {

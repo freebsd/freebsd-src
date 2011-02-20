@@ -15,12 +15,14 @@
 #define TGPARSER_H
 
 #include "TGLexer.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/SourceMgr.h"
 #include <map>
 
 namespace llvm {
   class Record;
   class RecordVal;
+  class RecordKeeper;
   struct RecTy;
   struct Init;
   struct MultiClass;
@@ -46,18 +48,22 @@ class TGParser {
   /// CurMultiClass - If we are parsing a 'multiclass' definition, this is the 
   /// current value.
   MultiClass *CurMultiClass;
+
+  // Record tracker
+  RecordKeeper &Records;
 public:
-  TGParser(SourceMgr &SrcMgr) : Lex(SrcMgr), CurMultiClass(0) {}
+  TGParser(SourceMgr &SrcMgr, RecordKeeper &records) : 
+    Lex(SrcMgr), CurMultiClass(0), Records(records) {}
   
   /// ParseFile - Main entrypoint for parsing a tblgen file.  These parser
   /// routines return true on error, or false on success.
   bool ParseFile();
   
-  bool Error(SMLoc L, const std::string &Msg) const {
+  bool Error(SMLoc L, const Twine &Msg) const {
     Lex.PrintError(L, Msg);
     return true;
   }
-  bool TokError(const std::string &Msg) const {
+  bool TokError(const Twine &Msg) const {
     return Error(Lex.getLoc(), Msg);
   }
 private:  // Semantic analysis methods.

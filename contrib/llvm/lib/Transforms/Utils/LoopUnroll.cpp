@@ -16,13 +16,14 @@
 //
 // The process of unrolling can produce extraneous basic blocks linked with
 // unconditional branches.  This will be corrected in the future.
+//
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "loop-unroll"
 #include "llvm/Transforms/Utils/UnrollLoop.h"
 #include "llvm/BasicBlock.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Support/Debug.h"
@@ -30,20 +31,19 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
-
 using namespace llvm;
 
 // TODO: Should these be here or in LoopUnroll?
 STATISTIC(NumCompletelyUnrolled, "Number of loops completely unrolled");
-STATISTIC(NumUnrolled,    "Number of loops unrolled (completely or otherwise)");
+STATISTIC(NumUnrolled, "Number of loops unrolled (completely or otherwise)");
 
 /// RemapInstruction - Convert the instruction operands from referencing the
 /// current values into those specified by VMap.
 static inline void RemapInstruction(Instruction *I,
-                                    ValueMap<const Value *, Value*> &VMap) {
+                                    ValueToValueMapTy &VMap) {
   for (unsigned op = 0, E = I->getNumOperands(); op != E; ++op) {
     Value *Op = I->getOperand(op);
-    ValueMap<const Value *, Value*>::iterator It = VMap.find(Op);
+    ValueToValueMapTy::iterator It = VMap.find(Op);
     if (It != VMap.end())
       I->setOperand(op, It->second);
   }
@@ -96,7 +96,7 @@ static BasicBlock *FoldBlockIntoPredecessor(BasicBlock *BB, LoopInfo* LI) {
 }
 
 /// Unroll the given loop by Count. The loop must be in LCSSA form. Returns true
-/// if unrolling was succesful, or false if the loop was unmodified. Unrolling
+/// if unrolling was successful, or false if the loop was unmodified. Unrolling
 /// can only fail when the loop's latch block is not terminated by a conditional
 /// branch instruction. However, if the trip count (and multiple) are not known,
 /// loop unrolling will mostly produce more code that is no faster.
@@ -105,7 +105,8 @@ static BasicBlock *FoldBlockIntoPredecessor(BasicBlock *BB, LoopInfo* LI) {
 ///
 /// If a LoopPassManager is passed in, and the loop is fully removed, it will be
 /// removed from the LoopPassManager as well. LPM can also be NULL.
-bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM) {
+bool llvm::UnrollLoop(Loop *L, unsigned Count,
+                      LoopInfo *LI, LPPassManager *LPM) {
   BasicBlock *Preheader = L->getLoopPreheader();
   if (!Preheader) {
     DEBUG(dbgs() << "  Can't unroll; loop preheader-insertion failed.\n");
@@ -125,6 +126,13 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
     // The loop-rotate pass can be helpful to avoid this in many cases.
     DEBUG(dbgs() <<
              "  Can't unroll; loop not terminated by a conditional branch.\n");
+    return false;
+  }
+  
+  if (Header->hasAddressTaken()) {
+    // The loop-rotate pass can be helpful to avoid this in many cases.
+    DEBUG(dbgs() <<
+          "  Won't unroll loop: address of header block is taken.\n");
     return false;
   }
 
@@ -189,7 +197,6 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
 
   // For the first iteration of the loop, we should use the precloned values for
   // PHI nodes.  Insert associations now.
-  typedef ValueMap<const Value*, Value*> ValueToValueMapTy;
   ValueToValueMapTy LastValueMap;
   std::vector<PHINode*> OrigPHINode;
   for (BasicBlock::iterator I = Header->begin(); isa<PHINode>(I); ++I) {
@@ -274,7 +281,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
     for (unsigned i = 0; i < NewBlocks.size(); ++i)
       for (BasicBlock::iterator I = NewBlocks[i]->begin(),
            E = NewBlocks[i]->end(); I != E; ++I)
-        RemapInstruction(I, LastValueMap);
+        ::RemapInstruction(I, LastValueMap);
   }
   
   // The latch block exits the loop.  If there are any PHI nodes in the
@@ -342,7 +349,9 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
       // iteration.
       Term->setSuccessor(!ContinueOnTrue, Dest);
     } else {
-      Term->setUnconditionalDest(Dest);
+      // Replace the conditional branch with an unconditional one.
+      BranchInst::Create(Dest, Term);
+      Term->eraseFromParent();
       // Merge adjacent basic blocks, if possible.
       if (BasicBlock *Fold = FoldBlockIntoPredecessor(Dest, LI)) {
         std::replace(Latches.begin(), Latches.end(), Dest, Fold);
@@ -362,10 +371,11 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, LoopInfo* LI, LPPassManager* LPM)
 
       if (isInstructionTriviallyDead(Inst))
         (*BB)->getInstList().erase(Inst);
-      else if (Constant *C = ConstantFoldInstruction(Inst)) {
-        Inst->replaceAllUsesWith(C);
-        (*BB)->getInstList().erase(Inst);
-      }
+      else if (Value *V = SimplifyInstruction(Inst))
+        if (LI->replacementPreservesLCSSAForm(Inst, V)) {
+          Inst->replaceAllUsesWith(V);
+          (*BB)->getInstList().erase(Inst);
+        }
     }
 
   NumCompletelyUnrolled += CompletelyUnroll;

@@ -23,7 +23,8 @@ SRCS=	HeaderMap.cpp \
 	TokenConcatenation.cpp \
 	TokenLexer.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrSpellings \
+	DiagnosticCommonKinds \
 	DiagnosticLexKinds
 
 .include "../clang.lib.mk"

@@ -16,11 +16,17 @@
 //===----------------------------------------------------------------------===//
 
 def SDTARMVCMP    : SDTypeProfile<1, 2, [SDTCisInt<0>, SDTCisSameAs<1, 2>]>;
+def SDTARMVCMPZ   : SDTypeProfile<1, 1, []>;
 
 def NEONvceq      : SDNode<"ARMISD::VCEQ", SDTARMVCMP>;
+def NEONvceqz     : SDNode<"ARMISD::VCEQZ", SDTARMVCMPZ>;
 def NEONvcge      : SDNode<"ARMISD::VCGE", SDTARMVCMP>;
+def NEONvcgez     : SDNode<"ARMISD::VCGEZ", SDTARMVCMPZ>;
+def NEONvclez     : SDNode<"ARMISD::VCLEZ", SDTARMVCMPZ>;
 def NEONvcgeu     : SDNode<"ARMISD::VCGEU", SDTARMVCMP>;
 def NEONvcgt      : SDNode<"ARMISD::VCGT", SDTARMVCMP>;
+def NEONvcgtz     : SDNode<"ARMISD::VCGTZ", SDTARMVCMPZ>;
+def NEONvcltz     : SDNode<"ARMISD::VCLTZ", SDTARMVCMPZ>;
 def NEONvcgtu     : SDNode<"ARMISD::VCGTU", SDTARMVCMP>;
 def NEONvtst      : SDNode<"ARMISD::VTST", SDTARMVCMP>;
 
@@ -68,6 +74,11 @@ def NEONvgetlanes : SDNode<"ARMISD::VGETLANEs", SDTARMVGETLN>;
 def SDTARMVMOVIMM : SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVT<1, i32>]>;
 def NEONvmovImm   : SDNode<"ARMISD::VMOVIMM", SDTARMVMOVIMM>;
 def NEONvmvnImm   : SDNode<"ARMISD::VMVNIMM", SDTARMVMOVIMM>;
+
+def SDTARMVORRIMM : SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0, 1>,
+                                           SDTCisVT<2, i32>]>;
+def NEONvorrImm   : SDNode<"ARMISD::VORRIMM", SDTARMVORRIMM>;
+def NEONvbicImm   : SDNode<"ARMISD::VBICIMM", SDTARMVORRIMM>;
 
 def NEONvdup      : SDNode<"ARMISD::VDUP", SDTypeProfile<1, 1, [SDTCisVec<0>]>>;
 
@@ -129,830 +140,1506 @@ def nModImm : Operand<i32> {
 // NEON load / store instructions
 //===----------------------------------------------------------------------===//
 
-// Use vldmia to load a Q register as a D register pair.
-// This is equivalent to VLDMD except that it has a Q register operand
-// instead of a pair of D registers.
-def VLDMQ
-  : AXDI4<(outs QPR:$dst), (ins addrmode4:$addr, pred:$p),
-          IndexModeNone, IIC_fpLoadm,
-          "vldm${addr:submode}${p}\t$addr, ${dst:dregpair}", "",
-          [(set QPR:$dst, (v2f64 (load addrmode4:$addr)))]>;
+// Use VLDM to load a Q register as a D register pair.
+// This is a pseudo instruction that is expanded to VLDMD after reg alloc.
+def VLDMQIA
+  : PseudoVFPLdStM<(outs QPR:$dst), (ins GPR:$Rn),
+                    IIC_fpLoad_m, "",
+                   [(set QPR:$dst, (v2f64 (load GPR:$Rn)))]>;
+def VLDMQDB
+  : PseudoVFPLdStM<(outs QPR:$dst), (ins GPR:$Rn),
+                    IIC_fpLoad_m, "",
+                   [(set QPR:$dst, (v2f64 (load GPR:$Rn)))]>;
 
-let mayLoad = 1, neverHasSideEffects = 1 in {
-// Use vld1 to load a Q register as a D register pair.
-// This alternative to VLDMQ allows an alignment to be specified.
-// This is equivalent to VLD1q64 except that it has a Q register operand.
-def VLD1q
-  : NLdSt<0,0b10,0b1010,0b1100, (outs QPR:$dst), (ins addrmode6:$addr),
-          IIC_VLD1, "vld1", "64", "${dst:dregpair}, $addr", "", []>;
-} // mayLoad = 1, neverHasSideEffects = 1
-
-// Use vstmia to store a Q register as a D register pair.
-// This is equivalent to VSTMD except that it has a Q register operand
-// instead of a pair of D registers.
-def VSTMQ
-  : AXDI4<(outs), (ins QPR:$src, addrmode4:$addr, pred:$p),
-          IndexModeNone, IIC_fpStorem,
-          "vstm${addr:submode}${p}\t$addr, ${src:dregpair}", "",
-          [(store (v2f64 QPR:$src), addrmode4:$addr)]>;
-
-let mayStore = 1, neverHasSideEffects = 1 in {
-// Use vst1 to store a Q register as a D register pair.
-// This alternative to VSTMQ allows an alignment to be specified.
-// This is equivalent to VST1q64 except that it has a Q register operand.
-def VST1q
-  : NLdSt<0,0b00,0b1010,0b1100, (outs), (ins addrmode6:$addr, QPR:$src),
-          IIC_VST, "vst1", "64", "${src:dregpair}, $addr", "", []>;
-} // mayStore = 1, neverHasSideEffects = 1
-
-let mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1 in {
+// Use VSTM to store a Q register as a D register pair.
+// This is a pseudo instruction that is expanded to VSTMD after reg alloc.
+def VSTMQIA
+  : PseudoVFPLdStM<(outs), (ins QPR:$src, GPR:$Rn),
+                    IIC_fpStore_m, "",
+                   [(store (v2f64 QPR:$src), GPR:$Rn)]>;
+def VSTMQDB
+  : PseudoVFPLdStM<(outs), (ins QPR:$src, GPR:$Rn),
+                    IIC_fpStore_m, "",
+                   [(store (v2f64 QPR:$src), GPR:$Rn)]>;
 
 // Classes for VLD* pseudo-instructions with multi-register operands.
 // These are expanded to real instructions after register allocation.
-class VLDQPseudo
-  : PseudoNLdSt<(outs QPR:$dst), (ins addrmode6:$addr), IIC_VST, "">;
-class VLDQWBPseudo
+class VLDQPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs QPR:$dst), (ins addrmode6:$addr), itin, "">;
+class VLDQWBPseudo<InstrItinClass itin>
   : PseudoNLdSt<(outs QPR:$dst, GPR:$wb),
-                (ins addrmode6:$addr, am6offset:$offset), IIC_VST,
+                (ins addrmode6:$addr, am6offset:$offset), itin,
                 "$addr.addr = $wb">;
-class VLDQQPseudo
-  : PseudoNLdSt<(outs QQPR:$dst), (ins addrmode6:$addr), IIC_VST, "">;
-class VLDQQWBPseudo
+class VLDQQPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs QQPR:$dst), (ins addrmode6:$addr), itin, "">;
+class VLDQQWBPseudo<InstrItinClass itin>
   : PseudoNLdSt<(outs QQPR:$dst, GPR:$wb),
-                (ins addrmode6:$addr, am6offset:$offset), IIC_VST,
+                (ins addrmode6:$addr, am6offset:$offset), itin,
                 "$addr.addr = $wb">;
-class VLDQQQQWBPseudo
+class VLDQQQQPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs QQQQPR:$dst), (ins addrmode6:$addr, QQQQPR:$src), itin,"">;
+class VLDQQQQWBPseudo<InstrItinClass itin>
   : PseudoNLdSt<(outs QQQQPR:$dst, GPR:$wb),
-                (ins addrmode6:$addr, am6offset:$offset, QQQQPR:$src), IIC_VST,
+                (ins addrmode6:$addr, am6offset:$offset, QQQQPR:$src), itin,
                 "$addr.addr = $wb, $src = $dst">;
+
+let mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1 in {
 
 //   VLD1     : Vector Load (multiple single elements)
 class VLD1D<bits<4> op7_4, string Dt>
-  : NLdSt<0,0b10,0b0111,op7_4, (outs DPR:$dst),
-          (ins addrmode6:$addr), IIC_VLD1,
-          "vld1", Dt, "\\{$dst\\}, $addr", "", []>;
+  : NLdSt<0,0b10,0b0111,op7_4, (outs DPR:$Vd),
+          (ins addrmode6:$Rn), IIC_VLD1,
+          "vld1", Dt, "\\{$Vd\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
 class VLD1Q<bits<4> op7_4, string Dt>
-  : NLdSt<0,0b10,0b1010,op7_4, (outs DPR:$dst1, DPR:$dst2),
-          (ins addrmode6:$addr), IIC_VLD1,
-          "vld1", Dt, "\\{$dst1, $dst2\\}, $addr", "", []>;
+  : NLdSt<0,0b10,0b1010,op7_4, (outs DPR:$Vd, DPR:$dst2),
+          (ins addrmode6:$Rn), IIC_VLD1x2,
+          "vld1", Dt, "\\{$Vd, $dst2\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 
-def  VLD1d8   : VLD1D<0b0000, "8">;
-def  VLD1d16  : VLD1D<0b0100, "16">;
-def  VLD1d32  : VLD1D<0b1000, "32">;
-def  VLD1d64  : VLD1D<0b1100, "64">;
+def  VLD1d8   : VLD1D<{0,0,0,?}, "8">;
+def  VLD1d16  : VLD1D<{0,1,0,?}, "16">;
+def  VLD1d32  : VLD1D<{1,0,0,?}, "32">;
+def  VLD1d64  : VLD1D<{1,1,0,?}, "64">;
 
-def  VLD1q8   : VLD1Q<0b0000, "8">;
-def  VLD1q16  : VLD1Q<0b0100, "16">;
-def  VLD1q32  : VLD1Q<0b1000, "32">;
-def  VLD1q64  : VLD1Q<0b1100, "64">;
+def  VLD1q8   : VLD1Q<{0,0,?,?}, "8">;
+def  VLD1q16  : VLD1Q<{0,1,?,?}, "16">;
+def  VLD1q32  : VLD1Q<{1,0,?,?}, "32">;
+def  VLD1q64  : VLD1Q<{1,1,?,?}, "64">;
 
-def  VLD1q8Pseudo  : VLDQPseudo;
-def  VLD1q16Pseudo : VLDQPseudo;
-def  VLD1q32Pseudo : VLDQPseudo;
-def  VLD1q64Pseudo : VLDQPseudo;
+def  VLD1q8Pseudo  : VLDQPseudo<IIC_VLD1x2>;
+def  VLD1q16Pseudo : VLDQPseudo<IIC_VLD1x2>;
+def  VLD1q32Pseudo : VLDQPseudo<IIC_VLD1x2>;
+def  VLD1q64Pseudo : VLDQPseudo<IIC_VLD1x2>;
 
 // ...with address register writeback:
 class VLD1DWB<bits<4> op7_4, string Dt>
-  : NLdSt<0,0b10,0b0111,op7_4, (outs DPR:$dst, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset), IIC_VLD1,
-          "vld1", Dt, "\\{$dst\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+  : NLdSt<0,0b10,0b0111,op7_4, (outs DPR:$Vd, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm), IIC_VLD1u,
+          "vld1", Dt, "\\{$Vd\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
 class VLD1QWB<bits<4> op7_4, string Dt>
-  : NLdSt<0,0b10,0b1010,op7_4, (outs QPR:$dst, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset), IIC_VLD1,
-          "vld1", Dt, "${dst:dregpair}, $addr$offset",
-          "$addr.addr = $wb", []>;
+  : NLdSt<0,0b10,0b1010,op7_4, (outs DPR:$Vd, DPR:$dst2, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm), IIC_VLD1x2u,
+          "vld1", Dt, "\\{$Vd, $dst2\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{5-4} = Rn{5-4};
+}
 
-def VLD1d8_UPD  : VLD1DWB<0b0000, "8">;
-def VLD1d16_UPD : VLD1DWB<0b0100, "16">;
-def VLD1d32_UPD : VLD1DWB<0b1000, "32">;
-def VLD1d64_UPD : VLD1DWB<0b1100, "64">;
+def VLD1d8_UPD  : VLD1DWB<{0,0,0,?}, "8">;
+def VLD1d16_UPD : VLD1DWB<{0,1,0,?}, "16">;
+def VLD1d32_UPD : VLD1DWB<{1,0,0,?}, "32">;
+def VLD1d64_UPD : VLD1DWB<{1,1,0,?}, "64">;
 
-def VLD1q8_UPD  : VLD1QWB<0b0000, "8">;
-def VLD1q16_UPD : VLD1QWB<0b0100, "16">;
-def VLD1q32_UPD : VLD1QWB<0b1000, "32">;
-def VLD1q64_UPD : VLD1QWB<0b1100, "64">;
+def VLD1q8_UPD  : VLD1QWB<{0,0,?,?}, "8">;
+def VLD1q16_UPD : VLD1QWB<{0,1,?,?}, "16">;
+def VLD1q32_UPD : VLD1QWB<{1,0,?,?}, "32">;
+def VLD1q64_UPD : VLD1QWB<{1,1,?,?}, "64">;
 
-def VLD1q8Pseudo_UPD  : VLDQWBPseudo;
-def VLD1q16Pseudo_UPD : VLDQWBPseudo;
-def VLD1q32Pseudo_UPD : VLDQWBPseudo;
-def VLD1q64Pseudo_UPD : VLDQWBPseudo;
+def VLD1q8Pseudo_UPD  : VLDQWBPseudo<IIC_VLD1x2u>;
+def VLD1q16Pseudo_UPD : VLDQWBPseudo<IIC_VLD1x2u>;
+def VLD1q32Pseudo_UPD : VLDQWBPseudo<IIC_VLD1x2u>;
+def VLD1q64Pseudo_UPD : VLDQWBPseudo<IIC_VLD1x2u>;
 
 // ...with 3 registers (some of these are only for the disassembler):
 class VLD1D3<bits<4> op7_4, string Dt>
-  : NLdSt<0,0b10,0b0110,op7_4, (outs DPR:$dst1, DPR:$dst2, DPR:$dst3),
-          (ins addrmode6:$addr), IIC_VLD1, "vld1", Dt,
-          "\\{$dst1, $dst2, $dst3\\}, $addr", "", []>;
+  : NLdSt<0,0b10,0b0110,op7_4, (outs DPR:$Vd, DPR:$dst2, DPR:$dst3),
+          (ins addrmode6:$Rn), IIC_VLD1x3, "vld1", Dt,
+          "\\{$Vd, $dst2, $dst3\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
 class VLD1D3WB<bits<4> op7_4, string Dt>
-  : NLdSt<0,0b10,0b0110,op7_4, (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset), IIC_VLD1, "vld1", Dt,
-          "\\{$dst1, $dst2, $dst3\\}, $addr$offset", "$addr.addr = $wb", []>;
+  : NLdSt<0,0b10,0b0110,op7_4, (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm), IIC_VLD1x3u, "vld1", Dt,
+          "\\{$Vd, $dst2, $dst3\\}, $Rn$Rm", "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
 
-def VLD1d8T      : VLD1D3<0b0000, "8">;
-def VLD1d16T     : VLD1D3<0b0100, "16">;
-def VLD1d32T     : VLD1D3<0b1000, "32">;
-def VLD1d64T     : VLD1D3<0b1100, "64">;
+def VLD1d8T      : VLD1D3<{0,0,0,?}, "8">;
+def VLD1d16T     : VLD1D3<{0,1,0,?}, "16">;
+def VLD1d32T     : VLD1D3<{1,0,0,?}, "32">;
+def VLD1d64T     : VLD1D3<{1,1,0,?}, "64">;
 
-def VLD1d8T_UPD  : VLD1D3WB<0b0000, "8">;
-def VLD1d16T_UPD : VLD1D3WB<0b0100, "16">;
-def VLD1d32T_UPD : VLD1D3WB<0b1000, "32">;
-def VLD1d64T_UPD : VLD1D3WB<0b1100, "64">;
+def VLD1d8T_UPD  : VLD1D3WB<{0,0,0,?}, "8">;
+def VLD1d16T_UPD : VLD1D3WB<{0,1,0,?}, "16">;
+def VLD1d32T_UPD : VLD1D3WB<{1,0,0,?}, "32">;
+def VLD1d64T_UPD : VLD1D3WB<{1,1,0,?}, "64">;
 
-def VLD1d64TPseudo     : VLDQQPseudo;
-def VLD1d64TPseudo_UPD : VLDQQWBPseudo;
+def VLD1d64TPseudo     : VLDQQPseudo<IIC_VLD1x3>;
+def VLD1d64TPseudo_UPD : VLDQQWBPseudo<IIC_VLD1x3u>;
 
 // ...with 4 registers (some of these are only for the disassembler):
 class VLD1D4<bits<4> op7_4, string Dt>
-  : NLdSt<0,0b10,0b0010,op7_4,(outs DPR:$dst1, DPR:$dst2, DPR:$dst3, DPR:$dst4),
-          (ins addrmode6:$addr), IIC_VLD1, "vld1", Dt,
-          "\\{$dst1, $dst2, $dst3, $dst4\\}, $addr", "", []>;
+  : NLdSt<0,0b10,0b0010,op7_4,(outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4),
+          (ins addrmode6:$Rn), IIC_VLD1x4, "vld1", Dt,
+          "\\{$Vd, $dst2, $dst3, $dst4\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 class VLD1D4WB<bits<4> op7_4, string Dt>
   : NLdSt<0,0b10,0b0010,op7_4,
-          (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, DPR:$dst4, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset), IIC_VLD1, "vld1", Dt,
-          "\\{$dst1, $dst2, $dst3, $dst4\\}, $addr$offset", "$addr.addr = $wb",
-          []>;
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm), IIC_VLD1x4u, "vld1", Dt,
+          "\\{$Vd, $dst2, $dst3, $dst4\\}, $Rn$Rm", "$Rn.addr = $wb",
+          []> {
+  let Inst{5-4} = Rn{5-4};
+}
 
-def VLD1d8Q      : VLD1D4<0b0000, "8">;
-def VLD1d16Q     : VLD1D4<0b0100, "16">;
-def VLD1d32Q     : VLD1D4<0b1000, "32">;
-def VLD1d64Q     : VLD1D4<0b1100, "64">;
+def VLD1d8Q      : VLD1D4<{0,0,?,?}, "8">;
+def VLD1d16Q     : VLD1D4<{0,1,?,?}, "16">;
+def VLD1d32Q     : VLD1D4<{1,0,?,?}, "32">;
+def VLD1d64Q     : VLD1D4<{1,1,?,?}, "64">;
 
-def VLD1d8Q_UPD  : VLD1D4WB<0b0000, "8">;
-def VLD1d16Q_UPD : VLD1D4WB<0b0100, "16">;
-def VLD1d32Q_UPD : VLD1D4WB<0b1000, "32">;
-def VLD1d64Q_UPD : VLD1D4WB<0b1100, "64">;
+def VLD1d8Q_UPD  : VLD1D4WB<{0,0,?,?}, "8">;
+def VLD1d16Q_UPD : VLD1D4WB<{0,1,?,?}, "16">;
+def VLD1d32Q_UPD : VLD1D4WB<{1,0,?,?}, "32">;
+def VLD1d64Q_UPD : VLD1D4WB<{1,1,?,?}, "64">;
 
-def VLD1d64QPseudo     : VLDQQPseudo;
-def VLD1d64QPseudo_UPD : VLDQQWBPseudo;
+def VLD1d64QPseudo     : VLDQQPseudo<IIC_VLD1x4>;
+def VLD1d64QPseudo_UPD : VLDQQWBPseudo<IIC_VLD1x4u>;
 
 //   VLD2     : Vector Load (multiple 2-element structures)
 class VLD2D<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<0, 0b10, op11_8, op7_4, (outs DPR:$dst1, DPR:$dst2),
-          (ins addrmode6:$addr), IIC_VLD2,
-          "vld2", Dt, "\\{$dst1, $dst2\\}, $addr", "", []>;
+  : NLdSt<0, 0b10, op11_8, op7_4, (outs DPR:$Vd, DPR:$dst2),
+          (ins addrmode6:$Rn), IIC_VLD2,
+          "vld2", Dt, "\\{$Vd, $dst2\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 class VLD2Q<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b10, 0b0011, op7_4,
-          (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, DPR:$dst4),
-          (ins addrmode6:$addr), IIC_VLD2,
-          "vld2", Dt, "\\{$dst1, $dst2, $dst3, $dst4\\}, $addr", "", []>;
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4),
+          (ins addrmode6:$Rn), IIC_VLD2x2,
+          "vld2", Dt, "\\{$Vd, $dst2, $dst3, $dst4\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 
-def  VLD2d8   : VLD2D<0b1000, 0b0000, "8">;
-def  VLD2d16  : VLD2D<0b1000, 0b0100, "16">;
-def  VLD2d32  : VLD2D<0b1000, 0b1000, "32">;
+def  VLD2d8   : VLD2D<0b1000, {0,0,?,?}, "8">;
+def  VLD2d16  : VLD2D<0b1000, {0,1,?,?}, "16">;
+def  VLD2d32  : VLD2D<0b1000, {1,0,?,?}, "32">;
 
-def  VLD2q8   : VLD2Q<0b0000, "8">;
-def  VLD2q16  : VLD2Q<0b0100, "16">;
-def  VLD2q32  : VLD2Q<0b1000, "32">;
+def  VLD2q8   : VLD2Q<{0,0,?,?}, "8">;
+def  VLD2q16  : VLD2Q<{0,1,?,?}, "16">;
+def  VLD2q32  : VLD2Q<{1,0,?,?}, "32">;
 
-def  VLD2d8Pseudo  : VLDQPseudo;
-def  VLD2d16Pseudo : VLDQPseudo;
-def  VLD2d32Pseudo : VLDQPseudo;
+def  VLD2d8Pseudo  : VLDQPseudo<IIC_VLD2>;
+def  VLD2d16Pseudo : VLDQPseudo<IIC_VLD2>;
+def  VLD2d32Pseudo : VLDQPseudo<IIC_VLD2>;
 
-def  VLD2q8Pseudo  : VLDQQPseudo;
-def  VLD2q16Pseudo : VLDQQPseudo;
-def  VLD2q32Pseudo : VLDQQPseudo;
+def  VLD2q8Pseudo  : VLDQQPseudo<IIC_VLD2x2>;
+def  VLD2q16Pseudo : VLDQQPseudo<IIC_VLD2x2>;
+def  VLD2q32Pseudo : VLDQQPseudo<IIC_VLD2x2>;
 
 // ...with address register writeback:
 class VLD2DWB<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<0, 0b10, op11_8, op7_4, (outs DPR:$dst1, DPR:$dst2, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset), IIC_VLD2,
-          "vld2", Dt, "\\{$dst1, $dst2\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+  : NLdSt<0, 0b10, op11_8, op7_4, (outs DPR:$Vd, DPR:$dst2, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm), IIC_VLD2u,
+          "vld2", Dt, "\\{$Vd, $dst2\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{5-4} = Rn{5-4};
+}
 class VLD2QWB<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b10, 0b0011, op7_4,
-          (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, DPR:$dst4, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset), IIC_VLD2,
-          "vld2", Dt, "\\{$dst1, $dst2, $dst3, $dst4\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm), IIC_VLD2x2u,
+          "vld2", Dt, "\\{$Vd, $dst2, $dst3, $dst4\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{5-4} = Rn{5-4};
+}
 
-def VLD2d8_UPD  : VLD2DWB<0b1000, 0b0000, "8">;
-def VLD2d16_UPD : VLD2DWB<0b1000, 0b0100, "16">;
-def VLD2d32_UPD : VLD2DWB<0b1000, 0b1000, "32">;
+def VLD2d8_UPD  : VLD2DWB<0b1000, {0,0,?,?}, "8">;
+def VLD2d16_UPD : VLD2DWB<0b1000, {0,1,?,?}, "16">;
+def VLD2d32_UPD : VLD2DWB<0b1000, {1,0,?,?}, "32">;
 
-def VLD2q8_UPD  : VLD2QWB<0b0000, "8">;
-def VLD2q16_UPD : VLD2QWB<0b0100, "16">;
-def VLD2q32_UPD : VLD2QWB<0b1000, "32">;
+def VLD2q8_UPD  : VLD2QWB<{0,0,?,?}, "8">;
+def VLD2q16_UPD : VLD2QWB<{0,1,?,?}, "16">;
+def VLD2q32_UPD : VLD2QWB<{1,0,?,?}, "32">;
 
-def VLD2d8Pseudo_UPD  : VLDQWBPseudo;
-def VLD2d16Pseudo_UPD : VLDQWBPseudo;
-def VLD2d32Pseudo_UPD : VLDQWBPseudo;
+def VLD2d8Pseudo_UPD  : VLDQWBPseudo<IIC_VLD2u>;
+def VLD2d16Pseudo_UPD : VLDQWBPseudo<IIC_VLD2u>;
+def VLD2d32Pseudo_UPD : VLDQWBPseudo<IIC_VLD2u>;
 
-def VLD2q8Pseudo_UPD  : VLDQQWBPseudo;
-def VLD2q16Pseudo_UPD : VLDQQWBPseudo;
-def VLD2q32Pseudo_UPD : VLDQQWBPseudo;
+def VLD2q8Pseudo_UPD  : VLDQQWBPseudo<IIC_VLD2x2u>;
+def VLD2q16Pseudo_UPD : VLDQQWBPseudo<IIC_VLD2x2u>;
+def VLD2q32Pseudo_UPD : VLDQQWBPseudo<IIC_VLD2x2u>;
 
 // ...with double-spaced registers (for disassembly only):
-def VLD2b8      : VLD2D<0b1001, 0b0000, "8">;
-def VLD2b16     : VLD2D<0b1001, 0b0100, "16">;
-def VLD2b32     : VLD2D<0b1001, 0b1000, "32">;
-def VLD2b8_UPD  : VLD2DWB<0b1001, 0b0000, "8">;
-def VLD2b16_UPD : VLD2DWB<0b1001, 0b0100, "16">;
-def VLD2b32_UPD : VLD2DWB<0b1001, 0b1000, "32">;
+def VLD2b8      : VLD2D<0b1001, {0,0,?,?}, "8">;
+def VLD2b16     : VLD2D<0b1001, {0,1,?,?}, "16">;
+def VLD2b32     : VLD2D<0b1001, {1,0,?,?}, "32">;
+def VLD2b8_UPD  : VLD2DWB<0b1001, {0,0,?,?}, "8">;
+def VLD2b16_UPD : VLD2DWB<0b1001, {0,1,?,?}, "16">;
+def VLD2b32_UPD : VLD2DWB<0b1001, {1,0,?,?}, "32">;
 
 //   VLD3     : Vector Load (multiple 3-element structures)
 class VLD3D<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<0, 0b10, op11_8, op7_4, (outs DPR:$dst1, DPR:$dst2, DPR:$dst3),
-          (ins addrmode6:$addr), IIC_VLD3,
-          "vld3", Dt, "\\{$dst1, $dst2, $dst3\\}, $addr", "", []>;
+  : NLdSt<0, 0b10, op11_8, op7_4, (outs DPR:$Vd, DPR:$dst2, DPR:$dst3),
+          (ins addrmode6:$Rn), IIC_VLD3,
+          "vld3", Dt, "\\{$Vd, $dst2, $dst3\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
 
-def  VLD3d8   : VLD3D<0b0100, 0b0000, "8">;
-def  VLD3d16  : VLD3D<0b0100, 0b0100, "16">;
-def  VLD3d32  : VLD3D<0b0100, 0b1000, "32">;
+def  VLD3d8   : VLD3D<0b0100, {0,0,0,?}, "8">;
+def  VLD3d16  : VLD3D<0b0100, {0,1,0,?}, "16">;
+def  VLD3d32  : VLD3D<0b0100, {1,0,0,?}, "32">;
 
-def  VLD3d8Pseudo  : VLDQQPseudo;
-def  VLD3d16Pseudo : VLDQQPseudo;
-def  VLD3d32Pseudo : VLDQQPseudo;
+def  VLD3d8Pseudo  : VLDQQPseudo<IIC_VLD3>;
+def  VLD3d16Pseudo : VLDQQPseudo<IIC_VLD3>;
+def  VLD3d32Pseudo : VLDQQPseudo<IIC_VLD3>;
 
 // ...with address register writeback:
 class VLD3DWB<bits<4> op11_8, bits<4> op7_4, string Dt>
   : NLdSt<0, 0b10, op11_8, op7_4,
-          (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset), IIC_VLD3,
-          "vld3", Dt, "\\{$dst1, $dst2, $dst3\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm), IIC_VLD3u,
+          "vld3", Dt, "\\{$Vd, $dst2, $dst3\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
 
-def VLD3d8_UPD  : VLD3DWB<0b0100, 0b0000, "8">;
-def VLD3d16_UPD : VLD3DWB<0b0100, 0b0100, "16">;
-def VLD3d32_UPD : VLD3DWB<0b0100, 0b1000, "32">;
+def VLD3d8_UPD  : VLD3DWB<0b0100, {0,0,0,?}, "8">;
+def VLD3d16_UPD : VLD3DWB<0b0100, {0,1,0,?}, "16">;
+def VLD3d32_UPD : VLD3DWB<0b0100, {1,0,0,?}, "32">;
 
-def VLD3d8Pseudo_UPD  : VLDQQWBPseudo;
-def VLD3d16Pseudo_UPD : VLDQQWBPseudo;
-def VLD3d32Pseudo_UPD : VLDQQWBPseudo;
+def VLD3d8Pseudo_UPD  : VLDQQWBPseudo<IIC_VLD3u>;
+def VLD3d16Pseudo_UPD : VLDQQWBPseudo<IIC_VLD3u>;
+def VLD3d32Pseudo_UPD : VLDQQWBPseudo<IIC_VLD3u>;
 
-// ...with double-spaced registers (non-updating versions for disassembly only):
-def VLD3q8      : VLD3D<0b0101, 0b0000, "8">;
-def VLD3q16     : VLD3D<0b0101, 0b0100, "16">;
-def VLD3q32     : VLD3D<0b0101, 0b1000, "32">;
-def VLD3q8_UPD  : VLD3DWB<0b0101, 0b0000, "8">;
-def VLD3q16_UPD : VLD3DWB<0b0101, 0b0100, "16">;
-def VLD3q32_UPD : VLD3DWB<0b0101, 0b1000, "32">;
+// ...with double-spaced registers:
+def VLD3q8      : VLD3D<0b0101, {0,0,0,?}, "8">;
+def VLD3q16     : VLD3D<0b0101, {0,1,0,?}, "16">;
+def VLD3q32     : VLD3D<0b0101, {1,0,0,?}, "32">;
+def VLD3q8_UPD  : VLD3DWB<0b0101, {0,0,0,?}, "8">;
+def VLD3q16_UPD : VLD3DWB<0b0101, {0,1,0,?}, "16">;
+def VLD3q32_UPD : VLD3DWB<0b0101, {1,0,0,?}, "32">;
 
-def VLD3q8Pseudo_UPD  : VLDQQQQWBPseudo;
-def VLD3q16Pseudo_UPD : VLDQQQQWBPseudo;
-def VLD3q32Pseudo_UPD : VLDQQQQWBPseudo;
+def VLD3q8Pseudo_UPD  : VLDQQQQWBPseudo<IIC_VLD3u>;
+def VLD3q16Pseudo_UPD : VLDQQQQWBPseudo<IIC_VLD3u>;
+def VLD3q32Pseudo_UPD : VLDQQQQWBPseudo<IIC_VLD3u>;
 
 // ...alternate versions to be allocated odd register numbers:
-def VLD3q8oddPseudo_UPD  : VLDQQQQWBPseudo;
-def VLD3q16oddPseudo_UPD : VLDQQQQWBPseudo;
-def VLD3q32oddPseudo_UPD : VLDQQQQWBPseudo;
+def VLD3q8oddPseudo   : VLDQQQQPseudo<IIC_VLD3>;
+def VLD3q16oddPseudo  : VLDQQQQPseudo<IIC_VLD3>;
+def VLD3q32oddPseudo  : VLDQQQQPseudo<IIC_VLD3>;
+
+def VLD3q8oddPseudo_UPD  : VLDQQQQWBPseudo<IIC_VLD3u>;
+def VLD3q16oddPseudo_UPD : VLDQQQQWBPseudo<IIC_VLD3u>;
+def VLD3q32oddPseudo_UPD : VLDQQQQWBPseudo<IIC_VLD3u>;
 
 //   VLD4     : Vector Load (multiple 4-element structures)
 class VLD4D<bits<4> op11_8, bits<4> op7_4, string Dt>
   : NLdSt<0, 0b10, op11_8, op7_4,
-          (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, DPR:$dst4),
-          (ins addrmode6:$addr), IIC_VLD4,
-          "vld4", Dt, "\\{$dst1, $dst2, $dst3, $dst4\\}, $addr", "", []>;
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4),
+          (ins addrmode6:$Rn), IIC_VLD4,
+          "vld4", Dt, "\\{$Vd, $dst2, $dst3, $dst4\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 
-def  VLD4d8   : VLD4D<0b0000, 0b0000, "8">;
-def  VLD4d16  : VLD4D<0b0000, 0b0100, "16">;
-def  VLD4d32  : VLD4D<0b0000, 0b1000, "32">;
+def  VLD4d8   : VLD4D<0b0000, {0,0,?,?}, "8">;
+def  VLD4d16  : VLD4D<0b0000, {0,1,?,?}, "16">;
+def  VLD4d32  : VLD4D<0b0000, {1,0,?,?}, "32">;
 
-def  VLD4d8Pseudo  : VLDQQPseudo;
-def  VLD4d16Pseudo : VLDQQPseudo;
-def  VLD4d32Pseudo : VLDQQPseudo;
+def  VLD4d8Pseudo  : VLDQQPseudo<IIC_VLD4>;
+def  VLD4d16Pseudo : VLDQQPseudo<IIC_VLD4>;
+def  VLD4d32Pseudo : VLDQQPseudo<IIC_VLD4>;
 
 // ...with address register writeback:
 class VLD4DWB<bits<4> op11_8, bits<4> op7_4, string Dt>
   : NLdSt<0, 0b10, op11_8, op7_4,
-          (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, DPR:$dst4, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset), IIC_VLD4,
-          "vld4", Dt, "\\{$dst1, $dst2, $dst3, $dst4\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm), IIC_VLD4u,
+          "vld4", Dt, "\\{$Vd, $dst2, $dst3, $dst4\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{5-4} = Rn{5-4};
+}
 
-def VLD4d8_UPD  : VLD4DWB<0b0000, 0b0000, "8">;
-def VLD4d16_UPD : VLD4DWB<0b0000, 0b0100, "16">;
-def VLD4d32_UPD : VLD4DWB<0b0000, 0b1000, "32">;
+def VLD4d8_UPD  : VLD4DWB<0b0000, {0,0,?,?}, "8">;
+def VLD4d16_UPD : VLD4DWB<0b0000, {0,1,?,?}, "16">;
+def VLD4d32_UPD : VLD4DWB<0b0000, {1,0,?,?}, "32">;
 
-def VLD4d8Pseudo_UPD  : VLDQQWBPseudo;
-def VLD4d16Pseudo_UPD : VLDQQWBPseudo;
-def VLD4d32Pseudo_UPD : VLDQQWBPseudo;
+def VLD4d8Pseudo_UPD  : VLDQQWBPseudo<IIC_VLD4u>;
+def VLD4d16Pseudo_UPD : VLDQQWBPseudo<IIC_VLD4u>;
+def VLD4d32Pseudo_UPD : VLDQQWBPseudo<IIC_VLD4u>;
 
-// ...with double-spaced registers (non-updating versions for disassembly only):
-def VLD4q8      : VLD4D<0b0001, 0b0000, "8">;
-def VLD4q16     : VLD4D<0b0001, 0b0100, "16">;
-def VLD4q32     : VLD4D<0b0001, 0b1000, "32">;
-def VLD4q8_UPD  : VLD4DWB<0b0001, 0b0000, "8">;
-def VLD4q16_UPD : VLD4DWB<0b0001, 0b0100, "16">;
-def VLD4q32_UPD : VLD4DWB<0b0001, 0b1000, "32">;
+// ...with double-spaced registers:
+def VLD4q8      : VLD4D<0b0001, {0,0,?,?}, "8">;
+def VLD4q16     : VLD4D<0b0001, {0,1,?,?}, "16">;
+def VLD4q32     : VLD4D<0b0001, {1,0,?,?}, "32">;
+def VLD4q8_UPD  : VLD4DWB<0b0001, {0,0,?,?}, "8">;
+def VLD4q16_UPD : VLD4DWB<0b0001, {0,1,?,?}, "16">;
+def VLD4q32_UPD : VLD4DWB<0b0001, {1,0,?,?}, "32">;
 
-def VLD4q8Pseudo_UPD  : VLDQQQQWBPseudo;
-def VLD4q16Pseudo_UPD : VLDQQQQWBPseudo;
-def VLD4q32Pseudo_UPD : VLDQQQQWBPseudo;
+def VLD4q8Pseudo_UPD  : VLDQQQQWBPseudo<IIC_VLD4u>;
+def VLD4q16Pseudo_UPD : VLDQQQQWBPseudo<IIC_VLD4u>;
+def VLD4q32Pseudo_UPD : VLDQQQQWBPseudo<IIC_VLD4u>;
 
 // ...alternate versions to be allocated odd register numbers:
-def VLD4q8oddPseudo_UPD  : VLDQQQQWBPseudo;
-def VLD4q16oddPseudo_UPD : VLDQQQQWBPseudo;
-def VLD4q32oddPseudo_UPD : VLDQQQQWBPseudo;
+def VLD4q8oddPseudo   : VLDQQQQPseudo<IIC_VLD4>;
+def VLD4q16oddPseudo  : VLDQQQQPseudo<IIC_VLD4>;
+def VLD4q32oddPseudo  : VLDQQQQPseudo<IIC_VLD4>;
+
+def VLD4q8oddPseudo_UPD  : VLDQQQQWBPseudo<IIC_VLD4u>;
+def VLD4q16oddPseudo_UPD : VLDQQQQWBPseudo<IIC_VLD4u>;
+def VLD4q32oddPseudo_UPD : VLDQQQQWBPseudo<IIC_VLD4u>;
+
+} // mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1
+
+// Classes for VLD*LN pseudo-instructions with multi-register operands.
+// These are expanded to real instructions after register allocation.
+class VLDQLNPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs QPR:$dst),
+                (ins addrmode6:$addr, QPR:$src, nohash_imm:$lane),
+                itin, "$src = $dst">;
+class VLDQLNWBPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs QPR:$dst, GPR:$wb),
+                (ins addrmode6:$addr, am6offset:$offset, QPR:$src,
+                 nohash_imm:$lane), itin, "$addr.addr = $wb, $src = $dst">;
+class VLDQQLNPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs QQPR:$dst),
+                (ins addrmode6:$addr, QQPR:$src, nohash_imm:$lane),
+                itin, "$src = $dst">;
+class VLDQQLNWBPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs QQPR:$dst, GPR:$wb),
+                (ins addrmode6:$addr, am6offset:$offset, QQPR:$src,
+                 nohash_imm:$lane), itin, "$addr.addr = $wb, $src = $dst">;
+class VLDQQQQLNPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs QQQQPR:$dst),
+                (ins addrmode6:$addr, QQQQPR:$src, nohash_imm:$lane),
+                itin, "$src = $dst">;
+class VLDQQQQLNWBPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs QQQQPR:$dst, GPR:$wb),
+                (ins addrmode6:$addr, am6offset:$offset, QQQQPR:$src,
+                 nohash_imm:$lane), itin, "$addr.addr = $wb, $src = $dst">;
 
 //   VLD1LN   : Vector Load (single element to one lane)
-//   FIXME: Not yet implemented.
+class VLD1LN<bits<4> op11_8, bits<4> op7_4, string Dt, ValueType Ty,
+             PatFrag LoadOp>
+  : NLdStLn<1, 0b10, op11_8, op7_4, (outs DPR:$Vd),
+          (ins addrmode6:$Rn, DPR:$src, nohash_imm:$lane),
+          IIC_VLD1ln, "vld1", Dt, "\\{$Vd[$lane]\\}, $Rn",
+          "$src = $Vd",
+          [(set DPR:$Vd, (vector_insert (Ty DPR:$src),
+                                         (i32 (LoadOp addrmode6:$Rn)),
+                                         imm:$lane))]> {
+  let Rm = 0b1111;
+}
+class VLD1QLNPseudo<ValueType Ty, PatFrag LoadOp> : VLDQLNPseudo<IIC_VLD1ln> {
+  let Pattern = [(set QPR:$dst, (vector_insert (Ty QPR:$src),
+                                               (i32 (LoadOp addrmode6:$addr)),
+                                               imm:$lane))];
+}
+
+def VLD1LNd8  : VLD1LN<0b0000, {?,?,?,0}, "8", v8i8, extloadi8> {
+  let Inst{7-5} = lane{2-0};
+}
+def VLD1LNd16 : VLD1LN<0b0100, {?,?,0,?}, "16", v4i16, extloadi16> {
+  let Inst{7-6} = lane{1-0};
+  let Inst{4}   = Rn{4};
+}
+def VLD1LNd32 : VLD1LN<0b1000, {?,0,?,?}, "32", v2i32, load> {
+  let Inst{7} = lane{0};
+  let Inst{5} = Rn{4};
+  let Inst{4} = Rn{4};
+}
+
+def VLD1LNq8Pseudo  : VLD1QLNPseudo<v16i8, extloadi8>;
+def VLD1LNq16Pseudo : VLD1QLNPseudo<v8i16, extloadi16>;
+def VLD1LNq32Pseudo : VLD1QLNPseudo<v4i32, load>;
+
+def : Pat<(vector_insert (v2f32 DPR:$src),
+                         (f32 (load addrmode6:$addr)), imm:$lane),
+          (VLD1LNd32 addrmode6:$addr, DPR:$src, imm:$lane)>;
+def : Pat<(vector_insert (v4f32 QPR:$src),
+                         (f32 (load addrmode6:$addr)), imm:$lane),
+          (VLD1LNq32Pseudo addrmode6:$addr, QPR:$src, imm:$lane)>;
+
+let mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1 in {
+
+// ...with address register writeback:
+class VLD1LNWB<bits<4> op11_8, bits<4> op7_4, string Dt>
+  : NLdStLn<1, 0b10, op11_8, op7_4, (outs DPR:$Vd, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$src, nohash_imm:$lane), IIC_VLD1lnu, "vld1", Dt,
+          "\\{$Vd[$lane]\\}, $Rn$Rm",
+          "$src = $Vd, $Rn.addr = $wb", []>;
+
+def VLD1LNd8_UPD  : VLD1LNWB<0b0000, {?,?,?,0}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VLD1LNd16_UPD : VLD1LNWB<0b0100, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+  let Inst{4}   = Rn{4};
+}
+def VLD1LNd32_UPD : VLD1LNWB<0b1000, {?,0,?,?}, "32"> {
+  let Inst{7} = lane{0};
+  let Inst{5} = Rn{4};
+  let Inst{4} = Rn{4};
+}
+
+def VLD1LNq8Pseudo_UPD  : VLDQLNWBPseudo<IIC_VLD1lnu>;
+def VLD1LNq16Pseudo_UPD : VLDQLNWBPseudo<IIC_VLD1lnu>;
+def VLD1LNq32Pseudo_UPD : VLDQLNWBPseudo<IIC_VLD1lnu>;
 
 //   VLD2LN   : Vector Load (single 2-element structure to one lane)
 class VLD2LN<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b10, op11_8, op7_4, (outs DPR:$dst1, DPR:$dst2),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, nohash_imm:$lane),
-          IIC_VLD2, "vld2", Dt, "\\{$dst1[$lane], $dst2[$lane]\\}, $addr",
-          "$src1 = $dst1, $src2 = $dst2", []>;
+  : NLdStLn<1, 0b10, op11_8, op7_4, (outs DPR:$Vd, DPR:$dst2),
+          (ins addrmode6:$Rn, DPR:$src1, DPR:$src2, nohash_imm:$lane),
+          IIC_VLD2ln, "vld2", Dt, "\\{$Vd[$lane], $dst2[$lane]\\}, $Rn",
+          "$src1 = $Vd, $src2 = $dst2", []> {
+  let Rm = 0b1111;
+  let Inst{4}   = Rn{4};
+}
 
-def VLD2LNd8  : VLD2LN<0b0001, {?,?,?,?}, "8">;
-def VLD2LNd16 : VLD2LN<0b0101, {?,?,0,?}, "16">;
-def VLD2LNd32 : VLD2LN<0b1001, {?,0,?,?}, "32">;
+def VLD2LNd8  : VLD2LN<0b0001, {?,?,?,?}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VLD2LNd16 : VLD2LN<0b0101, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD2LNd32 : VLD2LN<0b1001, {?,0,0,?}, "32"> {
+  let Inst{7} = lane{0};
+}
+
+def VLD2LNd8Pseudo  : VLDQLNPseudo<IIC_VLD2ln>;
+def VLD2LNd16Pseudo : VLDQLNPseudo<IIC_VLD2ln>;
+def VLD2LNd32Pseudo : VLDQLNPseudo<IIC_VLD2ln>;
 
 // ...with double-spaced registers:
-def VLD2LNq16 : VLD2LN<0b0101, {?,?,1,?}, "16">;
-def VLD2LNq32 : VLD2LN<0b1001, {?,1,?,?}, "32">;
+def VLD2LNq16 : VLD2LN<0b0101, {?,?,1,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD2LNq32 : VLD2LN<0b1001, {?,1,0,?}, "32"> {
+  let Inst{7} = lane{0};
+}
 
-// ...alternate versions to be allocated odd register numbers:
-def VLD2LNq16odd : VLD2LN<0b0101, {?,?,1,?}, "16">;
-def VLD2LNq32odd : VLD2LN<0b1001, {?,1,?,?}, "32">;
+def VLD2LNq16Pseudo : VLDQQLNPseudo<IIC_VLD2ln>;
+def VLD2LNq32Pseudo : VLDQQLNPseudo<IIC_VLD2ln>;
 
 // ...with address register writeback:
 class VLD2LNWB<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b10, op11_8, op7_4, (outs DPR:$dst1, DPR:$dst2, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
-           DPR:$src1, DPR:$src2, nohash_imm:$lane), IIC_VLD2, "vld2", Dt,
-          "\\{$dst1[$lane], $dst2[$lane]\\}, $addr$offset",
-          "$src1 = $dst1, $src2 = $dst2, $addr.addr = $wb", []>;
+  : NLdStLn<1, 0b10, op11_8, op7_4, (outs DPR:$Vd, DPR:$dst2, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$src1, DPR:$src2, nohash_imm:$lane), IIC_VLD2lnu, "vld2", Dt,
+          "\\{$Vd[$lane], $dst2[$lane]\\}, $Rn$Rm",
+          "$src1 = $Vd, $src2 = $dst2, $Rn.addr = $wb", []> {
+  let Inst{4}   = Rn{4};
+}
 
-def VLD2LNd8_UPD  : VLD2LNWB<0b0001, {?,?,?,?}, "8">;
-def VLD2LNd16_UPD : VLD2LNWB<0b0101, {?,?,0,?}, "16">;
-def VLD2LNd32_UPD : VLD2LNWB<0b1001, {?,0,?,?}, "32">;
+def VLD2LNd8_UPD  : VLD2LNWB<0b0001, {?,?,?,?}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VLD2LNd16_UPD : VLD2LNWB<0b0101, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD2LNd32_UPD : VLD2LNWB<0b1001, {?,0,0,?}, "32"> {
+  let Inst{7} = lane{0};
+}
 
-def VLD2LNq16_UPD : VLD2LNWB<0b0101, {?,?,1,?}, "16">;
-def VLD2LNq32_UPD : VLD2LNWB<0b1001, {?,1,?,?}, "32">;
+def VLD2LNd8Pseudo_UPD  : VLDQLNWBPseudo<IIC_VLD2lnu>;
+def VLD2LNd16Pseudo_UPD : VLDQLNWBPseudo<IIC_VLD2lnu>;
+def VLD2LNd32Pseudo_UPD : VLDQLNWBPseudo<IIC_VLD2lnu>;
+
+def VLD2LNq16_UPD : VLD2LNWB<0b0101, {?,?,1,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD2LNq32_UPD : VLD2LNWB<0b1001, {?,1,0,?}, "32"> {
+  let Inst{7} = lane{0};
+}
+
+def VLD2LNq16Pseudo_UPD : VLDQQLNWBPseudo<IIC_VLD2lnu>;
+def VLD2LNq32Pseudo_UPD : VLDQQLNWBPseudo<IIC_VLD2lnu>;
 
 //   VLD3LN   : Vector Load (single 3-element structure to one lane)
 class VLD3LN<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b10, op11_8, op7_4, (outs DPR:$dst1, DPR:$dst2, DPR:$dst3),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, DPR:$src3,
-          nohash_imm:$lane), IIC_VLD3, "vld3", Dt,
-          "\\{$dst1[$lane], $dst2[$lane], $dst3[$lane]\\}, $addr",
-          "$src1 = $dst1, $src2 = $dst2, $src3 = $dst3", []>;
+  : NLdStLn<1, 0b10, op11_8, op7_4, (outs DPR:$Vd, DPR:$dst2, DPR:$dst3),
+          (ins addrmode6:$Rn, DPR:$src1, DPR:$src2, DPR:$src3,
+          nohash_imm:$lane), IIC_VLD3ln, "vld3", Dt,
+          "\\{$Vd[$lane], $dst2[$lane], $dst3[$lane]\\}, $Rn",
+          "$src1 = $Vd, $src2 = $dst2, $src3 = $dst3", []> {
+  let Rm = 0b1111;
+}
 
-def VLD3LNd8  : VLD3LN<0b0010, {?,?,?,0}, "8">;
-def VLD3LNd16 : VLD3LN<0b0110, {?,?,0,0}, "16">;
-def VLD3LNd32 : VLD3LN<0b1010, {?,0,0,0}, "32">;
+def VLD3LNd8  : VLD3LN<0b0010, {?,?,?,0}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VLD3LNd16 : VLD3LN<0b0110, {?,?,0,0}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD3LNd32 : VLD3LN<0b1010, {?,0,0,0}, "32"> {
+  let Inst{7}   = lane{0};
+}
+
+def VLD3LNd8Pseudo  : VLDQQLNPseudo<IIC_VLD3ln>;
+def VLD3LNd16Pseudo : VLDQQLNPseudo<IIC_VLD3ln>;
+def VLD3LNd32Pseudo : VLDQQLNPseudo<IIC_VLD3ln>;
 
 // ...with double-spaced registers:
-def VLD3LNq16 : VLD3LN<0b0110, {?,?,1,0}, "16">;
-def VLD3LNq32 : VLD3LN<0b1010, {?,1,0,0}, "32">;
+def VLD3LNq16 : VLD3LN<0b0110, {?,?,1,0}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD3LNq32 : VLD3LN<0b1010, {?,1,0,0}, "32"> {
+  let Inst{7}   = lane{0};
+}
 
-// ...alternate versions to be allocated odd register numbers:
-def VLD3LNq16odd : VLD3LN<0b0110, {?,?,1,0}, "16">;
-def VLD3LNq32odd : VLD3LN<0b1010, {?,1,0,0}, "32">;
+def VLD3LNq16Pseudo : VLDQQQQLNPseudo<IIC_VLD3ln>;
+def VLD3LNq32Pseudo : VLDQQQQLNPseudo<IIC_VLD3ln>;
 
 // ...with address register writeback:
 class VLD3LNWB<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b10, op11_8, op7_4,
-          (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
+  : NLdStLn<1, 0b10, op11_8, op7_4,
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm,
            DPR:$src1, DPR:$src2, DPR:$src3, nohash_imm:$lane),
-          IIC_VLD3, "vld3", Dt,
-          "\\{$dst1[$lane], $dst2[$lane], $dst3[$lane]\\}, $addr$offset",
-          "$src1 = $dst1, $src2 = $dst2, $src3 = $dst3, $addr.addr = $wb",
+          IIC_VLD3lnu, "vld3", Dt,
+          "\\{$Vd[$lane], $dst2[$lane], $dst3[$lane]\\}, $Rn$Rm",
+          "$src1 = $Vd, $src2 = $dst2, $src3 = $dst3, $Rn.addr = $wb",
           []>;
 
-def VLD3LNd8_UPD  : VLD3LNWB<0b0010, {?,?,?,0}, "8">;
-def VLD3LNd16_UPD : VLD3LNWB<0b0110, {?,?,0,0}, "16">;
-def VLD3LNd32_UPD : VLD3LNWB<0b1010, {?,0,0,0}, "32">;
+def VLD3LNd8_UPD  : VLD3LNWB<0b0010, {?,?,?,0}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VLD3LNd16_UPD : VLD3LNWB<0b0110, {?,?,0,0}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD3LNd32_UPD : VLD3LNWB<0b1010, {?,0,0,0}, "32"> {
+  let Inst{7}   = lane{0};
+}
 
-def VLD3LNq16_UPD : VLD3LNWB<0b0110, {?,?,1,0}, "16">;
-def VLD3LNq32_UPD : VLD3LNWB<0b1010, {?,1,0,0}, "32">;
+def VLD3LNd8Pseudo_UPD  : VLDQQLNWBPseudo<IIC_VLD3lnu>;
+def VLD3LNd16Pseudo_UPD : VLDQQLNWBPseudo<IIC_VLD3lnu>;
+def VLD3LNd32Pseudo_UPD : VLDQQLNWBPseudo<IIC_VLD3lnu>;
+
+def VLD3LNq16_UPD : VLD3LNWB<0b0110, {?,?,1,0}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD3LNq32_UPD : VLD3LNWB<0b1010, {?,1,0,0}, "32"> {
+  let Inst{7}   = lane{0};
+}
+
+def VLD3LNq16Pseudo_UPD : VLDQQQQLNWBPseudo<IIC_VLD3lnu>;
+def VLD3LNq32Pseudo_UPD : VLDQQQQLNWBPseudo<IIC_VLD3lnu>;
 
 //   VLD4LN   : Vector Load (single 4-element structure to one lane)
 class VLD4LN<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b10, op11_8, op7_4,
-          (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, DPR:$dst4),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4,
-          nohash_imm:$lane), IIC_VLD4, "vld4", Dt,
-          "\\{$dst1[$lane], $dst2[$lane], $dst3[$lane], $dst4[$lane]\\}, $addr",
-          "$src1 = $dst1, $src2 = $dst2, $src3 = $dst3, $src4 = $dst4", []>;
+  : NLdStLn<1, 0b10, op11_8, op7_4,
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4),
+          (ins addrmode6:$Rn, DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4,
+          nohash_imm:$lane), IIC_VLD4ln, "vld4", Dt,
+          "\\{$Vd[$lane], $dst2[$lane], $dst3[$lane], $dst4[$lane]\\}, $Rn",
+          "$src1 = $Vd, $src2 = $dst2, $src3 = $dst3, $src4 = $dst4", []> {
+  let Rm = 0b1111;
+  let Inst{4}   = Rn{4};
+}
 
-def VLD4LNd8  : VLD4LN<0b0011, {?,?,?,?}, "8">;
-def VLD4LNd16 : VLD4LN<0b0111, {?,?,0,?}, "16">;
-def VLD4LNd32 : VLD4LN<0b1011, {?,0,?,?}, "32">;
+def VLD4LNd8  : VLD4LN<0b0011, {?,?,?,?}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VLD4LNd16 : VLD4LN<0b0111, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD4LNd32 : VLD4LN<0b1011, {?,0,?,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{5} = Rn{5};
+}
+
+def VLD4LNd8Pseudo  : VLDQQLNPseudo<IIC_VLD4ln>;
+def VLD4LNd16Pseudo : VLDQQLNPseudo<IIC_VLD4ln>;
+def VLD4LNd32Pseudo : VLDQQLNPseudo<IIC_VLD4ln>;
 
 // ...with double-spaced registers:
-def VLD4LNq16 : VLD4LN<0b0111, {?,?,1,?}, "16">;
-def VLD4LNq32 : VLD4LN<0b1011, {?,1,?,?}, "32">;
+def VLD4LNq16 : VLD4LN<0b0111, {?,?,1,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD4LNq32 : VLD4LN<0b1011, {?,1,?,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{5} = Rn{5};
+}
 
-// ...alternate versions to be allocated odd register numbers:
-def VLD4LNq16odd : VLD4LN<0b0111, {?,?,1,?}, "16">;
-def VLD4LNq32odd : VLD4LN<0b1011, {?,1,?,?}, "32">;
+def VLD4LNq16Pseudo : VLDQQQQLNPseudo<IIC_VLD4ln>;
+def VLD4LNq32Pseudo : VLDQQQQLNPseudo<IIC_VLD4ln>;
 
 // ...with address register writeback:
 class VLD4LNWB<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b10, op11_8, op7_4,
-          (outs DPR:$dst1, DPR:$dst2, DPR:$dst3, DPR:$dst4, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
+  : NLdStLn<1, 0b10, op11_8, op7_4,
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4, GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm,
            DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4, nohash_imm:$lane),
-          IIC_VLD4, "vld4", Dt,
-"\\{$dst1[$lane], $dst2[$lane], $dst3[$lane], $dst4[$lane]\\}, $addr$offset",
-"$src1 = $dst1, $src2 = $dst2, $src3 = $dst3, $src4 = $dst4, $addr.addr = $wb",
-          []>;
+          IIC_VLD4lnu, "vld4", Dt,
+"\\{$Vd[$lane], $dst2[$lane], $dst3[$lane], $dst4[$lane]\\}, $Rn$Rm",
+"$src1 = $Vd, $src2 = $dst2, $src3 = $dst3, $src4 = $dst4, $Rn.addr = $wb",
+          []> {
+  let Inst{4}   = Rn{4};
+}
 
-def VLD4LNd8_UPD  : VLD4LNWB<0b0011, {?,?,?,?}, "8">;
-def VLD4LNd16_UPD : VLD4LNWB<0b0111, {?,?,0,?}, "16">;
-def VLD4LNd32_UPD : VLD4LNWB<0b1011, {?,0,?,?}, "32">;
+def VLD4LNd8_UPD  : VLD4LNWB<0b0011, {?,?,?,?}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VLD4LNd16_UPD : VLD4LNWB<0b0111, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD4LNd32_UPD : VLD4LNWB<0b1011, {?,0,?,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{5} = Rn{5};
+}
 
-def VLD4LNq16_UPD : VLD4LNWB<0b0111, {?,?,1,?}, "16">;
-def VLD4LNq32_UPD : VLD4LNWB<0b1011, {?,1,?,?}, "32">;
+def VLD4LNd8Pseudo_UPD  : VLDQQLNWBPseudo<IIC_VLD4lnu>;
+def VLD4LNd16Pseudo_UPD : VLDQQLNWBPseudo<IIC_VLD4lnu>;
+def VLD4LNd32Pseudo_UPD : VLDQQLNWBPseudo<IIC_VLD4lnu>;
+
+def VLD4LNq16_UPD : VLD4LNWB<0b0111, {?,?,1,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VLD4LNq32_UPD : VLD4LNWB<0b1011, {?,1,?,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{5} = Rn{5};
+}
+
+def VLD4LNq16Pseudo_UPD : VLDQQQQLNWBPseudo<IIC_VLD4lnu>;
+def VLD4LNq32Pseudo_UPD : VLDQQQQLNWBPseudo<IIC_VLD4lnu>;
+
+} // mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1
 
 //   VLD1DUP  : Vector Load (single element to all lanes)
+class VLD1DUP<bits<4> op7_4, string Dt, ValueType Ty, PatFrag LoadOp>
+  : NLdSt<1, 0b10, 0b1100, op7_4, (outs DPR:$Vd), (ins addrmode6dup:$Rn),
+          IIC_VLD1dup, "vld1", Dt, "\\{$Vd[]\\}, $Rn", "",
+          [(set DPR:$Vd, (Ty (NEONvdup (i32 (LoadOp addrmode6dup:$Rn)))))]> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
+class VLD1QDUPPseudo<ValueType Ty, PatFrag LoadOp> : VLDQPseudo<IIC_VLD1dup> {
+  let Pattern = [(set QPR:$dst,
+                      (Ty (NEONvdup (i32 (LoadOp addrmode6dup:$addr)))))];
+}
+
+def VLD1DUPd8  : VLD1DUP<{0,0,0,?}, "8", v8i8, extloadi8>;
+def VLD1DUPd16 : VLD1DUP<{0,1,0,?}, "16", v4i16, extloadi16>;
+def VLD1DUPd32 : VLD1DUP<{1,0,0,?}, "32", v2i32, load>;
+
+def VLD1DUPq8Pseudo  : VLD1QDUPPseudo<v16i8, extloadi8>;
+def VLD1DUPq16Pseudo : VLD1QDUPPseudo<v8i16, extloadi16>;
+def VLD1DUPq32Pseudo : VLD1QDUPPseudo<v4i32, load>;
+
+def : Pat<(v2f32 (NEONvdup (f32 (load addrmode6dup:$addr)))),
+          (VLD1DUPd32 addrmode6:$addr)>;
+def : Pat<(v4f32 (NEONvdup (f32 (load addrmode6dup:$addr)))),
+          (VLD1DUPq32Pseudo addrmode6:$addr)>;
+
+let mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1 in {
+
+class VLD1QDUP<bits<4> op7_4, string Dt>
+  : NLdSt<1, 0b10, 0b1100, op7_4, (outs DPR:$Vd, DPR:$dst2),
+          (ins addrmode6dup:$Rn), IIC_VLD1dup,
+          "vld1", Dt, "\\{$Vd[], $dst2[]\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
+
+def VLD1DUPq8  : VLD1QDUP<{0,0,1,0}, "8">;
+def VLD1DUPq16 : VLD1QDUP<{0,1,1,?}, "16">;
+def VLD1DUPq32 : VLD1QDUP<{1,0,1,?}, "32">;
+
+// ...with address register writeback:
+class VLD1DUPWB<bits<4> op7_4, string Dt>
+  : NLdSt<1, 0b10, 0b1100, op7_4, (outs DPR:$Vd, GPR:$wb),
+          (ins addrmode6dup:$Rn, am6offset:$Rm), IIC_VLD1dupu,
+          "vld1", Dt, "\\{$Vd[]\\}, $Rn$Rm", "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
+class VLD1QDUPWB<bits<4> op7_4, string Dt>
+  : NLdSt<1, 0b10, 0b1100, op7_4, (outs DPR:$Vd, DPR:$dst2, GPR:$wb),
+          (ins addrmode6dup:$Rn, am6offset:$Rm), IIC_VLD1dupu,
+          "vld1", Dt, "\\{$Vd[], $dst2[]\\}, $Rn$Rm", "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
+
+def VLD1DUPd8_UPD  : VLD1DUPWB<{0,0,0,0}, "8">;
+def VLD1DUPd16_UPD : VLD1DUPWB<{0,1,0,?}, "16">;
+def VLD1DUPd32_UPD : VLD1DUPWB<{1,0,0,?}, "32">;
+
+def VLD1DUPq8_UPD  : VLD1QDUPWB<{0,0,1,0}, "8">;
+def VLD1DUPq16_UPD : VLD1QDUPWB<{0,1,1,?}, "16">;
+def VLD1DUPq32_UPD : VLD1QDUPWB<{1,0,1,?}, "32">;
+
+def VLD1DUPq8Pseudo_UPD  : VLDQWBPseudo<IIC_VLD1dupu>;
+def VLD1DUPq16Pseudo_UPD : VLDQWBPseudo<IIC_VLD1dupu>;
+def VLD1DUPq32Pseudo_UPD : VLDQWBPseudo<IIC_VLD1dupu>;
+
 //   VLD2DUP  : Vector Load (single 2-element structure to all lanes)
+class VLD2DUP<bits<4> op7_4, string Dt>
+  : NLdSt<1, 0b10, 0b1101, op7_4, (outs DPR:$Vd, DPR:$dst2),
+          (ins addrmode6dup:$Rn), IIC_VLD2dup,
+          "vld2", Dt, "\\{$Vd[], $dst2[]\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
+
+def VLD2DUPd8  : VLD2DUP<{0,0,0,?}, "8">;
+def VLD2DUPd16 : VLD2DUP<{0,1,0,?}, "16">;
+def VLD2DUPd32 : VLD2DUP<{1,0,0,?}, "32">;
+
+def VLD2DUPd8Pseudo  : VLDQPseudo<IIC_VLD2dup>;
+def VLD2DUPd16Pseudo : VLDQPseudo<IIC_VLD2dup>;
+def VLD2DUPd32Pseudo : VLDQPseudo<IIC_VLD2dup>;
+
+// ...with double-spaced registers (not used for codegen):
+def VLD2DUPd8x2  : VLD2DUP<{0,0,1,?}, "8">;
+def VLD2DUPd16x2 : VLD2DUP<{0,1,1,?}, "16">;
+def VLD2DUPd32x2 : VLD2DUP<{1,0,1,?}, "32">;
+
+// ...with address register writeback:
+class VLD2DUPWB<bits<4> op7_4, string Dt>
+  : NLdSt<1, 0b10, 0b1101, op7_4, (outs DPR:$Vd, DPR:$dst2, GPR:$wb),
+          (ins addrmode6dup:$Rn, am6offset:$Rm), IIC_VLD2dupu,
+          "vld2", Dt, "\\{$Vd[], $dst2[]\\}, $Rn$Rm", "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
+
+def VLD2DUPd8_UPD  : VLD2DUPWB<{0,0,0,0}, "8">;
+def VLD2DUPd16_UPD : VLD2DUPWB<{0,1,0,?}, "16">;
+def VLD2DUPd32_UPD : VLD2DUPWB<{1,0,0,?}, "32">;
+
+def VLD2DUPd8x2_UPD  : VLD2DUPWB<{0,0,1,0}, "8">;
+def VLD2DUPd16x2_UPD : VLD2DUPWB<{0,1,1,?}, "16">;
+def VLD2DUPd32x2_UPD : VLD2DUPWB<{1,0,1,?}, "32">;
+
+def VLD2DUPd8Pseudo_UPD  : VLDQWBPseudo<IIC_VLD2dupu>;
+def VLD2DUPd16Pseudo_UPD : VLDQWBPseudo<IIC_VLD2dupu>;
+def VLD2DUPd32Pseudo_UPD : VLDQWBPseudo<IIC_VLD2dupu>;
+
 //   VLD3DUP  : Vector Load (single 3-element structure to all lanes)
+class VLD3DUP<bits<4> op7_4, string Dt>
+  : NLdSt<1, 0b10, 0b1110, op7_4, (outs DPR:$Vd, DPR:$dst2, DPR:$dst3),
+          (ins addrmode6dup:$Rn), IIC_VLD3dup,
+          "vld3", Dt, "\\{$Vd[], $dst2[], $dst3[]\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
+
+def VLD3DUPd8  : VLD3DUP<{0,0,0,?}, "8">;
+def VLD3DUPd16 : VLD3DUP<{0,1,0,?}, "16">;
+def VLD3DUPd32 : VLD3DUP<{1,0,0,?}, "32">;
+
+def VLD3DUPd8Pseudo  : VLDQQPseudo<IIC_VLD3dup>;
+def VLD3DUPd16Pseudo : VLDQQPseudo<IIC_VLD3dup>;
+def VLD3DUPd32Pseudo : VLDQQPseudo<IIC_VLD3dup>;
+
+// ...with double-spaced registers (not used for codegen):
+def VLD3DUPd8x2  : VLD3DUP<{0,0,1,?}, "8">;
+def VLD3DUPd16x2 : VLD3DUP<{0,1,1,?}, "16">;
+def VLD3DUPd32x2 : VLD3DUP<{1,0,1,?}, "32">;
+
+// ...with address register writeback:
+class VLD3DUPWB<bits<4> op7_4, string Dt>
+  : NLdSt<1, 0b10, 0b1110, op7_4, (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, GPR:$wb),
+          (ins addrmode6dup:$Rn, am6offset:$Rm), IIC_VLD3dupu,
+          "vld3", Dt, "\\{$Vd[], $dst2[], $dst3[]\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
+
+def VLD3DUPd8_UPD  : VLD3DUPWB<{0,0,0,0}, "8">;
+def VLD3DUPd16_UPD : VLD3DUPWB<{0,1,0,?}, "16">;
+def VLD3DUPd32_UPD : VLD3DUPWB<{1,0,0,?}, "32">;
+
+def VLD3DUPd8x2_UPD  : VLD3DUPWB<{0,0,1,0}, "8">;
+def VLD3DUPd16x2_UPD : VLD3DUPWB<{0,1,1,?}, "16">;
+def VLD3DUPd32x2_UPD : VLD3DUPWB<{1,0,1,?}, "32">;
+
+def VLD3DUPd8Pseudo_UPD  : VLDQQWBPseudo<IIC_VLD3dupu>;
+def VLD3DUPd16Pseudo_UPD : VLDQQWBPseudo<IIC_VLD3dupu>;
+def VLD3DUPd32Pseudo_UPD : VLDQQWBPseudo<IIC_VLD3dupu>;
+
 //   VLD4DUP  : Vector Load (single 4-element structure to all lanes)
-//   FIXME: Not yet implemented.
+class VLD4DUP<bits<4> op7_4, string Dt>
+  : NLdSt<1, 0b10, 0b1111, op7_4,
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4),
+          (ins addrmode6dup:$Rn), IIC_VLD4dup,
+          "vld4", Dt, "\\{$Vd[], $dst2[], $dst3[], $dst4[]\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
+
+def VLD4DUPd8  : VLD4DUP<{0,0,0,?}, "8">;
+def VLD4DUPd16 : VLD4DUP<{0,1,0,?}, "16">;
+def VLD4DUPd32 : VLD4DUP<{1,?,0,?}, "32"> { let Inst{6} = Rn{5}; }
+
+def VLD4DUPd8Pseudo  : VLDQQPseudo<IIC_VLD4dup>;
+def VLD4DUPd16Pseudo : VLDQQPseudo<IIC_VLD4dup>;
+def VLD4DUPd32Pseudo : VLDQQPseudo<IIC_VLD4dup>;
+
+// ...with double-spaced registers (not used for codegen):
+def VLD4DUPd8x2  : VLD4DUP<{0,0,1,?}, "8">;
+def VLD4DUPd16x2 : VLD4DUP<{0,1,1,?}, "16">;
+def VLD4DUPd32x2 : VLD4DUP<{1,?,1,?}, "32"> { let Inst{6} = Rn{5}; }
+
+// ...with address register writeback:
+class VLD4DUPWB<bits<4> op7_4, string Dt>
+  : NLdSt<1, 0b10, 0b1111, op7_4,
+          (outs DPR:$Vd, DPR:$dst2, DPR:$dst3, DPR:$dst4, GPR:$wb),
+          (ins addrmode6dup:$Rn, am6offset:$Rm), IIC_VLD4dupu,
+          "vld4", Dt, "\\{$Vd[], $dst2[], $dst3[], $dst4[]\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
+
+def VLD4DUPd8_UPD  : VLD4DUPWB<{0,0,0,0}, "8">;
+def VLD4DUPd16_UPD : VLD4DUPWB<{0,1,0,?}, "16">;
+def VLD4DUPd32_UPD : VLD4DUPWB<{1,?,0,?}, "32"> { let Inst{6} = Rn{5}; }
+
+def VLD4DUPd8x2_UPD  : VLD4DUPWB<{0,0,1,0}, "8">;
+def VLD4DUPd16x2_UPD : VLD4DUPWB<{0,1,1,?}, "16">;
+def VLD4DUPd32x2_UPD : VLD4DUPWB<{1,?,1,?}, "32"> { let Inst{6} = Rn{5}; }
+
+def VLD4DUPd8Pseudo_UPD  : VLDQQWBPseudo<IIC_VLD4dupu>;
+def VLD4DUPd16Pseudo_UPD : VLDQQWBPseudo<IIC_VLD4dupu>;
+def VLD4DUPd32Pseudo_UPD : VLDQQWBPseudo<IIC_VLD4dupu>;
+
 } // mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1
 
 let mayStore = 1, neverHasSideEffects = 1, hasExtraSrcRegAllocReq = 1 in {
 
 // Classes for VST* pseudo-instructions with multi-register operands.
 // These are expanded to real instructions after register allocation.
-class VSTQPseudo
-  : PseudoNLdSt<(outs), (ins addrmode6:$addr, QPR:$src), IIC_VST, "">;
-class VSTQWBPseudo
+class VSTQPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs), (ins addrmode6:$addr, QPR:$src), itin, "">;
+class VSTQWBPseudo<InstrItinClass itin>
   : PseudoNLdSt<(outs GPR:$wb),
-                (ins addrmode6:$addr, am6offset:$offset, QPR:$src), IIC_VST,
+                (ins addrmode6:$addr, am6offset:$offset, QPR:$src), itin,
                 "$addr.addr = $wb">;
-class VSTQQPseudo
-  : PseudoNLdSt<(outs), (ins addrmode6:$addr, QQPR:$src), IIC_VST, "">;
-class VSTQQWBPseudo
+class VSTQQPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs), (ins addrmode6:$addr, QQPR:$src), itin, "">;
+class VSTQQWBPseudo<InstrItinClass itin>
   : PseudoNLdSt<(outs GPR:$wb),
-                (ins addrmode6:$addr, am6offset:$offset, QQPR:$src), IIC_VST,
+                (ins addrmode6:$addr, am6offset:$offset, QQPR:$src), itin,
                 "$addr.addr = $wb">;
-class VSTQQQQWBPseudo
+class VSTQQQQPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs), (ins addrmode6:$addr, QQQQPR:$src), itin, "">;
+class VSTQQQQWBPseudo<InstrItinClass itin>
   : PseudoNLdSt<(outs GPR:$wb),
-                (ins addrmode6:$addr, am6offset:$offset, QQQQPR:$src), IIC_VST,
+                (ins addrmode6:$addr, am6offset:$offset, QQQQPR:$src), itin,
                 "$addr.addr = $wb">;
 
 //   VST1     : Vector Store (multiple single elements)
 class VST1D<bits<4> op7_4, string Dt>
-  : NLdSt<0,0b00,0b0111,op7_4, (outs), (ins addrmode6:$addr, DPR:$src), IIC_VST,
-          "vst1", Dt, "\\{$src\\}, $addr", "", []>;
+  : NLdSt<0,0b00,0b0111,op7_4, (outs), (ins addrmode6:$Rn, DPR:$Vd),
+          IIC_VST1, "vst1", Dt, "\\{$Vd\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
 class VST1Q<bits<4> op7_4, string Dt>
   : NLdSt<0,0b00,0b1010,op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2), IIC_VST,
-          "vst1", Dt, "\\{$src1, $src2\\}, $addr", "", []>;
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2), IIC_VST1x2,
+          "vst1", Dt, "\\{$Vd, $src2\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 
-def  VST1d8   : VST1D<0b0000, "8">;
-def  VST1d16  : VST1D<0b0100, "16">;
-def  VST1d32  : VST1D<0b1000, "32">;
-def  VST1d64  : VST1D<0b1100, "64">;
+def  VST1d8   : VST1D<{0,0,0,?}, "8">;
+def  VST1d16  : VST1D<{0,1,0,?}, "16">;
+def  VST1d32  : VST1D<{1,0,0,?}, "32">;
+def  VST1d64  : VST1D<{1,1,0,?}, "64">;
 
-def  VST1q8   : VST1Q<0b0000, "8">;
-def  VST1q16  : VST1Q<0b0100, "16">;
-def  VST1q32  : VST1Q<0b1000, "32">;
-def  VST1q64  : VST1Q<0b1100, "64">;
+def  VST1q8   : VST1Q<{0,0,?,?}, "8">;
+def  VST1q16  : VST1Q<{0,1,?,?}, "16">;
+def  VST1q32  : VST1Q<{1,0,?,?}, "32">;
+def  VST1q64  : VST1Q<{1,1,?,?}, "64">;
 
-def  VST1q8Pseudo  : VSTQPseudo;
-def  VST1q16Pseudo : VSTQPseudo;
-def  VST1q32Pseudo : VSTQPseudo;
-def  VST1q64Pseudo : VSTQPseudo;
+def  VST1q8Pseudo  : VSTQPseudo<IIC_VST1x2>;
+def  VST1q16Pseudo : VSTQPseudo<IIC_VST1x2>;
+def  VST1q32Pseudo : VSTQPseudo<IIC_VST1x2>;
+def  VST1q64Pseudo : VSTQPseudo<IIC_VST1x2>;
 
 // ...with address register writeback:
 class VST1DWB<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, 0b0111, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset, DPR:$src), IIC_VST,
-          "vst1", Dt, "\\{$src\\}, $addr$offset", "$addr.addr = $wb", []>;
+          (ins addrmode6:$Rn, am6offset:$Rm, DPR:$Vd), IIC_VST1u,
+          "vst1", Dt, "\\{$Vd\\}, $Rn$Rm", "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
 class VST1QWB<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, 0b1010, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset, QPR:$src), IIC_VST,
-          "vst1", Dt, "${src:dregpair}, $addr$offset", "$addr.addr = $wb", []>;
+          (ins addrmode6:$Rn, am6offset:$Rm, DPR:$Vd, DPR:$src2),
+          IIC_VST1x2u, "vst1", Dt, "\\{$Vd, $src2\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{5-4} = Rn{5-4};
+}
 
-def VST1d8_UPD  : VST1DWB<0b0000, "8">;
-def VST1d16_UPD : VST1DWB<0b0100, "16">;
-def VST1d32_UPD : VST1DWB<0b1000, "32">;
-def VST1d64_UPD : VST1DWB<0b1100, "64">;
+def VST1d8_UPD  : VST1DWB<{0,0,0,?}, "8">;
+def VST1d16_UPD : VST1DWB<{0,1,0,?}, "16">;
+def VST1d32_UPD : VST1DWB<{1,0,0,?}, "32">;
+def VST1d64_UPD : VST1DWB<{1,1,0,?}, "64">;
 
-def VST1q8_UPD  : VST1QWB<0b0000, "8">;
-def VST1q16_UPD : VST1QWB<0b0100, "16">;
-def VST1q32_UPD : VST1QWB<0b1000, "32">;
-def VST1q64_UPD : VST1QWB<0b1100, "64">;
+def VST1q8_UPD  : VST1QWB<{0,0,?,?}, "8">;
+def VST1q16_UPD : VST1QWB<{0,1,?,?}, "16">;
+def VST1q32_UPD : VST1QWB<{1,0,?,?}, "32">;
+def VST1q64_UPD : VST1QWB<{1,1,?,?}, "64">;
 
-def VST1q8Pseudo_UPD  : VSTQWBPseudo;
-def VST1q16Pseudo_UPD : VSTQWBPseudo;
-def VST1q32Pseudo_UPD : VSTQWBPseudo;
-def VST1q64Pseudo_UPD : VSTQWBPseudo;
+def VST1q8Pseudo_UPD  : VSTQWBPseudo<IIC_VST1x2u>;
+def VST1q16Pseudo_UPD : VSTQWBPseudo<IIC_VST1x2u>;
+def VST1q32Pseudo_UPD : VSTQWBPseudo<IIC_VST1x2u>;
+def VST1q64Pseudo_UPD : VSTQWBPseudo<IIC_VST1x2u>;
 
 // ...with 3 registers (some of these are only for the disassembler):
 class VST1D3<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, 0b0110, op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, DPR:$src3),
-          IIC_VST, "vst1", Dt, "\\{$src1, $src2, $src3\\}, $addr", "", []>;
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2, DPR:$src3),
+          IIC_VST1x3, "vst1", Dt, "\\{$Vd, $src2, $src3\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
 class VST1D3WB<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, 0b0110, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
-           DPR:$src1, DPR:$src2, DPR:$src3),
-          IIC_VST, "vst1", Dt, "\\{$src1, $src2, $src3\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$Vd, DPR:$src2, DPR:$src3),
+          IIC_VST1x3u, "vst1", Dt, "\\{$Vd, $src2, $src3\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
 
-def VST1d8T      : VST1D3<0b0000, "8">;
-def VST1d16T     : VST1D3<0b0100, "16">;
-def VST1d32T     : VST1D3<0b1000, "32">;
-def VST1d64T     : VST1D3<0b1100, "64">;
+def VST1d8T      : VST1D3<{0,0,0,?}, "8">;
+def VST1d16T     : VST1D3<{0,1,0,?}, "16">;
+def VST1d32T     : VST1D3<{1,0,0,?}, "32">;
+def VST1d64T     : VST1D3<{1,1,0,?}, "64">;
 
-def VST1d8T_UPD  : VST1D3WB<0b0000, "8">;
-def VST1d16T_UPD : VST1D3WB<0b0100, "16">;
-def VST1d32T_UPD : VST1D3WB<0b1000, "32">;
-def VST1d64T_UPD : VST1D3WB<0b1100, "64">;
+def VST1d8T_UPD  : VST1D3WB<{0,0,0,?}, "8">;
+def VST1d16T_UPD : VST1D3WB<{0,1,0,?}, "16">;
+def VST1d32T_UPD : VST1D3WB<{1,0,0,?}, "32">;
+def VST1d64T_UPD : VST1D3WB<{1,1,0,?}, "64">;
 
-def VST1d64TPseudo     : VSTQQPseudo;
-def VST1d64TPseudo_UPD : VSTQQWBPseudo;
+def VST1d64TPseudo     : VSTQQPseudo<IIC_VST1x3>;
+def VST1d64TPseudo_UPD : VSTQQWBPseudo<IIC_VST1x3u>;
 
 // ...with 4 registers (some of these are only for the disassembler):
 class VST1D4<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, 0b0010, op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4),
-          IIC_VST, "vst1", Dt, "\\{$src1, $src2, $src3, $src4\\}, $addr", "",
-          []>;
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2, DPR:$src3, DPR:$src4),
+          IIC_VST1x4, "vst1", Dt, "\\{$Vd, $src2, $src3, $src4\\}, $Rn", "",
+          []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 class VST1D4WB<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, 0b0010, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
-           DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4),
-          IIC_VST, "vst1", Dt, "\\{$src1, $src2, $src3, $src4\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$Vd, DPR:$src2, DPR:$src3, DPR:$src4), IIC_VST1x4u,
+          "vst1", Dt, "\\{$Vd, $src2, $src3, $src4\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{5-4} = Rn{5-4};
+}
 
-def VST1d8Q      : VST1D4<0b0000, "8">;
-def VST1d16Q     : VST1D4<0b0100, "16">;
-def VST1d32Q     : VST1D4<0b1000, "32">;
-def VST1d64Q     : VST1D4<0b1100, "64">;
+def VST1d8Q      : VST1D4<{0,0,?,?}, "8">;
+def VST1d16Q     : VST1D4<{0,1,?,?}, "16">;
+def VST1d32Q     : VST1D4<{1,0,?,?}, "32">;
+def VST1d64Q     : VST1D4<{1,1,?,?}, "64">;
 
-def VST1d8Q_UPD  : VST1D4WB<0b0000, "8">;
-def VST1d16Q_UPD : VST1D4WB<0b0100, "16">;
-def VST1d32Q_UPD : VST1D4WB<0b1000, "32">;
-def VST1d64Q_UPD : VST1D4WB<0b1100, "64">;
+def VST1d8Q_UPD  : VST1D4WB<{0,0,?,?}, "8">;
+def VST1d16Q_UPD : VST1D4WB<{0,1,?,?}, "16">;
+def VST1d32Q_UPD : VST1D4WB<{1,0,?,?}, "32">;
+def VST1d64Q_UPD : VST1D4WB<{1,1,?,?}, "64">;
 
-def VST1d64QPseudo     : VSTQQPseudo;
-def VST1d64QPseudo_UPD : VSTQQWBPseudo;
+def VST1d64QPseudo     : VSTQQPseudo<IIC_VST1x4>;
+def VST1d64QPseudo_UPD : VSTQQWBPseudo<IIC_VST1x4u>;
 
 //   VST2     : Vector Store (multiple 2-element structures)
 class VST2D<bits<4> op11_8, bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, op11_8, op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2),
-          IIC_VST, "vst2", Dt, "\\{$src1, $src2\\}, $addr", "", []>;
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2),
+          IIC_VST2, "vst2", Dt, "\\{$Vd, $src2\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 class VST2Q<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, 0b0011, op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4),
-          IIC_VST, "vst2", Dt, "\\{$src1, $src2, $src3, $src4\\}, $addr",
-          "", []>;
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2, DPR:$src3, DPR:$src4),
+          IIC_VST2x2, "vst2", Dt, "\\{$Vd, $src2, $src3, $src4\\}, $Rn",
+          "", []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 
-def  VST2d8   : VST2D<0b1000, 0b0000, "8">;
-def  VST2d16  : VST2D<0b1000, 0b0100, "16">;
-def  VST2d32  : VST2D<0b1000, 0b1000, "32">;
+def  VST2d8   : VST2D<0b1000, {0,0,?,?}, "8">;
+def  VST2d16  : VST2D<0b1000, {0,1,?,?}, "16">;
+def  VST2d32  : VST2D<0b1000, {1,0,?,?}, "32">;
 
-def  VST2q8   : VST2Q<0b0000, "8">;
-def  VST2q16  : VST2Q<0b0100, "16">;
-def  VST2q32  : VST2Q<0b1000, "32">;
+def  VST2q8   : VST2Q<{0,0,?,?}, "8">;
+def  VST2q16  : VST2Q<{0,1,?,?}, "16">;
+def  VST2q32  : VST2Q<{1,0,?,?}, "32">;
 
-def  VST2d8Pseudo  : VSTQPseudo;
-def  VST2d16Pseudo : VSTQPseudo;
-def  VST2d32Pseudo : VSTQPseudo;
+def  VST2d8Pseudo  : VSTQPseudo<IIC_VST2>;
+def  VST2d16Pseudo : VSTQPseudo<IIC_VST2>;
+def  VST2d32Pseudo : VSTQPseudo<IIC_VST2>;
 
-def  VST2q8Pseudo  : VSTQQPseudo;
-def  VST2q16Pseudo : VSTQQPseudo;
-def  VST2q32Pseudo : VSTQQPseudo;
+def  VST2q8Pseudo  : VSTQQPseudo<IIC_VST2x2>;
+def  VST2q16Pseudo : VSTQQPseudo<IIC_VST2x2>;
+def  VST2q32Pseudo : VSTQQPseudo<IIC_VST2x2>;
 
 // ...with address register writeback:
 class VST2DWB<bits<4> op11_8, bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, op11_8, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset, DPR:$src1, DPR:$src2),
-          IIC_VST, "vst2", Dt, "\\{$src1, $src2\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          (ins addrmode6:$Rn, am6offset:$Rm, DPR:$Vd, DPR:$src2),
+          IIC_VST2u, "vst2", Dt, "\\{$Vd, $src2\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{5-4} = Rn{5-4};
+}
 class VST2QWB<bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, 0b0011, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
-           DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4),
-          IIC_VST, "vst2", Dt, "\\{$src1, $src2, $src3, $src4\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$Vd, DPR:$src2, DPR:$src3, DPR:$src4), IIC_VST2x2u,
+          "vst2", Dt, "\\{$Vd, $src2, $src3, $src4\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{5-4} = Rn{5-4};
+}
 
-def VST2d8_UPD  : VST2DWB<0b1000, 0b0000, "8">;
-def VST2d16_UPD : VST2DWB<0b1000, 0b0100, "16">;
-def VST2d32_UPD : VST2DWB<0b1000, 0b1000, "32">;
+def VST2d8_UPD  : VST2DWB<0b1000, {0,0,?,?}, "8">;
+def VST2d16_UPD : VST2DWB<0b1000, {0,1,?,?}, "16">;
+def VST2d32_UPD : VST2DWB<0b1000, {1,0,?,?}, "32">;
 
-def VST2q8_UPD  : VST2QWB<0b0000, "8">;
-def VST2q16_UPD : VST2QWB<0b0100, "16">;
-def VST2q32_UPD : VST2QWB<0b1000, "32">;
+def VST2q8_UPD  : VST2QWB<{0,0,?,?}, "8">;
+def VST2q16_UPD : VST2QWB<{0,1,?,?}, "16">;
+def VST2q32_UPD : VST2QWB<{1,0,?,?}, "32">;
 
-def VST2d8Pseudo_UPD  : VSTQWBPseudo;
-def VST2d16Pseudo_UPD : VSTQWBPseudo;
-def VST2d32Pseudo_UPD : VSTQWBPseudo;
+def VST2d8Pseudo_UPD  : VSTQWBPseudo<IIC_VST2u>;
+def VST2d16Pseudo_UPD : VSTQWBPseudo<IIC_VST2u>;
+def VST2d32Pseudo_UPD : VSTQWBPseudo<IIC_VST2u>;
 
-def VST2q8Pseudo_UPD  : VSTQQWBPseudo;
-def VST2q16Pseudo_UPD : VSTQQWBPseudo;
-def VST2q32Pseudo_UPD : VSTQQWBPseudo;
+def VST2q8Pseudo_UPD  : VSTQQWBPseudo<IIC_VST2x2u>;
+def VST2q16Pseudo_UPD : VSTQQWBPseudo<IIC_VST2x2u>;
+def VST2q32Pseudo_UPD : VSTQQWBPseudo<IIC_VST2x2u>;
 
 // ...with double-spaced registers (for disassembly only):
-def VST2b8      : VST2D<0b1001, 0b0000, "8">;
-def VST2b16     : VST2D<0b1001, 0b0100, "16">;
-def VST2b32     : VST2D<0b1001, 0b1000, "32">;
-def VST2b8_UPD  : VST2DWB<0b1001, 0b0000, "8">;
-def VST2b16_UPD : VST2DWB<0b1001, 0b0100, "16">;
-def VST2b32_UPD : VST2DWB<0b1001, 0b1000, "32">;
+def VST2b8      : VST2D<0b1001, {0,0,?,?}, "8">;
+def VST2b16     : VST2D<0b1001, {0,1,?,?}, "16">;
+def VST2b32     : VST2D<0b1001, {1,0,?,?}, "32">;
+def VST2b8_UPD  : VST2DWB<0b1001, {0,0,?,?}, "8">;
+def VST2b16_UPD : VST2DWB<0b1001, {0,1,?,?}, "16">;
+def VST2b32_UPD : VST2DWB<0b1001, {1,0,?,?}, "32">;
 
 //   VST3     : Vector Store (multiple 3-element structures)
 class VST3D<bits<4> op11_8, bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, op11_8, op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, DPR:$src3), IIC_VST,
-          "vst3", Dt, "\\{$src1, $src2, $src3\\}, $addr", "", []>;
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2, DPR:$src3), IIC_VST3,
+          "vst3", Dt, "\\{$Vd, $src2, $src3\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
 
-def  VST3d8   : VST3D<0b0100, 0b0000, "8">;
-def  VST3d16  : VST3D<0b0100, 0b0100, "16">;
-def  VST3d32  : VST3D<0b0100, 0b1000, "32">;
+def  VST3d8   : VST3D<0b0100, {0,0,0,?}, "8">;
+def  VST3d16  : VST3D<0b0100, {0,1,0,?}, "16">;
+def  VST3d32  : VST3D<0b0100, {1,0,0,?}, "32">;
 
-def  VST3d8Pseudo  : VSTQQPseudo;
-def  VST3d16Pseudo : VSTQQPseudo;
-def  VST3d32Pseudo : VSTQQPseudo;
+def  VST3d8Pseudo  : VSTQQPseudo<IIC_VST3>;
+def  VST3d16Pseudo : VSTQQPseudo<IIC_VST3>;
+def  VST3d32Pseudo : VSTQQPseudo<IIC_VST3>;
 
 // ...with address register writeback:
 class VST3DWB<bits<4> op11_8, bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, op11_8, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
-           DPR:$src1, DPR:$src2, DPR:$src3), IIC_VST,
-          "vst3", Dt, "\\{$src1, $src2, $src3\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$Vd, DPR:$src2, DPR:$src3), IIC_VST3u,
+          "vst3", Dt, "\\{$Vd, $src2, $src3\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
 
-def VST3d8_UPD  : VST3DWB<0b0100, 0b0000, "8">;
-def VST3d16_UPD : VST3DWB<0b0100, 0b0100, "16">;
-def VST3d32_UPD : VST3DWB<0b0100, 0b1000, "32">;
+def VST3d8_UPD  : VST3DWB<0b0100, {0,0,0,?}, "8">;
+def VST3d16_UPD : VST3DWB<0b0100, {0,1,0,?}, "16">;
+def VST3d32_UPD : VST3DWB<0b0100, {1,0,0,?}, "32">;
 
-def VST3d8Pseudo_UPD  : VSTQQWBPseudo;
-def VST3d16Pseudo_UPD : VSTQQWBPseudo;
-def VST3d32Pseudo_UPD : VSTQQWBPseudo;
+def VST3d8Pseudo_UPD  : VSTQQWBPseudo<IIC_VST3u>;
+def VST3d16Pseudo_UPD : VSTQQWBPseudo<IIC_VST3u>;
+def VST3d32Pseudo_UPD : VSTQQWBPseudo<IIC_VST3u>;
 
-// ...with double-spaced registers (non-updating versions for disassembly only):
-def VST3q8      : VST3D<0b0101, 0b0000, "8">;
-def VST3q16     : VST3D<0b0101, 0b0100, "16">;
-def VST3q32     : VST3D<0b0101, 0b1000, "32">;
-def VST3q8_UPD  : VST3DWB<0b0101, 0b0000, "8">;
-def VST3q16_UPD : VST3DWB<0b0101, 0b0100, "16">;
-def VST3q32_UPD : VST3DWB<0b0101, 0b1000, "32">;
+// ...with double-spaced registers:
+def VST3q8      : VST3D<0b0101, {0,0,0,?}, "8">;
+def VST3q16     : VST3D<0b0101, {0,1,0,?}, "16">;
+def VST3q32     : VST3D<0b0101, {1,0,0,?}, "32">;
+def VST3q8_UPD  : VST3DWB<0b0101, {0,0,0,?}, "8">;
+def VST3q16_UPD : VST3DWB<0b0101, {0,1,0,?}, "16">;
+def VST3q32_UPD : VST3DWB<0b0101, {1,0,0,?}, "32">;
 
-def VST3q8Pseudo_UPD  : VSTQQQQWBPseudo;
-def VST3q16Pseudo_UPD : VSTQQQQWBPseudo;
-def VST3q32Pseudo_UPD : VSTQQQQWBPseudo;
+def VST3q8Pseudo_UPD  : VSTQQQQWBPseudo<IIC_VST3u>;
+def VST3q16Pseudo_UPD : VSTQQQQWBPseudo<IIC_VST3u>;
+def VST3q32Pseudo_UPD : VSTQQQQWBPseudo<IIC_VST3u>;
 
 // ...alternate versions to be allocated odd register numbers:
-def VST3q8oddPseudo_UPD  : VSTQQQQWBPseudo;
-def VST3q16oddPseudo_UPD : VSTQQQQWBPseudo;
-def VST3q32oddPseudo_UPD : VSTQQQQWBPseudo;
+def VST3q8oddPseudo   : VSTQQQQPseudo<IIC_VST3>;
+def VST3q16oddPseudo  : VSTQQQQPseudo<IIC_VST3>;
+def VST3q32oddPseudo  : VSTQQQQPseudo<IIC_VST3>;
+
+def VST3q8oddPseudo_UPD  : VSTQQQQWBPseudo<IIC_VST3u>;
+def VST3q16oddPseudo_UPD : VSTQQQQWBPseudo<IIC_VST3u>;
+def VST3q32oddPseudo_UPD : VSTQQQQWBPseudo<IIC_VST3u>;
 
 //   VST4     : Vector Store (multiple 4-element structures)
 class VST4D<bits<4> op11_8, bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, op11_8, op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4),
-          IIC_VST, "vst4", Dt, "\\{$src1, $src2, $src3, $src4\\}, $addr",
-          "", []>;
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2, DPR:$src3, DPR:$src4),
+          IIC_VST4, "vst4", Dt, "\\{$Vd, $src2, $src3, $src4\\}, $Rn",
+          "", []> {
+  let Rm = 0b1111;
+  let Inst{5-4} = Rn{5-4};
+}
 
-def  VST4d8   : VST4D<0b0000, 0b0000, "8">;
-def  VST4d16  : VST4D<0b0000, 0b0100, "16">;
-def  VST4d32  : VST4D<0b0000, 0b1000, "32">;
+def  VST4d8   : VST4D<0b0000, {0,0,?,?}, "8">;
+def  VST4d16  : VST4D<0b0000, {0,1,?,?}, "16">;
+def  VST4d32  : VST4D<0b0000, {1,0,?,?}, "32">;
 
-def  VST4d8Pseudo  : VSTQQPseudo;
-def  VST4d16Pseudo : VSTQQPseudo;
-def  VST4d32Pseudo : VSTQQPseudo;
+def  VST4d8Pseudo  : VSTQQPseudo<IIC_VST4>;
+def  VST4d16Pseudo : VSTQQPseudo<IIC_VST4>;
+def  VST4d32Pseudo : VSTQQPseudo<IIC_VST4>;
 
 // ...with address register writeback:
 class VST4DWB<bits<4> op11_8, bits<4> op7_4, string Dt>
   : NLdSt<0, 0b00, op11_8, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
-           DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4), IIC_VST,
-           "vst4", Dt, "\\{$src1, $src2, $src3, $src4\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$Vd, DPR:$src2, DPR:$src3, DPR:$src4), IIC_VST4u,
+           "vst4", Dt, "\\{$Vd, $src2, $src3, $src4\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{5-4} = Rn{5-4};
+}
 
-def VST4d8_UPD  : VST4DWB<0b0000, 0b0000, "8">;
-def VST4d16_UPD : VST4DWB<0b0000, 0b0100, "16">;
-def VST4d32_UPD : VST4DWB<0b0000, 0b1000, "32">;
+def VST4d8_UPD  : VST4DWB<0b0000, {0,0,?,?}, "8">;
+def VST4d16_UPD : VST4DWB<0b0000, {0,1,?,?}, "16">;
+def VST4d32_UPD : VST4DWB<0b0000, {1,0,?,?}, "32">;
 
-def VST4d8Pseudo_UPD  : VSTQQWBPseudo;
-def VST4d16Pseudo_UPD : VSTQQWBPseudo;
-def VST4d32Pseudo_UPD : VSTQQWBPseudo;
+def VST4d8Pseudo_UPD  : VSTQQWBPseudo<IIC_VST4u>;
+def VST4d16Pseudo_UPD : VSTQQWBPseudo<IIC_VST4u>;
+def VST4d32Pseudo_UPD : VSTQQWBPseudo<IIC_VST4u>;
 
-// ...with double-spaced registers (non-updating versions for disassembly only):
-def VST4q8      : VST4D<0b0001, 0b0000, "8">;
-def VST4q16     : VST4D<0b0001, 0b0100, "16">;
-def VST4q32     : VST4D<0b0001, 0b1000, "32">;
-def VST4q8_UPD  : VST4DWB<0b0001, 0b0000, "8">;
-def VST4q16_UPD : VST4DWB<0b0001, 0b0100, "16">;
-def VST4q32_UPD : VST4DWB<0b0001, 0b1000, "32">;
+// ...with double-spaced registers:
+def VST4q8      : VST4D<0b0001, {0,0,?,?}, "8">;
+def VST4q16     : VST4D<0b0001, {0,1,?,?}, "16">;
+def VST4q32     : VST4D<0b0001, {1,0,?,?}, "32">;
+def VST4q8_UPD  : VST4DWB<0b0001, {0,0,?,?}, "8">;
+def VST4q16_UPD : VST4DWB<0b0001, {0,1,?,?}, "16">;
+def VST4q32_UPD : VST4DWB<0b0001, {1,0,?,?}, "32">;
 
-def VST4q8Pseudo_UPD  : VSTQQQQWBPseudo;
-def VST4q16Pseudo_UPD : VSTQQQQWBPseudo;
-def VST4q32Pseudo_UPD : VSTQQQQWBPseudo;
+def VST4q8Pseudo_UPD  : VSTQQQQWBPseudo<IIC_VST4u>;
+def VST4q16Pseudo_UPD : VSTQQQQWBPseudo<IIC_VST4u>;
+def VST4q32Pseudo_UPD : VSTQQQQWBPseudo<IIC_VST4u>;
 
 // ...alternate versions to be allocated odd register numbers:
-def VST4q8oddPseudo_UPD  : VSTQQQQWBPseudo;
-def VST4q16oddPseudo_UPD : VSTQQQQWBPseudo;
-def VST4q32oddPseudo_UPD : VSTQQQQWBPseudo;
+def VST4q8oddPseudo   : VSTQQQQPseudo<IIC_VST4>;
+def VST4q16oddPseudo  : VSTQQQQPseudo<IIC_VST4>;
+def VST4q32oddPseudo  : VSTQQQQPseudo<IIC_VST4>;
+
+def VST4q8oddPseudo_UPD  : VSTQQQQWBPseudo<IIC_VST4u>;
+def VST4q16oddPseudo_UPD : VSTQQQQWBPseudo<IIC_VST4u>;
+def VST4q32oddPseudo_UPD : VSTQQQQWBPseudo<IIC_VST4u>;
+
+} // mayStore = 1, neverHasSideEffects = 1, hasExtraSrcRegAllocReq = 1
+
+// Classes for VST*LN pseudo-instructions with multi-register operands.
+// These are expanded to real instructions after register allocation.
+class VSTQLNPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs), (ins addrmode6:$addr, QPR:$src, nohash_imm:$lane),
+                itin, "">;
+class VSTQLNWBPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs GPR:$wb),
+                (ins addrmode6:$addr, am6offset:$offset, QPR:$src,
+                 nohash_imm:$lane), itin, "$addr.addr = $wb">;
+class VSTQQLNPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs), (ins addrmode6:$addr, QQPR:$src, nohash_imm:$lane),
+                itin, "">;
+class VSTQQLNWBPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs GPR:$wb),
+                (ins addrmode6:$addr, am6offset:$offset, QQPR:$src,
+                 nohash_imm:$lane), itin, "$addr.addr = $wb">;
+class VSTQQQQLNPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs), (ins addrmode6:$addr, QQQQPR:$src, nohash_imm:$lane),
+                itin, "">;
+class VSTQQQQLNWBPseudo<InstrItinClass itin>
+  : PseudoNLdSt<(outs GPR:$wb),
+                (ins addrmode6:$addr, am6offset:$offset, QQQQPR:$src,
+                 nohash_imm:$lane), itin, "$addr.addr = $wb">;
 
 //   VST1LN   : Vector Store (single element from one lane)
-//   FIXME: Not yet implemented.
+class VST1LN<bits<4> op11_8, bits<4> op7_4, string Dt, ValueType Ty,
+             PatFrag StoreOp, SDNode ExtractOp>
+  : NLdStLn<1, 0b00, op11_8, op7_4, (outs),
+          (ins addrmode6:$Rn, DPR:$Vd, nohash_imm:$lane),
+          IIC_VST1ln, "vst1", Dt, "\\{$Vd[$lane]\\}, $Rn", "",
+          [(StoreOp (ExtractOp (Ty DPR:$Vd), imm:$lane), addrmode6:$Rn)]> {
+  let Rm = 0b1111;
+}
+class VST1QLNPseudo<ValueType Ty, PatFrag StoreOp, SDNode ExtractOp>
+  : VSTQLNPseudo<IIC_VST1ln> {
+  let Pattern = [(StoreOp (ExtractOp (Ty QPR:$src), imm:$lane),
+                          addrmode6:$addr)];
+}
+
+def VST1LNd8  : VST1LN<0b0000, {?,?,?,0}, "8", v8i8, truncstorei8,
+                       NEONvgetlaneu> {
+  let Inst{7-5} = lane{2-0};
+}
+def VST1LNd16 : VST1LN<0b0100, {?,?,0,?}, "16", v4i16, truncstorei16,
+                       NEONvgetlaneu> {
+  let Inst{7-6} = lane{1-0};
+  let Inst{4}   = Rn{5};
+}
+def VST1LNd32 : VST1LN<0b1000, {?,0,?,?}, "32", v2i32, store, extractelt> {
+  let Inst{7}   = lane{0};
+  let Inst{5-4} = Rn{5-4};
+}
+
+def VST1LNq8Pseudo  : VST1QLNPseudo<v16i8, truncstorei8, NEONvgetlaneu>;
+def VST1LNq16Pseudo : VST1QLNPseudo<v8i16, truncstorei16, NEONvgetlaneu>;
+def VST1LNq32Pseudo : VST1QLNPseudo<v4i32, store, extractelt>;
+
+def : Pat<(store (extractelt (v2f32 DPR:$src), imm:$lane), addrmode6:$addr),
+          (VST1LNd32 addrmode6:$addr, DPR:$src, imm:$lane)>;
+def : Pat<(store (extractelt (v4f32 QPR:$src), imm:$lane), addrmode6:$addr),
+          (VST1LNq32Pseudo addrmode6:$addr, QPR:$src, imm:$lane)>;
+
+let mayStore = 1, neverHasSideEffects = 1, hasExtraSrcRegAllocReq = 1 in {
+
+// ...with address register writeback:
+class VST1LNWB<bits<4> op11_8, bits<4> op7_4, string Dt>
+  : NLdStLn<1, 0b00, op11_8, op7_4, (outs GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$Vd, nohash_imm:$lane), IIC_VST1lnu, "vst1", Dt,
+          "\\{$Vd[$lane]\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []>;
+
+def VST1LNd8_UPD  : VST1LNWB<0b0000, {?,?,?,0}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VST1LNd16_UPD : VST1LNWB<0b0100, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+  let Inst{4}   = Rn{5};
+}
+def VST1LNd32_UPD : VST1LNWB<0b1000, {?,0,?,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{5-4} = Rn{5-4};
+}
+
+def VST1LNq8Pseudo_UPD  : VSTQLNWBPseudo<IIC_VST1lnu>;
+def VST1LNq16Pseudo_UPD : VSTQLNWBPseudo<IIC_VST1lnu>;
+def VST1LNq32Pseudo_UPD : VSTQLNWBPseudo<IIC_VST1lnu>;
 
 //   VST2LN   : Vector Store (single 2-element structure from one lane)
 class VST2LN<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b00, op11_8, op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, nohash_imm:$lane),
-          IIC_VST, "vst2", Dt, "\\{$src1[$lane], $src2[$lane]\\}, $addr",
-          "", []>;
+  : NLdStLn<1, 0b00, op11_8, op7_4, (outs),
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2, nohash_imm:$lane),
+          IIC_VST2ln, "vst2", Dt, "\\{$Vd[$lane], $src2[$lane]\\}, $Rn",
+          "", []> {
+  let Rm = 0b1111;
+  let Inst{4}   = Rn{4};
+}
 
-def VST2LNd8  : VST2LN<0b0001, {?,?,?,?}, "8">;
-def VST2LNd16 : VST2LN<0b0101, {?,?,0,?}, "16">;
-def VST2LNd32 : VST2LN<0b1001, {?,0,?,?}, "32">;
+def VST2LNd8  : VST2LN<0b0001, {?,?,?,?}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VST2LNd16 : VST2LN<0b0101, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST2LNd32 : VST2LN<0b1001, {?,0,0,?}, "32"> {
+  let Inst{7}   = lane{0};
+}
+
+def VST2LNd8Pseudo  : VSTQLNPseudo<IIC_VST2ln>;
+def VST2LNd16Pseudo : VSTQLNPseudo<IIC_VST2ln>;
+def VST2LNd32Pseudo : VSTQLNPseudo<IIC_VST2ln>;
 
 // ...with double-spaced registers:
-def VST2LNq16 : VST2LN<0b0101, {?,?,1,?}, "16">;
-def VST2LNq32 : VST2LN<0b1001, {?,1,?,?}, "32">;
+def VST2LNq16 : VST2LN<0b0101, {?,?,1,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+  let Inst{4}   = Rn{4};
+}
+def VST2LNq32 : VST2LN<0b1001, {?,1,0,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{4}   = Rn{4};
+}
 
-// ...alternate versions to be allocated odd register numbers:
-def VST2LNq16odd : VST2LN<0b0101, {?,?,1,?}, "16">;
-def VST2LNq32odd : VST2LN<0b1001, {?,1,?,?}, "32">;
+def VST2LNq16Pseudo : VSTQQLNPseudo<IIC_VST2ln>;
+def VST2LNq32Pseudo : VSTQQLNPseudo<IIC_VST2ln>;
 
 // ...with address register writeback:
 class VST2LNWB<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b00, op11_8, op7_4, (outs GPR:$wb),
+  : NLdStLn<1, 0b00, op11_8, op7_4, (outs GPR:$wb),
           (ins addrmode6:$addr, am6offset:$offset,
-           DPR:$src1, DPR:$src2, nohash_imm:$lane), IIC_VST, "vst2", Dt,
+           DPR:$src1, DPR:$src2, nohash_imm:$lane), IIC_VST2lnu, "vst2", Dt,
           "\\{$src1[$lane], $src2[$lane]\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+          "$addr.addr = $wb", []> {
+  let Inst{4}   = Rn{4};
+}
 
-def VST2LNd8_UPD  : VST2LNWB<0b0001, {?,?,?,?}, "8">;
-def VST2LNd16_UPD : VST2LNWB<0b0101, {?,?,0,?}, "16">;
-def VST2LNd32_UPD : VST2LNWB<0b1001, {?,0,?,?}, "32">;
+def VST2LNd8_UPD  : VST2LNWB<0b0001, {?,?,?,?}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VST2LNd16_UPD : VST2LNWB<0b0101, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST2LNd32_UPD : VST2LNWB<0b1001, {?,0,0,?}, "32"> {
+  let Inst{7}   = lane{0};
+}
 
-def VST2LNq16_UPD : VST2LNWB<0b0101, {?,?,1,?}, "16">;
-def VST2LNq32_UPD : VST2LNWB<0b1001, {?,1,?,?}, "32">;
+def VST2LNd8Pseudo_UPD  : VSTQLNWBPseudo<IIC_VST2lnu>;
+def VST2LNd16Pseudo_UPD : VSTQLNWBPseudo<IIC_VST2lnu>;
+def VST2LNd32Pseudo_UPD : VSTQLNWBPseudo<IIC_VST2lnu>;
+
+def VST2LNq16_UPD : VST2LNWB<0b0101, {?,?,1,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST2LNq32_UPD : VST2LNWB<0b1001, {?,1,0,?}, "32"> {
+  let Inst{7}   = lane{0};
+}
+
+def VST2LNq16Pseudo_UPD : VSTQQLNWBPseudo<IIC_VST2lnu>;
+def VST2LNq32Pseudo_UPD : VSTQQLNWBPseudo<IIC_VST2lnu>;
 
 //   VST3LN   : Vector Store (single 3-element structure from one lane)
 class VST3LN<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b00, op11_8, op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, DPR:$src3,
-           nohash_imm:$lane), IIC_VST, "vst3", Dt,
-          "\\{$src1[$lane], $src2[$lane], $src3[$lane]\\}, $addr", "", []>;
+  : NLdStLn<1, 0b00, op11_8, op7_4, (outs),
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2, DPR:$src3,
+           nohash_imm:$lane), IIC_VST3ln, "vst3", Dt,
+          "\\{$Vd[$lane], $src2[$lane], $src3[$lane]\\}, $Rn", "", []> {
+  let Rm = 0b1111;
+}
 
-def VST3LNd8  : VST3LN<0b0010, {?,?,?,0}, "8">;
-def VST3LNd16 : VST3LN<0b0110, {?,?,0,0}, "16">;
-def VST3LNd32 : VST3LN<0b1010, {?,0,0,0}, "32">;
+def VST3LNd8  : VST3LN<0b0010, {?,?,?,0}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VST3LNd16 : VST3LN<0b0110, {?,?,0,0}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST3LNd32 : VST3LN<0b1010, {?,0,0,0}, "32"> {
+  let Inst{7}   = lane{0};
+}
+
+def VST3LNd8Pseudo  : VSTQQLNPseudo<IIC_VST3ln>;
+def VST3LNd16Pseudo : VSTQQLNPseudo<IIC_VST3ln>;
+def VST3LNd32Pseudo : VSTQQLNPseudo<IIC_VST3ln>;
 
 // ...with double-spaced registers:
-def VST3LNq16 : VST3LN<0b0110, {?,?,1,0}, "16">;
-def VST3LNq32 : VST3LN<0b1010, {?,1,0,0}, "32">;
+def VST3LNq16 : VST3LN<0b0110, {?,?,1,0}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST3LNq32 : VST3LN<0b1010, {?,1,0,0}, "32"> {
+  let Inst{7}   = lane{0};
+}
 
-// ...alternate versions to be allocated odd register numbers:
-def VST3LNq16odd : VST3LN<0b0110, {?,?,1,0}, "16">;
-def VST3LNq32odd : VST3LN<0b1010, {?,1,0,0}, "32">;
+def VST3LNq16Pseudo : VSTQQQQLNPseudo<IIC_VST3ln>;
+def VST3LNq32Pseudo : VSTQQQQLNPseudo<IIC_VST3ln>;
 
 // ...with address register writeback:
 class VST3LNWB<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b00, op11_8, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
-           DPR:$src1, DPR:$src2, DPR:$src3, nohash_imm:$lane),
-          IIC_VST, "vst3", Dt,
-          "\\{$src1[$lane], $src2[$lane], $src3[$lane]\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+  : NLdStLn<1, 0b00, op11_8, op7_4, (outs GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$Vd, DPR:$src2, DPR:$src3, nohash_imm:$lane),
+          IIC_VST3lnu, "vst3", Dt,
+          "\\{$Vd[$lane], $src2[$lane], $src3[$lane]\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []>;
 
-def VST3LNd8_UPD  : VST3LNWB<0b0010, {?,?,?,0}, "8">;
-def VST3LNd16_UPD : VST3LNWB<0b0110, {?,?,0,0}, "16">;
-def VST3LNd32_UPD : VST3LNWB<0b1010, {?,0,0,0}, "32">;
+def VST3LNd8_UPD  : VST3LNWB<0b0010, {?,?,?,0}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VST3LNd16_UPD : VST3LNWB<0b0110, {?,?,0,0}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST3LNd32_UPD : VST3LNWB<0b1010, {?,0,0,0}, "32"> {
+  let Inst{7}   = lane{0};
+}
 
-def VST3LNq16_UPD : VST3LNWB<0b0110, {?,?,1,0}, "16">;
-def VST3LNq32_UPD : VST3LNWB<0b1010, {?,1,0,0}, "32">;
+def VST3LNd8Pseudo_UPD  : VSTQQLNWBPseudo<IIC_VST3lnu>;
+def VST3LNd16Pseudo_UPD : VSTQQLNWBPseudo<IIC_VST3lnu>;
+def VST3LNd32Pseudo_UPD : VSTQQLNWBPseudo<IIC_VST3lnu>;
+
+def VST3LNq16_UPD : VST3LNWB<0b0110, {?,?,1,0}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST3LNq32_UPD : VST3LNWB<0b1010, {?,1,0,0}, "32"> {
+  let Inst{7}   = lane{0};
+}
+
+def VST3LNq16Pseudo_UPD : VSTQQQQLNWBPseudo<IIC_VST3lnu>;
+def VST3LNq32Pseudo_UPD : VSTQQQQLNWBPseudo<IIC_VST3lnu>;
 
 //   VST4LN   : Vector Store (single 4-element structure from one lane)
 class VST4LN<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b00, op11_8, op7_4, (outs),
-          (ins addrmode6:$addr, DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4,
-           nohash_imm:$lane), IIC_VST, "vst4", Dt,
-          "\\{$src1[$lane], $src2[$lane], $src3[$lane], $src4[$lane]\\}, $addr",
-          "", []>;
+  : NLdStLn<1, 0b00, op11_8, op7_4, (outs),
+          (ins addrmode6:$Rn, DPR:$Vd, DPR:$src2, DPR:$src3, DPR:$src4,
+           nohash_imm:$lane), IIC_VST4ln, "vst4", Dt,
+          "\\{$Vd[$lane], $src2[$lane], $src3[$lane], $src4[$lane]\\}, $Rn",
+          "", []> {
+  let Rm = 0b1111;
+  let Inst{4} = Rn{4};
+}
 
-def VST4LNd8  : VST4LN<0b0011, {?,?,?,?}, "8">;
-def VST4LNd16 : VST4LN<0b0111, {?,?,0,?}, "16">;
-def VST4LNd32 : VST4LN<0b1011, {?,0,?,?}, "32">;
+def VST4LNd8  : VST4LN<0b0011, {?,?,?,?}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VST4LNd16 : VST4LN<0b0111, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST4LNd32 : VST4LN<0b1011, {?,0,?,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{5} = Rn{5};
+}
+
+def VST4LNd8Pseudo  : VSTQQLNPseudo<IIC_VST4ln>;
+def VST4LNd16Pseudo : VSTQQLNPseudo<IIC_VST4ln>;
+def VST4LNd32Pseudo : VSTQQLNPseudo<IIC_VST4ln>;
 
 // ...with double-spaced registers:
-def VST4LNq16 : VST4LN<0b0111, {?,?,1,?}, "16">;
-def VST4LNq32 : VST4LN<0b1011, {?,1,?,?}, "32">;
+def VST4LNq16 : VST4LN<0b0111, {?,?,1,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST4LNq32 : VST4LN<0b1011, {?,1,?,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{5} = Rn{5};
+}
 
-// ...alternate versions to be allocated odd register numbers:
-def VST4LNq16odd : VST4LN<0b0111, {?,?,1,?}, "16">;
-def VST4LNq32odd : VST4LN<0b1011, {?,1,?,?}, "32">;
+def VST4LNq16Pseudo : VSTQQQQLNPseudo<IIC_VST4ln>;
+def VST4LNq32Pseudo : VSTQQQQLNPseudo<IIC_VST4ln>;
 
 // ...with address register writeback:
 class VST4LNWB<bits<4> op11_8, bits<4> op7_4, string Dt>
-  : NLdSt<1, 0b00, op11_8, op7_4, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset,
-           DPR:$src1, DPR:$src2, DPR:$src3, DPR:$src4, nohash_imm:$lane),
-          IIC_VST, "vst4", Dt,
-  "\\{$src1[$lane], $src2[$lane], $src3[$lane], $src4[$lane]\\}, $addr$offset",
-          "$addr.addr = $wb", []>;
+  : NLdStLn<1, 0b00, op11_8, op7_4, (outs GPR:$wb),
+          (ins addrmode6:$Rn, am6offset:$Rm,
+           DPR:$Vd, DPR:$src2, DPR:$src3, DPR:$src4, nohash_imm:$lane),
+          IIC_VST4lnu, "vst4", Dt,
+  "\\{$Vd[$lane], $src2[$lane], $src3[$lane], $src4[$lane]\\}, $Rn$Rm",
+          "$Rn.addr = $wb", []> {
+  let Inst{4} = Rn{4};
+}
 
-def VST4LNd8_UPD  : VST4LNWB<0b0011, {?,?,?,?}, "8">;
-def VST4LNd16_UPD : VST4LNWB<0b0111, {?,?,0,?}, "16">;
-def VST4LNd32_UPD : VST4LNWB<0b1011, {?,0,?,?}, "32">;
+def VST4LNd8_UPD  : VST4LNWB<0b0011, {?,?,?,?}, "8"> {
+  let Inst{7-5} = lane{2-0};
+}
+def VST4LNd16_UPD : VST4LNWB<0b0111, {?,?,0,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST4LNd32_UPD : VST4LNWB<0b1011, {?,0,?,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{5} = Rn{5};
+}
 
-def VST4LNq16_UPD : VST4LNWB<0b0111, {?,?,1,?}, "16">;
-def VST4LNq32_UPD : VST4LNWB<0b1011, {?,1,?,?}, "32">;
+def VST4LNd8Pseudo_UPD  : VSTQQLNWBPseudo<IIC_VST4lnu>;
+def VST4LNd16Pseudo_UPD : VSTQQLNWBPseudo<IIC_VST4lnu>;
+def VST4LNd32Pseudo_UPD : VSTQQLNWBPseudo<IIC_VST4lnu>;
+
+def VST4LNq16_UPD : VST4LNWB<0b0111, {?,?,1,?}, "16"> {
+  let Inst{7-6} = lane{1-0};
+}
+def VST4LNq32_UPD : VST4LNWB<0b1011, {?,1,?,?}, "32"> {
+  let Inst{7}   = lane{0};
+  let Inst{5} = Rn{5};
+}
+
+def VST4LNq16Pseudo_UPD : VSTQQQQLNWBPseudo<IIC_VST4lnu>;
+def VST4LNq32Pseudo_UPD : VSTQQQQLNWBPseudo<IIC_VST4lnu>;
 
 } // mayStore = 1, neverHasSideEffects = 1, hasExtraSrcRegAllocReq = 1
 
@@ -1000,98 +1687,92 @@ def SubReg_i32_lane : SDNodeXForm<imm, [{
 // Instruction Classes
 //===----------------------------------------------------------------------===//
 
-// Basic 2-register operations: single-, double- and quad-register.
-class N2VS<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
-           bits<2> op17_16, bits<5> op11_7, bit op4, string OpcodeStr,
-           string Dt, ValueType ResTy, ValueType OpTy, SDNode OpNode>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 0, op4,
-        (outs DPR_VFP2:$dst), (ins DPR_VFP2:$src),
-        IIC_VUNAD, OpcodeStr, Dt, "$dst, $src", "", []>;
+// Basic 2-register operations: double- and quad-register.
 class N2VD<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
            bits<2> op17_16, bits<5> op11_7, bit op4, string OpcodeStr,
            string Dt, ValueType ResTy, ValueType OpTy, SDNode OpNode>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 0, op4, (outs DPR:$dst),
-        (ins DPR:$src), IIC_VUNAD, OpcodeStr, Dt,"$dst, $src", "",
-        [(set DPR:$dst, (ResTy (OpNode (OpTy DPR:$src))))]>;
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 0, op4, (outs DPR:$Vd),
+        (ins DPR:$Vm), IIC_VUNAD, OpcodeStr, Dt,"$Vd, $Vm", "",
+        [(set DPR:$Vd, (ResTy (OpNode (OpTy DPR:$Vm))))]>;
 class N2VQ<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
            bits<2> op17_16, bits<5> op11_7, bit op4, string OpcodeStr,
            string Dt, ValueType ResTy, ValueType OpTy, SDNode OpNode>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 1, op4, (outs QPR:$dst),
-        (ins QPR:$src), IIC_VUNAQ, OpcodeStr, Dt,"$dst, $src", "",
-        [(set QPR:$dst, (ResTy (OpNode (OpTy QPR:$src))))]>;
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 1, op4, (outs QPR:$Vd),
+        (ins QPR:$Vm), IIC_VUNAQ, OpcodeStr, Dt,"$Vd, $Vm", "",
+        [(set QPR:$Vd, (ResTy (OpNode (OpTy QPR:$Vm))))]>;
 
 // Basic 2-register intrinsics, both double- and quad-register.
 class N2VDInt<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
               bits<2> op17_16, bits<5> op11_7, bit op4,
               InstrItinClass itin, string OpcodeStr, string Dt,
               ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 0, op4, (outs DPR:$dst),
-        (ins DPR:$src), itin, OpcodeStr, Dt, "$dst, $src", "",
-        [(set DPR:$dst, (ResTy (IntOp (OpTy DPR:$src))))]>;
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 0, op4, (outs DPR:$Vd),
+        (ins DPR:$Vm), itin, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set DPR:$Vd, (ResTy (IntOp (OpTy DPR:$Vm))))]>;
 class N2VQInt<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
               bits<2> op17_16, bits<5> op11_7, bit op4,
               InstrItinClass itin, string OpcodeStr, string Dt,
               ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 1, op4, (outs QPR:$dst),
-        (ins QPR:$src), itin, OpcodeStr, Dt, "$dst, $src", "",
-        [(set QPR:$dst, (ResTy (IntOp (OpTy QPR:$src))))]>;
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 1, op4, (outs QPR:$Vd),
+        (ins QPR:$Vm), itin, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set QPR:$Vd, (ResTy (IntOp (OpTy QPR:$Vm))))]>;
 
 // Narrow 2-register operations.
 class N2VN<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
            bits<2> op17_16, bits<5> op11_7, bit op6, bit op4,
            InstrItinClass itin, string OpcodeStr, string Dt,
            ValueType TyD, ValueType TyQ, SDNode OpNode>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, op6, op4, (outs DPR:$dst),
-        (ins QPR:$src), itin, OpcodeStr, Dt, "$dst, $src", "",
-        [(set DPR:$dst, (TyD (OpNode (TyQ QPR:$src))))]>;
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, op6, op4, (outs DPR:$Vd),
+        (ins QPR:$Vm), itin, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set DPR:$Vd, (TyD (OpNode (TyQ QPR:$Vm))))]>;
 
 // Narrow 2-register intrinsics.
 class N2VNInt<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
               bits<2> op17_16, bits<5> op11_7, bit op6, bit op4,
               InstrItinClass itin, string OpcodeStr, string Dt,
               ValueType TyD, ValueType TyQ, Intrinsic IntOp>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, op6, op4, (outs DPR:$dst),
-        (ins QPR:$src), itin, OpcodeStr, Dt, "$dst, $src", "",
-        [(set DPR:$dst, (TyD (IntOp (TyQ QPR:$src))))]>;
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, op6, op4, (outs DPR:$Vd),
+        (ins QPR:$Vm), itin, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set DPR:$Vd, (TyD (IntOp (TyQ QPR:$Vm))))]>;
 
 // Long 2-register operations (currently only used for VMOVL).
 class N2VL<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
            bits<2> op17_16, bits<5> op11_7, bit op6, bit op4,
            InstrItinClass itin, string OpcodeStr, string Dt,
            ValueType TyQ, ValueType TyD, SDNode OpNode>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, op6, op4, (outs QPR:$dst),
-        (ins DPR:$src), itin, OpcodeStr, Dt, "$dst, $src", "",
-        [(set QPR:$dst, (TyQ (OpNode (TyD DPR:$src))))]>;
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, op6, op4, (outs QPR:$Vd),
+        (ins DPR:$Vm), itin, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set QPR:$Vd, (TyQ (OpNode (TyD DPR:$Vm))))]>;
+
+// Long 2-register intrinsics.
+class N2VLInt<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
+              bits<2> op17_16, bits<5> op11_7, bit op6, bit op4,
+              InstrItinClass itin, string OpcodeStr, string Dt,
+              ValueType TyQ, ValueType TyD, Intrinsic IntOp>
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, op6, op4, (outs QPR:$Vd),
+        (ins DPR:$Vm), itin, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set QPR:$Vd, (TyQ (IntOp (TyD DPR:$Vm))))]>;
 
 // 2-register shuffles (VTRN/VZIP/VUZP), both double- and quad-register.
 class N2VDShuffle<bits<2> op19_18, bits<5> op11_7, string OpcodeStr, string Dt>
-  : N2V<0b11, 0b11, op19_18, 0b10, op11_7, 0, 0, (outs DPR:$dst1, DPR:$dst2),
-        (ins DPR:$src1, DPR:$src2), IIC_VPERMD, 
-        OpcodeStr, Dt, "$dst1, $dst2",
-        "$src1 = $dst1, $src2 = $dst2", []>;
+  : N2V<0b11, 0b11, op19_18, 0b10, op11_7, 0, 0, (outs DPR:$Vd, DPR:$Vm),
+        (ins DPR:$src1, DPR:$src2), IIC_VPERMD,
+        OpcodeStr, Dt, "$Vd, $Vm",
+        "$src1 = $Vd, $src2 = $Vm", []>;
 class N2VQShuffle<bits<2> op19_18, bits<5> op11_7,
                   InstrItinClass itin, string OpcodeStr, string Dt>
-  : N2V<0b11, 0b11, op19_18, 0b10, op11_7, 1, 0, (outs QPR:$dst1, QPR:$dst2),
-        (ins QPR:$src1, QPR:$src2), itin, OpcodeStr, Dt, "$dst1, $dst2",
-        "$src1 = $dst1, $src2 = $dst2", []>;
+  : N2V<0b11, 0b11, op19_18, 0b10, op11_7, 1, 0, (outs QPR:$Vd, QPR:$Vm),
+        (ins QPR:$src1, QPR:$src2), itin, OpcodeStr, Dt, "$Vd, $Vm",
+        "$src1 = $Vd, $src2 = $Vm", []>;
 
-// Basic 3-register operations: single-, double- and quad-register.
-class N3VS<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
-           string OpcodeStr, string Dt, ValueType ResTy, ValueType OpTy,
-           SDNode OpNode, bit Commutable>
-  : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs DPR_VFP2:$dst), (ins DPR_VFP2:$src1, DPR_VFP2:$src2), N3RegFrm,
-        IIC_VBIND, OpcodeStr, Dt, "$dst, $src1, $src2", "", []> {
-  let isCommutable = Commutable;
-}
-
+// Basic 3-register operations: double- and quad-register.
 class N3VD<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
            InstrItinClass itin, string OpcodeStr, string Dt,
            ValueType ResTy, ValueType OpTy, SDNode OpNode, bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs DPR:$dst), (ins DPR:$src1, DPR:$src2), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set DPR:$dst, (ResTy (OpNode (OpTy DPR:$src1), (OpTy DPR:$src2))))]> {
+        (outs DPR:$Vd), (ins DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set DPR:$Vd, (ResTy (OpNode (OpTy DPR:$Vn), (OpTy DPR:$Vm))))]> {
   let isCommutable = Commutable;
 }
 // Same as N3VD but no data type.
@@ -1100,31 +1781,31 @@ class N3VDX<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
            ValueType ResTy, ValueType OpTy,
            SDNode OpNode, bit Commutable>
   : N3VX<op24, op23, op21_20, op11_8, 0, op4,
-         (outs DPR:$dst), (ins DPR:$src1, DPR:$src2), N3RegFrm, itin, 
-         OpcodeStr, "$dst, $src1, $src2", "",
-         [(set DPR:$dst, (ResTy (OpNode (OpTy DPR:$src1), (OpTy DPR:$src2))))]>{
+         (outs DPR:$Vd), (ins DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+         OpcodeStr, "$Vd, $Vn, $Vm", "",
+         [(set DPR:$Vd, (ResTy (OpNode (OpTy DPR:$Vn), (OpTy DPR:$Vm))))]>{
   let isCommutable = Commutable;
 }
 
-class N3VDSL<bits<2> op21_20, bits<4> op11_8, 
+class N3VDSL<bits<2> op21_20, bits<4> op11_8,
              InstrItinClass itin, string OpcodeStr, string Dt,
              ValueType Ty, SDNode ShOp>
   : N3V<0, 1, op21_20, op11_8, 1, 0,
-        (outs DPR:$dst), (ins DPR:$src1, DPR_VFP2:$src2, nohash_imm:$lane),
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set (Ty DPR:$dst),
-              (Ty (ShOp (Ty DPR:$src1),
-                        (Ty (NEONvduplane (Ty DPR_VFP2:$src2),imm:$lane)))))]> {
+        (outs DPR:$Vd), (ins DPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set (Ty DPR:$Vd),
+              (Ty (ShOp (Ty DPR:$Vn),
+                        (Ty (NEONvduplane (Ty DPR_VFP2:$Vm),imm:$lane)))))]> {
   let isCommutable = 0;
 }
-class N3VDSL16<bits<2> op21_20, bits<4> op11_8, 
+class N3VDSL16<bits<2> op21_20, bits<4> op11_8,
                string OpcodeStr, string Dt, ValueType Ty, SDNode ShOp>
   : N3V<0, 1, op21_20, op11_8, 1, 0,
-        (outs DPR:$dst), (ins DPR:$src1, DPR_8:$src2, nohash_imm:$lane),
-        NVMulSLFrm, IIC_VMULi16D, OpcodeStr, Dt,"$dst, $src1, $src2[$lane]","",
-        [(set (Ty DPR:$dst),
-              (Ty (ShOp (Ty DPR:$src1),
-                        (Ty (NEONvduplane (Ty DPR_8:$src2), imm:$lane)))))]> {
+        (outs DPR:$Vd), (ins DPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, IIC_VMULi16D, OpcodeStr, Dt,"$Vd, $Vn, $Vm[$lane]","",
+        [(set (Ty DPR:$Vd),
+              (Ty (ShOp (Ty DPR:$Vn),
+                        (Ty (NEONvduplane (Ty DPR_8:$Vm), imm:$lane)))))]> {
   let isCommutable = 0;
 }
 
@@ -1132,40 +1813,40 @@ class N3VQ<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
            InstrItinClass itin, string OpcodeStr, string Dt,
            ValueType ResTy, ValueType OpTy, SDNode OpNode, bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 1, op4,
-        (outs QPR:$dst), (ins QPR:$src1, QPR:$src2), N3RegFrm, itin, 
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set QPR:$dst, (ResTy (OpNode (OpTy QPR:$src1), (OpTy QPR:$src2))))]> {
+        (outs QPR:$Vd), (ins QPR:$Vn, QPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set QPR:$Vd, (ResTy (OpNode (OpTy QPR:$Vn), (OpTy QPR:$Vm))))]> {
   let isCommutable = Commutable;
 }
 class N3VQX<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
            InstrItinClass itin, string OpcodeStr,
            ValueType ResTy, ValueType OpTy, SDNode OpNode, bit Commutable>
   : N3VX<op24, op23, op21_20, op11_8, 1, op4,
-         (outs QPR:$dst), (ins QPR:$src1, QPR:$src2), N3RegFrm, itin, 
-         OpcodeStr, "$dst, $src1, $src2", "",
-         [(set QPR:$dst, (ResTy (OpNode (OpTy QPR:$src1), (OpTy QPR:$src2))))]>{
+         (outs QPR:$Vd), (ins QPR:$Vn, QPR:$Vm), N3RegFrm, itin,
+         OpcodeStr, "$Vd, $Vn, $Vm", "",
+         [(set QPR:$Vd, (ResTy (OpNode (OpTy QPR:$Vn), (OpTy QPR:$Vm))))]>{
   let isCommutable = Commutable;
 }
-class N3VQSL<bits<2> op21_20, bits<4> op11_8, 
+class N3VQSL<bits<2> op21_20, bits<4> op11_8,
              InstrItinClass itin, string OpcodeStr, string Dt,
              ValueType ResTy, ValueType OpTy, SDNode ShOp>
   : N3V<1, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst), (ins QPR:$src1, DPR_VFP2:$src2, nohash_imm:$lane),
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set (ResTy QPR:$dst),
-              (ResTy (ShOp (ResTy QPR:$src1),
-                           (ResTy (NEONvduplane (OpTy DPR_VFP2:$src2),
+        (outs QPR:$Vd), (ins QPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set (ResTy QPR:$Vd),
+              (ResTy (ShOp (ResTy QPR:$Vn),
+                           (ResTy (NEONvduplane (OpTy DPR_VFP2:$Vm),
                                                 imm:$lane)))))]> {
   let isCommutable = 0;
 }
 class N3VQSL16<bits<2> op21_20, bits<4> op11_8, string OpcodeStr, string Dt,
                ValueType ResTy, ValueType OpTy, SDNode ShOp>
   : N3V<1, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst), (ins QPR:$src1, DPR_8:$src2, nohash_imm:$lane),
-        NVMulSLFrm, IIC_VMULi16Q, OpcodeStr, Dt,"$dst, $src1, $src2[$lane]","",
-        [(set (ResTy QPR:$dst),
-              (ResTy (ShOp (ResTy QPR:$src1),
-                           (ResTy (NEONvduplane (OpTy DPR_8:$src2),
+        (outs QPR:$Vd), (ins QPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, IIC_VMULi16Q, OpcodeStr, Dt,"$Vd, $Vn, $Vm[$lane]","",
+        [(set (ResTy QPR:$Vd),
+              (ResTy (ShOp (ResTy QPR:$Vn),
+                           (ResTy (NEONvduplane (OpTy DPR_8:$Vm),
                                                 imm:$lane)))))]> {
   let isCommutable = 0;
 }
@@ -1175,30 +1856,39 @@ class N3VDInt<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
               Format f, InstrItinClass itin, string OpcodeStr, string Dt,
               ValueType ResTy, ValueType OpTy, Intrinsic IntOp, bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs DPR:$dst), (ins DPR:$src1, DPR:$src2), f, itin,
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set DPR:$dst, (ResTy (IntOp (OpTy DPR:$src1), (OpTy DPR:$src2))))]> {
+        (outs DPR:$Vd), (ins DPR:$Vn, DPR:$Vm), f, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set DPR:$Vd, (ResTy (IntOp (OpTy DPR:$Vn), (OpTy DPR:$Vm))))]> {
   let isCommutable = Commutable;
 }
-class N3VDIntSL<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin, 
+class N3VDIntSL<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                 string OpcodeStr, string Dt, ValueType Ty, Intrinsic IntOp>
   : N3V<0, 1, op21_20, op11_8, 1, 0,
-        (outs DPR:$dst), (ins DPR:$src1, DPR_VFP2:$src2, nohash_imm:$lane),
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set (Ty DPR:$dst),
-              (Ty (IntOp (Ty DPR:$src1),
-                         (Ty (NEONvduplane (Ty DPR_VFP2:$src2),
+        (outs DPR:$Vd), (ins DPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set (Ty DPR:$Vd),
+              (Ty (IntOp (Ty DPR:$Vn),
+                         (Ty (NEONvduplane (Ty DPR_VFP2:$Vm),
                                            imm:$lane)))))]> {
   let isCommutable = 0;
 }
 class N3VDIntSL16<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                   string OpcodeStr, string Dt, ValueType Ty, Intrinsic IntOp>
   : N3V<0, 1, op21_20, op11_8, 1, 0,
-        (outs DPR:$dst), (ins DPR:$src1, DPR_8:$src2, nohash_imm:$lane),
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set (Ty DPR:$dst),
-              (Ty (IntOp (Ty DPR:$src1),
-                         (Ty (NEONvduplane (Ty DPR_8:$src2), imm:$lane)))))]> {
+        (outs DPR:$Vd), (ins DPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set (Ty DPR:$Vd),
+              (Ty (IntOp (Ty DPR:$Vn),
+                         (Ty (NEONvduplane (Ty DPR_8:$Vm), imm:$lane)))))]> {
+  let isCommutable = 0;
+}
+class N3VDIntSh<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
+              Format f, InstrItinClass itin, string OpcodeStr, string Dt,
+              ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
+  : N3V<op24, op23, op21_20, op11_8, 0, op4,
+        (outs DPR:$Vd), (ins DPR:$Vm, DPR:$Vn), f, itin,
+        OpcodeStr, Dt, "$Vd, $Vm, $Vn", "",
+        [(set DPR:$Vd, (ResTy (IntOp (OpTy DPR:$Vm), (OpTy DPR:$Vn))))]> {
   let isCommutable = 0;
 }
 
@@ -1206,20 +1896,20 @@ class N3VQInt<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
               Format f, InstrItinClass itin, string OpcodeStr, string Dt,
               ValueType ResTy, ValueType OpTy, Intrinsic IntOp, bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 1, op4,
-        (outs QPR:$dst), (ins QPR:$src1, QPR:$src2), f, itin,
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set QPR:$dst, (ResTy (IntOp (OpTy QPR:$src1), (OpTy QPR:$src2))))]> {
+        (outs QPR:$Vd), (ins QPR:$Vn, QPR:$Vm), f, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set QPR:$Vd, (ResTy (IntOp (OpTy QPR:$Vn), (OpTy QPR:$Vm))))]> {
   let isCommutable = Commutable;
 }
-class N3VQIntSL<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin, 
+class N3VQIntSL<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                 string OpcodeStr, string Dt,
                 ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N3V<1, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst), (ins QPR:$src1, DPR_VFP2:$src2, nohash_imm:$lane),
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set (ResTy QPR:$dst),
-              (ResTy (IntOp (ResTy QPR:$src1),
-                            (ResTy (NEONvduplane (OpTy DPR_VFP2:$src2),
+        (outs QPR:$Vd), (ins QPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set (ResTy QPR:$Vd),
+              (ResTy (IntOp (ResTy QPR:$Vn),
+                            (ResTy (NEONvduplane (OpTy DPR_VFP2:$Vm),
                                                  imm:$lane)))))]> {
   let isCommutable = 0;
 }
@@ -1227,93 +1917,95 @@ class N3VQIntSL16<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                   string OpcodeStr, string Dt,
                   ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N3V<1, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst), (ins QPR:$src1, DPR_8:$src2, nohash_imm:$lane),
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set (ResTy QPR:$dst),
-              (ResTy (IntOp (ResTy QPR:$src1),
-                            (ResTy (NEONvduplane (OpTy DPR_8:$src2),
+        (outs QPR:$Vd), (ins QPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set (ResTy QPR:$Vd),
+              (ResTy (IntOp (ResTy QPR:$Vn),
+                            (ResTy (NEONvduplane (OpTy DPR_8:$Vm),
                                                  imm:$lane)))))]> {
   let isCommutable = 0;
 }
+class N3VQIntSh<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
+              Format f, InstrItinClass itin, string OpcodeStr, string Dt,
+              ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
+  : N3V<op24, op23, op21_20, op11_8, 1, op4,
+        (outs QPR:$Vd), (ins QPR:$Vm, QPR:$Vn), f, itin,
+        OpcodeStr, Dt, "$Vd, $Vm, $Vn", "",
+        [(set QPR:$Vd, (ResTy (IntOp (OpTy QPR:$Vm), (OpTy QPR:$Vn))))]> {
+  let isCommutable = 0;
+}
 
-// Multiply-Add/Sub operations: single-, double- and quad-register.
-class N3VSMulOp<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
-                InstrItinClass itin, string OpcodeStr, string Dt,
-                ValueType Ty, SDNode MulOp, SDNode OpNode>
-  : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs DPR_VFP2:$dst),
-        (ins DPR_VFP2:$src1, DPR_VFP2:$src2, DPR_VFP2:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst", []>;
-
+// Multiply-Add/Sub operations: double- and quad-register.
 class N3VDMulOp<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                 InstrItinClass itin, string OpcodeStr, string Dt,
-                ValueType Ty, SDNode MulOp, SDNode OpNode>
+                ValueType Ty, SDPatternOperator MulOp, SDPatternOperator OpNode>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs DPR:$dst), (ins DPR:$src1, DPR:$src2, DPR:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst",
-        [(set DPR:$dst, (Ty (OpNode DPR:$src1,
-                             (Ty (MulOp DPR:$src2, DPR:$src3)))))]>;
+        (outs DPR:$Vd), (ins DPR:$src1, DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "$src1 = $Vd",
+        [(set DPR:$Vd, (Ty (OpNode DPR:$src1,
+                             (Ty (MulOp DPR:$Vn, DPR:$Vm)))))]>;
+
 class N3VDMulOpSL<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                   string OpcodeStr, string Dt,
-                  ValueType Ty, SDNode MulOp, SDNode ShOp>
+                  ValueType Ty, SDPatternOperator MulOp, SDPatternOperator ShOp>
   : N3V<0, 1, op21_20, op11_8, 1, 0,
-        (outs DPR:$dst),
-        (ins DPR:$src1, DPR:$src2, DPR_VFP2:$src3, nohash_imm:$lane),
+        (outs DPR:$Vd),
+        (ins DPR:$src1, DPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
         NVMulSLFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3[$lane]", "$src1 = $dst",
-        [(set (Ty DPR:$dst),
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "$src1 = $Vd",
+        [(set (Ty DPR:$Vd),
               (Ty (ShOp (Ty DPR:$src1),
-                        (Ty (MulOp DPR:$src2,
-                                   (Ty (NEONvduplane (Ty DPR_VFP2:$src3),
+                        (Ty (MulOp DPR:$Vn,
+                                   (Ty (NEONvduplane (Ty DPR_VFP2:$Vm),
                                                      imm:$lane)))))))]>;
 class N3VDMulOpSL16<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                     string OpcodeStr, string Dt,
                     ValueType Ty, SDNode MulOp, SDNode ShOp>
   : N3V<0, 1, op21_20, op11_8, 1, 0,
-        (outs DPR:$dst),
-        (ins DPR:$src1, DPR:$src2, DPR_8:$src3, nohash_imm:$lane),
+        (outs DPR:$Vd),
+        (ins DPR:$src1, DPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
         NVMulSLFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3[$lane]", "$src1 = $dst",
-        [(set (Ty DPR:$dst),
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "$src1 = $Vd",
+        [(set (Ty DPR:$Vd),
               (Ty (ShOp (Ty DPR:$src1),
-                        (Ty (MulOp DPR:$src2,
-                                   (Ty (NEONvduplane (Ty DPR_8:$src3),
+                        (Ty (MulOp DPR:$Vn,
+                                   (Ty (NEONvduplane (Ty DPR_8:$Vm),
                                                      imm:$lane)))))))]>;
 
 class N3VQMulOp<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                 InstrItinClass itin, string OpcodeStr, string Dt, ValueType Ty,
-                SDNode MulOp, SDNode OpNode>
+                SDPatternOperator MulOp, SDPatternOperator OpNode>
   : N3V<op24, op23, op21_20, op11_8, 1, op4,
-        (outs QPR:$dst), (ins QPR:$src1, QPR:$src2, QPR:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst",
-        [(set QPR:$dst, (Ty (OpNode QPR:$src1,
-                             (Ty (MulOp QPR:$src2, QPR:$src3)))))]>;
+        (outs QPR:$Vd), (ins QPR:$src1, QPR:$Vn, QPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "$src1 = $Vd",
+        [(set QPR:$Vd, (Ty (OpNode QPR:$src1,
+                             (Ty (MulOp QPR:$Vn, QPR:$Vm)))))]>;
 class N3VQMulOpSL<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                   string OpcodeStr, string Dt, ValueType ResTy, ValueType OpTy,
-                  SDNode MulOp, SDNode ShOp>
+                  SDPatternOperator MulOp, SDPatternOperator ShOp>
   : N3V<1, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst),
-        (ins QPR:$src1, QPR:$src2, DPR_VFP2:$src3, nohash_imm:$lane),
+        (outs QPR:$Vd),
+        (ins QPR:$src1, QPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
         NVMulSLFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3[$lane]", "$src1 = $dst",
-        [(set (ResTy QPR:$dst),
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "$src1 = $Vd",
+        [(set (ResTy QPR:$Vd),
               (ResTy (ShOp (ResTy QPR:$src1),
-                           (ResTy (MulOp QPR:$src2,
-                                   (ResTy (NEONvduplane (OpTy DPR_VFP2:$src3),
+                           (ResTy (MulOp QPR:$Vn,
+                                   (ResTy (NEONvduplane (OpTy DPR_VFP2:$Vm),
                                                         imm:$lane)))))))]>;
 class N3VQMulOpSL16<bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                     string OpcodeStr, string Dt,
                     ValueType ResTy, ValueType OpTy,
                     SDNode MulOp, SDNode ShOp>
   : N3V<1, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst),
-        (ins QPR:$src1, QPR:$src2, DPR_8:$src3, nohash_imm:$lane),
+        (outs QPR:$Vd),
+        (ins QPR:$src1, QPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
         NVMulSLFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3[$lane]", "$src1 = $dst",
-        [(set (ResTy QPR:$dst),
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "$src1 = $Vd",
+        [(set (ResTy QPR:$Vd),
               (ResTy (ShOp (ResTy QPR:$src1),
-                           (ResTy (MulOp QPR:$src2,
-                                   (ResTy (NEONvduplane (OpTy DPR_8:$src3),
+                           (ResTy (MulOp QPR:$Vn,
+                                   (ResTy (NEONvduplane (OpTy DPR_8:$Vm),
                                                         imm:$lane)))))))]>;
 
 // Neon Intrinsic-Op instructions (VABA): double- and quad-register.
@@ -1321,18 +2013,18 @@ class N3VDIntOp<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                 InstrItinClass itin, string OpcodeStr, string Dt,
                 ValueType Ty, Intrinsic IntOp, SDNode OpNode>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs DPR:$dst), (ins DPR:$src1, DPR:$src2, DPR:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst",
-        [(set DPR:$dst, (Ty (OpNode DPR:$src1,
-                             (Ty (IntOp (Ty DPR:$src2), (Ty DPR:$src3))))))]>;
+        (outs DPR:$Vd), (ins DPR:$src1, DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "$src1 = $Vd",
+        [(set DPR:$Vd, (Ty (OpNode DPR:$src1,
+                             (Ty (IntOp (Ty DPR:$Vn), (Ty DPR:$Vm))))))]>;
 class N3VQIntOp<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                 InstrItinClass itin, string OpcodeStr, string Dt,
                 ValueType Ty, Intrinsic IntOp, SDNode OpNode>
   : N3V<op24, op23, op21_20, op11_8, 1, op4,
-        (outs QPR:$dst), (ins QPR:$src1, QPR:$src2, QPR:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst",
-        [(set QPR:$dst, (Ty (OpNode QPR:$src1,
-                             (Ty (IntOp (Ty QPR:$src2), (Ty QPR:$src3))))))]>;
+        (outs QPR:$Vd), (ins QPR:$src1, QPR:$Vn, QPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "$src1 = $Vd",
+        [(set QPR:$Vd, (Ty (OpNode QPR:$src1,
+                             (Ty (IntOp (Ty QPR:$Vn), (Ty QPR:$Vm))))))]>;
 
 // Neon 3-argument intrinsics, both double- and quad-register.
 // The destination register is also used as the first source operand register.
@@ -1340,52 +2032,52 @@ class N3VDInt3<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                InstrItinClass itin, string OpcodeStr, string Dt,
                ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs DPR:$dst), (ins DPR:$src1, DPR:$src2, DPR:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst",
-        [(set DPR:$dst, (ResTy (IntOp (OpTy DPR:$src1),
-                                      (OpTy DPR:$src2), (OpTy DPR:$src3))))]>;
+        (outs DPR:$Vd), (ins DPR:$src1, DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "$src1 = $Vd",
+        [(set DPR:$Vd, (ResTy (IntOp (OpTy DPR:$src1),
+                                      (OpTy DPR:$Vn), (OpTy DPR:$Vm))))]>;
 class N3VQInt3<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                InstrItinClass itin, string OpcodeStr, string Dt,
                ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N3V<op24, op23, op21_20, op11_8, 1, op4,
-        (outs QPR:$dst), (ins QPR:$src1, QPR:$src2, QPR:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst",
-        [(set QPR:$dst, (ResTy (IntOp (OpTy QPR:$src1),
-                                      (OpTy QPR:$src2), (OpTy QPR:$src3))))]>;
+        (outs QPR:$Vd), (ins QPR:$src1, QPR:$Vn, QPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "$src1 = $Vd",
+        [(set QPR:$Vd, (ResTy (IntOp (OpTy QPR:$src1),
+                                      (OpTy QPR:$Vn), (OpTy QPR:$Vm))))]>;
 
 // Long Multiply-Add/Sub operations.
 class N3VLMulOp<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                 InstrItinClass itin, string OpcodeStr, string Dt,
                 ValueType TyQ, ValueType TyD, SDNode MulOp, SDNode OpNode>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs QPR:$dst), (ins QPR:$src1, DPR:$src2, DPR:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst",
-        [(set QPR:$dst, (OpNode (TyQ QPR:$src1),
-                                (TyQ (MulOp (TyD DPR:$src2),
-                                            (TyD DPR:$src3)))))]>;
+        (outs QPR:$Vd), (ins QPR:$src1, DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "$src1 = $Vd",
+        [(set QPR:$Vd, (OpNode (TyQ QPR:$src1),
+                                (TyQ (MulOp (TyD DPR:$Vn),
+                                            (TyD DPR:$Vm)))))]>;
 class N3VLMulOpSL<bit op24, bits<2> op21_20, bits<4> op11_8,
                   InstrItinClass itin, string OpcodeStr, string Dt,
                   ValueType TyQ, ValueType TyD, SDNode MulOp, SDNode OpNode>
-  : N3V<op24, 1, op21_20, op11_8, 1, 0, (outs QPR:$dst),
-        (ins QPR:$src1, DPR:$src2, DPR_VFP2:$src3, nohash_imm:$lane),
+  : N3V<op24, 1, op21_20, op11_8, 1, 0, (outs QPR:$Vd),
+        (ins QPR:$src1, DPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
         NVMulSLFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3[$lane]", "$src1 = $dst",
-        [(set QPR:$dst,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "$src1 = $Vd",
+        [(set QPR:$Vd,
           (OpNode (TyQ QPR:$src1),
-                  (TyQ (MulOp (TyD DPR:$src2),
-                              (TyD (NEONvduplane (TyD DPR_VFP2:$src3),
+                  (TyQ (MulOp (TyD DPR:$Vn),
+                              (TyD (NEONvduplane (TyD DPR_VFP2:$Vm),
                                                  imm:$lane))))))]>;
 class N3VLMulOpSL16<bit op24, bits<2> op21_20, bits<4> op11_8,
                     InstrItinClass itin, string OpcodeStr, string Dt,
                     ValueType TyQ, ValueType TyD, SDNode MulOp, SDNode OpNode>
-  : N3V<op24, 1, op21_20, op11_8, 1, 0, (outs QPR:$dst),
-        (ins QPR:$src1, DPR:$src2, DPR_8:$src3, nohash_imm:$lane),
+  : N3V<op24, 1, op21_20, op11_8, 1, 0, (outs QPR:$Vd),
+        (ins QPR:$src1, DPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
         NVMulSLFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3[$lane]", "$src1 = $dst",
-        [(set QPR:$dst,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "$src1 = $Vd",
+        [(set QPR:$Vd,
           (OpNode (TyQ QPR:$src1),
-                  (TyQ (MulOp (TyD DPR:$src2),
-                              (TyD (NEONvduplane (TyD DPR_8:$src3),
+                  (TyQ (MulOp (TyD DPR:$Vn),
+                              (TyD (NEONvduplane (TyD DPR_8:$Vm),
                                                  imm:$lane))))))]>;
 
 // Long Intrinsic-Op vector operations with explicit extend (VABAL).
@@ -1394,11 +2086,11 @@ class N3VLIntExtOp<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                    ValueType TyQ, ValueType TyD, Intrinsic IntOp, SDNode ExtOp,
                    SDNode OpNode>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs QPR:$dst), (ins QPR:$src1, DPR:$src2, DPR:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst",
-        [(set QPR:$dst, (OpNode (TyQ QPR:$src1),
-                                (TyQ (ExtOp (TyD (IntOp (TyD DPR:$src2),
-                                                        (TyD DPR:$src3)))))))]>;
+        (outs QPR:$Vd), (ins QPR:$src1, DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "$src1 = $Vd",
+        [(set QPR:$Vd, (OpNode (TyQ QPR:$src1),
+                                (TyQ (ExtOp (TyD (IntOp (TyD DPR:$Vn),
+                                                        (TyD DPR:$Vm)))))))]>;
 
 // Neon Long 3-argument intrinsic.  The destination register is
 // a quad-register and is also used as the first source operand register.
@@ -1406,35 +2098,35 @@ class N3VLInt3<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                InstrItinClass itin, string OpcodeStr, string Dt,
                ValueType TyQ, ValueType TyD, Intrinsic IntOp>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs QPR:$dst), (ins QPR:$src1, DPR:$src2, DPR:$src3), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3", "$src1 = $dst",
-        [(set QPR:$dst,
-          (TyQ (IntOp (TyQ QPR:$src1), (TyD DPR:$src2), (TyD DPR:$src3))))]>;
+        (outs QPR:$Vd), (ins QPR:$src1, DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "$src1 = $Vd",
+        [(set QPR:$Vd,
+          (TyQ (IntOp (TyQ QPR:$src1), (TyD DPR:$Vn), (TyD DPR:$Vm))))]>;
 class N3VLInt3SL<bit op24, bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                  string OpcodeStr, string Dt,
                  ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N3V<op24, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst),
-        (ins QPR:$src1, DPR:$src2, DPR_VFP2:$src3, nohash_imm:$lane),
+        (outs QPR:$Vd),
+        (ins QPR:$src1, DPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
         NVMulSLFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3[$lane]", "$src1 = $dst",
-        [(set (ResTy QPR:$dst),
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "$src1 = $Vd",
+        [(set (ResTy QPR:$Vd),
               (ResTy (IntOp (ResTy QPR:$src1),
-                            (OpTy DPR:$src2),
-                            (OpTy (NEONvduplane (OpTy DPR_VFP2:$src3),
+                            (OpTy DPR:$Vn),
+                            (OpTy (NEONvduplane (OpTy DPR_VFP2:$Vm),
                                                 imm:$lane)))))]>;
 class N3VLInt3SL16<bit op24, bits<2> op21_20, bits<4> op11_8,
                    InstrItinClass itin, string OpcodeStr, string Dt,
                    ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N3V<op24, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst),
-        (ins QPR:$src1, DPR:$src2, DPR_8:$src3, nohash_imm:$lane),
+        (outs QPR:$Vd),
+        (ins QPR:$src1, DPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
         NVMulSLFrm, itin,
-        OpcodeStr, Dt, "$dst, $src2, $src3[$lane]", "$src1 = $dst",
-        [(set (ResTy QPR:$dst),
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "$src1 = $Vd",
+        [(set (ResTy QPR:$Vd),
               (ResTy (IntOp (ResTy QPR:$src1),
-                            (OpTy DPR:$src2),
-                            (OpTy (NEONvduplane (OpTy DPR_8:$src3),
+                            (OpTy DPR:$Vn),
+                            (OpTy (NEONvduplane (OpTy DPR_8:$Vm),
                                                 imm:$lane)))))]>;
 
 // Narrowing 3-register intrinsics.
@@ -1442,9 +2134,9 @@ class N3VNInt<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
               string OpcodeStr, string Dt, ValueType TyD, ValueType TyQ,
               Intrinsic IntOp, bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs DPR:$dst), (ins QPR:$src1, QPR:$src2), N3RegFrm, IIC_VBINi4D,
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set DPR:$dst, (TyD (IntOp (TyQ QPR:$src1), (TyQ QPR:$src2))))]> {
+        (outs DPR:$Vd), (ins QPR:$Vn, QPR:$Vm), N3RegFrm, IIC_VBINi4D,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set DPR:$Vd, (TyD (IntOp (TyQ QPR:$Vn), (TyQ QPR:$Vm))))]> {
   let isCommutable = Commutable;
 }
 
@@ -1453,29 +2145,29 @@ class N3VL<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
            InstrItinClass itin, string OpcodeStr, string Dt,
            ValueType TyQ, ValueType TyD, SDNode OpNode, bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs QPR:$dst), (ins DPR:$src1, DPR:$src2), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set QPR:$dst, (TyQ (OpNode (TyD DPR:$src1), (TyD DPR:$src2))))]> {
+        (outs QPR:$Vd), (ins DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set QPR:$Vd, (TyQ (OpNode (TyD DPR:$Vn), (TyD DPR:$Vm))))]> {
   let isCommutable = Commutable;
 }
 class N3VLSL<bit op24, bits<2> op21_20, bits<4> op11_8,
              InstrItinClass itin, string OpcodeStr, string Dt,
              ValueType TyQ, ValueType TyD, SDNode OpNode>
   : N3V<op24, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst), (ins DPR:$src1, DPR_VFP2:$src2, nohash_imm:$lane),
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set QPR:$dst,
-          (TyQ (OpNode (TyD DPR:$src1),
-                       (TyD (NEONvduplane (TyD DPR_VFP2:$src2),imm:$lane)))))]>;
+        (outs QPR:$Vd), (ins DPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set QPR:$Vd,
+          (TyQ (OpNode (TyD DPR:$Vn),
+                       (TyD (NEONvduplane (TyD DPR_VFP2:$Vm),imm:$lane)))))]>;
 class N3VLSL16<bit op24, bits<2> op21_20, bits<4> op11_8,
                InstrItinClass itin, string OpcodeStr, string Dt,
                ValueType TyQ, ValueType TyD, SDNode OpNode>
   : N3V<op24, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst), (ins DPR:$src1, DPR_8:$src2, nohash_imm:$lane), 
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set QPR:$dst,
-          (TyQ (OpNode (TyD DPR:$src1),
-                       (TyD (NEONvduplane (TyD DPR_8:$src2), imm:$lane)))))]>;
+        (outs QPR:$Vd), (ins DPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set QPR:$Vd,
+          (TyQ (OpNode (TyD DPR:$Vn),
+                       (TyD (NEONvduplane (TyD DPR_8:$Vm), imm:$lane)))))]>;
 
 // Long 3-register operations with explicitly extended operands.
 class N3VLExt<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
@@ -1483,10 +2175,10 @@ class N3VLExt<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
               ValueType TyQ, ValueType TyD, SDNode OpNode, SDNode ExtOp,
               bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs QPR:$dst), (ins DPR:$src1, DPR:$src2), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set QPR:$dst, (OpNode (TyQ (ExtOp (TyD DPR:$src1))),
-                                (TyQ (ExtOp (TyD DPR:$src2)))))]> {
+        (outs QPR:$Vd), (ins DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set QPR:$Vd, (OpNode (TyQ (ExtOp (TyD DPR:$Vn))),
+                                (TyQ (ExtOp (TyD DPR:$Vm)))))]> {
   let isCommutable = Commutable;
 }
 
@@ -1496,10 +2188,10 @@ class N3VLIntExt<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
                  ValueType TyQ, ValueType TyD, Intrinsic IntOp, SDNode ExtOp,
                  bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs QPR:$dst), (ins DPR:$src1, DPR:$src2), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set QPR:$dst, (TyQ (ExtOp (TyD (IntOp (TyD DPR:$src1),
-                                                (TyD DPR:$src2))))))]> {
+        (outs QPR:$Vd), (ins DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set QPR:$Vd, (TyQ (ExtOp (TyD (IntOp (TyD DPR:$Vn),
+                                                (TyD DPR:$Vm))))))]> {
   let isCommutable = Commutable;
 }
 
@@ -1508,30 +2200,30 @@ class N3VLInt<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
               InstrItinClass itin, string OpcodeStr, string Dt,
               ValueType TyQ, ValueType TyD, Intrinsic IntOp, bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs QPR:$dst), (ins DPR:$src1, DPR:$src2), N3RegFrm, itin,
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set QPR:$dst, (TyQ (IntOp (TyD DPR:$src1), (TyD DPR:$src2))))]> {
+        (outs QPR:$Vd), (ins DPR:$Vn, DPR:$Vm), N3RegFrm, itin,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set QPR:$Vd, (TyQ (IntOp (TyD DPR:$Vn), (TyD DPR:$Vm))))]> {
   let isCommutable = Commutable;
 }
 class N3VLIntSL<bit op24, bits<2> op21_20, bits<4> op11_8, InstrItinClass itin,
                 string OpcodeStr, string Dt,
                 ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N3V<op24, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst), (ins DPR:$src1, DPR_VFP2:$src2, nohash_imm:$lane),
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set (ResTy QPR:$dst),
-              (ResTy (IntOp (OpTy DPR:$src1),
-                            (OpTy (NEONvduplane (OpTy DPR_VFP2:$src2),
+        (outs QPR:$Vd), (ins DPR:$Vn, DPR_VFP2:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set (ResTy QPR:$Vd),
+              (ResTy (IntOp (OpTy DPR:$Vn),
+                            (OpTy (NEONvduplane (OpTy DPR_VFP2:$Vm),
                                                 imm:$lane)))))]>;
 class N3VLIntSL16<bit op24, bits<2> op21_20, bits<4> op11_8,
                   InstrItinClass itin, string OpcodeStr, string Dt,
                   ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N3V<op24, 1, op21_20, op11_8, 1, 0,
-        (outs QPR:$dst), (ins DPR:$src1, DPR_8:$src2, nohash_imm:$lane), 
-        NVMulSLFrm, itin, OpcodeStr, Dt, "$dst, $src1, $src2[$lane]", "",
-        [(set (ResTy QPR:$dst),
-              (ResTy (IntOp (OpTy DPR:$src1),
-                            (OpTy (NEONvduplane (OpTy DPR_8:$src2),
+        (outs QPR:$Vd), (ins DPR:$Vn, DPR_8:$Vm, nohash_imm:$lane),
+        NVMulSLFrm, itin, OpcodeStr, Dt, "$Vd, $Vn, $Vm[$lane]", "",
+        [(set (ResTy QPR:$Vd),
+              (ResTy (IntOp (OpTy DPR:$Vn),
+                            (OpTy (NEONvduplane (OpTy DPR_8:$Vm),
                                                 imm:$lane)))))]>;
 
 // Wide 3-register operations.
@@ -1539,10 +2231,10 @@ class N3VW<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op4,
            string OpcodeStr, string Dt, ValueType TyQ, ValueType TyD,
            SDNode OpNode, SDNode ExtOp, bit Commutable>
   : N3V<op24, op23, op21_20, op11_8, 0, op4,
-        (outs QPR:$dst), (ins QPR:$src1, DPR:$src2), N3RegFrm, IIC_VSUBiD,
-        OpcodeStr, Dt, "$dst, $src1, $src2", "",
-        [(set QPR:$dst, (OpNode (TyQ QPR:$src1),
-                                (TyQ (ExtOp (TyD DPR:$src2)))))]> {
+        (outs QPR:$Vd), (ins QPR:$Vn, DPR:$Vm), N3RegFrm, IIC_VSUBiD,
+        OpcodeStr, Dt, "$Vd, $Vn, $Vm", "",
+        [(set QPR:$Vd, (OpNode (TyQ QPR:$Vn),
+                                (TyQ (ExtOp (TyD DPR:$Vm)))))]> {
   let isCommutable = Commutable;
 }
 
@@ -1551,16 +2243,16 @@ class N2VDPLInt<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
                 bits<2> op17_16, bits<5> op11_7, bit op4,
                 string OpcodeStr, string Dt,
                 ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 0, op4, (outs DPR:$dst),
-        (ins DPR:$src), IIC_VSHLiD, OpcodeStr, Dt, "$dst, $src", "",
-        [(set DPR:$dst, (ResTy (IntOp (OpTy DPR:$src))))]>;
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 0, op4, (outs DPR:$Vd),
+        (ins DPR:$Vm), IIC_VSHLiD, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set DPR:$Vd, (ResTy (IntOp (OpTy DPR:$Vm))))]>;
 class N2VQPLInt<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
                 bits<2> op17_16, bits<5> op11_7, bit op4,
                 string OpcodeStr, string Dt,
                 ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
-  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 1, op4, (outs QPR:$dst),
-        (ins QPR:$src), IIC_VSHLiD, OpcodeStr, Dt, "$dst, $src", "",
-        [(set QPR:$dst, (ResTy (IntOp (OpTy QPR:$src))))]>;
+  : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 1, op4, (outs QPR:$Vd),
+        (ins QPR:$Vm), IIC_VSHLiD, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set QPR:$Vd, (ResTy (IntOp (OpTy QPR:$Vm))))]>;
 
 // Pairwise long 2-register accumulate intrinsics,
 // both double- and quad-register.
@@ -1570,17 +2262,17 @@ class N2VDPLInt2<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
                  string OpcodeStr, string Dt,
                  ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 0, op4,
-        (outs DPR:$dst), (ins DPR:$src1, DPR:$src2), IIC_VPALiD,
-        OpcodeStr, Dt, "$dst, $src2", "$src1 = $dst",
-        [(set DPR:$dst, (ResTy (IntOp (ResTy DPR:$src1), (OpTy DPR:$src2))))]>;
+        (outs DPR:$Vd), (ins DPR:$src1, DPR:$Vm), IIC_VPALiD,
+        OpcodeStr, Dt, "$Vd, $Vm", "$src1 = $Vd",
+        [(set DPR:$Vd, (ResTy (IntOp (ResTy DPR:$src1), (OpTy DPR:$Vm))))]>;
 class N2VQPLInt2<bits<2> op24_23, bits<2> op21_20, bits<2> op19_18,
                  bits<2> op17_16, bits<5> op11_7, bit op4,
                  string OpcodeStr, string Dt,
                  ValueType ResTy, ValueType OpTy, Intrinsic IntOp>
   : N2V<op24_23, op21_20, op19_18, op17_16, op11_7, 1, op4,
-        (outs QPR:$dst), (ins QPR:$src1, QPR:$src2), IIC_VPALiQ,
-        OpcodeStr, Dt, "$dst, $src2", "$src1 = $dst",
-        [(set QPR:$dst, (ResTy (IntOp (ResTy QPR:$src1), (OpTy QPR:$src2))))]>;
+        (outs QPR:$Vd), (ins QPR:$src1, QPR:$Vm), IIC_VPALiQ,
+        OpcodeStr, Dt, "$Vd, $Vm", "$src1 = $Vd",
+        [(set QPR:$Vd, (ResTy (IntOp (ResTy QPR:$src1), (OpTy QPR:$Vm))))]>;
 
 // Shift by immediate,
 // both double- and quad-register.
@@ -1588,25 +2280,25 @@ class N2VDSh<bit op24, bit op23, bits<4> op11_8, bit op7, bit op4,
              Format f, InstrItinClass itin, string OpcodeStr, string Dt,
              ValueType Ty, SDNode OpNode>
   : N2VImm<op24, op23, op11_8, op7, 0, op4,
-           (outs DPR:$dst), (ins DPR:$src, i32imm:$SIMM), f, itin,
-           OpcodeStr, Dt, "$dst, $src, $SIMM", "",
-           [(set DPR:$dst, (Ty (OpNode (Ty DPR:$src), (i32 imm:$SIMM))))]>;
+           (outs DPR:$Vd), (ins DPR:$Vm, i32imm:$SIMM), f, itin,
+           OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "",
+           [(set DPR:$Vd, (Ty (OpNode (Ty DPR:$Vm), (i32 imm:$SIMM))))]>;
 class N2VQSh<bit op24, bit op23, bits<4> op11_8, bit op7, bit op4,
              Format f, InstrItinClass itin, string OpcodeStr, string Dt,
              ValueType Ty, SDNode OpNode>
   : N2VImm<op24, op23, op11_8, op7, 1, op4,
-           (outs QPR:$dst), (ins QPR:$src, i32imm:$SIMM), f, itin,
-           OpcodeStr, Dt, "$dst, $src, $SIMM", "",
-           [(set QPR:$dst, (Ty (OpNode (Ty QPR:$src), (i32 imm:$SIMM))))]>;
+           (outs QPR:$Vd), (ins QPR:$Vm, i32imm:$SIMM), f, itin,
+           OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "",
+           [(set QPR:$Vd, (Ty (OpNode (Ty QPR:$Vm), (i32 imm:$SIMM))))]>;
 
 // Long shift by immediate.
 class N2VLSh<bit op24, bit op23, bits<4> op11_8, bit op7, bit op6, bit op4,
              string OpcodeStr, string Dt,
              ValueType ResTy, ValueType OpTy, SDNode OpNode>
   : N2VImm<op24, op23, op11_8, op7, op6, op4,
-           (outs QPR:$dst), (ins DPR:$src, i32imm:$SIMM), N2RegVShLFrm,
-           IIC_VSHLiD, OpcodeStr, Dt, "$dst, $src, $SIMM", "",
-           [(set QPR:$dst, (ResTy (OpNode (OpTy DPR:$src),
+           (outs QPR:$Vd), (ins DPR:$Vm, i32imm:$SIMM), N2RegVShLFrm,
+           IIC_VSHLiD, OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "",
+           [(set QPR:$Vd, (ResTy (OpNode (OpTy DPR:$Vm),
                                           (i32 imm:$SIMM))))]>;
 
 // Narrow shift by immediate.
@@ -1614,42 +2306,42 @@ class N2VNSh<bit op24, bit op23, bits<4> op11_8, bit op7, bit op6, bit op4,
              InstrItinClass itin, string OpcodeStr, string Dt,
              ValueType ResTy, ValueType OpTy, SDNode OpNode>
   : N2VImm<op24, op23, op11_8, op7, op6, op4,
-           (outs DPR:$dst), (ins QPR:$src, i32imm:$SIMM), N2RegVShRFrm, itin,
-           OpcodeStr, Dt, "$dst, $src, $SIMM", "",
-           [(set DPR:$dst, (ResTy (OpNode (OpTy QPR:$src),
+           (outs DPR:$Vd), (ins QPR:$Vm, i32imm:$SIMM), N2RegVShRFrm, itin,
+           OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "",
+           [(set DPR:$Vd, (ResTy (OpNode (OpTy QPR:$Vm),
                                           (i32 imm:$SIMM))))]>;
 
 // Shift right by immediate and accumulate,
 // both double- and quad-register.
 class N2VDShAdd<bit op24, bit op23, bits<4> op11_8, bit op7, bit op4,
                 string OpcodeStr, string Dt, ValueType Ty, SDNode ShOp>
-  : N2VImm<op24, op23, op11_8, op7, 0, op4, (outs DPR:$dst),
-           (ins DPR:$src1, DPR:$src2, i32imm:$SIMM), N2RegVShRFrm, IIC_VPALiD,
-           OpcodeStr, Dt, "$dst, $src2, $SIMM", "$src1 = $dst",
-           [(set DPR:$dst, (Ty (add DPR:$src1,
-                                (Ty (ShOp DPR:$src2, (i32 imm:$SIMM))))))]>;
+  : N2VImm<op24, op23, op11_8, op7, 0, op4, (outs DPR:$Vd),
+           (ins DPR:$src1, DPR:$Vm, i32imm:$SIMM), N2RegVShRFrm, IIC_VPALiD,
+           OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "$src1 = $Vd",
+           [(set DPR:$Vd, (Ty (add DPR:$src1,
+                                (Ty (ShOp DPR:$Vm, (i32 imm:$SIMM))))))]>;
 class N2VQShAdd<bit op24, bit op23, bits<4> op11_8, bit op7, bit op4,
                 string OpcodeStr, string Dt, ValueType Ty, SDNode ShOp>
-  : N2VImm<op24, op23, op11_8, op7, 1, op4, (outs QPR:$dst),
-           (ins QPR:$src1, QPR:$src2, i32imm:$SIMM), N2RegVShRFrm, IIC_VPALiD,
-           OpcodeStr, Dt, "$dst, $src2, $SIMM", "$src1 = $dst",
-           [(set QPR:$dst, (Ty (add QPR:$src1,
-                                (Ty (ShOp QPR:$src2, (i32 imm:$SIMM))))))]>;
+  : N2VImm<op24, op23, op11_8, op7, 1, op4, (outs QPR:$Vd),
+           (ins QPR:$src1, QPR:$Vm, i32imm:$SIMM), N2RegVShRFrm, IIC_VPALiD,
+           OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "$src1 = $Vd",
+           [(set QPR:$Vd, (Ty (add QPR:$src1,
+                                (Ty (ShOp QPR:$Vm, (i32 imm:$SIMM))))))]>;
 
 // Shift by immediate and insert,
 // both double- and quad-register.
 class N2VDShIns<bit op24, bit op23, bits<4> op11_8, bit op7, bit op4,
                 Format f, string OpcodeStr, string Dt, ValueType Ty,SDNode ShOp>
-  : N2VImm<op24, op23, op11_8, op7, 0, op4, (outs DPR:$dst),
-           (ins DPR:$src1, DPR:$src2, i32imm:$SIMM), f, IIC_VSHLiD,
-           OpcodeStr, Dt, "$dst, $src2, $SIMM", "$src1 = $dst",
-           [(set DPR:$dst, (Ty (ShOp DPR:$src1, DPR:$src2, (i32 imm:$SIMM))))]>;
+  : N2VImm<op24, op23, op11_8, op7, 0, op4, (outs DPR:$Vd),
+           (ins DPR:$src1, DPR:$Vm, i32imm:$SIMM), f, IIC_VSHLiD,
+           OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "$src1 = $Vd",
+           [(set DPR:$Vd, (Ty (ShOp DPR:$src1, DPR:$Vm, (i32 imm:$SIMM))))]>;
 class N2VQShIns<bit op24, bit op23, bits<4> op11_8, bit op7, bit op4,
                 Format f, string OpcodeStr, string Dt, ValueType Ty,SDNode ShOp>
-  : N2VImm<op24, op23, op11_8, op7, 1, op4, (outs QPR:$dst),
-           (ins QPR:$src1, QPR:$src2, i32imm:$SIMM), f, IIC_VSHLiQ,
-           OpcodeStr, Dt, "$dst, $src2, $SIMM", "$src1 = $dst",
-           [(set QPR:$dst, (Ty (ShOp QPR:$src1, QPR:$src2, (i32 imm:$SIMM))))]>;
+  : N2VImm<op24, op23, op11_8, op7, 1, op4, (outs QPR:$Vd),
+           (ins QPR:$src1, QPR:$Vm, i32imm:$SIMM), f, IIC_VSHLiQ,
+           OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "$src1 = $Vd",
+           [(set QPR:$Vd, (Ty (ShOp QPR:$src1, QPR:$Vm, (i32 imm:$SIMM))))]>;
 
 // Convert, with fractional bits immediate,
 // both double- and quad-register.
@@ -1657,16 +2349,16 @@ class N2VCvtD<bit op24, bit op23, bits<4> op11_8, bit op7, bit op4,
               string OpcodeStr, string Dt, ValueType ResTy, ValueType OpTy,
               Intrinsic IntOp>
   : N2VImm<op24, op23, op11_8, op7, 0, op4,
-           (outs DPR:$dst), (ins DPR:$src, i32imm:$SIMM), NVCVTFrm,
-           IIC_VUNAD, OpcodeStr, Dt, "$dst, $src, $SIMM", "",
-           [(set DPR:$dst, (ResTy (IntOp (OpTy DPR:$src), (i32 imm:$SIMM))))]>;
+           (outs DPR:$Vd), (ins DPR:$Vm, neon_vcvt_imm32:$SIMM), NVCVTFrm,
+           IIC_VUNAD, OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "",
+           [(set DPR:$Vd, (ResTy (IntOp (OpTy DPR:$Vm), (i32 imm:$SIMM))))]>;
 class N2VCvtQ<bit op24, bit op23, bits<4> op11_8, bit op7, bit op4,
               string OpcodeStr, string Dt, ValueType ResTy, ValueType OpTy,
               Intrinsic IntOp>
   : N2VImm<op24, op23, op11_8, op7, 1, op4,
-           (outs QPR:$dst), (ins QPR:$src, i32imm:$SIMM), NVCVTFrm,
-           IIC_VUNAQ, OpcodeStr, Dt, "$dst, $src, $SIMM", "",
-           [(set QPR:$dst, (ResTy (IntOp (OpTy QPR:$src), (i32 imm:$SIMM))))]>;
+           (outs QPR:$Vd), (ins QPR:$Vm, neon_vcvt_imm32:$SIMM), NVCVTFrm,
+           IIC_VUNAQ, OpcodeStr, Dt, "$Vd, $Vm, $SIMM", "",
+           [(set QPR:$Vd, (ResTy (IntOp (OpTy QPR:$Vm), (i32 imm:$SIMM))))]>;
 
 //===----------------------------------------------------------------------===//
 // Multiclasses
@@ -1678,44 +2370,126 @@ class N2VCvtQ<bit op24, bit op23, bits<4> op11_8, bit op7, bit op4,
 //   S = single int (32 bit) elements
 //   D = double int (64 bit) elements
 
-// Neon 2-register vector operations -- for disassembly only.
+// Neon 2-register vector operations and intrinsics.
 
-// First with only element sizes of 8, 16 and 32 bits:
+// Neon 2-register comparisons.
+//   source operand element sizes of 8, 16 and 32 bits:
 multiclass N2V_QHS_cmp<bits<2> op24_23, bits<2> op21_20, bits<2> op17_16,
                        bits<5> op11_7, bit op4, string opc, string Dt,
-                       string asm> {
+                       string asm, SDNode OpNode> {
   // 64-bit vector types.
   def v8i8  : N2V<op24_23, op21_20, 0b00, op17_16, op11_7, 0, op4,
-                  (outs DPR:$dst), (ins DPR:$src), NoItinerary,
-                  opc, !strconcat(Dt, "8"), asm, "", []>;
+                  (outs DPR:$Vd), (ins DPR:$Vm), NoItinerary,
+                  opc, !strconcat(Dt, "8"), asm, "",
+                  [(set DPR:$Vd, (v8i8 (OpNode (v8i8 DPR:$Vm))))]>;
   def v4i16 : N2V<op24_23, op21_20, 0b01, op17_16, op11_7, 0, op4,
-                  (outs DPR:$dst), (ins DPR:$src), NoItinerary,
-                  opc, !strconcat(Dt, "16"), asm, "", []>;
+                  (outs DPR:$Vd), (ins DPR:$Vm), NoItinerary,
+                  opc, !strconcat(Dt, "16"), asm, "",
+                  [(set DPR:$Vd, (v4i16 (OpNode (v4i16 DPR:$Vm))))]>;
   def v2i32 : N2V<op24_23, op21_20, 0b10, op17_16, op11_7, 0, op4,
-                  (outs DPR:$dst), (ins DPR:$src), NoItinerary,
-                  opc, !strconcat(Dt, "32"), asm, "", []>;
+                  (outs DPR:$Vd), (ins DPR:$Vm), NoItinerary,
+                  opc, !strconcat(Dt, "32"), asm, "",
+                  [(set DPR:$Vd, (v2i32 (OpNode (v2i32 DPR:$Vm))))]>;
   def v2f32 : N2V<op24_23, op21_20, 0b10, op17_16, op11_7, 0, op4,
-                  (outs DPR:$dst), (ins DPR:$src), NoItinerary,
-                  opc, "f32", asm, "", []> {
+                  (outs DPR:$Vd), (ins DPR:$Vm), NoItinerary,
+                  opc, "f32", asm, "",
+                  [(set DPR:$Vd, (v2i32 (OpNode (v2f32 DPR:$Vm))))]> {
     let Inst{10} = 1; // overwrite F = 1
   }
 
   // 128-bit vector types.
   def v16i8 : N2V<op24_23, op21_20, 0b00, op17_16, op11_7, 1, op4,
-                  (outs QPR:$dst), (ins QPR:$src), NoItinerary,
-                  opc, !strconcat(Dt, "8"), asm, "", []>;
+                  (outs QPR:$Vd), (ins QPR:$Vm), NoItinerary,
+                  opc, !strconcat(Dt, "8"), asm, "",
+                  [(set QPR:$Vd, (v16i8 (OpNode (v16i8 QPR:$Vm))))]>;
   def v8i16 : N2V<op24_23, op21_20, 0b01, op17_16, op11_7, 1, op4,
-                  (outs QPR:$dst), (ins QPR:$src), NoItinerary,
-                  opc, !strconcat(Dt, "16"), asm, "", []>;
+                  (outs QPR:$Vd), (ins QPR:$Vm), NoItinerary,
+                  opc, !strconcat(Dt, "16"), asm, "",
+                  [(set QPR:$Vd, (v8i16 (OpNode (v8i16 QPR:$Vm))))]>;
   def v4i32 : N2V<op24_23, op21_20, 0b10, op17_16, op11_7, 1, op4,
-                  (outs QPR:$dst), (ins QPR:$src), NoItinerary,
-                  opc, !strconcat(Dt, "32"), asm, "", []>;
+                  (outs QPR:$Vd), (ins QPR:$Vm), NoItinerary,
+                  opc, !strconcat(Dt, "32"), asm, "",
+                  [(set QPR:$Vd, (v4i32 (OpNode (v4i32 QPR:$Vm))))]>;
   def v4f32 : N2V<op24_23, op21_20, 0b10, op17_16, op11_7, 1, op4,
-                  (outs QPR:$dst), (ins QPR:$src), NoItinerary,
-                  opc, "f32", asm, "", []> {
+                  (outs QPR:$Vd), (ins QPR:$Vm), NoItinerary,
+                  opc, "f32", asm, "",
+                  [(set QPR:$Vd, (v4i32 (OpNode (v4f32 QPR:$Vm))))]> {
     let Inst{10} = 1; // overwrite F = 1
   }
 }
+
+
+// Neon 2-register vector intrinsics,
+//   element sizes of 8, 16 and 32 bits:
+multiclass N2VInt_QHS<bits<2> op24_23, bits<2> op21_20, bits<2> op17_16,
+                      bits<5> op11_7, bit op4,
+                      InstrItinClass itinD, InstrItinClass itinQ,
+                      string OpcodeStr, string Dt, Intrinsic IntOp> {
+  // 64-bit vector types.
+  def v8i8  : N2VDInt<op24_23, op21_20, 0b00, op17_16, op11_7, op4,
+                      itinD, OpcodeStr, !strconcat(Dt, "8"), v8i8, v8i8, IntOp>;
+  def v4i16 : N2VDInt<op24_23, op21_20, 0b01, op17_16, op11_7, op4,
+                      itinD, OpcodeStr, !strconcat(Dt, "16"),v4i16,v4i16,IntOp>;
+  def v2i32 : N2VDInt<op24_23, op21_20, 0b10, op17_16, op11_7, op4,
+                      itinD, OpcodeStr, !strconcat(Dt, "32"),v2i32,v2i32,IntOp>;
+
+  // 128-bit vector types.
+  def v16i8 : N2VQInt<op24_23, op21_20, 0b00, op17_16, op11_7, op4,
+                      itinQ, OpcodeStr, !strconcat(Dt, "8"), v16i8,v16i8,IntOp>;
+  def v8i16 : N2VQInt<op24_23, op21_20, 0b01, op17_16, op11_7, op4,
+                      itinQ, OpcodeStr, !strconcat(Dt, "16"),v8i16,v8i16,IntOp>;
+  def v4i32 : N2VQInt<op24_23, op21_20, 0b10, op17_16, op11_7, op4,
+                      itinQ, OpcodeStr, !strconcat(Dt, "32"),v4i32,v4i32,IntOp>;
+}
+
+
+// Neon Narrowing 2-register vector operations,
+//   source operand element sizes of 16, 32 and 64 bits:
+multiclass N2VN_HSD<bits<2> op24_23, bits<2> op21_20, bits<2> op17_16,
+                    bits<5> op11_7, bit op6, bit op4,
+                    InstrItinClass itin, string OpcodeStr, string Dt,
+                    SDNode OpNode> {
+  def v8i8  : N2VN<op24_23, op21_20, 0b00, op17_16, op11_7, op6, op4,
+                   itin, OpcodeStr, !strconcat(Dt, "16"),
+                   v8i8, v8i16, OpNode>;
+  def v4i16 : N2VN<op24_23, op21_20, 0b01, op17_16, op11_7, op6, op4,
+                   itin, OpcodeStr, !strconcat(Dt, "32"),
+                   v4i16, v4i32, OpNode>;
+  def v2i32 : N2VN<op24_23, op21_20, 0b10, op17_16, op11_7, op6, op4,
+                   itin, OpcodeStr, !strconcat(Dt, "64"),
+                   v2i32, v2i64, OpNode>;
+}
+
+// Neon Narrowing 2-register vector intrinsics,
+//   source operand element sizes of 16, 32 and 64 bits:
+multiclass N2VNInt_HSD<bits<2> op24_23, bits<2> op21_20, bits<2> op17_16,
+                       bits<5> op11_7, bit op6, bit op4,
+                       InstrItinClass itin, string OpcodeStr, string Dt,
+                       Intrinsic IntOp> {
+  def v8i8  : N2VNInt<op24_23, op21_20, 0b00, op17_16, op11_7, op6, op4,
+                      itin, OpcodeStr, !strconcat(Dt, "16"),
+                      v8i8, v8i16, IntOp>;
+  def v4i16 : N2VNInt<op24_23, op21_20, 0b01, op17_16, op11_7, op6, op4,
+                      itin, OpcodeStr, !strconcat(Dt, "32"),
+                      v4i16, v4i32, IntOp>;
+  def v2i32 : N2VNInt<op24_23, op21_20, 0b10, op17_16, op11_7, op6, op4,
+                      itin, OpcodeStr, !strconcat(Dt, "64"),
+                      v2i32, v2i64, IntOp>;
+}
+
+
+// Neon Lengthening 2-register vector intrinsic (currently specific to VMOVL).
+//   source operand element sizes of 16, 32 and 64 bits:
+multiclass N2VL_QHS<bits<2> op24_23, bits<5> op11_7, bit op6, bit op4,
+                    string OpcodeStr, string Dt, SDNode OpNode> {
+  def v8i16 : N2VL<op24_23, 0b00, 0b10, 0b00, op11_7, op6, op4, IIC_VQUNAiD,
+                   OpcodeStr, !strconcat(Dt, "8"), v8i16, v8i8, OpNode>;
+  def v4i32 : N2VL<op24_23, 0b01, 0b00, 0b00, op11_7, op6, op4, IIC_VQUNAiD,
+                   OpcodeStr, !strconcat(Dt, "16"), v4i32, v4i16, OpNode>;
+  def v2i64 : N2VL<op24_23, 0b10, 0b00, 0b00, op11_7, op6, op4, IIC_VQUNAiD,
+                   OpcodeStr, !strconcat(Dt, "32"), v2i64, v2i32, OpNode>;
+}
+
 
 // Neon 3-register vector operations.
 
@@ -1726,7 +2500,7 @@ multiclass N3V_QHS<bit op24, bit op23, bits<4> op11_8, bit op4,
                    string OpcodeStr, string Dt,
                    SDNode OpNode, bit Commutable = 0> {
   // 64-bit vector types.
-  def v8i8  : N3VD<op24, op23, 0b00, op11_8, op4, itinD16, 
+  def v8i8  : N3VD<op24, op23, 0b00, op11_8, op4, itinD16,
                    OpcodeStr, !strconcat(Dt, "8"),
                    v8i8, v8i8, OpNode, Commutable>;
   def v4i16 : N3VD<op24, op23, 0b01, op11_8, op4, itinD16,
@@ -1775,54 +2549,6 @@ multiclass N3V_QHSD<bit op24, bit op23, bits<4> op11_8, bit op4,
 }
 
 
-// Neon Narrowing 2-register vector operations,
-//   source operand element sizes of 16, 32 and 64 bits:
-multiclass N2VN_HSD<bits<2> op24_23, bits<2> op21_20, bits<2> op17_16,
-                    bits<5> op11_7, bit op6, bit op4, 
-                    InstrItinClass itin, string OpcodeStr, string Dt,
-                    SDNode OpNode> {
-  def v8i8  : N2VN<op24_23, op21_20, 0b00, op17_16, op11_7, op6, op4,
-                   itin, OpcodeStr, !strconcat(Dt, "16"),
-                   v8i8, v8i16, OpNode>;
-  def v4i16 : N2VN<op24_23, op21_20, 0b01, op17_16, op11_7, op6, op4,
-                   itin, OpcodeStr, !strconcat(Dt, "32"),
-                   v4i16, v4i32, OpNode>;
-  def v2i32 : N2VN<op24_23, op21_20, 0b10, op17_16, op11_7, op6, op4,
-                   itin, OpcodeStr, !strconcat(Dt, "64"),
-                   v2i32, v2i64, OpNode>;
-}
-
-// Neon Narrowing 2-register vector intrinsics,
-//   source operand element sizes of 16, 32 and 64 bits:
-multiclass N2VNInt_HSD<bits<2> op24_23, bits<2> op21_20, bits<2> op17_16,
-                       bits<5> op11_7, bit op6, bit op4, 
-                       InstrItinClass itin, string OpcodeStr, string Dt,
-                       Intrinsic IntOp> {
-  def v8i8  : N2VNInt<op24_23, op21_20, 0b00, op17_16, op11_7, op6, op4,
-                      itin, OpcodeStr, !strconcat(Dt, "16"),
-                      v8i8, v8i16, IntOp>;
-  def v4i16 : N2VNInt<op24_23, op21_20, 0b01, op17_16, op11_7, op6, op4,
-                      itin, OpcodeStr, !strconcat(Dt, "32"),
-                      v4i16, v4i32, IntOp>;
-  def v2i32 : N2VNInt<op24_23, op21_20, 0b10, op17_16, op11_7, op6, op4,
-                      itin, OpcodeStr, !strconcat(Dt, "64"),
-                      v2i32, v2i64, IntOp>;
-}
-
-
-// Neon Lengthening 2-register vector intrinsic (currently specific to VMOVL).
-//   source operand element sizes of 16, 32 and 64 bits:
-multiclass N2VL_QHS<bits<2> op24_23, bits<5> op11_7, bit op6, bit op4,
-                    string OpcodeStr, string Dt, SDNode OpNode> {
-  def v8i16 : N2VL<op24_23, 0b00, 0b10, 0b00, op11_7, op6, op4, IIC_VQUNAiD,
-                   OpcodeStr, !strconcat(Dt, "8"), v8i16, v8i8, OpNode>;
-  def v4i32 : N2VL<op24_23, 0b01, 0b00, 0b00, op11_7, op6, op4, IIC_VQUNAiD,
-                   OpcodeStr, !strconcat(Dt, "16"), v4i32, v4i16, OpNode>;
-  def v2i64 : N2VL<op24_23, 0b10, 0b00, 0b00, op11_7, op6, op4, IIC_VQUNAiD,
-                   OpcodeStr, !strconcat(Dt, "32"), v2i64, v2i32, OpNode>;
-}
-
-
 // Neon 3-register vector intrinsics.
 
 // First with only element sizes of 16 and 32 bits:
@@ -1847,8 +2573,29 @@ multiclass N3VInt_HS<bit op24, bit op23, bits<4> op11_8, bit op4, Format f,
                       OpcodeStr, !strconcat(Dt, "32"),
                       v4i32, v4i32, IntOp, Commutable>;
 }
+multiclass N3VInt_HSSh<bit op24, bit op23, bits<4> op11_8, bit op4, Format f,
+                     InstrItinClass itinD16, InstrItinClass itinD32,
+                     InstrItinClass itinQ16, InstrItinClass itinQ32,
+                     string OpcodeStr, string Dt,
+                     Intrinsic IntOp> {
+  // 64-bit vector types.
+  def v4i16 : N3VDIntSh<op24, op23, 0b01, op11_8, op4, f, itinD16,
+                      OpcodeStr, !strconcat(Dt, "16"),
+                      v4i16, v4i16, IntOp>;
+  def v2i32 : N3VDIntSh<op24, op23, 0b10, op11_8, op4, f, itinD32,
+                      OpcodeStr, !strconcat(Dt, "32"),
+                      v2i32, v2i32, IntOp>;
 
-multiclass N3VIntSL_HS<bits<4> op11_8, 
+  // 128-bit vector types.
+  def v8i16 : N3VQIntSh<op24, op23, 0b01, op11_8, op4, f, itinQ16,
+                      OpcodeStr, !strconcat(Dt, "16"),
+                      v8i16, v8i16, IntOp>;
+  def v4i32 : N3VQIntSh<op24, op23, 0b10, op11_8, op4, f, itinQ32,
+                      OpcodeStr, !strconcat(Dt, "32"),
+                      v4i32, v4i32, IntOp>;
+}
+
+multiclass N3VIntSL_HS<bits<4> op11_8,
                        InstrItinClass itinD16, InstrItinClass itinD32,
                        InstrItinClass itinQ16, InstrItinClass itinQ32,
                        string OpcodeStr, string Dt, Intrinsic IntOp> {
@@ -1877,6 +2624,21 @@ multiclass N3VInt_QHS<bit op24, bit op23, bits<4> op11_8, bit op4, Format f,
                       OpcodeStr, !strconcat(Dt, "8"),
                       v16i8, v16i8, IntOp, Commutable>;
 }
+multiclass N3VInt_QHSSh<bit op24, bit op23, bits<4> op11_8, bit op4, Format f,
+                      InstrItinClass itinD16, InstrItinClass itinD32,
+                      InstrItinClass itinQ16, InstrItinClass itinQ32,
+                      string OpcodeStr, string Dt,
+                      Intrinsic IntOp>
+  : N3VInt_HSSh<op24, op23, op11_8, op4, f, itinD16, itinD32, itinQ16, itinQ32,
+              OpcodeStr, Dt, IntOp> {
+  def v8i8  : N3VDIntSh<op24, op23, 0b00, op11_8, op4, f, itinD16,
+                      OpcodeStr, !strconcat(Dt, "8"),
+                      v8i8, v8i8, IntOp>;
+  def v16i8 : N3VQIntSh<op24, op23, 0b00, op11_8, op4, f, itinQ16,
+                      OpcodeStr, !strconcat(Dt, "8"),
+                      v16i8, v16i8, IntOp>;
+}
+
 
 // ....then also with element size of 64 bits:
 multiclass N3VInt_QHSD<bit op24, bit op23, bits<4> op11_8, bit op4, Format f,
@@ -1892,6 +2654,20 @@ multiclass N3VInt_QHSD<bit op24, bit op23, bits<4> op11_8, bit op4, Format f,
   def v2i64 : N3VQInt<op24, op23, 0b11, op11_8, op4, f, itinQ32,
                       OpcodeStr, !strconcat(Dt, "64"),
                       v2i64, v2i64, IntOp, Commutable>;
+}
+multiclass N3VInt_QHSDSh<bit op24, bit op23, bits<4> op11_8, bit op4, Format f,
+                       InstrItinClass itinD16, InstrItinClass itinD32,
+                       InstrItinClass itinQ16, InstrItinClass itinQ32,
+                       string OpcodeStr, string Dt,
+                       Intrinsic IntOp>
+  : N3VInt_QHSSh<op24, op23, op11_8, op4, f, itinD16, itinD32, itinQ16, itinQ32,
+               OpcodeStr, Dt, IntOp> {
+  def v1i64 : N3VDIntSh<op24, op23, 0b11, op11_8, op4, f, itinD32,
+                      OpcodeStr, !strconcat(Dt, "64"),
+                      v1i64, v1i64, IntOp>;
+  def v2i64 : N3VQIntSh<op24, op23, 0b11, op11_8, op4, f, itinQ32,
+                      OpcodeStr, !strconcat(Dt, "64"),
+                      v2i64, v2i64, IntOp>;
 }
 
 // Neon Narrowing 3-register vector intrinsics,
@@ -1920,7 +2696,7 @@ multiclass N3VL_QHS<bit op24, bit op23, bits<4> op11_8, bit op4,
   def v8i16 : N3VL<op24, op23, 0b00, op11_8, op4, itin16,
                    OpcodeStr, !strconcat(Dt, "8"),
                    v8i16, v8i8, OpNode, Commutable>;
-  def v4i32 : N3VL<op24, op23, 0b01, op11_8, op4, itin16, 
+  def v4i32 : N3VL<op24, op23, 0b01, op11_8, op4, itin16,
                    OpcodeStr, !strconcat(Dt, "16"),
                    v4i32, v4i16, OpNode, Commutable>;
   def v2i64 : N3VL<op24, op23, 0b10, op11_8, op4, itin32,
@@ -1944,7 +2720,7 @@ multiclass N3VLExt_QHS<bit op24, bit op23, bits<4> op11_8, bit op4,
   def v8i16 : N3VLExt<op24, op23, 0b00, op11_8, op4, itin16,
                       OpcodeStr, !strconcat(Dt, "8"),
                       v8i16, v8i8, OpNode, ExtOp, Commutable>;
-  def v4i32 : N3VLExt<op24, op23, 0b01, op11_8, op4, itin16, 
+  def v4i32 : N3VLExt<op24, op23, 0b01, op11_8, op4, itin16,
                       OpcodeStr, !strconcat(Dt, "16"),
                       v4i32, v4i16, OpNode, ExtOp, Commutable>;
   def v2i64 : N3VLExt<op24, op23, 0b10, op11_8, op4, itin32,
@@ -1959,7 +2735,7 @@ multiclass N3VLInt_HS<bit op24, bit op23, bits<4> op11_8, bit op4,
                       InstrItinClass itin16, InstrItinClass itin32,
                       string OpcodeStr, string Dt,
                       Intrinsic IntOp, bit Commutable = 0> {
-  def v4i32 : N3VLInt<op24, op23, 0b01, op11_8, op4, itin16, 
+  def v4i32 : N3VLInt<op24, op23, 0b01, op11_8, op4, itin16,
                       OpcodeStr, !strconcat(Dt, "16"),
                       v4i32, v4i16, IntOp, Commutable>;
   def v2i64 : N3VLInt<op24, op23, 0b10, op11_8, op4, itin32,
@@ -1970,7 +2746,7 @@ multiclass N3VLInt_HS<bit op24, bit op23, bits<4> op11_8, bit op4,
 multiclass N3VLIntSL_HS<bit op24, bits<4> op11_8,
                         InstrItinClass itin, string OpcodeStr, string Dt,
                         Intrinsic IntOp> {
-  def v4i16 : N3VLIntSL16<op24, 0b01, op11_8, itin, 
+  def v4i16 : N3VLIntSL16<op24, 0b01, op11_8, itin,
                           OpcodeStr, !strconcat(Dt, "16"), v4i32, v4i16, IntOp>;
   def v2i32 : N3VLIntSL<op24, 0b10, op11_8, itin,
                         OpcodeStr, !strconcat(Dt, "32"), v2i64, v2i32, IntOp>;
@@ -1995,7 +2771,7 @@ multiclass N3VLIntExt_QHS<bit op24, bit op23, bits<4> op11_8, bit op4,
   def v8i16 : N3VLIntExt<op24, op23, 0b00, op11_8, op4, itin,
                          OpcodeStr, !strconcat(Dt, "8"),
                          v8i16, v8i8, IntOp, ExtOp, Commutable>;
-  def v4i32 : N3VLIntExt<op24, op23, 0b01, op11_8, op4, itin, 
+  def v4i32 : N3VLIntExt<op24, op23, 0b01, op11_8, op4, itin,
                          OpcodeStr, !strconcat(Dt, "16"),
                          v4i32, v4i16, IntOp, ExtOp, Commutable>;
   def v2i64 : N3VLIntExt<op24, op23, 0b10, op11_8, op4, itin,
@@ -2044,7 +2820,7 @@ multiclass N3VMulOp_QHS<bit op24, bit op23, bits<4> op11_8, bit op4,
                         OpcodeStr, !strconcat(Dt, "32"), v4i32, mul, OpNode>;
 }
 
-multiclass N3VMulOpSL_HS<bits<4> op11_8, 
+multiclass N3VMulOpSL_HS<bits<4> op11_8,
                          InstrItinClass itinD16, InstrItinClass itinD32,
                          InstrItinClass itinQ16, InstrItinClass itinQ32,
                          string OpcodeStr, string Dt, SDNode ShOp> {
@@ -2171,30 +2947,6 @@ multiclass N3VLIntExtOp_QHS<bit op24, bit op23, bits<4> op11_8, bit op4,
   def v2i64 : N3VLIntExtOp<op24, op23, 0b10, op11_8, op4, itin,
                            OpcodeStr, !strconcat(Dt, "32"), v2i64, v2i32,
                            IntOp, ExtOp, OpNode>;
-}
-
-
-// Neon 2-register vector intrinsics,
-//   element sizes of 8, 16 and 32 bits:
-multiclass N2VInt_QHS<bits<2> op24_23, bits<2> op21_20, bits<2> op17_16,
-                      bits<5> op11_7, bit op4,
-                      InstrItinClass itinD, InstrItinClass itinQ,
-                      string OpcodeStr, string Dt, Intrinsic IntOp> {
-  // 64-bit vector types.
-  def v8i8  : N2VDInt<op24_23, op21_20, 0b00, op17_16, op11_7, op4,
-                      itinD, OpcodeStr, !strconcat(Dt, "8"), v8i8, v8i8, IntOp>;
-  def v4i16 : N2VDInt<op24_23, op21_20, 0b01, op17_16, op11_7, op4,
-                      itinD, OpcodeStr, !strconcat(Dt, "16"),v4i16,v4i16,IntOp>;
-  def v2i32 : N2VDInt<op24_23, op21_20, 0b10, op17_16, op11_7, op4,
-                      itinD, OpcodeStr, !strconcat(Dt, "32"),v2i32,v2i32,IntOp>;
-
-  // 128-bit vector types.
-  def v16i8 : N2VQInt<op24_23, op21_20, 0b00, op17_16, op11_7, op4,
-                      itinQ, OpcodeStr, !strconcat(Dt, "8"), v16i8,v16i8,IntOp>;
-  def v8i16 : N2VQInt<op24_23, op21_20, 0b01, op17_16, op11_7, op4,
-                      itinQ, OpcodeStr, !strconcat(Dt, "16"),v8i16,v8i16,IntOp>;
-  def v4i32 : N2VQInt<op24_23, op21_20, 0b10, op17_16, op11_7, op4,
-                      itinQ, OpcodeStr, !strconcat(Dt, "32"),v4i32,v4i32,IntOp>;
 }
 
 
@@ -2461,9 +3213,9 @@ def  VMULpd   : N3VDInt<1, 0, 0b00, 0b1001, 1, N3RegFrm, IIC_VMULi16D, "vmul",
                         "p8", v8i8, v8i8, int_arm_neon_vmulp, 1>;
 def  VMULpq   : N3VQInt<1, 0, 0b00, 0b1001, 1, N3RegFrm, IIC_VMULi16Q, "vmul",
                         "p8", v16i8, v16i8, int_arm_neon_vmulp, 1>;
-def  VMULfd   : N3VD<1, 0, 0b00, 0b1101, 1, IIC_VBIND, "vmul", "f32",
+def  VMULfd   : N3VD<1, 0, 0b00, 0b1101, 1, IIC_VFMULD, "vmul", "f32",
                      v2f32, v2f32, fmul, 1>;
-def  VMULfq   : N3VQ<1, 0, 0b00, 0b1101, 1, IIC_VBINQ, "vmul", "f32",
+def  VMULfq   : N3VQ<1, 0, 0b00, 0b1101, 1, IIC_VFMULQ, "vmul", "f32",
                      v4f32, v4f32, fmul, 1>;
 defm VMULsl   : N3VSL_HS<0b1000, "vmul", "i", mul>;
 def  VMULslfd : N3VDSL<0b10, 0b1001, IIC_VBIND, "vmul", "f32", v2f32, fmul>;
@@ -2491,7 +3243,7 @@ def : Pat<(v4f32 (fmul (v4f32 QPR:$src1),
 
 //   VQDMULH  : Vector Saturating Doubling Multiply Returning High Half
 defm VQDMULH  : N3VInt_HS<0, 0, 0b1011, 0, N3RegFrm, IIC_VMULi16D, IIC_VMULi32D,
-                          IIC_VMULi16Q, IIC_VMULi32Q, 
+                          IIC_VMULi16Q, IIC_VMULi32Q,
                           "vqdmulh", "s", int_arm_neon_vqdmulh, 1>;
 defm VQDMULHsl: N3VIntSL_HS<0b1100, IIC_VMULi16D, IIC_VMULi32D,
                             IIC_VMULi16Q, IIC_VMULi32Q,
@@ -2555,15 +3307,19 @@ defm VQDMULLsl: N3VLIntSL_HS<0, 0b1011, IIC_VMULi16D,
 defm VMLA     : N3VMulOp_QHS<0, 0, 0b1001, 0, IIC_VMACi16D, IIC_VMACi32D,
                              IIC_VMACi16Q, IIC_VMACi32Q, "vmla", "i", add>;
 def  VMLAfd   : N3VDMulOp<0, 0, 0b00, 0b1101, 1, IIC_VMACD, "vmla", "f32",
-                          v2f32, fmul, fadd>;
+                          v2f32, fmul_su, fadd_mlx>,
+                Requires<[HasNEON, UseFPVMLx]>;
 def  VMLAfq   : N3VQMulOp<0, 0, 0b00, 0b1101, 1, IIC_VMACQ, "vmla", "f32",
-                          v4f32, fmul, fadd>;
+                          v4f32, fmul_su, fadd_mlx>,
+                Requires<[HasNEON, UseFPVMLx]>;
 defm VMLAsl   : N3VMulOpSL_HS<0b0000, IIC_VMACi16D, IIC_VMACi32D,
                               IIC_VMACi16Q, IIC_VMACi32Q, "vmla", "i", add>;
 def  VMLAslfd : N3VDMulOpSL<0b10, 0b0001, IIC_VMACD, "vmla", "f32",
-                            v2f32, fmul, fadd>;
+                            v2f32, fmul_su, fadd_mlx>,
+                Requires<[HasNEON, UseFPVMLx]>;
 def  VMLAslfq : N3VQMulOpSL<0b10, 0b0001, IIC_VMACQ, "vmla", "f32",
-                            v4f32, v2f32, fmul, fadd>;
+                            v4f32, v2f32, fmul_su, fadd_mlx>,
+                Requires<[HasNEON, UseFPVMLx]>;
 
 def : Pat<(v8i16 (add (v8i16 QPR:$src1),
                   (mul (v8i16 QPR:$src2),
@@ -2581,14 +3337,15 @@ def : Pat<(v4i32 (add (v4i32 QPR:$src1),
                                       (DSubReg_i32_reg imm:$lane))),
                               (SubReg_i32_lane imm:$lane)))>;
 
-def : Pat<(v4f32 (fadd (v4f32 QPR:$src1),
-                  (fmul (v4f32 QPR:$src2),
+def : Pat<(v4f32 (fadd_mlx (v4f32 QPR:$src1),
+                  (fmul_su (v4f32 QPR:$src2),
                         (v4f32 (NEONvduplane (v4f32 QPR:$src3), imm:$lane))))),
           (v4f32 (VMLAslfq (v4f32 QPR:$src1),
                            (v4f32 QPR:$src2),
                            (v2f32 (EXTRACT_SUBREG QPR:$src3,
                                    (DSubReg_i32_reg imm:$lane))),
-                           (SubReg_i32_lane imm:$lane)))>;
+                           (SubReg_i32_lane imm:$lane)))>,
+          Requires<[HasNEON, UseFPVMLx]>;
 
 //   VMLAL    : Vector Multiply Accumulate Long (Q += D * D)
 defm VMLALs   : N3VLMulOp_QHS<0,1,0b1000,0, IIC_VMACi16D, IIC_VMACi32D,
@@ -2608,15 +3365,19 @@ defm VQDMLALsl: N3VLInt3SL_HS<0, 0b0011, "vqdmlal", "s", int_arm_neon_vqdmlal>;
 defm VMLS     : N3VMulOp_QHS<1, 0, 0b1001, 0, IIC_VMACi16D, IIC_VMACi32D,
                              IIC_VMACi16Q, IIC_VMACi32Q, "vmls", "i", sub>;
 def  VMLSfd   : N3VDMulOp<0, 0, 0b10, 0b1101, 1, IIC_VMACD, "vmls", "f32",
-                          v2f32, fmul, fsub>;
+                          v2f32, fmul_su, fsub_mlx>,
+                Requires<[HasNEON, UseFPVMLx]>;
 def  VMLSfq   : N3VQMulOp<0, 0, 0b10, 0b1101, 1, IIC_VMACQ, "vmls", "f32",
-                          v4f32, fmul, fsub>;
+                          v4f32, fmul_su, fsub_mlx>,
+                Requires<[HasNEON, UseFPVMLx]>;
 defm VMLSsl   : N3VMulOpSL_HS<0b0100, IIC_VMACi16D, IIC_VMACi32D,
                               IIC_VMACi16Q, IIC_VMACi32Q, "vmls", "i", sub>;
 def  VMLSslfd : N3VDMulOpSL<0b10, 0b0101, IIC_VMACD, "vmls", "f32",
-                            v2f32, fmul, fsub>;
+                            v2f32, fmul_su, fsub_mlx>,
+                Requires<[HasNEON, UseFPVMLx]>;
 def  VMLSslfq : N3VQMulOpSL<0b10, 0b0101, IIC_VMACQ, "vmls", "f32",
-                            v4f32, v2f32, fmul, fsub>;
+                            v4f32, v2f32, fmul_su, fsub_mlx>,
+                Requires<[HasNEON, UseFPVMLx]>;
 
 def : Pat<(v8i16 (sub (v8i16 QPR:$src1),
                   (mul (v8i16 QPR:$src2),
@@ -2634,13 +3395,14 @@ def : Pat<(v4i32 (sub (v4i32 QPR:$src1),
                                       (DSubReg_i32_reg imm:$lane))),
                               (SubReg_i32_lane imm:$lane)))>;
 
-def : Pat<(v4f32 (fsub (v4f32 QPR:$src1),
-                  (fmul (v4f32 QPR:$src2),
+def : Pat<(v4f32 (fsub_mlx (v4f32 QPR:$src1),
+                  (fmul_su (v4f32 QPR:$src2),
                         (v4f32 (NEONvduplane (v4f32 QPR:$src3), imm:$lane))))),
           (v4f32 (VMLSslfq (v4f32 QPR:$src1), (v4f32 QPR:$src2),
                            (v2f32 (EXTRACT_SUBREG QPR:$src3,
                                    (DSubReg_i32_reg imm:$lane))),
-                           (SubReg_i32_lane imm:$lane)))>;
+                           (SubReg_i32_lane imm:$lane)))>,
+          Requires<[HasNEON, UseFPVMLx]>;
 
 //   VMLSL    : Vector Multiply Subtract Long (Q -= D * D)
 defm VMLSLs   : N3VLMulOp_QHS<0,1,0b1010,0, IIC_VMACi16D, IIC_VMACi32D,
@@ -2703,25 +3465,24 @@ def  VCEQfd   : N3VD<0,0,0b00,0b1110,0, IIC_VBIND, "vceq", "f32", v2i32, v2f32,
                      NEONvceq, 1>;
 def  VCEQfq   : N3VQ<0,0,0b00,0b1110,0, IIC_VBINQ, "vceq", "f32", v4i32, v4f32,
                      NEONvceq, 1>;
-// For disassembly only.
+
 defm VCEQz    : N2V_QHS_cmp<0b11, 0b11, 0b01, 0b00010, 0, "vceq", "i",
-                            "$dst, $src, #0">;
+                            "$Vd, $Vm, #0", NEONvceqz>;
 
 //   VCGE     : Vector Compare Greater Than or Equal
 defm VCGEs    : N3V_QHS<0, 0, 0b0011, 1, IIC_VSUBi4D, IIC_VSUBi4D, IIC_VSUBi4Q,
                         IIC_VSUBi4Q, "vcge", "s", NEONvcge, 0>;
-defm VCGEu    : N3V_QHS<1, 0, 0b0011, 1, IIC_VSUBi4D, IIC_VSUBi4D, IIC_VSUBi4Q, 
+defm VCGEu    : N3V_QHS<1, 0, 0b0011, 1, IIC_VSUBi4D, IIC_VSUBi4D, IIC_VSUBi4Q,
                         IIC_VSUBi4Q, "vcge", "u", NEONvcgeu, 0>;
 def  VCGEfd   : N3VD<1,0,0b00,0b1110,0, IIC_VBIND, "vcge", "f32", v2i32, v2f32,
                      NEONvcge, 0>;
 def  VCGEfq   : N3VQ<1,0,0b00,0b1110,0, IIC_VBINQ, "vcge", "f32", v4i32, v4f32,
                      NEONvcge, 0>;
-// For disassembly only.
+
 defm VCGEz    : N2V_QHS_cmp<0b11, 0b11, 0b01, 0b00001, 0, "vcge", "s",
-                            "$dst, $src, #0">;
-// For disassembly only.
+                            "$Vd, $Vm, #0", NEONvcgez>;
 defm VCLEz    : N2V_QHS_cmp<0b11, 0b11, 0b01, 0b00011, 0, "vcle", "s",
-                            "$dst, $src, #0">;
+                            "$Vd, $Vm, #0", NEONvclez>;
 
 //   VCGT     : Vector Compare Greater Than
 defm VCGTs    : N3V_QHS<0, 0, 0b0011, 0, IIC_VSUBi4D, IIC_VSUBi4D, IIC_VSUBi4Q,
@@ -2732,12 +3493,11 @@ def  VCGTfd   : N3VD<1,0,0b10,0b1110,0, IIC_VBIND, "vcgt", "f32", v2i32, v2f32,
                      NEONvcgt, 0>;
 def  VCGTfq   : N3VQ<1,0,0b10,0b1110,0, IIC_VBINQ, "vcgt", "f32", v4i32, v4f32,
                      NEONvcgt, 0>;
-// For disassembly only.
+
 defm VCGTz    : N2V_QHS_cmp<0b11, 0b11, 0b01, 0b00000, 0, "vcgt", "s",
-                            "$dst, $src, #0">;
-// For disassembly only.
+                            "$Vd, $Vm, #0", NEONvcgtz>;
 defm VCLTz    : N2V_QHS_cmp<0b11, 0b11, 0b01, 0b00100, 0, "vclt", "s",
-                            "$dst, $src, #0">;
+                            "$Vd, $Vm, #0", NEONvcltz>;
 
 //   VACGE    : Vector Absolute Compare Greater Than or Equal (aka VCAGE)
 def  VACGEd   : N3VDInt<1, 0, 0b00, 0b1110, 1, N3RegFrm, IIC_VBIND, "vacge",
@@ -2750,7 +3510,7 @@ def  VACGTd   : N3VDInt<1, 0, 0b10, 0b1110, 1, N3RegFrm, IIC_VBIND, "vacgt",
 def  VACGTq   : N3VQInt<1, 0, 0b10, 0b1110, 1, N3RegFrm, IIC_VBINQ, "vacgt",
                         "f32", v4i32, v4f32, int_arm_neon_vacgtq, 0>;
 //   VTST     : Vector Test Bits
-defm VTST     : N3V_QHS<0, 0, 0b1000, 1, IIC_VBINi4D, IIC_VBINi4D, IIC_VBINi4Q, 
+defm VTST     : N3V_QHS<0, 0, 0b1000, 1, IIC_VBINi4D, IIC_VBINi4D, IIC_VBINi4Q,
                         IIC_VBINi4Q, "vtst", "", NEONvtst, 1>;
 
 // Vector Bitwise Operations.
@@ -2779,104 +3539,190 @@ def  VORRd    : N3VDX<0, 0, 0b10, 0b0001, 1, IIC_VBINiD, "vorr",
 def  VORRq    : N3VQX<0, 0, 0b10, 0b0001, 1, IIC_VBINiQ, "vorr",
                       v4i32, v4i32, or, 1>;
 
+def VORRiv4i16 : N1ModImm<1, 0b000, {1,0,?,1}, 0, 0, 0, 1,
+                          (outs DPR:$Vd), (ins nModImm:$SIMM, DPR:$src),
+                          IIC_VMOVImm,
+                          "vorr", "i16", "$Vd, $SIMM", "$src = $Vd",
+                          [(set DPR:$Vd,
+                            (v4i16 (NEONvorrImm DPR:$src, timm:$SIMM)))]> {
+  let Inst{9} = SIMM{9};
+}
+
+def VORRiv2i32 : N1ModImm<1, 0b000, {0,?,?,1}, 0, 0, 0, 1,
+                          (outs DPR:$Vd), (ins nModImm:$SIMM, DPR:$src),
+                          IIC_VMOVImm,
+                          "vorr", "i32", "$Vd, $SIMM", "$src = $Vd",
+                          [(set DPR:$Vd,
+                            (v2i32 (NEONvorrImm DPR:$src, timm:$SIMM)))]> {
+  let Inst{10-9} = SIMM{10-9};
+}
+
+def VORRiv8i16 : N1ModImm<1, 0b000, {1,0,?,1}, 0, 1, 0, 1,
+                          (outs QPR:$Vd), (ins nModImm:$SIMM, QPR:$src),
+                          IIC_VMOVImm,
+                          "vorr", "i16", "$Vd, $SIMM", "$src = $Vd",
+                          [(set QPR:$Vd,
+                            (v8i16 (NEONvorrImm QPR:$src, timm:$SIMM)))]> {
+  let Inst{9} = SIMM{9};
+}
+
+def VORRiv4i32 : N1ModImm<1, 0b000, {0,?,?,1}, 0, 1, 0, 1,
+                          (outs QPR:$Vd), (ins nModImm:$SIMM, QPR:$src),
+                          IIC_VMOVImm,
+                          "vorr", "i32", "$Vd, $SIMM", "$src = $Vd",
+                          [(set QPR:$Vd,
+                            (v4i32 (NEONvorrImm QPR:$src, timm:$SIMM)))]> {
+  let Inst{10-9} = SIMM{10-9};
+}
+
+
 //   VBIC     : Vector Bitwise Bit Clear (AND NOT)
-def  VBICd    : N3VX<0, 0, 0b01, 0b0001, 0, 1, (outs DPR:$dst),
-                     (ins DPR:$src1, DPR:$src2), N3RegFrm, IIC_VBINiD,
-                     "vbic", "$dst, $src1, $src2", "",
-                     [(set DPR:$dst, (v2i32 (and DPR:$src1,
-                                                 (vnotd DPR:$src2))))]>;
-def  VBICq    : N3VX<0, 0, 0b01, 0b0001, 1, 1, (outs QPR:$dst),
-                     (ins QPR:$src1, QPR:$src2), N3RegFrm, IIC_VBINiQ,
-                     "vbic", "$dst, $src1, $src2", "",
-                     [(set QPR:$dst, (v4i32 (and QPR:$src1,
-                                                 (vnotq QPR:$src2))))]>;
+def  VBICd    : N3VX<0, 0, 0b01, 0b0001, 0, 1, (outs DPR:$Vd),
+                     (ins DPR:$Vn, DPR:$Vm), N3RegFrm, IIC_VBINiD,
+                     "vbic", "$Vd, $Vn, $Vm", "",
+                     [(set DPR:$Vd, (v2i32 (and DPR:$Vn,
+                                                 (vnotd DPR:$Vm))))]>;
+def  VBICq    : N3VX<0, 0, 0b01, 0b0001, 1, 1, (outs QPR:$Vd),
+                     (ins QPR:$Vn, QPR:$Vm), N3RegFrm, IIC_VBINiQ,
+                     "vbic", "$Vd, $Vn, $Vm", "",
+                     [(set QPR:$Vd, (v4i32 (and QPR:$Vn,
+                                                 (vnotq QPR:$Vm))))]>;
+
+def VBICiv4i16 : N1ModImm<1, 0b000, {1,0,?,1}, 0, 0, 1, 1,
+                          (outs DPR:$Vd), (ins nModImm:$SIMM, DPR:$src),
+                          IIC_VMOVImm,
+                          "vbic", "i16", "$Vd, $SIMM", "$src = $Vd",
+                          [(set DPR:$Vd,
+                            (v4i16 (NEONvbicImm DPR:$src, timm:$SIMM)))]> {
+  let Inst{9} = SIMM{9};
+}
+
+def VBICiv2i32 : N1ModImm<1, 0b000, {0,?,?,1}, 0, 0, 1, 1,
+                          (outs DPR:$Vd), (ins nModImm:$SIMM, DPR:$src),
+                          IIC_VMOVImm,
+                          "vbic", "i32", "$Vd, $SIMM", "$src = $Vd",
+                          [(set DPR:$Vd,
+                            (v2i32 (NEONvbicImm DPR:$src, timm:$SIMM)))]> {
+  let Inst{10-9} = SIMM{10-9};
+}
+
+def VBICiv8i16 : N1ModImm<1, 0b000, {1,0,?,1}, 0, 1, 1, 1,
+                          (outs QPR:$Vd), (ins nModImm:$SIMM, QPR:$src),
+                          IIC_VMOVImm,
+                          "vbic", "i16", "$Vd, $SIMM", "$src = $Vd",
+                          [(set QPR:$Vd,
+                            (v8i16 (NEONvbicImm QPR:$src, timm:$SIMM)))]> {
+  let Inst{9} = SIMM{9};
+}
+
+def VBICiv4i32 : N1ModImm<1, 0b000, {0,?,?,1}, 0, 1, 1, 1,
+                          (outs QPR:$Vd), (ins nModImm:$SIMM, QPR:$src),
+                          IIC_VMOVImm,
+                          "vbic", "i32", "$Vd, $SIMM", "$src = $Vd",
+                          [(set QPR:$Vd,
+                            (v4i32 (NEONvbicImm QPR:$src, timm:$SIMM)))]> {
+  let Inst{10-9} = SIMM{10-9};
+}
 
 //   VORN     : Vector Bitwise OR NOT
-def  VORNd    : N3VX<0, 0, 0b11, 0b0001, 0, 1, (outs DPR:$dst),
-                     (ins DPR:$src1, DPR:$src2), N3RegFrm, IIC_VBINiD,
-                     "vorn", "$dst, $src1, $src2", "",
-                     [(set DPR:$dst, (v2i32 (or DPR:$src1,
-                                                (vnotd DPR:$src2))))]>;
-def  VORNq    : N3VX<0, 0, 0b11, 0b0001, 1, 1, (outs QPR:$dst),
-                     (ins QPR:$src1, QPR:$src2), N3RegFrm, IIC_VBINiQ,
-                     "vorn", "$dst, $src1, $src2", "",
-                     [(set QPR:$dst, (v4i32 (or QPR:$src1,
-                                                (vnotq QPR:$src2))))]>;
+def  VORNd    : N3VX<0, 0, 0b11, 0b0001, 0, 1, (outs DPR:$Vd),
+                     (ins DPR:$Vn, DPR:$Vm), N3RegFrm, IIC_VBINiD,
+                     "vorn", "$Vd, $Vn, $Vm", "",
+                     [(set DPR:$Vd, (v2i32 (or DPR:$Vn,
+                                                (vnotd DPR:$Vm))))]>;
+def  VORNq    : N3VX<0, 0, 0b11, 0b0001, 1, 1, (outs QPR:$Vd),
+                     (ins QPR:$Vn, QPR:$Vm), N3RegFrm, IIC_VBINiQ,
+                     "vorn", "$Vd, $Vn, $Vm", "",
+                     [(set QPR:$Vd, (v4i32 (or QPR:$Vn,
+                                                (vnotq QPR:$Vm))))]>;
 
 //   VMVN     : Vector Bitwise NOT (Immediate)
 
 let isReMaterializable = 1 in {
-def VMVNv4i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 0, 1, 1, (outs DPR:$dst),
-                         (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmvn", "i16", "$dst, $SIMM", "",
-                         [(set DPR:$dst, (v4i16 (NEONvmvnImm timm:$SIMM)))]>;
-def VMVNv8i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 1, 1, 1, (outs QPR:$dst),
-                         (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmvn", "i16", "$dst, $SIMM", "",
-                         [(set QPR:$dst, (v8i16 (NEONvmvnImm timm:$SIMM)))]>;
 
-def VMVNv2i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 0, 1, 1, (outs DPR:$dst),
+def VMVNv4i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 0, 1, 1, (outs DPR:$Vd),
                          (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmvn", "i32", "$dst, $SIMM", "",
-                         [(set DPR:$dst, (v2i32 (NEONvmvnImm timm:$SIMM)))]>;
-def VMVNv4i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 1, 1, 1, (outs QPR:$dst),
+                         "vmvn", "i16", "$Vd, $SIMM", "",
+                         [(set DPR:$Vd, (v4i16 (NEONvmvnImm timm:$SIMM)))]> {
+  let Inst{9} = SIMM{9};
+}
+
+def VMVNv8i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 1, 1, 1, (outs QPR:$Vd),
                          (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmvn", "i32", "$dst, $SIMM", "",
-                         [(set QPR:$dst, (v4i32 (NEONvmvnImm timm:$SIMM)))]>;
+                         "vmvn", "i16", "$Vd, $SIMM", "",
+                         [(set QPR:$Vd, (v8i16 (NEONvmvnImm timm:$SIMM)))]> {
+  let Inst{9} = SIMM{9};
+}
+
+def VMVNv2i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 0, 1, 1, (outs DPR:$Vd),
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
+                         "vmvn", "i32", "$Vd, $SIMM", "",
+                         [(set DPR:$Vd, (v2i32 (NEONvmvnImm timm:$SIMM)))]> {
+  let Inst{11-8} = SIMM{11-8};
+}
+
+def VMVNv4i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 1, 1, 1, (outs QPR:$Vd),
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
+                         "vmvn", "i32", "$Vd, $SIMM", "",
+                         [(set QPR:$Vd, (v4i32 (NEONvmvnImm timm:$SIMM)))]> {
+  let Inst{11-8} = SIMM{11-8};
+}
 }
 
 //   VMVN     : Vector Bitwise NOT
 def  VMVNd    : N2VX<0b11, 0b11, 0b00, 0b00, 0b01011, 0, 0,
-                     (outs DPR:$dst), (ins DPR:$src), IIC_VSUBiD,
-                     "vmvn", "$dst, $src", "",
-                     [(set DPR:$dst, (v2i32 (vnotd DPR:$src)))]>;
+                     (outs DPR:$Vd), (ins DPR:$Vm), IIC_VSUBiD,
+                     "vmvn", "$Vd, $Vm", "",
+                     [(set DPR:$Vd, (v2i32 (vnotd DPR:$Vm)))]>;
 def  VMVNq    : N2VX<0b11, 0b11, 0b00, 0b00, 0b01011, 1, 0,
-                     (outs QPR:$dst), (ins QPR:$src), IIC_VSUBiD,
-                     "vmvn", "$dst, $src", "",
-                     [(set QPR:$dst, (v4i32 (vnotq QPR:$src)))]>;
+                     (outs QPR:$Vd), (ins QPR:$Vm), IIC_VSUBiD,
+                     "vmvn", "$Vd, $Vm", "",
+                     [(set QPR:$Vd, (v4i32 (vnotq QPR:$Vm)))]>;
 def : Pat<(v2i32 (vnotd DPR:$src)), (VMVNd DPR:$src)>;
 def : Pat<(v4i32 (vnotq QPR:$src)), (VMVNq QPR:$src)>;
 
 //   VBSL     : Vector Bitwise Select
-def  VBSLd    : N3VX<1, 0, 0b01, 0b0001, 0, 1, (outs DPR:$dst),
-                     (ins DPR:$src1, DPR:$src2, DPR:$src3),
+def  VBSLd    : N3VX<1, 0, 0b01, 0b0001, 0, 1, (outs DPR:$Vd),
+                     (ins DPR:$src1, DPR:$Vn, DPR:$Vm),
                      N3RegFrm, IIC_VCNTiD,
-                     "vbsl", "$dst, $src2, $src3", "$src1 = $dst",
-                     [(set DPR:$dst,
-                       (v2i32 (or (and DPR:$src2, DPR:$src1),
-                                  (and DPR:$src3, (vnotd DPR:$src1)))))]>;
-def  VBSLq    : N3VX<1, 0, 0b01, 0b0001, 1, 1, (outs QPR:$dst),
-                     (ins QPR:$src1, QPR:$src2, QPR:$src3),
+                     "vbsl", "$Vd, $Vn, $Vm", "$src1 = $Vd",
+                     [(set DPR:$Vd,
+                       (v2i32 (or (and DPR:$Vn, DPR:$src1),
+                                  (and DPR:$Vm, (vnotd DPR:$src1)))))]>;
+def  VBSLq    : N3VX<1, 0, 0b01, 0b0001, 1, 1, (outs QPR:$Vd),
+                     (ins QPR:$src1, QPR:$Vn, QPR:$Vm),
                      N3RegFrm, IIC_VCNTiQ,
-                     "vbsl", "$dst, $src2, $src3", "$src1 = $dst",
-                     [(set QPR:$dst,
-                       (v4i32 (or (and QPR:$src2, QPR:$src1),
-                                  (and QPR:$src3, (vnotq QPR:$src1)))))]>;
+                     "vbsl", "$Vd, $Vn, $Vm", "$src1 = $Vd",
+                     [(set QPR:$Vd,
+                       (v4i32 (or (and QPR:$Vn, QPR:$src1),
+                                  (and QPR:$Vm, (vnotq QPR:$src1)))))]>;
 
 //   VBIF     : Vector Bitwise Insert if False
 //              like VBSL but with: "vbif $dst, $src3, $src1", "$src2 = $dst",
+// FIXME: This instruction's encoding MAY NOT BE correct.
 def  VBIFd    : N3VX<1, 0, 0b11, 0b0001, 0, 1,
-                     (outs DPR:$dst), (ins DPR:$src1, DPR:$src2, DPR:$src3),
+                     (outs DPR:$Vd), (ins DPR:$src1, DPR:$Vn, DPR:$Vm),
                      N3RegFrm, IIC_VBINiD,
-                     "vbif", "$dst, $src2, $src3", "$src1 = $dst",
+                     "vbif", "$Vd, $Vn, $Vm", "$src1 = $Vd",
                      [/* For disassembly only; pattern left blank */]>;
 def  VBIFq    : N3VX<1, 0, 0b11, 0b0001, 1, 1,
-                     (outs QPR:$dst), (ins QPR:$src1, QPR:$src2, QPR:$src3),
+                     (outs QPR:$Vd), (ins QPR:$src1, QPR:$Vn, QPR:$Vm),
                      N3RegFrm, IIC_VBINiQ,
-                     "vbif", "$dst, $src2, $src3", "$src1 = $dst",
+                     "vbif", "$Vd, $Vn, $Vm", "$src1 = $Vd",
                      [/* For disassembly only; pattern left blank */]>;
 
 //   VBIT     : Vector Bitwise Insert if True
 //              like VBSL but with: "vbit $dst, $src2, $src1", "$src3 = $dst",
+// FIXME: This instruction's encoding MAY NOT BE correct.
 def  VBITd    : N3VX<1, 0, 0b10, 0b0001, 0, 1,
-                     (outs DPR:$dst), (ins DPR:$src1, DPR:$src2, DPR:$src3),
+                     (outs DPR:$Vd), (ins DPR:$src1, DPR:$Vn, DPR:$Vm),
                      N3RegFrm, IIC_VBINiD,
-                     "vbit", "$dst, $src2, $src3", "$src1 = $dst",
+                     "vbit", "$Vd, $Vn, $Vm", "$src1 = $Vd",
                      [/* For disassembly only; pattern left blank */]>;
 def  VBITq    : N3VX<1, 0, 0b10, 0b0001, 1, 1,
-                     (outs QPR:$dst), (ins QPR:$src1, QPR:$src2, QPR:$src3),
+                     (outs QPR:$Vd), (ins QPR:$src1, QPR:$Vn, QPR:$Vm),
                      N3RegFrm, IIC_VBINiQ,
-                     "vbit", "$dst, $src2, $src3", "$src1 = $dst",
+                     "vbit", "$Vd, $Vn, $Vm", "$src1 = $Vd",
                      [/* For disassembly only; pattern left blank */]>;
 
 // VBIT/VBIF are not yet implemented.  The TwoAddress pass will not go looking
@@ -2957,8 +3803,8 @@ def  VPADDi16 : N3VDInt<0, 0, 0b01, 0b1011, 1, N3RegFrm, IIC_VSHLiD,
 def  VPADDi32 : N3VDInt<0, 0, 0b10, 0b1011, 1, N3RegFrm, IIC_VSHLiD,
                         "vpadd", "i32",
                         v2i32, v2i32, int_arm_neon_vpadd, 0>;
-def  VPADDf   : N3VDInt<1, 0, 0b00, 0b1101, 0, N3RegFrm, 
-                        IIC_VBIND, "vpadd", "f32",
+def  VPADDf   : N3VDInt<1, 0, 0b00, 0b1101, 0, N3RegFrm,
+                        IIC_VPBIND, "vpadd", "f32",
                         v2f32, v2f32, int_arm_neon_vpadd, 0>;
 
 //   VPADDL   : Vector Pairwise Add Long
@@ -2986,7 +3832,7 @@ def  VPMAXu16 : N3VDInt<1, 0, 0b01, 0b1010, 0, N3RegFrm, IIC_VSUBi4D, "vpmax",
                         "u16", v4i16, v4i16, int_arm_neon_vpmaxu, 0>;
 def  VPMAXu32 : N3VDInt<1, 0, 0b10, 0b1010, 0, N3RegFrm, IIC_VSUBi4D, "vpmax",
                         "u32", v2i32, v2i32, int_arm_neon_vpmaxu, 0>;
-def  VPMAXf   : N3VDInt<1, 0, 0b00, 0b1111, 0, N3RegFrm, IIC_VSUBi4D, "vpmax",
+def  VPMAXf   : N3VDInt<1, 0, 0b00, 0b1111, 0, N3RegFrm, IIC_VPBIND, "vpmax",
                         "f32", v2f32, v2f32, int_arm_neon_vpmaxs, 0>;
 
 //   VPMIN    : Vector Pairwise Minimum
@@ -3002,16 +3848,16 @@ def  VPMINu16 : N3VDInt<1, 0, 0b01, 0b1010, 1, N3RegFrm, IIC_VSUBi4D, "vpmin",
                         "u16", v4i16, v4i16, int_arm_neon_vpminu, 0>;
 def  VPMINu32 : N3VDInt<1, 0, 0b10, 0b1010, 1, N3RegFrm, IIC_VSUBi4D, "vpmin",
                         "u32", v2i32, v2i32, int_arm_neon_vpminu, 0>;
-def  VPMINf   : N3VDInt<1, 0, 0b10, 0b1111, 0, N3RegFrm, IIC_VSUBi4D, "vpmin",
+def  VPMINf   : N3VDInt<1, 0, 0b10, 0b1111, 0, N3RegFrm, IIC_VPBIND, "vpmin",
                         "f32", v2f32, v2f32, int_arm_neon_vpmins, 0>;
 
 // Vector Reciprocal and Reciprocal Square Root Estimate and Step.
 
 //   VRECPE   : Vector Reciprocal Estimate
-def  VRECPEd  : N2VDInt<0b11, 0b11, 0b10, 0b11, 0b01000, 0, 
+def  VRECPEd  : N2VDInt<0b11, 0b11, 0b10, 0b11, 0b01000, 0,
                         IIC_VUNAD, "vrecpe", "u32",
                         v2i32, v2i32, int_arm_neon_vrecpe>;
-def  VRECPEq  : N2VQInt<0b11, 0b11, 0b10, 0b11, 0b01000, 0, 
+def  VRECPEq  : N2VQInt<0b11, 0b11, 0b10, 0b11, 0b01000, 0,
                         IIC_VUNAQ, "vrecpe", "u32",
                         v4i32, v4i32, int_arm_neon_vrecpe>;
 def  VRECPEfd : N2VDInt<0b11, 0b11, 0b10, 0b11, 0b01010, 0,
@@ -3039,7 +3885,7 @@ def  VRSQRTEq  : N2VQInt<0b11, 0b11, 0b10, 0b11, 0b01001, 0,
 def  VRSQRTEfd : N2VDInt<0b11, 0b11, 0b10, 0b11, 0b01011, 0,
                          IIC_VUNAD, "vrsqrte", "f32",
                          v2f32, v2f32, int_arm_neon_vrsqrte>;
-def  VRSQRTEfq : N2VQInt<0b11, 0b11, 0b10, 0b11, 0b01011, 0, 
+def  VRSQRTEfq : N2VQInt<0b11, 0b11, 0b10, 0b11, 0b01011, 0,
                          IIC_VUNAQ, "vrsqrte", "f32",
                          v4f32, v4f32, int_arm_neon_vrsqrte>;
 
@@ -3054,12 +3900,12 @@ def VRSQRTSfq : N3VQInt<0, 0, 0b10, 0b1111, 1, N3RegFrm,
 // Vector Shifts.
 
 //   VSHL     : Vector Shift
-defm VSHLs    : N3VInt_QHSD<0, 0, 0b0100, 0, N3RegVShFrm,
+defm VSHLs    : N3VInt_QHSDSh<0, 0, 0b0100, 0, N3RegVShFrm,
                             IIC_VSHLiD, IIC_VSHLiD, IIC_VSHLiQ, IIC_VSHLiQ,
-                            "vshl", "s", int_arm_neon_vshifts, 0>;
-defm VSHLu    : N3VInt_QHSD<1, 0, 0b0100, 0, N3RegVShFrm,
+                            "vshl", "s", int_arm_neon_vshifts>;
+defm VSHLu    : N3VInt_QHSDSh<1, 0, 0b0100, 0, N3RegVShFrm,
                             IIC_VSHLiD, IIC_VSHLiD, IIC_VSHLiQ, IIC_VSHLiQ,
-                            "vshl", "u", int_arm_neon_vshiftu, 0>;
+                            "vshl", "u", int_arm_neon_vshiftu>;
 //   VSHL     : Vector Shift Left (Immediate)
 defm VSHLi    : N2VSh_QHSD<0, 1, 0b0101, 1, IIC_VSHLiD, "vshl", "i", NEONvshl,
                            N2RegVShLFrm>;
@@ -3093,12 +3939,12 @@ defm VSHRN    : N2VNSh_HSD<0,1,0b1000,0,0,1, IIC_VSHLiD, "vshrn", "i",
                            NEONvshrn>;
 
 //   VRSHL    : Vector Rounding Shift
-defm VRSHLs   : N3VInt_QHSD<0, 0, 0b0101, 0, N3RegVShFrm,
+defm VRSHLs   : N3VInt_QHSDSh<0, 0, 0b0101, 0, N3RegVShFrm,
                             IIC_VSHLi4D, IIC_VSHLi4D, IIC_VSHLi4Q, IIC_VSHLi4Q,
-                            "vrshl", "s", int_arm_neon_vrshifts, 0>;
-defm VRSHLu   : N3VInt_QHSD<1, 0, 0b0101, 0, N3RegVShFrm,
+                            "vrshl", "s", int_arm_neon_vrshifts>;
+defm VRSHLu   : N3VInt_QHSDSh<1, 0, 0b0101, 0, N3RegVShFrm,
                             IIC_VSHLi4D, IIC_VSHLi4D, IIC_VSHLi4Q, IIC_VSHLi4Q,
-                            "vrshl", "u", int_arm_neon_vrshiftu, 0>;
+                            "vrshl", "u", int_arm_neon_vrshiftu>;
 //   VRSHR    : Vector Rounding Shift Right
 defm VRSHRs   : N2VSh_QHSD<0,1,0b0010,1, IIC_VSHLi4D, "vrshr", "s", NEONvrshrs,
                            N2RegVShRFrm>;
@@ -3110,12 +3956,12 @@ defm VRSHRN   : N2VNSh_HSD<0, 1, 0b1000, 0, 1, 1, IIC_VSHLi4D, "vrshrn", "i",
                            NEONvrshrn>;
 
 //   VQSHL    : Vector Saturating Shift
-defm VQSHLs   : N3VInt_QHSD<0, 0, 0b0100, 1, N3RegVShFrm,
+defm VQSHLs   : N3VInt_QHSDSh<0, 0, 0b0100, 1, N3RegVShFrm,
                             IIC_VSHLi4D, IIC_VSHLi4D, IIC_VSHLi4Q, IIC_VSHLi4Q,
-                            "vqshl", "s", int_arm_neon_vqshifts, 0>;
-defm VQSHLu   : N3VInt_QHSD<1, 0, 0b0100, 1, N3RegVShFrm,
+                            "vqshl", "s", int_arm_neon_vqshifts>;
+defm VQSHLu   : N3VInt_QHSDSh<1, 0, 0b0100, 1, N3RegVShFrm,
                             IIC_VSHLi4D, IIC_VSHLi4D, IIC_VSHLi4Q, IIC_VSHLi4Q,
-                            "vqshl", "u", int_arm_neon_vqshiftu, 0>;
+                            "vqshl", "u", int_arm_neon_vqshiftu>;
 //   VQSHL    : Vector Saturating Shift Left (Immediate)
 defm VQSHLsi  : N2VSh_QHSD<0,1,0b0111,1, IIC_VSHLi4D, "vqshl", "s",NEONvqshls,
                            N2RegVShLFrm>;
@@ -3136,12 +3982,12 @@ defm VQSHRUN  : N2VNSh_HSD<1, 1, 0b1000, 0, 0, 1, IIC_VSHLi4D, "vqshrun", "s",
                            NEONvqshrnsu>;
 
 //   VQRSHL   : Vector Saturating Rounding Shift
-defm VQRSHLs  : N3VInt_QHSD<0, 0, 0b0101, 1, N3RegVShFrm,
+defm VQRSHLs  : N3VInt_QHSDSh<0, 0, 0b0101, 1, N3RegVShFrm,
                             IIC_VSHLi4D, IIC_VSHLi4D, IIC_VSHLi4Q, IIC_VSHLi4Q,
-                            "vqrshl", "s", int_arm_neon_vqrshifts, 0>;
-defm VQRSHLu  : N3VInt_QHSD<1, 0, 0b0101, 1, N3RegVShFrm,
+                            "vqrshl", "s", int_arm_neon_vqrshifts>;
+defm VQRSHLu  : N3VInt_QHSDSh<1, 0, 0b0101, 1, N3RegVShFrm,
                             IIC_VSHLi4D, IIC_VSHLi4D, IIC_VSHLi4Q, IIC_VSHLi4Q,
-                            "vqrshl", "u", int_arm_neon_vqrshiftu, 0>;
+                            "vqrshl", "u", int_arm_neon_vqrshiftu>;
 
 //   VQRSHRN  : Vector Saturating Rounding Shift Right and Narrow
 defm VQRSHRNs : N2VNSh_HSD<0, 1, 0b1001, 0, 1, 1, IIC_VSHLi4D, "vqrshrn", "s",
@@ -3168,7 +4014,7 @@ defm VSRI     : N2VShIns_QHSD<1, 1, 0b0100, 1, "vsri", NEONvsri, N2RegVShRFrm>;
 // Vector Absolute and Saturating Absolute.
 
 //   VABS     : Vector Absolute Value
-defm VABS     : N2VInt_QHS<0b11, 0b11, 0b01, 0b00110, 0, 
+defm VABS     : N2VInt_QHS<0b11, 0b11, 0b01, 0b00110, 0,
                            IIC_VUNAiD, IIC_VUNAiQ, "vabs", "s",
                            int_arm_neon_vabs>;
 def  VABSfd   : N2VDInt<0b11, 0b11, 0b10, 0b01, 0b01110, 0,
@@ -3179,7 +4025,7 @@ def  VABSfq   : N2VQInt<0b11, 0b11, 0b10, 0b01, 0b01110, 0,
                         v4f32, v4f32, int_arm_neon_vabs>;
 
 //   VQABS    : Vector Saturating Absolute Value
-defm VQABS    : N2VInt_QHS<0b11, 0b11, 0b00, 0b01110, 0, 
+defm VQABS    : N2VInt_QHS<0b11, 0b11, 0b00, 0b01110, 0,
                            IIC_VQUNAiD, IIC_VQUNAiQ, "vqabs", "s",
                            int_arm_neon_vqabs>;
 
@@ -3191,13 +4037,13 @@ def vnegq  : PatFrag<(ops node:$in),
                      (sub (bitconvert (v4i32 NEONimmAllZerosV)), node:$in)>;
 
 class VNEGD<bits<2> size, string OpcodeStr, string Dt, ValueType Ty>
-  : N2V<0b11, 0b11, size, 0b01, 0b00111, 0, 0, (outs DPR:$dst), (ins DPR:$src),
-        IIC_VSHLiD, OpcodeStr, Dt, "$dst, $src", "",
-        [(set DPR:$dst, (Ty (vnegd DPR:$src)))]>;
+  : N2V<0b11, 0b11, size, 0b01, 0b00111, 0, 0, (outs DPR:$Vd), (ins DPR:$Vm),
+        IIC_VSHLiD, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set DPR:$Vd, (Ty (vnegd DPR:$Vm)))]>;
 class VNEGQ<bits<2> size, string OpcodeStr, string Dt, ValueType Ty>
-  : N2V<0b11, 0b11, size, 0b01, 0b00111, 1, 0, (outs QPR:$dst), (ins QPR:$src),
-        IIC_VSHLiD, OpcodeStr, Dt, "$dst, $src", "",
-        [(set QPR:$dst, (Ty (vnegq QPR:$src)))]>;
+  : N2V<0b11, 0b11, size, 0b01, 0b00111, 1, 0, (outs QPR:$Vd), (ins QPR:$Vm),
+        IIC_VSHLiQ, OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set QPR:$Vd, (Ty (vnegq QPR:$Vm)))]>;
 
 //   VNEG     : Vector Negate (integer)
 def  VNEGs8d  : VNEGD<0b00, "vneg", "s8", v8i8>;
@@ -3209,13 +4055,13 @@ def  VNEGs32q : VNEGQ<0b10, "vneg", "s32", v4i32>;
 
 //   VNEG     : Vector Negate (floating-point)
 def  VNEGfd   : N2V<0b11, 0b11, 0b10, 0b01, 0b01111, 0, 0,
-                    (outs DPR:$dst), (ins DPR:$src), IIC_VUNAD,
-                    "vneg", "f32", "$dst, $src", "",
-                    [(set DPR:$dst, (v2f32 (fneg DPR:$src)))]>;
+                    (outs DPR:$Vd), (ins DPR:$Vm), IIC_VUNAD,
+                    "vneg", "f32", "$Vd, $Vm", "",
+                    [(set DPR:$Vd, (v2f32 (fneg DPR:$Vm)))]>;
 def  VNEGf32q : N2V<0b11, 0b11, 0b10, 0b01, 0b01111, 1, 0,
-                    (outs QPR:$dst), (ins QPR:$src), IIC_VUNAQ,
-                    "vneg", "f32", "$dst, $src", "",
-                    [(set QPR:$dst, (v4f32 (fneg QPR:$src)))]>;
+                    (outs QPR:$Vd), (ins QPR:$Vm), IIC_VUNAQ,
+                    "vneg", "f32", "$Vd, $Vm", "",
+                    [(set QPR:$Vd, (v4f32 (fneg QPR:$Vm)))]>;
 
 def : Pat<(v8i8  (vnegd  DPR:$src)), (VNEGs8d DPR:$src)>;
 def : Pat<(v4i16 (vnegd  DPR:$src)), (VNEGs16d DPR:$src)>;
@@ -3225,22 +4071,22 @@ def : Pat<(v8i16 (vnegq QPR:$src)), (VNEGs16q QPR:$src)>;
 def : Pat<(v4i32 (vnegq QPR:$src)), (VNEGs32q QPR:$src)>;
 
 //   VQNEG    : Vector Saturating Negate
-defm VQNEG    : N2VInt_QHS<0b11, 0b11, 0b00, 0b01111, 0, 
+defm VQNEG    : N2VInt_QHS<0b11, 0b11, 0b00, 0b01111, 0,
                            IIC_VQUNAiD, IIC_VQUNAiQ, "vqneg", "s",
                            int_arm_neon_vqneg>;
 
 // Vector Bit Counting Operations.
 
 //   VCLS     : Vector Count Leading Sign Bits
-defm VCLS     : N2VInt_QHS<0b11, 0b11, 0b00, 0b01000, 0, 
+defm VCLS     : N2VInt_QHS<0b11, 0b11, 0b00, 0b01000, 0,
                            IIC_VCNTiD, IIC_VCNTiQ, "vcls", "s",
                            int_arm_neon_vcls>;
 //   VCLZ     : Vector Count Leading Zeros
-defm VCLZ     : N2VInt_QHS<0b11, 0b11, 0b00, 0b01001, 0, 
+defm VCLZ     : N2VInt_QHS<0b11, 0b11, 0b00, 0b01001, 0,
                            IIC_VCNTiD, IIC_VCNTiQ, "vclz", "i",
                            int_arm_neon_vclz>;
 //   VCNT     : Vector Count One Bits
-def  VCNTd    : N2VDInt<0b11, 0b11, 0b00, 0b00, 0b01010, 0, 
+def  VCNTd    : N2VDInt<0b11, 0b11, 0b00, 0b00, 0b01010, 0,
                         IIC_VCNTiD, "vcnt", "8",
                         v8i8, v8i8, int_arm_neon_vcnt>;
 def  VCNTq    : N2VQInt<0b11, 0b11, 0b00, 0b00, 0b01010, 0,
@@ -3249,98 +4095,126 @@ def  VCNTq    : N2VQInt<0b11, 0b11, 0b00, 0b00, 0b01010, 0,
 
 // Vector Swap -- for disassembly only.
 def  VSWPd    : N2VX<0b11, 0b11, 0b00, 0b10, 0b00000, 0, 0,
-                     (outs DPR:$dst), (ins DPR:$src), NoItinerary,
-                     "vswp", "$dst, $src", "", []>;
+                     (outs DPR:$Vd), (ins DPR:$Vm), NoItinerary,
+                     "vswp", "$Vd, $Vm", "", []>;
 def  VSWPq    : N2VX<0b11, 0b11, 0b00, 0b10, 0b00000, 1, 0,
-                     (outs QPR:$dst), (ins QPR:$src), NoItinerary,
-                     "vswp", "$dst, $src", "", []>;
+                     (outs QPR:$Vd), (ins QPR:$Vm), NoItinerary,
+                     "vswp", "$Vd, $Vm", "", []>;
 
 // Vector Move Operations.
 
 //   VMOV     : Vector Move (Register)
 
 let neverHasSideEffects = 1 in {
-def  VMOVDneon: N3VX<0, 0, 0b10, 0b0001, 0, 1, (outs DPR:$dst), (ins DPR:$src),
-                     N3RegFrm, IIC_VMOVD, "vmov", "$dst, $src", "", []>;
-def  VMOVQ    : N3VX<0, 0, 0b10, 0b0001, 1, 1, (outs QPR:$dst), (ins QPR:$src),
-                     N3RegFrm, IIC_VMOVD, "vmov", "$dst, $src", "", []>;
+def  VMOVDneon: N3VX<0, 0, 0b10, 0b0001, 0, 1, (outs DPR:$Vd), (ins DPR:$Vm),
+                     N3RegFrm, IIC_VMOV, "vmov", "$Vd, $Vm", "", []> {
+  let Vn{4-0} = Vm{4-0};
+}
+def  VMOVQ    : N3VX<0, 0, 0b10, 0b0001, 1, 1, (outs QPR:$Vd), (ins QPR:$Vm),
+                     N3RegFrm, IIC_VMOV, "vmov", "$Vd, $Vm", "", []> {
+  let Vn{4-0} = Vm{4-0};
+}
 
 // Pseudo vector move instructions for QQ and QQQQ registers. This should
 // be expanded after register allocation is completed.
 def  VMOVQQ   : PseudoInst<(outs QQPR:$dst), (ins QQPR:$src),
-                NoItinerary, "${:comment} vmov\t$dst, $src", []>;
+                NoItinerary, []>;
 
 def  VMOVQQQQ : PseudoInst<(outs QQQQPR:$dst), (ins QQQQPR:$src),
-                NoItinerary, "${:comment} vmov\t$dst, $src", []>;
+                NoItinerary, []>;
 } // neverHasSideEffects
 
 //   VMOV     : Vector Move (Immediate)
 
 let isReMaterializable = 1 in {
-def VMOVv8i8  : N1ModImm<1, 0b000, 0b1110, 0, 0, 0, 1, (outs DPR:$dst),
+def VMOVv8i8  : N1ModImm<1, 0b000, 0b1110, 0, 0, 0, 1, (outs DPR:$Vd),
                          (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmov", "i8", "$dst, $SIMM", "",
-                         [(set DPR:$dst, (v8i8 (NEONvmovImm timm:$SIMM)))]>;
-def VMOVv16i8 : N1ModImm<1, 0b000, 0b1110, 0, 1, 0, 1, (outs QPR:$dst),
+                         "vmov", "i8", "$Vd, $SIMM", "",
+                         [(set DPR:$Vd, (v8i8 (NEONvmovImm timm:$SIMM)))]>;
+def VMOVv16i8 : N1ModImm<1, 0b000, 0b1110, 0, 1, 0, 1, (outs QPR:$Vd),
                          (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmov", "i8", "$dst, $SIMM", "",
-                         [(set QPR:$dst, (v16i8 (NEONvmovImm timm:$SIMM)))]>;
+                         "vmov", "i8", "$Vd, $SIMM", "",
+                         [(set QPR:$Vd, (v16i8 (NEONvmovImm timm:$SIMM)))]>;
 
-def VMOVv4i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 0, 0, 1, (outs DPR:$dst),
+def VMOVv4i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 0, 0, 1, (outs DPR:$Vd),
                          (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmov", "i16", "$dst, $SIMM", "",
-                         [(set DPR:$dst, (v4i16 (NEONvmovImm timm:$SIMM)))]>;
-def VMOVv8i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 1, 0, 1, (outs QPR:$dst),
-                         (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmov", "i16", "$dst, $SIMM", "",
-                         [(set QPR:$dst, (v8i16 (NEONvmovImm timm:$SIMM)))]>;
+                         "vmov", "i16", "$Vd, $SIMM", "",
+                         [(set DPR:$Vd, (v4i16 (NEONvmovImm timm:$SIMM)))]> {
+  let Inst{9} = SIMM{9};
+}
 
-def VMOVv2i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 0, 0, 1, (outs DPR:$dst),
+def VMOVv8i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 1, 0, 1, (outs QPR:$Vd),
                          (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmov", "i32", "$dst, $SIMM", "",
-                         [(set DPR:$dst, (v2i32 (NEONvmovImm timm:$SIMM)))]>;
-def VMOVv4i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 1, 0, 1, (outs QPR:$dst),
-                         (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmov", "i32", "$dst, $SIMM", "",
-                         [(set QPR:$dst, (v4i32 (NEONvmovImm timm:$SIMM)))]>;
+                         "vmov", "i16", "$Vd, $SIMM", "",
+                         [(set QPR:$Vd, (v8i16 (NEONvmovImm timm:$SIMM)))]> {
+ let Inst{9} = SIMM{9};
+}
 
-def VMOVv1i64 : N1ModImm<1, 0b000, 0b1110, 0, 0, 1, 1, (outs DPR:$dst),
+def VMOVv2i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 0, 0, 1, (outs DPR:$Vd),
                          (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmov", "i64", "$dst, $SIMM", "",
-                         [(set DPR:$dst, (v1i64 (NEONvmovImm timm:$SIMM)))]>;
-def VMOVv2i64 : N1ModImm<1, 0b000, 0b1110, 0, 1, 1, 1, (outs QPR:$dst),
+                         "vmov", "i32", "$Vd, $SIMM", "",
+                         [(set DPR:$Vd, (v2i32 (NEONvmovImm timm:$SIMM)))]> {
+  let Inst{11-8} = SIMM{11-8};
+}
+
+def VMOVv4i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 1, 0, 1, (outs QPR:$Vd),
                          (ins nModImm:$SIMM), IIC_VMOVImm,
-                         "vmov", "i64", "$dst, $SIMM", "",
-                         [(set QPR:$dst, (v2i64 (NEONvmovImm timm:$SIMM)))]>;
+                         "vmov", "i32", "$Vd, $SIMM", "",
+                         [(set QPR:$Vd, (v4i32 (NEONvmovImm timm:$SIMM)))]> {
+  let Inst{11-8} = SIMM{11-8};
+}
+
+def VMOVv1i64 : N1ModImm<1, 0b000, 0b1110, 0, 0, 1, 1, (outs DPR:$Vd),
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
+                         "vmov", "i64", "$Vd, $SIMM", "",
+                         [(set DPR:$Vd, (v1i64 (NEONvmovImm timm:$SIMM)))]>;
+def VMOVv2i64 : N1ModImm<1, 0b000, 0b1110, 0, 1, 1, 1, (outs QPR:$Vd),
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
+                         "vmov", "i64", "$Vd, $SIMM", "",
+                         [(set QPR:$Vd, (v2i64 (NEONvmovImm timm:$SIMM)))]>;
 } // isReMaterializable
 
 //   VMOV     : Vector Get Lane (move scalar to ARM core register)
 
 def VGETLNs8  : NVGetLane<{1,1,1,0,0,1,?,1}, 0b1011, {?,?},
-                          (outs GPR:$dst), (ins DPR:$src, nohash_imm:$lane),
-                          IIC_VMOVSI, "vmov", "s8", "$dst, $src[$lane]",
-                          [(set GPR:$dst, (NEONvgetlanes (v8i8 DPR:$src),
-                                           imm:$lane))]>;
+                          (outs GPR:$R), (ins DPR:$V, nohash_imm:$lane),
+                          IIC_VMOVSI, "vmov", "s8", "$R, $V[$lane]",
+                          [(set GPR:$R, (NEONvgetlanes (v8i8 DPR:$V),
+                                           imm:$lane))]> {
+  let Inst{21}  = lane{2};
+  let Inst{6-5} = lane{1-0};
+}
 def VGETLNs16 : NVGetLane<{1,1,1,0,0,0,?,1}, 0b1011, {?,1},
-                          (outs GPR:$dst), (ins DPR:$src, nohash_imm:$lane),
-                          IIC_VMOVSI, "vmov", "s16", "$dst, $src[$lane]",
-                          [(set GPR:$dst, (NEONvgetlanes (v4i16 DPR:$src),
-                                           imm:$lane))]>;
+                          (outs GPR:$R), (ins DPR:$V, nohash_imm:$lane),
+                          IIC_VMOVSI, "vmov", "s16", "$R, $V[$lane]",
+                          [(set GPR:$R, (NEONvgetlanes (v4i16 DPR:$V),
+                                           imm:$lane))]> {
+  let Inst{21} = lane{1};
+  let Inst{6}  = lane{0};
+}
 def VGETLNu8  : NVGetLane<{1,1,1,0,1,1,?,1}, 0b1011, {?,?},
-                          (outs GPR:$dst), (ins DPR:$src, nohash_imm:$lane),
-                          IIC_VMOVSI, "vmov", "u8", "$dst, $src[$lane]",
-                          [(set GPR:$dst, (NEONvgetlaneu (v8i8 DPR:$src),
-                                           imm:$lane))]>;
+                          (outs GPR:$R), (ins DPR:$V, nohash_imm:$lane),
+                          IIC_VMOVSI, "vmov", "u8", "$R, $V[$lane]",
+                          [(set GPR:$R, (NEONvgetlaneu (v8i8 DPR:$V),
+                                           imm:$lane))]> {
+  let Inst{21}  = lane{2};
+  let Inst{6-5} = lane{1-0};
+}
 def VGETLNu16 : NVGetLane<{1,1,1,0,1,0,?,1}, 0b1011, {?,1},
-                          (outs GPR:$dst), (ins DPR:$src, nohash_imm:$lane),
-                          IIC_VMOVSI, "vmov", "u16", "$dst, $src[$lane]",
-                          [(set GPR:$dst, (NEONvgetlaneu (v4i16 DPR:$src),
-                                           imm:$lane))]>;
+                          (outs GPR:$R), (ins DPR:$V, nohash_imm:$lane),
+                          IIC_VMOVSI, "vmov", "u16", "$R, $V[$lane]",
+                          [(set GPR:$R, (NEONvgetlaneu (v4i16 DPR:$V),
+                                           imm:$lane))]> {
+  let Inst{21} = lane{1};
+  let Inst{6}  = lane{0};
+}
 def VGETLNi32 : NVGetLane<{1,1,1,0,0,0,?,1}, 0b1011, 0b00,
-                          (outs GPR:$dst), (ins DPR:$src, nohash_imm:$lane),
-                          IIC_VMOVSI, "vmov", "32", "$dst, $src[$lane]",
-                          [(set GPR:$dst, (extractelt (v2i32 DPR:$src),
-                                           imm:$lane))]>;
+                          (outs GPR:$R), (ins DPR:$V, nohash_imm:$lane),
+                          IIC_VMOVSI, "vmov", "32", "$R, $V[$lane]",
+                          [(set GPR:$R, (extractelt (v2i32 DPR:$V),
+                                           imm:$lane))]> {
+  let Inst{21} = lane{0};
+}
 // def VGETLNf32: see FMRDH and FMRDL in ARMInstrVFP.td
 def : Pat<(NEONvgetlanes (v16i8 QPR:$src), imm:$lane),
           (VGETLNs8 (v8i8 (EXTRACT_SUBREG QPR:$src,
@@ -3376,37 +4250,45 @@ def : Pat<(extractelt (v2f64 QPR:$src1), imm:$src2),
 
 //   VMOV     : Vector Set Lane (move ARM core register to scalar)
 
-let Constraints = "$src1 = $dst" in {
-def VSETLNi8  : NVSetLane<{1,1,1,0,0,1,?,0}, 0b1011, {?,?}, (outs DPR:$dst),
-                          (ins DPR:$src1, GPR:$src2, nohash_imm:$lane),
-                          IIC_VMOVISL, "vmov", "8", "$dst[$lane], $src2",
-                          [(set DPR:$dst, (vector_insert (v8i8 DPR:$src1),
-                                           GPR:$src2, imm:$lane))]>;
-def VSETLNi16 : NVSetLane<{1,1,1,0,0,0,?,0}, 0b1011, {?,1}, (outs DPR:$dst),
-                          (ins DPR:$src1, GPR:$src2, nohash_imm:$lane),
-                          IIC_VMOVISL, "vmov", "16", "$dst[$lane], $src2",
-                          [(set DPR:$dst, (vector_insert (v4i16 DPR:$src1),
-                                           GPR:$src2, imm:$lane))]>;
-def VSETLNi32 : NVSetLane<{1,1,1,0,0,0,?,0}, 0b1011, 0b00, (outs DPR:$dst),
-                          (ins DPR:$src1, GPR:$src2, nohash_imm:$lane),
-                          IIC_VMOVISL, "vmov", "32", "$dst[$lane], $src2",
-                          [(set DPR:$dst, (insertelt (v2i32 DPR:$src1),
-                                           GPR:$src2, imm:$lane))]>;
+let Constraints = "$src1 = $V" in {
+def VSETLNi8  : NVSetLane<{1,1,1,0,0,1,?,0}, 0b1011, {?,?}, (outs DPR:$V),
+                          (ins DPR:$src1, GPR:$R, nohash_imm:$lane),
+                          IIC_VMOVISL, "vmov", "8", "$V[$lane], $R",
+                          [(set DPR:$V, (vector_insert (v8i8 DPR:$src1),
+                                           GPR:$R, imm:$lane))]> {
+  let Inst{21}  = lane{2};
+  let Inst{6-5} = lane{1-0};
+}
+def VSETLNi16 : NVSetLane<{1,1,1,0,0,0,?,0}, 0b1011, {?,1}, (outs DPR:$V),
+                          (ins DPR:$src1, GPR:$R, nohash_imm:$lane),
+                          IIC_VMOVISL, "vmov", "16", "$V[$lane], $R",
+                          [(set DPR:$V, (vector_insert (v4i16 DPR:$src1),
+                                           GPR:$R, imm:$lane))]> {
+  let Inst{21} = lane{1};
+  let Inst{6}  = lane{0};
+}
+def VSETLNi32 : NVSetLane<{1,1,1,0,0,0,?,0}, 0b1011, 0b00, (outs DPR:$V),
+                          (ins DPR:$src1, GPR:$R, nohash_imm:$lane),
+                          IIC_VMOVISL, "vmov", "32", "$V[$lane], $R",
+                          [(set DPR:$V, (insertelt (v2i32 DPR:$src1),
+                                           GPR:$R, imm:$lane))]> {
+  let Inst{21} = lane{0};
+}
 }
 def : Pat<(vector_insert (v16i8 QPR:$src1), GPR:$src2, imm:$lane),
-          (v16i8 (INSERT_SUBREG QPR:$src1, 
+          (v16i8 (INSERT_SUBREG QPR:$src1,
                   (v8i8 (VSETLNi8 (v8i8 (EXTRACT_SUBREG QPR:$src1,
                                    (DSubReg_i8_reg imm:$lane))),
                             GPR:$src2, (SubReg_i8_lane imm:$lane))),
                   (DSubReg_i8_reg imm:$lane)))>;
 def : Pat<(vector_insert (v8i16 QPR:$src1), GPR:$src2, imm:$lane),
-          (v8i16 (INSERT_SUBREG QPR:$src1, 
+          (v8i16 (INSERT_SUBREG QPR:$src1,
                   (v4i16 (VSETLNi16 (v4i16 (EXTRACT_SUBREG QPR:$src1,
                                      (DSubReg_i16_reg imm:$lane))),
                              GPR:$src2, (SubReg_i16_lane imm:$lane))),
                   (DSubReg_i16_reg imm:$lane)))>;
 def : Pat<(insertelt (v4i32 QPR:$src1), GPR:$src2, imm:$lane),
-          (v4i32 (INSERT_SUBREG QPR:$src1, 
+          (v4i32 (INSERT_SUBREG QPR:$src1,
                   (v2i32 (VSETLNi32 (v2i32 (EXTRACT_SUBREG QPR:$src1,
                                      (DSubReg_i32_reg imm:$lane))),
                              GPR:$src2, (SubReg_i32_lane imm:$lane))),
@@ -3454,13 +4336,13 @@ def : Pat<(v4i32 (scalar_to_vector GPR:$src)),
 //   VDUP     : Vector Duplicate (from ARM core register to all elements)
 
 class VDUPD<bits<8> opcod1, bits<2> opcod3, string Dt, ValueType Ty>
-  : NVDup<opcod1, 0b1011, opcod3, (outs DPR:$dst), (ins GPR:$src),
-          IIC_VMOVIS, "vdup", Dt, "$dst, $src",
-          [(set DPR:$dst, (Ty (NEONvdup (i32 GPR:$src))))]>;
+  : NVDup<opcod1, 0b1011, opcod3, (outs DPR:$V), (ins GPR:$R),
+          IIC_VMOVIS, "vdup", Dt, "$V, $R",
+          [(set DPR:$V, (Ty (NEONvdup (i32 GPR:$R))))]>;
 class VDUPQ<bits<8> opcod1, bits<2> opcod3, string Dt, ValueType Ty>
-  : NVDup<opcod1, 0b1011, opcod3, (outs QPR:$dst), (ins GPR:$src),
-          IIC_VMOVIS, "vdup", Dt, "$dst, $src",
-          [(set QPR:$dst, (Ty (NEONvdup (i32 GPR:$src))))]>;
+  : NVDup<opcod1, 0b1011, opcod3, (outs QPR:$V), (ins GPR:$R),
+          IIC_VMOVIS, "vdup", Dt, "$V, $R",
+          [(set QPR:$V, (Ty (NEONvdup (i32 GPR:$R))))]>;
 
 def  VDUP8d   : VDUPD<0b11101100, 0b00, "8", v8i8>;
 def  VDUP16d  : VDUPD<0b11101000, 0b01, "16", v4i16>;
@@ -3469,40 +4351,56 @@ def  VDUP8q   : VDUPQ<0b11101110, 0b00, "8", v16i8>;
 def  VDUP16q  : VDUPQ<0b11101010, 0b01, "16", v8i16>;
 def  VDUP32q  : VDUPQ<0b11101010, 0b00, "32", v4i32>;
 
-def  VDUPfd   : NVDup<0b11101000, 0b1011, 0b00, (outs DPR:$dst), (ins GPR:$src),
-                      IIC_VMOVIS, "vdup", "32", "$dst, $src",
-                      [(set DPR:$dst, (v2f32 (NEONvdup
-                                              (f32 (bitconvert GPR:$src)))))]>;
-def  VDUPfq   : NVDup<0b11101010, 0b1011, 0b00, (outs QPR:$dst), (ins GPR:$src),
-                      IIC_VMOVIS, "vdup", "32", "$dst, $src",
-                      [(set QPR:$dst, (v4f32 (NEONvdup
-                                              (f32 (bitconvert GPR:$src)))))]>;
+def  VDUPfd   : NVDup<0b11101000, 0b1011, 0b00, (outs DPR:$V), (ins GPR:$R),
+                      IIC_VMOVIS, "vdup", "32", "$V, $R",
+                      [(set DPR:$V, (v2f32 (NEONvdup
+                                              (f32 (bitconvert GPR:$R)))))]>;
+def  VDUPfq   : NVDup<0b11101010, 0b1011, 0b00, (outs QPR:$V), (ins GPR:$R),
+                      IIC_VMOVIS, "vdup", "32", "$V, $R",
+                      [(set QPR:$V, (v4f32 (NEONvdup
+                                              (f32 (bitconvert GPR:$R)))))]>;
 
 //   VDUP     : Vector Duplicate Lane (from scalar to all elements)
 
 class VDUPLND<bits<4> op19_16, string OpcodeStr, string Dt,
               ValueType Ty>
-  : NVDupLane<op19_16, 0, (outs DPR:$dst), (ins DPR:$src, nohash_imm:$lane),
-              IIC_VMOVD, OpcodeStr, Dt, "$dst, $src[$lane]",
-              [(set DPR:$dst, (Ty (NEONvduplane (Ty DPR:$src), imm:$lane)))]>;
+  : NVDupLane<op19_16, 0, (outs DPR:$Vd), (ins DPR:$Vm, nohash_imm:$lane),
+              IIC_VMOVD, OpcodeStr, Dt, "$Vd, $Vm[$lane]",
+              [(set DPR:$Vd, (Ty (NEONvduplane (Ty DPR:$Vm), imm:$lane)))]>;
 
 class VDUPLNQ<bits<4> op19_16, string OpcodeStr, string Dt,
               ValueType ResTy, ValueType OpTy>
-  : NVDupLane<op19_16, 1, (outs QPR:$dst), (ins DPR:$src, nohash_imm:$lane),
-              IIC_VMOVD, OpcodeStr, Dt, "$dst, $src[$lane]",
-              [(set QPR:$dst, (ResTy (NEONvduplane (OpTy DPR:$src),
+  : NVDupLane<op19_16, 1, (outs QPR:$Vd), (ins DPR:$Vm, nohash_imm:$lane),
+              IIC_VMOVQ, OpcodeStr, Dt, "$Vd, $Vm[$lane]",
+              [(set QPR:$Vd, (ResTy (NEONvduplane (OpTy DPR:$Vm),
                                       imm:$lane)))]>;
 
 // Inst{19-16} is partially specified depending on the element size.
 
-def VDUPLN8d  : VDUPLND<{?,?,?,1}, "vdup", "8", v8i8>;
-def VDUPLN16d : VDUPLND<{?,?,1,0}, "vdup", "16", v4i16>;
-def VDUPLN32d : VDUPLND<{?,1,0,0}, "vdup", "32", v2i32>;
-def VDUPLNfd  : VDUPLND<{?,1,0,0}, "vdup", "32", v2f32>;
-def VDUPLN8q  : VDUPLNQ<{?,?,?,1}, "vdup", "8", v16i8, v8i8>;
-def VDUPLN16q : VDUPLNQ<{?,?,1,0}, "vdup", "16", v8i16, v4i16>;
-def VDUPLN32q : VDUPLNQ<{?,1,0,0}, "vdup", "32", v4i32, v2i32>;
-def VDUPLNfq  : VDUPLNQ<{?,1,0,0}, "vdup", "32", v4f32, v2f32>;
+def VDUPLN8d  : VDUPLND<{?,?,?,1}, "vdup", "8", v8i8> {
+  let Inst{19-17} = lane{2-0};
+}
+def VDUPLN16d : VDUPLND<{?,?,1,0}, "vdup", "16", v4i16> {
+  let Inst{19-18} = lane{1-0};
+}
+def VDUPLN32d : VDUPLND<{?,1,0,0}, "vdup", "32", v2i32> {
+  let Inst{19} = lane{0};
+}
+def VDUPLNfd  : VDUPLND<{?,1,0,0}, "vdup", "32", v2f32> {
+  let Inst{19} = lane{0};
+}
+def VDUPLN8q  : VDUPLNQ<{?,?,?,1}, "vdup", "8", v16i8, v8i8> {
+  let Inst{19-17} = lane{2-0};
+}
+def VDUPLN16q : VDUPLNQ<{?,?,1,0}, "vdup", "16", v8i16, v4i16> {
+  let Inst{19-18} = lane{1-0};
+}
+def VDUPLN32q : VDUPLNQ<{?,1,0,0}, "vdup", "32", v4i32, v2i32> {
+  let Inst{19} = lane{0};
+}
+def VDUPLNfq  : VDUPLNQ<{?,1,0,0}, "vdup", "32", v4f32, v2f32> {
+  let Inst{19} = lane{0};
+}
 
 def : Pat<(v16i8 (NEONvduplane (v16i8 QPR:$src), imm:$lane)),
           (v16i8 (VDUPLN8q (v8i8 (EXTRACT_SUBREG QPR:$src,
@@ -3521,18 +4419,13 @@ def : Pat<(v4f32 (NEONvduplane (v4f32 QPR:$src), imm:$lane)),
                                    (DSubReg_i32_reg imm:$lane))),
                            (SubReg_i32_lane imm:$lane)))>;
 
-def  VDUPfdf  : N2V<0b11, 0b11, {?,1}, {0,0}, 0b11000, 0, 0,
-                    (outs DPR:$dst), (ins SPR:$src),
-                    IIC_VMOVD, "vdup", "32", "$dst, ${src:lane}", "",
+def  VDUPfdf : PseudoNeonI<(outs DPR:$dst), (ins SPR:$src), IIC_VMOVD, "",
                     [(set DPR:$dst, (v2f32 (NEONvdup (f32 SPR:$src))))]>;
-
-def  VDUPfqf  : N2V<0b11, 0b11, {?,1}, {0,0}, 0b11000, 1, 0,
-                    (outs QPR:$dst), (ins SPR:$src),
-                    IIC_VMOVD, "vdup", "32", "$dst, ${src:lane}", "",
+def  VDUPfqf : PseudoNeonI<(outs QPR:$dst), (ins SPR:$src), IIC_VMOVD, "",
                     [(set QPR:$dst, (v4f32 (NEONvdup (f32 SPR:$src))))]>;
 
 //   VMOVN    : Vector Narrowing Move
-defm VMOVN    : N2VN_HSD<0b11,0b11,0b10,0b00100,0,0, IIC_VMOVD,
+defm VMOVN    : N2VN_HSD<0b11,0b11,0b10,0b00100,0,0, IIC_VMOVN,
                          "vmovn", "i", trunc>;
 //   VQMOVN   : Vector Saturating Narrowing Move
 defm VQMOVNs  : N2VNInt_HSD<0b11,0b11,0b10,0b00101,0,0, IIC_VQUNAiD,
@@ -3585,20 +4478,30 @@ def VCVTxs2fq : N2VCvtQ<0, 1, 0b1110, 0, 1, "vcvt", "f32.s32",
 def VCVTxu2fq : N2VCvtQ<1, 1, 0b1110, 0, 1, "vcvt", "f32.u32",
                         v4f32, v4i32, int_arm_neon_vcvtfxu2fp>;
 
+//   VCVT     : Vector Convert Between Half-Precision and Single-Precision.
+def  VCVTf2h  : N2VNInt<0b11, 0b11, 0b01, 0b10, 0b01100, 0, 0,
+                        IIC_VUNAQ, "vcvt", "f16.f32",
+                        v4i16, v4f32, int_arm_neon_vcvtfp2hf>,
+                Requires<[HasNEON, HasFP16]>;
+def  VCVTh2f  : N2VLInt<0b11, 0b11, 0b01, 0b10, 0b01110, 0, 0,
+                        IIC_VUNAQ, "vcvt", "f32.f16",
+                        v4f32, v4i16, int_arm_neon_vcvthf2fp>,
+                Requires<[HasNEON, HasFP16]>;
+
 // Vector Reverse.
 
 //   VREV64   : Vector Reverse elements within 64-bit doublewords
 
 class VREV64D<bits<2> op19_18, string OpcodeStr, string Dt, ValueType Ty>
-  : N2V<0b11, 0b11, op19_18, 0b00, 0b00000, 0, 0, (outs DPR:$dst),
-        (ins DPR:$src), IIC_VMOVD, 
-        OpcodeStr, Dt, "$dst, $src", "",
-        [(set DPR:$dst, (Ty (NEONvrev64 (Ty DPR:$src))))]>;
+  : N2V<0b11, 0b11, op19_18, 0b00, 0b00000, 0, 0, (outs DPR:$Vd),
+        (ins DPR:$Vm), IIC_VMOVD,
+        OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set DPR:$Vd, (Ty (NEONvrev64 (Ty DPR:$Vm))))]>;
 class VREV64Q<bits<2> op19_18, string OpcodeStr, string Dt, ValueType Ty>
-  : N2V<0b11, 0b11, op19_18, 0b00, 0b00000, 1, 0, (outs QPR:$dst),
-        (ins QPR:$src), IIC_VMOVD, 
-        OpcodeStr, Dt, "$dst, $src", "",
-        [(set QPR:$dst, (Ty (NEONvrev64 (Ty QPR:$src))))]>;
+  : N2V<0b11, 0b11, op19_18, 0b00, 0b00000, 1, 0, (outs QPR:$Vd),
+        (ins QPR:$Vm), IIC_VMOVQ,
+        OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set QPR:$Vd, (Ty (NEONvrev64 (Ty QPR:$Vm))))]>;
 
 def VREV64d8  : VREV64D<0b00, "vrev64", "8", v8i8>;
 def VREV64d16 : VREV64D<0b01, "vrev64", "16", v4i16>;
@@ -3613,15 +4516,15 @@ def VREV64qf  : VREV64Q<0b10, "vrev64", "32", v4f32>;
 //   VREV32   : Vector Reverse elements within 32-bit words
 
 class VREV32D<bits<2> op19_18, string OpcodeStr, string Dt, ValueType Ty>
-  : N2V<0b11, 0b11, op19_18, 0b00, 0b00001, 0, 0, (outs DPR:$dst),
-        (ins DPR:$src), IIC_VMOVD, 
-        OpcodeStr, Dt, "$dst, $src", "",
-        [(set DPR:$dst, (Ty (NEONvrev32 (Ty DPR:$src))))]>;
+  : N2V<0b11, 0b11, op19_18, 0b00, 0b00001, 0, 0, (outs DPR:$Vd),
+        (ins DPR:$Vm), IIC_VMOVD,
+        OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set DPR:$Vd, (Ty (NEONvrev32 (Ty DPR:$Vm))))]>;
 class VREV32Q<bits<2> op19_18, string OpcodeStr, string Dt, ValueType Ty>
-  : N2V<0b11, 0b11, op19_18, 0b00, 0b00001, 1, 0, (outs QPR:$dst),
-        (ins QPR:$src), IIC_VMOVD, 
-        OpcodeStr, Dt, "$dst, $src", "",
-        [(set QPR:$dst, (Ty (NEONvrev32 (Ty QPR:$src))))]>;
+  : N2V<0b11, 0b11, op19_18, 0b00, 0b00001, 1, 0, (outs QPR:$Vd),
+        (ins QPR:$Vm), IIC_VMOVQ,
+        OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set QPR:$Vd, (Ty (NEONvrev32 (Ty QPR:$Vm))))]>;
 
 def VREV32d8  : VREV32D<0b00, "vrev32", "8", v8i8>;
 def VREV32d16 : VREV32D<0b01, "vrev32", "16", v4i16>;
@@ -3632,46 +4535,91 @@ def VREV32q16 : VREV32Q<0b01, "vrev32", "16", v8i16>;
 //   VREV16   : Vector Reverse elements within 16-bit halfwords
 
 class VREV16D<bits<2> op19_18, string OpcodeStr, string Dt, ValueType Ty>
-  : N2V<0b11, 0b11, op19_18, 0b00, 0b00010, 0, 0, (outs DPR:$dst),
-        (ins DPR:$src), IIC_VMOVD, 
-        OpcodeStr, Dt, "$dst, $src", "",
-        [(set DPR:$dst, (Ty (NEONvrev16 (Ty DPR:$src))))]>;
+  : N2V<0b11, 0b11, op19_18, 0b00, 0b00010, 0, 0, (outs DPR:$Vd),
+        (ins DPR:$Vm), IIC_VMOVD,
+        OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set DPR:$Vd, (Ty (NEONvrev16 (Ty DPR:$Vm))))]>;
 class VREV16Q<bits<2> op19_18, string OpcodeStr, string Dt, ValueType Ty>
-  : N2V<0b11, 0b11, op19_18, 0b00, 0b00010, 1, 0, (outs QPR:$dst),
-        (ins QPR:$src), IIC_VMOVD, 
-        OpcodeStr, Dt, "$dst, $src", "",
-        [(set QPR:$dst, (Ty (NEONvrev16 (Ty QPR:$src))))]>;
+  : N2V<0b11, 0b11, op19_18, 0b00, 0b00010, 1, 0, (outs QPR:$Vd),
+        (ins QPR:$Vm), IIC_VMOVQ,
+        OpcodeStr, Dt, "$Vd, $Vm", "",
+        [(set QPR:$Vd, (Ty (NEONvrev16 (Ty QPR:$Vm))))]>;
 
 def VREV16d8  : VREV16D<0b00, "vrev16", "8", v8i8>;
 def VREV16q8  : VREV16Q<0b00, "vrev16", "8", v16i8>;
 
 // Other Vector Shuffles.
 
+//  Aligned extractions: really just dropping registers
+
+class AlignedVEXTq<ValueType DestTy, ValueType SrcTy, SDNodeXForm LaneCVT>
+      : Pat<(DestTy (vector_extract_subvec (SrcTy QPR:$src), (i32 imm:$start))),
+             (EXTRACT_SUBREG (SrcTy QPR:$src), (LaneCVT imm:$start))>;
+
+def : AlignedVEXTq<v8i8, v16i8, DSubReg_i8_reg>;
+
+def : AlignedVEXTq<v4i16, v8i16, DSubReg_i16_reg>;
+
+def : AlignedVEXTq<v2i32, v4i32, DSubReg_i32_reg>;
+
+def : AlignedVEXTq<v1i64, v2i64, DSubReg_f64_reg>;
+
+def : AlignedVEXTq<v2f32, v4f32, DSubReg_i32_reg>;
+
+
 //   VEXT     : Vector Extract
 
 class VEXTd<string OpcodeStr, string Dt, ValueType Ty>
-  : N3V<0,1,0b11,{?,?,?,?},0,0, (outs DPR:$dst),
-        (ins DPR:$lhs, DPR:$rhs, i32imm:$index), NVExtFrm,
-        IIC_VEXTD, OpcodeStr, Dt, "$dst, $lhs, $rhs, $index", "",
-        [(set DPR:$dst, (Ty (NEONvext (Ty DPR:$lhs),
-                                      (Ty DPR:$rhs), imm:$index)))]>;
+  : N3V<0,1,0b11,{?,?,?,?},0,0, (outs DPR:$Vd),
+        (ins DPR:$Vn, DPR:$Vm, i32imm:$index), NVExtFrm,
+        IIC_VEXTD, OpcodeStr, Dt, "$Vd, $Vn, $Vm, $index", "",
+        [(set DPR:$Vd, (Ty (NEONvext (Ty DPR:$Vn),
+                                      (Ty DPR:$Vm), imm:$index)))]> {
+  bits<4> index;
+  let Inst{11-8} = index{3-0};
+}
 
 class VEXTq<string OpcodeStr, string Dt, ValueType Ty>
-  : N3V<0,1,0b11,{?,?,?,?},1,0, (outs QPR:$dst),
-        (ins QPR:$lhs, QPR:$rhs, i32imm:$index), NVExtFrm,
-        IIC_VEXTQ, OpcodeStr, Dt, "$dst, $lhs, $rhs, $index", "",
-        [(set QPR:$dst, (Ty (NEONvext (Ty QPR:$lhs),
-                                      (Ty QPR:$rhs), imm:$index)))]>;
+  : N3V<0,1,0b11,{?,?,?,?},1,0, (outs QPR:$Vd),
+        (ins QPR:$Vn, QPR:$Vm, i32imm:$index), NVExtFrm,
+        IIC_VEXTQ, OpcodeStr, Dt, "$Vd, $Vn, $Vm, $index", "",
+        [(set QPR:$Vd, (Ty (NEONvext (Ty QPR:$Vn),
+                                      (Ty QPR:$Vm), imm:$index)))]> {
+  bits<4> index;
+  let Inst{11-8} = index{3-0};
+}
 
-def VEXTd8  : VEXTd<"vext", "8",  v8i8>;
-def VEXTd16 : VEXTd<"vext", "16", v4i16>;
-def VEXTd32 : VEXTd<"vext", "32", v2i32>;
-def VEXTdf  : VEXTd<"vext", "32", v2f32>;
+def VEXTd8  : VEXTd<"vext", "8",  v8i8> {
+  let Inst{11-8} = index{3-0};
+}
+def VEXTd16 : VEXTd<"vext", "16", v4i16> {
+  let Inst{11-9} = index{2-0};
+  let Inst{8}    = 0b0;
+}
+def VEXTd32 : VEXTd<"vext", "32", v2i32> {
+  let Inst{11-10} = index{1-0};
+  let Inst{9-8}    = 0b00;
+}
+def VEXTdf  : VEXTd<"vext", "32", v2f32> {
+  let Inst{11}    = index{0};
+  let Inst{10-8}  = 0b000;
+}
 
-def VEXTq8  : VEXTq<"vext", "8",  v16i8>;
-def VEXTq16 : VEXTq<"vext", "16", v8i16>;
-def VEXTq32 : VEXTq<"vext", "32", v4i32>;
-def VEXTqf  : VEXTq<"vext", "32", v4f32>;
+def VEXTq8  : VEXTq<"vext", "8",  v16i8> {
+  let Inst{11-8} = index{3-0};
+}
+def VEXTq16 : VEXTq<"vext", "16", v8i16> {
+  let Inst{11-9} = index{2-0};
+  let Inst{8}    = 0b0;
+}
+def VEXTq32 : VEXTq<"vext", "32", v4i32> {
+  let Inst{11-10} = index{1-0};
+  let Inst{9-8}    = 0b00;
+}
+def VEXTqf  : VEXTq<"vext", "32", v4f32> {
+  let Inst{11}    = index{0};
+  let Inst{10-8}  = 0b000;
+}
 
 //   VTRN     : Vector Transpose
 
@@ -3707,160 +4655,120 @@ def  VZIPq32  : N2VQShuffle<0b10, 0b00011, IIC_VPERMQ3, "vzip", "32">;
 
 //   VTBL     : Vector Table Lookup
 def  VTBL1
-  : N3V<1,1,0b11,0b1000,0,0, (outs DPR:$dst),
-        (ins DPR:$tbl1, DPR:$src), NVTBLFrm, IIC_VTB1,
-        "vtbl", "8", "$dst, \\{$tbl1\\}, $src", "",
-        [(set DPR:$dst, (v8i8 (int_arm_neon_vtbl1 DPR:$tbl1, DPR:$src)))]>;
+  : N3V<1,1,0b11,0b1000,0,0, (outs DPR:$Vd),
+        (ins DPR:$Vn, DPR:$Vm), NVTBLFrm, IIC_VTB1,
+        "vtbl", "8", "$Vd, \\{$Vn\\}, $Vm", "",
+        [(set DPR:$Vd, (v8i8 (int_arm_neon_vtbl1 DPR:$Vn, DPR:$Vm)))]>;
 let hasExtraSrcRegAllocReq = 1 in {
 def  VTBL2
-  : N3V<1,1,0b11,0b1001,0,0, (outs DPR:$dst),
-        (ins DPR:$tbl1, DPR:$tbl2, DPR:$src), NVTBLFrm, IIC_VTB2,
-        "vtbl", "8", "$dst, \\{$tbl1, $tbl2\\}, $src", "", []>;
+  : N3V<1,1,0b11,0b1001,0,0, (outs DPR:$Vd),
+        (ins DPR:$Vn, DPR:$tbl2, DPR:$Vm), NVTBLFrm, IIC_VTB2,
+        "vtbl", "8", "$Vd, \\{$Vn, $tbl2\\}, $Vm", "", []>;
 def  VTBL3
-  : N3V<1,1,0b11,0b1010,0,0, (outs DPR:$dst),
-        (ins DPR:$tbl1, DPR:$tbl2, DPR:$tbl3, DPR:$src), NVTBLFrm, IIC_VTB3,
-        "vtbl", "8", "$dst, \\{$tbl1, $tbl2, $tbl3\\}, $src", "", []>;
+  : N3V<1,1,0b11,0b1010,0,0, (outs DPR:$Vd),
+        (ins DPR:$Vn, DPR:$tbl2, DPR:$tbl3, DPR:$Vm), NVTBLFrm, IIC_VTB3,
+        "vtbl", "8", "$Vd, \\{$Vn, $tbl2, $tbl3\\}, $Vm", "", []>;
 def  VTBL4
-  : N3V<1,1,0b11,0b1011,0,0, (outs DPR:$dst),
-        (ins DPR:$tbl1, DPR:$tbl2, DPR:$tbl3, DPR:$tbl4, DPR:$src),
+  : N3V<1,1,0b11,0b1011,0,0, (outs DPR:$Vd),
+        (ins DPR:$Vn, DPR:$tbl2, DPR:$tbl3, DPR:$tbl4, DPR:$Vm),
         NVTBLFrm, IIC_VTB4,
-        "vtbl", "8", "$dst, \\{$tbl1, $tbl2, $tbl3, $tbl4\\}, $src", "", []>;
+        "vtbl", "8", "$Vd, \\{$Vn, $tbl2, $tbl3, $tbl4\\}, $Vm", "", []>;
 } // hasExtraSrcRegAllocReq = 1
+
+def  VTBL2Pseudo
+  : PseudoNeonI<(outs DPR:$dst), (ins QPR:$tbl, DPR:$src), IIC_VTB2, "", []>;
+def  VTBL3Pseudo
+  : PseudoNeonI<(outs DPR:$dst), (ins QQPR:$tbl, DPR:$src), IIC_VTB3, "", []>;
+def  VTBL4Pseudo
+  : PseudoNeonI<(outs DPR:$dst), (ins QQPR:$tbl, DPR:$src), IIC_VTB4, "", []>;
 
 //   VTBX     : Vector Table Extension
 def  VTBX1
-  : N3V<1,1,0b11,0b1000,1,0, (outs DPR:$dst),
-        (ins DPR:$orig, DPR:$tbl1, DPR:$src), NVTBLFrm, IIC_VTBX1,
-        "vtbx", "8", "$dst, \\{$tbl1\\}, $src", "$orig = $dst",
-        [(set DPR:$dst, (v8i8 (int_arm_neon_vtbx1
-                               DPR:$orig, DPR:$tbl1, DPR:$src)))]>;
+  : N3V<1,1,0b11,0b1000,1,0, (outs DPR:$Vd),
+        (ins DPR:$orig, DPR:$Vn, DPR:$Vm), NVTBLFrm, IIC_VTBX1,
+        "vtbx", "8", "$Vd, \\{$Vn\\}, $Vm", "$orig = $Vd",
+        [(set DPR:$Vd, (v8i8 (int_arm_neon_vtbx1
+                               DPR:$orig, DPR:$Vn, DPR:$Vm)))]>;
 let hasExtraSrcRegAllocReq = 1 in {
 def  VTBX2
-  : N3V<1,1,0b11,0b1001,1,0, (outs DPR:$dst),
-        (ins DPR:$orig, DPR:$tbl1, DPR:$tbl2, DPR:$src), NVTBLFrm, IIC_VTBX2,
-        "vtbx", "8", "$dst, \\{$tbl1, $tbl2\\}, $src", "$orig = $dst", []>;
+  : N3V<1,1,0b11,0b1001,1,0, (outs DPR:$Vd),
+        (ins DPR:$orig, DPR:$Vn, DPR:$tbl2, DPR:$Vm), NVTBLFrm, IIC_VTBX2,
+        "vtbx", "8", "$Vd, \\{$Vn, $tbl2\\}, $Vm", "$orig = $Vd", []>;
 def  VTBX3
-  : N3V<1,1,0b11,0b1010,1,0, (outs DPR:$dst),
-        (ins DPR:$orig, DPR:$tbl1, DPR:$tbl2, DPR:$tbl3, DPR:$src),
+  : N3V<1,1,0b11,0b1010,1,0, (outs DPR:$Vd),
+        (ins DPR:$orig, DPR:$Vn, DPR:$tbl2, DPR:$tbl3, DPR:$Vm),
         NVTBLFrm, IIC_VTBX3,
-        "vtbx", "8", "$dst, \\{$tbl1, $tbl2, $tbl3\\}, $src",
-        "$orig = $dst", []>;
+        "vtbx", "8", "$Vd, \\{$Vn, $tbl2, $tbl3\\}, $Vm",
+        "$orig = $Vd", []>;
 def  VTBX4
-  : N3V<1,1,0b11,0b1011,1,0, (outs DPR:$dst), (ins DPR:$orig, DPR:$tbl1,
-        DPR:$tbl2, DPR:$tbl3, DPR:$tbl4, DPR:$src), NVTBLFrm, IIC_VTBX4,
-        "vtbx", "8", "$dst, \\{$tbl1, $tbl2, $tbl3, $tbl4\\}, $src",
-        "$orig = $dst", []>;
+  : N3V<1,1,0b11,0b1011,1,0, (outs DPR:$Vd), (ins DPR:$orig, DPR:$Vn,
+        DPR:$tbl2, DPR:$tbl3, DPR:$tbl4, DPR:$Vm), NVTBLFrm, IIC_VTBX4,
+        "vtbx", "8", "$Vd, \\{$Vn, $tbl2, $tbl3, $tbl4\\}, $Vm",
+        "$orig = $Vd", []>;
 } // hasExtraSrcRegAllocReq = 1
+
+def  VTBX2Pseudo
+  : PseudoNeonI<(outs DPR:$dst), (ins DPR:$orig, QPR:$tbl, DPR:$src),
+                IIC_VTBX2, "$orig = $dst", []>;
+def  VTBX3Pseudo
+  : PseudoNeonI<(outs DPR:$dst), (ins DPR:$orig, QQPR:$tbl, DPR:$src),
+                IIC_VTBX3, "$orig = $dst", []>;
+def  VTBX4Pseudo
+  : PseudoNeonI<(outs DPR:$dst), (ins DPR:$orig, QQPR:$tbl, DPR:$src),
+                IIC_VTBX4, "$orig = $dst", []>;
 
 //===----------------------------------------------------------------------===//
 // NEON instructions for single-precision FP math
 //===----------------------------------------------------------------------===//
 
-class N2VSPat<SDNode OpNode, ValueType ResTy, ValueType OpTy, NeonI Inst>
-  : NEONFPPat<(ResTy (OpNode SPR:$a)),
-              (EXTRACT_SUBREG (OpTy (Inst (INSERT_SUBREG (OpTy (IMPLICIT_DEF)),
-                                                       SPR:$a, ssub_0))),
-                              ssub_0)>;
+class N2VSPat<SDNode OpNode, NeonI Inst>
+  : NEONFPPat<(f32 (OpNode SPR:$a)),
+              (EXTRACT_SUBREG
+               (v2f32 (COPY_TO_REGCLASS (Inst
+                (INSERT_SUBREG
+                 (v2f32 (COPY_TO_REGCLASS (v2f32 (IMPLICIT_DEF)), DPR_VFP2)),
+                 SPR:$a, ssub_0)), DPR_VFP2)), ssub_0)>;
 
 class N3VSPat<SDNode OpNode, NeonI Inst>
   : NEONFPPat<(f32 (OpNode SPR:$a, SPR:$b)),
-              (EXTRACT_SUBREG (v2f32
-                                 (Inst (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                      SPR:$a, ssub_0),
-                                       (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                      SPR:$b, ssub_0))),
-                              ssub_0)>;
+              (EXTRACT_SUBREG
+               (v2f32 (COPY_TO_REGCLASS (Inst
+                (INSERT_SUBREG
+                 (v2f32 (COPY_TO_REGCLASS (v2f32 (IMPLICIT_DEF)), DPR_VFP2)),
+                 SPR:$a, ssub_0),
+                (INSERT_SUBREG
+                 (v2f32 (COPY_TO_REGCLASS (v2f32 (IMPLICIT_DEF)), DPR_VFP2)),
+                 SPR:$b, ssub_0)), DPR_VFP2)), ssub_0)>;
 
 class N3VSMulOpPat<SDNode MulNode, SDNode OpNode, NeonI Inst>
   : NEONFPPat<(f32 (OpNode SPR:$acc, (f32 (MulNode SPR:$a, SPR:$b)))),
-              (EXTRACT_SUBREG (Inst (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                   SPR:$acc, ssub_0),
-                                    (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                   SPR:$a, ssub_0),
-                                    (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                   SPR:$b, ssub_0)),
-                              ssub_0)>;
+              (EXTRACT_SUBREG
+               (v2f32 (COPY_TO_REGCLASS (Inst
+                (INSERT_SUBREG
+                 (v2f32 (COPY_TO_REGCLASS (v2f32 (IMPLICIT_DEF)), DPR_VFP2)),
+                 SPR:$acc, ssub_0),
+                (INSERT_SUBREG
+                 (v2f32 (COPY_TO_REGCLASS (v2f32 (IMPLICIT_DEF)), DPR_VFP2)),
+                 SPR:$a, ssub_0),
+                (INSERT_SUBREG
+                 (v2f32 (COPY_TO_REGCLASS (v2f32 (IMPLICIT_DEF)), DPR_VFP2)),
+                 SPR:$b, ssub_0)), DPR_VFP2)), ssub_0)>;
 
-// These need separate instructions because they must use DPR_VFP2 register
-// class which have SPR sub-registers.
-
-// Vector Add Operations used for single-precision FP
-let neverHasSideEffects = 1 in
-def VADDfd_sfp : N3VS<0,0,0b00,0b1101,0, "vadd", "f32", v2f32, v2f32, fadd, 1>;
-def : N3VSPat<fadd, VADDfd_sfp>;
-
-// Vector Sub Operations used for single-precision FP
-let neverHasSideEffects = 1 in
-def VSUBfd_sfp : N3VS<0,0,0b10,0b1101,0, "vsub", "f32", v2f32, v2f32, fsub, 0>;
-def : N3VSPat<fsub, VSUBfd_sfp>;
-
-// Vector Multiply Operations used for single-precision FP
-let neverHasSideEffects = 1 in
-def VMULfd_sfp : N3VS<1,0,0b00,0b1101,1, "vmul", "f32", v2f32, v2f32, fmul, 1>;
-def : N3VSPat<fmul, VMULfd_sfp>;
-
-// Vector Multiply-Accumulate/Subtract used for single-precision FP
-// vml[as].f32 can cause 4-8 cycle stalls in following ASIMD instructions, so
-// we want to avoid them for now. e.g., alternating vmla/vadd instructions.
-
-//let neverHasSideEffects = 1 in
-//def VMLAfd_sfp : N3VSMulOp<0,0,0b00,0b1101,1, IIC_VMACD, "vmla", "f32",
-//                           v2f32, fmul, fadd>;
-//def : N3VSMulOpPat<fmul, fadd, VMLAfd_sfp>;
-
-//let neverHasSideEffects = 1 in
-//def VMLSfd_sfp : N3VSMulOp<0,0,0b10,0b1101,1, IIC_VMACD, "vmls", "f32",
-//                           v2f32, fmul, fsub>;
-//def : N3VSMulOpPat<fmul, fsub, VMLSfd_sfp>;
-
-// Vector Absolute used for single-precision FP
-let neverHasSideEffects = 1 in
-def  VABSfd_sfp : N2V<0b11, 0b11, 0b10, 0b01, 0b01110, 0, 0,
-                      (outs DPR_VFP2:$dst), (ins DPR_VFP2:$src), IIC_VUNAD,
-                      "vabs", "f32", "$dst, $src", "", []>;
-def : N2VSPat<fabs, f32, v2f32, VABSfd_sfp>;
-
-// Vector Negate used for single-precision FP
-let neverHasSideEffects = 1 in
-def  VNEGfd_sfp : N2V<0b11, 0b11, 0b10, 0b01, 0b01111, 0, 0,
-                      (outs DPR_VFP2:$dst), (ins DPR_VFP2:$src), IIC_VUNAD,
-                      "vneg", "f32", "$dst, $src", "", []>;
-def : N2VSPat<fneg, f32, v2f32, VNEGfd_sfp>;
-
-// Vector Maximum used for single-precision FP
-let neverHasSideEffects = 1 in
-def VMAXfd_sfp : N3V<0, 0, 0b00, 0b1111, 0, 0, (outs DPR_VFP2:$dst),
-                     (ins DPR_VFP2:$src1, DPR_VFP2:$src2), N3RegFrm, IIC_VBIND,
-                     "vmax", "f32", "$dst, $src1, $src2", "", []>;
-def : N3VSPat<NEONfmax, VMAXfd_sfp>;
-
-// Vector Minimum used for single-precision FP
-let neverHasSideEffects = 1 in
-def VMINfd_sfp : N3V<0, 0, 0b00, 0b1111, 0, 0, (outs DPR_VFP2:$dst),
-                     (ins DPR_VFP2:$src1, DPR_VFP2:$src2), N3RegFrm, IIC_VBIND,
-                     "vmin", "f32", "$dst, $src1, $src2", "", []>;
-def : N3VSPat<NEONfmin, VMINfd_sfp>;
-
-// Vector Convert between single-precision FP and integer
-let neverHasSideEffects = 1 in
-def  VCVTf2sd_sfp : N2VS<0b11, 0b11, 0b10, 0b11, 0b01110, 0, "vcvt", "s32.f32",
-                         v2i32, v2f32, fp_to_sint>;
-def : N2VSPat<arm_ftosi, f32, v2f32, VCVTf2sd_sfp>;
-
-let neverHasSideEffects = 1 in
-def  VCVTf2ud_sfp : N2VS<0b11, 0b11, 0b10, 0b11, 0b01111, 0, "vcvt", "u32.f32",
-                         v2i32, v2f32, fp_to_uint>;
-def : N2VSPat<arm_ftoui, f32, v2f32, VCVTf2ud_sfp>;
-
-let neverHasSideEffects = 1 in
-def  VCVTs2fd_sfp : N2VS<0b11, 0b11, 0b10, 0b11, 0b01100, 0, "vcvt", "f32.s32",
-                         v2f32, v2i32, sint_to_fp>;
-def : N2VSPat<arm_sitof, f32, v2i32, VCVTs2fd_sfp>;
-
-let neverHasSideEffects = 1 in
-def  VCVTu2fd_sfp : N2VS<0b11, 0b11, 0b10, 0b11, 0b01101, 0, "vcvt", "f32.u32",
-                         v2f32, v2i32, uint_to_fp>;
-def : N2VSPat<arm_uitof, f32, v2i32, VCVTu2fd_sfp>;
+def : N3VSPat<fadd, VADDfd>;
+def : N3VSPat<fsub, VSUBfd>;
+def : N3VSPat<fmul, VMULfd>;
+def : N3VSMulOpPat<fmul, fadd, VMLAfd>,
+      Requires<[HasNEON, UseNEONForFP, UseFPVMLx]>;
+def : N3VSMulOpPat<fmul, fsub, VMLSfd>,
+      Requires<[HasNEON, UseNEONForFP, UseFPVMLx]>;
+def : N2VSPat<fabs, VABSfd>;
+def : N2VSPat<fneg, VNEGfd>;
+def : N3VSPat<NEONfmax, VMAXfd>;
+def : N3VSPat<NEONfmin, VMINfd>;
+def : N2VSPat<arm_ftosi, VCVTf2sd>;
+def : N2VSPat<arm_ftoui, VCVTf2ud>;
+def : N2VSPat<arm_sitof, VCVTs2fd>;
+def : N2VSPat<arm_uitof, VCVTu2fd>;
 
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns

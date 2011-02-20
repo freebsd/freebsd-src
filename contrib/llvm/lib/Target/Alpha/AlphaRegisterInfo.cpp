@@ -22,7 +22,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineLocation.h"
-#include "llvm/Target/TargetFrameInfo.h"
+#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -35,29 +35,21 @@
 #include <cstdlib>
 using namespace llvm;
 
-//These describe LDAx
-static const int IMM_LOW  = -32768;
-static const int IMM_HIGH = 32767;
-static const int IMM_MULT = 65536;
+AlphaRegisterInfo::AlphaRegisterInfo(const TargetInstrInfo &tii)
+  : AlphaGenRegisterInfo(Alpha::ADJUSTSTACKDOWN, Alpha::ADJUSTSTACKUP),
+    TII(tii) {
+}
 
-static long getUpper16(long l)
-{
-  long y = l / IMM_MULT;
-  if (l % IMM_MULT > IMM_HIGH)
+static long getUpper16(long l) {
+  long y = l / Alpha::IMM_MULT;
+  if (l % Alpha::IMM_MULT > Alpha::IMM_HIGH)
     ++y;
   return y;
 }
 
-static long getLower16(long l)
-{
+static long getLower16(long l) {
   long h = getUpper16(l);
-  return l - h * IMM_MULT;
-}
-
-AlphaRegisterInfo::AlphaRegisterInfo(const TargetInstrInfo &tii)
-  : AlphaGenRegisterInfo(Alpha::ADJUSTSTACKDOWN, Alpha::ADJUSTSTACKUP),
-    TII(tii), curgpdist(0)
-{
+  return l - h * Alpha::IMM_MULT;
 }
 
 const unsigned* AlphaRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
@@ -86,19 +78,12 @@ BitVector AlphaRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 // Stack Frame Processing methods
 //===----------------------------------------------------------------------===//
 
-// hasFP - Return true if the specified function should have a dedicated frame
-// pointer register.  This is true if the function has variable sized allocas or
-// if frame pointer elimination is disabled.
-//
-bool AlphaRegisterInfo::hasFP(const MachineFunction &MF) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return MFI->hasVarSizedObjects();
-}
-
 void AlphaRegisterInfo::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
-  if (hasFP(MF)) {
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+
+  if (TFI->hasFP(MF)) {
     // If we have a frame pointer, turn the adjcallstackup instruction into a
     // 'sub ESP, <amt>' and the adjcallstackdown instruction into 'add ESP,
     // <amt>'
@@ -108,7 +93,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
       // We need to keep the stack aligned properly.  To do this, we round the
       // amount of space needed for the outgoing arguments up to the next
       // alignment boundary.
-      unsigned Align = MF.getTarget().getFrameInfo()->getStackAlignment();
+      unsigned Align = TFI->getStackAlignment();
       Amount = (Amount+Align-1)/Align*Align;
 
       MachineInstr *New;
@@ -146,7 +131,9 @@ AlphaRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineInstr &MI = *II;
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  bool FP = hasFP(MF);
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+
+  bool FP = TFI->hasFP(MF);
 
   while (!MI.getOperand(i).isFI()) {
     ++i;
@@ -168,7 +155,7 @@ AlphaRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   DEBUG(errs() << "Corrected Offset " << Offset
        << " for stack size: " << MF.getFrameInfo()->getStackSize() << "\n");
 
-  if (Offset > IMM_HIGH || Offset < IMM_LOW) {
+  if (Offset > Alpha::IMM_HIGH || Offset < Alpha::IMM_LOW) {
     DEBUG(errs() << "Unconditionally using R28 for evil purposes Offset: "
           << Offset << "\n");
     //so in this case, we need to use a temporary register, and move the
@@ -186,111 +173,14 @@ AlphaRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
 }
 
-
-void AlphaRegisterInfo::emitPrologue(MachineFunction &MF) const {
-  MachineBasicBlock &MBB = MF.front();   // Prolog goes in entry BB
-  MachineBasicBlock::iterator MBBI = MBB.begin();
-  MachineFrameInfo *MFI = MF.getFrameInfo();
-  DebugLoc dl = (MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc());
-  bool FP = hasFP(MF);
-
-  //handle GOP offset
-  BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDAHg), Alpha::R29)
-    .addGlobalAddress(MF.getFunction())
-    .addReg(Alpha::R27).addImm(++curgpdist);
-  BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDAg), Alpha::R29)
-    .addGlobalAddress(MF.getFunction())
-    .addReg(Alpha::R29).addImm(curgpdist);
-
-  BuildMI(MBB, MBBI, dl, TII.get(Alpha::ALTENT))
-    .addGlobalAddress(MF.getFunction());
-
-  // Get the number of bytes to allocate from the FrameInfo
-  long NumBytes = MFI->getStackSize();
-
-  if (FP)
-    NumBytes += 8; //reserve space for the old FP
-
-  // Do we need to allocate space on the stack?
-  if (NumBytes == 0) return;
-
-  unsigned Align = MF.getTarget().getFrameInfo()->getStackAlignment();
-  NumBytes = (NumBytes+Align-1)/Align*Align;
-
-  // Update frame info to pretend that this is part of the stack...
-  MFI->setStackSize(NumBytes);
-
-  // adjust stack pointer: r30 -= numbytes
-  NumBytes = -NumBytes;
-  if (NumBytes >= IMM_LOW) {
-    BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDA), Alpha::R30).addImm(NumBytes)
-      .addReg(Alpha::R30);
-  } else if (getUpper16(NumBytes) >= IMM_LOW) {
-    BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDAH), Alpha::R30)
-      .addImm(getUpper16(NumBytes)).addReg(Alpha::R30);
-    BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDA), Alpha::R30)
-      .addImm(getLower16(NumBytes)).addReg(Alpha::R30);
-  } else {
-    report_fatal_error("Too big a stack frame at " + Twine(NumBytes));
-  }
-
-  //now if we need to, save the old FP and set the new
-  if (FP)
-  {
-    BuildMI(MBB, MBBI, dl, TII.get(Alpha::STQ))
-      .addReg(Alpha::R15).addImm(0).addReg(Alpha::R30);
-    //this must be the last instr in the prolog
-    BuildMI(MBB, MBBI, dl, TII.get(Alpha::BISr), Alpha::R15)
-      .addReg(Alpha::R30).addReg(Alpha::R30);
-  }
-
-}
-
-void AlphaRegisterInfo::emitEpilogue(MachineFunction &MF,
-                                     MachineBasicBlock &MBB) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
-  MachineBasicBlock::iterator MBBI = prior(MBB.end());
-  assert((MBBI->getOpcode() == Alpha::RETDAG ||
-          MBBI->getOpcode() == Alpha::RETDAGp)
-         && "Can only insert epilog into returning blocks");
-  DebugLoc dl = MBBI->getDebugLoc();
-
-  bool FP = hasFP(MF);
-
-  // Get the number of bytes allocated from the FrameInfo...
-  long NumBytes = MFI->getStackSize();
-
-  //now if we need to, restore the old FP
-  if (FP) {
-    //copy the FP into the SP (discards allocas)
-    BuildMI(MBB, MBBI, dl, TII.get(Alpha::BISr), Alpha::R30).addReg(Alpha::R15)
-      .addReg(Alpha::R15);
-    //restore the FP
-    BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDQ), Alpha::R15)
-      .addImm(0).addReg(Alpha::R15);
-  }
-
-  if (NumBytes != 0) {
-    if (NumBytes <= IMM_HIGH) {
-      BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDA), Alpha::R30).addImm(NumBytes)
-        .addReg(Alpha::R30);
-    } else if (getUpper16(NumBytes) <= IMM_HIGH) {
-      BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDAH), Alpha::R30)
-        .addImm(getUpper16(NumBytes)).addReg(Alpha::R30);
-      BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDA), Alpha::R30)
-        .addImm(getLower16(NumBytes)).addReg(Alpha::R30);
-    } else {
-      report_fatal_error("Too big a stack frame at " + Twine(NumBytes));
-    }
-  }
-}
-
 unsigned AlphaRegisterInfo::getRARegister() const {
   return Alpha::R26;
 }
 
 unsigned AlphaRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  return hasFP(MF) ? Alpha::R15 : Alpha::R30;
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+
+  return TFI->hasFP(MF) ? Alpha::R15 : Alpha::R30;
 }
 
 unsigned AlphaRegisterInfo::getEHExceptionRegister() const {

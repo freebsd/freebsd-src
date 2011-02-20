@@ -35,14 +35,16 @@ enum SDNP {
   SDNPCommutative, 
   SDNPAssociative, 
   SDNPHasChain,
-  SDNPOutFlag,
-  SDNPInFlag,
-  SDNPOptInFlag,
+  SDNPOutGlue,
+  SDNPInGlue,
+  SDNPOptInGlue,
   SDNPMayLoad,
   SDNPMayStore,
   SDNPSideEffect,
   SDNPMemOperand,
-  SDNPVariadic
+  SDNPVariadic,
+  SDNPWantRoot,
+  SDNPWantParent
 };
 
 /// getValueType - Return the MVT::SimpleValueType that the specified TableGen
@@ -59,6 +61,7 @@ std::string getQualifiedName(const Record *R);
 /// CodeGenTarget - This class corresponds to the Target class in the .td files.
 ///
 class CodeGenTarget {
+  RecordKeeper &Records;
   Record *TargetRec;
 
   mutable DenseMap<const Record*, CodeGenInstruction*> Instructions;
@@ -74,7 +77,7 @@ class CodeGenTarget {
   
   mutable std::vector<const CodeGenInstruction*> InstrsByEnum;
 public:
-  CodeGenTarget();
+  CodeGenTarget(RecordKeeper &Records);
 
   Record *getTargetRecord() const { return TargetRec; }
   const std::string &getName() const;
@@ -99,6 +102,10 @@ public:
     if (Registers.empty()) ReadRegisters();
     return Registers;
   }
+  
+  /// getRegisterByName - If there is a register with the specific AsmName,
+  /// return it.
+  const CodeGenRegister *getRegisterByName(StringRef Name) const;
 
   const std::vector<Record*> &getSubRegIndices() const {
     if (SubRegIndices.empty()) ReadSubRegIndices();

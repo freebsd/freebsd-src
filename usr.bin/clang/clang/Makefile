@@ -26,7 +26,9 @@ LIBDEPS=clangfrontendtool \
 	clangcodegen \
 	clangparse \
 	clangsema \
-	clangchecker \
+	clangstaticanalyzerfrontend \
+	clangstaticanalyzercheckers \
+	clangstaticanalyzercore \
 	clanganalysis \
 	clangindex \
 	clangrewrite \
@@ -38,19 +40,19 @@ LIBDEPS=clangfrontendtool \
 	llvmbitwriter \
 	llvmbitreader \
 	llvmpowerpccodegen \
-	llvmpowerpcasmprinter \
+	llvmpowerpcinstprinter \
 	llvmpowerpcinfo \
 	llvmx86asmparser \
 	llvmx86disassembler \
 	llvmx86codegen \
-	llvmx86asmprinter \
+	llvmx86instprinter \
 	llvmx86info \
-	llvmmipsasmprinter \
+	llvmx86utils \
 	llvmmipscodegen \
 	llvmmipsinfo \
 	llvmarmasmparser \
 	llvmarmcodegen \
-	llvmarmasmprinter \
+	llvmarminstprinter \
 	llvmasmparser \
 	llvmselectiondag \
 	llvmasmprinter \
@@ -65,7 +67,6 @@ LIBDEPS=clangfrontendtool \
 	llvmmc \
 	llvmcore \
 	llvmarminfo \
-	llvmsupport \
-	llvmsystem
+	llvmsupport
 
 .include "../clang.prog.mk"

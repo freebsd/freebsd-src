@@ -11,13 +11,14 @@
 #define LLVM_MC_MCASSEMBLER_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/MC/MCFixup.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include <vector> // FIXME: Shouldn't be needed.
 
 namespace llvm {
@@ -49,7 +50,10 @@ public:
     FT_Data,
     FT_Fill,
     FT_Inst,
-    FT_Org
+    FT_Org,
+    FT_Dwarf,
+    FT_DwarfFrame,
+    FT_LEB
   };
 
 private:
@@ -72,12 +76,7 @@ private:
   /// initialized.
   uint64_t Offset;
 
-  /// EffectiveSize - The compute size of this section. This is ~0 until
-  /// initialized.
-  uint64_t EffectiveSize;
-
-  /// LayoutOrder - The global layout order of this fragment. This is the index
-  /// across all fragments in the file, not just within the section.
+  /// LayoutOrder - The layout order of this fragment.
   unsigned LayoutOrder;
 
   /// @}
@@ -234,19 +233,12 @@ class MCAlignFragment : public MCFragment {
   /// target dependent.
   bool EmitNops : 1;
 
-  /// OnlyAlignAddress - Flag to indicate that this align is only used to adjust
-  /// the address space size of a section and that it should not be included as
-  /// part of the section size. This flag can only be used on the last fragment
-  /// in a section.
-  bool OnlyAlignAddress : 1;
-
 public:
   MCAlignFragment(unsigned _Alignment, int64_t _Value, unsigned _ValueSize,
                   unsigned _MaxBytesToEmit, MCSectionData *SD = 0)
     : MCFragment(FT_Align, SD), Alignment(_Alignment),
       Value(_Value),ValueSize(_ValueSize),
-      MaxBytesToEmit(_MaxBytesToEmit), EmitNops(false),
-      OnlyAlignAddress(false) {}
+      MaxBytesToEmit(_MaxBytesToEmit), EmitNops(false) {}
 
   /// @name Accessors
   /// @{
@@ -261,9 +253,6 @@ public:
 
   bool hasEmitNops() const { return EmitNops; }
   void setEmitNops(bool Value) { EmitNops = Value; }
-
-  bool hasOnlyAlignAddress() const { return OnlyAlignAddress; }
-  void setOnlyAlignAddress(bool Value) { OnlyAlignAddress = Value; }
 
   /// @}
 
@@ -337,6 +326,100 @@ public:
   static bool classof(const MCOrgFragment *) { return true; }
 };
 
+class MCLEBFragment : public MCFragment {
+  /// Value - The value this fragment should contain.
+  const MCExpr *Value;
+
+  /// IsSigned - True if this is a sleb128, false if uleb128.
+  bool IsSigned;
+
+  SmallString<8> Contents;
+public:
+  MCLEBFragment(const MCExpr &Value_, bool IsSigned_, MCSectionData *SD)
+    : MCFragment(FT_LEB, SD),
+      Value(&Value_), IsSigned(IsSigned_) { Contents.push_back(0); }
+
+  /// @name Accessors
+  /// @{
+
+  const MCExpr &getValue() const { return *Value; }
+
+  bool isSigned() const { return IsSigned; }
+
+  SmallString<8> &getContents() { return Contents; }
+  const SmallString<8> &getContents() const { return Contents; }
+
+  /// @}
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_LEB;
+  }
+  static bool classof(const MCLEBFragment *) { return true; }
+};
+
+class MCDwarfLineAddrFragment : public MCFragment {
+  /// LineDelta - the value of the difference between the two line numbers
+  /// between two .loc dwarf directives.
+  int64_t LineDelta;
+
+  /// AddrDelta - The expression for the difference of the two symbols that
+  /// make up the address delta between two .loc dwarf directives.
+  const MCExpr *AddrDelta;
+
+  SmallString<8> Contents;
+
+public:
+  MCDwarfLineAddrFragment(int64_t _LineDelta, const MCExpr &_AddrDelta,
+                      MCSectionData *SD)
+    : MCFragment(FT_Dwarf, SD),
+      LineDelta(_LineDelta), AddrDelta(&_AddrDelta) { Contents.push_back(0); }
+
+  /// @name Accessors
+  /// @{
+
+  int64_t getLineDelta() const { return LineDelta; }
+
+  const MCExpr &getAddrDelta() const { return *AddrDelta; }
+
+  SmallString<8> &getContents() { return Contents; }
+  const SmallString<8> &getContents() const { return Contents; }
+
+  /// @}
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_Dwarf;
+  }
+  static bool classof(const MCDwarfLineAddrFragment *) { return true; }
+};
+
+class MCDwarfCallFrameFragment : public MCFragment {
+  /// AddrDelta - The expression for the difference of the two symbols that
+  /// make up the address delta between two .cfi_* dwarf directives.
+  const MCExpr *AddrDelta;
+
+  SmallString<8> Contents;
+
+public:
+  MCDwarfCallFrameFragment(const MCExpr &_AddrDelta,  MCSectionData *SD)
+    : MCFragment(FT_DwarfFrame, SD),
+      AddrDelta(&_AddrDelta) { Contents.push_back(0); }
+
+  /// @name Accessors
+  /// @{
+
+  const MCExpr &getAddrDelta() const { return *AddrDelta; }
+
+  SmallString<8> &getContents() { return Contents; }
+  const SmallString<8> &getContents() const { return Contents; }
+
+  /// @}
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_DwarfFrame;
+  }
+  static bool classof(const MCDwarfCallFrameFragment *) { return true; }
+};
+
 // FIXME: Should this be a separate class, or just merged into MCSection? Since
 // we anticipate the fast path being through an MCAssembler, the only reason to
 // keep it out is for API abstraction.
@@ -372,10 +455,6 @@ private:
   /// @{
   //
   // FIXME: This could all be kept private to the assembler implementation.
-
-  /// Address - The computed address of this section. This is ~0 until
-  /// initialized.
-  uint64_t Address;
 
   /// HasInstructions - Whether this section has had instructions emitted into
   /// it.
@@ -585,6 +664,8 @@ private:
 
   MCCodeEmitter &Emitter;
 
+  MCObjectWriter &Writer;
+
   raw_ostream &OS;
 
   iplist<MCSectionData> Sections;
@@ -603,7 +684,17 @@ private:
 
   std::vector<IndirectSymbolData> IndirectSymbols;
 
+  /// The set of function symbols for which a .thumb_func directive has
+  /// been seen.
+  //
+  // FIXME: We really would like this in target specific code rather than
+  // here. Maybe when the relocation stuff moves to target specific,
+  // this can go with it? The streamer would need some target specific
+  // refactoring too.
+  SmallPtrSet<const MCSymbol*, 64> ThumbFuncs;
+
   unsigned RelaxAll : 1;
+  unsigned NoExecStack : 1;
   unsigned SubsectionsViaSymbols : 1;
 
 private:
@@ -633,24 +724,34 @@ private:
   bool FragmentNeedsRelaxation(const MCInstFragment *IF,
                                const MCAsmLayout &Layout) const;
 
-  /// Compute the effective fragment size assuming it is layed out at the given
-  /// \arg SectionAddress and \arg FragmentOffset.
-  uint64_t ComputeFragmentSize(MCAsmLayout &Layout, const MCFragment &F,
-                               uint64_t SectionAddress,
-                               uint64_t FragmentOffset) const;
-
   /// LayoutOnce - Perform one layout iteration and return true if any offsets
   /// were adjusted.
   bool LayoutOnce(MCAsmLayout &Layout);
 
+  bool LayoutSectionOnce(MCAsmLayout &Layout, MCSectionData &SD);
+
+  bool RelaxInstruction(MCAsmLayout &Layout, MCInstFragment &IF);
+
+  bool RelaxLEB(MCAsmLayout &Layout, MCLEBFragment &IF);
+
+  bool RelaxDwarfLineAddr(MCAsmLayout &Layout, MCDwarfLineAddrFragment &DF);
+  bool RelaxDwarfCallFrameFragment(MCAsmLayout &Layout,
+                                   MCDwarfCallFrameFragment &DF);
+
   /// FinishLayout - Finalize a layout, including fragment lowering.
   void FinishLayout(MCAsmLayout &Layout);
 
+  uint64_t HandleFixup(const MCAsmLayout &Layout,
+                       MCFragment &F, const MCFixup &Fixup);
+
 public:
+  /// Compute the effective fragment size assuming it is layed out at the given
+  /// \arg SectionAddress and \arg FragmentOffset.
+  uint64_t ComputeFragmentSize(const MCAsmLayout &Layout, const MCFragment &F) const;
+
   /// Find the symbol which defines the atom containing the given symbol, or
   /// null if there is no such symbol.
-  const MCSymbolData *getAtom(const MCAsmLayout &Layout,
-                              const MCSymbolData *Symbol) const;
+  const MCSymbolData *getAtom(const MCSymbolData *Symbol) const;
 
   /// Check whether a particular symbol is visible to the linker and is required
   /// in the symbol table, or whether it can be discarded by the assembler. This
@@ -659,12 +760,16 @@ public:
   bool isSymbolLinkerVisible(const MCSymbol &SD) const;
 
   /// Emit the section contents using the given object writer.
-  //
-  // FIXME: Should MCAssembler always have a reference to the object writer?
-  void WriteSectionData(const MCSectionData *Section, const MCAsmLayout &Layout,
-                        MCObjectWriter *OW) const;
+  void WriteSectionData(const MCSectionData *Section,
+                        const MCAsmLayout &Layout) const;
 
-  void AddSectionToTheEnd(MCSectionData &SD, MCAsmLayout &Layout);
+  /// Check whether a given symbol has been flagged with .thumb_func.
+  bool isThumbFunc(const MCSymbol *Func) const {
+    return ThumbFuncs.count(Func);
+  }
+
+  /// Flag a function symbol as the target of a .thumb_func directive.
+  void setIsThumbFunc(const MCSymbol *Func) { ThumbFuncs.insert(Func); }
 
 public:
   /// Construct a new assembler instance.
@@ -675,8 +780,9 @@ public:
   // concrete and require clients to pass in a target like object. The other
   // option is to make this abstract, and have targets provide concrete
   // implementations as we do with AsmParser.
-  MCAssembler(MCContext &_Context, TargetAsmBackend &_Backend,
-              MCCodeEmitter &_Emitter, raw_ostream &OS);
+  MCAssembler(MCContext &Context_, TargetAsmBackend &Backend_,
+              MCCodeEmitter &Emitter_, MCObjectWriter &Writer_,
+              raw_ostream &OS);
   ~MCAssembler();
 
   MCContext &getContext() const { return Context; }
@@ -685,10 +791,12 @@ public:
 
   MCCodeEmitter &getEmitter() const { return Emitter; }
 
+  MCObjectWriter &getWriter() const { return Writer; }
+
   /// Finish - Do final processing and write the object to the output stream.
   /// \arg Writer is used for custom object writer (as the MCJIT does),
   /// if not specified it is automatically created from backend.
-  void Finish(MCObjectWriter *Writer = 0);
+  void Finish();
 
   // FIXME: This does not belong here.
   bool getSubsectionsViaSymbols() const {
@@ -700,6 +808,9 @@ public:
 
   bool getRelaxAll() const { return RelaxAll; }
   void setRelaxAll(bool Value) { RelaxAll = Value; }
+
+  bool getNoExecStack() const { return NoExecStack; }
+  void setNoExecStack(bool Value) { NoExecStack = Value; }
 
   /// @name Section List Access
   /// @{

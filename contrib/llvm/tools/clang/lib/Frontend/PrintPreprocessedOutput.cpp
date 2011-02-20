@@ -86,9 +86,6 @@ public:
 private:
   unsigned CurLine;
 
-  /// The current include nesting level, used by header include dumping (-H).
-  unsigned CurrentIncludeDepth;
-
   bool EmittedTokensOnThisLine;
   bool EmittedMacroOnThisLine;
   SrcMgr::CharacteristicKind FileType;
@@ -96,22 +93,19 @@ private:
   bool Initialized;
   bool DisableLineMarkers;
   bool DumpDefines;
-  bool DumpHeaderIncludes;
   bool UseLineDirective;
-  bool HasProcessedPredefines;
 public:
   PrintPPOutputPPCallbacks(Preprocessor &pp, llvm::raw_ostream &os,
-                           bool lineMarkers, bool defines, bool headers)
+                           bool lineMarkers, bool defines)
      : PP(pp), SM(PP.getSourceManager()),
        ConcatInfo(PP), OS(os), DisableLineMarkers(lineMarkers),
-       DumpDefines(defines), DumpHeaderIncludes(headers) {
-    CurLine = CurrentIncludeDepth = 0;
+       DumpDefines(defines) {
+    CurLine = 0;
     CurFilename += "<uninit>";
     EmittedTokensOnThisLine = false;
     EmittedMacroOnThisLine = false;
     FileType = SrcMgr::C_User;
     Initialized = false;
-    HasProcessedPredefines = false;
 
     // If we're in microsoft mode, use normal #line instead of line markers.
     UseLineDirective = PP.getLangOptions().Microsoft;
@@ -120,6 +114,8 @@ public:
   void SetEmittedTokensOnThisLine() { EmittedTokensOnThisLine = true; }
   bool hasEmittedTokensOnThisLine() const { return EmittedTokensOnThisLine; }
 
+  bool StartNewLineIfNeeded();
+  
   virtual void FileChanged(SourceLocation Loc, FileChangeReason Reason,
                            SrcMgr::CharacteristicKind FileType);
   virtual void Ident(SourceLocation Loc, const std::string &str);
@@ -129,7 +125,10 @@ public:
 
   bool HandleFirstTokOnLine(Token &Tok);
   bool MoveToLine(SourceLocation Loc) {
-    return MoveToLine(SM.getPresumedLoc(Loc).getLine());
+    PresumedLoc PLoc = SM.getPresumedLoc(Loc);
+    if (PLoc.isInvalid())
+      return false;
+    return MoveToLine(PLoc.getLine());
   }
   bool MoveToLine(unsigned LineNo);
 
@@ -138,15 +137,14 @@ public:
     return ConcatInfo.AvoidConcat(PrevPrevTok, PrevTok, Tok);
   }
   void WriteLineInfo(unsigned LineNo, const char *Extra=0, unsigned ExtraLen=0);
-
+  bool LineMarkersAreDisabled() const { return DisableLineMarkers; }
   void HandleNewlinesInToken(const char *TokStr, unsigned Len);
 
   /// MacroDefined - This hook is called whenever a macro definition is seen.
-  void MacroDefined(const IdentifierInfo *II, const MacroInfo *MI);
+  void MacroDefined(const Token &MacroNameTok, const MacroInfo *MI);
 
   /// MacroUndefined - This hook is called whenever a macro #undef is seen.
-  void MacroUndefined(SourceLocation Loc, const IdentifierInfo *II,
-                      const MacroInfo *MI);
+  void MacroUndefined(const Token &MacroNameTok, const MacroInfo *MI);
 };
 }  // end anonymous namespace
 
@@ -162,11 +160,11 @@ void PrintPPOutputPPCallbacks::WriteLineInfo(unsigned LineNo,
   // Emit #line directives or GNU line markers depending on what mode we're in.
   if (UseLineDirective) {
     OS << "#line" << ' ' << LineNo << ' ' << '"';
-    OS.write(&CurFilename[0], CurFilename.size());
+    OS.write(CurFilename.data(), CurFilename.size());
     OS << '"';
   } else {
     OS << '#' << ' ' << LineNo << ' ' << '"';
-    OS.write(&CurFilename[0], CurFilename.size());
+    OS.write(CurFilename.data(), CurFilename.size());
     OS << '"';
 
     if (ExtraLen)
@@ -213,6 +211,17 @@ bool PrintPPOutputPPCallbacks::MoveToLine(unsigned LineNo) {
   return true;
 }
 
+bool PrintPPOutputPPCallbacks::StartNewLineIfNeeded() {
+  if (EmittedTokensOnThisLine || EmittedMacroOnThisLine) {
+    OS << '\n';
+    EmittedTokensOnThisLine = false;
+    EmittedMacroOnThisLine = false;
+    ++CurLine;
+    return true;
+  }
+  
+  return false;
+}
 
 /// FileChanged - Whenever the preprocessor enters or exits a #include file
 /// it invokes this handler.  Update our conception of the current source
@@ -225,10 +234,13 @@ void PrintPPOutputPPCallbacks::FileChanged(SourceLocation Loc,
   SourceManager &SourceMgr = SM;
   
   PresumedLoc UserLoc = SourceMgr.getPresumedLoc(Loc);
+  if (UserLoc.isInvalid())
+    return;
+  
   unsigned NewLine = UserLoc.getLine();
 
   if (Reason == PPCallbacks::EnterFile) {
-    SourceLocation IncludeLoc = SourceMgr.getPresumedLoc(Loc).getIncludeLoc();
+    SourceLocation IncludeLoc = UserLoc.getIncludeLoc();
     if (IncludeLoc.isValid())
       MoveToLine(IncludeLoc);
   } else if (Reason == PPCallbacks::SystemHeaderPragma) {
@@ -238,19 +250,6 @@ void PrintPPOutputPPCallbacks::FileChanged(SourceLocation Loc,
     // directive and emits a bunch of spaces that aren't needed.  Emulate this
     // strange behavior.
   }
-
-  // Adjust the current include depth.
-  if (Reason == PPCallbacks::EnterFile) {
-    ++CurrentIncludeDepth;
-  } else {
-    if (CurrentIncludeDepth)
-      --CurrentIncludeDepth;
-
-    // We track when we are done with the predefines by watching for the first
-    // place where we drop back to a nesting depth of 0.
-    if (CurrentIncludeDepth == 0 && !HasProcessedPredefines)
-      HasProcessedPredefines = true;
-  }
   
   CurLine = NewLine;
 
@@ -258,18 +257,6 @@ void PrintPPOutputPPCallbacks::FileChanged(SourceLocation Loc,
   CurFilename += UserLoc.getFilename();
   Lexer::Stringify(CurFilename);
   FileType = NewFileType;
-
-  // Dump the header include information, if enabled and we are past the
-  // predefines buffer.
-  if (DumpHeaderIncludes && HasProcessedPredefines &&
-      Reason == PPCallbacks::EnterFile) {
-    llvm::SmallString<256> Msg;
-    llvm::raw_svector_ostream OS(Msg);
-    for (unsigned i = 0; i != CurrentIncludeDepth; ++i)
-      OS << '.';
-    OS << ' ' << CurFilename << '\n';
-    llvm::errs() << OS.str();
-  }
 
   if (DisableLineMarkers) return;
   
@@ -303,7 +290,7 @@ void PrintPPOutputPPCallbacks::Ident(SourceLocation Loc, const std::string &S) {
 }
 
 /// MacroDefined - This hook is called whenever a macro definition is seen.
-void PrintPPOutputPPCallbacks::MacroDefined(const IdentifierInfo *II,
+void PrintPPOutputPPCallbacks::MacroDefined(const Token &MacroNameTok,
                                             const MacroInfo *MI) {
   // Only print out macro definitions in -dD mode.
   if (!DumpDefines ||
@@ -311,18 +298,17 @@ void PrintPPOutputPPCallbacks::MacroDefined(const IdentifierInfo *II,
       MI->isBuiltinMacro()) return;
 
   MoveToLine(MI->getDefinitionLoc());
-  PrintMacroDefinition(*II, *MI, PP, OS);
+  PrintMacroDefinition(*MacroNameTok.getIdentifierInfo(), *MI, PP, OS);
   EmittedMacroOnThisLine = true;
 }
 
-void PrintPPOutputPPCallbacks::MacroUndefined(SourceLocation Loc,
-                                              const IdentifierInfo *II,
+void PrintPPOutputPPCallbacks::MacroUndefined(const Token &MacroNameTok,
                                               const MacroInfo *MI) {
   // Only print out macro definitions in -dD mode.
   if (!DumpDefines) return;
 
-  MoveToLine(Loc);
-  OS << "#undef " << II->getName();
+  MoveToLine(MacroNameTok.getLocation());
+  OS << "#undef " << MacroNameTok.getIdentifierInfo()->getName();
   EmittedMacroOnThisLine = true;
 }
 
@@ -437,12 +423,14 @@ struct UnknownPragmaHandler : public PragmaHandler {
 
   UnknownPragmaHandler(const char *prefix, PrintPPOutputPPCallbacks *callbacks)
     : Prefix(prefix), Callbacks(callbacks) {}
-  virtual void HandlePragma(Preprocessor &PP, Token &PragmaTok) {
+  virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
+                            Token &PragmaTok) {
     // Figure out what line we went to and insert the appropriate number of
     // newline characters.
+    Callbacks->StartNewLineIfNeeded();
     Callbacks->MoveToLine(PragmaTok.getLocation());
     Callbacks->OS.write(Prefix, strlen(Prefix));
-
+    Callbacks->SetEmittedTokensOnThisLine();
     // Read and print all of the pragma tokens.
     while (PragmaTok.isNot(tok::eom)) {
       if (PragmaTok.hasLeadingSpace())
@@ -451,7 +439,7 @@ struct UnknownPragmaHandler : public PragmaHandler {
       Callbacks->OS.write(&TokSpell[0], TokSpell.size());
       PP.LexUnexpandedToken(PragmaTok);
     }
-    Callbacks->OS << '\n';
+    Callbacks->StartNewLineIfNeeded();
   }
 };
 } // end anonymous namespace
@@ -561,10 +549,11 @@ void clang::DoPrintPreprocessedInput(Preprocessor &PP, llvm::raw_ostream *OS,
 
   PrintPPOutputPPCallbacks *Callbacks =
       new PrintPPOutputPPCallbacks(PP, *OS, !Opts.ShowLineMarkers,
-                                   Opts.ShowMacros, Opts.ShowHeaderIncludes);
+                                   Opts.ShowMacros);
   PP.AddPragmaHandler(new UnknownPragmaHandler("#pragma", Callbacks));
-  PP.AddPragmaHandler("GCC", new UnknownPragmaHandler("#pragma GCC",
-                                                      Callbacks));
+  PP.AddPragmaHandler("GCC", new UnknownPragmaHandler("#pragma GCC",Callbacks));
+  PP.AddPragmaHandler("clang",
+                      new UnknownPragmaHandler("#pragma clang", Callbacks));
 
   PP.addPPCallbacks(Callbacks);
 
@@ -576,13 +565,20 @@ void clang::DoPrintPreprocessedInput(Preprocessor &PP, llvm::raw_ostream *OS,
   // start.
   const SourceManager &SourceMgr = PP.getSourceManager();
   Token Tok;
-  do PP.Lex(Tok);
-  while (Tok.isNot(tok::eof) && Tok.getLocation().isFileID() &&
-         !strcmp(SourceMgr.getPresumedLoc(Tok.getLocation()).getFilename(),
-                 "<built-in>"));
+  do {
+    PP.Lex(Tok);
+    if (Tok.is(tok::eof) || !Tok.getLocation().isFileID())
+      break;
+
+    PresumedLoc PLoc = SourceMgr.getPresumedLoc(Tok.getLocation());
+    if (PLoc.isInvalid())
+      break;
+
+    if (strcmp(PLoc.getFilename(), "<built-in>"))
+      break;
+  } while (true);
 
   // Read all the preprocessed tokens, printing them out to the stream.
   PrintPreprocessedTokens(PP, Tok, Callbacks, *OS);
   *OS << '\n';
 }
-

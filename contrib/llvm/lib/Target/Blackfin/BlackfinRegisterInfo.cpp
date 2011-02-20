@@ -22,7 +22,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineLocation.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Target/TargetFrameInfo.h"
+#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -50,6 +50,8 @@ BlackfinRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 
 BitVector
 BlackfinRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+
   using namespace BF;
   BitVector Reserved(getNumRegs());
   Reserved.set(AZ);
@@ -70,18 +72,9 @@ BlackfinRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   Reserved.set(L3);
   Reserved.set(SP);
   Reserved.set(RETS);
-  if (hasFP(MF))
+  if (TFI->hasFP(MF))
     Reserved.set(FP);
   return Reserved;
-}
-
-// hasFP - Return true if the specified function should have a dedicated frame
-// pointer register.  This is true if the function has variable sized allocas or
-// if frame pointer elimination is disabled.
-bool BlackfinRegisterInfo::hasFP(const MachineFunction &MF) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return DisableFramePointerElim(MF) ||
-    MFI->adjustsStack() || MFI->hasVarSizedObjects();
 }
 
 bool BlackfinRegisterInfo::
@@ -161,7 +154,9 @@ void BlackfinRegisterInfo::
 eliminateCallFramePseudoInstr(MachineFunction &MF,
                               MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
-  if (!hasReservedCallFrame(MF)) {
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+
+  if (!TFI->hasReservedCallFrame(MF)) {
     int64_t Amount = I->getOperand(0).getImm();
     if (Amount != 0) {
       assert(Amount%4 == 0 && "Unaligned call frame size");
@@ -196,6 +191,7 @@ BlackfinRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineInstr &MI = *II;
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
   DebugLoc DL = MI.getDebugLoc();
 
   unsigned FIPos;
@@ -208,7 +204,7 @@ BlackfinRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   int Offset = MF.getFrameInfo()->getObjectOffset(FrameIndex)
     + MI.getOperand(FIPos+1).getImm();
   unsigned BaseReg = BF::FP;
-  if (hasFP(MF)) {
+  if (TFI->hasFP(MF)) {
     assert(SPAdj==0 && "Unexpected SP adjust in function with frame pointer");
   } else {
     BaseReg = BF::SP;
@@ -329,93 +325,15 @@ BlackfinRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
 }
 
-void BlackfinRegisterInfo::
-processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                     RegScavenger *RS) const {
-  MachineFrameInfo *MFI = MF.getFrameInfo();
-  const TargetRegisterClass *RC = BF::DPRegisterClass;
-  if (requiresRegisterScavenging(MF)) {
-    // Reserve a slot close to SP or frame pointer.
-    RS->setScavengingFrameIndex(MFI->CreateStackObject(RC->getSize(),
-                                                       RC->getAlignment(),
-                                                       false));
-  }
-}
-
-// Emit a prologue that sets up a stack frame.
-// On function entry, R0-R2 and P0 may hold arguments.
-// R3, P1, and P2 may be used as scratch registers
-void BlackfinRegisterInfo::emitPrologue(MachineFunction &MF) const {
-  MachineBasicBlock &MBB = MF.front();   // Prolog goes in entry BB
-  MachineBasicBlock::iterator MBBI = MBB.begin();
-  MachineFrameInfo *MFI = MF.getFrameInfo();
-  DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
-
-  int FrameSize = MFI->getStackSize();
-  if (FrameSize%4) {
-    FrameSize = (FrameSize+3) & ~3;
-    MFI->setStackSize(FrameSize);
-  }
-
-  if (!hasFP(MF)) {
-    assert(!MFI->adjustsStack() &&
-           "FP elimination on a non-leaf function is not supported");
-    adjustRegister(MBB, MBBI, dl, BF::SP, BF::P1, -FrameSize);
-    return;
-  }
-
-  // emit a LINK instruction
-  if (FrameSize <= 0x3ffff) {
-    BuildMI(MBB, MBBI, dl, TII.get(BF::LINK)).addImm(FrameSize);
-    return;
-  }
-
-  // Frame is too big, do a manual LINK:
-  // [--SP] = RETS;
-  // [--SP] = FP;
-  // FP = SP;
-  // P1 = -FrameSize;
-  // SP = SP + P1;
-  BuildMI(MBB, MBBI, dl, TII.get(BF::PUSH))
-    .addReg(BF::RETS, RegState::Kill);
-  BuildMI(MBB, MBBI, dl, TII.get(BF::PUSH))
-    .addReg(BF::FP, RegState::Kill);
-  BuildMI(MBB, MBBI, dl, TII.get(BF::MOVE), BF::FP)
-    .addReg(BF::SP);
-  loadConstant(MBB, MBBI, dl, BF::P1, -FrameSize);
-  BuildMI(MBB, MBBI, dl, TII.get(BF::ADDpp), BF::SP)
-    .addReg(BF::SP, RegState::Kill)
-    .addReg(BF::P1, RegState::Kill);
-
-}
-
-void BlackfinRegisterInfo::emitEpilogue(MachineFunction &MF,
-                                        MachineBasicBlock &MBB) const {
-  MachineFrameInfo *MFI = MF.getFrameInfo();
-  MachineBasicBlock::iterator MBBI = prior(MBB.end());
-  DebugLoc dl = MBBI->getDebugLoc();
-
-  int FrameSize = MFI->getStackSize();
-  assert(FrameSize%4 == 0 && "Misaligned frame size");
-
-  if (!hasFP(MF)) {
-    assert(!MFI->adjustsStack() &&
-           "FP elimination on a non-leaf function is not supported");
-    adjustRegister(MBB, MBBI, dl, BF::SP, BF::P1, FrameSize);
-    return;
-  }
-
-  // emit an UNLINK instruction
-  BuildMI(MBB, MBBI, dl, TII.get(BF::UNLINK));
-}
-
 unsigned BlackfinRegisterInfo::getRARegister() const {
   return BF::RETS;
 }
 
 unsigned
 BlackfinRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  return hasFP(MF) ? BF::FP : BF::SP;
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+
+  return TFI->hasFP(MF) ? BF::FP : BF::SP;
 }
 
 unsigned BlackfinRegisterInfo::getEHExceptionRegister() const {

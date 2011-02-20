@@ -1,4 +1,4 @@
-//===--- ToolChain.cpp - Collections of tools for one platform ----------*-===//
+//===--- ToolChain.cpp - Collections of tools for one platform ------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -41,6 +41,10 @@ std::string ToolChain::GetProgramPath(const char *Name, bool WantFile) const {
 
 types::ID ToolChain::LookupTypeForExtension(const char *Ext) const {
   return types::lookupTypeForExtension(Ext);
+}
+
+bool ToolChain::HasNativeLLVMSupport() const {
+  return false;
 }
 
 /// getARMTargetCPU - Get the (LLVM) name of the ARM cpu we are targetting.
@@ -174,3 +178,52 @@ std::string ToolChain::ComputeEffectiveClangTriple(const ArgList &Args) const {
   return ComputeLLVMTriple(Args);
 }
 
+ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
+  if (Arg *A = Args.getLastArg(options::OPT_stdlib_EQ)) {
+    llvm::StringRef Value = A->getValue(Args);
+    if (Value == "libc++")
+      return ToolChain::CST_Libcxx;
+    if (Value == "libstdc++")
+      return ToolChain::CST_Libstdcxx;
+    getDriver().Diag(clang::diag::err_drv_invalid_stdlib_name)
+      << A->getAsString(Args);
+  }
+
+  return ToolChain::CST_Libstdcxx;
+}
+
+void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &Args,
+                                             ArgStringList &CmdArgs) const {
+  CXXStdlibType Type = GetCXXStdlibType(Args);
+
+  switch (Type) {
+  case ToolChain::CST_Libcxx:
+    CmdArgs.push_back("-cxx-system-include");
+    CmdArgs.push_back("/usr/include/c++/v1");
+    break;
+
+  case ToolChain::CST_Libstdcxx:
+    // Currently handled by the mass of goop in InitHeaderSearch.
+    break;
+  }
+}
+
+void ToolChain::AddCXXStdlibLibArgs(const ArgList &Args,
+                                    ArgStringList &CmdArgs) const {
+  CXXStdlibType Type = GetCXXStdlibType(Args);
+
+  switch (Type) {
+  case ToolChain::CST_Libcxx:
+    CmdArgs.push_back("-lc++");
+    break;
+
+  case ToolChain::CST_Libstdcxx:
+    CmdArgs.push_back("-lstdc++");
+    break;
+  }
+}
+
+void ToolChain::AddCCKextLibArgs(const ArgList &Args,
+                                 ArgStringList &CmdArgs) const {
+  CmdArgs.push_back("-lcc_kext");
+}

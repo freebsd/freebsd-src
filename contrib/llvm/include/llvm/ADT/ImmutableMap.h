@@ -76,7 +76,23 @@ public:
   /// should use a Factory object to create maps instead of directly
   /// invoking the constructor, but there are cases where make this
   /// constructor public is useful.
-  explicit ImmutableMap(const TreeTy* R) : Root(const_cast<TreeTy*>(R)) {}
+  explicit ImmutableMap(const TreeTy* R) : Root(const_cast<TreeTy*>(R)) {
+    if (Root) { Root->retain(); }
+  }
+  ImmutableMap(const ImmutableMap &X) : Root(X.Root) {
+    if (Root) { Root->retain(); }
+  }
+  ImmutableMap &operator=(const ImmutableMap &X) {
+    if (Root != X.Root) {
+      if (X.Root) { X.Root->retain(); }
+      if (Root) { Root->release(); }
+      Root = X.Root;
+    }
+    return *this;
+  }
+  ~ImmutableMap() {
+    if (Root) { Root->release(); }
+  }
 
   class Factory {
     typename TreeTy::Factory F;
@@ -89,16 +105,16 @@ public:
     Factory(BumpPtrAllocator& Alloc, bool canonicalize = true)
       : F(Alloc), Canonicalize(canonicalize) {}
 
-    ImmutableMap GetEmptyMap() { return ImmutableMap(F.GetEmptyTree()); }
+    ImmutableMap getEmptyMap() { return ImmutableMap(F.getEmptyTree()); }
 
-    ImmutableMap Add(ImmutableMap Old, key_type_ref K, data_type_ref D) {
-      TreeTy *T = F.Add(Old.Root, std::make_pair<key_type,data_type>(K,D));
-      return ImmutableMap(Canonicalize ? F.GetCanonicalTree(T): T);
+    ImmutableMap add(ImmutableMap Old, key_type_ref K, data_type_ref D) {
+      TreeTy *T = F.add(Old.Root, std::make_pair<key_type,data_type>(K,D));
+      return ImmutableMap(Canonicalize ? F.getCanonicalTree(T): T);
     }
 
-    ImmutableMap Remove(ImmutableMap Old, key_type_ref K) {
-      TreeTy *T = F.Remove(Old.Root,K);
-      return ImmutableMap(Canonicalize ? F.GetCanonicalTree(T): T);
+    ImmutableMap remove(ImmutableMap Old, key_type_ref K) {
+      TreeTy *T = F.remove(Old.Root,K);
+      return ImmutableMap(Canonicalize ? F.getCanonicalTree(T): T);
     }
 
   private:
@@ -110,15 +126,30 @@ public:
     return Root ? Root->contains(K) : false;
   }
 
-  bool operator==(ImmutableMap RHS) const {
+  bool operator==(const ImmutableMap &RHS) const {
     return Root && RHS.Root ? Root->isEqual(*RHS.Root) : Root == RHS.Root;
   }
 
-  bool operator!=(ImmutableMap RHS) const {
+  bool operator!=(const ImmutableMap &RHS) const {
     return Root && RHS.Root ? Root->isNotEqual(*RHS.Root) : Root != RHS.Root;
   }
 
-  TreeTy* getRoot() const { return Root; }
+  TreeTy *getRoot() const {
+    if (Root) { Root->retain(); }
+    return Root;
+  }
+
+  TreeTy *getRootWithoutRetain() const {
+    return Root;
+  }
+  
+  void manualRetain() {
+    if (Root) Root->retain();
+  }
+  
+  void manualRelease() {
+    if (Root) Root->release();
+  }
 
   bool isEmpty() const { return !Root; }
 

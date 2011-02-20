@@ -8,15 +8,19 @@ SRCS=	AliasAnalysis.cpp \
 	AliasAnalysisEvaluator.cpp \
 	AliasDebugger.cpp \
 	AliasSetTracker.cpp \
+	Analysis.cpp \
 	BasicAliasAnalysis.cpp \
 	CFGPrinter.cpp \
 	CaptureTracking.cpp \
 	ConstantFolding.cpp \
 	DbgInfoPrinter.cpp \
 	DebugInfo.cpp \
+	DIBuilder.cpp \
 	DomPrinter.cpp \
+	DominanceFrontier.cpp \
 	IVUsers.cpp \
 	InlineCost.cpp \
+	InstCount.cpp \
 	InstructionSimplify.cpp \
 	Interval.cpp \
 	IntervalPartition.cpp \
@@ -28,11 +32,12 @@ SRCS=	AliasAnalysis.cpp \
 	LoopDependenceAnalysis.cpp \
 	LoopInfo.cpp \
 	LoopPass.cpp \
+	MemDepPrinter.cpp \
 	MemoryBuiltins.cpp \
 	MemoryDependenceAnalysis.cpp \
 	ModuleDebugInfoPrinter.cpp \
+	NoAliasAnalysis.cpp \
 	PHITransAddr.cpp \
-	PointerTracking.cpp \
 	PostDominators.cpp \
 	ProfileEstimatorPass.cpp \
 	ProfileInfo.cpp \
@@ -40,12 +45,14 @@ SRCS=	AliasAnalysis.cpp \
 	ProfileInfoLoaderPass.cpp \
 	ProfileVerifierPass.cpp \
 	RegionInfo.cpp \
+	RegionPass.cpp \
 	RegionPrinter.cpp \
 	ScalarEvolution.cpp \
 	ScalarEvolutionAliasAnalysis.cpp \
 	ScalarEvolutionExpander.cpp \
 	ScalarEvolutionNormalization.cpp \
 	SparsePropagation.cpp \
+	TypeBasedAliasAnalysis.cpp \
 	ValueTracking.cpp
 
 TGHDRS=	Intrinsics

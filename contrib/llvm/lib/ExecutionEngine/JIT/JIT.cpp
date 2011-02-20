@@ -30,7 +30,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MutexGuard.h"
-#include "llvm/System/DynamicLibrary.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Config/config.h"
 
 using namespace llvm;
@@ -66,8 +66,15 @@ static struct RegisterJIT {
 extern "C" void LLVMLinkInJIT() {
 }
 
+// Determine whether we can register EH tables.
+#if (defined(__GNUC__) && !defined(__ARM_EABI__) && \
+     !defined(__USING_SJLJ_EXCEPTIONS__))
+#define HAVE_EHTABLE_SUPPORT 1
+#else
+#define HAVE_EHTABLE_SUPPORT 0
+#endif
 
-#if defined(__GNUC__) && !defined(__ARM_EABI__) && !defined(__USING_SJLJ_EXCEPTIONS__)
+#if HAVE_EHTABLE_SUPPORT
  
 // libgcc defines the __register_frame function to dynamically register new
 // dwarf frames for exception handling. This functionality is not portable
@@ -87,6 +94,7 @@ extern "C" void LLVMLinkInJIT() {
 // values of an opaque key, used by libgcc to find dwarf tables.
 
 extern "C" void __register_frame(void*);
+extern "C" void __deregister_frame(void*);
 
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED <= 1050
 # define USE_KEYMGR 1
@@ -190,7 +198,7 @@ void DarwinRegisterFrame(void* FrameBegin) {
 
 }
 #endif // __APPLE__
-#endif // __GNUC__
+#endif // HAVE_EHTABLE_SUPPORT
 
 /// createJIT - This is the factory method for creating a JIT for the current
 /// machine, it does not fall back to the interpreter.  This takes ownership
@@ -306,7 +314,7 @@ JIT::JIT(Module *M, TargetMachine &tm, TargetJITInfo &tji,
   }
   
   // Register routine for informing unwinding runtime about new EH frames
-#if defined(__GNUC__) && !defined(__ARM_EABI__) && !defined(__USING_SJLJ_EXCEPTIONS__)
+#if HAVE_EHTABLE_SUPPORT
 #if USE_KEYMGR
   struct LibgccObjectInfo* LOI = (struct LibgccObjectInfo*)
     _keymgr_get_and_lock_processwide_ptr(KEYMGR_GCC3_DW2_OBJ_LIST);
@@ -318,16 +326,21 @@ JIT::JIT(Module *M, TargetMachine &tm, TargetJITInfo &tji,
     LOI = (LibgccObjectInfo*)calloc(sizeof(struct LibgccObjectInfo), 1); 
   _keymgr_set_and_unlock_processwide_ptr(KEYMGR_GCC3_DW2_OBJ_LIST, LOI);
   InstallExceptionTableRegister(DarwinRegisterFrame);
+  // Not sure about how to deregister on Darwin.
 #else
   InstallExceptionTableRegister(__register_frame);
+  InstallExceptionTableDeregister(__deregister_frame);
 #endif // __APPLE__
-#endif // __GNUC__
+#endif // HAVE_EHTABLE_SUPPORT
   
   // Initialize passes.
   PM.doInitialization();
 }
 
 JIT::~JIT() {
+  // Unregister all exception tables registered by this JIT.
+  DeregisterAllTables();
+  // Cleanup.
   AllJits->Remove(this);
   delete jitstate;
   delete JCE;

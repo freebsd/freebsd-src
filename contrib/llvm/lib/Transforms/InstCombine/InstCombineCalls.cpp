@@ -17,6 +17,7 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
+#include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
 /// getPromotedType - Return the specified type promoted as it would be to pass
@@ -29,100 +30,10 @@ static const Type *getPromotedType(const Type *Ty) {
   return Ty;
 }
 
-/// EnforceKnownAlignment - If the specified pointer points to an object that
-/// we control, modify the object's alignment to PrefAlign. This isn't
-/// often possible though. If alignment is important, a more reliable approach
-/// is to simply align all global variables and allocation instructions to
-/// their preferred alignment from the beginning.
-///
-static unsigned EnforceKnownAlignment(Value *V,
-                                      unsigned Align, unsigned PrefAlign) {
-
-  User *U = dyn_cast<User>(V);
-  if (!U) return Align;
-
-  switch (Operator::getOpcode(U)) {
-  default: break;
-  case Instruction::BitCast:
-    return EnforceKnownAlignment(U->getOperand(0), Align, PrefAlign);
-  case Instruction::GetElementPtr: {
-    // If all indexes are zero, it is just the alignment of the base pointer.
-    bool AllZeroOperands = true;
-    for (User::op_iterator i = U->op_begin() + 1, e = U->op_end(); i != e; ++i)
-      if (!isa<Constant>(*i) ||
-          !cast<Constant>(*i)->isNullValue()) {
-        AllZeroOperands = false;
-        break;
-      }
-
-    if (AllZeroOperands) {
-      // Treat this like a bitcast.
-      return EnforceKnownAlignment(U->getOperand(0), Align, PrefAlign);
-    }
-    return Align;
-  }
-  case Instruction::Alloca: {
-    AllocaInst *AI = cast<AllocaInst>(V);
-    // If there is a requested alignment and if this is an alloca, round up.
-    if (AI->getAlignment() >= PrefAlign)
-      return AI->getAlignment();
-    AI->setAlignment(PrefAlign);
-    return PrefAlign;
-  }
-  }
-
-  if (GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
-    // If there is a large requested alignment and we can, bump up the alignment
-    // of the global.
-    if (GV->isDeclaration()) return Align;
-    
-    if (GV->getAlignment() >= PrefAlign)
-      return GV->getAlignment();
-    // We can only increase the alignment of the global if it has no alignment
-    // specified or if it is not assigned a section.  If it is assigned a
-    // section, the global could be densely packed with other objects in the
-    // section, increasing the alignment could cause padding issues.
-    if (!GV->hasSection() || GV->getAlignment() == 0)
-      GV->setAlignment(PrefAlign);
-    return GV->getAlignment();
-  }
-
-  return Align;
-}
-
-/// GetOrEnforceKnownAlignment - If the specified pointer has an alignment that
-/// we can determine, return it, otherwise return 0.  If PrefAlign is specified,
-/// and it is more than the alignment of the ultimate object, see if we can
-/// increase the alignment of the ultimate object, making this check succeed.
-unsigned InstCombiner::GetOrEnforceKnownAlignment(Value *V,
-                                                  unsigned PrefAlign) {
-  assert(V->getType()->isPointerTy() &&
-         "GetOrEnforceKnownAlignment expects a pointer!");
-  unsigned BitWidth = TD ? TD->getPointerSizeInBits() : 64;
-  APInt Mask = APInt::getAllOnesValue(BitWidth);
-  APInt KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
-  ComputeMaskedBits(V, Mask, KnownZero, KnownOne);
-  unsigned TrailZ = KnownZero.countTrailingOnes();
-
-  // Avoid trouble with rediculously large TrailZ values, such as
-  // those computed from a null pointer.
-  TrailZ = std::min(TrailZ, unsigned(sizeof(unsigned) * CHAR_BIT - 1));
-
-  unsigned Align = 1u << std::min(BitWidth - 1, TrailZ);
-
-  // LLVM doesn't support alignments larger than this currently.
-  Align = std::min(Align, +Value::MaximumAlignment);
-
-  if (PrefAlign > Align)
-    Align = EnforceKnownAlignment(V, Align, PrefAlign);
-  
-    // We don't need to make any adjustment.
-  return Align;
-}
 
 Instruction *InstCombiner::SimplifyMemTransfer(MemIntrinsic *MI) {
-  unsigned DstAlign = GetOrEnforceKnownAlignment(MI->getArgOperand(0));
-  unsigned SrcAlign = GetOrEnforceKnownAlignment(MI->getArgOperand(1));
+  unsigned DstAlign = getKnownAlignment(MI->getArgOperand(0), TD);
+  unsigned SrcAlign = getKnownAlignment(MI->getArgOperand(1), TD);
   unsigned MinAlign = std::min(DstAlign, SrcAlign);
   unsigned CopyAlign = MI->getAlignment();
 
@@ -211,7 +122,7 @@ Instruction *InstCombiner::SimplifyMemTransfer(MemIntrinsic *MI) {
 }
 
 Instruction *InstCombiner::SimplifyMemSet(MemSetInst *MI) {
-  unsigned Alignment = GetOrEnforceKnownAlignment(MI->getDest());
+  unsigned Alignment = getKnownAlignment(MI->getDest(), TD);
   if (MI->getAlignment() < Alignment) {
     MI->setAlignment(ConstantInt::get(MI->getAlignmentType(),
                                              Alignment, false));
@@ -234,7 +145,9 @@ Instruction *InstCombiner::SimplifyMemSet(MemSetInst *MI) {
     const Type *ITy = IntegerType::get(MI->getContext(), Len*8);  // n=1 -> i8.
     
     Value *Dest = MI->getDest();
-    Dest = Builder->CreateBitCast(Dest, PointerType::getUnqual(ITy));
+    unsigned DstAddrSp = cast<PointerType>(Dest->getType())->getAddressSpace();
+    Type *NewDstPtrTy = PointerType::get(ITy, DstAddrSp);
+    Dest = Builder->CreateBitCast(Dest, NewDstPtrTy);
 
     // Alignment 0 is identity for alignment 1 for memset, but not store.
     if (Alignment == 0) Alignment = 1;
@@ -280,7 +193,8 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
 
     // memmove/cpy/set of zero bytes is a noop.
     if (Constant *NumBytes = dyn_cast<Constant>(MI->getLength())) {
-      if (NumBytes->isNullValue()) return EraseInstFromFunction(CI);
+      if (NumBytes->isNullValue())
+        return EraseInstFromFunction(CI);
 
       if (ConstantInt *CI = dyn_cast<ConstantInt>(NumBytes))
         if (CI->getZExtValue() == 1) {
@@ -289,6 +203,10 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
           // alignment is sufficient.
         }
     }
+    
+    // No other transformations apply to volatile transfers.
+    if (MI->isVolatile())
+      return 0;
 
     // If we have a memmove and the source operation is a constant global,
     // then the source and dest pointers can't alias, so we can change this
@@ -332,82 +250,73 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     if (!TD) break;
     
     const Type *ReturnTy = CI.getType();
-    bool Min = (cast<ConstantInt>(II->getArgOperand(1))->getZExtValue() == 1);
+    uint64_t DontKnow = II->getArgOperand(1) == Builder->getTrue() ? 0 : -1ULL;
 
     // Get to the real allocated thing and offset as fast as possible.
     Value *Op1 = II->getArgOperand(0)->stripPointerCasts();
-    
+
+    uint64_t Offset = 0;
+    uint64_t Size = -1ULL;
+
+    // Try to look through constant GEPs.
+    if (GEPOperator *GEP = dyn_cast<GEPOperator>(Op1)) {
+      if (!GEP->hasAllConstantIndices()) break;
+
+      // Get the current byte offset into the thing. Use the original
+      // operand in case we're looking through a bitcast.
+      SmallVector<Value*, 8> Ops(GEP->idx_begin(), GEP->idx_end());
+      Offset = TD->getIndexedOffset(GEP->getPointerOperandType(),
+                                    Ops.data(), Ops.size());
+
+      Op1 = GEP->getPointerOperand()->stripPointerCasts();
+
+      // Make sure we're not a constant offset from an external
+      // global.
+      if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Op1))
+        if (!GV->hasDefinitiveInitializer()) break;
+    }
+
     // If we've stripped down to a single global variable that we
     // can know the size of then just return that.
     if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Op1)) {
       if (GV->hasDefinitiveInitializer()) {
         Constant *C = GV->getInitializer();
-        uint64_t GlobalSize = TD->getTypeAllocSize(C->getType());
-        return ReplaceInstUsesWith(CI, ConstantInt::get(ReturnTy, GlobalSize));
+        Size = TD->getTypeAllocSize(C->getType());
       } else {
         // Can't determine size of the GV.
-        Constant *RetVal = ConstantInt::get(ReturnTy, Min ? 0 : -1ULL);
+        Constant *RetVal = ConstantInt::get(ReturnTy, DontKnow);
         return ReplaceInstUsesWith(CI, RetVal);
       }
     } else if (AllocaInst *AI = dyn_cast<AllocaInst>(Op1)) {
       // Get alloca size.
       if (AI->getAllocatedType()->isSized()) {
-        uint64_t AllocaSize = TD->getTypeAllocSize(AI->getAllocatedType());
+        Size = TD->getTypeAllocSize(AI->getAllocatedType());
         if (AI->isArrayAllocation()) {
           const ConstantInt *C = dyn_cast<ConstantInt>(AI->getArraySize());
           if (!C) break;
-          AllocaSize *= C->getZExtValue();
+          Size *= C->getZExtValue();
         }
-        return ReplaceInstUsesWith(CI, ConstantInt::get(ReturnTy, AllocaSize));
       }
     } else if (CallInst *MI = extractMallocCall(Op1)) {
+      // Get allocation size.
       const Type* MallocType = getMallocAllocatedType(MI);
-      // Get alloca size.
-      if (MallocType && MallocType->isSized()) {
-        if (Value *NElems = getMallocArraySize(MI, TD, true)) {
+      if (MallocType && MallocType->isSized())
+        if (Value *NElems = getMallocArraySize(MI, TD, true))
           if (ConstantInt *NElements = dyn_cast<ConstantInt>(NElems))
-        return ReplaceInstUsesWith(CI, ConstantInt::get(ReturnTy,
-               (NElements->getZExtValue() * TD->getTypeAllocSize(MallocType))));
-        }
-      }
-    } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Op1)) {      
-      // Only handle constant GEPs here.
-      if (CE->getOpcode() != Instruction::GetElementPtr) break;
-      GEPOperator *GEP = cast<GEPOperator>(CE);
-      
-      // Make sure we're not a constant offset from an external
-      // global.
-      Value *Operand = GEP->getPointerOperand();
-      Operand = Operand->stripPointerCasts();
-      if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Operand))
-        if (!GV->hasDefinitiveInitializer()) break;
-        
-      // Get what we're pointing to and its size. 
-      const PointerType *BaseType = 
-        cast<PointerType>(Operand->getType());
-      uint64_t Size = TD->getTypeAllocSize(BaseType->getElementType());
-      
-      // Get the current byte offset into the thing. Use the original
-      // operand in case we're looking through a bitcast.
-      SmallVector<Value*, 8> Ops(CE->op_begin()+1, CE->op_end());
-      const PointerType *OffsetType =
-        cast<PointerType>(GEP->getPointerOperand()->getType());
-      uint64_t Offset = TD->getIndexedOffset(OffsetType, &Ops[0], Ops.size());
-
-      if (Size < Offset) {
-        // Out of bound reference? Negative index normalized to large
-        // index? Just return "I don't know".
-        Constant *RetVal = ConstantInt::get(ReturnTy, Min ? 0 : -1ULL);
-        return ReplaceInstUsesWith(CI, RetVal);
-      }
-      
-      Constant *RetVal = ConstantInt::get(ReturnTy, Size-Offset);
-      return ReplaceInstUsesWith(CI, RetVal);
-    } 
+            Size = NElements->getZExtValue() * TD->getTypeAllocSize(MallocType);
+    }
 
     // Do not return "I don't know" here. Later optimization passes could
     // make it possible to evaluate objectsize to a constant.
-    break;
+    if (Size == -1ULL)
+      break;
+
+    if (Size < Offset) {
+      // Out of bound reference? Negative index normalized to large
+      // index? Just return "I don't know".
+      return ReplaceInstUsesWith(CI, ConstantInt::get(ReturnTy, DontKnow));
+    }
+    return ReplaceInstUsesWith(CI, ConstantInt::get(ReturnTy, Size-Offset));
   }
   case Intrinsic::bswap:
     // bswap(bswap(x)) -> x
@@ -604,7 +513,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
   case Intrinsic::x86_sse2_loadu_dq:
     // Turn PPC lvx     -> load if the pointer is known aligned.
     // Turn X86 loadups -> load if the pointer is known aligned.
-    if (GetOrEnforceKnownAlignment(II->getArgOperand(0), 16) >= 16) {
+    if (getOrEnforceKnownAlignment(II->getArgOperand(0), 16, TD) >= 16) {
       Value *Ptr = Builder->CreateBitCast(II->getArgOperand(0),
                                          PointerType::getUnqual(II->getType()));
       return new LoadInst(Ptr);
@@ -613,7 +522,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
   case Intrinsic::ppc_altivec_stvx:
   case Intrinsic::ppc_altivec_stvxl:
     // Turn stvx -> store if the pointer is known aligned.
-    if (GetOrEnforceKnownAlignment(II->getArgOperand(1), 16) >= 16) {
+    if (getOrEnforceKnownAlignment(II->getArgOperand(1), 16, TD) >= 16) {
       const Type *OpPtrTy = 
         PointerType::getUnqual(II->getArgOperand(0)->getType());
       Value *Ptr = Builder->CreateBitCast(II->getArgOperand(1), OpPtrTy);
@@ -624,16 +533,23 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
   case Intrinsic::x86_sse2_storeu_pd:
   case Intrinsic::x86_sse2_storeu_dq:
     // Turn X86 storeu -> store if the pointer is known aligned.
-    if (GetOrEnforceKnownAlignment(II->getArgOperand(0), 16) >= 16) {
+    if (getOrEnforceKnownAlignment(II->getArgOperand(0), 16, TD) >= 16) {
       const Type *OpPtrTy = 
         PointerType::getUnqual(II->getArgOperand(1)->getType());
       Value *Ptr = Builder->CreateBitCast(II->getArgOperand(0), OpPtrTy);
       return new StoreInst(II->getArgOperand(1), Ptr);
     }
     break;
-    
-  case Intrinsic::x86_sse_cvttss2si: {
-    // These intrinsics only demands the 0th element of its input vector.  If
+
+  case Intrinsic::x86_sse_cvtss2si:
+  case Intrinsic::x86_sse_cvtss2si64:
+  case Intrinsic::x86_sse_cvttss2si:
+  case Intrinsic::x86_sse_cvttss2si64:
+  case Intrinsic::x86_sse2_cvtsd2si:
+  case Intrinsic::x86_sse2_cvtsd2si64:
+  case Intrinsic::x86_sse2_cvttsd2si:
+  case Intrinsic::x86_sse2_cvttsd2si64: {
+    // These intrinsics only demand the 0th element of their input vectors. If
     // we can simplify the input based on that, do so now.
     unsigned VWidth =
       cast<VectorType>(II->getArgOperand(0)->getType())->getNumElements();
@@ -646,7 +562,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     }
     break;
   }
-    
+
   case Intrinsic::ppc_altivec_vperm:
     // Turn vperm(V1,V2,mask) -> shuffle(V1,V2,mask) if mask is a constant.
     if (ConstantVector *Mask = dyn_cast<ConstantVector>(II->getArgOperand(2))) {
@@ -696,6 +612,32 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
       }
     }
     break;
+
+  case Intrinsic::arm_neon_vld1:
+  case Intrinsic::arm_neon_vld2:
+  case Intrinsic::arm_neon_vld3:
+  case Intrinsic::arm_neon_vld4:
+  case Intrinsic::arm_neon_vld2lane:
+  case Intrinsic::arm_neon_vld3lane:
+  case Intrinsic::arm_neon_vld4lane:
+  case Intrinsic::arm_neon_vst1:
+  case Intrinsic::arm_neon_vst2:
+  case Intrinsic::arm_neon_vst3:
+  case Intrinsic::arm_neon_vst4:
+  case Intrinsic::arm_neon_vst2lane:
+  case Intrinsic::arm_neon_vst3lane:
+  case Intrinsic::arm_neon_vst4lane: {
+    unsigned MemAlign = getKnownAlignment(II->getArgOperand(0), TD);
+    unsigned AlignArg = II->getNumArgOperands() - 1;
+    ConstantInt *IntrAlign = dyn_cast<ConstantInt>(II->getArgOperand(AlignArg));
+    if (IntrAlign && IntrAlign->getZExtValue() < MemAlign) {
+      II->setArgOperand(AlignArg,
+                        ConstantInt::get(Type::getInt32Ty(II->getContext()),
+                                         MemAlign, false));
+      return II;
+    }
+    break;
+  }
 
   case Intrinsic::stackrestore: {
     // If the save is right next to the restore, remove the restore.  This can
@@ -783,6 +725,8 @@ protected:
     NewInstruction = IC->ReplaceInstUsesWith(*CI, With);
   }
   bool isFoldable(unsigned SizeCIOp, unsigned SizeArgOp, bool isString) const {
+    if (CI->getArgOperand(SizeCIOp) == CI->getArgOperand(SizeArgOp))
+      return true;
     if (ConstantInt *SizeCI =
                            dyn_cast<ConstantInt>(CI->getArgOperand(SizeCIOp))) {
       if (SizeCI->isAllOnesValue())
@@ -819,11 +763,11 @@ Instruction *InstCombiner::tryOptimizeCall(CallInst *CI, const TargetData *TD) {
 Instruction *InstCombiner::visitCallSite(CallSite CS) {
   bool Changed = false;
 
-  // If the callee is a constexpr cast of a function, attempt to move the cast
-  // to the arguments of the call/invoke.
-  if (transformConstExprCastCall(CS)) return 0;
-
+  // If the callee is a pointer to a function, attempt to move any casts to the
+  // arguments of the call/invoke.
   Value *Callee = CS.getCalledValue();
+  if (!isa<Function>(Callee) && transformConstExprCastCall(CS))
+    return 0;
 
   if (Function *CalleeF = dyn_cast<Function>(Callee))
     // If the call and callee calling conventions don't match, this call must
@@ -917,12 +861,10 @@ Instruction *InstCombiner::visitCallSite(CallSite CS) {
 // attempt to move the cast to the arguments of the call/invoke.
 //
 bool InstCombiner::transformConstExprCastCall(CallSite CS) {
-  if (!isa<ConstantExpr>(CS.getCalledValue())) return false;
-  ConstantExpr *CE = cast<ConstantExpr>(CS.getCalledValue());
-  if (CE->getOpcode() != Instruction::BitCast || 
-      !isa<Function>(CE->getOperand(0)))
+  Function *Callee =
+    dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts());
+  if (Callee == 0)
     return false;
-  Function *Callee = cast<Function>(CE->getOperand(0));
   Instruction *Caller = CS.getInstruction();
   const AttrListPtr &CallerPAL = CS.getAttributes();
 
@@ -984,9 +926,22 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
     if (!CastInst::isCastable(ActTy, ParamTy))
       return false;   // Cannot transform this parameter value.
 
-    if (CallerPAL.getParamAttributes(i + 1) 
-        & Attribute::typeIncompatible(ParamTy))
+    unsigned Attrs = CallerPAL.getParamAttributes(i + 1);
+    if (Attrs & Attribute::typeIncompatible(ParamTy))
       return false;   // Attribute not compatible with transformed value.
+    
+    // If the parameter is passed as a byval argument, then we have to have a
+    // sized type and the sized type has to have the same size as the old type.
+    if (ParamTy != ActTy && (Attrs & Attribute::ByVal)) {
+      const PointerType *ParamPTy = dyn_cast<PointerType>(ParamTy);
+      if (ParamPTy == 0 || !ParamPTy->getElementType()->isSized() || TD == 0)
+        return false;
+      
+      const Type *CurElTy = cast<PointerType>(ActTy)->getElementType();
+      if (TD->getTypeAllocSize(CurElTy) !=
+          TD->getTypeAllocSize(ParamPTy->getElementType()))
+        return false;
+    }
 
     // Converting from one pointer type to another or between a pointer and an
     // integer of the same size is safe even if we do not have a body.
@@ -1109,8 +1064,8 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
   Value *NV = NC;
   if (OldRetTy != NV->getType() && !Caller->use_empty()) {
     if (!NV->getType()->isVoidTy()) {
-      Instruction::CastOps opcode = CastInst::getCastOpcode(NC, false, 
-                                                            OldRetTy, false);
+      Instruction::CastOps opcode =
+        CastInst::getCastOpcode(NC, false, OldRetTy, false);
       NV = NC = CastInst::Create(opcode, NC, OldRetTy, "tmp");
 
       // If this is an invoke instruction, we should insert it after the first
@@ -1119,7 +1074,7 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
         BasicBlock::iterator I = II->getNormalDest()->getFirstNonPHI();
         InsertNewInstBefore(NC, *I);
       } else {
-        // Otherwise, it's a call, just insert cast right after the call instr
+        // Otherwise, it's a call, just insert cast right after the call.
         InsertNewInstBefore(NC, *Caller);
       }
       Worklist.AddUsersToWorkList(*Caller);
@@ -1127,7 +1082,6 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
       NV = UndefValue::get(Caller->getType());
     }
   }
-
 
   if (!Caller->use_empty())
     Caller->replaceAllUsesWith(NV);

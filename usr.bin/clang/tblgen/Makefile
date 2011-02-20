@@ -11,6 +11,7 @@ SRCS=	ARMDecoderEmitter.cpp \
 	ClangASTNodesEmitter.cpp \
 	ClangAttrEmitter.cpp \
 	ClangDiagnosticsEmitter.cpp \
+	ClangSACheckersEmitter.cpp \
 	CodeEmitterGen.cpp \
 	CodeGenDAGPatterns.cpp \
 	CodeGenInstruction.cpp \
@@ -23,6 +24,7 @@ SRCS=	ARMDecoderEmitter.cpp \
 	DisassemblerEmitter.cpp \
 	EDEmitter.cpp \
 	FastISelEmitter.cpp \
+	FixedLenDecoderEmitter.cpp \
 	InstrEnumEmitter.cpp \
 	InstrInfoEmitter.cpp \
 	IntrinsicEmitter.cpp \
@@ -31,6 +33,7 @@ SRCS=	ARMDecoderEmitter.cpp \
 	OptParserEmitter.cpp \
 	Record.cpp \
 	RegisterInfoEmitter.cpp \
+	StringMatcher.cpp \
 	SubtargetEmitter.cpp \
 	TGLexer.cpp \
 	TGParser.cpp \
@@ -41,6 +44,6 @@ SRCS=	ARMDecoderEmitter.cpp \
 	X86RecognizableInstr.cpp
 LLVM_REQUIRES_EH=
 
-LIBDEPS=llvmsupport llvmsystem
+LIBDEPS=llvmsupport
 
 .include "../clang.prog.mk"

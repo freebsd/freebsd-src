@@ -5,6 +5,11 @@ SFX= 32
 CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 .endif
 
+.if ${CC:T:Mclang} == "clang"
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS+=	${.IMPSRC:T:Mlinux32_locore.s:C/^.+$/-no-integrated-as/}
+.endif
+
 .PATH: ${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_CPUARCH}/linux${SFX}
 
 KMOD=	linux

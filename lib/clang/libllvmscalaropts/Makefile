@@ -10,13 +10,14 @@ SRCS=	ADCE.cpp \
 	CorrelatedValuePropagation.cpp \
 	DCE.cpp \
 	DeadStoreElimination.cpp \
+	EarlyCSE.cpp \
 	GEPSplitter.cpp \
 	GVN.cpp \
 	IndVarSimplify.cpp \
 	JumpThreading.cpp \
 	LICM.cpp \
 	LoopDeletion.cpp \
-	LoopIndexSplit.cpp \
+	LoopIdiomRecognize.cpp \
 	LoopRotation.cpp \
 	LoopStrengthReduce.cpp \
 	LoopUnrollPass.cpp \

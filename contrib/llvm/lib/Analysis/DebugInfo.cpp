@@ -109,7 +109,9 @@ Function *DIDescriptor::getFunctionField(unsigned Elt) const {
 }
 
 unsigned DIVariable::getNumAddrElements() const {
-  return DbgNode->getNumOperands()-6;
+  if (getVersion() <= llvm::LLVMDebugVersion8)
+    return DbgNode->getNumOperands()-6;
+  return DbgNode->getNumOperands()-7;
 }
 
 
@@ -197,6 +199,12 @@ bool DIDescriptor::isGlobal() const {
   return isGlobalVariable();
 }
 
+/// isUnspecifiedParmeter - Return true if the specified tag is
+/// DW_TAG_unspecified_parameters.
+bool DIDescriptor::isUnspecifiedParameter() const {
+  return DbgNode && getTag() == dwarf::DW_TAG_unspecified_parameters;
+}
+
 /// isScope - Return true if the specified tag is one of the scope
 /// related tag.
 bool DIDescriptor::isScope() const {
@@ -211,6 +219,18 @@ bool DIDescriptor::isScope() const {
     break;
   }
   return false;
+}
+
+/// isTemplateTypeParameter - Return true if the specified tag is
+/// DW_TAG_template_type_parameter.
+bool DIDescriptor::isTemplateTypeParameter() const {
+  return DbgNode && getTag() == dwarf::DW_TAG_template_type_parameter;
+}
+
+/// isTemplateValueParameter - Return true if the specified tag is
+/// DW_TAG_template_value_parameter.
+bool DIDescriptor::isTemplateValueParameter() const {
+  return DbgNode && getTag() == dwarf::DW_TAG_template_value_parameter;
 }
 
 /// isCompileUnit - Return true if the specified tag is DW_TAG_compile_unit.
@@ -280,6 +300,26 @@ void DIType::replaceAllUsesWith(DIDescriptor &D) {
   }
 }
 
+/// replaceAllUsesWith - Replace all uses of debug info referenced by
+/// this descriptor.
+void DIType::replaceAllUsesWith(MDNode *D) {
+  if (!DbgNode)
+    return;
+
+  // Since we use a TrackingVH for the node, its easy for clients to manufacture
+  // legitimate situations where they want to replaceAllUsesWith() on something
+  // which, due to uniquing, has merged with the source. We shield clients from
+  // this detail by allowing a value to be replaced with replaceAllUsesWith()
+  // itself.
+  if (DbgNode != D) {
+    MDNode *Node = const_cast<MDNode*>(DbgNode);
+    const MDNode *DN = D;
+    const Value *V = cast_or_null<Value>(DN);
+    Node->replaceAllUsesWith(const_cast<Value*>(V));
+    MDNode::deleteTemporary(Node);
+  }
+}
+
 /// Verify - Verify that a compile unit is well formed.
 bool DICompileUnit::Verify() const {
   if (!DbgNode)
@@ -297,9 +337,13 @@ bool DIType::Verify() const {
     return false;
   if (!getContext().Verify())
     return false;
-
-  DICompileUnit CU = getCompileUnit();
-  if (!CU.Verify())
+  unsigned Tag = getTag();
+  if (!isBasicType() && Tag != dwarf::DW_TAG_const_type &&
+      Tag != dwarf::DW_TAG_volatile_type && Tag != dwarf::DW_TAG_pointer_type &&
+      Tag != dwarf::DW_TAG_reference_type && Tag != dwarf::DW_TAG_restrict_type 
+      && Tag != dwarf::DW_TAG_vector_type && Tag != dwarf::DW_TAG_array_type
+      && Tag != dwarf::DW_TAG_enumeration_type 
+      && getFilename().empty())
     return false;
   return true;
 }
@@ -701,15 +745,13 @@ Constant *DIFactory::GetTagConstant(unsigned TAG) {
 /// GetOrCreateArray - Create an descriptor for an array of descriptors.
 /// This implicitly uniques the arrays created.
 DIArray DIFactory::GetOrCreateArray(DIDescriptor *Tys, unsigned NumTys) {
-  SmallVector<Value*, 16> Elts;
+  if (NumTys == 0) {
+    Value *Null = llvm::Constant::getNullValue(Type::getInt32Ty(VMContext));
+    return DIArray(MDNode::get(VMContext, &Null, 1));
+  }
 
-  if (NumTys == 0)
-    Elts.push_back(llvm::Constant::getNullValue(Type::getInt32Ty(VMContext)));
-  else
-    for (unsigned i = 0; i != NumTys; ++i)
-      Elts.push_back(Tys[i]);
-
-  return DIArray(MDNode::get(VMContext,Elts.data(), Elts.size()));
+  SmallVector<Value *, 16> Elts(Tys, Tys+NumTys);
+  return DIArray(MDNode::get(VMContext, Elts.data(), Elts.size()));
 }
 
 /// GetOrCreateSubrange - Create a descriptor for a value range.  This
@@ -724,7 +766,14 @@ DISubrange DIFactory::GetOrCreateSubrange(int64_t Lo, int64_t Hi) {
   return DISubrange(MDNode::get(VMContext, &Elts[0], 3));
 }
 
-
+/// CreateUnspecifiedParameter - Create unspeicified type descriptor
+/// for the subroutine type.
+DIDescriptor DIFactory::CreateUnspecifiedParameter() {
+  Value *Elts[] = {
+    GetTagConstant(dwarf::DW_TAG_unspecified_parameters)
+  };
+  return DIDescriptor(MDNode::get(VMContext, &Elts[0], 1));
+}
 
 /// CreateCompileUnit - Create a new descriptor for the specified compile
 /// unit.  Note that this does not unique compile units within the module.
@@ -946,7 +995,6 @@ DICompositeType DIFactory::CreateCompositeType(unsigned Tag,
   return DICompositeType(Node);
 }
 
-
 /// CreateTemporaryType - Create a temporary forward-declared type.
 DIType DIFactory::CreateTemporaryType() {
   // Give the temporary MDNode a tag. It doesn't matter what tag we
@@ -958,6 +1006,19 @@ DIType DIFactory::CreateTemporaryType() {
   return DIType(Node);
 }
 
+/// CreateTemporaryType - Create a temporary forward-declared type.
+DIType DIFactory::CreateTemporaryType(DIFile F) {
+  // Give the temporary MDNode a tag. It doesn't matter what tag we
+  // use here as long as DIType accepts it.
+  Value *Elts[] = {
+    GetTagConstant(DW_TAG_base_type),
+    F.getCompileUnit(),
+    NULL,
+    F
+  };
+  MDNode *Node = MDNode::getTemporary(VMContext, Elts, array_lengthof(Elts));
+  return DIType(Node);
+}
 
 /// CreateCompositeType - Create a composite type like array, struct, etc.
 DICompositeType DIFactory::CreateCompositeTypeEx(unsigned Tag,
@@ -1011,7 +1072,7 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
                                          bool isDefinition,
                                          unsigned VK, unsigned VIndex,
                                          DIType ContainingType,
-                                         bool isArtificial,
+                                         unsigned Flags,
                                          bool isOptimized,
                                          Function *Fn) {
 
@@ -1030,7 +1091,7 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
     ConstantInt::get(Type::getInt32Ty(VMContext), (unsigned)VK),
     ConstantInt::get(Type::getInt32Ty(VMContext), VIndex),
     ContainingType,
-    ConstantInt::get(Type::getInt1Ty(VMContext), isArtificial),
+    ConstantInt::get(Type::getInt32Ty(VMContext), Flags),
     ConstantInt::get(Type::getInt1Ty(VMContext), isOptimized),
     Fn
   };
@@ -1064,7 +1125,7 @@ DISubprogram DIFactory::CreateSubprogramDefinition(DISubprogram &SPDeclaration){
     DeclNode->getOperand(11), // Virtuality
     DeclNode->getOperand(12), // VIndex
     DeclNode->getOperand(13), // Containting Type
-    DeclNode->getOperand(14), // isArtificial
+    DeclNode->getOperand(14), // Flags
     DeclNode->getOperand(15), // isOptimized
     SPDeclaration.getFunction()
   };
@@ -1142,12 +1203,47 @@ DIFactory::CreateGlobalVariable(DIDescriptor Context, StringRef Name,
   return DIGlobalVariable(Node);
 }
 
+/// fixupObjcLikeName - Replace contains special characters used
+/// in a typical Objective-C names with '.' in a given string.
+static void fixupObjcLikeName(std::string &Str) {
+  for (size_t i = 0, e = Str.size(); i < e; ++i) {
+    char C = Str[i];
+    if (C == '[' || C == ']' || C == ' ' || C == ':' || C == '+' ||
+        C == '(' || C == ')')
+      Str[i] = '.';
+  }
+}
+
+/// getOrInsertFnSpecificMDNode - Return a NameMDNode that is suitable
+/// to hold function specific information.
+NamedMDNode *llvm::getOrInsertFnSpecificMDNode(Module &M, StringRef FuncName) {
+  SmallString<32> Out;
+  if (FuncName.find('[') == StringRef::npos)
+    return M.getOrInsertNamedMetadata(Twine("llvm.dbg.lv.", FuncName)
+                                      .toStringRef(Out)); 
+  std::string Name = FuncName;
+  fixupObjcLikeName(Name);
+  return M.getOrInsertNamedMetadata(Twine("llvm.dbg.lv.", Name)
+                                    .toStringRef(Out));
+}
+
+/// getFnSpecificMDNode - Return a NameMDNode, if available, that is 
+/// suitable to hold function specific information.
+NamedMDNode *llvm::getFnSpecificMDNode(const Module &M, StringRef FuncName) {
+  if (FuncName.find('[') == StringRef::npos)
+    return M.getNamedMetadata(Twine("llvm.dbg.lv.", FuncName));
+  std::string Name = FuncName;
+  fixupObjcLikeName(Name);
+  return M.getNamedMetadata(Twine("llvm.dbg.lv.", Name));
+}
+
 /// CreateVariable - Create a new descriptor for the specified variable.
 DIVariable DIFactory::CreateVariable(unsigned Tag, DIDescriptor Context,
                                      StringRef Name,
                                      DIFile F,
                                      unsigned LineNo,
-                                     DIType Ty, bool AlwaysPreserve) {
+                                     DIType Ty, bool AlwaysPreserve,
+                                     unsigned Flags) {
   Value *Elts[] = {
     GetTagConstant(Tag),
     Context,
@@ -1155,8 +1251,9 @@ DIVariable DIFactory::CreateVariable(unsigned Tag, DIDescriptor Context,
     F,
     ConstantInt::get(Type::getInt32Ty(VMContext), LineNo),
     Ty,
+    ConstantInt::get(Type::getInt32Ty(VMContext), Flags)
   };
-  MDNode *Node = MDNode::get(VMContext, &Elts[0], 6);
+  MDNode *Node = MDNode::get(VMContext, &Elts[0], 7);
   if (AlwaysPreserve) {
     // The optimizer may remove local variable. If there is an interest
     // to preserve variable info in such situation then stash it in a
@@ -1169,9 +1266,8 @@ DIVariable DIFactory::CreateVariable(unsigned Tag, DIDescriptor Context,
     if (FName.startswith(StringRef(&One, 1)))
       FName = FName.substr(1);
 
-    SmallString<32> Out;
-    NamedMDNode *FnLocals =
-      M.getOrInsertNamedMetadata(Twine("llvm.dbg.lv.", FName).toStringRef(Out));
+
+    NamedMDNode *FnLocals = getOrInsertFnSpecificMDNode(M, FName);
     FnLocals->addOperand(Node);
   }
   return DIVariable(Node);
@@ -1181,21 +1277,20 @@ DIVariable DIFactory::CreateVariable(unsigned Tag, DIDescriptor Context,
 /// CreateComplexVariable - Create a new descriptor for the specified variable
 /// which has a complex address expression for its address.
 DIVariable DIFactory::CreateComplexVariable(unsigned Tag, DIDescriptor Context,
-                                            const std::string &Name,
-                                            DIFile F,
+                                            StringRef Name, DIFile F,
                                             unsigned LineNo,
-                                            DIType Ty,
-                                            SmallVector<Value *, 9> &addr) {
-  SmallVector<Value *, 9> Elts;
+                                            DIType Ty, Value *const *Addr,
+                                            unsigned NumAddr) {
+  SmallVector<Value *, 15> Elts;
   Elts.push_back(GetTagConstant(Tag));
   Elts.push_back(Context);
   Elts.push_back(MDString::get(VMContext, Name));
   Elts.push_back(F);
   Elts.push_back(ConstantInt::get(Type::getInt32Ty(VMContext), LineNo));
   Elts.push_back(Ty);
-  Elts.insert(Elts.end(), addr.begin(), addr.end());
+  Elts.append(Addr, Addr+NumAddr);
 
-  return DIVariable(MDNode::get(VMContext, &Elts[0], 6+addr.size()));
+  return DIVariable(MDNode::get(VMContext, Elts.data(), Elts.size()));
 }
 
 
@@ -1308,6 +1403,14 @@ Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, uint64_t Offset,
                     D };
   return CallInst::Create(ValueFn, Args, Args+3, "", InsertAtEnd);
 }
+
+// RecordType - Record DIType in a module such that it is not lost even if
+// it is not referenced through debug info anchors.
+void DIFactory::RecordType(DIType T) {
+  NamedMDNode *NMD = M.getOrInsertNamedMetadata("llvm.dbg.ty");
+  NMD->addOperand(T);
+}
+
 
 //===----------------------------------------------------------------------===//
 // DebugInfoFinder implementations.
@@ -1469,89 +1572,6 @@ bool DebugInfoFinder::addSubprogram(DISubprogram SP) {
     return false;
 
   SPs.push_back(SP);
-  return true;
-}
-
-/// Find the debug info descriptor corresponding to this global variable.
-static Value *findDbgGlobalDeclare(GlobalVariable *V) {
-  const Module *M = V->getParent();
-  NamedMDNode *NMD = M->getNamedMetadata("llvm.dbg.gv");
-  if (!NMD)
-    return 0;
-
-  for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
-    DIDescriptor DIG(cast<MDNode>(NMD->getOperand(i)));
-    if (!DIG.isGlobalVariable())
-      continue;
-    if (DIGlobalVariable(DIG).getGlobal() == V)
-      return DIG;
-  }
-  return 0;
-}
-
-/// Finds the llvm.dbg.declare intrinsic corresponding to this value if any.
-/// It looks through pointer casts too.
-static const DbgDeclareInst *findDbgDeclare(const Value *V) {
-  V = V->stripPointerCasts();
-
-  if (!isa<Instruction>(V) && !isa<Argument>(V))
-    return 0;
-
-  const Function *F = NULL;
-  if (const Instruction *I = dyn_cast<Instruction>(V))
-    F = I->getParent()->getParent();
-  else if (const Argument *A = dyn_cast<Argument>(V))
-    F = A->getParent();
-
-  for (Function::const_iterator FI = F->begin(), FE = F->end(); FI != FE; ++FI)
-    for (BasicBlock::const_iterator BI = (*FI).begin(), BE = (*FI).end();
-         BI != BE; ++BI)
-      if (const DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(BI))
-        if (DDI->getAddress() == V)
-          return DDI;
-
-  return 0;
-}
-
-bool llvm::getLocationInfo(const Value *V, std::string &DisplayName,
-                           std::string &Type, unsigned &LineNo,
-                           std::string &File, std::string &Dir) {
-  DICompileUnit Unit;
-  DIType TypeD;
-
-  if (GlobalVariable *GV = dyn_cast<GlobalVariable>(const_cast<Value*>(V))) {
-    Value *DIGV = findDbgGlobalDeclare(GV);
-    if (!DIGV) return false;
-    DIGlobalVariable Var(cast<MDNode>(DIGV));
-
-    StringRef D = Var.getDisplayName();
-    if (!D.empty())
-      DisplayName = D;
-    LineNo = Var.getLineNumber();
-    Unit = Var.getCompileUnit();
-    TypeD = Var.getType();
-  } else {
-    const DbgDeclareInst *DDI = findDbgDeclare(V);
-    if (!DDI) return false;
-    DIVariable Var(cast<MDNode>(DDI->getVariable()));
-
-    StringRef D = Var.getName();
-    if (!D.empty())
-      DisplayName = D;
-    LineNo = Var.getLineNumber();
-    Unit = Var.getCompileUnit();
-    TypeD = Var.getType();
-  }
-
-  StringRef T = TypeD.getName();
-  if (!T.empty())
-    Type = T;
-  StringRef F = Unit.getFilename();
-  if (!F.empty())
-    File = F;
-  StringRef D = Unit.getDirectory();
-  if (!D.empty())
-    Dir = D;
   return true;
 }
 
