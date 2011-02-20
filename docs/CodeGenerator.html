@@ -5,6 +5,17 @@
   <meta http-equiv="content-type" content="text/html; charset=utf-8">
   <title>The LLVM Target-Independent Code Generator</title>
   <link rel="stylesheet" href="llvm.css" type="text/css">
+
+  <style type="text/css">
+    .unknown { background-color: #C0C0C0; text-align: center; }
+    .unknown:before { content: "?" }
+    .no { background-color: #C11B17 }
+    .no:before { content: "N" }
+    .partial { background-color: #F88017 }
+    .yes { background-color: #0F0; }
+    .yes:before { content: "Y" }
+  </style>
+
 </head>
 <body>
 
@@ -33,12 +44,21 @@
       <li><a href="#targetjitinfo">The <tt>TargetJITInfo</tt> class</a></li>
     </ul>
   </li>
-  <li><a href="#codegendesc">Machine code description classes</a>
+  <li><a href="#codegendesc">The "Machine" Code Generator classes</a>
     <ul>
     <li><a href="#machineinstr">The <tt>MachineInstr</tt> class</a></li>
     <li><a href="#machinebasicblock">The <tt>MachineBasicBlock</tt>
                                      class</a></li>
     <li><a href="#machinefunction">The <tt>MachineFunction</tt> class</a></li>
+    </ul>
+  </li>
+  <li><a href="#mc">The "MC" Layer</a>
+    <ul>
+    <li><a href="#mcstreamer">The <tt>MCStreamer</tt> API</a></li>
+    <li><a href="#mccontext">The <tt>MCContext</tt> class</a>
+    <li><a href="#mcsymbol">The <tt>MCSymbol</tt> class</a></li>
+    <li><a href="#mcsection">The <tt>MCSection</tt> class</a></li>
+    <li><a href="#mcinst">The <tt>MCInst</tt> class</a></li>
     </ul>
   </li>
   <li><a href="#codegenalgs">Target-independent code generation algorithms</a>
@@ -76,15 +96,14 @@
       <li><a href="#regAlloc_fold">Instruction folding</a></li>
       <li><a href="#regAlloc_builtIn">Built in register allocators</a></li>
       </ul></li>
-    <li><a href="#codeemit">Code Emission</a>
-        <ul>
-        <li><a href="#codeemit_asm">Generating Assembly Code</a></li>
-        <li><a href="#codeemit_bin">Generating Binary Machine Code</a></li>
-        </ul></li>
+    <li><a href="#codeemit">Code Emission</a></li>
     </ul>
   </li>
+  <li><a href="#nativeassembler">Implementing a Native Assembler</a></li>
+  
   <li><a href="#targetimpls">Target-specific Implementation Notes</a>
     <ul>
+    <li><a href="#targetfeatures">Target Feature Matrix</a></li>
     <li><a href="#tailcallopt">Tail call optimization</a></li>
     <li><a href="#sibcallopt">Sibling call optimization</a></li>
     <li><a href="#x86">The X86 backend</a></li>
@@ -100,11 +119,7 @@
 </ol>
 
 <div class="doc_author">
-  <p>Written by <a href="mailto:sabre@nondot.org">Chris Lattner</a>,
-                <a href="mailto:isanbard@gmail.com">Bill Wendling</a>,
-                <a href="mailto:pronesto@gmail.com">Fernando Magno Quintao
-                                                    Pereira</a> and
-                <a href="mailto:jlaskey@mac.com">Jim Laskey</a></p>
+  <p>Written by the LLVM Team.</p>
 </div>
 
 <div class="doc_warning">
@@ -123,7 +138,7 @@
    suite of reusable components for translating the LLVM internal representation
    to the machine code for a specified target&mdash;either in assembly form
    (suitable for a static compiler) or in binary machine code format (usable for
-   a JIT compiler). The LLVM target-independent code generator consists of five
+   a JIT compiler). The LLVM target-independent code generator consists of six
    main components:</p>
 
 <ol>
@@ -132,10 +147,17 @@
       independently of how they will be used.  These interfaces are defined in
       <tt>include/llvm/Target/</tt>.</li>
 
-  <li>Classes used to represent the <a href="#codegendesc">machine code</a>
-      being generated for a target.  These classes are intended to be abstract
+  <li>Classes used to represent the <a href="#codegendesc">code being
+      generated</a> for a target.  These classes are intended to be abstract
       enough to represent the machine code for <i>any</i> target machine.  These
-      classes are defined in <tt>include/llvm/CodeGen/</tt>.</li>
+      classes are defined in <tt>include/llvm/CodeGen/</tt>. At this level,
+      concepts like "constant pool entries" and "jump tables" are explicitly
+      exposed.</li>
+
+  <li>Classes and algorithms used to represent code as the object file level,
+      the <a href="#mc">MC Layer</a>.  These classes represent assembly level
+      constructs like labels, sections, and instructions.  At this level,
+      concepts like "constant pool entries" and "jump tables" don't exist.</li>
 
   <li><a href="#codegenalgs">Target-independent algorithms</a> used to implement
       various phases of native code generation (register allocation, scheduling,
@@ -732,6 +754,157 @@ ret
 
 </div>
 
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="mc">The "MC" Layer</a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+
+<p>
+The MC Layer is used to represent and process code at the raw machine code
+level, devoid of "high level" information like "constant pools", "jump tables",
+"global variables" or anything like that.  At this level, LLVM handles things
+like label names, machine instructions, and sections in the object file.  The
+code in this layer is used for a number of important purposes: the tail end of
+the code generator uses it to write a .s or .o file, and it is also used by the
+llvm-mc tool to implement standalone machine codeassemblers and disassemblers.
+</p>
+
+<p>
+This section describes some of the important classes.  There are also a number
+of important subsystems that interact at this layer, they are described later
+in this manual.
+</p>
+
+</div>
+
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="mcstreamer">The <tt>MCStreamer</tt> API</a>
+</div>
+
+<div class="doc_text">
+
+<p>
+MCStreamer is best thought of as an assembler API.  It is an abstract API which
+is <em>implemented</em> in different ways (e.g. to output a .s file, output an
+ELF .o file, etc) but whose API correspond directly to what you see in a .s
+file.  MCStreamer has one method per directive, such as EmitLabel,
+EmitSymbolAttribute, SwitchSection, EmitValue (for .byte, .word), etc, which
+directly correspond to assembly level directives.  It also has an
+EmitInstruction method, which is used to output an MCInst to the streamer.
+</p>
+
+<p>
+This API is most important for two clients: the llvm-mc stand-alone assembler is
+effectively a parser that parses a line, then invokes a method on MCStreamer. In
+the code generator, the <a href="#codeemit">Code Emission</a> phase of the code
+generator lowers higher level LLVM IR and Machine* constructs down to the MC
+layer, emitting directives through MCStreamer.</p>
+
+<p>
+On the implementation side of MCStreamer, there are two major implementations:
+one for writing out a .s file (MCAsmStreamer), and one for writing out a .o
+file (MCObjectStreamer).  MCAsmStreamer is a straight-forward implementation
+that prints out a directive for each method (e.g. EmitValue -&gt; .byte), but
+MCObjectStreamer implements a full assembler.
+</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="mccontext">The <tt>MCContext</tt> class</a>
+</div>
+
+<div class="doc_text">
+
+<p>
+The MCContext class is the owner of a variety of uniqued data structures at the
+MC layer, including symbols, sections, etc.  As such, this is the class that you
+interact with to create symbols and sections.  This class can not be subclassed.
+</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="mcsymbol">The <tt>MCSymbol</tt> class</a>
+</div>
+
+<div class="doc_text">
+
+<p>
+The MCSymbol class represents a symbol (aka label) in the assembly file.  There
+are two interesting kinds of symbols: assembler temporary symbols, and normal
+symbols.  Assembler temporary symbols are used and processed by the assembler
+but are discarded when the object file is produced.  The distinction is usually
+represented by adding a prefix to the label, for example "L" labels are
+assembler temporary labels in MachO.
+</p>
+
+<p>MCSymbols are created by MCContext and uniqued there.  This means that
+MCSymbols can be compared for pointer equivalence to find out if they are the
+same symbol.  Note that pointer inequality does not guarantee the labels will
+end up at different addresses though.  It's perfectly legal to output something
+like this to the .s file:<p>
+
+<pre>
+  foo:
+  bar:
+    .byte 4
+</pre>
+
+<p>In this case, both the foo and bar symbols will have the same address.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="mcsection">The <tt>MCSection</tt> class</a>
+</div>
+
+<div class="doc_text">
+
+<p>
+The MCSection class represents an object-file specific section. It is subclassed
+by object file specific implementations (e.g. <tt>MCSectionMachO</tt>, 
+<tt>MCSectionCOFF</tt>, <tt>MCSectionELF</tt>) and these are created and uniqued
+by MCContext.  The MCStreamer has a notion of the current section, which can be
+changed with the SwitchToSection method (which corresponds to a ".section"
+directive in a .s file).
+</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="mcinst">The <tt>MCInst</tt> class</a>
+</div>
+
+<div class="doc_text">
+
+<p>
+The MCInst class is a target-independent representation of an instruction.  It
+is a simple class (much more so than <a href="#machineinstr">MachineInstr</a>)
+that holds a target-specific opcode and a vector of MCOperands.  MCOperand, in
+turn, is a simple discriminated union of three cases: 1) a simple immediate, 
+2) a target register ID, 3) a symbolic expression (e.g. "Lfoo-Lbar+42") as an
+MCExpr.
+</p>
+
+<p>MCInst is the common currency used to represent machine instructions at the
+MC layer.  It is the type used by the instruction encoder, the instruction
+printer, and the type generated by the assembly parser and disassembler.
+</p>
+
+</div>
+
+
 <!-- *********************************************************************** -->
 <div class="doc_section">
   <a name="codegenalgs">Target-independent code generation algorithms</a>
@@ -857,9 +1030,9 @@ ret
       SelectionDAG optimizer is run to clean up redundancies exposed by type
       legalization.</li>
 
-  <li><a href="#selectiondag_legalize">Legalize SelectionDAG Types</a> &mdash;
-      This stage transforms SelectionDAG nodes to eliminate any types that are
-      unsupported on the target.</li>
+  <li><a href="#selectiondag_legalize">Legalize SelectionDAG Ops</a> &mdash;
+      This stage transforms SelectionDAG nodes to eliminate any operations 
+      that are unsupported on the target.</li>
 
   <li><a href="#selectiondag_optimize">Optimize SelectionDAG</a> &mdash; The
       SelectionDAG optimizer is run to eliminate inefficiencies introduced by
@@ -1386,18 +1559,25 @@ bool RegMapping_Fer::compatible_class(MachineFunction &amp;mf,
    </p>
 
 <p>Virtual registers are also denoted by integer numbers. Contrary to physical
-   registers, different virtual registers never share the same number. The
-   smallest virtual register is normally assigned the number 1024. This may
-   change, so, in order to know which is the first virtual register, you should
-   access <tt>TargetRegisterInfo::FirstVirtualRegister</tt>. Any register whose
-   number is greater than or equal
-   to <tt>TargetRegisterInfo::FirstVirtualRegister</tt> is considered a virtual
-   register. Whereas physical registers are statically defined in
-   a <tt>TargetRegisterInfo.td</tt> file and cannot be created by the
-   application developer, that is not the case with virtual registers.  In order
-   to create new virtual registers, use the
+   registers, different virtual registers never share the same number. Whereas
+   physical registers are statically defined in a <tt>TargetRegisterInfo.td</tt>
+   file and cannot be created by the application developer, that is not the case
+   with virtual registers. In order to create new virtual registers, use the
    method <tt>MachineRegisterInfo::createVirtualRegister()</tt>. This method
-   will return a virtual register with the highest code.</p>
+   will return a new virtual register. Use an <tt>IndexedMap&lt;Foo,
+   VirtReg2IndexFunctor&gt;</tt> to hold information per virtual register. If you
+   need to enumerate all virtual registers, use the function
+   <tt>TargetRegisterInfo::index2VirtReg()</tt> to find the virtual register
+   numbers:</p>
+
+<div class="doc_code">
+<pre>
+  for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
+    unsigned VirtReg = TargetRegisterInfo::index2VirtReg(i);
+    stuff(VirtReg);
+  }
+</pre>
+</div>
 
 <p>Before register allocation, the operands of an instruction are mostly virtual
    registers, although physical registers may also be used. In order to check if
@@ -1635,24 +1815,227 @@ $ llc -regalloc=pbqp file.bc -o pbqp.s;
   <a name="latemco">Late Machine Code Optimizations</a>
 </div>
 <div class="doc_text"><p>To Be Written</p></div>
+
 <!-- ======================================================================= -->
 <div class="doc_subsection">
   <a name="codeemit">Code Emission</a>
 </div>
-<div class="doc_text"><p>To Be Written</p></div>
-<!-- _______________________________________________________________________ -->
-<div class="doc_subsubsection">
-  <a name="codeemit_asm">Generating Assembly Code</a>
+
+<div class="doc_text">
+
+<p>The code emission step of code generation is responsible for lowering from
+the code generator abstractions (like <a 
+href="#machinefunction">MachineFunction</a>, <a 
+href="#machineinstr">MachineInstr</a>, etc) down
+to the abstractions used by the MC layer (<a href="#mcinst">MCInst</a>, 
+<a href="#mcstreamer">MCStreamer</a>, etc).  This is
+done with a combination of several different classes: the (misnamed)
+target-independent AsmPrinter class, target-specific subclasses of AsmPrinter
+(such as SparcAsmPrinter), and the TargetLoweringObjectFile class.</p>
+
+<p>Since the MC layer works at the level of abstraction of object files, it
+doesn't have a notion of functions, global variables etc.  Instead, it thinks
+about labels, directives, and instructions.  A key class used at this time is
+the MCStreamer class.  This is an abstract API that is implemented in different
+ways (e.g. to output a .s file, output an ELF .o file, etc) that is effectively
+an "assembler API".  MCStreamer has one method per directive, such as EmitLabel,
+EmitSymbolAttribute, SwitchSection, etc, which directly correspond to assembly
+level directives.
+</p>
+
+<p>If you are interested in implementing a code generator for a target, there
+are three important things that you have to implement for your target:</p>
+
+<ol>
+<li>First, you need a subclass of AsmPrinter for your target.  This class
+implements the general lowering process converting MachineFunction's into MC
+label constructs.  The AsmPrinter base class provides a number of useful methods
+and routines, and also allows you to override the lowering process in some
+important ways.  You should get much of the lowering for free if you are
+implementing an ELF, COFF, or MachO target, because the TargetLoweringObjectFile
+class implements much of the common logic.</li>
+
+<li>Second, you need to implement an instruction printer for your target.  The
+instruction printer takes an <a href="#mcinst">MCInst</a> and renders it to a
+raw_ostream as text.  Most of this is automatically generated from the .td file
+(when you specify something like "<tt>add $dst, $src1, $src2</tt>" in the
+instructions), but you need to implement routines to print operands.</li>
+
+<li>Third, you need to implement code that lowers a <a
+href="#machineinstr">MachineInstr</a> to an MCInst, usually implemented in
+"&lt;target&gt;MCInstLower.cpp".  This lowering process is often target
+specific, and is responsible for turning jump table entries, constant pool
+indices, global variable addresses, etc into MCLabels as appropriate.  This
+translation layer is also responsible for expanding pseudo ops used by the code
+generator into the actual machine instructions they correspond to. The MCInsts
+that are generated by this are fed into the instruction printer or the encoder.
+</li>
+
+</ol>
+
+<p>Finally, at your choosing, you can also implement an subclass of
+MCCodeEmitter which lowers MCInst's into machine code bytes and relocations.
+This is important if you want to support direct .o file emission, or would like
+to implement an assembler for your target.</p>
+
 </div>
+
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="nativeassembler">Implementing a Native Assembler</a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+
+<p>Though you're probably reading this because you want to write or maintain a
+compiler backend, LLVM also fully supports building a native assemblers too.
+We've tried hard to automate the generation of the assembler from the .td files
+(in particular the instruction syntax and encodings), which means that a large
+part of the manual and repetitive data entry can be factored and shared with the
+compiler.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection" id="na_instparsing">Instruction Parsing</div>
+
 <div class="doc_text"><p>To Be Written</p></div>
-<!-- _______________________________________________________________________ -->
-<div class="doc_subsubsection">
-  <a name="codeemit_bin">Generating Binary Machine Code</a>
+
+
+<!-- ======================================================================= -->
+<div class="doc_subsection" id="na_instaliases">
+  Instruction Alias Processing
 </div>
 
 <div class="doc_text">
-   <p>For the JIT or <tt>.o</tt> file writer</p>
+<p>Once the instruction is parsed, it enters the MatchInstructionImpl function.
+The MatchInstructionImpl function performs alias processing and then does
+actual matching.</p>
+
+<p>Alias processing is the phase that canonicalizes different lexical forms of
+the same instructions down to one representation.  There are several different
+kinds of alias that are possible to implement and they are listed below in the
+order that they are processed (which is in order from simplest/weakest to most
+complex/powerful).  Generally you want to use the first alias mechanism that
+meets the needs of your instruction, because it will allow a more concise
+description.</p>
+
 </div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">Mnemonic Aliases</div>
+
+<div class="doc_text">
+
+<p>The first phase of alias processing is simple instruction mnemonic
+remapping for classes of instructions which are allowed with two different
+mnemonics.  This phase is a simple and unconditionally remapping from one input
+mnemonic to one output mnemonic.  It isn't possible for this form of alias to
+look at the operands at all, so the remapping must apply for all forms of a
+given mnemonic.  Mnemonic aliases are defined simply, for example X86 has:
+</p>
+
+<div class="doc_code">
+<pre>
+def : MnemonicAlias&lt;"cbw",     "cbtw"&gt;;
+def : MnemonicAlias&lt;"smovq",   "movsq"&gt;;
+def : MnemonicAlias&lt;"fldcww",  "fldcw"&gt;;
+def : MnemonicAlias&lt;"fucompi", "fucomip"&gt;;
+def : MnemonicAlias&lt;"ud2a",    "ud2"&gt;;
+</pre>
+</div>
+
+<p>... and many others.  With a MnemonicAlias definition, the mnemonic is
+remapped simply and directly.  Though MnemonicAlias's can't look at any aspect
+of the instruction (such as the operands) they can depend on global modes (the
+same ones supported by the matcher), through a Requires clause:</p>
+
+<div class="doc_code">
+<pre>
+def : MnemonicAlias&lt;"pushf", "pushfq"&gt;, Requires&lt;[In64BitMode]&gt;;
+def : MnemonicAlias&lt;"pushf", "pushfl"&gt;, Requires&lt;[In32BitMode]&gt;;
+</pre>
+</div>
+
+<p>In this example, the mnemonic gets mapped into different a new one depending
+on the current instruction set.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">Instruction Aliases</div>
+
+<div class="doc_text">
+
+<p>The most general phase of alias processing occurs while matching is
+happening: it provides new forms for the matcher to match along with a specific
+instruction to generate.  An instruction alias has two parts: the string to
+match and the instruction to generate.  For example:
+</p>
+
+<div class="doc_code">
+<pre>
+def : InstAlias&lt;"movsx $src, $dst", (MOVSX16rr8W GR16:$dst, GR8  :$src)&gt;;
+def : InstAlias&lt;"movsx $src, $dst", (MOVSX16rm8W GR16:$dst, i8mem:$src)&gt;;
+def : InstAlias&lt;"movsx $src, $dst", (MOVSX32rr8  GR32:$dst, GR8  :$src)&gt;;
+def : InstAlias&lt;"movsx $src, $dst", (MOVSX32rr16 GR32:$dst, GR16 :$src)&gt;;
+def : InstAlias&lt;"movsx $src, $dst", (MOVSX64rr8  GR64:$dst, GR8  :$src)&gt;;
+def : InstAlias&lt;"movsx $src, $dst", (MOVSX64rr16 GR64:$dst, GR16 :$src)&gt;;
+def : InstAlias&lt;"movsx $src, $dst", (MOVSX64rr32 GR64:$dst, GR32 :$src)&gt;;
+</pre>
+</div>
+
+<p>This shows a powerful example of the instruction aliases, matching the
+same mnemonic in multiple different ways depending on what operands are present
+in the assembly.  The result of instruction aliases can include operands in a
+different order than the destination instruction, and can use an input
+multiple times, for example:</p>
+
+<div class="doc_code">
+<pre>
+def : InstAlias&lt;"clrb $reg", (XOR8rr  GR8 :$reg, GR8 :$reg)&gt;;
+def : InstAlias&lt;"clrw $reg", (XOR16rr GR16:$reg, GR16:$reg)&gt;;
+def : InstAlias&lt;"clrl $reg", (XOR32rr GR32:$reg, GR32:$reg)&gt;;
+def : InstAlias&lt;"clrq $reg", (XOR64rr GR64:$reg, GR64:$reg)&gt;;
+</pre>
+</div>
+
+<p>This example also shows that tied operands are only listed once.  In the X86
+backend, XOR8rr has two input GR8's and one output GR8 (where an input is tied
+to the output).  InstAliases take a flattened operand list without duplicates
+for tied operands.  The result of an instruction alias can also use immediates
+and fixed physical registers which are added as simple immediate operands in the
+result, for example:</p>
+
+<div class="doc_code">
+<pre>
+// Fixed Immediate operand.
+def : InstAlias&lt;"aad", (AAD8i8 10)&gt;;
+
+// Fixed register operand.
+def : InstAlias&lt;"fcomi", (COM_FIr ST1)&gt;;
+
+// Simple alias.
+def : InstAlias&lt;"fcomi $reg", (COM_FIr RST:$reg)&gt;;
+</pre>
+</div>
+
+
+<p>Instruction aliases can also have a Requires clause to make them
+subtarget specific.</p>
+
+</div>
+
+
+
+<!-- ======================================================================= -->
+<div class="doc_subsection" id="na_matching">Instruction Matching</div>
+
+<div class="doc_text"><p>To Be Written</p></div>
+
+
 
 
 <!-- *********************************************************************** -->
@@ -1664,9 +2047,274 @@ $ llc -regalloc=pbqp file.bc -o pbqp.s;
 <div class="doc_text">
 
 <p>This section of the document explains features or design decisions that are
-   specific to the code generator for a particular target.</p>
+   specific to the code generator for a particular target.  First we start
+   with a table that summarizes what features are supported by each target.</p>
 
 </div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="targetfeatures">Target Feature Matrix</a>
+</div>
+
+<div class="doc_text">
+
+<p>Note that this table does not include the C backend or Cpp backends, since
+they do not use the target independent code generator infrastructure.  It also
+doesn't list features that are not supported fully by any target yet.  It
+considers a feature to be supported if at least one subtarget supports it.  A
+feature being supported means that it is useful and works for most cases, it
+does not indicate that there are zero known bugs in the implementation.  Here
+is the key:</p>
+
+
+<table border="1" cellspacing="0">
+  <tr>
+    <th>Unknown</th>
+    <th>No support</th>
+    <th>Partial Support</th>
+    <th>Complete Support</th>
+  </tr>
+  <tr>
+    <td class="unknown"></td>
+    <td class="no"></td>
+    <td class="partial"></td>
+    <td class="yes"></td>
+  </tr>
+</table>
+
+<p>Here is the table:</p>
+
+<table width="689" border="1" cellspacing="0">
+<tr><td></td>
+<td colspan="13" align="center" style="background-color:#ffc">Target</td>
+</tr>
+  <tr>
+    <th>Feature</th>
+    <th>ARM</th>
+    <th>Alpha</th>
+    <th>Blackfin</th>
+    <th>CellSPU</th>
+    <th>MBlaze</th>
+    <th>MSP430</th>
+    <th>Mips</th>
+    <th>PTX</th>
+    <th>PowerPC</th>
+    <th>Sparc</th>
+    <th>SystemZ</th>
+    <th>X86</th>
+    <th>XCore</th>
+  </tr>
+
+<tr>
+  <td><a href="#feat_reliable">is generally reliable</a></td>
+  <td class="yes"></td> <!-- ARM -->
+  <td class="unknown"></td> <!-- Alpha -->
+  <td class="no"></td> <!-- Blackfin -->
+  <td class="no"></td> <!-- CellSPU -->
+  <td class="no"></td> <!-- MBlaze -->
+  <td class="unknown"></td> <!-- MSP430 -->
+  <td class="no"></td> <!-- Mips -->
+  <td class="no"></td> <!-- PTX -->
+  <td class="yes"></td> <!-- PowerPC -->
+  <td class="yes"></td> <!-- Sparc -->
+  <td class="unknown"></td> <!-- SystemZ -->
+  <td class="yes"></td> <!-- X86 -->
+  <td class="unknown"></td> <!-- XCore -->
+</tr>
+
+<tr>
+  <td><a href="#feat_asmparser">assembly parser</a></td>
+  <td class="no"></td> <!-- ARM -->
+  <td class="no"></td> <!-- Alpha -->
+  <td class="no"></td> <!-- Blackfin -->
+  <td class="no"></td> <!-- CellSPU -->
+  <td class="yes"></td> <!-- MBlaze -->
+  <td class="no"></td> <!-- MSP430 -->
+  <td class="no"></td> <!-- Mips -->
+  <td class="no"></td> <!-- PTX -->
+  <td class="no"></td> <!-- PowerPC -->
+  <td class="no"></td> <!-- Sparc -->
+  <td class="no"></td> <!-- SystemZ -->
+  <td class="yes"></td> <!-- X86 -->
+  <td class="no"></td> <!-- XCore -->
+</tr>
+
+<tr>
+  <td><a href="#feat_disassembler">disassembler</a></td>
+  <td class="yes"></td> <!-- ARM -->
+  <td class="no"></td> <!-- Alpha -->
+  <td class="no"></td> <!-- Blackfin -->
+  <td class="no"></td> <!-- CellSPU -->
+  <td class="yes"></td> <!-- MBlaze -->
+  <td class="no"></td> <!-- MSP430 -->
+  <td class="no"></td> <!-- Mips -->
+  <td class="no"></td> <!-- PTX -->
+  <td class="no"></td> <!-- PowerPC -->
+  <td class="no"></td> <!-- Sparc -->
+  <td class="no"></td> <!-- SystemZ -->
+  <td class="yes"></td> <!-- X86 -->
+  <td class="no"></td> <!-- XCore -->
+</tr>
+
+<tr>
+  <td><a href="#feat_inlineasm">inline asm</a></td>
+  <td class="yes"></td> <!-- ARM -->
+  <td class="unknown"></td> <!-- Alpha -->
+  <td class="yes"></td> <!-- Blackfin -->
+  <td class="no"></td> <!-- CellSPU -->
+  <td class="yes"></td> <!-- MBlaze -->
+  <td class="unknown"></td> <!-- MSP430 -->
+  <td class="no"></td> <!-- Mips -->
+  <td class="unknown"></td> <!-- PTX -->
+  <td class="yes"></td> <!-- PowerPC -->
+  <td class="unknown"></td> <!-- Sparc -->
+  <td class="unknown"></td> <!-- SystemZ -->
+  <td class="yes"><a href="#feat_inlineasm_x86">*</a></td> <!-- X86 -->
+  <td class="unknown"></td> <!-- XCore -->
+</tr>
+
+<tr>
+  <td><a href="#feat_jit">jit</a></td>
+  <td class="partial"><a href="#feat_jit_arm">*</a></td> <!-- ARM -->
+  <td class="no"></td> <!-- Alpha -->
+  <td class="no"></td> <!-- Blackfin -->
+  <td class="no"></td> <!-- CellSPU -->
+  <td class="no"></td> <!-- MBlaze -->
+  <td class="unknown"></td> <!-- MSP430 -->
+  <td class="no"></td> <!-- Mips -->
+  <td class="unknown"></td> <!-- PTX -->
+  <td class="yes"></td> <!-- PowerPC -->
+  <td class="unknown"></td> <!-- Sparc -->
+  <td class="unknown"></td> <!-- SystemZ -->
+  <td class="yes"></td> <!-- X86 -->
+  <td class="unknown"></td> <!-- XCore -->
+</tr>
+
+<tr>
+  <td><a href="#feat_objectwrite">.o&nbsp;file writing</a></td>
+  <td class="no"></td> <!-- ARM -->
+  <td class="no"></td> <!-- Alpha -->
+  <td class="no"></td> <!-- Blackfin -->
+  <td class="no"></td> <!-- CellSPU -->
+  <td class="yes"></td> <!-- MBlaze -->
+  <td class="no"></td> <!-- MSP430 -->
+  <td class="no"></td> <!-- Mips -->
+  <td class="no"></td> <!-- PTX -->
+  <td class="no"></td> <!-- PowerPC -->
+  <td class="no"></td> <!-- Sparc -->
+  <td class="no"></td> <!-- SystemZ -->
+  <td class="yes"></td> <!-- X86 -->
+  <td class="no"></td> <!-- XCore -->
+</tr>
+
+<tr>
+  <td><a href="#feat_tailcall">tail calls</a></td>
+  <td class="yes"></td> <!-- ARM -->
+  <td class="unknown"></td> <!-- Alpha -->
+  <td class="no"></td> <!-- Blackfin -->
+  <td class="no"></td> <!-- CellSPU -->
+  <td class="no"></td> <!-- MBlaze -->
+  <td class="unknown"></td> <!-- MSP430 -->
+  <td class="no"></td> <!-- Mips -->
+  <td class="unknown"></td> <!-- PTX -->
+  <td class="yes"></td> <!-- PowerPC -->
+  <td class="unknown"></td> <!-- Sparc -->
+  <td class="unknown"></td> <!-- SystemZ -->
+  <td class="yes"></td> <!-- X86 -->
+  <td class="unknown"></td> <!-- XCore -->
+</tr>
+
+
+</table>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection" id="feat_reliable">Is Generally Reliable</div>
+
+<div class="doc_text">
+<p>This box indicates whether the target is considered to be production quality.
+This indicates that the target has been used as a static compiler to
+compile large amounts of code by a variety of different people and is in
+continuous use.</p>
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection" id="feat_asmparser">Assembly Parser</div>
+
+<div class="doc_text">
+<p>This box indicates whether the target supports parsing target specific .s
+files by implementing the MCAsmParser interface.  This is required for llvm-mc
+to be able to act as a native assembler and is required for inline assembly
+support in the native .o file writer.</p>
+
+</div>
+
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection" id="feat_disassembler">Disassembler</div>
+
+<div class="doc_text">
+<p>This box indicates whether the target supports the MCDisassembler API for
+disassembling machine opcode bytes into MCInst's.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection" id="feat_inlineasm">Inline Asm</div>
+
+<div class="doc_text">
+<p>This box indicates whether the target supports most popular inline assembly
+constraints and modifiers.</p>
+
+<p id="feat_inlineasm_x86">X86 lacks reliable support for inline assembly
+constraints relating to the X86 floating point stack.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection" id="feat_jit">JIT Support</div>
+
+<div class="doc_text">
+<p>This box indicates whether the target supports the JIT compiler through
+the ExecutionEngine interface.</p>
+
+<p id="feat_jit_arm">The ARM backend has basic support for integer code
+in ARM codegen mode, but lacks NEON and full Thumb support.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection" id="feat_objectwrite">.o File Writing</div>
+
+<div class="doc_text">
+
+<p>This box indicates whether the target supports writing .o files (e.g. MachO,
+ELF, and/or COFF) files directly from the target.  Note that the target also
+must include an assembly parser and general inline assembly support for full
+inline assembly support in the .o writer.</p>
+
+<p>Targets that don't support this feature can obviously still write out .o
+files, they just rely on having an external assembler to translate from a .s
+file to a .o file (as is the case for many C compilers).</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection" id="feat_tailcall">Tail Calls</div>
+
+<div class="doc_text">
+
+<p>This box indicates whether the target supports guaranteed tail calls.  These
+are calls marked "<a href="LangRef.html#i_call">tail</a>" and use the fastcc
+calling convention.  Please see the <a href="#tailcallopt">tail call section
+more more details</a>.</p>
+
+</div>
+
+
+
 
 <!-- ======================================================================= -->
 <div class="doc_subsection">
@@ -2162,7 +2810,7 @@ MOVSX32rm16 -&gt; movsx, 32-bit register, 16-bit memory
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-09-01 00:01:07 +0200 (Wed, 01 Sep 2010) $
+  Last modified: $Date: 2011-01-09 00:10:59 +0100 (Sun, 09 Jan 2011) $
 </address>
 
 </body>

@@ -105,7 +105,7 @@ if [ "$ARM_HOSTED_BUILD" = yes ]; then
       T=`xcrun -sdk $SDKROOT -find ${prog}`
     fi
     echo '#!/bin/sh' > $P || exit 1
-    echo 'exec '$T' -arch armv6 -isysroot '${SDKROOT}' "$@"' >> $P || exit 1
+    echo 'exec '$T' -arch armv7 -isysroot '${SDKROOT}' "$@"' >> $P || exit 1
     chmod a+x $P || exit 1
   done
 
@@ -173,11 +173,6 @@ JOBS_FLAG=""
 if [ "x$MAJ_VER" != "x4" -o "x$MIN_VER" != "x0" ]; then
     # Figure out how many make processes to run.
     SYSCTL=`sysctl -n hw.activecpu`
-
-    # hw.activecpu only available in 10.2.6 and later
-    if [ -z "$SYSCTL" ]; then
-        SYSCTL=`sysctl -n hw.ncpu`
-    fi
 
     # sysctl -n hw.* does not work when invoked via B&I chroot /BuildRoot.
     # Builders can default to 2, since even if they are single processor,
@@ -269,8 +264,11 @@ else
         -exec lipo -extract ppc7400 -extract i386 -extract x86_64 {} -output {} \;
 fi
 
-# The Hello dylib is an example of how to build a pass. No need to install it.
-rm $DEST_DIR$DEST_ROOT/lib/LLVMHello.dylib
+# The Hello dylib is an example of how to build a pass.
+# The BugpointPasses module is only used to test bugpoint.
+# These unversioned dylibs cause verification failures, so do not install them.
+rm $DEST_DIR$DEST_ROOT/lib/libLLVMHello.dylib
+rm $DEST_DIR$DEST_ROOT/lib/libBugpointPasses.dylib
 
 # Compress manpages
 MDIR=$DEST_DIR$DEST_ROOT/share/man/man1

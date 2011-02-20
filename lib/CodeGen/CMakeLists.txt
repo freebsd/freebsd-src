@@ -1,15 +1,19 @@
 add_llvm_library(LLVMCodeGen
   AggressiveAntiDepBreaker.cpp
+  AllocationOrder.cpp
   Analysis.cpp
   BranchFolding.cpp
   CalcSpillWeights.cpp
   CallingConvLower.cpp
+  CodeGen.cpp
   CodePlacementOpt.cpp
   CriticalAntiDepBreaker.cpp
   DeadMachineInstructionElim.cpp
   DwarfEHPrepare.cpp
+  EdgeBundles.cpp
   ELFCodeEmitter.cpp
   ELFWriter.cpp
+  ExpandISelPseudos.cpp
   GCMetadata.cpp
   GCMetadataPrinter.cpp
   GCStrategy.cpp
@@ -18,10 +22,13 @@ add_llvm_library(LLVMCodeGen
   IntrinsicLowering.cpp
   LLVMTargetMachine.cpp
   LatencyPriorityQueue.cpp
+  LiveDebugVariables.cpp
   LiveInterval.cpp
   LiveIntervalAnalysis.cpp
+  LiveIntervalUnion.cpp
   LiveStackAnalysis.cpp
   LiveVariables.cpp
+  LiveRangeEdit.cpp
   LocalStackSlotAllocation.cpp
   LowerSubregs.cpp
   MachineBasicBlock.cpp
@@ -34,6 +41,7 @@ add_llvm_library(LLVMCodeGen
   MachineInstr.cpp
   MachineLICM.cpp
   MachineLoopInfo.cpp
+  MachineLoopRanges.cpp
   MachineModuleInfo.cpp
   MachineModuleInfoImpls.cpp
   MachinePassRegistry.cpp
@@ -45,15 +53,17 @@ add_llvm_library(LLVMCodeGen
   OcamlGC.cpp
   OptimizePHIs.cpp
   PHIElimination.cpp
+  PHIEliminationUtils.cpp
   Passes.cpp
   PeepholeOptimizer.cpp
-  PostRAHazardRecognizer.cpp
   PostRASchedulerList.cpp
   PreAllocSplitting.cpp
   ProcessImplicitDefs.cpp
   PrologEpilogInserter.cpp
   PseudoSourceValue.cpp
+  RegAllocBasic.cpp
   RegAllocFast.cpp
+  RegAllocGreedy.cpp
   RegAllocLinearScan.cpp
   RegAllocPBQP.cpp
   RegisterCoalescer.cpp
@@ -63,12 +73,14 @@ add_llvm_library(LLVMCodeGen
   ScheduleDAGEmit.cpp
   ScheduleDAGInstrs.cpp
   ScheduleDAGPrinter.cpp
+  ScoreboardHazardRecognizer.cpp
   ShadowStackGC.cpp
   ShrinkWrapping.cpp
   SimpleRegisterCoalescing.cpp
   SjLjEHPrepare.cpp
   SlotIndexes.cpp
   Spiller.cpp
+  SpillPlacement.cpp
   SplitKit.cpp
   Splitter.cpp
   StackProtector.cpp
@@ -83,4 +95,5 @@ add_llvm_library(LLVMCodeGen
   VirtRegRewriter.cpp
   )
 
-target_link_libraries (LLVMCodeGen LLVMCore LLVMScalarOpts)
+add_subdirectory(SelectionDAG)
+add_subdirectory(AsmPrinter)

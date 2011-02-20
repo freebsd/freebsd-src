@@ -92,6 +92,12 @@ define i64 @mul_both_reversed(i64 %x, i64 %y) {
 	ret i64 %z
 }
 
+define i64 @shl_both(i64 %x, i64 %y) {
+; CHECK: %z = shl nuw nsw i64 %x, %y
+	%z = shl nuw nsw i64 %x, %y
+	ret i64 %z
+}
+
 define i64 @sdiv_exact(i64 %x, i64 %y) {
 ; CHECK: %z = sdiv exact i64 %x, %y
 	%z = sdiv exact i64 %x, %y
@@ -101,6 +107,42 @@ define i64 @sdiv_exact(i64 %x, i64 %y) {
 define i64 @sdiv_plain(i64 %x, i64 %y) {
 ; CHECK: %z = sdiv i64 %x, %y
 	%z = sdiv i64 %x, %y
+	ret i64 %z
+}
+
+define i64 @udiv_exact(i64 %x, i64 %y) {
+; CHECK: %z = udiv exact i64 %x, %y
+	%z = udiv exact i64 %x, %y
+	ret i64 %z
+}
+
+define i64 @udiv_plain(i64 %x, i64 %y) {
+; CHECK: %z = udiv i64 %x, %y
+	%z = udiv i64 %x, %y
+	ret i64 %z
+}
+
+define i64 @ashr_plain(i64 %x, i64 %y) {
+; CHECK: %z = ashr i64 %x, %y
+	%z = ashr i64 %x, %y
+	ret i64 %z
+}
+
+define i64 @ashr_exact(i64 %x, i64 %y) {
+; CHECK: %z = ashr exact i64 %x, %y
+	%z = ashr exact i64 %x, %y
+	ret i64 %z
+}
+
+define i64 @lshr_plain(i64 %x, i64 %y) {
+; CHECK: %z = lshr i64 %x, %y
+	%z = lshr i64 %x, %y
+	ret i64 %z
+}
+
+define i64 @lshr_exact(i64 %x, i64 %y) {
+; CHECK: %z = lshr exact i64 %x, %y
+	%z = lshr exact i64 %x, %y
 	ret i64 %z
 }
 
@@ -134,6 +176,21 @@ define i64 @mul_both_ce() {
 define i64 @sdiv_exact_ce() {
 ; CHECK: ret i64 sdiv exact (i64 ptrtoint (i64* @addr to i64), i64 91)
 	ret i64 sdiv exact (i64 ptrtoint (i64* @addr to i64), i64 91)
+}
+
+define i64 @udiv_exact_ce() {
+; CHECK: ret i64 udiv exact (i64 ptrtoint (i64* @addr to i64), i64 91)
+	ret i64 udiv exact (i64 ptrtoint (i64* @addr to i64), i64 91)
+}
+
+define i64 @ashr_exact_ce() {
+; CHECK: ret i64 ashr exact (i64 ptrtoint (i64* @addr to i64), i64 9)
+	ret i64 ashr exact (i64 ptrtoint (i64* @addr to i64), i64 9)
+}
+
+define i64 @lshr_exact_ce() {
+; CHECK: ret i64 lshr exact (i64 ptrtoint (i64* @addr to i64), i64 9)
+	ret i64 lshr exact (i64 ptrtoint (i64* @addr to i64), i64 9)
 }
 
 define i64* @gep_nw_ce() {
@@ -196,6 +253,12 @@ define i64 @mul_signed_ce() {
 	ret i64 mul nsw (i64 ptrtoint (i64* @addr to i64), i64 91)
 }
 
+define i64 @shl_signed_ce() {
+; CHECK: ret i64 shl nsw (i64 ptrtoint (i64* @addr to i64), i64 17)
+	ret i64 shl nsw (i64 ptrtoint (i64* @addr to i64), i64 17)
+}
+
+
 define i64 @add_unsigned_ce() {
 ; CHECK: ret i64 add nuw (i64 ptrtoint (i64* @addr to i64), i64 91)
 	ret i64 add nuw (i64 ptrtoint (i64* @addr to i64), i64 91)
@@ -210,3 +273,4 @@ define i64 @mul_unsigned_ce() {
 ; CHECK: ret i64 mul nuw (i64 ptrtoint (i64* @addr to i64), i64 91)
 	ret i64 mul nuw (i64 ptrtoint (i64* @addr to i64), i64 91)
 }
+

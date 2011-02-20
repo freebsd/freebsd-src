@@ -15,51 +15,8 @@
 // MMX Pattern Fragments
 //===----------------------------------------------------------------------===//
 
-def load_mmx : PatFrag<(ops node:$ptr), (v1i64 (load node:$ptr))>;
-
-def bc_v8i8  : PatFrag<(ops node:$in), (v8i8  (bitconvert node:$in))>;
-def bc_v4i16 : PatFrag<(ops node:$in), (v4i16 (bitconvert node:$in))>;
-def bc_v2i32 : PatFrag<(ops node:$in), (v2i32 (bitconvert node:$in))>;
-def bc_v1i64 : PatFrag<(ops node:$in), (v1i64 (bitconvert node:$in))>;
-
-//===----------------------------------------------------------------------===//
-// MMX Masks
-//===----------------------------------------------------------------------===//
-
-// MMX_SHUFFLE_get_shuf_imm xform function: convert vector_shuffle mask to
-// PSHUFW imm.
-def MMX_SHUFFLE_get_shuf_imm : SDNodeXForm<vector_shuffle, [{
-  return getI8Imm(X86::getShuffleSHUFImmediate(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, v2, <2, 6, 3, 7, ...>
-def mmx_unpckh : PatFrag<(ops node:$lhs, node:$rhs),
-                         (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKHMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, v2, <0, 4, 2, 5, ...>
-def mmx_unpckl : PatFrag<(ops node:$lhs, node:$rhs),
-                         (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKLMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, <undef>, <0, 0, 1, 1, ...>
-def mmx_unpckh_undef : PatFrag<(ops node:$lhs, node:$rhs),
-                               (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKH_v_undef_Mask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-// Patterns for: vector_shuffle v1, <undef>, <2, 2, 3, 3, ...>
-def mmx_unpckl_undef : PatFrag<(ops node:$lhs, node:$rhs),
-                               (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKL_v_undef_Mask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def mmx_pshufw : PatFrag<(ops node:$lhs, node:$rhs),
-                         (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isPSHUFDMask(cast<ShuffleVectorSDNode>(N));
-}], MMX_SHUFFLE_get_shuf_imm>;
+def load_mmx : PatFrag<(ops node:$ptr), (x86mmx (load node:$ptr))>;
+def bc_mmx  : PatFrag<(ops node:$in), (x86mmx  (bitconvert node:$in))>;
 
 //===----------------------------------------------------------------------===//
 // SSE specific DAG Nodes.
@@ -86,6 +43,21 @@ def X86ucomi   : SDNode<"X86ISD::UCOMI",     SDTX86CmpTest>;
 def X86pshufb  : SDNode<"X86ISD::PSHUFB",
                  SDTypeProfile<1, 2, [SDTCisVT<0, v16i8>, SDTCisSameAs<0,1>,
                                       SDTCisSameAs<0,2>]>>;
+def X86pandn   : SDNode<"X86ISD::PANDN", 
+                 SDTypeProfile<1, 2, [SDTCisVT<0, v2i64>, SDTCisSameAs<0,1>,
+                                      SDTCisSameAs<0,2>]>>;
+def X86psignb  : SDNode<"X86ISD::PSIGNB", 
+                 SDTypeProfile<1, 2, [SDTCisVT<0, v16i8>, SDTCisSameAs<0,1>,
+                                      SDTCisSameAs<0,2>]>>;
+def X86psignw  : SDNode<"X86ISD::PSIGNW", 
+                 SDTypeProfile<1, 2, [SDTCisVT<0, v8i16>, SDTCisSameAs<0,1>,
+                                      SDTCisSameAs<0,2>]>>;
+def X86psignd  : SDNode<"X86ISD::PSIGND", 
+                 SDTypeProfile<1, 2, [SDTCisVT<0, v4i32>, SDTCisSameAs<0,1>,
+                                      SDTCisSameAs<0,2>]>>;
+def X86pblendv : SDNode<"X86ISD::PBLENDVB", 
+                 SDTypeProfile<1, 3, [SDTCisVT<0, v16i8>, SDTCisSameAs<0,1>,
+                                      SDTCisSameAs<0,2>, SDTCisSameAs<0,3>]>>;
 def X86pextrb  : SDNode<"X86ISD::PEXTRB",
                  SDTypeProfile<1, 2, [SDTCisVT<0, i32>, SDTCisPtrTy<2>]>>;
 def X86pextrw  : SDNode<"X86ISD::PEXTRW",
@@ -102,7 +74,7 @@ def X86insrtps : SDNode<"X86ISD::INSERTPS",
 def X86vzmovl  : SDNode<"X86ISD::VZEXT_MOVL",
                  SDTypeProfile<1, 1, [SDTCisSameAs<0,1>]>>;
 def X86vzload  : SDNode<"X86ISD::VZEXT_LOAD", SDTLoad,
-                        [SDNPHasChain, SDNPMayLoad]>;
+                        [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
 def X86vshl    : SDNode<"X86ISD::VSHL",      SDTIntShiftOp>;
 def X86vshr    : SDNode<"X86ISD::VSRL",      SDTIntShiftOp>;
 def X86cmpps   : SDNode<"X86ISD::CMPPS",     SDTX86VFCMP>;
@@ -134,17 +106,11 @@ def SDTShuff2OpI : SDTypeProfile<1, 2, [SDTCisVec<0>,
 def SDTShuff3OpI : SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0,1>,
                                  SDTCisSameAs<0,2>, SDTCisInt<3>]>;
 
-def SDTShuff2OpLdI : SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisPtrTy<1>,
-                                  SDTCisInt<2>]>;
-
 def X86PAlign : SDNode<"X86ISD::PALIGN", SDTShuff3OpI>;
 
 def X86PShufd  : SDNode<"X86ISD::PSHUFD", SDTShuff2OpI>;
 def X86PShufhw : SDNode<"X86ISD::PSHUFHW", SDTShuff2OpI>;
 def X86PShuflw : SDNode<"X86ISD::PSHUFLW", SDTShuff2OpI>;
-
-def X86PShufhwLd : SDNode<"X86ISD::PSHUFHW_LD", SDTShuff2OpLdI>;
-def X86PShuflwLd : SDNode<"X86ISD::PSHUFLW_LD", SDTShuff2OpLdI>;
 
 def X86Shufpd : SDNode<"X86ISD::SHUFPD", SDTShuff3OpI>;
 def X86Shufps : SDNode<"X86ISD::SHUFPS", SDTShuff3OpI>;
@@ -187,9 +153,11 @@ def X86Punpckhqdq : SDNode<"X86ISD::PUNPCKHQDQ", SDTShuff2Op>;
 // the top elements.  These are used for the SSE 'ss' and 'sd' instruction
 // forms.
 def sse_load_f32 : ComplexPattern<v4f32, 5, "SelectScalarSSELoad", [],
-                                  [SDNPHasChain, SDNPMayLoad]>;
+                                  [SDNPHasChain, SDNPMayLoad, SDNPMemOperand,
+                                   SDNPWantRoot]>;
 def sse_load_f64 : ComplexPattern<v2f64, 5, "SelectScalarSSELoad", [],
-                                  [SDNPHasChain, SDNPMayLoad]>;
+                                  [SDNPHasChain, SDNPMayLoad, SDNPMemOperand,
+                                   SDNPWantRoot]>;
 
 def ssmem : Operand<v4f32> {
   let PrintMethod = "printf32mem";
@@ -273,6 +241,7 @@ def memopv4f32 : PatFrag<(ops node:$ptr), (v4f32 (memop node:$ptr))>;
 def memopv2f64 : PatFrag<(ops node:$ptr), (v2f64 (memop node:$ptr))>;
 def memopv4i32 : PatFrag<(ops node:$ptr), (v4i32 (memop node:$ptr))>;
 def memopv2i64 : PatFrag<(ops node:$ptr), (v2i64 (memop node:$ptr))>;
+def memopv8i16 : PatFrag<(ops node:$ptr), (v8i16 (memop node:$ptr))>;
 def memopv16i8 : PatFrag<(ops node:$ptr), (v16i8 (memop node:$ptr))>;
 
 // 256-bit memop pattern fragments
@@ -289,10 +258,7 @@ def memop64 : PatFrag<(ops node:$ptr), (load node:$ptr), [{
   return cast<LoadSDNode>(N)->getAlignment() >= 8;
 }]>;
 
-def memopv8i8  : PatFrag<(ops node:$ptr), (v8i8  (memop64 node:$ptr))>;
-def memopv4i16 : PatFrag<(ops node:$ptr), (v4i16 (memop64 node:$ptr))>;
-def memopv8i16 : PatFrag<(ops node:$ptr), (v8i16 (memop64 node:$ptr))>;
-def memopv2i32 : PatFrag<(ops node:$ptr), (v2i32 (memop64 node:$ptr))>;
+def memopmmx  : PatFrag<(ops node:$ptr), (x86mmx  (memop64 node:$ptr))>;
 
 // MOVNT Support
 // Like 'store', but requires the non-temporal bit to be set
@@ -374,6 +340,18 @@ def SHUFFLE_get_pshuflw_imm : SDNodeXForm<vector_shuffle, [{
 // a PALIGNR imm.
 def SHUFFLE_get_palign_imm : SDNodeXForm<vector_shuffle, [{
   return getI8Imm(X86::getShufflePALIGNRImmediate(N));
+}]>;
+
+// EXTRACT_get_vextractf128_imm xform function: convert extract_subvector index
+// to VEXTRACTF128 imm.
+def EXTRACT_get_vextractf128_imm : SDNodeXForm<extract_subvector, [{
+  return getI8Imm(X86::getExtractVEXTRACTF128Immediate(N));
+}]>;
+
+// INSERT_get_vinsertf128_imm xform function: convert insert_subvector index to 
+// VINSERTF128 imm.
+def INSERT_get_vinsertf128_imm : SDNodeXForm<insert_subvector, [{
+  return getI8Imm(X86::getInsertVINSERTF128Immediate(N));
 }]>;
 
 def splat_lo : PatFrag<(ops node:$lhs, node:$rhs),
@@ -466,3 +444,16 @@ def palign : PatFrag<(ops node:$lhs, node:$rhs),
                      (vector_shuffle node:$lhs, node:$rhs), [{
   return X86::isPALIGNRMask(cast<ShuffleVectorSDNode>(N));
 }], SHUFFLE_get_palign_imm>;
+
+def vextractf128_extract : PatFrag<(ops node:$bigvec, node:$index),
+                                   (extract_subvector node:$bigvec,
+                                                      node:$index), [{
+  return X86::isVEXTRACTF128Index(N);
+}], EXTRACT_get_vextractf128_imm>;
+
+def vinsertf128_insert : PatFrag<(ops node:$bigvec, node:$smallvec,
+                                      node:$index),
+                                 (insert_subvector node:$bigvec, node:$smallvec,
+                                                   node:$index), [{
+  return X86::isVINSERTF128Index(N);
+}], INSERT_get_vinsertf128_imm>;

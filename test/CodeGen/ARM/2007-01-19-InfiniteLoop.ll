@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=arm -mattr=+v6,+vfp2 | FileCheck %s
+; RUN: llc < %s -mtriple=arm-apple-darwin -mattr=+v6,+vfp2 | FileCheck %s
 
 @quant_coef = external global [6 x [4 x [4 x i32]]]		; <[6 x [4 x [4 x i32]]]*> [#uses=1]
 @dequant_coef = external global [6 x [4 x [4 x i32]]]		; <[6 x [4 x [4 x i32]]]*> [#uses=1]
@@ -8,8 +8,9 @@
 define fastcc i32 @dct_luma_sp(i32 %block_x, i32 %block_y, i32* %coeff_cost) {
 entry:
 ; Make sure to use base-updating stores for saving callee-saved registers.
+; CHECK: push
 ; CHECK-NOT: sub sp
-; CHECK: vstmdb sp!
+; CHECK: push 
 	%predicted_block = alloca [4 x [4 x i32]], align 4		; <[4 x [4 x i32]]*> [#uses=1]
 	br label %cond_next489
 

@@ -1,7 +1,5 @@
-; RUN: llc < %s -march=x86    -mattr=+sse2 -asm-verbose=false | FileCheck %s -check-prefix=32
-; RUN: llc < %s -march=x86-64 -mattr=+sse2 -asm-verbose=false | FileCheck %s -check-prefix=64
-; Darwin 8 generates stubs, which don't match
-; XFAIL: apple-darwin8
+; RUN: llc < %s -mtriple=i686-linux   -mattr=+sse2 -asm-verbose=false | FileCheck %s -check-prefix=32
+; RUN: llc < %s -mtriple=x86_64-linux -mattr=+sse2 -asm-verbose=false | FileCheck %s -check-prefix=64
 
 define void @t1(i32 %x) nounwind ssp {
 entry:
@@ -45,7 +43,7 @@ declare i32 @foo3()
 define void @t4(void (i32)* nocapture %x) nounwind ssp {
 entry:
 ; 32: t4:
-; 32: call *
+; 32: calll *
 ; FIXME: gcc can generate a tailcall for this. But it's tricky.
 
 ; 64: t4:
@@ -71,7 +69,7 @@ entry:
 define i32 @t6(i32 %x) nounwind ssp {
 entry:
 ; 32: t6:
-; 32: call {{_?}}t6
+; 32: calll {{_?}}t6
 ; 32: jmp {{_?}}bar
 
 ; 64: t6:
@@ -108,7 +106,7 @@ declare i32 @bar2(i32, i32, i32)
 define signext i16 @t8() nounwind ssp {
 entry:
 ; 32: t8:
-; 32: call {{_?}}bar3
+; 32: calll {{_?}}bar3
 
 ; 64: t8:
 ; 64: callq {{_?}}bar3
@@ -121,7 +119,7 @@ declare signext i16 @bar3()
 define signext i16 @t9(i32 (i32)* nocapture %x) nounwind ssp {
 entry:
 ; 32: t9:
-; 32: call *
+; 32: calll *
 
 ; 64: t9:
 ; 64: callq *
@@ -133,7 +131,7 @@ entry:
 define void @t10() nounwind ssp {
 entry:
 ; 32: t10:
-; 32: call
+; 32: calll
 
 ; 64: t10:
 ; 64: callq
@@ -205,12 +203,12 @@ declare i32 @foo6(i32, i32, %struct.t* byval align 4)
 define %struct.ns* @t13(%struct.cp* %yy) nounwind ssp {
 ; 32: t13:
 ; 32-NOT: jmp
-; 32: call
+; 32: calll
 ; 32: ret
 
 ; 64: t13:
 ; 64-NOT: jmp
-; 64: call
+; 64: callq
 ; 64: ret
 entry:
   %0 = tail call fastcc %struct.ns* @foo7(%struct.cp* byval align 4 %yy, i8 signext 0) nounwind
@@ -248,7 +246,7 @@ entry:
 
 define void @t15(%struct.foo* noalias sret %agg.result) nounwind  {
 ; 32: t15:
-; 32: call {{_?}}f
+; 32: calll {{_?}}f
 ; 32: ret $4
 
 ; 64: t15:
@@ -263,7 +261,7 @@ declare void @f(%struct.foo* noalias sret) nounwind
 define void @t16() nounwind ssp {
 entry:
 ; 32: t16:
-; 32: call {{_?}}bar4
+; 32: calll {{_?}}bar4
 ; 32: fstp
 
 ; 64: t16:
@@ -293,7 +291,7 @@ declare void @bar5(...)
 define void @t18() nounwind ssp {
 entry:
 ; 32: t18:
-; 32: call {{_?}}bar6
+; 32: calll {{_?}}bar6
 ; 32: fstp %st(0)
 
 ; 64: t18:
@@ -309,7 +307,7 @@ define void @t19() alignstack(32) nounwind {
 entry:
 ; CHECK: t19:
 ; CHECK: andl $-32
-; CHECK: call {{_?}}foo
+; CHECK: calll {{_?}}foo
   tail call void @foo() nounwind
   ret void
 }
@@ -323,7 +321,7 @@ declare void @foo()
 define double @t20(double %x) nounwind {
 entry:
 ; 32: t20:
-; 32: call {{_?}}foo20
+; 32: calll {{_?}}foo20
 ; 32: fldl (%esp)
 
 ; 64: t20:

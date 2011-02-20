@@ -1,3 +1,5 @@
+set(LLVM_REQUIRES_RTTI 1)
+
 add_llvm_library(LLVMCore
   AsmWriter.cpp
   Attributes.cpp
@@ -28,6 +30,7 @@ add_llvm_library(LLVMCore
   Type.cpp
   TypeSymbolTable.cpp
   Use.cpp
+  User.cpp
   Value.cpp
   ValueSymbolTable.cpp
   ValueTypes.cpp

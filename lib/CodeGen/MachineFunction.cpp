@@ -33,7 +33,7 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetFrameInfo.h"
+#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/GraphWriter.h"
@@ -52,14 +52,15 @@ void ilist_traits<MachineBasicBlock>::deleteNode(MachineBasicBlock *MBB) {
 }
 
 MachineFunction::MachineFunction(const Function *F, const TargetMachine &TM,
-                                 unsigned FunctionNum, MachineModuleInfo &mmi)
-  : Fn(F), Target(TM), Ctx(mmi.getContext()), MMI(mmi) {
+                                 unsigned FunctionNum, MachineModuleInfo &mmi,
+                                 GCModuleInfo* gmi)
+  : Fn(F), Target(TM), Ctx(mmi.getContext()), MMI(mmi), GMI(gmi) {
   if (TM.getRegisterInfo())
     RegInfo = new (Allocator) MachineRegisterInfo(*TM.getRegisterInfo());
   else
     RegInfo = 0;
   MFInfo = 0;
-  FrameInfo = new (Allocator) MachineFrameInfo(*TM.getFrameInfo());
+  FrameInfo = new (Allocator) MachineFrameInfo(*TM.getFrameLowering());
   if (Fn->hasFnAttr(Attribute::StackAlignment))
     FrameInfo->setMaxAlignment(Attribute::getStackAlignmentFromAttrs(
         Fn->getAttributes().getFnAttributes()));
@@ -190,20 +191,21 @@ MachineFunction::DeleteMachineBasicBlock(MachineBasicBlock *MBB) {
 }
 
 MachineMemOperand *
-MachineFunction::getMachineMemOperand(const Value *v, unsigned f,
-                                      int64_t o, uint64_t s,
-                                      unsigned base_alignment) {
-  return new (Allocator) MachineMemOperand(v, f, o, s, base_alignment);
+MachineFunction::getMachineMemOperand(MachinePointerInfo PtrInfo, unsigned f,
+                                      uint64_t s, unsigned base_alignment,
+                                      const MDNode *TBAAInfo) {
+  return new (Allocator) MachineMemOperand(PtrInfo, f, s, base_alignment,
+                                           TBAAInfo);
 }
 
 MachineMemOperand *
 MachineFunction::getMachineMemOperand(const MachineMemOperand *MMO,
                                       int64_t Offset, uint64_t Size) {
   return new (Allocator)
-             MachineMemOperand(MMO->getValue(), MMO->getFlags(),
-                               int64_t(uint64_t(MMO->getOffset()) +
-                                       uint64_t(Offset)),
-                               Size, MMO->getBaseAlignment());
+             MachineMemOperand(MachinePointerInfo(MMO->getValue(),
+                                                  MMO->getOffset()+Offset),
+                               MMO->getFlags(), Size,
+                               MMO->getBaseAlignment(), 0);
 }
 
 MachineInstr::mmo_iterator
@@ -231,10 +233,10 @@ MachineFunction::extractLoadMemRefs(MachineInstr::mmo_iterator Begin,
       else {
         // Clone the MMO and unset the store flag.
         MachineMemOperand *JustLoad =
-          getMachineMemOperand((*I)->getValue(),
+          getMachineMemOperand((*I)->getPointerInfo(),
                                (*I)->getFlags() & ~MachineMemOperand::MOStore,
-                               (*I)->getOffset(), (*I)->getSize(),
-                               (*I)->getBaseAlignment());
+                               (*I)->getSize(), (*I)->getBaseAlignment(),
+                               (*I)->getTBAAInfo());
         Result[Index] = JustLoad;
       }
       ++Index;
@@ -263,10 +265,10 @@ MachineFunction::extractStoreMemRefs(MachineInstr::mmo_iterator Begin,
       else {
         // Clone the MMO and unset the load flag.
         MachineMemOperand *JustStore =
-          getMachineMemOperand((*I)->getValue(),
+          getMachineMemOperand((*I)->getPointerInfo(),
                                (*I)->getFlags() & ~MachineMemOperand::MOLoad,
-                               (*I)->getOffset(), (*I)->getSize(),
-                               (*I)->getBaseAlignment());
+                               (*I)->getSize(), (*I)->getBaseAlignment(),
+                               (*I)->getTBAAInfo());
         Result[Index] = JustStore;
       }
       ++Index;
@@ -279,7 +281,7 @@ void MachineFunction::dump() const {
   print(dbgs());
 }
 
-void MachineFunction::print(raw_ostream &OS) const {
+void MachineFunction::print(raw_ostream &OS, SlotIndexes *Indexes) const {
   OS << "# Machine code for function " << Fn->getName() << ":\n";
 
   // Print Frame Information
@@ -328,7 +330,7 @@ void MachineFunction::print(raw_ostream &OS) const {
   
   for (const_iterator BB = begin(), E = end(); BB != E; ++BB) {
     OS << '\n';
-    BB->print(OS);
+    BB->print(OS, Indexes);
   }
 
   OS << "\n# End machine code for function " << Fn->getName() << ".\n\n";
@@ -346,17 +348,15 @@ namespace llvm {
 
     std::string getNodeLabel(const MachineBasicBlock *Node,
                              const MachineFunction *Graph) {
-      if (isSimple () && Node->getBasicBlock() &&
-          !Node->getBasicBlock()->getName().empty())
-        return Node->getBasicBlock()->getNameStr() + ":";
-
       std::string OutStr;
       {
         raw_string_ostream OSS(OutStr);
-        
-        if (isSimple())
-          OSS << Node->getNumber() << ':';
-        else
+
+        if (isSimple()) {
+          OSS << "BB#" << Node->getNumber();
+          if (const BasicBlock *BB = Node->getBasicBlock())
+            OSS << ": " << BB->getName();
+        } else
           Node->print(OSS);
       }
 
@@ -396,7 +396,8 @@ void MachineFunction::viewCFGOnly() const
 /// addLiveIn - Add the specified physical register as a live-in value and
 /// create a corresponding virtual register for it.
 unsigned MachineFunction::addLiveIn(unsigned PReg,
-                                    const TargetRegisterClass *RC) {
+                                    const TargetRegisterClass *RC,
+                                    DebugLoc DL) {
   MachineRegisterInfo &MRI = getRegInfo();
   unsigned VReg = MRI.getLiveInVirtReg(PReg);
   if (VReg) {
@@ -405,6 +406,7 @@ unsigned MachineFunction::addLiveIn(unsigned PReg,
   }
   VReg = MRI.createVirtualRegister(RC);
   MRI.addLiveIn(PReg, VReg);
+  MRI.addLiveInLoc(VReg, DL);
   return VReg;
 }
 
@@ -426,6 +428,13 @@ MCSymbol *MachineFunction::getJTISymbol(unsigned JTI, MCContext &Ctx,
   return Ctx.GetOrCreateSymbol(Name.str());
 }
 
+/// getPICBaseSymbol - Return a function-local symbol to represent the PIC
+/// base.
+MCSymbol *MachineFunction::getPICBaseSymbol() const {
+  const MCAsmInfo &MAI = *Target.getMCAsmInfo();
+  return Ctx.GetOrCreateSymbol(Twine(MAI.getPrivateGlobalPrefix())+
+                               Twine(getFunctionNumber())+"$pb");
+}
 
 //===----------------------------------------------------------------------===//
 //  MachineFrameInfo implementation
@@ -485,7 +494,7 @@ MachineFrameInfo::getPristineRegs(const MachineBasicBlock *MBB) const {
 void MachineFrameInfo::print(const MachineFunction &MF, raw_ostream &OS) const{
   if (Objects.empty()) return;
 
-  const TargetFrameInfo *FI = MF.getTarget().getFrameInfo();
+  const TargetFrameLowering *FI = MF.getTarget().getFrameLowering();
   int ValOffset = (FI ? FI->getOffsetOfLocalArea() : 0);
 
   OS << "Frame Objects:\n";

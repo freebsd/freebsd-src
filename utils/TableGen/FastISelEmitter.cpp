@@ -20,6 +20,7 @@
 #include "FastISelEmitter.h"
 #include "Record.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/VectorExtras.h"
 using namespace llvm;
 
@@ -65,23 +66,23 @@ struct OperandsSignature {
         return true;
       }
     }
-    
+
     const CodeGenRegisterClass *DstRC = 0;
-    
+
     for (unsigned i = 0, e = InstPatNode->getNumChildren(); i != e; ++i) {
       TreePatternNode *Op = InstPatNode->getChild(i);
-      
+
       // For now, filter out any operand with a predicate.
       // For now, filter out any operand with multiple values.
       if (!Op->getPredicateFns().empty() ||
           Op->getNumTypes() != 1)
         return false;
-      
+
       assert(Op->hasTypeSet(0) && "Type infererence not done?");
       // For now, all the operands must have the same type.
       if (Op->getType(0) != VT)
         return false;
-      
+
       if (!Op->isLeaf()) {
         if (Op->getOperator()->getName() == "imm") {
           Operands.push_back("i");
@@ -107,7 +108,7 @@ struct OperandsSignature {
         RC = Target.getRegisterClassForRegister(OpLeafRec);
       else
         return false;
-        
+
       // For now, this needs to be a register class of some sort.
       if (!RC)
         return false;
@@ -212,7 +213,7 @@ class FastISelMap {
   typedef std::map<MVT::SimpleValueType, PredMap> RetPredMap;
   typedef std::map<MVT::SimpleValueType, RetPredMap> TypeRetPredMap;
   typedef std::map<std::string, TypeRetPredMap> OpcodeTypeRetPredMap;
-  typedef std::map<OperandsSignature, OpcodeTypeRetPredMap> 
+  typedef std::map<OperandsSignature, OpcodeTypeRetPredMap>
             OperandsOpcodeTypeRetPredMap;
 
   OperandsOpcodeTypeRetPredMap SimplePatterns;
@@ -263,9 +264,9 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
     if (!Op->isSubClassOf("Instruction"))
       continue;
     CodeGenInstruction &II = CGP.getTargetInfo().getInstruction(Op);
-    if (II.OperandList.empty())
+    if (II.Operands.size() == 0)
       continue;
-      
+
     // For now, ignore multi-instruction patterns.
     bool MultiInsts = false;
     for (unsigned i = 0, e = Dst->getNumChildren(); i != e; ++i) {
@@ -285,7 +286,7 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
     const CodeGenRegisterClass *DstRC = 0;
     std::string SubRegNo;
     if (Op->getName() != "EXTRACT_SUBREG") {
-      Record *Op0Rec = II.OperandList[0].Rec;
+      Record *Op0Rec = II.Operands[0].Rec;
       if (!Op0Rec->isSubClassOf("RegisterClass"))
         continue;
       DstRC = &Target.getRegisterClass(Op0Rec);
@@ -295,7 +296,7 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
       // If this isn't a leaf, then continue since the register classes are
       // a bit too complicated for now.
       if (!Dst->getChild(1)->isLeaf()) continue;
-      
+
       DefInit *SR = dynamic_cast<DefInit*>(Dst->getChild(1)->getLeafValue());
       if (SR)
         SubRegNo = getQualifiedName(SR->getDef());
@@ -310,7 +311,7 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
 
     // Ignore multiple result nodes for now.
     if (InstPatNode->getNumTypes() > 1) continue;
-    
+
     Record *InstPatOp = InstPatNode->getOperator();
     std::string OpcodeName = getOpcodeName(InstPatOp, CGP);
     MVT::SimpleValueType RetVT = MVT::isVoid;
@@ -334,7 +335,7 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
     OperandsSignature Operands;
     if (!Operands.initialize(InstPatNode, Target, VT))
       continue;
-    
+
     std::vector<std::string>* PhysRegInputs = new std::vector<std::string>();
     if (!InstPatNode->isLeaf() &&
         (InstPatNode->getOperator()->getName() == "imm" ||
@@ -347,7 +348,7 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
           PhysRegInputs->push_back("");
           continue;
         }
-        
+
         DefInit *OpDI = dynamic_cast<DefInit*>(Op->getLeafValue());
         Record *OpLeafRec = OpDI->getDef();
         std::string PhysReg;
@@ -355,7 +356,7 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
           PhysReg += static_cast<StringInit*>(OpLeafRec->getValue( \
                      "Namespace")->getValue())->getValue();
           PhysReg += "::";
-          
+
           std::vector<CodeGenRegister> Regs = Target.getRegisters();
           for (unsigned i = 0; i < Regs.size(); ++i) {
             if (Regs[i].TheDef == OpLeafRec) {
@@ -364,7 +365,7 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
             }
           }
         }
-      
+
         PhysRegInputs->push_back(PhysReg);
       }
     } else
@@ -380,9 +381,10 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
       SubRegNo,
       PhysRegInputs
     };
-    assert(!SimplePatterns[Operands][OpcodeName][VT][RetVT]
-            .count(PredicateCheck) &&
-           "Duplicate pattern!");
+    if (SimplePatterns[Operands][OpcodeName][VT][RetVT]
+            .count(PredicateCheck))
+      throw TGError(Pattern.getSrcRecord()->getLoc(), "Duplicate record!");
+
     SimplePatterns[Operands][OpcodeName][VT][RetVT][PredicateCheck] = Memo;
   }
 }
@@ -429,7 +431,7 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
                  PI != PE; ++PI) {
               std::string PredicateCheck = PI->first;
               const InstructionMemo &Memo = PI->second;
-  
+
               if (PredicateCheck.empty()) {
                 assert(!HasPred &&
                        "Multiple instructions match, at least one has "
@@ -439,14 +441,14 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
                 OS << "  ";
                 HasPred = true;
               }
-              
+
               for (unsigned i = 0; i < Memo.PhysRegs->size(); ++i) {
                 if ((*Memo.PhysRegs)[i] != "")
                   OS << "  BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, "
                      << "TII.get(TargetOpcode::COPY), "
                      << (*Memo.PhysRegs)[i] << ").addReg(Op" << i << ");\n";
               }
-              
+
               OS << "  return FastEmitInst_";
               if (Memo.SubRegNo.empty()) {
                 Operands.PrintManglingSuffix(OS, *Memo.PhysRegs);
@@ -462,10 +464,10 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
                 OS << Memo.SubRegNo;
                 OS << ");\n";
               }
-              
+
               if (HasPred)
                 OS << "  }\n";
-              
+
             }
             // Return 0 if none of the predicates were satisfied.
             if (HasPred)
@@ -473,7 +475,7 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
             OS << "}\n";
             OS << "\n";
           }
-          
+
           // Emit one function for the type that demultiplexes on return type.
           OS << "unsigned FastEmit_"
              << getLegalCName(Opcode) << "_"
@@ -496,7 +498,7 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
             OS << ");\n";
           }
           OS << "  default: return 0;\n}\n}\n\n";
-          
+
         } else {
           // Non-variadic return type.
           OS << "unsigned FastEmit_"
@@ -508,13 +510,13 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
             OS << ", ";
           Operands.PrintParameters(OS);
           OS << ") {\n";
-          
+
           OS << "  if (RetVT.SimpleTy != " << getName(RM.begin()->first)
              << ")\n    return 0;\n";
-          
+
           const PredMap &PM = RM.begin()->second;
           bool HasPred = false;
-          
+
           // Emit code for each possible instruction. There may be
           // multiple if there are subtarget concerns.
           for (PredMap::const_iterator PI = PM.begin(), PE = PM.end(); PI != PE;
@@ -531,16 +533,16 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
               OS << "  ";
               HasPred = true;
             }
-            
+
             for (unsigned i = 0; i < Memo.PhysRegs->size(); ++i) {
               if ((*Memo.PhysRegs)[i] != "")
                 OS << "  BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, "
                    << "TII.get(TargetOpcode::COPY), "
                    << (*Memo.PhysRegs)[i] << ").addReg(Op" << i << ");\n";
             }
-            
+
             OS << "  return FastEmitInst_";
-            
+
             if (Memo.SubRegNo.empty()) {
               Operands.PrintManglingSuffix(OS, *Memo.PhysRegs);
               OS << "(" << InstNS << Memo.Name << ", ";
@@ -554,11 +556,11 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
               OS << Memo.SubRegNo;
               OS << ");\n";
             }
-            
+
              if (HasPred)
                OS << "  }\n";
           }
-          
+
           // Return 0 if none of the predicates were satisfied.
           if (HasPred)
             OS << "  return 0;\n";

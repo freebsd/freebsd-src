@@ -79,7 +79,9 @@ namespace {
     explicit LowerInvoke(const TargetLowering *tli = NULL,
                          bool useExpensiveEHSupport = ExpensiveEHSupport)
       : FunctionPass(ID), useExpensiveEHSupport(useExpensiveEHSupport),
-        TLI(tli) { }
+        TLI(tli) {
+      initializeLowerInvokePass(*PassRegistry::getPassRegistry());
+    }
     bool doInitialization(Module &M);
     bool runOnFunction(Function &F);
 
@@ -102,7 +104,7 @@ namespace {
 char LowerInvoke::ID = 0;
 INITIALIZE_PASS(LowerInvoke, "lowerinvoke",
                 "Lower invoke and unwind, for unwindless code generators",
-                false, false);
+                false, false)
 
 char &llvm::LowerInvokePassID = LowerInvoke::ID;
 
@@ -148,19 +150,20 @@ bool LowerInvoke::doInitialization(Module &M) {
                                       "llvm.sjljeh.jblist");
     }
 
-// VisualStudio defines setjmp as _setjmp via #include <csetjmp> / <setjmp.h>,
-// so it looks like Intrinsic::_setjmp
-#if defined(_MSC_VER) && defined(setjmp)
-#define setjmp_undefined_for_visual_studio
-#undef setjmp
+// VisualStudio defines setjmp as _setjmp
+#if defined(_MSC_VER) && defined(setjmp) && \
+                         !defined(setjmp_undefined_for_msvc)
+#  pragma push_macro("setjmp")
+#  undef setjmp
+#  define setjmp_undefined_for_msvc
 #endif
 
     SetJmpFn = Intrinsic::getDeclaration(&M, Intrinsic::setjmp);
 
-#if defined(_MSC_VER) && defined(setjmp_undefined_for_visual_studio)
-// let's return it to _setjmp state in case anyone ever needs it after this
-// point under VisualStudio
-#define setjmp _setjmp
+#if defined(_MSC_VER) && defined(setjmp_undefined_for_msvc)
+   // let's return it to _setjmp state
+#  pragma pop_macro("setjmp")
+#  undef setjmp_undefined_for_msvc
 #endif
 
     LongJmpFn = Intrinsic::getDeclaration(&M, Intrinsic::longjmp);
@@ -186,6 +189,7 @@ bool LowerInvoke::insertCheapEHSupport(Function &F) {
       NewCall->takeName(II);
       NewCall->setCallingConv(II->getCallingConv());
       NewCall->setAttributes(II->getAttributes());
+      NewCall->setDebugLoc(II->getDebugLoc());
       II->replaceAllUsesWith(NewCall);
 
       // Insert an unconditional branch to the normal destination.
@@ -266,6 +270,7 @@ void LowerInvoke::rewriteExpensiveInvoke(InvokeInst *II, unsigned InvokeNo,
   NewCall->takeName(II);
   NewCall->setCallingConv(II->getCallingConv());
   NewCall->setAttributes(II->getAttributes());
+  NewCall->setDebugLoc(II->getDebugLoc());
   II->replaceAllUsesWith(NewCall);
 
   // Replace the invoke with an uncond branch.

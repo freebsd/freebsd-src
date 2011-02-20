@@ -28,7 +28,8 @@ namespace {
   // for miscompilation.
   //
   enum OutputType {
-    AutoPick, RunLLI, RunJIT, RunLLC, RunLLCIA, RunCBE, CBE_bug, LLC_Safe,Custom
+    AutoPick, RunLLI, RunJIT, RunLLC, RunLLCIA, RunCBE, CBE_bug, LLC_Safe,
+    CompileCustom, Custom
   };
 
   cl::opt<double>
@@ -50,6 +51,9 @@ namespace {
                             clEnumValN(RunCBE, "run-cbe", "Compile with CBE"),
                             clEnumValN(CBE_bug,"cbe-bug", "Find CBE bugs"),
                             clEnumValN(LLC_Safe, "llc-safe", "Use LLC for all"),
+                            clEnumValN(CompileCustom, "compile-custom",
+                            "Use -compile-command to define a command to "
+                            "compile the bitcode. Useful to avoid linking."),
                             clEnumValN(Custom, "run-custom",
                             "Use -exec-command to define a command to execute "
                             "the bitcode. Useful for cross-compilation."),
@@ -87,8 +91,13 @@ namespace {
                          "into executing programs"));
 
   cl::list<std::string>
-  AdditionalLinkerArgs("Xlinker", 
+  AdditionalLinkerArgs("Xlinker",
       cl::desc("Additional arguments to pass to the linker"));
+
+  cl::opt<std::string>
+  CustomCompileCommand("compile-command", cl::init("llc"),
+      cl::desc("Command to compile the bitcode (use with -compile-custom) "
+               "(default: llc)"));
 
   cl::opt<std::string>
   CustomExecCommand("exec-command", cl::init("simulate"),
@@ -119,7 +128,7 @@ namespace {
                cl::ZeroOrMore, cl::PositionalEatsArgs);
 
   cl::opt<std::string>
-  GCCBinary("gcc", cl::init("gcc"), 
+  GCCBinary("gcc", cl::init("gcc"),
               cl::desc("The gcc binary to use. (default 'gcc')"));
 
   cl::list<std::string>
@@ -157,7 +166,7 @@ bool BugDriver::initializeExecutionEnvironment() {
     if (!Interpreter) {
       InterpreterSel = RunLLC;
       Interpreter = AbstractInterpreter::createLLC(getToolName(), Message,
-                                                   GCCBinary, &ToolArgv, 
+                                                   GCCBinary, &ToolArgv,
                                                    &GCCToolArgv);
     }
     if (!Interpreter) {
@@ -178,7 +187,7 @@ bool BugDriver::initializeExecutionEnvironment() {
   case RunLLCIA:
   case LLC_Safe:
     Interpreter = AbstractInterpreter::createLLC(getToolName(), Message,
-                                                 GCCBinary, &ToolArgv, 
+                                                 GCCBinary, &ToolArgv,
                                                  &GCCToolArgv,
                                                  InterpreterSel == RunLLCIA);
     break;
@@ -189,11 +198,16 @@ bool BugDriver::initializeExecutionEnvironment() {
   case RunCBE:
   case CBE_bug:
     Interpreter = AbstractInterpreter::createCBE(getToolName(), Message,
-                                                 GCCBinary, &ToolArgv, 
+                                                 GCCBinary, &ToolArgv,
                                                  &GCCToolArgv);
     break;
+  case CompileCustom:
+    Interpreter =
+      AbstractInterpreter::createCustomCompiler(Message, CustomCompileCommand);
+    break;
   case Custom:
-    Interpreter = AbstractInterpreter::createCustom(Message, CustomExecCommand);
+    Interpreter =
+      AbstractInterpreter::createCustomExecutor(Message, CustomExecCommand);
     break;
   default:
     Message = "Sorry, this back-end is not supported by bugpoint right now!\n";
@@ -216,7 +230,7 @@ bool BugDriver::initializeExecutionEnvironment() {
       SafeInterpreterSel = RunLLC;
       SafeToolArgs.push_back("--relocation-model=pic");
       SafeInterpreter = AbstractInterpreter::createLLC(Path.c_str(), Message,
-                                                       GCCBinary, 
+                                                       GCCBinary,
                                                        &SafeToolArgs,
                                                        &GCCToolArgv);
     }
@@ -227,7 +241,7 @@ bool BugDriver::initializeExecutionEnvironment() {
       SafeInterpreterSel = RunLLC;
       SafeToolArgs.push_back("--relocation-model=pic");
       SafeInterpreter = AbstractInterpreter::createLLC(Path.c_str(), Message,
-                                                       GCCBinary, 
+                                                       GCCBinary,
                                                        &SafeToolArgs,
                                                        &GCCToolArgv);
     }
@@ -249,7 +263,7 @@ bool BugDriver::initializeExecutionEnvironment() {
       SafeInterpreterSel = RunLLC;
       SafeToolArgs.push_back("--relocation-model=pic");
       SafeInterpreter = AbstractInterpreter::createLLC(Path.c_str(), Message,
-                                                       GCCBinary, 
+                                                       GCCBinary,
                                                        &SafeToolArgs,
                                                        &GCCToolArgv);
     }
@@ -272,8 +286,8 @@ bool BugDriver::initializeExecutionEnvironment() {
                                                      &GCCToolArgv);
     break;
   case Custom:
-    SafeInterpreter = AbstractInterpreter::createCustom(Message,
-                                                        CustomExecCommand);
+    SafeInterpreter =
+      AbstractInterpreter::createCustomExecutor(Message, CustomExecCommand);
     break;
   default:
     Message = "Sorry, this back-end is not supported by bugpoint as the "
@@ -281,7 +295,7 @@ bool BugDriver::initializeExecutionEnvironment() {
     break;
   }
   if (!SafeInterpreter) { outs() << Message << "\nExiting.\n"; exit(1); }
-  
+
   gcc = GCC::create(Message, GCCBinary, &GCCToolArgv);
   if (!gcc) { outs() << Message << "\nExiting.\n"; exit(1); }
 
@@ -298,7 +312,7 @@ void BugDriver::compileProgram(Module *M, std::string *Error) const {
   sys::Path BitcodeFile (OutputPrefix + "-test-program.bc");
   std::string ErrMsg;
   if (BitcodeFile.makeUnique(true, &ErrMsg)) {
-    errs() << ToolName << ": Error making unique filename: " << ErrMsg 
+    errs() << ToolName << ": Error making unique filename: " << ErrMsg
            << "\n";
     exit(1);
   }
@@ -432,7 +446,7 @@ std::string BugDriver::compileSharedObject(const std::string &BitcodeFile,
 }
 
 /// createReferenceFile - calls compileProgram and then records the output
-/// into ReferenceOutputFile. Returns true if reference file created, false 
+/// into ReferenceOutputFile. Returns true if reference file created, false
 /// otherwise. Note: initializeExecutionEnvironment should be called BEFORE
 /// this function.
 ///

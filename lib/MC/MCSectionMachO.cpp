@@ -10,6 +10,7 @@
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cctype>
 using namespace llvm;
 
 /// SectionTypeDescriptors - These are strings that describe the various section
@@ -81,18 +82,18 @@ MCSectionMachO::MCSectionMachO(StringRef Segment, StringRef Section,
       SegmentName[i] = Segment[i];
     else
       SegmentName[i] = 0;
-    
+
     if (i < Section.size())
       SectionName[i] = Section[i];
     else
       SectionName[i] = 0;
-  }        
+  }
 }
 
 void MCSectionMachO::PrintSwitchToSection(const MCAsmInfo &MAI,
                                           raw_ostream &OS) const {
   OS << "\t.section\t" << getSegmentName() << ',' << getSectionName();
-  
+
   // Get the section type and attributes.
   unsigned TAA = getTypeAndAttributes();
   if (TAA == 0) {
@@ -101,7 +102,7 @@ void MCSectionMachO::PrintSwitchToSection(const MCAsmInfo &MAI,
   }
 
   OS << ',';
-  
+
   unsigned SectionType = TAA & MCSectionMachO::SECTION_TYPE;
   assert(SectionType <= MCSectionMachO::LAST_KNOWN_SECTION_TYPE &&
          "Invalid SectionType specified!");
@@ -110,7 +111,7 @@ void MCSectionMachO::PrintSwitchToSection(const MCAsmInfo &MAI,
     OS << SectionTypeDescriptors[SectionType].AssemblerName;
   else
     OS << "<<" << SectionTypeDescriptors[SectionType].EnumName << ">>";
-  
+
   // If we don't have any attributes, we're done.
   unsigned SectionAttrs = TAA & MCSectionMachO::SECTION_ATTRIBUTES;
   if (SectionAttrs == 0) {
@@ -128,10 +129,10 @@ void MCSectionMachO::PrintSwitchToSection(const MCAsmInfo &MAI,
     // Check to see if we have this attribute.
     if ((SectionAttrDescriptors[i].AttrFlag & SectionAttrs) == 0)
       continue;
-    
+
     // Yep, clear it and print it.
     SectionAttrs &= ~SectionAttrDescriptors[i].AttrFlag;
-    
+
     OS << Separator;
     if (SectionAttrDescriptors[i].AssemblerName)
       OS << SectionAttrDescriptors[i].AssemblerName;
@@ -139,13 +140,23 @@ void MCSectionMachO::PrintSwitchToSection(const MCAsmInfo &MAI,
       OS << "<<" << SectionAttrDescriptors[i].EnumName << ">>";
     Separator = '+';
   }
-  
+
   assert(SectionAttrs == 0 && "Unknown section attributes!");
-  
+
   // If we have a S_SYMBOL_STUBS size specified, print it.
   if (Reserved2 != 0)
     OS << ',' << Reserved2;
   OS << '\n';
+}
+
+bool MCSectionMachO::UseCodeAlign() const {
+  return hasAttribute(MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS);
+}
+
+bool MCSectionMachO::isVirtualSection() const {
+  return (getType() == MCSectionMachO::S_ZEROFILL ||
+          getType() == MCSectionMachO::S_GB_ZEROFILL ||
+          getType() == MCSectionMachO::S_THREAD_LOCAL_ZEROFILL);
 }
 
 /// StripSpaces - This removes leading and trailing spaces from the StringRef.
@@ -168,12 +179,12 @@ std::string MCSectionMachO::ParseSectionSpecifier(StringRef Spec,        // In.
                                                   unsigned  &StubSize) { // Out.
   // Find the first comma.
   std::pair<StringRef, StringRef> Comma = Spec.split(',');
-  
+
   // If there is no comma, we fail.
   if (Comma.second.empty())
     return "mach-o section specifier requires a segment and section "
            "separated by a comma";
-  
+
   // Capture segment, remove leading and trailing whitespace.
   Segment = Comma.first;
   StripSpaces(Segment);
@@ -182,14 +193,14 @@ std::string MCSectionMachO::ParseSectionSpecifier(StringRef Spec,        // In.
   if (Segment.empty() || Segment.size() > 16)
     return "mach-o section specifier requires a segment whose length is "
            "between 1 and 16 characters";
-  
+
   // Split the section name off from any attributes if present.
   Comma = Comma.second.split(',');
 
   // Capture section, remove leading and trailing whitespace.
   Section = Comma.first;
   StripSpaces(Section);
-  
+
   // Verify that the section is present and not too long.
   if (Section.empty() || Section.size() > 16)
     return "mach-o section specifier requires a section whose length is "
@@ -200,25 +211,25 @@ std::string MCSectionMachO::ParseSectionSpecifier(StringRef Spec,        // In.
   StubSize = 0;
   if (Comma.second.empty())
     return "";
-  
+
   // Otherwise, we need to parse the section type and attributes.
   Comma = Comma.second.split(',');
-  
+
   // Get the section type.
   StringRef SectionType = Comma.first;
   StripSpaces(SectionType);
-  
+
   // Figure out which section type it is.
   unsigned TypeID;
   for (TypeID = 0; TypeID !=MCSectionMachO::LAST_KNOWN_SECTION_TYPE+1; ++TypeID)
     if (SectionTypeDescriptors[TypeID].AssemblerName &&
         SectionType == SectionTypeDescriptors[TypeID].AssemblerName)
       break;
-  
+
   // If we didn't find the section type, reject it.
   if (TypeID > MCSectionMachO::LAST_KNOWN_SECTION_TYPE)
     return "mach-o section specifier uses an unknown section type";
-  
+
   // Remember the TypeID.
   TAA = TypeID;
 
@@ -235,10 +246,10 @@ std::string MCSectionMachO::ParseSectionSpecifier(StringRef Spec,        // In.
   // present.
   Comma = Comma.second.split(',');
   StringRef Attrs = Comma.first;
-  
+
   // The attribute list is a '+' separated list of attributes.
   std::pair<StringRef, StringRef> Plus = Attrs.split('+');
-  
+
   while (1) {
     StringRef Attr = Plus.first;
     StripSpaces(Attr);
@@ -247,14 +258,14 @@ std::string MCSectionMachO::ParseSectionSpecifier(StringRef Spec,        // In.
     for (unsigned i = 0; ; ++i) {
       if (SectionAttrDescriptors[i].AttrFlag == AttrFlagEnd)
         return "mach-o section specifier has invalid attribute";
-      
+
       if (SectionAttrDescriptors[i].AssemblerName &&
           Attr == SectionAttrDescriptors[i].AssemblerName) {
         TAA |= SectionAttrDescriptors[i].AttrFlag;
         break;
       }
     }
-    
+
     if (Plus.second.empty()) break;
     Plus = Plus.second.split('+');
   };
@@ -272,15 +283,14 @@ std::string MCSectionMachO::ParseSectionSpecifier(StringRef Spec,        // In.
   if ((TAA & MCSectionMachO::SECTION_TYPE) != MCSectionMachO::S_SYMBOL_STUBS)
     return "mach-o section specifier cannot have a stub size specified because "
            "it does not have type 'symbol_stubs'";
-  
+
   // Okay, if we do, it must be a number.
   StringRef StubSizeStr = Comma.second;
   StripSpaces(StubSizeStr);
-  
+
   // Convert the stub size from a string to an integer.
   if (StubSizeStr.getAsInteger(0, StubSize))
     return "mach-o section specifier has a malformed stub size";
-  
+
   return "";
 }
-

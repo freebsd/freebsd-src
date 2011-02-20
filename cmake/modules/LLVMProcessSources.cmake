@@ -1,5 +1,22 @@
 include(AddFileDependencies)
 
+function(llvm_replace_compiler_option var old new)
+  # Replaces a compiler option or switch `old' in `var' by `new'.
+  # If `old' is not in `var', appends `new' to `var'.
+  # Example: llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2")
+  # If the option already is on the variable, don't add it:
+  if( "${${var}}" MATCHES "(^| )${new}($| )" )
+    set(n "")
+  else()
+    set(n "${new}")
+  endif()
+  if( "${${var}}" MATCHES "(^| )${old}($| )" )
+    string( REGEX REPLACE "(^| )${old}($| )" " ${n} " ${var} "${${var}}" )
+  else()
+    set( ${var} "${${var}} ${n}" )
+  endif()
+  set( ${var} "${${var}}" PARENT_SCOPE )
+endfunction(llvm_replace_compiler_option)
 
 macro(add_td_sources srcs)
   file(GLOB tds *.td)
@@ -12,7 +29,7 @@ endmacro(add_td_sources)
 
 
 macro(add_header_files srcs)
-  file(GLOB hds *.h)
+  file(GLOB hds *.h *.def)
   if( hds )
     set_source_files_properties(${hds} PROPERTIES HEADER_FILE_ONLY ON)
     list(APPEND ${srcs} ${hds})
@@ -36,6 +53,25 @@ function(llvm_process_sources OUT_VAR)
     add_td_sources(sources)
     add_header_files(sources)
   endif()
+
+  # Set common compiler options:
+  if( NOT LLVM_REQUIRES_EH )
+    if( CMAKE_COMPILER_IS_GNUCXX )
+      add_definitions( -fno-exceptions )
+    elseif( MSVC )
+      llvm_replace_compiler_option(CMAKE_CXX_FLAGS "/EHsc" "/EHs-c-")
+      add_definitions( /D_HAS_EXCEPTIONS=0 )
+    endif()
+  endif()
+  if( NOT LLVM_REQUIRES_RTTI )
+    if( CMAKE_COMPILER_IS_GNUCXX )
+      llvm_replace_compiler_option(CMAKE_CXX_FLAGS "-frtti" "-fno-rtti")
+    elseif( MSVC )
+      llvm_replace_compiler_option(CMAKE_CXX_FLAGS "/GR" "/GR-")
+    endif()
+  endif()
+
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE )
   set( ${OUT_VAR} ${sources} PARENT_SCOPE )
 endfunction(llvm_process_sources)
 

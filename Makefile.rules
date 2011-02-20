@@ -129,11 +129,8 @@ reconfigure:
 	  $(ConfigStatusScript) --recheck $(ConfigureScriptFLAGS) && \
 	  $(ConfigStatusScript)
 
-# FIXME: The {PIC16,MSP430}/AsmPrinter line here is a hack to force a reconfigure to pick
-# up AsmPrinter changes. Remove it after a reasonable delay from 2009-08-13.
-
 .PRECIOUS: $(ConfigStatusScript)
-$(ConfigStatusScript): $(ConfigureScript) $(LLVM_SRC_ROOT)/lib/Target/PIC16/AsmPrinter/Makefile $(LLVM_SRC_ROOT)/lib/Target/MSP430/AsmPrinter/Makefile
+$(ConfigStatusScript): $(ConfigureScript)
 	$(Echo) Reconfiguring with $<
 	$(Verb) cd $(PROJ_OBJ_ROOT) && \
 	  if test -w $(PROJ_OBJ_ROOT)/config.cache ; then \
@@ -161,9 +158,13 @@ endif
 # If the Makefile in the source tree has been updated, copy it over into the
 # build tree. But, only do this if the source and object makefiles differ
 #------------------------------------------------------------------------
+ifndef PROJ_MAKEFILE
+PROJ_MAKEFILE := $(PROJ_SRC_DIR)/Makefile
+endif
+
 ifneq ($(PROJ_OBJ_DIR),$(PROJ_SRC_DIR))
 
-Makefile: $(PROJ_SRC_DIR)/Makefile $(ExtraMakefiles)
+Makefile: $(PROJ_MAKEFILE) $(ExtraMakefiles)
 	$(Echo) "Updating Makefile"
 	$(Verb) $(MKDIR) $(@D)
 	$(Verb) $(CP) -f $< $@
@@ -171,7 +172,7 @@ Makefile: $(PROJ_SRC_DIR)/Makefile $(ExtraMakefiles)
 # Copy the Makefile.* files unless we're in the root directory which avoids
 # the copying of Makefile.config.in or other things that should be explicitly
 # taken care of.
-$(PROJ_OBJ_DIR)/Makefile% : $(PROJ_SRC_DIR)/Makefile%
+$(PROJ_OBJ_DIR)/Makefile% : $(PROJ_MAKEFILE)%
 	@case '$?' in \
           *Makefile.rules) ;; \
           *.in) ;; \
@@ -204,7 +205,7 @@ ifdef LLVMC_BASED_DRIVER
 TOOLNAME = $(LLVMC_BASED_DRIVER)
 
 LLVMLIBS = CompilerDriver.a
-LINK_COMPONENTS = support system
+LINK_COMPONENTS = support
 
 endif # LLVMC_BASED_DRIVER
 
@@ -300,7 +301,7 @@ ifneq ($(REQUIRES_RTTI), 1)
   CXX.Flags += -fno-rtti
 endif
 
-ifdef ENABLE_COVERAGE
+ifeq ($(ENABLE_COVERAGE),1)
   BuildMode := $(BuildMode)+Coverage
   CXX.Flags += -ftest-coverage -fprofile-arcs
   C.Flags   += -ftest-coverage -fprofile-arcs
@@ -308,17 +309,17 @@ endif
 
 # If DISABLE_ASSERTIONS=1 is specified (make command line or configured),
 # then disable assertions by defining the appropriate preprocessor symbols.
-ifndef DISABLE_ASSERTIONS
+ifeq ($(DISABLE_ASSERTIONS),1)
+  CPP.Defines += -DNDEBUG
+else
   BuildMode := $(BuildMode)+Asserts
   CPP.Defines += -D_DEBUG
-else
-  CPP.Defines += -DNDEBUG
 endif
 
 # If ENABLE_EXPENSIVE_CHECKS=1 is specified (make command line or
 # configured), then enable expensive checks by defining the
 # appropriate preprocessor symbols.
-ifdef ENABLE_EXPENSIVE_CHECKS
+ifeq ($(ENABLE_EXPENSIVE_CHECKS),1)
   BuildMode := $(BuildMode)+Checks
   CPP.Defines += -D_GLIBCXX_DEBUG -DXDEBUG
 endif
@@ -387,10 +388,19 @@ ifeq ($(ENABLE_PIC),0)
   CXX.Flags     += -fPIC
   CPP.BaseFlags += -fPIC
 endif
+
+  LD.Flags += -Wl,--no-relax
 endif
 
-ifeq ($(ARCH),Alpha)
-  LD.Flags += -Wl,--no-relax
+# GNU ld/PECOFF accepts but ignores them below;
+#   --version-script
+#   --export-dynamic
+#   --rpath
+# FIXME: autoconf should be aware of them.
+ifneq (,$(filter $(HOST_OS),Cygwin MingW))
+  HAVE_LINK_VERSION_SCRIPT := 0
+  RPATH :=
+  RDYNAMIC := -Wl,--export-all-symbols
 endif
 
 #--------------------------------------------------------------------
@@ -497,8 +507,8 @@ ifeq ($(HOST_OS),Darwin)
   # Get "4" out of 10.4 for later pieces in the makefile.
   DARWIN_MAJVERS := $(shell echo $(DARWIN_VERSION)| sed -E 's/10.([0-9]).*/\1/')
 
-  SharedLinkOptions=-Wl,-flat_namespace -Wl,-undefined,suppress \
-                    -dynamiclib
+  LoadableModuleOptions := -Wl,-flat_namespace -Wl,-undefined,suppress
+  SharedLinkOptions := -dynamiclib
   ifneq ($(ARCH),ARM)
     SharedLinkOptions += -mmacosx-version-min=$(DARWIN_VERSION)
   endif
@@ -516,10 +526,6 @@ ifdef SHARED_LIBRARY
 ifneq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
 ifneq ($(HOST_OS),Darwin)
   LD.Flags += $(RPATH) -Wl,'$$ORIGIN'
-else
-ifneq ($(DARWIN_MAJVERS),4)
-  LD.Flags += $(RPATH) -Wl,$(SharedLibDir)
-endif
 endif
 endif
 endif
@@ -547,15 +553,21 @@ ifndef KEEP_SYMBOLS
   Install.StripFlag += -s
 endif
 
+ifdef TOOL_NO_EXPORTS
+  DynamicFlags :=
+else
+  DynamicFlag := $(RDYNAMIC)
+endif
+
 # Adjust linker flags for building an executable
 ifneq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
 ifneq ($(HOST_OS), Darwin)
 ifdef TOOLNAME
   LD.Flags += $(RPATH) -Wl,'$$ORIGIN/../lib'
   ifdef EXAMPLE_TOOL
-    LD.Flags += $(RPATH) -Wl,$(ExmplDir) $(RDYNAMIC)
+    LD.Flags += $(RPATH) -Wl,$(ExmplDir) $(DynamicFlag)
   else
-    LD.Flags += $(RPATH) -Wl,$(ToolDir) $(RDYNAMIC)
+    LD.Flags += $(RPATH) -Wl,$(ToolDir) $(DynamicFlag)
   endif
 endif
 else
@@ -618,11 +630,11 @@ else
 endif
 
 ifeq ($(HOST_OS),SunOS)
-CPP.BaseFlags += -include llvm/System/Solaris.h
+CPP.BaseFlags += -include llvm/Support/Solaris.h
 endif
 
 ifeq ($(HOST_OS),AuroraUX)
-CPP.BaseFlags += -include llvm/System/Solaris.h
+CPP.BaseFlags += -include llvm/Support/Solaris.h
 endif # !HOST_OS - AuroraUX.
 
 LD.Flags      += -L$(LibDir) -L$(LLVMLibDir)
@@ -828,7 +840,9 @@ $(RecursiveTargets)::
 else
 $(RecursiveTargets)::
 	$(Verb) for dir in $(OPTIONAL_DIRS); do \
-	  ($(MAKE) -C$$dir $@ ) || exit 1; \
+	  if [ -d $(PROJ_SRC_DIR)/$$dir ]; then\
+	    ($(MAKE) -C$$dir $@ ) || exit 1; \
+	  fi \
 	done
 endif
 endif
@@ -890,10 +904,13 @@ LLVMUsedLibs    := $(patsubst %.a.o, lib%.a, $(addsuffix .o, $(LLVMLIBS)))
 LLVMLibsPaths   := $(addprefix $(LLVMLibDir)/,$(LLVMUsedLibs))
 endif
 
-# Win32.DLL may refer to other components.
-ifeq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
+# Loadable module for Win32 requires all symbols resolved for linking.
+# Then all symbols in LLVM.dll will be available.
+ifeq ($(ENABLE_SHARED),1)
   ifdef LOADABLE_MODULE
-    LINK_COMPONENTS := all
+    ifneq (,$(filter $(HOST_OS),Cygwin MingW))
+      LINK_COMPONENTS += all
+    endif
   endif
 endif
 
@@ -940,11 +957,6 @@ ifdef EXPORTED_SYMBOL_FILE
 
 # First, set up the native export file, which may differ from the source
 # export file.
-
-# The option --version-script is not effective on GNU ld win32.
-ifneq (,$(filter $(HOST_OS),Cygwin MingW))
-  HAVE_LINK_VERSION_SCRIPT := 0
-endif
 
 ifeq ($(HOST_OS),Darwin)
 # Darwin convention prefixes symbols with underscores.
@@ -1073,12 +1085,14 @@ ifdef LIBRARYNAME
 # Make sure there isn't any extraneous whitespace on the LIBRARYNAME option
 LIBRARYNAME := $(strip $(LIBRARYNAME))
 ifdef LOADABLE_MODULE
-LibName.A  := $(LibDir)/$(LIBRARYNAME).a
-LibName.SO := $(SharedLibDir)/$(LIBRARYNAME)$(SHLIBEXT)
+BaseLibName.A  := $(LIBRARYNAME).a
+BaseLibName.SO := $(LIBRARYNAME)$(SHLIBEXT)
 else
-LibName.A  := $(LibDir)/lib$(LIBRARYNAME).a
-LibName.SO := $(SharedLibDir)/$(SharedPrefix)$(LIBRARYNAME)$(SHLIBEXT)
+BaseLibName.A  := lib$(LIBRARYNAME).a
+BaseLibName.SO := $(SharedPrefix)$(LIBRARYNAME)$(SHLIBEXT)
 endif
+LibName.A  := $(LibDir)/$(BaseLibName.A)
+LibName.SO := $(SharedLibDir)/$(BaseLibName.SO)
 LibName.O  := $(LibDir)/$(LIBRARYNAME).o
 LibName.BCA:= $(LibDir)/lib$(LIBRARYNAME).bca
 
@@ -1099,6 +1113,7 @@ endif
 ifdef LINK_LIBS_IN_SHARED
 ifdef LOADABLE_MODULE
 SharedLibKindMessage := "Loadable Module"
+SharedLinkOptions := $(LoadableModuleOptions) $(SharedLinkOptions)
 else
 SharedLibKindMessage := "Shared Library"
 endif
@@ -1131,7 +1146,7 @@ DestSharedLibDir := $(DESTDIR)$(PROJ_bindir)
 else
 DestSharedLibDir := $(DESTDIR)$(PROJ_libdir)
 endif
-DestSharedLib := $(DestSharedLibDir)/$(SharedPrefix)$(LIBRARYNAME)$(SHLIBEXT)
+DestSharedLib := $(DestSharedLibDir)/$(BaseLibName.SO)
 
 install-local:: $(DestSharedLib)
 
@@ -1324,6 +1339,18 @@ endif
 endif
 
 #---------------------------------------------------------
+# Tool Order File Support
+#---------------------------------------------------------
+
+ifeq ($(HOST_OS),Darwin)
+ifdef TOOL_ORDER_FINE
+
+LD.Flags += -Wl,-order_file,$(TOOL_ORDER_FILE)
+
+endif
+endif
+
+#---------------------------------------------------------
 # Tool Version Info Support
 #---------------------------------------------------------
 
@@ -1441,27 +1468,27 @@ DEPEND_OPTIONS = -MMD -MP -MF "$(ObjDir)/$*.d.tmp" \
 DEPEND_MOVEFILE = then $(MV) -f "$(ObjDir)/$*.d.tmp" "$(ObjDir)/$*.d"; \
                   else $(RM) "$(ObjDir)/$*.d.tmp"; exit 1; fi
 
-$(ObjDir)/%.o: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_SRC_DIR)/Makefile
+$(ObjDir)/%.o: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_MAKEFILE)
 	$(Echo) "Compiling $*.cpp for $(BuildMode) build" $(PIC_FLAG)
 	$(Verb) if $(Compile.CXX) $(DEPEND_OPTIONS) $< -o $(ObjDir)/$*.o ; \
 	        $(DEPEND_MOVEFILE)
 
-$(ObjDir)/%.o: %.mm $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_SRC_DIR)/Makefile
+$(ObjDir)/%.o: %.mm $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_MAKEFILE)
 	$(Echo) "Compiling $*.mm for $(BuildMode) build" $(PIC_FLAG)
 	$(Verb) if $(Compile.CXX) $(DEPEND_OPTIONS) $< -o $(ObjDir)/$*.o ; \
 	        $(DEPEND_MOVEFILE)
 
-$(ObjDir)/%.o: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_SRC_DIR)/Makefile
+$(ObjDir)/%.o: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_MAKEFILE)
 	$(Echo) "Compiling $*.cc for $(BuildMode) build" $(PIC_FLAG)
 	$(Verb) if $(Compile.CXX) $(DEPEND_OPTIONS) $< -o $(ObjDir)/$*.o ; \
 	        $(DEPEND_MOVEFILE)
 
-$(ObjDir)/%.o: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_SRC_DIR)/Makefile
+$(ObjDir)/%.o: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_MAKEFILE)
 	$(Echo) "Compiling $*.c for $(BuildMode) build" $(PIC_FLAG)
 	$(Verb) if $(Compile.C) $(DEPEND_OPTIONS) $< -o $(ObjDir)/$*.o ; \
 	        $(DEPEND_MOVEFILE)
 
-$(ObjDir)/%.o: %.m $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_SRC_DIR)/Makefile
+$(ObjDir)/%.o: %.m $(ObjDir)/.dir $(BUILT_SOURCES) $(PROJ_MAKEFILE)
 	$(Echo) "Compiling $*.m for $(BuildMode) build" $(PIC_FLAG)
 	$(Verb) if $(Compile.C) $(DEPEND_OPTIONS) $< -o $(ObjDir)/$*.o ; \
 	        $(DEPEND_MOVEFILE)
@@ -1481,31 +1508,31 @@ BC_DEPEND_MOVEFILE = then $(MV) -f "$(ObjDir)/$*.bc.d.tmp" "$(ObjDir)/$*.bc.d"; 
 $(ObjDir)/%.ll: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cpp for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.CXX) $(BC_DEPEND_OPTIONS) \
-                              $< -o $(ObjDir)/$*.ll -S -emit-llvm ; \
+			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 $(ObjDir)/%.ll: %.mm $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.mm for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.CXX) $(BC_DEPEND_OPTIONS) \
-                              $< -o $(ObjDir)/$*.ll -S -emit-llvm ; \
+			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 $(ObjDir)/%.ll: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cc for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.CXX) $(BC_DEPEND_OPTIONS) \
-                              $< -o $(ObjDir)/$*.ll -S -emit-llvm ; \
+			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 $(ObjDir)/%.ll: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.c for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.C) $(BC_DEPEND_OPTIONS) \
-                              $< -o $(ObjDir)/$*.ll -S -emit-llvm ; \
+			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 $(ObjDir)/%.ll: %.m $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.m for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.C) $(BC_DEPEND_OPTIONS) \
-                              $< -o $(ObjDir)/$*.ll -S -emit-llvm ; \
+			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 # Provide alternate rule sets if dependencies are disabled
@@ -1533,23 +1560,23 @@ $(ObjDir)/%.o: %.m $(ObjDir)/.dir $(BUILT_SOURCES)
 
 $(ObjDir)/%.ll: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cpp for $(BuildMode) build (bytecode)"
-	$(BCCompile.CXX) $< -o $@ -S -emit-llvm
+	$(BCCompile.CXX) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
 
 $(ObjDir)/%.ll: %.mm $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.mm for $(BuildMode) build (bytecode)"
-	$(BCCompile.CXX) $< -o $@ -S -emit-llvm
+	$(BCCompile.CXX) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
 
 $(ObjDir)/%.ll: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cc for $(BuildMode) build (bytecode)"
-	$(BCCompile.CXX) $< -o $@ -S -emit-llvm
+	$(BCCompile.CXX) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
 
 $(ObjDir)/%.ll: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.c for $(BuildMode) build (bytecode)"
-	$(BCCompile.C) $< -o $@ -S -emit-llvm
+	$(BCCompile.C) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
 
 $(ObjDir)/%.ll: %.m $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.m for $(BuildMode) build (bytecode)"
-	$(BCCompile.C) $< -o $@ -S -emit-llvm
+	$(BCCompile.C) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
 
 endif
 
@@ -1698,6 +1725,11 @@ $(TARGET:%=$(ObjDir)/%GenAsmMatcher.inc.tmp): \
 $(ObjDir)/%GenAsmMatcher.inc.tmp : %.td $(ObjDir)/.dir
 	$(Echo) "Building $(<F) assembly matcher with tblgen"
 	$(Verb) $(TableGen) -gen-asm-matcher -o $(call SYSPATH, $@) $<
+
+$(TARGET:%=$(ObjDir)/%GenMCCodeEmitter.inc.tmp): \
+$(ObjDir)/%GenMCCodeEmitter.inc.tmp: %.td $(ObjDir)/.dir
+	$(Echo) "Building $(<F) MC code emitter with tblgen"
+	$(Verb) $(TableGen) -gen-emitter -mc-emitter -o $(call SYSPATH, $@) $<
 
 $(TARGET:%=$(ObjDir)/%GenCodeEmitter.inc.tmp): \
 $(ObjDir)/%GenCodeEmitter.inc.tmp: %.td $(ObjDir)/.dir

@@ -160,3 +160,44 @@ define <4 x i32> @vacgeQf32(<4 x float>* %A, <4 x float>* %B) nounwind {
 
 declare <2 x i32> @llvm.arm.neon.vacged(<2 x float>, <2 x float>) nounwind readnone
 declare <4 x i32> @llvm.arm.neon.vacgeq(<4 x float>, <4 x float>) nounwind readnone
+
+define <8 x i8> @vcgei8Z(<8 x i8>* %A) nounwind {
+;CHECK: vcgei8Z:
+;CHECK-NOT: vmov
+;CHECK-NOT: vmvn
+;CHECK: vcge.s8
+	%tmp1 = load <8 x i8>* %A
+	%tmp3 = icmp sge <8 x i8> %tmp1, <i8 0, i8 0, i8 0, i8 0, i8 0, i8 0, i8 0, i8 0>
+        %tmp4 = sext <8 x i1> %tmp3 to <8 x i8>
+	ret <8 x i8> %tmp4
+}
+
+define <8 x i8> @vclei8Z(<8 x i8>* %A) nounwind {
+;CHECK: vclei8Z:
+;CHECK-NOT: vmov
+;CHECK-NOT: vmvn
+;CHECK: vcle.s8
+	%tmp1 = load <8 x i8>* %A
+	%tmp3 = icmp sle <8 x i8> %tmp1, <i8 0, i8 0, i8 0, i8 0, i8 0, i8 0, i8 0, i8 0>
+        %tmp4 = sext <8 x i1> %tmp3 to <8 x i8>
+	ret <8 x i8> %tmp4
+}
+
+; Radar 8782191
+; Floating-point comparisons against zero produce results with integer
+; elements, not floating-point elements.
+define void @test_vclez_fp() nounwind optsize {
+;CHECK: test_vclez_fp
+;CHECK: vcle.f32
+entry:
+  %0 = fcmp ole <4 x float> undef, zeroinitializer
+  %1 = sext <4 x i1> %0 to <4 x i16>
+  %2 = add <4 x i16> %1, zeroinitializer
+  %3 = shufflevector <4 x i16> %2, <4 x i16> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+  %4 = add <8 x i16> %3, <i16 1, i16 1, i16 1, i16 1, i16 1, i16 1, i16 1, i16 1>
+  %5 = trunc <8 x i16> %4 to <8 x i8>
+  tail call void @llvm.arm.neon.vst1.v8i8(i8* undef, <8 x i8> %5, i32 1)
+  unreachable
+}
+
+declare void @llvm.arm.neon.vst1.v8i8(i8*, <8 x i8>, i32) nounwind

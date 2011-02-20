@@ -316,8 +316,8 @@ entry:
   %E = or i32 %D, %C
   ret i32 %E
 ; CHECK: @test30
-; CHECK: %B = or i32 %A, 32962
-; CHECK: %E = and i32 %B, -25350
+; CHECK: %D = and i32 %A, -58312
+; CHECK: %E = or i32 %D, 32962
 ; CHECK: ret i32 %E
 }
 
@@ -332,8 +332,8 @@ define i64 @test31(i64 %A) nounwind readnone ssp noredzone {
   %F = or i64 %D, %E
   ret i64 %F
 ; CHECK: @test31
-; CHECK-NEXT: %bitfield = or i64 %A, 32962
-; CHECK-NEXT: %F = and i64 %bitfield, 4294941946
+; CHECK-NEXT: %E1 = and i64 %A, 4294908984
+; CHECK-NEXT: %F = or i64 %E1, 32962
 ; CHECK-NEXT: ret i64 %F
 }
 
@@ -348,5 +348,45 @@ define <4 x i32> @test32(<4 x i1> %and.i1352, <4 x i32> %vecinit6.i176, <4 x i32
 ; better.
 ; CHECK: @test32
 ; CHECK: or <4 x i32> %and.i, %and.i129
+}
+
+define i1 @test33(i1 %X, i1 %Y) {
+  %a = or i1 %X, %Y
+  %b = or i1 %a, %X
+  ret i1 %b
+; CHECK: @test33
+; CHECK-NEXT: or i1 %X, %Y
+; CHECK-NEXT: ret
+}
+
+define i32 @test34(i32 %X, i32 %Y) {
+  %a = or i32 %X, %Y
+  %b = or i32 %Y, %a
+  ret i32 %b
+; CHECK: @test34
+; CHECK-NEXT: or i32 %X, %Y
+; CHECK-NEXT: ret
+}
+
+define i32 @test35(i32 %a, i32 %b) {
+  %1 = or i32 %a, 1135
+  %2 = or i32 %1, %b
+  ret i32 %2
+  ; CHECK: @test35
+  ; CHECK-NEXT: or i32 %a, %b
+  ; CHECK-NEXT: or i32 %1, 1135
+}
+
+define i1 @test36(i32 %x) {
+  %cmp1 = icmp eq i32 %x, 23
+  %cmp2 = icmp eq i32 %x, 24
+  %ret1 = or i1 %cmp1, %cmp2
+  %cmp3 = icmp eq i32 %x, 25
+  %ret2 = or i1 %ret1, %cmp3
+  ret i1 %ret2
+; CHECK: @test36
+; CHECK-NEXT: %x.off = add i32 %x, -23
+; CHECK-NEXT: icmp ult i32 %x.off, 3
+; CHECK-NEXT: ret i1
 }
 

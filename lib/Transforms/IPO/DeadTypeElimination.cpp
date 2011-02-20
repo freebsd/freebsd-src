@@ -26,7 +26,9 @@ STATISTIC(NumKilled, "Number of unused typenames removed from symtab");
 namespace {
   struct DTE : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
-    DTE() : ModulePass(ID) {}
+    DTE() : ModulePass(ID) {
+      initializeDTEPass(*PassRegistry::getPassRegistry());
+    }
 
     // doPassInitialization - For this pass, it removes global symbol table
     // entries for primitive types.  These are never used for linking in GCC and
@@ -45,7 +47,10 @@ namespace {
 }
 
 char DTE::ID = 0;
-INITIALIZE_PASS(DTE, "deadtypeelim", "Dead Type Elimination", false, false);
+INITIALIZE_PASS_BEGIN(DTE, "deadtypeelim", "Dead Type Elimination",
+                      false, false)
+INITIALIZE_PASS_DEPENDENCY(FindUsedTypes)
+INITIALIZE_PASS_END(DTE, "deadtypeelim", "Dead Type Elimination", false, false)
 
 ModulePass *llvm::createDeadTypeEliminationPass() {
   return new DTE();

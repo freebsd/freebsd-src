@@ -15,8 +15,8 @@
 #include "llvm/Type.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/FoldingSet.h"
-#include "llvm/System/Atomic.h"
-#include "llvm/System/Mutex.h"
+#include "llvm/Support/Atomic.h"
+#include "llvm/Support/Mutex.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
@@ -70,6 +70,8 @@ std::string Attribute::getAsString(Attributes Attrs) {
     Result += "noimplicitfloat ";
   if (Attrs & Attribute::Naked)
     Result += "naked ";
+  if (Attrs & Attribute::Hotpatch)
+    Result += "hotpatch ";
   if (Attrs & Attribute::StackAlignment) {
     Result += "alignstack(";
     Result += utostr(Attribute::getStackAlignmentFromAttrs(Attrs));
@@ -105,6 +107,14 @@ Attributes Attribute::typeIncompatible(const Type *Ty) {
 //===----------------------------------------------------------------------===//
 
 namespace llvm {
+  class AttributeListImpl;
+}
+
+static ManagedStatic<FoldingSet<AttributeListImpl> > AttributesLists;
+
+namespace llvm {
+static ManagedStatic<sys::SmartMutex<true> > ALMutex;
+
 class AttributeListImpl : public FoldingSetNode {
   sys::cas_flag RefCount;
   
@@ -120,10 +130,17 @@ public:
     RefCount = 0;
   }
   
-  void AddRef() { sys::AtomicIncrement(&RefCount); }
+  void AddRef() {
+    sys::SmartScopedLock<true> Lock(*ALMutex);
+    ++RefCount;
+  }
   void DropRef() {
-    sys::cas_flag old = sys::AtomicDecrement(&RefCount);
-    if (old == 0) delete this;
+    sys::SmartScopedLock<true> Lock(*ALMutex);
+    if (!AttributesLists.isConstructed())
+      return;
+    sys::cas_flag new_val = --RefCount;
+    if (new_val == 0)
+      delete this;
   }
   
   void Profile(FoldingSetNodeID &ID) const {
@@ -137,11 +154,8 @@ public:
 };
 }
 
-static ManagedStatic<sys::SmartMutex<true> > ALMutex;
-static ManagedStatic<FoldingSet<AttributeListImpl> > AttributesLists;
-
 AttributeListImpl::~AttributeListImpl() {
-  sys::SmartScopedLock<true> Lock(*ALMutex);
+  // NOTE: Lock must be acquired by caller.
   AttributesLists->RemoveNode(this);
 }
 
@@ -195,6 +209,7 @@ AttrListPtr::AttrListPtr(const AttrListPtr &P) : AttrList(P.AttrList) {
 }
 
 const AttrListPtr &AttrListPtr::operator=(const AttrListPtr &RHS) {
+  sys::SmartScopedLock<true> Lock(*ALMutex);
   if (AttrList == RHS.AttrList) return *this;
   if (AttrList) AttrList->DropRef();
   AttrList = RHS.AttrList;

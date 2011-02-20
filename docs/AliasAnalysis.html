@@ -31,7 +31,7 @@
     <li><a href="#chaining"><tt>AliasAnalysis</tt> chaining behavior</a></li>
     <li><a href="#updating">Updating analysis results for transformations</a></li>
     <li><a href="#implefficiency">Efficiency Issues</a></li>
-    <li><a href="#passmanager">Pass Manager Issues</a></li>
+    <li><a href="#limitations">Limitations</a></li>
     </ul>
   </li>
 
@@ -188,7 +188,8 @@ that the accesses alias.</p>
 <div class="doc_text">
 <p>The <tt>alias</tt> method is the primary interface used to determine whether
 or not two memory objects alias each other.  It takes two memory objects as
-input and returns MustAlias, MayAlias, or NoAlias as appropriate.</p>
+input and returns MustAlias, PartialAlias, MayAlias, or NoAlias as
+appropriate.</p>
 
 <p>Like all <tt>AliasAnalysis</tt> interfaces, the <tt>alias</tt> method requires
 that either the two pointer values be defined within the same function, or at
@@ -215,8 +216,10 @@ and reallocation.</p>
 dependencies are ignored.</p>
 
 <p>The MayAlias response is used whenever the two pointers might refer to the
-same object.  If the two memory objects overlap, but do not start at the same
-location, return MayAlias.</p>
+same object.</p>
+
+<p>The PartialAlias response is used when the two memory objects are known
+to be overlapping in some way, but do not start at the same address.</p>
 
 <p>The MustAlias response may only be returned if the two memory objects are
 guaranteed to always start at exactly the same location. A MustAlias response
@@ -461,7 +464,7 @@ analysis results updated to reflect the changes made by these transformations.
 </p>
 
 <p>
-The <tt>AliasAnalysis</tt> interface exposes two methods which are used to
+The <tt>AliasAnalysis</tt> interface exposes four methods which are used to
 communicate program changes from the clients to the analysis implementations.
 Various alias analysis implementations should use these methods to ensure that
 their internal data structures are kept up-to-date as the program changes (for
@@ -502,6 +505,28 @@ value, then deleting the old value.  This method cannot be overridden by alias
 analysis implementations.
 </div>
 
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">The <tt>addEscapingUse</tt> method</div>
+
+<div class="doc_text">
+<p>The <tt>addEscapingUse</tt> method is used when the uses of a pointer
+value have changed in ways that may invalidate precomputed analysis information. 
+Implementations may either use this callback to provide conservative responses
+for points whose uses have change since analysis time, or may recompute some
+or all of their internal state to continue providing accurate responses.</p>
+
+<p>In general, any new use of a pointer value is considered an escaping use,
+and must be reported through this callback, <em>except</em> for the
+uses below:</p>
+
+<ul>
+  <li>A <tt>bitcast</tt> or <tt>getelementptr</tt> of the pointer</li>
+  <li>A <tt>store</tt> through the pointer (but not a <tt>store</tt>
+      <em>of</em> the pointer)</li>
+  <li>A <tt>load</tt> through the pointer</li>
+</ul>
+</div>
+
 <!-- ======================================================================= -->
 <div class="doc_subsection">
   <a name="implefficiency">Efficiency Issues</a>
@@ -520,13 +545,13 @@ method as possible (within reason).</p>
 
 <!-- ======================================================================= -->
 <div class="doc_subsection">
-  <a name="passmanager">Pass Manager Issues</a>
+  <a name="limitations">Limitations</a>
 </div>
 
 <div class="doc_text">
 
-<p>PassManager support for alternative AliasAnalysis implementation
-has some issues.</p>
+<p>The AliasAnalysis infrastructure has several limitations which make
+writing a new <tt>AliasAnalysis</tt> implementation difficult.</p>
 
 <p>There is no way to override the default alias analysis. It would
 be very useful to be able to do something like "opt -my-aa -O2" and
@@ -554,6 +579,40 @@ silently route alias analysis queries directly to
 <p>Similarly, the <tt>opt -p</tt> option introduces <tt>ModulePass</tt>
 passes between each pass, which prevents the use of <tt>FunctionPass</tt>
 alias analysis passes.</p>
+
+<p>The <tt>AliasAnalysis</tt> API does have functions for notifying
+implementations when values are deleted or copied, however these
+aren't sufficient. There are many other ways that LLVM IR can be
+modified which could be relevant to <tt>AliasAnalysis</tt>
+implementations which can not be expressed.</p>
+
+<p>The <tt>AliasAnalysisDebugger</tt> utility seems to suggest that
+<tt>AliasAnalysis</tt> implementations can expect that they will be
+informed of any relevant <tt>Value</tt> before it appears in an
+alias query. However, popular clients such as <tt>GVN</tt> don't
+support this, and are known to trigger errors when run with the
+<tt>AliasAnalysisDebugger</tt>.</p>
+
+<p>Due to several of the above limitations, the most obvious use for
+the <tt>AliasAnalysisCounter</tt> utility, collecting stats on all
+alias queries in a compilation, doesn't work, even if the
+<tt>AliasAnalysis</tt> implementations don't use <tt>FunctionPass</tt>.
+There's no way to set a default, much less a default sequence,
+and there's no way to preserve it.</p>
+
+<p>The <tt>AliasSetTracker</tt> class (which is used by <tt>LICM</tt>
+makes a non-deterministic number of alias queries. This can cause stats
+collected by <tt>AliasAnalysisCounter</tt> to have fluctuations among
+identical runs, for example. Another consequence is that debugging
+techniques involving pausing execution after a predetermined number
+of queries can be unreliable.</p>
+
+<p>Many alias queries can be reformulated in terms of other alias
+queries. When multiple <tt>AliasAnalysis</tt> queries are chained together,
+it would make sense to start those queries from the beginning of the chain,
+with care taken to avoid infinite looping, however currently an
+implementation which wants to do this can only start such queries
+from itself.</p>
 
 </div>
 
@@ -713,8 +772,8 @@ problem.</p>
 
 <div class="doc_text">
 
-<p>The <tt>-basicaa</tt> pass is the default LLVM alias analysis.  It is an
-aggressive local analysis that "knows" many important facts:</p>
+<p>The <tt>-basicaa</tt> pass is an aggressive local analysis that "knows"
+many important facts:</p>
 
 <ul>
 <li>Distinct globals, stack allocations, and heap allocations can never
@@ -998,7 +1057,7 @@ analysis directly.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-08-31 01:47:24 +0200 (Tue, 31 Aug 2010) $
+  Last modified: $Date: 2011-01-03 22:38:41 +0100 (Mon, 03 Jan 2011) $
 </address>
 
 </body>

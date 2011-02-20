@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <cstdlib>
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -162,7 +163,7 @@ static void Help(const SubtargetFeatureKV *CPUTable, size_t CPUTableSize,
   
   errs() << "Use +feature to enable a feature, or -feature to disable it.\n"
        << "For example, llc -mcpu=mycpu -mattr=+feature1,-feature2\n";
-  exit(1);
+  std::exit(1);
 }
 
 //===----------------------------------------------------------------------===//

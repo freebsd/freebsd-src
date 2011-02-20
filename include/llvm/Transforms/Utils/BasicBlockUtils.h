@@ -22,9 +22,10 @@
 
 namespace llvm {
 
+class AliasAnalysis;
 class Instruction;
 class Pass;
-class AliasAnalysis;
+class ReturnInst;
 
 /// DeleteDeadBlock - Delete the specified block, which must have no
 /// predecessors.
@@ -35,7 +36,7 @@ void DeleteDeadBlock(BasicBlock *BB);
 /// any single-entry PHI nodes in it, fold them away.  This handles the case
 /// when all entries to the PHI nodes in a block are guaranteed equal, such as
 /// when the block has exactly one predecessor.
-void FoldSingleEntryPHINodes(BasicBlock *BB);
+void FoldSingleEntryPHINodes(BasicBlock *BB, Pass *P = 0);
 
 /// DeleteDeadPHIs - Examine each PHI in the given block and delete it if it
 /// is dead. Also recursively delete any operands that become dead as
@@ -46,7 +47,7 @@ bool DeleteDeadPHIs(BasicBlock *BB);
 
 /// MergeBlockIntoPredecessor - Attempts to merge a block into its predecessor,
 /// if possible.  The return value indicates success or failure.
-bool MergeBlockIntoPredecessor(BasicBlock* BB, Pass* P = 0);
+bool MergeBlockIntoPredecessor(BasicBlock *BB, Pass *P = 0);
 
 // ReplaceInstWithValue - Replace all uses of an instruction (specified by BI)
 // with a value, then remove and delete the original instruction.
@@ -74,15 +75,6 @@ void ReplaceInstWithInst(Instruction *From, Instruction *To);
 void FindFunctionBackedges(const Function &F,
       SmallVectorImpl<std::pair<const BasicBlock*,const BasicBlock*> > &Result);
   
-
-// RemoveSuccessor - Change the specified terminator instruction such that its
-// successor #SuccNum no longer exists.  Because this reduces the outgoing
-// degree of the current basic block, the actual terminator instruction itself
-// may have to be changed.  In the case where the last successor of the block is
-// deleted, a return instruction is inserted in its place which can cause a
-// suprising change in program behavior if it is not expected.
-//
-void RemoveSuccessor(TerminatorInst *TI, unsigned SuccNum);
 
 /// GetSuccessorNumber - Search for the specified successor of basic block BB
 /// and return its position in the terminator instruction's list of
@@ -180,7 +172,15 @@ BasicBlock *SplitBlock(BasicBlock *Old, Instruction *SplitPt, Pass *P);
 BasicBlock *SplitBlockPredecessors(BasicBlock *BB, BasicBlock *const *Preds,
                                    unsigned NumPreds, const char *Suffix,
                                    Pass *P = 0);
-  
+
+/// FoldReturnIntoUncondBranch - This method duplicates the specified return
+/// instruction into a predecessor which ends in an unconditional branch. If
+/// the return instruction returns a value defined by a PHI, propagate the
+/// right value into the return. It returns the new return instruction in the
+/// predecessor.
+ReturnInst *FoldReturnIntoUncondBranch(ReturnInst *RI, BasicBlock *BB,
+                                       BasicBlock *Pred);
+
 } // End llvm namespace
 
 #endif

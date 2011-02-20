@@ -6,13 +6,15 @@ add_llvm_library(LLVMScalarOpts
   CorrelatedValuePropagation.cpp
   DCE.cpp
   DeadStoreElimination.cpp
+  EarlyCSE.cpp
   GEPSplitter.cpp
   GVN.cpp
   IndVarSimplify.cpp
   JumpThreading.cpp
   LICM.cpp
   LoopDeletion.cpp
-  LoopIndexSplit.cpp
+  LoopIdiomRecognize.cpp
+  LoopInstSimplify.cpp
   LoopRotation.cpp
   LoopStrengthReduce.cpp
   LoopUnrollPass.cpp
@@ -31,5 +33,3 @@ add_llvm_library(LLVMScalarOpts
   TailDuplication.cpp
   TailRecursionElimination.cpp
   )
-
-target_link_libraries (LLVMScalarOpts LLVMTransformUtils)

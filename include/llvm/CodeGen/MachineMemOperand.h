@@ -16,7 +16,7 @@
 #ifndef LLVM_CODEGEN_MACHINEMEMOPERAND_H
 #define LLVM_CODEGEN_MACHINEMEMOPERAND_H
 
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
 
@@ -24,6 +24,52 @@ class Value;
 class FoldingSetNodeID;
 class raw_ostream;
 
+/// MachinePointerInfo - This class contains a discriminated union of
+/// information about pointers in memory operands, relating them back to LLVM IR
+/// or to virtual locations (such as frame indices) that are exposed during
+/// codegen.
+struct MachinePointerInfo {
+  /// V - This is the IR pointer value for the access, or it is null if unknown.
+  /// If this is null, then the access is to a pointer in the default address
+  /// space.
+  const Value *V;
+  
+  /// Offset - This is an offset from the base Value*.
+  int64_t Offset;
+  
+  explicit MachinePointerInfo(const Value *v = 0, int64_t offset = 0)
+    : V(v), Offset(offset) {}
+  
+  MachinePointerInfo getWithOffset(int64_t O) const {
+    if (V == 0) return MachinePointerInfo(0, 0);
+    return MachinePointerInfo(V, Offset+O);
+  }
+  
+  /// getAddrSpace - Return the LLVM IR address space number that this pointer
+  /// points into.
+  unsigned getAddrSpace() const;
+  
+  /// getConstantPool - Return a MachinePointerInfo record that refers to the
+  /// constant pool.
+  static MachinePointerInfo getConstantPool();
+
+  /// getFixedStack - Return a MachinePointerInfo record that refers to the
+  /// the specified FrameIndex.
+  static MachinePointerInfo getFixedStack(int FI, int64_t offset = 0);
+  
+  /// getJumpTable - Return a MachinePointerInfo record that refers to a
+  /// jump table entry.
+  static MachinePointerInfo getJumpTable();
+  
+  /// getGOT - Return a MachinePointerInfo record that refers to a
+  /// GOT entry.
+  static MachinePointerInfo getGOT();
+  
+  /// getStack - stack pointer relative access.
+  static MachinePointerInfo getStack(int64_t Offset);
+};
+  
+  
 //===----------------------------------------------------------------------===//
 /// MachineMemOperand - A description of a memory reference used in the backend.
 /// Instead of holding a StoreInst or LoadInst, this class holds the address
@@ -33,10 +79,10 @@ class raw_ostream;
 /// that aren't explicit in the regular LLVM IR.
 ///
 class MachineMemOperand {
-  int64_t Offset;
+  MachinePointerInfo PtrInfo;
   uint64_t Size;
-  const Value *V;
-  unsigned int Flags;
+  unsigned Flags;
+  const MDNode *TBAAInfo;
 
 public:
   /// Flags values. These may be or'd together.
@@ -54,10 +100,12 @@ public:
   };
 
   /// MachineMemOperand - Construct an MachineMemOperand object with the
-  /// specified address Value, flags, offset, size, and base alignment.
-  MachineMemOperand(const Value *v, unsigned int f, int64_t o, uint64_t s,
-                    unsigned int base_alignment);
+  /// specified PtrInfo, flags, size, and base alignment.
+  MachineMemOperand(MachinePointerInfo PtrInfo, unsigned flags, uint64_t s,
+                    unsigned base_alignment, const MDNode *TBAAInfo = 0);
 
+  const MachinePointerInfo &getPointerInfo() const { return PtrInfo; }
+  
   /// getValue - Return the base address of the memory access. This may either
   /// be a normal LLVM IR Value, or one of the special values used in CodeGen.
   /// Special values are those obtained via
@@ -65,7 +113,7 @@ public:
   /// other PseudoSourceValue member functions which return objects which stand
   /// for frame/stack pointer relative references and other special references
   /// which are not representable in the high-level IR.
-  const Value *getValue() const { return V; }
+  const Value *getValue() const { return PtrInfo.V; }
 
   /// getFlags - Return the raw flags of the source value, \see MemOperandFlags.
   unsigned int getFlags() const { return Flags & ((1 << MOMaxBits) - 1); }
@@ -73,7 +121,7 @@ public:
   /// getOffset - For normal values, this is a byte offset added to the base
   /// address. For PseudoSourceValue::FPRel values, this is the FrameIndex
   /// number.
-  int64_t getOffset() const { return Offset; }
+  int64_t getOffset() const { return PtrInfo.Offset; }
 
   /// getSize - Return the size in bytes of the memory reference.
   uint64_t getSize() const { return Size; }
@@ -85,6 +133,9 @@ public:
   /// getBaseAlignment - Return the minimum known alignment in bytes of the
   /// base address, without the offset.
   uint64_t getBaseAlignment() const { return (1u << (Flags >> MOMaxBits)) >> 1; }
+
+  /// getTBAAInfo - Return the TBAA tag for the memory reference.
+  const MDNode *getTBAAInfo() const { return TBAAInfo; }
 
   bool isLoad() const { return Flags & MOLoad; }
   bool isStore() const { return Flags & MOStore; }
@@ -99,7 +150,8 @@ public:
   /// setValue - Change the SourceValue for this MachineMemOperand. This
   /// should only be used when an object is being relocated and all references
   /// to it are being updated.
-  void setValue(const Value *NewSV) { V = NewSV; }
+  void setValue(const Value *NewSV) { PtrInfo.V = NewSV; }
+  void setOffset(int64_t NewOffset) { PtrInfo.Offset = NewOffset; }
 
   /// Profile - Gather unique data for the object.
   ///

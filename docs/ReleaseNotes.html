@@ -126,7 +126,7 @@ production-quality compiler for C, Objective-C, C++ and Objective-C++ on x86
     <li>Introduced many new warnings, including <code>-Wmissing-field-initializers</code>, <code>-Wshadow</code>, <code>-Wno-protocol</code>, <code>-Wtautological-compare</code>, <code>-Wstrict-selector-match</code>, <code>-Wcast-align</code>, <code>-Wunused</code> improvements, and greatly improved format-string checking.</li>
     <li>Introduced the "libclang" library, a C interface to Clang intended to support IDE clients.</li>
     <li>Added support for <code>#pragma GCC visibility</code>, <code>#pragma align</code>, and others.</li>
-    <li>Added support for SSE, ARM NEON, and Altivec.</li>
+    <li>Added support for SSE, AVX, ARM NEON, and AltiVec.</li>
     <li>Improved support for many Microsoft extensions.</li>
     <li>Implemented support for blocks in C++.</li>
     <li>Implemented precompiled headers for C++.</li>
@@ -269,7 +269,7 @@ support new platforms, new languages, new architectures, and new features.
 
 <div class="doc_text">
 <p>
-<a href="http://libc++.llvm.org/">libc++</a> is another new member of the LLVM
+<a href="http://libcxx.llvm.org/">libc++</a> is another new member of the LLVM
 family.  It is an implementation of the C++ standard library, written from the
 ground up to specifically target the forthcoming C++'0X standard and focus on
 delivering great performance.</p>
@@ -673,7 +673,7 @@ release includes a few major enhancements and additions to the optimizers:</p>
     be 13 in one of the predecessors of a block.  It does this in conjunction
     with the new LazyValueInfo analysis pass.</li>
 <li>The new RegionInfo analysis pass identifies single-entry single-exit regions
-    in the CFG.  You can play with it with the "opt -regions analyze" or
+    in the CFG.  You can play with it with the "opt -regions -analyze" or
     "opt -view-regions" commands.</li>
 <li>The loop optimizer has significantly improved strength reduction and analysis
   capabilities.  Notably it is able to build on the trap value and signed
@@ -879,8 +879,9 @@ it run faster:</p>
     variables can be accessed via same base address) and potentially reducing
     register pressure.</li>
 
-<li>The ARM has received many minor improvements and tweaks which lead to
-substantially better performance in a wide range of different scenarios.</li>
+<li>The ARM backend has received many minor improvements and tweaks which lead
+    to substantially better performance in a wide range of different scenarios.
+</li>
 
 <li>The ARM NEON intrinsics have been substantially reworked to reduce
     redundancy and improve code generation.  Some of the major changes are:
@@ -1010,6 +1011,17 @@ API changes are:</p>
   LLVM.  The Triple::normalize utility method has been added to help front-ends
   deal with funky triples.
 </li>
+<li>
+  The signature of the <tt>GCMetadataPrinter::finishAssembly</tt> virtual
+  function changed: the <tt>raw_ostream</tt> and <tt>MCAsmInfo</tt> arguments
+  were dropped.  GC plugins which compute stack maps must be updated to avoid
+  having the old definition overload the new signature.
+</li>
+<li>
+  The signature of <tt>MemoryBuffer::getMemBuffer</tt> changed.  Unfortunately
+  calls intended for the old version still compile, but will not work correctly,
+  leading to a confusing error about an invalid header in the bitcode.
+</li>
   
 <li>
   Some APIs were renamed:
@@ -1102,7 +1114,7 @@ components, please contact us on the <a
 href="http://lists.cs.uiuc.edu/mailman/listinfo/llvmdev">LLVMdev list</a>.</p>
 
 <ul>
-<li>The Alpha, Blackfin, CellSPU, MicroBlaze, MSP430, MIPS, PIC16, SystemZ
+<li>The Alpha, Blackfin, CellSPU, MicroBlaze, MSP430, MIPS, SystemZ
     and XCore backends are experimental.</li>
 <li><tt>llc</tt> "<tt>-filetype=obj</tt>" is experimental on all targets
     other than darwin-i386 and darwin-x86_64.</li>
@@ -1287,7 +1299,7 @@ lists</a>.</p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-10-04 22:41:06 +0200 (Mon, 04 Oct 2010) $
+  Last modified: $Date: 2010-10-26 14:43:36 +0200 (Tue, 26 Oct 2010) $
 </address>
 
 </body>

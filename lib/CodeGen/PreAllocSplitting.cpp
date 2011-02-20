@@ -91,8 +91,9 @@ namespace {
 
   public:
     static char ID;
-    PreAllocSplitting()
-      : MachineFunctionPass(ID) {}
+    PreAllocSplitting() : MachineFunctionPass(ID) {
+      initializePreAllocSplittingPass(*PassRegistry::getPassRegistry());
+    }
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
 
@@ -106,10 +107,8 @@ namespace {
       AU.addPreserved<LiveStacks>();
       AU.addPreserved<RegisterCoalescer>();
       AU.addPreserved<CalculateSpillWeights>();
-      if (StrongPHIElim)
-        AU.addPreservedID(StrongPHIEliminationID);
-      else
-        AU.addPreservedID(PHIEliminationID);
+      AU.addPreservedID(StrongPHIEliminationID);
+      AU.addPreservedID(PHIEliminationID);
       AU.addRequired<MachineDominatorTree>();
       AU.addRequired<MachineLoopInfo>();
       AU.addRequired<VirtRegMap>();
@@ -203,9 +202,18 @@ namespace {
 
 char PreAllocSplitting::ID = 0;
 
-INITIALIZE_PASS(PreAllocSplitting, "pre-alloc-splitting",
+INITIALIZE_PASS_BEGIN(PreAllocSplitting, "pre-alloc-splitting",
                 "Pre-Register Allocation Live Interval Splitting",
-                false, false);
+                false, false)
+INITIALIZE_PASS_DEPENDENCY(SlotIndexes)
+INITIALIZE_PASS_DEPENDENCY(LiveIntervals)
+INITIALIZE_PASS_DEPENDENCY(LiveStacks)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(VirtRegMap)
+INITIALIZE_PASS_END(PreAllocSplitting, "pre-alloc-splitting",
+                "Pre-Register Allocation Live Interval Splitting",
+                false, false)
 
 char &llvm::PreAllocSplittingID = PreAllocSplitting::ID;
 
@@ -324,7 +332,7 @@ int PreAllocSplitting::CreateSpillStackSlot(unsigned Reg,
   if (CurrSLI->hasAtLeastOneValue())
     CurrSValNo = CurrSLI->getValNumInfo(0);
   else
-    CurrSValNo = CurrSLI->getNextValue(SlotIndex(), 0, false,
+    CurrSValNo = CurrSLI->getNextValue(SlotIndex(), 0,
                                        LSs->getVNInfoAllocator());
   return SS;
 }
@@ -585,7 +593,7 @@ PreAllocSplitting::PerformPHIConstructionFallBack(MachineBasicBlock::iterator Us
 
   SlotIndex StartIndex = LIs->getMBBStartIdx(MBB);
   VNInfo *RetVNI = Phis[MBB] =
-    LI->getNextValue(SlotIndex(), /*FIXME*/ 0, false,
+    LI->getNextValue(SlotIndex(), /*FIXME*/ 0,
                      LIs->getVNInfoAllocator());
 
   if (!IsIntraBlock) LiveOut[MBB] = RetVNI;
@@ -674,7 +682,7 @@ void PreAllocSplitting::ReconstructLiveInterval(LiveInterval* LI) {
     DefIdx = DefIdx.getDefIndex();
     
     assert(!DI->isPHI() && "PHI instr in code during pre-alloc splitting.");
-    VNInfo* NewVN = LI->getNextValue(DefIdx, 0, true, Alloc);
+    VNInfo* NewVN = LI->getNextValue(DefIdx, 0, Alloc);
     
     // If the def is a move, set the copy field.
     if (DI->isCopyLike() && DI->getOperand(0).getReg() == LI->reg)
@@ -807,7 +815,7 @@ bool PreAllocSplitting::Rematerialize(unsigned VReg, VNInfo* ValNo,
   MachineBasicBlock& MBB = *RestorePt->getParent();
   
   MachineBasicBlock::iterator KillPt = BarrierMBB->end();
-  if (!ValNo->isDefAccurate() || DefMI->getParent() == BarrierMBB)
+  if (!DefMI || DefMI->getParent() == BarrierMBB)
     KillPt = findSpillPoint(BarrierMBB, Barrier, NULL, RefsInMBB);
   else
     KillPt = llvm::next(MachineBasicBlock::iterator(DefMI));
@@ -872,7 +880,7 @@ MachineInstr* PreAllocSplitting::FoldSpill(unsigned vreg,
     if (CurrSLI->hasAtLeastOneValue())
       CurrSValNo = CurrSLI->getValNumInfo(0);
     else
-      CurrSValNo = CurrSLI->getNextValue(SlotIndex(), 0, false,
+      CurrSValNo = CurrSLI->getNextValue(SlotIndex(), 0,
                                          LSs->getVNInfoAllocator());
   }
   
@@ -967,8 +975,7 @@ bool PreAllocSplitting::SplitRegLiveInterval(LiveInterval *LI) {
 
   assert(!ValNo->isUnused() && "Val# is defined by a dead def?");
 
-  MachineInstr *DefMI = ValNo->isDefAccurate()
-    ? LIs->getInstructionFromIndex(ValNo->def) : NULL;
+  MachineInstr *DefMI = LIs->getInstructionFromIndex(ValNo->def);
 
   // If this would create a new join point, do not split.
   if (DefMI && createsNewJoin(LR, DefMI->getParent(), Barrier->getParent())) {
@@ -1005,7 +1012,7 @@ bool PreAllocSplitting::SplitRegLiveInterval(LiveInterval *LI) {
   SlotIndex SpillIndex;
   MachineInstr *SpillMI = NULL;
   int SS = -1;
-  if (!ValNo->isDefAccurate()) {
+  if (!DefMI) {
     // If we don't know where the def is we must split just before the barrier.
     if ((SpillMI = FoldSpill(LI->reg, RC, 0, Barrier,
                             BarrierMBB, SS, RefsInMBB))) {
@@ -1199,12 +1206,12 @@ bool PreAllocSplitting::removeDeadSpills(SmallPtrSet<LiveInterval*, 8>& split) {
       
       // We also don't try to handle the results of PHI joins, since there's
       // no defining instruction to analyze.
-      if (!CurrVN->isDefAccurate() || CurrVN->isUnused()) continue;
+      MachineInstr* DefMI = LIs->getInstructionFromIndex(CurrVN->def);
+      if (!DefMI || CurrVN->isUnused()) continue;
     
       // We're only interested in eliminating cruft introduced by the splitter,
       // is of the form load-use or load-use-store.  First, check that the
       // definition is a load, and remember what stack slot we loaded it from.
-      MachineInstr* DefMI = LIs->getInstructionFromIndex(CurrVN->def);
       int FrameIndex;
       if (!TII->isLoadFromStackSlot(DefMI, FrameIndex)) continue;
       

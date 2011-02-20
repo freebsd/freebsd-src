@@ -164,7 +164,7 @@ CAT        := @CAT@
 DOT        := @DOT@
 DOXYGEN    := @DOXYGEN@
 GROFF      := @GROFF@
-GZIP       := @GZIP@
+GZIPBIN    := @GZIPBIN@
 OCAMLC     := @OCAMLC@
 OCAMLOPT   := @OCAMLOPT@
 OCAMLDEP   := @OCAMLDEP@
@@ -195,6 +195,7 @@ LLVMGXX  := @LLVMGXX@
 LLVMCC1  := @LLVMCC1@
 LLVMCC1PLUS := @LLVMCC1PLUS@
 LLVMGCC_LANGS := @LLVMGCC_LANGS@
+LLVMGCC_DRAGONEGG := @LLVMGCC_DRAGONEGG@
 
 # Information on Clang, if configured.
 CLANGPATH := @CLANGPATH@
@@ -203,6 +204,10 @@ ENABLE_BUILT_CLANG := @ENABLE_BUILT_CLANG@
 
 # The LLVM capable compiler to use.
 LLVMCC_OPTION := @LLVMCC_OPTION@
+
+# The flag used to emit LLVM IR.
+LLVMCC_EMITIR_FLAG = @LLVMCC_EMITIR_FLAG@
+LLVMCC_DISABLEOPT_FLAGS := @LLVMCC_DISABLEOPT_FLAGS@
 
 # Path to directory where object files should be stored during a build.
 # Set OBJ_ROOT to "." if you do not want to use a separate place for
@@ -259,6 +264,9 @@ OPTIMIZE_OPTION := @OPTIMIZE_OPTION@
 # information to allow gprof to be used to get execution frequencies.
 #ENABLE_PROFILING = 1
 
+# When ENABLE_DOCS is disabled, docs/ will not be built.
+ENABLE_DOCS = @ENABLE_DOCS@
+
 # When ENABLE_DOXYGEN is enabled, the doxygen documentation will be built
 ENABLE_DOXYGEN = @ENABLE_DOXYGEN@
 
@@ -270,6 +278,9 @@ ENABLE_PIC := @ENABLE_PIC@
 
 # Do we want to build a shared library and link the tools with it?
 ENABLE_SHARED := @ENABLE_SHARED@
+
+# Do we want to link the stdc++ into a shared library? (Cygming)
+ENABLE_EMBED_STDCXX := @ENABLE_EMBED_STDCXX@
 
 # Use -fvisibility-inlines-hidden?
 ENABLE_VISIBILITY_INLINES_HIDDEN := @ENABLE_VISIBILITY_INLINES_HIDDEN@
@@ -341,6 +352,8 @@ NO_MISSING_FIELD_INITIALIZERS = @NO_MISSING_FIELD_INITIALIZERS@
 # -Wno-variadic-macros
 NO_VARIADIC_MACROS = @NO_VARIADIC_MACROS@
 
+# Was polly found in tools/polly?
+LLVM_HAS_POLLY = @LLVM_HAS_POLLY@
 # Flags supported by the linker.
 # bfd ld / gold --version-script=file
 HAVE_LINK_VERSION_SCRIPT = @HAVE_LINK_VERSION_SCRIPT@

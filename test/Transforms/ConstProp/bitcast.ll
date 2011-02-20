@@ -1,2 +1,10 @@
-; RUN: llvm-as < %s | llvm-dis | grep 0x36A0000000000000
-@A = global float 0x36A0000000000000            ; <float*> [#uses=0]
+; RUN: opt < %s -constprop -S | FileCheck %s
+; PR2165
+
+define <1 x i64> @test1() {
+  %A = bitcast i64 63 to <1 x i64>
+  ret <1 x i64> %A
+; CHECK: @test1
+; CHECK: ret <1 x i64> <i64 63>
+}
+

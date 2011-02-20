@@ -17,6 +17,7 @@
 //
 //===----------------------------------------------------------------------===//
 #define DEBUG_TYPE "insert-edge-profiling"
+
 #include "ProfilingUtils.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
@@ -34,7 +35,9 @@ namespace {
     bool runOnModule(Module &M);
   public:
     static char ID; // Pass identification, replacement for typeid
-    EdgeProfiler() : ModulePass(ID) {}
+    EdgeProfiler() : ModulePass(ID) {
+      initializeEdgeProfilerPass(*PassRegistry::getPassRegistry());
+    }
 
     virtual const char *getPassName() const {
       return "Edge Profiler";
@@ -44,7 +47,7 @@ namespace {
 
 char EdgeProfiler::ID = 0;
 INITIALIZE_PASS(EdgeProfiler, "insert-edge-profiling",
-                "Insert instrumentation for edge profiling", false, false);
+                "Insert instrumentation for edge profiling", false, false)
 
 ModulePass *llvm::createEdgeProfilerPass() { return new EdgeProfiler(); }
 
@@ -98,7 +101,7 @@ bool EdgeProfiler::runOnModule(Module &M) {
           // otherwise insert it in the successor block.
           if (TI->getNumSuccessors() == 1) {
             // Insert counter at the start of the block
-            IncrementCounterInBlock(BB, i++, Counters);
+            IncrementCounterInBlock(BB, i++, Counters, false);
           } else {
             // Insert counter at the start of the block
             IncrementCounterInBlock(TI->getSuccessor(s), i++, Counters);

@@ -132,7 +132,7 @@ namespace llvm {
     /// numbers.
     int compare_numeric(StringRef RHS) const;
 
-    /// \brief Determine the edit distance between this string and another 
+    /// \brief Determine the edit distance between this string and another
     /// string.
     ///
     /// \param Other the string to compare this string against.
@@ -142,11 +142,16 @@ namespace llvm {
     /// operation, rather than as two operations (an insertion and a
     /// removal).
     ///
+    /// \param MaxEditDistance If non-zero, the maximum edit distance that
+    /// this routine is allowed to compute. If the edit distance will exceed
+    /// that maximum, returns \c MaxEditDistance+1.
+    ///
     /// \returns the minimum number of character insertions, removals,
     /// or (if \p AllowReplacements is \c true) replacements needed to
     /// transform one of the given strings into the other. If zero,
     /// the strings are identical.
-    unsigned edit_distance(StringRef Other, bool AllowReplacements = true);
+    unsigned edit_distance(StringRef Other, bool AllowReplacements = true,
+                           unsigned MaxEditDistance = 0);
 
     /// str - Get the contents as an std::string.
     std::string str() const {
@@ -250,6 +255,18 @@ namespace llvm {
     ///
     /// Note: O(size() + Chars.size())
     size_type find_first_not_of(StringRef Chars, size_t From = 0) const;
+
+    /// find_last_of - Find the last character in the string that is \arg C, or
+    /// npos if not found.
+    size_type find_last_of(char C, size_t From = npos) const {
+      return rfind(C, From);
+    }
+
+    /// find_last_of - Find the last character in the string that is in \arg C,
+    /// or npos if not found.
+    ///
+    /// Note: O(size() + Chars.size())
+    size_type find_last_of(StringRef Chars, size_t From = npos) const;
 
     /// @}
     /// @name Helpful Algorithms
@@ -431,6 +448,10 @@ namespace llvm {
   }
 
   /// @}
+
+  // StringRefs can be treated like a POD type.
+  template <typename T> struct isPodLike;
+  template <> struct isPodLike<StringRef> { static const bool value = true; };
 
 }
 

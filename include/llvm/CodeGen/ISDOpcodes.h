@@ -107,6 +107,13 @@ namespace ISD {
     // and returns an outchain.
     EH_SJLJ_LONGJMP,
 
+    // OUTCHAIN = EH_SJLJ_DISPATCHSETUP(INCHAIN, context)
+    // This corresponds to the eh.sjlj.dispatchsetup intrinsic. It takes an
+    // input chain and a pointer to the sjlj function context as inputs and
+    // returns an outchain. By default, this does nothing. Targets can lower
+    // this to unwind setup code if needed.
+    EH_SJLJ_DISPATCHSETUP,
+
     // TargetConstant* - Like Constant*, but the DAG does not do any folding,
     // simplification, or lowering of the constant. They are used for constants
     // which are known to fit in the immediate fields of their users, or for
@@ -262,16 +269,24 @@ namespace ISD {
     /// lengths of the input vectors.
     CONCAT_VECTORS,
 
+    /// INSERT_SUBVECTOR(VECTOR1, VECTOR2, IDX) - Returns a vector
+    /// with VECTOR2 inserted into VECTOR1 at the (potentially
+    /// variable) element number IDX, which must be a multiple of the
+    /// VECTOR2 vector length.  The elements of VECTOR1 starting at
+    /// IDX are overwritten with VECTOR2.  Elements IDX through
+    /// vector_length(VECTOR2) must be valid VECTOR1 indices.
+    INSERT_SUBVECTOR,
+
     /// EXTRACT_SUBVECTOR(VECTOR, IDX) - Returns a subvector from VECTOR (an
-    /// vector value) starting with the (potentially variable) element number
-    /// IDX, which must be a multiple of the result vector length.
+    /// vector value) starting with the element number IDX, which must be a
+    /// constant multiple of the result vector length.
     EXTRACT_SUBVECTOR,
 
-    /// VECTOR_SHUFFLE(VEC1, VEC2) - Returns a vector, of the same type as 
+    /// VECTOR_SHUFFLE(VEC1, VEC2) - Returns a vector, of the same type as
     /// VEC1/VEC2.  A VECTOR_SHUFFLE node also contains an array of constant int
     /// values that indicate which value (or undef) each result element will
-    /// get.  These constant ints are accessible through the 
-    /// ShuffleVectorSDNode class.  This is quite similar to the Altivec 
+    /// get.  These constant ints are accessible through the
+    /// ShuffleVectorSDNode class.  This is quite similar to the Altivec
     /// 'vperm' instruction, except that the indices must be constants and are
     /// in terms of the element size of VEC1/VEC2, not in terms of bytes.
     VECTOR_SHUFFLE,
@@ -288,13 +303,21 @@ namespace ISD {
     // an unsigned/signed value of type i[2*N], then return the top part.
     MULHU, MULHS,
 
-    // Bitwise operators - logical and, logical or, logical xor, shift left,
-    // shift right algebraic (shift in sign bits), shift right logical (shift in
-    // zeroes), rotate left, rotate right, and byteswap.
-    AND, OR, XOR, SHL, SRA, SRL, ROTL, ROTR, BSWAP,
+    /// Bitwise operators - logical and, logical or, logical xor.
+    AND, OR, XOR,
+    
+    /// Shift and rotation operations.  After legalization, the type of the
+    /// shift amount is known to be TLI.getShiftAmountTy().  Before legalization
+    /// the shift amount can be any type, but care must be taken to ensure it is
+    /// large enough.  TLI.getShiftAmountTy() is i8 on some targets, but before
+    /// legalization, types like i1024 can occur and i8 doesn't have enough bits
+    /// to represent the shift amount.  By convention, DAGCombine and
+    /// SelectionDAGBuilder forces these shift amounts to i32 for simplicity.
+    ///
+    SHL, SRA, SRL, ROTL, ROTR,
 
-    // Counting operators
-    CTTZ, CTLZ, CTPOP,
+    /// Byte Swap and Counting operators.
+    BSWAP, CTTZ, CTLZ, CTPOP,
 
     // Select(COND, TRUEVAL, FALSEVAL).  If the type of the boolean COND is not
     // i1 then the high bits must conform to getBooleanContents.
@@ -392,14 +415,14 @@ namespace ISD {
     /// X = FP_EXTEND(Y) - Extend a smaller FP type into a larger FP type.
     FP_EXTEND,
 
-    // BIT_CONVERT - This operator converts between integer, vector and FP
+    // BITCAST - This operator converts between integer, vector and FP
     // values, as if the value was stored to memory with one type and loaded
     // from the same address with the other type (or equivalently for vector
     // format conversions, etc).  The source and result are required to have
     // the same bit size (e.g.  f32 <-> i32).  This can also be used for
     // int-to-int or fp-to-fp conversions, but that is a noop, deleted by
     // getNode().
-    BIT_CONVERT,
+    BITCAST,
 
     // CONVERT_RNDSAT - This operator is used to support various conversions
     // between various types (float, signed, unsigned and vectors of those
@@ -475,6 +498,7 @@ namespace ISD {
     //   Operand #0   : Input chain.
     //   Operand #1   : a ExternalSymbolSDNode with a pointer to the asm string.
     //   Operand #2   : a MDNodeSDNode with the !srcloc metadata.
+    //   Operand #3   : HasSideEffect, IsAlignStack bits.
     //   After this, it is followed by a list of operands with this format:
     //     ConstantSDNode: Flags that encode whether it is a mem or not, the
     //                     of operands that follow, etc.  See InlineAsm.h.
@@ -525,7 +549,7 @@ namespace ISD {
     // SRCVALUE - This is a node type that holds a Value* that is used to
     // make reference to a value in the LLVM IR.
     SRCVALUE,
-    
+
     // MDNODE_SDNODE - This is a node that holdes an MDNode*, which is used to
     // reference metadata in the IR.
     MDNODE_SDNODE,

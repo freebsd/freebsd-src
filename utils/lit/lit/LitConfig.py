@@ -8,6 +8,9 @@ class LitConfig:
     easily.
     """
 
+    # Provide access to Test module.
+    import Test
+
     # Provide access to built-in formats.
     import LitFormats as formats
 
@@ -81,6 +84,22 @@ class LitConfig:
             self.bashPath = ''
 
         return self.bashPath
+
+    def getToolsPath(self, dir, paths, tools):
+        import os, Util
+        if dir is not None and os.path.isabs(dir) and os.path.isdir(dir):
+            if not Util.checkToolsPath(dir, tools):
+                return None
+        else:
+            dir = Util.whichTools(tools, paths)
+
+        # bash
+        self.bashPath = Util.which('bash', dir)
+        if self.bashPath is None:
+            self.warning("Unable to find 'bash.exe'.")
+            self.bashPath = ''
+
+        return dir
 
     def _write_message(self, kind, message):
         import inspect, os, sys

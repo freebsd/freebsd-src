@@ -15,14 +15,13 @@
 #include "llvm/Module.h"
 #include "llvm/Bitcode/Archive.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Signals.h"
-#include <iostream>
-#include <iomanip>
+#include "llvm/Support/Signals.h"
 #include <memory>
-
 using namespace llvm;
 
 // llvm-ar operation code and modifier flags
@@ -35,12 +34,12 @@ Verbose("verbose",cl::Optional,cl::init(false),
 
 // printSymbolTable - print out the archive's symbol table.
 void printSymbolTable(Archive* TheArchive) {
-  std::cout << "\nArchive Symbol Table:\n";
+  outs() << "\nArchive Symbol Table:\n";
   const Archive::SymTabType& symtab = TheArchive->getSymbolTable();
   for (Archive::SymTabType::const_iterator I=symtab.begin(), E=symtab.end();
        I != E; ++I ) {
     unsigned offset = TheArchive->getFirstFileOffset() + I->second;
-    std::cout << " " << std::setw(9) << offset << "\t" << I->first <<"\n";
+    outs() << " " << format("%9u", offset) << "\t" << I->first <<"\n";
   }
 }
 
@@ -71,7 +70,8 @@ int main(int argc, char **argv) {
       throw std::string("Archive name invalid: ") + ArchiveName;
 
     // Make sure it exists, we don't create empty archives
-    if (!ArchivePath.exists())
+    bool Exists;
+    if (llvm::sys::fs::exists(ArchivePath.str(), Exists) || !Exists)
       throw std::string("Archive file does not exist");
 
     std::string err_msg;

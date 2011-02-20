@@ -1,5 +1,8 @@
 ; RUN: opt < %s -instcombine -S | FileCheck %s
 
+target datalayout =
+"e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64"
+
 define i32 @test1(i32 %X) {
 entry:
         icmp slt i32 %X, 0              ; <i1>:0 [#uses=1]
@@ -153,4 +156,224 @@ entry:
         ret i1 %cmp
 ; CHECK: @test16
 ; CHECK: ret i1 undef
+}
+
+define i1 @test17(i32 %x) nounwind {
+  %shl = shl i32 1, %x
+  %and = and i32 %shl, 8
+  %cmp = icmp eq i32 %and, 0
+  ret i1 %cmp
+; CHECK: @test17
+; CHECK-NEXT: %cmp = icmp ne i32 %x, 3
+}
+
+
+define i1 @test18(i32 %x) nounwind {
+  %sh = lshr i32 8, %x
+  %and = and i32 %sh, 1
+  %cmp = icmp eq i32 %and, 0
+  ret i1 %cmp
+; CHECK: @test18
+; CHECK-NEXT: %cmp = icmp ne i32 %x, 3
+}
+
+define i1 @test19(i32 %x) nounwind {
+  %shl = shl i32 1, %x
+  %and = and i32 %shl, 8
+  %cmp = icmp eq i32 %and, 8
+  ret i1 %cmp
+; CHECK: @test19
+; CHECK-NEXT: %cmp = icmp eq i32 %x, 3
+}
+
+define i1 @test20(i32 %x) nounwind {
+  %shl = shl i32 1, %x
+  %and = and i32 %shl, 8
+  %cmp = icmp ne i32 %and, 0
+  ret i1 %cmp
+; CHECK: @test20
+; CHECK-NEXT: %cmp = icmp eq i32 %x, 3
+}
+
+define i1 @test21(i8 %x, i8 %y) {
+; CHECK: @test21
+; CHECK-NOT: or i8
+; CHECK: icmp ugt
+  %A = or i8 %x, 1
+  %B = icmp ugt i8 %A, 3
+  ret i1 %B
+}
+
+define i1 @test22(i8 %x, i8 %y) {
+; CHECK: @test22
+; CHECK-NOT: or i8
+; CHECK: icmp ult
+  %A = or i8 %x, 1
+  %B = icmp ult i8 %A, 4
+  ret i1 %B
+}
+
+; PR2740
+; CHECK: @test23
+; CHECK: icmp sgt i32 %x, 1328634634
+define i1 @test23(i32 %x) nounwind {
+	%i3 = sdiv i32 %x, -1328634635
+	%i4 = icmp eq i32 %i3, -1
+	ret i1 %i4
+}
+
+@X = global [1000 x i32] zeroinitializer
+
+; PR8882
+; CHECK: @test24
+; CHECK:    %cmp = icmp eq i64 %i, 1000
+; CHECK:   ret i1 %cmp
+define i1 @test24(i64 %i) {
+  %p1 = getelementptr inbounds i32* getelementptr inbounds ([1000 x i32]* @X, i64 0, i64 0), i64 %i
+  %cmp = icmp eq i32* %p1, getelementptr inbounds ([1000 x i32]* @X, i64 1, i64 0)
+  ret i1 %cmp
+}
+
+; CHECK: @test25
+; X + Z > Y + Z -> X > Y if there is no overflow.
+; CHECK: %c = icmp sgt i32 %x, %y
+; CHECK: ret i1 %c
+define i1 @test25(i32 %x, i32 %y, i32 %z) {
+  %lhs = add nsw i32 %x, %z
+  %rhs = add nsw i32 %y, %z
+  %c = icmp sgt i32 %lhs, %rhs
+  ret i1 %c
+}
+
+; CHECK: @test26
+; X + Z > Y + Z -> X > Y if there is no overflow.
+; CHECK: %c = icmp ugt i32 %x, %y
+; CHECK: ret i1 %c
+define i1 @test26(i32 %x, i32 %y, i32 %z) {
+  %lhs = add nuw i32 %x, %z
+  %rhs = add nuw i32 %y, %z
+  %c = icmp ugt i32 %lhs, %rhs
+  ret i1 %c
+}
+
+; CHECK: @test27
+; X - Z > Y - Z -> X > Y if there is no overflow.
+; CHECK: %c = icmp sgt i32 %x, %y
+; CHECK: ret i1 %c
+define i1 @test27(i32 %x, i32 %y, i32 %z) {
+  %lhs = sub nsw i32 %x, %z
+  %rhs = sub nsw i32 %y, %z
+  %c = icmp sgt i32 %lhs, %rhs
+  ret i1 %c
+}
+
+; CHECK: @test28
+; X - Z > Y - Z -> X > Y if there is no overflow.
+; CHECK: %c = icmp ugt i32 %x, %y
+; CHECK: ret i1 %c
+define i1 @test28(i32 %x, i32 %y, i32 %z) {
+  %lhs = sub nuw i32 %x, %z
+  %rhs = sub nuw i32 %y, %z
+  %c = icmp ugt i32 %lhs, %rhs
+  ret i1 %c
+}
+
+; CHECK: @test29
+; X + Y > X -> Y > 0 if there is no overflow.
+; CHECK: %c = icmp sgt i32 %y, 0
+; CHECK: ret i1 %c
+define i1 @test29(i32 %x, i32 %y) {
+  %lhs = add nsw i32 %x, %y
+  %c = icmp sgt i32 %lhs, %x
+  ret i1 %c
+}
+
+; CHECK: @test30
+; X + Y > X -> Y > 0 if there is no overflow.
+; CHECK: %c = icmp ne i32 %y, 0
+; CHECK: ret i1 %c
+define i1 @test30(i32 %x, i32 %y) {
+  %lhs = add nuw i32 %x, %y
+  %c = icmp ugt i32 %lhs, %x
+  ret i1 %c
+}
+
+; CHECK: @test31
+; X > X + Y -> 0 > Y if there is no overflow.
+; CHECK: %c = icmp slt i32 %y, 0
+; CHECK: ret i1 %c
+define i1 @test31(i32 %x, i32 %y) {
+  %rhs = add nsw i32 %x, %y
+  %c = icmp sgt i32 %x, %rhs
+  ret i1 %c
+}
+
+; CHECK: @test32
+; X > X + Y -> 0 > Y if there is no overflow.
+; CHECK: ret i1 false
+define i1 @test32(i32 %x, i32 %y) {
+  %rhs = add nuw i32 %x, %y
+  %c = icmp ugt i32 %x, %rhs
+  ret i1 %c
+}
+
+; CHECK: @test33
+; X - Y > X -> 0 > Y if there is no overflow.
+; CHECK: %c = icmp slt i32 %y, 0
+; CHECK: ret i1 %c
+define i1 @test33(i32 %x, i32 %y) {
+  %lhs = sub nsw i32 %x, %y
+  %c = icmp sgt i32 %lhs, %x
+  ret i1 %c
+}
+
+; CHECK: @test34
+; X - Y > X -> 0 > Y if there is no overflow.
+; CHECK: ret i1 false
+define i1 @test34(i32 %x, i32 %y) {
+  %lhs = sub nuw i32 %x, %y
+  %c = icmp ugt i32 %lhs, %x
+  ret i1 %c
+}
+
+; CHECK: @test35
+; X > X - Y -> Y > 0 if there is no overflow.
+; CHECK: %c = icmp sgt i32 %y, 0
+; CHECK: ret i1 %c
+define i1 @test35(i32 %x, i32 %y) {
+  %rhs = sub nsw i32 %x, %y
+  %c = icmp sgt i32 %x, %rhs
+  ret i1 %c
+}
+
+; CHECK: @test36
+; X > X - Y -> Y > 0 if there is no overflow.
+; CHECK: %c = icmp ne i32 %y, 0
+; CHECK: ret i1 %c
+define i1 @test36(i32 %x, i32 %y) {
+  %rhs = sub nuw i32 %x, %y
+  %c = icmp ugt i32 %x, %rhs
+  ret i1 %c
+}
+
+; CHECK: @test37
+; X - Y > X - Z -> Z > Y if there is no overflow.
+; CHECK: %c = icmp sgt i32 %z, %y
+; CHECK: ret i1 %c
+define i1 @test37(i32 %x, i32 %y, i32 %z) {
+  %lhs = sub nsw i32 %x, %y
+  %rhs = sub nsw i32 %x, %z
+  %c = icmp sgt i32 %lhs, %rhs
+  ret i1 %c
+}
+
+; CHECK: @test38
+; X - Y > X - Z -> Z > Y if there is no overflow.
+; CHECK: %c = icmp ugt i32 %z, %y
+; CHECK: ret i1 %c
+define i1 @test38(i32 %x, i32 %y, i32 %z) {
+  %lhs = sub nuw i32 %x, %y
+  %rhs = sub nuw i32 %x, %z
+  %c = icmp ugt i32 %lhs, %rhs
+  ret i1 %c
 }

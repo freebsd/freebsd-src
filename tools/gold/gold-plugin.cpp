@@ -17,10 +17,10 @@
 
 #include "llvm-c/lto.h"
 
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Errno.h"
-#include "llvm/System/Path.h"
-#include "llvm/System/Program.h"
+#include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/Errno.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
 
 #include <cerrno>
 #include <cstdlib>
@@ -28,6 +28,13 @@
 #include <fstream>
 #include <list>
 #include <vector>
+
+// Support Windows/MinGW crazyness.
+#ifdef _WIN32
+# include <io.h>
+# define lseek _lseek
+# define read _read
+#endif
 
 using namespace llvm;
 
@@ -49,7 +56,6 @@ namespace {
   int gold_version = 0;
 
   struct claimed_file {
-    lto_module_t M;
     void *handle;
     std::vector<ld_plugin_symbol> syms;
   };
@@ -58,6 +64,7 @@ namespace {
   std::string output_name = "";
   std::list<claimed_file> Modules;
   std::vector<sys::Path> Cleanup;
+  lto_code_gen_t code_gen;
 }
 
 namespace options {
@@ -65,6 +72,7 @@ namespace options {
   static bool generate_api_file = false;
   static generate_bc generate_bc_file = BC_NO;
   static std::string bc_path;
+  static std::string obj_path;
   static std::string as_path;
   static std::vector<std::string> as_args;
   static std::vector<std::string> pass_through;
@@ -105,6 +113,8 @@ namespace options {
       pass_through.push_back(item.str());
     } else if (opt.startswith("mtriple=")) {
       triple = opt.substr(strlen("mtriple="));
+    } else if (opt.startswith("obj-path=")) {
+      obj_path = opt.substr(strlen("obj-path="));
     } else if (opt == "emit-llvm") {
       generate_bc_file = BC_ONLY;
     } else if (opt == "also-emit-llvm") {
@@ -226,6 +236,8 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
     return LDPS_ERR;
   }
 
+  code_gen = lto_codegen_create();
+
   return LDPS_OK;
 }
 
@@ -234,7 +246,8 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
 /// with add_symbol if possible.
 static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
                                         int *claimed) {
-  void *buf = NULL;
+  lto_module_t M;
+
   if (file->offset) {
     // Gold has found what might be IR part-way inside of a file, such as
     // an .a archive.
@@ -245,7 +258,7 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
                  file->offset, sys::StrError(errno).c_str());
       return LDPS_ERR;
     }
-    buf = malloc(file->filesize);
+    void *buf = malloc(file->filesize);
     if (!buf) {
       (*message)(LDPL_ERROR,
                  "Failed to allocate buffer for archive member of size: %d\n",
@@ -265,37 +278,50 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
       free(buf);
       return LDPS_OK;
     }
-  } else if (!lto_module_is_object_file(file->name))
-    return LDPS_OK;
+    M = lto_module_create_from_memory(buf, file->filesize);
+    if (!M) {
+      (*message)(LDPL_ERROR, "Failed to create LLVM module: %s",
+                 lto_get_error_message());
+      return LDPS_ERR;
+    }
+    free(buf);
+  } else {
+    // FIXME: We should not need to pass -1 as the file size, but there
+    // is a bug in BFD that causes it to pass 0 to us. Remove this once
+    // that is fixed.
+    off_t size = file->filesize ? file->filesize : -1;
+
+    // FIXME: We should not need to reset the position in the file, but there
+    // is a bug in BFD. Remove this once that is fixed.
+    off_t old_pos = lseek(file->fd, 0, SEEK_CUR);
+
+    lseek(file->fd, 0, SEEK_SET);
+    M = lto_module_create_from_fd(file->fd, file->name, size);
+
+    lseek(file->fd, old_pos, SEEK_SET);
+    if (!M)
+      return LDPS_OK;
+  }
 
   *claimed = 1;
   Modules.resize(Modules.size() + 1);
   claimed_file &cf = Modules.back();
 
-  cf.M = buf ? lto_module_create_from_memory(buf, file->filesize) :
-               lto_module_create(file->name);
-  free(buf);
-  if (!cf.M) {
-    (*message)(LDPL_ERROR, "Failed to create LLVM module: %s",
-               lto_get_error_message());
-    return LDPS_ERR;
-  }
-
   if (!options::triple.empty())
-    lto_module_set_target_triple(cf.M, options::triple.c_str());
+    lto_module_set_target_triple(M, options::triple.c_str());
 
   cf.handle = file->handle;
-  unsigned sym_count = lto_module_get_num_symbols(cf.M);
+  unsigned sym_count = lto_module_get_num_symbols(M);
   cf.syms.reserve(sym_count);
 
   for (unsigned i = 0; i != sym_count; ++i) {
-    lto_symbol_attributes attrs = lto_module_get_symbol_attribute(cf.M, i);
+    lto_symbol_attributes attrs = lto_module_get_symbol_attribute(M, i);
     if ((attrs & LTO_SYMBOL_SCOPE_MASK) == LTO_SYMBOL_SCOPE_INTERNAL)
       continue;
 
     cf.syms.push_back(ld_plugin_symbol());
     ld_plugin_symbol &sym = cf.syms.back();
-    sym.name = const_cast<char *>(lto_module_get_symbol_name(cf.M, i));
+    sym.name = const_cast<char *>(lto_module_get_symbol_name(M, i));
     sym.version = NULL;
 
     int scope = attrs & LTO_SYMBOL_SCOPE_MASK;
@@ -316,6 +342,7 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
     }
 
     int definition = attrs & LTO_SYMBOL_DEFINITION_MASK;
+    sym.comdat_key = NULL;
     switch (definition) {
       case LTO_SYMBOL_DEFINITION_REGULAR:
         sym.def = LDPK_DEF;
@@ -327,6 +354,7 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
         sym.def = LDPK_COMMON;
         break;
       case LTO_SYMBOL_DEFINITION_WEAK:
+        sym.comdat_key = sym.name;
         sym.def = LDPK_WEAKDEF;
         break;
       case LTO_SYMBOL_DEFINITION_WEAKUNDEF:
@@ -337,9 +365,7 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
         return LDPS_ERR;
     }
 
-    // LLVM never emits COMDAT.
     sym.size = 0;
-    sym.comdat_key = NULL;
 
     sym.resolution = LDPR_UNKNOWN;
   }
@@ -353,6 +379,7 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
     }
   }
 
+  lto_codegen_add_module(code_gen, M);
   return LDPS_OK;
 }
 
@@ -361,12 +388,6 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
 /// been overridden by a native object file. Then, perform optimization and
 /// codegen.
 static ld_plugin_status all_symbols_read_hook(void) {
-  lto_code_gen_t cg = lto_codegen_create();
-
-  for (std::list<claimed_file>::iterator I = Modules.begin(),
-       E = Modules.end(); I != E; ++I)
-    lto_codegen_add_module(cg, I->M);
-
   std::ofstream api_file;
   if (options::generate_api_file) {
     api_file.open("apifile.txt", std::ofstream::out | std::ofstream::trunc);
@@ -384,7 +405,7 @@ static ld_plugin_status all_symbols_read_hook(void) {
     (*get_symbols)(I->handle, I->syms.size(), &I->syms[0]);
     for (unsigned i = 0, e = I->syms.size(); i != e; i++) {
       if (I->syms[i].resolution == LDPR_PREVAILING_DEF) {
-        lto_codegen_add_must_preserve_symbol(cg, I->syms[i].name);
+        lto_codegen_add_must_preserve_symbol(code_gen, I->syms[i].name);
         anySymbolsPreserved = true;
 
         if (options::generate_api_file)
@@ -398,15 +419,15 @@ static ld_plugin_status all_symbols_read_hook(void) {
 
   if (!anySymbolsPreserved) {
     // All of the IL is unnecessary!
-    lto_codegen_dispose(cg);
+    lto_codegen_dispose(code_gen);
     return LDPS_OK;
   }
 
-  lto_codegen_set_pic_model(cg, output_type);
-  lto_codegen_set_debug_model(cg, LTO_DEBUG_MODEL_DWARF);
+  lto_codegen_set_pic_model(code_gen, output_type);
+  lto_codegen_set_debug_model(code_gen, LTO_DEBUG_MODEL_DWARF);
   if (!options::as_path.empty()) {
     sys::Path p = sys::Program::FindProgramByName(options::as_path);
-    lto_codegen_set_assembler_path(cg, p.c_str());
+    lto_codegen_set_assembler_path(code_gen, p.c_str());
   }
   if (!options::as_args.empty()) {
     std::vector<const char *> as_args_p;
@@ -414,19 +435,18 @@ static ld_plugin_status all_symbols_read_hook(void) {
            E = options::as_args.end(); I != E; ++I) {
       as_args_p.push_back(I->c_str());
     }
-    lto_codegen_set_assembler_args(cg, &as_args_p[0], as_args_p.size());
+    lto_codegen_set_assembler_args(code_gen, &as_args_p[0], as_args_p.size());
   }
   if (!options::mcpu.empty())
-    lto_codegen_set_cpu(cg, options::mcpu.c_str());
+    lto_codegen_set_cpu(code_gen, options::mcpu.c_str());
 
   // Pass through extra options to the code generator.
   if (!options::extra.empty()) {
     for (std::vector<std::string>::iterator it = options::extra.begin();
          it != options::extra.end(); ++it) {
-      lto_codegen_debug_options(cg, (*it).c_str());
+      lto_codegen_debug_options(code_gen, (*it).c_str());
     }
   }
-
 
   if (options::generate_bc_file != options::BC_NO) {
     std::string path;
@@ -436,45 +456,51 @@ static ld_plugin_status all_symbols_read_hook(void) {
       path = options::bc_path;
     else
       path = output_name + ".bc";
-    bool err = lto_codegen_write_merged_modules(cg, path.c_str());
+    bool err = lto_codegen_write_merged_modules(code_gen, path.c_str());
     if (err)
       (*message)(LDPL_FATAL, "Failed to write the output file.");
     if (options::generate_bc_file == options::BC_ONLY)
       exit(0);
   }
   size_t bufsize = 0;
-  const char *buffer = static_cast<const char *>(lto_codegen_compile(cg,
+  const char *buffer = static_cast<const char *>(lto_codegen_compile(code_gen,
                                                                      &bufsize));
 
   std::string ErrMsg;
 
-  sys::Path uniqueObjPath("/tmp/llvmgold.o");
-  if (uniqueObjPath.createTemporaryFileOnDisk(true, &ErrMsg)) {
-    (*message)(LDPL_ERROR, "%s", ErrMsg.c_str());
-    return LDPS_ERR;
+  const char *objPath;
+  if (!options::obj_path.empty()) {
+    objPath = options::obj_path.c_str();
+  } else {
+    sys::Path uniqueObjPath("/tmp/llvmgold.o");
+    if (uniqueObjPath.createTemporaryFileOnDisk(true, &ErrMsg)) {
+      (*message)(LDPL_ERROR, "%s", ErrMsg.c_str());
+      return LDPS_ERR;
+    }
+    objPath = uniqueObjPath.c_str();
   }
-  tool_output_file objFile(uniqueObjPath.c_str(), ErrMsg,
-                           raw_fd_ostream::F_Binary);
-  if (!ErrMsg.empty()) {
-    (*message)(LDPL_ERROR, "%s", ErrMsg.c_str());
-    return LDPS_ERR;
-  }
+  tool_output_file objFile(objPath, ErrMsg,
+                             raw_fd_ostream::F_Binary);
+    if (!ErrMsg.empty()) {
+      (*message)(LDPL_ERROR, "%s", ErrMsg.c_str());
+      return LDPS_ERR;
+    }
 
   objFile.os().write(buffer, bufsize);
   objFile.os().close();
   if (objFile.os().has_error()) {
     (*message)(LDPL_ERROR, "Error writing output file '%s'",
-               uniqueObjPath.c_str());
+               objPath);
     objFile.os().clear_error();
     return LDPS_ERR;
   }
   objFile.keep();
 
-  lto_codegen_dispose(cg);
+  lto_codegen_dispose(code_gen);
 
-  if ((*add_input_file)(uniqueObjPath.c_str()) != LDPS_OK) {
+  if ((*add_input_file)(objPath) != LDPS_OK) {
     (*message)(LDPL_ERROR, "Unable to add .o file to the link.");
-    (*message)(LDPL_ERROR, "File left behind in: %s", uniqueObjPath.c_str());
+    (*message)(LDPL_ERROR, "File left behind in: %s", objPath);
     return LDPS_ERR;
   }
 
@@ -502,7 +528,8 @@ static ld_plugin_status all_symbols_read_hook(void) {
     }
   }
 
-  Cleanup.push_back(uniqueObjPath);
+  if (options::obj_path.empty())
+    Cleanup.push_back(sys::Path(objPath));
 
   return LDPS_OK;
 }

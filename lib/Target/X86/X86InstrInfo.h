@@ -174,7 +174,7 @@ namespace X86II {
     
     /// MO_DARWIN_STUB - On a symbol operand "FOO", this indicates that the
     /// reference is actually to the "FOO$stub" symbol.  This is used for calls
-    /// and jumps to external functions on Tiger and before.
+    /// and jumps to external functions on Tiger and earlier.
     MO_DARWIN_STUB,
     
     /// MO_DARWIN_NONLAZY - On a symbol operand "FOO", this indicates that the
@@ -311,12 +311,17 @@ namespace X86II {
     MRM_F0 = 40,
     MRM_F8 = 41,
     MRM_F9 = 42,
+
+    /// RawFrmImm8 - This is used for the ENTER instruction, which has two
+    /// immediates, the first of which is a 16-bit immediate (specified by
+    /// the imm encoding) and the second is a 8-bit fixed value.
+    RawFrmImm8 = 43,
     
     /// RawFrmImm16 - This is used for CALL FAR instructions, which have two
     /// immediates, the first of which is a 16 or 32-bit immediate (specified by
     /// the imm encoding) and the second is a 16-bit fixed value.  In the AMD
     /// manual, this operand is described as pntr16:32 and pntr16:16
-    RawFrmImm16 = 43,
+    RawFrmImm16 = 44,
 
     FormMask       = 63,
 
@@ -444,28 +449,36 @@ namespace X86II {
     OpcodeMask    = 0xFF << OpcodeShift,
 
     //===------------------------------------------------------------------===//
-    // VEX - The opcode prefix used by AVX instructions
+    /// VEX - The opcode prefix used by AVX instructions
     VEX         = 1U << 0,
 
-    // VEX_W - Has a opcode specific functionality, but is used in the same
-    // way as REX_W is for regular SSE instructions.
+    /// VEX_W - Has a opcode specific functionality, but is used in the same
+    /// way as REX_W is for regular SSE instructions.
     VEX_W       = 1U << 1,
 
-    // VEX_4V - Used to specify an additional AVX/SSE register. Several 2
-    // address instructions in SSE are represented as 3 address ones in AVX
-    // and the additional register is encoded in VEX_VVVV prefix.
+    /// VEX_4V - Used to specify an additional AVX/SSE register. Several 2
+    /// address instructions in SSE are represented as 3 address ones in AVX
+    /// and the additional register is encoded in VEX_VVVV prefix.
     VEX_4V      = 1U << 2,
 
-    // VEX_I8IMM - Specifies that the last register used in a AVX instruction,
-    // must be encoded in the i8 immediate field. This usually happens in
-    // instructions with 4 operands.
+    /// VEX_I8IMM - Specifies that the last register used in a AVX instruction,
+    /// must be encoded in the i8 immediate field. This usually happens in
+    /// instructions with 4 operands.
     VEX_I8IMM   = 1U << 3,
 
-    // VEX_L - Stands for a bit in the VEX opcode prefix meaning the current
-    // instruction uses 256-bit wide registers. This is usually auto detected if
-    // a VR256 register is used, but some AVX instructions also have this field
-    // marked when using a f256 memory references.
-    VEX_L       = 1U << 4
+    /// VEX_L - Stands for a bit in the VEX opcode prefix meaning the current
+    /// instruction uses 256-bit wide registers. This is usually auto detected
+    /// if a VR256 register is used, but some AVX instructions also have this
+    /// field marked when using a f256 memory references.
+    VEX_L       = 1U << 4,
+    
+    /// Has3DNow0F0FOpcode - This flag indicates that the instruction uses the
+    /// wacky 0x0F 0x0F prefix for 3DNow! instructions.  The manual documents
+    /// this as having a 0x0F prefix with a 0x0F opcode, and each instruction
+    /// storing a classifier in the imm8 field.  To simplify our implementation,
+    /// we handle this by storeing the classifier in the opcode field and using
+    /// this flag to indicate that the encoder should do the wacky 3DNow! thing.
+    Has3DNow0F0FOpcode = 1U << 5
   };
   
   // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
@@ -528,6 +541,7 @@ namespace X86II {
     case X86II::AddRegFrm:
     case X86II::MRMDestReg:
     case X86II::MRMSrcReg:
+    case X86II::RawFrmImm8:
     case X86II::RawFrmImm16:
        return -1;
     case X86II::MRMDestMem:
@@ -599,14 +613,14 @@ class X86InstrInfo : public TargetInstrInfoImpl {
   /// RegOp2MemOpTable2Addr, RegOp2MemOpTable0, RegOp2MemOpTable1,
   /// RegOp2MemOpTable2 - Load / store folding opcode maps.
   ///
-  DenseMap<unsigned*, std::pair<unsigned,unsigned> > RegOp2MemOpTable2Addr;
-  DenseMap<unsigned*, std::pair<unsigned,unsigned> > RegOp2MemOpTable0;
-  DenseMap<unsigned*, std::pair<unsigned,unsigned> > RegOp2MemOpTable1;
-  DenseMap<unsigned*, std::pair<unsigned,unsigned> > RegOp2MemOpTable2;
+  DenseMap<unsigned, std::pair<unsigned,unsigned> > RegOp2MemOpTable2Addr;
+  DenseMap<unsigned, std::pair<unsigned,unsigned> > RegOp2MemOpTable0;
+  DenseMap<unsigned, std::pair<unsigned,unsigned> > RegOp2MemOpTable1;
+  DenseMap<unsigned, std::pair<unsigned,unsigned> > RegOp2MemOpTable2;
   
   /// MemOp2RegOpTable - Load / store unfolding opcode map.
   ///
-  DenseMap<unsigned*, std::pair<unsigned, unsigned> > MemOp2RegOpTable;
+  DenseMap<unsigned, std::pair<unsigned, unsigned> > MemOp2RegOpTable;
 
 public:
   explicit X86InstrInfo(X86TargetMachine &tm);
@@ -728,17 +742,6 @@ public:
                                MachineInstr::mmo_iterator MMOBegin,
                                MachineInstr::mmo_iterator MMOEnd,
                                SmallVectorImpl<MachineInstr*> &NewMIs) const;
-  
-  virtual bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
-                                         MachineBasicBlock::iterator MI,
-                                        const std::vector<CalleeSavedInfo> &CSI,
-                                         const TargetRegisterInfo *TRI) const;
-
-  virtual bool restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
-                                           MachineBasicBlock::iterator MI,
-                                        const std::vector<CalleeSavedInfo> &CSI,
-                                           const TargetRegisterInfo *TRI) const;
-  
   virtual
   MachineInstr *emitFrameIndexDebugValue(MachineFunction &MF,
                                          int FrameIx, uint64_t Offset,
@@ -845,17 +848,22 @@ public:
   /// SetSSEDomain - Set the SSEDomain of MI.
   void SetSSEDomain(MachineInstr *MI, unsigned Domain) const;
 
+  MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
+                                      MachineInstr* MI,
+                                      unsigned OpNum,
+                                      const SmallVectorImpl<MachineOperand> &MOs,
+                                      unsigned Size, unsigned Alignment) const;
+
+  bool hasHighOperandLatency(const InstrItineraryData *ItinData,
+                             const MachineRegisterInfo *MRI,
+                             const MachineInstr *DefMI, unsigned DefIdx,
+                             const MachineInstr *UseMI, unsigned UseIdx) const;
+  
 private:
   MachineInstr * convertToThreeAddressWithLEA(unsigned MIOpc,
                                               MachineFunction::iterator &MFI,
                                               MachineBasicBlock::iterator &MBBI,
                                               LiveVariables *LV) const;
-
-  MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
-                                     MachineInstr* MI,
-                                     unsigned OpNum,
-                                     const SmallVectorImpl<MachineOperand> &MOs,
-                                     unsigned Size, unsigned Alignment) const;
 
   /// isFrameOperand - Return true and the FrameIndex if the specified
   /// operand and follow operands form a reference to the stack frame.

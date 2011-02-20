@@ -13,10 +13,7 @@
 //
 // SlotIndex is mostly a proxy for entries of the SlotIndexList, a class which
 // is held is LiveIntervals and provides the real numbering. This allows
-// LiveIntervals to perform largely transparent renumbering. The SlotIndex
-// class does hold a PHI bit, which determines whether the index relates to a
-// PHI use or def point, or an actual instruction. See the SlotIndex class
-// description for futher information.
+// LiveIntervals to perform largely transparent renumbering.
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CODEGEN_SLOTINDEXES_H
@@ -130,12 +127,10 @@ namespace llvm {
 
     enum Slot { LOAD, USE, DEF, STORE, NUM };
 
-    static const unsigned PHI_BIT = 1 << 2;
+    PointerIntPair<IndexListEntry*, 2, unsigned> lie;
 
-    PointerIntPair<IndexListEntry*, 3, unsigned> lie;
-
-    SlotIndex(IndexListEntry *entry, unsigned phiAndSlot)
-      : lie(entry, phiAndSlot) {
+    SlotIndex(IndexListEntry *entry, unsigned slot)
+      : lie(entry, slot) {
       assert(entry != 0 && "Attempt to construct index with 0 pointer.");
     }
 
@@ -149,7 +144,7 @@ namespace llvm {
 
     /// Returns the slot for this SlotIndex.
     Slot getSlot() const {
-      return static_cast<Slot>(lie.getInt()  & ~PHI_BIT);
+      return static_cast<Slot>(lie.getInt());
     }
 
     static inline unsigned getHashValue(const SlotIndex &v) {
@@ -166,22 +161,13 @@ namespace llvm {
     static inline SlotIndex getTombstoneKey() {
       return SlotIndex(IndexListEntry::getTombstoneKeyEntry(), 0);
     }
-    
+
     /// Construct an invalid index.
     SlotIndex() : lie(IndexListEntry::getEmptyKeyEntry(), 0) {}
 
-    // Construct a new slot index from the given one, set the phi flag on the
-    // new index to the value of the phi parameter.
-    SlotIndex(const SlotIndex &li, bool phi)
-      : lie(&li.entry(), phi ? PHI_BIT | li.getSlot() : (unsigned)li.getSlot()){
-      assert(lie.getPointer() != 0 &&
-             "Attempt to construct index with 0 pointer.");
-    }
-
-    // Construct a new slot index from the given one, set the phi flag on the
-    // new index to the value of the phi parameter, and the slot to the new slot.
-    SlotIndex(const SlotIndex &li, bool phi, Slot s)
-      : lie(&li.entry(), phi ? PHI_BIT | s : (unsigned)s) {
+    // Construct a new slot index from the given one, and set the slot.
+    SlotIndex(const SlotIndex &li, Slot s)
+      : lie(&li.entry(), unsigned(s)) {
       assert(lie.getPointer() != 0 &&
              "Attempt to construct index with 0 pointer.");
     }
@@ -234,11 +220,6 @@ namespace llvm {
     /// Return the distance from this index to the given one.
     int distance(SlotIndex other) const {
       return other.getIndex() - getIndex();
-    }
-
-    /// Returns the state of the PHI bit.
-    bool isPHI() const {
-      return lie.getInt() & PHI_BIT;
     }
 
     /// isLoad - Return true if this is a LOAD slot.
@@ -405,9 +386,6 @@ namespace llvm {
     /// and MBB id.
     std::vector<IdxMBBPair> idx2MBBMap;
 
-    typedef DenseMap<const MachineBasicBlock*, SlotIndex> TerminatorGapsMap;
-    TerminatorGapsMap terminatorGaps;
-
     // IndexListEntry allocator.
     BumpPtrAllocator ileAllocator;
 
@@ -415,7 +393,7 @@ namespace llvm {
       IndexListEntry *entry =
         static_cast<IndexListEntry*>(
           ileAllocator.Allocate(sizeof(IndexListEntry),
-          alignof<IndexListEntry>()));
+          alignOf<IndexListEntry>()));
 
       new (entry) IndexListEntry(mi, index);
 
@@ -491,7 +469,9 @@ namespace llvm {
   public:
     static char ID;
 
-    SlotIndexes() : MachineFunctionPass(ID), indexListHead(0) {}
+    SlotIndexes() : MachineFunctionPass(ID), indexListHead(0) {
+      initializeSlotIndexesPass(*PassRegistry::getPassRegistry());
+    }
 
     virtual void getAnalysisUsage(AnalysisUsage &au) const;
     virtual void releaseMemory(); 
@@ -565,26 +545,22 @@ namespace llvm {
       return nextNonNull;
     }
 
-    /// Returns the first index in the given basic block.
-    SlotIndex getMBBStartIdx(const MachineBasicBlock *mbb) const {
+    /// Return the (start,end) range of the given basic block.
+    const std::pair<SlotIndex, SlotIndex> &
+    getMBBRange(const MachineBasicBlock *mbb) const {
       MBB2IdxMap::const_iterator itr = mbb2IdxMap.find(mbb);
       assert(itr != mbb2IdxMap.end() && "MBB not found in maps.");
-      return itr->second.first;
+      return itr->second;
+    }
+
+    /// Returns the first index in the given basic block.
+    SlotIndex getMBBStartIdx(const MachineBasicBlock *mbb) const {
+      return getMBBRange(mbb).first;
     }
 
     /// Returns the last index in the given basic block.
     SlotIndex getMBBEndIdx(const MachineBasicBlock *mbb) const {
-      MBB2IdxMap::const_iterator itr = mbb2IdxMap.find(mbb);
-      assert(itr != mbb2IdxMap.end() && "MBB not found in maps.");
-      return itr->second.second;
-    }
-
-    /// Returns the terminator gap for the given index.
-    SlotIndex getTerminatorGap(const MachineBasicBlock *mbb) {
-      TerminatorGapsMap::iterator itr = terminatorGaps.find(mbb);
-      assert(itr != terminatorGaps.end() &&
-             "All MBBs should have terminator gaps in their indexes.");
-      return itr->second;
+      return getMBBRange(mbb).second;
     }
 
     /// Returns the basic block which the given index falls in.
@@ -612,29 +588,6 @@ namespace llvm {
         if (itr->first >= end)
           break;
         mbbs.push_back(itr->second);
-        resVal = true;
-        ++itr;
-      }
-      return resVal;
-    }
-
-    /// Return a list of MBBs that can be reach via any branches or
-    /// fall-throughs.
-    bool findReachableMBBs(SlotIndex start, SlotIndex end,
-                           SmallVectorImpl<MachineBasicBlock*> &mbbs) const {
-      std::vector<IdxMBBPair>::const_iterator itr =
-        std::lower_bound(idx2MBBMap.begin(), idx2MBBMap.end(), start);
-
-      bool resVal = false;
-      while (itr != idx2MBBMap.end()) {
-        if (itr->first > end)
-          break;
-        MachineBasicBlock *mbb = itr->second;
-        if (getMBBEndIdx(mbb) > end)
-          break;
-        for (MachineBasicBlock::succ_iterator si = mbb->succ_begin(),
-             se = mbb->succ_end(); si != se; ++si)
-          mbbs.push_back(*si);
         resVal = true;
         ++itr;
       }
@@ -672,6 +625,9 @@ namespace llvm {
     SlotIndex insertMachineInstrInMaps(MachineInstr *mi,
                                         bool *deferredRenumber = 0) {
       assert(mi2iMap.find(mi) == mi2iMap.end() && "Instr already indexed.");
+      // Numbering DBG_VALUE instructions could cause code generation to be
+      // affected by debug information.
+      assert(!mi->isDebugValue() && "Cannot number DBG_VALUE instructions.");
 
       MachineBasicBlock *mbb = mi->getParent();
 
@@ -789,7 +745,7 @@ namespace llvm {
       MachineFunction::iterator nextMBB =
         llvm::next(MachineFunction::iterator(mbb));
       IndexListEntry *startEntry = createEntry(0, 0);
-      IndexListEntry *terminatorEntry = createEntry(0, 0); 
+      IndexListEntry *stopEntry = createEntry(0, 0);
       IndexListEntry *nextEntry = 0;
 
       if (nextMBB == mbb->getParent()->end()) {
@@ -799,14 +755,10 @@ namespace llvm {
       }
 
       insert(nextEntry, startEntry);
-      insert(nextEntry, terminatorEntry);
+      insert(nextEntry, stopEntry);
 
       SlotIndex startIdx(startEntry, SlotIndex::LOAD);
-      SlotIndex terminatorIdx(terminatorEntry, SlotIndex::PHI_BIT);
       SlotIndex endIdx(nextEntry, SlotIndex::LOAD);
-
-      terminatorGaps.insert(
-        std::make_pair(mbb, terminatorIdx));
 
       mbb2IdxMap.insert(
         std::make_pair(mbb, std::make_pair(startIdx, endIdx)));
@@ -827,6 +779,20 @@ namespace llvm {
 
   };
 
+
+  // Specialize IntervalMapInfo for half-open slot index intervals.
+  template <typename> struct IntervalMapInfo;
+  template <> struct IntervalMapInfo<SlotIndex> {
+    static inline bool startLess(const SlotIndex &x, const SlotIndex &a) {
+      return x < a;
+    }
+    static inline bool stopLess(const SlotIndex &b, const SlotIndex &x) {
+      return b <= x;
+    }
+    static inline bool adjacent(const SlotIndex &a, const SlotIndex &b) {
+      return a == b;
+    }
+  };
 
 }
 

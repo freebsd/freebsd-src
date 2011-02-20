@@ -353,8 +353,8 @@ above.</p>
 </div>
 
 <p>The Module symbol table works just like the Function symbol table when it
-comes to name conflicts: if a new function is created with a name was previously
-added to the symbol table, it will get implicitly renamed when added to the
+comes to name conflicts: if a new function is created with a name that was previously
+added to the symbol table, the new function will get implicitly renamed when added to the
 Module.  The code above exploits this fact to determine if there was a previous
 definition of this function.</p>
 
@@ -1263,7 +1263,7 @@ int main() {
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-09-01 22:09:20 +0200 (Wed, 01 Sep 2010) $
+  Last modified: $Date: 2011-02-15 01:24:32 +0100 (Tue, 15 Feb 2011) $
 </address>
 </body>
 </html>

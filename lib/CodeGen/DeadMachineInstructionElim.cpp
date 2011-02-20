@@ -36,7 +36,9 @@ namespace {
 
   public:
     static char ID; // Pass identification, replacement for typeid
-    DeadMachineInstructionElim() : MachineFunctionPass(ID) {}
+    DeadMachineInstructionElim() : MachineFunctionPass(ID) {
+     initializeDeadMachineInstructionElimPass(*PassRegistry::getPassRegistry());
+    }
 
   private:
     bool isDead(const MachineInstr *MI) const;
@@ -45,13 +47,19 @@ namespace {
 char DeadMachineInstructionElim::ID = 0;
 
 INITIALIZE_PASS(DeadMachineInstructionElim, "dead-mi-elimination",
-                "Remove dead machine instructions", false, false);
+                "Remove dead machine instructions", false, false)
 
 FunctionPass *llvm::createDeadMachineInstructionElimPass() {
   return new DeadMachineInstructionElim();
 }
 
 bool DeadMachineInstructionElim::isDead(const MachineInstr *MI) const {
+  // Technically speaking inline asm without side effects and no defs can still
+  // be deleted. But there is so much bad inline asm code out there, we should
+  // let them be.
+  if (MI->isInlineAsm())
+    return false;
+
   // Don't delete instructions with side effects.
   bool SawStore = false;
   if (!MI->isSafeToMove(TII, 0, SawStore) && !MI->isPHI())
@@ -151,7 +159,7 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
         const MachineOperand &MO = MI->getOperand(i);
         if (MO.isReg() && MO.isDef()) {
           unsigned Reg = MO.getReg();
-          if (Reg != 0 && TargetRegisterInfo::isPhysicalRegister(Reg)) {
+          if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
             LivePhysRegs.reset(Reg);
             // Check the subreg set, not the alias set, because a def
             // of a super-register may still be partially live after
@@ -168,7 +176,7 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
         const MachineOperand &MO = MI->getOperand(i);
         if (MO.isReg() && MO.isUse()) {
           unsigned Reg = MO.getReg();
-          if (Reg != 0 && TargetRegisterInfo::isPhysicalRegister(Reg)) {
+          if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
             LivePhysRegs.set(Reg);
             for (const unsigned *AliasSet = TRI->getAliasSet(Reg);
                  *AliasSet; ++AliasSet)

@@ -38,6 +38,7 @@
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Assembly/Writer.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -178,16 +179,24 @@ bool AsmPrinter::doInitialization(Module &M) {
   if (!M.getModuleInlineAsm().empty()) {
     OutStreamer.AddComment("Start of file scope inline assembly");
     OutStreamer.AddBlankLine();
-    EmitInlineAsm(M.getModuleInlineAsm()+"\n", 0/*no loc cookie*/);
+    EmitInlineAsm(M.getModuleInlineAsm()+"\n");
     OutStreamer.AddComment("End of file scope inline assembly");
     OutStreamer.AddBlankLine();
   }
 
   if (MAI->doesSupportDebugInformation())
     DD = new DwarfDebug(this, &M);
-    
+
   if (MAI->doesSupportExceptionHandling())
-    DE = new DwarfException(this);
+    switch (MAI->getExceptionHandlingType()) {
+    default:
+    case ExceptionHandling::DwarfTable:
+      DE = new DwarfTableException(this);
+      break;
+    case ExceptionHandling::DwarfCFI:
+      DE = new DwarfCFIException(this);
+      break;
+    }
 
   return false;
 }
@@ -282,8 +291,12 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
     
     // Handle common symbols.
     if (GVKind.isCommon()) {
+      unsigned Align = 1 << AlignLog;
+      if (!getObjFileLowering().getCommDirectiveSupportsAlignment())
+        Align = 0;
+          
       // .comm _foo, 42, 4
-      OutStreamer.EmitCommonSymbol(GVSym, Size, 1 << AlignLog);
+      OutStreamer.EmitCommonSymbol(GVSym, Size, Align);
       return;
     }
     
@@ -301,11 +314,15 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
       OutStreamer.EmitLocalCommonSymbol(GVSym, Size);
       return;
     }
+
+    unsigned Align = 1 << AlignLog;
+    if (!getObjFileLowering().getCommDirectiveSupportsAlignment())
+      Align = 0;
     
     // .local _foo
     OutStreamer.EmitSymbolAttribute(GVSym, MCSA_Local);
     // .comm _foo, 42, 4
-    OutStreamer.EmitCommonSymbol(GVSym, Size, 1 << AlignLog);
+    OutStreamer.EmitCommonSymbol(GVSym, Size, Align);
     return;
   }
   
@@ -327,6 +344,13 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   // Handle thread local data for mach-o which requires us to output an
   // additional structure of data and mangle the original symbol so that we
   // can reference it later.
+  //
+  // TODO: This should become an "emit thread local global" method on TLOF.
+  // All of this macho specific stuff should be sunk down into TLOFMachO and
+  // stuff like "TLSExtraDataSection" should no longer be part of the parent
+  // TLOF class.  This will also make it more obvious that stuff like
+  // MCStreamer::EmitTBSSSymbol is macho specific and only called from macho
+  // specific code.
   if (GVKind.isThreadLocal() && MAI->hasMachoTBSSDirective()) {
     // Emit the .tbss symbol
     MCSymbol *MangSym = 
@@ -623,7 +647,7 @@ void AsmPrinter::EmitFunctionBody() {
 
       if (ShouldPrintDebugScopes) {
         NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
-        DD->beginScope(II);
+        DD->beginInstruction(II);
       }
       
       if (isVerbose())
@@ -657,7 +681,7 @@ void AsmPrinter::EmitFunctionBody() {
       
       if (ShouldPrintDebugScopes) {
         NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
-        DD->endScope(II);
+        DD->endInstruction(II);
       }
     }
   }
@@ -729,7 +753,20 @@ bool AsmPrinter::doFinalization(Module &M) {
   for (Module::const_global_iterator I = M.global_begin(), E = M.global_end();
        I != E; ++I)
     EmitGlobalVariable(I);
-  
+
+  // Emit visibility info for declarations
+  for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I) {
+    const Function &F = *I;
+    if (!F.isDeclaration())
+      continue;
+    GlobalValue::VisibilityTypes V = F.getVisibility();
+    if (V == GlobalValue::DefaultVisibility)
+      continue;
+
+    MCSymbol *Name = Mang->getSymbol(&F);
+    EmitVisibility(Name, V);
+  }
+
   // Finalize debug and EH information.
   if (DE) {
     {
@@ -905,14 +942,6 @@ void AsmPrinter::EmitConstantPool() {
 
       const Type *Ty = CPE.getType();
       Offset = NewOffset + TM.getTargetData()->getTypeAllocSize(Ty);
-
-      // Emit the label with a comment on it.
-      if (isVerbose()) {
-        OutStreamer.GetCommentOS() << "constant pool ";
-        WriteTypeSymbolic(OutStreamer.GetCommentOS(), CPE.getType(),
-                          MF->getFunction()->getParent());
-        OutStreamer.GetCommentOS() << '\n';
-      }
       OutStreamer.EmitLabel(GetCPISymbol(CPI));
 
       if (CPE.isMachineConstantPoolEntry())
@@ -983,7 +1012,7 @@ void AsmPrinter::EmitJumpTableInfo() {
       }
     }          
     
-    // On some targets (e.g. Darwin) we want to emit two consequtive labels
+    // On some targets (e.g. Darwin) we want to emit two consecutive labels
     // before each jump table.  The first label is never referenced, but tells
     // the assembler and linker the extents of the jump table object.  The
     // second label is actually referenced by the code.
@@ -1004,6 +1033,7 @@ void AsmPrinter::EmitJumpTableInfo() {
 void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
                                     const MachineBasicBlock *MBB,
                                     unsigned UID) const {
+  assert(MBB && MBB->getNumber() >= 0 && "Invalid basic block");
   const MCExpr *Value = 0;
   switch (MJTI->getEntryKind()) {
   case MachineJumpTableInfo::EK_Inline:

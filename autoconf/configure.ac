@@ -31,7 +31,7 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 dnl Initialize autoconf and define the package name, version number and
 dnl email address for reporting bugs.
-AC_INIT([[llvm]],[[2.8]],[llvmbugs@cs.uiuc.edu])
+AC_INIT([[llvm]],[[2.9svn]],[llvmbugs@cs.uiuc.edu])
 
 dnl Provide a copyright substitution and ensure the copyright notice is included
 dnl in the output of --version option of the generated configure script.
@@ -120,6 +120,26 @@ do
     esac
   fi
 done
+
+dnl Disable the build of polly, even if it is checked out into tools/polly.
+AC_ARG_ENABLE(polly,
+              AS_HELP_STRING([--enable-polly],
+                             [Use polly if available (default is YES)]),,
+                             enableval=default)
+case "$enableval" in
+  yes) AC_SUBST(ENABLE_POLLY,[1]) ;;
+  no)  AC_SUBST(ENABLE_POLLY,[0]) ;;
+  default) AC_SUBST(ENABLE_POLLY,[1]) ;;
+  *) AC_MSG_ERROR([Invalid setting for --enable-polly. Use "yes" or "no"]) ;;
+esac
+
+
+dnl Check if polly is checked out into tools/polly and configure it if
+dnl available.
+if (test -d ${srcdir}/tools/polly) && (test $ENABLE_POLLY -eq 1) ; then
+  AC_SUBST(LLVM_HAS_POLLY,1)
+  AC_CONFIG_SUBDIRS([tools/polly])
+fi
 
 dnl===-----------------------------------------------------------------------===
 dnl===
@@ -299,7 +319,7 @@ AC_SUBST(LINKALL,$llvm_cv_link_all_option)
 AC_SUBST(NOLINKALL,$llvm_cv_no_link_all_option)
 
 dnl Set the "LLVM_ON_*" variables based on llvm_cv_platform_type
-dnl This is used by lib/System to determine the basic kind of implementation
+dnl This is used by lib/Support to determine the basic kind of implementation
 dnl to use.
 case $llvm_cv_platform_type in
   Unix)
@@ -326,12 +346,12 @@ AC_CACHE_CHECK([target architecture],[llvm_cv_target_arch],
   alpha*-*)               llvm_cv_target_arch="Alpha" ;;
   arm*-*)                 llvm_cv_target_arch="ARM" ;;
   mips-*)                 llvm_cv_target_arch="Mips" ;;
-  pic16-*)                llvm_cv_target_arch="PIC16" ;;
   xcore-*)                llvm_cv_target_arch="XCore" ;;
   msp430-*)               llvm_cv_target_arch="MSP430" ;;
   s390x-*)                llvm_cv_target_arch="SystemZ" ;;
   bfin-*)                 llvm_cv_target_arch="Blackfin" ;;
   mblaze-*)               llvm_cv_target_arch="MBlaze" ;;
+  ptx-*)                  llvm_cv_target_arch="PTX" ;;
   *)                      llvm_cv_target_arch="Unknown" ;;
 esac])
 
@@ -391,7 +411,7 @@ dnl===-----------------------------------------------------------------------===
 
 dnl --enable-optimized : check whether they want to do an optimized build:
 AC_ARG_ENABLE(optimized, AS_HELP_STRING(
- --enable-optimized,[Compile with optimizations enabled (default is YES)]),,enableval="yes")
+ --enable-optimized,[Compile with optimizations enabled (default is NO)]),,enableval=$optimize)
 if test ${enableval} = "no" ; then
   AC_SUBST(ENABLE_OPTIMIZED,[[]])
 else
@@ -409,7 +429,7 @@ fi
 
 dnl --enable-assertions : check whether they want to turn on assertions or not:
 AC_ARG_ENABLE(assertions,AS_HELP_STRING(
-  --enable-assertions,[Compile with assertion checks enabled (default is NO)]),, enableval="no")
+  --enable-assertions,[Compile with assertion checks enabled (default is YES)]),, enableval="yes")
 if test ${enableval} = "yes" ; then
   AC_SUBST(DISABLE_ASSERTIONS,[[]])
 else
@@ -460,18 +480,30 @@ else
     Sparc)       AC_SUBST(TARGET_HAS_JIT,0) ;;
     PowerPC)     AC_SUBST(TARGET_HAS_JIT,1) ;;
     x86_64)      AC_SUBST(TARGET_HAS_JIT,1) ;;
-    Alpha)       AC_SUBST(TARGET_HAS_JIT,1) ;;
+    Alpha)       AC_SUBST(TARGET_HAS_JIT,0) ;;
     ARM)         AC_SUBST(TARGET_HAS_JIT,1) ;;
     Mips)        AC_SUBST(TARGET_HAS_JIT,0) ;;
-    PIC16)       AC_SUBST(TARGET_HAS_JIT,0) ;;
     XCore)       AC_SUBST(TARGET_HAS_JIT,0) ;;
     MSP430)      AC_SUBST(TARGET_HAS_JIT,0) ;;
     SystemZ)     AC_SUBST(TARGET_HAS_JIT,0) ;;
     Blackfin)    AC_SUBST(TARGET_HAS_JIT,0) ;;
     MBlaze)      AC_SUBST(TARGET_HAS_JIT,0) ;;
+    PTX)         AC_SUBST(TARGET_HAS_JIT,0) ;;
     *)           AC_SUBST(TARGET_HAS_JIT,0) ;;
   esac
 fi
+
+dnl Allow enablement of building and installing docs
+AC_ARG_ENABLE(docs,
+              AS_HELP_STRING([--enable-docs],
+                             [Build documents (default is YES)]),,
+                             enableval=default)
+case "$enableval" in
+  yes) AC_SUBST(ENABLE_DOCS,[1]) ;;
+  no)  AC_SUBST(ENABLE_DOCS,[0]) ;;
+  default) AC_SUBST(ENABLE_DOCS,[1]) ;;
+  *) AC_MSG_ERROR([Invalid setting for --enable-docs. Use "yes" or "no"]) ;;
+esac
 
 dnl Allow enablement of doxygen generated documentation
 AC_ARG_ENABLE(doxygen,
@@ -497,6 +529,18 @@ case "$enableval" in
   *) AC_MSG_ERROR([Invalid setting for --enable-threads. Use "yes" or "no"]) ;;
 esac
 AC_DEFINE_UNQUOTED([ENABLE_THREADS],$ENABLE_THREADS,[Define if threads enabled])
+
+dnl Allow disablement of pthread.h
+AC_ARG_ENABLE(pthreads,
+              AS_HELP_STRING([--enable-pthreads],
+                             [Use pthreads if available (default is YES)]),,
+                             enableval=default)
+case "$enableval" in
+  yes) AC_SUBST(ENABLE_PTHREADS,[1]) ;;
+  no)  AC_SUBST(ENABLE_PTHREADS,[0]) ;;
+  default) AC_SUBST(ENABLE_PTHREADS,[1]) ;;
+  *) AC_MSG_ERROR([Invalid setting for --enable-pthreads. Use "yes" or "no"]) ;;
+esac
 
 dnl Allow building without position independent code
 AC_ARG_ENABLE(pic,
@@ -524,6 +568,18 @@ case "$enableval" in
   *) AC_MSG_ERROR([Invalid setting for --enable-shared. Use "yes" or "no"]) ;;
 esac
 
+dnl Allow libstdc++ is embedded in LLVM.dll.
+AC_ARG_ENABLE(embed-stdcxx,
+  AS_HELP_STRING([--enable-embed-stdcxx],
+                 [Build a shared library with embedded libstdc++ for Win32 DLL (default is YES)]),,
+                 enableval=default)
+case "$enableval" in
+  yes) AC_SUBST(ENABLE_EMBED_STDCXX,[1]) ;;
+  no)  AC_SUBST(ENABLE_EMBED_STDCXX,[0]) ;;
+  default) AC_SUBST(ENABLE_EMBED_STDCXX,[1]) ;;
+  *) AC_MSG_ERROR([Invalid setting for --enable-embed-stdcxx. Use "yes" or "no"]) ;;
+esac
+
 dnl Enable embedding timestamp information into build.
 AC_ARG_ENABLE(timestamps,
   AS_HELP_STRING([--enable-timestamps],
@@ -542,14 +598,14 @@ dnl Allow specific targets to be specified for building (or not)
 TARGETS_TO_BUILD=""
 AC_ARG_ENABLE([targets],AS_HELP_STRING([--enable-targets],
     [Build specific host targets: all or target1,target2,... Valid targets are:
-     host, x86, x86_64, sparc, powerpc, alpha, arm, mips, spu, pic16,
-     xcore, msp430, systemz, blackfin, cbe, and cpp (default=all)]),,
+     host, x86, x86_64, sparc, powerpc, alpha, arm, mips, spu,
+     xcore, msp430, systemz, blackfin, ptx, cbe, and cpp (default=all)]),,
     enableval=all)
 if test "$enableval" = host-only ; then
   enableval=host
 fi
 case "$enableval" in
-  all) TARGETS_TO_BUILD="X86 Sparc PowerPC Alpha ARM Mips CellSPU PIC16 XCore MSP430 SystemZ Blackfin CBackend CppBackend MBlaze" ;;
+  all) TARGETS_TO_BUILD="X86 Sparc PowerPC Alpha ARM Mips CellSPU XCore MSP430 SystemZ Blackfin CBackend CppBackend MBlaze PTX" ;;
   *)for a_target in `echo $enableval|sed -e 's/,/ /g' ` ; do
       case "$a_target" in
         x86)      TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
@@ -560,7 +616,6 @@ case "$enableval" in
         arm)      TARGETS_TO_BUILD="ARM $TARGETS_TO_BUILD" ;;
         mips)     TARGETS_TO_BUILD="Mips $TARGETS_TO_BUILD" ;;
         spu)      TARGETS_TO_BUILD="CellSPU $TARGETS_TO_BUILD" ;;
-        pic16)    TARGETS_TO_BUILD="PIC16 $TARGETS_TO_BUILD" ;;
         xcore)    TARGETS_TO_BUILD="XCore $TARGETS_TO_BUILD" ;;
         msp430)   TARGETS_TO_BUILD="MSP430 $TARGETS_TO_BUILD" ;;
         systemz)  TARGETS_TO_BUILD="SystemZ $TARGETS_TO_BUILD" ;;
@@ -568,6 +623,7 @@ case "$enableval" in
         cbe)      TARGETS_TO_BUILD="CBackend $TARGETS_TO_BUILD" ;;
         cpp)      TARGETS_TO_BUILD="CppBackend $TARGETS_TO_BUILD" ;;
         mblaze)   TARGETS_TO_BUILD="MBlaze $TARGETS_TO_BUILD" ;;
+        ptx)      TARGETS_TO_BUILD="PTX $TARGETS_TO_BUILD" ;;
         host) case "$llvm_cv_target_arch" in
             x86)         TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
             x86_64)      TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
@@ -578,11 +634,11 @@ case "$enableval" in
             Mips)        TARGETS_TO_BUILD="Mips $TARGETS_TO_BUILD" ;;
             MBlaze)      TARGETS_TO_BUILD="MBlaze $TARGETS_TO_BUILD" ;;
             CellSPU|SPU) TARGETS_TO_BUILD="CellSPU $TARGETS_TO_BUILD" ;;
-            PIC16)       TARGETS_TO_BUILD="PIC16 $TARGETS_TO_BUILD" ;;
             XCore)       TARGETS_TO_BUILD="XCore $TARGETS_TO_BUILD" ;;
             MSP430)      TARGETS_TO_BUILD="MSP430 $TARGETS_TO_BUILD" ;;
             s390x)       TARGETS_TO_BUILD="SystemZ $TARGETS_TO_BUILD" ;;
             Blackfin)    TARGETS_TO_BUILD="Blackfin $TARGETS_TO_BUILD" ;;
+            PTX)         TARGETS_TO_BUILD="PTX $TARGETS_TO_BUILD" ;;
             *)       AC_MSG_ERROR([Can not set target to build]) ;;
           esac ;;
         *) AC_MSG_ERROR([Unrecognized target $a_target]) ;;
@@ -618,7 +674,7 @@ LLVM_ENUM_ASM_PARSERS=""
 LLVM_ENUM_DISASSEMBLERS=""
 for target_to_build in $TARGETS_TO_BUILD; do
   LLVM_ENUM_TARGETS="LLVM_TARGET($target_to_build) $LLVM_ENUM_TARGETS"
-  if test -f ${srcdir}/lib/Target/${target_to_build}/AsmPrinter/Makefile ; then
+  if test -f ${srcdir}/lib/Target/${target_to_build}/*AsmPrinter.cpp ; then
     LLVM_ENUM_ASM_PRINTERS="LLVM_ASM_PRINTER($target_to_build) $LLVM_ENUM_ASM_PRINTERS";
   fi
   if test -f ${srcdir}/lib/Target/${target_to_build}/AsmParser/Makefile ; then
@@ -800,6 +856,13 @@ case "$withval" in
   *) AC_MSG_ERROR([Invalid path for --with-ocaml-libdir. Provide full path]) ;;
 esac
 
+AC_ARG_WITH(clang-resource-dir,
+  AS_HELP_STRING([--with-clang-resource-dir],
+    [Relative directory from the Clang binary for resource files]),,
+    withval="")
+AC_DEFINE_UNQUOTED(CLANG_RESOURCE_DIR,"$withval",
+                   [Relative directory for resource files])
+
 AC_ARG_WITH(c-include-dirs,
   AS_HELP_STRING([--with-c-include-dirs],
     [Colon separated list of directories clang will search for headers]),,
@@ -975,6 +1038,16 @@ if test "$DOTTY" != "echo dotty" ; then
   AC_DEFINE_UNQUOTED([LLVM_PATH_DOTTY],"$DOTTY${EXEEXT}",
    [Define to path to dotty program if found or 'echo dotty' otherwise])
 fi
+AC_PATH_PROG(XDOT_PY, [xdot.py], [echo xdot.py])
+if test "$XDOT_PY" != "echo xdot.py" ; then
+  AC_DEFINE([HAVE_XDOT_PY],[1],[Define if the xdot.py program is available])
+  dnl If we're targeting for mingw we should emit windows paths, not msys
+  if test "$llvm_cv_os_type" = "MingW" ; then
+    XDOT_PY=`echo $XDOT_PY | sed 's/^\/\([[A-Za-z]]\)\//\1:\//' `
+  fi
+  AC_DEFINE_UNQUOTED([LLVM_PATH_XDOT_PY],"$XDOT_PY${EXEEXT}",
+   [Define to path to xdot.py program if found or 'echo xdot.py' otherwise])
+fi
 
 dnl Look for a sufficiently recent version of Perl.
 LLVM_PROG_PERL([5.006])
@@ -1004,7 +1077,7 @@ AC_PATH_PROG(BZIP2, [bzip2])
 AC_PATH_PROG(CAT, [cat])
 AC_PATH_PROG(DOXYGEN, [doxygen])
 AC_PATH_PROG(GROFF, [groff])
-AC_PATH_PROG(GZIP, [gzip])
+AC_PATH_PROG(GZIPBIN, [gzip])
 AC_PATH_PROG(POD2HTML, [pod2html])
 AC_PATH_PROG(POD2MAN, [pod2man])
 AC_PATH_PROG(PDFROFF, [pdfroff])
@@ -1107,10 +1180,10 @@ then
   AC_MSG_ERROR([gcc|icc required but not found])
 fi
 
-dnl Ensure that compilation tools are GCC; we use GCC specific extensions
+dnl Ensure that compilation tools are compatible with GCC extensions
 if test "$GXX" != "yes" && test "$IXX" != "yes"
 then
-  AC_MSG_ERROR([g++|icc required but not found])
+  AC_MSG_ERROR([g++|clang++|icc required but not found])
 fi
 
 dnl Verify that GCC is version 3.0 or higher
@@ -1167,7 +1240,7 @@ AC_SEARCH_LIBS(mallinfo,malloc,AC_DEFINE([HAVE_MALLINFO],[1],
 
 dnl pthread locking functions are optional - but llvm will not be thread-safe
 dnl without locks.
-if test "$ENABLE_THREADS" -eq 1 ; then
+if test "$ENABLE_THREADS" -eq 1 && test "$ENABLE_PTHREADS" -eq 1 ; then
   AC_CHECK_LIB(pthread, pthread_mutex_init)
   AC_SEARCH_LIBS(pthread_mutex_lock,pthread,
                  AC_DEFINE([HAVE_PTHREAD_MUTEX_LOCK],[1],
@@ -1255,10 +1328,11 @@ AC_HEADER_TIME
 AC_CHECK_HEADERS([dlfcn.h execinfo.h fcntl.h inttypes.h limits.h link.h])
 AC_CHECK_HEADERS([malloc.h setjmp.h signal.h stdint.h termios.h unistd.h])
 AC_CHECK_HEADERS([utime.h windows.h])
-AC_CHECK_HEADERS([sys/mman.h sys/param.h sys/resource.h sys/time.h])
+AC_CHECK_HEADERS([sys/mman.h sys/param.h sys/resource.h sys/time.h sys/uio.h])
 AC_CHECK_HEADERS([sys/types.h sys/ioctl.h malloc/malloc.h mach/mach.h])
 AC_CHECK_HEADERS([valgrind/valgrind.h])
-if test "$ENABLE_THREADS" -eq 1 ; then
+AC_CHECK_HEADERS([fenv.h])
+if test "$ENABLE_THREADS" -eq 1 && test "$ENABLE_PTHREADS" -eq 1 ; then
   AC_CHECK_HEADERS(pthread.h,
                    AC_SUBST(HAVE_PTHREAD, 1),
                    AC_SUBST(HAVE_PTHREAD, 0))
@@ -1271,8 +1345,24 @@ if test "$llvm_cv_enable_libffi" = "yes" ; then
   AC_CHECK_HEADERS([ffi.h ffi/ffi.h])
 fi
 
-dnl Try to find Darwin specific crash reporting library.
+dnl Try to find Darwin specific crash reporting libraries.
 AC_CHECK_HEADERS([CrashReporterClient.h])
+
+dnl Try to find Darwin specific crash reporting global.
+AC_MSG_CHECKING([__crashreporter_info__])
+AC_LINK_IFELSE(
+  AC_LANG_SOURCE(
+    [[extern const char *__crashreporter_info__;
+      int main() {
+        __crashreporter_info__ = "test";
+        return 0;
+      }
+    ]]),
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_CRASHREPORTER_INFO, 1, Can use __crashreporter_info__),
+  AC_MSG_RESULT(no)
+  AC_DEFINE(HAVE_CRASHREPORTER_INFO, 0,
+            Define if __crashreporter_info__ exists.))
 
 dnl===-----------------------------------------------------------------------===
 dnl===
@@ -1301,11 +1391,36 @@ AC_CHECK_FUNCS([powf fmodf strtof round ])
 AC_CHECK_FUNCS([getpagesize getrusage getrlimit setrlimit gettimeofday ])
 AC_CHECK_FUNCS([isatty mkdtemp mkstemp ])
 AC_CHECK_FUNCS([mktemp posix_spawn realpath sbrk setrlimit strdup ])
-AC_CHECK_FUNCS([strerror strerror_r strerror_s setenv ])
+AC_CHECK_FUNCS([strerror strerror_r setenv ])
 AC_CHECK_FUNCS([strtoll strtoq sysconf malloc_zone_statistics ])
-AC_CHECK_FUNCS([setjmp longjmp sigsetjmp siglongjmp])
+AC_CHECK_FUNCS([setjmp longjmp sigsetjmp siglongjmp writev])
 AC_C_PRINTF_A
 AC_FUNC_RAND48
+
+dnl Check the declaration "Secure API" on Windows environments.
+AC_CHECK_DECLS([strerror_s])
+
+dnl Check symbols in libgcc.a for JIT on Mingw.
+if test "$llvm_cv_os_type" = "MingW" ; then
+  AC_CHECK_LIB(gcc,_alloca,AC_DEFINE([HAVE__ALLOCA],[1],[Have host's _alloca]))
+  AC_CHECK_LIB(gcc,__alloca,AC_DEFINE([HAVE___ALLOCA],[1],[Have host's __alloca]))
+  AC_CHECK_LIB(gcc,__chkstk,AC_DEFINE([HAVE___CHKSTK],[1],[Have host's __chkstk]))
+  AC_CHECK_LIB(gcc,___chkstk,AC_DEFINE([HAVE____CHKSTK],[1],[Have host's ___chkstk]))
+
+  AC_CHECK_LIB(gcc,__ashldi3,AC_DEFINE([HAVE___ASHLDI3],[1],[Have host's __ashldi3]))
+  AC_CHECK_LIB(gcc,__ashrdi3,AC_DEFINE([HAVE___ASHRDI3],[1],[Have host's __ashrdi3]))
+  AC_CHECK_LIB(gcc,__divdi3,AC_DEFINE([HAVE___DIVDI3],[1],[Have host's __divdi3]))
+  AC_CHECK_LIB(gcc,__fixdfdi,AC_DEFINE([HAVE___FIXDFDI],[1],[Have host's __fixdfdi]))
+  AC_CHECK_LIB(gcc,__fixsfdi,AC_DEFINE([HAVE___FIXSFDI],[1],[Have host's __fixsfdi]))
+  AC_CHECK_LIB(gcc,__floatdidf,AC_DEFINE([HAVE___FLOATDIDF],[1],[Have host's __floatdidf]))
+  AC_CHECK_LIB(gcc,__lshrdi3,AC_DEFINE([HAVE___LSHRDI3],[1],[Have host's __lshrdi3]))
+  AC_CHECK_LIB(gcc,__moddi3,AC_DEFINE([HAVE___MODDI3],[1],[Have host's __moddi3]))
+  AC_CHECK_LIB(gcc,__udivdi3,AC_DEFINE([HAVE___UDIVDI3],[1],[Have host's __udivdi3]))
+  AC_CHECK_LIB(gcc,__umoddi3,AC_DEFINE([HAVE___UMODDI3],[1],[Have host's __umoddi3]))
+
+  AC_CHECK_LIB(gcc,__main,AC_DEFINE([HAVE___MAIN],[1],[Have host's __main]))
+  AC_CHECK_LIB(gcc,__cmpdi2,AC_DEFINE([HAVE___CMPDI2],[1],[Have host's __cmpdi2]))
+fi
 
 dnl Check for variations in the Standard C++ library and STL. These macros are
 dnl provided by LLVM in the autoconf/m4 directory.
@@ -1372,12 +1487,36 @@ fi
 dnl Check, whether __dso_handle is present
 AC_CHECK_FUNCS([__dso_handle])
 
+dnl Check wether llvm-gcc is based on dragonegg
+AC_CACHE_CHECK([whether llvm-gcc is dragonegg],[llvm_cv_llvmgcc_dragonegg],
+[llvm_cv_llvmgcc_dragonegg="no"
+if test -n "$LLVMGCC" ; then
+  cp /dev/null conftest.c
+  $LLVMGCC -fplugin-arg-dragonegg-emit-ir -S -o - conftest.c > /dev/null 2>&1
+  if test $? -eq 0 ; then
+    llvm_cv_llvmgcc_dragonegg="yes"
+  fi
+  rm conftest.c
+fi])
+
+dnl Set the flags needed to emit LLVM IR and to disable optimizations
+dnl in llvmgcc
+if test "$llvm_cv_llvmgcc_dragonegg" = "yes" ; then
+  LLVMCC_EMITIR_FLAG="-fplugin-arg-dragonegg-emit-ir"
+  LLVMCC_DISABLEOPT_FLAGS="-fplugin-arg-dragonegg-disable-llvm-optzns"
+else
+  LLVMCC_EMITIR_FLAG="-emit-llvm"
+  LLVMCC_DISABLEOPT_FLAGS="-mllvm -disable-llvm-optzns"
+fi
+
+AC_SUBST(LLVMCC_EMITIR_FLAG)
+
 dnl See if the llvm-gcc executable can compile to LLVM assembly
 AC_CACHE_CHECK([whether llvm-gcc is sane],[llvm_cv_llvmgcc_sanity],
 [llvm_cv_llvmgcc_sanity="no"
-if test -x "$LLVMGCC" ; then
+if test -n "$LLVMGCC" ; then
   cp /dev/null conftest.c
-  "$LLVMGCC" -emit-llvm -S -o - conftest.c | \
+  $LLVMGCC "$LLVMCC_EMITIR_FLAG" -S -o - conftest.c | \
       grep 'target datalayout =' > /dev/null 2>&1
   if test $? -eq 0 ; then
     llvm_cv_llvmgcc_sanity="yes"
@@ -1386,16 +1525,19 @@ if test -x "$LLVMGCC" ; then
 fi])
 
 dnl Since we have a sane llvm-gcc, identify it and its sub-tools
+dnl Furthermore, add some information about the tools
 if test "$llvm_cv_llvmgcc_sanity" = "yes" ; then
   AC_MSG_CHECKING([llvm-gcc component support])
-  llvmcc1path=`"$LLVMGCC" --print-prog-name=cc1`
+  llvmcc1path=`$LLVMGCC --print-prog-name=cc1`
   AC_SUBST(LLVMCC1,$llvmcc1path)
-  llvmcc1pluspath=`"$LLVMGCC" --print-prog-name=cc1plus`
+  llvmcc1pluspath=`$LLVMGCC --print-prog-name=cc1plus`
   AC_SUBST(LLVMCC1PLUS,$llvmcc1pluspath)
   llvmgccdir=`echo "$llvmcc1path" | sed 's,/libexec/.*,,'`
   AC_SUBST(LLVMGCCDIR,$llvmgccdir)
-  llvmgcclangs=[`"$LLVMGCC" -v --help 2>&1 | grep '^Configured with:' | sed 's/^.*--enable-languages=\([^ ]*\).*/\1/'`]
+  llvmgcclangs=[`$LLVMGCC -v --help 2>&1 | grep '^Configured with:' | sed 's/^.*--enable-languages=\([^ ]*\).*/\1/'`]
   AC_SUBST(LLVMGCC_LANGS,$llvmgcclangs)
+  AC_SUBST(LLVMGCC_DRAGONEGG,$llvm_cv_llvmgcc_dragonegg)
+  AC_SUBST(LLVMCC_DISABLEOPT_FLAGS)
   AC_MSG_RESULT([ok])
 fi
 
@@ -1548,7 +1690,7 @@ AC_CONFIG_FILES([include/llvm/Config/Targets.def])
 AC_CONFIG_FILES([include/llvm/Config/AsmPrinters.def])
 AC_CONFIG_FILES([include/llvm/Config/AsmParsers.def])
 AC_CONFIG_FILES([include/llvm/Config/Disassemblers.def])
-AC_CONFIG_HEADERS([include/llvm/System/DataTypes.h])
+AC_CONFIG_HEADERS([include/llvm/Support/DataTypes.h])
 
 dnl Configure the makefile's configuration data
 AC_CONFIG_FILES([Makefile.config])

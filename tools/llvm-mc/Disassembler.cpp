@@ -24,6 +24,7 @@
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/raw_ostream.h"
@@ -43,7 +44,7 @@ public:
   uint64_t getExtent() const { return Bytes.size(); }
 
   int readByte(uint64_t Addr, uint8_t *Byte) const {
-    if (Addr > getExtent())
+    if (Addr >= getExtent())
       return -1;
     *Byte = Bytes[Addr].first;
     return 0;

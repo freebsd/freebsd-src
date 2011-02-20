@@ -55,6 +55,14 @@ namespace llvm {
       return storage_[toIndex_(n)];
     }
 
+    void reserve(typename StorageT::size_type s) {
+      storage_.reserve(s);
+    }
+
+    void resize(typename StorageT::size_type s) {
+      storage_.resize(s, nullVal_);
+    }
+
     void clear() {
       storage_.clear();
     }
@@ -62,7 +70,11 @@ namespace llvm {
     void grow(IndexT n) {
       unsigned NewSize = toIndex_(n) + 1;
       if (NewSize > storage_.size())
-        storage_.resize(NewSize, nullVal_);
+        resize(NewSize);
+    }
+
+    bool inBounds(IndexT n) const {
+      return toIndex_(n) < storage_.size();
     }
 
     typename StorageT::size_type size() const {

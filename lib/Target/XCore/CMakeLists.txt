@@ -11,7 +11,8 @@ tablegen(XCoreGenCallingConv.inc -gen-callingconv)
 tablegen(XCoreGenSubtarget.inc -gen-subtarget)
 
 add_llvm_target(XCoreCodeGen
-  XCoreFrameInfo.cpp
+  XCoreAsmPrinter.cpp
+  XCoreFrameLowering.cpp
   XCoreInstrInfo.cpp
   XCoreISelDAGToDAG.cpp
   XCoreISelLowering.cpp
@@ -22,3 +23,5 @@ add_llvm_target(XCoreCodeGen
   XCoreTargetObjectFile.cpp
   XCoreSelectionDAGInfo.cpp
   )
+
+add_subdirectory(TargetInfo)

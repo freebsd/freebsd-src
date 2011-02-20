@@ -1964,8 +1964,8 @@ void ReportFailureInUnknownLocation(TestPartResult::Type result_type,
 
 }  // namespace internal
 
-#if GTEST_OS_WINDOWS
-// We are on Windows.
+#if GTEST_HAS_SEH
+// We are on Windows with SEH.
 
 // Adds an "exception thrown" fatal failure to the current test.
 static void AddExceptionThrownFailure(DWORD exception_code,
@@ -1978,7 +1978,7 @@ static void AddExceptionThrownFailure(DWORD exception_code,
                                            message.GetString());
 }
 
-#endif  // GTEST_OS_WINDOWS
+#endif  // GTEST_HAS_SEH
 
 // Google Test requires all tests in the same test case to use the same test
 // fixture class.  This function checks if the current test has the
@@ -2223,35 +2223,6 @@ const TestResult* TestInfo::result() const { return impl_->result(); }
 int TestInfo::increment_death_test_count() {
   return impl_->result()->increment_death_test_count();
 }
-
-namespace {
-
-// A predicate that checks the test name of a TestInfo against a known
-// value.
-//
-// This is used for implementation of the TestCase class only.  We put
-// it in the anonymous namespace to prevent polluting the outer
-// namespace.
-//
-// TestNameIs is copyable.
-class TestNameIs {
- public:
-  // Constructor.
-  //
-  // TestNameIs has NO default constructor.
-  explicit TestNameIs(const char* name)
-      : name_(name) {}
-
-  // Returns true iff the test name of test_info matches name_.
-  bool operator()(const TestInfo * test_info) const {
-    return test_info && internal::String(test_info->name()).Compare(name_) == 0;
-  }
-
- private:
-  internal::String name_;
-};
-
-}  // namespace
 
 namespace internal {
 

@@ -28,6 +28,7 @@
       <li><a href="#environment">Setting Up Your Environment</a></li>
       <li><a href="#unpack">Unpacking the LLVM Archives</a></li>
       <li><a href="#checkout">Checkout LLVM from Subversion</a></li>
+      <li><a href="#git_mirror">LLVM GIT mirror</a></li>
       <li><a href="#installcf">Install the GCC Front End</a></li>
       <li><a href="#config">Local LLVM Configuration</a></li>
       <li><a href="#compile">Compiling the LLVM Suite Source Code</a></li>
@@ -44,10 +45,9 @@
       <li><a href="#projects"><tt>llvm/projects</tt></a></li>
       <li><a href="#runtime"><tt>llvm/runtime</tt></a></li>
       <li><a href="#test"><tt>llvm/test</tt></a></li>
-      <li><a href="#llvmtest"><tt>llvm-test</tt></a></li>
+      <li><a href="#test-suite"><tt>test-suite</tt></a></li>
       <li><a href="#tools"><tt>llvm/tools</tt></a></li>
       <li><a href="#utils"><tt>llvm/utils</tt></a></li>
-      <li><a href="#win32"><tt>llvm/win32</tt></a></li>
     </ol></li>
 
   <li><a href="#tutorial">An Example Using the LLVM Tool Chain</a>
@@ -80,11 +80,12 @@
 <p>Welcome to LLVM! In order to get started, you first need to know some
 basic information.</p>
 
-<p>First, LLVM comes in two pieces. The first piece is the LLVM suite. This
-contains all of the tools, libraries, and header files needed to use the low
-level virtual machine.  It contains an assembler, disassembler, bitcode
-analyzer and bitcode optimizer.  It also contains a test suite that can be
-used to test the LLVM tools and the GCC front end.</p>
+<p>First, LLVM comes in three pieces. The first piece is the LLVM
+suite. This contains all of the tools, libraries, and header files
+needed to use the low level virtual machine.  It contains an
+assembler, disassembler, bitcode analyzer and bitcode optimizer.  It
+also contains basic regression tests that can be used to test the LLVM
+tools and the GCC front end.</p>
 
 <p>The second piece is the GCC front end.  This component provides a version of
 GCC that compiles C and C++ code into LLVM bitcode.  Currently, the GCC front
@@ -93,7 +94,7 @@ compiled into LLVM bitcode, a program can be manipulated with the LLVM tools
 from the LLVM suite.</p>
 
 <p>
-There is a third, optional piece called llvm-test.  It is a suite of programs
+There is a third, optional piece called Test Suite.  It is a suite of programs
 with a testing harness that can be used to further test LLVM's functionality
 and performance.
 </p>
@@ -142,6 +143,7 @@ and performance.
       <li><tt>cd <i>where-you-want-llvm-to-live</i></tt>
       <li><tt>cd llvm/projects</tt>
       <li><tt>gunzip --stdout llvm-test-<i>version</i>.tar.gz | tar -xvf -</tt>
+      <li><tt>mv llvm-test-<i>version</i> test-suite</tt>
     </ol></li>
 
   </ul></li>
@@ -162,7 +164,7 @@ and performance.
         <p>Optionally, specify for <i>directory</i> the full pathname of the 
         C/C++ front end installation to use with this LLVM configuration. If
         not specified, the PATH will be searched.  This is only needed if you
-        want to run the testsuite or do some special kinds of LLVM builds.</p></li>
+        want to run test-suite or do some special kinds of LLVM builds.</p></li>
         <li><tt>--enable-spec2000=<i>directory</i></tt>
             <p>Enable the SPEC2000 benchmarks for testing.  The SPEC2000
             benchmarks should be available in
@@ -240,6 +242,11 @@ software you will need.</p>
 <tr>
   <td>FreeBSD</td>
   <td>x86<sup><a href="#pf_1">1</a></sup></td>
+  <td>GCC</td>
+</tr>
+<tr>
+  <td>FreeBSD</td>
+  <td>amd64</td>
   <td>GCC</td>
 </tr>
 <tr>
@@ -564,6 +571,9 @@ as the previous one. It appears to work with ENABLE_OPTIMIZED=0 (the default).</
 <p><b>GCC 4.3.3 (Debian 4.3.3-10) on ARM</b>: Miscompiles parts of LLVM 2.6
 when optimizations are turned on. The symptom is an infinite loop in
 FoldingSetImpl::RemoveNode while running the code generator.</p>
+<p><b>GCC 4.3.5 and GCC 4.4.5 on ARM</b>: These can miscompile <tt>value >>
+1</tt> even at -O0. A test failure in <tt>test/Assembler/alignstack.ll</tt> is
+one symptom of the problem.
 <p><b>GNU ld 2.16.X</b>. Some 2.16.X versions of the ld linker will produce very
 long warning messages complaining that some ".gnu.linkonce.t.*" symbol was
 defined in a discarded section. You can safely ignore these messages as they are
@@ -684,7 +694,7 @@ compressed with the gzip program.
   <dd>Source release for the LLVM libraries and tools.<br></dd>
 
   <dt><tt>llvm-test-x.y.tar.gz</tt></dt>
-  <dd>Source release for the LLVM test suite.</dd>
+  <dd>Source release for the LLVM test-suite.</dd>
 
   <dt><tt>llvm-gcc-4.2-x.y.source.tar.gz</tt></dt>
   <dd>Source release of the llvm-gcc-4.2 front end.  See README.LLVM in the root
@@ -726,6 +736,8 @@ revision), you can checkout it from the '<tt>tags</tt>' directory (instead of
 subdirectories of the '<tt>tags</tt>' directory:</p>
 
 <ul>
+<li>Release 2.8: <b>RELEASE_28</b></li>
+<li>Release 2.7: <b>RELEASE_27</b></li>
 <li>Release 2.6: <b>RELEASE_26</b></li>
 <li>Release 2.5: <b>RELEASE_25</b></li>
 <li>Release 2.4: <b>RELEASE_24</b></li>
@@ -751,7 +763,7 @@ you get it from the Subversion repository:</p>
 <div class="doc_code">
 <pre>
 % cd llvm/projects
-% svn co http://llvm.org/svn/llvm-project/test-suite/trunk llvm-test
+% svn co http://llvm.org/svn/llvm-project/test-suite/trunk test-suite
 </pre>
 </div>
 
@@ -767,6 +779,25 @@ instructions</a> to successfully get and build the LLVM GCC front-end.</p>
 
 <!-- ======================================================================= -->
 <div class="doc_subsection">
+  <a name="git_mirror">GIT mirror</a>
+</div>
+
+<div class="doc_text">
+
+<p>GIT mirrors are available for a number of LLVM subprojects. These mirrors
+  sync automatically with each Subversion commit and contain all necessary
+  git-svn marks (so, you can recreate git-svn metadata locally). Note that right
+  now mirrors reflect only <tt>trunk</tt> for each project. You can do the
+  read-only GIT clone of LLVM via: 
+<pre>
+% git clone http://llvm.org/git/llvm.git
+</pre>
+</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
   <a name="installcf">Install the GCC Front End</a>
 </div>
 
@@ -774,7 +805,7 @@ instructions</a> to successfully get and build the LLVM GCC front-end.</p>
 
 <p>Before configuring and compiling the LLVM suite (or if you want to use just the LLVM
 GCC front end) you can optionally extract the front end from the binary distribution.
-It is used for running the llvm-test testsuite and for compiling C/C++ programs.  Note that
+It is used for running the LLVM test-suite and for compiling C/C++ programs.  Note that
 you can optionally <a href="GCCFEBuildInstrs.html">build llvm-gcc yourself</a> after building the
 main LLVM repository.</p>
 
@@ -795,9 +826,9 @@ to your <tt>PATH</tt> environment variable.  For example, if you uncompressed th
 
 <p>If you now want to build LLVM from source, when you configure LLVM, it will 
 automatically detect <tt>llvm-gcc</tt>'s presence (if it is in your path) enabling its
-use in llvm-test.  Note that you can always build or install <tt>llvm-gcc</tt> at any
+use in test-suite.  Note that you can always build or install <tt>llvm-gcc</tt> at any
 point after building the main LLVM repository: just reconfigure llvm and 
-llvm-test will pick it up.
+test-suite will pick it up.
 </p>
 
 <p>As a convenience for Windows users, the front end binaries for MinGW/x86 include
@@ -1348,7 +1379,7 @@ end to compile.</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection"><a name="llvmtest"><tt>test-suite</tt></a></div>
+<div class="doc_subsection"><a name="test-suite"><tt>test-suite</tt></a></div>
 <div class="doc_text">
   <p>This is not a directory in the normal llvm module; it is a separate
   Subversion
@@ -1408,7 +1439,7 @@ information is in the <a href="CommandGuide/index.html">Command Guide</a>.</p>
 
   <dt><tt><b>llvm-ld</b></tt></dt>
   <dd><tt>llvm-ld</tt> is a general purpose and extensible linker for LLVM. 
-  This is the linker invoked by <tt>llvmc</tt>. It performsn standard link time
+  This is the linker invoked by <tt>llvmc</tt>. It performs standard link time
   optimizations and allows optimization modules to be loaded and run so that 
   language specific optimizations can be applied at link time.</dd>
 
@@ -1511,15 +1542,6 @@ are code generators for parts of LLVM infrastructure.</p>
 
 </div>
 
-<!-- ======================================================================= -->
-<div class="doc_subsection"><a name="win32"><tt>llvm/win32</tt></a></div>
-<div class="doc_text">
-  <p>This directory contains build scripts and project files for use with 
-  Visual C++. This allows developers on Windows to build LLVM without the need
-  for Cygwin. The contents of this directory should be considered experimental
-  at this time.
-  </p>
-</div>
 <!-- *********************************************************************** -->
 <div class="doc_section">
   <a name="tutorial">An Example Using the LLVM Tool Chain</a>
@@ -1673,7 +1695,7 @@ out:</p>
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.x10sys.com/rspencer/">Reid Spencer</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-07-08 10:27:18 +0200 (Thu, 08 Jul 2010) $
+  Last modified: $Date: 2011-02-01 21:08:28 +0100 (Tue, 01 Feb 2011) $
 </address>
 </body>
 </html>

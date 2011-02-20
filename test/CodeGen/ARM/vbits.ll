@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=arm -mattr=+neon | FileCheck %s
+; RUN: llc < %s -march=arm -mattr=+neon -mcpu=cortex-a8 | FileCheck %s
 
 define <8 x i8> @v_andi8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 ;CHECK: v_andi8:
@@ -504,4 +504,44 @@ define <4 x i32> @vtstQi32(<4 x i32>* %A, <4 x i32>* %B) nounwind {
 	%tmp4 = icmp ne <4 x i32> %tmp3, zeroinitializer
         %tmp5 = sext <4 x i1> %tmp4 to <4 x i32>
 	ret <4 x i32> %tmp5
+}
+
+define <8 x i8> @v_orrimm(<8 x i8>* %A) nounwind {
+; CHECK: v_orrimm:
+; CHECK-NOT: vmov
+; CHECK-NOT: vmvn
+; CHECK: vorr
+	%tmp1 = load <8 x i8>* %A
+	%tmp3 = or <8 x i8> %tmp1, <i8 0, i8 0, i8 0, i8 1, i8 0, i8 0, i8 0, i8 1>
+	ret <8 x i8> %tmp3
+}
+
+define <16 x i8> @v_orrimmQ(<16 x i8>* %A) nounwind {
+; CHECK: v_orrimmQ
+; CHECK-NOT: vmov
+; CHECK-NOT: vmvn
+; CHECK: vorr
+	%tmp1 = load <16 x i8>* %A
+	%tmp3 = or <16 x i8> %tmp1, <i8 0, i8 0, i8 0, i8 1, i8 0, i8 0, i8 0, i8 1, i8 0, i8 0, i8 0, i8 1, i8 0, i8 0, i8 0, i8 1>
+	ret <16 x i8> %tmp3
+}
+
+define <8 x i8> @v_bicimm(<8 x i8>* %A) nounwind {
+; CHECK: v_bicimm:
+; CHECK-NOT: vmov
+; CHECK-NOT: vmvn
+; CHECK: vbic
+	%tmp1 = load <8 x i8>* %A
+	%tmp3 = and <8 x i8> %tmp1, < i8 -1, i8 -1, i8 -1, i8 0, i8 -1, i8 -1, i8 -1, i8 0 >
+	ret <8 x i8> %tmp3
+}
+
+define <16 x i8> @v_bicimmQ(<16 x i8>* %A) nounwind {
+; CHECK: v_bicimmQ:
+; CHECK-NOT: vmov
+; CHECK-NOT: vmvn
+; CHECK: vbic
+	%tmp1 = load <16 x i8>* %A
+	%tmp3 = and <16 x i8> %tmp1, < i8 -1, i8 -1, i8 -1, i8 0, i8 -1, i8 -1, i8 -1, i8 0, i8 -1, i8 -1, i8 -1, i8 0, i8 -1, i8 -1, i8 -1, i8 0 >
+	ret <16 x i8> %tmp3
 }

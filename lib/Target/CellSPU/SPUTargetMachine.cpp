@@ -29,7 +29,7 @@ extern "C" void LLVMInitializeCellSPUTarget() {
 }
 
 const std::pair<unsigned, int> *
-SPUFrameInfo::getCalleeSaveSpillSlots(unsigned &NumEntries) const {
+SPUFrameLowering::getCalleeSaveSpillSlots(unsigned &NumEntries) const {
   NumEntries = 1;
   return &LR[0];
 }
@@ -40,7 +40,7 @@ SPUTargetMachine::SPUTargetMachine(const Target &T, const std::string &TT,
     Subtarget(TT, FS),
     DataLayout(Subtarget.getTargetDataString()),
     InstrInfo(*this),
-    FrameInfo(*this),
+    FrameLowering(Subtarget),
     TLInfo(*this),
     TSInfo(*this),
     InstrItins(Subtarget.getInstrItineraryData()) {
@@ -58,4 +58,13 @@ bool SPUTargetMachine::addInstSelector(PassManagerBase &PM,
   // Install an instruction selector.
   PM.add(createSPUISelDag(*this));
   return false;
+}
+
+// passes to run just before printing the assembly
+bool SPUTargetMachine::
+addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel) 
+{
+  //align instructions with nops/lnops for dual issue
+  PM.add(createSPUNopFillerPass(*this));
+  return true;
 }

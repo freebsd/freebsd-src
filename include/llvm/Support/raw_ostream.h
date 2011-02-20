@@ -15,7 +15,7 @@
 #define LLVM_SUPPORT_RAW_OSTREAM_H
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
   class format_object_base;
@@ -165,7 +165,7 @@ public:
   }
 
   raw_ostream &operator<<(const char *Str) {
-    // Inline fast path, particulary for constant strings where a sufficiently
+    // Inline fast path, particularly for constant strings where a sufficiently
     // smart compiler will simplify strlen.
 
     return this->operator<<(StringRef(Str));
@@ -196,7 +196,7 @@ public:
 
   /// write_escaped - Output \arg Str, turning '\\', '\t', '\n', '"', and
   /// anything that doesn't satisfy std::isprint into an escape sequence.
-  raw_ostream &write_escaped(StringRef Str);
+  raw_ostream &write_escaped(StringRef Str, bool UseHexEscapes = false);
 
   raw_ostream &write(unsigned char C);
   raw_ostream &write(const char *Ptr, size_t Size);
@@ -301,6 +301,10 @@ class raw_fd_ostream : public raw_ostream {
   ///
   bool Error;
 
+  /// Controls whether the stream should attempt to use atomic writes, when
+  /// possible.
+  bool UseAtomicWrites;
+
   uint64_t pos;
 
   /// write_impl - See raw_ostream::write_impl.
@@ -349,10 +353,7 @@ public:
 
   /// raw_fd_ostream ctor - FD is the file descriptor that this writes to.  If
   /// ShouldClose is true, this closes the file when the stream is destroyed.
-  raw_fd_ostream(int fd, bool shouldClose,
-                 bool unbuffered=false) : raw_ostream(unbuffered), FD(fd),
-                                          ShouldClose(shouldClose),
-                                          Error(false) {}
+  raw_fd_ostream(int fd, bool shouldClose, bool unbuffered=false);
 
   ~raw_fd_ostream();
 
@@ -361,8 +362,18 @@ public:
   void close();
 
   /// seek - Flushes the stream and repositions the underlying file descriptor
-  /// positition to the offset specified from the beginning of the file.
+  /// position to the offset specified from the beginning of the file.
   uint64_t seek(uint64_t off);
+
+  /// SetUseAtomicWrite - Set the stream to attempt to use atomic writes for
+  /// individual output routines where possible.
+  ///
+  /// Note that because raw_ostream's are typically buffered, this flag is only
+  /// sensible when used on unbuffered streams which will flush their output
+  /// immediately.
+  void SetUseAtomicWrites(bool Value) {
+    UseAtomicWrites = Value;
+  }
 
   virtual raw_ostream &changeColor(enum Colors colors, bool bold=false,
                                    bool bg=false);
@@ -473,45 +484,6 @@ class raw_null_ostream : public raw_ostream {
 public:
   explicit raw_null_ostream() {}
   ~raw_null_ostream();
-};
-
-/// tool_output_file - This class contains a raw_fd_ostream and adds a
-/// few extra features commonly needed for compiler-like tool output files:
-///   - The file is automatically deleted if the process is killed.
-///   - The file is automatically deleted when the tool_output_file
-///     object is destroyed unless the client calls keep().
-class tool_output_file {
-  /// Installer - This class is declared before the raw_fd_ostream so that
-  /// it is constructed before the raw_fd_ostream is constructed and
-  /// destructed after the raw_fd_ostream is destructed. It installs
-  /// cleanups in its constructor and uninstalls them in its destructor.
-  class CleanupInstaller {
-    /// Filename - The name of the file.
-    std::string Filename;
-  public:
-    /// Keep - The flag which indicates whether we should not delete the file.
-    bool Keep;
-
-    explicit CleanupInstaller(const char *filename);
-    ~CleanupInstaller();
-  } Installer;
-
-  /// OS - The contained stream. This is intentionally declared after
-  /// Installer.
-  raw_fd_ostream OS;
-
-public:
-  /// tool_output_file - This constructor's arguments are passed to
-  /// to raw_fd_ostream's constructor.
-  tool_output_file(const char *filename, std::string &ErrorInfo,
-                   unsigned Flags = 0);
-
-  /// os - Return the contained raw_fd_ostream.
-  raw_fd_ostream &os() { return OS; }
-
-  /// keep - Indicate that the tool's job wrt this output file has been
-  /// successful and the file should not be deleted.
-  void keep() { Installer.Keep = true; }
 };
 
 } // end llvm namespace

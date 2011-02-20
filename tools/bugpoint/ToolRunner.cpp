@@ -13,7 +13,7 @@
 
 #define DEBUG_TYPE "toolrunner"
 #include "ToolRunner.h"
-#include "llvm/System/Program.h"
+#include "llvm/Support/Program.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileUtilities.h"
@@ -59,7 +59,8 @@ static int RunProgramWithTimeout(const sys::Path &ProgramPath,
                                  const sys::Path &StdOutFile,
                                  const sys::Path &StdErrFile,
                                  unsigned NumSeconds = 0,
-                                 unsigned MemoryLimit = 0) {
+                                 unsigned MemoryLimit = 0,
+                                 std::string *ErrMsg = 0) {
   const sys::Path* redirects[3];
   redirects[0] = &StdInFile;
   redirects[1] = &StdOutFile;
@@ -76,7 +77,7 @@ static int RunProgramWithTimeout(const sys::Path &ProgramPath,
 
   return
     sys::Program::ExecuteAndWait(ProgramPath, Args, 0, redirects,
-                                 NumSeconds, MemoryLimit);
+                                 NumSeconds, MemoryLimit, ErrMsg);
 }
 
 /// RunProgramRemotelyWithTimeout - This function runs the given program
@@ -141,7 +142,7 @@ static std::string ProcessFailure(sys::Path ProgPath, const char** Args,
   for (const char **Arg = Args; *Arg; ++Arg)
     OS << " " << *Arg;
   OS << "\n";
-  
+
   // Rerun the compiler, capturing any error messages to print them.
   sys::Path ErrorFilename("bugpoint.program_error_messages");
   std::string ErrMsg;
@@ -206,7 +207,8 @@ int LLI::ExecuteProgram(const std::string &Bitcode,
   LLIArgs.push_back(LLIPath.c_str());
   LLIArgs.push_back("-force-interpreter=true");
 
-  for (std::vector<std::string>::const_iterator i = SharedLibs.begin(), e = SharedLibs.end(); i != e; ++i) {
+  for (std::vector<std::string>::const_iterator i = SharedLibs.begin(),
+         e = SharedLibs.end(); i != e; ++i) {
     LLIArgs.push_back("-load");
     LLIArgs.push_back((*i).c_str());
   }
@@ -229,7 +231,7 @@ int LLI::ExecuteProgram(const std::string &Bitcode,
         );
   return RunProgramWithTimeout(sys::Path(LLIPath), &LLIArgs[0],
       sys::Path(InputFile), sys::Path(OutputFile), sys::Path(OutputFile),
-      Timeout, MemoryLimit);
+      Timeout, MemoryLimit, Error);
 }
 
 // LLI create method - Try to find the LLI executable
@@ -237,21 +239,82 @@ AbstractInterpreter *AbstractInterpreter::createLLI(const char *Argv0,
                                                     std::string &Message,
                                      const std::vector<std::string> *ToolArgs) {
   std::string LLIPath =
-    FindExecutable("lli", Argv0, (void *)(intptr_t)&createLLI).str();
+    PrependMainExecutablePath("lli", Argv0, (void *)(intptr_t)&createLLI).str();
   if (!LLIPath.empty()) {
     Message = "Found lli: " + LLIPath + "\n";
     return new LLI(LLIPath, ToolArgs);
   }
 
-  Message = "Cannot find `lli' in executable directory or PATH!\n";
+  Message = "Cannot find `lli' in executable directory!\n";
   return 0;
+}
+
+//===---------------------------------------------------------------------===//
+// Custom compiler command implementation of AbstractIntepreter interface
+//
+// Allows using a custom command for compiling the bitcode, thus allows, for
+// example, to compile a bitcode fragment without linking or executing, then
+// using a custom wrapper script to check for compiler errors.
+namespace {
+  class CustomCompiler : public AbstractInterpreter {
+    std::string CompilerCommand;
+    std::vector<std::string> CompilerArgs;
+  public:
+    CustomCompiler(
+      const std::string &CompilerCmd, std::vector<std::string> CompArgs) :
+      CompilerCommand(CompilerCmd), CompilerArgs(CompArgs) {}
+
+    virtual void compileProgram(const std::string &Bitcode,
+                                std::string *Error,
+                                unsigned Timeout = 0,
+                                unsigned MemoryLimit = 0);
+
+    virtual int ExecuteProgram(const std::string &Bitcode,
+                               const std::vector<std::string> &Args,
+                               const std::string &InputFile,
+                               const std::string &OutputFile,
+                               std::string *Error,
+                               const std::vector<std::string> &GCCArgs =
+                               std::vector<std::string>(),
+                               const std::vector<std::string> &SharedLibs =
+                               std::vector<std::string>(),
+                               unsigned Timeout = 0,
+                               unsigned MemoryLimit = 0) {
+      *Error = "Execution not supported with -compile-custom";
+      return -1;
+    }
+  };
+}
+
+void CustomCompiler::compileProgram(const std::string &Bitcode,
+                                    std::string *Error,
+                                    unsigned Timeout,
+                                    unsigned MemoryLimit) {
+
+  std::vector<const char*> ProgramArgs;
+  ProgramArgs.push_back(CompilerCommand.c_str());
+
+  for (std::size_t i = 0; i < CompilerArgs.size(); ++i)
+    ProgramArgs.push_back(CompilerArgs.at(i).c_str());
+  ProgramArgs.push_back(Bitcode.c_str());
+  ProgramArgs.push_back(0);
+
+  // Add optional parameters to the running program from Argv
+  for (unsigned i = 0, e = CompilerArgs.size(); i != e; ++i)
+    ProgramArgs.push_back(CompilerArgs[i].c_str());
+
+  if (RunProgramWithTimeout( sys::Path(CompilerCommand), &ProgramArgs[0],
+                             sys::Path(), sys::Path(), sys::Path(),
+                             Timeout, MemoryLimit, Error))
+    *Error = ProcessFailure(sys::Path(CompilerCommand), &ProgramArgs[0],
+                           Timeout, MemoryLimit);
 }
 
 //===---------------------------------------------------------------------===//
 // Custom execution command implementation of AbstractIntepreter interface
 //
 // Allows using a custom command for executing the bitcode, thus allows,
-// for example, to invoke a cross compiler for code generation followed by 
+// for example, to invoke a cross compiler for code generation followed by
 // a simulator that executes the generated binary.
 namespace {
   class CustomExecutor : public AbstractInterpreter {
@@ -299,55 +362,78 @@ int CustomExecutor::ExecuteProgram(const std::string &Bitcode,
 
   return RunProgramWithTimeout(
     sys::Path(ExecutionCommand),
-    &ProgramArgs[0], sys::Path(InputFile), sys::Path(OutputFile), 
-    sys::Path(OutputFile), Timeout, MemoryLimit);
+    &ProgramArgs[0], sys::Path(InputFile), sys::Path(OutputFile),
+    sys::Path(OutputFile), Timeout, MemoryLimit, Error);
 }
 
-// Custom execution environment create method, takes the execution command
-// as arguments
-AbstractInterpreter *AbstractInterpreter::createCustom(
-                    std::string &Message,
-                    const std::string &ExecCommandLine) {
+// Tokenize the CommandLine to the command and the args to allow
+// defining a full command line as the command instead of just the
+// executed program. We cannot just pass the whole string after the command
+// as a single argument because then program sees only a single
+// command line argument (with spaces in it: "foo bar" instead
+// of "foo" and "bar").
+//
+// code borrowed from:
+// http://oopweb.com/CPP/Documents/CPPHOWTO/Volume/C++Programming-HOWTO-7.html
+static void lexCommand(std::string &Message, const std::string &CommandLine,
+                       std::string &CmdPath, std::vector<std::string> Args) {
 
   std::string Command = "";
-  std::vector<std::string> Args;
   std::string delimiters = " ";
 
-  // Tokenize the ExecCommandLine to the command and the args to allow
-  // defining a full command line as the command instead of just the
-  // executed program. We cannot just pass the whole string after the command
-  // as a single argument because then program sees only a single
-  // command line argument (with spaces in it: "foo bar" instead 
-  // of "foo" and "bar").
-
-  // code borrowed from: 
-  // http://oopweb.com/CPP/Documents/CPPHOWTO/Volume/C++Programming-HOWTO-7.html
-  std::string::size_type lastPos = 
-    ExecCommandLine.find_first_not_of(delimiters, 0);
-  std::string::size_type pos = 
-    ExecCommandLine.find_first_of(delimiters, lastPos);
+  std::string::size_type lastPos = CommandLine.find_first_not_of(delimiters, 0);
+  std::string::size_type pos = CommandLine.find_first_of(delimiters, lastPos);
 
   while (std::string::npos != pos || std::string::npos != lastPos) {
-    std::string token = ExecCommandLine.substr(lastPos, pos - lastPos);
+    std::string token = CommandLine.substr(lastPos, pos - lastPos);
     if (Command == "")
        Command = token;
     else
        Args.push_back(token);
     // Skip delimiters.  Note the "not_of"
-    lastPos = ExecCommandLine.find_first_not_of(delimiters, pos);
+    lastPos = CommandLine.find_first_not_of(delimiters, pos);
     // Find next "non-delimiter"
-    pos = ExecCommandLine.find_first_of(delimiters, lastPos);
+    pos = CommandLine.find_first_of(delimiters, lastPos);
   }
 
-  std::string CmdPath = sys::Program::FindProgramByName(Command).str();
+  CmdPath = sys::Program::FindProgramByName(Command).str();
   if (CmdPath.empty()) {
-    Message = 
-      std::string("Cannot find '") + Command + 
-      "' in executable directory or PATH!\n";
-    return 0;
+    Message =
+      std::string("Cannot find '") + Command +
+      "' in PATH!\n";
+    return;
   }
 
   Message = "Found command in: " + CmdPath + "\n";
+}
+
+// Custom execution environment create method, takes the execution command
+// as arguments
+AbstractInterpreter *AbstractInterpreter::createCustomCompiler(
+                    std::string &Message,
+                    const std::string &CompileCommandLine) {
+
+  std::string CmdPath;
+  std::vector<std::string> Args;
+  lexCommand(Message, CompileCommandLine, CmdPath, Args);
+  if (CmdPath.empty())
+    return 0;
+
+  return new CustomCompiler(CmdPath, Args);
+}
+
+// Custom execution environment create method, takes the execution command
+// as arguments
+AbstractInterpreter *AbstractInterpreter::createCustomExecutor(
+                    std::string &Message,
+                    const std::string &ExecCommandLine) {
+
+
+  std::string CmdPath;
+  std::vector<std::string> Args;
+  lexCommand(Message, ExecCommandLine, CmdPath, Args);
+  if (CmdPath.empty())
+    return 0;
 
   return new CustomExecutor(CmdPath, Args);
 }
@@ -355,7 +441,7 @@ AbstractInterpreter *AbstractInterpreter::createCustom(
 //===----------------------------------------------------------------------===//
 // LLC Implementation of AbstractIntepreter interface
 //
-GCC::FileType LLC::OutputCode(const std::string &Bitcode, 
+GCC::FileType LLC::OutputCode(const std::string &Bitcode,
                               sys::Path &OutputAsmFile, std::string &Error,
                               unsigned Timeout, unsigned MemoryLimit) {
   const char *Suffix = (UseIntegratedAssembler ? ".llc.o" : ".llc.s");
@@ -376,10 +462,10 @@ GCC::FileType LLC::OutputCode(const std::string &Bitcode,
   LLCArgs.push_back("-o");
   LLCArgs.push_back(OutputAsmFile.c_str()); // Output to the Asm file
   LLCArgs.push_back(Bitcode.c_str());      // This is the input bitcode
-  
+
   if (UseIntegratedAssembler)
     LLCArgs.push_back("-filetype=obj");
-  
+
   LLCArgs.push_back (0);
 
   outs() << (UseIntegratedAssembler ? "<llc-ia>" : "<llc>");
@@ -394,7 +480,7 @@ GCC::FileType LLC::OutputCode(const std::string &Bitcode,
                             Timeout, MemoryLimit))
     Error = ProcessFailure(sys::Path(LLCPath), &LLCArgs[0],
                            Timeout, MemoryLimit);
-  return UseIntegratedAssembler ? GCC::ObjectFile : GCC::AsmFile;  
+  return UseIntegratedAssembler ? GCC::ObjectFile : GCC::AsmFile;
 }
 
 void LLC::compileProgram(const std::string &Bitcode, std::string *Error,
@@ -437,9 +523,9 @@ LLC *AbstractInterpreter::createLLC(const char *Argv0,
                                     const std::vector<std::string> *GCCArgs,
                                     bool UseIntegratedAssembler) {
   std::string LLCPath =
-    FindExecutable("llc", Argv0, (void *)(intptr_t)&createLLC).str();
+    PrependMainExecutablePath("llc", Argv0, (void *)(intptr_t)&createLLC).str();
   if (LLCPath.empty()) {
-    Message = "Cannot find `llc' in executable directory or PATH!\n";
+    Message = "Cannot find `llc' in executable directory!\n";
     return 0;
   }
 
@@ -474,7 +560,7 @@ namespace {
                                const std::vector<std::string> &GCCArgs =
                                  std::vector<std::string>(),
                                const std::vector<std::string> &SharedLibs =
-                                 std::vector<std::string>(), 
+                                 std::vector<std::string>(),
                                unsigned Timeout = 0,
                                unsigned MemoryLimit = 0);
   };
@@ -517,7 +603,7 @@ int JIT::ExecuteProgram(const std::string &Bitcode,
   DEBUG(errs() << "\nSending output to " << OutputFile << "\n");
   return RunProgramWithTimeout(sys::Path(LLIPath), &JITArgs[0],
       sys::Path(InputFile), sys::Path(OutputFile), sys::Path(OutputFile),
-      Timeout, MemoryLimit);
+      Timeout, MemoryLimit, Error);
 }
 
 /// createJIT - Try to find the LLI executable
@@ -525,13 +611,13 @@ int JIT::ExecuteProgram(const std::string &Bitcode,
 AbstractInterpreter *AbstractInterpreter::createJIT(const char *Argv0,
                    std::string &Message, const std::vector<std::string> *Args) {
   std::string LLIPath =
-    FindExecutable("lli", Argv0, (void *)(intptr_t)&createJIT).str();
+    PrependMainExecutablePath("lli", Argv0, (void *)(intptr_t)&createJIT).str();
   if (!LLIPath.empty()) {
     Message = "Found lli: " + LLIPath + "\n";
     return new JIT(LLIPath, Args);
   }
 
-  Message = "Cannot find `lli' in executable directory or PATH!\n";
+  Message = "Cannot find `lli' in executable directory!\n";
   return 0;
 }
 
@@ -603,14 +689,14 @@ int CBE::ExecuteProgram(const std::string &Bitcode,
 ///
 CBE *AbstractInterpreter::createCBE(const char *Argv0,
                                     std::string &Message,
-                                    const std::string &GCCBinary, 
+                                    const std::string &GCCBinary,
                                     const std::vector<std::string> *Args,
                                     const std::vector<std::string> *GCCArgs) {
   sys::Path LLCPath =
-    FindExecutable("llc", Argv0, (void *)(intptr_t)&createCBE);
+    PrependMainExecutablePath("llc", Argv0, (void *)(intptr_t)&createCBE);
   if (LLCPath.isEmpty()) {
     Message =
-      "Cannot find `llc' in executable directory or PATH!\n";
+      "Cannot find `llc' in executable directory!\n";
     return 0;
   }
 
@@ -677,9 +763,9 @@ int GCC::ExecuteProgram(const std::string &ProgramFile,
         GCCArgs.push_back("-force_cpusubtype_ALL");
     }
   }
-  
+
   GCCArgs.push_back(ProgramFile.c_str());  // Specify the input filename.
-  
+
   GCCArgs.push_back("-x");
   GCCArgs.push_back("none");
   GCCArgs.push_back("-o");
@@ -771,7 +857,7 @@ int GCC::ExecuteProgram(const std::string &ProgramFile,
     DEBUG(errs() << "<run locally>");
     return RunProgramWithTimeout(OutputBinary, &ProgramArgs[0],
         sys::Path(InputFile), sys::Path(OutputFile), sys::Path(OutputFile),
-        Timeout, MemoryLimit);
+        Timeout, MemoryLimit, Error);
   } else {
     outs() << "<run remotely>"; outs().flush();
     return RunProgramRemotelyWithTimeout(sys::Path(RemoteClientPath),
@@ -793,7 +879,7 @@ int GCC::MakeSharedObject(const std::string &InputFile, FileType fileType,
   OutputFile = uniqueFilename.str();
 
   std::vector<const char*> GCCArgs;
-  
+
   GCCArgs.push_back(GCCPath.c_str());
 
   if (TargetTriple.getArch() == Triple::x86)
@@ -816,7 +902,7 @@ int GCC::MakeSharedObject(const std::string &InputFile, FileType fileType,
     GCCArgs.push_back("-G");       // Compile a shared library, `-G' for Sparc
   else if (TargetTriple.getOS() == Triple::Darwin) {
     // link all source files into a single module in data segment, rather than
-    // generating blocks. dynamic_lookup requires that you set 
+    // generating blocks. dynamic_lookup requires that you set
     // MACOSX_DEPLOYMENT_TARGET=10.3 in your env.  FIXME: it would be better for
     // bugpoint to just pass that in the environment of GCC.
     GCCArgs.push_back("-single_module");
@@ -837,8 +923,8 @@ int GCC::MakeSharedObject(const std::string &InputFile, FileType fileType,
   GCCArgs.push_back(OutputFile.c_str()); // Output to the right filename.
   GCCArgs.push_back("-O2");              // Optimize the program a bit.
 
-  
-  
+
+
   // Add any arguments intended for GCC. We locate them here because this is
   // most likely -L and -l options that need to come before other libraries but
   // after the source. Other options won't be sensitive to placement on the
@@ -847,7 +933,7 @@ int GCC::MakeSharedObject(const std::string &InputFile, FileType fileType,
     GCCArgs.push_back(ArgsForGCC[i].c_str());
   GCCArgs.push_back(0);                    // NULL terminator
 
-  
+
 
   outs() << "<gcc>"; outs().flush();
   DEBUG(errs() << "\nAbout to run:\t";
@@ -870,7 +956,7 @@ GCC *GCC::create(std::string &Message,
                  const std::vector<std::string> *Args) {
   sys::Path GCCPath = sys::Program::FindProgramByName(GCCBinary);
   if (GCCPath.isEmpty()) {
-    Message = "Cannot find `"+ GCCBinary +"' in executable directory or PATH!\n";
+    Message = "Cannot find `"+ GCCBinary +"' in PATH!\n";
     return 0;
   }
 

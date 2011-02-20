@@ -35,6 +35,11 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
+static bool CC_MBlaze_AssignReg(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
+                                CCValAssign::LocInfo &LocInfo,
+                                ISD::ArgFlagsTy &ArgFlags,
+                                CCState &State);
+
 const char *MBlazeTargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch (Opcode) {
     case MBlazeISD::JmpLink    : return "MBlazeISD::JmpLink";
@@ -56,9 +61,9 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   setBooleanContents(ZeroOrOneBooleanContent);
 
   // Set up the register classes
-  addRegisterClass(MVT::i32, MBlaze::CPURegsRegisterClass);
+  addRegisterClass(MVT::i32, MBlaze::GPRRegisterClass);
   if (Subtarget->hasFPU()) {
-    addRegisterClass(MVT::f32, MBlaze::FGR32RegisterClass);
+    addRegisterClass(MVT::f32, MBlaze::GPRRegisterClass);
     setOperationAction(ISD::ConstantFP, MVT::f32, Legal);
   }
 
@@ -86,6 +91,10 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   setLoadExtAction(ISD::ZEXTLOAD, MVT::i1,  Promote);
   setLoadExtAction(ISD::SEXTLOAD, MVT::i1,  Promote);
 
+  // Sign extended loads must be expanded
+  setLoadExtAction(ISD::SEXTLOAD, MVT::i8, Expand);
+  setLoadExtAction(ISD::SEXTLOAD, MVT::i16, Expand);
+
   // MBlaze has no REM or DIVREM operations.
   setOperationAction(ISD::UREM,    MVT::i32, Expand);
   setOperationAction(ISD::SREM,    MVT::i32, Expand);
@@ -112,8 +121,8 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   }
 
   // Expand unsupported conversions
-  setOperationAction(ISD::BIT_CONVERT, MVT::f32, Expand);
-  setOperationAction(ISD::BIT_CONVERT, MVT::i32, Expand);
+  setOperationAction(ISD::BITCAST, MVT::f32, Expand);
+  setOperationAction(ISD::BITCAST, MVT::i32, Expand);
 
   // Expand SELECT_CC
   setOperationAction(ISD::SELECT_CC, MVT::Other, Expand);
@@ -166,7 +175,6 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   // Use the default for now
   setOperationAction(ISD::STACKSAVE,         MVT::Other, Expand);
   setOperationAction(ISD::STACKRESTORE,      MVT::Other, Expand);
-  setOperationAction(ISD::MEMBARRIER,        MVT::Other, Expand);
 
   // MBlaze doesn't have extending float->double load/store
   setLoadExtAction(ISD::EXTLOAD, MVT::f32, Expand);
@@ -204,172 +212,353 @@ SDValue MBlazeTargetLowering::LowerOperation(SDValue Op,
 //===----------------------------------------------------------------------===//
 MachineBasicBlock*
 MBlazeTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                  MachineBasicBlock *BB) const {
+                                                  MachineBasicBlock *MBB)
+                                                  const {
+  switch (MI->getOpcode()) {
+  default: assert(false && "Unexpected instr type to insert");
+
+  case MBlaze::ShiftRL:
+  case MBlaze::ShiftRA:
+  case MBlaze::ShiftL:
+    return EmitCustomShift(MI, MBB);
+
+  case MBlaze::Select_FCC:
+  case MBlaze::Select_CC:
+    return EmitCustomSelect(MI, MBB);
+
+  case MBlaze::CAS32:
+  case MBlaze::SWP32:
+  case MBlaze::LAA32:
+  case MBlaze::LAS32:
+  case MBlaze::LAD32:
+  case MBlaze::LAO32:
+  case MBlaze::LAX32:
+  case MBlaze::LAN32:
+    return EmitCustomAtomic(MI, MBB);
+
+  case MBlaze::MEMBARRIER:
+    // The Microblaze does not need memory barriers. Just delete the pseudo
+    // instruction and finish.
+    MI->eraseFromParent();
+    return MBB;
+  }
+}
+
+MachineBasicBlock*
+MBlazeTargetLowering::EmitCustomShift(MachineInstr *MI,
+                                      MachineBasicBlock *MBB) const {
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   DebugLoc dl = MI->getDebugLoc();
 
+  // To "insert" a shift left instruction, we actually have to insert a
+  // simple loop.  The incoming instruction knows the destination vreg to
+  // set, the source vreg to operate over and the shift amount.
+  const BasicBlock *LLVM_BB = MBB->getBasicBlock();
+  MachineFunction::iterator It = MBB;
+  ++It;
+
+  // start:
+  //   andi     samt, samt, 31
+  //   beqid    samt, finish
+  //   add      dst, src, r0
+  // loop:
+  //   addik    samt, samt, -1
+  //   sra      dst, dst
+  //   bneid    samt, loop
+  //   nop
+  // finish:
+  MachineFunction *F = MBB->getParent();
+  MachineRegisterInfo &R = F->getRegInfo();
+  MachineBasicBlock *loop = F->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *finish = F->CreateMachineBasicBlock(LLVM_BB);
+  F->insert(It, loop);
+  F->insert(It, finish);
+
+  // Update machine-CFG edges by transfering adding all successors and
+  // remaining instructions from the current block to the new block which
+  // will contain the Phi node for the select.
+  finish->splice(finish->begin(), MBB,
+                 llvm::next(MachineBasicBlock::iterator(MI)),
+                 MBB->end());
+  finish->transferSuccessorsAndUpdatePHIs(MBB);
+
+  // Add the true and fallthrough blocks as its successors.
+  MBB->addSuccessor(loop);
+  MBB->addSuccessor(finish);
+
+  // Next, add the finish block as a successor of the loop block
+  loop->addSuccessor(finish);
+  loop->addSuccessor(loop);
+
+  unsigned IAMT = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  BuildMI(MBB, dl, TII->get(MBlaze::ANDI), IAMT)
+    .addReg(MI->getOperand(2).getReg())
+    .addImm(31);
+
+  unsigned IVAL = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  BuildMI(MBB, dl, TII->get(MBlaze::ADDIK), IVAL)
+    .addReg(MI->getOperand(1).getReg())
+    .addImm(0);
+
+  BuildMI(MBB, dl, TII->get(MBlaze::BEQID))
+    .addReg(IAMT)
+    .addMBB(finish);
+
+  unsigned DST = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  unsigned NDST = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  BuildMI(loop, dl, TII->get(MBlaze::PHI), DST)
+    .addReg(IVAL).addMBB(MBB)
+    .addReg(NDST).addMBB(loop);
+
+  unsigned SAMT = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  unsigned NAMT = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  BuildMI(loop, dl, TII->get(MBlaze::PHI), SAMT)
+    .addReg(IAMT).addMBB(MBB)
+    .addReg(NAMT).addMBB(loop);
+
+  if (MI->getOpcode() == MBlaze::ShiftL)
+    BuildMI(loop, dl, TII->get(MBlaze::ADD), NDST).addReg(DST).addReg(DST);
+  else if (MI->getOpcode() == MBlaze::ShiftRA)
+    BuildMI(loop, dl, TII->get(MBlaze::SRA), NDST).addReg(DST);
+  else if (MI->getOpcode() == MBlaze::ShiftRL)
+    BuildMI(loop, dl, TII->get(MBlaze::SRL), NDST).addReg(DST);
+  else
+    llvm_unreachable("Cannot lower unknown shift instruction");
+
+  BuildMI(loop, dl, TII->get(MBlaze::ADDIK), NAMT)
+    .addReg(SAMT)
+    .addImm(-1);
+
+  BuildMI(loop, dl, TII->get(MBlaze::BNEID))
+    .addReg(NAMT)
+    .addMBB(loop);
+
+  BuildMI(*finish, finish->begin(), dl,
+          TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
+    .addReg(IVAL).addMBB(MBB)
+    .addReg(NDST).addMBB(loop);
+
+  // The pseudo instruction is no longer needed so remove it
+  MI->eraseFromParent();
+  return finish;
+}
+
+MachineBasicBlock*
+MBlazeTargetLowering::EmitCustomSelect(MachineInstr *MI,
+                                       MachineBasicBlock *MBB) const {
+  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+  DebugLoc dl = MI->getDebugLoc();
+
+  // To "insert" a SELECT_CC instruction, we actually have to insert the
+  // diamond control-flow pattern.  The incoming instruction knows the
+  // destination vreg to set, the condition code register to branch on, the
+  // true/false values to select between, and a branch opcode to use.
+  const BasicBlock *LLVM_BB = MBB->getBasicBlock();
+  MachineFunction::iterator It = MBB;
+  ++It;
+
+  //  thisMBB:
+  //  ...
+  //   TrueVal = ...
+  //   setcc r1, r2, r3
+  //   bNE   r1, r0, copy1MBB
+  //   fallthrough --> copy0MBB
+  MachineFunction *F = MBB->getParent();
+  MachineBasicBlock *flsBB = F->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *dneBB = F->CreateMachineBasicBlock(LLVM_BB);
+
+  unsigned Opc;
+  switch (MI->getOperand(4).getImm()) {
+  default: llvm_unreachable("Unknown branch condition");
+  case MBlazeCC::EQ: Opc = MBlaze::BEQID; break;
+  case MBlazeCC::NE: Opc = MBlaze::BNEID; break;
+  case MBlazeCC::GT: Opc = MBlaze::BGTID; break;
+  case MBlazeCC::LT: Opc = MBlaze::BLTID; break;
+  case MBlazeCC::GE: Opc = MBlaze::BGEID; break;
+  case MBlazeCC::LE: Opc = MBlaze::BLEID; break;
+  }
+
+  F->insert(It, flsBB);
+  F->insert(It, dneBB);
+
+  // Transfer the remainder of MBB and its successor edges to dneBB.
+  dneBB->splice(dneBB->begin(), MBB,
+                llvm::next(MachineBasicBlock::iterator(MI)),
+                MBB->end());
+  dneBB->transferSuccessorsAndUpdatePHIs(MBB);
+
+  MBB->addSuccessor(flsBB);
+  MBB->addSuccessor(dneBB);
+  flsBB->addSuccessor(dneBB);
+
+  BuildMI(MBB, dl, TII->get(Opc))
+    .addReg(MI->getOperand(3).getReg())
+    .addMBB(dneBB);
+
+  //  sinkMBB:
+  //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
+  //  ...
+  //BuildMI(dneBB, dl, TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
+  //  .addReg(MI->getOperand(1).getReg()).addMBB(flsBB)
+  //  .addReg(MI->getOperand(2).getReg()).addMBB(BB);
+
+  BuildMI(*dneBB, dneBB->begin(), dl,
+          TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
+    .addReg(MI->getOperand(2).getReg()).addMBB(flsBB)
+    .addReg(MI->getOperand(1).getReg()).addMBB(MBB);
+
+  MI->eraseFromParent();   // The pseudo instruction is gone now.
+  return dneBB;
+}
+
+MachineBasicBlock*
+MBlazeTargetLowering::EmitCustomAtomic(MachineInstr *MI,
+                                       MachineBasicBlock *MBB) const {
+  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+  DebugLoc dl = MI->getDebugLoc();
+
+  // All atomic instructions on the Microblaze are implemented using the
+  // load-linked / store-conditional style atomic instruction sequences.
+  // Thus, all operations will look something like the following:
+  // 
+  //  start:
+  //    lwx     RV, RP, 0
+  //    <do stuff>
+  //    swx     RV, RP, 0
+  //    addic   RC, R0, 0
+  //    bneid   RC, start
+  //
+  //  exit:
+  //
+  // To "insert" a shift left instruction, we actually have to insert a
+  // simple loop.  The incoming instruction knows the destination vreg to
+  // set, the source vreg to operate over and the shift amount.
+  const BasicBlock *LLVM_BB = MBB->getBasicBlock();
+  MachineFunction::iterator It = MBB;
+  ++It;
+
+  // start:
+  //   andi     samt, samt, 31
+  //   beqid    samt, finish
+  //   add      dst, src, r0
+  // loop:
+  //   addik    samt, samt, -1
+  //   sra      dst, dst
+  //   bneid    samt, loop
+  //   nop
+  // finish:
+  MachineFunction *F = MBB->getParent();
+  MachineRegisterInfo &R = F->getRegInfo();
+
+  // Create the start and exit basic blocks for the atomic operation
+  MachineBasicBlock *start = F->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *exit = F->CreateMachineBasicBlock(LLVM_BB);
+  F->insert(It, start);
+  F->insert(It, exit);
+
+  // Update machine-CFG edges by transfering adding all successors and
+  // remaining instructions from the current block to the new block which
+  // will contain the Phi node for the select.
+  exit->splice(exit->begin(), MBB, llvm::next(MachineBasicBlock::iterator(MI)),
+               MBB->end());
+  exit->transferSuccessorsAndUpdatePHIs(MBB);
+
+  // Add the fallthrough block as its successors.
+  MBB->addSuccessor(start);
+
+  BuildMI(start, dl, TII->get(MBlaze::LWX), MI->getOperand(0).getReg())
+    .addReg(MI->getOperand(1).getReg())
+    .addReg(MBlaze::R0);
+
+  MachineBasicBlock *final = start;
+  unsigned finalReg = 0;
+
   switch (MI->getOpcode()) {
-  default: assert(false && "Unexpected instr type to insert");
-  case MBlaze::ShiftRL:
-  case MBlaze::ShiftRA:
-  case MBlaze::ShiftL: {
-    // To "insert" a shift left instruction, we actually have to insert a
-    // simple loop.  The incoming instruction knows the destination vreg to
-    // set, the source vreg to operate over and the shift amount.
-    const BasicBlock *LLVM_BB = BB->getBasicBlock();
-    MachineFunction::iterator It = BB;
-    ++It;
+  default: llvm_unreachable("Cannot lower unknown atomic instruction!");
 
-    // start:
-    //   andi     samt, samt, 31
-    //   beqid    samt, finish
-    //   add      dst, src, r0
-    // loop:
-    //   addik    samt, samt, -1
-    //   sra      dst, dst
-    //   bneid    samt, loop
-    //   nop
-    // finish:
-    MachineFunction *F = BB->getParent();
-    MachineRegisterInfo &R = F->getRegInfo();
-    MachineBasicBlock *loop = F->CreateMachineBasicBlock(LLVM_BB);
-    MachineBasicBlock *finish = F->CreateMachineBasicBlock(LLVM_BB);
-    F->insert(It, loop);
-    F->insert(It, finish);
+  case MBlaze::SWP32:
+    finalReg = MI->getOperand(2).getReg();
+    start->addSuccessor(exit);
+    start->addSuccessor(start);
+    break;
 
-    // Update machine-CFG edges by transfering adding all successors and
-    // remaining instructions from the current block to the new block which
-    // will contain the Phi node for the select.
-    finish->splice(finish->begin(), BB,
-                   llvm::next(MachineBasicBlock::iterator(MI)),
-                   BB->end());
-    finish->transferSuccessorsAndUpdatePHIs(BB);
-
-    // Add the true and fallthrough blocks as its successors.
-    BB->addSuccessor(loop);
-    BB->addSuccessor(finish);
-
-    // Next, add the finish block as a successor of the loop block
-    loop->addSuccessor(finish);
-    loop->addSuccessor(loop);
-
-    unsigned IAMT = R.createVirtualRegister(MBlaze::CPURegsRegisterClass);
-    BuildMI(BB, dl, TII->get(MBlaze::ANDI), IAMT)
-      .addReg(MI->getOperand(2).getReg())
-      .addImm(31);
-
-    unsigned IVAL = R.createVirtualRegister(MBlaze::CPURegsRegisterClass);
-    BuildMI(BB, dl, TII->get(MBlaze::ADDI), IVAL)
-      .addReg(MI->getOperand(1).getReg())
-      .addImm(0);
-
-    BuildMI(BB, dl, TII->get(MBlaze::BEQID))
-      .addReg(IAMT)
-      .addMBB(finish);
-
-    unsigned DST = R.createVirtualRegister(MBlaze::CPURegsRegisterClass);
-    unsigned NDST = R.createVirtualRegister(MBlaze::CPURegsRegisterClass);
-    BuildMI(loop, dl, TII->get(MBlaze::PHI), DST)
-      .addReg(IVAL).addMBB(BB)
-      .addReg(NDST).addMBB(loop);
-
-    unsigned SAMT = R.createVirtualRegister(MBlaze::CPURegsRegisterClass);
-    unsigned NAMT = R.createVirtualRegister(MBlaze::CPURegsRegisterClass);
-    BuildMI(loop, dl, TII->get(MBlaze::PHI), SAMT)
-      .addReg(IAMT).addMBB(BB)
-      .addReg(NAMT).addMBB(loop);
-
-    if (MI->getOpcode() == MBlaze::ShiftL)
-      BuildMI(loop, dl, TII->get(MBlaze::ADD), NDST).addReg(DST).addReg(DST);
-    else if (MI->getOpcode() == MBlaze::ShiftRA)
-      BuildMI(loop, dl, TII->get(MBlaze::SRA), NDST).addReg(DST);
-    else if (MI->getOpcode() == MBlaze::ShiftRL)
-      BuildMI(loop, dl, TII->get(MBlaze::SRL), NDST).addReg(DST);
-    else
-        llvm_unreachable( "Cannot lower unknown shift instruction" );
-
-    BuildMI(loop, dl, TII->get(MBlaze::ADDI), NAMT)
-      .addReg(SAMT)
-      .addImm(-1);
-
-    BuildMI(loop, dl, TII->get(MBlaze::BNEID))
-      .addReg(NAMT)
-      .addMBB(loop);
-
-    BuildMI(*finish, finish->begin(), dl,
-            TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
-      .addReg(IVAL).addMBB(BB)
-      .addReg(NDST).addMBB(loop);
-
-    // The pseudo instruction is no longer needed so remove it
-    MI->eraseFromParent();
-    return finish;
+  case MBlaze::LAN32:
+  case MBlaze::LAX32:
+  case MBlaze::LAO32:
+  case MBlaze::LAD32:
+  case MBlaze::LAS32:
+  case MBlaze::LAA32: {
+    unsigned opcode = 0;
+    switch (MI->getOpcode()) {
+    default: llvm_unreachable("Cannot lower unknown atomic load!");
+    case MBlaze::LAA32: opcode = MBlaze::ADDIK; break;
+    case MBlaze::LAS32: opcode = MBlaze::RSUBIK; break;
+    case MBlaze::LAD32: opcode = MBlaze::AND; break;
+    case MBlaze::LAO32: opcode = MBlaze::OR; break;
+    case MBlaze::LAX32: opcode = MBlaze::XOR; break;
+    case MBlaze::LAN32: opcode = MBlaze::AND; break;
     }
 
-  case MBlaze::Select_FCC:
-  case MBlaze::Select_CC: {
-    // To "insert" a SELECT_CC instruction, we actually have to insert the
-    // diamond control-flow pattern.  The incoming instruction knows the
-    // destination vreg to set, the condition code register to branch on, the
-    // true/false values to select between, and a branch opcode to use.
-    const BasicBlock *LLVM_BB = BB->getBasicBlock();
-    MachineFunction::iterator It = BB;
-    ++It;
+    finalReg = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+    start->addSuccessor(exit);
+    start->addSuccessor(start);
 
-    //  thisMBB:
-    //  ...
-    //   TrueVal = ...
-    //   setcc r1, r2, r3
-    //   bNE   r1, r0, copy1MBB
-    //   fallthrough --> copy0MBB
-    MachineFunction *F = BB->getParent();
-    MachineBasicBlock *flsBB = F->CreateMachineBasicBlock(LLVM_BB);
-    MachineBasicBlock *dneBB = F->CreateMachineBasicBlock(LLVM_BB);
+    BuildMI(start, dl, TII->get(opcode), finalReg)
+      .addReg(MI->getOperand(0).getReg())
+      .addReg(MI->getOperand(2).getReg());
 
-    unsigned Opc;
-    switch (MI->getOperand(4).getImm()) {
-    default: llvm_unreachable( "Unknown branch condition" );
-    case MBlazeCC::EQ: Opc = MBlaze::BNEID; break;
-    case MBlazeCC::NE: Opc = MBlaze::BEQID; break;
-    case MBlazeCC::GT: Opc = MBlaze::BLEID; break;
-    case MBlazeCC::LT: Opc = MBlaze::BGEID; break;
-    case MBlazeCC::GE: Opc = MBlaze::BLTID; break;
-    case MBlazeCC::LE: Opc = MBlaze::BGTID; break;
+    if (MI->getOpcode() == MBlaze::LAN32) {
+      unsigned tmp = finalReg;
+      finalReg = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+      BuildMI(start, dl, TII->get(MBlaze::XORI), finalReg)
+        .addReg(tmp)
+        .addImm(-1);
     }
+    break;
+  }
 
-    F->insert(It, flsBB);
-    F->insert(It, dneBB);
+  case MBlaze::CAS32: {
+    finalReg = MI->getOperand(3).getReg();
+    final = F->CreateMachineBasicBlock(LLVM_BB);
 
-    // Transfer the remainder of BB and its successor edges to dneBB.
-    dneBB->splice(dneBB->begin(), BB,
-                  llvm::next(MachineBasicBlock::iterator(MI)),
-                  BB->end());
-    dneBB->transferSuccessorsAndUpdatePHIs(BB);
+    F->insert(It, final);
+    start->addSuccessor(exit);
+    start->addSuccessor(final);
+    final->addSuccessor(exit);
+    final->addSuccessor(start);
 
-    BB->addSuccessor(flsBB);
-    BB->addSuccessor(dneBB);
-    flsBB->addSuccessor(dneBB);
+    unsigned CMP = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+    BuildMI(start, dl, TII->get(MBlaze::CMP), CMP)
+      .addReg(MI->getOperand(0).getReg())
+      .addReg(MI->getOperand(2).getReg());
 
-    BuildMI(BB, dl, TII->get(Opc))
-      .addReg(MI->getOperand(3).getReg())
-      .addMBB(dneBB);
+    BuildMI(start, dl, TII->get(MBlaze::BNEID))
+      .addReg(CMP)
+      .addMBB(exit);
 
-    //  sinkMBB:
-    //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
-    //  ...
-    //BuildMI(dneBB, dl, TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
-    //  .addReg(MI->getOperand(1).getReg()).addMBB(flsBB)
-    //  .addReg(MI->getOperand(2).getReg()).addMBB(BB);
-
-    BuildMI(*dneBB, dneBB->begin(), dl,
-            TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
-      .addReg(MI->getOperand(2).getReg()).addMBB(flsBB)
-      .addReg(MI->getOperand(1).getReg()).addMBB(BB);
-
-    MI->eraseFromParent();   // The pseudo instruction is gone now.
-    return dneBB;
+    final->moveAfter(start);
+    exit->moveAfter(final);
+    break;
   }
   }
+
+  unsigned CHK = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  BuildMI(final, dl, TII->get(MBlaze::SWX))
+    .addReg(finalReg)
+    .addReg(MI->getOperand(1).getReg())
+    .addReg(MBlaze::R0);
+
+  BuildMI(final, dl, TII->get(MBlaze::ADDIC), CHK)
+    .addReg(MBlaze::R0)
+    .addImm(0);
+
+  BuildMI(final, dl, TII->get(MBlaze::BNEID))
+    .addReg(CHK)
+    .addMBB(start);
+
+  // The pseudo instruction is no longer needed so remove it
+  MI->eraseFromParent();
+  return exit;
 }
 
 //===----------------------------------------------------------------------===//
@@ -392,9 +581,9 @@ SDValue MBlazeTargetLowering::LowerSELECT_CC(SDValue Op,
     CompareFlag = DAG.getNode(MBlazeISD::ICmp, dl, MVT::i32, LHS, RHS)
                     .getValue(1);
   } else {
-    llvm_unreachable( "Cannot lower select_cc with unknown type" );
+    llvm_unreachable("Cannot lower select_cc with unknown type");
   }
- 
+
   return DAG.getNode(Opc, dl, TrueVal.getValueType(), TrueVal, FalseVal,
                      CompareFlag);
 }
@@ -421,15 +610,12 @@ LowerJumpTable(SDValue Op, SelectionDAG &DAG) const {
   SDValue HiPart;
   // FIXME there isn't actually debug info here
   DebugLoc dl = Op.getDebugLoc();
-  bool IsPIC = getTargetMachine().getRelocationModel() == Reloc::PIC_;
-  unsigned char OpFlag = IsPIC ? MBlazeII::MO_GOT : MBlazeII::MO_ABS_HILO;
 
   EVT PtrVT = Op.getValueType();
   JumpTableSDNode *JT  = cast<JumpTableSDNode>(Op);
 
-  SDValue JTI = DAG.getTargetJumpTable(JT->getIndex(), PtrVT, OpFlag);
+  SDValue JTI = DAG.getTargetJumpTable(JT->getIndex(), PtrVT, 0);
   return DAG.getNode(MBlazeISD::Wrap, dl, MVT::i32, JTI);
-  //return JTI;
 }
 
 SDValue MBlazeTargetLowering::
@@ -440,7 +626,7 @@ LowerConstantPool(SDValue Op, SelectionDAG &DAG) const {
   DebugLoc dl = Op.getDebugLoc();
 
   SDValue CP = DAG.getTargetConstantPool(C, MVT::i32, N->getAlignment(),
-                                         N->getOffset(), MBlazeII::MO_ABS_HILO);
+                                         N->getOffset(), 0);
   return DAG.getNode(MBlazeISD::Wrap, dl, MVT::i32, CP);
 }
 
@@ -456,7 +642,8 @@ SDValue MBlazeTargetLowering::LowerVASTART(SDValue Op,
   // vastart just stores the address of the VarArgsFrameIndex slot into the
   // memory location argument.
   const Value *SV = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
-  return DAG.getStore(Op.getOperand(0), dl, FI, Op.getOperand(1), SV, 0,
+  return DAG.getStore(Op.getOperand(0), dl, FI, Op.getOperand(1),
+                      MachinePointerInfo(SV),
                       false, false, 0);
 }
 
@@ -466,52 +653,24 @@ SDValue MBlazeTargetLowering::LowerVASTART(SDValue Op,
 
 #include "MBlazeGenCallingConv.inc"
 
-static bool CC_MBlaze2(unsigned ValNo, EVT ValVT,
-                       EVT LocVT, CCValAssign::LocInfo LocInfo,
-                       ISD::ArgFlagsTy ArgFlags, CCState &State) {
-  static const unsigned RegsSize=6;
-  static const unsigned IntRegs[] = {
+static bool CC_MBlaze_AssignReg(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
+                                CCValAssign::LocInfo &LocInfo,
+                                ISD::ArgFlagsTy &ArgFlags,
+                                CCState &State) {
+  static const unsigned ArgRegs[] = {
     MBlaze::R5, MBlaze::R6, MBlaze::R7,
     MBlaze::R8, MBlaze::R9, MBlaze::R10
   };
 
-  static const unsigned FltRegs[] = {
-    MBlaze::F5, MBlaze::F6, MBlaze::F7,
-    MBlaze::F8, MBlaze::F9, MBlaze::F10
-  };
+  const unsigned NumArgRegs = array_lengthof(ArgRegs);
+  unsigned Reg = State.AllocateReg(ArgRegs, NumArgRegs);
+  if (!Reg) return false;
 
-  unsigned Reg=0;
+  unsigned SizeInBytes = ValVT.getSizeInBits() >> 3;
+  State.AllocateStack(SizeInBytes, SizeInBytes);
+  State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
 
-  // Promote i8 and i16
-  if (LocVT == MVT::i8 || LocVT == MVT::i16) {
-    LocVT = MVT::i32;
-    if (ArgFlags.isSExt())
-      LocInfo = CCValAssign::SExt;
-    else if (ArgFlags.isZExt())
-      LocInfo = CCValAssign::ZExt;
-    else
-      LocInfo = CCValAssign::AExt;
-  }
-
-  if (ValVT == MVT::i32) {
-    Reg = State.AllocateReg(IntRegs, RegsSize);
-    LocVT = MVT::i32;
-  } else if (ValVT == MVT::f32) {
-    Reg = State.AllocateReg(FltRegs, RegsSize);
-    LocVT = MVT::f32;
-  }
-
-  if (!Reg) {
-    unsigned SizeInBytes = ValVT.getSizeInBits() >> 3;
-    unsigned Offset = State.AllocateStack(SizeInBytes, SizeInBytes);
-    State.addLoc(CCValAssign::getMem(ValNo, ValVT, Offset, LocVT, LocInfo));
-  } else {
-    unsigned SizeInBytes = ValVT.getSizeInBits() >> 3;
-    State.AllocateStack(SizeInBytes, SizeInBytes);
-    State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
-  }
-
-  return false; // CC must always match
+  return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -532,31 +691,35 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
   // MBlaze does not yet support tail call optimization
   isTailCall = false;
 
+  // The MBlaze requires stack slots for arguments passed to var arg
+  // functions even if they are passed in registers.
+  bool needsRegArgSlots = isVarArg;
+
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo *MFI = MF.getFrameInfo();
+  const TargetFrameLowering &TFI = *MF.getTarget().getFrameLowering();
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, getTargetMachine(), ArgLocs,
                  *DAG.getContext());
-  CCInfo.AnalyzeCallOperands(Outs, CC_MBlaze2);
+  CCInfo.AnalyzeCallOperands(Outs, CC_MBlaze);
 
   // Get a count of how many bytes are to be pushed on the stack.
   unsigned NumBytes = CCInfo.getNextStackOffset();
+
+  // Variable argument function calls require a minimum of 24-bytes of stack
+  if (isVarArg && NumBytes < 24) NumBytes = 24;
+
   Chain = DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(NumBytes, true));
 
   SmallVector<std::pair<unsigned, SDValue>, 8> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
 
-  // First/LastArgStackLoc contains the first/last
-  // "at stack" argument location.
-  int LastArgStackLoc = 0;
-  unsigned FirstStackArgLoc = 0;
-
   // Walk the register/memloc assignments, inserting copies/loads.
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
-    EVT RegVT = VA.getLocVT();
+    MVT RegVT = VA.getLocVT();
     SDValue Arg = OutVals[i];
 
     // Promote the value if needed.
@@ -582,19 +745,30 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
       // Register can't get to this point...
       assert(VA.isMemLoc());
 
+      // Since we are alread passing values on the stack we don't
+      // need to worry about creating additional slots for the
+      // values passed via registers.
+      needsRegArgSlots = false;
+
       // Create the frame index object for this incoming parameter
-      LastArgStackLoc = (FirstStackArgLoc + VA.getLocMemOffset());
-      int FI = MFI->CreateFixedObject(VA.getValVT().getSizeInBits()/8,
-                                      LastArgStackLoc, true);
+      unsigned ArgSize = VA.getValVT().getSizeInBits()/8;
+      unsigned StackLoc = VA.getLocMemOffset() + 4;
+      int FI = MFI->CreateFixedObject(ArgSize, StackLoc, true);
 
       SDValue PtrOff = DAG.getFrameIndex(FI,getPointerTy());
 
       // emit ISD::STORE whichs stores the
       // parameter value to a stack Location
-      MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff, NULL, 0,
+      MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff,
+                                         MachinePointerInfo(),
                                          false, false, 0));
     }
   }
+
+  // If we need to reserve stack space for the arguments passed via registers
+  // then create a fixed stack object at the beginning of the stack.
+  if (needsRegArgSlots && TFI.hasReservedCallFrame(MF))
+    MFI->CreateFixedObject(28,0,true);
 
   // Transform all store nodes into one single node because all store
   // nodes are independent of each other.
@@ -616,19 +790,18 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
   // If the callee is a GlobalAddress/ExternalSymbol node (quite common, every
   // direct call is) turn it into a TargetGlobalAddress/TargetExternalSymbol
   // node so that legalize doesn't hack it.
-  unsigned char OpFlag = MBlazeII::MO_NO_FLAG;
   if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee))
     Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl,
-                                getPointerTy(), 0, OpFlag);
+                                getPointerTy(), 0, 0);
   else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(Callee))
     Callee = DAG.getTargetExternalSymbol(S->getSymbol(),
-                                getPointerTy(), OpFlag);
+                                getPointerTy(), 0);
 
   // MBlazeJmpLink = #chain, #target_address, #opt_in_flags...
   //             = Chain, Callee, Reg#1, Reg#2, ...
   //
   // Returns a chain & a flag for retval copy to use.
-  SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Flag);
+  SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
   SmallVector<SDValue, 8> Ops;
   Ops.push_back(Chain);
   Ops.push_back(Callee);
@@ -678,7 +851,7 @@ LowerCallResult(SDValue Chain, SDValue InFlag, CallingConv::ID CallConv,
                                RVLocs[i].getValVT(), InFlag).getValue(1);
     InFlag = Chain.getValue(2);
     InVals.push_back(Chain.getValue(0));
-  } 
+  }
 
   return Chain;
 }
@@ -713,30 +886,28 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
   CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
                  ArgLocs, *DAG.getContext());
 
-  CCInfo.AnalyzeFormalArguments(Ins, CC_MBlaze2);
+  CCInfo.AnalyzeFormalArguments(Ins, CC_MBlaze);
   SDValue StackPtr;
-
-  unsigned FirstStackArgLoc = 0;
 
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
 
     // Arguments stored on registers
     if (VA.isRegLoc()) {
-      EVT RegVT = VA.getLocVT();
+      MVT RegVT = VA.getLocVT();
       ArgRegEnd = VA.getLocReg();
       TargetRegisterClass *RC = 0;
 
       if (RegVT == MVT::i32)
-        RC = MBlaze::CPURegsRegisterClass;
+        RC = MBlaze::GPRRegisterClass;
       else if (RegVT == MVT::f32)
-        RC = MBlaze::FGR32RegisterClass;
+        RC = MBlaze::GPRRegisterClass;
       else
         llvm_unreachable("RegVT not supported by LowerFormalArguments");
 
       // Transform the arguments stored on
       // physical registers into virtual ones
-      unsigned Reg = MF.addLiveIn(ArgRegEnd, RC);
+      unsigned Reg = MF.addLiveIn(ArgRegEnd, RC, dl);
       SDValue ArgValue = DAG.getCopyFromReg(Chain, dl, Reg, RegVT);
 
       // If this is an 8 or 16-bit value, it has been passed promoted
@@ -756,9 +927,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
       }
 
       InVals.push_back(ArgValue);
-
     } else { // VA.isRegLoc()
-
       // sanity check
       assert(VA.isMemLoc());
 
@@ -774,41 +943,44 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
       // offset on PEI::calculateFrameObjectOffsets.
       // Arguments are always 32-bit.
       unsigned ArgSize = VA.getLocVT().getSizeInBits()/8;
+      unsigned StackLoc = VA.getLocMemOffset() + 4;
       int FI = MFI->CreateFixedObject(ArgSize, 0, true);
-      MBlazeFI->recordLoadArgsFI(FI, -(ArgSize+
-        (FirstStackArgLoc + VA.getLocMemOffset())));
+      MBlazeFI->recordLoadArgsFI(FI, -StackLoc);
+      MBlazeFI->recordLiveIn(FI);
 
       // Create load nodes to retrieve arguments from the stack
       SDValue FIN = DAG.getFrameIndex(FI, getPointerTy());
-      InVals.push_back(DAG.getLoad(VA.getValVT(), dl, Chain, FIN, NULL, 0,
+      InVals.push_back(DAG.getLoad(VA.getValVT(), dl, Chain, FIN,
+                                   MachinePointerInfo::getFixedStack(FI),
                                    false, false, 0));
     }
   }
 
   // To meet ABI, when VARARGS are passed on registers, the registers
   // must have their values written to the caller stack frame. If the last
-  // argument was placed in the stack, there's no need to save any register. 
+  // argument was placed in the stack, there's no need to save any register.
   if ((isVarArg) && ArgRegEnd) {
     if (StackPtr.getNode() == 0)
       StackPtr = DAG.getRegister(StackReg, getPointerTy());
 
     // The last register argument that must be saved is MBlaze::R10
-    TargetRegisterClass *RC = MBlaze::CPURegsRegisterClass;
+    TargetRegisterClass *RC = MBlaze::GPRRegisterClass;
 
     unsigned Begin = MBlazeRegisterInfo::getRegisterNumbering(MBlaze::R5);
     unsigned Start = MBlazeRegisterInfo::getRegisterNumbering(ArgRegEnd+1);
     unsigned End   = MBlazeRegisterInfo::getRegisterNumbering(MBlaze::R10);
-    unsigned StackLoc = ArgLocs.size()-1 + (Start - Begin);
+    unsigned StackLoc = Start - Begin + 1;
 
     for (; Start <= End; ++Start, ++StackLoc) {
       unsigned Reg = MBlazeRegisterInfo::getRegisterFromNumbering(Start);
-      unsigned LiveReg = MF.addLiveIn(Reg, RC);
+      unsigned LiveReg = MF.addLiveIn(Reg, RC, dl);
       SDValue ArgValue = DAG.getCopyFromReg(Chain, dl, LiveReg, MVT::i32);
 
       int FI = MFI->CreateFixedObject(4, 0, true);
-      MBlazeFI->recordStoreVarArgsFI(FI, -(4+(StackLoc*4)));
+      MBlazeFI->recordStoreVarArgsFI(FI, -(StackLoc*4));
       SDValue PtrOff = DAG.getFrameIndex(FI, getPointerTy());
-      OutChains.push_back(DAG.getStore(Chain, dl, ArgValue, PtrOff, NULL, 0,
+      OutChains.push_back(DAG.getStore(Chain, dl, ArgValue, PtrOff,
+                                       MachinePointerInfo(),
                                        false, false, 0));
 
       // Record the frame index of the first variable argument
@@ -818,7 +990,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     }
   }
 
-  // All stores are grouped in one node to allow the matching between 
+  // All stores are grouped in one node to allow the matching between
   // the size of Ins and InVals. This only happens when on varg functions
   if (!OutChains.empty()) {
     OutChains.push_back(Chain);
@@ -872,13 +1044,18 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     Flag = Chain.getValue(1);
   }
 
-  // Return on MBlaze is always a "rtsd R15, 8"
+  // If this function is using the interrupt_handler calling convention
+  // then use "rtid r14, 0" otherwise use "rtsd r15, 8"
+  unsigned Ret = (CallConv == llvm::CallingConv::MBLAZE_INTR) ? MBlazeISD::IRet 
+                                                              : MBlazeISD::Ret;
+  unsigned Reg = (CallConv == llvm::CallingConv::MBLAZE_INTR) ? MBlaze::R14 
+                                                              : MBlaze::R15;
+  SDValue DReg = DAG.getRegister(Reg, MVT::i32);
+
   if (Flag.getNode())
-    return DAG.getNode(MBlazeISD::Ret, dl, MVT::Other,
-                       Chain, DAG.getRegister(MBlaze::R15, MVT::i32), Flag);
-  else // Return Void
-    return DAG.getNode(MBlazeISD::Ret, dl, MVT::Other,
-                       Chain, DAG.getRegister(MBlaze::R15, MVT::i32));
+    return DAG.getNode(Ret, dl, MVT::Other, Chain, DReg, Flag);
+
+  return DAG.getNode(Ret, dl, MVT::Other, Chain, DReg);
 }
 
 //===----------------------------------------------------------------------===//
@@ -909,6 +1086,37 @@ getConstraintType(const std::string &Constraint) const
   return TargetLowering::getConstraintType(Constraint);
 }
 
+/// Examine constraint type and operand type and determine a weight value.
+/// This object must already have been set up with the operand type
+/// and the current alternative constraint selected.
+TargetLowering::ConstraintWeight
+MBlazeTargetLowering::getSingleConstraintMatchWeight(
+    AsmOperandInfo &info, const char *constraint) const {
+  ConstraintWeight weight = CW_Invalid;
+  Value *CallOperandVal = info.CallOperandVal;
+    // If we don't have a value, we can't do a match,
+    // but allow it at the lowest weight.
+  if (CallOperandVal == NULL)
+    return CW_Default;
+  const Type *type = CallOperandVal->getType();
+  // Look at the constraint type.
+  switch (*constraint) {
+  default:
+    weight = TargetLowering::getSingleConstraintMatchWeight(info, constraint);
+    break;
+  case 'd':
+  case 'y':
+    if (type->isIntegerTy())
+      weight = CW_Register;
+    break;
+  case 'f':
+    if (type->isFloatTy())
+      weight = CW_Register;
+    break;
+  }
+  return weight;
+}
+
 /// getRegClassForInlineAsmConstraint - Given a constraint letter (e.g. "r"),
 /// return a list of registers that can be used to satisfy the constraint.
 /// This should only be used for C_RegisterClass constraints.
@@ -917,10 +1125,10 @@ getRegForInlineAsmConstraint(const std::string &Constraint, EVT VT) const {
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'r':
-      return std::make_pair(0U, MBlaze::CPURegsRegisterClass);
+      return std::make_pair(0U, MBlaze::GPRRegisterClass);
     case 'f':
       if (VT == MVT::f32)
-        return std::make_pair(0U, MBlaze::FGR32RegisterClass);
+        return std::make_pair(0U, MBlaze::GPRRegisterClass);
     }
   }
   return TargetLowering::getRegForInlineAsmConstraint(Constraint, VT);
@@ -940,6 +1148,7 @@ getRegClassForInlineAsmConstraint(const std::string &Constraint, EVT VT) const {
     // GCC MBlaze Constraint Letters
     case 'd':
     case 'y':
+    case 'f':
       return make_vector<unsigned>(
         MBlaze::R3,  MBlaze::R4,  MBlaze::R5,  MBlaze::R6,
         MBlaze::R7,  MBlaze::R9,  MBlaze::R10, MBlaze::R11,
@@ -947,15 +1156,6 @@ getRegClassForInlineAsmConstraint(const std::string &Constraint, EVT VT) const {
         MBlaze::R22, MBlaze::R23, MBlaze::R24, MBlaze::R25,
         MBlaze::R26, MBlaze::R27, MBlaze::R28, MBlaze::R29,
         MBlaze::R30, MBlaze::R31, 0);
-
-    case 'f':
-      return make_vector<unsigned>(
-        MBlaze::F3,  MBlaze::F4,  MBlaze::F5,  MBlaze::F6,
-        MBlaze::F7,  MBlaze::F9,  MBlaze::F10, MBlaze::F11,
-        MBlaze::F12, MBlaze::F19, MBlaze::F20, MBlaze::F21,
-        MBlaze::F22, MBlaze::F23, MBlaze::F24, MBlaze::F25,
-        MBlaze::F26, MBlaze::F27, MBlaze::F28, MBlaze::F29,
-        MBlaze::F30, MBlaze::F31, 0);
   }
   return std::vector<unsigned>();
 }

@@ -223,6 +223,81 @@ define i32 @test15d(i32 %X) {
 ; CHECK: ret i32 %t1
 }
 
+;; (a & 128) ? 256 : 0
+define i32 @test15e(i32 %X) {
+        %t1 = and i32 %X, 128
+        %t2 = icmp ne i32 %t1, 0
+        %t3 = select i1 %t2, i32 256, i32 0
+        ret i32 %t3
+; CHECK: @test15e
+; CHECK: %t1 = shl i32 %X, 1
+; CHECK: and i32 %t1, 256
+; CHECK: ret i32
+}
+
+;; (a & 128) ? 0 : 256
+define i32 @test15f(i32 %X) {
+        %t1 = and i32 %X, 128
+        %t2 = icmp ne i32 %t1, 0
+        %t3 = select i1 %t2, i32 0, i32 256
+        ret i32 %t3
+; CHECK: @test15f
+; CHECK: %t1 = shl i32 %X, 1
+; CHECK: and i32 %t1, 256
+; CHECK: xor i32 %{{.*}}, 256
+; CHECK: ret i32
+}
+
+;; (a & 8) ? -1 : -9
+define i32 @test15g(i32 %X) {
+        %t1 = and i32 %X, 8
+        %t2 = icmp ne i32 %t1, 0
+        %t3 = select i1 %t2, i32 -1, i32 -9
+        ret i32 %t3
+; CHECK: @test15g
+; CHECK-NEXT: %1 = or i32 %X, -9
+; CHECK-NEXT: ret i32 %1
+}
+
+;; (a & 8) ? -9 : -1
+define i32 @test15h(i32 %X) {
+        %t1 = and i32 %X, 8
+        %t2 = icmp ne i32 %t1, 0
+        %t3 = select i1 %t2, i32 -9, i32 -1
+        ret i32 %t3
+; CHECK: @test15h
+; CHECK-NEXT: %1 = or i32 %X, -9
+; CHECK-NEXT: %2 = xor i32 %1, 8
+; CHECK-NEXT: ret i32 %2
+}
+
+;; (a & 2) ? 577 : 1089
+define i32 @test15i(i32 %X) {
+        %t1 = and i32 %X, 2
+        %t2 = icmp ne i32 %t1, 0
+        %t3 = select i1 %t2, i32 577, i32 1089
+        ret i32 %t3
+; CHECK: @test15i
+; CHECK-NEXT: %t1 = shl i32 %X, 8
+; CHECK-NEXT: %1 = and i32 %t1, 512
+; CHECK-NEXT: %2 = xor i32 %1, 512
+; CHECK-NEXT: %3 = add i32 %2, 577
+; CHECK-NEXT: ret i32 %3
+}
+
+;; (a & 2) ? 1089 : 577
+define i32 @test15j(i32 %X) {
+        %t1 = and i32 %X, 2
+        %t2 = icmp ne i32 %t1, 0
+        %t3 = select i1 %t2, i32 1089, i32 577
+        ret i32 %t3
+; CHECK: @test15j
+; CHECK-NEXT: %t1 = shl i32 %X, 8
+; CHECK-NEXT: %1 = and i32 %t1, 512
+; CHECK-NEXT: %2 = add i32 %1, 577
+; CHECK-NEXT: ret i32 %2
+}
+
 define i32 @test16(i1 %C, i32* %P) {
         %P2 = select i1 %C, i32* %P, i32* null          
         %V = load i32* %P2              
@@ -470,3 +545,172 @@ define i32 @test37(i32 %x) {
 ; CHECK: or i32 {{.*}}, 1
 ; CHECK: ret
 }
+
+define i1 @test38(i1 %cond) {
+  %zero = alloca i32
+  %one = alloca i32
+  %ptr = select i1 %cond, i32* %zero, i32* %one
+  %isnull = icmp eq i32* %ptr, null
+  ret i1 %isnull
+; CHECK: @test38
+; CHECK: ret i1 false
+}
+
+define i1 @test39(i1 %cond, double %x) {
+  %s = select i1 %cond, double %x, double 0x7FF0000000000000 ; RHS = +infty
+  %cmp = fcmp ule double %x, %s
+  ret i1 %cmp
+; CHECK: @test39
+; CHECK: ret i1 true
+}
+
+define i1 @test40(i1 %cond) {
+  %a = alloca i32
+  %b = alloca i32
+  %c = alloca i32
+  %s = select i1 %cond, i32* %a, i32* %b
+  %r = icmp eq i32* %s, %c
+  ret i1 %r
+; CHECK: @test40
+; CHECK: ret i1 false
+}
+
+define i32 @test41(i1 %cond, i32 %x, i32 %y) {
+  %z = and i32 %x, %y
+  %s = select i1 %cond, i32 %y, i32 %z
+  %r = and i32 %x, %s
+  ret i32 %r
+; CHECK: @test41
+; CHECK-NEXT: and i32 %x, %y
+; CHECK-NEXT: ret i32
+}
+
+define i32 @test42(i32 %x, i32 %y) {
+  %b = add i32 %y, -1
+  %cond = icmp eq i32 %x, 0
+  %c = select i1 %cond, i32 %b, i32 %y
+  ret i32 %c
+; CHECK: @test42
+; CHECK-NEXT: %cond = icmp eq i32 %x, 0
+; CHECK-NEXT: %b = sext i1 %cond to i32
+; CHECK-NEXT: %c = add i32 %b, %y
+; CHECK-NEXT: ret i32 %c
+}
+
+define i64 @test43(i32 %a) nounwind {
+	%a_ext = sext i32 %a to i64
+	%is_a_nonnegative = icmp sgt i32 %a, -1
+	%max = select i1 %is_a_nonnegative, i64 %a_ext, i64 0
+	ret i64 %max
+; CHECK: @test43
+; CHECK-NEXT: %a_ext = sext i32 %a to i64
+; CHECK-NEXT: %is_a_nonnegative = icmp slt i64 %a_ext, 0
+; CHECK-NEXT: %max = select i1 %is_a_nonnegative, i64 0, i64 %a_ext
+; CHECK-NEXT: ret i64 %max
+}
+
+define i64 @test44(i32 %a) nounwind {
+	%a_ext = sext i32 %a to i64
+	%is_a_nonpositive = icmp slt i32 %a, 1
+	%min = select i1 %is_a_nonpositive, i64 %a_ext, i64 0
+	ret i64 %min
+; CHECK: @test44
+; CHECK-NEXT: %a_ext = sext i32 %a to i64
+; CHECK-NEXT: %is_a_nonpositive = icmp sgt i64 %a_ext, 0
+; CHECK-NEXT: %min = select i1 %is_a_nonpositive, i64 0, i64 %a_ext
+; CHECK-NEXT: ret i64 %min
+}
+define i64 @test45(i32 %a) nounwind {
+	%a_ext = zext i32 %a to i64
+	%is_a_nonnegative = icmp ugt i32 %a, 2
+	%max = select i1 %is_a_nonnegative, i64 %a_ext, i64 3
+	ret i64 %max
+; CHECK: @test45
+; CHECK-NEXT: %a_ext = zext i32 %a to i64
+; CHECK-NEXT: %is_a_nonnegative = icmp ult i64 %a_ext, 3
+; CHECK-NEXT: %max = select i1 %is_a_nonnegative, i64 3, i64 %a_ext
+; CHECK-NEXT: ret i64 %max
+}
+
+define i64 @test46(i32 %a) nounwind {
+	%a_ext = zext i32 %a to i64
+	%is_a_nonpositive = icmp ult i32 %a, 3
+	%min = select i1 %is_a_nonpositive, i64 %a_ext, i64 2
+	ret i64 %min
+; CHECK: @test46
+; CHECK-NEXT: %a_ext = zext i32 %a to i64
+; CHECK-NEXT: %is_a_nonpositive = icmp ugt i64 %a_ext, 2
+; CHECK-NEXT: %min = select i1 %is_a_nonpositive, i64 2, i64 %a_ext
+; CHECK-NEXT: ret i64 %min
+}
+define i64 @test47(i32 %a) nounwind {
+	%a_ext = sext i32 %a to i64
+	%is_a_nonnegative = icmp ugt i32 %a, 2
+	%max = select i1 %is_a_nonnegative, i64 %a_ext, i64 3
+	ret i64 %max
+; CHECK: @test47
+; CHECK-NEXT: %a_ext = sext i32 %a to i64
+; CHECK-NEXT: %is_a_nonnegative = icmp ult i64 %a_ext, 3
+; CHECK-NEXT: %max = select i1 %is_a_nonnegative, i64 3, i64 %a_ext
+; CHECK-NEXT: ret i64 %max
+}
+
+define i64 @test48(i32 %a) nounwind {
+	%a_ext = sext i32 %a to i64
+	%is_a_nonpositive = icmp ult i32 %a, 3
+	%min = select i1 %is_a_nonpositive, i64 %a_ext, i64 2
+	ret i64 %min
+; CHECK: @test48
+; CHECK-NEXT: %a_ext = sext i32 %a to i64
+; CHECK-NEXT: %is_a_nonpositive = icmp ugt i64 %a_ext, 2
+; CHECK-NEXT: %min = select i1 %is_a_nonpositive, i64 2, i64 %a_ext
+; CHECK-NEXT: ret i64 %min
+}
+
+define i64 @test49(i32 %a) nounwind {
+	%a_ext = sext i32 %a to i64
+	%is_a_nonpositive = icmp ult i32 %a, 3
+	%min = select i1 %is_a_nonpositive, i64 2, i64 %a_ext
+	ret i64 %min
+; CHECK: @test49
+; CHECK-NEXT: %a_ext = sext i32 %a to i64
+; CHECK-NEXT: %is_a_nonpositive = icmp ugt i64 %a_ext, 2
+; CHECK-NEXT: %min = select i1 %is_a_nonpositive, i64 %a_ext, i64 2
+; CHECK-NEXT: ret i64 %min
+}
+define i64 @test50(i32 %a) nounwind {
+	%is_a_nonpositive = icmp ult i32 %a, 3
+	%a_ext = sext i32 %a to i64
+	%min = select i1 %is_a_nonpositive, i64 2, i64 %a_ext
+	ret i64 %min
+; CHECK: @test50
+; CHECK-NEXT: %a_ext = sext i32 %a to i64
+; CHECK-NEXT: %is_a_nonpositive = icmp ugt i64 %a_ext, 2
+; CHECK-NEXT: %min = select i1 %is_a_nonpositive, i64 %a_ext, i64 2
+; CHECK-NEXT: ret i64 %min
+}
+
+; PR8994
+
+; This select instruction can't be eliminated because trying to do so would
+; change the number of vector elements. This used to assert.
+define i48 @test51(<3 x i1> %icmp, <3 x i16> %tmp) {
+; CHECK: @test51
+  %select = select <3 x i1> %icmp, <3 x i16> zeroinitializer, <3 x i16> %tmp
+; CHECK: select <3 x i1>
+  %tmp2 = bitcast <3 x i16> %select to i48
+  ret i48 %tmp2
+}
+
+; PR8575
+
+define i32 @test52(i32 %n, i32 %m) nounwind {
+; CHECK: @test52
+  %cmp = icmp sgt i32 %n, %m
+  %. = select i1 %cmp, i32 1, i32 3
+  %add = add nsw i32 %., 3
+  %storemerge = select i1 %cmp, i32 %., i32 %add
+; CHECK: select i1 %cmp, i32 1, i32 6
+  ret i32 %storemerge
+}
+

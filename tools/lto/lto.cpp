@@ -91,6 +91,14 @@ lto_module_t lto_module_create(const char* path)
      return LTOModule::makeLTOModule(path, sLastErrorString);
 }
 
+//
+// loads an object file from disk
+// returns NULL on error (check lto_get_error_message() for details)
+//
+lto_module_t lto_module_create_from_fd(int fd, const char *path, off_t size)
+{
+     return LTOModule::makeLTOModule(fd, path, size, sLastErrorString);
+}
 
 //
 // loads an object file from memory 
@@ -132,7 +140,7 @@ void lto_module_set_target_triple(lto_module_t mod, const char *triple)
 //
 // returns the number of symbols in the object module
 //
-uint32_t lto_module_get_num_symbols(lto_module_t mod)
+unsigned int lto_module_get_num_symbols(lto_module_t mod)
 {
     return mod->getSymbolCount();
 }
@@ -140,7 +148,7 @@ uint32_t lto_module_get_num_symbols(lto_module_t mod)
 //
 // returns the name of the ith symbol in the object module
 //
-const char* lto_module_get_symbol_name(lto_module_t mod, uint32_t index)
+const char* lto_module_get_symbol_name(lto_module_t mod, unsigned int index)
 {
     return mod->getSymbolName(index);
 }
@@ -150,7 +158,7 @@ const char* lto_module_get_symbol_name(lto_module_t mod, uint32_t index)
 // returns the attributes of the ith symbol in the object module
 //
 lto_symbol_attributes lto_module_get_symbol_attribute(lto_module_t mod, 
-                                                      uint32_t index)
+                                                      unsigned int index)
 {
     return mod->getSymbolAttributes(index);
 }

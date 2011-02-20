@@ -16,8 +16,9 @@ BUILT_SOURCES = PPCGenInstrNames.inc PPCGenRegisterNames.inc \
                 PPCGenAsmWriter.inc  PPCGenCodeEmitter.inc \
                 PPCGenRegisterInfo.h.inc PPCGenRegisterInfo.inc \
                 PPCGenInstrInfo.inc PPCGenDAGISel.inc \
-                PPCGenSubtarget.inc PPCGenCallingConv.inc
+                PPCGenSubtarget.inc PPCGenCallingConv.inc \
+                PPCGenMCCodeEmitter.inc
 
-DIRS = AsmPrinter TargetInfo
+DIRS = InstPrinter TargetInfo
 
 include $(LEVEL)/Makefile.common

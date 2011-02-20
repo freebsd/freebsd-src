@@ -35,15 +35,29 @@ define i32 @test4(i8 %A) {
 
 define i32 @test5(i32 %A) {
 ; CHECK: @test5
-; CHECK: ret i32 0
+; CHECK: ret i32 undef
         %B = lshr i32 %A, 32  ;; shift all bits out 
         ret i32 %B
 }
 
 define i32 @test5a(i32 %A) {
 ; CHECK: @test5a
-; CHECK: ret i32 0
+; CHECK: ret i32 undef
         %B = shl i32 %A, 32     ;; shift all bits out 
+        ret i32 %B
+}
+
+define i32 @test5b() {
+; CHECK: @test5b
+; CHECK: ret i32 -1
+        %B = ashr i32 undef, 2  ;; top two bits must be equal, so not undef
+        ret i32 %B
+}
+
+define i32 @test5b2(i32 %A) {
+; CHECK: @test5b2
+; CHECK: ret i32 -1
+        %B = ashr i32 undef, %A  ;; top %A bits must be equal, so not undef
         ret i32 %B
 }
 
@@ -437,7 +451,37 @@ entry:
   ret i64 %tmp46
   
 ; CHECK: @test37
-; CHECK:  %tmp23 = shl i128 %tmp22, 32
+; CHECK:  %tmp23 = shl nuw nsw i128 %tmp22, 32
 ; CHECK:  %ins = or i128 %tmp23, %A
 ; CHECK:  %tmp46 = trunc i128 %ins to i64
+}
+
+define i32 @test38(i32 %x) nounwind readnone {
+  %rem = srem i32 %x, 32
+  %shl = shl i32 1, %rem
+  ret i32 %shl
+; CHECK: @test38
+; CHECK-NEXT: and i32 %x, 31
+; CHECK-NEXT: shl i32 1
+; CHECK-NEXT: ret i32
+}
+
+; <rdar://problem/8756731>
+; CHECK: @test39
+define i8 @test39(i32 %a0) {
+entry:
+  %tmp4 = trunc i32 %a0 to i8
+; CHECK: and i8 %tmp49, 64
+  %tmp5 = shl i8 %tmp4, 5
+  %tmp48 = and i8 %tmp5, 32
+  %tmp49 = lshr i8 %tmp48, 5
+  %tmp50 = mul i8 %tmp49, 64
+  %tmp51 = xor i8 %tmp50, %tmp5
+; CHECK: and i8 %0, 16
+  %tmp52 = and i8 %tmp51, -128
+  %tmp53 = lshr i8 %tmp52, 7
+  %tmp54 = mul i8 %tmp53, 16
+  %tmp55 = xor i8 %tmp54, %tmp51
+; CHECK: ret i8 %tmp551
+  ret i8 %tmp55
 }

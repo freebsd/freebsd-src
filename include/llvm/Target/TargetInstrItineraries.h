@@ -95,6 +95,7 @@ struct InstrStage {
 /// operands are read and written.
 ///
 struct InstrItinerary {
+  unsigned NumMicroOps;        ///< # of micro-ops, 0 means it's variable
   unsigned FirstStage;         ///< Index of first stage in itinerary
   unsigned LastStage;          ///< Index of last + 1 stage in itinerary
   unsigned FirstOperandCycle;  ///< Index of first operand rd/wr
@@ -110,38 +111,42 @@ class InstrItineraryData {
 public:
   const InstrStage     *Stages;         ///< Array of stages selected
   const unsigned       *OperandCycles;  ///< Array of operand cycles selected
-  const InstrItinerary *Itineratries;   ///< Array of itineraries selected
+  const unsigned       *Forwardings;    ///< Array of pipeline forwarding pathes
+  const InstrItinerary *Itineraries;    ///< Array of itineraries selected
+  unsigned              IssueWidth;     ///< Max issue per cycle. 0=Unknown.
 
   /// Ctors.
   ///
-  InstrItineraryData() : Stages(0), OperandCycles(0), Itineratries(0) {}
+  InstrItineraryData() : Stages(0), OperandCycles(0), Forwardings(0),
+                         Itineraries(0), IssueWidth(0) {}
+
   InstrItineraryData(const InstrStage *S, const unsigned *OS,
-                     const InstrItinerary *I)
-    : Stages(S), OperandCycles(OS), Itineratries(I) {}
-  
+                     const unsigned *F, const InstrItinerary *I)
+    : Stages(S), OperandCycles(OS), Forwardings(F), Itineraries(I) {}
+
   /// isEmpty - Returns true if there are no itineraries.
   ///
-  bool isEmpty() const { return Itineratries == 0; }
+  bool isEmpty() const { return Itineraries == 0; }
 
   /// isEndMarker - Returns true if the index is for the end marker
   /// itinerary.
   ///
   bool isEndMarker(unsigned ItinClassIndx) const {
-    return ((Itineratries[ItinClassIndx].FirstStage == ~0U) &&
-            (Itineratries[ItinClassIndx].LastStage == ~0U));
+    return ((Itineraries[ItinClassIndx].FirstStage == ~0U) &&
+            (Itineraries[ItinClassIndx].LastStage == ~0U));
   }
 
   /// beginStage - Return the first stage of the itinerary.
-  /// 
+  ///
   const InstrStage *beginStage(unsigned ItinClassIndx) const {
-    unsigned StageIdx = Itineratries[ItinClassIndx].FirstStage;
+    unsigned StageIdx = Itineraries[ItinClassIndx].FirstStage;
     return Stages + StageIdx;
   }
 
   /// endStage - Return the last+1 stage of the itinerary.
-  /// 
+  ///
   const InstrStage *endStage(unsigned ItinClassIndx) const {
-    unsigned StageIdx = Itineratries[ItinClassIndx].LastStage;
+    unsigned StageIdx = Itineraries[ItinClassIndx].LastStage;
     return Stages + StageIdx;
   }
 
@@ -173,12 +178,67 @@ public:
     if (isEmpty())
       return -1;
 
-    unsigned FirstIdx = Itineratries[ItinClassIndx].FirstOperandCycle;
-    unsigned LastIdx = Itineratries[ItinClassIndx].LastOperandCycle;
+    unsigned FirstIdx = Itineraries[ItinClassIndx].FirstOperandCycle;
+    unsigned LastIdx = Itineraries[ItinClassIndx].LastOperandCycle;
     if ((FirstIdx + OperandIdx) >= LastIdx)
       return -1;
 
     return (int)OperandCycles[FirstIdx + OperandIdx];
+  }
+
+  /// hasPipelineForwarding - Return true if there is a pipeline forwarding
+  /// between instructions of itinerary classes DefClass and UseClasses so that
+  /// value produced by an instruction of itinerary class DefClass, operand
+  /// index DefIdx can be bypassed when it's read by an instruction of
+  /// itinerary class UseClass, operand index UseIdx.
+  bool hasPipelineForwarding(unsigned DefClass, unsigned DefIdx,
+                             unsigned UseClass, unsigned UseIdx) const {
+    unsigned FirstDefIdx = Itineraries[DefClass].FirstOperandCycle;
+    unsigned LastDefIdx = Itineraries[DefClass].LastOperandCycle;
+    if ((FirstDefIdx + DefIdx) >= LastDefIdx)
+      return false;
+    if (Forwardings[FirstDefIdx + DefIdx] == 0)
+      return false;
+
+    unsigned FirstUseIdx = Itineraries[UseClass].FirstOperandCycle;
+    unsigned LastUseIdx = Itineraries[UseClass].LastOperandCycle;
+    if ((FirstUseIdx + UseIdx) >= LastUseIdx)
+      return false;
+
+    return Forwardings[FirstDefIdx + DefIdx] ==
+      Forwardings[FirstUseIdx + UseIdx];
+  }
+
+  /// getOperandLatency - Compute and return the use operand latency of a given
+  /// itinerary class and operand index if the value is produced by an
+  /// instruction of the specified itinerary class and def operand index.
+  int getOperandLatency(unsigned DefClass, unsigned DefIdx,
+                        unsigned UseClass, unsigned UseIdx) const {
+    if (isEmpty())
+      return -1;
+
+    int DefCycle = getOperandCycle(DefClass, DefIdx);
+    if (DefCycle == -1)
+      return -1;
+
+    int UseCycle = getOperandCycle(UseClass, UseIdx);
+    if (UseCycle == -1)
+      return -1;
+
+    UseCycle = DefCycle - UseCycle + 1;
+    if (UseCycle > 0 &&
+        hasPipelineForwarding(DefClass, DefIdx, UseClass, UseIdx))
+      // FIXME: This assumes one cycle benefit for every pipeline forwarding.
+      --UseCycle;
+    return UseCycle;
+  }
+
+  /// isMicroCoded - Return true if the instructions in the given class decode
+  /// to more than one micro-ops.
+  bool isMicroCoded(unsigned ItinClassIndx) const {
+    if (isEmpty())
+      return false;
+    return Itineraries[ItinClassIndx].NumMicroOps != 1;
   }
 };
 

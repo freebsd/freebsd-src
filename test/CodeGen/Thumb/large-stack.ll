@@ -10,22 +10,22 @@ define void @test1() {
 
 define void @test2() {
 ; CHECK: test2:
-; CHECK: ldr r0, LCPI
+; CHECK: ldr.n r0, LCPI
 ; CHECK: add sp, r0
-; CHECK: mov sp, r7
-; CHECK: sub sp, #4
+; CHECK: subs r4, r7, #4
+; CHECK: mov sp, r4
     %tmp = alloca [ 4168 x i8 ] , align 4
     ret void
 }
 
 define i32 @test3() {
 ; CHECK: test3:
-; CHECK: ldr r2, LCPI
+; CHECK: ldr.n r2, LCPI
 ; CHECK: add sp, r2
-; CHECK: ldr r1, LCPI
+; CHECK: ldr.n r1, LCPI
 ; CHECK: add r1, sp
-; CHECK: mov sp, r7
-; CHECK: sub sp, #4
+; CHECK: subs r4, r7, #4
+; CHECK: mov sp, r4
     %retval = alloca i32, align 4
     %tmp = alloca i32, align 4
     %a = alloca [805306369 x i8], align 16

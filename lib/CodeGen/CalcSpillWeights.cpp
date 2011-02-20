@@ -25,8 +25,12 @@
 using namespace llvm;
 
 char CalculateSpillWeights::ID = 0;
-INITIALIZE_PASS(CalculateSpillWeights, "calcspillweights",
-                "Calculate spill weights", false, false);
+INITIALIZE_PASS_BEGIN(CalculateSpillWeights, "calcspillweights",
+                "Calculate spill weights", false, false)
+INITIALIZE_PASS_DEPENDENCY(LiveIntervals)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_END(CalculateSpillWeights, "calcspillweights",
+                "Calculate spill weights", false, false)
 
 void CalculateSpillWeights::getAnalysisUsage(AnalysisUsage &au) const {
   au.addRequired<LiveIntervals>();
@@ -170,8 +174,7 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
       totalWeight *= 0.5F;
   }
 
-  li.weight = totalWeight;
-  lis_.normalizeSpillWeight(li);
+  li.weight = normalizeSpillWeight(totalWeight, li.getSize());
 }
 
 void VirtRegAuxInfo::CalculateRegClass(unsigned reg) {
@@ -218,7 +221,7 @@ void VirtRegAuxInfo::CalculateRegClass(unsigned reg) {
 
   if (rc == orc)
     return;
-  DEBUG(dbgs() << "Inflating " << orc->getName() << ":%reg" << reg << " to "
-               << rc->getName() <<".\n");
+  DEBUG(dbgs() << "Inflating " << orc->getName() << ':' << PrintReg(reg)
+               << " to " << rc->getName() <<".\n");
   mri.setRegClass(reg, rc);
 }

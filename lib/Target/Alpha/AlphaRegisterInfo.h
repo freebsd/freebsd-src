@@ -32,19 +32,12 @@ struct AlphaRegisterInfo : public AlphaGenRegisterInfo {
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
-  bool hasFP(const MachineFunction &MF) const;
-
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator I) const;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
                            int SPAdj, RegScavenger *RS = NULL) const;
-
-  //void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
-
-  void emitPrologue(MachineFunction &MF) const;
-  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
 
   // Debug information queries.
   unsigned getRARegister() const;
@@ -57,9 +50,6 @@ struct AlphaRegisterInfo : public AlphaGenRegisterInfo {
   int getDwarfRegNum(unsigned RegNum, bool isEH) const;
 
   static std::string getPrettyName(unsigned reg);
-  
-private:
-  mutable int curgpdist;
 };
 
 } // end namespace llvm

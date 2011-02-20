@@ -15,9 +15,11 @@
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Signals.h"
+#include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/system_error.h"
 using namespace llvm;
 
 static cl::opt<bool>
@@ -42,17 +44,16 @@ int main(int argc, char **argv) {
   }
 
   // Get the input data.
-  std::string ErrorStr;
-  MemoryBuffer *In =
-    MemoryBuffer::getFileOrSTDIN(InputFilename.c_str(), &ErrorStr);
-  if (In == 0) {
+  OwningPtr<MemoryBuffer> In;
+  if (error_code ec = MemoryBuffer::getFileOrSTDIN(InputFilename.c_str(), In)) {
     errs() << argv[0] << ": error: Unable to get input '"
-           << InputFilename << "': " << ErrorStr << '\n';
+           << InputFilename << "': " << ec.message() << '\n';
     return 1;
   }
 
   // Get the output data.
-  MemoryBuffer *Out = MemoryBuffer::getFile(OutputFilename.c_str(), &ErrorStr);
+  OwningPtr<MemoryBuffer> Out;
+  MemoryBuffer::getFile(OutputFilename.c_str(), Out);
 
   // If the output exists and the contents match, we are done.
   if (Out && In->getBufferSize() == Out->getBufferSize() &&
@@ -64,12 +65,11 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  delete Out;
-
   // Otherwise, overwrite the output.
   if (!Quiet)
     errs() << argv[0] << ": Updating '" << OutputFilename
            << "', contents changed.\n";
+  std::string ErrorStr;
   tool_output_file OutStream(OutputFilename.c_str(), ErrorStr,
                              raw_fd_ostream::F_Binary);
   if (!ErrorStr.empty()) {

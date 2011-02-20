@@ -15,6 +15,7 @@
 #include "BlackfinISelLowering.h"
 #include "BlackfinTargetMachine.h"
 #include "llvm/Function.h"
+#include "llvm/Type.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -207,7 +208,8 @@ BlackfinTargetLowering::LowerFormalArguments(SDValue Chain,
       unsigned ObjSize = VA.getLocVT().getStoreSize();
       int FI = MFI->CreateFixedObject(ObjSize, VA.getLocMemOffset(), true);
       SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
-      InVals.push_back(DAG.getLoad(VA.getValVT(), dl, Chain, FIN, NULL, 0,
+      InVals.push_back(DAG.getLoad(VA.getValVT(), dl, Chain, FIN,
+                                   MachinePointerInfo(),
                                    false, false, 0));
     }
   }
@@ -332,8 +334,7 @@ BlackfinTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       SDValue OffsetN = DAG.getIntPtrConstant(Offset);
       OffsetN = DAG.getNode(ISD::ADD, dl, MVT::i32, SPN, OffsetN);
       MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, OffsetN,
-                                         PseudoSourceValue::getStack(),
-                                         Offset, false, false, 0));
+                                         MachinePointerInfo(),false, false, 0));
     }
   }
 
@@ -364,7 +365,7 @@ BlackfinTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
 
   std::vector<EVT> NodeTys;
   NodeTys.push_back(MVT::Other);   // Returns a chain
-  NodeTys.push_back(MVT::Flag);    // Returns a flag for retval copy to use.
+  NodeTys.push_back(MVT::Glue);    // Returns a flag for retval copy to use.
   SDValue Ops[] = { Chain, Callee, InFlag };
   Chain = DAG.getNode(BFISD::CALL, dl, NodeTys, Ops,
                       InFlag.getNode() ? 3 : 2);
@@ -431,7 +432,7 @@ SDValue BlackfinTargetLowering::LowerADDE(SDValue Op, SelectionDAG &DAG) const {
                                SDValue(CarryIn, 0));
 
   // Add operands, produce sum and carry flag
-  SDNode *Sum = DAG.getMachineNode(Opcode, dl, MVT::i32, MVT::Flag,
+  SDNode *Sum = DAG.getMachineNode(Opcode, dl, MVT::i32, MVT::Glue,
                                    Op.getOperand(0), Op.getOperand(1));
 
   // Store intermediate carry from Sum
@@ -439,11 +440,11 @@ SDValue BlackfinTargetLowering::LowerADDE(SDValue Op, SelectionDAG &DAG) const {
                                       /* flag= */ SDValue(Sum, 1));
 
   // Add incoming carry, again producing an output flag
-  Sum = DAG.getMachineNode(Opcode, dl, MVT::i32, MVT::Flag,
+  Sum = DAG.getMachineNode(Opcode, dl, MVT::i32, MVT::Glue,
                            SDValue(Sum, 0), SDValue(CarryIn, 0));
 
   // Update AC0 with the intermediate carry, producing a flag.
-  SDNode *CarryOut = DAG.getMachineNode(BF::OR_ac0_cc, dl, MVT::Flag,
+  SDNode *CarryOut = DAG.getMachineNode(BF::OR_ac0_cc, dl, MVT::Glue,
                                         SDValue(Carry1, 0));
 
   // Compose (i32, flag) pair
@@ -547,6 +548,52 @@ BlackfinTargetLowering::getConstraintType(const std::string &Constraint) const {
   // Not implemented: q0-q7, qA. Use {R2} etc instead
 
   return TargetLowering::getConstraintType(Constraint);
+}
+
+/// Examine constraint type and operand type and determine a weight value.
+/// This object must already have been set up with the operand type
+/// and the current alternative constraint selected.
+TargetLowering::ConstraintWeight
+BlackfinTargetLowering::getSingleConstraintMatchWeight(
+    AsmOperandInfo &info, const char *constraint) const {
+  ConstraintWeight weight = CW_Invalid;
+  Value *CallOperandVal = info.CallOperandVal;
+    // If we don't have a value, we can't do a match,
+    // but allow it at the lowest weight.
+  if (CallOperandVal == NULL)
+    return CW_Default;
+  // Look at the constraint type.
+  switch (*constraint) {
+  default:
+    weight = TargetLowering::getSingleConstraintMatchWeight(info, constraint);
+    break;
+
+    // Blackfin-specific constraints
+  case 'a':
+  case 'd':
+  case 'z':
+  case 'D':
+  case 'W':
+  case 'e':
+  case 'b':
+  case 'v':
+  case 'f':
+  case 'c':
+  case 't':
+  case 'u':
+  case 'k':
+  case 'x':
+  case 'y':
+  case 'w':
+    return CW_Register;
+  case 'A':
+  case 'B':
+  case 'C':
+  case 'Z':
+  case 'Y':
+    return CW_SpecificReg;
+  }
+  return weight;
 }
 
 /// getRegForInlineAsmConstraint - Return register no and class for a C_Register

@@ -922,6 +922,9 @@ encoding of the visibility of this variable:
 <li><i>threadlocal</i>: If present and non-zero, indicates that the variable
 is <tt>thread_local</tt></li>
 
+<li><i>unnamed_addr</i>: If present and non-zero, indicates that the variable
+has <tt>unnamed_addr<tt></li>
+
 </ul>
 </div>
 
@@ -975,6 +978,10 @@ entries.</li>
 <li><i>gc</i>: If present and nonzero, the 1-based garbage collector
 index in the table of
 <a href="#MODULE_CODE_GCNAME">MODULE_CODE_GCNAME</a> entries.</li>
+
+<li><i>unnamed_addr</i>: If present and non-zero, indicates that the function
+has <tt>unnamed_addr<tt></li>
+
 </ul>
 </div>
 
@@ -1474,7 +1481,7 @@ name. Each entry corresponds to a single named type.
  src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
  <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
 <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-Last modified: $Date: 2010-08-28 06:09:24 +0200 (Sat, 28 Aug 2010) $
+Last modified: $Date: 2011-01-08 17:42:36 +0100 (Sat, 08 Jan 2011) $
 </address>
 </body>
 </html>

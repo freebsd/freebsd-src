@@ -8,6 +8,7 @@ beautification by scripts.  The fields are: name (N), email (E), web-address
 (W), PGP key ID and fingerprint (P), description (D), and snail-mail address
 (S).
 
+
 N: Vikram Adve
 E: vadve@cs.uiuc.edu
 W: http://www.cs.uiuc.edu/~vadve/
@@ -39,7 +40,7 @@ N: Misha Brukman
 E: brukman+llvm@uiuc.edu
 W: http://misha.brukman.net
 D: Portions of X86 and Sparc JIT compilers, PowerPC backend
-D: Incremental bytecode loader
+D: Incremental bitcode loader
 
 N: Cameron Buschardt
 E: buschard@uiuc.edu
@@ -328,6 +329,7 @@ D: The `paths' pass
 N: Michael J. Spencer
 E: bigcheesegs@gmail.com
 D: Shepherding Windows COFF support into MC.
+D: Lots of Windows stuff.
 
 N: Reid Spencer
 E: rspencer@reidspencer.com

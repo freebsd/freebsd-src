@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=arm | FileCheck %s
+; RUN: llc < %s -mtriple=arm-apple-darwin | FileCheck %s
 ; RUN: llc < %s -march=arm -mattr=+vfp2 | FileCheck %s --check-prefix=CHECK-VFP
 ; RUN: llc < %s -mattr=+neon,+thumb2 -mtriple=thumbv7-apple-darwin | FileCheck %s --check-prefix=CHECK-NEON
 
@@ -79,9 +79,9 @@ define double @f7(double %a, double %b) {
 ; CHECK-NEON:      movw   [[REGISTER_1:r[0-9]+]], #1123
 ; CHECK-NEON-NEXT: movs   [[REGISTER_2:r[0-9]+]], #0
 ; CHECK-NEON-NEXT: cmp    r0, [[REGISTER_1]]
-; CHECK-NEON-NEXT: adr    [[REGISTER_3:r[0-9]+]], #LCPI
 ; CHECK-NEON-NEXT: it     eq
 ; CHECK-NEON-NEXT: moveq  [[REGISTER_2]], #4
+; CHECK-NEON-NEXT: adr    [[REGISTER_3:r[0-9]+]], #LCPI
 ; CHECK-NEON-NEXT: ldr
 ; CHECK-NEON:      bx
 

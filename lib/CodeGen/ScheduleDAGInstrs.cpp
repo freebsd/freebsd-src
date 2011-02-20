@@ -16,6 +16,7 @@
 #include "ScheduleDAGInstrs.h"
 #include "llvm/Operator.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -32,9 +33,9 @@ using namespace llvm;
 ScheduleDAGInstrs::ScheduleDAGInstrs(MachineFunction &mf,
                                      const MachineLoopInfo &mli,
                                      const MachineDominatorTree &mdt)
-  : ScheduleDAG(mf), MLI(mli), MDT(mdt), Defs(TRI->getNumRegs()),
-    Uses(TRI->getNumRegs()), LoopRegs(MLI, MDT) {
-  MFI = mf.getFrameInfo();
+  : ScheduleDAG(mf), MLI(mli), MDT(mdt), MFI(mf.getFrameInfo()),
+    InstrItins(mf.getTarget().getInstrItineraryData()),
+    Defs(TRI->getNumRegs()), Uses(TRI->getNumRegs()), LoopRegs(MLI, MDT) {
   DbgValueVec.clear();
 }
 
@@ -78,12 +79,12 @@ static const Value *getUnderlyingObjectFromInt(const Value *V) {
   } while (1);
 }
 
-/// getUnderlyingObject - This is a wrapper around Value::getUnderlyingObject
+/// getUnderlyingObject - This is a wrapper around GetUnderlyingObject
 /// and adds support for basic ptrtoint+arithmetic+inttoptr sequences.
 static const Value *getUnderlyingObject(const Value *V) {
   // First just call Value::getUnderlyingObject to let it do what it does.
   do {
-    V = V->getUnderlyingObject();
+    V = GetUnderlyingObject(V);
     // If it found an inttoptr, use special code to continue climing.
     if (Operator::getOpcode(V) != Instruction::IntToPtr)
       break;
@@ -141,6 +142,46 @@ void ScheduleDAGInstrs::StartBlock(MachineBasicBlock *BB) {
     }
 }
 
+/// AddSchedBarrierDeps - Add dependencies from instructions in the current
+/// list of instructions being scheduled to scheduling barrier by adding
+/// the exit SU to the register defs and use list. This is because we want to
+/// make sure instructions which define registers that are either used by
+/// the terminator or are live-out are properly scheduled. This is
+/// especially important when the definition latency of the return value(s)
+/// are too high to be hidden by the branch or when the liveout registers
+/// used by instructions in the fallthrough block.
+void ScheduleDAGInstrs::AddSchedBarrierDeps() {
+  MachineInstr *ExitMI = InsertPos != BB->end() ? &*InsertPos : 0;
+  ExitSU.setInstr(ExitMI);
+  bool AllDepKnown = ExitMI &&
+    (ExitMI->getDesc().isCall() || ExitMI->getDesc().isBarrier());
+  if (ExitMI && AllDepKnown) {
+    // If it's a call or a barrier, add dependencies on the defs and uses of
+    // instruction.
+    for (unsigned i = 0, e = ExitMI->getNumOperands(); i != e; ++i) {
+      const MachineOperand &MO = ExitMI->getOperand(i);
+      if (!MO.isReg() || MO.isDef()) continue;
+      unsigned Reg = MO.getReg();
+      if (Reg == 0) continue;
+
+      assert(TRI->isPhysicalRegister(Reg) && "Virtual register encountered!");
+      Uses[Reg].push_back(&ExitSU);
+    }
+  } else {
+    // For others, e.g. fallthrough, conditional branch, assume the exit
+    // uses all the registers that are livein to the successor blocks.
+    SmallSet<unsigned, 8> Seen;
+    for (MachineBasicBlock::succ_iterator SI = BB->succ_begin(),
+           SE = BB->succ_end(); SI != SE; ++SI)
+      for (MachineBasicBlock::livein_iterator I = (*SI)->livein_begin(),
+             E = (*SI)->livein_end(); I != E; ++I) {    
+        unsigned Reg = *I;
+        if (Seen.insert(Reg))
+          Uses[Reg].push_back(&ExitSU);
+      }
+  }
+}
+
 void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
   // We'll be allocating one SUnit for each instruction, plus one for
   // the region exit node.
@@ -175,6 +216,10 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
   // without emitting the info from the previous call.
   DbgValueVec.clear();
 
+  // Model data dependencies between instructions being scheduled and the
+  // ExitSU.
+  AddSchedBarrierDeps();
+
   // Walk the list of instructions, from bottom moving up.
   for (MachineBasicBlock::iterator MII = InsertPos, MIE = Begin;
        MII != MIE; --MII) {
@@ -194,6 +239,8 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
            "Cannot schedule terminators or labels!");
     // Create the SUnit for this MI.
     SUnit *SU = NewSUnit(MI);
+    SU->isCall = TID.isCall();
+    SU->isCommutable = TID.isCommutable();
 
     // Assign the Latency field of SU using target-provided information.
     if (UnitLatencies)
@@ -228,6 +275,8 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
       unsigned AOLatency = (Kind == SDep::Anti) ? 0 : 1;
       for (unsigned i = 0, e = DefList.size(); i != e; ++i) {
         SUnit *DefSU = DefList[i];
+        if (DefSU == &ExitSU)
+          continue;
         if (DefSU != SU &&
             (Kind != SDep::Output || !MO.isDead() ||
              !DefSU->getInstr()->registerDefIsDead(Reg)))
@@ -237,6 +286,8 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
         std::vector<SUnit *> &DefList = Defs[*Alias];
         for (unsigned i = 0, e = DefList.size(); i != e; ++i) {
           SUnit *DefSU = DefList[i];
+          if (DefSU == &ExitSU)
+            continue;
           if (DefSU != SU &&
               (Kind != SDep::Output || !MO.isDead() ||
                !DefSU->getInstr()->registerDefIsDead(*Alias)))
@@ -258,12 +309,14 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
           // TODO: Perhaps we should get rid of
           // SpecialAddressLatency and just move this into
           // adjustSchedDependency for the targets that care about it.
-          if (SpecialAddressLatency != 0 && !UnitLatencies) {
+          if (SpecialAddressLatency != 0 && !UnitLatencies &&
+              UseSU != &ExitSU) {
             MachineInstr *UseMI = UseSU->getInstr();
             const TargetInstrDesc &UseTID = UseMI->getDesc();
             int RegUseIndex = UseMI->findRegisterUseOperandIdx(Reg);
             assert(RegUseIndex >= 0 && "UseMI doesn's use register!");
-            if ((UseTID.mayLoad() || UseTID.mayStore()) &&
+            if (RegUseIndex >= 0 &&
+                (UseTID.mayLoad() || UseTID.mayStore()) &&
                 (unsigned)RegUseIndex < UseTID.getNumOperands() &&
                 UseTID.OpInfo[RegUseIndex].isLookupPtrRegClass())
               LDataLatency += SpecialAddressLatency;
@@ -357,7 +410,7 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
     // produce more precise dependence information.
 #define STORE_LOAD_LATENCY 1
     unsigned TrueMemOrderLatency = 0;
-    if (TID.isCall() || TID.hasUnmodeledSideEffects() ||
+    if (TID.isCall() || MI->hasUnmodeledSideEffects() ||
         (MI->hasVolatileMemoryRef() && 
          (!TID.mayLoad() || !MI->isInvariantLoad(AA)))) {
       // Be conservative with these and add dependencies on all memory
@@ -446,6 +499,14 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
         // Treat all other stores conservatively.
         goto new_alias_chain;
       }
+
+      if (!ExitSU.isPred(SU))
+        // Push store's up a bit to avoid them getting in between cmp
+        // and branches.
+        ExitSU.addPred(SDep(SU, SDep::Order, 0,
+                            /*Reg=*/0, /*isNormalMemory=*/false,
+                            /*isMustAlias=*/false,
+                            /*isArtificial=*/true));
     } else if (TID.mayLoad()) {
       bool MayAlias = true;
       TrueMemOrderLatency = 0;
@@ -498,23 +559,22 @@ void ScheduleDAGInstrs::FinishBlock() {
 }
 
 void ScheduleDAGInstrs::ComputeLatency(SUnit *SU) {
-  const InstrItineraryData &InstrItins = TM.getInstrItineraryData();
-
   // Compute the latency for the node.
-  SU->Latency =
-    InstrItins.getStageLatency(SU->getInstr()->getDesc().getSchedClass());
+  if (!InstrItins || InstrItins->isEmpty()) {
+    SU->Latency = 1;
 
-  // Simplistic target-independent heuristic: assume that loads take
-  // extra time.
-  if (InstrItins.isEmpty())
+    // Simplistic target-independent heuristic: assume that loads take
+    // extra time.
     if (SU->getInstr()->getDesc().mayLoad())
       SU->Latency += 2;
+  } else {
+    SU->Latency = TII->getInstrLatency(InstrItins, SU->getInstr());
+  }
 }
 
 void ScheduleDAGInstrs::ComputeOperandLatency(SUnit *Def, SUnit *Use, 
                                               SDep& dep) const {
-  const InstrItineraryData &InstrItins = TM.getInstrItineraryData();
-  if (InstrItins.isEmpty())
+  if (!InstrItins || InstrItins->isEmpty())
     return;
   
   // For a data dependency with a known register...
@@ -528,14 +588,21 @@ void ScheduleDAGInstrs::ComputeOperandLatency(SUnit *Def, SUnit *Use,
   MachineInstr *DefMI = Def->getInstr();
   int DefIdx = DefMI->findRegisterDefOperandIdx(Reg);
   if (DefIdx != -1) {
-    int DefCycle = InstrItins.getOperandCycle(DefMI->getDesc().getSchedClass(),
-                                              DefIdx);
-    if (DefCycle >= 0) {
-      MachineInstr *UseMI = Use->getInstr();
-      const unsigned UseClass = UseMI->getDesc().getSchedClass();
-
-      // For all uses of the register, calculate the maxmimum latency
-      int Latency = -1;
+    const MachineOperand &MO = DefMI->getOperand(DefIdx);
+    if (MO.isReg() && MO.isImplicit() &&
+        DefIdx >= (int)DefMI->getDesc().getNumOperands()) {
+      // This is an implicit def, getOperandLatency() won't return the correct
+      // latency. e.g.
+      //   %D6<def>, %D7<def> = VLD1q16 %R2<kill>, 0, ..., %Q3<imp-def>
+      //   %Q1<def> = VMULv8i16 %Q1<kill>, %Q3<kill>, ...
+      // What we want is to compute latency between def of %D6/%D7 and use of
+      // %Q3 instead.
+      DefIdx = DefMI->findRegisterDefOperandIdx(Reg, false, true, TRI);
+    }
+    MachineInstr *UseMI = Use->getInstr();
+    // For all uses of the register, calculate the maxmimum latency
+    int Latency = -1;
+    if (UseMI) {
       for (unsigned i = 0, e = UseMI->getNumOperands(); i != e; ++i) {
         const MachineOperand &MO = UseMI->getOperand(i);
         if (!MO.isReg() || !MO.isUse())
@@ -544,15 +611,21 @@ void ScheduleDAGInstrs::ComputeOperandLatency(SUnit *Def, SUnit *Use,
         if (MOReg != Reg)
           continue;
 
-        int UseCycle = InstrItins.getOperandCycle(UseClass, i);
-        if (UseCycle >= 0)
-          Latency = std::max(Latency, DefCycle - UseCycle + 1);
+        int UseCycle = TII->getOperandLatency(InstrItins, DefMI, DefIdx,
+                                              UseMI, i);
+        Latency = std::max(Latency, UseCycle);
       }
-
-      // If we found a latency, then replace the existing dependence latency.
-      if (Latency >= 0)
-        dep.setLatency(Latency);
+    } else {
+      // UseMI is null, then it must be a scheduling barrier.
+      if (!InstrItins || InstrItins->isEmpty())
+        return;
+      unsigned DefClass = DefMI->getDesc().getSchedClass();
+      Latency = InstrItins->getOperandCycle(DefClass, DefIdx);
     }
+
+    // If we found a latency, then replace the existing dependence latency.
+    if (Latency >= 0)
+      dep.setLatency(Latency);
   }
 }
 
