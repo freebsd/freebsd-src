@@ -1052,13 +1052,12 @@ alc_detach(device_t dev)
 
 	ifp = sc->alc_ifp;
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		ALC_LOCK(sc);
-		sc->alc_flags |= ALC_FLAG_DETACH;
 		alc_stop(sc);
 		ALC_UNLOCK(sc);
 		callout_drain(&sc->alc_tick_ch);
 		taskqueue_drain(sc->alc_tq, &sc->alc_int_task);
-		ether_ifdetach(ifp);
 	}
 
 	if (sc->alc_tq != NULL) {
@@ -2368,7 +2367,7 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    ((ifp->if_flags ^ sc->alc_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 				alc_rxfilter(sc);
-			else if ((sc->alc_flags & ALC_FLAG_DETACH) == 0)
+			else
 				alc_init_locked(sc);
 		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 			alc_stop(sc);
@@ -2663,6 +2662,7 @@ alc_int_task(void *arg, int pending)
 	ifp = sc->alc_ifp;
 
 	status = CSR_READ_4(sc, ALC_INTR_STATUS);
+	ALC_LOCK(sc);
 	if (sc->alc_morework != 0) {
 		sc->alc_morework = 0;
 		status |= INTR_RX_PKT;
@@ -2680,7 +2680,6 @@ alc_int_task(void *arg, int pending)
 			if (more == EAGAIN)
 				sc->alc_morework = 1;
 			else if (more == EIO) {
-				ALC_LOCK(sc);
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				alc_init_locked(sc);
 				ALC_UNLOCK(sc);
@@ -2698,7 +2697,6 @@ alc_int_task(void *arg, int pending)
 			if ((status & INTR_TXQ_TO_RST) != 0)
 				device_printf(sc->alc_dev,
 				    "TxQ reset! -- resetting\n");
-			ALC_LOCK(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			alc_init_locked(sc);
 			ALC_UNLOCK(sc);
@@ -2706,11 +2704,12 @@ alc_int_task(void *arg, int pending)
 		}
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			alc_start(ifp);
+			alc_start_locked(ifp);
 	}
 
 	if (more == EAGAIN ||
 	    (CSR_READ_4(sc, ALC_INTR_STATUS) & ALC_INTRS) != 0) {
+		ALC_UNLOCK(sc);
 		taskqueue_enqueue(sc->alc_tq, &sc->alc_int_task);
 		return;
 	}
@@ -2720,6 +2719,7 @@ done:
 		/* Re-enable interrupts if we're running. */
 		CSR_WRITE_4(sc, ALC_INTR_STATUS, 0x7FFFFFFF);
 	}
+	ALC_UNLOCK(sc);
 }
 
 static void
@@ -3039,7 +3039,9 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 #endif
 			{
 			/* Pass it on. */
+			ALC_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
+			ALC_LOCK(sc);
 			}
 		}
 	}
