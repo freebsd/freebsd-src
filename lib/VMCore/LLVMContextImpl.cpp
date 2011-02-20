@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LLVMContextImpl.h"
+#include "llvm/Module.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -25,6 +26,7 @@ LLVMContextImpl::LLVMContextImpl(LLVMContext &C)
     X86_FP80Ty(C, Type::X86_FP80TyID),
     FP128Ty(C, Type::FP128TyID),
     PPC_FP128Ty(C, Type::PPC_FP128TyID),
+    X86_MMXTy(C, Type::X86_MMXTyID),
     Int1Ty(C, 1),
     Int8Ty(C, 8),
     Int16Ty(C, 16),
@@ -51,6 +53,15 @@ struct DropReferences {
 }
 
 LLVMContextImpl::~LLVMContextImpl() {
+  // NOTE: We need to delete the contents of OwnedModules, but we have to
+  // duplicate it into a temporary vector, because the destructor of Module
+  // will try to remove itself from OwnedModules set.  This would cause
+  // iterator invalidation if we iterated on the set directly.
+  std::vector<Module*> Modules(OwnedModules.begin(), OwnedModules.end());
+  for (std::vector<Module*>::iterator I = Modules.begin(), E = Modules.end();
+       I != E; ++I)
+    delete *I;
+  
   std::for_each(ExprConstants.map_begin(), ExprConstants.map_end(),
                 DropReferences());
   std::for_each(ArrayConstants.map_begin(), ArrayConstants.map_end(),
@@ -90,7 +101,7 @@ LLVMContextImpl::~LLVMContextImpl() {
     MDNodes.push_back(&*I);
   }
   MDNodes.append(NonUniquedMDNodes.begin(), NonUniquedMDNodes.end());
-  for (SmallVector<MDNode*, 8>::iterator I = MDNodes.begin(),
+  for (SmallVectorImpl<MDNode *>::iterator I = MDNodes.begin(),
          E = MDNodes.end(); I != E; ++I) {
     (*I)->destroy();
   }

@@ -37,6 +37,31 @@ _f3:
 	ori r3, r2, 65535
 	blr 
 
+===-------------------------------------------------------------------------===
+
+This code:
+
+unsigned add32carry(unsigned sum, unsigned x) {
+ unsigned z = sum + x;
+ if (sum + x < x)
+     z++;
+ return z;
+}
+
+Should compile to something like:
+
+	addc r3,r3,r4
+	addze r3,r3
+
+instead we get:
+
+	add r3, r4, r3
+	cmplw cr7, r3, r4
+	mfcr r4 ; 1
+	rlwinm r4, r4, 29, 31, 31
+	add r3, r3, r4
+
+Ick.
 
 ===-------------------------------------------------------------------------===
 
@@ -260,8 +285,8 @@ including having this work sanely.
 Fix Darwin FP-In-Integer Registers ABI
 
 Darwin passes doubles in structures in integer registers, which is very very 
-bad.  Add something like a BIT_CONVERT to LLVM, then do an i-p transformation 
-that percolates these things out of functions.
+bad.  Add something like a BITCAST to LLVM, then do an i-p transformation that
+percolates these things out of functions.
 
 Check out how horrible this is:
 http://gcc.gnu.org/ml/gcc/2005-10/msg01036.html

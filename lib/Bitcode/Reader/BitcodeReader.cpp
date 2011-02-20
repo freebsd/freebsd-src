@@ -136,7 +136,6 @@ namespace {
   /// @brief A class for maintaining the slot number definition
   /// as a placeholder for the actual definition for forward constants defs.
   class ConstantPlaceHolder : public ConstantExpr {
-    ConstantPlaceHolder();                       // DO NOT IMPLEMENT
     void operator=(const ConstantPlaceHolder &); // DO NOT IMPLEMENT
   public:
     // allocate space for exactly one operand
@@ -149,7 +148,7 @@ namespace {
     }
 
     /// @brief Methods to support type inquiry through isa, cast, and dyn_cast.
-    static inline bool classof(const ConstantPlaceHolder *) { return true; }
+    //static inline bool classof(const ConstantPlaceHolder *) { return true; }
     static bool classof(const Value *V) {
       return isa<ConstantExpr>(V) &&
              cast<ConstantExpr>(V)->getOpcode() == Instruction::UserOp1;
@@ -163,7 +162,8 @@ namespace {
 
 // FIXME: can we inherit this from ConstantExpr?
 template <>
-struct OperandTraits<ConstantPlaceHolder> : public FixedNumOperandTraits<1> {
+struct OperandTraits<ConstantPlaceHolder> :
+  public FixedNumOperandTraits<ConstantPlaceHolder, 1> {
 };
 }
 
@@ -298,7 +298,7 @@ void BitcodeReaderValueList::ResolveConstantForwardRefs() {
         NewC = ConstantStruct::get(Context, &NewOps[0], NewOps.size(),
                                          UserCS->getType()->isPacked());
       } else if (isa<ConstantVector>(UserC)) {
-        NewC = ConstantVector::get(&NewOps[0], NewOps.size());
+        NewC = ConstantVector::get(NewOps);
       } else {
         assert(isa<ConstantExpr>(UserC) && "Must be a ConstantExpr.");
         NewC = cast<ConstantExpr>(UserC)->getWithOperands(&NewOps[0],
@@ -550,6 +550,9 @@ bool BitcodeReader::ParseTypeTable() {
     case bitc::TYPE_CODE_METADATA:  // METADATA
       ResultTy = Type::getMetadataTy(Context);
       break;
+    case bitc::TYPE_CODE_X86_MMX:   // X86_MMX
+      ResultTy = Type::getX86_MMXTy(Context);
+      break;
     case bitc::TYPE_CODE_INTEGER:   // INTEGER: [width]
       if (Record.size() < 1)
         return Error("Invalid Integer type record");
@@ -794,7 +797,7 @@ bool BitcodeReader::ParseMetadata() {
       if (NextBitCode == bitc::METADATA_NAMED_NODE) {
         LLVM2_7MetadataDetected = true;
       } else if (NextBitCode != bitc::METADATA_NAMED_NODE2)
-        assert ( 0 && "Inavlid Named Metadata record");
+        assert ( 0 && "Invalid Named Metadata record");
 
       // Read named metadata elements.
       unsigned Size = Record.size();
@@ -832,7 +835,8 @@ bool BitcodeReader::ParseMetadata() {
       unsigned Size = Record.size();
       SmallVector<Value*, 8> Elts;
       for (unsigned i = 0; i != Size; i += 2) {
-        const Type *Ty = getTypeByID(Record[i], false);
+        const Type *Ty = getTypeByID(Record[i]);
+        if (!Ty) return Error("Invalid METADATA_NODE2 record");
         if (Ty->isMetadataTy())
           Elts.push_back(MDValueList.getValueFwdRef(Record[i+1]));
         else if (!Ty->isVoidTy())
@@ -1081,13 +1085,17 @@ bool BitcodeReader::ParseConstants() {
         if (Record.size() >= 4) {
           if (Opc == Instruction::Add ||
               Opc == Instruction::Sub ||
-              Opc == Instruction::Mul) {
+              Opc == Instruction::Mul ||
+              Opc == Instruction::Shl) {
             if (Record[3] & (1 << bitc::OBO_NO_SIGNED_WRAP))
               Flags |= OverflowingBinaryOperator::NoSignedWrap;
             if (Record[3] & (1 << bitc::OBO_NO_UNSIGNED_WRAP))
               Flags |= OverflowingBinaryOperator::NoUnsignedWrap;
-          } else if (Opc == Instruction::SDiv) {
-            if (Record[3] & (1 << bitc::SDIV_EXACT))
+          } else if (Opc == Instruction::SDiv ||
+                     Opc == Instruction::UDiv ||
+                     Opc == Instruction::LShr ||
+                     Opc == Instruction::AShr) {
+            if (Record[3] & (1 << bitc::PEO_EXACT))
               Flags |= SDivOperator::IsExact;
           }
         }
@@ -1167,7 +1175,8 @@ bool BitcodeReader::ParseConstants() {
     }
     case bitc::CST_CODE_CE_SHUFVEC_EX: { // [opty, opval, opval, opval]
       const VectorType *RTy = dyn_cast<VectorType>(CurTy);
-      const VectorType *OpTy = dyn_cast<VectorType>(getTypeByID(Record[0]));
+      const VectorType *OpTy =
+        dyn_cast_or_null<VectorType>(getTypeByID(Record[0]));
       if (Record.size() < 4 || RTy == 0 || OpTy == 0)
         return Error("Invalid CE_SHUFVEC_EX record");
       Constant *Op0 = ValueList.getConstantFwdRef(Record[1], OpTy);
@@ -1418,11 +1427,13 @@ bool BitcodeReader::ParseModule() {
       break;
     }
     // GLOBALVAR: [pointer type, isconst, initid,
-    //             linkage, alignment, section, visibility, threadlocal]
+    //             linkage, alignment, section, visibility, threadlocal,
+    //             unnamed_addr]
     case bitc::MODULE_CODE_GLOBALVAR: {
       if (Record.size() < 6)
         return Error("Invalid MODULE_CODE_GLOBALVAR record");
       const Type *Ty = getTypeByID(Record[0]);
+      if (!Ty) return Error("Invalid MODULE_CODE_GLOBALVAR record");
       if (!Ty->isPointerTy())
         return Error("Global not a pointer type!");
       unsigned AddressSpace = cast<PointerType>(Ty)->getAddressSpace();
@@ -1444,6 +1455,10 @@ bool BitcodeReader::ParseModule() {
       if (Record.size() > 7)
         isThreadLocal = Record[7];
 
+      bool UnnamedAddr = false;
+      if (Record.size() > 8)
+        UnnamedAddr = Record[8];
+
       GlobalVariable *NewGV =
         new GlobalVariable(*TheModule, Ty, isConstant, Linkage, 0, "", 0,
                            isThreadLocal, AddressSpace);
@@ -1452,6 +1467,7 @@ bool BitcodeReader::ParseModule() {
         NewGV->setSection(Section);
       NewGV->setVisibility(Visibility);
       NewGV->setThreadLocal(isThreadLocal);
+      NewGV->setUnnamedAddr(UnnamedAddr);
 
       ValueList.push_back(NewGV);
 
@@ -1461,11 +1477,12 @@ bool BitcodeReader::ParseModule() {
       break;
     }
     // FUNCTION:  [type, callingconv, isproto, linkage, paramattr,
-    //             alignment, section, visibility, gc]
+    //             alignment, section, visibility, gc, unnamed_addr]
     case bitc::MODULE_CODE_FUNCTION: {
       if (Record.size() < 8)
         return Error("Invalid MODULE_CODE_FUNCTION record");
       const Type *Ty = getTypeByID(Record[0]);
+      if (!Ty) return Error("Invalid MODULE_CODE_FUNCTION record");
       if (!Ty->isPointerTy())
         return Error("Function not a pointer type!");
       const FunctionType *FTy =
@@ -1493,6 +1510,10 @@ bool BitcodeReader::ParseModule() {
           return Error("Invalid GC ID");
         Func->setGC(GCTable[Record[8]-1].c_str());
       }
+      bool UnnamedAddr = false;
+      if (Record.size() > 9)
+        UnnamedAddr = Record[9];
+      Func->setUnnamedAddr(UnnamedAddr);
       ValueList.push_back(Func);
 
       // If this is a function with a body, remember the prototype we are
@@ -1507,6 +1528,7 @@ bool BitcodeReader::ParseModule() {
       if (Record.size() < 3)
         return Error("Invalid MODULE_ALIAS record");
       const Type *Ty = getTypeByID(Record[0]);
+      if (!Ty) return Error("Invalid MODULE_ALIAS record");
       if (!Ty->isPointerTy())
         return Error("Function not a pointer type!");
 
@@ -1586,6 +1608,112 @@ bool BitcodeReader::ParseBitcodeInto(Module *M) {
         return Error("Multiple MODULE_BLOCKs in same stream");
       TheModule = M;
       if (ParseModule())
+        return true;
+      break;
+    default:
+      if (Stream.SkipBlock())
+        return Error("Malformed block record");
+      break;
+    }
+  }
+
+  return false;
+}
+
+bool BitcodeReader::ParseModuleTriple(std::string &Triple) {
+  if (Stream.EnterSubBlock(bitc::MODULE_BLOCK_ID))
+    return Error("Malformed block record");
+
+  SmallVector<uint64_t, 64> Record;
+
+  // Read all the records for this module.
+  while (!Stream.AtEndOfStream()) {
+    unsigned Code = Stream.ReadCode();
+    if (Code == bitc::END_BLOCK) {
+      if (Stream.ReadBlockEnd())
+        return Error("Error at end of module block");
+
+      return false;
+    }
+
+    if (Code == bitc::ENTER_SUBBLOCK) {
+      switch (Stream.ReadSubBlockID()) {
+      default:  // Skip unknown content.
+        if (Stream.SkipBlock())
+          return Error("Malformed block record");
+        break;
+      }
+      continue;
+    }
+
+    if (Code == bitc::DEFINE_ABBREV) {
+      Stream.ReadAbbrevRecord();
+      continue;
+    }
+
+    // Read a record.
+    switch (Stream.ReadRecord(Code, Record)) {
+    default: break;  // Default behavior, ignore unknown content.
+    case bitc::MODULE_CODE_VERSION:  // VERSION: [version#]
+      if (Record.size() < 1)
+        return Error("Malformed MODULE_CODE_VERSION");
+      // Only version #0 is supported so far.
+      if (Record[0] != 0)
+        return Error("Unknown bitstream version!");
+      break;
+    case bitc::MODULE_CODE_TRIPLE: {  // TRIPLE: [strchr x N]
+      std::string S;
+      if (ConvertToString(Record, 0, S))
+        return Error("Invalid MODULE_CODE_TRIPLE record");
+      Triple = S;
+      break;
+    }
+    }
+    Record.clear();
+  }
+
+  return Error("Premature end of bitstream");
+}
+
+bool BitcodeReader::ParseTriple(std::string &Triple) {
+  if (Buffer->getBufferSize() & 3)
+    return Error("Bitcode stream should be a multiple of 4 bytes in length");
+
+  unsigned char *BufPtr = (unsigned char *)Buffer->getBufferStart();
+  unsigned char *BufEnd = BufPtr+Buffer->getBufferSize();
+
+  // If we have a wrapper header, parse it and ignore the non-bc file contents.
+  // The magic number is 0x0B17C0DE stored in little endian.
+  if (isBitcodeWrapper(BufPtr, BufEnd))
+    if (SkipBitcodeWrapperHeader(BufPtr, BufEnd))
+      return Error("Invalid bitcode wrapper header");
+
+  StreamFile.init(BufPtr, BufEnd);
+  Stream.init(StreamFile);
+
+  // Sniff for the signature.
+  if (Stream.Read(8) != 'B' ||
+      Stream.Read(8) != 'C' ||
+      Stream.Read(4) != 0x0 ||
+      Stream.Read(4) != 0xC ||
+      Stream.Read(4) != 0xE ||
+      Stream.Read(4) != 0xD)
+    return Error("Invalid bitcode signature");
+
+  // We expect a number of well-defined blocks, though we don't necessarily
+  // need to understand them all.
+  while (!Stream.AtEndOfStream()) {
+    unsigned Code = Stream.ReadCode();
+
+    if (Code != bitc::ENTER_SUBBLOCK)
+      return Error("Invalid record at top-level");
+
+    unsigned BlockID = Stream.ReadSubBlockID();
+
+    // We only know the MODULE subblock ID.
+    switch (BlockID) {
+    case bitc::MODULE_BLOCK_ID:
+      if (ParseModuleTriple(Triple))
         return true;
       break;
     default:
@@ -1776,13 +1904,17 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
       if (OpNum < Record.size()) {
         if (Opc == Instruction::Add ||
             Opc == Instruction::Sub ||
-            Opc == Instruction::Mul) {
+            Opc == Instruction::Mul ||
+            Opc == Instruction::Shl) {
           if (Record[OpNum] & (1 << bitc::OBO_NO_SIGNED_WRAP))
             cast<BinaryOperator>(I)->setHasNoSignedWrap(true);
           if (Record[OpNum] & (1 << bitc::OBO_NO_UNSIGNED_WRAP))
             cast<BinaryOperator>(I)->setHasNoUnsignedWrap(true);
-        } else if (Opc == Instruction::SDiv) {
-          if (Record[OpNum] & (1 << bitc::SDIV_EXACT))
+        } else if (Opc == Instruction::SDiv ||
+                   Opc == Instruction::UDiv ||
+                   Opc == Instruction::LShr ||
+                   Opc == Instruction::AShr) {
+          if (Record[OpNum] & (1 << bitc::PEO_EXACT))
             cast<BinaryOperator>(I)->setIsExact(true);
         }
       }
@@ -2535,7 +2667,24 @@ Module *llvm::ParseBitcodeFile(MemoryBuffer *Buffer, LLVMContext& Context,
   // Read in the entire module, and destroy the BitcodeReader.
   if (M->MaterializeAllPermanently(ErrMsg)) {
     delete M;
-    return NULL;
+    return 0;
   }
+
   return M;
+}
+
+std::string llvm::getBitcodeTargetTriple(MemoryBuffer *Buffer,
+                                         LLVMContext& Context,
+                                         std::string *ErrMsg) {
+  BitcodeReader *R = new BitcodeReader(Buffer, Context);
+  // Don't let the BitcodeReader dtor delete 'Buffer'.
+  R->setBufferOwned(false);
+
+  std::string Triple("");
+  if (R->ParseTriple(Triple))
+    if (ErrMsg)
+      *ErrMsg = R->getErrorString();
+
+  delete R;
+  return Triple;
 }

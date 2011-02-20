@@ -30,22 +30,42 @@ StringRef Twine::toStringRef(SmallVectorImpl<char> &Out) const {
   return StringRef(Out.data(), Out.size());
 }
 
-void Twine::printOneChild(raw_ostream &OS, const void *Ptr, 
+StringRef Twine::toNullTerminatedStringRef(SmallVectorImpl<char> &Out) const {
+  if (isUnary()) {
+    switch (getLHSKind()) {
+    case CStringKind:
+      // Already null terminated, yay!
+      return StringRef(static_cast<const char*>(LHS));
+    case StdStringKind: {
+        const std::string *str = static_cast<const std::string*>(LHS);
+        return StringRef(str->c_str(), str->size());
+      }
+    default:
+      break;
+    }
+  }
+  toVector(Out);
+  Out.push_back(0);
+  Out.pop_back();
+  return StringRef(Out.data(), Out.size());
+}
+
+void Twine::printOneChild(raw_ostream &OS, const void *Ptr,
                           NodeKind Kind) const {
   switch (Kind) {
   case Twine::NullKind: break;
   case Twine::EmptyKind: break;
   case Twine::TwineKind:
-    static_cast<const Twine*>(Ptr)->print(OS); 
+    static_cast<const Twine*>(Ptr)->print(OS);
     break;
-  case Twine::CStringKind: 
-    OS << static_cast<const char*>(Ptr); 
+  case Twine::CStringKind:
+    OS << static_cast<const char*>(Ptr);
     break;
   case Twine::StdStringKind:
-    OS << *static_cast<const std::string*>(Ptr); 
+    OS << *static_cast<const std::string*>(Ptr);
     break;
   case Twine::StringRefKind:
-    OS << *static_cast<const StringRef*>(Ptr); 
+    OS << *static_cast<const StringRef*>(Ptr);
     break;
   case Twine::DecUIKind:
     OS << (unsigned)(uintptr_t)Ptr;
@@ -71,7 +91,7 @@ void Twine::printOneChild(raw_ostream &OS, const void *Ptr,
   }
 }
 
-void Twine::printOneChildRepr(raw_ostream &OS, const void *Ptr, 
+void Twine::printOneChildRepr(raw_ostream &OS, const void *Ptr,
                               NodeKind Kind) const {
   switch (Kind) {
   case Twine::NullKind:

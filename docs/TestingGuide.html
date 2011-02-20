@@ -18,12 +18,14 @@
     <ul>
       <li><a href="#regressiontests">Regression tests</a></li>
       <li><a href="#testsuite">Test suite</a></li>
+      <li><a href="#debuginfotests">Debugging Information tests</a></li>
     </ul>
   </li>
   <li><a href="#quick">Quick start</a>
     <ul>
       <li><a href="#quickregressiontests">Regression tests</a></li>
       <li><a href="#quicktestsuite">Test suite</a></li>
+      <li><a href="#quickdebuginfotests">Debugging Information tests</a></li>
    </ul>
   </li>
   <li><a href="#rtstructure">Regression test structure</a>
@@ -40,7 +42,7 @@
       <li><a href="#testsuiteexternal">Configuring External Tests</a></li>
       <li><a href="#testsuitetests">Running different tests</a></li>
       <li><a href="#testsuiteoutput">Generating test output</a></li>
-      <li><a href="#testsuitecustom">Writing custom tests for llvm-test</a></li>
+      <li><a href="#testsuitecustom">Writing custom tests for test-suite</a></li>
    </ul>
   </li>
 </ol>
@@ -141,6 +143,23 @@ generates code.</p>
 
 </div>
 
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsection"><a name="debuginfotests">Debugging Information 
+tests</a></div>
+<!-- _______________________________________________________________________ -->
+
+<div class="doc_text">
+
+<p>The test suite contains tests to check quality of debugging information.
+The test are written in C based languages or in LLVM assembly language. </p>
+
+<p>These tests are compiled and run under a debugger. The debugger output
+is checked to validate of debugging information. See README.txt in the 
+test suite for more information . This test suite is located in the 
+<tt>debuginfo-tests</tt> Subversion module. </p>
+
+</div>
+
 <!--=========================================================================-->
 <div class="doc_section"><a name="quick">Quick start</a></div>
 <!--=========================================================================-->
@@ -153,7 +172,7 @@ generates code.</p>
   The more comprehensive test suite that includes whole 
 programs in C and C++ is in the <tt>test-suite</tt> module. This module should
 be checked out to the <tt>llvm/projects</tt> directory (don't use another name
-then the default "test-suite", for then the test suite will be run every time
+than the default "test-suite", for then the test suite will be run every time
 you run <tt>make</tt> in the main <tt>llvm</tt> directory).
 When you <tt>configure</tt> the <tt>llvm</tt> module, 
 the <tt>test-suite</tt> directory will be automatically configured. 
@@ -237,7 +256,7 @@ programs), first checkout and setup the <tt>test-suite</tt> module:</p>
 </div>
 
 <p>where <tt>$LLVM_GCC_DIR</tt> is the directory where
-you <em>installed</em> llvm-gcc, not it's src or obj
+you <em>installed</em> llvm-gcc, not its src or obj
 dir. The <tt>--with-llvmgccdir</tt> option assumes that
 the <tt>llvm-gcc-4.2</tt> module was configured with
 <tt>--program-prefix=llvm-</tt>, and therefore that the C and C++
@@ -269,6 +288,25 @@ let it generate a report by running:</p>
 <p>Any of the above commands can also be run in a subdirectory of
 <tt>projects/test-suite</tt> to run the specified test only on the programs in
 that subdirectory.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsection"><a name="quickdebuginfotests">Debugging Information 
+tests</a></div>
+<!-- _______________________________________________________________________ -->
+
+<p> To run debugging information tests simply checkout the tests inside
+clang/test directory. </p>
+
+<div class="doc_code">
+<pre>
+%cd clang/test
+% svn co http://llvm.org/svn/llvm-project/debuginfo-tests/trunk debuginfo-tests
+</pre>
+</div>
+
+<p> These tests are already set up to run as part of clang regression tests.</p>
 
 </div>
 
@@ -337,6 +375,11 @@ that subdirectory.</p>
   directly by the Tcl <tt>exec</tt> command. They are never executed by a 
   shell. Consequently the syntax differs from normal shell script syntax in a 
   few ways.  You can specify as many RUN lines as needed.</p>
+
+  <p>lit performs substitution on each RUN line to replace LLVM tool
+  names with the full paths to the executable built for each tool (in
+  $(LLVM_OBJ_ROOT)/$(BuildMode)/bin).  This ensures that lit does not
+  invoke any stray LLVM tools in the user's path during testing.</p>
 
   <p>Each RUN line is executed on its own, distinct from other lines unless
   its last character is <tt>\</tt>. This continuation character causes the RUN
@@ -561,7 +604,7 @@ name="FileCheck-CHECK-NEXT">The "CHECK-NEXT:" directive</a></div>
 <div class="doc_text">
 
 <p>Sometimes you want to match lines and would like to verify that matches
-happen on exactly consequtive lines with no other lines in between them.  In
+happen on exactly consecutive lines with no other lines in between them.  In
 this case, you can use CHECK: and CHECK-NEXT: directives to specify this.  If
 you specified a custom check prefix, just use "&lt;PREFIX&gt;-NEXT:".  For
 example, something like this works as you'd expect:</p>
@@ -870,34 +913,34 @@ want tested and run <tt>gmake</tt> there. Alternatively, you can run a different
 test using the <tt>TEST</tt> variable to change what tests or run on the
 selected programs (see below for more info).</p>
 
-<p>In addition for testing correctness, the <tt>llvm-test</tt> directory also
+<p>In addition for testing correctness, the <tt>test-suite</tt> directory also
 performs timing tests of various LLVM optimizations.  It also records
 compilation times for the compilers and the JIT.  This information can be
 used to compare the effectiveness of LLVM's optimizations and code
 generation.</p>
 
-<p><tt>llvm-test</tt> tests are divided into three types of tests: MultiSource,
+<p><tt>test-suite</tt> tests are divided into three types of tests: MultiSource,
 SingleSource, and External.</p> 
 
 <ul>
-<li><tt>llvm-test/SingleSource</tt>
+<li><tt>test-suite/SingleSource</tt>
 <p>The SingleSource directory contains test programs that are only a single 
 source file in size.  These are usually small benchmark programs or small 
 programs that calculate a particular value.  Several such programs are grouped 
 together in each directory.</p></li>
 
-<li><tt>llvm-test/MultiSource</tt>
+<li><tt>test-suite/MultiSource</tt>
 <p>The MultiSource directory contains subdirectories which contain entire 
 programs with multiple source files.  Large benchmarks and whole applications 
 go here.</p></li>
 
-<li><tt>llvm-test/External</tt>
+<li><tt>test-suite/External</tt>
 <p>The External directory contains Makefiles for building code that is external
 to (i.e., not distributed with) LLVM.  The most prominent members of this
 directory are the SPEC 95 and SPEC 2000 benchmark suites. The <tt>External</tt>
 directory does not contain these actual tests, but only the Makefiles that know
 how to properly compile these programs from somewhere else. The presence and
-location of these external programs is configured by the llvm-test
+location of these external programs is configured by the test-suite
 <tt>configure</tt> script.</p></li>
 </ul>
 
@@ -1084,9 +1127,9 @@ many times it triggers.  First thing you should do is add an LLVM
 will tally counts of things you care about.</p>
 
 <p>Following this, you can set up a test and a report that collects these and
-formats them for easy viewing.  This consists of two files, an
+formats them for easy viewing.  This consists of two files, a
 "<tt>test-suite/TEST.XXX.Makefile</tt>" fragment (where XXX is the name of your
-test) and an "<tt>llvm-test/TEST.XXX.report</tt>" file that indicates how to
+test) and a "<tt>test-suite/TEST.XXX.report</tt>" file that indicates how to
 format the output into a table.  There are many example reports of various
 levels of sophistication included with the test suite, and the framework is very
 general.</p>
@@ -1147,7 +1190,7 @@ example reports that can do fancy stuff.</p>
 
   John T. Criswell, Daniel Dunbar, Reid Spencer, and Tanya Lattner<br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-08-02 03:20:23 +0200 (Mon, 02 Aug 2010) $
+  Last modified: $Date: 2011-02-15 10:23:02 +0100 (Tue, 15 Feb 2011) $
 </address>
 </body>
 </html>

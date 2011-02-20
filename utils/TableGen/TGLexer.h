@@ -14,7 +14,7 @@
 #ifndef TGLEXER_H
 #define TGLEXER_H
 
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include <vector>
 #include <string>
 #include <cassert>
@@ -23,7 +23,8 @@ namespace llvm {
 class MemoryBuffer;
 class SourceMgr;
 class SMLoc;
-  
+class Twine;
+
 namespace tgtok {
   enum TokKind {
     // Markers
@@ -44,8 +45,8 @@ namespace tgtok {
     MultiClass, String,
     
     // !keywords.
-    XConcat, XSRA, XSRL, XSHL, XStrConcat, XNameConcat, XCast, XSubst,
-    XForEach, XCar, XCdr, XNull, XIf, XEq,
+    XConcat, XSRA, XSRL, XSHL, XStrConcat, XCast, XSubst,
+    XForEach, XHead, XTail, XEmpty, XIf, XEq,
 
     // Integer value.
     IntVal,
@@ -95,14 +96,14 @@ public:
 
   SMLoc getLoc() const;
 
-  void PrintError(const char *Loc, const std::string &Msg) const;
-  void PrintError(SMLoc Loc, const std::string &Msg) const;
+  void PrintError(const char *Loc, const Twine &Msg) const;
+  void PrintError(SMLoc Loc, const Twine &Msg) const;
   
 private:
   /// LexToken - Read the next token and return its code.
   tgtok::TokKind LexToken();
   
-  tgtok::TokKind ReturnError(const char *Loc, const std::string &Msg);
+  tgtok::TokKind ReturnError(const char *Loc, const Twine &Msg);
   
   int getNextChar();
   void SkipBCPLComment();

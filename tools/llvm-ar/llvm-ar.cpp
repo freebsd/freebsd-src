@@ -16,13 +16,13 @@
 #include "llvm/Module.h"
 #include "llvm/Bitcode/Archive.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Signals.h"
-#include <iostream>
+#include "llvm/Support/Signals.h"
 #include <algorithm>
-#include <iomanip>
 #include <memory>
 #include <fstream>
 using namespace llvm;
@@ -274,7 +274,7 @@ ArchiveOperation parseCommandLine() {
 // finds with all the files in that directory (recursively). It uses the
 // sys::Path::getDirectoryContent method to perform the actual directory scans.
 bool
-recurseDirectories(const sys::Path& path, 
+recurseDirectories(const sys::Path& path,
                    std::set<sys::Path>& result, std::string* ErrMsg) {
   result.clear();
   if (RecurseDirectories) {
@@ -311,7 +311,8 @@ bool buildPaths(bool checkExistence, std::string* ErrMsg) {
     if (!aPath.set(Members[i]))
       throw std::string("File member name invalid: ") + Members[i];
     if (checkExistence) {
-      if (!aPath.exists())
+      bool Exists;
+      if (sys::fs::exists(aPath.str(), Exists) || !Exists)
         throw std::string("File does not exist: ") + Members[i];
       std::string Err;
       sys::PathWithStatus PwS(aPath);
@@ -335,12 +336,12 @@ bool buildPaths(bool checkExistence, std::string* ErrMsg) {
 
 // printSymbolTable - print out the archive's symbol table.
 void printSymbolTable() {
-  std::cout << "\nArchive Symbol Table:\n";
+  outs() << "\nArchive Symbol Table:\n";
   const Archive::SymTabType& symtab = TheArchive->getSymbolTable();
   for (Archive::SymTabType::const_iterator I=symtab.begin(), E=symtab.end();
        I != E; ++I ) {
     unsigned offset = TheArchive->getFirstFileOffset() + I->second;
-    std::cout << " " << std::setw(9) << offset << "\t" << I->first <<"\n";
+    outs() << " " << format("%9u", offset) << "\t" << I->first <<"\n";
   }
 }
 
@@ -365,10 +366,10 @@ bool doPrint(std::string* ErrMsg) {
           continue;
 
         if (Verbose)
-          std::cout << "Printing " << I->getPath().str() << "\n";
+          outs() << "Printing " << I->getPath().str() << "\n";
 
         unsigned len = I->getSize();
-        std::cout.write(data, len);
+        outs().write(data, len);
       } else {
         countDown--;
       }
@@ -379,27 +380,27 @@ bool doPrint(std::string* ErrMsg) {
 
 // putMode - utility function for printing out the file mode when the 't'
 // operation is in verbose mode.
-void 
+void
 printMode(unsigned mode) {
   if (mode & 004)
-    std::cout << "r";
+    outs() << "r";
   else
-    std::cout << "-";
+    outs() << "-";
   if (mode & 002)
-    std::cout << "w";
+    outs() << "w";
   else
-    std::cout << "-";
+    outs() << "-";
   if (mode & 001)
-    std::cout << "x";
+    outs() << "x";
   else
-    std::cout << "-";
+    outs() << "-";
 }
 
 // doDisplayTable - Implement the 't' operation. This function prints out just
 // the file names of each of the members. However, if verbose mode is requested
 // ('v' modifier) then the file type, permission mode, user, group, size, and
 // modification time are also printed.
-bool 
+bool
 doDisplayTable(std::string* ErrMsg) {
   if (buildPaths(false, ErrMsg))
     return true;
@@ -411,22 +412,22 @@ doDisplayTable(std::string* ErrMsg) {
         // FIXME: Output should be this format:
         // Zrw-r--r--  500/ 500    525 Nov  8 17:42 2004 Makefile
         if (I->isBitcode())
-          std::cout << "b";
+          outs() << "b";
         else if (I->isCompressed())
-          std::cout << "Z";
+          outs() << "Z";
         else
-          std::cout << " ";
+          outs() << " ";
         unsigned mode = I->getMode();
         printMode((mode >> 6) & 007);
         printMode((mode >> 3) & 007);
         printMode(mode & 007);
-        std::cout << " " << std::setw(4) << I->getUser();
-        std::cout << "/" << std::setw(4) << I->getGroup();
-        std::cout << " " << std::setw(8) << I->getSize();
-        std::cout << " " << std::setw(20) << I->getModTime().str().substr(4);
-        std::cout << " " << I->getPath().str() << "\n";
+        outs() << " " << format("%4u", I->getUser());
+        outs() << "/" << format("%4u", I->getGroup());
+        outs() << " " << format("%8u", I->getSize());
+        outs() << " " << format("%20s", I->getModTime().str().substr(4).c_str());
+        outs() << " " << I->getPath().str() << "\n";
       } else {
-        std::cout << I->getPath().str() << "\n";
+        outs() << I->getPath().str() << "\n";
       }
     }
   }
@@ -437,7 +438,7 @@ doDisplayTable(std::string* ErrMsg) {
 
 // doExtract - Implement the 'x' operation. This function extracts files back to
 // the file system, making sure to uncompress any that were compressed
-bool 
+bool
 doExtract(std::string* ErrMsg) {
   if (buildPaths(false, ErrMsg))
     return true;
@@ -450,7 +451,7 @@ doExtract(std::string* ErrMsg) {
       if (I->hasPath()) {
         sys::Path dirs(I->getPath());
         dirs.eraseComponent();
-        if (dirs.createDirectoryOnDisk(/*create_parents=*/true, ErrMsg)) 
+        if (dirs.createDirectoryOnDisk(/*create_parents=*/true, ErrMsg))
           return true;
       }
 
@@ -480,11 +481,11 @@ doExtract(std::string* ErrMsg) {
 // members from the archive. Note that if the count is specified, there should
 // be no more than one path in the Paths list or else this algorithm breaks.
 // That check is enforced in parseCommandLine (above).
-bool 
+bool
 doDelete(std::string* ErrMsg) {
   if (buildPaths(false, ErrMsg))
     return true;
-  if (Paths.empty()) 
+  if (Paths.empty())
     return false;
   unsigned countDown = Count;
   for (Archive::iterator I = TheArchive->begin(), E = TheArchive->end();
@@ -513,9 +514,9 @@ doDelete(std::string* ErrMsg) {
 // order of the archive members so that when the archive is written the move
 // of the members is accomplished. Note the use of the RelPos variable to
 // determine where the items should be moved to.
-bool 
+bool
 doMove(std::string* ErrMsg) {
-  if (buildPaths(false, ErrMsg)) 
+  if (buildPaths(false, ErrMsg))
     return true;
 
   // By default and convention the place to move members to is the end of the
@@ -566,12 +567,12 @@ doMove(std::string* ErrMsg) {
 
 // doQuickAppend - Implements the 'q' operation. This function just
 // indiscriminantly adds the members to the archive and rebuilds it.
-bool 
+bool
 doQuickAppend(std::string* ErrMsg) {
   // Get the list of paths to append.
   if (buildPaths(true, ErrMsg))
     return true;
-  if (Paths.empty()) 
+  if (Paths.empty())
     return false;
 
   // Append them quickly.
@@ -591,13 +592,13 @@ doQuickAppend(std::string* ErrMsg) {
 
 // doReplaceOrInsert - Implements the 'r' operation. This function will replace
 // any existing files or insert new ones into the archive.
-bool 
+bool
 doReplaceOrInsert(std::string* ErrMsg) {
 
   // Build the list of files to be added/replaced.
   if (buildPaths(true, ErrMsg))
     return true;
-  if (Paths.empty()) 
+  if (Paths.empty())
     return false;
 
   // Keep track of the paths that remain to be inserted.
@@ -637,7 +638,7 @@ doReplaceOrInsert(std::string* ErrMsg) {
 
     if (found != remaining.end()) {
       std::string Err;
-      sys::PathWithStatus PwS(*found); 
+      sys::PathWithStatus PwS(*found);
       const sys::FileStatus *si = PwS.getFileStatus(false, &Err);
       if (!si)
         return true;
@@ -716,7 +717,8 @@ int main(int argc, char **argv) {
       throw std::string("Archive name invalid: ") + ArchiveName;
 
     // Create or open the archive object.
-    if (!ArchivePath.exists()) {
+    bool Exists;
+    if (llvm::sys::fs::exists(ArchivePath.str(), Exists) || !Exists) {
       // Produce a warning if we should and we're creating the archive
       if (!Create)
         errs() << argv[0] << ": creating " << ArchivePath.str() << "\n";

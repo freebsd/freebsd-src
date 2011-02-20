@@ -17,13 +17,12 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Type.h"
-#include "llvm/Assembly/Parser.h"
-#include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/IRReader.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
@@ -34,47 +33,30 @@
 
 using namespace llvm;
 
-/// Reads a module from a file.  If the filename ends in .ll, it is
-/// interpreted as an assembly file;  otherwise, it is interpreted as
-/// bitcode.  On error, messages are written to stderr and null is
-/// returned.
+/// Reads a module from a file.  On error, messages are written to stderr
+/// and null is returned.
 static Module *ReadModule(LLVMContext &Context, StringRef Name) {
-  // LLVM assembly path.
-  if (Name.endswith(".ll")) {
-    SMDiagnostic Diag;
-    Module *M = ParseAssemblyFile(Name, Diag, Context);
-    if (M) return M;
-
+  SMDiagnostic Diag;
+  Module *M = ParseIRFile(Name, Diag, Context);
+  if (!M)
     Diag.Print("llvmdiff", errs());
-    return 0;
-  }
-
-  // Bitcode path.
-  MemoryBuffer *Buffer = MemoryBuffer::getFile(Name);
-
-  // ParseBitcodeFile takes ownership of the buffer if it succeeds.
-  std::string Error;
-  Module *M = ParseBitcodeFile(Buffer, Context, &Error);
-  if (M) return M;
-
-  errs() << "error parsing " << Name << ": " << Error;
-  delete Buffer;
-  return 0;
+  return M;
 }
 
 namespace {
-struct DiffContext {
-  DiffContext(Value *L, Value *R)
-    : L(L), R(R), Differences(false), IsFunction(isa<Function>(L)) {}
-  Value *L;
-  Value *R;
-  bool Differences;
-  bool IsFunction;
-  DenseMap<Value*,unsigned> LNumbering;
-  DenseMap<Value*,unsigned> RNumbering;
-};
+  struct DiffContext {
+    DiffContext(Value *L, Value *R)
+      : L(L), R(R), Differences(false), IsFunction(isa<Function>(L)) {}
+    Value *L;
+    Value *R;
+    bool Differences;
+    bool IsFunction;
+    DenseMap<Value*,unsigned> LNumbering;
+    DenseMap<Value*,unsigned> RNumbering;
+  };
+}
 
-void ComputeNumbering(Function *F, DenseMap<Value*,unsigned> &Numbering) {
+static void ComputeNumbering(Function *F, DenseMap<Value*,unsigned> &Numbering){
   unsigned IN = 0;
 
   // Arguments get the first numbers.
@@ -98,6 +80,7 @@ void ComputeNumbering(Function *F, DenseMap<Value*,unsigned> &Numbering) {
   assert(!Numbering.empty() && "asked for numbering but numbering was no-op");
 }
 
+namespace {
 class DiffConsumer : public DifferenceEngine::Consumer {
 private:
   raw_ostream &out;
@@ -273,7 +256,7 @@ public:
   }
   
 };
-}
+} // end anonymous namespace
 
 static void diffGlobal(DifferenceEngine &Engine, Module *L, Module *R,
                        StringRef Name) {
@@ -292,14 +275,14 @@ static void diffGlobal(DifferenceEngine &Engine, Module *L, Module *R,
     errs() << "No function named @" << Name << " in right module\n";
 }
 
-cl::opt<std::string> LeftFilename(cl::Positional,
-                                  cl::desc("<first file>"),
-                                  cl::Required);
-cl::opt<std::string> RightFilename(cl::Positional,
-                                   cl::desc("<second file>"),
-                                   cl::Required);
-cl::list<std::string> GlobalsToCompare(cl::Positional,
-                                       cl::desc("<globals to compare>"));
+static cl::opt<std::string> LeftFilename(cl::Positional,
+                                         cl::desc("<first file>"),
+                                         cl::Required);
+static cl::opt<std::string> RightFilename(cl::Positional,
+                                          cl::desc("<second file>"),
+                                          cl::Required);
+static cl::list<std::string> GlobalsToCompare(cl::Positional,
+                                              cl::desc("<globals to compare>"));
 
 int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv);

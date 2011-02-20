@@ -142,10 +142,10 @@ namespace llvm {
 
   private:
 
-    bool Error(LocTy L, const std::string &Msg) const {
+    bool Error(LocTy L, const Twine &Msg) const {
       return Lex.Error(L, Msg);
     }
-    bool TokError(const std::string &Msg) const {
+    bool TokError(const Twine &Msg) const {
       return Error(Lex.getLoc(), Msg);
     }
 
@@ -162,10 +162,12 @@ namespace llvm {
       Lex.Lex();
       return true;
     }
-    bool ParseOptionalToken(lltok::Kind T, bool &Present) {
+    bool ParseOptionalToken(lltok::Kind T, bool &Present, LocTy *Loc = 0) {
       if (Lex.getKind() != T) {
         Present = false;
       } else {
+        if (Loc)
+          *Loc = Lex.getLoc();
         Lex.Lex();
         Present = true;
       }

@@ -13,10 +13,10 @@
 
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -30,7 +30,7 @@ TargetRegisterInfo::TargetRegisterInfo(const TargetRegisterDesc *D, unsigned NR,
     AliasesHash(aliases), AliasesHashSize(aliasessize),
     Desc(D), SubRegIndexNames(subregindexnames), NumRegs(NR),
     RegClassBegin(RCB), RegClassEnd(RCE) {
-  assert(NumRegs < FirstVirtualRegister &&
+  assert(isPhysicalRegister(NumRegs) &&
          "Target has too many physical registers!");
 
   CallFrameSetupOpcode   = CFSO;
@@ -38,6 +38,25 @@ TargetRegisterInfo::TargetRegisterInfo(const TargetRegisterDesc *D, unsigned NR,
 }
 
 TargetRegisterInfo::~TargetRegisterInfo() {}
+
+void PrintReg::print(raw_ostream &OS) const {
+  if (!Reg)
+    OS << "%noreg";
+  else if (TargetRegisterInfo::isStackSlot(Reg))
+    OS << "SS#" << TargetRegisterInfo::stackSlot2Index(Reg);
+  else if (TargetRegisterInfo::isVirtualRegister(Reg))
+    OS << "%vreg" << TargetRegisterInfo::virtReg2Index(Reg);
+  else if (TRI && Reg < TRI->getNumRegs())
+    OS << '%' << TRI->getName(Reg);
+  else
+    OS << "%physreg" << Reg;
+  if (SubIdx) {
+    if (TRI)
+      OS << ':' << TRI->getSubRegIndexName(SubIdx);
+    else
+      OS << ":sub(" << SubIdx << ')';
+  }
+}
 
 /// getMinimalPhysRegClass - Returns the Register Class of a physical
 /// register of the given type, picking the most sub register class of
@@ -82,27 +101,9 @@ BitVector TargetRegisterInfo::getAllocatableSet(const MachineFunction &MF,
 
   // Mask out the reserved registers
   BitVector Reserved = getReservedRegs(MF);
-  Allocatable ^= Reserved & Allocatable;
+  Allocatable &= Reserved.flip();
 
   return Allocatable;
-}
-
-/// getFrameIndexOffset - Returns the displacement from the frame register to
-/// the stack frame of the specified index. This is the default implementation
-/// which is overridden for some targets.
-int TargetRegisterInfo::getFrameIndexOffset(const MachineFunction &MF,
-                                            int FI) const {
-  const TargetFrameInfo &TFI = *MF.getTarget().getFrameInfo();
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return MFI->getObjectOffset(FI) + MFI->getStackSize() -
-    TFI.getOffsetOfLocalArea() + MFI->getOffsetAdjustment();
-}
-
-/// getInitialFrameState - Returns a list of machine moves that are assumed
-/// on entry to a function.
-void
-TargetRegisterInfo::getInitialFrameState(std::vector<MachineMove> &Moves) const{
-  // Default is to do nothing.
 }
 
 const TargetRegisterClass *

@@ -1,5 +1,5 @@
-; RUN: llc < %s -march=x86-64 > %t
-; RUN: not grep APP %t
+; RUN: llc < %s -mtriple=x86_64-apple-darwin > %t
+; RUN: not grep InlineAsm %t
 ; RUN: FileCheck %s < %t
 
 ; CHECK: foo:
@@ -62,6 +62,13 @@ define i32 @s32(i32 %x) nounwind {
 ; CHECK: bswapl
 define i32 @t32(i32 %x) nounwind {
   %asmtmp = tail call i32 asm "bswap $0", "=r,0,~{dirflag},~{flags},~{fpsr}"(i32 %x) nounwind
+  ret i32 %asmtmp
+}
+
+; CHECK: u32:
+; CHECK: bswapl
+define i32 @u32(i32 %x) nounwind {
+  %asmtmp = tail call i32 asm "rorw $$8, ${0:w};rorl $$16, $0;rorw $$8, ${0:w}", "=r,0,~{cc},~{dirflag},~{flags},~{fpsr}"(i32 %x) nounwind
   ret i32 %asmtmp
 }
 

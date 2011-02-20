@@ -8,6 +8,8 @@ import Util
 import platform
 import tempfile
 
+import re
+
 class InternalShellError(Exception):
     def __init__(self, command, message):
         self.command = command
@@ -178,6 +180,13 @@ def executeShCmd(cmd, cfg, cwd, results):
         else:
             input = subprocess.PIPE
 
+    # Explicitly close any redirected files. We need to do this now because we
+    # need to release any handles we may have on the temporary files (important
+    # on Win32, for example). Since we have already spawned the subprocess, our
+    # handles have already been transferred so we do not need them anymore.
+    for f in opened_files:
+        f.close()
+
     # FIXME: There is probably still deadlock potential here. Yawn.
     procData = [None] * len(procs)
     procData[-1] = procs[-1].communicate()
@@ -214,10 +223,6 @@ def executeShCmd(cmd, cfg, cwd, results):
                 exitCode = max(exitCode, res)
         else:
             exitCode = res
-
-    # Explicitly close any redirected files.
-    for f in opened_files:
-        f.close()
 
     # Remove any named temporary files we created.
     for f in named_temp_files:
@@ -441,11 +446,15 @@ def parseIntegratedTestScript(test, normalize_slashes=False):
             if ln[ln.index('END.'):].strip() == 'END.':
                 break
 
-    # Apply substitutions to the script.
+    # Apply substitutions to the script.  Allow full regular
+    # expression syntax.  Replace each matching occurrence of regular
+    # expression pattern a with substitution b in line ln.
     def processLine(ln):
         # Apply substitutions
         for a,b in substitutions:
-            ln = ln.replace(a,b)
+            if kIsWindows:
+                b = b.replace("\\","\\\\")
+            ln = re.sub(a, b, ln)
 
         # Strip the trailing newline and any extra whitespace.
         return ln.strip()

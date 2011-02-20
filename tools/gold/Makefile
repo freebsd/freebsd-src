@@ -19,10 +19,9 @@ include $(LEVEL)/Makefile.config
 
 LINK_LIBS_IN_SHARED=1
 SHARED_LIBRARY = 1
-BUILD_ARCHIVE = 0
 LOADABLE_MODULE = 1
 
-LINK_COMPONENTS := support system
+LINK_COMPONENTS := support
 LIBS += -llto
 
 # Because off_t is used in the public API, the largefile parts are required for

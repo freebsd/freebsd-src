@@ -94,7 +94,9 @@ namespace bitc {
     TYPE_CODE_FP128    = 14,   // LONG DOUBLE (112 bit mantissa)
     TYPE_CODE_PPC_FP128= 15,   // PPC LONG DOUBLE (2 doubles)
 
-    TYPE_CODE_METADATA = 16    // METADATA
+    TYPE_CODE_METADATA = 16,   // METADATA
+
+    TYPE_CODE_X86_MMX = 17     // X86 MMX
   };
 
   // The type symbol table only has one code (TST_ENTRY_CODE).
@@ -197,10 +199,10 @@ namespace bitc {
     OBO_NO_SIGNED_WRAP = 1
   };
 
-  /// SDivOperatorOptionalFlags - Flags for serializing SDivOperator's
-  /// SubclassOptionalData contents.
-  enum SDivOperatorOptionalFlags {
-    SDIV_EXACT = 0
+  /// PossiblyExactOperatorOptionalFlags - Flags for serializing 
+  /// PossiblyExactOperator's SubclassOptionalData contents.
+  enum PossiblyExactOperatorOptionalFlags {
+    PEO_EXACT = 0
   };
 
   // The function body block (FUNCTION_BLOCK_ID) describes function bodies.  It

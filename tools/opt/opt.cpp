@@ -18,13 +18,17 @@
 #include "llvm/CallGraphSCCPass.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Assembly/PrintModulePass.h"
+#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/RegionPass.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/Support/PassNameParser.h"
-#include "llvm/System/Signals.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/IRReader.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -32,7 +36,7 @@
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/SystemUtils.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/LinkAllPasses.h"
 #include "llvm/LinkAllVMCore.h"
 #include <memory>
@@ -127,6 +131,10 @@ QuietA("quiet", cl::desc("Alias for -q"), cl::aliasopt(Quiet));
 static cl::opt<bool>
 AnalyzeOnly("analyze", cl::desc("Only perform analysis, no optimization"));
 
+static cl::opt<bool>
+PrintBreakpoints("print-breakpoints-for-testing", 
+                 cl::desc("Print select breakpoints location for testing"));
+
 static cl::opt<std::string>
 DefaultDataLayout("default-data-layout", 
           cl::desc("data layout string to use if not specified by module"),
@@ -139,25 +147,29 @@ struct CallGraphSCCPassPrinter : public CallGraphSCCPass {
   static char ID;
   const PassInfo *PassToPrint;
   raw_ostream &Out;
+  std::string PassName;
+
   CallGraphSCCPassPrinter(const PassInfo *PI, raw_ostream &out) :
-    CallGraphSCCPass(ID), PassToPrint(PI), Out(out) {}
+    CallGraphSCCPass(ID), PassToPrint(PI), Out(out) {
+      std::string PassToPrintName =  PassToPrint->getPassName();
+      PassName = "CallGraphSCCPass Printer: " + PassToPrintName;
+    }
 
   virtual bool runOnSCC(CallGraphSCC &SCC) {
-    if (!Quiet) {
+    if (!Quiet)
       Out << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
 
-      for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
-        Function *F = (*I)->getFunction();
-        if (F)
-          getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out, 
-                F->getParent());
-      }
-    }
     // Get and print pass...
+    for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
+      Function *F = (*I)->getFunction();
+      if (F)
+        getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out,
+                                                              F->getParent());
+    }
     return false;
   }
 
-  virtual const char *getPassName() const { return "'Pass' Printer"; }
+  virtual const char *getPassName() const { return PassName.c_str(); }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -171,20 +183,24 @@ struct ModulePassPrinter : public ModulePass {
   static char ID;
   const PassInfo *PassToPrint;
   raw_ostream &Out;
-  ModulePassPrinter(const PassInfo *PI, raw_ostream &out)
-    : ModulePass(ID), PassToPrint(PI), Out(out) {}
+  std::string PassName;
 
-  virtual bool runOnModule(Module &M) {
-    if (!Quiet) {
-      Out << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
-      getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out, &M);
+  ModulePassPrinter(const PassInfo *PI, raw_ostream &out)
+    : ModulePass(ID), PassToPrint(PI), Out(out) {
+      std::string PassToPrintName =  PassToPrint->getPassName();
+      PassName = "ModulePass Printer: " + PassToPrintName;
     }
 
+  virtual bool runOnModule(Module &M) {
+    if (!Quiet)
+      Out << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
+
     // Get and print pass...
+    getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out, &M);
     return false;
   }
 
-  virtual const char *getPassName() const { return "'Pass' Printer"; }
+  virtual const char *getPassName() const { return PassName.c_str(); }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -197,21 +213,26 @@ struct FunctionPassPrinter : public FunctionPass {
   const PassInfo *PassToPrint;
   raw_ostream &Out;
   static char ID;
+  std::string PassName;
+
   FunctionPassPrinter(const PassInfo *PI, raw_ostream &out)
-    : FunctionPass(ID), PassToPrint(PI), Out(out) {}
+    : FunctionPass(ID), PassToPrint(PI), Out(out) {
+      std::string PassToPrintName =  PassToPrint->getPassName();
+      PassName = "FunctionPass Printer: " + PassToPrintName;
+    }
 
   virtual bool runOnFunction(Function &F) {
-    if (!Quiet) {
+    if (!Quiet)
       Out << "Printing analysis '" << PassToPrint->getPassName()
           << "' for function '" << F.getName() << "':\n";
-    }
+
     // Get and print pass...
     getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out,
             F.getParent());
     return false;
   }
 
-  virtual const char *getPassName() const { return "FunctionPass Printer"; }
+  virtual const char *getPassName() const { return PassName.c_str(); }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -225,20 +246,26 @@ struct LoopPassPrinter : public LoopPass {
   static char ID;
   const PassInfo *PassToPrint;
   raw_ostream &Out;
+  std::string PassName;
+
   LoopPassPrinter(const PassInfo *PI, raw_ostream &out) :
-    LoopPass(ID), PassToPrint(PI), Out(out) {}
+    LoopPass(ID), PassToPrint(PI), Out(out) {
+      std::string PassToPrintName =  PassToPrint->getPassName();
+      PassName = "LoopPass Printer: " + PassToPrintName;
+    }
+
 
   virtual bool runOnLoop(Loop *L, LPPassManager &LPM) {
-    if (!Quiet) {
+    if (!Quiet)
       Out << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
-      getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out,
-                                  L->getHeader()->getParent()->getParent());
-    }
+
     // Get and print pass...
+    getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out,
+                        L->getHeader()->getParent()->getParent());
     return false;
   }
 
-  virtual const char *getPassName() const { return "'Pass' Printer"; }
+  virtual const char *getPassName() const { return PassName.c_str(); }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -248,18 +275,56 @@ struct LoopPassPrinter : public LoopPass {
 
 char LoopPassPrinter::ID = 0;
 
+struct RegionPassPrinter : public RegionPass {
+  static char ID;
+  const PassInfo *PassToPrint;
+  raw_ostream &Out;
+  std::string PassName;
+
+  RegionPassPrinter(const PassInfo *PI, raw_ostream &out) : RegionPass(ID),
+    PassToPrint(PI), Out(out) {
+    std::string PassToPrintName =  PassToPrint->getPassName();
+    PassName = "RegionPass Printer: " + PassToPrintName;
+  }
+
+  virtual bool runOnRegion(Region *R, RGPassManager &RGM) {
+    if (!Quiet) {
+      Out << "Printing analysis '" << PassToPrint->getPassName() << "' for "
+        << "region: '" << R->getNameStr() << "' in function '"
+        << R->getEntry()->getParent()->getNameStr() << "':\n";
+    }
+    // Get and print pass...
+   getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out,
+                       R->getEntry()->getParent()->getParent());
+    return false;
+  }
+
+  virtual const char *getPassName() const { return PassName.c_str(); }
+
+  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    AU.addRequiredID(PassToPrint->getTypeInfo());
+    AU.setPreservesAll();
+  }
+};
+
+char RegionPassPrinter::ID = 0;
+
 struct BasicBlockPassPrinter : public BasicBlockPass {
   const PassInfo *PassToPrint;
   raw_ostream &Out;
   static char ID;
+  std::string PassName;
+
   BasicBlockPassPrinter(const PassInfo *PI, raw_ostream &out)
-    : BasicBlockPass(ID), PassToPrint(PI), Out(out) {}
+    : BasicBlockPass(ID), PassToPrint(PI), Out(out) {
+      std::string PassToPrintName =  PassToPrint->getPassName();
+      PassName = "BasicBlockPass Printer: " + PassToPrintName;
+    }
 
   virtual bool runOnBasicBlock(BasicBlock &BB) {
-    if (!Quiet) {
+    if (!Quiet)
       Out << "Printing Analysis info for BasicBlock '" << BB.getName()
           << "': Pass " << PassToPrint->getPassName() << ":\n";
-    }
 
     // Get and print pass...
     getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out, 
@@ -267,7 +332,7 @@ struct BasicBlockPassPrinter : public BasicBlockPass {
     return false;
   }
 
-  virtual const char *getPassName() const { return "BasicBlockPass Printer"; }
+  virtual const char *getPassName() const { return PassName.c_str(); }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequiredID(PassToPrint->getTypeInfo());
@@ -276,6 +341,39 @@ struct BasicBlockPassPrinter : public BasicBlockPass {
 };
 
 char BasicBlockPassPrinter::ID = 0;
+
+struct BreakpointPrinter : public FunctionPass {
+  raw_ostream &Out;
+  static char ID;
+
+  BreakpointPrinter(raw_ostream &out)
+    : FunctionPass(ID), Out(out) {
+    }
+
+  virtual bool runOnFunction(Function &F) {
+    BasicBlock &EntryBB = F.getEntryBlock();
+    BasicBlock::const_iterator BI = EntryBB.end();
+    --BI;
+    do {
+      const Instruction *In = BI;
+      const DebugLoc DL = In->getDebugLoc();
+      if (!DL.isUnknown()) {
+        DIScope S(DL.getScope(getGlobalContext()));
+        Out << S.getFilename() << " " << DL.getLine() << "\n";
+        break;
+      }
+      --BI;
+    } while (BI != EntryBB.begin());
+    return false;
+  }
+
+  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    AU.setPreservesAll();
+  }
+};
+
+char BreakpointPrinter::ID = 0;
+
 inline void addPass(PassManagerBase &PM, Pass *P) {
   // Add the pass to the pass manager...
   PM.add(P);
@@ -297,9 +395,9 @@ void AddOptimizationPasses(PassManagerBase &MPM, PassManagerBase &FPM,
   if (DisableInline) {
     // No inlining pass
   } else if (OptLevel) {
-    unsigned Threshold = 200;
+    unsigned Threshold = 225;
     if (OptLevel > 2)
-      Threshold = 250;
+      Threshold = 275;
     InliningPass = createFunctionInliningPass(Threshold);
   } else {
     InliningPass = createAlwaysInlinerPass();
@@ -331,7 +429,7 @@ void AddStandardCompilePasses(PassManagerBase &PM) {
                              /*OptimizeSize=*/ false,
                              /*UnitAtATime=*/ true,
                              /*UnrollLoops=*/ true,
-                             /*SimplifyLibCalls=*/ true,
+                             !DisableSimplifyLibCalls,
                              /*HaveExceptions=*/ true,
                              InliningPass);
 }
@@ -360,19 +458,31 @@ int main(int argc, char **argv) {
   sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram X(argc, argv);
 
-  if (AnalyzeOnly && NoOutput) {
-    errs() << argv[0] << ": analyze mode conflicts with no-output mode.\n";
-    return 1;
-  }
-  
   // Enable debug stream buffering.
   EnableDebugBuffering = true;
 
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   LLVMContext &Context = getGlobalContext();
   
+  // Initialize passes
+  PassRegistry &Registry = *PassRegistry::getPassRegistry();
+  initializeCore(Registry);
+  initializeScalarOpts(Registry);
+  initializeIPO(Registry);
+  initializeAnalysis(Registry);
+  initializeIPA(Registry);
+  initializeTransformUtils(Registry);
+  initializeInstCombine(Registry);
+  initializeInstrumentation(Registry);
+  initializeTarget(Registry);
+  
   cl::ParseCommandLineOptions(argc, argv,
     "llvm .bc -> .bc modular optimizer and analysis printer\n");
+
+  if (AnalyzeOnly && NoOutput) {
+    errs() << argv[0] << ": analyze mode conflicts with no-output mode.\n";
+    return 1;
+  }
 
   // Allocate a full target machine description only if necessary.
   // FIXME: The choice of target should be controllable on the command line.
@@ -417,11 +527,19 @@ int main(int argc, char **argv) {
       NoOutput = true;
 
   // Create a PassManager to hold and optimize the collection of passes we are
-  // about to build...
+  // about to build.
   //
   PassManager Passes;
 
-  // Add an appropriate TargetData instance for this module...
+  // Add an appropriate TargetLibraryInfo pass for the module's triple.
+  TargetLibraryInfo *TLI = new TargetLibraryInfo(Triple(M->getTargetTriple()));
+  
+  // The -disable-simplify-libcalls flag actually disables all builtin optzns.
+  if (DisableSimplifyLibCalls)
+    TLI->disableAllFunctions();
+  Passes.add(TLI);
+  
+  // Add an appropriate TargetData instance for this module.
   TargetData *TD = 0;
   const std::string &ModuleDataLayout = M.get()->getDataLayout();
   if (!ModuleDataLayout.empty())
@@ -437,6 +555,24 @@ int main(int argc, char **argv) {
     FPasses.reset(new PassManager());
     if (TD)
       FPasses->add(new TargetData(*TD));
+  }
+
+  if (PrintBreakpoints) {
+    // Default to standard output.
+    if (!Out) {
+      if (OutputFilename.empty())
+        OutputFilename = "-";
+      
+      std::string ErrorInfo;
+      Out.reset(new tool_output_file(OutputFilename.c_str(), ErrorInfo,
+                                     raw_fd_ostream::F_Binary));
+      if (!ErrorInfo.empty()) {
+        errs() << ErrorInfo << '\n';
+        return 1;
+      }
+    }
+    Passes.add(new BreakpointPrinter(Out->os()));
+    NoOutput = true;
   }
 
   // If the -strip-debug command line option was specified, add it.  If
@@ -490,6 +626,9 @@ int main(int argc, char **argv) {
         switch (Kind) {
         case PT_BasicBlock:
           Passes.add(new BasicBlockPassPrinter(PassInf, Out->os()));
+          break;
+        case PT_Region:
+          Passes.add(new RegionPassPrinter(PassInf, Out->os()));
           break;
         case PT_Loop:
           Passes.add(new LoopPassPrinter(PassInf, Out->os()));
@@ -550,7 +689,7 @@ int main(int argc, char **argv) {
   Passes.run(*M.get());
 
   // Declare success.
-  if (!NoOutput)
+  if (!NoOutput || PrintBreakpoints)
     Out->keep();
 
   return 0;

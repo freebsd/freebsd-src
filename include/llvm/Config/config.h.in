@@ -3,6 +3,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Relative directory for resource files */
+#undef CLANG_RESOURCE_DIR
+
 /* 32 bit multilib directory. */
 #undef CXX_INCLUDE_32BIT_DIR
 
@@ -69,8 +72,15 @@
 /* Define to 1 if you have the <CrashReporterClient.h> header file. */
 #undef HAVE_CRASHREPORTERCLIENT_H
 
+/* Define if __crashreporter_info__ exists. */
+#undef HAVE_CRASHREPORTER_INFO
+
 /* Define to 1 if you have the <ctype.h> header file. */
 #undef HAVE_CTYPE_H
+
+/* Define to 1 if you have the declaration of `strerror_s', and to 0 if you
+   don't. */
+#undef HAVE_DECL_STRERROR_S
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -117,6 +127,9 @@
 
 /* Define if the neat program is available */
 #undef HAVE_FDP
+
+/* Define to 1 if you have the <fenv.h> header file. */
+#undef HAVE_FENV_H
 
 /* Define if libffi is available on this platform. */
 #undef HAVE_FFI_CALL
@@ -375,9 +388,6 @@
 /* Define to 1 if you have the `strerror_r' function. */
 #undef HAVE_STRERROR_R
 
-/* Define to 1 if you have the `strerror_s' function. */
-#undef HAVE_STRERROR_S
-
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
 
@@ -431,6 +441,9 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
+/* Define to 1 if you have the <sys/uio.h> header file. */
+#undef HAVE_SYS_UIO_H
+
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
 
@@ -458,8 +471,62 @@
 /* Define to 1 if you have the <windows.h> header file. */
 #undef HAVE_WINDOWS_H
 
+/* Define to 1 if you have the `writev' function. */
+#undef HAVE_WRITEV
+
+/* Define if the xdot.py program is available */
+#undef HAVE_XDOT_PY
+
+/* Have host's _alloca */
+#undef HAVE__ALLOCA
+
+/* Have host's __alloca */
+#undef HAVE___ALLOCA
+
+/* Have host's __ashldi3 */
+#undef HAVE___ASHLDI3
+
+/* Have host's __ashrdi3 */
+#undef HAVE___ASHRDI3
+
+/* Have host's __chkstk */
+#undef HAVE___CHKSTK
+
+/* Have host's __cmpdi2 */
+#undef HAVE___CMPDI2
+
+/* Have host's __divdi3 */
+#undef HAVE___DIVDI3
+
 /* Define to 1 if you have the `__dso_handle' function. */
 #undef HAVE___DSO_HANDLE
+
+/* Have host's __fixdfdi */
+#undef HAVE___FIXDFDI
+
+/* Have host's __fixsfdi */
+#undef HAVE___FIXSFDI
+
+/* Have host's __floatdidf */
+#undef HAVE___FLOATDIDF
+
+/* Have host's __lshrdi3 */
+#undef HAVE___LSHRDI3
+
+/* Have host's __main */
+#undef HAVE___MAIN
+
+/* Have host's __moddi3 */
+#undef HAVE___MODDI3
+
+/* Have host's __udivdi3 */
+#undef HAVE___UDIVDI3
+
+/* Have host's __umoddi3 */
+#undef HAVE___UMODDI3
+
+/* Have host's ___chkstk */
+#undef HAVE____CHKSTK
 
 /* Linker version detected at compile time. */
 #undef HOST_LINK_VERSION
@@ -538,6 +605,9 @@
 
 /* Define to path to twopi program if found or 'echo twopi' otherwise */
 #undef LLVM_PATH_TWOPI
+
+/* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
+#undef LLVM_PATH_XDOT_PY
 
 /* Installation prefix directory */
 #undef LLVM_PREFIX

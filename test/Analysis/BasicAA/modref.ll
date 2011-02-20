@@ -85,11 +85,11 @@ define void @test3a(i8* %P, i8 %X) {
   %Y = add i8 %X, 1     ;; Dead, because the only use (the store) is dead.
   
   %P2 = getelementptr i8* %P, i32 2
-  store i8 %Y, i8* %P2  ;; FIXME: Killed by llvm.lifetime.end, should be zapped.
-; CHECK: store i8 %Y, i8* %P2
+  store i8 %Y, i8* %P2
+; CHECK-NEXT: call void @llvm.lifetime.end
   call void @llvm.lifetime.end(i64 10, i8* %P)
   ret void
-; CHECK: ret void
+; CHECK-NEXT: ret void
 }
 
 @G1 = external global i32
@@ -105,7 +105,7 @@ define i32 @test4(i8* %P) {
 ; CHECK: load i32* @G
 ; CHECK: memset.p0i8.i32
 ; CHECK-NOT: load
-; CHECK: sub i32 %tmp, %tmp
+; CHECK: ret i32 0
 }
 
 ; Verify that basicaa is handling variable length memcpy, knowing it doesn't
@@ -120,7 +120,7 @@ define i32 @test5(i8* %P, i32 %Len) {
 ; CHECK: load i32* @G
 ; CHECK: memcpy.p0i8.p0i8.i32
 ; CHECK-NOT: load
-; CHECK: sub i32 %tmp, %tmp
+; CHECK: ret i32 0
 }
 
 define i8 @test6(i8* %p, i8* noalias %a) {

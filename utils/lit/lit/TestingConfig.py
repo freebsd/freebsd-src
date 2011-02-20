@@ -10,12 +10,14 @@ class TestingConfig:
         if config is None:
             # Set the environment based on the command line arguments.
             environment = {
+                'LIBRARY_PATH' : os.environ.get('LIBRARY_PATH',''),
                 'LD_LIBRARY_PATH' : os.environ.get('LD_LIBRARY_PATH',''),
                 'PATH' : os.pathsep.join(litConfig.path +
                                          [os.environ.get('PATH','')]),
                 'PATHEXT' : os.environ.get('PATHEXT',''),
                 'SYSTEMROOT' : os.environ.get('SYSTEMROOT',''),
                 'LLVM_DISABLE_CRT_DEBUG' : '1',
+                'PRINTF_EXPONENT_DIGITS' : '2',
                 }
 
             config = TestingConfig(parent,

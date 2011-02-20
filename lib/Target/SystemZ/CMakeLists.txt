@@ -11,9 +11,11 @@ tablegen(SystemZGenCallingConv.inc -gen-callingconv)
 tablegen(SystemZGenSubtarget.inc -gen-subtarget)
 
 add_llvm_target(SystemZCodeGen
+  SystemZAsmPrinter.cpp
   SystemZISelDAGToDAG.cpp
   SystemZISelLowering.cpp
   SystemZInstrInfo.cpp
+  SystemZFrameLowering.cpp
   SystemZMCAsmInfo.cpp
   SystemZRegisterInfo.cpp
   SystemZSubtarget.cpp
@@ -21,4 +23,4 @@ add_llvm_target(SystemZCodeGen
   SystemZSelectionDAGInfo.cpp
   )
 
-target_link_libraries (LLVMSystemZCodeGen LLVMSelectionDAG)
+add_subdirectory(TargetInfo)

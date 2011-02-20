@@ -12,12 +12,14 @@ TARGET = MBlaze
 
 # Make sure that tblgen is run, first thing.
 BUILT_SOURCES = MBlazeGenRegisterInfo.h.inc MBlazeGenRegisterNames.inc \
-                MBlazeGenRegisterInfo.inc MBlazeGenInstrNames.inc \
-                MBlazeGenInstrInfo.inc MBlazeGenAsmWriter.inc \
-                MBlazeGenDAGISel.inc MBlazeGenCallingConv.inc \
-                MBlazeGenSubtarget.inc MBlazeGenIntrinsics.inc
+								MBlazeGenRegisterInfo.inc MBlazeGenInstrNames.inc \
+								MBlazeGenInstrInfo.inc MBlazeGenAsmWriter.inc \
+								MBlazeGenDAGISel.inc MBlazeGenAsmMatcher.inc \
+								MBlazeGenCodeEmitter.inc MBlazeGenCallingConv.inc \
+								MBlazeGenSubtarget.inc MBlazeGenIntrinsics.inc \
+								MBlazeGenEDInfo.inc
 
-DIRS = AsmPrinter TargetInfo
+DIRS = InstPrinter AsmParser Disassembler TargetInfo
 
 include $(LEVEL)/Makefile.common
 

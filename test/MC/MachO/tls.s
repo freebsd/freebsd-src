@@ -48,7 +48,7 @@ _b:
 // CHECK: ('cputype', 16777223)
 // CHECK: ('cpusubtype', 3)
 // CHECK: ('filetype', 1)
-// CHECK: ('num_load_commands', 1)
+// CHECK: ('num_load_commands', 3)
 // CHECK: ('load_commands_size', 496)
 // CHECK: ('flag', 8192)
 // CHECK: ('reserved', 0)
@@ -99,7 +99,7 @@ _b:
 // CHECK:    ),
 // CHECK:   ('_relocations', [
 // CHECK:   ])
-// CHECK:   ('_section_data', '\x04\x00\x00\x00\x05\x00\x00\x00')
+// CHECK:   ('_section_data', '04000000 05000000')
 // CHECK:     # Section 2
 // CHECK:    (('section_name', '__thread_vars\x00\x00\x00')
 // CHECK:     ('segment_name', '__DATA\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
@@ -140,7 +140,7 @@ _b:
 // CHECK:     (('word-0', 0x0),
 // CHECK:      ('word-1', 0xe000008)),
 // CHECK:   ])
-// CHECK:   ('_section_data', '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+// CHECK:   ('_section_data', '00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000')
 // CHECK:     # Section 3
 // CHECK:    (('section_name', '__thread_bss\x00\x00\x00\x00')
 // CHECK:     ('segment_name', '__DATA\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
@@ -157,7 +157,7 @@ _b:
 // CHECK:    ),
 // CHECK:   ('_relocations', [
 // CHECK:   ])
-// CHECK:   ('_section_data', '\xcf\xfa\xed\xfe\x07\x00\x00\x01')
+// CHECK:   ('_section_data', 'cffaedfe 07000001')
 // CHECK:   ])
 // CHECK:  ),
 // CHECK:   # Load Command 1

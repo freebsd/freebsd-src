@@ -37,14 +37,21 @@ install_targets := install-html
 ifeq ($(ENABLE_DOXYGEN),1)
 install_targets += install-doxygen
 endif
+ifdef OCAMLDOC
 ifneq (,$(filter ocaml,$(BINDINGS_TO_BUILD)))
 install_targets += install-ocamldoc
 endif
+endif
 install-local:: $(install_targets)
+
+generated_targets := doxygen
+ifdef OCAMLDOC
+generated_targets += ocamldoc
+endif
 
 # Live documentation is generated for the web site using this target:
 # 'make generated BUILD_FOR_WEBSITE=1'
-generated:: doxygen ocamldoc
+generated:: $(generated_targets)
 
 install-html: $(PROJ_OBJ_DIR)/html.tar.gz
 	$(Echo) Installing HTML documentation
@@ -59,7 +66,7 @@ $(PROJ_OBJ_DIR)/html.tar.gz: $(HTML)
 	$(Verb) $(RM) -rf $@ $(PROJ_OBJ_DIR)/html.tar
 	$(Verb) cd $(PROJ_SRC_DIR) && \
 	  $(TAR) cf $(PROJ_OBJ_DIR)/html.tar *.html
-	$(Verb) $(GZIP) $(PROJ_OBJ_DIR)/html.tar
+	$(Verb) $(GZIPBIN) $(PROJ_OBJ_DIR)/html.tar
 
 install-doxygen: doxygen
 	$(Echo) Installing doxygen documentation
@@ -82,7 +89,7 @@ $(PROJ_OBJ_DIR)/doxygen.tar.gz: $(DOXYFILES) $(PROJ_OBJ_DIR)/doxygen.cfg
 	$(Echo) Packaging doxygen documentation
 	$(Verb) $(RM) -rf $@ $(PROJ_OBJ_DIR)/doxygen.tar
 	$(Verb) $(TAR) cf $(PROJ_OBJ_DIR)/doxygen.tar doxygen
-	$(Verb) $(GZIP) $(PROJ_OBJ_DIR)/doxygen.tar
+	$(Verb) $(GZIPBIN) $(PROJ_OBJ_DIR)/doxygen.tar
 	$(Verb) $(CP) $(PROJ_OBJ_DIR)/doxygen.tar.gz $(PROJ_OBJ_DIR)/doxygen/html/
 
 userloc: $(LLVM_SRC_ROOT)/docs/userloc.html
@@ -104,7 +111,7 @@ ocamldoc: regen-ocamldoc
 	$(Echo) Packaging ocamldoc documentation
 	$(Verb) $(RM) -rf $(PROJ_OBJ_DIR)/ocamldoc.tar*
 	$(Verb) $(TAR) cf $(PROJ_OBJ_DIR)/ocamldoc.tar ocamldoc
-	$(Verb) $(GZIP) $(PROJ_OBJ_DIR)/ocamldoc.tar
+	$(Verb) $(GZIPBIN) $(PROJ_OBJ_DIR)/ocamldoc.tar
 	$(Verb) $(CP) $(PROJ_OBJ_DIR)/ocamldoc.tar.gz $(PROJ_OBJ_DIR)/ocamldoc/html/
 
 regen-ocamldoc:

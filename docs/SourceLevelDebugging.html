@@ -78,7 +78,7 @@ height="369">
    that the LLVM debug information</a> takes, which is useful for those
    interested in creating front-ends or dealing directly with the information.
    Further, this document provides specific examples of what debug information
-   for C/C++.</p>
+   for C/C++ looks like.</p>
 
 </div>
 
@@ -460,15 +460,17 @@ provide details such as name, type and where the variable is defined.</p>
 <div class="doc_code">
 <pre>
 !3 = metadata !{
-  i32,     ;; Tag = 13 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> (DW_TAG_lexical_block)
-  metadata ;; Reference to context descriptor
+  i32,     ;; Tag = 11 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> (DW_TAG_lexical_block)
+  metadata,;; Reference to context descriptor
+  i32,     ;; Line number
+  i32      ;; Column number
 }
 </pre>
 </div>
 
 <p>These descriptors provide debug information about nested blocks within a
-   subprogram.  The array of member descriptors is used to define local
-   variables and deeper nested blocks.</p>
+   subprogram. The line number and column numbers are used to dinstinguish
+   two lexical blocks at same depth. </p>
 
 </div>
 
@@ -539,9 +541,9 @@ DW_ATE_unsigned_char = 8
   metadata, ;; Name (may be "" for anonymous types)
   metadata, ;; Reference to file where defined (may be NULL)
   i32,      ;; Line number where defined (may be 0)
-  i32,      ;; Size in bits
-  i32,      ;; Alignment in bits
-  i32,      ;; Offset in bits
+  i64,      ;; Size in bits
+  i64,      ;; Alignment in bits
+  i64,      ;; Offset in bits
   metadata  ;; Reference to type derived from
 }
 </pre>
@@ -586,9 +588,8 @@ DW_TAG_restrict_type    = 55
    the bit offset if embedded in a <a href="#format_composite_type">composite
    type</a>.</p>
 
-<p>Note that the <tt>void *</tt> type is expressed as a
-   <tt>llvm.dbg.derivedtype.type</tt> with tag of <tt>DW_TAG_pointer_type</tt>
-   and <tt>NULL</tt> derived type.</p>
+<p>Note that the <tt>void *</tt> type is expressed as a type derived from NULL.
+</p>
 
 </div>
 
@@ -687,7 +688,7 @@ DW_TAG_inheritance      = 28
 
 <div class="doc_code">
 <pre>
-%<a href="#format_subrange">llvm.dbg.subrange.type</a> = type {
+!42 = metadata !{
   i32,    ;; Tag = 33 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> (DW_TAG_subrange_type)
   i64,    ;; Low value
   i64     ;; High value
@@ -789,15 +790,12 @@ DW_TAG_return_variable = 258
 
 <div class="doc_text">
 <pre>
-  void %<a href="#format_common_declare">llvm.dbg.declare</a>({}*, metadata)
+  void %<a href="#format_common_declare">llvm.dbg.declare</a>(metadata, metadata)
 </pre>
 
 <p>This intrinsic provides information about a local element (ex. variable.) The
-   first argument is the alloca for the variable, cast to a <tt>{}*</tt>. The
-   second argument is
-   the <tt>%<a href="#format_variables">llvm.dbg.variable</a></tt> containing
-   the description of the variable. </p>
-
+   first argument is metadata holding alloca for the variable.</tt>. The
+   second argument is metadata containing description of the variable. </p>
 </div>
 
 <!-- ======================================================================= -->
@@ -813,10 +811,8 @@ DW_TAG_return_variable = 258
 <p>This intrinsic provides information when a user source variable is set to a
    new value.  The first argument is the new value (wrapped as metadata).  The
    second argument is the offset in the user source variable where the new value
-   is written.  The third argument is
-   the <tt>%<a href="#format_variables">llvm.dbg.variable</a></tt> containing
-   the description of the user source variable. </p>
-
+   is written.  The third argument is metadata containing description of the
+   user source variable. </p>
 </div>
 
 <!-- ======================================================================= -->
@@ -862,13 +858,13 @@ entry:
   %Y = alloca i32, align 4                        ; &lt;i32*&gt; [#uses=4]
   %Z = alloca i32, align 4                        ; &lt;i32*&gt; [#uses=3]
   %0 = bitcast i32* %X to {}*                     ; &lt;{}*&gt; [#uses=1]
-  call void @llvm.dbg.declare({}* %0, metadata !0), !dbg !7
+  call void @llvm.dbg.declare(metadata !{i32 * %X}, metadata !0), !dbg !7
   store i32 21, i32* %X, !dbg !8
   %1 = bitcast i32* %Y to {}*                     ; &lt;{}*&gt; [#uses=1]
-  call void @llvm.dbg.declare({}* %1, metadata !9), !dbg !10
+  call void @llvm.dbg.declare(metadata !{i32 * %Y}, metadata !9), !dbg !10
   store i32 22, i32* %Y, !dbg !11
   %2 = bitcast i32* %Z to {}*                     ; &lt;{}*&gt; [#uses=1]
-  call void @llvm.dbg.declare({}* %2, metadata !12), !dbg !14
+  call void @llvm.dbg.declare(metadata !{i32 * %Z}, metadata !12), !dbg !14
   store i32 23, i32* %Z, !dbg !15
   %tmp = load i32* %X, !dbg !16                   ; &lt;i32&gt; [#uses=1]
   %tmp1 = load i32* %Y, !dbg !16                  ; &lt;i32&gt; [#uses=1]
@@ -879,7 +875,7 @@ entry:
   ret void, !dbg !18
 }
 
-declare void @llvm.dbg.declare({}*, metadata) nounwind readnone
+declare void @llvm.dbg.declare(metadata, metadata) nounwind readnone
 
 !0 = metadata !{i32 459008, metadata !1, metadata !"X", 
                 metadata !3, i32 2, metadata !6}; [ DW_TAG_auto_variable ]
@@ -921,7 +917,7 @@ declare void @llvm.dbg.declare({}*, metadata) nounwind readnone
 
 <div class="doc_code">
 <pre>
-call void @llvm.dbg.declare({}* %0, metadata !0), !dbg !7   
+call void @llvm.dbg.declare(metadata, metadata !0), !dbg !7   
 </pre>
 </div>
 
@@ -956,7 +952,7 @@ call void @llvm.dbg.declare({}* %0, metadata !0), !dbg !7
 
 <div class="doc_code">
 <pre>
-call void @llvm.dbg.declare({}* %2, metadata !12), !dbg !14
+call void @llvm.dbg.declare(metadata, metadata !12), !dbg !14
 </pre>
 </div>
 
@@ -1780,7 +1776,7 @@ enum Trees {
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-07-13 18:53:20 +0200 (Tue, 13 Jul 2010) $
+  Last modified: $Date: 2011-02-03 01:22:17 +0100 (Thu, 03 Feb 2011) $
 </address>
 
 </body>

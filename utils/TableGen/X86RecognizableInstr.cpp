@@ -51,10 +51,11 @@ namespace X86Local {
     MRM0m = 24, MRM1m = 25, MRM2m = 26, MRM3m = 27,
     MRM4m = 28, MRM5m = 29, MRM6m = 30, MRM7m = 31,
     MRMInitReg  = 32,
-    
 #define MAP(from, to) MRM_##from = to,
     MRM_MAPPING
 #undef MAP
+    RawFrmImm8  = 43,
+    RawFrmImm16 = 44,
     lastMRM
   };
   
@@ -113,7 +114,6 @@ namespace X86Local {
   EXTENSION_TABLE(72)             \
   EXTENSION_TABLE(73)             \
   EXTENSION_TABLE(ae)             \
-  EXTENSION_TABLE(b9)             \
   EXTENSION_TABLE(ba)             \
   EXTENSION_TABLE(c7)
 
@@ -219,7 +219,7 @@ RecognizableInstr::RecognizableInstr(DisassemblerTables &tables,
   Name      = Rec->getName();
   AsmString = Rec->getValueAsString("AsmString");
   
-  Operands = &insn.OperandList;
+  Operands = &insn.Operands.OperandList;
   
   IsSSE            = HasOpSizePrefix && (Name.find("16") == Name.npos);
   HasFROperands    = false;
@@ -311,7 +311,7 @@ RecognizableInstr::filter_ret RecognizableInstr::filter() const {
     return FILTER_STRONG;
 
   // Special cases.
-  
+
   if (Name.find("PCMPISTRI") != Name.npos && Name != "PCMPISTRI")
     return FILTER_WEAK;
   if (Name.find("PCMPESTRI") != Name.npos && Name != "PCMPESTRI")
@@ -424,7 +424,7 @@ void RecognizableInstr::emitInstructionSpecifier(DisassemblerTables &tables) {
   
   Spec->insnContext = insnContext();
     
-  const std::vector<CodeGenInstruction::OperandInfo> &OperandList = *Operands;
+  const std::vector<CGIOperandList::OperandInfo> &OperandList = *Operands;
   
   unsigned operandIndex;
   unsigned numOperands = OperandList.size();
@@ -440,7 +440,7 @@ void RecognizableInstr::emitInstructionSpecifier(DisassemblerTables &tables) {
   
   for (operandIndex = 0; operandIndex < numOperands; ++operandIndex) {
     if (OperandList[operandIndex].Constraints.size()) {
-      const CodeGenInstruction::ConstraintInfo &Constraint =
+      const CGIOperandList::ConstraintInfo &Constraint =
         OperandList[operandIndex].Constraints[0];
       if (Constraint.isTied()) {
         operandMapping[operandIndex] = Constraint.getTiedOperand();
@@ -586,6 +586,20 @@ void RecognizableInstr::emitInstructionSpecifier(DisassemblerTables &tables) {
            "Unexpected number of operands for MRMnMFrm");
     HANDLE_OPERAND(memory)
     HANDLE_OPTIONAL(relocation)
+    break;
+  case X86Local::RawFrmImm8:
+    // operand 1 is a 16-bit immediate
+    // operand 2 is an 8-bit immediate
+    assert(numPhysicalOperands == 2 &&
+           "Unexpected number of operands for X86Local::RawFrmImm8");
+    HANDLE_OPERAND(immediate)
+    HANDLE_OPERAND(immediate)
+    break;
+  case X86Local::RawFrmImm16:
+    // operand 1 is a 16-bit immediate
+    // operand 2 is a 16-bit immediate
+    HANDLE_OPERAND(immediate)
+    HANDLE_OPERAND(immediate)
     break;
   case X86Local::MRMInitReg:
     // Ignored.
@@ -829,10 +843,13 @@ OperandType RecognizableInstr::typeFromString(const std::string &s,
   TYPE("GR8",                 TYPE_R8)
   TYPE("VR128",               TYPE_XMM128)
   TYPE("f128mem",             TYPE_M128)
+  TYPE("f256mem",             TYPE_M256)
   TYPE("FR64",                TYPE_XMM64)
   TYPE("f64mem",              TYPE_M64FP)
+  TYPE("sdmem",               TYPE_M64FP)
   TYPE("FR32",                TYPE_XMM32)
   TYPE("f32mem",              TYPE_M32FP)
+  TYPE("ssmem",               TYPE_M32FP)
   TYPE("RST",                 TYPE_ST)
   TYPE("i128mem",             TYPE_M128)
   TYPE("i64i32imm_pcrel",     TYPE_REL64)
@@ -840,6 +857,7 @@ OperandType RecognizableInstr::typeFromString(const std::string &s,
   TYPE("i32imm_pcrel",        TYPE_REL32)
   TYPE("SSECC",               TYPE_IMM3)
   TYPE("brtarget",            TYPE_RELv)
+  TYPE("uncondbrtarget",      TYPE_RELv)
   TYPE("brtarget8",           TYPE_REL8)
   TYPE("f80mem",              TYPE_M80FP)
   TYPE("lea32mem",            TYPE_LEA)
@@ -924,7 +942,10 @@ OperandEncoding RecognizableInstr::memoryEncodingFromString
   ENCODING("i32mem",          ENCODING_RM)
   ENCODING("i64mem",          ENCODING_RM)
   ENCODING("i8mem",           ENCODING_RM)
+  ENCODING("ssmem",           ENCODING_RM)
+  ENCODING("sdmem",           ENCODING_RM)
   ENCODING("f128mem",         ENCODING_RM)
+  ENCODING("f256mem",         ENCODING_RM)
   ENCODING("f64mem",          ENCODING_RM)
   ENCODING("f32mem",          ENCODING_RM)
   ENCODING("i128mem",         ENCODING_RM)

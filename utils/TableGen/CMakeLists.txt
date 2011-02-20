@@ -1,3 +1,8 @@
+set(LLVM_REQUIRES_EH 1)
+set(LLVM_REQUIRES_RTTI 1)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${LLVM_TOOLS_BINARY_DIR})
+
 add_executable(tblgen
   ARMDecoderEmitter.cpp
   AsmMatcherEmitter.cpp
@@ -7,6 +12,7 @@ add_executable(tblgen
   ClangASTNodesEmitter.cpp
   ClangAttrEmitter.cpp
   ClangDiagnosticsEmitter.cpp
+  ClangSACheckersEmitter.cpp
   CodeEmitterGen.cpp
   CodeGenDAGPatterns.cpp
   CodeGenInstruction.cpp
@@ -19,6 +25,7 @@ add_executable(tblgen
   DisassemblerEmitter.cpp
   EDEmitter.cpp
   FastISelEmitter.cpp
+  FixedLenDecoderEmitter.cpp
   InstrEnumEmitter.cpp
   InstrInfoEmitter.cpp
   IntrinsicEmitter.cpp
@@ -27,6 +34,7 @@ add_executable(tblgen
   OptParserEmitter.cpp
   Record.cpp
   RegisterInfoEmitter.cpp
+  StringMatcher.cpp
   SubtargetEmitter.cpp
   TGLexer.cpp
   TGParser.cpp
@@ -37,10 +45,12 @@ add_executable(tblgen
   X86RecognizableInstr.cpp
   )
 
-target_link_libraries(tblgen LLVMSupport LLVMSystem)
+target_link_libraries(tblgen LLVMSupport)
 if( MINGW )
   target_link_libraries(tblgen imagehlp psapi)
 endif( MINGW )
 if( LLVM_ENABLE_THREADS AND HAVE_LIBPTHREAD AND NOT BEOS )
   target_link_libraries(tblgen pthread)
 endif()
+
+install(TARGETS tblgen RUNTIME DESTINATION bin)

@@ -6,7 +6,7 @@ _a$tlv$init:
 // CHECK: ('cputype', 16777223)
 // CHECK: ('cpusubtype', 3)
 // CHECK: ('filetype', 1)
-// CHECK: ('num_load_commands', 1)
+// CHECK: ('num_load_commands', 3)
 // CHECK: ('load_commands_size', 336)
 // CHECK: ('flag', 0)
 // CHECK: ('reserved', 0)
@@ -57,7 +57,7 @@ _a$tlv$init:
 // CHECK:    ),
 // CHECK:   ('_relocations', [
 // CHECK:   ])
-// CHECK:   ('_section_data', '\x04\x00\x00\x00')
+// CHECK:   ('_section_data', '04000000')
 // CHECK:   ])
 // CHECK:  ),
 // CHECK:   # Load Command 1

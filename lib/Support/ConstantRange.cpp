@@ -51,6 +51,9 @@ ConstantRange::ConstantRange(const APInt &L, const APInt &U) :
 
 ConstantRange ConstantRange::makeICmpRegion(unsigned Pred,
                                             const ConstantRange &CR) {
+  if (CR.isEmptySet())
+    return CR;
+
   uint32_t W = CR.getBitWidth();
   switch (Pred) {
     default: assert(!"Invalid ICmp predicate to makeICmpRegion()");
@@ -60,10 +63,18 @@ ConstantRange ConstantRange::makeICmpRegion(unsigned Pred,
       if (CR.isSingleElement())
         return ConstantRange(CR.getUpper(), CR.getLower());
       return ConstantRange(W);
-    case ICmpInst::ICMP_ULT:
-      return ConstantRange(APInt::getMinValue(W), CR.getUnsignedMax());
-    case ICmpInst::ICMP_SLT:
-      return ConstantRange(APInt::getSignedMinValue(W), CR.getSignedMax());
+    case ICmpInst::ICMP_ULT: {
+      APInt UMax(CR.getUnsignedMax());
+      if (UMax.isMinValue())
+        return ConstantRange(W, /* empty */ false);
+      return ConstantRange(APInt::getMinValue(W), UMax);
+    }
+    case ICmpInst::ICMP_SLT: {
+      APInt SMax(CR.getSignedMax());
+      if (SMax.isMinSignedValue())
+        return ConstantRange(W, /* empty */ false);
+      return ConstantRange(APInt::getSignedMinValue(W), SMax);
+    }
     case ICmpInst::ICMP_ULE: {
       APInt UMax(CR.getUnsignedMax());
       if (UMax.isMaxValue())
@@ -72,15 +83,22 @@ ConstantRange ConstantRange::makeICmpRegion(unsigned Pred,
     }
     case ICmpInst::ICMP_SLE: {
       APInt SMax(CR.getSignedMax());
-      if (SMax.isMaxSignedValue() || (SMax+1).isMaxSignedValue())
+      if (SMax.isMaxSignedValue())
         return ConstantRange(W);
       return ConstantRange(APInt::getSignedMinValue(W), SMax + 1);
     }
-    case ICmpInst::ICMP_UGT:
-      return ConstantRange(CR.getUnsignedMin() + 1, APInt::getNullValue(W));
-    case ICmpInst::ICMP_SGT:
-      return ConstantRange(CR.getSignedMin() + 1,
-                           APInt::getSignedMinValue(W));
+    case ICmpInst::ICMP_UGT: {
+      APInt UMin(CR.getUnsignedMin());
+      if (UMin.isMaxValue())
+        return ConstantRange(W, /* empty */ false);
+      return ConstantRange(UMin + 1, APInt::getNullValue(W));
+    }
+    case ICmpInst::ICMP_SGT: {
+      APInt SMin(CR.getSignedMin());
+      if (SMin.isMaxSignedValue())
+        return ConstantRange(W, /* empty */ false);
+      return ConstantRange(SMin + 1, APInt::getSignedMinValue(W));
+    }
     case ICmpInst::ICMP_UGE: {
       APInt UMin(CR.getUnsignedMin());
       if (UMin.isMinValue())
@@ -113,6 +131,14 @@ bool ConstantRange::isEmptySet() const {
 ///
 bool ConstantRange::isWrappedSet() const {
   return Lower.ugt(Upper);
+}
+
+/// isSignWrappedSet - Return true if this set wraps around the INT_MIN of
+/// its bitwidth, for example: i8 [120, 140).
+///
+bool ConstantRange::isSignWrappedSet() const {
+  return contains(APInt::getSignedMaxValue(getBitWidth())) &&
+         contains(APInt::getSignedMinValue(getBitWidth()));
 }
 
 /// getSetSize - Return the number of elements in this set.
@@ -408,15 +434,15 @@ ConstantRange ConstantRange::unionWith(const ConstantRange &CR) const {
 /// correspond to the possible range of values as if the source range had been
 /// zero extended.
 ConstantRange ConstantRange::zeroExtend(uint32_t DstTySize) const {
+  if (isEmptySet()) return ConstantRange(DstTySize, /*isFullSet=*/false);
+
   unsigned SrcTySize = getBitWidth();
   assert(SrcTySize < DstTySize && "Not a value extension");
-  if (isFullSet())
-    // Change a source full set into [0, 1 << 8*numbytes)
+  if (isFullSet() || isWrappedSet())
+    // Change into [0, 1 << src bit width)
     return ConstantRange(APInt(DstTySize,0), APInt(DstTySize,1).shl(SrcTySize));
 
-  APInt L = Lower; L.zext(DstTySize);
-  APInt U = Upper; U.zext(DstTySize);
-  return ConstantRange(L, U);
+  return ConstantRange(Lower.zext(DstTySize), Upper.zext(DstTySize));
 }
 
 /// signExtend - Return a new range in the specified integer type, which must
@@ -424,16 +450,16 @@ ConstantRange ConstantRange::zeroExtend(uint32_t DstTySize) const {
 /// correspond to the possible range of values as if the source range had been
 /// sign extended.
 ConstantRange ConstantRange::signExtend(uint32_t DstTySize) const {
+  if (isEmptySet()) return ConstantRange(DstTySize, /*isFullSet=*/false);
+
   unsigned SrcTySize = getBitWidth();
   assert(SrcTySize < DstTySize && "Not a value extension");
-  if (isFullSet()) {
+  if (isFullSet() || isSignWrappedSet()) {
     return ConstantRange(APInt::getHighBitsSet(DstTySize,DstTySize-SrcTySize+1),
                          APInt::getLowBitsSet(DstTySize, SrcTySize-1) + 1);
   }
 
-  APInt L = Lower; L.sext(DstTySize);
-  APInt U = Upper; U.sext(DstTySize);
-  return ConstantRange(L, U);
+  return ConstantRange(Lower.sext(DstTySize), Upper.sext(DstTySize));
 }
 
 /// truncate - Return a new range in the specified integer type, which must be
@@ -447,9 +473,7 @@ ConstantRange ConstantRange::truncate(uint32_t DstTySize) const {
   if (isFullSet() || getSetSize().ugt(Size))
     return ConstantRange(DstTySize, /*isFullSet=*/true);
 
-  APInt L = Lower; L.trunc(DstTySize);
-  APInt U = Upper; U.trunc(DstTySize);
-  return ConstantRange(L, U);
+  return ConstantRange(Lower.trunc(DstTySize), Upper.trunc(DstTySize));
 }
 
 /// zextOrTrunc - make this range have the bit width given by \p DstTySize. The
@@ -593,6 +617,32 @@ ConstantRange::udiv(const ConstantRange &RHS) const {
     return ConstantRange(getBitWidth(), /*isFullSet=*/true);
 
   return ConstantRange(Lower, Upper);
+}
+
+ConstantRange
+ConstantRange::binaryAnd(const ConstantRange &Other) const {
+  if (isEmptySet() || Other.isEmptySet())
+    return ConstantRange(getBitWidth(), /*isFullSet=*/false);
+
+  // TODO: replace this with something less conservative
+
+  APInt umin = APIntOps::umin(Other.getUnsignedMax(), getUnsignedMax());
+  if (umin.isAllOnesValue())
+    return ConstantRange(getBitWidth(), /*isFullSet=*/true);
+  return ConstantRange(APInt::getNullValue(getBitWidth()), umin + 1);
+}
+
+ConstantRange
+ConstantRange::binaryOr(const ConstantRange &Other) const {
+  if (isEmptySet() || Other.isEmptySet())
+    return ConstantRange(getBitWidth(), /*isFullSet=*/false);
+
+  // TODO: replace this with something less conservative
+
+  APInt umax = APIntOps::umax(getUnsignedMin(), Other.getUnsignedMin());
+  if (umax.isMinValue())
+    return ConstantRange(getBitWidth(), /*isFullSet=*/true);
+  return ConstantRange(umax, APInt::getNullValue(getBitWidth()));
 }
 
 ConstantRange

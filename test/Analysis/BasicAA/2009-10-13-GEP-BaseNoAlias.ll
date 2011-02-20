@@ -1,11 +1,11 @@
-; RUN: opt < %s -aa-eval -print-all-alias-modref-info -disable-output |& grep {NoAlias:.*%P,.*@Z}
+; RUN: opt < %s -basicaa -aa-eval -print-all-alias-modref-info -disable-output |& grep {NoAlias:.*%P,.*@Z}
 ; If GEP base doesn't alias Z, then GEP doesn't alias Z.
 ; rdar://7282591
 
 @Y = common global i32 0
 @Z = common global i32 0
 
-define void @foo(i32 %cond) nounwind ssp {
+define void @foo(i32 %cond) nounwind {
 entry:
   %a = alloca i32
   %tmp = icmp ne i32 %cond, 0

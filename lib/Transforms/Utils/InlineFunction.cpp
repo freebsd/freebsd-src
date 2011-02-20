@@ -22,7 +22,9 @@
 #include "llvm/Attributes.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CallSite.h"
@@ -170,7 +172,7 @@ static void HandleInlinedInvoke(InvokeInst *II, BasicBlock *FirstNewBlock,
 /// some edges of the callgraph may remain.
 static void UpdateCallGraphAfterInlining(CallSite CS,
                                          Function::iterator FirstNewBlock,
-                                         ValueMap<const Value*, Value*> &VMap,
+                                         ValueToValueMapTy &VMap,
                                          InlineFunctionInfo &IFI) {
   CallGraph &CG = *IFI.CG;
   const Function *Caller = CS.getInstruction()->getParent()->getParent();
@@ -193,7 +195,7 @@ static void UpdateCallGraphAfterInlining(CallSite CS,
   for (; I != E; ++I) {
     const Value *OrigCall = I->first;
 
-    ValueMap<const Value*, Value*>::iterator VMI = VMap.find(OrigCall);
+    ValueToValueMapTy::iterator VMI = VMap.find(OrigCall);
     // Only copy the edge if the call was inlined!
     if (VMI == VMap.end() || VMI->second == 0)
       continue;
@@ -228,6 +230,90 @@ static void UpdateCallGraphAfterInlining(CallSite CS,
   CallerNode->removeCallEdgeFor(CS);
 }
 
+/// HandleByValArgument - When inlining a call site that has a byval argument,
+/// we have to make the implicit memcpy explicit by adding it.
+static Value *HandleByValArgument(Value *Arg, Instruction *TheCall,
+                                  const Function *CalledFunc,
+                                  InlineFunctionInfo &IFI,
+                                  unsigned ByValAlignment) {
+  const Type *AggTy = cast<PointerType>(Arg->getType())->getElementType();
+
+  // If the called function is readonly, then it could not mutate the caller's
+  // copy of the byval'd memory.  In this case, it is safe to elide the copy and
+  // temporary.
+  if (CalledFunc->onlyReadsMemory()) {
+    // If the byval argument has a specified alignment that is greater than the
+    // passed in pointer, then we either have to round up the input pointer or
+    // give up on this transformation.
+    if (ByValAlignment <= 1)  // 0 = unspecified, 1 = no particular alignment.
+      return Arg;
+
+    // If the pointer is already known to be sufficiently aligned, or if we can
+    // round it up to a larger alignment, then we don't need a temporary.
+    if (getOrEnforceKnownAlignment(Arg, ByValAlignment,
+                                   IFI.TD) >= ByValAlignment)
+      return Arg;
+    
+    // Otherwise, we have to make a memcpy to get a safe alignment.  This is bad
+    // for code quality, but rarely happens and is required for correctness.
+  }
+  
+  LLVMContext &Context = Arg->getContext();
+
+  const Type *VoidPtrTy = Type::getInt8PtrTy(Context);
+  
+  // Create the alloca.  If we have TargetData, use nice alignment.
+  unsigned Align = 1;
+  if (IFI.TD)
+    Align = IFI.TD->getPrefTypeAlignment(AggTy);
+  
+  // If the byval had an alignment specified, we *must* use at least that
+  // alignment, as it is required by the byval argument (and uses of the
+  // pointer inside the callee).
+  Align = std::max(Align, ByValAlignment);
+  
+  Function *Caller = TheCall->getParent()->getParent(); 
+  
+  Value *NewAlloca = new AllocaInst(AggTy, 0, Align, Arg->getName(), 
+                                    &*Caller->begin()->begin());
+  // Emit a memcpy.
+  const Type *Tys[3] = {VoidPtrTy, VoidPtrTy, Type::getInt64Ty(Context)};
+  Function *MemCpyFn = Intrinsic::getDeclaration(Caller->getParent(),
+                                                 Intrinsic::memcpy, 
+                                                 Tys, 3);
+  Value *DestCast = new BitCastInst(NewAlloca, VoidPtrTy, "tmp", TheCall);
+  Value *SrcCast = new BitCastInst(Arg, VoidPtrTy, "tmp", TheCall);
+  
+  Value *Size;
+  if (IFI.TD == 0)
+    Size = ConstantExpr::getSizeOf(AggTy);
+  else
+    Size = ConstantInt::get(Type::getInt64Ty(Context),
+                            IFI.TD->getTypeStoreSize(AggTy));
+  
+  // Always generate a memcpy of alignment 1 here because we don't know
+  // the alignment of the src pointer.  Other optimizations can infer
+  // better alignment.
+  Value *CallArgs[] = {
+    DestCast, SrcCast, Size,
+    ConstantInt::get(Type::getInt32Ty(Context), 1),
+    ConstantInt::getFalse(Context) // isVolatile
+  };
+  CallInst *TheMemCpy =
+    CallInst::Create(MemCpyFn, CallArgs, CallArgs+5, "", TheCall);
+  
+  // If we have a call graph, update it.
+  if (CallGraph *CG = IFI.CG) {
+    CallGraphNode *MemCpyCGN = CG->getOrInsertFunction(MemCpyFn);
+    CallGraphNode *CallerNode = (*CG)[Caller];
+    CallerNode->addCalledFunction(TheMemCpy, MemCpyCGN);
+  }
+  
+  // Uses of the argument in the function should use our new alloca
+  // instead.
+  return NewAlloca;
+}
+
 // InlineFunction - This function inlines the called function into the basic
 // block of the caller.  This returns false if it is not possible to inline this
 // call.  The program is still in a well defined state if this occurs though.
@@ -250,7 +336,6 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
   if (CalledFunc == 0 ||          // Can't inline external function or indirect
       CalledFunc->isDeclaration() || // call, or call to a vararg function!
       CalledFunc->getFunctionType()->isVarArg()) return false;
-
 
   // If the call to the callee is not a tail call, we must clear the 'tail'
   // flags on any calls that we inline.
@@ -287,7 +372,7 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
   Function::iterator FirstNewBlock;
 
   { // Scope to destroy VMap after cloning.
-    ValueMap<const Value*, Value*> VMap;
+    ValueToValueMapTy VMap;
 
     assert(CalledFunc->arg_size() == CS.arg_size() &&
            "No varargs calls can be inlined!");
@@ -304,58 +389,14 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
       // by them explicit.  However, we don't do this if the callee is readonly
       // or readnone, because the copy would be unneeded: the callee doesn't
       // modify the struct.
-      if (CalledFunc->paramHasAttr(ArgNo+1, Attribute::ByVal) &&
-          !CalledFunc->onlyReadsMemory()) {
-        const Type *AggTy = cast<PointerType>(I->getType())->getElementType();
-        const Type *VoidPtrTy = 
-            Type::getInt8PtrTy(Context);
-
-        // Create the alloca.  If we have TargetData, use nice alignment.
-        unsigned Align = 1;
-        if (IFI.TD) Align = IFI.TD->getPrefTypeAlignment(AggTy);
-        Value *NewAlloca = new AllocaInst(AggTy, 0, Align, 
-                                          I->getName(), 
-                                          &*Caller->begin()->begin());
-        // Emit a memcpy.
-        const Type *Tys[3] = {VoidPtrTy, VoidPtrTy, Type::getInt64Ty(Context)};
-        Function *MemCpyFn = Intrinsic::getDeclaration(Caller->getParent(),
-                                                       Intrinsic::memcpy, 
-                                                       Tys, 3);
-        Value *DestCast = new BitCastInst(NewAlloca, VoidPtrTy, "tmp", TheCall);
-        Value *SrcCast = new BitCastInst(*AI, VoidPtrTy, "tmp", TheCall);
-
-        Value *Size;
-        if (IFI.TD == 0)
-          Size = ConstantExpr::getSizeOf(AggTy);
-        else
-          Size = ConstantInt::get(Type::getInt64Ty(Context),
-                                  IFI.TD->getTypeStoreSize(AggTy));
-
-        // Always generate a memcpy of alignment 1 here because we don't know
-        // the alignment of the src pointer.  Other optimizations can infer
-        // better alignment.
-        Value *CallArgs[] = {
-          DestCast, SrcCast, Size,
-          ConstantInt::get(Type::getInt32Ty(Context), 1),
-          ConstantInt::get(Type::getInt1Ty(Context), 0)
-        };
-        CallInst *TheMemCpy =
-          CallInst::Create(MemCpyFn, CallArgs, CallArgs+5, "", TheCall);
-
-        // If we have a call graph, update it.
-        if (CallGraph *CG = IFI.CG) {
-          CallGraphNode *MemCpyCGN = CG->getOrInsertFunction(MemCpyFn);
-          CallGraphNode *CallerNode = (*CG)[Caller];
-          CallerNode->addCalledFunction(TheMemCpy, MemCpyCGN);
-        }
-
-        // Uses of the argument in the function should use our new alloca
-        // instead.
-        ActualArg = NewAlloca;
-
+      if (CalledFunc->paramHasAttr(ArgNo+1, Attribute::ByVal)) {
+        ActualArg = HandleByValArgument(ActualArg, TheCall, CalledFunc, IFI,
+                                        CalledFunc->getParamAlignment(ArgNo+1));
+ 
         // Calls that we inline may use the new alloca, so we need to clear
-        // their 'tail' flags.
-        MustClearTailCallFlags = true;
+        // their 'tail' flags if HandleByValArgument introduced a new alloca and
+        // the callee has calls.
+        MustClearTailCallFlags |= ActualArg != *AI;
       }
 
       VMap[I] = ActualArg;
@@ -399,8 +440,7 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
       if (!isa<Constant>(AI->getArraySize()))
         continue;
       
-      // Keep track of the static allocas that we inline into the caller if the
-      // StaticAllocas pointer is non-null.
+      // Keep track of the static allocas that we inline into the caller.
       IFI.StaticAllocas.push_back(AI);
       
       // Scan for the block of allocas that we can move over, and move them
@@ -579,10 +619,10 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
   // any users of the original call/invoke instruction.
   const Type *RTy = CalledFunc->getReturnType();
 
+  PHINode *PHI = 0;
   if (Returns.size() > 1) {
     // The PHI node should go at the front of the new basic block to merge all
     // possible incoming values.
-    PHINode *PHI = 0;
     if (!TheCall->use_empty()) {
       PHI = PHINode::Create(RTy, TheCall->getName(),
                             AfterCallBB->begin());
@@ -599,14 +639,6 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
         assert(RI->getReturnValue()->getType() == PHI->getType() &&
                "Ret value not consistent in function!");
         PHI->addIncoming(RI->getReturnValue(), RI->getParent());
-      }
-    
-      // Now that we inserted the PHI, check to see if it has a single value
-      // (e.g. all the entries are the same or undef).  If so, remove the PHI so
-      // it doesn't block other optimizations.
-      if (Value *V = PHI->hasConstantValue()) {
-        PHI->replaceAllUsesWith(V);
-        PHI->eraseFromParent();
       }
     }
 
@@ -663,6 +695,15 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
 
   // Now we can remove the CalleeEntry block, which is now empty.
   Caller->getBasicBlockList().erase(CalleeEntry);
+
+  // If we inserted a phi node, check to see if it has a single value (e.g. all
+  // the entries are the same or undef).  If so, remove the PHI so it doesn't
+  // block other optimizations.
+  if (PHI)
+    if (Value *V = SimplifyInstruction(PHI, IFI.TD)) {
+      PHI->replaceAllUsesWith(V);
+      PHI->eraseFromParent();
+    }
 
   return true;
 }

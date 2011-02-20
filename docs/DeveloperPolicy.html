@@ -29,7 +29,6 @@
     <li><a href="#copyright">Copyright</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#patents">Patents</a></li>
-    <li><a href="#devagree">Developer Agreements</a></li>
   </ol></li>
 </ol>
 <div class="doc_author">Written by the LLVM Oversight Team</div>
@@ -196,7 +195,11 @@
 <ol>
   <li><b>Evan Cheng</b>: Code generator and all targets.</li>
 
-  <li><b>Doug Gregor</b>: Clang Basic, Lex, Parse, and Sema Libraries.</li>
+  <li><b>Greg Clayton</b>: LLDB.</li>
+
+  <li><b>Doug Gregor</b>: Clang Frontend Libraries.</li>
+
+  <li><b>Howard Hinnant</b>: libc++.</li>
 
   <li><b>Anton Korobeynikov</b>: Exception handling, debug information, and
       Windows codegen.</li>
@@ -506,40 +509,40 @@ Changes</a></div>
 <!-- _______________________________________________________________________ -->
 <div class="doc_subsection"><a name="copyright">Copyright</a></div>
 <div class="doc_text">
-<p>For consistency and ease of management, the project requires the copyright
-   for all LLVM software to be held by a single copyright holder: the University
-   of Illinois (UIUC).</p>
-  
-<p>Although UIUC may eventually reassign the copyright of the software to
-   another entity (e.g. a dedicated non-profit "LLVM Organization") the intent
-   for the project is to always have a single entity hold the copyrights to LLVM
-   at any given time.</p>
 
-<p>We believe that having a single copyright holder is in the best interests of
-   all developers and users as it greatly reduces the managerial burden for any
-   kind of administrative or technical decisions about LLVM.  The goal of the
-   LLVM project is to always keep the code open and <a href="#license">licensed
-   under a very liberal license</a>.</p>
+<p>The LLVM project does not require copyright assignments, which means that the
+   copyright for the code in the project is held by its respective contributors
+   who have each agreed to release their contributed code under the terms of the
+   <a href="#license">LLVM License</a>.</p>
+   
+<p>An implication of this is that the LLVM license is unlikely to ever change:
+   changing it would require tracking down all the contributors to LLVM and
+   getting them to agree that a license change is acceptable for their
+   contribution.  Since there are no plans to change the license, this is not a
+   cause for concern.</p>
+   
+<p>As a contributor to the project, this means that you (or your company) retain
+   ownership of the code you contribute, that it cannot be used in a way that
+   contradicts the license (which is a liberal BSD-style license), and that the
+   license for your contributions won't change without your approval in the
+   future.</p>
+   
 </div>
 
 <!-- _______________________________________________________________________ -->
 <div class="doc_subsection"><a name="license">License</a></div>
 <div class="doc_text">
 <p>We intend to keep LLVM perpetually open source and to use a liberal open
-   source license. The current license is the
+   source license. All of the code in LLVM is available under the
    <a href="http://www.opensource.org/licenses/UoI-NCSA.php">University of
    Illinois/NCSA Open Source License</a>, which boils down to this:</p>
 
 <ul>
   <li>You can freely distribute LLVM.</li>
-
   <li>You must retain the copyright notice if you redistribute LLVM.</li>
-
-  <li>Binaries derived from LLVM must reproduce the copyright notice (e.g.  in
-      an included readme file).</li>
-
+  <li>Binaries derived from LLVM must reproduce the copyright notice (e.g. in an
+      included readme file).</li>
   <li>You can't use our names to promote your LLVM derived products.</li>
-
   <li>There's no warranty on LLVM at all.</li>
 </ul>
   
@@ -549,7 +552,22 @@ Changes</a></div>
    LLVM's license is not a "copyleft" license like the GPL). We suggest that you
    read the <a href="http://www.opensource.org/licenses/UoI-NCSA.php">License</a>
    if further clarification is needed.</p>
-  
+   
+<p>In addition to the UIUC license, the runtime library components of LLVM
+   (<b>compiler_rt and libc++</b>) are also licensed under the <a
+   href="http://www.opensource.org/licenses/mit-license.php">MIT license</a>,
+   which does not contain the binary redistribution clause.  As a user of these
+   runtime libraries, it means that you can choose to use the code under either
+   license (and thus don't need the binary redistribution clause), and as a
+   contributor to the code that you agree that any contributions to these
+   libraries be licensed under both licenses.  We feel that this is important
+   for runtime libraries, because they are implicitly linked into applications
+   and therefore should not subject those applications to the binary
+   redistribution clause. This also means that it is ok to move code from (e.g.)
+   libc++ to the LLVM core without concern, but that code cannot be moved from
+   the LLVM core to libc++ without the copyright owner's permission.
+</p>
+
 <p>Note that the LLVM Project does distribute llvm-gcc, <b>which is GPL.</b>
    This means that anything "linked" into llvm-gcc must itself be compatible
    with the GPL, and must be releasable under the terms of the GPL.  This
@@ -563,7 +581,7 @@ Changes</a></div>
   
 <p>We have no plans to change the license of LLVM.  If you have questions or
    comments about the license, please contact the
-   <a href="mailto:llvm-oversight@cs.uiuc.edu">LLVM Oversight Group</a>.</p>
+   <a href="mailto:llvmdev@cs.uiuc.edu">LLVM Developer's Mailing List</a>.</p>
 </div>
 
 <!-- _______________________________________________________________________ -->
@@ -584,21 +602,6 @@ Changes</a></div>
    details.</p>
 </div>
 
-<!-- _______________________________________________________________________ -->
-<div class="doc_subsection"><a name="devagree">Developer Agreements</a></div>
-<div class="doc_text">
-<p>With regards to the LLVM copyright and licensing, developers agree to assign
-   their copyrights to UIUC for any contribution made so that the entire
-   software base can be managed by a single copyright holder.  This implies that
-   any contributions can be licensed under the license that the project
-   uses.</p>
-
-<p>When contributing code, you also affirm that you are legally entitled to
-   grant this copyright, personally or on behalf of your employer.  If the code
-   belongs to some other entity, please raise this issue with the oversight
-   group before the code is committed.</p>
-</div>
-
 <!-- *********************************************************************** -->
 <hr>
 <address>
@@ -609,7 +612,7 @@ Changes</a></div>
   Written by the 
   <a href="mailto:llvm-oversight@cs.uiuc.edu">LLVM Oversight Group</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-09-02 02:09:17 +0200 (Thu, 02 Sep 2010) $
+  Last modified: $Date: 2010-11-16 22:32:53 +0100 (Tue, 16 Nov 2010) $
 </address>
 </body>
 </html>

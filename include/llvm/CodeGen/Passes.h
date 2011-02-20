@@ -45,9 +45,18 @@ namespace llvm {
   ///
   extern char &MachineLoopInfoID;
 
+  /// MachineLoopRanges pass - This pass is an on-demand loop coverage
+  /// analysis pass.
+  ///
+  extern char &MachineLoopRangesID;
+
   /// MachineDominators pass - This pass is a machine dominators analysis pass.
   ///
   extern char &MachineDominatorsID;
+
+  /// EdgeBundles analysis - Bundle machine CFG edges.
+  ///
+  extern char &EdgeBundlesID;
 
   /// PHIElimination pass - This pass eliminates machine instruction PHI nodes
   /// by inserting copy instructions.  This destroys SSA information, but is the
@@ -66,6 +75,9 @@ namespace llvm {
 
   extern char &PreAllocSplittingID;
 
+  /// LiveStacks pass. An analysis keeping track of the liveness of stack slots.
+  extern char &LiveStacksID;
+
   /// SimpleRegisterCoalescing pass.  Aggressively coalesces every register
   /// copy it can.
   ///
@@ -75,6 +87,11 @@ namespace llvm {
   /// use two operands. This destroys SSA information but it is desired by
   /// register allocators.
   extern char &TwoAddressInstructionPassID;
+
+  /// SpillPlacement analysis. Suggest optimal placement of spill code between
+  /// basic blocks.
+  ///
+  extern char &SpillPlacementID;
 
   /// UnreachableMachineBlockElimination pass - This pass removes unreachable
   /// machine basic blocks.
@@ -95,6 +112,16 @@ namespace llvm {
   ///
   FunctionPass *createFastRegisterAllocator();
 
+  /// BasicRegisterAllocation Pass - This pass implements a degenerate global
+  /// register allocator using the basic regalloc framework.
+  ///
+  FunctionPass *createBasicRegisterAllocator();
+
+  /// Greedy register allocation pass - This pass implements a global register
+  /// allocator for optimized builds.
+  ///
+  FunctionPass *createGreedyRegisterAllocator();
+
   /// LinearScanRegisterAllocation Pass - This pass implements the linear scan
   /// register allocation algorithm, a global register allocator.
   ///
@@ -103,7 +130,7 @@ namespace llvm {
   /// PBQPRegisterAllocation Pass - This pass implements the Partitioned Boolean
   /// Quadratic Prograaming (PBQP) based register allocator.
   ///
-  FunctionPass *createPBQPRegisterAllocator();
+  FunctionPass *createDefaultPBQPRegisterAllocator();
 
   /// SimpleRegisterCoalescing Pass - Coalesce all copies possible.  Can run
   /// independently of the register allocator.
@@ -188,7 +215,7 @@ namespace llvm {
 
   /// createMachineVerifierPass - This pass verifies cenerated machine code
   /// instructions for correctness.
-  FunctionPass *createMachineVerifierPass();
+  FunctionPass *createMachineVerifierPass(const char *Banner = 0);
 
   /// createDwarfEHPass - This pass mulches exception handling code into a form
   /// adapted to code generation.  Required if using dwarf exception handling.
@@ -204,6 +231,10 @@ namespace llvm {
   /// be out of range of normal frame pointer or stack pointer index
   /// addressing.
   FunctionPass *createLocalStackSlotAllocationPass();
+
+  /// createExpandISelPseudosPass - This pass expands pseudo-instructions.
+  ///
+  FunctionPass *createExpandISelPseudosPass();
 
 } // End llvm namespace
 

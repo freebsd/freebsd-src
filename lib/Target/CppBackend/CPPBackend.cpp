@@ -358,6 +358,7 @@ std::string CppWriter::getCppName(const Type* Ty) {
     case Type::FloatTyID:    return "Type::getFloatTy(mod->getContext())";
     case Type::DoubleTyID:   return "Type::getDoubleTy(mod->getContext())";
     case Type::LabelTyID:    return "Type::getLabelTy(mod->getContext())";
+    case Type::X86_MMXTyID:  return "Type::getX86_MMXTy(mod->getContext())";
     default:
       error("Invalid primitive type");
       break;
@@ -1563,11 +1564,25 @@ void CppWriter::printFunctionUses(const Function* F) {
         // If the operand references a GVal or Constant, make a note of it
         if (GlobalValue* GV = dyn_cast<GlobalValue>(operand)) {
           gvs.insert(GV);
-          if (GlobalVariable *GVar = dyn_cast<GlobalVariable>(GV))
-            if (GVar->hasInitializer())
-              consts.insert(GVar->getInitializer());
-        } else if (Constant* C = dyn_cast<Constant>(operand))
+          if (GenerationType != GenFunction)
+            if (GlobalVariable *GVar = dyn_cast<GlobalVariable>(GV))
+              if (GVar->hasInitializer())
+                consts.insert(GVar->getInitializer());
+        } else if (Constant* C = dyn_cast<Constant>(operand)) {
           consts.insert(C);
+          for (unsigned j = 0; j < C->getNumOperands(); ++j) {
+            // If the operand references a GVal or Constant, make a note of it
+            Value* operand = C->getOperand(j);
+            printType(operand->getType());
+            if (GlobalValue* GV = dyn_cast<GlobalValue>(operand)) {
+              gvs.insert(GV);
+              if (GenerationType != GenFunction)
+                if (GlobalVariable *GVar = dyn_cast<GlobalVariable>(GV))
+                  if (GVar->hasInitializer())
+                    consts.insert(GVar->getInitializer());
+            }
+          }
+        }
       }
     }
   }
@@ -1590,7 +1605,7 @@ void CppWriter::printFunctionUses(const Function* F) {
       printVariableHead(F);
   }
 
-// Print the constants found
+  // Print the constants found
   nl(Out) << "// Constant Definitions"; nl(Out);
   for (SmallPtrSet<Constant*,64>::iterator I = consts.begin(),
          E = consts.end(); I != E; ++I) {
@@ -1600,11 +1615,13 @@ void CppWriter::printFunctionUses(const Function* F) {
   // Process the global variables definitions now that all the constants have
   // been emitted. These definitions just couple the gvars with their constant
   // initializers.
-  nl(Out) << "// Global Variable Definitions"; nl(Out);
-  for (SmallPtrSet<GlobalValue*,64>::iterator I = gvs.begin(), E = gvs.end();
-       I != E; ++I) {
-    if (GlobalVariable* GV = dyn_cast<GlobalVariable>(*I))
-      printVariableBody(GV);
+  if (GenerationType != GenFunction) {
+    nl(Out) << "// Global Variable Definitions"; nl(Out);
+    for (SmallPtrSet<GlobalValue*,64>::iterator I = gvs.begin(), E = gvs.end();
+         I != E; ++I) {
+      if (GlobalVariable* GV = dyn_cast<GlobalVariable>(*I))
+        printVariableBody(GV);
+    }
   }
 }
 

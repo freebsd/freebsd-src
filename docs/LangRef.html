@@ -62,6 +62,7 @@
         <ol>
           <li><a href="#t_integer">Integer Type</a></li>
           <li><a href="#t_floating">Floating Point Types</a></li>
+          <li><a href="#t_x86mmx">X86mmx Type</a></li>
           <li><a href="#t_void">Void Type</a></li>
           <li><a href="#t_label">Label Type</a></li>
           <li><a href="#t_metadata">Metadata Type</a></li>
@@ -492,7 +493,7 @@
 
 <pre class="doc_code">
 <i>; Declare the string constant as a global constant.</i>&nbsp;
-<a href="#identifiers">@.LC0</a> = <a href="#linkage_internal">internal</a> <a href="#globalvars">constant</a> <a href="#t_array">[13 x i8]</a> c"hello world\0A\00"      <i>; [13 x i8]*</i>&nbsp;
+<a href="#identifiers">@.LC0</a> = <a href="#linkage_internal">internal</a>&nbsp;<a href="#globalvars">constant</a>&nbsp;<a href="#t_array">[13 x i8]</a> c"hello world\0A\00"      <i>; [13 x i8]*</i>&nbsp;
 
 <i>; External declaration of the puts function</i>&nbsp;
 <a href="#functionstructure">declare</a> i32 @puts(i8*)                                      <i>; i32 (i8*)* </i>&nbsp;
@@ -845,6 +846,13 @@ define i32 @main() {   <i>; i32()* </i>&nbsp;
    region of memory, and all memory objects in LLVM are accessed through
    pointers.</p>
 
+<p>Global variables can be marked with <tt>unnamed_addr</tt> which indicates
+  that the address is not significant, only the content. Constants marked
+  like this can be merged with other constants if they have the same
+  initializer. Note that a constant with significant address <em>can</em>
+  be merged with a <tt>unnamed_addr</tt> constant, the result being a
+  constant whose address is significant.</p>
+
 <p>A global variable may be declared to reside in a target-specific numbered
    address space. For targets that support them, address spaces may affect how
    optimizations are performed and/or what target instructions are used to
@@ -884,7 +892,8 @@ define i32 @main() {   <i>; i32()* </i>&nbsp;
 <p>LLVM function definitions consist of the "<tt>define</tt>" keyword, an
    optional <a href="#linkage">linkage type</a>, an optional
    <a href="#visibility">visibility style</a>, an optional
-   <a href="#callingconv">calling convention</a>, a return type, an optional
+   <a href="#callingconv">calling convention</a>,
+   an optional <tt>unnamed_addr</tt> attribute, a return type, an optional
    <a href="#paramattrs">parameter attribute</a> for the return type, a function
    name, a (possibly empty) argument list (each with optional
    <a href="#paramattrs">parameter attributes</a>), optional
@@ -895,7 +904,8 @@ define i32 @main() {   <i>; i32()* </i>&nbsp;
 <p>LLVM function declarations consist of the "<tt>declare</tt>" keyword, an
    optional <a href="#linkage">linkage type</a>, an optional
    <a href="#visibility">visibility style</a>, an optional
-   <a href="#callingconv">calling convention</a>, a return type, an optional
+   <a href="#callingconv">calling convention</a>,
+   an optional <tt>unnamed_addr</tt> attribute, a return type, an optional
    <a href="#paramattrs">parameter attribute</a> for the return type, a function
    name, a possibly empty list of arguments, an optional alignment, and an
    optional <a href="#gc">garbage collector name</a>.</p>
@@ -920,6 +930,9 @@ define i32 @main() {   <i>; i32()* </i>&nbsp;
    target to whatever it feels convenient.  If an explicit alignment is
    specified, the function is forced to have at least that much alignment.  All
    alignments must be a power of 2.</p>
+
+<p>If the <tt>unnamed_addr</tt> attribute is given, the address is know to not
+  be significant and two identical functions can be merged</p>.
 
 <h5>Syntax:</h5>
 <pre class="doc_code">
@@ -1020,8 +1033,9 @@ declare signext i8 @returns_signed_char()
       registers).  Use of this attribute is target-specific.</dd>
 
   <dt><tt><b><a name="byval">byval</a></b></tt></dt>
-  <dd>This indicates that the pointer parameter should really be passed by value
-      to the function.  The attribute implies that a hidden copy of the pointee
+  <dd><p>This indicates that the pointer parameter should really be passed by
+      value to the function.  The attribute implies that a hidden copy of the
+      pointee
       is made between the caller and the callee, so the callee is unable to
       modify the value in the callee.  This attribute is only valid on LLVM
       pointer arguments.  It is generally used to pass structs and arrays by
@@ -1029,10 +1043,13 @@ declare signext i8 @returns_signed_char()
       to belong to the caller not the callee (for example,
       <tt><a href="#readonly">readonly</a></tt> functions should not write to
       <tt>byval</tt> parameters). This is not a valid attribute for return
-      values.  The byval attribute also supports specifying an alignment with
-      the align attribute.  This has a target-specific effect on the code
-      generator that usually indicates a desired alignment for the synthesized
-      stack slot.</dd>
+      values.</p>
+      
+      <p>The byval attribute also supports specifying an alignment with
+      the align attribute.  It indicates the alignment of the stack slot to
+      form and the known alignment of the pointer specified to the call site. If
+      the alignment is not specified, then the code generator makes a
+      target-specific assumption.</p></dd>
 
   <dt><tt><b><a name="sret">sret</a></b></tt></dt>
   <dd>This indicates that the pointer parameter specifies the address of a
@@ -1129,6 +1146,14 @@ define void @f() optsize { ... }
   <dd>This attribute indicates that the inliner should attempt to inline this
       function into callers whenever possible, ignoring any active inlining size
       threshold for this caller.</dd>
+
+  <dt><tt><b>hotpatch</b></tt></dt>
+  <dd>This attribute indicates that the function should be 'hotpatchable',
+      meaning the function can be patched and/or hooked even while it is
+      loaded into memory. On x86, the function prologue will be preceded
+      by six bytes of padding and will begin with a two-byte instruction.
+      Most of the functions in the Windows system DLLs in Windows XP SP2 or
+      higher were compiled in this fashion.</dd>
 
   <dt><tt><b>inlinehint</b></tt></dt>
   <dd>This attribute indicates that the source code contained a hint that inlining
@@ -1483,7 +1508,9 @@ Classifications</a> </div>
       <td><a href="#t_primitive">primitive</a></td>
       <td><a href="#t_label">label</a>,
           <a href="#t_void">void</a>,
+          <a href="#t_integer">integer</a>,
           <a href="#t_floating">floating point</a>,
+          <a href="#t_x86mmx">x86mmx</a>,
           <a href="#t_metadata">metadata</a>.</td>
     </tr>
     <tr>
@@ -1567,6 +1594,21 @@ Classifications</a> </div>
     <tr><td><tt>ppc_fp128</tt></td><td>128-bit floating point value (two 64-bits)</td></tr>
   </tbody>
 </table>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection"> <a name="t_x86mmx">X86mmx Type</a> </div>
+
+<div class="doc_text">
+
+<h5>Overview:</h5>
+<p>The x86mmx type represents a value held in an MMX register on an x86 machine.  The operations allowed on it are quite limited:  parameters and return values, load and store, and bitcast.  User-specified MMX instructions are represented as intrinsic or asm calls with arguments and/or results of this type.  There are no arrays, vectors or constants of this type.</p>
+
+<h5>Syntax:</h5>
+<pre>
+  x86mmx
+</pre>
 
 </div>
 
@@ -1893,8 +1935,9 @@ Classifications</a> </div>
   &lt; &lt;# elements&gt; x &lt;elementtype&gt; &gt;
 </pre>
 
-<p>The number of elements is a constant integer value; elementtype may be any
-   integer or floating point type.</p>
+<p>The number of elements is a constant integer value larger than 0; elementtype
+   may be any integer or floating point type.  Vectors of size zero are not
+   allowed, and pointers are not allowed as the element type.</p>
 
 <h5>Examples:</h5>
 <table class="layout">
@@ -2050,6 +2093,7 @@ Classifications</a> </div>
    they match the long double format on your target.  All hexadecimal formats
    are big-endian (sign bit at the left).</p>
 
+<p>There are no constants of type x86mmx.</p>
 </div>
 
 <!-- ======================================================================= -->
@@ -2135,8 +2179,8 @@ Classifications</a> </div>
 
 <p>The string '<tt>undef</tt>' can be used anywhere a constant is expected, and
    indicates that the user of the value may receive an unspecified bit-pattern.
-   Undefined values may be of any type (other than label or void) and be used
-   anywhere a constant is permitted.</p>
+   Undefined values may be of any type (other than '<tt>label</tt>'
+   or '<tt>void</tt>') and be used anywhere a constant is permitted.</p>
 
 <p>Undefined values are useful because they indicate to the compiler that the
    program is well defined no matter what value is used.  This gives the
@@ -2155,7 +2199,7 @@ Safe:
 </pre>
 
 <p>This is safe because all of the output bits are affected by the undef bits.
-Any output bit can have a zero or one depending on the input bits.</p>
+   Any output bit can have a zero or one depending on the input bits.</p>
 
 <pre class="doc_code">
   %A = or %X, undef
@@ -2169,13 +2213,14 @@ Unsafe:
 </pre>
 
 <p>These logical operations have bits that are not always affected by the input.
-For example, if "%X" has a zero bit, then the output of the 'and' operation will
-always be a zero, no matter what the corresponding bit from the undef is.  As
-such, it is unsafe to optimize or assume that the result of the and is undef.
-However, it is safe to assume that all bits of the undef could be 0, and
-optimize the and to 0.  Likewise, it is safe to assume that all the bits of
-the undef operand to the or could be set, allowing the or to be folded to
--1.</p>
+   For example, if <tt>%X</tt> has a zero bit, then the output of the
+   '<tt>and</tt>' operation will always be a zero for that bit, no matter what
+   the corresponding bit from the '<tt>undef</tt>' is. As such, it is unsafe to
+   optimize or assume that the result of the '<tt>and</tt>' is '<tt>undef</tt>'.
+   However, it is safe to assume that all bits of the '<tt>undef</tt>' could be
+   0, and optimize the '<tt>and</tt>' to 0. Likewise, it is safe to assume that
+   all the bits of the '<tt>undef</tt>' operand to the '<tt>or</tt>' could be
+   set, allowing the '<tt>or</tt>' to be folded to -1.</p>
 
 <pre class="doc_code">
   %A = select undef, %X, %Y
@@ -2191,13 +2236,14 @@ Unsafe:
   %C = undef
 </pre>
 
-<p>This set of examples show that undefined select (and conditional branch)
-conditions can go "either way" but they have to come from one of the two
-operands.  In the %A example, if %X and %Y were both known to have a clear low
-bit, then %A would have to have a cleared low bit.  However, in the %C example,
-the optimizer is allowed to assume that the undef operand could be the same as
-%Y, allowing the whole select to be eliminated.</p>
-
+<p>This set of examples shows that undefined '<tt>select</tt>' (and conditional
+   branch) conditions can go <em>either way</em>, but they have to come from one
+   of the two operands.  In the <tt>%A</tt> example, if <tt>%X</tt> and
+   <tt>%Y</tt> were both known to have a clear low bit, then <tt>%A</tt> would
+   have to have a cleared low bit. However, in the <tt>%C</tt> example, the
+   optimizer is allowed to assume that the '<tt>undef</tt>' operand could be the
+   same as <tt>%Y</tt>, allowing the whole '<tt>select</tt>' to be
+   eliminated.</p>
 
 <pre class="doc_code">
   %A = xor undef, undef
@@ -2218,16 +2264,17 @@ Safe:
   %F = undef
 </pre>
 
-<p>This example points out that two undef operands are not necessarily the same.
-This can be surprising to people (and also matches C semantics) where they
-assume that "X^X" is always zero, even if X is undef.  This isn't true for a
-number of reasons, but the short answer is that an undef "variable" can
-arbitrarily change its value over its "live range".  This is true because the
-"variable" doesn't actually <em>have a live range</em>.  Instead, the value is
-logically read from arbitrary registers that happen to be around when needed,
-so the value is not necessarily consistent over time.  In fact, %A and %C need
-to have the same semantics or the core LLVM "replace all uses with" concept
-would not hold.</p>
+<p>This example points out that two '<tt>undef</tt>' operands are not
+   necessarily the same. This can be surprising to people (and also matches C
+   semantics) where they assume that "<tt>X^X</tt>" is always zero, even
+   if <tt>X</tt> is undefined. This isn't true for a number of reasons, but the
+   short answer is that an '<tt>undef</tt>' "variable" can arbitrarily change
+   its value over its "live range".  This is true because the variable doesn't
+   actually <em>have a live range</em>. Instead, the value is logically read
+   from arbitrary registers that happen to be around when needed, so the value
+   is not necessarily consistent over time. In fact, <tt>%A</tt> and <tt>%C</tt>
+   need to have the same semantics or the core LLVM "replace all uses with"
+   concept would not hold.</p>
 
 <pre class="doc_code">
   %A = fdiv undef, %X
@@ -2238,17 +2285,17 @@ b: unreachable
 </pre>
 
 <p>These examples show the crucial difference between an <em>undefined
-value</em> and <em>undefined behavior</em>.  An undefined value (like undef) is
-allowed to have an arbitrary bit-pattern.  This means that the %A operation
-can be constant folded to undef because the undef could be an SNaN, and fdiv is
-not (currently) defined on SNaN's.  However, in the second example, we can make
-a more aggressive assumption: because the undef is allowed to be an arbitrary
-value, we are allowed to assume that it could be zero.  Since a divide by zero
-has <em>undefined behavior</em>, we are allowed to assume that the operation
-does not execute at all.  This allows us to delete the divide and all code after
-it: since the undefined operation "can't happen", the optimizer can assume that
-it occurs in dead code.
-</p>
+  value</em> and <em>undefined behavior</em>. An undefined value (like
+  '<tt>undef</tt>') is allowed to have an arbitrary bit-pattern. This means that
+  the <tt>%A</tt> operation can be constant folded to '<tt>undef</tt>', because
+  the '<tt>undef</tt>' could be an SNaN, and <tt>fdiv</tt> is not (currently)
+  defined on SNaN's. However, in the second example, we can make a more
+  aggressive assumption: because the <tt>undef</tt> is allowed to be an
+  arbitrary value, we are allowed to assume that it could be zero. Since a
+  divide by zero has <em>undefined behavior</em>, we are allowed to assume that
+  the operation does not execute at all. This allows us to delete the divide and
+  all code after it. Because the undefined operation "can't happen", the
+  optimizer can assume that it occurs in dead code.</p>
 
 <pre class="doc_code">
 a:  store undef -> %X
@@ -2258,11 +2305,11 @@ a: &lt;deleted&gt;
 b: unreachable
 </pre>
 
-<p>These examples reiterate the fdiv example: a store "of" an undefined value
-can be assumed to not have any effect: we can assume that the value is
-overwritten with bits that happen to match what was already there.  However, a
-store "to" an undefined location could clobber arbitrary memory, therefore, it
-has undefined behavior.</p>
+<p>These examples reiterate the <tt>fdiv</tt> example: a store <em>of</em> an
+   undefined value can be assumed to not have any effect; we can assume that the
+   value is overwritten with bits that happen to match what was already there.
+   However, a store <em>to</em> an undefined location could clobber arbitrary
+   memory, therefore, it has undefined behavior.</p>
 
 </div>
 
@@ -2383,18 +2430,17 @@ end:
    the address of the entry block is illegal.</p>
 
 <p>This value only has defined behavior when used as an operand to the
-   '<a href="#i_indirectbr"><tt>indirectbr</tt></a>' instruction or for comparisons
-   against null.  Pointer equality tests between labels addresses is undefined
-   behavior - though, again, comparison against null is ok, and no label is
-   equal to the null pointer.  This may also be passed around as an opaque
-   pointer sized value as long as the bits are not inspected.  This allows
-   <tt>ptrtoint</tt> and arithmetic to be performed on these values so long as
-   the original value is reconstituted before the <tt>indirectbr</tt>.</p>
+   '<a href="#i_indirectbr"><tt>indirectbr</tt></a>' instruction, or for
+   comparisons against null. Pointer equality tests between labels addresses
+   results in undefined behavior &mdash; though, again, comparison against null
+   is ok, and no label is equal to the null pointer. This may be passed around
+   as an opaque pointer sized value as long as the bits are not inspected. This
+   allows <tt>ptrtoint</tt> and arithmetic to be performed on these values so
+   long as the original value is reconstituted before the <tt>indirectbr</tt>
+   instruction.</p>
 
-<p>Finally, some targets may provide defined semantics when
-   using the value as the operand to an inline assembly, but that is target
-   specific.
-   </p>
+<p>Finally, some targets may provide defined semantics when using the value as
+   the operand to an inline assembly, but that is target specific.</p>
 
 </div>
 
@@ -2409,7 +2455,7 @@ end:
    to be used as constants.  Constant expressions may be of
    any <a href="#t_firstclass">first class</a> type and may involve any LLVM
    operation that does not have side effects (e.g. load and call are not
-   supported).  The following is the syntax for constant expressions:</p>
+   supported). The following is the syntax for constant expressions:</p>
 
 <dl>
   <dt><b><tt>trunc (CST to TYPE)</tt></b></dt>
@@ -2596,8 +2642,8 @@ call void asm alignstack "eieio", ""()
 <div class="doc_text">
 
 <p>The call instructions that wrap inline asm nodes may have a "!srcloc" MDNode
-   attached to it that contains a constant integer.  If present, the code
-   generator will use the integer as the location cookie value when report
+   attached to it that contains a list of constant integers.  If present, the
+  code generator will use the integer as the location cookie value when report
    errors through the LLVMContext error reporting mechanisms.  This allows a
    front-end to correlate backend errors that occur with inline asm back to the
    source code that produced it.  For example:</p>
@@ -2609,7 +2655,8 @@ call void asm sideeffect "something bad", ""()<b>, !srcloc !42</b>
 </pre>
 
 <p>It is up to the front-end to make sense of the magic numbers it places in the
-   IR.</p>
+   IR.  If the MDNode contains multiple constants, the code generator will use
+   the one that corresponds to the line of the asm that the error occurs on.</p>
 
 </div>
 
@@ -3394,7 +3441,8 @@ Instruction</a> </div>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = udiv &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;   <i>; yields {ty}:result</i>
+  &lt;result&gt; = udiv &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;         <i>; yields {ty}:result</i>
+  &lt;result&gt; = udiv exact &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;   <i>; yields {ty}:result</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -3412,6 +3460,11 @@ Instruction</a> </div>
    operations; for signed integer division, use '<tt>sdiv</tt>'.</p>
 
 <p>Division by zero leads to undefined behavior.</p>
+
+<p>If the <tt>exact</tt> keyword is present, the result value of the
+   <tt>udiv</tt> is a <a href="#trapvalues">trap value</a> if %op1 is not a
+  multiple of %op2 (as such, "((a udiv exact b) mul b) == a").</p>
+
 
 <h5>Example:</h5>
 <pre>
@@ -3631,7 +3684,10 @@ Instruction</a> </div>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = shl &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;   <i>; yields {ty}:result</i>
+  &lt;result&gt; = shl &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;           <i>; yields {ty}:result</i>
+  &lt;result&gt; = shl nuw &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;       <i>; yields {ty}:result</i>
+  &lt;result&gt; = shl nsw &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;       <i>; yields {ty}:result</i>
+  &lt;result&gt; = shl nuw nsw &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;   <i>; yields {ty}:result</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -3650,6 +3706,14 @@ Instruction</a> </div>
    of bits in <tt>op1</tt>, the result is undefined.  If the arguments are
    vectors, each vector element of <tt>op1</tt> is shifted by the corresponding
    shift amount in <tt>op2</tt>.</p>
+
+<p>If the <tt>nuw</tt> keyword is present, then the shift produces a 
+   <a href="#trapvalues">trap value</a> if it shifts out any non-zero bits.  If
+   the <tt>nsw</tt> keyword is present, then the shift produces a
+   <a href="#trapvalues">trap value</a> if it shifts out any bits that disagree
+   with the resultant sign bit.  As such, NUW/NSW have the same semantics as
+   they would if the shift were expressed as a mul instruction with the same
+   nsw/nuw bits in (mul %op1, (shl 1, %op2)).</p>
 
 <h5>Example:</h5>
 <pre>
@@ -3670,7 +3734,8 @@ Instruction</a> </div>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = lshr &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;   <i>; yields {ty}:result</i>
+  &lt;result&gt; = lshr &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;         <i>; yields {ty}:result</i>
+  &lt;result&gt; = lshr exact &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;   <i>; yields {ty}:result</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -3689,6 +3754,11 @@ Instruction</a> </div>
    number of bits in <tt>op1</tt>, the result is undefined. If the arguments are
    vectors, each vector element of <tt>op1</tt> is shifted by the corresponding
    shift amount in <tt>op2</tt>.</p>
+
+<p>If the <tt>exact</tt> keyword is present, the result value of the
+   <tt>lshr</tt> is a <a href="#trapvalues">trap value</a> if any of the bits
+   shifted out are non-zero.</p>
+
 
 <h5>Example:</h5>
 <pre>
@@ -3709,7 +3779,8 @@ Instruction</a> </div>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = ashr &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;   <i>; yields {ty}:result</i>
+  &lt;result&gt; = ashr &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;         <i>; yields {ty}:result</i>
+  &lt;result&gt; = ashr exact &lt;ty&gt; &lt;op1&gt;, &lt;op2&gt;   <i>; yields {ty}:result</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -3729,6 +3800,10 @@ Instruction</a> </div>
    larger than the number of bits in <tt>op1</tt>, the result is undefined. If
    the arguments are vectors, each vector element of <tt>op1</tt> is shifted by
    the corresponding shift amount in <tt>op2</tt>.</p>
+
+<p>If the <tt>exact</tt> keyword is present, the result value of the
+   <tt>ashr</tt> is a <a href="#trapvalues">trap value</a> if any of the bits
+   shifted out are non-zero.</p>
 
 <h5>Example:</h5>
 <pre>
@@ -4097,6 +4172,14 @@ Instruction</a> </div>
    <a href="#t_array">array</a> type.  The operands are constant indices to
    specify which value to extract in a similar manner as indices in a
    '<tt><a href="#i_getelementptr">getelementptr</a></tt>' instruction.</p>
+   <p>The major differences to <tt>getelementptr</tt> indexing are:</p>
+     <ul>
+       <li>Since the value being indexed is not a pointer, the first index is
+           omitted and assumed to be zero.</li>
+       <li>At least one index must be specified.</li>
+       <li>Not only struct indices but also array indices must be in
+           bounds.</li>
+     </ul>
 
 <h5>Semantics:</h5>
 <p>The result is the value at the position in the aggregate specified by the
@@ -4131,7 +4214,7 @@ Instruction</a> </div>
    <a href="#t_array">array</a> type.  The second operand is a first-class
    value to insert.  The following operands are constant indices indicating
    the position at which to insert the value in a similar manner as indices in a
-   '<tt><a href="#i_getelementptr">getelementptr</a></tt>' instruction.  The
+   '<tt><a href="#i_extractvalue">extractvalue</a></tt>' instruction.  The
    value to insert must have the same type as the value identified by the
    indices.</p>
 
@@ -7472,7 +7555,7 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare {}* @llvm.invariant.start(i64 &lt;size&gt;, i8* nocapture &lt;ptr&gt;) readonly
+  declare {}* @llvm.invariant.start(i64 &lt;size&gt;, i8* nocapture &lt;ptr&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7647,7 +7730,7 @@ LLVM</a>.</p>
    the <tt>AllocaInst</tt> stack slot to be before local variables on the
    stack. This is to ensure that if a local variable on the stack is
    overwritten, it will destroy the value of the guard. When the function exits,
-   the guard on the stack is checked against the original guard. If they're
+   the guard on the stack is checked against the original guard. If they are
    different, then the program aborts by calling the <tt>__stack_chk_fail()</tt>
    function.</p>
 
@@ -7667,25 +7750,24 @@ LLVM</a>.</p>
 </pre>
 
 <h5>Overview:</h5>
-<p>The <tt>llvm.objectsize</tt> intrinsic is designed to provide information
-   to the optimizers to discover at compile time either a) when an
-   operation like memcpy will either overflow a buffer that corresponds to
-   an object, or b) to determine that a runtime check for overflow isn't
-   necessary. An object in this context means an allocation of a
-   specific class, structure, array, or other object.</p>
+<p>The <tt>llvm.objectsize</tt> intrinsic is designed to provide information to
+   the optimizers to determine at compile time whether a) an operation (like
+   memcpy) will overflow a buffer that corresponds to an object, or b) that a
+   runtime check for overflow isn't necessary. An object in this context means
+   an allocation of a specific class, structure, array, or other object.</p>
 
 <h5>Arguments:</h5>
-<p>The <tt>llvm.objectsize</tt> intrinsic takes two arguments.  The first
+<p>The <tt>llvm.objectsize</tt> intrinsic takes two arguments. The first
    argument is a pointer to or into the <tt>object</tt>. The second argument
-   is a boolean 0 or 1.  This argument determines whether you want the 
-   maximum (0) or minimum (1) bytes remaining.  This needs to be a literal 0 or
+   is a boolean 0 or 1. This argument determines whether you want the 
+   maximum (0) or minimum (1) bytes remaining. This needs to be a literal 0 or
    1, variables are not allowed.</p>
    
 <h5>Semantics:</h5>
 <p>The <tt>llvm.objectsize</tt> intrinsic is lowered to either a constant
-   representing the size of the object concerned or <tt>i32/i64 -1 or 0</tt>
-   (depending on the <tt>type</tt> argument if the size cannot be determined
-   at compile time.</p>
+   representing the size of the object concerned, or <tt>i32/i64 -1 or 0</tt>,
+   depending on the <tt>type</tt> argument, if the size cannot be determined at
+   compile time.</p>
 
 </div>
 
@@ -7699,7 +7781,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-08-28 06:09:24 +0200 (Sat, 28 Aug 2010) $
+  Last modified: $Date: 2011-02-09 17:44:44 +0100 (Wed, 09 Feb 2011) $
 </address>
 
 </body>

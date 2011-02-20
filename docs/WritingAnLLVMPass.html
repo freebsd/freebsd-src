@@ -51,6 +51,14 @@
         <li><a href="#doFinalization_loop">The <tt>doFinalization()
                                             </tt> method</a></li>
         </ul></li>
+     <li><a href="#RegionPass">The <tt>RegionPass</tt> class</a>
+        <ul>
+        <li><a href="#doInitialization_region">The <tt>doInitialization(Region *,
+                                            RGPassManager &amp;)</tt> method</a></li>
+        <li><a href="#runOnRegion">The <tt>runOnRegion</tt> method</a></li>
+        <li><a href="#doFinalization_region">The <tt>doFinalization()
+                                            </tt> method</a></li>
+        </ul></li>
      <li><a href="#BasicBlockPass">The <tt>BasicBlockPass</tt> class</a>
         <ul>
         <li><a href="#doInitialization_fn">The <tt>doInitialization(Function
@@ -134,6 +142,7 @@ the <tt><a href="#ModulePass">ModulePass</a></tt>, <tt><a
 href="#CallGraphSCCPass">CallGraphSCCPass</a></tt>, <tt><a
 href="#FunctionPass">FunctionPass</a></tt>, or <tt><a
 href="#LoopPass">LoopPass</a></tt>, or <tt><a
+href="#RegionPass">RegionPass</a></tt>, or <tt><a
 href="#BasicBlockPass">BasicBlockPass</a></tt> classes, which gives the system
 more information about what your pass does, and how it can be combined with
 other passes.  One of the main features of the LLVM Pass Framework is that it
@@ -169,9 +178,11 @@ source tree in the <tt>lib/Transforms/Hello</tt> directory.</p>
 
 <div class="doc_text">
 
-  <p>First, you need to create a new directory somewhere in the LLVM source 
+  <p>First, configure and build LLVM.  This needs to be done directly inside the
+  LLVM source tree rather than in a separate objects directory.
+  Next, you need to create a new directory somewhere in the LLVM source 
   base.  For this example, we'll assume that you made 
-  <tt>lib/Transforms/Hello</tt>.  Next, you must set up a build script 
+  <tt>lib/Transforms/Hello</tt>.  Finally, you must set up a build script 
   (Makefile) that will compile the source code for the new pass.  To do this, 
   copy the following into <tt>Makefile</tt>:</p>
   <hr/>
@@ -194,8 +205,8 @@ include $(LEVEL)/Makefile.common
 </pre></div>
 
 <p>This makefile specifies that all of the <tt>.cpp</tt> files in the current
-directory are to be compiled and linked together into a
-<tt>Debug+Asserts/lib/Hello.so</tt> shared object that can be dynamically loaded by
+directory are to be compiled and linked together into a shared object
+<tt>$(LEVEL)/Debug+Asserts/lib/Hello.so</tt> that can be dynamically loaded by
 the <tt>opt</tt> or <tt>bugpoint</tt> tools via their <tt>-load</tt> options.  
 If your operating system uses a suffix other than .so (such as windows or 
 Mac OS/X), the appropriate extension will be used.</p>
@@ -262,7 +273,7 @@ time.</p>
 
 <div class="doc_code"><pre>
      static char ID;
-     Hello() : FunctionPass(&amp;ID) {}
+     Hello() : FunctionPass(ID) {}
 </pre></div><p>
 
 <p> This declares pass identifier used by LLVM to identify pass. This allows LLVM to
@@ -290,7 +301,7 @@ function.</p>
 initialization value is not important.</p>
 
 <div class="doc_code"><pre>
-  INITIALIZE_PASS(Hello, "<i>hello</i>", "<i>Hello World Pass</i>",
+  static RegisterPass<Hello> X("<i>hello</i>", "<i>Hello World Pass</i>",
                         false /* Only looks at CFG */,
                         false /* Analysis Pass */);
 }  <i>// end of anonymous namespace</i>
@@ -317,7 +328,7 @@ is supplied as fourth argument. </p>
   <b>struct Hello</b> : <b>public</b> <a href="#FunctionPass">FunctionPass</a> {
     
     static char ID;
-    Hello() : FunctionPass(&amp;ID) {}
+    Hello() : FunctionPass(ID) {}
 
     <b>virtual bool</b> <a href="#runOnFunction">runOnFunction</a>(Function &amp;F) {
       errs() &lt;&lt; "<i>Hello: </i>" &lt;&lt; F.getName() &lt;&lt; "\n";
@@ -326,14 +337,15 @@ is supplied as fourth argument. </p>
   };
   
   char Hello::ID = 0;
-  INITIALIZE_PASS(Hello, "<i>Hello</i>", "<i>Hello World Pass</i>", false, false);
+  static RegisterPass<Hello> X("hello", "Hello World Pass", false, false);
 }
 
 </pre></div>
 
 <p>Now that it's all together, compile the file with a simple "<tt>gmake</tt>"
-command in the local directory and you should get a new
-"<tt>Debug+Asserts/lib/Hello.so</tt> file.  Note that everything in this file is
+command in the local directory and you should get a new file
+"<tt>Debug+Asserts/lib/Hello.so</tt>" under the top level directory of the LLVM
+source tree (not in the local directory).  Note that everything in this file is
 contained in an anonymous namespace: this reflects the fact that passes are self
 contained units that do not need external interfaces (although they can have
 them) to be useful.</p>
@@ -349,7 +361,7 @@ them) to be useful.</p>
 
 <p>Now that you have a brand new shiny shared object file, we can use the
 <tt>opt</tt> command to run an LLVM program through your pass.  Because you
-registered your pass with the <tt>INITIALIZE_PASS</tt> macro, you will be able to
+registered your pass with <tt>RegisterPass</tt>, you will be able to
 use the <tt>opt</tt> tool to access it, once loaded.</p>
 
 <p>To test it, follow the example at the end of the <a
@@ -547,11 +559,9 @@ href="#BasicBlockPass">BasicBlockPass</a></tt>, you should derive from
 
 <ol>
 
-<li>... <em>not allowed</em> to modify any <tt>Function</tt>s that are not in
-the current SCC.</li>
-
-<li>... <em>not allowed</em> to inspect any Function's other than those in the
-current SCC and the direct callees of the SCC.</li>
+<li>... <em>not allowed</em> to inspect or modify any <tt>Function</tt>s other
+than those in the current SCC and the direct callers and direct callees of the
+SCC.</li>
 
 <li>... <em>required</em> to preserve the current CallGraph object, updating it
 to reflect any changes made to the program.</li>
@@ -805,6 +815,84 @@ program being compiled. </p>
 
 </div>
 
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="RegionPass">The <tt>RegionPass</tt> class </a>
+</div>
+
+<div class="doc_text">
+
+<p> <tt>RegionPass</tt> is similar to <a href="#LoopPass"><tt>LoopPass</tt></a>,
+but executes on each single entry single exit region in the function.
+<tt>RegionPass</tt> processes regions in nested order such that the outer most
+region is processed last.  </p>
+
+<p> <tt>RegionPass</tt> subclasses are allowed to update the region tree by using
+the <tt>RGPassManager</tt> interface. You may overload three virtual methods of
+<tt>RegionPass</tt> to implementing your own region pass is usually. All these
+methods should return true if they modified the program, or false if they didn not.
+</p>
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">
+  <a name="doInitialization_region">The <tt>doInitialization(Region *,
+                                                 RGPassManager &amp;)</tt>
+  method</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code"><pre>
+  <b>virtual bool</b> doInitialization(Region *, RGPassManager &amp;RGM);
+</pre></div>
+
+<p>The <tt>doInitialization</tt> method is designed to do simple initialization
+type of stuff that does not depend on the functions being processed.  The
+<tt>doInitialization</tt> method call is not scheduled to overlap with any
+other pass executions (thus it should be very fast). RPPassManager
+interface should be used to access Function or Module level analysis
+information.</p>
+
+</div>
+
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">
+  <a name="runOnRegion">The <tt>runOnRegion</tt> method</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code"><pre>
+  <b>virtual bool</b> runOnRegion(Region *, RGPassManager &amp;RGM) = 0;
+</pre></div><p>
+
+<p>The <tt>runOnRegion</tt> method must be implemented by your subclass to do
+the transformation or analysis work of your pass.  As usual, a true value should
+be returned if the region is modified. <tt>RGPassManager</tt> interface
+should be used to update region tree.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">
+  <a name="doFinalization_region">The <tt>doFinalization()</tt> method</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code"><pre>
+  <b>virtual bool</b> doFinalization();
+</pre></div>
+
+<p>The <tt>doFinalization</tt> method is an infrequently used method that is
+called when the pass framework has finished calling <a
+href="#runOnRegion"><tt>runOnRegion</tt></a> for every region in the
+program being compiled. </p>
+
+</div>
+
 
 
 <!-- ======================================================================= -->
@@ -967,10 +1055,10 @@ remember, you may not modify the LLVM <tt>Function</tt> or its contents from a
 pass registration works, and discussed some of the reasons that it is used and
 what it does.  Here we discuss how and why passes are registered.</p>
 
-<p>As we saw above, passes are registered with the <b><tt>INITIALIZE_PASS</tt></b>
-macro.  The first parameter is the name of the pass that is to be used on
+<p>As we saw above, passes are registered with the <b><tt>RegisterPass</tt></b>
+template.  The template parameter is the name of the pass that is to be used on
 the command line to specify that the pass should be added to a program (for
-example, with <tt>opt</tt> or <tt>bugpoint</tt>).  The second argument is the
+example, with <tt>opt</tt> or <tt>bugpoint</tt>).  The first argument is the
 name of the pass, which is to be used for the <tt>-help</tt> output of
 programs, as
 well as for debug output generated by the <tt>--debug-pass</tt> option.</p>
@@ -1386,7 +1474,7 @@ results as soon as they are no longer needed.</li>
 <li><b>Pipeline the execution of passes on the program</b> - The
 <tt>PassManager</tt> attempts to get better cache and memory usage behavior out
 of a series of passes by pipelining the passes together.  This means that, given
-a series of consequtive <a href="#FunctionPass"><tt>FunctionPass</tt></a>'s, it
+a series of consecutive <a href="#FunctionPass"><tt>FunctionPass</tt></a>'s, it
 will execute all of the <a href="#FunctionPass"><tt>FunctionPass</tt></a>'s on
 the first function, then all of the <a
 href="#FunctionPass"><tt>FunctionPass</tt></a>es on the second function,
@@ -1833,7 +1921,7 @@ Despite that, we have kept the LLVM passes SMP ready, and you should too.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-07-22 01:07:00 +0200 (Thu, 22 Jul 2010) $
+  Last modified: $Date: 2011-02-15 10:23:02 +0100 (Tue, 15 Feb 2011) $
 </address>
 
 </body>

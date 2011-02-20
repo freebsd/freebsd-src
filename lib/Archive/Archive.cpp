@@ -15,8 +15,10 @@
 #include "ArchiveInternals.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Module.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/System/Process.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Support/system_error.h"
 #include <memory>
 #include <cstring>
 using namespace llvm;
@@ -65,8 +67,9 @@ ArchiveMember::ArchiveMember(Archive* PAR)
 // different file, presumably as an update to the member. It also makes sure
 // the flags are reset correctly.
 bool ArchiveMember::replaceWith(const sys::Path& newFile, std::string* ErrMsg) {
-  if (!newFile.exists()) {
-    if (ErrMsg) 
+  bool Exists;
+  if (sys::fs::exists(newFile.str(), Exists) || !Exists) {
+    if (ErrMsg)
       *ErrMsg = "Can not replace an archive member with a non-existent file";
     return true;
   }
@@ -113,11 +116,10 @@ bool ArchiveMember::replaceWith(const sys::Path& newFile, std::string* ErrMsg) {
 
   // Get the signature and status info
   const char* signature = (const char*) data;
-  std::string magic;
+  SmallString<4> magic;
   if (!signature) {
-    path.getMagicNumber(magic,4);
+    sys::fs::get_magic(path.str(), magic.capacity(), magic);
     signature = magic.c_str();
-    std::string err;
     const sys::FileStatus *FSinfo = path.getFileStatus(false, ErrMsg);
     if (FSinfo)
       info = *FSinfo;
@@ -147,9 +149,13 @@ Archive::Archive(const sys::Path& filename, LLVMContext& C)
 
 bool
 Archive::mapToMemory(std::string* ErrMsg) {
-  mapfile = MemoryBuffer::getFile(archPath.c_str(), ErrMsg);
-  if (mapfile == 0)
+  OwningPtr<MemoryBuffer> File;
+  if (error_code ec = MemoryBuffer::getFile(archPath.c_str(), File)) {
+    if (ErrMsg)
+      *ErrMsg = ec.message();
     return true;
+  }
+  mapfile = File.take();
   base = mapfile->getBufferStart();
   return false;
 }
@@ -159,19 +165,19 @@ void Archive::cleanUpMemory() {
   delete mapfile;
   mapfile = 0;
   base = 0;
-  
+
   // Forget the entire symbol table
   symTab.clear();
   symTabSize = 0;
-  
+
   firstFileOffset = 0;
-  
+
   // Free the foreign symbol table member
   if (foreignST) {
     delete foreignST;
     foreignST = 0;
   }
-  
+
   // Delete any Modules and ArchiveMember's we've allocated as a result of
   // symbol table searches.
   for (ModuleMap::iterator I=modules.begin(), E=modules.end(); I != E; ++I ) {
@@ -193,7 +199,7 @@ static void getSymbols(Module*M, std::vector<std::string>& symbols) {
     if (!GI->isDeclaration() && !GI->hasLocalLinkage())
       if (!GI->getName().empty())
         symbols.push_back(GI->getName());
-  
+
   // Loop over functions
   for (Module::iterator FI = M->begin(), FE = M->end(); FI != FE; ++FI)
     if (!FI->isDeclaration() && !FI->hasLocalLinkage())
@@ -213,20 +219,20 @@ bool llvm::GetBitcodeSymbols(const sys::Path& fName,
                              LLVMContext& Context,
                              std::vector<std::string>& symbols,
                              std::string* ErrMsg) {
-  std::auto_ptr<MemoryBuffer> Buffer(
-                       MemoryBuffer::getFileOrSTDIN(fName.c_str()));
-  if (!Buffer.get()) {
-    if (ErrMsg) *ErrMsg = "Could not open file '" + fName.str() + "'";
+  OwningPtr<MemoryBuffer> Buffer;
+  if (error_code ec = MemoryBuffer::getFileOrSTDIN(fName.c_str(), Buffer)) {
+    if (ErrMsg) *ErrMsg = "Could not open file '" + fName.str() + "'" + ": "
+                        + ec.message();
     return true;
   }
-  
+
   Module *M = ParseBitcodeFile(Buffer.get(), Context, ErrMsg);
   if (!M)
     return true;
-  
+
   // Get the symbols
   getSymbols(M, symbols);
-  
+
   // Done with the module.
   delete M;
   return true;
@@ -239,16 +245,16 @@ llvm::GetBitcodeSymbols(const char *BufPtr, unsigned Length,
                         std::vector<std::string>& symbols,
                         std::string* ErrMsg) {
   // Get the module.
-  std::auto_ptr<MemoryBuffer> Buffer(
+  OwningPtr<MemoryBuffer> Buffer(
     MemoryBuffer::getMemBufferCopy(StringRef(BufPtr, Length),ModuleID.c_str()));
-  
+
   Module *M = ParseBitcodeFile(Buffer.get(), Context, ErrMsg);
   if (!M)
     return 0;
-  
+
   // Get the symbols
   getSymbols(M, symbols);
-  
+
   // Done with the module. Note that it's the caller's responsibility to delete
   // the Module.
   return M;

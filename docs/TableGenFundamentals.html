@@ -405,8 +405,6 @@ which case the user must specify it explicitly.</dd>
 the symbol table.  If the type of 'a' does not match <em>type</em>, TableGen
 aborts with an error. !cast&lt;string&gt; is a special case in that the argument must
 be an object defined by a 'def' construct.</dd>
-<dt><tt>!nameconcat&lt;type&gt;(a, b)</tt></dt>
-  <dd>Shorthand for !cast&lt;type&gt;(!strconcat(a, b))</dd>
 <dt><tt>!subst(a, b, c)</tt></dt>
   <dd>If 'a' and 'b' are of string type or are symbol references, substitute 
 'b' for 'a' in 'c.'  This operation is analogous to $(subst) in GNU make.</dd>
@@ -414,18 +412,18 @@ be an object defined by a 'def' construct.</dd>
   <dd>For each member 'b' of dag or list 'a' apply operator 'c.'  'b' is a 
 dummy variable that should be declared as a member variable of an instantiated 
 class.  This operation is analogous to $(foreach) in GNU make.</dd>
-<dt><tt>!car(a)</tt></dt>
+<dt><tt>!head(a)</tt></dt>
   <dd>The first element of list 'a.'</dd>
-<dt><tt>!cdr(a)</tt></dt>
+<dt><tt>!tail(a)</tt></dt>
   <dd>The 2nd-N elements of list 'a.'</dd>
-<dt><tt>!null(a)</tt></dt>
+<dt><tt>!empty(a)</tt></dt>
   <dd>An integer {0,1} indicating whether list 'a' is empty.</dd>
 <dt><tt>!if(a,b,c)</tt></dt>
   <dd>'b' if the result of 'int' or 'bit' operator 'a' is nonzero,
       'c' otherwise.</dd>
 <dt><tt>!eq(a,b)</tt></dt>
-  <dd>Integer one if string a is equal to string b, zero otherwise.  This
-      only operates on string, int and bit objects.  Use !cast<string> to
+  <dd>'bit 1' if string a is equal to string b, 0 otherwise.  This
+      only operates on string, int and bit objects.  Use !cast&lt;string&gt; to
       compare other types of objects.</dd>
 </dl>
 
@@ -844,8 +842,7 @@ more ways to factor out commonality from the records, specially if using
 several levels of multiclass instanciations. This also avoids the need of using
 "let" expressions within subsequent records inside a multiclass.</p> 
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 <b>multiclass </b>basic_r&lt;bits&lt;4&gt; opc&gt; {
   <b>let </b>Predicates = [HasSSE2] in {
     <b>def </b>rr : Instruction&lt;opc, "rr"&gt;;
@@ -871,16 +868,17 @@ several levels of multiclass instanciations. This also avoids the need of using
 <div class="doc_section"><a name="codegen">Code Generator backend info</a></div>
 <!-- *********************************************************************** -->
 
+<div class="doc_text">
+
 <p>Expressions used by code generator to describe instructions and isel
 patterns:</p>
 
-<div class="doc_text">
-
+<dl>
 <dt><tt>(implicit a)</tt></dt>
   <dd>an implicitly defined physical register.  This tells the dag instruction
   selection emitter the input pattern's extra definitions matches implicit
   physical register definitions.</dd>
-
+</dl>
 </div>
 
 <!-- *********************************************************************** -->
@@ -906,7 +904,7 @@ This should highlight the APIs in <tt>TableGen/Record.h</tt>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-06-21 22:35:09 +0200 (Mon, 21 Jun 2010) $
+  Last modified: $Date: 2011-01-07 18:05:37 +0100 (Fri, 07 Jan 2011) $
 </address>
 
 </body>

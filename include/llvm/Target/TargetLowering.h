@@ -25,13 +25,9 @@
 #include "llvm/CallingConv.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/Attributes.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/RuntimeLibcalls.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/DebugLoc.h"
 #include "llvm/Target/TargetCallingConv.h"
 #include "llvm/Target/TargetMachine.h"
@@ -41,10 +37,12 @@
 
 namespace llvm {
   class AllocaInst;
+  class APFloat;
   class CallInst;
   class Function;
   class FastISel;
   class FunctionLoweringInfo;
+  class ImmutableCallSite;
   class MachineBasicBlock;
   class MachineFunction;
   class MachineFrameInfo;
@@ -55,6 +53,7 @@ namespace llvm {
   class SDNode;
   class SDValue;
   class SelectionDAG;
+  template<typename T> class SmallVectorImpl;
   class TargetData;
   class TargetMachine;
   class TargetRegisterClass;
@@ -125,6 +124,10 @@ public:
   /// isPow2DivCheap() - Return true if pow2 div is cheaper than a chain of
   /// srl/add/sra.
   bool isPow2DivCheap() const { return Pow2DivIsCheap; }
+
+  /// isJumpExpensive() - Return true if Flow Control is an expensive operation
+  /// that should be avoided.
+  bool isJumpExpensive() const { return JumpIsExpensive; }
 
   /// getSetCCResultType - Return the ValueType of the result of SETCC
   /// operations.  Also used to obtain the target's preferred type for
@@ -201,13 +204,6 @@ public:
     assert(!VT.isSimple() ||
            (unsigned)VT.getSimpleVT().SimpleTy < array_lengthof(RegClassForVT));
     return VT.isSimple() && RegClassForVT[VT.getSimpleVT().SimpleTy] != 0;
-  }
-
-  /// isTypeSynthesizable - Return true if it's OK for the compiler to create
-  /// new operations of this type.  All Legal types are synthesizable except
-  /// MMX vector types on X86.  Non-Legal types are not synthesizable.
-  bool isTypeSynthesizable(EVT VT) const {
-    return isTypeLegal(VT) && Synthesizable[VT.getSimpleVT().SimpleTy];
   }
 
   class ValueTypeActionImpl {
@@ -441,7 +437,7 @@ public:
   /// for it.
   LegalizeAction getLoadExtAction(unsigned ExtType, EVT VT) const {
     assert(ExtType < ISD::LAST_LOADEXT_TYPE &&
-           (unsigned)VT.getSimpleVT().SimpleTy < MVT::LAST_VALUETYPE &&
+           VT.getSimpleVT() < MVT::LAST_VALUETYPE &&
            "Table isn't big enough!");
     return (LegalizeAction)LoadExtActions[VT.getSimpleVT().SimpleTy][ExtType];
   }
@@ -459,8 +455,8 @@ public:
   /// to be expanded to some other code sequence, or the target has a custom
   /// expander for it.
   LegalizeAction getTruncStoreAction(EVT ValVT, EVT MemVT) const {
-    assert((unsigned)ValVT.getSimpleVT().SimpleTy < MVT::LAST_VALUETYPE &&
-           (unsigned)MemVT.getSimpleVT().SimpleTy < MVT::LAST_VALUETYPE &&
+    assert(ValVT.getSimpleVT() < MVT::LAST_VALUETYPE &&
+           MemVT.getSimpleVT() < MVT::LAST_VALUETYPE &&
            "Table isn't big enough!");
     return (LegalizeAction)TruncStoreActions[ValVT.getSimpleVT().SimpleTy]
                                             [MemVT.getSimpleVT().SimpleTy];
@@ -480,8 +476,8 @@ public:
   /// for it.
   LegalizeAction
   getIndexedLoadAction(unsigned IdxMode, EVT VT) const {
-    assert( IdxMode < ISD::LAST_INDEXED_MODE &&
-           ((unsigned)VT.getSimpleVT().SimpleTy) < MVT::LAST_VALUETYPE &&
+    assert(IdxMode < ISD::LAST_INDEXED_MODE &&
+           VT.getSimpleVT() < MVT::LAST_VALUETYPE &&
            "Table isn't big enough!");
     unsigned Ty = (unsigned)VT.getSimpleVT().SimpleTy;
     return (LegalizeAction)((IndexedModeActions[Ty][IdxMode] & 0xf0) >> 4);
@@ -501,8 +497,8 @@ public:
   /// for it.
   LegalizeAction
   getIndexedStoreAction(unsigned IdxMode, EVT VT) const {
-    assert( IdxMode < ISD::LAST_INDEXED_MODE &&
-           ((unsigned)VT.getSimpleVT().SimpleTy) < MVT::LAST_VALUETYPE &&
+    assert(IdxMode < ISD::LAST_INDEXED_MODE &&
+           VT.getSimpleVT() < MVT::LAST_VALUETYPE &&
            "Table isn't big enough!");
     unsigned Ty = (unsigned)VT.getSimpleVT().SimpleTy;
     return (LegalizeAction)(IndexedModeActions[Ty][IdxMode] & 0x0f);
@@ -646,21 +642,30 @@ public:
 
   /// This function returns the maximum number of store operations permitted
   /// to replace a call to llvm.memset. The value is set by the target at the
-  /// performance threshold for such a replacement.
+  /// performance threshold for such a replacement. If OptSize is true,
+  /// return the limit for functions that have OptSize attribute.
   /// @brief Get maximum # of store operations permitted for llvm.memset
-  unsigned getMaxStoresPerMemset() const { return maxStoresPerMemset; }
+  unsigned getMaxStoresPerMemset(bool OptSize) const {
+    return OptSize ? maxStoresPerMemsetOptSize : maxStoresPerMemset;
+  }
 
   /// This function returns the maximum number of store operations permitted
   /// to replace a call to llvm.memcpy. The value is set by the target at the
-  /// performance threshold for such a replacement.
+  /// performance threshold for such a replacement. If OptSize is true,
+  /// return the limit for functions that have OptSize attribute.
   /// @brief Get maximum # of store operations permitted for llvm.memcpy
-  unsigned getMaxStoresPerMemcpy() const { return maxStoresPerMemcpy; }
+  unsigned getMaxStoresPerMemcpy(bool OptSize) const {
+    return OptSize ? maxStoresPerMemcpyOptSize : maxStoresPerMemcpy;
+  }
 
   /// This function returns the maximum number of store operations permitted
   /// to replace a call to llvm.memmove. The value is set by the target at the
-  /// performance threshold for such a replacement.
+  /// performance threshold for such a replacement. If OptSize is true,
+  /// return the limit for functions that have OptSize attribute.
   /// @brief Get maximum # of store operations permitted for llvm.memmove
-  unsigned getMaxStoresPerMemmove() const { return maxStoresPerMemmove; }
+  unsigned getMaxStoresPerMemmove(bool OptSize) const {
+    return OptSize ? maxStoresPerMemmoveOptSize : maxStoresPerMemmove;
+  }
 
   /// This function returns true if the target allows unaligned memory accesses.
   /// of the specified type. This is used, for example, in situations where an
@@ -958,6 +963,13 @@ public:
     return isTypeLegal(VT);
   }
 
+  /// isDesirableToPromoteOp - Return true if it is profitable for dag combiner
+  /// to transform a floating point op of specified opcode to a equivalent op of
+  /// an integer type. e.g. f32 load -> i32 load can be profitable on ARM.
+  virtual bool isDesirableToTransformToIntegerOp(unsigned Opc, EVT VT) const {
+    return false;
+  }
+
   /// IsDesirableToPromoteOp - This method query the target whether it is
   /// beneficial for dag combiner to promote the specified node. If true, it
   /// should return the desired promotion type by reference.
@@ -1021,7 +1033,16 @@ protected:
 
   /// SelectIsExpensive - Tells the code generator not to expand operations
   /// into sequences that use the select operations if possible.
-  void setSelectIsExpensive() { SelectIsExpensive = true; }
+  void setSelectIsExpensive(bool isExpensive = true) { 
+    SelectIsExpensive = isExpensive; 
+  }
+
+  /// JumpIsExpensive - Tells the code generator not to expand sequence of 
+  /// operations into a seperate sequences that increases the amount of 
+  /// flow control.
+  void setJumpIsExpensive(bool isExpensive = true) {
+    JumpIsExpensive = isExpensive;
+  }
 
   /// setIntDivIsCheap - Tells the code generator that integer divide is
   /// expensive, and if possible, should be replaced by an alternate sequence
@@ -1036,12 +1057,10 @@ protected:
   /// addRegisterClass - Add the specified register class as an available
   /// regclass for the specified value type.  This indicates the selector can
   /// handle values of that class natively.
-  void addRegisterClass(EVT VT, TargetRegisterClass *RC,
-                        bool isSynthesizable = true) {
+  void addRegisterClass(EVT VT, TargetRegisterClass *RC) {
     assert((unsigned)VT.getSimpleVT().SimpleTy < array_lengthof(RegClassForVT));
     AvailableRegClasses.push_back(std::make_pair(VT, RC));
     RegClassForVT[VT.getSimpleVT().SimpleTy] = RC;
-    Synthesizable[VT.getSimpleVT().SimpleTy] = isSynthesizable;
   }
 
   /// findRepresentativeClass - Return the largest legal super-reg register class
@@ -1065,8 +1084,7 @@ protected:
   /// not work with the specified type and indicate what to do about it.
   void setLoadExtAction(unsigned ExtType, MVT VT,
                         LegalizeAction Action) {
-    assert(ExtType < ISD::LAST_LOADEXT_TYPE &&
-           (unsigned)VT.SimpleTy < MVT::LAST_VALUETYPE &&
+    assert(ExtType < ISD::LAST_LOADEXT_TYPE && VT < MVT::LAST_VALUETYPE &&
            "Table isn't big enough!");
     LoadExtActions[VT.SimpleTy][ExtType] = (uint8_t)Action;
   }
@@ -1075,8 +1093,7 @@ protected:
   /// not work with the specified type and indicate what to do about it.
   void setTruncStoreAction(MVT ValVT, MVT MemVT,
                            LegalizeAction Action) {
-    assert((unsigned)ValVT.SimpleTy < MVT::LAST_VALUETYPE &&
-           (unsigned)MemVT.SimpleTy < MVT::LAST_VALUETYPE &&
+    assert(ValVT < MVT::LAST_VALUETYPE && MemVT < MVT::LAST_VALUETYPE &&
            "Table isn't big enough!");
     TruncStoreActions[ValVT.SimpleTy][MemVT.SimpleTy] = (uint8_t)Action;
   }
@@ -1087,10 +1104,8 @@ protected:
   /// TargetLowering.cpp
   void setIndexedLoadAction(unsigned IdxMode, MVT VT,
                             LegalizeAction Action) {
-    assert((unsigned)VT.SimpleTy < MVT::LAST_VALUETYPE &&
-           IdxMode < ISD::LAST_INDEXED_MODE &&
-           (unsigned)Action < 0xf &&
-           "Table isn't big enough!");
+    assert(VT < MVT::LAST_VALUETYPE && IdxMode < ISD::LAST_INDEXED_MODE &&
+           (unsigned)Action < 0xf && "Table isn't big enough!");
     // Load action are kept in the upper half.
     IndexedModeActions[(unsigned)VT.SimpleTy][IdxMode] &= ~0xf0;
     IndexedModeActions[(unsigned)VT.SimpleTy][IdxMode] |= ((uint8_t)Action) <<4;
@@ -1102,10 +1117,8 @@ protected:
   /// TargetLowering.cpp
   void setIndexedStoreAction(unsigned IdxMode, MVT VT,
                              LegalizeAction Action) {
-    assert((unsigned)VT.SimpleTy < MVT::LAST_VALUETYPE &&
-           IdxMode < ISD::LAST_INDEXED_MODE &&
-           (unsigned)Action < 0xf &&
-           "Table isn't big enough!");
+    assert(VT < MVT::LAST_VALUETYPE && IdxMode < ISD::LAST_INDEXED_MODE &&
+           (unsigned)Action < 0xf && "Table isn't big enough!");
     // Store action are kept in the lower half.
     IndexedModeActions[(unsigned)VT.SimpleTy][IdxMode] &= ~0x0f;
     IndexedModeActions[(unsigned)VT.SimpleTy][IdxMode] |= ((uint8_t)Action);
@@ -1115,7 +1128,7 @@ protected:
   /// supported on the target and indicate what to do about it.
   void setCondCodeAction(ISD::CondCode CC, MVT VT,
                          LegalizeAction Action) {
-    assert((unsigned)VT.SimpleTy < MVT::LAST_VALUETYPE &&
+    assert(VT < MVT::LAST_VALUETYPE &&
            (unsigned)CC < array_lengthof(CondCodeActions) &&
            "Table isn't big enough!");
     CondCodeActions[(unsigned)CC] &= ~(uint64_t(3UL)  << VT.SimpleTy*2);
@@ -1261,6 +1274,13 @@ public:
     return SDValue();    // this is here to silence compiler errors
   }
 
+  /// isUsedByReturnOnly - Return true if result of the specified node is used
+  /// by a return node only. This is used to determine whether it is possible
+  /// to codegen a libcall as tail call at legalization time.
+  virtual bool isUsedByReturnOnly(SDNode *N) const {
+    return false;
+  }
+
   /// LowerOperationWrapper - This callback is invoked by the type legalizer
   /// to legalize nodes with an illegal operand type but legal result types.
   /// It replaces the LowerOperation callback in the type Legalizer.
@@ -1328,6 +1348,22 @@ public:
     C_Unknown              // Unsupported constraint.
   };
 
+  enum ConstraintWeight {
+    // Generic weights.
+    CW_Invalid  = -1,     // No match.
+    CW_Okay     = 0,      // Acceptable.
+    CW_Good     = 1,      // Good weight.
+    CW_Better   = 2,      // Better weight.
+    CW_Best     = 3,      // Best weight.
+    
+    // Well-known weights.
+    CW_SpecificReg  = CW_Okay,    // Specific register operands.
+    CW_Register     = CW_Good,    // Register operands.
+    CW_Memory       = CW_Better,  // Memory operands.
+    CW_Constant     = CW_Best,    // Constant operand.
+    CW_Default      = CW_Okay     // Default or don't know type.
+  };
+
   /// AsmOperandInfo - This contains information for each constraint that we are
   /// lowering.
   struct AsmOperandInfo : public InlineAsm::ConstraintInfo {
@@ -1356,12 +1392,41 @@ public:
     /// returns the output operand it matches.
     unsigned getMatchedOperand() const;
 
+    /// Copy constructor for copying from an AsmOperandInfo.
+    AsmOperandInfo(const AsmOperandInfo &info)
+      : InlineAsm::ConstraintInfo(info),
+        ConstraintCode(info.ConstraintCode),
+        ConstraintType(info.ConstraintType),
+        CallOperandVal(info.CallOperandVal),
+        ConstraintVT(info.ConstraintVT) {
+    }
+
+    /// Copy constructor for copying from a ConstraintInfo.
     AsmOperandInfo(const InlineAsm::ConstraintInfo &info)
       : InlineAsm::ConstraintInfo(info),
         ConstraintType(TargetLowering::C_Unknown),
         CallOperandVal(0), ConstraintVT(MVT::Other) {
     }
   };
+  
+  typedef std::vector<AsmOperandInfo> AsmOperandInfoVector;
+  
+  /// ParseConstraints - Split up the constraint string from the inline
+  /// assembly value into the specific constraints and their prefixes,
+  /// and also tie in the associated operand values.
+  /// If this returns an empty vector, and if the constraint string itself
+  /// isn't empty, there was an error parsing.
+  virtual AsmOperandInfoVector ParseConstraints(ImmutableCallSite CS) const;
+  
+  /// Examine constraint type and operand type and determine a weight value.
+  /// The operand object must already have been set up with the operand type.
+  virtual ConstraintWeight getMultipleConstraintMatchWeight(
+      AsmOperandInfo &info, int maIndex) const;
+  
+  /// Examine constraint string and operand type and determine a weight value.
+  /// The operand object must already have been set up with the operand type.
+  virtual ConstraintWeight getSingleConstraintMatchWeight(
+      AsmOperandInfo &info, const char *constraint) const;
 
   /// ComputeConstraintToUse - Determines the constraint code and constraint
   /// type to use for the specific AsmOperandInfo, setting
@@ -1568,6 +1633,11 @@ private:
   /// it.
   bool Pow2DivIsCheap;
 
+  /// JumpIsExpensive - Tells the code generator that it shouldn't generate
+  /// extra flow control instructions and should attempt to combine flow
+  /// control instructions via predication.
+  bool JumpIsExpensive;
+
   /// UseUnderscoreSetJmp - This target prefers to use _setjmp to implement
   /// llvm.setjmp.  Defaults to false.
   bool UseUnderscoreSetJmp;
@@ -1642,11 +1712,6 @@ private:
   /// register class for each ValueType. The cost is used by the scheduler to
   /// approximate register pressure.
   uint8_t RepRegClassCostForVT[MVT::LAST_VALUETYPE];
-
-  /// Synthesizable indicates whether it is OK for the compiler to create new
-  /// operations using this type.  All Legal types are Synthesizable except
-  /// MMX types on X86.  Non-Legal types are not Synthesizable.
-  bool Synthesizable[MVT::LAST_VALUETYPE];
 
   /// TransformToType - For any value types we are promoting or expanding, this
   /// contains the value type that we are changing to.  For Expanded types, this
@@ -1727,6 +1792,10 @@ protected:
   /// @brief Specify maximum number of store instructions per memset call.
   unsigned maxStoresPerMemset;
 
+  /// Maximum number of stores operations that may be substituted for the call
+  /// to memset, used for functions with OptSize attribute.
+  unsigned maxStoresPerMemsetOptSize;
+
   /// When lowering \@llvm.memcpy this field specifies the maximum number of
   /// store operations that may be substituted for a call to memcpy. Targets
   /// must set this value based on the cost threshold for that target. Targets
@@ -1739,6 +1808,10 @@ protected:
   /// @brief Specify maximum bytes of store instructions per memcpy call.
   unsigned maxStoresPerMemcpy;
 
+  /// Maximum number of store operations that may be substituted for a call
+  /// to memcpy, used for functions with OptSize attribute.
+  unsigned maxStoresPerMemcpyOptSize;
+
   /// When lowering \@llvm.memmove this field specifies the maximum number of
   /// store instructions that may be substituted for a call to memmove. Targets
   /// must set this value based on the cost threshold for that target. Targets
@@ -1749,6 +1822,10 @@ protected:
   /// applies to copying a constant array of constant size.
   /// @brief Specify maximum bytes of store instructions per memmove call.
   unsigned maxStoresPerMemmove;
+
+  /// Maximum number of store instructions that may be substituted for a call
+  /// to memmove, used for functions with OpSize attribute.
+  unsigned maxStoresPerMemmoveOptSize;
 
   /// This field specifies whether the target can benefit from code placement
   /// optimization.

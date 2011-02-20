@@ -6,7 +6,7 @@
 // CHECK: ('cputype', 16777223)
 // CHECK: ('cpusubtype', 3)
 // CHECK: ('filetype', 1)
-// CHECK: ('num_load_commands', 1)
+// CHECK: ('num_load_commands', 3)
 // CHECK: ('load_commands_size', 336)
 // CHECK: ('flag', 0)
 // CHECK: ('reserved', 0)
@@ -57,7 +57,7 @@
 // CHECK:    ),
 // CHECK:   ('_relocations', [
 // CHECK:   ])
-// CHECK:   ('_section_data', '\xcf\xfa\xed\xfe\x07\x00\x00\x01\x03\x00\x00\x00')
+// CHECK:   ('_section_data', 'cffaedfe 07000001 03000000')
 // CHECK:   ])
 // CHECK:  ),
 // CHECK:   # Load Command 1

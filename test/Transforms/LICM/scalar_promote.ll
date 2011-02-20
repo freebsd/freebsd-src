@@ -1,4 +1,4 @@
-; RUN: opt < %s  -licm -S | FileCheck %s
+; RUN: opt < %s -basicaa -licm -S | FileCheck %s
 target datalayout = "E-p:64:64:64-a0:0:8-f32:32:32-f64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-v64:64:64-v128:128:128"
 
 @X = global i32 7		; <i32*> [#uses=4]
@@ -117,4 +117,34 @@ innerexit:
 exit:
   ret void
 }
+
+define void @test5(i32 %i, i32** noalias %P2) {
+Entry:
+	br label %Loop
+; CHECK: @test5
+; CHECK: Entry:
+; CHECK-NEXT:   load i32* @X
+; CHECK-NEXT:   br label %Loop
+
+
+Loop:		; preds = %Loop, %0
+	%j = phi i32 [ 0, %Entry ], [ %Next, %Loop ]		; <i32> [#uses=1]
+	%x = load i32* @X		; <i32> [#uses=1]
+	%x2 = add i32 %x, 1		; <i32> [#uses=1]
+	store i32 %x2, i32* @X
+        
+        volatile store i32* @X, i32** %P2
+        
+	%Next = add i32 %j, 1		; <i32> [#uses=2]
+	%cond = icmp eq i32 %Next, 0		; <i1> [#uses=1]
+	br i1 %cond, label %Out, label %Loop
+
+Out:	
+	ret void
+; CHECK: Out:
+; CHECK-NEXT:   store i32 %x2, i32* @X
+; CHECK-NEXT:   ret void
+
+}
+
 

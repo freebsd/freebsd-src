@@ -14,13 +14,14 @@
 #ifndef SPARCTARGETMACHINE_H
 #define SPARCTARGETMACHINE_H
 
+#include "SparcInstrInfo.h"
+#include "SparcISelLowering.h"
+#include "SparcFrameLowering.h"
+#include "SparcSelectionDAGInfo.h"
+#include "SparcSubtarget.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetFrameInfo.h"
-#include "SparcInstrInfo.h"
-#include "SparcSubtarget.h"
-#include "SparcISelLowering.h"
-#include "SparcSelectionDAGInfo.h"
+#include "llvm/Target/TargetFrameLowering.h"
 
 namespace llvm {
 
@@ -30,13 +31,15 @@ class SparcTargetMachine : public LLVMTargetMachine {
   SparcTargetLowering TLInfo;
   SparcSelectionDAGInfo TSInfo;
   SparcInstrInfo InstrInfo;
-  TargetFrameInfo FrameInfo;
+  SparcFrameLowering FrameLowering;
 public:
   SparcTargetMachine(const Target &T, const std::string &TT,
                      const std::string &FS, bool is64bit);
 
   virtual const SparcInstrInfo *getInstrInfo() const { return &InstrInfo; }
-  virtual const TargetFrameInfo  *getFrameInfo() const { return &FrameInfo; }
+  virtual const TargetFrameLowering  *getFrameLowering() const {
+    return &FrameLowering;
+  }
   virtual const SparcSubtarget   *getSubtargetImpl() const{ return &Subtarget; }
   virtual const SparcRegisterInfo *getRegisterInfo() const {
     return &InstrInfo.getRegisterInfo();

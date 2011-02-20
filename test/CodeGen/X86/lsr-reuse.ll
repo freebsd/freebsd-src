@@ -353,11 +353,11 @@ return:
 
 ; CHECK: count_me_3:
 ; CHECK: call
-; CHECK: movsd   (%r15,%r13,8), %xmm0
-; CHECK: mulsd   (%r14,%r13,8), %xmm0
-; CHECK: movsd   %xmm0, (%r12,%r13,8)
-; CHECK: incq    %r13
-; CHECK: cmpq    %r13, %rbx
+; CHECK: movsd   (%r{{[^,]*}},%r{{[^,]*}},8), %xmm0
+; CHECK: mulsd   (%r{{[^,]*}},%r{{[^,]*}},8), %xmm0
+; CHECK: movsd   %xmm0, (%r{{[^,]*}},%r{{[^,]*}},8)
+; CHECK: incq    %r{{.*}}
+; CHECK: cmpq    %r{{.*}}, %r{{.*}}
 ; CHECK: jne
 
 declare void @use(i64)
@@ -389,7 +389,7 @@ return:
 ; rdar://7657764
 
 ; CHECK: asd:
-; CHECK: BB9_5:
+; CHECK: BB9_4:
 ; CHECK-NEXT: addl  (%r{{[^,]*}},%rdi,4), %e
 ; CHECK-NEXT: incq  %rdi
 ; CHECK-NEXT: cmpq  %rdi, %r{{[^,]*}}
@@ -464,7 +464,7 @@ bb5:                                              ; preds = %bb3, %entry
 
 ; And the one at %bb68, where we want to be sure to use superhero mode:
 
-; CHECK:      BB10_9:
+; CHECK:      BB10_7:
 ; CHECK-NEXT:   movaps  48(%r{{[^,]*}}), %xmm{{.*}}
 ; CHECK-NEXT:   mulps   %xmm{{.*}}, %xmm{{.*}}
 ; CHECK-NEXT:   movaps  32(%r{{[^,]*}}), %xmm{{.*}}
@@ -484,7 +484,6 @@ bb5:                                              ; preds = %bb3, %entry
 ; CHECK-NEXT:   addq    $64, %r{{.*}}
 ; CHECK-NEXT:   addq    $64, %r{{.*}}
 ; CHECK-NEXT:   addq    $-16, %r{{.*}}
-; CHECK-NEXT: BB10_10:
 ; CHECK-NEXT:   cmpq    $15, %r{{.*}}
 ; CHECK-NEXT:   jg
 

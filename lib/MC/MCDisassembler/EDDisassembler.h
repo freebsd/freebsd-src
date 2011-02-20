@@ -21,7 +21,7 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Mutex.h"
+#include "llvm/Support/Mutex.h"
 
 #include <map>
 #include <set>
@@ -89,8 +89,10 @@ struct EDDisassembler {
     bool operator<(const CPUKey &key) const {
       if(Arch > key.Arch)
         return false;
-      if(Syntax >= key.Syntax)
-        return false;
+      else if (Arch == key.Arch) {
+        if(Syntax > key.Syntax)
+          return false;
+      }
       return true;
     }
   };

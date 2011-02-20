@@ -26,6 +26,7 @@ enum MCSymbolAttr {
   MCSA_ELF_TypeTLS,         ///< .type _foo, STT_TLS     # aka @tls_object
   MCSA_ELF_TypeCommon,      ///< .type _foo, STT_COMMON  # aka @common
   MCSA_ELF_TypeNoType,      ///< .type _foo, STT_NOTYPE  # aka @notype
+  MCSA_ELF_TypeGnuUniqueObject, /// .type _foo, @gnu_unique_object
   MCSA_Global,              ///< .globl
   MCSA_Hidden,              ///< .hidden (ELF)
   MCSA_IndirectSymbol,      ///< .indirect_symbol (MachO)
@@ -33,6 +34,7 @@ enum MCSymbolAttr {
   MCSA_LazyReference,       ///< .lazy_reference (MachO)
   MCSA_Local,               ///< .local (ELF)
   MCSA_NoDeadStrip,         ///< .no_dead_strip (MachO)
+  MCSA_SymbolResolver,      ///< .symbol_resolver (MachO)
   MCSA_PrivateExtern,       ///< .private_extern (MachO)
   MCSA_Protected,           ///< .protected (ELF)
   MCSA_Reference,           ///< .reference (MachO)
@@ -43,9 +45,12 @@ enum MCSymbolAttr {
 };
 
 enum MCAssemblerFlag {
-  MCAF_SubsectionsViaSymbols  ///< .subsections_via_symbols (MachO)
+  MCAF_SyntaxUnified,         ///< .syntax (ARM/ELF)
+  MCAF_SubsectionsViaSymbols, ///< .subsections_via_symbols (MachO)
+  MCAF_Code16,                ///< .code 16
+  MCAF_Code32                 ///< .code 32
 };
-  
+
 } // end namespace llvm
 
 #endif

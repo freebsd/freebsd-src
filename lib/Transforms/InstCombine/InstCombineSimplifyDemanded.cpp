@@ -34,7 +34,7 @@ static bool ShrinkDemandedConstant(Instruction *I, unsigned OpNo,
   if (!OpC) return false;
 
   // If there are no bits set that aren't demanded, nothing to do.
-  Demanded.zextOrTrunc(OpC->getValue().getBitWidth());
+  Demanded = Demanded.zextOrTrunc(OpC->getValue().getBitWidth());
   if ((~Demanded & OpC->getValue()) == 0)
     return false;
 
@@ -121,13 +121,13 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
   }
   if (isa<ConstantPointerNull>(V)) {
     // We know all of the bits for a constant!
-    KnownOne.clear();
+    KnownOne.clearAllBits();
     KnownZero = DemandedMask;
     return 0;
   }
 
-  KnownZero.clear();
-  KnownOne.clear();
+  KnownZero.clearAllBits();
+  KnownOne.clearAllBits();
   if (DemandedMask == 0) {   // Not demanding any bits from V.
     if (isa<UndefValue>(V))
       return 0;
@@ -388,15 +388,15 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     break;
   case Instruction::Trunc: {
     unsigned truncBf = I->getOperand(0)->getType()->getScalarSizeInBits();
-    DemandedMask.zext(truncBf);
-    KnownZero.zext(truncBf);
-    KnownOne.zext(truncBf);
+    DemandedMask = DemandedMask.zext(truncBf);
+    KnownZero = KnownZero.zext(truncBf);
+    KnownOne = KnownOne.zext(truncBf);
     if (SimplifyDemandedBits(I->getOperandUse(0), DemandedMask, 
                              KnownZero, KnownOne, Depth+1))
       return I;
-    DemandedMask.trunc(BitWidth);
-    KnownZero.trunc(BitWidth);
-    KnownOne.trunc(BitWidth);
+    DemandedMask = DemandedMask.trunc(BitWidth);
+    KnownZero = KnownZero.trunc(BitWidth);
+    KnownOne = KnownOne.trunc(BitWidth);
     assert(!(KnownZero & KnownOne) && "Bits known to be one AND zero?"); 
     break;
   }
@@ -426,15 +426,15 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     // Compute the bits in the result that are not present in the input.
     unsigned SrcBitWidth =I->getOperand(0)->getType()->getScalarSizeInBits();
     
-    DemandedMask.trunc(SrcBitWidth);
-    KnownZero.trunc(SrcBitWidth);
-    KnownOne.trunc(SrcBitWidth);
+    DemandedMask = DemandedMask.trunc(SrcBitWidth);
+    KnownZero = KnownZero.trunc(SrcBitWidth);
+    KnownOne = KnownOne.trunc(SrcBitWidth);
     if (SimplifyDemandedBits(I->getOperandUse(0), DemandedMask,
                              KnownZero, KnownOne, Depth+1))
       return I;
-    DemandedMask.zext(BitWidth);
-    KnownZero.zext(BitWidth);
-    KnownOne.zext(BitWidth);
+    DemandedMask = DemandedMask.zext(BitWidth);
+    KnownZero = KnownZero.zext(BitWidth);
+    KnownOne = KnownOne.zext(BitWidth);
     assert(!(KnownZero & KnownOne) && "Bits known to be one AND zero?"); 
     // The top bits are known to be zero.
     KnownZero |= APInt::getHighBitsSet(BitWidth, BitWidth - SrcBitWidth);
@@ -451,17 +451,17 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     // If any of the sign extended bits are demanded, we know that the sign
     // bit is demanded.
     if ((NewBits & DemandedMask) != 0)
-      InputDemandedBits.set(SrcBitWidth-1);
+      InputDemandedBits.setBit(SrcBitWidth-1);
       
-    InputDemandedBits.trunc(SrcBitWidth);
-    KnownZero.trunc(SrcBitWidth);
-    KnownOne.trunc(SrcBitWidth);
+    InputDemandedBits = InputDemandedBits.trunc(SrcBitWidth);
+    KnownZero = KnownZero.trunc(SrcBitWidth);
+    KnownOne = KnownOne.trunc(SrcBitWidth);
     if (SimplifyDemandedBits(I->getOperandUse(0), InputDemandedBits,
                              KnownZero, KnownOne, Depth+1))
       return I;
-    InputDemandedBits.zext(BitWidth);
-    KnownZero.zext(BitWidth);
-    KnownOne.zext(BitWidth);
+    InputDemandedBits = InputDemandedBits.zext(BitWidth);
+    KnownZero = KnownZero.zext(BitWidth);
+    KnownOne = KnownOne.zext(BitWidth);
     assert(!(KnownZero & KnownOne) && "Bits known to be one AND zero?"); 
       
     // If the sign bit of the input is known set or clear, then we know the
@@ -576,8 +576,16 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     break;
   case Instruction::Shl:
     if (ConstantInt *SA = dyn_cast<ConstantInt>(I->getOperand(1))) {
-      uint64_t ShiftAmt = SA->getLimitedValue(BitWidth);
+      uint64_t ShiftAmt = SA->getLimitedValue(BitWidth-1);
       APInt DemandedMaskIn(DemandedMask.lshr(ShiftAmt));
+      
+      // If the shift is NUW/NSW, then it does demand the high bits.
+      ShlOperator *IOp = cast<ShlOperator>(I);
+      if (IOp->hasNoSignedWrap())
+        DemandedMaskIn |= APInt::getHighBitsSet(BitWidth, ShiftAmt+1);
+      else if (IOp->hasNoUnsignedWrap())
+        DemandedMaskIn |= APInt::getHighBitsSet(BitWidth, ShiftAmt);
+      
       if (SimplifyDemandedBits(I->getOperandUse(0), DemandedMaskIn, 
                                KnownZero, KnownOne, Depth+1))
         return I;
@@ -592,10 +600,16 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
   case Instruction::LShr:
     // For a logical shift right
     if (ConstantInt *SA = dyn_cast<ConstantInt>(I->getOperand(1))) {
-      uint64_t ShiftAmt = SA->getLimitedValue(BitWidth);
+      uint64_t ShiftAmt = SA->getLimitedValue(BitWidth-1);
       
       // Unsigned shift right.
       APInt DemandedMaskIn(DemandedMask.shl(ShiftAmt));
+      
+      // If the shift is exact, then it does demand the low bits (and knows that
+      // they are zero).
+      if (cast<LShrOperator>(I)->isExact())
+        DemandedMaskIn |= APInt::getLowBitsSet(BitWidth, ShiftAmt);
+      
       if (SimplifyDemandedBits(I->getOperandUse(0), DemandedMaskIn,
                                KnownZero, KnownOne, Depth+1))
         return I;
@@ -627,14 +641,20 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
       return I->getOperand(0);
     
     if (ConstantInt *SA = dyn_cast<ConstantInt>(I->getOperand(1))) {
-      uint32_t ShiftAmt = SA->getLimitedValue(BitWidth);
+      uint32_t ShiftAmt = SA->getLimitedValue(BitWidth-1);
       
       // Signed shift right.
       APInt DemandedMaskIn(DemandedMask.shl(ShiftAmt));
       // If any of the "high bits" are demanded, we should set the sign bit as
       // demanded.
       if (DemandedMask.countLeadingZeros() <= ShiftAmt)
-        DemandedMaskIn.set(BitWidth-1);
+        DemandedMaskIn.setBit(BitWidth-1);
+      
+      // If the shift is exact, then it does demand the low bits (and knows that
+      // they are zero).
+      if (cast<AShrOperator>(I)->isExact())
+        DemandedMaskIn |= APInt::getLowBitsSet(BitWidth, ShiftAmt);
+      
       if (SimplifyDemandedBits(I->getOperandUse(0), DemandedMaskIn,
                                KnownZero, KnownOne, Depth+1))
         return I;
@@ -793,10 +813,10 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
     for (unsigned i = 0; i != VWidth; ++i)
       if (!DemandedElts[i]) {   // If not demanded, set to undef.
         Elts.push_back(Undef);
-        UndefElts.set(i);
+        UndefElts.setBit(i);
       } else if (isa<UndefValue>(CV->getOperand(i))) {   // Already undef.
         Elts.push_back(Undef);
-        UndefElts.set(i);
+        UndefElts.setBit(i);
       } else {                               // Otherwise, defined.
         Elts.push_back(CV->getOperand(i));
       }
@@ -879,13 +899,13 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
     // Otherwise, the element inserted overwrites whatever was there, so the
     // input demanded set is simpler than the output set.
     APInt DemandedElts2 = DemandedElts;
-    DemandedElts2.clear(IdxNo);
+    DemandedElts2.clearBit(IdxNo);
     TmpV = SimplifyDemandedVectorElts(I->getOperand(0), DemandedElts2,
                                       UndefElts, Depth+1);
     if (TmpV) { I->setOperand(0, TmpV); MadeChange = true; }
 
     // The inserted element is defined.
-    UndefElts.clear(IdxNo);
+    UndefElts.clearBit(IdxNo);
     break;
   }
   case Instruction::ShuffleVector: {
@@ -900,9 +920,9 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
           assert(MaskVal < LHSVWidth * 2 &&
                  "shufflevector mask index out of range!");
           if (MaskVal < LHSVWidth)
-            LeftDemanded.set(MaskVal);
+            LeftDemanded.setBit(MaskVal);
           else
-            RightDemanded.set(MaskVal - LHSVWidth);
+            RightDemanded.setBit(MaskVal - LHSVWidth);
         }
       }
     }
@@ -921,16 +941,16 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
     for (unsigned i = 0; i < VWidth; i++) {
       unsigned MaskVal = Shuffle->getMaskValue(i);
       if (MaskVal == -1u) {
-        UndefElts.set(i);
+        UndefElts.setBit(i);
       } else if (MaskVal < LHSVWidth) {
         if (UndefElts4[MaskVal]) {
           NewUndefElts = true;
-          UndefElts.set(i);
+          UndefElts.setBit(i);
         }
       } else {
         if (UndefElts3[MaskVal - LHSVWidth]) {
           NewUndefElts = true;
-          UndefElts.set(i);
+          UndefElts.setBit(i);
         }
       }
     }
@@ -973,7 +993,7 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       Ratio = VWidth/InVWidth;
       for (unsigned OutIdx = 0; OutIdx != VWidth; ++OutIdx) {
         if (DemandedElts[OutIdx])
-          InputDemandedElts.set(OutIdx/Ratio);
+          InputDemandedElts.setBit(OutIdx/Ratio);
       }
     } else {
       // Untested so far.
@@ -985,7 +1005,7 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       Ratio = InVWidth/VWidth;
       for (unsigned InIdx = 0; InIdx != InVWidth; ++InIdx)
         if (DemandedElts[InIdx/Ratio])
-          InputDemandedElts.set(InIdx);
+          InputDemandedElts.setBit(InIdx);
     }
     
     // div/rem demand all inputs, because they don't want divide by zero.
@@ -1004,7 +1024,7 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       // undef.
       for (unsigned OutIdx = 0; OutIdx != VWidth; ++OutIdx)
         if (UndefElts2[OutIdx/Ratio])
-          UndefElts.set(OutIdx);
+          UndefElts.setBit(OutIdx);
     } else if (VWidth < InVWidth) {
       llvm_unreachable("Unimp");
       // If there are more elements in the source than there are in the result,
@@ -1013,7 +1033,7 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       UndefElts = ~0ULL >> (64-VWidth);  // Start out all undef.
       for (unsigned InIdx = 0; InIdx != InVWidth; ++InIdx)
         if (!UndefElts2[InIdx])            // Not undef?
-          UndefElts.clear(InIdx/Ratio);    // Clear undef bit.
+          UndefElts.clearBit(InIdx/Ratio);    // Clear undef bit.
     }
     break;
   }

@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This header file pulls in all transformation and analysis passes for tools 
+// This header file pulls in all transformation and analysis passes for tools
 // like opt and bugpoint that need this functionality.
 //
 //===----------------------------------------------------------------------===//
@@ -20,8 +20,8 @@
 #include "llvm/Analysis/FindUsedTypes.h"
 #include "llvm/Analysis/IntervalPartition.h"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/Analysis/PointerTracking.h"
 #include "llvm/Analysis/PostDominators.h"
+#include "llvm/Analysis/RegionPass.h"
 #include "llvm/Analysis/RegionPrinter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/Lint.h"
@@ -70,6 +70,7 @@ namespace {
       (void) llvm::createDomViewerPass();
       (void) llvm::createEdgeProfilerPass();
       (void) llvm::createOptimalEdgeProfilerPass();
+      (void) llvm::createPathProfilerPass();
       (void) llvm::createFunctionInliningPass();
       (void) llvm::createAlwaysInlinerPass();
       (void) llvm::createGlobalDCEPass();
@@ -90,8 +91,8 @@ namespace {
       (void) llvm::createLoopStrengthReducePass();
       (void) llvm::createLoopUnrollPass();
       (void) llvm::createLoopUnswitchPass();
+      (void) llvm::createLoopIdiomPass();
       (void) llvm::createLoopRotatePass();
-      (void) llvm::createLoopIndexSplitPass();
       (void) llvm::createLowerInvokePass();
       (void) llvm::createLowerSetJmpPass();
       (void) llvm::createLowerSwitchPass();
@@ -99,7 +100,9 @@ namespace {
       (void) llvm::createNoProfileInfoPass();
       (void) llvm::createProfileEstimatorPass();
       (void) llvm::createProfileVerifierPass();
+      (void) llvm::createPathProfileVerifierPass();
       (void) llvm::createProfileLoaderPass();
+      (void) llvm::createPathProfileLoaderPass();
       (void) llvm::createPromoteMemoryToRegisterPass();
       (void) llvm::createDemoteRegisterToMemoryPass();
       (void) llvm::createPruneEHPass();
@@ -128,13 +131,13 @@ namespace {
       (void) llvm::createUnifyFunctionExitNodesPass();
       (void) llvm::createInstCountPass();
       (void) llvm::createCodeGenPreparePass();
+      (void) llvm::createEarlyCSEPass();
       (void) llvm::createGVNPass();
       (void) llvm::createMemCpyOptPass();
       (void) llvm::createLoopDeletionPass();
       (void) llvm::createPostDomTree();
       (void) llvm::createPostDomFrontier();
       (void) llvm::createInstructionNamerPass();
-      (void) llvm::createPartialSpecializationPass();
       (void) llvm::createFunctionAttrsPass();
       (void) llvm::createMergeFunctionsPass();
       (void) llvm::createPrintModulePass(0);
@@ -147,14 +150,17 @@ namespace {
       (void) llvm::createSinkingPass();
       (void) llvm::createLowerAtomicPass();
       (void) llvm::createCorrelatedValuePropagationPass();
+      (void) llvm::createMemDepPrinter();
+      (void) llvm::createInstructionSimplifierPass();
 
       (void)new llvm::IntervalPartition();
       (void)new llvm::FindUsedTypes();
       (void)new llvm::ScalarEvolution();
-      (void)new llvm::PointerTracking();
       ((llvm::Function*)0)->viewCFGOnly();
+      llvm::RGPassManager RGM(0);
+      ((llvm::RegionPass*)0)->runOnRegion((llvm::Region*)0, RGM);
       llvm::AliasSetTracker X(*(llvm::AliasAnalysis*)0);
-      X.add((llvm::Value*)0, 0);  // for -print-alias-sets
+      X.add((llvm::Value*)0, 0, 0);  // for -print-alias-sets
     }
   } ForcePassLinking; // Force link by creating a global definition.
 }

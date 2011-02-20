@@ -18,8 +18,8 @@ BUILT_SOURCES = ARMGenRegisterInfo.h.inc ARMGenRegisterNames.inc \
                 ARMGenDAGISel.inc ARMGenSubtarget.inc \
                 ARMGenCodeEmitter.inc ARMGenCallingConv.inc \
                 ARMGenDecoderTables.inc ARMGenEDInfo.inc \
-                ARMGenFastISel.inc
+                ARMGenFastISel.inc ARMGenMCCodeEmitter.inc
 
-DIRS = AsmPrinter AsmParser Disassembler TargetInfo
+DIRS = InstPrinter AsmParser Disassembler TargetInfo
 
 include $(LEVEL)/Makefile.common

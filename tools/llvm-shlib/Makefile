@@ -18,11 +18,12 @@ SHARED_LIBRARY = 1
 include $(LEVEL)/Makefile.config
 
 ifeq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
-    EXPORTED_SYMBOL_FILE = $(ObjDir)/$(LIBRARYNAME).exports
+  EXPORTED_SYMBOL_FILE = $(ObjDir)/$(LIBRARYNAME).exports
 
+  ifeq (1,$(ENABLE_EMBED_STDCXX))
     # It is needed to force static-stdc++.a linked.
-    # FIXME: It should be omitted when configure detects system's stdc++.dll.
     SHLIB_FRAG_NAMES += stdc++.a.o
+  endif
 
 endif
 
@@ -61,12 +62,20 @@ ifeq ($(HOST_OS),Darwin)
     endif
 endif
 
-ifeq ($(HOST_OS), Linux)
+ifeq ($(HOST_OS), $(filter $(HOST_OS), Linux FreeBSD OpenBSD))
     # Include everything from the .a's into the shared library.
     LLVMLibsOptions := -Wl,--whole-archive $(LLVMLibsOptions) \
                        -Wl,--no-whole-archive
+endif
+
+ifeq ($(HOST_OS),Linux)
     # Don't allow unresolved symbols.
     LLVMLibsOptions += -Wl,--no-undefined
+endif
+
+ifeq ($(HOST_OS),SunOS)
+    # add -z allextract ahead of other libraries on Solaris
+    LLVMLibsOptions := -Wl,-z -Wl,allextract $(LLVMLibsOptions)
 endif
 
 ifeq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))

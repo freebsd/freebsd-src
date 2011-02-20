@@ -23,9 +23,10 @@
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/System/Host.h"
-#include "llvm/System/Path.h"
-#include "llvm/System/Process.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Support/system_error.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -56,23 +57,18 @@ bool LTOModule::isBitcodeFileForTarget(const void *mem, size_t length,
 
 bool LTOModule::isBitcodeFileForTarget(const char *path,
                                        const char *triplePrefix) {
-  MemoryBuffer *buffer = MemoryBuffer::getFile(path);
-  if (buffer == NULL)
+  OwningPtr<MemoryBuffer> buffer;
+  if (MemoryBuffer::getFile(path, buffer))
     return false;
-  return isTargetMatch(buffer, triplePrefix);
+  return isTargetMatch(buffer.take(), triplePrefix);
 }
 
 // Takes ownership of buffer.
 bool LTOModule::isTargetMatch(MemoryBuffer *buffer, const char *triplePrefix) {
-  OwningPtr<Module> m(getLazyBitcodeModule(buffer, getGlobalContext()));
-  // On success, m owns buffer and both are deleted at end of this method.
-  if (!m) {
-    delete buffer;
-    return false;
-  }
-  std::string actualTarget = m->getTargetTriple();
-  return (strncmp(actualTarget.c_str(), triplePrefix,
-                  strlen(triplePrefix)) == 0);
+  std::string Triple = getBitcodeTargetTriple(buffer, getGlobalContext());
+  delete buffer;
+  return (strncmp(Triple.c_str(), triplePrefix,
+ 		  strlen(triplePrefix)) == 0);
 }
 
 
@@ -83,9 +79,22 @@ LTOModule::LTOModule(Module *m, TargetMachine *t)
 
 LTOModule *LTOModule::makeLTOModule(const char *path,
                                     std::string &errMsg) {
-  OwningPtr<MemoryBuffer> buffer(MemoryBuffer::getFile(path, &errMsg));
-  if (!buffer)
+  OwningPtr<MemoryBuffer> buffer;
+  if (error_code ec = MemoryBuffer::getFile(path, buffer)) {
+    errMsg = ec.message();
     return NULL;
+  }
+  return makeLTOModule(buffer.get(), errMsg);
+}
+
+LTOModule *LTOModule::makeLTOModule(int fd, const char *path,
+                                    off_t size,
+                                    std::string &errMsg) {
+  OwningPtr<MemoryBuffer> buffer;
+  if (error_code ec = MemoryBuffer::getOpenFile(fd, path, buffer, size)) {
+    errMsg = ec.message();
+    return NULL;
+  }
   return makeLTOModule(buffer.get(), errMsg);
 }
 
@@ -306,8 +315,14 @@ void LTOModule::addDefinedSymbol(GlobalValue *def, Mangler &mangler,
   if (def->getName().startswith("llvm."))
     return;
 
+  // ignore available_externally
+  if (def->hasAvailableExternallyLinkage())
+    return;
+
   // string is owned by _defines
-  const char *symbolName = ::strdup(mangler.getNameWithPrefix(def).c_str());
+  SmallString<64> Buffer;
+  mangler.getNameWithPrefix(Buffer, def, false);
+  const char *symbolName = ::strdup(Buffer.c_str());
 
   // set alignment part log2() can have rounding errors
   uint32_t align = def->getAlignment();
@@ -325,24 +340,26 @@ void LTOModule::addDefinedSymbol(GlobalValue *def, Mangler &mangler,
   }
 
   // set definition part
-  if (def->hasWeakLinkage() || def->hasLinkOnceLinkage()) {
+  if (def->hasWeakLinkage() || def->hasLinkOnceLinkage() ||
+      def->hasLinkerPrivateWeakLinkage() ||
+      def->hasLinkerPrivateWeakDefAutoLinkage())
     attr |= LTO_SYMBOL_DEFINITION_WEAK;
-  }
-  else if (def->hasCommonLinkage()) {
+  else if (def->hasCommonLinkage())
     attr |= LTO_SYMBOL_DEFINITION_TENTATIVE;
-  }
-  else {
+  else
     attr |= LTO_SYMBOL_DEFINITION_REGULAR;
-  }
 
   // set scope part
   if (def->hasHiddenVisibility())
     attr |= LTO_SYMBOL_SCOPE_HIDDEN;
   else if (def->hasProtectedVisibility())
     attr |= LTO_SYMBOL_SCOPE_PROTECTED;
-  else if (def->hasExternalLinkage() || def->hasWeakLinkage()
-           || def->hasLinkOnceLinkage() || def->hasCommonLinkage())
+  else if (def->hasExternalLinkage() || def->hasWeakLinkage() ||
+           def->hasLinkOnceLinkage() || def->hasCommonLinkage() ||
+           def->hasLinkerPrivateWeakLinkage())
     attr |= LTO_SYMBOL_SCOPE_DEFAULT;
+  else if (def->hasLinkerPrivateWeakDefAutoLinkage())
+    attr |= LTO_SYMBOL_SCOPE_DEFAULT_CAN_BE_HIDDEN;
   else
     attr |= LTO_SYMBOL_SCOPE_INTERNAL;
 
@@ -380,7 +397,8 @@ void LTOModule::addPotentialUndefinedSymbol(GlobalValue *decl,
   if (isa<GlobalAlias>(decl))
     return;
 
-  std::string name = mangler.getNameWithPrefix(decl);
+  SmallString<64> name;
+  mangler.getNameWithPrefix(name, decl, false);
 
   // we already have the symbol
   if (_undefines.find(name) != _undefines.end())
@@ -426,7 +444,7 @@ void LTOModule::lazyParseSymbols() {
   _symbolsParsed = true;
 
   // Use mangler to add GlobalPrefix to names to match linker names.
-  MCContext Context(*_target->getMCAsmInfo());
+  MCContext Context(*_target->getMCAsmInfo(), NULL);
   Mangler mangler(Context, *_target->getTargetData());
 
   // add functions
@@ -470,6 +488,15 @@ void LTOModule::lazyParseSymbols() {
 
     // search next .globl
     pos = inlineAsm.find(glbl, pend);
+  }
+
+  // add aliases
+  for (Module::alias_iterator i = _module->alias_begin(),
+         e = _module->alias_end(); i != e; ++i) {
+    if (i->isDeclaration())
+      addPotentialUndefinedSymbol(i, mangler);
+    else
+      addDefinedDataSymbol(i, mangler);
   }
 
   // make symbols for all undefines

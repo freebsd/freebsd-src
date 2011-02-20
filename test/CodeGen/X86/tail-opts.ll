@@ -62,11 +62,11 @@ declare i8* @choose(i8*, i8*)
 
 ; CHECK: tail_duplicate_me:
 ; CHECK:      movl $0, GHJK(%rip)
-; CHECK-NEXT: jmpq *%rbx
+; CHECK-NEXT: jmpq *%r
 ; CHECK:      movl $0, GHJK(%rip)
-; CHECK-NEXT: jmpq *%rbx
+; CHECK-NEXT: jmpq *%r
 ; CHECK:      movl $0, GHJK(%rip)
-; CHECK-NEXT: jmpq *%rbx
+; CHECK-NEXT: jmpq *%r
 
 define void @tail_duplicate_me() nounwind {
 entry:
@@ -153,19 +153,16 @@ bb30:
 ; an unconditional jump to complete a two-way conditional branch.
 
 ; CHECK: c_expand_expr_stmt:
-; CHECK:        jmp .LBB3_7
-; CHECK-NEXT: .LBB3_12:
+; CHECK:        jmp .LBB3_11
+; CHECK-NEXT: .LBB3_9:
 ; CHECK-NEXT:   movq 8(%rax), %rax
+; CHECK-NEXT:   xorb %dl, %dl
 ; CHECK-NEXT:   movb 16(%rax), %al
 ; CHECK-NEXT:   cmpb $16, %al
-; CHECK-NEXT:   je .LBB3_6
+; CHECK-NEXT:   je .LBB3_11
 ; CHECK-NEXT:   cmpb $23, %al
-; CHECK-NEXT:   je .LBB3_6
-; CHECK-NEXT:   jmp .LBB3_15
-; CHECK-NEXT: .LBB3_14:
-; CHECK-NEXT:   cmpb $23, %bl
-; CHECK-NEXT:   jne .LBB3_15
-; CHECK-NEXT: .LBB3_15:
+; CHECK-NEXT:   jne .LBB3_14
+; CHECK-NEXT: .LBB3_11:
 
 %0 = type { %struct.rtx_def* }
 %struct.lang_decl = type opaque
@@ -276,7 +273,7 @@ declare fastcc %union.tree_node* @default_conversion(%union.tree_node*) nounwind
 ; CHECK: foo:
 ; CHECK:        callq func
 ; CHECK-NEXT: .LBB4_2:
-; CHECK-NEXT:   addq $8, %rsp
+; CHECK-NEXT:   popq
 ; CHECK-NEXT:   ret
 
 define void @foo(i1* %V) nounwind {

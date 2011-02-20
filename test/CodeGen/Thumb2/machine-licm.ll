@@ -3,9 +3,6 @@
 ; rdar://7353541
 ; rdar://7354376
 
-; The generated code is no where near ideal. It's not recognizing the two
-; constantpool entries being loaded can be merged into one.
-
 @GV = external global i32                         ; <i32*> [#uses=2]
 
 define void @t1(i32* nocapture %vals, i32 %c) nounwind {
@@ -17,21 +14,21 @@ entry:
 
 bb.nph:                                           ; preds = %entry
 ; CHECK: BB#1
-; CHECK: ldr.n r2, LCPI0_0
+; CHECK: movw r2, :lower16:L_GV$non_lazy_ptr
+; CHECK: movt r2, :upper16:L_GV$non_lazy_ptr
 ; CHECK: ldr r2, [r2]
 ; CHECK: ldr r3, [r2]
 ; CHECK: LBB0_2
-; CHECK: LCPI0_0:
-; CHECK-NOT: LCPI0_1:
+; CHECK-NOT: LCPI0_0:
 
 ; PIC: BB#1
-; PIC: ldr.n r2, LCPI0_0
+; PIC: movw r2, :lower16:(L_GV$non_lazy_ptr-(LPC0_0+4))
+; PIC: movt r2, :upper16:(L_GV$non_lazy_ptr-(LPC0_0+4))
 ; PIC: add r2, pc
 ; PIC: ldr r2, [r2]
 ; PIC: ldr r3, [r2]
 ; PIC: LBB0_2
-; PIC: LCPI0_0:
-; PIC-NOT: LCPI0_1:
+; PIC-NOT: LCPI0_0:
 ; PIC: .section
   %.pre = load i32* @GV, align 4                  ; <i32> [#uses=1]
   br label %bb
@@ -55,8 +52,8 @@ return:                                           ; preds = %bb, %entry
 define void @t2(i8* %ptr1, i8* %ptr2) nounwind {
 entry:
 ; CHECK: t2:
-; CHECK: adr r{{.}}, #LCPI1_0
-; CHECK: vldmia r3, {d0, d1}
+; CHECK: mov.w r3, #1065353216
+; CHECK: vdup.32 q{{.*}}, r3
   br i1 undef, label %bb1, label %bb2
 
 bb1:
@@ -76,11 +73,50 @@ bb2:
   ret void
 }
 
-; CHECK: LCPI1_0:
-; CHECK: .section
+; CHECK-NOT: LCPI1_0:
 
 declare <4 x float> @llvm.arm.neon.vld1.v4f32(i8*, i32) nounwind readonly
 
 declare void @llvm.arm.neon.vst1.v4f32(i8*, <4 x float>, i32) nounwind
 
 declare <4 x float> @llvm.arm.neon.vmaxs.v4f32(<4 x float>, <4 x float>) nounwind readnone
+
+; rdar://8241368
+; isel should not fold immediate into eor's which would have prevented LICM.
+define zeroext i16 @t3(i8 zeroext %data, i16 zeroext %crc) nounwind readnone {
+; CHECK: t3:
+bb.nph:
+; CHECK: bb.nph
+; CHECK: movw {{(r[0-9])|(lr)}}, #32768
+; CHECK: movs {{(r[0-9])|(lr)}}, #8
+; CHECK: movw [[REGISTER:(r[0-9])|(lr)]], #16386
+; CHECK: movw {{(r[0-9])|(lr)}}, #65534
+; CHECK: movt {{(r[0-9])|(lr)}}, #65535
+  br label %bb
+
+bb:                                               ; preds = %bb, %bb.nph
+; CHECK: bb
+; CHECK: eor.w {{(r[0-9])|(lr)}}, {{(r[0-9])|(lr)}}, [[REGISTER]]
+; CHECK: eor.w
+; CHECK-NOT: eor
+; CHECK: and
+  %data_addr.013 = phi i8 [ %data, %bb.nph ], [ %8, %bb ] ; <i8> [#uses=2]
+  %crc_addr.112 = phi i16 [ %crc, %bb.nph ], [ %crc_addr.2, %bb ] ; <i16> [#uses=3]
+  %i.011 = phi i8 [ 0, %bb.nph ], [ %7, %bb ]     ; <i8> [#uses=1]
+  %0 = trunc i16 %crc_addr.112 to i8              ; <i8> [#uses=1]
+  %1 = xor i8 %data_addr.013, %0                  ; <i8> [#uses=1]
+  %2 = and i8 %1, 1                               ; <i8> [#uses=1]
+  %3 = icmp eq i8 %2, 0                           ; <i1> [#uses=2]
+  %4 = xor i16 %crc_addr.112, 16386               ; <i16> [#uses=1]
+  %crc_addr.0 = select i1 %3, i16 %crc_addr.112, i16 %4 ; <i16> [#uses=1]
+  %5 = lshr i16 %crc_addr.0, 1                    ; <i16> [#uses=2]
+  %6 = or i16 %5, -32768                          ; <i16> [#uses=1]
+  %crc_addr.2 = select i1 %3, i16 %5, i16 %6      ; <i16> [#uses=2]
+  %7 = add i8 %i.011, 1                           ; <i8> [#uses=2]
+  %8 = lshr i8 %data_addr.013, 1                  ; <i8> [#uses=1]
+  %exitcond = icmp eq i8 %7, 8                    ; <i1> [#uses=1]
+  br i1 %exitcond, label %bb8, label %bb
+
+bb8:                                              ; preds = %bb
+  ret i16 %crc_addr.2
+}

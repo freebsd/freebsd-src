@@ -15,11 +15,12 @@
 #define LLVM_SUPPORT_MEMORYBUFFER_H
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/System/DataTypes.h"
-#include <string>
-#include <sys/stat.h>
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
+
+class error_code;
+template<class T> class OwningPtr;
 
 /// MemoryBuffer - This interface provides simple read-only access to a block
 /// of memory, and provides simple methods for reading files and standard input
@@ -47,8 +48,8 @@ public:
   const char *getBufferEnd() const   { return BufferEnd; }
   size_t getBufferSize() const { return BufferEnd-BufferStart; }
 
-  StringRef getBuffer() const { 
-    return StringRef(BufferStart, getBufferSize()); 
+  StringRef getBuffer() const {
+    return StringRef(BufferStart, getBufferSize());
   }
 
   /// getBufferIdentifier - Return an identifier for this buffer, typically the
@@ -61,23 +62,26 @@ public:
   /// MemoryBuffer if successful, otherwise returning null.  If FileSize is
   /// specified, this means that the client knows that the file exists and that
   /// it has the specified size.
-  static MemoryBuffer *getFile(StringRef Filename,
-                               std::string *ErrStr = 0,
-                               int64_t FileSize = -1,
-                               struct stat *FileInfo = 0);
-  static MemoryBuffer *getFile(const char *Filename,
-                               std::string *ErrStr = 0,
-                               int64_t FileSize = -1,
-                               struct stat *FileInfo = 0);
+  static error_code getFile(StringRef Filename, OwningPtr<MemoryBuffer> &result,
+                            int64_t FileSize = -1);
+  static error_code getFile(const char *Filename,
+                            OwningPtr<MemoryBuffer> &result,
+                            int64_t FileSize = -1);
+
+  /// getOpenFile - Given an already-open file descriptor, read the file and
+  /// return a MemoryBuffer.
+  static error_code getOpenFile(int FD, const char *Filename,
+                                OwningPtr<MemoryBuffer> &result,
+                                int64_t FileSize = -1);
 
   /// getMemBuffer - Open the specified memory range as a MemoryBuffer.  Note
-  /// that EndPtr[0] must be a null byte and be accessible!
+  /// that InputData must be null terminated.
   static MemoryBuffer *getMemBuffer(StringRef InputData,
                                     StringRef BufferName = "");
 
   /// getMemBufferCopy - Open the specified memory range as a MemoryBuffer,
-  /// copying the contents and taking ownership of it.  This has no requirements
-  /// on EndPtr[0].
+  /// copying the contents and taking ownership of it.  InputData does not
+  /// have to be null terminated.
   static MemoryBuffer *getMemBufferCopy(StringRef InputData,
                                         StringRef BufferName = "");
 
@@ -95,21 +99,19 @@ public:
                                              StringRef BufferName = "");
 
   /// getSTDIN - Read all of stdin into a file buffer, and return it.
-  /// If an error occurs, this returns null and fills in *ErrStr with a reason.
-  static MemoryBuffer *getSTDIN(std::string *ErrStr = 0);
+  /// If an error occurs, this returns null and sets ec.
+  static error_code getSTDIN(OwningPtr<MemoryBuffer> &result);
 
 
   /// getFileOrSTDIN - Open the specified file as a MemoryBuffer, or open stdin
-  /// if the Filename is "-".  If an error occurs, this returns null and fills
-  /// in *ErrStr with a reason.
-  static MemoryBuffer *getFileOrSTDIN(StringRef Filename,
-                                      std::string *ErrStr = 0,
-                                      int64_t FileSize = -1,
-                                      struct stat *FileInfo = 0);
-  static MemoryBuffer *getFileOrSTDIN(const char *Filename,
-                                      std::string *ErrStr = 0,
-                                      int64_t FileSize = -1,
-                                      struct stat *FileInfo = 0);
+  /// if the Filename is "-".  If an error occurs, this returns null and sets
+  /// ec.
+  static error_code getFileOrSTDIN(StringRef Filename,
+                                   OwningPtr<MemoryBuffer> &result,
+                                   int64_t FileSize = -1);
+  static error_code getFileOrSTDIN(const char *Filename,
+                                   OwningPtr<MemoryBuffer> &result,
+                                   int64_t FileSize = -1);
 };
 
 } // end namespace llvm

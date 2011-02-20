@@ -67,19 +67,6 @@ cmovs, we should expand to a conditional branch like GCC produces.
 
 //===---------------------------------------------------------------------===//
 
-Compile this:
-_Bool f(_Bool a) { return a!=1; }
-
-into:
-        movzbl  %dil, %eax
-        xorl    $1, %eax
-        ret
-
-(Although note that this isn't a legal way to express the code that llvm-gcc
-currently generates for that function.)
-
-//===---------------------------------------------------------------------===//
-
 Some isel ideas:
 
 1. Dynamic programming based approach when compile time if not an
@@ -106,6 +93,37 @@ the coalescer how to deal with it though.
 //===---------------------------------------------------------------------===//
 
 It appears icc use push for parameter passing. Need to investigate.
+
+//===---------------------------------------------------------------------===//
+
+This:
+
+void foo(void);
+void bar(int x, int *P) { 
+  x >>= 2;
+  if (x) 
+    foo();
+  *P = x;
+}
+
+compiles into:
+
+	movq	%rsi, %rbx
+	movl	%edi, %r14d
+	sarl	$2, %r14d
+	testl	%r14d, %r14d
+	je	LBB0_2
+
+Instead of doing an explicit test, we can use the flags off the sar.  This
+occurs in a bigger testcase like this, which is pretty common:
+
+#include <vector>
+int test1(std::vector<int> &X) {
+  int Sum = 0;
+  for (long i = 0, e = X.size(); i != e; ++i)
+    X[i] = 0;
+  return Sum;
+}
 
 //===---------------------------------------------------------------------===//
 
@@ -394,72 +412,8 @@ boundary to improve performance.
 
 //===---------------------------------------------------------------------===//
 
-Codegen:
-
-int f(int a, int b) {
-  if (a == 4 || a == 6)
-    b++;
-  return b;
-}
-
-
-as:
-
-or eax, 2
-cmp eax, 6
-jz label
-
-//===---------------------------------------------------------------------===//
-
 GCC's ix86_expand_int_movcc function (in i386.c) has a ton of interesting
-simplifications for integer "x cmp y ? a : b".  For example, instead of:
-
-int G;
-void f(int X, int Y) {
-  G = X < 0 ? 14 : 13;
-}
-
-compiling to:
-
-_f:
-        movl $14, %eax
-        movl $13, %ecx
-        movl 4(%esp), %edx
-        testl %edx, %edx
-        cmovl %eax, %ecx
-        movl %ecx, _G
-        ret
-
-it could be:
-_f:
-        movl    4(%esp), %eax
-        sarl    $31, %eax
-        notl    %eax
-        addl    $14, %eax
-        movl    %eax, _G
-        ret
-
-etc.
-
-Another is:
-int usesbb(unsigned int a, unsigned int b) {
-       return (a < b ? -1 : 0);
-}
-to:
-_usesbb:
-	movl	8(%esp), %eax
-	cmpl	%eax, 4(%esp)
-	sbbl	%eax, %eax
-	ret
-
-instead of:
-_usesbb:
-	xorl	%eax, %eax
-	movl	8(%esp), %ecx
-	cmpl	%ecx, 4(%esp)
-	movl	$4294967295, %ecx
-	cmovb	%ecx, %eax
-	ret
+simplifications for integer "x cmp y ? a : b".
 
 //===---------------------------------------------------------------------===//
 
@@ -756,23 +710,17 @@ This:
         { return !full_add(a, b).second; }
 
 Should compile to:
+	addl	%esi, %edi
+	setae	%al
+	movzbl	%al, %eax
+	ret
 
-
-        _Z11no_overflowjj:
-                addl    %edi, %esi
-                setae   %al
-                ret
-
-FIXME: That code looks wrong; bool return is normally defined as zext.
-
-on x86-64, not:
-
-__Z11no_overflowjj:
-        addl    %edi, %esi
-        cmpl    %edi, %esi
-        setae   %al
-        movzbl  %al, %eax
-        ret
+on x86-64, instead of the rather stupid-looking:
+	addl	%esi, %edi
+	setb	%al
+	xorb	$1, %al
+	movzbl	%al, %eax
+	ret
 
 
 //===---------------------------------------------------------------------===//
@@ -1040,10 +988,10 @@ _foo:
 
 instead of:
 _foo:
-        movl    $255, %eax
-        orl     4(%esp), %eax
-        andl    $65535, %eax
-        ret
+	movl	$65280, %eax
+	andl	4(%esp), %eax
+	orl	$255, %eax
+	ret
 
 //===---------------------------------------------------------------------===//
 
@@ -1162,58 +1110,6 @@ abs:
         xorl    %edx, %eax
         subl    %edx, %eax
         ret
-
-//===---------------------------------------------------------------------===//
-
-Consider:
-int test(unsigned long a, unsigned long b) { return -(a < b); }
-
-We currently compile this to:
-
-define i32 @test(i32 %a, i32 %b) nounwind  {
-	%tmp3 = icmp ult i32 %a, %b		; <i1> [#uses=1]
-	%tmp34 = zext i1 %tmp3 to i32		; <i32> [#uses=1]
-	%tmp5 = sub i32 0, %tmp34		; <i32> [#uses=1]
-	ret i32 %tmp5
-}
-
-and
-
-_test:
-	movl	8(%esp), %eax
-	cmpl	%eax, 4(%esp)
-	setb	%al
-	movzbl	%al, %eax
-	negl	%eax
-	ret
-
-Several deficiencies here.  First, we should instcombine zext+neg into sext:
-
-define i32 @test2(i32 %a, i32 %b) nounwind  {
-	%tmp3 = icmp ult i32 %a, %b		; <i1> [#uses=1]
-	%tmp34 = sext i1 %tmp3 to i32		; <i32> [#uses=1]
-	ret i32 %tmp34
-}
-
-However, before we can do that, we have to fix the bad codegen that we get for
-sext from bool:
-
-_test2:
-	movl	8(%esp), %eax
-	cmpl	%eax, 4(%esp)
-	setb	%al
-	movzbl	%al, %eax
-	shll	$31, %eax
-	sarl	$31, %eax
-	ret
-
-This code should be at least as good as the code above.  Once this is fixed, we
-can optimize this specific case even more to:
-
-	movl	8(%esp), %eax
-	xorl	%ecx, %ecx
-        cmpl    %eax, 4(%esp)
-        sbbl    %ecx, %ecx
 
 //===---------------------------------------------------------------------===//
 
@@ -1605,6 +1501,8 @@ loop, the value comes into the loop as two values, and
 RegsForValue::getCopyFromRegs doesn't know how to put an AssertSext on the
 constructed BUILD_PAIR which represents the cast value.
 
+This can be handled by making CodeGenPrepare sink the cast.
+
 //===---------------------------------------------------------------------===//
 
 Test instructions can be eliminated by using EFLAGS values from arithmetic
@@ -1733,46 +1631,6 @@ Ideal output:
 	movzbl	4(%esp), %eax
 	shrl	$4, %eax
 	ret
-
-//===---------------------------------------------------------------------===//
-
-Testcase:
-int x(int a) { return (a & 0x80) ? 0x100 : 0; }
-int y(int a) { return (a & 0x80) *2; }
-
-Current:
-	testl	$128, 4(%esp)
-	setne	%al
-	movzbl	%al, %eax
-	shll	$8, %eax
-	ret
-
-Better:
-	movl	4(%esp), %eax
-	addl	%eax, %eax
-	andl	$256, %eax
-	ret
-
-This is another general instcombine transformation that is profitable on all
-targets.  In LLVM IR, these functions look like this:
-
-define i32 @x(i32 %a) nounwind readnone {
-entry:
-	%0 = and i32 %a, 128
-	%1 = icmp eq i32 %0, 0
-	%iftmp.0.0 = select i1 %1, i32 0, i32 256
-	ret i32 %iftmp.0.0
-}
-
-define i32 @y(i32 %a) nounwind readnone {
-entry:
-	%0 = shl i32 %a, 1
-	%1 = and i32 %0, 256
-	ret i32 %1
-}
-
-Replacing an icmp+select with a shift should always be considered profitable in
-instcombine.
 
 //===---------------------------------------------------------------------===//
 
@@ -1960,3 +1818,100 @@ load, making it non-trivial to determine if there's anything between
 the load and the store which would prohibit narrowing.
 
 //===---------------------------------------------------------------------===//
+
+This code:
+void foo(unsigned x) {
+  if (x == 0) bar();
+  else if (x == 1) qux();
+}
+
+currently compiles into:
+_foo:
+	movl	4(%esp), %eax
+	cmpl	$1, %eax
+	je	LBB0_3
+	testl	%eax, %eax
+	jne	LBB0_4
+
+the testl could be removed:
+_foo:
+	movl	4(%esp), %eax
+	cmpl	$1, %eax
+	je	LBB0_3
+	jb	LBB0_4
+
+0 is the only unsigned number < 1.
+
+//===---------------------------------------------------------------------===//
+
+This code:
+
+%0 = type { i32, i1 }
+
+define i32 @add32carry(i32 %sum, i32 %x) nounwind readnone ssp {
+entry:
+  %uadd = tail call %0 @llvm.uadd.with.overflow.i32(i32 %sum, i32 %x)
+  %cmp = extractvalue %0 %uadd, 1
+  %inc = zext i1 %cmp to i32
+  %add = add i32 %x, %sum
+  %z.0 = add i32 %add, %inc
+  ret i32 %z.0
+}
+
+declare %0 @llvm.uadd.with.overflow.i32(i32, i32) nounwind readnone
+
+compiles to:
+
+_add32carry:                            ## @add32carry
+	addl	%esi, %edi
+	sbbl	%ecx, %ecx
+	movl	%edi, %eax
+	subl	%ecx, %eax
+	ret
+
+But it could be:
+
+_add32carry:
+	leal	(%rsi,%rdi), %eax
+	cmpl	%esi, %eax
+	adcl	$0, %eax
+	ret
+
+//===---------------------------------------------------------------------===//
+
+This:
+char t(char c) {
+  return c/3;
+}
+
+Compiles to: $clang t.c -S -o - -O3 -mkernel -fomit-frame-pointer
+
+_t:                                     ## @t
+	movslq	%edi, %rax
+	imulq	$-1431655765, %rax, %rcx ## imm = 0xFFFFFFFFAAAAAAAB
+	shrq	$32, %rcx
+	addl	%ecx, %eax
+	movl	%eax, %ecx
+	shrl	$31, %ecx
+	shrl	%eax
+	addl	%ecx, %eax
+	movsbl	%al, %eax
+	ret
+
+GCC gets:
+
+_t:
+	movl	$86, %eax
+	imulb	%dil
+	shrw	$8, %ax
+	sarb	$7, %dil
+	subb	%dil, %al
+	movsbl	%al,%eax
+	ret
+
+which is nicer.  This also happens for int, not just char.
+
+//===---------------------------------------------------------------------===//
+
+
+

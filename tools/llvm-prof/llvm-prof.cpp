@@ -29,7 +29,8 @@
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Format.h"
-#include "llvm/System/Signals.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/system_error.h"
 #include <algorithm>
 #include <iomanip>
 #include <map>
@@ -263,12 +264,13 @@ int main(int argc, char **argv) {
 
   // Read in the bitcode file...
   std::string ErrorMessage;
+  OwningPtr<MemoryBuffer> Buffer;
+  error_code ec;
   Module *M = 0;
-  if (MemoryBuffer *Buffer = MemoryBuffer::getFileOrSTDIN(BitcodeFile,
-                                                          &ErrorMessage)) {
-    M = ParseBitcodeFile(Buffer, Context, &ErrorMessage);
-    delete Buffer;
-  }
+  if (!(ec = MemoryBuffer::getFileOrSTDIN(BitcodeFile, Buffer))) {
+    M = ParseBitcodeFile(Buffer.get(), Context, &ErrorMessage);
+  } else
+    ErrorMessage = ec.message();
   if (M == 0) {
     errs() << argv[0] << ": " << BitcodeFile << ": "
       << ErrorMessage << "\n";

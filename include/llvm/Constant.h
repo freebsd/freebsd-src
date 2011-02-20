@@ -20,7 +20,6 @@ namespace llvm {
   class APInt;
 
   template<typename T> class SmallVectorImpl;
-  class LLVMContext;
 
 /// This is an important base class in LLVM. It provides the common facilities
 /// of all constant values in an LLVM program. A constant is a value that is
@@ -142,16 +141,22 @@ public:
     assert(0 && "Constants that do not have operands cannot be using 'From'!");
   }
   
-  static Constant* getNullValue(const Type* Ty);
+  static Constant *getNullValue(const Type* Ty);
   
   /// @returns the value for an integer constant of the given type that has all
   /// its bits set to true.
   /// @brief Get the all ones value
-  static Constant* getAllOnesValue(const Type* Ty);
+  static Constant *getAllOnesValue(const Type* Ty);
 
   /// getIntegerValue - Return the value for an integer or pointer constant,
   /// or a vector thereof, with the given scalar value.
-  static Constant* getIntegerValue(const Type* Ty, const APInt &V);
+  static Constant *getIntegerValue(const Type* Ty, const APInt &V);
+  
+  /// removeDeadConstantUsers - If there are any dead constant users dangling
+  /// off of this constant, remove them.  This method is useful for clients
+  /// that want to check to see if a global is unused, but don't want to deal
+  /// with potentially dead constants hanging off of the globals.
+  void removeDeadConstantUsers() const;
 };
 
 } // End llvm namespace

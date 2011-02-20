@@ -81,7 +81,9 @@ public:
   BuilderTy *Builder;
       
   static char ID; // Pass identification, replacement for typeid
-  InstCombiner() : FunctionPass(ID), TD(0), Builder(0) {}
+  InstCombiner() : FunctionPass(ID), TD(0), Builder(0) {
+    initializeInstCombinerPass(*PassRegistry::getPassRegistry());
+  }
 
 public:
   virtual bool runOnFunction(Function &F);
@@ -142,6 +144,8 @@ public:
                                               Instruction *LHS,
                                               ConstantInt *RHS);
   Instruction *FoldICmpDivCst(ICmpInst &ICI, BinaryOperator *DivI,
+                              ConstantInt *DivRHS);
+  Instruction *FoldICmpShrCst(ICmpInst &ICI, BinaryOperator *DivI,
                               ConstantInt *DivRHS);
   Instruction *FoldICmpAddOpCst(ICmpInst &ICI, Value *X, ConstantInt *CI,
                                 ICmpInst::Predicate Pred, Value *TheAdd);
@@ -284,9 +288,16 @@ public:
 
 private:
 
-  /// SimplifyCommutative - This performs a few simplifications for 
-  /// commutative operators.
-  bool SimplifyCommutative(BinaryOperator &I);
+  /// SimplifyAssociativeOrCommutative - This performs a few simplifications for
+  /// operators which are associative or commutative.
+  bool SimplifyAssociativeOrCommutative(BinaryOperator &I);
+
+  /// SimplifyUsingDistributiveLaws - This tries to simplify binary operations
+  /// which some other binary operation distributes over either by factorizing
+  /// out common terms (eg "(A*B)+(A*C)" -> "A*(B+C)") or expanding out if this
+  /// results in simplifications (eg: "A & (B | C) -> (A&B) | (A&C)" if this is
+  /// a win).  Returns the simplified value, or null if it didn't simplify.
+  Value *SimplifyUsingDistributiveLaws(BinaryOperator &I);
 
   /// SimplifyDemandedUseBits - Attempts to replace V with a simpler value
   /// based on the demanded bits.
@@ -310,10 +321,7 @@ private:
   // into the PHI (which is only possible if all operands to the PHI are
   // constants).
   //
-  // If AllowAggressive is true, FoldOpIntoPhi will allow certain transforms
-  // that would normally be unprofitable because they strongly encourage jump
-  // threading.
-  Instruction *FoldOpIntoPhi(Instruction &I, bool AllowAggressive = false);
+  Instruction *FoldOpIntoPhi(Instruction &I);
 
   // FoldPHIArgOpIntoPHI - If all operands to a PHI node are the same "unary"
   // operator and they all are only used by the PHI, PHI together their
@@ -339,10 +347,6 @@ private:
 
 
   Value *EvaluateInDifferentType(Value *V, const Type *Ty, bool isSigned);
-
-  unsigned GetOrEnforceKnownAlignment(Value *V,
-                                      unsigned PrefAlign = 0);
-
 };
 
       

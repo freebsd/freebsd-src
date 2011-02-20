@@ -4,14 +4,14 @@
 ; constant offset addressing, so that each of the following stores
 ; uses the same register.
 
-; CHECK: vstr.32 s{{.*}}, [r{{.*}}, #-128]
-; CHECK: vstr.32 s{{.*}}, [r{{.*}}, #-96]
-; CHECK: vstr.32 s{{.*}}, [r{{.*}}, #-64]
-; CHECK: vstr.32 s{{.*}}, [r{{.*}}, #-32]
-; CHECK: vstr.32 s{{.*}}, [r{{.*}}]
-; CHECK: vstr.32 s{{.*}}, [r{{.*}}, #32]
-; CHECK: vstr.32 s{{.*}}, [r{{.*}}, #64]
-; CHECK: vstr.32 s{{.*}}, [r{{.*}}, #96]
+; CHECK: vstr.32 s{{.*}}, [{{(r[0-9]+)|(lr)}}, #-128]
+; CHECK: vstr.32 s{{.*}}, [{{(r[0-9]+)|(lr)}}, #-96]
+; CHECK: vstr.32 s{{.*}}, [{{(r[0-9]+)|(lr)}}, #-64]
+; CHECK: vstr.32 s{{.*}}, [{{(r[0-9]+)|(lr)}}, #-32]
+; CHECK: vstr.32 s{{.*}}, [{{(r[0-9]+)|(lr)}}]
+; CHECK: vstr.32 s{{.*}}, [{{(r[0-9]+)|(lr)}}, #32]
+; CHECK: vstr.32 s{{.*}}, [{{(r[0-9]+)|(lr)}}, #64]
+; CHECK: vstr.32 s{{.*}}, [{{(r[0-9]+)|(lr)}}, #96]
 
 target datalayout = "e-p:32:32:32-i1:8:32-i8:8:32-i16:16:32-i32:32:32-i64:32:32-f32:32:32-f64:32:32-v64:64:64-v128:128:128-a0:0:32-n32"
 
@@ -624,12 +624,11 @@ bb23:                                             ; preds = %bb22, %bb20, %bb9, 
 bb24:                                             ; preds = %bb23
 
 ; LSR should use count-down iteration to avoid requiring the trip count
-; in a register, and it shouldn't require any reloads here.
+; in a register.
 
 ;      CHECK: @ %bb24
-; CHECK-NEXT: @   in Loop: Header=BB1_1 Depth=1
-; CHECK-NEXT: sub{{.*}} [[REGISTER:(r[0-9]+)|(lr)]], #1
-; CHECK-NEXT: bne.w
+; CHECK: subs{{.*}} {{(r[0-9]+)|(lr)}}, #1
+; CHECK: bne.w
 
   %92 = icmp eq i32 %tmp81, %indvar78             ; <i1> [#uses=1]
   %indvar.next79 = add i32 %indvar78, 1           ; <i32> [#uses=1]

@@ -28,15 +28,17 @@ namespace llvm {
     LibCallInfo *LCI;
     
     explicit LibCallAliasAnalysis(LibCallInfo *LC = 0)
-      : FunctionPass(ID), LCI(LC) {
+        : FunctionPass(ID), LCI(LC) {
+      initializeLibCallAliasAnalysisPass(*PassRegistry::getPassRegistry());
     }
     explicit LibCallAliasAnalysis(char &ID, LibCallInfo *LC)
-      : FunctionPass(ID), LCI(LC) {
+        : FunctionPass(ID), LCI(LC) {
+      initializeLibCallAliasAnalysisPass(*PassRegistry::getPassRegistry());
     }
     ~LibCallAliasAnalysis();
     
     ModRefResult getModRefInfo(ImmutableCallSite CS,
-                               const Value *P, unsigned Size);
+                               const Location &Loc);
     
     ModRefResult getModRefInfo(ImmutableCallSite CS1,
                                ImmutableCallSite CS2) {
@@ -64,7 +66,7 @@ namespace llvm {
   private:
     ModRefResult AnalyzeLibCallDetails(const LibCallFunctionInfo *FI,
                                        ImmutableCallSite CS,
-                                       const Value *P, unsigned Size);
+                                       const Location &Loc);
   };
 }  // End of llvm namespace
 

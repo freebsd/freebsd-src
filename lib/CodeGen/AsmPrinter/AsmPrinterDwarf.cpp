@@ -19,7 +19,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetFrameInfo.h"
+#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -36,9 +36,8 @@ void AsmPrinter::EmitSLEB128(int Value, const char *Desc) const {
   if (isVerbose() && Desc)
     OutStreamer.AddComment(Desc);
     
-  if (MAI->hasLEB128() && OutStreamer.hasRawTextSupport()) {
-    // FIXME: MCize.
-    OutStreamer.EmitRawText("\t.sleb128\t" + Twine(Value));
+  if (MAI->hasLEB128()) {
+    OutStreamer.EmitSLEB128IntValue(Value);
     return;
   }
 
@@ -60,10 +59,10 @@ void AsmPrinter::EmitULEB128(unsigned Value, const char *Desc,
                              unsigned PadTo) const {
   if (isVerbose() && Desc)
     OutStreamer.AddComment(Desc);
- 
-  if (MAI->hasLEB128() && PadTo == 0 && OutStreamer.hasRawTextSupport()) {
-    // FIXME: MCize.
-    OutStreamer.EmitRawText("\t.uleb128\t" + Twine(Value));
+
+  // FIXME: Should we add a PadTo option to the streamer?
+  if (MAI->hasLEB128() && PadTo == 0) {
+    OutStreamer.EmitULEB128IntValue(Value); 
     return;
   }
   
@@ -157,7 +156,7 @@ void AsmPrinter::EmitReference(const MCSymbol *Sym, unsigned Encoding) const {
   
   const MCExpr *Exp =
     TLOF.getExprForDwarfReference(Sym, Mang, MMI, Encoding, OutStreamer);
-  OutStreamer.EmitValue(Exp, GetSizeOfEncodedValue(Encoding), /*addrspace*/0);
+  OutStreamer.EmitAbsValue(Exp, GetSizeOfEncodedValue(Encoding));
 }
 
 void AsmPrinter::EmitReference(const GlobalValue *GV, unsigned Encoding)const{
@@ -215,8 +214,8 @@ void AsmPrinter::EmitFrameMoves(const std::vector<MachineMove> &Moves,
   const TargetRegisterInfo *RI = TM.getRegisterInfo();
   
   int stackGrowth = TM.getTargetData()->getPointerSize();
-  if (TM.getFrameInfo()->getStackGrowthDirection() !=
-      TargetFrameInfo::StackGrowsUp)
+  if (TM.getFrameLowering()->getStackGrowthDirection() !=
+      TargetFrameLowering::StackGrowsUp)
     stackGrowth *= -1;
   
   for (unsigned i = 0, N = Moves.size(); i < N; ++i) {
@@ -274,6 +273,46 @@ void AsmPrinter::EmitFrameMoves(const std::vector<MachineMove> &Moves,
       EmitCFAByte(dwarf::DW_CFA_offset_extended);
       EmitULEB128(Reg, "Reg");
       EmitULEB128(Offset, "Offset");
+    }
+  }
+}
+
+/// EmitFrameMoves - Emit frame instructions to describe the layout of the
+/// frame.
+void AsmPrinter::EmitCFIFrameMoves(const std::vector<MachineMove> &Moves) const {
+  const TargetRegisterInfo *RI = TM.getRegisterInfo();
+
+  int stackGrowth = TM.getTargetData()->getPointerSize();
+  if (TM.getFrameLowering()->getStackGrowthDirection() !=
+      TargetFrameLowering::StackGrowsUp)
+    stackGrowth *= -1;
+
+  for (unsigned i = 0, N = Moves.size(); i < N; ++i) {
+    const MachineMove &Move = Moves[i];
+    MCSymbol *Label = Move.getLabel();
+    // Throw out move if the label is invalid.
+    if (Label && !Label->isDefined()) continue; // Not emitted, in dead code.
+
+    const MachineLocation &Dst = Move.getDestination();
+    const MachineLocation &Src = Move.getSource();
+
+    // If advancing cfa.
+    if (Dst.isReg() && Dst.getReg() == MachineLocation::VirtualFP) {
+      assert(!Src.isReg() && "Machine move not supported yet.");
+
+      if (Src.getReg() == MachineLocation::VirtualFP) {
+        OutStreamer.EmitCFIDefCfaOffset(-Src.getOffset());
+      } else {
+        assert("Machine move not supported yet");
+        // Reg + Offset
+      }
+    } else if (Src.isReg() && Src.getReg() == MachineLocation::VirtualFP) {
+      assert(Dst.isReg() && "Machine move not supported yet.");
+      OutStreamer.EmitCFIDefCfaRegister(RI->getDwarfRegNum(Dst.getReg(), true));
+    } else {
+      assert(!Dst.isReg() && "Machine move not supported yet.");
+      OutStreamer.EmitCFIOffset(RI->getDwarfRegNum(Src.getReg(), true),
+                                Dst.getOffset());
     }
   }
 }

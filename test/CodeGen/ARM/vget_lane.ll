@@ -96,13 +96,14 @@ define i32 @vgetQ_lanei32(<4 x i32>* %A) nounwind {
 
 define arm_aapcs_vfpcc void @test_vget_laneu16() nounwind {
 entry:
-; CHECK: vmov.u16 r0, d0[1]
+; CHECK: vmov.u16 r0, d{{.*}}[1]
   %arg0_uint16x4_t = alloca <4 x i16>             ; <<4 x i16>*> [#uses=1]
   %out_uint16_t = alloca i16                      ; <i16*> [#uses=1]
   %"alloca point" = bitcast i32 0 to i32          ; <i32> [#uses=0]
   %0 = load <4 x i16>* %arg0_uint16x4_t, align 8  ; <<4 x i16>> [#uses=1]
   %1 = extractelement <4 x i16> %0, i32 1         ; <i16> [#uses=1]
-  store i16 %1, i16* %out_uint16_t, align 2
+  %2 = add i16 %1, %1
+  store i16 %2, i16* %out_uint16_t, align 2
   br label %return
 
 return:                                           ; preds = %entry
@@ -111,13 +112,14 @@ return:                                           ; preds = %entry
 
 define arm_aapcs_vfpcc void @test_vget_laneu8() nounwind {
 entry:
-; CHECK: vmov.u8 r0, d0[1]
+; CHECK: vmov.u8 r0, d{{.*}}[1]
   %arg0_uint8x8_t = alloca <8 x i8>               ; <<8 x i8>*> [#uses=1]
   %out_uint8_t = alloca i8                        ; <i8*> [#uses=1]
   %"alloca point" = bitcast i32 0 to i32          ; <i32> [#uses=0]
   %0 = load <8 x i8>* %arg0_uint8x8_t, align 8    ; <<8 x i8>> [#uses=1]
   %1 = extractelement <8 x i8> %0, i32 1          ; <i8> [#uses=1]
-  store i8 %1, i8* %out_uint8_t, align 1
+  %2 = add i8 %1, %1
+  store i8 %2, i8* %out_uint8_t, align 1
   br label %return
 
 return:                                           ; preds = %entry
@@ -126,13 +128,14 @@ return:                                           ; preds = %entry
 
 define arm_aapcs_vfpcc void @test_vgetQ_laneu16() nounwind {
 entry:
-; CHECK: vmov.u16 r0, d0[1]
+; CHECK: vmov.u16 r0, d{{.*}}[1]
   %arg0_uint16x8_t = alloca <8 x i16>             ; <<8 x i16>*> [#uses=1]
   %out_uint16_t = alloca i16                      ; <i16*> [#uses=1]
   %"alloca point" = bitcast i32 0 to i32          ; <i32> [#uses=0]
   %0 = load <8 x i16>* %arg0_uint16x8_t, align 16 ; <<8 x i16>> [#uses=1]
   %1 = extractelement <8 x i16> %0, i32 1         ; <i16> [#uses=1]
-  store i16 %1, i16* %out_uint16_t, align 2
+  %2 = add i16 %1, %1
+  store i16 %2, i16* %out_uint16_t, align 2
   br label %return
 
 return:                                           ; preds = %entry
@@ -141,13 +144,14 @@ return:                                           ; preds = %entry
 
 define arm_aapcs_vfpcc void @test_vgetQ_laneu8() nounwind {
 entry:
-; CHECK: vmov.u8 r0, d0[1]
+; CHECK: vmov.u8 r0, d{{.*}}[1]
   %arg0_uint8x16_t = alloca <16 x i8>             ; <<16 x i8>*> [#uses=1]
   %out_uint8_t = alloca i8                        ; <i8*> [#uses=1]
   %"alloca point" = bitcast i32 0 to i32          ; <i32> [#uses=0]
   %0 = load <16 x i8>* %arg0_uint8x16_t, align 16 ; <<16 x i8>> [#uses=1]
   %1 = extractelement <16 x i8> %0, i32 1         ; <i8> [#uses=1]
-  store i8 %1, i8* %out_uint8_t, align 1
+  %2 = add i8 %1, %1
+  store i8 %2, i8* %out_uint8_t, align 1
   br label %return
 
 return:                                           ; preds = %entry
@@ -209,4 +213,21 @@ define arm_aapcs_vfpcc <2 x float> @test_vset_lanef32(float %arg0_float32_t, <2 
 entry:
   %0 = insertelement <2 x float> %arg1_float32x2_t, float %arg0_float32_t, i32 1 ; <<2 x float>> [#uses=1]
   ret <2 x float> %0
+}
+
+; The llvm extractelement instruction does not require that the lane number
+; be an immediate constant.  Make sure a variable lane number is handled.
+
+define i32 @vget_variable_lanes8(<8 x i8>* %A, i32 %B) nounwind {
+	%tmp1 = load <8 x i8>* %A
+	%tmp2 = extractelement <8 x i8> %tmp1, i32 %B
+	%tmp3 = sext i8 %tmp2 to i32
+	ret i32 %tmp3
+}
+
+define i32 @vgetQ_variable_lanei32(<4 x i32>* %A, i32 %B) nounwind {
+	%tmp1 = load <4 x i32>* %A
+	%tmp2 = add <4 x i32> %tmp1, %tmp1
+	%tmp3 = extractelement <4 x i32> %tmp2, i32 %B
+	ret i32 %tmp3
 }

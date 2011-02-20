@@ -34,7 +34,9 @@ STATISTIC(NumInstKilled, "Number of instructions killed");
 namespace {
   struct ConstantPropagation : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
-    ConstantPropagation() : FunctionPass(ID) {}
+    ConstantPropagation() : FunctionPass(ID) {
+      initializeConstantPropagationPass(*PassRegistry::getPassRegistry());
+    }
 
     bool runOnFunction(Function &F);
 
@@ -46,7 +48,7 @@ namespace {
 
 char ConstantPropagation::ID = 0;
 INITIALIZE_PASS(ConstantPropagation, "constprop",
-                "Simple constant propagation", false, false);
+                "Simple constant propagation", false, false)
 
 FunctionPass *llvm::createConstantPropagationPass() {
   return new ConstantPropagation();

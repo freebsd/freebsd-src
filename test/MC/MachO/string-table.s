@@ -5,7 +5,7 @@
 // CHECK: ('cputype', 7)
 // CHECK: ('cpusubtype', 3)
 // CHECK: ('filetype', 1)
-// CHECK: ('num_load_commands', 1)
+// CHECK: ('num_load_commands', 3)
 // CHECK: ('load_commands_size', 228)
 // CHECK: ('flag', 0)
 // CHECK: ('load_commands', [
@@ -43,7 +43,7 @@
 // CHECK:     (('word-0', 0x2),
 // CHECK:      ('word-1', 0xc000001)),
 // CHECK:   ])
-// CHECK:   ('_section_data', '\xc7\x05\x00\x00\x00\x00\x00\x00\x00\x00')
+// CHECK:   ('_section_data', 'c7050000 00000000 0000')
 // CHECK:   ])
 // CHECK:  ),
 // CHECK:   # Load Command 1

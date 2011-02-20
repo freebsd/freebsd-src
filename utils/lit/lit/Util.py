@@ -64,7 +64,11 @@ def which(command, paths = None):
         paths = os.defpath
 
     # Get suffixes to search.
-    pathext = os.environ.get('PATHEXT', '').split(os.pathsep)
+    # On Cygwin, 'PATHEXT' may exist but it should not be used.
+    if os.pathsep == ';':
+        pathext = os.environ.get('PATHEXT', '').split(';')
+    else:
+        pathext = ['']
 
     # Search the paths...
     for path in paths.split(os.pathsep):
@@ -73,6 +77,18 @@ def which(command, paths = None):
             if os.path.exists(p):
                 return p
 
+    return None
+
+def checkToolsPath(dir, tools):
+    for tool in tools:
+        if not os.path.exists(os.path.join(dir, tool)):
+            return False;
+    return True;
+
+def whichTools(tools, paths):
+    for path in paths.split(os.pathsep):
+        if checkToolsPath(path, tools):
+            return path
     return None
 
 def printHistogram(items, title = 'Items'):

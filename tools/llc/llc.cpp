@@ -28,8 +28,9 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/System/Host.h"
-#include "llvm/System/Signals.h"
+#include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
@@ -95,6 +96,8 @@ FileType("filetype", cl::init(TargetMachine::CGFT_AssemblyFile),
 cl::opt<bool> NoVerify("disable-verify", cl::Hidden,
                        cl::desc("Do not verify input module"));
 
+cl::opt<bool> DisableDotLoc("disable-dot-loc", cl::Hidden,
+                            cl::desc("Do not use .loc entries"));
 
 static cl::opt<bool>
 DisableRedZone("disable-red-zone",
@@ -272,6 +275,21 @@ int main(int argc, char **argv) {
     target(TheTarget->createTargetMachine(TheTriple.getTriple(), FeaturesStr));
   assert(target.get() && "Could not allocate target machine!");
   TargetMachine &Target = *target.get();
+
+  if (DisableDotLoc)
+    Target.setMCUseLoc(false);
+  if (TheTriple.getOS() == Triple::Darwin) {
+    switch (TheTriple.getDarwinMajorNumber()) {
+    case 7:
+    case 8:
+    case 9:
+      // disable .loc support for older darwin OS.
+      Target.setMCUseLoc(false);
+      break;
+    default:
+      break;
+    }
+  }
 
   // Figure out where we are going to send the output...
   OwningPtr<tool_output_file> Out

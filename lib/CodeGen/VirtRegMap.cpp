@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -48,7 +49,7 @@ STATISTIC(NumSpills  , "Number of register spills");
 
 char VirtRegMap::ID = 0;
 
-INITIALIZE_PASS(VirtRegMap, "virtregmap", "Virtual Register Map", false, false);
+INITIALIZE_PASS(VirtRegMap, "virtregmap", "Virtual Register Map", false, false)
 
 bool VirtRegMap::runOnMachineFunction(MachineFunction &mf) {
   MRI = &mf.getRegInfo();
@@ -74,8 +75,7 @@ bool VirtRegMap::runOnMachineFunction(MachineFunction &mf) {
   EmergencySpillSlots.clear();
   
   SpillSlotToUsesMap.resize(8);
-  ImplicitDefed.resize(MF->getRegInfo().getLastVirtReg()+1-
-                       TargetRegisterInfo::FirstVirtualRegister);
+  ImplicitDefed.resize(MF->getRegInfo().getNumVirtRegs());
 
   allocatableRCRegs.clear();
   for (TargetRegisterInfo::regclass_iterator I = TRI->regclass_begin(),
@@ -89,24 +89,37 @@ bool VirtRegMap::runOnMachineFunction(MachineFunction &mf) {
 }
 
 void VirtRegMap::grow() {
-  unsigned LastVirtReg = MF->getRegInfo().getLastVirtReg();
-  Virt2PhysMap.grow(LastVirtReg);
-  Virt2StackSlotMap.grow(LastVirtReg);
-  Virt2ReMatIdMap.grow(LastVirtReg);
-  Virt2SplitMap.grow(LastVirtReg);
-  Virt2SplitKillMap.grow(LastVirtReg);
-  ReMatMap.grow(LastVirtReg);
-  ImplicitDefed.resize(LastVirtReg-TargetRegisterInfo::FirstVirtualRegister+1);
+  unsigned NumRegs = MF->getRegInfo().getNumVirtRegs();
+  Virt2PhysMap.resize(NumRegs);
+  Virt2StackSlotMap.resize(NumRegs);
+  Virt2ReMatIdMap.resize(NumRegs);
+  Virt2SplitMap.resize(NumRegs);
+  Virt2SplitKillMap.resize(NumRegs);
+  ReMatMap.resize(NumRegs);
+  ImplicitDefed.resize(NumRegs);
+}
+
+unsigned VirtRegMap::createSpillSlot(const TargetRegisterClass *RC) {
+  int SS = MF->getFrameInfo()->CreateSpillStackObject(RC->getSize(),
+                                                      RC->getAlignment());
+  if (LowSpillSlot == NO_STACK_SLOT)
+    LowSpillSlot = SS;
+  if (HighSpillSlot == NO_STACK_SLOT || SS > HighSpillSlot)
+    HighSpillSlot = SS;
+  assert(SS >= LowSpillSlot && "Unexpected low spill slot");
+  unsigned Idx = SS-LowSpillSlot;
+  while (Idx >= SpillSlotToUsesMap.size())
+    SpillSlotToUsesMap.resize(SpillSlotToUsesMap.size()*2);
+  return SS;
 }
 
 unsigned VirtRegMap::getRegAllocPref(unsigned virtReg) {
   std::pair<unsigned, unsigned> Hint = MRI->getRegAllocationHint(virtReg);
   unsigned physReg = Hint.second;
-  if (physReg &&
-      TargetRegisterInfo::isVirtualRegister(physReg) && hasPhys(physReg))
+  if (TargetRegisterInfo::isVirtualRegister(physReg) && hasPhys(physReg))
     physReg = getPhys(physReg);
   if (Hint.first == 0)
-    return (physReg && TargetRegisterInfo::isPhysicalRegister(physReg))
+    return (TargetRegisterInfo::isPhysicalRegister(physReg))
       ? physReg : 0;
   return TRI->ResolveRegAllocHint(Hint.first, physReg, *MF);
 }
@@ -116,18 +129,8 @@ int VirtRegMap::assignVirt2StackSlot(unsigned virtReg) {
   assert(Virt2StackSlotMap[virtReg] == NO_STACK_SLOT &&
          "attempt to assign stack slot to already spilled register");
   const TargetRegisterClass* RC = MF->getRegInfo().getRegClass(virtReg);
-  int SS = MF->getFrameInfo()->CreateSpillStackObject(RC->getSize(),
-                                                 RC->getAlignment());
-  if (LowSpillSlot == NO_STACK_SLOT)
-    LowSpillSlot = SS;
-  if (HighSpillSlot == NO_STACK_SLOT || SS > HighSpillSlot)
-    HighSpillSlot = SS;
-  unsigned Idx = SS-LowSpillSlot;
-  while (Idx >= SpillSlotToUsesMap.size())
-    SpillSlotToUsesMap.resize(SpillSlotToUsesMap.size()*2);
-  Virt2StackSlotMap[virtReg] = SS;
   ++NumSpills;
-  return SS;
+  return Virt2StackSlotMap[virtReg] = createSpillSlot(RC);
 }
 
 void VirtRegMap::assignVirt2StackSlot(unsigned virtReg, int SS) {
@@ -160,14 +163,7 @@ int VirtRegMap::getEmergencySpillSlot(const TargetRegisterClass *RC) {
     EmergencySpillSlots.find(RC);
   if (I != EmergencySpillSlots.end())
     return I->second;
-  int SS = MF->getFrameInfo()->CreateSpillStackObject(RC->getSize(),
-                                                 RC->getAlignment());
-  if (LowSpillSlot == NO_STACK_SLOT)
-    LowSpillSlot = SS;
-  if (HighSpillSlot == NO_STACK_SLOT || SS > HighSpillSlot)
-    HighSpillSlot = SS;
-  EmergencySpillSlots[RC] = SS;
-  return SS;
+  return EmergencySpillSlots[RC] = createSpillSlot(RC);
 }
 
 void VirtRegMap::addSpillSlotUse(int FI, MachineInstr *MI) {
@@ -232,10 +228,11 @@ bool VirtRegMap::FindUnusedRegisters(LiveIntervals* LIs) {
   UnusedRegs.resize(NumRegs);
 
   BitVector Used(NumRegs);
-  for (unsigned i = TargetRegisterInfo::FirstVirtualRegister,
-         e = MF->getRegInfo().getLastVirtReg(); i <= e; ++i)
-    if (Virt2PhysMap[i] != (unsigned)VirtRegMap::NO_PHYS_REG)
-      Used.set(Virt2PhysMap[i]);
+  for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
+    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
+    if (Virt2PhysMap[Reg] != (unsigned)VirtRegMap::NO_PHYS_REG)
+      Used.set(Virt2PhysMap[Reg]);
+  }
 
   BitVector Allocatable = TRI->getAllocatableSet(*MF);
   bool AnyUnused = false;
@@ -258,23 +255,97 @@ bool VirtRegMap::FindUnusedRegisters(LiveIntervals* LIs) {
   return AnyUnused;
 }
 
+void VirtRegMap::rewrite(SlotIndexes *Indexes) {
+  DEBUG(dbgs() << "********** REWRITE VIRTUAL REGISTERS **********\n"
+               << "********** Function: "
+               << MF->getFunction()->getName() << '\n');
+
+  SmallVector<unsigned, 8> SuperKills;
+
+  for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end();
+       MBBI != MBBE; ++MBBI) {
+    DEBUG(MBBI->print(dbgs(), Indexes));
+    for (MachineBasicBlock::iterator MII = MBBI->begin(), MIE = MBBI->end();
+         MII != MIE;) {
+      MachineInstr *MI = MII;
+      ++MII;
+
+      for (MachineInstr::mop_iterator MOI = MI->operands_begin(),
+           MOE = MI->operands_end(); MOI != MOE; ++MOI) {
+        MachineOperand &MO = *MOI;
+        if (!MO.isReg() || !TargetRegisterInfo::isVirtualRegister(MO.getReg()))
+          continue;
+        unsigned VirtReg = MO.getReg();
+        unsigned PhysReg = getPhys(VirtReg);
+        assert(PhysReg != NO_PHYS_REG && "Instruction uses unmapped VirtReg");
+
+        // Preserve semantics of sub-register operands.
+        if (MO.getSubReg()) {
+          // A virtual register kill refers to the whole register, so we may
+          // have to add <imp-use,kill> operands for the super-register.
+          if (MO.isUse() && MO.isKill() && !MO.isUndef())
+            SuperKills.push_back(PhysReg);
+
+          // We don't have to deal with sub-register defs because
+          // LiveIntervalAnalysis already added the necessary <imp-def>
+          // operands.
+
+          // PhysReg operands cannot have subregister indexes.
+          PhysReg = TRI->getSubReg(PhysReg, MO.getSubReg());
+          assert(PhysReg && "Invalid SubReg for physical register");
+          MO.setSubReg(0);
+        }
+        // Rewrite. Note we could have used MachineOperand::substPhysReg(), but
+        // we need the inlining here.
+        MO.setReg(PhysReg);
+      }
+
+      // Add any missing super-register kills after rewriting the whole
+      // instruction.
+      while (!SuperKills.empty())
+        MI->addRegisterKilled(SuperKills.pop_back_val(), TRI, true);
+
+      DEBUG(dbgs() << "> " << *MI);
+
+      // Finally, remove any identity copies.
+      if (MI->isIdentityCopy()) {
+        DEBUG(dbgs() << "Deleting identity copy.\n");
+        RemoveMachineInstrFromMaps(MI);
+        if (Indexes)
+          Indexes->removeMachineInstrFromMaps(MI);
+        // It's safe to erase MI because MII has already been incremented.
+        MI->eraseFromParent();
+      }
+    }
+  }
+
+  // Tell MRI about physical registers in use.
+  for (unsigned Reg = 1, RegE = TRI->getNumRegs(); Reg != RegE; ++Reg)
+    if (!MRI->reg_nodbg_empty(Reg))
+      MRI->setPhysRegUsed(Reg);
+}
+
 void VirtRegMap::print(raw_ostream &OS, const Module* M) const {
   const TargetRegisterInfo* TRI = MF->getTarget().getRegisterInfo();
   const MachineRegisterInfo &MRI = MF->getRegInfo();
 
   OS << "********** REGISTER MAP **********\n";
-  for (unsigned i = TargetRegisterInfo::FirstVirtualRegister,
-         e = MF->getRegInfo().getLastVirtReg(); i <= e; ++i) {
-    if (Virt2PhysMap[i] != (unsigned)VirtRegMap::NO_PHYS_REG)
-      OS << "[reg" << i << " -> " << TRI->getName(Virt2PhysMap[i])
-         << "] " << MRI.getRegClass(i)->getName() << "\n";
+  for (unsigned i = 0, e = MRI.getNumVirtRegs(); i != e; ++i) {
+    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
+    if (Virt2PhysMap[Reg] != (unsigned)VirtRegMap::NO_PHYS_REG) {
+      OS << '[' << PrintReg(Reg, TRI) << " -> "
+         << PrintReg(Virt2PhysMap[Reg], TRI) << "] "
+         << MRI.getRegClass(Reg)->getName() << "\n";
+    }
   }
 
-  for (unsigned i = TargetRegisterInfo::FirstVirtualRegister,
-         e = MF->getRegInfo().getLastVirtReg(); i <= e; ++i)
-    if (Virt2StackSlotMap[i] != VirtRegMap::NO_STACK_SLOT)
-      OS << "[reg" << i << " -> fi#" << Virt2StackSlotMap[i]
-         << "] " << MRI.getRegClass(i)->getName() << "\n";
+  for (unsigned i = 0, e = MRI.getNumVirtRegs(); i != e; ++i) {
+    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
+    if (Virt2StackSlotMap[Reg] != VirtRegMap::NO_STACK_SLOT) {
+      OS << '[' << PrintReg(Reg, TRI) << " -> fi#" << Virt2StackSlotMap[Reg]
+         << "] " << MRI.getRegClass(Reg)->getName() << "\n";
+    }
+  }
   OS << '\n';
 }
 

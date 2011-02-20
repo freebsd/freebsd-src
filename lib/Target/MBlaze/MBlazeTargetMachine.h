@@ -19,21 +19,25 @@
 #include "MBlazeISelLowering.h"
 #include "MBlazeSelectionDAGInfo.h"
 #include "MBlazeIntrinsicInfo.h"
+#include "MBlazeFrameLowering.h"
+#include "MBlazeELFWriterInfo.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetFrameInfo.h"
+#include "llvm/Target/TargetFrameLowering.h"
 
 namespace llvm {
   class formatted_raw_ostream;
 
   class MBlazeTargetMachine : public LLVMTargetMachine {
-    MBlazeSubtarget       Subtarget;
-    const TargetData    DataLayout; // Calculates type size & alignment
-    MBlazeInstrInfo       InstrInfo;
-    TargetFrameInfo     FrameInfo;
-    MBlazeTargetLowering  TLInfo;
+    MBlazeSubtarget        Subtarget;
+    const TargetData       DataLayout; // Calculates type size & alignment
+    MBlazeInstrInfo        InstrInfo;
+    MBlazeFrameLowering    FrameLowering;
+    MBlazeTargetLowering   TLInfo;
     MBlazeSelectionDAGInfo TSInfo;
-    MBlazeIntrinsicInfo IntrinsicInfo;
+    MBlazeIntrinsicInfo    IntrinsicInfo;
+    MBlazeELFWriterInfo    ELFWriterInfo;
   public:
     MBlazeTargetMachine(const Target &T, const std::string &TT,
                       const std::string &FS);
@@ -41,8 +45,8 @@ namespace llvm {
     virtual const MBlazeInstrInfo *getInstrInfo() const
     { return &InstrInfo; }
 
-    virtual const TargetFrameInfo *getFrameInfo() const
-    { return &FrameInfo; }
+    virtual const TargetFrameLowering *getFrameLowering() const
+    { return &FrameLowering; }
 
     virtual const MBlazeSubtarget *getSubtargetImpl() const
     { return &Subtarget; }
@@ -62,12 +66,13 @@ namespace llvm {
     const TargetIntrinsicInfo *getIntrinsicInfo() const
     { return &IntrinsicInfo; }
 
-    // Pass Pipeline Configuration
-    virtual bool addInstSelector(PassManagerBase &PM,
-                                 CodeGenOpt::Level OptLevel);
+    virtual const MBlazeELFWriterInfo *getELFWriterInfo() const {
+      return &ELFWriterInfo;
+    }
 
-    virtual bool addPreEmitPass(PassManagerBase &PM,
-                                CodeGenOpt::Level OptLevel);
+    // Pass Pipeline Configuration
+    virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level Opt);
+    virtual bool addPreEmitPass(PassManagerBase &PM,CodeGenOpt::Level Opt);
   };
 } // End llvm namespace
 
