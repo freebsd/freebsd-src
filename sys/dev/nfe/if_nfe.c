@@ -1708,8 +1708,10 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			else {
 				NFE_LOCK(sc);
 				ifp->if_mtu = ifr->ifr_mtu;
-				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 					nfe_init_locked(sc);
+				}
 				NFE_UNLOCK(sc);
 			}
 		}
