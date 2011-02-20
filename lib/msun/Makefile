@@ -131,7 +131,8 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
 	fma.3 fmax.3 fmod.3 hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
 	lgamma.3 log.3 lrint.3 lround.3 math.3 nan.3 \
 	nextafter.3 remainder.3 rint.3 \
-	round.3 scalbn.3 signbit.3 sin.3 sinh.3 sqrt.3 tan.3 tanh.3 trunc.3
+	round.3 scalbn.3 signbit.3 sin.3 sinh.3 sqrt.3 tan.3 tanh.3 trunc.3 \
+	complex.3
 
 MLINKS+=acos.3 acosf.3 acos.3 acosl.3
 MLINKS+=acosh.3 acoshf.3
