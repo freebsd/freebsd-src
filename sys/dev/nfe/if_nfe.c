@@ -593,7 +593,8 @@ nfe_attach(device_t dev)
 	if ((sc->nfe_flags & NFE_HW_VLAN) != 0) {
 		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
 		if ((ifp->if_capabilities & IFCAP_HWCSUM) != 0)
-			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
+			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM |
+			    IFCAP_VLAN_HWTSO;
 	}
 
 	if (pci_find_extcap(dev, PCIY_PMG, &reg) == 0)
@@ -1776,20 +1777,35 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
 		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
 			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
-
-		if ((sc->nfe_flags & NFE_HW_CSUM) != 0 &&
-		    (mask & IFCAP_HWCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0 &&
-			    (IFCAP_TXCSUM & ifp->if_capabilities) != 0)
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
 				ifp->if_hwassist |= NFE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~NFE_CSUM_FEATURES;
+		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 			init++;
 		}
-		if ((sc->nfe_flags & NFE_HW_VLAN) != 0 &&
-		    (mask & IFCAP_VLAN_HWTAGGING) != 0) {
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
+			ifp->if_capenable ^= IFCAP_TSO4;
+			if ((IFCAP_TSO4 & ifp->if_capenable) != 0)
+				ifp->if_hwassist |= CSUM_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_TSO;
+		}
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
 			init++;
 		}
 		/*
@@ -1799,28 +1815,17 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * VLAN stripping. So when we know Rx checksum offload is
 		 * disabled turn entire hardware VLAN assist off.
 		 */
-		if ((sc->nfe_flags & (NFE_HW_CSUM | NFE_HW_VLAN)) ==
-		    (NFE_HW_CSUM | NFE_HW_VLAN)) {
-			if ((ifp->if_capenable & IFCAP_RXCSUM) == 0)
-				ifp->if_capenable &= ~IFCAP_VLAN_HWTAGGING;
+		if ((ifp->if_capenable & IFCAP_RXCSUM) == 0) {
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
+				init++;
+			ifp->if_capenable &= ~(IFCAP_VLAN_HWTAGGING |
+			    IFCAP_VLAN_HWTSO);
 		}
-
-		if ((sc->nfe_flags & NFE_HW_CSUM) != 0 &&
-		    (mask & IFCAP_TSO4) != 0) {
-			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((IFCAP_TSO4 & ifp->if_capenable) != 0 &&
-			    (IFCAP_TSO4 & ifp->if_capabilities) != 0)
-				ifp->if_hwassist |= CSUM_TSO;
-			else
-				ifp->if_hwassist &= ~CSUM_TSO;
-		}
-
 		if (init > 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			nfe_init(sc);
 		}
-		if ((sc->nfe_flags & NFE_HW_VLAN) != 0)
-			VLAN_CAPABILITIES(ifp);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
