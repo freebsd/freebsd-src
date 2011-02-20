@@ -248,32 +248,29 @@ when this is enabled, Clang will print something like:</p>
          ^
          //
 </pre>
-
-<p>When this is disabled, Clang will just print:</p>
-
-<pre>
-  <b><font color="black">test.c:28:8: <font color="magenta">warning</font>: extra tokens at end of #endif directive [-Wextra-tokens]</font></b>
-  #endif bad
-         <font color="green">^</font>
-         <font color="green">//</font>
-</pre>
-
 </dd>
-
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <dt id="opt_fcolor_diagnostics"><b>-f[no-]color-diagnostics</b>: </dt>
 <dd>This option, which defaults to on when a color-capable terminal is
   detected, controls whether or not Clang prints diagnostics in color.
   When this option is enabled, Clang will use colors to highlight
   specific parts of the diagnostic, e.g.,
- 
-<pre>
-<test.c:2:8: warning: extra tokens at end of #endif directive [-Wextra-tokens]
-#endif bad
-       ^
-       //
+ <pre>
+  <b><font color="black">test.c:28:8: <font color="magenta">warning</font>: extra tokens at end of #endif directive [-Wextra-tokens]</font></b>
+  #endif bad
+         <font color="green">^</font>
+         <font color="green">//</font>
 </pre>
-</dd>'
+
+<p>When this is disabled, Clang will just print:</p>
+
+<pre>
+  test.c:2:8: warning: extra tokens at end of #endif directive [-Wextra-tokens]
+  #endif bad
+         ^
+         //
+</pre>
+</dd>
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <dt id="opt_fdiagnostics-show-option"><b>-f[no-]diagnostics-show-option</b>:
 Enable <tt>[-Woption]</tt> information in diagnostic line.</dt>
@@ -565,7 +562,7 @@ example code will tell Clang or GCC to ignore the -Wall warnings:</p>
 #pragma GCC diagnostic ignored "-Wall"
 </pre>
 
-<p>In addition to all of the functionality of provided by GCC's pragma, Clang 
+<p>In addition to all of the functionality provided by GCC's pragma, Clang 
 also allows you to push and pop the current warning state.  This is particularly
 useful when writing a header file that will be compiled by other people, because 
 you don't know what warning flags they build with.</p>
@@ -604,7 +601,7 @@ by the user via changes to the source code.  This can be done in two ways:
 attributes (e.g., <tt>__attribute__((nonnull)))</tt>) that can either suppress
 static analyzer warnings or teach the analyzer about code invariants which
 enable it to find more bugs. While many of these attributes are standard GCC
-attributes, additional ones have added to Clang to specifically support the
+attributes, additional ones have been added to Clang to specifically support the
 static analyzer. Detailed information on these annotations can be found in the
 <a href="http://clang-analyzer.llvm.org/annotations.html">analyzer's
 documentation</a>.</li>
@@ -623,7 +620,7 @@ selectively exclude code the analyzer examines.  Here is an example:
 In general, this usage is discouraged. Instead, we prefer that users file bugs
 against the analyzer when it flags false positives. There is also active
 discussion of allowing users in the future to selectively silence specific
-analyzer warnings (some which can already be done using <a
+analyzer warnings (some of which can already be done using <a
 href="analyzer_annotations">annotations</a>).</li>
 
 </ul>
@@ -642,7 +639,7 @@ Precompiled header files, which represent one of many ways to implement
 this optimization, are literally files that represent an on-disk cache that
 contains the vital information necessary to reduce some of the work
 needed to process a corresponding header file. While details of precompiled
-headers vary between compilers, precompiled headers have been shown to be a
+headers vary between compilers, precompiled headers have been shown to be
 highly effective at speeding up program compilation on systems with very large
 system headers (e.g., Mac OS/X).</p>
 
@@ -742,11 +739,11 @@ likely to affect PCH files that reference a large number of headers.</p>
 on runtime code generation to check for undefined behavior.</dt>
 
 <dd>This option, which defaults to off, controls whether or not Clang
-adds runtime checks for undefined runtime behavior.  If the check fails,
+adds runtime checks for undefined runtime behavior.  If a check fails,
 <tt>__builtin_trap()</tt> is used to indicate failure.
 The checks are:
 <p>
-<li>Subscripting where the static type of one operand is variable
+<li>Subscripting where the static type of one operand is a variable
     which is decayed from an array type and the other operand is
     greater than the size of the array or less than zero.</li>
 <li>Shift operators where the amount shifted is greater or equal to the
@@ -761,7 +758,7 @@ The checks are:
 <dt id="opt_fno-assume-sane-operator-new"><b>-fno-assume-sane-operator-new</b>:
 Don't assume that the C++'s new operator is sane.</dt>
 <dd>This option tells the compiler to do not assume that C++'s global new
-operator will always return a pointer that do not
+operator will always return a pointer that does not
 alias any other pointer when the function returns.</dd>
 
 <!-- ======================================================================= -->
@@ -828,10 +825,6 @@ c94 mode (FIXME: And __STDC_VERSION__ should be defined!).</p>
 extensions are not implemented yet:</p>
 
 <ul>
-<li>clang does not support __label__
-(<a href="http://llvm.org/bugs/show_bug.cgi?id=3429">bug 3429</a>). This is
-a relatively small feature, so it is likely to be implemented relatively
-soon.</li>
 
 <li>clang does not support #pragma weak
 (<a href="http://llvm.org/bugs/show_bug.cgi?id=3679">bug 3679</a>). Due to
@@ -887,9 +880,11 @@ bug-reporting guidelines somewhere?).</p>
 <ul>
 
 <li>clang does not support the gcc extension that allows variable-length arrays
-in structures.  This is for a few of reasons: one, it is tricky
+in structures.  This is for a few reasons: one, it is tricky
 to implement, two, the extension is completely undocumented, and three, the
-extension appears to be rarely used.</li>
+extension appears to be rarely used.  Note that clang <em>does</em> support
+flexible array members (arrays with a zero or unspecified size at the end of
+a structure).</li>
 
 <li>clang does not support duplicate definitions of a function where one is
 inline. This complicates clients of the AST which normally can expect there is
@@ -922,6 +917,12 @@ support is incomplete; enabling Microsoft extensions will silently drop
 certain constructs (including __declspec and Microsoft-style asm statements).
 </p>
 
+<li>clang allows setting _MSC_VER with -fmsc-version=. It defaults to 1300 which
+is the same as Visual C/C++ 2003. Any number is supported and can greatly affect
+what Windows SDK and c++stdlib headers clang can compile. This option will be
+removed when clang supports the full set of MS extensions required for these
+headers.</li>
+
 <li>clang does not support the Microsoft extension where anonymous
 record members can be declared using user defined typedefs.</li>
 
@@ -942,16 +943,19 @@ definition.</li>
 <!-- ======================== -->
 <h4 id="target_arch_x86">X86</h4>
 <!-- ======================== -->
-<p>The support for X86 (both 32-bit and 64-bit) is considered stable
-on Darwin (Mac OS/X), Linux, FreeBSD, and Dragonfly BSD: it has been tested to
-correctly compile large C and Objective-C codebases. (FIXME: Anything specific
-we want to say here? Possibly mention some LLVM x86 limitations?)
+
+<p>The support for X86 (both 32-bit and 64-bit) is considered stable on Darwin
+(Mac OS/X), Linux, FreeBSD, and Dragonfly BSD: it has been tested to correctly
+compile many large C, C++, Objective-C, and Objective-C++ codebases.</p>
 
 <!-- ======================== -->
 <h4 id="target_arch_arm">ARM</h4>
 <!-- ======================== -->
-ARM support is mostly feature-complete, but still experimental; it hasn't
-undergone significant testing.
+
+<p>The support for ARM (specifically ARMv6 and ARMv7) is considered stable on
+Darwin (iOS): it has been tested to correctly compile many large C, C++,
+Objective-C, and Objective-C++ codebases.  Clang only supports a limited number
+of ARM architectures. It does not yet fully support ARMv5, for example.</p>
 
 <!-- ======================== -->
 <h4 id="target_arch_other">Other platforms</h4>
@@ -959,9 +963,6 @@ undergone significant testing.
 clang currently contains some support for PPC and Sparc; however, significant
 pieces of code generation are still missing, and they haven't undergone
 significant testing.
-
-<p>clang contains some support for the embedded PIC16 processor
-(FIXME: I haven't been keeping track of this; what should this say?).
 
 <p>clang contains limited support for the MSP430 embedded processor, but both
 the clang support and the LLVM backend support are highly experimental.

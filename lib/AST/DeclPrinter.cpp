@@ -51,6 +51,7 @@ namespace {
     void VisitFunctionDecl(FunctionDecl *D);
     void VisitFieldDecl(FieldDecl *D);
     void VisitVarDecl(VarDecl *D);
+    void VisitLabelDecl(LabelDecl *D);
     void VisitParmVarDecl(ParmVarDecl *D);
     void VisitFileScopeAsmDecl(FileScopeAsmDecl *D);
     void VisitNamespaceDecl(NamespaceDecl *D);
@@ -307,9 +308,26 @@ void DeclPrinter::VisitTypedefDecl(TypedefDecl *D) {
 }
 
 void DeclPrinter::VisitEnumDecl(EnumDecl *D) {
-  Out << "enum " << D << " {\n";
-  VisitDeclContext(D);
-  Indent() << "}";
+  Out << "enum ";
+  if (D->isScoped()) {
+    if (D->isScopedUsingClassTag())
+      Out << "class ";
+    else
+      Out << "struct ";
+  }
+  Out << D;
+
+  if (D->isFixed()) {
+    std::string Underlying;
+    D->getIntegerType().getAsStringInternal(Underlying, Policy);
+    Out << " : " << Underlying;
+  }
+
+  if (D->isDefinition()) {
+    Out << " {\n";
+    VisitDeclContext(D);
+    Indent() << "}";
+  }
 }
 
 void DeclPrinter::VisitRecordDecl(RecordDecl *D) {
@@ -349,9 +367,15 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
   PrintingPolicy SubPolicy(Policy);
   SubPolicy.SuppressSpecifiers = false;
   std::string Proto = D->getNameInfo().getAsString();
-  if (isa<FunctionType>(D->getType().getTypePtr())) {
-    const FunctionType *AFT = D->getType()->getAs<FunctionType>();
 
+  QualType Ty = D->getType();
+  while (const ParenType *PT = dyn_cast<ParenType>(Ty)) {
+    Proto = '(' + Proto + ')';
+    Ty = PT->getInnerType();
+  }
+
+  if (isa<FunctionType>(Ty)) {
+    const FunctionType *AFT = Ty->getAs<FunctionType>();
     const FunctionProtoType *FT = 0;
     if (D->hasWrittenPrototype())
       FT = dyn_cast<FunctionProtoType>(AFT);
@@ -379,6 +403,16 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
 
     Proto += ")";
     
+    if (FT && FT->getTypeQuals()) {
+      unsigned TypeQuals = FT->getTypeQuals();
+      if (TypeQuals & Qualifiers::Const)
+        Proto += " const";
+      if (TypeQuals & Qualifiers::Volatile) 
+        Proto += " volatile";
+      if (TypeQuals & Qualifiers::Restrict)
+        Proto += " restrict";
+    }
+    
     if (FT && FT->hasExceptionSpec()) {
       Proto += " throw(";
       if (FT->hasAnyExceptionSpec())
@@ -399,18 +433,18 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
     if (D->hasAttr<NoReturnAttr>())
       Proto += " __attribute((noreturn))";
     if (CXXConstructorDecl *CDecl = dyn_cast<CXXConstructorDecl>(D)) {
-      if (CDecl->getNumBaseOrMemberInitializers() > 0) {
+      if (CDecl->getNumCtorInitializers() > 0) {
         Proto += " : ";
         Out << Proto;
         Proto.clear();
         for (CXXConstructorDecl::init_const_iterator B = CDecl->init_begin(),
              E = CDecl->init_end();
              B != E; ++B) {
-          CXXBaseOrMemberInitializer * BMInitializer = (*B);
+          CXXCtorInitializer * BMInitializer = (*B);
           if (B != CDecl->init_begin())
             Out << ", ";
-          if (BMInitializer->isMemberInitializer()) {
-            FieldDecl *FD = BMInitializer->getMember();
+          if (BMInitializer->isAnyMemberInitializer()) {
+            FieldDecl *FD = BMInitializer->getAnyMember();
             Out << FD;
           } else {
             Out << QualType(BMInitializer->getBaseClass(),
@@ -422,8 +456,7 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
             // Nothing to print
           } else {
             Expr *Init = BMInitializer->getInit();
-            if (CXXExprWithTemporaries *Tmp
-                  = dyn_cast<CXXExprWithTemporaries>(Init))
+            if (ExprWithCleanups *Tmp = dyn_cast<ExprWithCleanups>(Init))
               Init = Tmp->getSubExpr();
             
             Init = Init->IgnoreParens();
@@ -461,7 +494,7 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
     else
       AFT->getResultType().getAsStringInternal(Proto, Policy);
   } else {
-    D->getType().getAsStringInternal(Proto, Policy);
+    Ty.getAsStringInternal(Proto, Policy);
   }
 
   Out << Proto;
@@ -505,6 +538,11 @@ void DeclPrinter::VisitFieldDecl(FieldDecl *D) {
   }
 }
 
+void DeclPrinter::VisitLabelDecl(LabelDecl *D) {
+  Out << D->getNameAsString() << ":";
+}
+
+
 void DeclPrinter::VisitVarDecl(VarDecl *D) {
   if (!Policy.SuppressSpecifiers && D->getStorageClass() != SC_None)
     Out << VarDecl::getStorageClassSpecifierString(D->getStorageClass()) << " ";
@@ -518,12 +556,15 @@ void DeclPrinter::VisitVarDecl(VarDecl *D) {
     T = Parm->getOriginalType();
   T.getAsStringInternal(Name, Policy);
   Out << Name;
-  if (D->getInit()) {
+  if (Expr *Init = D->getInit()) {
     if (D->hasCXXDirectInitializer())
       Out << "(";
-    else
-      Out << " = ";
-    D->getInit()->printPretty(Out, Context, 0, Policy, Indentation);
+    else {
+        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(Init);
+        if (!CCE || CCE->getConstructor()->isCopyConstructor())
+          Out << " = ";
+    }
+    Init->printPretty(Out, Context, 0, Policy, Indentation);
     if (D->hasCXXDirectInitializer())
       Out << ")";
   }
@@ -646,6 +687,9 @@ void DeclPrinter::VisitTemplateDecl(TemplateDecl *D) {
                  dyn_cast<NonTypeTemplateParmDecl>(Param)) {
       Out << NTTP->getType().getAsString(Policy);
 
+      if (NTTP->isParameterPack() && !isa<PackExpansionType>(NTTP->getType()))
+        Out << "...";
+        
       if (IdentifierInfo *Name = NTTP->getIdentifier()) {
         Out << ' ';
         Out << Name->getName();
@@ -661,8 +705,11 @@ void DeclPrinter::VisitTemplateDecl(TemplateDecl *D) {
 
   Out << "> ";
 
-  if (isa<TemplateTemplateParmDecl>(D)) {
-    Out << "class " << D->getName();
+  if (TemplateTemplateParmDecl *TTP = dyn_cast<TemplateTemplateParmDecl>(D)) {
+    Out << "class ";
+    if (TTP->isParameterPack())
+      Out << "...";
+    Out << D->getName();
   } else {
     Visit(D->getTemplatedDecl());
   }

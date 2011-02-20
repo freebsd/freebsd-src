@@ -99,30 +99,6 @@ else {
 }
 my $ClangCXX = $Clang . "++";
 
-my %AvailableAnalyses;
-
-# Query clang for analysis options.
-open(PIPE, "-|", $Clang, "-cc1", "-help") or
-  DieDiag("Cannot execute '$Clang'\n");
-
-while(<PIPE>) {
-  if (/(-analyzer-check-[^\s]+)/) {
-    $AvailableAnalyses{$1} = 1;
-    next;
-  }  
-}
-close (PIPE);
-
-my %AnalysesDefaultEnabled = (
-  '-analyzer-check-dead-stores' => 1,
-  '-analyzer-check-objc-mem' => 1,
-  '-analyzer-check-objc-methodsigs' => 1,
-  # Do not enable the missing -dealloc check by default.
-  #  '-analyzer-check-objc-missing-dealloc' => 1,
-  '-analyzer-check-objc-unused-ivars' => 1,
-  '-analyzer-check-security-syntactic' => 1
-);
-
 ##----------------------------------------------------------------------------##
 # GetHTMLRunDir - Construct an HTML directory name for the current sub-run.
 ##----------------------------------------------------------------------------##
@@ -304,6 +280,38 @@ sub UpdateInFilePath {
 }
 
 ##----------------------------------------------------------------------------##
+# AddStatLine - Decode and insert a statistics line into the database.
+##----------------------------------------------------------------------------##
+
+sub AddStatLine {
+  my $Line  = shift;
+  my $Stats = shift;
+
+  print $Line . "\n";
+
+  my $Regex = qr/(.*?)\ :\ (.*?)\ ->\ Total\ CFGBlocks:\ (\d+)\ \|\ Unreachable
+      \ CFGBlocks:\ (\d+)\ \|\ Aborted\ Block:\ (yes|no)\ \|\ Empty\ WorkList:
+      \ (yes|no)/x;
+
+  if ($Line !~ $Regex) {
+    return;
+  }
+
+  # Create a hash of the interesting fields
+  my $Row = {
+    Filename    => $1,
+    Function    => $2,
+    Total       => $3,
+    Unreachable => $4,
+    Aborted     => $5,
+    Empty       => $6
+  };
+
+  # Add them to the stats array
+  push @$Stats, $Row;
+}
+
+##----------------------------------------------------------------------------##
 # ScanFile - Scan a report file for various identifying attributes.
 ##----------------------------------------------------------------------------##
 
@@ -317,6 +325,7 @@ sub ScanFile {
   my $Index = shift;
   my $Dir = shift;
   my $FName = shift;
+  my $Stats = shift;
   
   # Compute a digest for the report file.  Determine if we have already
   # scanned a file that looks just like it.
@@ -337,11 +346,12 @@ sub ScanFile {
   # Scan the report file for tags.
   open(IN, "$Dir/$FName") or DieDiag("Cannot open '$Dir/$FName'\n");
 
-  my $BugType = "";
-  my $BugFile = "";
-  my $BugCategory;
-  my $BugPathLength = 1;
-  my $BugLine = 0;
+  my $BugType        = "";
+  my $BugFile        = "";
+  my $BugCategory    = "";
+  my $BugDescription = "";
+  my $BugPathLength  = 1;
+  my $BugLine        = 0;
 
   while (<IN>) {
     last if (/<!-- BUGMETAEND -->/);
@@ -362,6 +372,9 @@ sub ScanFile {
     elsif (/<!-- BUGCATEGORY (.*) -->$/) {
       $BugCategory = $1;
     }
+    elsif (/<!-- BUGDESC (.*) -->$/) {
+      $BugDescription = $1;
+    }
   }
 
   close(IN);
@@ -369,7 +382,13 @@ sub ScanFile {
   if (!defined $BugCategory) {
     $BugCategory = "Other";
   }
-    
+
+  # Don't add internal statistics to the bug reports
+  if ($BugCategory =~ /statistics/i) {
+    AddStatLine($BugDescription, $Stats);
+    return;
+  }
+  
   push @$Index,[ $FName, $BugCategory, $BugType, $BugFile, $BugLine,
                  $BugPathLength ];
 }
@@ -404,13 +423,61 @@ sub CopyFiles {
 }
 
 ##----------------------------------------------------------------------------##
+# CalcStats - Calculates visitation statistics and returns the string.
+##----------------------------------------------------------------------------##
+
+sub CalcStats {
+  my $Stats = shift;
+
+  my $TotalBlocks = 0;
+  my $UnreachedBlocks = 0;
+  my $TotalFunctions = scalar(@$Stats);
+  my $BlockAborted = 0;
+  my $WorkListAborted = 0;
+  my $Aborted = 0;
+
+  # Calculate the unique files
+  my $FilesHash = {};
+
+  foreach my $Row (@$Stats) {
+    $FilesHash->{$Row->{Filename}} = 1;
+    $TotalBlocks += $Row->{Total};
+    $UnreachedBlocks += $Row->{Unreachable};
+    $BlockAborted++ if $Row->{Aborted} eq 'yes';
+    $WorkListAborted++ if $Row->{Empty} eq 'no';
+    $Aborted++ if $Row->{Aborted} eq 'yes' || $Row->{Empty} eq 'no';
+  }
+
+  my $TotalFiles = scalar(keys(%$FilesHash));
+
+  # Calculations
+  my $PercentAborted = sprintf("%.2f", $Aborted / $TotalFunctions * 100);
+  my $PercentBlockAborted = sprintf("%.2f", $BlockAborted / $TotalFunctions
+      * 100);
+  my $PercentWorkListAborted = sprintf("%.2f", $WorkListAborted /
+      $TotalFunctions * 100);
+  my $PercentBlocksUnreached = sprintf("%.2f", $UnreachedBlocks / $TotalBlocks
+      * 100);
+
+  my $StatsString = "Analyzed $TotalBlocks blocks in $TotalFunctions functions"
+    . " in $TotalFiles files\n"
+    . "$Aborted functions aborted early ($PercentAborted%)\n"
+    . "$BlockAborted had aborted blocks ($PercentBlockAborted%)\n"
+    . "$WorkListAborted had unfinished worklists ($PercentWorkListAborted%)\n"
+    . "$UnreachedBlocks blocks were never reached ($PercentBlocksUnreached%)\n";
+
+  return $StatsString;
+}
+
+##----------------------------------------------------------------------------##
 # Postprocess - Postprocess the results of an analysis scan.
 ##----------------------------------------------------------------------------##
 
 sub Postprocess {
   
-  my $Dir = shift;
-  my $BaseDir = shift;
+  my $Dir           = shift;
+  my $BaseDir       = shift;
+  my $AnalyzerStats = shift;
   
   die "No directory specified." if (!defined $Dir);
   
@@ -430,8 +497,9 @@ sub Postprocess {
   }
   
   # Scan each report file and build an index.  
-  my @Index;    
-  foreach my $file (@files) { ScanFile(\@Index, $Dir, $file); }
+  my @Index;
+  my @Stats;
+  foreach my $file (@files) { ScanFile(\@Index, $Dir, $file, \@Stats); }
   
   # Scan the failures directory and use the information in the .info files
   # to update the common prefix directory.
@@ -745,6 +813,9 @@ ENDTEXT
   system("chmod", "755", $Dir);
   if (defined $BaseDir) { system("chmod", "755", $BaseDir); }
 
+  # Print statistics
+  print CalcStats(\@Stats) if $AnalyzerStats;
+
   my $Num = scalar(@Index);
   Diag("$Num bugs found.\n");
   if ($Num > 0 && -r "$Dir/index.html") {
@@ -793,6 +864,7 @@ sub RunBuildCommand {
   if ($Cmd =~ /(.*\/?gcc[^\/]*$)/ or 
       $Cmd =~ /(.*\/?cc[^\/]*$)/ or
       $Cmd =~ /(.*\/?llvm-gcc[^\/]*$)/ or
+      $Cmd =~ /(.*\/?clang$)/ or 
       $Cmd =~ /(.*\/?ccc-analyzer[^\/]*$)/) {
 
     if (!($Cmd =~ /ccc-analyzer/) and !defined $ENV{"CCC_CC"}) {
@@ -805,6 +877,7 @@ sub RunBuildCommand {
   elsif ($Cmd =~ /(.*\/?g\+\+[^\/]*$)/ or 
         $Cmd =~ /(.*\/?c\+\+[^\/]*$)/ or
         $Cmd =~ /(.*\/?llvm-g\+\+[^\/]*$)/ or
+        $Cmd =~ /(.*\/?clang\+\+$)/ or
         $Cmd =~ /(.*\/?c\+\+-analyzer[^\/]*$)/) {
     if (!($Cmd =~ /c\+\+-analyzer/) and !defined $ENV{"CCC_CXX"}) {
       $ENV{"CCC_CXX"} = $1;      
@@ -838,9 +911,6 @@ sub RunBuildCommand {
       }
     }
 
-    # Disable distributed builds for xcodebuild.
-    AddIfNotPresent($Args,"-nodistribute");
-
     # Disable PCH files until clang supports them.
     AddIfNotPresent($Args,"GCC_PRECOMPILE_PREFIX_HEADER=NO");
     
@@ -873,8 +943,6 @@ OPTIONS:
 
  -analyze-headers - Also analyze functions in #included files.
  
- --experimental-checks - Enable experimental checks that are currently in heavy testing
-
  -o             - Target directory for HTML report files.  Subdirectories
                   will be created as needed to represent separate "runs" of
                   the analyzer.  If this option is not specified, a directory
@@ -930,21 +998,15 @@ ADVANCED OPTIONS:
  -no-failure-reports - Do not create a 'failures' subdirectory that includes
                        analyzer crash reports and preprocessed source files.
 
-AVAILABLE ANALYSES (multiple analyses may be specified):
+ -stats - Generates visitation statistics for the project being analyzed.
 
+ -maxloop N - specifiy the number of times a block can be visited before giving
+              up. Default is 3. Increase for more comprehensive coverage at a
+              cost of speed.
 ENDTEXT
 
-  foreach my $Analysis (sort keys %AvailableAnalyses) {
-    if (defined $AnalysesDefaultEnabled{$Analysis}) {
-      print " (+)";
-    }
-    else {
-      print "    ";
-    }
-    
-    print " $Analysis\n";
-  }
-  
+# FIXME: Print out available analyesis.
+
 print <<ENDTEXT
 
  NOTE: "(+)" indicates that an analysis is enabled by default unless one
@@ -1004,6 +1066,8 @@ my @AnalysesToRun;
 my $StoreModel;
 my $ConstraintsModel;
 my $OutputFormat = "html";
+my $AnalyzerStats = 0;
+my $MaxLoop = 0;
 
 if (!@ARGV) {
   DisplayHelp();
@@ -1024,12 +1088,6 @@ while (@ARGV) {
   if ($arg eq '-analyze-headers') {
     shift @ARGV;    
     $AnalyzeHeaders = 1;
-    next;
-  }
-  
-  if (defined $AvailableAnalyses{$arg}) {
-    shift @ARGV;
-    push @AnalysesToRun, $arg;
     next;
   }
   
@@ -1068,13 +1126,7 @@ while (@ARGV) {
     $IgnoreErrors = 1;
     next;
   }
-  
-  if ($arg eq "--experimental-checks") {
-    shift @ARGV;
-    $ENV{"CCC_EXPERIMENTAL_CHECKS"} = 1;
-    next;
-  }
-  
+
   if ($arg =~ /^--use-cc(=(.+))?$/) {
     shift @ARGV;
     my $cc;
@@ -1156,6 +1208,16 @@ while (@ARGV) {
     $ENV{"CCC_REPORT_FAILURES"} = 0;
     next;
   }
+  if ($arg eq "-stats") {
+    shift @ARGV;
+    $AnalyzerStats = 1;
+    next;
+  }
+  if ($arg eq "-maxloop") {
+    shift @ARGV;
+    $MaxLoop = shift @ARGV;
+    next;
+  }
 
   DieDiag("unrecognized option '$arg'\n") if ($arg =~ /^-/);
   
@@ -1210,14 +1272,16 @@ if ($Verbose >= 3) {
   $ENV{'CCC_ANALYZER_LOG'} = 1;
 }
 
-if (scalar(@AnalysesToRun) == 0) {
-  foreach my $key (keys %AnalysesDefaultEnabled) {
-    push @AnalysesToRun,$key;
-  }
-}
-
 if ($AnalyzeHeaders) {
   push @AnalysesToRun,"-analyzer-opt-analyze-headers";  
+}
+
+if ($AnalyzerStats) {
+  push @AnalysesToRun, '-analyzer-stats';
+}
+
+if ($MaxLoop > 0) {
+  push @AnalysesToRun, '-analyzer-max-loop ' . $MaxLoop;
 }
 
 $ENV{'CCC_ANALYZER_ANALYSIS'} = join ' ',@AnalysesToRun;
@@ -1244,7 +1308,7 @@ if (defined $OutputFormat) {
   }
   elsif ($OutputFormat =~ /html/) {
     # Postprocess the HTML directory.
-    my $NumBugs = Postprocess($HtmlDir, $BaseDir);
+    my $NumBugs = Postprocess($HtmlDir, $BaseDir, $AnalyzerStats);
 
     if ($ViewResults and -r "$HtmlDir/index.html") {
       Diag "Analysis run complete.\n";

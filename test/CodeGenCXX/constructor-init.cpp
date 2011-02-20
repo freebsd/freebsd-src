@@ -81,6 +81,38 @@ void f() {
   // CHECK: ret void
 }
 
+// Make sure we initialize the vtable pointer if it's required by a
+// base initializer.
+namespace InitVTable {
+  struct A { A(int); };
+  struct B : A {
+    virtual int foo();
+    B();
+    B(int);
+  };
+
+  // CHECK: define void @_ZN10InitVTable1BC2Ev(%"struct.InitVTable::B"* %this) unnamed_addr
+  // CHECK:      [[T0:%.*]] = bitcast [[B:%.*]]* [[THIS:%.*]] to i8***
+  // CHECK-NEXT: store i8** getelementptr inbounds ([3 x i8*]* @_ZTVN10InitVTable1BE, i64 0, i64 2), i8*** [[T0]]
+  // CHECK:      [[VTBL:%.*]] = load i32 ([[B]]*)*** {{%.*}}
+  // CHECK-NEXT: [[FNP:%.*]] = getelementptr inbounds i32 ([[B]]*)** [[VTBL]], i64 0
+  // CHECK-NEXT: [[FN:%.*]] = load i32 ([[B]]*)** [[FNP]]
+  // CHECK-NEXT: [[ARG:%.*]] = call i32 [[FN]]([[B]]* [[THIS]])
+  // CHECK-NEXT: call void @_ZN10InitVTable1AC2Ei({{.*}}* {{%.*}}, i32 [[ARG]])
+  // CHECK-NEXT: [[T0:%.*]] = bitcast [[B]]* [[THIS]] to i8***
+  // CHECK-NEXT: store i8** getelementptr inbounds ([3 x i8*]* @_ZTVN10InitVTable1BE, i64 0, i64 2), i8*** [[T0]]
+  // CHECK-NEXT: ret void
+  B::B() : A(foo()) {}
+
+  // CHECK: define void @_ZN10InitVTable1BC2Ei(%"struct.InitVTable::B"* %this, i32 %x) unnamed_addr
+  // CHECK:      [[ARG:%.*]] = add nsw i32 {{%.*}}, 5
+  // CHECK-NEXT: call void @_ZN10InitVTable1AC2Ei({{.*}}* {{%.*}}, i32 [[ARG]])
+  // CHECK-NEXT: [[T0:%.*]] = bitcast [[B]]* {{%.*}} to i8***
+  // CHECK-NEXT: store i8** getelementptr inbounds ([3 x i8*]* @_ZTVN10InitVTable1BE, i64 0, i64 2), i8*** [[T0]]
+  // CHECK-NEXT: ret void
+  B::B(int x) : A(x + 5) {}
+}
+
 template<typename T>
 struct X {
   X(const X &);
@@ -93,7 +125,7 @@ template<typename T> struct X;
 
 // Make sure that the instantiated constructor initializes start and
 // end properly.
-// CHECK: define linkonce_odr void @_ZN1XIiEC2ERKS0_
+// CHECK: define linkonce_odr void @_ZN1XIiEC2ERKS0_(%struct.X* %this, %struct.X* %other) unnamed_addr
 // CHECK: {{store.*null}}
 // CHECK: {{store.*null}}
 // CHECK: ret

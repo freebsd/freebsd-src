@@ -56,6 +56,7 @@ namespace CodeGen {
 
 namespace CodeGen {
   class CodeGenModule;
+  class CGBlockInfo;
 
 // FIXME: Several methods should be pure virtual but aren't to avoid the
 // partially-implemented subclass breaking.
@@ -176,8 +177,10 @@ public:
   /// Return the runtime function for setting properties.
   virtual llvm::Constant *GetPropertySetFunction() = 0;
 
-  // API for atomic copying of qualified aggregates in setter/getter.
-  virtual llvm::Constant *GetCopyStructFunction() = 0;
+  // API for atomic copying of qualified aggregates in getter.
+  virtual llvm::Constant *GetGetStructFunction() = 0;
+  // API for atomic copying of qualified aggregates in setter.
+  virtual llvm::Constant *GetSetStructFunction() = 0;
   
   /// GetClass - Return a reference to the class for the given
   /// interface decl.
@@ -219,9 +222,8 @@ public:
                                         llvm::Value *DestPtr,
                                         llvm::Value *SrcPtr,
                                         llvm::Value *Size) = 0;
-  virtual llvm::Constant *GCBlockLayout(CodeGen::CodeGenFunction &CGF,
-                  const llvm::SmallVectorImpl<const BlockDeclRefExpr *> &) = 0;
-                                        
+  virtual llvm::Constant *BuildGCBlockLayout(CodeGen::CodeGenModule &CGM,
+                                  const CodeGen::CGBlockInfo &blockInfo) = 0;
 };
 
 /// Creates an instance of an Objective-C runtime class.

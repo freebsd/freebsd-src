@@ -107,7 +107,7 @@ namespace PR7463 {
 }
 
 namespace test0 {
-  template <class T> void make(const T *(*fn)()); // expected-note {{candidate template ignored: can't deduce a type for 'T' which would make 'T const' equal 'char'}}
+  template <class T> void make(const T *(*fn)()); // expected-note {{candidate template ignored: can't deduce a type for 'T' which would make 'const T' equal 'char'}}
   char *char_maker();
   void test() {
     make(char_maker); // expected-error {{no matching function for call to 'make'}}
@@ -133,4 +133,20 @@ namespace test2 {
     void *p = 0;
     f(0, p);
   }
+}
+
+// rdar://problem/8537391
+namespace test3 {
+  struct Foo {
+    template <void F(char)> static inline void foo();
+  };
+
+  class Bar {
+    template<typename T> static inline void wobble(T ch);
+
+  public:
+    static void madness() {
+      Foo::foo<wobble<char> >();
+    }
+  };
 }

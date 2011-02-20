@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-check-objc-mem -analyzer-experimental-checks -analyzer-store region -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-check-objc-mem -analyzer-checker=unix.experimental.Stream -analyzer-store region -verify %s
 
 typedef __typeof__(sizeof(int)) size_t;
 typedef struct _IO_FILE FILE;
@@ -77,3 +77,9 @@ FILE *f9(void) {
 void pr7831(FILE *fp) {
   fclose(fp); // no-warning
 }
+
+// PR 8081 - null pointer crash when 'whence' is not an integer constant
+void pr8081(FILE *stream, long offset, int whence) {
+  fseek(stream, offset, whence);
+}
+

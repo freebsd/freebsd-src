@@ -144,9 +144,13 @@ int IntWrapper(int i) { return 0; };
 class InitializeUsingSelfExceptions {
   int A;
   int B;
+  int C;
+  void *P;
   InitializeUsingSelfExceptions(int B)
       : A(IntWrapper(A)),  // Due to a conservative implementation, we do not report warnings inside function/ctor calls even though it is possible to do so.
-        B(B) {}  // Not a warning; B is a local variable.
+        B(B),  // Not a warning; B is a local variable.
+        C(sizeof(C)),  // sizeof doesn't reference contents, do not warn
+        P(&P) {} // address-of doesn't reference contents (the pointer may be dereferenced in the same expression but it would be rare; and weird)
 };
 
 class CopyConstructorTest {
@@ -234,4 +238,33 @@ namespace test3 {
       : A(e), m_String(e.m_String), m_ErrorStr(__null) { // expected-error {{no viable conversion}} expected-error {{does not name}}
     }
   };
+}
+
+// PR8075
+namespace PR8075 {
+
+struct S1 {
+  enum { FOO = 42 };
+  static const int bar = 42;
+  static int baz();
+  S1(int);
+};
+
+const int S1::bar;
+
+struct S2 {
+  S1 s1;
+  S2() : s1(s1.FOO) {}
+};
+
+struct S3 {
+  S1 s1;
+  S3() : s1(s1.bar) {}
+};
+
+struct S4 {
+  S1 s1;
+  S4() : s1(s1.baz()) {}
+};
+
 }

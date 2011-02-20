@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-clang - the Clang C and Objective-C compiler
+clang - the Clang C, C++, and Objective-C compiler
 
 =head1 SYNOPSIS
 
@@ -14,11 +14,12 @@ B<clang> [B<-c>|B<-S>|B<-E>] B<-std=>I<standard> B<-g>
   B<-f>I<feature-option...>
   B<-m>I<machine-option...>
   B<-o> I<output-file>
+  B<-stdlib=>I<library> 
   I<input-filenames>
 
 =head1 DESCRIPTION
 
-B<clang> is a C and Objective-C compiler which encompasses preprocessing,
+B<clang> is a C, C++, and Objective-C compiler which encompasses preprocessing,
 parsing, optimization, code generation, assembly, and linking.  Depending on
 which high-level mode setting is passed, Clang will stop before doing a full
 link.  While Clang is highly integrated, it is important to understand the
@@ -37,7 +38,8 @@ the other tools.
 
 This stage handles tokenization of the input source file, macro expansion,
 #include expansion and handling of other preprocessor directives.  The output of
-this stage is typically called a ".i" (for C) or ".mi" (for Objective-C) file.
+this stage is typically called a ".i" (for C), ".ii" (for C++), ".mi" (for 
+Objective-C) , or ".mii" (for Objective-C++) file.
 
 =item B<Parsing and Semantic Analysis>
 
@@ -78,7 +80,7 @@ stages.  In addition to compilation of code, Clang also supports other tools:
 B<Clang Static Analyzer>
 
 The Clang Static Analyzer is a tool that scans source code to try to find bugs
-though code analysis.  This tool uses many parts of Clang and is built into the
+through code analysis.  This tool uses many parts of Clang and is built into the
 same driver.
 
 
@@ -130,6 +132,11 @@ Treat subsequent input files as having type I<language>.
 
 Specify the language standard to compile for.
 
+=item B<-stdlib>=I<language>
+
+Specify the C++ standard library to use; supported options are libstdc++ and
+libc++.
+
 =item B<-ansi>
 
 Same as B<-std=c89>.
@@ -168,6 +175,10 @@ Enable support for Pascal-style strings with "\pfoo".
 
 Enable support for Microsoft extensions.
 
+=item B<-fmsc-version=>
+
+Set _MSC_VER. Defaults to 1300 on Windows. Not set otherwise.
+
 =item B<-fborland-extensions>
 
 Enable support for Borland extensions.
@@ -185,7 +196,6 @@ Allow loose type checking rules for implicit vector conversions.
 
 Enable the "Blocks" language feature.
 
-
 =item B<-fobjc-gc-only>
 
 Indicate that Objective-C code should be compiled in GC-only mode, which only
@@ -195,6 +205,22 @@ works when Objective-C Garbage Collection is enabled.
 
 Indicate that Objective-C code should be compiled in hybrid-GC mode, which works
 with both GC and non-GC mode.
+
+=item B<-fobjc-abi-version>=I<version>
+
+Select the Objective-C ABI version to use. Available versions are 1 (legacy
+"fragile" ABI), 2 (non-fragile ABI 1), and 3 (non-fragile ABI 2).
+
+=item B<-fobjc-nonfragile-abi-version>=I<version>
+
+Select the Objective-C non-fragile ABI version to use by default. This will only
+be used as the Objective-C ABI when the non-fragile ABI is enabled (either via
+-fobjc-nonfragile-abi, or because it is the platform default).
+
+=item B<-fobjc-nonfragile-abi>
+
+Enable use of the Objective-C non-fragile ABI. On platforms for which this is
+the default ABI, it can be disabled with B<-fno-objc-nonfragile-abi>.
 
 =back
 

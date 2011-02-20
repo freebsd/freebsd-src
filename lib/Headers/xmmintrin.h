@@ -34,7 +34,11 @@ typedef int __v4si __attribute__((__vector_size__(16)));
 typedef float __v4sf __attribute__((__vector_size__(16)));
 typedef float __m128 __attribute__((__vector_size__(16)));
 
+// This header should only be included in a hosted environment as it depends on
+// a standard library to provide allocation routines.
+#if __STDC_HOSTED__
 #include <mm_malloc.h>
+#endif
 
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_add_ss(__m128 a, __m128 b)
@@ -712,9 +716,7 @@ _mm_mulhi_pu16(__m64 a, __m64 b)
 }
 
 #define _mm_shuffle_pi16(a, n) \
-  ((__m64)__builtin_shufflevector((__v4hi)(a), (__v4hi) {0}, \
-                                  (n) & 0x3, ((n) & 0xc) >> 2, \
-                                  ((n) & 0x30) >> 4, ((n) & 0xc0) >> 6))
+  ((__m64)__builtin_ia32_pshufw(a, n))
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _mm_maskmove_si64(__m64 d, __m64 n, char *p)

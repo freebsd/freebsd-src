@@ -1,4 +1,7 @@
-// RUN: %clang_cc1 -rewrite-objc %s -o -
+// RUN: %clang_cc1 -x objective-c -Wno-return-type -fblocks -fms-extensions -rewrite-objc %s -o %t-rw.cpp
+// RUN: %clang_cc1 -fsyntax-only -fms-extensions -Wno-address-of-temporary -Did="void *" -D"SEL=void*" -D"__declspec(X)=" %t-rw.cpp
+
+void *sel_registerName(const char *);
 
 @interface Foo {
     int i;
@@ -35,7 +38,7 @@
 
 @implementation Bar
 
-static int func(int i);
+static int func(int i) { return 0; }
 
 - (void)baz {
     Foo *obj1, *obj2;

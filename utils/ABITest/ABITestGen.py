@@ -23,6 +23,7 @@ class TypePrinter:
         self.testValues = {}
         self.testReturnValues = {}
         self.layoutTests = []
+        self.declarations = set()
 
         if info:
             for f in (self.output,self.outputHeader,self.outputTests,self.outputDriver):
@@ -64,21 +65,25 @@ class TypePrinter:
             print >>self.outputDriver, '  return 0;'
             print >>self.outputDriver, '}'        
 
+    def addDeclaration(self, decl):
+        if decl in self.declarations:
+            return False
+
+        self.declarations.add(decl)
+        if self.outputHeader:
+            print >>self.outputHeader, decl
+        else:
+            print >>self.output, decl
+            if self.outputTests:
+                print >>self.outputTests, decl
+        return True
+
     def getTypeName(self, T):
-        if isinstance(T,BuiltinType):
-            return T.name
         name = self.types.get(T)
         if name is None:            
-            name = 'T%d'%(len(self.types),)
             # Reserve slot
             self.types[T] = None
-            if self.outputHeader:
-                print >>self.outputHeader,T.getTypedefDef(name, self)
-            else:
-                print >>self.output,T.getTypedefDef(name, self)
-                if self.outputTests:
-                    print >>self.outputTests,T.getTypedefDef(name, self)
-            self.types[T] = name
+            self.types[T] = name = T.getTypeName(self)
         return name
     
     def writeLayoutTest(self, i, ty):
@@ -263,11 +268,17 @@ class TypePrinter:
         if output is None:
             output = self.output
         if isinstance(t, BuiltinType):
+            value_expr = name
+            if t.name.split(' ')[-1] == '_Bool':
+                # Hack to work around PR5579.
+                value_expr = "%s ? 2 : 0" % name
+
             if t.name.endswith('long long'):
                 code = 'lld'
             elif t.name.endswith('long'):
                 code = 'ld'
-            elif t.name.split(' ')[-1] in ('_Bool','char','short','int'):
+            elif t.name.split(' ')[-1] in ('_Bool','char','short',
+                                           'int','unsigned'):
                 code = 'd'
             elif t.name in ('float','double'):
                 code = 'f'
@@ -275,7 +286,8 @@ class TypePrinter:
                 code = 'Lf'
             else:
                 code = 'p'
-            print >>output, '%*sprintf("%s: %s = %%%s\\n", %s);'%(indent, '', prefix, name, code, name) 
+            print >>output, '%*sprintf("%s: %s = %%%s\\n", %s);'%(
+                indent, '', prefix, name, code, value_expr)
         elif isinstance(t, EnumType):
             print >>output, '%*sprintf("%s: %s = %%d\\n", %s);'%(indent, '', prefix, name, name)
         elif isinstance(t, RecordType):
@@ -356,6 +368,9 @@ def main():
     parser.add_option("", "--use-random-seed", dest="useRandomSeed",
                       help="use random value for initial random number generator seed",
                       action='store_true', default=False)
+    parser.add_option("", "--skip", dest="skipTests",
+                      help="add a test index to skip",
+                      type=int, action='append', default=[])
     parser.add_option("-o", "--output", dest="output", metavar="FILE",
                       help="write output to FILE  [default %default]",
                       type=str, default='-')
@@ -447,7 +462,8 @@ def main():
                      action="store", type=str, default='v2i16, v1i64, v2i32, v4i16, v8i8, v2f32, v2i64, v4i32, v8i16, v16i8, v2f64, v4f32, v16f32', metavar="N")
     group.add_option("", "--bit-fields", dest="bitFields",
                      help="comma separated list 'type:width' bit-field specifiers [default %default]",
-                     action="store", type=str, default="char:0,char:4,unsigned:0,unsigned:4,unsigned:13,unsigned:24")
+                     action="store", type=str, default=(
+            "char:0,char:4,int:0,unsigned:1,int:1,int:4,int:13,int:24"))
     group.add_option("", "--max-args", dest="functionMaxArgs",
                      help="maximum number of arguments per function [default %default]",
                      action="store", type=int, default=4, metavar="N")
@@ -639,11 +655,14 @@ def main():
     if args:
         [write(int(a)) for a in args]
 
+    skipTests = set(opts.skipTests)
     for i in range(opts.count):
         if opts.mode=='linear':
             index = opts.minIndex + i
         else:
             index = opts.minIndex + int((opts.maxIndex-opts.minIndex) * random.random())
+        if index in skipTests:
+            continue
         write(index)
 
     P.finish()

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -pedantic %s
+// RUN: %clang_cc1 -fsyntax-only -Wmethod-signatures -verify -pedantic %s
 typedef signed char BOOL;
 typedef int NSInteger;
 
@@ -18,7 +18,8 @@ NSInteger codeAssistantCaseCompareItems(id<PBXCompletionItem> a, id<PBXCompletio
 
 @interface TedWantsToVerifyObjCDoesTheRightThing
 
-- compareThis:(int)a withThat:(id)b;  // expected-note {{previous definition is here}}
+- compareThis:(int)a withThat:(id)b;  // expected-note {{previous definition is here}} \
+				      // expected-note {{previous definition is here}}
 
 @end
 
@@ -26,7 +27,7 @@ NSInteger codeAssistantCaseCompareItems(id<PBXCompletionItem> a, id<PBXCompletio
 
 - compareThis:(id<PBXCompletionItem>)
     a // expected-warning {{conflicting parameter types in implementation of 'compareThis:withThat:': 'int' vs 'id<PBXCompletionItem>'}}
-     withThat:(id<PBXCompletionItem>)b {
+     withThat:(id<PBXCompletionItem>)b { // expected-warning {{conflicting parameter types in implementation of 'compareThis:withThat:': 'id' vs 'id<PBXCompletionItem>'}}
   return self;
 }
 

@@ -24,6 +24,7 @@
 #include "clang/AST/Type.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/ASTMutationListener.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -109,8 +110,20 @@ void Decl::add(Kind k) {
 bool Decl::isTemplateParameterPack() const {
   if (const TemplateTypeParmDecl *TTP = dyn_cast<TemplateTypeParmDecl>(this))
     return TTP->isParameterPack();
-
+  if (const NonTypeTemplateParmDecl *NTTP
+                                = dyn_cast<NonTypeTemplateParmDecl>(this))
+    return NTTP->isParameterPack();
+  if (const TemplateTemplateParmDecl *TTP
+                                    = dyn_cast<TemplateTemplateParmDecl>(this))
+    return TTP->isParameterPack();
   return false;
+}
+
+bool Decl::isParameterPack() const {
+  if (const ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(this))
+    return Parm->isParameterPack();
+  
+  return isTemplateParameterPack();
 }
 
 bool Decl::isFunctionOrFunctionTemplate() const {
@@ -210,6 +223,10 @@ ASTContext &Decl::getASTContext() const {
   return getTranslationUnitDecl()->getASTContext();
 }
 
+ASTMutationListener *Decl::getASTMutationListener() const {
+  return getASTContext().getASTMutationListener();
+}
+
 bool Decl::isUsed(bool CheckUsedAttr) const { 
   if (Used)
     return true;
@@ -243,6 +260,10 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case ObjCMethod:
     case ObjCProperty:
       return IDNS_Ordinary;
+    case Label:
+      return IDNS_Label;
+    case IndirectField:
+      return IDNS_Ordinary | IDNS_Member;
 
     case ObjCCompatibleAlias:
     case ObjCInterface:
@@ -416,27 +437,34 @@ SourceLocation Decl::getBodyRBrace() const {
   return SourceLocation();
 }
 
-#ifndef NDEBUG
 void Decl::CheckAccessDeclContext() const {
-  // FIXME: Disable this until rdar://8146294 "access specifier for inner class
-  // templates is not set or checked" is fixed.
-  return;
+#ifndef NDEBUG
   // Suppress this check if any of the following hold:
   // 1. this is the translation unit (and thus has no parent)
   // 2. this is a template parameter (and thus doesn't belong to its context)
-  // 3. the context is not a record
-  // 4. it's invalid
+  // 3. this is a non-type template parameter
+  // 4. the context is not a record
+  // 5. it's invalid
+  // 6. it's a C++0x static_assert.
   if (isa<TranslationUnitDecl>(this) ||
       isa<TemplateTypeParmDecl>(this) ||
+      isa<NonTypeTemplateParmDecl>(this) ||
       !isa<CXXRecordDecl>(getDeclContext()) ||
-      isInvalidDecl())
+      isInvalidDecl() ||
+      isa<StaticAssertDecl>(this) ||
+      // FIXME: a ParmVarDecl can have ClassTemplateSpecialization
+      // as DeclContext (?).
+      isa<ParmVarDecl>(this) ||
+      // FIXME: a ClassTemplateSpecialization or CXXRecordDecl can have
+      // AS_none as access specifier.
+      isa<CXXRecordDecl>(this))
     return;
 
   assert(Access != AS_none &&
          "Access specifier is AS_none inside a record decl");
+#endif
 }
 
-#endif
 
 //===----------------------------------------------------------------------===//
 // DeclContext Implementation
@@ -509,12 +537,21 @@ bool DeclContext::isDependentContext() const {
 
 bool DeclContext::isTransparentContext() const {
   if (DeclKind == Decl::Enum)
-    return true; // FIXME: Check for C++0x scoped enums
+    return !cast<EnumDecl>(this)->isScoped();
   else if (DeclKind == Decl::LinkageSpec)
     return true;
-  else if (DeclKind >= Decl::firstRecord && DeclKind <= Decl::lastRecord)
-    return cast<RecordDecl>(this)->isAnonymousStructOrUnion();
 
+  return false;
+}
+
+bool DeclContext::isExternCContext() const {
+  const DeclContext *DC = this;
+  while (DC->DeclKind != Decl::TranslationUnit) {
+    if (DC->DeclKind == Decl::LinkageSpec)
+      return cast<LinkageSpecDecl>(DC)->getLanguage()
+        == LinkageSpecDecl::lang_c;
+    DC = DC->getParent();
+  }
   return false;
 }
 
@@ -592,6 +629,24 @@ DeclContext *DeclContext::getNextContext() {
   }
 }
 
+std::pair<Decl *, Decl *>
+DeclContext::BuildDeclChain(const llvm::SmallVectorImpl<Decl*> &Decls) {
+  // Build up a chain of declarations via the Decl::NextDeclInContext field.
+  Decl *FirstNewDecl = 0;
+  Decl *PrevDecl = 0;
+  for (unsigned I = 0, N = Decls.size(); I != N; ++I) {
+    Decl *D = Decls[I];
+    if (PrevDecl)
+      PrevDecl->NextDeclInContext = D;
+    else
+      FirstNewDecl = D;
+
+    PrevDecl = D;
+  }
+
+  return std::make_pair(FirstNewDecl, PrevDecl);
+}
+
 /// \brief Load the declarations within this lexical storage from an
 /// external source.
 void
@@ -612,26 +667,22 @@ DeclContext::LoadLexicalDeclsFromExternalStorage() const {
   if (Decls.empty())
     return;
 
-  // Resolve all of the declaration IDs into declarations, building up
-  // a chain of declarations via the Decl::NextDeclInContext field.
-  Decl *FirstNewDecl = 0;
-  Decl *PrevDecl = 0;
-  for (unsigned I = 0, N = Decls.size(); I != N; ++I) {
-    Decl *D = Decls[I];
-    if (PrevDecl)
-      PrevDecl->NextDeclInContext = D;
-    else
-      FirstNewDecl = D;
-
-    PrevDecl = D;
-  }
+  // We may have already loaded just the fields of this record, in which case
+  // don't add the decls, just replace the FirstDecl/LastDecl chain.
+  if (const RecordDecl *RD = dyn_cast<RecordDecl>(this))
+    if (RD->LoadedFieldsFromExternalStorage) {
+      llvm::tie(FirstDecl, LastDecl) = BuildDeclChain(Decls);
+      return;
+    }
 
   // Splice the newly-read declarations into the beginning of the list
   // of declarations.
-  PrevDecl->NextDeclInContext = FirstDecl;
-  FirstDecl = FirstNewDecl;
+  Decl *ExternalFirst, *ExternalLast;
+  llvm::tie(ExternalFirst, ExternalLast) = BuildDeclChain(Decls);
+  ExternalLast->NextDeclInContext = FirstDecl;
+  FirstDecl = ExternalFirst;
   if (!LastDecl)
-    LastDecl = PrevDecl;
+    LastDecl = ExternalLast;
 }
 
 DeclContext::lookup_result
@@ -771,6 +822,11 @@ void DeclContext::addHiddenDecl(Decl *D) {
   } else {
     FirstDecl = LastDecl = D;
   }
+
+  // Notify a C++ record declaration that we've added a member, so it can
+  // update it's class-specific state.
+  if (CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(this))
+    Record->addedMember(D);
 }
 
 void DeclContext::addDecl(Decl *D) {
@@ -911,6 +967,12 @@ void DeclContext::makeDeclVisibleInContext(NamedDecl *D, bool Recoverable) {
   // parent context, too. This operation is recursive.
   if (isTransparentContext() || isInlineNamespace())
     getParent()->makeDeclVisibleInContext(D, Recoverable);
+
+  Decl *DCAsDecl = cast<Decl>(this);
+  // Notify that a decl was made visible unless it's a Tag being defined. 
+  if (!(isa<TagDecl>(DCAsDecl) && cast<TagDecl>(DCAsDecl)->isBeingDefined()))
+    if (ASTMutationListener *L = DCAsDecl->getASTMutationListener())
+      L->AddedVisibleDecl(this, D);
 }
 
 void DeclContext::makeDeclVisibleInContextImpl(NamedDecl *D) {

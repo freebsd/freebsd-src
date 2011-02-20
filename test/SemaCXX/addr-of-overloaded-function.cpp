@@ -1,6 +1,6 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s 
-int f(double);
-int f(int);
+int f(double); // expected-note{{candidate function}}
+int f(int); // expected-note{{candidate function}}
 
 int (*pfd)(double) = f; // selects f(double)
 int (*pfd2)(double) = &f; // selects f(double)
@@ -9,7 +9,7 @@ int (*pfi)(int) = &f;    // selects f(int)
 // FIXME: This error message is not very good. We need to keep better
 // track of what went wrong when the implicit conversion failed to
 // give a better error message here.
-int (*pfe)(...) = &f;    // expected-error{{cannot initialize a variable of type 'int (*)(...)' with an rvalue of type '<overloaded function type>'}}
+int (*pfe)(...) = &f;    // expected-error{{address of overloaded function 'f' does not match required type 'int (...)'}}
 int (&rfi)(int) = f;     // selects f(int)
 int (&rfd)(double) = f;  // selects f(double)
 
@@ -57,11 +57,11 @@ struct B
 
 struct C {
   C &getC() {
-    return makeAC; // expected-error{{address of overloaded function 'makeAC' cannot be converted to type 'C'}}
+    return makeAC; // expected-error{{address of overloaded function 'makeAC'}}
   }
 
-  C &makeAC();
-  const C &makeAC() const;
+  C &makeAC();  //expected-note{{candidate function}}
+  const C &makeAC() const; //expected-note{{candidate function}}
 
   static void f(); // expected-note{{candidate function}}
   static void f(int); // expected-note{{candidate function}}
@@ -95,4 +95,53 @@ namespace PR7971 {
     void f(bool (*)(int, char));
     static bool g(int, char);
   };
+}
+
+namespace PR8033 {
+  template <typename T1, typename T2> int f(T1 *, const T2 *); // expected-note 2{{candidate function [with T1 = const int, T2 = int]}}
+  template <typename T1, typename T2> int f(const T1 *, T2 *); // expected-note 2{{candidate function [with T1 = int, T2 = const int]}}
+  int (*p)(const int *, const int *) = f; // expected-error{{address of overloaded function 'f' is ambiguous}} \
+  // expected-error{{address of overloaded function 'f' is ambiguous}}
+
+}
+
+namespace PR8196 {
+  template <typename T> struct mcdata {
+    typedef int result_type;
+  };
+  template <class T> 
+    typename mcdata<T>::result_type wrap_mean(mcdata<T> const&);
+  void add_property(double(*)(mcdata<double> const &)); // expected-note{{candidate function not viable: no overload of 'wrap_mean' matching}}
+  void f() {
+    add_property(&wrap_mean); // expected-error{{no matching function for call to 'add_property'}}
+  }
+}
+
+namespace PR7425 {
+  template<typename T>
+  void foo()
+  {
+  }
+
+  struct B
+  {
+    template<typename T>
+    B(const T&)
+    {
+    }
+  };
+
+  void bar(const B& b)
+  {
+  }
+
+  void bar2(const B& b = foo<int>)
+  {
+  }
+
+  void test(int argc, char** argv)
+  {
+    bar(foo<int>);
+    bar2();
+  }
 }

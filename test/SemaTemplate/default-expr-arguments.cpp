@@ -151,7 +151,7 @@ namespace pr5301 {
 namespace PR5810 {
   template<typename T>
   struct allocator {
-    allocator() { int a[sizeof(T) ? -1 : -1]; } // expected-error2 {{array size is negative}}
+    allocator() { int a[sizeof(T) ? -1 : -1]; } // expected-error2 {{array with a negative size}}
   };
   
   template<typename T>
@@ -206,3 +206,89 @@ namespace InstForInit {
     Holder<int> h(i);
   }
 };
+
+namespace PR5810b {
+  template<typename T>
+  T broken() {
+    T t;
+    double**** not_it = t;
+  }
+
+  void f(int = broken<int>());
+  void g() { f(17); }
+}
+
+namespace PR5810c {
+  template<typename T>
+  struct X { 
+    X() { 
+      T t;
+      double *****p = t; // expected-error{{cannot initialize a variable of type 'double *****' with an lvalue of type 'int'}}
+    }
+    X(const X&) { }
+  };
+
+  struct Y : X<int> { // expected-note{{instantiation of}}
+  };
+
+  void f(Y y = Y());
+
+  void g() { f(); }
+}
+
+namespace PR8127 {
+  template< typename T > class PointerClass {
+  public:
+    PointerClass( T * object_p ) : p_( object_p ) {
+      p_->acquire();
+    }
+  private:    
+    T * p_;
+  };
+
+  class ExternallyImplementedClass;
+
+  class MyClass {
+    void foo( PointerClass<ExternallyImplementedClass> = 0 );
+  };
+}
+
+namespace rdar8427926 {
+  template<typename T>
+  struct Boom {
+    ~Boom() {
+      T t;
+      double *******ptr = t; // expected-error 2{{cannot initialize}}
+    }
+  };
+
+  Boom<float> *bfp;
+
+  struct X {
+    void f(Boom<int> = Boom<int>()) { } // expected-note{{requested here}}
+    void g(int x = (delete bfp, 0)); // expected-note{{requested here}}
+  };
+
+  void test(X *x) {
+    x->f();
+    x->g();
+  }
+}
+
+namespace PR8401 {
+  template<typename T> 
+  struct A { 
+    A() { T* x = 1; } // expected-error{{cannot initialize a variable of type 'int *' with an rvalue of type 'int'}}
+  };
+
+  template<typename T>
+  struct B {
+    B(const A<T>& a = A<T>()); // expected-note{{in instantiation of}}
+  };
+
+  void f(B<int> b = B<int>());
+
+  void g() {
+    f();
+  }
+}

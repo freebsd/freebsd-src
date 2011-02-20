@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-dead-stores -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-checker=core.DeadStores -verify %s
 
 typedef signed char BOOL;
 typedef unsigned int NSUInteger;
@@ -41,3 +41,38 @@ void DeadStoreTest(NSObject *anObject) {
 void rdar_7631278(NSObject *x) {
   x = ((void*)0);
 }
+
+// This test case issuing a bogus warning for the declaration of 'isExec'
+// because the compound statement for the @synchronized was being visited
+// twice by the LiveVariables analysis.
+BOOL baz_rdar8527823();
+void foo_rdar8527823();
+@interface RDar8527823
+- (void) bar_rbar8527823;
+@end
+@implementation RDar8527823
+- (void) bar_rbar8527823
+{
+ @synchronized(self) {
+   BOOL isExec = baz_rdar8527823(); // no-warning
+   if (isExec) foo_rdar8527823();
+ }
+}
+@end
+
+// Don't flag dead stores to assignments to self within a nested assignment.
+@interface Rdar7947686
+- (id) init;
+@end
+
+@interface Rdar7947686_B : Rdar7947686
+- (id) init;
+@end
+
+@implementation Rdar7947686_B
+- (id) init {
+  id x = (self = [super init]); // no-warning
+  return x;
+}
+@end
+

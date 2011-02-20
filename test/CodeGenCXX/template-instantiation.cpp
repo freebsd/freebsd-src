@@ -2,9 +2,12 @@
 
 // CHECK-NOT: @_ZTVN5test118stdio_sync_filebufIwEE = constant
 // CHECK-NOT: _ZTVN5test315basic_fstreamXXIcEE
-// CHECK: @_ZTVN5test018stdio_sync_filebufIwEE = constant
+// CHECK: @_ZTVN5test018stdio_sync_filebufIwEE = unnamed_addr constant
 
-// CHECK: define linkonce_odr void @_ZN5test21CIiEC1Ev(
+// CHECK-NOT: _ZTVN5test31SIiEE
+// CHECK-NOT: _ZTSN5test31SIiEE
+
+// CHECK: define linkonce_odr void @_ZN5test21CIiEC1Ev(%"class.test2::C"* nocapture %this) unnamed_addr
 // CHECK: define linkonce_odr void @_ZN5test21CIiE6foobarIdEEvT_(
 // CHECK: define available_externally void @_ZN5test21CIiE6zedbarEd(
 
@@ -74,4 +77,48 @@ namespace test3 {
   // This template instantiation should not cause us to produce a vtable.
   // (test at the top).
   template void basic_fstreamXX<char>::is_open() const;
+}
+
+namespace test3 {
+  template <typename T>
+  struct S  {
+      virtual void m();
+  };
+  
+  template<typename T>
+  void S<T>::m() { }
+
+  // Should not cause us to produce vtable because template instantiations
+  // don't have key functions.
+  template void S<int>::m();
+}
+
+namespace test4 {
+  template <class T> struct A { static void foo(); };
+
+  class B {
+    template <class T> friend void A<T>::foo();
+    B();
+  };
+
+  template <class T> void A<T>::foo() {
+    B b;
+  }
+
+  unsigned test() {
+    A<int>::foo();
+  }
+}
+
+namespace PR8505 {
+// Hits an assertion due to bogus instantiation of class B.
+template <int i> class A {
+  class B* g;
+};
+class B {
+  void f () {}
+};
+// Should not instantiate class B since it is introduced in namespace scope.
+// CHECK-NOT: _ZN6PR85051AILi0EE1B1fEv
+template class A<0>;
 }

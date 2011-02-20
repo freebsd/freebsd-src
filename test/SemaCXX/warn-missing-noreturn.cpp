@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s -Wmissing-noreturn
+// RUN: %clang_cc1 -fsyntax-only -verify %s -Wmissing-noreturn -Wreturn-type
 void f() __attribute__((noreturn));
 
 template<typename T> void g(T) { // expected-warning {{function could be attribute 'noreturn'}}
@@ -50,3 +50,56 @@ void f_R7880658(R7880658 f, R7880658 l) {  // no-warning
   for (; f != l; ++f) {
   }
 }
+
+namespace test2 {
+
+  bool g();
+  void *h() __attribute__((noreturn));
+  void *j();
+
+  struct A {
+    void *f;
+
+    A() : f(0) { }
+    A(int) : f(h()) { } // expected-warning {{function could be attribute 'noreturn'}}
+    A(char) : f(j()) { }
+    A(bool b) : f(b ? h() : j()) { }
+  };
+}
+
+namespace test3 {
+  struct A {
+    ~A();
+  };
+
+  struct B {
+    ~B() { }
+
+    A a;
+  };
+
+  struct C : A { 
+    ~C() { }
+  };
+}
+
+// <rdar://problem/8875247> - Properly handle CFGs with destructors.
+struct rdar8875247 {
+  ~rdar8875247 ();
+};
+void rdar8875247_aux();
+
+int rdar8875247_test() {
+  rdar8875247 f;
+} // expected-warning{{control reaches end of non-void function}}
+
+struct rdar8875247_B {
+  rdar8875247_B();
+  ~rdar8875247_B();
+};
+
+rdar8875247_B test_rdar8875247_B() {
+  rdar8875247_B f;
+  return f;
+} // no-warning
+

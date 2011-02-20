@@ -20,6 +20,7 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
@@ -93,10 +94,8 @@ int DeclarationName::compare(DeclarationName LHS, DeclarationName RHS) {
     Selector RHSSelector = RHS.getObjCSelector();
     unsigned LN = LHSSelector.getNumArgs(), RN = RHSSelector.getNumArgs();
     for (unsigned I = 0, N = std::min(LN, RN); I != N; ++I) {
-      IdentifierInfo *LHSId = LHSSelector.getIdentifierInfoForSlot(I);
-      IdentifierInfo *RHSId = RHSSelector.getIdentifierInfoForSlot(I);
-        
-      switch (LHSId->getName().compare(RHSId->getName())) {
+      switch (LHSSelector.getNameForSlot(I).compare(
+                                               RHSSelector.getNameForSlot(I))) {
       case -1: return true;
       case 1: return false;
       default: break;
@@ -385,7 +384,7 @@ void DeclarationName::dump() const {
   llvm::errs() << '\n';
 }
 
-DeclarationNameTable::DeclarationNameTable(ASTContext &C) : Ctx(C) {
+DeclarationNameTable::DeclarationNameTable(const ASTContext &C) : Ctx(C) {
   CXXSpecialNamesImpl = new llvm::FoldingSet<CXXSpecialName>;
   CXXLiteralOperatorNames = new llvm::FoldingSet<CXXLiteralOperatorIdName>;
 
@@ -510,6 +509,28 @@ DeclarationNameLoc::DeclarationNameLoc(DeclarationName Name) {
   case DeclarationName::CXXUsingDirective:
     break;
   }
+}
+
+bool DeclarationNameInfo::containsUnexpandedParameterPack() const {
+  switch (Name.getNameKind()) {
+  case DeclarationName::Identifier:
+  case DeclarationName::ObjCZeroArgSelector:
+  case DeclarationName::ObjCOneArgSelector:
+  case DeclarationName::ObjCMultiArgSelector:
+  case DeclarationName::CXXOperatorName:
+  case DeclarationName::CXXLiteralOperatorName:
+  case DeclarationName::CXXUsingDirective:
+    return false;
+
+  case DeclarationName::CXXConstructorName:
+  case DeclarationName::CXXDestructorName:
+  case DeclarationName::CXXConversionFunctionName:
+    if (TypeSourceInfo *TInfo = LocInfo.NamedType.TInfo)
+      return TInfo->getType()->containsUnexpandedParameterPack();
+
+    return Name.getCXXNameType()->containsUnexpandedParameterPack();
+  }
+  llvm_unreachable("All name kinds handled.");
 }
 
 std::string DeclarationNameInfo::getAsString() const {

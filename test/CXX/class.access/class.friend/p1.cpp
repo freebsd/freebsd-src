@@ -258,13 +258,12 @@ namespace test7 {
 namespace test8 {
   class A {
     typedef int I; // expected-note 4 {{declared private here}}
-    static const I x = 0;
+    static const I x = 0; // expected-note {{implicitly declared private here}}
     friend I f(I i);
     template<typename T> friend I g(I i);
   };
 
-  // FIXME: This should be on line 264.
-  const A::I A::x; // expected-note {{declared private here}}
+  const A::I A::x;
   A::I f(A::I i = A::x) {}
   template<typename T> A::I g(A::I i) {
     T t;
@@ -304,5 +303,41 @@ namespace test10 {
 
   void g(void) {
     NS::bar->foo(); // expected-error {{private member}}
+  }
+}
+
+// PR8705
+namespace test11 {
+  class A {
+    void test0(int);
+    void test1(int);
+    void test2(int);
+    void test3(int);
+  };
+
+  class B {
+    typedef int private_type; // expected-note 2 {{implicitly declared private here}}
+    friend void A::test0(int);
+    friend void A::test1(int);
+  };
+
+  void A::test0(B::private_type x) {}
+  void A::test1(int x = B::private_type()) {}
+  void A::test2(B::private_type x) {} // expected-error {{'private_type' is a private member of 'test11::B'}}
+  void A::test3(int x = B::private_type()) {} // expected-error {{'private_type' is a private member of 'test11::B'}}
+}
+
+
+// PR9221
+namespace test12 {
+  struct A {
+    void foo();
+  };
+  class B : private A {
+    friend void A::foo();
+    void *mem;
+  };
+  void A::foo() {
+    void *var = static_cast<B*>(this)->mem;
   }
 }

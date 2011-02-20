@@ -24,7 +24,7 @@ bool operator-(Z, Z); // expected-note{{candidate function}}
 
 void g(Y y, Z z) {
   y = y + z;
-  bool b = y - z; // expected-error{{use of overloaded operator '-' is ambiguous; candidates are:}}
+  bool b = y - z; // expected-error{{use of overloaded operator '-' is ambiguous}}
 }
 
 struct A {
@@ -37,8 +37,8 @@ bool operator==(A&, Z&); // expected-note 2{{candidate function}}
 
 void h(A a, const A ac, Z z) {
   make_A() == z;
-  a == z; // expected-error{{use of overloaded operator '==' is ambiguous; candidates are:}}
-  ac == z; // expected-error{{invalid operands to binary expression ('A const' and 'Z')}}
+  a == z; // expected-error{{use of overloaded operator '==' is ambiguous}}
+  ac == z; // expected-error{{invalid operands to binary expression ('const A' and 'Z')}}
 }
 
 struct B {
@@ -70,11 +70,11 @@ struct E2 {
 // C++ [over.match.oper]p3 - enum restriction.
 float& operator==(E1, E2); 
 
-void enum_test(Enum1 enum1, Enum2 enum2, E1 e1, E2 e2) {
+void enum_test(Enum1 enum1, Enum2 enum2, E1 e1, E2 e2, Enum1 next_enum1) {
   float &f1 = (e1 == e2);
   float &f2 = (enum1 == e2); 
   float &f3 = (e1 == enum2); 
-  float &f4 = (enum1 == enum2);  // expected-error{{non-const lvalue reference to type 'float' cannot bind to a temporary of type 'bool'}}
+  float &f4 = (enum1 == next_enum1);  // expected-error{{non-const lvalue reference to type 'float' cannot bind to a temporary of type 'bool'}}
 }
 
 // PR5244 - Argument-dependent lookup would include the two operators below,

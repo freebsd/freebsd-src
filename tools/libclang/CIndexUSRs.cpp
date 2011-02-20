@@ -13,6 +13,7 @@
 
 #include "CIndexer.h"
 #include "CXCursor.h"
+#include "CXString.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclVisitor.h"
 #include "clang/Frontend/ASTUnit.h"
@@ -29,17 +30,23 @@ using namespace clang::cxstring;
 
 namespace {
 class USRGenerator : public DeclVisitor<USRGenerator> {
-  llvm::SmallString<1024> Buf;
+  llvm::OwningPtr<llvm::SmallString<128> > OwnedBuf;
+  llvm::SmallVectorImpl<char> &Buf;
   llvm::raw_svector_ostream Out;
   bool IgnoreResults;
   ASTUnit *AU;
   bool generatedLoc;
+  
+  llvm::DenseMap<const Type *, unsigned> TypeSubstitutions;
+  
 public:
-  USRGenerator(const CXCursor *C = 0)
-    : Out(Buf),
-      IgnoreResults(false),
-      AU(C ? cxcursor::getCursorASTUnit(*C) : 0),
-      generatedLoc(false)
+  USRGenerator(const CXCursor *C = 0, llvm::SmallVectorImpl<char> *extBuf = 0)
+  : OwnedBuf(extBuf ? 0 : new llvm::SmallString<128>()),
+    Buf(extBuf ? *extBuf : *OwnedBuf.get()),
+    Out(Buf),
+    IgnoreResults(false),
+    AU(C ? cxcursor::getCursorASTUnit(*C) : 0),
+    generatedLoc(false)
   {
     // Add the USR space prefix.
     Out << "c:";
@@ -276,20 +283,20 @@ void USRGenerator::VisitNamespaceAliasDecl(NamespaceAliasDecl *D) {
 }
 
 void USRGenerator::VisitObjCMethodDecl(ObjCMethodDecl *D) {
-  Decl *container = cast<Decl>(D->getDeclContext());
-  
-  // The USR for a method declared in a class extension is based on
-  // the ObjCInterfaceDecl, not the ObjCCategoryDecl.
-  do {
-    if (ObjCCategoryDecl *CD = dyn_cast<ObjCCategoryDecl>(container))
-      if (CD->IsClassExtension()) {
-        Visit(CD->getClassInterface());
-        break;
-      }    
-    Visit(cast<Decl>(D->getDeclContext()));
+  DeclContext *container = D->getDeclContext();
+  if (ObjCProtocolDecl *pd = dyn_cast<ObjCProtocolDecl>(container)) {
+    Visit(pd);
   }
-  while (false);
-  
+  else {
+    // The USR for a method declared in a class extension or category is based on
+    // the ObjCInterfaceDecl, not the ObjCCategoryDecl.
+    ObjCInterfaceDecl *ID = D->getClassInterface();
+    if (!ID) {
+      IgnoreResults = true;
+      return;
+    }
+    Visit(ID);
+  }
   // Ideally we would use 'GenObjCMethod', but this is such a hot path
   // for Objective-C code that we don't want to use
   // DeclarationName::getAsString().
@@ -474,8 +481,7 @@ bool USRGenerator::GenLoc(const Decl *D) {
   const std::pair<FileID, unsigned> &Decomposed = SM.getDecomposedLoc(L);
   const FileEntry *FE = SM.getFileEntryForID(Decomposed.first);
   if (FE) {
-    llvm::sys::Path P(FE->getName());
-    Out << P.getLast();
+    Out << llvm::sys::path::filename(FE->getName());
   }
   else {
     // This case really isn't interesting.
@@ -510,32 +516,11 @@ void USRGenerator::VisitType(QualType T) {
 
     // Mangle in ObjC GC qualifiers?
 
-    if (const PointerType *PT = T->getAs<PointerType>()) {
-      Out << '*';
-      T = PT->getPointeeType();
-      continue;
+    if (const PackExpansionType *Expansion = T->getAs<PackExpansionType>()) {
+      Out << 'P';
+      T = Expansion->getPattern();
     }
-    if (const ReferenceType *RT = T->getAs<ReferenceType>()) {
-      Out << '&';
-      T = RT->getPointeeType();
-      continue;
-    }
-    if (const FunctionProtoType *FT = T->getAs<FunctionProtoType>()) {
-      Out << 'F';
-      VisitType(FT->getResultType());
-      for (FunctionProtoType::arg_type_iterator
-            I = FT->arg_type_begin(), E = FT->arg_type_end(); I!=E; ++I) {
-        VisitType(*I);
-      }
-      if (FT->isVariadic())
-        Out << '.';
-      return;
-    }
-    if (const BlockPointerType *BT = T->getAs<BlockPointerType>()) {
-      Out << 'B';
-      T = BT->getPointeeType();
-      continue;
-    }
+    
     if (const BuiltinType *BT = T->getAs<BuiltinType>()) {
       unsigned char c = '\0';
       switch (BT->getKind()) {
@@ -563,7 +548,8 @@ void USRGenerator::VisitType(QualType T) {
         case BuiltinType::Char_S:
         case BuiltinType::SChar:
           c = 'C'; break;
-        case BuiltinType::WChar:
+        case BuiltinType::WChar_S:
+        case BuiltinType::WChar_U:
           c = 'W'; break;
         case BuiltinType::Short:
           c = 'S'; break;
@@ -585,7 +571,6 @@ void USRGenerator::VisitType(QualType T) {
           c = 'n'; break;
         case BuiltinType::Overload:
         case BuiltinType::Dependent:
-        case BuiltinType::UndeducedAuto:
           IgnoreResults = true;
           return;
         case BuiltinType::ObjCId:
@@ -597,6 +582,46 @@ void USRGenerator::VisitType(QualType T) {
       }
       Out << c;
       return;
+    }
+
+    // If we have already seen this (non-built-in) type, use a substitution
+    // encoding.
+    llvm::DenseMap<const Type *, unsigned>::iterator Substitution
+      = TypeSubstitutions.find(T.getTypePtr());
+    if (Substitution != TypeSubstitutions.end()) {
+      Out << 'S' << Substitution->second << '_';
+      return;
+    } else {
+      // Record this as a substitution.
+      unsigned Number = TypeSubstitutions.size();
+      TypeSubstitutions[T.getTypePtr()] = Number;
+    }
+    
+    if (const PointerType *PT = T->getAs<PointerType>()) {
+      Out << '*';
+      T = PT->getPointeeType();
+      continue;
+    }
+    if (const ReferenceType *RT = T->getAs<ReferenceType>()) {
+      Out << '&';
+      T = RT->getPointeeType();
+      continue;
+    }
+    if (const FunctionProtoType *FT = T->getAs<FunctionProtoType>()) {
+      Out << 'F';
+      VisitType(FT->getResultType());
+      for (FunctionProtoType::arg_type_iterator
+            I = FT->arg_type_begin(), E = FT->arg_type_end(); I!=E; ++I) {
+        VisitType(*I);
+      }
+      if (FT->isVariadic())
+        Out << '.';
+      return;
+    }
+    if (const BlockPointerType *BT = T->getAs<BlockPointerType>()) {
+      Out << 'B';
+      T = BT->getPointeeType();
+      continue;
     }
     if (const ComplexType *CT = T->getAs<ComplexType>()) {
       Out << '<';
@@ -638,17 +663,23 @@ void USRGenerator::VisitTemplateParameterList(
        P != PEnd; ++P) {
     Out << '#';
     if (isa<TemplateTypeParmDecl>(*P)) {
+      if (cast<TemplateTypeParmDecl>(*P)->isParameterPack())
+        Out<< 'p';
       Out << 'T';
       continue;
     }
     
     if (NonTypeTemplateParmDecl *NTTP = dyn_cast<NonTypeTemplateParmDecl>(*P)) {
+      if (NTTP->isParameterPack())
+        Out << 'p';
       Out << 'N';
       VisitType(NTTP->getType());
       continue;
     }
     
     TemplateTemplateParmDecl *TTP = cast<TemplateTemplateParmDecl>(*P);
+    if (TTP->isParameterPack())
+      Out << 'p';
     Out << 't';
     VisitTemplateParameterList(TTP->getTemplateParameters());
   }
@@ -675,11 +706,15 @@ void USRGenerator::VisitTemplateArgument(const TemplateArgument &Arg) {
     break;
 
   case TemplateArgument::Declaration:
-    Visit(Arg.getAsDecl());
+    if (Decl *D = Arg.getAsDecl())
+      Visit(D);
     break;
       
+  case TemplateArgument::TemplateExpansion:
+    Out << 'P'; // pack expansion of...
+    // Fall through
   case TemplateArgument::Template:
-    VisitTemplateName(Arg.getAsTemplate());
+    VisitTemplateName(Arg.getAsTemplateOrTemplatePattern());
     break;
       
   case TemplateArgument::Expression:
@@ -687,7 +722,10 @@ void USRGenerator::VisitTemplateArgument(const TemplateArgument &Arg) {
     break;
       
   case TemplateArgument::Pack:
-    // FIXME: Variadic templates
+    Out << 'p' << Arg.pack_size();
+    for (TemplateArgument::pack_iterator P = Arg.pack_begin(), PEnd = Arg.pack_end();
+         P != PEnd; ++P)
+      VisitTemplateArgument(*P);
     break;
       
   case TemplateArgument::Type:
@@ -768,19 +806,27 @@ static CXString getDeclCursorUSR(const CXCursor &C) {
           break;
     }
 
-  USRGenerator UG(&C);
-  UG->Visit(D);
-
-  if (UG->ignoreResults())
+  CXTranslationUnit TU = cxcursor::getCursorTU(C);
+  if (!TU)
     return createCXString("");
 
-#if 0
-  // For development testing.
-  assert(UG.str().size() > 2);
-#endif
+  CXStringBuf *buf = cxstring::getCXStringBuf(TU);
+  if (!buf)
+    return createCXString("");
+  
+  {
+    USRGenerator UG(&C, &buf->Data);
+    UG->Visit(D);
 
-    // Return a copy of the string that must be disposed by the caller.
-  return createCXString(UG.str(), true);
+    if (UG->ignoreResults()) {
+      disposeCXStringBuf(buf);
+      return createCXString("");
+    }
+  }
+  // Return the C-string, but don't make a copy since it is already in
+  // the string buffer.
+  buf->Data.push_back('\0');
+  return createCXString(buf);
 }
 
 extern "C" {
@@ -792,10 +838,21 @@ CXString clang_getCursorUSR(CXCursor C) {
       return getDeclCursorUSR(C);
 
   if (K == CXCursor_MacroDefinition) {
-    USRGenerator UG(&C);
-    UG << "macro@"
-       << cxcursor::getCursorMacroDefinition(C)->getName()->getNameStart();
-    return createCXString(UG.str(), true);
+    CXTranslationUnit TU = cxcursor::getCursorTU(C);
+    if (!TU)
+      return createCXString("");
+
+    CXStringBuf *buf = cxstring::getCXStringBuf(TU);
+    if (!buf)
+      return createCXString("");
+
+    {
+      USRGenerator UG(&C, &buf->Data);
+      UG << "macro@"
+        << cxcursor::getCursorMacroDefinition(C)->getName()->getNameStart();
+    }
+    buf->Data.push_back('\0');
+    return createCXString(buf);
   }
 
   return createCXString("");

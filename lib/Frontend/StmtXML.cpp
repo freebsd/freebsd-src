@@ -61,8 +61,7 @@ namespace  {
             Doc.PrintDecl(*DI);
           }
         } else {
-          for (Stmt::child_iterator i = S->child_begin(), e = S->child_end();
-               i != e; ++i)
+          for (Stmt::child_range i = S->children(); i; ++i)
             DumpSubTree(*i);
         }
         Doc.toParent();
@@ -133,7 +132,6 @@ namespace  {
     void VisitBinaryOperator(BinaryOperator *Node);
     void VisitCompoundAssignOperator(CompoundAssignOperator *Node);
     void VisitAddrLabelExpr(AddrLabelExpr *Node);
-    void VisitTypesCompatibleExpr(TypesCompatibleExpr *Node);
 
     // C++
     void VisitCXXNamedCastExpr(CXXNamedCastExpr *Node);
@@ -150,7 +148,6 @@ namespace  {
     void VisitObjCImplicitSetterGetterRefExpr(
                         ObjCImplicitSetterGetterRefExpr *Node);
     void VisitObjCIvarRefExpr(ObjCIvarRefExpr *Node);
-    void VisitObjCSuperExpr(ObjCSuperExpr *Node);
 #endif
   };
 }
@@ -357,12 +354,6 @@ void StmtXML::VisitAddrLabelExpr(AddrLabelExpr *Node) {
   Doc.addAttribute("name", Node->getLabel()->getName());
 }
 
-void StmtXML::VisitTypesCompatibleExpr(TypesCompatibleExpr *Node) {
-  DumpExpr(Node);
-  DumpTypeExpr(Node->getArgType1());
-  DumpTypeExpr(Node->getArgType2());
-}
-
 //===----------------------------------------------------------------------===//
 // C++ Expressions
 //===----------------------------------------------------------------------===//
@@ -426,11 +417,6 @@ void StmtXML::VisitObjCImplicitSetterGetterRefExpr(
   ObjCMethodDecl *Setter = Node->getSetterMethod();
   Doc.addAttribute("Getter", Getter->getSelector().getAsString());
   Doc.addAttribute("Setter", Setter ? Setter->getSelector().getAsString().c_str() : "(null)");
-}
-
-void StmtXML::VisitObjCSuperExpr(ObjCSuperExpr *Node) {
-  DumpExpr(Node);
-  Doc.addAttribute("super", "1");
 }
 
 void StmtXML::VisitObjCIvarRefExpr(ObjCIvarRefExpr *Node) {

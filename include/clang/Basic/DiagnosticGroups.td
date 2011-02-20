@@ -35,8 +35,11 @@ def : DiagGroup<"declaration-after-statement">;
 def GNUDesignator : DiagGroup<"gnu-designator">;
 
 def DeprecatedDeclarations : DiagGroup<"deprecated-declarations">;
+def DeprecatedWritableStr : DiagGroup<"deprecated-writable-strings">;
 def Deprecated : DiagGroup<"deprecated", [ DeprecatedDeclarations] >,
                  DiagCategory<"Deprecations">;
+
+def DeprecatedImplementations :DiagGroup<"deprecated-implementations">;
 
 def : DiagGroup<"disabled-optimization">;
 def : DiagGroup<"discard-qual">;
@@ -54,6 +57,7 @@ def : DiagGroup<"effc++">;
 def FourByteMultiChar : DiagGroup<"four-char-constants">;
 def GlobalConstructors : DiagGroup<"global-constructors">;
 def : DiagGroup<"idiomatic-parentheses">;
+def LogicalOpParentheses: DiagGroup<"logical-op-parentheses">;
 def IgnoredQualifiers : DiagGroup<"ignored-qualifiers">;
 def : DiagGroup<"import">;
 def : DiagGroup<"init-self">;
@@ -74,17 +78,19 @@ def : DiagGroup<"newline-eof">;
 def LongLong : DiagGroup<"long-long">;
 def MismatchedTags : DiagGroup<"mismatched-tags">;
 def MissingFieldInitializers : DiagGroup<"missing-field-initializers">;
+def NullDereference : DiagGroup<"null-dereference">;
 def InitializerOverrides : DiagGroup<"initializer-overrides">;
 def NonNull : DiagGroup<"nonnull">;
 def : DiagGroup<"nonportable-cfstrings">;
-def : DiagGroup<"non-virtual-dtor">;
+def NonVirtualDtor : DiagGroup<"non-virtual-dtor">;
 def : DiagGroup<"old-style-cast">;
 def : DiagGroup<"old-style-definition">;
 def OutOfLineDeclaration : DiagGroup<"out-of-line-declaration">;
 def : DiagGroup<"overflow">;
 def OverlengthStrings : DiagGroup<"overlength-strings">;
-def : DiagGroup<"overloaded-virtual">;
-def : DiagGroup<"packed">;
+def OverloadedVirtual : DiagGroup<"overloaded-virtual">;
+def Packed : DiagGroup<"packed">;
+def Padded : DiagGroup<"padded">;
 def PointerArith : DiagGroup<"pointer-arith">;
 def PoundWarning : DiagGroup<"#warnings">,
                    DiagCategory<"#warning Directive">;
@@ -92,6 +98,7 @@ def : DiagGroup<"pointer-to-int-cast">;
 def : DiagGroup<"redundant-decls">;
 def ReturnType : DiagGroup<"return-type">;
 def BindToTemporaryCopy : DiagGroup<"bind-to-temporary-copy">;
+def SelfAssignment : DiagGroup<"self-assign">;
 def SemiBeforeMethodBody : DiagGroup<"semicolon-before-method-body">;
 def : DiagGroup<"sequence-point">;
 def Shadow : DiagGroup<"shadow">;
@@ -101,6 +108,7 @@ def SignCompare : DiagGroup<"sign-compare">;
 def : DiagGroup<"stack-protector">;
 def : DiagGroup<"switch-default">;
 def : DiagGroup<"synth">;
+def TautologicalCompare : DiagGroup<"tautological-compare">;
 
 // Preprocessor warnings.
 def : DiagGroup<"builtin-macro-redefined">;
@@ -140,9 +148,14 @@ def UnusedLabel : DiagGroup<"unused-label">;
 def UnusedParameter : DiagGroup<"unused-parameter">;
 def UnusedValue    : DiagGroup<"unused-value">;
 def UnusedVariable : DiagGroup<"unused-variable">;
+def UsedButMarkedUnused : DiagGroup<"used-but-marked-unused">;
 def ReadOnlySetterAttrs : DiagGroup<"readonly-setter-attrs">;
 def Reorder : DiagGroup<"reorder">;
 def UndeclaredSelector : DiagGroup<"undeclared-selector">;
+def ImplicitAtomic : DiagGroup<"implicit-atomic-properties">;
+def CustomAtomic : DiagGroup<"custom-atomic-properties">;
+def AtomicProperties : DiagGroup<"atomic-properties",
+                                 [ImplicitAtomic, CustomAtomic]>;
 def Selector : DiagGroup<"selector">;
 def NonfragileAbi2 : DiagGroup<"nonfragile-abi2">;
 def Protocol : DiagGroup<"protocol">;
@@ -154,17 +167,27 @@ def VLA : DiagGroup<"vla">;
 def VolatileRegisterVar : DiagGroup<"volatile-register-var">;
 def : DiagGroup<"write-strings">;
 def CharSubscript : DiagGroup<"char-subscripts">;
+def LargeByValueCopy : DiagGroup<"large-by-value-copy">;
 
 // Aggregation warning settings.
 
 // -Widiomatic-parentheses contains warnings about 'idiomatic'
 // missing parentheses;  it is off by default.
-def Parentheses : DiagGroup<"parentheses", [DiagGroup<"idiomatic-parentheses">]>;
+def Parentheses : DiagGroup<"parentheses",
+                            [LogicalOpParentheses,
+                             DiagGroup<"idiomatic-parentheses">]>;
 
-// -Wconversion has its own warnings, but we split this one out for
-// legacy reasons.
+// -Wconversion has its own warnings, but we split a few out for
+// legacy reasons:
+//   - some people want just 64-to-32 warnings
+//   - conversion warnings with constant sources are on by default
+//   - conversion warnings for literals are on by default
+//   - bool-to-pointer conversion warnings are on by default
 def Conversion : DiagGroup<"conversion",
-                           [DiagGroup<"shorten-64-to-32">, BoolConversions]>,
+                           [DiagGroup<"shorten-64-to-32">,
+                            DiagGroup<"constant-conversion">,
+                            DiagGroup<"literal-conversion">,
+                            BoolConversions]>,
                  DiagCategory<"Value Conversion Issue">;
 
 def Unused : DiagGroup<"unused",
@@ -202,13 +225,15 @@ def Most : DiagGroup<"most", [
     MultiChar,
     Reorder,
     ReturnType,
+    SelfAssignment,
     Switch,
     Trigraphs,
     Uninitialized,
     UnknownPragmas,
     Unused,
     VectorConversions,
-    VolatileRegisterVar
+    VolatileRegisterVar,
+    OverloadedVirtual
  ]>;
 
 // -Wall is -Wmost -Wparentheses
@@ -224,5 +249,12 @@ def : DiagGroup<"comments", [Comment]>;         // -Wcomments = -Wcomment
 def NonGCC : DiagGroup<"non-gcc",
     [SignCompare, Conversion, LiteralRange]>;
 
+// A warning group for warnings about using C++0x features as extensions in
+// earlier C++ versions.
+def CXX0x : DiagGroup<"c++0x-extensions">;
+
 // A warning group for warnings about GCC extensions.
 def GNU : DiagGroup<"gnu", [GNUDesignator, VLA]>;
+
+// A warning group for warnings about Microsoft extensions.
+def Microsoft : DiagGroup<"microsoft">;

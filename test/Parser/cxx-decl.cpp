@@ -6,6 +6,9 @@ struct Type {
   int Type;
 };
 
+// rdar://8365458
+typedef char bool; // expected-error {{redeclaration of C++ built-in type 'bool'}} \
+                   // expected-warning {{declaration does not declare anything}}
 
 // PR4451 - We should recover well from the typo of '::' as ':' in a2.
 namespace y {
@@ -83,3 +86,14 @@ struct CodeCompleteConsumer {
 
 void CodeCompleteConsumer::() { // expected-error {{xpected unqualified-id}}
 } 
+
+;
+
+// PR8380
+extern ""      // expected-error {{unknown linkage language}}
+test6a { ;// expected-error {{C++ requires a type specifier for all declarations}} \
+     // expected-error {{expected ';' after top level declarator}}
+  
+  int test6b;
+  
+  

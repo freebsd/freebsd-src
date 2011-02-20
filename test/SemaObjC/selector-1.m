@@ -1,22 +1,15 @@
 // RUN: %clang_cc1 -verify %s 
 
-@interface Lancelot @end
-@implementation Lancelot
-
-- (void):(int)x {}
-- (void)xx:(int)x :(int)y { }
-
-@end
-
 @interface I
 - (id) compare: (char) arg1;
+- length;
 @end
 
 @interface J
 - (id) compare: (id) arg1;
 @end
 
-SEL foo()
+SEL func()
 {
 	return @selector(compare:);	// Non warning on multiple selector found.
 }

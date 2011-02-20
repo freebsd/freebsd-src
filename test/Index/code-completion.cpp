@@ -41,10 +41,10 @@ Z::operator int() const {
 // CHECK-MEMBER: FieldDecl:{ResultType int}{Text X::}{TypedText member}
 // CHECK-MEMBER: FieldDecl:{ResultType float}{Text Y::}{TypedText member}
 // CHECK-MEMBER: CXXMethod:{ResultType void}{Informative Y::}{TypedText memfunc}{LeftParen (}{Optional {Placeholder int i}}{RightParen )}
-// CHECK-MEMBER: CXXConversion:{ResultType int}{TypedText operator int}{LeftParen (}{RightParen )}{Informative  const}
-// CHECK-MEMBER: CXXMethod:{ResultType Z &}{TypedText operator=}{LeftParen (}{Placeholder Z const &}{RightParen )}
-// CHECK-MEMBER: CXXMethod:{ResultType X &}{Text X::}{TypedText operator=}{LeftParen (}{Placeholder X const &}{RightParen )}
-// CHECK-MEMBER: CXXMethod:{ResultType Y &}{Text Y::}{TypedText operator=}{LeftParen (}{Placeholder Y const &}{RightParen )}
+// CHECK-MEMBER: CXXConversion:{TypedText operator int}{LeftParen (}{RightParen )}{Informative  const}
+// CHECK-MEMBER: CXXMethod:{ResultType Z &}{TypedText operator=}{LeftParen (}{Placeholder const Z &}{RightParen )}
+// CHECK-MEMBER: CXXMethod:{ResultType X &}{Text X::}{TypedText operator=}{LeftParen (}{Placeholder const X &}{RightParen )}
+// CHECK-MEMBER: CXXMethod:{ResultType Y &}{Text Y::}{TypedText operator=}{LeftParen (}{Placeholder const Y &}{RightParen )}
 // CHECK-MEMBER: EnumConstantDecl:{ResultType X::E}{Informative E::}{TypedText Val1}
 // CHECK-MEMBER: StructDecl:{TypedText X}{Text ::}
 // CHECK-MEMBER: StructDecl:{TypedText Y}{Text ::}
@@ -58,10 +58,10 @@ Z::operator int() const {
 // CHECK-OVERLOAD: NotImplemented:{ResultType double &}{Text overloaded}{LeftParen (}{Text float f}{Comma , }{CurrentParameter int second}{RightParen )}
 
 // RUN: c-index-test -code-completion-at=%s:37:10 %s | FileCheck -check-prefix=CHECK-EXPR %s
-// CHECK-EXPR: NotImplemented:{TypedText int} (65)
-// CHECK-EXPR: NotImplemented:{TypedText long} (65)
-// CHECK-EXPR: FieldDecl:{ResultType double}{TypedText member} (10)
-// CHECK-EXPR: FieldDecl:{ResultType int}{Text X::}{TypedText member} (5)
-// CHECK-EXPR: FieldDecl:{ResultType float}{Text Y::}{TypedText member} (11)
-// CHECK-EXPR: CXXMethod:{ResultType void}{TypedText memfunc}{LeftParen (}{Optional {Placeholder int i}}{RightParen )} (22)
+// CHECK-EXPR: NotImplemented:{TypedText int} (50)
+// CHECK-EXPR: NotImplemented:{TypedText long} (50)
+// CHECK-EXPR: FieldDecl:{ResultType double}{TypedText member} (17)
+// CHECK-EXPR: FieldDecl:{ResultType int}{Text X::}{TypedText member} (9)
+// CHECK-EXPR: FieldDecl:{ResultType float}{Text Y::}{TypedText member} (18)
+// CHECK-EXPR: CXXMethod:{ResultType void}{TypedText memfunc}{LeftParen (}{Optional {Placeholder int i}}{RightParen )} (37)
 // CHECK-EXPR: Namespace:{TypedText N}{Text ::} (75)

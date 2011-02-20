@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
 
 typedef long unsigned int size_t;
 void *memcpy(void *, const void *, size_t);
@@ -394,7 +394,7 @@ void rdar_7332673_test1() {
 int rdar_7332673_test2_aux(char *x);
 void rdar_7332673_test2() {
     char *value;
-    if ( rdar_7332673_test2_aux(value) != 1 ) {} // expected-warning{{Pass-by-value argument in function call is undefined}}
+    if ( rdar_7332673_test2_aux(value) != 1 ) {} // expected-warning{{Function call argument is an uninitialized value}}
 }
 
 //===----------------------------------------------------------------------===//
@@ -671,7 +671,7 @@ typedef void (^RDar_7462324_Callback)(id obj);
   builder = ^(id object) {
     id x;
     if (object) {
-      builder(x); // expected-warning{{Pass-by-value argument in function call is undefined}}
+      builder(x); // expected-warning{{Function call argument is an uninitialized value}}
     }
   };
   builder(target);
@@ -1103,16 +1103,18 @@ void pr8015_C() {
   }
 }
 
-// FIXME: This is a false positive due to not reasoning about symbolic
-// array indices correctly.  Discussion in PR 8015.
+// Tests that we correctly handle that 'number' is perfectly constrained
+// after 'if (nunber == 0)', allowing us to resolve that
+// numbers[number] == numbers[0].
 void pr8015_D_FIXME() {
   int number = pr8015_A();
   const char *numbers[] = { "zero" };
   if (number == 0) {
-    if (numbers[number] == numbers[0])
+    if (numbers[number] == numbers[0]) // expected-warning{{Both operands to '==' always have the same value}}
       return;
+    // Unreachable.
     int *p = 0;
-    *p = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+    *p = 0xDEADBEEF; // no-warnng
   }
 }
 
@@ -1137,6 +1139,101 @@ void pr8015_F_FIXME() {
       return;
     int *q = 0;
     *q = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+  }
+}
+
+// PR 8141.  Previously the statement expression in the for loop caused
+// the CFG builder to crash.
+struct list_pr8141
+{
+  struct list_pr8141 *tail;
+};
+
+struct list_pr8141 *
+pr8141 (void) {
+  struct list_pr8141 *items;
+  for (;; items = ({ do { } while (0); items->tail; })) // expected-warning{{Dereference of undefined pointer value}}
+    {
+    }
+}
+
+// Don't crash when building the CFG.
+void do_not_crash(int x) {
+  while (x - ({do {} while (0); x; })) {
+  }
+}
+
+// <rdar://problem/8424269> - Handle looking at the size of a VLA in
+// ArrayBoundChecker.  Nothing intelligent (yet); just don't crash.
+typedef struct RDar8424269_A {
+  int RDar8424269_C;
+} RDar8424269_A;
+static void RDar8424269_B(RDar8424269_A *p, unsigned char *RDar8424269_D,
+                          const unsigned char *RDar8424269_E, int RDar8424269_F,
+    int b_w, int b_h, int dx, int dy) {
+  int x, y, b, r, l;
+  unsigned char tmp2t[3][RDar8424269_F * (32 + 8)];
+  unsigned char *tmp2 = tmp2t[0];
+  if (p && !p->RDar8424269_C)
+    b = 15;
+  tmp2 = tmp2t[1];
+  if (b & 2) { // expected-warning{{The left operand of '&' is a garbage value}}
+    for (y = 0; y < b_h; y++) {
+      for (x = 0; x < b_w + 1; x++) {
+        int am = 0;
+        tmp2[x] = am;
+      }
+    }
+  }
+  tmp2 = tmp2t[2];
+}
+
+// <rdar://problem/8642434> - Handle transparent unions with the AttrNonNullChecker.
+typedef union {
+  struct rdar_8642434_typeA *_dq;
+}
+rdar_8642434_typeB __attribute__((transparent_union));
+
+__attribute__((visibility("default"))) __attribute__((__nonnull__)) __attribute__((__nothrow__))
+void rdar_8642434_funcA(rdar_8642434_typeB object);
+
+void rdar_8642434_funcB(struct rdar_8642434_typeA *x, struct rdar_8642434_typeA *y) {
+  rdar_8642434_funcA(x);
+  if (!y)
+    rdar_8642434_funcA(y); // expected-warning{{Null pointer passed as an argument to a 'nonnull' parameter}}
+}
+
+// <rdar://problem/8848957> - Handle loads and stores from a symbolic index
+// into array without warning about an uninitialized value being returned.
+// While RegionStore can't fully reason about this example, it shouldn't
+// warn here either.
+typedef struct s_test_rdar8848957 {
+  int x, y, z;
+} s_test_rdar8848957;
+
+s_test_rdar8848957 foo_rdar8848957();
+int rdar8848957(int index) {
+  s_test_rdar8848957 vals[10];
+  vals[index] = foo_rdar8848957();
+  return vals[index].x; // no-warning
+}
+
+// PR 9049 - crash on symbolicating unions.  This test exists solely to
+// test that the analyzer doesn't crash.
+typedef struct pr9048_cdev *pr9048_cdev_t;
+typedef union pr9048_abstracted_disklabel { void *opaque; } pr9048_disklabel_t;
+struct pr9048_diskslice { pr9048_disklabel_t ds_label; };
+struct pr9048_diskslices {
+  int dss_secmult;
+  struct pr9048_diskslice dss_slices[16];
+};
+void pr9048(pr9048_cdev_t dev, struct pr9048_diskslices * ssp, unsigned int slice)
+{
+  pr9048_disklabel_t     lp;
+  struct pr9048_diskslice *sp;
+  sp = &ssp->dss_slices[slice];
+  if (ssp->dss_secmult == 1) {
+  } else if ((lp = sp->ds_label).opaque != ((void *) 0)) {
   }
 }
 

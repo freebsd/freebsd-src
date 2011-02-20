@@ -131,3 +131,18 @@ X test4(bool B) {
   // CHECK: tail call void @exit(i32 1)
   exit(1);
 }
+
+#ifdef __EXCEPTIONS
+// CHECK-EH: define void @_Z5test5
+void may_throw();
+X test5() {
+  try {
+    may_throw();
+  } catch (X x) {
+    // CHECK-EH: invoke void @_ZN1XC1ERKS_
+    // CHECK-EH: call void @__cxa_end_catch()
+    // CHECK-EH: ret void
+    return x;
+  }
+}
+#endif

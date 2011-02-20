@@ -54,7 +54,7 @@ void test4() {
 void test5() {
   //  const double& rcd2 = 2; // rcd2 refers to temporary with value 2.0
   const volatile int cvi = 1;
-  const int& r = cvi; // expected-error{{binding of reference to type 'int const' to a value of type 'int const volatile' drops qualifiers}}
+  const int& r = cvi; // expected-error{{binding of reference to type 'const int' to a value of type 'const volatile int' drops qualifiers}}
 }
 
 // C++ [dcl.init.ref]p3
@@ -129,4 +129,8 @@ namespace PR7149 {
     int p1[1];
     X0< const int[1]> c(p1);
   }
+}
+
+namespace PR8608 {
+  bool& f(unsigned char& c) { return (bool&)c; }
 }

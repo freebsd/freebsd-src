@@ -20,7 +20,7 @@ namespace test0 {
   const int Test1() {
 
     func(b1, f()); // expected-error {{call to 'func' is ambiguous}}
-    return f(); // expected-error {{conversion from 'test0::B' to 'int const' is ambiguous}}
+    return f(); // expected-error {{conversion from 'test0::B' to 'const int' is ambiguous}}
   }
 
   // This used to crash when comparing the two operands.
@@ -57,3 +57,11 @@ namespace test1 {
   }
 }
 
+namespace rdar8876150 {
+  struct A { operator bool(); };
+  struct B : A { };
+  struct C : A { };
+  struct D : B, C { };
+
+  bool f(D d) { return !d; } // expected-error{{ambiguous conversion from derived class 'rdar8876150::D' to base class 'rdar8876150::A':}}
+}

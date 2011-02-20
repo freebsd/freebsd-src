@@ -36,7 +36,7 @@ namespace N1 {
   template<> void N0::f0(long) { } // expected-error{{not in a namespace enclosing}}
 }
 
-template<> void N0::f0(double) { } // expected-error{{originally be declared}}
+template<> void N0::f0(double) { } // expected-warning{{originally be declared}}
 
 struct X1 {
   template<typename T> void f(T);
@@ -75,7 +75,7 @@ void N0::X0<T>::ft1(T t, U u) {
 
 template<typename T> T N0::X0<T>::member;
 
-template<> struct N0::X0<void> { }; // expected-error{{originally}}
+template<> struct N0::X0<void> { }; // expected-warning{{originally}}
 N0::X0<void> test_X0;
 
 namespace N1 {
@@ -91,7 +91,7 @@ template<> struct N0::X0<volatile void> {
 };
 
 //     -- member function of a class template
-template<> void N0::X0<void*>::f1(void *) { } // expected-error{{member function specialization}}
+template<> void N0::X0<void*>::f1(void *) { } // expected-warning{{member function specialization}}
 
 void test_spec(N0::X0<void*> xvp, void *vp) {
   xvp.f1(vp);
@@ -124,7 +124,7 @@ NonDefaultConstructible &get_static_member() {
   return N0::X0<NonDefaultConstructible>::member;
 }
 
-template<> int N0::X0<int>::member;  // expected-error{{originally}}
+template<> int N0::X0<int>::member;  // expected-warning{{originally}}
 
 template<> float N0::X0<float>::member = 3.14f;
 
@@ -152,7 +152,7 @@ namespace N0 {
 }
 
 template<>
-struct N0::X0<long>::Inner { }; // expected-error{{originally}}
+struct N0::X0<long>::Inner { }; // expected-warning{{originally}}
 
 template<>
 struct N0::X0<float>::Inner { };
@@ -191,7 +191,7 @@ template<> template<>
 struct N0::X0<int>::InnerTemplate<long> { }; // okay
 
 template<> template<>
-struct N0::X0<int>::InnerTemplate<float> { }; // expected-error{{class template specialization}}
+struct N0::X0<int>::InnerTemplate<float> { }; // expected-warning{{class template specialization}}
 
 namespace N1 {
   template<> template<>
@@ -223,7 +223,7 @@ template<> template<>
 void N0::X0<void*>::ft1(void *, unsigned) { } // okay
 
 template<> template<>
-void N0::X0<void*>::ft1(void *, float) { } // expected-error{{function template specialization}}
+void N0::X0<void*>::ft1(void *, float) { } // expected-warning{{function template specialization}}
 
 namespace N1 {
   template<> template<>

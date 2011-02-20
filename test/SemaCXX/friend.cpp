@@ -62,3 +62,71 @@ namespace test4 {
  
   class T4B {};
 }
+
+namespace rdar8529993 {
+struct A { ~A(); }; // expected-note {{nearly matches}}
+
+struct B : A
+{
+  template<int> friend A::~A(); // expected-error {{does not match}}
+};
+}
+
+// PR7915
+namespace test5 {
+  struct A;
+  struct A1 { friend void A(); };
+
+  struct B { friend void B(); };
+}
+
+// PR8479
+namespace test6_1 {
+  class A {
+   public:
+   private:
+    friend class vectorA;
+    A() {}
+  };
+  class vectorA {
+   public:
+    vectorA(int i, const A& t = A()) {}
+  };
+  void f() {
+    vectorA v(1);
+  }
+}
+namespace test6_2 {
+  template<class T>
+  class vector {
+   public:
+    vector(int i, const T& t = T()) {}
+  };
+  class A {
+   public:
+   private:
+    friend class vector<A>;
+    A() {}
+  };
+  void f() {
+    vector<A> v(1);
+  }
+}
+namespace test6_3 {
+  template<class T>
+  class vector {
+   public:
+    vector(int i) {}
+    void f(const T& t = T()) {}
+  };
+  class A {
+   public:
+   private:
+    friend void vector<A>::f(const A&);
+    A() {}
+  };
+  void f() {
+    vector<A> v(1);
+    v.f();
+  }
+}

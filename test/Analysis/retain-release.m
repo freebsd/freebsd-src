@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-check-objc-mem -analyzer-store=basic -fblocks -verify %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-check-objc-mem -analyzer-store=region -fblocks -verify %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=macosx.CFRetainRelease -analyzer-checker=cocoa.ClassRelease -analyzer-check-objc-mem -analyzer-store=basic -fblocks -verify %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=macosx.CFRetainRelease -analyzer-checker=cocoa.ClassRelease -analyzer-check-objc-mem -analyzer-store=region -fblocks -verify %s
 
 #if __has_feature(attribute_ns_returns_retained)
 #define NS_RETURNS_RETAINED __attribute__((ns_returns_retained))
@@ -12,6 +12,15 @@
 #endif
 #if __has_feature(attribute_cf_returns_not_retained)
 #define CF_RETURNS_NOT_RETAINED __attribute__((cf_returns_not_retained))
+#endif
+#if __has_feature(attribute_ns_consumes_self)
+#define NS_CONSUMES_SELF __attribute__((ns_consumes_self))
+#endif
+#if __has_feature(attribute_ns_consumed)
+#define NS_CONSUMED __attribute__((ns_consumed))
+#endif
+#if __has_feature(attribute_cf_consumed)
+#define CF_CONSUMED __attribute__((cf_consumed))
 #endif
 
 //===----------------------------------------------------------------------===//
@@ -703,7 +712,7 @@ typedef CFTypeRef OtherRef;
   NSString *_foo;
 }
 - (id)initReturningNewClass;
-- (id)initReturningNewClassBad;
+- (id)_initReturningNewClassBad;
 - (id)initReturningNewClassBad2;
 @end
 
@@ -716,7 +725,7 @@ typedef CFTypeRef OtherRef;
   self = [[RDar6320065Subclass alloc] init]; // no-warning
   return self;
 }
-- (id)initReturningNewClassBad {
+- (id)_initReturningNewClassBad {
   [self release];
   [[RDar6320065Subclass alloc] init]; // expected-warning {{leak}}
   return self;
@@ -762,13 +771,13 @@ int RDar6320065_test() {
 @end
 
 @implementation RDar6859457 
-- (NSString*) NoCopyString { return [[NSString alloc] init]; } // no-warning
-- (NSString*) noCopyString { return [[NSString alloc] init]; } // no-warning
+- (NSString*) NoCopyString { return [[NSString alloc] init]; } // expected-warning{{leak}}
+- (NSString*) noCopyString { return [[NSString alloc] init]; } // expected-warning{{leak}}
 @end
 
 void test_RDar6859457(RDar6859457 *x, void *bytes, NSUInteger dataLength) {
-  [x NoCopyString]; // expected-warning{{leak}}
-  [x noCopyString]; // expected-warning{{leak}}
+  [x NoCopyString]; // no-warning
+  [x noCopyString]; // no-warning
   [NSData dataWithBytesNoCopy:bytes length:dataLength];  // no-warning
   [NSData dataWithBytesNoCopy:bytes length:dataLength freeWhenDone:1]; // no-warning
 }
@@ -1210,10 +1219,13 @@ typedef NSString* MyStringTy;
 - (MyStringTy) returnsAnOwnedTypedString NS_RETURNS_RETAINED; // no-warning
 - (NSString*) newString NS_RETURNS_NOT_RETAINED; // no-warning
 - (NSString*) newStringNoAttr;
-- (int) returnsAnOwnedInt NS_RETURNS_RETAINED; // expected-warning{{'ns_returns_retained' attribute only applies to functions or methods that return a pointer or Objective-C object}}
+- (int) returnsAnOwnedInt NS_RETURNS_RETAINED; // expected-warning{{'ns_returns_retained' attribute only applies to methods that return an Objective-C object}}
+- (id) pseudoInit NS_CONSUMES_SELF NS_RETURNS_RETAINED;
++ (void) consume:(id) NS_CONSUMED x;
++ (void) consume2:(id) CF_CONSUMED x;
 @end
 
-static int ownership_attribute_doesnt_go_here NS_RETURNS_RETAINED; // expected-warning{{'ns_returns_retained' attribute only applies to function or method types}}
+static int ownership_attribute_doesnt_go_here NS_RETURNS_RETAINED; // expected-warning{{'ns_returns_retained' attribute only applies to functions and methods}}
 
 void test_attr_1(TestOwnershipAttr *X) {
   NSString *str = [X returnsAnOwnedString]; // expected-warning{{leak}}
@@ -1227,6 +1239,37 @@ void test_attr1c(TestOwnershipAttr *X) {
   NSString *str = [X newString]; // no-warning
   NSString *str2 = [X newStringNoAttr]; // expected-warning{{leak}}
 }
+
+void testattr2_a() {
+  TestOwnershipAttr *x = [TestOwnershipAttr alloc]; // expected-warning{{leak}}
+}
+
+void testattr2_b() {
+  TestOwnershipAttr *x = [[TestOwnershipAttr alloc] pseudoInit];  // expected-warning{{leak}}
+}
+
+void testattr2_c() {
+  TestOwnershipAttr *x = [[TestOwnershipAttr alloc] pseudoInit]; // no-warning
+  [x release];
+}
+
+void testattr3() {
+  TestOwnershipAttr *x = [TestOwnershipAttr alloc]; // no-warning
+  [TestOwnershipAttr consume:x];
+  TestOwnershipAttr *y = [TestOwnershipAttr alloc]; // no-warning
+  [TestOwnershipAttr consume2:y];
+}
+
+void consume_ns(id NS_CONSUMED x);
+void consume_cf(id CF_CONSUMED x);
+
+void testattr4() {
+  TestOwnershipAttr *x = [TestOwnershipAttr alloc]; // no-warning
+  consume_ns(x);
+  TestOwnershipAttr *y = [TestOwnershipAttr alloc]; // no-warning
+  consume_cf(y);
+}
+
 
 @interface MyClassTestCFAttr : NSObject {}
 - (NSDate*) returnsCFRetained CF_RETURNS_RETAINED;
@@ -1365,5 +1408,48 @@ void test_blocks_1_indirect_retain_via_call(void) {
 Class <Prot_R8272168> GetAClassThatImplementsProt_R8272168();
 void r8272168() {
   GetAClassThatImplementsProt_R8272168();
+}
+
+// Test case for <rdar://problem/8356342>, which in the past triggered
+// a false positive.
+@interface RDar8356342
+- (NSDate*) rdar8356342:(NSDate *)inValue;
+@end
+
+@implementation RDar8356342
+- (NSDate*) rdar8356342:(NSDate*)inValue {
+  NSDate *outValue = inValue;
+  if (outValue == 0)
+    outValue = [[NSDate alloc] init]; // no-warning
+
+  if (outValue != inValue)
+    [outValue autorelease];
+
+  return outValue;
+}
+@end
+
+// <rdar://problem/8724287> - This test case previously crashed because
+// of a bug in BugReporter.
+extern const void *CFDictionaryGetValue(CFDictionaryRef theDict, const void *key);
+typedef struct __CFError * CFErrorRef;
+extern const CFStringRef kCFErrorUnderlyingErrorKey;
+extern CFDictionaryRef CFErrorCopyUserInfo(CFErrorRef err);
+
+static void rdar_8724287(CFErrorRef error)
+{
+    CFErrorRef error_to_dump;
+
+    error_to_dump = error;
+    while (error_to_dump != ((void*)0)) {
+        CFDictionaryRef info;
+
+        info = CFErrorCopyUserInfo(error_to_dump); // expected-warning{{Potential leak of an object allocated on line 1447 and stored into 'info'}}
+
+        if (info != ((void*)0)) {
+        }
+
+        error_to_dump = (CFErrorRef) CFDictionaryGetValue(info, kCFErrorUnderlyingErrorKey);
+    }
 }
 

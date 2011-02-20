@@ -22,7 +22,7 @@
 using namespace clang;
 
 NestedNameSpecifier *
-NestedNameSpecifier::FindOrInsert(ASTContext &Context,
+NestedNameSpecifier::FindOrInsert(const ASTContext &Context,
                                   const NestedNameSpecifier &Mockup) {
   llvm::FoldingSetNodeID ID;
   Mockup.Profile(ID);
@@ -39,8 +39,8 @@ NestedNameSpecifier::FindOrInsert(ASTContext &Context,
 }
 
 NestedNameSpecifier *
-NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix,
-                            IdentifierInfo *II) {
+NestedNameSpecifier::Create(const ASTContext &Context,
+                            NestedNameSpecifier *Prefix, IdentifierInfo *II) {
   assert(II && "Identifier cannot be NULL");
   assert((!Prefix || Prefix->isDependent()) && "Prefix must be dependent");
 
@@ -52,8 +52,8 @@ NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix,
 }
 
 NestedNameSpecifier *
-NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix,
-                            NamespaceDecl *NS) {
+NestedNameSpecifier::Create(const ASTContext &Context,
+                            NestedNameSpecifier *Prefix, NamespaceDecl *NS) {
   assert(NS && "Namespace cannot be NULL");
   assert((!Prefix ||
           (Prefix->getAsType() == 0 && Prefix->getAsIdentifier() == 0)) &&
@@ -66,18 +66,19 @@ NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix,
 }
 
 NestedNameSpecifier *
-NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix,
-                            bool Template, Type *T) {
+NestedNameSpecifier::Create(const ASTContext &Context,
+                            NestedNameSpecifier *Prefix,
+                            bool Template, const Type *T) {
   assert(T && "Type cannot be NULL");
   NestedNameSpecifier Mockup;
   Mockup.Prefix.setPointer(Prefix);
   Mockup.Prefix.setInt(Template? TypeSpecWithTemplate : TypeSpec);
-  Mockup.Specifier = T;
+  Mockup.Specifier = const_cast<Type*>(T);
   return FindOrInsert(Context, Mockup);
 }
 
 NestedNameSpecifier *
-NestedNameSpecifier::Create(ASTContext &Context, IdentifierInfo *II) {
+NestedNameSpecifier::Create(const ASTContext &Context, IdentifierInfo *II) {
   assert(II && "Identifier cannot be NULL");
   NestedNameSpecifier Mockup;
   Mockup.Prefix.setPointer(0);
@@ -86,7 +87,8 @@ NestedNameSpecifier::Create(ASTContext &Context, IdentifierInfo *II) {
   return FindOrInsert(Context, Mockup);
 }
 
-NestedNameSpecifier *NestedNameSpecifier::GlobalSpecifier(ASTContext &Context) {
+NestedNameSpecifier *
+NestedNameSpecifier::GlobalSpecifier(const ASTContext &Context) {
   if (!Context.GlobalNestedNameSpecifier)
     Context.GlobalNestedNameSpecifier = new (Context, 4) NestedNameSpecifier();
   return Context.GlobalNestedNameSpecifier;
@@ -111,6 +113,24 @@ bool NestedNameSpecifier::isDependent() const {
 
   // Necessary to suppress a GCC warning.
   return false;
+}
+
+bool NestedNameSpecifier::containsUnexpandedParameterPack() const {
+  switch (getKind()) {
+  case Identifier:
+    return getPrefix() && getPrefix()->containsUnexpandedParameterPack();
+
+  case Namespace:
+  case Global:
+    return false;
+
+  case TypeSpec:
+  case TypeSpecWithTemplate:
+    return getAsType()->containsUnexpandedParameterPack();
+  }
+
+  // Necessary to suppress a GCC warning.
+  return false;  
 }
 
 /// \brief Print this nested name specifier to the given output
@@ -139,7 +159,7 @@ NestedNameSpecifier::print(llvm::raw_ostream &OS,
 
   case TypeSpec: {
     std::string TypeStr;
-    Type *T = getAsType();
+    const Type *T = getAsType();
 
     PrintingPolicy InnerPolicy(Policy);
     InnerPolicy.SuppressScope = true;

@@ -55,7 +55,7 @@ void t_529_2()
 
   // Bad code below
 
-  (void)static_cast<void*>((const int*)0); // expected-error {{static_cast from 'int const *' to 'void *' is not allowed}}
+  (void)static_cast<void*>((const int*)0); // expected-error {{static_cast from 'const int *' to 'void *' is not allowed}}
   (void)static_cast<A*>((E*)0); // expected-error {{cannot cast 'E' to its private base class 'A'}}
   (void)static_cast<A*>((H*)0); // expected-error {{ambiguous conversion}}
   (void)static_cast<int>((int*)0); // expected-error {{static_cast from 'int *' to 'int' is not allowed}}
@@ -84,8 +84,8 @@ void t_529_5_8()
   (void)static_cast<C1&>(*((A*)0)); // expected-error {{cannot cast 'A' to 'C1 &' via virtual base 'B'}}
   (void)static_cast<D*>((A*)0); // expected-error {{cannot cast 'A *' to 'D *' via virtual base 'B'}}
   (void)static_cast<D&>(*((A*)0)); // expected-error {{cannot cast 'A' to 'D &' via virtual base 'B'}}
-  (void)static_cast<B*>((const A*)0); // expected-error {{static_cast from 'A const *' to 'B *' casts away constness}}
-  (void)static_cast<B&>(*((const A*)0)); // expected-error {{static_cast from 'A const' to 'B &' casts away constness}}
+  (void)static_cast<B*>((const A*)0); // expected-error {{static_cast from 'const A *' to 'B *' casts away constness}}
+  (void)static_cast<B&>(*((const A*)0)); // expected-error {{static_cast from 'const A' to 'B &' casts away constness}}
   (void)static_cast<E*>((A*)0); // expected-error {{cannot cast private base class 'A' to 'E'}}
   (void)static_cast<E&>(*((A*)0)); // expected-error {{cannot cast private base class 'A' to 'E'}}
   (void)static_cast<H*>((A*)0); // expected-error {{ambiguous cast from base 'A' to derived 'H':\n    struct A -> struct B -> struct G1 -> struct H\n    struct A -> struct B -> struct G2 -> struct H}}
@@ -119,7 +119,7 @@ void t_529_10()
 
   // Bad code below
 
-  (void)static_cast<int*>((const void*)0); // expected-error {{static_cast from 'void const *' to 'int *' casts away constness}}
+  (void)static_cast<int*>((const void*)0); // expected-error {{static_cast from 'const void *' to 'int *' casts away constness}}
   (void)static_cast<void (*)()>((void*)0); // expected-error {{static_cast from 'void *' to 'void (*)()' is not allowed}}
 }
 
@@ -184,7 +184,7 @@ void PR5897() { (void)static_cast<const int(*)[1]>((const void*)0); }
 
 namespace PR6072 {
   struct A { }; 
-  struct B : A { void f(int); void f(); }; 
+  struct B : A { void f(int); void f(); };  // expected-note 2{{candidate function}}
   struct C : B { };
   struct D { };
 
@@ -192,6 +192,6 @@ namespace PR6072 {
     (void)static_cast<void (A::*)()>(&B::f);
     (void)static_cast<void (B::*)()>(&B::f);
     (void)static_cast<void (C::*)()>(&B::f);
-    (void)static_cast<void (D::*)()>(&B::f); // expected-error{{static_cast from '<overloaded function type>' to 'void (PR6072::D::*)()' is not allowed}}
+    (void)static_cast<void (D::*)()>(&B::f); // expected-error{{address of overloaded function 'f' cannot be static_cast to type 'void (PR6072::D::*)()'}}
   }
 }

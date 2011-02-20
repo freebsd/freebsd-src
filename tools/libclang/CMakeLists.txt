@@ -1,22 +1,18 @@
 set(SHARED_LIBRARY TRUE)
 
-set(LLVM_NO_RTTI 1)
-
 set(LLVM_USED_LIBS
   clangFrontend
   clangDriver
   clangSerialization
-  clangParse
+  clangIndex
   clangSema
-  clangAnalysis
   clangAST
   clangLex
   clangBasic)
 
 set( LLVM_LINK_COMPONENTS
-  bitreader
+  support
   mc
-  core
   )
 
 add_clang_library(libclang
@@ -28,6 +24,7 @@ add_clang_library(libclang
   CIndexUSRs.cpp
   CIndexer.cpp
   CXCursor.cpp
+  CXString.cpp
   CXType.cpp
   ../../include/clang-c/Index.h
 )
@@ -60,5 +57,6 @@ endif(MSVC)
 
 set_target_properties(libclang
   PROPERTIES
+  PREFIX ""  # Otherwise we get liblibclang.so
   LINKER_LANGUAGE CXX
   DEFINE_SYMBOL _CINDEX_LIB_)

@@ -191,19 +191,19 @@ class Diagnostic(object):
         self.ptr = ptr
 
     def __del__(self):
-        _clang_disposeDiagnostic(self.ptr)
+        _clang_disposeDiagnostic(self)
 
     @property
     def severity(self):
-        return _clang_getDiagnosticSeverity(self.ptr)
+        return _clang_getDiagnosticSeverity(self)
 
     @property
     def location(self):
-        return _clang_getDiagnosticLocation(self.ptr)
+        return _clang_getDiagnosticLocation(self)
 
     @property
     def spelling(self):
-        return _clang_getDiagnosticSpelling(self.ptr)
+        return _clang_getDiagnosticSpelling(self)
 
     @property
     def ranges(self):
@@ -215,9 +215,11 @@ class Diagnostic(object):
                 return int(_clang_getDiagnosticNumRanges(self.diag))
 
             def __getitem__(self, key):
+		if (key >= len(self)):
+			raise IndexError
                 return _clang_getDiagnosticRange(self.diag, key)
 
-        return RangeIterator(self.ptr)
+        return RangeIterator(self)
 
     @property
     def fixits(self):
@@ -236,11 +238,14 @@ class Diagnostic(object):
 
                 return FixIt(range, value)
 
-        return FixItIterator(self.ptr)
+        return FixItIterator(self)
 
     def __repr__(self):
         return "<Diagnostic severity %r, location %r, spelling %r>" % (
             self.severity, self.location, self.spelling)
+
+    def from_param(self):
+      return self.ptr
 
 class FixIt(object):
     """
@@ -397,6 +402,51 @@ CursorKind.OBJC_CATEGORY_IMPL_DECL = CursorKind(19)
 # A typedef.
 CursorKind.TYPEDEF_DECL = CursorKind(20)
 
+# A C++ class method.
+CursorKind.CXX_METHOD = CursorKind(21)
+
+# A C++ namespace.
+CursorKind.NAMESPACE = CursorKind(22)
+
+# A linkage specification, e.g. 'extern "C"'.
+CursorKind.LINKAGE_SPEC = CursorKind(23)
+
+# A C++ constructor.
+CursorKind.CONSTRUCTOR = CursorKind(24)
+
+# A C++ destructor.
+CursorKind.DESTRUCTOR = CursorKind(25)
+
+# A C++ conversion function.
+CursorKind.CONVERSION_FUNCTION = CursorKind(26)
+
+# A C++ template type parameter
+CursorKind.TEMPLATE_TYPE_PARAMETER = CursorKind(27)
+
+# A C++ non-type template paramater.
+CursorKind.TEMPLATE_NON_TYPE_PARAMETER = CursorKind(28)
+
+# A C++ template template parameter.
+CursorKind.TEMPLATE_TEMPLATE_PARAMTER = CursorKind(29)
+
+# A C++ function template.
+CursorKind.FUNCTION_TEMPLATE = CursorKind(30)
+
+# A C++ class template.
+CursorKind.CLASS_TEMPLATE = CursorKind(31)
+
+# A C++ class template partial specialization.
+CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION = CursorKind(32)
+
+# A C++ namespace alias declaration.
+CursorKind.NAMESPACE_ALIAS = CursorKind(33)
+
+# A C++ using directive
+CursorKind.USING_DIRECTIVE = CursorKind(34)
+
+# A C++ using declaration
+CursorKind.USING_DECLARATION = CursorKind(35)
+
 ###
 # Reference Kinds
 
@@ -415,6 +465,25 @@ CursorKind.OBJC_CLASS_REF = CursorKind(42)
 # while the type of the variable "size" is referenced. The cursor
 # referenced by the type of size is the typedef for size_type.
 CursorKind.TYPE_REF = CursorKind(43)
+CursorKind.CXX_BASE_SPECIFIER = CursorKind(44)
+
+# A reference to a class template, function template, template
+# template parameter, or class template partial specialization.
+CursorKind.TEMPLATE_REF = CursorKind(45)
+
+# A reference to a namespace or namepsace alias.
+CursorKind.NAMESPACE_REF = CursorKind(46)
+
+# A reference to a member of a struct, union, or class that occurs in
+# some non-expression context, e.g., a designated initializer.
+CursorKind.MEMBER_REF = CursorKind(47)
+
+# A reference to a labeled statement.
+CursorKind.LABEL_REF = CursorKind(48)
+
+# A reference toa a set of overloaded functions or function templates
+# that has not yet been resolved to a specific function or function template.
+CursorKind.OVERLOADED_DECL_REF = CursorKind(49)
 
 ###
 # Invalid/Error Kinds
@@ -422,6 +491,7 @@ CursorKind.TYPE_REF = CursorKind(43)
 CursorKind.INVALID_FILE = CursorKind(70)
 CursorKind.NO_DECL_FOUND = CursorKind(71)
 CursorKind.NOT_IMPLEMENTED = CursorKind(72)
+CursorKind.INVALID_CODE = CursorKind(73)
 
 ###
 # Expression Kinds
@@ -447,12 +517,19 @@ CursorKind.CALL_EXPR = CursorKind(103)
 # An expression that sends a message to an Objective-C object or class.
 CursorKind.OBJC_MESSAGE_EXPR = CursorKind(104)
 
+# An expression that represents a block literal.
+CursorKind.BLOCK_EXPR = CursorKind(105)
+
 # A statement whose specific kind is not exposed via this interface.
 #
 # Unexposed statements have the same operations as any other kind of statement;
 # one can extract their location information, spelling, children, etc. However,
 # the specific kind of the statement is not reported.
 CursorKind.UNEXPOSED_STMT = CursorKind(200)
+
+# A labelled statement in a function.
+CursorKind.LABEL_STMT = CursorKind(201)
+
 
 ###
 # Other Kinds
@@ -462,6 +539,23 @@ CursorKind.UNEXPOSED_STMT = CursorKind(200)
 # The translation unit cursor exists primarily to act as the root cursor for
 # traversing the contents of a translation unit.
 CursorKind.TRANSLATION_UNIT = CursorKind(300)
+
+###
+# Attributes
+
+# An attribute whoe specific kind is note exposed via this interface
+CursorKind.UNEXPOSED_ATTR = CursorKind(400)
+
+CursorKind.IB_ACTION_ATTR = CursorKind(401)
+CursorKind.IB_OUTLET_ATTR = CursorKind(402)
+CursorKind.IB_OUTLET_COLLECTION_ATTR = CursorKind(403)
+
+###
+# Preprocessing
+CursorKind.PREPROCESSING_DIRECTIVE = CursorKind(500)
+CursorKind.MACRO_DEFINITION = CursorKind(501)
+CursorKind.MACRO_INSTANTIATION = CursorKind(502)
+CursorKind.INCLUSION_DIRECTIVE = CursorKind(503)
 
 ### Cursors ###
 
@@ -592,39 +686,208 @@ _clang_getDiagnostic.argtypes = [c_object_p, c_uint]
 _clang_getDiagnostic.restype = c_object_p
 
 _clang_disposeDiagnostic = lib.clang_disposeDiagnostic
-_clang_disposeDiagnostic.argtypes = [c_object_p]
+_clang_disposeDiagnostic.argtypes = [Diagnostic]
 
 _clang_getDiagnosticSeverity = lib.clang_getDiagnosticSeverity
-_clang_getDiagnosticSeverity.argtypes = [c_object_p]
+_clang_getDiagnosticSeverity.argtypes = [Diagnostic]
 _clang_getDiagnosticSeverity.restype = c_int
 
 _clang_getDiagnosticLocation = lib.clang_getDiagnosticLocation
-_clang_getDiagnosticLocation.argtypes = [c_object_p]
+_clang_getDiagnosticLocation.argtypes = [Diagnostic]
 _clang_getDiagnosticLocation.restype = SourceLocation
 
 _clang_getDiagnosticSpelling = lib.clang_getDiagnosticSpelling
-_clang_getDiagnosticSpelling.argtypes = [c_object_p]
+_clang_getDiagnosticSpelling.argtypes = [Diagnostic]
 _clang_getDiagnosticSpelling.restype = _CXString
 _clang_getDiagnosticSpelling.errcheck = _CXString.from_result
 
 _clang_getDiagnosticNumRanges = lib.clang_getDiagnosticNumRanges
-_clang_getDiagnosticNumRanges.argtypes = [c_object_p]
+_clang_getDiagnosticNumRanges.argtypes = [Diagnostic]
 _clang_getDiagnosticNumRanges.restype = c_uint
 
 _clang_getDiagnosticRange = lib.clang_getDiagnosticRange
-_clang_getDiagnosticRange.argtypes = [c_object_p, c_uint]
+_clang_getDiagnosticRange.argtypes = [Diagnostic, c_uint]
 _clang_getDiagnosticRange.restype = SourceRange
 
 _clang_getDiagnosticNumFixIts = lib.clang_getDiagnosticNumFixIts
-_clang_getDiagnosticNumFixIts.argtypes = [c_object_p]
+_clang_getDiagnosticNumFixIts.argtypes = [Diagnostic]
 _clang_getDiagnosticNumFixIts.restype = c_uint
 
 _clang_getDiagnosticFixIt = lib.clang_getDiagnosticFixIt
-_clang_getDiagnosticFixIt.argtypes = [c_object_p, c_uint, POINTER(SourceRange)]
+_clang_getDiagnosticFixIt.argtypes = [Diagnostic, c_uint, POINTER(SourceRange)]
 _clang_getDiagnosticFixIt.restype = _CXString
 _clang_getDiagnosticFixIt.errcheck = _CXString.from_result
 
 ###
+
+class CompletionChunk:
+    class Kind:
+        def __init__(self, name):
+            self.name = name
+
+        def __str__(self):
+            return self.name
+
+        def __repr__(self):
+            return "<ChunkKind: %s>" % self
+
+    def __init__(self, completionString, key):
+        self.cs = completionString
+        self.key = key
+
+    def __repr__(self):
+        return "{'" + self.spelling + "', " + str(self.kind) + "}"
+
+    @property
+    def spelling(self):
+        return _clang_getCompletionChunkText(self.cs, self.key).spelling
+
+    @property
+    def kind(self):
+        res = _clang_getCompletionChunkKind(self.cs, self.key)
+        return completionChunkKindMap[res]
+
+    @property
+    def string(self):
+        res = _clang_getCompletionChunkCompletionString(self.cs, self.key)
+
+        if (res):
+          return CompletionString(res)
+        else:
+          None
+
+    def isKindOptional(self):
+      return self.kind == completionChunkKindMap[0]
+
+    def isKindTypedText(self):
+      return self.kind == completionChunkKindMap[1]
+
+    def isKindPlaceHolder(self):
+      return self.kind == completionChunkKindMap[3]
+
+    def isKindInformative(self):
+      return self.kind == completionChunkKindMap[4]
+
+    def isKindResultType(self):
+      return self.kind == completionChunkKindMap[15]
+
+completionChunkKindMap = {
+            0: CompletionChunk.Kind("Optional"),
+            1: CompletionChunk.Kind("TypedText"),
+            2: CompletionChunk.Kind("Text"),
+            3: CompletionChunk.Kind("Placeholder"),
+            4: CompletionChunk.Kind("Informative"),
+            5: CompletionChunk.Kind("CurrentParameter"),
+            6: CompletionChunk.Kind("LeftParen"),
+            7: CompletionChunk.Kind("RightParen"),
+            8: CompletionChunk.Kind("LeftBracket"),
+            9: CompletionChunk.Kind("RightBracket"),
+            10: CompletionChunk.Kind("LeftBrace"),
+            11: CompletionChunk.Kind("RightBrace"),
+            12: CompletionChunk.Kind("LeftAngle"),
+            13: CompletionChunk.Kind("RightAngle"),
+            14: CompletionChunk.Kind("Comma"),
+            15: CompletionChunk.Kind("ResultType"),
+            16: CompletionChunk.Kind("Colon"),
+            17: CompletionChunk.Kind("SemiColon"),
+            18: CompletionChunk.Kind("Equal"),
+            19: CompletionChunk.Kind("HorizontalSpace"),
+            20: CompletionChunk.Kind("VerticalSpace")}
+
+class CompletionString(ClangObject):
+    class Availability:
+        def __init__(self, name):
+            self.name = name
+
+        def __str__(self):
+            return self.name
+
+        def __repr__(self):
+            return "<Availability: %s>" % self
+
+    def __len__(self):
+        return _clang_getNumCompletionChunks(self.obj)
+
+    def __getitem__(self, key):
+        if len(self) <= key:
+            raise IndexError
+        return CompletionChunk(self.obj, key)
+
+    @property
+    def priority(self):
+        return _clang_getCompletionPriority(self.obj)
+
+    @property
+    def availability(self):
+        res = _clang_getCompletionAvailability(self.obj)
+        return availabilityKinds[res]
+
+    def __repr__(self):
+        return " | ".join([str(a) for a in self]) \
+               + " || Priority: " + str(self.priority) \
+               + " || Availability: " + str(self.availability)
+
+availabilityKinds = {
+            0: CompletionChunk.Kind("Available"),
+            1: CompletionChunk.Kind("Deprecated"),
+            2: CompletionChunk.Kind("NotAvailable")}
+
+class CodeCompletionResult(Structure):
+    _fields_ = [('cursorKind', c_int), ('completionString', c_object_p)]
+
+    def __repr__(self):
+        return str(CompletionString(self.completionString))
+
+    @property
+    def kind(self):
+        return CursorKind.from_id(self.cursorKind)
+
+    @property
+    def string(self):
+        return CompletionString(self.completionString)
+
+class CCRStructure(Structure):
+    _fields_ = [('results', POINTER(CodeCompletionResult)),
+                ('numResults', c_int)]
+
+    def __len__(self):
+        return self.numResults
+
+    def __getitem__(self, key):
+        if len(self) <= key:
+            raise IndexError
+
+        return self.results[key]
+
+class CodeCompletionResults(ClangObject):
+    def __init__(self, ptr):
+        assert isinstance(ptr, POINTER(CCRStructure)) and ptr
+        self.ptr = self._as_parameter_ = ptr
+
+    def from_param(self):
+        return self._as_parameter_
+
+    def __del__(self):
+        CodeCompletionResults_dispose(self)
+
+    @property
+    def results(self):
+        return self.ptr.contents
+
+    @property
+    def diagnostics(self):
+        class DiagnosticsItr:
+            def __init__(self, ccr):
+                self.ccr= ccr
+
+            def __len__(self):
+                return int(_clang_codeCompleteGetNumDiagnostics(self.ccr))
+
+            def __getitem__(self, key):
+                return _clang_codeCompleteGetDiagnostic(self.ccr, key)
+
+        return DiagnosticsItr(self)
+
 
 class Index(ClangObject):
     """
@@ -650,7 +913,7 @@ class Index(ClangObject):
         ptr = TranslationUnit_read(self, path)
         return TranslationUnit(ptr) if ptr else None
 
-    def parse(self, path, args = [], unsaved_files = []):
+    def parse(self, path, args = [], unsaved_files = [], options = 0):
         """
         Load the translation unit from the given source code file by running
         clang and generating the AST before loading. Additional command line
@@ -678,8 +941,9 @@ class Index(ClangObject):
                 unsaved_files_array[i].name = name
                 unsaved_files_array[i].contents = value
                 unsaved_files_array[i].length = len(value)
-        ptr = TranslationUnit_parse(self, path, len(args), arg_array,
-                                    len(unsaved_files), unsaved_files_array)
+        ptr = TranslationUnit_parse(self, path, arg_array, len(args),
+                                    unsaved_files_array, len(unsaved_files),
+                                    options)
         return TranslationUnit(ptr) if ptr else None
 
 
@@ -743,6 +1007,63 @@ class TranslationUnit(ClangObject):
                 return Diagnostic(diag)
 
         return DiagIterator(self)
+
+    def reparse(self, unsaved_files = [], options = 0):
+        """
+        Reparse an already parsed translation unit.
+
+        In-memory contents for files can be provided by passing a list of pairs
+        as unsaved_files, the first items should be the filenames to be mapped
+        and the second should be the contents to be substituted for the
+        file. The contents may be passed as strings or file objects.
+        """
+        unsaved_files_array = 0
+        if len(unsaved_files):
+            unsaved_files_array = (_CXUnsavedFile * len(unsaved_files))()
+            for i,(name,value) in enumerate(unsaved_files):
+                if not isinstance(value, str):
+                    # FIXME: It would be great to support an efficient version
+                    # of this, one day.
+                    value = value.read()
+                    print value
+                if not isinstance(value, str):
+                    raise TypeError,'Unexpected unsaved file contents.'
+                unsaved_files_array[i].name = name
+                unsaved_files_array[i].contents = value
+                unsaved_files_array[i].length = len(value)
+        ptr = TranslationUnit_reparse(self, len(unsaved_files),
+                                      unsaved_files_array,
+                                      options)
+    def codeComplete(self, path, line, column, unsaved_files = [], options = 0):
+        """
+        Code complete in this translation unit.
+
+        In-memory contents for files can be provided by passing a list of pairs
+        as unsaved_files, the first items should be the filenames to be mapped
+        and the second should be the contents to be substituted for the
+        file. The contents may be passed as strings or file objects.
+        """
+        unsaved_files_array = 0
+        if len(unsaved_files):
+            unsaved_files_array = (_CXUnsavedFile * len(unsaved_files))()
+            for i,(name,value) in enumerate(unsaved_files):
+                if not isinstance(value, str):
+                    # FIXME: It would be great to support an efficient version
+                    # of this, one day.
+                    value = value.read()
+                    print value
+                if not isinstance(value, str):
+                    raise TypeError,'Unexpected unsaved file contents.'
+                unsaved_files_array[i].name = name
+                unsaved_files_array[i].contents = value
+                unsaved_files_array[i].length = len(value)
+        ptr = TranslationUnit_codeComplete(self, path,
+                                           line, column,
+                                           unsaved_files_array,
+                                           len(unsaved_files),
+                                           options)
+        return CodeCompletionResults(ptr) if ptr else None
+
 
 class File(ClangObject):
     """
@@ -893,10 +1214,19 @@ TranslationUnit_read = lib.clang_createTranslationUnit
 TranslationUnit_read.argtypes = [Index, c_char_p]
 TranslationUnit_read.restype = c_object_p
 
-TranslationUnit_parse = lib.clang_createTranslationUnitFromSourceFile
-TranslationUnit_parse.argtypes = [Index, c_char_p, c_int, c_void_p,
-                                  c_int, c_void_p]
+TranslationUnit_parse = lib.clang_parseTranslationUnit
+TranslationUnit_parse.argtypes = [Index, c_char_p, c_void_p,
+                                  c_int, c_void_p, c_int, c_int]
 TranslationUnit_parse.restype = c_object_p
+
+TranslationUnit_reparse = lib.clang_reparseTranslationUnit
+TranslationUnit_reparse.argtypes = [TranslationUnit, c_int, c_void_p, c_int]
+TranslationUnit_reparse.restype = c_int
+
+TranslationUnit_codeComplete = lib.clang_codeCompleteAt
+TranslationUnit_codeComplete.argtypes = [TranslationUnit, c_char_p, c_int,
+                                         c_int, c_void_p, c_int, c_int]
+TranslationUnit_codeComplete.restype = POINTER(CCRStructure)
 
 TranslationUnit_cursor = lib.clang_getTranslationUnitCursor
 TranslationUnit_cursor.argtypes = [TranslationUnit]
@@ -929,7 +1259,46 @@ File_time = lib.clang_getFileTime
 File_time.argtypes = [File]
 File_time.restype = c_uint
 
+# Code completion
+
+CodeCompletionResults_dispose = lib.clang_disposeCodeCompleteResults
+CodeCompletionResults_dispose.argtypes = [CodeCompletionResults]
+
+_clang_codeCompleteGetNumDiagnostics = lib.clang_codeCompleteGetNumDiagnostics
+_clang_codeCompleteGetNumDiagnostics.argtypes = [CodeCompletionResults]
+_clang_codeCompleteGetNumDiagnostics.restype = c_int
+
+_clang_codeCompleteGetDiagnostic = lib.clang_codeCompleteGetDiagnostic
+_clang_codeCompleteGetDiagnostic.argtypes = [CodeCompletionResults, c_int]
+_clang_codeCompleteGetDiagnostic.restype = Diagnostic
+
+_clang_getCompletionChunkText = lib.clang_getCompletionChunkText
+_clang_getCompletionChunkText.argtypes = [c_void_p, c_int]
+_clang_getCompletionChunkText.restype = _CXString
+
+_clang_getCompletionChunkKind = lib.clang_getCompletionChunkKind
+_clang_getCompletionChunkKind.argtypes = [c_void_p, c_int]
+_clang_getCompletionChunkKind.restype = c_int
+
+_clang_getCompletionChunkCompletionString = lib.clang_getCompletionChunkCompletionString
+_clang_getCompletionChunkCompletionString.argtypes = [c_void_p, c_int]
+_clang_getCompletionChunkCompletionString.restype = c_object_p
+
+_clang_getNumCompletionChunks = lib.clang_getNumCompletionChunks
+_clang_getNumCompletionChunks.argtypes = [c_void_p]
+_clang_getNumCompletionChunks.restype = c_int
+
+_clang_getCompletionAvailability = lib.clang_getCompletionAvailability
+_clang_getCompletionAvailability.argtypes = [c_void_p]
+_clang_getCompletionAvailability.restype = c_int
+
+_clang_getCompletionPriority = lib.clang_getCompletionPriority
+_clang_getCompletionPriority.argtypes = [c_void_p]
+_clang_getCompletionPriority.restype = c_int
+
+
 ###
 
 __all__ = ['Index', 'TranslationUnit', 'Cursor', 'CursorKind',
-           'Diagnostic', 'FixIt', 'SourceRange', 'SourceLocation', 'File']
+           'Diagnostic', 'FixIt', 'CodeCompletionResults', 'SourceRange',
+           'SourceLocation', 'File']

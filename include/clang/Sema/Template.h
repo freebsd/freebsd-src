@@ -13,8 +13,10 @@
 #define LLVM_CLANG_SEMA_TEMPLATE_H
 
 #include "clang/AST/DeclTemplate.h"
+#include "clang/AST/DeclVisitor.h"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
+#include <utility>
 
 namespace clang {
   /// \brief Data structure that captures multiple levels of template argument
@@ -79,12 +81,21 @@ namespace clang {
       return !(*this)(Depth, Index).isNull();
     }
     
+    /// \brief Clear out a specific template argument.
+    void setArgument(unsigned Depth, unsigned Index,
+                     TemplateArgument Arg) {
+      assert(Depth < TemplateArgumentLists.size());
+      assert(Index < TemplateArgumentLists[getNumLevels() - Depth - 1].second);
+      const_cast<TemplateArgument&>(
+                TemplateArgumentLists[getNumLevels() - Depth - 1].first[Index])
+        = Arg;
+    }
+    
     /// \brief Add a new outermost level to the multi-level template argument 
     /// list.
     void addOuterTemplateArguments(const TemplateArgumentList *TemplateArgs) {
-      TemplateArgumentLists.push_back(
-                                    ArgList(TemplateArgs->getFlatArgumentList(),
-                                            TemplateArgs->flat_size()));
+      TemplateArgumentLists.push_back(ArgList(TemplateArgs->data(),
+                                              TemplateArgs->size()));
     }
     
     /// \brief Add a new outmost level to the multi-level template argument
@@ -140,7 +151,7 @@ namespace clang {
       : TemplateArgument(Arg), DeducedFromArrayBound(DeducedFromArrayBound) { }
 
     /// \brief Construct an integral non-type template argument that
-    /// has been deduced, possible from an array bound.
+    /// has been deduced, possibly from an array bound.
     DeducedTemplateArgument(const llvm::APSInt &Value,
                             QualType ValueType,
                             bool DeducedFromArrayBound)
@@ -165,10 +176,19 @@ namespace clang {
   /// instantiate a new function declaration, which will have its own
   /// set of parameter declarations.
   class LocalInstantiationScope {
+  public:
+    /// \brief A set of declarations.
+    typedef llvm::SmallVector<Decl *, 4> DeclArgumentPack;
+    
+  private:
     /// \brief Reference to the semantic analysis that is performing
     /// this template instantiation.
     Sema &SemaRef;
 
+    typedef llvm::DenseMap<const Decl *, 
+                           llvm::PointerUnion<Decl *, DeclArgumentPack *> >
+      LocalDeclsMap;
+    
     /// \brief A mapping from local declarations that occur
     /// within a template to their instantiations.
     ///
@@ -183,8 +203,15 @@ namespace clang {
     /// when we instantiate add<int>, we will introduce a mapping from
     /// the ParmVarDecl for 'x' that occurs in the template to the
     /// instantiated ParmVarDecl for 'x'.
-    llvm::DenseMap<const Decl *, Decl *> LocalDecls;
+    ///
+    /// For a parameter pack, the local instantiation scope may contain a
+    /// set of instantiated parameters. This is stored as a DeclArgumentPack
+    /// pointer.
+    LocalDeclsMap LocalDecls;
 
+    /// \brief The set of argument packs we've allocated.
+    llvm::SmallVector<DeclArgumentPack *, 1> ArgumentPacks;
+    
     /// \brief The outer scope, which contains local variable
     /// definitions from some other instantiation (that may not be
     /// relevant to this particular scope).
@@ -197,6 +224,19 @@ namespace clang {
     /// lookup will search our outer scope.
     bool CombineWithOuterScope;
     
+    /// \brief If non-NULL, the template parameter pack that has been
+    /// partially substituted per C++0x [temp.arg.explicit]p9.
+    NamedDecl *PartiallySubstitutedPack;
+    
+    /// \brief If \c PartiallySubstitutedPack is non-null, the set of
+    /// explicitly-specified template arguments in that pack.
+    const TemplateArgument *ArgsInPartiallySubstitutedPack;    
+    
+    /// \brief If \c PartiallySubstitutedPack, the number of 
+    /// explicitly-specified template arguments in 
+    /// ArgsInPartiallySubstitutedPack.
+    unsigned NumArgsInPartiallySubstitutedPack;
+
     // This class is non-copyable
     LocalInstantiationScope(const LocalInstantiationScope &);
     LocalInstantiationScope &operator=(const LocalInstantiationScope &);
@@ -204,7 +244,8 @@ namespace clang {
   public:
     LocalInstantiationScope(Sema &SemaRef, bool CombineWithOuterScope = false)
       : SemaRef(SemaRef), Outer(SemaRef.CurrentInstantiationScope),
-        Exited(false), CombineWithOuterScope(CombineWithOuterScope)
+        Exited(false), CombineWithOuterScope(CombineWithOuterScope),
+        PartiallySubstitutedPack(0)
     {
       SemaRef.CurrentInstantiationScope = this;
     }
@@ -212,33 +253,171 @@ namespace clang {
     ~LocalInstantiationScope() {
       Exit();
     }
+    
+    const Sema &getSema() const { return SemaRef; }
 
     /// \brief Exit this local instantiation scope early.
     void Exit() {
       if (Exited)
         return;
       
+      for (unsigned I = 0, N = ArgumentPacks.size(); I != N; ++I)
+        delete ArgumentPacks[I];
+        
       SemaRef.CurrentInstantiationScope = Outer;
       Exited = true;
     }
 
-    Decl *getInstantiationOf(const Decl *D);
-
-    VarDecl *getInstantiationOf(const VarDecl *Var) {
-      return cast<VarDecl>(getInstantiationOf(cast<Decl>(Var)));
-    }
-
-    ParmVarDecl *getInstantiationOf(const ParmVarDecl *Var) {
-      return cast<ParmVarDecl>(getInstantiationOf(cast<Decl>(Var)));
-    }
-
-    NonTypeTemplateParmDecl *getInstantiationOf(
-                                          const NonTypeTemplateParmDecl *Var) {
-      return cast<NonTypeTemplateParmDecl>(getInstantiationOf(cast<Decl>(Var)));
-    }
+    /// \brief Find the instantiation of the declaration D within the current
+    /// instantiation scope.
+    ///
+    /// \param D The declaration whose instantiation we are searching for.
+    ///
+    /// \returns A pointer to the declaration or argument pack of declarations
+    /// to which the declaration \c D is instantiataed, if found. Otherwise,
+    /// returns NULL.
+    llvm::PointerUnion<Decl *, DeclArgumentPack *> *
+    findInstantiationOf(const Decl *D);
 
     void InstantiatedLocal(const Decl *D, Decl *Inst);
+    void InstantiatedLocalPackArg(const Decl *D, Decl *Inst);
+    void MakeInstantiatedLocalArgPack(const Decl *D);
+    
+    /// \brief Note that the given parameter pack has been partially substituted
+    /// via explicit specification of template arguments 
+    /// (C++0x [temp.arg.explicit]p9).
+    ///
+    /// \param Pack The parameter pack, which will always be a template
+    /// parameter pack.
+    ///
+    /// \param ExplicitArgs The explicitly-specified template arguments provided
+    /// for this parameter pack.
+    ///
+    /// \param NumExplicitArgs The number of explicitly-specified template
+    /// arguments provided for this parameter pack.
+    void SetPartiallySubstitutedPack(NamedDecl *Pack, 
+                                     const TemplateArgument *ExplicitArgs,
+                                     unsigned NumExplicitArgs);
+    
+    /// \brief Retrieve the partially-substitued template parameter pack.
+    ///
+    /// If there is no partially-substituted parameter pack, returns NULL.
+    NamedDecl *getPartiallySubstitutedPack(
+                                      const TemplateArgument **ExplicitArgs = 0,
+                                           unsigned *NumExplicitArgs = 0) const;
   };
+
+  class TemplateDeclInstantiator
+    : public DeclVisitor<TemplateDeclInstantiator, Decl *> 
+  {
+    Sema &SemaRef;
+    Sema::ArgumentPackSubstitutionIndexRAII SubstIndex;
+    DeclContext *Owner;
+    const MultiLevelTemplateArgumentList &TemplateArgs;
+
+    /// \brief A list of out-of-line class template partial
+    /// specializations that will need to be instantiated after the
+    /// enclosing class's instantiation is complete.
+    llvm::SmallVector<std::pair<ClassTemplateDecl *,
+                                ClassTemplatePartialSpecializationDecl *>, 4>
+      OutOfLinePartialSpecs;
+
+  public:
+    TemplateDeclInstantiator(Sema &SemaRef, DeclContext *Owner,
+                             const MultiLevelTemplateArgumentList &TemplateArgs)
+      : SemaRef(SemaRef), SubstIndex(SemaRef, -1), Owner(Owner), 
+        TemplateArgs(TemplateArgs) { }
+
+    // FIXME: Once we get closer to completion, replace these manually-written
+    // declarations with automatically-generated ones from
+    // clang/AST/DeclNodes.inc.
+    Decl *VisitTranslationUnitDecl(TranslationUnitDecl *D);
+    Decl *VisitLabelDecl(LabelDecl *D);
+    Decl *VisitNamespaceDecl(NamespaceDecl *D);
+    Decl *VisitNamespaceAliasDecl(NamespaceAliasDecl *D);
+    Decl *VisitTypedefDecl(TypedefDecl *D);
+    Decl *VisitVarDecl(VarDecl *D);
+    Decl *VisitAccessSpecDecl(AccessSpecDecl *D);
+    Decl *VisitFieldDecl(FieldDecl *D);
+    Decl *VisitIndirectFieldDecl(IndirectFieldDecl *D);
+    Decl *VisitStaticAssertDecl(StaticAssertDecl *D);
+    Decl *VisitEnumDecl(EnumDecl *D);
+    Decl *VisitEnumConstantDecl(EnumConstantDecl *D);
+    Decl *VisitFriendDecl(FriendDecl *D);
+    Decl *VisitFunctionDecl(FunctionDecl *D,
+                            TemplateParameterList *TemplateParams = 0);
+    Decl *VisitCXXRecordDecl(CXXRecordDecl *D);
+    Decl *VisitCXXMethodDecl(CXXMethodDecl *D,
+                             TemplateParameterList *TemplateParams = 0);
+    Decl *VisitCXXConstructorDecl(CXXConstructorDecl *D);
+    Decl *VisitCXXDestructorDecl(CXXDestructorDecl *D);
+    Decl *VisitCXXConversionDecl(CXXConversionDecl *D);
+    ParmVarDecl *VisitParmVarDecl(ParmVarDecl *D);
+    Decl *VisitClassTemplateDecl(ClassTemplateDecl *D);
+    Decl *VisitClassTemplatePartialSpecializationDecl(
+                                    ClassTemplatePartialSpecializationDecl *D);
+    Decl *VisitFunctionTemplateDecl(FunctionTemplateDecl *D);
+    Decl *VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D);
+    Decl *VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D);
+    Decl *VisitTemplateTemplateParmDecl(TemplateTemplateParmDecl *D);
+    Decl *VisitUsingDirectiveDecl(UsingDirectiveDecl *D);
+    Decl *VisitUsingDecl(UsingDecl *D);
+    Decl *VisitUsingShadowDecl(UsingShadowDecl *D);
+    Decl *VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D);
+    Decl *VisitUnresolvedUsingTypenameDecl(UnresolvedUsingTypenameDecl *D);
+
+    // Base case. FIXME: Remove once we can instantiate everything.
+    Decl *VisitDecl(Decl *D) {
+      unsigned DiagID = SemaRef.getDiagnostics().getCustomDiagID(
+                                                            Diagnostic::Error,
+                                                   "cannot instantiate %0 yet");
+      SemaRef.Diag(D->getLocation(), DiagID)
+        << D->getDeclKindName();
+      
+      return 0;
+    }
+    
+    typedef 
+      llvm::SmallVectorImpl<std::pair<ClassTemplateDecl *,
+                                     ClassTemplatePartialSpecializationDecl *> >
+        ::iterator
+      delayed_partial_spec_iterator;
+
+    /// \brief Return an iterator to the beginning of the set of
+    /// "delayed" partial specializations, which must be passed to
+    /// InstantiateClassTemplatePartialSpecialization once the class
+    /// definition has been completed.
+    delayed_partial_spec_iterator delayed_partial_spec_begin() {
+      return OutOfLinePartialSpecs.begin();
+    }
+
+    /// \brief Return an iterator to the end of the set of
+    /// "delayed" partial specializations, which must be passed to
+    /// InstantiateClassTemplatePartialSpecialization once the class
+    /// definition has been completed.
+    delayed_partial_spec_iterator delayed_partial_spec_end() {
+      return OutOfLinePartialSpecs.end();
+    }
+
+    // Helper functions for instantiating methods.
+    TypeSourceInfo *SubstFunctionType(FunctionDecl *D,
+                             llvm::SmallVectorImpl<ParmVarDecl *> &Params);
+    bool InitFunctionInstantiation(FunctionDecl *New, FunctionDecl *Tmpl);
+    bool InitMethodInstantiation(CXXMethodDecl *New, CXXMethodDecl *Tmpl);
+
+    TemplateParameterList *
+      SubstTemplateParams(TemplateParameterList *List);
+
+    bool SubstQualifier(const DeclaratorDecl *OldDecl,
+                        DeclaratorDecl *NewDecl);
+    bool SubstQualifier(const TagDecl *OldDecl,
+                        TagDecl *NewDecl);
+      
+    ClassTemplatePartialSpecializationDecl *
+    InstantiateClassTemplatePartialSpecialization(
+                                              ClassTemplateDecl *ClassTemplate,
+                           ClassTemplatePartialSpecializationDecl *PartialSpec);
+  };  
 }
 
 #endif // LLVM_CLANG_SEMA_TEMPLATE_H

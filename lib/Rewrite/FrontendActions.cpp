@@ -20,7 +20,7 @@
 #include "clang/Rewrite/Rewriters.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -42,6 +42,7 @@ ASTConsumer *FixItAction::CreateASTConsumer(CompilerInstance &CI,
   return new ASTConsumer();
 }
 
+namespace {
 class FixItRewriteInPlace : public FixItOptions {
 public:
   std::string RewriteFilename(const std::string &Filename) { return Filename; }
@@ -57,13 +58,13 @@ public:
   }
 
   std::string RewriteFilename(const std::string &Filename) {
-    llvm::sys::Path Path(Filename);
-    std::string Suffix = Path.getSuffix();
-    Path.eraseSuffix();
-    Path.appendSuffix(NewSuffix + "." + Suffix);
-    return Path.c_str();
+    llvm::SmallString<128> Path(Filename);
+    llvm::sys::path::replace_extension(Path,
+      NewSuffix + llvm::sys::path::extension(Path));
+    return Path.str();
   }
 };
+} // end anonymous namespace
 
 bool FixItAction::BeginSourceFileAction(CompilerInstance &CI,
                                         llvm::StringRef Filename) {

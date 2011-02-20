@@ -32,20 +32,24 @@
   <li><a href="#c">C compatibility</a>
     <ul>
       <li><a href="#inline">C99 inline functions</a></li>
+      <li><a href="#vector_builtins">"missing" vector __builtin functions</a></li>
       <li><a href="#lvalue-cast">Lvalue casts</a></li>
       <li><a href="#blocks-in-protected-scope">Jumps to within <tt>__block</tt> variable scope</a></li>
+      <li><a href="#block-variable-initialization">Non-initialization of <tt>__block</tt> variables</a></li>
+      <li><a href="#inline-asm">Inline assembly</a></li>
     </ul>
   </li>
   <li><a href="#objective-c">Objective-C compatibility</a>
     <ul>
       <li><a href="#super-cast">Cast of super</a></li>
       <li><a href="#sizeof-interface">Size of interfaces</a></li>
+      <li><a href="#objc_objs-cast">Internal Objective-C types</a></li>
+      <li><a href="#c_variables-class">C variables in @class or @protocol</a></li>
     </ul>
   </li>
   <li><a href="#c++">C++ compatibility</a>
     <ul>
       <li><a href="#vla">Variable-length arrays</a></li>
-      <li><a href="#init_static_const">Initialization of non-integral static const data members within a class definition</a></li>
       <li><a href="#dep_lookup">Unqualified lookup in templates</a></li>
       <li><a href="#dep_lookup_bases">Unqualified lookup into dependent bases of class templates</a></li>
       <li><a href="#undep_incomplete">Incomplete types in templates</a></li>
@@ -53,6 +57,7 @@
       <li><a href="#default_init_const">Default initialization of const
       variable of a class type requires user-defined default
       constructor</a></li>
+      <li><a href="#param_name_lookup">Parameter name lookup</a></li>
     </ul>
   </li>
   <li><a href="#objective-c++">Objective-C++ compatibility</a>
@@ -60,7 +65,7 @@
       <li><a href="#implicit-downcasts">Implicit downcasts</a></li>
     </ul>
     <ul>
-      <li><a href="#Use of class as method name">Use of class as method name</a></li>
+      <li><a href="#class-as-property-name">Using <code>class</code> as a property name</a></li>
     </ul>
   </li>
 </ul>
@@ -73,8 +78,9 @@
 <h3 id="inline">C99 inline functions</h3>
 <!-- ======================================================================= -->
 <p>By default, Clang builds C code according to the C99 standard,
-which provides different inlining semantics than GCC's default
-behavior. For example, when compiling the following code with no optimization:</p>
+which provides different semantics for the <code>inline</code> keyword
+than GCC's default behavior. For example, consider the following
+code:</p>
 <pre>
 inline int add(int i, int j) { return i + j; }
 
@@ -84,11 +90,13 @@ int main() {
 }
 </pre>
 
-<p>In C99, this is an incomplete (incorrect) program because there is
-no external definition of the <code>add</code> function: the inline
-definition is only used for optimization, if the compiler decides to
-perform inlining. Therefore, we will get a (correct) link-time error
-with Clang, e.g.:</p>
+<p>In C99, <code>inline</code> means that a function's definition is
+provided only for inlining, and that there is another definition
+(without <code>inline</code>) somewhere else in the program.  That
+means that this program is incomplete, because if <code>add</code>
+isn't inlined (for example, when compiling without optimization), then
+<code>main</code> will have an unresolved reference to that other
+definition.  Therefore we'll get a (correct) link-time error like this:</p>
 
 <pre>
 Undefined symbols:
@@ -96,23 +104,75 @@ Undefined symbols:
       _main in cc-y1jXIr.o
 </pre>
 
+<p>By contrast, GCC's default behavior follows the GNU89 dialect,
+which is the C89 standard plus a lot of extensions.  C89 doesn't have
+an <code>inline</code> keyword, but GCC recognizes it as an extension
+and just treats it as a hint to the optimizer.</p>
+
 <p>There are several ways to fix this problem:</p>
 
 <ul>
   <li>Change <code>add</code> to a <code>static inline</code>
-  function. Static inline functions are always resolved within the
-  translation unit, so you won't have to add an external, non-inline
-  definition of the function elsewhere in your program.</li>
-  
-  <li>Provide an external (non-inline) definition of <code>add</code>
-  somewhere in your program.</li>
-   
+  function.  This is usually the right solution if only one
+  translation unit needs to use the function.  <code>static
+  inline</code> functions are always resolved within the translation
+  unit, so you won't have to add a non-<code>inline</code> definition
+  of the function elsewhere in your program.</li>
+
+  <li>Remove the <code>inline</code> keyword from this definition of
+  <code>add</code>.  The <code>inline</code> keyword is not required
+  for a function to be inlined, nor does it guarantee that it will be.
+  Some compilers ignore it completely.  Clang treats it as a mild
+  suggestion from the programmer.</li>
+     
+  <li>Provide an external (non-<code>inline</code>) definition
+  of <code>add</code> somewhere else in your program.  The two
+  definitions must be equivalent!</li>
+
   <li>Compile with the GNU89 dialect by adding
   <code>-std=gnu89</code> to the set of Clang options. This option is
   only recommended if the program source cannot be changed or if the
   program also relies on additional C89-specific behavior that cannot
   be changed.</li>
 </ul>
+
+<p>All of this only applies to C code; the meaning of <code>inline</code>
+in C++ is very different from its meaning in either GNU89 or C99.</p>
+
+<!-- ======================================================================= -->
+<h3 id="vector_builtins">"missing" vector __builtin functions</h3>
+<!-- ======================================================================= -->
+
+<p>The Intel and AMD manuals document a number "<tt>&lt;*mmintrin.h&gt;</tt>"
+header files, which define a standardized API for accessing vector operations
+on X86 CPUs.  These functions have names like <tt>_mm_xor_ps</tt> and
+<tt>_mm256_addsub_pd</tt>.  Compilers have leeway to implement these functions
+however they want.  Since Clang supports an excellent set of <a 
+href="../docs/LanguageExtensions.html#vectors">native vector operations</a>,
+the Clang headers implement these interfaces in terms of the native vector 
+operations.
+</p>
+
+<p>In contrast, GCC implements these functions mostly as a 1-to-1 mapping to
+builtin function calls, like <tt>__builtin_ia32_paddw128</tt>.  These builtin
+functions are an internal implementation detail of GCC, and are not portable to
+the Intel compiler, the Microsoft compiler, or Clang.  If you get build errors
+mentioning these, the fix is simple: switch to the *mmintrin.h functions.</p>
+
+<p>The same issue occurs for NEON and Altivec for the ARM and PowerPC
+architectures respectively.  For these, make sure to use the &lt;arm_neon.h&gt;
+and &lt;altivec.h&gt; headers.</p>
+
+<p>For x86 architectures this <a href="builtins.py">script</a> should help with
+the manual migration process.  It will rewrite your source files in place to
+use the APIs instead of builtin function calls. Just call it like this:</p>
+
+<pre>
+  builtins.py *.c *.h
+</pre>
+
+<p>and it will rewrite all of the .c and .h files in the current directory to
+use the API calls instead of calls like <tt>__builtin_ia32_paddw128</tt>.</p>
 
 <!-- ======================================================================= -->
 <h3 id="lvalue-cast">Lvalue casts</h3>
@@ -139,50 +199,117 @@ example, one could use:</p>
 <h3 id="blocks-in-protected-scope">Jumps to within <tt>__block</tt> variable scope</h3>
 <!-- ======================================================================= -->
 
-<p>Clang disallows jumps into the scope of a <tt>__block</tt> variable, similar
-to the manner in which both GCC and Clang disallow jumps into the scope of
-variables which have user defined constructors (in C++).</p>
-
-<p>Variables marked with <tt>__block</tt> require special runtime initialization
-before they can be used. A jump into the scope of a <tt>__block</tt> variable
-would bypass this initialization and therefore the variable cannot safely be
-used.</p>
-
-<p>For example, consider the following code fragment:</p>
+<p>Clang disallows jumps into the scope of a <tt>__block</tt>
+variable.  Variables marked with <tt>__block</tt> require special
+runtime initialization. A jump into the scope of a <tt>__block</tt>
+variable bypasses this initialization, leaving the variable's metadata
+in an invalid state.  Consider the following code fragment:</p>
 
 <pre>
-int f0(int c) {
-  if (c)
-    goto error;
+int fetch_object_state(struct MyObject *c) {
+  if (!c->active) goto error;
 
-  __block int x;
-  x = 1;
-  return x;
+  __block int result;
+  run_specially_somehow(^{ result = c->state; });
+  return result;
 
  error:
-  x = 0;
-  return x;
+  fprintf(stderr, "error while fetching object state");
+  return -1;
 }
 </pre>
 
-<p>GCC accepts this code, but it will crash at runtime along the error path,
-because the runtime setup for the storage backing the <tt>x</tt> variable will
-not have been initialized. Clang rejects this code with a hard error:</p>
+<p>GCC accepts this code, but it produces code that will usually crash
+when <code>result</code> goes out of scope if the jump is taken.  (It's
+possible for this bug to go undetected because it often won't crash if
+the stack is fresh, i.e. still zeroed.)  Therefore, Clang rejects this
+code with a hard error:</p>
 
 <pre>
 t.c:3:5: error: goto into protected scope
     goto error;
     ^
 t.c:5:15: note: jump bypasses setup of __block variable
-  __block int x;
+  __block int result;
               ^
 </pre>
 
-<p>Some instances of this construct may be safe if the variable is never used
-after the jump target, however the protected scope checker does not check the
-uses of the variable, only the scopes in which it is visible. You should rewrite
-your code to put the <tt>__block</tt> variables in a scope which is only visible
-where they are used.</p>
+<p>The fix is to rewrite the code to not require jumping into a
+<tt>__block</tt> variable's scope, e.g. by limiting that scope:</p>
+
+<pre>
+  {
+    __block int result;
+    run_specially_somehow(^{ result = c->state; });
+    return result;
+  }
+</pre>
+
+<!-- ======================================================================= -->
+<h3 id="block-variable-initialization">Non-initialization of <tt>__block</tt>
+variables</h3>
+<!-- ======================================================================= -->
+
+<p>In the following example code, the <tt>x</tt> variable is used before it is
+defined:</p>
+<pre>
+int f0() {
+  __block int x;
+  return ^(){ return x; }();
+}
+</pre>
+
+<p>By an accident of implementation, GCC and llvm-gcc unintentionally always
+zero initialized <tt>__block</tt> variables. However, any program which depends
+on this behavior is relying on unspecified compiler behavior. Programs must
+explicitly initialize all local block variables before they are used, as with
+other local variables.</p>
+
+<p>Clang does not zero initialize local block variables, and programs which rely
+on such behavior will most likely break when built with Clang.</p>
+
+
+<!-- ======================================================================= -->
+<h3 id="inline-asm">Inline assembly</h3>
+<!-- ======================================================================= -->
+
+<p>In general, Clang is highly compatible with the GCC inline assembly
+extensions, allowing the same set of constraints, modifiers and operands as GCC
+inline assembly.</p>
+
+<p>On targets that use the integrated assembler (such as most X86 targets),
+inline assembly is run through the integrated assembler instead of your system
+assembler (which is most commonly "gas", the GNU assembler).  The LLVM
+integrated assembler is extremely compatible with GAS, but there are a couple of
+minor places where it is more picky, particularly due to outright GAS bugs.</p>
+
+<p>One specific example is that the assembler rejects ambiguous X86 instructions
+that don't have suffixes.  For example:</p>
+
+<pre>
+  asm("add %al, (%rax)");
+  asm("addw $4, (%rax)");
+  asm("add $4, (%rax)");
+</pre>
+
+<p>Both clang and GAS accept the first instruction: because the first
+instruction uses the 8-bit <tt>%al</tt> register as an operand, it is clear that
+it is an 8-bit add.  The second instruction is accepted by both because the "w"
+suffix indicates that it is a 16-bit add.  The last instruction is accepted by
+GAS even though there is nothing that specifies the size of the instruction (and
+the assembler randomly picks a 32-bit add).  Because it is ambiguous, Clang
+rejects the instruction with this error message:
+</p>
+
+<pre>
+&lt;inline asm&gt;:3:1: error: ambiguous instructions require an explicit suffix (could be 'addb', 'addw', 'addl', or 'addq')
+add $4, (%rax)
+^
+1 error generated.
+</pre>
+
+<p>To fix this compatibility issue, add an explicit suffix to the instruction:
+this makes your code more clear and is compatible with both GCC and Clang.</p>
 
 <!-- ======================================================================= -->
 <h2 id="objective-c">Objective-C compatibility</h3>
@@ -235,6 +362,47 @@ this problem, use the Objective-C runtime API function
 </pre>
 
 <!-- ======================================================================= -->
+<h3 id="objc_objs-cast">Internal Objective-C types</h3>
+<!-- ======================================================================= -->
+
+<p>GCC allows using pointers to internal Objective-C objects, <tt>struct objc_object*</tt>,
+<tt>struct objc_selector*</tt>, and <tt>struct objc_class*</tt> in place of the types
+<tt>id</tt>, <tt>SEL</tt>, and <tt>Class</tt> respectively. Clang treats the
+internal Objective-C structures as implementation detail and won't do implicit conversions:
+
+<pre>
+t.mm:11:2: error: no matching function for call to 'f'
+        f((struct objc_object *)p);
+        ^
+t.mm:5:6: note: candidate function not viable: no known conversion from 'struct objc_object *' to 'id' for 1st argument
+void f(id x);
+     ^
+</pre>
+
+<p>Code should use types <tt>id</tt>, <tt>SEL</tt>, and <tt>Class</tt>
+instead of the internal types.</p>
+
+<!-- ======================================================================= -->
+<h3 id="c_variables-class">C variables in @interface or @protocol</h3>
+<!-- ======================================================================= -->
+
+<p>GCC allows the declaration of C variables in
+an <code>@interface</code> or <code>@protocol</code>
+declaration. Clang does not allow variable declarations to appear
+within these declarations unless they are marked <code>extern</code>.</p>
+
+<p>Variables may still be declared in an @implementation.</p>
+
+<pre>
+@interface XX
+int a;         // not allowed in clang
+int b = 1;     // not allowed in clang
+extern int c;  // allowed 
+@end
+
+</pre>
+
+<!-- ======================================================================= -->
 <h2 id="c++">C++ compatibility</h3>
 <!-- ======================================================================= -->
 
@@ -250,8 +418,8 @@ compatibility with GNU C and C99 programs:</p>
 <ul>  
   <li>The element type of a variable length array must be a POD
   ("plain old data") type, which means that it cannot have any
-  user-declared constructors or destructors, base classes, or any
-  members if non-POD type. All C types are POD types.</li>
+  user-declared constructors or destructors, any base classes, or any
+  members of non-POD type. All C types are POD types.</li>
 
   <li>Variable length arrays cannot be used as the type of a non-type
 template parameter.</li> </ul>
@@ -260,57 +428,14 @@ template parameter.</li> </ul>
 
 <ol>
 <li>replace the variable length array with a fixed-size array if you can
-    determine a
-    reasonable upper bound at compile time; sometimes this is as
+    determine a reasonable upper bound at compile time; sometimes this is as
     simple as changing <tt>int size = ...;</tt> to <tt>const int size
-    = ...;</tt> (if the definition of <tt>size</tt> is a compile-time
-    integral constant);</li>
-<li>use an <tt>std::string</tt> instead of a <tt>char []</tt>;</li>
+    = ...;</tt> (if the initializer is a compile-time constant);</li>
 <li>use <tt>std::vector</tt> or some other suitable container type;
     or</li>
 <li>allocate the array on the heap instead using <tt>new Type[]</tt> -
     just remember to <tt>delete[]</tt> it.</li>
 </ol>
-
-<!-- ======================================================================= -->
-<h3 id="init_static_const">Initialization of non-integral static const data members within a class definition</h3>
-<!-- ======================================================================= -->
-
-The following code is ill-formed in C++'03:
-
-<pre>
-class SomeClass {
- public:
-  static const double SomeConstant = 0.5;
-};
-
-const double SomeClass::SomeConstant;
-</pre>
-
-Clang errors with something similar to:
-
-<pre>
-.../your_file.h:42:42: error: 'SomeConstant' can only be initialized if it is a static const integral data member
-  static const double SomeConstant = 0.5;
-                      ^              ~~~
-</pre>
-
-Only <i>integral</i> constant expressions are allowed as initializers
-within the class definition. See C++'03 [class.static.data] p4 for the
-details of this restriction.  The fix here is straightforward: move
-the initializer to the definition of the static data member, which
-must exist outside of the class definition:
-
-<pre>
-class SomeClass {
- public:
-  static const double SomeConstant;
-};
-
-const double SomeClass::SomeConstant<b> = 0.5</b>;
-</pre>
-
-Note that the forthcoming C++0x standard will allow this.
 
 <!-- ======================================================================= -->
 <h3 id="dep_lookup">Unqualified lookup in templates</h3>
@@ -614,6 +739,18 @@ void Bar() {
 </pre>
 
 <!-- ======================================================================= -->
+<h3 id="param_name_lookup">Parameter name lookup</h3>
+<!-- ======================================================================= -->
+
+<p>Due to a bug in its implementation, GCC allows the redeclaration of function parameter names within a function prototype in C++ code, e.g.</p>
+<blockquote>
+<pre>
+void f(int a, int a);
+</pre>
+</blockquote>
+<p>Clang diagnoses this error (where the parameter name has been redeclared). To fix this problem, rename one of the parameters.</p>
+
+<!-- ======================================================================= -->
 <h2 id="objective-c++">Objective-C++ compatibility</h3>
 <!-- ======================================================================= -->
 
@@ -622,18 +759,18 @@ void Bar() {
 <!-- ======================================================================= -->
 
 <p>Due to a bug in its implementation, GCC allows implicit downcasts
-(from base class to a derived class) when calling functions. Such code is
-inherently unsafe, since the object might not actually be an instance
-of the derived class, and is rejected by Clang. For example, given
-this code:</p>
+of Objective-C pointers (from a base class to a derived class) when
+calling functions. Such code is inherently unsafe, since the object
+might not actually be an instance of the derived class, and is
+rejected by Clang. For example, given this code:</p>
 
 <pre>
 @interface Base @end
 @interface Derived : Base @end
 
-void f(Derived *);
-void g(Base *base) {
-  f(base);
+void f(Derived *p);
+void g(Base *p) {
+  f(p);
 }
 </pre>
 
@@ -641,11 +778,11 @@ void g(Base *base) {
 
 <pre>
 downcast.mm:6:3: error: no matching function for call to 'f'
-  f(base);
+  f(p);
   ^
 downcast.mm:4:6: note: candidate function not viable: cannot convert from
       superclass 'Base *' to subclass 'Derived *' for 1st argument
-void f(Derived *);
+void f(Derived *p);
      ^
 </pre>
 
@@ -658,13 +795,17 @@ explicit cast:</p>
 </pre>
 
 <!-- ======================================================================= -->
-<h3 id="Use of class as method name">Use of class as method name</h3>
+<h3 id="class-as-property-name">Using <code>class</code> as a property name</h3>
 <!-- ======================================================================= -->
 
-<p>Use of 'class' name to declare a method is allowed in objective-c++ mode to
-be compatible with GCC. However, use of property dot syntax notation to call
-this method is not allowed in clang++, as [I class] is a suitable syntax that 
-will work. So, this test will fail in clang++.
+<p>In C and Objective-C, <code>class</code> is a normal identifier and
+can be used to name fields, ivars, methods, and so on.  In
+C++, <code>class</code> is a keyword.  For compatibility with existing
+code, Clang permits <code>class</code> to be used as part of a method
+selector in Objective-C++, but this does not extend to any other part
+of the language.  In particular, it is impossible to use property dot
+syntax in Objective-C++ with the property name <code>class</code>, so
+the following code will fail to parse:</p>
 
 <pre>
 @interface I {
@@ -678,6 +819,7 @@ int cls;
 @end
 <pre>
 
+<p>Use explicit message-send syntax instead, i.e. <code>[I class]</code>.</p>
 
 </div>
 </body>

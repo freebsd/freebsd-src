@@ -50,7 +50,7 @@ class A { };
 class B : public A {
 public:
   operator A&() const; // expected-warning{{conversion function converting 'B' to its base class 'A' will never be used}}
-  operator const void() const; // expected-warning{{conversion function converting 'B' to 'void const' will never be used}}
+  operator const void() const; // expected-warning{{conversion function converting 'B' to 'const void' will never be used}}
   operator const B(); // expected-warning{{conversion function converting 'B' to itself will never be used}}
 };
 
@@ -324,4 +324,32 @@ namespace rdar8018274 {
   void test3(ExtraDerived23 ed) {
     int i = ed;
   }
+}
+
+namespace PR8065 {
+  template <typename T> struct Iterator;
+  template <typename T> struct Container;
+
+  template<>
+  struct Iterator<int> {
+    typedef Container<int> container_type;
+  };
+
+  template <typename T>
+  struct Container {
+    typedef typename Iterator<T>::container_type X;
+    operator X(void) { return X(); }
+  };
+
+  Container<int> test;
+}
+
+namespace PR8034 {
+  struct C {
+    operator int();
+
+  private:
+    template <typename T> operator T();
+  };
+  int x = C().operator int();
 }

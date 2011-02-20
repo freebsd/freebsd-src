@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -fobjc-nonfragile-abi2 -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fobjc-nonfragile-abi -fobjc-default-synthesize-properties -verify %s
 
 @interface NSString @end
 
@@ -94,7 +94,7 @@
 
 @implementation SubClass @end 
 
-// rdar: // 7920807
+// rdar://7920807
 @interface C @end
 @interface C (Category)
 @property int p; // expected-warning {{property 'p' requires method 'p' to be defined }} \

@@ -85,7 +85,7 @@ const llvm::Type *CodeGenTypes::ConvertTypeRecursive(QualType T) {
   T = Context.getCanonicalType(T);
 
   // See if type is already cached.
-  llvm::DenseMap<Type *, llvm::PATypeHolder>::iterator
+  llvm::DenseMap<const Type *, llvm::PATypeHolder>::iterator
     I = TypeCache.find(T.getTypePtr());
   // If type is found in map and this is not a definition for a opaque
   // place holder type then use it. Otherwise, convert type T.
@@ -228,7 +228,8 @@ const llvm::Type *CodeGenTypes::ConvertNewType(QualType T) {
     case BuiltinType::ULong:
     case BuiltinType::LongLong:
     case BuiltinType::ULongLong:
-    case BuiltinType::WChar:
+    case BuiltinType::WChar_S:
+    case BuiltinType::WChar_U:
     case BuiltinType::Char16:
     case BuiltinType::Char32:
       return llvm::IntegerType::get(getLLVMContext(),
@@ -252,7 +253,6 @@ const llvm::Type *CodeGenTypes::ConvertNewType(QualType T) {
     
     case BuiltinType::Overload:
     case BuiltinType::Dependent:
-    case BuiltinType::UndeducedAuto:
       assert(0 && "Unexpected builtin type!");
       break;
     }
@@ -371,26 +371,30 @@ const llvm::Type *CodeGenTypes::ConvertNewType(QualType T) {
     const TagDecl *TD = cast<TagType>(Ty).getDecl();
     const llvm::Type *Res = ConvertTagDeclType(TD);
 
-    std::string TypeName(TD->getKindName());
-    TypeName += '.';
+    llvm::SmallString<256> TypeName;
+    llvm::raw_svector_ostream OS(TypeName);
+    OS << TD->getKindName() << '.';
 
     // Name the codegen type after the typedef name
     // if there is no tag type name available
-    if (TD->getIdentifier())
+    if (TD->getIdentifier()) {
       // FIXME: We should not have to check for a null decl context here.
       // Right now we do it because the implicit Obj-C decls don't have one.
-      TypeName += TD->getDeclContext() ? TD->getQualifiedNameAsString() :
-        TD->getNameAsString();
-    else if (const TypedefType *TdT = dyn_cast<TypedefType>(T))
+      if (TD->getDeclContext())
+        OS << TD->getQualifiedNameAsString();
+      else
+        TD->printName(OS);
+    } else if (const TypedefDecl *TDD = TD->getTypedefForAnonDecl()) {
       // FIXME: We should not have to check for a null decl context here.
       // Right now we do it because the implicit Obj-C decls don't have one.
-      TypeName += TdT->getDecl()->getDeclContext() ? 
-        TdT->getDecl()->getQualifiedNameAsString() :
-        TdT->getDecl()->getNameAsString();
-    else
-      TypeName += "anon";
+      if (TDD->getDeclContext())
+        OS << TDD->getQualifiedNameAsString();
+      else
+        TDD->printName(OS);
+    } else
+      OS << "anon";
 
-    TheModule.addTypeName(TypeName, Res);
+    TheModule.addTypeName(OS.str(), Res);
     return Res;
   }
 
@@ -424,9 +428,13 @@ const llvm::Type *CodeGenTypes::ConvertTagDeclType(const TagDecl *TD) {
   if (TDTI != TagDeclTypes.end())
     return TDTI->second;
 
+  const EnumDecl *ED = dyn_cast<EnumDecl>(TD);
+
   // If this is still a forward declaration, just define an opaque
   // type to use for this tagged decl.
-  if (!TD->isDefinition()) {
+  // C++0x: If this is a enumeration type with fixed underlying type,
+  // consider it complete.
+  if (!TD->isDefinition() && !(ED && ED->isFixed())) {
     llvm::Type *ResultType = llvm::OpaqueType::get(getLLVMContext());
     TagDeclTypes.insert(std::make_pair(Key, ResultType));
     return ResultType;
@@ -434,8 +442,8 @@ const llvm::Type *CodeGenTypes::ConvertTagDeclType(const TagDecl *TD) {
 
   // Okay, this is a definition of a type.  Compile the implementation now.
 
-  if (TD->isEnum())  // Don't bother storing enums in TagDeclTypes.
-    return ConvertTypeRecursive(cast<EnumDecl>(TD)->getIntegerType());
+  if (ED)  // Don't bother storing enums in TagDeclTypes.
+    return ConvertTypeRecursive(ED->getIntegerType());
 
   // This decl could well be recursive.  In this case, insert an opaque
   // definition of this type, which the recursive uses will get.  We will then
@@ -474,11 +482,20 @@ const llvm::Type *CodeGenTypes::ConvertTagDeclType(const TagDecl *TD) {
   return ResultHolder.get();
 }
 
-/// getCGRecordLayout - Return record layout info for the given llvm::Type.
+/// getCGRecordLayout - Return record layout info for the given record decl.
 const CGRecordLayout &
-CodeGenTypes::getCGRecordLayout(const RecordDecl *TD) const {
-  const Type *Key = Context.getTagDeclType(TD).getTypePtr();
+CodeGenTypes::getCGRecordLayout(const RecordDecl *RD) {
+  const Type *Key = Context.getTagDeclType(RD).getTypePtr();
+
   const CGRecordLayout *Layout = CGRecordLayouts.lookup(Key);
+  if (!Layout) {
+    // Compute the type information.
+    ConvertTagDeclType(RD);
+
+    // Now try again.
+    Layout = CGRecordLayouts.lookup(Key);
+  }
+
   assert(Layout && "Unable to find record layout information for type");
   return *Layout;
 }
@@ -506,11 +523,5 @@ bool CodeGenTypes::isZeroInitializable(QualType T) {
 }
 
 bool CodeGenTypes::isZeroInitializable(const CXXRecordDecl *RD) {
-  
-  // FIXME: It would be better if there was a way to explicitly compute the
-  // record layout instead of converting to a type.
-  ConvertTagDeclType(RD);
-  
-  const CGRecordLayout &Layout = getCGRecordLayout(RD);
-  return Layout.isZeroInitializable();
+  return getCGRecordLayout(RD).isZeroInitializable();
 }

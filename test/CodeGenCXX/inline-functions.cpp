@@ -21,3 +21,35 @@ void B<char>::f() { }
 
 // CHECK: define void @_Z1fv
 void f() { }
+
+// <rdar://problem/8740363>
+inline void f1(int);
+
+// CHECK: define linkonce_odr void @_Z2f1i
+void f1(int) { }
+
+void test_f1() { f1(17); }
+
+// PR8789
+namespace test1 {
+  template <typename T> class ClassTemplate {
+  private:
+    friend void T::func();
+    void g() {}
+  };
+
+  // CHECK: define linkonce_odr void @_ZN5test11C4funcEv(
+
+  class C {
+  public:
+    void func() {
+      ClassTemplate<C> ct;
+      ct.g();
+    }
+  };
+
+  void f() {
+    C c;
+    c.func();
+  }
+}

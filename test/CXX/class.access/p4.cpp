@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fexceptions -fsyntax-only -verify %s
 
 // C++0x [class.access]p4:
 
@@ -201,7 +201,7 @@ namespace test4 {
 // Implicit copy assignment operator uses.
 namespace test5 {
   class A {
-    void operator=(const A &); // expected-note 2 {{declared private here}}
+    void operator=(const A &); // expected-note 2 {{implicitly declared private here}}
   };
 
   class Test1 { A a; }; // expected-error {{private member}}
@@ -449,4 +449,62 @@ namespace test18 {
   class C : B {
     A<int> member;
   };
+}
+
+// PR8325
+namespace test19 {
+  class A { ~A(); };
+  // The destructor is not implicitly referenced here.  Contrast to test16, 
+  // testing PR7281, earlier in this file.
+  void b(A* x) { throw x; }
+}
+
+// PR7930
+namespace test20 {
+  class Foo {
+    Foo(); // expected-note {{implicitly declared private here}}
+  };
+  Foo::Foo() {}
+
+  void test() {
+    Foo a; // expected-error {{calling a private constructor}}
+  }
+}
+
+namespace test21 {
+  template <class T> class A {
+    void foo();
+    void bar();
+    class Inner; // expected-note {{implicitly declared private here}}
+  public:
+    void baz();
+  };
+  template <class T> class A<T>::Inner {};
+  class B {
+    template <class T> class A<T>::Inner;
+  };
+
+  void test() {
+    A<int>::Inner i; // expected-error {{'Inner' is a private member}}
+  }
+}
+
+namespace rdar8876150 {
+  struct A { operator bool(); };
+  struct B : private A { using A::operator bool; };
+
+  bool f() {
+    B b;
+    return !b;
+  }
+}
+
+namespace test23 {
+  template <typename T> class A {
+    A();
+    static A instance;
+  };
+
+  template <typename T> A<T> A<T>::instance;
+  template class A<int>;
 }

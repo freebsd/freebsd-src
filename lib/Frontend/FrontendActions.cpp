@@ -59,6 +59,17 @@ ASTConsumer *ASTDumpAction::CreateASTConsumer(CompilerInstance &CI,
   return CreateASTDumper();
 }
 
+ASTConsumer *ASTDumpXMLAction::CreateASTConsumer(CompilerInstance &CI,
+                                                 llvm::StringRef InFile) {
+  llvm::raw_ostream *OS;
+  if (CI.getFrontendOpts().OutputFile.empty())
+    OS = &llvm::outs();
+  else
+    OS = CI.createDefaultOutputFile(false, InFile);
+  if (!OS) return 0;
+  return CreateASTDumperXML(*OS);
+}
+
 ASTConsumer *ASTViewAction::CreateASTConsumer(CompilerInstance &CI,
                                               llvm::StringRef InFile) {
   return CreateASTViewer();
@@ -72,19 +83,21 @@ ASTConsumer *DeclContextPrintAction::CreateASTConsumer(CompilerInstance &CI,
 ASTConsumer *GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI,
                                                   llvm::StringRef InFile) {
   std::string Sysroot;
+  std::string OutputFile;
   llvm::raw_ostream *OS = 0;
   bool Chaining;
-  if (ComputeASTConsumerArguments(CI, InFile, Sysroot, OS, Chaining))
+  if (ComputeASTConsumerArguments(CI, InFile, Sysroot, OutputFile, OS, Chaining))
     return 0;
 
   const char *isysroot = CI.getFrontendOpts().RelocatablePCH ?
                              Sysroot.c_str() : 0;  
-  return new PCHGenerator(CI.getPreprocessor(), Chaining, isysroot, OS);
+  return new PCHGenerator(CI.getPreprocessor(), OutputFile, Chaining, isysroot, OS);
 }
 
 bool GeneratePCHAction::ComputeASTConsumerArguments(CompilerInstance &CI,
                                                     llvm::StringRef InFile,
                                                     std::string &Sysroot,
+                                                    std::string &OutputFile,
                                                     llvm::raw_ostream *&OS,
                                                     bool &Chaining) {
   Sysroot = CI.getHeaderSearchOpts().Sysroot;
@@ -93,18 +106,17 @@ bool GeneratePCHAction::ComputeASTConsumerArguments(CompilerInstance &CI,
     return true;
   }
 
-  OS = CI.createDefaultOutputFile(true, InFile);
+  // We use createOutputFile here because this is exposed via libclang, and we
+  // must disable the RemoveFileOnSignal behavior.
+  OS = CI.createOutputFile(CI.getFrontendOpts().OutputFile, /*Binary=*/true,
+                           /*RemoveFileOnSignal=*/false, InFile);
   if (!OS)
     return true;
 
+  OutputFile = CI.getFrontendOpts().OutputFile;
   Chaining = CI.getInvocation().getFrontendOpts().ChainedPCH &&
              !CI.getPreprocessorOpts().ImplicitPCHInclude.empty();
   return false;
-}
-
-ASTConsumer *InheritanceViewAction::CreateASTConsumer(CompilerInstance &CI,
-                                                      llvm::StringRef InFile) {
-  return CreateInheritanceViewer(CI.getFrontendOpts().ViewClassInheritance);
 }
 
 ASTConsumer *SyntaxOnlyAction::CreateASTConsumer(CompilerInstance &CI,
@@ -193,6 +205,7 @@ void PrintPreambleAction::ExecuteAction() {
   case IK_ObjC:
   case IK_ObjCXX:
   case IK_OpenCL:
+  case IK_CUDA:
     break;
       
   case IK_None:
@@ -207,7 +220,9 @@ void PrintPreambleAction::ExecuteAction() {
     return;
   }
   
-  llvm::MemoryBuffer *Buffer = llvm::MemoryBuffer::getFile(getCurrentFile());
+  CompilerInstance &CI = getCompilerInstance();
+  llvm::MemoryBuffer *Buffer
+      = CI.getFileManager().getBufferForFile(getCurrentFile());
   if (Buffer) {
     unsigned Preamble = Lexer::ComputePreamble(Buffer).first;
     llvm::outs().write(Buffer->getBufferStart(), Preamble);

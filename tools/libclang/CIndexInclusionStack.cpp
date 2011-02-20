@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CIndexer.h"
+#include "CXTranslationUnit.h"
 #include "CXSourceLocation.h"
 #include "clang/AST/DeclVisitor.h"
 #include "clang/Frontend/ASTUnit.h"
@@ -24,7 +25,7 @@ extern "C" {
 void clang_getInclusions(CXTranslationUnit TU, CXInclusionVisitor CB,
                          CXClientData clientData) {
   
-  ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
+  ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU->TUData);
   SourceManager &SM = CXXUnit->getSourceManager();
   ASTContext &Ctx = CXXUnit->getASTContext();
 
@@ -55,7 +56,7 @@ void clang_getInclusions(CXTranslationUnit TU, CXInclusionVisitor CB,
     while (L.isValid()) {
       PresumedLoc PLoc = SM.getPresumedLoc(L);
       InclusionStack.push_back(cxloc::translateSourceLocation(Ctx, L));
-      L = PLoc.getIncludeLoc();
+      L = PLoc.isValid()? PLoc.getIncludeLoc() : SourceLocation();
     }
             
     // Callback to the client.

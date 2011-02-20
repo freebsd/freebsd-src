@@ -14,10 +14,12 @@
 
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
-#include "clang/Checker/PathSensitive/AnalysisManager.h"
-#include "clang/Checker/PathSensitive/GRExprEngine.h"
-#include "clang/Checker/PathSensitive/GRTransferFuncs.h"
-#include "clang/Checker/Checkers/LocalCheckers.h"
+#include "clang/StaticAnalyzer/Frontend/CheckerRegistration.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/TransferFuncs.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Index/CallGraph.h"
@@ -26,6 +28,7 @@
 #include "clang/Index/DeclReferenceMap.h"
 #include "clang/Index/SelectorMap.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
@@ -91,7 +94,9 @@ int main(int argc, char **argv) {
     = CompilerInstance::createDiagnostics(DiagOpts, argc, argv);
   for (unsigned i = 0, e = InputFilenames.size(); i != e; ++i) {
     const std::string &InFile = InputFilenames[i];
-    llvm::OwningPtr<ASTUnit> AST(ASTUnit::LoadFromASTFile(InFile, Diags));
+    llvm::OwningPtr<ASTUnit> AST(ASTUnit::LoadFromASTFile(InFile, Diags,
+                                                          FileSystemOptions(),
+                                                          false, 0, 0, true));
     if (!AST)
       return 1;
 
@@ -129,20 +134,45 @@ int main(int argc, char **argv) {
   // Create an analysis engine.
   Preprocessor &PP = TU->getPreprocessor();
 
-  // Hard code options for now.
+  AnalyzerOptions Opts;
+
+  // Hard code options and checkers for now.
+
+  Opts.MaxNodes = 300000;
+  Opts.MaxLoop = 3;
+  Opts.InlineCall = true;
+  Opts.CFGAddImplicitDtors = true;
+  Opts.EagerlyTrimEGraph = true;
+
+  Opts.CheckersControlList.push_back(std::make_pair("core", true));
+  if (PP.getTargetInfo().getTriple().getOS() != llvm::Triple::Win32)
+    Opts.CheckersControlList.push_back(std::make_pair("unix", true));
+  if (PP.getTargetInfo().getTriple().getVendor() == llvm::Triple::Apple)
+    Opts.CheckersControlList.push_back(std::make_pair("macosx", true));
+
+  // Checks to perform for Objective-C/Objective-C++.
+  if (PP.getLangOptions().ObjC1)
+    Opts.CheckersControlList.push_back(std::make_pair("cocoa", true));
+
+  llvm::OwningPtr<ento::CheckerManager> checkerMgr;
+  checkerMgr.reset(ento::registerCheckers(Opts, PP.getDiagnostics()));
+
+  using namespace clang::ento;
   AnalysisManager AMgr(TU->getASTContext(), PP.getDiagnostics(),
                        PP.getLangOptions(), /* PathDiagnostic */ 0,
                        CreateRegionStoreManager,
-                       CreateRangeConstraintManager, &Idxer,
-                       /* MaxNodes */ 300000, /* MaxLoop */ 3,
-                       /* VisualizeEG */ false, /* VisualizeEGUbi */ false,
-                       /* PurgeDead */ true, /* EagerlyAssume */ false,
-                       /* TrimGraph */ false, /* InlineCall */ true, 
-                       /* UseUnoptimizedCFG */ false);
+                       CreateRangeConstraintManager, checkerMgr.get(), &Idxer,
+                       Opts.MaxNodes, Opts.MaxLoop,
+                       Opts.VisualizeEGDot, Opts.VisualizeEGUbi,
+                       Opts.PurgeDead, Opts.EagerlyAssume,
+                       Opts.TrimGraph, Opts.InlineCall,
+                       Opts.UnoptimizedCFG, Opts.CFGAddImplicitDtors,
+                       Opts.CFGAddInitializers,
+                       Opts.EagerlyTrimEGraph);
 
-  GRTransferFuncs* TF = MakeCFRefCountTF(AMgr.getASTContext(), /*GC*/false,
+  TransferFuncs* TF = MakeCFRefCountTF(AMgr.getASTContext(), /*GC*/false,
                                          AMgr.getLangOptions());
-  GRExprEngine Eng(AMgr, TF);
+  ExprEngine Eng(AMgr, TF);
 
   Eng.ExecuteWorkList(AMgr.getStackFrame(FD, TU), AMgr.getMaxNodes());
   

@@ -23,7 +23,7 @@ void test_cxx_functional_value_init() {
 void test_cxx_function_cast_multi() { 
   (void)NoValueInit(0, 0);
   (void)NoValueInit(0, 0, 0); // expected-error{{no matching constructor for initialization}}
-  (void)int(1, 2); // expected-error{{function-style cast to a builtin type can only take one argument}}
+  (void)int(1, 2); // expected-error{{excess elements in scalar initializer}}
 }
 
 
@@ -304,7 +304,7 @@ void memptrs()
   (void)structureimfp(psf);
 
   typedef void (structure::*structurevmfp)();
-  (void)structurevmfp(psi); // expected-error {{functional-style cast from 'int const structure::*' to 'structurevmfp' (aka 'void (structure::*)()') is not allowed}}
+  (void)structurevmfp(psi); // expected-error {{functional-style cast from 'const int structure::*' to 'structurevmfp' (aka 'void (structure::*)()') is not allowed}}
   (void)structureimp(psf); // expected-error {{functional-style cast from 'void (structure::*)()' to 'structureimp' (aka 'int structure::*') is not allowed}}
 }
 
@@ -314,4 +314,7 @@ void crash_on_invalid_1()
 {
   typedef itn Typo; // expected-error {{unknown type name 'itn'}}
   (void)Typo(1); // used to crash
+
+  typedef int &int_ref;
+  (void)int_ref(); // expected-error {{reference to type 'int' requires an initializer}}
 }

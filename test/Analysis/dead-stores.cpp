@@ -1,8 +1,8 @@
-// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-dead-stores -verify -Wno-unreachable-code %s
-// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=basic -analyzer-check-dead-stores -verify -Wno-unreachable-code %s
-// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -analyzer-check-dead-stores -verify -Wno-unreachable-code %s
-// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -analyzer-check-dead-stores -verify -Wno-unreachable-code %s
-// RUN: %clang_cc1 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -analyzer-check-dead-stores -verify -Wno-unreachable-code %s
+// RUN: %clang_cc1 -fexceptions -analyze -analyzer-experimental-internal-checks -analyzer-checker=core.DeadStores -verify -Wno-unreachable-code %s
+// RUN: %clang_cc1 -fexceptions -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=basic -analyzer-checker=core.DeadStores -verify -Wno-unreachable-code %s
+// RUN: %clang_cc1 -fexceptions -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -analyzer-checker=core.DeadStores -verify -Wno-unreachable-code %s
+// RUN: %clang_cc1 -fexceptions -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -analyzer-checker=core.DeadStores -verify -Wno-unreachable-code %s
+// RUN: %clang_cc1 -fexceptions -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -analyzer-checker=core.DeadStores -verify -Wno-unreachable-code %s
 
 //===----------------------------------------------------------------------===//
 // Basic dead store checking (but in C++ mode).
@@ -12,7 +12,7 @@ int j;
 void test1() {
   int x = 4;
 
-  ++x; // expected-warning{{never read}}
+  x = x + 1; // expected-warning{{never read}}
 
   switch (j) {
   case 1:
@@ -69,11 +69,11 @@ void test2_b() {
 //===----------------------------------------------------------------------===//
 
 void test3_a(int x) {
-  ++x; // expected-warning{{never read}}
+   x = x + 1; // expected-warning{{never read}}
 }
 
 void test3_b(int &x) {
-  ++x; // no-warninge
+  x = x + 1; // no-warninge
 }
 
 void test3_c(int x) {
@@ -98,5 +98,17 @@ void test3_e(int &x) {
 
 static void test_new(unsigned n) {
   char **p = new char* [n]; // expected-warning{{never read}}
+}
+
+//===----------------------------------------------------------------------===//
+// Dead stores in namespaces.
+//===----------------------------------------------------------------------===//
+
+namespace foo {
+  int test_4(int x) {
+    x = 2; // expected-warning{{Value stored to 'x' is never read}}
+    x = 2;
+    return x;
+  }
 }
 

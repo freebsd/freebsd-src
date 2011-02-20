@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -std=c++0x %s
+// RUN: %clang_cc1 -fexceptions -fsyntax-only -verify -std=c++0x %s
 
 // Declaration syntax checks
 [[]] int before_attr;
@@ -29,7 +29,6 @@ extern "C++" [[]] { } // expected-error {{an attribute list cannot appear here}}
 [[]] using namespace ns;
 
 // Argument tests
-[[final()]] int final_params; // expected-error {{C++0x attribute 'final' cannot have an argument list}}
 [[align]] int aligned_no_params; // expected-error {{C++0x attribute 'align' must have an argument list}}
 [[align(i)]] int aligned_nonconst; // expected-error {{'aligned' attribute requires integer constant}}
 
