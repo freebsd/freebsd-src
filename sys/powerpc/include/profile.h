@@ -83,13 +83,12 @@ __asm(	"	.text				\n" \
 	"	.section \".opd\",\"aw\"	\n" \
 	"	.align	3			\n" \
 	"_mcount:				\n" \
-	"	.quad ._mcount,.TOC.@tocbase,0	\n" \
+	"	.quad .L._mcount,.TOC.@tocbase,0\n" \
 	"	.previous			\n" \
+	"	.type	_mcount,@function	\n" \
 	"	.align	4			\n" \
-	"	.globl	._mcount		\n" \
-	"	.type	._mcount,@function	\n" \
-	"._mcount:				\n" \
-	"	stdu	%r1,-(288+120)(%r1)	\n" \
+	".L._mcount:				\n" \
+	"	stdu	%r1,-(288+128)(%r1)	\n" \
 	"	std	%r3,48(%r1)		\n" \
 	"	std	%r4,56(%r1)		\n" \
 	"	std	%r5,64(%r1)		\n" \
@@ -103,7 +102,7 @@ __asm(	"	.text				\n" \
 	"	ld	%r3,0(%r1)		\n" \
 	"	ld	%r3,0(%r3)		\n" \
 	"	ld	%r3,16(%r3)		\n" \
-	"	bl	.__mcount		\n" \
+	"	bl	__mcount		\n" \
 	"	nop				\n" \
 	"	ld	%r4,112(%r1)		\n" \
 	"	mtlr	%r4			\n" \
@@ -115,7 +114,7 @@ __asm(	"	.text				\n" \
 	"	ld	%r8,88(%r1)		\n" \
 	"	ld	%r9,96(%r1)		\n" \
 	"	ld	%r10,104(%r1)		\n" \
-	"	addi	%r1,%r1,(288+120)	\n" \
+	"	addi	%r1,%r1,(288+128)	\n" \
 	"	blr				\n");
 #else
 

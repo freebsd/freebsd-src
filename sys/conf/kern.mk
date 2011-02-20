@@ -82,6 +82,13 @@ INLINE_LIMIT?=	15000
 .endif
 
 #
+# Use dot symbols on powerpc64 to make ddb happy
+#
+.if ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-mcall-aixdesc
+.endif
+
+#
 # For MIPS we also tell gcc to use floating point emulation
 #
 .if ${MACHINE_CPUARCH} == "mips"
