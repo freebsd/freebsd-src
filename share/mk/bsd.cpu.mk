@@ -49,6 +49,9 @@ CPUTYPE = pentiumpro
 CPUTYPE = pentium-mmx
 .  elif ${CPUTYPE} == "i586"
 CPUTYPE = pentium
+.  elif ${CPUTYPE} == "opteron-sse3" || ${CPUTYPE} == "athlon64-sse3" || \
+     ${CPUTYPE} == "k8-sse3"
+CPUTYPE = prescott
 .  elif ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || \
      ${CPUTYPE} == "k8"
 CPUTYPE = athlon-mp
@@ -158,7 +161,9 @@ _CPUCFLAGS = -mcpu=ultrasparc3
 # presence of a CPU feature.
 
 . if ${MACHINE_CPUARCH} == "i386"
-.  if ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64"
+.  if ${CPUTYPE} == "opteron-sse3" || ${CPUTYPE} == "athlon64-sse3"
+MACHINE_CPU = athlon-xp athlon k7 3dnow sse3 sse2 sse mmx k6 k5 i586 i486 i386
+.  elif ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64"
 MACHINE_CPU = athlon-xp athlon k7 3dnow sse2 sse mmx k6 k5 i586 i486 i386
 .  elif ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
     ${CPUTYPE} == "athlon-4"
@@ -197,7 +202,9 @@ MACHINE_CPU = i486 i386
 MACHINE_CPU = i386
 .  endif
 . elif ${MACHINE_CPUARCH} == "amd64"
-.  if ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || ${CPUTYPE} == "k8"
+.  if ${CPUTYPE} == "opteron-sse3" || ${CPUTYPE} == "athlon64-sse3" || ${CPUTYPE} == "k8-sse3"
+MACHINE_CPU = k8 3dnow sse3
+.  elif ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || ${CPUTYPE} == "k8"
 MACHINE_CPU = k8 3dnow
 .  elif ${CPUTYPE} == "nocona"
 MACHINE_CPU = sse3
